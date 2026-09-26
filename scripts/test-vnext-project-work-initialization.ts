@@ -12,6 +12,7 @@ import { buildReviewedOutcomeSourceEntry, reviewedOutcomeSourceRef, selectedWork
 import { readReviewedOutcomeReuseV01 } from "../lib/vnext/persistence/reviewed-outcome-source";
 import { readCodexCurrentContinuityV01 } from "../lib/vnext/codex-current-continuity/codex-current-continuity";
 import { readCodexRepositoryWorkSourcesV01 } from "../lib/vnext/codex-repository-continuity/codex-repository-work-sources";
+import { readCodexRepositoryRetainedSourcesV01 } from "../lib/vnext/codex-repository-continuity/codex-repository-retained-sources";
 import { reviseCodexRepositoryWorkV01 } from "../lib/vnext/codex-repository-continuity/codex-repository-work-revision";
 import { assertAuthoredSuccessorInventoryV01, readAuthoredSuccessorDefinitionV01, normalizeAuthoredSuccessorTaskV01 } from "../lib/vnext/authored-successor-task";
 import { validateRunReceiptV01 } from "../lib/vnext/run-receipt";
@@ -89,6 +90,7 @@ import {
   readProjectWorkRevisionEligibilityStrictV01,
   revisePreExecutionProjectWorkV01,
   previewNewProjectWorkV01,
+  inspectRevisableProjectWorkChainV01,
 } from "../lib/vnext/runtime/project-work-revision";
 import {
   buildPreExecutionProjectWorkRevisionPacketV01,
@@ -4951,13 +4953,94 @@ async function assertReviewedOutcomeReuseV01(overBudget = false): Promise<void> 
       request: { ...revisionRequestV01(fixture, b.packet, "authored_successor_task", b.packet.task), selected_source_context: [], expected_source_comparison: removed.fingerprint }, clock: fixedClock("2026-08-01T00:00:24.000Z") });
     credential = credentialFromCookieV01(b1.session_admission.cookie_value);
     assert.equal(readSelectedWorkSources(b1.packet).length, 0);
-    const retained = reuse.entries.map(e => ({ packet_id: b.packet.packet_id, packet_fingerprint: b.packet.integrity.fingerprint, entry_id: e.entry_id, source_fingerprint: e.source_ref! }));
-    const reselected = compareSelectedWorkSources(b1.packet, reuse.entries, retained);
+    const { createVNextOperatorContextUseReviewHandlerV01 } = await import("../app/api/vnext/operator/project-continuity/route");
+    const handler = createVNextOperatorContextUseReviewHandlerV01({ clock: fixedClock("2026-08-01T00:00:24.500Z"), environment: {
+      NODE_ENV: "test", AUGNES_DB_PATH: fixture.config.database_path, AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1",
+      AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: fixture.workspace_id, AUGNES_VNEXT_OPERATOR_PROJECT_ID: fixture.project_id,
+      AUGNES_VNEXT_OPERATOR_ID: fixture.config.operator_id,
+    } });
+    const selectedBinding = { expected_current_packet_id: b1.packet.packet_id, expected_current_packet_fingerprint: b1.packet.integrity.fingerprint,
+      expected_active_project_id: fixture.project_id, expected_active_selection_revision: preparation.binding.expected_active_selection_revision };
+    const route = (body: unknown) => handler(new Request("http://127.0.0.1:3000/api/vnext/operator/project-continuity", {
+      method: "POST", headers: { host: "127.0.0.1:3000", origin: "http://127.0.0.1:3000", "content-type": "application/json",
+        cookie: `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${b1.session_admission.cookie_value}` }, body: JSON.stringify({ ...selectedBinding, ...body as object }),
+    }));
+    const lookupBefore = fixture.db.serialize();
+    const observed: { query: string; recall: ReturnType<typeof recallRetainedWorkSources>; status: number; comparison: ReturnType<typeof compareSelectedWorkSources> }[] = [];
+    for (const query of ["R2_CORRECTION", "A_FORECAST"]) {
+      assert.equal(reuse.entries.filter(e => e.bounded_summary!.includes(query)).length, 1, "The search term occurs in exactly one member");
+      const response = await route({ action: "lookup_retained_work_sources", query });
+      assert.equal(response.status, 200);
+      const { recall } = await response.json() as { recall: ReturnType<typeof recallRetainedWorkSources> };
+      const compared = await route({ action: "compare_selected_work_sources", notes: [], retained_source_refs: recall.results.map(hit => hit.source) });
+      const body = await compared.json();
+      observed.push({ query, recall, status: compared.status, comparison: body.comparison });
+    }
+    console.log(JSON.stringify({ reviewed_outcome_reselection_route: observed.map(o => ({ query: o.query, returned_notes: o.recall.returned_entries, comparison_status: o.status })) }));
+    assert(lookupBefore.equals(fixture.db.serialize()), "Lookup and comparison do not write or select anything");
+    for (const { recall, status, comparison: result } of observed) {
+      assert.equal(recall.returned_entries, 2, "A one-member match must disclose the complete exact historical group");
+      assert.equal(status, 200, "The visible lookup group must be eligible for comparison");
+      assert.deepEqual(result.entries, reuse.entries);
+      assert(recall.results.every(hit => hit.source.packet_id === b.packet.packet_id && hit.selection === "historical_not_selected"));
+    }
+    const reselected = observed[0]!.comparison;
+    const refs = observed[0]!.recall.results.map(hit => hit.source);
+    const capacityNotes = Array.from({ length: 7 }, (_, index) => ({ source: `n${index}`, text: `n${index}`, observed_at: null,
+      provenance: "imported_unverified", label: "New candidate" }));
+    const fits = await route({ action: "compare_selected_work_sources", notes: capacityNotes.slice(0, 6), retained_source_refs: refs });
+    const eightNoteBytes = Buffer.byteLength(canonicalizeProtocolValueV01([...capacityNotes.slice(0, 6).map(note => buildSelectedWorkSourceEntry(fixture, note)), ...reuse.entries]), "utf8");
+    console.log(JSON.stringify({ reviewed_outcome_capacity: { notes: 8, selected_bytes: eightNoteBytes, status: fits.status } }));
+    assert.equal(fits.status, 422, "Two slots are available, but the exact complete material still exceeds the byte budget");
+    assert(eightNoteBytes > 12_000); assert.equal((await fits.json()).error_code, "selected_source_context_budget_exceeded");
+    for (const [notes, retained_source_refs, errorCode] of [
+      [capacityNotes, refs, "task_context_mandatory_selection_budget_exceeded"],
+      [[{ ...capacityNotes[0], text: "한".repeat(2_000) }, { ...capacityNotes[1], text: "한".repeat(2_000) }], refs, "selected_source_context_budget_exceeded"],
+      [[], refs.slice(0, 1), "selected_source_context_invalid"],
+      [[], [{ ...refs[0], source_fingerprint: `sha256:${"0".repeat(64)}` }, refs[1]], "retained_source_changed_or_unavailable"],
+      [[], [{ ...refs[0], packet_id: initial.packet.packet_id }, refs[1]], "retained_source_changed_or_unavailable"],
+      [[], [{ ...refs[0], entry_id: "malformed" }, refs[1]], "selected_source_context_invalid"],
+    ] as const) {
+      const response = await route({ action: "compare_selected_work_sources", notes, retained_source_refs });
+      assert.equal(response.status, 422); assert.equal((await response.json()).error_code, errorCode);
+    }
+    assert.equal((await route({ action: "lookup_retained_work_sources", query: "R2_CORRECTION", expected_current_packet_id: b.packet.packet_id })).status, 409);
+    assert.equal((await route({ action: "lookup_retained_work_sources", query: "R2_CORRECTION", expected_active_project_id: "project:foreign" })).status, 409);
+    const emptyLookup = await route({ action: "lookup_retained_work_sources", query: "R3_LATER_UNSELECTED" });
+    assert.equal((await emptyLookup.json()).recall.returned_entries, 0, "Lookup searches retained selections, not latest report history");
+    const duplicates = await route({ action: "compare_selected_work_sources", notes: [], retained_source_refs: [...refs, ...refs] });
+    assert.equal(duplicates.status, 200); assert.deepEqual((await duplicates.json()).comparison.entries, reuse.entries);
+    assert(lookupBefore.equals(fixture.db.serialize()), "Capacity, malformed, stale and foreign refusals leave every table unchanged");
+    const freshLookup = new Database(fixture.config.database_path, { readonly: true });
+    try {
+      const dependencies = { now: () => "2026-08-01T00:00:24.500Z", read_operator_config: () => fixture.config, managed_start_available: () => false };
+      const resume = await readCodexCurrentContinuityV01(freshLookup, { viewed_project_id: fixture.project_id }, dependencies);
+      const read = await readCodexRepositoryRetainedSourcesV01(freshLookup, { repository_root: fixture.root, expected_snapshot_binding: resume.snapshot.binding!, query: "R2_CORRECTION" }, dependencies);
+      assert.equal(read.status, "available"); assert.equal(read.lookup?.returned_entries, 2);
+      assert(read.lookup!.results.some(hit => hit.note.excerpt_text.includes("A_FORECAST")));
+      assert(!JSON.stringify(read.lookup).includes("R3_LATER_UNSELECTED"));
+      assert.equal(read.lookup!.result_utf8_bytes, Buffer.byteLength(canonicalizeProtocolValueV01(read.lookup!.results), "utf8"));
+    } finally { freshLookup.close(); }
+    assertReviewedOutcomeRecallBoundsV01(fixture, b1.packet, credential);
+    const beforeReselection = tableRows(fixture.db);
     const b2 = revisePreExecutionProjectWorkV01(fixture.db, { config: fixture.config, credential,
       request: { ...revisionRequestV01(fixture, b1.packet, "authored_successor_task", b1.packet.task), selected_source_context: reselected.entries,
         expected_source_comparison: reselected.fingerprint, retained_source_refs: reselected.retained_source_refs }, clock: fixedClock("2026-08-01T00:00:25.000Z") });
     credential = credentialFromCookieV01(b2.session_admission.cookie_value);
     assert.deepEqual(readSelectedWorkSources(b2.packet), reuse.entries, "Eligible revision explicitly reselects the exact historical snapshot");
+    const afterReselection = tableRows(fixture.db);
+    for (const name of Object.keys(beforeReselection)) if (!["vnext_core_records", "vnext_local_operator_sessions"].includes(name)) assert.deepEqual(afterReselection[name], beforeReselection[name]);
+    assert.equal(afterReselection.vnext_core_records.length, beforeReselection.vnext_core_records.length + 1);
+    for (const row of beforeReselection.vnext_core_records as { record_id: string }[]) assert.deepEqual((afterReselection.vnext_core_records as { record_id: string }[]).find(saved => saved.record_id === row.record_id), row);
+    const reopened = new Database(fixture.config.database_path, { readonly: true });
+    try {
+      const dependencies = { now: () => "2026-08-01T00:00:25.500Z", read_operator_config: () => fixture.config, managed_start_available: () => false };
+      const resume = await readCodexCurrentContinuityV01(reopened, { viewed_project_id: fixture.project_id }, dependencies);
+      const read = await readCodexRepositoryWorkSourcesV01(reopened, { repository_root: fixture.root, expected_snapshot_binding: resume.snapshot.binding!, include_work_definition: true }, dependencies);
+      assert.equal(read.status, "available"); assert.equal(read.sources.length, 2);
+      assert(read.sources.some(s => s.excerpt_text.includes("R2_CORRECTION")) && read.sources.some(s => s.excerpt_text.includes("A_FORECAST")));
+      assert(!JSON.stringify(read.sources).includes("R3_LATER_UNSELECTED"));
+    } finally { reopened.close(); }
     const ownForecast = recordWorkExpectationMaterial(fixture.db, { config: fixture.config, credential, request: {
       action: "record_work_expectation", expected_active_project_id: fixture.project_id, expected_active_selection_revision: preparation.binding.expected_active_selection_revision,
       expected_packet_id: b2.packet.packet_id, expected_packet_fingerprint: b2.packet.integrity.fingerprint, expected_previous_id: null,
@@ -4999,6 +5082,48 @@ async function assertReviewedOutcomeReuseV01(overBudget = false): Promise<void> 
     console.log(JSON.stringify({ reviewed_outcome_reuse: "pass", producer: "genuine_deterministic_A_and_authenticated_R1_R2", explicit_selection: true,
       fresh_native_sources: 2, actual_consumer: "exact_B2", no_retyping: "two_literal_notes_from_one_selection", stale_race: "refused", historical_R2_after_R3: "preserved", model_calls: 0 }));
   } finally { fixture.db.close(); }
+}
+
+function assertReviewedOutcomeRecallBoundsV01(fixture: FixtureV01, original: TaskContextPacketV01, credential: VNextLocalOperatorSessionCredentialV01) {
+  // Normal revision writers in a disposable fork retain a genuine A/R2/B
+  // family. No execution, report or source identity is constructed here.
+  for (const kind of ["count", "bytes"] as const) {
+    const db = new Database(fixture.db.serialize());
+    let packet = original;
+    let currentCredential = credential;
+    try {
+      const sets = kind === "count" ? [7] : [2, 2];
+      for (const [index, count] of sets.entries()) {
+        const entries = Array.from({ length: count }, (_, position) => buildSelectedWorkSourceEntry(fixture, {
+          source: `Retained bound ${index}:${position}`, text: `R2_CORRECTION ${kind === "bytes" ? "한".repeat(1_100) : "bounded ordinary note"}`,
+          observed_at: T0, provenance: "imported_unverified", label: "New candidate",
+        }));
+        const comparison = compareSelectedWorkSources(packet, entries);
+        const saved = revisePreExecutionProjectWorkV01(db, { config: fixture.config, credential: currentCredential,
+          request: { ...revisionRequestV01(fixture, packet, "authored_successor_task", packet.task), selected_source_context: comparison.entries,
+            expected_source_comparison: comparison.fingerprint }, clock: fixedClock(`2026-08-01T00:00:${25 + index}.000Z`) });
+        packet = saved.packet; currentCredential = credentialFromCookieV01(saved.session_admission.cookie_value);
+      }
+      const bytes = db.serialize();
+      const chain = inspectRevisableProjectWorkChainV01(db, fixture);
+      const recall = recallRetainedWorkSources(chain, "R2_CORRECTION");
+      console.log(JSON.stringify({ reviewed_outcome_recall_bound: kind, matching: recall.matching_entries, returned: recall.returned_entries, bytes: recall.result_utf8_bytes, omitted: recall.omitted_matching_entries }));
+      assert.equal(recall.matching_entries, (kind === "count" ? 7 : 4) + 2, "Matching counts include both historical notes");
+      assert.equal(recall.result_utf8_bytes, Buffer.byteLength(canonicalizeProtocolValueV01(recall.results), "utf8"));
+      assert(recall.result_utf8_bytes <= recall.limits.result_utf8_bytes && recall.returned_entries <= recall.limits.results);
+      assert(recall.truncated); assert.equal(recall.results.filter(hit => reviewedOutcomeSourceRef(hit.entry)).length, 0, `${kind} bound omits the whole pair, never a lone member`);
+      assert.equal(recall.omitted_matching_entries, kind === "count" ? 2 : 3);
+      assert.equal(recall.results.length, kind === "count" ? 7 : 3);
+      if (kind === "bytes") {
+        const pair = recallRetainedWorkSources(chain, "A_FORECAST").results;
+        const remaining = recall.limits.result_utf8_bytes - recall.result_utf8_bytes;
+        assert(pair.some(hit => Buffer.byteLength(canonicalizeProtocolValueV01(hit), "utf8") + 1 <= remaining), "One member could fit but must not leak through without its companion");
+      }
+      const single = recallRetainedWorkSources(chain, `Retained bound 0:0`);
+      assert.equal(single.returned_entries, 1, "Ordinary single-note matching is unchanged");
+      assert(bytes.equals(db.serialize()), "Bounded lookup writes nothing");
+    } finally { db.close(); }
+  }
 }
 
 async function assertSuccessorExpectationV01(finalRevisionOnly = false): Promise<void> {

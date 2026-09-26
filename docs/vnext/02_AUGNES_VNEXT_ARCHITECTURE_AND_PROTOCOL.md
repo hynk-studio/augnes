@@ -826,6 +826,12 @@ After save, reconstruction validates the exact historical records without a
 latest-version check or a new local chronology claim. Later corrections neither
 rewrite nor invalidate the selected snapshot. Eligible same-task revision can
 remove it or explicitly reselect it from its original preparation snapshot.
+Retained-source lookup matches either member and discloses the complete exact
+historical group. Both notes are shown before explicit group selection; their
+actual count and serialized bytes consume the existing limits. Result bounds
+omit whole groups rather than splitting them. Selection checks the complete
+combined context budget before adding the pair; comparison and save still
+validate both exact retained references. A later report is not substituted.
 
 Generated notes carry a distinct compatibility reference. Changing their text
 cannot retain saved-report provenance; the editor offers an explicitly newly

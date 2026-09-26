@@ -2,7 +2,7 @@ import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
 import type { PreExecutionProjectWorkChainInspectionV01 } from "@/lib/vnext/runtime/pre-execution-project-work-revision";
 import { PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01, MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01, type RetainedWorkSourceRef } from "@/types/vnext/project-work-revision";
 import type { TaskContextPacketSelectedEntryV01 } from "@/types/vnext/task-context-packet";
-import { normalizeRetainedWorkSourceRefs, readSelectedWorkSources, SelectedWorkSourceError, SELECTED_WORK_SOURCE_LIMITS } from "./selected-work-source-comparison";
+import { normalizeRetainedWorkSourceRefs, readSelectedWorkSources, reviewedOutcomeSourceRef, SelectedWorkSourceError, SELECTED_WORK_SOURCE_LIMITS } from "./selected-work-source-comparison";
 
 export const RETAINED_WORK_SOURCE_LIMITS = {
   query_characters: 160, query_terms: 8, results: 8, result_utf8_bytes: 20_000,
@@ -52,23 +52,35 @@ export function recallRetainedWorkSources(chain: Chain, query: unknown,
       }
     }
   }
-  const matches = [...unique.values()].filter(({ entry }) => {
+  const ordered = [...unique.values()].sort((a, b) => {
+    const left = a.entry.external_ref?.observed_at ?? "~";
+    const right = b.entry.external_ref?.observed_at ?? "~";
+    return left < right ? -1 : left > right ? 1 : a.entry.entry_id < b.entry.entry_id ? -1 : a.entry.entry_id > b.entry.entry_id ? 1 : 0;
+  });
+  // Each packet was normalized as a complete snapshot above. A literal match
+  // in either reviewed-outcome member discloses both exact retained members;
+  // comparison/save still require the caller to explicitly submit both refs.
+  const groups = new Map<string, RetainedWorkSourceHit[]>();
+  for (const hit of ordered) {
+    const binding = reviewedOutcomeSourceRef(hit.entry);
+    const key = binding ? canonicalizeProtocolValueV01(binding) : hit.entry.entry_id;
+    const group = groups.get(key) ?? [];
+    group.push(hit); groups.set(key, group);
+  }
+  const matches = [...groups.values()].filter(group => group.some(({ entry }) => {
     const locator = entry.compatibility_source_ref!.external_id;
     // Browser retains its existing privileged matching. A local-client
     // projection must not turn a withheld locator into a search oracle.
     const text = `${disclosure.include_source_locator?.(locator) === false ? "" : locator}\n${entry.bounded_summary}`.toLowerCase();
     return terms.every((term) => text.includes(term));
-  }).sort((a, b) => {
-    const left = a.entry.external_ref?.observed_at ?? "~";
-    const right = b.entry.external_ref?.observed_at ?? "~";
-    return left < right ? -1 : left > right ? 1 : a.entry.entry_id < b.entry.entry_id ? -1 : a.entry.entry_id > b.entry.entry_id ? 1 : 0;
-  });
+  }));
+  const matchingEntries = matches.reduce((count, group) => count + group.length, 0);
   const results: RetainedWorkSourceHit[] = [];
   let resultBytes = 2; // canonical JSON array, including separators
-  for (const hit of matches) {
-    const additional = utf8(hit) + (results.length ? 1 : 0);
-    if (results.length === RETAINED_WORK_SOURCE_LIMITS.results || resultBytes + additional > RETAINED_WORK_SOURCE_LIMITS.result_utf8_bytes) continue;
-    results.push(hit);
+  for (const group of matches) {
+    const additional = utf8(group) - 2 + (results.length ? 1 : 0);
+    if (results.length + group.length > RETAINED_WORK_SOURCE_LIMITS.results || resultBytes + additional > RETAINED_WORK_SOURCE_LIMITS.result_utf8_bytes) continue;
+    results.push(...group);
     resultBytes += additional;
   }
   return {
@@ -82,11 +94,11 @@ export function recallRetainedWorkSources(chain: Chain, query: unknown,
     scanned_entry_occurrences: scannedEntries,
     scanned_entry_utf8_bytes: scannedEntryBytes,
     unique_entries: unique.size,
-    matching_entries: matches.length,
+    matching_entries: matchingEntries,
     returned_entries: results.length,
     result_utf8_bytes: resultBytes,
-    omitted_matching_entries: matches.length - results.length,
-    truncated: results.length < matches.length,
+    omitted_matching_entries: matchingEntries - results.length,
+    truncated: results.length < matchingEntries,
     results,
     writes: 0 as const,
     qualifications: [
@@ -94,7 +106,8 @@ export function recallRetainedWorkSources(chain: Chain, query: unknown,
       "Historical/non-selected does not say why selection changed. Explicit revision exclusion remains effective until deliberate reselection. No cooling, refutation or deletion is inferred.",
       "Repeated packet copies are one exact excerpt, not independent evidence. Similar wording and source locators do not establish equivalence or supersession.",
       "Original external source availability, deletion and currentness are unverified. Retrieval does not refresh source time or accept a claim.",
-      "Whole result rows may be omitted at the result bounds; conditions and corrections are never clipped. Bytes describe serialized material, not disk I/O or tokens. Full lineage validation has additional read costs.",
+      "A reviewed-outcome match includes both its historical forecast context and exact report, even if only one note matches. Counts and bytes include both notes. Selection of the complete visible group remains explicit.",
+      "Whole notes or complete reviewed-outcome groups may be omitted at the result bounds; groups are never split and conditions and corrections are never clipped. Bytes describe serialized material, not disk I/O or tokens. Full lineage validation has additional read costs.",
     ],
   };
 }

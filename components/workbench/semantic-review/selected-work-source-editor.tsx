@@ -9,6 +9,7 @@ import styles from "./semantic-review.module.css";
 import { RetainedWorkSourceLookup } from "./retained-work-source-lookup";
 import type { ResultWorkBindingV01 } from "@/lib/vnext/runtime/authored-successor-task";
 import type { TaskContextPacketSelectedEntryV01 } from "@/types/vnext/task-context-packet";
+import type { RetainedWorkSourceHit } from "@/lib/intake/retained-work-source-recall";
 
 type Comparison = ReturnType<typeof compareSelectedWorkSources>;
 const emptyNote = (): SelectedWorkSourceInput => ({ source: "", text: "", observed_at: null, provenance: "imported_unverified", label: "Unclassified / needs review" });
@@ -48,33 +49,60 @@ export function SelectedWorkSourceEditor({ initialization, busy, onChange, newTa
     onChange(null, true);
   }
 
-  async function compare() {
+  async function requestComparison(selection: EditorNote[]): Promise<Comparison> {
     const packet = initialization.current_packet;
-    if (!packet) return;
-    const submittedRevision = revision.current;
-    setComparing(true);
-    setError(null);
-    try {
-      const response = await fetch("/api/vnext/operator/project-continuity", {
-        method: "POST", cache: "no-store", credentials: "same-origin",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(resultBinding ? { action: "compare_result_work_sources", binding: resultBinding, notes: notes.map(note =>
-          note.reviewedOutcome ? { reviewed_outcome_ref: note.reviewedOutcome } : note.savedSourceId ? { saved_source_id: note.savedSourceId } : note) } : { action: "compare_selected_work_sources",
-          expected_current_packet_id: packet.packet_id,
-          expected_current_packet_fingerprint: packet.packet_fingerprint,
-          expected_active_project_id: initialization.active_project_id,
-          expected_active_selection_revision: initialization.active_selection_revision,
-          notes: notes.filter((note) => !note.retainedSource),
-          retained_source_refs: notes.flatMap((note) => note.retainedSource ? [note.retainedSource] : []) }),
-      });
-      const body = await response.json() as { status?: string; comparison?: Comparison };
-      if (submittedRevision !== revision.current) return;
-      if (!response.ok || body.status !== "selected_source_comparison" || !body.comparison) {
-        throw new Error("Comparison could not be completed. Check the note size and reload if current work has changed.");
+    if (!packet) throw new Error("Current work is unavailable. Reload before comparing notes.");
+    const response = await fetch("/api/vnext/operator/project-continuity", {
+      method: "POST", cache: "no-store", credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(resultBinding ? { action: "compare_result_work_sources", binding: resultBinding, notes: selection.map(note =>
+        note.reviewedOutcome ? { reviewed_outcome_ref: note.reviewedOutcome } : note.savedSourceId ? { saved_source_id: note.savedSourceId } : note) } : { action: "compare_selected_work_sources",
+        expected_current_packet_id: packet.packet_id,
+        expected_current_packet_fingerprint: packet.packet_fingerprint,
+        expected_active_project_id: initialization.active_project_id,
+        expected_active_selection_revision: initialization.active_selection_revision,
+        notes: selection.filter((note) => !note.retainedSource),
+        retained_source_refs: selection.flatMap((note) => note.retainedSource ? [note.retainedSource] : []) }),
+    });
+    const body = await response.json() as { status?: string; comparison?: Comparison; error_code?: string };
+    if (!response.ok || body.status !== "selected_source_comparison" || !body.comparison) {
+      if (body.error_code === "selected_source_context_budget_exceeded" || body.error_code === "task_context_mandatory_selection_budget_exceeded") {
+        throw new Error("The complete selection exceeds the eight-note or 12,000-byte context budget. Exclude notes before continuing. Nothing was saved or clipped.");
       }
-      setComparison(body.comparison);
-      onChange({ selected_source_context: body.comparison.entries, expected_source_comparison: body.comparison.fingerprint,
-        ...(body.comparison.retained_source_refs.length ? { retained_source_refs: body.comparison.retained_source_refs } : {}) }, false);
+      throw new Error("Comparison could not be completed. Check the note size and reload if current work has changed.");
+    }
+    return body.comparison;
+  }
+
+  async function selectRetained(hits: RetainedWorkSourceHit[]) {
+    const next = [...notes, ...hits.map(hit => ({
+      source: hit.entry.compatibility_source_ref!.external_id, text: hit.entry.bounded_summary!,
+      observed_at: hit.entry.external_ref?.observed_at ?? null, provenance: hit.entry.trust_class as SelectedWorkSourceInput["provenance"],
+      label: hit.entry.why_included as SelectedWorkSourceInput["label"], retainedSource: hit.source,
+      ...(isSnapshot(hit.entry) ? { snapshotGroup: hit.entry.compatibility_source_ref!.external_id } : {}),
+    }))];
+    if (!hits.some(hit => isSnapshot(hit.entry))) { changeNotes(next); return; }
+    // Reuse the read-only comparator for exact serialized selection capacity.
+    // Do not add a visible partial/oversized group and only refuse at Save.
+    const submittedRevision = revision.current;
+    setComparing(true); setError(null);
+    try {
+      await requestComparison(next);
+      if (submittedRevision === revision.current) changeNotes(next);
+    } catch (failure) {
+      if (submittedRevision === revision.current) setError(`Historical notes were not added. ${failure instanceof Error ? failure.message : "Selection unavailable."}`);
+    } finally { setComparing(false); }
+  }
+
+  async function compare() {
+    const submittedRevision = revision.current;
+    setComparing(true); setError(null);
+    try {
+      const result = await requestComparison(notes);
+      if (submittedRevision !== revision.current) return;
+      setComparison(result);
+      onChange({ selected_source_context: result.entries, expected_source_comparison: result.fingerprint,
+        ...(result.retained_source_refs.length ? { retained_source_refs: result.retained_source_refs } : {}) }, false);
     } catch (failure) {
       if (submittedRevision === revision.current) setError(failure instanceof Error ? failure.message : "Comparison unavailable.");
     } finally { setComparing(false); }
@@ -95,16 +123,11 @@ export function SelectedWorkSourceEditor({ initialization, busy, onChange, newTa
             observed_at: entry.external_ref?.observed_at ?? null, provenance: entry.trust_class as SelectedWorkSourceInput["provenance"], label: entry.why_included as SelectedWorkSourceInput["label"],
             ...(isSnapshot(entry) ? { savedSourceId: entry.entry_id, snapshotGroup: entry.compatibility_source_ref!.external_id } : {}) }])}>Carry this note{isSnapshot(entry) ? " and its snapshot context" : ""}</button>
       </div>)}
-    </> : <RetainedWorkSourceLookup initialization={initialization} disabled={busy || comparing} selectionFull={selectedCount >= 8}
-      isSelected={(hit) => notes.some((note) => note.source === hit.entry.compatibility_source_ref!.external_id &&
+    </> : <RetainedWorkSourceLookup initialization={initialization} disabled={busy || comparing} remainingSlots={8 - selectedCount}
+      isSelected={(hit) => notes.some((note) => isSnapshot(hit.entry) ? note.retainedSource?.entry_id === hit.source.entry_id && note.retainedSource?.source_fingerprint === hit.source.source_fingerprint : note.source === hit.entry.compatibility_source_ref!.external_id &&
         note.text === hit.entry.bounded_summary && note.observed_at === (hit.entry.external_ref?.observed_at ?? null) &&
         note.provenance === hit.entry.trust_class && note.label === hit.entry.why_included)}
-      onSelect={(hit) => changeNotes([...notes, {
-        source: hit.entry.compatibility_source_ref!.external_id, text: hit.entry.bounded_summary!,
-        observed_at: hit.entry.external_ref?.observed_at ?? null, provenance: hit.entry.trust_class as SelectedWorkSourceInput["provenance"],
-        label: hit.entry.why_included as SelectedWorkSourceInput["label"], retainedSource: hit.source,
-        ...(isSnapshot(hit.entry) ? { snapshotGroup: hit.entry.compatibility_source_ref!.external_id } : {}),
-      }])} />}
+      onSelect={(hits) => void selectRetained(hits)} />}
     {reviewedOutcome ? <div data-reviewed-outcome-source>
       <h4>Saved outcome review</h4>
       {reviewedOutcome.status === "available" ? <>

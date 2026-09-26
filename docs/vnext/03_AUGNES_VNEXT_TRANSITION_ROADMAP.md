@@ -312,6 +312,11 @@ selection, save B, reopen it and deliver its historical snapshot to B's consumer
 Stale selected report versions refuse during save. Later corrections preserve
 the saved snapshot; eligible explicit revision owns subsequent removal or
 reselection. B's own forecast remains a separate operator-only record.
+After exclusion, a search matching only the report or forecast now offers both
+historical notes visibly for one explicit group selection. Lookup bounds keep
+groups whole, and selection checks both note slots and serialized bytes before
+adding the pair. This closes the earlier single-hit comparison refusal without
+relaxing snapshot coherence or replacing the saved report with a later one.
 
 This is **Current while its Draft PR is open**, and **Completed within this
 bounded selection/delivery scope after merge**. Disposable deterministic and

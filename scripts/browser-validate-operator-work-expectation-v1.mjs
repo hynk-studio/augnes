@@ -12,14 +12,20 @@ import {
 } from "./operator-work-expectation-browser-actions-v1.mjs";
 
 const Database = createRequire(import.meta.url)("better-sqlite3");
+let expectedCapacityRefusal = null;
+let capacityConsoleDeliveries = 0;
 
 await runOperatorExecutionBrowserChildV1({
   child_id: "operator-work-expectation",
   prepare: async ({ fixture }) => ({ project_id: fixture.manifest.expectation_project_id }),
   console_allowlist: entry => entry.phase === "work_expectation_recording" && (
     (entry.request_path === "/api/vnext/operator/session" && entry.response_status === 401 && entry.text === "Failed to load resource: the server responded with a status of 401 (Unauthorized)") ||
-    (entry.request_path === "/favicon.ico" && entry.response_status === 404 && entry.text === "Failed to load resource: the server responded with a status of 404 (Not Found)")
+    (entry.request_path === "/favicon.ico" && entry.response_status === 404 && entry.text === "Failed to load resource: the server responded with a status of 404 (Not Found)") ||
+    (expectedCapacityRefusal !== null && entry.network_request_id === expectedCapacityRefusal && entry.request_path === "/api/vnext/operator/project-continuity" &&
+      entry.response_status === 422 &&
+      entry.text === "Failed to load resource: the server responded with a status of 422 (Unprocessable Entity)" && ++capacityConsoleDeliveries === 1)
   ),
+  console_allowlist_finalize: () => { assert.notEqual(expectedCapacityRefusal, null); assert.equal(capacityConsoleDeliveries, 1); },
   request_failure_allowlist: entry => entry.phase === "work_expectation_recording" && entry.error_text === "net::ERR_ABORTED" && entry.method === "GET" && entry.path === "/api/augnes/read/guide-brief" && entry.request_type === "Fetch" && entry.response_status === null,
   execute: async ({ fixture, lifecycle, result, detailed_field_owner: completeDetailedField }) => {
     const appOrigin = lifecycle.app_origin;
@@ -59,7 +65,7 @@ await runOperatorExecutionBrowserChildV1({
       await reportBrowserExpectation(lifecycle, "unsatisfied", "This exact result did not establish the criterion.");
       await lifecycle.waitForCondition(`document.querySelector('[data-expectation-comparison="match"]') !== null`, "expected criterion failure matches without task success");
       assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-task-success-status="satisfied"]') === null`), true);
-      await reportBrowserExpectation(lifecycle, "satisfied", "Correction: the operator now attests that the criterion was met.");
+      await reportBrowserExpectation(lifecycle, "satisfied", "R2_REPORT_ONLY_RESELECT: Correction: the operator now attests that the criterion was met.");
       await lifecycle.waitForCondition(`document.querySelector('[data-expectation-comparison="mismatch"]') !== null`, "report correction preserves expectation and changes comparison");
       const comparison = (await readProtectedJson(lifecycle, '/api/vnext/operator/run-results?' + new URLSearchParams({ receipt_ref: completedReceipt.receipt_id }))).result.expectation;
       assert.deepEqual(comparison.expectation, prospective[0], "Outcome reports preserve the original prospective record");
@@ -144,26 +150,41 @@ async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
   await clickSelector(lifecycle, '[data-work-revision-action="open"]');
   await lifecycle.waitForCondition(`document.querySelector('#work-revision-goal') !== null`, 'reopen saved B');
   assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-selected-work-sources]').textContent.includes('Historical operator-attested outcome report v2')`), true, 'Reopened work preserves selected R2 identity');
+  await lifecycle.evaluateBoolean(`(() => { document.querySelector('[data-selected-work-sources]').open = true; return true; })()`);
+  await clickSelector(lifecycle, '[data-selected-source-action="exclude"]');
+  await clickSelector(lifecycle, '[data-selected-source-action="compare"]');
+  await lifecycle.waitForCondition(`document.querySelector('[data-selected-work-sources] [role="status"]')?.textContent.includes('0 selected')`, 'B1 explicitly excludes the complete historical group');
   await lifecycle.setFormControlValue('#work-revision-goal', 'Inspect the cold observation with its uncertainty');
   await clickSelector(lifecycle, '[data-augnes-primary-action="save-work-revision"]');
-  await lifecycle.waitForCondition(`document.querySelector('#work-revision-goal') === null`, 'definition-only B1 saved');
+  await lifecycle.waitForCondition(`document.querySelector('#work-revision-goal') === null`, 'B1 saved without historical notes');
   assert.equal((await readProtectedJson(lifecycle, '/api/vnext/operator/work-expectations')).history.length, 0, 'B prediction did not transfer to B1');
   await saveBrowserExpectation(lifecycle, 'satisfied', 'P33_B1_FORECAST_ONLY');
   const b1Forecast = (await readProtectedJson(lifecycle, '/api/vnext/operator/work-expectations')).history[0];
+  await lifecycle.navigate(resultUrl);
+  await lifecycle.waitForCondition(`document.querySelector('[data-expectation-comparison="mismatch"]') !== null`, 'A review reopened after B1');
+  await reportBrowserExpectation(lifecycle, 'unknown', 'R3_LATER_UNSELECTED: a later report does not replace the historical selection.');
+  await lifecycle.navigate(`${appOrigin}/workbench/semantic-review?reviewed-reselection=reopen`);
+  await lifecycle.waitForCondition(`document.querySelector('[data-work-revision-action="open"]') !== null`, 'fresh B1 after later A correction');
   await clickSelector(lifecycle, '[data-work-revision-action="open"]');
   await lifecycle.waitForCondition(`document.querySelector('#work-revision-goal') !== null`, 'reopen saved B1');
   await lifecycle.evaluateBoolean(`(() => { document.querySelector('[data-selected-work-sources]').open = true; return true; })()`);
+  await exerciseReviewedOutcomeReselection(lifecycle);
   await lifecycle.setFormControlValue('#selected-note-source', 'Explicit correction');
   await lifecycle.setFormControlValue('#selected-note-provenance', 'user_declaration');
   await lifecycle.setFormControlValue('#selected-note-kind', 'Changed assumption / user correction');
   await lifecycle.setFormControlValue('#selected-note-text', 'Cold observations do not establish warm behavior. Warm remains unknown.');
   await clickSelector(lifecycle, '[data-selected-source-action="add"]');
   await clickSelector(lifecycle, '[data-selected-source-action="compare"]');
-  await lifecycle.waitForCondition(`document.querySelector('[data-selected-work-sources] [role="status"]')?.textContent.includes('3 selected')`, 'note-only B2 comparison retains the historical snapshot');
+  await lifecycle.waitForCondition(`Array.from(document.querySelectorAll('[data-selected-work-sources] [role="status"]')).some(node => node.textContent.includes('3 selected;'))`, 'note-only B2 comparison retains the historical snapshot');
   await clickSelector(lifecycle, '[data-augnes-primary-action="save-work-revision"]');
   await lifecycle.waitForCondition(`document.querySelector('#work-revision-goal') === null`, 'note-only B2 saved');
   assert.equal((await readProtectedJson(lifecycle, '/api/vnext/operator/work-expectations')).history.length, 0, 'B1 prediction did not transfer to B2');
   await lifecycle.navigate(`${appOrigin}/workbench/semantic-review?successor-expectation=final`);
+  await lifecycle.waitForCondition(`document.querySelector('[data-work-revision-action="open"]') !== null`, 'fresh saved B2');
+  await clickSelector(lifecycle, '[data-work-revision-action="open"]');
+  await lifecycle.waitForCondition(`document.querySelector('#work-revision-goal') !== null`, 'reopened B2');
+  assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-selected-work-sources]').textContent.includes('R2_REPORT_ONLY_RESELECT') && document.querySelector('[data-selected-work-sources]').textContent.includes('P32_FORECAST_ONLY_RESULT') && !document.querySelector('[data-selected-work-sources]').textContent.includes('R3_LATER_UNSELECTED')`), true, 'Fresh saved-work UI reconstructs R2 and its forecast, not R3');
+  await clickSelector(lifecycle, '[data-work-revision-action="cancel"]');
   await saveBrowserExpectation(lifecycle, 'unsatisfied', 'P33_B2_FORECAST_ONLY');
   const finalForecast = (await readProtectedJson(lifecycle, '/api/vnext/operator/work-expectations')).history[0];
   assert.notEqual(finalForecast.packet_ref.external_id, bForecast.packet_ref.external_id);
@@ -202,7 +223,58 @@ async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
   }
   await lifecycle.cdp().send('Emulation.clearDeviceMetricsOverride');
   console.log(JSON.stringify({ saved_successor_expectation_ui: 'pass', revisions: ['definition', 'note'], silent_transfer: false, actual_attempt_bound: true, restart_comparison: 'unknown',
-    reviewed_outcome_reuse: 'saved_R2_and_original_conditions', review_text_retyped: false, selected_snapshot_notes: 2, explicit_selection_actions: 1, comparison_and_preview_retained: true }));
+    reviewed_outcome_reuse: 'saved_R2_and_original_conditions', review_text_retyped: false, selected_snapshot_notes: 2, initial_review_selection_actions: 1,
+    reselection: 'one_member_search_to_visible_complete_pair', reopened_R2_after_R3: true, capacity_refusal: 'one_slot_or_serialized_bytes', comparison_and_preview_retained: true }));
+}
+
+async function exerciseReviewedOutcomeReselection(lifecycle) {
+  await lifecycle.evaluateBoolean(`(() => { document.querySelector('[data-retained-work-sources]').open = true; return true; })()`);
+  const observations = [];
+  for (const query of ['R2_REPORT_ONLY_RESELECT', 'P32_FORECAST_ONLY_RESULT']) {
+    await lifecycle.setFormControlValue('#retained-source-query', query);
+    await clickSelector(lifecycle, '[data-retained-source-action="search"]');
+    await lifecycle.waitForCondition(`document.querySelector('[data-retained-source-results]') !== null`, `${query} lookup`);
+    const returned = await lifecycle.evaluateJson(`Array.from(document.querySelectorAll('[data-retained-source-hit]')).map(node => node.textContent)`);
+    await clickSelector(lifecycle, '[data-retained-source-action="select"]');
+    await lifecycle.waitForCondition(`document.querySelector('[data-selected-source-action="exclude"]') !== null`, 'lookup selection added');
+    await clickSelector(lifecycle, '[data-selected-source-action="compare"]');
+    await lifecycle.waitForCondition(`Array.from(document.querySelectorAll('[data-selected-work-sources] [role="status"]')).some(node => node.textContent.includes(' selected;')) || document.querySelector('[data-selected-work-sources] [role="alert"]') !== null`, 'lookup selection compared or explicitly refused');
+    const compared = await lifecycle.evaluateBoolean(`Array.from(document.querySelectorAll('[data-selected-work-sources] [role="status"]')).some(node => node.textContent.includes('2 selected;'))`);
+    observations.push({ query, returned_notes: returned.length, complete_visible_group: returned.some(text => text.includes('R2_REPORT_ONLY_RESELECT')) && returned.some(text => text.includes('P32_FORECAST_ONLY_RESULT')), compared });
+    await clickSelector(lifecycle, '[data-selected-source-action="exclude"]');
+    assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-selected-source-action="exclude"]') === null`), true, 'Exclusion removes the whole group');
+  }
+  console.log(JSON.stringify({ reviewed_outcome_reselection_ui: observations }));
+  assert(observations.every(o => o.returned_notes === 2 && o.complete_visible_group && o.compared), 'Single-member searches must visibly select and compare the complete historical pair');
+  assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-retained-source-action="select"]').textContent.includes('Select both historical notes')`), true, 'The user explicitly selects both displayed notes');
+  for (const width of [390, 768, 1280]) {
+    await lifecycle.cdp().send('Emulation.setDeviceMetricsOverride', { width, height: 844, deviceScaleFactor: 1, mobile: width === 390 });
+    assert.equal(await lifecycle.evaluateBoolean(`document.documentElement.scrollWidth <= window.innerWidth && Array.from(document.querySelectorAll('[data-retained-source-hit]')).every(node => node.getBoundingClientRect().height > 0)`), true, `Complete visible group at viewport ${width}`);
+  }
+  await lifecycle.cdp().send('Emulation.clearDeviceMetricsOverride');
+  for (let index = 0; index < 7; index++) {
+    await lifecycle.setFormControlValue('#selected-note-source', `Capacity ${index}`);
+    await lifecycle.setFormControlValue('#selected-note-text', 'Bounded draft note. '.repeat(10));
+    await clickSelector(lifecycle, '[data-selected-source-action="add"]');
+  }
+  assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-retained-source-action="select"]').disabled && document.querySelector('[data-retained-source-capacity]').textContent.includes('2 note slots; 1 remain')`), true, 'One remaining slot refuses the group before selection');
+  await clickSelector(lifecycle, '[data-selected-source-action="exclude"]');
+  assert.equal(await lifecycle.evaluateBoolean(`!document.querySelector('[data-retained-source-action="select"]').disabled && document.querySelectorAll('[data-selected-source-action="exclude"]').length === 6`), true, 'Two remaining slots allow checking the complete pair');
+  const responseStart = lifecycle.responses.length;
+  await clickSelector(lifecycle, '[data-retained-source-action="select"]');
+  await lifecycle.waitForCondition(`document.querySelector('[data-selected-work-sources] [role="alert"]')?.textContent.includes('12,000-byte') === true`, 'Byte capacity refuses the pair before adding it');
+  const refusals = lifecycle.responses.slice(responseStart).filter(entry => entry.path === '/api/vnext/operator/project-continuity' && entry.method === 'POST');
+  assert.equal(refusals.length, 1); assert.equal(refusals[0].status, 422);
+  const refusedBody = await lifecycle.cdp().send('Network.getResponseBody', { requestId: refusals[0].request_id });
+  assert.equal(refusedBody.base64Encoded, false);
+  assert.equal(JSON.parse(refusedBody.body).error_code, 'selected_source_context_budget_exceeded');
+  expectedCapacityRefusal = refusals[0].request_id;
+  assert.equal(await lifecycle.evaluateBoolean(`document.querySelectorAll('[data-selected-source-action="exclude"]').length === 6`), true, 'Byte refusal leaves selection intact');
+  for (let index = 0; index < 6; index++) await clickSelector(lifecycle, '[data-selected-source-action="exclude"]');
+  await clickSelector(lifecycle, '[data-retained-source-action="select"]');
+  await lifecycle.waitForCondition(`document.querySelectorAll('[data-selected-source-action="exclude"]').length === 2`, 'complete historical pair reselected');
+  assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-retained-source-action="select"]').disabled`), true, 'Duplicate group selection is disabled');
+  assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-selected-work-sources]').textContent.includes('R3_LATER_UNSELECTED')`), false, 'R3 does not replace explicitly reselected R2');
 }
 
 async function readProtectedJson(lifecycle, route) {
