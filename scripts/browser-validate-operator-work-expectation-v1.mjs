@@ -294,6 +294,7 @@ async function observeRetainedGroupViewports(lifecycle, expected) {
         display:s.display, visibility:s.visibility, content_visibility:s.contentVisibility, overflow_wrap:s.overflowWrap };
     };
     return { inner_width:innerWidth, document_client:document.documentElement.clientWidth, document_scroll:document.documentElement.scrollWidth,
+      document_client_height:document.documentElement.clientHeight, document_scroll_height:document.documentElement.scrollHeight,
       visual_viewport:visualViewport?{width:visualViewport.width,height:visualViewport.height,scale:visualViewport.scale}:null,
       retained_count:hits.length, group_count:groups.length,
       exact_expected_group:groups.length===1 && expected.every(entry => hits.some(hit => hit.getAttribute('data-retained-source-hit')===entry.id && hit.parentElement===groups[0])),
@@ -311,8 +312,8 @@ async function observeRetainedGroupViewports(lifecycle, expected) {
     await lifecycle.cdp().send('Emulation.setDeviceMetricsOverride', requested);
     const observed = await lifecycle.evaluateJson(capture);
     console.log(JSON.stringify({ retained_group_viewport: { requested, expected:identity, observed } }));
-    assertRetainedGroupViewport(observed, width);
-    if (width === 768) {
+    assertRetainedGroupViewport(observed, requested);
+    if (requested.mobile || width === 768) {
       // Mutate only this disposable rendered page, restoring each mutation in the
       // same browser task. These exercise real geometry, not fixture measurements.
       const negatives = await lifecycle.evaluateJson(`(() => {
@@ -333,17 +334,30 @@ async function observeRetainedGroupViewports(lifecycle, expected) {
       const reasons = { missing_member:/Retained note count/, missing_group:/Retained group count/,
         zero_height_member:/Retained note 0 has positive height/, real_overflow:/Document fits requested viewport/ };
       for (const { name, observed:negative } of negatives.snapshots) {
-        assert.throws(() => assertRetainedGroupViewport(negative, width), reasons[name], `Reject ${name}`);
+        assert.throws(() => assertRetainedGroupViewport(negative, requested), reasons[name], `Reject ${name} at ${width}`);
+        if (name === 'real_overflow' && requested.mobile) {
+          assert.equal(negative.document_client, width, 'Mobile requested width remains applied during overflow');
+          assert(negative.inner_width > width, 'Mobile overflow inflates innerWidth');
+          assert(negative.document_scroll <= negative.inner_width, 'The old innerWidth-only predicate falsely accepts this mobile overflow');
+        }
       }
       assert.equal(negatives.snapshots.length, 4);
-      assertRetainedGroupViewport(negatives.restored, width);
-      console.log(JSON.stringify({ retained_group_viewport_negatives:negatives }));
+      assertRetainedGroupViewport(negatives.restored, requested);
+      console.log(JSON.stringify({ retained_group_viewport_negatives:{ requested, ...negatives } }));
     }
   }
 }
 
-function assertRetainedGroupViewport(observed, width) {
-  assert.equal(observed.document_client, width, `Requested viewport ${width} is applied`);
+function assertRetainedGroupViewport(observed, { width, mobile }) {
+  if (mobile) {
+    // Mobile innerWidth can grow with overflow; clientWidth retains the requested
+    // layout width and must not be replaced by that inflated measurement.
+    assert.equal(observed.document_client, width, `Requested mobile viewport ${width} is applied`);
+  } else {
+    // Desktop innerWidth includes a vertical scrollbar; clientWidth excludes it.
+    assert.equal(observed.inner_width, width, `Requested desktop viewport ${width} is applied`);
+    assert(observed.document_client <= observed.inner_width, `Desktop client width fits inner viewport ${width}`);
+  }
   assert(observed.document_scroll <= observed.document_client, `Document fits requested viewport ${width}: scroll=${observed.document_scroll}, client=${observed.document_client}, inner=${observed.inner_width}`);
   // Preserve the original comparison too; mobile innerWidth alone can inflate to
   // the overflow width and incorrectly accept horizontal scrolling.
@@ -353,6 +367,7 @@ function assertRetainedGroupViewport(observed, width) {
   assert.equal(observed.exact_expected_group, true, `Exact saved group at ${width}`);
   assert.equal(observed.selected_details_open, true, `Selected-source details open at ${width}`);
   assert.equal(observed.retained_details_open, true, `Retained-source details open at ${width}`);
+  assert.equal(observed.notes.length, 2, `Expected note geometry count at ${width}`);
   for (const note of observed.notes) {
     assert.equal(note.present, true, `Retained note ${note.expected_index} present at ${width}`);
     assert(note.height > 0, `Retained note ${note.expected_index} has positive height at ${width}`);
