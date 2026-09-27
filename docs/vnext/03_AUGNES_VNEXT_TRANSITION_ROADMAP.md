@@ -256,6 +256,14 @@ private Sites ingress, hosted schema/artifact admission, Mac-independent reopen
 and remote agent consumption remain required acceptance. Do not close the whole
 issue from local evidence or infer native managed-work parity.
 
+The bounded [Sites compatibility repair (#1347)](https://github.com/hynk-studio/augnes/issues/1347)
+replaces the custom artifact with official Sites/Cloudflare Vite output and
+Drizzle migration material. Its preconfigured-owner bootstrap fills the missing
+initial-mapping path only after the existing identity/origin/schema gates; it
+cannot choose a first visitor or rebind an owner. The application handoff owns
+exact tool versions, local qualification and remaining hosted admission. This
+does not change B's preparation or authorize another hosted attempt.
+
 B used the supported different-task preview/save, retained the exact open-issue
 correction, and replaced A's selected kickoff notes with the two issue-attributed
 B notes while preserving A in unexecuted history (`prior_work_marked_complete=false`).

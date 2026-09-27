@@ -1,6 +1,0 @@
--- Independent hosted authored planning, never the installed local canonical schema.
-CREATE TABLE web_planning_schema (version INTEGER PRIMARY KEY CHECK(version = 1));
-INSERT INTO web_planning_schema(version) VALUES (1);
-CREATE TABLE web_planning_workspace (singleton INTEGER PRIMARY KEY CHECK(singleton = 1), workspace_id TEXT NOT NULL, project_id TEXT NOT NULL, author_ref TEXT NOT NULL, owner_login_hash TEXT NOT NULL, UNIQUE(workspace_id, project_id));
-CREATE TABLE web_planning_revision (workspace_id TEXT NOT NULL, project_id TEXT NOT NULL, work_id TEXT NOT NULL, revision INTEGER NOT NULL CHECK(revision BETWEEN 1 AND 32), fingerprint TEXT NOT NULL, request_key TEXT NOT NULL, request_fingerprint TEXT NOT NULL, envelope TEXT NOT NULL CHECK(json_valid(envelope)), PRIMARY KEY(workspace_id, project_id, work_id, revision), UNIQUE(workspace_id, project_id, request_key), FOREIGN KEY(workspace_id, project_id) REFERENCES web_planning_workspace(workspace_id, project_id));
-CREATE TABLE web_planning_erased (workspace_id TEXT NOT NULL, project_id TEXT NOT NULL, work_id TEXT NOT NULL, PRIMARY KEY(workspace_id, project_id, work_id), FOREIGN KEY(workspace_id, project_id) REFERENCES web_planning_workspace(workspace_id, project_id));

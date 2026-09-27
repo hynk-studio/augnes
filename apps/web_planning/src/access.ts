@@ -31,9 +31,25 @@ export async function authorize(request: Request, env: Environment, principal: P
   if (!login(principal.login) || login(principal.login)!==login(env.OWNER_EMAIL)) fail("access_denied",403);
   const schema=await env.DB.prepare("SELECT version FROM web_planning_schema").all<{version:number}>();
   if (schema.results.length!==1 || schema.results[0].version!==1) fail("incompatible_schema",503);
-  const owners=await env.DB.prepare("SELECT * FROM web_planning_workspace").all<Record<string,unknown>>();
+  let owners=await env.DB.prepare("SELECT * FROM web_planning_workspace").all<Record<string,unknown>>();
   const expected={ singleton:1, workspace_id:env.WORKSPACE_ID, project_id:env.PROJECT_ID,
     author_ref:env.AUTHOR_REF, owner_login_hash:hash(login(env.OWNER_EMAIL)!) };
+  // A normal authenticated owner page may initialize an empty hosted store.
+  // Never trust a first visitor, local fixture, setup URL, or changed config to
+  // choose/repair ownership. The single statement settles concurrent requests;
+  // an exact reread admits only the configured mapping (including a race winner).
+  if(owners.results.length===0 && !principal.localFixture &&
+    env.SITES_INGRESS_MODE==='verified-private-sites' && request.method==='GET' && url.pathname==='/' && !url.search) {
+    await env.DB.prepare(`INSERT INTO web_planning_workspace(singleton,workspace_id,project_id,author_ref,owner_login_hash)
+      SELECT 1,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM web_planning_workspace)
+        AND NOT EXISTS(SELECT 1 FROM web_planning_revision)
+        AND NOT EXISTS(SELECT 1 FROM web_planning_erased)
+        AND (SELECT count(*) FROM web_planning_schema)=1
+        AND EXISTS(SELECT 1 FROM web_planning_schema WHERE version=1)
+      ON CONFLICT DO NOTHING`)
+      .bind(expected.workspace_id,expected.project_id,expected.author_ref,expected.owner_login_hash).run();
+    owners=await env.DB.prepare("SELECT * FROM web_planning_workspace").all<Record<string,unknown>>();
+  }
   if(owners.results.length!==1 || canonical(owners.results[0])!==canonical(expected)) fail("workspace_mapping_mismatch",403);
   return {DB:env.DB,workspace_id:env.WORKSPACE_ID,project_id:env.PROJECT_ID,author_ref:env.AUTHOR_REF,env,local:principal.localFixture===true};
 }

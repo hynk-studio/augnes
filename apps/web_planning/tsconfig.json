@@ -1,6 +1,6 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {"target":"ES2022","incremental":false,"plugins":[],"types":["node"]},
-  "include":["src/**/*.ts"],
+  "include":["src/**/*.ts","db/**/*.ts","drizzle.config.ts"],
   "exclude":["node_modules"]
 }
