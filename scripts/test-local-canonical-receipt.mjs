@@ -106,6 +106,7 @@ const baseReceipt = {
     installed_trees: "not_deciding_authority",
     root_lock_sha256: "3".repeat(64),
     nested_lock_sha256: "4".repeat(64),
+    web_planning_lock_sha256: "6".repeat(64),
   },
   executor: {
     version: 1,
@@ -231,6 +232,7 @@ const validContext = {
   currentLocks: {
     root: "3".repeat(64),
     nested: "4".repeat(64),
+    webPlanning: "6".repeat(64),
   },
   currentExecutorFingerprint: "5".repeat(64),
   expectedSelectedPlan: "operating-policy-only",
@@ -362,6 +364,7 @@ const targetedPhaseIds = [
   "targeted-change-validator",
   "dependencies-root",
   "dependencies-nested",
+  "dependencies-web-planning",
   "unit",
 ];
 targetedReceipt.evidence.planner_plan = "owner-targeted";
@@ -398,6 +401,15 @@ targetedReceipt.phases = [
     label: "nested application clean dependency installation",
     command: "npm ci --no-audit --no-fund",
     cwd_scope: "nested-app",
+    exclusive: true,
+    browser: false,
+  },
+  {
+    ...structuredClone(baseReceipt.phases[0]),
+    id: "dependencies-web-planning",
+    label: "isolated web planning clean development dependency installation",
+    command: "npm ci --no-audit --no-fund",
+    cwd_scope: "web-planning-app",
     exclusive: true,
     browser: false,
   },
@@ -472,6 +484,9 @@ for (const mutate of [
   (receipt) => {
     receipt.phases[2].cwd_scope = "root";
   },
+  (receipt) => {
+    receipt.phases[3].cwd_scope = "root";
+  },
 ]) {
   const candidate = structuredClone(targetedReceipt);
   mutate(candidate);
@@ -507,6 +522,15 @@ assert(
     targetedContext,
   ).issues.includes("phase_not_passing:dependencies-root"),
 );
+assert(
+  inspectReceiptForDecision(finalizedTargetedReceipt, {
+    ...targetedContext,
+    currentLocks: { ...targetedContext.currentLocks, webPlanning: "7".repeat(64) },
+  }).issues.includes("receipt_stale_lockfiles"),
+);
+const missingWebLock = structuredClone(targetedReceipt);
+delete missingWebLock.dependencies.web_planning_lock_sha256;
+assert(inspectReceiptForDecision(finalizeReceipt(missingWebLock), targetedContext).issues.includes("receipt_source_identity_invalid"));
 assert(
   inspectReceiptForDecision(finalizedTargetedReceipt, {
     ...targetedContext,

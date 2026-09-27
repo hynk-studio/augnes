@@ -79,6 +79,7 @@ const ownerTargetedUnitPhaseIds = [
   "targeted-change-validator",
   "dependencies-root",
   "dependencies-nested",
+  "dependencies-web-planning",
   "unit",
 ];
 const executorSource = readFileSync(
@@ -386,8 +387,12 @@ assert.equal(ownerTargetedPhases[1].display, "npm ci --no-audit --no-fund");
 assert.equal(ownerTargetedPhases[1].cwdScope, "root");
 assert.equal(ownerTargetedPhases[2].display, "npm ci --no-audit --no-fund");
 assert.equal(ownerTargetedPhases[2].cwdScope, "nested-app");
-assert.equal(ownerTargetedPhases[3].display, "npm test");
+assert.equal(ownerTargetedPhases[3].display, "npm ci --no-audit --no-fund");
+assert.equal(ownerTargetedPhases[3].cwdScope, "web-planning-app");
+assert.equal(ownerTargetedPhases[3].timeoutMs, 600_000);
 assert.equal(ownerTargetedPhases[3].exclusive, true);
+assert.equal(ownerTargetedPhases[4].display, "npm test");
+assert.equal(ownerTargetedPhases[4].exclusive, true);
 assert.throws(
   () =>
     buildPhasePlan({
@@ -410,6 +415,7 @@ assert.throws(
         "targeted-change-validator",
         "dependencies-root",
         "dependencies-nested",
+        "dependencies-web-planning",
         "caller-selected-command",
       ],
     }),
@@ -424,6 +430,7 @@ const ownerTargetedBrowserPhases = buildPhasePlan({
     "targeted-change-validator",
     "dependencies-root",
     "dependencies-nested",
+    "dependencies-web-planning",
     "typecheck",
     "unit",
     "e2e-operator-multi-candidate",
@@ -435,6 +442,7 @@ assert.deepEqual(
     "targeted-change-validator",
     "dependencies-root",
     "dependencies-nested",
+    "dependencies-web-planning",
     "typecheck",
     "unit",
     "e2e-operator-multi-candidate",
@@ -655,6 +663,7 @@ assert.deepEqual(
 for (const required of [
   "dependencies-root",
   "dependencies-nested",
+  "dependencies-web-planning",
   ...(process.platform === "win32" ? ["native-windows-identity"] : []),
   "typecheck",
   "build",
@@ -734,6 +743,7 @@ assert.deepEqual(
   [
     "dependencies-root",
     "dependencies-nested",
+    "dependencies-web-planning",
     ...(process.platform === "win32" ? ["native-windows-identity"] : []),
     "typecheck",
     "build",

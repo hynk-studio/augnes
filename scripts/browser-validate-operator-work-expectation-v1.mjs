@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { runOperatorExecutionBrowserChildV1 } from "./operator-execution-browser-child-v1.mjs";
 import {
@@ -144,6 +145,8 @@ async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
   await lifecycle.waitForCondition(`document.querySelector('[data-result-work-saved]') !== null`, 'ordinary B saved');
   await clickSelector(lifecycle, '[data-result-work-saved] a');
   await lifecycle.waitForCondition(`document.querySelector('[data-current-work-goal]')?.textContent === 'Inspect the cold observation'`, 'saved B fresh Browser read');
+  // Bind responsive checks to the actual saved pair, before exclusion/reselection.
+  const retainedExpected = (await readProtectedJson(lifecycle, '/api/vnext/operator/project-continuity')).work_initialization.selected_source_context;
   await lifecycle.navigate(`${appOrigin}/workbench/semantic-review?successor-expectation=reopen`);
   await saveBrowserExpectation(lifecycle, 'satisfied', 'P33_B_FORECAST_ONLY');
   const bForecast = (await readProtectedJson(lifecycle, '/api/vnext/operator/work-expectations')).history[0];
@@ -168,7 +171,7 @@ async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
   await clickSelector(lifecycle, '[data-work-revision-action="open"]');
   await lifecycle.waitForCondition(`document.querySelector('#work-revision-goal') !== null`, 'reopen saved B1');
   await lifecycle.evaluateBoolean(`(() => { document.querySelector('[data-selected-work-sources]').open = true; return true; })()`);
-  await exerciseReviewedOutcomeReselection(lifecycle);
+  await exerciseReviewedOutcomeReselection(lifecycle, retainedExpected);
   await lifecycle.setFormControlValue('#selected-note-source', 'Explicit correction');
   await lifecycle.setFormControlValue('#selected-note-provenance', 'user_declaration');
   await lifecycle.setFormControlValue('#selected-note-kind', 'Changed assumption / user correction');
@@ -227,7 +230,7 @@ async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
     reselection: 'one_member_search_to_visible_complete_pair', reopened_R2_after_R3: true, capacity_refusal: 'one_slot_or_serialized_bytes', comparison_and_preview_retained: true }));
 }
 
-async function exerciseReviewedOutcomeReselection(lifecycle) {
+async function exerciseReviewedOutcomeReselection(lifecycle, retainedExpected) {
   await lifecycle.evaluateBoolean(`(() => { document.querySelector('[data-retained-work-sources]').open = true; return true; })()`);
   const observations = [];
   for (const query of ['R2_REPORT_ONLY_RESELECT', 'P32_FORECAST_ONLY_RESULT']) {
@@ -247,10 +250,7 @@ async function exerciseReviewedOutcomeReselection(lifecycle) {
   console.log(JSON.stringify({ reviewed_outcome_reselection_ui: observations }));
   assert(observations.every(o => o.returned_notes === 2 && o.complete_visible_group && o.compared), 'Single-member searches must visibly select and compare the complete historical pair');
   assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-retained-source-action="select"]').textContent.includes('Select both historical notes')`), true, 'The user explicitly selects both displayed notes');
-  for (const width of [390, 768, 1280]) {
-    await lifecycle.cdp().send('Emulation.setDeviceMetricsOverride', { width, height: 844, deviceScaleFactor: 1, mobile: width === 390 });
-    assert.equal(await lifecycle.evaluateBoolean(`document.documentElement.scrollWidth <= window.innerWidth && Array.from(document.querySelectorAll('[data-retained-source-hit]')).every(node => node.getBoundingClientRect().height > 0)`), true, `Complete visible group at viewport ${width}`);
-  }
+  await observeRetainedGroupViewports(lifecycle, retainedExpected);
   await lifecycle.cdp().send('Emulation.clearDeviceMetricsOverride');
   for (let index = 0; index < 7; index++) {
     await lifecycle.setFormControlValue('#selected-note-source', `Capacity ${index}`);
@@ -275,6 +275,93 @@ async function exerciseReviewedOutcomeReselection(lifecycle) {
   await lifecycle.waitForCondition(`document.querySelectorAll('[data-selected-source-action="exclude"]').length === 2`, 'complete historical pair reselected');
   assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-retained-source-action="select"]').disabled`), true, 'Duplicate group selection is disabled');
   assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-selected-work-sources]').textContent.includes('R3_LATER_UNSELECTED')`), false, 'R3 does not replace explicitly reselected R2');
+}
+
+// Read once after each metrics command: layout failures are never polled away.
+async function observeRetainedGroupViewports(lifecycle, expected) {
+  assert.equal(expected.length, 2, 'The saved producer contains the exact historical pair');
+  const groupKeys = expected.map(entry => JSON.stringify([entry.compatibility_source_ref.external_id, entry.compatibility_source_ref.source_ref]));
+  assert.equal(new Set(groupKeys).size, 1, 'The saved pair has one exact group identity');
+  const fingerprint = value => createHash('sha256').update(value).digest('hex');
+  const identity = { group: fingerprint(groupKeys[0]), notes: expected.map(entry => fingerprint(entry.entry_id)), count: 2 };
+  const capture = `(() => {
+    const expected = ${JSON.stringify(expected.map(entry => ({ id: entry.entry_id, summary: entry.bounded_summary })))};
+    const hits = Array.from(document.querySelectorAll('[data-retained-source-hit]'));
+    const groups = Array.from(document.querySelectorAll('[data-retained-source-group]'));
+    const geometry = node => {
+      const r = node.getBoundingClientRect(), s = getComputedStyle(node);
+      return { x:r.x, width:r.width, height:r.height, right:r.right, client:node.clientWidth, scroll:node.scrollWidth,
+        display:s.display, visibility:s.visibility, content_visibility:s.contentVisibility, overflow_wrap:s.overflowWrap };
+    };
+    return { inner_width:innerWidth, document_client:document.documentElement.clientWidth, document_scroll:document.documentElement.scrollWidth,
+      visual_viewport:visualViewport?{width:visualViewport.width,height:visualViewport.height,scale:visualViewport.scale}:null,
+      retained_count:hits.length, group_count:groups.length,
+      exact_expected_group:groups.length===1 && expected.every(entry => hits.some(hit => hit.getAttribute('data-retained-source-hit')===entry.id && hit.parentElement===groups[0])),
+      notes:expected.map((entry,index) => {
+        const node=hits.find(hit => hit.getAttribute('data-retained-source-hit')===entry.id);
+        return {expected_index:index,present:!!node,full_summary:node?.textContent.includes(entry.summary)??false,...(node?geometry(node):{})};
+      }),
+      selected_details_open:document.querySelector('[data-selected-work-sources]')?.open??null,
+      retained_details_open:document.querySelector('[data-retained-work-sources]')?.open??null,
+      lookup:geometry(document.querySelector('[data-retained-work-sources]')),
+      document_ready:document.readyState,fonts_status:document.fonts.status };
+  })()`;
+  for (const width of [390, 768, 1280]) {
+    const requested = { width, height:844, deviceScaleFactor:1, mobile:width===390 };
+    await lifecycle.cdp().send('Emulation.setDeviceMetricsOverride', requested);
+    const observed = await lifecycle.evaluateJson(capture);
+    console.log(JSON.stringify({ retained_group_viewport: { requested, expected:identity, observed } }));
+    assertRetainedGroupViewport(observed, width);
+    if (width === 768) {
+      // Mutate only this disposable rendered page, restoring each mutation in the
+      // same browser task. These exercise real geometry, not fixture measurements.
+      const negatives = await lifecycle.evaluateJson(`(() => {
+        const snapshots=[];
+        const note=document.querySelector('[data-retained-source-hit]');
+        const group=note.parentElement, next=note.nextSibling;
+        const groupParent=group.parentElement, groupNext=group.nextSibling;
+        const lookup=document.querySelector('[data-retained-work-sources]');
+        const noteStyle=note.getAttribute('style'), lookupStyle=lookup.getAttribute('style');
+        const restoreStyle=(node,value)=>value===null?node.removeAttribute('style'):node.setAttribute('style',value);
+        const observe=(name,change,restore)=>{try{change();snapshots.push({name,observed:${capture}});}finally{restore();}};
+        observe('missing_member',()=>note.remove(),()=>group.insertBefore(note,next));
+        observe('missing_group',()=>group.remove(),()=>groupParent.insertBefore(group,groupNext));
+        observe('zero_height_member',()=>{note.style.height='0px';note.style.minHeight='0px';},()=>restoreStyle(note,noteStyle));
+        observe('real_overflow',()=>{lookup.style.minWidth='${width+64}px';},()=>restoreStyle(lookup,lookupStyle));
+        return {snapshots,restored:${capture}};
+      })()`);
+      const reasons = { missing_member:/Retained note count/, missing_group:/Retained group count/,
+        zero_height_member:/Retained note 0 has positive height/, real_overflow:/Document fits requested viewport/ };
+      for (const { name, observed:negative } of negatives.snapshots) {
+        assert.throws(() => assertRetainedGroupViewport(negative, width), reasons[name], `Reject ${name}`);
+      }
+      assert.equal(negatives.snapshots.length, 4);
+      assertRetainedGroupViewport(negatives.restored, width);
+      console.log(JSON.stringify({ retained_group_viewport_negatives:negatives }));
+    }
+  }
+}
+
+function assertRetainedGroupViewport(observed, width) {
+  assert.equal(observed.document_client, width, `Requested viewport ${width} is applied`);
+  assert(observed.document_scroll <= observed.document_client, `Document fits requested viewport ${width}: scroll=${observed.document_scroll}, client=${observed.document_client}, inner=${observed.inner_width}`);
+  // Preserve the original comparison too; mobile innerWidth alone can inflate to
+  // the overflow width and incorrectly accept horizontal scrolling.
+  assert(observed.document_scroll <= observed.inner_width, `Document fits inner viewport ${width}`);
+  assert.equal(observed.group_count, 1, `Retained group count at ${width}`);
+  assert.equal(observed.retained_count, 2, `Retained note count at ${width}`);
+  assert.equal(observed.exact_expected_group, true, `Exact saved group at ${width}`);
+  assert.equal(observed.selected_details_open, true, `Selected-source details open at ${width}`);
+  assert.equal(observed.retained_details_open, true, `Retained-source details open at ${width}`);
+  for (const note of observed.notes) {
+    assert.equal(note.present, true, `Retained note ${note.expected_index} present at ${width}`);
+    assert(note.height > 0, `Retained note ${note.expected_index} has positive height at ${width}`);
+    assert(note.width > 0, `Retained note ${note.expected_index} has positive width at ${width}`);
+    assert.notEqual(note.display, 'none', `Retained note ${note.expected_index} displayed at ${width}`);
+    assert.equal(note.visibility, 'visible', `Retained note ${note.expected_index} visible at ${width}`);
+    assert.notEqual(note.content_visibility, 'hidden', `Retained note ${note.expected_index} content visible at ${width}`);
+    assert.equal(note.full_summary, true, `Retained note ${note.expected_index} complete at ${width}`);
+  }
 }
 
 async function readProtectedJson(lifecycle, route) {

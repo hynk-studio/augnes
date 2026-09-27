@@ -116,6 +116,15 @@ const projectExperienceStep = {
   timeoutMs: 360_000,
   requireNaturalExit: true,
 };
+const webPlanningBrowserStep = {
+  id: "web-planning-browser",
+  group: "project-experience",
+  requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "browser-profile-owning", "cdp-session-owning"],
+  label: "durable web planning real D1 Browser producer and consumer",
+  ...rootNode("scripts/browser-validate-web-planning.mjs"),
+  timeoutMs: 180_000,
+  requireNaturalExit: true,
+};
 const continuityStep = {
   id: "continuity",
   group: "continuity",
@@ -141,6 +150,11 @@ const goldenStep = {
 
 const suites = {
   unit: [
+    {
+      label: "web planning Worker strict type compatibility",
+      ...rootNode("node_modules/typescript/bin/tsc", "-p", "apps/web_planning/tsconfig.json", "--noEmit"),
+      timeoutMs: 30_000,
+    },
     {
       label: "conditional procedure recipes, lineage, limits and disposable probes (zero model)",
       ...rootNode("scripts/test-conditional-procedure-learning.ts"),
@@ -429,6 +443,15 @@ const suites = {
     },
   ],
   integration: [
+    {
+      id: "web-planning-d1",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "backup-restore"],
+      label: "durable web planning production handlers and local D1 integrity",
+      ...rootNode("scripts/test-web-planning.mjs"),
+      timeoutMs: 120_000,
+      requireNaturalExit: true,
+    },
     {
       id: "project-verify-material",
       group: "supporting-serial",
@@ -1214,6 +1237,7 @@ const suites = {
   ],
   e2e: [
     { ...projectExperienceStep },
+    { ...webPlanningBrowserStep },
     { ...operatorReviewControlStep },
     { ...operatorBrowserNavigationDiagnosticsStep },
     { ...operatorNativeHostExecutionStep },
@@ -1222,7 +1246,7 @@ const suites = {
     { ...continuityStep },
     { ...goldenStep },
   ],
-  "e2e-project-experience": [{ ...projectExperienceStep }],
+  "e2e-project-experience": [{ ...projectExperienceStep }, { ...webPlanningBrowserStep }],
   "e2e-operator-review-control": [
     { ...operatorReviewControlStep },
     { ...operatorBrowserNavigationDiagnosticsStep },

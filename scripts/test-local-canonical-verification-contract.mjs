@@ -194,7 +194,7 @@ for (const fragment of [
   "dirty-worktree status",
   "operating system and architecture",
   "Node and npm versions",
-  "root and nested lockfile fingerprints",
+  "root, Apps and web-planning lockfile fingerprints",
   "selected plan",
   "each selected command and result",
   "finite duration",
@@ -480,6 +480,7 @@ for (const fragment of [
   `export const RESOURCE_EXCLUSIVE_PHASE_IDS`,
   `"dependencies-root"`,
   `"dependencies-nested"`,
+  `"dependencies-web-planning"`,
   `"typecheck"`,
   `"build"`,
   `"unit"`,
@@ -878,8 +879,8 @@ assert.equal(
   "targeted-change-validator",
 );
 assert.deepEqual(
-  changeOwnerManifest.targeted_phase_order.slice(1, 3),
-  ["dependencies-root", "dependencies-nested"],
+  changeOwnerManifest.targeted_phase_order.slice(1, 4),
+  ["dependencies-root", "dependencies-nested", "dependencies-web-planning"],
 );
 assert.deepEqual(
   changeOwnerManifest.targeted_owners.map((owner) => owner.id),
@@ -1045,6 +1046,7 @@ assert.equal(
 );
 
 const integrationChildren = [
+  "web-planning-d1",
   "project-verify-material",
   "project-verify-lifecycle",
   "project-verify-production-lifecycle",
@@ -1138,6 +1140,9 @@ for (const childId of integrationChildren) {
   );
 }
 // Separate complete owners retain their own 30s ceiling and run once each.
+const webPlanningRegistration = readCanonicalChildRegistration(integrationSource, "web-planning-d1");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 120_000', 'requireNaturalExit: true', '"scripts/test-web-planning.mjs"', '"backup-restore"'])
+  requireText(webPlanningRegistration.block, fragment, "web planning D1 retains one bounded storage and recovery owner");
 for (const id of ["project-work-initialization", "project-work-expectation", "project-work-scoped-host"]) {
   const registration = readCanonicalChildRegistration(integrationSource, id);
   requireText(registration.block, `timeoutMs: 30_000`, `${id} deadline changed`);

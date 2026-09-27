@@ -95,6 +95,14 @@ for (const suite of [
   );
 }
 
+const webPlanning = manifest.owners.project_experience.supporting_children;
+assert.equal(webPlanning.length, 1);
+assert.equal(webPlanning[0].executable_source, "scripts/browser-validate-web-planning.mjs");
+assert.equal(existsSync(path.join(root, webPlanning[0].executable_source)), true);
+assert.equal(webPlanning[0].native_or_hosted_acceptance, false);
+for (const suite of ["e2e", '"e2e-project-experience"']) {
+  assert.equal(suiteBlock(canonicalSuiteSource, suite).split("{ ...webPlanningBrowserStep }").length - 1, 1);
+}
 const permanentOwners = [
   manifest.owners.project_experience,
   ...manifest.owners.operator_execution.children,

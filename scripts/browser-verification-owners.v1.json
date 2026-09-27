@@ -482,7 +482,25 @@
             ]
           }
         }
-      }
+      },
+      "supporting_children": [
+        {
+          "id": "web-planning-browser",
+          "executable_source": "scripts/browser-validate-web-planning.mjs",
+          "canonical_suite": "e2e-project-experience",
+          "storage": "disposable Miniflare/workerd D1",
+          "checks": [
+            "keyboard_create_edit_save",
+            "retained_conflict_and_reviewed_save",
+            "stale_displayed_binding_refusal",
+            "response_loss_without_auto_retry",
+            "cleared_browser_and_server_restart",
+            "responsive_semantic_controls",
+            "download_and_atomic_erasure"
+          ],
+          "native_or_hosted_acceptance": false
+        }
+      ]
     },
     "operator_execution": {
       "command": "npm run test:e2e:operator-execution",

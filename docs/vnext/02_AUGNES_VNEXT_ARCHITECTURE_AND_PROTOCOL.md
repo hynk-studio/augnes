@@ -95,6 +95,13 @@ Product responsibilities, navigation, and cross-surface meaning belong to
 implementation and compatibility names belong to the roadmap and checked-in
 runtime. This section owns only their Core/protocol boundary.
 
+The [web planning host envelope](../../apps/web_planning/README.md#data-and-access-contract)
+persists authored definition and selected-source material under one independent
+workspace authority. It reuses portable normalization, source representation and
+fingerprint semantics; it is not a Core record, native work admission, accepted
+state, execution grant or local/cloud synchronization. Its save/reconstruct
+handlers cannot admit material through a native decision or Transition owner.
+
 A Blank State projection, AI Workplane projection, timeline, relationship view,
 GuideBrief, Inspector, host-native card, attention queue, evidence pack, run
 trace, or integration-health view is a client or rebuildable projection over
