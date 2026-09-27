@@ -320,11 +320,19 @@ async function runScenario(scenario) {
   });
   assert.equal(stdout.overflowed(), false, `${scenario}:stdout_overflow`);
   assert.equal(stderr.overflowed(), false, `${scenario}:stderr_overflow`);
+  const result = parseFinalResult(stdout.value());
+  // Emit only existing sanitized diagnostic fields before assertions. A later
+  // assertion failure must not discard this child's failure-time snapshot.
+  process.stdout.write(`${JSON.stringify({ scenario, exit: { code: exit.code, signal: exit.signal },
+    duration_ms: result.total_duration_ms, browser_failure_snapshot: result.browser_failure_snapshot,
+    supervisor_exit_diagnostic: result.supervisor_exit_diagnostic,
+    cleanup_complete: result.cleanup_complete, owned_process_residue_count: result.owned_process_residue_count,
+    listener_residue_count: result.listener_residue_count })}\n`);
   return {
     exit,
     stdout: stdout.value(),
     stderr: stderr.value(),
-    result: parseFinalResult(stdout.value()),
+    result,
   };
 }
 

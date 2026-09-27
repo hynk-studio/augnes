@@ -98,6 +98,7 @@ import {
 import { createRecoveryRequestController, normalizeRecoveryRequest, readRecoveryBackupCatalog, exactRecoveryTarget } from "./recovery-control-operation.mjs";
 import { reconcileDurableRunsAtStartup } from "./runtime-run-reconciliation.mjs";
 import { inspectCompanionService } from "../plugins/augnes-operator/mcp/companion-service-core.mjs";
+import { createBrowserStartupObservation } from "./browser-supervisor-public-diagnostic.mjs";
 
 export {
   RUNTIME_CONTRACT,
@@ -1929,6 +1930,8 @@ async function launchWithPortSelection({
       url: `http://${LOOPBACK_HOST}:${port}${readinessPath}`,
       isReady,
     });
+    record.startupReadinessResult = readiness;
+    emitStartupObservation(record, "readiness_finished", readiness);
 
     if (readiness === "ready") {
       record.state = "ready";
@@ -1939,6 +1942,7 @@ async function launchWithPortSelection({
 
     record.expectedExit = true;
     await stopOwnedChild(record);
+    emitStartupObservation(record, "after_owned_stop", readiness);
     runtime.children.delete(role);
     writeRuntimeManifest(runtime);
 
@@ -2190,7 +2194,12 @@ function spawnRuntimeChild({ runtime, role, port }) {
     spawnError: null,
     outputTail: "",
     ownershipPort: null,
+    startupObservation: runtime.environment.AUGNES_CANONICAL_TEST_MODE === "1" &&
+      runtime.environment.AUGNES_TEST_RUNTIME_STARTUP_DIAGNOSTICS === "1"
+      ? createBrowserStartupObservation({ generation_id: runtime.generationId, instance_id: runtime.instanceId,
+          role, deadline_ms: runtimeStartupTimeoutMs(runtime) }) : null,
   };
+  child.once("spawn", () => record.startupObservation?.spawned());
 
   child.on("message", (message) => {
     if (
@@ -2215,6 +2224,7 @@ function spawnRuntimeChild({ runtime, role, port }) {
   });
   child.once("exit", (code, signal) => {
     record.exit = { code: integerOrNull(code), signal: nonEmptyString(signal) };
+    emitStartupObservation(record, "child_exit", record.startupReadinessResult ?? "child_exit");
     record.state = record.expectedExit ? "stopped" : "failed";
     if (runtime.manifestCreated) writeRuntimeManifestBestEffort(runtime);
     if (record.expectedExit || runtime.shutdownRequested || !record.active) return;
@@ -2233,6 +2243,7 @@ function spawnRuntimeChild({ runtime, role, port }) {
 }
 
 export function forwardRuntimeChildOutput(runtime, record, role, chunk) {
+  record.startupObservation?.append(chunk);
   record.outputTail = `${record.outputTail}${chunk}`.slice(-OUTPUT_TAIL_BYTES);
   if (childOutputTransportLost) return;
   if (!runtime.childOutputTransport) {
@@ -2315,17 +2326,26 @@ async function waitForChildReadiness({ runtime, record, url, isReady }) {
       continue;
     }
 
+    const probeStarted = Date.now();
     try {
       const response = await requestJsonUrl(url, 1_500);
-      if (response.statusCode === 200 && isReady(response.body) && !record.exit) {
+      const ready = response.statusCode === 200 && isReady(response.body) && !record.exit;
+      record.startupObservation?.probe({ response, ready, duration_ms: Date.now() - probeStarted });
+      if (ready) {
         return "ready";
       }
-    } catch {
+    } catch (error) {
+      record.startupObservation?.probe({ error, duration_ms: Date.now() - probeStarted });
       // The selected child has not reached its owned readiness response yet.
     }
     await delay(150);
   }
   return "timeout";
+}
+
+function emitStartupObservation(record, stage, result) {
+  if (record.startupObservation) emitResult({ command: "startup_diagnostic", result: "observed",
+    startup_diagnostic: record.startupObservation.snapshot(stage, result, record.exit) });
 }
 
 function runtimeStartupTimeoutMs(runtime) {
