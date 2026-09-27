@@ -210,6 +210,11 @@
   box-shadow: 0 10px 28px rgba(36, 48, 42, .05);
 }
 
+.retainedSources {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .workbenchSequence {
   position: relative;
   gap: 0;

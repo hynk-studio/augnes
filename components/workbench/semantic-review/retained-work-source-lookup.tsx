@@ -51,7 +51,7 @@ export function RetainedWorkSourceLookup({ initialization, disabled, remainingSl
     } finally { setSearching(false); }
   }
 
-  return <details data-retained-work-sources>
+  return <details className={styles.retainedSources} data-retained-work-sources>
     <summary>Find notes from earlier work revisions</summary>
     <p className={styles.copy}>Search saved note snapshots in this unstarted work’s revision history, including notes excluded from current preparation. Searching selects and saves nothing.</p>
     <label htmlFor="retained-source-query">Words from the question, note or source</label>
