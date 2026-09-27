@@ -33,8 +33,9 @@ the whole product mature.
    decision, and authorized change as distinct states.
 4. Evaluate later outcomes before claiming research usefulness.
 5. Treat metrics as guardrails and diagnostic evidence, not objectives.
-6. Give no product credit for more cards, panels, schemas, records, engines,
-   models, routes, graph edges, or surfaces alone.
+6. Give no product credit for memory volume or more notes, tools, artifacts,
+   agents, sessions, activity, cards, panels, schemas, records, engines, models,
+   routes, graph edges or surfaces alone.
 7. Do not invent measured baselines, pass rates, user comprehension, or
    usefulness from fixtures or self-evaluation.
 
@@ -54,7 +55,7 @@ proportionate checks; they do not automatically become usefulness studies.
 |---|---|
 | Development iteration | Refine a hypothesis, modify implementation, add discriminating instrumentation, and repeat focused checks within the task's approved scope and resource budget. Failures can guide another justified attempt. Record the candidate and observation; these attempts are development evidence. |
 | Exact-source correctness verification | Verify the fixed candidate source under the then-current [Local Canonical policy](../../.github/LOCAL_CANONICAL_VERIFICATION.md) and actual planner/consumer requirements. This establishes applicable repository contract conformance, not method usefulness. Preserve exact-source, deciding-run, cleanup, and no-favorable-rerun rules. |
-| Fixed usefulness evaluation | Declare the candidate, comparison, cases, conditions, outcomes, budget, and stopping rules before deciding observation. Keep the method fixed during that evaluation. Do not rerun an unchanged evaluation until a favorable result appears. |
+| Fixed usefulness evaluation | Declare the candidate, comparison, cases, conditions, outcomes, budget, and stopping rules before deciding observation. Keep the method and update rules fixed during that evaluation; memory/state may evolve from permitted experience under those predefined rules. Do not rerun an unchanged evaluation until a favorable result appears. |
 
 A case seen during development remains exposed. If its result informs a method
 change, it is development evidence for the revised method; a new source head or
@@ -65,7 +66,8 @@ development permission does not waive deciding-evaluation or verification rules.
 There is no universal hypothesis, candidate, or revision count: a direct local
 change may suffice, while another task may authorize multiple bounded attempts.
 
-Keep three claims separate:
+Correct storage/transmission establishes availability and delivery, not
+appropriate use. Beyond that mechanical claim, keep three claims separate:
 
 - **Implementation improvement:** the code or mechanism works more correctly.
 - **Method improvement:** a fixed method performs better than its prior form or
@@ -75,6 +77,72 @@ Keep three claims separate:
   claim directly supports the product claim that experience improves later work.
   ChatGPT manually supplying the next task's best strategy does not demonstrate
   autonomous task-improvement continuity.
+
+### Task units and relevant task characteristics
+
+Choose the unit that can answer the question before interpreting results:
+
+| Unit | What it can address |
+|---|---|
+| One decision point | Appropriate retention, reconsideration, lookup, action or non-use at that point. |
+| One task including feedback/outcome | Whether the method helps complete that task and interpret its observed result. |
+| A sequence of genuinely separate tasks | Whether experience from A appropriately changes B and can be modified or left unused in C. This is especially important for the north star. |
+
+B -> B1 -> B2 revisions, repeated sessions on one item and multiple evaluator
+turns over one underlying case do not become independent successor-task evidence.
+Task identity and case origin matter; new IDs, sessions or models alone do not
+establish independence. Sustaining a single long task is distinct from becoming
+better across separate tasks. An ordinary-use observation can inform a next
+development decision without constituting a fixed comparative evaluation or a
+general transfer result.
+
+Reuse relevant RW1/RW1A work-domain, work-phase, pre-action exposure and
+condition-integrity concepts; retain their frozen allocations and historical interpretation
+as recorded in [03](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#acgc-rw1b-authentic-real-work-collection--current).
+For a new, separately authorized question, identify only task characteristics
+needed for interpretation: domain and phase; execution and calendar duration;
+dependency depth and feedback delay; open goals versus fixed specifications;
+observability of relevant state; changing environment, opponent or user intent;
+expected reuse scope; decision reversibility/cost; and the strength of existing
+external tools and state records. This is neither a Cartesian matrix nor a new
+universal schema or mandatory form. A month of independent tasks may need less
+continuity than one day of tightly dependent hypothesis/experiment/correction
+cycles. Duration and model count are variables, not capability evidence.
+
+### Meaning, reconstruction and comparison reference
+
+Across investigation, planning, implementation/experiment, interpretation and
+communication, assess work-appropriate transformation rather than verbatim
+copying. Preserve material semantic relationships, provenance, version/selection
+relationships, uncertainty, conditions and authority. Silent drift from
+hypothesis to fact, candidate explanation to established cause, option to
+commitment, recommendation to authorized decision, temporary implementation
+assumption to permanent requirement, or unresolved uncertainty to resolved
+conclusion is a failure. Existing [repeated-handoff criteria](#repeated-handoff-evaluation-p52)
+apply; no new state or transition record is required.
+
+Deterministic artifact reproduction is distinct from reconstructing important
+project meaning when a derived summary is absent: what was accepted, why and
+under which conditions, what remains unresolved, and which explanation was
+rejected without erasing the observation. Use only permitted available sources,
+judgments, provenance and history. Do not invent missing rationale or revive
+deleted/unavailable user material. This question requires no reconstruction engine.
+
+Make the comparison reference explicit before judging improvement: prior state,
+last accepted decision, prospective expectation, analogous historical case or
+unresolved anomaly, as appropriate. Do not choose a convenient historical baseline
+post hoc. Prediction accuracy, task success, judgment improvement and future
+usefulness remain separate claims under the existing expectation rules.
+
+Appropriate non-use can succeed: direct execution on a simple task, narrow
+lookup, omission of irrelevant history, retaining a settled judgment after an
+irrelevant change, declining an inapplicable learned procedure, or fresh
+exploration when prior framing would create unjustified anchoring. Relevant
+condition changes may instead require explicit reconsideration. Measure both
+missed necessary and unnecessary reconsideration; reward appropriate continuity,
+not maximal historical context. Detecting stagnation or writing a good critique
+is weaker evidence than improving the next discriminating action and recovering
+productive progress; delayed-value preparation remains legitimate.
 
 ### Diagnose the layer before adding structure
 
@@ -113,6 +181,26 @@ source access, budget, and other relevant conditions, or report their difference
 and resulting limits. A concurrent model or other major condition change cannot
 be attributed to Augnes alone.
 
+A strong source-linked adaptive memo may update from the same permitted
+experience under a predefined rule. Do not weaken it into a memoryless or frozen
+note condition when testing adaptation. Before a fixed comparison, predefine
+method, update rules, source access and relevant availability/cutoffs, authority,
+model, tools/budget, scoring, contamination/exposure handling and stop conditions.
+Freeze those rules, not the memory/state whose adaptation is being tested.
+
+| Comparison | Conditions and interpretation |
+|---|---|
+| Representation | Materially equivalent information, different representation; added information is not a format effect. |
+| Selection system | Same raw-source access, relevant time/access conditions, tools and budget; selection/update behavior may produce different inputs. |
+| Whole system | Different workflows, preparation, tools, interfaces or interaction paths; report those differences and their total burden. |
+
+Do not collapse these into one memory effect. Where a specific recombination
+question warrants it, compare with a strong general model, strong source-linked
+adaptive memo and strong single-procedure/instruction baseline. Justified component
+removal/substitution can test contribution, without mandatory ablation ceremony
+or weakening required checks. One observed composition does not prove general
+recombination or justify a new engine.
+
 Record task origin, historical versus constructed status, exposed expected
 answers/outcomes, evaluator authorship or prior case access, development use,
 and other material independence limits. A different model or session can add a
@@ -122,7 +210,7 @@ unobserved properties distinct.
 
 ### Cost and user burden
 
-Distinguish method-development cost; reusable asset creation/update; per-task
+Distinguish method-development cost; reusable asset creation/update/curation; per-task
 selection/retrieval/delivery; worker execution; verification/recovery; and user
 intervention burden. Improvements may include fewer failures, approved new
 capabilities, higher quality, lower compute or latency, fewer unnecessary checks,
@@ -135,6 +223,23 @@ an expensive worker effectively re-solves each task. Amortizing expensive
 development or experience processing into reusable support for later tasks,
 including weaker workers, is a hypothesis to test with observed reuse and total
 burden, not an achieved saving by assumption.
+
+Human framing, value judgments, criticism, prioritization and authorized
+decisions are legitimate contributions. Separate them from repetitive repair:
+reconstructing context each session, re-deriving a prior correction, repairing
+detectably stale assumptions, translating the same outcome into every successor,
+or a human/coordinating model supplying the correct strategy each time. Record
+who performed that repair; do not label manually reconstructed lessons autonomous
+experience transfer. The aim is less repetitive repair and more high-value human
+framing, criticism and decisions, not less human thought.
+
+Where relevant, assess task/outcome quality, first correct action, duration of
+stale/incorrect assumptions, required versus unnecessary reconsideration and
+repeated explanation/context repair alongside the total relevant costs above.
+Higher cost may be justified by materially better outcomes or
+newly reachable problem scope; Augnes need not be cheaper in every successful
+case. Cost reduction, quality improvement, reliability improvement and capability
+expansion are separate claims. Unobserved costs remain unknown.
 
 ### Next decisions and concise reporting
 
