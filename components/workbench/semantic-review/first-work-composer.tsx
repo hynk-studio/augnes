@@ -12,6 +12,7 @@ import { SelectedWorkSourceEditor } from "./selected-work-source-editor";
 import type { SelectedWorkSourceSelection } from "@/types/vnext/project-work-revision";
 import type { ResultWorkBindingV01 } from "@/lib/vnext/runtime/authored-successor-task";
 import type { TaskContextPacketSelectedEntryV01 } from "@/types/vnext/task-context-packet";
+import type { ReviewedOutcomeReuseV01 } from "@/lib/vnext/persistence/reviewed-outcome-source";
 
 import styles from "./semantic-review.module.css";
 
@@ -24,6 +25,7 @@ export function FirstWorkComposer({
   onCancel,
   resultBinding,
   resultSource,
+  reviewedOutcome,
 }: {
   initialization: ProjectWorkInitializationV01;
   busy: boolean;
@@ -33,6 +35,7 @@ export function FirstWorkComposer({
   onCancel?: () => void;
   resultBinding?: ResultWorkBindingV01;
   resultSource?: TaskContextPacketSelectedEntryV01 | null;
+  reviewedOutcome?: ReviewedOutcomeReuseV01;
 }) {
   const [goal, setGoal] = useState(initialDefinition?.goal ?? "");
   const [criteriaText, setCriteriaText] = useState(
@@ -155,7 +158,7 @@ export function FirstWorkComposer({
             {issues[0]!.message}
           </p>
         ) : null}
-        {mode !== "initial" ? <SelectedWorkSourceEditor initialization={initialization} busy={busy} newTask={mode === "new_task"} resultBinding={resultBinding} resultSource={resultSource}
+        {mode !== "initial" ? <SelectedWorkSourceEditor initialization={initialization} busy={busy} newTask={mode === "new_task"} resultBinding={resultBinding} resultSource={resultSource} reviewedOutcome={reviewedOutcome}
           onChange={(selection, pending) => { setSourceSelection(selection); setSourcesPending(pending); }} /> : null}
         {mode === "new_task" && omitted.map(entry => <label key={entry.entry_id}>
           Why omit this note? {entry.bounded_summary}

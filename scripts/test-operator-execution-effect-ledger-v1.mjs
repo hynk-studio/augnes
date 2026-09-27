@@ -212,6 +212,12 @@ const expectationNegatives = [
   ["foreign receipt with equal counts", rows => { rows.find(e => e.identity.expectation_binding?.kind === "outcome_report").identity.expectation_binding.receipt_id = "receipt:foreign"; }],
   ["different frozen prediction", rows => { rows.find(e => e.identity.expectation_binding?.kind === "attempt_binding").identity.expectation_binding.expectation_id = "expectation:foreign"; }],
   ["report correction loses predecessor", rows => { rows.find(e => e.identity.expectation_binding?.revision === 2).identity.expectation_binding.previous_id = null; }],
+  ["later correction skips its immediate predecessor", rows => {
+    const first = rows.find(e => e.identity.expectation_binding?.kind === "outcome_report" && e.identity.expectation_binding.revision === 1);
+    const third = rows.find(e => e.identity.expectation_binding?.revision === 3);
+    third.identity.expectation_binding.previous_id = first.identity.record_id;
+    third.identity.expectation_binding.previous_fingerprint = first.identity.fingerprint;
+  }],
   ["expected kinds in the other allowed project", rows => { rows.find(e => e.identity.record_kind === "task_context_packet").identity.project_id = "project:primary"; }],
   ["different exact packet fingerprint", rows => { rows.find(e => e.identity.expectation_binding).identity.expectation_binding.packet_fingerprint = sha("foreign-packet"); }],
   ["run omits its expectation binding", rows => { delete rows.find(e => e.table === "autonomy_runs").identity.metadata_bindings.work_expectation_binding_id; }],
@@ -335,9 +341,10 @@ function expectationSnapshots() {
     const receipt = scopedCore("run_receipt", `receipt:expectation:${suffix}`, { run_id: runId });
     const binding = scopedCore("work_expectation_record", `expectation:attempt:${suffix}`);
     const reports = [scopedCore("work_expectation_record", `report:first:${suffix}`), scopedCore("work_expectation_record", `report:corrected:${suffix}`)];
+    if (suffix === 'a') reports.push(scopedCore("work_expectation_record", "report:later:a"));
     binding.identity.expectation_binding = { ...empty, kind: "attempt_binding", revision: null, expectation_id: forecast.identity.record_id, expectation_fingerprint: forecast.identity.fingerprint, run_id: runId,
       chronology: suffix === 'a' ? 'same_transaction_as_first_local_interactive_run' : 'same_transaction_as_first_local_interactive_ordinary_preparation_attempt.v0.1' };
-    reports.forEach((r, i) => { r.identity.expectation_binding = { ...empty, kind: "outcome_report", revision: i + 1, expectation_id: forecast.identity.record_id, expectation_fingerprint: forecast.identity.fingerprint, attempt_id: binding.identity.record_id, attempt_fingerprint: binding.identity.fingerprint, receipt_id: receipt.identity.record_id, receipt_fingerprint: receipt.identity.fingerprint, previous_id: i ? reports[0].identity.record_id : null, previous_fingerprint: i ? reports[0].identity.fingerprint : null }; });
+    reports.forEach((r, i) => { r.identity.expectation_binding = { ...empty, kind: "outcome_report", revision: i + 1, expectation_id: forecast.identity.record_id, expectation_fingerprint: forecast.identity.fingerprint, attempt_id: binding.identity.record_id, attempt_fingerprint: binding.identity.fingerprint, receipt_id: receipt.identity.record_id, receipt_fingerprint: receipt.identity.fingerprint, previous_id: i ? reports[i - 1].identity.record_id : null, previous_fingerprint: i ? reports[i - 1].identity.fingerprint : null }; });
     const run = runRow(runId, "project:expectation");
     Object.assign(run.identity.metadata_bindings, { work_expectation_binding_id: binding.identity.record_id, work_expectation_binding_fingerprint: binding.identity.fingerprint });
     const events = [["run_created", "running"], ["run_started", "running"], ["step_started", "running"], ["step_completed", "completed"], ["run_completed", "completed"]]

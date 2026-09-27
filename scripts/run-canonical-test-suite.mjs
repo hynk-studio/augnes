@@ -661,6 +661,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "reviewed-outcome-reuse",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem"],
+      label: "saved outcome correction, explicit selection, immutable historical snapshot and actual successor input",
+      ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--reviewed-outcome-reuse-only"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "ordinary-successor-expectation",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem"],

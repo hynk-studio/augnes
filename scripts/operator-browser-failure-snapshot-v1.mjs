@@ -1,5 +1,5 @@
 import { createHmac, randomBytes } from "node:crypto";
-import { realpathSync, statSync } from "node:fs";
+import { lstatSync, realpathSync, statSync } from "node:fs";
 import path from "node:path";
 import { StringDecoder } from "node:string_decoder";
 
@@ -50,8 +50,9 @@ const SUPERVISOR_VALUES = {
   last_public_reason_code: new Set([
     "none", "signal_sigterm", "signal_sigint", "required_child_exit",
     "shutdown_timeout", "owned_cleanup_failed", "runtime_startup_failed",
+    "ui_startup_timeout", "bridge_startup_timeout",
   ]),
-  database_state: new Set(["none", "preparing", "ready", "failed", "recovery_required"]),
+  database_state: new Set(["none", "preparing", "current", "ready", "failed", "recovery_required"]),
   bootstrap_recovery_phase: new Set(["none", "runtime_startup", "database_bootstrap", "recovery_mode"]),
   supervisor_signal: new Set(["SIGTERM", "SIGINT", "SIGKILL"]),
 };
@@ -107,6 +108,14 @@ export function createOperatorBrowserFailureSnapshotV1({ repository_root }) {
           generation: ordinal(generation), start_invoked_at: new Date().toISOString(),
           start_mode: "source_next_dev_webpack", generated_build_state: "unavailable",
         };
+        const generated = {};
+        runtime.generated_build_state = generated;
+        for (const relative of [".next", ".next/dev", ".next/dev/lock"]) {
+          const parent = path.posix.dirname(relative);
+          if (parent !== "." && generated[parent] !== "directory") { generated[relative] = "unavailable_parent"; continue; }
+          const entry = lstatSync(path.join(root, relative), { throwIfNoEntry: false });
+          generated[relative] = !entry ? "absent" : entry.isSymbolicLink() ? "symlink" : entry.isDirectory() ? "directory" : entry.isFile() ? "file" : "other";
+        }
         navigation = null;
         parser = createServerInterval(root, pseudonym);
       });

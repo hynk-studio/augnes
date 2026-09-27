@@ -6,6 +6,10 @@ export const SELECTED_WORK_SOURCE_LABELS = [
   "Deferred item / revisit condition", "Open question", "Next check", "Unclassified / needs review",
 ] as const;
 
+/** Literal historical report reuse, never a new prospective expectation. */
+export const REVIEWED_OUTCOME_SOURCE_V01 = "augnes.reviewed-outcome-source.v0.1" as const;
+export interface ReviewedOutcomeSourceRefV01 { record_id: string; fingerprint: string }
+
 /** Ephemeral user input; persistence uses existing TaskContextPacket source entries. */
 export interface SelectedWorkSourceInput {
   source: string;

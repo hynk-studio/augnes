@@ -67,6 +67,7 @@ await runOperatorExecutionBrowserChildV1({
     );
     return {
       project_id: fixture.manifest.project_id,
+      environment: DIAGNOSTIC_SCENARIO === "normal" ? {} : { AUGNES_TEST_RUNTIME_STARTUP_DIAGNOSTICS: "1" },
       strategic_fixture_path: strategicFixturePath,
       strategic_fixture_retired_path: `${strategicFixturePath}.retired`,
       strategic_counter_path: strategicCounterPath,

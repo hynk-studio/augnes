@@ -82,20 +82,33 @@ automatically delivered worker instruction.
 
 [#1340](https://github.com/hynk-studio/augnes/pull/1340), for #1339's explicit
 saved outcome-report/forecast-context selection and exact historical delivery,
-remained **open Draft / HOLD** at head
-`944b2f561013cfcdb05167fcd392a1ccd16f462c`. It owns its implementation contract
-and the corresponding 02/03 mechanism text. Its selection/delivery evidence
-does not establish better judgment, human-effort savings, autonomous learning
-or separate-task transfer. The failed deciding run on `5b1994fa` remains
-non-deciding. The later isolated startup observation did not reproduce that
-failure and did not resolve its cause or renew verification eligibility.
-Its local next decision remains a separately authorized observation of the
-existing four-scenario navigation-diagnostics sequence, preserving the fourth
-generation's readiness, pending Browser root request and generated-state
-observations before choosing a justified repair; further deciding verification
-remains deferred. The later-use preference here, including the ordinary-use
-pointers in completed slices below, cannot replace that engineering decision
-or bypass its HOLD. No unmerged capability is treated as current-main support.
+remains **open Draft / HOLD**. It owns its implementation contract and the
+corresponding 02/03 mechanism text. Its selection/delivery evidence does not
+establish better judgment, human-effort savings, autonomous learning or
+separate-task transfer. The failed deciding run on `5b1994fa` remains
+non-deciding; the original UI startup timeout's cause remains unknown.
+
+The bounded isolated observation and the single ordered four-scenario
+navigation-diagnostics observation on `944b2f561013cfcdb05167fcd392a1ccd16f462c`
+are complete and did not reproduce that startup failure. The ordered parent
+passed its original assertions in 124,139 ms; its fourth UI became health-ready
+in 5,255 ms. Scenarios 1–2 lack retained startup UUIDs and UI/bridge probe arrays;
+successful navigation assertions or later cleanup cannot supply those missing
+observations. The retained diagnostic-capture improvement addresses demonstrated
+evidence loss, not an established cause of the startup timeout. Neither
+observation transfers or replaces exact-head verification evidence.
+
+On 2026-09-27, the user explicitly authorized integrating reviewed main
+`e2e0af3279d5db31105b88b5ed456945563f9f30` from #1341 into this PR, freezing the
+final candidate and performing one planner-required deciding verification
+attempt on that exact clean integrated head. This decision supersedes the
+diagnostic-only deferral; it does not relax verification policy or authorize
+repeated attempts until PASS. No further standalone diagnostic execution or
+speculative startup repair precedes that attempt. Merge and production adoption
+remain on HOLD pending review of the result. The later-use preference here,
+including the ordinary-use pointers in completed slices below, cannot replace
+that engineering decision or bypass its HOLD. No unmerged capability is treated
+as current-main support.
 
 At ordinary-use entry, recheck the exact available path and its eligibility;
 manual note reuse is distinct from #1340's saved-report selection. Do not infer
@@ -436,6 +449,31 @@ Improved judgment, recurring user burden and later real-work usefulness remain
 unestablished. Completed P3/P5 studies and deferred remote transport stay closed
 to further execution under this issue. The next observation is one separately
 authorized ordinary use, retaining a strong source-linked note as the baseline.
+
+## P3/P5 explicit saved outcome-report reuse (#1339)
+
+[#1339](https://github.com/hynk-studio/augnes/issues/1339) connects saved operator
+reports and corrections to ordinary next-work source selection. The earlier
+path offered a receipt/host-summary note and manual attributed notes; it did not
+offer the saved report itself. A reviewer can now select the latest report and
+original forecast context without retyping them, compare and preview the exact
+selection, save B, reopen it and deliver its historical snapshot to B's consumer.
+Stale selected report versions refuse during save. Later corrections preserve
+the saved snapshot; eligible explicit revision owns subsequent removal or
+reselection. B's own forecast remains a separate operator-only record.
+After exclusion, a search matching only the report or forecast now offers both
+historical notes visibly for one explicit group selection. Lookup bounds keep
+groups whole, and selection checks both note slots and serialized bytes before
+adding the pair. This closes the earlier single-hit comparison refusal without
+relaxing snapshot coherence or replacing the saved report with a later one.
+
+This is **Current while its Draft PR is open**, and **Completed within this
+bounded selection/delivery scope after merge**. Disposable deterministic and
+Browser evidence establish the mechanics and observable transcription/selection
+steps only. They do not establish predictive accuracy, better judgment, human
+time savings or automatic learning. Production adoption, remote transport and
+held/consumed P3/P5 studies remain outside this issue. Next: review the bounded
+connection and retain or revise it on its producer-to-consumer evidence.
 
 ## P2/P3 saved outcome-linked preparation revision (#1335)
 

@@ -3,22 +3,30 @@
 import { useRef, useState } from "react";
 import type { recallRetainedWorkSources, RetainedWorkSourceHit } from "@/lib/intake/retained-work-source-recall";
 import type { ProjectWorkInitializationV01 } from "@/types/vnext/project-work-initialization";
+import { REVIEWED_OUTCOME_SOURCE_V01 } from "@/types/vnext/project-work-revision";
 import styles from "./semantic-review.module.css";
 
 type Recall = ReturnType<typeof recallRetainedWorkSources>;
 
-export function RetainedWorkSourceLookup({ initialization, disabled, selectionFull, isSelected, onSelect }: {
+export function RetainedWorkSourceLookup({ initialization, disabled, remainingSlots, isSelected, onSelect }: {
   initialization: ProjectWorkInitializationV01;
   disabled: boolean;
-  selectionFull: boolean;
+  remainingSlots: number;
   isSelected: (hit: RetainedWorkSourceHit) => boolean;
-  onSelect: (hit: RetainedWorkSourceHit) => void;
+  onSelect: (hits: RetainedWorkSourceHit[]) => void;
 }) {
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<Recall | null>(null);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestId = useRef(0);
+  const groups = new Map<string, RetainedWorkSourceHit[]>();
+  for (const hit of result?.results ?? []) {
+    const ref = hit.entry.compatibility_source_ref!;
+    const key = ref.compatibility_namespace === REVIEWED_OUTCOME_SOURCE_V01
+      ? JSON.stringify([ref.external_id, ref.source_ref]) : hit.entry.entry_id;
+    groups.set(key, [...(groups.get(key) ?? []), hit]);
+  }
 
   async function search() {
     const packet = initialization.current_packet;
@@ -50,26 +58,32 @@ export function RetainedWorkSourceLookup({ initialization, disabled, selectionFu
     <input id="retained-source-query" value={query} maxLength={160} placeholder="valve bench cold start" onChange={(event) => {
       requestId.current += 1; setQuery(event.target.value); setResult(null); setError(null);
     }} />
-    <p className={styles.muted}>All words must occur in the note or source label; case is ignored. Up to 160 characters and eight words. Other projects, transcripts and external sources are outside this search.</p>
+    <p className={styles.muted}>All words must occur in a note or source label; case is ignored. A saved outcome match also shows its original forecast context and report together for explicit selection. Up to 160 characters and eight words. Other projects, transcripts and external sources are outside this search.</p>
     <button type="button" data-retained-source-action="search" className={styles.secondaryButton} disabled={disabled || searching || !query.trim()} onClick={() => void search()}>
       {searching ? "Searching…" : "Search retained notes"}
     </button>
     {error ? <p role="alert" className={styles.error}>{error}</p> : null}
     {result ? <div data-retained-source-results>
-      <p role="status">{result.returned_entries} of {result.matching_entries} matching notes returned from {result.scanned_packets} packets through {result.cutoff_recorded_at}. {result.scanned_entry_occurrences} note occurrences scanned ({result.scanned_entry_utf8_bytes} UTF-8 bytes); {result.unique_entries} exact distinct notes.</p>
+      <p role="status">{result.returned_entries} of {result.matching_entries} notes in matching results returned from {result.scanned_packets} packets through {result.cutoff_recorded_at}. Counts include both notes of each saved outcome group. {result.scanned_entry_occurrences} note occurrences scanned ({result.scanned_entry_utf8_bytes} UTF-8 bytes); {result.unique_entries} exact distinct notes.</p>
       <p className={styles.muted}>This chain is bounded to {result.limits.packets} packets, {result.limits.note_occurrences} note occurrences and {result.limits.scanned_entry_utf8_bytes} serialized note bytes. Source validation also reads lineage; these sizes are not disk I/O.</p>
-      <p className={styles.muted}>Results: {result.result_utf8_bytes} UTF-8 bytes; at most {result.limits.results} notes and {result.limits.result_utf8_bytes} bytes. {result.omitted_matching_entries} matching notes omitted at these bounds. No note is clipped. No match here does not establish absence elsewhere.</p>
-      {result.results.map((hit) => <div key={hit.entry.entry_id} className={styles.panel} data-retained-source-hit={hit.entry.entry_id}>
+      <p className={styles.muted}>Results: {result.result_utf8_bytes} UTF-8 bytes; at most {result.limits.results} notes and {result.limits.result_utf8_bytes} bytes. {result.omitted_matching_entries} notes omitted at these bounds. No note is clipped or saved outcome group split. No match here does not establish absence elsewhere.</p>
+      {[...groups].map(([key, hits]) => <div key={key} className={styles.panel} data-retained-source-group>
+        {hits.length === 2 ? <p>Historical forecast context and outcome report — both notes below will be selected together. Later reports do not replace this saved version.</p> : null}
+        {hits.map(hit => <div key={hit.entry.entry_id} data-retained-source-hit={hit.entry.entry_id}>
         <strong>{hit.entry.why_included}</strong>
         <p>{hit.entry.compatibility_source_ref!.external_id} · {hit.entry.trust_class.replaceAll("_", " ")}</p>
         <p>{hit.selection === "currently_selected" ? "Currently selected" : "Historical — not selected in current work"}. Source time: {hit.entry.external_ref?.observed_at ?? "unknown"}. First saved: {hit.first_recorded_at}.</p>
         <p style={{ whiteSpace: "pre-wrap" }}>{hit.entry.bounded_summary}</p>
         <p className={styles.muted}>{hit.packet_occurrences} packet occurrence(s), treated as one exact excerpt, not independent evidence. Original external availability and currentness remain unverified. Reading now does not refresh the source.</p>
         <details><summary>Exact saved source</summary><p style={{ overflowWrap: "anywhere" }}>Packet: {hit.source.packet_id}<br />Packet fingerprint: {hit.source.packet_fingerprint}<br />Excerpt: {hit.source.entry_id}<br />Excerpt fingerprint: {hit.source.source_fingerprint}<br />Last selected: {hit.last_selected_at}</p></details>
-        <button type="button" data-retained-source-action="select" className={styles.secondaryButton} disabled={disabled || selectionFull || isSelected(hit)} onClick={() => onSelect(hit)}>{isSelected(hit) ? "Already selected" : "Select for comparison"}</button>
+        </div>)}
+        <button type="button" data-retained-source-action="select" className={styles.secondaryButton}
+          disabled={disabled || hits.length > remainingSlots || hits.some(isSelected)} onClick={() => onSelect(hits)}>
+          {hits.some(isSelected) ? "Already selected" : hits.length === 2 ? "Select both historical notes for comparison" : "Select for comparison"}
+        </button>
+        {!hits.some(isSelected) && hits.length > remainingSlots ? <p data-retained-source-capacity>This selection needs {hits.length} note {hits.length === 1 ? "slot" : "slots"}; {remainingSlots} remain. Exclude notes before adding this selection.</p> : null}
       </div>)}
       <p className={styles.muted}>Historical does not mean rejected, deleted or automatically cooled. Earlier exclusions still apply until you deliberately select, compare and save a revision. Labels do not establish accepted meaning.</p>
-      {selectionFull ? <p>Eight notes are selected. Exclude a note from this revision before selecting another.</p> : null}
     </div> : null}
   </details>;
 }

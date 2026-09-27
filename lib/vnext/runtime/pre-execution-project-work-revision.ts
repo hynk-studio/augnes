@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 import { compareNewProjectWorkV01 } from "./new-project-work-preparation";
-import { normalizeSelectedWorkSources, readSelectedWorkSources, compareSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
+import { assertReviewedOutcomeSourcesRetained, normalizeSelectedWorkSources, readSelectedWorkSources, compareSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
 
 import {
   assertVNextCoreRecordMatchesProtocolPayloadBindingV01,
@@ -105,6 +105,8 @@ export function createPreExecutionProjectWorkRevisionMaterialV01(input: {
   const definition = normalizeInitialProjectWorkDefinitionV01(input.definition);
   const selectedSources = normalizeSelectedWorkSources(input.request,
     input.request.selected_source_context ?? readSelectedWorkSources(input.prior_packet));
+  // Saved result reuse belongs to receipt-backed ordinary succession only.
+  assertReviewedOutcomeSourcesRetained(selectedSources, []);
   const newTask = input.request.action === "prepare_new_project_work";
   const compiler = newTask ? PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01 : PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01;
   const sourceIdentity = {

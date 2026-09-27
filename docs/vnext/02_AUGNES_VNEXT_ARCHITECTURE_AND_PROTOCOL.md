@@ -805,6 +805,47 @@ its exact scoped adapter and inventory; it cannot fall through to whole-root
 execution. Older readers refuse the new request/definition. No Core kind, store,
 migration, model call, remote transport or automatic selection is added.
 
+#### Explicit reuse of a saved outcome review
+
+The additive `augnes.reviewed-outcome-source.v0.1` provenance profile projects
+the exact result reader's latest applicable operator report and its original
+expectation into two coherent selected-source notes. The report version, time,
+author, literal observation, outcome and applicability remain distinct from the
+original requirement, forecast reason and conditions. Exact report/forecast,
+packet, attempt and receipt identities remain attached. This is an attributed
+historical snapshot, not a host claim, typed assessment, derived comparison,
+verified truth or new prospective forecast. Unknown conditions stay unknown;
+matching a prediction does not establish task success.
+
+Both notes are unselected by default. Selection reuses the normal comparison,
+preview and authenticated successor save. The writer validates literal content
+and exact saved bindings; inside the existing immediate transaction it also
+requires the selected report to remain latest. A correction racing with save
+refuses atomically. Unselected optional report changes impose no new gate.
+After save, reconstruction validates the exact historical records without a
+latest-version check or a new local chronology claim. Later corrections neither
+rewrite nor invalidate the selected snapshot. Eligible same-task revision can
+remove it or explicitly reselect it from its original preparation snapshot.
+Retained-source lookup matches either member and discloses the complete exact
+historical group. Both notes are shown before explicit group selection; their
+actual count and serialized bytes consume the existing limits. Result bounds
+omit whole groups rather than splitting them. Selection checks the complete
+combined context budget before adding the pair; comparison and save still
+validate both exact retained references. A later report is not substituted.
+
+Generated notes carry a distinct compatibility reference. Changing their text
+cannot retain saved-report provenance; the editor offers an explicitly newly
+authored note instead. Revision accepts generated entries only from its already
+validated preparation family. Initial/scoped preparation is not broadened.
+The existing eight-entry, 2,000-character and 12,000-byte selection limits apply
+to the complete grouping. Unavailable chronology, malformed optional material or
+overflow produces an honest local disposition without clipping or preventing
+otherwise eligible preparation without it. Manual attributed notes and the
+separate host-report source remain available. Current-code restore/import keeps
+literal historical identity without inventing local execution; older source
+readers refuse the new provenance shape. No store, migration, Core kind, model
+call, source auto-selection or semantic/execution authority is added.
+
 #### Revising an unexecuted outcome-linked preparation
 
 The additive `augnes.authored-successor-revision.v0.1` compatibility profile

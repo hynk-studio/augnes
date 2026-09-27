@@ -1,7 +1,9 @@
 import { isOrdinarySuccessorRevisionV01, inspectOrdinarySuccessorRevisionV01, ordinarySuccessorRevisionMaterialV01, ordinarySuccessorRevisionIdempotencyKeyV01 } from "./authored-successor-revision";
 import { AUTHORED_SUCCESSOR_TASK_V01, AUTHORED_SUCCESSOR_REVALIDATION_V01, AUTHORED_SUCCESSOR_CONTEXT_V01 } from "@/types/vnext/project-work-initialization";
 import { buildSelectedWorkSourceEntry, compareSelectedWorkSources, normalizeSelectedWorkSources, SelectedWorkSourceError } from "@/lib/intake/selected-work-source-comparison";
-import type { SelectedWorkSourceSelection } from "@/types/vnext/project-work-revision";
+import { REVIEWED_OUTCOME_SOURCE_V01, type SelectedWorkSourceSelection, type ReviewedOutcomeSourceRefV01 } from "@/types/vnext/project-work-revision";
+import { assertReviewedOutcomeSelectionV01, readReviewedOutcomeReuseV01 } from "@/lib/vnext/persistence/reviewed-outcome-source";
+import { reviewedOutcomeSourceRef, readSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
 import { VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01 } from "./persisted-semantic-context-compiler";
 import type Database from "better-sqlite3";
 import { isTerminalRunnerStatus } from "@/lib/autonomy/runner-state";
@@ -70,7 +72,8 @@ export function readResultWorkPreparationV01(db: Database.Database, input: {
     if (!(error instanceof SelectedWorkSourceError)) throw error;
     // The reviewer can select a bounded attributed excerpt instead.
   }
-  return { initialization, binding, result_source };
+  const reviewed_outcome = readReviewedOutcomeReuseV01(db, { ...input.config, packet: r.packet, receipt: r.receipt, assessment: r.criterion_assessment });
+  return { initialization, binding, result_source, reviewed_outcome };
 }
 
 export function compareResultWorkSourcesV01(db: Database.Database, input: {
@@ -79,7 +82,22 @@ export function compareResultWorkSourcesV01(db: Database.Database, input: {
   const current = readResultWorkPreparationV01(db, { ...input, receipt_id: input.binding.expected_latest_receipt_id });
   check(equal(current.binding, input.binding), "preparation_changed");
   const r = readProjectRunResultSourceBindingV01(db, { ...input.config, receipt_id: input.binding.expected_latest_receipt_id });
-  return compareSelectedWorkSources(r.packet!, input.notes.map(note => buildSelectedWorkSourceEntry(input.config, note)));
+  return compareSelectedWorkSources(r.packet!, input.notes.flatMap(note => {
+    if (note && typeof note === "object" && "saved_source_id" in note) {
+      check(equal(Object.keys(note), ["saved_source_id"]), "source_selection_invalid");
+      const entries = readSelectedWorkSources(r.packet!);
+      const selected = entries.find(e => e.entry_id === note.saved_source_id);
+      check(selected, "source_selection_invalid");
+      const review = reviewedOutcomeSourceRef(selected);
+      return review ? entries.filter(e => reviewedOutcomeSourceRef(e)?.record_id === review.record_id) : [selected];
+    }
+    if (note && typeof note === "object" && "reviewed_outcome_ref" in note) {
+      check(equal(Object.keys(note), ["reviewed_outcome_ref"]) && current.reviewed_outcome.status === "available" &&
+        equal((note as { reviewed_outcome_ref: ReviewedOutcomeSourceRefV01 }).reviewed_outcome_ref, current.reviewed_outcome.binding), "reviewed_outcome_changed");
+      return current.reviewed_outcome.entries;
+    }
+    return [buildSelectedWorkSourceEntry(input.config, note)];
+  }));
 }
 
 export function previewResultWorkV01(db: Database.Database, input: {
@@ -94,7 +112,7 @@ export function previewResultWorkV01(db: Database.Database, input: {
   const request = parseRequest({ action: ACTION, ...input.binding, selected_sources: input.selected_sources,
     definition: { objective: d.goal, checks: d.success_criteria.map((criterion, index) => ({ check_id: `criterion_${index + 1}`, criterion })),
       stop_conditions: d.non_goals, materials: [], approved_instruction_hashes: [] } });
-  source(db, input.config, request);
+  source(db, input.config, request, { latest: true });
   return { request, before: before.initialization.current_work, after: d,
     sources_before: before.initialization.selected_source_context ?? [], sources_after: request.selected_sources!.selected_source_context,
     omitted_sources: request.selected_sources!.omitted_sources, writes: 0 as const };
@@ -157,7 +175,8 @@ function ref(type: string, id: string, fingerprint: string, at: string, trust: E
   return { ref_version: "external_ref.v0.1", ref_type: type, external_id: id, source_ref: fingerprint,
     observed_at: at, trust_class: trust, compatibility_namespace: AUTHORED_SUCCESSOR_TASK_V01 };
 }
-function source(db: Database.Database, config: VNextLocalOperatorPilotConfigV01, request: DefineAuthoredSuccessorTaskRequestV01) {
+function source(db: Database.Database, config: VNextLocalOperatorPilotConfigV01, request: DefineAuthoredSuccessorTaskRequestV01,
+  review: { latest?: boolean; selected_at?: string } = {}) {
   const r = readProjectRunResultSourceBindingV01(db, { ...config, receipt_id: request.expected_latest_receipt_id });
   check(r.packet && r.receipt.integrity.fingerprint === request.expected_latest_receipt_fingerprint &&
     r.packet.packet_id === request.expected_current_packet_id && r.packet.integrity.fingerprint === request.expected_current_packet_fingerprint &&
@@ -176,6 +195,8 @@ function source(db: Database.Database, config: VNextLocalOperatorPilotConfigV01,
     check(comparison.fingerprint === selection.expected_source_comparison, "source_comparison_changed");
     check(equal([...selection.omitted_sources.map(row => row.source_binding)].sort(),
       comparison.unselected_previous.map(row => row.source_ref!).sort()), "source_omissions_invalid");
+    assertReviewedOutcomeSelectionV01(db, { ...config, packet: r.packet, receipt: r.receipt, assessment: r.criterion_assessment,
+      entries: comparison.entries, ...review });
   }
   return { ...r, packet: r.packet, run: r.run };
 }
@@ -243,7 +264,8 @@ function build(input: { prior: TaskContextPacketV01; receipt: ReturnType<typeof 
       required_checks: definition.checks.map(c => c.check_id).sort(), return_ref: null, compatibility_only: false },
     source_status: { status: prior.source_status.status, currentness, source_refs: [...prior.source_status.source_refs, ...refs.map(r => r.source_ref!)],
       external_refs: [...prior.source_status.external_refs, ...refs], warnings: ["The predecessor remains immutable; file reads and comparison results retain their actual evidence basis."] },
-    compatibility: { source_contracts: [AUTHORED_SUCCESSOR_TASK_V01, ...(material.request.selected_sources ? [AUTHORED_SUCCESSOR_CONTEXT_V01] : []), ...(material.request.revalidation ? [AUTHORED_SUCCESSOR_REVALIDATION_V01] : [])], legacy_scope_ref: null,
+    compatibility: { source_contracts: [AUTHORED_SUCCESSOR_TASK_V01, ...(material.request.selected_sources ? [AUTHORED_SUCCESSOR_CONTEXT_V01] : []),
+      ...(selected.some(e => reviewedOutcomeSourceRef(e)) ? [REVIEWED_OUTCOME_SOURCE_V01] : []), ...(material.request.revalidation ? [AUTHORED_SUCCESSOR_REVALIDATION_V01] : [])], legacy_scope_ref: null,
       source_refs: [...prior.compatibility.source_refs, ...refs], unmapped_fields: [], warnings: [] },
   }, { required_selected_entry_ids: [...prior.selected_context.filter(e => e.entry_kind === "accepted_state_ref"), ...entries, ...selected].map(e => e.entry_id) });
   return { packet, successor_definition_ref: definitionRef, operator_action_ref: operatorRef,
@@ -304,7 +326,7 @@ export async function defineAuthoredSuccessorTaskV01(db: Database.Database, inpu
         continuity.latest_compiled_packet.packet_fingerprint === request.expected_current_packet_fingerprint && continuity.packet_currentness === "fresh", "current_packet_changed");
     }
     assertNewLifetime(request, auth.action_observed_at, auth.session.expires_at);
-    const predecessor = source(db, input.config, request);
+    const predecessor = source(db, input.config, request, { latest: true, selected_at: auth.action_observed_at });
     // Authorship requires the live ledger's settled predecessor. A portable
     // receipt alone can be read as history, but cannot authorize this writer.
     check(predecessor.run, "local_predecessor_required");
@@ -344,7 +366,7 @@ export function inspectAuthoredSuccessorPacketV01(db: Database.Database, input: 
   if (isOrdinarySuccessorRevisionV01(input.packet)) return inspectOrdinarySuccessorRevisionV01(db, input);
   // Recovery/portable readers retain durable receipt and authenticated task
   // provenance without reconstructing a machine-local run or execution grant.
-  const packet = input.packet, material = materialFrom(packet), prior = source(db, input.config, material.request);
+  const packet = input.packet, material = materialFrom(packet), prior = source(db, input.config, material.request, { selected_at: packet.generated_at });
   check(packet.workspace_id === input.config.workspace_id && packet.project_id === input.config.project_id &&
     Date.parse(packet.generated_at) > Date.parse(prior.packet.generated_at) && Date.parse(packet.generated_at) >= Date.parse(prior.receipt.recorded_at), "source_scope_or_order");
   const session = readVNextLocalOperatorSessionHistoryV01(db, { session_id: material.session_id });

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import path from "node:path";
+import { createBrowserStartupObservation, createBrowserSupervisorPublicDiagnosticCapture, normalizeBrowserStartupObservation } from "./browser-supervisor-public-diagnostic.mjs";
 import {
   createOperatorBrowserFailureSnapshotV1,
   OPERATOR_FAILURE_SNAPSHOT_LIMITS_V1 as limits,
@@ -206,4 +207,57 @@ assert.equal(safeSupervisor.last_supervisor_result_code, null);
 assert.equal(safeSupervisor.supervisor_exit_code, null);
 for (const marker of sensitive) assert.equal(JSON.stringify(safeSupervisor).includes(marker), false);
 
-process.stdout.write("operator_browser_failure_snapshot.v1: synthetic retention, correlation, privacy, bounds and capture settlement pass\n");
+// Synthetic readiness observations classify existing probe outcomes without
+// launching a runtime or claiming to reproduce the historical startup failure.
+let clock = 100;
+const generation = "00000000-0000-4000-8000-000000000001";
+const instance = "00000000-0000-4000-8000-000000000002";
+const startup = createBrowserStartupObservation({ generation_id: generation, instance_id: instance,
+  role: "ui", deadline_ms: 90000, now: () => clock });
+startup.spawned();
+startup.append(`Starting... ${sensitive.join(" ")}\nReady in 42ms\nCompiling /api/healthz\nCompiled /api/healthz`);
+const observe = entry => { clock += 10; startup.probe({ ...entry, duration_ms: 3 }); };
+observe({error: Object.assign(new Error(sensitive[0]), {code:"ECONNREFUSED"})});
+observe({error: new Error("request timed out")});
+observe({error: new SyntaxError(sensitive[0])});
+observe({error: new Error("control response exceeded limit")});
+observe({error: new Error(sensitive[0])});
+observe({response:{statusCode:500,body:sensitive[0]}});
+observe({response:{statusCode:200,body:null}});
+observe({response:{statusCode:200,body:{status:"starting",private:sensitive[0]}}});
+observe({response:{statusCode:200,body:{runtime_instance_id:generation,private:sensitive[0]}}});
+observe({response:{statusCode:200,body:{runtime_instance_id:instance}},ready:true});
+const atFailure = startup.snapshot("readiness_finished", "timeout");
+assert.equal(atFailure.deadline_ms,90000);
+assert.equal(atFailure.request_timeout_ms,1500);
+assert.equal(atFailure.probe_interval_ms,150);
+assert.equal(atFailure.generation_id,generation);
+assert.equal(atFailure.attempts,10);
+assert.equal(atFailure.probes.length,8);
+assert.equal(atFailure.omitted_probes,2);
+assert.equal(atFailure.counts.malformed_response,2);
+for(const outcome of ["connection_failure","request_timeout","response_overflow","transport_error","http_error","not_ready","runtime_instance_mismatch","ready"]) assert.equal(atFailure.counts[outcome],1);
+assert.equal(atFailure.exit_observed,false);
+clock += 5;
+const afterStop = startup.snapshot("after_owned_stop", "timeout", {code:0,signal:"SIGTERM"});
+assert.equal(afterStop.exit_observed,true);
+assert.equal(afterStop.exit_signal,"SIGTERM");
+assert.equal(startup.snapshot("child_exit","ready",{code:0,signal:null}).stage,"child_exit");
+assert.equal(atFailure.exit_observed,false,"shutdown cannot rewrite the earlier snapshot");
+const retainedStartup=[];
+const publicCapture=createBrowserSupervisorPublicDiagnosticCapture({onStartupObservation:value=>retainedStartup.push(value)});
+const line=value=>`${JSON.stringify({contract:"augnes-local-runtime-supervisor-v1",command:"startup_diagnostic",startup_diagnostic:value})}\n`;
+publicCapture.append('{"contract":"augnes-local-runtime-supervisor-v1","result":"failed","reason":"ui_startup_timeout","database_state":"current"}\n');
+publicCapture.append(line(atFailure)); publicCapture.append(line(afterStop));
+assert.deepEqual(retainedStartup,[atFailure,afterStop]);
+assert.equal(publicCapture.diagnostic().last_public_reason_code,"ui_startup_timeout","observation never replaces the primary supervisor failure");
+assert.deepEqual(publicCapture.diagnostic().startup_observations,[atFailure,afterStop]);
+const spoofed=normalizeBrowserStartupObservation({...afterStop,private:sensitive.join(" "),result:sensitive[0],exit_signal:sensitive[1],probes:[{outcome:sensitive[0],body:sensitive[1],duration_ms:sensitive[2]}],progress:[{label:sensitive[0]}]});
+assert.equal(spoofed.result,null); assert.equal(spoofed.exit_signal,null);
+assert.equal(normalizeBrowserStartupObservation({...afterStop,generation_id:sensitive[0]}),null);
+for(const value of sensitive) assert.equal(JSON.stringify([atFailure,afterStop,spoofed,publicCapture.diagnostic()]).includes(value),false);
+for(let i=0;i<10;i++) publicCapture.append(line(atFailure));
+assert.equal(publicCapture.diagnostic().startup_observations.length,4);
+assert(Buffer.byteLength(JSON.stringify(publicCapture.diagnostic().startup_observations))<16000);
+assert.doesNotThrow(()=>{const capture=createBrowserSupervisorPublicDiagnosticCapture({onStartupObservation:()=>{throw Error("observer unavailable");}});capture.append(line(atFailure));});
+process.stdout.write("operator_browser_failure_snapshot.v1: synthetic retention, correlation, privacy, bounds, startup classifications and capture settlement pass\n");

@@ -5,7 +5,7 @@ import {
   normalizeExternalRefPrimitiveV01,
 } from "@/lib/vnext/protocol-primitives";
 import type { TaskContextPacketSelectedEntryV01, TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
-import { SELECTED_WORK_SOURCE_LABELS, type SelectedWorkSourceInput, type RetainedWorkSourceRef } from "@/types/vnext/project-work-revision";
+import { REVIEWED_OUTCOME_SOURCE_V01, SELECTED_WORK_SOURCE_LABELS, type ReviewedOutcomeSourceRefV01, type SelectedWorkSourceInput, type RetainedWorkSourceRef } from "@/types/vnext/project-work-revision";
 
 /** Bounded presentation over existing packet source entries; never a writer. */
 export const SELECTED_WORK_SOURCE_NAMESPACE = "augnes.selected-source-excerpt.v0.1";
@@ -77,6 +77,32 @@ export function selectedWorkSourceInput(entry: TaskContextPacketSelectedEntryV01
   };
 }
 
+export function reviewedOutcomeSourceRef(entry: TaskContextPacketSelectedEntryV01): ReviewedOutcomeSourceRefV01 | null {
+  const ref = entry.compatibility_source_ref;
+  return ref?.compatibility_namespace === REVIEWED_OUTCOME_SOURCE_V01
+    ? { record_id: ref.external_id, fingerprint: ref.source_ref! } : null;
+}
+
+/** Shape/content identity only. The result writer validates the saved records;
+ * revision writers may only retain exact entries from their validated family. */
+export function buildReviewedOutcomeSourceEntry(scope: Scope, input: SelectedWorkSourceInput,
+  binding: ReviewedOutcomeSourceRefV01, part: "expectation" | "report"): TaskContextPacketSelectedEntryV01 {
+  if (!binding || Object.keys(binding).sort().join(",") !== "fingerprint,record_id" ||
+    !/^work-expectation:[a-f0-9]{24}$/u.test(binding.record_id) || !/^sha256:[a-f0-9]{64}$/u.test(binding.fingerprint) ||
+    input.source !== binding.record_id || !["expectation", "report"].includes(part)) fail();
+  const entry = buildSelectedWorkSourceEntry(scope, input);
+  entry.compatibility_source_ref = { ref_version: "external_ref.v0.1", ref_type: `reviewed_outcome_${part}`,
+    external_id: binding.record_id, source_ref: binding.fingerprint, observed_at: input.observed_at,
+    trust_class: "imported_unverified", compatibility_namespace: REVIEWED_OUTCOME_SOURCE_V01 };
+  return entry;
+}
+
+export function assertReviewedOutcomeSourcesRetained(selected: TaskContextPacketSelectedEntryV01[], allowed: TaskContextPacketSelectedEntryV01[]) {
+  for (const entry of selected.filter(e => reviewedOutcomeSourceRef(e))) {
+    if (!allowed.some(prior => canonicalizeProtocolValueV01(prior) === canonicalizeProtocolValueV01(entry))) fail();
+  }
+}
+
 export function readSelectedWorkSources(packet: TaskContextPacketV01): TaskContextPacketSelectedEntryV01[] {
   return normalizeSelectedWorkSources(packet, packet.selected_context.filter((entry) =>
     entry.external_ref?.compatibility_namespace === SELECTED_WORK_SOURCE_NAMESPACE || entry.entry_id.startsWith("selected-source:"),
@@ -90,7 +116,11 @@ export function normalizeSelectedWorkSources(scope: Scope, value: unknown): Task
   const unique = new Map<string, TaskContextPacketSelectedEntryV01>();
   for (const entry of value) {
     if (!entry || typeof entry !== "object") fail();
-    const rebuilt = buildSelectedWorkSourceEntry(scope, selectedWorkSourceInput(entry));
+    const binding = reviewedOutcomeSourceRef(entry);
+    const part = entry.compatibility_source_ref?.ref_type;
+    const rebuilt = binding ? buildReviewedOutcomeSourceEntry(scope, selectedWorkSourceInput(entry), binding,
+      (typeof part === "string" ? part.replace("reviewed_outcome_", "") : "") as "expectation" | "report")
+      : buildSelectedWorkSourceEntry(scope, selectedWorkSourceInput(entry));
     if (canonicalizeProtocolValueV01(rebuilt) !== canonicalizeProtocolValueV01(entry)) fail();
     unique.set(rebuilt.entry_id, rebuilt);
   }
@@ -102,6 +132,11 @@ export function normalizeSelectedWorkSources(scope: Scope, value: unknown): Task
     if (left !== right) return left < right ? -1 : 1;
     return a.entry_id < b.entry_id ? -1 : a.entry_id > b.entry_id ? 1 : 0;
   });
+  for (const id of new Set(entries.flatMap(e => reviewedOutcomeSourceRef(e)?.record_id ?? []))) {
+    const group = entries.filter(e => reviewedOutcomeSourceRef(e)?.record_id === id);
+    if (group.length !== 2 || new Set(group.map(e => reviewedOutcomeSourceRef(e)!.fingerprint)).size !== 1 ||
+      group.map(e => e.compatibility_source_ref!.ref_type).sort().join(",") !== "reviewed_outcome_expectation,reviewed_outcome_report") fail();
+  }
   if (Buffer.byteLength(canonicalizeProtocolValueV01(entries), "utf8") > SELECTED_WORK_SOURCE_LIMITS.bytes) {
     throw new SelectedWorkSourceError("selected_source_context_budget_exceeded");
   }

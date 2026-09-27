@@ -86,6 +86,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
   let chromeRecord = null;
   let cdp = null;
   let runtimeStartCount = 0;
+  let rootReadiness = null;
   let runtimeShutdownCount = 0;
   let navigationCount = 0;
   let waitCount = 0;
@@ -139,12 +140,17 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     activeRuntimeProjectId = activeProjectId;
     runtimeStartCount += 1;
     const generation = runtimeStartCount;
+    rootReadiness = environment.AUGNES_TEST_RUNTIME_STARTUP_DIAGNOSTICS === "1"
+      ? { generation, loop_deadline_ms: DEFAULT_TIMEOUT_MS, per_request_timeout_ms: null,
+          attempts: 0, pending: null, observations: [], omitted_observations: 0 } : null;
     failureSnapshot.beginRuntime(generation);
     const finish = timing.start(
       "runtime_startup",
       `runtime startup ${String(runtimeStartCount).padStart(2, "0")}`,
     );
-    const capture = createBrowserSupervisorPublicDiagnosticCapture();
+    const capture = createBrowserSupervisorPublicDiagnosticCapture({ onStartupObservation: observation => {
+      process.stdout.write(`${JSON.stringify({ runtime_startup_observation: observation })}\n`);
+    } });
     runtimeDiagnostic = capture;
     runtimeProcess = spawn(
       process.execPath,
@@ -450,7 +456,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     startRuntime(project_id);
     startChrome();
     try {
-      await Promise.all([waitForHttp(`${appOrigin}/`), openCdp()]);
+      await Promise.all([waitForHttp(`${appOrigin}/`, observeRootReadiness), openCdp()]);
     } catch (error) {
       throw runtimeReadinessError(error);
     }
@@ -684,6 +690,8 @@ export async function createOperatorExecutionBrowserLifecycleV1({
         typeof diagnostic.supervisor_signal === "string"
           ? publicToken(diagnostic.supervisor_signal)
           : null,
+      startup_observations: diagnostic.startup_observations,
+      browser_root_readiness: rootReadiness ? structuredClone(rootReadiness) : null,
     });
   };
 
@@ -841,11 +849,24 @@ export async function createOperatorExecutionBrowserLifecycleV1({
 
   const waitForRuntimeReady = async () => {
     try {
-      await waitForHttp(`${appOrigin}/`);
+      await waitForHttp(`${appOrigin}/`, observeRootReadiness);
     } catch (error) {
       throw runtimeReadinessError(error);
     }
   };
+
+  function observeRootReadiness(observation) {
+    if (environment.AUGNES_TEST_RUNTIME_STARTUP_DIAGNOSTICS !== "1") return;
+    if (observation.outcome === "started") { rootReadiness.attempts += 1; rootReadiness.pending = observation; }
+    else {
+      rootReadiness.pending = null;
+      rootReadiness.observations.push(observation);
+      if (rootReadiness.observations.length > 8) { rootReadiness.observations.shift(); rootReadiness.omitted_observations += 1; }
+    }
+    if (rootReadiness.attempts <= 8) process.stdout.write(`${JSON.stringify({
+      browser_root_probe: { generation: runtimeStartCount, ...observation },
+    })}\n`);
+  }
 
   const runtimeReadinessError = (error) => {
     const diagnostic = runtimeDiagnostic?.diagnostic({
@@ -1219,13 +1240,20 @@ function minimalProcessEnvironment() {
   );
 }
 
-async function waitForHttp(url) {
+async function waitForHttp(url, observe = () => {}) {
   const started = Date.now();
   while (Date.now() - started < DEFAULT_TIMEOUT_MS) {
+    const requestStarted = Date.now();
+    observe({ outcome: "started", elapsed_ms: requestStarted - started });
     try {
       const response = await fetch(url, { redirect: "manual" });
+      observe({ outcome: response.status < 500 ? "accepted_http_response" : "http_error",
+        http_status: response.status, elapsed_ms: Date.now() - started, duration_ms: Date.now() - requestStarted });
       if (response.status < 500) return response;
-    } catch {
+    } catch (error) {
+      observe({ outcome: ["ECONNREFUSED", "ECONNRESET"].includes(error?.cause?.code) ? "connection_failure"
+        : error?.name === "TimeoutError" || error?.cause?.code === "UND_ERR_HEADERS_TIMEOUT" ? "request_timeout" : "transport_error",
+        elapsed_ms: Date.now() - started, duration_ms: Date.now() - requestStarted });
       // Runtime is still starting.
     }
     await delay(100);
