@@ -30,6 +30,155 @@ record. A phase becomes completed only when that pull request merges. This
 lifecycle wording remains truthful before and after merge without treating a
 Draft PR as completed runtime.
 
+## P3/P4/P5 direction: experience that improves later work
+
+Under the existing [product doctrine](./01_AUGNES_VNEXT_MASTERPLAN.md) and
+[coordination plan #1209](https://github.com/hynk-studio/augnes/issues/1209), the
+north star is user-owned, persistent project problem-solving capability built
+from the experience, corrections and reusable methods of a user and replaceable
+models. The product-facing loop stays **Resume -> Verify -> Decide**. This adds
+no learning mode, dashboard, approval ritual, phase or implementation mandate.
+
+The product question is whether valid project understanding and corrections
+help later work more than strong practical alternatives, without unjustified
+burden or historical rigidity. Assume those alternatives can offer frontier
+models, adaptive memory, project context, agents, governance and automation;
+none of these categories is an exclusive Augnes advantage. Users or small teams
+conducting uncertain research/development across sessions, tools or models are
+a primary target-user hypothesis, not established product-market fit.
+
+### Later ordinary-use evidence and current prerequisites
+
+The preferred first product observation, once its supporting path is legitimately
+available and applicable HOLDs are resolved, is one real successor case:
+
+```text
+real task A -> observed outcome -> conditional correction / hold / unresolved observation
+-> normal successor task B -> later session/model encountering B
+-> first correct judgment/action and/or required human context repair -> next development decision
+```
+
+Does A's conditional correction reach B's first judgment/action appropriately,
+reducing repetitive context repair or improving the later task? Use a case where
+the prior outcome actually matters; do not inject errors to create a benefit.
+Artificial contrasts are development/mechanism evidence. Ordinary-use observation
+and a fixed comparison are separate, separately authorized activities; this
+planning alignment authorizes neither. A later fixed comparison should use a
+strong source-linked adaptive memo or similarly strong practical alternative
+under [04's comparison rules](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#strong-comparisons-and-independence).
+One observation cannot establish broad learning, transfer or market advantage.
+
+At the 2026-09-27 source review, current main was
+`460e1475b12c6392956df7dfdd7240114c9b6376`, including merged
+[#1334](https://github.com/hynk-studio/augnes/pull/1334) for #1333's ordinary
+receipt-backed successor preparation and selected-note delivery,
+[#1336](https://github.com/hynk-studio/augnes/pull/1336) for #1335's saved-successor
+same-task revisions, and [#1338](https://github.com/hynk-studio/augnes/pull/1338)
+for #1337's optional successor expectations. These are bounded mechanics, not
+production adoption or usefulness. B -> B1 -> B2 revisions, repeated sessions
+on B and repeated evaluator turns on one case are not independent successor
+tasks or samples. An optional forecast is not a task requirement or an
+automatically delivered worker instruction.
+
+[#1340](https://github.com/hynk-studio/augnes/pull/1340), for #1339's explicit
+saved outcome-report/forecast-context selection and exact historical delivery,
+remains **open Draft / HOLD**. It owns its implementation contract and the
+corresponding 02/03 mechanism text. Its selection/delivery evidence does not
+establish better judgment, human-effort savings, autonomous learning or
+separate-task transfer. The failed deciding run on `5b1994fa` remains
+non-deciding; the original UI startup timeout's cause remains unknown.
+
+The bounded isolated observation and the single ordered four-scenario
+navigation-diagnostics observation on `944b2f561013cfcdb05167fcd392a1ccd16f462c`
+are complete and did not reproduce that startup failure. The ordered parent
+passed its original assertions in 124,139 ms; its fourth UI became health-ready
+in 5,255 ms. Scenarios 1–2 lack retained startup UUIDs and UI/bridge probe arrays;
+successful navigation assertions or later cleanup cannot supply those missing
+observations. The retained diagnostic-capture improvement addresses demonstrated
+evidence loss, not an established cause of the startup timeout. Neither
+observation transfers or replaces exact-head verification evidence.
+
+On 2026-09-27, the user explicitly authorized integrating reviewed main
+`e2e0af3279d5db31105b88b5ed456945563f9f30` from #1341 into this PR, freezing the
+final candidate and performing one planner-required deciding verification
+attempt on that exact clean integrated head. This decision supersedes the
+diagnostic-only deferral; it does not relax verification policy or authorize
+repeated attempts until PASS. No further standalone diagnostic execution or
+speculative startup repair precedes that attempt. Merge and production adoption
+remain on HOLD pending review of the result. The later-use preference here,
+including the ordinary-use pointers in completed slices below, cannot replace
+that engineering decision or bypass its HOLD. No unmerged capability is treated
+as current-main support.
+
+At ordinary-use entry, recheck the exact available path and its eligibility;
+manual note reuse is distinct from #1340's saved-report selection. Do not infer
+cross-domain, cross-host or production support from local delivery. Independent
+narrow P4/P5 research depends only on its own required path and authority, not
+on completion of all product work or all phases.
+
+### Questions retained inside existing phases
+
+These are forward questions, not claims that supporting mechanics prove them:
+
+- **P3 / P5 — appropriate retention and reopening:** preserve a rejection while
+  its reason holds; permit explicit reconsideration when a relevant condition
+  changes; avoid reopening for irrelevant facts. Rejecting an explanation must
+  leave its unexplained observation available for a discriminating check.
+- **P3 / P5 — meaning across work phases:** can investigation -> planning ->
+  implementation/experiment -> interpretation -> writing/communication transform
+  information usefully while preserving its epistemic and decision status?
+  The [evaluation distinctions](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#meaning-reconstruction-and-comparison-reference)
+  retain provenance, conditions, uncertainty, relationships and authority.
+- **P3 / P4 — recovery from stagnation:** can a small corrective intervention
+  improve the next experiment/check/action by enabling a discriminating
+  observation, narrowing search, removing a blocker, resolving uncertainty or
+  eliminating a false explanation? More analyses, artifacts, subtasks, tests,
+  documents or persuasive critiques alone do not show progress. Preparation
+  may have delayed value; this is not an automatic stop gate.
+- **P4 / P5 — recombining experience:** can useful components from different
+  tasks be composed for new conditions while irrelevant components are omitted?
+  Candidates include aligning source time/applicability, choosing the cheapest
+  discriminating observation, narrowing execution scope under insufficient
+  evidence, and retaining anomalies after an explanation fails. This concerns
+  conditional methods, not replaying answers. No central model, strategy engine,
+  persistent agent, generic memory store or orchestration layer is authorized.
+
+Context activation, relevance or temporary non-selection cannot delete material,
+change obligations/authority, accept semantics, renew expiry or mutate canonical
+evidence and immutable historical bindings. Reconstruction and deliberate
+non-use follow 04; current writers and 02 retain semantic ownership.
+
+### Portfolio and longer-term challenge
+
+Prefer real development, investigation and planning work for product evidence
+about successor preparation, corrections, changed assumptions and context repair.
+Open-ended investigation or writing can contrast changing intent, exploration
+versus convergence, artifact/version relationships, creative freedom and
+beneficial freedom from history. This does not reopen Borrowed Lamp or another
+completed writing study. Competitive games remain conditional mechanism-study
+candidates for adaptation, changing opponents/environments, strategy reuse,
+non-use and negative transfer, not authority to build a game platform.
+Investment work remains only a future research/simulated-decision candidate:
+no real trading or financial execution, and profit alone is not judgment quality.
+
+With separately justified evidence and authority, increase the challenge toward
+conditional reuse across genuinely separate tasks, model/host succession,
+relevant condition changes, meaning across phases, recovery from repeated
+unproductive work and recombination. Eventually ask whether a real project of
+previously impractical scope, duration or complexity becomes sustainable.
+Execution duration, calendar duration, dependency depth and feedback delay are
+separate variables in 04; neither a fixed campaign nor an arbitrary duration or
+model count defines success. Sustaining one long task and improving across
+separate tasks remain different claims.
+
+Existing RW1/RW1A/#1130 allocations, exposure and frozen protocols, consumed
+budgets, HOLD/stopped/terminal dispositions, P4.6/#1320/#1321, P5 and Borrowed Lamp
+findings below retain their exact limits. Historical proposals supply questions,
+not renewed Next instructions, receipts or execution authority. Negative/neutral
+results still lead to change, one discriminating observation, no change,
+simplify, narrow, defer or stop under 04; they neither globally reject the
+north star nor justify repeated weakly distinguished attempts to preserve it.
+
 ## Completed P2.1 bounded access and selected-note workflow
 
 Under [P2 #1212](https://github.com/hynk-studio/augnes/issues/1212), parent
