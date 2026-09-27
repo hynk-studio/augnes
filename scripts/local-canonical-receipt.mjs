@@ -23,6 +23,11 @@ const OWNER_TARGETED_DEPENDENCY_PHASES = Object.freeze([
     command: "npm ci --no-audit --no-fund",
     cwd_scope: "nested-app",
   },
+  {
+    id: "dependencies-web-planning",
+    command: "npm ci --no-audit --no-fund",
+    cwd_scope: "web-planning-app",
+  },
 ]);
 const PRIVATE_PATH_PATTERNS = Object.freeze([
   /\/Users\/[^/]+\//u,
@@ -180,6 +185,9 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     ) ||
     !SHA256_PATTERN.test(
       receipt?.dependencies?.nested_lock_sha256 ?? "",
+    ) ||
+    !SHA256_PATTERN.test(
+      receipt?.dependencies?.web_planning_lock_sha256 ?? "",
     ) ||
     !SHA256_PATTERN.test(
       receipt?.executor?.source_fingerprint ?? "",
@@ -432,7 +440,8 @@ export function inspectReceiptForDecision(receipt, options = {}) {
   if (currentLocks) {
     if (
       receipt?.dependencies?.root_lock_sha256 !== currentLocks.root ||
-      receipt?.dependencies?.nested_lock_sha256 !== currentLocks.nested
+      receipt?.dependencies?.nested_lock_sha256 !== currentLocks.nested ||
+      receipt?.dependencies?.web_planning_lock_sha256 !== currentLocks.webPlanning
     ) {
       issues.push("receipt_stale_lockfiles");
     }

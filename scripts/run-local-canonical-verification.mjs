@@ -76,6 +76,7 @@ const repositoryRoot = path.resolve(
   "..",
 );
 const nestedAppRoot = path.join(repositoryRoot, "apps", "augnes_apps");
+const webPlanningRoot = path.join(repositoryRoot, "apps", "web_planning");
 const artifactRoot = path.join(repositoryRoot, LOCAL_ARTIFACT_DIRECTORY);
 const receiptRoot = path.join(artifactRoot, "receipts");
 const logRoot = path.join(artifactRoot, "logs");
@@ -125,6 +126,7 @@ export const OPERATING_POLICY_PHASE_IDS = Object.freeze([
 export const FULL_PHASE_IDS = Object.freeze([
   "dependencies-root",
   "dependencies-nested",
+  "dependencies-web-planning",
   ...(process.platform === "win32" ? ["native-windows-identity"] : []),
   "typecheck",
   "build",
@@ -143,6 +145,7 @@ export const FULL_PHASE_IDS = Object.freeze([
 export const RESOURCE_EXCLUSIVE_PHASE_IDS = Object.freeze([
   "dependencies-root",
   "dependencies-nested",
+  "dependencies-web-planning",
   ...(process.platform === "win32" ? ["native-windows-identity"] : []),
   "build",
   "unit",
@@ -914,6 +917,7 @@ export async function executeLocalCanonicalVerification({
             : "not_deciding_authority",
       root_lock_sha256: locks.root,
       nested_lock_sha256: locks.nested,
+      web_planning_lock_sha256: locks.webPlanning,
     },
     executor: {
       version: LOCAL_CANONICAL_EXECUTOR_VERSION,
@@ -1174,10 +1178,11 @@ function operatingPolicyPhases({ baseSha, headSha }) {
 function ownerTargetedPhases({ baseSha, headSha, targetedPhaseIds }) {
   if (
     !Array.isArray(targetedPhaseIds) ||
-    targetedPhaseIds.length < 4 ||
+    targetedPhaseIds.length < 5 ||
     targetedPhaseIds[0] !== "targeted-change-validator" ||
     targetedPhaseIds[1] !== "dependencies-root" ||
     targetedPhaseIds[2] !== "dependencies-nested" ||
+    targetedPhaseIds[3] !== "dependencies-web-planning" ||
     new Set(targetedPhaseIds).size !== targetedPhaseIds.length ||
     JSON.stringify(targetedPhaseIds) !==
       JSON.stringify(
@@ -1231,6 +1236,14 @@ function targetedCanonicalPhaseDefinition(id, { baseSha, headSha }) {
         600_000,
         "nested-app",
       ),
+    "dependencies-web-planning": () =>
+      npmPhase(
+        "dependencies-web-planning",
+        "isolated web planning clean development dependency installation",
+        ["ci", "--no-audit", "--no-fund"],
+        600_000,
+        "web-planning-app",
+      ),
     typecheck: () =>
       npmPhase("typecheck", "TypeScript typecheck", ["run", "typecheck"], 300_000),
     unit: () => npmPhase("unit", "Canonical unit suite", ["test"], 3_600_000),
@@ -1283,6 +1296,13 @@ function fullPhases({ baseSha, headSha, browserPhaseIds }) {
       ["ci", "--no-audit", "--no-fund"],
       600_000,
       "nested-app",
+    ),
+    npmPhase(
+      "dependencies-web-planning",
+      "isolated web planning clean development dependency installation",
+      ["ci", "--no-audit", "--no-fund"],
+      600_000,
+      "web-planning-app",
     ),
     ...(process.platform === "win32"
       ? [
@@ -1447,7 +1467,8 @@ async function executePhase({
       label: phase.label,
       command: phase.command,
       args: phase.args,
-      cwd: phase.cwdScope === "nested-app" ? nestedAppRoot : repositoryRoot,
+      cwd: phase.cwdScope === "nested-app" ? nestedAppRoot :
+        phase.cwdScope === "web-planning-app" ? webPlanningRoot : repositoryRoot,
       env: buildLocalPhaseEnvironment(process.env, {
         browserExecutablePath: phase.browser ? browserExecutablePath : null,
       }),
@@ -1603,6 +1624,7 @@ function collectLockFingerprints() {
     nested: hashFile(
       path.join(repositoryRoot, "apps", "augnes_apps", "package-lock.json"),
     ),
+    webPlanning: hashFile(path.join(webPlanningRoot, "package-lock.json")),
   };
 }
 

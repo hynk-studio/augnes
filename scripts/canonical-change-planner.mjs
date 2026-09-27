@@ -29,6 +29,7 @@ export const OWNER_TARGETED_PLAN = "owner-targeted";
 export const OWNER_TARGETED_DEPENDENCY_PHASE_IDS = Object.freeze([
   "dependencies-root",
   "dependencies-nested",
+  "dependencies-web-planning",
 ]);
 export const TARGETED_PHASE_ORDER = Object.freeze([
   ...changeOwnerManifest.targeted_phase_order,

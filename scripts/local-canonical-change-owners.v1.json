@@ -5,6 +5,7 @@
     "targeted-change-validator",
     "dependencies-root",
     "dependencies-nested",
+    "dependencies-web-planning",
     "typecheck",
     "unit",
     "authority",

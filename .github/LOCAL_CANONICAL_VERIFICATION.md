@@ -30,7 +30,7 @@ The receipt preserves the established evidence vocabulary:
 - dirty-worktree status
 - operating system and architecture
 - Node and npm versions
-- root and nested lockfile fingerprints
+- root, Apps and web-planning lockfile fingerprints
 - selected plan
 - selected responsibility owners and bounded phase inventory, when targeted
 - each selected command and result
@@ -203,8 +203,8 @@ change matches a checked-in responsibility owner in
 That manifest may select only a fixed ordered subset of existing Canonical
 phases. The plan always begins with an exact-base/head validator that recomputes
 the planner result, runs `git diff --check`, and validates any changed Markdown;
-the executor then replaces both installed dependency trees through the same
-sequential root and nested `npm ci` preparation used by Full Canonical before it
+the executor then replaces all three installed dependency trees through the same
+sequential root, Apps and web-planning `npm ci` preparation used by Full Canonical before it
 runs the manifest-selected typecheck, unit, authority, integration, operability,
 or Browser owners sequentially. Callers cannot supply tests or phases.
 
@@ -223,7 +223,7 @@ documentation obligations in addition to runtime qualification.
 The exact project-experience verification family has a separate targeted owner:
 its Browser executable, private fixture builder, keyed result contract,
 hydration boundary, and their focused tests. It retains typecheck, unit,
-**authority**, and `e2e-project-experience` after the fixed validator and both
+**authority**, and `e2e-project-experience` after the fixed validator and all three
 clean dependency installations. Authority remains necessary because its
 verification-policy contract consumes the Browser executable and enforces
 fixture and lifecycle boundaries. This admission does not cover arbitrary
@@ -251,6 +251,7 @@ permission to run another plan.
 ```bash
 npm ci --no-audit --no-fund
 npm --prefix apps/augnes_apps ci --no-audit --no-fund
+npm --prefix apps/web_planning ci --no-audit --no-fund
 npm run typecheck
 npm run build
 npm test
@@ -264,9 +265,12 @@ npm run test:e2e:golden
 npm run test:e2e
 ```
 
-The executor represents the nested install by running npm with the nested app
-as its working directory; the resulting dependency contract is equivalent to
-the explicit command shown above.
+The executor represents each nested install by running npm with that app as its
+working directory. The web-planning lock isolates Miniflare and workerd from the
+native application's graph and historical package-reuse fixture. Its dedicated
+dependency phase runs before consumers under the same checkout/maintenance
+owner, has a finite bound, and is included in exact lock/receipt validation.
+Existing test deadlines and historical fixture inputs remain unchanged.
 
 Core/protocol, schema/migration/current-data, security/credentials/authority/
 process-isolation, shared native-host/runtime, package/build/distribution,
@@ -330,9 +334,9 @@ random-suffixed receipt/log names, including failed acquisitions.
 Quick treats installed dependencies as feedback inputs only. Documentation-only
 changes require no Local Canonical execution. Operating-policy-only changed
 execution does not consult or replace installed dependencies.
-Owner-targeted and Full Canonical execution replace both installed
+Owner-targeted and Full Canonical execution replace all three installed
 `node_modules` trees through sequential `npm ci` operations bound to the exact
-committed root and nested lockfiles. The clean preparation phases precede every
+committed root, Apps and web-planning lockfiles. The clean preparation phases precede every
 dependency-consuming targeted owner, are recorded in the fixed planner phase
 inventory, and must pass for the receipt to be deciding. A stale, foreign,
 locally polluted, reused, incomplete, reordered, or unattested installed tree
@@ -463,7 +467,7 @@ The public-safe receipt includes:
 - a random local pseudonymous machine fingerprint stored independently of
   hostname, username, serial number, hardware UUID, or account path;
 - bounded CPU, memory, disk, browser-availability, and sleep-prevention facts;
-- root and nested lockfile SHA-256 fingerprints and dependency policy;
+- root, Apps and web-planning lockfile SHA-256 fingerprints and dependency policy;
 - executor version, source-file inventory, and source SHA-256 fingerprint;
 - every selected phase, public command, start/finish timestamps, finite
   duration, exit status, timeout state, cleanup state, and remaining owned

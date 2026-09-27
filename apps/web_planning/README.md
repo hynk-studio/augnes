@@ -10,6 +10,7 @@ reads the installed Augnes database nor creates native work, results or accepted
 From the repository root with the supported Node toolchain and `npm ci` dependencies:
 
 ```sh
+npm --prefix apps/web_planning ci --no-audit --no-fund
 npm run web:dev
 npm run web:build
 npm run web:typecheck
@@ -32,12 +33,15 @@ there is no separate public asset server or Next/Companion process.
 The build rejects native runtime and test-ingress imports. Output contains no
 Site ID, remote database ID, credentials or preloaded user data.
 
-Miniflare **4.20260730.0**, locked in the root development dependencies, supplies
-Cloudflare's workerd/D1 local runtime. This avoids a handwritten D1 mock and a
-second package/lock/install owner. esbuild, TypeScript and Chrome/CDP ownership
-are reused. The new runtime's locked transitive dependencies include sharp,
-workerd and their platform packages. No remote bindings, deploy commands or
-provider credentials are used by these entry points.
+Miniflare **4.20260730.0**, locked in this app's development package, supplies
+Cloudflare's workerd/D1 local runtime. esbuild, TypeScript and Chrome/CDP ownership
+are reused. Its dependency graph is isolated from the root and existing Apps
+graphs; historical package fixtures retain their exact original inputs. The
+Canonical dependency owner cleanly installs all three locked trees and binds
+the web lock in its receipt before tests. Local loading refuses a fallback to
+root/global Miniflare. The new runtime's locked transitive dependencies include
+sharp, workerd and their platform packages. No remote bindings, deploy commands
+or provider credentials are used by these entry points.
 
 ## Production configuration and trust handoff
 

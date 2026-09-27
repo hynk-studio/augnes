@@ -273,7 +273,11 @@ the distinction between open issues and current implementation. Real local D1
 and browser checks exercise production handlers; the separate actual local
 agent read is recorded in the application handoff. Development corrections
 included a non-mutating tamper fixture, headless keyboard focus, and clearing the
-access-loss status target. No repeated human repair or comparative usefulness
+access-loss status target. The first deciding head's package fixture refused a
+root Miniflare dependency delta; the web development graph was then isolated in
+its own locked package, with a clean-install/receipt phase under the existing
+verification owner. The failed receipt and historical dependency guard remain
+intact. No repeated human repair or comparative usefulness
 claim is established. Task A's original preparation and observations below
 remain historical evidence, not a retrofitted native chronology.
 

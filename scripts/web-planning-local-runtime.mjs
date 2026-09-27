@@ -1,9 +1,13 @@
-import { Miniflare, Log, LogLevel } from "miniflare";
+import { createRequire } from "node:module";
 import { readFile } from "node:fs/promises";
 import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import net from "node:net";
 import { bundleWebPlanning, webRoot } from "./build-web-planning.mjs";
+const localRequire=createRequire(path.join(webRoot,"package.json"));
+const runtimeEntry=localRequire.resolve("miniflare");
+if(!runtimeEntry.startsWith(path.join(webRoot,"node_modules")+path.sep))throw new Error("web_planning_local_dependencies_not_installed");
+const { Miniflare, Log, LogLevel }=localRequire("miniflare");
 export const fixtureScope={workspace_id:'155448c4-983f-4e32-83c5-6d340db5d4fd',project_id:'bb63e047-9125-43c0-88cd-79f6b212b2ad',author_ref:'e89e1ee0-d67c-40a9-bb0c-661a86965452'};
 export async function availablePort(){const server=net.createServer();await new Promise((ok,no)=>{server.once('error',no);server.listen(0,'127.0.0.1',ok);});const port=server.address().port;await new Promise(ok=>server.close(ok));return port;}
 export async function startLocal({root,port,production=false,bindings={},code,initialize=true}={}) {

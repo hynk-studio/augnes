@@ -194,7 +194,7 @@ for (const fragment of [
   "dirty-worktree status",
   "operating system and architecture",
   "Node and npm versions",
-  "root and nested lockfile fingerprints",
+  "root, Apps and web-planning lockfile fingerprints",
   "selected plan",
   "each selected command and result",
   "finite duration",
@@ -480,6 +480,7 @@ for (const fragment of [
   `export const RESOURCE_EXCLUSIVE_PHASE_IDS`,
   `"dependencies-root"`,
   `"dependencies-nested"`,
+  `"dependencies-web-planning"`,
   `"typecheck"`,
   `"build"`,
   `"unit"`,
@@ -878,8 +879,8 @@ assert.equal(
   "targeted-change-validator",
 );
 assert.deepEqual(
-  changeOwnerManifest.targeted_phase_order.slice(1, 3),
-  ["dependencies-root", "dependencies-nested"],
+  changeOwnerManifest.targeted_phase_order.slice(1, 4),
+  ["dependencies-root", "dependencies-nested", "dependencies-web-planning"],
 );
 assert.deepEqual(
   changeOwnerManifest.targeted_owners.map((owner) => owner.id),
