@@ -121,12 +121,18 @@ contract, without truncating overflowing material.
 
 Save tickets bind server-issued work/request identity, scope and displayed
 predecessor for 24 hours. Same key/material returns the original revision;
-altered replay refuses. A timeout/storage failure retains the draft and original
+altered replay refuses. A save timeout/storage failure retains the draft and original
 request in the tab as **outcome unknown**. Check outcome explicitly; absence is
 not proof of failure. Retry explicitly with the same key/content. The bound
 outcome read remains possible after ticket expiry, but an expired ticket cannot
 write. Closing the tab can lose an unacknowledged local draft; reopen the server
 list to inspect committed work. There is no automatic browser-storage backup.
+
+Once a save or outcome read acknowledges the exact revision, a later work-list
+failure retains that confirmed revision. **Refresh work list** retries only the
+list read; it does not resubmit the saved request. Access denial still clears
+private material. Change summaries compare trimmed, deduplicated/sorted definition
+meaning, including empty lists; raw input remains subject to server validation.
 
 All private HTML/assets/list/work/history/export and mutation paths authorize
 owner and configured scope. Writes and exact-context reads also require same

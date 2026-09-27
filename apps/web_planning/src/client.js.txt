@@ -31,10 +31,12 @@ function noteRow(note={text:'',source:'',observed_at:null,provenance:'user_decla
 function draft(){const notes=[...$('notes').children].map(row=>Object.fromEntries([...row.querySelectorAll('[data-field]')].map(e=>[e.dataset.field,e.dataset.field==='observed_at'?(e.value||null):e.value])));
 return {definition:{goal:$('goal').value,success_criteria:$('criteria').value.split('\n'),non_goals:$('non-goals').value.split('\n')},notes};}
 function changed(){dirty=true;$('saved-label').textContent=saved?`Unsaved edits · based on revision ${saved.revision}`:'Unsaved draft';reviewChanges();}
+// Compare authored meaning only; keep raw input intact for the server's validation.
+function definitionComparison(value){return typeof value==='string'?value.trim():[...new Set(value.map(v=>v.trim()).filter(Boolean))].sort();}
 function reviewChanges(){const d=draft();const lines=[];
   if(!saved)lines.push('New work will be created only when you press Save.');
   else {for(const [k,label] of [['goal','Goal'],['success_criteria','Success criteria'],['non_goals','Non-goals']])
-    if(JSON.stringify(d.definition[k])!==JSON.stringify(saved.definition[k]))lines.push(label+' edited.');
+    if(JSON.stringify(definitionComparison(d.definition[k]))!==JSON.stringify(definitionComparison(saved.definition[k])))lines.push(label+' edited.');
     const before=saved.sources.map(noteInput),after=d.notes;
     if(JSON.stringify(before)!==JSON.stringify(after))lines.push('Selected context edited. Originals remain in earlier revisions.');
     if(!lines.length)lines.push('No definition or selection edits. Save records another deliberate revision.');}
@@ -58,16 +60,27 @@ async function list(append=false){const data=await api('/api/works'+(append&&nex
 }
 async function run(fn){if(busy)return;busy=true;try{await fn();}catch(e){if(e.message==='refresh_required'&&saved)$('conflict').hidden=false;status(messages[e.message]??'The request could not be completed. Your draft is retained.');}finally{busy=false;}}
 const messages={access_denied:'Access denied. Sign in again to reopen.',refresh_required:'The saved head changed. Refresh explicitly before reading or changing it.',work_erased:'This work has been erased. It cannot be recreated by retrying.',history_capacity:'This work has reached 32 revisions. Export it before deciding the next work.',save_ticket_expired:'This save binding expired. Check its outcome before creating a new save.',reconstruction_disabled:'Reconstruction is disabled. It requires an explicitly configured empty replacement store.',storage_unavailable:'Storage is unavailable. No empty-work or successful-save claim can be made.'};
-async function acknowledged(r){show(r);status(`Saved revision ${r.revision}. Reopen or read Saved context.`);await list();}
+async function refreshList(){
+  try{await list();$('refresh-list').hidden=true;return true;}
+  catch(e){if(e.message==='access_denied')throw e;
+    $('list-state').textContent='Work list could not be refreshed. Previously listed work may be out of date.';
+    $('refresh-list').hidden=false;
+    status(`${saved?`Saved revision ${saved.revision} is retained. `:''}Work list could not be refreshed. Use Refresh work list to retry that read.`);return false;}
+}
+async function acknowledged(r){show(r);status(`Saved revision ${r.revision}. Reopen or read Saved context.`);await refreshList();}
 async function dispatch(){
+  if(!pending)return;
   $('edit-fields').disabled=true;$('save').disabled=true;
-  try{const data=await api('/api/work/'+work+'/save',pending);await acknowledged(data.saved);}
+  let data;
+  try{data=await api('/api/work/'+work+'/save',pending);}
   catch(e){if(e.message==='access_denied')throw e;
     if(e.status===409 && e.message!=='save_ticket_expired') {pending=null;saveTicket=null;$('edit-fields').disabled=false;$('save').disabled=false;$('uncertain').hidden=true;
       if(e.message==='history_capacity')status(messages.history_capacity);else{$('conflict').hidden=false;status('Save refused. Your draft remains intact. Review the latest saved version.');}}
     else if(e.status===422||e.status===413){pending=null;saveTicket=null;$('edit-fields').disabled=false;$('save').disabled=false;status('Save refused: '+e.message.replaceAll('_',' ')+'. No clipping or partial save was performed.');}
     else if(e.status===410){pending=null;$('uncertain').hidden=true;$('context-view').replaceChildren();status(messages.work_erased);}
-    else{$('uncertain').hidden=false;status('Save outcome unknown. Keep this tab open and check the original request.');}}
+    else{$('uncertain').hidden=false;status('Save outcome unknown. Keep this tab open and check the original request.');}
+    return;}
+  await acknowledged(data.saved);
 }
 $('work-form').addEventListener('input',changed);
 $('work-form').onsubmit=e=>{e.preventDefault();run(async()=>{if(pending)return;
@@ -91,6 +104,7 @@ $('cancel-erase').onclick=()=>{$('erase-confirm').hidden=true;eraseBinding=null;
 $('confirm-erase').onclick=()=>run(async()=>{await api('/api/work/'+work+'/erase',{expected:eraseBinding,confirm:'erase-whole-work'});dirty=false;work=saved=pending=null;show();$('editor').hidden=true;status('Whole work erased. The content-free ID guard prevents delayed saves from recreating it. Exports and provider backups are outside this deletion.');await list();});
 $('import').onclick=()=>run(async()=>{const file=$('import-file').files[0];if(!file){status('Choose a complete work export.');return;}if(file.size>1500000){status('Export exceeds the bounded reconstruction size.');return;}if(!mayLeave())return;const data=await api('/api/reconstruct',{export:JSON.parse(await file.text()),confirm:'reconstruct-empty-store'});work=data.saved.work_id;show(data.saved);status('Reconstructed from an attributed export; authorship and source currentness remain unverified.');await list();});
 $('more-work').onclick=()=>run(()=>list(true));
+$('refresh-list').onclick=()=>run(async()=>{if(await refreshList())status('Work list refreshed.');});
 $('signout').onclick=()=>{dirty=false;deny();};
 window.addEventListener('beforeunload',e=>{if(dirty||pending){e.preventDefault();e.returnValue='';}});
 window.addEventListener('pagehide',()=>{$('context-view')?.replaceChildren();});
