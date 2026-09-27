@@ -244,6 +244,39 @@ mechanical checks, not an installed-production save or measured burden reduction
 Installation and first real-work use require separate reviewed authority after
 merge; unrelated installed #1314 and all research conclusions remain unchanged.
 
+## Current P2/P5 — Web Augnes v0 Task B local candidate (#1345)
+
+[#1345](https://github.com/hynk-studio/augnes/issues/1345) implements the merged
+Task A contract below as an independent authored-planning Worker. The
+[application entry and hosting handoff](../../apps/web_planning/README.md)
+describe create/select → attributed definition/context → deliberate Save →
+server reopen → exact-revision Saved context, plus conflict, replay, export,
+reconstruction and whole-work erasure. This is a local implementation candidate;
+private Sites ingress, hosted schema/artifact admission, Mac-independent reopen
+and remote agent consumption remain required acceptance. Do not close the whole
+issue from local evidence or infer native managed-work parity.
+
+B used the supported different-task preview/save, retained the exact open-issue
+correction, and replaced A's selected kickoff notes with the two issue-attributed
+B notes while preserving A in unexecuted history (`prior_work_marked_complete=false`).
+Fresh Resume and selected-source reads bound snapshot
+`sha256:31bf725b21f32cf5cd3ef8cae24009932c8173ef8b80c19a40f862b333e7e7bd`;
+the persisted definition was reread at that binding. Its first parallel reader
+returned `unavailable / companion_unavailable`; an isolated read succeeded.
+Managed Start still said “The local managed-work configuration is unavailable
+for this project.” B therefore ran in the ordinary **prepared-context/direct
+Codex session**, with no native run/result/receipt or A completion invented.
+
+The full merged design, saved issue definition and correction were consumed.
+They fixed the one-owner text/link scope, exact save/currentness semantics and
+the distinction between open issues and current implementation. Real local D1
+and browser checks exercise production handlers; the separate actual local
+agent read is recorded in the application handoff. Development corrections
+included a non-mutating tamper fixture, headless keyboard focus, and clearing the
+access-loss status target. No repeated human repair or comparative usefulness
+claim is established. Task A's original preparation and observations below
+remain historical evidence, not a retrofitted native chronology.
+
 ## Current P2/P5 — Web Augnes v0 Task A (#1343)
 
 Review proposal for [#1343](https://github.com/hynk-studio/augnes/issues/1343),

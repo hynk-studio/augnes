@@ -19,6 +19,7 @@
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "esbuild": "0.28.1",
+    "miniflare": "4.20260730.0",
     "tsx": "^4.20.6",
     "typescript": "6.0.3"
   },
@@ -159,6 +160,11 @@
     "test:e2e:project-experience": "node scripts/run-canonical-test-suite.mjs e2e-project-experience",
     "test:e2e:operator-execution": "node scripts/run-canonical-test-suite.mjs e2e-operator-execution",
     "test:e2e:continuity": "node scripts/run-canonical-test-suite.mjs e2e-continuity",
-    "test:e2e:golden": "node scripts/run-canonical-test-suite.mjs e2e-golden"
+    "test:e2e:golden": "node scripts/run-canonical-test-suite.mjs e2e-golden",
+    "web:build": "node scripts/build-web-planning.mjs",
+    "web:dev": "node scripts/run-web-planning.mjs dev",
+    "web:test": "node scripts/run-web-planning.mjs test",
+    "web:test:browser": "node scripts/run-web-planning.mjs browser",
+    "web:typecheck": "tsc -p apps/web_planning/tsconfig.json --noEmit"
   }
 }

@@ -1045,6 +1045,7 @@ assert.equal(
 );
 
 const integrationChildren = [
+  "web-planning-d1",
   "project-verify-material",
   "project-verify-lifecycle",
   "project-verify-production-lifecycle",
@@ -1138,6 +1139,9 @@ for (const childId of integrationChildren) {
   );
 }
 // Separate complete owners retain their own 30s ceiling and run once each.
+const webPlanningRegistration = readCanonicalChildRegistration(integrationSource, "web-planning-d1");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 120_000', 'requireNaturalExit: true', '"scripts/test-web-planning.mjs"', '"backup-restore"'])
+  requireText(webPlanningRegistration.block, fragment, "web planning D1 retains one bounded storage and recovery owner");
 for (const id of ["project-work-initialization", "project-work-expectation", "project-work-scoped-host"]) {
   const registration = readCanonicalChildRegistration(integrationSource, id);
   requireText(registration.block, `timeoutMs: 30_000`, `${id} deadline changed`);

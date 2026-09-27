@@ -137,7 +137,7 @@ export function normalizeSelectedWorkSources(scope: Scope, value: unknown): Task
     if (group.length !== 2 || new Set(group.map(e => reviewedOutcomeSourceRef(e)!.fingerprint)).size !== 1 ||
       group.map(e => e.compatibility_source_ref!.ref_type).sort().join(",") !== "reviewed_outcome_expectation,reviewed_outcome_report") fail();
   }
-  if (Buffer.byteLength(canonicalizeProtocolValueV01(entries), "utf8") > SELECTED_WORK_SOURCE_LIMITS.bytes) {
+  if (new TextEncoder().encode(canonicalizeProtocolValueV01(entries)).byteLength > SELECTED_WORK_SOURCE_LIMITS.bytes) {
     throw new SelectedWorkSourceError("selected_source_context_budget_exceeded");
   }
   return entries;
