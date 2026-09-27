@@ -3,7 +3,7 @@ import { authorize, csrfCookie, csrfToken, readTicket, requireCsrf, requireScope
 import { binding, canonical, exact, exportWork, fail, MAX_REVISIONS, makeRevision, normalizePayload, Refusal, requestFingerprint, sameBinding, UUID, validateExport } from "./contract";
 import { append, eraseWork, headBinding, listWork, readWork, reconstruct, requestRevision } from "./store";
 import { page, renderContext, style } from "./page";
-import client from "./client.js.txt";
+import client from "./client.js.txt?raw";
 const headers={"Cache-Control":"no-store, private","Vary":"Cookie, oai-authenticated-user-email","X-Content-Type-Options":"nosniff",
   "Referrer-Policy":"no-referrer","X-Frame-Options":"DENY","X-Robots-Tag":"noindex, nofollow",
   "Content-Security-Policy":"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"};

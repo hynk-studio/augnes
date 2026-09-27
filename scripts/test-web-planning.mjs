@@ -9,6 +9,7 @@ import { canonical, hash, exportWork, headBinding, normalizePayload } from '../a
 import { normalizeInitialProjectWorkDefinitionV01 as legacyNormalize } from '../lib/vnext/runtime/initial-project-work-context.ts';
 import { buildSelectedWorkSourceEntry, normalizeSelectedWorkSources } from '../lib/intake/selected-work-source-comparison.ts';
 import { seal } from '../apps/web_planning/src/access.ts';
+import { checkSitesArtifact, exerciseSitesBootstrap } from './web-planning-sites-checks.mjs';
 const root=process.env.AUGNES_CANONICAL_TEMP_ROOT;if(!root)throw new Error('owned_test_root_required');
 let local;const open=[];let checks=0;
 function passed(name){checks++;console.log('web-planning: '+name);}
@@ -17,13 +18,15 @@ const baseDefinition={goal:'Plan a quiet community reading room',success_criteri
 const notes=[{source:'Synthetic owner observation',text:'Do not treat an open issue as proof of unfinished implementation.',observed_at:'2026-09-20T12:00:00.000Z',provenance:'user_declaration',label:'Changed assumption / user correction'},
  {source:'Synthetic research question',text:'The evening noise level is unknown; measure it before choosing the room.',observed_at:null,provenance:'derived_interpretation',label:'Open question'}];
 async function client(server,options={}) {
- const cookie=options.cookie??`web_planning_local=${server.env.LOCAL_SESSION}`;
- const first=await server.mf.dispatchFetch(server.origin+'/',{headers:{cookie}});
+ const origin=options.sites?server.env.APP_ORIGIN:server.origin;
+ const identity=options.sites?{'oai-authenticated-user-email':server.env.OWNER_EMAIL}:{};
+ const cookie=options.cookie??(options.sites?'':`web_planning_local=${server.env.LOCAL_SESSION}`);
+ const first=await server.mf.dispatchFetch(origin+'/',{headers:{cookie,...identity}});
  if(options.denied){assert.equal(first.status,403);return;}
  assert.equal(first.status,200);const text=await first.text();const csrf=text.match(/name="csrf-token" content="([^"]+)"/)[1];
  const cookies=cookie+'; '+first.headers.get('set-cookie').split(';')[0];
  return {csrf,cookies,async request(url,body,extra={}){
-   const res=await server.mf.dispatchFetch(server.origin+url,{method:body===undefined?'GET':'POST',headers:{cookie:cookies,...(body===undefined?{}:{origin:server.origin,'content-type':'application/json','x-csrf-token':csrf}),...extra},...(body===undefined?{}:{body:JSON.stringify({...scope,...body})})});
+   const res=await server.mf.dispatchFetch(origin+url,{method:body===undefined?'GET':'POST',headers:{cookie:cookies,...identity,...(body===undefined?{}:{origin,'content-type':'application/json','x-csrf-token':csrf}),...extra},...(body===undefined?{}:{body:JSON.stringify({...scope,...body})})});
    assert.match(res.headers.get('cache-control'),/no-store/);assert.equal(res.headers.get('access-control-allow-origin'),null);
    const data=(res.headers.get('content-type')??'').includes('application/json')?await res.json():await res.text();return {status:res.status,data};
  }};
@@ -34,9 +37,13 @@ async function edit(c,saved,goal){const t=await c.request('/api/work/'+saved.wor
 async function start(name,options={}){const dir=path.join(root,name);await mkdir(dir,{recursive:true});const s=await startLocal({root:dir,...options});open.push(s);return s;}
 try {
  new Script(await readFile(path.join(webRoot,'src/client.js.txt'),'utf8'));
- const artifact=path.join(root,'artifact');await buildWebPlanning(artifact);
- const code=await readFile(path.join(artifact,'worker.mjs'),'utf8');assert(!code.includes('LOCAL_SESSION'));assert(!code.includes('/_local/login'));assert(!code.includes('better-sqlite3'));
- assert.deepEqual(JSON.parse(await readFile(path.join(artifact,'.openai/hosting.json'),'utf8')),{d1:'DB',r2:null});
+ const artifact=path.join(root,'artifact');
+ process.env.OWNER_EMAIL='web-planning-artifact-secret-sentinel';
+ process.env.REQUEST_SECRET='web-planning-artifact-secret-sentinel';
+ await buildWebPlanning(artifact);
+ const code=await readFile(path.join(artifact,'server/index.js'),'utf8');
+ const runtimeConfig=await checkSitesArtifact(artifact,code);
+ await exerciseSitesBootstrap({start,artifact,code,runtimeConfig,client,newWork,save,edit,headBinding,passed});
  local=await start('primary');let c=await client(local);
  const normalized=normalizePayload(fixtureScope,{goal:'  계획 🌿  ',success_criteria:[' b ','a','a',''],non_goals:[]},notes);
  assert.deepEqual(normalized.definition,{goal:'계획 🌿',success_criteria:['a','b'],non_goals:[]});

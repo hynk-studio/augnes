@@ -18,6 +18,9 @@ npm run web:test
 npm run web:test:browser
 ```
 
+The Sites build dependencies require Node 22.13+ or 24; deciding verification
+still requires the repository's exact Node 24.18.0/npm 11.16.0 toolchain.
+
 `web:dev` prints a loopback `/_local/login` URL. Enter the **synthetic workspace**,
 create work, add attributed notes, Save, and reopen **Saved context**. This is a
 25-minute disposable session, wrapped by the existing bounded child/resource
@@ -25,17 +28,36 @@ owners. Its D1 files are deleted at cleanup. It is not a daily-use local databas
 Only synthetic data belongs here. The automated browser check clears browser
 storage, restarts workerd against the same disposable D1 directory, then reopens.
 
-`web:build` writes `dist/web-planning/worker.mjs`, `.openai/hosting.json`,
-`migrations/0001.sql` and our `artifact.json` entry/compatibility description.
+`web:build` runs the official Sites and Cloudflare Vite plugins with the Site
+project rooted at `apps/web_planning`. Its artifact root is
+`apps/web_planning/dist`, containing:
+
+```text
+server/index.js
+server/wrangler.json
+server/.vite/manifest.json
+.openai/hosting.json
+.openai/drizzle/0000_web_planning.sql
+.openai/drizzle/0001_schema_version.sql
+.openai/drizzle/meta/{_journal,0000_snapshot,0001_snapshot}.json
+```
+
 The deployment entry is `src/worker.ts`, an ESM Worker `fetch(request, env)`.
 HTML, CSS and client JavaScript are served by that same authenticated Worker;
-there is no separate public asset server or Next/Companion process.
-The build rejects native runtime and test-ingress imports. Output contains no
-Site ID, remote database ID, credentials or preloaded user data.
+there is no client build, dummy asset, public asset server or Next/Companion
+process. Cloudflare removes the unused assets binding. `server/wrangler.json`
+is its generated deployment configuration; the old repository-defined
+`artifact.json` is no longer produced or treated as a Sites input.
+The build rejects native runtime/test-ingress imports and local environment
+files. Output contains no Site ID, credentials or preloaded user data. The D1
+ID `00000000-0000-4000-8000-000000000000` is the official starter's **local
+placeholder**, not a provisioned ID. Sites owns the eventual `DB` binding.
 
 Miniflare **4.20260730.0**, locked in this app's development package, supplies
-Cloudflare's workerd/D1 local runtime. esbuild, TypeScript and Chrome/CDP ownership
-are reused. Its dependency graph is isolated from the root and existing Apps
+Cloudflare's workerd/D1 local runtime. esbuild remains the local synthetic-ingress
+bundler; TypeScript and Chrome/CDP ownership are reused. The locked Sites/Vite
+build and Drizzle tools below are development dependencies in the same isolated
+app package. Its dependency graph is isolated from the root and existing Apps
 graphs; historical package fixtures retain their exact original inputs. The
 Canonical dependency owner cleanly installs all three locked trees and binds
 the web lock in its receipt before tests. Local loading refuses a fallback to
@@ -45,22 +67,40 @@ or provider credentials are used by these entry points.
 
 ## Production configuration and trust handoff
 
-Current [Sites documentation](https://learn.chatgpt.com/docs/sites) supports
-D1's `DB` binding, an unprovisioned manifest without `project_id`, and forwarded
-`oai-authenticated-user-email`. The official
-[Worker example](https://developers.openai.com/showcase/idea-intake) describes
-Worker-compatible ESM builds. The read-only Sites tool schema accepts a Worker
-artifact plus hosting metadata. Sites management is in ChatGPT web/desktop;
-these repository scripts are local build/test commands, not Sites commands.
+[#1347](https://github.com/hynk-studio/augnes/issues/1347) records the 2026-09-27
+hosted attempt: the former custom build succeeded, but Sites required
+`dist/server/index.js` and Drizzle journal material. No Site, D1, version or
+secrets were created. This repair uses the primary contracts inspected on
+2026-09-28:
 
-The concrete candidate is an ESM Worker with `nodejs_compat`, compatibility date
-`2026-07-01`, and D1 binding `DB`. `artifact.json` describes this build; it is
-**not** an invented Sites configuration schema. The exact Sites archive entry
-recognition, compatibility flags, migration executor and D1 binding must be
-qualified when a new private Site is separately authorized. No platform
-incompatibility was observed locally; that does not prove Sites acceptance.
-If Sites cannot admit this Worker/flags or privately isolate its backend,
-return that precise incompatibility before adding an alternative service.
+- [OpenAI Sites source at `7eb9d4b9cf93ad7e64aebc8a5ca70e29ec2cfb94`](https://github.com/openai/sites/tree/7eb9d4b9cf93ad7e64aebc8a5ca70e29ec2cfb94):
+  `@openai/create-sites` 0.3.0, `@openai/sites-vite-plugin` 0.2.0, and the starter's
+  Vite 8.0.13 / Cloudflare Vite plugin 1.37.1 (Wrangler 4.92.0). The generator is
+  inspected, not installed; no Vinext/React conversion is needed. The actual
+  Sites plugin copies hosting metadata and `drizzle/**` into `dist/.openai`.
+- The D1 addon pins `drizzle-orm` 0.45.2 and `drizzle-kit` 0.31.10, used here.
+  `db/schema.ts` generates `drizzle/0000_web_planning.sql` and its snapshot;
+  the explicit custom `0001_schema_version.sql` inserts only format version 1.
+  Run `npm --prefix apps/web_planning run db:generate` after schema edits and
+  review the resulting SQL/journal. There is no parallel legacy SQL definition.
+- [Cloudflare's Worker-only build API](https://developers.cloudflare.com/workers/vite-plugin/reference/api/)
+  supplies the `server` Vite environment and generated Wrangler configuration.
+  It carries `nodejs_compat`, compatibility date `2026-07-01`, and `DB` through
+  the supported build mechanism. No runtime settings live in custom metadata.
+- The [official Sites guide](https://learn.chatgpt.com/docs/sites) supports `DB`,
+  omission of an unprovisioned `project_id`, and forwarded
+  `oai-authenticated-user-email`. Sites management remains in ChatGPT web/desktop.
+  These repository commands only build/test locally.
+
+The available `save_site_version` tool accepts an archive from the exact pushed
+commit with `.openai/hosting.json` and a supported Worker entry. It has no
+validation-only mode; no separate backend packager/validator was available.
+The official plugins execute locally, and tests check the complete artifact,
+staged migration parity and the generated entry/config in workerd. This is
+**local package/Worker qualification**, not backend Sites archive admission.
+After review and merge, #1345 must qualify the archive, migration executor,
+binding and trust on its authorized private Site before real data. Stop on a
+precise incompatibility rather than introducing another service.
 
 | Runtime value | Meaning |
 | --- | --- |
@@ -80,21 +120,29 @@ qualified Sites ingress. Default configuration denies it. Local synthetic
 sessions establish application authorization only. They do not qualify this
 platform boundary. Workspace admins/editors remain a platform trust boundary.
 
-Apply the exact `migrations/0001.sql` to the new hosted store through the
-separately authorized Sites migration owner, then deliberately insert the single
-mapping row (bound parameters shown; no public setup route):
+Sites consumes `.openai/drizzle/**` from the build. The same journal and SQL run
+through Drizzle's D1 migrator in the disposable real local D1 tests; snapshot
+regeneration and negative drift controls prevent schema/SQL divergence. Version,
+JSON, revision bounds, scoped foreign keys and both uniqueness constraints are
+also exercised directly in D1. These migrations target an **empty hosted store**;
+they neither alter the installed native schema nor adopt an existing unmanaged
+database. A nonempty/incompatible hosted store requires separate review.
 
-```sql
-INSERT INTO web_planning_workspace
-  (singleton, workspace_id, project_id, author_ref, owner_login_hash)
-VALUES (1, ?, ?, ?, ?);
-```
-
-The parameters are the configured workspace/project/author UUIDs and
-`sha256:` plus the hexadecimal SHA-256 of the lowercase configured owner email.
-The local setup uses this same migration and mapping. No request creates or
-rebinds an owner. Missing/mismatched mapping or unsupported schema denies access.
-Do not run a remote Wrangler command to guess the Sites migration path.
+The available Sites database tools are read-only, and the current documented
+migration workflow supplies no dynamic, secret-aware seed write. Therefore the
+issue-authorized fallback permits only a normal `GET /` with no query string
+to initialize the mapping **after** configured-owner, exact HTTPS origin,
+authenticated Sites principal, trusted ingress and schema checks. A conditional
+SQL insert requires all workspace/revision/erasure tables to be empty, then an
+exact reread must match all configured scope fields and the hashed owner login.
+Concurrent identical requests converge on one row. Existing mismatches refuse;
+there is no repair, ownership replacement, setup endpoint or setup credential URL.
+Other requests and the synthetic local ingress cannot bootstrap. Local fixtures
+explicitly seed their disposable mapping after the same migrations.
+Missing/untrusted ingress still denies every private request. An origin-mismatched
+direct-backend-style request is tested locally; actual Sites header integrity
+and absence of a bypass remain hosted acceptance, not consequences of this code.
+Do not use remote Wrangler commands to bypass the Sites migration owner.
 Required account quota, cost, storage retention/recovery access and private
 remote consumption remain unobserved. No Site, D1 or R2 was provisioned.
 
