@@ -244,6 +244,18 @@ mechanical checks, not an installed-production save or measured burden reduction
 Installation and first real-work use require separate reviewed authority after
 merge; unrelated installed #1314 and all research conclusions remain unchanged.
 
+## Current P2/P5 — Web Augnes v0 Task A (#1343)
+
+[#1343](https://github.com/hynk-studio/augnes/issues/1343) authorizes the
+[deployment, persistence and human/agent design contract](./WEB_AUGNES_V0_CONTRACT.md)
+on `codex/1343-web-v0-contract`. It proposes a new private Sites workspace with
+durable authored planning context, one authority per workspace and a bounded
+save/reopen/agent-read Task B for separate review. A used saved native preparation
+in a direct Codex session; managed Start was configuration-ineligible and no
+native result/completion is claimed. This is design under review, not implemented
+hosted persistence. B, provisioning and deployment are not activated. Existing
+P2.4/P2.5 surfaces and #1342's separate status-only correction remain unchanged.
+
 ## Completed P2.4.1 — Bounded local hosted snapshot contract
 
 [#1259](https://github.com/hynk-studio/augnes/issues/1259) completed through
