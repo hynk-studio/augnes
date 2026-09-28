@@ -20,17 +20,31 @@ export function sitesPrincipal(request: Request, env: Environment): Principal {
   return {login:login(request.headers.get("oai-authenticated-user-email"))};
 }
 export async function authorize(request: Request, env: Environment, principal: Principal): Promise<Access> {
-  let origin: URL;
-  try { origin=new URL(env.APP_ORIGIN); } catch { fail("workspace_not_configured",503); }
-  if (origin.origin!==env.APP_ORIGIN || !login(env.OWNER_EMAIL) || !UUID.test(env.WORKSPACE_ID) || !UUID.test(env.PROJECT_ID) ||
-    !UUID.test(env.AUTHOR_REF) || typeof env.REQUEST_SECRET!=="string" || env.REQUEST_SECRET.length<32) fail("workspace_not_configured",503);
   const url=new URL(request.url);
-  if (url.origin!==env.APP_ORIGIN || request.headers.get("origin") && request.headers.get("origin")!==env.APP_ORIGIN ||
-    ["cross-site","same-site"].includes(request.headers.get("sec-fetch-site")??"")) fail("same_origin_required",403);
-  if (!principal.localFixture && (origin.protocol!=="https:" || request.headers.has("x-web-planning-local-owner"))) fail("access_denied",403);
-  if (!login(principal.login) || login(principal.login)!==login(env.OWNER_EMAIL)) fail("access_denied",403);
+  const entry=request.method==='GET' && url.pathname==='/' && !url.search;
+  // One fixed classification per refused entry; never serialize a request,
+  // identity, environment value, or exception into production logs.
+  function refuse(reason:string,code:string,status:number):never {
+    if(entry && !principal.localFixture) console.warn(JSON.stringify({event:'web_planning_entry_refused',reason}));
+    return fail(code,status);
+  }
+  let origin: URL;
+  try { origin=new URL(env.APP_ORIGIN); } catch { refuse('configuration_origin','workspace_not_configured',503); }
+  if (origin.origin!==env.APP_ORIGIN || !login(env.OWNER_EMAIL) || !UUID.test(env.WORKSPACE_ID) || !UUID.test(env.PROJECT_ID) ||
+    !UUID.test(env.AUTHOR_REF) || typeof env.REQUEST_SECRET!=="string" || env.REQUEST_SECRET.length<32) refuse('configuration','workspace_not_configured',503);
+  if(url.origin!==env.APP_ORIGIN) refuse('request_origin','same_origin_required',403);
+  const requestOrigin=request.headers.get('origin');
+  if(requestOrigin!==null && requestOrigin!==env.APP_ORIGIN) refuse('origin_header','same_origin_required',403);
+  // Sign-in returns and external links can be cross-site navigations. Only the
+  // exact entry page gets this exception, never APIs, subresources or frames.
+  const navigation=entry && request.headers.get('sec-fetch-mode')==='navigate' && request.headers.get('sec-fetch-dest')==='document';
+  if (["cross-site","same-site"].includes(request.headers.get("sec-fetch-site")??"") && !navigation) refuse('fetch_metadata','same_origin_required',403);
+  if (!principal.localFixture && (origin.protocol!=="https:" || request.headers.has("x-web-planning-local-owner"))) refuse('untrusted_transport_or_local_identity','access_denied',403);
+  if (!login(principal.login)) refuse(env.SITES_INGRESS_MODE!=='verified-private-sites'?'ingress_disabled':
+    request.headers.has('oai-authenticated-user-email')?'identity_invalid':'identity_absent','access_denied',403);
+  if (login(principal.login)!==login(env.OWNER_EMAIL)) refuse('owner_mismatch','access_denied',403);
   const schema=await env.DB.prepare("SELECT version FROM web_planning_schema").all<{version:number}>();
-  if (schema.results.length!==1 || schema.results[0].version!==1) fail("incompatible_schema",503);
+  if (schema.results.length!==1 || schema.results[0].version!==1) refuse('schema','incompatible_schema',503);
   let owners=await env.DB.prepare("SELECT * FROM web_planning_workspace").all<Record<string,unknown>>();
   const expected={ singleton:1, workspace_id:env.WORKSPACE_ID, project_id:env.PROJECT_ID,
     author_ref:env.AUTHOR_REF, owner_login_hash:hash(login(env.OWNER_EMAIL)!) };
@@ -50,7 +64,8 @@ export async function authorize(request: Request, env: Environment, principal: P
       .bind(expected.workspace_id,expected.project_id,expected.author_ref,expected.owner_login_hash).run();
     owners=await env.DB.prepare("SELECT * FROM web_planning_workspace").all<Record<string,unknown>>();
   }
-  if(owners.results.length!==1 || canonical(owners.results[0])!==canonical(expected)) fail("workspace_mapping_mismatch",403);
+  if(owners.results.length!==1 || canonical(owners.results[0])!==canonical(expected)) refuse(
+    owners.results.length===0?'mapping_absent':'mapping_mismatch','workspace_mapping_mismatch',403);
   return {DB:env.DB,workspace_id:env.WORKSPACE_ID,project_id:env.PROJECT_ID,author_ref:env.AUTHOR_REF,env,local:principal.localFixture===true};
 }
 export function seal(access: Access, material: unknown): string {
