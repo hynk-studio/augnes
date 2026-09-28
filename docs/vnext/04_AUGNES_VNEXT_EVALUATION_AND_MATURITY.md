@@ -35,7 +35,9 @@ the whole product mature.
 5. Treat metrics as guardrails and diagnostic evidence, not objectives.
 6. Give no product credit for memory volume or more notes, tools, artifacts,
    agents, sessions, activity, cards, panels, schemas, records, engines, models,
-   routes, graph edges or surfaces alone.
+   routes, graph edges or surfaces alone. Branch count, graph size, generated
+   text volume, consensus rate, publication count and incorporation rate are
+   likewise not success metrics by themselves.
 7. Do not invent measured baselines, pass rates, user comprehension, or
    usefulness from fixtures or self-evaluation.
 
@@ -67,7 +69,9 @@ There is no universal hypothesis, candidate, or revision count: a direct local
 change may suffice, while another task may authorize multiple bounded attempts.
 
 Correct storage/transmission establishes availability and delivery, not
-appropriate use. Beyond that mechanical claim, keep three claims separate:
+appropriate use. Submission, incorporation here and later usefulness are
+separate observations; implementation or delivery success does not establish
+later usefulness. Beyond that mechanical claim, keep three claims separate:
 
 - **Implementation improvement:** the code or mechanism works more correctly.
 - **Method improvement:** a fixed method performs better than its prior form or
@@ -96,6 +100,11 @@ better across separate tasks. An ordinary-use observation can inform a next
 development decision without constituting a fixed comparative evaluation or a
 general transfer result.
 
+Distinguish private exploration branches, same-work branches, new sessions,
+new models, reviewers, and genuinely separate successor tasks or case origins.
+Record source genealogy and material exposure: many branches or agents sharing
+one source do not create independent evidence, nor do different model labels.
+
 Reuse relevant RW1/RW1A work-domain, work-phase, pre-action exposure and
 condition-integrity concepts; retain their frozen allocations and historical interpretation
 as recorded in [03](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#acgc-rw1b-authentic-real-work-collection--current).
@@ -121,6 +130,14 @@ assumption to permanent requirement, or unresolved uncertainty to resolved
 conclusion is a failure. Existing [repeated-handoff criteria](#repeated-handoff-evaluation-p52)
 apply; no new state or transition record is required.
 
+For continuation, check that goal, scope, constraints, source/revision identity,
+applicable conditions and unresolved material survive the handoff. For
+contribution and judgment, distinguish a genuinely new observation or useful
+alternative from restatement. A recipient may adopt an observation while
+declining its broader recommendation; partial incorporation must preserve
+material conditions, dependencies and attribution rather than imply wholesale
+agreement or independent verification.
+
 Deterministic artifact reproduction is distinct from reconstructing important
 project meaning when a derived summary is absent: what was accepted, why and
 under which conditions, what remains unresolved, and which explanation was
@@ -134,11 +151,12 @@ unresolved anomaly, as appropriate. Do not choose a convenient historical baseli
 post hoc. Prediction accuracy, task success, judgment improvement and future
 usefulness remain separate claims under the existing expectation rules.
 
-Appropriate non-use can succeed: direct execution on a simple task, narrow
-lookup, omission of irrelevant history, retaining a settled judgment after an
+Appropriate non-use or non-incorporation can succeed: direct execution on a
+simple task, narrow lookup, omission of irrelevant history, retaining a settled judgment after an
 irrelevant change, declining an inapplicable learned procedure, or fresh
-exploration when prior framing would create unjustified anchoring. Relevant
-condition changes may instead require explicit reconsideration. Measure both
+exploration when prior framing would create unjustified anchoring. Unselected
+material is not automatically refuted or rejected. Relevant condition changes
+may instead require explicit reconsideration. Measure both
 missed necessary and unnecessary reconsideration; reward appropriate continuity,
 not maximal historical context. Detecting stagnation or writing a good critique
 is weaker evidence than improving the next discriminating action and recovering
@@ -174,8 +192,10 @@ additional data, model/provider, or execution authority.
 
 ### Strong comparisons and independence
 
-Use an appropriately strong baseline: for example, an adaptive/free-form memo,
-direct execution without the mechanism, or another task-justified alternative.
+Use an appropriately strong baseline: for example, good source-linked adaptive
+documents, direct use of the native host/harness, or another task-justified
+alternative. Where relevant, use the same frontier model with comparable tools,
+source access and budget.
 Do not handicap it to make structure look useful. Control model, input, tools,
 source access, budget, and other relevant conditions, or report their differences
 and resulting limits. A concurrent model or other major condition change cannot
@@ -210,10 +230,11 @@ unobserved properties distinct.
 
 ### Cost and user burden
 
-Distinguish method-development cost; reusable asset creation/update/curation; per-task
-selection/retrieval/delivery; worker execution; verification/recovery; and user
-intervention burden. Improvements may include fewer failures, approved new
-capabilities, higher quality, lower compute or latency, fewer unnecessary checks,
+Distinguish method-development and preparation cost; reusable asset
+creation/update/curation; per-task selection/retrieval/delivery; worker/model use
+where applicable; review/verification/recovery; and human intervention burden.
+Improvements may include fewer failures, approved new capabilities, higher
+quality, lower compute or latency, fewer unnecessary checks,
 less repeated work or intervention, or a wider reliable operating range for a
 weaker/cheaper worker. Explain which outcome changed and which costs were counted.
 
@@ -236,6 +257,10 @@ framing, criticism and decisions, not less human thought.
 Where relevant, assess task/outcome quality, first correct action, duration of
 stale/incorrect assumptions, required versus unnecessary reconsideration and
 repeated explanation/context repair alongside the total relevant costs above.
+For retained or incorporated material, observe whether it improves a later
+correct judgment/action, reduces stale-context repair or duplicated work,
+supports an appropriate response to correction or changed applicability, or
+enables previously unsustainable scope, duration or quality.
 Higher cost may be justified by materially better outcomes or
 newly reachable problem scope; Augnes need not be cheaper in every successful
 case. Cost reduction, quality improvement, reliability improvement and capability
