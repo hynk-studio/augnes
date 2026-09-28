@@ -37,6 +37,13 @@ async function page(debug,origin){const target=await (await fetch(`http://127.0.
  return c;}
 async function intercept(c,p,origin){
  const u=p.request.url;
+ if(u.startsWith(origin+'/api/work/')&&u.endsWith('/compare')&&p.responseStatusCode===undefined){
+   if(c.beforeCompare){const before=c.beforeCompare;c.beforeCompare=null;await before();}
+   const failure=c.compareFailure;c.compareFailure=null;
+   if(failure==='transport'){expectedFailures.add(p.networkId);return c.send('Fetch.failRequest',{requestId:p.requestId,errorReason:'ConnectionClosed'});}
+   if(failure===503||failure===401)return c.send('Fetch.fulfillRequest',{requestId:p.requestId,responseCode:failure,responseHeaders:[{name:'Content-Type',value:'application/json'},{name:'Cache-Control',value:'no-store'}],body:Buffer.from(JSON.stringify({error:failure===503?'storage_unavailable':'access_denied'})).toString('base64')});
+   if(failure===403){await c.send('Network.clearBrowserCookies');return c.send('Fetch.continueRequest',{requestId:p.requestId,headers:Object.entries(p.request.headers).filter(([name])=>name.toLowerCase()!=='cookie').map(([name,value])=>({name,value}))});}
+ }
  if(p.responseStatusCode!==undefined){
    if(c.failListAfterReply){
      assert.equal(p.responseStatusCode,200,'the save/resolve response must really succeed');
@@ -171,7 +178,7 @@ try {
    assert.equal(await revisionCount(),4+index);assert.equal(requests.slice(before).filter(r=>r.path.endsWith('/save')).length,1);
    await requestsOnly(a);await login(a,origin);await reopen(a);await settled(a);
  }
- await browserBranchJourney({a,debug,origin,page,click,set,settled,saved,wait,visible,navigate,login,requestsOnly,requests,checks,
+ await browserBranchJourney({a,debug,origin,page,click,set,settled,saved,wait,visible,navigate,login,requestsOnly,requests,responses,revisionCount,checks,
    restart:async()=>{const options={root:path.join(root,'runtime'),port:Number(new URL(origin).port),bindings:local.env,code:local.code};await local.close();local=null;local=await startLocal(options);}});
  assert.deepEqual(interceptionErrors,[]);
  await click(a,'signout');await wait(()=>a.eval("document.title==='Local synthetic workspace'"),'signout');assert(!await a.eval("document.body.innerText.includes('Evening noise')"));

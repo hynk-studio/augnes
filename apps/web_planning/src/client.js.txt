@@ -4,10 +4,10 @@ const scope={workspace_id:document.querySelector('meta[name=workspace]').content
 const csrf=document.querySelector('meta[name=csrf-token]').content;
 const labels=['Changed assumption / user correction','New candidate','Rejection reason','Deferred item / revisit condition','Open question','Next check','Unclassified / needs review'];
 let work=null,saved=null,saveTicket=null,pending=null,reviewed=null,dirty=false,next=null,busy=false,eraseBinding=null;
-let relationPending=null,relationUnknown=false,directionDirty=false,comparison=null,branchCursor=null;
+let relationPending=null,relationUnknown=false,directionDirty=false,comparison=null,comparisonCurrent=false,branchCursor=null;
 const binding=r=>r?{revision:r.revision,fingerprint:r.fingerprint}:{revision:0,fingerprint:null};
 function status(text){$('status').textContent=text;}
-function deny(){work=saved=saveTicket=pending=reviewed=null;dirty=false;relationPending=comparison=null;directionDirty=false;$('private-view').replaceChildren();const p=document.createElement('p');p.id='status';p.setAttribute('role','status');p.textContent='Access is unavailable. Private content has been cleared. Sign in again to reopen.';$('private-view').append(p);}
+function deny(){work=saved=saveTicket=pending=reviewed=null;dirty=false;relationPending=comparison=null;comparisonCurrent=false;directionDirty=false;$('private-view').replaceChildren();const p=document.createElement('p');p.id='status';p.setAttribute('role','status');p.textContent='Access is unavailable. Private content has been cleared. Sign in again to reopen.';$('private-view').append(p);}
 async function request(path,body){
   const response=await fetch(path,{method:body===undefined?'GET':'POST',credentials:'same-origin',cache:'no-store',redirect:'error',
     headers:body===undefined?{}:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:body===undefined?undefined:JSON.stringify({...scope,...body}),signal:AbortSignal.timeout(15000)});
@@ -115,11 +115,12 @@ window.addEventListener('beforeunload',e=>{if(dirty||pending||directionDirty||re
 window.addEventListener('pagehide',()=>{$('context-view')?.replaceChildren();});
 window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 window.addEventListener('focus',()=>{if($('work-list'))api('/api/works').catch(e=>{if(e.message!=='access_denied')status('Access/currentness could not be checked. Use a fresh server read before reuse.');});});
-function resetDirections(){relationPending=null;relationUnknown=false;directionDirty=false;comparison=null;branchCursor=null;
+function resetDirections(){relationPending=null;relationUnknown=false;directionDirty=false;comparison=null;comparisonCurrent=false;branchCursor=null;
   for(const id of ['branch-form','comparison','relation-save','relation-uncertain','relation-cancel','more-branches'])$(id).hidden=true;
   for(const id of ['branch-choices','comparison-summary','material-choices','relation-preview'])$(id).replaceChildren();$('relation-state').textContent='';freezeDirection(false);}
 function freezeDirection(unknown){for(const e of $('directions').querySelectorAll('textarea,select'))e.disabled=unknown;
   for(const id of ['branch-open','branch-preview','choose-branch','more-branches','incorporation-preview','recompare','relation-cancel'])$(id).disabled=unknown;
+  $('incorporation-preview').disabled=unknown||!comparisonCurrent;
   $('edit-fields').disabled=!!relationPending;$('save').disabled=!!relationPending;}
 function requireSavedDirection(){if(!saved||dirty||pending||relationUnknown){status('Save or resolve the current draft before comparing saved work. Your edits are retained.');return false;}return true;}
 function invalidatePreview(){if(relationUnknown)return;relationPending=null;$('relation-save').hidden=true;$('relation-preview').replaceChildren();directionDirty=true;freezeDirection(false);}
@@ -134,7 +135,8 @@ async function branchChoices(append=false){if(!requireSavedDirection())return;co
  branchCursor=data.next;$('more-branches').hidden=!branchCursor;if(!$('branch-choices').children.length)$('relation-state').textContent='No branches on this page. Continue another direction or check More branches.';}
 $('choose-branch').onclick=()=>run(()=>branchChoices());$('more-branches').onclick=()=>run(()=>branchChoices(true));
 function choices(){return [...$('material-choices').children].map(row=>({source_ref:row.dataset.ref,disposition:row.querySelector('select').value,rationale:row.querySelector('textarea').value}));}
-async function readComparison(source,retained=[]){if(!requireSavedDirection())return;const data=await api('/api/work/'+work+'/compare',{expected:binding(saved),source});comparison=data;invalidatePreview();$('comparison').hidden=false;$('comparison-summary').innerHTML=data.html;$('material-choices').replaceChildren();
+async function readComparison(source,retained=[]){if(!requireSavedDirection())return;const data=await api('/api/work/'+work+'/compare',{expected:binding(saved),source});showComparison(data,retained);}
+function showComparison(data,retained=[]){comparison=data;comparisonCurrent=true;invalidatePreview();$('comparison').hidden=false;$('comparison-summary').innerHTML=data.html;$('material-choices').replaceChildren();
  for(const [i,n] of data.branch.sources.entries()){const row=document.createElement('section');row.className='context-note';row.dataset.ref=n.source_ref;const title=document.createElement('h4');title.textContent=`${i+1}. ${n.why_included}`;
    const text=document.createElement('p');text.className='note-text';text.textContent=n.bounded_summary;const attribution=document.createElement('p');const m=data.branch.relations.materials.find(m=>m.source_ref===n.source_ref);attribution.textContent=`${n.compatibility_source_ref.external_id} · ${n.trust_class} · Observed: ${n.external_ref.observed_at??'Unknown'} · currentness unknown · ${m.kind}. Requires notes ${m.dependencies.map(d=>data.branch.sources.findIndex(s=>s.source_ref===d)+1).join(', ')||'none explicitly linked'}.`;
    const label=document.createElement('label');label.textContent='Disposition';const select=document.createElement('select');select.id='disposition-'+i;label.htmlFor=select.id;for(const value of ['not_selected','incorporated','deferred','declined']){const option=document.createElement('option');option.value=value;option.textContent=value.replaceAll('_',' ');select.append(option);}label.append(select);
@@ -142,9 +144,15 @@ async function readComparison(source,retained=[]){if(!requireSavedDirection())re
    row.append(title,text,attribution,label,why);$('material-choices').append(row);}
  const missing=retained.filter(d=>!data.branch.sources.some(s=>s.source_ref===d.source_ref));if(missing.length){const p=document.createElement('p');p.textContent='Previous choices no longer present in this source revision (retained for review): '+JSON.stringify(missing);$('comparison-summary').append(p);}
  $('relation-state').textContent='Compare the current versions, including retained choices, then request a new preview. No selection has been saved.';}
-$('incorporation-preview').onclick=()=>run(async()=>{if(!requireSavedDirection()||!comparison)return;preparedChange(await api('/api/work/'+work+'/incorporation-preview',{expected:binding(saved),intent:{source:{work_id:comparison.branch.work_id,...binding(comparison.branch)},dispositions:choices(),rationale:$('comparison-rationale').value,next_question:$('comparison-next').value}}));});
+$('incorporation-preview').onclick=()=>run(async()=>{if(!requireSavedDirection()||!comparison||!comparisonCurrent)return;preparedChange(await api('/api/work/'+work+'/incorporation-preview',{expected:binding(saved),intent:{source:{work_id:comparison.branch.work_id,...binding(comparison.branch)},dispositions:choices(),rationale:$('comparison-rationale').value,next_question:$('comparison-next').value}}));});
 $('recompare').onclick=()=>run(async()=>{if(!requireSavedDirection()||!comparison)return;const retained=choices(),sourceId=comparison.branch.work_id,why=$('comparison-rationale').value,next=$('comparison-next').value;
-  const target=await api('/api/work/'+work),source=await api('/api/work/'+sourceId);show(target.saved);$('comparison-rationale').value=why;$('comparison-next').value=next;await readComparison({work_id:sourceId,...binding(source.saved)},retained);});
+  comparisonCurrent=false;invalidatePreview();$('relation-cancel').hidden=true;freezeDirection(true);$('edit-fields').disabled=true;$('save').disabled=true;
+  $('relation-state').textContent='Currentness is unconfirmed while refreshing. Your comparison draft and earlier bindings are retained.';
+  try{const target=await api('/api/work/'+work),source=await api('/api/work/'+sourceId);
+    const data=await api('/api/work/'+work+'/compare',{expected:binding(target.saved),source:{work_id:sourceId,...binding(source.saved)}});
+    show(data.target);$('comparison-rationale').value=why;$('comparison-next').value=next;showComparison(data,retained);
+  }catch(e){if(e.message!=='access_denied')$('relation-state').textContent='Currentness is unconfirmed. Your comparison draft and earlier source/target bindings are retained. Explicitly refresh and compare again before requesting a fresh preview; nothing was saved.';throw e;
+  }finally{if($('directions'))freezeDirection(false);}});
 async function acknowledgeRelation(data){work=data.saved.work_id;if(await acknowledged(data.saved))status(data.noop?'No change: the existing saved revision was acknowledged.':'Change saved. Read Saved context to resume from the server.');}
 async function dispatchRelation(){if(!relationPending)return;const p=relationPending;relationUnknown=true;freezeDirection(true);$('relation-save').hidden=true;
   try {const data=await api('/api/work/'+p.work_id+'/relation-save',{ticket:p.ticket,intent:p.intent});await acknowledgeRelation(data);}

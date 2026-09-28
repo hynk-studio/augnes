@@ -283,6 +283,14 @@ change** is explicit and uses identical material. Drift requires **Refresh
 versions and compare again**, retaining prior choices for review, followed by a
 new preview. No automatic retry, rebase or latest-version substitution occurs.
 
+If that refresh fails, the tab retains each whole-unit disposition and rationale,
+the overall rationale and unresolved question, the earlier source/target
+bindings, and the unsaved-work warning. Currentness remains unconfirmed and the
+old preview is invalidated. A complete explicit comparison must succeed before
+a fresh preview: only exact source bindings retain their choices; removed or
+changed units are shown for review. HTTP 401/403 instead clears private content
+and draft state. These drafts are held only in the current tab's memory.
+
 The normal UI's ordinary save ticket also binds normalized material, refusing
 an altered retry even when nothing was written. An unchanged v0.2 save using
 that ticket, or repeated identical incorporation, acknowledges the same revision.
