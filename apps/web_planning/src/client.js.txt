@@ -4,9 +4,10 @@ const scope={workspace_id:document.querySelector('meta[name=workspace]').content
 const csrf=document.querySelector('meta[name=csrf-token]').content;
 const labels=['Changed assumption / user correction','New candidate','Rejection reason','Deferred item / revisit condition','Open question','Next check','Unclassified / needs review'];
 let work=null,saved=null,saveTicket=null,pending=null,reviewed=null,dirty=false,next=null,busy=false,eraseBinding=null;
+let relationPending=null,relationUnknown=false,directionDirty=false,comparison=null,comparisonCurrent=false,branchCursor=null;
 const binding=r=>r?{revision:r.revision,fingerprint:r.fingerprint}:{revision:0,fingerprint:null};
 function status(text){$('status').textContent=text;}
-function deny(){work=saved=saveTicket=pending=reviewed=null;dirty=false;$('private-view').replaceChildren();const p=document.createElement('p');p.id='status';p.setAttribute('role','status');p.textContent='Access is unavailable. Private content has been cleared. Sign in again to reopen.';$('private-view').append(p);}
+function deny(){work=saved=saveTicket=pending=reviewed=null;dirty=false;relationPending=comparison=null;comparisonCurrent=false;directionDirty=false;$('private-view').replaceChildren();const p=document.createElement('p');p.id='status';p.setAttribute('role','status');p.textContent='Access is unavailable. Private content has been cleared. Sign in again to reopen.';$('private-view').append(p);}
 async function request(path,body){
   const response=await fetch(path,{method:body===undefined?'GET':'POST',credentials:'same-origin',cache:'no-store',redirect:'error',
     headers:body===undefined?{}:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:body===undefined?undefined:JSON.stringify({...scope,...body}),signal:AbortSignal.timeout(15000)});
@@ -16,20 +17,23 @@ async function request(path,body){
 }
 async function api(path,body){return (await request(path,body)).json();}
 function noteInput(s){return {text:s.bounded_summary,source:s.compatibility_source_ref.external_id,observed_at:s.external_ref.observed_at??null,provenance:s.trust_class,label:s.why_included};}
-function noteRow(note={text:'',source:'',observed_at:null,provenance:'user_declaration',label:'Unclassified / needs review'}){
-  const row=document.createElement('section');row.className='note';const n=crypto.randomUUID();
+function noteRow(note={text:'',source:'',observed_at:null,provenance:'user_declaration',label:'Unclassified / needs review'},original=null){
+  const row=document.createElement('section');row.className='note';const n=crypto.randomUUID();row.id=n;row._original=original;row._note=original?note:null;row._depIds=[];
   const h=document.createElement('div');h.className='note-heading';const title=document.createElement('h4');title.textContent='Context note';h.append(title);
-  const remove=document.createElement('button');remove.type='button';remove.textContent='Remove from selection';remove.onclick=()=>{row.remove();changed();};h.append(remove);row.append(h);
+  const remove=document.createElement('button');remove.type='button';remove.textContent='Remove from selection';remove.onclick=()=>{row.remove();syncDependencies();changed();};h.append(remove);row.append(h);
   function field(key,label,value,options){const wrap=document.createElement('div'),l=document.createElement('label');l.textContent=label;l.htmlFor=n+key;
     const e=document.createElement(options?'select':key==='text'?'textarea':'input');e.id=n+key;e.dataset.field=key;
     if(options)for(const opt of options){const o=document.createElement('option');o.value=opt;o.textContent=opt.replaceAll('_',' ');e.append(o);}
     if(key==='text'){e.rows=4;e.required=true;}if(key==='source')e.required=true;if(key==='observed_at')e.placeholder='Unknown, or ISO time with timezone';
     e.value=value??'';wrap.append(l,e);return wrap;}
   row.append(field('text','Note',note.text),field('source','Source / attribution',note.source));
-  const meta=document.createElement('div');meta.className='note-metadata';meta.append(field('label','Note type',note.label,labels),field('provenance','Provenance',note.provenance,['user_declaration','derived_interpretation','imported_unverified']),field('observed_at','Observation time (optional)',note.observed_at));row.append(meta);$('notes').append(row);
+  const meta=document.createElement('div');meta.className='note-metadata';meta.append(field('label','Note type',note.label,labels),field('provenance','Provenance',note.provenance,['user_declaration','derived_interpretation','imported_unverified']),field('observed_at','Observation time (optional)',note.observed_at));row.append(meta);const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent='Required context';const label=document.createElement('label');label.textContent='Required whole notes (select all that apply)';const deps=document.createElement('select');deps.id=n+'dependencies';label.htmlFor=deps.id;deps.multiple=true;deps.className='dependencies';deps.setAttribute('aria-label','Required whole notes');deps.onchange=()=>{row._depIds=[...deps.selectedOptions].map(o=>o.value);changed();};label.append(deps);details.append(summary,label);row.append(details);$('notes').append(row);
 }
-function draft(){const notes=[...$('notes').children].map(row=>Object.fromEntries([...row.querySelectorAll('[data-field]')].map(e=>[e.dataset.field,e.dataset.field==='observed_at'?(e.value||null):e.value])));
-return {definition:{goal:$('goal').value,success_criteria:$('criteria').value.split('\n'),non_goals:$('non-goals').value.split('\n')},notes};}
+function syncDependencies(){const rows=[...$('notes').children];for(const row of rows){const select=row.querySelector('.dependencies');select.replaceChildren();for(const other of rows.filter(r=>r!==row)){const o=document.createElement('option');o.value=other.id;o.textContent=`Note ${rows.indexOf(other)+1}: ${other.querySelector('[data-field=text]').value.slice(0,80)}`;o.selected=row._depIds.includes(other.id);select.append(o);}for(const id of row._depIds.filter(id=>!rows.some(r=>r.id===id))){const o=document.createElement('option');o.value=id;o.textContent='Missing required note — restore it or explicitly revise this dependency';o.selected=true;select.append(o);}}}
+function draft(){const rows=[...$('notes').children];const notes=rows.map(row=>Object.fromEntries([...row.querySelectorAll('[data-field]')].map(e=>[e.dataset.field,e.dataset.field==='observed_at'?(e.value||null):e.value])));
+ const material_edits=rows.map((row,i)=>{const changedOriginal=row._original && Object.keys(notes[i]).some(key=>notes[i][key]!==row._note[key]);if(changedOriginal){notes[i].provenance='derived_interpretation';row.querySelector('[data-field=provenance]').value='derived_interpretation';}return {dependencies:row._depIds.map(id=>rows.findIndex(r=>r.id===id)),adapts:changedOriginal?row._original:null};});
+ return {definition:{goal:$('goal').value,success_criteria:$('criteria').value.split('\n'),non_goals:$('non-goals').value.split('\n')},notes,material_edits};}
+
 function changed(){dirty=true;$('saved-label').textContent=saved?`Unsaved edits · based on revision ${saved.revision}`:'Unsaved draft';reviewChanges();}
 // Compare authored meaning only; keep raw input intact for the server's validation.
 function definitionComparison(value){return typeof value==='string'?value.trim():[...new Set(value.map(v=>v.trim()).filter(Boolean))].sort();}
@@ -38,28 +42,29 @@ function reviewChanges(){const d=draft();const lines=[];
   else {for(const [k,label] of [['goal','Goal'],['success_criteria','Success criteria'],['non_goals','Non-goals']])
     if(JSON.stringify(definitionComparison(d.definition[k]))!==JSON.stringify(definitionComparison(saved.definition[k])))lines.push(label+' edited.');
     const before=saved.sources.map(noteInput),after=d.notes;
-    if(JSON.stringify(before)!==JSON.stringify(after))lines.push('Selected context edited. Originals remain in earlier revisions.');
-    if(!lines.length)lines.push('No definition or selection edits. Save records another deliberate revision.');}
+    if(before.length!==after.length || before.some((n,i)=>Object.keys(n).some(k=>n[k]!==after[i][k])))lines.push('Selected context edited. Originals remain in earlier revisions.');
+    if(d.material_edits.some((m,i)=>JSON.stringify([...m.dependencies].sort())!==JSON.stringify((saved.relations?.materials.find(m=>m.source_ref===saved.sources[i]?.source_ref)?.dependencies??[]).map(ref=>saved.sources.findIndex(s=>s.source_ref===ref)).sort())))lines.push('Required context edited. Review the linked whole notes.');
+    if(!lines.length)lines.push('No definition or selection edits. An unchanged save acknowledges the existing revision.');}
   $('change-list').textContent=lines.join(' ');
 }
 function show(r=null){saved=r;pending=null;reviewed=null;dirty=false;saveTicket=null;
   $('editor').hidden=false;document.querySelector('.intro').hidden=true;
   $('goal').value=r?.definition.goal??'';$('criteria').value=(r?.definition.success_criteria??[]).join('\n');$('non-goals').value=(r?.definition.non_goals??[]).join('\n');
-  $('notes').replaceChildren();for(const n of r?.sources??[])noteRow(noteInput(n));
+  $('notes').replaceChildren();for(const n of r?.sources??[])noteRow(noteInput(n),n.source_ref);const rows=[...$('notes').children];for(const row of rows){const m=r?.relations?.materials.find(m=>m.source_ref===row._original);row._depIds=(m?.dependencies??[]).map(ref=>rows.find(n=>n._original===ref)?.id??'missing:'+ref);}syncDependencies();resetDirections();
   $('editor-title').textContent=r?'Continue your work':'New work';$('saved-label').textContent=r?`Saved revision ${r.revision} · ${r.recorded_at}`:'Unsaved draft';
-  for(const id of ['saved-context','refresh-work','history-tools'])$(id).hidden=!r;
+  for(const id of ['saved-context','refresh-work','history-tools','directions'])$(id).hidden=!r;
   for(const id of ['uncertain','conflict','rebase-draft','erase-confirm'])$(id).hidden=true;
   for(const id of ['context-view','conflict-latest','history-view'])$(id).replaceChildren();
   $('edit-fields').disabled=false;$('save').disabled=false;reviewChanges();
 }
-function mayLeave(){return !pending && (!dirty || confirm('Discard the unsaved edits in this tab?'));}
+function mayLeave(){return !pending && !relationPending && (!(dirty||directionDirty) || confirm('Discard the unsaved edits in this tab?'));}
 async function openWork(id){if(!mayLeave()){status(pending?'Resolve the pending save before leaving this work.':'Unsaved edits retained.');return;}const data=await api('/api/work/'+id);work=id;show(data.saved);status('Reopened from the server. Select Saved context for a fresh exact-revision read.');}
 async function list(append=false){const data=await api('/api/works'+(append&&next?'?cursor='+encodeURIComponent(next):''));if(!append)$('work-list').replaceChildren();
   for(const item of data.items){const li=document.createElement('li'),b=document.createElement('button');b.textContent=item.goal;b.onclick=()=>run(()=>openWork(item.work_id));li.append(b);$('work-list').append(li);}
   next=data.next;$('more-work').hidden=!next;$('list-state').textContent=$('work-list').children.length?'Saved on the server':'No saved work yet.';
 }
-async function run(fn){if(busy)return;busy=true;try{await fn();}catch(e){if(e.message==='refresh_required'&&saved)$('conflict').hidden=false;status(messages[e.message]??'The request could not be completed. Your draft is retained.');}finally{busy=false;}}
-const messages={access_denied:'Access denied. Sign in again to reopen.',refresh_required:'The saved head changed. Refresh explicitly before reading or changing it.',work_erased:'This work has been erased. It cannot be recreated by retrying.',history_capacity:'This work has reached 32 revisions. Export it before deciding the next work.',save_ticket_expired:'This save binding expired. Check its outcome before creating a new save.',reconstruction_disabled:'Reconstruction is disabled. It requires an explicitly configured empty replacement store.',storage_unavailable:'Storage is unavailable. No empty-work or successful-save claim can be made.'};
+async function run(fn){if(busy)return;busy=true;try{await fn();}catch(e){if(e.status===422||e.status===413){status('Save refused: '+(messages[e.message]??e.message.replaceAll('_',' '))+'. Your draft is retained.');return;}if(e.message==='refresh_required'&&saved)$('conflict').hidden=false;status(messages[e.message]??'The request could not be completed. Your draft is retained.');}finally{busy=false;}}
+const messages={required_material_missing:'A required context note is missing. Include every linked condition or explicitly revise the material; no partial incorporation was saved.',incomplete_dispositions:'Review a disposition for every source unit before previewing.',invalid_relation_text:'Provide the required reason or rationale, within 500 characters.',not_a_branch_of_target:'Select a private branch created from this work.',access_denied:'Access denied. Sign in again to reopen.',refresh_required:'The saved head changed. Refresh explicitly before reading or changing it.',work_erased:'This work has been erased. It cannot be recreated by retrying.',history_capacity:'This work has reached 32 revisions. Export it before deciding the next work.',save_ticket_expired:'This save binding expired. Check its outcome before creating a new save.',reconstruction_disabled:'Reconstruction is disabled. It requires an explicitly configured empty replacement store.',storage_unavailable:'Storage is unavailable. No empty-work or successful-save claim can be made.'};
 async function refreshList(){
   try{await list();$('refresh-list').hidden=true;return true;}
   catch(e){if(e.message==='access_denied')throw e;
@@ -67,7 +72,7 @@ async function refreshList(){
     $('refresh-list').hidden=false;
     status(`${saved?`Saved revision ${saved.revision} is retained. `:''}Work list could not be refreshed. Use Refresh work list to retry that read.`);return false;}
 }
-async function acknowledged(r){show(r);status(`Saved revision ${r.revision}. Reopen or read Saved context.`);await refreshList();}
+async function acknowledged(r){show(r);status(`Saved revision ${r.revision}. Reopen or read Saved context.`);return refreshList();}
 async function dispatch(){
   if(!pending)return;
   $('edit-fields').disabled=true;$('save').disabled=true;
@@ -83,11 +88,11 @@ async function dispatch(){
   await acknowledged(data.saved);
 }
 $('work-form').addEventListener('input',changed);
-$('work-form').onsubmit=e=>{e.preventDefault();run(async()=>{if(pending)return;
-  if(!saveTicket){if(saved)saveTicket=(await api('/api/work/'+work+'/ticket',{expected:binding(saved)})).ticket;else {const d=await api('/api/drafts',{});work=d.work_id;saveTicket=d.ticket;}}
+$('work-form').onsubmit=e=>{e.preventDefault();run(async()=>{if(pending||relationPending)return;
+  if(!saveTicket){if(saved)saveTicket=(await api('/api/work/'+work+'/ticket',{expected:binding(saved),...draft()})).ticket;else {const d=await api('/api/drafts',draft());work=d.work_id;saveTicket=d.ticket;}}
   pending={ticket:saveTicket,...draft()};await dispatch();});};
 $('new-work').onclick=()=>run(async()=>{if(!mayLeave()){status('Resolve the pending save or retain your unsaved edits.');return;}work=null;show();status('New draft. Nothing is stored until Save.');$('goal').focus();});
-$('add-note').onclick=()=>{if($('notes').children.length>=8){status('Eight whole notes are already selected. Explicitly remove one before adding another.');return;}noteRow();changed();$('notes').lastElementChild.querySelector('textarea').focus();};
+$('add-note').onclick=()=>{if($('notes').children.length>=8){status('Eight whole notes are already selected. Explicitly remove one before adding another.');return;}noteRow();syncDependencies();changed();$('notes').lastElementChild.querySelector('textarea').focus();};
 $('saved-context').onclick=()=>run(async()=>{ $('context-view').replaceChildren();
   const html=await (await request('/api/work/'+work+'/context',{expected:binding(saved)})).text();
   // Only server-authored escaped HTML is admitted here; note text is never HTML.
@@ -99,15 +104,64 @@ $('review-latest').onclick=()=>run(async()=>{const r=await api('/api/work/'+work
 $('rebase-draft').onclick=()=>{if(!reviewed)return;saved=reviewed;reviewed=null;saveTicket=null;pending=null;$('conflict').hidden=true;$('context-view').replaceChildren();changed();status('Reviewed base selected. Your draft remains unsaved; review its changes and press Save deliberately.');};
 $('history').onclick=()=>run(async()=>{const data=await api('/api/work/'+work+'/history');const list=document.createElement('ol');for(const r of data.revisions){const li=document.createElement('li');li.textContent=`Revision ${r.revision} · ${r.recorded_at} · ${r.definition.goal}`;list.append(li);}$('history-view').replaceChildren(list);});
 $('export').onclick=()=>run(async()=>{const response=await request('/api/work/'+work+'/export');const url=URL.createObjectURL(await response.blob());const a=document.createElement('a');a.href=url;a.download='planning-work.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);status('Complete revision chain downloaded. Keep exports private.');});
-$('erase').onclick=()=>{if(pending){status('Resolve the pending save before erasure.');return;}eraseBinding=binding(saved);$('erase-text').textContent=`Erase revision ${saved.revision} and all earlier revisions of this work? Download an export first if needed. A changed head will refuse.`;$('erase-confirm').hidden=false;};
+$('erase').onclick=()=>{if(pending||relationPending){status('Resolve the pending save before erasure.');return;}eraseBinding=binding(saved);$('erase-text').textContent=`Erase revision ${saved.revision} and all earlier revisions of this work? Download an export first if needed. A changed head will refuse. Independently saved branches and incorporated copies belong to other works and remain there; erase those works separately if intended.`;$('erase-confirm').hidden=false;};
 $('cancel-erase').onclick=()=>{$('erase-confirm').hidden=true;eraseBinding=null;};
 $('confirm-erase').onclick=()=>run(async()=>{await api('/api/work/'+work+'/erase',{expected:eraseBinding,confirm:'erase-whole-work'});dirty=false;work=saved=pending=null;show();$('editor').hidden=true;status('Whole work erased. The content-free ID guard prevents delayed saves from recreating it. Exports and provider backups are outside this deletion.');await list();});
 $('import').onclick=()=>run(async()=>{const file=$('import-file').files[0];if(!file){status('Choose a complete work export.');return;}if(file.size>1500000){status('Export exceeds the bounded reconstruction size.');return;}if(!mayLeave())return;const data=await api('/api/reconstruct',{export:JSON.parse(await file.text()),confirm:'reconstruct-empty-store'});work=data.saved.work_id;show(data.saved);status('Reconstructed from an attributed export; authorship and source currentness remain unverified.');await list();});
 $('more-work').onclick=()=>run(()=>list(true));
 $('refresh-list').onclick=()=>run(async()=>{if(await refreshList())status('Work list refreshed.');});
-$('signout').onclick=()=>{dirty=false;deny();};
-window.addEventListener('beforeunload',e=>{if(dirty||pending){e.preventDefault();e.returnValue='';}});
+$('signout').onclick=()=>{dirty=false;directionDirty=false;deny();};
+window.addEventListener('beforeunload',e=>{if(dirty||pending||directionDirty||relationPending){e.preventDefault();e.returnValue='';}});
 window.addEventListener('pagehide',()=>{$('context-view')?.replaceChildren();});
 window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 window.addEventListener('focus',()=>{if($('work-list'))api('/api/works').catch(e=>{if(e.message!=='access_denied')status('Access/currentness could not be checked. Use a fresh server read before reuse.');});});
+function resetDirections(){relationPending=null;relationUnknown=false;directionDirty=false;comparison=null;comparisonCurrent=false;branchCursor=null;
+  for(const id of ['branch-form','comparison','relation-save','relation-uncertain','relation-cancel','more-branches'])$(id).hidden=true;
+  for(const id of ['branch-choices','comparison-summary','material-choices','relation-preview'])$(id).replaceChildren();$('relation-state').textContent='';freezeDirection(false);}
+function freezeDirection(unknown){for(const e of $('directions').querySelectorAll('textarea,select'))e.disabled=unknown;
+  for(const id of ['branch-open','branch-preview','choose-branch','more-branches','incorporation-preview','recompare','relation-cancel'])$(id).disabled=unknown;
+  $('incorporation-preview').disabled=unknown||!comparisonCurrent;
+  $('edit-fields').disabled=!!relationPending;$('save').disabled=!!relationPending;}
+function requireSavedDirection(){if(!saved||dirty||pending||relationUnknown){status('Save or resolve the current draft before comparing saved work. Your edits are retained.');return false;}return true;}
+function invalidatePreview(){if(relationUnknown)return;relationPending=null;$('relation-save').hidden=true;$('relation-preview').replaceChildren();directionDirty=true;freezeDirection(false);}
+$('directions').addEventListener('input',invalidatePreview);
+$('branch-open').onclick=()=>{if(!requireSavedDirection())return;$('branch-form').hidden=false;$('branch-reason').focus();};
+function preparedChange(data){relationPending={work_id:data.work_id,ticket:data.ticket,intent:data.intent};relationUnknown=false;
+  $('relation-preview').innerHTML=data.html;$('relation-save').hidden=false;$('relation-cancel').hidden=false;$('relation-uncertain').hidden=true;
+  $('relation-state').textContent=data.noop?'This comparison is unchanged. Confirming will acknowledge the same revision.':'Review the exact proposed material before saving. Nothing has been written.';freezeDirection(false);}
+$('branch-preview').onclick=()=>run(async()=>{if(!requireSavedDirection())return;preparedChange(await api('/api/work/'+work+'/branch-preview',{expected:binding(saved),intent:{reason:$('branch-reason').value}}));});
+async function branchChoices(append=false){if(!requireSavedDirection())return;const data=await api('/api/works'+(append&&branchCursor?'?cursor='+branchCursor:''));if(!append)$('branch-choices').replaceChildren();
+ for(const item of data.items.filter(i=>i.branch_of===work)){const b=document.createElement('button');b.textContent=`Compare: ${item.goal}`;b.onclick=()=>run(()=>readComparison({work_id:item.work_id,...binding(item)}));$('branch-choices').append(b);}
+ branchCursor=data.next;$('more-branches').hidden=!branchCursor;if(!$('branch-choices').children.length)$('relation-state').textContent='No branches on this page. Continue another direction or check More branches.';}
+$('choose-branch').onclick=()=>run(()=>branchChoices());$('more-branches').onclick=()=>run(()=>branchChoices(true));
+function choices(){return [...$('material-choices').children].map(row=>({source_ref:row.dataset.ref,disposition:row.querySelector('select').value,rationale:row.querySelector('textarea').value}));}
+async function readComparison(source,retained=[]){if(!requireSavedDirection())return;const data=await api('/api/work/'+work+'/compare',{expected:binding(saved),source});showComparison(data,retained);}
+function showComparison(data,retained=[]){comparison=data;comparisonCurrent=true;invalidatePreview();$('comparison').hidden=false;$('comparison-summary').innerHTML=data.html;$('material-choices').replaceChildren();
+ for(const [i,n] of data.branch.sources.entries()){const row=document.createElement('section');row.className='context-note';row.dataset.ref=n.source_ref;const title=document.createElement('h4');title.textContent=`${i+1}. ${n.why_included}`;
+   const text=document.createElement('p');text.className='note-text';text.textContent=n.bounded_summary;const attribution=document.createElement('p');const m=data.branch.relations.materials.find(m=>m.source_ref===n.source_ref);attribution.textContent=`${n.compatibility_source_ref.external_id} · ${n.trust_class} · Observed: ${n.external_ref.observed_at??'Unknown'} · currentness unknown · ${m.kind}. Requires notes ${m.dependencies.map(d=>data.branch.sources.findIndex(s=>s.source_ref===d)+1).join(', ')||'none explicitly linked'}.`;
+   const label=document.createElement('label');label.textContent='Disposition';const select=document.createElement('select');select.id='disposition-'+i;label.htmlFor=select.id;for(const value of ['not_selected','incorporated','deferred','declined']){const option=document.createElement('option');option.value=value;option.textContent=value.replaceAll('_',' ');select.append(option);}label.append(select);
+   const why=document.createElement('label');why.textContent='Rationale (required for deferred or declined)';const rationale=document.createElement('textarea');rationale.id='disposition-rationale-'+i;why.htmlFor=rationale.id;rationale.rows=2;rationale.maxLength=500;why.append(rationale);const old=retained.find(d=>d.source_ref===n.source_ref);if(old){select.value=old.disposition;rationale.value=old.rationale;}
+   row.append(title,text,attribution,label,why);$('material-choices').append(row);}
+ const missing=retained.filter(d=>!data.branch.sources.some(s=>s.source_ref===d.source_ref));if(missing.length){const p=document.createElement('p');p.textContent='Previous choices no longer present in this source revision (retained for review): '+JSON.stringify(missing);$('comparison-summary').append(p);}
+ $('relation-state').textContent='Compare the current versions, including retained choices, then request a new preview. No selection has been saved.';}
+$('incorporation-preview').onclick=()=>run(async()=>{if(!requireSavedDirection()||!comparison||!comparisonCurrent)return;preparedChange(await api('/api/work/'+work+'/incorporation-preview',{expected:binding(saved),intent:{source:{work_id:comparison.branch.work_id,...binding(comparison.branch)},dispositions:choices(),rationale:$('comparison-rationale').value,next_question:$('comparison-next').value}}));});
+$('recompare').onclick=()=>run(async()=>{if(!requireSavedDirection()||!comparison)return;const retained=choices(),sourceId=comparison.branch.work_id,why=$('comparison-rationale').value,next=$('comparison-next').value;
+  comparisonCurrent=false;invalidatePreview();$('relation-cancel').hidden=true;freezeDirection(true);$('edit-fields').disabled=true;$('save').disabled=true;
+  $('relation-state').textContent='Currentness is unconfirmed while refreshing. Your comparison draft and earlier bindings are retained.';
+  try{const target=await api('/api/work/'+work),source=await api('/api/work/'+sourceId);
+    const data=await api('/api/work/'+work+'/compare',{expected:binding(target.saved),source:{work_id:sourceId,...binding(source.saved)}});
+    show(data.target);$('comparison-rationale').value=why;$('comparison-next').value=next;showComparison(data,retained);
+  }catch(e){if(e.message!=='access_denied')$('relation-state').textContent='Currentness is unconfirmed. Your comparison draft and earlier source/target bindings are retained. Explicitly refresh and compare again before requesting a fresh preview; nothing was saved.';throw e;
+  }finally{if($('directions'))freezeDirection(false);}});
+async function acknowledgeRelation(data){work=data.saved.work_id;if(await acknowledged(data.saved))status(data.noop?'No change: the existing saved revision was acknowledged.':'Change saved. Read Saved context to resume from the server.');}
+async function dispatchRelation(){if(!relationPending)return;const p=relationPending;relationUnknown=true;freezeDirection(true);$('relation-save').hidden=true;
+  try {const data=await api('/api/work/'+p.work_id+'/relation-save',{ticket:p.ticket,intent:p.intent});await acknowledgeRelation(data);}
+  catch(e){if(e.message==='access_denied')throw e;
+    if([409,410,422,413,404].includes(e.status)&&e.message!=='save_ticket_expired'){relationPending=null;relationUnknown=false;$('relation-uncertain').hidden=true;freezeDirection(false);
+      $('relation-state').textContent='Change refused: '+e.message.replaceAll('_',' ')+'. Your reason and choices are retained. Explicitly refresh and compare again; nothing was rebased or retried.';}
+    else{$('relation-uncertain').hidden=false;$('relation-state').textContent='Outcome unknown. Check the original request; do not create a replacement.';}}
+}
+$('relation-save').onclick=()=>run(dispatchRelation);$('relation-retry').onclick=()=>run(dispatchRelation);
+$('relation-resolve').onclick=()=>run(async()=>{if(!relationPending)return;const p=relationPending,data=await api('/api/work/'+p.work_id+'/relation-resolve',{ticket:p.ticket,intent:p.intent});if(data.outcome==='saved')await acknowledgeRelation(data);else $('relation-state').textContent='Original request not visible; outcome remains unknown. An explicit retry keeps the same identity and material.';});
+$('relation-cancel').onclick=()=>{if(relationUnknown)return;invalidatePreview();$('relation-cancel').hidden=true;$('relation-state').textContent='Returned to editing. The reason and choices remain here; a new preview is required.';};
 run(()=>list());

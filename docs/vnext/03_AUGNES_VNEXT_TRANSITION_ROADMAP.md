@@ -329,10 +329,13 @@ intact. No repeated human repair or comparative usefulness
 claim is established. Task A's original preparation and observations below
 remain historical evidence, not a retrofitted native chronology.
 
-## Next P2/P5 — Private branching, comparison and selective incorporation (#1351)
+<a id="next-p2p5--private-branching-comparison-and-selective-incorporation-1351"></a>
+
+## Current P2/P5 — Private branching, comparison and selective incorporation (#1351)
 
 [#1351](https://github.com/hynk-studio/augnes/issues/1351) is the **first Web
-extension candidate / Next, queued and not started** within the existing P2/P5
+extension candidate / Current** on `codex/1351-private-branch-incorporation`,
+from reviewed main `c8fab8410705d0fa022eab6be9552964fd13a956`, within the existing P2/P5
 scope: exact saved work revision → independent private branch → comparison →
 selective incorporation → later correct resumption. A recipient should be able
 to retain a source-attributed, conditional observation while declining a broader
@@ -340,13 +343,22 @@ recommendation, preserving material dependencies and the independent branch.
 Implementation/delivery success will not by itself establish later usefulness;
 use [04's existing evaluation](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#method-improvement-evidence).
 
-The [latest #1350 execution decision](https://github.com/hynk-studio/augnes/issues/1350#issuecomment-5865855822)
-supersedes the earlier no-prerequisite statement: one #1350 documentation Draft
-PR → ChatGPT review → user merge → close #1350 on that reviewed documentation
-outcome → re-read resulting main → begin #1351 as a separate implementation
-task. This is the chosen workflow dependency, not a new technical dependency.
-This documentation adoption neither starts #1351 nor spends its implementation
-or test authority; no #1351 branch, code, tests or PR precedes that sequence.
+The agreed prerequisite sequence is complete: [#1352](https://github.com/hynk-studio/augnes/pull/1352)
+was reviewed and merged, #1350 was closed for its documentation outcome, and
+resulting main was reread. The [implementation handoff](https://github.com/hynk-studio/augnes/issues/1351#issuecomment-5869233717)
+authorizes this separate bounded implementation; #1351 is not completed until
+its own reviewed merge.
+
+The candidate's [implementation/usage contract](../../apps/web_planning/README.md#private-branches-and-selective-incorporation)
+connects normal saved-work controls to the existing authenticated writer and
+Saved-context reader. A versioned Web host envelope records exact branch origin,
+whole-unit provenance/dependencies and explicit non-adoption judgments. Existing
+D1 tables/migrations, v0 bytes and native Core semantics remain unchanged. Local
+synthetic D1 and Browser checks cover the complete journey, currentness/replay,
+refusal recovery, compatibility, export and independent whole-work erasure.
+Deciding evidence belongs to this candidate's exact-head PR report; #1352's
+receipt does not transfer. Hosted rollout, independent model interpretation and
+later usefulness remain unperformed, with #1345's residual trust limits intact.
 
 **Later**, as extensions of the same private continuous-work product:
 

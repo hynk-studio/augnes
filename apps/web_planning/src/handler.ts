@@ -1,8 +1,9 @@
 /// <reference path="./assets.d.ts" />
 import { authorize, csrfCookie, csrfToken, readTicket, requireCsrf, requireScope, ticket, type Environment, type Principal } from "./access";
-import { binding, canonical, exact, exportWork, fail, MAX_REVISIONS, makeRevision, normalizePayload, Refusal, requestFingerprint, sameBinding, UUID, validateExport } from "./contract";
-import { append, eraseWork, headBinding, listWork, readWork, reconstruct, requestRevision } from "./store";
-import { page, renderContext, style } from "./page";
+import { binding, canonical, exact, exportWork, fail, hash, MAX_REVISIONS, makeRevision, normalizePayload, reference, Refusal, requestFingerprint, sameBinding, UUID, validateExport } from "./contract";
+import { append, eraseWork, headBinding, headsCurrent, listWork, readWork, reconstruct, requestRevision } from "./store";
+import { page, renderContext, renderComparison, renderPreview, style } from "./page";
+import { compare, editedPayload, previewOperation, referenceAvailability, saveOperation } from "./relations";
 import client from "./client.js.txt?raw";
 const headers={"Cache-Control":"no-store, private","Vary":"Cookie, oai-authenticated-user-email","X-Content-Type-Options":"nosniff",
   "Referrer-Policy":"no-referrer","X-Frame-Options":"DENY","X-Robots-Tag":"noindex, nofollow",
@@ -36,7 +37,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
         const cursor=url.searchParams.get("cursor")??"";
         if(cursor && !UUID.test(cursor))fail("invalid_cursor");
         const listed=await listWork(access,cursor);
-        return json({items:listed.items.map(r=>({work_id:r.work_id,goal:r.definition.goal,recorded_at:r.recorded_at,...headBinding(r)})),next:listed.next});
+        return json({items:listed.items.map(r=>({work_id:r.work_id,goal:r.definition.goal,recorded_at:r.recorded_at,...headBinding(r),branch_of:r.relations?.origin?.source.work_id??null})),next:listed.next});
       }
       const match=path.match(/^\/api\/work\/([a-f0-9-]+)(?:\/(history|export))?$/);
       if(match && UUID.test(match[1]) && !url.search) {
@@ -51,8 +52,10 @@ export async function handle(request:Request,env:Environment,principal:Principal
     const input=await body(request); if(!input || typeof input!=="object")fail("invalid_body");
     requireScope(access,input);
     if(path==="/api/drafts") {
-      exact(input,"workspace_id,project_id"); const work_id=crypto.randomUUID();
-      return json({work_id,ticket:ticket(access,work_id,headBinding())});
+      const bound="definition" in input;
+      exact(input,"workspace_id,project_id"+(bound?",definition,notes"+("material_edits" in input?",material_edits":""):"")); const work_id=crypto.randomUUID();
+      const fingerprint=bound?hash(canonical(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits))):undefined;
+      return json({work_id,ticket:ticket(access,work_id,headBinding(),fingerprint)});
     }
     if(path==="/api/reconstruct") {
       exact(input,"workspace_id,project_id,export,confirm");
@@ -61,27 +64,51 @@ export async function handle(request:Request,env:Environment,principal:Principal
       await reconstruct(access,chain);
       return json({saved:chain.at(-1),authorship:"imported attestation; not independently verified"});
     }
+    const relation=path.match(/^\/api\/work\/([a-f0-9-]+)\/(branch-preview|compare|incorporation-preview|relation-save|relation-resolve)$/);
+    if(relation && UUID.test(relation[1])) {
+      const [,id,action]=relation;
+      if(action==="relation-save" || action==="relation-resolve") {
+        exact(input,"workspace_id,project_id,ticket,intent");
+        return json(await saveOperation(access,id,input.ticket,input.intent,action==="relation-resolve"));
+      }
+      if(action==="compare") {
+        exact(input,"workspace_id,project_id,expected,source");
+        const result=await compare(access,id,input.expected,input.source);
+        return json({...result,html:renderComparison(result.target,result.branch,result.baseline)});
+      }
+      exact(input,"workspace_id,project_id,expected,intent");
+      const result=await previewOperation(access,id,action==="branch-preview"?"branch":"incorporate",input.expected,input.intent);
+      return json({...result,html:renderPreview(result.payload)});
+    }
     const match=path.match(/^\/api\/work\/([a-f0-9-]+)\/(ticket|save|resolve|context|erase)$/);
     if(!match || !UUID.test(match[1]))fail("not_found",404);
     const [,id,action]=match;
     if(action==="ticket" || action==="context" || action==="erase") {
-      exact(input,action==="erase"?"workspace_id,project_id,expected,confirm":"workspace_id,project_id,expected");
+      const bound=action==="ticket" && "definition" in input;
+      exact(input,action==="erase"?"workspace_id,project_id,expected,confirm":"workspace_id,project_id,expected"+(bound?",definition,notes"+("material_edits" in input?",material_edits":""):""));
       const expected=binding(input.expected);
       const chain=await readWork(access,id), head=chain.at(-1);
       if(!head)fail("work_not_found",404);
       if(!sameBinding(headBinding(head),expected))fail("refresh_required",409);
-      if(action==="context")return html(renderContext(head,chain.at(-2)));
-      if(action==="ticket")return json({ticket:ticket(access,id,expected)});
+      if(action==="context") {const refs=await referenceAvailability(access,head);return html(renderContext(head,chain.at(-2),refs.availability,refs.reviewSource));}
+      if(action==="ticket")return json({ticket:ticket(access,id,expected,bound?hash(canonical(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits,head))):undefined)});
       if(input.confirm!=="erase-whole-work")fail("confirmation_required");
       await eraseWork(access,id,expected); return json({erased:true});
     }
-    exact(input,"workspace_id,project_id,ticket,definition,notes");
+    exact(input,"workspace_id,project_id,ticket,definition,notes"+("material_edits" in input?",material_edits":""));
     const t=readTicket(access,input.ticket,id,action==="resolve");
-    const payload=normalizePayload(access,input.definition,input.notes);
-    const fingerprint=requestFingerprint(access,id,t.expected,t.request_key,payload);
     const previous=await readWork(access,id); // Integrity validation, NOT the write gate.
+    const payload=editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits,previous.find(r=>r.revision===t.expected.revision));
+    if(t.payload_fingerprint && hash(canonical(payload))!==t.payload_fingerprint)fail("altered_replay",409);
+    const fingerprint=requestFingerprint(access,id,t.expected,t.request_key,payload);
     const previousRequest=await requestRevision(access,t.request_key);
     if(previousRequest && (previousRequest.work_id!==id || previousRequest.request_fingerprint!==fingerprint))fail("altered_replay",409);
+    const current=previous.at(-1);
+    if(!previousRequest && t.payload_fingerprint && current?.relations && sameBinding(headBinding(current),t.expected) &&
+      canonical(payload)===canonical({definition:current.definition,sources:current.sources,relations:current.relations}) &&
+      await headsCurrent(access,reference(current),reference(current))) {
+      return json({outcome:"saved",saved:current,head:headBinding(current),noop:true});
+    }
     if(action==="resolve") {
       const observed=await readWork(access,id), resolved=observed.find(r=>r.request_key===t.request_key);
       if(resolved && resolved.request_fingerprint!==fingerprint)fail("altered_replay",409);

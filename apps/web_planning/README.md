@@ -1,7 +1,7 @@
 # Web Augnes planning workspace
 
-Local implementation candidate for [#1345](https://github.com/hynk-studio/augnes/issues/1345),
-following the [merged Task A contract](../../docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#current-p2p5--web-augnes-v0-task-a-1343).
+Private branching/incorporation candidate for [#1351](https://github.com/hynk-studio/augnes/issues/1351),
+extending the accepted bounded one-owner synthetic hosted v0 slice ([reviewed #1345 closeout](../../docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#completed-p2p5--web-augnes-v0-hosted-slice-1345)) and the [merged Task A contract](../../docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#current-p2p5--web-augnes-v0-task-a-1343).
 One configured owner keeps independent, text/link planning items. It neither
 reads the installed Augnes database nor creates native work, results or accepted state.
 
@@ -22,7 +22,11 @@ The Sites build dependencies require Node 22.13+ or 24; deciding verification
 still requires the repository's exact Node 24.18.0/npm 11.16.0 toolchain.
 
 `web:dev` prints a loopback `/_local/login` URL. Enter the **synthetic workspace**,
-create work, add attributed notes, Save, and reopen **Saved context**. This is a
+create work, add attributed notes, Save, and reopen **Saved context**. From a
+saved work, **Continue another direction** previews its exact starting material.
+Revise that independent branch, return to the parent, **Compare a private
+branch**, choose whole units and dispositions, review and save, then reopen
+**Saved context**. This is a
 25-minute disposable session, wrapped by the existing bounded child/resource
 owners. Its D1 files are deleted at cleanup. It is not a daily-use local database.
 Only synthetic data belongs here. The automated browser check clears browser
@@ -96,11 +100,11 @@ The available `save_site_version` tool accepts an archive from the exact pushed
 commit with `.openai/hosting.json` and a supported Worker entry. It has no
 validation-only mode; no separate backend packager/validator was available.
 The official plugins execute locally, and tests check the complete artifact,
-staged migration parity and the generated entry/config in workerd. This is
-**local package/Worker qualification**, not backend Sites archive admission.
-After review and merge, #1345 must qualify the archive, migration executor,
-binding and trust on its authorized private Site before real data. Stop on a
-precise incompatibility rather than introducing another service.
+staged migration parity and the generated entry/config in workerd. This build/test path establishes **local package/Worker qualification**.
+The reviewed #1345 closeout separately accepted the v0 hosted artifact and
+bounded synthetic journey; its residual ingress/session/bypass limitations
+remain unchanged. The #1351 extension has no hosted acceptance or deployment.
+A later rollout of this candidate needs separate review and authority.
 
 | Runtime value | Meaning |
 | --- | --- |
@@ -148,9 +152,11 @@ Sites consumes `.openai/drizzle/**` from the build. The same journal and SQL run
 through Drizzle's D1 migrator in the disposable real local D1 tests; snapshot
 regeneration and negative drift controls prevent schema/SQL divergence. Version,
 JSON, revision bounds, scoped foreign keys and both uniqueness constraints are
-also exercised directly in D1. These migrations target an **empty hosted store**;
-they neither alter the installed native schema nor adopt an existing unmanaged
-database. A nonempty/incompatible hosted store requires separate review.
+also exercised directly in D1. The two shipped migrations initialize an **empty store** and are unchanged.
+#1351 retains D1 schema version 1 and extends only the versioned JSON envelope
+in the existing revision rows; no DDL upgrade is necessary. Local compatibility
+tests open a nonempty store created through the reviewed v0 writer. No live
+hosted migration or native schema change is performed.
 
 The available Sites database tools are read-only, and the current documented
 migration workflow supplies no dynamic, secret-aware seed write. Therefore the
@@ -167,12 +173,14 @@ Missing/untrusted ingress still denies every private request. An origin-mismatch
 direct-backend-style request is tested locally; actual Sites header integrity
 and absence of a bypass remain hosted acceptance, not consequences of this code.
 Do not use remote Wrangler commands to bypass the Sites migration owner.
-Required account quota, cost, storage retention/recovery access and private
-remote consumption remain unobserved. No Site, D1 or R2 was provisioned.
+The reviewed #1345 closeout owns the prior hosted admission and remote
+consumption observations. Provider retention/recovery and the residual trust
+limits remain outside this local evidence. This candidate provisions or changes
+no Site, D1, R2, version, configuration, secret or audience.
 
 ## Data and access contract
 
-`src/contract.ts` owns the smaller `web_planning_revision.v0.1` host envelope;
+`src/contract.ts` owns the `web_planning_revision.v0.1` and `.v0.2` host envelopes;
 it does not add a Core record type. The extracted definition normalizer remains
 re-exported by its old native module. Selected entries and canonical fingerprints
 reuse existing code; frozen vectors from merged `d7c8c326` and the local Worker
@@ -181,7 +189,9 @@ No repository-root, SQLite session, native admission or reviewed-outcome identit
 is imported. Native callers keep their original limits and error class.
 
 A complete definition/selection is one immutable row. The INSERT itself checks
-expected revision **and** fingerprint and the erased-ID guard; unique scoped
+expected revision **and** fingerprint and the erased-ID guard; branch and
+incorporation inserts also test source head/fingerprint and source erasure in
+that same SQL statement; unique scoped
 revision/request keys settle competing saves. The reader validates the full
 bounded chain and its indexed columns. There is no mutable current pointer,
 last-write-wins update, automatic merge or partial note write. Definition limits
@@ -222,7 +232,8 @@ unknown versions, missing parents, altered entries and partial import failures
 refuse/roll back. Hashes detect inconsistent content, not independent authorship
 or a malicious party recomputing every hash. Imported authorship remains an
 attestation. Code rollback does not roll back data; older code must understand
-the schema or refuse. Existing exported copies are outside whole-work erasure.
+the schema or refuse. Existing exported copies are outside whole-work erasure. See the versioned
+compatibility and independent-copy boundaries below.
 
 Erasure confirms the exact saved head, atomically inserts a content-free erased-ID
 guard and removes **all** work revisions/request history. Racing saves either
@@ -230,6 +241,97 @@ win first (stale erase refuses) or cannot recreate the erased work. Failed delet
 rolls back its marker too. The application promises no unobserved provider-backup
 retention/erasure. Exporting and restoring elsewhere is a separate authorized
 recovery operation, never automatic synchronization or a second live writer.
+
+## Private branches and selective incorporation
+
+The normal work-detail flow is **Continue another direction → Review starting
+material → Save reviewed change**. The server resolves the complete saved
+source definition and selection at the displayed exact revision. The first
+branch deliberately inherits all of them, its last bounded planning judgment
+and unresolved matter when present, with an explicit divergence reason. It
+starts a separate work; use ordinary editing for subsequent changes. No source
+history is embedded. Later source revisions never move the branch origin.
+
+**Compare a private branch** selects one direct branch of the current work.
+Both heads and the branch's exact origin are shown; definition differences and
+note additions/removals are computed separately against that origin. The
+comparison does not classify all differences as branch contributions or infer
+semantic novelty. Parentless reconstructed branches remain readable; comparison
+back to an unavailable parent is refused rather than inventing a baseline.
+
+Choose `incorporated`, `not_selected`, `deferred`, or `declined` per whole unit.
+Deferred/declined choices require a rationale. The reviewed target keeps its
+own definition and unrelated selected material. Explicit dependency links are
+entered with **Required context** in the note editor. Linked conditions must
+already be selected in the target or travel with the selected material; an
+incomplete or over-budget selection refuses in full. The validator cannot
+discover every unstated natural-language dependency. New or edited notes have
+their own attribution; editing an existing note in the UI produces a linked
+`derived_interpretation`, not unchanged inherited evidence.
+
+`src/relations.ts` resolves originals, normalizes choices and builds the bounded
+host metadata; `handler.ts` retains the existing authorization/CSRF gates;
+`store.ts` persists through the same conditional revision INSERT. The signed
+preview binds the source, target, normalized material, dispositions/rationale,
+request identity and 24-hour expiry. A single SQL statement checks both heads
+and erasure guards at admission; there are no separately committed relation or
+provenance rows. Two competing target writes cannot both advance the same head.
+Exact replay acknowledges the original result; altered requests refuse. An
+uncertain response retains the original request, reason and choices in the tab.
+**Check change outcome** is read-only (including after expiry); **Retry same
+change** is explicit and uses identical material. Drift requires **Refresh
+versions and compare again**, retaining prior choices for review, followed by a
+new preview. No automatic retry, rebase or latest-version substitution occurs.
+
+If that refresh fails, the tab retains each whole-unit disposition and rationale,
+the overall rationale and unresolved question, the earlier source/target
+bindings, and the unsaved-work warning. Currentness remains unconfirmed and the
+old preview is invalidated. A complete explicit comparison must succeed before
+a fresh preview: only exact source bindings retain their choices; removed or
+changed units are shown for review. HTTP 401/403 instead clears private content
+and draft state. These drafts are held only in the current tab's memory.
+
+The normal UI's ordinary save ticket also binds normalized material, refusing
+an altered retry even when nothing was written. An unchanged v0.2 save using
+that ticket, or repeated identical incorporation, acknowledges the same revision.
+The older unbound v0 request shape remains supported with its existing append
+behavior. No-op requests have no durable request row: outcome reads
+can acknowledge the unchanged material only while the necessary exact heads
+remain current; otherwise absence remains unknown. A changed disposition or
+rationale is a real planning change even if no additional note is adopted.
+
+The `.v0.2` / `web-planning/2` envelope adds closed, fingerprinted `relations`:
+an immutable origin with its selected bindings and bounded starting judgment,
+one provenance/dependency descriptor per selected unit, and the latest local
+comparison judgment. Metadata is capped at 12,000 canonical UTF-8 bytes;
+reason/rationale/question fields at 500 codepoints, with at most eight units
+and seven dependencies each. Existing definition, source, 32-revision and
+10-item list bounds remain. Saved context reads at most two direct referenced
+works, never scans a transitive graph. Both human and browser-agent readers get
+the same server-rendered exact-revision meaning, with progressive bindings and
+honest source availability. Reading establishes delivery, not understanding.
+
+Old v0.1 envelopes and exports keep their original bytes and fingerprints;
+chains may advance from v0.1 to v0.2, never downgrade. Complete mixed/v0.2 chains
+use `web_planning_export.v0.2`; pure v0.1 exports retain their old format. No
+shipped migration or historical row is edited. Reviewed v0 code rejects a
+v0.2 work/history/context/export (its closed-field reader reports
+`invalid_fields`), and list pages containing it; it must not be used as a
+rollback reader/writer for new work. Code rollback is not data rollback. Keep
+full exports and roll forward with a compatible reader; reconstruction into a
+quiesced empty store validates the entire bounded chain and rolls back all rows
+on failure. It imports only the selected work, never the referenced origin.
+Fingerprints do not independently prove imported authorship or availability.
+
+Whole-work erasure removes that work's complete envelope/request history,
+including its owned provenance and judgments, and leaves only the content-free
+ID guard. Independently saved branches and deliberately incorporated copies
+have their own deletion scope, explained before confirmation. Erasing an origin
+neither cascades to those copies nor leaves an extra hidden source snapshot.
+Missing origin/review sources are labelled unavailable or unverified; the
+saved copy, qualifications and own rationale remain readable and erasable.
+Non-adoption does not imply refutation, and none of these operations grants
+native acceptance, a ReviewDecision, Transition or execution authority.
 
 ## Evidence lanes
 
@@ -251,8 +353,11 @@ as the next planning information needed. This is exposed synthetic local
 consumption, not independent improvement, native execution, Sites ingress proof
 or hosted acceptance. The temporary tab/runtime were closed and removed.
 
-Remaining hosted acceptance: exact artifact/flag/schema admission, owner/account
-and private ingress qualification, approved synthetic deployment, separate-client
-reopen with the Mac unavailable, and an actual authenticated remote agent read.
-Keep #1345 open until its required hosted checks are reviewed. This candidate
-adds no WebMCP, headless transport, public discovery, inference or automatic phase.
+The [reviewed #1345 closeout](../../docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#completed-p2p5--web-augnes-v0-hosted-slice-1345)
+accepted the bounded hosted v0 slice and supersedes its earlier remaining-hosted
+status. Isolated-session, final logged-out, identity-header/bypass and other
+unperformed checks stay explicitly limited there; Sites identity remains a
+platform trust dependency. The #1351 extension is locally tested only. No new
+hosted deployment, independent model interpretation, separate successor-task
+usefulness or comparative benefit is established. This candidate adds no
+WebMCP, new transport, public discovery, inference or automatic execution.

@@ -1,4 +1,4 @@
-import { canonical, fail, headBinding, MAX_REVISIONS, type Binding, type Revision, type Scope, validateChain } from "./contract";
+import { canonical, fail, headBinding, MAX_REVISIONS, type Binding, type Revision, type Scope, type WorkRef, validateChain } from "./contract";
 // The subset of the D1 binding used here. No SQLite adapter or in-memory fallback.
 export interface Statement {
   bind(...values: (string | number | null)[]): Statement;
@@ -27,7 +27,14 @@ export async function readWork(s: Store, id: string): Promise<Revision[]> {
   }).sort((a,b)=>a.revision-b.revision);
   return validateChain(s,id,values);
 }
-export async function append(s: Store, r: Revision): Promise<void> {
+const sourceGate = `NOT EXISTS (SELECT 1 FROM web_planning_erased WHERE ${where})
+  AND (SELECT MAX(revision) FROM web_planning_revision WHERE ${where}) = ?
+  AND EXISTS (SELECT 1 FROM web_planning_revision WHERE ${where} AND revision = ? AND fingerprint = ?)`;
+const sourceArgs = (s:Scope, ref:WorkRef) => [...args(s,ref.work_id),...args(s,ref.work_id),ref.revision,...args(s,ref.work_id),ref.revision,ref.fingerprint];
+export async function headsCurrent(s:Store,target:WorkRef,source:WorkRef):Promise<boolean> {
+  return !!await s.DB.prepare(`SELECT 1 AS current WHERE ${sourceGate} AND ${sourceGate}`).bind(...sourceArgs(s,target),...sourceArgs(s,source)).first();
+}
+export async function append(s: Store, r: Revision, source?: WorkRef): Promise<void> {
   // The predecessor test is inside the INSERT. A JS read is never the concurrency gate.
   await s.DB.prepare(`INSERT INTO web_planning_revision
     (workspace_id,project_id,work_id,revision,fingerprint,request_key,request_fingerprint,envelope)
@@ -35,8 +42,9 @@ export async function append(s: Store, r: Revision): Promise<void> {
     AND ? <= ${MAX_REVISIONS}
     AND COALESCE((SELECT MAX(revision) FROM web_planning_revision WHERE ${where}),0) = ?
     AND (? = 0 OR EXISTS (SELECT 1 FROM web_planning_revision WHERE ${where} AND revision = ? AND fingerprint = ?))
+    ${source ? `AND ${sourceGate}` : ""}
     ON CONFLICT DO NOTHING`).bind(s.workspace_id,s.project_id,r.work_id,r.revision,r.fingerprint,r.request_key,r.request_fingerprint,canonical(r),
-      ...args(s,r.work_id),r.revision,...args(s,r.work_id),r.revision-1,r.revision-1,...args(s,r.work_id),r.revision-1,r.predecessor).run();
+      ...args(s,r.work_id),r.revision,...args(s,r.work_id),r.revision-1,r.revision-1,...args(s,r.work_id),r.revision-1,r.predecessor,...(source?sourceArgs(s,source):[])).run();
 }
 export async function requestRevision(s: Store, key: string): Promise<{ work_id: string; request_fingerprint: string; revision: number } | null> {
   return s.DB.prepare("SELECT work_id,request_fingerprint,revision FROM web_planning_revision WHERE workspace_id=? AND project_id=? AND request_key=?")
