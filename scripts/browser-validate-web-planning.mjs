@@ -6,6 +6,7 @@ import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { startLocal, availablePort } from './web-planning-local-runtime.mjs';
 import { registerOwnedChild, terminateOwnedProcessTree } from './test-harness-process-lifecycle.mjs';
+import { browserBranchJourney } from './browser-web-planning-branches.mjs';
 const root=process.env.AUGNES_CANONICAL_TEMP_ROOT;if(!root)throw new Error('owned_browser_root_required');
 const chrome=[process.env.AUGNES_BROWSER_EXECUTABLE_PATH,'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome','/usr/bin/chromium','/usr/bin/google-chrome'].find(p=>p&&existsSync(p));
 assert(chrome,'real_browser_unavailable');
@@ -170,6 +171,8 @@ try {
    assert.equal(await revisionCount(),4+index);assert.equal(requests.slice(before).filter(r=>r.path.endsWith('/save')).length,1);
    await requestsOnly(a);await login(a,origin);await reopen(a);await settled(a);
  }
+ await browserBranchJourney({a,debug,origin,page,click,set,settled,saved,wait,visible,navigate,login,requestsOnly,requests,checks,
+   restart:async()=>{const options={root:path.join(root,'runtime'),port:Number(new URL(origin).port),bindings:local.env,code:local.code};await local.close();local=null;local=await startLocal(options);}});
  assert.deepEqual(interceptionErrors,[]);
  await click(a,'signout');await wait(()=>a.eval("document.title==='Local synthetic workspace'"),'signout');assert(!await a.eval("document.body.innerText.includes('Evening noise')"));
  assert.equal(exceptions,0);assert.equal(external,0);assert.equal(unexpectedFailures,0);assert.equal(expectedFailures.size,0);
