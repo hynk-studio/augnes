@@ -244,25 +244,65 @@ mechanical checks, not an installed-production save or measured burden reduction
 Installation and first real-work use require separate reviewed authority after
 merge; unrelated installed #1314 and all research conclusions remain unchanged.
 
-## Current P2/P5 — Web Augnes v0 Task B local candidate (#1345)
+<a id="current-p2p5--web-augnes-v0-task-b-local-candidate-1345"></a>
 
-[#1345](https://github.com/hynk-studio/augnes/issues/1345) implements the merged
-Task A contract below as an independent authored-planning Worker. The
+## Completed P2/P5 — Web Augnes v0 hosted slice (#1345)
+
+[#1345](https://github.com/hynk-studio/augnes/issues/1345) is **Completed for the
+bounded owner-private, one-owner, synthetic-data Web v0 hosted vertical slice**,
+following merged [#1349](https://github.com/hynk-studio/augnes/pull/1349) and its
+[reviewed final closeout](https://github.com/hynk-studio/augnes/issues/1345#issuecomment-5865414744).
+The accepted main `7a0ab5d816f26524f58102092a09696a3af8122f` and deployed reviewed
+head `a7887ebb9bffb64ec1c3d4262a68472f25d40b24` share tree
+`1e28c0544324c2f3b8782afb48eddca31a5860ec`. No rebuild, redeployment or resource
+change follows from that merge identity.
+
+The independent authored-planning Worker implements the merged Task A contract
+below. Its
 [application entry and hosting handoff](../../apps/web_planning/README.md)
 describe create/select → attributed definition/context → deliberate Save →
 server reopen → exact-revision Saved context, plus conflict, replay, export,
-reconstruction and whole-work erasure. This is a local implementation candidate;
-private Sites ingress, hosted schema/artifact admission, Mac-independent reopen
-and remote agent consumption remain required acceptance. Do not close the whole
-issue from local evidence or infer native managed-work parity.
+reconstruction and whole-work erasure. The final closeout supersedes earlier
+local-candidate/remaining-hosted status; it does not establish native managed-work
+parity, real-data readiness, multi-user/public use or general usefulness.
 
-The bounded [Sites compatibility repair (#1347)](https://github.com/hynk-studio/augnes/issues/1347)
-replaces the custom artifact with official Sites/Cloudflare Vite output and
+Accepted hosted observations include:
+
+- private one-owner Site and D1 schema/migration admission;
+- configured-owner bootstrap to exactly one workspace mapping;
+- durable hosted Save and fresh server reads, with exact current revision binding;
+- ordered conflicting-save refusal, retaining the losing draft;
+- stale Saved-context refusal instead of silent substitution;
+- whole-work erasure, delayed old-view write/replay refusal (HTTP 410), and
+  no resurrection;
+- actual authenticated remote browser-agent consumption of Saved context;
+- complete export download and validation, including the full revision 1 → 2
+  chain, selected context, fingerprints and unknown-currentness/open-question meaning.
+
+The final acceptance did **not independently establish** genuinely isolated or
+incognito authentication-session reopen, a fresh final logged-out gate test,
+arbitrary client identity-header stripping/overwrite, or exhaustive absence of
+every alternate/backend bypass path. Malformed or absent hosted identity
+injection, deliberate external-link entry, a simultaneous hosted network race,
+and raw signed-save replay remain unperformed. One earlier old-tab Saved-context
+403 recovered after normal reload; its exact cause remains unclassified. Ordered
+conflict and delayed old-view refusal do not substitute for those unrun checks.
+
+Sites' private/authenticated identity boundary remains a **platform dependency /
+residual trust assumption** for this accepted v0 scope, not independently proven
+header integrity or universal backend isolation. Preserve both existing account
+resource sets and the retained private synthetic work. Expansion may require
+new access/trust review; this closeout authorizes no Site/D1, configuration,
+secret, audience, real-data or deployment change.
+
+The merged [Sites compatibility repair (#1347)](https://github.com/hynk-studio/augnes/issues/1347)
+replaced the custom artifact with official Sites/Cloudflare Vite output and
 Drizzle migration material. Its preconfigured-owner bootstrap fills the missing
 initial-mapping path only after the existing identity/origin/schema gates; it
 cannot choose a first visitor or rebind an owner. The application handoff owns
-exact tool versions, local qualification and remaining hosted admission. This
-does not change B's preparation or authorize another hosted attempt.
+exact tool versions and local qualification; the reviewed closeout above owns
+the final hosted disposition. The following preparation and development record
+remains historical and does not authorize another hosted attempt.
 
 B used the supported different-task preview/save, retained the exact open-issue
 correction, and replaced A's selected kickoff notes with the two issue-attributed
@@ -289,11 +329,50 @@ intact. No repeated human repair or comparative usefulness
 claim is established. Task A's original preparation and observations below
 remain historical evidence, not a retrofitted native chronology.
 
-## Current P2/P5 — Web Augnes v0 Task A (#1343)
+## Next P2/P5 — Private branching, comparison and selective incorporation (#1351)
 
-Review proposal for [#1343](https://github.com/hynk-studio/augnes/issues/1343),
+[#1351](https://github.com/hynk-studio/augnes/issues/1351) is the **first Web
+extension candidate / Next, queued and not started** within the existing P2/P5
+scope: exact saved work revision → independent private branch → comparison →
+selective incorporation → later correct resumption. A recipient should be able
+to retain a source-attributed, conditional observation while declining a broader
+recommendation, preserving material dependencies and the independent branch.
+Implementation/delivery success will not by itself establish later usefulness;
+use [04's existing evaluation](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#method-improvement-evidence).
+
+The [latest #1350 execution decision](https://github.com/hynk-studio/augnes/issues/1350#issuecomment-5865855822)
+supersedes the earlier no-prerequisite statement: one #1350 documentation Draft
+PR → ChatGPT review → user merge → close #1350 on that reviewed documentation
+outcome → re-read resulting main → begin #1351 as a separate implementation
+task. This is the chosen workflow dependency, not a new technical dependency.
+This documentation adoption neither starts #1351 nor spends its implementation
+or test authority; no #1351 branch, code, tests or PR precedes that sequence.
+
+**Later**, as extensions of the same private continuous-work product:
+
+- selected publication → another principal's continuation → contribution to
+  another owner's work → recipient-owned partial incorporation;
+- correction/reconsideration propagation, open collaboration and discovery of
+  work that can be continued;
+- budgeted agent-scale branching and, where later justified, page-independent
+  access or other new transports, including WebMCP.
+
+These directions add no public/network prerequisite, implementation phase,
+Core/native authority, automatic semantic merge, execution grant or hosted
+resource change. [01](./01_AUGNES_VNEXT_MASTERPLAN.md) owns product meaning;
+[02](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#14-product-projections-do-not-create-core-authority)
+retains the host-owned planning-envelope boundary.
+
+<a id="current-p2p5--web-augnes-v0-task-a-1343"></a>
+
+## P2/P5 — Web Augnes v0 Task A design record (#1343)
+
+Retained design record for [#1343](https://github.com/hynk-studio/augnes/issues/1343),
 authored by Codex on 2026-09-27 against `e43651db9ed52d3ab3352b977d711220e534befe`.
-This is the direct-session design outcome, not a native execution result.
+Its source/account observations and proposed B checks below remain the record
+at that time; the completed B section above supplies the final hosted status
+and residual limits. This is a direct-session design outcome, not a native
+execution result.
 [01](./01_AUGNES_VNEXT_MASTERPLAN.md), [02](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md)
 and [04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md) retain product, semantic
 and evaluation authority. This section records only the proposed design and sequence.

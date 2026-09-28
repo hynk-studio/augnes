@@ -33,6 +33,25 @@ time, what was observed, what supports a claim, what remains uncertain, what
 requires human judgment, and what should matter next. A surface is useful only
 when it helps the same durable work continue.
 
+Web Augnes is a workspace where humans and agents continue long-horizon work,
+explore independent directions, compare evidence and outcomes, and selectively
+incorporate useful changes. Private usefulness must work before public or
+network scale. Selective, revision-bound publication and cross-owner
+participation are later extensions of this same continuous-work product, not
+prerequisites or a separate agent-social-network identity. The product-facing
+loop remains **Resume → Verify → Decide**.
+
+An independent direction starts from an exact source revision with an explicit
+reason for divergence; later source changes do not silently rewrite that start.
+Comparison should let a recipient incorporate a qualified observation while
+declining its broader recommendation and keeping the source work independent.
+Later correction or changed applicability calls for relevant reconsideration,
+not automatic agreement, reversal or execution. These are product requirements;
+[03](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#next-p2p5--private-branching-comparison-and-selective-incorporation-1351)
+owns their sequence and implemented scope, and
+[04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#method-improvement-evidence)
+owns the comparison with strong alternatives and total-burden evaluation.
+
 ## 2. Product compass: Resume / Verify / Decide
 
 ### Resume
@@ -88,6 +107,13 @@ another about:
 Cross-surface consistency does not require identical interfaces. Each host
 should use its native strengths while preserving the same product meaning.
 
+Humans and agents consume the same validated work meaning, with exact
+revision/currentness, attribution, relevant inherited and missing context, and
+allowed-operation boundaries. Reading should expand from bounded current work
+to relevant changes and evidence on demand. Temporary agent exploration need
+not become durable work; agent count cannot expand an owner's delegation or
+aggregate compute, storage, external-action and human-review budgets.
+
 ## 4. Continuous-work responsibilities
 
 The responsibilities below describe one continuous product. They are not a
@@ -133,9 +159,10 @@ agent shell or expose the internal research substrate by default.
 Work detail is timeline-first. It explains meaningful transitions in the work,
 not an exhaustive event, commit, tool, model, protocol, or telemetry log.
 
-The temporal narrative should make cause, change, current meaning, and the next
-decision understandable. Exact exhaustive records remain available through
-Inspector when needed.
+The temporal narrative should make cause, meaningful change, consequential
+disagreement, current meaning, and the next judgment understandable. Branch
+comparison belongs in that work context, with material differences first and
+exact provenance progressively disclosed through Inspector when needed.
 
 ### Relationship exploration: bounded connection view
 
@@ -224,6 +251,10 @@ important result or change, consequential uncertainty or risk, pending
 judgment, and next meaningful action. Supporting information is progressively
 disclosed; exact records remain available without becoming the normal path.
 
+Branch count, graph size, agent count and activity volume are not product value
+by themselves. Exploration earns its place through useful continuation and
+judgment without turning the human surface into branch or protocol management.
+
 ## 7. Product and Core authority boundary
 
 This doctrine defines product meaning and responsibility. The sole authority
@@ -249,6 +280,15 @@ The following boundaries are durable:
 Product projections may request or present a bounded Core operation. They do
 not define a new protocol object or make a durable change merely by appearing
 in a product doctrine or interface.
+
+The [Web Planning host envelope](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#14-product-projections-do-not-create-core-authority)
+remains host-owned authored planning data. Branching or incorporation does not
+create native acceptance, a Core record, `ReviewDecision`, Transition, execution
+grant or new authority principal. Publication, contribution, recipient
+incorporation and external action remain separate permissions; a branch
+inherits neither credentials nor execution rights. Later selective publication
+must leave unselected private material private, and private edits must not
+silently republish it.
 
 ## 8. Local-first, provider-neutral continuity
 
