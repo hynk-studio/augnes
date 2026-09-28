@@ -120,6 +120,30 @@ qualified Sites ingress. Default configuration denies it. Local synthetic
 sessions establish application authorization only. They do not qualify this
 platform boundary. Workspace admins/editors remain a platform trust boundary.
 
+Normal top-level entry may follow Sites sign-in or an external link. Only a
+query-free `GET /` with `Sec-Fetch-Mode: navigate` and `Sec-Fetch-Dest: document`
+is exempt from the cross-site/same-site Fetch Metadata refusal. Exact
+`Request.url` origin and any present `Origin` must still match `APP_ORIGIN`;
+owner, ingress, schema and mapping checks still apply. The exception includes
+only the existing configured-owner bootstrap, never arbitrary first-visitor
+ownership. API reads, exports, context reads, subresources, frames and mutations
+receive no exception; writes retain exact Origin, signed CSRF and request bindings.
+See the [Fetch Metadata destination contract](https://w3c.github.io/webappsec-fetch-metadata/#sec-fetch-dest-header)
+and [Sites sign-in/identity contract](https://learn.chatgpt.com/docs/sites).
+
+A refused entry emits one `web_planning_entry_refused` warning with a fixed
+`reason` classification only. `request_origin` means the URL seen inside the
+Worker disagreed with configuration, regardless of the platform log's URL;
+`origin_header` and `fetch_metadata` identify their separate checks.
+`identity_absent`, `identity_invalid`, `ingress_disabled` and `owner_mismatch`
+distinguish the adapter/owner refusals without exposing identity. Configuration,
+transport/local-identity, schema and mapping refusals have separate classifications.
+There are no request/environment values, headers, cookies, bodies or secrets in
+these warnings, and no debug endpoint. A `Sec-Fetch-Site: none` 403 alone does
+not identify its branch; collect the classification after reviewed deployment.
+Local platform-shaped requests test the real Worker adapter and authorization,
+not actual Sites identity forwarding or browser-level `ERR_BLOCKED_BY_CLIENT`.
+
 Sites consumes `.openai/drizzle/**` from the build. The same journal and SQL run
 through Drizzle's D1 migrator in the disposable real local D1 tests; snapshot
 regeneration and negative drift controls prevent schema/SQL divergence. Version,

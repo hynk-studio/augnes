@@ -3,7 +3,7 @@ import { mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { Script } from 'node:vm';
 import { randomUUID } from 'node:crypto';
-import { startLocal, fixtureScope } from './web-planning-local-runtime.mjs';
+import { startLocal, fixtureScope, dispatchNavigation } from './web-planning-local-runtime.mjs';
 import { buildWebPlanning, webRoot } from './build-web-planning.mjs';
 import { canonical, hash, exportWork, headBinding, normalizePayload } from '../apps/web_planning/src/contract.ts';
 import { normalizeInitialProjectWorkDefinitionV01 as legacyNormalize } from '../lib/vnext/runtime/initial-project-work-context.ts';
@@ -21,7 +21,8 @@ async function client(server,options={}) {
  const origin=options.sites?server.env.APP_ORIGIN:server.origin;
  const identity=options.sites?{'oai-authenticated-user-email':server.env.OWNER_EMAIL}:{};
  const cookie=options.cookie??(options.sites?'':`web_planning_local=${server.env.LOCAL_SESSION}`);
- const first=await server.mf.dispatchFetch(origin+'/',{headers:{cookie,...identity}});
+ const entry={headers:{cookie,...identity,...options.entryHeaders}};
+ const first=await (options.entryHeaders?dispatchNavigation(server,origin+'/',entry):server.mf.dispatchFetch(origin+'/',entry));
  if(options.denied){assert.equal(first.status,403);return;}
  assert.equal(first.status,200);const text=await first.text();const csrf=text.match(/name="csrf-token" content="([^"]+)"/)[1];
  const cookies=cookie+'; '+first.headers.get('set-cookie').split(';')[0];
