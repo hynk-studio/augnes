@@ -1401,7 +1401,7 @@ function workRevisionErrorCopyV01(value: unknown): string {
     ? "Another revision was saved first. The current work definition has been reloaded."
     : value === "work_revision_execution_started" ||
         value === "work_revision_history_changed"
-      ? "Work started or new work history appeared before this revision was saved. Continue through the review and decision flow."
+      ? "Work started or blocking work history appeared before this revision was saved. Continue through the review and decision flow."
       : value === "work_revision_active_selection_conflict"
         ? "The active project changed before this revision was saved. The current project sources have been reloaded."
         : value === "work_revision_root_unavailable"

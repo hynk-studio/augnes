@@ -1065,6 +1065,7 @@ const integrationChildren = [
   "policy-triggered-model-run",
   "project-home",
   "project-work-initialization",
+  "pre-execution-support-material",
   "native-selected-source-budget",
   "retained-source-capacity",
   "project-work-expectation",
@@ -1162,6 +1163,9 @@ assert.equal(countOccurrences(firstWorkFixture, "await assertScopedNativeHostCon
   "the default initialization path must not repeat the scoped matrix");
 const successorExpectationRegistration = readCanonicalChildRegistration(integrationSource, "ordinary-successor-expectation");
 const reviewedOutcomeRegistration = readCanonicalChildRegistration(integrationSource, "reviewed-outcome-reuse");
+const supportMaterialRegistration = readCanonicalChildRegistration(integrationSource, "pre-execution-support-material");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 60_000', 'requireNaturalExit: true', '"process-owning"', '"--support-material-revision-only"'])
+  requireText(supportMaterialRegistration.block, fragment, "support material has one complete admission, reconstruction and consumer owner");
 const selectedSourceBudgetRegistration = readCanonicalChildRegistration(integrationSource, "native-selected-source-budget");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"--selected-source-budget-only"'])
   requireText(selectedSourceBudgetRegistration.block, fragment, "native source budget has one bounded complete owner");

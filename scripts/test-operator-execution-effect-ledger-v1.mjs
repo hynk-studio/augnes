@@ -177,6 +177,10 @@ for (const delta of [-1, 1]) {
   assert.throws(() => validate(changedPackets.before, changedPackets.after, { ...manifest, profile: "native_host_execution" }, result),
     /operator_effect_core_kind_set_mismatch/u, "Revisions and new preparation must have the exact bounded packet effects");
 }
+const missingSupport = nativeSnapshots();
+missingSupport.after.rows.splice(missingSupport.after.rows.findIndex(row => row.identity.record_kind === "evidence_record"), 1);
+assert.throws(() => validate(missingSupport.before, missingSupport.after, { ...manifest, profile: "native_host_execution" }, result),
+  /operator_effect_core_kind_set_mismatch/u, "the Browser support record is an exact owned effect");
 const wrongEvent = nativeSnapshots();
 wrongEvent.after.rows.find((entry) => entry.table === "autonomy_run_events")
   .identity.event_type = "run_event_replaced_at_equal_count";
@@ -359,6 +363,7 @@ function expectationSnapshots() {
 
 function nativeSnapshots() {
   const coreCounts = {
+    evidence_record: 1,
     automation_work_item: 4,
     capability_grant: 1,
     task_context_packet: 10, // Includes the outcome-linked preparation and its same-task revision.

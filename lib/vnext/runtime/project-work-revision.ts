@@ -28,6 +28,7 @@ import {
   createPreExecutionProjectWorkRevisionMaterialV01,
   inspectPreExecutionProjectWorkRevisionChainV01,
 } from "@/lib/vnext/runtime/pre-execution-project-work-revision";
+import { isNonBlockingPreExecutionRecordV01 } from "./pre-execution-project-work-history";
 import { inspectProjectManagedRunHistoryV01 } from "@/lib/vnext/runtime/project-managed-run-history";
 import {
   inspectSourceLinkedOperationalContinuationLineageV01,
@@ -228,9 +229,7 @@ export function readProjectWorkRevisionEligibilityStrictV01(
     record_id: string;
   }>;
   const otherHistory = coreRows.some(
-    (row) =>
-      row.record_kind !== "work_expectation_record" && (row.record_kind !== "task_context_packet" ||
-      !allowedPackets.has(row.record_id)),
+    (row) => !isNonBlockingPreExecutionRecordV01(db, input, row, allowedPackets),
   );
   const semanticState = countScopedRowsV01(
     db,
@@ -273,8 +272,8 @@ export function readProjectWorkRevisionEligibilityStrictV01(
         : "eligible_revised_packet",
     reason:
       chain.tip_lineage_kind === "initial_user_defined"
-        ? "current_initial_packet_zero_history"
-        : "current_revision_packet_zero_history",
+        ? "current_unexecuted_initial"
+        : "current_unexecuted_revision",
   });
 }
 

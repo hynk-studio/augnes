@@ -218,7 +218,7 @@ async function main(): Promise<void> {
       korean_and_unicode: true,
       exact_replay: true,
       revision_exact_replay: true,
-      revision_exact_successor_replay_requires_zero_history: true,
+      revision_exact_successor_replay_requires_no_blocking_history: true,
       revision_append_only: true,
       revision_stale_cas_refused: true,
       revision_branch_and_missing_prior_refused: true,

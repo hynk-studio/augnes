@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { buildEvidenceRecordV01 } from "../lib/vnext/project-verify-material.ts";
+import { admitEvidenceRecordV01, readEvidenceRecordV01 } from "../lib/vnext/persistence/project-verify-material-store.ts";
 import { readProjectWorkRevisionEligibilityStrictV01 } from "../lib/vnext/runtime/project-work-revision.ts";
 
 import assert from "node:assert/strict";
@@ -351,6 +353,24 @@ await runOperatorExecutionBrowserChildV1({
       completeDetailedField("first_work_saved_without_execution");
       result.first_work_start_eligible = true;
       completeDetailedField("first_work_start_eligible");
+      // Legitimate unselected support is admitted in this child's disposable DB.
+      // All work definition/revision saves below still use real Browser controls.
+      const supportDb = new Database(fixture.writable_database_path, { fileMustExist: true });
+      let supportEvidence;
+      try {
+        const at = new Date().toISOString();
+        const ref = { ref_version: "external_ref.v0.1", ref_type: "project_verify_source",
+          external_id: "note:browser-unselected-support", trust_class: "user_declaration", observed_at: at };
+        supportEvidence = buildEvidenceRecordV01({ workspace_id: fixture.manifest.workspace_id, project_id: firstWorkProjectId,
+          identity_namespace: "augnes.test.browser-support.v0.1", identity_key: "unselected-support",
+          evidence_kind: "user_declared_material", subject_refs: [ref], source_refs: [ref],
+          source_observed_or_reported_at: at, recorded_at: at, trust_class: "user_declaration", coverage: "partial",
+          bounded_summary: "Unselected background observation; it does not execute or accept this preparation.",
+          material_fingerprint: null, limitations: ["No semantic acceptance."], uncertainty: ["Applicability is unverified."],
+          producer: { producer_kind: "user", producer_profile: "disposable-browser-support.v0.1" },
+        });
+        assert.equal(admitEvidenceRecordV01(supportDb, { ...supportEvidence, evidence: supportEvidence }).status, "inserted");
+      } finally { supportDb.close(); }
       await lifecycle.waitForRequestQuiet();
       await lifecycle.navigate(`${appOrigin}/workbench/semantic-review#first-work`);
       await lifecycle.waitForCondition(
@@ -509,6 +529,19 @@ await runOperatorExecutionBrowserChildV1({
       assert.equal(selectedReadback[0].compatibility_source_ref.external_id, 'Selected conversation, revision 2');
       assert.equal(selectedReadback[0].trust_class, 'user_declaration');
       assert.equal(selectedReadback[0].currentness.status, 'unknown');
+      await lifecycle.navigate(`${appOrigin}/workbench/semantic-review?support-material-reopen=1`);
+      await lifecycle.waitForCondition(
+        `document.querySelector('[data-current-work-definition]')?.textContent.includes(${JSON.stringify(firstRevisionGoal)}) && document.querySelector('[data-work-revision-action="open"]') !== null`,
+        "revision saved with Evidence survives a fresh Browser read",
+      );
+      const reopenedSupportDb = new Database(fixture.writable_database_path, { readonly: true, fileMustExist: true });
+      try {
+        assert.deepEqual(readEvidenceRecordV01(reopenedSupportDb, { ...supportEvidence, evidence_id: supportEvidence.evidence_id }), supportEvidence);
+        const reopened = readProjectWorkInitializationV01(reopenedSupportDb, supportEvidence);
+        assert.equal(reopened.revision_eligibility.status, "eligible_revised_packet");
+        assert.deepEqual(reopened.selected_source_context, selectedReadback, "Evidence is preserved without automatic context selection");
+      } finally { reopenedSupportDb.close(); }
+      console.log(JSON.stringify({ support_material_browser_edit_compare_save_reopen: "pass", support_preserved: true, implicit_selection: false }));
 
       const sessionSentinel = "SESSION-BOUND-UNSAVED-REVISION";
       await lifecycle.evaluateBoolean(`(() => {
@@ -1206,7 +1239,7 @@ await runOperatorExecutionBrowserChildV1({
       );
       try {
         await lifecycle.waitForCondition(
-          `window.__cux7StaleSubmitTab?.document.body.textContent.includes('Work started or new work history appeared before this revision was saved.') === true`,
+          `window.__cux7StaleSubmitTab?.document.body.textContent.includes('Work started or blocking work history appeared before this revision was saved.') === true`,
           "stale revision refusal explanation settled",
         );
       } catch (error) {
@@ -1217,7 +1250,7 @@ await runOperatorExecutionBrowserChildV1({
               response_status: tab?.__cux7RevisionMutationResponse?.status ?? null,
               execution_started_refusal: tab?.__cux7RevisionMutationResponse?.body?.error_code === 'work_revision_execution_started',
               composer_mounted: Boolean(tab?.document.querySelector('[data-work-revision-composer]')),
-              refusal_copy_visible: tab?.document.body.textContent.includes('Work started or new work history appeared before this revision was saved.') === true
+              refusal_copy_visible: tab?.document.body.textContent.includes('Work started or blocking work history appeared before this revision was saved.') === true
             };
           })()`) }));
         } catch {
@@ -1242,7 +1275,7 @@ await runOperatorExecutionBrowserChildV1({
           definition_phase: definition?.getAttribute('data-current-work-definition-phase') ?? null,
           revised_goal_visible: definition?.textContent?.includes(${JSON.stringify(revisedWorkGoal)}) === true,
           revision_action_present: Boolean(tab.document.querySelector('[data-work-revision-action="open"]')),
-          refusal_copy_visible: tab.document.body.textContent.includes('Work started or new work history appeared before this revision was saved.'),
+          refusal_copy_visible: tab.document.body.textContent.includes('Work started or blocking work history appeared before this revision was saved.'),
           success_copy_visible: tab.document.body.textContent.includes('Work definition revised. No execution has started.'),
           exact_source_goal: review.work_initialization?.current_work?.goal ?? null,
           exact_source_eligibility: review.work_initialization?.revision_eligibility?.status ?? null,

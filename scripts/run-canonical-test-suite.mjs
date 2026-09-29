@@ -675,6 +675,15 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      id: "pre-execution-support-material",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning"],
+      label: "support material revision admission, reconstruction, Companion, reopen and recovery",
+      ...rootNode("scripts/test-codex-repository-continuity.ts", "--support-material-revision-only"),
+      timeoutMs: 60_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "native-selected-source-budget",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem"],

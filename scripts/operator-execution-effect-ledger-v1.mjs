@@ -108,6 +108,8 @@ const PROFILE_CONTRACTS = Object.freeze({
     ]),
     allowed_projects: Object.freeze(["primary", "profile", "automation"]),
     core_insert_counts: Object.freeze({
+      // One canonical unselected support record accompanies Browser revision.
+      evidence_record: 1,
       automation_work_item: 4,
       capability_grant: 1,
       // P1.5 adds exactly two explicit first-work revisions: exclude a note,
@@ -140,7 +142,7 @@ const PROFILE_CONTRACTS = Object.freeze({
         autonomy_run_events: 57,
         autonomy_run_steps: 5,
         autonomy_runs: 5,
-        vnext_core_records: 33,
+        vnext_core_records: 34,
         vnext_local_operator_sessions: 4,
         vnext_semantic_state_entries: 1,
         vnext_semantic_target_heads: 1,
