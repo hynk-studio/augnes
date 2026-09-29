@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { CANONICAL_REPOSITORY_ID } from "./canonical-repository-identity.mjs";
 import { INTEGRATION_BASE_CONTRACT, INTEGRATION_BASE_SOURCE } from "./local-canonical-integration-base.mjs";
 import { requiresCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
+import { CODEX_REUSE_OWNER_IDS, CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 
 export const LOCAL_CANONICAL_RECEIPT_SCHEMA =
   "augnes.local-canonical-receipt.v1";
@@ -309,6 +310,24 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     issues.push("receipt_targeted_phase_inventory_mismatch");
   }
   if (selectedPlan === "owner-targeted") {
+    const reusePhases = phases.filter((phase) => CODEX_REUSE_PHASE_IDS.includes(phase?.id));
+    const requiresReuseChecks = Array.isArray(plannerOwnerIds) &&
+      plannerOwnerIds.some((id) => CODEX_REUSE_OWNER_IDS.includes(id));
+    const hasAggregateUnit = phases.some((phase) => phase?.id === "unit");
+    if ((requiresReuseChecks && !hasAggregateUnit) || reusePhases.length > 0) {
+      if (hasAggregateUnit ||
+          JSON.stringify(reusePhases.map((phase) => phase.id)) !== JSON.stringify(CODEX_REUSE_PHASE_IDS)) {
+        issues.push("receipt_codex_reuse_inventory_invalid");
+      }
+      for (const phase of reusePhases) {
+        if (phase.command !== `node scripts/run-canonical-test-suite.mjs ${phase.id}` ||
+            phase.cwd_scope !== "root" || phase.exclusive !== true || phase.browser !== false ||
+            phase.cleanup?.termination_reason !== "natural_exit" ||
+            phase.cleanup?.exit_observed !== true || phase.cleanup?.streams_closed !== true) {
+          issues.push("receipt_codex_reuse_execution_invalid");
+        }
+      }
+    }
     const dependencyPhases = phases.slice(
       1,
       1 + OWNER_TARGETED_DEPENDENCY_PHASES.length,

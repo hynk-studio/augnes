@@ -25,6 +25,7 @@ import {
   planCanonicalChange,
 } from "./canonical-change-planner.mjs";
 import { runCanonicalChild } from "./canonical-child-runner.mjs";
+import { CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 import { admitIntegrationBase } from "./local-canonical-integration-base.mjs";
 import {
   acquireCheckoutVerificationOwnership,
@@ -90,6 +91,7 @@ const GENERATED_NEXT_DIRECTORY = ".next";
 const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/browser-verification-owners.v1.json",
   "scripts/canonical-change-planner.mjs",
+  "scripts/codex-reuse-verification-ownership.mjs",
   "scripts/canonical-child-runner.mjs",
   "scripts/canonical-test-environment.mjs",
   "scripts/canonical-repository-identity.mjs",
@@ -149,6 +151,7 @@ export const RESOURCE_EXCLUSIVE_PHASE_IDS = Object.freeze([
   ...(process.platform === "win32" ? ["native-windows-identity"] : []),
   "build",
   "unit",
+  ...CODEX_REUSE_PHASE_IDS,
   "authority",
   "integration",
   "operability",
@@ -1176,6 +1179,8 @@ function operatingPolicyPhases({ baseSha, headSha }) {
 }
 
 function ownerTargetedPhases({ baseSha, headSha, targetedPhaseIds }) {
+  const reuseIds = Array.isArray(targetedPhaseIds)
+    ? targetedPhaseIds.filter((id) => CODEX_REUSE_PHASE_IDS.includes(id)) : [];
   if (
     !Array.isArray(targetedPhaseIds) ||
     targetedPhaseIds.length < 5 ||
@@ -1184,6 +1189,8 @@ function ownerTargetedPhases({ baseSha, headSha, targetedPhaseIds }) {
     targetedPhaseIds[2] !== "dependencies-nested" ||
     targetedPhaseIds[3] !== "dependencies-web-planning" ||
     new Set(targetedPhaseIds).size !== targetedPhaseIds.length ||
+    (reuseIds.length > 0 && (targetedPhaseIds.includes("unit") ||
+      JSON.stringify(reuseIds) !== JSON.stringify(CODEX_REUSE_PHASE_IDS))) ||
     JSON.stringify(targetedPhaseIds) !==
       JSON.stringify(
         TARGETED_PHASE_ORDER.filter((phaseId) =>
@@ -1220,6 +1227,17 @@ function ownerTargetedPhases({ baseSha, headSha, targetedPhaseIds }) {
 }
 
 function targetedCanonicalPhaseDefinition(id, { baseSha, headSha }) {
+  if (CODEX_REUSE_PHASE_IDS.includes(id)) {
+    return phaseDefinition({
+      id,
+      label: `Canonical ${id} check`,
+      command: process.execPath,
+      args: ["scripts/run-canonical-test-suite.mjs", id],
+      display: `node scripts/run-canonical-test-suite.mjs ${id}`,
+      // Retain the child's 30s bound plus bounded suite startup/cleanup.
+      timeoutMs: 60_000,
+    });
+  }
   const canonicalSuitePhases = {
     "dependencies-root": () =>
       npmPhase(
@@ -1505,7 +1523,7 @@ async function executePhase({
   capture.close();
   const finishedMs = Date.now();
   const lifecyclePassed =
-    phase.browser !== true ||
+    (phase.browser !== true && !CODEX_REUSE_PHASE_IDS.includes(phase.id)) ||
     (result.termination_reason === "natural_exit" &&
       result.exit_observed === true &&
       result.streams_closed === true);

@@ -3,6 +3,7 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 
 import {
   assertCanonicalConcurrentChildLabelsV01,
@@ -385,6 +386,7 @@ const suites = {
       timeoutMs: 180_000,
     },
     {
+      id: "codex-companion-discovery",
       label: "live Companion discovery and dynamic bridge-port contract",
       ...rootNode("scripts/test-codex-companion-discovery.mjs"),
       timeoutMs: 30_000,
@@ -395,11 +397,13 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      id: "augnes-operator-plugin-setup",
       label: "Augnes Operator reviewed plugin install and cache contract",
       ...rootNode("scripts/test-augnes-operator-plugin-setup.mjs"),
       timeoutMs: 30_000,
     },
     {
+      id: "codex-user-hook-migration",
       label: "Codex explicit-reuse hook migration and uninstall contract",
       ...rootNode("scripts/test-codex-augnes-user-hook-migration.mjs"),
       timeoutMs: 30_000,
@@ -1304,6 +1308,13 @@ const suites = {
 };
 
 const integrationInventory = suites.integration;
+// Reuse the complete registered children, including their timeout and resource
+// handling. Stable IDs must never depend on positions in a filtered inventory.
+for (const id of CODEX_REUSE_PHASE_IDS) {
+  const checks = suites.unit.filter((step) => step.id === id);
+  if (checks.length !== 1) throw new Error(`Codex reuse check inventory invalid: ${id}`);
+  suites[id] = checks;
+}
 suites["integration-operator"] = integrationInventory.filter(
   (step) => step.group === "operator-process",
 );

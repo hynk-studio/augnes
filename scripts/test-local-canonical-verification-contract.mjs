@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { CODEX_REUSE_OWNER_IDS, CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 import { assertVerificationDocumentation } from "./validate-canonical-docs-change.mjs";
 import { buildPhasePlan, OPERATING_POLICY_PHASE_IDS } from "./run-local-canonical-verification.mjs";
 import { spawnSync } from "node:child_process";
@@ -902,6 +903,27 @@ assert.deepEqual(
   ["typecheck", "unit", "authority", "e2e-project-experience"],
   "the Browser harness must retain its authority-suite static contract consumer",
 );
+for (const id of CODEX_REUSE_OWNER_IDS) {
+  const owner = changeOwnerManifest.targeted_owners.find((owner) => owner.id === id);
+  assert.deepEqual(owner.phase_ids, CODEX_REUSE_PHASE_IDS);
+  assert.equal(owner.deletion_policy, "full");
+  assert(Array.isArray(owner.path_rules.literal_exact_paths));
+}
+for (const [id, script] of [
+  ["codex-companion-discovery", "scripts/test-codex-companion-discovery.mjs"],
+  ["augnes-operator-plugin-setup", "scripts/test-augnes-operator-plugin-setup.mjs"],
+  ["codex-user-hook-migration", "scripts/test-codex-augnes-user-hook-migration.mjs"],
+]) {
+  const registrations = [...canonicalSuite.matchAll(new RegExp(
+    `id: "${id}",\\s+label: "[^"\\n]+",\\s+\\.\\.\\.rootNode\\("([^"\\n]+)"\\),\\s+timeoutMs: ([0-9_]+)`, "g",
+  ))];
+  assert.equal(registrations.length, 1, `${id}: exactly one Full unit registration`);
+  assert.equal(registrations[0][1], script, `${id}: exact existing child`);
+  assert.equal(registrations[0][2], "30_000", `${id}: unchanged child bound`);
+}
+assert(canonicalSuite.includes("suites.unit.filter((step) => step.id === id)"));
+assert(canonicalSuite.includes("checks.length !== 1"));
+assert(localPolicy.includes("three named checks"));
 assert.deepEqual(
   changeOwnerManifest.targeted_owners
     .filter((owner) => owner.deletion_policy === "targeted")
