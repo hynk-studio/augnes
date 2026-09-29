@@ -11,6 +11,7 @@ import { buildSelectedWorkSourceEntry, normalizeSelectedWorkSources } from '../l
 import { seal } from '../apps/web_planning/src/access.ts';
 import { checkSitesArtifact, exerciseSitesBootstrap } from './web-planning-sites-checks.mjs';
 import { checkBranching } from './web-planning-branch-checks.mjs';
+import { checkCloudflarePlanning } from './web-planning-cloudflare-checks.mjs';
 const root=process.env.AUGNES_CANONICAL_TEMP_ROOT;if(!root)throw new Error('owned_test_root_required');
 let local;const open=[];let checks=0;
 function passed(name){checks++;console.log('web-planning: '+name);}
@@ -158,5 +159,6 @@ try {
  const p1=await c.request('/api/works');assert.equal(p1.data.items.length,10);assert(p1.data.next);const p2=await c.request('/api/works?cursor='+p1.data.next);assert(p2.data.items.length>0);assert(!p2.data.items.some(i=>p1.data.items.some(j=>i.work_id===j.work_id)));
  passed('32-revision capacity and work-list pagination are bounded with exact effects');
  await checkBranching({start,client,newWork,save,edit,passed,open});
+ await checkCloudflarePlanning({root,start,client,newWork,save,edit,passed,open});
  console.log(JSON.stringify({web_planning_d1_checks:checks,storage:'Miniflare/workerd D1',hosted_acceptance:false}));
 } finally {for(const server of open.reverse())await server.close();console.log('web_planning_owned_runtime_cleanup_complete');}

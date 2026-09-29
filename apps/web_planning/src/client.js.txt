@@ -4,18 +4,23 @@ const scope={workspace_id:document.querySelector('meta[name=workspace]').content
 const csrf=document.querySelector('meta[name=csrf-token]').content;
 const labels=['Changed assumption / user correction','New candidate','Rejection reason','Deferred item / revisit condition','Open question','Next check','Unclassified / needs review'];
 let work=null,saved=null,saveTicket=null,pending=null,reviewed=null,dirty=false,next=null,busy=false,eraseBinding=null;
-let relationPending=null,relationUnknown=false,directionDirty=false,comparison=null,comparisonCurrent=false,branchCursor=null;
+let relationPending=null,relationUnknown=false,directionDirty=false,comparison=null,comparisonCurrent=false,branchCursor=null,accessLost=false;
 const binding=r=>r?{revision:r.revision,fingerprint:r.fingerprint}:{revision:0,fingerprint:null};
 function status(text){$('status').textContent=text;}
-function deny(){work=saved=saveTicket=pending=reviewed=null;dirty=false;relationPending=comparison=null;comparisonCurrent=false;directionDirty=false;$('private-view').replaceChildren();const p=document.createElement('p');p.id='status';p.setAttribute('role','status');p.textContent='Access is unavailable. Private content has been cleared. Sign in again to reopen.';$('private-view').append(p);}
+function deny(){accessLost=true;work=saved=saveTicket=pending=reviewed=eraseBinding=next=null;dirty=false;relationPending=comparison=branchCursor=null;comparisonCurrent=relationUnknown=false;directionDirty=false;$('private-view').replaceChildren();const p=document.createElement('p');p.id='status';p.setAttribute('role','status');p.textContent='Access is unavailable. Private content has been cleared. Sign in again to reopen.';$('private-view').append(p);}
 async function request(path,body){
-  const response=await fetch(path,{method:body===undefined?'GET':'POST',credentials:'same-origin',cache:'no-store',redirect:'error',
-    headers:body===undefined?{}:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:body===undefined?undefined:JSON.stringify({...scope,...body}),signal:AbortSignal.timeout(15000)});
-  if(response.status===403||response.status===401){deny();throw new Error('access_denied');}
+  if(accessLost)throw new Error('access_denied');
+  const response=await fetch(path,{method:body===undefined?'GET':'POST',credentials:'same-origin',cache:'no-store',redirect:'manual',
+    headers:{'X-Requested-With':'XMLHttpRequest',...(body===undefined?{}:{'Content-Type':'application/json','X-CSRF-Token':csrf})},body:body===undefined?undefined:JSON.stringify({...scope,...body}),signal:AbortSignal.timeout(15000)});
+  // Access can return 401/403, a login redirect, or an HTML challenge. None is
+  // product data. An ordinary storage/transport failure still retains the draft.
+  if(accessLost||response.status===403||response.status===401||response.type==='opaqueredirect'||
+    (response.ok&&response.headers.get('X-Web-Planning-Response')!=='1')){deny();throw new Error('access_denied');}
   if(!response.ok){let code='storage_unavailable';try{code=(await response.json()).error;}catch{};const e=new Error(code);e.status=response.status;throw e;}
   return response;
 }
-async function api(path,body){return (await request(path,body)).json();}
+async function readPrivate(response,format){const data=await response[format]();if(accessLost)throw new Error('access_denied');return data;}
+async function api(path,body){return readPrivate(await request(path,body),'json');}
 function noteInput(s){return {text:s.bounded_summary,source:s.compatibility_source_ref.external_id,observed_at:s.external_ref.observed_at??null,provenance:s.trust_class,label:s.why_included};}
 function noteRow(note={text:'',source:'',observed_at:null,provenance:'user_declaration',label:'Unclassified / needs review'},original=null){
   const row=document.createElement('section');row.className='note';const n=crypto.randomUUID();row.id=n;row._original=original;row._note=original?note:null;row._depIds=[];
@@ -94,16 +99,16 @@ $('work-form').onsubmit=e=>{e.preventDefault();run(async()=>{if(pending||relatio
 $('new-work').onclick=()=>run(async()=>{if(!mayLeave()){status('Resolve the pending save or retain your unsaved edits.');return;}work=null;show();status('New draft. Nothing is stored until Save.');$('goal').focus();});
 $('add-note').onclick=()=>{if($('notes').children.length>=8){status('Eight whole notes are already selected. Explicitly remove one before adding another.');return;}noteRow();syncDependencies();changed();$('notes').lastElementChild.querySelector('textarea').focus();};
 $('saved-context').onclick=()=>run(async()=>{ $('context-view').replaceChildren();
-  const html=await (await request('/api/work/'+work+'/context',{expected:binding(saved)})).text();
+  const html=await readPrivate(await request('/api/work/'+work+'/context',{expected:binding(saved)}),'text');
   // Only server-authored escaped HTML is admitted here; note text is never HTML.
   $('context-view').innerHTML=html;status(`Fresh server read of saved revision ${saved.revision}. Unsaved edits are excluded.`);});
 $('refresh-work').onclick=()=>run(()=>openWork(work));
 $('resolve-save').onclick=()=>run(async()=>{const r=await api('/api/work/'+work+'/resolve',pending);if(r.outcome==='saved')await acknowledged(r.saved);else status('The original request is not visible yet. Its outcome remains unknown; any explicit retry uses the same request and material.');});
 $('retry-save').onclick=()=>run(dispatch);
-$('review-latest').onclick=()=>run(async()=>{const r=await api('/api/work/'+work);reviewed=r.saved;const html=await (await request('/api/work/'+work+'/context',{expected:binding(reviewed)})).text();$('conflict-latest').innerHTML=html;$('rebase-draft').hidden=false;status('Compare this saved version with your retained draft before choosing a new base.');});
+$('review-latest').onclick=()=>run(async()=>{const r=await api('/api/work/'+work);reviewed=r.saved;const html=await readPrivate(await request('/api/work/'+work+'/context',{expected:binding(reviewed)}),'text');$('conflict-latest').innerHTML=html;$('rebase-draft').hidden=false;status('Compare this saved version with your retained draft before choosing a new base.');});
 $('rebase-draft').onclick=()=>{if(!reviewed)return;saved=reviewed;reviewed=null;saveTicket=null;pending=null;$('conflict').hidden=true;$('context-view').replaceChildren();changed();status('Reviewed base selected. Your draft remains unsaved; review its changes and press Save deliberately.');};
 $('history').onclick=()=>run(async()=>{const data=await api('/api/work/'+work+'/history');const list=document.createElement('ol');for(const r of data.revisions){const li=document.createElement('li');li.textContent=`Revision ${r.revision} · ${r.recorded_at} · ${r.definition.goal}`;list.append(li);}$('history-view').replaceChildren(list);});
-$('export').onclick=()=>run(async()=>{const response=await request('/api/work/'+work+'/export');const url=URL.createObjectURL(await response.blob());const a=document.createElement('a');a.href=url;a.download='planning-work.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);status('Complete revision chain downloaded. Keep exports private.');});
+$('export').onclick=()=>run(async()=>{const response=await request('/api/work/'+work+'/export');const url=URL.createObjectURL(await readPrivate(response,'blob'));const a=document.createElement('a');a.href=url;a.download='planning-work.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);status('Complete revision chain downloaded. Keep exports private.');});
 $('erase').onclick=()=>{if(pending||relationPending){status('Resolve the pending save before erasure.');return;}eraseBinding=binding(saved);$('erase-text').textContent=`Erase revision ${saved.revision} and all earlier revisions of this work? Download an export first if needed. A changed head will refuse. Independently saved branches and incorporated copies belong to other works and remain there; erase those works separately if intended.`;$('erase-confirm').hidden=false;};
 $('cancel-erase').onclick=()=>{$('erase-confirm').hidden=true;eraseBinding=null;};
 $('confirm-erase').onclick=()=>run(async()=>{await api('/api/work/'+work+'/erase',{expected:eraseBinding,confirm:'erase-whole-work'});dirty=false;work=saved=pending=null;show();$('editor').hidden=true;status('Whole work erased. The content-free ID guard prevents delayed saves from recreating it. Exports and provider backups are outside this deletion.');await list();});

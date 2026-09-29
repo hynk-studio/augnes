@@ -5,7 +5,7 @@ import { append, eraseWork, headBinding, headsCurrent, listWork, readWork, recon
 import { page, renderContext, renderComparison, renderPreview, style } from "./page";
 import { compare, editedPayload, previewOperation, referenceAvailability, saveOperation } from "./relations";
 import client from "./client.js.txt?raw";
-const headers={"Cache-Control":"no-store, private","Vary":"Cookie, oai-authenticated-user-email","X-Content-Type-Options":"nosniff",
+const headers={"Cache-Control":"no-store, private","Vary":"Cookie, oai-authenticated-user-email","X-Web-Planning-Response":"1","X-Content-Type-Options":"nosniff",
   "Referrer-Policy":"no-referrer","X-Frame-Options":"DENY","X-Robots-Tag":"noindex, nofollow",
   "Content-Security-Policy":"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"};
 function json(value:unknown,status=200) { return new Response(JSON.stringify(value),{status,headers:{...headers,"Content-Type":"application/json"}}); }
