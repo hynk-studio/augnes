@@ -205,8 +205,20 @@ phases. The plan always begins with an exact-base/head validator that recomputes
 the planner result, runs `git diff --check`, and validates any changed Markdown;
 the executor then replaces all three installed dependency trees through the same
 sequential root, Apps and web-planning `npm ci` preparation used by Full Canonical before it
-runs the manifest-selected typecheck, unit, authority, integration, operability,
+runs the manifest-selected typecheck, unit or named unit checks, authority, integration, operability,
 or Browser owners sequentially. Callers cannot supply tests or phases.
+
+The six exact files registered to the explicit reuse-hook and operator-plugin
+setup owners select three named checks: `codex-companion-discovery`,
+`augnes-operator-plugin-setup`, and `codex-user-hook-migration`. These reuse the
+complete existing unit children, including Apps SDK discovery/parsing and the
+plugin test's hook consumers, through the same isolated runner and cleanup.
+Each check has its own phase and receipt row; this is not an aggregate unit
+PASS. All three clean dependency installations remain required. Full unit
+retains all of these checks; a mixed owner requiring unit subsumes the named
+checks. Shared hooks/configuration, MCP implementation, package changes,
+renames, deletions, unmatched paths and verification machinery retain their
+broader classification. Changes to this selection itself require Full.
 
 The manifest is intentionally a narrow admission list, not an inference engine.
 A top-level `scripts/`, `lib/`, `app/`, `components/`, `tests/`, or `fixtures/`

@@ -13,6 +13,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -157,7 +158,7 @@ try {
     },
     {
       ownerIds: ["codex-user-reuse-hook"],
-      phaseIds: targetedPhaseIds("unit"),
+      phaseIds: targetedPhaseIds(...CODEX_REUSE_PHASE_IDS),
     },
   );
   runPlanCase(
@@ -345,12 +346,45 @@ try {
     },
     {
       ownerIds: ["codex-user-reuse-hook", "documentation"],
-      phaseIds: targetedPhaseIds("unit"),
+      phaseIds: targetedPhaseIds(...CODEX_REUSE_PHASE_IDS),
     },
   );
+  for (const relativePath of [
+    ".codex/hooks/augnes-reuse-intake-user-prompt-submit.mjs",
+    "scripts/lib/codex-augnes-user-hook-installer-common.mjs",
+    "scripts/test-codex-augnes-user-hook-migration.mjs",
+    "plugins/augnes-operator/.codex-plugin/plugin.json",
+    "scripts/augnes-operator-plugin-setup.mjs",
+    "scripts/test-augnes-operator-plugin-setup.mjs",
+  ]) {
+    runPlanCase(`reuse-complete-family:${relativePath}`, "owner-targeted", ({ write }) => {
+      write(relativePath, "changed\n");
+    }, { phaseIds: targetedPhaseIds(...CODEX_REUSE_PHASE_IDS) });
+  }
+  runPlanCase("reuse-mixed-aggregate-owner", "owner-targeted", ({ write }) => {
+    write("scripts/test-codex-augnes-user-hook-migration.mjs", "changed\n");
+    write("fixtures/local-canonical-owner-contract/current.json", "{}\n");
+  }, { phaseIds: targetedPhaseIds("unit") });
+  for (const relativePath of [
+    ".codex/hooks.json", ".codex/hooks/augnes-operator-pre-tool-use-policy.mjs",
+    "plugins/augnes-operator/.mcp.json", "plugins/augnes-operator/mcp/companion-proxy.mjs",
+    "scripts/test-codex-companion-discovery.mjs", "package.json",
+    "scripts/codex-reuse-verification-ownership.mjs", "scripts/unregistered-hook-helper.mjs",
+  ]) {
+    runPlanCase(`reuse-escalates:${relativePath}`, "full-canonical", ({ write }) => {
+      write("scripts/test-codex-augnes-user-hook-migration.mjs", "changed\n");
+      write(relativePath, "changed\n");
+    });
+  }
   runPlanCase("targeted-owner-deletion-unproven", "full-canonical", ({ remove }) => {
     remove("scripts/test-codex-augnes-user-hook-migration.mjs");
   });
+  runPlanCase("reuse-owner-rename", "full-canonical", ({ rename }) => {
+    rename("scripts/test-codex-augnes-user-hook-migration.mjs", "scripts/test-augnes-operator-plugin-setup.mjs");
+  });
+  runPlanCase("reuse-owner-case-variant", "full-canonical", ({ write }) => {
+    write("scripts/TEST-codex-augnes-user-hook-migration.mjs", "export {};\n");
+  }, { seedProjectVerification: false });
   runPlanCase(
     "multi-owner-product-composition",
     "full-canonical",
@@ -620,7 +654,7 @@ try {
   assert.throws(() => validateChangeOwnerManifest(aliasedLiteralManifest),
     /literal exact path is not normalized/u);
   const duplicateLiteralManifest = structuredClone(ownerManifest);
-  duplicateLiteralManifest.targeted_owners[1].path_rules.exact_paths.push(
+  duplicateLiteralManifest.targeted_owners[1].path_rules.literal_exact_paths.push(
     "scripts/browser-validate-project-experience-v1.mjs",
   );
   assert.throws(() => validateChangeOwnerManifest(duplicateLiteralManifest),
@@ -864,7 +898,7 @@ function runDocumentationValidatorCases() {
   ]);
   assert.deepEqual(
     ownerTargetedResult.targeted_phase_ids,
-    targetedPhaseIds("unit"),
+    targetedPhaseIds(...CODEX_REUSE_PHASE_IDS),
   );
   results.push("owner-targeted-exact-plan-validator");
 }

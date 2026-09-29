@@ -8,6 +8,9 @@
     "dependencies-web-planning",
     "typecheck",
     "unit",
+    "codex-companion-discovery",
+    "augnes-operator-plugin-setup",
+    "codex-user-hook-migration",
     "authority",
     "integration",
     "operability",
@@ -44,11 +47,13 @@
     {
       "id": "codex-user-reuse-hook",
       "phase_ids": [
-        "unit"
+        "codex-companion-discovery",
+        "augnes-operator-plugin-setup",
+        "codex-user-hook-migration"
       ],
       "deletion_policy": "full",
       "path_rules": {
-        "exact_paths": [
+        "literal_exact_paths": [
           ".codex/hooks/augnes-reuse-intake-user-prompt-submit.mjs",
           "scripts/lib/codex-augnes-user-hook-installer-common.mjs",
           "scripts/test-codex-augnes-user-hook-migration.mjs"
@@ -58,11 +63,13 @@
     {
       "id": "augnes-operator-plugin-setup",
       "phase_ids": [
-        "unit"
+        "codex-companion-discovery",
+        "augnes-operator-plugin-setup",
+        "codex-user-hook-migration"
       ],
       "deletion_policy": "full",
       "path_rules": {
-        "exact_paths": [
+        "literal_exact_paths": [
           "plugins/augnes-operator/.codex-plugin/plugin.json",
           "scripts/augnes-operator-plugin-setup.mjs",
           "scripts/test-augnes-operator-plugin-setup.mjs"
@@ -176,6 +183,7 @@
         "exact_paths": [
           "scripts/browser-verification-owners.v1.json",
           "scripts/canonical-change-planner.mjs",
+          "scripts/codex-reuse-verification-ownership.mjs",
           "scripts/canonical-child-runner.mjs",
           "scripts/canonical-repository-identity.mjs",
           "scripts/canonical-test-environment.mjs",
