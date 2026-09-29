@@ -7,8 +7,8 @@ export interface Environment {
   PROJECT_ID: string; AUTHOR_REF: string; REQUEST_SECRET: string;
   SITES_INGRESS_MODE?: string; RECONSTRUCTION_MODE?: string;
 }
-export type Principal = { login: string | null; localFixture?: true };
-export type Access = Store & { env: Environment; local: boolean };
+export type Principal = { login: string | null; localFixture?: true; ingress?: "sites" | "cloudflare-access" };
+export type Access = Store & { env: Environment; local: boolean; signout: string };
 export interface Ticket { kind: "save"; workspace_id: string; project_id: string; author_ref: string;
   work_id: string; request_key: string; expected: Binding; expires: number; payload_fingerprint?: string }
 const loginPattern = /^[^\s,@]+@[^\s,@]+\.[^\s,@]+$/;
@@ -17,7 +17,7 @@ export function sitesPrincipal(request: Request, env: Environment): Principal {
   // This is a platform trust contract, not header-based standalone authentication.
   // Leave disabled until the Sites deployment proves overwrite + no backend bypass.
   if (env.SITES_INGRESS_MODE !== "verified-private-sites" || !env.APP_ORIGIN?.startsWith("https://")) return {login:null};
-  return {login:login(request.headers.get("oai-authenticated-user-email"))};
+  return {login:login(request.headers.get("oai-authenticated-user-email")),ingress:"sites"};
 }
 export async function authorize(request: Request, env: Environment, principal: Principal): Promise<Access> {
   const url=new URL(request.url);
@@ -40,7 +40,7 @@ export async function authorize(request: Request, env: Environment, principal: P
   const navigation=entry && request.headers.get('sec-fetch-mode')==='navigate' && request.headers.get('sec-fetch-dest')==='document';
   if (["cross-site","same-site"].includes(request.headers.get("sec-fetch-site")??"") && !navigation) refuse('fetch_metadata','same_origin_required',403);
   if (!principal.localFixture && (origin.protocol!=="https:" || request.headers.has("x-web-planning-local-owner"))) refuse('untrusted_transport_or_local_identity','access_denied',403);
-  if (!login(principal.login)) refuse(env.SITES_INGRESS_MODE!=='verified-private-sites'?'ingress_disabled':
+  if (!login(principal.login)) refuse(principal.ingress==='cloudflare-access'?'access_identity_unavailable':env.SITES_INGRESS_MODE!=='verified-private-sites'?'ingress_disabled':
     request.headers.has('oai-authenticated-user-email')?'identity_invalid':'identity_absent','access_denied',403);
   if (login(principal.login)!==login(env.OWNER_EMAIL)) refuse('owner_mismatch','access_denied',403);
   const schema=await env.DB.prepare("SELECT version FROM web_planning_schema").all<{version:number}>();
@@ -53,7 +53,7 @@ export async function authorize(request: Request, env: Environment, principal: P
   // choose/repair ownership. The single statement settles concurrent requests;
   // an exact reread admits only the configured mapping (including a race winner).
   if(owners.results.length===0 && !principal.localFixture &&
-    env.SITES_INGRESS_MODE==='verified-private-sites' && request.method==='GET' && url.pathname==='/' && !url.search) {
+    principal.ingress && request.method==='GET' && url.pathname==='/' && !url.search) {
     await env.DB.prepare(`INSERT INTO web_planning_workspace(singleton,workspace_id,project_id,author_ref,owner_login_hash)
       SELECT 1,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM web_planning_workspace)
         AND NOT EXISTS(SELECT 1 FROM web_planning_revision)
@@ -66,7 +66,8 @@ export async function authorize(request: Request, env: Environment, principal: P
   }
   if(owners.results.length!==1 || canonical(owners.results[0])!==canonical(expected)) refuse(
     owners.results.length===0?'mapping_absent':'mapping_mismatch','workspace_mapping_mismatch',403);
-  return {DB:env.DB,workspace_id:env.WORKSPACE_ID,project_id:env.PROJECT_ID,author_ref:env.AUTHOR_REF,env,local:principal.localFixture===true};
+  return {DB:env.DB,workspace_id:env.WORKSPACE_ID,project_id:env.PROJECT_ID,author_ref:env.AUTHOR_REF,env,local:principal.localFixture===true,
+    signout:principal.ingress==='cloudflare-access'?'/cdn-cgi/access/logout':'/signout-with-chatgpt'};
 }
 export function seal(access: Access, material: unknown): string {
   const text=Buffer.from(canonical(material)).toString("base64url");

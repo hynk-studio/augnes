@@ -123,5 +123,5 @@ export async function browserBranchJourney({a,debug,origin,page,click,set,settle
    assert.equal(await warning(),false);assert.equal(writes(),writeCount);assert.match(await a.eval("$('status').textContent"),/Access denied/);
    await login(a,origin);await selectWork(a,'Target drift during comparison read');
  }
- checks.push('comparison refresh 401 and real missing-cookie 403 clear private drafts, bindings, tickets and leave warnings');
+ checks.push('comparison refresh 401 and real ingress refusal 403 clear private drafts, bindings, tickets and leave warnings');
 }

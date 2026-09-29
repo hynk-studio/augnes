@@ -161,6 +161,7 @@
     "test:e2e:continuity": "node scripts/run-canonical-test-suite.mjs e2e-continuity",
     "test:e2e:golden": "node scripts/run-canonical-test-suite.mjs e2e-golden",
     "web:build": "node scripts/build-web-planning.mjs",
+    "web:build:cloudflare": "node scripts/build-web-planning.mjs cloudflare",
     "web:dev": "node scripts/run-web-planning.mjs dev",
     "web:test": "node scripts/run-web-planning.mjs test",
     "web:test:browser": "node scripts/run-web-planning.mjs browser",

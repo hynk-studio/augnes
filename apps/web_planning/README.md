@@ -69,6 +69,109 @@ root/global Miniflare. The new runtime's locked transitive dependencies include
 sharp, workerd and their platform packages. No remote bindings, deploy commands
 or provider credentials are used by these entry points.
 
+## Direct Cloudflare adapter (#1356)
+
+The direct entry `src/cloudflare-worker.ts` shares the existing handler, UI,
+store and envelope. It requires Cloudflare's platform `ctx.access`, an exact
+64-hex `ACCESS_AUDIENCE`, and `getIdentity().email` matching `OWNER_EMAIL`.
+Missing context, audience mismatch or identity failure refuses before D1 access.
+No request header, Sites mode, fixture cookie or JWT fallback authenticates this
+entry. Only the configured owner entering `GET /` can initialize an empty,
+migrated store; existing mappings and nonempty unmapped stores cannot rebind.
+
+The app pins **Wrangler 4.126.0**, whose locked runtime is **Miniflare
+5.20260825.0-alpha / workerd 1.20260825.1**. Its published local Access
+simulation is exercised through the same Miniflare conversion API Wrangler
+uses. The older Sites/Vite and local-fixture pins remain separate. Wrangler
+4.92.0 under the Sites plugin is not the direct CLI. See the
+[platform identity and local simulation contract](https://developers.cloudflare.com/workers/configuration/cloudflare-access/).
+Cloudflare does not propagate this context through its Static Assets router or
+Service Bindings; the direct artifact uses neither.
+
+```sh
+npm run web:build:cloudflare
+```
+
+The existing esbuild owner emits `apps/web_planning/dist-cloudflare/worker.js`,
+`wrangler.json`, and `migrations/{0000_web_planning,0001_schema_version}.sql`.
+It rejects local environment files, native/test imports and bound production
+configuration. The artifact has no development identity, real account/database
+IDs, secrets, asset router or preview URL. Builds replace this generated folder;
+keep deployment configuration in a separate private operator directory.
+`wrangler.cloudflare.json` is an unbound template, not a usable cloud target.
+
+Direct D1 initialization belongs exclusively to pinned **Wrangler D1 migrations**,
+using the unchanged shipped SQL and its `d1_migrations` ledger. The existing
+Sites path still owns its Drizzle journal. Do not mix those migration ledgers
+on one database. The D1 owner invokes the actual pinned CLI with `--local` in an
+isolated temporary HOME, then runs the built entry against that same local D1.
+
+Sign out clears the tab immediately and visits `/cdn-cgi/access/logout`.
+Cloudflare's [logout and AJAX contract](https://developers.cloudflare.com/cloudflare-one/access-controls/access-settings/session-management/)
+revokes the user's sessions across Access applications; previously issued
+tokens may remain accepted for 20–30 seconds. This is not per-application logout.
+The client sends the documented AJAX header, treats 401/403, login redirects and
+unmarked successful responses as lost access, clears private drafts/bindings,
+and refuses further requests until reload/sign-in. Ordinary transport/503
+failures still preserve drafts and original uncertain requests. A response
+marker distinguishes product data from a login page; it is not authentication.
+
+### Repeatable post-merge deployment
+
+These are operator steps after review and the actual user merge, not pre-merge
+commands to execute. The existing Mac-side device authorization and protected
+Keychain-backed Wrangler session are retained. Workers/D1 scopes and a D1 list
+were observed; cloud writes have not been exercised. Access/Zero Trust setup,
+management permission, account plan and remaining included capacity are still
+unverified. Resolve those before the applicable cloud setup. Do not assume a
+free-tier allowance is measured remaining capacity; stop for actual charges,
+terms/payment decisions, ambiguity or resource expansion.
+
+1. Confirm the reviewed commit, intended existing account and included capacity.
+   Use `apps/web_planning/node_modules/.bin/wrangler` with
+   `CLOUDFLARE_AUTH_USE_KEYRING=true`; reuse normal refresh, never export tokens.
+   Build from that exact commit and retain the artifact hash privately.
+2. Create at most one independent D1 and one Worker, with one owner-only Access
+   application/policy set. Copy the artifact into a private operator directory;
+   populate its `wrangler.json` with the selected account, exact Worker name and
+   that fresh D1 ID. Keep `no_bundle: true`, no assets/routes/dev simulation,
+   and `preview_urls: false`. For initial setup set `workers_dev: false` and
+   leave application values unset, so the first upload can only deny access.
+3. Using that same private configuration, apply `wrangler d1 migrations apply DB
+   --remote --config /private/target/wrangler.json` once. Upload the reviewed
+   artifact with `wrangler deploy --config /private/target/wrangler.json`.
+   Configure **only this Worker's all-traffic Access protection** with the one
+   exact owner email; verify no bypass policy or competing audience overrides it.
+   Do not change account-wide policy or any existing Site/Worker/database.
+4. Set non-secret `vars`: exact HTTPS `APP_ORIGIN`, `ACCESS_AUDIENCE` from that
+   application, and three fresh `WORKSPACE_ID` / `PROJECT_ID` / `AUTHOR_REF` UUIDs.
+   Install `OWNER_EMAIL` and a new random `REQUEST_SECRET` through Wrangler's
+   normal secret input for this same target; do not put them in Git or chat.
+   Leave reconstruction and Sites ingress unset. Enable only the selected
+   `workers_dev` origin and deploy the same artifact/configuration. The initial
+   configured-owner page initializes its mapping; there is no setup endpoint.
+5. Before retaining private work, verify real Access owner/nonowner/logged-out
+   behavior, wrong/missing/spoofed identity, alternate/version URL denial,
+   origin/CSRF, logout/expiry and old-tab clearing. Run the issue's bounded two
+   synthetic works through branch, qualified incorporation, second-tab stale
+   preview/refusal/recovery, fresh Saved context, authorized browser-agent
+   interpretation and downloadable exports. Record source/build hash → Worker
+   version/deployment → target privately. Retain synthetic state for review.
+6. Updates reuse this same target, identities, secrets and D1. Rebuild a later
+   reviewed commit, replace only the copied `worker.js` and reviewed migration
+   files, review configuration differences, then use the same pinned CLI and
+   deploy command. Apply only new reviewed migrations when present. A code
+   rollback does not roll back data; never deploy a reader incompatible with
+   the stored envelope. This procedure is not evidence of a subsequent upload.
+
+Local D1 and Browser owners test the compiled direct entry with platform Access
+simulation, complete branch/incorporation/fresh-read and access-loss behavior.
+The same owners preserve Sites, compatibility, export, erasure and comparison
+draft recovery regressions. Real Access policy, cookie revocation, cloud
+deployment, hosted agent interpretation and actual update acceptance remain
+unperformed. #1356 stays open; #1354 and its existing Sites data/export/archive
+remain deferred and untouched.
+
 ## Production configuration and trust handoff
 
 [#1347](https://github.com/hynk-studio/augnes/issues/1347) records the 2026-09-27
