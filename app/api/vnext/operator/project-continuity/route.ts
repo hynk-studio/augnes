@@ -152,7 +152,9 @@ export function createVNextOperatorContextUseReviewHandlerV01(
         clock: options.clock,
       });
       db = (options.open_database ?? openVNextLocalOperatorDatabaseV01)(config);
-      const body = await readBoundedVNextLocalOperatorBodyV01(request);
+      // A native revision carries up to 32,000 selected-entry bytes plus the
+      // bounded definition and bindings. Other operator routes retain 16 KiB.
+      const body = await readBoundedVNextLocalOperatorBodyV01(request, 64_000);
       const companionPreparation = readVNextLocalReviewProfileV01(environment) === "companion_first_work_v1";
       if (companionPreparation && ![
         "define_initial_project_work",

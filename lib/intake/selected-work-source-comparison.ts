@@ -9,7 +9,11 @@ import { REVIEWED_OUTCOME_SOURCE_V01, SELECTED_WORK_SOURCE_LABELS, type Reviewed
 
 /** Bounded presentation over existing packet source entries; never a writer. */
 export const SELECTED_WORK_SOURCE_NAMESPACE = "augnes.selected-source-excerpt.v0.1";
+// Hosted planning/projection retain their existing admission contract.
 export const SELECTED_WORK_SOURCE_LIMITS = { entries: 8, characters: 2_000, bytes: 12_000 } as const;
+// Native admission includes provenance and repeated packaging, not just note text.
+// Keep the stored representation and fingerprints identical at either ceiling.
+export const NATIVE_SELECTED_WORK_SOURCE_LIMITS = { ...SELECTED_WORK_SOURCE_LIMITS, bytes: 32_000 } as const;
 type Scope = { workspace_id: string; project_id: string };
 
 export class SelectedWorkSourceError extends Error {
@@ -104,12 +108,20 @@ export function assertReviewedOutcomeSourcesRetained(selected: TaskContextPacket
 }
 
 export function readSelectedWorkSources(packet: TaskContextPacketV01): TaskContextPacketSelectedEntryV01[] {
-  return normalizeSelectedWorkSources(packet, packet.selected_context.filter((entry) =>
+  return normalizeNativeSelectedWorkSources(packet, packet.selected_context.filter((entry) =>
     entry.external_ref?.compatibility_namespace === SELECTED_WORK_SOURCE_NAMESPACE || entry.entry_id.startsWith("selected-source:"),
   ));
 }
 
 export function normalizeSelectedWorkSources(scope: Scope, value: unknown): TaskContextPacketSelectedEntryV01[] {
+  return normalizeWithinByteBudget(scope, value, SELECTED_WORK_SOURCE_LIMITS.bytes);
+}
+
+export function normalizeNativeSelectedWorkSources(scope: Scope, value: unknown): TaskContextPacketSelectedEntryV01[] {
+  return normalizeWithinByteBudget(scope, value, NATIVE_SELECTED_WORK_SOURCE_LIMITS.bytes);
+}
+
+function normalizeWithinByteBudget(scope: Scope, value: unknown, maxBytes: number): TaskContextPacketSelectedEntryV01[] {
   if (!Array.isArray(value) || value.length > SELECTED_WORK_SOURCE_LIMITS.entries) {
     throw new SelectedWorkSourceError("task_context_mandatory_selection_budget_exceeded");
   }
@@ -137,7 +149,7 @@ export function normalizeSelectedWorkSources(scope: Scope, value: unknown): Task
     if (group.length !== 2 || new Set(group.map(e => reviewedOutcomeSourceRef(e)!.fingerprint)).size !== 1 ||
       group.map(e => e.compatibility_source_ref!.ref_type).sort().join(",") !== "reviewed_outcome_expectation,reviewed_outcome_report") fail();
   }
-  if (new TextEncoder().encode(canonicalizeProtocolValueV01(entries)).byteLength > SELECTED_WORK_SOURCE_LIMITS.bytes) {
+  if (new TextEncoder().encode(canonicalizeProtocolValueV01(entries)).byteLength > maxBytes) {
     throw new SelectedWorkSourceError("selected_source_context_budget_exceeded");
   }
   return entries;
@@ -159,7 +171,7 @@ export function normalizeRetainedWorkSourceRefs(value: unknown): RetainedWorkSou
 }
 
 export function compareSelectedWorkSources(packet: TaskContextPacketV01, selected: unknown, retainedRefs: unknown = []) {
-  const entries = normalizeSelectedWorkSources(packet, selected);
+  const entries = normalizeNativeSelectedWorkSources(packet, selected);
   const retained_source_refs = normalizeRetainedWorkSourceRefs(retainedRefs);
   const previous = readSelectedWorkSources(packet);
   const currentTexts = [packet.task.goal, ...packet.task.success_criteria, ...packet.task.non_goals];

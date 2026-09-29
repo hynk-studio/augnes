@@ -844,7 +844,7 @@ Generated notes carry a distinct compatibility reference. Changing their text
 cannot retain saved-report provenance; the editor offers an explicitly newly
 authored note instead. Revision accepts generated entries only from its already
 validated preparation family. Initial/scoped preparation is not broadened.
-The existing eight-entry, 2,000-character and 12,000-byte selection limits apply
+The native eight-entry, 2,000-character and 32,000-byte selection limits apply
 to the complete grouping. Unavailable chronology, malformed optional material or
 overflow produces an honest local disposition without clipping or preventing
 otherwise eligible preparation without it. Manual attributed notes and the

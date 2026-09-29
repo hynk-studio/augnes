@@ -260,9 +260,15 @@ async function exerciseReviewedOutcomeReselection(lifecycle, retainedExpected) {
   assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-retained-source-action="select"]').disabled && document.querySelector('[data-retained-source-capacity]').textContent.includes('2 note slots; 1 remain')`), true, 'One remaining slot refuses the group before selection');
   await clickSelector(lifecycle, '[data-selected-source-action="exclude"]');
   assert.equal(await lifecycle.evaluateBoolean(`!document.querySelector('[data-retained-source-action="select"]').disabled && document.querySelectorAll('[data-selected-source-action="exclude"]').length === 6`), true, 'Two remaining slots allow checking the complete pair');
+  for (let index = 0; index < 6; index++) await clickSelector(lifecycle, '[data-selected-source-action="exclude"]');
+  for (let index = 0; index < 6; index++) {
+    await lifecycle.setFormControlValue('#selected-note-source', `Byte capacity ${index}`);
+    await lifecycle.setFormControlValue('#selected-note-text', '한'.repeat(1250));
+    await clickSelector(lifecycle, '[data-selected-source-action="add"]');
+  }
   const responseStart = lifecycle.responses.length;
   await clickSelector(lifecycle, '[data-retained-source-action="select"]');
-  await lifecycle.waitForCondition(`document.querySelector('[data-selected-work-sources] [role="alert"]')?.textContent.includes('12,000-byte') === true`, 'Byte capacity refuses the pair before adding it');
+  await lifecycle.waitForCondition(`document.querySelector('[data-selected-work-sources] [role="alert"]')?.textContent.includes('32,000-byte') === true`, 'Byte capacity refuses the pair before adding it');
   const refusals = lifecycle.responses.slice(responseStart).filter(entry => entry.path === '/api/vnext/operator/project-continuity' && entry.method === 'POST');
   assert.equal(refusals.length, 1); assert.equal(refusals[0].status, 422);
   const refusedBody = await lifecycle.cdp().send('Network.getResponseBody', { requestId: refusals[0].request_id });

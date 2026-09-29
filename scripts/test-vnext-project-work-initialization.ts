@@ -31,7 +31,7 @@ import { LiveNativeHostRunServiceV01 } from "../lib/vnext/runtime/live-native-ho
 import { createCodexAppServerAdapterV01 } from "../lib/vnext/native-host/codex-app-server-adapter";
 import { createCodexScopedTaskV01, createCodexFeasibilityWindowV01, createPersistedCodexFeasibilityContinuationV01, readCodexScopedSnapshotV01, releaseCodexScopedTaskV01 } from "../lib/vnext/native-host/codex-scoped-task";
 import { buildTaskStartGuideBriefCodexProjectionV02 } from "../lib/vnext/guide-brief/project-guide-brief";
-import { buildSelectedWorkSourceEntry, compareSelectedWorkSources, normalizeSelectedWorkSources, readSelectedWorkSources } from "../lib/intake/selected-work-source-comparison";
+import { buildSelectedWorkSourceEntry, compareSelectedWorkSources, normalizeNativeSelectedWorkSources, readSelectedWorkSources } from "../lib/intake/selected-work-source-comparison";
 import { SELECTED_WORK_SOURCE_LABELS } from "../types/vnext/project-work-revision";
 import { recallRetainedWorkSources, resolveRetainedWorkSources } from "../lib/intake/retained-work-source-recall";
 
@@ -142,6 +142,7 @@ void main().catch((error) => {
 async function main(): Promise<void> {
   const initializationStarted = performance.now();
   try {
+    if (process.argv.includes("--selected-source-budget-only")) { await assertNativeSelectedSourceBudgetV01(); return; }
     if (process.argv.includes("--reviewed-outcome-reuse-only")) { await assertReviewedOutcomeReuseV01(); await assertReviewedOutcomeReuseV01(true); return; }
     if (process.argv.includes("--successor-expectation-only")) { await assertSuccessorExpectationV01(); return; }
     if (process.argv.includes("--successor-expectation-limit-only")) { await assertSuccessorExpectationV01(true); return; }
@@ -198,6 +199,7 @@ async function main(): Promise<void> {
     assertInitialWorkPortabilityV01();
     assertRevisionPortabilityAndRecoveryV01();
     await assertSelectedSourceNextWorkV01();
+    await assertNativeSelectedSourceBudgetV01();
     await assertWebMcpCurrentReadV01();
     await assertRetainedSourceRecallV01();
     await assertSeparateNativeHostStartV01();
@@ -2551,7 +2553,7 @@ async function assertSelectedSourceNextWorkV01(): Promise<void> {
     assert.deepEqual(comparison, compareSelectedWorkSources(initial.packet, [...notes].reverse()));
     assert.deepEqual(comparison.entries.map((entry) => entry.bounded_summary), texts);
     assert.equal(comparison.rows.filter((row) => row.user_correction).length, 1);
-    assert.deepEqual(normalizeSelectedWorkSources(fixture, [...notes, notes[0]]), comparison.entries);
+    assert.deepEqual(normalizeNativeSelectedWorkSources(fixture, [...notes, notes[0]]), comparison.entries);
     const chronologicalChange = buildSelectedWorkSourceEntry(fixture, {
       source: "Selected review/history digest, revision 1", observed_at: "2026-08-01T00:00:07.000Z",
       provenance: "user_declaration", label: SELECTED_WORK_SOURCE_LABELS[0], text: texts[0],
@@ -2563,11 +2565,11 @@ async function assertSelectedSourceNextWorkV01(): Promise<void> {
       label: SELECTED_WORK_SOURCE_LABELS[6], text: initial.packet.task.goal,
     });
     assert.equal(compareSelectedWorkSources(initial.packet, [exactWorkText]).rows[0]?.comparison, "reconfirmed_work_text");
-    assert.throws(() => normalizeSelectedWorkSources({ ...fixture, project_id: "project:foreign" }, notes), /selected_source_context_invalid/u);
-    assert.throws(() => normalizeSelectedWorkSources(fixture, [{ ...notes[0], source_ref: "sha256:bad" }]), /selected_source_context_invalid/u);
-    assert.throws(() => normalizeSelectedWorkSources(fixture, [...notes, chronologicalChange, chronologicalChange]), /task_context_mandatory_selection_budget_exceeded/u);
+    assert.throws(() => normalizeNativeSelectedWorkSources({ ...fixture, project_id: "project:foreign" }, notes), /selected_source_context_invalid/u);
+    assert.throws(() => normalizeNativeSelectedWorkSources(fixture, [{ ...notes[0], source_ref: "sha256:bad" }]), /selected_source_context_invalid/u);
+    assert.throws(() => normalizeNativeSelectedWorkSources(fixture, [...notes, chronologicalChange, chronologicalChange]), /task_context_mandatory_selection_budget_exceeded/u);
     assert.throws(() => buildSelectedWorkSourceEntry(fixture, { source: "", text: "missing source", observed_at: null, provenance: "user_declaration", label: SELECTED_WORK_SOURCE_LABELS[0] }), /selected_source_context_invalid/u);
-    assert.throws(() => normalizeSelectedWorkSources(fixture, texts.map((_, index) => buildSelectedWorkSourceEntry(fixture, {
+    assert.throws(() => normalizeNativeSelectedWorkSources(fixture, texts.map((_, index) => buildSelectedWorkSourceEntry(fixture, {
       source: `Budget note ${index}`, observed_at: null, provenance: "user_declaration", label: SELECTED_WORK_SOURCE_LABELS[index], text: "한".repeat(2_000),
     }))), /selected_source_context_budget_exceeded/u);
 
@@ -4850,8 +4852,8 @@ async function assertReviewedOutcomeReuseV01(overBudget = false): Promise<void> 
     const malformed = reuse.entries.map(e => ({ ...e, compatibility_source_ref: { ...e.compatibility_source_ref!, ref_type: null } }));
     await reject(fixture.db, { ...preview.request, selected_sources: { ...selected_sources, selected_source_context: malformed } }, /selected_source_context_invalid/);
     assert.throws(() => compareResultWorkSourcesV01(fixture.db, { config: fixture.config, binding: preparation.binding, notes: [{ reviewed_outcome_ref: { ...reuse.binding, extra: true } }], clock }), /reviewed_outcome_changed/);
-    assert.throws(() => normalizeSelectedWorkSources(fixture, [reuse.entries[0]]), /selected_source_context_invalid/, "A generated snapshot must retain its coherent context");
-    const notes = Array.from({ length: 7 }, (_, index) => ({ source: `authored note ${index}`, observed_at: null, provenance: "user_declaration", label: "Open question", text: "x".repeat(2000) }));
+    assert.throws(() => normalizeNativeSelectedWorkSources(fixture, [reuse.entries[0]]), /selected_source_context_invalid/, "A generated snapshot must retain its coherent context");
+    const notes = Array.from({ length: 7 }, (_, index) => ({ source: `authored note ${index}`, observed_at: null, provenance: "user_declaration", label: "Open question", text: "한".repeat(2000) }));
     assert.throws(() => compareResultWorkSourcesV01(fixture.db, { config: fixture.config, binding: preparation.binding, notes: [{ reviewed_outcome_ref: reuse.binding }, ...notes], clock }), /budget_exceeded/);
     assert.throws(() => compareResultWorkSourcesV01(fixture.db, { config: fixture.config, binding: preparation.binding, notes: [{ reviewed_outcome_ref: reuse.binding }, ...notes.slice(0, 6)], clock }), /selected_source_context_budget_exceeded/, "Eight whole notes still obey the serialized-byte budget");
     const snapshot = fixture.db.serialize();
@@ -4991,11 +4993,11 @@ async function assertReviewedOutcomeReuseV01(overBudget = false): Promise<void> 
     const fits = await route({ action: "compare_selected_work_sources", notes: capacityNotes.slice(0, 6), retained_source_refs: refs });
     const eightNoteBytes = Buffer.byteLength(canonicalizeProtocolValueV01([...capacityNotes.slice(0, 6).map(note => buildSelectedWorkSourceEntry(fixture, note)), ...reuse.entries]), "utf8");
     console.log(JSON.stringify({ reviewed_outcome_capacity: { notes: 8, selected_bytes: eightNoteBytes, status: fits.status } }));
-    assert.equal(fits.status, 422, "Two slots are available, but the exact complete material still exceeds the byte budget");
-    assert(eightNoteBytes > 12_000); assert.equal((await fits.json()).error_code, "selected_source_context_budget_exceeded");
+    assert.equal(fits.status, 200, "The complete pair and six short notes fit the native packaging allowance");
+    assert(eightNoteBytes > 12_000 && eightNoteBytes < 32_000); assert.equal((await fits.json()).comparison.entries.length, 8);
     for (const [notes, retained_source_refs, errorCode] of [
       [capacityNotes, refs, "task_context_mandatory_selection_budget_exceeded"],
-      [[{ ...capacityNotes[0], text: "한".repeat(2_000) }, { ...capacityNotes[1], text: "한".repeat(2_000) }], refs, "selected_source_context_budget_exceeded"],
+      [capacityNotes.slice(0, 6).map(note => ({ ...note, text: "한".repeat(2_000) })), refs, "selected_source_context_budget_exceeded"],
       [[], refs.slice(0, 1), "selected_source_context_invalid"],
       [[], [{ ...refs[0], source_fingerprint: `sha256:${"0".repeat(64)}` }, refs[1]], "retained_source_changed_or_unavailable"],
       [[], [{ ...refs[0], packet_id: initial.packet.packet_id }, refs[1]], "retained_source_changed_or_unavailable"],
@@ -6063,4 +6065,95 @@ async function assertNewWorkAdmissionV01(): Promise<void> {
     assert.equal(validateRecoveryCanonicalDatabaseV01(fixture.db).status, "valid");
     console.log(JSON.stringify({ new_work_normal_execution_admission_and_start_after_preview: "pass", model_calls: 0 }));
   } finally { fixture.db.close(); }
+}
+
+async function assertNativeSelectedSourceBudgetV01(): Promise<void> {
+  const { createVNextOperatorContextUseReviewHandlerV01: postFactory } = await import('@/app/api/vnext/operator/project-continuity/route');
+  const { readCodexRepositoryWorkSourcesV01 } = await import('@/lib/vnext/codex-repository-continuity/codex-repository-work-sources');
+  const measure=(v:unknown)=>Buffer.byteLength(canonicalizeProtocolValueV01(v));
+  for (const [name,n,size,ch,time] of [
+    ['2x2000',2,2000,'a',null],['4x1000',4,1000,'a',null],['8x500',8,500,'a',null],['8x50',8,50,'a',null],
+    ['8x50-known',8,50,'a','2026-09-29T00:00:00.000Z'],['8x500-known',8,500,'a','2026-09-29T00:00:00.000Z'],
+    ['8x500-utf8',8,500,'한',null],['8x500-utf8-known',8,500,'한','2026-09-29T00:00:00.000Z'],['8x2000',8,2000,'a',null],
+    ['8x1000-utf8',8,1000,'한',null],['exact-ceiling',8,800,'한',null],['eight-bytes',8,1,'index','2026-09-29T00:00:00.000Z']
+  ] as const) {
+    const fixture=createFixtureV01('audit-'+name,true,true,true);
+    try {
+      const initial=defineInitialProjectWorkV01(fixture.db,{config:fixture.config,credential:authenticatedSessionV01(fixture,'audit'),request:requestV01(fixture),clock:fixedClock(T2)});
+      const original=fixture.db.prepare('SELECT payload_json FROM vnext_core_records WHERE record_id=?').get(initial.packet.packet_id);
+      const notes=Array.from({length:n},(_,i)=>({source:ch==='index'?'a':`note-${i}`,text:ch==='index'?String.fromCharCode(97+i):ch.repeat(size),observed_at:time,provenance:'user_declaration',label:ch==='index'?'Next check':'Open question'}));
+      if(name==='exact-ceiling') {
+        let remaining=32_000-measure(notes.map(note=>buildSelectedWorkSourceEntry(fixture,note)));
+        for(const note of notes){const add=Math.min(remaining,2_000-[...note.text].length);note.text+='a'.repeat(add);remaining-=add;}
+        assert.equal(remaining,0);
+      }
+      const entries=notes.map(note=>buildSelectedWorkSourceEntry(fixture,note));
+      if(name==='exact-ceiling') {
+        assert.equal(measure(entries),32_000);
+        assert.equal(normalizeNativeSelectedWorkSources(fixture,entries).length,8);
+        const overflow=structuredClone(notes);overflow.at(-1)!.text+='a';
+        assert.equal(measure(overflow.map(note=>buildSelectedWorkSourceEntry(fixture,note))),32_001);
+        assert.throws(()=>normalizeNativeSelectedWorkSources(fixture,overflow.map(note=>buildSelectedWorkSourceEntry(fixture,note))),/selected_source_context_budget_exceeded/);
+      }
+      const { normalizeSelectedWorkSources: hostedNormalize } = await import('@/lib/intake/selected-work-source-comparison');
+      const { normalizePayload: hostedPlanning } = await import('@/apps/web_planning/src/contract');
+      const hostedInput=()=>hostedPlanning({...fixture,author_ref:'audit:author'},initial.packet.task,notes);
+      if(measure(entries)>12_000) assert.throws(hostedInput,/selected_source_context_budget_exceeded/);
+      else assert.deepEqual(hostedInput().sources,normalizeNativeSelectedWorkSources(fixture,entries));
+      if(measure(entries)>12_000)assert.throws(()=>hostedNormalize(fixture,entries),/selected_source_context_budget_exceeded/);
+      else assert.deepEqual(hostedNormalize(fixture,entries),normalizeNativeSelectedWorkSources(fixture,entries));
+      const handler=postFactory({clock:fixedClock('2026-08-01T00:00:03.000Z'),environment:{NODE_ENV:'test',AUGNES_DB_PATH:fixture.config.database_path,AUGNES_VNEXT_OPERATOR_PILOT_ENABLED:'1',AUGNES_VNEXT_OPERATOR_WORKSPACE_ID:fixture.workspace_id,AUGNES_VNEXT_OPERATOR_PROJECT_ID:fixture.project_id,AUGNES_VNEXT_OPERATOR_ID:fixture.config.operator_id}});
+      const post=(body:unknown,cookie=initial.session_admission.cookie_value)=>handler(new Request('http://127.0.0.1:3000/api/vnext/operator/project-continuity',{method:'POST',headers:{host:'127.0.0.1:3000',origin:'http://127.0.0.1:3000','content-type':'application/json',cookie:`${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${cookie}`},body:JSON.stringify(body)}));
+      const before=fixture.db.serialize();
+      const {readBoundedVNextLocalOperatorBodyV01: readBody}=await import('@/lib/vnext/runtime/local-operator-session');
+      const largeBody=JSON.stringify({text:'x'.repeat(17_000)});
+      const bodyRequest=()=>new Request('http://127.0.0.1:3000',{method:'POST',headers:{'content-type':'application/json'},body:largeBody});
+      await assert.rejects(readBody(bodyRequest()),/operator_pilot_body_too_large/);
+      assert.equal((await readBody(bodyRequest(),64_000)).text,'x'.repeat(17_000));
+      const tooLarge=await post({text:'x'.repeat(64_000)});assert.equal(tooLarge.status,413);
+      const response=await post({action:'compare_selected_work_sources',expected_current_packet_id:initial.packet.packet_id,expected_current_packet_fingerprint:initial.packet.integrity.fingerprint,notes});
+      const compared=await response.json();assert(before.equals(fixture.db.serialize()));
+      assert.equal(response.status, name === '8x1000-utf8' ? 422 : 200);
+      const row:any={name,body_bytes:notes.reduce((a,n)=>a+Buffer.byteLength(n.text),0),entries_bytes:measure(entries),compare_status:response.status,compare_error:compared.error_code??null};
+      if(response.status===200){
+        const request={...revisionRequestV01(fixture,initial.packet,'initial_user_defined',initial.packet.task),selected_source_context:compared.comparison.entries,expected_source_comparison:compared.comparison.fingerprint};
+        row.save_request_bytes=Buffer.byteLength(JSON.stringify(request));
+        const saved=await post(request);const body=await saved.json();assert.equal(saved.status,201,JSON.stringify(body));row.save_status=saved.status;row.save_error=body.error_code??null;
+        if(saved.status===201){
+          const packet=(fixture.db.prepare('SELECT payload_json FROM vnext_core_records WHERE record_id=?').get(body.work_initialization.current_packet.packet_id) as any);const current=JSON.parse(packet.payload_json);
+          assert.deepEqual(fixture.db.prepare('SELECT payload_json FROM vnext_core_records WHERE record_id=?').get(initial.packet.packet_id),original);
+          const fresh=new Database(fixture.config.database_path,{readonly:true});
+          try{
+            const read=readProjectWorkInitializationV01(fresh,fixture);assert.deepEqual(read.selected_source_context,compared.comparison.entries);row.reopen_state=read.state;
+            const dependencies={now:()=> '2026-08-01T00:00:04.000Z',read_operator_config:()=>fixture.config,managed_start_available:()=>false};
+            const resumed=await readCodexCurrentContinuityV01(fresh,{viewed_project_id:fixture.project_id},dependencies);
+            const sourceRead=await readCodexRepositoryWorkSourcesV01(fresh,{repository_root:fixture.root,expected_snapshot_binding:resumed.snapshot.binding!,include_work_definition:true},dependencies);
+            row.codex_read_status=sourceRead.status;row.codex_sources=sourceRead.sources.length;assert.equal(sourceRead.status,'available');assert.equal(sourceRead.sources.length,n);
+            const admission=await admitPersistedHostTaskContextPacketV01(fresh,{config:fixture.config,packet_id:current.packet_id,packet_fingerprint:current.integrity.fingerprint,evaluated_at:'2026-08-01T00:00:04.000Z'});
+            row.packet_bytes=measure(admission.packet);row.guide_bytes=measure(buildTaskStartGuideBriefCodexProjectionV02({packet:admission.packet,project_name:'Audit'}));
+          }finally{fresh.close()}
+          const exported=exportActivePortableProjectV01(fixture.db,{include_personal_perspective:false,exported_at:'2026-08-01T00:00:04.000Z'});
+          parseAndValidatePortableProjectV01(exported.bytes);
+          const imported=new Database(':memory:');
+          try {
+            applyCanonicalDatabaseMigrations(imported);
+            const destination=path.join(ROOT,`budget-import-${name}`);mkdirSync(destination);
+            assert.equal(importPortableProjectV01(imported,{bytes:exported.bytes,destination_root_base:destination,imported_at:'2026-08-01T00:00:04.000Z'}).status,'imported');
+            const restored=readProjectWorkInitializationV01(imported,fixture);
+            assert.deepEqual(restored.selected_source_context,compared.comparison.entries);
+            assert.equal(restored.current_packet?.packet_fingerprint,current.integrity.fingerprint);
+            row.portability='exact selected entries and packet fingerprint';
+          } finally { imported.close(); }
+          row.recovery=validateRecoveryCanonicalDatabaseV01(fixture.db).status;assert.equal(row.recovery,'valid');
+          const cookie=(saved.headers.get('set-cookie')??'').split(';')[0].split('=').slice(1).join('=');
+          const replay=await post(request,cookie);row.replay_status=replay.status;const replayBody=await replay.json();assert.equal(replayBody.status,'exact_replay');assert.equal(countProjectPacketsV01(fixture),2);
+          const credential=credentialFromCookieV01((replay.headers.get('set-cookie')??'').split(';')[0].split('=').slice(1).join('='));
+          let consumer:NativeHostRequestV01|undefined;
+          const run=await runDirectNativeHostRoundTripV01(fixture.db,{config:fixture.config,mode:'interactive',operator_mutation:{credential,clock:fixedClock('2026-08-01T00:00:05.000Z')}},{adapter:createDeterministicCodexAdapterV01({now:timestampSequenceV01('2026-08-01T00:00:06.000Z'),observe:({request})=>{consumer=structuredClone(request)}}),now:timestampSequenceV01('2026-08-01T00:00:05.000Z')});
+          assert(consumer);assert.deepEqual(readSelectedWorkSources(consumer.packet),compared.comparison.entries);row.worker_request_bytes=measure(consumer);row.worker='deterministic adapter; zero model';row.run_status=run.receipt.execution.status;
+        }else assert(before.equals(fixture.db.serialize()));
+      }
+      console.log(JSON.stringify(row));
+    }finally{fixture.db.close()}
+  }
 }
