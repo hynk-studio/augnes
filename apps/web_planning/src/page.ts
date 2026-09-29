@@ -39,7 +39,7 @@ export function renderContext(r:Revision,previous?:Revision,availability:Record<
 }
 export function page(csrf:string,a:Access):string {
 return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="csrf-token" content="${escape(csrf)}"><meta name="workspace" content="${a.workspace_id}"><meta name="project" content="${a.project_id}"><title>Augnes · Planning workspace</title><link rel="stylesheet" href="/style.css"><script src="/client.js" defer></script></head>
-<body><a class="skip" href="#main">Skip to work</a><header><a href="/" class="wordmark">augnes<span> / planning</span></a><div>Private workspace <a id="signout" href="/signout-with-chatgpt">Sign out</a></div></header>
+<body><a class="skip" href="#main">Skip to work</a><header><a href="/" class="wordmark">augnes<span> / planning</span></a><div>Private workspace <a id="signout" href="${escape(a.signout)}">Sign out</a></div></header>
 ${a.local?'<p class="local-banner">Local disposable workspace · synthetic owner · Sites authentication is unverified</p>':""}
 <div class="layout" id="private-view"><nav aria-label="Saved work"><div class="nav-heading"><h2>Your work</h2><button id="new-work">New work</button></div><p id="list-state">Reading saved work…</p><button id="refresh-list" hidden>Refresh work list</button><ul id="work-list"></ul><button id="more-work" hidden>More work</button></nav>
 <main id="main"><div class="intro"><p class="eyebrow">A place to continue</p><h1>Keep the thread of your work.</h1><p>Define what matters, keep its sources, and return to the version you saved.</p></div>

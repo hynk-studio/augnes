@@ -4,7 +4,8 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
-import { startLocal, availablePort } from './web-planning-local-runtime.mjs';
+import { startLocal, availablePort, accessSimulation } from './web-planning-local-runtime.mjs';
+import { buildCloudflarePlanning } from './build-web-planning.mjs';
 import { registerOwnedChild, terminateOwnedProcessTree } from './test-harness-process-lifecycle.mjs';
 import { browserBranchJourney } from './browser-web-planning-branches.mjs';
 const root=process.env.AUGNES_CANONICAL_TEMP_ROOT;if(!root)throw new Error('owned_browser_root_required');
@@ -26,6 +27,8 @@ async function state(c,expression){return c.eval(expression);}
 async function visible(c,id){return c.eval(`!!document.getElementById(${JSON.stringify(id)})&&!document.getElementById(${JSON.stringify(id)}).hidden`);}
 async function saved(c,n){await wait(()=>c.eval(`document.getElementById('saved-label')?.textContent.startsWith('Saved revision ${n} ')`),'saved '+n);}
 async function page(debug,origin){const target=await (await fetch(`http://127.0.0.1:${debug}/json/new?about:blank`,{method:'PUT'})).json();const c=await new CDP(target.webSocketDebuggerUrl).open();clients.push(c);
+ c.direct=origin.startsWith('https://127.0.0.1:');
+ if(c.direct)await c.send('Security.setIgnoreCertificateErrors',{ignore:true}); // Owned loopback workerd certificate only; external traffic is refused below.
  await c.send('Network.enable');await c.send('Runtime.enable');await c.send('Page.enable');
  c.handlers.push(m=>{if(m.method==='Runtime.exceptionThrown')exceptions++;
    if(m.method==='Network.requestWillBeSent'){const u=m.params.request.url;if(u.startsWith('http')&&!u.startsWith(origin+'/'))external++;if(u.endsWith('/save'))saveRequests++;
@@ -37,12 +40,24 @@ async function page(debug,origin){const target=await (await fetch(`http://127.0.
  return c;}
 async function intercept(c,p,origin){
  const u=p.request.url;
+ if(c.direct&&u===origin+'/cdn-cgi/access/logout'){
+   c.logoutObserved=true;
+   await local.setOptions({access:undefined});
+   return c.send('Fetch.fulfillRequest',{requestId:p.requestId,responseCode:200,responseHeaders:[{name:'Content-Type',value:'text/html'},{name:'Cache-Control',value:'no-store'}],body:Buffer.from('<title>Simulated Access logout boundary</title>').toString('base64')});
+ }
+ if(c.accessBoundary&&u.startsWith(origin+'/api/')){
+   const boundary=c.accessBoundary;c.accessBoundary=null;
+   // Chrome reports the intentionally un-followed manual redirect as aborted.
+   // Account for only this injected request; all other failures remain fatal.
+   if(boundary==='redirect')expectedFailures.add(p.networkId);
+   return c.send('Fetch.fulfillRequest',{requestId:p.requestId,responseCode:boundary==='redirect'?302:200,responseHeaders:[{name:'Content-Type',value:'text/html'},{name:'Cache-Control',value:'no-store'},...(boundary==='redirect'?[{name:'Location',value:origin+'/_access_login'}]:[])],body:Buffer.from('<h1>Access login challenge</h1>').toString('base64')});
+ }
  if(u.startsWith(origin+'/api/work/')&&u.endsWith('/compare')&&p.responseStatusCode===undefined){
    if(c.beforeCompare){const before=c.beforeCompare;c.beforeCompare=null;await before();}
    const failure=c.compareFailure;c.compareFailure=null;
    if(failure==='transport'){expectedFailures.add(p.networkId);return c.send('Fetch.failRequest',{requestId:p.requestId,errorReason:'ConnectionClosed'});}
    if(failure===503||failure===401)return c.send('Fetch.fulfillRequest',{requestId:p.requestId,responseCode:failure,responseHeaders:[{name:'Content-Type',value:'application/json'},{name:'Cache-Control',value:'no-store'}],body:Buffer.from(JSON.stringify({error:failure===503?'storage_unavailable':'access_denied'})).toString('base64')});
-   if(failure===403){await c.send('Network.clearBrowserCookies');return c.send('Fetch.continueRequest',{requestId:p.requestId,headers:Object.entries(p.request.headers).filter(([name])=>name.toLowerCase()!=='cookie').map(([name,value])=>({name,value}))});}
+   if(failure===403){if(c.direct)await local.setOptions({access:undefined});await c.send('Network.clearBrowserCookies');return c.send('Fetch.continueRequest',{requestId:p.requestId,headers:Object.entries(p.request.headers).filter(([name])=>name.toLowerCase()!=='cookie').map(([name,value])=>({name,value}))});}
  }
  if(p.responseStatusCode!==undefined){
    if(c.failListAfterReply){
@@ -182,7 +197,34 @@ try {
    restart:async()=>{const options={root:path.join(root,'runtime'),port:Number(new URL(origin).port),bindings:local.env,code:local.code};await local.close();local=null;local=await startLocal(options);}});
  assert.deepEqual(interceptionErrors,[]);
  await click(a,'signout');await wait(()=>a.eval("document.title==='Local synthetic workspace'"),'signout');assert(!await a.eval("document.body.innerText.includes('Evening noise')"));
+ // The same complete product journey now enters the compiled direct Worker
+ // through workerd's platform Access simulation, without local login cookies.
+ for(const c of clients)await navigate(c,'about:blank');await local.close();local=null;
+ const artifact=path.join(root,'direct-artifact');await buildCloudflarePlanning(artifact);
+ const directOptions={root:path.join(root,'direct-runtime'),direct:true,code:await readFile(path.join(artifact,'worker.js'),'utf8'),
+   runtimeConfig:JSON.parse(await readFile(path.join(artifact,'wrangler.json'),'utf8')),migrationsFolder:path.join(artifact,'migrations')};
+ local=await startLocal(directOptions);const directOrigin=local.origin;
+ async function accessLogin(c){await local.setOptions({access:accessSimulation});await navigate(c,directOrigin+'/');await wait(()=>c.eval("!!document.getElementById('new-work')&&document.getElementById('list-state')?.textContent!=='Reading saved work…'"),'Access workspace');}
+ const d=await page(debug,directOrigin);await accessLogin(d);const directStart=checks.length;
+ await browserBranchJourney({a:d,debug,origin:directOrigin,page,click,set,settled,saved,wait,visible,navigate,login:accessLogin,requestsOnly,requests,responses,revisionCount,checks,
+   restart:async()=>{const bindings=local.env;await local.close();local=null;local=await startLocal({...directOptions,port:Number(new URL(directOrigin).port),bindings});}});
+ for(let i=directStart;i<checks.length;i++)checks[i]='direct Access simulation: '+checks[i];
+ console.log('web-planning-browser: direct complete branch and comparison-recovery journey');
+ for(const boundary of ['redirect','challenge']){
+   d.accessBoundary=boundary;await click(d,'saved-context');await settled(d);
+   assert.equal(await d.eval("accessLost&&work===null&&saved===null&&comparison===null&&!document.getElementById('context-view')&&!document.body.innerText.includes('Access login challenge')"),true);
+   assert.equal(await d.eval("request('/api/works').then(()=>false,e=>e.message==='access_denied')"),true);
+   await accessLogin(d);await reopen(d);await settled(d);
+ }
+ // Observe clearing after the product click handler, before navigation destroys
+ // that document. Only this boolean crosses into the simulated logout page.
+ await d.eval("document.getElementById('signout').addEventListener('click',()=>{window.name=String(accessLost&&work===null&&saved===null&&pending===null&&saveTicket===null&&comparison===null&&!document.getElementById('editor'));},{once:true})");
+ await click(d,'signout');await wait(()=>d.eval("document.title==='Simulated Access logout boundary'"),'Access logout navigation');
+ assert.equal(await d.eval('window.name'),'true');
+ assert.equal(d.logoutObserved,true);assert.equal((await local.mf.dispatchFetch(directOrigin+'/api/works')).status,403);
+ checks.push('direct sign-out clears tab before navigating to Access logout; actual missing ctx.access refuses subsequent reads; login redirect/HTML challenge clears and latches private state; provider cookie revocation requires hosted acceptance');
+ assert.deepEqual(interceptionErrors,[]);
  assert.equal(exceptions,0);assert.equal(external,0);assert.equal(unexpectedFailures,0);assert.equal(expectedFailures.size,0);
- console.log(JSON.stringify({web_planning_browser_checks:checks,acknowledgement_checks:acknowledgementChecks,actual_agent_read:false,sites_ingress_verified:false,external_requests:external,script_exceptions:exceptions}));
+ console.log(JSON.stringify({web_planning_browser_checks:checks,acknowledgement_checks:acknowledgementChecks,actual_agent_read:false,sites_ingress_verified:false,cloudflare_access_hosted_verified:false,external_requests:external,script_exceptions:exceptions}));
 } finally {for(const c of clients)await c.close();if(processRecord)await terminateOwnedProcessTree(processRecord);if(local)await local.close();assert.equal(owned.size,0);console.log('web_planning_browser_cleanup_complete');}
 function privateViewCleared(s){return s.work===null&&s.saved===null&&s.pending===null&&s.saveTicket===null&&!s.body.includes('Private material')&&!s.body.includes('Saved revision');}

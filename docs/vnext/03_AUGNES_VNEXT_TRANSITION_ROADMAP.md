@@ -375,6 +375,18 @@ resource change. [01](./01_AUGNES_VNEXT_MASTERPLAN.md) owns product meaning;
 [02](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#14-product-projections-do-not-create-core-authority)
 retains the host-owned planning-envelope boundary.
 
+### Direct hosting adapter candidate (#1356)
+
+After the user-merged #1353, [#1356](https://github.com/hynk-studio/augnes/issues/1356)
+adds the [bounded direct Cloudflare adapter](../../apps/web_planning/README.md#direct-cloudflare-adapter-1356)
+for the existing product. Its Mac-side protected authentication checkpoint is
+satisfied; local implementation and exact-head evidence belong to its own Draft
+PR. The shared envelope, product behavior and Sites entry remain. Access/account
+readiness and hosted acceptance still precede post-merge use; local simulation
+does not establish them. #1354 stays open/deferred with its Sites resources and
+retained evidence untouched. This candidate grants no native or deployment
+authority and does not complete #1356 before staged review.
+
 <a id="current-p2p5--web-augnes-v0-task-a-1343"></a>
 
 ## P2/P5 — Web Augnes v0 Task A design record (#1343)

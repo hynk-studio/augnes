@@ -78,7 +78,8 @@ export async function checkBranching({start,client,newWork,save,edit,passed,open
  const blockedInc=(await inc(target,b,{...intent(b),rationale:'Faulted incorporation must not partially persist.'})).data;const before=(await read(target.work_id)).fingerprint;
  await local.db.prepare("CREATE TRIGGER incorporation_fault BEFORE INSERT ON web_planning_revision BEGIN SELECT RAISE(ABORT,'synthetic-incorporation-fault'); END").run();assert.equal((await commit(blockedInc)).status,503);assert.equal((await read(target.work_id)).fingerprint,before);await local.db.prepare('DROP TRIGGER incorporation_fault').run();
  passed('subsequent revisions/adaptation, explicit deferred judgment, missing qualifications, source/target drift, expiry, concurrent saves and atomic failure');
- const tampered=await branch(target);tampered.ticket=tampered.ticket.slice(0,-1)+(tampered.ticket.endsWith('a')?'b':'a');assert.equal((await commit(tampered)).status,403);
+ // Change a decoded signature byte, not the final base64url padding bits.
+ const tampered=await branch(target),[material,signature]=tampered.ticket.split('.');tampered.ticket=material+'.'+(signature[0]==='a'?'b':'a')+signature.slice(1);assert.equal((await commit(tampered)).status,403);
  for(const action of ['branch-preview','incorporation-preview','compare','relation-save','relation-resolve']) {
    const url='/api/work/'+target.work_id+'/'+action;
    assert.equal((await local.mf.dispatchFetch(local.origin+url,{method:'POST'})).status,403);
