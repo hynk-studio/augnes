@@ -1065,6 +1065,8 @@ const integrationChildren = [
   "policy-triggered-model-run",
   "project-home",
   "project-work-initialization",
+  "native-selected-source-budget",
+  "retained-source-capacity",
   "project-work-expectation",
   "reviewed-outcome-reuse",
   "ordinary-successor-expectation",
@@ -1160,6 +1162,16 @@ assert.equal(countOccurrences(firstWorkFixture, "await assertScopedNativeHostCon
   "the default initialization path must not repeat the scoped matrix");
 const successorExpectationRegistration = readCanonicalChildRegistration(integrationSource, "ordinary-successor-expectation");
 const reviewedOutcomeRegistration = readCanonicalChildRegistration(integrationSource, "reviewed-outcome-reuse");
+const selectedSourceBudgetRegistration = readCanonicalChildRegistration(integrationSource, "native-selected-source-budget");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"--selected-source-budget-only"'])
+  requireText(selectedSourceBudgetRegistration.block, fragment, "native source budget has one bounded complete owner");
+assert.equal(countOccurrences(firstWorkFixture, "await assertNativeSelectedSourceBudgetV01();"), 1,
+  "the full budget matrix runs once without extending the initialization child");
+const retainedSourceCapacityRegistration = readCanonicalChildRegistration(integrationSource, "retained-source-capacity");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 60_000', 'requireNaturalExit: true', '"--retained-source-capacity-only"'])
+  requireText(retainedSourceCapacityRegistration.block, fragment, "retained capacity has one bounded reader, proxy and recovery owner");
+assert.equal(countOccurrences(firstWorkFixture, "await assertRetainedSourceScanBudgetV01();"), 1,
+  "the cumulative history case runs once without extending the per-selection matrix");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"--reviewed-outcome-reuse-only"'])
   requireText(reviewedOutcomeRegistration.block, fragment, "saved review reuse has one bounded producer-to-consumer owner");
 assert.equal(countOccurrences(firstWorkFixture, "await assertReviewedOutcomeReuseV01();"), 1);

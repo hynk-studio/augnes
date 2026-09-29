@@ -3,6 +3,7 @@
 import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import net from "node:net";
+import { registerOwnedChild, cleanupOwnedProcesses, trackServerConnections, closeTrackedServer } from "../test-harness-process-lifecycle.mjs";
 
 const [mode, statePath, parentPid] = process.argv.slice(2);
 
@@ -14,7 +15,24 @@ if (mode === "nonzero") {
   process.exit(7);
 }
 
-if (mode === "hang") {
+if (mode === "cleanup-timers") {
+  const owner = new Set();
+  const child = spawn(process.execPath, ["--eval", 'process.stdout.write("ready\\n");setInterval(()=>{},1000);'], {
+    detached: process.platform !== "win32", stdio: ["ignore", "pipe", "pipe"], windowsHide: true,
+  });
+  registerOwnedChild(owner, child, { label: "cleanup deadline fixture" });
+  const server = trackServerConnections(net.createServer(socket => socket.destroy()));
+  try {
+    await new Promise(resolve => child.stdout.once("data", resolve));
+    await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+    writeFileSync(statePath, JSON.stringify({ child_pid: child.pid, port: server.address().port }));
+  } finally {
+    await cleanupOwnedProcesses(owner, { termGraceMs: 12_000 });
+    await closeTrackedServer(server, { timeoutMs: 3_000 });
+  }
+  if (owner.size !== 0 || server.listening) throw new Error("cleanup_deadline_fixture_unsettled");
+  // Natural exit must occur before either successfully cancelled deadline.
+} else if (mode === "hang") {
   process.on("SIGTERM", () => {
     writeFileSync(statePath, "sigterm_received\n", { mode: 0o600 });
     process.exit(0);

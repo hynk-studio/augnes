@@ -2,13 +2,16 @@ import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
 import type { PreExecutionProjectWorkChainInspectionV01 } from "@/lib/vnext/runtime/pre-execution-project-work-revision";
 import { PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01, MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01, type RetainedWorkSourceRef } from "@/types/vnext/project-work-revision";
 import type { TaskContextPacketSelectedEntryV01 } from "@/types/vnext/task-context-packet";
-import { normalizeRetainedWorkSourceRefs, readSelectedWorkSources, reviewedOutcomeSourceRef, SelectedWorkSourceError, SELECTED_WORK_SOURCE_LIMITS } from "./selected-work-source-comparison";
+import { normalizeRetainedWorkSourceRefs, readSelectedWorkSources, reviewedOutcomeSourceRef, SelectedWorkSourceError, NATIVE_SELECTED_WORK_SOURCE_LIMITS } from "./selected-work-source-comparison";
 
 export const RETAINED_WORK_SOURCE_LIMITS = {
   query_characters: 160, query_terms: 8, results: 8, result_utf8_bytes: 20_000,
   packets: MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01 + 1,
-  note_occurrences: (MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01 + 1) * SELECTED_WORK_SOURCE_LIMITS.entries,
-  scanned_entry_utf8_bytes: (MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01 + 1) * SELECTED_WORK_SOURCE_LIMITS.bytes,
+  note_occurrences: (MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01 + 1) * NATIVE_SELECTED_WORK_SOURCE_LIMITS.entries,
+  // Cumulative lookup capacity, independent of native per-packet admission.
+  // Exhaustion is unavailable lookup, not corrupt source material. Count every
+  // occurrence even when the same note is retained across revisions.
+  scanned_entry_utf8_bytes: 396_000,
 } as const;
 type Chain = Pick<PreExecutionProjectWorkChainInspectionV01, "packets" | "tip_packet">;
 export interface RetainedWorkSourceHit {
@@ -37,6 +40,7 @@ export function recallRetainedWorkSources(chain: Chain, query: unknown,
     for (const entry of readSelectedWorkSources(packet)) {
       scannedEntries += 1;
       scannedEntryBytes += utf8(entry);
+      if (scannedEntryBytes > RETAINED_WORK_SOURCE_LIMITS.scanned_entry_utf8_bytes) throw new SelectedWorkSourceError("retained_source_scan_bound_exceeded");
       const previous = unique.get(entry.entry_id);
       if (previous) {
         previous.packet_occurrences += 1;

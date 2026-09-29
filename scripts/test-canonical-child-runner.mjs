@@ -99,6 +99,16 @@ try {
   assert.equal(success.timed_out, false);
   assert(success.duration_ms >= 0);
 
+  const cleanupState = path.join(temporaryRoot, "cleanup-timers.json");
+  const cleanupTimers = await runFixture("cleanup-timers", { statePath: cleanupState, timeoutMs: 2_000 });
+  assert.equal(canonicalChildAcceptanceFailure(cleanupTimers, {
+    suite: "runner-regression", timeoutMs: 2_000, requireNaturalExit: true,
+  }), null, "Settled cleanup must cancel losing deadlines and exit naturally");
+  const cleanupIdentity = JSON.parse(readFileSync(cleanupState, "utf8"));
+  observedPids.add(cleanupIdentity.child_pid); observedPorts.add(cleanupIdentity.port);
+  await assertProcessGone(cleanupIdentity.child_pid);
+  assert.equal(await canConnect(cleanupIdentity.port), false);
+
   const inheritedStreamState = path.join(
     temporaryRoot,
     "exit-with-inherited-stream.json",

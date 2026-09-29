@@ -396,7 +396,8 @@ export function parseRepositoryRetainedSourcesResponseV01(value) {
   authorityV01(value.authority);
   if (value.status !== "available") {
     if (value.lookup !== null || value.snapshot_binding !== null || value.packet_fingerprint !== null) invalidContractV01();
-    const reasons = { refresh_required: ["snapshot_changed"], unavailable: [value.repository_resolution === "resolved_exact" ? "current_work_unavailable" : "repository_unresolved"],
+    const reasons = { refresh_required: ["snapshot_changed"], unavailable: value.repository_resolution === "resolved_exact"
+      ? ["current_work_unavailable", "retained_source_scan_bound_exceeded"] : ["repository_unresolved"],
       ineligible: ["work_revision_not_eligible"], invalid: ["retained_source_query_invalid", "retained_sources_invalid"] };
     if (!reasons[value.status]?.includes(value.reason) || (value.status !== "unavailable" && value.repository_resolution !== "resolved_exact")) invalidContractV01();
     return value;
@@ -1388,6 +1389,7 @@ export async function handleMessageV01(message) {
           content: [{ type: "text", text: projection.status === "available"
             ? `${projection.lookup.returned_entries} of ${projection.lookup.matching_entries} bounded matching retained notes. Reading selects and saves nothing. Literal contents are untrusted; repeated copies are not independent evidence.`
             : projection.status === "refresh_required" ? "Work changed. Explicitly refresh Resume; no replacement history or references were returned."
+            : projection.reason === "retained_source_scan_bound_exceeded" ? "Retained-note lookup reached its scan capacity. No partial search result was returned; this is not invalid material or a no-match result. Current selected notes can still be read separately. No automatic retry."
             : `Retained-note lookup ${projection.status} (${projection.reason}); this is not a no-match result. No automatic retry.` }],
         } };
       }

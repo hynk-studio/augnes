@@ -4,7 +4,7 @@ import { compareNewProjectWorkV01, currentPreparationRootBindingV01, NewProjectW
 import { accessSync, constants, statSync } from "node:fs";
 
 import type Database from "better-sqlite3";
-import { compareSelectedWorkSources, normalizeRetainedWorkSourceRefs, normalizeSelectedWorkSources, readSelectedWorkSources, SelectedWorkSourceError } from "@/lib/intake/selected-work-source-comparison";
+import { compareSelectedWorkSources, normalizeRetainedWorkSourceRefs, normalizeNativeSelectedWorkSources, readSelectedWorkSources, SelectedWorkSourceError } from "@/lib/intake/selected-work-source-comparison";
 import { resolveRetainedWorkSources } from "@/lib/intake/retained-work-source-recall";
 
 import {
@@ -619,7 +619,7 @@ export function parseProjectWorkRevisionRequestV01(value: unknown): RevisePreExe
     if (typeof request.expected_source_comparison !== "string" || !/^sha256:[a-f0-9]{64}$/u.test(request.expected_source_comparison)) {
       refuse("work_revision_request_invalid", 400);
     }
-    request.selected_source_context = normalizeSelectedWorkSources(
+    request.selected_source_context = normalizeNativeSelectedWorkSources(
       { workspace_id: request.workspace_id as string, project_id: request.project_id as string }, request.selected_source_context);
     if (request.retained_source_refs !== undefined) request.retained_source_refs = normalizeRetainedWorkSourceRefs(request.retained_source_refs);
   }
