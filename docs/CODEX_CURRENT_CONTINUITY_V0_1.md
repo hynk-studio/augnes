@@ -181,7 +181,10 @@ and recovery accept the larger native selection. Older readers still refuse
 selections above their 12,000-byte ceiling, so such records require a reader with
 this native allowance. This is admission capacity, not a token or provider-cost
 budget; packet, GuideBrief and host request limits remain separate. Companion
-bulk edits retain their 16 KiB request envelope. Retained lookup preserves its
+work-revision preview/save also permits a 64,000-byte request envelope for compact
+note edits, definition changes and exact bindings; its wire shape and proxy parser
+are unchanged. Read-only Resume and source/retained lookup retain their 16 KiB
+request envelopes. Retained lookup preserves its
 396,000-byte cumulative scan and 20,000-byte result ceilings; a large revision
 history can exceed the lookup ceiling without invalidating its current selection.
 
