@@ -17,6 +17,7 @@ import {
   normalizeInitialProjectWorkDefinitionV01,
 } from "@/lib/vnext/runtime/initial-project-work-context";
 import { readVNextLocalOperatorSessionHistoryV01 } from "@/lib/vnext/runtime/local-operator-session";
+import { isNonBlockingPreExecutionRecordV01 } from "./pre-execution-project-work-history";
 import { inspectProjectManagedRunHistoryV01 } from "@/lib/vnext/runtime/project-managed-run-history";
 import { VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01 } from "@/lib/vnext/runtime/persisted-semantic-context-compiler";
 import {
@@ -743,8 +744,7 @@ function validatePreExecutionHistoryAtEachRevisionV01(
     }>;
     if (
       coreRows.some(
-        (row) =>
-          row.record_kind !== "work_expectation_record" && (row.record_kind !== "task_context_packet" || !allowed.has(row.record_id)),
+        (row) => !isNonBlockingPreExecutionRecordV01(db, input, row, allowed),
       )
     ) {
       refuse("work_revision_history_predates_revision", 409);

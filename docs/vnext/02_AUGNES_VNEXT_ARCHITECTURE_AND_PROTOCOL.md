@@ -541,17 +541,24 @@ NativeHostRequest, or portable-project version bump.
 revising defined work before execution. It binds the exact current packet ID
 and fingerprint, current lineage kind, linear revision count, active selection,
 root availability, and a bounded eligibility reason. It composes the existing
-initialization owner with the fail-closed managed-run-history owner. Any exact
-project run row, Core work history outside the valid packet chain, semantic
-state/head, semantic successor, ambiguous or invalid lineage, unavailable
+initialization owner with the fail-closed managed-run-history owner. In the
+initial/pre-execution preparation family, any exact
+project run row, blocking Core work history, semantic state/head, semantic
+successor, ambiguous or invalid lineage, unavailable
 source, inactive project, unavailable root, or the fixed 32-revision bound
-blocks revision.
+blocks revision. Canonical Evidence support material and existing work-expectation
+records may coexist with the validated preparation chain. Evidence is read through
+its canonical owner, including scope, payload/envelope integrity and reserved
+producer-source authentication; malformed or forged material fails closed. This
+exception selects no worker context and accepts no Claim or Evidence. Claims,
+relations, proposals, decisions, execution and Transition records remain blocking.
+The same rule applies at each historical revision cutoff and current admission.
 
 `revisePreExecutionProjectWorkV01` is an authenticated compare-and-set mutation.
 It reuses the initial-work normalizer and all code-point, list, control-character,
 UTF-8, and packet-budget limits. In one immediate transaction it revalidates
 session admission, project/selection/root scope, exact current packet identity,
-lineage, zero execution/work history, and revision count. An unchanged
+lineage, no execution or blocking work history, and revision count. An unchanged
 normalized definition is `exact_replay` with no write. An identical concurrent
 successor may replay; any different stale request refuses.
 
@@ -575,15 +582,18 @@ pre_execution_user_revision
   → no StateTransitionReceipt
 ```
 
-The latest valid linear revision tip is current until work/history appears or a
-later normal semantic Transition compiles its successor. Branches, cycles,
+The latest valid linear revision tip remains the current preparation. Blocking
+work history closes revision; a normal semantic Transition compiles its successor. Branches, cycles,
 missing packets, fingerprint drift, duplicate revision identity, timestamp
 inversion, invalid provenance, and ambiguous tips fail closed. NativeHostRequest
 uses an additive revision lineage branch and a new packet-bound run identity;
 the historical semantic-transition shape and semantic/initial identities remain
 unchanged. Portable project v0.1, backup, restore, and recovery preserve and
 canonically revalidate the entire chain without a schema or portable-contract
-version bump.
+version bump. The Evidence exception is a reconstruction-rule correction: no packet,
+fingerprint, source selection or historical row is rewritten. Older readers retain
+their broader refusal and cannot reconstruct revisions preceded by Evidence;
+rollback preserves the data but needs an updated reader to use those chains.
 
 #### Explicit different-task preparation before execution
 
@@ -608,7 +618,7 @@ A preview shows both definitions (goal, success criteria and non-goals), selecte
 context, omissions and their reasons, and that the old work is not marked
 complete. It writes nothing. Save requires the reviewed comparison and independent
 authentication. `BEGIN IMMEDIATE` covers admission, exact active selection/root/
-current-packet checks, zero managed-run/other-work/semantic-history eligibility,
+current-packet checks, no managed-run/blocking-work/semantic-history eligibility,
 insertion and reconstruction. A run admitted after preview blocks save; invalid
 or ambiguous history, changed material or stale bindings refuse atomically.
 Only an identical immediate successor can be acknowledged as replay; a later

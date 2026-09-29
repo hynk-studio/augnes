@@ -73,8 +73,8 @@ export interface ProjectWorkRevisionEligibilityV01 {
   status: ProjectWorkRevisionEligibilityStatusV01;
   reason:
     | "current_unexecuted_successor"
-    | "current_initial_packet_zero_history"
-    | "current_revision_packet_zero_history"
+    | "current_unexecuted_initial"
+    | "current_unexecuted_revision"
     | "managed_run_history_present"
     | "durable_work_history_present"
     | "operational_continuation_not_revisable"
