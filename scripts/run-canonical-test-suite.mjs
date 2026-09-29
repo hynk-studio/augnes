@@ -675,6 +675,15 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      id: "current-work-read",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem"],
+      label: "current-work read parity, bounded reuse, snapshot isolation and fresh writer reconstruction",
+      ...rootNode("scripts/test-codex-repository-continuity.ts", "--current-work-read-only"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "pre-execution-support-material",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning"],

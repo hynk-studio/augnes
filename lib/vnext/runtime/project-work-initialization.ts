@@ -30,7 +30,7 @@ import {
 } from "@/lib/vnext/runtime/initial-project-work-context";
 import {
   VNextOperatorPilotContinuityErrorV01,
-  inspectVNextOperatorPilotPacketLineageV01,
+  inspectVNextOperatorPilotPacketLineagesV01,
 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
 import {
   VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
@@ -257,7 +257,7 @@ function readProjectWorkInitializationStrictV01(
   );
   const invalidPacketReasons: ProjectWorkInitializationV01["reason"][] = [];
   let validInitialPacketCount = 0;
-  const inspected = packetRecords.flatMap((record) => {
+  const validPackets = packetRecords.flatMap((record) => {
     const packet = record.payload as TaskContextPacketV01;
     try {
       if (
@@ -279,23 +279,7 @@ function readProjectWorkInitializationStrictV01(
       ) {
         validInitialPacketCount += 1;
       }
-      const lineage = inspectVNextOperatorPilotPacketLineageV01(db, {
-        config: {
-          enabled: true,
-          workspace_id: input.workspace_id,
-          project_id: input.project_id,
-          operator_id: "initialization-read",
-          database_path: ":bounded-read:",
-        },
-        packet_id: packet.packet_id,
-        packet_fingerprint: packet.integrity.fingerprint,
-      });
-      return [{
-        packet,
-        lineage_kind: lineage.lineage_kind,
-        projection_current: lineage.projection_current,
-        prior_packet: lineage.prior_packet,
-      }];
+      return [packet];
     } catch {
       // A packet whose exact executable lineage cannot be proven is durable
       // history, not evidence that this project has never had work. Keep it
@@ -304,6 +288,20 @@ function readProjectWorkInitializationStrictV01(
       if (invalidReason) invalidPacketReasons.push(invalidReason);
       return [];
     }
+  });
+  const lineages = inspectVNextOperatorPilotPacketLineagesV01(db, {
+    config: { enabled: true, ...input, operator_id: "initialization-read", database_path: ":bounded-read:" },
+    packets: validPackets.map((packet) => ({ packet_id: packet.packet_id, packet_fingerprint: packet.integrity.fingerprint })),
+  });
+  const inspected = validPackets.flatMap((packet, index) => {
+    const lineage = lineages[index];
+    if (!lineage) {
+      const invalidReason = invalidPacketReasonV01(packet);
+      if (invalidReason) invalidPacketReasons.push(invalidReason);
+      return [];
+    }
+    return [{ packet, lineage_kind: lineage.lineage_kind,
+      projection_current: lineage.projection_current, prior_packet: lineage.prior_packet }];
   });
   // A sparse predecessor may still select only current state. Work succession
   // comes from validated packet lineage, not equality with all canonical state.

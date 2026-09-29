@@ -1065,6 +1065,7 @@ const integrationChildren = [
   "policy-triggered-model-run",
   "project-home",
   "project-work-initialization",
+  "current-work-read",
   "pre-execution-support-material",
   "native-selected-source-budget",
   "retained-source-capacity",
@@ -1164,6 +1165,9 @@ assert.equal(countOccurrences(firstWorkFixture, "await assertScopedNativeHostCon
 const successorExpectationRegistration = readCanonicalChildRegistration(integrationSource, "ordinary-successor-expectation");
 const reviewedOutcomeRegistration = readCanonicalChildRegistration(integrationSource, "reviewed-outcome-reuse");
 const supportMaterialRegistration = readCanonicalChildRegistration(integrationSource, "pre-execution-support-material");
+const currentWorkReadRegistration = readCanonicalChildRegistration(integrationSource, "current-work-read");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"--current-work-read-only"'])
+  requireText(currentWorkReadRegistration.block, fragment, "current-work read isolation has its own bounded child");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 60_000', 'requireNaturalExit: true', '"process-owning"', '"--support-material-revision-only"'])
   requireText(supportMaterialRegistration.block, fragment, "support material has one complete admission, reconstruction and consumer owner");
 const selectedSourceBudgetRegistration = readCanonicalChildRegistration(integrationSource, "native-selected-source-budget");

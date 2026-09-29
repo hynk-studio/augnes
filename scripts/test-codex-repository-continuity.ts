@@ -31,7 +31,7 @@ import { buildSelectedWorkSourceEntry, compareSelectedWorkSources, normalizeSele
 import { readProjectWorkInitializationV01 } from "../lib/vnext/runtime/project-work-initialization";
 import { insertVNextCoreRecordV01 } from "../lib/vnext/persistence/durable-semantic-store";
 import { buildTaskContextPacketV01, validateTaskContextPacketV01 } from "../lib/vnext/task-context-packet";
-import { inspectVNextOperatorPilotPacketLineageV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity";
+import { inspectVNextOperatorPilotPacketLineageV01, inspectVNextOperatorPilotPacketLineagesV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity";
 import { StateRuntimeHttpAdapter } from "../apps/augnes_apps/src/adapters/state-runtime-http";
 import {
   readCodexRepositoryContinuityV01,
@@ -81,6 +81,7 @@ async function main(): Promise<void> {
     return;
   }
   if (process.argv.includes("--support-material-revision-only")) { await assertSupportMaterialRevisionV01(); return; }
+  if (process.argv.includes("--current-work-read-only")) { assertCurrentWorkReadV01(); return; }
   if (process.argv.includes("--new-work-only")) { await assertNewWorkPreparationV01(); return; }
   if (process.argv.includes("--work-revision-only") || process.argv.includes("--work-revision-limit-only")) {
     await assertCompanionWorkRevisionV01(process.argv.includes("--work-revision-limit-only"));
@@ -105,6 +106,158 @@ async function main(): Promise<void> {
     same_path_replacement_baseline: false,
     selected_sources_snapshot_and_route_contract: true,
   }, null, 2));
+}
+
+/** Separate bounded child: read reuse must not become cross-write authority. */
+function assertCurrentWorkReadV01(): void {
+  const db = databaseV01("current-work-read");
+  try {
+    db.pragma("journal_mode = WAL");
+    const workspace = workspaceV01(db), root = projectRootV01("current-work-read");
+    const registration = registerV01(db, workspace.workspace_id, root, "Current read", "67000000-0000-4000-8000-000000000001");
+    const scope = { workspace_id: workspace.workspace_id, project_id: registration.project.project_id };
+    selectV01(db, scope.workspace_id, scope.project_id, null, null);
+    const config: VNextLocalOperatorPilotConfigV01 = { enabled: true, ...scope, operator_id: "operator:current-read", database_path: db.name };
+    let ticks = 0;
+    const clock = { now: () => new Date(Date.parse(NOW) + ticks++ * 1000).toISOString() };
+    const credential = () => consumeVNextLocalOperatorBootstrapV01(db, { config, clock,
+      bootstrap_token: issueVNextLocalOperatorBootstrapV01(db, { config, clock }).bootstrap_token }).credential;
+    let packet = defineInitialProjectWorkV01(db, { config, clock, credential: credential(), request: {
+      action: "define_initial_project_work", ...scope, expected_active_project_id: scope.project_id,
+      expected_active_selection_revision: 1, expected_initialization_state: "not_defined",
+      goal: "Read one coherent preparation", success_criteria: ["Keep exact lineage"], non_goals: ["No execution"],
+    } }).packet;
+    const evidence = [0, 1, 2, 3].map((i) => {
+      const at = clock.now(), ref = { ref_version: "external_ref.v0.1" as const, ref_type: "project_verify_source",
+        external_id: `note:read-${i}`, trust_class: "user_declaration" as const, observed_at: at };
+      const record = buildEvidenceRecordV01({ ...scope, identity_namespace: "augnes.test.current-read.v0.1", identity_key: String(i),
+        evidence_kind: "user_declared_material", subject_refs: [ref], source_refs: [ref], source_observed_or_reported_at: at,
+        recorded_at: at, trust_class: "user_declaration", coverage: "partial", bounded_summary: `Unselected support ${i}`,
+        material_fingerprint: null, limitations: ["Not acceptance"], uncertainty: ["Unverified"],
+        producer: { producer_kind: "user", producer_profile: "disposable-current-read.v0.1" } });
+      assert.equal(admitEvidenceRecordV01(db, { ...scope, evidence: record }).status, "inserted");
+      return record;
+    });
+    const request = (goal: string) => ({ action: "revise_pre_execution_project_work" as const, ...scope,
+      expected_active_project_id: scope.project_id, expected_active_selection_revision: 1,
+      expected_current_packet_id: packet.packet_id, expected_current_packet_fingerprint: packet.integrity.fingerprint,
+      expected_current_lineage_kind: packetLineageKindV01(packet)!, ...packet.task, goal });
+    for (let i = 1; i <= 3; i++) packet = revisePreExecutionProjectWorkV01(db, {
+      config, clock, credential: credential(), request: request(`Revision ${i}`),
+    }).packet;
+    const chain = inspectPreExecutionProjectWorkRevisionChainV01(db, scope);
+    const identities = chain.packets.map((p) => ({ packet_id: p.packet_id, packet_fingerprint: p.integrity.fingerprint }));
+    const standalone = identities.map((identity) => inspectVNextOperatorPilotPacketLineageV01(db, { config, ...identity }));
+    const batch = (database = db, projectConfig = config) => inspectVNextOperatorPilotPacketLineagesV01(database, { config: projectConfig, packets: identities });
+    const before = db.serialize();
+    assert.deepEqual(batch(), standalone, "batch preserves every standalone lineage field");
+    const expected = readProjectWorkInitializationV01(db, scope);
+    assert.equal(expected.state, "defined_revised_work");
+    assert.equal(expected.revision_eligibility.eligible, true);
+    assert.deepEqual(db.serialize(), before);
+
+    // Count actual executed reads, not prepared statements or inferred exports.
+    const prepare = db.prepare.bind(db);
+    let evidenceReads = 0, chainLoads = 0;
+    db.prepare = ((sql: string) => {
+      const statement = prepare(sql);
+      if (/SELECT \* FROM vnext_core_records/u.test(sql)) {
+        const get = statement.get.bind(statement);
+        statement.get = ((...args: unknown[]) => { if (args[0] === "evidence_record") evidenceReads++; return get(...args); }) as typeof statement.get;
+      }
+      if (/record_kind = 'task_context_packet'[\s\S]*LIMIT/u.test(sql)) {
+        const all = statement.all.bind(statement);
+        statement.all = ((...args: unknown[]) => { chainLoads++; return all(...args); }) as typeof statement.all;
+      }
+      return statement;
+    }) as typeof db.prepare;
+    try { assert.deepEqual(readProjectWorkInitializationV01(db, scope), expected); }
+    finally { db.prepare = prepare; }
+    assert.equal(chainLoads, 2, "eligibility and the private packet batch each reconstruct once");
+    assert.equal(evidenceReads, evidence.length * 3, "canonical Evidence once per chain plus current eligibility");
+    assert.deepEqual(batch(db, { ...config, project_id: "project:foreign" }), identities.map(() => null));
+
+    // A serialized WAL database needs a file-backed reopen; an in-memory
+    // deserialize cannot provide its WAL sidecars.
+    const copyPath = path.join(ROOT, "current-work-read-copy.db");
+    writeFileSync(copyPath, db.serialize());
+    const copy = new Database(copyPath);
+    try {
+      assert.deepEqual(batch(copy), standalone, "same identities in another database require their own read");
+      const trigger = copy.prepare("SELECT sql FROM sqlite_master WHERE name = 'trg_vnext_core_records_immutable_update'").get() as { sql: string };
+      copy.exec("BEGIN");
+      copy.exec("DROP TRIGGER trg_vnext_core_records_immutable_update");
+      copy.prepare("UPDATE vnext_core_records SET payload_json = '{}' WHERE record_id = ?").run(evidence[0]!.evidence_id);
+      copy.exec(trigger.sql);
+      assert(batch(copy).slice(1).every((lineage) => lineage === null), "same-connection mutation cannot reuse an earlier validation");
+      assert.equal(readProjectWorkInitializationV01(copy, scope).current_packet, null);
+      assert.deepEqual(batch(), standalone, "corrupt copy cannot poison a different database");
+      copy.exec("ROLLBACK");
+      assert.deepEqual(batch(copy), standalone, "rollback gets a fresh complete reconstruction");
+    } finally { copy.close(); }
+
+    const blockingClaim = (key: string) => buildClaimRecordV01({ ...scope,
+      family_origin: { origin_namespace: "augnes.test.current-read-claim.v0.1", origin_seed: key,
+        origin_profile: evidence[0]!.producer.producer_profile, origin_producer_kind: "user" },
+      revision: 1, prior_claim_ref: null, operation_intent: "create", operation_target_claim_ref: null,
+      proposition: "A Claim remains blocking preparation history.", subject_refs: evidence[0]!.subject_refs, source_refs: evidence[0]!.source_refs,
+      applicability_scope: createClaimApplicabilityScopeV01({ subject_refs: evidence[0]!.subject_refs }),
+      limitations: ["No acceptance"], uncertainty: ["Unverified"], producer: evidence[0]!.producer, created_at: evidence[0]!.recorded_at,
+    });
+    // Inject a legitimate material write after packet insertion, in the writer's
+    // own transaction. Post-insert reconstruction must not reuse its pre-read.
+    const authorized = credential(), beforeFailedWrite = db.serialize();
+    let injected = false;
+    db.prepare = ((sql: string) => {
+      const statement = prepare(sql);
+      if (/INSERT INTO vnext_core_records/u.test(sql)) {
+        const run = statement.run.bind(statement);
+        statement.run = ((...args: unknown[]) => {
+          const result = run(...args);
+          if (!injected && args[0] === "task_context_packet") {
+            injected = true;
+            admitClaimRecordV01(db, { ...scope, claim: blockingClaim("post-insert") });
+          }
+          return result;
+        }) as typeof statement.run;
+      }
+      return statement;
+    }) as typeof db.prepare;
+    try { assert.throws(() => revisePreExecutionProjectWorkV01(db, { config, clock, credential: authorized, request: request("Must roll back") }), /work_revision_history_predates_revision/u); }
+    finally { db.prepare = prepare; }
+    assert(injected);
+    assert.deepEqual(db.serialize(), beforeFailedWrite, "post-insert refusal rolls back packet, Claim and authorization consumption");
+    assert.deepEqual(readProjectWorkInitializationV01(db, scope), expected);
+
+    // A second connection commits during the batch after its first packet read.
+    // WAL lets that writer finish; the active read sees one earlier snapshot.
+    const writer = new Database(db.name);
+    let committed = false;
+    db.prepare = ((sql: string) => {
+      const statement = prepare(sql);
+      if (/SELECT \* FROM vnext_core_records/u.test(sql)) {
+        const get = statement.get.bind(statement);
+        statement.get = ((...args: unknown[]) => {
+          const value = get(...args);
+          if (!committed && args[0] === "task_context_packet") {
+            committed = true;
+            admitClaimRecordV01(writer, { ...scope, claim: blockingClaim("concurrent") });
+          }
+          return value;
+        }) as typeof statement.get;
+      }
+      return statement;
+    }) as typeof db.prepare;
+    try { assert.deepEqual(batch(), standalone, "a concurrent commit cannot mix snapshots within the batch"); }
+    finally { db.prepare = prepare; writer.close(); }
+    assert(committed);
+    assert(batch().slice(1).every((lineage) => lineage === null), "next batch must observe the committed historical blocker");
+    assert.equal(readProjectWorkInitializationV01(db, scope).current_packet, null);
+    assert.throws(() => inspectPreExecutionProjectWorkRevisionChainV01(db, scope), /work_revision_history_predates_revision/u);
+    console.log(JSON.stringify({ current_work_read: "pass", chain_loads: chainLoads, canonical_evidence_reads: evidenceReads,
+      exact_lineage_parity: true, cross_database_and_scope: true, rollback: true, post_insert_validation: true,
+      concurrent_snapshot: true, fresh_read_after_commit: true }));
+  } finally { db.close(); }
 }
 
 /** Operational shape: 14 packets, five bounded selected notes, no retained data. */
