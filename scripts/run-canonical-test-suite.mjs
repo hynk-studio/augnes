@@ -675,6 +675,15 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      id: "native-selected-source-budget",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem"],
+      label: "native selected-source byte boundaries, authenticated save, reopen, portability and worker delivery",
+      ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--selected-source-budget-only"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "project-work-expectation",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem"],

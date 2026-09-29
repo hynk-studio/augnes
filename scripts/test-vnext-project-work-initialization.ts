@@ -199,7 +199,6 @@ async function main(): Promise<void> {
     assertInitialWorkPortabilityV01();
     assertRevisionPortabilityAndRecoveryV01();
     await assertSelectedSourceNextWorkV01();
-    await assertNativeSelectedSourceBudgetV01();
     await assertWebMcpCurrentReadV01();
     await assertRetainedSourceRecallV01();
     await assertSeparateNativeHostStartV01();
