@@ -173,14 +173,17 @@ currentness. Missing observation times are explicitly `null`; selected-source
 currentness remains `unknown`. The canonical whole-note limits (eight entries,
 2,000 characters each, 32,000 serialized source-entry bytes) apply before
 projection. Invalid or over-budget sources refuse; nothing is silently clipped.
-The native comparison/save route permits a 64,000-byte request envelope for the
-selected entries, bounded work definition and bindings. Hosted planning and
+The native Browser comparison/save route permits a 64,000-byte request envelope
+for the selected entries, bounded work definition and bindings. Hosted planning and
 hosted snapshot projection retain their 12,000-byte selection contract. Stored
 entries and historical fingerprints are unchanged; current-code export/import
 and recovery accept the larger native selection. Older readers still refuse
 selections above their 12,000-byte ceiling, so such records require a reader with
 this native allowance. This is admission capacity, not a token or provider-cost
-budget; packet, GuideBrief, host request and retained-result limits remain separate.
+budget; packet, GuideBrief and host request limits remain separate. Companion
+bulk edits retain their 16 KiB request envelope. Retained lookup preserves its
+396,000-byte cumulative scan and 20,000-byte result ceilings; a large revision
+history can exceed the lookup ceiling without invalidating its current selection.
 
 The opt-in connected-project reader requests `include_work_definition: true`
 on that same private route. Only this exact additional input is admitted; the

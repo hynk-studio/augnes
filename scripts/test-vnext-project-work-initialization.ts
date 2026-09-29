@@ -6069,6 +6069,7 @@ async function assertNewWorkAdmissionV01(): Promise<void> {
 async function assertNativeSelectedSourceBudgetV01(): Promise<void> {
   const { createVNextOperatorContextUseReviewHandlerV01: postFactory } = await import('@/app/api/vnext/operator/project-continuity/route');
   const { readCodexRepositoryWorkSourcesV01 } = await import('@/lib/vnext/codex-repository-continuity/codex-repository-work-sources');
+  const { parseRepositoryRetainedSourcesResponseV01 } = await import('../plugins/augnes-operator/mcp/companion-proxy.mjs');
   const measure=(v:unknown)=>Buffer.byteLength(canonicalizeProtocolValueV01(v));
   for (const [name,n,size,ch,time] of [
     ['2x2000',2,2000,'a',null],['4x1000',4,1000,'a',null],['8x500',8,500,'a',null],['8x50',8,50,'a',null],
@@ -6128,6 +6129,10 @@ async function assertNativeSelectedSourceBudgetV01(): Promise<void> {
             const resumed=await readCodexCurrentContinuityV01(fresh,{viewed_project_id:fixture.project_id},dependencies);
             const sourceRead=await readCodexRepositoryWorkSourcesV01(fresh,{repository_root:fixture.root,expected_snapshot_binding:resumed.snapshot.binding!,include_work_definition:true},dependencies);
             row.codex_read_status=sourceRead.status;row.codex_sources=sourceRead.sources.length;assert.equal(sourceRead.status,'available');assert.equal(sourceRead.sources.length,n);
+            const retained=await readCodexRepositoryRetainedSourcesV01(fresh,{repository_root:fixture.root,expected_snapshot_binding:resumed.snapshot.binding!,query:ch==='index'?'a':ch},dependencies);
+            assert.equal(retained.status,'available');assert.equal(retained.lookup?.limits.scanned_entry_utf8_bytes,396_000);
+            assert.deepEqual(parseRepositoryRetainedSourcesResponseV01(JSON.parse(JSON.stringify(retained))),retained);
+            row.companion_retained_projection='accepted by real proxy parser';
             const admission=await admitPersistedHostTaskContextPacketV01(fresh,{config:fixture.config,packet_id:current.packet_id,packet_fingerprint:current.integrity.fingerprint,evaluated_at:'2026-08-01T00:00:04.000Z'});
             row.packet_bytes=measure(admission.packet);row.guide_bytes=measure(buildTaskStartGuideBriefCodexProjectionV02({packet:admission.packet,project_name:'Audit'}));
           }finally{fresh.close()}
@@ -6155,4 +6160,48 @@ async function assertNativeSelectedSourceBudgetV01(): Promise<void> {
       console.log(JSON.stringify(row));
     }finally{fixture.db.close()}
   }
+  assertRetainedSourceScanBudgetV01();
+}
+
+function assertRetainedSourceScanBudgetV01(): void {
+  const fixture=createFixtureV01('retained-scan-budget',true,true,true);
+  try {
+    const credential=authenticatedSessionV01(fixture,'scan-budget');
+    const initial=defineInitialProjectWorkV01(fixture.db,{config:fixture.config,credential,request:requestV01(fixture),clock:fixedClock(T2)});
+    const origin=inspectInitialProjectWorkPacketLineageV01(fixture.db,{...fixture,packet:initial.packet}).definition_ref;
+    const entries=normalizeNativeSelectedWorkSources(fixture,Array.from({length:8},(_,index)=>buildSelectedWorkSourceEntry(fixture,{
+      source:`note-${index}`,text:'한'.repeat(850),observed_at:null,provenance:'user_declaration',label:'Open question',
+    })));
+    let packet=initial.packet;
+    let admittedBytes=0;
+    // Use the same production builder and Core writer as the existing revision
+    // limit fixture, then validate the complete chain through its real owner.
+    for(let index=1;index<=13;index++) {
+      const definition={goal:`Retained scan revision ${index}`,success_criteria:['Preserve complete notes'],non_goals:[]};
+      const request={...revisionRequestV01(fixture,packet,index===1?'initial_user_defined':'pre_execution_user_revision',definition),
+        selected_source_context:entries,expected_source_comparison:compareSelectedWorkSources(packet,entries).fingerprint};
+      const generated_at=new Date(Date.parse(T2)+index*1000).toISOString();
+      const revised=buildPreExecutionProjectWorkRevisionPacketV01({request,operator_id:fixture.config.operator_id,
+        session_id:credential.session_id,revision_number:index,definition,prior_packet:packet,
+        origin_first_work_definition_ref:origin,generated_at});
+      insertVNextCoreRecordV01(fixture.db,{record_kind:'task_context_packet',record_id:revised.packet.packet_id,
+        workspace_id:fixture.workspace_id,project_id:fixture.project_id,fingerprint:revised.packet.integrity.fingerprint,
+        idempotency_key:revised.lineage.idempotency_key,payload:revised.packet,created_at:generated_at});
+      packet=revised.packet;
+      if(index===12) {
+        const lookup=recallRetainedWorkSources(inspectRevisableProjectWorkChainV01(fixture.db,fixture),'한');
+        admittedBytes=lookup.scanned_entry_utf8_bytes;
+        assert(admittedBytes<=396_000);
+      }
+    }
+    const chain=inspectRevisableProjectWorkChainV01(fixture.db,fixture);
+    const before=fixture.db.serialize();
+    assert.throws(()=>recallRetainedWorkSources(chain,'한'),/retained_source_scan_bound_exceeded/);
+    assert(before.equals(fixture.db.serialize()));
+    assert.equal(readProjectWorkInitializationV01(fixture.db,fixture).state,'defined_revised_work');
+    assert.deepEqual(readSelectedWorkSources(chain.tip_packet),entries);
+    assert.equal(validateRecoveryCanonicalDatabaseV01(fixture.db).status,'valid');
+    console.log(JSON.stringify({retained_scan_budget:396_000,admitted_snapshots:12,admitted_bytes:admittedBytes,
+      refused_snapshots:13,current_selection:'preserved',recovery:'valid',writes_by_lookup:0}));
+  } finally { fixture.db.close(); }
 }

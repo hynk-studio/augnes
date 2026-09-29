@@ -8,7 +8,9 @@ export const RETAINED_WORK_SOURCE_LIMITS = {
   query_characters: 160, query_terms: 8, results: 8, result_utf8_bytes: 20_000,
   packets: MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01 + 1,
   note_occurrences: (MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01 + 1) * NATIVE_SELECTED_WORK_SOURCE_LIMITS.entries,
-  scanned_entry_utf8_bytes: (MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01 + 1) * NATIVE_SELECTED_WORK_SOURCE_LIMITS.bytes,
+  // This cumulative lookup envelope is an existing Companion contract,
+  // independent of the larger native per-packet admission allowance.
+  scanned_entry_utf8_bytes: 396_000,
 } as const;
 type Chain = Pick<PreExecutionProjectWorkChainInspectionV01, "packets" | "tip_packet">;
 export interface RetainedWorkSourceHit {
@@ -37,6 +39,7 @@ export function recallRetainedWorkSources(chain: Chain, query: unknown,
     for (const entry of readSelectedWorkSources(packet)) {
       scannedEntries += 1;
       scannedEntryBytes += utf8(entry);
+      if (scannedEntryBytes > RETAINED_WORK_SOURCE_LIMITS.scanned_entry_utf8_bytes) throw new SelectedWorkSourceError("retained_source_scan_bound_exceeded");
       const previous = unique.get(entry.entry_id);
       if (previous) {
         previous.packet_occurrences += 1;
