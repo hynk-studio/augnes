@@ -101,7 +101,8 @@ $('add-note').onclick=()=>{if($('notes').children.length>=8){status('Eight whole
 $('saved-context').onclick=()=>run(async()=>{ $('context-view').replaceChildren();
   const html=await readPrivate(await request('/api/work/'+work+'/context',{expected:binding(saved)}),'text');
   // Only server-authored escaped HTML is admitted here; note text is never HTML.
-  $('context-view').innerHTML=html;status(`Fresh server read of saved revision ${saved.revision}. Unsaved edits are excluded.`);});
+  $('context-view').innerHTML=html;status(`Fresh server read of saved revision ${saved.revision}. Unsaved edits are excluded.`);
+  $('context-view').focus({preventScroll:true});$('context-view').scrollIntoView({block:'start'});});
 $('refresh-work').onclick=()=>run(()=>openWork(work));
 $('resolve-save').onclick=()=>run(async()=>{const r=await api('/api/work/'+work+'/resolve',pending);if(r.outcome==='saved')await acknowledged(r.saved);else status('The original request is not visible yet. Its outcome remains unknown; any explicit retry uses the same request and material.');});
 $('retry-save').onclick=()=>run(dispatch);
