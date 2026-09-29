@@ -684,6 +684,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "retained-source-capacity",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem"],
+      label: "retained lookup capacity disposition, real repository reader and proxy, current sources and recovery",
+      ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--retained-source-capacity-only"),
+      timeoutMs: 60_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "project-work-expectation",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem"],

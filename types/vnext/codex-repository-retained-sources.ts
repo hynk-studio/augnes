@@ -11,7 +11,7 @@ export interface CodexRepositoryRetainedSourcesV01 {
   projection_version: typeof CODEX_REPOSITORY_RETAINED_SOURCES_VERSION_V01;
   status: "available" | "refresh_required" | "unavailable" | "ineligible" | "invalid";
   reason: "retained_selected_sources" | "snapshot_changed" | "repository_unresolved" | "current_work_unavailable" |
-    "work_revision_not_eligible" | "retained_source_query_invalid" | "retained_sources_invalid";
+    "work_revision_not_eligible" | "retained_source_query_invalid" | "retained_sources_invalid" | "retained_source_scan_bound_exceeded";
   repository_resolution: CodexRepositoryWorkSourcesV01["repository_resolution"];
   snapshot_binding: string | null;
   packet_fingerprint: string | null;

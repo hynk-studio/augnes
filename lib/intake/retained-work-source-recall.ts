@@ -8,8 +8,9 @@ export const RETAINED_WORK_SOURCE_LIMITS = {
   query_characters: 160, query_terms: 8, results: 8, result_utf8_bytes: 20_000,
   packets: MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01 + 1,
   note_occurrences: (MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01 + 1) * NATIVE_SELECTED_WORK_SOURCE_LIMITS.entries,
-  // This cumulative lookup envelope is an existing Companion contract,
-  // independent of the larger native per-packet admission allowance.
+  // Cumulative lookup capacity, independent of native per-packet admission.
+  // Exhaustion is unavailable lookup, not corrupt source material. Count every
+  // occurrence even when the same note is retained across revisions.
   scanned_entry_utf8_bytes: 396_000,
 } as const;
 type Chain = Pick<PreExecutionProjectWorkChainInspectionV01, "packets" | "tip_packet">;

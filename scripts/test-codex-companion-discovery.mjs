@@ -501,6 +501,7 @@ try {
     }
     const retainedResponses = [retainedProjection, ...[
       ["refresh_required", "snapshot_changed"], ["unavailable", "current_work_unavailable"],
+      ["unavailable", "retained_source_scan_bound_exceeded"], ["invalid", "retained_sources_invalid"],
       ["ineligible", "work_revision_not_eligible"], ["invalid", "retained_source_query_invalid"],
     ].map(([status, reason]) => ({ ...retainedProjection, status, reason, snapshot_binding: null, packet_fingerprint: null, lookup: null }))];
     const syntheticMarker = "synthetic-retained-response-extra-material";
@@ -516,6 +517,15 @@ try {
       assert.equal(companion.status, "live");
       assert.deepEqual(projection, body);
       assert.equal(control.isError, body.status === "invalid");
+      if (body.reason === "retained_source_scan_bound_exceeded") {
+        assert.match(control.content[0].text, /scan capacity.*not invalid material or a no-match result/u);
+        assert.equal(control.structuredContent.lookup, null);
+        for (const status of ["available", "invalid", "ineligible"]) {
+          assert.throws(() => parseRepositoryRetainedSourcesResponseV01({ ...body, status }), /contract_invalid/u);
+        }
+        assert.throws(() => parseRepositoryRetainedSourcesResponseV01({ ...body, repository_resolution: "project_not_registered" }), /contract_invalid/u);
+        assert.throws(() => parseRepositoryRetainedSourcesResponseV01({ ...body, lookup: retainedProjection.lookup }), /contract_invalid/u);
+      }
       for (const extra of unexpectedFields) {
         const malformed = { ...body, ...extra };
         assert.throws(() => parseRepositoryRetainedSourcesResponseV01(malformed), /contract_invalid/u,

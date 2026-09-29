@@ -143,6 +143,7 @@ async function main(): Promise<void> {
   const initializationStarted = performance.now();
   try {
     if (process.argv.includes("--selected-source-budget-only")) { await assertNativeSelectedSourceBudgetV01(); return; }
+    if (process.argv.includes("--retained-source-capacity-only")) { await assertRetainedSourceScanBudgetV01(); return; }
     if (process.argv.includes("--reviewed-outcome-reuse-only")) { await assertReviewedOutcomeReuseV01(); await assertReviewedOutcomeReuseV01(true); return; }
     if (process.argv.includes("--successor-expectation-only")) { await assertSuccessorExpectationV01(); return; }
     if (process.argv.includes("--successor-expectation-limit-only")) { await assertSuccessorExpectationV01(true); return; }
@@ -6160,10 +6161,11 @@ async function assertNativeSelectedSourceBudgetV01(): Promise<void> {
       console.log(JSON.stringify(row));
     }finally{fixture.db.close()}
   }
-  assertRetainedSourceScanBudgetV01();
 }
 
-function assertRetainedSourceScanBudgetV01(): void {
+async function assertRetainedSourceScanBudgetV01(): Promise<void> {
+  const { parseRepositoryRetainedSourcesResponseV01 } = await import('../plugins/augnes-operator/mcp/companion-proxy.mjs');
+  const { readCodexRepositoryWorkSourcesV01 } = await import('@/lib/vnext/codex-repository-continuity/codex-repository-work-sources');
   const fixture=createFixtureV01('retained-scan-budget',true,true,true);
   try {
     const credential=authenticatedSessionV01(fixture,'scan-budget');
@@ -6174,6 +6176,32 @@ function assertRetainedSourceScanBudgetV01(): void {
     })));
     let packet=initial.packet;
     let admittedBytes=0;
+    const dependencies={now:()=>new Date(Date.parse(T2)+30_000).toISOString(),read_operator_config:()=>fixture.config,managed_start_available:()=>false};
+    const observeLookup=async (snapshots:number) => {
+      const resume=await readCodexCurrentContinuityV01(fixture.db,{viewed_project_id:fixture.project_id},dependencies);
+      assert.equal(resume.snapshot.status,'exact');
+      const input={repository_root:fixture.root,expected_snapshot_binding:resume.snapshot.binding!,query:'한'};
+      const before=fixture.db.serialize();
+      const started=performance.now();
+      const response=await readCodexRepositoryRetainedSourcesV01(fixture.db,input,dependencies);
+      const elapsed=Math.round(performance.now()-started);
+      assert.deepEqual(parseRepositoryRetainedSourcesResponseV01(JSON.parse(JSON.stringify(response))),response);
+      assert(before.equals(fixture.db.serialize()),'Repository lookup and projection parsing write nothing');
+      const current=await readCodexRepositoryWorkSourcesV01(fixture.db,input,dependencies);
+      assert.equal(current.status,'available'); assert.equal(current.sources.length,entries.length);
+      for (const entry of entries) {
+        const note=current.sources.find(note=>note.source_binding===entry.source_ref);
+        assert(note); assert.equal(note.excerpt_text,entry.bounded_summary);
+        assert.equal(note.observed_at,entry.external_ref!.observed_at??null);
+        assert.equal(note.trust_class,entry.trust_class);
+      }
+      assert.deepEqual(readProjectWorkInitializationV01(fixture.db,fixture).selected_source_context,entries);
+      assert(before.equals(fixture.db.serialize()),'Current source reading remains read only');
+      console.log(JSON.stringify({retained_capacity_repository_reader:snapshots,status:response.status,reason:response.reason,
+        lookup:response.lookup===null?null:{scanned_packets:response.lookup.scanned_packets,returned_entries:response.lookup.returned_entries},
+        companion_parser:'accepted',current_sources:current.status,elapsed_ms:elapsed,writes:0}));
+      return {response,input};
+    };
     // Use the same production builder and Core writer as the existing revision
     // limit fixture, then validate the complete chain through its real owner.
     for(let index=1;index<=13;index++) {
@@ -6192,6 +6220,7 @@ function assertRetainedSourceScanBudgetV01(): void {
         const lookup=recallRetainedWorkSources(inspectRevisableProjectWorkChainV01(fixture.db,fixture),'한');
         admittedBytes=lookup.scanned_entry_utf8_bytes;
         assert(admittedBytes<=396_000);
+        assert.equal((await observeLookup(index)).response.status,'available');
       }
     }
     const chain=inspectRevisableProjectWorkChainV01(fixture.db,fixture);
@@ -6200,8 +6229,41 @@ function assertRetainedSourceScanBudgetV01(): void {
     assert(before.equals(fixture.db.serialize()));
     assert.equal(readProjectWorkInitializationV01(fixture.db,fixture).state,'defined_revised_work');
     assert.deepEqual(readSelectedWorkSources(chain.tip_packet),entries);
+    const {response,input}=await observeLookup(13);
+    assert.equal(response.status,'unavailable');
+    assert.equal(response.reason,'retained_source_scan_bound_exceeded');
+    assert.equal(response.lookup,null); assert.equal(response.snapshot_binding,null); assert.equal(response.packet_fingerprint,null);
+    const invalidQuery=await readCodexRepositoryRetainedSourcesV01(fixture.db,{...input,query:''},dependencies);
+    assert.equal(invalidQuery.status,'invalid'); assert.equal(invalidQuery.reason,'retained_source_query_invalid');
+    assert.deepEqual(parseRepositoryRetainedSourcesResponseV01(JSON.parse(JSON.stringify(invalidQuery))),invalidQuery);
+    const forged=new Database(fixture.db.serialize());
+    try {
+      // Deliberate integrity fault in an isolated copy, with the immutable
+      // trigger restored before the real reader observes the forged row.
+      const trigger=forged.prepare("SELECT sql FROM sqlite_master WHERE name='trg_vnext_core_records_immutable_update'").get() as {sql:string};
+      forged.exec('DROP TRIGGER trg_vnext_core_records_immutable_update');
+      forged.prepare('UPDATE vnext_core_records SET fingerprint=? WHERE record_id=?').run(`sha256:${'0'.repeat(64)}`,packet.packet_id);
+      forged.exec(trigger.sql);
+      const forgedBefore=forged.serialize();
+      await assert.rejects(readCodexRepositoryRetainedSourcesV01(forged,input,dependencies),
+        /vnext_core_record_fingerprint_mismatch/u, 'A forged record envelope retains its hard integrity refusal');
+      assert(forgedBefore.equals(forged.serialize()));
+      forged.exec('DROP TRIGGER trg_vnext_core_records_immutable_update');
+      const malformedPacket={...packet,integrity:{...packet.integrity,fingerprint:`sha256:${'0'.repeat(64)}`}};
+      forged.prepare('UPDATE vnext_core_records SET fingerprint=?,payload_json=? WHERE record_id=?')
+        .run(packet.integrity.fingerprint,JSON.stringify(malformedPacket),packet.packet_id);
+      forged.exec(trigger.sql);
+      const invalidBefore=forged.serialize();
+      const invalid=await readCodexRepositoryRetainedSourcesV01(forged,input,dependencies);
+      assert.equal(invalid.status,'invalid'); assert.equal(invalid.reason,'retained_sources_invalid');
+      assert.deepEqual(parseRepositoryRetainedSourcesResponseV01(JSON.parse(JSON.stringify(invalid))),invalid);
+      assert(invalidBefore.equals(forged.serialize()));
+    } finally { forged.close(); }
+    assert(before.equals(fixture.db.serialize()));
+    const recoveryStarted=performance.now();
     assert.equal(validateRecoveryCanonicalDatabaseV01(fixture.db).status,'valid');
     console.log(JSON.stringify({retained_scan_budget:396_000,admitted_snapshots:12,admitted_bytes:admittedBytes,
-      refused_snapshots:13,current_selection:'preserved',recovery:'valid',writes_by_lookup:0}));
+      refused_snapshots:13,current_selection:'preserved',recovery:'valid',
+      recovery_elapsed_ms:Math.round(performance.now()-recoveryStarted),writes_by_lookup:0}));
   } finally { fixture.db.close(); }
 }

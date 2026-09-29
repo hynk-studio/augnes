@@ -258,6 +258,14 @@ apply. No row or condition is clipped, query broadened, locator fetched or
 selection changed. `available` with zero matches is a bounded no-match, not
 global absence. `ineligible`, `unavailable`, `invalid` (query or invalid retained
 material), and `refresh_required` remain distinct and carry no lookup payload.
+`unavailable` with `retained_source_scan_bound_exceeded` means the cumulative
+lookup capacity was exhausted, not that retained material is corrupt or absent.
+No incomplete search is returned as a successful empty lookup. Current-source
+reading and recovery have their own validation paths and remain independent.
+Repeated snapshots count in full. The larger native per-packet allowance can
+therefore exhaust this separate lookup envelope sooner; neither a shorter query
+nor a fresh Resume reduces those bytes. The ceiling is a bounded lookup policy,
+not a measured memory requirement or a reason to reject otherwise valid data.
 
 Results expose the existing client-disclosed note projection, exact reusable
 `source` reference, current versus historical selection, first recording time,
