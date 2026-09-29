@@ -15,6 +15,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const HEADERS = { "x-augnes-local-work-revision": MARKER, "cache-control": "no-store" };
+// Mutation input includes notes, definition changes and exact preview bindings.
+// Match the native Browser envelope; canonical selection remains capped at 32,000.
+const MAX_REVISION_REQUEST_BYTES = 64_000;
 
 /** Explicitly authorized, narrow Companion task-context mutation channel.
  * The loopback guard is only a transport boundary. The opaque runtime credential
@@ -51,13 +54,10 @@ export async function POST(request: Request) {
   if ((request.headers.get("content-type") ?? "").split(";", 1)[0] !== "application/json") {
     return refused("invalid_content_type", 415);
   }
-  const text = await request.text();
-  // Same bounded request envelope as repository Resume; source limits remain
-  // owned by selected-work-source-comparison, with no truncation or new cap.
-  if (Buffer.byteLength(text, "utf8") > 16 * 1024) return refused("request_too_large", 413);
-  let body;
-  try { body = JSON.parse(text); } catch { return refused("invalid_json", 400); }
   try {
+    const text = await readRevisionBody(request);
+    let body;
+    try { body = JSON.parse(text); } catch { return refused("invalid_json", 400); }
     const projection = await loadCodexRepositoryWorkRevisionV01(body, {
       key: process.env.AUGNES_COMPANION_PROXY_TOKEN!,
       instance_id: identity["x-augnes-runtime-instance"],
@@ -75,6 +75,30 @@ export async function POST(request: Request) {
   }
 }
 
+// Keep this route's JSON/error contract. The Browser body helper also accepts
+// form input and has different refusal codes; neither is part of this channel.
+async function readRevisionBody(request: Request): Promise<string> {
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const decoder = new TextDecoder();
+  let size = 0, text = "";
+  try {
+    if (Number(request.headers.get("content-length")) > MAX_REVISION_REQUEST_BYTES) {
+      throw new RepositoryWorkRevisionTransportErrorV01("request_too_large", 413);
+    }
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_REVISION_REQUEST_BYTES) throw new RepositoryWorkRevisionTransportErrorV01("request_too_large", 413);
+      text += decoder.decode(value, { stream: true });
+    }
+    return text + decoder.decode();
+  } catch (error) {
+    await reader.cancel().catch(() => undefined);
+    throw error;
+  } finally { reader.releaseLock(); }
+}
 
 function refused(code: string, status: number) {
   return NextResponse.json({ error: { code, status } }, { status, headers: HEADERS });

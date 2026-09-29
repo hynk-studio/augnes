@@ -59,6 +59,7 @@ import {
 import { insertAutonomyRunLedgerRecord } from "../lib/autonomy/runner-ledger";
 import { buildDefaultRunnerSourceRefs, buildDefaultRunnerBudgetSnapshot, buildDefaultRunnerAuthorityBoundary } from "../lib/autonomy/runner-state";
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
+import { assertCompanionWorkRevisionEnvelopeV01 } from "./companion-work-revision-envelope-checks";
 
 const NOW = "2026-08-03T00:00:00.000Z";
 const ROOT = mkdtempSync(path.join(tmpdir(), "augnes-cdx2b1-"));
@@ -66,6 +67,7 @@ const ROOT = mkdtempSync(path.join(tmpdir(), "augnes-cdx2b1-"));
 void main().finally(() => rmSync(ROOT, { recursive: true, force: true }));
 
 async function main(): Promise<void> {
+  if (process.argv.includes("--work-revision-envelope-only")) { await assertCompanionWorkRevisionEnvelopeV01(ROOT); return; }
   if (process.argv.includes("--fresh-preparation-read")) {
     const db = new Database(process.argv[3]!, { readonly: true, fileMustExist: true });
     try {
@@ -85,7 +87,10 @@ async function main(): Promise<void> {
   if (process.argv.includes("--new-work-only")) { await assertNewWorkPreparationV01(); return; }
   if (process.argv.includes("--work-revision-only") || process.argv.includes("--work-revision-limit-only")) {
     await assertCompanionWorkRevisionV01(process.argv.includes("--work-revision-limit-only"));
-    if (process.argv.includes("--work-revision-only")) await assertCompanionRetainedBoundsV01();
+    if (process.argv.includes("--work-revision-only")) {
+      await assertCompanionRetainedBoundsV01();
+      await assertCompanionWorkRevisionEnvelopeV01(ROOT);
+    }
     return;
   }
   await assertNewWorkPreparationV01();
