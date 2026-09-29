@@ -30,6 +30,13 @@ export async function browserBranchJourney({a,debug,origin,page,click,set,settle
  await choose(observation,'incorporated');await choose(recommendation,'declined','Decline choosing every event: weekend conditions are unknown.');await set(a,'comparison-rationale','Retain the qualified observation while declining the broad recommendation.');await set(a,'comparison-next','Measure weekend noise before choosing a room.');
  await click(a,'incorporation-preview');await settled(a);assert.match(await a.eval("$('status').textContent"),/required context note is missing/);assert.equal(await visible(a,'relation-save'),false);
  await choose(condition,'incorporated');await click(a,'incorporation-preview');await settled(a);assert.equal(await visible(a,'relation-save'),true);
+ const retainedReview=()=>a.eval("JSON.stringify({relationPending,comparison,comparisonCurrent,directionDirty,units:choices(),rationale:$('comparison-rationale').value,next:$('comparison-next').value,preview:$('relation-preview').innerHTML})");
+ const reviewBeforeRead=await retainedReview(),readStart=requests.length,storedBeforeRead=await revisionCount();
+ await click(a,'saved-context');await settled(a);
+ assert.equal(await retainedReview(),reviewBeforeRead,'fresh read preserves the unsaved comparison and exact preview');
+ assert.equal(await a.eval('document.activeElement.id'),'context-view');assert.equal(await revisionCount(),storedBeforeRead);
+ assert.deepEqual(requests.slice(readStart).map(r=>[r.method,r.path.split('/').at(-1)]),[['POST','context']]);
+ checks.push('Saved context focuses its successful read without changing comparison judgments, preview bindings or stored revisions');
  await set(sourceTab,'goal','Branch adds a later independent revision');await click(sourceTab,'save');await saved(sourceTab,3);await settled(sourceTab);
  await click(a,'relation-save');await settled(a);assert.match(await a.eval("$('relation-state').textContent"),/Change refused/);assert.equal(await a.eval('saved.revision'),2);assert.equal(await a.eval("[...$('material-choices').children].find(r=>r.querySelector('.note-text').textContent==='Choose the room now for every event.').querySelector('select').value"),'declined');
  await click(a,'recompare');await settled(a);assert.match(await a.eval("$('comparison-summary').innerText"),/revision 3/);await click(a,'incorporation-preview');await settled(a);

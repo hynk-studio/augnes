@@ -126,11 +126,26 @@ try {
  await click(a,'add-note');await a.eval(`(()=>{const n=document.querySelectorAll('.note')[1];for(const [k,v] of Object.entries({text:'Evening noise remains unknown; measure it before choosing the room.',source:'Synthetic planning question',label:'Open question',provenance:'derived_interpretation'})){n.querySelector('[data-field='+k+']').value=v;}})()`);
  await click(a,'save');await saved(a,1);checks.push('keyboard create/edit/attributed save');
  const b=await page(debug,origin);await navigate(b,origin+'/');await reopen(b);await set(b,'goal','Retained competing draft');
+ const readStart=requests.length,storedBeforeRead=await revisionCount();
+ for(const [width,height] of [[390,844],[1200,800]]){
+   await b.send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<500});
+   await b.eval('window.scrollTo(0,0)');
+   assert(await b.eval("(()=>{const r=$('saved-context').getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight&&r.left>=0&&r.right<=innerWidth;})()"),'fresh-read control in initial viewport '+width);
+   await b.eval("$('saved-context').focus()");await b.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13,text:'\r'});await b.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});await settled(b);
+   assert(await b.eval("document.activeElement.id==='context-view'&&Math.abs($('context-view').getBoundingClientRect().top)<2"),'successful read receives focus at the start of the context');
+   assert.equal(await b.eval("$('goal').value"),'Retained competing draft');assert.equal(await b.eval('dirty'),true);
+   assert.match(await b.eval("$('context-view').innerText"),/Choose a quiet reading room/);assert(!await b.eval("$('context-view').innerText.includes('Retained competing draft')"));
+ }
+ assert.equal(await revisionCount(),storedBeforeRead);
+ // Keyboard focus may also trigger the existing window-focus access read.
+ const readRequests=requests.slice(readStart);assert(readRequests.filter(r=>r.method==='GET').every(r=>r.path==='/api/works'));
+ assert.deepEqual(readRequests.filter(r=>r.method!=='GET').map(r=>[r.method,r.path.split('/').at(-1)]),[['POST','context'],['POST','context']]);
+ checks.push('Saved context reachable at 390/1200; keyboard read focuses visible result, preserves unsaved draft and writes no revision');
  await set(a,'goal','First tab successor');await click(a,'save');await saved(a,2);
  await click(b,'save');await wait(()=>visible(b,'conflict'),'competing conflict');assert.equal(await b.eval("document.getElementById('goal').value"),'Retained competing draft');
  await click(b,'review-latest');await wait(()=>visible(b,'rebase-draft'),'review latest');assert.match(await b.eval("document.getElementById('conflict-latest').innerText"),/First tab successor/);
  await click(b,'rebase-draft');await click(b,'save');await saved(b,3);checks.push('conflict retains draft; explicit reviewed base and save');
- await click(a,'saved-context');await wait(()=>a.eval("document.getElementById('status').textContent.includes('head changed')"),'stale context');assert.equal(await a.eval("document.getElementById('context-view').innerText"),'');
+ await a.eval("$('saved-context').focus()");await click(a,'saved-context');await wait(()=>a.eval("document.getElementById('status').textContent.includes('head changed')"),'stale context');assert.equal(await a.eval("document.getElementById('context-view').innerText"),'');assert.equal(await a.eval('document.activeElement.id'),'saved-context','refused read does not focus an empty result');
  await click(a,'refresh-work');await saved(a,3);await click(a,'saved-context');await wait(()=>a.eval("document.querySelector('#context-view [data-revision]')?.dataset.revision==='3'"),'exact context');
  const context=await a.eval("document.getElementById('context-view').innerText");assert.match(context,/open issue/);assert.match(context,/Evening noise remains unknown/);assert.match(context,/No file uploads/);checks.push('stale binding refuses, explicit fresh Saved context preserves uncertainty');
  await a.send('Fetch.enable',{patterns:[{urlPattern:'*',requestStage:'Request'},{urlPattern:'*/save',requestStage:'Response'}]});
