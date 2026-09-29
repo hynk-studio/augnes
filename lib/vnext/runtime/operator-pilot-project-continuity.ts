@@ -481,26 +481,34 @@ export function inspectVNextOperatorPilotPacketLineagesV01(
   },
 ): Array<VNextOperatorPilotPacketLineageInspectionV01 | null> {
   return db.transaction(() => {
-    let revisions: { value: ReturnType<typeof inspectPreExecutionProjectWorkRevisionLineagesV01> } | { error: unknown } | undefined;
+    const readRevision = revisionLineageReaderInsideReadV01(db, input.config);
     return input.packets.map((identity) => {
       try {
-        return inspectPacketLineageInsideReadV01(db, { config: input.config, ...identity }, (packet) => {
-          if (!revisions) {
-            try { revisions = { value: inspectPreExecutionProjectWorkRevisionLineagesV01(db, input.config) }; }
-            catch (error) { revisions = { error }; }
-          }
-          if ("error" in revisions) throw revisions.error;
-          const lineage = revisions.value.find((candidate) =>
-            candidate.packet.packet_id === packet.packet_id &&
-            candidate.packet.integrity.fingerprint === packet.integrity.fingerprint);
-          if (!lineage) throw new PreExecutionProjectWorkRevisionErrorV01("work_revision_packet_missing", 409);
-          return lineage;
-        });
+        return inspectPacketLineageInsideReadV01(db, { config: input.config, ...identity }, readRevision);
       } catch {
         return null;
       }
     });
   })();
+}
+
+/** Private to a synchronous transaction owned by either of its two callers. Nothing
+ * escapes that invocation or survives a write; strict and nullable callers keep
+ * their own failure handling. Packet-specific checks still run for every entry. */
+function revisionLineageReaderInsideReadV01(db: Database.Database, config: VNextLocalOperatorPilotConfigV01) {
+  let revisions: { value: ReturnType<typeof inspectPreExecutionProjectWorkRevisionLineagesV01> } | { error: unknown } | undefined;
+  return (packet: TaskContextPacketV01) => {
+    if (!revisions) {
+      try { revisions = { value: inspectPreExecutionProjectWorkRevisionLineagesV01(db, config) }; }
+      catch (error) { revisions = { error }; }
+    }
+    if ("error" in revisions) throw revisions.error;
+    const lineage = revisions.value.find((candidate) =>
+      candidate.packet.packet_id === packet.packet_id &&
+      candidate.packet.integrity.fingerprint === packet.integrity.fingerprint);
+    if (!lineage) throw new PreExecutionProjectWorkRevisionErrorV01("work_revision_packet_missing", 409);
+    return lineage;
+  };
 }
 
 function inspectPacketLineageInsideReadV01(
@@ -996,33 +1004,36 @@ export function readCurrentProjectWorkPacketLineageV01(db: Database.Database, co
 }
 
 function loadCurrentWorkPackets(db: Database.Database, config: VNextLocalOperatorPilotConfigV01) {
-  const lineages = loadRecords(db, config, "task_context_packet")
-    .map((record) => loadPacket(db, config, record.record_id, record.fingerprint))
-    .filter(
-      (packet) =>
-        packet.compatibility.source_contracts.includes(AUTHORED_SUCCESSOR_TASK_V01) ||
-        packet.compatibility.source_contracts.includes(
-          VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
-        ) ||
-        packet.compatibility.source_contracts.includes(
-          INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01,
-        ) ||
-        packet.compatibility.source_contracts.some(contract => (contract === PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01 || contract === PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01)) ||
-        packet.compatibility.source_contracts.includes(
-          SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01,
-        ),
-    )
-    .map((packet) => inspectVNextOperatorPilotPacketLineageV01(db, {
-      config, packet_id: packet.packet_id, packet_fingerprint: packet.integrity.fingerprint,
-    }));
-  // Sparse semantic predecessors may still match accepted state. Their exact
-  // successor edges nevertheless make them historical work, just as in the
-  // normal project-work reader; they must not hide a later authored tip.
-  const superseded = new Set(lineages.flatMap(lineage =>
-    (lineage.lineage_kind === "authored_successor_task" || lineage.lineage_kind === "semantic_transition")
-      ? [`${lineage.prior_packet.packet_id}|${lineage.prior_packet.packet_fingerprint}`] : []));
-  return lineages.map(lineage => superseded.has(`${lineage.packet.packet_id}|${lineage.packet.integrity.fingerprint}`)
-    ? { ...lineage, projection_current: false } : lineage);
+  return db.transaction(() => {
+    const readRevision = revisionLineageReaderInsideReadV01(db, config);
+    const lineages = loadRecords(db, config, "task_context_packet")
+      .map((record) => loadPacket(db, config, record.record_id, record.fingerprint))
+      .filter(
+        (packet) =>
+          packet.compatibility.source_contracts.includes(AUTHORED_SUCCESSOR_TASK_V01) ||
+          packet.compatibility.source_contracts.includes(
+            VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
+          ) ||
+          packet.compatibility.source_contracts.includes(
+            INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01,
+          ) ||
+          packet.compatibility.source_contracts.some(contract => (contract === PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01 || contract === PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01)) ||
+          packet.compatibility.source_contracts.includes(
+            SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01,
+          ),
+      )
+      .map((packet) => inspectPacketLineageInsideReadV01(db, {
+        config, packet_id: packet.packet_id, packet_fingerprint: packet.integrity.fingerprint,
+      }, readRevision));
+    // Sparse semantic predecessors may still match accepted state. Their exact
+    // successor edges nevertheless make them historical work, just as in the
+    // normal project-work reader; they must not hide a later authored tip.
+    const superseded = new Set(lineages.flatMap(lineage =>
+      (lineage.lineage_kind === "authored_successor_task" || lineage.lineage_kind === "semantic_transition")
+        ? [`${lineage.prior_packet.packet_id}|${lineage.prior_packet.packet_fingerprint}`] : []));
+    return lineages.map(lineage => superseded.has(`${lineage.packet.packet_id}|${lineage.packet.integrity.fingerprint}`)
+      ? { ...lineage, projection_current: false } : lineage);
+  })();
 }
 
 function validateCompiledPacketLineage(
