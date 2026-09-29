@@ -70,6 +70,9 @@ export async function readCodexRepositoryRetainedSourcesV01(
       };
     } catch (error) {
       if (!(error instanceof SelectedWorkSourceError || error instanceof PreExecutionProjectWorkRevisionErrorV01)) throw error;
+      if (error.code === "retained_source_scan_bound_exceeded") {
+        return { ...result, status: "unavailable", reason: "retained_source_scan_bound_exceeded" };
+      }
       return { ...result, status: "invalid", reason: error.code === "retained_source_query_invalid" ? error.code : "retained_sources_invalid" };
     }
   } finally { db.exec("ROLLBACK"); }

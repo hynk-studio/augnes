@@ -4,7 +4,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { getDatabasePath } from "@/lib/db";
-import { buildSelectedWorkSourceEntry, compareSelectedWorkSources, normalizeSelectedWorkSources, readSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
+import { buildSelectedWorkSourceEntry, compareSelectedWorkSources, normalizeNativeSelectedWorkSources, readSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
 import { resolveRetainedWorkSources } from "@/lib/intake/retained-work-source-recall";
 import { CODEX_CURRENT_CONTINUITY_AUTHORITY_V01, readCodexCurrentContinuitySnapshotV01 } from "@/lib/vnext/codex-current-continuity/codex-current-continuity";
 import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
@@ -104,7 +104,7 @@ export async function reviseCodexRepositoryWorkV01(
     if (new Set(removed).size !== removed.length || removed.some((binding) => !previous.some((entry) => entry.source_ref === binding))) {
       refuse("source_binding_changed", 409);
     }
-    const selected = normalizeSelectedWorkSources(scope, [
+    const selected = normalizeNativeSelectedWorkSources(scope, [
       ...previous.filter((entry) => input.intent === "new_task" ? operations.keep!.includes(entry.source_ref!) : !removed.includes(entry.source_ref!)),
       ...(operations.add ?? []).map((note) => buildSelectedWorkSourceEntry(scope, note)),
       ...(operations.replace ?? []).map((row) => buildSelectedWorkSourceEntry(scope, row.note)),

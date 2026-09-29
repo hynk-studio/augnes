@@ -171,8 +171,19 @@ fingerprint and only the current selected notes: saved excerpt text, source
 binding, authored review label, trust class, observation time and source
 currentness. Missing observation times are explicitly `null`; selected-source
 currentness remains `unknown`. The canonical whole-note limits (eight entries,
-2,000 characters each, 12,000 serialized source-entry bytes) apply before
+2,000 characters each, 32,000 serialized source-entry bytes) apply before
 projection. Invalid or over-budget sources refuse; nothing is silently clipped.
+The native Browser comparison/save route permits a 64,000-byte request envelope
+for the selected entries, bounded work definition and bindings. Hosted planning and
+hosted snapshot projection retain their 12,000-byte selection contract. Stored
+entries and historical fingerprints are unchanged; current-code export/import
+and recovery accept the larger native selection. Older readers still refuse
+selections above their 12,000-byte ceiling, so such records require a reader with
+this native allowance. This is admission capacity, not a token or provider-cost
+budget; packet, GuideBrief and host request limits remain separate. Companion
+bulk edits retain their 16 KiB request envelope. Retained lookup preserves its
+396,000-byte cumulative scan and 20,000-byte result ceilings; a large revision
+history can exceed the lookup ceiling without invalidating its current selection.
 
 The opt-in connected-project reader requests `include_work_definition: true`
 on that same private route. Only this exact additional input is admitted; the
@@ -247,6 +258,14 @@ apply. No row or condition is clipped, query broadened, locator fetched or
 selection changed. `available` with zero matches is a bounded no-match, not
 global absence. `ineligible`, `unavailable`, `invalid` (query or invalid retained
 material), and `refresh_required` remain distinct and carry no lookup payload.
+`unavailable` with `retained_source_scan_bound_exceeded` means the cumulative
+lookup capacity was exhausted, not that retained material is corrupt or absent.
+No incomplete search is returned as a successful empty lookup. Current-source
+reading and recovery have their own validation paths and remain independent.
+Repeated snapshots count in full. The larger native per-packet allowance can
+therefore exhaust this separate lookup envelope sooner; neither a shorter query
+nor a fresh Resume reduces those bytes. The ceiling is a bounded lookup policy,
+not a measured memory requirement or a reason to reject otherwise valid data.
 
 Results expose the existing client-disclosed note projection, exact reusable
 `source` reference, current versus historical selection, first recording time,

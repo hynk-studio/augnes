@@ -1,6 +1,6 @@
 import { isOrdinarySuccessorRevisionV01, inspectOrdinarySuccessorRevisionV01, ordinarySuccessorRevisionMaterialV01, ordinarySuccessorRevisionIdempotencyKeyV01 } from "./authored-successor-revision";
 import { AUTHORED_SUCCESSOR_TASK_V01, AUTHORED_SUCCESSOR_REVALIDATION_V01, AUTHORED_SUCCESSOR_CONTEXT_V01 } from "@/types/vnext/project-work-initialization";
-import { buildSelectedWorkSourceEntry, compareSelectedWorkSources, normalizeSelectedWorkSources, SelectedWorkSourceError } from "@/lib/intake/selected-work-source-comparison";
+import { buildSelectedWorkSourceEntry, compareSelectedWorkSources, normalizeNativeSelectedWorkSources, SelectedWorkSourceError } from "@/lib/intake/selected-work-source-comparison";
 import { REVIEWED_OUTCOME_SOURCE_V01, type SelectedWorkSourceSelection, type ReviewedOutcomeSourceRefV01 } from "@/types/vnext/project-work-revision";
 import { assertReviewedOutcomeSelectionV01, readReviewedOutcomeReuseV01 } from "@/lib/vnext/persistence/reviewed-outcome-source";
 import { reviewedOutcomeSourceRef, readSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
@@ -224,7 +224,7 @@ function build(input: { prior: TaskContextPacketV01; receipt: ReturnType<typeof 
   material: SourceMaterial; operator_id: string; at: string }) {
   const { prior, receipt, material, at } = input, definition = material.request.definition;
   const selected = material.request.selected_sources
-    ? normalizeSelectedWorkSources(prior, material.request.selected_sources.selected_source_context) : [];
+    ? normalizeNativeSelectedWorkSources(prior, material.request.selected_sources.selected_source_context) : [];
   const fingerprint = digest({ compiler: AUTHORED_SUCCESSOR_TASK_V01, workspace: prior.workspace_id, project: prior.project_id, material });
   const definitionRef = ref("authored_successor_task", `successor-task:${fingerprint.slice(7, 31)}`, fingerprint, at, "user_declaration");
   const priorRef = ref("task_context_packet", prior.packet_id, prior.integrity.fingerprint, prior.generated_at);

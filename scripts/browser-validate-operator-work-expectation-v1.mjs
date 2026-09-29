@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
+import { canonicalizeProtocolValueV01 } from "../lib/vnext/protocol-primitives";
 import { runOperatorExecutionBrowserChildV1 } from "./operator-execution-browser-child-v1.mjs";
 import {
   activateProject,
@@ -177,8 +178,37 @@ async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
   await lifecycle.setFormControlValue('#selected-note-kind', 'Changed assumption / user correction');
   await lifecycle.setFormControlValue('#selected-note-text', 'Cold observations do not establish warm behavior. Warm remains unknown.');
   await clickSelector(lifecycle, '[data-selected-source-action="add"]');
+  const sourceTime = await lifecycle.evaluateString(`new Date('2026-09-29T00:00').toISOString()`);
+  const capacityNotes = Array.from({ length: 5 }, (_, index) => ({
+    source: `Capacity success ${index}`, text: 'Bounded draft note. '.repeat(10).trim(),
+    observed_at: sourceTime, provenance: 'user_declaration', label: 'Open question',
+  }));
+  for (const note of capacityNotes) {
+    await lifecycle.setFormControlValue('#selected-note-source', note.source);
+    await lifecycle.setFormControlValue('#selected-note-time', '2026-09-29T00:00');
+    await lifecycle.setFormControlValue('#selected-note-provenance', note.provenance);
+    await lifecycle.setFormControlValue('#selected-note-kind', note.label);
+    await lifecycle.setFormControlValue('#selected-note-text', note.text);
+    await clickSelector(lifecycle, '[data-selected-source-action="add"]');
+  }
+  const comparisonStart = lifecycle.responses.length;
   await clickSelector(lifecycle, '[data-selected-source-action="compare"]');
-  await lifecycle.waitForCondition(`Array.from(document.querySelectorAll('[data-selected-work-sources] [role="status"]')).some(node => node.textContent.includes('3 selected;'))`, 'note-only B2 comparison retains the historical snapshot');
+  await lifecycle.waitForCondition(`Array.from(document.querySelectorAll('[data-selected-work-sources] [role="status"]')).some(node => node.textContent.includes('8 selected;'))`, 'expanded B2 comparison retains the complete historical snapshot');
+  const comparisons = lifecycle.responses.slice(comparisonStart).filter(entry => entry.path === '/api/vnext/operator/project-continuity' && entry.method === 'POST');
+  assert.equal(comparisons.length, 1); assert.equal(comparisons[0].status, 200);
+  const comparedBody = await lifecycle.cdp().send('Network.getResponseBody', { requestId: comparisons[0].request_id });
+  assert.equal(comparedBody.base64Encoded, false);
+  const compared = JSON.parse(comparedBody.body).comparison;
+  const selectedBytes = Buffer.byteLength(canonicalizeProtocolValueV01(compared.entries), 'utf8');
+  assert(selectedBytes > 12_000 && selectedBytes <= 32_000, 'The UI selection exercises newly admitted canonical bytes');
+  for (const note of capacityNotes) {
+    const entry = compared.entries.find(entry => entry.compatibility_source_ref.external_id === note.source);
+    assert(entry); assert.equal(entry.bounded_summary, note.text);
+    assert.equal(entry.external_ref.observed_at, note.observed_at);
+    assert.equal(entry.currentness.as_of, note.observed_at);
+    assert.equal(entry.trust_class, note.provenance); assert.equal(entry.why_included, note.label);
+  }
+  for (const entry of retainedExpected) assert.deepEqual(compared.entries.find(saved => saved.entry_id === entry.entry_id), entry);
   await clickSelector(lifecycle, '[data-augnes-primary-action="save-work-revision"]');
   await lifecycle.waitForCondition(`document.querySelector('#work-revision-goal') === null`, 'note-only B2 saved');
   assert.equal((await readProtectedJson(lifecycle, '/api/vnext/operator/work-expectations')).history.length, 0, 'B1 prediction did not transfer to B2');
@@ -186,6 +216,19 @@ async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
   await lifecycle.waitForCondition(`document.querySelector('[data-work-revision-action="open"]') !== null`, 'fresh saved B2');
   await clickSelector(lifecycle, '[data-work-revision-action="open"]');
   await lifecycle.waitForCondition(`document.querySelector('#work-revision-goal') !== null`, 'reopened B2');
+  await clickSelector(lifecycle, '[data-selected-work-sources] > summary');
+  const reopened = (await readProtectedJson(lifecycle, '/api/vnext/operator/project-continuity')).work_initialization;
+  assert.deepEqual(reopened.selected_source_context, compared.entries, 'Save and fresh read preserve every full entry, timestamp, provenance and fingerprint');
+  assert.equal(await lifecycle.evaluateBoolean(`(() => {
+    const text = document.querySelector('[data-selected-work-sources]').textContent;
+    return ${JSON.stringify(compared.entries)}.every(entry => text.includes(entry.bounded_summary) &&
+      text.includes(entry.compatibility_source_ref.external_id) && text.includes(entry.trust_class.replaceAll('_', ' ')) &&
+      (entry.external_ref.observed_at == null || text.includes(entry.external_ref.observed_at)));
+  })()`), true, 'Reopened controls show every complete note with its source time and provenance');
+  console.log(JSON.stringify({ expanded_capacity_browser: 'pass', canonical_selected_bytes: selectedBytes,
+    selected_entries: compared.entries.length, comparison_fingerprint: compared.fingerprint,
+    saved_packet_fingerprint: reopened.current_packet.packet_fingerprint, complete_save_reopen: true,
+    historical_pair_identity_preserved: true, input_path: 'UI add/select/compare/save/reopen' }));
   assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-selected-work-sources]').textContent.includes('R2_REPORT_ONLY_RESELECT') && document.querySelector('[data-selected-work-sources]').textContent.includes('P32_FORECAST_ONLY_RESULT') && !document.querySelector('[data-selected-work-sources]').textContent.includes('R3_LATER_UNSELECTED')`), true, 'Fresh saved-work UI reconstructs R2 and its forecast, not R3');
   await clickSelector(lifecycle, '[data-work-revision-action="cancel"]');
   await saveBrowserExpectation(lifecycle, 'unsatisfied', 'P33_B2_FORECAST_ONLY');
@@ -260,9 +303,20 @@ async function exerciseReviewedOutcomeReselection(lifecycle, retainedExpected) {
   assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-retained-source-action="select"]').disabled && document.querySelector('[data-retained-source-capacity]').textContent.includes('2 note slots; 1 remain')`), true, 'One remaining slot refuses the group before selection');
   await clickSelector(lifecycle, '[data-selected-source-action="exclude"]');
   assert.equal(await lifecycle.evaluateBoolean(`!document.querySelector('[data-retained-source-action="select"]').disabled && document.querySelectorAll('[data-selected-source-action="exclude"]').length === 6`), true, 'Two remaining slots allow checking the complete pair');
+  for (let index = 0; index < 6; index++) await clickSelector(lifecycle, '[data-selected-source-action="exclude"]');
+  for (let index = 0; index < 6; index++) {
+    await lifecycle.setFormControlValue('#selected-note-source', `Byte capacity ${index}`);
+    await lifecycle.setFormControlValue('#selected-note-text', '한'.repeat(1250));
+    await clickSelector(lifecycle, '[data-selected-source-action="add"]');
+  }
   const responseStart = lifecycle.responses.length;
+  const draftAndSelection = `(() => ({
+    draft: ['source', 'time', 'provenance', 'kind', 'text'].map(key => document.querySelector('#selected-note-' + key).value),
+    selected: Array.from(document.querySelectorAll('[data-selected-source-action="exclude"]')).map(button => button.parentElement.textContent),
+  }))()`;
+  const beforeRefusal = await lifecycle.evaluateJson(draftAndSelection);
   await clickSelector(lifecycle, '[data-retained-source-action="select"]');
-  await lifecycle.waitForCondition(`document.querySelector('[data-selected-work-sources] [role="alert"]')?.textContent.includes('12,000-byte') === true`, 'Byte capacity refuses the pair before adding it');
+  await lifecycle.waitForCondition(`document.querySelector('[data-selected-work-sources] [role="alert"]')?.textContent.includes('32,000-byte') === true`, 'Byte capacity refuses the pair before adding it');
   const refusals = lifecycle.responses.slice(responseStart).filter(entry => entry.path === '/api/vnext/operator/project-continuity' && entry.method === 'POST');
   assert.equal(refusals.length, 1); assert.equal(refusals[0].status, 422);
   const refusedBody = await lifecycle.cdp().send('Network.getResponseBody', { requestId: refusals[0].request_id });
@@ -270,6 +324,7 @@ async function exerciseReviewedOutcomeReselection(lifecycle, retainedExpected) {
   assert.equal(JSON.parse(refusedBody.body).error_code, 'selected_source_context_budget_exceeded');
   expectedCapacityRefusal = refusals[0].request_id;
   assert.equal(await lifecycle.evaluateBoolean(`document.querySelectorAll('[data-selected-source-action="exclude"]').length === 6`), true, 'Byte refusal leaves selection intact');
+  assert.deepEqual(await lifecycle.evaluateJson(draftAndSelection), beforeRefusal, 'Byte refusal preserves the complete draft and selection');
   for (let index = 0; index < 6; index++) await clickSelector(lifecycle, '[data-selected-source-action="exclude"]');
   await clickSelector(lifecycle, '[data-retained-source-action="select"]');
   await lifecycle.waitForCondition(`document.querySelectorAll('[data-selected-source-action="exclude"]').length === 2`, 'complete historical pair reselected');

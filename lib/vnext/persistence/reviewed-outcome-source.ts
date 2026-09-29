@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { buildReviewedOutcomeSourceEntry, normalizeSelectedWorkSources, readSelectedWorkSources, reviewedOutcomeSourceRef, SelectedWorkSourceError } from "@/lib/intake/selected-work-source-comparison";
+import { buildReviewedOutcomeSourceEntry, normalizeNativeSelectedWorkSources, readSelectedWorkSources, reviewedOutcomeSourceRef, SelectedWorkSourceError } from "@/lib/intake/selected-work-source-comparison";
 import { assertWorkExpectationRecord, expectationCheck as check, expectationHash as hash, expectationRef, expectationSourceRef } from "@/lib/vnext/work-expectation";
 import { deriveCriterionIdentityV01 } from "@/lib/vnext/criterion-identity";
 import { readVNextLocalOperatorSessionHistoryV01 } from "@/lib/vnext/runtime/local-operator-session";
@@ -90,7 +90,7 @@ function buildSources(input: Source, forecast: WorkExpectation, report: WorkOutc
     expectation: `Historical operator-authored forecast v${forecast.revision}; not a requirement for this work.\nRecorded: ${forecast.recorded_at}; author: ${forecast.author.operator_id}; cutoff: ${forecast.information_cutoff}.\nRequirement: ${forecast.criterion}\nPrediction: ${forecast.predicted_outcome}\nReason: ${forecast.reason}\nOriginal applicability conditions: ${forecast.conditions}\nForecast: ${forecast.record_id} ${forecast.integrity.fingerprint}\nPacket: ${input.packet.packet_id} ${input.packet.integrity.fingerprint}\nSource currentness: recorded packet snapshot only; external currentness unknown. Operator-visible; prior attention/copying unknown.`,
     report: `Historical operator-attested outcome report v${report.revision}; not independently verified truth or a host claim.\nRecorded: ${report.recorded_at}; author: ${report.author.operator_id}.\nReported outcome: ${report.outcome}; original conditions held: ${report.applicability}.\nObservation: ${report.observation}\nReport: ${report.record_id} ${report.integrity.fingerprint}\nPrevious report: ${report.previous_ref?.external_id ?? "none"}; earlier reports remain historical.\nAttempt: ${report.attempt_ref.external_id} ${report.attempt_ref.source_ref}\nReceipt: ${input.receipt.receipt_id} ${input.receipt.integrity.fingerprint}\nThis report does not change the original forecast conditions or any typed assessment. Unknown applicability/outcomes remain unknown. Prediction match is not task success. No derived comparison or local chronology is asserted by this snapshot.`,
   };
-  return normalizeSelectedWorkSources(input, (["expectation", "report"] as const).map(part => buildReviewedOutcomeSourceEntry(input,
+  return normalizeNativeSelectedWorkSources(input, (["expectation", "report"] as const).map(part => buildReviewedOutcomeSourceEntry(input,
     { source: report.record_id, observed_at: report.recorded_at, provenance: "imported_unverified", label: "Unclassified / needs review", text: texts[part] }, binding, part)));
 }
 
@@ -107,7 +107,7 @@ export function assertReviewedOutcomeSelectionV01(db: Database.Database, input: 
     if (group.every(e => inherited.some(prior => hash(prior) === hash(e)))) continue;
     const binding = reviewedOutcomeSourceRef(group[0]!)!;
     const expected = readHistoricalReviewedOutcomeSourcesV01(db, input, binding);
-    check(hash(normalizeSelectedWorkSources(input, group)) === hash(expected), "reviewed_outcome_selection_changed");
+    check(hash(normalizeNativeSelectedWorkSources(input, group)) === hash(expected), "reviewed_outcome_selection_changed");
     check(!input.selected_at || expected.every(e => Date.parse(e.external_ref!.observed_at!) <= Date.parse(input.selected_at!)), "reviewed_outcome_selection_time");
     if (input.latest) {
       const current = readReviewedOutcomeReuseV01(db, input);
