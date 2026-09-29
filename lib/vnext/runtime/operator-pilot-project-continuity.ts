@@ -57,6 +57,8 @@ import {
 } from "@/lib/vnext/runtime/initial-project-work-context";
 import {
   inspectPreExecutionProjectWorkRevisionPacketV01,
+  inspectPreExecutionProjectWorkRevisionLineagesV01,
+  PreExecutionProjectWorkRevisionErrorV01,
   preExecutionProjectWorkRevisionIdempotencyKeyV01,
 } from "@/lib/vnext/runtime/pre-execution-project-work-revision";
 import {
@@ -463,6 +465,51 @@ export function inspectVNextOperatorPilotPacketLineageV01(
     packet_fingerprint: string;
   },
 ): VNextOperatorPilotPacketLineageInspectionV01 {
+  return inspectPacketLineageInsideReadV01(db, input);
+}
+
+/** Current-work projection owns this synchronous read transaction. Its lazy
+ * revision result (including failure) is private to the batch: no callback,
+ * session handle or cached result can cross a write, request, scope or database.
+ * Each packet still goes through its ordinary envelope, semantic and operational
+ * lineage checks. A failed inspection stays a failed candidate, not empty history. */
+export function inspectVNextOperatorPilotPacketLineagesV01(
+  db: Database.Database,
+  input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    packets: Array<{ packet_id: string; packet_fingerprint: string }>;
+  },
+): Array<VNextOperatorPilotPacketLineageInspectionV01 | null> {
+  return db.transaction(() => {
+    let revisions: { value: ReturnType<typeof inspectPreExecutionProjectWorkRevisionLineagesV01> } | { error: unknown } | undefined;
+    return input.packets.map((identity) => {
+      try {
+        return inspectPacketLineageInsideReadV01(db, { config: input.config, ...identity }, (packet) => {
+          if (!revisions) {
+            try { revisions = { value: inspectPreExecutionProjectWorkRevisionLineagesV01(db, input.config) }; }
+            catch (error) { revisions = { error }; }
+          }
+          if ("error" in revisions) throw revisions.error;
+          const lineage = revisions.value.find((candidate) =>
+            candidate.packet.packet_id === packet.packet_id &&
+            candidate.packet.integrity.fingerprint === packet.integrity.fingerprint);
+          if (!lineage) throw new PreExecutionProjectWorkRevisionErrorV01("work_revision_packet_missing", 409);
+          return lineage;
+        });
+      } catch {
+        return null;
+      }
+    });
+  })();
+}
+
+function inspectPacketLineageInsideReadV01(
+  db: Database.Database,
+  input: { config: VNextLocalOperatorPilotConfigV01; packet_id: string; packet_fingerprint: string },
+  readRevision = (packet: TaskContextPacketV01) => inspectPreExecutionProjectWorkRevisionPacketV01(db, {
+    workspace_id: input.config.workspace_id, project_id: input.config.project_id, packet,
+  }),
+): VNextOperatorPilotPacketLineageInspectionV01 {
   assertVNextDurableSemanticStoreSchemaV01(db);
   const packet = loadPacket(
     db,
@@ -556,11 +603,7 @@ export function inspectVNextOperatorPilotPacketLineageV01(
   if (
     packet.compatibility.source_contracts.some(contract => (contract === PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01 || contract === PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01))
   ) {
-    const lineage = inspectPreExecutionProjectWorkRevisionPacketV01(db, {
-      workspace_id: input.config.workspace_id,
-      project_id: input.config.project_id,
-      packet,
-    });
+    const lineage = readRevision(packet);
     return {
       lineage_kind: lineage.lineage_kind,
       packet,

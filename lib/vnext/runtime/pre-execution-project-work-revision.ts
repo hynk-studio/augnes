@@ -445,6 +445,32 @@ export function inspectPreExecutionProjectWorkRevisionChainV01(
   db: Database.Database,
   input: { workspace_id: string; project_id: string },
 ): PreExecutionProjectWorkChainInspectionV01 {
+  // The synchronous inspection owns a SQLite read snapshot (a savepoint when
+  // called by a writer). Nothing is retained across calls or across an insert.
+  return db.transaction(() => inspectRevisionChainInsideReadV01(db, input).chain)();
+}
+
+/** Complete, validated revision projections, produced together in one read.
+ * No read session or caller-supplied validation result escapes this boundary. */
+export function inspectPreExecutionProjectWorkRevisionLineagesV01(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string },
+): PreExecutionProjectWorkRevisionLineageV01[] {
+  return db.transaction(() => {
+    const { chain, revisions } = inspectRevisionChainInsideReadV01(db, input);
+    return revisions.map((revision) => ({
+      ...revision,
+      projection_current: chain.projection_current &&
+        revision.packet.packet_id === chain.tip_packet.packet_id &&
+        revision.packet.integrity.fingerprint === chain.tip_packet.integrity.fingerprint,
+    }));
+  })();
+}
+
+function inspectRevisionChainInsideReadV01(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string },
+): { chain: PreExecutionProjectWorkChainInspectionV01; revisions: PreExecutionProjectWorkRevisionLineageV01[] } {
   const records = loadPacketRecords(db, input);
   const initialRecords = records.filter(
     (record) =>
@@ -530,7 +556,7 @@ export function inspectPreExecutionProjectWorkRevisionChainV01(
   const projectionCurrent =
     !semanticSuccessor && semanticState === 0 && semanticHeads === 0;
   const tipRevision = ordered.at(-1) ?? null;
-  return {
+  const chain: PreExecutionProjectWorkChainInspectionV01 = {
     genesis_packet: genesis,
     tip_packet: tipRevision?.packet ?? genesis,
     tip_lineage_kind: tipRevision
@@ -545,6 +571,7 @@ export function inspectPreExecutionProjectWorkRevisionChainV01(
     packet_ids: [genesis.packet_id, ...ordered.map((entry) => entry.packet.packet_id)],
     packets: [genesis, ...ordered.map((entry) => entry.packet)],
   };
+  return { chain, revisions: ordered };
 }
 
 export function inspectPreExecutionProjectWorkRevisionPacketV01(
@@ -731,6 +758,9 @@ function validatePreExecutionHistoryAtEachRevisionV01(
   revisions: PreExecutionProjectWorkRevisionLineageV01[],
 ): void {
   const allowed = new Set([genesis.packet_id]);
+  // Only canonical Evidence validation is reusable across cutoffs in this
+  // read-only snapshot. Packet membership and run history remain cutoff-specific.
+  const validatedEvidence = new Set<string>();
   for (const revision of revisions) {
     allowed.add(revision.packet.packet_id);
     const coreRows = db
@@ -744,7 +774,12 @@ function validatePreExecutionHistoryAtEachRevisionV01(
     }>;
     if (
       coreRows.some(
-        (row) => !isNonBlockingPreExecutionRecordV01(db, input, row, allowed),
+        (row) => {
+          if (row.record_kind === "evidence_record" && validatedEvidence.has(row.record_id)) return false;
+          if (!isNonBlockingPreExecutionRecordV01(db, input, row, allowed)) return true;
+          if (row.record_kind === "evidence_record") validatedEvidence.add(row.record_id);
+          return false;
+        },
       )
     ) {
       refuse("work_revision_history_predates_revision", 409);
