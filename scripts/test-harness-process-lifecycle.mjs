@@ -257,15 +257,12 @@ export async function closeTrackedServer(
       resolve();
     });
   });
-  const finished = await Promise.race([
-    closed.then(() => true),
-    delay(timeoutMs).then(() => false),
-  ]);
+  const finished = await completesWithin(closed, timeoutMs);
   if (!finished) {
     for (const socket of sockets) socket.destroy();
     server.closeAllConnections?.();
     server.closeIdleConnections?.();
-    await Promise.race([closed, delay(250)]);
+    await completesWithin(closed, 250);
   }
   if (!settled || server.listening) {
     const error = new Error("owned server close timed out");
@@ -381,10 +378,19 @@ async function waitForVerifiedProcessesExit(owned, timeoutMs) {
 
 async function waitForRecordClose(record, timeoutMs) {
   if (record.closed) return true;
-  return Promise.race([
-    record.closePromise.then(() => true),
-    delay(timeoutMs).then(() => false),
-  ]);
+  return completesWithin(record.closePromise, timeoutMs);
+}
+
+// A completed close must release its deadline too. Leaving the losing timer
+// referenced keeps an otherwise settled test process alive until that deadline.
+async function completesWithin(promise, timeoutMs) {
+  let timer;
+  try {
+    return await Promise.race([
+      promise.then(() => true),
+      new Promise(resolve => { timer = setTimeout(() => resolve(false), timeoutMs); }),
+    ]);
+  } finally { clearTimeout(timer); }
 }
 
 function runTaskkill(pid, force) {
