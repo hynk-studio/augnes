@@ -1984,6 +1984,29 @@ async function main() {
       await readCurrentNotes([suppliedSource, correction]);
       assert(beforeReadBoundaries.equals(noteDatabase.serialize()), 'read-boundary cases do not alter stored state');
       assert.deepEqual(effects(), effectsBefore);
+      // The retained result is deliberately reselected through the real controls.
+      // Search and comparison remain read only; one explicit save appends once.
+      await openNotes();
+      await clickSelector('[data-retained-work-sources] > summary');
+      await setFormControlValue('#retained-source-query', 'IMAGE-r1');
+      await clickSelector('[data-retained-source-action="search"]');
+      await waitForCondition(`document.querySelector('[data-retained-source-hit]')?.textContent.includes(${JSON.stringify(firstNote)}) === true`, "historical note for explicit reselection");
+      assert.equal(await evaluateBoolean(`document.querySelector('[data-retained-work-sources]')?.textContent.includes('1056000') === true`), true);
+      await clickSelector('[data-retained-source-action="select"]');
+      assert(beforeReadBoundaries.equals(noteDatabase.serialize()), 'lookup and draft selection write nothing');
+      await compareAndSave(3);
+      await navigate(`${appOrigin}/workbench/semantic-review`);
+      await readCurrentNotes([suppliedSource, correction, firstNote]);
+      const reselected = await browserFetchJson('/api/vnext/operator/project-continuity');
+      const originalEntry = firstNotePackets.flatMap(row => JSON.parse(row.payload_json).selected_context)
+        .find(entry => entry.bounded_summary === firstNote);
+      assert(originalEntry);
+      assert.deepEqual(reselected.body.work_initialization.selected_source_context
+        .find(entry => entry.entry_id === originalEntry.entry_id), originalEntry);
+      assert.deepEqual(reselected.body.work_initialization.current_work, savedDefinition);
+      assert.equal(packets().length, finalPackets.length + 1);
+      assert.deepEqual(packets().filter(row => finalPackets.some(prior => prior.record_id === row.record_id)), finalPackets);
+      assert.deepEqual(effects(), effectsBefore);
     } finally { noteDatabase.close(); }
     const healthAfter = await (await fetch(`${appOrigin}/api/healthz`)).json();
     assert.equal(healthAfter.runtime_generation_id, healthBefore.runtime_generation_id);
@@ -1994,6 +2017,7 @@ async function main() {
       current_selected_notes_read_without_editor: true, current_note_disclosure_zero_write: true,
       current_note_scope_and_unavailable_boundaries: true, current_note_read_without_revision_permission: true,
       previous_source_bytes_preserved: true, retained_lookup_select_compare_cancel: true,
+      retained_lookup_select_compare_save_reopen: true,
       managed_execution_unavailable: true, note_operation_restart_count: 0,
       access_restart_count: 0, installed_service_observation: false }));
     companionFirstWorkProfile = false;

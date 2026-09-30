@@ -408,9 +408,16 @@ export function parseRepositoryRetainedSourcesResponseV01(value) {
   exactObjectV01(lookup, ["scope", "cutoff_recorded_at", "limits", "scanned_packets", "scanned_entry_occurrences", "unique_entries", "matching_entries", "returned_entries", "omitted_matching_entries", "truncated", "result_utf8_bytes", "results", "qualifications"]);
   if (lookup.scope !== "selected_note_snapshots_in_current_pre_execution_revision_chain") invalidContractV01();
   isoTimestampV01(lookup.cutoff_recorded_at);
-  const limits = { query_characters: 160, query_terms: 8, results: 8, result_utf8_bytes: 20_000, packets: 33, note_occurrences: 264, scanned_entry_utf8_bytes: 396_000 };
+  const limits = { query_characters: 160, query_terms: 8, results: 8, result_utf8_bytes: 20_000, packets: 33, note_occurrences: 264, scanned_entry_utf8_bytes: 1_056_000 };
   exactObjectV01(lookup.limits, Object.keys(limits));
-  for (const [key, limit] of Object.entries(limits)) if (lookup.limits[key] !== limit) invalidContractV01();
+  // Allow the previous runtime's exact scan policy for client-first refresh.
+  // All other limits and result checks remain fixed; server-chosen ceilings
+  // outside these two known policies are never accepted.
+  for (const [key, limit] of Object.entries(limits)) {
+    if (key === "scanned_entry_utf8_bytes"
+      ? ![396_000, limit].includes(lookup.limits[key])
+      : lookup.limits[key] !== limit) invalidContractV01();
+  }
   for (const key of ["scanned_packets", "scanned_entry_occurrences", "unique_entries", "matching_entries", "returned_entries", "omitted_matching_entries", "result_utf8_bytes"]) {
     if (!Number.isSafeInteger(lookup[key]) || lookup[key] < 0) invalidContractV01();
   }

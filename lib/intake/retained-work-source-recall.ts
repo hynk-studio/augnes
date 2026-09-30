@@ -8,10 +8,11 @@ export const RETAINED_WORK_SOURCE_LIMITS = {
   query_characters: 160, query_terms: 8, results: 8, result_utf8_bytes: 20_000,
   packets: MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01 + 1,
   note_occurrences: (MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01 + 1) * NATIVE_SELECTED_WORK_SOURCE_LIMITS.entries,
-  // Cumulative lookup capacity, independent of native per-packet admission.
-  // Exhaustion is unavailable lookup, not corrupt source material. Count every
-  // occurrence even when the same note is retained across revisions.
-  scanned_entry_utf8_bytes: 396_000,
+  // Count every occurrence. Entry bytes omit each normalized snapshot array's
+  // brackets and separators, so this conservative finite ceiling covers all
+  // admitted snapshots within the packet bound. It is not a memory budget;
+  // endpoints still enforce their own eligibility and task cutoffs.
+  scanned_entry_utf8_bytes: (MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01 + 1) * NATIVE_SELECTED_WORK_SOURCE_LIMITS.bytes,
 } as const;
 type Chain = Pick<PreExecutionProjectWorkChainInspectionV01, "packets" | "tip_packet">;
 export interface RetainedWorkSourceHit {
