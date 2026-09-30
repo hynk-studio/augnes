@@ -10,6 +10,7 @@ import { normalizeInitialProjectWorkDefinitionV01 as legacyNormalize } from '../
 import { buildSelectedWorkSourceEntry, normalizeSelectedWorkSources } from '../lib/intake/selected-work-source-comparison.ts';
 import { seal } from '../apps/web_planning/src/access.ts';
 import { checkSitesArtifact, exerciseSitesBootstrap } from './web-planning-sites-checks.mjs';
+import { checkCapacity } from './web-planning-capacity-checks.mjs';
 import { checkBranching } from './web-planning-branch-checks.mjs';
 import { checkCloudflarePlanning } from './web-planning-cloudflare-checks.mjs';
 const root=process.env.AUGNES_CANONICAL_TEMP_ROOT;if(!root)throw new Error('owned_test_root_required');
@@ -108,10 +109,10 @@ try {
  const outsider=await start('outsider',{bindings:{LOCAL_LOGIN:'other-owner@example.test'}});await client(outsider,{denied:true});
  const targets=['/','/client.js','/api/works','/api/work/'+head.work_id,'/api/work/'+head.work_id+'/history','/api/work/'+head.work_id+'/export'];
  for(const target of targets){const res=await local.mf.dispatchFetch(local.origin+target,{headers:{'oai-authenticated-user-email':local.env.OWNER_EMAIL}});assert.equal(res.status,403);assert(!(await res.text()).includes(head.definition.goal));}
- for(const action of ['save','erase','resolve','context','ticket']) {
+ for(const action of ['save','erase','resolve','context','ticket','capacity']) {
    const res=await local.mf.dispatchFetch(local.origin+'/api/work/'+head.work_id+'/'+action,{method:'POST',headers:{'content-type':'application/json',origin:local.origin,'x-csrf-token':c.csrf},body:JSON.stringify({...scope,...fault.input})});assert.equal(res.status,403);
  }
- for(const target of ['/api/drafts','/api/reconstruct'])assert.equal((await local.mf.dispatchFetch(local.origin+target,{method:'POST'})).status,403);
+ for(const target of ['/api/drafts','/api/reconstruct','/api/capacity'])assert.equal((await local.mf.dispatchFetch(local.origin+target,{method:'POST'})).status,403);
  assert.equal((await c.request('/api/work/'+head.work_id+'/context',{expected:headBinding(head),workspace_id:randomUUID()})).status,403);
  assert.equal((await c.request('/api/works?project_id=wrong')).status,403);
  assert.equal((await c.request('/api/drafts',{}, {origin:'https://other.example'})).status,403);
@@ -158,6 +159,7 @@ try {
  for(let i=0;i<10;i++)assert.equal((await save(c,await newWork(c,{...baseDefinition,goal:'List item '+i},[]))).status,200);
  const p1=await c.request('/api/works');assert.equal(p1.data.items.length,10);assert(p1.data.next);const p2=await c.request('/api/works?cursor='+p1.data.next);assert(p2.data.items.length>0);assert(!p2.data.items.some(i=>p1.data.items.some(j=>i.work_id===j.work_id)));
  passed('32-revision capacity and work-list pagination are bounded with exact effects');
+ await checkCapacity({c,scope:fixtureScope,passed});
  await checkBranching({start,client,newWork,save,edit,passed,open});
  await checkCloudflarePlanning({root,start,client,newWork,save,edit,passed,open});
  console.log(JSON.stringify({web_planning_d1_checks:checks,storage:'Miniflare/workerd D1',hosted_acceptance:false}));

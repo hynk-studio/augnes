@@ -15,6 +15,17 @@ export function normalizeInitialProjectWorkDefinitionV01(input: {
   success_criteria: unknown;
   non_goals: unknown;
 }): ProjectWorkDefinitionV01 {
+  const { definition, bytes } = inspectInitialProjectWorkDefinitionV01(input);
+  if (bytes > INITIAL_PROJECT_WORK_LIMITS_V01.definition_bytes) refuse("first_work_definition_too_large");
+  return definition;
+}
+
+/** Shares normalization with admission; an inspection never admits material. */
+export function inspectInitialProjectWorkDefinitionV01(input: {
+  goal: unknown;
+  success_criteria: unknown;
+  non_goals: unknown;
+}) {
   const goal = normalizeBoundedTextV01(
     input.goal,
     INITIAL_PROJECT_WORK_LIMITS_V01.goal_characters,
@@ -39,13 +50,7 @@ export function normalizeInitialProjectWorkDefinitionV01(input: {
     success_criteria: successCriteria,
     non_goals: nonGoals,
   };
-  if (
-    new TextEncoder().encode(canonicalizeProtocolValueV01(definition)).byteLength >
-    INITIAL_PROJECT_WORK_LIMITS_V01.definition_bytes
-  ) {
-    refuse("first_work_definition_too_large");
-  }
-  return definition;
+  return { definition, bytes: new TextEncoder().encode(canonicalizeProtocolValueV01(definition)).byteLength };
 }
 
 function normalizeBoundedListV01(

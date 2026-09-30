@@ -5,9 +5,10 @@ const csrf=document.querySelector('meta[name=csrf-token]').content;
 const labels=['Changed assumption / user correction','New candidate','Rejection reason','Deferred item / revisit condition','Open question','Next check','Unclassified / needs review'];
 let work=null,saved=null,saveTicket=null,pending=null,reviewed=null,dirty=false,next=null,busy=false,eraseBinding=null;
 let relationPending=null,relationUnknown=false,directionDirty=false,comparison=null,comparisonCurrent=false,branchCursor=null,accessLost=false;
+let capacityEpoch=0,capacityTimer=null,capacityInFlight=false,capacityQueued=false;
 const binding=r=>r?{revision:r.revision,fingerprint:r.fingerprint}:{revision:0,fingerprint:null};
 function status(text){$('status').textContent=text;}
-function deny(){accessLost=true;work=saved=saveTicket=pending=reviewed=eraseBinding=next=null;dirty=false;relationPending=comparison=branchCursor=null;comparisonCurrent=relationUnknown=false;directionDirty=false;$('private-view').replaceChildren();const p=document.createElement('p');p.id='status';p.setAttribute('role','status');p.textContent='Access is unavailable. Private content has been cleared. Sign in again to reopen.';$('private-view').append(p);}
+function deny(){capacityEpoch++;clearTimeout(capacityTimer);accessLost=true;work=saved=saveTicket=pending=reviewed=eraseBinding=next=null;dirty=false;relationPending=comparison=branchCursor=null;comparisonCurrent=relationUnknown=false;directionDirty=false;$('private-view').replaceChildren();const p=document.createElement('p');p.id='status';p.setAttribute('role','status');p.textContent='Access is unavailable. Private content has been cleared. Sign in again to reopen.';$('private-view').append(p);}
 async function request(path,body){
   if(accessLost)throw new Error('access_denied');
   const response=await fetch(path,{method:body===undefined?'GET':'POST',credentials:'same-origin',cache:'no-store',redirect:'manual',
@@ -32,14 +33,19 @@ function noteRow(note={text:'',source:'',observed_at:null,provenance:'user_decla
     if(key==='text'){e.rows=4;e.required=true;}if(key==='source')e.required=true;if(key==='observed_at')e.placeholder='Unknown, or ISO time with timezone';
     e.value=value??'';wrap.append(l,e);return wrap;}
   row.append(field('text','Note',note.text),field('source','Source / attribution',note.source));
-  const meta=document.createElement('div');meta.className='note-metadata';meta.append(field('label','Note type',note.label,labels),field('provenance','Provenance',note.provenance,['user_declaration','derived_interpretation','imported_unverified']),field('observed_at','Observation time (optional)',note.observed_at));row.append(meta);const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent='Required context';const label=document.createElement('label');label.textContent='Required whole notes (select all that apply)';const deps=document.createElement('select');deps.id=n+'dependencies';label.htmlFor=deps.id;deps.multiple=true;deps.className='dependencies';deps.setAttribute('aria-label','Required whole notes');deps.onchange=()=>{row._depIds=[...deps.selectedOptions].map(o=>o.value);changed();};label.append(deps);details.append(summary,label);row.append(details);$('notes').append(row);
+  const meta=document.createElement('div');meta.className='note-metadata';meta.append(field('label','Note type',note.label,labels),field('provenance','Provenance',note.provenance,['user_declaration','derived_interpretation','imported_unverified']),field('observed_at','Observation time (optional)',note.observed_at));row.append(meta);const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent='Required context';const label=document.createElement('label');label.textContent='Required whole notes (select all that apply)';const deps=document.createElement('select');deps.id=n+'dependencies';label.htmlFor=deps.id;deps.multiple=true;deps.className='dependencies';deps.setAttribute('aria-label','Required whole notes');deps.onchange=()=>{row._depIds=[...deps.selectedOptions].map(o=>o.value);changed();};label.append(deps);details.append(summary,label);row.append(details);const usage=document.createElement('p');usage.className='hint note-capacity';usage.id=n+'capacity';row.querySelector('[data-field=text]').setAttribute('aria-describedby',usage.id);row.append(usage);$('notes').append(row);
 }
 function syncDependencies(){const rows=[...$('notes').children];for(const row of rows){const select=row.querySelector('.dependencies');select.replaceChildren();for(const other of rows.filter(r=>r!==row)){const o=document.createElement('option');o.value=other.id;o.textContent=`Note ${rows.indexOf(other)+1}: ${other.querySelector('[data-field=text]').value.slice(0,80)}`;o.selected=row._depIds.includes(other.id);select.append(o);}for(const id of row._depIds.filter(id=>!rows.some(r=>r.id===id))){const o=document.createElement('option');o.value=id;o.textContent='Missing required note — restore it or explicitly revise this dependency';o.selected=true;select.append(o);}}}
 function draft(){const rows=[...$('notes').children];const notes=rows.map(row=>Object.fromEntries([...row.querySelectorAll('[data-field]')].map(e=>[e.dataset.field,e.dataset.field==='observed_at'?(e.value||null):e.value])));
- const material_edits=rows.map((row,i)=>{const changedOriginal=row._original && Object.keys(notes[i]).some(key=>notes[i][key]!==row._note[key]);if(changedOriginal){notes[i].provenance='derived_interpretation';row.querySelector('[data-field=provenance]').value='derived_interpretation';}return {dependencies:row._depIds.map(id=>rows.findIndex(r=>r.id===id)),adapts:changedOriginal?row._original:null};});
+ const material_edits=rows.map((row,i)=>{const changedOriginal=row._original && Object.keys(notes[i]).some(key=>notes[i][key]!==row._note[key]);return {dependencies:row._depIds.map(id=>rows.findIndex(r=>r.id===id)),adapts:changedOriginal?row._original:null};});
  return {definition:{goal:$('goal').value,success_criteria:$('criteria').value.split('\n'),non_goals:$('non-goals').value.split('\n')},notes,material_edits};}
 
-function changed(){dirty=true;$('saved-label').textContent=saved?`Unsaved edits · based on revision ${saved.revision}`:'Unsaved draft';reviewChanges();}
+function changed(event){
+  // An explicit edit adapts a saved note. Reading/checking the draft is pure.
+  for(const row of $('notes').children)if(row._original && [...row.querySelectorAll('[data-field]')].some(e=>(e.dataset.field==='observed_at'?(e.value||null):e.value)!==row._note[e.dataset.field]))row.querySelector('[data-field=provenance]').value='derived_interpretation';
+  if(event?.target.matches('[data-field=text]'))syncDependencies();
+  dirty=true;$('saved-label').textContent=saved?`Unsaved edits · based on revision ${saved.revision}`:'Unsaved draft';reviewChanges();queueCapacity();
+}
 // Compare authored meaning only; keep raw input intact for the server's validation.
 function definitionComparison(value){return typeof value==='string'?value.trim():[...new Set(value.map(v=>v.trim()).filter(Boolean))].sort();}
 function reviewChanges(){const d=draft();const lines=[];
@@ -47,6 +53,7 @@ function reviewChanges(){const d=draft();const lines=[];
   else {for(const [k,label] of [['goal','Goal'],['success_criteria','Success criteria'],['non_goals','Non-goals']])
     if(JSON.stringify(definitionComparison(d.definition[k]))!==JSON.stringify(definitionComparison(saved.definition[k])))lines.push(label+' edited.');
     const before=saved.sources.map(noteInput),after=d.notes;
+    if(after.some((n,i)=>d.material_edits[i].adapts))lines.push('Edited saved notes are attributed as derived interpretations, linked to their original revision.');
     if(before.length!==after.length || before.some((n,i)=>Object.keys(n).some(k=>n[k]!==after[i][k])))lines.push('Selected context edited. Originals remain in earlier revisions.');
     if(d.material_edits.some((m,i)=>JSON.stringify([...m.dependencies].sort())!==JSON.stringify((saved.relations?.materials.find(m=>m.source_ref===saved.sources[i]?.source_ref)?.dependencies??[]).map(ref=>saved.sources.findIndex(s=>s.source_ref===ref)).sort())))lines.push('Required context edited. Review the linked whole notes.');
     if(!lines.length)lines.push('No definition or selection edits. An unchanged save acknowledges the existing revision.');}
@@ -60,9 +67,68 @@ function show(r=null){saved=r;pending=null;reviewed=null;dirty=false;saveTicket=
   for(const id of ['saved-context','refresh-work','history-tools','directions'])$(id).hidden=!r;
   for(const id of ['uncertain','conflict','rebase-draft','erase-confirm'])$(id).hidden=true;
   for(const id of ['context-view','conflict-latest','history-view'])$(id).replaceChildren();
-  $('edit-fields').disabled=false;$('save').disabled=false;reviewChanges();
+  $('edit-fields').disabled=false;$('save').disabled=false;reviewChanges();queueCapacity();
 }
 function mayLeave(){return !pending && !relationPending && (!(dirty||directionDirty) || confirm('Discard the unsaved edits in this tab?'));}
+const number=value=>value.toLocaleString('en-US');
+function capacityQuantity(name,q,unit='bytes') {return q.used===null?`${name}: unavailable until the invalid material is corrected.`:
+  `${name}: ${number(q.used)} / ${number(q.limit)} ${unit} · ${number(Math.abs(q.remaining))} ${q.remaining<0?'over':'remaining'}.`;}
+function capacityReason(issue){const reasons={
+  whole_note_limit:'Select at most 8 whole notes. Revise the current selection deliberately; earlier revisions retain their originals.',
+  selected_source_context_budget_exceeded:'Selected context exceeds its stored-byte budget, including attribution and provenance. Review per-note costs and revise the current selection.',
+  selected_source_context_invalid:'Check the note text (required, at most 2,000 characters), attribution (required, at most 256 UTF-16 units), note type, provenance and observation time.',
+  first_work_goal_invalid:'Provide a goal of at most 2,000 characters.',
+  first_work_success_criteria_invalid:'Provide 1–12 distinct criteria, at most 500 characters each.',
+  first_work_non_goals_invalid:'Use at most 12 distinct non-goals, at most 500 characters each.',
+  first_work_definition_too_large:'The work definition exceeds its separate stored-byte budget.',
+  relation_budget_exceeded:'Source relationships exceed their separate stored-byte budget. Review required context and retained comparison material; shortening note text does not reduce this quantity.',
+  invalid_dependencies:'A required note is missing. Restore it or explicitly revise the dependency and the necessary context.',
+  required_material_missing:'A required whole note is missing or refers to itself. Review Required context without dropping necessary conditions.',
+  inherited_dependencies_changed:'Changing inherited dependencies requires an explicit adaptation of that note. Review its meaning and attribution.',
+  invalid_adaptation_source:'An edited note is no longer in the selected saved base. Review the latest saved context and its attribution.',
+  history_capacity:'All 32 revisions are used. An unchanged selection can be acknowledged; a new revision cannot be saved.'
+};return (issue.note?`Note ${issue.note}: `:'')+(reasons[issue.code]??`Material is invalid (${issue.code.replaceAll('_',' ')}). Review it before saving.`);}
+function validCapacity(data,check,expected){
+  const q=value=>value && Number.isSafeInteger(value.limit) && value.limit>0 && (value.used===null?value.remaining===null:Number.isSafeInteger(value.used)&&value.used>=0&&value.remaining===value.limit-value.used);
+  return data?.format==='web_planning_capacity.v0.1' && data.check_id===check && JSON.stringify(data.expected)===JSON.stringify(expected) &&
+    typeof data.fits==='boolean' && typeof data.noop==='boolean' && Array.isArray(data.issues) && data.issues.every(i=>typeof i.code==='string' && /^[a-z_]+$/.test(i.code) && (i.note===null||Number.isSafeInteger(i.note))) &&
+    ['notes','selection','definition','relations','history'].every(key=>q(data[key])) && Array.isArray(data.rows) && data.rows.length===(data.notes.used!==null&&data.notes.used<=8?data.notes.used:0) &&
+    data.rows.every(r=>['characters','source_units','bytes','text_bytes','duplicate_of'].every(k=>r[k]===null||(Number.isSafeInteger(r[k])&&r[k]>=0))) &&
+    Number.isSafeInteger(data.note_character_limit) && Number.isSafeInteger(data.source_unit_limit) && Number.isSafeInteger(data.request_byte_limit) &&
+    (data.selection.used===null || (Number.isSafeInteger(data.selection.text_bytes)&&data.selection.text_bytes>=0&&data.selection.metadata_bytes>=0&&data.selection.text_bytes+data.selection.metadata_bytes===data.selection.used)) &&
+    (!data.fits || (!data.issues.length && ['notes','selection','definition','relations','history'].every(k=>data[k].used!==null&&data[k].remaining>=0) && data.rows.every(r=>r.characters!==null&&r.bytes!==null&&r.text_bytes!==null&&r.source_units!==null) && (data.history.remaining>0||data.noop)));
+}
+function queueCapacity(delay=500){
+  const epoch=++capacityEpoch;clearTimeout(capacityTimer);if(!$('draft-capacity'))return;
+  $('capacity-status').textContent=pending?'Capacity unconfirmed while the save outcome is pending.':'Checking current draft…';
+  $('capacity-details').replaceChildren();for(const row of $('notes').children)row.querySelector('.note-capacity').textContent='';
+  $('draft-capacity').dataset.state='unchecked';
+  if(pending||accessLost||$('editor').hidden)return;
+  capacityTimer=setTimeout(()=>checkCapacity(epoch),delay);
+}
+async function checkCapacity(epoch){
+  if(epoch!==capacityEpoch||accessLost)return;
+  if(capacityInFlight){capacityQueued=true;return;}capacityInFlight=true;capacityQueued=false;
+  const current=draft(),signature=JSON.stringify(current),id=work,expected=binding(saved),check=crypto.randomUUID();
+  const stillCurrent=()=>!accessLost && epoch===capacityEpoch && work===id && signature===JSON.stringify(draft()) && JSON.stringify(expected)===JSON.stringify(binding(saved));
+  try {
+    const data=await api(saved?'/api/work/'+id+'/capacity':'/api/capacity',{check_id:check,...current,...(saved?{expected}:{})});
+    if(!stillCurrent())return;
+    if(!validCapacity(data,check,expected))throw new Error('invalid_capacity_response');
+    $('draft-capacity').dataset.state=data.fits?'fits':'blocked';
+    $('capacity-status').textContent=(data.fits?'Fits storage limits for this draft. ':'Needs revision before saving. ')+capacityQuantity('Selected context',data.selection)+(!data.fits&&data.issues[0]?.code!=='selected_source_context_budget_exceeded'?' '+capacityReason(data.issues[0]):'');
+    const lines=[capacityQuantity('Whole notes',data.notes,'notes'),capacityQuantity('Work definition',data.definition),capacityQuantity('Source relationships',data.relations),capacityQuantity('Saved history',data.history,'revisions')];
+    if(data.selection.used!==null)lines.unshift(`Stored note text: ${number(data.selection.text_bytes)} bytes. Attribution and packaging: ${number(data.selection.metadata_bytes)} bytes. ${data.selection.unique_notes} distinct notes counted; identical notes count once. Text bytes include JSON escaping.`);
+    lines.push(`Requests have a separate ${number(data.request_byte_limit)}-byte limit. This checks stored material, not a save request or authorization.`);
+    for(const issue of data.issues)lines.push(capacityReason(issue));
+    for(const line of lines){const p=document.createElement('p');p.textContent=line;$('capacity-details').append(p);}
+    [...$('notes').children].forEach((row,i)=>{const n=data.rows[i];if(!n)return;
+      row.querySelector('.note-capacity').textContent=`Note ${i+1}: ${n.characters??'unknown'} / ${data.note_character_limit} text characters${n.characters>data.note_character_limit?` (${n.characters-data.note_character_limit} over)`:''}; ${n.source_units??'unknown'} / ${data.source_unit_limit} attribution units${n.source_units>data.source_unit_limit?` (${n.source_units-data.source_unit_limit} over)`:''}. `+(n.bytes===null?'Stored size unavailable: correct this note first.':`${number(n.bytes)} stored bytes (${number(n.text_bytes)} text; ${number(n.bytes-n.text_bytes)} attribution and packaging).${n.duplicate_of?` Duplicate of note ${n.duplicate_of}; counted once.`:''}`);});
+  } catch(e){if(!stillCurrent())return;$('draft-capacity').dataset.state='unavailable';
+    $('capacity-status').textContent='Capacity unconfirmed. '+(e.message==='refresh_required'?'The saved version changed. Review the latest version before choosing a save base.':e.message==='request_too_large'?'The check request exceeds 1,500,000 bytes. Revise the draft; no content was saved.':'Check current draft to retry. Your edits are retained.');
+    if(e.message==='refresh_required')$('conflict').hidden=false;}
+  finally{capacityInFlight=false;if(capacityQueued&&!accessLost)queueCapacity(0);}
+}
 async function openWork(id){if(!mayLeave()){status(pending?'Resolve the pending save before leaving this work.':'Unsaved edits retained.');return;}const data=await api('/api/work/'+id);work=id;show(data.saved);status('Reopened from the server. Select Saved context for a fresh exact-revision read.');}
 async function list(append=false){const data=await api('/api/works'+(append&&next?'?cursor='+encodeURIComponent(next):''));if(!append)$('work-list').replaceChildren();
   for(const item of data.items){const li=document.createElement('li'),b=document.createElement('button');b.textContent=item.goal;b.onclick=()=>run(()=>openWork(item.work_id));li.append(b);$('work-list').append(li);}
@@ -80,6 +146,7 @@ async function refreshList(){
 async function acknowledged(r){show(r);status(`Saved revision ${r.revision}. Reopen or read Saved context.`);return refreshList();}
 async function dispatch(){
   if(!pending)return;
+  queueCapacity();
   $('edit-fields').disabled=true;$('save').disabled=true;
   let data;
   try{data=await api('/api/work/'+work+'/save',pending);}
@@ -89,7 +156,7 @@ async function dispatch(){
     else if(e.status===422||e.status===413){pending=null;saveTicket=null;$('edit-fields').disabled=false;$('save').disabled=false;status('Save refused: '+e.message.replaceAll('_',' ')+'. No clipping or partial save was performed.');}
     else if(e.status===410){pending=null;$('uncertain').hidden=true;$('context-view').replaceChildren();status(messages.work_erased);}
     else{$('uncertain').hidden=false;status('Save outcome unknown. Keep this tab open and check the original request.');}
-    return;}
+    queueCapacity();return;}
   await acknowledged(data.saved);
 }
 $('work-form').addEventListener('input',changed);
@@ -116,11 +183,12 @@ $('confirm-erase').onclick=()=>run(async()=>{await api('/api/work/'+work+'/erase
 $('import').onclick=()=>run(async()=>{const file=$('import-file').files[0];if(!file){status('Choose a complete work export.');return;}if(file.size>1500000){status('Export exceeds the bounded reconstruction size.');return;}if(!mayLeave())return;const data=await api('/api/reconstruct',{export:JSON.parse(await file.text()),confirm:'reconstruct-empty-store'});work=data.saved.work_id;show(data.saved);status('Reconstructed from an attributed export; authorship and source currentness remain unverified.');await list();});
 $('more-work').onclick=()=>run(()=>list(true));
 $('refresh-list').onclick=()=>run(async()=>{if(await refreshList())status('Work list refreshed.');});
+$('check-capacity').onclick=()=>queueCapacity(0);
 $('signout').onclick=()=>{dirty=false;directionDirty=false;deny();};
 window.addEventListener('beforeunload',e=>{if(dirty||pending||directionDirty||relationPending){e.preventDefault();e.returnValue='';}});
 window.addEventListener('pagehide',()=>{$('context-view')?.replaceChildren();});
 window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
-window.addEventListener('focus',()=>{if($('work-list'))api('/api/works').catch(e=>{if(e.message!=='access_denied')status('Access/currentness could not be checked. Use a fresh server read before reuse.');});});
+window.addEventListener('focus',()=>{if($('draft-capacity'))queueCapacity();if($('work-list'))api('/api/works').catch(e=>{if(e.message!=='access_denied')status('Access/currentness could not be checked. Use a fresh server read before reuse.');});});
 function resetDirections(){relationPending=null;relationUnknown=false;directionDirty=false;comparison=null;comparisonCurrent=false;branchCursor=null;
   for(const id of ['branch-form','comparison','relation-save','relation-uncertain','relation-cancel','more-branches'])$(id).hidden=true;
   for(const id of ['branch-choices','comparison-summary','material-choices','relation-preview'])$(id).replaceChildren();$('relation-state').textContent='';freezeDirection(false);}
