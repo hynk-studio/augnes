@@ -71,16 +71,21 @@ change may suffice, while another task may authorize multiple bounded attempts.
 Correct storage/transmission establishes availability and delivery, not
 appropriate use. Submission, incorporation here and later usefulness are
 separate observations; implementation or delivery success does not establish
-later usefulness. Beyond that mechanical claim, keep three claims separate:
+later usefulness. Beyond that mechanical claim, distinguish:
 
-- **Implementation improvement:** the code or mechanism works more correctly.
-- **Method improvement:** a fixed method performs better than its prior form or
-  an appropriate baseline under the declared comparison.
-- **Task-improvement continuity:** attributable prior experience improves a
-  separate later task's behavior, reliability, or total burden. Only this third
-  claim directly supports the product claim that experience improves later work.
-  ChatGPT manually supplying the next task's best strategy does not demonstrate
-  autonomous task-improvement continuity.
+| Claim | Necessary observation and limit |
+|---|---|
+| Functional capability / correctness | A callable method actually works under its stated conditions. An artifact hash, successful handoff or matched function output does not establish learning or transfer. |
+| Downstream usefulness | An actual consumer uses the method in a genuinely separate task and its downstream quality, reliability or relevant total burden warrants use. Replaying the solved source answer does not demonstrate method reuse in new work. |
+| Selection/composition improvement | Goal-appropriate selection, combination or non-use improves the action/result over the relevant strong comparison. A plausible generated plan or more components alone does not establish this effect. |
+| Task-improvement continuity | Attributable prior experience and observed outcomes improve a separate later task's behavior, reliability, achievable scope or total burden. Identify what changed through feedback and why the later result supports that contribution. |
+
+These distinctions apply to the [next executable-reuse candidate](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#next-p4p5--executable-capability-reuse-from-experience-1373)
+without requiring all contributions in its first increment. Correctness is not
+method usefulness; only attributable experience effects support a learning
+claim. Human curation, labels/corrections and hidden assistance must be attributed.
+ChatGPT manually supplying each best strategy does not demonstrate autonomous
+task-improvement continuity, nor does replacing the worker with a stronger model.
 
 ### Task units and relevant task characteristics
 
@@ -201,9 +206,12 @@ source access, budget, and other relevant conditions, or report their difference
 and resulting limits. A concurrent model or other major condition change cannot
 be attributed to Augnes alone.
 
-A strong source-linked adaptive memo may update from the same permitted
-experience under a predefined rule. Do not weaken it into a memoryless or frozen
-note condition when testing adaptation. Before a fixed comparison, predefine
+A strong source-linked adaptive memo gets comparable initial experience/raw
+sources, relevant existing code/tools, model, authority and total budget. It may
+generate code, use conditional methods, consider multiple plans and update notes
+from permitted experience under a predefined rule. Do not deny it the useful
+source asset or weaken it into a memoryless or frozen note condition when testing
+adaptation. Before a fixed comparison, predefine
 method, update rules, source access and relevant availability/cutoffs, authority,
 model, tools/budget, scoring, contamination/exposure handling and stop conditions.
 Freeze those rules, not the memory/state whose adaptation is being tested.
@@ -212,9 +220,12 @@ Freeze those rules, not the memory/state whose adaptation is being tested.
 |---|---|
 | Representation | Materially equivalent information, different representation; added information is not a format effect. |
 | Selection system | Same raw-source access, relevant time/access conditions, tools and budget; selection/update behavior may produce different inputs. |
+| Composition | Begin with materially equivalent available components; distinguish the added selection/combination effect from access to a better executable asset. |
+| Outcome updating | Begin with the same initial library/state and identify the feedback/update difference; disclose human corrections and curation rather than attributing them to the updater. |
 | Whole system | Different workflows, preparation, tools, interfaces or interaction paths; report those differences and their total burden. |
 
-Do not collapse these into one memory effect. Where a specific recombination
+These are question-specific alternatives, not a mandatory full factorial campaign.
+Do not collapse them into one memory effect. Where a specific recombination
 question warrants it, compare with a strong general model, strong source-linked
 adaptive memo and strong single-procedure/instruction baseline. Justified component
 removal/substitution can test contribution, without mandatory ablation ceremony
@@ -230,8 +241,8 @@ unobserved properties distinct.
 
 ### Cost and user burden
 
-Distinguish method-development and preparation cost; reusable asset
-creation/update/curation; per-task selection/retrieval/delivery; worker/model use
+Distinguish method-development, setup and preparation cost; reusable asset
+creation/update/curation/maintenance; per-task selection/retrieval/delivery; worker/model use
 where applicable; review/verification/recovery; and human intervention burden.
 Improvements may include fewer failures, approved new capabilities, higher
 quality, lower compute or latency, fewer unnecessary checks,
@@ -263,8 +274,9 @@ supports an appropriate response to correction or changed applicability, or
 enables previously unsustainable scope, duration or quality.
 Higher cost may be justified by materially better outcomes or
 newly reachable problem scope; Augnes need not be cheaper in every successful
-case. Cost reduction, quality improvement, reliability improvement and capability
-expansion are separate claims. Unobserved costs remain unknown.
+case. Cost reduction on the same task, quality/reliability improvement and
+expansion of the reliable problem range achievable at a relevant cost are
+separate claims. Unobserved costs remain unknown.
 
 ### Next decisions and concise reporting
 
