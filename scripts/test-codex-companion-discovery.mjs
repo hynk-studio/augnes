@@ -458,7 +458,7 @@ try {
     const retainedProjection = {
       ...sourceProjection, projection_version: "codex_repository_retained_sources.v0.1", reason: "retained_selected_sources",
       lookup: { scope: "selected_note_snapshots_in_current_pre_execution_revision_chain", cutoff_recorded_at: "2026-09-01T00:00:00.000Z",
-        limits: { query_characters: 160, query_terms: 8, results: 8, result_utf8_bytes: 20000, packets: 33, note_occurrences: 264, scanned_entry_utf8_bytes: 396000 },
+        limits: { query_characters: 160, query_terms: 8, results: 8, result_utf8_bytes: 20000, packets: 33, note_occurrences: 264, scanned_entry_utf8_bytes: 1056000 },
         scanned_packets: 3, scanned_entry_occurrences: 12, unique_entries: 9, matching_entries: 9, returned_entries: 8, omitted_matching_entries: 1,
         truncated: true, result_utf8_bytes: 0, qualifications: ["Repeated copies are not independent evidence; no match is bounded."],
         results: Array.from({ length: 8 }, (_, i) => {
@@ -489,6 +489,19 @@ try {
     const callRetained = () => client.callTool({ name: "augnes_lookup_repository_retained_sources", arguments: { repositoryRoot: process.cwd(), expectedSnapshotBinding: sourceBinding, query: "literal" } });
     retainedScenario = { body: retainedProjection };
     assert.equal((await callRetained()).structuredContent.lookup.returned_entries, 8);
+    // Client-first refresh also supports the exact previous runtime policy.
+    const previousRuntime = structuredClone(retainedProjection);
+    previousRuntime.lookup.limits.scanned_entry_utf8_bytes = 396000;
+    assert.deepEqual(parseRepositoryRetainedSourcesResponseV01(previousRuntime), previousRuntime);
+    retainedScenario = { body: previousRuntime };
+    assert.deepEqual((await callRetained()).structuredContent.lookup, previousRuntime.lookup);
+    for (const ceiling of [0, 396001, 1055999, 1056001, "1056000"]) {
+      const unknownPolicy = structuredClone(retainedProjection);
+      unknownPolicy.lookup.limits.scanned_entry_utf8_bytes = ceiling;
+      assert.throws(() => parseRepositoryRetainedSourcesResponseV01(unknownPolicy), /contract_invalid/u);
+      retainedScenario = { body: unknownPolicy };
+      assert.equal((await callRetained()).structuredContent.companion.status, "unavailable");
+    }
     for (const scenario of [
       { body: { ...retainedProjection, snapshot_binding: `sha256:${"b".repeat(64)}` } },
       { body: retainedProjection, generation: "stale-generation" },

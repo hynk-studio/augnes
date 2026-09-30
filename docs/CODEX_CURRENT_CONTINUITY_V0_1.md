@@ -184,9 +184,9 @@ budget; packet, GuideBrief and host request limits remain separate. Companion
 work-revision preview/save also permits a 64,000-byte request envelope for compact
 note edits, definition changes and exact bindings; its wire shape and proxy parser
 are unchanged. Read-only Resume and source/retained lookup retain their 16 KiB
-request envelopes. Retained lookup preserves its
-396,000-byte cumulative scan and 20,000-byte result ceilings; a large revision
-history can exceed the lookup ceiling without invalidating its current selection.
+request envelopes. Retained lookup uses a separate 1,056,000-byte cumulative
+scan ceiling aligned with admitted native snapshots and the unchanged
+20,000-byte result ceiling; its work eligibility and task scope remain bounded.
 
 The opt-in connected-project reader requests `include_work_definition: true`
 on that same private route. Only this exact additional input is admitted; the
@@ -253,8 +253,8 @@ read is introduced. Current notes being readable does not imply this lookup is
 eligible. A changed binding returns `refresh_required` with no replacement
 snapshot or history; the caller must explicitly refresh Resume.
 
-The existing case-insensitive all-terms search and limits remain: 160 query
-characters, eight terms, at most 33 packets/264 note occurrences/396,000
+Case-insensitive all-terms search uses 160 query
+characters, eight terms, at most 33 packets/264 note occurrences/1,056,000
 serialized entry bytes scanned, and eight whole original result rows/20,000
 canonical result bytes returned. The existing selected-note budgets still
 apply. No row or condition is clipped, query broadened, locator fetched or
@@ -265,10 +265,27 @@ material), and `refresh_required` remain distinct and carry no lookup payload.
 lookup capacity was exhausted, not that retained material is corrupt or absent.
 No incomplete search is returned as a successful empty lookup. Current-source
 reading and recovery have their own validation paths and remain independent.
-Repeated snapshots count in full. The larger native per-packet allowance can
-therefore exhaust this separate lookup envelope sooner; neither a shorter query
-nor a fresh Resume reduces those bytes. The ceiling is a bounded lookup policy,
-not a measured memory requirement or a reason to reject otherwise valid data.
+Repeated snapshots count in full before consolidation. The scan ceiling is
+33 × the native 32,000-byte selected-array admission ceiling. For a nonempty
+array of n notes, counted entry bytes exclude n + 1 bytes of brackets and
+separators; this is a conservative finite envelope, not a measured memory
+requirement. Packet and per-snapshot validation remain independent. With valid
+snapshots inside the packet bound, cumulative bytes cannot exceed this ceiling.
+The scanner's 33-packet bound does not grant endpoint eligibility: both initial
+and ordinary authored-successor preparation families still refuse lookup at
+revision 32. An initial packet has no selected notes; an authored-successor
+root may contain them. A different-task preparation cuts lookup to its task
+suffix; it does not reset the revision limit or expose predecessor-task notes.
+Storage, recovery, portable packages and edit eligibility are unchanged.
+
+The current proxy accepts exactly the previous 396,000-byte or current
+1,056,000-byte advertised scan policy; every other advertised limit remains
+fixed. This allows a refreshed client to read the previous runtime. Older
+proxies require 396,000 and reject even a small successful response from the
+new runtime. An unchanged projection shape or plugin version string does not
+establish artifact compatibility. Installed use requires the supported plugin
+refresh and a new client session loading that artifact; source verification
+does not perform installation or refresh an already loaded proxy.
 
 Results expose the existing client-disclosed note projection, exact reusable
 `source` reference, current versus historical selection, first recording time,
