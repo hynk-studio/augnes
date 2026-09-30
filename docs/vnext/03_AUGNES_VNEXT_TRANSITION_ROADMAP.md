@@ -37,7 +37,9 @@ Under the existing [product doctrine](./01_AUGNES_VNEXT_MASTERPLAN.md) and
 north star is user-owned, persistent project problem-solving capability built
 from the experience, corrections and reusable methods of a user and replaceable
 models. The product-facing loop stays **Resume -> Verify -> Decide**. This adds
-no learning mode, dashboard, approval ritual, phase or implementation mandate.
+no learning mode, dashboard, approval ritual or new phase. The prospective
+candidate below gives that direction a bounded next implementation outcome;
+documentation does not authorize its runtime or research execution.
 
 The product question is whether valid project understanding and corrections
 help later work more than strong practical alternatives, without unjustified
@@ -46,6 +48,71 @@ models, adaptive memory, project context, agents, governance and automation;
 none of these categories is an exclusive Augnes advantage. Users or small teams
 conducting uncertain research/development across sessions, tools or models are
 a primary target-user hypothesis, not established product-market fit.
+
+### Next P4/P5 — Executable capability reuse from experience (#1373)
+
+The 2026-10-01 [#1373 alignment](https://github.com/hynk-studio/augnes/issues/1373)
+promotes **experience → executable reusable method → separate successor use →
+outcome-informed revision/non-use** as the next new capability implementation
+candidate within P4/P5. This is an explicit prospective sequencing change. The
+01/03/04 documentation change is authorized; this runtime candidate is **Next**
+under the phase-state rule, with implementation and live study **NOT_STARTED**.
+Its first source inspection and mechanism choice belong inside the separately
+authorized implementation, not a readiness-only PR.
+
+The first slice should connect an actual usable asset, an actual consumer, an
+observed downstream result and a traceable feedback connection:
+
+1. Start with solved experience/task A and derive or minimally qualify an
+   executable method, retaining its source, applicable conditions and limits.
+2. Use it for a current goal in genuinely separate task B through a bounded
+   callable path, and observe the resulting work. Repeated sessions or small
+   variants of A do not establish separate-task use.
+3. Connect B's outcomes to a justified revision, unchanged retention or non-use.
+   Include a discriminating changed condition C when needed to assess whether
+   that response is appropriate; C is not a fixed task-count requirement.
+
+Inspect the existing [P4.6 EXTRACT/APPLY/REVISE owners](../../scripts/conditional-procedure-learning/)
+and [composition producers/consumers](../../lib/vnext/strategy-composition-case.ts)
+before choosing an extension. P4.6's natural-language procedures and closed
+coordinator probes already exercise bounded extraction, application and local
+revision. They do not prove this proposed reusable executable capability loop:
+the [observed sequence](../verification/P4_6_CONDITIONAL_PROCEDURE_LEARNING.md)
+found no additional behavioral advantage over the strong adaptive memo and no
+added revision benefit in its one three-task sequence. Preserve those findings,
+exposure limits and frozen dispositions; do not restart it or inherit unused
+budgets.
+
+[#1366's computation artifacts](https://github.com/hynk-studio/augnes/issues/1366)
+are one grounded source-inspection/reuse candidate, not a required module or an
+established transfer result. That completed numerical case is not rerun by this
+sequence, and private originals remain private. If original code plus minimal
+qualification already serves B, use it without wrapping it in a framework.
+Assess the reusable asset, goal-conditioned selection/composition and
+outcome-driven updating as separate contributions. All three need not be new
+mechanisms or prerequisites for the first useful increment; no new selector,
+registry or universal module format is presumed.
+
+Prioritize concrete capability learning/reuse and product defects or delivery
+gaps that obstruct actual work. [#1372](https://github.com/hynk-studio/augnes/issues/1372)
+remains separately authorized private file-backed Web continuation work after
+the reviewed, closed [#1371](https://github.com/hynk-studio/augnes/issues/1371).
+It may deliver future capability artifacts, but is not a universal prerequisite
+for independent code/research experiments. #1372 owns its Web README and directly
+relevant Web-status corrections below; [Draft #1342](https://github.com/hynk-studio/augnes/pull/1342)
+owns the three #1340 status paragraphs. This alignment leaves those sections and
+anchors intact and does not treat pending corrections as a blocker for this
+candidate.
+
+The independently eligible small [GCML computational comparison](#research--goal-directed-recombination-and-candidate-paths-1214)
+and other bounded research questions retain their own scope and authority; full
+platform completion or prior broad real-world usefulness is not an entry gate
+for a useful mechanism experiment. Default product activation still requires
+the distinct evidence in [04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#method-improvement-evidence).
+Defer unneeded marketplace/SDK work, universal registries/graphs, additional UI
+and host expansion until a concrete consumer justifies them. This priority
+neither cancels authorized work nor makes all P1/P2 work blocked. Dated historical
+scopes, study results and unrelated Current/Next work below retain their bounds.
 
 ### Later ordinary-use evidence and current prerequisites
 

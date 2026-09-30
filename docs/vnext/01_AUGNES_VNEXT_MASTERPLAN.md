@@ -12,10 +12,12 @@
 
 ## 1. Product definition
 
-> **Augnes maintains the state, temporal lineage, evidence, perspectives,
-> unresolved judgments, and next meaningful actions of long-horizon work, and
-> projects the same product meaning into the host-native interfaces where the
-> user is already working.**
+> **Augnes's product direction is user-owned project problem-solving capability
+> accumulated from experience: retain useful methods, select and compose them
+> for current goals and conditions, and improve or appropriately leave them
+> unused through observed outcomes. Durable state, temporal lineage, evidence,
+> perspectives, unresolved judgments, and next meaningful actions let that work
+> continue with the same product meaning across host-native interfaces.**
 
 > **The product invariant is the continuity of meaning, not the replication of
 > one interface.**
@@ -30,8 +32,23 @@ scheduler products.
 
 Augnes owns continuity around that work: what the work is, how it changed over
 time, what was observed, what supports a claim, what remains uncertain, what
-requires human judgment, and what should matter next. A surface is useful only
-when it helps the same durable work continue.
+requires human judgment, and what should matter next. This continuity is the
+substrate for retaining useful methods and doing later work better, not an end
+measured by stored context. Broader capability, reliable outcomes and the range
+of tractable problems are product outcomes alongside continuity and lower burden.
+
+Reusable capability may take the form of executable code, tools, computational
+models, conditional methods or task-appropriate combinations. A minimal shared
+description can make diverse implementations usable without one universal module
+format. Current goals and conditions may justify unchanged reuse, revision,
+composition, a newly generated replacement or non-use; direct work remains valid
+when sufficient. Observed outcomes should inform later configurations and
+genuinely separate tasks, with exact source, conditions and limitations retained.
+This is product direction, not a claim that an autonomous learning platform is
+already implemented. [03](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#next-p4p5--executable-capability-reuse-from-experience-1373)
+owns the next bounded implementation candidate and
+[04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#development-verification-and-usefulness)
+owns the evidence needed for each claim.
 
 Web Augnes is a workspace where humans and agents continue long-horizon work,
 explore independent directions, compare evidence and outcomes, and selectively
@@ -61,6 +78,7 @@ Recover the current coordinates of long-horizon work:
 - work identity, scope, goal, and important constraints;
 - the current meaningful situation and last meaningful change;
 - accepted, rejected, stale, conflicted, or unresolved material;
+- relevant reusable methods, their applicability and known limits;
 - pending human judgment;
 - the next meaningful action.
 
@@ -83,8 +101,10 @@ Present the consequential judgment and its effect without making the user
 operate the underlying protocol. Recommendation is not decision. Candidate is
 not accepted state. A user decision is not an applied Transition.
 
-If a capability does not materially improve Resume, Verify, or Decide, it is
-unlikely to deserve default product presence.
+Default product presence should help users Resume, Verify or Decide about work
+and its capabilities. A method can earn its place by improving actual outcomes
+or enabling previously impractical work through that flow; it need not create
+another visible step or surface.
 
 ## 3. Cross-surface continuity
 
@@ -254,6 +274,8 @@ disclosed; exact records remain available without becoming the normal path.
 Branch count, graph size, agent count and activity volume are not product value
 by themselves. Exploration earns its place through useful continuation and
 judgment without turning the human surface into branch or protocol management.
+Users should obtain the benefit of reusable methods without managing a capability
+registry, schema or internal orchestration.
 
 ## 7. Product and Core authority boundary
 
@@ -293,9 +315,10 @@ silently republish it.
 ## 8. Local-first, provider-neutral continuity
 
 The user-owned Augnes workspace is the continuity boundary for project state,
-lineage, reviewed decisions, and selected reusable context. Provider memory,
-model sessions, and host UI may assist but do not silently replace reviewed
-project state.
+lineage, reviewed decisions, selected reusable context and methods. Reuse preserves
+project/scope isolation and exact lineage; it does not import another project's
+authority or execution rights. Provider memory, model sessions, and host UI may
+assist but do not silently replace reviewed project state or human judgment.
 
 External systems retain their own source of truth:
 
@@ -306,13 +329,17 @@ External systems retain their own source of truth:
   decisions, continuity, and Perspective lineage.
 
 Provider-specific IDs remain external references. Replacing a provider should
-not require redefining product meaning or Core semantics.
+not require redefining product meaning or Core semantics. Replaceable models may
+help derive, select or revise methods; their availability must not determine the
+ability to inspect durable work or use Core continuity, decision and recovery
+paths. Reusing a method does not itself authorize its execution.
 
 ## 9. Product feature-change test
 
 Future product and research work must answer:
 
-1. Which core user question does this improve?
+1. Which user goal or question does this improve, and what capability, reliable
+   outcome or tractable problem range could change?
 2. What interpretation burden does the system absorb?
 3. What durable product meaning must remain consistent across surfaces?
 4. Why does this capability deserve any default user-facing presence?
@@ -321,8 +348,10 @@ Future product and research work must answer:
    replaced?
 7. How is uncertainty preserved?
 8. How is user authority preserved?
-9. How does the result return to long-term continuity?
-10. What later outcome would demonstrate usefulness or reveal failure?
+9. How do observed outcomes return to continuity and inform later method reuse,
+   composition, revision, replacement or non-use?
+10. What actual later outcome would demonstrate usefulness or reveal failure
+    relative to a strong practical alternative and its total burden under [04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#method-improvement-evidence)?
 
 A capability that cannot answer these questions remains research, internal
 capability, compatibility, or deferred work rather than default product UI.
