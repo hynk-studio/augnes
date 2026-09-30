@@ -99,9 +99,10 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
   assert.equal(runs[0], runs[1], outcome);
 }
 
-// Keep the 7597ed20 baselines for every pre-existing action/assertion, marked
-// probe, navigation and deadline. #1316 prospectively adds B, separately tested
-// by the private verdict regressions; strip only its exact reviewed call sites.
+// Pin every reviewed action/assertion, marked probe, navigation and deadline.
+// The phase digest extends the 7597ed20 baseline with explicit retained-note
+// save/reopen; all prior actions remain. #1316 prospectively adds B, separately
+// tested by the private verdict regressions; strip only its exact call sites.
 {
   const source = readFileSync(new URL('./browser-validate-project-experience-v1.mjs', import.meta.url), 'utf8');
   const file = ts.createSourceFile('owner.mjs', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
@@ -148,7 +149,7 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
     ts.forEachChild(node, visit);
   }
   visit(file); assert.equal(found.length, 4);
-  assert.equal(hash(phases), '5fb748dca3482e7acd6a40fe2e522d15e79d685f906f249022fa87eac5ba4641');
+  assert.equal(hash(phases), '1d76d884d3ee26e92769e3e66a22f25c77a639f8e6d77cab400ea8ed8a91d984');
   assert(source.includes('const DEFAULT_TIMEOUT_MS = 45_000;'));
   assert(source.includes('const REQUEST_QUIET_MS = 500;'));
   assert(source.includes('const ACCEPTANCE_BOUND_MS = 360_000;'));
