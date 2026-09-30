@@ -589,6 +589,81 @@ No composite score, independent-blind evaluation, general transfer, production
 activation or broader maturity promotion follows. Sequence status remains
 owned by the roadmap.
 
+### Goal-directed recombination and candidate paths (P4/P5)
+
+For the [2026-09-30 research direction](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#research--goal-directed-recombination-and-candidate-paths-1214)
+registered in [#1214](https://github.com/hynk-studio/augnes/issues/1214), apply the
+existing [strong comparison rules](#strong-comparisons-and-independence) with the
+same experience/raw-source access, strong work model, tools, authority and relevant
+total budget. Where appropriate, distinguish:
+
+| Condition | Method |
+|---|---|
+| A | Strong model + strong source-linked adaptive memo. |
+| B | The same experience as conditional components + simple selection/composition. |
+| C | The same components + goal-directed candidate-path generation/comparison. |
+
+For the first B/C contribution comparison, hold experience/component inputs
+materially equivalent to interpret the added contribution of path generation and
+selection. Do not simultaneously vary experience extraction/curation K, retrieval,
+model identity or current-state/next-inspection temporal coupling. If A differs in
+representation, preparation or delivered information, disclose that difference
+and use the existing representation/selection-system/whole-system distinction.
+A may encode conditional procedures, generate multiple plans, use tools directly
+and update its memo under predefined rules; it must not become a frozen,
+memoryless or single-plan baseline. Appropriately matched graph search, constraint
+search, rules or other practical methods may be comparators. An oracle supplied
+with the correct answer, exact transition model or materially more information is
+only a numerical/reference condition, not a matched practical baseline.
+
+Identify the information source separately for **action feasibility/affordance**
+and **next-state transition**: exact environment calculation, learned prediction,
+actual execution observation or unknown. Successful search given exact environment
+transitions does not demonstrate prediction of uncertain real-work futures.
+Execution authority stays with existing decision/execution owners. Fixed Gaussian
+sampling noise or candidate diversity is not calibrated uncertainty or success
+probability.
+
+Observe these stages separately: generating a valid/useful candidate; selecting
+it; choosing the first correct action; improving the actual downstream result;
+and attributable prior experience improving a genuinely separate later task.
+Candidate/path counts, generated text volume and persuasive explanations alone
+do not establish success. Expected effects, observations, post-hoc interpretation
+and causal contribution retain their distinct status.
+
+Start with a small set that discriminates the relevant mechanisms, including
+where needed new combinations, order-sensitive methods, goal-only changes that
+require reselection, source/environment changes that require revalidation, useful
+temporary detours and harmful transfer of previously useful methods. Include
+direct execution, retaining a settled judgment after irrelevant change and
+appropriate non-use where applicable. Neither always inspecting more nor always
+preferring the newest information should be the correct policy by construction.
+No full factorial comparison or ablation matrix is mandatory.
+
+Use [task units and case genealogy](#task-units-and-relevant-task-characteristics)
+and [development-exposure/independence rules](#strong-comparisons-and-independence)
+for successor claims. Manually supplied optimal paths fall under the existing
+development-support and human-repair limits, not autonomous recombination.
+If the worker model changes materially, refresh an appropriate strong baseline
+using that same model before attributing improvement to Augnes.
+
+Count experience extraction and path generation/comparison within the existing
+[total-burden accounting](#cost-and-user-burden), including cleanup/recovery and
+human context repair; unobserved cost stays unknown. Distinguish reducing cost on
+the same task from widening the reliable problem/capability frontier at the same
+relevant cost. Both can be valuable, but they support different claims.
+
+Keep [development, exact-source verification and fixed usefulness evaluation](#development-verification-and-usefulness)
+distinct, including the no-favorable-rerun rule. For negative or ambiguous results,
+distinguish candidate-generation failure, candidate-selection failure,
+transition-prediction failure, an unavailable tool/execution path, a missing
+discriminating observation, no marginal usefulness over a strong baseline, and
+benefit erased by total burden. Choose the next step under the existing
+[next-decision rules](#next-decisions-and-concise-reporting); a strong memo or
+simpler selector being sufficient is a successful research disposition.
+The prior P4.6 result above is preserved, not
+reopened or generalized into a verdict on this unexecuted hypothesis.
+
 ### Repeated-handoff evaluation (P5.2)
 
 This bounded refinement belongs to the existing P5.2 scope in

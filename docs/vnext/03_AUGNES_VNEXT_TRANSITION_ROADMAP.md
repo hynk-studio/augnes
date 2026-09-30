@@ -148,6 +148,104 @@ change obligations/authority, accept semantics, renew expiry or mutate canonical
 evidence and immutable historical bindings. Reconstruction and deliberate
 non-use follow 04; current writers and 02 retain semantic ownership.
 
+### Research — goal-directed recombination and candidate paths (#1214)
+
+The 2026-09-30 [#1214 amendment](https://github.com/hynk-studio/augnes/issues/1214)
+refines the recombination and stagnation questions above within existing phases:
+
+> With the same experience and raw-source access, the same strong work model,
+> tools, authority, and relevant total budget, does identifying the change
+> required by the current goal and composing conditional methods into new action
+> orders and outcome branches improve the next action and actual downstream
+> result relative to a strong source-linked adaptive memo and simpler selection/search?
+
+P3 supplies observations, competing explanations, unresolved conditions and
+discriminating questions; P4 studies composition, candidate-path generation and
+selection; P5 evaluates appropriate reuse, revision or non-use in genuinely
+separate successor tasks. Making an existing conditional procedure more elaborate,
+replaying a past answer/trajectory, and generating a new combination, ordering or
+outcome-dependent path are distinct. The initial target is the next discriminating
+action in a small investigation/development task. The longer-term target remains
+the next meaningful action and solution path, not a policy of always investigating
+more.
+
+- Bind experience and action effects to relevant source revision, predecessor
+  actions, available tools, applicability conditions, observed outcomes and
+  revision/retention/non-use conditions. Keep expected effect, actual observation,
+  post-hoc interpretation and causal contribution distinct. A context-independent
+  fixed transition is not required: modify then verify may differ materially from
+  verify then modify.
+- Separate the final project goal, the question currently being discriminated
+  and mandatory constraints. A scalar distance-to-goal, completion or confidence
+  score cannot alone define progress: useful falsification, a necessary temporary
+  detour or increased justified uncertainty may advance the work.
+- Leave unknown future outcomes as conditional branches or unknown; do not plan
+  onward from an imagined successful experiment. Candidates must differ in
+  assumptions, action ordering, required observations or result-dependent branches,
+  not wording alone. Direct execution, narrow lookup, one known method or deliberate
+  non-use may suffice without extra path generation.
+
+At later implementation, inspect the actual producers/consumers of
+[`StrategyComponentCandidateV01` / `StrategyCompositionCaseV01`](../../types/vnext/strategy-composition-case.ts)
+and [`scripts/conditional-procedure-learning/`](../../scripts/conditional-procedure-learning/)
+as reuse candidates. Their conditions, expected effects, provenance and
+`must_precede`/`depends_on` relations, and the bounded EXTRACT/APPLY/REVISE path,
+do not establish goal-directed planning or learning benefit. If existing types
+distort this question, a small rebuildable research representation may be justified
+under later scope; this adoption changes no types. A few paths or roughly 2–4
+steps are adjustable development starting points, not product limits or success
+criteria.
+
+The algorithmic reference is Hui Lin, Yukun Yang, Rong Zhao, Giovanni Pezzulo and
+Wolfgang Maass, [“Neural sampling from cognitive maps enables goal-directed
+imagination and planning”](https://doi.org/10.1038/s42256-026-01254-4),
+*Nature Machine Intelligence* 8, 1045–1065 (2026). GCML combines cognitive maps,
+stochastic sampling and compositional coding to generate solution trajectories,
+including states/goals not directly encountered during training in its studied
+domains. It is a research candidate, not adopted Augnes architecture or evidence
+about generic long-horizon software work. Keep three sources of claims separate:
+
+- **Paper:** Fig. 2 describes learned forward action embedding V and goal-directed
+  bootstrapped state prediction. Silhouette Methods also assume direct environment
+  access to the g1 affordance signal during imagined steps, while describing
+  V-based next-state prediction.
+- **Static public code:** the [GCML-tag notebook at commit `ff76859b`](https://github.com/LH-cbicr/GCML/blob/ff76859b71a2bc2056b50f5e052475351c007f76/gcml_tiling.ipynb),
+  blob `5b009f30ff5e2490a58fd5f295e064acef0d78fe`, uses `env.check_affordance`
+  and its returned `next_state` in `move_one_step_trajectory`. This bounded static
+  observation is neither reproduction nor refutation of the full paper.
+- **Augnes hypothesis:** the question above requires its own executable comparison;
+  neither the paper nor that code establishes Augnes usefulness.
+
+The later sequence is **small executable research implementation under separately
+fixed scope/budget → fixed comparison → connect only demonstrated useful parts to
+real successor work**. The first implementation must connect the same inputs,
+competing methods, an environment or actual result, and observable behavior into
+an executable/comparable path. Another memo format, schema inventory or readiness
+document cannot substitute for it. Small reversible research development need not
+first prove long-horizon real-world usefulness; full product completion, full paper
+reproduction, a large benchmark matrix or a general world model are not entry
+requirements. Default product activation instead needs repeated usefulness and
+acceptable maintenance/total burden for the claimed scope. Comparison and
+interpretation belong to [04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#goal-directed-recombination-and-candidate-paths-p4p5).
+
+The [P4.6 #1320/#1321 record](../verification/P4_6_CONDITIONAL_PROCEDURE_LEARNING.md)
+retains no observed additional behavioral advantage over a strong free-form memo
+and no additional behavioral value from online revision in its one three-task sequence:
+historical/constructed cases, case-author evaluation, exposure and 18 initiated
+study turns remain limitations. Do not restart it or inherit unused budget.
+#1214's 2026-09-25 study concerns current-state update/next-inspection coupling
+and timing; this amendment concerns composing and selecting paths from the same
+experience. The first contribution comparison does not also vary extraction/
+curation K, retrieval, model identity or temporal coupling. #1366's separate
+successor-feature research/session succession, #1150's source-only scope and the
+other study dispositions/budgets below remain unchanged.
+
+Status remains **Research**. Algorithm implementation, live research execution
+and product activation remain **NOT_STARTED** for this amendment. Documentation
+adoption establishes neither implementation nor usefulness, creates no new phase
+and does not reorder unrelated Current/Next work. #1214 connects phase scope;
+this roadmap owns sequencing and 04 owns evaluation.
+
 ### Portfolio and longer-term challenge
 
 Prefer real development, investigation and planning work for product evidence
