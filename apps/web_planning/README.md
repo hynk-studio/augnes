@@ -5,6 +5,96 @@ extending the accepted bounded one-owner synthetic hosted v0 slice ([reviewed #1
 One configured owner keeps independent, text/link planning items. It neither
 reads the installed Augnes database nor creates native work, results or accepted state.
 
+## Draft capacity and deliberate revision
+
+[#1369](https://github.com/hynk-studio/augnes/issues/1369) adds a read-only
+**Draft capacity** check to the ordinary editor. Edits invalidate old feedback
+immediately. Checks wait 500 ms after input, allow one request in flight, and
+coalesce subsequent changes. **Check current draft** also retries an unavailable
+read. A response must match the current draft, work, saved binding and check ID;
+invalid, failed, delayed or stale-head responses cannot show a successful fit.
+
+The check shares admission's normalization, deduplication, canonical serialization
+and UTF-8 accounting. It separates whole-note count, raw note codepoints, attribution
+length (UTF-16 units), stored source bytes, definition bytes, relationship bytes
+and saved-history capacity. A missing/invalid component has an unavailable size,
+not an estimate. Per-note costs and the text/metadata split explain why a short
+addition can overflow. Source-byte totals count identical notes once and include
+array framing; per-note sizes exclude that shared framing. Stored text bytes
+include JSON escapes; metadata includes attribution, provenance, identities,
+currentness descriptions and structural framing.
+
+An over-budget draft remains editable. The revision guide explains editing a
+current note, preserving attribution and necessary context, and reviewing Required
+context. Dependency labels follow text edits. Reading the draft is pure; an
+explicit edit of a saved note retains the existing derived-interpretation and
+adaptation-link behavior, now explained in Review changes. Earlier revisions
+retain originals. No content is automatically shortened, removed or summarized.
+
+`POST /api/capacity` and `POST /api/work/:id/capacity` use the normal private
+identity, scope, origin and CSRF gates. Existing-work checks validate history and
+recheck its head. They return quantities and bounded validation codes, not saved
+revisions or tickets. One check reads up to the existing 32-revision chain and
+performs a current-head query; there is no cache or write. This adds bounded
+read/validation cost. It is not a hosted CPU/latency qualification. Final Save
+still owns authorization, currentness, replay, admission and persistence. “Fits
+storage limits” does not promise a write or bypass the separate 1,500,000-byte
+request limit. The existing unknown-save-outcome recovery remains authoritative.
+
+### Capacity decision and synthetic acceptance
+
+The limit remains 12,000 source bytes, with eight whole notes and 2,000 raw
+codepoints per note. The count and text bounds are independent ceilings, not a
+promise that all eight maximum-length notes fit. Four notes in the synthetic
+queue-study fixture use 11,947 bytes: 5,713 text and 6,234 metadata. A new
+210-character result adds 1,769 bytes, reaching 13,716. Replacing redundant
+detail in the existing result note yields 10,954 bytes: 4,702 text and 6,252
+metadata, plus 1,045 separate relationship bytes. The question, assumptions,
+oracle limitation, competing explanations, uncertainty and next judgment remain;
+the result retains all three required source links and an exact adaptation link.
+
+The browser example inspects the excess before Save, removes the attempted new
+note, then edits the existing result note. These are two recovery edits and zero
+unsuccessful save attempts. It saves revision 2, reopens Saved context, downloads
+the actual complete export, validates it and compares revision 1 exactly. Separate
+API checks deliberately attempt one refused save preparation and prove the prior
+export remains unchanged. Fault tests also exercise malformed/503/late capacity
+responses, stale heads, Unicode, metadata-heavy notes, missing dependencies,
+separate relation/definition/request limits, full history and unchanged-save
+acknowledgement. This is one constructed example with known redundant detail,
+not evidence of general usability, less human labor or time savings. It is not a
+rerun of #1366's analysis or a modification of its hosted research work.
+
+This evidence supports feedback plus deliberate revision for this bounded slice;
+it does not establish 12,000 as the correct long-term bound. A 16,000-byte Web
+allowance would add at most 128,000 source bytes over 32 revisions. It remains a
+plausible policy follow-up if necessary, irreducible context repeatedly cannot
+fit. Current readers revalidate every saved revision and complete export through
+admission, so raising the ceiling also affects history reads, reconstruction and
+rollback to older readers (which refuse larger selections). Merely changing a
+counter or stripping repeated provenance would not address those obligations.
+
+The native 32,000-byte allowance is separate: its selected-entry owners, runtime
+admission, reviewed-outcome reader and retained lookup scan bounds were updated
+together; older 12,000-byte readers still refuse those larger native records.
+Web keeps its existing representation, fingerprints, formats and readers.
+`capacityEnvelopeEstimates` in the synthetic fixture sizes a 32-revision export
+request using component ceilings: about 1.175 MB at 12,000 source bytes,
+1.303 MB at 16,000, and 1.815 MB at 32,000, against the existing 1.5 MB request
+cap. These are conservative bounds, not proof that all maxima co-occur; the
+32,000 allowance cannot simply be copied with a worst-case envelope guarantee.
+No capacity, schema, storage, transport, import or deployment policy is changed.
+
+Reproduce with `npm run web:test` and `npm run web:test:browser`. Fixtures and
+printed measurements are synthetic. Development exposed and corrected a test
+wrapper prefix error, a handler type error, trailing-whitespace and unbalanced
+fixture construction, a relation fixture that first hit the source ceiling,
+and a browser test that clicked recovery before an asynchronous save settled.
+These are development/assistance costs, distinct from the acceptance example;
+failed local logs remain review evidence, not committed artifacts. The next
+decision is review of this bounded implementation, then separately authorized
+deployment and hosted acceptance.
+
 ## Run and build
 
 From the repository root with the supported Node toolchain and `npm ci` dependencies:

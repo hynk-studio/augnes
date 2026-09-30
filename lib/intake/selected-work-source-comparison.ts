@@ -122,6 +122,13 @@ export function normalizeNativeSelectedWorkSources(scope: Scope, value: unknown)
 }
 
 function normalizeWithinByteBudget(scope: Scope, value: unknown, maxBytes: number): TaskContextPacketSelectedEntryV01[] {
+  const { entries, bytes } = inspectSelectedWorkSources(scope, value);
+  if (bytes > maxBytes) throw new SelectedWorkSourceError("selected_source_context_budget_exceeded");
+  return entries;
+}
+
+/** Exact normalized material and accounting, not admission or save authority. */
+export function inspectSelectedWorkSources(scope: Scope, value: unknown) {
   if (!Array.isArray(value) || value.length > SELECTED_WORK_SOURCE_LIMITS.entries) {
     throw new SelectedWorkSourceError("task_context_mandatory_selection_budget_exceeded");
   }
@@ -149,10 +156,7 @@ function normalizeWithinByteBudget(scope: Scope, value: unknown, maxBytes: numbe
     if (group.length !== 2 || new Set(group.map(e => reviewedOutcomeSourceRef(e)!.fingerprint)).size !== 1 ||
       group.map(e => e.compatibility_source_ref!.ref_type).sort().join(",") !== "reviewed_outcome_expectation,reviewed_outcome_report") fail();
   }
-  if (new TextEncoder().encode(canonicalizeProtocolValueV01(entries)).byteLength > maxBytes) {
-    throw new SelectedWorkSourceError("selected_source_context_budget_exceeded");
-  }
-  return entries;
+  return { entries, bytes: new TextEncoder().encode(canonicalizeProtocolValueV01(entries)).byteLength };
 }
 
 export function normalizeRetainedWorkSourceRefs(value: unknown): RetainedWorkSourceRef[] {

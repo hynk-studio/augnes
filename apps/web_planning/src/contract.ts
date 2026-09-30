@@ -11,6 +11,8 @@ export const RELATION_FORMAT = "web_planning_revision.v0.2";
 export const RELATION_EXPORT_FORMAT = "web_planning_export.v0.2";
 export const RELATION_COMPATIBILITY = "web-planning/2";
 export const MAX_REVISIONS = 32;
+export const RELATION_BYTES = 12_000;
+export const REQUEST_BYTES = 1_500_000;
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 export const FINGERPRINT = /^sha256:[0-9a-f]{64}$/;
 export interface Scope { workspace_id: string; project_id: string; author_ref: string }
@@ -80,6 +82,11 @@ export function dispositions(value: unknown): Disposition[] {
   }).sort((a,b)=>a.source_ref.localeCompare(b.source_ref));
 }
 export function validateRelations(value: unknown, payload: Payload, id: string): Relations {
+  const result = inspectRelations(value, payload, id);
+  if (result.bytes > RELATION_BYTES) fail("relation_budget_exceeded");
+  return result.relations;
+}
+export function inspectRelations(value: unknown, payload: Payload, id: string) {
   exact(value,"origin,materials,review");
   const refs=payload.sources.map(s=>s.source_ref);
   if (value.origin !== null) {
@@ -102,8 +109,7 @@ export function validateRelations(value: unknown, payload: Payload, id: string):
     validateReview(value.review);
     if (value.review.source.work_id===id || value.review.target.work_id!==id) fail("invalid_review");
   }
-  if (new TextEncoder().encode(canonical(value)).byteLength>12_000) fail("relation_budget_exceeded");
-  return value as unknown as Relations;
+  return {relations:value as unknown as Relations,bytes:new TextEncoder().encode(canonical(value)).byteLength};
 }
 function validateReview(value:unknown) {
   exact(value,"source,target,dispositions,rationale,next_question");workRef(value.source);workRef(value.target);

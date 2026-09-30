@@ -1,4 +1,4 @@
-import { binding, boundedText, canonical, dispositions, exact, fail, hash, headBinding, makeRevision, MAX_REVISIONS, normalizePayload, reference, requestFingerprint, sameBinding, selectedWorkSourceInput, UUID, validateRelations, workRef, type Material, type Payload, type Relations, type Revision, type Scope, type WorkRef } from "./contract";
+import { binding, boundedText, canonical, dispositions, exact, fail, hash, headBinding, inspectRelations, makeRevision, MAX_REVISIONS, normalizePayload, reference, RELATION_BYTES, requestFingerprint, sameBinding, selectedWorkSourceInput, UUID, validateRelations, workRef, type Material, type Payload, type Relations, type Revision, type Scope, type WorkRef } from "./contract";
 import { seal, unseal, type Access } from "./access";
 import { append, headsCurrent, readWork, requestRevision, type Store } from "./store";
 
@@ -8,7 +8,12 @@ export function relationsOf(r:Revision):Relations {
 // Ordinary edits use the existing normalizer. The client supplies dependency
 // positions, never canonical source entries or cross-work provenance claims.
 export function editedPayload(scope:Scope,payload:Payload,notes:any[],edits:unknown,previous?:Revision):Payload {
-  if (edits===undefined && !previous?.relations) return payload;
+  const result=inspectEditedPayload(scope,payload,notes,edits,previous);
+  if(result.relationBytes>RELATION_BYTES)fail("relation_budget_exceeded");
+  return result.payload;
+}
+export function inspectEditedPayload(scope:Scope,payload:Payload,notes:any[],edits:unknown,previous?:Revision) {
+  if (edits===undefined && !previous?.relations) return {payload,relationBytes:0};
   if (edits!==undefined && (!Array.isArray(edits) || edits.length!==notes.length)) fail("invalid_material_edits");
   const prior=previous?relationsOf(previous):{origin:null,materials:[],review:null};
   const refs=notes.map(n=>normalizePayload(scope,payload.definition,[n]).sources[0].source_ref!);
@@ -32,8 +37,8 @@ export function editedPayload(scope:Scope,payload:Payload,notes:any[],edits:unkn
     materials.set(ref,material);
   });
   const result={...payload,relations:{...prior,materials:payload.sources.map(s=>materials.get(s.source_ref!)!)}};
-  validateRelations(result.relations,result,previous?.work_id??"new");
-  return result;
+  const inspected=inspectRelations(result.relations,result,previous?.work_id??"new");
+  return {payload:result,relationBytes:inspected.bytes};
 }
 async function current(s:Store,ref:WorkRef):Promise<Revision[]> {
   const chain=await readWork(s,ref.work_id);

@@ -7,6 +7,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { startLocal, availablePort, accessSimulation } from './web-planning-local-runtime.mjs';
 import { buildCloudflarePlanning } from './build-web-planning.mjs';
 import { registerOwnedChild, terminateOwnedProcessTree } from './test-harness-process-lifecycle.mjs';
+import { browserCapacityJourney } from './browser-web-planning-capacity.mjs';
 import { browserBranchJourney } from './browser-web-planning-branches.mjs';
 const root=process.env.AUGNES_CANONICAL_TEMP_ROOT;if(!root)throw new Error('owned_browser_root_required');
 const chrome=[process.env.AUGNES_BROWSER_EXECUTABLE_PATH,'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome','/usr/bin/chromium','/usr/bin/google-chrome'].find(p=>p&&existsSync(p));
@@ -51,6 +52,10 @@ async function intercept(c,p,origin){
    // Account for only this injected request; all other failures remain fatal.
    if(boundary==='redirect')expectedFailures.add(p.networkId);
    return c.send('Fetch.fulfillRequest',{requestId:p.requestId,responseCode:boundary==='redirect'?302:200,responseHeaders:[{name:'Content-Type',value:'text/html'},{name:'Cache-Control',value:'no-store'},...(boundary==='redirect'?[{name:'Location',value:origin+'/_access_login'}]:[])],body:Buffer.from('<h1>Access login challenge</h1>').toString('base64')});
+ }
+ if(u.startsWith(origin+'/api/')&&u.endsWith('/capacity')&&p.responseStatusCode===undefined){
+   if(c.holdCapacity){c.holdCapacity=false;c.heldCapacity=p;return;}
+   if(c.capacityFailure){const failure=c.capacityFailure;c.capacityFailure=null;return c.send('Fetch.fulfillRequest',{requestId:p.requestId,responseCode:failure==='invalid'?200:503,responseHeaders:[{name:'Content-Type',value:'application/json'},{name:'X-Web-Planning-Response',value:'1'}],body:Buffer.from(JSON.stringify(failure==='invalid'?{fits:true}:{error:'storage_unavailable'})).toString('base64')});}
  }
  if(u.startsWith(origin+'/api/work/')&&u.endsWith('/compare')&&p.responseStatusCode===undefined){
    if(c.beforeCompare){const before=c.beforeCompare;c.beforeCompare=null;await before();}
@@ -139,10 +144,11 @@ try {
  assert.equal(await revisionCount(),storedBeforeRead);
  // Keyboard focus may also trigger the existing window-focus access read.
  const readRequests=requests.slice(readStart);assert(readRequests.filter(r=>r.method==='GET').every(r=>r.path==='/api/works'));
- assert.deepEqual(readRequests.filter(r=>r.method!=='GET').map(r=>[r.method,r.path.split('/').at(-1)]),[['POST','context'],['POST','context']]);
+ assert.deepEqual(readRequests.filter(r=>r.method!=='GET'&&!r.path.endsWith('/capacity')).map(r=>[r.method,r.path.split('/').at(-1)]),[['POST','context'],['POST','context']]);
  checks.push('Saved context reachable at 390/1200; keyboard read focuses visible result, preserves unsaved draft and writes no revision');
  await set(a,'goal','First tab successor');await click(a,'save');await saved(a,2);
- await click(b,'save');await wait(()=>visible(b,'conflict'),'competing conflict');assert.equal(await b.eval("document.getElementById('goal').value"),'Retained competing draft');
+ await click(b,'check-capacity');await wait(()=>b.eval("$('draft-capacity').dataset.state==='unavailable'"),'stale capacity withheld');
+ await click(b,'save');await settled(b);await wait(()=>visible(b,'conflict'),'competing conflict');assert.equal(await b.eval("document.getElementById('goal').value"),'Retained competing draft');
  await click(b,'review-latest');await wait(()=>visible(b,'rebase-draft'),'review latest');assert.match(await b.eval("document.getElementById('conflict-latest').innerText"),/First tab successor/);
  await click(b,'rebase-draft');await click(b,'save');await saved(b,3);checks.push('conflict retains draft; explicit reviewed base and save');
  await a.eval("$('saved-context').focus()");await click(a,'saved-context');await wait(()=>a.eval("document.getElementById('status').textContent.includes('head changed')"),'stale context');assert.equal(await a.eval("document.getElementById('context-view').innerText"),'');assert.equal(await a.eval('document.activeElement.id'),'saved-context','refused read does not focus an empty result');
@@ -225,6 +231,7 @@ try {
    restart:async()=>{const bindings=local.env;await local.close();local=null;local=await startLocal({...directOptions,port:Number(new URL(directOrigin).port),bindings});}});
  for(let i=directStart;i<checks.length;i++)checks[i]='direct Access simulation: '+checks[i];
  console.log('web-planning-browser: direct complete branch and comparison-recovery journey');
+ await browserCapacityJourney({a:d,click,set,settled,saved,wait,navigate,origin:directOrigin,downloads:path.join(root,'capacity-downloads'),requests,responses,checks});
  for(const boundary of ['redirect','challenge']){
    d.accessBoundary=boundary;await click(d,'saved-context');await settled(d);
    assert.equal(await d.eval("accessLost&&work===null&&saved===null&&comparison===null&&!document.getElementById('context-view')&&!document.body.innerText.includes('Access login challenge')"),true);

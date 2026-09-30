@@ -1,6 +1,7 @@
 /// <reference path="./assets.d.ts" />
 import { authorize, csrfCookie, csrfToken, readTicket, requireCsrf, requireScope, ticket, type Environment, type Principal } from "./access";
-import { binding, canonical, exact, exportWork, fail, hash, MAX_REVISIONS, makeRevision, normalizePayload, reference, Refusal, requestFingerprint, sameBinding, UUID, validateExport } from "./contract";
+import { binding, canonical, exact, exportWork, fail, hash, MAX_REVISIONS, makeRevision, normalizePayload, reference, Refusal, REQUEST_BYTES, requestFingerprint, sameBinding, UUID, validateExport } from "./contract";
+import { inspectDraftCapacity } from "./capacity";
 import { append, eraseWork, headBinding, headsCurrent, listWork, readWork, reconstruct, requestRevision } from "./store";
 import { page, renderContext, renderComparison, renderPreview, style } from "./page";
 import { compare, editedPayload, previewOperation, referenceAvailability, saveOperation } from "./relations";
@@ -15,7 +16,7 @@ async function body(request:Request) {
   const reader=request.body?.getReader(); if(!reader) fail("invalid_body");
   let length=0; const chunks:Uint8Array[]=[];
   try { for(;;) { const {done,value}=await reader.read(); if(done)break; length+=value.byteLength;
-    if(length>1_500_000) { await reader.cancel(); fail("request_too_large",413); } chunks.push(value); }
+    if(length>REQUEST_BYTES) { await reader.cancel(); fail("request_too_large",413); } chunks.push(value); }
     const bytes=new Uint8Array(length); let at=0; for(const c of chunks){ bytes.set(c,at); at+=c.length; }
     return JSON.parse(new TextDecoder("utf-8",{fatal:true}).decode(bytes));
   } catch(e) { if(e instanceof Refusal)throw e; fail("invalid_body"); }
@@ -51,6 +52,18 @@ export async function handle(request:Request,env:Environment,principal:Principal
     requireCsrf(access,request);
     const input=await body(request); if(!input || typeof input!=="object")fail("invalid_body");
     requireScope(access,input);
+    const capacity=path.match(/^\/api\/work\/([a-f0-9-]+)\/capacity$/);
+    if(path==="/api/capacity" || (capacity && UUID.test(capacity[1]))) {
+      exact(input,"workspace_id,project_id,check_id,definition,notes,material_edits"+(capacity?",expected":""));
+      if(!UUID.test(input.check_id))fail("invalid_check_id");
+      const expected=capacity?binding(input.expected):headBinding();
+      const head=capacity?(await readWork(access,capacity[1])).at(-1):undefined;
+      if(capacity && !head)fail("work_not_found",404);
+      if(!sameBinding(headBinding(head),expected))fail("refresh_required",409);
+      const result=inspectDraftCapacity(access,{definition:input.definition,notes:input.notes,material_edits:input.material_edits},head);
+      if(head && !await headsCurrent(access,reference(head),reference(head)))fail("refresh_required",409);
+      return json({...result,check_id:input.check_id});
+    }
     if(path==="/api/drafts") {
       const bound="definition" in input;
       exact(input,"workspace_id,project_id"+(bound?",definition,notes"+("material_edits" in input?",material_edits":""):"")); const work_id=crypto.randomUUID();
