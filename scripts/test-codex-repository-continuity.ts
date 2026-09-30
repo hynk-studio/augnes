@@ -31,7 +31,7 @@ import { buildSelectedWorkSourceEntry, compareSelectedWorkSources, normalizeSele
 import { readProjectWorkInitializationV01 } from "../lib/vnext/runtime/project-work-initialization";
 import { insertVNextCoreRecordV01 } from "../lib/vnext/persistence/durable-semantic-store";
 import { buildTaskContextPacketV01, validateTaskContextPacketV01 } from "../lib/vnext/task-context-packet";
-import { inspectVNextOperatorPilotPacketLineageV01, inspectVNextOperatorPilotPacketLineagesV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity";
+import { inspectVNextOperatorPilotPacketLineageV01, inspectVNextOperatorPilotPacketLineagesV01, readCurrentProjectWorkPacketLineageV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity";
 import { StateRuntimeHttpAdapter } from "../apps/augnes_apps/src/adapters/state-runtime-http";
 import {
   readCodexRepositoryContinuityV01,
@@ -154,8 +154,10 @@ function assertCurrentWorkReadV01(): void {
     const identities = chain.packets.map((p) => ({ packet_id: p.packet_id, packet_fingerprint: p.integrity.fingerprint }));
     const standalone = identities.map((identity) => inspectVNextOperatorPilotPacketLineageV01(db, { config, ...identity }));
     const batch = (database = db, projectConfig = config) => inspectVNextOperatorPilotPacketLineagesV01(database, { config: projectConfig, packets: identities });
+    const strict = (database = db, projectConfig = config) => readCurrentProjectWorkPacketLineageV01(database, projectConfig);
     const before = db.serialize();
     assert.deepEqual(batch(), standalone, "batch preserves every standalone lineage field");
+    assert.deepEqual(strict(), standalone.at(-1), "strict current lineage preserves the standalone projection");
     const expected = readProjectWorkInitializationV01(db, scope);
     assert.equal(expected.state, "defined_revised_work");
     assert.equal(expected.revision_eligibility.eligible, true);
@@ -176,11 +178,18 @@ function assertCurrentWorkReadV01(): void {
       }
       return statement;
     }) as typeof db.prepare;
-    try { assert.deepEqual(readProjectWorkInitializationV01(db, scope), expected); }
+    try {
+      assert.deepEqual(readProjectWorkInitializationV01(db, scope), expected);
+      assert.equal(chainLoads, 2, "eligibility and the private packet batch each reconstruct once");
+      assert.equal(evidenceReads, evidence.length * 3, "canonical Evidence once per chain plus current eligibility");
+      chainLoads = 0; evidenceReads = 0;
+      assert.deepEqual(strict(), standalone.at(-1));
+      assert.equal(chainLoads, 1, "strict continuity reconstructs the whole chain once, not per packet");
+      assert.equal(evidenceReads, evidence.length, "strict continuity still validates every canonical Evidence record");
+    }
     finally { db.prepare = prepare; }
-    assert.equal(chainLoads, 2, "eligibility and the private packet batch each reconstruct once");
-    assert.equal(evidenceReads, evidence.length * 3, "canonical Evidence once per chain plus current eligibility");
     assert.deepEqual(batch(db, { ...config, project_id: "project:foreign" }), identities.map(() => null));
+    assert.equal(strict(db, { ...config, project_id: "project:foreign" }), null);
 
     // A serialized WAL database needs a file-backed reopen; an in-memory
     // deserialize cannot provide its WAL sidecars.
@@ -189,16 +198,27 @@ function assertCurrentWorkReadV01(): void {
     const copy = new Database(copyPath);
     try {
       assert.deepEqual(batch(copy), standalone, "same identities in another database require their own read");
+      assert.deepEqual(strict(copy), standalone.at(-1));
       const trigger = copy.prepare("SELECT sql FROM sqlite_master WHERE name = 'trg_vnext_core_records_immutable_update'").get() as { sql: string };
       copy.exec("BEGIN");
       copy.exec("DROP TRIGGER trg_vnext_core_records_immutable_update");
       copy.prepare("UPDATE vnext_core_records SET payload_json = '{}' WHERE record_id = ?").run(evidence[0]!.evidence_id);
       copy.exec(trigger.sql);
       assert(batch(copy).slice(1).every((lineage) => lineage === null), "same-connection mutation cannot reuse an earlier validation");
+      let standaloneError: Error | undefined;
+      assert.throws(() => inspectVNextOperatorPilotPacketLineageV01(copy, { config, ...identities[1]! }), (error) => {
+        assert(error instanceof Error); standaloneError = error; return true;
+      });
+      assert.throws(() => strict(copy), (error) => {
+        assert(error instanceof Error); assert.equal(error.name, standaloneError!.name);
+        assert.equal(error.message, standaloneError!.message); return true;
+      }, "strict continuity preserves the standalone integrity failure");
       assert.equal(readProjectWorkInitializationV01(copy, scope).current_packet, null);
       assert.deepEqual(batch(), standalone, "corrupt copy cannot poison a different database");
+      assert.deepEqual(strict(), standalone.at(-1));
       copy.exec("ROLLBACK");
       assert.deepEqual(batch(copy), standalone, "rollback gets a fresh complete reconstruction");
+      assert.deepEqual(strict(copy), standalone.at(-1));
     } finally { copy.close(); }
 
     const blockingClaim = (key: string) => buildClaimRecordV01({ ...scope,
@@ -234,6 +254,34 @@ function assertCurrentWorkReadV01(): void {
     assert.deepEqual(db.serialize(), beforeFailedWrite, "post-insert refusal rolls back packet, Claim and authorization consumption");
     assert.deepEqual(readProjectWorkInitializationV01(db, scope), expected);
 
+    const strictCopyPath = path.join(ROOT, "strict-current-work-read-copy.db");
+    writeFileSync(strictCopyPath, db.serialize());
+    const strictCopy = new Database(strictCopyPath);
+    strictCopy.pragma("journal_mode = WAL");
+    const strictWriter = new Database(strictCopyPath);
+    const strictPrepare = strictCopy.prepare.bind(strictCopy);
+    let strictCommitted = false;
+    strictCopy.prepare = ((sql: string) => {
+      const statement = strictPrepare(sql);
+      if (/SELECT \* FROM vnext_core_records/u.test(sql)) {
+        const get = statement.get.bind(statement);
+        statement.get = ((...args: unknown[]) => {
+          const value = get(...args);
+          if (!strictCommitted && args[0] === "task_context_packet") {
+            strictCommitted = true;
+            admitClaimRecordV01(strictWriter, { ...scope, claim: blockingClaim("strict-concurrent") });
+          }
+          return value;
+        }) as typeof statement.get;
+      }
+      return statement;
+    }) as typeof strictCopy.prepare;
+    try {
+      assert.deepEqual(strict(strictCopy), standalone.at(-1), "strict continuity owns its entire read snapshot");
+      assert(strictCommitted);
+      assert.throws(() => strict(strictCopy), /work_revision_history_predates_revision/u, "next strict read sees the committed blocker");
+    } finally { strictWriter.close(); strictCopy.close(); }
+
     // A second connection commits during the batch after its first packet read.
     // WAL lets that writer finish; the active read sees one earlier snapshot.
     const writer = new Database(db.name);
@@ -257,6 +305,7 @@ function assertCurrentWorkReadV01(): void {
     finally { db.prepare = prepare; writer.close(); }
     assert(committed);
     assert(batch().slice(1).every((lineage) => lineage === null), "next batch must observe the committed historical blocker");
+    assert.throws(() => strict(), /work_revision_history_predates_revision/u);
     assert.equal(readProjectWorkInitializationV01(db, scope).current_packet, null);
     assert.throws(() => inspectPreExecutionProjectWorkRevisionChainV01(db, scope), /work_revision_history_predates_revision/u);
     console.log(JSON.stringify({ current_work_read: "pass", chain_loads: chainLoads, canonical_evidence_reads: evidenceReads,
