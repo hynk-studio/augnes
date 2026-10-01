@@ -1088,6 +1088,7 @@ const integrationChildren = [
   "project-home",
   "project-work-initialization",
   "current-work-read",
+  "retry-inspection-outlook",
   "pre-execution-support-material",
   "native-selected-source-budget",
   "retained-source-capacity",
@@ -1190,6 +1191,11 @@ const supportMaterialRegistration = readCanonicalChildRegistration(integrationSo
 const currentWorkReadRegistration = readCanonicalChildRegistration(integrationSource, "current-work-read");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"--current-work-read-only"'])
   requireText(currentWorkReadRegistration.block, fragment, "current-work read isolation has its own bounded child");
+const retryInspectionRegistration = readCanonicalChildRegistration(integrationSource, "retry-inspection-outlook");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"process-owning"', '"--retry-inspection-only"'])
+  requireText(retryInspectionRegistration.block, fragment, "retry-inspection outlook retains one bounded native consumer and successor owner");
+assert.equal(countOccurrences(firstWorkFixture, "await assertRetryInspectionLoopV01();"), 1,
+  "the outlook loop runs once without extending the default initialization child");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 60_000', 'requireNaturalExit: true', '"process-owning"', '"--support-material-revision-only"'])
   requireText(supportMaterialRegistration.block, fragment, "support material has one complete admission, reconstruction and consumer owner");
 const selectedSourceBudgetRegistration = readCanonicalChildRegistration(integrationSource, "native-selected-source-budget");
