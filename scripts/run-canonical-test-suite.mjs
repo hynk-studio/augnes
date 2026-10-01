@@ -152,6 +152,14 @@ const goldenStep = {
 const suites = {
   unit: [
     {
+      label: "source-derived exact solver and separate retry workflow consumer (Python stdlib)",
+      command: "python3",
+      args: ["-E", "-s", "-B", "scripts/executable-reuse/test_workflow_cost.py"],
+      cwd: repoRoot,
+      timeoutMs: 10_000,
+      requireNaturalExit: true,
+    },
+    {
       label: "web planning Worker strict type compatibility",
       ...rootNode("node_modules/typescript/bin/tsc", "-p", "apps/web_planning/tsconfig.json", "--noEmit"),
       timeoutMs: 30_000,
