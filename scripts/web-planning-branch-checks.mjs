@@ -1,3 +1,4 @@
+import { mkdir, readFile, writeFile, cp } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
@@ -7,18 +8,22 @@ import { seal } from '../apps/web_planning/src/access.ts';
 
 // Real predecessor application, bundled from immutable Git source. It creates
 // the nonempty v0 store through its production writer, never inserted envelopes.
-async function predecessorCode(){return (await build({entryPoints:[path.resolve('scripts/web-planning-local-ingress.ts')],bundle:true,write:false,format:'esm',platform:'browser',target:'es2022',external:['node:crypto','node:buffer'],loader:{'.txt':'text'},tsconfig:path.resolve('tsconfig.json'),plugins:[{name:'reviewed-v0-source',setup(b){b.onLoad({filter:/\/apps\/web_planning\/src\//},args=>({contents:execFileSync('git',['show','c8fab8410705d0fa022eab6be9552964fd13a956:'+path.relative(process.cwd(),args.path)],{encoding:'utf8'}),loader:args.path.endsWith('.txt')?'text':'ts'}));}}]})).outputFiles[0].text;}
+export async function predecessorCode(ref='c8fab8410705d0fa022eab6be9552964fd13a956',entry='scripts/web-planning-local-ingress.ts'){return (await build({entryPoints:[path.resolve(entry)],bundle:true,write:false,format:'esm',platform:'browser',target:'es2022',external:['node:crypto','node:buffer'],loader:{'.txt':'text'},tsconfig:path.resolve('tsconfig.json'),plugins:[{name:'reviewed-v0-source',setup(b){b.onLoad({filter:/\/apps\/web_planning\/src\//},args=>({contents:execFileSync('git',['show',ref+':'+path.relative(process.cwd(),args.path)],{encoding:'utf8'}),loader:args.path.endsWith('.txt')?'text':'ts'}));}}]})).outputFiles[0].text;}
 
 export async function checkBranching({start,client,newWork,save,edit,passed,open}) {
- const oldCode=await predecessorCode();let local=await start('nonempty-v0',{code:oldCode}),c=await client(local);
+ const oldMigrations=path.join(process.env.AUGNES_CANONICAL_TEMP_ROOT,'pre-files-migrations');
+ await mkdir(path.join(oldMigrations,'meta'),{recursive:true});
+ for(const f of ['0000_web_planning.sql','0001_schema_version.sql'])await cp(path.resolve('apps/web_planning/drizzle',f),path.join(oldMigrations,f));
+ const journal=JSON.parse(await readFile('apps/web_planning/drizzle/meta/_journal.json','utf8'));journal.entries=journal.entries.slice(0,2);await writeFile(path.join(oldMigrations,'meta/_journal.json'),JSON.stringify(journal));
+ const oldCode=await predecessorCode();let local=await start('nonempty-v0',{code:oldCode,migrationsFolder:oldMigrations}),c=await client(local);
  const w=await newWork(c);let target=(await save(c,w)).data.saved;assert.equal(target.format,'web_planning_revision.v0.1');
  const oldExport=(await c.request('/api/work/'+w.id+'/export')).data,oldRow=await local.db.prepare('SELECT envelope FROM web_planning_revision WHERE work_id=?').bind(w.id).first();
  const originalEnv=local.env;
- async function reopen(code){await local.close();open.splice(open.indexOf(local),1);local=await start('nonempty-v0',{port:Number(new URL(originalEnv.APP_ORIGIN).port),bindings:originalEnv,...(code?{code}:{})});c=await client(local);}
+ async function reopen(code){await local.close();open.splice(open.indexOf(local),1);local=await start('nonempty-v0',{port:Number(new URL(originalEnv.APP_ORIGIN).port),bindings:originalEnv,...(code?{code}:{})});if(!code)c=await client(local);}
  await reopen();assert.deepEqual((await c.request('/api/work/'+w.id+'/export')).data,oldExport);
  assert.deepEqual(await local.db.prepare('SELECT envelope FROM web_planning_revision WHERE work_id=?').bind(w.id).first(),oldRow);
- assert.deepEqual((await local.db.prepare('SELECT version FROM web_planning_schema').all()).results,[{version:1}]);
- passed('nonempty v0 production-written store opens unchanged; no schema migration or historical reseal');
+ assert.deepEqual((await local.db.prepare('SELECT version FROM web_planning_schema').all()).results,[{version:2}]);
+ passed('nonempty v0 production-written store upgrades to schema 2 with unchanged old envelopes and exports');
  const operation=(id,action,input)=>c.request('/api/work/'+id+'/'+action,input);
  async function branch(r,reason='Explore measured evening conditions before recommending a room') {const p=await operation(r.work_id,'branch-preview',{expected:headBinding(r),intent:{reason}});assert.equal(p.status,200,JSON.stringify(p.data));return p.data;}
  async function commit(p){return operation(p.work_id,'relation-save',{ticket:p.ticket,intent:p.intent});}
@@ -98,7 +103,7 @@ export async function checkBranching({start,client,newWork,save,edit,passed,open
  const boundBranch=(await commit(await branch(boundTarget))).data.saved;
  const boundIntent={source:reference(boundBranch),dispositions:boundBranch.sources.map(s=>({source_ref:s.source_ref,disposition:'incorporated',rationale:'R'.repeat(500)})),rationale:'R'.repeat(500),next_question:'Q'.repeat(500)};
  assert.equal((await inc(boundTarget,boundBranch,boundIntent)).data.error,'relation_budget_exceeded');assert.equal((await read(boundTarget.work_id)).fingerprint,boundTarget.fingerprint);
- await reopen(oldCode);assert.equal((await c.request('/api/work/'+target.work_id)).data.error,'invalid_fields');assert.deepEqual((await c.request('/api/work/'+w.id+'/history')).status,422);await reopen();
+ await reopen(oldCode);for(const suffix of ['', '/history','/export']){const denied=await local.mf.dispatchFetch(local.origin+'/api/work/'+target.work_id+suffix,{headers:{cookie:c.cookies}});assert.equal(denied.status,503);assert.equal((await denied.json()).error,'incompatible_schema');}await reopen();
  assert.deepEqual(await local.db.prepare('SELECT envelope FROM web_planning_revision WHERE work_id=? AND revision=1').bind(w.id).first(),oldRow);
  passed('all relation routes retain identity/origin/CSRF/scope gates; forged material, bounds and old-code/new-envelope refusal; old bytes retained');
  // Full supported work export, including the independent branch's origin and

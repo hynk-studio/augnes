@@ -44,7 +44,7 @@ export async function authorize(request: Request, env: Environment, principal: P
     request.headers.has('oai-authenticated-user-email')?'identity_invalid':'identity_absent','access_denied',403);
   if (login(principal.login)!==login(env.OWNER_EMAIL)) refuse('owner_mismatch','access_denied',403);
   const schema=await env.DB.prepare("SELECT version FROM web_planning_schema").all<{version:number}>();
-  if (schema.results.length!==1 || schema.results[0].version!==1) refuse('schema','incompatible_schema',503);
+  if (schema.results.length!==1 || schema.results[0].version!==2) refuse('schema','incompatible_schema',503);
   let owners=await env.DB.prepare("SELECT * FROM web_planning_workspace").all<Record<string,unknown>>();
   const expected={ singleton:1, workspace_id:env.WORKSPACE_ID, project_id:env.PROJECT_ID,
     author_ref:env.AUTHOR_REF, owner_login_hash:hash(login(env.OWNER_EMAIL)!) };
@@ -59,7 +59,8 @@ export async function authorize(request: Request, env: Environment, principal: P
         AND NOT EXISTS(SELECT 1 FROM web_planning_revision)
         AND NOT EXISTS(SELECT 1 FROM web_planning_erased)
         AND (SELECT count(*) FROM web_planning_schema)=1
-        AND EXISTS(SELECT 1 FROM web_planning_schema WHERE version=1)
+        AND EXISTS(SELECT 1 FROM web_planning_schema WHERE version=2)
+        AND NOT EXISTS(SELECT 1 FROM web_planning_file)
       ON CONFLICT DO NOTHING`)
       .bind(expected.workspace_id,expected.project_id,expected.author_ref,expected.owner_login_hash).run();
     owners=await env.DB.prepare("SELECT * FROM web_planning_workspace").all<Record<string,unknown>>();

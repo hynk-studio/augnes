@@ -1,3 +1,4 @@
+import { FILE_FORMAT, FILE_COMPATIBILITY, fileManifest, historyFiles, type FileEntry } from "./files";
 import { normalizeInitialProjectWorkDefinitionV01 } from "../../../lib/intake/work-definition";
 import { buildSelectedWorkSourceEntry, normalizeSelectedWorkSources, selectedWorkSourceInput } from "../../../lib/intake/selected-work-source-comparison";
 import { canonicalizeProtocolValueV01 as canonical, createProtocolSha256V01 as hash, parseStrictIsoTimestampV01 } from "../../../lib/vnext/protocol-primitives";
@@ -30,9 +31,9 @@ export interface Relations {
   materials: Material[];
   review: ComparisonReview | null;
 }
-export interface Payload { definition: ProjectWorkDefinitionV01; sources: TaskContextPacketSelectedEntryV01[]; relations?: Relations }
+export interface Payload { definition: ProjectWorkDefinitionV01; sources: TaskContextPacketSelectedEntryV01[]; relations?: Relations; files?: FileEntry[] }
 export interface Revision extends Scope, Payload {
-  format: typeof FORMAT | typeof RELATION_FORMAT; schema: 1; compatibility: typeof COMPATIBILITY | typeof RELATION_COMPATIBILITY;
+  format: typeof FORMAT | typeof RELATION_FORMAT | typeof FILE_FORMAT; schema: 1; compatibility: typeof COMPATIBILITY | typeof RELATION_COMPATIBILITY | typeof FILE_COMPATIBILITY;
   work_id: string; revision: number; predecessor: string | null;
   recorded_at: string; request_key: string; request_fingerprint: string; fingerprint: string;
 }
@@ -120,8 +121,9 @@ export function requestFingerprint(scope: Scope, work_id: string, expected: Bind
   return hash(canonical({ ...scopeMaterial(scope), work_id, expected, request_key, ...payload }));
 }
 export function makeRevision(scope: Scope, work_id: string, expected: Binding, request_key: string, payload: Payload, recorded_at: string): Revision {
+  if (payload.files!==undefined) fileManifest(payload.files);
   if (payload.relations) validateRelations(payload.relations,payload,work_id);
-  const material = { ...scopeMaterial(scope), format: payload.relations ? RELATION_FORMAT : FORMAT, schema: 1, compatibility: payload.relations ? RELATION_COMPATIBILITY : COMPATIBILITY,
+  const material = { ...scopeMaterial(scope), format: payload.files!==undefined ? FILE_FORMAT : payload.relations ? RELATION_FORMAT : FORMAT, schema: 1, compatibility: payload.files!==undefined ? FILE_COMPATIBILITY : payload.relations ? RELATION_COMPATIBILITY : COMPATIBILITY,
     work_id, revision: expected.revision + 1, predecessor: expected.fingerprint, ...payload,
     recorded_at, request_key, request_fingerprint: requestFingerprint(scope, work_id, expected, request_key, payload) };
   return { ...material, fingerprint: hash(canonical(material)) } as Revision;
@@ -134,25 +136,30 @@ export function validateChain(scope: Scope, work_id: string, values: unknown[]):
   if (!UUID.test(work_id) || !values.length || values.length > MAX_REVISIONS) fail("invalid_history", 503);
   const revisions: Revision[] = []; const keys = new Set();
   for (const value of values) {
-    const relational=(value as Revision)?.format===RELATION_FORMAT;
-    if ((value as Revision)?.format!==FORMAT && !relational) fail("incompatible_format",409);
-    exact(value, "workspace_id,project_id,author_ref,format,schema,compatibility,work_id,revision,predecessor,definition,sources,recorded_at,request_key,request_fingerprint,fingerprint"+(relational?",relations":""));
-    if (value.schema !== 1 || value.compatibility !== (relational?RELATION_COMPATIBILITY:COMPATIBILITY)) fail("incompatible_format", 409);
+    const filed=(value as Revision)?.format===FILE_FORMAT;
+    const relational=(value as Revision)?.format===RELATION_FORMAT || (filed && "relations" in (value as Revision));
+    if ((value as Revision)?.format!==FORMAT && !relational && !filed) fail("incompatible_format",409);
+    exact(value, "workspace_id,project_id,author_ref,format,schema,compatibility,work_id,revision,predecessor,definition,sources,recorded_at,request_key,request_fingerprint,fingerprint"+(relational?",relations":"")+(filed?",files":""));
+    if (value.schema !== 1 || value.compatibility !== (filed?FILE_COMPATIBILITY:relational?RELATION_COMPATIBILITY:COMPATIBILITY)) fail("incompatible_format", 409);
     if (value.workspace_id !== scope.workspace_id || value.project_id !== scope.project_id || value.author_ref !== scope.author_ref || value.work_id !== work_id ||
       !UUID.test(value.request_key) || keys.has(value.request_key) || parseStrictIsoTimestampV01(value.recorded_at) === null ||
       new Date(value.recorded_at).toISOString() !== value.recorded_at || !Array.isArray(value.sources)) fail("invalid_history", 503);
     const payload = normalizePayload(scope, value.definition, value.sources.map(selectedWorkSourceInput));
     if (relational) payload.relations=validateRelations(value.relations,payload,work_id);
+    if (filed) payload.files=fileManifest(value.files);
     const prior=revisions.at(-1);
+    if (prior?.files!==undefined && !filed) fail("file_format_downgrade",409);
     if (prior?.relations && (!payload.relations || canonical(prior.relations.origin)!==canonical(payload.relations.origin))) fail("branch_origin_changed",409);
     if (!prior?.relations && prior && payload.relations?.origin) fail("branch_origin_changed",409);
     const rebuilt = makeRevision(scope, work_id, headBinding(revisions.at(-1)), value.request_key, payload, value.recorded_at);
     if (canonical(rebuilt) !== canonical(value)) fail("history_integrity", 409);
     revisions.push(rebuilt); keys.add(value.request_key);
   }
+  historyFiles(revisions);
   return revisions;
 }
 export function exportWork(revisions: Revision[]) {
+  if(revisions.some(r=>r.files!==undefined))fail("file_export_required",409);
   const relational=revisions.some(r=>r.relations);
   const content = { format: relational?RELATION_EXPORT_FORMAT:EXPORT_FORMAT, schema: 1, compatibility: relational?RELATION_COMPATIBILITY:COMPATIBILITY, revisions };
   return { ...content, fingerprint: hash(canonical(content)) };

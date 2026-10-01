@@ -68,8 +68,8 @@ export async function startLocal({root,port,production=false,direct=false,access
     await mf.ready;let db=await mf.getD1Database('DB');
     if(initialize&&!direct){
       const exists=await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='web_planning_schema'").first();
+      await migrate(drizzle(db),{migrationsFolder});
       if(!exists) {
-        await migrate(drizzle(db),{migrationsFolder});
         if(seedMapping)await db.prepare('INSERT INTO web_planning_workspace(singleton,workspace_id,project_id,author_ref,owner_login_hash) VALUES (1,?,?,?,?)')
           .bind(env.WORKSPACE_ID,env.PROJECT_ID,env.AUTHOR_REF,'sha256:'+createHash('sha256').update(env.OWNER_EMAIL.toLowerCase()).digest('hex')).run();
       }
