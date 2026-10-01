@@ -10,11 +10,13 @@ import { buildCloudflarePlanning } from './build-web-planning.mjs';
 import { registerOwnedChild, terminateOwnedProcessTree } from './test-harness-process-lifecycle.mjs';
 import { browserCapacityJourney } from './browser-web-planning-capacity.mjs';
 import { browserBranchJourney } from './browser-web-planning-branches.mjs';
+import { assertReadOnlyRequestWindow, testReadOnlyRequestWindow } from './browser-web-planning-requests.mjs';
 const root=process.env.AUGNES_CANONICAL_TEMP_ROOT;if(!root)throw new Error('owned_browser_root_required');
 const chrome=[process.env.AUGNES_BROWSER_EXECUTABLE_PATH,'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome','/usr/bin/chromium','/usr/bin/google-chrome'].find(p=>p&&existsSync(p));
 assert(chrome,'real_browser_unavailable');
 const owned=new Set(),clients=[];let processRecord,local;let external=0,exceptions=0,saveRequests=0,lostResponse=false,unexpectedFailures=0;const expectedFailures=new Set();
 const requests=[],responses=[],interceptionErrors=[],acknowledgementChecks=[];
+const requestSources=new WeakMap();
 class CDP {
  constructor(url){this.ws=new WebSocket(url);this.next=1;this.pending=new Map();this.handlers=[];}
  async open(){await new Promise((ok,no)=>{this.ws.addEventListener('open',ok,{once:true});this.ws.addEventListener('error',no,{once:true});});this.ws.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.id){const p=this.pending.get(m.id);if(p){clearTimeout(p.timer);this.pending.delete(m.id);m.error?p.no(new Error(m.error.message)):p.ok(m.result);}}else for(const fn of this.handlers)fn(m);});return this;}
@@ -29,12 +31,14 @@ async function state(c,expression){return c.eval(expression);}
 async function visible(c,id){return c.eval(`!!document.getElementById(${JSON.stringify(id)})&&!document.getElementById(${JSON.stringify(id)}).hidden`);}
 async function saved(c,n){await wait(()=>c.eval(`document.getElementById('saved-label')?.textContent.startsWith('Saved revision ${n} ')`),'saved '+n);}
 async function page(debug,origin){const target=await (await fetch(`http://127.0.0.1:${debug}/json/new?about:blank`,{method:'PUT'})).json();const c=await new CDP(target.webSocketDebuggerUrl).open();clients.push(c);
+ c.targetId=target.id;c.origin=origin;
  c.direct=origin.startsWith('https://127.0.0.1:');
  if(c.direct)await c.send('Security.setIgnoreCertificateErrors',{ignore:true}); // Owned loopback workerd certificate only; external traffic is refused below.
  await c.send('Network.enable');await c.send('Runtime.enable');await c.send('Page.enable');
  c.handlers.push(m=>{if(m.method==='Runtime.exceptionThrown')exceptions++;
    if(m.method==='Network.requestWillBeSent'){const u=m.params.request.url;if(u.startsWith('http')&&!u.startsWith(origin+'/'))external++;if(u.endsWith('/save'))saveRequests++;
-     if(u.startsWith(origin+'/api/'))requests.push({path:new URL(u).pathname,method:m.params.request.method,body:m.params.request.postData});}
+     if(u.startsWith(origin+'/api/')){const request={path:new URL(u).pathname+new URL(u).search,method:m.params.request.method,body:m.params.request.postData};
+       requestSources.set(request,{target_id:c.targetId,request_id:m.params.requestId,document_url:m.params.documentURL,initiator:m.params.initiator});requests.push(request);}}
    if(m.method==='Network.responseReceived'&&m.params.response.url.startsWith(origin+'/api/'))responses.push({path:new URL(m.params.response.url).pathname,status:m.params.response.status});
    if(m.method==='Network.loadingFailed'&&!expectedFailures.delete(m.params.requestId))unexpectedFailures++;});
  await c.send('Fetch.enable',{patterns:[{urlPattern:'*',requestStage:'Request'}]});
@@ -42,6 +46,7 @@ async function page(debug,origin){const target=await (await fetch(`http://127.0.
  return c;}
 async function intercept(c,p,origin){
  const u=p.request.url;
+ if(c.beforeRequest&&u===origin+c.beforeRequest.path&&p.request.method===c.beforeRequest.method){const before=c.beforeRequest;c.beforeRequest=null;await before.run();}
  if(c.direct&&u===origin+'/cdn-cgi/access/logout'){
    c.logoutObserved=true;
    await local.setOptions({access:undefined});
@@ -92,6 +97,29 @@ async function failListAfterReply(c,route,failure){
 }
 async function requestsOnly(c){await c.send('Fetch.enable',{patterns:[{urlPattern:'*',requestStage:'Request'}]});}
 async function settled(c){await wait(()=>c.eval('!busy'),'client operation settled');}
+async function readWindow(){
+ const background=[];
+ for(const c of clients){
+   const state=await c.eval("typeof scope==='undefined'||accessLost||!$('editor')||$('editor').hidden?null:({document_url:location.href,client_url:location.origin+'/client.js',capacity:{path:saved?'/api/work/'+work+'/capacity':'/api/capacity',body:{...scope,...draft(false),...(saved?{expected:binding(saved)}:{})}}})");
+   if(state)background.push({target_id:c.targetId,...state});
+ }
+ const start=requests.length;
+ return {start,assert(expected,allowFocusReads=false){
+   const recorded=requests.slice(start).map(r=>({...r,source:requestSources.get(r)}));
+   const result=assertReadOnlyRequestWindow(recorded,{expected,background,allowFocusReads});
+   console.log(JSON.stringify({read_only_request_window:{...result,requests:recorded.map(({method,path,source})=>({method,path,target_id:source.target_id,request_id:source.request_id,callers:source.initiator?.stack?.callFrames.map(f=>f.functionName)}))}}));
+   return result;
+ }};
+}
+async function contextRequest(c){return {target_id:c.targetId,method:'POST',...await c.eval("({path:'/api/work/'+work+'/context',body:{...scope,expected:binding(saved)}})")};}
+async function overlapCapacity(c,{input=false}={}){
+ const start=requests.length,route=await c.eval("saved?'/api/work/'+work+'/capacity':'/api/capacity'");
+ // Exercise the normal input debounce or explicit capacity control. Await a
+ // recorded request and its client completion, never a guessed timer duration.
+ if(input)await set(c,'goal',await c.eval("$('goal').value"));else await click(c,'check-capacity');
+ await wait(()=>requests.slice(start).some(r=>requestSources.get(r).target_id===c.targetId&&r.method==='POST'&&r.path===route),'scheduled capacity request');
+ await wait(()=>c.eval("!capacityInFlight&&['fits','blocked','unavailable'].includes($('draft-capacity').dataset.state)"),'scheduled capacity completes');
+}
 async function revisionCount(){return (await local.db.prepare('SELECT count(*) n FROM web_planning_revision').first()).n;}
 async function retainedAcknowledgement(c,n,failure){
  await settled(c);
@@ -109,8 +137,11 @@ async function retainedAcknowledgement(c,n,failure){
  assert(!/unknown|No.*successful.save/i.test(observed.status));
  assert(observed.label.startsWith('Saved revision '+n+' '));
  assert(!observed.changes.includes('Non-goals edited.'),'empty non-goals remain unchanged after acknowledgement');
- const before=requests.length,stored=await revisionCount();await requestsOnly(c);await click(c,'refresh-list');await settled(c);
- assert.deepEqual(requests.slice(before).map(r=>[r.method,r.path]),[['GET','/api/works']]);
+ await requestsOnly(c);const recovery=await readWindow(),stored=await revisionCount();
+ c.beforeRequest={method:'GET',path:'/api/works',run:()=>overlapCapacity(c)};
+ await click(c,'refresh-list');await settled(c);
+ const traffic=recovery.assert([{target_id:c.targetId,method:'GET',path:'/api/works',body:undefined}]);
+ assert(traffic.capacity>0,'list recovery overlaps the independent capacity scheduler');
  assert.equal(await revisionCount(),stored);assert.equal(await c.eval('saved.revision'),n);
  assert.equal(await visible(c,'refresh-list'),false);assert.match(await c.eval("$('status').textContent"),/Work list refreshed/);
  acknowledgementChecks.push({reply:c.acknowledgedReply.path.endsWith('/resolve')?'resolve':'save',failure,revision:n,list_recovery_requests:1,additional_writes:0,stored_revisions:stored});
@@ -120,6 +151,7 @@ async function login(c,origin){await navigate(c,origin+'/_local/login');await wa
 async function reopen(c){await wait(()=>c.eval("document.querySelectorAll('#work-list button').length>0"),'saved list');await c.eval("document.querySelector('#work-list button').click()");await wait(()=>visible(c,'editor'),'editor');}
 let checks=[];
 try {
+ testReadOnlyRequestWindow();
  local=await startLocal({root:path.join(root,'runtime')});const origin=local.origin;
  const debug=await availablePort();const profile=path.join(root,'chrome-profile'),downloads=path.join(root,'downloads');await mkdir(downloads);
  const child=spawn(chrome,['--headless=new','--disable-gpu','--no-first-run','--no-default-browser-check','--disable-background-networking','--disable-component-update','--disable-default-apps','--disable-domain-reliability','--disable-extensions','--disable-sync','--metrics-recording-only','--no-pings','--password-store=basic','--use-mock-keychain','--remote-debugging-address=127.0.0.1',`--remote-debugging-port=${debug}`,`--user-data-dir=${profile}`,'about:blank'],{stdio:'ignore',detached:true});processRecord=registerOwnedChild(owned,child,{label:'web-planning-browser'});
@@ -132,7 +164,7 @@ try {
  await click(a,'add-note');await a.eval(`(()=>{const n=document.querySelectorAll('.note')[1];for(const [k,v] of Object.entries({text:'Evening noise remains unknown; measure it before choosing the room.',source:'Synthetic planning question',label:'Open question',provenance:'derived_interpretation'})){n.querySelector('[data-field='+k+']').value=v;}})()`);
  await click(a,'save');await saved(a,1);checks.push('keyboard create/edit/attributed save');
  const b=await page(debug,origin);await navigate(b,origin+'/');await reopen(b);await set(b,'goal','Retained competing draft');
- const readStart=requests.length,storedBeforeRead=await revisionCount();
+ const read=await readWindow(),expectedContext=await contextRequest(b),storedBeforeRead=await revisionCount();
  for(const [width,height] of [[390,844],[1200,800]]){
    await b.send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<500});
    await b.eval('window.scrollTo(0,0)');
@@ -144,8 +176,7 @@ try {
  }
  assert.equal(await revisionCount(),storedBeforeRead);
  // Keyboard focus may also trigger the existing window-focus access read.
- const readRequests=requests.slice(readStart);assert(readRequests.filter(r=>r.method==='GET').every(r=>r.path==='/api/works'));
- assert.deepEqual(readRequests.filter(r=>r.method!=='GET'&&!r.path.endsWith('/capacity')).map(r=>[r.method,r.path.split('/').at(-1)]),[['POST','context'],['POST','context']]);
+ read.assert([expectedContext,expectedContext],true);
  checks.push('Saved context reachable at 390/1200; keyboard read focuses visible result, preserves unsaved draft and writes no revision');
  await set(a,'goal','First tab successor');await click(a,'save');await saved(a,2);
  await click(b,'check-capacity');await wait(()=>b.eval("$('draft-capacity').dataset.state==='unavailable'"),'stale capacity withheld');
@@ -215,7 +246,7 @@ try {
    assert.equal(await revisionCount(),4+index);assert.equal(requests.slice(before).filter(r=>r.path.endsWith('/save')).length,1);
    await requestsOnly(a);await login(a,origin);await reopen(a);await settled(a);
  }
- await browserBranchJourney({a,debug,origin,page,click,set,settled,saved,wait,visible,navigate,login,requestsOnly,requests,responses,revisionCount,checks,
+ await browserBranchJourney({a,debug,origin,page,click,set,settled,saved,wait,visible,navigate,login,requestsOnly,requests,responses,revisionCount,readWindow,contextRequest,overlapCapacity,checks,
    restart:async()=>{const options={root:path.join(root,'runtime'),port:Number(new URL(origin).port),bindings:local.env,code:local.code};await local.close();local=null;local=await startLocal(options);}});
  assert.deepEqual(interceptionErrors,[]);
  await click(a,'signout');await wait(()=>a.eval("document.title==='Local synthetic workspace'"),'signout');assert(!await a.eval("document.body.innerText.includes('Evening noise')"));
@@ -228,7 +259,7 @@ try {
  local=await startLocal(directOptions);const directOrigin=local.origin;
  async function accessLogin(c){await local.setOptions({access:accessSimulation});await navigate(c,directOrigin+'/');await wait(()=>c.eval("!!document.getElementById('new-work')&&document.getElementById('list-state')?.textContent!=='Reading saved work…'"),'Access workspace');}
  const d=await page(debug,directOrigin);await accessLogin(d);const directStart=checks.length;
- await browserBranchJourney({a:d,debug,origin:directOrigin,page,click,set,settled,saved,wait,visible,navigate,login:accessLogin,requestsOnly,requests,responses,revisionCount,checks,
+ await browserBranchJourney({a:d,debug,origin:directOrigin,page,click,set,settled,saved,wait,visible,navigate,login:accessLogin,requestsOnly,requests,responses,revisionCount,readWindow,contextRequest,overlapCapacity,checks,
    restart:async()=>{const bindings=local.env;await local.close();local=null;local=await startLocal({...directOptions,port:Number(new URL(directOrigin).port),bindings});}});
  for(let i=directStart;i<checks.length;i++)checks[i]='direct Access simulation: '+checks[i];
  console.log('web-planning-browser: direct complete branch and comparison-recovery journey');

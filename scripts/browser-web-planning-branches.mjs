@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 
 // The existing Browser owner supplies real Chrome, loopback D1 and cleanup.
 // Writes below use visible controls, not a fixture-only record constructor.
-export async function browserBranchJourney({a,debug,origin,page,click,set,settled,saved,wait,visible,navigate,login,requestsOnly,requests,responses,revisionCount,restart,checks}) {
+export async function browserBranchJourney({a,debug,origin,page,click,set,settled,saved,wait,visible,navigate,login,requestsOnly,requests,responses,revisionCount,readWindow,contextRequest,overlapCapacity,restart,checks}) {
  async function selectWork(c,goal){await c.eval(`(()=>{const b=[...document.querySelectorAll('#work-list button')].find(b=>b.textContent===${JSON.stringify(goal)});if(!b)throw Error('work not listed');b.click();})()`);await settled(c);}
  async function add(c,note){await click(c,'add-note');await c.eval(`(()=>{const row=$('notes').lastElementChild;for(const [k,v] of Object.entries(${JSON.stringify(note)})){const e=row.querySelector('[data-field='+k+']');e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));}})()`);}
  async function choose(text,disposition,rationale=''){await a.eval(`(()=>{const row=[...$('material-choices').children].find(r=>r.querySelector('.note-text').textContent===${JSON.stringify(text)});row.querySelector('select').value=${JSON.stringify(disposition)};row.querySelector('textarea').value=${JSON.stringify(rationale)};row.querySelector('select').dispatchEvent(new Event('input',{bubbles:true}));})()`);}
@@ -31,11 +31,14 @@ export async function browserBranchJourney({a,debug,origin,page,click,set,settle
  await click(a,'incorporation-preview');await settled(a);assert.match(await a.eval("$('status').textContent"),/required context note is missing/);assert.equal(await visible(a,'relation-save'),false);
  await choose(condition,'incorporated');await click(a,'incorporation-preview');await settled(a);assert.equal(await visible(a,'relation-save'),true);
  const retainedReview=()=>a.eval("JSON.stringify({relationPending,comparison,comparisonCurrent,directionDirty,units:choices(),rationale:$('comparison-rationale').value,next:$('comparison-next').value,preview:$('relation-preview').innerHTML})");
- const reviewBeforeRead=await retainedReview(),readStart=requests.length,storedBeforeRead=await revisionCount();
+ const reviewBeforeRead=await retainedReview(),read=await readWindow(),expectedContext=await contextRequest(a),storedBeforeRead=await revisionCount();
+ // Hold the foreground read while the other tab's ordinary input timer fires.
+ // The read must preserve the reviewed state even when !busy is not network idle.
+ a.beforeRequest={method:'POST',path:expectedContext.path,run:()=>overlapCapacity(sourceTab,{input:true})};
  await click(a,'saved-context');await settled(a);
  assert.equal(await retainedReview(),reviewBeforeRead,'fresh read preserves the unsaved comparison and exact preview');
  assert.equal(await a.eval('document.activeElement.id'),'context-view');assert.equal(await revisionCount(),storedBeforeRead);
- assert.deepEqual(requests.slice(readStart).map(r=>[r.method,r.path.split('/').at(-1)]),[['POST','context']]);
+ assert(read.assert([expectedContext]).capacity>0,'Saved context overlaps the source tab capacity timer');
  checks.push('Saved context focuses its successful read without changing comparison judgments, preview bindings or stored revisions');
  await set(sourceTab,'goal','Branch adds a later independent revision');await click(sourceTab,'save');await saved(sourceTab,3);await settled(sourceTab);
  await click(a,'relation-save');await settled(a);assert.match(await a.eval("$('relation-state').textContent"),/Change refused/);assert.equal(await a.eval('saved.revision'),2);assert.equal(await a.eval("[...$('material-choices').children].find(r=>r.querySelector('.note-text').textContent==='Choose the room now for every event.').querySelector('select').value"),'declined');
@@ -101,8 +104,12 @@ export async function browserBranchJourney({a,debug,origin,page,click,set,settle
    if(failure!=='transport')assert.equal(responses.filter(r=>r.path.endsWith('/compare')).at(-1).status,typeof failure==='number'?failure:409);
    const deliberateWrites=typeof failure==='string'&&failure.endsWith('-drift')?1:0;
    assert.equal(writes()-writeCount,deliberateWrites);assert.equal(await revisionCount(),stored+deliberateWrites,'only the deliberate competing edit may write');
-   const blockedStart=requests.length;await click(a,'incorporation-preview');await click(a,'relation-save');await settled(a);
-   assert.equal(requests.length,blockedStart,'unconfirmed comparison cannot preview or use the stale ticket');
+   const blocked=await readWindow(),capacity=overlapCapacity(driftTab);
+   await click(a,'incorporation-preview');await click(a,'relation-save');await settled(a);await capacity;
+   assert(blocked.assert([]).capacity>0,'blocked controls overlap capacity without previewing or using a stale ticket');
+   assert.equal(await revisionCount(),stored+deliberateWrites,'blocked controls and capacity cannot write');
+   assert.deepEqual(await draftState(),before,'capacity does not change the retained comparison');
+   assert.equal(await a.eval('relationPending'),null);
    const dialogs=[];let dismissal;const onDialog=m=>{if(m.method==='Page.javascriptDialogOpening'){dialogs.push(m.params.message);dismissal=a.send('Page.handleJavaScriptDialog',{accept:false});}};a.handlers.push(onDialog);
    await click(a,'new-work');await settled(a);await dismissal;a.handlers.splice(a.handlers.indexOf(onDialog),1);
    assert.deepEqual(dialogs,['Discard the unsaved edits in this tab?']);assert.deepEqual(await draftState(),before,'cancelled leave preserves the same draft');
