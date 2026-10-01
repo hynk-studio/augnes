@@ -55,10 +55,15 @@ The 2026-10-01 [#1373 alignment](https://github.com/hynk-studio/augnes/issues/13
 promotes **experience → executable reusable method → separate successor use →
 outcome-informed revision/non-use** as the next new capability implementation
 candidate within P4/P5. This is an explicit prospective sequencing change. The
-01/03/04 documentation change is authorized; this runtime candidate is **Next**
-under the phase-state rule, with implementation and live study **NOT_STARTED**.
-Its first source inspection and mechanism choice belong inside the separately
-authorized implementation, not a readiness-only PR.
+01/03/04 alignment left this runtime candidate **Next**, with implementation and
+live study **NOT_STARTED** at that time. [#1375](https://github.com/hynk-studio/augnes/issues/1375)
+now authorizes the **Current** bounded standalone implementation: a source-derived
+exact solver, a separate retry-workflow consumer and outcome-informed qualification.
+The [callable, usage and development evidence](../../scripts/executable-reuse/README.md)
+retain source identity, independent reference calculations, explicit non-use and
+exposure limits. Review/merge remains pending; product integration, hosted delivery,
+autonomous learning and comparative usefulness are not established. No live study
+or historical campaign restart is authorized by this implementation.
 
 The first slice should connect an actual usable asset, an actual consumer, an
 observed downstream result and a traceable feedback connection:
