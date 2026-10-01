@@ -26,6 +26,6 @@ CREATE TABLE `web_planning_file` (
 CREATE TRIGGER web_planning_file_quota BEFORE INSERT ON web_planning_file
 WHEN NOT EXISTS (SELECT 1 FROM web_planning_file WHERE workspace_id=NEW.workspace_id AND project_id=NEW.project_id AND work_id=NEW.work_id AND digest=NEW.digest)
 BEGIN
-  SELECT CASE WHEN (SELECT COUNT(*) FROM web_planning_file WHERE workspace_id=NEW.workspace_id AND project_id=NEW.project_id AND work_id=NEW.work_id) >= 16 THEN RAISE(ABORT, 'file_history_count_exceeded') END;
-  SELECT CASE WHEN (SELECT COALESCE(SUM(bytes),0) FROM web_planning_file WHERE workspace_id=NEW.workspace_id AND project_id=NEW.project_id AND work_id=NEW.work_id) + NEW.bytes > 1048576 THEN RAISE(ABORT, 'file_history_bytes_exceeded') END;
+  SELECT (CASE WHEN (SELECT COUNT(*) FROM web_planning_file WHERE workspace_id=NEW.workspace_id AND project_id=NEW.project_id AND work_id=NEW.work_id) >= 16 THEN RAISE(ABORT, 'file_history_count_exceeded') END);
+  SELECT (CASE WHEN (SELECT COALESCE(SUM(bytes),0) FROM web_planning_file WHERE workspace_id=NEW.workspace_id AND project_id=NEW.project_id AND work_id=NEW.work_id) + NEW.bytes > 1048576 THEN RAISE(ABORT, 'file_history_bytes_exceeded') END);
 END;
