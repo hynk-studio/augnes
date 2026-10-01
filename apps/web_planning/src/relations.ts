@@ -65,11 +65,13 @@ function incorporationIntent(input:any) {
   return {source:sourceRef(input.source),dispositions:dispositions(input.dispositions),rationale:boundedText(input.rationale,true),next_question:boundedText(input.next_question)};
 }
 function branchPayload(source:Revision,reason:string):Payload {
+  if(source.files?.length)fail("file_branch_selection_unsupported");
   return {definition:source.definition,sources:source.sources,relations:{
     origin:{source:reference(source),reason,selection:source.sources.map(s=>s.source_ref!),starting_review:source.relations?.review??source.relations?.origin?.starting_review??null},
     materials:relationsOf(source).materials.map(m=>({...m,kind:"inherited",from:{...reference(source),source_ref:m.source_ref}})),review:null}};
 }
 function incorporationPayload(target:Revision,source:Revision,intent:ReturnType<typeof incorporationIntent>):Payload {
+  if(target.files?.length || source.files?.length)fail("file_branch_selection_unsupported");
   if(canonical(intent.dispositions.map(d=>d.source_ref).sort())!==canonical(source.sources.map(s=>s.source_ref).sort()))fail("incomplete_dispositions");
   const selected=intent.dispositions.filter(d=>d.disposition==="incorporated").map(d=>d.source_ref);
   const entries=new Map(target.sources.map(s=>[s.source_ref,s]));
@@ -85,7 +87,7 @@ function incorporationPayload(target:Revision,source:Revision,intent:ReturnType<
   // Repeating the same comparison choices is not another judgment or revision.
   const prior=target.relations?.review;
   if(prior && canonical({...prior,target:relations.review!.target})===canonical(relations.review))relations.review=prior;
-  return {...payload,relations};
+  return {...payload,relations,...(target.files!==undefined?{files:target.files}:{})};
 }
 interface OperationTicket {
   kind:"branch"|"incorporate"; workspace_id:string; project_id:string; author_ref:string;
@@ -113,7 +115,7 @@ export async function previewOperation(a:Access,id:string,kind:"branch"|"incorpo
   }
   const t:OperationTicket={kind,workspace_id:a.workspace_id,project_id:a.project_id,author_ref:a.author_ref,work_id,request_key:crypto.randomUUID(),expected:headBinding(target),source:reference(source),intent_fingerprint:hash(canonical(intent)),request_fingerprint:"",expires:Date.now()+86_400_000};
   t.request_fingerprint=requestFingerprint(a,work_id,t.expected,t.request_key,payload);
-  return {work_id,ticket:seal(a,t),intent,payload,target:target??null,source,noop:!!target && canonical(payload)===canonical({definition:target.definition,sources:target.sources,relations:target.relations})};
+  return {work_id,ticket:seal(a,t),intent,payload,target:target??null,source,noop:!!target && canonical(payload)===canonical({definition:target.definition,sources:target.sources,relations:target.relations,...(target.files!==undefined?{files:target.files}:{})})};
 }
 export async function saveOperation(a:Access,id:string,value:unknown,input:unknown,resolve=false) {
   const t=operationTicket(a,value,id,resolve);
@@ -134,7 +136,7 @@ export async function saveOperation(a:Access,id:string,value:unknown,input:unkno
         const {target,branch}=await compare(a,id,t.expected,t.source);
         const payload=incorporationPayload(target,branch,intent as ReturnType<typeof incorporationIntent>);
         if(requestFingerprint(a,id,t.expected,t.request_key,payload)===t.request_fingerprint &&
-          canonical(payload)===canonical({definition:target.definition,sources:target.sources,relations:target.relations}) &&
+          canonical(payload)===canonical({definition:target.definition,sources:target.sources,relations:target.relations,...(target.files!==undefined?{files:target.files}:{})}) &&
           await headsCurrent(a,reference(target),t.source)) return {outcome:"saved",saved:target,head:headBinding(target),noop:true};
       } catch { /* Unavailable currentness does not establish the outcome. */ }
     }
@@ -151,7 +153,7 @@ export async function saveOperation(a:Access,id:string,value:unknown,input:unkno
   }
   if(requestFingerprint(a,id,t.expected,t.request_key,payload)!==t.request_fingerprint)fail("preview_changed",409);
   const target=chain.at(-1);
-  if(target && canonical(payload)===canonical({definition:target.definition,sources:target.sources,relations:target.relations})) {
+  if(target && canonical(payload)===canonical({definition:target.definition,sources:target.sources,relations:target.relations,...(target.files!==undefined?{files:target.files}:{})})) {
     if(!await headsCurrent(a,reference(target),t.source))fail("refresh_required",409);
     return {outcome:"saved",saved:target,head:headBinding(target),noop:true};
   }

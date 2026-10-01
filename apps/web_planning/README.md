@@ -1,9 +1,140 @@
 # Web Augnes planning workspace
 
-Private branching/incorporation candidate for [#1351](https://github.com/hynk-studio/augnes/issues/1351),
-extending the accepted bounded one-owner synthetic hosted v0 slice ([reviewed #1345 closeout](../../docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#completed-p2p5--web-augnes-v0-hosted-slice-1345)) and the [merged Task A contract](../../docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#current-p2p5--web-augnes-v0-task-a-1343).
-One configured owner keeps independent, text/link planning items. It neither
-reads the installed Augnes database nor creates native work, results or accepted state.
+One configured owner keeps independent planning work, its attributed context and
+explicitly selected small files. Web work neither reads the installed Augnes
+database nor creates native work, results or accepted state.
+
+[#1351](https://github.com/hynk-studio/augnes/issues/1351) completed private
+branching/incorporation through merged #1353; [#1356](https://github.com/hynk-studio/augnes/issues/1356)
+accepted its bounded direct-Cloudflare hosted synthetic journey.
+[#1364](https://github.com/hynk-studio/augnes/issues/1364) accepted a same-Worker
+Saved-context navigation update and preservation report. Its anonymous HTTP 403
+remains an unclassified refusal and its expected-302 assertion remains failed;
+that review did not independently rehash the new Mac-local exports.
+[#1366](https://github.com/hynk-studio/augnes/issues/1366) completed one assisted
+research succession and return of reproducible results, not separate-task
+transfer or comparative usefulness. Its original analysis, qualifications,
+reconstructed failed requests and recovery burden remain intact.
+
+[#1369](https://github.com/hynk-studio/augnes/issues/1369) completed capacity
+feedback through merged #1370; [#1371](https://github.com/hynk-studio/augnes/issues/1371)
+accepted its same-Worker rollout and actual private attachment review. One
+synthetic work used 11,947 → 13,713 unsaved → 10,954 source bytes with two recovery
+edits and no failed UI save. All five pre-existing works' actual complete exports
+were byte-identical before/after. Sign-in and operator repairs, limited security
+observations and lack of general time-saving evidence remain. #1354's separate
+Sites rollout is deferred; its resources and evidence are untouched.
+
+## Revision-bound private files (#1372)
+
+Current local implementation / Draft-HOLD: choose files in the ordinary editor, review
+names, roles and sizes, then Save. Selection alone performs no upload. Saved
+context exposes authenticated **Download** controls with exact revision, byte
+count and SHA-256 identity. The browser checks returned size/hash before creating
+an inert download; HTML/SVG, code and archives are never rendered, executed,
+followed or expanded by Augnes. Files and filenames remain untrusted. A download
+is byte delivery, not correctness, user consent to execute, or agent consumption.
+
+Retained files appear in the next selection without fetching their bodies. An
+addition/replacement/removal is explicit; replacing a filename requires removing
+its previous selection and choosing the new bytes. Earlier revisions retain
+the original selection and bodies. Removing from the next selection does not
+free history capacity. A stale-base refusal retains the draft. If a retained
+file is absent from a newly reviewed base, explicitly download/reselect its
+original bytes or revise the selection; the server never substitutes the latest
+file. Ordinary timeout/unknown-outcome recovery retains the exact pending file
+payload in this tab, with explicit outcome read or identical retry. Closing the
+tab can lose unsaved bytes; access loss clears them. There is no browser backup.
+
+Keep necessary qualifications, dependencies and source attribution in selected
+context. This slice does not infer file-to-note dependencies. Branch creation or
+incorporation with files selected on either participating work refuses with
+`file_branch_selection_unsupported`; comparison itself remains read-only.
+No files are implicitly copied or dropped. For a genuinely independent task,
+explicitly download and select its needed bytes with their attribution and
+conditions; this is a separately owned copy, not a provenance-certified branch.
+Do not remove required files merely to enable branching. File-free behavior
+continues unchanged, including independent copies after source erasure.
+
+| Quantity | Limit and accounting |
+| --- | --- |
+| File body | 262,144 actual bytes; zero bytes allowed; exact SHA-256 |
+| Current selection | 8 unique names; sum of selected sizes ≤ 524,288 bytes, including duplicate-content selections |
+| Work history | 16 distinct content digests; sum of their sizes ≤ 1,048,576 bytes, shared only within this work |
+| Name / role | 160 UTF-8 name bytes; Unicode preserved, no path separators, controls, bidi overrides or malformed Unicode; report/source/results/other |
+| Ordinary JSON request | Existing 1,500,000-byte streaming cap, including base64 uploads; old routes are not enlarged |
+| File-export reconstruction | Only `POST /api/reconstruct-files`: 3,000,000-byte streaming cap for v0.3 complete exports |
+| Planning material | Existing note, definition, relation, 32-revision and list-page limits remain unchanged |
+
+The 69,216-byte representative bundle motivates small bounded outputs: the
+per-file ceiling exceeds its largest 39,801-byte result by over six times, while
+history can keep 16 distinct versions/bodies. Four wholly replaced four-file
+bundles reach the count limit even before the byte limit; 32 planning revisions
+do not promise 32 complete file replacements. Reused bytes are charged once in
+history, never globally shared across works. Planning Draft capacity retains its
+original meaning; file selection counts/sizes are separate and retained-history
+admission is checked on Save. Refusals preserve edits and identify the limiting
+quantity. The UI does not claim that a planning fit reserves file storage.
+
+`files.ts` owns closed file descriptors and strict base64 decoding. v0.3 adds an
+ordered `files` manifest to the fingerprinted Web revision/request. The body
+itself is a scoped `web_planning_file` D1 BLOB keyed by work and digest. A
+conditional revision INSERT and bounded body INSERT execute in one D1 batch;
+a failed head gate cannot orphan uploads. Transaction-local quota triggers
+settle concurrent history admission. Replays neither duplicate membership nor
+charge twice. Normal work/list/context reads validate descriptors and bounded
+body metadata, without loading file bodies. Downloads additionally bind the
+historical revision/fingerprint/index and verify actual bytes. No identity is an
+access capability; normal owner/origin gates apply and responses are private,
+no-store, nosniff, attachment/octet-stream with safe UTF-8 names.
+
+[Current D1 limits](https://developers.cloudflare.com/d1/platform/limits/) allow
+2,000,000 bytes per BLOB/row and 100 bound parameters per statement. Each body
+row stays below 263 KiB; the largest body INSERT uses 59 parameters for 16
+bodies. Export reads at most 1 MiB of bodies; base64 is at most 1,398,144 bytes
+including per-body padding. The existing conservative 32-revision envelope
+bound plus file descriptors/packaging is 2,691,682 bytes, below 3 MB. Reconstruction uses
+at most 34 transactional statements (empty-store assertion, 32 revisions, one
+body insert); admission, validation and readback stay below the 50-query Free
+per-invocation ceiling. These are bounded design/local checks, not measured
+hosted latency, load or remaining provider allowance.
+
+`web_planning_export.v0.3` / `web-planning/3` carries all original revisions and
+one byte-bearing base64 entry per distinct digest referenced anywhere in history.
+Its checksum covers the entire package. Reconstruction validates exact membership,
+sizes, digests, scope, predecessor chain and version before atomic insertion into
+an explicitly enabled, quiesced empty replacement store. Missing, extra,
+duplicate, truncated or corrupt bodies refuse; insertion faults roll back both
+history and bodies. It never reconstructs a borrowed origin or establishes
+independent authorship. Erasure atomically deletes every owned revision and body
+and leaves the content-free tombstone. Delayed saves cannot resurrect it; private
+exports, independent copies and provider backups remain outside that deletion.
+
+Additive migration `0002_revision_files.sql` creates the file table/quotas and
+replaces only the schema marker with version 2. The shipped 0000/0001 SQL and
+v0.1/v0.2 envelopes, fingerprints and artifact-free exports remain byte-identical.
+Empty file selection on legacy work does not promote its format; once v0.3 is
+used, later revisions cannot downgrade. Saving v0.3 requires an explicit file
+selection, so old request shapes cannot silently remove files. Old code's
+schema-1 gate refuses the entire migrated store, including lists, saves, exports
+and erasure. New code refuses unmigrated schema 1. A code-only rollback to that
+old reader is therefore incompatible. Quiesce old writers, preserve complete
+exports/provider recovery material and review migration/roll-forward together;
+never erase files or reset the marker to simulate rollback. No live migration
+or deployment is performed by #1372 development.
+
+The real local Worker/D1 and browser owners use synthetic report (13,634 bytes),
+source (12,601), results (39,801) and checks (3,180). A fresh browser tab downloads
+them through Saved context; a bounded child executes only the downloaded
+synthetic source/results, returning n=1,000, sum=499,500, mean=499.5. Its output
+is selected and saved as revision 2, then reopened and exported with revision 1
+unchanged. This is same-Mac engineering feasibility with local Access simulation,
+not a non-Mac agent, hosted acceptance, blinded successor or general usefulness
+claim. The checks record editing actions, deliberately refused selection and
+injected response-loss recovery. Required exact-head Canonical qualification
+remains blocked by the separately owned Companion recovery prerequisite; focused
+checks do not replace it. Review the Draft before any separately authorized
+hosted migration, rollout and actual Windows/Android/browser-agent continuation.
 
 ## Draft capacity and deliberate revision
 
@@ -77,13 +208,14 @@ counter or stripping repeated provenance would not address those obligations.
 The native 32,000-byte allowance is separate: its selected-entry owners, runtime
 admission, reviewed-outcome reader and retained lookup scan bounds were updated
 together; older 12,000-byte readers still refuse those larger native records.
-Web keeps its existing representation, fingerprints, formats and readers.
+The capacity change kept the note representation, fingerprints and formats;
+the file extension is versioned separately above.
 `capacityEnvelopeEstimates` in the synthetic fixture sizes a 32-revision export
 request using component ceilings: about 1.175 MB at 12,000 source bytes,
 1.303 MB at 16,000, and 1.815 MB at 32,000, against the existing 1.5 MB request
 cap. These are conservative bounds, not proof that all maxima co-occur; the
 32,000 allowance cannot simply be copied with a worst-case envelope guarantee.
-No capacity, schema, storage, transport, import or deployment policy is changed.
+That capacity change did not alter schema, storage, transport, import or deployment policy; #1372's separate file extension is specified above.
 
 Reproduce with `npm run web:test` and `npm run web:test:browser`. Fixtures and
 printed measurements are synthetic. Development exposed and corrected a test
@@ -91,9 +223,7 @@ wrapper prefix error, a handler type error, trailing-whitespace and unbalanced
 fixture construction, a relation fixture that first hit the source ceiling,
 and a browser test that clicked recovery before an asynchronous save settled.
 These are development/assistance costs, distinct from the acceptance example;
-failed local logs remain review evidence, not committed artifacts. The next
-decision is review of this bounded implementation, then separately authorized
-deployment and hosted acceptance.
+failed local logs remain review evidence, not committed artifacts. That implementation and its separate hosted rollout were subsequently reviewed in #1369/#1371; their scope and limits are recorded above.
 
 ## Run and build
 
@@ -133,7 +263,8 @@ server/.vite/manifest.json
 .openai/hosting.json
 .openai/drizzle/0000_web_planning.sql
 .openai/drizzle/0001_schema_version.sql
-.openai/drizzle/meta/{_journal,0000_snapshot,0001_snapshot}.json
+.openai/drizzle/0002_revision_files.sql
+.openai/drizzle/meta/{_journal,0000_snapshot,0001_snapshot,0002_snapshot}.json
 ```
 
 The deployment entry is `src/worker.ts`, an ESM Worker `fetch(request, env)`.
@@ -183,7 +314,7 @@ npm run web:build:cloudflare
 ```
 
 The existing esbuild owner emits `apps/web_planning/dist-cloudflare/worker.js`,
-`wrangler.json`, and `migrations/{0000_web_planning,0001_schema_version}.sql`.
+`wrangler.json`, and `migrations/{0000_web_planning,0001_schema_version,0002_revision_files}.sql`.
 It rejects local environment files, native/test imports and bound production
 configuration. The artifact has no development identity, real account/database
 IDs, secrets, asset router or preview URL. Builds replace this generated folder;
@@ -208,59 +339,35 @@ marker distinguishes product data from a login page; it is not authentication.
 
 ### Repeatable post-merge deployment
 
-These are operator steps after review and the actual user merge, not pre-merge
-commands to execute. The existing Mac-side device authorization and protected
-Keychain-backed Wrangler session are retained. Workers/D1 scopes and a D1 list
-were observed; cloud writes have not been exercised. Access/Zero Trust setup,
-management permission, account plan and remaining included capacity are still
-unverified. Resolve those before the applicable cloud setup. Do not assume a
-free-tier allowance is measured remaining capacity; stop for actual charges,
-terms/payment decisions, ambiguity or resource expansion.
+These are post-review operator responsibilities, not deployment authority from
+this documentation. #1356 established the existing protected target and #1364 /
+#1371 exercised later-source updates. Resolve the exact private target/configuration
+from those retained records; do not create resources or repeat initial setup.
 
-1. Confirm the reviewed commit, intended existing account and included capacity.
-   Use `apps/web_planning/node_modules/.bin/wrangler` with
-   `CLOUDFLARE_AUTH_USE_KEYRING=true`; reuse normal refresh, never export tokens.
-   Build from that exact commit and retain the artifact hash privately.
-2. Create at most one independent D1 and one Worker, with one owner-only Access
-   application/policy set. Copy the artifact into a private operator directory;
-   populate its `wrangler.json` with the selected account, exact Worker name and
-   that fresh D1 ID. Keep `no_bundle: true`, no assets/routes/dev simulation,
-   and `preview_urls: false`. For initial setup set `workers_dev: false` and
-   leave application values unset, so the first upload can only deny access.
-3. Using that same private configuration, apply `wrangler d1 migrations apply DB
-   --remote --config /private/target/wrangler.json` once. Upload the reviewed
-   artifact with `wrangler deploy --config /private/target/wrangler.json`.
-   Configure **only this Worker's all-traffic Access protection** with the one
-   exact owner email; verify no bypass policy or competing audience overrides it.
-   Do not change account-wide policy or any existing Site/Worker/database.
-4. Set non-secret `vars`: exact HTTPS `APP_ORIGIN`, `ACCESS_AUDIENCE` from that
-   application, and three fresh `WORKSPACE_ID` / `PROJECT_ID` / `AUTHOR_REF` UUIDs.
-   Install `OWNER_EMAIL` and a new random `REQUEST_SECRET` through Wrangler's
-   normal secret input for this same target; do not put them in Git or chat.
-   Leave reconstruction and Sites ingress unset. Enable only the selected
-   `workers_dev` origin and deploy the same artifact/configuration. The initial
-   configured-owner page initializes its mapping; there is no setup endpoint.
-5. Before retaining private work, verify real Access owner/nonowner/logged-out
-   behavior, wrong/missing/spoofed identity, alternate/version URL denial,
-   origin/CSRF, logout/expiry and old-tab clearing. Run the issue's bounded two
-   synthetic works through branch, qualified incorporation, second-tab stale
-   preview/refusal/recovery, fresh Saved context, authorized browser-agent
-   interpretation and downloadable exports. Record source/build hash → Worker
-   version/deployment → target privately. Retain synthetic state for review.
-6. Updates reuse this same target, identities, secrets and D1. Rebuild a later
-   reviewed commit, replace only the copied `worker.js` and reviewed migration
-   files, review configuration differences, then use the same pinned CLI and
-   deploy command. Apply only new reviewed migrations when present. A code
-   rollback does not roll back data; never deploy a reader incompatible with
-   the stored envelope. This procedure is not evidence of a subsequent upload.
+1. Confirm the approved source/tree, actual active version, existing Worker/D1/
+   Access identities and authenticated work/export baseline. Preserve all existing
+   work and the original failed/limited observations. Current main is not automatic
+   deployment approval.
+2. Build from the approved source with the pinned Mac-side Wrangler 4.126.0 and
+   retained Keychain-backed session (`CLOUDFLARE_AUTH_USE_KEYRING=true`). Retain
+   artifact/input hashes privately. The unbound generated template must never
+   replace the existing private target configuration or secrets.
+3. Review data compatibility before any separately authorized migration. #1372
+   requires new migration 0002 and schema-2 code together, with old writes quiesced;
+   do not replay 0000/0001, mix Drizzle/Wrangler ledgers or use an incompatible
+   code-only rollback. Preserve recovery exports and stop on ambiguous state.
+4. Within separately approved scope, update only that target's reviewed code and
+   any specifically approved migration. Reconcile unknown outcomes by reading
+   actual deployment/traffic and migration state before retrying. Preserve Access,
+   previews, bindings, mapping, secrets and all pre-existing works.
+5. Verify the active source and run the authorized normal-browser acceptance,
+   including actual byte download, complete export and preservation comparisons.
+   Keep private deployment/work identifiers and exports in private review material.
 
-Local D1 and Browser owners test the compiled direct entry with platform Access
-simulation, complete branch/incorporation/fresh-read and access-loss behavior.
-The same owners preserve Sites, compatibility, export, erasure and comparison
-draft recovery regressions. Real Access policy, cookie revocation, cloud
-deployment, hosted agent interpretation and actual update acceptance remain
-unperformed. #1356 stays open; #1354 and its existing Sites data/export/archive
-remain deferred and untouched.
+Local owners test the compiled entry with platform Access simulation. #1356,
+#1364 and #1371's reviewed hosted observations are dated, bounded evidence; they
+do not qualify this file-delivery candidate or comprehensive security, expiry,
+nonowner, load, physical-device or agent-host consumption. #1354 remains deferred.
 
 ## Production configuration and trust handoff
 
@@ -296,8 +403,7 @@ The official plugins execute locally, and tests check the complete artifact,
 staged migration parity and the generated entry/config in workerd. This build/test path establishes **local package/Worker qualification**.
 The reviewed #1345 closeout separately accepted the v0 hosted artifact and
 bounded synthetic journey; its residual ingress/session/bypass limitations
-remain unchanged. The #1351 extension has no hosted acceptance or deployment.
-A later rollout of this candidate needs separate review and authority.
+remain unchanged. The later direct-host #1351 journey was accepted in #1356; this does not complete the deferred Sites #1354 rollout or qualify #1372 file delivery.
 
 | Runtime value | Meaning |
 | --- | --- |
@@ -345,11 +451,7 @@ Sites consumes `.openai/drizzle/**` from the build. The same journal and SQL run
 through Drizzle's D1 migrator in the disposable real local D1 tests; snapshot
 regeneration and negative drift controls prevent schema/SQL divergence. Version,
 JSON, revision bounds, scoped foreign keys and both uniqueness constraints are
-also exercised directly in D1. The two shipped migrations initialize an **empty store** and are unchanged.
-#1351 retains D1 schema version 1 and extends only the versioned JSON envelope
-in the existing revision rows; no DDL upgrade is necessary. Local compatibility
-tests open a nonempty store created through the reviewed v0 writer. No live
-hosted migration or native schema change is performed.
+also exercised directly in D1. The original two migrations remain unchanged. #1351 used schema 1 with only a JSON-envelope extension. #1372 adds migration 0002 and schema 2 as specified above; local compatibility tests upgrade a nonempty old-writer store without resealing historical bytes. No live hosted migration or native schema change is performed.
 
 The available Sites database tools are read-only, and the current documented
 migration workflow supplies no dynamic, secret-aware seed write. Therefore the
@@ -373,7 +475,7 @@ no Site, D1, R2, version, configuration, secret or audience.
 
 ## Data and access contract
 
-`src/contract.ts` owns the `web_planning_revision.v0.1` and `.v0.2` host envelopes;
+`src/contract.ts` and `src/files.ts` own the v0.1/v0.2/v0.3 Web host envelopes;
 it does not add a Core record type. The extracted definition normalizer remains
 re-exported by its old native module. Selected entries and canonical fingerprints
 reuse existing code; frozen vectors from merged `d7c8c326` and the local Worker
@@ -429,7 +531,7 @@ the schema or refuse. Existing exported copies are outside whole-work erasure. S
 compatibility and independent-copy boundaries below.
 
 Erasure confirms the exact saved head, atomically inserts a content-free erased-ID
-guard and removes **all** work revisions/request history. Racing saves either
+guard and removes **all** work revisions/request history and owned file bodies. Racing saves either
 win first (stale erase refuses) or cannot recreate the erased work. Failed deletion
 rolls back its marker too. The application promises no unobserved provider-backup
 retention/erasure. Exporting and restoring elsewhere is a separate authorized
@@ -437,7 +539,7 @@ recovery operation, never automatic synchronization or a second live writer.
 
 ## Private branches and selective incorporation
 
-The normal work-detail flow is **Continue another direction → Review starting
+For file-free selections (see #1372's explicit file-bearing refusal above), the normal work-detail flow is **Continue another direction → Review starting
 material → Save reviewed change**. The server resolves the complete saved
 source definition and selection at the displayed exact revision. The first
 branch deliberately inherits all of them, its last bounded planning judgment
@@ -507,10 +609,10 @@ honest source availability. Reading establishes delivery, not understanding.
 Old v0.1 envelopes and exports keep their original bytes and fingerprints;
 chains may advance from v0.1 to v0.2, never downgrade. Complete mixed/v0.2 chains
 use `web_planning_export.v0.2`; pure v0.1 exports retain their old format. No
-shipped migration or historical row is edited. Reviewed v0 code rejects a
+shipped migration or historical row is edited. Historically on schema 1, reviewed v0 code rejects a
 v0.2 work/history/context/export (its closed-field reader reports
 `invalid_fields`), and list pages containing it; it must not be used as a
-rollback reader/writer for new work. Code rollback is not data rollback. Keep
+rollback reader/writer for new work. On schema 2, the earlier schema gate instead refuses every old-code request. Code rollback is not data rollback. Keep
 full exports and roll forward with a compatible reader; reconstruction into a
 quiesced empty store validates the entire bounded chain and rolls back all rows
 on failure. It imports only the selected work, never the referenced origin.

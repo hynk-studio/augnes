@@ -1,3 +1,4 @@
+import { browserFileJourney } from './browser-web-planning-files.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -232,6 +233,7 @@ try {
  for(let i=directStart;i<checks.length;i++)checks[i]='direct Access simulation: '+checks[i];
  console.log('web-planning-browser: direct complete branch and comparison-recovery journey');
  await browserCapacityJourney({a:d,click,set,settled,saved,wait,navigate,origin:directOrigin,downloads:path.join(root,'capacity-downloads'),requests,responses,checks});
+ await browserFileJourney({a:d,debug,origin:directOrigin,page,click,set,settled,saved,wait,navigate,requestsOnly,root,checks});
  for(const boundary of ['redirect','challenge']){
    d.accessBoundary=boundary;await click(d,'saved-context');await settled(d);
    assert.equal(await d.eval("accessLost&&work===null&&saved===null&&comparison===null&&!document.getElementById('context-view')&&!document.body.innerText.includes('Access login challenge')"),true);

@@ -496,34 +496,26 @@ remain historical evidence, not a retrofitted native chronology.
 
 <a id="next-p2p5--private-branching-comparison-and-selective-incorporation-1351"></a>
 
-## Current P2/P5 — Private branching, comparison and selective incorporation (#1351)
+<a id="current-p2p5--private-branching-comparison-and-selective-incorporation-1351"></a>
 
-[#1351](https://github.com/hynk-studio/augnes/issues/1351) is the **first Web
-extension candidate / Current** on `codex/1351-private-branch-incorporation`,
-from reviewed main `c8fab8410705d0fa022eab6be9552964fd13a956`, within the existing P2/P5
-scope: exact saved work revision → independent private branch → comparison →
-selective incorporation → later correct resumption. A recipient should be able
-to retain a source-attributed, conditional observation while declining a broader
-recommendation, preserving material dependencies and the independent branch.
-Implementation/delivery success will not by itself establish later usefulness;
-use [04's existing evaluation](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#method-improvement-evidence).
+## Completed P2/P5 — Private branching, comparison and selective incorporation (#1351)
 
-The agreed prerequisite sequence is complete: [#1352](https://github.com/hynk-studio/augnes/pull/1352)
-was reviewed and merged, #1350 was closed for its documentation outcome, and
-resulting main was reread. The [implementation handoff](https://github.com/hynk-studio/augnes/issues/1351#issuecomment-5869233717)
-authorizes this separate bounded implementation; #1351 is not completed until
-its own reviewed merge.
+[#1351](https://github.com/hynk-studio/augnes/issues/1351) completed through
+reviewed, user-merged #1353: exact saved revision → independent private branch
+→ comparison → qualified whole-unit selective incorporation → fresh Saved
+context. Its v0.2 Web envelope retains source attribution, represented
+conditions and explicit non-adoption judgments without changing native Core
+meaning. The comparison-refresh correction preserves draft judgments on
+non-authentication failures and requires a fresh comparison before a new save.
+Its failed attempts and exact-head verification retain their original scope;
+merge does not transfer the receipt or establish downstream usefulness.
 
-The candidate's [implementation/usage contract](../../apps/web_planning/README.md#private-branches-and-selective-incorporation)
-connects normal saved-work controls to the existing authenticated writer and
-Saved-context reader. A versioned Web host envelope records exact branch origin,
-whole-unit provenance/dependencies and explicit non-adoption judgments. Existing
-D1 tables/migrations, v0 bytes and native Core semantics remain unchanged. Local
-synthetic D1 and Browser checks cover the complete journey, currentness/replay,
-refusal recovery, compatibility, export and independent whole-work erasure.
-Deciding evidence belongs to this candidate's exact-head PR report; #1352's
-receipt does not transfer. Hosted rollout, independent model interpretation and
-later usefulness remain unperformed, with #1345's residual trust limits intact.
+The [Web contract](../../apps/web_planning/README.md#private-branches-and-selective-incorporation)
+owns these mechanics. [#1356](https://github.com/hynk-studio/augnes/issues/1356)
+subsequently accepted the bounded direct-Cloudflare synthetic hosted journey.
+That is distinct from independent model evaluation, general real-data readiness
+and comparative usefulness; [04's evaluation](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#method-improvement-evidence)
+still governs those claims. #1345's dated Sites trust limits remain intact.
 
 **Later**, as extensions of the same private continuous-work product:
 
@@ -540,17 +532,45 @@ resource change. [01](./01_AUGNES_VNEXT_MASTERPLAN.md) owns product meaning;
 [02](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#14-product-projections-do-not-create-core-authority)
 retains the host-owned planning-envelope boundary.
 
-### Direct hosting adapter candidate (#1356)
+<a id="direct-hosting-adapter-candidate-1356"></a>
 
-After the user-merged #1353, [#1356](https://github.com/hynk-studio/augnes/issues/1356)
-adds the [bounded direct Cloudflare adapter](../../apps/web_planning/README.md#direct-cloudflare-adapter-1356)
-for the existing product. Its Mac-side protected authentication checkpoint is
-satisfied; local implementation and exact-head evidence belong to its own Draft
-PR. The shared envelope, product behavior and Sites entry remain. Access/account
-readiness and hosted acceptance still precede post-merge use; local simulation
-does not establish them. #1354 stays open/deferred with its Sites resources and
-retained evidence untouched. This candidate grants no native or deployment
-authority and does not complete #1356 before staged review.
+### Completed direct hosting and bounded use; current file delivery (#1372)
+
+[#1356](https://github.com/hynk-studio/augnes/issues/1356) accepted the first
+one-Worker/one-D1/owner-only-Access deployment and synthetic branching journey.
+[#1364](https://github.com/hynk-studio/augnes/issues/1364) accepted a later
+same-Worker Saved-context navigation update and preservation report. Its anonymous
+403 remains an unclassified refusal with a failed expected-302 assertion, not
+proof of the producing layer or a new login/security qualification. Its new
+exports were Mac-local in that review; do not relabel them independently checked
+attachments. [#1354](https://github.com/hynk-studio/augnes/issues/1354) remains the
+separate deferred Sites rollout, with its resources and evidence untouched.
+
+[#1366](https://github.com/hynk-studio/augnes/issues/1366) completed one assisted
+research succession, reproducible numerical analysis and return to saved work.
+Its reviewed private package preserves scientific qualifications and reconstructed
+failed-save evidence. It is neither a separate-task transfer result nor proof of
+comparative usefulness. The narrow remaining selection margin, editing burden
+and manual file handoff motivated distinct follow-ups.
+[#1369](https://github.com/hynk-studio/augnes/issues/1369), merged as #1370,
+implemented draft-capacity feedback without changing note budgets.
+[#1371](https://github.com/hynk-studio/augnes/issues/1371) accepted its same-Worker
+rollout, two-revision synthetic recovery and actual private export attachments:
+11,947 → 13,713 unsaved → 10,954 source bytes, two recovery edits, no failed UI
+save; five pre-existing works retained byte-identical exports. Operator repairs,
+security limits and the lack of general usability/time-saving evidence remain.
+
+[#1372](https://github.com/hynk-studio/augnes/issues/1372) is **Current / Draft**:
+explicitly selected small files alongside an exact saved Web revision,
+authenticated byte download from Saved context and portable export/reconstruction.
+The [Web-owned file contract](../../apps/web_planning/README.md#revision-bound-private-files-1372)
+uses bounded D1 bodies, v0.3 envelopes and a new schema compatibility gate.
+Its synthetic same-Mac downloaded-file continuation is engineering feasibility,
+not hosted/non-Mac acceptance or learned capability. Required exact-head
+verification remains a readiness gate; the reported Companion lifecycle blocker
+must be resolved separately without repair by this task. Review and user merge
+precede any separately authorized migration, rollout or actual successor use.
+This lane does not implement or absorb #1375/#1376's executable-method work.
 
 <a id="current-p2p5--web-augnes-v0-task-a-1343"></a>
 
