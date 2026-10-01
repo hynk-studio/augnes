@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { RETRY_INSPECTION_OUTLOOK_V01, retryInspectionProjectionItemsV01 } from "../retry-inspection-outlook";
+import { RETRY_INSPECTION_OUTLOOK_V02, retryInspectionOutlookVersion, retryInspectionProjectionItemsV01, type RetryInspectionOutlookVersion } from "../retry-inspection-outlook";
 import { compareNewProjectWorkV01 } from "./new-project-work-preparation";
 import { assertReviewedOutcomeSourcesRetained, normalizeNativeSelectedWorkSources, readSelectedWorkSources, compareSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
 
@@ -225,6 +225,7 @@ export function buildPreExecutionProjectWorkRevisionPacketV01(input: {
   prior_packet: TaskContextPacketV01;
   origin_first_work_definition_ref: ExternalRefV01;
   generated_at: string;
+  outlook_version?: RetryInspectionOutlookVersion | null;
 }): {
   packet: TaskContextPacketV01;
   lineage: PreExecutionProjectWorkRevisionMaterialV01;
@@ -254,7 +255,8 @@ export function buildPreExecutionProjectWorkRevisionPacketV01(input: {
     basis: newTask ? "Bound to an explicit authenticated different-task preparation; the prior work is not completed." : "Bound to the exact authenticated pre-execution work revision.",
     source_ref: lineage.revision_definition_ref,
   };
-  const outlookItems = retryInspectionProjectionItemsV01(selectedSources, input.generated_at);
+  const outlookVersion = input.outlook_version === undefined ? RETRY_INSPECTION_OUTLOOK_V02 : input.outlook_version;
+  const outlookItems = retryInspectionProjectionItemsV01(selectedSources, input.generated_at, outlookVersion);
   let packet: TaskContextPacketV01;
   try {
     packet = buildTaskContextPacketV01({
@@ -395,7 +397,7 @@ export function buildPreExecutionProjectWorkRevisionPacketV01(input: {
       compatibility: {
         source_contracts: [
           PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
-          ...(outlookItems.length ? [RETRY_INSPECTION_OUTLOOK_V01] : []),
+          ...(outlookItems.length ? [outlookVersion!] : []),
           ...(newTask ? [PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01] : []),
         ],
         legacy_scope_ref: null,
@@ -733,6 +735,7 @@ function inspectRevisionPacketV01(
     prior_packet: priorRecord.packet,
     origin_first_work_definition_ref: originDefinitionRef,
     generated_at: packet.generated_at,
+    outlook_version: retryInspectionOutlookVersion(packet),
   });
   if (
     canonicalizeProtocolValueV01(expected.packet) !==

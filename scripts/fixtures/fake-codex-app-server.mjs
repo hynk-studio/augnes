@@ -635,7 +635,7 @@ async function handle(message) {
         const packet = objects.find(value => value.packet_version === "task_context_packet.v0.1");
         const guide = objects.find(value => value.projection_version === "guide_brief_codex_projection.v0.2");
         const outlook = packet?.current_projection?.items.flatMap(item => { try { return [JSON.parse(item.summary)]; } catch { return []; } })
-          .find(value => value.version === "augnes.retry-inspection-outlook.v0.1");
+          .find(value => ["augnes.retry-inspection-outlook.v0.1", "augnes.retry-inspection-outlook.v0.2"].includes(value.version));
         if (!outlook || !guide?.suggested_next_action.includes(outlook.recommendation)) throw new Error("retry_inspection_delivery_missing");
         // Constructed consumer, no model: actually read the disposable observation
         // only when the delivered recommendation chooses optional inspection.

@@ -653,7 +653,7 @@ a provider, and does not require Managed Start readiness.
 
 #### Project retry-inspection working outlook
 
-`augnes.retry-inspection-outlook.v0.1` is an opt-in, source-bound derived view
+`augnes.retry-inspection-outlook.v0.2` is an opt-in, source-bound derived view
 inside the existing immutable TaskContextPacket projection. It connects one
 decision family, optional inspection versus direct retry work, to the existing
 local Codex task-start consumer. It is neither accepted project state nor a new
@@ -703,6 +703,18 @@ theory. Independent surviving baseline support remains visible when an inspectio
 premise is unavailable. One-off setup, waiting opportunity cost and unmeasured
 performance remain limitations, not invented numerical benefits.
 
+For `reduce_work`, completion feasibility precedes a finite cost comparison:
+choose the supported completing option when the other is known non-completing.
+Do not assign non-completion a finite or infinite work value. When neither option
+completes, withdraw both completion recommendations; when an unknown estimate can
+affect the choice, request a bounded observation. Among completing options, retain
+direct work unless inspection is strictly cheaper. Only a relevant inspection
+choice makes unavailable resources a preparation action or unknown availability
+an observation action. A dominated alternative's resource limitation remains
+visible without displacing direct work. `learn_inspection` deliberately prioritizes
+a bounded inspection observation, with its resource prerequisites, even when the
+cost comparison favors direct work; it does not establish a completion forecast.
+
 The frozen projection includes direction/source identity, baseline and alternative,
 why now, preparation or targeted observation, horizon, uncertainty and revision
 conditions. Repeated unchanged conditions retain the judgment identity; priorities
@@ -720,8 +732,13 @@ can carry that result into a later input's dependencies; the next ordinary write
 recomputes the affected judgment. This first slice needs authored input updates,
 not automatic empirical rate estimation. There is no extra confirmation for the
 derived interpretation beyond the existing source/task save and execution gates.
-Original packets remain immutable; a future rule revision must retain the v0.1
-historical reconstruction. Older compilers cannot reconstruct this additive
+Original packets remain immutable. New writers use v0.2's corrected selection rule;
+historical reconstruction dispatches on the recorded outlook version, retaining
+v0.1's original judgments and identities, including its earlier selection errors.
+An ordinary new preparation or revision can produce a corrected judgment; reading
+or replaying an unchanged saved packet does not upgrade it. A packet without the
+outlook marker retains its prior projection. Mixed, unknown or substituted versions
+cannot silently pass reconstruction. Older compilers cannot reconstruct the new
 projection and must not silently treat it as an older preparation.
 
 WorkExpectation below remains an operator-authored prediction about one exact

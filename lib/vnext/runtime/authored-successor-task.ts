@@ -1,5 +1,5 @@
 import { isOrdinarySuccessorRevisionV01, inspectOrdinarySuccessorRevisionV01, ordinarySuccessorRevisionMaterialV01, ordinarySuccessorRevisionIdempotencyKeyV01 } from "./authored-successor-revision";
-import { RETRY_INSPECTION_OUTLOOK_V01, retryInspectionProjectionItemsV01, retryInspectionResultContextV01 } from "../retry-inspection-outlook";
+import { RETRY_INSPECTION_OUTLOOK_V02, retryInspectionOutlookVersion, retryInspectionProjectionItemsV01, retryInspectionResultContextV01, type RetryInspectionOutlookVersion } from "../retry-inspection-outlook";
 import { AUTHORED_SUCCESSOR_TASK_V01, AUTHORED_SUCCESSOR_REVALIDATION_V01, AUTHORED_SUCCESSOR_CONTEXT_V01 } from "@/types/vnext/project-work-initialization";
 import { buildSelectedWorkSourceEntry, compareSelectedWorkSources, normalizeNativeSelectedWorkSources, SelectedWorkSourceError } from "@/lib/intake/selected-work-source-comparison";
 import { REVIEWED_OUTCOME_SOURCE_V01, type SelectedWorkSourceSelection, type ReviewedOutcomeSourceRefV01 } from "@/types/vnext/project-work-revision";
@@ -222,11 +222,12 @@ function assertRevalidatedHistoryCurrent(db: Database.Database, config: VNextLoc
   return lineage;
 }
 function build(input: { prior: TaskContextPacketV01; receipt: ReturnType<typeof source>["receipt"];
-  material: SourceMaterial; operator_id: string; at: string }) {
+  material: SourceMaterial; operator_id: string; at: string; outlook_version?: RetryInspectionOutlookVersion | null }) {
   const { prior, receipt, material, at } = input, definition = material.request.definition;
   const selected = material.request.selected_sources
     ? normalizeNativeSelectedWorkSources(prior, material.request.selected_sources.selected_source_context) : [];
-  const outlookItems = retryInspectionProjectionItemsV01(selected, at);
+  const outlookVersion = input.outlook_version === undefined ? RETRY_INSPECTION_OUTLOOK_V02 : input.outlook_version;
+  const outlookItems = retryInspectionProjectionItemsV01(selected, at, outlookVersion);
   const fingerprint = digest({ compiler: AUTHORED_SUCCESSOR_TASK_V01, workspace: prior.workspace_id, project: prior.project_id, material });
   const definitionRef = ref("authored_successor_task", `successor-task:${fingerprint.slice(7, 31)}`, fingerprint, at, "user_declaration");
   const priorRef = ref("task_context_packet", prior.packet_id, prior.integrity.fingerprint, prior.generated_at);
@@ -267,7 +268,7 @@ function build(input: { prior: TaskContextPacketV01; receipt: ReturnType<typeof 
     source_status: { status: prior.source_status.status, currentness, source_refs: [...prior.source_status.source_refs, ...refs.map(r => r.source_ref!)],
       external_refs: [...prior.source_status.external_refs, ...refs], warnings: ["The predecessor remains immutable; file reads and comparison results retain their actual evidence basis."] },
     compatibility: { source_contracts: [AUTHORED_SUCCESSOR_TASK_V01, ...(material.request.selected_sources ? [AUTHORED_SUCCESSOR_CONTEXT_V01] : []),
-      ...(outlookItems.length ? [RETRY_INSPECTION_OUTLOOK_V01] : []),
+      ...(outlookItems.length ? [outlookVersion!] : []),
       ...(selected.some(e => reviewedOutcomeSourceRef(e)) ? [REVIEWED_OUTCOME_SOURCE_V01] : []), ...(material.request.revalidation ? [AUTHORED_SUCCESSOR_REVALIDATION_V01] : [])], legacy_scope_ref: null,
       source_refs: [...prior.compatibility.source_refs, ...refs], unmapped_fields: [], warnings: [] },
   }, { required_selected_entry_ids: [...prior.selected_context.filter(e => e.entry_kind === "accepted_state_ref"), ...entries, ...selected].map(e => e.entry_id) });
@@ -384,7 +385,8 @@ export function inspectAuthoredSuccessorPacketV01(db: Database.Database, input: 
     prior.receipt.source_refs.some(r => r.ref_type === "project_root_scope" && r.source_ref === material.source_root_ref.source_ref && r.external_id === material.source_root_ref.external_id), "root_lineage");
   const lineage = inspectVNextOperatorPilotPacketLineageV01(db, { config: input.config,
     packet_id: prior.packet.packet_id, packet_fingerprint: prior.packet.integrity.fingerprint });
-  const expected = build({ prior: prior.packet, receipt: prior.receipt, material, operator_id: session.operator_id, at: packet.generated_at });
+  const expected = build({ prior: prior.packet, receipt: prior.receipt, material, operator_id: session.operator_id, at: packet.generated_at,
+    outlook_version: retryInspectionOutlookVersion(packet) });
   check(equal(expected.packet, packet), "compiler_binding");
   // An authored predecessor is historical as soon as its successor exists.
   // Inherit its independently revalidated context, not that task-supersession

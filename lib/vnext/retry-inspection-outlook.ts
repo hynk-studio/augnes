@@ -5,6 +5,8 @@ import { readSelectedWorkSources } from "@/lib/intake/selected-work-source-compa
 /** One opt-in decision family over ordinary selected notes, not a capability registry. */
 export const RETRY_INSPECTION_INPUT_V01 = "augnes.retry-inspection-input.v0.1";
 export const RETRY_INSPECTION_OUTLOOK_V01 = "augnes.retry-inspection-outlook.v0.1";
+export const RETRY_INSPECTION_OUTLOOK_V02 = "augnes.retry-inspection-outlook.v0.2";
+export type RetryInspectionOutlookVersion = typeof RETRY_INSPECTION_OUTLOOK_V01 | typeof RETRY_INSPECTION_OUTLOOK_V02;
 type Probability = { numerator: number; denominator: number } | null;
 type Direction = { profile: typeof RETRY_INSPECTION_INPUT_V01; kind: "direction"; purpose: string; priority: "reduce_work" | "learn_inspection" };
 type Workflow = { profile: typeof RETRY_INSPECTION_INPUT_V01; kind: "workflow"; attempt: number; verification: number; repair: number;
@@ -14,8 +16,8 @@ type Inspection = { profile: typeof RETRY_INSPECTION_INPUT_V01; kind: "inspectio
 export type RetryInspectionInputV01 = Direction | Workflow | Inspection;
 type Row = { entry: TaskContextPacketSelectedEntryV01; value: RetryInspectionInputV01 };
 
-export interface RetryInspectionOutlookV01 {
-  version: typeof RETRY_INSPECTION_OUTLOOK_V01;
+export interface RetryInspectionOutlook {
+  version: RetryInspectionOutlookVersion;
   judgment_id: string;
   information_cutoff: string;
   project_direction: { purpose: string; priority: Direction["priority"]; source_ref: string } | null;
@@ -31,6 +33,8 @@ export interface RetryInspectionOutlookV01 {
   uncertainty: string[];
   authority: "recommendation_only";
 }
+export type RetryInspectionOutlookV01 = RetryInspectionOutlook & { version: typeof RETRY_INSPECTION_OUTLOOK_V01 };
+export type RetryInspectionOutlookV02 = RetryInspectionOutlook & { version: typeof RETRY_INSPECTION_OUTLOOK_V02 };
 
 function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -83,8 +87,51 @@ function expected(w: Workflow, p: Probability, inspection: number) {
   return { value: { n, d }, projected: { expected_work: d / a === BigInt(1) ? String(n / a) : `${n / a}/${d / a}`, status: "conditional" as const } };
 }
 
-/** Freeze this at the existing authenticated packet writer's server time. */
+/** Historical v0.1 reconstruction must retain its original decision ordering. */
 export function buildRetryInspectionOutlookV01(entries: TaskContextPacketSelectedEntryV01[], at: string): RetryInspectionOutlookV01 | null {
+  return buildOutlook(entries, at, RETRY_INSPECTION_OUTLOOK_V01) as RetryInspectionOutlookV01 | null;
+}
+
+/** Freeze new judgments at the existing authenticated packet writer's server time. */
+export function buildRetryInspectionOutlookV02(entries: TaskContextPacketSelectedEntryV01[], at: string): RetryInspectionOutlookV02 | null {
+  return buildOutlook(entries, at, RETRY_INSPECTION_OUTLOOK_V02) as RetryInspectionOutlookV02 | null;
+}
+
+function selectV02(direction: Direction, w: Workflow, i: Inspection, baseline: ReturnType<typeof expected>, alternative: ReturnType<typeof expected>):
+  Pick<RetryInspectionOutlook, "action" | "recommendation" | "why_now"> {
+  const learning = direction.priority === "learn_inspection";
+  let basis = "The declared project priority is to resolve inspection uncertainty, even when the modeled cost is higher.";
+  if (!learning) {
+    if (baseline.value && (alternative.projected.status === "non_completing" ||
+      (alternative.value && alternative.value.n * baseline.value.d >= baseline.value.n * alternative.value.d))) {
+      return { action: "direct", recommendation: "Continue directly with every mandatory check; retain inspection as a conditional alternative.",
+        why_now: alternative.projected.status === "non_completing"
+          ? `Inspection is non-completing under the selected assumptions; direct work has a conditional completion estimate of ${baseline.projected.expected_work} ${w.unit}. Resource preparation cannot repair that completion premise.`
+          : `Inspection's conditional ${alternative.projected.expected_work} ${w.unit} does not improve on direct work's ${baseline.projected.expected_work}. Resolving inspection availability does not improve this comparison; recurring preparation and inspection costs are included.` };
+    }
+    if (baseline.projected.status === "non_completing" && alternative.projected.status === "non_completing") {
+      return { action: "withdraw", recommendation: "Withdraw both methods as completion recommendations; investigate a changed completion premise before proceeding.",
+        why_now: "Both selected success estimates are zero, so neither workflow completes under these assumptions. This establishes non-completion, not unknown performance or an infinite work estimate." };
+    }
+    if (!alternative.value || (baseline.projected.status !== "non_completing" && !baseline.value)) {
+      return { action: "observe", recommendation: "Resolve the unknown completion or performance estimate with a bounded observation before choosing a method.",
+        why_now: "An unknown estimate can affect the method choice. Any separately established non-completion remains known; missing observations do not establish failure." };
+    }
+    basis = baseline.projected.status === "non_completing"
+      ? `Direct work is non-completing under the selected assumptions; inspection has a conditional completion estimate of ${alternative.projected.expected_work} ${w.unit}. No finite or infinite work value is assigned to non-completion.`
+      : `Under the selected stationary assumptions, inspection uses ${alternative.projected.expected_work} ${w.unit} versus ${baseline.projected.expected_work} for continuing directly.`;
+  }
+  // Resource work is relevant only after inspection serves the declared priority.
+  if (i.available === false) return { action: "prepare", recommendation: `Prepare before reconsidering optional inspection: ${i.preparation}`,
+    why_now: `${basis} The required inspection resource is reported unavailable; this recommendation does not make it feasible or authorized.` };
+  if (i.available === null) return { action: "observe", recommendation: "Check inspection resource availability before choosing inspection.",
+    why_now: `${basis} Practical availability is unknown; a permission grant cannot supply this observation.` };
+  if (learning) return { action: "observe", recommendation: "Make one bounded observation of inspection cost and outcome before relying on its success estimate.", why_now: basis };
+  return { action: "inspect", recommendation: "Consider optional inspection before the next attempt, retaining every mandatory check.",
+    why_now: `${basis} The resource is reported available now.` };
+}
+
+function buildOutlook(entries: TaskContextPacketSelectedEntryV01[], at: string, version: RetryInspectionOutlookVersion): RetryInspectionOutlook | null {
   if (parseStrictIsoTimestampV01(at) === null) throw new Error("retry_inspection_cutoff_invalid");
   const parsed = entries.map(parse);
   if (parsed.every(row => row === null)) return null;
@@ -111,7 +158,7 @@ export function buildRetryInspectionOutlookV01(entries: TaskContextPacketSelecte
   const unknown = { value: null, projected: { expected_work: null, status: "unknown" as const } };
   const baseline = w ? expected(w, w.direct_success, 0) : unknown;
   const alternative = w && i ? expected(w, i.success, i.cost) : unknown;
-  let action: RetryInspectionOutlookV01["action"] = "observe";
+  let action: RetryInspectionOutlook["action"] = "observe";
   let recommendation = "Check the missing, conflicting or expired premises before selecting optional inspection.";
   let why = "The current selected sources do not establish this comparison; independent surviving inputs remain visible.";
   if (parsed.includes("invalid")) uncertainty.push("At least one marked input is malformed or is not a user-authored direction.");
@@ -119,7 +166,12 @@ export function buildRetryInspectionOutlookV01(entries: TaskContextPacketSelecte
     action = "withdraw"; recommendation = "Withdraw the stationary cost recommendation; inspect which costs or success conditions change between attempts.";
     why = "An essential stationary-workflow premise is explicitly broken; a replacement model is not required to withdraw this judgment.";
   } else if (!parsed.includes("invalid") && direction && usable(direction) && w && i) {
-    if (i.available === false) {
+    if (version === RETRY_INSPECTION_OUTLOOK_V02) {
+      ({ action, recommendation, why_now: why } = selectV02(direction.value, w, i, baseline, alternative));
+      if (i.available !== true) uncertainty.push(i.available === false
+        ? "Inspection resource is reported unavailable; the alternative remains conditional."
+        : "Inspection resource availability is unknown; the alternative remains conditional.");
+    } else if (i.available === false) {
       action = "prepare"; recommendation = `Prepare before reconsidering optional inspection: ${i.preparation}`;
       why = "The inspection resource is reported unavailable. A favorable conditional calculation does not make the method feasible.";
     } else if (i.available === null) {
@@ -137,8 +189,8 @@ export function buildRetryInspectionOutlookV01(entries: TaskContextPacketSelecte
     }
   }
   const horizons = [workflow?.value.valid_until, inspection?.value.valid_until].filter((v): v is string => !!v).sort((a, b) => Date.parse(a) - Date.parse(b));
-  const material: Omit<RetryInspectionOutlookV01, "judgment_id"> = {
-    version: RETRY_INSPECTION_OUTLOOK_V01, information_cutoff: at,
+  const material: Omit<RetryInspectionOutlook, "judgment_id"> = {
+    version, information_cutoff: at,
     project_direction: direction ? { purpose: direction.value.purpose, priority: direction.value.priority, source_ref: direction.entry.source_ref! } : null,
     sources, baseline: baseline.projected, alternative: alternative.projected, horizon: horizons[0] ?? null,
     action, recommendation, why_now: why,
@@ -151,16 +203,25 @@ export function buildRetryInspectionOutlookV01(entries: TaskContextPacketSelecte
   return { ...material, judgment_id: hash(canonical({ ...material, information_cutoff: null })) };
 }
 
-export function retryInspectionProjectionItemsV01(entries: TaskContextPacketSelectedEntryV01[], at: string): TaskContextPacketProjectionItemV01[] {
-  const outlook = buildRetryInspectionOutlookV01(entries, at);
+export function retryInspectionProjectionItemsV01(entries: TaskContextPacketSelectedEntryV01[], at: string,
+  version: RetryInspectionOutlookVersion | null = RETRY_INSPECTION_OUTLOOK_V02): TaskContextPacketProjectionItemV01[] {
+  const outlook = version === null ? null : buildOutlook(entries, at, version);
   return outlook ? [{ item_kind: "other", summary: canonical(outlook), source_refs: outlook.sources.map(source => source.source_ref), external_refs: [],
     currentness: { status: "unknown", as_of: at, basis: "Frozen conditional recommendation over selected sources; external currentness is unknown.", source_ref: null } }] : [];
 }
 
 /** Validate against the frozen version's exact selected inputs, never today's inputs. */
-export function readRetryInspectionOutlookV01(packet: TaskContextPacketV01): RetryInspectionOutlookV01 | null {
-  if (!packet.compatibility?.source_contracts?.includes(RETRY_INSPECTION_OUTLOOK_V01)) return null;
-  const expected = buildRetryInspectionOutlookV01(readSelectedWorkSources(packet), packet.generated_at);
+export function retryInspectionOutlookVersion(packet: TaskContextPacketV01): RetryInspectionOutlookVersion | null {
+  const versions = packet.compatibility?.source_contracts?.filter(value => value.startsWith("augnes.retry-inspection-outlook.")) ?? [];
+  if (!versions.length) return null;
+  if (versions.length !== 1 || ![RETRY_INSPECTION_OUTLOOK_V01, RETRY_INSPECTION_OUTLOOK_V02].includes(versions[0]!)) throw new Error("retry_inspection_outlook_version_invalid");
+  return versions[0] as RetryInspectionOutlookVersion;
+}
+
+export function readRetryInspectionOutlookV01(packet: TaskContextPacketV01): RetryInspectionOutlook | null {
+  const version = retryInspectionOutlookVersion(packet);
+  if (!version) return null;
+  const expected = buildOutlook(readSelectedWorkSources(packet), packet.generated_at, version);
   if (!expected || !packet.current_projection?.items.some(item => item.item_kind === "other" && item.summary === canonical(expected))) throw new Error("retry_inspection_outlook_binding_invalid");
   return expected;
 }
