@@ -833,6 +833,7 @@ export async function runDirectNativeHostRoundTripV01(
       taskStartGuide = buildTaskStartGuideBriefCodexProjectionV02({
         packet: admitted.packet,
         project_name: registration?.project.display_name ?? null,
+        evaluated_at: prevalidatedAt,
       });
     } catch {
       taskStartGuide = unavailableGuideBriefCodexProjectionV02(

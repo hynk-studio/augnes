@@ -651,6 +651,83 @@ receipt-backed authored succession, semantic Transitions and independent executi
 admission remain separate and unchanged. Preparation neither configures nor starts
 a provider, and does not require Managed Start readiness.
 
+#### Project retry-inspection working outlook
+
+`augnes.retry-inspection-outlook.v0.1` is an opt-in, source-bound derived view
+inside the existing immutable TaskContextPacket projection. It connects one
+decision family, optional inspection versus direct retry work, to the existing
+local Codex task-start consumer. It is neither accepted project state nor a new
+Core kind, store, grant, scheduler or learned capability. CapabilityManifest and
+CapabilityGrant still describe environment/authority, not competence.
+
+The authenticated pre-execution revision, ordinary successor and successor
+revision compilers read explicitly selected whole notes and freeze the derived
+judgment at their server-owned packet time. Project direction is a separate
+user-declaration note, never inferred from the current task objective. Its purpose
+can include an exploratory interest or open question. A task edit leaves that
+direction intact; omitting it leaves the direction unknown. Semantic acceptance
+and goal changes retain their existing owners. Input interpretations and returned
+reports do not rewrite their underlying evidence.
+
+The small native input profile uses the existing source-note comparison, preview
+and authenticated save paths. Each note's source locator, observation time,
+provenance and complete text retain their normal meaning and bounds. To opt in,
+select one JSON note per role with `profile: "augnes.retry-inspection-input.v0.1"`:
+
+| Role | Additional fields and meaning |
+|---|---|
+| `direction` | `purpose` (up to 400 characters), `priority` (`reduce_work` or `learn_inspection`); requires `user_declaration` provenance. This is selected working direction, not semantic acceptance. |
+| `workflow` | `attempt`, `verification`, `repair` (integer costs 0–1,000,000), `direct_success`, `stationary` (true/false/null), `unit`, `valid_until`, `support_refs`. |
+| `inspection` | `cost` (same unit/bound), `success`, `available` (true/false/null), `preparation`, `valid_until`, `support_refs`. |
+
+A probability is `{ "numerator": 3, "denominator": 4 }` or `null` for unknown;
+denominators are 1–10,000 and numerators 0–denominator. Horizons are ISO timestamps.
+Each support list contains up to four exact fingerprints of other selected notes;
+all declared dependencies must remain present at the cutoff. These references
+prove selected content identity, not external truth or independent corroboration.
+Conflicting role notes, malformed inputs, future observations, missing dependencies
+and expired premises cannot silently select a preferred method. Keep the earlier
+version in its original packet rather than treating two competing versions as
+one current input. Ordinary free-text notes continue to work without this profile.
+
+The rule applies only to a stationary retry workflow until one completion:
+attempt and mandatory verification, then repair on failure; optional inspection
+and its preparation cost recur before each attempt. It uses exact integer/rational
+renewal counting, `(attempt + verification + inspection + (1-p)*repair)/p`.
+This simpler closed form suffices for this family; it does not wrap or broaden
+#1376's separate exact linear solver. Success rates are supplied assumptions or
+attributed estimates, never learned from completion labels. Zero success is
+non-completing, not zero work or a finite comparison. Missing observations remain
+unknown. Nonstationarity withdraws this cost judgment without requiring a new
+theory. Independent surviving baseline support remains visible when an inspection
+premise is unavailable. One-off setup, waiting opportunity cost and unmeasured
+performance remain limitations, not invented numerical benefits.
+
+The frozen projection includes direction/source identity, baseline and alternative,
+why now, preparation or targeted observation, horizon, uncertainty and revision
+conditions. Repeated unchanged conditions retain the judgment identity; priorities
+can change selection without changing the factual inputs or earlier snapshots.
+Native task-start GuideBrief presents this source-bound result and checks its
+horizon at admission; it performs no inference, write or execution. The exact
+packet is delivered separately. A recommendation does not waive mandatory checks,
+authorize a retry of failed deciding verification or grant execution permission.
+
+The normal receipt binds the delivered packet. Result-to-successor preparation
+offers its bounded host report with the original judgment/packet/cutoff reference,
+explicitly distinguishing our work's consequences from external observations.
+Whole-note overflow remains unavailable, never clipped. Explicit source selection
+can carry that result into a later input's dependencies; the next ordinary writer
+recomputes the affected judgment. This first slice needs authored input updates,
+not automatic empirical rate estimation. There is no extra confirmation for the
+derived interpretation beyond the existing source/task save and execution gates.
+Original packets remain immutable; a future rule revision must retain the v0.1
+historical reconstruction. Older compilers cannot reconstruct this additive
+projection and must not silently treat it as an older preparation.
+
+WorkExpectation below remains an operator-authored prediction about one exact
+criterion/attempt. This broader conditional outlook neither creates nor updates
+one, changes its chronology, or claims match/mismatch from a missing outcome.
+
 #### Optional pre-outcome expectation
 
 `work_expectation_record.v0.1` adds one non-authoritative record kind to the
