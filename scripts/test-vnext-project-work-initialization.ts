@@ -5940,6 +5940,7 @@ async function assertRetryInspectionLoopV01(): Promise<void> {
     assert.notEqual(changed.judgment_id, held.judgment_id);
     assert.deepEqual(readRetryInspectionOutlookV01(historical), held, "Later sources do not rewrite the recorded judgment or cutoff");
     assert.equal(retryInspectionGuidanceV01(packet, at(59))!.includes("expired"), true);
+    assert.throws(() => retryInspectionGuidanceV01(packet, "invalid"), /read_time_invalid/);
     const tampered = structuredClone(packet); tampered.selected_context = tampered.selected_context.map(entry => entry.entry_id === note(lowCost).entry_id ? note(inspection) : entry);
     assert.throws(() => readRetryInspectionOutlookV01(tampered), /binding_invalid/);
     // Boundary cases use the same read-only producer; no outcomes are invented.

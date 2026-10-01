@@ -159,16 +159,16 @@ export function retryInspectionProjectionItemsV01(entries: TaskContextPacketSele
 
 /** Validate against the frozen version's exact selected inputs, never today's inputs. */
 export function readRetryInspectionOutlookV01(packet: TaskContextPacketV01): RetryInspectionOutlookV01 | null {
-  if (!packet.compatibility.source_contracts.includes(RETRY_INSPECTION_OUTLOOK_V01)) return null;
+  if (!packet.compatibility?.source_contracts?.includes(RETRY_INSPECTION_OUTLOOK_V01)) return null;
   const expected = buildRetryInspectionOutlookV01(readSelectedWorkSources(packet), packet.generated_at);
   if (!expected || !packet.current_projection?.items.some(item => item.item_kind === "other" && item.summary === canonical(expected))) throw new Error("retry_inspection_outlook_binding_invalid");
   return expected;
 }
 
 export function retryInspectionGuidanceV01(packet: TaskContextPacketV01, evaluatedAt: string): string | null {
-  if (parseStrictIsoTimestampV01(evaluatedAt) === null) throw new Error("retry_inspection_read_time_invalid");
   const view = readRetryInspectionOutlookV01(packet);
   if (!view) return null;
+  if (parseStrictIsoTimestampV01(evaluatedAt) === null) throw new Error("retry_inspection_read_time_invalid");
   if (!view.horizon || Date.parse(view.horizon) <= Date.parse(evaluatedAt)) return "Recheck the expired or missing inspection horizon before using the historical recommendation. Required task checks still apply.";
   return `${view.recommendation} ${view.why_now} Conditional guidance only; review the frozen project outlook and its sources in the packet.`;
 }
