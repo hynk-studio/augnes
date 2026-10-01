@@ -31,6 +31,23 @@ export async function checkFiles({start,client,newWork,save,passed,root,open}) {
  passed('files: accepted hosted 7d4320a writer creates mixed v0.1/v0.2 history; pinned Wrangler upgrades nonempty D1 once with byte-identical envelopes/export');
  const server=await start('files'),c=await client(server);
  const count=async table=>(await server.db.prepare(`SELECT count(*) n FROM ${table}`).first()).n;
+ // Protect quota semantics independently of application admission. Local D1
+ // checks do not qualify the provider's remote migration parsing path.
+ const checkFullQuota=async (workId,overflow,code)=>{
+   const scope=[fixtureScope.workspace_id,fixtureScope.project_id,workId];
+   const totals=()=>server.db.prepare('SELECT count(*) n,SUM(bytes) bytes FROM web_planning_file WHERE workspace_id=? AND project_id=? AND work_id=?').bind(...scope).first();
+   const before=await totals();
+   const existing=await server.db.prepare('SELECT digest,bytes,body FROM web_planning_file WHERE workspace_id=? AND project_id=? AND work_id=? LIMIT 1').bind(...scope).first();
+   await server.db.prepare('INSERT OR IGNORE INTO web_planning_file VALUES (?,?,?,?,?,?)').bind(...scope,existing.digest,existing.bytes,Buffer.from(existing.body)).run();
+   assert.deepEqual(await totals(),before,'a duplicate at the quota must remain a no-op');
+   const markerWork=randomUUID(),marker=Buffer.from('batch marker');
+   await assert.rejects(server.db.batch([
+     server.db.prepare('INSERT INTO web_planning_file VALUES (?,?,?,?,?,?)').bind(fixtureScope.workspace_id,fixtureScope.project_id,markerWork,digestBytes(marker),marker.length,marker),
+     server.db.prepare('INSERT INTO web_planning_file VALUES (?,?,?,?,?,?)').bind(...scope,digestBytes(overflow),overflow.length,overflow),
+   ]),new RegExp(code));
+   assert.equal((await server.db.prepare('SELECT count(*) n FROM web_planning_file WHERE work_id=?').bind(markerWork).first()).n,0,'quota failure must roll back the preceding batch write');
+   assert.deepEqual(await totals(),before,'quota failure must preserve the full work');
+ };
  const read=id=>c.request('/api/work/'+id);
  const write=async (r,files,goal=r.definition.goal)=>{
    const content={definition:{...r.definition,goal},notes:r.sources.map(selectedWorkSourceInput),files};
@@ -128,6 +145,7 @@ export async function checkFiles({start,client,newWork,save,passed,root,open}) {
  const nt=await c.request(`/api/work/${nr.work_id}/ticket`,{expected:headBinding(nr)});
  assert.equal((await save(c,{id:nr.work_id,input:{...counts.input,ticket:nt.data.ticket,files:[{name:'17th',role:'other',data:Buffer.from([16]).toString('base64')}]}})).data.error,'file_history_count_exceeded');
  await assert.rejects(server.db.prepare('INSERT INTO web_planning_file VALUES (?,?,?,?,?,?)').bind(fixtureScope.workspace_id,fixtureScope.project_id,nr.work_id,'sha256:'+'f'.repeat(64),1,Buffer.from([16])).run(),/file_history_count_exceeded/);
+ await checkFullQuota(nr.work_id,Buffer.from([16]),'file_history_count_exceeded');
  passed('files: competing same-head saves leave only winner bodies; 16 unique-body history count enforced in both admission and SQL');
  const largestManifest=Array.from({length:8},(_,i)=>({name:'"'.repeat(159)+i,role:'results',bytes:262144,digest:'sha256:'+'f'.repeat(64)}));
  const exportBound=capacityEnvelopeEstimates(fixtureScope)[0].request_bytes_upper_bound+32*Buffer.byteLength(',"files":'+canonical(largestManifest))+1398144+4096;
@@ -161,6 +179,8 @@ export async function checkFiles({start,client,newWork,save,passed,root,open}) {
  await server.db.batch([insert(1),insert(2),insert(3)]);
  const race=await Promise.allSettled([insert(4).run(),insert(5).run()]);assert.equal(race.filter(x=>x.status==='fulfilled').length,1);
  assert.equal((await server.db.prepare('SELECT SUM(bytes) n FROM web_planning_file WHERE work_id=?').bind(raceId).first()).n,1048576);
+ await checkFullQuota(raceId,Buffer.from([99]),'file_history_bytes_exceeded');
+ passed('files: duplicate bodies remain no-ops at both full SQL quotas; count and byte refusals roll back preceding batch writes');
  await server.db.prepare('DELETE FROM web_planning_file WHERE work_id=?').bind(raceId).run();
  const z=await newWork(c);z.input.files=[{name:'空.txt',role:'other',data:''}];const zr=(await save(c,z)).data.saved;
  assert.equal((await raw(fileUrl(zr,0))).headers.get('content-length'),'0');
