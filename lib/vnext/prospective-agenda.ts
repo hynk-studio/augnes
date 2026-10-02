@@ -179,6 +179,11 @@ export function judgeAgenda(input: AgendaInput, at: string, result: Observation[
 }
 
 export function prospectiveGuidance(packet: TaskContextPacketV01, at: string): string | null {
+  // Optional guidance must not replace the ordinary path when the packet has
+  // no prospective input, including older/minimal projection packets.
+  if (!packet.selected_context?.some(entry => {
+    try { return JSON.parse(entry.bounded_summary ?? "null")?.profile === PROSPECTIVE_INPUT; } catch { return false; }
+  })) return null;
   try {
     const input = readAgendaInput(readSelectedWorkSources(packet), at);
     return input ? `${judgeAgenda(input, at).next_action} Candidate interpretation of selected sources; Start/Resume authority is unchanged.` : null;

@@ -44,6 +44,9 @@ const entries = (a = agenda, m = method) => notes(a, m).map(n => buildSelectedWo
 const observation = (key: string, value: boolean, ms = 11_000): Observation => ({ key, value, availability: value ? "observed" : "checked_absent", source_ref: hash(key), observed_at: at(ms), reason: "constructed_observation" });
 
 function pure() {
+  assert.equal(prospectiveGuidance({} as TaskContextPacketV01, T0), null);
+  assert.equal(prospectiveGuidance({ ...scope, selected_context: [buildSelectedWorkSourceEntry(scope, direction)] } as TaskContextPacketV01, T0), null);
+  assert.match(prospectiveGuidance({ ...scope, selected_context: entries({ ...agenda, preparation_ms: { min: 2, max: 1 } }) } as TaskContextPacketV01, T0)!, /could not be interpreted/);
   const input = readAgendaInput(entries(), at(1_000))!;
   assert.equal(judgeAgenda(input, at(9_999)).action, "defer");
   assert.equal(judgeAgenda(input, at(10_000)).action, "prepare");
