@@ -175,6 +175,7 @@ async function main() {
           caseHost.cancel({ credential, clock: { now } });
           assert.equal((await caseHost.wake()).status, "stopped");
           assert.equal(caseHost.read()!.history.at(-1)!.reason, "operator_cancelled");
+          assert.equal(caseHost.cycle.read(caseConfig).status, "no_eligible_work", "A cancelled queued preparation cannot block a later eligible work item");
         } else if (scenario === "expired") {
           current = at(60_001);
           assert.equal((await caseHost.wake()).state.phase, "stopped");
@@ -184,6 +185,9 @@ async function main() {
           await assert.rejects(() => caseHost.wake(), /prospective_host_binding_required/);
         } else if (scenario === "restore") {
           await assert.rejects(() => caseHost.wake(), /prospective_recovery_suspended/);
+          assert.equal(caseHost.cycle.read(caseConfig).status, "no_eligible_work");
+          caseHost.cancel({ credential, clock: { now } });
+          assert.equal((await caseHost.wake()).status, "stopped", "Explicit cancellation releases a restored agenda without restoring execution permission");
         } else if (scenario === "uncertain") {
           caseHost.live.startAdmittedPolicyTriggeredV01 = async () => { throw new Error("constructed_host_interruption_after_atomic_claim"); };
           await caseHost.wake();

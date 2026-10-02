@@ -1,7 +1,7 @@
 import { readSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
 import { readAgendaInput, judgeAgenda, SELECTED_SOURCE_INSPECTION } from "../prospective-agenda";
 import { SELECTED_SOURCE_INSPECTION_TASK, SELECTED_SOURCE_INSPECTION_TITLE, SELECTED_SOURCE_INSPECTION_CHECKS, SELECTED_SOURCE_INSPECTION_OUTPUTS } from "../automation/selected-source-inspection-profile";
-import { readReentry, writeReentry, type ReentryState } from "../persistence/prospective-reentry-store";
+import { readReentry, readArmedReentryForWork, writeReentry, type ReentryState } from "../persistence/prospective-reentry-store";
 import { SELECTED_SOURCE_ADAPTER } from "../native-host/selected-source-inspection-adapter";
 import type Database from "better-sqlite3";
 
@@ -831,7 +831,9 @@ function resolveBoundedAutomationAdmissionV01(
     return emptyAdmissionV01("policy_denied", "automation_policy_invalid", budget, control.revision);
   }
   const selection = selectBoundedAutomationWorkSourceV01(
-    listCurrentVNextAutomationWorkSnapshotsV01(db, input.config),
+    listCurrentVNextAutomationWorkSnapshotsV01(db, input.config).filter(work =>
+      work.source.operation_profile !== SELECTED_SOURCE_INSPECTION ||
+      readArmedReentryForWork(db, input.config, work.source.work_id)?.work_fingerprint === work.source.work_fingerprint),
   );
   if (selection.status === "none") return emptyAdmissionV01("no_eligible_work", "no_eligible_work", budget, control.revision);
   if (selection.status === "ambiguous") return emptyAdmissionV01("work_ambiguous", "work_ambiguous", budget, control.revision);

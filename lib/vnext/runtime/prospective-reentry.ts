@@ -53,12 +53,16 @@ export class ProspectiveReentryHost {
     try {
       db.exec("BEGIN IMMEDIATE");
       const admission = admitVNextLocalOperatorMutationInsideTransactionV01(db, { ...input, config: this.options.config });
-      const state = readReentry(db, this.scope);
+      const state = readReentry(db, this.scope, { allow_suspended_cancellation: true });
       if (!state) throw new Error("prospective_agenda_missing");
       // Cancelling eligibility prevents any later claim. A claimed read-only
       // attempt can settle once; this neither resumes it nor admits another.
       this.save(db, state, admission.action_observed_at, "operator_cancelled",
         { ...state.history.at(-1)!.judgment, information_cutoff: admission.action_observed_at, action: "withdraw", next_action: "The operator cancelled this agenda; no further preparation is admitted." }, "stopped", null);
+      // An authenticated cancellation may close a restored agenda and release
+      // its active slot. It cannot re-arm that agenda or replay its work.
+      db.prepare("UPDATE vnext_prospective_reentry SET recovery_suspended=0 WHERE workspace_id=? AND project_id=? AND agenda_ref=? AND phase='stopped'")
+        .run(this.scope.workspace_id, this.scope.project_id, this.scope.agenda_ref);
       db.exec("COMMIT");
       return admission;
     } catch (e) { if (db.inTransaction) db.exec("ROLLBACK"); throw e; } finally { db.close(); }

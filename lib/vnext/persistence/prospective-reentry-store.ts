@@ -11,14 +11,22 @@ export interface ReentryState extends ReentryScope {
   history: Array<{ at: string; reason: string; judgment: ProspectiveJudgment }>;
 }
 
-export function readReentry(db: Database.Database, scope: ReentryScope): ReentryState | null {
+export function readReentry(db: Database.Database, scope: ReentryScope, options: { allow_suspended_cancellation?: true } = {}): ReentryState | null {
   const row = db.prepare("SELECT * FROM vnext_prospective_reentry WHERE workspace_id=? AND project_id=? AND agenda_ref=?")
     .get(scope.workspace_id, scope.project_id, scope.agenda_ref) as Record<string, unknown> | undefined;
   if (!row) return null;
-  if (row.recovery_suspended !== 0) throw new Error("prospective_recovery_suspended");
+  if (row.recovery_suspended !== 0 && !options.allow_suspended_cancellation) throw new Error("prospective_recovery_suspended");
   const value = JSON.parse(row.body_json as string) as ReentryState;
   if (hash(canonical(value)) !== row.fingerprint || ["workspace_id", "project_id", "agenda_ref", "host_fingerprint", "phase", "revision"].some(k => row[k] !== value[k as keyof ReentryState])) throw new Error("prospective_store_binding_invalid");
   return value;
+}
+
+/** Retained cancelled/suspended work remains history, not an eligible queued
+ * competitor to later separately authorized work. This only narrows admission. */
+export function readArmedReentryForWork(db: Database.Database, scope: Omit<ReentryScope, "agenda_ref">, workId: string): ReentryState | null {
+  const row = db.prepare("SELECT agenda_ref FROM vnext_prospective_reentry WHERE workspace_id=? AND project_id=? AND phase='armed' AND recovery_suspended=0 AND json_extract(body_json,'$.work_id')=?")
+    .get(scope.workspace_id, scope.project_id, workId) as { agenda_ref: string } | undefined;
+  return row ? readReentry(db, { ...scope, agenda_ref: row.agenda_ref }) : null;
 }
 
 /** CAS is inside the caller's IMMEDIATE transaction, shared with admission. */

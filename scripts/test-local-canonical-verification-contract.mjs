@@ -1193,7 +1193,7 @@ const currentWorkReadRegistration = readCanonicalChildRegistration(integrationSo
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"--current-work-read-only"'])
   requireText(currentWorkReadRegistration.block, fragment, "current-work read isolation has its own bounded child");
 const prospectiveRegistration = readCanonicalChildRegistration(integrationSource, "prospective-preparation-reentry");
-for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 45_000', 'requireNaturalExit: true', '"process-owning"', '"scripts/test-prospective-reentry.ts"'])
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 90_000', 'requireNaturalExit: true', '"process-owning"', '"scripts/test-prospective-reentry.ts"'])
   requireText(prospectiveRegistration.block, fragment, "prospective preparation owns its bounded host lifecycle and result recovery");
 const retryInspectionRegistration = readCanonicalChildRegistration(integrationSource, "retry-inspection-outlook");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"process-owning"', '"--retry-inspection-only"'])

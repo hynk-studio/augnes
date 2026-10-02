@@ -822,6 +822,9 @@ premises, stop conditions and the single-attempt budget. SQLite admission atomic
 claims eligibility, the existing final grant/packet/work and native run. Concurrent
 or overdue delivery coalesces rather than producing catch-up work. A cancelled
 agenda closes further admission; an already begun read-only attempt can settle once.
+Its retained queued source is excluded from later eligibility selection. An
+authenticated cancellation can also close a suspended restored agenda and release
+its active slot; it never re-arms the agenda or retries its work.
 
 The host observes durable receipt arrival and performs result re-entry without
 another user “next”. Reopening the same database retains eligibility; an uncertain
