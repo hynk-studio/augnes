@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { RETRY_INSPECTION_OUTLOOK_V02, retryInspectionOutlookVersion, retryInspectionProjectionItemsV01, type RetryInspectionOutlookVersion } from "../retry-inspection-outlook";
 import { compareNewProjectWorkV01 } from "./new-project-work-preparation";
 import { assertReviewedOutcomeSourcesRetained, normalizeNativeSelectedWorkSources, readSelectedWorkSources, compareSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
 
@@ -224,6 +225,7 @@ export function buildPreExecutionProjectWorkRevisionPacketV01(input: {
   prior_packet: TaskContextPacketV01;
   origin_first_work_definition_ref: ExternalRefV01;
   generated_at: string;
+  outlook_version?: RetryInspectionOutlookVersion | null;
 }): {
   packet: TaskContextPacketV01;
   lineage: PreExecutionProjectWorkRevisionMaterialV01;
@@ -253,6 +255,8 @@ export function buildPreExecutionProjectWorkRevisionPacketV01(input: {
     basis: newTask ? "Bound to an explicit authenticated different-task preparation; the prior work is not completed." : "Bound to the exact authenticated pre-execution work revision.",
     source_ref: lineage.revision_definition_ref,
   };
+  const outlookVersion = input.outlook_version === undefined ? RETRY_INSPECTION_OUTLOOK_V02 : input.outlook_version;
+  const outlookItems = retryInspectionProjectionItemsV01(selectedSources, input.generated_at, outlookVersion);
   let packet: TaskContextPacketV01;
   try {
     packet = buildTaskContextPacketV01({
@@ -270,6 +274,7 @@ export function buildPreExecutionProjectWorkRevisionPacketV01(input: {
         bounded_summary: definition.goal,
         as_of: input.generated_at,
         items: [
+          ...outlookItems,
           {
             item_kind: "active_goal",
             summary: definition.goal,
@@ -357,7 +362,7 @@ export function buildPreExecutionProjectWorkRevisionPacketV01(input: {
         forbidden_actions: newTask ? input.prior_packet.constraints.forbidden_actions : [],
         data_classification: "private",
         context_budget: selectedSources.length > 0
-          ? { ...REVISION_PACKET_CONTEXT_BUDGET_V01, max_selected_entries: 12 }
+          ? { ...REVISION_PACKET_CONTEXT_BUDGET_V01, max_selected_entries: 12, max_projection_items: 1 + outlookItems.length }
           : REVISION_PACKET_CONTEXT_BUDGET_V01,
       },
       capability_grant: null,
@@ -392,6 +397,7 @@ export function buildPreExecutionProjectWorkRevisionPacketV01(input: {
       compatibility: {
         source_contracts: [
           PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
+          ...(outlookItems.length ? [outlookVersion!] : []),
           ...(newTask ? [PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01] : []),
         ],
         legacy_scope_ref: null,
@@ -729,6 +735,7 @@ function inspectRevisionPacketV01(
     prior_packet: priorRecord.packet,
     origin_first_work_definition_ref: originDefinitionRef,
     generated_at: packet.generated_at,
+    outlook_version: retryInspectionOutlookVersion(packet),
   });
   if (
     canonicalizeProtocolValueV01(expected.packet) !==

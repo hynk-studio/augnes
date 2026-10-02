@@ -61,8 +61,9 @@ now authorizes the **Current** bounded standalone implementation: a source-deriv
 exact solver, a separate retry-workflow consumer and outcome-informed qualification.
 The [callable, usage and development evidence](../../scripts/executable-reuse/README.md)
 retain source identity, independent reference calculations, explicit non-use and
-exposure limits. Review/merge remains pending; product integration, hosted delivery,
-autonomous learning and comparative usefulness are not established. No live study
+exposure limits. [#1376](https://github.com/hynk-studio/augnes/pull/1376) merged on
+2026-10-01, completing that standalone slice. Its product integration, hosted delivery,
+autonomous learning and comparative usefulness are not established by that merge. No live study
 or historical campaign restart is authorized by this implementation.
 
 The first slice should connect an actual usable asset, an actual consumer, an
@@ -118,6 +119,44 @@ Defer unneeded marketplace/SDK work, universal registries/graphs, additional UI
 and host expansion until a concrete consumer justifies them. This priority
 neither cancels authorized work nor makes all P1/P2 work blocked. Dated historical
 scopes, study results and unrelated Current/Next work below retain their bounds.
+
+### Current P3/P4/P5 — Project retry-inspection outlook (#1213)
+
+Under #1209, the first bounded project working-model implementation is **Current**
+while its Draft PR is open, and completed only after review and merge. P3 #1213
+owns the source-bound conditional judgment, P4 #1214 the optional method choice,
+and P5 #1215 its result-to-successor connection. It does not complete those phases.
+
+The missing connection was a prospective method recommendation between selected
+project context and native task execution. Existing result and selected-note
+writers already supplied the later-use path. The implementation connects:
+
+`selected project direction + workflow/inspection premises -> frozen packet outlook
+-> task-start GuideBrief + exact Codex packet -> receipt-backed result note
+-> selected outcome dependency -> ordinary successor outlook`.
+
+The [02 input/producer contract](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#project-retry-inspection-working-outlook)
+limits this to stationary retry work and optional inspection. A simple exact renewal
+formula is sufficient; #1376 remains a separately qualified executable and an
+independent numerical reference. No general selector, empirical rate learning,
+automatic source extraction or new approval workflow is implemented. Source-note
+authoring, selection and outcome-informed input revision remain explicit work.
+
+The constructed development scenario uses normal authenticated writers, the
+production App Server adapter with a scripted child that actually reads a disposable
+inspection observation, normal receipt/result preparation, and fresh successor
+admission. It exercises direct -> inspect -> investigate as the selected cost and
+then outcome-supported uncertainty change, immutable prior judgments, unchanged
+conditions, priority changes, missing support and horizon expiry. This establishes
+bounded correctness/delivery and a scripted action change, not a live model's
+judgment, real project benefit or attributable learning. No historical method
+rejection or successful real-world reuse is invented.
+
+Next: review the bounded connection and its exact-head verification, then identify
+one authorized ordinary case with defensible inputs and observe the actual worker's
+first choice, result and total preparation/repair burden. Broader outlooks or
+automation require evidence from that use. P4.6's negative findings, #1342's three
+status passages, and #1372's Web rollout/acceptance ownership remain unchanged.
 
 ### Later ordinary-use evidence and current prerequisites
 

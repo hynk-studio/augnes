@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { retryInspectionGuidanceV01 } from "../retry-inspection-outlook";
 
 import {
   buildBlankStateContinuityV01,
@@ -252,8 +253,10 @@ export function bindGuideBriefCodexProjectionToPacketV02(
 export function buildTaskStartGuideBriefCodexProjectionV02(input: {
   packet: TaskContextPacketV01;
   project_name: string | null;
+  evaluated_at?: string;
 }): GuideBriefCodexProjectionV02 {
   const { packet } = input;
+  const methodGuidance = retryInspectionGuidanceV01(packet, input.evaluated_at ?? packet.generated_at);
   const unresolved = boundedListV02(
     (packet.current_projection?.items ?? [])
       .filter((item) => item.item_kind === "open_question")
@@ -299,13 +302,13 @@ export function buildTaskStartGuideBriefCodexProjectionV02(input: {
       unresolved_user_judgments: unresolved,
       important_risk_or_gap: risk,
       suggested_next_action:
-        "Follow the exact requested work and its required checks",
+        methodGuidance ?? "Follow the exact requested work and its required checks",
       human_attention: {
         required: false,
         category: null,
         blocked_or_awaiting: null,
         recommended_next_step:
-          "Follow the exact requested work and its required checks",
+          methodGuidance ?? "Follow the exact requested work and its required checks",
         projection_only: true,
         authority_granted: false,
       },

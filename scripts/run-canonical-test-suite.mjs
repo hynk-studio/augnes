@@ -696,6 +696,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "retry-inspection-outlook",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning"],
+      label: "source-bound project outlook, native consumer, result and successor reconsideration",
+      ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--retry-inspection-only"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "pre-execution-support-material",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning"],

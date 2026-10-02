@@ -22,6 +22,7 @@ import { parse as parseToml } from "smol-toml";
 import { waitForBoundedFileSignal } from "../bounded-file-signal.mjs";
 
 const root = process.cwd();
+let retryInspectionResult = null;
 const canonicalTestRoot = process.env.AUGNES_CANONICAL_TEMP_ROOT ?? null;
 const rawScenario =
   process.env.FAKE_CODEX_SCENARIO ??
@@ -628,6 +629,25 @@ async function handle(message) {
       return;
     }
     if (message.method === "turn/start") {
+      if (scenario === "project_retry_inspection") {
+        const rendered = message.params?.input?.find(item => item.type === "text")?.text ?? "";
+        const objects = rendered.split("\n").flatMap(line => { try { return [JSON.parse(line)]; } catch { return []; } });
+        const packet = objects.find(value => value.packet_version === "task_context_packet.v0.1");
+        const guide = objects.find(value => value.projection_version === "guide_brief_codex_projection.v0.2");
+        const outlook = packet?.current_projection?.items.flatMap(item => { try { return [JSON.parse(item.summary)]; } catch { return []; } })
+          .find(value => ["augnes.retry-inspection-outlook.v0.1", "augnes.retry-inspection-outlook.v0.2"].includes(value.version));
+        if (!outlook || !guide?.suggested_next_action.includes(outlook.recommendation)) throw new Error("retry_inspection_delivery_missing");
+        // Constructed consumer, no model: actually read the disposable observation
+        // only when the delivered recommendation chooses optional inspection.
+        const observation = outlook.action === "inspect" ? readFileSync(path.join(root, "inspection-observation.txt"), "utf8").trim() : "No inspection observation collected; outcome remains unknown.";
+        retryInspectionResult = {
+          result_version: "codex_host_structured_result.v0.1", summary: `Constructed consumer chose ${outlook.action}. ${observation}`,
+          changed_files: [], artifacts: [], observed_actions: [`constructed_${outlook.action}`], commands: [],
+          checks: [{ check_id: "constructed_inspection", required: false, status: outlook.action === "inspect" ? "passed" : "unknown", summary: observation }],
+          skipped_checks: [], uncertainty: ["Constructed consumer; no model or real workflow benefit observed."], gaps: [],
+          proposed_next_steps: ["Use the observed applicability limit in the next preparation; do not infer a new success rate."],
+        };
+      }
       if (scopedScenario && (message.params?.permissions !== scopedPermissions || Object.hasOwn(message.params, "sandboxPolicy") ||
           message.params?.model !== "gpt-6-astra" || message.params?.effort !== "max" || message.params?.approvalPolicy !== "never")) {
         respondError(message.id, -32602, "scoped_turn_policy_required");
@@ -713,7 +733,7 @@ async function handle(message) {
           emitObservedItems(path.join(path.dirname(root), "outside-result.ts"));
           completeSuccess();
         } else if (
-          scenario === "success" || scenario === "scoped_success" || scenario === "scoped_result_effect" || scenario === "candidate_canary_success" || scenario === "candidate_canary_result_mismatch" || scenario === "candidate_canary_descendant_cleanup" ||
+          scenario === "success" || scenario === "project_retry_inspection" || scenario === "scoped_success" || scenario === "scoped_result_effect" || scenario === "candidate_canary_success" || scenario === "candidate_canary_result_mismatch" || scenario === "candidate_canary_descendant_cleanup" ||
           isolatedAuthScenario ||
           scenario === "thread_bound_notification_before_response" ||
           scenario === "status_only_notifications"
@@ -1799,6 +1819,7 @@ function completeUnsafeTextStructuredResult(summary) {
 }
 
 function structuredResult() {
+  if (retryInspectionResult) return JSON.stringify(retryInspectionResult);
   if (scenario === "result_admission" || process.env.FAKE_CODEX_SCOPED_RESULT_KIND === "rejected_result") {
     const variant = process.env.FAKE_CODEX_RESULT_CASE;
     const labels = variant !== "label_free";

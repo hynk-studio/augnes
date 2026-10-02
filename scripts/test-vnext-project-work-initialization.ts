@@ -1,4 +1,5 @@
 import { buildWorkExpectationRecord, expectationRef } from "../lib/vnext/work-expectation";
+import { RETRY_INSPECTION_INPUT_V01, RETRY_INSPECTION_OUTLOOK_V01, RETRY_INSPECTION_OUTLOOK_V02, buildRetryInspectionOutlookV01, buildRetryInspectionOutlookV02, readRetryInspectionOutlookV01, retryInspectionGuidanceV01, type RetryInspectionInputV01 } from "../lib/vnext/retry-inspection-outlook";
 import { ORDINARY_SUCCESSOR_EXPECTATION_CHRONOLOGY, type WorkExpectation, type WorkExpectationAttempt } from "../types/vnext/work-expectation";
 import { createWorkExpectationHandler } from "../app/api/vnext/operator/work-expectations/route";
 import { assertWebMcpCurrentWork } from "./test-webmcp-current-work";
@@ -142,6 +143,7 @@ void main().catch((error) => {
 async function main(): Promise<void> {
   const initializationStarted = performance.now();
   try {
+    if (process.argv.includes("--retry-inspection-only")) { await assertRetryInspectionLoopV01(); return; }
     if (process.argv.includes("--selected-source-budget-only")) { await assertNativeSelectedSourceBudgetV01(); return; }
     if (process.argv.includes("--retained-source-capacity-only")) { await assertRetainedSourceScanBudgetV01(); return; }
     if (process.argv.includes("--reviewed-outcome-reuse-only")) { await assertReviewedOutcomeReuseV01(); await assertReviewedOutcomeReuseV01(true); return; }
@@ -5896,6 +5898,221 @@ function revisionRequestV01(
     expected_current_lineage_kind: currentLineageKind,
     ...definition,
   };
+}
+
+function assertRetryInspectionSelectionV02(): void {
+  const scope = { workspace_id: "outlook-regression-workspace", project_id: "outlook-regression-project" };
+  const profile = RETRY_INSPECTION_INPUT_V01;
+  const direction: Extract<RetryInspectionInputV01, { kind: "direction" }> = { profile, kind: "direction", purpose: "Complete stationary retry work", priority: "reduce_work" };
+  const workflow: Extract<RetryInspectionInputV01, { kind: "workflow" }> = { profile, kind: "workflow", attempt: 7, verification: 2, repair: 3,
+    direct_success: { numerator: 1, denominator: 2 }, stationary: true, unit: "effort units", valid_until: "2026-08-01T00:00:59.000Z", support_refs: [] };
+  const inspection: Extract<RetryInspectionInputV01, { kind: "inspection" }> = { profile, kind: "inspection", cost: 8,
+    success: { numerator: 3, denominator: 5 }, available: true, preparation: "Obtain the optional inspection resource.", valid_until: workflow.valid_until, support_refs: [] };
+  const entries = (w = workflow, i = inspection, d = direction) => normalizeNativeSelectedWorkSources(scope, [d, w, i].map(value =>
+    buildSelectedWorkSourceEntry(scope, { source: `Constructed selection regression / ${value.kind}`, text: JSON.stringify(value),
+      provenance: value.kind === "direction" ? "user_declaration" : "imported_unverified", label: "New candidate", observed_at: T1 })));
+  const at = "2026-08-01T00:00:06.000Z";
+  const zero = { numerator: 0, denominator: 1 };
+  const beneficial = { ...inspection, cost: 2, success: { numerator: 3, denominator: 4 } };
+  // Golden v0.1 IDs captured from f61d3c3 with these exact normalized notes.
+  // Corrected judgments get a new version/identity; the historical ones remain reproducible.
+  const cases = [
+    { name: "costly_unavailable", w: workflow, i: { ...inspection, available: false }, before: "prepare", after: "direct", why: /91\/3.*does not improve.*21/u,
+      legacy: "sha256:ff2b99b56b23f54960b5e3f2689b47e8f25c690e96913dad29906c0b07d685f6" },
+    { name: "costly_unknown_availability", w: workflow, i: { ...inspection, available: null }, before: "observe", after: "direct", why: /91\/3.*does not improve.*21/u,
+      legacy: "sha256:dd5a1722954e23c9d26930f8539b625d8660d226c2cf2d86b05f181674415f76" },
+    { name: "direct_non_completing", w: { ...workflow, direct_success: zero }, i: beneficial, before: "observe", after: "inspect", why: /Direct work is non-completing.*inspection.*47\/3/u,
+      legacy: "sha256:1896ca87e144cab5fa1cd16297f5f2fe5614bce12604241d08a8264cfca9f5c9" },
+    { name: "inspection_non_completing", w: workflow, i: { ...inspection, success: zero }, before: "observe", after: "direct", why: /Inspection is non-completing.*direct work.*21/u,
+      legacy: "sha256:df339f914ca3b67752f3fcee594b74b5c0f56f844facd9d0c72e8418efce0322" },
+  ];
+  for (const c of cases) {
+    const selected = entries(c.w, c.i), original = buildRetryInspectionOutlookV01(selected, at)!, revised = buildRetryInspectionOutlookV02(selected, at)!;
+    assert.equal(original.action, c.before, c.name); assert.equal(original.judgment_id, c.legacy, c.name);
+    assert.equal(revised.action, c.after, c.name); assert.notEqual(revised.judgment_id, original.judgment_id);
+    assert.deepEqual(revised.baseline, original.baseline); assert.deepEqual(revised.alternative, original.alternative);
+    assert.match(revised.recommendation, c.after === "direct" ? /^Continue directly with every mandatory check/u : /^Consider optional inspection.*every mandatory check/u);
+    assert.match(revised.why_now, c.why);
+    if (c.i.available !== true) assert(revised.uncertainty.some(value => /resource.*unavailable|availability is unknown/u.test(value)));
+  }
+  const select = (w = workflow, i: typeof inspection = beneficial, d = direction) => buildRetryInspectionOutlookV02(entries(w, i, d), at)!;
+  assert.equal(select().action, "inspect");
+  const unavailable = select(workflow, { ...beneficial, available: false });
+  assert.equal(unavailable.action, "prepare"); assert.match(unavailable.recommendation, /^Prepare/u); assert.match(unavailable.why_now, /47\/3.*21.*resource is reported unavailable/u);
+  const unknownResource = select(workflow, { ...beneficial, available: null });
+  assert.equal(unknownResource.action, "observe"); assert.match(unknownResource.recommendation, /resource availability/u); assert.match(unknownResource.why_now, /47\/3.*21.*availability is unknown/u);
+  for (const [w, i] of [[workflow, { ...beneficial, success: null }], [{ ...workflow, direct_success: null }, beneficial],
+    [workflow, { ...beneficial, success: null, available: false }], [{ ...workflow, direct_success: zero }, { ...beneficial, success: null }]] as const) {
+    const unknown = select(w, i); assert.equal(unknown.action, "observe"); assert.match(unknown.recommendation, /unknown completion or performance/u); assert.match(unknown.why_now, /unknown estimate can affect/u);
+  }
+  const blockedCompletion = select({ ...workflow, direct_success: zero }, { ...beneficial, available: false });
+  assert.equal(blockedCompletion.action, "prepare"); assert.match(blockedCompletion.why_now, /Direct work is non-completing.*unavailable/u);
+  const neither = select({ ...workflow, attempt: 0, verification: 0, repair: 0, direct_success: zero }, { ...inspection, cost: 0, success: zero });
+  assert.equal(neither.action, "withdraw"); assert.equal(neither.baseline.expected_work, null); assert.equal(neither.alternative.expected_work, null);
+  assert.match(neither.recommendation, /^Withdraw both methods/u); assert.match(neither.why_now, /neither workflow completes.*not unknown performance or an infinite work estimate/u);
+  const zeroCostCompletion = select({ ...workflow, attempt: 0, verification: 0, repair: 0 }, { ...inspection, cost: 0, success: zero, available: false });
+  assert.equal(zeroCostCompletion.action, "direct"); assert.equal(zeroCostCompletion.baseline.expected_work, "0"); assert.equal(zeroCostCompletion.alternative.expected_work, null);
+  const tied = select(workflow, { ...inspection, cost: 0, success: workflow.direct_success, available: null });
+  assert.equal(tied.action, "direct"); assert.equal(tied.baseline.expected_work, tied.alternative.expected_work);
+  const learning = { ...direction, priority: "learn_inspection" as const };
+  const learn = select(workflow, inspection, learning);
+  assert.equal(learn.action, "observe"); assert.match(learn.recommendation, /bounded observation/u); assert.match(learn.why_now, /declared project priority/u);
+  assert.equal(select(workflow, { ...inspection, available: false }, learning).action, "prepare");
+  assert.equal(select(workflow, { ...inspection, available: null }, learning).action, "observe");
+  assert.equal(select(workflow, { ...inspection, success: zero }, learning).action, "observe");
+  assert.equal(select().judgment_id, buildRetryInspectionOutlookV02(entries(workflow, beneficial), "2026-08-01T00:00:07.000Z")!.judgment_id);
+}
+
+async function assertRetryInspectionLoopV01(): Promise<void> {
+  assertRetryInspectionSelectionV02();
+  const fixture = createFixtureV01("retry-inspection-loop", false, true);
+  try {
+    const at = (second: number) => `2026-08-01T00:00:${String(second).padStart(2, "0")}.000Z`;
+    const initial = defineInitialProjectWorkV01(fixture.db, { config: fixture.config,
+      credential: authenticatedSessionV01(fixture, "outlook-author"), request: requestV01(fixture, {
+        goal: "Choose the next bounded retry-workflow check", success_criteria: ["Report what was observed; leave unmeasured performance unknown"], non_goals: ["Do not skip mandatory verification"] }), clock: fixedClock(T2) });
+    let credential = credentialFromCookieV01(initial.session_admission.cookie_value);
+    let packet = initial.packet;
+    const direction: RetryInspectionInputV01 = { profile: RETRY_INSPECTION_INPUT_V01, kind: "direction",
+      purpose: "Develop a dependable workflow across multiple tasks; unresolved inspection performance remains an open question.", priority: "reduce_work" };
+    const workflow: RetryInspectionInputV01 = { profile: RETRY_INSPECTION_INPUT_V01, kind: "workflow", attempt: 7, verification: 2, repair: 3,
+      direct_success: { numerator: 1, denominator: 2 }, stationary: true, unit: "effort units", valid_until: at(59), support_refs: [] };
+    const inspection: RetryInspectionInputV01 = { profile: RETRY_INSPECTION_INPUT_V01, kind: "inspection", cost: 8,
+      success: { numerator: 3, denominator: 5 }, available: true, preparation: "Confirm the inspection resource and bound the observation.", valid_until: at(59), support_refs: [] };
+    const note = (value: RetryInspectionInputV01) => buildSelectedWorkSourceEntry(fixture, {
+      source: `Constructed planning assumptions / ${value.kind} / versioned by content`, text: canonicalizeProtocolValueV01(value),
+      provenance: value.kind === "direction" ? "user_declaration" : "imported_unverified", label: "New candidate", observed_at: T1,
+    });
+    const entries = (i = inspection, w = workflow, d = direction) => [note(d), note(w), note(i)];
+    const revise = (selected: TaskContextPacketV01["selected_context"], second: number, goal = packet.task.goal) => {
+      const comparison = compareSelectedWorkSources(packet, selected);
+      const request = { ...revisionRequestV01(fixture, packet, packet.packet_id === initial.packet.packet_id ? "initial_user_defined" : "pre_execution_user_revision", { ...packet.task, goal }),
+        selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint };
+      const saved = revisePreExecutionProjectWorkV01(fixture.db, { config: fixture.config, credential, request, clock: fixedClock(at(second)) });
+      packet = saved.packet; credential = credentialFromCookieV01(saved.session_admission.cookie_value);
+      assert.equal(saved.execution_started, false); assert.equal(saved.semantic_state_changed, false);
+      return readRetryInspectionOutlookV01(packet)!;
+    };
+    const held = revise(entries(), 3);
+    const historical = structuredClone(packet);
+    assert.equal(held.version, RETRY_INSPECTION_OUTLOOK_V02);
+    assert.equal(held.action, "direct"); assert.equal(held.baseline.expected_work, "21"); assert.equal(held.alternative.expected_work, "91/3");
+    const unchanged = revise(entries(), 4, "Check a different task without redefining project direction");
+    assert.equal(unchanged.judgment_id, held.judgment_id); assert.deepEqual(unchanged.project_direction, held.project_direction);
+    const lowCost = { ...inspection, cost: 2, success: { numerator: 3, denominator: 4 } };
+    const changed = revise(entries(lowCost), 5);
+    assert.equal(changed.action, "inspect"); assert.equal(changed.alternative.expected_work, "47/3");
+    assert.notEqual(changed.judgment_id, held.judgment_id);
+    assert.deepEqual(readRetryInspectionOutlookV01(historical), held, "Later sources do not rewrite the recorded judgment or cutoff");
+    assert.equal(retryInspectionGuidanceV01(packet, at(59))!.includes("expired"), true);
+    assert.throws(() => retryInspectionGuidanceV01(packet, "invalid"), /read_time_invalid/);
+    const tampered = structuredClone(packet); tampered.selected_context = tampered.selected_context.map(entry => entry.entry_id === note(lowCost).entry_id ? note(inspection) : entry);
+    assert.throws(() => readRetryInspectionOutlookV01(tampered), /binding_invalid/);
+    const substitutedVersion = structuredClone(packet);
+    substitutedVersion.compatibility.source_contracts = substitutedVersion.compatibility.source_contracts.map(value => value === RETRY_INSPECTION_OUTLOOK_V02 ? RETRY_INSPECTION_OUTLOOK_V01 : value);
+    assert.throws(() => readRetryInspectionOutlookV01(substitutedVersion), /binding_invalid/);
+    const ambiguousVersion = structuredClone(packet); ambiguousVersion.compatibility.source_contracts.push(RETRY_INSPECTION_OUTLOOK_V01);
+    assert.throws(() => readRetryInspectionOutlookV01(ambiguousVersion), /version_invalid/);
+    const unknownVersion = structuredClone(packet);
+    unknownVersion.compatibility.source_contracts = unknownVersion.compatibility.source_contracts.map(value => value === RETRY_INSPECTION_OUTLOOK_V02 ? "augnes.retry-inspection-outlook.v9" : value);
+    assert.throws(() => readRetryInspectionOutlookV01(unknownVersion), /version_invalid/);
+    // Boundary cases use the same read-only producer; no outcomes are invented.
+    assert.equal(buildRetryInspectionOutlookV02(entries({ ...lowCost, available: false }), at(6))!.action, "prepare");
+    assert.equal(buildRetryInspectionOutlookV02(entries({ ...lowCost, available: null }), at(6))!.action, "observe");
+    const missing = buildRetryInspectionOutlookV02(entries({ ...lowCost, success: null }), at(6))!;
+    assert.equal(missing.action, "observe"); assert.equal(missing.alternative.status, "unknown"); assert.equal(missing.baseline.expected_work, "21");
+    assert.equal(buildRetryInspectionOutlookV02(entries(lowCost, { ...workflow, stationary: false }), at(6))!.action, "withdraw");
+    assert.equal(buildRetryInspectionOutlookV02(entries(lowCost, { ...workflow, direct_success: { numerator: 0, denominator: 1 } }), at(6))!.baseline.status, "non_completing");
+    const changedDirection = buildRetryInspectionOutlookV02(entries(inspection, workflow, { ...direction, priority: "learn_inspection" }), at(6))!;
+    assert.equal(changedDirection.action, "observe"); assert.deepEqual(changedDirection.baseline, held.baseline); assert.deepEqual(changedDirection.alternative, held.alternative);
+    assert.deepEqual(buildRetryInspectionOutlookV02(entries(lowCost).reverse(), at(5)), changed, "Note ordering is not evidence");
+    const dependent = { ...lowCost, support_refs: [`sha256:${"0".repeat(64)}`] };
+    const lost = buildRetryInspectionOutlookV02(entries(dependent), at(6))!;
+    assert.equal(lost.action, "observe"); assert.equal(lost.baseline.expected_work, "21"); assert.equal(lost.alternative.status, "unknown");
+    const unrelated = buildSelectedWorkSourceEntry(fixture, { source: "Unrelated note", text: "No change to this decision", observed_at: T1, provenance: "imported_unverified", label: "Open question" });
+    assert.equal(buildRetryInspectionOutlookV02([...entries(lowCost), unrelated], at(6))!.judgment_id, changed.judgment_id);
+    const future = note(lowCost); const futureNote = buildSelectedWorkSourceEntry(fixture, { ...selectedWorkSourceInput(future), observed_at: at(58) });
+    assert.equal(buildRetryInspectionOutlookV02([note(direction), note(workflow), futureNote], at(6))!.action, "observe");
+    const duplicate = buildSelectedWorkSourceEntry(fixture, { ...selectedWorkSourceInput(note(lowCost)), source: "Competing source" });
+    assert.equal(buildRetryInspectionOutlookV02([...entries(lowCost), duplicate], at(6))!.action, "observe");
+    const malformed = buildSelectedWorkSourceEntry(fixture, { ...selectedWorkSourceInput(note(lowCost)),
+      text: JSON.stringify({ ...lowCost, cost: -1 }) });
+    assert.equal(buildRetryInspectionOutlookV02([note(direction), note(workflow), malformed], at(6))!.action, "observe");
+    assert.equal(buildRetryInspectionOutlookV02(entries({ ...lowCost, valid_until: at(4) }), at(6))!.baseline.expected_work, "21");
+    // Normal persisted admission and the production App Server adapter deliver
+    // the packet/GuideBrief to a real child. Only the model is a scripted fixture.
+    writeFileSync(path.join(fixture.root, "inspection-observation.txt"), "Inspection observed condition drift; a stationary success estimate has not been established.\n");
+    const hostHome = path.join(ROOT, "retry-inspection-host"); mkdirSync(hostHome);
+    const trace = path.join(ROOT, "retry-inspection-trace.jsonl");
+    const adapterFor = (second: number, tracePath: string) => createCodexAppServerAdapterV01({ now: timestampSequenceV01(at(second)), launch: {
+      command: process.execPath, prefix_args: [path.join(process.cwd(), "scripts/fixtures/fake-codex-app-server.mjs")],
+      environment: { NODE_ENV: "test", HOME: hostHome, CODEX_HOME: hostHome, PATH: process.env.PATH,
+        FAKE_CODEX_SCENARIO: "project_retry_inspection", FAKE_CODEX_TRACE_PATH: tracePath },
+    } });
+    let delivered: NativeHostRequestV01 | null = null;
+    const result = await runDirectNativeHostRoundTripV01(fixture.db, { config: fixture.config, mode: "interactive",
+      operator_mutation: { credential, clock: fixedClock(at(9)) } }, { adapter: adapterFor(10, trace), now: timestampSequenceV01(at(9)),
+      on_invocation_admitted: ({ request }) => { delivered = structuredClone(request); }, timeout_ms: 8_000, stop_settle_timeout_ms: 2_000 });
+    assert.equal(result.receipt.execution.status, "completed", JSON.stringify({ execution: result.receipt.execution,
+      fixture_failures: existsSync(trace) ? readFileSync(trace, "utf8").split("\n").filter(line => /handler_error|retry_inspection|error_code/u.test(line)) : [] }));
+    assert(delivered); assert((delivered as NativeHostRequestV01).guide_brief!.suggested_next_action.includes(changed.recommendation));
+    assert(result.receipt.result_summary.summary.includes("Constructed consumer chose inspect"));
+    assert(result.receipt.result_summary.summary.includes("condition drift"));
+    assert.equal(result.receipt.task_context_packet_ref?.source_ref, packet.integrity.fingerprint);
+    credential = credentialFromCookieV01(result.session_admission!.cookie_value);
+    const clock = fixedClock(at(35));
+    const beforeRead = fixture.db.serialize();
+    const preparation = readResultWorkPreparationV01(fixture.db, { config: fixture.config, receipt_id: result.receipt.receipt_id, clock });
+    assert(preparation.result_source && preparation.result_source.bounded_summary);
+    assert(preparation.result_source.bounded_summary.includes(changed.judgment_id));
+    assert(preparation.result_source.bounded_summary.includes("consequence of our work"));
+    assert(beforeRead.equals(fixture.db.serialize()), "Result projection is zero-write");
+    const observation = preparation.result_source;
+    const updatedInspection = { ...lowCost, success: null, support_refs: [observation.source_ref!] };
+    const selected = [note(direction), note(workflow), note(updatedInspection), observation];
+    const comparison = compareResultWorkSourcesV01(fixture.db, { config: fixture.config, binding: preparation.binding,
+      notes: selected.map(selectedWorkSourceInput), clock });
+    const preview = previewResultWorkV01(fixture.db, { config: fixture.config, binding: preparation.binding, clock,
+      definition: { goal: "Determine whether stable inspection conditions can be established", success_criteria: ["Keep the failed applicability assumption and original observation distinct"], non_goals: ["Do not infer a learned success rate"] },
+      selected_sources: { selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint,
+        omitted_sources: readSelectedWorkSources(packet).filter(entry => !selected.some(next => next.entry_id === entry.entry_id)).map(entry => ({ source_binding: entry.source_ref!, reason: "Revise the estimate using the actual inspection observation; original remains historical." })) } });
+    const successor = await defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config, credential, request: preview.request, clock });
+    const later = readRetryInspectionOutlookV01(successor.packet)!;
+    assert.equal(later.version, RETRY_INSPECTION_OUTLOOK_V02);
+    assert.equal(later.action, "observe"); assert.equal(later.alternative.status, "unknown");
+    assert(later.sources.some(source => source.source_ref === observation.source_ref && source.role === "supporting_observation"));
+    assert.deepEqual(later.project_direction, changed.project_direction);
+    assert.deepEqual(readRetryInspectionOutlookV01(historical), held);
+    const successorRevision = revisePreExecutionProjectWorkV01(fixture.db, { config: fixture.config,
+      credential: credentialFromCookieV01(successor.session_admission.cookie_value), clock: fixedClock(at(36)),
+      request: revisionRequestV01(fixture, successor.packet, "authored_successor_task", { ...successor.packet.task,
+        goal: "Inspect the retained applicability question without rewriting project direction" }) });
+    assert.equal(readRetryInspectionOutlookV01(successorRevision.packet)!.judgment_id, later.judgment_id);
+    assert.equal(readRetryInspectionOutlookV01(successorRevision.packet)!.version, RETRY_INSPECTION_OUTLOOK_V02);
+    const reopened = new Database(fixture.db.serialize());
+    try {
+      const admission = await admitPersistedHostTaskContextPacketV01(reopened, { config: fixture.config, packet_id: successorRevision.packet.packet_id,
+        packet_fingerprint: successorRevision.packet.integrity.fingerprint, evaluated_at: at(40) });
+      assert.equal(readRetryInspectionOutlookV01(admission.packet)!.action, "observe");
+      assert(readSelectedWorkSources(admission.packet).some(entry => entry.source_ref === observation.source_ref));
+      assert.equal(validateRecoveryCanonicalDatabaseV01(reopened).status, "valid");
+    } finally { reopened.close(); }
+    const nextResult = await runDirectNativeHostRoundTripV01(fixture.db, { config: fixture.config, mode: "interactive",
+      operator_mutation: { credential: credentialFromCookieV01(successorRevision.session_admission.cookie_value), clock: fixedClock(at(45)) } }, {
+      adapter: adapterFor(46, path.join(ROOT, "retry-inspection-later-trace.jsonl")), now: timestampSequenceV01(at(45)),
+      timeout_ms: 8_000, stop_settle_timeout_ms: 2_000,
+      on_invocation_admitted: ({ request }) => {
+        assert(request.guide_brief!.suggested_next_action.includes(later.recommendation));
+        assert(readSelectedWorkSources(request.packet).some(entry => entry.source_ref === observation.source_ref));
+      },
+    });
+    assert.equal(nextResult.receipt.execution.status, "completed");
+    assert(nextResult.receipt.result_summary.summary.includes("Constructed consumer chose observe"));
+    assert(nextResult.receipt.result_summary.summary.includes("outcome remains unknown"));
+    console.log(JSON.stringify({ retry_inspection_loop: "pass", case: "constructed_exposed", path: "authenticated_revision -> native_App_Server_fixture_consumer -> receipt -> selected_result -> ordinary_successor -> fresh_admission",
+      actions: [held.action, changed.action, later.action], expected_work: [held.baseline.expected_work, held.alternative.expected_work, changed.alternative.expected_work],
+      actual_optional_file_read: true, model_calls: 0, real_use_benefit: "not_observed", learned_rates: false }));
+  } finally { fixture.db.close(); }
 }
 
 function insertHistoryRecordV01(

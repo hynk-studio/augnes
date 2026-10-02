@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { RETRY_INSPECTION_OUTLOOK_V02, retryInspectionOutlookVersion, retryInspectionProjectionItemsV01, type RetryInspectionOutlookVersion } from "../retry-inspection-outlook";
 import { hasAutonomyRunAdmissionForPreparation, hasUnsettledAutonomyRunLedgerRecords } from "@/lib/autonomy/runner-ledger";
 import { assertReviewedOutcomeSourcesRetained, compareSelectedWorkSources, readSelectedWorkSources, reviewedOutcomeSourceRef } from "@/lib/intake/selected-work-source-comparison";
 import { REVIEWED_OUTCOME_SOURCE_V01 } from "@/types/vnext/project-work-revision";
@@ -67,9 +68,11 @@ function packetFrom(db: Database.Database, scope: Scope, id: string, fingerprint
   return packet;
 }
 
-export function buildOrdinarySuccessorRevisionV01(prior: TaskContextPacketV01, anchor: AuthoredSuccessorPacketLineageV01, material: Material, operator: string, at: string) {
+export function buildOrdinarySuccessorRevisionV01(prior: TaskContextPacketV01, anchor: AuthoredSuccessorPacketLineageV01, material: Material, operator: string, at: string,
+  outlookVersion: RetryInspectionOutlookVersion | null = RETRY_INSPECTION_OUTLOOK_V02) {
   const definition = normalizeInitialProjectWorkDefinitionV01(material.request);
   const selected = material.request.selected_source_context ?? readSelectedWorkSources(prior);
+  const outlookItems = retryInspectionProjectionItemsV01(selected, at, outlookVersion);
   const fingerprint = digest({ compiler: AUTHORED_SUCCESSOR_REVISION_V01, material, at, operator });
   const ref = (type: string, id: string, hash: string, time = at): ExternalRefV01 => ({ ref_version: "external_ref.v0.1", ref_type: type,
     external_id: id, source_ref: hash, observed_at: time, trust_class: "direct_local_observation", compatibility_namespace: AUTHORED_SUCCESSOR_REVISION_V01 });
@@ -92,7 +95,7 @@ export function buildOrdinarySuccessorRevisionV01(prior: TaskContextPacketV01, a
   const packet = buildTaskContextPacketV01({ workspace_id: prior.workspace_id, project_id: prior.project_id, work_ref: definitionRef,
     generated_at: at, expires_at: prior.expires_at, task: definition,
     current_projection: { projection_kind: "current_working_perspective", projection_only: true, canonical_state: false, perspective_ref: null,
-      bounded_summary: definition.goal, as_of: at, items: [{ item_kind: "active_goal", summary: definition.goal, source_refs: [fingerprint], external_refs: [definitionRef], currentness }],
+      bounded_summary: definition.goal, as_of: at, items: [...outlookItems, { item_kind: "active_goal", summary: definition.goal, source_refs: [fingerprint], external_refs: [definitionRef], currentness }],
       source_refs: [fingerprint], external_refs: [definitionRef], currentness, warnings: ["Revision is a user declaration, not semantic acceptance or execution authority."] },
     selected_context: entries,
     excluded_context: [
@@ -101,9 +104,12 @@ export function buildOrdinarySuccessorRevisionV01(prior: TaskContextPacketV01, a
         why_excluded: "Not selected in this revision; no refutation, deletion or change to the recorded observation is implied.", currentness: e.currentness })),
     ],
     tensions: prior.tensions, risks: prior.risks, gaps: prior.gaps,
-    constraints: prior.constraints, capability_grant: null, return_contract: prior.return_contract,
+    constraints: outlookItems.length ? { ...prior.constraints, context_budget: { ...prior.constraints.context_budget,
+      max_projection_items: Math.max(prior.constraints.context_budget.max_projection_items ?? 64, 1 + outlookItems.length) } } : prior.constraints,
+    capability_grant: null, return_contract: prior.return_contract,
     source_status: { ...prior.source_status, currentness, source_refs: refs.map(r => r.source_ref!), external_refs: refs },
     compatibility: { source_contracts: [AUTHORED_SUCCESSOR_TASK_V01, AUTHORED_SUCCESSOR_CONTEXT_V01, AUTHORED_SUCCESSOR_REVISION_V01,
+      ...(outlookItems.length ? [outlookVersion!] : []),
       ...(selected.some(e => reviewedOutcomeSourceRef(e)) ? [REVIEWED_OUTCOME_SOURCE_V01] : [])],
       legacy_scope_ref: prior.compatibility.legacy_scope_ref, source_refs: refs, unmapped_fields: [], warnings: [] },
   }, { required_selected_entry_ids: entries.map(e => e.entry_id) });
@@ -137,7 +143,7 @@ export function inspectOrdinarySuccessorRevisionV01(db: Database.Database, input
     check(retained.entries.every(e => m.request.selected_source_context!.some(s => equal(e, s))) &&
       compareSelectedWorkSources(prior, m.request.selected_source_context, retained.refs).fingerprint === m.request.expected_source_comparison, "revision_source_comparison");
   }
-  const expected = buildOrdinarySuccessorRevisionV01(prior, lineage, m, session.operator_id, packet.generated_at);
+  const expected = buildOrdinarySuccessorRevisionV01(prior, lineage, m, session.operator_id, packet.generated_at, retryInspectionOutlookVersion(packet));
   check(equal(expected.packet, packet), "revision_compiler_binding");
   return { ...expected, lineage_kind: "authored_successor_task", prior_packet: { packet_id: prior.packet_id, packet_fingerprint: prior.integrity.fingerprint },
     inherited_context_current: lineage.inherited_context_current, projection_current: lineage.inherited_context_current && !hasAuthoredSuccessorOfPacketV01(db, config, packet.packet_id), source_transition_receipt: null };

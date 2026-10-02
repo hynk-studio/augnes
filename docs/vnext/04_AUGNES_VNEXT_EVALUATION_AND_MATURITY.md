@@ -315,6 +315,30 @@ current product-development priority. A null result remains evidence about the
 tested method and conditions, not a failed experiment merely because development
 guidance is now more explicit.
 
+### Bounded project outlook and later use
+
+For the [retry-inspection connection](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#current-p3p4p5--project-retry-inspection-outlook-1213),
+separate exact conditional arithmetic, delivery to a worker, the worker's actual
+choice/observation, and later use of that observation. A scripted child that reads
+an optional file proves the constructed connection, not model judgment or real
+workflow savings. Supplied success probabilities are assumptions, not empirical
+competence; a completed run does not label the forecast correct. An outcome of
+our own inspection is intervention evidence, not an independent external event.
+
+Use a normal writer -> consumer -> result -> successor case plus discriminating
+boundaries: meaningful cost/resource changes, unchanged inputs, direction/priority
+changes without factual revision, missing observations/support, expired horizons,
+and an essential premise broken without a replacement model. Keep unaffected
+support and original source versions/cutoffs visible. A same-case revision or
+reopened session is not a separate independent task or an unexposed sample.
+
+The existing strong-comparison rules apply to any later usefulness claim. The
+baseline may forecast, revise source-linked adaptive notes, access the same code
+and tools, and reuse methods with a comparably strong model and relevant budget.
+Count input estimation, note preparation, maintenance, verification and repeated
+human context repair. No live comparison is required to qualify this implementation;
+attributable improvement from experience remains a separate, unobserved claim.
+
 ## Prospective expectation mechanics
 
 Keep task requirements, an author's prediction and the result's established

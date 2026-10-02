@@ -50,6 +50,19 @@ owns the next bounded implementation candidate and
 [04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#development-verification-and-usefulness)
 owns the evidence needed for each claim.
 
+A project's working understanding should connect its past observations, current
+conditions, conditional futures and practical methods to a useful next proposal.
+Project direction spans tasks; completing or editing one task does not redefine
+it. An exploratory direction can retain interests, constraints and open questions
+without a fixed destination. Desired outcomes guide priorities, never rewrite
+observations. An outlook names what continues under its baseline, what action or
+preparation could change it, its horizon, uncertainty and reconsideration trigger;
+waiting and investigation also have costs. Available resources, applicability,
+observed performance and limitations inform feasibility separately from permission.
+Later outcomes should change only the judgments they bear on, preserving each
+earlier judgment's sources and information cutoff. The first bounded connection
+is owned by [03](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#current-p3p4p5--project-retry-inspection-outlook-1213).
+
 Web Augnes is a workspace where humans and agents continue long-horizon work,
 explore independent directions, compare evidence and outcomes, and selectively
 incorporate useful changes. Private usefulness must work before public or
