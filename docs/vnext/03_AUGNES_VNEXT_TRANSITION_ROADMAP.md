@@ -255,11 +255,35 @@ those inputs. Portable direction export remains unsupported; recovery backup
 preserves its history with credentials disabled. Broader automation, general
 purpose optimization, hosted mutations and a comparative campaign remain outside
 this increment. Pre-correction draft agent genesis lacking immutable creation
-attribution is retained for reading, with an explicit recovery refusal; automatic
-backfill from the current root is unsupported. Broader recovery compatibility is
-not inferred from fresh-format tests. Next: review the bounded implementation,
-then authorize this specific ordinary case and measure its actual first decision
-and repair burden.
+attribution is byte-preserved and directly readable as historical direction, but
+blocks supported application startup as well as recovery for the whole database,
+including co-resident ordinary projects. The public inspection/startup diagnostic
+is `database_canonical_invariant_failed`; the specific
+`project_direction_creation_attribution_missing` cause is internal. Automatic
+backfill from the current root and validation bypass remain unsupported.
+
+The 2026-10-03 bounded read-only closeout inspected the canonical application
+database (2 projects, 23 Core records) and its three retained application backups
+dated 2026-08-26, 2026-09-13 and 2026-09-24. None contains the direction tables, so
+no affected non-disposable agent genesis exists in those inspected databases.
+File identities and bytes were unchanged. The repository legacy database path
+was absent, and the two retained #1382 evidence directories contained no SQLite
+images; their recorded test cases are disposable evidence, not canonical user data.
+Other checkouts, hosts, unregistered copies and removed temporary fixtures were not
+searched. This is a bounded observation, not a global absence claim or an inference
+from the unavailable Companion.
+
+A disposable mixed legacy/ordinary database demonstrated whole-database refusal
+through `inspectRecoveryDatabaseFile` and `prepareRuntimeDatabase`, while its
+direct historical reader remained usable. Ordinary-only and current-format mixed
+controls passed both public boundaries; all three database images remained
+unchanged and owned temporary resources were removed. No affected inspected user
+data requires a migration proposal. Retain this explicit Draft-format
+incompatibility; any later affected data must be preserved with its prior readable
+version and assessed from trusted creation evidence before activation. Next:
+review this compatibility disposition with the bounded implementation, then
+authorize the specific ordinary case and measure its actual first decision and
+repair burden. Ordinary model judgment and comparative usefulness remain unmeasured.
 
 ### Later ordinary-use evidence and current prerequisites
 

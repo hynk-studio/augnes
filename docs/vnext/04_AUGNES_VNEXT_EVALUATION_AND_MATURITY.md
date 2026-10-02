@@ -409,6 +409,15 @@ authenticated independent and delegated creations through the canonical rebind
 owner, then validate history and credential-suspended recovery. Reject unrelated
 grant/slot/project/root attribution and reuse of a consumed creation slot. Missing
 pre-correction attribution must be reported, never reconstructed from current root.
+Distinguish direct historical-reader compatibility from public database inspection,
+normal startup and recovery. A mixed legacy-agent/ordinary-project fixture must
+exercise the public boundaries and record their whole-database refusal and actual
+`database_canonical_invariant_failed` diagnostic, alongside ordinary-only and
+current-format mixed controls. The more specific direction error is internal.
+Bounded read-only inventory of authorized non-disposable data supplies the presence
+or absence observation; fresh-format fixtures and Companion availability cannot.
+State inspected locations, preservation evidence and uninspected scope without
+turning a bounded absence into a universal compatibility claim.
 Browser acceptance must show the complete proposal, accept changed criteria and
 constraints, edit only purpose, save/reload and retain those accepted fields;
 refresh while dirty must disclose conflict without overwriting unsaved values.

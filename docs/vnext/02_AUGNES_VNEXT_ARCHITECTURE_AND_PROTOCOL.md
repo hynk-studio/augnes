@@ -759,10 +759,18 @@ and qualified creation root/physical identity. Later decisions preserve this
 attribution. Recovery checks it against the immutable grant and project creation,
 including single consumption of each slot, without consulting a mutable current
 root binding. Canonical root rebind remains independently owned and cannot free
-a slot. Pre-correction draft agent genesis without this proof remains readable
-and byte-preserved but fails recovery with `creation_attribution_missing`; no
-historical authorization is invented from its present path. Existing no-direction
-and human-directed histories retain their recovery path.
+a slot. Pre-correction draft agent genesis without this proof remains byte-preserved
+and readable through the direct historical direction reader. This is not supported
+application-startup compatibility: database inspection, normal startup and recovery
+run canonical history validation. They publicly refuse with
+`database_canonical_invariant_failed`; `project_direction_creation_attribution_missing`
+is the internal direction-validation error, not the public diagnostic. One such
+genesis refuses the whole database, including otherwise valid human-directed and
+no-direction projects in that database. Those ordinary histories retain their
+startup/recovery path in a database without this unsupported legacy agent history.
+No historical authorization is invented from its present path or bypassed to start
+the application. The bounded retained-data observation belongs to
+[the implementation status](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md).
 
 One effective working direction exists per project. A short outcome or open
 question is sufficient. Accepted Core goals keep their existing review/Transition
