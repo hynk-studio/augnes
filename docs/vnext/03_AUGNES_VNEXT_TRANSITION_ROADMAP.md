@@ -122,8 +122,8 @@ scopes, study results and unrelated Current/Next work below retain their bounds.
 
 ### Current P3/P4/P5 — Project retry-inspection outlook (#1213)
 
-Under #1209, the first bounded project working-model implementation is **Current**
-while its Draft PR is open, and completed only after review and merge. P3 #1213
+Under #1209, the first bounded project working-model implementation merged in
+[#1379](https://github.com/hynk-studio/augnes/pull/1379). P3 #1213
 owns the source-bound conditional judgment, P4 #1214 the optional method choice,
 and P5 #1215 its result-to-successor connection. It does not complete those phases.
 
@@ -152,11 +152,50 @@ bounded correctness/delivery and a scripted action change, not a live model's
 judgment, real project benefit or attributable learning. No historical method
 rejection or successful real-world reuse is invented.
 
-Next: review the bounded connection and its exact-head verification, then identify
-one authorized ordinary case with defensible inputs and observe the actual worker's
-first choice, result and total preparation/repair burden. Broader outlooks or
-automation require evidence from that use. P4.6's negative findings, #1342's three
+The ordinary-case evidence obligation remains: identify one authorized case with
+defensible inputs and observe the worker's first choice, result and total
+preparation/repair burden. #1380 explicitly authorizes the narrow prospective
+capability below before that observation. Broader/default activation still requires
+evidence from ordinary use. P4.6's negative findings, #1342's three
 status passages, and #1372's Web rollout/acceptance ownership remain unchanged.
+
+### Current P3/P4/P5 — Prospective preparation and event/time re-entry (#1380)
+
+The user authorized this prospective sequencing change on 2026-10-02:
+implement and verify one opt-in local agenda now, while retaining #1379's ordinary
+case as an outstanding obligation and a prerequisite to broader/default activation.
+[#1380](https://github.com/hynk-studio/augnes/issues/1380) remains **Current** during
+implementation/Draft review. It does not complete #1213, #1214 or #1215, reopen
+P4.6, inherit research budgets, or authorize a live comparative study.
+
+The bounded source path is selected direction/notes → candidate decision agenda →
+one complementary selected-source inspection bundle → existing policy/grant/native
+admission → source-bound receipt → durable result-event/time reconsideration →
+revised/retained/withdrawn judgment and next action. Explicit later authorship uses
+the normal result-source comparison and successor writer. One local host, one
+project, one active agenda and one work attempt are supported; no default daemon,
+generic scheduler, dashboard, global event bus or host expansion is introduced.
+The [02 contract](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#prospective-preparation-and-local-re-entry-1380)
+owns temporal distinctions, eligibility, attribution and authority.
+
+The constructed development check uses the normal semantic packet writer,
+authenticated queue, atomic grant/run admission, real bounded local file reads,
+native receipt, durable re-entry and ordinary successor. It also checks changed
+timing, complementary observations, A → B → A, contradictory evidence, broken
+premises, unavailable channels, concurrent/overdue wakes, cancellation, changed
+permission, source drift and interruption after claim. A bounded foreground host
+loop exercises actual timer/admission/result handling with zero model calls.
+This is scripted mechanism evidence, not agenda discovery, model judgment or
+comparative usefulness. Final exact-head verification belongs to the PR receipt.
+
+Ordinary model use is **NOT RUN**: no ordinary task with a qualified explicit
+project/work grant and defensible prospective inputs was supplied for this slice.
+Ordinary authored packets still have no automation grant; arming them refuses.
+The implementation does not manufacture one from a wake or a prepared agenda.
+Next: review the exact source/verification and select an already authorized ordinary
+case through the supported grant owner; observe actual choice, preparation and
+human repair burden before considering broader activation. The absence of that
+case does not invalidate the bounded engineering or establish real-world benefit.
 
 ### Later ordinary-use evidence and current prerequisites
 

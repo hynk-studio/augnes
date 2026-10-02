@@ -745,6 +745,102 @@ WorkExpectation below remains an operator-authored prediction about one exact
 criterion/attempt. This broader conditional outlook neither creates nor updates
 one, changes its chronology, or claims match/mismatch from a missing outcome.
 
+#### Prospective preparation and local re-entry (#1380)
+
+The opt-in `augnes.prospective-input.v0.1` profile uses the existing selected
+whole-note writer and source identity. One `agenda` refers to a separately selected
+user-declared direction; its interpretation remains a source-attributed candidate.
+Up to two `method` notes retain conditional actions, context cues, essential
+premises, support and conflict references. Explicit `observation` notes distinguish
+not yet observed, observed, checked absent, conflicting and channel unavailable.
+Unknown/future observation times cannot supply an earlier decision. The bounded
+[input and judgment implementation](../../lib/vnext/prospective-agenda.ts) is the
+field-level contract; ordinary notes and historical retry-inspection packets retain
+their existing meanings. No model call or accepted Core fact is created by parsing.
+
+Temporal meanings remain separate: `premise_until` bounds applicability;
+`event_window` is a contingent earliest/latest range or unknown; `deadline` is a
+declared commitment or unknown; `preparation_ms` is a supported minimum/maximum
+duration or unknown; `not_before` is a controllable preparation prerequisite;
+`recheck_at` and optional `event_key` specify reconsideration. The preparation
+target is the declared deadline, otherwise the event window's earliest time,
+otherwise the recheck time. Its start subtracts the maximum preparation duration
+and respects `not_before`. Unknown duration defers scheduling. Passing a deadline
+is recorded, never repaired by shifting it; an unstarted missed preparation is
+deferred. A due check never proves event occurrence or absence. A contingent event
+can remain unobserved forever. This is bounded eligibility, not an STNU solver or
+a dynamic-controllability guarantee.
+
+The same conditional rule explains past selection and projects the next action.
+Observed context A → B → A can select a still-supported A method again without
+overwriting it. A conflicting result survives context relabelling; a known broken
+essential premise withdraws that method even without a replacement. Independent
+support survives. Missing/noisy/unavailable information defers or requests a
+discriminating observation. Incompatible actions are never numerically averaged.
+The two-observation bundle is considered together without a one-observation utility
+threshold. Descriptive preparation, waiting, execution and opportunity costs may
+remain explicitly unknown. A declared exploratory interest may justify the bundle;
+it does not supply calibrated probabilities, expected utility or causal validation.
+
+`selected_source_inspection.v0.1` is one additional server-owned work profile in
+the existing bounded automation cycle. It reads at most two explicitly selected
+top-level UTF-8 project text/code files, at most 65,536 bytes in total, through the
+admitted physical root. Paths, expected SHA-256 content versions and bounded literal
+checks are selected inputs. Symlinks, hard links, hidden paths, directory traversal,
+unsupported file types, overflow and unavailable channels refuse useful observation.
+A version mismatch is a conflict; an inaccessible/missing expected file is channel
+unavailable, not checked absence. Only inspection of the exact version can report
+literal absence. No source contents, commands, network calls or models are produced
+by this worker. The existing native result/receipt writer binds its bounded report
+to the exact packet, work, root, grant and run.
+
+The authenticated local `POST /api/vnext/operator/prospective-reentry` accepts
+`{ "action": "arm" | "cancel", "agenda_ref": "sha256:..." }`. Arming queues the
+selected preparation and records one local eligibility row. It requires the
+existing enabled project policy and an unexpired enforced source-packet grant;
+ordinary authored packets with `capability_grant: null` still refuse with
+`bounded_automation_source_grant_required`. No new grant store or implicit Start
+permission is introduced. A previously executed source task can supply context
+for this distinct preparation; the original task is not retried. The immutable
+work identity, one-attempt budget and agenda binding prevent repeating preparation.
+The read-only authenticated GET with `agenda_ref` returns its operational history.
+
+The explicit foreground host command is:
+
+```sh
+node --import tsx scripts/prospective-reentry-host.ts <agenda-ref> <duration-ms>
+```
+
+It uses the existing local operator configuration (`AUGNES_DB_PATH`, workspace,
+project and operator IDs), qualifies the local macOS arm64 host and this zero-model
+adapter, and runs for at most one hour. It installs nothing. One project/agenda/host
+may be active in this database. The operational `vnext_prospective_reentry` table
+retains packet/work bindings, due time, event references and bounded judgment
+history; it is neither a Core record nor semantic truth. Wake checks reconstruct
+current context and recheck source, project selection, control revision, grant,
+premises, stop conditions and the single-attempt budget. SQLite admission atomically
+claims eligibility, the existing final grant/packet/work and native run. Concurrent
+or overdue delivery coalesces rather than producing catch-up work. A cancelled
+agenda closes further admission; an already begun read-only attempt can settle once.
+
+The host observes durable receipt arrival and performs result re-entry without
+another user “next”. Reopening the same database retains eligibility; an uncertain
+claimed run requires reconciliation and is never automatically retried or resumed.
+An unavailable channel closes further scheduled observation. Recovery backups keep
+history but suspend all agenda eligibility; portable project export does not copy
+this machine-local table or activate a host. Zero-model Core continuity/recovery
+and the existing native Start/Resume contracts remain usable and unchanged.
+
+The normal result-to-successor writer exposes the structured inspection report as
+an attributed selected source. For this exact work profile only, a terminal
+`needs_review` run with completed execution may supply a new explicitly authored
+successor while its proposal stays pending. This does not claim verified task
+success or accept the proposal. The bounded source packet becomes predecessor
+lineage, not a competing current task. The successor's GuideBrief consumes the
+selected observations and derives the revised, retained or withdrawn judgment;
+its execution grant remains null. Original packets, source versions, dates,
+judgments and receipts are preserved.
+
 #### Optional pre-outcome expectation
 
 `work_expectation_record.v0.1` adds one non-authoritative record kind to the

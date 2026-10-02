@@ -1,3 +1,4 @@
+import { SELECTED_SOURCE_INSPECTION } from "../prospective-agenda";
 import type Database from "better-sqlite3";
 
 import {
@@ -249,7 +250,7 @@ export function compileBoundedAutomationTaskContextPacketV01(
       ]),
     },
     capability_grant: capabilityGrant,
-    criterion_verification_plan:
+    criterion_verification_plan: input.work.operation_profile === SELECTED_SOURCE_INSPECTION ? undefined :
       createLocalProjectRootCriterionVerificationPlanV01({
         workspace_id: input.workspace_id,
         project_id: input.project_id,
@@ -277,7 +278,9 @@ export function compileBoundedAutomationTaskContextPacketV01(
       warnings: uniqueStrings([
         ...input.source_packet.compatibility.warnings,
         "This packet was compiled from one explicit queued automation work item and one exact final execution grant.",
-        "The source packet task remains lineage only; this packet executes the server-owned bounded project-root verification profile.",
+        input.work.operation_profile === SELECTED_SOURCE_INSPECTION
+          ? "The source packet task remains lineage only; this packet executes the server-owned selected_source_inspection.v0.1 profile."
+          : "The source packet task remains lineage only; this packet executes the server-owned bounded project-root verification profile.",
       ]),
     },
     authority_notes: [

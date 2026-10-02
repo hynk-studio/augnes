@@ -1,3 +1,4 @@
+import { SELECTED_SOURCE_INSPECTION } from "../prospective-agenda";
 import { accessSync, constants, statSync } from "node:fs";
 
 import type Database from "better-sqlite3";
@@ -305,11 +306,15 @@ function readProjectWorkInitializationStrictV01(
   });
   // A sparse predecessor may still select only current state. Work succession
   // comes from validated packet lineage, not equality with all canonical state.
-  const semanticPredecessors = new Set(inspected.flatMap((entry) =>
-    (entry.lineage_kind === "semantic_transition" || entry.lineage_kind === "authored_successor_task") && entry.prior_packet
-      ? [`${entry.prior_packet.packet_id}|${entry.prior_packet.packet_fingerprint}`]
-      : [],
-  ));
+  const semanticPredecessors = new Set(inspected.flatMap((entry) => [
+    ...((entry.lineage_kind === "semantic_transition" || entry.lineage_kind === "authored_successor_task") && entry.prior_packet
+      ? [`${entry.prior_packet.packet_id}|${entry.prior_packet.packet_fingerprint}`] : []),
+    // The validated bounded preparation compiler retains its exact source
+    // packet as lineage, not a competing current task.
+    ...(entry.packet.compatibility.source_contracts.includes(SELECTED_SOURCE_INSPECTION)
+      ? entry.packet.compatibility.source_refs.filter(ref => ref.ref_type === "task_context_packet" &&
+        ref.compatibility_namespace === "vnext_bounded_automation_context_compiler.v0.1").map(ref => `${ref.external_id}|${ref.source_ref}`) : []),
+  ]));
   const currentCandidates = inspected.filter((entry) =>
     entry.projection_current &&
     !semanticPredecessors.has(`${entry.packet.packet_id}|${entry.packet.integrity.fingerprint}`),

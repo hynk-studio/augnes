@@ -696,6 +696,17 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "prospective-preparation-reentry",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning"],
+      label: "prospective agenda, bounded host wake, real preparation, recovery and successor",
+      ...rootNode("scripts/test-prospective-reentry.ts"),
+      // Includes a real backup's full canonical validation and three bounded
+      // host loops; the focused production-boundary check measured 39.5 s.
+      timeoutMs: 90_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "retry-inspection-outlook",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning"],

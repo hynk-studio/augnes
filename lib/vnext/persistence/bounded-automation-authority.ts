@@ -1,3 +1,5 @@
+import { SELECTED_SOURCE_INSPECTION } from "../prospective-agenda";
+import { SELECTED_SOURCE_INSPECTION_TASK, SELECTED_SOURCE_INSPECTION_TITLE, SELECTED_SOURCE_INSPECTION_CHECKS, SELECTED_SOURCE_INSPECTION_OUTPUTS } from "../automation/selected-source-inspection-profile";
 import type Database from "better-sqlite3";
 
 import {
@@ -394,18 +396,20 @@ function normalizeWorkSourceMaterialV01(input: Omit<VNextAutomationWorkSourceV01
     non_goals: canonicalStringsV01(input.source_task.non_goals, "source_task.non_goals"),
   };
   if (task.success_criteria.length === 0) refuseV01("bounded_automation_success_criteria_empty", 422);
+  const preparation = input.operation_profile === SELECTED_SOURCE_INSPECTION;
+  const profileTask = preparation ? SELECTED_SOURCE_INSPECTION_TASK : LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01;
   const expectedTask = {
     goal: normalizeTextV01(
-      LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01.goal,
+      profileTask.goal,
       "expected_task.goal",
       WORK_TEXT_LIMIT_V01,
     ),
     success_criteria: canonicalStringsV01(
-      [...LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01.success_criteria],
+      [...profileTask.success_criteria],
       "expected_task.success_criteria",
     ),
     non_goals: canonicalStringsV01(
-      [...LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01.non_goals],
+      [...profileTask.non_goals],
       "expected_task.non_goals",
     ),
   };
@@ -415,14 +419,14 @@ function normalizeWorkSourceMaterialV01(input: Omit<VNextAutomationWorkSourceV01
   if (
     canonicalizeProtocolValueV01(task) !==
       canonicalizeProtocolValueV01(expectedTask) ||
-    normalizedTitle !== LOCAL_PROJECT_ROOT_VERIFICATION_TITLE_V01 ||
+    normalizedTitle !== (preparation ? SELECTED_SOURCE_INSPECTION_TITLE : LOCAL_PROJECT_ROOT_VERIFICATION_TITLE_V01) ||
     canonicalizeProtocolValueV01(requiredChecks) !==
       canonicalizeProtocolValueV01(
-        [...LOCAL_PROJECT_ROOT_VERIFICATION_REQUIRED_CHECKS_V01],
+        [...(preparation ? SELECTED_SOURCE_INSPECTION_CHECKS : LOCAL_PROJECT_ROOT_VERIFICATION_REQUIRED_CHECKS_V01)],
       ) ||
     canonicalizeProtocolValueV01(expectedOutputs) !==
       canonicalizeProtocolValueV01(
-        [...LOCAL_PROJECT_ROOT_VERIFICATION_EXPECTED_OUTPUTS_V01],
+        [...(preparation ? SELECTED_SOURCE_INSPECTION_OUTPUTS : LOCAL_PROJECT_ROOT_VERIFICATION_EXPECTED_OUTPUTS_V01)],
       ) ||
     input.proposed_files.length !== 0
   ) {
@@ -447,7 +451,7 @@ function normalizeWorkSourceMaterialV01(input: Omit<VNextAutomationWorkSourceV01
     workspace_id: normalizeTextV01(input.workspace_id, "workspace_id"),
     project_id: normalizeTextV01(input.project_id, "project_id"),
     work_class: "bounded_project_task" as const,
-    operation_profile: input.operation_profile === LOCAL_PROJECT_ROOT_VERIFICATION_WORK_PROFILE_V01
+    operation_profile: preparation ? SELECTED_SOURCE_INSPECTION as typeof SELECTED_SOURCE_INSPECTION : input.operation_profile === LOCAL_PROJECT_ROOT_VERIFICATION_WORK_PROFILE_V01
       ? LOCAL_PROJECT_ROOT_VERIFICATION_WORK_PROFILE_V01
       : refuseV01("bounded_automation_work_operation_profile_invalid", 422),
     title: normalizedTitle,

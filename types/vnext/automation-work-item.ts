@@ -28,7 +28,7 @@ export interface VNextAutomationWorkSourceV01 {
   project_id: string;
   work_id: string;
   work_class: "bounded_project_task";
-  operation_profile: typeof LOCAL_PROJECT_ROOT_VERIFICATION_WORK_PROFILE_V01;
+  operation_profile: typeof LOCAL_PROJECT_ROOT_VERIFICATION_WORK_PROFILE_V01 | "selected_source_inspection.v0.1";
   title: string;
   task: {
     goal: string;

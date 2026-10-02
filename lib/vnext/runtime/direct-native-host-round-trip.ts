@@ -7,6 +7,9 @@ import { createHash } from "node:crypto";
 import { lstat } from "node:fs/promises";
 
 import type Database from "better-sqlite3";
+import { readAgendaInput, judgeAgenda, SELECTED_SOURCE_INSPECTION } from "../prospective-agenda";
+import { readReentry } from "../persistence/prospective-reentry-store";
+import { readSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
 
 import {
   appendAutonomyRunLedgerEvent,
@@ -1431,6 +1434,13 @@ function revalidateBoundedAutomationContextInsideTransactionV01(
   });
   const expectedGrantRef = createBoundedAutomationGrantRefV01(grant);
   const expectedWorkRef = work ? createAutomationWorkRefV01(work.source) : null;
+  if (grant.work_operation_profile === SELECTED_SOURCE_INSPECTION) {
+    const agenda = readAgendaInput(readSelectedWorkSources(input.admission.packet), input.evaluated_at);
+    const eligibility = agenda ? readReentry(db, { ...input.config, agenda_ref: agenda.source_ref }) : null;
+    if (!agenda || !eligibility || eligibility.phase !== "claimed" || eligibility.work_id !== work?.source.work_id ||
+      eligibility.work_fingerprint !== work.source.work_fingerprint || eligibility.control_revision !== grant.control_revision ||
+      judgeAgenda(agenda, input.evaluated_at).action !== "prepare") refuse("prospective_execution_eligibility_changed", 409);
+  }
   if (
     !control ||
     !control.enabled ||
