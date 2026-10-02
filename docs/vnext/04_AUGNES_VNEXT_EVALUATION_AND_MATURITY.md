@@ -400,6 +400,19 @@ change must preserve selected counterevidence, factual support and still-valid
 methods. New relevance does not retroactively validate a forecast or invalidate
 an observation. The fresh reader must recover the effective principal/revision
 and history through current admission, not fixture-injected ownership.
+The #1383 review corrections additionally discriminate retained historical agenda
+from current work through ordinary revision, successor, native admission and
+GuideBrief. A fresh sidecar is insufficient. Check expected direction at the
+packet writer's transaction boundary, preserve already admitted results, and allow
+explicit reconsideration to retain independently supported methods. Relocate both
+authenticated independent and delegated creations through the canonical rebind
+owner, then validate history and credential-suspended recovery. Reject unrelated
+grant/slot/project/root attribution and reuse of a consumed creation slot. Missing
+pre-correction attribution must be reported, never reconstructed from current root.
+Browser acceptance must show the complete proposal, accept changed criteria and
+constraints, edit only purpose, save/reload and retain those accepted fields;
+refresh while dirty must disclose conflict without overwriting unsaved values.
+Earlier passing receipts do not establish these newly corrected assertions.
 
 The #1382 ready-to-review ordinary case and exact missing inputs are recorded in
 03. No live ordinary model judgment or comparative usefulness is claimed. Capture

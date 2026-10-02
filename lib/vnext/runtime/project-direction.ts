@@ -2,7 +2,7 @@ import type Database from "better-sqlite3";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { realpathSync, statSync } from "node:fs";
 import { canonicalizeProtocolValueV01 as canonical, createProtocolSha256V01 as hash } from "../protocol-primitives";
-import { DIRECTION_VERSION, parseDirectionContent, directionObject, directionRef, directionText, directionInteger, directionArray, type DirectionDecision, type DirectionEntry, type DirectionGrant, type DirectionPrincipal, type DirectionParent } from "../project-direction";
+import { DIRECTION_VERSION, parseDirectionContent, directionObject, directionRef, directionText, directionInteger, directionArray, type DirectionCreation, type DirectionDecision, type DirectionEntry, type DirectionGrant, type DirectionPrincipal, type DirectionParent } from "../project-direction";
 import { appendDirectionRecord, directionCheck as check, directionCurrent, effectiveDirection, findDirectionGrant, grantAvailable, readDirectionRecord, readDirectionRecords, readProjectDirection, type DirectionScope } from "../persistence/project-direction-store";
 import { getOrCreateCanonicalProjectForLocalRootV01, normalizeLocalProjectRootRefV01, readCanonicalProjectIdentityV01 } from "../persistence/project-identity-registry";
 import { readVNextCoreRecordV01 } from "../persistence/durable-semantic-store";
@@ -38,7 +38,7 @@ export type DirectionAgentAccess = { grant: DirectionEntry<DirectionGrant>; sequ
 
 function base(scope: DirectionScope, at: string) { return { version: DIRECTION_VERSION as typeof DIRECTION_VERSION, workspace_id: scope.workspace_id, project_id: scope.project_id, at }; }
 function saveDecision(db: Database.Database, scope: DirectionScope, request: DecideRequest, actor: DirectionPrincipal,
-  at: string, authority: DirectionEntry<DirectionGrant> | null, parent: DirectionParent | null = null) {
+  at: string, authority: DirectionEntry<DirectionGrant> | null, parent: DirectionParent | null = null, creation: DirectionCreation | null = null) {
   const previous = effectiveDirection(db, scope, at);
   check(previous?.ref === request.expected_ref || !previous && request.expected_ref === null, "stale_revision");
   check(!previous || previous.value.at < at, "decision_time_conflict");
@@ -61,6 +61,7 @@ function saveDecision(db: Database.Database, scope: DirectionScope, request: Dec
   }
   return appendDirectionRecord(db, { ...base(scope, at), kind: "decision", revision: (previous?.value.revision ?? 0) + 1,
     previous: previous?.ref ?? null, created_by: previous ? previous.value.created_by : authority ? actor : null, principal, authority_ref: authority?.ref ?? null,
+    creation: previous?.value.creation ?? creation,
     parent, content: request.content, status: request.status, reason: request.reason, proposal_ref: request.proposal_ref } satisfies DirectionDecision);
 }
 
@@ -175,13 +176,22 @@ export function mutateAgentDirection(db: Database.Database, input: { token: stri
       check(envelope.project_id === null, "creation_scope_invalid");
       const slot = access.grant.value.creation_slots[op.slot];
       check(slot && access.grant.value.allowed_directions.some(c => canonical(c) === canonical(op.content)), "creation_not_authorized", 403);
+      // The slot is consumed by immutable genesis, even after a root rebind.
+      // Older draft genesis lacks a provable slot: never guess or reuse it.
+      const creations = db.prepare("SELECT body_json FROM vnext_project_direction_records WHERE workspace_id=? AND kind='decision' AND json_extract(body_json,'$.previous') IS NULL AND json_extract(body_json,'$.authority_ref')=?")
+        .all(access.grant.value.workspace_id, access.grant.ref) as Array<{ body_json: string }>;
+      check(creations.every(row => {
+        const decision = JSON.parse(row.body_json) as DirectionDecision;
+        return decision.creation && decision.creation.slot !== op.slot;
+      }), "creation_slot_already_used");
       check(realpathSync(slot.root) === slot.root && rootIdentity(slot.root) === slot.root_identity, "creation_root_changed");
       const result = getOrCreateCanonicalProjectForLocalRootV01(db, { workspace_id: access.grant.value.workspace_id,
         local_root: normalizeLocalProjectRootRefV01(slot.root, { base_path: slot.root }), display_name: slot.display_name }, { now: () => input.at });
       check(result.status === "inserted", "creation_slot_already_used");
       scope = result.project;
       const parent = slot.parent ? { ...slot.parent, delegation_ref: access.grant.ref } : null;
-      record = saveDecision(db, scope, { action: "decide", expected_ref: null, content: op.content, reason: op.reason, status: "active", proposal_ref: null }, actor, input.at, access.grant, parent);
+      record = saveDecision(db, scope, { action: "decide", expected_ref: null, content: op.content, reason: op.reason, status: "active", proposal_ref: null }, actor, input.at, access.grant, parent,
+        { grant_ref: access.grant.ref, slot: op.slot, project_id: scope.project_id, created_at: input.at, root: slot.root, root_identity: slot.root_identity });
     } else {
       check(envelope.project_id, "project_required");
       const selected = agentProject(db, access, envelope.project_id, input.at);

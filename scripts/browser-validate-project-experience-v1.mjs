@@ -4820,6 +4820,59 @@ async function validateProjectDirectionUI(accessDatabasePath, projectAlphaId) {
     await waitForCondition(`document.querySelector('[data-project-direction]')?.textContent.includes('Revision 2') === true`, "revised human direction");
     await navigate(`${appOrigin}/projects/${encodeURIComponent(projectAlphaId)}`);
     await waitForCondition(`document.querySelector('[data-project-direction]')?.textContent.includes('Revision 2') === true`, "fresh direction reconstruction");
+    await waitForCondition(`document.querySelector('[data-project-direction-hydrated="true"]') !== null`, "reopened direction editor hydrated");
+    // Issue an actual bounded proposal capability through the authenticated UI
+    // transport. The secret remains inside this browser invocation, never in
+    // diagnostics, the DOM, an artifact or the test's returned value.
+    assert.equal(await evaluateBoolean(`(async () => {
+      const url = '/api/vnext/operator/project-direction?project_id=' + ${JSON.stringify(projectAlphaId)};
+      const read = await (await fetch(url, { cache: 'no-store' })).json();
+      const content = { purpose: 'Review the proposed source question', criteria: ['Preserve accepted proposal criteria'], constraints: ['Keep the accepted source boundary'] };
+      const issued = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+        action: 'authorize_agent', role: 'role:proposal-reviewer', allowed_directions: [content], max_mutations: 1, expires_in_minutes: 10, creation_slots: [] }) });
+      if (!issued.ok) return false;
+      const access = await issued.json();
+      const proposed = await fetch('/api/vnext/agent/project-direction', { method: 'POST', credentials: 'omit', headers: {
+        'Content-Type': 'application/json', Authorization: 'Bearer ' + access.credential }, body: JSON.stringify({ project_id: ${JSON.stringify(projectAlphaId)}, sequence: 0,
+          operation: { action: 'propose', expected_ref: read.state.effective.ref, content, reason: 'Preserve the full proposed content on acceptance' } }) });
+      return proposed.ok;
+    })()`), true);
+    await clickButtonByText('Refresh direction', '[data-project-direction]');
+    await waitForCondition(`document.querySelector('[data-project-direction]')?.textContent.includes('Proposed progress criteria: Preserve accepted proposal criteria') === true`, "full proposed criteria visible");
+    assert.equal(await evaluateBoolean(`document.querySelector('[data-project-direction]')?.textContent.includes('Proposed constraints: Keep the accepted source boundary')`), true);
+    await evaluateBoolean(`(() => { document.querySelectorAll('[data-project-direction] details').forEach(d => d.open = true); return true; })()`);
+    await setFormControlValue('[aria-label="Why change direction?"]', 'Accept the complete proposed direction');
+    await clickButtonByText('Use this proposed direction', '[data-project-direction]');
+    await waitForCondition(`document.querySelector('[data-project-direction]')?.textContent.includes('Revision 3') === true`, "proposal accepted");
+    assert.equal(await evaluateString(`document.querySelector('[aria-label="Useful progress (one per line)"]').value`), 'Preserve accepted proposal criteria');
+    assert.equal(await evaluateString(`document.querySelector('[aria-label="Constraints (one per line)"]').value`), 'Keep the accepted source boundary');
+    await setFormControlValue('[aria-label="Desired outcome or open question"]', 'Refine only the accepted purpose');
+    await setFormControlValue('[aria-label="Why change direction?"]', 'Purpose-only refinement after acceptance');
+    await clickButtonByText('Save direction', '[data-project-direction]');
+    await waitForCondition(`document.querySelector('[data-project-direction]')?.textContent.includes('Revision 4') === true`, "purpose-only edit saved");
+    await navigate(`${appOrigin}/projects/${encodeURIComponent(projectAlphaId)}`);
+    await waitForCondition(`document.querySelector('[data-project-direction]')?.textContent.includes('Revision 4') === true`, "accepted content reconstructed");
+    await waitForCondition(`document.querySelector('[data-project-direction-hydrated="true"]') !== null`, "accepted direction editor hydrated");
+    assert.deepEqual(await evaluateJson(`(async () => (await (await fetch('/api/vnext/operator/project-direction?project_id=' + ${JSON.stringify(projectAlphaId)}, { cache: 'no-store' })).json()).state.effective.value.content)()`), {
+      purpose: 'Refine only the accepted purpose', criteria: ['Preserve accepted proposal criteria'], constraints: ['Keep the accepted source boundary'],
+    });
+    await evaluateBoolean(`(() => { document.querySelectorAll('[data-project-direction] details').forEach(d => d.open = true); return true; })()`);
+    await setFormControlValue('[aria-label="Desired outcome or open question"]', 'Unsaved local exploration');
+    // Another authenticated mutation updates canonical state while the editor is
+    // dirty. Refresh must disclose the conflict and retain the original basis.
+    assert.equal(await evaluateBoolean(`(async () => {
+      const url = '/api/vnext/operator/project-direction?project_id=' + ${JSON.stringify(projectAlphaId)};
+      const value = await (await fetch(url, { cache: 'no-store' })).json();
+      return (await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'decide', expected_ref: value.state.effective.ref,
+        content: { purpose: 'Direction from another authenticated editor', criteria: ['External criterion'], constraints: ['External constraint'] }, reason: 'Observed outside this form', status: 'active', proposal_ref: null }) })).ok;
+    })()`), true);
+    await clickButtonByText('Refresh direction', '[data-project-direction]');
+    await waitForCondition(`document.querySelector('[data-project-direction]')?.textContent.includes('Your unsaved edits are preserved') === true`, "dirty editor conflict disclosed");
+    assert.equal(await evaluateString(`document.querySelector('[aria-label="Desired outcome or open question"]').value`), 'Unsaved local exploration');
+    assert.equal(await evaluateBoolean(`Array.from(document.querySelectorAll('[data-project-direction] button')).find(b => b.textContent === 'Save direction').disabled`), true);
+    await clickButtonByText('Discard edits and load latest direction', '[data-project-direction]');
+    await waitForCondition(`document.querySelector('[aria-label="Useful progress (one per line)"]').value === 'External criterion'`, "canonical editor restored explicitly");
+    assert.equal(await evaluateString(`document.querySelector('[aria-label="Constraints (one per line)"]').value`), 'External constraint');
     assert.equal(await evaluateBoolean(`document.querySelector('[data-project-direction]')?.textContent.includes('Reconsider pending work') === true`), true);
     assert.deepEqual(packetBytes(), packetsBeforeDirection, "Direction changes preserve task and selected factual source bytes");
     for (const width of [390, 768, 1440]) {

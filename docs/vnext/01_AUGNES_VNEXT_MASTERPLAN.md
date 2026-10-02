@@ -295,6 +295,12 @@ project surface. Criteria, authority, delegation and history remain disclosed on
 demand. Working direction guides selection; accepted goals and current task
 instructions remain distinct, explicitly bound inputs. GuideBrief interprets those
 inputs and cannot silently make a direction effective.
+Retaining an earlier direction or agenda in a newly authored task preserves
+history; it does not establish reconsideration. Current guidance and new Start
+admission must agree on the direction actually selected by the work. Proposal
+review shows purpose, criteria and constraints together. Acceptance loads that
+complete content into the editor; refreshed state discloses conflicting unsaved
+edits rather than silently rebasing them.
 
 For the human's own work, the human retains the north star. A separately authorized
 agent-directed project has a provider-neutral logical decision role that can make
@@ -305,6 +311,8 @@ bounded authorization. A child returns attributed material; it does not rewrite 
 parent's purpose or inherit credentials. Parentage is not a prerequisite for method
 reuse. Changing preference changes relevance and selection, not the validity of
 observations, forecasts, counterevidence or still-applicable methods.
+Moving a project's local folder does not change its creation attribution or free
+an already consumed delegation slot.
 
 ## 7. Product and Core authority boundary
 

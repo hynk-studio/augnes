@@ -13,19 +13,8 @@ import { revisePreExecutionProjectWorkV01 } from "./project-work-revision";
 import type { VNextLocalOperatorPilotConfigV01, VNextLocalOperatorSessionCredentialV01 } from "./local-operator-session";
 import type { VNextLocalRuntimeClockV01 } from "./local-runtime-clock";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
-import type { DirectionDecision, DirectionEntry } from "../project-direction";
-
-export const DIRECTION_SOURCE = "project_direction_source.v0.1";
-export function directionSource(current: DirectionEntry<DirectionDecision>) {
-  const d = current.value;
-  return buildSelectedWorkSourceEntry(d, { source: "Effective project direction", label: "New candidate", observed_at: d.at,
-    provenance: d.principal.kind === "human" ? "user_declaration" : "derived_interpretation",
-    text: canonical({ version: DIRECTION_SOURCE, revision_ref: current.ref, authority_ref: d.authority_ref,
-      principal: d.principal, purpose: d.content.purpose }) });
-}
-function selectedProfile(entry: { bounded_summary: string | null }) {
-  try { return JSON.parse(entry.bounded_summary ?? "null"); } catch { return null; }
-}
+import { DIRECTION_SOURCE, directionSource, selectedDirectionProfile as selectedProfile } from "../project-direction-source";
+export { DIRECTION_SOURCE, directionSource } from "../project-direction-source";
 /** A structured note is a projection, not proof. Production admission resolves
  * its exact bytes against the authenticated durable direction owner. */
 export function assertAgendaDirectionBinding(db: Database.Database, packet: TaskContextPacketV01, at: string) {
@@ -103,7 +92,7 @@ export function prepareDirectionAgenda(db: Database.Database, input: {
   const hasMethod = retained.some(e => selectedProfile(e)?.kind === "method");
   const sources = [...retained, direction, note(agenda), ...(!hasMethod ? [note(method)] : [])];
   const comparison = compareSelectedWorkSources(packet, sources);
-  const result = revisePreExecutionProjectWorkV01(db, { ...input, request: {
+  const result = revisePreExecutionProjectWorkV01(db, { ...input, expected_direction_ref: request.expected_ref, request: {
     action: "revise_pre_execution_project_work", workspace_id: input.config.workspace_id, project_id: input.config.project_id,
     expected_active_project_id: input.config.project_id, expected_active_selection_revision: work.active_selection_revision,
     expected_current_packet_id: packet.packet_id, expected_current_packet_fingerprint: packet.integrity.fingerprint,

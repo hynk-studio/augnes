@@ -217,11 +217,19 @@ revision/pause, delegated child creation and attributed return. Explicit renewal
 lets a replacement executor recover the same logical role without rewriting
 history. Pending Start projections and final admission enforce reconsideration;
 already admitted work retains its source basis.
+The PR #1383 correction distinguishes consumed historical direction/agenda from
+current recommendation, rechecks expected direction inside authoring, and records
+creation-slot attribution independently of later root relocation. Complete proposal
+acceptance and conflict-aware editor refresh close the human UI correction.
 
 Development checks exercise these production owners with disposable data, exact
 prior revisions, replay/authority/parent boundaries, factual and method preservation,
 real file inspection, recovery and fresh readers. The browser owner includes the
-normal human author/revise/reload flow and responsive checks. Exact-head pass and
+normal human author/revise/reload flow, authenticated agent proposal acceptance
+with changed criteria/constraints, purpose-only save/reload, dirty-editor refresh
+and responsive checks. Production regressions cover canonical relocation of both
+independent and delegated projects, slot reuse refusal and suspended-credential
+recovery. Exact-head pass and
 cleanup evidence belong to the Draft PR receipt, not this status paragraph.
 This does not complete P3/P4/P5 or measure ordinary model judgment/usefulness.
 
@@ -246,8 +254,12 @@ Revalidate exact bytes before authorization. Engineering does not invent
 those inputs. Portable direction export remains unsupported; recovery backup
 preserves its history with credentials disabled. Broader automation, general
 purpose optimization, hosted mutations and a comparative campaign remain outside
-this increment. Next: review the bounded implementation, then authorize this
-specific ordinary case and measure its actual first decision and repair burden.
+this increment. Pre-correction draft agent genesis lacking immutable creation
+attribution is retained for reading, with an explicit recovery refusal; automatic
+backfill from the current root is unsupported. Broader recovery compatibility is
+not inferred from fresh-format tests. Next: review the bounded implementation,
+then authorize this specific ordinary case and measure its actual first decision
+and repair burden.
 
 ### Later ordinary-use evidence and current prerequisites
 

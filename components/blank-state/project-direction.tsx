@@ -4,15 +4,25 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { DirectionContent, DirectionView } from "@/lib/vnext/project-direction";
 
+function editorFor(state: DirectionView) {
+  const value = state.effective?.value.content;
+  return { basis: state.effective?.ref ?? null, revision: state.effective?.value.revision ?? 0, dirty: false,
+    purpose: value?.purpose ?? "", criteria: value?.criteria.join("\n") ?? "", constraints: value?.constraints.join("\n") ?? "", reason: "" };
+}
+
 export function ProjectDirection({ projectId, initial }: { projectId: string; initial: DirectionView }) {
   const router = useRouter();
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => setHydrated(true), []);
   const [state, setState] = useState(initial);
-  const [purpose, setPurpose] = useState(initial.effective?.value.content.purpose ?? "");
-  const [reason, setReason] = useState("");
-  const [criteria, setCriteria] = useState(initial.effective?.value.content.criteria.join("\n") ?? "");
-  const [constraints, setConstraints] = useState(initial.effective?.value.content.constraints.join("\n") ?? "");
+  const [editor, setEditor] = useState(() => editorFor(initial));
+  const { purpose, criteria, constraints, reason } = editor;
+  const edit = (field: "purpose" | "criteria" | "constraints" | "reason", value: string) => setEditor(previous => ({ ...previous, [field]: value, dirty: true }));
+  const conflict = editor.basis !== (state.effective?.ref ?? null);
+  useEffect(() => {
+    setState(previous => (previous.effective?.value.revision ?? 0) > (initial.effective?.value.revision ?? 0) ? previous : initial);
+    setEditor(previous => previous.dirty || previous.revision > (initial.effective?.value.revision ?? 0) ? previous : editorFor(initial));
+  }, [initial]);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [files, setFiles] = useState([{ path: "", contains: "" }, { path: "", contains: "" }]);
@@ -45,31 +55,40 @@ export function ProjectDirection({ projectId, initial }: { projectId: string; in
     finally { setBusy(false); }
   }
   async function decide(selected = content(), proposalRef: string | null = null) {
-    const result = await request(route, { action: "decide", expected_ref: state.effective?.ref ?? null, content: selected,
+    const result = await request(route, { action: "decide", expected_ref: editor.basis, content: selected,
       reason: reason || (state.effective ? "" : "Initial working direction"), status: "active", proposal_ref: proposalRef });
-    setState(result.state); setPurpose(selected.purpose); setAgenda(null); setReason(""); setMessage("Direction saved. Pending work must use this revision; earlier work and evidence remain unchanged.");
+    setState(result.state); setEditor(editorFor(result.state)); setAgenda(null); setMessage("Direction saved. Pending work must use this revision; earlier work and evidence remain unchanged.");
   }
-  return <section className="blank-state-project-direction" aria-label="Project direction" data-project-direction="v0.1" data-project-direction-hydrated={hydrated ? "true" : "false"}>
+  return <section id="project-direction" className="blank-state-project-direction" aria-label="Project direction" data-project-direction="v0.1" data-project-direction-hydrated={hydrated ? "true" : "false"}>
     <p className="blank-state-region-label">Project direction</p>
     <p>{state.effective?.value.content.purpose ?? "What would you like this project to explore or achieve?"}</p>
     {state.effective && <p>Decision authority: {state.effective.value.principal.kind === "human" ? "You" : state.effective.value.principal.id.replace(/^role:/, "")} · Revision {state.effective.value.revision} · {state.effective.value.status}</p>}
+    <button disabled={busy || !hydrated} onClick={() => void act(async () => {
+      const result = await request(route); setState(result.state);
+      setEditor(previous => previous.dirty ? previous : editorFor(result.state)); setAgenda(null);
+    })}>Refresh direction</button>
+    {conflict && <div role="status"><p>Direction changed outside this editor. Your unsaved edits are preserved; review the latest direction before editing it.</p>
+      <button disabled={busy} onClick={() => { setEditor(editorFor(state)); setAgenda(null); }}>Discard edits and load latest direction</button>
+    </div>}
     {(!state.parent_current || !state.authority_current || state.pending_work.some(w => w.needs_reconsideration)) && <p role="status">Direction or delegation changed. Reconsider pending work before starting it.</p>}
     <details>
       <summary>{state.effective ? "Review or change direction" : "Add a direction (optional)"}</summary>
       <p>A short outcome or open question is enough. Direction guides task selection; accepted goals and factual support retain their existing review process.</p>
       {state.effective?.value.principal.kind !== "agent" && <form onSubmit={event => { event.preventDefault(); void act(() => decide()); }}>
-        <label>Desired outcome or open question<textarea aria-label="Desired outcome or open question" maxLength={600} value={purpose} onChange={e => setPurpose(e.target.value)} required /></label>
-        {state.effective && <label>Why change direction?<input aria-label="Why change direction?" value={reason} maxLength={600} onChange={e => setReason(e.target.value)} required /></label>}
+        <label>Desired outcome or open question<textarea aria-label="Desired outcome or open question" maxLength={600} value={purpose} onChange={e => edit("purpose", e.target.value)} required /></label>
+        {state.effective && <label>Why change direction?<input aria-label="Why change direction?" value={reason} maxLength={600} onChange={e => edit("reason", e.target.value)} required /></label>}
         <details><summary>Progress criteria and constraints</summary>
-          <label>Useful progress (one per line)<textarea value={criteria} onChange={e => setCriteria(e.target.value)} /></label>
-          <label>Constraints (one per line)<textarea value={constraints} onChange={e => setConstraints(e.target.value)} /></label>
+          <label>Useful progress (one per line)<textarea aria-label="Useful progress (one per line)" value={criteria} onChange={e => edit("criteria", e.target.value)} /></label>
+          <label>Constraints (one per line)<textarea aria-label="Constraints (one per line)" value={constraints} onChange={e => edit("constraints", e.target.value)} /></label>
         </details>
-        <button disabled={busy || !hydrated} type="submit">Save direction</button>
+        <button disabled={busy || !hydrated || conflict} type="submit">Save direction</button>
       </form>}
       {state.proposals.map(proposal => <div key={proposal.ref}>
         <p>{proposal.value.kind === "return" ? "Returned child material" : "Proposed direction"}: {proposal.value.content.purpose}</p>
+        <p>Proposed progress criteria: {proposal.value.content.criteria.join("; ") || "None specified"}</p>
+        <p>Proposed constraints: {proposal.value.content.constraints.join("; ") || "None specified"}</p>
         <p>{proposal.value.reason} · Proposed by {proposal.value.principal.id}</p>
-        {proposal.value.kind === "proposal" && state.effective?.value.principal.kind === "human" && <button disabled={busy || !hydrated || !reason} onClick={() => void act(() => decide(proposal.value.content, proposal.ref))}>Use this proposed direction</button>}
+        {proposal.value.kind === "proposal" && state.effective?.value.principal.kind === "human" && <button disabled={busy || !hydrated || !reason || conflict || proposal.value.basis_ref !== state.effective.ref} onClick={() => void act(() => decide(proposal.value.content, proposal.ref))}>Use this proposed direction</button>}
       </div>)}
       <details><summary>Direction history and delegation</summary>
         <p>Creation attribution: {state.history[0]?.value.created_by?.id ?? "Not recorded for this existing project"}. Direction permission never authorizes execution or increases resources.</p>

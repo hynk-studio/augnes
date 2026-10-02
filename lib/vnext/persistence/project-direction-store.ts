@@ -2,6 +2,10 @@ import type Database from "better-sqlite3";
 import { canonicalizeProtocolValueV01 as canonical, createProtocolSha256V01 as hash } from "../protocol-primitives";
 import { parseDirectionContent, parseDirectionPrincipal, directionObject, directionRef, directionTime, directionText, directionInteger, directionArray, DIRECTION_VERSION, type DirectionBinding, type DirectionDecision, type DirectionEntry, type DirectionGrant, type DirectionRecord, type DirectionView, type DirectionProposal } from "../project-direction";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
+import type { PacketDirectionInterpretation } from "../project-direction";
+import { readSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
+import { DIRECTION_SOURCE, directionSource, selectedDirectionProfile } from "../project-direction-source";
+import { readAgendaInput } from "../prospective-agenda";
 
 export type DirectionScope = { workspace_id: string; project_id: string };
 const nullableRef = (value: unknown) => value === null ? null : directionRef(value);
@@ -23,11 +27,20 @@ function validateRecord(value: unknown): asserts value is DirectionRecord {
     binding: ["packet_id", "packet_fingerprint", "direction_ref"], revocation: ["grant_ref", "principal", "reason"],
   };
   directionCheck(Object.hasOwn(fields, r.kind), "record_kind_invalid");
+  if (r.kind === "decision" && Object.hasOwn(r, "creation")) fields.decision.push("creation");
+  if (r.kind === "binding" && Object.hasOwn(r, "basis")) fields.binding.push("basis");
   directionObject(r, ["version", "kind", "workspace_id", "project_id", "at", ...fields[r.kind]]);
   if (r.kind === "decision") {
     directionInteger(r.revision, 1, 512); nullableRef(r.previous); if (r.created_by) parseDirectionPrincipal(r.created_by);
     parseDirectionPrincipal(r.principal); nullableRef(r.authority_ref); validateParent(r.parent); parseDirectionContent(r.content);
+    directionCheck((r.principal.kind === "agent") === (r.authority_ref !== null), "decision_authority_invalid");
     directionCheck(["active", "paused"].includes(r.status), "status_invalid"); directionText(r.reason); nullableRef(r.proposal_ref);
+    if (r.creation !== undefined && r.creation !== null) {
+      const c = directionObject(r.creation, ["grant_ref", "slot", "project_id", "created_at", "root", "root_identity"]);
+      directionRef(c.grant_ref); directionInteger(c.slot, 0, 1); directionText(c.project_id, 256);
+      directionTime(c.created_at); directionText(c.root, 8192); directionRef(c.root_identity);
+      directionCheck(r.principal.kind === "agent" && r.authority_ref !== null, "creation_attribution_invalid");
+    }
   } else if (r.kind === "grant") {
     directionCheck(r.execution_authority === false && r.principal.kind === "agent" && r.issuer.kind === "human", "grant_authority_invalid");
     parseDirectionPrincipal(r.principal); parseDirectionPrincipal(r.issuer); directionTime(r.expires_at);
@@ -44,7 +57,7 @@ function validateRecord(value: unknown): asserts value is DirectionRecord {
       directionText(continuation.project_id, 256); directionRef(continuation.expected_ref);
       if (continuation.parent) validateParent({ ...(continuation.parent as object), delegation_ref: "sha256:"+"0".repeat(64) });
     }
-  } else if (r.kind === "binding") { directionText(r.packet_id, 256); directionRef(r.packet_fingerprint); directionRef(r.direction_ref); }
+  } else if (r.kind === "binding") { directionText(r.packet_id, 256); directionRef(r.packet_fingerprint); directionRef(r.direction_ref); directionCheck(r.basis === undefined || r.basis === "selected_direction", "binding_basis_invalid"); }
   else if (r.kind === "revocation") { directionRef(r.grant_ref); parseDirectionPrincipal(r.principal); directionText(r.reason); }
   else {
     parseDirectionPrincipal(r.principal); directionRef(r.authority_ref); nullableRef(r.basis_ref); parseDirectionContent(r.content); directionText(r.reason);
@@ -97,7 +110,7 @@ export function effectiveDirection(db: Database.Database, scope: DirectionScope,
   let prior: DirectionEntry<DirectionDecision> | null = null;
   for (const entry of history) {
     directionCheck(entry.value.previous === (prior?.ref ?? null) && entry.value.revision === (prior?.value.revision ?? 0) + 1 &&
-      (!prior || entry.value.at > prior.value.at && canonical(entry.value.created_by) === canonical(prior.value.created_by) && canonical(entry.value.principal) === canonical(prior.value.principal)), "history_invalid");
+      (!prior || entry.value.at > prior.value.at && canonical(entry.value.creation ?? null) === canonical(prior.value.creation ?? null) && canonical(entry.value.created_by) === canonical(prior.value.created_by) && canonical(entry.value.principal) === canonical(prior.value.principal)), "history_invalid");
     prior = entry;
   }
   return prior;
@@ -131,14 +144,33 @@ export function directionCurrent(db: Database.Database, current: DirectionEntry<
   return { parent_current: parentCurrent, authority_current: !authority || grantAvailable(db, authority.value, authority.ref, at) };
 }
 export function bindPacketDirection(db: Database.Database, packet: TaskContextPacketV01) {
-  const direction = effectiveDirection(db, packet, packet.generated_at);
+  const direction = consumedPacketDirection(db, packet);
   if (!direction) return;
-  const state = directionCurrent(db, direction, packet.generated_at);
-  directionCheck(state.parent_current && state.authority_current && direction.value.status === "active", "reconsideration_required");
   const existing = packetDirectionBinding(db, packet);
   if (existing) { directionCheck(existing.value.direction_ref === direction.ref, "binding_conflict"); return; }
   appendDirectionRecord(db, { version: DIRECTION_VERSION, kind: "binding", workspace_id: packet.workspace_id, project_id: packet.project_id,
-    at: packet.generated_at, packet_id: packet.packet_id, packet_fingerprint: packet.integrity.fingerprint, direction_ref: direction.ref });
+    at: packet.generated_at, packet_id: packet.packet_id, packet_fingerprint: packet.integrity.fingerprint, direction_ref: direction.ref, basis: "selected_direction" });
+}
+/** Resolve the direction the packet actually selected. A sidecar never proves
+ * reconsideration. An agenda, when present, must point to this exact projection. */
+function consumedPacketDirection(db: Database.Database, packet: TaskContextPacketV01): DirectionEntry<DirectionDecision> | null {
+  try {
+    const sources = readSelectedWorkSources(packet);
+    const selected = sources.filter(e => selectedDirectionProfile(e)?.version === DIRECTION_SOURCE);
+    if (selected.length !== 1) return null;
+    const ref = directionRef(selectedDirectionProfile(selected[0]!).revision_ref);
+    const direction = readDirectionRecord(db, packet, ref);
+    if (direction.value.kind !== "decision" || direction.value.at > packet.generated_at) return null;
+    const projection = directionSource(direction as DirectionEntry<DirectionDecision>);
+    if (canonical(selected[0]) !== canonical(projection)) return null;
+    const agenda = readAgendaInput(sources, packet.generated_at);
+    if (agenda && agenda.agenda.direction_ref !== projection.source_ref) return null;
+    return direction as DirectionEntry<DirectionDecision>;
+  } catch { return null; }
+}
+export function assertExpectedPacketDirection(db: Database.Database, scope: DirectionScope, expected: string | null, at: string) {
+  directionCheck(db.inTransaction, "transaction_required");
+  directionCheck((effectiveDirection(db, scope, at)?.ref ?? null) === expected, "stale_revision");
 }
 export function packetDirectionBinding(db: Database.Database, packet: TaskContextPacketV01): DirectionEntry<DirectionBinding> | null {
   const bindings = readDirectionRecords(db, packet, packet.generated_at).filter((r): r is DirectionEntry<DirectionBinding> => r.value.kind === "binding" && r.value.packet_id === packet.packet_id);
@@ -146,11 +178,17 @@ export function packetDirectionBinding(db: Database.Database, packet: TaskContex
   return bindings[0] ?? null;
 }
 export function assertPacketDirectionCurrent(db: Database.Database, packet: TaskContextPacketV01, at: string) {
+  directionCheck(readPacketDirectionInterpretation(db, packet, at).status !== "historical", "reconsideration_required");
+}
+export function readPacketDirectionInterpretation(db: Database.Database, packet: TaskContextPacketV01, at: string): PacketDirectionInterpretation {
   const current = effectiveDirection(db, packet, at);
-  if (!current) return;
+  const consumed = consumedPacketDirection(db, packet);
+  if (!current) return { status: packet.selected_context?.some(e => selectedDirectionProfile(e)?.version === DIRECTION_SOURCE) ? "historical" : "unconfigured", direction_ref: consumed?.ref ?? null, effective_ref: null };
   const binding = packetDirectionBinding(db, packet);
   const state = directionCurrent(db, current, at);
-  directionCheck(binding?.value.direction_ref === current.ref && state.parent_current && state.authority_current && current.value.status === "active", "reconsideration_required");
+  const active = packet.generated_at <= at && consumed?.ref === current.ref && binding?.value.direction_ref === consumed.ref &&
+    state.parent_current && state.authority_current && current.value.status === "active";
+  return { status: active ? "current" : "historical", direction_ref: consumed?.ref ?? null, effective_ref: current.ref };
 }
 export function readProjectDirection(db: Database.Database, scope: DirectionScope, at: string): DirectionView {
   const records = readDirectionRecords(db, scope, at);
@@ -162,10 +200,10 @@ export function readProjectDirection(db: Database.Database, scope: DirectionScop
   const packets = db.prepare("SELECT payload_json FROM vnext_core_records WHERE workspace_id=? AND project_id=? AND record_kind='task_context_packet' AND created_at<=? ORDER BY created_at DESC LIMIT 1").all(scope.workspace_id, scope.project_id, at) as Array<{ payload_json: string }>;
   const pending = packets.map(row => {
     const packet = JSON.parse(row.payload_json) as TaskContextPacketV01;
-    const binding = packetDirectionBinding(db, packet);
+    const interpretation = readPacketDirectionInterpretation(db, packet, at);
     const admitted = !!db.prepare("SELECT 1 FROM autonomy_runs WHERE scope=? AND json_extract(metadata_json, '$.packet_id')=? AND created_at<=? LIMIT 1").get(scope.project_id, packet.packet_id, at);
-    return { packet_id: packet.packet_id, direction_ref: binding?.value.direction_ref ?? null, admitted,
-      needs_reconsideration: !admitted && !!effective && (effective.ref !== binding?.value.direction_ref || !state.parent_current || !state.authority_current || effective.value.status !== "active") };
+    return { packet_id: packet.packet_id, direction_ref: interpretation.direction_ref, interpretation: interpretation.status, admitted,
+      needs_reconsideration: !admitted && interpretation.status === "historical" };
   });
   const grants = records.filter((r): r is DirectionEntry<DirectionGrant> => r.value.kind === "grant").map(record => {
     const projects = (db.prepare("SELECT DISTINCT project_id FROM vnext_project_direction_records WHERE workspace_id=? AND kind='decision' AND recorded_at<=?").all(scope.workspace_id, at) as Array<{ project_id: string }>).flatMap(p => {
@@ -190,9 +228,13 @@ export function validateProjectDirectionHistory(db: Database.Database) {
     for (const r of records) {
       if (r.value.kind === "binding") {
         const d = readDirectionRecord(db, scope, r.value.direction_ref);
-        directionCheck(d.value.kind === "decision" && effectiveDirection(db, scope, r.value.at)?.ref === d.ref, "binding_history_invalid");
-        const packet = db.prepare("SELECT fingerprint FROM vnext_core_records WHERE workspace_id=? AND project_id=? AND record_id=? AND record_kind='task_context_packet'").get(scope.workspace_id,scope.project_id,r.value.packet_id) as { fingerprint: string } | undefined;
-        directionCheck(packet?.fingerprint === r.value.packet_fingerprint, "binding_packet_missing");
+        directionCheck(d.value.kind === "decision" && d.value.at <= r.value.at, "binding_history_invalid");
+        const packet = db.prepare("SELECT fingerprint,payload_json FROM vnext_core_records WHERE workspace_id=? AND project_id=? AND record_id=? AND record_kind='task_context_packet'").get(scope.workspace_id,scope.project_id,r.value.packet_id) as { fingerprint: string; payload_json: string } | undefined;
+        directionCheck(packet?.fingerprint === r.value.packet_fingerprint && JSON.parse(packet.payload_json).generated_at === r.value.at, "binding_packet_missing");
+        // Keep earlier draft sidecars intact as history; current admission still
+        // resolves consumed sources. New sidecars assert only the selected basis.
+        directionCheck(r.value.basis === "selected_direction" ? consumedPacketDirection(db, JSON.parse(packet.payload_json))?.ref === d.ref
+          : effectiveDirection(db, scope, r.value.at)?.ref === d.ref, "binding_history_invalid");
       }
       if (r.value.kind === "revocation") {
         const grant = findDirectionGrant(db, scope.workspace_id, r.value.grant_ref);
@@ -241,12 +283,21 @@ export function validateProjectDirectionHistory(db: Database.Database) {
         directionCheck(grant.value.at <= r.value.at && grant.value.expires_at > r.value.at && canonical(grant.value.principal) === canonical(r.value.principal) && grant.value.allowed_directions.some(c => canonical(c) === canonical((r.value as DirectionDecision).content)), "decision_authority_history_invalid");
         const d = r.value;
         const prior = d.previous ? readDirectionRecord(db, scope, d.previous) : null;
+        if (!d.previous) {
+          const c = d.creation;
+          directionCheck(c, "creation_attribution_missing");
+          const slot = grant.value.creation_slots[c.slot];
+          const project = db.prepare("SELECT created_at FROM vnext_project_identities WHERE workspace_id=? AND project_id=?").get(scope.workspace_id, scope.project_id) as { created_at: string } | undefined;
+          directionCheck(c.grant_ref === grant.ref && c.project_id === scope.project_id && c.created_at === d.at && project?.created_at === c.created_at &&
+            slot?.root === c.root && slot.root_identity === c.root_identity && canonical(d.created_by) === canonical(grant.value.principal) &&
+            canonical(d.parent) === canonical(slot.parent ? { ...slot.parent, delegation_ref: grant.ref } : null), "creation_attribution_invalid");
+          const uses = db.prepare("SELECT count(*) AS count FROM vnext_project_direction_records WHERE workspace_id=? AND kind='decision' AND json_extract(body_json,'$.previous') IS NULL AND json_extract(body_json,'$.creation.grant_ref')=? AND json_extract(body_json,'$.creation.slot')=?")
+            .get(scope.workspace_id, grant.ref, c.slot) as { count: number };
+          directionCheck(uses.count === 1, "creation_slot_reused");
+        }
         directionCheck(prior?.value.kind === "decision" && prior.value.authority_ref === grant.ref ||
           grant.value.continuations.some(c => c.project_id === scope.project_id && c.expected_ref === d.previous) ||
-          !d.previous && grant.value.creation_slots.some(slot => {
-            const root = db.prepare("SELECT normalized_root FROM vnext_project_root_bindings WHERE workspace_id=? AND project_id=?").get(scope.workspace_id, scope.project_id) as { normalized_root: string } | undefined;
-            return root?.normalized_root === slot.root;
-          }), "decision_grant_scope_invalid");
+          !d.previous && d.creation?.grant_ref === grant.ref, "decision_grant_scope_invalid");
       }
     }
   }

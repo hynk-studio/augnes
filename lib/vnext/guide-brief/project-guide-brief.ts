@@ -30,6 +30,7 @@ import {
   type ProjectGuideBriefV02,
 } from "@/types/vnext/guide-brief";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
+import type { PacketDirectionInterpretation } from "../project-direction";
 
 const WORKPLANE_HREF = "/workbench/semantic-review";
 
@@ -255,9 +256,10 @@ export function buildTaskStartGuideBriefCodexProjectionV02(input: {
   packet: TaskContextPacketV01;
   project_name: string | null;
   evaluated_at?: string;
+  direction?: PacketDirectionInterpretation;
 }): GuideBriefCodexProjectionV02 {
   const { packet } = input;
-  const methodGuidance = prospectiveGuidance(packet, input.evaluated_at ?? packet.generated_at) ?? retryInspectionGuidanceV01(packet, input.evaluated_at ?? packet.generated_at);
+  const methodGuidance = prospectiveGuidance(packet, input.evaluated_at ?? packet.generated_at, input.direction) ?? retryInspectionGuidanceV01(packet, input.evaluated_at ?? packet.generated_at);
   const unresolved = boundedListV02(
     (packet.current_projection?.items ?? [])
       .filter((item) => item.item_kind === "open_question")

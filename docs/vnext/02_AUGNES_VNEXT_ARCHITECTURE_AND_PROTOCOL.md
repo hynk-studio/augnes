@@ -753,20 +753,39 @@ Core goal or a Personal Perspective inference. The
 immutable, content-bound decisions with scope, chronology, prior revision,
 principal, reason and optional delegation. Existing creation attribution remains
 unknown rather than being backfilled. A newly authorized agent creation records
-its actual logical role separately from direction and execution authority.
+its actual logical role separately from direction and execution authority. Its
+immutable genesis also records the issued grant/slot, created project and time,
+and qualified creation root/physical identity. Later decisions preserve this
+attribution. Recovery checks it against the immutable grant and project creation,
+including single consumption of each slot, without consulting a mutable current
+root binding. Canonical root rebind remains independently owned and cannot free
+a slot. Pre-correction draft agent genesis without this proof remains readable
+and byte-preserved but fails recovery with `creation_attribution_missing`; no
+historical authorization is invented from its present path. Existing no-direction
+and human-directed histories retain their recovery path.
 
 One effective working direction exists per project. A short outcome or open
 question is sufficient. Accepted Core goals keep their existing review/Transition
 owners; working direction does not overwrite or resolve a conflict with them.
 Readers explicitly say that this relationship needs separate review. A task edit
-does not edit direction. New ordinary packets receive an immutable sidecar binding
-to the exact effective revision. Existing packets, selected notes, forecasts,
+does not edit direction. A new packet's sidecar records the exact authenticated
+direction projection actually selected by the packet, including an older revision
+when retained as history. An agenda must refer to that same projection. The
+reader classifies this consumed basis as current, historical, or unconfigured;
+stamping a sidecar cannot establish reconsideration. Existing packets, selected notes, forecasts,
 receipts and factual support remain byte-preserved. No-direction work remains
 eligible under its existing rules. Pending work under a superseded, paused or
 unavailable direction/delegation needs reconsideration before admission. A claimed
 run retains its original basis and existing reconciliation/cancellation rules.
-Successors bind the then-effective revision; old selected agenda material remains
-historical context until explicitly prepared again under that revision.
+Successors and task revisions that retain an old direction/agenda remain
+historical and cannot enter new ordinary or preparation execution. Current
+GuideBrief/Start guidance requests reconsideration rather than recommending the
+old agenda. Explicit preparation replaces the selected direction and agenda and
+rechecks its expected revision in the packet-creation transaction. The ordinary
+successor preview carries an expected direction reference that the authenticated
+writer rechecks atomically. Earlier sidecars remain intact but confer no exemption
+from the consumed-source check. Retained observations can still support a method
+after explicit reconsideration; an old receipt is not completion of a new agenda.
 
 The existing project UI and `GET/POST /api/vnext/operator/project-direction`
 share the authenticated local session and action-nonce mutation owner. This proves
@@ -781,6 +800,10 @@ contribution and question/result to return. An independent agent project needs n
 parent. Neither creation nor direction conveys execution/resources or external
 effects. Creating on an existing human project's behalf cannot acquire its north
 star: existing-root creation and principal changes are refused.
+Proposal review exposes all proposed content. Acceptance resets purpose, criteria
+and constraints from the canonical response. A refreshed prop or explicit refresh
+updates a clean editor; a dirty editor retains its original revision and values,
+discloses a conflict and requires explicit discard/load before another save.
 
 `GET/POST /api/vnext/agent/project-direction` is the supported local shared agent
 interface. It requires that bearer capability, refuses human-session cookie

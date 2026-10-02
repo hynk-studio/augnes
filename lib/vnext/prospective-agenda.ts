@@ -1,3 +1,5 @@
+import type { PacketDirectionInterpretation } from "./project-direction";
+import { DIRECTION_SOURCE, selectedDirectionProfile } from "./project-direction-source";
 import { readSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
 import { canonicalizeProtocolValueV01 as canonical, createProtocolSha256V01 as hash, parseStrictIsoTimestampV01 } from "./protocol-primitives";
 import type { TaskContextPacketSelectedEntryV01, TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
@@ -187,7 +189,10 @@ export function judgeAgenda(input: AgendaInput, at: string, result: Observation[
   return { ...material, judgment_id: hash(canonical({ ...material, information_cutoff: null })) };
 }
 
-export function prospectiveGuidance(packet: TaskContextPacketV01, at: string): string | null {
+export function prospectiveGuidance(packet: TaskContextPacketV01, at: string, direction?: PacketDirectionInterpretation): string | null {
+  if (direction?.status === "historical" || !direction && packet.selected_context?.some(e => selectedDirectionProfile(e)?.version === DIRECTION_SOURCE)) {
+    return "Reconsider this work against the effective project direction before starting. Its retained direction and agenda are historical context, not the active recommendation. Earlier results, counterevidence and conditional methods remain available.";
+  }
   // Optional guidance must not replace the ordinary path when the packet has
   // no prospective input, including older/minimal projection packets.
   if (!packet.selected_context?.some(entry => {

@@ -1,4 +1,4 @@
-import { assertPacketDirectionCurrent } from "../persistence/project-direction-store";
+import { assertPacketDirectionCurrent, readPacketDirectionInterpretation } from "../persistence/project-direction-store";
 import { bindWorkExpectationToAttempt } from "@/lib/vnext/persistence/work-expectation-store";
 import { AUTHORED_SUCCESSOR_TASK_V01 } from "@/lib/vnext/authored-successor-task";
 import { AUTHORED_SUCCESSOR_CONTEXT_V01 } from "@/types/vnext/project-work-initialization";
@@ -846,6 +846,7 @@ export async function runDirectNativeHostRoundTripV01(
         packet: admitted.packet,
         project_name: registration?.project.display_name ?? null,
         evaluated_at: prevalidatedAt,
+        direction: readPacketDirectionInterpretation(db, admitted.packet, prevalidatedAt),
       });
     } catch {
       taskStartGuide = unavailableGuideBriefCodexProjectionV02(

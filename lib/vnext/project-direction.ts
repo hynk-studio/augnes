@@ -5,11 +5,17 @@ export type DirectionParent = {
   project_id: string; direction_ref: string; delegation_ref: string;
   why: string; contribution: string; return_question: string;
 };
+export type DirectionCreation = {
+  grant_ref: string; slot: number; project_id: string; created_at: string;
+  root: string; root_identity: string;
+};
 export type DirectionDecision = {
   version: typeof DIRECTION_VERSION; kind: "decision"; workspace_id: string; project_id: string; at: string;
   revision: number; previous: string | null; created_by: DirectionPrincipal | null;
   principal: DirectionPrincipal; authority_ref: string | null; parent: DirectionParent | null;
   content: DirectionContent; status: "active" | "paused"; reason: string; proposal_ref: string | null;
+  /** Older draft rows remain readable; missing agent origin is not recovery proof. */
+  creation?: DirectionCreation | null;
 };
 export type DirectionGrant = {
   version: typeof DIRECTION_VERSION; kind: "grant"; workspace_id: string; project_id: string; at: string;
@@ -29,6 +35,11 @@ export type DirectionProposal = {
 export type DirectionBinding = {
   version: typeof DIRECTION_VERSION; kind: "binding"; workspace_id: string; project_id: string; at: string;
   packet_id: string; packet_fingerprint: string; direction_ref: string;
+  basis?: "selected_direction";
+};
+export type PacketDirectionInterpretation = {
+  status: "unconfigured" | "current" | "historical";
+  direction_ref: string | null; effective_ref: string | null;
 };
 export type DirectionRevocation = {
   version: typeof DIRECTION_VERSION; kind: "revocation"; workspace_id: string; project_id: string; at: string;
@@ -42,7 +53,7 @@ export type DirectionView = {
   proposals: DirectionEntry<DirectionProposal>[];
   grants: Array<{ record: DirectionEntry<DirectionGrant>; available: boolean; projects: Array<{ project_id: string; display_name: string; direction_ref: string }> }>;
   parent_current: boolean; authority_current: boolean;
-  pending_work: Array<{ packet_id: string; direction_ref: string | null; admitted: boolean; needs_reconsideration: boolean }>;
+  pending_work: Array<{ packet_id: string; direction_ref: string | null; interpretation: PacketDirectionInterpretation["status"]; admitted: boolean; needs_reconsideration: boolean }>;
   accepted_goal_relationship: "working_direction_only_review_accepted_goals_separately";
   execution_authority_granted: false;
 };

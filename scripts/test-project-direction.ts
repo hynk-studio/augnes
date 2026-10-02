@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, realpathSync, writeFileSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, realpathSync, writeFileSync, readFileSync, rmSync, renameSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
-import { getOrCreateDefaultWorkspaceIdentityV01, getOrCreateCanonicalProjectForLocalRootV01, normalizeLocalProjectRootRefV01 } from "../lib/vnext/persistence/project-identity-registry";
+import { getOrCreateDefaultWorkspaceIdentityV01, getOrCreateCanonicalProjectForLocalRootV01, normalizeLocalProjectRootRefV01, rebindCanonicalProjectLocalRootV01 } from "../lib/vnext/persistence/project-identity-registry";
 import { readActiveProjectSelectionV01, selectActiveProjectV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import { issueVNextLocalOperatorBootstrapV01, consumeVNextLocalOperatorBootstrapV01, readVNextLocalOperatorCredentialFromRequestV01, VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01 } from "../lib/vnext/runtime/local-operator-session";
 import { defineInitialProjectWorkV01 } from "../lib/vnext/runtime/project-work-initialization";
@@ -12,13 +12,17 @@ import { revisePreExecutionProjectWorkV01 } from "../lib/vnext/runtime/project-w
 import { createProjectDirectionHandler } from "../app/api/vnext/operator/project-direction/route";
 import { createAgentProjectDirectionHandler } from "../app/api/vnext/agent/project-direction/route";
 import { createProspectiveReentryHandler } from "../app/api/vnext/operator/prospective-reentry/route";
-import { assertPacketDirectionCurrent, effectiveDirection, packetDirectionBinding, readProjectDirection, validateProjectDirectionHistory } from "../lib/vnext/persistence/project-direction-store";
+import { assertPacketDirectionCurrent, effectiveDirection, packetDirectionBinding, readPacketDirectionInterpretation, readProjectDirection, validateProjectDirectionHistory } from "../lib/vnext/persistence/project-direction-store";
 import { readVNextCoreRecordV01, listVNextCoreRecordsV01 } from "../lib/vnext/persistence/durable-semantic-store";
 import { mutateProjectControlV01, readProjectAutomationControlV01 } from "../lib/vnext/persistence/project-control-store";
 import { ProspectiveReentryHost } from "../lib/vnext/runtime/prospective-reentry";
 import { buildSelectedWorkSourceEntry, compareSelectedWorkSources, readSelectedWorkSources, selectedWorkSourceInput } from "../lib/intake/selected-work-source-comparison";
 import { readResultWorkPreparationV01, compareResultWorkSourcesV01, previewResultWorkV01, defineAuthoredSuccessorTaskV01 } from "../lib/vnext/runtime/authored-successor-task";
 import { readAgendaInput, judgeAgenda } from "../lib/vnext/prospective-agenda";
+import { buildTaskStartGuideBriefCodexProjectionV02 } from "../lib/vnext/guide-brief/project-guide-brief";
+import { runDirectNativeHostRoundTripV01 } from "../lib/vnext/runtime/direct-native-host-round-trip";
+import { prepareDirectionAgenda } from "../lib/vnext/runtime/project-direction-preparation";
+import { DIRECTION_SOURCE, directionSource } from "../lib/vnext/project-direction-source";
 import { canonicalizeProtocolValueV01 as canonical, createProtocolSha256V01 as hash } from "../lib/vnext/protocol-primitives";
 import { createRecoveryBackup, RECOVERY_DATABASE_PAYLOAD } from "./recovery-backup.mjs";
 import { inspectRecoveryDatabaseFile } from "./runtime-database-bootstrap.mjs";
@@ -100,10 +104,29 @@ async function main() {
     await agentCall(scope.project_id, decide(firstRef, allowed[0]!.purpose), 403);
     const proposal = await agentCall(scope.project_id, { action: "propose", expected_ref: firstRef, content: allowed[0], reason: "Consider an alternative" });
     assert.equal(effectiveDirection(db, scope, now())!.ref, firstRef, "Agent proposal cannot replace the human north star");
+    const originalRoot = `${independentRoot}-qualified`;
+    renameSync(independentRoot, originalRoot); mkdirSync(independentRoot);
+    try {
+      const refused = await agentCall(null, { action: "create_project", slot: 0, content: allowed[0], reason: "Different physical folder at the authorized path" }, 409);
+      assert.equal(refused.error, "project_direction_creation_root_changed");
+    } finally { rmSync(independentRoot, { recursive: true }); renameSync(originalRoot, independentRoot); }
     tick();
     const independent = await agentCall(null, { action: "create_project", slot: 0, content: allowed[0], reason: "Authorized independent exploration" });
     assert.equal(independent.state.effective.value.parent, null);
     assert.deepEqual(independent.state.effective.value.created_by, { kind: "agent", id: "role:researcher" });
+    // Corruption checks use isolated byte copies only. Every positive genesis
+    // above went through issuance and the authenticated production creator.
+    for (const alteration of [{ project_id: scope.project_id }, { slot: 1 }, { root: projectRoot }, { root_identity: hash("unrelated physical root") }, { grant_ref: hash("unrelated grant") }, null]) {
+      const corrupt = new Database(db.serialize());
+      try {
+        const value = structuredClone(independent.record.value);
+        if (alteration) value.creation = { ...value.creation, ...alteration };
+        else delete value.creation;
+        corrupt.exec("DROP TRIGGER trg_vnext_project_direction_update");
+        corrupt.prepare("UPDATE vnext_project_direction_records SET body_json=?,ref=? WHERE ref=?").run(canonical(value), hash(canonical(value)), independent.record.ref);
+        assert.throws(() => validateProjectDirectionHistory(corrupt), /project_direction_creation_attribution_(invalid|missing)/);
+      } finally { corrupt.close(); }
+    }
     tick();
     const concurrentDecision = { project_id: independent.project_id, sequence, operation: { ...decide(independent.record.ref, allowed[1]!.purpose), status: "paused" } };
     const concurrentResponses = await Promise.all([0, 1].map(() => agent(new Request(agentUrl, { method: "POST", headers: {
@@ -117,6 +140,15 @@ async function main() {
     await agentCall("project:foreign", decide(null, allowed[0]!.purpose), 403);
     const child = await agentCall(null, { action: "create_project", slot: 1, content: allowed[0], reason: "Authorized separate contribution" });
     assert.equal(child.state.effective.value.parent.project_id, scope.project_id);
+    for (const created of [independent, child]) {
+      const relocatedRoot = path.join(root, `relocated-${created.project_id.replaceAll(":", "-")}`);
+      mkdirSync(relocatedRoot); tick();
+      rebindCanonicalProjectLocalRootV01(db, { ...scope, project_id: created.project_id,
+        local_root: normalizeLocalProjectRootRefV01(relocatedRoot, { base_path: root }) }, { now });
+      validateProjectDirectionHistory(db);
+    }
+    for (const slot of [0, 1]) await agentCall(null, { action: "create_project", slot, content: allowed[0], reason: "A relocation must not free an authorized creation slot" }, 409);
+    await agentCall(null, { action: "create_project", slot: 0, content: allowed[0], reason: "Forged attribution refused", creation: independent.record.value.creation }, 409);
     tick();
     await agentCall(child.project_id, { action: "return_proposal", expected_ref: child.record.ref, receipt_id: null, receipt_fingerprint: null, summary: "Propose checking the selected prerequisite; this is not an observed finding." });
     assert.equal(effectiveDirection(db, scope, now())!.ref, firstRef);
@@ -153,12 +185,51 @@ async function main() {
     assert.deepEqual(judgeAgenda(readAgendaInput(readSelectedWorkSources(packet), beforeCutoff)!, beforeCutoff), beforeJudgment);
     for (const time of [new Date(Date.parse(changedAt) - 1).toISOString(), changedAt, new Date(Date.parse(changedAt) + 1).toISOString()]) {
       assert.equal(effectiveDirection(db, scope, time)!.ref, time < changedAt ? firstRef : second.record.ref);
+      assert.equal(readPacketDirectionInterpretation(db, packet, time).status, time < changedAt ? "current" : "historical");
     }
     assert.equal(readProjectDirection(db, scope, now()).pending_work[0]!.needs_reconsideration, true);
     assert.equal(readProjectDirection(db, { ...scope, project_id: child.project_id }, now()).parent_current, false);
     tick(); await agentCall(child.project_id, decide(child.record.ref, allowed[1]!.purpose), 409);
     assert.equal(canonical(readVNextCoreRecordV01(db, { ...scope, record_kind: "task_context_packet", record_id: packet.packet_id })!.payload), beforeBytes);
     assert.throws(() => assertPacketDirectionCurrent(db, packet, now()), /reconsideration_required/);
+    // Preparation reads at one cutoff, but admission reaches the new effective
+    // revision. Its IMMEDIATE writer must recheck before inserting any packet.
+    const packetCount = () => (db.prepare("SELECT count(*) AS count FROM vnext_core_records WHERE record_kind='task_context_packet'").get() as { count: number }).count;
+    const countBeforeRace = packetCount();
+    let preparationReads = 0;
+    assert.throws(() => prepareDirectionAgenda(db, { config, credential: credential(),
+      clock: { now: () => preparationReads++ === 0 ? beforeCutoff : now() },
+      request: { action: "prepare_inspection", expected_ref: firstRef, files: [{ path: "compatibility.txt", contains: "ready" }] } }), /project_direction_stale_revision/);
+    assert.equal(packetCount(), countBeforeRace, "Expected direction is checked atomically with packet creation");
+    tick();
+    const historicalRevision = revisePreExecutionProjectWorkV01(db, { config, credential: credential(), clock, request: { action: "revise_pre_execution_project_work", ...scope,
+      expected_active_project_id: scope.project_id, expected_active_selection_revision: active.selection_revision, expected_current_packet_id: factualRevision.packet.packet_id,
+      expected_current_packet_fingerprint: factualRevision.packet.integrity.fingerprint, expected_current_lineage_kind: "pre_execution_user_revision", ...initial.definition,
+      goal: "A task edit retaining the prior selected agenda" } });
+    cookie = `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${historicalRevision.session_admission.cookie_value}`;
+    assert.equal(packetDirectionBinding(db, historicalRevision.packet)!.value.direction_ref, firstRef);
+    assert.throws(() => assertPacketDirectionCurrent(db, historicalRevision.packet, now()), /reconsideration_required/);
+    const priorFormat = new Database(db.serialize());
+    try {
+      const binding = packetDirectionBinding(priorFormat, historicalRevision.packet)!;
+      const value = { ...binding.value, direction_ref: second.record.ref }; delete value.basis;
+      priorFormat.exec("DROP TRIGGER trg_vnext_project_direction_update");
+      priorFormat.prepare("UPDATE vnext_project_direction_records SET body_json=?,ref=? WHERE ref=?").run(canonical(value), hash(canonical(value)), binding.ref);
+      validateProjectDirectionHistory(priorFormat);
+      assert.throws(() => assertPacketDirectionCurrent(priorFormat, historicalRevision.packet, now()), /reconsideration_required/,
+        "A preserved earlier-format sidecar stamped with current direction cannot promote old selected work");
+    } finally { priorFormat.close(); }
+    tick();
+    const mismatchedSources = compareSelectedWorkSources(historicalRevision.packet, [
+      ...readSelectedWorkSources(historicalRevision.packet).filter(e => JSON.parse(e.bounded_summary!).version !== DIRECTION_SOURCE), directionSource(second.record),
+    ]);
+    const mismatched = revisePreExecutionProjectWorkV01(db, { config, credential: credential(), clock, request: { action: "revise_pre_execution_project_work", ...scope,
+      expected_active_project_id: scope.project_id, expected_active_selection_revision: active.selection_revision, expected_current_packet_id: historicalRevision.packet.packet_id,
+      expected_current_packet_fingerprint: historicalRevision.packet.integrity.fingerprint, expected_current_lineage_kind: "pre_execution_user_revision", ...initial.definition,
+      selected_source_context: mismatchedSources.entries, expected_source_comparison: mismatchedSources.fingerprint } });
+    cookie = `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${mismatched.session_admission.cookie_value}`;
+    assert.equal(packetDirectionBinding(db, mismatched.packet), null, "A current direction projection and an old agenda do not establish a consumed basis");
+    assert.throws(() => assertPacketDirectionCurrent(db, mismatched.packet, now()), /reconsideration_required/);
     const oldToken = token;
     tick();
     const renewed = await call(human, humanUrl, { action: "renew_agent", grant_ref: policy.record.ref, projects: [
@@ -214,11 +285,38 @@ async function main() {
     const comparison = compareResultWorkSourcesV01(db, { config, binding: result.binding, notes: [...readSelectedWorkSources(revision.packet), result.result_source!].map(selectedWorkSourceInput), clock });
     const successorPreview = previewResultWorkV01(db, { config, binding: result.binding, clock, definition: { goal: "Review the inspected sources under the current direction", success_criteria: ["Keep support separate from authority"], non_goals: ["No publishing"] },
       selected_sources: { selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint, omitted_sources: [] } });
-    const successor = await defineAuthoredSuccessorTaskV01(db, { config, credential: credential(), clock, request: successorPreview.request });
+    tick();
+    const afterPreview = await call(human, humanUrl, decide(duringRun.record.ref, "Reconsider the successor after another direction change"));
+    await assert.rejects(() => defineAuthoredSuccessorTaskV01(db, { config, credential: credential(), clock, request: successorPreview.request }), /project_direction_stale_revision/);
+    const refreshedPreview = previewResultWorkV01(db, { config, binding: result.binding, clock, definition: { goal: "Review the inspected sources under the current direction", success_criteria: ["Keep support separate from authority"], non_goals: ["No publishing"] },
+      selected_sources: { selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint, omitted_sources: [] } });
+    const successor = await defineAuthoredSuccessorTaskV01(db, { config, credential: credential(), clock, request: refreshedPreview.request });
     cookie = `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${successor.session_admission.cookie_value}`;
-    assert.equal(packetDirectionBinding(db, successor.packet)!.value.direction_ref, duringRun.record.ref);
+    assert.throws(() => assertPacketDirectionCurrent(db, successor.packet, now()), /reconsideration_required/,
+      "A newly authored successor retaining the old direction and agenda has not reconsidered them");
     assert.equal(successor.packet.capability_grant, null);
-    assert.equal(judgeAgenda(readAgendaInput(readSelectedWorkSources(successor.packet), now())!, now()).action, "retain");
+    assert.equal(packetDirectionBinding(db, successor.packet)!.value.direction_ref, second.record.ref, "The sidecar records consumed historical direction, not creation-time current direction");
+    const interpretation = readPacketDirectionInterpretation(db, successor.packet, now());
+    assert.equal(interpretation.status, "historical");
+    const guidance = buildTaskStartGuideBriefCodexProjectionV02({ packet: successor.packet, project_name: "Human direction case", evaluated_at: now(), direction: interpretation });
+    assert.match(canonical(guidance), /historical context/);
+    assert.doesNotMatch(canonical(guidance), /Candidate interpretation of selected sources/);
+    assert.equal(readProjectDirection(db, scope, now()).pending_work[0]!.needs_reconsideration, true);
+    await assert.rejects(() => runDirectNativeHostRoundTripV01(db, { config, mode: "interactive", operator_mutation: { credential: credential(), clock } }, { now }), /project_direction_reconsideration_required/);
+    assert.equal(listVNextCoreRecordsV01(db, { ...scope, record_kinds: ["run_receipt"], limit: 128 }).length, 1, "Ordinary admission cannot run the old agenda under a new direction");
+    const receiptBytes = canonical(readVNextCoreRecordV01(db, { ...scope, record_kind: "run_receipt", record_id: settled.receipt_id! })!.payload);
+    tick();
+    const reconsidered = await call(human, humanUrl, { action: "prepare_inspection", expected_ref: afterPreview.record.ref, files: [{ path: "compatibility.txt", contains: "ready" }, { path: "recovery.txt", contains: "ready" }] });
+    const reconsideredPacket = readVNextCoreRecordV01(db, { ...scope, record_kind: "task_context_packet", record_id: reconsidered.packet_id })!.payload as TaskContextPacketV01;
+    assertPacketDirectionCurrent(db, reconsideredPacket, now());
+    assert.equal(readAgendaInput(readSelectedWorkSources(reconsideredPacket), now())!.agenda.decision, afterPreview.record.value.content.purpose);
+    assert.equal(packetDirectionBinding(db, reconsideredPacket)!.value.direction_ref, afterPreview.record.ref);
+    const reconsideredAgenda = readAgendaInput(readSelectedWorkSources(reconsideredPacket), now())!;
+    assert.equal(reconsideredAgenda.has_preparation_report, false, "A retained receipt is not completion of the new agenda");
+    assert.equal(judgeAgenda(reconsideredAgenda, now()).action, "retain", "Explicit reconsideration may retain a method supported by still-selected factual observations");
+    assert.equal(canonical(readVNextCoreRecordV01(db, { ...scope, record_kind: "run_receipt", record_id: settled.receipt_id! })!.payload), receiptBytes);
+    assert(readSelectedWorkSources(reconsideredPacket).some(e => canonical(e) === canonical(counter)));
+    for (const method of oldMethods) assert(readSelectedWorkSources(reconsideredPacket).some(e => canonical(e) === canonical(method)));
     validateProjectDirectionHistory(db);
     assert.equal(validateRecoveryCanonicalDatabaseV01(db).status, "valid");
     tick();
@@ -230,7 +328,13 @@ async function main() {
       sourceApplication: { application_version: "0.1.1", build_identity: hash("direction-development"), package_contract: "augnes.distributable.v1", package_contract_version: 1, runtime_contract: "augnes-local-runtime-supervisor-v1", runtime_schema_version: 2 },
       reason: "manual_recovery", inspectDatabase: inspectRecoveryDatabaseFile, now: () => new Date(now()) });
     const recovered = new Database(path.join(backup.backupPath, RECOVERY_DATABASE_PAYLOAD));
-    try { validateProjectDirectionHistory(recovered); assert.deepEqual(readProjectDirection(recovered, scope, now()).history, readProjectDirection(db, scope, now()).history);
+    try { validateProjectDirectionHistory(recovered); assert.equal(validateRecoveryCanonicalDatabaseV01(recovered).status, "valid");
+      assert.deepEqual(readProjectDirection(recovered, scope, now()).history, readProjectDirection(db, scope, now()).history);
+      for (const created of [independent, child]) {
+        assert.deepEqual(readProjectDirection(recovered, { ...scope, project_id: created.project_id }, now()).history,
+          readProjectDirection(db, { ...scope, project_id: created.project_id }, now()).history, "Relocated independent and delegated creation attribution survives recovery");
+        assert.equal(readProjectDirection(recovered, { ...scope, project_id: created.project_id }, now()).authority_current, false);
+      }
       assert.equal((recovered.prepare("SELECT count(*) AS count FROM vnext_project_direction_credentials WHERE token_hash IS NOT NULL OR suspended=0").get() as { count: number }).count, 0); }
     finally { recovered.close(); }
     await call(human, humanUrl, { action: "revoke_agent", grant_ref: renewed.record.ref, reason: "End the bounded exercise" });

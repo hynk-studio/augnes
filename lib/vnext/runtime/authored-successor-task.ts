@@ -1,3 +1,4 @@
+import { assertExpectedPacketDirection, effectiveDirection, readPacketDirectionInterpretation } from "../persistence/project-direction-store";
 import { PROSPECTIVE_INPUT, SELECTED_SOURCE_INSPECTION } from "../prospective-agenda";
 import { SELECTED_SOURCE_RESULT } from "../native-host/selected-source-inspection-adapter";
 import { isOrdinarySuccessorRevisionV01, inspectOrdinarySuccessorRevisionV01, ordinarySuccessorRevisionMaterialV01, ordinarySuccessorRevisionIdempotencyKeyV01 } from "./authored-successor-revision";
@@ -124,7 +125,7 @@ export function previewResultWorkV01(db: Database.Database, input: {
   check(input.definition && typeof input.definition === "object" && !Array.isArray(input.definition) &&
     equal(Object.keys(input.definition).sort(), ["goal", "non_goals", "success_criteria"]), "definition_fields");
   const d = normalizeInitialProjectWorkDefinitionV01(input.definition as { goal: unknown; success_criteria: unknown; non_goals: unknown });
-  const request = parseRequest({ action: ACTION, ...input.binding, selected_sources: input.selected_sources,
+  const request = parseRequest({ action: ACTION, ...input.binding, expected_direction_ref: effectiveDirection(db, input.config, readVNextLocalRuntimeClockNowV01(input.clock, "successor_direction_preview"))?.ref ?? null, selected_sources: input.selected_sources,
     definition: { objective: d.goal, checks: d.success_criteria.map((criterion, index) => ({ check_id: `criterion_${index + 1}`, criterion })),
       stop_conditions: d.non_goals, materials: [], approved_instruction_hashes: [] } });
   source(db, input.config, request, { latest: true });
@@ -140,6 +141,7 @@ export interface DefineAuthoredSuccessorTaskRequestV01 {
   expected_latest_receipt_fingerprint: string;
   expected_active_selection_revision: number;
   expected_root_fingerprint: string;
+  expected_direction_ref?: string | null;
   definition: AuthoredSuccessorTaskDefinitionV01;
   /** Explicit ordinary preparation; incompatible with the scoped read-only profile. */
   selected_sources?: SelectedWorkSourceSelection & { omitted_sources: Array<{ source_binding: string; reason: string }> };
@@ -168,7 +170,8 @@ function parseRequest(value: unknown): DefineAuthoredSuccessorTaskRequestV01 {
   check(value && typeof value === "object" && !Array.isArray(value), "request_invalid");
   const r = value as DefineAuthoredSuccessorTaskRequestV01;
   check(equal(Object.keys(r).sort(), ["action", "definition", "expected_active_selection_revision", "expected_current_packet_fingerprint",
-    "expected_current_packet_id", "expected_latest_receipt_fingerprint", "expected_latest_receipt_id", "expected_root_fingerprint", ...(r.revalidation !== undefined ? ["revalidation"] : []), ...(r.selected_sources !== undefined ? ["selected_sources"] : [])].sort()), "request_fields");
+    "expected_current_packet_id", "expected_latest_receipt_fingerprint", "expected_latest_receipt_id", "expected_root_fingerprint", ...(r.expected_direction_ref !== undefined ? ["expected_direction_ref"] : []), ...(r.revalidation !== undefined ? ["revalidation"] : []), ...(r.selected_sources !== undefined ? ["selected_sources"] : [])].sort()), "request_fields");
+  check(r.expected_direction_ref === undefined || r.expected_direction_ref === null || /^sha256:[a-f0-9]{64}$/u.test(r.expected_direction_ref), "direction_binding_invalid");
   check(r.action === ACTION && Number.isSafeInteger(r.expected_active_selection_revision) && r.expected_active_selection_revision > 0 &&
     /^task-context-packet:[a-f0-9]+$/u.test(r.expected_current_packet_id) && /^run-receipt:[a-f0-9]+$/u.test(r.expected_latest_receipt_id) &&
     [r.expected_current_packet_fingerprint, r.expected_latest_receipt_fingerprint, r.expected_root_fingerprint].every(v => /^sha256:[a-f0-9]{64}$/u.test(v)), "request_binding");
@@ -309,6 +312,7 @@ export async function defineAuthoredSuccessorTaskV01(db: Database.Database, inpu
 }) {
   const request = parseRequest(input.request);
   const at = readVNextLocalRuntimeClockNowV01(input.clock, "successor_task_authorship_time");
+  const expectedDirection = request.expected_direction_ref === undefined ? effectiveDirection(db, input.config, at)?.ref ?? null : request.expected_direction_ref;
   assertNewLifetime(request, at);
   if (request.revalidation) check(readProjectRunResultSourceBindingV01(db, { ...input.config,
     receipt_id: request.expected_latest_receipt_id }).run, "local_predecessor_required");
@@ -335,6 +339,7 @@ export async function defineAuthoredSuccessorTaskV01(db: Database.Database, inpu
   db.exec("BEGIN IMMEDIATE");
   try {
     const auth = admitVNextLocalOperatorMutationInsideTransactionV01(db, input);
+    assertExpectedPacketDirection(db, input.config, expectedDirection, auth.action_observed_at);
     const selection = readActiveProjectSelectionV01(db, input.config.workspace_id);
     check(selection?.project_id === input.config.project_id && selection.selection_revision === request.expected_active_selection_revision, "selection_changed");
     if (request.revalidation) assertRevalidatedHistoryCurrent(db, input.config, request, auth.action_observed_at);
@@ -440,7 +445,8 @@ export async function prepareAuthoredSuccessorHandoffV01(db: Database.Database, 
   const inventory = (role: "task_data" | "historical_material") => d.materials.filter(m => m.role === role).map(({ relative_path, sha256 }) => ({ relative_path, sha256 }));
   const project = readCanonicalProjectWithRootV01(db, input.config);
   check(project, "project_missing");
-  const guide = buildTaskStartGuideBriefCodexProjectionV02({ packet: admission.packet, project_name: project.project.display_name });
+  const guide = buildTaskStartGuideBriefCodexProjectionV02({ packet: admission.packet, project_name: project.project.display_name,
+    direction: readPacketDirectionInterpretation(db, admission.packet, readVNextLocalRuntimeClockNowV01(input.clock, "successor_direction_guidance")) });
   const scope = await createCodexScopedTaskV01({ stage: 2, canonical_root: admission.root_scope.canonical_root,
     packet_id: admission.packet.packet_id, packet_fingerprint: admission.packet.integrity.fingerprint,
     guide_brief_fingerprint: digest(guide), files: inventory("task_data"), historical_files: inventory("historical_material"),
