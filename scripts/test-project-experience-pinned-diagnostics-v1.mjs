@@ -113,6 +113,9 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
   };
   const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
   const prospectiveAdditions = [
+    // #1382 adds one separately pinned human direction journey; every earlier
+    // reviewed action, assertion and deadline retains its original digest.
+    ['    await validateProjectDirectionUI(accessDatabasePath, projectAlphaId);\n', ''],
     ["        const refusalScenario = mode === 'session_refused' ? requestVerdicts.armSessionRefusalScenario() : null;\n", ''],
     [`            if (mode === 'session_refused') {
               const refused = Response.json({ error_code: 'operator_session_cookie_invalid' }, { status: 401 });
@@ -131,6 +134,7 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
   for (const [addition] of prospectiveAdditions) assert.equal(source.split(addition).length, 2, 'exact prospective call site');
   const withoutProspectiveAdditions = text => prospectiveAdditions.reduce((result, [addition, previous]) => result.replace(addition, previous), text);
   const expected = {
+    validateProjectDirectionUI: 'd1e1e944e79eb17b215acd7f941378fc000049a9ff59b59e7042bff9be72374e',
     runPhase: '547dcdc354d69e5288144b6a888c436e546102d509cdec352673c929ec0191d2',
     navigate: '2dbcba067b8c962ccb04e72155be6129be5f4e4a2447935621ac85208cfefddf',
     waitForRequestQuiet: 'b6fe49600739070ebf72e8048a26b605a7ff2a255c7d1ad86a9ee0c35c7c3c74',
@@ -148,7 +152,7 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
     }
     ts.forEachChild(node, visit);
   }
-  visit(file); assert.equal(found.length, 4);
+  visit(file); assert.equal(found.length, 5);
   assert.equal(hash(phases), '1d76d884d3ee26e92769e3e66a22f25c77a639f8e6d77cab400ea8ed8a91d984');
   assert(source.includes('const DEFAULT_TIMEOUT_MS = 45_000;'));
   assert(source.includes('const REQUEST_QUIET_MS = 500;'));
