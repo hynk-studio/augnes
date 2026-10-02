@@ -339,6 +339,47 @@ Count input estimation, note preparation, maintenance, verification and repeated
 human context repair. No live comparison is required to qualify this implementation;
 attributable improvement from experience remains a separate, unobserved claim.
 
+### Prospective preparation and event/time re-entry
+
+For [#1380](https://github.com/hynk-studio/augnes/issues/1380), keep three evidence
+levels separate: scripted mechanism correctness; a model deriving/using an agenda
+in an ordinary task; and attributable usefulness against a strong alternative.
+Manual agenda notes and a zero-model worker that really inspects files establish
+only the first level. A timer firing or a process exiting successfully establishes
+neither observation availability nor useful judgment.
+
+The deciding development path begins with ordinary authored null-grant work and
+exercises explicit authenticated authorization, arming, normal producers and consumers, real
+bounded preparation, source-bound receipt, durable wake/admission/result handling,
+and ordinary successor reconstruction. Discriminating cases cover changed decision
+timing/prerequisites, no unnecessary repeated work, conditional A → B → A reuse,
+cue/result conflict, broken essential premises with surviving independent support,
+complementary observations, unavailable versus absent information and cutoff
+protection. Concurrent/stale/overdue signals, interruption, cancellation, changed
+grants, exhausted attempts, source revisions and project isolation must not repeat
+an admitted effect. Unknown execution requires reconciliation before any retry.
+Use disposable cases/fake clocks plus a bounded owned host loop, and report which
+parts actually ran and whether any model was invoked. A fixture-injected grant or
+direct database write cannot substitute for the supported authorization path.
+Before an observation timestamp, adding its result must leave the entire judgment,
+including identity, next action and evidence references, equal to the no-future
+state; at and after the timestamp the eligible evidence may change that judgment.
+Separately evidenced completion retains its own meaning.
+
+Supported runtime reachability is an implementation obligation, independent of
+ordinary model-use or comparative studies. An unavailable authorized ordinary case
+is an explicit evidence gap, not invented
+benefit or a universal engineering blocker. #1379's ordinary-choice/result/burden
+observation remains required before broader/default activation. The implementation
+does not launch a comparative study. A later comparison must give a strong,
+source-linked adaptive memo the same capable model, tools, data, scheduler/re-entry
+ability and total budget. Count preparation, curation, waiting, maintenance,
+verification, model use and human intervention. Distinguish better conditional
+method selection from actual revision/learning. Research inputs motivate these
+tests; COIN, Apperception, temporal-control and computation-selection results do not
+establish Augnes utility. P4.6's negative findings and historical receipts remain
+unchanged.
+
 ## Prospective expectation mechanics
 
 Keep task requirements, an author's prediction and the result's established

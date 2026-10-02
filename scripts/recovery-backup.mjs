@@ -2675,6 +2675,11 @@ function normalizeRecoverySnapshotPrivateMaterial(databasePath) {
     database.pragma("journal_mode = DELETE");
     database.pragma("secure_delete = ON");
     normalizeRecoveryPrivateMaterial(database);
+    // A restored database retains source/judgment history, never the old
+    // machine's permission to wake. This touches only the owned snapshot.
+    if (database.prepare("SELECT 1 FROM sqlite_schema WHERE type='table' AND name='vnext_prospective_reentry'").get()) {
+      database.exec("UPDATE vnext_prospective_reentry SET recovery_suspended=1");
+    }
     // Always rebuild the snapshot. A logically current source can still carry
     // old raw text in freelist or unallocated pages from an earlier migration.
     database.exec("VACUUM");

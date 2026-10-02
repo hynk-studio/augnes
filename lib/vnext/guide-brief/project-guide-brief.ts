@@ -1,3 +1,4 @@
+import { prospectiveGuidance } from "../prospective-agenda";
 import { createHash } from "node:crypto";
 import { retryInspectionGuidanceV01 } from "../retry-inspection-outlook";
 
@@ -256,7 +257,7 @@ export function buildTaskStartGuideBriefCodexProjectionV02(input: {
   evaluated_at?: string;
 }): GuideBriefCodexProjectionV02 {
   const { packet } = input;
-  const methodGuidance = retryInspectionGuidanceV01(packet, input.evaluated_at ?? packet.generated_at);
+  const methodGuidance = prospectiveGuidance(packet, input.evaluated_at ?? packet.generated_at) ?? retryInspectionGuidanceV01(packet, input.evaluated_at ?? packet.generated_at);
   const unresolved = boundedListV02(
     (packet.current_projection?.items ?? [])
       .filter((item) => item.item_kind === "open_question")

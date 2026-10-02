@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { ensureProspectiveReentrySchema } from "@/lib/vnext/persistence/prospective-reentry-schema.mjs";
 import {
   scoreCandidateProposal,
   type ConsolidationStatus,
@@ -277,6 +278,7 @@ export function openDatabase() {
   ensureVNextProjectLifecycleSchemaV01(db);
   ensureVNextProjectControlSchemaV01(db);
   ensureVNextProjectContinuityPinSchemaV01(db);
+  ensureProspectiveReentrySchema(db);
   return db;
 }
 

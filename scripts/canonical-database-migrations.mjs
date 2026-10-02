@@ -123,6 +123,12 @@ export const CANONICAL_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES =
     // Exact F1 schema with only the migration ledger and package identity
     // guard absent, for the existing bounded ledgerless recovery lane.
     "548df1c54ff6bafff41cdc1ad09b9a724c4e0ac5087d5b20d1b2651ad06dd0b1",
+    // Exact merged #1379 schema. #1380 adds only machine-local prospective
+    // eligibility; existing Core records, grants and run history are unchanged.
+    "ef52834e336468afde007eb513d1ea555e06d60aed64256a24e7f0e773cfd7da",
+    // Exact #1380 schema with only the migration ledger and package identity
+    // guard absent, for the existing bounded ledgerless recovery fixture.
+    "9c70e925c3c49a1b945f0fa62e9ad027cd97c0ce01284c9a7eb14ff2d6be8568",
   ]);
 export const CANONICAL_DATABASE_MIGRATION_IDS = Object.freeze([
   "0001_r8_recovery_contract",

@@ -1,3 +1,5 @@
+import { buildSelectedWorkSourceEntry } from "../lib/intake/selected-work-source-comparison";
+import type { SelectedWorkSourceInput } from "../types/vnext/project-work-revision";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import {
@@ -218,6 +220,7 @@ class RouteCookieJarV01 {
 export async function buildVNextOperatorBrowserFixtureV01(input: {
   output_directory: string;
   reference_time: string;
+  selected_notes?: SelectedWorkSourceInput[];
   test_only_guard_probe?: (context: {
     ambient_database_path: string;
   }) => void | Promise<void>;
@@ -316,6 +319,7 @@ export async function buildVNextOperatorBrowserFixtureV01(input: {
       publicPacket,
       publicPacket.generated_at,
       new Date(Date.parse(schedule.result) + 60 * 60_000).toISOString(),
+      input.selected_notes,
     );
     const fixtureReceipt = buildSemanticReviewLoopRunReceiptFixture(
       fixtureProject,
@@ -936,6 +940,7 @@ function boundedAutomationPacketV01(
   packet: TaskContextPacketV01,
   generatedAt: string,
   expiresAt: string,
+  notes: SelectedWorkSourceInput[] = [],
 ): TaskContextPacketV01 {
   const {
     packet_version: _version,
@@ -949,6 +954,7 @@ function boundedAutomationPacketV01(
   );
   return buildTaskContextPacketV01({
     ...builderInput,
+    selected_context: [...builderInput.selected_context, ...notes.map(note => buildSelectedWorkSourceEntry(packet, note))],
     generated_at: generatedAt,
     expires_at: expiresAt,
     capability_grant: {

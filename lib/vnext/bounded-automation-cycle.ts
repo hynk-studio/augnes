@@ -137,7 +137,7 @@ export function validateBoundedAutomationCapabilityGrantV01(
     /^sha256:[a-f0-9]{64}$/u.test(grant.source_grant_fingerprint ?? "") &&
     grant.source_grant_ref.source_ref === grant.source_grant_fingerprint &&
     /^sha256:[a-f0-9]{64}$/u.test(grant.work_source_fingerprint ?? "") &&
-    grant.work_operation_profile === "local_project_root_verification.v0.1" &&
+    ["local_project_root_verification.v0.1", "selected_source_inspection.v0.1"].includes(grant.work_operation_profile ?? "") &&
     /^sha256:[a-f0-9]{64}$/u.test(grant.packet_intent_fingerprint ?? "") &&
     typeof grant.host_adapter_version === "string" &&
     nonemptyV01(grant.host_adapter_version) &&
@@ -171,7 +171,7 @@ export function validateBoundedAutomationCapabilityGrantV01(
     grant.budget.max_runtime_ms >= 1 &&
     grant.budget.max_runtime_ms <= 900_000 &&
     Number.isSafeInteger(grant.budget.max_commands) &&
-    grant.budget.max_commands >= 1 &&
+    grant.budget.max_commands >= (grant.work_operation_profile === "selected_source_inspection.v0.1" ? 0 : 1) &&
     grant.budget.max_commands <= 128 &&
     grant.budget.max_augnes_model_invocations === 0 &&
     grant.budget.max_augnes_model_tokens === 0 &&

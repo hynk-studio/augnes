@@ -1,3 +1,5 @@
+import { PROSPECTIVE_INPUT, SELECTED_SOURCE_INSPECTION } from "../prospective-agenda";
+import { SELECTED_SOURCE_RESULT } from "../native-host/selected-source-inspection-adapter";
 import { isOrdinarySuccessorRevisionV01, inspectOrdinarySuccessorRevisionV01, ordinarySuccessorRevisionMaterialV01, ordinarySuccessorRevisionIdempotencyKeyV01 } from "./authored-successor-revision";
 import { RETRY_INSPECTION_OUTLOOK_V02, retryInspectionOutlookVersion, retryInspectionProjectionItemsV01, retryInspectionResultContextV01, type RetryInspectionOutlookVersion } from "../retry-inspection-outlook";
 import { AUTHORED_SUCCESSOR_TASK_V01, AUTHORED_SUCCESSOR_REVALIDATION_V01, AUTHORED_SUCCESSOR_CONTEXT_V01 } from "@/types/vnext/project-work-initialization";
@@ -40,6 +42,13 @@ export type ResultWorkBindingV01 = Pick<DefineAuthoredSuccessorTaskRequestV01,
   "expected_latest_receipt_fingerprint" | "expected_active_selection_revision" | "expected_root_fingerprint">;
 
 /** Read the current settled predecessor. This does not make a preparation current. */
+function isSettledInspectionResult(r: ReturnType<typeof readProjectRunResultSourceBindingV01>) {
+  const grant = r.run?.metadata.bounded_automation_grant as { work_operation_profile?: string } | undefined;
+  return r.packet?.compatibility.source_contracts.includes(SELECTED_SOURCE_INSPECTION) === true &&
+    grant?.work_operation_profile === SELECTED_SOURCE_INSPECTION && r.run?.status === "needs_review" &&
+    r.receipt.execution.status === "completed";
+}
+
 export function readResultWorkPreparationV01(db: Database.Database, input: {
   config: VNextLocalOperatorPilotConfigV01; receipt_id: string; clock?: VNextLocalRuntimeClockV01;
 }) {
@@ -51,7 +60,7 @@ export function readResultWorkPreparationV01(db: Database.Database, input: {
     initialization.active_project_id === input.config.project_id && initialization.active_selection_revision !== null &&
     initialization.current_packet?.packet_id === r.packet.packet_id &&
     initialization.current_packet.packet_fingerprint === r.packet.integrity.fingerprint &&
-    continuity.packet_currentness === "fresh" && r.run.status === "completed" && r.receipt.execution.status === "completed" &&
+    continuity.packet_currentness === "fresh" && (r.run.status === "completed" || isSettledInspectionResult(r)) && r.receipt.execution.status === "completed" &&
     r.run.metadata.terminal_receipt_persisted === true && r.run.metadata.reconciliation_required === false &&
     listAutonomyRunLedgerRecords({ db, scope: input.config.project_id, limit: 1 })[0]?.run_id === r.run.run_id,
   "preparation_unavailable");
@@ -64,10 +73,15 @@ export function readResultWorkPreparationV01(db: Database.Database, input: {
   // Whole-note limits apply; a long report is never silently truncated.
   let result_source = null;
   try {
+    let preparationReport: { version?: string; agenda_ref?: string; observations?: unknown[] } | null = null;
+    try { preparationReport = JSON.parse(r.receipt.result_summary.summary); } catch { /* Ordinary prose report. */ }
     result_source = buildSelectedWorkSourceEntry(r.packet, {
       source: `${r.receipt.receipt_id} ${r.receipt.integrity.fingerprint}`, observed_at: r.receipt.recorded_at,
       provenance: "imported_unverified", label: "Unclassified / needs review",
-      text: `Recorded execution: ${r.receipt.execution.status}; verification: ${r.receipt.verification.status}.\nHost report (not independently verified): ${r.receipt.result_summary.summary}${retryInspectionResultContextV01(r.packet)}`,
+      text: isSettledInspectionResult(r) && preparationReport?.version === SELECTED_SOURCE_RESULT
+        ? canonicalizeProtocolValueV01({ profile: PROSPECTIVE_INPUT, kind: "inspection_result", agenda_ref: preparationReport.agenda_ref,
+          receipt_id: r.receipt.receipt_id, receipt_fingerprint: r.receipt.integrity.fingerprint, observations: preparationReport.observations })
+        : `Recorded execution: ${r.receipt.execution.status}; verification: ${r.receipt.verification.status}.\nHost report (not independently verified): ${r.receipt.result_summary.summary}${retryInspectionResultContextV01(r.packet)}`,
     });
   } catch (error) {
     if (!(error instanceof SelectedWorkSourceError)) throw error;
@@ -181,7 +195,7 @@ function source(db: Database.Database, config: VNextLocalOperatorPilotConfigV01,
   const r = readProjectRunResultSourceBindingV01(db, { ...config, receipt_id: request.expected_latest_receipt_id });
   check(r.packet && r.receipt.integrity.fingerprint === request.expected_latest_receipt_fingerprint &&
     r.packet.packet_id === request.expected_current_packet_id && r.packet.integrity.fingerprint === request.expected_current_packet_fingerprint &&
-    (!r.run || (r.run.status === r.receipt.execution.status && r.run.metadata.reconciliation_required === false &&
+    (!r.run || ((r.run.status === r.receipt.execution.status || (request.selected_sources && isSettledInspectionResult(r))) && r.run.metadata.reconciliation_required === false &&
       r.run.metadata.terminal_receipt_persisted === true)) &&
     (r.receipt.execution.status === "completed" || (request.revalidation && r.receipt.execution.status === "failed")) &&
     r.receipt.source_refs.some(v => v.ref_type === "project_root_scope" && v.source_ref === request.expected_root_fingerprint), "predecessor_unsettled_or_mismatched");

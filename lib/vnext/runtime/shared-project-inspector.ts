@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { validateProspectiveAuthorization, readProspectiveAuthorization } from "../persistence/prospective-authorization";
 
 import {
   canonicalizeProtocolValueV01,
@@ -1835,6 +1836,10 @@ function validateAndDescribeCoreRecordV01(
       return focusV01("Automation work item", "Project-scoped bounded work lineage; no semantic authority is granted.", "bounded automation source", record.created_at);
     }
     case "capability_grant": {
+      if (validateProspectiveAuthorization(record.payload)) {
+        const grant = readProspectiveAuthorization(db, { ...config, grant_id: record.record_id, grant_fingerprint: record.fingerprint });
+        return focusV01("CapabilityGrant", "Explicit selected-source inspection authorization; no semantic or external-action authority.", "exact preparation authorization", grant.issued_at);
+      }
       const grant = readBoundedAutomationCapabilityGrantV01(db, {
         ...config,
         grant_id: record.record_id,
