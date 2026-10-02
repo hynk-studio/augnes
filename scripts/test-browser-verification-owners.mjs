@@ -123,8 +123,8 @@ assert.equal(detailedFields.length, new Set(detailedFields).size, "detailed_owne
 assert.equal(semanticMarkers.length, new Set(semanticMarkers).size, "semantic_marker_overlap");
 
 const project = loadProjectExperienceResultContractV1();
-assert.equal(project.field_ids.length, 69);
-assert.equal(project.marker_ids.length, 8);
+assert.equal(project.field_ids.length, 70);
+assert.equal(project.marker_ids.length, 9);
 const operator = loadOperatorExecutionOwnerContractV1();
 assert.equal(operator.children.length, 4);
 assert.equal(operator.field_ids.length, 140);

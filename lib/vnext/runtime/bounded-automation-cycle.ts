@@ -1,3 +1,4 @@
+import { assertPacketDirectionCurrent } from "../persistence/project-direction-store";
 import { readSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
 import { readAgendaInput, judgeAgenda, SELECTED_SOURCE_INSPECTION } from "../prospective-agenda";
 import { SELECTED_SOURCE_INSPECTION_TASK, SELECTED_SOURCE_INSPECTION_TITLE, SELECTED_SOURCE_INSPECTION_CHECKS, SELECTED_SOURCE_INSPECTION_OUTPUTS } from "../automation/selected-source-inspection-profile";
@@ -195,6 +196,7 @@ export class BoundedAutomationCycleServiceV01 {
       sessionAdmission = admitVNextLocalOperatorMutationInsideTransactionV01(db, input);
       const observedAt = this.now();
       const packet = resolveQueueableCurrentPacketV01(db, input.config, observedAt, !!input.preparation);
+      assertPacketDirectionCurrent(db, packet, observedAt);
       const agenda = input.preparation ? readAgendaInput(readSelectedWorkSources(packet), observedAt) : null;
       if (input.preparation && (!agenda || agenda.source_ref !== input.preparation.agenda_ref || !/^sha256:[a-f0-9]{64}$/u.test(input.preparation.host_fingerprint) || this.liveService.readCapabilityContractV01().adapter_version !== SELECTED_SOURCE_ADAPTER)) refuseV01("prospective_qualified_host_or_agenda_required");
       const authorization = input.preparation?.authorization_ref ? currentProspectiveAuthorization(db, {

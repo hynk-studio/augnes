@@ -1145,7 +1145,7 @@ function testMigrationParityAndPrePinnedUpgradeV01(): void {
       DROP INDEX idx_vnext_project_continuity_pins_project_order;
       DROP TABLE vnext_project_continuity_pins;
       DROP TABLE vnext_project_continuity_pin_collections;
-      DROP TABLE vnext_prospective_reentry;
+      DROP TABLE vnext_project_direction_credentials; DROP TABLE vnext_project_direction_records; DROP TABLE vnext_prospective_reentry;
       DROP TABLE vnext_repository_managed_resume_cancellations;
       DROP TABLE vnext_repository_managed_resume_runtime_claim_history;
       DROP TABLE vnext_repository_managed_resume_runtime_claims;

@@ -1089,6 +1089,7 @@ const integrationChildren = [
   "project-work-initialization",
   "current-work-read",
   "prospective-preparation-reentry",
+  "project-direction",
   "retry-inspection-outlook",
   "pre-execution-support-material",
   "native-selected-source-budget",
@@ -1195,6 +1196,9 @@ for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requ
 const prospectiveRegistration = readCanonicalChildRegistration(integrationSource, "prospective-preparation-reentry");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 90_000', 'requireNaturalExit: true', '"process-owning"', '"scripts/test-prospective-reentry.ts"'])
   requireText(prospectiveRegistration.block, fragment, "prospective preparation owns its bounded host lifecycle and result recovery");
+const directionRegistration = readCanonicalChildRegistration(integrationSource, "project-direction");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 90_000', 'requireNaturalExit: true', '"process-owning"', '"scripts/test-project-direction.ts"'])
+  requireText(directionRegistration.block, fragment, "direction authority owns one bounded admission/result/recovery child");
 const retryInspectionRegistration = readCanonicalChildRegistration(integrationSource, "retry-inspection-outlook");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"process-owning"', '"--retry-inspection-only"'])
   requireText(retryInspectionRegistration.block, fragment, "retry-inspection outlook retains one bounded native consumer and successor owner");

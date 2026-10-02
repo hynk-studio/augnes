@@ -1,3 +1,4 @@
+import { ensureProjectDirectionSchema } from "@/lib/vnext/persistence/project-direction-schema.mjs";
 import Database from "better-sqlite3";
 import { ensureProspectiveReentrySchema } from "@/lib/vnext/persistence/prospective-reentry-schema.mjs";
 import {
@@ -279,6 +280,7 @@ export function openDatabase() {
   ensureVNextProjectControlSchemaV01(db);
   ensureVNextProjectContinuityPinSchemaV01(db);
   ensureProspectiveReentrySchema(db);
+  ensureProjectDirectionSchema(db);
   return db;
 }
 

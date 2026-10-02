@@ -1,3 +1,4 @@
+import { validateProjectDirectionHistory } from "../lib/vnext/persistence/project-direction-store";
 import { assertWorkExpectationRecord } from "../lib/vnext/work-expectation";
 import { PROSPECTIVE_PREPARATION_PACKET } from "../lib/vnext/prospective-agenda";
 import { inspectVNextOperatorPilotPacketLineageV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity";
@@ -1672,6 +1673,7 @@ export function validateRecoveryCanonicalDatabaseV01(
   db: Database.Database,
 ): RecoveryCanonicalRecordValidationResultV01 {
   try {
+    validateProjectDirectionHistory(db);
     const repositoryExecutionTables = [
       "vnext_physical_root_baselines",
       "vnext_repository_execution_attachments",

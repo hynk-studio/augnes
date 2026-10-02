@@ -262,6 +262,7 @@ const result = {
   retired_route_statuses: {},
   retired_routes_non_mutating: false,
   first_work_browser_viewports: false,
+  project_direction_ui: false,
   repository_decision_browser_confirmation: false,
   delegated_work_narrow_viewport_no_overflow: false,
   shared_inspector_narrow_viewport_no_overflow: false,
@@ -2020,6 +2021,35 @@ async function main() {
       retained_lookup_select_compare_save_reopen: true,
       managed_execution_unavailable: true, note_operation_restart_count: 0,
       access_restart_count: 0, installed_service_observation: false }));
+    // Production human controls, on the disposable authored-work database.
+    const directionDb = new Database(accessDatabasePath);
+    const packetBytes = () => directionDb.prepare("SELECT record_id,payload_json FROM vnext_core_records WHERE project_id=? AND record_kind='task_context_packet' ORDER BY record_id").all(projectAlphaId);
+    const packetsBeforeDirection = packetBytes();
+    try {
+      await navigate(`${appOrigin}/projects/${encodeURIComponent(projectAlphaId)}`);
+      await waitForCondition(`document.querySelector('[data-project-direction-hydrated="true"]') !== null`, "project direction surface");
+      await clickSelector('[data-project-direction] > details > summary');
+      await setFormControlValue('[aria-label="Desired outcome or open question"]', 'Which source observations would help this project?');
+      await clickButtonByText('Save direction', '[data-project-direction]');
+      await waitForCondition(`document.querySelector('[data-project-direction]')?.textContent.includes('Revision 1') === true`, "effective human direction");
+      await setFormControlValue('[aria-label="Desired outcome or open question"]', 'Investigate the limits before choosing the next action');
+      await setFormControlValue('[aria-label="Why change direction?"]', 'Keep counterevidence visible while reconsidering selection');
+      await clickButtonByText('Save direction', '[data-project-direction]');
+      await waitForCondition(`document.querySelector('[data-project-direction]')?.textContent.includes('Revision 2') === true`, "revised human direction");
+      await navigate(`${appOrigin}/projects/${encodeURIComponent(projectAlphaId)}`);
+      await waitForCondition(`document.querySelector('[data-project-direction]')?.textContent.includes('Revision 2') === true`, "fresh direction reconstruction");
+      assert.equal(await evaluateBoolean(`document.querySelector('[data-project-direction]')?.textContent.includes('Reconsider pending work') === true`), true);
+      assert.deepEqual(packetBytes(), packetsBeforeDirection, "Direction changes preserve task and selected factual source bytes");
+      for (const width of [390, 768, 1440]) {
+        await setViewport(width, 1000);
+        await evaluateBoolean(`(() => { document.querySelectorAll('[data-project-direction] details').forEach(d => d.open = true); return true; })()`);
+        assert.equal(await evaluateBoolean(`document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1`), true, `direction overflow at ${width}`);
+      }
+      assert.equal(await evaluateBoolean(`/sha256:|action_nonce|session_secret|augnes-direction\\./.test(document.querySelector('[data-project-direction]').innerText)`), false);
+      result.project_direction_ui = true;
+      completeDetailedField("project_direction_ui");
+      record("human_direction_author_revision_reconstruction_preserves_work");
+    } finally { directionDb.close(); }
     companionFirstWorkProfile = false;
     await restartRuntime(fixture.writable_database_path, manifest, projectAlphaId);
   });
@@ -4817,7 +4847,7 @@ async function validateProjectHomeViewports(state) {
     assert.equal(metrics.surface_horizontal_overflow, false);
     assert.equal(metrics.inside_viewport, true);
     assert.equal(metrics.primary_navigation_count, 2);
-    assert.equal(metrics.minimum_control_size, true);
+    assert.equal(metrics.minimum_control_size, true, `minimum control size: ${JSON.stringify(await evaluateJson(`Array.from(document.querySelector('[data-blank-state="v0.1"]').querySelectorAll('a, button, input, textarea, select, summary')).map(e => ({ tag: e.tagName, id: e.id, width: e.getBoundingClientRect().width, height: e.getBoundingClientRect().height })).filter(r => r.width > 0 && r.height > 0 && (r.width < 40 || r.height < 40))`))}`);
     viewportResults.push(metrics);
   }
   await setViewport(1440, 1000);

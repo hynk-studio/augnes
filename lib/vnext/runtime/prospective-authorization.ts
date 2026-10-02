@@ -1,3 +1,5 @@
+import { assertPacketDirectionCurrent } from "../persistence/project-direction-store";
+import { assertAgendaDirectionBinding } from "./project-direction-preparation";
 import type Database from "better-sqlite3";
 import { hostname } from "node:os";
 import { SELECTED_SOURCE_ADAPTER } from "../native-host/selected-source-inspection-adapter";
@@ -33,6 +35,8 @@ export function prospectiveAuthorizationPreview(db: Database.Database, input: {
   if (!latest || continuity.packet_currentness !== "fresh") throw new Error("prospective_current_packet_required");
   const lineage = inspectVNextOperatorPilotPacketLineageV01(db, { config, ...latest });
   const packet = lineage.packet;
+  assertPacketDirectionCurrent(db, packet, at);
+  assertAgendaDirectionBinding(db, packet, at);
   const agenda = readAgendaInput(readSelectedWorkSources(packet), at);
   const control = readProjectAutomationControlV01(db, config);
   if (!lineage.projection_current || packet.capability_grant !== null || !agenda || agenda.source_ref !== input.agenda_ref ||
@@ -70,6 +74,8 @@ export function authorizeProspectiveInspection(db: Database.Database, input: {
 export function currentProspectiveAuthorization(db: Database.Database, input: {
   config: Scope; ref: ProspectiveAuthorizationRef; packet: TaskContextPacketV01; host_fingerprint: string; at: string;
 }) {
+  assertPacketDirectionCurrent(db, input.packet, input.at);
+  assertAgendaDirectionBinding(db, input.packet, input.at);
   const grant = readProspectiveAuthorization(db, { ...input.config, ...input.ref });
   const control = readProjectAutomationControlV01(db, input.config);
   if (grant.request.packet_id !== input.packet.packet_id || grant.request.packet_fingerprint !== input.packet.integrity.fingerprint ||

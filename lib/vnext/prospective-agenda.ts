@@ -77,7 +77,14 @@ export function readAgendaInput(entries: TaskContextPacketSelectedEntryV01[], at
   if (new Set(agenda.inspections.map(v => v.key)).size !== agenda.inspections.length) throw new Error("prospective_duplicate_inspection");
   const available = (ref: string) => entries.some(e => e.source_ref === ref && (!e.external_ref?.observed_at || Date.parse(e.external_ref.observed_at) <= Date.parse(at)));
   const direction = entries.find(e => e.source_ref === agenda.direction_ref);
-  if (!direction || direction.trust_class !== "user_declaration" || !available(agenda.direction_ref)) throw new Error("prospective_direction_required");
+  let projectedDirection = false;
+  try {
+    const value = JSON.parse(direction?.bounded_summary ?? "null");
+    projectedDirection = value?.version === "project_direction_source.v0.1" && sha(value.revision_ref) && sha(value.authority_ref) && value.principal?.kind === "agent";
+  } catch {}
+  // Interpretation accepts an attributed agent projection. Execution separately
+  // reconstructs its exact authority through the project-direction owner.
+  if (!direction || (direction.trust_class !== "user_declaration" && !projectedDirection) || !available(agenda.direction_ref)) throw new Error("prospective_direction_required");
   if (entry.external_ref?.observed_at && Date.parse(entry.external_ref.observed_at) > Date.parse(at)) throw new Error("prospective_future_agenda");
   const methods: ConditionalMethod[] = [];
   const observations: Observation[] = [];

@@ -389,6 +389,7 @@ function buildSourceRefsV02(
       label: projectName ?? "Current project",
       href: `/projects/${encodeURIComponent(projection.project_id)}`,
     });
+    if (source.project_direction?.effective) add({ ref_id: source.project_direction.effective.ref, kind: "project_state", label: "Exact working direction revision", href: `/projects/${encodeURIComponent(projection.project_id)}` });
     add({ ref_id: stableRefV02("project-state", projection.project_id), kind: "project_state", label: "Current project read model", href: "/" });
     if (projection.coordination.task_frame.goal) {
       add({ ref_id: stableRefV02("task", projection.coordination.task_frame.goal), kind: "task", label: "Current work goal", href: WORKPLANE_HREF });
@@ -434,6 +435,9 @@ function buildObservedV02(
     if (source.active_project_id) push("The saved current project could not be resolved from the current read model.", [projectRef]);
     return result.slice(0, GUIDE_BRIEF_LIMITS_V02.observed);
   }
+  const direction = source.project_direction?.effective;
+  if (direction) push(`Working direction (not accepted factual state): ${publicGuideBriefTextV02(direction.value.content.purpose)}`, [direction.ref]);
+  if (source.project_direction?.pending_work.some(w => w.needs_reconsideration)) push("Pending work needs reconsideration under the effective direction or delegation.", direction ? [direction.ref] : [projectRef]);
   push(`${displayProjectNameV02(projection.project_summary.project.display_name)} is ${projection.project_summary.is_active ? "the current project" : "being viewed without changing the current project"}.`, [projectRef]);
   push(
     projection.project_summary.root_availability === "available"

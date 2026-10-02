@@ -745,11 +745,94 @@ WorkExpectation below remains an operator-authored prediction about one exact
 criterion/attempt. This broader conditional outlook neither creates nor updates
 one, changes its chronology, or claims match/mismatch from a missing outcome.
 
+#### Effective project direction and bounded decision roles (#1382)
+
+`project_direction.v0.1` is additive project planning state, not a new accepted
+Core goal or a Personal Perspective inference. The
+[shared direction owner](../../lib/vnext/runtime/project-direction.ts) appends
+immutable, content-bound decisions with scope, chronology, prior revision,
+principal, reason and optional delegation. Existing creation attribution remains
+unknown rather than being backfilled. A newly authorized agent creation records
+its actual logical role separately from direction and execution authority.
+
+One effective working direction exists per project. A short outcome or open
+question is sufficient. Accepted Core goals keep their existing review/Transition
+owners; working direction does not overwrite or resolve a conflict with them.
+Readers explicitly say that this relationship needs separate review. A task edit
+does not edit direction. New ordinary packets receive an immutable sidecar binding
+to the exact effective revision. Existing packets, selected notes, forecasts,
+receipts and factual support remain byte-preserved. No-direction work remains
+eligible under its existing rules. Pending work under a superseded, paused or
+unavailable direction/delegation needs reconsideration before admission. A claimed
+run retains its original basis and existing reconciliation/cancellation rules.
+Successors bind the then-effective revision; old selected agenda material remains
+historical context until explicitly prepared again under that revision.
+
+The existing project UI and `GET/POST /api/vnext/operator/project-direction`
+share the authenticated local session and action-nonce mutation owner. This proves
+possession of the bounded local credential, not external human identity. Direction
+editing is restricted to the designated human principal. `authorize_agent` issues
+one local, random bearer capability for a provider-neutral `role:…` principal,
+with up to four explicitly allowed direction contents, up to two exact physical
+local creation roots, a maximum twenty aggregate mutations and at most one hour.
+The normal UI initially offers eight mutations and one creation slot. An optional
+parent delegation records its exact revision, why separation is needed, intended
+contribution and question/result to return. An independent agent project needs no
+parent. Neither creation nor direction conveys execution/resources or external
+effects. Creating on an existing human project's behalf cannot acquire its north
+star: existing-root creation and principal changes are refused.
+
+`GET/POST /api/vnext/agent/project-direction` is the supported local shared agent
+interface. It requires that bearer capability, refuses human-session cookie
+substitution, and checks loopback/request boundaries. GET takes `project_id` and
+returns the validated direction/history and next sequence. POST takes `sequence`,
+`project_id` (null only for creation), and `operation`: `create_project` with a
+policy slot/content/reason; `decide` with exact prior reference/content/reason/status;
+`propose`; or source-bound `return_result`/`return_proposal`. Input shapes are
+strictly owned by the linked implementation, not caller actor labels. Sequence
+consumption, current revision and mutation budget share one immediate transaction.
+An agent can revise or pause its own project within policy without another human
+confirmation. Outside-policy content stays a proposal. Returned child receipts
+must exist in that child's scope; returned proposals are explicitly not findings.
+Neither becomes a parent decision or accepted fact automatically.
+
+The issuer can revoke access or explicitly renew selected existing projects for
+the same logical role. Renewal ends the old capability, retains history, specifies
+current exact child/parent revisions and issues a new bounded credential; the
+agent then decides the reconsidered revision through its own owner. Credentials
+are returned once, kept out of durable records/logs, and stored only as hashes.
+Recovery backups retain/validate history but erase credential hashes and suspend
+access. Fresh explicit authorization is required after restore. Portable project
+export currently refuses projects with direction state rather than dropping
+history or exporting partial cross-project authority; full recovery backup is the
+supported preservation path for this initial local slice. Legacy portable exports
+remain unchanged. No installed daemon, shared memory, general IAM, automatic
+project proliferation or reuse registry is added. Web Planning branches remain
+host-owned planning data; they are not delegated subprojects.
+
+The UI's optional source-inspection preparation accepts ordinary top-level file
+names and literal checks, computes bounded source identities, and calls the normal
+work revision writer. A direction projection records its real human/agent
+provenance; admission reconstructs it against the effective durable owner. Historical
+selected user-declaration direction notes retain their meaning for projects without
+configured direction. Authenticated authorization/arming remains the separate
+#1381 path below, now resolving either the existing pilot session or Companion
+review session for the exact project. The project UI
+explicitly offers “Authorize and inspect”: after grant and arm, authenticated
+`run_inspection` borrows the existing foreground host for at most fifteen seconds
+and always settles its owned service. The worker retains its ten-second budget.
+Arming alone does not run anything, and interrupted/uncertain execution is never
+automatically retried. No internal reference or command is typed by the user. This supported case consumes a general freeform purpose without
+claiming general goal optimization. Future decisions/results cannot affect an
+earlier judgment or its evidence; a direction-only change preserves support and
+method conditions. GuideBrief and Start projections expose the same reconsideration
+boundary without acquiring mutation or execution rights.
+
 #### Prospective preparation and local re-entry (#1380)
 
 The opt-in `augnes.prospective-input.v0.1` profile uses the existing selected
 whole-note writer and source identity. One `agenda` refers to a separately selected
-user-declared direction; its interpretation remains a source-attributed candidate.
+user-declared direction (or an exact authenticated direction projection under #1382); its interpretation remains a source-attributed candidate.
 Up to two `method` notes retain conditional actions, context cues, essential
 premises, support and conflict references. Explicit `observation` notes distinguish
 not yet observed, observed, checked absent, conflicting and channel unavailable.

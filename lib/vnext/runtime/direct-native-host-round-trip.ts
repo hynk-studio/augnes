@@ -1,3 +1,4 @@
+import { assertPacketDirectionCurrent } from "../persistence/project-direction-store";
 import { bindWorkExpectationToAttempt } from "@/lib/vnext/persistence/work-expectation-store";
 import { AUTHORED_SUCCESSOR_TASK_V01 } from "@/lib/vnext/authored-successor-task";
 import { AUTHORED_SUCCESSOR_CONTEXT_V01 } from "@/types/vnext/project-work-initialization";
@@ -577,6 +578,7 @@ export async function prepareNativeHostRunClaimInsideTransactionV01(
     evaluated_at: input.claimed_at,
     require_active_project: input.mode !== "repository_attachment",
   });
+  assertPacketDirectionCurrent(db, admission.packet, input.claimed_at);
   if (admission.packet.compatibility.source_contracts.includes(PROSPECTIVE_PREPARATION_PACKET) && input.mode !== "policy_triggered") refuse("prospective_wake_owner_required", 403);
   revalidateAdmissionInsideTransaction(db, {
     config: input.config,
@@ -986,6 +988,7 @@ export async function runDirectNativeHostRoundTripV01(
       if (preAdmitted || preAdmittedResume) {
         refuse("direct_host_pre_admitted_run_claim_missing", 409);
       }
+      assertPacketDirectionCurrent(db, admitted.packet, startedAt);
       createRunLedgerRecord(db, {
         input,
         admission: admitted,
