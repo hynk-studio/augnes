@@ -30,6 +30,7 @@ export class HostedResearchProjectionErrorV02 extends Error {
 }
 
 const CURRENT_STATES = {
+  bounded_preparation: ["defined_preparation_work", "current_preparation_packet"],
   initial_user_defined: ["defined_initial_work", "current_initial_packet"],
   pre_execution_new_task: ["defined_new_task", "current_new_task_packet"],
   pre_execution_user_revision: ["defined_revised_work", "current_revision_packet"],

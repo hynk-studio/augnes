@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { PROSPECTIVE_PREPARATION_PACKET } from "../prospective-agenda";
 import { RETRY_INSPECTION_OUTLOOK_V02, retryInspectionOutlookVersion, retryInspectionProjectionItemsV01, type RetryInspectionOutlookVersion } from "../retry-inspection-outlook";
 import { compareNewProjectWorkV01 } from "./new-project-work-preparation";
 import { assertReviewedOutcomeSourcesRetained, normalizeNativeSelectedWorkSources, readSelectedWorkSources, compareSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
@@ -552,6 +553,7 @@ function inspectRevisionChainInsideReadV01(
   }
   validatePreExecutionHistoryAtEachRevisionV01(db, input, genesis, ordered);
   const semanticSuccessor = records.some((record) =>
+    !hasContract(record.packet, PROSPECTIVE_PREPARATION_PACKET) &&
     hasContract(
       record.packet,
       VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,

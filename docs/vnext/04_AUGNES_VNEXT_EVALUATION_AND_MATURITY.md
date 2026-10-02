@@ -348,7 +348,8 @@ Manual agenda notes and a zero-model worker that really inspects files establish
 only the first level. A timer firing or a process exiting successfully establishes
 neither observation availability nor useful judgment.
 
-The deciding development path exercises normal producers and consumers, real
+The deciding development path begins with ordinary authored null-grant work and
+exercises explicit authenticated authorization, arming, normal producers and consumers, real
 bounded preparation, source-bound receipt, durable wake/admission/result handling,
 and ordinary successor reconstruction. Discriminating cases cover changed decision
 timing/prerequisites, no unnecessary repeated work, conditional A → B → A reuse,
@@ -358,9 +359,16 @@ protection. Concurrent/stale/overdue signals, interruption, cancellation, change
 grants, exhausted attempts, source revisions and project isolation must not repeat
 an admitted effect. Unknown execution requires reconciliation before any retry.
 Use disposable cases/fake clocks plus a bounded owned host loop, and report which
-parts actually ran and whether any model was invoked.
+parts actually ran and whether any model was invoked. A fixture-injected grant or
+direct database write cannot substitute for the supported authorization path.
+Before an observation timestamp, adding its result must leave the entire judgment,
+including identity, next action and evidence references, equal to the no-future
+state; at and after the timestamp the eligible evidence may change that judgment.
+Separately evidenced completion retains its own meaning.
 
-An unavailable authorized ordinary case is an explicit evidence gap, not invented
+Supported runtime reachability is an implementation obligation, independent of
+ordinary model-use or comparative studies. An unavailable authorized ordinary case
+is an explicit evidence gap, not invented
 benefit or a universal engineering blocker. #1379's ordinary-choice/result/burden
 observation remains required before broader/default activation. The implementation
 does not launch a comparative study. A later comparison must give a strong,

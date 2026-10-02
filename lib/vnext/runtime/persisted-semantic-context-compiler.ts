@@ -1,4 +1,4 @@
-import { SELECTED_SOURCE_INSPECTION } from "../prospective-agenda";
+import { SELECTED_SOURCE_INSPECTION, PROSPECTIVE_PREPARATION_PACKET } from "../prospective-agenda";
 import type Database from "better-sqlite3";
 
 import {
@@ -171,20 +171,18 @@ export interface CompileBoundedAutomationTaskContextPacketResultV01 {
  * builder/writer. The source packet remains selected context; it is never
  * treated as execution authority or as the work item itself.
  */
-export function compileBoundedAutomationTaskContextPacketV01(
-  db: Database.Database,
-  input: {
-    workspace_id: string;
-    project_id: string;
-    source_packet: TaskContextPacketV01;
-    work: VNextAutomationWorkSourceV01;
-    grant: BoundedAutomationCapabilityGrantV01;
-    work_ref: ExternalRefV01;
-    grant_ref: ExternalRefV01;
-    generated_at: string;
-  },
-): CompileBoundedAutomationTaskContextPacketResultV01 {
-  assertVNextDurableSemanticStoreSchemaV01(db);
+export interface BoundedAutomationPacketInput {
+  workspace_id: string;
+  project_id: string;
+  source_packet: TaskContextPacketV01;
+  work: VNextAutomationWorkSourceV01;
+  grant: BoundedAutomationCapabilityGrantV01;
+  work_ref: ExternalRefV01;
+  grant_ref: ExternalRefV01;
+  generated_at: string;
+}
+
+export function buildBoundedAutomationTaskContextPacketV01(input: BoundedAutomationPacketInput): TaskContextPacketV01 {
   validatePriorPacket(
     input.source_packet,
     input.workspace_id,
@@ -267,6 +265,7 @@ export function compileBoundedAutomationTaskContextPacketV01(
         ...input.source_packet.compatibility.source_contracts,
         VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
         VNEXT_BOUNDED_AUTOMATION_CONTEXT_COMPILER_VERSION_V01,
+        ...(input.work.source_grant_record_status === "explicit_preparation_authorization" ? [PROSPECTIVE_PREPARATION_PACKET] : []),
         input.work.operation_profile,
       ]),
       source_refs: normalizeRefs([
@@ -298,6 +297,12 @@ export function compileBoundedAutomationTaskContextPacketV01(
         .join(",")}`,
     );
   }
+  return packet;
+}
+
+export function compileBoundedAutomationTaskContextPacketV01(db: Database.Database, input: BoundedAutomationPacketInput): CompileBoundedAutomationTaskContextPacketResultV01 {
+  assertVNextDurableSemanticStoreSchemaV01(db);
+  const packet = buildBoundedAutomationTaskContextPacketV01(input);
   const write = insertVNextCoreRecordV01(db, {
     record_kind: "task_context_packet",
     record_id: packet.packet_id,

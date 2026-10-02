@@ -1,4 +1,3 @@
-import { hostname } from "node:os";
 import type Database from "better-sqlite3";
 import { readSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
 import { readAutonomyRunLedgerRecord } from "@/lib/autonomy/runner-ledger";
@@ -11,11 +10,12 @@ import { readProjectRunResultSourceBindingV01 } from "./project-run-result-read-
 import { inspectVNextOperatorPilotPacketLineageV01, projectVNextOperatorPilotContinuityV01 } from "./operator-pilot-project-continuity";
 import { BoundedAutomationCycleServiceV01 } from "./bounded-automation-cycle";
 import { LiveNativeHostRunServiceV01 } from "./live-native-host-run-service";
-import { createSelectedSourceInspectionAdapter, SELECTED_SOURCE_RESULT, SELECTED_SOURCE_ADAPTER, type InspectionResult } from "../native-host/selected-source-inspection-adapter";
+import { createSelectedSourceInspectionAdapter, SELECTED_SOURCE_RESULT, type InspectionResult } from "../native-host/selected-source-inspection-adapter";
 import { openVNextLocalOperatorDatabaseV01, admitVNextLocalOperatorMutationInsideTransactionV01, type VNextLocalOperatorPilotConfigV01, type VNextLocalOperatorSessionCredentialV01 } from "./local-operator-session";
 import type { VNextLocalRuntimeClockV01 } from "./local-runtime-clock";
 
-export function prospectiveHostFingerprint() { return hash(canonical({ host: hostname(), platform: process.platform, architecture: process.arch, adapter: SELECTED_SOURCE_ADAPTER })); }
+import { prospectiveHostFingerprint } from "./prospective-authorization";
+export { prospectiveHostFingerprint } from "./prospective-authorization";
 export interface ProspectiveHostOptions {
   config: VNextLocalOperatorPilotConfigV01; agenda_ref: string;
   now?: () => string; open_database?: (config: VNextLocalOperatorPilotConfigV01) => Database.Database;

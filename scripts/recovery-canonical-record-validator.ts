@@ -1,4 +1,7 @@
 import { assertWorkExpectationRecord } from "../lib/vnext/work-expectation";
+import { PROSPECTIVE_PREPARATION_PACKET } from "../lib/vnext/prospective-agenda";
+import { inspectVNextOperatorPilotPacketLineageV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity";
+import { validateProspectiveAuthorization, prospectiveAuthorizationKey, readProspectiveAuthorization } from "../lib/vnext/persistence/prospective-authorization";
 import { readWorkExpectationRecords } from "../lib/vnext/persistence/work-expectation-store";
 import { authoredSuccessorPacketIdempotencyKeyV01, inspectAuthoredSuccessorPacketV01, isStandaloneAuthoredSuccessorV01 } from "../lib/vnext/runtime/authored-successor-task";
 import type Database from "better-sqlite3";
@@ -469,6 +472,11 @@ function validatePayloadAndEnvelopeV01(record: ParsedCanonicalRecordV01): void {
       return;
     }
     case "capability_grant": {
+      if (validateProspectiveAuthorization(payload)) {
+        exactEnvelopeV01(record, { record_id: payload.grant_id, workspace_id: payload.workspace_id, project_id: payload.project_id,
+          fingerprint: payload.grant_fingerprint, idempotency_key: prospectiveAuthorizationKey(payload.request, payload.approved_by), created_at: payload.issued_at });
+        return;
+      }
       if (!validateBoundedAutomationCapabilityGrantV01(payload)) refuseV01();
       exactEnvelopeV01(record, {
         record_id: payload.grant_id,
@@ -886,6 +894,11 @@ function validateCompiledTaskContextPacketRelationV01(
   byIdentity: Map<string, ParsedCanonicalRecordV01>,
 ): void {
   const packet = record.payload as unknown as TaskContextPacketV01;
+  if (packet.compatibility.source_contracts.includes(PROSPECTIVE_PREPARATION_PACKET)) {
+    inspectVNextOperatorPilotPacketLineageV01(db, { packet_id: packet.packet_id, packet_fingerprint: packet.integrity.fingerprint,
+      config: { enabled: true, workspace_id: record.workspace_id, project_id: record.project_id, operator_id: "recovery-read", database_path: db.name } });
+    return;
+  }
   if (isStandaloneAuthoredSuccessorV01(packet)) {
     inspectAuthoredSuccessorPacketV01(db, { packet, config: { enabled: true, workspace_id: record.workspace_id,
       project_id: record.project_id, operator_id: "recovery-read", database_path: db.name } });
@@ -1236,7 +1249,8 @@ function validateDatabaseRelationsV01(
         break;
       }
       case "capability_grant": {
-        const found = readBoundedAutomationCapabilityGrantV01(db, {
+        const reader = validateProspectiveAuthorization(record.payload) ? readProspectiveAuthorization : readBoundedAutomationCapabilityGrantV01;
+        const found = reader(db, {
           workspace_id: record.workspace_id,
           project_id: record.project_id,
           grant_id: record.record_id,

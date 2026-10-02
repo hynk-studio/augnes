@@ -1,6 +1,7 @@
 import { InitialProjectWorkContextErrorV01, normalizeInitialProjectWorkDefinitionV01 } from "@/lib/intake/work-definition";
 export { InitialProjectWorkContextErrorV01, normalizeInitialProjectWorkDefinitionV01 } from "@/lib/intake/work-definition";
 import type Database from "better-sqlite3";
+import { PROSPECTIVE_PREPARATION_PACKET } from "../prospective-agenda";
 
 import {
   canonicalizeProtocolValueV01,
@@ -520,7 +521,7 @@ export function inspectInitialProjectWorkPacketLineageV01(
   const laterTransitionPacket = initialRows.some((row) => {
     if (row.record_id === packet.packet_id) return false;
     const value = JSON.parse(row.payload_json) as TaskContextPacketV01;
-    return value.compatibility?.source_contracts?.includes(
+    return !value.compatibility?.source_contracts?.includes(PROSPECTIVE_PREPARATION_PACKET) && value.compatibility?.source_contracts?.includes(
       VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
     );
   });

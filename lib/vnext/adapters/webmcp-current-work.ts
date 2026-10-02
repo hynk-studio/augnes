@@ -7,6 +7,7 @@ const ROUTE = "/api/vnext/operator/project-continuity";
 const NAME = "augnes_get_current_work_context";
 const DESCRIPTION = "Read the current work displayed on this Augnes page. Returns a fresh authenticated, bounded read with untrusted source material. Read-only: no decisions, state changes or execution. Refuses if the displayed project or packet changed; refresh the page first. Not continuously current or authenticated proof of origin.";
 const LINEAGES = {
+  defined_preparation_work: ["current_preparation_packet", "bounded_preparation"],
   defined_initial_work: ["current_initial_packet", "initial_user_defined"],
   defined_new_task: ["current_new_task_packet", "pre_execution_new_task"],
   defined_revised_work: ["current_revision_packet", "pre_execution_user_revision"],

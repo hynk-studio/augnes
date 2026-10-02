@@ -350,6 +350,7 @@ function readProjectWorkInitializationStrictV01(
     !invalidBlocksCurrent
   ) {
     const state =
+      current.lineage_kind === "bounded_preparation" ? "defined_preparation_work" :
       current.lineage_kind === "authored_successor_task" ? "defined_successor_work" :
       current.lineage_kind === "initial_user_defined"
         ? "defined_initial_work"
@@ -359,6 +360,7 @@ function readProjectWorkInitializationStrictV01(
             ? "defined_transition_work"
             : "defined_operational_continuation_work";
     const reason =
+      current.lineage_kind === "bounded_preparation" ? "current_preparation_packet" :
       current.lineage_kind === "authored_successor_task" ? "current_successor_packet" :
       current.lineage_kind === "initial_user_defined"
         ? "current_initial_packet"

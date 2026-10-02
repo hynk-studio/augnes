@@ -171,7 +171,7 @@ export function validateBoundedAutomationCapabilityGrantV01(
     grant.budget.max_runtime_ms >= 1 &&
     grant.budget.max_runtime_ms <= 900_000 &&
     Number.isSafeInteger(grant.budget.max_commands) &&
-    grant.budget.max_commands >= 1 &&
+    grant.budget.max_commands >= (grant.work_operation_profile === "selected_source_inspection.v0.1" ? 0 : 1) &&
     grant.budget.max_commands <= 128 &&
     grant.budget.max_augnes_model_invocations === 0 &&
     grant.budget.max_augnes_model_tokens === 0 &&

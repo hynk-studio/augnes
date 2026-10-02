@@ -39,6 +39,7 @@ export type CodexCurrentContinuityWorkStatusV01 =
   | "current_work_ambiguous";
 
 export type CodexCurrentContinuityLineageKindV01 =
+  | "bounded_preparation"
   | "initial_user_defined"
   | "pre_execution_user_revision"
       | "pre_execution_new_task"

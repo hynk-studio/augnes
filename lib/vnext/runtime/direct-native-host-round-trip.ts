@@ -7,7 +7,7 @@ import { createHash } from "node:crypto";
 import { lstat } from "node:fs/promises";
 
 import type Database from "better-sqlite3";
-import { readAgendaInput, judgeAgenda, SELECTED_SOURCE_INSPECTION } from "../prospective-agenda";
+import { readAgendaInput, judgeAgenda, SELECTED_SOURCE_INSPECTION, PROSPECTIVE_PREPARATION_PACKET } from "../prospective-agenda";
 import { readReentry } from "../persistence/prospective-reentry-store";
 import { readSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
 
@@ -183,6 +183,7 @@ export interface PersistedHostPacketAdmissionV01 {
   work_ref: ExternalRefV01;
   task_ref: ExternalRefV01;
   packet_lineage:
+    | { lineage_kind: "bounded_preparation"; immediate_prior_packet_ref: ExternalRefV01 }
     | {
         lineage_kind: "authored_successor_task";
         successor_definition_ref: ExternalRefV01;
@@ -401,7 +402,11 @@ export async function admitPersistedHostTaskContextPacketV01(
       packet.packet_version,
     ),
     packet_lineage:
-      lineage.lineage_kind === "authored_successor_task"
+      lineage.lineage_kind === "bounded_preparation"
+        ? { lineage_kind: "bounded_preparation", immediate_prior_packet_ref: packet.compatibility.source_refs.find(ref =>
+          ref.ref_type === "task_context_packet" && ref.external_id === lineage.prior_packet.packet_id &&
+          ref.source_ref === lineage.prior_packet.packet_fingerprint && ref.compatibility_namespace === "vnext_bounded_automation_context_compiler.v0.1")! }
+        : lineage.lineage_kind === "authored_successor_task"
         ? { lineage_kind: "authored_successor_task", successor_definition_ref: lineage.successor_definition_ref,
             operator_action_ref: lineage.operator_action_ref, immediate_prior_packet_ref: lineage.immediate_prior_packet_ref,
             predecessor_receipt_ref: lineage.predecessor_receipt_ref }
@@ -572,6 +577,7 @@ export async function prepareNativeHostRunClaimInsideTransactionV01(
     evaluated_at: input.claimed_at,
     require_active_project: input.mode !== "repository_attachment",
   });
+  if (admission.packet.compatibility.source_contracts.includes(PROSPECTIVE_PREPARATION_PACKET) && input.mode !== "policy_triggered") refuse("prospective_wake_owner_required", 403);
   revalidateAdmissionInsideTransaction(db, {
     config: input.config,
     admission,
@@ -807,6 +813,7 @@ export async function runDirectNativeHostRoundTripV01(
     evaluated_at: prevalidatedAt,
     require_active_project: input.mode !== "repository_attachment",
   });
+  if (admitted.packet.compatibility.source_contracts.includes(PROSPECTIVE_PREPARATION_PACKET) && input.mode !== "policy_triggered") refuse("prospective_wake_owner_required", 403);
   if (managedLive && adapter.provider_egress === "native_host_managed") {
     assertLiveHostEgressAdmissionV01({
       mode: input.mode,
@@ -1733,7 +1740,7 @@ function buildNativeHostRequest(input: {
     packet,
     guide_brief: input.guide_brief,
     packet_lineage:
-      input.admission.packet_lineage.lineage_kind === "authored_successor_task"
+      input.admission.packet_lineage.lineage_kind === "authored_successor_task" || input.admission.packet_lineage.lineage_kind === "bounded_preparation"
         ? { ...input.admission.packet_lineage, packet_source_refs: packet.compatibility.source_refs,
             selected_context_refs: packet.selected_context.flatMap(e => e.external_ref ? [e.external_ref] : []) }
         : input.admission.packet_lineage.lineage_kind === "semantic_transition"
@@ -1862,7 +1869,7 @@ function buildNativeHostRequest(input: {
         : "forbidden",
       max_changed_files: MAX_CHANGED_FILES,
       max_artifacts: MAX_ARTIFACTS,
-      max_commands: MAX_COMMANDS,
+      max_commands: input.automation_context?.bounded_cycle?.grant.budget.max_commands ?? MAX_COMMANDS,
       max_checks: MAX_CHECKS,
       timeout_ms: input.timeout_ms,
       stop_settle_timeout_ms: input.stop_settle_timeout_ms,
@@ -2249,7 +2256,7 @@ function assertBoundedHostContractV01(input: {
     grant.host_execution_profile !== input.adapter.execution_profile ||
     grant.host_provider_egress !== input.adapter.provider_egress ||
     input.timeout_ms > grant.budget.max_runtime_ms ||
-    MAX_COMMANDS > grant.budget.max_commands
+    (grant.work_operation_profile === SELECTED_SOURCE_INSPECTION ? 0 : MAX_COMMANDS) > grant.budget.max_commands
   ) {
     refuse("direct_host_bounded_automation_budget_or_host_conflict", 409);
   }
@@ -3284,7 +3291,9 @@ export function buildDirectNativeHostRunIdentityV01(input: {
   repository_delegation_context?: NativeHostRepositoryDelegationContextV01 | null;
 }) {
   const lineageMaterial =
-    input.admission.packet_lineage.lineage_kind === "authored_successor_task"
+    input.admission.packet_lineage.lineage_kind === "bounded_preparation"
+      ? { bounded_preparation: input.admission.packet_lineage }
+      : input.admission.packet_lineage.lineage_kind === "authored_successor_task"
       ? { authored_successor: input.admission.packet_lineage }
       : input.admission.packet_lineage.lineage_kind === "semantic_transition"
       ? {
@@ -3362,7 +3371,9 @@ function sourceTransitionReceiptRefV01(
 function admissionLineageRefsV01(
   admission: PersistedHostPacketAdmissionV01,
 ): ExternalRefV01[] {
-  return admission.packet_lineage.lineage_kind === "authored_successor_task"
+  return admission.packet_lineage.lineage_kind === "bounded_preparation"
+    ? [admission.packet_lineage.immediate_prior_packet_ref]
+    : admission.packet_lineage.lineage_kind === "authored_successor_task"
     ? [admission.packet_lineage.successor_definition_ref, admission.packet_lineage.operator_action_ref,
         admission.packet_lineage.immediate_prior_packet_ref, admission.packet_lineage.predecessor_receipt_ref]
     : admission.packet_lineage.lineage_kind === "semantic_transition"

@@ -169,7 +169,8 @@ implementation/Draft review. It does not complete #1213, #1214 or #1215, reopen
 P4.6, inherit research budgets, or authorize a live comparative study.
 
 The bounded source path is selected direction/notes → candidate decision agenda →
-one complementary selected-source inspection bundle → existing policy/grant/native
+one complementary selected-source inspection bundle → explicit authenticated
+preparation authorization → arm → existing policy/grant/native
 admission → source-bound receipt → durable result-event/time reconsideration →
 revised/retained/withdrawn judgment and next action. Explicit later authorship uses
 the normal result-source comparison and successor writer. One local host, one
@@ -178,22 +179,30 @@ generic scheduler, dashboard, global event bus or host expansion is introduced.
 The [02 contract](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#prospective-preparation-and-local-re-entry-1380)
 owns temporal distinctions, eligibility, attribution and authority.
 
-The constructed development check uses the normal semantic packet writer,
-authenticated queue, atomic grant/run admission, real bounded local file reads,
+The constructed development check uses ordinary initial authorship and selected-note
+revision with a null grant, authenticated authorization preview/opt-in and arming,
+atomic grant/run admission, real bounded local file reads,
 native receipt, durable re-entry and ordinary successor. It also checks changed
 timing, complementary observations, A → B → A, contradictory evidence, broken
 premises, unavailable channels, concurrent/overdue wakes, cancellation, changed
 permission, source drift and interruption after claim. A bounded foreground host
 loop exercises actual timer/admission/result handling with zero model calls.
-This is scripted mechanism evidence, not agenda discovery, model judgment or
+The reviewed-head fixture had supplied its own grant and masked an ordinary
+authorship-to-preparation gap, including a semantic-lineage assumption in the
+execution reader. The correction adds the bounded grant connection and validates
+the distinct preparation lineage through production owners. Future result rows
+are also excluded before completion and evidence-reference calculation, with full
+judgment equality checked before their availability boundary.
+This is scripted mechanism and runtime-reachability evidence, not agenda discovery, model judgment or
 comparative usefulness. Final exact-head verification belongs to the PR receipt.
 
 Ordinary model use is **NOT RUN**: no ordinary task with a qualified explicit
 project/work grant and defensible prospective inputs was supplied for this slice.
-Ordinary authored packets still have no automation grant; arming them refuses.
-The implementation does not manufacture one from a wake or a prepared agenda.
-Next: review the exact source/verification and select an already authorized ordinary
-case through the supported grant owner; observe actual choice, preparation and
+Ordinary authored packets still have no embedded automation grant; the explicit
+authenticated preparation authorization now connects them to the bounded host.
+The implementation does not manufacture authority from a wake or a prepared agenda.
+Next: review the corrected exact source/verification, then select and explicitly
+authorize an ordinary case through this grant owner; observe actual choice, preparation and
 human repair burden before considering broader activation. The absence of that
 case does not invalidate the bounded engineering or establish real-world benefit.
 

@@ -753,7 +753,11 @@ user-declared direction; its interpretation remains a source-attributed candidat
 Up to two `method` notes retain conditional actions, context cues, essential
 premises, support and conflict references. Explicit `observation` notes distinguish
 not yet observed, observed, checked absent, conflicting and channel unavailable.
-Unknown/future observation times cannot supply an earlier decision. The bounded
+Unknown/future observation times cannot supply an earlier decision. Result
+observations are cutoff-filtered before determining completion or adding evidence
+references; adding only future results leaves the entire current judgment unchanged.
+A separately available, attributed completion report can still prevent repetition.
+The bounded
 [input and judgment implementation](../../lib/vnext/prospective-agenda.ts) is the
 field-level contract; ordinary notes and historical retry-inspection packets retain
 their existing meanings. No model call or accepted Core fact is created by parsing.
@@ -794,16 +798,38 @@ literal absence. No source contents, commands, network calls or models are produ
 by this worker. The existing native result/receipt writer binds its bounded report
 to the exact packet, work, root, grant and run.
 
-The authenticated local `POST /api/vnext/operator/prospective-reentry` accepts
-`{ "action": "arm" | "cancel", "agenda_ref": "sha256:..." }`. Arming queues the
-selected preparation and records one local eligibility row. It requires the
-existing enabled project policy and an unexpired enforced source-packet grant;
-ordinary authored packets with `capability_grant: null` still refuse with
-`bounded_automation_source_grant_required`. No new grant store or implicit Start
-permission is introduced. A previously executed source task can supply context
+Ordinary initial, revised and successor packets keep `capability_grant: null`.
+With the existing project policy explicitly enabled, the authenticated local
+`GET /api/vnext/operator/prospective-reentry?agenda_ref=<ref>&preview=authorization`
+returns reviewable authorization material. Preview grants nothing. The operator
+explicitly posts `{ "action": "authorize", "authorization": <preview> }` to the
+same route. Normal loopback/same-origin/session admission and a transactionally
+consumed action nonce bind this opt-in to the exact workspace/project, source
+packet/fingerprint, agenda, inspection work profile, qualified host, registered
+root, policy revision and expiry. Expiry cannot exceed one hour, the premise
+lifetime or the packet lifetime. The fixed budget is one work item, one active run,
+one attempt, ten seconds, two files/65,536 bytes, zero commands/models and no network.
+The `prospective_inspection_authorization.v0.1` subtype uses the existing immutable
+Core `capability_grant` store and exact readers; it never rewrites a source packet.
+
+Next, authenticated `POST { "action": "arm", "agenda_ref": "sha256:...",
+"authorization_ref": { "grant_id": "...", "grant_fingerprint": "sha256:..." } }`
+queues that preparation and records its local eligibility. Arming rechecks the
+current source and all authorization bindings; policy/root/source changes and
+expiry invalidate admission. Legacy packets with an enforced embedded grant retain
+their existing arm route. Null-grant work without explicit authorization still
+refuses. `POST { "action": "cancel", "agenda_ref": "sha256:..." }` cancels eligibility;
+authenticated GET with `agenda_ref` reads history. None of these HTTP actions starts
+a host. A previously executed source task can supply context
 for this distinct preparation; the original task is not retried. The immutable
 work identity, one-attempt budget and agenda binding prevent repeating preparation.
-The read-only authenticated GET with `agenda_ref` returns its operational history.
+The compiled execution packet has distinct `bounded_preparation` lineage. Its
+reader reconstructs the exact packet from the authored source, queued work, explicit
+authorization and final work-bound grant; it does not invent a semantic Transition
+or require prior semantic-transition history. Continuity, native result attribution,
+inspection and recovery recognize this lineage. Historical compiler markers and
+existing packet bytes remain compatible. This prepared packet is executable only
+through the authorized host wake, without expanding ordinary Start/Resume authority.
 
 The explicit foreground host command is:
 

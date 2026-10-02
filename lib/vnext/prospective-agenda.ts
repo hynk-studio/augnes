@@ -5,6 +5,7 @@ import type { TaskContextPacketSelectedEntryV01, TaskContextPacketV01 } from "@/
 export const PROSPECTIVE_INPUT = "augnes.prospective-input.v0.1";
 export const PROSPECTIVE_JUDGMENT = "augnes.prospective-judgment.v0.1";
 export const SELECTED_SOURCE_INSPECTION = "selected_source_inspection.v0.1";
+export const PROSPECTIVE_PREPARATION_PACKET = "prospective_preparation_packet.v0.1";
 export type Availability = "not_yet_observed" | "observed" | "checked_absent" | "conflicting" | "channel_unavailable";
 export type Observation = { key: string; availability: Availability; value: boolean | null; source_ref: string; observed_at: string; reason: string };
 export type Inspection = { key: string; path: string; digest: string; contains: string };
@@ -116,7 +117,8 @@ export function readAgendaInput(entries: TaskContextPacketSelectedEntryV01[], at
 export function judgeAgenda(input: AgendaInput, at: string, result: Observation[] = []): ProspectiveJudgment {
   if (!time(at)) throw new Error("prospective_cutoff_invalid");
   const { agenda } = input;
-  const observations = [...input.observations, ...result].filter(o => Date.parse(o.observed_at) <= Date.parse(at));
+  const eligibleResult = result.filter(o => Date.parse(o.observed_at) <= Date.parse(at));
+  const observations = [...input.observations, ...eligibleResult].filter(o => Date.parse(o.observed_at) <= Date.parse(at));
   const observation = (k: string, currentContext = false): Observation | undefined => {
     let rows = observations.filter(o => o.key === k);
     if (!rows.length) return undefined;
@@ -158,7 +160,7 @@ export function judgeAgenda(input: AgendaInput, at: string, result: Observation[
   const unsettled = needed.some(i => !observation(i.key) || ["not_yet_observed", "conflicting"].includes(observation(i.key)!.availability));
   const supported = methods.filter(m => m.status === "supported");
   const incompatible = new Set(supported.map(m => m.action)).size > 1;
-  const preparationReported = input.has_preparation_report || result.length > 0;
+  const preparationReported = input.has_preparation_report || eligibleResult.length > 0;
   let action: ProspectiveJudgment["action"] = "defer";
   let next = "Wait for a meaningful observation; a due check does not establish event occurrence.";
   if (expired) { action = "withdraw"; next = "Withdraw the expired or unsupported agenda; preserve its original dates and history."; }
@@ -174,7 +176,7 @@ export function judgeAgenda(input: AgendaInput, at: string, result: Observation[
     interpretation: agenda.interpretation, interpretation_status: "candidate" as const, action, next_action: next, methods, observations,
     prepare_at: prepareAt, next_recheck_at: expired || unavailable || deadlineMissed && action === "defer" ? null : [preparationReported ? null : prepareAt, agenda.recheck_at, agenda.premise_until].filter((v): v is string => !!v && Date.parse(v) > Date.parse(at)).sort()[0] ?? null,
     event_occurred: event?.value ?? null, deadline_missed: deadlineMissed,
-    source_refs: [...new Set([...input.source_refs, ...result.map(o => o.source_ref)])].sort(), uncertainty: input.uncertainty, authority: "recommendation_only" as const };
+    source_refs: [...new Set([...input.source_refs, ...eligibleResult.map(o => o.source_ref)])].sort(), uncertainty: input.uncertainty, authority: "recommendation_only" as const };
   return { ...material, judgment_id: hash(canonical({ ...material, information_cutoff: null })) };
 }
 
