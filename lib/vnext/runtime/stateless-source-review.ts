@@ -337,7 +337,7 @@ export class StatelessSourceReviewHost {
         if (claimed) {
           const receipt = returnedReceipt ?? (isModelGatewayInvocationErrorV01(error) ? error.receipt : null);
           const receivedResult = isModelGatewayInvocationErrorV01(error) ? error.received_result ?? null : null;
-          const returnedFailure = receivedResult !== null || (isModelGatewayInvocationErrorV01(error) && ["model_gateway_provider_rejected", "model_gateway_provider_response_invalid"].includes(error.code));
+          const returnedFailure = receivedResult !== null || (receipt?.egress_attempted === true && isModelGatewayInvocationErrorV01(error) && ["model_gateway_provider_rejected", "model_gateway_provider_response_invalid"].includes(error.code));
           const unknown = (dispatched || receipt?.egress_attempted === true) && !returnedReceipt && !returnedFailure;
           // Known pre-egress refusal or a returned invalid judgment consumes the
           // attempt too. Preserve it distinctly from a lost dispatched request.
@@ -345,7 +345,7 @@ export class StatelessSourceReviewHost {
           updateAutonomyRunStepLedgerFields(claimed.step_id, { status: unknown ? "running" : "failed",
             output: { ...claimed.output, failure_receipt: receipt, received_model_result: receivedResult, dispatch_outcome: unknown ? "unknown" : returnedReceipt || returnedFailure ? "returned_invalid" : "not_issued" },
             error_message: reason, updated_at: this.now(), ...(unknown ? {} : { finished_at: this.now() }) }, { db });
-          patchRun(db, current, {}, this.now(), unknown ? "paused" : "stopped", reason);
+          patchRun(db, { ...current, metadata: { ...current.metadata, ...(unknown ? { reconciliation_required: true } : {}) } }, {}, this.now(), unknown ? "paused" : "stopped", reason);
         } else if (returnedReceipt && current.steps.some(s => s.status === "running")) {
           appendAutonomyRunLedgerEvent(buildAutonomyRunEventRecord({ run_id: current.run_id, event_type: "host_event_observed", status: "paused",
             message: "A fenced controller returned an invocation receipt; current dispatch remains unreconciled, without replay.",

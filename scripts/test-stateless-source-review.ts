@@ -240,6 +240,7 @@ async function main() {
     assert.equal(unknown.calls, 1); assert.equal(again.stage, "dispatch_outcome_unknown");
     assert.equal(again.run.steps[0].output.failure_receipt.egress_attempted, true);
     assert.equal(again.run.status, "paused"); assert.equal(again.run.steps[0].status, "running");
+    assert.equal(again.run.metadata.reconciliation_required, true);
     assert.equal(again.run.steps[0].output.dispatch_outcome, "unknown"); assert.equal(again.run.steps[0].output.received_model_result, null);
     assert.equal(again.run.steps[0].output.failure_receipt.usage, null);
     assert.deepEqual(again.run.steps, lost.run.steps, "Continuation preserves the exact unknown claim without replay");
@@ -328,6 +329,20 @@ async function main() {
     const preEgressSaved = preEgress.host(pe.run_id).read(); assert.equal(preEgressSaved.run.steps[0]!.status, "failed");
     assert.equal(preEgressSaved.run.steps[0]!.output.received_model_result, null);
     assert.deepEqual((await preEgress.call({ action: "continue", run_id: pe.run_id })).result.run, preEgressSaved.run); assert.equal(preEgress.calls, 0);
+
+    const wrongPurpose = await fixture("pre-egress-invalid-purpose"); const wp = wrongPurpose.authorizeOnly();
+    // Negative adapter configuration fault: response-invalid can originate
+    // before invoke, so the error code alone cannot prove a received response.
+    const wrongPurposeAdapter: ModelAdapterV01 = { ...wrongPurpose.adapter, async prepare(purpose, signal) {
+      const session = await wrongPurpose.adapter.prepare(purpose, signal);
+      return session ? { ...session, purpose: "observe_delta_compile" } : null;
+    } };
+    await assert.rejects(() => wrongPurpose.host(wp.run_id, wrongPurposeAdapter).run());
+    const wrongPurposeSaved = wrongPurpose.host(wp.run_id).read(), wrongPurposeOutput = wrongPurposeSaved.run.steps[0]!.output;
+    assert.equal((wrongPurposeOutput.failure_receipt as any).failure_code, "model_gateway_provider_response_invalid");
+    assert.equal((wrongPurposeOutput.failure_receipt as any).egress_attempted, false);
+    assert.equal(wrongPurposeOutput.dispatch_outcome, "not_issued"); assert.equal(wrongPurposeOutput.received_model_result, null);
+    assert.deepEqual((await wrongPurpose.call({ action: "continue", run_id: wp.run_id })).result.run, wrongPurposeSaved.run); assert.equal(wrongPurpose.calls, 0);
 
     const corrupt = await fixture("stored-result-corruption"); const co = corrupt.authorizeOnly(); const coh = corrupt.host(co.run_id);
     await coh.step(); await coh.step();
