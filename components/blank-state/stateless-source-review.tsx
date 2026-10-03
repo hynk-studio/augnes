@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { StatelessGrantRequest, SourceReview, StatelessDispositionBinding } from "@/lib/vnext/stateless-work";
+import type { StatelessGrantRequest, SourceReview, StatelessDispositionBinding, StatelessSelectedNotes } from "@/lib/vnext/stateless-work";
 
 type Review = { stage: string; next_step: string | null; disposition_preparation: null | { binding: StatelessDispositionBinding; disposition: null | { fingerprint: string }; warning: string }; run: { run_id: string; title: string; status: string; stop_reason: string | null;
   steps: Array<{ title: string; status: string; output: { judgment?: { rationale: string }; observation?: { availability: string; bytes_read: number } } }> } };
@@ -10,7 +10,7 @@ export function StatelessSourceReview({ projectId }: { projectId: string }) {
   const [question, setQuestion] = useState("");
   const [files, setFiles] = useState([{ path: "", start_line: 1, end_line: 1 }, { path: "", start_line: 1, end_line: 1 }]);
   const [pricing, setPricing] = useState({ input_nano_usd_per_byte: "", output_nano_usd_per_token: "", maximum_total_nano_usd: "", source_version: "" });
-  const [prepared, setPrepared] = useState<{ packet_id: string; review: SourceReview; predecessor_effects_unknown?: boolean } | null>(null);
+  const [prepared, setPrepared] = useState<{ packet_id: string; review: SourceReview; selected_notes: StatelessSelectedNotes; predecessor_effects_unknown?: boolean } | null>(null);
   const [preview, setPreview] = useState<StatelessGrantRequest | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [message, setMessage] = useState(""); const [busy, setBusy] = useState(false);
@@ -38,15 +38,23 @@ export function StatelessSourceReview({ projectId }: { projectId: string }) {
     <button disabled={busy || !question || !files[0].path} onClick={() => void act(async () => {
       setPrepared(null); setPreview(null);
       const value = await request({ action: "prepare", material: { question, files: files.filter(f => f.path) } });
-      setPrepared({ packet_id: value.result.packet_id, review: value.result.review }); setMessage(`Review saved with exact file versions. Preparation read ${value.result.preparation_bytes} bytes; no model call was made.`);
+      setPrepared(value.result); setMessage(`Review saved with exact file versions. Preparation read ${value.result.preparation_bytes} bytes; no model call was made.`);
     })}>Prepare source review</button>
+    {prepared && <details><summary>Selected notes to send with both judgments ({prepared.selected_notes.notes.length})</summary>
+      <p>These whole notes are attributed context, not instructions, verified facts or execution permission. Unselected history is excluded. Nothing is silently shortened; a request that exceeds the existing input limit stops before dispatch.</p>
+      {prepared.selected_notes.notes.map(note => <div key={note.entry_id} style={{ overflowWrap: "anywhere" }}>
+        <p>{note.label} — {note.provenance}; source: {note.source}; observed: {note.observed_at ?? "unavailable"}</p>
+        <p style={{ whiteSpace: "pre-wrap" }}>{note.text}</p>
+        <details><summary>Source binding</summary><pre style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify({ entry_id: note.entry_id, source_ref: note.source_ref, reviewed_outcome_ref: note.reviewed_outcome_ref }, null, 2)}</pre></details>
+      </div>)}
+    </details>}
     <details><summary>Quoted model rates and spending limit</summary>
       <p>Supply reviewed conservative pricing bounds for the already configured model. Rates are integer nano-USD (one billionth of a dollar). Input is bounded by UTF-8 bytes; a per-token rate can serve as a conservative per-byte ceiling. Actual cost remains unknown unless reported.</p>
       {([ ["input_nano_usd_per_byte", "Input ceiling per byte"], ["output_nano_usd_per_token", "Output ceiling per token"], ["maximum_total_nano_usd", "Total ceiling for both judgments"], ["source_version", "Pricing source/version"] ] as const).map(([key, label]) => <label key={key}>{label}<input aria-label={label} type={key === "source_version" ? "text" : "number"} min={1} value={pricing[key]} onChange={e => { setPricing({ ...pricing, [key]: e.target.value }); setPreview(null); }} /></label>)}
       <button disabled={busy || !prepared || Object.values(pricing).some(v => !v)} onClick={() => void act(async () => {
         const p = { ...pricing, input_nano_usd_per_byte: Number(pricing.input_nano_usd_per_byte), output_nano_usd_per_token: Number(pricing.output_nano_usd_per_token), maximum_total_nano_usd: Number(pricing.maximum_total_nano_usd) };
         const authorization = (await request({ action: "preview", pricing: p })).authorization;
-        if (authorization.packet_id !== prepared?.packet_id) { setPrepared(null); setPreview(null); throw new Error("Current work changed. Prepare the question again before authorizing it."); }
+        if (!prepared || authorization.packet_id !== prepared.packet_id || authorization.selected_notes_ref !== prepared.selected_notes.fingerprint) { setPrepared(null); setPreview(null); throw new Error("Current work or selected notes changed. Read the preparation again before authorizing it."); }
         setPreview(authorization);
       })}>Review authorization</button>
     </details>
@@ -56,12 +64,13 @@ export function StatelessSourceReview({ projectId }: { projectId: string }) {
       <ul style={{ overflowWrap: "anywhere" }}>{prepared.review.files.map(file => <li key={file.path}>{file.path}, lines {file.start_line}–{file.end_line}</li>)}</ul>
       <p>{preview.cost_budget.authority.provider_ref.external_id} / {preview.cost_budget.authority.model_ref.external_id}. At most two model requests, 16,384 input bytes and 1,024 output tokens each; 15 seconds each. One local read of at most two files / 65,536 bytes, returning at most 4,096 excerpt bytes. No commands or automatic retries.</p>
       <p>Authorization and first judgment each recheck up to 65,536 local bytes in addition to preparation and the action read. Model usage and cost are recorded when available.</p>
-      <p>Total ceiling: ${(preview.cost_budget.maximum_permitted_cost * 2 / 1e9).toFixed(6)}. Permission expires {preview.expires_at}. The question, task, selected working direction, predecessor uncertainty and excerpts may be sent to this model.</p>
+      <p>Total ceiling: ${(preview.cost_budget.maximum_permitted_cost * 2 / 1e9).toFixed(6)}. Permission expires {preview.expires_at}. The question, task, selected working direction, the selected notes shown above with their source attribution, predecessor uncertainty and excerpts may be sent to this model.</p>
       <button disabled={busy} onClick={() => void act(async () => { await request({ action: "authorize_and_run", authorization: preview }); setPreview(null); await refresh(); })}>Authorize and run source review</button>
     </div>}
     <button disabled={busy} onClick={() => void act(refresh)}>Read saved source reviews</button>
     {reviews.map(review => <div key={review.run.run_id}>
       <p>{review.run.title} — {review.run.status}</p>
+      {review.run.stop_reason === "model_input_bound_before_dispatch" && <p>The complete input exceeded the limit. This judgment was not dispatched; no selected note was shortened or omitted. Any earlier judgment and observation remain saved.</p>}
       {review.stage === "recovery_suspended" && <p>Restored history is available. Execution permission is suspended; this work will not resume.</p>}
       {review.stage === "dispatch_outcome_unknown" && <p>Dispatch outcome unknown. The request may have run or incurred cost. It will not be replayed automatically.</p>}
       {review.stage === "ended_effects_unknown" && <p>Further work ended locally. The earlier request may still have run or incurred cost. Its outcome remains unknown.</p>}

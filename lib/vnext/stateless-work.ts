@@ -1,5 +1,5 @@
 import { canonicalizeProtocolValueV01 as canonical, createProtocolSha256V01 as hash, parseStrictIsoTimestampV01 } from "./protocol-primitives";
-import { readSelectedWorkSources, selectedWorkSourceInput } from "@/lib/intake/selected-work-source-comparison";
+import { readSelectedWorkSources, selectedWorkSourceInput, reviewedOutcomeSourceRef } from "@/lib/intake/selected-work-source-comparison";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 import type { ModelGatewayCostBudgetV01 } from "@/types/vnext/model-invocation-receipt";
 import { validateModelGatewayCostBudgetV01 } from "./model-gateway/cost-authority";
@@ -29,6 +29,8 @@ export interface StatelessGrantRequest {
   review_ref: string; root_fingerprint: string; host_fingerprint: string;
   control_revision: number; expires_at: string; limits: typeof STATELESS_LIMITS;
   cost_budget: ModelGatewayCostBudgetV01;
+  /** Absent only in historical grants, whose model input omitted ordinary notes. */
+  selected_notes_ref?: string;
 }
 export interface StatelessGrant {
   grant_version: typeof STATELESS_GRANT; grant_id: string; grant_fingerprint: string;
@@ -65,11 +67,26 @@ export function readSourceReview(packet: TaskContextPacketV01): SourceReview {
   return { profile: STATELESS_WORK, question: reviewText(v.question, 800), files };
 }
 export const reviewRef = (value: SourceReview) => hash(canonical(value));
+/** A projection of explicitly selected whole notes, never a search of history.
+ * The authored question/inventory already has its separate review_ref. */
+export function readStatelessSelectedNotes(packet: TaskContextPacketV01) {
+  const notes = readSelectedWorkSources(packet).filter(entry => {
+    try { return JSON.parse(selectedWorkSourceInput(entry).text).profile !== STATELESS_WORK; } catch { return true; }
+  }).map(entry => ({ entry_id: entry.entry_id, source_ref: entry.source_ref,
+    ...selectedWorkSourceInput(entry),
+    ...(reviewedOutcomeSourceRef(entry) ? { reviewed_outcome_ref: entry.compatibility_source_ref } : {}),
+  }));
+  const material = { version: "stateless_selected_work_notes.v0.1" as const, notes };
+  return { ...material, fingerprint: hash(canonical(material)) };
+}
+export type StatelessSelectedNotes = ReturnType<typeof readStatelessSelectedNotes>;
 export const statelessGrantKey = (request: StatelessGrantRequest, operator: string) => hash(canonical({ purpose: STATELESS_GRANT, request, approved_by: operator }));
 export function validateStatelessGrant(value: unknown): value is StatelessGrant {
   try {
     const v = reviewObject(value, ["grant_version", "grant_id", "grant_fingerprint", "workspace_id", "project_id", "approved_by", "issued_at", "request"]);
-    const r = reviewObject(v.request, ["workspace_id", "project_id", "packet_id", "packet_fingerprint", "review_ref", "root_fingerprint", "host_fingerprint", "control_revision", "expires_at", "limits", "cost_budget"]);
+    const r = reviewObject(v.request, ["workspace_id", "project_id", "packet_id", "packet_fingerprint", "review_ref", "root_fingerprint", "host_fingerprint", "control_revision", "expires_at", "limits", "cost_budget",
+      ...(v.request && typeof v.request === "object" && "selected_notes_ref" in v.request ? ["selected_notes_ref"] : [])]);
+    if ("selected_notes_ref" in r) reviewSha(r.selected_notes_ref);
     reviewCheck(v.grant_version === STATELESS_GRANT && v.workspace_id === r.workspace_id && v.project_id === r.project_id, "grant_scope");
     for (const key of ["packet_fingerprint", "review_ref", "root_fingerprint", "host_fingerprint"]) reviewSha(r[key]);
     for (const key of ["workspace_id", "project_id", "packet_id"]) reviewText(r[key], 256);

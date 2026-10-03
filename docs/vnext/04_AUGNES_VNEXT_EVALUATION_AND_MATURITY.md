@@ -346,9 +346,13 @@ actual delivered observation, the model's normalized claimed use/non-use, semant
 validity, and comparative usefulness. Exact strings, a valid closed choice or a
 source fingerprint establish neither a justified conclusion nor learned capability.
 The exposed two-entrypoint audit case is development material, not an independent
-efficacy sample. Actual ordinary model judgment and strong-baseline usefulness
-remain NOT RUN until separately authorized and observed; preserve P4.6's negative
-result.
+efficacy sample. At the original `a7d8cfce` attempt on 2026-10-03, live judgment
+and strong-baseline usefulness were NOT RUN. The later separately authorized
+`af68cf68` attempt completed two live judgments and one read that day; Work did
+not select its unsupported planner-to-reentry dependency assertion as a premise.
+That operational completion does not validate the inference. A live response to
+the later Work correction and comparative usefulness remain NOT RUN; preserve
+P4.6's negative result.
 
 Positive mechanism checks use ordinary authorship and authenticated authorization,
 real bounded file reads, Gateway transport-only scripting, durable result admission
@@ -393,6 +397,20 @@ failures without optional diagnostics remain eligible without backfill. The
 shared unsettled default stays conservative; native execution, unknown local
 actions and other effect classes must not acquire the exception. Label isolated
 negative compatibility/corruption fixtures; they cannot supply positive authority.
+
+Selected-note delivery checks must author and explicitly select an attributed
+review note through ordinary result comparison, preview and successor authorship,
+then prepare the source question separately. Verify fresh-process reconstruction,
+exact identity/provenance/source links and both serialized scripted adapter
+requests. Exclude unselected notes and the whole unselected prior report; do not
+copy a correction into the task/question to simulate delivery. Bind the reviewed
+projection to fresh authority, refuse changed or missing bindings, and preserve
+older grants' original transmission scope and historical reads. Exercise overflow
+before the first and second dispatch without silent omission, extra attempts or
+loss of the mandatory unknown-history warning. Scripted delivery establishes
+transmission correctness only, not live compliance, semantic improvement or
+comparative usefulness. The omission did not cause the first live overclaim:
+Work's later review note did not exist at that time.
 
 Also exercise
 normal unattended internal progress, justified no-action/defer/stop, exact

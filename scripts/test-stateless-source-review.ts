@@ -11,7 +11,7 @@ import { readSelectedWorkSources, selectedWorkSourceInput } from "../lib/intake/
 import { readProjectWorkInitializationV01 } from "../lib/vnext/runtime/project-work-initialization";
 import { inspectPersistedHostProjectRootV01, runDirectNativeHostRoundTripV01 } from "../lib/vnext/runtime/direct-native-host-round-trip";
 import { inspectCurrentOrdinarySuccessorRevisionChainV01, ordinarySuccessorRevisionExecutionBlockedV01 } from "../lib/vnext/runtime/authored-successor-revision";
-import { readSourceReview } from "../lib/vnext/stateless-work";
+import { readSourceReview, readStatelessSelectedNotes, validateStatelessGrant, statelessGrantKey } from "../lib/vnext/stateless-work";
 import { fingerprintNativeHostPhysicalRootIdentityV01 } from "../lib/vnext/native-host/project-root-identity";
 import { previewActivePortableProjectV01 } from "../lib/vnext/portability/portable-project";
 import { createProjectDirectionHandler } from "../app/api/vnext/operator/project-direction/route";
@@ -45,10 +45,10 @@ network.subscribe(onNetwork);
 const databases: Database.Database[] = [];
 const sourceText = "export function choose() { return 'advisory'; }\nexport function inspect() { return 'exact source bytes'; }\n";
 function scripted(firstChoice = "read_selected_sources", secondChoice = "use_observation") {
-  const inputs: any[] = []; let calls = 0;
+  const inputs: any[] = [], serializedRequests: string[] = []; let calls = 0;
   const controls = { lose: false, transportError: new Error("simulated_transport_loss_after_dispatch") as unknown, outputTokens: 80, dispatch: async () => {} };
   const adapter = createOpenAIResponsesAdapterV01({ environment: { OPENAI_API_KEY: "scripted-transport-only-not-a-key", OPENAI_MODEL: "gpt-4.1-mini" }, transport: async request => {
-    calls++; const body = JSON.parse(request.body);
+    calls++; serializedRequests.push(request.body); const body = JSON.parse(request.body);
     assert.equal(body.store, false); assert.equal(body.previous_response_id, undefined);
     const material = JSON.parse(body.input[1].content[0].text); const input = JSON.parse(material.message); inputs.push(input);
     await controls.dispatch();
@@ -58,7 +58,7 @@ function scripted(firstChoice = "read_selected_sources", secondChoice = "use_obs
       tool_name: choice, priority: "now", grounded_state_keys: [input.stage === "choose" ? input.review_ref : input.observation_fingerprint] }] };
     return { ok: true, status: 200, json: async () => ({ output: [{ type: "message", content: [{ type: "output_text", text: JSON.stringify(output) }] }], usage: { input_tokens: 200, output_tokens: controls.outputTokens, total_tokens: 200 + controls.outputTokens } }) };
   } });
-  return { adapter, inputs, controls, get calls() { return calls; } };
+  return { adapter, inputs, serializedRequests, controls, get calls() { return calls; } };
 }
 async function fixture(name: string, firstChoice = "read_selected_sources", secondChoice = "use_observation", auditSources = false) {
   const dir = path.join(root, name); mkdirSync(dir); const projectRoot = path.join(dir, "project"); mkdirSync(projectRoot);
@@ -120,10 +120,25 @@ async function fixture(name: string, firstChoice = "read_selected_sources", seco
     if (response.headers.get("set-cookie")) cookie = response.headers.get("set-cookie")!.split(";")[0]!;
     return value;
   };
-  return { db, scope, config, projectRoot, now, tick, adapter, inputs, call, preview, credential, direction, continuity, preparationBytes: prepared.result.preparation_bytes, controls: script.controls,
+  return { db, scope, config, projectRoot, now, tick, adapter, inputs, serializedRequests: script.serializedRequests, call, preview, credential, direction, continuity, preparationBytes: prepared.result.preparation_bytes, controls: script.controls,
     host: (id: string, customAdapter = adapter) => new StatelessSourceReviewHost({ config, now, adapter: customAdapter }, id),
     get calls() { return script.calls; }, loseDispatch(error?: unknown) { script.controls.lose = true; if (error !== undefined) script.controls.transportError = error; },
-    authorizeOnly() { tick(); const authorized = authorizeStatelessReview(db, { config, now, adapter }, credential(), preview); cookie = `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${authorized.session_admission.cookie_value}`; return authorized; } };
+    authorizeOnly(request = preview) { tick(); const authorized = authorizeStatelessReview(db, { config, now, adapter }, credential(), request); cookie = `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${authorized.session_admission.cookie_value}`; return authorized; } };
+}
+const notePricing = { input_nano_usd_per_byte: 1000, output_nano_usd_per_token: 1000, maximum_total_nano_usd: 100_000_000, source_version: "scripted-selected-note-price" };
+async function selectOrdinaryNotes(f: Awaited<ReturnType<typeof fixture>>, notes: unknown[]) {
+  const work = readProjectWorkInitializationV01(f.db, f.config), packet = work.current_packet!;
+  const comparison = (await f.continuity({ action: "compare_selected_work_sources", expected_current_packet_id: packet.packet_id,
+    expected_current_packet_fingerprint: packet.packet_fingerprint, notes })).comparison;
+  await f.continuity({ action: "revise_pre_execution_project_work", ...f.scope, expected_active_project_id: f.scope.project_id,
+    expected_active_selection_revision: work.active_selection_revision, expected_current_packet_id: packet.packet_id,
+    expected_current_packet_fingerprint: packet.packet_fingerprint, expected_current_lineage_kind: packet.lineage_kind, ...work.current_work,
+    selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint }, 201);
+}
+function currentNotes(f: Awaited<ReturnType<typeof fixture>>) {
+  const id = readProjectWorkInitializationV01(f.db, f.config).current_packet!.packet_id;
+  const packet = listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet"], limit: 128 }).find(r => r.record_id === id)!.payload as any;
+  return readSelectedWorkSources(packet).map(selectedWorkSourceInput);
 }
 function unsettledOwnerContract(run: any) {
   // Isolated ledger truth-table fixtures only. No grant, ordinary work or
@@ -144,7 +159,7 @@ function unsettledOwnerContract(run: any) {
     assert.equal(hasUnsettledAutonomyRunLedgerRecords({ db, scope: "another-project" }), false);
   } finally { db.close(); }
 }
-async function ordinarySuccessor(f: Awaited<ReturnType<typeof fixture>>, result: any, expectedCalls = 2) {
+async function ordinarySuccessor(f: Awaited<ReturnType<typeof fixture>>, result: any, expectedCalls = 2, workReview = false) {
   const prep = await f.continuity({ action: "read_result_work_preparation", receipt_id: result.receipt.receipt_id });
   assert.equal(result.run.metadata.reconciliation_required, false);
   const rootScope = await inspectPersistedHostProjectRootV01(f.db, { config: f.config, evaluated_at: f.now() });
@@ -155,7 +170,9 @@ async function ordinarySuccessor(f: Awaited<ReturnType<typeof fixture>>, result:
   assert.equal(note.provenance, "imported_unverified"); assert.equal(note.label, "Unclassified / needs review");
   assert.ok(note.text.includes("verification: not_run")); assert.ok(note.text.includes("not independently verified"));
   assert.ok(note.source.includes(result.receipt.receipt_id)); assert.ok(note.source.includes(result.receipt.integrity.fingerprint));
-  const comparison = (await f.continuity({ action: "compare_result_work_sources", binding: prep.binding, notes: [note] })).comparison;
+  const selectedNote = workReview ? { ...note, source: `Work review of ${note.source}`, provenance: "derived_interpretation", label: "Changed assumption / user correction",
+    text: `Work source review: the selected fragments do not establish a call or data relation. The prior dependency assertion and full model report are not selected as premises. Repository-wide absence remains unestablished. This is Work's review, not a model correction. Receipt: ${result.receipt.receipt_id} ${result.receipt.integrity.fingerprint}; observation: ${result.run.steps[1].output.observation_fingerprint}; entry.ts:1-2 ${readSourceReview(readProjectRunResultSourceBindingV01(f.db, { ...f.scope, receipt_id: result.receipt.receipt_id }).packet!).files[0]!.digest}.` } : note;
+  const comparison = (await f.continuity({ action: "compare_result_work_sources", binding: prep.binding, notes: [selectedNote] })).comparison;
   const preview = await f.continuity({ action: "preview_result_work", binding: prep.binding,
     definition: { goal: "Check the remaining connection using the attributed prior review", success_criteria: ["Keep the review's uncertainty and inspect the missing connection"], non_goals: ["Do not accept the model recommendation as truth or execution permission"] },
     selected_sources: { selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint,
@@ -169,7 +186,7 @@ async function ordinarySuccessor(f: Awaited<ReturnType<typeof fixture>>, result:
   const packet = record.payload as any;
   assert.equal(packet.capability_grant, null); assert.notEqual(packet.packet_id, f.preview.packet_id);
   assert.equal(readProjectWorkInitializationV01(f.db, f.config).current_packet?.packet_id, packet.packet_id);
-  assert.equal(readSelectedWorkSources(packet).length, 1); assert.deepEqual(selectedWorkSourceInput(readSelectedWorkSources(packet)[0]!), note);
+  assert.equal(readSelectedWorkSources(packet).length, 1); assert.deepEqual(selectedWorkSourceInput(readSelectedWorkSources(packet)[0]!), selectedNote);
   assert.equal(packet.selected_context.find((e: any) => e.entry_id === `successor-predecessor:${result.receipt.receipt_id}`).bounded_summary,
     "Recorded execution: completed; verification: not_run. No proposal acceptance is implied.");
   assert.equal(canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["capability_grant"], limit: 128 })), before);
@@ -231,7 +248,11 @@ async function directionDispositionContract() {
   }
 }
 async function dispositionContract() {
-  const f = await fixture("disposition-ordinary"); f.loseDispatch();
+  const f = await fixture("disposition-ordinary");
+  const unselected = { source: "Earlier unrelated working note", observed_at: f.now(), provenance: "imported_unverified", label: "Unclassified / needs review", text: "UNSELECTED_PREDECESSOR_NOTE: a different hypothesis, not selected for the later task." };
+  await selectOrdinaryNotes(f, [...currentNotes(f), unselected]);
+  f.preview = (await f.call({ action: "preview", pricing: notePricing })).authorization;
+  f.loseDispatch();
   const lost = (await f.call({ action: "authorize_and_run", authorization: f.preview })).result;
   assert.equal(lost.stage, "dispatch_outcome_unknown"); assert.equal(f.calls, 1);
   const beforeSteps = canonical(lost.run.steps), grantsBefore = canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["capability_grant"], limit: 128 }));
@@ -341,7 +362,7 @@ async function dispositionContract() {
   assert.notEqual(replacement.run.run_id, lost.run.run_id); assert.notEqual(replacement.run.metadata.stateless_review.grant_id, lost.run.metadata.stateless_review.grant_id);
   assert.ok(f.inputs[1].unresolved_predecessors[0].includes(lost.run.run_id));
   assert.equal(canonical(originalClaimSteps(f.host(lost.run.run_id).read().run)), beforeSteps);
-  await ordinarySuccessor(f, replacement, 3);
+  await ordinarySuccessor(f, replacement, 3, true);
   const successorId = readProjectWorkInitializationV01(f.db, f.config).current_packet!.packet_id;
   const successor = listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet"], limit: 128 }).find(r => r.record_id === successorId)!.payload as any;
   assert.equal(successor.capability_grant, null); assert.deepEqual(statelessUnresolvedEntries(successor), statelessUnresolvedEntries(packet));
@@ -359,7 +380,12 @@ async function dispositionContract() {
   assert.equal(readSourceReview(chain.tip_packet).question, nextMaterial.question);
   assert.equal(ordinarySuccessorRevisionExecutionBlockedV01(f.db, f.scope, chain), false);
   assert.equal(hasUnsettledAutonomyRunLedgerRecords({ db: f.db, scope: f.scope.project_id }), true);
-  assert.equal((await f.call()).preparation.packet_id, revised.packet_id);
+  const preparedNotes = (await f.call()).preparation;
+  assert.equal(preparedNotes.packet_id, revised.packet_id);
+  assert.deepEqual(preparedNotes.selected_notes, readStatelessSelectedNotes(chain.tip_packet));
+  assert.equal(preparedNotes.selected_notes.notes.length, 1);
+  assert.ok(!canonical(preparedNotes.selected_notes).includes(unselected.text));
+  assert.ok(!canonical(chain.tip_packet.task).includes(preparedNotes.selected_notes.notes[0].text), "Delivery cannot be faked by copying the review into the task");
   await f.call({ action: "prepare", material: nextMaterial }, 409, {}, `project:${randomUUID()}`);
   await assert.rejects(() => runDirectNativeHostRoundTripV01(f.db, { config: f.config, mode: "interactive" }, { now: f.now }),
     /direct_host_(run_conflict|unresolved_stateless_effects)/, "Zero-model revision supplies no generic/native execution exception");
@@ -367,7 +393,7 @@ async function dispositionContract() {
 
   const revisionRead = path.join(root, "successor-revision-read.json");
   writeFileSync(revisionRead, JSON.stringify({ config: f.config, run_id: lost.run.run_id, at: f.now(), step_fingerprint: hash(beforeSteps),
-    disposition_fingerprint: link.disposition_fingerprint, packet_id: revised.packet_id, unresolved_context: statelessUnresolvedEntries(packet), question: nextMaterial.question }));
+    disposition_fingerprint: link.disposition_fingerprint, packet_id: revised.packet_id, unresolved_context: statelessUnresolvedEntries(packet), question: nextMaterial.question, selected_notes: preparedNotes.selected_notes }));
   const reopened = spawnSync(process.execPath, ["--import", "tsx", "scripts/test-stateless-source-review.ts", "--read-disposition", revisionRead],
     { cwd: process.cwd(), env: { ...process.env, OPENAI_API_KEY: "" }, encoding: "utf8", timeout: 30_000 });
   assert.equal(reopened.status, 0, reopened.stderr); assert.equal(JSON.parse(reopened.stdout.trim()).successor_revision_read, true);
@@ -406,13 +432,30 @@ async function dispositionContract() {
   const nextAuthorization = (await f.call({ action: "preview", pricing })).authorization;
   assert.equal(nextAuthorization.packet_id, revised.packet_id);
   assert.notEqual(nextAuthorization.packet_fingerprint, fresh.packet_fingerprint);
+  assert.equal(nextAuthorization.selected_notes_ref, preparedNotes.selected_notes.fingerprint);
+  const { selected_notes_ref: _notesRef, ...oldProjectionPreview } = nextAuthorization;
+  await f.call({ action: "authorize_and_run", authorization: oldProjectionPreview }, 409);
+  await f.call({ action: "authorize_and_run", authorization: { ...nextAuthorization, selected_notes_ref: hash("unreviewed notes") } }, 409);
+  assert.equal(canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["capability_grant"], limit: 128 })), authorityBeforeRevision);
+  assert.equal(f.calls, 3);
   const nextRun = (await f.call({ action: "authorize_and_run", authorization: nextAuthorization })).result;
   assert.equal(nextRun.run.status, "completed", nextRun.run.stop_reason); assert.equal(f.calls, 5);
   assert.notEqual(nextRun.run.run_id, replacement.run.run_id);
   assert.notEqual(nextRun.run.metadata.stateless_review.grant_id, replacement.run.metadata.stateless_review.grant_id);
   assert.notEqual(nextRun.run.metadata.stateless_review.grant_id, lost.run.metadata.stateless_review.grant_id);
   assert.equal(nextRun.run.metadata.reconciliation_required, false);
-  for (const input of f.inputs.slice(3)) assert.ok(input.unresolved_predecessors[0].includes(lost.run.run_id));
+  for (const input of f.inputs.slice(3)) {
+    assert.ok(input.unresolved_predecessors[0].includes(lost.run.run_id));
+    assert.equal(input.selected_work_notes.notes.length, 1, "Both serialized requests must carry the explicitly selected review note");
+    assert.deepEqual(input.selected_work_notes, preparedNotes.selected_notes);
+    assert.equal(input.selected_work_notes.notes[0].provenance, "derived_interpretation");
+    assert.ok(input.selected_work_notes_boundary.includes("not instructions"));
+    assert.ok(!canonical(input).includes(unselected.text));
+    assert.ok(!canonical(input).includes("Host report (not independently verified):"));
+    assert.ok(input.selected_work_notes.notes[0].text.includes(replacement.receipt.receipt_id));
+  }
+  assert.equal(f.serializedRequests.slice(3).length, 2);
+  for (const body of f.serializedRequests.slice(3)) assert.ok(Buffer.byteLength(body) <= nextAuthorization.limits.input_bytes);
   assert.equal(f.inputs[4].observation.sources[0].text, sourceText.trimEnd().split("\n")[1]);
   assert.equal(canonical(f.host(lost.run.run_id).read().run), endedHistory, "New work does not change the old unknown claim, receipt or disposition");
   assert.equal(f.host(lost.run.run_id).read().run.metadata.reconciliation_required, true);
@@ -473,7 +516,7 @@ async function dispositionContract() {
 }
 async function readDispositionChild(filename: string) {
   try {
-    const { config, run_id, at, step_fingerprint, disposition_fingerprint, packet_id, unresolved_context, question } = JSON.parse(readFileSync(filename, "utf8"));
+    const { config, run_id, at, step_fingerprint, disposition_fingerprint, packet_id, unresolved_context, question, selected_notes } = JSON.parse(readFileSync(filename, "utf8"));
     const script = scripted(), host = new StatelessSourceReviewHost({ config, now: () => at, adapter: script.adapter }, run_id);
     const read = await host.run(); assert.equal(read.stage, "ended_effects_unknown"); assert.equal(read.run.metadata.reconciliation_required, true);
     assert.equal(hash(canonical(originalClaimSteps(read.run))), step_fingerprint); assert.equal(read.disposition_preparation!.disposition!.fingerprint, disposition_fingerprint);
@@ -484,6 +527,7 @@ async function readDispositionChild(filename: string) {
         assert.equal(chain.tip_packet.packet_id, packet_id); assert.equal(chain.projection_current, true);
         assert.deepEqual(statelessUnresolvedEntries(chain.tip_packet), unresolved_context);
         assert.equal(readSourceReview(chain.tip_packet).question, question); assert.equal(chain.tip_packet.capability_grant, null);
+        if (selected_notes) assert.deepEqual(readStatelessSelectedNotes(chain.tip_packet), selected_notes);
         validateRecoveryCanonicalDatabaseV01(db);
       } finally { db.close(); }
     }
@@ -491,8 +535,40 @@ async function readDispositionChild(filename: string) {
   } finally { rmSync(root, { recursive: true, force: true }); network.unsubscribe(onNetwork); }
 }
 
+async function selectedNoteBoundsContract() {
+  for (const stage of ["choose", "conclude"] as const) {
+    const f = await fixture(`selected-note-overflow-${stage}`);
+    const notes = Array.from({ length: stage === "choose" ? 5 : 1 }, (_, i) => ({ source: `Bounded overflow source ${i}`, observed_at: f.now(),
+      provenance: "derived_interpretation", label: "Open question", text: "N".repeat(1800) }));
+    await selectOrdinaryNotes(f, [...currentNotes(f), ...notes]);
+    if (stage === "conclude") {
+      writeFileSync(path.join(f.projectRoot, "entry.ts"), "//" + "source ".repeat(565) + "\n");
+      await f.call({ action: "prepare", material: { question: "Inspect this selected line with the attributed note", files: [{ path: "entry.ts", start_line: 1, end_line: 1 }] } });
+    }
+    const prepared = (await f.call()).preparation;
+    assert.equal(prepared.selected_notes.notes.length, notes.length, "Preparation never silently drops an overflowing note");
+    const authorization = (await f.call({ action: "preview", pricing: notePricing })).authorization;
+    const result = (await f.call({ action: "authorize_and_run", authorization })).result;
+    assert.equal(result.run.status, "stopped"); assert.equal(result.run.stop_reason, "model_input_bound_before_dispatch");
+    assert.equal(f.calls, stage === "choose" ? 0 : 1, "The overflowing judgment never reaches the scripted transport");
+    assert.equal(result.run.steps[stage === "choose" ? 0 : 2].status, "planned");
+    assert.equal(result.run.steps.some((s: any) => s.status === "running"), false); assert.equal(result.receipt, null);
+    assert.deepEqual((await f.call({ action: "continue", run_id: result.run.run_id })).result.run, result.run);
+    assert.equal(f.calls, stage === "choose" ? 0 : 1);
+  }
+  const stale = await fixture("selected-note-stale-preview");
+  const stalePreview = stale.preview;
+  await selectOrdinaryNotes(stale, [...currentNotes(stale), { source: "New selection", observed_at: stale.now(), provenance: "derived_interpretation", label: "Open question", text: "This newly selected note needs fresh data authority." }]);
+  await stale.call({ action: "authorize_and_run", authorization: stalePreview }, 409); assert.equal(stale.calls, 0);
+  assert.equal(listVNextCoreRecordsV01(stale.db, { ...stale.scope, record_kinds: ["capability_grant"], limit: 128 }).length, 0);
+}
+
 async function main() {
   try {
+    if (process.argv[2] === "--selected-notes") {
+      await dispositionContract(); await selectedNoteBoundsContract(); assert.equal(requests, 0);
+      console.log(JSON.stringify({ status: "passed", selected_note_delivery_both_serialized_requests: true, fresh_process_provenance: true, excluded_history: true, stale_data_authority: "refused", overflow_before_affected_dispatch: true, external_requests: requests })); return;
+    }
     if (process.argv[2] === "--direction-disposition") {
       await directionDispositionContract(); assert.equal(requests, 0);
       console.log(JSON.stringify({ status: "passed", selected_direction_linked_preparation: true, changed_or_unselected_direction: "atomic_refusal", external_requests: requests })); return;
@@ -506,7 +582,7 @@ async function main() {
     assert.deepEqual(Object.keys(routeIdentity!).sort(), ["model_ref", "provider_ref"]);
     assert.equal(previewAdapter.calls, 0, "route preview must not dispatch a provider call or expose an invocable session");
     assert.equal(await preparePlannerModelGatewayRouteV01({ adapter: createOpenAIResponsesAdapterV01({ environment: {} }) }), null);
-    await directionDispositionContract(); await dispositionContract();
+    await directionDispositionContract(); await dispositionContract(); await selectedNoteBoundsContract();
     const normal = await fixture("normal");
     await normal.call({ action: "authorize_and_run", authorization: normal.preview }, 401, { cookie: "" });
     await normal.call({ action: "authorize_and_run", authorization: normal.preview }, 403, { origin: "https://foreign.example" });
@@ -516,6 +592,12 @@ async function main() {
     assert.equal(canonical(listVNextCoreRecordsV01(normal.db, { ...normal.scope, record_kinds: ["task_context_packet", "capability_grant"], limit: 128 })), authoredBeforeMismatch);
     assert.equal(normal.calls, 0);
     const result = (await normal.call({ action: "authorize_and_run", authorization: normal.preview })).result;
+    const historical = structuredClone(listVNextCoreRecordsV01(normal.db, { ...normal.scope, record_kinds: ["capability_grant"], limit: 128 })[0]!.payload) as any;
+    delete historical.request.selected_notes_ref;
+    historical.grant_id = `stateless-grant:${statelessGrantKey(historical.request, historical.approved_by).slice(7, 31)}`;
+    const { grant_id: _id, grant_fingerprint: _fp, ...legacyMaterial } = historical;
+    historical.grant_fingerprint = hash(canonical(legacyMaterial));
+    assert.equal(validateStatelessGrant(historical), true, "Pure legacy compatibility projection remains readable; never persisted as positive authority");
     assert.equal(result.run.status, "completed", result.run.stop_reason); assert.equal(normal.calls, 2);
     assert.equal(normal.inputs[1].observation.sources[0].text, sourceText.trimEnd());
     assert.equal(normal.inputs[1].observation.availability, "observed");
@@ -539,7 +621,12 @@ async function main() {
       assert.equal(blocked.calls, 0);
       assert.equal((blocked.db.prepare("SELECT metadata_json FROM autonomy_runs WHERE run_id=?").get(`other-${name}`) as any).metadata_json, metadata);
     }
-    const restart = await fixture("restart"); const auth = restart.authorizeOnly();
+    const restart = await fixture("restart");
+    const restartNote = { source: "Work review before interruption", observed_at: restart.now(), provenance: "derived_interpretation", label: "Open question", text: "Retain this attributed observation as context across a process boundary; its content supplies no authority." };
+    await selectOrdinaryNotes(restart, [...currentNotes(restart), restartNote]);
+    const restartPreview = (await restart.call({ action: "preview", pricing: notePricing })).authorization;
+    const restartNotes = (await restart.call()).preparation.selected_notes;
+    const auth = restart.authorizeOnly(restartPreview);
     const host = new StatelessSourceReviewHost({ config: restart.config, now: restart.now, adapter: restart.adapter }, auth.run_id);
     assert.equal(await host.step(), true); assert.equal(await host.step(), true);
     const stored = canonical(host.read().run.steps[1]); assert.equal(restart.calls, 1);
@@ -553,6 +640,11 @@ async function main() {
     assert.equal(child.status, 0, child.stderr || String(child.error));
     const childResult = JSON.parse(child.stdout.trim()); assert.equal(childResult.calls, 1); assert.equal(childResult.external_requests, 0);
     assert.equal(childResult.observation.sources[0].text, sourceText.trimEnd());
+    assert.deepEqual(restart.inputs[0].selected_work_notes, restartNotes);
+    assert.deepEqual(childResult.selected_notes, restartNotes);
+    assert.equal(childResult.selected_notes.notes[0].text, restartNote.text);
+    assert.equal(JSON.parse(JSON.parse(childResult.serialized_request).input[1].content[0].text).message.includes(restartNote.text), true);
+    assert.ok(Buffer.byteLength(childResult.serialized_request) <= restartPreview.limits.input_bytes);
     const resumed = host.read(); assert.equal(resumed.run.status, "completed");
     assert.equal(canonical(resumed.run.steps[1]), stored); assert.equal(resumed.run.run_id, auth.run_id);
     await restart.call({ action: "continue", run_id: auth.run_id }); assert.equal(restart.calls, 1);
@@ -731,7 +823,7 @@ async function main() {
     assert.equal(canonical(suspended.read().run.steps), canonical(rrh.read().run.steps));
     assert.equal(requests, 0);
     console.log(JSON.stringify({ status: "passed", normal_model_calls: normal.calls, action_bundles: 1, restart_model_calls: restart.calls + childResult.calls, fresh_process: true,
-      ordinary_successor_authored: true, successor_execution_granted: false, unsettled_ledger_contract: "preserved",
+      selected_note_delivery_both_requests: true, selected_note_restart_from_database: true, selected_note_overflow_before_dispatch: true, stale_selected_note_authority_refused: true, ordinary_successor_authored: true, successor_execution_granted: false, unsettled_ledger_contract: "preserved",
       returned_over_budget: "returned_invalid_no_retry", pre_egress_refusal: "not_issued_no_retry", transport_loss: "unknown_no_retry",
       bounded_transport_diagnostics: "persisted_without_private_exception_material", cancellation_settles_unknown: false,
       local_disposition: "authenticated_revision_and_generation_fenced", linked_work: "explicit_null_grant_then_fresh_authorization", disposition_provider_calls: 0,
@@ -745,7 +837,7 @@ async function resumeChild(filename: string) {
     const { config, run_id, at } = JSON.parse(readFileSync(filename, "utf8"));
     const script = scripted(); const result = await new StatelessSourceReviewHost({ config, now: () => at, adapter: script.adapter }, run_id).run();
     assert.equal(result.run.status, "completed"); assert.equal(requests, 0);
-    console.log(JSON.stringify({ calls: script.calls, observation: script.inputs[0].observation, external_requests: requests }));
+    console.log(JSON.stringify({ calls: script.calls, observation: script.inputs[0].observation, selected_notes: script.inputs[0].selected_work_notes, serialized_request: script.serializedRequests[0], external_requests: requests }));
   } finally { rmSync(root, { recursive: true, force: true }); network.unsubscribe(onNetwork); }
 }
 void (process.argv[2] === "--resume" ? resumeChild(process.argv[3]!) : process.argv[2] === "--read-disposition" ? readDispositionChild(process.argv[3]!) : main()).catch(e => { console.error(e); process.exitCode = 1; });
