@@ -1,5 +1,10 @@
 import { readStatelessDispositionPreparation, assertStatelessUnsettledAdmission, statelessUnresolvedEntries } from "../lib/vnext/runtime/stateless-review-disposition";
 import assert from "node:assert/strict";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { StatelessReviewFailure } from "../components/blank-state/stateless-review-failure";
+import { readStatelessFailureReviews, STATELESS_FAILURE_BOUNDS } from "../lib/vnext/stateless-review-failure";
+import { installZeroNetworkGuard } from "./test-harness-zero-network-guard.mjs";
 import { mkdtempSync, mkdirSync, realpathSync, writeFileSync, readFileSync, rmSync, renameSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -22,7 +27,7 @@ import Database from "better-sqlite3";
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
 import { getOrCreateDefaultWorkspaceIdentityV01, getOrCreateCanonicalProjectForLocalRootV01, normalizeLocalProjectRootRefV01 } from "../lib/vnext/persistence/project-identity-registry";
 import { readActiveProjectSelectionV01, selectActiveProjectV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
-import { issueVNextLocalOperatorBootstrapV01, consumeVNextLocalOperatorBootstrapV01, readVNextLocalOperatorCredentialFromRequestV01, VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01 } from "../lib/vnext/runtime/local-operator-session";
+import { issueVNextLocalOperatorBootstrapV01, consumeVNextLocalOperatorBootstrapV01, readVNextLocalOperatorCredentialFromRequestV01, revokeVNextLocalOperatorSessionByCredentialV01, VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01 } from "../lib/vnext/runtime/local-operator-session";
 import { defineInitialProjectWorkV01 } from "../lib/vnext/runtime/project-work-initialization";
 import { mutateProjectControlV01, readProjectAutomationControlV01 } from "../lib/vnext/persistence/project-control-store";
 import { createStatelessSourceReviewHandler } from "../app/api/vnext/operator/stateless-source-review/route";
@@ -43,10 +48,12 @@ let requests = 0;
 const network = channel("undici:request:create"), onNetwork = () => { requests++; };
 network.subscribe(onNetwork);
 const databases: Database.Database[] = [];
+// Recovery's existing process owner uses an exact loopback ownership probe.
+const zeroNetwork = installZeroNetworkGuard({ allowLoopback: true });
 const sourceText = "export function choose() { return 'advisory'; }\nexport function inspect() { return 'exact source bytes'; }\n";
 function scripted(firstChoice = "read_selected_sources", secondChoice = "use_observation") {
   const inputs: any[] = [], serializedRequests: string[] = []; let calls = 0;
-  const controls = { lose: false, transportError: new Error("simulated_transport_loss_after_dispatch") as unknown, outputTokens: 80, dispatch: async () => {} };
+  const controls = { lose: false, transportError: new Error("simulated_transport_loss_after_dispatch") as unknown, outputTokens: 80, dispatch: async () => {}, transform: (_output: any, _input: any) => {} };
   const adapter = createOpenAIResponsesAdapterV01({ environment: { OPENAI_API_KEY: "scripted-transport-only-not-a-key", OPENAI_MODEL: "gpt-4.1-mini" }, transport: async request => {
     calls++; serializedRequests.push(request.body); const body = JSON.parse(request.body);
     assert.equal(body.store, false); assert.equal(body.previous_response_id, undefined);
@@ -56,6 +63,7 @@ function scripted(firstChoice = "read_selected_sources", secondChoice = "use_obs
     const choice = input.stage === "choose" ? firstChoice : secondChoice;
     const output = { recommendations: [{ title: "Bounded entrypoint finding", rationale: input.stage === "choose" ? (choice === "read_selected_sources" ? "Read the selected excerpt because the question concerns this entrypoint." : "The question needs broader evidence; defer this read rather than treating a limited excerpt as sufficient.") : (choice === "use_observation" ? "The selected excerpt exposes advisory output and bounded result reentry. These fragments do not prove a broader connection." : "Retain uncertainty because this observation is unavailable or insufficient for the question."),
       tool_name: choice, priority: "now", grounded_state_keys: [input.stage === "choose" ? input.review_ref : input.observation_fingerprint] }] };
+    controls.transform(output, input);
     return { ok: true, status: 200, json: async () => ({ output: [{ type: "message", content: [{ type: "output_text", text: JSON.stringify(output) }] }], usage: { input_tokens: 200, output_tokens: controls.outputTokens, total_tokens: 200 + controls.outputTokens } }) };
   } });
   return { adapter, inputs, serializedRequests, controls, get calls() { return calls; } };
@@ -488,6 +496,9 @@ async function dispositionContract() {
     assert.equal(read.run.metadata.reconciliation_required, true); assert.equal(late.calls, 3);
     const event = read.run.events.find(e => e.payload.profile === "stateless_late_model_receipt.v0.1")!;
     assert.ok(event); assert.equal((event.payload.model_receipt as any).usage.input_tokens, 200);
+    const lateEvidence = read.failures.find(r => r.availability === "available" && r.evidence.code === "work_ended");
+    assert.ok(lateEvidence?.availability === "available"); assert.equal(lateEvidence.evidence.layer, "fencing");
+    assert.equal(lateEvidence.evidence.public_result.availability, "complete");
     assert.equal(event.payload.judgment, undefined); assert.equal(canonical(late.host(completed.run.run_id).read().run), finished);
     await late.call({ action: "continue", run_id: authorized.run_id }); assert.equal(late.calls, 3);
     // Later receipt evidence does not invalidate the exact historical decision.
@@ -563,8 +574,120 @@ async function selectedNoteBoundsContract() {
   assert.equal(listVNextCoreRecordsV01(stale.db, { ...stale.scope, record_kinds: ["capability_grant"], limit: 128 }).length, 0);
 }
 
+async function rejectionEvidenceContract() {
+  const readbacks: unknown[] = [];
+  for (const kind of ["rationale", "anchor", "unavailable", "content_bound", "persistence"] as const) {
+    const f = await fixture(`rejection-${kind}`, kind === "unavailable" ? "no_action" : "read_selected_sources");
+    const expected = { rationale: "rationale_bound_exceeded", anchor: "source_anchor_missing", unavailable: "observation_unavailable", content_bound: "one_judgment_required", persistence: "result_persistence_failed" }[kind];
+    f.controls.transform = (output, input) => {
+      if (kind === "rationale" && input.stage === "conclude") output.recommendations[0].rationale = "é".repeat(601);
+      if (kind === "anchor") output.recommendations[0].grounded_state_keys = ["unrelated-source"];
+      if (kind === "content_bound") {
+        output.recommendations[0].rationale = "x".repeat(4096);
+        output.recommendations.push({ ...output.recommendations[0] });
+      }
+    };
+    // Explicit isolated storage fault, never fabricated positive state or grants.
+    if (kind === "persistence") f.db.exec("CREATE TRIGGER refuse_scripted_result BEFORE UPDATE ON autonomy_run_steps WHEN NEW.status='completed' BEGIN SELECT RAISE(ABORT,'private_sqlite_error_not_for_public_evidence'); END");
+    const result = (await f.call({ action: "authorize_and_run", authorization: f.preview })).result;
+    const calls = ["rationale", "unavailable"].includes(kind) ? 2 : 1;
+    assert.equal(f.calls, calls); assert.equal(result.run.status, "stopped"); assert.equal(result.receipt, null);
+    assert.equal(result.disposition_preparation, null, "Unknown-outcome disposition cannot be used for a known rejected result");
+    const failed = result.run.steps.find((s: any) => s.status === "failed");
+    assert.equal(failed.output.judgment, undefined, "Rejected advice is not the applied step output");
+    assert.equal(failed.output.dispatch_outcome, kind === "persistence" ? "returned_unapplied" : "returned_invalid");
+    assert.equal(failed.output.failure_receipt.status, "completed", "Gateway returned a normalized result before host rejection");
+    const review = (await f.call()).reviews[0].failures[0], evidence = review.evidence;
+    assert.equal(review.availability, "available"); assert.equal(evidence.code, expected);
+    assert.equal(evidence.layer, kind === "persistence" ? "result_persistence" : "host_validation");
+    assert.equal(evidence.binding.packet_id, f.preview.packet_id); assert.equal(evidence.binding.packet_fingerprint, f.preview.packet_fingerprint);
+    assert.equal(evidence.binding.input_fingerprint, failed.output.input_fingerprint); assert.equal(evidence.binding.generation, failed.output.generation);
+    assert.equal(evidence.binding.invocation_id, failed.step_id); assert.equal(evidence.binding.receipt_fingerprint, hash(canonical(failed.output.failure_receipt)));
+    assert.equal(evidence.binding.review_ref, f.preview.review_ref); assert.equal(evidence.binding.selected_notes_ref, f.preview.selected_notes_ref);
+    assert.ok(Buffer.byteLength(canonical(evidence)) <= STATELESS_FAILURE_BOUNDS.record_bytes);
+    if (kind === "rationale") { assert.equal(evidence.validation.rationale_bytes, 1202); assert.equal(evidence.validation.rationale_limit_bytes, 1200); assert.equal(evidence.stage, "conclude"); }
+    if (kind === "anchor") assert.equal(evidence.validation.source_anchor_present, false);
+    if (kind === "unavailable") { assert.equal(evidence.validation.observation_available, false); assert.equal(result.run.steps[1].output.observation.availability, "not_used"); }
+    if (kind === "content_bound") {
+      assert.equal(evidence.public_result.availability, "omitted_bound"); assert.equal(evidence.public_result.recommendations, null);
+      assert.ok(evidence.public_result.bytes > STATELESS_FAILURE_BOUNDS.public_bytes);
+    } else {
+      assert.equal(evidence.public_result.availability, "complete"); assert.equal(evidence.public_result.recommendations.length, 1);
+      if (kind === "rationale") assert.equal(evidence.public_result.recommendations[0].rationale, "é".repeat(601));
+    }
+    const markup = renderToStaticMarkup(createElement(StatelessReviewFailure, { review }));
+    assert.ok(markup.includes(expected)); assert.ok(markup.includes("non-authoritative")); assert.ok(markup.includes(evidence.binding.run_id));
+    assert.ok(!markup.includes("private_sqlite_error_not_for_public_evidence"));
+    await f.call(undefined, 401, { cookie: "" }); await f.call(undefined, 409, {}, `project:${randomUUID()}`);
+    const saved = canonical(result.run);
+    assert.equal(canonical((await f.call({ action: "continue", run_id: result.run.run_id })).result.run), saved); assert.equal(f.calls, calls);
+    const immutable = canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet", "capability_grant", "run_receipt"], limit: 128 }));
+    await f.call({ action: "prepare", material: replacementMaterial }, 409);
+    await f.call({ action: "authorize_and_run", authorization: f.preview }, 409);
+    // There is no receipt to select; never manufacture one to enter this route.
+    await f.continuity({ action: "read_result_work_preparation", receipt_id: `missing:${result.run.run_id}` }, 409);
+    assert.equal(canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet", "capability_grant", "run_receipt"], limit: 128 })), immutable);
+    readbacks.push({ config: f.config, run_id: result.run.run_id, at: f.now(), expected: review, saved });
+    // Pure projections prove historical absence and corruption are not backfilled.
+    const legacy = structuredClone(result.run); delete legacy.steps.find((s: any) => s.status === "failed").output.failure_evidence;
+    assert.deepEqual(readStatelessFailureReviews(legacy), [{ step_id: failed.step_id, availability: "unavailable", reason: "not_recorded" }]);
+    const corrupted = structuredClone(result.run); corrupted.steps.find((s: any) => s.status === "failed").output.failure_evidence.code = "invented";
+    assert.equal(readStatelessFailureReviews(corrupted)[0]!.availability, "unavailable");
+    validateRecoveryCanonicalDatabaseV01(f.db);
+  }
+  const f = await fixture("receipt-persistence-rejection");
+  f.db.exec("CREATE TRIGGER refuse_scripted_receipt BEFORE INSERT ON vnext_core_records WHEN NEW.record_kind='run_receipt' BEGIN SELECT RAISE(ABORT,'private_receipt_failure'); END");
+  const result = (await f.call({ action: "authorize_and_run", authorization: f.preview })).result;
+  assert.equal(f.calls, 2); assert.equal(result.receipt, null); assert.equal(result.run.status, "stopped");
+  assert.equal(result.run.steps.every((s: any) => s.status === "completed"), true, "Receipt failure never rolls back stored steps");
+  assert.equal(result.failures[0].evidence.layer, "receipt_persistence"); assert.equal(result.failures[0].evidence.code, "receipt_persistence_failed");
+  assert.equal(result.failures[0].evidence.public_result.availability, "complete");
+  const before = canonical(result.run);
+  await f.call({ action: "continue", run_id: result.run.run_id }); assert.equal(f.calls, 2); assert.equal(canonical(f.host(result.run.run_id).read().run), before);
+  readbacks.push({ config: f.config, run_id: result.run.run_id, at: f.now(), expected: result.failures[0], saved: before });
+  const inputPath = path.join(root, "rejection-readbacks.json"); writeFileSync(inputPath, JSON.stringify(readbacks));
+  const child = spawnSync(process.execPath, ["--import", "tsx", "scripts/test-stateless-source-review.ts", "--read-rejection", inputPath], { encoding: "utf8", timeout: 15000, env: { ...process.env, OPENAI_API_KEY: "" } });
+  assert.equal(child.status, 0, child.stderr || child.stdout); assert.equal(JSON.parse(child.stdout).calls, 0); assert.equal(JSON.parse(child.stdout).cases, 6);
+}
+async function readRejectionChild(filename: string) {
+  try {
+    const inputs = JSON.parse(readFileSync(filename, "utf8"));
+    for (const input of inputs) await readRejectedFixture(input);
+    console.log(JSON.stringify({ calls: 0, cases: inputs.length, external_requests: requests, authenticated_fresh_read: true, ordinary_review_component_rendered: true, logout: 401 }));
+  } finally { rmSync(root, { recursive: true, force: true }); network.unsubscribe(onNetwork); zeroNetwork.restore(); }
+}
+async function readRejectedFixture({ config, run_id, at, expected, saved }: any) {
+  const db = new Database(config.database_path), script = scripted(), clock = { now: () => at };
+  let cookie = "";
+  try {
+    const bootstrap = issueVNextLocalOperatorBootstrapV01(db, { config, clock });
+    const session = consumeVNextLocalOperatorBootstrapV01(db, { config, clock, bootstrap_token: bootstrap.bootstrap_token });
+    cookie = `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${session.cookie_value}`;
+    const route = createStatelessSourceReviewHandler({ clock, adapter: script.adapter, environment: { NODE_ENV: "test", AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1", AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: config.workspace_id,
+      AUGNES_VNEXT_OPERATOR_PROJECT_ID: config.project_id, AUGNES_VNEXT_OPERATOR_ID: config.operator_id, AUGNES_DB_PATH: config.database_path } });
+    const call = async (body?: unknown) => {
+      const response = await route(new Request(`http://127.0.0.1/api/vnext/operator/stateless-source-review?project_id=${config.project_id}`, { method: body ? "POST" : "GET",
+        headers: { host: "127.0.0.1", origin: "http://127.0.0.1", cookie, ...(body ? { "content-type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) }));
+      if (response.headers.get("set-cookie")) cookie = response.headers.get("set-cookie")!.split(";")[0]!;
+      return response;
+    };
+    const response = await call(); assert.equal(response.status, 200); const review = (await response.json()).reviews[0];
+    assert.deepEqual(review.failures[0], expected); assert.equal(canonical(review.run), saved);
+    assert.ok(renderToStaticMarkup(createElement(StatelessReviewFailure, { review: review.failures[0] })).includes(expected.evidence.code));
+    const continued = await call({ action: "continue", run_id }); assert.equal(continued.status, 200);
+    assert.equal(canonical((await continued.json()).result.run), saved); assert.equal(script.calls, 0); assert.equal(requests, 0);
+    const credential = readVNextLocalOperatorCredentialFromRequestV01(new Request("http://127.0.0.1", { headers: { cookie } }));
+    assert.equal(revokeVNextLocalOperatorSessionByCredentialV01(db, { config, credential, clock }).revoked_at, at);
+    assert.equal((await call()).status, 401);
+  } finally { db.close(); }
+}
 async function main() {
   try {
+    if (process.argv[2] === "--rejection-evidence") {
+      await rejectionEvidenceContract(); assert.equal(requests, 0);
+      console.log(JSON.stringify({ status: "passed", post_gateway_rejections: ["rationale_bound_exceeded", "source_anchor_missing", "observation_unavailable"], whole_public_projection_or_explicit_omission: true,
+        persistence_failure_distinct: true, authenticated_fresh_process_and_review_component: true, legacy_missing_evidence: "unavailable", continue_replays: 0, known_invalid_successor: "blocked_separate_contract_required", external_requests: requests })); return;
+    }
     if (process.argv[2] === "--selected-notes") {
       await dispositionContract(); await selectedNoteBoundsContract(); assert.equal(requests, 0);
       console.log(JSON.stringify({ status: "passed", selected_note_delivery_both_serialized_requests: true, fresh_process_provenance: true, excluded_history: true, stale_data_authority: "refused", overflow_before_affected_dispatch: true, external_requests: requests })); return;
@@ -582,7 +705,7 @@ async function main() {
     assert.deepEqual(Object.keys(routeIdentity!).sort(), ["model_ref", "provider_ref"]);
     assert.equal(previewAdapter.calls, 0, "route preview must not dispatch a provider call or expose an invocable session");
     assert.equal(await preparePlannerModelGatewayRouteV01({ adapter: createOpenAIResponsesAdapterV01({ environment: {} }) }), null);
-    await directionDispositionContract(); await dispositionContract(); await selectedNoteBoundsContract();
+    await directionDispositionContract(); await dispositionContract(); await selectedNoteBoundsContract(); await rejectionEvidenceContract();
     const normal = await fixture("normal");
     await normal.call({ action: "authorize_and_run", authorization: normal.preview }, 401, { cookie: "" });
     await normal.call({ action: "authorize_and_run", authorization: normal.preview }, 403, { origin: "https://foreign.example" });
@@ -675,6 +798,8 @@ async function main() {
     assert.equal(again.run.metadata.reconciliation_required, true);
     assert.equal(again.run.steps[0].output.dispatch_outcome, "unknown"); assert.equal(again.run.steps[0].output.received_model_result, null);
     assert.equal(again.run.steps[0].output.failure_receipt.usage, null);
+    assert.equal(again.failures[0].evidence.layer, "gateway"); assert.equal(again.failures[0].evidence.code, "model_gateway_transport_failed");
+    assert.equal(again.failures[0].evidence.public_result.availability, "unavailable");
     validateModelInvocationReceiptV02(again.run.steps[0].output.failure_receipt);
     assert.deepEqual(unknown.host(lost.run.run_id).read().run.steps[0]!.output.transport_failure_observation, diagnostic, "Fresh owner reads the persisted bounded diagnostic");
     assert.equal(canonical(again).includes(privateCanary), false);
@@ -748,12 +873,17 @@ async function main() {
     };
     await assert.rejects(() => sh.run(), /stale_generation_result_refused/);
     assert.equal(sh.read().stage, "dispatch_outcome_unknown"); await sh.run(); assert.equal(stale.calls, 1);
+    const fenced = sh.read().failures.find(r => r.availability === "available" && r.evidence.layer === "fencing");
+    assert.ok(fenced?.availability === "available"); assert.equal(fenced.evidence.code, "generation_fenced"); assert.equal(fenced.evidence.public_result.availability, "complete");
 
     const budget = await fixture("budget");
     await budget.call({ action: "preview", pricing: { input_nano_usd_per_byte: 1000, output_nano_usd_per_token: 1000, maximum_total_nano_usd: 1, source_version: "below-bound" } }, 409);
     const ba = budget.authorizeOnly(); budget.controls.outputTokens = 1025;
     await assert.rejects(() => budget.host(ba.run_id).run()); assert.equal(budget.calls, 1);
     const budgetSaved = budget.host(ba.run_id).read();
+    assert.ok(budgetSaved.failures[0]?.availability === "available");
+    assert.equal(budgetSaved.failures[0].evidence.layer, "gateway"); assert.equal(budgetSaved.failures[0].evidence.code, "model_gateway_budget_refused");
+    assert.equal(budgetSaved.failures[0].evidence.public_result.availability, "unavailable");
     assert.equal(budgetSaved.stage, "finished"); assert.equal(budgetSaved.run.status, "stopped");
     const budgetStep = budgetSaved.run.steps[0]!;
     assert.equal(budgetStep.status, "failed"); assert.equal(budgetStep.output.dispatch_outcome, "returned_invalid");
@@ -821,7 +951,7 @@ async function main() {
     const suspended = new StatelessSourceReviewHost({ config: { ...recovery.config, database_path: recoveredPath }, now: recovery.now, adapter: recovery.adapter }, ra.run_id);
     assert.equal((await suspended.run()).stage, "recovery_suspended"); assert.equal(recovery.calls, 1);
     assert.equal(canonical(suspended.read().run.steps), canonical(rrh.read().run.steps));
-    assert.equal(requests, 0);
+    assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0);
     console.log(JSON.stringify({ status: "passed", normal_model_calls: normal.calls, action_bundles: 1, restart_model_calls: restart.calls + childResult.calls, fresh_process: true,
       selected_note_delivery_both_requests: true, selected_note_restart_from_database: true, selected_note_overflow_before_dispatch: true, stale_selected_note_authority_refused: true, ordinary_successor_authored: true, successor_execution_granted: false, unsettled_ledger_contract: "preserved",
       returned_over_budget: "returned_invalid_no_retry", pre_egress_refusal: "not_issued_no_retry", transport_loss: "unknown_no_retry",
@@ -830,7 +960,7 @@ async function main() {
       fresh_process_disposition_read: true, late_result: "quarantined_original_attempt_replacement_unchanged",
       selected_direction_linked_preparation: true, changed_or_unselected_direction: "atomic_refusal", successor_review_reentry: "fresh_grant_and_loop_with_mandatory_uncertainty",
       audit_source_bytes: actualObservation.bytes_read, audit_preparation_bytes: audit.preparationBytes + ar.run.metadata.authorization_preparation_bytes + ar.run.steps[0].output.preparation_bytes, audit_excerpt_bytes: actualObservation.sources.reduce((n: number, f: any) => n + Buffer.byteLength(f.text), 0), completed_action_replays: 0, unknown_dispatch_retries: 0, external_requests: requests, actual_model_judgment: "NOT RUN", usefulness: "NOT RUN" }));
-  } finally { for (const db of databases) db.close(); rmSync(root, { recursive: true, force: true }); network.unsubscribe(onNetwork); }
+  } finally { for (const db of databases) db.close(); rmSync(root, { recursive: true, force: true }); network.unsubscribe(onNetwork); zeroNetwork.restore(); }
 }
 async function resumeChild(filename: string) {
   try {
@@ -840,4 +970,4 @@ async function resumeChild(filename: string) {
     console.log(JSON.stringify({ calls: script.calls, observation: script.inputs[0].observation, selected_notes: script.inputs[0].selected_work_notes, serialized_request: script.serializedRequests[0], external_requests: requests }));
   } finally { rmSync(root, { recursive: true, force: true }); network.unsubscribe(onNetwork); }
 }
-void (process.argv[2] === "--resume" ? resumeChild(process.argv[3]!) : process.argv[2] === "--read-disposition" ? readDispositionChild(process.argv[3]!) : main()).catch(e => { console.error(e); process.exitCode = 1; });
+void (process.argv[2] === "--resume" ? resumeChild(process.argv[3]!) : process.argv[2] === "--read-disposition" ? readDispositionChild(process.argv[3]!) : process.argv[2] === "--read-rejection" ? readRejectionChild(process.argv[3]!) : main()).catch(e => { console.error(e); process.exitCode = 1; });

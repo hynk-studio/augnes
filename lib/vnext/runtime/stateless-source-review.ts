@@ -1,5 +1,6 @@
 import { assertStatelessUnsettledAdmission, prepareLinkedStatelessWork, readStatelessDispositionPreparation, statelessUnresolvedEntries } from "./stateless-review-disposition";
 import { stateOf, readRun, patchRun } from "./stateless-review-ledger";
+import { buildStatelessFailureEvidence, readStatelessFailureReviews, StatelessJudgmentRejection, validateStatelessJudgment, type StatelessFailureEvidence, type StatelessFailureLayer, type StatelessFailureCode } from "../stateless-review-failure";
 import type Database from "better-sqlite3";
 import { normalizeModelTransportFailureObservationV01 } from "@/lib/vnext/model-gateway/transport-failure-observation";
 import { normalizeWorkId } from "@/lib/work";
@@ -29,7 +30,7 @@ import { invokePlannerModelGatewayV01, preparePlannerModelGatewayRouteV01 } from
 import { buildPlannerModelInvocationEnvelopeV01 } from "@/lib/planner/planner";
 import { buildModelInvocationCapabilityGrantV01, authorizeModelInvocationCapabilityGrantV01 } from "../automation/model-invocation-capability-grant";
 import { buildModelGatewayCostAuthorityV01, buildModelGatewayCostBudgetV01, assertModelGatewayCostBudgetCurrentV01 } from "../model-gateway/cost-authority";
-import { isModelGatewayInvocationErrorV01, type ModelAdapterV01, type ModelInvocationReceiptV02, type PlannerRecommendationV01 } from "../model-gateway/contracts";
+import { isModelGatewayInvocationErrorV01, type ModelAdapterV01, type ModelInvocationReceiptV02, type PlannerRecommendationV01, type PlannerModelGatewayResultV01 } from "../model-gateway/contracts";
 import { projectModelInvocationReceiptToRunReceiptEntryV02 } from "../model-gateway/run-receipt-projection";
 import { buildRunReceiptV01 } from "../run-receipt";
 import { admitStructuredRunReceiptV01 } from "../persistence/structured-run-receipt-admission";
@@ -217,7 +218,7 @@ export class StatelessSourceReviewHost {
       const run = readRun(db, this.options.config, this.runId);
       const step = run.steps.find(s => s.status === "running");
       const disposition = readStatelessDispositionPreparation(db, this.options.config, run);
-      return { run, disposition_preparation: disposition, stage: run.metadata.stateless_review_disposition !== undefined
+      return { run, failures: readStatelessFailureReviews(run), disposition_preparation: disposition, stage: run.metadata.stateless_review_disposition !== undefined
         ? disposition?.disposition ? "ended_effects_unknown" : "disposition_invalid"
         : step ? "dispatch_outcome_unknown" : isTerminalRunnerStatus(run.status) ? "finished" : stateOf(run).recovery_suspended ? "recovery_suspended" : "ready",
         next_step: run.steps.find(s => s.status === "planned")?.title ?? null,
@@ -246,6 +247,9 @@ export class StatelessSourceReviewHost {
     let run: AutonomyRunRecord, step: AutonomyRunStepRecord, grant: StatelessGrant, packet: TaskContextPacketV01, root: string;
     const generation = randomUUID();
     let returnedReceipt: ModelInvocationReceiptV02 | null = null;
+    let returnedResult: PlannerModelGatewayResultV01 | null = null;
+    let failureBinding: StatelessFailureEvidence["binding"] | null = null;
+    let phase: StatelessFailureLayer = "host_execution";
     let dispatched = false;
     try {
       db.exec("BEGIN IMMEDIATE"); run = readRun(db, this.options.config, this.runId);
@@ -273,6 +277,10 @@ export class StatelessSourceReviewHost {
         output = { observation, observation_fingerprint: fingerprint(observation), action_bundles: first.tool_name === "read_selected_sources" ? 1 : 0 };
       } else {
         const invocationId = `${run.run_id}.${step.title}`;
+        failureBinding = { workspace_id: grant.workspace_id, project_id: grant.project_id, run_id: run.run_id, step_id: step.step_id, invocation_id: invocationId, generation,
+          packet_id: grant.request.packet_id, packet_fingerprint: grant.request.packet_fingerprint, grant_id: grant.grant_id, grant_fingerprint: grant.grant_fingerprint,
+          input_fingerprint: fingerprint(input), review_ref: grant.request.review_ref, selected_notes_ref: grant.request.selected_notes_ref ?? null,
+          observation_fingerprint: step.step_index === 3 ? String(run.steps[1]!.output.observation_fingerprint) : null, receipt_fingerprint: null };
         const modelGrant = buildModelInvocationCapabilityGrantV01({ grant_id: `${grant.grant_id}.${step.title}`, workspace_id: grant.workspace_id, project_id: grant.project_id,
           work_id: String(run.metadata.work_id), run_id: run.run_id, automation_control_revision: grant.request.control_revision, permitted_purposes: ["planner_plan"], permitted_execution_modes: ["live"], provider_egress_allowed: true,
           max_provider_calls: 1, max_input_bytes: LIMITS.input_bytes, max_output_tokens: LIMITS.output_tokens, max_timeout_ms: LIMITS.invocation_ms,
@@ -286,6 +294,7 @@ export class StatelessSourceReviewHost {
             assertGrantCurrent(guard, this.options.config, grant, this.now(), this.runId);
           } finally { guard.close(); }
         };
+        phase = "gateway";
         const result = await invokePlannerModelGatewayV01(buildPlannerModelInvocationEnvelopeV01({ invocation_id: invocationId, workspace_id: grant.workspace_id, project_id: grant.project_id,
           message: canonical(input), brief: emptyBrief(grant.project_id, this.now()), execution_mode: "live", policy: { invocation_origin: "policy_triggered", automation_control_revision: grant.request.control_revision,
             work_id: String(run.metadata.work_id), run_id: run.run_id, grant_id: modelGrant.grant_id, grant_fingerprint: modelGrant.lineage_fingerprint }, budget, timeout_ms: LIMITS.invocation_ms, cancellation_signal: signal,
@@ -310,18 +319,17 @@ export class StatelessSourceReviewHost {
           },
         });
         returnedReceipt = result.model_invocation_receipt;
-        check(result.planner === "openai" && result.recommendations.length === 1, "one_judgment_required");
-        const judgment = result.recommendations[0]!;
+        returnedResult = result;
+        phase = "host_validation";
         const observation = run.steps[1]!.output.observation as ReviewObservation | undefined;
-        const choices = step.step_index === 1 ? ["read_selected_sources", "no_action", "defer", "stop"] : ["use_observation", "decline_observation", "defer", "stop"];
-        check(choices.includes(judgment.tool_name ?? "") && Buffer.byteLength(judgment.rationale) <= 1200 && judgment.rationale.trim(), "choice_invalid");
         const anchor = step.step_index === 1 ? grant.request.review_ref : String(run.steps[1]!.output.observation_fingerprint);
-        check(judgment.grounded_state_keys.includes(anchor), "judgment_source_binding_required");
-        check(judgment.tool_name !== "use_observation" || observation?.availability === "observed", "unavailable_observation_cannot_support_use");
+        const judgment = validateStatelessJudgment(result, step.step_index === 1 ? "choose" : "conclude", anchor, observation?.availability === "observed");
         output = { preparation_bytes: preflight?.bytes_read ?? 0, judgment, model_receipt: result.model_invocation_receipt, input_fingerprint: fingerprint(input), claimed_observation_use: step.step_index === 3 ? judgment.tool_name === "use_observation" : null };
       }
+      phase = "result_persistence";
       db.exec("BEGIN IMMEDIATE");
       const current = readRun(db, this.options.config, this.runId), claimed = current.steps[step.step_index - 1]!;
+      if (current.metadata.stateless_review_disposition || claimed.status !== "running" || claimed.output.generation !== generation) phase = "fencing";
       check(!current.metadata.stateless_review_disposition && claimed.status === "running" && claimed.output.generation === generation, "stale_generation_result_refused");
       // Even cancellation/expiry after dispatch cannot erase an observed result.
       updateAutonomyRunStepLedgerFields(step.step_id, { status: "completed", finished_at: this.now(), updated_at: this.now(), output: { ...output, generation, result_fingerprint: fingerprint({ ...output, generation }) } }, { db });
@@ -336,6 +344,7 @@ export class StatelessSourceReviewHost {
       // An error in receipt projection must never roll back a returned result.
       db.exec("COMMIT");
       if (step.step_index === 3) {
+        phase = "receipt_persistence";
         db.exec("BEGIN IMMEDIATE"); this.finish(db, readRun(db, this.options.config, this.runId)); db.exec("COMMIT");
       }
       return step.step_index !== 3;
@@ -344,15 +353,25 @@ export class StatelessSourceReviewHost {
       db.exec("BEGIN IMMEDIATE");
       try {
         const current = readRun(db, this.options.config, this.runId), claimed = current.steps.find(s => s.status === "running" && s.output.generation === generation);
+        const receipt = returnedReceipt ?? (isModelGatewayInvocationErrorV01(error) ? error.receipt : null);
+        const evidenceFields = (fence?: "work_ended" | "generation_fenced") => {
+          if (!failureBinding) return {};
+          const layer = fence ? "fencing" : error instanceof StatelessJudgmentRejection ? "host_validation" : isModelGatewayInvocationErrorV01(error) ? "gateway" : phase;
+          const code: StatelessFailureCode = fence ?? (error instanceof StatelessJudgmentRejection ? error.code : isModelGatewayInvocationErrorV01(error) ? error.code
+            : phase === "result_persistence" ? "result_persistence_failed" : phase === "receipt_persistence" ? "receipt_persistence_failed" : phase === "fencing" ? "generation_fenced" : "host_stage_failed");
+          const evidence = buildStatelessFailureEvidence({ layer, code, stage: step!.step_index === 1 ? "choose" : "conclude",
+            binding: { ...failureBinding, receipt_fingerprint: receipt ? fingerprint(receipt) : null }, result: returnedResult,
+            host_rejection_code: error instanceof StatelessJudgmentRejection ? error.code : null,
+            validation: error instanceof StatelessJudgmentRejection ? error.facts : null });
+          return evidence ? { failure_evidence: evidence } : { failure_evidence_unavailable: "storage_bound" };
+        };
         if (current.metadata.stateless_review_disposition) {
-          const receipt = returnedReceipt ?? (isModelGatewayInvocationErrorV01(error) ? error.receipt : null);
           if (receipt) appendAutonomyRunLedgerEvent(buildAutonomyRunEventRecord({ run_id: current.run_id, step_id: step!.step_id, event_type: "host_event_observed", status: "paused",
             message: "Late model receipt quarantined under ended work; no settlement, semantic acceptance or continuation.",
-            payload: { profile: "stateless_late_model_receipt.v0.1", generation, model_receipt: receipt,
+            payload: { profile: "stateless_late_model_receipt.v0.1", generation, model_receipt: receipt, ...evidenceFields("work_ended"),
               received_model_result: isModelGatewayInvocationErrorV01(error) ? error.received_result ?? null : null,
               transport_failure_observation: isModelGatewayInvocationErrorV01(error) ? normalizeModelTransportFailureObservationV01(error.transport_failure_observation) : null }, created_at: this.now() }), { db });
         } else if (claimed) {
-          const receipt = returnedReceipt ?? (isModelGatewayInvocationErrorV01(error) ? error.receipt : null);
           const receivedResult = isModelGatewayInvocationErrorV01(error) ? error.received_result ?? null : null;
           const transportFailure = isModelGatewayInvocationErrorV01(error)
             ? normalizeModelTransportFailureObservationV01(error.transport_failure_observation) : null;
@@ -360,17 +379,19 @@ export class StatelessSourceReviewHost {
           const unknown = (dispatched || receipt?.egress_attempted === true) && !returnedReceipt && !returnedFailure;
           // Known pre-egress refusal or a returned invalid judgment consumes the
           // attempt too. Preserve it distinctly from a lost dispatched request.
-          const reason = unknown ? "dispatch_outcome_unknown_no_retry" : "invocation_refused_or_result_invalid_no_retry";
+          const persistenceFailed = returnedReceipt && phase === "result_persistence";
+          const reason = unknown ? "dispatch_outcome_unknown_no_retry" : persistenceFailed ? "result_persistence_failed_no_retry" : "invocation_refused_or_result_invalid_no_retry";
           updateAutonomyRunStepLedgerFields(claimed.step_id, { status: unknown ? "running" : "failed",
-            output: { ...claimed.output, failure_receipt: receipt, received_model_result: receivedResult,
+            output: { ...claimed.output, failure_receipt: receipt, received_model_result: receivedResult, ...evidenceFields(),
               ...(transportFailure ? { transport_failure_observation: transportFailure } : {}),
-              dispatch_outcome: unknown ? "unknown" : returnedReceipt || returnedFailure ? "returned_invalid" : "not_issued" },
+              dispatch_outcome: unknown ? "unknown" : persistenceFailed ? "returned_unapplied" : returnedReceipt || returnedFailure ? "returned_invalid" : "not_issued" },
             error_message: reason, updated_at: this.now(), ...(unknown ? {} : { finished_at: this.now() }) }, { db });
           patchRun(db, { ...current, metadata: { ...current.metadata, ...(unknown ? { reconciliation_required: true } : {}) } }, {}, this.now(), unknown ? "paused" : "stopped", reason);
-        } else if (returnedReceipt && current.steps.some(s => s.status === "running")) {
-          appendAutonomyRunLedgerEvent(buildAutonomyRunEventRecord({ run_id: current.run_id, event_type: "host_event_observed", status: "paused",
-            message: "A fenced controller returned an invocation receipt; current dispatch remains unreconciled, without replay.",
-            payload: { stale_generation: generation, returned_receipt: returnedReceipt }, created_at: this.now() }), { db });
+        } else if (returnedReceipt) {
+          appendAutonomyRunLedgerEvent(buildAutonomyRunEventRecord({ run_id: current.run_id, step_id: step!.step_id, event_type: "host_event_observed", status: "paused",
+            message: "Returned model evidence could not be applied or projected to a work receipt. It grants no acceptance, settlement or replay.",
+            payload: { generation, ...(phase === "receipt_persistence" ? {} : { stale_generation: generation }), returned_receipt: returnedReceipt, ...evidenceFields(phase === "receipt_persistence" ? undefined : "generation_fenced") }, created_at: this.now() }), { db });
+          if (phase === "receipt_persistence" && !isTerminalRunnerStatus(current.status)) patchRun(db, current, {}, this.now(), "stopped", "receipt_persistence_failed_no_retry");
         } else if (!current.steps.some(s => s.status === "running") && !isTerminalRunnerStatus(current.status)) {
           patchRun(db, current, {}, this.now(), "stopped", error instanceof Error && error.message === "stateless_review_model_input_bound"
             ? "model_input_bound_before_dispatch" : "next_stage_admission_refused");

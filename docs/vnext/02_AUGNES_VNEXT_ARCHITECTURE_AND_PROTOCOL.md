@@ -951,6 +951,40 @@ distinguishes returned-invalid from pre-egress refusal and dispatched-unknown;
 the v0.2 failure receipt and its unavailable-cost semantics are unchanged. No
 classification grants retry or semantic acceptance.
 
+After Gateway success, host rejection retains the normalized public Planner
+recommendations separately from an applied step judgment. The existing failed
+step or quarantined ledger event owns `stateless_model_failure.v0.1`: an
+allowlisted code, actual layer/stage, bounded predicate facts, and exact
+project/run/step/invocation/generation, packet/grant, input, review, selected-note,
+observation and receipt fingerprints. Host rationale, choice, cardinality,
+source-anchor and observation-availability checks remain enforced. Gateway
+refusal, unknown dispatch, host validation, result persistence, receipt projection
+and generation/disposition fencing are distinct. A receipt-projection failure
+keeps the already committed steps; a failed result commit retains returned
+evidence as unapplied. Neither manufactures a completed RunReceipt or permits
+continuation/retry. If storage itself cannot persist failure evidence, the
+original claim remains unreplayed; retention cannot promise database availability.
+
+The public projection retains only planner identity and the normalized title,
+rationale, closed choice, priority and source anchors, at most five recommendations
+and 8,192 canonical UTF-8 bytes. Larger complete public content is explicitly
+omitted with its byte/count/fingerprint metadata; no shortened text is presented
+as complete. The entire evidence record is bounded to 16,384 canonical UTF-8
+bytes with bounded local identity fields; inability to retain it is marked
+unavailable. Raw provider payloads, exception messages/stacks, prompts, credentials,
+hidden reasoning and transcripts are excluded. This changes neither provider
+transmission authority nor existing call/input/output/cost limits.
+
+The ordinary authenticated saved-review reader and UI expose these records as
+non-authoritative evidence, including quarantined late public results under the
+original attempt. Fencing still prevents application, stage advancement or effects
+on replacement work. Invalid or missing legacy evidence remains unavailable;
+historical receipts and omitted responses are never reconstructed. A known-invalid
+terminal review without a RunReceipt cannot use completed-result successor
+preparation or unknown-outcome disposition, and its admission still prevents
+pre-execution revision. An explicit linked-work contract for that distinct case
+is a separate follow-up; evidence retention does not supply it.
+
 Transport exceptions may retain a bounded diagnostic observation alongside the
 unchanged failure receipt: fixed transport phase, allowlisted error name and
 error/direct-cause codes, and the observed abort flag. Messages, stacks, headers,
