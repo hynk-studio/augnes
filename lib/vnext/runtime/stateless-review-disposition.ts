@@ -5,7 +5,7 @@ import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import { normalizeWorkId } from "@/lib/work";
 import { appendAutonomyRunLedgerEvent, buildAutonomyRunEventRecord, readUnsettledAutonomyRunIds, updateAutonomyRunLedgerFields, updateAutonomyRunStepLedgerFields } from "@/lib/autonomy/runner-ledger";
 import { buildSelectedWorkSourceEntry, readSelectedWorkSources, selectedWorkSourceInput } from "@/lib/intake/selected-work-source-comparison";
-import { STATELESS_WORK, STATELESS_DISPOSITION, STATELESS_REPLACEMENT, STATELESS_UNRESOLVED_CONTEXT, reviewCheck as check, reviewObject, reviewSha, reviewText, readSourceReview, type SourceReview, type StatelessDispositionBinding } from "../stateless-work";
+import { statelessTerminalEntries, STATELESS_WORK, STATELESS_DISPOSITION, STATELESS_REPLACEMENT, STATELESS_UNRESOLVED_CONTEXT, reviewCheck as check, reviewObject, reviewSha, reviewText, readSourceReview, type SourceReview, type StatelessDispositionBinding } from "../stateless-work";
 import { canonicalizeProtocolValueV01 as canonical, createProtocolSha256V01 as hash, parseStrictIsoTimestampV01 } from "../protocol-primitives";
 import { readStatelessGrant } from "../persistence/stateless-work-grant";
 import { readVNextCoreRecordV01, insertVNextCoreRecordV01 } from "../persistence/durable-semantic-store";
@@ -176,7 +176,7 @@ function buildReplacement(prior: TaskContextPacketV01, m: ReplacementMaterial, a
   const currentness = { status: "fresh" as const, as_of: at, basis: "Explicit new source-review work; unknown predecessor effects remain historical.", source_ref: ref };
   const selected = readSelectedWorkSources(prior).filter(s => { try { return JSON.parse(selectedWorkSourceInput(s).text).profile !== STATELESS_WORK; } catch { return true; } });
   selected.push(buildSelectedWorkSourceEntry(prior, { source: "Explicit linked bounded source review", label: "New candidate", observed_at: at, provenance: "user_declaration", text: canonical(m.review) }));
-  const entries = [...prior.selected_context.filter(e => e.entry_kind === "accepted_state_ref"), ...selected,
+  const entries = [...prior.selected_context.filter(e => e.entry_kind === "accepted_state_ref"), ...selected, ...statelessTerminalEntries(prior),
     { entry_id: MATERIAL, entry_kind: "source_ref" as const, source_ref: fp, external_ref: priorRef, why_included: "Authenticated new-work authorship and exact historical disposition, without a completed-result claim.", bounded_summary: canonical(m), trust_class: "direct_local_observation" as const, currentness, compatibility_source_ref: ref },
     { entry_id: STATELESS_UNRESOLVED_CONTEXT, entry_kind: "evidence_ref" as const, source_ref: fingerprint(links), external_ref: priorRef, why_included: WARNING,
       bounded_summary: canonical({ warning: WARNING, predecessors: links }), trust_class: "direct_local_observation" as const, currentness, compatibility_source_ref: ref }];
@@ -236,3 +236,6 @@ export function prepareLinkedStatelessWork(db: Database.Database, input: { confi
     db.exec("COMMIT"); return { packet, status: write.status, session_admission: admission };
   } catch (e) { if (db.inTransaction) db.exec("ROLLBACK"); throw e; }
 }
+
+// Shared historical attribution owners; neither checks current execution authority.
+export { packetFrom as readHistoricalStatelessPacket, sessionAt as assertHistoricalStatelessSession };

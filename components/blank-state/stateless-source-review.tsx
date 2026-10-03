@@ -3,9 +3,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { StatelessGrantRequest, SourceReview, StatelessDispositionBinding, StatelessSelectedNotes } from "@/lib/vnext/stateless-work";
 import type { StatelessFailureReview } from "@/lib/vnext/stateless-review-failure";
+import { StatelessTerminalAuthorship } from "./stateless-terminal-authorship";
+import type { readTerminalAuthorshipPreparation } from "@/lib/vnext/runtime/stateless-terminal-authorship";
 import { StatelessReviewFailure } from "./stateless-review-failure";
 
-type Review = { stage: string; next_step: string | null; failures: StatelessFailureReview[]; disposition_preparation: null | { binding: StatelessDispositionBinding; disposition: null | { fingerprint: string }; warning: string }; run: { run_id: string; title: string; status: string; stop_reason: string | null;
+type Review = { terminal_preparation: ReturnType<typeof readTerminalAuthorshipPreparation>; stage: string; next_step: string | null; failures: StatelessFailureReview[]; disposition_preparation: null | { binding: StatelessDispositionBinding; disposition: null | { fingerprint: string }; warning: string }; run: { run_id: string; title: string; status: string; stop_reason: string | null;
   steps: Array<{ title: string; status: string; output: { judgment?: { rationale: string }; observation?: { availability: string; bytes_read: number } } }> } };
 export function StatelessSourceReview({ projectId }: { projectId: string }) {
   const router = useRouter();
@@ -22,6 +24,8 @@ export function StatelessSourceReview({ projectId }: { projectId: string }) {
       ...(body ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}) });
     const value = await response.json();
     if (!response.ok) throw new Error(response.status === 401 ? "Open protected project review to establish local access."
+      : body && typeof body === "object" && "action" in body && ["compare_terminal_sources", "preview_terminal_work", "author_terminal_work"].includes(String(body.action))
+        ? "New work could not be prepared. Read the stopped attempt again and review the current project, direction, task and selected sources. This local authorship does not require automation permission."
       : value.error === "stateless_review_model_configuration_unavailable" ? "The configured model is unavailable. The prepared work remains saved."
       : "This review could not be admitted. Check current work, project automation permission, file ranges and the quoted cost bounds.");
     return value;
@@ -79,6 +83,7 @@ export function StatelessSourceReview({ projectId }: { projectId: string }) {
       {review.stage === "disposition_invalid" && <p>The saved work decision could not be validated. Execution remains blocked; the earlier outcome is unresolved.</p>}
       {review.run.steps.map(step => <p key={step.title}>{step.title}: {step.status}{step.output.judgment ? ` — ${step.output.judgment.rationale}` : step.output.observation ? ` — ${step.output.observation.availability}, ${step.output.observation.bytes_read} bytes` : ""}</p>)}
       {review.failures.map((failure, index) => <StatelessReviewFailure key={`${failure.step_id}:${index}`} review={failure} />)}
+      {review.terminal_preparation && <StatelessTerminalAuthorship key={`${review.run.run_id}:${question}:${JSON.stringify(files)}`} preparation={review.terminal_preparation} material={{ question, files: files.filter(f => f.path) }} request={request} saved={refresh} />}
       {review.stage === "ready" && <button disabled={busy} onClick={() => void act(async () => { await request({ action: "continue", run_id: review.run.run_id }); await refresh(); })}>Continue from saved results</button>}
       {review.disposition_preparation && !review.disposition_preparation.disposition && <button disabled={busy} onClick={() => void act(async () => {
         await request({ action: "end_work", binding: review.disposition_preparation!.binding }); await refresh();

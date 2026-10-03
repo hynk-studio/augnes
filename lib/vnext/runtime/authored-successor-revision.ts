@@ -1,3 +1,4 @@
+import { statelessMandatoryEntries } from "../stateless-work";
 import type Database from "better-sqlite3";
 import { RETRY_INSPECTION_OUTLOOK_V02, retryInspectionOutlookVersion, retryInspectionProjectionItemsV01, type RetryInspectionOutlookVersion } from "../retry-inspection-outlook";
 import { hasAutonomyRunAdmissionForPreparation, hasUnsettledAutonomyRunLedgerRecords } from "@/lib/autonomy/runner-ledger";
@@ -91,7 +92,7 @@ export function buildOrdinarySuccessorRevisionV01(prior: TaskContextPacketV01, a
     { entry_id: MATERIAL, entry_kind: "source_ref" as const, source_ref: digest(material), external_ref: priorRef,
       why_included: "Exact revision request and immutable preparation lineage; no execution or semantic authority.", bounded_summary: canonicalizeProtocolValueV01(material), trust_class: "direct_local_observation" as const, currentness, compatibility_source_ref: definitionRef },
     ...prior.selected_context.filter(e => e.entry_kind === "accepted_state_ref" || e.entry_id === `successor-predecessor:${anchor.predecessor_receipt_ref.external_id}`),
-    ...statelessUnresolvedEntries(prior),
+    ...statelessMandatoryEntries(prior),
     ...selected,
   ];
   const packet = buildTaskContextPacketV01({ workspace_id: prior.workspace_id, project_id: prior.project_id, work_ref: definitionRef,

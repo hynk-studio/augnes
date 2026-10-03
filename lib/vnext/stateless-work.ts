@@ -8,6 +8,8 @@ export const STATELESS_WORK = "stateless_source_review.v0.1";
 export const STATELESS_GRANT = "stateless_source_review_grant.v0.1";
 export const STATELESS_DISPOSITION = "stateless_model_request_disposition.v0.1";
 export const STATELESS_REPLACEMENT = "stateless_source_review_replacement.v0.1";
+export const STATELESS_TERMINAL_WORK = "stateless_returned_attempt_successor.v0.1";
+export const STATELESS_TERMINAL_CONTEXT = "stateless-review-returned-predecessors";
 export const STATELESS_UNRESOLVED_CONTEXT = "stateless-review-unresolved-predecessors";
 export interface StatelessDispositionBinding {
   run_id: string; expected_revision: number; step_id: string; generation: string;
@@ -102,3 +104,7 @@ export function validateStatelessGrant(value: unknown): value is StatelessGrant 
     return grant_id === `stateless-grant:${statelessGrantKey(typed.request, typed.approved_by).slice(7, 31)}` && grant_fingerprint === hash(canonical(material));
   } catch { return false; }
 }
+
+/** Operational history is mandatory, separate from selectable substantive notes. */
+export const statelessTerminalEntries = (p: TaskContextPacketV01) => p.selected_context.filter(e => e.entry_id === STATELESS_TERMINAL_CONTEXT);
+export const statelessMandatoryEntries = (p: TaskContextPacketV01) => p.selected_context.filter(e => [STATELESS_UNRESOLVED_CONTEXT, STATELESS_TERMINAL_CONTEXT].includes(e.entry_id));

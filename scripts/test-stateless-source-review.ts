@@ -1,3 +1,7 @@
+import { statelessTerminalEntries, statelessMandatoryEntries } from "../lib/vnext/stateless-work";
+import { inspectStatelessTerminalSuccessor, readTerminalAuthorshipPreparation, readTerminalAttemptHistory, assertTerminalHistoryActive, previewTerminalAuthorship } from "../lib/vnext/runtime/stateless-terminal-authorship";
+import { StatelessTerminalAuthorship } from "../components/blank-state/stateless-terminal-authorship";
+import { pathToFileURL } from "node:url";
 import { readStatelessDispositionPreparation, assertStatelessUnsettledAdmission, statelessUnresolvedEntries } from "../lib/vnext/runtime/stateless-review-disposition";
 import assert from "node:assert/strict";
 import { createElement } from "react";
@@ -131,6 +135,7 @@ async function fixture(name: string, firstChoice = "read_selected_sources", seco
   return { db, scope, config, projectRoot, now, tick, adapter, inputs, serializedRequests: script.serializedRequests, call, preview, credential, direction, continuity, preparationBytes: prepared.result.preparation_bytes, controls: script.controls,
     host: (id: string, customAdapter = adapter) => new StatelessSourceReviewHost({ config, now, adapter: customAdapter }, id),
     get calls() { return script.calls; }, loseDispatch(error?: unknown) { script.controls.lose = true; if (error !== undefined) script.controls.transportError = error; },
+    refreshSession() { const b = issueVNextLocalOperatorBootstrapV01(db, { config, clock: { now } }); const s = consumeVNextLocalOperatorBootstrapV01(db, { config, clock: { now }, bootstrap_token: b.bootstrap_token }); cookie = `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${s.cookie_value}`; },
     authorizeOnly(request = preview) { tick(); const authorized = authorizeStatelessReview(db, { config, now, adapter }, credential(), request); cookie = `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${authorized.session_admission.cookie_value}`; return authorized; } };
 }
 const notePricing = { input_nano_usd_per_byte: 1000, output_nano_usd_per_token: 1000, maximum_total_nano_usd: 100_000_000, source_version: "scripted-selected-note-price" };
@@ -593,6 +598,7 @@ async function rejectionEvidenceContract() {
     const calls = ["rationale", "unavailable"].includes(kind) ? 2 : 1;
     assert.equal(f.calls, calls); assert.equal(result.run.status, "stopped"); assert.equal(result.receipt, null);
     assert.equal(result.disposition_preparation, null, "Unknown-outcome disposition cannot be used for a known rejected result");
+    assert.equal(result.terminal_preparation === null, kind === "persistence", "Known persistence failures need a separate contract");
     const failed = result.run.steps.find((s: any) => s.status === "failed");
     assert.equal(failed.output.judgment, undefined, "Rejected advice is not the applied step output");
     assert.equal(failed.output.dispatch_outcome, kind === "persistence" ? "returned_unapplied" : "returned_invalid");
@@ -641,6 +647,7 @@ async function rejectionEvidenceContract() {
   assert.equal(f.calls, 2); assert.equal(result.receipt, null); assert.equal(result.run.status, "stopped");
   assert.equal(result.run.steps.every((s: any) => s.status === "completed"), true, "Receipt failure never rolls back stored steps");
   assert.equal(result.failures[0].evidence.layer, "receipt_persistence"); assert.equal(result.failures[0].evidence.code, "receipt_persistence_failed");
+  assert.equal(result.terminal_preparation, null, "Receipt projection repair is outside terminal model-failure authorship");
   assert.equal(result.failures[0].evidence.public_result.availability, "complete");
   const before = canonical(result.run);
   await f.call({ action: "continue", run_id: result.run.run_id }); assert.equal(f.calls, 2); assert.equal(canonical(f.host(result.run.run_id).read().run), before);
@@ -681,12 +688,213 @@ async function readRejectedFixture({ config, run_id, at, expected, saved }: any)
     assert.equal((await call()).status, 401);
   } finally { db.close(); }
 }
+async function historicalResponseHost() {
+  // Explicit compatibility writer, not a deleted-field fixture or repaired ledger.
+  // Execute the exact old host with ordinary current setup/grants and controlled
+  // Responses transport. Its own catch persists the legacy unavailable evidence.
+  const ref = "65f6efc92d969c47e86152efa9388aba4c169c63:lib/vnext/runtime/stateless-source-review.ts";
+  const source = spawnSync("git", ["show", ref], { encoding: "utf8", timeout: 5000 });
+  assert.equal(source.status, 0, "Pinned legacy compatibility writer must be available; never reconstruct it");
+  const file = path.join(root, "legacy-response-host.ts");
+  writeFileSync(file, source.stdout.replace(/from "(\.\.?\/[^"\n]+)"/g, (_match, specifier) => `from "${path.resolve("lib/vnext/runtime", specifier)}"`));
+  return (await import(pathToFileURL(file).href)).StatelessSourceReviewHost as typeof StatelessSourceReviewHost;
+}
+function controlFor(f: Awaited<ReturnType<typeof fixture>>, enabled: boolean) {
+  const active = readActiveProjectSelectionV01(f.db, f.scope.workspace_id)!, control = readProjectAutomationControlV01(f.db, f.scope)!;
+  mutateProjectControlV01(f.db, { ...f.scope, action: enabled ? "enable_automation" : "disable_automation", expected_active_project_id: f.scope.project_id,
+    expected_active_selection_revision: active.selection_revision, expected_control_revision: control.revision }, { now: f.now });
+}
+async function terminalAuthorshipContract() {
+  const LegacyHost = await historicalResponseHost(), readbacks: unknown[] = [];
+  for (const legacy of [false, true]) {
+    const f = await fixture(`terminal-authorship-${legacy ? "legacy" : "current"}`);
+    const workNote = { source: "Attributed Work review", observed_at: f.now(), provenance: "derived_interpretation", label: "Changed assumption / user correction", text: "Work review: separate observed direct calls from hypotheses. Earlier claims are not established premises." };
+    await selectOrdinaryNotes(f, [...currentNotes(f), workNote]);
+    const direction = await f.direction({ action: "decide", expected_ref: null, content: { purpose: "Trace the selected source", criteria: [], constraints: [] }, reason: "Explicit development direction", status: "active", proposal_ref: null });
+    await f.direction({ action: "prepare_inspection", expected_ref: direction.record.ref, files: [{ path: "entry.ts", contains: "advisory" }] });
+    f.preview = (await f.call({ action: "preview", pricing: notePricing })).authorization;
+    f.loseDispatch(); const unknown = (await f.call({ action: "authorize_and_run", authorization: f.preview })).result;
+    assert.equal(unknown.terminal_preparation, null);
+    const ended = (await f.call({ action: "end_work", binding: unknown.disposition_preparation.binding })).result;
+    const unknownSnapshot = canonical(ended.run);
+    await f.call({ action: "prepare_linked_work", disposition: { run_id: ended.run.run_id, disposition_fingerprint: ended.disposition_preparation.disposition.fingerprint },
+      material: { question: "Inspect the selected trace before drawing a connection", files: [{ path: "entry.ts", start_line: 1, end_line: 2 }] } });
+    f.controls.lose = false;
+    f.controls.transform = (output, input) => { if (input.stage === "conclude") { output.recommendations[0].grounded_state_keys = ["wrong-anchor"]; output.recommendations[0].rationale = "REJECTED_PUBLIC_JUDGMENT_NOT_SELECTED: a controlled response, not a finding."; } };
+    const grant = (await f.call({ action: "preview", pricing: notePricing })).authorization;
+    const auth = f.authorizeOnly(grant);
+    const host = legacy ? new LegacyHost({ config: f.config, now: f.now, adapter: f.adapter }, auth.run_id) : f.host(auth.run_id);
+    await assert.rejects(() => host.run());
+    const failed = f.host(auth.run_id).read(), snapshot = canonical(failed.run);
+    assert.equal(failed.run.status, "stopped"); assert.equal(failed.run.steps[2]!.status, "failed"); assert.equal(failed.receipt, null);
+    readTerminalAttemptHistory(f.db, f.config, auth.run_id);
+    assert.ok(failed.terminal_preparation); assert.equal(failed.terminal_preparation.evidence.layer, legacy ? "unavailable" : "host_validation");
+    assert.equal(failed.run.steps[2]!.output.failure_evidence === undefined, legacy);
+    const oldPacket = listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet"], limit: 128 }).find(r => r.record_id === grant.packet_id)!.payload as any;
+    const oldGrants = canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["capability_grant"], limit: 128 }));
+    controlFor(f, false); f.tick(Date.parse(oldPacket.expires_at) - Date.parse(f.now()) + 1); f.refreshSession();
+    assert.ok(f.now() > oldPacket.expires_at && f.now() > grant.expires_at);
+    const beforeControl = canonical(readProjectAutomationControlV01(f.db, f.scope)), beforeCalls = f.calls;
+    // No model route or provider credential is needed for read/compare/preview/save.
+    f.controls.transform = () => {};
+    const preparation = (await f.call()).reviews.find((r: any) => r.run.run_id === auth.run_id).terminal_preparation;
+    const request = { predecessor: preparation.binding, definition: { goal: "Inspect a distinct bounded trace", success_criteria: ["Attribute observed edges to source"], non_goals: ["No semantic acceptance or general absence claim"] },
+      material: { question: "What direct calls does this selected source establish?", files: [{ path: "entry.ts", start_line: 1, end_line: 2 }] },
+      notes: preparation.sources.filter((e: any) => { try { return JSON.parse(e.bounded_summary).profile !== "stateless_source_review.v0.1"; } catch { return true; } }).map((e: any) => ({ saved_source_id: e.entry_id })), omitted_sources: [] as any[] };
+    const comparison = (await f.call({ action: "compare_terminal_sources", request })).preparation.comparison;
+    request.omitted_sources = comparison.unselected_previous.map((e: any) => ({ source_binding: e.source_ref, reason: "The old inventory is historical; this new question explicitly selects current versions." }));
+    let preview = (await f.call({ action: "preview_terminal_work", request })).preparation;
+    assert.equal(preview.evidence.layer, legacy ? "unavailable" : "host_validation");
+    const originalCore = canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet", "capability_grant", "run_receipt"], limit: 128 }));
+    await f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding }, 401, { cookie: "" });
+    await f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding }, 409, {}, `project:${randomUUID()}`);
+    await f.call({ action: "author_terminal_work", request: { ...request, predecessor: { ...request.predecessor, history_fingerprint: hash("changed") } }, expected_preview: preview.preview_binding }, 409);
+    await f.call({ action: "author_terminal_work", request: { ...request, notes: [] }, expected_preview: preview.preview_binding }, 409);
+    await f.call({ action: "author_terminal_work", request, expected_preview: hash("wrong-root-or-selection") }, 409);
+    writeFileSync(path.join(f.projectRoot, "entry.ts"), sourceText + "// changed after preview\n");
+    await f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding }, 409); writeFileSync(path.join(f.projectRoot, "entry.ts"), sourceText);
+    renameSync(f.projectRoot, `${f.projectRoot}-held`); mkdirSync(f.projectRoot); writeFileSync(path.join(f.projectRoot, "entry.ts"), sourceText);
+    await f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding }, 409);
+    rmSync(f.projectRoot, { recursive: true }); renameSync(`${f.projectRoot}-held`, f.projectRoot);
+    assert.equal(canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet", "capability_grant", "run_receipt"], limit: 128 })), originalCore);
+    if (!legacy && process.argv[2] === "--terminal-browser") {
+      const copy = path.join(root, "terminal-browser-copy.db"); await f.db.backup(copy);
+      const input = path.join(root, "terminal-browser-input.json"); writeFileSync(input, JSON.stringify({ config: { ...f.config, database_path: copy }, at: f.now(), request }));
+      const ui = spawnSync(process.execPath, ["--import", "tsx", "scripts/test-stateless-terminal-browser.ts", input], { encoding: "utf8", timeout: 90000, env: { ...process.env, OPENAI_API_KEY: "" } });
+      assert.equal(ui.status, 0, ui.stderr || ui.stdout); console.log(ui.stdout.trim());
+    }
+    // Isolated negative corruption inside a rolled-back transaction. Never
+    // fabricate a positive history, grant or source binding.
+    f.db.exec("BEGIN IMMEDIATE");
+    try {
+      updateAutonomyRunStepLedgerFields(failed.run.steps[2]!.step_id, { error_message: "changed historical failure" }, { db: f.db });
+      assert.throws(() => previewTerminalAuthorship(f.db, f.config, request, f.now()), /history_changed/);
+      updateAutonomyRunStepLedgerFields(failed.run.steps[2]!.step_id, { output: { ...failed.run.steps[2]!.output, failure_evidence: { code: "malformed_record" } } }, { db: f.db });
+      assert.equal(readTerminalAuthorshipPreparation(f.db, f.config, auth.run_id, f.now()), null, "Malformed new evidence cannot borrow legacy omission compatibility");
+    } finally { f.db.exec("ROLLBACK"); }
+    assert.equal(canonical(f.host(auth.run_id).read().run), snapshot);
+    if (!legacy) {
+      const selection = readActiveProjectSelectionV01(f.db, f.scope.workspace_id)!;
+      selectActiveProjectV01(f.db, { ...f.scope, now: f.now(), expected_project_id: f.scope.project_id, expected_revision: selection.selection_revision });
+      await f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding }, 409);
+      preview = (await f.call({ action: "preview_terminal_work", request })).preparation;
+      const changed = await f.direction({ action: "decide", expected_ref: direction.record.ref, content: { purpose: "Trace only direct source edges", criteria: [], constraints: [] }, reason: "Current explicit direction changed after preview", status: "active", proposal_ref: null });
+      await f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding }, 409);
+      assert.equal(canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet", "capability_grant", "run_receipt"], limit: 128 })), originalCore);
+      const updated = (await f.call()).reviews.find((r: any) => r.run.run_id === auth.run_id).terminal_preparation;
+      const currentDirection = updated.current_direction_source;
+      assert.equal(JSON.parse(currentDirection.bounded_summary).revision_ref, changed.record.ref);
+      // Resolve the precise old direction entry using the existing owner.
+      request.notes = request.notes.filter((n: any) => n.saved_source_id !== preparation.current_direction_source.entry_id);
+      request.notes = request.notes.filter((n: any) => {
+        const e = preparation.sources.find((s: any) => s.entry_id === n.saved_source_id);
+        try { return JSON.parse(e?.bounded_summary ?? "null")?.profile !== "augnes.prospective-input.v0.1"; } catch { return true; }
+      });
+      request.notes.push(selectedWorkSourceInput(currentDirection) as any);
+      request.omitted_sources = [];
+      const changedComparison = (await f.call({ action: "compare_terminal_sources", request })).preparation.comparison;
+      request.omitted_sources = changedComparison.unselected_previous.map((e: any) => ({ source_binding: e.source_ref, reason: "Explicitly select current direction and new source question; retain the prior version only as history." }));
+      preview = (await f.call({ action: "preview_terminal_work", request })).preparation;
+    }
+    const submissions = await Promise.all([f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding }, [200, 409]), f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding }, [200, 409])]);
+    assert.equal(submissions.filter(v => v.ok).length, 1, JSON.stringify(submissions));
+    const packet = submissions.find(v => v.ok)!.result.packet;
+    const duplicate = (await f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding })).result;
+    assert.equal(duplicate.status, "exact_replay"); assert.deepEqual(duplicate.packet, packet);
+    await f.call({ action: "author_terminal_work", request: { ...request, definition: { ...request.definition, goal: "Conflicting authorship" } }, expected_preview: preview.preview_binding }, 409);
+    assert.equal(packet.capability_grant, null); assert.notEqual(packet.work_ref.external_id, oldPacket.work_ref.external_id);
+    assert.ok(packet.generated_at > oldPacket.expires_at && packet.expires_at > packet.generated_at);
+    assert.equal(readProjectWorkInitializationV01(f.db, f.config).current_packet?.packet_id, packet.packet_id);
+    assert.equal(readPacketDirectionInterpretation(f.db, packet, f.now()).status, "current");
+    assert.deepEqual(statelessUnresolvedEntries(packet), statelessUnresolvedEntries(oldPacket));
+    assert.equal(statelessTerminalEntries(packet).length, 1); assert.ok(statelessTerminalEntries(packet)[0]!.bounded_summary!.includes(auth.run_id));
+    assert.equal(JSON.stringify(packet).includes("REJECTED_PUBLIC_JUDGMENT_NOT_SELECTED"), false);
+    assert.ok(readStatelessSelectedNotes(packet).notes.some(n => n.text === workNote.text));
+    assert.equal(canonical(f.host(auth.run_id).read().run), snapshot); assert.equal(canonical(f.host(unknown.run.run_id).read().run), unknownSnapshot);
+    assert.equal(canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["capability_grant"], limit: 128 })), oldGrants);
+    assert.equal(canonical(readProjectAutomationControlV01(f.db, f.scope)), beforeControl); assert.equal(f.calls, beforeCalls);
+    await f.call({ action: "preview", pricing: notePricing }, 409); assert.equal(f.calls, beforeCalls);
+    assert.equal(validateRecoveryCanonicalDatabaseV01(f.db).status, "valid");
+    readbacks.push({ config: f.config, run_id: auth.run_id, unknown_id: unknown.run.run_id, at: f.now(), packet, snapshot, unknownSnapshot, request });
+    const backup = await recoveryBackup(f, `terminal-${legacy}`), recovered = new Database(path.join(backup.backupPath, RECOVERY_DATABASE_PAYLOAD));
+    try {
+      assert.equal(validateRecoveryCanonicalDatabaseV01(recovered).status, "valid");
+      assert.ok(inspectStatelessTerminalSuccessor(recovered, { config: { ...f.config, database_path: recovered.name }, packet }).packet);
+      assert.throws(() => assertTerminalHistoryActive(recovered, f.scope, packet), /suspended_or_changed/);
+      assert.equal(readTerminalAuthorshipPreparation(recovered, f.config, auth.run_id, f.now())!.recovery_suspended, true);
+      const config = { ...f.config, database_path: recovered.name }, clock = { now: f.now };
+      const bootstrap = issueVNextLocalOperatorBootstrapV01(recovered, { config, clock });
+      const session = consumeVNextLocalOperatorBootstrapV01(recovered, { config, clock, bootstrap_token: bootstrap.bootstrap_token });
+      const cookie = `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${session.cookie_value}`;
+      const route = createStatelessSourceReviewHandler({ clock, environment: { NODE_ENV: "test", AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1", AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: config.workspace_id,
+        AUGNES_VNEXT_OPERATOR_PROJECT_ID: config.project_id, AUGNES_VNEXT_OPERATOR_ID: config.operator_id, AUGNES_DB_PATH: config.database_path, OPENAI_API_KEY: "" } });
+      const api = (body?: unknown) => route(new Request(`http://127.0.0.1/api/vnext/operator/stateless-source-review?project_id=${config.project_id}`, { method: body ? "POST" : "GET",
+        headers: { host: "127.0.0.1", origin: "http://127.0.0.1", cookie, ...(body ? { "content-type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) }));
+      try { assert.equal((await api()).status, 200); assert.equal((await api({ action: "preview_terminal_work", request })).status, 409); }
+      finally { const credential = readVNextLocalOperatorCredentialFromRequestV01(new Request("http://127.0.0.1", { headers: { cookie } }));
+        assert.ok(revokeVNextLocalOperatorSessionByCredentialV01(recovered, { config, credential, clock }).revoked_at); assert.equal((await api()).status, 401); }
+    } finally { recovered.close(); }
+    assert.throws(() => previewActivePortableProjectV01(f.db), /portable_stateless_review_not_supported/);
+    // Save a read-only test copy before fresh authorization, so child readback
+    // observes the prepared packet and disabled control without later state drift.
+    const copy = path.join(root, `terminal-read-${legacy}.db`); await f.db.backup(copy); (readbacks.at(-1) as any).config = { ...f.config, database_path: copy };
+    controlFor(f, true); await f.call({ action: "authorize_and_run", authorization: grant }, 409);
+    const fresh = (await f.call({ action: "preview", pricing: notePricing })).authorization;
+    const result = (await f.call({ action: "authorize_and_run", authorization: fresh })).result;
+    assert.equal(result.run.status, "completed", result.run.stop_reason); assert.notEqual(result.run.run_id, auth.run_id); assert.equal(f.calls, beforeCalls + 2);
+    for (const input of f.inputs.slice(-2)) {
+      assert.equal(JSON.stringify(input).includes("REJECTED_PUBLIC_JUDGMENT_NOT_SELECTED"), false);
+      assert.ok(JSON.stringify(input.returned_attempt_history).includes(auth.run_id)); assert.ok(JSON.stringify(input.unresolved_predecessors).includes(unknown.run.run_id));
+      assert.ok(input.selected_work_notes.notes.some((n: any) => n.text === workNote.text));
+    }
+    assert.equal(canonical(f.host(auth.run_id).read().run), snapshot); assert.equal(canonical(f.host(unknown.run.run_id).read().run), unknownSnapshot);
+    await f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding }, 409);
+    await ordinarySuccessor(f, result, f.calls);
+    const current = readProjectWorkInitializationV01(f.db, f.config).current_packet!;
+    const next = listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet"], limit: 128 }).find(r => r.record_id === current.packet_id)!.payload as any;
+    assert.deepEqual(statelessMandatoryEntries(next), statelessMandatoryEntries(packet));
+    controlFor(f, false);
+  }
+  const file = path.join(root, "terminal-readbacks.json"); writeFileSync(file, JSON.stringify(readbacks));
+  const child = spawnSync(process.execPath, ["--import", "tsx", "scripts/test-stateless-source-review.ts", "--read-terminal", file], { encoding: "utf8", timeout: 20000, env: { ...process.env, OPENAI_API_KEY: "" } });
+  assert.equal(child.status, 0, child.stderr || child.stdout); assert.equal(JSON.parse(child.stdout).cases, 2);
+}
+async function readTerminalChild(filename: string) {
+  try {
+    const inputs = JSON.parse(readFileSync(filename, "utf8"));
+    for (const input of inputs) {
+      const { config, at, packet } = input, db = new Database(config.database_path), clock = { now: () => at };
+      let cookie = "";
+      const route = createStatelessSourceReviewHandler({ clock, environment: { NODE_ENV: "test", AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1", AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: config.workspace_id, AUGNES_VNEXT_OPERATOR_PROJECT_ID: config.project_id, AUGNES_VNEXT_OPERATOR_ID: config.operator_id, AUGNES_DB_PATH: config.database_path, OPENAI_API_KEY: "" } });
+      const request = () => route(new Request(`http://127.0.0.1/api/vnext/operator/stateless-source-review?project_id=${config.project_id}`, { headers: { host: "127.0.0.1", origin: "http://127.0.0.1", cookie } }));
+      try {
+        const b = issueVNextLocalOperatorBootstrapV01(db, { config, clock }), s = consumeVNextLocalOperatorBootstrapV01(db, { config, clock, bootstrap_token: b.bootstrap_token }); cookie = `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${s.cookie_value}`;
+        const response = await request(); assert.equal(response.status, 200); const value = await response.json();
+        assert.equal(value.preparation.packet_id, packet.packet_id); assert.equal(readProjectAutomationControlV01(db, config)!.enabled, false);
+        const review = value.reviews.find((r: any) => r.run.run_id === input.run_id), unknown = value.reviews.find((r: any) => r.run.run_id === input.unknown_id);
+        assert.equal(canonical(review.run), input.snapshot); assert.equal(canonical(unknown.run), input.unknownSnapshot);
+        const markup = renderToStaticMarkup(createElement(StatelessTerminalAuthorship, { preparation: review.terminal_preparation, material: input.request.material, request: async () => { throw new Error("readback_must_not_mutate"); }, saved: async () => {} }));
+        assert.ok(markup.includes("Compare selected context for new work") && markup.includes("The provider response returned.") && markup.includes("Attributed Work review"));
+        assert.ok(markup.includes(review.terminal_preparation.evidence.layer));
+        assert.deepEqual(inspectStatelessTerminalSuccessor(db, { config, packet }).packet, packet); validateRecoveryCanonicalDatabaseV01(db);
+      } finally {
+        if (cookie) { const credential = readVNextLocalOperatorCredentialFromRequestV01(new Request("http://127.0.0.1", { headers: { cookie } })); assert.ok(revokeVNextLocalOperatorSessionByCredentialV01(db, { config, credential, clock }).revoked_at); assert.equal((await request()).status, 401); }
+        db.close();
+      }
+    }
+    assert.equal(requests, 0); console.log(JSON.stringify({ cases: inputs.length, calls: 0, fresh_authenticated_read: true, actual_product_component: true, logout: 401 }));
+  } finally { rmSync(root, { recursive: true, force: true }); network.unsubscribe(onNetwork); zeroNetwork.restore(); }
+}
 async function main() {
   try {
+    if (["--terminal-authorship", "--terminal-browser"].includes(process.argv[2]!)) {
+      await terminalAuthorshipContract(); assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0);
+      console.log(JSON.stringify({ status: "passed", terminal_authorship: "ordinary_preview_new_packet_fresh_grant", legacy_writer: "65f6efc92d969c47e86152efa9388aba4c169c63", candidate_writes: 0, external_requests: requests })); return;
+    }
     if (process.argv[2] === "--rejection-evidence") {
       await rejectionEvidenceContract(); assert.equal(requests, 0);
       console.log(JSON.stringify({ status: "passed", post_gateway_rejections: ["rationale_bound_exceeded", "source_anchor_missing", "observation_unavailable"], whole_public_projection_or_explicit_omission: true,
-        persistence_failure_distinct: true, authenticated_fresh_process_and_review_component: true, legacy_missing_evidence: "unavailable", continue_replays: 0, known_invalid_successor: "blocked_separate_contract_required", external_requests: requests })); return;
+        persistence_failure_distinct: true, authenticated_fresh_process_and_review_component: true, legacy_missing_evidence: "unavailable", continue_replays: 0, completed_result_and_revision_guards: "unchanged_use_explicit_terminal_authorship", external_requests: requests })); return;
     }
     if (process.argv[2] === "--selected-notes") {
       await dispositionContract(); await selectedNoteBoundsContract(); assert.equal(requests, 0);
@@ -970,4 +1178,4 @@ async function resumeChild(filename: string) {
     console.log(JSON.stringify({ calls: script.calls, observation: script.inputs[0].observation, selected_notes: script.inputs[0].selected_work_notes, serialized_request: script.serializedRequests[0], external_requests: requests }));
   } finally { rmSync(root, { recursive: true, force: true }); network.unsubscribe(onNetwork); }
 }
-void (process.argv[2] === "--resume" ? resumeChild(process.argv[3]!) : process.argv[2] === "--read-disposition" ? readDispositionChild(process.argv[3]!) : process.argv[2] === "--read-rejection" ? readRejectionChild(process.argv[3]!) : main()).catch(e => { console.error(e); process.exitCode = 1; });
+void (process.argv[2] === "--resume" ? resumeChild(process.argv[3]!) : process.argv[2] === "--read-disposition" ? readDispositionChild(process.argv[3]!) : process.argv[2] === "--read-terminal" ? readTerminalChild(process.argv[3]!) : process.argv[2] === "--read-rejection" ? readRejectionChild(process.argv[3]!) : main()).catch(e => { console.error(e); process.exitCode = 1; });

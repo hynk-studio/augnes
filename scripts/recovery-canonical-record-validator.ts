@@ -1,3 +1,4 @@
+import { isStatelessTerminalSuccessor, inspectStatelessTerminalSuccessor, terminalAuthorshipKey } from "../lib/vnext/runtime/stateless-terminal-authorship";
 import { isStatelessReplacement, inspectStatelessReplacement, statelessReplacementIdempotencyKey } from "../lib/vnext/runtime/stateless-review-disposition";
 import { validateStatelessGrant, statelessGrantKey } from "../lib/vnext/stateless-work";
 import { readStatelessGrant } from "../lib/vnext/persistence/stateless-work-grant";
@@ -617,7 +618,7 @@ function validatePayloadAndEnvelopeV01(record: ParsedCanonicalRecordV01): void {
         project_id: payload.project_id,
         fingerprint: exactFingerprintV01(payload),
         idempotency_key:
-          statelessReplacementIdempotencyKey(payload as unknown as TaskContextPacketV01) ?? authoredSuccessorPacketIdempotencyKeyV01(payload as unknown as TaskContextPacketV01) ??
+          (isStatelessTerminalSuccessor(payload as unknown as TaskContextPacketV01) ? terminalAuthorshipKey(payload as unknown as TaskContextPacketV01) : statelessReplacementIdempotencyKey(payload as unknown as TaskContextPacketV01)) ?? authoredSuccessorPacketIdempotencyKeyV01(payload as unknown as TaskContextPacketV01) ??
           initialProjectWorkIdempotencyKeyV01(
             payload as unknown as TaskContextPacketV01,
           ) ??
@@ -906,6 +907,12 @@ function validateCompiledTaskContextPacketRelationV01(
   if (packet.compatibility.source_contracts.includes(PROSPECTIVE_PREPARATION_PACKET)) {
     inspectVNextOperatorPilotPacketLineageV01(db, { packet_id: packet.packet_id, packet_fingerprint: packet.integrity.fingerprint,
       config: { enabled: true, workspace_id: record.workspace_id, project_id: record.project_id, operator_id: "recovery-read", database_path: db.name } });
+    return;
+  }
+  if (isStatelessTerminalSuccessor(packet)) {
+    if (record.idempotency_key !== terminalAuthorshipKey(packet)) refuseV01();
+    inspectStatelessTerminalSuccessor(db, { packet, config: { enabled: true, workspace_id: record.workspace_id,
+      project_id: record.project_id, operator_id: "recovery-read", database_path: db.name } });
     return;
   }
   if (isStatelessReplacement(packet)) {

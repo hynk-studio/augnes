@@ -1,3 +1,4 @@
+import { previewTerminalAuthorship, authorTerminalWork } from "@/lib/vnext/runtime/stateless-terminal-authorship";
 import { NextResponse } from "next/server";
 import { StatelessSourceReviewHost, prepareStatelessReview, prepareStatelessReplacement, readPreparedStatelessWork, previewStatelessReview, authorizeStatelessReview } from "@/lib/vnext/runtime/stateless-source-review";
 import { endStatelessReviewWork } from "@/lib/vnext/runtime/stateless-review-disposition";
@@ -44,6 +45,14 @@ export function createStatelessSourceReviewHandler(options: { environment?: Node
           disposition: { run_id: reviewText(link.run_id, 160), disposition_fingerprint: reviewSha(link.disposition_fingerprint) } });
         admission = prepared.session_admission;
         result = { packet_id: prepared.packet_id, review: prepared.review, selected_notes: prepared.selected_notes, status: prepared.status, preparation_bytes: prepared.preparation_bytes, authorized: false, predecessor_effects_unknown: true };
+      } else if (body.action === "compare_terminal_sources" || body.action === "preview_terminal_work") {
+        reviewObject(body, ["action", "request"]);
+        return NextResponse.json({ ok: true, read_only: true, preparation: previewTerminalAuthorship(db, config, body.request, hostOptions.now(), body.action === "compare_terminal_sources") }, { headers });
+      } else if (body.action === "author_terminal_work") {
+        reviewObject(body, ["action", "request", "expected_preview"]);
+        const authored = authorTerminalWork(db, { config, credential, request: body.request, expected_preview: reviewSha(body.expected_preview), now: hostOptions.now });
+        admission = authored.session_admission;
+        result = { packet: authored.packet, status: authored.status, authorized: false };
       } else if (body.action === "preview") {
         reviewObject(body, ["action", "pricing"]);
         return NextResponse.json({ ok: true, authorization: await previewStatelessReview(db, hostOptions, body.pricing), read_only: true }, { headers });
