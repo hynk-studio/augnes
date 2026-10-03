@@ -134,7 +134,9 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
   for (const [addition] of prospectiveAdditions) assert.equal(source.split(addition).length, 2, 'exact prospective call site');
   const withoutProspectiveAdditions = text => prospectiveAdditions.reduce((result, [addition, previous]) => result.replace(addition, previous), text);
   const expected = {
-    validateProjectDirectionUI: '9cbc97e00b72c0fcd10434d9580c55a1daf70f3b54c8b17cb43063b16076bb8c',
+    // #1384 adds the reader/editor and unsaved-authorization refusal before
+    // unchanged responsive checks. Earlier actions/assertions/deadlines remain.
+    validateProjectDirectionUI: 'b9eb7a6c3271a9345f09ec0681353f17156a4ae7aaec1f02912169e725dcd1f2',
     runPhase: '547dcdc354d69e5288144b6a888c436e546102d509cdec352673c929ec0191d2',
     navigate: '2dbcba067b8c962ccb04e72155be6129be5f4e4a2447935621ac85208cfefddf',
     waitForRequestQuiet: 'b6fe49600739070ebf72e8048a26b605a7ff2a255c7d1ad86a9ee0c35c7c3c74',

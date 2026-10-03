@@ -859,6 +859,88 @@ earlier judgment or its evidence; a direction-only change preserves support and
 method conditions. GuideBrief and Start projections expose the same reconsideration
 boundary without acquiring mutation or execution rights.
 
+#### Stateless bounded source review (#1384)
+
+The opt-in `stateless_source_review.v0.1` product profile composes existing
+ordinary work revision, immutable capability grants, Planner Gateway, autonomy
+ledger, bounded local reading and structured RunReceipt admission. It is distinct
+from the zero-model prospective inspection profile and P4.6 research permission.
+The project surface prepares a question and one or two exact UTF-8 file ranges
+as a selected whole note on ordinary null-grant work. Preparation binds full-file
+hashes and selected line ranges, preserving the task and other selected sources.
+Every reader or mutation request binds the displayed project ID to the immutable
+session scope; selection or a stale cookie cannot retarget it.
+Only the local authenticated authorization route can issue the separate
+`stateless_source_review_grant.v0.1` Core capability record and one ledger run.
+No recommendation, selected note, working direction or research budget grants
+execution authority.
+
+One authorization covers choose → observe/non-use → conclude in a finite foreground
+request, with no per-step copy or “next”. The closed first choices are
+`read_selected_sources`, `no_action`, `defer`, and `stop`; the second choices are
+`use_observation`, `decline_observation`, `defer`, and `stop`. First-stage stop ends
+work immediately. Only the allowlisted read is executable. The supplied normalized
+judgment and exact observation become this work's next input; they do not change
+accepted state, direction, or another work item. A model's claimed use is recorded
+separately from mechanical delivery and does not prove semantic validity.
+
+The grant binds project, packet, source inventory, physical root, host, current
+control revision, provider/model cost snapshot and an expiry of at most ten minutes.
+Its fixed ceilings are two model requests, 16,384 input bytes and 1,024 output tokens
+per request, fifteen seconds per invocation, one read bundle of at most two regular
+files / 65,536 bytes, 4,096 excerpt bytes, ten seconds per read, and forty-five
+seconds per foreground host call. Local file deadlines are checked before and
+after bounded synchronous file operations; they cannot forcibly interrupt a blocked
+OS filesystem call. Local preparation, authorization and first-step
+version checks each read at most 65,536 bytes separately; these are preparation
+costs, not extra completed action bundles. No command execution, retry or provider
+failover is available. Pricing rates and provenance are explicit operator inputs;
+the Gateway checks the quote, route and per-call ceiling, while actual cost remains
+unknown unless reported. Missing credentials or rates do not authorize fallback.
+
+Existing ledger steps own unissued, claimed/outcome-unknown, stored-result, and
+second-judgment attribution. Every claim commits before dispatch. Permission,
+current direction/source, scope, remaining stage budget and generation are checked
+at admission and immediately before model egress. A claimed step cannot be replayed.
+After a stored observation, a fresh process can construct the next request from
+SQLite and its registered project alone, even if the original file is unavailable.
+It consumes historical exact bytes with their time, digest and availability. No
+provider thread, previous-response chain, Codex process, hidden transcript or
+private controller memory is needed. A returned result commits before receipt
+projection. Cancellation stops new stages but retains already returned results;
+timeout or transport loss after dispatch retains unknown cost/effect. A stale
+controller cannot settle another generation; its returned receipt can be retained
+as a quarantined ledger event without resolving the outstanding claim.
+
+Project unsettled-run guards remain active, excluding only this run when admitting
+its own next step through the shared ledger owner. Terminal status alone is not
+settlement: malformed metadata or a present reconciliation flag other than false
+remains unresolved; the existing legacy omission allowance is unchanged.
+Readback uses the authenticated project reader and normal structured result owner.
+Completed reviews persist explicit reconciliation completion and the existing
+registered-root and separate physical-root bindings. Their results can enter the
+ordinary result preparation, explicit source selection, preview and authenticated
+successor writer as imported, unverified context. The successor is a new null-grant
+packet; the preceding grant supplies no permission for it. Existing historical
+records lacking these bindings are not repaired or given inferred attribution.
+Gateway refusal after a normalized response retains a bounded received-result
+observation and reported usage in the ledger alongside the failure receipt. This
+distinguishes returned-invalid from pre-egress refusal and dispatched-unknown;
+the v0.2 failure receipt and its unavailable-cost semantics are unchanged. No
+classification grants retry or semantic acceptance.
+
+Transport exceptions may retain a bounded diagnostic observation alongside the
+unchanged failure receipt: fixed transport phase, allowlisted error name and
+error/direct-cause codes, and the observed abort flag. Messages, stacks, headers,
+credentials, URLs and request/response bodies are excluded. These local diagnostics
+do not establish provider delivery, billing or outcome, settle an unknown claim,
+or authorize replay. Historical failures without them remain unchanged.
+Recovery retains grants, results and unknown claims but
+suspends this profile's execution eligibility. Portable project export refuses a
+project containing its grants until unfinished-work transfer has its own supported
+contract; it cannot silently drop the ledger or inherit authority. Existing
+zero-model Core, prospective and Codex Start/Resume paths keep their contracts.
+
 #### Prospective preparation and local re-entry (#1380)
 
 The opt-in `augnes.prospective-input.v0.1` profile uses the existing selected

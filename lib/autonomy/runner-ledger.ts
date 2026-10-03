@@ -626,13 +626,14 @@ export function listAutonomyRunLedgerRecords(
  * Call inside the caller's save transaction when this gates a mutation.
  * Legacy terminal rows may omit reconciliation metadata; malformed metadata,
  * unknown statuses and any present flag other than false remain unresolved.
+ * A continuing controller may exclude its exact own run, never other history.
  */
 export function hasUnsettledAutonomyRunLedgerRecords(
-  options: AutonomyRunnerLedgerDbOptions & { scope: string },
+  options: AutonomyRunnerLedgerDbOptions & { scope: string; exclude_run_id?: string },
 ): boolean {
   return withAutonomyRunnerLedgerDb(options, (db) => db.prepare(
     `SELECT 1 FROM autonomy_runs
-     WHERE scope = ? AND (
+     WHERE scope = ? AND (? IS NULL OR run_id <> ?) AND (
        status NOT IN (${AUTONOMY_RUNNER_TERMINAL_STATUSES.map(() => "?").join(", ")})
        OR CASE
          WHEN json_valid(metadata_json) = 0 THEN 1
@@ -643,7 +644,7 @@ export function hasUnsettledAutonomyRunLedgerRecords(
          )
        END
      ) LIMIT 1`,
-  ).get(options.scope, ...AUTONOMY_RUNNER_TERMINAL_STATUSES) !== undefined);
+  ).get(options.scope, options.exclude_run_id ?? null, options.exclude_run_id ?? null, ...AUTONOMY_RUNNER_TERMINAL_STATUSES) !== undefined);
 }
 
 export function updateAutonomyRunLedgerFields(

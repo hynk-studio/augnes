@@ -45,6 +45,7 @@ import type {
 } from "@/types/vnext/model-invocation-receipt";
 import type { ModelProviderRejectionObservationV01 } from "@/lib/vnext/model-gateway/provider-rejection-observation";
 import type { ModelProviderResponseInvalidObservationV01 } from "@/lib/vnext/model-gateway/provider-response-invalid-observation";
+import type { ModelTransportFailureObservationV01 } from "@/lib/vnext/model-gateway/transport-failure-observation";
 export {
   MODEL_GATEWAY_EGRESS_POLICY_VERSION_V01,
   MODEL_INVOCATION_RECEIPT_VERSION_V02,
@@ -465,6 +466,7 @@ export class ModelGatewayAdapterFailureV01 extends Error {
     readonly code: ModelGatewayAdapterFailureCodeV01,
     readonly provider_rejection_observation: ModelProviderRejectionObservationV01 | null = null,
     readonly provider_response_invalid_observation: ModelProviderResponseInvalidObservationV01 | null = null,
+    readonly transport_failure_observation: ModelTransportFailureObservationV01 | null = null,
   ) {
     super("Model adapter invocation failed.");
     this.name = "ModelGatewayAdapterFailureV01";
@@ -477,6 +479,10 @@ export class ModelGatewayInvocationErrorV01 extends Error {
     readonly receipt: ModelInvocationReceiptV02 | null = null,
     readonly provider_rejection_observation: ModelProviderRejectionObservationV01 | null = null,
     readonly provider_response_invalid_observation: ModelProviderResponseInvalidObservationV01 | null = null,
+    /** An adapter returned a normalized result, subsequently refused by the
+     * Gateway. Only bounded reported usage survives, never output or cost. */
+    readonly received_result: { usage: ModelGatewayNormalizedUsageV01 | null } | null = null,
+    readonly transport_failure_observation: ModelTransportFailureObservationV01 | null = null,
   ) {
     super("Model gateway invocation failed.");
     this.name = "ModelGatewayInvocationErrorV01";

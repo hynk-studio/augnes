@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 
 import { openDatabase, type StateEntry } from "@/lib/db";
+import { normalizeModelTransportFailureObservationV01 } from "@/lib/vnext/model-gateway/transport-failure-observation";
 import {
   assertModelEgressTextIsSafe,
   cloneBoundedModelEgressJson,
@@ -498,6 +499,27 @@ export function readModelGatewayInteractiveAdmissionForRootV01(
   } finally {
     db.close();
   }
+}
+
+/** Read only the configured Planner route for a finite authorization preview.
+ * Keep the invocable session inside the Gateway boundary. Invocation still
+ * rechecks the admitted provider/model and cost authority before egress. */
+export async function preparePlannerModelGatewayRouteV01(
+  dependencies: Pick<SharedModelGatewayDependenciesV01, "adapter"> = {},
+): Promise<Pick<ModelAdapterSessionV01, "provider_ref" | "model_ref"> | null> {
+  const adapter = dependencies.adapter ?? createOpenAIResponsesAdapterV01();
+  const session = await adapter.prepare(
+    PLANNER_MODEL_GATEWAY_PURPOSE_V01,
+    new AbortController().signal,
+  );
+  if (!session) return null;
+  if (session.purpose !== PLANNER_MODEL_GATEWAY_PURPOSE_V01) {
+    throw gatewayFailure("model_gateway_provider_response_invalid");
+  }
+  return {
+    provider_ref: structuredClone(session.provider_ref),
+    model_ref: structuredClone(session.model_ref),
+  };
 }
 
 /** Prepares and freezes the production route without invoking provider egress. */
@@ -1681,7 +1703,7 @@ async function invokeModelGatewayV01(
         OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01 ||
       envelope.purpose ===
         OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01 ||
-      (envelope.purpose === GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01 &&
+      ((envelope.purpose === GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01 || envelope.purpose === PLANNER_MODEL_GATEWAY_PURPOSE_V01) &&
         envelope.budget.cost_budget !== undefined)
     ) {
       const costBudget = envelope.budget.cost_budget;
@@ -2433,6 +2455,7 @@ async function invokeLiveAdapter(
 ): Promise<InternalGatewayResultV01> {
   let egressAttempted = false;
   let inputBytesUsed: number | null = null;
+  let receivedResult: ModelGatewayInvocationErrorV01["received_result"] = null;
 
   try {
     lifecycle.throwIfStopped();
@@ -2474,6 +2497,10 @@ async function invokeLiveAdapter(
         },
       ),
     );
+    // Keep received-but-refused distinct from transport loss. V0.2 failure
+    // receipts do not admit over-budget usage; retain that reported evidence
+    // separately without turning the failed receipt into a success.
+    receivedResult = { usage: result.usage };
     lifecycle.throwIfStopped();
     if (result.purpose !== envelope.purpose) {
       throw gatewayFailure("model_gateway_provider_response_invalid");
@@ -2582,6 +2609,10 @@ async function invokeLiveAdapter(
       }),
       providerRejectionObservation,
       providerResponseInvalidObservation,
+      receivedResult,
+      error instanceof ModelGatewayAdapterFailureV01
+        ? normalizeModelTransportFailureObservationV01(error.transport_failure_observation)
+        : null,
     );
   }
 }
@@ -2980,7 +3011,7 @@ function validateBudget(
     "max_input_bytes",
     "max_output_tokens",
     "max_provider_calls",
-  ], purpose === STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01 ||
+  ], purpose === PLANNER_MODEL_GATEWAY_PURPOSE_V01 || purpose === STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01 ||
     purpose === GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01 ||
     isOperationalReentryMatchedCohortPurposeV01(purpose)
     ? ["cost_budget"]
@@ -3861,12 +3892,16 @@ function gatewayFailure(
   receipt: ModelInvocationReceiptV02 | null = null,
   providerRejectionObservation: ModelGatewayInvocationErrorV01["provider_rejection_observation"] = null,
   providerResponseInvalidObservation: ModelGatewayInvocationErrorV01["provider_response_invalid_observation"] = null,
+  receivedResult: ModelGatewayInvocationErrorV01["received_result"] = null,
+  transportFailureObservation: ModelGatewayInvocationErrorV01["transport_failure_observation"] = null,
 ) {
   return new ModelGatewayInvocationErrorV01(
     code,
     receipt,
     providerRejectionObservation,
     providerResponseInvalidObservation,
+    receivedResult,
+    transportFailureObservation,
   );
 }
 

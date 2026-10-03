@@ -45,7 +45,7 @@ import {
   projectObserveModelMaterial,
 } from "@/lib/vnext/model-gateway/openai/observe-codec";
 import {
-  buildPlannerSystemPrompt,
+  buildPlannerSystemPrompt, sourceReviewPlannerChoices, sourceReviewPlannerSchema,
   parsePlannerOutput,
   PLANNER_MODEL_EGRESS_LIMITS,
   plannerResponseSchema,
@@ -127,6 +127,7 @@ import {
   type ModelProviderResponseInvalidStageV01,
   type ModelProviderResponseStatusV01,
 } from "@/lib/vnext/model-gateway/provider-response-invalid-observation";
+import { projectModelTransportFailureObservationV01 } from "@/lib/vnext/model-gateway/transport-failure-observation";
 import type { OperationalReentryMatchedCohortModelInputV01 } from "@/types/vnext/operational-reentry-matched-cohort";
 import {
   OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V02,
@@ -613,8 +614,11 @@ export function createOpenAIResponsesAdapterV01(
               body: requestBody,
               signal: lifecycle.signal,
             });
-          } catch {
-            throw new ModelGatewayAdapterFailureV01("adapter_transport_failed");
+          } catch (error) {
+            throw new ModelGatewayAdapterFailureV01(
+              "adapter_transport_failed", null, null,
+              projectModelTransportFailureObservationV01(error, lifecycle.signal.aborted),
+            );
           }
 
           if (
@@ -1117,18 +1121,19 @@ function codecFor(input: ModelAdapterInputV01): PurposeCodec {
     };
   }
   if (input.input_kind === PLANNER_MODEL_GATEWAY_PURPOSE_V01) {
+    const choices = sourceReviewPlannerChoices(input.message);
     return {
       dynamic_material: projectPlannerModelMaterial(input),
       dynamic_bytes: PLANNER_MODEL_EGRESS_LIMITS.dynamicBytes,
       final_request_bytes: PLANNER_MODEL_EGRESS_LIMITS.finalRequestBytes,
       response_bytes: PLANNER_MODEL_EGRESS_LIMITS.responseBytes,
-      system_prompt: buildPlannerSystemPrompt(),
+      system_prompt: buildPlannerSystemPrompt(choices !== null),
       schema_name: "augnes_plan",
-      schema: plannerResponseSchema,
+      schema: choices ? sourceReviewPlannerSchema(choices) : plannerResponseSchema,
       parse(outputText, usage) {
         return {
           purpose: PLANNER_MODEL_GATEWAY_PURPOSE_V01,
-          recommendations: parsePlannerOutput(outputText),
+          recommendations: parsePlannerOutput(outputText, choices),
           usage,
         };
       },

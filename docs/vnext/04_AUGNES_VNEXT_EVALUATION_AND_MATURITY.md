@@ -339,6 +339,44 @@ Count input estimation, note preparation, maintenance, verification and repeated
 human context repair. No live comparison is required to qualify this implementation;
 attributable improvement from experience remains a separate, unobserved claim.
 
+### Stateless bounded product work
+
+For [#1384](https://github.com/hynk-studio/augnes/issues/1384), distinguish the
+actual delivered observation, the model's normalized claimed use/non-use, semantic
+validity, and comparative usefulness. Exact strings, a valid closed choice or a
+source fingerprint establish neither a justified conclusion nor learned capability.
+The exposed two-entrypoint audit case is development material, not an independent
+efficacy sample. Actual ordinary model judgment and strong-baseline usefulness
+remain NOT RUN until separately authorized and observed; preserve P4.6's negative
+result.
+
+Positive mechanism checks use ordinary authorship and authenticated authorization,
+real bounded file reads, Gateway transport-only scripting, durable result admission
+and normal readback. Do not insert grants or ledger state to make a positive path
+work. Isolated corruption/dispatch-fault interventions must be labelled. Exercise
+the completed result's ordinary preparation, explicit selection and authenticated
+successor creation, including source attribution, unverified status and absence
+of inherited execution authority. Discriminate terminal unreconciled, malformed,
+settled and permitted legacy-omission ledger records, excluding only the own run.
+Returned over-budget usage is reported evidence, never measured cost or success;
+assert its durable classification and unchanged no-retry continuation separately
+from actual transport loss and pre-egress refusal. Also exercise
+normal unattended internal progress, justified no-action/defer/stop, exact
+source/time/availability in the second input, and fresh-process continuation after
+observation persistence. Reopening must consume the saved result without replaying
+the action. Separate unissued, dispatched-unknown, returned-invalid, durably stored,
+and context-incorporated states. A timeout, a lost response, or a fenced controller
+is not evidence of zero calls/cost or stopped remote execution.
+
+Changed sources, direction, root/project, expired/revoked permission, cancellation,
+stale generations and exhausted budgets must stop the affected admission while
+retaining history. Test the ordinary UI reader and authoring/authorization route,
+suspended recovery eligibility, and existing zero-model/Codex compatibility.
+Report source preparation/revalidation bytes separately from action bytes, calls,
+reported or unknown token/cost values, human interventions, cleanup and unrun checks.
+Exact-head correctness follows Local Canonical; it is not an ordinary-use or
+usefulness result and does not complete the whole continuity program.
+
 ### Prospective preparation and event/time re-entry
 
 For [#1380](https://github.com/hynk-studio/augnes/issues/1380), keep three evidence

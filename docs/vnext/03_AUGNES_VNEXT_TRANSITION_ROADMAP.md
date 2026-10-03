@@ -206,6 +206,92 @@ authorize an ordinary case through this grant owner; observe actual choice, prep
 human repair burden before considering broader activation. The absence of that
 case does not invalidate the bounded engineering or establish real-world benefit.
 
+### Current P4/P5 — First stateless bounded product work (#1384)
+
+The first implementation connects ordinary authored work → explicit finite grant →
+stateless Gateway judgment → allowed local source read or justified non-use →
+durable observation → second stateless judgment. Current source confirmed the
+composition gap: the policy Planner returns recommendations, prospective re-entry
+is zero-model literal inspection, and P4.6's coordinator is a separate research
+path. Their owners are reused without converting research permission into product
+permission or widening the older inspection grant. See the
+[bounded profile contract in 02](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#stateless-bounded-source-review-1384).
+
+The exposed development consumer selects `policy-triggered-planner-run.ts` lines
+141–164 and `prospective-reentry.ts` lines 112–131, with full-file version hashes,
+to inspect the recommendation/result-reentry connections those fragments actually
+show. Scripted Gateway responses establish delivery and attribution only. This
+bounded selection cannot establish repository-wide absence or answer the whole
+continuity audit. Tests author the question through the ordinary route, explicitly
+authorize it, read real excerpts, admit the result and read it back. A fresh child
+process completes the second judgment from the database after the source file is
+removed, preserving the observation and attempt. No internal human handoff occurs
+on the normal authorized path. The ordinary UI exposes authoring, finite pricing
+and permission review, saved results, interruption continuation and cancellation.
+
+The #1385 review confirmed three integration gaps: terminal-only conflict checks,
+missing compatible settlement/root attribution for ordinary successor authorship,
+and a returned over-budget result classified as unknown. Corrections reuse the
+ledger conflict owner, root identity owner and ordinary authenticated successor
+writer, and retain bounded received-result/usage evidence alongside Gateway
+failure receipts. Positive verification selects the attributed unverified review
+through result preparation and preview, then authors a new packet with no inherited
+grant. Existing Codex successor wording/lineage and historical records remain
+compatible; no ledger repair or invented native execution supplies this path.
+
+Actual ordinary model judgment and strong-baseline usefulness are **NOT RUN**.
+The proposed live invocation card was refreshed on 2026-10-03. Read-only Gateway
+route preparation in the current shell returned `openai` / `gpt-4.1-mini`, with
+zero provider calls; source routes it to `https://api.openai.com/v1/responses`.
+This establishes shell configuration, not a running service's route or account
+access. The alias remains configured; no snapshot/model switch was performed.
+[Official route pricing](https://developers.openai.com/api/docs/models/gpt-4.1-mini)
+reviewed that day lists USD 0.40 input, 0.10 cached input and 1.60 output per million
+tokens. The request does not pin `service_tier`; actual project pricing/tier must
+be confirmed before live authorization. No caching discount is assumed.
+
+The card proposes `input_nano_usd_per_byte=1000`,
+`output_nano_usd_per_token=1600`,
+`source_version=openai-gpt-4.1-mini-standard-2026-10-03`, and
+`maximum_total_nano_usd=100000000` (USD 0.10 total, 0.05 per invocation).
+The byte rate is an operator-proposed conservative bound, not OpenAI's billing
+unit. At 16,384 input bytes and 1,024 output tokens per request, the quote computes
+USD 0.0180224 per call / 0.0360448 for two. This is a conditional envelope estimate,
+not measured cost or a provider-side billing guarantee. Retain two calls maximum,
+fifteen seconds per call, one two-file 65,536-byte read with at most 4,096 excerpt
+bytes, ten seconds per read and forty-five seconds per foreground call.
+
+Selected source versions (full-file SHA-256, unchanged from the reviewed PR head):
+
+| Source | Lines | SHA-256 |
+| --- | --- | --- |
+| `lib/vnext/automation/policy-triggered-planner-run.ts` | 141–164 | `ea5cc75e8862691c95d39baa11c8954ba4c8e8d26b2e452875f09b8ea20b9292` |
+| `lib/vnext/runtime/prospective-reentry.ts` | 112–131 | `dd1f769c2909a0cfeee1f7efe4750c04288fb94f243ff89218097810171a5061` |
+
+Transmitted data would be the authored task/question, consumed working direction,
+project identity, packet/source fingerprints, relative file inventory, cutoff,
+bounded instructions/schema, and on the second call the first normalized judgment
+plus exact observation/excerpts. The selected excerpts total 2,737 UTF-8 bytes;
+full files are read locally. Requests use `store:false` and no previous-response
+chain. No raw response, hidden reasoning or credential becomes product state.
+
+**Card remains unbound and unexecuted.** The canonical lifecycle check returned
+`not_installed`, so exact live workspace/project/work/packet, direction and
+root/host bindings are unavailable through the supported current-continuity path.
+No production record was created, and fixture IDs or GitHub issue/branch names do
+not substitute for these fields. The Draft PR binds the final implementation
+base/head; a live target still requires its own exact ordinary preparation and
+separate data/budget permission. No installation or live invocation is authorized
+by preparing this card.
+
+Next decision: review the bounded implementation and exact-head verification,
+then decide whether to authorize that ordinary case and observe actual choice,
+use/non-use, cost and human repair burden. This first PR does not complete the
+continuity program. Same-database account/session changes, meaningful unfinished
+work transfer (#1149), semantic selection quality, cross-project recurrence and
+strong comparative evaluation remain separate. P4.6's negative findings and
+#1342/#1372 ownership are unchanged.
+
 ### Current P2/P3/P4/P5 — Project direction and decision authority (#1382)
 
 The 2026-10-02 north-star review authorized this connected increment after merged
