@@ -1115,6 +1115,7 @@ async function runStrategicGatewayCases(fixture: Fixture) {
   );
   assert.equal(cancelledFailure.code, "model_gateway_cancelled");
   assert.equal(cancelledFailure.receipt?.outcome, "cancelled");
+  assert.equal(cancelledFailure.received_result, null);
   assert.equal(liveTransportCalls, 0);
 
   let strategicBudgetTransportCalls = 0;
@@ -1140,6 +1141,12 @@ async function runStrategicGatewayCases(fixture: Fixture) {
   );
   assert.equal(budgetFailure.code, "model_gateway_budget_refused");
   assert.equal(budgetFailure.receipt?.budget.decision, "refused");
+  assert.deepEqual(budgetFailure.received_result?.usage, {
+    basis: "provider_report", quality: "reported", source: "provider_response",
+    input_tokens: 120, output_tokens: input.budget.model.max_output_tokens + 1,
+    total_tokens: input.budget.model.max_output_tokens + 121,
+  });
+  assert.equal(budgetFailure.receipt?.cost.amount, null);
   assert.equal(strategicBudgetTransportCalls, 1);
 
   let malformedTransportCalls = 0;

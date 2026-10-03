@@ -4,7 +4,12 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { updateAutonomyRunStepLedgerFields } from "../lib/autonomy/runner-ledger";
+import { hasUnsettledAutonomyRunLedgerRecords, insertAutonomyRunLedgerRecord, updateAutonomyRunStepLedgerFields } from "../lib/autonomy/runner-ledger";
+import { createVNextOperatorContextUseReviewHandlerV01 } from "../app/api/vnext/operator/project-continuity/route";
+import { readSelectedWorkSources, selectedWorkSourceInput } from "../lib/intake/selected-work-source-comparison";
+import { readProjectWorkInitializationV01 } from "../lib/vnext/runtime/project-work-initialization";
+import { inspectPersistedHostProjectRootV01 } from "../lib/vnext/runtime/direct-native-host-round-trip";
+import { fingerprintNativeHostPhysicalRootIdentityV01 } from "../lib/vnext/native-host/project-root-identity";
 import { previewActivePortableProjectV01 } from "../lib/vnext/portability/portable-project";
 import { createProjectDirectionHandler } from "../app/api/vnext/operator/project-direction/route";
 import type { ModelAdapterV01 } from "../lib/vnext/model-gateway/contracts";
@@ -102,10 +107,69 @@ async function fixture(name: string, firstChoice = "read_selected_sources", seco
     const value = await response.json(); assert.equal(response.status, 200, value.error);
     cookie = response.headers.get("set-cookie")!.split(";")[0]!; return value;
   };
-  return { db, scope, config, projectRoot, now, tick, adapter, inputs, call, preview, credential, direction, preparationBytes: prepared.result.preparation_bytes, controls: script.controls,
+  const continuity = async (body: unknown, expected = 200, headers: Record<string, string> = {}) => {
+    tick(); const response = await createVNextOperatorContextUseReviewHandlerV01({ environment, clock: { now } })(new Request("http://127.0.0.1/api/vnext/operator/project-continuity", {
+      method: "POST", headers: { host: "127.0.0.1", origin: "http://127.0.0.1", cookie, "content-type": "application/json", ...headers }, body: JSON.stringify(body) }));
+    const value = await response.json(); assert.equal(response.status, expected, canonical(value));
+    if (response.headers.get("set-cookie")) cookie = response.headers.get("set-cookie")!.split(";")[0]!;
+    return value;
+  };
+  return { db, scope, config, projectRoot, now, tick, adapter, inputs, call, preview, credential, direction, continuity, preparationBytes: prepared.result.preparation_bytes, controls: script.controls,
     host: (id: string, customAdapter = adapter) => new StatelessSourceReviewHost({ config, now, adapter: customAdapter }, id),
     get calls() { return script.calls; }, loseDispatch() { script.controls.lose = true; },
     authorizeOnly() { tick(); const authorized = authorizeStatelessReview(db, { config, now, adapter }, credential(), preview); cookie = `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${authorized.session_admission.cookie_value}`; return authorized; } };
+}
+function unsettledOwnerContract(run: any) {
+  // Isolated ledger truth-table fixtures only. No grant, ordinary work or
+  // successful execution is fabricated or repaired by these interventions.
+  const db = new Database(":memory:");
+  try {
+    insertAutonomyRunLedgerRecord({ ...run, run_id: "own", status: "running", metadata: {} }, [], [], { db });
+    insertAutonomyRunLedgerRecord({ ...run, run_id: "other", status: "completed", metadata: {} }, [], [], { db });
+    const check = (metadata: string, expected: boolean) => {
+      db.prepare("UPDATE autonomy_runs SET metadata_json=? WHERE run_id='other'").run(metadata);
+      assert.equal(hasUnsettledAutonomyRunLedgerRecords({ db, scope: run.scope, exclude_run_id: "own" }), expected, metadata);
+      assert.equal((db.prepare("SELECT metadata_json FROM autonomy_runs WHERE run_id='other'").get() as any).metadata_json, metadata);
+    };
+    for (const metadata of ['{"reconciliation_required":true}', '{"reconciliation_required":null}', '{"reconciliation_required":"false"}', '{"reconciliation_required":0}', '{', '[]', 'null']) check(metadata, true);
+    check('{"reconciliation_required":false}', false); check('{}', false);
+    assert.equal(hasUnsettledAutonomyRunLedgerRecords({ db, scope: run.scope }), true, "Own run is excluded only by explicit exact ID");
+    assert.equal(hasUnsettledAutonomyRunLedgerRecords({ db, scope: run.scope, exclude_run_id: "other" }), true);
+    assert.equal(hasUnsettledAutonomyRunLedgerRecords({ db, scope: "another-project" }), false);
+  } finally { db.close(); }
+}
+async function ordinarySuccessor(f: Awaited<ReturnType<typeof fixture>>, result: any) {
+  const prep = await f.continuity({ action: "read_result_work_preparation", receipt_id: result.receipt.receipt_id });
+  assert.equal(result.run.metadata.reconciliation_required, false);
+  const rootScope = await inspectPersistedHostProjectRootV01(f.db, { config: f.config, evaluated_at: f.now() });
+  assert.equal(prep.binding.expected_root_fingerprint, rootScope.root_fingerprint);
+  assert.equal(result.run.metadata.root_physical_identity_fingerprint, fingerprintNativeHostPhysicalRootIdentityV01(rootScope.physical_root_identity));
+  assert.ok(prep.result_source, "The ordinary preparation exposes the completed review as a selectable attributed result");
+  const note = selectedWorkSourceInput(prep.result_source);
+  assert.equal(note.provenance, "imported_unverified"); assert.equal(note.label, "Unclassified / needs review");
+  assert.ok(note.text.includes("verification: not_run")); assert.ok(note.text.includes("not independently verified"));
+  assert.ok(note.source.includes(result.receipt.receipt_id)); assert.ok(note.source.includes(result.receipt.integrity.fingerprint));
+  const comparison = (await f.continuity({ action: "compare_result_work_sources", binding: prep.binding, notes: [note] })).comparison;
+  const preview = await f.continuity({ action: "preview_result_work", binding: prep.binding,
+    definition: { goal: "Check the remaining connection using the attributed prior review", success_criteria: ["Keep the review's uncertainty and inspect the missing connection"], non_goals: ["Do not accept the model recommendation as truth or execution permission"] },
+    selected_sources: { selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint,
+      omitted_sources: comparison.unselected_previous.map((row: any) => ({ source_binding: row.source_ref, reason: "The predecessor question is historical; this distinct task explicitly selects its result." })) } });
+  assert.equal(preview.writes, 0);
+  const before = canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["capability_grant"], limit: 128 }));
+  await f.continuity({ action: "prepare_result_work", request: preview.request }, 401, { cookie: "" });
+  const next = await f.continuity({ action: "prepare_result_work", request: preview.request }, 201);
+  assert.equal(next.execution_authority_granted, false); assert.equal(next.run_created, false); assert.equal(next.semantic_state_changed, false);
+  const record = listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet"], limit: 128 }).find(r => r.record_id === next.packet_id)!;
+  const packet = record.payload as any;
+  assert.equal(packet.capability_grant, null); assert.notEqual(packet.packet_id, f.preview.packet_id);
+  assert.equal(readProjectWorkInitializationV01(f.db, f.config).current_packet?.packet_id, packet.packet_id);
+  assert.equal(readSelectedWorkSources(packet).length, 1); assert.deepEqual(selectedWorkSourceInput(readSelectedWorkSources(packet)[0]!), note);
+  assert.equal(packet.selected_context.find((e: any) => e.entry_id === `successor-predecessor:${result.receipt.receipt_id}`).bounded_summary,
+    "Recorded execution: completed; verification: not_run. No proposal acceptance is implied.");
+  assert.equal(canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["capability_grant"], limit: 128 })), before);
+  await f.call({ action: "authorize_and_run", authorization: f.preview }, 409);
+  await f.call({ action: "continue", run_id: result.run.run_id }); assert.equal(f.calls, 2, "The predecessor grant never executes the successor");
+  validateRecoveryCanonicalDatabaseV01(f.db);
 }
 async function main() {
   try {
@@ -135,6 +199,17 @@ async function main() {
     validateRecoveryCanonicalDatabaseV01(normal.db);
     await normal.call({ action: "authorize_and_run", authorization: normal.preview }, 409);
     assert.equal(normal.calls, 2);
+    unsettledOwnerContract(result.run);
+    await ordinarySuccessor(normal, result);
+    for (const [name, metadata] of [["unreconciled", '{"reconciliation_required":true}'], ["malformed", '{']] as const) {
+      const blocked = await fixture(`other-${name}`); const authorization = blocked.authorizeOnly();
+      // Negative admission fault: never clear this other run to obtain success.
+      insertAutonomyRunLedgerRecord({ ...result.run, run_id: `other-${name}`, scope: blocked.scope.project_id, created_at: blocked.now(), updated_at: blocked.now() }, [], [], { db: blocked.db });
+      blocked.db.prepare("UPDATE autonomy_runs SET metadata_json=? WHERE run_id=?").run(metadata, `other-${name}`);
+      await assert.rejects(() => blocked.host(authorization.run_id).run(), /unsettled_project_run/);
+      assert.equal(blocked.calls, 0);
+      assert.equal((blocked.db.prepare("SELECT metadata_json FROM autonomy_runs WHERE run_id=?").get(`other-${name}`) as any).metadata_json, metadata);
+    }
     const restart = await fixture("restart"); const auth = restart.authorizeOnly();
     const host = new StatelessSourceReviewHost({ config: restart.config, now: restart.now, adapter: restart.adapter }, auth.run_id);
     assert.equal(await host.step(), true); assert.equal(await host.step(), true);
@@ -164,6 +239,10 @@ async function main() {
     const again = (await unknown.call({ action: "continue", run_id: lost.run.run_id })).result;
     assert.equal(unknown.calls, 1); assert.equal(again.stage, "dispatch_outcome_unknown");
     assert.equal(again.run.steps[0].output.failure_receipt.egress_attempted, true);
+    assert.equal(again.run.status, "paused"); assert.equal(again.run.steps[0].status, "running");
+    assert.equal(again.run.steps[0].output.dispatch_outcome, "unknown"); assert.equal(again.run.steps[0].output.received_model_result, null);
+    assert.equal(again.run.steps[0].output.failure_receipt.usage, null);
+    assert.deepEqual(again.run.steps, lost.run.steps, "Continuation preserves the exact unknown claim without replay");
     const actionUnknown = await fixture("action-dispatch-unknown"); const au = actionUnknown.authorizeOnly(); const auh = actionUnknown.host(au.run_id);
     await auh.step();
     // Isolated fault injection represents a process disappearing after the
@@ -223,7 +302,17 @@ async function main() {
     await budget.call({ action: "preview", pricing: { input_nano_usd_per_byte: 1000, output_nano_usd_per_token: 1000, maximum_total_nano_usd: 1, source_version: "below-bound" } }, 409);
     const ba = budget.authorizeOnly(); budget.controls.outputTokens = 1025;
     await assert.rejects(() => budget.host(ba.run_id).run()); assert.equal(budget.calls, 1);
-    await budget.host(ba.run_id).run(); assert.equal(budget.calls, 1);
+    const budgetSaved = budget.host(ba.run_id).read();
+    assert.equal(budgetSaved.stage, "finished"); assert.equal(budgetSaved.run.status, "stopped");
+    const budgetStep = budgetSaved.run.steps[0]!;
+    assert.equal(budgetStep.status, "failed"); assert.equal(budgetStep.output.dispatch_outcome, "returned_invalid");
+    const failure = budgetStep.output.failure_receipt as any, received = budgetStep.output.received_model_result as any;
+    assert.equal(failure.failure_code, "model_gateway_budget_refused"); assert.equal(failure.status, "blocked"); assert.equal(failure.egress_attempted, true);
+    assert.equal(failure.cost.basis, "unavailable"); assert.equal(failure.cost.amount, null);
+    assert.deepEqual(received.usage, { basis: "provider_report", quality: "reported", source: "provider_response", input_tokens: 200, output_tokens: 1025, total_tokens: 1225 });
+    assert.equal(budgetSaved.receipt, null, "Rejected output is not a successful work receipt");
+    const budgetAgain = (await budget.call({ action: "continue", run_id: ba.run_id })).result;
+    assert.deepEqual(budgetAgain.run, budgetSaved.run); assert.equal(budget.calls, 1);
 
     const invalid = await fixture("invalid-choice", "run_arbitrary_command"); const inv = invalid.authorizeOnly();
     await assert.rejects(() => invalid.host(inv.run_id).run());
@@ -232,10 +321,13 @@ async function main() {
     const preEgress = await fixture("cancel-before-egress"); const pe = preEgress.authorizeOnly();
     const pa: ModelAdapterV01 = { ...preEgress.adapter, async prepare(purpose, signal) {
       const session = await preEgress.adapter.prepare(purpose, signal);
-      preEgress.host(pe.run_id).cancel(preEgress.credential()); return session;
+      await preEgress.call({ action: "cancel", run_id: pe.run_id }); return session;
     } };
     await assert.rejects(() => preEgress.host(pe.run_id, pa).run()); assert.equal(preEgress.calls, 0);
     assert.equal(preEgress.host(pe.run_id).read().run.steps[0]!.output.dispatch_outcome, "not_issued");
+    const preEgressSaved = preEgress.host(pe.run_id).read(); assert.equal(preEgressSaved.run.steps[0]!.status, "failed");
+    assert.equal(preEgressSaved.run.steps[0]!.output.received_model_result, null);
+    assert.deepEqual((await preEgress.call({ action: "continue", run_id: pe.run_id })).result.run, preEgressSaved.run); assert.equal(preEgress.calls, 0);
 
     const corrupt = await fixture("stored-result-corruption"); const co = corrupt.authorizeOnly(); const coh = corrupt.host(co.run_id);
     await coh.step(); await coh.step();
@@ -271,7 +363,10 @@ async function main() {
     assert.equal((await suspended.run()).stage, "recovery_suspended"); assert.equal(recovery.calls, 1);
     assert.equal(canonical(suspended.read().run.steps), canonical(rrh.read().run.steps));
     assert.equal(requests, 0);
-    console.log(JSON.stringify({ status: "passed", normal_model_calls: normal.calls, action_bundles: 1, restart_model_calls: restart.calls + childResult.calls, fresh_process: true, audit_source_bytes: actualObservation.bytes_read, audit_preparation_bytes: audit.preparationBytes + ar.run.metadata.authorization_preparation_bytes + ar.run.steps[0].output.preparation_bytes, audit_excerpt_bytes: actualObservation.sources.reduce((n: number, f: any) => n + Buffer.byteLength(f.text), 0), completed_action_replays: 0, unknown_dispatch_retries: 0, external_requests: requests, actual_model_judgment: "NOT RUN", usefulness: "NOT RUN" }));
+    console.log(JSON.stringify({ status: "passed", normal_model_calls: normal.calls, action_bundles: 1, restart_model_calls: restart.calls + childResult.calls, fresh_process: true,
+      ordinary_successor_authored: true, successor_execution_granted: false, unsettled_ledger_contract: "preserved",
+      returned_over_budget: "returned_invalid_no_retry", pre_egress_refusal: "not_issued_no_retry", transport_loss: "unknown_no_retry",
+      audit_source_bytes: actualObservation.bytes_read, audit_preparation_bytes: audit.preparationBytes + ar.run.metadata.authorization_preparation_bytes + ar.run.steps[0].output.preparation_bytes, audit_excerpt_bytes: actualObservation.sources.reduce((n: number, f: any) => n + Buffer.byteLength(f.text), 0), completed_action_replays: 0, unknown_dispatch_retries: 0, external_requests: requests, actual_model_judgment: "NOT RUN", usefulness: "NOT RUN" }));
   } finally { for (const db of databases) db.close(); rmSync(root, { recursive: true, force: true }); network.unsubscribe(onNetwork); }
 }
 async function resumeChild(filename: string) {

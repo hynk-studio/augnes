@@ -913,8 +913,22 @@ controller cannot settle another generation; its returned receipt can be retaine
 as a quarantined ledger event without resolving the outstanding claim.
 
 Project unsettled-run guards remain active, excluding only this run when admitting
-its own next step. Readback uses the authenticated project reader and normal
-structured result owner. Recovery retains grants, results and unknown claims but
+its own next step through the shared ledger owner. Terminal status alone is not
+settlement: malformed metadata or a present reconciliation flag other than false
+remains unresolved; the existing legacy omission allowance is unchanged.
+Readback uses the authenticated project reader and normal structured result owner.
+Completed reviews persist explicit reconciliation completion and the existing
+registered-root and separate physical-root bindings. Their results can enter the
+ordinary result preparation, explicit source selection, preview and authenticated
+successor writer as imported, unverified context. The successor is a new null-grant
+packet; the preceding grant supplies no permission for it. Existing historical
+records lacking these bindings are not repaired or given inferred attribution.
+Gateway refusal after a normalized response retains a bounded received-result
+observation and reported usage in the ledger alongside the failure receipt. This
+distinguishes returned-invalid from pre-egress refusal and dispatched-unknown;
+the v0.2 failure receipt and its unavailable-cost semantics are unchanged. No
+classification grants retry or semantic acceptance.
+Recovery retains grants, results and unknown claims but
 suspends this profile's execution eligibility. Portable project export refuses a
 project containing its grants until unfinished-work transfer has its own supported
 contract; it cannot silently drop the ledger or inherit authority. Existing

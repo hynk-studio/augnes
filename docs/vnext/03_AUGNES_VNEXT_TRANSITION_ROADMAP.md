@@ -229,17 +229,60 @@ removed, preserving the observation and attempt. No internal human handoff occur
 on the normal authorized path. The ordinary UI exposes authoring, finite pricing
 and permission review, saved results, interruption continuation and cancellation.
 
+The #1385 review confirmed three integration gaps: terminal-only conflict checks,
+missing compatible settlement/root attribution for ordinary successor authorship,
+and a returned over-budget result classified as unknown. Corrections reuse the
+ledger conflict owner, root identity owner and ordinary authenticated successor
+writer, and retain bounded received-result/usage evidence alongside Gateway
+failure receipts. Positive verification selects the attributed unverified review
+through result preparation and preview, then authors a new packet with no inherited
+grant. Existing Codex successor wording/lineage and historical records remain
+compatible; no ledger repair or invented native execution supplies this path.
+
 Actual ordinary model judgment and strong-baseline usefulness are **NOT RUN**.
-The concrete invocation card for separate review is: OpenAI Responses,
-`gpt-4.1-mini` (the repository default, subject to the actual configured-route
-preview), the above source fragments plus the authored task/question and consumed
-working direction, two calls maximum, 16,384 input bytes / 1,024 output tokens and
+The proposed live invocation card was refreshed on 2026-10-03. Read-only Gateway
+route preparation in the current shell returned `openai` / `gpt-4.1-mini`, with
+zero provider calls; source routes it to `https://api.openai.com/v1/responses`.
+This establishes shell configuration, not a running service's route or account
+access. The alias remains configured; no snapshot/model switch was performed.
+[Official route pricing](https://developers.openai.com/api/docs/models/gpt-4.1-mini)
+reviewed that day lists USD 0.40 input, 0.10 cached input and 1.60 output per million
+tokens. The request does not pin `service_tier`; actual project pricing/tier must
+be confirmed before live authorization. No caching discount is assumed.
+
+The card proposes `input_nano_usd_per_byte=1000`,
+`output_nano_usd_per_token=1600`,
+`source_version=openai-gpt-4.1-mini-standard-2026-10-03`, and
+`maximum_total_nano_usd=100000000` (USD 0.10 total, 0.05 per invocation).
+The byte rate is an operator-proposed conservative bound, not OpenAI's billing
+unit. At 16,384 input bytes and 1,024 output tokens per request, the quote computes
+USD 0.0180224 per call / 0.0360448 for two. This is a conditional envelope estimate,
+not measured cost or a provider-side billing guarantee. Retain two calls maximum,
 fifteen seconds per call, one two-file 65,536-byte read with at most 4,096 excerpt
-bytes, and a proposed total ceiling of USD 0.10. This is neither a current price
-quote nor spending authorization. Missing inputs are an ordinary project/session,
-reviewed pricing rates and source valid for that exact route, selected source
-versions, and explicit permission for that data and budget. No account/model
-switch, installation, production migration or deployment is implied.
+bytes, ten seconds per read and forty-five seconds per foreground call.
+
+Selected source versions (full-file SHA-256, unchanged from the reviewed PR head):
+
+| Source | Lines | SHA-256 |
+| --- | --- | --- |
+| `lib/vnext/automation/policy-triggered-planner-run.ts` | 141–164 | `ea5cc75e8862691c95d39baa11c8954ba4c8e8d26b2e452875f09b8ea20b9292` |
+| `lib/vnext/runtime/prospective-reentry.ts` | 112–131 | `dd1f769c2909a0cfeee1f7efe4750c04288fb94f243ff89218097810171a5061` |
+
+Transmitted data would be the authored task/question, consumed working direction,
+project identity, packet/source fingerprints, relative file inventory, cutoff,
+bounded instructions/schema, and on the second call the first normalized judgment
+plus exact observation/excerpts. The selected excerpts total 2,737 UTF-8 bytes;
+full files are read locally. Requests use `store:false` and no previous-response
+chain. No raw response, hidden reasoning or credential becomes product state.
+
+**Card remains unbound and unexecuted.** The canonical lifecycle check returned
+`not_installed`, so exact live workspace/project/work/packet, direction and
+root/host bindings are unavailable through the supported current-continuity path.
+No production record was created, and fixture IDs or GitHub issue/branch names do
+not substitute for these fields. The Draft PR binds the final implementation
+base/head; a live target still requires its own exact ordinary preparation and
+separate data/budget permission. No installation or live invocation is authorized
+by preparing this card.
 
 Next decision: review the bounded implementation and exact-head verification,
 then decide whether to authorize that ordinary case and observe actual choice,

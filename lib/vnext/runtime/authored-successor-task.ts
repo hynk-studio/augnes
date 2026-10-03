@@ -35,6 +35,7 @@ import { fingerprintNativeHostPhysicalRootIdentityV01 } from "@/lib/vnext/native
 import { createCodexScopedTaskV01, inspectCodexScopedTaskSourceV01 } from "@/lib/vnext/native-host/codex-scoped-task";
 import { readProjectWorkInitializationV01 } from "./project-work-initialization";
 import { normalizeInitialProjectWorkDefinitionV01 } from "./initial-project-work-context";
+import { STATELESS_WORK } from "../stateless-work";
 
 const ACTION = "define_authored_successor_task";
 const MATERIAL = `${AUTHORED_SUCCESSOR_TASK_V01}:source`;
@@ -262,7 +263,7 @@ function build(input: { prior: TaskContextPacketV01; receipt: ReturnType<typeof 
       bounded_summary: canonicalizeProtocolValueV01(material), trust_class: "direct_local_observation" as const, currentness, compatibility_source_ref: definitionRef },
     { entry_id: `successor-predecessor:${receipt.receipt_id}`, entry_kind: "evidence_ref" as const, source_ref: receipt.integrity.fingerprint, external_ref: receiptRef,
       why_included: "Retains the latest settled result as evidence without accepting its proposal or repeating its task.",
-      bounded_summary: `${material.request.revalidation ? "Recorded execution" : "Native execution"}: ${receipt.execution.status}; verification: ${receipt.verification.status}. No proposal acceptance is implied.`,
+      bounded_summary: `${material.request.revalidation || receipt.compatibility.source_contracts.includes(STATELESS_WORK) ? "Recorded execution" : "Native execution"}: ${receipt.execution.status}; verification: ${receipt.verification.status}. No proposal acceptance is implied.`,
       trust_class: "direct_local_observation" as const, currentness, compatibility_source_ref: priorRef },
   ];
   const packet = buildTaskContextPacketV01({ workspace_id: prior.workspace_id, project_id: prior.project_id, work_ref: definitionRef,

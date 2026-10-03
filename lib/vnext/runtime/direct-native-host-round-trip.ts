@@ -100,6 +100,7 @@ import {
   readNativeHostApprovalRequestResidueV01,
 } from "@/lib/vnext/runtime/native-host-approval-residue";
 import {
+  fingerprintNativeHostProjectRootScopeV01,
   fingerprintNativeHostPhysicalRootIdentityV01,
   inspectNativeHostPhysicalRootIdentityV01,
 } from "@/lib/vnext/native-host/project-root-identity";
@@ -484,15 +485,7 @@ export async function inspectPersistedHostProjectRootV01(db: Database.Database, 
   ) {
     refuse("direct_host_root_scope_mismatch", 409);
   }
-  const rootFingerprint = createProtocolSha256V01(
-    canonicalizeProtocolValueV01({
-      workspace_id: input.config.workspace_id,
-      project_id: input.config.project_id,
-      local_root: registration.root_binding.local_root,
-      binding_version: registration.root_binding.binding_version,
-      bound_at: registration.root_binding.bound_at,
-    }),
-  );
+  const rootFingerprint = fingerprintNativeHostProjectRootScopeV01(registration.root_binding);
   const rootKind = await resolveRootKind(
     registration.root_binding.local_root.normalized_path,
     inspection.folder_kind,

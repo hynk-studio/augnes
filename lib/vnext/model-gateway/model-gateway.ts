@@ -2454,6 +2454,7 @@ async function invokeLiveAdapter(
 ): Promise<InternalGatewayResultV01> {
   let egressAttempted = false;
   let inputBytesUsed: number | null = null;
+  let receivedResult: ModelGatewayInvocationErrorV01["received_result"] = null;
 
   try {
     lifecycle.throwIfStopped();
@@ -2495,6 +2496,10 @@ async function invokeLiveAdapter(
         },
       ),
     );
+    // Keep received-but-refused distinct from transport loss. V0.2 failure
+    // receipts do not admit over-budget usage; retain that reported evidence
+    // separately without turning the failed receipt into a success.
+    receivedResult = { usage: result.usage };
     lifecycle.throwIfStopped();
     if (result.purpose !== envelope.purpose) {
       throw gatewayFailure("model_gateway_provider_response_invalid");
@@ -2603,6 +2608,7 @@ async function invokeLiveAdapter(
       }),
       providerRejectionObservation,
       providerResponseInvalidObservation,
+      receivedResult,
     );
   }
 }
@@ -3882,12 +3888,14 @@ function gatewayFailure(
   receipt: ModelInvocationReceiptV02 | null = null,
   providerRejectionObservation: ModelGatewayInvocationErrorV01["provider_rejection_observation"] = null,
   providerResponseInvalidObservation: ModelGatewayInvocationErrorV01["provider_response_invalid_observation"] = null,
+  receivedResult: ModelGatewayInvocationErrorV01["received_result"] = null,
 ) {
   return new ModelGatewayInvocationErrorV01(
     code,
     receipt,
     providerRejectionObservation,
     providerResponseInvalidObservation,
+    receivedResult,
   );
 }
 

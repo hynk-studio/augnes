@@ -354,6 +354,13 @@ Positive mechanism checks use ordinary authorship and authenticated authorizatio
 real bounded file reads, Gateway transport-only scripting, durable result admission
 and normal readback. Do not insert grants or ledger state to make a positive path
 work. Isolated corruption/dispatch-fault interventions must be labelled. Exercise
+the completed result's ordinary preparation, explicit selection and authenticated
+successor creation, including source attribution, unverified status and absence
+of inherited execution authority. Discriminate terminal unreconciled, malformed,
+settled and permitted legacy-omission ledger records, excluding only the own run.
+Returned over-budget usage is reported evidence, never measured cost or success;
+assert its durable classification and unchanged no-retry continuation separately
+from actual transport loss and pre-egress refusal. Also exercise
 normal unattended internal progress, justified no-action/defer/stop, exact
 source/time/availability in the second input, and fresh-process continuation after
 observation persistence. Reopening must consume the saved result without replaying

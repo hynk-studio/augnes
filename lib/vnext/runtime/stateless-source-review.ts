@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 import { lstatSync, realpathSync } from "node:fs";
 import { buildSelectedWorkSourceEntry, compareSelectedWorkSources, readSelectedWorkSources, selectedWorkSourceInput } from "@/lib/intake/selected-work-source-comparison";
-import { readAutonomyRunLedgerRecord, insertAutonomyRunLedgerRecord, updateAutonomyRunLedgerFields, updateAutonomyRunStepLedgerFields, appendAutonomyRunLedgerEvent, buildAutonomyRunEventRecord } from "@/lib/autonomy/runner-ledger";
+import { hasUnsettledAutonomyRunLedgerRecords, readAutonomyRunLedgerRecord, insertAutonomyRunLedgerRecord, updateAutonomyRunLedgerFields, updateAutonomyRunStepLedgerFields, appendAutonomyRunLedgerEvent, buildAutonomyRunEventRecord } from "@/lib/autonomy/runner-ledger";
 import { buildDefaultRunnerAuthorityBoundary, buildDefaultRunnerBudgetSnapshot, buildDefaultRunnerSourceRefs, isTerminalRunnerStatus } from "@/lib/autonomy/runner-state";
 import { canonicalizeProtocolValueV01 as canonical, createProtocolSha256V01 as hash } from "../protocol-primitives";
 import { STATELESS_WORK, STATELESS_LIMITS as LIMITS, reviewCheck as check, reviewObject, reviewText, reviewFile, readSourceReview, reviewRef, type SourceReview, type ReviewObservation, type StatelessGrantRequest, type StatelessGrant } from "../stateless-work";
@@ -16,7 +16,7 @@ import { readProjectAutomationControlV01 } from "../persistence/project-control-
 import { validateProjectAutomationPolicyV01 } from "../project-controls/project-controls";
 import { readVNextCoreRecordV01 } from "../persistence/durable-semantic-store";
 import { assertPacketDirectionCurrent, readPacketDirectionInterpretation, effectiveDirection } from "../persistence/project-direction-store";
-import { inspectNativeHostPhysicalRootIdentitySynchronouslyV01 } from "../native-host/project-root-identity";
+import { fingerprintNativeHostProjectRootScopeV01, fingerprintNativeHostPhysicalRootIdentityV01, inspectNativeHostPhysicalRootIdentitySynchronouslyV01 } from "../native-host/project-root-identity";
 import { readBoundedLocalSourceBytes } from "../native-host/bounded-source-read";
 import { readProjectWorkInitializationV01 } from "./project-work-initialization";
 import { inspectVNextOperatorPilotPacketLineageV01, projectVNextOperatorPilotContinuityV01 } from "./operator-pilot-project-continuity";
@@ -46,7 +46,10 @@ function rootBinding(db: Database.Database, scope: Scope) {
   check(registration && registration.root_binding.local_root.path_flavor === "posix", "root_required");
   const root = registration.root_binding.local_root.normalized_path;
   check(realpathSync(root) === root, "root_changed");
-  return { root, fingerprint: fingerprint({ binding: registration.root_binding, physical: inspectNativeHostPhysicalRootIdentitySynchronouslyV01(root) }) };
+  const physical = inspectNativeHostPhysicalRootIdentitySynchronouslyV01(root);
+  return { root, fingerprint: fingerprint({ binding: registration.root_binding, physical }),
+    scope_fingerprint: fingerprintNativeHostProjectRootScopeV01(registration.root_binding),
+    physical_fingerprint: fingerprintNativeHostPhysicalRootIdentityV01(physical) };
 }
 function currentPacket(db: Database.Database, config: Config, at: string) {
   const state = projectVNextOperatorPilotContinuityV01(db, { config, clock: { now: () => at } });
@@ -54,9 +57,8 @@ function currentPacket(db: Database.Database, config: Config, at: string) {
   const lineage = inspectVNextOperatorPilotPacketLineageV01(db, { config, ...state.latest_compiled_packet });
   check(lineage.projection_current, "current_packet_required"); return lineage.packet;
 }
-function noOtherUnsettledRuns(db: Database.Database, scope: Scope, ownRun = "") {
-  const rows = db.prepare("SELECT run_id,status FROM autonomy_runs WHERE scope=? AND run_id<>? LIMIT 4097").all(scope.project_id, ownRun) as Array<{ run_id: string; status: AutonomyRunRecord["status"] }>;
-  check(rows.length <= 4096 && rows.every(r => isTerminalRunnerStatus(r.status)), "unsettled_project_run");
+function noOtherUnsettledRuns(db: Database.Database, scope: Scope, ownRun?: string) {
+  check(!hasUnsettledAutonomyRunLedgerRecords({ db, scope: scope.project_id, exclude_run_id: ownRun }), "unsettled_project_run");
 }
 function readBundle(root: string, review: SourceReview, at: string, bindVersions: boolean): ReviewObservation {
   let bytes = 0;
@@ -134,7 +136,7 @@ export async function previewStatelessReview(db: Database.Database, options: Sta
     expires_at: expires, limits: LIMITS, cost_budget: cost };
 }
 
-function assertGrantCurrent(db: Database.Database, config: Config, grant: StatelessGrant, at: string, ownRun = "") {
+function assertGrantCurrent(db: Database.Database, config: Config, grant: StatelessGrant, at: string, ownRun?: string) {
   const r = grant.request, packet = currentPacket(db, config, at), root = rootBinding(db, config);
   const control = readProjectAutomationControlV01(db, config);
   check(r.workspace_id === config.workspace_id && r.project_id === config.project_id && readActiveProjectSelectionV01(db, config.workspace_id)?.project_id === config.project_id &&
@@ -171,7 +173,8 @@ export function authorizeStatelessReview(db: Database.Database, options: Statele
       source_refs: buildDefaultRunnerSourceRefs({ runner_refs: [STATELESS_WORK] }), authority_boundary: buildDefaultRunnerAuthorityBoundary({ notes: ["Only the separate finite source-review grant permits two Gateway invocations and one local read; no semantic/external-effect authority."] }),
       budget_snapshot: buildDefaultRunnerBudgetSnapshot({ max_iterations: 3, max_tool_calls: 1, notes: ["Explicit model and source limits belong to the immutable source-review grant."] }),
       metadata: { workspace_id: options.config.workspace_id, project_id: options.config.project_id, invocation_origin: "policy_triggered", work_id: normalizeWorkId(runId),
-        packet_id: request.packet_id, packet_fingerprint: request.packet_fingerprint, root_fingerprint: request.root_fingerprint, authorization_preparation_bytes: authorizationRead.bytes_read,
+        packet_id: request.packet_id, packet_fingerprint: request.packet_fingerprint, root_fingerprint: root.scope_fingerprint, authorization_preparation_bytes: authorizationRead.bytes_read,
+        root_physical_identity_fingerprint: root.physical_fingerprint, reconciliation_required: false,
         stateless_review: { version: STATELESS_WORK, grant_id: grant.grant_id, grant_fingerprint: grant.grant_fingerprint, revision: 1, cancelled: false, recovery_suspended: false } },
     }, steps, [], { db });
     db.exec("COMMIT"); return { run_id: runId, grant, session_admission: admission };
@@ -333,13 +336,14 @@ export class StatelessSourceReviewHost {
         const current = readRun(db, this.options.config, this.runId), claimed = current.steps.find(s => s.status === "running" && s.output.generation === generation);
         if (claimed) {
           const receipt = returnedReceipt ?? (isModelGatewayInvocationErrorV01(error) ? error.receipt : null);
-          const returnedFailure = isModelGatewayInvocationErrorV01(error) && ["model_gateway_provider_rejected", "model_gateway_provider_response_invalid"].includes(error.code);
+          const receivedResult = isModelGatewayInvocationErrorV01(error) ? error.received_result ?? null : null;
+          const returnedFailure = receivedResult !== null || (isModelGatewayInvocationErrorV01(error) && ["model_gateway_provider_rejected", "model_gateway_provider_response_invalid"].includes(error.code));
           const unknown = (dispatched || receipt?.egress_attempted === true) && !returnedReceipt && !returnedFailure;
           // Known pre-egress refusal or a returned invalid judgment consumes the
           // attempt too. Preserve it distinctly from a lost dispatched request.
           const reason = unknown ? "dispatch_outcome_unknown_no_retry" : "invocation_refused_or_result_invalid_no_retry";
           updateAutonomyRunStepLedgerFields(claimed.step_id, { status: unknown ? "running" : "failed",
-            output: { ...claimed.output, failure_receipt: receipt, dispatch_outcome: unknown ? "unknown" : returnedReceipt || returnedFailure ? "returned_invalid" : "not_issued" },
+            output: { ...claimed.output, failure_receipt: receipt, received_model_result: receivedResult, dispatch_outcome: unknown ? "unknown" : returnedReceipt || returnedFailure ? "returned_invalid" : "not_issued" },
             error_message: reason, updated_at: this.now(), ...(unknown ? {} : { finished_at: this.now() }) }, { db });
           patchRun(db, current, {}, this.now(), unknown ? "paused" : "stopped", reason);
         } else if (returnedReceipt && current.steps.some(s => s.status === "running")) {
@@ -375,7 +379,9 @@ export class StatelessSourceReviewHost {
     const packetRecord = readVNextCoreRecordV01(db, { ...this.options.config, record_kind: "task_context_packet", record_id: grant.request.packet_id });
     check(packetRecord, "packet_missing");
     const at = this.now(), reporter = ref("automation_runtime", STATELESS_WORK), packetRef = ref("task_context_packet", grant.request.packet_id, grant.request.packet_fingerprint);
-    const rootRef = ref("project_root_scope", "registered_local_root", grant.request.root_fingerprint);
+    // Preserve legacy receipts/runs lacking separate root attribution; they
+    // remain ineligible for the successor writer's physical-root check.
+    const rootRef = ref("project_root_scope", grant.project_id, String(run.metadata.root_fingerprint));
     const models = [run.steps[0]!, run.steps[2]!].map(s => projectModelInvocationReceiptToRunReceiptEntryV02({ receipt: s.output.model_receipt as ModelInvocationReceiptV02,
       workspace_id: grant.workspace_id, project_id: grant.project_id, work_id: String(run.metadata.work_id), run_id: run.run_id }));
     const observation = run.steps[1]!.output.observation as ReviewObservation, judgment = run.steps[2]!.output.judgment as PlannerRecommendationV01;
@@ -396,7 +402,7 @@ export class StatelessSourceReviewHost {
       compatibility: { source_contracts: [STATELESS_WORK, "run_receipt_model_invocation.v0.2"], unmapped_fields: [], warnings: [], external_refs: [] }, authority_notes: ["Recommendation is neither authorization nor accepted state; no semantic mutation, merge, deployment or publication."] });
     admitStructuredRunReceiptV01(db, receipt);
     updateAutonomyRunLedgerFields(run.run_id, { status: state.cancelled ? "cancelled" : "completed", finished_at: at, updated_at: at, metadata: { ...run.metadata,
-      run_receipt_id: receipt.receipt_id, run_receipt_fingerprint: receipt.integrity.fingerprint, terminal_receipt_persisted: true } }, { db });
+      run_receipt_id: receipt.receipt_id, run_receipt_fingerprint: receipt.integrity.fingerprint, terminal_receipt_persisted: true, reconciliation_required: false } }, { db });
   }
 }
 
