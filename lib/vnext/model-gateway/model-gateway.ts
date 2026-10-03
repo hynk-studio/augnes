@@ -500,6 +500,27 @@ export function readModelGatewayInteractiveAdmissionForRootV01(
   }
 }
 
+/** Read only the configured Planner route for a finite authorization preview.
+ * Keep the invocable session inside the Gateway boundary. Invocation still
+ * rechecks the admitted provider/model and cost authority before egress. */
+export async function preparePlannerModelGatewayRouteV01(
+  dependencies: Pick<SharedModelGatewayDependenciesV01, "adapter"> = {},
+): Promise<Pick<ModelAdapterSessionV01, "provider_ref" | "model_ref"> | null> {
+  const adapter = dependencies.adapter ?? createOpenAIResponsesAdapterV01();
+  const session = await adapter.prepare(
+    PLANNER_MODEL_GATEWAY_PURPOSE_V01,
+    new AbortController().signal,
+  );
+  if (!session) return null;
+  if (session.purpose !== PLANNER_MODEL_GATEWAY_PURPOSE_V01) {
+    throw gatewayFailure("model_gateway_provider_response_invalid");
+  }
+  return {
+    provider_ref: structuredClone(session.provider_ref),
+    model_ref: structuredClone(session.model_ref),
+  };
+}
+
 /** Prepares and freezes the production route without invoking provider egress. */
 export async function prepareGovernedActorLabModelGatewayRouteV01(
   dependencies: Pick<SharedModelGatewayDependenciesV01, "adapter"> = {},

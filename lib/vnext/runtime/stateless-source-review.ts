@@ -22,8 +22,7 @@ import { readProjectWorkInitializationV01 } from "./project-work-initialization"
 import { inspectVNextOperatorPilotPacketLineageV01, projectVNextOperatorPilotContinuityV01 } from "./operator-pilot-project-continuity";
 import { revisePreExecutionProjectWorkV01 } from "./project-work-revision";
 import { openVNextLocalOperatorDatabaseV01, admitVNextLocalOperatorMutationInsideTransactionV01, type VNextLocalOperatorPilotConfigV01 as Config, type VNextLocalOperatorSessionCredentialV01 as Credential } from "./local-operator-session";
-import { invokePlannerModelGatewayV01 } from "../model-gateway/model-gateway";
-import { createOpenAIResponsesAdapterV01 } from "../model-gateway/openai/responses-adapter";
+import { invokePlannerModelGatewayV01, preparePlannerModelGatewayRouteV01 } from "../model-gateway/model-gateway";
 import { buildPlannerModelInvocationEnvelopeV01 } from "@/lib/planner/planner";
 import { buildModelInvocationCapabilityGrantV01, authorizeModelInvocationCapabilityGrantV01 } from "../automation/model-invocation-capability-grant";
 import { buildModelGatewayCostAuthorityV01, buildModelGatewayCostBudgetV01, assertModelGatewayCostBudgetCurrentV01 } from "../model-gateway/cost-authority";
@@ -121,8 +120,7 @@ export async function previewStatelessReview(db: Database.Database, options: Sta
   const control = readProjectAutomationControlV01(db, config);
   check(control?.enabled && !control.paused && validateProjectAutomationPolicyV01(control.policy, config).valid && packet.capability_grant === null, "permission_required");
   noOtherUnsettledRuns(db, config);
-  const adapter = options.adapter ?? createOpenAIResponsesAdapterV01();
-  const session = await adapter.prepare("planner_plan", new AbortController().signal);
+  const session = await preparePlannerModelGatewayRouteV01({ adapter: options.adapter });
   check(session, "model_configuration_unavailable"); // preparation has no provider egress
   const expires = new Date(Math.min(Date.parse(at) + 600_000, packet.expires_at ? Date.parse(packet.expires_at) : Infinity)).toISOString();
   const authority = buildModelGatewayCostAuthorityV01({ authority_kind: "provider_model_pricing_snapshot", workspace_id: config.workspace_id, project_id: config.project_id,
@@ -209,9 +207,8 @@ function patchRun(db: Database.Database, run: AutonomyRunRecord, patch: Partial<
  * conversation chain or retry. SQLite is the sole stage/claim/result owner. */
 export class StatelessSourceReviewHost {
   private readonly now: () => string;
-  private readonly adapter: ModelAdapterV01;
   constructor(readonly options: StatelessReviewOptions, readonly runId: string) {
-    this.now = options.now ?? (() => new Date().toISOString()); this.adapter = options.adapter ?? createOpenAIResponsesAdapterV01();
+    this.now = options.now ?? (() => new Date().toISOString());
   }
   private open() { return openVNextLocalOperatorDatabaseV01(this.options.config); }
   read() {
@@ -290,7 +287,7 @@ export class StatelessSourceReviewHost {
           message: canonical(input), brief: emptyBrief(grant.project_id, this.now()), execution_mode: "live", policy: { invocation_origin: "policy_triggered", automation_control_revision: grant.request.control_revision,
             work_id: String(run.metadata.work_id), run_id: run.run_id, grant_id: modelGrant.grant_id, grant_fingerprint: modelGrant.lineage_fingerprint }, budget, timeout_ms: LIMITS.invocation_ms, cancellation_signal: signal,
           project_root: { path_flavor: "posix", normalized_path: root } }), {
-          adapter: this.adapter, open_database: () => this.open(), now: () => new Date(this.now()), deterministic_execute: () => { throw new Error("stateless_review_no_model_fallback"); },
+          adapter: this.options.adapter, open_database: () => this.open(), now: () => new Date(this.now()), deterministic_execute: () => { throw new Error("stateless_review_no_model_fallback"); },
           on_provider_egress_attempt: () => { guardCurrentClaim(); dispatched = true; },
           authorize_policy_invocation: () => {
             guardCurrentClaim();

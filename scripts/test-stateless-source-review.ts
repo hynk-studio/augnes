@@ -19,6 +19,7 @@ import { mutateProjectControlV01, readProjectAutomationControlV01 } from "../lib
 import { createStatelessSourceReviewHandler } from "../app/api/vnext/operator/stateless-source-review/route";
 import { StatelessSourceReviewHost, authorizeStatelessReview } from "../lib/vnext/runtime/stateless-source-review";
 import { createOpenAIResponsesAdapterV01 } from "../lib/vnext/model-gateway/openai/responses-adapter";
+import { preparePlannerModelGatewayRouteV01 } from "../lib/vnext/model-gateway/model-gateway";
 import { listVNextCoreRecordsV01 } from "../lib/vnext/persistence/durable-semantic-store";
 import { readProjectRunResultSourceBindingV01 } from "../lib/vnext/runtime/project-run-result-read-model";
 import { createRecoveryBackup, RECOVERY_DATABASE_PAYLOAD } from "./recovery-backup.mjs";
@@ -108,6 +109,11 @@ async function fixture(name: string, firstChoice = "read_selected_sources", seco
 }
 async function main() {
   try {
+    const previewAdapter = scripted();
+    const routeIdentity = await preparePlannerModelGatewayRouteV01({ adapter: previewAdapter.adapter });
+    assert.deepEqual(Object.keys(routeIdentity!).sort(), ["model_ref", "provider_ref"]);
+    assert.equal(previewAdapter.calls, 0, "route preview must not dispatch a provider call or expose an invocable session");
+    assert.equal(await preparePlannerModelGatewayRouteV01({ adapter: createOpenAIResponsesAdapterV01({ environment: {} }) }), null);
     const normal = await fixture("normal");
     await normal.call({ action: "authorize_and_run", authorization: normal.preview }, 401, { cookie: "" });
     await normal.call({ action: "authorize_and_run", authorization: normal.preview }, 403, { origin: "https://foreign.example" });
