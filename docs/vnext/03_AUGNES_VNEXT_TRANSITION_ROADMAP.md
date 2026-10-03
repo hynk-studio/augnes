@@ -318,17 +318,66 @@ a proposal; the executed attempt's consumed attribution above remains tier-unres
 No provider-outcome lookup, manual settlement system or generic execution exception
 is introduced. See 02 for the bounded contract and 04 for deciding criteria.
 
-The retained candidate is not disposed, replayed or granted a new attempt by this
-development. Next decision: review the implementation and its exact-head evidence,
-then decide whether to apply the local end-work/linked-preparation actions to that
-candidate. Any additional live model attempt needs its separate current data/spend
-and finite execution decision; no remaining old allowance is retry authority.
-Live judgment was not obtained, and normal/interrupted live progression and
-comparative usefulness remain **NOT RUN**. Existing Companion continuity remains
-unavailable. Same-database account/session changes, meaningful unfinished-work
-transfer (#1149), semantic selection quality, cross-project recurrence and strong
-comparative evaluation remain separate. P4.6's negative findings and #1342/#1372
-ownership are unchanged. This does not complete the continuity program.
+The development-stage record at `af68cf68444b746d1a34c8f673bb8b1090743623`
+left candidate disposition and additional live execution **NOT RUN**. That was a
+historical boundary, not a statement about later separately authorized operations.
+On 2026-10-03, ordinary authenticated local disposition ended further work on
+`stateless-review:f130d084e7c13725491d87b3`, retaining its unknown effects, original
+claim/failure receipt and `reconciliation_required:true`. The distinct linked
+packet `task-context-packet:58ad16f17fa4ec44dcaec9f` initially had no grant.
+
+A separately authorized live attempt at that same source then completed normally:
+run `stateless-review:c0a680e81b7c0b2f90d2f1dc`, receipt
+`run-receipt:7cddec4b546267ed4d038ecd`, fingerprint
+`sha256:1275501c76a4829d7cc4ec47670e8824b967531f1a32ceadf8969f79d5eea791`.
+It chose `read_selected_sources`, persisted one 55,309-byte local read / 2,737-byte
+excerpt observation, and returned `use_observation`. Observation fingerprint:
+`sha256:777869858cc6f81127c2af60855938db941fe61a216d9099ab2fcd19285c55ce`.
+The two Responses requests were 4,275 and 9,546 serialized bytes. Reported usage
+was 3,207 input and 489 output tokens; provider cost was not reported. The same
+tier-unresolved operator estimate applied; the original attempt's unknown cost
+remains separate. Automation was disabled afterward and supported logout and
+process cleanup were verified. No semantic state was accepted by execution.
+
+Work accepted operational completion but did not select the report's assertion
+that planner runs trigger or depend on reentry judgments. The selected excerpts
+show validation/opener selection and reentry checks/saved state/`cycle.runScheduled`;
+they establish no call or data relation between the two routines. Repository-wide
+absence is also unestablished. This is Work's source review, not a model-produced
+correction. The original report, observation, criterion assessment and both runs
+remain unchanged.
+
+The next authorized zero-model operation at `af68cf68` used ordinary result
+preparation/comparison/preview/authorship to retain that separately attributed
+`derived_interpretation` review in work `successor-task:a9cd127b77c07711a102e743`,
+packet `task-context-packet:d599427113a97f59ff3b47a`, fingerprint
+`sha256:40cdbcef88dd0dcb6958f2c382784172158fa149b21b673061642700cf675bbd`.
+Its task is to trace actual callers/data flow, attributing findings and separating
+observations from hypotheses. The full model report was not selected; the reason
+is in the review note. Only comparison-returned `unselected_previous` entries
+supply omission bindings. Fresh-process readback retained the exact receipt,
+observation/source attribution, mandatory unresolved predecessor and null grant.
+Automation stayed disabled; scoped grants/runs/provider accounting remained
+2/2/3. No new execution was authorized or attempted.
+
+Current source inspection and an ordinary scripted reproduction confirmed that
+selected notes survived successor/revision authorship but were omitted from the
+stateless model input. That omission did not cause the earlier overclaim because
+Work's review did not yet exist. The next bounded implementation connects the
+explicit selected-note projection to both judgments and fresh transmission
+authority, with unchanged limits and no automatic historical report selection.
+See 02 for the projection contract and 04 for delivery versus semantic evidence.
+
+Next decision: review this selected-note implementation and its exact-head local
+evidence. The successor remains unexecuted; any live response to Work's review
+requires a separate current source selection and finite data/spend authorization.
+Interrupted live progression and comparative usefulness remain **NOT RUN**. Earlier
+failures and receipts retain their original dates and source identities. Existing
+Companion continuity remains unavailable. Same-database account/session changes,
+meaningful unfinished-work transfer (#1149), semantic selection quality,
+cross-project recurrence and strong comparative evaluation remain separate.
+P4.6's negative findings and #1342/#1372 ownership are unchanged. This does not
+complete the continuity program.
 
 ### Current P2/P3/P4/P5 — Project direction and decision authority (#1382)
 

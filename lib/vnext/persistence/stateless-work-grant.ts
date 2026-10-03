@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import { insertVNextCoreRecordV01, readVNextCoreRecordV01 } from "./durable-semantic-store";
 import { canonicalizeProtocolValueV01 as canonical, createProtocolSha256V01 as hash } from "../protocol-primitives";
-import { readSourceReview, reviewRef, reviewCheck as check, validateStatelessGrant, statelessGrantKey, STATELESS_GRANT, type StatelessGrantRequest } from "../stateless-work";
+import { readSourceReview, readStatelessSelectedNotes, reviewRef, reviewCheck as check, validateStatelessGrant, statelessGrantKey, STATELESS_GRANT, type StatelessGrantRequest } from "../stateless-work";
 import { validateTaskContextPacketV01 } from "../task-context-packet";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 
@@ -17,6 +17,7 @@ export function readStatelessGrant(db: Database.Database, scope: { workspace_id:
   check(validateTaskContextPacketV01(packet, { evaluated_at: grant.issued_at }).status === "valid" && packet.integrity.fingerprint === source.fingerprint &&
     packet.packet_id === source.record_id && packet.workspace_id === scope.workspace_id && packet.project_id === scope.project_id &&
     packet.capability_grant === null && reviewRef(readSourceReview(packet)) === grant.request.review_ref &&
+    (grant.request.selected_notes_ref === undefined || grant.request.selected_notes_ref === readStatelessSelectedNotes(packet).fingerprint) &&
     (!packet.expires_at || grant.request.expires_at <= packet.expires_at), "grant_source_conflict");
   return grant;
 }

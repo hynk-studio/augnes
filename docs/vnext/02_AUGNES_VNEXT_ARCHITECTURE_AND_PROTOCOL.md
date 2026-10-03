@@ -875,6 +875,27 @@ Only the local authenticated authorization route can issue the separate
 No recommendation, selected note, working direction or research budget grants
 execution authority.
 
+Both stateless judgments can consume the explicitly selected ordinary whole notes
+through `stateless_selected_work_notes.v0.1`. This bounded projection retains each
+note's identity/fingerprint, source locator, observation time, provenance, label,
+complete text and any reviewed-outcome source binding. It excludes the separately
+bound question/inventory note, unselected history and unselected predecessor
+reports. Notes are attributed context, not instructions, established facts,
+accepted state or execution authority. Their delivery does not establish their
+truth or a model's correct use of them.
+
+Ordinary preparation/readback shows this exact projection without enabling
+automation. The finite preview binds its fingerprint in `selected_notes_ref`,
+alongside the existing packet/source/control/cost bindings. New authenticated
+issuance requires that explicit current binding. Historical grants without it
+remain readable and retain their original input projection, which omitted these
+notes; they cannot silently gain transmission scope. No historical record is
+rewritten. Each complete model input still obeys the existing 8,192-byte message
+bound and 16,384-byte serialized-request cap. Overflow stops before the affected
+dispatch, without truncation or omission; already observed earlier stages remain
+saved. Preparation or preview does not promise that a future observation and
+judgment will fit together within those unchanged limits.
+
 One authorization covers choose → observe/non-use → conclude in a finite foreground
 request, with no per-step copy or “next”. The closed first choices are
 `read_selected_sources`, `no_action`, `defer`, and `stop`; the second choices are

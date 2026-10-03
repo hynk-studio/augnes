@@ -43,7 +43,7 @@ export function createStatelessSourceReviewHandler(options: { environment?: Node
         const prepared = prepareStatelessReplacement(db, { config, credential, request: body.material, now: hostOptions.now,
           disposition: { run_id: reviewText(link.run_id, 160), disposition_fingerprint: reviewSha(link.disposition_fingerprint) } });
         admission = prepared.session_admission;
-        result = { packet_id: prepared.packet_id, review: prepared.review, status: prepared.status, preparation_bytes: prepared.preparation_bytes, authorized: false, predecessor_effects_unknown: true };
+        result = { packet_id: prepared.packet_id, review: prepared.review, selected_notes: prepared.selected_notes, status: prepared.status, preparation_bytes: prepared.preparation_bytes, authorized: false, predecessor_effects_unknown: true };
       } else if (body.action === "preview") {
         reviewObject(body, ["action", "pricing"]);
         return NextResponse.json({ ok: true, authorization: await previewStatelessReview(db, hostOptions, body.pricing), read_only: true }, { headers });
