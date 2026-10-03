@@ -57,6 +57,7 @@ export const ProjectionSchema = z.object({
       "pre_execution_user_revision",
       "pre_execution_new_task",
       "bounded_preparation",
+      "stateless_review_replacement",
       "authored_successor_task",
       "semantic_transition",
       "source_linked_operational_continuation",

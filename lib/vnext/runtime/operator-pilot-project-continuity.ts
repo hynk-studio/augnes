@@ -1,3 +1,4 @@
+import { isStatelessReplacement, inspectStatelessReplacement, statelessReplacementIdempotencyKey } from "./stateless-review-disposition";
 import { AUTHORED_SUCCESSOR_TASK_V01 } from "@/lib/vnext/authored-successor-task";
 import { inspectAuthoredSuccessorPacketV01, isStandaloneAuthoredSuccessorV01, authoredSuccessorPacketIdempotencyKeyV01, type AuthoredSuccessorPacketLineageV01 } from "./authored-successor-task";
 import type Database from "better-sqlite3";
@@ -153,6 +154,7 @@ export interface VNextOperatorPilotProjectContinuityV01 {
       | "pre_execution_new_task"
       | "authored_successor_task"
       | "bounded_preparation"
+      | "stateless_review_replacement"
       | "semantic_transition"
       | "source_linked_operational_continuation";
   } | null;
@@ -250,6 +252,7 @@ export interface VNextOperatorPilotOperationalContinuationPacketLineageInspectio
 }
 
 export type VNextOperatorPilotPacketLineageInspectionV01 =
+  | ReturnType<typeof inspectStatelessReplacement>
   | { lineage_kind: "bounded_preparation"; packet: TaskContextPacketV01; prior_packet: { packet_id: string; packet_fingerprint: string }; projection_current: boolean; source_transition_receipt: null }
   | AuthoredSuccessorPacketLineageV01
   | VNextOperatorPilotTransitionPacketLineageInspectionV01
@@ -532,6 +535,7 @@ function inspectPacketLineageInsideReadV01(
     input.packet_fingerprint,
   );
   validateCurrentSemanticState(db, input.config);
+  if (isStatelessReplacement(packet)) return inspectStatelessReplacement(db, { config: input.config, packet });
   if (packet.compatibility.source_contracts.includes(PROSPECTIVE_PREPARATION_PACKET)) {
     const grantRef = packet.capability_grant?.grant_external_ref;
     if (!grantRef?.source_ref) throw continuityError("prospective_preparation_grant_missing", 409);
@@ -1038,7 +1042,7 @@ function loadCurrentWorkPackets(db: Database.Database, config: VNextLocalOperato
       .map((record) => loadPacket(db, config, record.record_id, record.fingerprint))
       .filter(
         (packet) =>
-          packet.compatibility.source_contracts.includes(AUTHORED_SUCCESSOR_TASK_V01) ||
+          isStatelessReplacement(packet) || packet.compatibility.source_contracts.includes(AUTHORED_SUCCESSOR_TASK_V01) ||
           packet.compatibility.source_contracts.includes(
             VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
           ) ||
@@ -1057,7 +1061,7 @@ function loadCurrentWorkPackets(db: Database.Database, config: VNextLocalOperato
     // successor edges nevertheless make them historical work, just as in the
     // normal project-work reader; they must not hide a later authored tip.
     const superseded = new Set(lineages.flatMap(lineage =>
-      (lineage.lineage_kind === "authored_successor_task" || lineage.lineage_kind === "semantic_transition" || lineage.lineage_kind === "bounded_preparation")
+      (lineage.lineage_kind === "stateless_review_replacement" || lineage.lineage_kind === "authored_successor_task" || lineage.lineage_kind === "semantic_transition" || lineage.lineage_kind === "bounded_preparation")
         ? [`${lineage.prior_packet.packet_id}|${lineage.prior_packet.packet_fingerprint}`] : []));
     return lineages.map(lineage => superseded.has(`${lineage.packet.packet_id}|${lineage.packet.integrity.fingerprint}`)
       ? { ...lineage, projection_current: false } : lineage);
@@ -1260,7 +1264,7 @@ function loadPacket(
     packet.integrity.fingerprint,
     packet.packet_id,
     packet.generated_at,
-    authoredSuccessorPacketIdempotencyKeyV01(packet) ??
+    statelessReplacementIdempotencyKey(packet) ?? authoredSuccessorPacketIdempotencyKeyV01(packet) ??
     initialProjectWorkIdempotencyKeyV01(packet) ??
       preExecutionProjectWorkRevisionIdempotencyKeyV01(packet) ??
       operationalContinuationPacketIdempotencyKeyV01(db, {

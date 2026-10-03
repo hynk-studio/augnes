@@ -1,3 +1,4 @@
+import { readStatelessDispositionPreparation, assertStatelessUnsettledAdmission, statelessUnresolvedEntries } from "../lib/vnext/runtime/stateless-review-disposition";
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, realpathSync, writeFileSync, readFileSync, rmSync, renameSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -8,10 +9,13 @@ import { hasUnsettledAutonomyRunLedgerRecords, insertAutonomyRunLedgerRecord, up
 import { createVNextOperatorContextUseReviewHandlerV01 } from "../app/api/vnext/operator/project-continuity/route";
 import { readSelectedWorkSources, selectedWorkSourceInput } from "../lib/intake/selected-work-source-comparison";
 import { readProjectWorkInitializationV01 } from "../lib/vnext/runtime/project-work-initialization";
-import { inspectPersistedHostProjectRootV01 } from "../lib/vnext/runtime/direct-native-host-round-trip";
+import { inspectPersistedHostProjectRootV01, runDirectNativeHostRoundTripV01 } from "../lib/vnext/runtime/direct-native-host-round-trip";
+import { inspectCurrentOrdinarySuccessorRevisionChainV01, ordinarySuccessorRevisionExecutionBlockedV01 } from "../lib/vnext/runtime/authored-successor-revision";
+import { readSourceReview } from "../lib/vnext/stateless-work";
 import { fingerprintNativeHostPhysicalRootIdentityV01 } from "../lib/vnext/native-host/project-root-identity";
 import { previewActivePortableProjectV01 } from "../lib/vnext/portability/portable-project";
 import { createProjectDirectionHandler } from "../app/api/vnext/operator/project-direction/route";
+import { packetDirectionBinding, readPacketDirectionInterpretation } from "../lib/vnext/persistence/project-direction-store";
 import type { ModelAdapterV01 } from "../lib/vnext/model-gateway/contracts";
 import { channel } from "node:diagnostics_channel";
 import Database from "better-sqlite3";
@@ -92,10 +96,10 @@ async function fixture(name: string, firstChoice = "read_selected_sources", seco
     AUGNES_VNEXT_OPERATOR_PROJECT_ID: scope.project_id, AUGNES_VNEXT_OPERATOR_ID: config.operator_id, AUGNES_DB_PATH: databasePath };
   const route = createStatelessSourceReviewHandler({ environment, clock: { now }, adapter });
   const url = "http://127.0.0.1/api/vnext/operator/stateless-source-review";
-  async function call(body?: unknown, expected = 200, headers: Record<string, string> = {}, projectId = scope.project_id) {
+  async function call(body?: unknown, expected: number | number[] = 200, headers: Record<string, string> = {}, projectId = scope.project_id) {
     tick(); const response = await route(new Request(`${url}?project_id=${projectId}`, { method: body ? "POST" : "GET",
       headers: { host: "127.0.0.1", origin: "http://127.0.0.1", cookie, ...(body ? { "content-type": "application/json" } : {}), ...headers }, ...(body ? { body: JSON.stringify(body) } : {}) }));
-    const value = await response.json(); assert.equal(response.status, expected, canonical(value));
+    const value = await response.json(); assert.ok((Array.isArray(expected) ? expected : [expected]).includes(response.status), `${response.status}: ${canonical(value)}`);
     if (response.headers.get("set-cookie")) cookie = response.headers.get("set-cookie")!.split(";")[0]!;
     return value;
   }
@@ -140,7 +144,7 @@ function unsettledOwnerContract(run: any) {
     assert.equal(hasUnsettledAutonomyRunLedgerRecords({ db, scope: "another-project" }), false);
   } finally { db.close(); }
 }
-async function ordinarySuccessor(f: Awaited<ReturnType<typeof fixture>>, result: any) {
+async function ordinarySuccessor(f: Awaited<ReturnType<typeof fixture>>, result: any, expectedCalls = 2) {
   const prep = await f.continuity({ action: "read_result_work_preparation", receipt_id: result.receipt.receipt_id });
   assert.equal(result.run.metadata.reconciliation_required, false);
   const rootScope = await inspectPersistedHostProjectRootV01(f.db, { config: f.config, evaluated_at: f.now() });
@@ -170,16 +174,339 @@ async function ordinarySuccessor(f: Awaited<ReturnType<typeof fixture>>, result:
     "Recorded execution: completed; verification: not_run. No proposal acceptance is implied.");
   assert.equal(canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["capability_grant"], limit: 128 })), before);
   await f.call({ action: "authorize_and_run", authorization: f.preview }, 409);
-  await f.call({ action: "continue", run_id: result.run.run_id }); assert.equal(f.calls, 2, "The predecessor grant never executes the successor");
+  await f.call({ action: "continue", run_id: result.run.run_id }); assert.equal(f.calls, expectedCalls, "The predecessor grant never executes the successor");
   validateRecoveryCanonicalDatabaseV01(f.db);
 }
+function originalClaimSteps(run: any) {
+  return run.steps.map((step: any) => {
+    if (!step.output.disposed_claim_generation) return step;
+    const { disposed_claim_generation, ...retained } = step.output;
+    return { ...step, output: { ...retained, generation: disposed_claim_generation } };
+  });
+}
+async function recoveryBackup(f: Awaited<ReturnType<typeof fixture>>, name: string) {
+  return await (createRecoveryBackup as unknown as (input: {
+      databasePath: string; backupDirectory: string; applicationScopeFingerprint: string;
+      sourceApplication: { application_version: string; build_identity: string; package_contract: string; package_contract_version: number; runtime_contract: string; runtime_schema_version: number };
+      reason: string; inspectDatabase: typeof inspectRecoveryDatabaseFile; now: () => Date;
+    }) => Promise<{ backupPath: string }>)({ databasePath: f.config.database_path, backupDirectory: path.join(root, `backups-${name}`), applicationScopeFingerprint: "a".repeat(64),
+      sourceApplication: { application_version: "0.1.1", build_identity: hash("stateless-development"), package_contract: "augnes.distributable.v1", package_contract_version: 1, runtime_contract: "augnes-local-runtime-supervisor-v1", runtime_schema_version: 2 },
+      reason: "manual_recovery", inspectDatabase: inspectRecoveryDatabaseFile, now: () => new Date(f.now()) });
+}
+const pricing = { input_nano_usd_per_byte: 1000, output_nano_usd_per_token: 1000, maximum_total_nano_usd: 100_000_000, source_version: "scripted-test-price-not-live-authority" };
+const replacementMaterial = { question: "Re-examine this bounded entrypoint while retaining the predecessor's unknown effects", files: [{ path: "entry.ts", start_line: 1, end_line: 2 }] };
+async function directionDispositionContract() {
+  for (const mode of ["unchanged", "changed", "unselected"] as const) {
+    const f = await fixture(`disposition-direction-${mode}`);
+    let direction: any;
+    const decide = (expected_ref: string | null, purpose: string) => f.direction({ action: "decide", expected_ref,
+      content: { purpose, criteria: [], constraints: [] }, reason: "Explicit project direction for this source review", status: "active", proposal_ref: null });
+    if (mode !== "unselected") {
+      direction = await decide(null, "Review the selected entrypoint and retain uncertainty");
+      await f.direction({ action: "prepare_inspection", expected_ref: direction.record.ref, files: [{ path: "entry.ts", contains: "advisory" }] });
+    }
+    const authorization = (await f.call({ action: "preview", pricing })).authorization;
+    f.loseDispatch();
+    const lost = (await f.call({ action: "authorize_and_run", authorization })).result;
+    assert.equal(lost.stage, "dispatch_outcome_unknown");
+    const ended = (await f.call({ action: "end_work", binding: lost.disposition_preparation.binding })).result;
+    const history = canonical(ended.run);
+    if (mode === "changed") await decide(direction.record.ref, "A different direction requires explicit reconsideration");
+    if (mode === "unselected") await decide(null, "This effective direction has not been selected by the historical packet");
+    const records = () => canonical({ packets: listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet"], limit: 128 }),
+      directions: f.db.prepare("SELECT * FROM vnext_project_direction_records ORDER BY ref").all() });
+    const before = records();
+    const linked = await f.call({ action: "prepare_linked_work", disposition: { run_id: lost.run.run_id,
+      disposition_fingerprint: ended.run.metadata.stateless_review_disposition.fingerprint }, material: replacementMaterial }, mode === "unchanged" ? 200 : 409);
+    if (mode === "unchanged") {
+      const packet = listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet"], limit: 128 }).find(r => r.record_id === linked.result.packet_id)!.payload as any;
+      assert.equal(packetDirectionBinding(f.db, packet)!.value.direction_ref, direction.record.ref);
+      assert.equal(readPacketDirectionInterpretation(f.db, packet, f.now()).status, "current");
+      assert.equal(packet.capability_grant, null);
+      validateRecoveryCanonicalDatabaseV01(f.db);
+    } else {
+      assert.equal(records(), before, "Rejected direction leaves neither a partial packet nor a binding");
+    }
+    assert.equal(canonical(f.host(lost.run.run_id).read().run), history); assert.equal(f.calls, 1);
+  }
+}
+async function dispositionContract() {
+  const f = await fixture("disposition-ordinary"); f.loseDispatch();
+  const lost = (await f.call({ action: "authorize_and_run", authorization: f.preview })).result;
+  assert.equal(lost.stage, "dispatch_outcome_unknown"); assert.equal(f.calls, 1);
+  const beforeSteps = canonical(lost.run.steps), grantsBefore = canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["capability_grant"], limit: 128 }));
+  const binding = lost.disposition_preparation.binding;
+  // Optional diagnostics are not eligibility or outcome evidence. A pure legacy
+  // projection removes only that additive field; no database/grant is repaired.
+  const legacy = structuredClone(lost.run); delete legacy.steps[0].output.transport_failure_observation;
+  assert.ok(readStatelessDispositionPreparation(f.db, f.scope, legacy));
+  const wrongClass = structuredClone(lost.run); wrongClass.autonomy_contract_ref = "managed_live";
+  assert.equal(readStatelessDispositionPreparation(f.db, f.scope, wrongClass), null);
+  await f.call({ action: "end_work", binding }, 401, { cookie: "" });
+  await f.call({ action: "end_work", binding }, 409, {}, `project:${randomUUID()}`);
+  await f.call({ action: "end_work", binding: { ...binding, generation: "another-controller" } }, 409);
+  await f.call({ action: "prepare_linked_work", disposition: { run_id: lost.run.run_id, disposition_fingerprint: hash("not-a-disposition") }, material: replacementMaterial }, 409);
+  const active = readActiveProjectSelectionV01(f.db, f.scope.workspace_id)!;
+  mutateProjectControlV01(f.db, { ...f.scope, action: "disable_automation", expected_active_project_id: f.scope.project_id, expected_active_selection_revision: active.selection_revision, expected_control_revision: 1 }, { now: f.now });
+  f.tick(600_001); rmSync(path.join(f.projectRoot, "entry.ts"));
+  renameSync(f.projectRoot, `${f.projectRoot}-offline`);
+  // Both requests authenticate before their asynchronous body read. Only one
+  // current nonce may commit; then an explicit identical fresh submission is safe.
+  const concurrent = await Promise.all([f.call({ action: "end_work", binding }, [200, 409]), f.call({ action: "end_work", binding }, [200, 409])]);
+  assert.equal(concurrent.filter(v => v.ok).length, 1);
+  assert.equal(concurrent.find(v => !v.ok).error, "operator_action_nonce_invalid");
+  const ended = (await f.call({ action: "end_work", binding })).result;
+  assert.equal(ended.stage, "ended_effects_unknown"); assert.equal(ended.run.metadata.reconciliation_required, true);
+  assert.equal(canonical(originalClaimSteps(ended.run)), beforeSteps);
+  assert.notEqual(ended.run.steps[0].output.generation, binding.generation, "Even a generation-only old controller is fenced"); assert.equal(ended.receipt, null);
+  assert.equal(ended.run.events.filter((e: any) => e.payload.version === "stateless_model_request_disposition.v0.1").length, 1);
+  await f.call({ action: "end_work", binding: { ...binding, expected_revision: binding.expected_revision + 1 } }, 409);
+  await f.call({ action: "continue", run_id: lost.run.run_id }); assert.equal(f.calls, 1);
+  assert.equal(canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["capability_grant"], limit: 128 })), grantsBefore);
+  const childInput = path.join(root, "disposition-read.json");
+  writeFileSync(childInput, JSON.stringify({ config: f.config, run_id: lost.run.run_id, at: f.now(), step_fingerprint: hash(beforeSteps), disposition_fingerprint: ended.run.metadata.stateless_review_disposition.fingerprint }));
+  const child = spawnSync(process.execPath, ["--import", "tsx", "scripts/test-stateless-source-review.ts", "--read-disposition", childInput], { cwd: process.cwd(), env: { ...process.env, OPENAI_API_KEY: "" }, encoding: "utf8", timeout: 30_000 });
+  assert.equal(child.status, 0, child.stderr); assert.equal(JSON.parse(child.stdout.trim()).provider_calls, 0);
+  const link = { run_id: lost.run.run_id, disposition_fingerprint: ended.run.metadata.stateless_review_disposition.fingerprint };
+  renameSync(`${f.projectRoot}-offline`, f.projectRoot);
+  await f.call({ action: "prepare_linked_work", disposition: link, material: replacementMaterial }, 409);
+  writeFileSync(path.join(f.projectRoot, "entry.ts"), sourceText);
+  const linked = (await f.call({ action: "prepare_linked_work", disposition: link, material: replacementMaterial })).result;
+  assert.equal(f.calls, 1); assert.notEqual(linked.packet_id, f.preview.packet_id); assert.equal(linked.authorized, false);
+  const saved = readProjectWorkInitializationV01(f.db, f.config);
+  assert.equal(saved.current_packet?.packet_id, linked.packet_id); assert.equal(saved.current_packet?.lineage_kind, "stateless_review_replacement");
+  assert.equal(canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["capability_grant"], limit: 128 })), grantsBefore);
+  const packet = listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet"], limit: 128 }).find(r => r.record_id === linked.packet_id)!.payload as any;
+  assert.equal(packet.capability_grant, null); assert.equal(statelessUnresolvedEntries(packet).length, 1);
+  assert.ok(statelessUnresolvedEntries(packet)[0]!.bounded_summary!.includes("cost remain unknown"));
+  assert.equal((await f.call({ action: "prepare_linked_work", disposition: link, material: replacementMaterial })).result.packet_id, linked.packet_id);
+  await f.call({ action: "prepare_linked_work", disposition: link, material: { ...replacementMaterial, question: "Competing definition" } }, 409);
+  assert.equal((await f.call()).preparation.packet_id, linked.packet_id);
+  assert.equal(hasUnsettledAutonomyRunLedgerRecords({ db: f.db, scope: f.scope.project_id }), true, "The shared default does not settle or ignore disposed runs");
+  assertStatelessUnsettledAdmission(f.db, f.scope, packet);
+  const backup = await recoveryBackup(f, "disposed-linked");
+  const recoveryCopy = new Database(path.join(backup.backupPath, RECOVERY_DATABASE_PAYLOAD));
+  try {
+    assert.equal(validateRecoveryCanonicalDatabaseV01(recoveryCopy).status, "valid");
+    assert.throws(() => assertStatelessUnsettledAdmission(recoveryCopy, f.scope, packet), "Recovered disposition is readable but cannot waive execution suspension");
+  } finally { recoveryCopy.close(); }
+
+  // Isolated negative/legacy admission matrices use copies only. They never
+  // create positive execution authority, change the ordinary fixture or repair it.
+  for (const [metadata, expected] of [
+    ['{"reconciliation_required":true}', true], ['{"reconciliation_required":null}', true], ['{"reconciliation_required":"false"}', true],
+    ['{', true], ['[]', true], ['{}', false], ['{"reconciliation_required":false}', false],
+  ] as const) {
+    const copy = new Database(f.db.serialize());
+    try {
+      insertAutonomyRunLedgerRecord({ ...lost.run, run_id: "unrelated-run", status: "completed", metadata: {} }, [], [], { db: copy });
+      copy.prepare("UPDATE autonomy_runs SET metadata_json=? WHERE run_id='unrelated-run'").run(metadata);
+      if (expected) assert.throws(() => assertStatelessUnsettledAdmission(copy, f.scope, packet));
+      else assertStatelessUnsettledAdmission(copy, f.scope, packet);
+      assert.equal((copy.prepare("SELECT metadata_json FROM autonomy_runs WHERE run_id='unrelated-run'").get() as any).metadata_json, metadata);
+    } finally { copy.close(); }
+  }
+  for (const field of ["stateless_review_disposition", "reconciliation_required"]) {
+    const copy = new Database(f.db.serialize());
+    try {
+      copy.prepare("UPDATE autonomy_runs SET metadata_json=json_remove(metadata_json, ?) WHERE run_id=?").run(`$.${field}`, lost.run.run_id);
+      assert.throws(() => assertStatelessUnsettledAdmission(copy, f.scope, packet), "Missing exact disposition proof cannot be excluded");
+    } finally { copy.close(); }
+  }
+  const malformedPath = path.join(root, "malformed-disposition.db");
+  writeFileSync(malformedPath, f.db.serialize());
+  const malformed = new Database(malformedPath);
+  try {
+    // Negative copy only: malformed metadata must not become a valid work
+    // decision in the reader, let alone admission authority.
+    malformed.prepare("UPDATE autonomy_runs SET metadata_json=json_set(metadata_json, '$.stateless_review_disposition', 'invalid') WHERE run_id=?").run(lost.run.run_id);
+    const host = new StatelessSourceReviewHost({ config: { ...f.config, database_path: malformedPath }, now: f.now, adapter: f.adapter }, lost.run.run_id);
+    assert.equal((await host.run()).stage, "disposition_invalid");
+    assert.equal(host.read().disposition_preparation, null); assert.equal(f.calls, 1);
+    assert.throws(() => assertStatelessUnsettledAdmission(malformed, f.scope, packet));
+  } finally { malformed.close(); }
+
+  await f.call({ action: "preview", pricing }, 409); // disabled control still gates fresh execution
+  const control = readProjectAutomationControlV01(f.db, f.scope)!;
+  mutateProjectControlV01(f.db, { ...f.scope, action: "enable_automation", expected_active_project_id: f.scope.project_id, expected_active_selection_revision: active.selection_revision, expected_control_revision: control.revision }, { now: f.now });
+  const fresh = (await f.call({ action: "preview", pricing })).authorization;
+  assert.notEqual(fresh.packet_id, f.preview.packet_id); assert.equal(fresh.cost_budget.maximum_permitted_cost, f.preview.cost_budget.maximum_permitted_cost);
+  await f.call({ action: "authorize_and_run", authorization: f.preview }, 409);
+  writeFileSync(path.join(f.projectRoot, "entry.ts"), "changed\n");
+  await f.call({ action: "authorize_and_run", authorization: fresh }, 409); assert.equal(f.calls, 1);
+  writeFileSync(path.join(f.projectRoot, "entry.ts"), sourceText);
+  f.controls.lose = false;
+  const replacement = (await f.call({ action: "authorize_and_run", authorization: fresh })).result;
+  assert.equal(replacement.run.status, "completed", replacement.run.stop_reason); assert.equal(f.calls, 3);
+  assert.notEqual(replacement.run.run_id, lost.run.run_id); assert.notEqual(replacement.run.metadata.stateless_review.grant_id, lost.run.metadata.stateless_review.grant_id);
+  assert.ok(f.inputs[1].unresolved_predecessors[0].includes(lost.run.run_id));
+  assert.equal(canonical(originalClaimSteps(f.host(lost.run.run_id).read().run)), beforeSteps);
+  await ordinarySuccessor(f, replacement, 3);
+  const successorId = readProjectWorkInitializationV01(f.db, f.config).current_packet!.packet_id;
+  const successor = listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet"], limit: 128 }).find(r => r.record_id === successorId)!.payload as any;
+  assert.equal(successor.capability_grant, null); assert.deepEqual(statelessUnresolvedEntries(successor), statelessUnresolvedEntries(packet));
+  validateRecoveryCanonicalDatabaseV01(f.db);
+  const endedHistory = canonical(f.host(lost.run.run_id).read().run);
+  const nextMaterial = { question: "Which remaining entrypoint connection is supported by this next source review?", files: [{ path: "entry.ts", start_line: 2, end_line: 2 }] };
+  const authorityBeforeRevision = canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["capability_grant"], limit: 128 }));
+  const revised = (await f.call({ action: "prepare", material: nextMaterial })).result;
+  assert.equal(revised.authorized, false); assert.equal(f.calls, 3);
+  assert.equal(canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["capability_grant"], limit: 128 })), authorityBeforeRevision);
+  const chain = inspectCurrentOrdinarySuccessorRevisionChainV01(f.db, f.scope, f.now())!;
+  assert.equal(chain.tip_packet.packet_id, revised.packet_id); assert.equal(chain.projection_current, true);
+  assert.equal(chain.tip_packet.capability_grant, null); assert.equal(chain.revision_count, 1);
+  assert.deepEqual(statelessUnresolvedEntries(chain.tip_packet), statelessUnresolvedEntries(packet));
+  assert.equal(readSourceReview(chain.tip_packet).question, nextMaterial.question);
+  assert.equal(ordinarySuccessorRevisionExecutionBlockedV01(f.db, f.scope, chain), false);
+  assert.equal(hasUnsettledAutonomyRunLedgerRecords({ db: f.db, scope: f.scope.project_id }), true);
+  assert.equal((await f.call()).preparation.packet_id, revised.packet_id);
+  await f.call({ action: "prepare", material: nextMaterial }, 409, {}, `project:${randomUUID()}`);
+  await assert.rejects(() => runDirectNativeHostRoundTripV01(f.db, { config: f.config, mode: "interactive" }, { now: f.now }),
+    /direct_host_(run_conflict|unresolved_stateless_effects)/, "Zero-model revision supplies no generic/native execution exception");
+  validateRecoveryCanonicalDatabaseV01(f.db);
+
+  const revisionRead = path.join(root, "successor-revision-read.json");
+  writeFileSync(revisionRead, JSON.stringify({ config: f.config, run_id: lost.run.run_id, at: f.now(), step_fingerprint: hash(beforeSteps),
+    disposition_fingerprint: link.disposition_fingerprint, packet_id: revised.packet_id, unresolved_context: statelessUnresolvedEntries(packet), question: nextMaterial.question }));
+  const reopened = spawnSync(process.execPath, ["--import", "tsx", "scripts/test-stateless-source-review.ts", "--read-disposition", revisionRead],
+    { cwd: process.cwd(), env: { ...process.env, OPENAI_API_KEY: "" }, encoding: "utf8", timeout: 30_000 });
+  assert.equal(reopened.status, 0, reopened.stderr); assert.equal(JSON.parse(reopened.stdout.trim()).successor_revision_read, true);
+  const revisionBackup = await recoveryBackup(f, "successor-revised"), revisionRecovery = new Database(path.join(revisionBackup.backupPath, RECOVERY_DATABASE_PAYLOAD));
+  try {
+    assert.equal(validateRecoveryCanonicalDatabaseV01(revisionRecovery).status, "valid");
+    const recoveredChain = inspectCurrentOrdinarySuccessorRevisionChainV01(revisionRecovery, f.scope, f.now())!;
+    assert.deepEqual(statelessUnresolvedEntries(recoveredChain.tip_packet), statelessUnresolvedEntries(packet));
+    assert.equal(ordinarySuccessorRevisionExecutionBlockedV01(revisionRecovery, f.scope, recoveredChain), true, "Recovery suspension cannot supply the revision exception");
+  } finally { revisionRecovery.close(); }
+  // Negative/legacy truth-table copies only; no positive path is repaired.
+  for (const [metadata, blocked] of [
+    ['{"reconciliation_required":true}', true], ['{"reconciliation_required":null}', true], ['{"reconciliation_required":"false"}', true],
+    ['{', true], ['[]', true], ['{}', false], ['{"reconciliation_required":false}', false],
+  ] as const) {
+    const copy = new Database(f.db.serialize());
+    try {
+      insertAutonomyRunLedgerRecord({ ...lost.run, run_id: "unrelated-revision-run", status: "completed", metadata: {} }, [], [], { db: copy });
+      copy.prepare("UPDATE autonomy_runs SET metadata_json=? WHERE run_id='unrelated-revision-run'").run(metadata);
+      assert.equal(ordinarySuccessorRevisionExecutionBlockedV01(copy, f.scope, chain), blocked);
+      assert.equal((copy.prepare("SELECT metadata_json FROM autonomy_runs WHERE run_id='unrelated-revision-run'").get() as any).metadata_json, metadata);
+    } finally { copy.close(); }
+  }
+  for (const field of ["stateless_review_disposition", "reconciliation_required"]) {
+    const copy = new Database(f.db.serialize());
+    try {
+      copy.prepare("UPDATE autonomy_runs SET metadata_json=json_remove(metadata_json, ?) WHERE run_id=?").run(`$.${field}`, lost.run.run_id);
+      assert.equal(ordinarySuccessorRevisionExecutionBlockedV01(copy, f.scope, chain), true);
+    } finally { copy.close(); }
+  }
+
+  await f.call({ action: "authorize_and_run", authorization: f.preview }, 409);
+  await f.call({ action: "authorize_and_run", authorization: fresh }, 409);
+  await f.call({ action: "continue", run_id: lost.run.run_id });
+  await f.call({ action: "continue", run_id: replacement.run.run_id }); assert.equal(f.calls, 3);
+  const nextAuthorization = (await f.call({ action: "preview", pricing })).authorization;
+  assert.equal(nextAuthorization.packet_id, revised.packet_id);
+  assert.notEqual(nextAuthorization.packet_fingerprint, fresh.packet_fingerprint);
+  const nextRun = (await f.call({ action: "authorize_and_run", authorization: nextAuthorization })).result;
+  assert.equal(nextRun.run.status, "completed", nextRun.run.stop_reason); assert.equal(f.calls, 5);
+  assert.notEqual(nextRun.run.run_id, replacement.run.run_id);
+  assert.notEqual(nextRun.run.metadata.stateless_review.grant_id, replacement.run.metadata.stateless_review.grant_id);
+  assert.notEqual(nextRun.run.metadata.stateless_review.grant_id, lost.run.metadata.stateless_review.grant_id);
+  assert.equal(nextRun.run.metadata.reconciliation_required, false);
+  for (const input of f.inputs.slice(3)) assert.ok(input.unresolved_predecessors[0].includes(lost.run.run_id));
+  assert.equal(f.inputs[4].observation.sources[0].text, sourceText.trimEnd().split("\n")[1]);
+  assert.equal(canonical(f.host(lost.run.run_id).read().run), endedHistory, "New work does not change the old unknown claim, receipt or disposition");
+  assert.equal(f.host(lost.run.run_id).read().run.metadata.reconciliation_required, true);
+  assert.equal(canonical(originalClaimSteps(f.host(lost.run.run_id).read().run)), beforeSteps);
+  assert.equal(ordinarySuccessorRevisionExecutionBlockedV01(f.db, f.scope, chain), true, "A grant/run admitted on this work still prevents revision");
+  const packetsAfterExecution = canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet"], limit: 128 }));
+  await f.call({ action: "prepare", material: { ...nextMaterial, question: "Cannot revise already issued work" } }, 409);
+  assert.equal(canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet"], limit: 128 })), packetsAfterExecution);
+  validateRecoveryCanonicalDatabaseV01(f.db);
+
+  // Independent ordinary race: end a live dispatched model claim, prepare and
+  // complete its replacement before releasing the original response.
+  const late = await fixture("disposition-late-response"); const authorized = late.authorizeOnly();
+  let entered!: () => void, release!: () => void;
+  const arrived = new Promise<void>(r => { entered = r; }), pending = new Promise<void>(r => { release = r; });
+  let held = false;
+  late.controls.dispatch = async () => { if (!held) { held = true; entered(); await pending; } };
+  const host = late.host(authorized.run_id), resultPromise = host.step().then(() => null, e => e);
+  try {
+    await arrived;
+    const inflight = host.read(); assert.ok(inflight.disposition_preparation);
+    const end = (await late.call({ action: "end_work", binding: inflight.disposition_preparation!.binding })).result;
+    const before = canonical(end.run.steps);
+    await late.call({ action: "prepare_linked_work", disposition: { run_id: authorized.run_id, disposition_fingerprint: end.run.metadata.stateless_review_disposition.fingerprint }, material: replacementMaterial });
+    const preview = (await late.call({ action: "preview", pricing })).authorization;
+    const completed = (await late.call({ action: "authorize_and_run", authorization: preview })).result;
+    assert.equal(completed.run.status, "completed"); const finished = canonical(completed.run);
+    release(); assert.match(String(await resultPromise), /stale_generation_result_refused/);
+    const read = host.read(); assert.equal(read.stage, "ended_effects_unknown"); assert.equal(canonical(read.run.steps), before); assert.equal(read.receipt, null);
+    assert.equal(read.run.metadata.reconciliation_required, true); assert.equal(late.calls, 3);
+    const event = read.run.events.find(e => e.payload.profile === "stateless_late_model_receipt.v0.1")!;
+    assert.ok(event); assert.equal((event.payload.model_receipt as any).usage.input_tokens, 200);
+    assert.equal(event.payload.judgment, undefined); assert.equal(canonical(late.host(completed.run.run_id).read().run), finished);
+    await late.call({ action: "continue", run_id: authorized.run_id }); assert.equal(late.calls, 3);
+    // Later receipt evidence does not invalidate the exact historical decision.
+    assert.ok(host.read().disposition_preparation?.disposition);
+  } finally { release(); await resultPromise; }
+
+  const second = await fixture("disposition-second-judgment-loss");
+  const secondRun = second.authorizeOnly(), secondHost = second.host(secondRun.run_id);
+  await secondHost.step(); await secondHost.step();
+  const completedSteps = canonical(secondHost.read().run.steps.slice(0, 2));
+  second.loseDispatch();
+  const secondLost = (await second.call({ action: "continue", run_id: secondRun.run_id })).result;
+  assert.equal(secondLost.stage, "dispatch_outcome_unknown"); assert.equal(second.calls, 2);
+  assert.equal(secondLost.disposition_preparation.binding.step_id, `${secondRun.run_id}.conclude`);
+  const secondEnded = (await second.call({ action: "end_work", binding: secondLost.disposition_preparation.binding })).result;
+  assert.equal(secondEnded.stage, "ended_effects_unknown"); assert.equal(secondEnded.receipt, null);
+  await second.call({ action: "continue", run_id: secondRun.run_id });
+  assert.equal(second.calls, 2); assert.equal(canonical(secondHost.read().run.steps.slice(0, 2)), completedSteps);
+
+  const stale = await fixture("disposition-stale-decision"); stale.loseDispatch();
+  const staleRun = (await stale.call({ action: "authorize_and_run", authorization: stale.preview })).result;
+  await stale.call({ action: "cancel", run_id: staleRun.run.run_id });
+  await stale.call({ action: "end_work", binding: staleRun.disposition_preparation.binding }, 409);
+  assert.equal(stale.host(staleRun.run.run_id).read().stage, "dispatch_outcome_unknown");
+  assert.equal(stale.calls, 1);
+}
+async function readDispositionChild(filename: string) {
+  try {
+    const { config, run_id, at, step_fingerprint, disposition_fingerprint, packet_id, unresolved_context, question } = JSON.parse(readFileSync(filename, "utf8"));
+    const script = scripted(), host = new StatelessSourceReviewHost({ config, now: () => at, adapter: script.adapter }, run_id);
+    const read = await host.run(); assert.equal(read.stage, "ended_effects_unknown"); assert.equal(read.run.metadata.reconciliation_required, true);
+    assert.equal(hash(canonical(originalClaimSteps(read.run))), step_fingerprint); assert.equal(read.disposition_preparation!.disposition!.fingerprint, disposition_fingerprint);
+    if (packet_id) {
+      const db = new Database(config.database_path);
+      try {
+        const chain = inspectCurrentOrdinarySuccessorRevisionChainV01(db, config, at)!;
+        assert.equal(chain.tip_packet.packet_id, packet_id); assert.equal(chain.projection_current, true);
+        assert.deepEqual(statelessUnresolvedEntries(chain.tip_packet), unresolved_context);
+        assert.equal(readSourceReview(chain.tip_packet).question, question); assert.equal(chain.tip_packet.capability_grant, null);
+        validateRecoveryCanonicalDatabaseV01(db);
+      } finally { db.close(); }
+    }
+    assert.equal(script.calls, 0); assert.equal(requests, 0); console.log(JSON.stringify({ provider_calls: 0, decision_and_uncertainty_retained: true, successor_revision_read: !!packet_id }));
+  } finally { rmSync(root, { recursive: true, force: true }); network.unsubscribe(onNetwork); }
+}
+
 async function main() {
   try {
+    if (process.argv[2] === "--direction-disposition") {
+      await directionDispositionContract(); assert.equal(requests, 0);
+      console.log(JSON.stringify({ status: "passed", selected_direction_linked_preparation: true, changed_or_unselected_direction: "atomic_refusal", external_requests: requests })); return;
+    }
+    if (process.argv[2] === "--disposition") {
+      await dispositionContract(); assert.equal(requests, 0);
+      console.log(JSON.stringify({ status: "passed", successor_review_reentry: true, fresh_process_and_recovery_warning: true, separate_grant_required: true, external_requests: requests })); return;
+    }
     const previewAdapter = scripted();
     const routeIdentity = await preparePlannerModelGatewayRouteV01({ adapter: previewAdapter.adapter });
     assert.deepEqual(Object.keys(routeIdentity!).sort(), ["model_ref", "provider_ref"]);
     assert.equal(previewAdapter.calls, 0, "route preview must not dispatch a provider call or expose an invocable session");
     assert.equal(await preparePlannerModelGatewayRouteV01({ adapter: createOpenAIResponsesAdapterV01({ environment: {} }) }), null);
+    await directionDispositionContract(); await dispositionContract();
     const normal = await fixture("normal");
     await normal.call({ action: "authorize_and_run", authorization: normal.preview }, 401, { cookie: "" });
     await normal.call({ action: "authorize_and_run", authorization: normal.preview }, 403, { origin: "https://foreign.example" });
@@ -280,6 +607,7 @@ async function main() {
     // action claim and before a durable result. It is not a positive grant path.
     updateAutonomyRunStepLedgerFields(auh.read().run.steps[1]!.step_id, { status: "running", output: { generation: "lost-action-controller" } }, { db: actionUnknown.db });
     const actionLost = await auh.run(); assert.equal(actionLost.stage, "dispatch_outcome_unknown");
+    assert.equal(actionLost.disposition_preparation, null, "Unknown local actions have no model-disposition exception");
     assert.equal(actionLost.run.steps[1]!.output.action_bundles, undefined); assert.equal(actionUnknown.calls, 1);
     await auh.run(); assert.equal(actionUnknown.calls, 1);
     const changed = await fixture("changed-source"); const ch = changed.authorizeOnly();
@@ -394,13 +722,7 @@ async function main() {
     assert.throws(() => previewActivePortableProjectV01(normal.db), /portable_stateless_review_not_supported/);
     const recovery = await fixture("recovery"); const ra = recovery.authorizeOnly(); const rrh = recovery.host(ra.run_id);
     await rrh.step(); await rrh.step();
-    const backup = await (createRecoveryBackup as unknown as (input: {
-      databasePath: string; backupDirectory: string; applicationScopeFingerprint: string;
-      sourceApplication: { application_version: string; build_identity: string; package_contract: string; package_contract_version: number; runtime_contract: string; runtime_schema_version: number };
-      reason: string; inspectDatabase: typeof inspectRecoveryDatabaseFile; now: () => Date;
-    }) => Promise<{ backupPath: string }>)({ databasePath: recovery.config.database_path, backupDirectory: path.join(root, "backups"), applicationScopeFingerprint: "a".repeat(64),
-      sourceApplication: { application_version: "0.1.1", build_identity: hash("stateless-development"), package_contract: "augnes.distributable.v1", package_contract_version: 1, runtime_contract: "augnes-local-runtime-supervisor-v1", runtime_schema_version: 2 },
-      reason: "manual_recovery", inspectDatabase: inspectRecoveryDatabaseFile, now: () => new Date(recovery.now()) });
+    const backup = await recoveryBackup(recovery, "normal");
     const recoveredPath = path.join(backup.backupPath, RECOVERY_DATABASE_PAYLOAD);
     const recovered = new Database(recoveredPath);
     try { assert.equal(validateRecoveryCanonicalDatabaseV01(recovered).status, "valid"); } finally { recovered.close(); }
@@ -412,6 +734,9 @@ async function main() {
       ordinary_successor_authored: true, successor_execution_granted: false, unsettled_ledger_contract: "preserved",
       returned_over_budget: "returned_invalid_no_retry", pre_egress_refusal: "not_issued_no_retry", transport_loss: "unknown_no_retry",
       bounded_transport_diagnostics: "persisted_without_private_exception_material", cancellation_settles_unknown: false,
+      local_disposition: "authenticated_revision_and_generation_fenced", linked_work: "explicit_null_grant_then_fresh_authorization", disposition_provider_calls: 0,
+      fresh_process_disposition_read: true, late_result: "quarantined_original_attempt_replacement_unchanged",
+      selected_direction_linked_preparation: true, changed_or_unselected_direction: "atomic_refusal", successor_review_reentry: "fresh_grant_and_loop_with_mandatory_uncertainty",
       audit_source_bytes: actualObservation.bytes_read, audit_preparation_bytes: audit.preparationBytes + ar.run.metadata.authorization_preparation_bytes + ar.run.steps[0].output.preparation_bytes, audit_excerpt_bytes: actualObservation.sources.reduce((n: number, f: any) => n + Buffer.byteLength(f.text), 0), completed_action_replays: 0, unknown_dispatch_retries: 0, external_requests: requests, actual_model_judgment: "NOT RUN", usefulness: "NOT RUN" }));
   } finally { for (const db of databases) db.close(); rmSync(root, { recursive: true, force: true }); network.unsubscribe(onNetwork); }
 }
@@ -423,4 +748,4 @@ async function resumeChild(filename: string) {
     console.log(JSON.stringify({ calls: script.calls, observation: script.inputs[0].observation, external_requests: requests }));
   } finally { rmSync(root, { recursive: true, force: true }); network.unsubscribe(onNetwork); }
 }
-void (process.argv[2] === "--resume" ? resumeChild(process.argv[3]!) : main()).catch(e => { console.error(e); process.exitCode = 1; });
+void (process.argv[2] === "--resume" ? resumeChild(process.argv[3]!) : process.argv[2] === "--read-disposition" ? readDispositionChild(process.argv[3]!) : main()).catch(e => { console.error(e); process.exitCode = 1; });

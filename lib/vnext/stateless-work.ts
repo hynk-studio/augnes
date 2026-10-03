@@ -6,6 +6,14 @@ import { validateModelGatewayCostBudgetV01 } from "./model-gateway/cost-authorit
 
 export const STATELESS_WORK = "stateless_source_review.v0.1";
 export const STATELESS_GRANT = "stateless_source_review_grant.v0.1";
+export const STATELESS_DISPOSITION = "stateless_model_request_disposition.v0.1";
+export const STATELESS_REPLACEMENT = "stateless_source_review_replacement.v0.1";
+export const STATELESS_UNRESOLVED_CONTEXT = "stateless-review-unresolved-predecessors";
+export interface StatelessDispositionBinding {
+  run_id: string; expected_revision: number; step_id: string; generation: string;
+  packet_id: string; packet_fingerprint: string; grant_id: string; grant_fingerprint: string;
+  failure_evidence_fingerprint: string;
+}
 export const STATELESS_LIMITS = Object.freeze({ model_invocations: 2, action_bundles: 1, files: 2,
   source_bytes: 65_536, excerpt_bytes: 4_096, input_bytes: 16_384, output_tokens: 1_024,
   invocation_ms: 15_000, action_ms: 10_000, host_ms: 45_000, attempts: 1 });

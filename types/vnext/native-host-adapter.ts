@@ -106,6 +106,7 @@ export interface NativeHostAutomationContextV01 {
 
 export type NativeHostPacketLineageV01 =
   | { lineage_kind: "bounded_preparation"; immediate_prior_packet_ref: ExternalRefV01; packet_source_refs: ExternalRefV01[]; selected_context_refs: ExternalRefV01[] }
+  | { lineage_kind: "stateless_review_replacement"; immediate_prior_packet_ref: ExternalRefV01; packet_source_refs: ExternalRefV01[]; selected_context_refs: ExternalRefV01[] }
   | {
       lineage_kind: "authored_successor_task";
       successor_definition_ref: ExternalRefV01;

@@ -1,3 +1,4 @@
+import { statelessUnresolvedEntries } from "./stateless-review-disposition";
 import { assertPacketDirectionCurrent, readPacketDirectionInterpretation } from "../persistence/project-direction-store";
 import { bindWorkExpectationToAttempt } from "@/lib/vnext/persistence/work-expectation-store";
 import { AUTHORED_SUCCESSOR_TASK_V01 } from "@/lib/vnext/authored-successor-task";
@@ -186,6 +187,7 @@ export interface PersistedHostPacketAdmissionV01 {
   task_ref: ExternalRefV01;
   packet_lineage:
     | { lineage_kind: "bounded_preparation"; immediate_prior_packet_ref: ExternalRefV01 }
+    | { lineage_kind: "stateless_review_replacement"; immediate_prior_packet_ref: ExternalRefV01 }
     | {
         lineage_kind: "authored_successor_task";
         successor_definition_ref: ExternalRefV01;
@@ -404,7 +406,9 @@ export async function admitPersistedHostTaskContextPacketV01(
       packet.packet_version,
     ),
     packet_lineage:
-      lineage.lineage_kind === "bounded_preparation"
+      lineage.lineage_kind === "stateless_review_replacement"
+        ? { lineage_kind: "stateless_review_replacement", immediate_prior_packet_ref: packet.compatibility.source_refs.find(ref => ref.ref_type === "task_context_packet" && ref.external_id === lineage.prior_packet.packet_id)! }
+        : lineage.lineage_kind === "bounded_preparation"
         ? { lineage_kind: "bounded_preparation", immediate_prior_packet_ref: packet.compatibility.source_refs.find(ref =>
           ref.ref_type === "task_context_packet" && ref.external_id === lineage.prior_packet.packet_id &&
           ref.source_ref === lineage.prior_packet.packet_fingerprint && ref.compatibility_namespace === "vnext_bounded_automation_context_compiler.v0.1")! }
@@ -571,6 +575,7 @@ export async function prepareNativeHostRunClaimInsideTransactionV01(
     evaluated_at: input.claimed_at,
     require_active_project: input.mode !== "repository_attachment",
   });
+  if (statelessUnresolvedEntries(admission.packet).length) refuse("direct_host_unresolved_stateless_effects");
   assertPacketDirectionCurrent(db, admission.packet, input.claimed_at);
   if (admission.packet.compatibility.source_contracts.includes(PROSPECTIVE_PREPARATION_PACKET) && input.mode !== "policy_triggered") refuse("prospective_wake_owner_required", 403);
   revalidateAdmissionInsideTransaction(db, {
@@ -984,6 +989,7 @@ export async function runDirectNativeHostRoundTripV01(
       }
       const finiteReviews = db.prepare("SELECT status FROM autonomy_runs WHERE scope=? AND json_extract(metadata_json,'$.stateless_review.version')='stateless_source_review.v0.1' LIMIT 4097").all(input.config.project_id) as Array<{ status: AutonomyRunnerStatus }>;
       if (finiteReviews.length > 4096 || finiteReviews.some(r => !isTerminalRunnerStatus(r.status))) refuse("direct_host_run_conflict", 409);
+      if (statelessUnresolvedEntries(admitted.packet).length) refuse("direct_host_unresolved_stateless_effects");
       assertPacketDirectionCurrent(db, admitted.packet, startedAt);
       createRunLedgerRecord(db, {
         input,
@@ -1739,7 +1745,7 @@ function buildNativeHostRequest(input: {
     packet,
     guide_brief: input.guide_brief,
     packet_lineage:
-      input.admission.packet_lineage.lineage_kind === "authored_successor_task" || input.admission.packet_lineage.lineage_kind === "bounded_preparation"
+      input.admission.packet_lineage.lineage_kind === "authored_successor_task" || input.admission.packet_lineage.lineage_kind === "bounded_preparation" || input.admission.packet_lineage.lineage_kind === "stateless_review_replacement"
         ? { ...input.admission.packet_lineage, packet_source_refs: packet.compatibility.source_refs,
             selected_context_refs: packet.selected_context.flatMap(e => e.external_ref ? [e.external_ref] : []) }
         : input.admission.packet_lineage.lineage_kind === "semantic_transition"
@@ -3290,7 +3296,7 @@ export function buildDirectNativeHostRunIdentityV01(input: {
   repository_delegation_context?: NativeHostRepositoryDelegationContextV01 | null;
 }) {
   const lineageMaterial =
-    input.admission.packet_lineage.lineage_kind === "bounded_preparation"
+    (input.admission.packet_lineage.lineage_kind === "bounded_preparation" || input.admission.packet_lineage.lineage_kind === "stateless_review_replacement")
       ? { bounded_preparation: input.admission.packet_lineage }
       : input.admission.packet_lineage.lineage_kind === "authored_successor_task"
       ? { authored_successor: input.admission.packet_lineage }
@@ -3370,7 +3376,7 @@ function sourceTransitionReceiptRefV01(
 function admissionLineageRefsV01(
   admission: PersistedHostPacketAdmissionV01,
 ): ExternalRefV01[] {
-  return admission.packet_lineage.lineage_kind === "bounded_preparation"
+  return (admission.packet_lineage.lineage_kind === "bounded_preparation" || admission.packet_lineage.lineage_kind === "stateless_review_replacement")
     ? [admission.packet_lineage.immediate_prior_packet_ref]
     : admission.packet_lineage.lineage_kind === "authored_successor_task"
     ? [admission.packet_lineage.successor_definition_ref, admission.packet_lineage.operator_action_ref,

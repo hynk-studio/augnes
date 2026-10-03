@@ -19,6 +19,7 @@ import { normalizeInitialProjectWorkDefinitionV01 } from "./initial-project-work
 import { readVNextLocalOperatorSessionHistoryV01, type VNextLocalOperatorPilotConfigV01 } from "./local-operator-session";
 import { readCurrentProjectWorkPacketLineageV01 } from "./operator-pilot-project-continuity";
 import { ProjectWorkRevisionErrorV01, parseProjectWorkRevisionRequestV01 } from "./project-work-revision";
+import { assertStatelessUnsettledAdmission, statelessUnresolvedEntries } from "./stateless-review-disposition";
 
 function check(value: unknown, reason: string): asserts value {
   if (!value) throw new ProjectWorkRevisionErrorV01(`work_revision_${reason.replace(/^revision_/u, "")}`, 409);
@@ -90,6 +91,7 @@ export function buildOrdinarySuccessorRevisionV01(prior: TaskContextPacketV01, a
     { entry_id: MATERIAL, entry_kind: "source_ref" as const, source_ref: digest(material), external_ref: priorRef,
       why_included: "Exact revision request and immutable preparation lineage; no execution or semantic authority.", bounded_summary: canonicalizeProtocolValueV01(material), trust_class: "direct_local_observation" as const, currentness, compatibility_source_ref: definitionRef },
     ...prior.selected_context.filter(e => e.entry_kind === "accepted_state_ref" || e.entry_id === `successor-predecessor:${anchor.predecessor_receipt_ref.external_id}`),
+    ...statelessUnresolvedEntries(prior),
     ...selected,
   ];
   const packet = buildTaskContextPacketV01({ workspace_id: prior.workspace_id, project_id: prior.project_id, work_ref: definitionRef,
@@ -188,7 +190,16 @@ export function assertOrdinarySuccessorRevisionRootV01(db: Database.Database, sc
     chain.root.physical_root_fingerprint === fingerprintNativeHostPhysicalRootIdentityV01(inspectNativeHostPhysicalRootIdentitySynchronouslyV01(r.root_binding.local_root.normalized_path)), "revision_root_changed");
 }
 export function ordinarySuccessorRevisionExecutionBlockedV01(db: Database.Database, scope: Scope, chain: OrdinarySuccessorRevisionChainV01) {
-  return hasUnsettledAutonomyRunLedgerRecords({ db, scope: scope.project_id }) || hasAutonomyRunAdmissionForPreparation({ db, scope: scope.project_id, workspace_id: scope.workspace_id,
+  let unsettled = hasUnsettledAutonomyRunLedgerRecords({ db, scope: scope.project_id });
+  // Only a reconstructed successor carrying mandatory stateless uncertainty
+  // can use that profile's exact disposition proof for zero-model revision.
+  // Admission of any run on this work still blocks revision; native execution
+  // and the shared conservative predicate retain their separate refusals.
+  if (unsettled && statelessUnresolvedEntries(chain.tip_packet).length) {
+    try { assertStatelessUnsettledAdmission(db, scope, chain.tip_packet); unsettled = false; }
+    catch { /* Missing, malformed, unrelated or suspended history stays blocked. */ }
+  }
+  return unsettled || hasAutonomyRunAdmissionForPreparation({ db, scope: scope.project_id, workspace_id: scope.workspace_id,
     packet_ids: chain.packet_ids, prepared_at: chain.packets[0]!.generated_at });
 }
 

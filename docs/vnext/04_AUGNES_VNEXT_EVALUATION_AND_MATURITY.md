@@ -360,7 +360,41 @@ of inherited execution authority. Discriminate terminal unreconciled, malformed,
 settled and permitted legacy-omission ledger records, excluding only the own run.
 Returned over-budget usage is reported evidence, never measured cost or success;
 assert its durable classification and unchanged no-retry continuation separately
-from actual transport loss and pre-egress refusal. Also exercise
+from actual transport loss and pre-egress refusal.
+
+For model-request disposition, require an ordinary authored/authorized run with
+scripted transport loss, then an authenticated local end-work decision and
+explicit linked preparation with zero additional provider calls and no grant.
+Retain the original unknown outcome, receipt, claim generation attribution and
+reconciliation history. Fresh-process readback must retain both the decision and
+uncertainty. Test source/root/route unavailability and disabled/expired execution
+authority separately from the still-required authenticated historical bindings.
+Disposition must remain local; new execution must enforce all current source,
+direction, root, control, quote and finite-grant gates.
+Author and select an active direction through ordinary writers before the unknown
+attempt; linked preparation must accept that unchanged selection. Changed or
+incorrectly selected direction must refuse without partial packet/binding state.
+
+Use a deferred transport response to prove that disposition fences the old
+generation, retains bounded late evidence under that attempt and cannot advance
+it, accept its judgment, reopen work or affect the replacement. Local fencing
+never proves provider cancellation. Demonstrate a distinct fresh grant/run,
+completed scripted loop, explicit ordinary result selection and null-grant
+successor with the predecessor's unresolved warning intact.
+Then prepare a new question/file selection on that successor, reopen it, obtain
+a distinct ordinary preview/grant and complete another scripted loop. Compilation,
+lineage validation, fresh readback, recovery and both model inputs must retain
+the mandatory warning and exact predecessor links. The original unknown claim
+and failure receipt remain unchanged; no previous grant executes the new work.
+Current-work run admission still blocks revision. Discriminate stale,
+concurrent and duplicate submissions, wrong projects, missing disposition proof,
+malformed/unrelated/undisposed runs and permitted legacy omission. Older valid
+failures without optional diagnostics remain eligible without backfill. The
+shared unsettled default stays conservative; native execution, unknown local
+actions and other effect classes must not acquire the exception. Label isolated
+negative compatibility/corruption fixtures; they cannot supply positive authority.
+
+Also exercise
 normal unattended internal progress, justified no-action/defer/stop, exact
 source/time/availability in the second input, and fresh-process continuation after
 observation persistence. Reopening must consume the saved result without replaying
