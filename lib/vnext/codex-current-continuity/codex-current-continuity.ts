@@ -1,3 +1,4 @@
+import { readProjectDirection } from "../persistence/project-direction-store";
 import Database from "better-sqlite3";
 import { existsSync, statSync } from "node:fs";
 
@@ -461,7 +462,11 @@ function readCurrentWorkV01(
     : status === "current_work_ambiguous" || status === "current_work_unavailable"
       ? "unavailable_or_ambiguous" as const
       : packetCurrentness;
-  const startBlockerCode = !eligibility.is_active
+  const direction = readProjectDirection(db, config, generatedAt);
+  const directionChanged = direction.pending_work.some(w => w.packet_id === packet?.packet_id && w.needs_reconsideration);
+  const startBlockerCode = directionChanged
+    ? "project_direction_reconsideration_required"
+    : !eligibility.is_active
     ? "project_inactive"
     : !eligibility.root_available
       ? "root_unavailable"
@@ -512,6 +517,7 @@ function readCurrentWorkV01(
       status,
       lineage_kind: packet?.lineage_kind ?? null,
       currentness,
+      ...(direction.effective ? { direction_basis: { ref: direction.effective.ref, parent_current: direction.parent_current, authority_current: direction.authority_current } } : {}),
       operator_configuration_available: eligibility.operator_config_available,
       start_eligible: startBlockerCode === null,
       start_blocker_code: startBlockerCode,
@@ -1524,6 +1530,7 @@ function startBlockerCopyV01(code: string | null): string | null {
       "The local managed-work configuration is unavailable for this project.",
     no_current_work: "Current work has not been defined.",
     current_work_not_exact: "Current work cannot be proven fresh.",
+    project_direction_reconsideration_required: "Project direction or delegation changed. Reconsider pending work before starting.",
     current_work_not_fresh: "Current work must be refreshed before it can start.",
   };
   return copy[code] ?? "Current work cannot start from this exact state.";

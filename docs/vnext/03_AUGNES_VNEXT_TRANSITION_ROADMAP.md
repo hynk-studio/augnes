@@ -159,13 +159,13 @@ capability below before that observation. Broader/default activation still requi
 evidence from ordinary use. P4.6's negative findings, #1342's three
 status passages, and #1372's Web rollout/acceptance ownership remain unchanged.
 
-### Current P3/P4/P5 — Prospective preparation and event/time re-entry (#1380)
+### Completed bounded mechanism — Prospective preparation and event/time re-entry (#1380)
 
 The user authorized this prospective sequencing change on 2026-10-02:
 implement and verify one opt-in local agenda now, while retaining #1379's ordinary
 case as an outstanding obligation and a prerequisite to broader/default activation.
-[#1380](https://github.com/hynk-studio/augnes/issues/1380) remains **Current** during
-implementation/Draft review. It does not complete #1213, #1214 or #1215, reopen
+[#1380](https://github.com/hynk-studio/augnes/issues/1380) is merged through #1381
+with its reviewed authoring/authorization and temporal corrections. It does not complete #1213, #1214 or #1215, reopen
 P4.6, inherit research budgets, or authorize a live comparative study.
 
 The bounded source path is selected direction/notes → candidate decision agenda →
@@ -205,6 +205,85 @@ Next: review the corrected exact source/verification, then select and explicitly
 authorize an ordinary case through this grant owner; observe actual choice, preparation and
 human repair burden before considering broader activation. The absence of that
 case does not invalidate the bounded engineering or establish real-world benefit.
+
+### Current P2/P3/P4/P5 — Project direction and decision authority (#1382)
+
+The 2026-10-02 north-star review authorized this connected increment after merged
+#1381. The implementation connects optional project UI direction → immutable
+revision and actual bounded human/agent admission → ordinary preparation → separate
+execution grant/arm → selected-source inspection → receipt/re-entry → successor.
+The shared authenticated agent route supports independent creation, within-policy
+revision/pause, delegated child creation and attributed return. Explicit renewal
+lets a replacement executor recover the same logical role without rewriting
+history. Pending Start projections and final admission enforce reconsideration;
+already admitted work retains its source basis.
+The PR #1383 correction distinguishes consumed historical direction/agenda from
+current recommendation, rechecks expected direction inside authoring, and records
+creation-slot attribution independently of later root relocation. Complete proposal
+acceptance and conflict-aware editor refresh close the human UI correction.
+
+Development checks exercise these production owners with disposable data, exact
+prior revisions, replay/authority/parent boundaries, factual and method preservation,
+real file inspection, recovery and fresh readers. The browser owner includes the
+normal human author/revise/reload flow, authenticated agent proposal acceptance
+with changed criteria/constraints, purpose-only save/reload, dirty-editor refresh
+and responsive checks. Production regressions cover canonical relocation of both
+independent and delegated projects, slot reuse refusal and suspended-credential
+recovery. Exact-head pass and
+cleanup evidence belong to the Draft PR receipt, not this status paragraph.
+This does not complete P3/P4/P5 or measure ordinary model judgment/usefulness.
+
+The ordinary-use candidate is real #1382 continuation: before choosing the next
+increment, ask whether the canonical `README.md` and `AGENTS.md` consistently
+preserve the direction/Start authority distinction. Proposed bounds are two
+selected top-level files, their pre-action hashes and literal checks, one ten-second
+inspection, no commands/provider/network, one source-bound receipt and one
+explicit successor. Record the prospective question/first choice before execution,
+then result and authoring/preparation/repair burden. This is developer-exposed real
+work until an authorized ordinary worker actually makes the judgment.
+The live Companion lifecycle read for this checkout returned `not_installed`;
+canonical Resume/work-source discovery is unavailable. No daemon was installed.
+A runnable ordinary case still needs a live authorized continuity surface, exact
+current project/work selection, the bounded inspection grant and host admission,
+and a legitimate ordinary worker/observation budget. The pre-action source candidates
+are `README.md` (23,236 bytes, SHA-256 `dd9020e7e0456f9051f3c4b101930ad195c616056e9b7251be4b826ee3745eab`)
+and `AGENTS.md` (10,271 bytes, SHA-256 `2f7ca62017e72d3e6a23b9db71ca457ec70f7751699567c6149b83dad0222c62`).
+Proposed literal checks are “it grants no execution” and “Semantic, execution”,
+respectively; these establish text presence only, not semantic consistency.
+Revalidate exact bytes before authorization. Engineering does not invent
+those inputs. Portable direction export remains unsupported; recovery backup
+preserves its history with credentials disabled. Broader automation, general
+purpose optimization, hosted mutations and a comparative campaign remain outside
+this increment. Pre-correction draft agent genesis lacking immutable creation
+attribution is byte-preserved and directly readable as historical direction, but
+blocks supported application startup as well as recovery for the whole database,
+including co-resident ordinary projects. The public inspection/startup diagnostic
+is `database_canonical_invariant_failed`; the specific
+`project_direction_creation_attribution_missing` cause is internal. Automatic
+backfill from the current root and validation bypass remain unsupported.
+
+The 2026-10-03 bounded read-only closeout inspected the canonical application
+database (2 projects, 23 Core records) and its three retained application backups
+dated 2026-08-26, 2026-09-13 and 2026-09-24. None contains the direction tables, so
+no affected non-disposable agent genesis exists in those inspected databases.
+File identities and bytes were unchanged. The repository legacy database path
+was absent, and the two retained #1382 evidence directories contained no SQLite
+images; their recorded test cases are disposable evidence, not canonical user data.
+Other checkouts, hosts, unregistered copies and removed temporary fixtures were not
+searched. This is a bounded observation, not a global absence claim or an inference
+from the unavailable Companion.
+
+A disposable mixed legacy/ordinary database demonstrated whole-database refusal
+through `inspectRecoveryDatabaseFile` and `prepareRuntimeDatabase`, while its
+direct historical reader remained usable. Ordinary-only and current-format mixed
+controls passed both public boundaries; all three database images remained
+unchanged and owned temporary resources were removed. No affected inspected user
+data requires a migration proposal. Retain this explicit Draft-format
+incompatibility; any later affected data must be preserved with its prior readable
+version and assessed from trusted creation evidence before activation. Next:
+review this compatibility disposition with the bounded implementation, then
+authorize the specific ordinary case and measure its actual first decision and
+repair burden. Ordinary model judgment and comparative usefulness remain unmeasured.
 
 ### Later ordinary-use evidence and current prerequisites
 

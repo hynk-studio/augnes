@@ -1,3 +1,4 @@
+import { readDirectionRecords } from "../persistence/project-direction-store";
 import type { WorkExpectationRecord } from "@/types/vnext/work-expectation";
 import { AUTHORED_SUCCESSOR_TASK_V01 } from "@/lib/vnext/authored-successor-task";
 import { isStandaloneAuthoredSuccessorV01 } from "@/lib/vnext/runtime/authored-successor-task";
@@ -202,6 +203,7 @@ export function previewActivePortableProjectV01(
   db: Database.Database,
 ): PortableProjectPreviewV01 {
   const scope = requireActiveProjectScopeV01(db);
+  if (readDirectionRecords(db, scope).length) refuseV01("portable_project_direction_not_supported_use_recovery_backup", 409);
   const all = readBoundedProjectRecordsV01(db, scope);
   const personal = readPersonalPerspectiveEffectiveScopeV01(db, scope);
   const personalBound = all.filter(recordContainsPersonalPerspectiveV01);
@@ -241,6 +243,7 @@ export function exportActivePortableProjectV01(
     refuseV01("portable_project_timestamp_invalid");
   }
   const scope = requireActiveProjectScopeV01(db);
+  if (readDirectionRecords(db, scope).length) refuseV01("portable_project_direction_not_supported_use_recovery_backup", 409);
   const workspace = readDefaultWorkspaceIdentityV01(db);
   const project = readCanonicalProjectIdentityV01(db, scope);
   if (!workspace || !project) refuseV01("portable_project_scope_unavailable", 409);

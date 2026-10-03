@@ -74,6 +74,17 @@ export function buildBlankStateContinuityV01(
 ): BlankStateContinuityCompositionV01 {
   const projectLifecycle = projectLifecycleCompositionV01(source);
   if (projectLifecycle) return projectLifecycle;
+  const direction = source.project_direction;
+  if (direction?.effective && direction.pending_work.some(work => work.needs_reconsideration)) {
+    const action = linkActionV01("Reconsider work direction", `/projects/${encodeURIComponent(direction.effective.value.project_id)}#project-direction`, "direction_reconsideration_required");
+    const explanation = "The selected direction and agenda in pending work are historical context. Reconsider them against the effective direction before starting new work.";
+    return singleItemCompositionV01({ source, item: itemV01({ family: "work_initialization", stable_basis: `direction:${direction.effective.ref}`,
+      work_name: "Pending work direction", meaningful_state: "Reconsideration required", consequential_detail: explanation, next_action: action }),
+      focus: "work_instructions_unavailable", heading: "Reconsider pending work", situation: explanation,
+      material_note: "Earlier receipts, factual support, counterevidence and conditional methods remain unchanged.",
+      continuity_summary: explanation, guide_action: action, action_reason: explanation,
+      project_management_emphasized: source.route_mode === "project_management" });
+  }
   const workInitialization = workInitializationCompositionV01(source);
   if (workInitialization) return workInitialization;
 

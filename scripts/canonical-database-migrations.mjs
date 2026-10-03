@@ -66,6 +66,11 @@ export const CANONICAL_DATABASE_RECORD_CONTRACT_VERSION = 1;
 // treated as migratable Augnes state.
 export const CANONICAL_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES =
   Object.freeze([
+    // Complete #1382 ledgerless schema, with only the two recovery-owned
+    // metadata tables absent; no arbitrary partial database is admitted.
+    "207d6ef998f1a632c6bf1dca6fcfe7ff3695c2a12a22e9c0b3da41970d836c08",
+    // Exact merged #1381 schema; direction history is additive.
+    "974fa6e9495ce84a42ef47f4b2932de8334c676469c3f32b0565cbdd8610d948",
     "800d9cdf741cf7b85362e8ee9c101b6b33d923a41ff1efdddc098e32df776a4a",
     // Exact CUX1 pre-Pinned schema. CUX2 migrates it additively.
     "91f244d9ecda6e7702370a9cc0382c244bb9bf7929bc5abd722fa833ff1c5e7e",

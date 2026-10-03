@@ -1,3 +1,4 @@
+import { assertExpectedPacketDirection, ProjectDirectionError } from "../persistence/project-direction-store";
 import { inspectCurrentOrdinarySuccessorRevisionChainV01, assertOrdinarySuccessorRevisionRootV01, ordinarySuccessorRevisionExecutionBlockedV01, saveOrdinarySuccessorRevisionInsideTransactionV01 } from "./authored-successor-revision";
 import { AUTHORED_SUCCESSOR_CONTEXT_V01 } from "@/types/vnext/project-work-initialization";
 import { compareNewProjectWorkV01, currentPreparationRootBindingV01, NewProjectWorkPreparationErrorV01 } from "./new-project-work-preparation";
@@ -285,6 +286,7 @@ export function revisePreExecutionProjectWorkV01(
     request: unknown;
     clock?: VNextLocalRuntimeClockV01;
     secret_source?: VNextLocalOperatorSecretSourceV01;
+    expected_direction_ref?: string;
   },
   dependencies: ProjectWorkRevisionDependenciesV01 = {},
 ): RevisePreExecutionProjectWorkResultV01 {
@@ -300,6 +302,7 @@ export function revisePreExecutionProjectWorkV01(
   db.exec("BEGIN IMMEDIATE");
   try {
     const admission = admitVNextLocalOperatorMutationInsideTransactionV01(db, input);
+    if (input.expected_direction_ref !== undefined) assertExpectedPacketDirection(db, input.config, input.expected_direction_ref, admission.action_observed_at);
     const result = revisePreExecutionProjectWorkInsideTransactionV01(db, {
       scope: input.config, request: input.request, admission,
     }, dependencies);
@@ -314,7 +317,7 @@ export function revisePreExecutionProjectWorkV01(
     if (error instanceof ProjectWorkRevisionErrorV01 ||
       error instanceof PreExecutionProjectWorkRevisionErrorV01 ||
       error instanceof VNextLocalOperatorSessionErrorV01 ||
-      error instanceof SelectedWorkSourceError || error instanceof NewProjectWorkPreparationErrorV01) throw error;
+      error instanceof SelectedWorkSourceError || error instanceof NewProjectWorkPreparationErrorV01 || error instanceof ProjectDirectionError) throw error;
     throw new ProjectWorkRevisionErrorV01("work_revision_write_failed", 409);
   }
 }

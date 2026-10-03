@@ -1,5 +1,7 @@
 "use client";
 
+import { ProjectDirection } from "./project-direction";
+
 import {
   useEffect,
   useMemo,
@@ -1160,6 +1162,7 @@ export function BlankStateClient({
             </div>
             ) : null}
 
+            {projection && source.project_direction && <ProjectDirection key={projection.project_id} projectId={projection.project_id} initial={source.project_direction} />}
             <section
               className="blank-state-continuity"
               aria-labelledby="continuity-list-title"

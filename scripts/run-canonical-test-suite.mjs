@@ -707,6 +707,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "project-direction",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning"],
+      label: "authenticated project direction, delegation, preparation, receipt and successor",
+      ...rootNode("scripts/test-project-direction.ts"),
+      timeoutMs: 90_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "retry-inspection-outlook",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning"],

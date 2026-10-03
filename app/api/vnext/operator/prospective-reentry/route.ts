@@ -6,7 +6,7 @@ import { authorizeProspectiveInspection, prospectiveAuthorizationPreview } from 
 import type { ProspectiveAuthorizationRef } from "@/lib/vnext/persistence/prospective-authorization";
 import {
   assertVNextLocalOperatorRequestBoundaryV01, readBoundedVNextLocalOperatorBodyV01,
-  readVNextLocalOperatorCredentialFromRequestV01, readVNextLocalOperatorPilotConfigV01,
+  readVNextLocalOperatorCredentialFromRequestV01, resolveVNextLocalReviewConfigV01,
   serializeVNextLocalOperatorSessionCookieV01, VNextLocalOperatorSessionErrorV01,
   authenticateVNextLocalOperatorSessionV01, openVNextLocalOperatorDatabaseV01,
   type VNextLocalOperatorPilotConfigV01,
@@ -32,8 +32,8 @@ export function createProspectiveReentryHandler(options: {
       const mutating = request.method === "POST";
       const url = assertVNextLocalOperatorRequestBoundaryV01(request, { mutating });
       if (!["GET", "POST"].includes(request.method) || (mutating || url.searchParams.has("preview")) && (process.platform !== "darwin" || process.arch !== "arm64")) throw new Error("prospective_qualified_local_route_required");
-      const config = readVNextLocalOperatorPilotConfigV01(options.environment ?? process.env);
       const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
+      const config = resolveVNextLocalReviewConfigV01({ environment: options.environment ?? process.env, credential, clock: options.clock });
       const open = options.open_database ?? openVNextLocalOperatorDatabaseV01;
       const now = options.clock?.now ?? (() => new Date().toISOString());
       db = open(config);

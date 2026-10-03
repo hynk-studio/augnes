@@ -14933,3 +14933,19 @@ h1 {
     border-radius: 16px 16px 0 0;
   }
 }
+
+/* Optional project direction stays within the existing project surface. */
+.blank-state-project-direction { overflow-wrap: anywhere; margin-block: 1.5rem; }
+.blank-state-project-direction details { margin-block: .75rem; }
+.blank-state-project-direction summary { cursor: pointer; min-height: 44px; padding-block: .65rem; box-sizing: border-box; }
+.blank-state-project-direction > a { display: inline-block; min-height: 44px; padding-block: .65rem; box-sizing: border-box; }
+.blank-state-project-direction label { display: block; margin-block: .75rem; }
+.blank-state-project-direction textarea,
+.blank-state-project-direction input:not([type="checkbox"]) {
+  display: block; box-sizing: border-box; width: 100%; max-width: 40rem;
+  padding: .65rem; border: 1px solid var(--panel-border); border-radius: .4rem;
+  background: transparent; color: inherit; font: inherit;
+}
+.blank-state-project-direction button { min-height: 44px; margin: .25rem .5rem .25rem 0; padding: .5rem .75rem; }
+
+.blank-state-project-direction input[type="checkbox"] { width: 44px; height: 44px; vertical-align: middle; }

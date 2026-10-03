@@ -380,6 +380,57 @@ tests; COIN, Apperception, temporal-control and computation-selection results do
 establish Augnes utility. P4.6's negative findings and historical receipts remain
 unchanged.
 
+### Project direction, authority and ordinary-use evidence (#1382)
+
+Keep normal browser operability, authenticated agent mechanism, actual model
+judgment and comparative usefulness separate. The browser author/revise/reload
+check uses the human session and verifies immutable task/source bytes and mobile
+layout. The agent check obtains its bearer capability from the real bounded issuer,
+creates independent and delegated projects, revises/pauses within scope, returns
+attributed material, and reconstructs history with replacement authorization.
+Neither a scripted caller nor an agent display label demonstrates autonomous
+judgment. Positive execution must use ordinary null-grant work, explicit preparation
+authorization, host admission, actual bounded reads, receipt/re-entry and successor.
+
+Discriminating checks cover spoofed credentials, stale revisions and sequences,
+parent changes/cycles/isolation, revoked or renewed authority, pending versus
+admitted work, before/at/after availability, immutable history, no-direction
+compatibility and suspended credentials after backup/restore. A direction-only
+change must preserve selected counterevidence, factual support and still-valid
+methods. New relevance does not retroactively validate a forecast or invalidate
+an observation. The fresh reader must recover the effective principal/revision
+and history through current admission, not fixture-injected ownership.
+The #1383 review corrections additionally discriminate retained historical agenda
+from current work through ordinary revision, successor, native admission and
+GuideBrief. A fresh sidecar is insufficient. Check expected direction at the
+packet writer's transaction boundary, preserve already admitted results, and allow
+explicit reconsideration to retain independently supported methods. Relocate both
+authenticated independent and delegated creations through the canonical rebind
+owner, then validate history and credential-suspended recovery. Reject unrelated
+grant/slot/project/root attribution and reuse of a consumed creation slot. Missing
+pre-correction attribution must be reported, never reconstructed from current root.
+Distinguish direct historical-reader compatibility from public database inspection,
+normal startup and recovery. A mixed legacy-agent/ordinary-project fixture must
+exercise the public boundaries and record their whole-database refusal and actual
+`database_canonical_invariant_failed` diagnostic, alongside ordinary-only and
+current-format mixed controls. The more specific direction error is internal.
+Bounded read-only inventory of authorized non-disposable data supplies the presence
+or absence observation; fresh-format fixtures and Companion availability cannot.
+State inspected locations, preservation evidence and uninspected scope without
+turning a bounded absence into a universal compatibility claim.
+Browser acceptance must show the complete proposal, accept changed criteria and
+constraints, edit only purpose, save/reload and retain those accepted fields;
+refresh while dirty must disclose conflict without overwriting unsaved values.
+Earlier passing receipts do not establish these newly corrected assertions.
+
+The #1382 ready-to-review ordinary case and exact missing inputs are recorded in
+03. No live ordinary model judgment or comparative usefulness is claimed. Capture
+its prospective question and inputs before the first observed choice, then the
+source-bound result, successor, authoring/preparation burden and repeated human
+repair. Strong-baseline and total-burden requirements above still govern any later
+comparison; no new study, provider budget or default automation is authorized.
+Historical P4.6 negative findings and #1342 protected statuses remain unchanged.
+
 ## Prospective expectation mechanics
 
 Keep task requirements, an author's prediction and the result's established

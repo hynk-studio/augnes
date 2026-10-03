@@ -5697,7 +5697,7 @@ async function assertExpectationSchemaCompatibilityV01(): Promise<void> {
     fixture.db.exec(table.replace(/,\s*'work_expectation_record'/u, ""));
     fixture.db.exec("INSERT INTO vnext_core_records SELECT * FROM expectation_schema_fixture_backup; DROP TABLE expectation_schema_fixture_backup");
     fixture.db.exec(schema);
-    fixture.db.exec("DROP TABLE vnext_prospective_reentry");
+    fixture.db.exec("DROP TABLE vnext_project_direction_credentials; DROP TABLE vnext_project_direction_records; DROP TABLE vnext_prospective_reentry");
     fixture.db.exec("COMMIT");
     assert.equal(structuralSchemaContractSignature(fixture.db), "66f470e7a6e5bc2a10d5e2b0437dc95165596ae55f915ecd27ee1666e130f980");
     assert.equal((await inspectRuntimeDatabase({ databasePath: fixture.config.database_path })).database_state, "old");

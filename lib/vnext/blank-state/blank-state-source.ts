@@ -1,3 +1,4 @@
+import { readProjectDirection } from "../persistence/project-direction-store";
 import type Database from "better-sqlite3";
 
 import { openDatabase } from "@/lib/db";
@@ -151,6 +152,7 @@ export async function readBlankStateSourceV01(
     recent_projects: recentProjects,
     projection,
     project_resolution: projection ? "resolved" : projectResolution,
+    project_direction: readProjectDirection(db, { workspace_id: workspace.workspace_id, project_id: targetProjectId }, new Date().toISOString()),
     direct_host_round_trip_available: projection
       ? directHostRoundTripAvailableV01(projection)
       : false,
