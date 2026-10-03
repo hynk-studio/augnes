@@ -912,8 +912,9 @@ timeout or transport loss after dispatch retains unknown cost/effect. A stale
 controller cannot settle another generation; its returned receipt can be retained
 as a quarantined ledger event without resolving the outstanding claim.
 
-Project unsettled-run guards remain active, excluding only this run when admitting
-its own next step through the shared ledger owner. Terminal status alone is not
+Project unsettled-run guards remain conservative by default, excluding only this
+run when admitting its own next step through the shared ledger owner. Terminal
+status alone is not
 settlement: malformed metadata or a present reconciliation flag other than false
 remains unresolved; the existing legacy omission allowance is unchanged.
 Readback uses the authenticated project reader and normal structured result owner.
@@ -935,6 +936,52 @@ error/direct-cause codes, and the observed abort flag. Messages, stacks, headers
 credentials, URLs and request/response bodies are excluded. These local diagnostics
 do not establish provider delivery, billing or outcome, settle an unknown claim,
 or authorize replay. Historical failures without them remain unchanged.
+
+The same authenticated review surface can explicitly **end further work** on an
+unknown model request in this profile's choose or conclude stage. This records
+`stateless_model_request_disposition.v0.1` in the existing ledger metadata and
+events. It is a local work decision, not provider settlement, remote cancellation,
+success, non-delivery or zero cost. It applies neither to an unknown local read
+nor to native execution, commands or other effect classes. A valid historical
+failure receipt needs no newer optional diagnostic observation. Missing evidence
+is not backfilled. A new in-flight controller records its bounded model-request
+claim immediately before transport; that local claim also does not prove delivery.
+
+The writer authenticates the exact project and compares the historical run,
+step generation, packet/grant/failure evidence and current run revision inside
+one immediate transaction. Identical resubmission acknowledges the original
+decision; a stale or competing binding refuses. Automation permission, grant
+expiry, current source bytes/root availability and model-route availability are
+not gates on ending work. It keeps the reconciliation obligation and original
+claim evidence. The commit generation is fenced, with the original generation
+retained explicitly; even an older generation-only result writer cannot complete
+that abandoned claim. A late controller can retain a bounded invocation receipt
+and reported usage under the original run, without applying a judgment, advancing
+stages, settling uncertainty or affecting replacement work.
+
+**Prepare linked work** is a separate explicit authenticated authoring action.
+It creates a `stateless_source_review_replacement.v0.1` packet in the same project,
+with a new question/current source versions, inherited success criteria/non-goals,
+validated predecessor/disposition lineage and an attributed unresolved-effect
+warning. It does not revise the issued packet, impersonate a completed result,
+enable automation, create a run/grant or invoke a provider. It requires the exact
+current predecessor; duplicate preparation can acknowledge only its identical
+immediate replacement. At most eight unresolved predecessors are retained in this
+bounded chain; exceeding the bound refuses without truncation.
+
+Only this profile's finite admission and its completed-result successor writer
+may use the disposition exception. They read the shared conservative unsettled
+predicate and validate every relevant disposition against authenticated historical
+provenance, unchanged claim evidence and the packet's exact links. Missing,
+malformed, unrelated or undisposed records still block; no arbitrary old run ID,
+terminal status or reconciliation reset supplies admission. Generic/native paths
+retain their prior refusal and cannot execute a packet carrying this uncertainty.
+Fresh execution still requires current source/direction/root/control validation,
+a new finite preview, explicit data/spend authorization and a distinct grant/run.
+The predecessor's unknown cost is neither zero nor refunded allowance. A completed
+replacement reaches ordinary result selection and null-grant successor authorship;
+the unresolved predecessor warning remains separate from selectable result prose.
+
 Recovery retains grants, results and unknown claims but
 suspends this profile's execution eligibility. Portable project export refuses a
 project containing its grants until unfinished-work transfer has its own supported

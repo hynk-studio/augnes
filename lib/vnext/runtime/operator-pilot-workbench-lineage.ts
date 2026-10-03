@@ -1,3 +1,4 @@
+import { isStatelessReplacement, inspectStatelessReplacement, statelessReplacementIdempotencyKey } from "./stateless-review-disposition";
 import { authoredSuccessorPacketIdempotencyKeyV01, inspectAuthoredSuccessorPacketV01, isStandaloneAuthoredSuccessorV01 } from "./authored-successor-task";
 import type Database from "better-sqlite3";
 
@@ -308,13 +309,14 @@ function loadValidatedCompiledPackets(
       record_id: packet.packet_id,
       fingerprint: packet.integrity.fingerprint,
       idempotency_key:
-        authoredSuccessorPacketIdempotencyKeyV01(packet) ??
+        statelessReplacementIdempotencyKey(packet) ?? authoredSuccessorPacketIdempotencyKeyV01(packet) ??
         initialProjectWorkIdempotencyKeyV01(packet) ??
         preExecutionProjectWorkRevisionIdempotencyKeyV01(packet),
       created_at: packet.generated_at,
       workspace_id: packet.workspace_id,
       project_id: packet.project_id,
     });
+    if (isStatelessReplacement(packet)) { inspectStatelessReplacement(db, { config, packet }); continue; }
     if (isStandaloneAuthoredSuccessorV01(packet)) {
       inspectAuthoredSuccessorPacketV01(db, { config, packet });
       continue;

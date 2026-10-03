@@ -239,22 +239,29 @@ through result preparation and preview, then authors a new packet with no inheri
 grant. Existing Codex successor wording/lineage and historical records remain
 compatible; no ledger repair or invented native execution supplies this path.
 
-Actual ordinary model judgment and strong-baseline usefulness are **NOT RUN**.
-The proposed live invocation card was refreshed on 2026-10-03. Read-only Gateway
-route preparation in the current shell returned `openai` / `gpt-4.1-mini`, with
-zero provider calls; source routes it to `https://api.openai.com/v1/responses`.
-This establishes shell configuration, not a running service's route or account
-access. The alias remains configured; no snapshot/model switch was performed.
-[Official route pricing](https://developers.openai.com/api/docs/models/gpt-4.1-mini)
-reviewed that day lists USD 0.40 input, 0.10 cached input and 1.60 output per million
-tokens. The request does not pin `service_tier`; actual project pricing/tier must
-be confirmed before live authorization. No caching discount is assumed.
+The original unbound card is historical. Ordinary onboarding and authorship
+subsequently prepared a genuinely new candidate; this did not recover unavailable
+Companion continuity. On 2026-10-03 the user separately authorized that candidate's
+ordinary control, finite grant, reviewed data transmission and at most two
+`gpt-4.1-mini` calls under the declared USD 0.10 envelope. The authorized attempt
+at `a7d8cfce0e9f33d42df9077e2d8da3321c19c9d3` made one Gateway-accounted Responses
+attempt and obtained no normalized judgment. Its durable run remains paused with
+unknown dispatch and reconciliation required; no observation or second judgment
+ran. API-key project ownership and actual service tier remain unresolved metadata;
+the user closed their investigation as prerequisites. Do not reopen those gates.
 
-The card proposes `input_nano_usd_per_byte=1000`,
+The original configured route was OpenAI Responses / `gpt-4.1-mini`, with no
+account/provider/model switch. The historical
+[official route-pricing reference](https://developers.openai.com/api/docs/models/gpt-4.1-mini)
+was reviewed that day as USD 0.40 input, 0.10 cached input and 1.60 output per million
+tokens. The request did not pin `service_tier`, and that quote did not verify the
+project's tier or guarantee provider billing. No caching discount was assumed.
+
+The authorized card declared `input_nano_usd_per_byte=1000`,
 `output_nano_usd_per_token=1600`,
 `source_version=openai-gpt-4.1-mini-standard-2026-10-03`, and
 `maximum_total_nano_usd=100000000` (USD 0.10 total, 0.05 per invocation).
-The byte rate is an operator-proposed conservative bound, not OpenAI's billing
+The byte rate was an operator-declared conservative bound, not OpenAI's billing
 unit. At 16,384 input bytes and 1,024 output tokens per request, the quote computes
 USD 0.0180224 per call / 0.0360448 for two. This is a conditional envelope estimate,
 not measured cost or a provider-side billing guarantee. Retain two calls maximum,
@@ -268,29 +275,54 @@ Selected source versions (full-file SHA-256, unchanged from the reviewed PR head
 | `lib/vnext/automation/policy-triggered-planner-run.ts` | 141–164 | `ea5cc75e8862691c95d39baa11c8954ba4c8e8d26b2e452875f09b8ea20b9292` |
 | `lib/vnext/runtime/prospective-reentry.ts` | 112–131 | `dd1f769c2909a0cfeee1f7efe4750c04288fb94f243ff89218097810171a5061` |
 
-Transmitted data would be the authored task/question, consumed working direction,
+The reviewed transmission boundary covered the authored task/question, consumed working direction,
 project identity, packet/source fingerprints, relative file inventory, cutoff,
 bounded instructions/schema, and on the second call the first normalized judgment
 plus exact observation/excerpts. The selected excerpts total 2,737 UTF-8 bytes;
 full files are read locally. Requests use `store:false` and no previous-response
 chain. No raw response, hidden reasoning or credential becomes product state.
 
-**Card remains unbound and unexecuted.** The canonical lifecycle check returned
-`not_installed`, so exact live workspace/project/work/packet, direction and
-root/host bindings are unavailable through the supported current-continuity path.
-No production record was created, and fixture IDs or GitHub issue/branch names do
-not substitute for these fields. The Draft PR binds the final implementation
-base/head; a live target still requires its own exact ordinary preparation and
-separate data/budget permission. No installation or live invocation is authorized
-by preparing this card.
+The original attempt and all later local diagnosis remain distinct evidence.
+The retained candidate is project `project:911ec94e-8664-4928-8f3f-38700e0d85f9`,
+packet `task-context-packet:4a55dd085f7b9988eae4b52`, with fingerprint
+`sha256:33a5fbdeabc54629d187288747b58d952dd3aaa16f10269ef991b2b74b9390d0`.
+Run `stateless-review:f130d084e7c13725491d87b3` retains its original unknown
+outcome; these are observed ordinary-writer bindings, not inferred source IDs.
+The first attempted request was 3,892 serialized bytes. Provider receipt,
+execution, reported usage and cost remain unavailable. A missing response never
+establishes absence of delivery or charge.
 
-Next decision: review the bounded implementation and exact-head verification,
-then decide whether to authorize that ordinary case and observe actual choice,
-use/non-use, cost and human repair burden. This first PR does not complete the
-continuity program. Same-database account/session changes, meaningful unfinished
-work transfer (#1149), semantic selection quality, cross-project recurrence and
-strong comparative evaluation remain separate. P4.6's negative findings and
-#1342/#1372 ownership are unchanged.
+Zero-provider-egress diagnosis at `73ac10f6730fd23a0f983f1e834bd948dcb6a507`
+established a candidate sandbox defect: local macOS resolver IPC was denied.
+A separate corrected profile admitted a local daemon connection without a DNS
+query. This later discriminator does not settle the original request. The
+adapter/Gateway/ledger now retain bounded allowlisted transport diagnostics;
+historical records were not backfilled. The exact-head Local Canonical PASS is
+local correctness evidence, not provider readiness or usefulness. Details and
+preserved failures are in [the diagnosis report](https://github.com/hynk-studio/augnes/pull/1385#issuecomment-5967319917).
+
+The next bounded implementation adds explicit local disposition, linked new-work
+authorship and separately authorized fresh execution for this model-request
+uncertainty only. It reuses authentication, ledger/events, packet lineage and
+finite grants. Ending work preserves unknown effects and fences late result
+application; preparation creates no grant; fresh execution has all current gates.
+Scripted ordinary-path checks cover durable uncertainty, disabled/expired authority,
+source-free disposition, fresh-process readback, concurrent/stale submissions,
+late receipts, distinct replacement completion and ordinary successor authorship.
+No provider-outcome lookup, manual settlement system or generic execution exception
+is introduced. See 02 for the bounded contract and 04 for deciding criteria.
+
+The retained candidate is not disposed, replayed or granted a new attempt by this
+development. Next decision: review the implementation and its exact-head evidence,
+then decide whether to apply the local end-work/linked-preparation actions to that
+candidate. Any additional live model attempt needs its separate current data/spend
+and finite execution decision; no remaining old allowance is retry authority.
+Live judgment was not obtained, and normal/interrupted live progression and
+comparative usefulness remain **NOT RUN**. Existing Companion continuity remains
+unavailable. Same-database account/session changes, meaningful unfinished-work
+transfer (#1149), semantic selection quality, cross-project recurrence and strong
+comparative evaluation remain separate. P4.6's negative findings and #1342/#1372
+ownership are unchanged. This does not complete the continuity program.
 
 ### Current P2/P3/P4/P5 — Project direction and decision authority (#1382)
 

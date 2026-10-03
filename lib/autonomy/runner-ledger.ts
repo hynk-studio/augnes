@@ -628,23 +628,28 @@ export function listAutonomyRunLedgerRecords(
  * unknown statuses and any present flag other than false remain unresolved.
  * A continuing controller may exclude its exact own run, never other history.
  */
-export function hasUnsettledAutonomyRunLedgerRecords(
-  options: AutonomyRunnerLedgerDbOptions & { scope: string; exclude_run_id?: string },
-): boolean {
-  return withAutonomyRunnerLedgerDb(options, (db) => db.prepare(
-    `SELECT 1 FROM autonomy_runs
-     WHERE scope = ? AND (? IS NULL OR run_id <> ?) AND (
-       status NOT IN (${AUTONOMY_RUNNER_TERMINAL_STATUSES.map(() => "?").join(", ")})
-       OR CASE
-         WHEN json_valid(metadata_json) = 0 THEN 1
-         WHEN json_type(metadata_json) <> 'object' THEN 1
-         ELSE EXISTS (
-           SELECT 1 FROM json_each(metadata_json)
-           WHERE key = 'reconciliation_required' AND type <> 'false'
-         )
-       END
-     ) LIMIT 1`,
-  ).get(options.scope, options.exclude_run_id ?? null, options.exclude_run_id ?? null, ...AUTONOMY_RUNNER_TERMINAL_STATUSES) !== undefined);
+const unsettledRunWhere = `scope = ? AND (? IS NULL OR run_id <> ?) AND (
+  status NOT IN (${AUTONOMY_RUNNER_TERMINAL_STATUSES.map(() => "?").join(", ")})
+  OR CASE
+    WHEN json_valid(metadata_json) = 0 THEN 1
+    WHEN json_type(metadata_json) <> 'object' THEN 1
+    ELSE EXISTS (SELECT 1 FROM json_each(metadata_json)
+      WHERE key = 'reconciliation_required' AND type <> 'false')
+  END
+)`;
+type UnsettledOptions = AutonomyRunnerLedgerDbOptions & { scope: string; exclude_run_id?: string };
+const unsettledArguments = (options: UnsettledOptions) => [options.scope, options.exclude_run_id ?? null,
+  options.exclude_run_id ?? null, ...AUTONOMY_RUNNER_TERMINAL_STATUSES];
+export function hasUnsettledAutonomyRunLedgerRecords(options: UnsettledOptions): boolean {
+  return withAutonomyRunnerLedgerDb(options, db => db.prepare(`SELECT 1 FROM autonomy_runs WHERE ${unsettledRunWhere} LIMIT 1`)
+    .get(...unsettledArguments(options)) !== undefined);
+}
+
+/** Same conservative predicate, bounded identities for a profile-specific proof
+ * owner. This read grants no exclusion or admission. A full page is incomplete. */
+export function readUnsettledAutonomyRunIds(options: UnsettledOptions): string[] {
+  return withAutonomyRunnerLedgerDb(options, db => (db.prepare(`SELECT run_id FROM autonomy_runs WHERE ${unsettledRunWhere} ORDER BY run_id LIMIT 129`)
+    .all(...unsettledArguments(options)) as Array<{ run_id: string }>).map(row => row.run_id));
 }
 
 export function updateAutonomyRunLedgerFields(

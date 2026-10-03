@@ -51,6 +51,7 @@ export function buildHostedResearchProjectionV02(input: HostedResearchProjection
     refuse("current_work_unavailable");
   }
   const packet = lineage.packet;
+  if (current.current_packet.lineage_kind === "stateless_review_replacement") refuse("current_work_unavailable");
   const expectedState = CURRENT_STATES[current.current_packet.lineage_kind];
   if (!expectedState || current.state !== expectedState[0] || current.reason !== expectedState[1]) {
     refuse("current_work_unavailable");

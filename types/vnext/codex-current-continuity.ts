@@ -40,6 +40,7 @@ export type CodexCurrentContinuityWorkStatusV01 =
 
 export type CodexCurrentContinuityLineageKindV01 =
   | "bounded_preparation"
+      | "stateless_review_replacement"
   | "initial_user_defined"
   | "pre_execution_user_revision"
       | "pre_execution_new_task"
