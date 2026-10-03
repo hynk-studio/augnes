@@ -77,6 +77,7 @@ function readBundle(root: string, review: SourceReview, at: string, bindVersions
       const text = lines.slice(file.start_line - 1, file.end_line).join("\n");
       sources.push({ ...file, digest, text, excerpt_digest: hash(text) });
       check(sources.reduce((n, s) => n + Buffer.byteLength(s.text), 0) <= LIMITS.excerpt_bytes, "excerpt_overflow");
+      check(performance.now() - started < LIMITS.action_ms, "action_timeout");
     }
     return { availability: "observed", observed_at: at, bytes_read: bytes, reason: "exact_selected_utf8_excerpts_not_semantic_proof", sources };
   } catch { return { availability: "channel_unavailable", observed_at: at, bytes_read: bytes, reason: "bounded_channel_unavailable_no_absence_claim", sources: [] }; }

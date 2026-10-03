@@ -19,13 +19,12 @@ export function createStatelessSourceReviewHandler(options: { environment?: Node
       const config = resolveVNextLocalReviewConfigV01({ credential, environment: options.environment ?? process.env, clock: options.clock });
       db = openVNextLocalOperatorDatabaseV01(config);
       authenticateVNextLocalOperatorSessionV01(db, { config, credential, clock: options.clock });
+      if ([...url.searchParams.keys()].join() !== "project_id" || url.searchParams.get("project_id") !== config.project_id) throw new Error("stateless_review_project_mismatch");
       const hostOptions = { config, now: options.clock?.now ?? (() => new Date().toISOString()), adapter: options.adapter };
       if (request.method === "GET") {
-        if ([...url.searchParams.keys()].join() !== "project_id" || url.searchParams.get("project_id") !== config.project_id) throw new Error("stateless_review_project_mismatch");
         const rows = db.prepare("SELECT run_id FROM autonomy_runs WHERE scope=? AND json_extract(metadata_json,'$.stateless_review.version')='stateless_source_review.v0.1' ORDER BY created_at DESC LIMIT 20").all(config.project_id) as Array<{ run_id: string }>;
         return NextResponse.json({ ok: true, read_only: true, reviews: rows.map(r => new StatelessSourceReviewHost(hostOptions, r.run_id).read()) }, { headers });
       }
-      if (url.search) throw new Error("stateless_review_request_invalid");
       const body = await readBoundedVNextLocalOperatorBodyV01(request);
       let admission; let result: unknown;
       if (body.action === "prepare") {

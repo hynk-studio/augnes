@@ -4881,6 +4881,11 @@ async function validateProjectDirectionUI(accessDatabasePath, projectAlphaId) {
     await waitForCondition(`document.querySelector('[data-stateless-source-review]')?.textContent.includes('No saved source reviews.') === true`, "authenticated stateless source-review reader");
     assert.equal(await evaluateString(`document.querySelector('[aria-label="Source-review question"]').value`), 'What do the selected entrypoints establish?');
     assert.deepEqual(packetBytes(), packetsBeforeDirection, "Source-review reader and unsaved editor do not alter authored work");
+    await clickSelector('[data-stateless-source-review] > details > summary');
+    for (const [label, value] of [['Input ceiling per byte', '1000'], ['Output ceiling per token', '1000'], ['Total ceiling for both judgments', '100000000'], ['Pricing source/version', 'browser-test-no-authority']]) {
+      await setFormControlValue(`[aria-label="${label}"]`, value);
+    }
+    assert.equal(await evaluateBoolean(`Array.from(document.querySelectorAll('[data-stateless-source-review] button')).find(b => b.textContent === 'Review authorization').disabled`), true, 'unsaved question cannot enter authorization review');
     for (const width of [390, 768, 1440]) {
       await setViewport(width, 1000);
       await evaluateBoolean(`(() => { document.querySelectorAll('[data-project-direction] details').forEach(d => d.open = true); return true; })()`);

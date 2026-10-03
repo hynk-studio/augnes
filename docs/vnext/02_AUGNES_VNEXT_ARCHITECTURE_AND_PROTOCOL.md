@@ -868,6 +868,8 @@ from the zero-model prospective inspection profile and P4.6 research permission.
 The project surface prepares a question and one or two exact UTF-8 file ranges
 as a selected whole note on ordinary null-grant work. Preparation binds full-file
 hashes and selected line ranges, preserving the task and other selected sources.
+Every reader or mutation request binds the displayed project ID to the immutable
+session scope; selection or a stale cookie cannot retarget it.
 Only the local authenticated authorization route can issue the separate
 `stateless_source_review_grant.v0.1` Core capability record and one ledger run.
 No recommendation, selected note, working direction or research budget grants
@@ -887,7 +889,9 @@ control revision, provider/model cost snapshot and an expiry of at most ten minu
 Its fixed ceilings are two model requests, 16,384 input bytes and 1,024 output tokens
 per request, fifteen seconds per invocation, one read bundle of at most two regular
 files / 65,536 bytes, 4,096 excerpt bytes, ten seconds per read, and forty-five
-seconds per foreground host call. Local preparation, authorization and first-step
+seconds per foreground host call. Local file deadlines are checked before and
+after bounded synchronous file operations; they cannot forcibly interrupt a blocked
+OS filesystem call. Local preparation, authorization and first-step
 version checks each read at most 65,536 bytes separately; these are preparation
 costs, not extra completed action bundles. No command execution, retry or provider
 failover is available. Pricing rates and provenance are explicit operator inputs;

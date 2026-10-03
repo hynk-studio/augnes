@@ -84,8 +84,8 @@ async function fixture(name: string, firstChoice = "read_selected_sources", seco
     AUGNES_VNEXT_OPERATOR_PROJECT_ID: scope.project_id, AUGNES_VNEXT_OPERATOR_ID: config.operator_id, AUGNES_DB_PATH: databasePath };
   const route = createStatelessSourceReviewHandler({ environment, clock: { now }, adapter });
   const url = "http://127.0.0.1/api/vnext/operator/stateless-source-review";
-  async function call(body?: unknown, expected = 200, headers: Record<string, string> = {}) {
-    tick(); const response = await route(new Request(body ? url : `${url}?project_id=${scope.project_id}`, { method: body ? "POST" : "GET",
+  async function call(body?: unknown, expected = 200, headers: Record<string, string> = {}, projectId = scope.project_id) {
+    tick(); const response = await route(new Request(`${url}?project_id=${projectId}`, { method: body ? "POST" : "GET",
       headers: { host: "127.0.0.1", origin: "http://127.0.0.1", cookie, ...(body ? { "content-type": "application/json" } : {}), ...headers }, ...(body ? { body: JSON.stringify(body) } : {}) }));
     const value = await response.json(); assert.equal(response.status, expected, canonical(value));
     if (response.headers.get("set-cookie")) cookie = response.headers.get("set-cookie")!.split(";")[0]!;
@@ -111,6 +111,11 @@ async function main() {
     const normal = await fixture("normal");
     await normal.call({ action: "authorize_and_run", authorization: normal.preview }, 401, { cookie: "" });
     await normal.call({ action: "authorize_and_run", authorization: normal.preview }, 403, { origin: "https://foreign.example" });
+    const authoredBeforeMismatch = canonical(listVNextCoreRecordsV01(normal.db, { ...normal.scope, record_kinds: ["task_context_packet", "capability_grant"], limit: 128 }));
+    await normal.call({ action: "prepare", material: { question: "Do not write to the cookie's other project", files: [{ path: "entry.ts", start_line: 1, end_line: 2 }] } }, 409, {}, `project:${randomUUID()}`);
+    await normal.call({ action: "authorize_and_run", authorization: normal.preview }, 409, {}, "");
+    assert.equal(canonical(listVNextCoreRecordsV01(normal.db, { ...normal.scope, record_kinds: ["task_context_packet", "capability_grant"], limit: 128 })), authoredBeforeMismatch);
+    assert.equal(normal.calls, 0);
     const result = (await normal.call({ action: "authorize_and_run", authorization: normal.preview })).result;
     assert.equal(result.run.status, "completed", result.run.stop_reason); assert.equal(normal.calls, 2);
     assert.equal(normal.inputs[1].observation.sources[0].text, sourceText.trimEnd());
