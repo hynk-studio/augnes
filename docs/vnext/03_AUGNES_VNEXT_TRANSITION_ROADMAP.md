@@ -363,15 +363,60 @@ Automation stayed disabled; scoped grants/runs/provider accounting remained
 Current source inspection and an ordinary scripted reproduction confirmed that
 selected notes survived successor/revision authorship but were omitted from the
 stateless model input. That omission did not cause the earlier overclaim because
-Work's review did not yet exist. The next bounded implementation connects the
+Work's review did not yet exist. The bounded implementation in Draft #1387 connects the
 explicit selected-note projection to both judgments and fresh transmission
 authority, with unchanged limits and no automatic historical report selection.
 See 02 for the projection contract and 04 for delivery versus semantic evidence.
 
-Next decision: review this selected-note implementation and its exact-head local
-evidence. The successor remains unexecuted; any live response to Work's review
-requires a separate current source selection and finite data/spend authorization.
-Interrupted live progression and comparative usefulness remain **NOT RUN**. Earlier
+Work accepted that correction at `65f6efc92d969c47e86152efa9388aba4c169c63`.
+Subsequent ordinary preparation saved the direct-call trace in
+`task-context-packet:f8a6cb10dc730491427aa63`, fingerprint
+`sha256:e52616507df90d48f7d4b8615aedbe028c9b2f523a125accd6ef5c9c17d71b63`.
+The frozen four-attempt mini/GPT-4.1 comparison was then separately authorized.
+On 2026-10-04 Asia/Seoul (2026-10-03 UTC), its first mini attempt at that exact
+source created run `stateless-review:5cc0dd2353903d40b84fe4cd` and stopped after
+two returned responses. Its accepted first public choice was `no_action`; no
+source excerpt was sent because it declined inspection. That choose input held
+inventory and selected context, not the new code. Its rationale claimed inspected
+excerpts and applied the historical planner/reentry correction to a distinct
+`runDirectionInspection` → `runFor` → `wake` question. This supports a negative
+observation about choosing inspection and scoping the correction, not demonstrated
+misreading of transmitted code or general mini incapability.
+
+The second HTTP 200 response completed Gateway normalization within its bounds,
+then the host recorded `returned_invalid` and a generic refusal. Its normalized
+public result and exact later rejection layer/predicate were not retained and
+remain **UNAVAILABLE**; surviving evidence cannot exclude a persistence failure.
+There is no completed RunReceipt. The other three attempts are **NOT RUN**, with
+no completed pair or GPT-4.1 observation. The sequence is closed; unused calls
+and allowance cannot be reused. Two request bodies totaled 15,111 serialized
+bytes; reported usage was 3,764 input / 385 output tokens. The consumed
+tier-unresolved operator estimate was USD 0.016189, not reported billing.
+Original unknown effects/cost remain separate. Automation was disabled at
+revision 6; logout/revocation and subsequent HTTP 401, model-configuration
+preservation and owned-process cleanup were reported verified. Candidate totals
+are 3 grants / 3 runs / 5 historical provider-call accounting. All previous runs,
+receipts, selected Work review and mandatory uncertainty remain unchanged.
+
+The current offline slice preserves bounded returned public evidence and precise
+prospective rejection attribution through existing ledger/read/UI owners. It
+does not recover the missing historical second result, weaken judgment validation,
+force reading, hint an answer or run another comparison. Scripted ordinary-path
+checks distinguish rationale overflow, missing source anchor, unavailable
+observation use, Gateway refusal, persistence failure and late-result fencing.
+Their fixtures are development evidence, not reconstructions of the live response.
+
+Next decision: review this evidence-preservation slice and exact-head verification,
+then define a narrowly bound ordinary linked-work path after a known-invalid
+terminal attempt without a RunReceipt. Completed-result preparation requires a
+settled completed receipt; pre-execution revision refuses this already admitted
+work; unknown-request disposition is inapplicable. Any follow-up must preserve
+failed evidence, use explicit authenticated authorship and a new null-grant packet,
+and require separate fresh execution/data/spend authority. No candidate mutation
+or additional live attempt belongs to this slice. GPT-4.1 adequacy, comparative
+usefulness, live interruption recovery and environment transfer remain
+unestablished. Interrupted live progression and comparative usefulness remain
+**NOT RUN**. Earlier
 failures and receipts retain their original dates and source identities. Existing
 Companion continuity remains unavailable. Same-database account/session changes,
 meaningful unfinished-work transfer (#1149), semantic selection quality,

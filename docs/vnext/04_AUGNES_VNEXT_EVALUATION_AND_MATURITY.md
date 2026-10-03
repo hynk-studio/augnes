@@ -350,9 +350,17 @@ efficacy sample. At the original `a7d8cfce` attempt on 2026-10-03, live judgment
 and strong-baseline usefulness were NOT RUN. The later separately authorized
 `af68cf68` attempt completed two live judgments and one read that day; Work did
 not select its unsupported planner-to-reentry dependency assertion as a premise.
-That operational completion does not validate the inference. A live response to
-the later Work correction and comparative usefulness remain NOT RUN; preserve
-P4.6's negative result.
+That operational completion does not validate the inference. On 2026-10-04
+Asia/Seoul (2026-10-03 UTC), the first separately authorized mini comparison arm
+at `65f6efc9` received the selected Work correction but chose non-use while
+mis-scoping it to a new direct-call question. Choose had inventory/context, not
+the new source excerpts: assess the inspection choice and correction scope, not
+a supposed misreading of transmitted code. The second returned/normalized public
+result and exact later failing predicate are unavailable. Three subsequent arms
+were NOT RUN after the required stop. This is one exposed, unblinded negative
+observation, not a matched model comparison, general mini incapability or evidence
+that GPT-4.1 would improve it. Comparative usefulness remains NOT RUN; preserve
+P4.6's negative result and earlier dated NOT RUN records.
 
 Positive mechanism checks use ordinary authorship and authenticated authorization,
 real bounded file reads, Gateway transport-only scripting, durable result admission
@@ -411,6 +419,23 @@ loss of the mandatory unknown-history warning. Scripted delivery establishes
 transmission correctness only, not live compliance, semantic improvement or
 comparative usefulness. The omission did not cause the first live overclaim:
 Work's later review note did not exist at that time.
+
+For returned-but-rejected public evidence, use ordinary preparation, finite preview
+and authenticated authorization with only provider transport scripted. Exercise
+post-Gateway rationale overflow, missing source anchor and attempted use of an
+unavailable observation. Assert exact layer/stage, allowlisted predicate and
+bounded validation facts; retain whole normalized public content within the
+declared storage bounds or explicitly record omission and size/fingerprint.
+Fresh-process authenticated API readback and rendering in the ordinary saved-review
+component must expose the evidence without accepting it. Continue must preserve
+the run and issue zero additional calls. Distinguish Gateway rejection and reported
+usage from host validation, dispatch uncertainty, failed step/result persistence,
+failed receipt projection and quarantined late results. Preserve cancelled,
+pre-egress, stale-generation and recovery behavior. Missing legacy evidence stays
+unavailable; neither these fixtures nor new code reconstruct historical responses.
+Verify that known-invalid terminal work cannot borrow unknown disposition or a
+fabricated completed receipt to bypass successor/revision guards. New linked-work
+semantics belong to a separately reviewed follow-up.
 
 Also exercise
 normal unattended internal progress, justified no-action/defer/stop, exact

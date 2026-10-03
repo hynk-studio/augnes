@@ -2,8 +2,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { StatelessGrantRequest, SourceReview, StatelessDispositionBinding, StatelessSelectedNotes } from "@/lib/vnext/stateless-work";
+import type { StatelessFailureReview } from "@/lib/vnext/stateless-review-failure";
+import { StatelessReviewFailure } from "./stateless-review-failure";
 
-type Review = { stage: string; next_step: string | null; disposition_preparation: null | { binding: StatelessDispositionBinding; disposition: null | { fingerprint: string }; warning: string }; run: { run_id: string; title: string; status: string; stop_reason: string | null;
+type Review = { stage: string; next_step: string | null; failures: StatelessFailureReview[]; disposition_preparation: null | { binding: StatelessDispositionBinding; disposition: null | { fingerprint: string }; warning: string }; run: { run_id: string; title: string; status: string; stop_reason: string | null;
   steps: Array<{ title: string; status: string; output: { judgment?: { rationale: string }; observation?: { availability: string; bytes_read: number } } }> } };
 export function StatelessSourceReview({ projectId }: { projectId: string }) {
   const router = useRouter();
@@ -76,6 +78,7 @@ export function StatelessSourceReview({ projectId }: { projectId: string }) {
       {review.stage === "ended_effects_unknown" && <p>Further work ended locally. The earlier request may still have run or incurred cost. Its outcome remains unknown.</p>}
       {review.stage === "disposition_invalid" && <p>The saved work decision could not be validated. Execution remains blocked; the earlier outcome is unresolved.</p>}
       {review.run.steps.map(step => <p key={step.title}>{step.title}: {step.status}{step.output.judgment ? ` — ${step.output.judgment.rationale}` : step.output.observation ? ` — ${step.output.observation.availability}, ${step.output.observation.bytes_read} bytes` : ""}</p>)}
+      {review.failures.map((failure, index) => <StatelessReviewFailure key={`${failure.step_id}:${index}`} review={failure} />)}
       {review.stage === "ready" && <button disabled={busy} onClick={() => void act(async () => { await request({ action: "continue", run_id: review.run.run_id }); await refresh(); })}>Continue from saved results</button>}
       {review.disposition_preparation && !review.disposition_preparation.disposition && <button disabled={busy} onClick={() => void act(async () => {
         await request({ action: "end_work", binding: review.disposition_preparation!.binding }); await refresh();
