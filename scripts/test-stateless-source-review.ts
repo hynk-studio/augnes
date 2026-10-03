@@ -25,6 +25,8 @@ import { createStatelessSourceReviewHandler } from "../app/api/vnext/operator/st
 import { StatelessSourceReviewHost, authorizeStatelessReview } from "../lib/vnext/runtime/stateless-source-review";
 import { createOpenAIResponsesAdapterV01 } from "../lib/vnext/model-gateway/openai/responses-adapter";
 import { preparePlannerModelGatewayRouteV01 } from "../lib/vnext/model-gateway/model-gateway";
+import { projectModelTransportFailureObservationV01, normalizeModelTransportFailureObservationV01 } from "../lib/vnext/model-gateway/transport-failure-observation";
+import { validateModelInvocationReceiptV02 } from "../lib/vnext/model-gateway/model-invocation-receipt";
 import { listVNextCoreRecordsV01 } from "../lib/vnext/persistence/durable-semantic-store";
 import { readProjectRunResultSourceBindingV01 } from "../lib/vnext/runtime/project-run-result-read-model";
 import { createRecoveryBackup, RECOVERY_DATABASE_PAYLOAD } from "./recovery-backup.mjs";
@@ -40,13 +42,13 @@ const databases: Database.Database[] = [];
 const sourceText = "export function choose() { return 'advisory'; }\nexport function inspect() { return 'exact source bytes'; }\n";
 function scripted(firstChoice = "read_selected_sources", secondChoice = "use_observation") {
   const inputs: any[] = []; let calls = 0;
-  const controls = { lose: false, outputTokens: 80, dispatch: async () => {} };
+  const controls = { lose: false, transportError: new Error("simulated_transport_loss_after_dispatch") as unknown, outputTokens: 80, dispatch: async () => {} };
   const adapter = createOpenAIResponsesAdapterV01({ environment: { OPENAI_API_KEY: "scripted-transport-only-not-a-key", OPENAI_MODEL: "gpt-4.1-mini" }, transport: async request => {
     calls++; const body = JSON.parse(request.body);
     assert.equal(body.store, false); assert.equal(body.previous_response_id, undefined);
     const material = JSON.parse(body.input[1].content[0].text); const input = JSON.parse(material.message); inputs.push(input);
     await controls.dispatch();
-    if (controls.lose) throw new Error("simulated_transport_loss_after_dispatch");
+    if (controls.lose) throw controls.transportError;
     const choice = input.stage === "choose" ? firstChoice : secondChoice;
     const output = { recommendations: [{ title: "Bounded entrypoint finding", rationale: input.stage === "choose" ? (choice === "read_selected_sources" ? "Read the selected excerpt because the question concerns this entrypoint." : "The question needs broader evidence; defer this read rather than treating a limited excerpt as sufficient.") : (choice === "use_observation" ? "The selected excerpt exposes advisory output and bounded result reentry. These fragments do not prove a broader connection." : "Retain uncertainty because this observation is unavailable or insufficient for the question."),
       tool_name: choice, priority: "now", grounded_state_keys: [input.stage === "choose" ? input.review_ref : input.observation_fingerprint] }] };
@@ -116,7 +118,7 @@ async function fixture(name: string, firstChoice = "read_selected_sources", seco
   };
   return { db, scope, config, projectRoot, now, tick, adapter, inputs, call, preview, credential, direction, continuity, preparationBytes: prepared.result.preparation_bytes, controls: script.controls,
     host: (id: string, customAdapter = adapter) => new StatelessSourceReviewHost({ config, now, adapter: customAdapter }, id),
-    get calls() { return script.calls; }, loseDispatch() { script.controls.lose = true; },
+    get calls() { return script.calls; }, loseDispatch(error?: unknown) { script.controls.lose = true; if (error !== undefined) script.controls.transportError = error; },
     authorizeOnly() { tick(); const authorized = authorizeStatelessReview(db, { config, now, adapter }, credential(), preview); cookie = `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${authorized.session_admission.cookie_value}`; return authorized; } };
 }
 function unsettledOwnerContract(run: any) {
@@ -233,7 +235,18 @@ async function main() {
       assert.equal(unusedResult.run.status, "completed"); assert.equal(unusedResult.run.steps[1].output.action_bundles, 0);
       assert.equal(unused.inputs[1].observation.availability, "not_used");
     }
-    const unknown = await fixture("dispatch-unknown"); unknown.loseDispatch();
+    const privateCanary = "PRIVATE_EXCEPTION_HEADER_BODY_URL_CANARY";
+    const transportError = new TypeError(privateCanary, { cause: Object.assign(new Error(privateCanary), { code: "EPERM", address: privateCanary }) });
+    const diagnostic = projectModelTransportFailureObservationV01(transportError, false);
+    assert.deepEqual(diagnostic, { observation_version: "model_transport_failure_observation.v0.1", phase: "request_transport", error_name: "TypeError", error_code: null, cause_code: "EPERM", signal_aborted: false });
+    assert.deepEqual(normalizeModelTransportFailureObservationV01({ ...diagnostic, headers: privateCanary, stack: privateCanary }), diagnostic);
+    assert.equal(projectModelTransportFailureObservationV01({ name: privateCanary, code: privateCanary, cause: { code: privateCanary } }, false).error_name, "unknown");
+    assert.equal(projectModelTransportFailureObservationV01({ code: privateCanary }, false).error_code, null);
+    let getters = 0;
+    const hostile = Object.defineProperty({}, "cause", { get() { getters++; throw new Error(privateCanary); } });
+    assert.equal(projectModelTransportFailureObservationV01(hostile, false).cause_code, null); assert.equal(getters, 0);
+    assert.equal(normalizeModelTransportFailureObservationV01({ ...diagnostic, signal_aborted: privateCanary }), null);
+    const unknown = await fixture("dispatch-unknown"); unknown.loseDispatch(transportError);
     const lost = (await unknown.call({ action: "authorize_and_run", authorization: unknown.preview })).result;
     assert.equal(unknown.calls, 1); assert.equal(lost.stage, "dispatch_outcome_unknown");
     const again = (await unknown.call({ action: "continue", run_id: lost.run.run_id })).result;
@@ -243,7 +256,24 @@ async function main() {
     assert.equal(again.run.metadata.reconciliation_required, true);
     assert.equal(again.run.steps[0].output.dispatch_outcome, "unknown"); assert.equal(again.run.steps[0].output.received_model_result, null);
     assert.equal(again.run.steps[0].output.failure_receipt.usage, null);
+    validateModelInvocationReceiptV02(again.run.steps[0].output.failure_receipt);
+    assert.deepEqual(unknown.host(lost.run.run_id).read().run.steps[0]!.output.transport_failure_observation, diagnostic, "Fresh owner reads the persisted bounded diagnostic");
+    assert.equal(canonical(again).includes(privateCanary), false);
     assert.deepEqual(again.run.steps, lost.run.steps, "Continuation preserves the exact unknown claim without replay");
+    await unknown.call({ action: "cancel", run_id: lost.run.run_id });
+    const cancelledUnknown = unknown.host(lost.run.run_id).read();
+    assert.equal(cancelledUnknown.stage, "dispatch_outcome_unknown"); assert.equal(cancelledUnknown.run.metadata.reconciliation_required, true);
+    assert.deepEqual(cancelledUnknown.run.steps, lost.run.steps, "Cancellation is not provider-outcome settlement"); assert.equal(unknown.calls, 1);
+    for (const code of ["ENOTFOUND", "ECONNRESET", "DEPTH_ZERO_SELF_SIGNED_CERT", "ERR_INVALID_CHAR", "UND_ERR_CONNECT_TIMEOUT"]) {
+      const failure = await fixture(`diagnostic-${code}`);
+      failure.loseDispatch(new TypeError(privateCanary, { cause: Object.assign(new Error(privateCanary), { code }) }));
+      const failed = (await failure.call({ action: "authorize_and_run", authorization: failure.preview })).result;
+      assert.equal(failed.run.steps[0].output.transport_failure_observation.cause_code, code);
+      assert.equal(failed.stage, "dispatch_outcome_unknown"); assert.equal(failed.run.metadata.reconciliation_required, true);
+      assert.equal(canonical(failed).includes(privateCanary), false);
+      const continued = (await failure.call({ action: "continue", run_id: failed.run.run_id })).result;
+      assert.deepEqual(continued.run.steps, failed.run.steps); assert.equal(failure.calls, 1);
+    }
     const actionUnknown = await fixture("action-dispatch-unknown"); const au = actionUnknown.authorizeOnly(); const auh = actionUnknown.host(au.run_id);
     await auh.step();
     // Isolated fault injection represents a process disappearing after the
@@ -381,6 +411,7 @@ async function main() {
     console.log(JSON.stringify({ status: "passed", normal_model_calls: normal.calls, action_bundles: 1, restart_model_calls: restart.calls + childResult.calls, fresh_process: true,
       ordinary_successor_authored: true, successor_execution_granted: false, unsettled_ledger_contract: "preserved",
       returned_over_budget: "returned_invalid_no_retry", pre_egress_refusal: "not_issued_no_retry", transport_loss: "unknown_no_retry",
+      bounded_transport_diagnostics: "persisted_without_private_exception_material", cancellation_settles_unknown: false,
       audit_source_bytes: actualObservation.bytes_read, audit_preparation_bytes: audit.preparationBytes + ar.run.metadata.authorization_preparation_bytes + ar.run.steps[0].output.preparation_bytes, audit_excerpt_bytes: actualObservation.sources.reduce((n: number, f: any) => n + Buffer.byteLength(f.text), 0), completed_action_replays: 0, unknown_dispatch_retries: 0, external_requests: requests, actual_model_judgment: "NOT RUN", usefulness: "NOT RUN" }));
   } finally { for (const db of databases) db.close(); rmSync(root, { recursive: true, force: true }); network.unsubscribe(onNetwork); }
 }

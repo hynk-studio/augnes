@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { normalizeModelTransportFailureObservationV01 } from "@/lib/vnext/model-gateway/transport-failure-observation";
 import { normalizeWorkId } from "@/lib/work";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -337,13 +338,17 @@ export class StatelessSourceReviewHost {
         if (claimed) {
           const receipt = returnedReceipt ?? (isModelGatewayInvocationErrorV01(error) ? error.receipt : null);
           const receivedResult = isModelGatewayInvocationErrorV01(error) ? error.received_result ?? null : null;
+          const transportFailure = isModelGatewayInvocationErrorV01(error)
+            ? normalizeModelTransportFailureObservationV01(error.transport_failure_observation) : null;
           const returnedFailure = receivedResult !== null || (receipt?.egress_attempted === true && isModelGatewayInvocationErrorV01(error) && ["model_gateway_provider_rejected", "model_gateway_provider_response_invalid"].includes(error.code));
           const unknown = (dispatched || receipt?.egress_attempted === true) && !returnedReceipt && !returnedFailure;
           // Known pre-egress refusal or a returned invalid judgment consumes the
           // attempt too. Preserve it distinctly from a lost dispatched request.
           const reason = unknown ? "dispatch_outcome_unknown_no_retry" : "invocation_refused_or_result_invalid_no_retry";
           updateAutonomyRunStepLedgerFields(claimed.step_id, { status: unknown ? "running" : "failed",
-            output: { ...claimed.output, failure_receipt: receipt, received_model_result: receivedResult, dispatch_outcome: unknown ? "unknown" : returnedReceipt || returnedFailure ? "returned_invalid" : "not_issued" },
+            output: { ...claimed.output, failure_receipt: receipt, received_model_result: receivedResult,
+              ...(transportFailure ? { transport_failure_observation: transportFailure } : {}),
+              dispatch_outcome: unknown ? "unknown" : returnedReceipt || returnedFailure ? "returned_invalid" : "not_issued" },
             error_message: reason, updated_at: this.now(), ...(unknown ? {} : { finished_at: this.now() }) }, { db });
           patchRun(db, { ...current, metadata: { ...current.metadata, ...(unknown ? { reconciliation_required: true } : {}) } }, {}, this.now(), unknown ? "paused" : "stopped", reason);
         } else if (returnedReceipt && current.steps.some(s => s.status === "running")) {

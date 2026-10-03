@@ -127,6 +127,7 @@ import {
   type ModelProviderResponseInvalidStageV01,
   type ModelProviderResponseStatusV01,
 } from "@/lib/vnext/model-gateway/provider-response-invalid-observation";
+import { projectModelTransportFailureObservationV01 } from "@/lib/vnext/model-gateway/transport-failure-observation";
 import type { OperationalReentryMatchedCohortModelInputV01 } from "@/types/vnext/operational-reentry-matched-cohort";
 import {
   OPERATIONAL_REENTRY_MATCHED_COHORT_PROVIDER_CONTRACT_VERSION_V02,
@@ -613,8 +614,11 @@ export function createOpenAIResponsesAdapterV01(
               body: requestBody,
               signal: lifecycle.signal,
             });
-          } catch {
-            throw new ModelGatewayAdapterFailureV01("adapter_transport_failed");
+          } catch (error) {
+            throw new ModelGatewayAdapterFailureV01(
+              "adapter_transport_failed", null, null,
+              projectModelTransportFailureObservationV01(error, lifecycle.signal.aborted),
+            );
           }
 
           if (

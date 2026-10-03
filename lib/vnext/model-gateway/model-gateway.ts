@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 
 import { openDatabase, type StateEntry } from "@/lib/db";
+import { normalizeModelTransportFailureObservationV01 } from "@/lib/vnext/model-gateway/transport-failure-observation";
 import {
   assertModelEgressTextIsSafe,
   cloneBoundedModelEgressJson,
@@ -2609,6 +2610,9 @@ async function invokeLiveAdapter(
       providerRejectionObservation,
       providerResponseInvalidObservation,
       receivedResult,
+      error instanceof ModelGatewayAdapterFailureV01
+        ? normalizeModelTransportFailureObservationV01(error.transport_failure_observation)
+        : null,
     );
   }
 }
@@ -3889,6 +3893,7 @@ function gatewayFailure(
   providerRejectionObservation: ModelGatewayInvocationErrorV01["provider_rejection_observation"] = null,
   providerResponseInvalidObservation: ModelGatewayInvocationErrorV01["provider_response_invalid_observation"] = null,
   receivedResult: ModelGatewayInvocationErrorV01["received_result"] = null,
+  transportFailureObservation: ModelGatewayInvocationErrorV01["transport_failure_observation"] = null,
 ) {
   return new ModelGatewayInvocationErrorV01(
     code,
@@ -3896,6 +3901,7 @@ function gatewayFailure(
     providerRejectionObservation,
     providerResponseInvalidObservation,
     receivedResult,
+    transportFailureObservation,
   );
 }
 

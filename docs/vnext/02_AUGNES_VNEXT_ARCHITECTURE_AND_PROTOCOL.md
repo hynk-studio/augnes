@@ -928,6 +928,13 @@ observation and reported usage in the ledger alongside the failure receipt. This
 distinguishes returned-invalid from pre-egress refusal and dispatched-unknown;
 the v0.2 failure receipt and its unavailable-cost semantics are unchanged. No
 classification grants retry or semantic acceptance.
+
+Transport exceptions may retain a bounded diagnostic observation alongside the
+unchanged failure receipt: fixed transport phase, allowlisted error name and
+error/direct-cause codes, and the observed abort flag. Messages, stacks, headers,
+credentials, URLs and request/response bodies are excluded. These local diagnostics
+do not establish provider delivery, billing or outcome, settle an unknown claim,
+or authorize replay. Historical failures without them remain unchanged.
 Recovery retains grants, results and unknown claims but
 suspends this profile's execution eligibility. Portable project export refuses a
 project containing its grants until unfinished-work transfer has its own supported
