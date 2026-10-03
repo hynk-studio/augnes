@@ -320,11 +320,13 @@ automatically delivered worker instruction.
 
 [#1340](https://github.com/hynk-studio/augnes/pull/1340), for #1339's explicit
 saved outcome-report/forecast-context selection and exact historical delivery,
-remains **open Draft / HOLD**. It owns its implementation contract and the
-corresponding 02/03 mechanism text. Its selection/delivery evidence does not
-establish better judgment, human-effort savings, autonomous learning or
-separate-task transfer. The failed deciding run on `5b1994fa` remains
-non-deciding; the original UI startup timeout's cause remains unknown.
+is **Completed within its bounded implementation scope**: the final integrated
+candidate was reviewed and #1340 merged on 2026-09-27; #1339 is closed as
+completed. Its implementation contract and corresponding 02/03 mechanism text
+remain bounded selection/delivery support, not evidence of production adoption,
+better judgment, human-effort savings, autonomous learning or separate-task
+transfer. The original failed attempts remain historical and non-deciding;
+the original UI startup timeout's cause remains unknown.
 
 The bounded isolated observation and the single ordered four-scenario
 navigation-diagnostics observation on `944b2f561013cfcdb05167fcd392a1ccd16f462c`
@@ -336,17 +338,17 @@ observations. The retained diagnostic-capture improvement addresses demonstrated
 evidence loss, not an established cause of the startup timeout. Neither
 observation transfers or replaces exact-head verification evidence.
 
-On 2026-09-27, the user explicitly authorized integrating reviewed main
-`e2e0af3279d5db31105b88b5ed456945563f9f30` from #1341 into this PR, freezing the
-final candidate and performing one planner-required deciding verification
-attempt on that exact clean integrated head. This decision supersedes the
-diagnostic-only deferral; it does not relax verification policy or authorize
-repeated attempts until PASS. No further standalone diagnostic execution or
-speculative startup repair precedes that attempt. Merge and production adoption
-remain on HOLD pending review of the result. The later-use preference here,
-including the ordinary-use pointers in completed slices below, cannot replace
-that engineering decision or bypass its HOLD. No unmerged capability is treated
-as current-main support.
+The authorized final integrated-head verification on
+`f75c5c608142e7eda2f6b8f06166bcb37d05fe8b`, incorporating #1341's reviewed main
+`e2e0af3279d5db31105b88b5ed456945563f9f30`, passed all 15 required Full Canonical
+phases. Its exact-head receipt remains historical verification evidence for
+that candidate. Subsequent review and merge produced current main
+`e43651db9ed52d3ab3352b977d711220e534befe`, with the shared source tree
+`df5750a6aeb576a2bb3d6b5d6389e8ebc38d1b2b`. Merge and tree equality neither
+transfer the receipt to a new head nor establish installed application adoption
+or usefulness. The bounded implementation is complete; production adoption
+requires separate authority and evidence. This closeout does not reopen startup
+diagnosis, repeat verification or change #1341's broader direction.
 
 At ordinary-use entry, recheck the exact available path and its eligibility;
 manual note reuse is distinct from #1340's saved-report selection. Do not infer
@@ -1287,13 +1289,14 @@ groups whole, and selection checks both note slots and serialized bytes before
 adding the pair. This closes the earlier single-hit comparison refusal without
 relaxing snapshot coherence or replacing the saved report with a later one.
 
-This is **Current while its Draft PR is open**, and **Completed within this
-bounded selection/delivery scope after merge**. Disposable deterministic and
-Browser evidence establish the mechanics and observable transcription/selection
-steps only. They do not establish predictive accuracy, better judgment, human
-time savings or automatic learning. Production adoption, remote transport and
-held/consumed P3/P5 studies remain outside this issue. Next: review the bounded
-connection and retain or revise it on its producer-to-consumer evidence.
+This is **Completed within its bounded selection/delivery scope**, following
+review and merge of [#1340](https://github.com/hynk-studio/augnes/pull/1340).
+Disposable deterministic and Browser evidence establish the mechanics and
+observable transcription/selection steps only. They do not establish predictive
+accuracy, better judgment, human time savings or automatic learning. Production
+adoption, remote transport and held/consumed P3/P5 studies remain outside this
+issue. Next: identify one separately authorized ordinary-use opportunity under
+the prerequisites above; no feature extension or study follows automatically.
 
 ## P2/P3 saved outcome-linked preparation revision (#1335)
 
