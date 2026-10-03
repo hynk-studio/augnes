@@ -1681,7 +1681,7 @@ async function invokeModelGatewayV01(
         OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01 ||
       envelope.purpose ===
         OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01 ||
-      (envelope.purpose === GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01 &&
+      ((envelope.purpose === GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01 || envelope.purpose === PLANNER_MODEL_GATEWAY_PURPOSE_V01) &&
         envelope.budget.cost_budget !== undefined)
     ) {
       const costBudget = envelope.budget.cost_budget;
@@ -2980,7 +2980,7 @@ function validateBudget(
     "max_input_bytes",
     "max_output_tokens",
     "max_provider_calls",
-  ], purpose === STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01 ||
+  ], purpose === PLANNER_MODEL_GATEWAY_PURPOSE_V01 || purpose === STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01 ||
     purpose === GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01 ||
     isOperationalReentryMatchedCohortPurposeV01(purpose)
     ? ["cost_budget"]

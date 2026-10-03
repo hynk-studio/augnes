@@ -1,6 +1,7 @@
+import { readBoundedLocalSourceBytes } from "./bounded-source-read";
 import { AUTHORED_SUCCESSOR_TASK_V01, assertAuthoredSuccessorInventoryV01 } from "@/lib/vnext/authored-successor-task";
 import { createHash } from "node:crypto";
-import { chmodSync, closeSync, constants, existsSync, fstatSync, lstatSync, mkdtempSync, openSync, readSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, lstatSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { parse } from "smol-toml";
@@ -93,28 +94,8 @@ function material(scope: CodexScopedTaskV01): Readonly<StageMaterial> {
   const result = scopes.get(scope); if (!result) refuse("scope_not_source_owned"); return result;
 }
 function fileBytes(filename: string, limit = 128 * 1024): Buffer {
-  let fd: number | undefined;
-  try {
-    // Reject the opened object without waiting for a writer if a FIFO is
-    // supplied or replaces an approved path before this open.
-    fd = openSync(filename, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
-    const stat = fstatSync(fd);
-    if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || stat.size > limit || realpathSync(filename) !== filename)
-      refuse("file_identity_invalid");
-    const buffer = Buffer.alloc(limit + 1); let length = 0;
-    while (length < buffer.length) {
-      const count = readSync(fd, buffer, length, buffer.length - length, null);
-      if (!count) break;
-      length += count;
-    }
-    if (length > limit) refuse("file_bound_exceeded");
-    const bytes = buffer.subarray(0, length);
-    const after = fstatSync(fd), named = lstatSync(filename);
-    if (bytes.length !== stat.size || stat.dev !== named.dev || stat.ino !== named.ino || named.isSymbolicLink() ||
-        stat.size !== after.size || stat.mtimeMs !== after.mtimeMs || stat.ctimeMs !== after.ctimeMs) refuse("file_changed");
-    return bytes;
-  } catch { return refuse("file_unavailable_or_changed"); }
-  finally { if (fd !== undefined) closeSync(fd); }
+  try { return readBoundedLocalSourceBytes(filename, limit); }
+  catch { return refuse("file_unavailable_or_changed"); }
 }
 
 /** The trusted disposable operator supplies reviewed hashes, not worker flags. */

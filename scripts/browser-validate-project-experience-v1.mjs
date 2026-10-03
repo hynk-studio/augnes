@@ -4875,6 +4875,12 @@ async function validateProjectDirectionUI(accessDatabasePath, projectAlphaId) {
     assert.equal(await evaluateString(`document.querySelector('[aria-label="Constraints (one per line)"]').value`), 'External constraint');
     assert.equal(await evaluateBoolean(`document.querySelector('[data-project-direction]')?.textContent.includes('Reconsider pending work') === true`), true);
     assert.deepEqual(packetBytes(), packetsBeforeDirection, "Direction changes preserve task and selected factual source bytes");
+    await evaluateBoolean(`(() => { document.querySelector('[data-stateless-source-review]').open = true; return true; })()`);
+    await setFormControlValue('[aria-label="Source-review question"]', 'What do the selected entrypoints establish?');
+    await clickButtonByText('Read saved source reviews', '[data-stateless-source-review]');
+    await waitForCondition(`document.querySelector('[data-stateless-source-review]')?.textContent.includes('No saved source reviews.') === true`, "authenticated stateless source-review reader");
+    assert.equal(await evaluateString(`document.querySelector('[aria-label="Source-review question"]').value`), 'What do the selected entrypoints establish?');
+    assert.deepEqual(packetBytes(), packetsBeforeDirection, "Source-review reader and unsaved editor do not alter authored work");
     for (const width of [390, 768, 1440]) {
       await setViewport(width, 1000);
       await evaluateBoolean(`(() => { document.querySelectorAll('[data-project-direction] details').forEach(d => d.open = true); return true; })()`);

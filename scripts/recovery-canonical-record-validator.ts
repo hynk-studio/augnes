@@ -1,3 +1,5 @@
+import { validateStatelessGrant, statelessGrantKey } from "../lib/vnext/stateless-work";
+import { readStatelessGrant } from "../lib/vnext/persistence/stateless-work-grant";
 import { validateProjectDirectionHistory } from "../lib/vnext/persistence/project-direction-store";
 import { assertWorkExpectationRecord } from "../lib/vnext/work-expectation";
 import { PROSPECTIVE_PREPARATION_PACKET } from "../lib/vnext/prospective-agenda";
@@ -473,6 +475,11 @@ function validatePayloadAndEnvelopeV01(record: ParsedCanonicalRecordV01): void {
       return;
     }
     case "capability_grant": {
+      if (validateStatelessGrant(payload)) {
+        exactEnvelopeV01(record, { record_id: payload.grant_id, workspace_id: payload.workspace_id, project_id: payload.project_id,
+          fingerprint: payload.grant_fingerprint, idempotency_key: statelessGrantKey(payload.request, payload.approved_by), created_at: payload.issued_at });
+        return;
+      }
       if (validateProspectiveAuthorization(payload)) {
         exactEnvelopeV01(record, { record_id: payload.grant_id, workspace_id: payload.workspace_id, project_id: payload.project_id,
           fingerprint: payload.grant_fingerprint, idempotency_key: prospectiveAuthorizationKey(payload.request, payload.approved_by), created_at: payload.issued_at });
@@ -1250,7 +1257,7 @@ function validateDatabaseRelationsV01(
         break;
       }
       case "capability_grant": {
-        const reader = validateProspectiveAuthorization(record.payload) ? readProspectiveAuthorization : readBoundedAutomationCapabilityGrantV01;
+        const reader = validateStatelessGrant(record.payload) ? readStatelessGrant : validateProspectiveAuthorization(record.payload) ? readProspectiveAuthorization : readBoundedAutomationCapabilityGrantV01;
         const found = reader(db, {
           workspace_id: record.workspace_id,
           project_id: record.project_id,

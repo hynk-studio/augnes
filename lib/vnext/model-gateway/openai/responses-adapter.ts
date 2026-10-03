@@ -45,7 +45,7 @@ import {
   projectObserveModelMaterial,
 } from "@/lib/vnext/model-gateway/openai/observe-codec";
 import {
-  buildPlannerSystemPrompt,
+  buildPlannerSystemPrompt, sourceReviewPlannerChoices, sourceReviewPlannerSchema,
   parsePlannerOutput,
   PLANNER_MODEL_EGRESS_LIMITS,
   plannerResponseSchema,
@@ -1117,18 +1117,19 @@ function codecFor(input: ModelAdapterInputV01): PurposeCodec {
     };
   }
   if (input.input_kind === PLANNER_MODEL_GATEWAY_PURPOSE_V01) {
+    const choices = sourceReviewPlannerChoices(input.message);
     return {
       dynamic_material: projectPlannerModelMaterial(input),
       dynamic_bytes: PLANNER_MODEL_EGRESS_LIMITS.dynamicBytes,
       final_request_bytes: PLANNER_MODEL_EGRESS_LIMITS.finalRequestBytes,
       response_bytes: PLANNER_MODEL_EGRESS_LIMITS.responseBytes,
-      system_prompt: buildPlannerSystemPrompt(),
+      system_prompt: buildPlannerSystemPrompt(choices !== null),
       schema_name: "augnes_plan",
-      schema: plannerResponseSchema,
+      schema: choices ? sourceReviewPlannerSchema(choices) : plannerResponseSchema,
       parse(outputText, usage) {
         return {
           purpose: PLANNER_MODEL_GATEWAY_PURPOSE_V01,
-          recommendations: parsePlannerOutput(outputText),
+          recommendations: parsePlannerOutput(outputText, choices),
           usage,
         };
       },

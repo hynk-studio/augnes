@@ -206,6 +206,49 @@ authorize an ordinary case through this grant owner; observe actual choice, prep
 human repair burden before considering broader activation. The absence of that
 case does not invalidate the bounded engineering or establish real-world benefit.
 
+### Current P4/P5 — First stateless bounded product work (#1384)
+
+The first implementation connects ordinary authored work → explicit finite grant →
+stateless Gateway judgment → allowed local source read or justified non-use →
+durable observation → second stateless judgment. Current source confirmed the
+composition gap: the policy Planner returns recommendations, prospective re-entry
+is zero-model literal inspection, and P4.6's coordinator is a separate research
+path. Their owners are reused without converting research permission into product
+permission or widening the older inspection grant. See the
+[bounded profile contract in 02](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#stateless-bounded-source-review-1384).
+
+The exposed development consumer selects `policy-triggered-planner-run.ts` lines
+141–164 and `prospective-reentry.ts` lines 112–131, with full-file version hashes,
+to inspect the recommendation/result-reentry connections those fragments actually
+show. Scripted Gateway responses establish delivery and attribution only. This
+bounded selection cannot establish repository-wide absence or answer the whole
+continuity audit. Tests author the question through the ordinary route, explicitly
+authorize it, read real excerpts, admit the result and read it back. A fresh child
+process completes the second judgment from the database after the source file is
+removed, preserving the observation and attempt. No internal human handoff occurs
+on the normal authorized path. The ordinary UI exposes authoring, finite pricing
+and permission review, saved results, interruption continuation and cancellation.
+
+Actual ordinary model judgment and strong-baseline usefulness are **NOT RUN**.
+The concrete invocation card for separate review is: OpenAI Responses,
+`gpt-4.1-mini` (the repository default, subject to the actual configured-route
+preview), the above source fragments plus the authored task/question and consumed
+working direction, two calls maximum, 16,384 input bytes / 1,024 output tokens and
+fifteen seconds per call, one two-file 65,536-byte read with at most 4,096 excerpt
+bytes, and a proposed total ceiling of USD 0.10. This is neither a current price
+quote nor spending authorization. Missing inputs are an ordinary project/session,
+reviewed pricing rates and source valid for that exact route, selected source
+versions, and explicit permission for that data and budget. No account/model
+switch, installation, production migration or deployment is implied.
+
+Next decision: review the bounded implementation and exact-head verification,
+then decide whether to authorize that ordinary case and observe actual choice,
+use/non-use, cost and human repair burden. This first PR does not complete the
+continuity program. Same-database account/session changes, meaningful unfinished
+work transfer (#1149), semantic selection quality, cross-project recurrence and
+strong comparative evaluation remain separate. P4.6's negative findings and
+#1342/#1372 ownership are unchanged.
+
 ### Current P2/P3/P4/P5 — Project direction and decision authority (#1382)
 
 The 2026-10-02 north-star review authorized this connected increment after merged

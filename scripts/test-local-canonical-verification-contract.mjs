@@ -1089,6 +1089,7 @@ const integrationChildren = [
   "project-work-initialization",
   "current-work-read",
   "prospective-preparation-reentry",
+  "stateless-source-review",
   "project-direction",
   "retry-inspection-outlook",
   "pre-execution-support-material",

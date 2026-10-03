@@ -989,6 +989,8 @@ export async function runDirectNativeHostRoundTripV01(
       if (preAdmitted || preAdmittedResume) {
         refuse("direct_host_pre_admitted_run_claim_missing", 409);
       }
+      const finiteReviews = db.prepare("SELECT status FROM autonomy_runs WHERE scope=? AND json_extract(metadata_json,'$.stateless_review.version')='stateless_source_review.v0.1' LIMIT 4097").all(input.config.project_id) as Array<{ status: AutonomyRunnerStatus }>;
+      if (finiteReviews.length > 4096 || finiteReviews.some(r => !isTerminalRunnerStatus(r.status))) refuse("direct_host_run_conflict", 409);
       assertPacketDirectionCurrent(db, admitted.packet, startedAt);
       createRunLedgerRecord(db, {
         input,

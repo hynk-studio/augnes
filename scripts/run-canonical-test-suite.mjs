@@ -707,6 +707,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "stateless-source-review",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning"],
+      label: "ordinary stateless source review, fresh-process result reentry and no-replay fencing",
+      ...rootNode("scripts/test-stateless-source-review.ts"),
+      timeoutMs: 60_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "project-direction",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning"],
