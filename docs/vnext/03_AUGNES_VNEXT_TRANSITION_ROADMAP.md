@@ -257,9 +257,9 @@ was reviewed that day as USD 0.40 input, 0.10 cached input and 1.60 output per m
 tokens. The request did not pin `service_tier`, and that quote did not verify the
 project's tier or guarantee provider billing. No caching discount was assumed.
 
-The authorized card declared `input_nano_usd_per_byte=1000`,
+The authorized attempt consumed `input_nano_usd_per_byte=1000`,
 `output_nano_usd_per_token=1600`,
-`source_version=openai-gpt-4.1-mini-standard-2026-10-03`, and
+`source_version=operator-estimate-gpt-4.1-mini-2026-10-03-tier-unresolved`, and
 `maximum_total_nano_usd=100000000` (USD 0.10 total, 0.05 per invocation).
 The byte rate was an operator-declared conservative bound, not OpenAI's billing
 unit. At 16,384 input bytes and 1,024 output tokens per request, the quote computes
@@ -301,7 +301,7 @@ historical records were not backfilled. The exact-head Local Canonical PASS is
 local correctness evidence, not provider readiness or usefulness. Details and
 preserved failures are in [the diagnosis report](https://github.com/hynk-studio/augnes/pull/1385#issuecomment-5967319917).
 
-The next bounded implementation adds explicit local disposition, linked new-work
+The bounded Draft implementation adds explicit local disposition, linked new-work
 authorship and separately authorized fresh execution for this model-request
 uncertainty only. It reuses authentication, ledger/events, packet lineage and
 finite grants. Ending work preserves unknown effects and fences late result
@@ -309,6 +309,12 @@ application; preparation creates no grant; fresh execution has all current gates
 Scripted ordinary-path checks cover durable uncertainty, disabled/expired authority,
 source-free disposition, fresh-process readback, concurrent/stale submissions,
 late receipts, distinct replacement completion and ordinary successor authorship.
+Review corrections connect unchanged selected direction to atomic linked
+preparation and connect the ordinary successor's next question/file preparation
+to a fresh preview/grant and scripted loop. The mandatory predecessor warning
+survives revision, fresh-process readback and recovery; current-work admission and
+unrelated unsettled history still block. The earlier Standard pricing label was
+a proposal; the executed attempt's consumed attribution above remains tier-unresolved.
 No provider-outcome lookup, manual settlement system or generic execution exception
 is introduced. See 02 for the bounded contract and 04 for deciding criteria.
 

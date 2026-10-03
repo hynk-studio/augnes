@@ -371,13 +371,22 @@ uncertainty. Test source/root/route unavailability and disabled/expired executio
 authority separately from the still-required authenticated historical bindings.
 Disposition must remain local; new execution must enforce all current source,
 direction, root, control, quote and finite-grant gates.
+Author and select an active direction through ordinary writers before the unknown
+attempt; linked preparation must accept that unchanged selection. Changed or
+incorrectly selected direction must refuse without partial packet/binding state.
 
 Use a deferred transport response to prove that disposition fences the old
 generation, retains bounded late evidence under that attempt and cannot advance
 it, accept its judgment, reopen work or affect the replacement. Local fencing
 never proves provider cancellation. Demonstrate a distinct fresh grant/run,
 completed scripted loop, explicit ordinary result selection and null-grant
-successor with the predecessor's unresolved warning intact. Discriminate stale,
+successor with the predecessor's unresolved warning intact.
+Then prepare a new question/file selection on that successor, reopen it, obtain
+a distinct ordinary preview/grant and complete another scripted loop. Compilation,
+lineage validation, fresh readback, recovery and both model inputs must retain
+the mandatory warning and exact predecessor links. The original unknown claim
+and failure receipt remain unchanged; no previous grant executes the new work.
+Current-work run admission still blocks revision. Discriminate stale,
 concurrent and duplicate submissions, wrong projects, missing disposition proof,
 malformed/unrelated/undisposed runs and permitted legacy omission. Older valid
 failures without optional diagnostics remain eligible without backfill. The

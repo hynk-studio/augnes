@@ -968,10 +968,14 @@ enable automation, create a run/grant or invoke a provider. It requires the exac
 current predecessor; duplicate preparation can acknowledge only its identical
 immediate replacement. At most eight unresolved predecessors are retained in this
 bounded chain; exceeding the bound refuses without truncation.
+The ordinary insertion creates the binding for the direction actually selected
+by the new packet, then validates its currentness in the same transaction. A
+changed or incorrectly selected direction rolls back both packet and binding.
 
-Only this profile's finite admission and its completed-result successor writer
-may use the disposition exception. They read the shared conservative unsettled
-predicate and validate every relevant disposition against authenticated historical
+Only this profile's linked authoring, finite admission, completed-result successor
+writer and that successor's zero-model ordinary revision may use the disposition
+exception. They read the shared conservative unsettled predicate and validate
+every relevant disposition against authenticated historical
 provenance, unchanged claim evidence and the packet's exact links. Missing,
 malformed, unrelated or undisposed records still block; no arbitrary old run ID,
 terminal status or reconciliation reset supplies admission. Generic/native paths
@@ -981,6 +985,10 @@ a new finite preview, explicit data/spend authorization and a distinct grant/run
 The predecessor's unknown cost is neither zero nor refunded allowance. A completed
 replacement reaches ordinary result selection and null-grant successor authorship;
 the unresolved predecessor warning remains separate from selectable result prose.
+Subsequent question/file preparation preserves that mandatory entry and its exact
+links through compilation, lineage reconstruction, fresh readback and recovery.
+An admitted run on the current successor still prevents revision. Preparation
+issues no grant; executing the revised packet requires a new preview and grant.
 
 Recovery retains grants, results and unknown claims but
 suspends this profile's execution eligibility. Portable project export refuses a

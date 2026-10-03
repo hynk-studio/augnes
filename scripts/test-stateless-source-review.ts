@@ -9,10 +9,13 @@ import { hasUnsettledAutonomyRunLedgerRecords, insertAutonomyRunLedgerRecord, up
 import { createVNextOperatorContextUseReviewHandlerV01 } from "../app/api/vnext/operator/project-continuity/route";
 import { readSelectedWorkSources, selectedWorkSourceInput } from "../lib/intake/selected-work-source-comparison";
 import { readProjectWorkInitializationV01 } from "../lib/vnext/runtime/project-work-initialization";
-import { inspectPersistedHostProjectRootV01 } from "../lib/vnext/runtime/direct-native-host-round-trip";
+import { inspectPersistedHostProjectRootV01, runDirectNativeHostRoundTripV01 } from "../lib/vnext/runtime/direct-native-host-round-trip";
+import { inspectCurrentOrdinarySuccessorRevisionChainV01, ordinarySuccessorRevisionExecutionBlockedV01 } from "../lib/vnext/runtime/authored-successor-revision";
+import { readSourceReview } from "../lib/vnext/stateless-work";
 import { fingerprintNativeHostPhysicalRootIdentityV01 } from "../lib/vnext/native-host/project-root-identity";
 import { previewActivePortableProjectV01 } from "../lib/vnext/portability/portable-project";
 import { createProjectDirectionHandler } from "../app/api/vnext/operator/project-direction/route";
+import { packetDirectionBinding, readPacketDirectionInterpretation } from "../lib/vnext/persistence/project-direction-store";
 import type { ModelAdapterV01 } from "../lib/vnext/model-gateway/contracts";
 import { channel } from "node:diagnostics_channel";
 import Database from "better-sqlite3";
@@ -192,6 +195,41 @@ async function recoveryBackup(f: Awaited<ReturnType<typeof fixture>>, name: stri
 }
 const pricing = { input_nano_usd_per_byte: 1000, output_nano_usd_per_token: 1000, maximum_total_nano_usd: 100_000_000, source_version: "scripted-test-price-not-live-authority" };
 const replacementMaterial = { question: "Re-examine this bounded entrypoint while retaining the predecessor's unknown effects", files: [{ path: "entry.ts", start_line: 1, end_line: 2 }] };
+async function directionDispositionContract() {
+  for (const mode of ["unchanged", "changed", "unselected"] as const) {
+    const f = await fixture(`disposition-direction-${mode}`);
+    let direction: any;
+    const decide = (expected_ref: string | null, purpose: string) => f.direction({ action: "decide", expected_ref,
+      content: { purpose, criteria: [], constraints: [] }, reason: "Explicit project direction for this source review", status: "active", proposal_ref: null });
+    if (mode !== "unselected") {
+      direction = await decide(null, "Review the selected entrypoint and retain uncertainty");
+      await f.direction({ action: "prepare_inspection", expected_ref: direction.record.ref, files: [{ path: "entry.ts", contains: "advisory" }] });
+    }
+    const authorization = (await f.call({ action: "preview", pricing })).authorization;
+    f.loseDispatch();
+    const lost = (await f.call({ action: "authorize_and_run", authorization })).result;
+    assert.equal(lost.stage, "dispatch_outcome_unknown");
+    const ended = (await f.call({ action: "end_work", binding: lost.disposition_preparation.binding })).result;
+    const history = canonical(ended.run);
+    if (mode === "changed") await decide(direction.record.ref, "A different direction requires explicit reconsideration");
+    if (mode === "unselected") await decide(null, "This effective direction has not been selected by the historical packet");
+    const records = () => canonical({ packets: listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet"], limit: 128 }),
+      directions: f.db.prepare("SELECT * FROM vnext_project_direction_records ORDER BY ref").all() });
+    const before = records();
+    const linked = await f.call({ action: "prepare_linked_work", disposition: { run_id: lost.run.run_id,
+      disposition_fingerprint: ended.run.metadata.stateless_review_disposition.fingerprint }, material: replacementMaterial }, mode === "unchanged" ? 200 : 409);
+    if (mode === "unchanged") {
+      const packet = listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet"], limit: 128 }).find(r => r.record_id === linked.result.packet_id)!.payload as any;
+      assert.equal(packetDirectionBinding(f.db, packet)!.value.direction_ref, direction.record.ref);
+      assert.equal(readPacketDirectionInterpretation(f.db, packet, f.now()).status, "current");
+      assert.equal(packet.capability_grant, null);
+      validateRecoveryCanonicalDatabaseV01(f.db);
+    } else {
+      assert.equal(records(), before, "Rejected direction leaves neither a partial packet nor a binding");
+    }
+    assert.equal(canonical(f.host(lost.run.run_id).read().run), history); assert.equal(f.calls, 1);
+  }
+}
 async function dispositionContract() {
   const f = await fixture("disposition-ordinary"); f.loseDispatch();
   const lost = (await f.call({ action: "authorize_and_run", authorization: f.preview })).result;
@@ -308,6 +346,82 @@ async function dispositionContract() {
   const successor = listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet"], limit: 128 }).find(r => r.record_id === successorId)!.payload as any;
   assert.equal(successor.capability_grant, null); assert.deepEqual(statelessUnresolvedEntries(successor), statelessUnresolvedEntries(packet));
   validateRecoveryCanonicalDatabaseV01(f.db);
+  const endedHistory = canonical(f.host(lost.run.run_id).read().run);
+  const nextMaterial = { question: "Which remaining entrypoint connection is supported by this next source review?", files: [{ path: "entry.ts", start_line: 2, end_line: 2 }] };
+  const authorityBeforeRevision = canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["capability_grant"], limit: 128 }));
+  const revised = (await f.call({ action: "prepare", material: nextMaterial })).result;
+  assert.equal(revised.authorized, false); assert.equal(f.calls, 3);
+  assert.equal(canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["capability_grant"], limit: 128 })), authorityBeforeRevision);
+  const chain = inspectCurrentOrdinarySuccessorRevisionChainV01(f.db, f.scope, f.now())!;
+  assert.equal(chain.tip_packet.packet_id, revised.packet_id); assert.equal(chain.projection_current, true);
+  assert.equal(chain.tip_packet.capability_grant, null); assert.equal(chain.revision_count, 1);
+  assert.deepEqual(statelessUnresolvedEntries(chain.tip_packet), statelessUnresolvedEntries(packet));
+  assert.equal(readSourceReview(chain.tip_packet).question, nextMaterial.question);
+  assert.equal(ordinarySuccessorRevisionExecutionBlockedV01(f.db, f.scope, chain), false);
+  assert.equal(hasUnsettledAutonomyRunLedgerRecords({ db: f.db, scope: f.scope.project_id }), true);
+  assert.equal((await f.call()).preparation.packet_id, revised.packet_id);
+  await f.call({ action: "prepare", material: nextMaterial }, 409, {}, `project:${randomUUID()}`);
+  await assert.rejects(() => runDirectNativeHostRoundTripV01(f.db, { config: f.config, mode: "interactive" }, { now: f.now }),
+    /direct_host_(run_conflict|unresolved_stateless_effects)/, "Zero-model revision supplies no generic/native execution exception");
+  validateRecoveryCanonicalDatabaseV01(f.db);
+
+  const revisionRead = path.join(root, "successor-revision-read.json");
+  writeFileSync(revisionRead, JSON.stringify({ config: f.config, run_id: lost.run.run_id, at: f.now(), step_fingerprint: hash(beforeSteps),
+    disposition_fingerprint: link.disposition_fingerprint, packet_id: revised.packet_id, unresolved_context: statelessUnresolvedEntries(packet), question: nextMaterial.question }));
+  const reopened = spawnSync(process.execPath, ["--import", "tsx", "scripts/test-stateless-source-review.ts", "--read-disposition", revisionRead],
+    { cwd: process.cwd(), env: { ...process.env, OPENAI_API_KEY: "" }, encoding: "utf8", timeout: 30_000 });
+  assert.equal(reopened.status, 0, reopened.stderr); assert.equal(JSON.parse(reopened.stdout.trim()).successor_revision_read, true);
+  const revisionBackup = await recoveryBackup(f, "successor-revised"), revisionRecovery = new Database(path.join(revisionBackup.backupPath, RECOVERY_DATABASE_PAYLOAD));
+  try {
+    assert.equal(validateRecoveryCanonicalDatabaseV01(revisionRecovery).status, "valid");
+    const recoveredChain = inspectCurrentOrdinarySuccessorRevisionChainV01(revisionRecovery, f.scope, f.now())!;
+    assert.deepEqual(statelessUnresolvedEntries(recoveredChain.tip_packet), statelessUnresolvedEntries(packet));
+    assert.equal(ordinarySuccessorRevisionExecutionBlockedV01(revisionRecovery, f.scope, recoveredChain), true, "Recovery suspension cannot supply the revision exception");
+  } finally { revisionRecovery.close(); }
+  // Negative/legacy truth-table copies only; no positive path is repaired.
+  for (const [metadata, blocked] of [
+    ['{"reconciliation_required":true}', true], ['{"reconciliation_required":null}', true], ['{"reconciliation_required":"false"}', true],
+    ['{', true], ['[]', true], ['{}', false], ['{"reconciliation_required":false}', false],
+  ] as const) {
+    const copy = new Database(f.db.serialize());
+    try {
+      insertAutonomyRunLedgerRecord({ ...lost.run, run_id: "unrelated-revision-run", status: "completed", metadata: {} }, [], [], { db: copy });
+      copy.prepare("UPDATE autonomy_runs SET metadata_json=? WHERE run_id='unrelated-revision-run'").run(metadata);
+      assert.equal(ordinarySuccessorRevisionExecutionBlockedV01(copy, f.scope, chain), blocked);
+      assert.equal((copy.prepare("SELECT metadata_json FROM autonomy_runs WHERE run_id='unrelated-revision-run'").get() as any).metadata_json, metadata);
+    } finally { copy.close(); }
+  }
+  for (const field of ["stateless_review_disposition", "reconciliation_required"]) {
+    const copy = new Database(f.db.serialize());
+    try {
+      copy.prepare("UPDATE autonomy_runs SET metadata_json=json_remove(metadata_json, ?) WHERE run_id=?").run(`$.${field}`, lost.run.run_id);
+      assert.equal(ordinarySuccessorRevisionExecutionBlockedV01(copy, f.scope, chain), true);
+    } finally { copy.close(); }
+  }
+
+  await f.call({ action: "authorize_and_run", authorization: f.preview }, 409);
+  await f.call({ action: "authorize_and_run", authorization: fresh }, 409);
+  await f.call({ action: "continue", run_id: lost.run.run_id });
+  await f.call({ action: "continue", run_id: replacement.run.run_id }); assert.equal(f.calls, 3);
+  const nextAuthorization = (await f.call({ action: "preview", pricing })).authorization;
+  assert.equal(nextAuthorization.packet_id, revised.packet_id);
+  assert.notEqual(nextAuthorization.packet_fingerprint, fresh.packet_fingerprint);
+  const nextRun = (await f.call({ action: "authorize_and_run", authorization: nextAuthorization })).result;
+  assert.equal(nextRun.run.status, "completed", nextRun.run.stop_reason); assert.equal(f.calls, 5);
+  assert.notEqual(nextRun.run.run_id, replacement.run.run_id);
+  assert.notEqual(nextRun.run.metadata.stateless_review.grant_id, replacement.run.metadata.stateless_review.grant_id);
+  assert.notEqual(nextRun.run.metadata.stateless_review.grant_id, lost.run.metadata.stateless_review.grant_id);
+  assert.equal(nextRun.run.metadata.reconciliation_required, false);
+  for (const input of f.inputs.slice(3)) assert.ok(input.unresolved_predecessors[0].includes(lost.run.run_id));
+  assert.equal(f.inputs[4].observation.sources[0].text, sourceText.trimEnd().split("\n")[1]);
+  assert.equal(canonical(f.host(lost.run.run_id).read().run), endedHistory, "New work does not change the old unknown claim, receipt or disposition");
+  assert.equal(f.host(lost.run.run_id).read().run.metadata.reconciliation_required, true);
+  assert.equal(canonical(originalClaimSteps(f.host(lost.run.run_id).read().run)), beforeSteps);
+  assert.equal(ordinarySuccessorRevisionExecutionBlockedV01(f.db, f.scope, chain), true, "A grant/run admitted on this work still prevents revision");
+  const packetsAfterExecution = canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet"], limit: 128 }));
+  await f.call({ action: "prepare", material: { ...nextMaterial, question: "Cannot revise already issued work" } }, 409);
+  assert.equal(canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet"], limit: 128 })), packetsAfterExecution);
+  validateRecoveryCanonicalDatabaseV01(f.db);
 
   // Independent ordinary race: end a live dispatched model claim, prepare and
   // complete its replacement before releasing the original response.
@@ -359,22 +473,40 @@ async function dispositionContract() {
 }
 async function readDispositionChild(filename: string) {
   try {
-    const { config, run_id, at, step_fingerprint, disposition_fingerprint } = JSON.parse(readFileSync(filename, "utf8"));
+    const { config, run_id, at, step_fingerprint, disposition_fingerprint, packet_id, unresolved_context, question } = JSON.parse(readFileSync(filename, "utf8"));
     const script = scripted(), host = new StatelessSourceReviewHost({ config, now: () => at, adapter: script.adapter }, run_id);
     const read = await host.run(); assert.equal(read.stage, "ended_effects_unknown"); assert.equal(read.run.metadata.reconciliation_required, true);
     assert.equal(hash(canonical(originalClaimSteps(read.run))), step_fingerprint); assert.equal(read.disposition_preparation!.disposition!.fingerprint, disposition_fingerprint);
-    assert.equal(script.calls, 0); assert.equal(requests, 0); console.log(JSON.stringify({ provider_calls: 0, decision_and_uncertainty_retained: true }));
+    if (packet_id) {
+      const db = new Database(config.database_path);
+      try {
+        const chain = inspectCurrentOrdinarySuccessorRevisionChainV01(db, config, at)!;
+        assert.equal(chain.tip_packet.packet_id, packet_id); assert.equal(chain.projection_current, true);
+        assert.deepEqual(statelessUnresolvedEntries(chain.tip_packet), unresolved_context);
+        assert.equal(readSourceReview(chain.tip_packet).question, question); assert.equal(chain.tip_packet.capability_grant, null);
+        validateRecoveryCanonicalDatabaseV01(db);
+      } finally { db.close(); }
+    }
+    assert.equal(script.calls, 0); assert.equal(requests, 0); console.log(JSON.stringify({ provider_calls: 0, decision_and_uncertainty_retained: true, successor_revision_read: !!packet_id }));
   } finally { rmSync(root, { recursive: true, force: true }); network.unsubscribe(onNetwork); }
 }
 
 async function main() {
   try {
+    if (process.argv[2] === "--direction-disposition") {
+      await directionDispositionContract(); assert.equal(requests, 0);
+      console.log(JSON.stringify({ status: "passed", selected_direction_linked_preparation: true, changed_or_unselected_direction: "atomic_refusal", external_requests: requests })); return;
+    }
+    if (process.argv[2] === "--disposition") {
+      await dispositionContract(); assert.equal(requests, 0);
+      console.log(JSON.stringify({ status: "passed", successor_review_reentry: true, fresh_process_and_recovery_warning: true, separate_grant_required: true, external_requests: requests })); return;
+    }
     const previewAdapter = scripted();
     const routeIdentity = await preparePlannerModelGatewayRouteV01({ adapter: previewAdapter.adapter });
     assert.deepEqual(Object.keys(routeIdentity!).sort(), ["model_ref", "provider_ref"]);
     assert.equal(previewAdapter.calls, 0, "route preview must not dispatch a provider call or expose an invocable session");
     assert.equal(await preparePlannerModelGatewayRouteV01({ adapter: createOpenAIResponsesAdapterV01({ environment: {} }) }), null);
-    await dispositionContract();
+    await directionDispositionContract(); await dispositionContract();
     const normal = await fixture("normal");
     await normal.call({ action: "authorize_and_run", authorization: normal.preview }, 401, { cookie: "" });
     await normal.call({ action: "authorize_and_run", authorization: normal.preview }, 403, { origin: "https://foreign.example" });
@@ -604,6 +736,7 @@ async function main() {
       bounded_transport_diagnostics: "persisted_without_private_exception_material", cancellation_settles_unknown: false,
       local_disposition: "authenticated_revision_and_generation_fenced", linked_work: "explicit_null_grant_then_fresh_authorization", disposition_provider_calls: 0,
       fresh_process_disposition_read: true, late_result: "quarantined_original_attempt_replacement_unchanged",
+      selected_direction_linked_preparation: true, changed_or_unselected_direction: "atomic_refusal", successor_review_reentry: "fresh_grant_and_loop_with_mandatory_uncertainty",
       audit_source_bytes: actualObservation.bytes_read, audit_preparation_bytes: audit.preparationBytes + ar.run.metadata.authorization_preparation_bytes + ar.run.steps[0].output.preparation_bytes, audit_excerpt_bytes: actualObservation.sources.reduce((n: number, f: any) => n + Buffer.byteLength(f.text), 0), completed_action_replays: 0, unknown_dispatch_retries: 0, external_requests: requests, actual_model_judgment: "NOT RUN", usefulness: "NOT RUN" }));
   } finally { for (const db of databases) db.close(); rmSync(root, { recursive: true, force: true }); network.unsubscribe(onNetwork); }
 }

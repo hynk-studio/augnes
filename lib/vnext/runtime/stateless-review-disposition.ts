@@ -144,7 +144,7 @@ function linksFrom(packet: TaskContextPacketV01): Link[] {
   const links = data.predecessors.map(v => { const link = reviewObject(v, ["run_id", "disposition_fingerprint"]); return { run_id: reviewText(link.run_id, 160), disposition_fingerprint: reviewSha(link.disposition_fingerprint) }; });
   check(new Set(links.map(l => l.run_id)).size === links.length, "disposition_links_invalid"); return links;
 }
-/** Only the stateless admission and its completed-result authoring path call
+/** Only the stateless admission and its completed-result authoring/revision path call
  * this proof owner. The shared conservative predicate and native paths do not. */
 export function assertStatelessUnsettledAdmission(db: Database.Database, scope: Scope, packet: TaskContextPacketV01, ownRun?: string) {
   check(packet.workspace_id === scope.workspace_id && packet.project_id === scope.project_id, "run_scope_invalid");
@@ -224,11 +224,14 @@ export function prepareLinkedStatelessWork(db: Database.Database, input: { confi
     }
     check(current?.projection_current && current.packet.packet_id === prior.packet_id && current.packet.integrity.fingerprint === prior.integrity.fingerprint, "replacement_current_work_changed");
     const packet = buildReplacement(prior, m, admission.action_observed_at);
-    readSourceReview(packet); assertPacketDirectionCurrent(db, packet, admission.action_observed_at);
+    readSourceReview(packet);
     assertStatelessUnsettledAdmission(db, input.config, packet);
     check(validateTaskContextPacketV01(packet, { evaluated_at: admission.action_observed_at }).status === "valid", "replacement_packet_invalid");
     const write = insertVNextCoreRecordV01(db, { ...input.config, record_kind: "task_context_packet", record_id: packet.packet_id, fingerprint: packet.integrity.fingerprint,
       idempotency_key: replacementKey(m), payload: packet, created_at: packet.generated_at });
+    // The ordinary insertion binds the direction actually selected by this
+    // packet. Validate that persisted binding before either write can commit.
+    assertPacketDirectionCurrent(db, packet, admission.action_observed_at);
     check(readCurrentProjectWorkPacketLineageV01(db, input.config)?.packet.packet_id === packet.packet_id, "replacement_not_current");
     db.exec("COMMIT"); return { packet, status: write.status, session_admission: admission };
   } catch (e) { if (db.inTransaction) db.exec("ROLLBACK"); throw e; }
