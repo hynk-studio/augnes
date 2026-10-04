@@ -359,17 +359,32 @@ async function assertCurrentSourcesRevisionDepthV01(): Promise<void> {
       assert.equal(JSON.stringify(transported).includes("<b>Literal instruction"), false);
       assert.equal(JSON.stringify(transported).includes("/Users/disposable/withheld"), false);
     }
-    let initializationScans = 0;
+    let initializationScans = 0, historyCutoffScans = 0;
     const prepare = db.prepare.bind(db);
     db.prepare = ((sql: string) => {
-      if (/ORDER BY created_at, record_kind, record_id/u.test(sql)) initializationScans++;
+      const query = sql.replace(/\s+/gu, " ").trim();
+      // Identify the complete initialization query, not its shared ordering.
+      // The cumulative-history validator also orders cutoff rows this way;
+      // those reads do not repeat current-work initialization.
+      if (/^SELECT record_kind, record_id, workspace_id, project_id, fingerprint, idempotency_key, payload_json, created_at FROM vnext_core_records WHERE workspace_id = \? AND project_id = \? ORDER BY created_at, record_kind, record_id LIMIT \?$/u.test(query)) initializationScans++;
+      if (/^SELECT record_kind, record_id, created_at FROM vnext_core_records WHERE workspace_id = \? AND project_id = \? AND created_at <= \? ORDER BY created_at, record_kind, record_id$/u.test(query)) historyCutoffScans++;
       return prepare(sql);
     }) as typeof db.prepare;
     const started = performance.now();
-    const result = await readCodexRepositoryWorkSourcesV01(db, { repository_root: root, expected_snapshot_binding: binding });
-    db.prepare = prepare;
+    let result: Awaited<ReturnType<typeof readCodexRepositoryWorkSourcesV01>>, sourceReadScans: number, readMs: number;
+    try {
+      result = await readCodexRepositoryWorkSourcesV01(db, { repository_root: root, expected_snapshot_binding: binding });
+      readMs = Math.round(performance.now() - started);
+      sourceReadScans = initializationScans;
+      assert.equal(sourceReadScans, 1, "one coherent source read must not repeat canonical work/lineage initialization already used by its snapshot");
+      assert.equal(historyCutoffScans, 3, "separate historical-cutoff reads must not masquerade as current-work initialization");
+      // An actual duplicate owner invocation must still trip the one-read
+      // invariant. A narrowed SQL observer may not silently miss real repeats.
+      readProjectWorkInitializationV01(db, scope);
+      assert.equal(initializationScans, 2, "duplicate initialization negative control must be observed");
+    } finally { db.prepare = prepare; }
     console.log(JSON.stringify({ current_sources_revision_depth: 14, note_occurrences: 64,
-      initialization_scans: initializationScans, read_ms: Math.round(performance.now() - started) }));
+      initialization_scans: sourceReadScans, duplicate_initialization_negative_control: "detected", read_ms: readMs }));
     assert.equal(result.status, "available");
     assert.equal(result.snapshot_binding, binding);
     assert.equal(result.packet_fingerprint, packet.integrity.fingerprint);
@@ -377,7 +392,6 @@ async function assertCurrentSourcesRevisionDepthV01(): Promise<void> {
     assert.deepEqual(result.sources.map(s => s.source_binding), notes.map(s => s.source_ref));
     assert.equal(result.sources.filter(s => s.source_locator === null).length, 1);
     assert.deepEqual(db.serialize(), before);
-    assert.equal(initializationScans, 1, "one coherent source read must not repeat canonical work/lineage initialization already used by its snapshot");
   } finally { db.close(); }
 }
 

@@ -590,6 +590,9 @@ controls. Exercise canonical recovery and supported portable reconstruction,
 including suspended credentials and no reconstructed execution permission.
 
 Measure query/traversal counts and elapsed read cost at increasing fixture sizes.
+Identify the actual read operation when counting initialization: shared SQL
+ordering alone cannot distinguish initialization from historical-cutoff checks.
+A duplicate initialization control must remain detectable.
 Avoid reconstructing the same ancestors once per candidate in a batch and avoid
 recursive revision depth. Report retained operation/byte limits and honest
 incomplete-read refusals, not unlimited-scale support. Local Canonical binds the
