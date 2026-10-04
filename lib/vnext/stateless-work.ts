@@ -40,6 +40,8 @@ export interface StatelessGrantRequest {
   cost_budget: ModelGatewayCostBudgetV01;
   /** Absent only in historical grants, whose model input omitted ordinary notes. */
   selected_notes_ref?: string;
+  /** Optional local checkpoint; omission preserves uninterrupted historical behavior. */
+  pause_after_observation?: true;
 }
 export interface StatelessGrant {
   grant_version: typeof STATELESS_GRANT; grant_id: string; grant_fingerprint: string;
@@ -95,8 +97,10 @@ export function validateStatelessGrant(value: unknown): value is StatelessGrant 
     const v = reviewObject(value, ["grant_version", "grant_id", "grant_fingerprint", "workspace_id", "project_id", "approved_by", "issued_at", "request"]);
     const r = reviewObject(v.request, ["workspace_id", "project_id", "packet_id", "packet_fingerprint", "review_ref", "root_fingerprint", "host_fingerprint", "control_revision", "expires_at", "limits", "cost_budget",
       ...(v.request && typeof v.request === "object" && "selected_notes_ref" in v.request ? ["selected_notes_ref"] : []),
-      ...(v.request && typeof v.request === "object" && "model_configuration" in v.request ? ["model_configuration"] : [])]);
+      ...(v.request && typeof v.request === "object" && "model_configuration" in v.request ? ["model_configuration"] : []),
+      ...(v.request && typeof v.request === "object" && "pause_after_observation" in v.request ? ["pause_after_observation"] : [])]);
     if ("selected_notes_ref" in r) reviewSha(r.selected_notes_ref);
+    if ("pause_after_observation" in r) reviewCheck(r.pause_after_observation === true, "grant_checkpoint_invalid");
     reviewCheck(v.grant_version === STATELESS_GRANT && v.workspace_id === r.workspace_id && v.project_id === r.project_id, "grant_scope");
     for (const key of ["packet_fingerprint", "review_ref", "root_fingerprint", "host_fingerprint"]) reviewSha(r[key]);
     for (const key of ["workspace_id", "project_id", "packet_id"]) reviewText(r[key], 256);

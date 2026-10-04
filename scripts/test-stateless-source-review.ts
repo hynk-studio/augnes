@@ -1,3 +1,4 @@
+import { checkpointProcessReplacement } from "./test-stateless-observation-checkpoint";
 import { OPENAI_PLANNER_SOL_LOW, OPENAI_PLANNER_SOL_LOW_REF } from "../lib/vnext/model-gateway/planner-execution-configuration";
 import { STATELESS_LIMITS, STATELESS_SOL_LOW_LIMITS } from "../lib/vnext/stateless-work";
 import { statelessTerminalEntries, statelessMandatoryEntries } from "../lib/vnext/stateless-work";
@@ -1002,8 +1003,82 @@ async function solLowContract() {
   assert.equal(quarantined.run.steps[2]!.status, "planned"); await late.call({ action: "continue", run_id: lateAuth.run_id }); assert.equal(late.calls, 1);
 }
 
+async function observationCheckpointContract() {
+  const pause = async (name: string) => {
+    const f = await fixture(`checkpoint-${name}`, "read_selected_sources", "use_observation", false, "gpt-6.1-sol");
+    const authorization = (await f.call({ action: "preview", pricing: notePricing, pause_after_observation: true })).authorization;
+    assert.equal(authorization.pause_after_observation, true);
+    const saved = (await f.call({ action: "authorize_and_run", authorization })).result;
+    assert.equal(saved.stage, "observation_saved"); assert.equal(saved.run.status, "paused"); assert.equal(f.calls, 1);
+    assert.deepEqual(saved.run.steps.map((s: any) => s.status), ["completed", "completed", "planned"]);
+    assert.equal(saved.run.steps[2].output.generation, undefined); assert.ok(saved.observation_checkpoint);
+    return { f, saved, authorization };
+  };
+  const processCase = await fixture("checkpoint-process", "read_selected_sources", "use_observation", false, "gpt-6.1-sol");
+  await checkpointProcessReplacement(processCase.config, processCase.projectRoot);
+  const { f, saved, authorization } = await pause("controller-race");
+  const request = { action: "continue", run_id: saved.run.run_id, checkpoint: saved.observation_checkpoint };
+  await f.call({ action: "continue", run_id: saved.run.run_id }, 409);
+  await f.call({ ...request, checkpoint: { ...request.checkpoint, revision: request.checkpoint.revision + 1 } }, 409);
+  await f.call(request, 409, {}, "another-project");
+  assert.equal((await f.host(saved.run.run_id).run()).stage, "observation_saved"); assert.equal(f.calls, 1);
+  const grants = canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["capability_grant"], limit: 128 }));
+  const boundGrant = JSON.parse(grants)[0].payload;
+  assert.equal(validateStatelessGrant(boundGrant), true);
+  assert.equal(validateStatelessGrant({ ...boundGrant, request: { ...boundGrant.request, pause_after_observation: false } }), false);
+  // Exact authenticated writer contracts: abandon an unclaimed local controller,
+  // replace it using a fresh binding, then ensure its old generation cannot dispatch.
+  const stale = f.host(saved.run.run_id).resumeObservation(f.credential(), saved.observation_checkpoint); f.refreshSession();
+  const checkpoint2 = f.host(saved.run.run_id).read().observation_checkpoint;
+  const replacement = f.host(saved.run.run_id).resumeObservation(f.credential(), checkpoint2); f.refreshSession();
+  assert.notEqual(stale.generation, replacement.generation);
+  const unchanged = canonical(f.host(saved.run.run_id).read().run);
+  await f.host(saved.run.run_id).run(undefined, stale.generation); assert.equal(f.calls, 1);
+  assert.equal(canonical(f.host(saved.run.run_id).read().run), unchanged);
+  const current = f.host(saved.run.run_id).read().observation_checkpoint;
+  let release!: () => void, entered!: () => void;
+  const enteredPromise = new Promise<void>(r => { entered = r; }), gate = new Promise<void>(r => { release = r; });
+  f.controls.dispatch = async () => { entered(); await gate; };
+  const pending = f.call({ ...request, checkpoint: current }); await enteredPromise;
+  f.refreshSession(); await f.call({ ...request, checkpoint: current }, 409); release();
+  const completed = (await pending).result;
+  assert.equal(completed.run.status, "completed"); assert.equal(f.calls, 2);
+  assert.deepEqual(completed.run.steps.slice(0, 2), saved.run.steps.slice(0, 2));
+  assert.equal(canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["capability_grant"], limit: 128 })), grants);
+  assert.equal(authorization.expires_at, JSON.parse(grants)[0].payload.request.expires_at);
+  f.refreshSession(); await f.call(request, 409); assert.equal(f.calls, 2);
+  for (const mode of ["cancel", "grant-expiry", "attempt-expiry", "control-disabled"] as const) {
+    const { f, saved } = await pause(mode), originalGrant = canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["capability_grant"], limit: 128 }));
+    if (mode === "cancel") await f.call({ action: "cancel", run_id: saved.run.run_id });
+    if (mode === "grant-expiry") f.tick(600001);
+    if (mode === "attempt-expiry") f.tick(150001);
+    if (mode === "control-disabled") controlFor(f, false);
+    f.refreshSession(); const result = await f.call({ action: "continue", run_id: saved.run.run_id, checkpoint: saved.observation_checkpoint }, 409);
+    if (mode === "attempt-expiry") assert.equal(result.error, "stateless_review_attempt_time_limit_before_dispatch");
+    assert.equal(f.calls, 1); assert.deepEqual(f.host(saved.run.run_id).read().run.steps, saved.run.steps);
+    assert.equal(canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["capability_grant"], limit: 128 })), originalGrant);
+  }
+  const unknown = await fixture("checkpoint-unknown", "read_selected_sources", "use_observation", false, "gpt-6.1-sol");
+  const uPreview = (await unknown.call({ action: "preview", pricing: notePricing, pause_after_observation: true })).authorization;
+  unknown.loseDispatch(); const lost = (await unknown.call({ action: "authorize_and_run", authorization: uPreview })).result;
+  assert.equal(lost.stage, "dispatch_outcome_unknown"); assert.equal(lost.observation_checkpoint, null);
+  await unknown.call({ action: "continue", run_id: lost.run.run_id, checkpoint: saved.observation_checkpoint }, 409);
+  assert.equal(unknown.calls, 1); assert.deepEqual(unknown.host(lost.run.run_id).read().run, lost.run);
+  const recovery = await pause("recovery");
+  assert.throws(() => previewActivePortableProjectV01(recovery.f.db), /portable_stateless_review_not_supported/);
+  const backup = await recoveryBackup(recovery.f, "checkpoint");
+  const recoveredPath = path.join(backup.backupPath, RECOVERY_DATABASE_PAYLOAD);
+  const suspended = new StatelessSourceReviewHost({ config: { ...recovery.f.config, database_path: recoveredPath }, now: recovery.f.now, adapter: recovery.f.adapter }, recovery.saved.run.run_id);
+  assert.equal((await suspended.run()).stage, "recovery_suspended"); assert.equal(suspended.read().observation_checkpoint, null); assert.equal(recovery.f.calls, 1);
+  assert.deepEqual(suspended.read().run.steps, recovery.saved.run.steps);
+}
+
 async function main() {
   try {
+    if (process.argv[2] === "--observation-checkpoint") {
+      await observationCheckpointContract(); assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0);
+      console.log(JSON.stringify({ status: "passed", checkpoint: "ordinary_authenticated_http", process_replacement: true, no_replay: true, original_grant_and_deadline: true, stale_and_concurrent_controllers: "refused", cancellation_expiry_unknown_recovery: "refused", provider_egress: 0 })); return;
+    }
     if (process.argv[2] === "--sol-low") {
       await solLowContract(); assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0);
       console.log(JSON.stringify({ status: "passed", model_configuration: "gpt-6.1-sol-low-standard", scripted_only: true, authority_and_usage: true,
@@ -1030,6 +1105,7 @@ async function main() {
       await dispositionContract(); assert.equal(requests, 0);
       console.log(JSON.stringify({ status: "passed", successor_review_reentry: true, fresh_process_and_recovery_warning: true, separate_grant_required: true, external_requests: requests })); return;
     }
+    await observationCheckpointContract();
     const previewAdapter = scripted();
     const routeIdentity = await preparePlannerModelGatewayRouteV01({ adapter: previewAdapter.adapter });
     assert.deepEqual(Object.keys(routeIdentity!).sort(), ["model_ref", "provider_ref"]);

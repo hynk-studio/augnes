@@ -54,8 +54,9 @@ export function createStatelessSourceReviewHandler(options: { environment?: Node
         admission = authored.session_admission;
         result = { packet: authored.packet, status: authored.status, authorized: false };
       } else if (body.action === "preview") {
-        reviewObject(body, ["action", "pricing"]);
-        return NextResponse.json({ ok: true, authorization: await previewStatelessReview(db, hostOptions, body.pricing), read_only: true }, { headers });
+        reviewObject(body, ["action", "pricing", ...("pause_after_observation" in body ? ["pause_after_observation"] : [])]);
+        if ("pause_after_observation" in body && body.pause_after_observation !== true) throw new Error("stateless_review_checkpoint_request_invalid");
+        return NextResponse.json({ ok: true, authorization: await previewStatelessReview(db, hostOptions, body.pricing, body.pause_after_observation === true), read_only: true }, { headers });
       } else if (body.action === "authorize_and_run") {
         reviewObject(body, ["action", "authorization"]);
         const authorized = authorizeStatelessReview(db, hostOptions, credential, body.authorization as StatelessGrantRequest);
@@ -63,10 +64,15 @@ export function createStatelessSourceReviewHandler(options: { environment?: Node
         const host = new StatelessSourceReviewHost(hostOptions, authorized.run_id);
         try { result = await host.run(request.signal); } catch { result = host.read(); }
       } else if (body.action === "continue" || body.action === "cancel") {
-        reviewObject(body, ["action", "run_id"]);
+        reviewObject(body, ["action", "run_id", ...(body.action === "continue" && "checkpoint" in body ? ["checkpoint"] : [])]);
         const host = new StatelessSourceReviewHost(hostOptions, reviewText(body.run_id, 160));
         if (body.action === "cancel") { admission = host.cancel(credential); result = host.read(); }
-        else {
+        else if ("checkpoint" in body) {
+          const resumed = host.resumeObservation(credential, body.checkpoint);
+          admission = resumed.session_admission;
+          try { result = await host.run(request.signal, resumed.generation); } catch { result = host.read(); }
+        } else {
+          if ((host.read().run.metadata.stateless_review as { pause_after_observation?: boolean }).pause_after_observation) throw new Error("stateless_review_checkpoint_required");
           db.exec("BEGIN IMMEDIATE");
           try { admission = admitVNextLocalOperatorMutationInsideTransactionV01(db, { config, credential, clock: options.clock }); host.read(); db.exec("COMMIT"); }
           catch (e) { if (db.inTransaction) db.exec("ROLLBACK"); throw e; }

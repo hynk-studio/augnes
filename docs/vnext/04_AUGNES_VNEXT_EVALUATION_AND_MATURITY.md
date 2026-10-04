@@ -450,6 +450,27 @@ without truncation. Scripted compatibility proves no live availability, model
 compliance or adequacy. A resource-limited response alone is not a task-quality
 finding; selecting a different allowance would require another explicit decision.
 
+For optional observation-boundary interruption, use the ordinary authenticated
+preview/authorization and Continue HTTP paths with scripted provider transport.
+Prove the runtime returns after observation persistence and before a conclude
+claim, then terminate that owned process. A different process and fresh session
+must reconstruct the exact saved boundary, consume the same finite grant and
+attempt clock, and dispatch only conclude. Remove disposable source bytes after
+observation to discriminate persisted-data use from an unnoticed reread. Verify
+unchanged completed steps, original observation/receipt attribution, one call per
+stage, supported logout and zero remaining owned processes.
+
+Exercise stale revisions, wrong projects, simultaneous controllers, controller
+replacement before claim, cancellation, disabled control, grant/attempt expiry,
+unknown claims and recovery suspension. None may renew authority or replay a
+stage. Historical unflagged grants retain uninterrupted behavior. Scripted process
+replacement proves the supported local path, not live interruption recovery or
+environment transfer; the exporter refuses stateless-grant projects. A subsequent
+live exercise needs one separately authorized finite scope covering both stages,
+shutdown/restart, reauthentication and cleanup. A fitting hypothetical successor
+input is not proof that every possible first public judgment fits; report exact
+known payloads and future-dependent bounds separately.
+
 Verify that a returned-response terminal attempt cannot borrow unknown disposition
 or a fabricated completed receipt to bypass completed-result/revision guards.
 For the separate bounded terminal-authorship path, create positive history through

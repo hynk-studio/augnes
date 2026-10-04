@@ -443,7 +443,7 @@ was selected. Authenticated fresh-process readback, null grant, disabled control
 unchanged historical records and 3 / 3 / 5 accounting were reported verified;
 supported logout returned success and subsequent access returned HTTP 401.
 
-The current offline slice prepares one `gpt-6.1-sol` attempt with explicit low
+The earlier offline slice prepared one `gpt-6.1-sol` attempt with explicit low
 effort and standard reasoning mode, replacing the GPT-4.1-only proposal. GPT-6
 Luna remains a later cost-efficiency candidate; no comparison/fallback is started.
 The existing ordinary route binds these settings and the finite 4,096-token,
@@ -451,7 +451,7 @@ The existing ordinary route binds these settings and the finite 4,096-token,
 public rationale and input/source/action caps unchanged. Returned incomplete
 responses expose bounded status/reason and reported reasoning usage without
 hidden reasoning, retries, successful receipts or invented billing. The candidate
-is read-only during this slice; its packet is neither recreated nor renewed.
+remained read-only during that slice; its packet was neither recreated nor renewed.
 
 Zero-egress accounting through the final builder/serializer found a 5,671-byte
 choose message / 8,124-byte request, and a hypothetical read-and-conclude message
@@ -470,16 +470,45 @@ cache-write rate is a conservative accounting assumption, not measured tokens or
 a billing guarantee. The project's service tier and key ownership remain
 unresolved metadata, not prerequisites. The original unknown cost stays separate.
 
-Next decision: review this bounded configuration and exact-head verification,
-then separately authorize one ordinary Sol attempt, its temporary automation,
-fresh finite grant and specified transmission before the existing packet expires.
-No candidate grant, preview requiring enabled control or provider request has
-been issued in this preparation. Expiry or changed bindings require a new
-decision, not backdating, substitution or silent renewal. The closed comparison's
-unused allowance is unavailable. GPT-4.1 and Sol adequacy, comparative
-usefulness, live interruption recovery and environment transfer remain
-unestablished. Interrupted live progression and comparative usefulness remain
-**NOT RUN**. Earlier
+That proposal was separately authorized and executed on 2026-10-04 at
+`c7e418fc85234edeef197fe9dced2a891560ac05`. Run
+`stateless-review:337b7081305bd7b6669c1330` completed two calls in 13,845 ms:
+inspection was selected, the 652-byte observation was persisted, and conclude
+used that observation. Receipt `run-receipt:8d59d4371e0e5e7e9eb3b401` has fingerprint
+`sha256:6c3d3fc4af5857747aad7dd181287e64e2042f9900f06878721898ebfd35d288`;
+observation fingerprint is
+`sha256:c6bcd1038c0d67f729938887e0f9af460cff1d2de0b7a434c0f4440e7996913f`.
+Reported usage was 4,958 input / 449 output tokens, including zero reported
+reasoning tokens. Provider cost was unavailable; the declared estimate was
+USD 0.0516575. The conclude message occupied 8,016 of 8,192 bytes. Cleanup
+disabled automation, revoked the latest session with subsequent HTTP 401 and
+stopped owned processes. Accounting became 4 grants / 4 runs / 7 historical calls.
+
+Work accepts the finding only within the supplied excerpts: the visible named
+constructor → `runFor` → `wake` pattern, with import/class resolution, downstream
+behavior and runtime effects unestablished. The model chose inspection, used its
+persisted observation and scoped the historical note correctly. This is successful
+behavior on exposed development material, not general model adequacy, a claim of
+self-correction or comparative usefulness. The earlier preparation's hypothetical
+payload measurements and NOT RUN labels above remain dated preparation evidence.
+
+The current offline slice selects a concise attributed finding and Work review
+through ordinary completed-result authorship, then prepares a bounded question
+about continuation after a saved observation. It adds an optional, grant-bound
+pause at that durable boundary and authenticated continuation under the original
+grant and attempt clock. Disposable ordinary HTTP checks use scripted transport
+and real process replacement; internal `step()` calls alone are not the product
+path evidence. The candidate receives no new grant or provider call in this slice.
+
+Next decision: review the exact-source correction, saved successor and complete
+payload accounting, then separately authorize the whole live interruption exercise
+including both stages, process replacement, reauthentication and cleanup. Expiry or
+changed bindings require a new decision, not backdating or silent renewal. The
+closed comparison's unused allowance remains unavailable. GPT-4.1 and general Sol
+adequacy, comparative usefulness, live interruption recovery and environment
+transfer remain unestablished. The portable exporter still refuses projects with
+stateless grants; copying SQLite is not qualified environment transfer. Interrupted
+live progression and comparative usefulness remain **NOT RUN**. Earlier
 failures and receipts retain their original dates and source identities. Existing
 Companion continuity remains unavailable. Same-database account/session changes,
 meaningful unfinished-work transfer (#1149), semantic selection quality,

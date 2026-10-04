@@ -969,6 +969,25 @@ timeout or transport loss after dispatch retains unknown cost/effect. A stale
 controller cannot settle another generation; its returned receipt can be retained
 as a quarantined ledger event without resolving the outstanding claim.
 
+The ordinary review preview can explicitly request `pause_after_observation`.
+This optional choice is part of the immutable finite grant; omission keeps the
+uninterrupted foreground path. The observation (including justified non-use) and
+paused state commit together before any conclude claim. Authenticated readback
+exposes the exact saved boundary: run/revision, grant, packet, choose/result and
+observation fingerprints and observation generation. This is saved local progress,
+not provider settlement, cancellation or a new execution allowance.
+
+An authenticated Continue consumes that exact boundary atomically, revalidates
+current authority and the original attempt deadline, and issues a local controller
+generation. Only that controller may claim conclude. A newer continuation fences
+an older unclaimed controller; an active claim, cancellation, expired authority,
+recovery suspension or reconciliation obligation cannot be relabelled as resumable.
+Runtime shutdown and a fresh session do not renew the grant, reset the clock,
+re-read completed material or replay a model call. The remaining request uses the
+persisted observation and first public judgment. The original grant expiry and
+total attempt clock include downtime. This supports explicit interruption exercises
+without requiring a person to advance each stage of ordinary uninterrupted work.
+
 Project unsettled-run guards remain conservative by default, excluding only this
 run when admitting its own next step through the shared ledger owner. Terminal
 status alone is not

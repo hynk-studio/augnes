@@ -1,6 +1,6 @@
 import { readTerminalAuthorshipPreparation, assertTerminalHistoryActive } from "./stateless-terminal-authorship";
 import { assertStatelessUnsettledAdmission, prepareLinkedStatelessWork, readStatelessDispositionPreparation, statelessUnresolvedEntries } from "./stateless-review-disposition";
-import { stateOf, readRun, patchRun } from "./stateless-review-ledger";
+import { stateOf, readRun, patchRun, readObservationCheckpoint } from "./stateless-review-ledger";
 import { buildStatelessFailureEvidence, readStatelessFailureReviews, StatelessJudgmentRejection, validateStatelessJudgment, type StatelessFailureEvidence, type StatelessFailureLayer, type StatelessFailureCode } from "../stateless-review-failure";
 import type Database from "better-sqlite3";
 import { normalizeModelTransportFailureObservationV01 } from "@/lib/vnext/model-gateway/transport-failure-observation";
@@ -132,7 +132,7 @@ export function prepareStatelessReview(db: Database.Database, input: { config: C
 
 /** The human reviews a finite cost ceiling using the existing Gateway pricing owner.
  * Rates are attributed operator declarations, not measured cost or fetched prices. */
-export async function previewStatelessReview(db: Database.Database, options: StatelessReviewOptions, pricing: unknown): Promise<StatelessGrantRequest> {
+export async function previewStatelessReview(db: Database.Database, options: StatelessReviewOptions, pricing: unknown, pauseAfterObservation = false): Promise<StatelessGrantRequest> {
   const p = reviewObject(pricing, ["input_nano_usd_per_byte", "output_nano_usd_per_token", "maximum_total_nano_usd", "source_version"]);
   for (const k of ["input_nano_usd_per_byte", "output_nano_usd_per_token", "maximum_total_nano_usd"]) check(Number.isSafeInteger(p[k]) && Number(p[k]) > 0 && Number(p[k]) <= 1_000_000_000, "pricing_required");
   const source = reviewText(p.source_version, 100); check(/^[A-Za-z0-9:._-]+$/.test(source), "pricing_source_invalid");
@@ -156,7 +156,7 @@ export async function previewStatelessReview(db: Database.Database, options: Sta
     maximum_input_units: limits.input_bytes, maximum_output_units: limits.output_tokens, timeout_ms: limits.invocation_ms, maximum_permitted_cost: Math.floor(Number(p.maximum_total_nano_usd) / 2), evaluated_at: at });
   return { workspace_id: config.workspace_id, project_id: config.project_id, packet_id: packet.packet_id, packet_fingerprint: packet.integrity.fingerprint,
     review_ref: reviewRef(review), root_fingerprint: rootBinding(db, config).fingerprint, host_fingerprint: hostFingerprint(), control_revision: control.revision,
-    expires_at: expires, limits, ...(modelConfiguration ? { model_configuration: modelConfiguration } : {}), cost_budget: cost, selected_notes_ref: readStatelessSelectedNotes(packet).fingerprint };
+    expires_at: expires, limits, ...(pauseAfterObservation ? { pause_after_observation: true as const } : {}), ...(modelConfiguration ? { model_configuration: modelConfiguration } : {}), cost_budget: cost, selected_notes_ref: readStatelessSelectedNotes(packet).fingerprint };
 }
 
 function assertGrantCurrent(db: Database.Database, config: Config, grant: StatelessGrant, at: string, ownRun?: string) {
@@ -205,7 +205,7 @@ export function authorizeStatelessReview(db: Database.Database, options: Statele
       metadata: { workspace_id: options.config.workspace_id, project_id: options.config.project_id, invocation_origin: "policy_triggered", work_id: normalizeWorkId(runId),
         packet_id: request.packet_id, packet_fingerprint: request.packet_fingerprint, root_fingerprint: root.scope_fingerprint, authorization_preparation_bytes: authorizationRead.bytes_read,
         root_physical_identity_fingerprint: root.physical_fingerprint, reconciliation_required: false,
-        stateless_review: { version: STATELESS_WORK, grant_id: grant.grant_id, grant_fingerprint: grant.grant_fingerprint, revision: 1, cancelled: false, recovery_suspended: false } },
+        stateless_review: { version: STATELESS_WORK, grant_id: grant.grant_id, grant_fingerprint: grant.grant_fingerprint, revision: 1, cancelled: false, recovery_suspended: false, ...(request.pause_after_observation ? { pause_after_observation: true } : {}) } },
     }, steps, [], { db });
     db.exec("COMMIT"); return { run_id: runId, grant, session_admission: admission };
   } catch (e) { if (db.inTransaction) db.exec("ROLLBACK"); throw e; }
@@ -225,9 +225,10 @@ export class StatelessSourceReviewHost {
       const run = readRun(db, this.options.config, this.runId);
       const step = run.steps.find(s => s.status === "running");
       const disposition = readStatelessDispositionPreparation(db, this.options.config, run);
-      return { run, terminal_preparation: readTerminalAuthorshipPreparation(db, this.options.config, this.runId, this.now()), failures: readStatelessFailureReviews(run), disposition_preparation: disposition, stage: run.metadata.stateless_review_disposition !== undefined
+      const checkpoint = stateOf(run).pause_after_observation ? readObservationCheckpoint(run, readStatelessGrant(db, { ...this.options.config, ...stateOf(run) })) : null;
+      return { run, observation_checkpoint: checkpoint, terminal_preparation: readTerminalAuthorshipPreparation(db, this.options.config, this.runId, this.now()), failures: readStatelessFailureReviews(run), disposition_preparation: disposition, stage: run.metadata.stateless_review_disposition !== undefined
         ? disposition?.disposition ? "ended_effects_unknown" : "disposition_invalid"
-        : step ? "dispatch_outcome_unknown" : isTerminalRunnerStatus(run.status) ? "finished" : stateOf(run).recovery_suspended ? "recovery_suspended" : "ready",
+        : step ? "dispatch_outcome_unknown" : checkpoint ? "observation_saved" : isTerminalRunnerStatus(run.status) ? "finished" : stateOf(run).recovery_suspended ? "recovery_suspended" : "ready",
         next_step: run.steps.find(s => s.status === "planned")?.title ?? null,
         receipt: typeof run.metadata.run_receipt_id === "string" ? readProjectRunResultSourceBindingV01(db, { ...this.options.config, receipt_id: run.metadata.run_receipt_id }).receipt : null };
     } finally { db.close(); }
@@ -242,18 +243,35 @@ export class StatelessSourceReviewHost {
       db.exec("COMMIT"); return admission;
     } catch (e) { if (db.inTransaction) db.exec("ROLLBACK"); throw e; } finally { db.close(); }
   }
-  async run(signal: AbortSignal = new AbortController().signal) {
+  /** Consume only the displayed saved boundary; a new controller fences older ones. */
+  resumeObservation(credential: Credential, expected: unknown) {
+    const db = this.open(); db.exec("BEGIN IMMEDIATE");
+    try {
+      const admission = admitVNextLocalOperatorMutationInsideTransactionV01(db, { config: this.options.config, credential, clock: { now: this.now } });
+      const run = readRun(db, this.options.config, this.runId), state = stateOf(run);
+      const grant = readStatelessGrant(db, { ...this.options.config, ...state }), checkpoint = readObservationCheckpoint(run, grant);
+      check(checkpoint && canonical(checkpoint) === canonical(expected), "checkpoint_changed_or_unavailable");
+      assertGrantCurrent(db, this.options.config, grant, this.now(), this.runId);
+      check(run.started_at && Date.parse(this.now()) - Date.parse(run.started_at) < grant.request.limits.host_ms, "attempt_time_limit_before_dispatch");
+      const generation = randomUUID();
+      patchRun(db, run, { observation_resume_generation: generation }, this.now(), "running", null);
+      appendAutonomyRunLedgerEvent(buildAutonomyRunEventRecord({ run_id: run.run_id, step_id: run.steps[2]!.step_id, event_type: "host_event_observed", status: "running",
+        message: "Continue from the exact saved observation under the original grant and attempt clock; no completed stage is replayed.", payload: { checkpoint, controller_generation: generation }, created_at: this.now() }), { db });
+      db.exec("COMMIT"); return { session_admission: admission, generation };
+    } catch (error) { if (db.inTransaction) db.exec("ROLLBACK"); throw error; } finally { db.close(); }
+  }
+  async run(signal: AbortSignal = new AbortController().signal, observationResumeGeneration?: string) {
     const db = this.open();
     let hostMs: number;
     try { const run = readRun(db, this.options.config, this.runId); hostMs = readStatelessGrant(db, { ...this.options.config, ...stateOf(run) }).request.limits.host_ms; }
     finally { db.close(); }
     const started = performance.now();
     for (let i = 0; i < 3 && !signal.aborted && performance.now() - started < hostMs; i++) {
-      if (!await this.step(signal)) break;
+      if (!await this.step(signal, observationResumeGeneration)) break;
     }
     return this.read();
   }
-  async step(signal: AbortSignal = new AbortController().signal): Promise<boolean> {
+  async step(signal: AbortSignal = new AbortController().signal, observationResumeGeneration?: string): Promise<boolean> {
     const db = this.open();
     let run: AutonomyRunRecord, step: AutonomyRunStepRecord, grant: StatelessGrant, packet: TaskContextPacketV01, root: string;
     const generation = randomUUID();
@@ -270,7 +288,11 @@ export class StatelessSourceReviewHost {
       if (!step) { this.finish(db, run); db.exec("COMMIT"); return false; }
       grant = readStatelessGrant(db, { ...this.options.config, ...state });
       const limits = grant.request.limits;
-      if (grant.request.model_configuration) {
+      check(grant.request.pause_after_observation === state.pause_after_observation, "checkpoint_grant_changed");
+      // Old foreground controllers cannot cross a newly released checkpoint.
+      if (step.step_index === 3 && grant.request.pause_after_observation &&
+        (!observationResumeGeneration || observationResumeGeneration !== state.observation_resume_generation)) { db.exec("COMMIT"); return false; }
+      if (grant.request.model_configuration || grant.request.pause_after_observation) {
         // The original first claim owns the attempt clock, including a restart.
         // Expiry consumes no new stage and never replays an unknown claim above.
         const remaining = limits.host_ms - (run.started_at ? Date.parse(this.now()) - Date.parse(run.started_at) : 0);
@@ -361,6 +383,7 @@ export class StatelessSourceReviewHost {
       appendAutonomyRunLedgerEvent(buildAutonomyRunEventRecord({ run_id: run.run_id, step_id: step.step_id, event_type: "step_completed", status: "completed", message: "Source-bound result persisted; advice remains non-authoritative.", payload: { result_fingerprint: fingerprint(output) }, created_at: this.now() }), { db });
       const saved = readRun(db, this.options.config, this.runId);
       if (stateOf(saved).cancelled) patchRun(db, saved, {}, this.now(), "cancelled", "cancelled_after_result_persistence");
+      else if (step.step_index === 2 && grant.request.pause_after_observation) patchRun(db, saved, {}, this.now(), "paused", "observation_saved_waiting_for_continue");
       else if (step.step_index === 1 && (output.judgment as PlannerRecommendationV01).tool_name === "stop") {
         for (const remaining of saved.steps.slice(1)) updateAutonomyRunStepLedgerFields(remaining.step_id, { status: "skipped", finished_at: this.now(), updated_at: this.now(), output: { reason: "first_judgment_stopped_work" } }, { db });
         patchRun(db, saved, {}, this.now(), "stopped", "first_judgment_stopped_work");
