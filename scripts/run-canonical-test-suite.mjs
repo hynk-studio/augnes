@@ -716,6 +716,17 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "stateless-observation-checkpoint",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning"],
+      label: "authenticated observation checkpoint, process replacement and original authority",
+      ...rootNode("scripts/test-stateless-source-review.ts", "--observation-checkpoint"),
+      // Keep the existing source-review child within its minute budget.
+      // This owns the same ordinary fixture with separate bounded cleanup.
+      timeoutMs: 60_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "stateless-sol-low",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning"],

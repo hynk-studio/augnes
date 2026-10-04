@@ -1105,7 +1105,6 @@ async function main() {
       await dispositionContract(); assert.equal(requests, 0);
       console.log(JSON.stringify({ status: "passed", successor_review_reentry: true, fresh_process_and_recovery_warning: true, separate_grant_required: true, external_requests: requests })); return;
     }
-    await observationCheckpointContract();
     const previewAdapter = scripted();
     const routeIdentity = await preparePlannerModelGatewayRouteV01({ adapter: previewAdapter.adapter });
     assert.deepEqual(Object.keys(routeIdentity!).sort(), ["model_ref", "provider_ref"]);
