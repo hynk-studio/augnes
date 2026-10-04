@@ -716,6 +716,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "source-bound-work-handoff",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning"],
+      label: "source-absent work handoff, authenticated receiving UI and fresh authority",
+      ...rootNode("scripts/test-work-handoff.ts"),
+      timeoutMs: 60_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "stateless-observation-checkpoint",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning"],

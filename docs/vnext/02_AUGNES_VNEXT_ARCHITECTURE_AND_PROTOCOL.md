@@ -988,6 +988,59 @@ persisted observation and first public judgment. The original grant expiry and
 total attempt clock include downtime. This supports explicit interruption exercises
 without requiring a person to advance each stage of ordinary uninterrupted work.
 
+#### Source-bound unfinished-work handoff
+
+`source_bound_work_handoff.v0.1` is a bounded imported snapshot carried by an
+existing TaskContextPacket selected entry, not a new Core record/table, project
+restore image, run store or authority. An authenticated source reader exports an
+explicit unexecuted ordinary successor and one linked completed stateless
+observation. It validates current packet/selection/root, receipt/run lineage and
+local unsettled/disposition/history owners. It transfers the task and criteria,
+explicitly selected whole notes, actual saved excerpt bytes and digests, receipt
+verification status, source identities, mandatory unknown/returned-attempt
+provenance and recorded omission reasons. Full reports, hidden reasoning, sessions,
+controller credentials and executable grants are not exported. Historical grant
+and generation identifiers are attribution only. Expired historical dates remain
+unchanged and confer no current authority.
+
+The complete canonical snapshot is capped at 24,576 UTF-8 bytes, eight existing
+bounded notes, two files and 4,096 excerpt bytes. Overflow, missing bytes, digest
+mismatch, foreign note/evidence scope or malformed required lineage refuses;
+nothing is silently shortened. Its digest binds reviewed bytes, not source
+authenticity: an imported or deliberately resealed document is not independently
+attested by an unavailable source database. Receiving labels remain
+`imported_unverified`; neither its self-declared source nor its prose establishes
+accepted state. Original note identity/provenance remains in the immutable
+snapshot; destination-selected notes acquire destination identities and imported
+trust without changing their text. The destination locator binds the snapshot and
+original entry; selected-note projection exposes its original source/provenance.
+
+The authenticated review UI uploads/reviews this material and previews ordinary
+first-work authorship in a fresh selected project. The existing atomic writer
+binds the exact task/snapshot, destination physical root, selection revision,
+effective direction and local authenticated action. It creates a normal initial
+packet with null grant and leaves automation unchanged. A conflicting/stale request
+refuses; an exact duplicate can acknowledge only the unchanged immediate initial
+work. No source DB or runtime is consulted by the receiver. An explicit bounded
+read can compare current destination files with the transferred historical bytes;
+absence/change cannot be reported as verified current material. Ordinary different-
+task comparison/preview and revision carry the mandatory snapshot, while optional
+notes follow existing explicit selection/omission rules. A new stateless run must
+prepare current local material and obtain its own current control, finite preview
+and grant. Its model inputs receive compact imported operational obligations plus
+only the currently selected notes, not automatically the historical observation
+or report. Existing input/output/cost limits still refuse overflow before dispatch.
+
+This first consumer supports one completed stateless observation and ordinary
+unexecuted successor, without effective source direction, accepted semantic state,
+reviewed-outcome pairs or nested handoffs. Those require separate contracts rather
+than lossy export. Native execution remains refused for imported handoff packets.
+Whole-project export retains the stateless-grant and direction refusals and also
+refuses these imported packets. Recovery validates the existing packet lineage;
+its stateless execution suspension is unchanged. This is explicit new authorship
+with historical context, not restoration of execution eligibility, external-effect
+settlement or a claim of cross-device/cloud qualification.
+
 Project unsettled-run guards remain conservative by default, excluding only this
 run when admitting its own next step through the shared ledger owner. Terminal
 status alone is not

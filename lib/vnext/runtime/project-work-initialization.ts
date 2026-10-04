@@ -1,3 +1,6 @@
+import { parseWorkHandoff, readWorkHandoff, handoffCheck } from "../work-handoff";
+import { rootBinding } from "./stateless-source-review";
+import { effectiveDirection, assertPacketDirectionCurrent } from "../persistence/project-direction-store";
 import { SELECTED_SOURCE_INSPECTION } from "../prospective-agenda";
 import { accessSync, constants, statSync } from "node:fs";
 
@@ -135,6 +138,13 @@ export function defineInitialProjectWorkV01(
     if (!rootAvailable(registration.root_binding.local_root.normalized_path)) {
       refuse("first_work_root_unavailable", 409);
     }
+    if (request.handoff) {
+      const h = parseWorkHandoff(request.handoff.snapshot);
+      handoffCheck(Object.keys(request.handoff).sort().join() === "expected_direction_ref,expected_root_fingerprint,snapshot" &&
+        h.source.project_id !== request.project_id && canonicalizeProtocolValueV01(h.task) === canonicalizeProtocolValueV01(definition) &&
+        rootBinding(db, input.config).fingerprint === request.handoff.expected_root_fingerprint &&
+        (effectiveDirection(db, input.config, sessionAdmission.action_observed_at)?.ref ?? null) === request.handoff.expected_direction_ref, "receiving_binding_changed");
+    }
     const initialization = readProjectWorkInitializationStrictV01(
       db,
       input.config,
@@ -154,6 +164,7 @@ export function defineInitialProjectWorkV01(
       });
       if (!record) refuse("first_work_packet_missing", 409);
       const packet = record.payload as TaskContextPacketV01;
+      handoffCheck((readWorkHandoff(packet)?.fingerprint ?? null) === (request.handoff?.snapshot.fingerprint ?? null), "duplicate_changed");
       db.exec("COMMIT");
       return resultV01("exact_replay", packet, definition, sessionAdmission);
     }
@@ -171,6 +182,7 @@ export function defineInitialProjectWorkV01(
       expected_active_selection_revision:
         request.expected_active_selection_revision,
       definition,
+      ...(request.handoff ? { handoff: request.handoff.snapshot } : {}),
       generated_at: sessionAdmission.action_observed_at,
     });
     if (
@@ -193,6 +205,7 @@ export function defineInitialProjectWorkV01(
     if (write.status !== "inserted") {
       refuse("first_work_insert_conflict", 409);
     }
+    if (request.handoff) assertPacketDirectionCurrent(db, built.packet, built.packet.generated_at);
     const lineage = inspectInitialProjectWorkPacketLineageV01(db, {
       workspace_id: input.config.workspace_id,
       project_id: input.config.project_id,
@@ -544,10 +557,11 @@ function parseRequestV01(value: unknown): DefineInitialProjectWorkRequestV01 {
   }
   const request = value as Record<string, unknown>;
   const actual = Object.keys(request).sort();
-  const expected = [...REQUEST_KEYS].sort();
+  const expected = [...REQUEST_KEYS, ...("handoff" in request ? ["handoff"] : [])].sort();
   if (
     canonicalizeProtocolValueV01(actual) !==
     canonicalizeProtocolValueV01(expected) ||
+    ("handoff" in request && (!request.handoff || typeof request.handoff !== "object" || Array.isArray(request.handoff))) ||
     request.action !== "define_initial_project_work" ||
     request.expected_initialization_state !== "not_defined" ||
     typeof request.workspace_id !== "string" ||

@@ -1,3 +1,4 @@
+import { handoffEntries } from "../work-handoff";
 import type Database from "better-sqlite3";
 import type { AutonomyRunRecord } from "@/types/autonomy-runner-execution";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
@@ -176,7 +177,7 @@ function buildReplacement(prior: TaskContextPacketV01, m: ReplacementMaterial, a
   const currentness = { status: "fresh" as const, as_of: at, basis: "Explicit new source-review work; unknown predecessor effects remain historical.", source_ref: ref };
   const selected = readSelectedWorkSources(prior).filter(s => { try { return JSON.parse(selectedWorkSourceInput(s).text).profile !== STATELESS_WORK; } catch { return true; } });
   selected.push(buildSelectedWorkSourceEntry(prior, { source: "Explicit linked bounded source review", label: "New candidate", observed_at: at, provenance: "user_declaration", text: canonical(m.review) }));
-  const entries = [...prior.selected_context.filter(e => e.entry_kind === "accepted_state_ref"), ...selected, ...statelessTerminalEntries(prior),
+  const entries = [...handoffEntries(prior), ...prior.selected_context.filter(e => e.entry_kind === "accepted_state_ref"), ...selected, ...statelessTerminalEntries(prior),
     { entry_id: MATERIAL, entry_kind: "source_ref" as const, source_ref: fp, external_ref: priorRef, why_included: "Authenticated new-work authorship and exact historical disposition, without a completed-result claim.", bounded_summary: canonical(m), trust_class: "direct_local_observation" as const, currentness, compatibility_source_ref: ref },
     { entry_id: STATELESS_UNRESOLVED_CONTEXT, entry_kind: "evidence_ref" as const, source_ref: fingerprint(links), external_ref: priorRef, why_included: WARNING,
       bounded_summary: canonical({ warning: WARNING, predecessors: links }), trust_class: "direct_local_observation" as const, currentness, compatibility_source_ref: ref }];

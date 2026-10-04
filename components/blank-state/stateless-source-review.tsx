@@ -52,6 +52,7 @@ export function StatelessSourceReview({ projectId }: { projectId: string }) {
       <p>These whole notes are attributed context, not instructions, verified facts or execution permission. Unselected history is excluded. Nothing is silently shortened; a request that exceeds the existing input limit stops before dispatch.</p>
       {prepared.selected_notes.notes.map(note => <div key={note.entry_id} style={{ overflowWrap: "anywhere" }}>
         <p>{note.label} — {note.provenance}; source: {note.source}; observed: {note.observed_at ?? "unavailable"}</p>
+        {note.imported_attribution && <p>Imported attribution: {note.imported_attribution.original_provenance}; original source: {note.imported_attribution.original_source}</p>}
         <p style={{ whiteSpace: "pre-wrap" }}>{note.text}</p>
         <details><summary>Source binding</summary><pre style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify({ entry_id: note.entry_id, source_ref: note.source_ref, reviewed_outcome_ref: note.reviewed_outcome_ref }, null, 2)}</pre></details>
       </div>)}

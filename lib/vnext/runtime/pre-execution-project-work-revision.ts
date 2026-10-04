@@ -1,3 +1,4 @@
+import { handoffEntries } from "../work-handoff";
 import type Database from "better-sqlite3";
 import { PROSPECTIVE_PREPARATION_PACKET } from "../prospective-agenda";
 import { RETRY_INSPECTION_OUTLOOK_V02, retryInspectionOutlookVersion, retryInspectionProjectionItemsV01, type RetryInspectionOutlookVersion } from "../retry-inspection-outlook";
@@ -292,6 +293,7 @@ export function buildPreExecutionProjectWorkRevisionPacketV01(input: {
         ],
       },
       selected_context: [
+        ...handoffEntries(input.prior_packet),
         ...selectedSources,
         {
           entry_id: `work-revision-definition:${lineage.revision_definition_ref.external_id}`,
@@ -362,8 +364,8 @@ export function buildPreExecutionProjectWorkRevisionPacketV01(input: {
         required_checks: newTask ? input.prior_packet.constraints.required_checks : [],
         forbidden_actions: newTask ? input.prior_packet.constraints.forbidden_actions : [],
         data_classification: "private",
-        context_budget: selectedSources.length > 0
-          ? { ...REVISION_PACKET_CONTEXT_BUDGET_V01, max_selected_entries: 12, max_projection_items: 1 + outlookItems.length }
+        context_budget: selectedSources.length > 0 || handoffEntries(input.prior_packet).length > 0
+          ? { ...REVISION_PACKET_CONTEXT_BUDGET_V01, max_selected_entries: handoffEntries(input.prior_packet).length ? 13 : 12, max_projection_items: 1 + outlookItems.length }
           : REVISION_PACKET_CONTEXT_BUDGET_V01,
       },
       capability_grant: null,
@@ -419,7 +421,7 @@ export function buildPreExecutionProjectWorkRevisionPacketV01(input: {
         newTask ? "Preparing a different task preserves prior unresolved matters and transfers no execution grant or approval." : "Saving this revision changes bounded working context but does not start execution.",
         "This revision is not accepted semantic state, a proposal, approval, ReviewDecision, or Transition.",
       ],
-    });
+    }, { required_selected_entry_ids: handoffEntries(input.prior_packet).map(e => e.entry_id) });
   } catch (error) {
     if (error instanceof RangeError) refuse("work_revision_packet_budget_exceeded");
     throw error;

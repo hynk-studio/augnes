@@ -471,6 +471,33 @@ shutdown/restart, reauthentication and cleanup. A fitting hypothetical successor
 input is not proof that every possible first public judgment fits; report exact
 known payloads and future-dependent bounds separately.
 
+For source-bound unfinished-work handoff, use separate ordinary source/destination
+projects, databases and physical roots. Source authorship and any execution history
+must come through existing writers and finite authorization, scripting only model
+transport. Export the explicitly selected bounded snapshot; remove source DB/root
+and runtime access before the receiving process starts. Exercise the actual review
+component and authenticated receiving writer, fresh-process reconstruction,
+ordinary different-task preparation and current material verification. Missing or
+changed local files must remain distinct from available historical excerpt bytes.
+Test missing/foreign lineage, corrupt bytes, stale selection/root/direction/preview,
+conflicting duplicates, null authority and old-grant refusal. Confirm complete
+mandatory uncertainty through revision and subsequent result authorship; optional
+notes may be reconsidered without deleting the source snapshot. A separate fresh
+destination control/preview/grant may exercise the scripted consumer. Preserve
+native/export refusals and recovery suspension. Hash validity does not authenticate
+an imported source; do not count a resealed self-declaration as independently
+verified provenance. Record bounds/refusals and cleanup failures, including browser
+process cleanup. No paid call is needed to prove this transport and consumer path.
+
+The 2026-10-04 live run `stateless-review:3f1793e96ee25abafacc7024` at
+`38b0e8dce63aa96ca99b8ca756b2597ceae52381` adds accepted planned same-machine
+checkpoint restart evidence. It does not retrospectively change earlier NOT RUN
+records or qualify arbitrary crashes, unknown dispatch settlement, environment
+transfer, general model adequacy or comparative usefulness. Keep the receipt's
+verification status separate from the attributed Work review. A disposable local
+receiving test likewise does not establish actual candidate migration or
+cross-device/cloud continuity; those need a concrete separately authorized trial.
+
 Verify that a returned-response terminal attempt cannot borrow unknown disposition
 or a fabricated completed receipt to bypass completed-result/revision guards.
 For the separate bounded terminal-authorship path, create positive history through

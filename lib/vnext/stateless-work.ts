@@ -1,3 +1,4 @@
+import { WORK_HANDOFF_ENTRY, handoffNoteAttribution } from "./work-handoff";
 import { readBoundPlannerExecutionConfigurationV01 } from "./model-gateway/planner-execution-configuration";
 import type { PlannerModelExecutionConfigurationV01 } from "./model-gateway/contracts";
 import { canonicalizeProtocolValueV01 as canonical, createProtocolSha256V01 as hash, parseStrictIsoTimestampV01 } from "./protocol-primitives";
@@ -85,6 +86,7 @@ export function readStatelessSelectedNotes(packet: TaskContextPacketV01) {
     try { return JSON.parse(selectedWorkSourceInput(entry).text).profile !== STATELESS_WORK; } catch { return true; }
   }).map(entry => ({ entry_id: entry.entry_id, source_ref: entry.source_ref,
     ...selectedWorkSourceInput(entry),
+    ...(handoffNoteAttribution(packet, entry) ? { imported_attribution: handoffNoteAttribution(packet, entry) } : {}),
     ...(reviewedOutcomeSourceRef(entry) ? { reviewed_outcome_ref: entry.compatibility_source_ref } : {}),
   }));
   const material = { version: "stateless_selected_work_notes.v0.1" as const, notes };
@@ -124,4 +126,4 @@ export function validateStatelessGrant(value: unknown): value is StatelessGrant 
 
 /** Operational history is mandatory, separate from selectable substantive notes. */
 export const statelessTerminalEntries = (p: TaskContextPacketV01) => p.selected_context.filter(e => e.entry_id === STATELESS_TERMINAL_CONTEXT);
-export const statelessMandatoryEntries = (p: TaskContextPacketV01) => p.selected_context.filter(e => [STATELESS_UNRESOLVED_CONTEXT, STATELESS_TERMINAL_CONTEXT].includes(e.entry_id));
+export const statelessMandatoryEntries = (p: TaskContextPacketV01) => p.selected_context.filter(e => [STATELESS_UNRESOLVED_CONTEXT, STATELESS_TERMINAL_CONTEXT, WORK_HANDOFF_ENTRY].includes(e.entry_id));

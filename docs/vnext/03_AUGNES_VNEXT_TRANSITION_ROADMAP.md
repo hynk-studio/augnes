@@ -492,7 +492,7 @@ behavior on exposed development material, not general model adequacy, a claim of
 self-correction or comparative usefulness. The earlier preparation's hypothetical
 payload measurements and NOT RUN labels above remain dated preparation evidence.
 
-The current offline slice selects a concise attributed finding and Work review
+The checkpoint implementation slice selects a concise attributed finding and Work review
 through ordinary completed-result authorship, then prepares a bounded question
 about continuation after a saved observation. It adds an optional, grant-bound
 pause at that durable boundary and authenticated continuation under the original
@@ -500,21 +500,64 @@ grant and attempt clock. Disposable ordinary HTTP checks use scripted transport
 and real process replacement; internal `step()` calls alone are not the product
 path evidence. The candidate receives no new grant or provider call in this slice.
 
-Next decision: review the exact-source correction, saved successor and complete
+The proposal at that checkpoint was: review the exact-source correction, saved successor and complete
 payload accounting, then separately authorize the whole live interruption exercise
 including both stages, process replacement, reauthentication and cleanup. Expiry or
 changed bindings require a new decision, not backdating or silent renewal. The
 closed comparison's unused allowance remains unavailable. GPT-4.1 and general Sol
 adequacy, comparative usefulness, live interruption recovery and environment
 transfer remain unestablished. The portable exporter still refuses projects with
-stateless grants; copying SQLite is not qualified environment transfer. Interrupted
-live progression and comparative usefulness remain **NOT RUN**. Earlier
+stateless grants; copying SQLite is not qualified environment transfer. At that
+preparation checkpoint, interrupted live progression and comparative usefulness
+were **NOT RUN**. Earlier
 failures and receipts retain their original dates and source identities. Existing
 Companion continuity remains unavailable. Same-database account/session changes,
 meaningful unfinished-work transfer (#1149), semantic selection quality,
 cross-project recurrence and strong comparative evaluation remain separate.
 P4.6's negative findings and #1342/#1372 ownership are unchanged. This does not
 complete the continuity program.
+
+
+On 2026-10-04 the separately authorized live planned checkpoint exercise ran on
+`38b0e8dce63aa96ca99b8ca756b2597ceae52381`: run
+`stateless-review:3f1793e96ee25abafacc7024`, receipt
+`run-receipt:f06908e64bbafdfee65aaeac` / fingerprint
+`sha256:6bd15b5ba1f252cdaa844872967bf7bea502e3b14190915e87c79cfdaeb91f1d`.
+The model selected inspection; an 855-byte observation was persisted. Logout,
+owned-runtime shutdown, a fresh runtime/session and exact checkpoint continuation
+completed the same grant/run without replay in 21,961 ms. Observation fingerprint:
+`sha256:e4a9b9ad0ed86d75ff8ae7f55f48687fee7361e9d8322ae382891d5fc66090d8`.
+Reported usage: 4,288 input / 466 output tokens; zero reported reasoning tokens.
+The estimate was USD 0.0476425; billing and historical unknown cost remain separate.
+Accounting became 5 grants / 5 runs / 9 entries; cleanup disabled automation and
+verified logout/HTTP 401. Work accepts this planned same-machine restart and the
+excerpt-supported visible continuation guards, including excluding the unrelated
+historical note as evidence. Receipt `verification:not_run` remains unchanged.
+Arbitrary crash recovery, unknown-effect settlement and broader adequacy/usefulness
+are not established. Earlier NOT RUN statements above describe their dated slices.
+
+The subsequent offline handoff batch used ordinary result comparison/selection,
+preview and authenticated successor authorship on that unchanged source. It saved
+work `successor-task:1b32be90988b8511b7a47eeb`, packet
+`task-context-packet:5caa7893d73ddab8db20bef`, fingerprint
+`sha256:a0ba704405ccd6f24858cbf7edcf3191f39e665d35744d75c6fddc298cb56fa7`,
+with historical ordinary expiry `2026-10-04T10:24:14.051Z`. One concise attributed
+finding/Work review was selected; the previous inventory and unrelated constructor
+note were explicitly omitted with reasons. The full report was not selected.
+Fresh runtime/client and read-only process checks preserved mandatory history,
+null grant, disabled automation and 5/5/9 accounting. The first client stopped on
+criteria-order normalization after preview and before authorship; its successful
+logout/401 and failure record were preserved. The corrected client completed one
+authorship operation. No provider call or candidate migration occurred.
+
+The current implementation supplies an authenticated handoff review/export and
+receiving first-work consumer using existing packet storage. Disposable independent
+DBs/roots test transferred bytes, source-absent receiving review, ordinary successor
+preparation and fresh scripted authority. This is isolated same-machine evidence,
+not a qualified real-candidate, cross-device or cloud transfer. The next decision
+is review of this bounded handoff and then explicit real-candidate local transfer
+into a named fresh DB/root; any further live execution needs separate exact
+model/data/spend authority. Existing live allowances remain consumed.
 
 ### Current P2/P3/P4/P5 — Project direction and decision authority (#1382)
 

@@ -94,6 +94,7 @@ export interface ProjectWorkInitializationV01 {
 }
 
 export interface DefineInitialProjectWorkRequestV01 {
+  handoff?: { snapshot: import("@/lib/vnext/work-handoff").WorkHandoff; expected_root_fingerprint: string; expected_direction_ref: string | null };
   action: "define_initial_project_work";
   workspace_id: string;
   project_id: string;

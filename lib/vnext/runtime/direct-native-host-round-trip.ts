@@ -1,3 +1,4 @@
+import { handoffEntries } from "../work-handoff";
 import { statelessTerminalEntries } from "../stateless-work";
 import { statelessUnresolvedEntries } from "./stateless-review-disposition";
 import { assertPacketDirectionCurrent, readPacketDirectionInterpretation } from "../persistence/project-direction-store";
@@ -577,7 +578,7 @@ export async function prepareNativeHostRunClaimInsideTransactionV01(
     evaluated_at: input.claimed_at,
     require_active_project: input.mode !== "repository_attachment",
   });
-  if (statelessUnresolvedEntries(admission.packet).length) refuse("direct_host_unresolved_stateless_effects");
+  if (handoffEntries(admission.packet).length || statelessUnresolvedEntries(admission.packet).length) refuse("direct_host_unresolved_stateless_effects");
   assertPacketDirectionCurrent(db, admission.packet, input.claimed_at);
   if (admission.packet.compatibility.source_contracts.includes(PROSPECTIVE_PREPARATION_PACKET) && input.mode !== "policy_triggered") refuse("prospective_wake_owner_required", 403);
   revalidateAdmissionInsideTransaction(db, {
@@ -992,7 +993,7 @@ export async function runDirectNativeHostRoundTripV01(
       const finiteReviews = db.prepare("SELECT status FROM autonomy_runs WHERE scope=? AND json_extract(metadata_json,'$.stateless_review.version')='stateless_source_review.v0.1' LIMIT 4097").all(input.config.project_id) as Array<{ status: AutonomyRunnerStatus }>;
       if (finiteReviews.length > 4096 || finiteReviews.some(r => !isTerminalRunnerStatus(r.status))) refuse("direct_host_run_conflict", 409);
       if (statelessTerminalEntries(admitted.packet).length) refuse("direct_host_stateless_terminal_lineage_unsupported");
-      if (statelessUnresolvedEntries(admitted.packet).length) refuse("direct_host_unresolved_stateless_effects");
+      if (handoffEntries(admitted.packet).length || statelessUnresolvedEntries(admitted.packet).length) refuse("direct_host_unresolved_stateless_effects");
       assertPacketDirectionCurrent(db, admitted.packet, startedAt);
       createRunLedgerRecord(db, {
         input,
