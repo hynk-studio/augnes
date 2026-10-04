@@ -40,6 +40,7 @@ import {
   VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
 } from "@/lib/vnext/runtime/persisted-semantic-context-compiler";
 import {
+  AUTHORED_SUCCESSOR_CONTEXT_V01,
   PROJECT_WORK_INITIALIZATION_VERSION_V01,
   type DefineInitialProjectWorkRequestV01,
   type DefineInitialProjectWorkResultV01,
@@ -416,7 +417,8 @@ function readProjectWorkInitializationStrictV01(
         packet_id: current.packet.packet_id,
         packet_fingerprint: current.packet.integrity.fingerprint,
         generated_at: current.packet.generated_at,
-        expires_at: current.packet.expires_at,
+        ...(current.lineage_kind === "authored_successor_task" && current.packet.compatibility.source_contracts.includes(AUTHORED_SUCCESSOR_CONTEXT_V01)
+          ? { expires_at: current.packet.expires_at } : {}),
         lineage_kind: current.lineage_kind,
       },
       mutation_eligible: false,
