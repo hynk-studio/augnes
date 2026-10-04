@@ -572,6 +572,30 @@ not a new Companion tool; local changes do not qualify the hosted store. Owned
 runtime cleanup and final exact-head Canonical evidence establish bounded
 correctness, not comparative usefulness or the retained real candidate's result.
 
+### Cumulative native work history (#1395)
+
+Reproduce the 32-revision, scoped 128-run and 256-packet refusals before changing
+admission. Cross below/at/above and several read pages with genuine supported
+writers and validated canonical fixture prefixes; disclose constructed fixtures
+separately from historical user activity. No timestamp edits or resealing may
+stand in for positive historical compatibility evidence.
+
+Check exact current tips, unchanged earlier rows, fresh-process readback and a
+further edit through human and authenticated agent routes. Place relevant
+successors and unresolved runs beyond the first read batch. Missing, malformed,
+branched, cyclic, foreign and contradictory required lineage must remain
+unavailable. Exact replay, stale competing saves, source/direction/root drift,
+context bounds and independent execution/authentication limits remain negative
+controls. Exercise canonical recovery and supported portable reconstruction,
+including suspended credentials and no reconstructed execution permission.
+
+Measure query/traversal counts and elapsed read cost at increasing fixture sizes.
+Avoid reconstructing the same ancestors once per candidate in a batch and avoid
+recursive revision depth. Report retained operation/byte limits and honest
+incomplete-read refusals, not unlimited-scale support. Local Canonical binds the
+new exact clean head; predecessor receipts remain historical and cannot qualify
+this correction. None of these fixtures operate on the retained real candidate.
+
 ### Prospective preparation and event/time re-entry
 
 For [#1380](https://github.com/hynk-studio/augnes/issues/1380), keep three evidence

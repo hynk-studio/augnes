@@ -578,9 +578,27 @@ Finite authentication and execution still require separate current admission.
 This is local correctness evidence, not real-candidate use, hosted Web Planning
 parity, cross-device transfer or comparative usefulness. The retained #1392
 candidate and proposed receiving operation above remain untouched by this slice.
-Cumulative bounds, broader project management and hosted-store changes remain
-later reviewed work. Draft review and exact-head verification do not grant merge,
+The next bounded cumulative-history correction is recorded below; broader project
+management and hosted-store changes remain later reviewed work. Draft review and exact-head verification do not grant merge,
 deployment, installation or live-provider authority.
+
+### Current lifecycle slice — Cumulative native history (#1395)
+
+Stacked on #1394, this slice removes native work's 32-revision admission and
+reconstruction ceiling, the scoped revalidation 128-run listing refusal and the
+256-packet successor listing refusal. Supporting packet readers and preparation
+admission no longer impose their adjacent 128-packet/33-ID boundaries. Complete
+paged reads, conservative conflict queries and iterative family reconstruction
+preserve current-tip selection and immutable ancestry. The historical packets
+and #1394 verification records remain unchanged.
+
+Disposable fixtures cross the former boundaries using authenticated writers and
+canonical compiler-built prefixes; recovery, portable consumers, existing human
+editing and authenticated agent routes remain the deciding behavioral surfaces.
+Query/traversal measurements qualify bounded correctness, not unlimited scale or
+comparative usefulness. Exact-head verification and cleanup belong to the Draft
+PR receipt. The retained real candidate, broader project management, hosted
+store, provider execution, installation and deployment remain outside this slice.
 
 ### Current P2/P3/P4/P5 — Project direction and decision authority (#1382)
 
@@ -2277,8 +2295,10 @@ model-authored planning, C9, or PC6.
 defines the currently authorized CUX7 slice. It lets an authenticated user
 review the complete current work definition in AI Workplane and save an
 append-only revision only while the project remains active, its root is
-available, the exact initial/revision packet chain is valid and current, fewer
-than 32 revisions exist, and no execution or other work history exists.
+available, the exact initial/revision packet chain is valid and current, and no
+execution or other work history exists. CUX7 originally imposed a 32-revision
+ceiling; the cumulative native history slice above removes that lifetime cap
+while retaining explicit operation budgets.
 
 Revision reuses the CUX6B normalizer and limits. It creates one ordinary
 TaskContextPacket with exact prior-packet and local operator provenance; it is
@@ -2291,8 +2311,8 @@ identity.
 Continuities, AI Workplane, GuideBrief, delegated-work preparation, project
 continuity, portability, backup/restore, and recovery share one current-packet
 and eligibility interpretation. Branches, cycles, missing or changed prior
-packets, ambiguous tips, invalid provenance, history races, and revision-limit
-overflow fail closed. Historical semantic-transition and initial host request
+packets, ambiguous tips, invalid provenance, history races, and incomplete
+required reads fail closed. Historical semantic-transition and initial host request
 identities remain unchanged, and no schema, NativeHostRequest, TaskContextPacket,
 or portable-project version bump is introduced.
 

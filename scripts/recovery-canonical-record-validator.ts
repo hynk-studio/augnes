@@ -1,3 +1,4 @@
+import { isOrdinarySuccessorRevisionV01 } from "../lib/vnext/runtime/authored-successor-revision";
 import { isStatelessTerminalSuccessor, inspectStatelessTerminalSuccessor, terminalAuthorshipKey } from "../lib/vnext/runtime/stateless-terminal-authorship";
 import { isStatelessReplacement, inspectStatelessReplacement, statelessReplacementIdempotencyKey } from "../lib/vnext/runtime/stateless-review-disposition";
 import { validateStatelessGrant, statelessGrantKey } from "../lib/vnext/stateless-work";
@@ -5,7 +6,7 @@ import { readStatelessGrant } from "../lib/vnext/persistence/stateless-work-gran
 import { validateProjectDirectionHistory } from "../lib/vnext/persistence/project-direction-store";
 import { assertWorkExpectationRecord } from "../lib/vnext/work-expectation";
 import { PROSPECTIVE_PREPARATION_PACKET } from "../lib/vnext/prospective-agenda";
-import { inspectVNextOperatorPilotPacketLineageV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity";
+import { inspectVNextOperatorPilotPacketLineageV01, inspectVNextOperatorPilotPacketLineagesV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity";
 import { validateProspectiveAuthorization, prospectiveAuthorizationKey, readProspectiveAuthorization } from "../lib/vnext/persistence/prospective-authorization";
 import { readWorkExpectationRecords } from "../lib/vnext/persistence/work-expectation-store";
 import { authoredSuccessorPacketIdempotencyKeyV01, inspectAuthoredSuccessorPacketV01, isStandaloneAuthoredSuccessorV01 } from "../lib/vnext/runtime/authored-successor-task";
@@ -920,6 +921,8 @@ function validateCompiledTaskContextPacketRelationV01(
       project_id: record.project_id, operator_id: "recovery-read", database_path: db.name } });
     return;
   }
+  // Ordinary revision families were validated together by the relation owner.
+  if (isOrdinarySuccessorRevisionV01(packet)) return;
   if (isStandaloneAuthoredSuccessorV01(packet)) {
     inspectAuthoredSuccessorPacketV01(db, { packet, config: { enabled: true, workspace_id: record.workspace_id,
       project_id: record.project_id, operator_id: "recovery-read", database_path: db.name } });
@@ -1255,6 +1258,20 @@ function validateDatabaseRelationsV01(
   records: ParsedCanonicalRecordV01[],
   byIdentity: Map<string, ParsedCanonicalRecordV01>,
 ): void {
+  const ordinaryScopes = new Map<string, ParsedCanonicalRecordV01[]>();
+  for (const record of records) {
+    if (record.record_kind !== "task_context_packet" || !isOrdinarySuccessorRevisionV01(record.payload as unknown as TaskContextPacketV01)) continue;
+    const key = `${record.workspace_id}\0${record.project_id}`;
+    const group = ordinaryScopes.get(key) ?? []; group.push(record); ordinaryScopes.set(key, group);
+  }
+  for (const group of ordinaryScopes.values()) {
+    const scope = group[0]!;
+    const lineages = inspectVNextOperatorPilotPacketLineagesV01(db, {
+      config: { enabled: true, workspace_id: scope.workspace_id, project_id: scope.project_id, operator_id: "recovery-read", database_path: db.name },
+      packets: group.map(r => ({ packet_id: r.record_id, packet_fingerprint: r.fingerprint })),
+    });
+    if (lineages.some(r => r === null)) refuseV01();
+  }
   const validatedAutomationScopes = new Set<string>();
   for (const record of records) {
     switch (record.record_kind) {

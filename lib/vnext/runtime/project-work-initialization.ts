@@ -41,6 +41,7 @@ import {
 } from "@/lib/vnext/runtime/persisted-semantic-context-compiler";
 import {
   AUTHORED_SUCCESSOR_CONTEXT_V01,
+  AUTHORED_SUCCESSOR_TASK_V01,
   PROJECT_WORK_INITIALIZATION_VERSION_V01,
   type DefineInitialProjectWorkRequestV01,
   type DefineInitialProjectWorkResultV01,
@@ -386,17 +387,16 @@ function readProjectWorkInitializationStrictV01(
             ? "current_transition_packet"
             : "current_operational_continuation_packet";
     const selectedSources = readSelectedWorkSources(current.packet);
+    const byPacket = new Map(inspected.map(entry => [`${entry.packet.packet_id}|${entry.packet.integrity.fingerprint}`, entry]));
     let taskOrigin = current;
     // All entries were validated above. Follow exact edges, never timestamps.
     while (taskOrigin.lineage_kind === "pre_execution_user_revision" && taskOrigin.prior_packet) {
-      const prior = inspected.find(entry => entry.packet.packet_id === taskOrigin.prior_packet!.packet_id &&
-        entry.packet.integrity.fingerprint === taskOrigin.prior_packet!.packet_fingerprint);
+      const prior = byPacket.get(`${taskOrigin.prior_packet.packet_id}|${taskOrigin.prior_packet.packet_fingerprint}`);
       if (!prior) break;
       taskOrigin = prior;
     }
     const previous = taskOrigin.lineage_kind === "pre_execution_new_task" && taskOrigin.prior_packet
-      ? inspected.find(entry => entry.packet.packet_id === taskOrigin.prior_packet!.packet_id &&
-        entry.packet.integrity.fingerprint === taskOrigin.prior_packet!.packet_fingerprint) : null;
+      ? byPacket.get(`${taskOrigin.prior_packet.packet_id}|${taskOrigin.prior_packet.packet_fingerprint}`) : null;
     return {
       ...baseV01(
         input,
@@ -480,6 +480,7 @@ function invalidPacketReasonV01(
   const contracts = Array.isArray(candidate.compatibility?.source_contracts)
     ? candidate.compatibility.source_contracts
     : [];
+  if (contracts.includes(AUTHORED_SUCCESSOR_TASK_V01)) return "invalid_packet_lineage";
   if (contracts.includes(SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01)) {
     return "invalid_operational_continuation_lineage";
   }

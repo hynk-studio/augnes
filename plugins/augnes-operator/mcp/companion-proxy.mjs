@@ -408,21 +408,20 @@ export function parseRepositoryRetainedSourcesResponseV01(value) {
   exactObjectV01(lookup, ["scope", "cutoff_recorded_at", "limits", "scanned_packets", "scanned_entry_occurrences", "unique_entries", "matching_entries", "returned_entries", "omitted_matching_entries", "truncated", "result_utf8_bytes", "results", "qualifications"]);
   if (lookup.scope !== "selected_note_snapshots_in_current_pre_execution_revision_chain") invalidContractV01();
   isoTimestampV01(lookup.cutoff_recorded_at);
-  const limits = { query_characters: 160, query_terms: 8, results: 8, result_utf8_bytes: 20_000, packets: 33, note_occurrences: 264, scanned_entry_utf8_bytes: 1_056_000 };
+  const limits = { query_characters: 160, query_terms: 8, results: 8, result_utf8_bytes: 20_000, packets: 4096, note_occurrences: 264, scanned_entry_utf8_bytes: 1_056_000 };
   exactObjectV01(lookup.limits, Object.keys(limits));
-  // Allow the previous runtime's exact scan policy for client-first refresh.
-  // All other limits and result checks remain fixed; server-chosen ceilings
-  // outside these two known policies are never accepted.
+  // Client-first refresh accepts only the two historical policies and the
+  // cumulative-history policy. More packets do not grant a larger note budget.
+  if (![[33, 396_000], [33, 1_056_000], [limits.packets, limits.scanned_entry_utf8_bytes]]
+    .some(([packets, bytes]) => lookup.limits.packets === packets && lookup.limits.scanned_entry_utf8_bytes === bytes)) invalidContractV01();
   for (const [key, limit] of Object.entries(limits)) {
-    if (key === "scanned_entry_utf8_bytes"
-      ? ![396_000, limit].includes(lookup.limits[key])
-      : lookup.limits[key] !== limit) invalidContractV01();
+    if (key !== "packets" && key !== "scanned_entry_utf8_bytes" && lookup.limits[key] !== limit) invalidContractV01();
   }
   for (const key of ["scanned_packets", "scanned_entry_occurrences", "unique_entries", "matching_entries", "returned_entries", "omitted_matching_entries", "result_utf8_bytes"]) {
     if (!Number.isSafeInteger(lookup[key]) || lookup[key] < 0) invalidContractV01();
   }
-  if (!Array.isArray(lookup.results) || lookup.scanned_packets < 1 || lookup.scanned_packets > limits.packets ||
-    lookup.scanned_entry_occurrences > lookup.scanned_packets * 8 || lookup.unique_entries > lookup.scanned_entry_occurrences ||
+  if (!Array.isArray(lookup.results) || lookup.scanned_packets < 1 || lookup.scanned_packets > lookup.limits.packets ||
+    lookup.scanned_entry_occurrences > limits.note_occurrences || lookup.scanned_entry_occurrences > lookup.scanned_packets * 8 || lookup.unique_entries > lookup.scanned_entry_occurrences ||
     lookup.matching_entries > lookup.unique_entries || lookup.returned_entries !== lookup.results.length ||
     lookup.returned_entries > limits.results || lookup.matching_entries !== lookup.returned_entries + lookup.omitted_matching_entries ||
     lookup.truncated !== (lookup.omitted_matching_entries > 0) || lookup.result_utf8_bytes > limits.result_utf8_bytes ||

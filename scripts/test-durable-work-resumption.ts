@@ -19,13 +19,12 @@ const pricing = { input_nano_usd_per_byte: 1000, output_nano_usd_per_token: 1000
 const material = { question: "Which connection is visible in this exact excerpt?", files: [{ path: "entry.ts", start_line: 1, end_line: 2 }] };
 const definition = { goal: "Continue the bounded saved investigation", success_criteria: ["Preserve attributed uncertainty"], non_goals: ["No execution or semantic acceptance"] };
 
-async function oldWriter(root: string, name: string, replacements: Record<string, string> = {}) {
-  const file = `lib/vnext/runtime/${name}.ts`;
+async function oldWriter(root: string, name: string, replacements: Record<string, string> = {}, file = `lib/vnext/runtime/${name}.ts`) {
   const source = spawnSync("git", ["show", `${predecessor}:${file}`], { encoding: "utf8", timeout: 5000 });
   assert.equal(source.status, 0, "Historical writer must be available at the exact predecessor");
   const target = path.join(root, `historical-${name}.ts`);
-  writeFileSync(target, source.stdout.replace(/from "(\.\.?\/[^"\n]+)"/g,
-    (_match, specifier) => `from "${replacements[specifier] ?? path.resolve(path.dirname(file), specifier)}"`));
+  writeFileSync(target, source.stdout.replace(/from "((?:\.\.?\/|@\/)[^"\n]+)"/g,
+    (_match, specifier) => `from "${replacements[specifier] ?? (specifier.startsWith(".") ? path.resolve(path.dirname(file), specifier) : specifier)}"`));
   return { module: await import(pathToFileURL(target).href), path: target };
 }
 const current = (f: any) => readCurrentProjectWorkPacketLineageV01(f.db, f.config)!.packet;
@@ -58,8 +57,13 @@ async function freshSurfaces(f: any, root: string, modes = process.platform === 
 export async function durableWorkContract(createFixture: (name: string) => Promise<any>, root: string, baseline = false) {
   const terminal = await oldWriter(root, "stateless-terminal-authorship");
   const successor = await oldWriter(root, "authored-successor-task");
-  const oldRevision = await oldWriter(root, "authored-successor-revision");
-  const revisionOwner = await oldWriter(root, "project-work-revision", { "./authored-successor-revision": oldRevision.path });
+  // Pin the historical revision-number contract with its writers. It is no
+  // longer a current lifetime constraint; importing current constants would
+  // silently turn the predecessor's numeric comparison into <= undefined.
+  const oldRevisionTypes = await oldWriter(root, "project-work-revision-types", {}, "types/vnext/project-work-revision.ts");
+  const oldRevisionImports = { "@/types/vnext/project-work-revision": oldRevisionTypes.path };
+  const oldRevision = await oldWriter(root, "authored-successor-revision", oldRevisionImports);
+  const revisionOwner = await oldWriter(root, "project-work-revision", { ...oldRevisionImports, "./authored-successor-revision": oldRevision.path });
   if (!baseline) {
     // Re-enter both pre-receipt authoring families without inventing a receipt.
     for (const kind of ["terminal", "replacement"] as const) {

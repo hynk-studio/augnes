@@ -1,3 +1,5 @@
+import { isOrdinarySuccessorRevisionV01, inspectOrdinarySuccessorRevisionLineagesV01 } from "./authored-successor-revision";
+import { readProjectWorkPacketHistoryV01 } from "./project-work-packet-history";
 import { isStatelessTerminalSuccessor, inspectStatelessTerminalSuccessor, terminalAuthorshipKey } from "./stateless-terminal-authorship";
 import { isStatelessReplacement, inspectStatelessReplacement, statelessReplacementIdempotencyKey } from "./stateless-review-disposition";
 import { AUTHORED_SUCCESSOR_TASK_V01 } from "@/lib/vnext/authored-successor-task";
@@ -62,7 +64,6 @@ import {
   inspectInitialProjectWorkPacketLineageV01,
 } from "@/lib/vnext/runtime/initial-project-work-context";
 import {
-  inspectPreExecutionProjectWorkRevisionPacketV01,
   inspectPreExecutionProjectWorkRevisionLineagesV01,
   PreExecutionProjectWorkRevisionErrorV01,
   preExecutionProjectWorkRevisionIdempotencyKeyV01,
@@ -477,7 +478,7 @@ export function inspectVNextOperatorPilotPacketLineageV01(
     packet_fingerprint: string;
   },
 ): VNextOperatorPilotPacketLineageInspectionV01 {
-  return inspectPacketLineageInsideReadV01(db, input);
+  return db.transaction(() => inspectPacketLineageInsideReadV01(db, input, revisionLineageReaderInsideReadV01(db, input.config)))();
 }
 
 /** Current-work projection owns this synchronous read transaction. Its lazy
@@ -508,17 +509,27 @@ export function inspectVNextOperatorPilotPacketLineagesV01(
  * escapes that invocation or survives a write; strict and nullable callers keep
  * their own failure handling. Packet-specific checks still run for every entry. */
 function revisionLineageReaderInsideReadV01(db: Database.Database, config: VNextLocalOperatorPilotConfigV01) {
-  let revisions: { value: ReturnType<typeof inspectPreExecutionProjectWorkRevisionLineagesV01> } | { error: unknown } | undefined;
+  let revisions: { value: Map<string, ReturnType<typeof inspectPreExecutionProjectWorkRevisionLineagesV01>[number]> } | { error: unknown } | undefined;
+  const ordinary = new Map<string, AuthoredSuccessorPacketLineageV01>();
+  let ordinaryFailure: { error: unknown } | undefined;
   return (packet: TaskContextPacketV01) => {
+    if (isOrdinarySuccessorRevisionV01(packet)) {
+      if (ordinaryFailure) throw ordinaryFailure.error;
+      if (!ordinary.has(packet.packet_id)) {
+        try { for (const r of inspectOrdinarySuccessorRevisionLineagesV01(db, config, packet)) ordinary.set(r.packet.packet_id, r); }
+        catch (error) { ordinaryFailure = { error }; throw error; }
+      }
+      const found = ordinary.get(packet.packet_id);
+      if (!found || found.packet.integrity.fingerprint !== packet.integrity.fingerprint) throw continuityError("operator_pilot_revision_missing", 409);
+      return found;
+    }
     if (!revisions) {
-      try { revisions = { value: inspectPreExecutionProjectWorkRevisionLineagesV01(db, config) }; }
+      try { revisions = { value: new Map(inspectPreExecutionProjectWorkRevisionLineagesV01(db, config).map(r => [r.packet.packet_id, r])) }; }
       catch (error) { revisions = { error }; }
     }
     if ("error" in revisions) throw revisions.error;
-    const lineage = revisions.value.find((candidate) =>
-      candidate.packet.packet_id === packet.packet_id &&
-      candidate.packet.integrity.fingerprint === packet.integrity.fingerprint);
-    if (!lineage) throw new PreExecutionProjectWorkRevisionErrorV01("work_revision_packet_missing", 409);
+    const lineage = revisions.value.get(packet.packet_id);
+    if (!lineage || lineage.packet.integrity.fingerprint !== packet.integrity.fingerprint) throw new PreExecutionProjectWorkRevisionErrorV01("work_revision_packet_missing", 409);
     return lineage;
   };
 }
@@ -526,9 +537,7 @@ function revisionLineageReaderInsideReadV01(db: Database.Database, config: VNext
 function inspectPacketLineageInsideReadV01(
   db: Database.Database,
   input: { config: VNextLocalOperatorPilotConfigV01; packet_id: string; packet_fingerprint: string },
-  readRevision = (packet: TaskContextPacketV01) => inspectPreExecutionProjectWorkRevisionPacketV01(db, {
-    workspace_id: input.config.workspace_id, project_id: input.config.project_id, packet,
-  }),
+  readRevision = revisionLineageReaderInsideReadV01(db, input.config),
 ): VNextOperatorPilotPacketLineageInspectionV01 {
   assertVNextDurableSemanticStoreSchemaV01(db);
   const packet = loadPacket(
@@ -561,6 +570,11 @@ function inspectPacketLineageInsideReadV01(
       work_ref: createAutomationWorkRefV01(work), grant_ref: createBoundedAutomationGrantRefV01(grant), generated_at: packet.generated_at });
     if (canonicalizeProtocolValueV01(expected) !== canonicalizeProtocolValueV01(packet)) throw continuityError("prospective_preparation_packet_conflict", 409);
     return { lineage_kind: "bounded_preparation", packet, prior_packet: work.source_packet, projection_current: prior.projection_current, source_transition_receipt: null };
+  }
+  if (isOrdinarySuccessorRevisionV01(packet)) {
+    const lineage = readRevision(packet);
+    if (lineage.lineage_kind !== "authored_successor_task") throw continuityError("operator_pilot_revision_profile_invalid", 409);
+    return lineage;
   }
   if (isStandaloneAuthoredSuccessorV01(packet)) {
     return inspectAuthoredSuccessorPacketV01(db, { config: input.config, packet });
@@ -648,6 +662,7 @@ function inspectPacketLineageInsideReadV01(
     packet.compatibility.source_contracts.some(contract => (contract === PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01 || contract === PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01))
   ) {
     const lineage = readRevision(packet);
+    if (lineage.lineage_kind === "authored_successor_task") throw continuityError("operator_pilot_revision_profile_invalid", 409);
     return {
       lineage_kind: lineage.lineage_kind,
       packet,
@@ -1042,7 +1057,7 @@ export function readCurrentProjectWorkPacketLineageV01(db: Database.Database, co
 function loadCurrentWorkPackets(db: Database.Database, config: VNextLocalOperatorPilotConfigV01) {
   return db.transaction(() => {
     const readRevision = revisionLineageReaderInsideReadV01(db, config);
-    const lineages = loadRecords(db, config, "task_context_packet")
+    const lineages = readProjectWorkPacketHistoryV01(db, config)
       .map((record) => loadPacket(db, config, record.record_id, record.fingerprint))
       .filter(
         (packet) =>

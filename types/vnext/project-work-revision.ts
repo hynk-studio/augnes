@@ -40,7 +40,6 @@ export const PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01 =
 export const PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01 =
   "augnes.vnext.pre-execution-new-work-compiler.v0.1" as const;
 export const AUTHORED_SUCCESSOR_REVISION_V01 = "augnes.authored-successor-revision.v0.1" as const;
-export const MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01 = 32 as const;
 
 export type PreExecutionProjectWorkLineageKindV01 =
   | "initial_user_defined"

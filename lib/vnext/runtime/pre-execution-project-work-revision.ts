@@ -1,3 +1,4 @@
+import { readProjectWorkPacketHistoryV01, PROJECT_WORK_HISTORY_READ_BUDGET_V01, ProjectWorkPacketHistoryReadErrorV01 } from "./project-work-packet-history";
 import { handoffEntries } from "../work-handoff";
 import type Database from "better-sqlite3";
 import { PROSPECTIVE_PREPARATION_PACKET } from "../prospective-agenda";
@@ -6,7 +7,6 @@ import { compareNewProjectWorkV01 } from "./new-project-work-preparation";
 import { assertReviewedOutcomeSourcesRetained, normalizeNativeSelectedWorkSources, readSelectedWorkSources, compareSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
 
 import {
-  assertVNextCoreRecordMatchesProtocolPayloadBindingV01,
   type VNextCoreRecordEnvelopeV01,
 } from "@/lib/vnext/persistence/durable-semantic-store";
 import {
@@ -30,7 +30,6 @@ import {
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type { ProjectWorkDefinitionV01 } from "@/types/vnext/project-work-initialization";
 import {
-  MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01,
   PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
   PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01,
   type PreExecutionProjectWorkLineageKindV01,
@@ -45,7 +44,6 @@ export const PRE_EXECUTION_PROJECT_WORK_REVISION_REQUEST_NAMESPACE_V01 =
 const REVISION_DEFINITION_ID =
   /^work-definition-(?:revision|preparation):(\d+):([a-f0-9]{24})$/u;
 const REVISION_REQUEST_ID = /^work-(?:revision|preparation)-request:(\d+):([a-f0-9]{24})$/u;
-const MAX_PACKET_ROWS = 256;
 const REVISION_PACKET_CONTEXT_BUDGET_V01 = Object.freeze({
   max_selected_entries: 4,
   max_projection_items: 1,
@@ -498,9 +496,6 @@ function inspectRevisionChainInsideReadV01(
   const revisionRecords = records.filter((record) =>
     isStandaloneRevisionPacketV01(record.packet),
   );
-  if (revisionRecords.length > MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01) {
-    refuse("work_revision_limit_reached", 409);
-  }
   const recordsById = new Map(
     records.map((record) => [record.packet.packet_id, record] as const),
   );
@@ -592,55 +587,12 @@ export function inspectPreExecutionProjectWorkRevisionPacketV01(
     packet: TaskContextPacketV01;
   },
 ): PreExecutionProjectWorkRevisionLineageV01 {
-  const records = loadPacketRecords(db, input);
-  const record = records.find(
-    (candidate) =>
-      candidate.packet.packet_id === input.packet.packet_id &&
-      candidate.packet.integrity.fingerprint ===
-        input.packet.integrity.fingerprint,
-  );
-  if (!record || !isStandaloneRevisionPacketV01(record.packet)) {
-    refuse("work_revision_packet_missing", 409);
-  }
-  const initialRecords = records.filter(
-    (candidate) =>
-      hasContract(
-        candidate.packet,
-        INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01,
-      ) &&
-      !hasContract(
-        candidate.packet,
-        VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
-      ) &&
-      !hasContract(
-        candidate.packet,
-        SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01,
-      ),
-  );
-  if (initialRecords.length !== 1) {
-    refuse("work_revision_genesis_count_invalid", 409);
-  }
-  const genesisLineage = inspectInitialProjectWorkPacketLineageV01(db, {
-    ...input,
-    packet: initialRecords[0]!.packet,
-  });
-  const recordsById = new Map(
-    records.map((candidate) => [candidate.packet.packet_id, candidate] as const),
-  );
-  const inspected = inspectRevisionPacketV01(
-    db,
-    input,
-    record,
-    genesisLineage.definition_ref,
-    recordsById,
-  );
-  const chain = inspectPreExecutionProjectWorkRevisionChainV01(db, input);
-  const projectionCurrent =
-    chain.projection_current &&
-    chain.tip_packet.packet_id === inspected.packet.packet_id &&
-    chain.tip_packet.integrity.fingerprint ===
-      inspected.packet.integrity.fingerprint;
-  return { ...inspected, projection_current: projectionCurrent };
+  return db.transaction(() => {
+    const lineage = inspectPreExecutionProjectWorkRevisionLineagesV01(db, input).find(r =>
+      r.packet.packet_id === input.packet.packet_id && r.packet.integrity.fingerprint === input.packet.integrity.fingerprint);
+    if (!lineage) refuse("work_revision_packet_missing", 409);
+    return lineage;
+  })();
 }
 
 function inspectRevisionPacketV01(
@@ -768,41 +720,29 @@ function validatePreExecutionHistoryAtEachRevisionV01(
   genesis: TaskContextPacketV01,
   revisions: PreExecutionProjectWorkRevisionLineageV01[],
 ): void {
+  const latest = revisions.at(-1);
+  if (!latest) return;
   const allowed = new Set([genesis.packet_id]);
-  // Only canonical Evidence validation is reusable across cutoffs in this
-  // read-only snapshot. Packet membership and run history remain cutoff-specific.
-  const validatedEvidence = new Set<string>();
-  for (const revision of revisions) {
-    allowed.add(revision.packet.packet_id);
-    const coreRows = db
-      .prepare(
-        `SELECT record_kind, record_id FROM vnext_core_records
-          WHERE workspace_id = ? AND project_id = ? AND created_at <= ?`,
-      )
-      .all(input.workspace_id, input.project_id, revision.packet.generated_at) as Array<{
-      record_kind: string;
-      record_id: string;
-    }>;
-    if (
-      coreRows.some(
-        (row) => {
-          if (row.record_kind === "evidence_record" && validatedEvidence.has(row.record_id)) return false;
-          if (!isNonBlockingPreExecutionRecordV01(db, input, row, allowed)) return true;
-          if (row.record_kind === "evidence_record") validatedEvidence.add(row.record_id);
-          return false;
-        },
-      )
-    ) {
-      refuse("work_revision_history_predates_revision", 409);
+  const rows = db.prepare(`SELECT record_kind, record_id, created_at FROM vnext_core_records
+    WHERE workspace_id = ? AND project_id = ? AND created_at <= ? ORDER BY created_at, record_kind, record_id`)
+    .iterate(input.workspace_id, input.project_id, latest.packet.generated_at) as Iterable<{ record_kind: string; record_id: string; created_at: string }>;
+  const iterator = rows[Symbol.iterator]();
+  let next = iterator.next(), inspected = 0;
+  try {
+    // Allowed packet membership is monotone. Validate each row at its first
+    // revision cutoff; later cutoffs cannot invalidate an earlier membership.
+    for (const revision of revisions) {
+      allowed.add(revision.packet.packet_id);
+      while (!next.done && next.value.created_at <= revision.packet.generated_at) {
+        if (++inspected > PROJECT_WORK_HISTORY_READ_BUDGET_V01.records) refuse("work_revision_history_read_budget_exceeded", 409);
+        if (!isNonBlockingPreExecutionRecordV01(db, input, next.value, allowed)) refuse("work_revision_history_predates_revision", 409);
+        next = iterator.next();
+      }
     }
-    const runHistory = inspectProjectManagedRunHistoryV01(db, {
-      ...input,
-      created_at_lte: revision.packet.generated_at,
-    });
-    if (runHistory.status !== "none") {
-      refuse("work_revision_run_history_predates_revision", 409);
-    }
-  }
+  } finally { iterator.return?.(); }
+  // Absence through the last cutoff proves absence at every earlier cutoff.
+  const runHistory = inspectProjectManagedRunHistoryV01(db, { ...input, created_at_lte: latest.packet.generated_at });
+  if (runHistory.status !== "none") refuse("work_revision_run_history_predates_revision", 409);
 }
 
 interface PacketRecordV01 extends VNextCoreRecordEnvelopeV01 {
@@ -813,60 +753,16 @@ function loadPacketRecords(
   db: Database.Database,
   input: { workspace_id: string; project_id: string },
 ): PacketRecordV01[] {
-  let rows: Array<{
-    record_kind: "task_context_packet";
-    record_id: string;
-    workspace_id: string;
-    project_id: string;
-    fingerprint: string;
-    idempotency_key: string | null;
-    payload_json: string;
-    created_at: string;
-  }>;
-  try {
-    rows = db
-      .prepare(
-        `SELECT record_kind, record_id, workspace_id, project_id, fingerprint,
-                idempotency_key, payload_json, created_at
-           FROM vnext_core_records
-          WHERE workspace_id = ? AND project_id = ?
-            AND record_kind = 'task_context_packet'
-          ORDER BY created_at, record_id LIMIT ?`,
-      )
-      .all(input.workspace_id, input.project_id, MAX_PACKET_ROWS + 1) as typeof rows;
-  } catch {
-    refuse("work_revision_source_unavailable", 409);
+  try { return readProjectWorkPacketHistoryV01(db, input); }
+  catch (error) {
+    if (error instanceof ProjectWorkPacketHistoryReadErrorV01)
+      return refuse(error.reason === "read_budget_exceeded" ? "work_revision_history_read_budget_exceeded" : `work_revision_${error.reason}`, 409);
+    if (error instanceof Error && error.message === "vnext_core_record_payload_corrupt") return refuse("work_revision_packet_invalid", 409);
+    if (typeof (error as { code?: unknown })?.code === "string" && (error as { code: string }).code.startsWith("SQLITE_"))
+      return refuse("work_revision_source_unavailable", 409);
+    // Core envelope/fingerprint failures retain their hard integrity refusal.
+    throw error;
   }
-  if (rows.length > MAX_PACKET_ROWS) refuse("work_revision_packet_bound_exceeded", 409);
-  return rows.map((row) => {
-    let packet: TaskContextPacketV01;
-    try {
-      packet = JSON.parse(row.payload_json) as TaskContextPacketV01;
-    } catch {
-      refuse("work_revision_packet_invalid", 409);
-    }
-    if (
-      validateTaskContextPacketV01(packet, {
-        evaluated_at: packet?.generated_at ?? "",
-      }).status !== "valid"
-    ) {
-      refuse("work_revision_packet_invalid", 409);
-    }
-    const record = { ...row, payload: packet } as VNextCoreRecordEnvelopeV01;
-    assertVNextCoreRecordMatchesProtocolPayloadBindingV01(record, {
-      workspace_id: packet.workspace_id,
-      project_id: packet.project_id,
-      fingerprint: packet.integrity.fingerprint,
-    });
-    if (
-      row.record_id !== packet.packet_id ||
-      row.created_at !== packet.generated_at ||
-      row.fingerprint !== packet.integrity.fingerprint
-    ) {
-      refuse("work_revision_packet_envelope_invalid", 409);
-    }
-    return { ...record, packet } as PacketRecordV01;
-  });
 }
 
 function readValidatedPacketRecordByIdentity(

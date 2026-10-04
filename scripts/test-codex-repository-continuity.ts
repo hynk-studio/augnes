@@ -498,8 +498,8 @@ async function assertCompanionWorkRevisionV01(limitOnly = false): Promise<void> 
     const call = (input: unknown, override = channel) => reviseCodexRepositoryWorkV01(db, input, override, dependencies);
     const prepare = async (changes: unknown) => ({ action: "preview", repository_root: root, expected_snapshot_binding: await snapshot(), changes });
     if (limitOnly) {
-    // Existing limit remains 32. The final inserted revision can still be
-    // acknowledged once more, without minting a 33rd revision.
+    // Cross the former lifetime boundary through the real delegated writer;
+    // its separate per-channel mutation budget is unchanged.
     const prefix = inspectPreExecutionProjectWorkRevisionChainV01(db, scope);
     let prefixPacket = prefix.tip_packet;
     const fixtureCredential = initialCredential;
@@ -528,7 +528,12 @@ async function assertCompanionWorkRevisionV01(limitOnly = false): Promise<void> 
     assert.equal((await call(finalSave)).status, "saved");
     assert.equal((await call(finalSave)).status, "exact_replay");
     assert.equal((db.prepare("SELECT count(*) AS count FROM vnext_core_records WHERE record_kind = 'task_context_packet' AND workspace_id = ? AND project_id = ?").get(scope.workspace_id, scope.project_id) as { count: number }).count, 33);
-      console.log(JSON.stringify({ contract: "codex_repository_work_revision.v0.1", final_revision_slot_and_replay: "pass" }));
+    const next = await prepare({ goal: "Continue past revision 32" });
+    const nextSave = { ...next, action: "save", preview_binding: (await call(next)).preview_binding };
+    assert.equal((await call(nextSave)).status, "saved");
+    assert.equal((await call(nextSave)).status, "exact_replay");
+    assert.equal(inspectPreExecutionProjectWorkRevisionChainV01(db, scope).revision_count, 33);
+      console.log(JSON.stringify({ contract: "codex_repository_work_revision.v0.1", former_boundary_and_replay: "pass", revision_count: 33 }));
       return;
     }
     const before = db.serialize();

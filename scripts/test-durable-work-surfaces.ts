@@ -41,7 +41,7 @@ class CDP {
 async function until(fn: () => Promise<unknown>, label: string) { const end = performance.now() + 10000; while (performance.now() < end) { if (await fn()) return; await delay(50); } throw new Error(`browser_wait:${label}`); }
 
 async function main() {
-  const { config, projectRoot, at, mode } = JSON.parse(readFileSync(process.argv[2]!, "utf8"));
+  const { config, projectRoot, at, mode, cumulative = false } = JSON.parse(readFileSync(process.argv[2]!, "utf8"));
   assert.ok(config.database_path.includes("durable-surface-"));
   const db = new Database(config.database_path), root = path.join(path.dirname(config.database_path), `owned-${mode}`); mkdirSync(root);
   const owned = new Set(), guard = installZeroNetworkGuard({ allowLoopback: true });
@@ -54,7 +54,7 @@ async function main() {
   const post = createVNextOperatorContextUseReviewHandlerV01({ environment, clock }), get = createVNextOperatorProjectContinuityHandlerV01({ environment, clock });
   let c: CDP | undefined, chrome: ReturnType<typeof registerOwnedChild> | undefined, origin = "", cookie = "", script = "", css = "", errors = 0, external = 0, saves = 0;
   const current = () => readCurrentProjectWorkPacketLineageV01(db, config)!.packet;
-  const old = current(), rows = db.prepare("SELECT * FROM vnext_core_records ORDER BY rowid").all();
+  const old = current(), nextGoal = cumulative ? `${current().task.goal} / ${mode} continuation` : current().task.goal, rows = db.prepare("SELECT * FROM vnext_core_records ORDER BY rowid").all();
   const authority = () => canonical([readProjectAutomationControlV01(db, config), ...["autonomy_runs", "autonomy_run_steps", "autonomy_run_events"].map(t => db.prepare(`SELECT * FROM ${t} ORDER BY rowid`).all())]);
   const beforeAuthority = authority();
   const server = trackServerConnections(createServer(async (req, res) => {
@@ -83,7 +83,16 @@ async function main() {
     await http("/api/vnext/operator/session", { action: "bootstrap", bootstrap_token: issued.bootstrap_token });
     const read = await http("/api/vnext/operator/project-continuity");
     assert.equal(read.work_initialization.current_packet.packet_fingerprint, old.integrity.fingerprint);
-    if (mode === "readback") { assert.equal(old.expires_at, null); assert.equal(old.capability_grant, null); }
+    if (mode === "readback") {
+      assert.equal(old.expires_at, null); assert.equal(old.capability_grant, null);
+      if (cumulative) {
+        assert.equal(read.work_initialization.revision_eligibility.revision_count, 33);
+        await http("/api/vnext/operator/project-continuity", { action: "revise_pre_execution_project_work", workspace_id: config.workspace_id, project_id: config.project_id,
+          expected_active_project_id: config.project_id, expected_active_selection_revision: read.work_initialization.active_selection_revision,
+          expected_current_packet_id: old.packet_id, expected_current_packet_fingerprint: old.integrity.fingerprint,
+          expected_current_lineage_kind: read.work_initialization.current_packet.lineage_kind, ...old.task, goal: nextGoal }, 201);
+      }
+    }
     else if (mode === "agent") {
       Object.assign(process.env, environment, { AUGNES_RUNTIME_CHILD_ROLE: "ui", AUGNES_RUNTIME_INSTANCE_ID: "disposable-durable", AUGNES_RUNTIME_GENERATION_ID: "generation-1",
         AUGNES_RUNTIME_REPOSITORY_FINGERPRINT: "a".repeat(64), AUGNES_COMPANION_PROXY_TOKEN: "disposable-durable-channel" });
@@ -96,8 +105,8 @@ async function main() {
       };
       const resumed = await agent(agentResume, "/api/augnes/read/codex-repository-continuity", { "x-augnes-local-readonly": CODEX_REPOSITORY_CONTINUITY_ROUTE_MARKER_V01 }, { repository_root: projectRoot });
       assert.equal(resumed.continuity.snapshot.status, "exact", canonical(resumed));
-      assert.equal(resumed.continuity.current_work.currentness, "stale"); assert.equal(resumed.continuity.current_work.start_eligible, false);
-      const input = { action: "preview", repository_root: projectRoot, expected_snapshot_binding: resumed.continuity.snapshot.binding, changes: { goal: old.task.goal } };
+      if (!cumulative) { assert.equal(resumed.continuity.current_work.currentness, "stale"); assert.equal(resumed.continuity.current_work.start_eligible, false); }
+      const input = { action: "preview", repository_root: projectRoot, expected_snapshot_binding: resumed.continuity.snapshot.binding, changes: { goal: nextGoal } };
       const marker = { "x-augnes-local-work-revision": "codex-repository-work-revision-v0.1" }, endpoint = "/api/augnes/repository-work-revision";
       const sources = await agent(agentSources, "/api/augnes/read/codex-repository-work-sources", { "x-augnes-local-readonly": "codex-repository-work-sources-v0.1" }, { repository_root: projectRoot, expected_snapshot_binding: input.expected_snapshot_binding, include_work_definition: true });
       assert.equal(sources.status, "available", canonical(sources));
@@ -127,7 +136,7 @@ async function main() {
               const selected = [...readSelectedWorkSources(old), buildSelectedWorkSourceEntry(config, { source: "New user observation", observed_at: at, provenance: "user_declaration", label: "Unclassified / needs review", text: "Material added after the agent preview." })];
               body = { action: "revise_pre_execution_project_work", workspace_id: config.workspace_id, project_id: config.project_id,
                 expected_active_project_id: config.project_id, expected_active_selection_revision: read.work_initialization.active_selection_revision,
-                expected_current_packet_id: old.packet_id, expected_current_packet_fingerprint: old.integrity.fingerprint, expected_current_lineage_kind: "authored_successor_task",
+                expected_current_packet_id: old.packet_id, expected_current_packet_fingerprint: old.integrity.fingerprint, expected_current_lineage_kind: read.work_initialization.current_packet.lineage_kind,
                 ...old.task, selected_source_context: selected, expected_source_comparison: compareSelectedWorkSources(old, selected).fingerprint };
             }
             const response = await route(new Request(origin + `/api/vnext/operator/${drift === "direction" ? `project-direction?project_id=${config.project_id}` : "project-continuity"}`, { method: "POST", headers: { host: new URL(origin).host, origin, cookie, "content-type": "application/json" }, body: JSON.stringify(body) }));
@@ -169,19 +178,26 @@ async function main() {
         await until(() => browser.eval("document.body.textContent.includes('Saved work resumed.')"), "resumed");
         assert.equal(await browser.eval("document.querySelector('[aria-label=\"Source-review question\"]').value"), "");
       } else {
-        await until(() => browser.eval("[...document.querySelectorAll('button')].some(e=>e.textContent.includes('Save revision')&&!e.disabled)"), "unchanged_save_available");
+        await until(() => browser.eval(cumulative ? "!!document.querySelector('textarea')" : "[...document.querySelectorAll('button')].some(e=>e.textContent.includes('Save revision')&&!e.disabled)"), "editor_available");
         assert.ok(await browser.eval(`document.querySelector('textarea').value===${JSON.stringify(old.task.goal)}`));
+        if (cumulative) await browser.eval(`(()=>{const e=document.querySelector('textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(e,${JSON.stringify(nextGoal)});e.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+        await until(() => browser.eval("[...document.querySelectorAll('button')].some(e=>e.textContent.includes('Save revision')&&!e.disabled)"), "edited_save_available");
         await browser.eval("[...document.querySelectorAll('button')].find(e=>e.textContent.includes('Save revision')).click()");
         await until(() => browser.eval("document.body.dataset.saved==='true'"), "saved");
       }
       assert.equal(saves, 1);
     }
-    assert.equal(current().expires_at, null); assert.equal(current().capability_grant, null); assert.deepEqual(current().task, old.task);
+    assert.equal(current().expires_at, null); assert.equal(current().capability_grant, null); assert.deepEqual(current().task, { ...old.task, goal: nextGoal });
     assert.deepEqual(readSelectedWorkSources(current()), readSelectedWorkSources(old));
     assert.deepEqual(db.prepare("SELECT * FROM vnext_core_records ORDER BY rowid").all().slice(0, rows.length), rows);
     assert.equal(authority(), beforeAuthority); assert.equal(validateRecoveryCanonicalDatabaseV01(db).status, "valid");
     assert.equal(external, 0); assert.equal(errors, 0); assert.equal(guard.attempts.length, 0);
-    console.log(JSON.stringify({ durable_surface: mode, fresh_process: process.pid, days_elapsed: mode === "readback" ? 8 : 4, unchanged_task: true, authority_unchanged: true, historical_rows_unchanged: true, provider_calls: 0 }));
+    if (cumulative) {
+      const result = await http("/api/vnext/operator/project-continuity");
+      assert.equal(result.work_initialization.revision_eligibility.revision_count, mode === "readback" ? 34 : 33);
+      console.log(JSON.stringify({ cumulative_surface: mode, revision_count: result.work_initialization.revision_eligibility.revision_count, fresh_process: true, authority_unchanged: true, external_requests: external }));
+    }
+    if (!cumulative) console.log(JSON.stringify({ durable_surface: mode, fresh_process: process.pid, days_elapsed: mode === "readback" ? 8 : 4, unchanged_task: true, authority_unchanged: true, historical_rows_unchanged: true, provider_calls: 0 }));
   } finally {
     globalThis.Date = NativeDate;
     try { if (cookie) { await http("/api/vnext/operator/session", { action: "logout" }); await http("/api/vnext/operator/session", undefined, 401); } }

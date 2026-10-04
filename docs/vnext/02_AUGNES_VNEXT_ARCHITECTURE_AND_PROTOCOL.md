@@ -545,8 +545,8 @@ initialization owner with the fail-closed managed-run-history owner. In the
 initial/pre-execution preparation family, any exact
 project run row, blocking Core work history, semantic state/head, semantic
 successor, ambiguous or invalid lineage, unavailable
-source, inactive project, unavailable root, or the fixed 32-revision bound
-blocks revision. Canonical Evidence support material and existing work-expectation
+source, inactive project or unavailable root blocks revision. Historical revision
+count is not an eligibility condition. Canonical Evidence support material and existing work-expectation
 records may coexist with the validated preparation chain. Evidence is read through
 its canonical owner, including scope, payload/envelope integrity and reserved
 producer-source authentication; malformed or forged material fails closed. This
@@ -558,7 +558,7 @@ The same rule applies at each historical revision cutoff and current admission.
 It reuses the initial-work normalizer and all code-point, list, control-character,
 UTF-8, and packet-budget limits. In one immediate transaction it revalidates
 session admission, project/selection/root scope, exact current packet identity,
-lineage, no execution or blocking work history, and revision count. An unchanged
+lineage, no execution or blocking work history, and exact revision order. An unchanged
 normalized definition is `exact_replay` with no write. An identical concurrent
 successor may replay; any different stale request refuses.
 
@@ -610,8 +610,9 @@ older validator sees an unsupported family member rather than overlooking a
 superseding packet. New definition/request references bind the explicit action,
 exact prior packet, authenticated operator/session, active selection, registered
 root binding, reviewed definition, complete selected-source comparison and
-omission reasons. The original first-work ancestor remains unique. The existing
-32-edge preparation-chain bound includes both revisions and new-task edges.
+omission reasons. The original first-work ancestor remains unique. Both
+same-task revisions and new-task edges retain monotonically ordered safe integer
+identities without a fixed lifetime revision ceiling.
 There is no table, mutable current-work pointer, new Core record kind or migration.
 
 A preview shows both definitions (goal, success criteria and non-goals), selected
@@ -1479,8 +1480,9 @@ The ordinary save checks the complete project ledger for nonterminal or
 unresolved runs inside its atomic transaction, returning only an existence
 result. Retained terminal history alone imposes no run-count ceiling. Unknown
 statuses, malformed metadata and invalid reconciliation flags refuse; legacy
-terminal rows without a reconciliation flag remain supported. The older scoped
-revalidation profile keeps its existing conservative history bound.
+terminal rows without a reconciliation flag remain supported. Scoped revalidation
+uses this same complete conservative conflict predicate; its finite lifetime,
+local-result, file/instruction inventory and execution restrictions remain.
 
 The existing source-note editor carries only explicitly selected whole notes,
 with original provenance, source time and unknown currentness. The result report
@@ -1552,9 +1554,9 @@ ordinary family use the separately bounded pre-outcome expectation contract abov
 
 Each save appends one immutable TaskContextPacket with the immediate prior
 packet, original preparation, genuine predecessor receipt, source/root bindings
-and authenticated revision request. Reconstruction follows one ordered tip,
-bounded to 32 revisions; branches, malformed lineage and ambiguous currentness
-refuse. Historical reads remain valid after legitimate execution and restore,
+and authenticated revision request. Reconstruction follows one ordered tip;
+branches, malformed lineage and ambiguous currentness refuse independently of
+historical revision count. Historical reads remain valid after legitimate execution and restore,
 without manufacturing a local run. A later ordinary successor binds the revised
 tip's actual result through the existing result writer.
 
@@ -1577,6 +1579,56 @@ An unchanged request or exact immediate replay appends no packet. Successful
 saves add only the packet and normal session bookkeeping; refusals roll back
 both. There is no grant, Decision, Transition, semantic acceptance, execution,
 new Core kind, database, migration or automatic activation of historical work.
+
+#### Cumulative native work history (#1395)
+
+Initial preparation (including explicit different-task edges) and ordinary
+outcome-linked revisions have no fixed 32-revision lifetime ceiling. The same
+compiler fields, safe integer ordering, fingerprints and immutable envelopes
+remain authoritative; no migration, counter reset, compaction or new Core kind
+is involved. Current readers reconstruct mixed old and extended chains through
+recovery and supported portable import. Older readers retain their historical
+bounds and cannot be promised to use an extended chain; rollback preserves its
+bytes but requires a current reader for continuation.
+
+Required packet history uses the existing indexed 64-row keyset iterator inside
+a synchronous read snapshot. A complete successor-edge index replaces the
+256-row listing test. An incomplete page is never absence. Initial revision
+history validates each Core row at its first applicable cutoff and checks run
+absence through the final cutoff. Ordinary revision families are walked
+iteratively; batch currentness and recovery readers reuse their validated family
+within that read only. No cached authority or validation survives a mutation,
+request, database or project boundary. Missing, malformed, cyclic, branched,
+foreign or contradictory required ancestry fails closed.
+
+Resource limits remain explicit and separate from the stored revision number:
+current project reads retain their 4,096-record operation budget, packet history
+also has a 16 MiB serialized payload budget, and preparation admission binds its
+packet-ID set as one SQLite JSON parameter with a 1 MiB input budget. Exhaustion
+means unavailable required evidence, never an empty history or an invalidated
+historical packet. Retained-note search keeps its original 264-occurrence and
+1,056,000-byte scan budgets, eight-result/20,000-byte response limits and exact
+current-task scope; more empty preparation snapshots do not consume note bytes.
+An incomplete note scan refuses rather than returning an apparent no-match.
+Other context, request, expectation, delegated mutation, active-run and portable
+package limits are unchanged. The separate operator review projection retains
+its 128-record budgets for run receipts and context-use reviews. These are
+bounded local reads, not unlimited-scale support or hosted Web Planning parity.
+
+The human work editor and authenticated repository-agent writer share unchanged
+selection, direction, physical-root, source comparison, exact replay and atomic
+concurrency checks. Revision never renews a session, grant, deadline, controller,
+automation or recovery credential. Historical finite packets and durable #1393
+packets keep their compiler distinctions and unresolved obligations. The #1392
+handoff/export scope is unchanged.
+
+Retained-source Companion disclosure advertises the new packet traversal budget
+with the unchanged note/result budgets. Its closed parser accepts that exact
+policy and both historical policies for client-first refresh; arbitrary limits
+still refuse. Older installed proxies need a refreshed artifact and fresh client
+session before using the updated runtime. Source verification does not install
+or activate that client; the bounded wire owner is the
+[current-continuity contract](../CODEX_CURRENT_CONTINUITY_V0_1.md#explicit-retained-note-lookup-and-reselection).
 
 #### Durable local authored work (#1393)
 

@@ -371,7 +371,7 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
-      label: "Companion final revision slot and exact successor replay",
+      label: "Companion revision beyond the former lifetime boundary and exact replay",
       ...rootNode("scripts/test-codex-repository-continuity.ts", "--work-revision-limit-only"),
       timeoutMs: 30_000,
     },
@@ -728,6 +728,55 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "cumulative-initial-history",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "mutable-module-state"],
+      label: "initial work through 320 revisions, complete ancestry, recovery and portable reconstruction",
+      ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--cumulative-history-only"),
+      // Canonical builder prefixes plus real boundary saves, measured 77.4 s.
+      timeoutMs: 120_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "cumulative-successor-history",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "mutable-module-state", "process-owning"],
+      label: "ordinary successor through 320 revisions, later-page conflicts and portable reconstruction",
+      ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--cumulative-successor-only"),
+      // Includes genuine local predecessor and full recovery/export/import;
+      // measured 235.4 s independently, without extending any existing child.
+      timeoutMs: 300_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "cumulative-scoped-history",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "mutable-module-state", "process-owning"],
+      label: "scoped revalidation beyond 128 settled runs and complete unresolved-history refusals",
+      ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--cumulative-scoped-only"),
+      timeoutMs: 45_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "cumulative-work-surfaces",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "mutable-module-state", "process-owning", "listener-port-owning", "browser-profile-owning", "cdp-session-owning"],
+      label: "human and authenticated agent edits beyond revision 32 and fresh-process continuation",
+      ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--cumulative-surfaces-only"),
+      // Eight fresh processes and two owned browsers measured 81.6 s.
+      timeoutMs: 120_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "cumulative-read-budgets",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "mutable-module-state"],
+      label: "complete packet reads at operation limits and explicit refusal on exhausted evidence",
+      ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--cumulative-budgets-only"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "source-bound-work-handoff",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning"],
@@ -845,11 +894,10 @@ const suites = {
       id: "ordinary-successor-expectation-final-slot",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem"],
-      label: "final ordinary revision expectation, unchanged edit budget and actual attempt binding",
+      label: "ordinary revision expectation beyond the former boundary and actual attempt binding",
       ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--successor-expectation-limit-only"),
-      // The 32-revision boundary uses the existing builder/store fixture prefix
-      // and real final save/Start/result owners; measured 82.4s independently.
-      // Keep it separate from the 45s lifecycle and all older child budgets.
+      // Preserve this child's existing deadline while exercising revision 33
+      // through the real save/Start/result owners and canonical fixture prefix.
       timeoutMs: 120_000,
       requireNaturalExit: true,
     },

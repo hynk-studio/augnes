@@ -1,14 +1,14 @@
+import { readProjectWorkPacketHistoryV01 } from "./project-work-packet-history";
+import { inspectVNextOperatorPilotPacketLineagesV01 } from "./operator-pilot-project-continuity";
 import { isStatelessReplacement, inspectStatelessReplacement, statelessReplacementIdempotencyKey } from "./stateless-review-disposition";
-import { authoredSuccessorPacketIdempotencyKeyV01, inspectAuthoredSuccessorPacketV01, isStandaloneAuthoredSuccessorV01 } from "./authored-successor-task";
+import { authoredSuccessorPacketIdempotencyKeyV01, isStandaloneAuthoredSuccessorV01 } from "./authored-successor-task";
 import type Database from "better-sqlite3";
 
 import {
   assertVNextCoreRecordMatchesProtocolPayloadBindingV01,
   assertVNextDurableSemanticStoreSchemaV01,
   iterateVNextCoreRecordsV01,
-  readVNextCoreRecordV01,
   type VNextCoreRecordEnvelopeV01,
-  type VNextCoreRecordKindV01,
 } from "@/lib/vnext/persistence/durable-semantic-store";
 import {
   canonicalizeProtocolValueV01,
@@ -34,7 +34,6 @@ import {
 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
 import {
   validateVNextOperatorPilotReviewDecisionProvenanceV01,
-  VNEXT_OPERATOR_PILOT_MAX_REVIEW_RECORDS_V01,
 } from "@/lib/vnext/runtime/operator-pilot-review-material";
 import { validateVNextOperatorPilotSemanticGateConfirmationProvenanceV01 } from "@/lib/vnext/runtime/operator-pilot-semantic-transition";
 import {
@@ -268,11 +267,13 @@ function loadValidatedCompiledPackets(
   config: VNextLocalOperatorPilotConfigV01,
 ): ValidatedCompiledPacketV01[] {
   const compiled: ValidatedCompiledPacketV01[] = [];
-  for (const record of listScopedRecords(
-    db,
-    config,
-    "task_context_packet",
-  )) {
+  const records = readProjectWorkPacketHistoryV01(db, config);
+  const authored = records.filter(r => isStandaloneAuthoredSuccessorV01(r.packet));
+  const lineages = inspectVNextOperatorPilotPacketLineagesV01(db, { config,
+    packets: authored.map(r => ({ packet_id: r.record_id, packet_fingerprint: r.fingerprint })),
+  });
+  if (lineages.some(r => r === null)) throw lineageError("operator_pilot_workbench_lineage_packet_invalid");
+  for (const record of records) {
     const packet = record.payload as TaskContextPacketV01;
     if (
       validateTaskContextPacketV01(packet, {
@@ -317,10 +318,9 @@ function loadValidatedCompiledPackets(
       project_id: packet.project_id,
     });
     if (isStatelessReplacement(packet)) { inspectStatelessReplacement(db, { config, packet }); continue; }
-    if (isStandaloneAuthoredSuccessorV01(packet)) {
-      inspectAuthoredSuccessorPacketV01(db, { config, packet });
-      continue;
-    }
+    // Already checked together in this read; revisiting every ancestor for
+    // each packet would make recovery quadratic as ordinary history grows.
+    if (isStandaloneAuthoredSuccessorV01(packet)) continue;
     if (
       !packet.compatibility.source_contracts.includes(
         VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
@@ -419,42 +419,6 @@ function summarizePacket(
     currentness: expires !== null && observed > expires ? "expired" : "fresh",
     projection_current: inspection.projection_current,
   };
-}
-
-function listScopedRecords(
-  db: Database.Database,
-  config: VNextLocalOperatorPilotConfigV01,
-  recordKind: VNextCoreRecordKindV01,
-): VNextCoreRecordEnvelopeV01[] {
-  const rows = db
-    .prepare(
-      `SELECT record_id FROM vnext_core_records
-       WHERE workspace_id = ? AND project_id = ? AND record_kind = ?
-       ORDER BY created_at, record_id LIMIT ?`,
-    )
-    .all(
-      config.workspace_id,
-      config.project_id,
-      recordKind,
-      VNEXT_OPERATOR_PILOT_MAX_REVIEW_RECORDS_V01 + 1,
-    ) as Array<{ record_id: string }>;
-  if (rows.length > VNEXT_OPERATOR_PILOT_MAX_REVIEW_RECORDS_V01) {
-    throw lineageError(
-      `operator_pilot_workbench_lineage_${recordKind}_history_bound_exceeded`,
-    );
-  }
-  return rows.map((row) => {
-    const record = readVNextCoreRecordV01(db, {
-      record_kind: recordKind,
-      record_id: row.record_id,
-      workspace_id: config.workspace_id,
-      project_id: config.project_id,
-    });
-    if (!record) {
-      throw lineageError("operator_pilot_workbench_lineage_record_missing");
-    }
-    return record;
-  });
 }
 
 function assertRecordEnvelope(

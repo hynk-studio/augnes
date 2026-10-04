@@ -1,3 +1,4 @@
+import { installZeroNetworkGuard } from "./test-harness-zero-network-guard.mjs";
 import { buildWorkExpectationRecord, expectationRef } from "../lib/vnext/work-expectation";
 import { RETRY_INSPECTION_INPUT_V01, RETRY_INSPECTION_OUTLOOK_V01, RETRY_INSPECTION_OUTLOOK_V02, buildRetryInspectionOutlookV01, buildRetryInspectionOutlookV02, readRetryInspectionOutlookV01, retryInspectionGuidanceV01, type RetryInspectionInputV01 } from "../lib/vnext/retry-inspection-outlook";
 import { ORDINARY_SUCCESSOR_EXPECTATION_CHRONOLOGY, type WorkExpectation, type WorkExpectationAttempt } from "../types/vnext/work-expectation";
@@ -142,13 +143,25 @@ void main().catch((error) => {
 
 async function main(): Promise<void> {
   const initializationStarted = performance.now();
+  const cumulativeNetwork = process.argv.some(a => a.startsWith("--cumulative-")) ? installZeroNetworkGuard({ allowLoopback: true }) : null;
   try {
+    if (process.argv.includes("--cumulative-budgets-only")) {
+      const { cumulativeReadBudgets } = await import("./test-cumulative-work-history");
+      cumulativeReadBudgets({ createFixtureV01 }); return;
+    }
+    if (process.argv.includes("--cumulative-history-only") || process.argv.includes("--cumulative-surfaces-only")) {
+      const { cumulativeRevisionHistory } = await import("./test-cumulative-work-history");
+      await cumulativeRevisionHistory({ ROOT, createFixtureV01, authenticatedSessionV01, requestV01, revisionRequestV01, credentialFromCookieV01, insertManagedRunV01 });
+      if (process.argv.includes("--cumulative-surfaces-only")) await assertUnexecutedSuccessorRevisionV01();
+      return;
+    }
     if (process.argv.includes("--retry-inspection-only")) { await assertRetryInspectionLoopV01(); return; }
     if (process.argv.includes("--selected-source-budget-only")) { await assertNativeSelectedSourceBudgetV01(); return; }
     if (process.argv.includes("--retained-source-capacity-only")) { await assertRetainedSourceScanBudgetV01(); return; }
     if (process.argv.includes("--reviewed-outcome-reuse-only")) { await assertReviewedOutcomeReuseV01(); await assertReviewedOutcomeReuseV01(true); return; }
     if (process.argv.includes("--successor-expectation-only")) { await assertSuccessorExpectationV01(); return; }
     if (process.argv.includes("--successor-expectation-limit-only")) { await assertSuccessorExpectationV01(true); return; }
+    if (process.argv.includes("--cumulative-successor-only")) { await assertUnexecutedSuccessorRevisionV01(); return; }
     if (process.argv.includes("--successor-revision-only")) { await assertUnexecutedSuccessorRevisionV01(); return; }
     if (process.argv.includes("--outcome-reuse-only")) { await assertOutcomeReuseV01(); return; }
     if (process.argv.includes("--webmcp-only")) { await assertWebMcpCurrentReadV01(); return; }
@@ -172,7 +185,7 @@ async function main(): Promise<void> {
       await assertOutcomeReuseV01();
       return;
     }
-    if (process.argv.includes("--settled-expired-successor-refusals-only")) {
+    if (process.argv.includes("--settled-expired-successor-refusals-only") || process.argv.includes("--cumulative-scoped-only")) {
       await assertPersistedScopedContinuationV01(["settled_expired_refusals"]);
       return;
     }
@@ -224,7 +237,7 @@ async function main(): Promise<void> {
       revision_append_only: true,
       revision_stale_cas_refused: true,
       revision_branch_and_missing_prior_refused: true,
-      revision_limit_refused_without_write: true,
+      revisions_beyond_former_limit: true,
       authenticated_transaction: true,
       save_execution_started: false,
       separate_native_host_start: true,
@@ -236,6 +249,8 @@ async function main(): Promise<void> {
     }, null, 2));
   } finally {
     rmSync(ROOT, { recursive: true, force: true });
+    cumulativeNetwork?.restore();
+    assert.equal(cumulativeNetwork?.attempts.length ?? 0, 0);
   }
 }
 
@@ -264,6 +279,10 @@ async function assertUnexecutedSuccessorRevisionV01(): Promise<void> {
     });
     const saved = await defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config,
       credential: credentialFromCookieV01(first.session_admission!.cookie_value), request: preview.request, clock });
+    if (process.argv.includes("--cumulative-successor-only") || process.argv.includes("--cumulative-surfaces-only")) {
+      const { cumulativeRevisionHistory } = await import("./test-cumulative-work-history");
+      await cumulativeRevisionHistory({ ROOT, revisionRequestV01, credentialFromCookieV01, insertManagedRunV01 }, { fixture, saved }); return;
+    }
     fixture.db.close(); fixture.db = new Database(fixture.config.database_path);
     const current = readProjectWorkInitializationV01(fixture.db, fixture);
     const eligibility = readProjectWorkRevisionEligibilityV01(fixture.db, fixture);
@@ -1970,6 +1989,40 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
             };
             const history = listVNextCoreRecordsV01(fixture.db, { ...fixture, record_kinds: [...VNEXT_CORE_RECORD_KINDS_V01], limit: 100 });
             if (scenario === "settled_expired_refusals") {
+              if (process.argv.includes("--cumulative-scoped-only")) {
+                // Real scoped authorship crosses the old listing boundary while
+                // preserving its finite lifetime and local predecessor contract.
+                let runCount = (fixture.db.prepare("SELECT count(*) AS n FROM autonomy_runs WHERE scope = ?").get(fixture.project_id) as { n: number }).n;
+                for (const count of [127, 128, 129, 321]) {
+                  for (; runCount < count; runCount++) insertManagedRunV01(fixture, {
+                    run_id: `fixture:scoped-history:${runCount}`, scope: fixture.project_id,
+                    created_at: first.receipt.finished_at!, metadata_json: '{"fixture_only":true,"reconciliation_required":false}',
+                  });
+                  const copy = new Database(fixture.db.serialize());
+                  try {
+                    const before = copy.prepare("SELECT * FROM vnext_core_records ORDER BY rowid").all();
+                    const saved = await defineAuthoredSuccessorTaskV01(copy, { config: fixture.config, credential: freshCredential,
+                      request: revalidated, clock, approved_instruction_files: approvedInstructionFiles });
+                    assert.equal(saved.status, "inserted"); assert.equal(saved.packet.expires_at, revalidated.revalidation.expires_at);
+                    assert.equal(saved.packet.capability_grant, null);
+                    assert.deepEqual(copy.prepare("SELECT * FROM vnext_core_records ORDER BY rowid").all().slice(0, before.length), before);
+                    console.log(JSON.stringify({ scoped_history_runs: count, authorship: "inserted", lifetime: "finite_unchanged", new_worker_launches: 0 }));
+                  } finally { copy.close(); }
+                }
+                const oldId = "fixture:scoped-history:99";
+                assert(!listAutonomyRunLedgerRecords({ db: fixture.db, scope: fixture.project_id, limit: 128 }).some(r => r.run_id === oldId));
+                const old = fixture.db.prepare("SELECT status, metadata_json FROM autonomy_runs WHERE run_id=?").get(oldId) as { status: string; metadata_json: string };
+                for (const [status, metadata] of [["running", "{}"], ["completed", '{"reconciliation_required":true}'],
+                  ["unknown-fixture", "{}"], ["completed", "[]"], ["completed", "{"], ["completed", '{"reconciliation_required":null}']]) {
+                  fixture.db.prepare("UPDATE autonomy_runs SET status=?, metadata_json=? WHERE run_id=?").run(status, metadata, oldId);
+                  const before = fixture.db.serialize();
+                  try { await assert.rejects(author(), /conflicting_run|history|metadata|json/); assert(before.equals(fixture.db.serialize())); }
+                  finally { fixture.db.prepare("UPDATE autonomy_runs SET status=?, metadata_json=? WHERE run_id=?").run(old.status, old.metadata_json, oldId); }
+                }
+                console.log(JSON.stringify({ cumulative_scoped: "passed", later_page_conflicts: 6, provider_calls: 0 }));
+                return;
+              }
+
               for (const expires_at of [null, expiredAt, "invalid", new Date(Date.parse(expiredAt) + 8 * 3_600_000 + 1).toISOString()])
                 await assert.rejects(author({ ...revalidated, revalidation: { ...revalidated.revalidation, expires_at } }), /revalidation_invalid|lifetime_invalid/);
               const shortBootstrap = issueVNextLocalOperatorBootstrapV01(fixture.db, { config: fixture.config, clock });
@@ -2001,16 +2054,6 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
               updateAutonomyRunLedgerFields(olderRun.run_id, { status: "paused", metadata: { ...olderRun.metadata, reconciliation_required: true } }, { db: fixture.db });
               try { await assert.rejects(author(), /conflicting_run/); }
               finally { updateAutonomyRunLedgerFields(olderRun.run_id, { status: olderRun.status, metadata: olderRun.metadata }, { db: fixture.db }); }
-              // The ordinary profile's complete conflict query must not relax
-              // this older scoped revalidation profile's retained scan bound.
-              const runCount = (fixture.db.prepare("SELECT count(*) AS n FROM autonomy_runs WHERE scope = ?").get(fixture.project_id) as { n: number }).n;
-              for (let index = runCount; index < 128; index++) insertManagedRunV01(fixture, {
-                run_id: `fixture:scoped-history:${index}`, scope: fixture.project_id,
-                created_at: first.receipt.finished_at!, metadata_json: '{"fixture_only":true,"reconciliation_required":false}',
-              });
-              const boundedHistory = fixture.db.serialize();
-              await assert.rejects(author(), /conflicting_run/);
-              assert(boundedHistory.equals(fixture.db.serialize()), "Scoped history-bound refusal preserves packet and session state");
               for (const material of revalidated.definition.materials) {
                 const sourcePath = path.join(fixture.root, material.relative_path), bytes = readFileSync(sourcePath);
                 writeFileSync(sourcePath, "synthetic changed material\n");
@@ -4259,7 +4302,7 @@ function assertRevisionLimitV01(): void {
       fixture.db,
       fixture.config,
     );
-    assert.equal(eligibility.status, "revision_limit_reached");
+    assert.equal(eligibility.status, "eligible_revised_packet");
     assert.equal(eligibility.revision_count, 32);
     assert(lastRevisionRequest);
     const limitReplay = revisePreExecutionProjectWorkV01(fixture.db, {
@@ -4272,36 +4315,15 @@ function assertRevisionLimitV01(): void {
     assert.equal(limitReplay.packet.packet_id, currentPacket.packet_id);
     assert.equal(limitReplay.run_created, false);
     assert.equal(limitReplay.execution_started, false);
-    assert.throws(
-      () =>
-        revisePreExecutionProjectWorkV01(fixture.db, {
-          config: fixture.config,
-          credential: credentialFromCookieV01(
-            limitReplay.session_admission.cookie_value,
-          ),
-          request: revisionRequestV01(
-            fixture,
-            currentPacket,
-            currentLineage,
-            {
-              goal: "Revision 33 must be refused",
-              success_criteria: ["No packet is written"],
-              non_goals: [],
-            },
-          ),
-          clock: fixedClock("2026-08-01T00:00:35.000Z"),
-        }),
-      errorCode("work_revision_limit_reached"),
-    );
-    assert.equal(
-      listVNextCoreRecordsV01(fixture.db, {
-        workspace_id: fixture.workspace_id,
-        project_id: fixture.project_id,
-        record_kinds: ["task_context_packet"],
-        limit: 64,
-      }).length,
-      33,
-    );
+    const extended = revisePreExecutionProjectWorkV01(fixture.db, {
+      config: fixture.config, credential: credentialFromCookieV01(limitReplay.session_admission.cookie_value),
+      request: revisionRequestV01(fixture, currentPacket, currentLineage, {
+        goal: "Revision 33 remains ordinary work", success_criteria: ["The complete immutable chain remains usable"], non_goals: [],
+      }), clock: fixedClock("2026-08-01T00:00:35.000Z"),
+    });
+    assert.equal(extended.status, "inserted");
+    assert.equal(extended.revision_eligibility.revision_count, 33);
+    assert.equal(listVNextCoreRecordsV01(fixture.db, { ...fixture, record_kinds: ["task_context_packet"], limit: 64 }).length, 34);
     const recovery = validateRecoveryCanonicalDatabaseV01(fixture.db);
     assert.equal(recovery.status, "valid", recovery.code);
   } finally {
@@ -5228,7 +5250,7 @@ async function assertSuccessorExpectationV01(finalRevisionOnly = false): Promise
       // Combine genuine fixture writes solely to exercise corrupt ambiguity.
       insertVNextCoreRecordV01(ambiguousDb, branchRow);
       const before = ambiguousDb.serialize();
-      assert.throws(() => recordWorkExpectationMaterial(ambiguousDb, { config: fixture.config, credential, request: currentRequest, clock: fixedClock("2026-08-01T00:00:25.000Z") }), /current|pre_start_only/);
+      assert.throws(() => recordWorkExpectationMaterial(ambiguousDb, { config: fixture.config, credential, request: currentRequest, clock: fixedClock("2026-08-01T00:00:25.000Z") }), errorCode("successor_task_successor_branch_invalid"));
       assert(before.equals(ambiguousDb.serialize()));
       ambiguousDb.exec("BEGIN IMMEDIATE");
       assert.equal(bindWorkExpectationToAttempt(ambiguousDb, { ...fixture, packet: b2.packet, run_id: "fixture:ambiguous", mode: "interactive", started_at: "2026-08-01T00:00:30.000Z" }), null);
@@ -5408,12 +5430,12 @@ async function assertSuccessorExpectationOptionalV01(original: FixtureV01, packe
         current = revised.packet; credential = credentialFromCookieV01(revised.session_admission.cookie_value);
         console.log(JSON.stringify({ successor_final_slot: "final_revision_saved" }));
         const preparation = readWorkExpectationPreparation(fixture.db, fixture);
-        assert.equal(preparation.eligibility.status, "revision_limit_reached");
+        assert.equal(preparation.eligibility.status, "eligible_successor_packet");
         assert.equal(preparation.authoring_available, true, "A supported final revision can receive its own explicit expectation");
-        const before = fixture.db.serialize();
-        assert.throws(() => revisePreExecutionProjectWorkV01(fixture.db, { config: fixture.config, credential,
-          request: revisionRequestV01(fixture, current, "authored_successor_task", { ...current.task, goal: "No 33rd revision" }), clock: fixedClock(now()) }), /revision_limit/);
-        assert(before.equals(fixture.db.serialize()));
+        const extended = revisePreExecutionProjectWorkV01(fixture.db, { config: fixture.config, credential,
+          request: revisionRequestV01(fixture, current, "authored_successor_task", { ...current.task, goal: "Explicit expectation beyond revision 32" }), clock: fixedClock(now()) });
+        current = extended.packet; credential = credentialFromCookieV01(extended.session_admission.cookie_value);
+        assert.equal(extended.revision_eligibility.revision_count, 33);
         const saved = recordWorkExpectationMaterial(fixture.db, { config: fixture.config, credential, request: request(), clock: fixedClock(now()) });
         credential = credentialFromCookieV01(saved.session_admission.cookie_value); finalForecastId = saved.record.record_id;
         console.log(JSON.stringify({ successor_final_slot: "explicit_expectation_saved" }));
@@ -6482,7 +6504,7 @@ async function assertRetainedSourceScanBudgetV01(): Promise<void> {
     assert(accumulated.truncated); assert(accumulated.result_utf8_bytes<=20_000);
     assert.equal(accumulated.limits.scanned_entry_utf8_bytes,1_056_000);
     // Helper-only boundary shapes, not admitted Core lineage. The endpoint
-    // refuses revision 32 first. Each snapshot still uses the real normalizer.
+    // enforces independent occurrence/byte budgets. Each snapshot uses the real normalizer.
     const synthetic={...chain,packets:Array.from({length:33},()=>chain.tip_packet)};
     const boundary=recallRetainedWorkSources(synthetic,'ACCUMULATION');
     assert.equal(boundary.scanned_entry_occurrences,264);
@@ -6524,19 +6546,24 @@ async function assertRetainedSourceScanBudgetV01(): Promise<void> {
     } finally { forged.close(); }
     assert(before.equals(fixture.db.serialize()));
     append(32);
+    await observeLookup(32);
+    append(33);
+    await observeLookup(33);
+    append(34); // The independent 264-note budget, not revision age, refuses.
     const resume=await readCodexCurrentContinuityV01(fixture.db,{viewed_project_id:fixture.project_id},dependencies);
     const finalInput={...input,expected_snapshot_binding:resume.snapshot.binding!};
-    const beforeIneligible=fixture.db.serialize();
-    const ineligible=await readCodexRepositoryRetainedSourcesV01(fixture.db,finalInput,dependencies);
-    assert.equal(ineligible.status,'ineligible'); assert.equal(ineligible.reason,'work_revision_not_eligible');
-    assert.equal(ineligible.lookup,null);
-    assert.deepEqual(parseRepositoryRetainedSourcesResponseV01(JSON.parse(JSON.stringify(ineligible))),ineligible);
+    const beforeUnavailable=fixture.db.serialize();
+    const unavailable=await readCodexRepositoryRetainedSourcesV01(fixture.db,finalInput,dependencies);
+    assert.equal(unavailable.status,'unavailable'); assert.equal(unavailable.reason,'retained_source_scan_bound_exceeded');
+    assert.equal(unavailable.lookup,null);
+    assert.deepEqual(parseRepositoryRetainedSourcesResponseV01(JSON.parse(JSON.stringify(unavailable))),unavailable);
+    assert.equal(readProjectWorkRevisionEligibilityV01(fixture.db,fixture).eligible,true);
     assert.equal((await readCodexRepositoryWorkSourcesV01(fixture.db,finalInput,dependencies)).status,'available');
-    assert(beforeIneligible.equals(fixture.db.serialize()));
+    assert(beforeUnavailable.equals(fixture.db.serialize()));
     const recoveryStarted=performance.now();
     assert.equal(validateRecoveryCanonicalDatabaseV01(fixture.db).status,'valid');
-    console.log(JSON.stringify({retained_scan_budget:1_056_000,admitted_snapshots:31,old_boundary_bytes:admittedBytes,
-      revision_32_lookup:ineligible.status,current_selection:'preserved',recovery:'valid',
+    console.log(JSON.stringify({retained_scan_budget:1_056_000,validated_revisions:34,old_boundary_bytes:admittedBytes,
+      revision_33_lookup:'available',revision_34_lookup:unavailable.reason,current_selection:'preserved',recovery:'valid',
       recovery_elapsed_ms:Math.round(performance.now()-recoveryStarted),writes_by_lookup:0}));
   } finally { fixture.db.close(); }
 }

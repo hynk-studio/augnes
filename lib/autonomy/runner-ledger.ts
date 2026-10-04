@@ -1097,7 +1097,9 @@ function parseJson<T>(value: string | null, fallback: T): T {
 export function hasAutonomyRunAdmissionForPreparation(options: AutonomyRunnerLedgerDbOptions & {
   scope: string; workspace_id: string; packet_ids: readonly string[]; prepared_at: string; through?: string;
 }): boolean {
-  if (!options.packet_ids.length || options.packet_ids.length > 33) throw new Error("preparation_packet_bound_invalid");
+  if (!options.packet_ids.length) throw new Error("preparation_packet_bound_invalid");
+  const packetIds = JSON.stringify(options.packet_ids);
+  if (Buffer.byteLength(packetIds) > 1024 * 1024) throw new Error("preparation_packet_read_budget_exceeded");
   return withAutonomyRunnerLedgerDb(options, db => db.prepare(`WITH scoped_runs AS (
       SELECT *, strftime('%Y-%m-%dT%H:%M:%fZ', created_at) = created_at AS valid_time FROM autonomy_runs
       WHERE scope = ? OR CASE
@@ -1110,7 +1112,7 @@ export function hasAutonomyRunAdmissionForPreparation(options: AutonomyRunnerLed
       scope <> ? OR valid_time IS NOT 1 OR julianday(created_at) >= julianday(?) OR
       CASE WHEN json_valid(metadata_json) = 0 THEN 1 WHEN json_type(metadata_json) <> 'object' THEN 1
       ELSE EXISTS (SELECT 1 FROM json_each(metadata_json) WHERE key = 'packet_id'
-        AND value IN (${options.packet_ids.map(() => "?").join(",")})) END
+        AND value IN (SELECT value FROM json_each(?))) END
     ) LIMIT 1`).get(options.scope, options.workspace_id, options.scope, options.through ?? null, options.through ?? null,
-      options.scope, options.prepared_at, ...options.packet_ids) !== undefined);
+      options.scope, options.prepared_at, packetIds) !== undefined);
 }

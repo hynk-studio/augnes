@@ -1,3 +1,4 @@
+import { readProjectWorkPacketHistoryV01 } from "./project-work-packet-history";
 import { statelessMandatoryEntries } from "../stateless-work";
 import { assertStatelessUnsettledAdmission, statelessUnresolvedEntries } from "./stateless-review-disposition";
 import { assertExpectedPacketDirection, effectiveDirection, readPacketDirectionInterpretation } from "../persistence/project-direction-store";
@@ -12,7 +13,6 @@ import { assertReviewedOutcomeSelectionV01, readReviewedOutcomeReuseV01 } from "
 import { reviewedOutcomeSourceRef, readSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
 import { VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01 } from "./persisted-semantic-context-compiler";
 import type Database from "better-sqlite3";
-import { isTerminalRunnerStatus } from "@/lib/autonomy/runner-state";
 import { VNEXT_OPERATOR_PILOT_LATER_PACKET_TTL_MS_V01 } from "./operator-pilot-semantic-transition";
 import { hasUnsettledAutonomyRunLedgerRecords, listAutonomyRunLedgerRecords } from "@/lib/autonomy/runner-ledger";
 import { equalSuccessorV01 as equal, normalizeAuthoredSuccessorTaskV01,
@@ -20,7 +20,7 @@ import { equalSuccessorV01 as equal, normalizeAuthoredSuccessorTaskV01,
   type AuthoredSuccessorTaskDefinitionV01 } from "@/lib/vnext/authored-successor-task";
 import { canonicalizeProtocolValueV01, parseStrictIsoTimestampV01 } from "@/lib/vnext/protocol-primitives";
 import { buildTaskContextPacketV01, validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
-import { insertVNextCoreRecordV01, listVNextCoreRecordsV01 } from "@/lib/vnext/persistence/durable-semantic-store";
+import { insertVNextCoreRecordV01 } from "@/lib/vnext/persistence/durable-semantic-store";
 import { readCanonicalProjectWithRootV01 } from "@/lib/vnext/persistence/project-identity-registry";
 import { readActiveProjectSelectionV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import { admitVNextLocalOperatorMutationInsideTransactionV01, readVNextLocalOperatorSessionHistoryV01,
@@ -365,9 +365,9 @@ export async function defineAuthoredSuccessorTaskV01(db: Database.Database, inpu
         if (predecessor.receipt.compatibility.source_contracts.includes(STATELESS_WORK)) assertStatelessUnsettledAdmission(db, input.config, predecessor.packet);
         else check(!hasUnsettledAutonomyRunLedgerRecords({ db, scope: input.config.project_id }), "conflicting_run");
       } else {
-        // Keep the older scoped revalidation contract unchanged.
-        const runs = listAutonomyRunLedgerRecords({ db, scope: input.config.project_id, limit: 128 });
-        check(runs.length < 128 && runs.every(r => isTerminalRunnerStatus(r.status) && r.metadata.reconciliation_required !== true), "conflicting_run");
+        // Historical terminal count is not a conflict. Keep malformed or
+        // unresolved history conservative, including matches beyond a page.
+        check(!hasUnsettledAutonomyRunLedgerRecords({ db, scope: input.config.project_id }), "conflicting_run");
       }
       check(predecessor.run.finished_at !== null && predecessor.run.finished_at === predecessor.receipt.finished_at &&
         predecessor.run.metadata.pending_approval == null &&
@@ -427,10 +427,20 @@ export function inspectAuthoredSuccessorPacketV01(db: Database.Database, input: 
 }
 
 export function hasAuthoredSuccessorOfPacketV01(db: Database.Database, config: Pick<VNextLocalOperatorPilotConfigV01, "workspace_id" | "project_id">, packetId: string): boolean {
-  const rows = listVNextCoreRecordsV01(db, { ...config, record_kinds: ["task_context_packet"], limit: 256 });
-  check(rows.length < 256, "packet_scan_bound");
-  return rows.some(row => { const p = row.payload as TaskContextPacketV01;
-    return isStandaloneAuthoredSuccessorV01(p) && (isOrdinarySuccessorRevisionV01(p) ? ordinarySuccessorRevisionMaterialV01(p) : materialFrom(p)).request.expected_current_packet_id === packetId; });
+  return db.transaction(() => readAuthoredSuccessorPredecessorIdsV01(db, config).has(packetId))();
+}
+
+/** Complete snapshot-local edge index. Invalid observations never become an
+ * empty successor set. Compiler/provenance validation stays with lineage. */
+export function readAuthoredSuccessorPredecessorIdsV01(db: Database.Database, config: Pick<VNextLocalOperatorPilotConfigV01, "workspace_id" | "project_id">) {
+  const predecessors = new Set<string>();
+  for (const { packet } of readProjectWorkPacketHistoryV01(db, config)) {
+    if (!isStandaloneAuthoredSuccessorV01(packet)) continue;
+    const request = (isOrdinarySuccessorRevisionV01(packet) ? ordinarySuccessorRevisionMaterialV01(packet) : materialFrom(packet)).request;
+    check(!predecessors.has(request.expected_current_packet_id), "successor_branch_invalid");
+    predecessors.add(request.expected_current_packet_id);
+  }
+  return predecessors;
 }
 
 /** Trusted local preparation for this authored read-only profile. No window is

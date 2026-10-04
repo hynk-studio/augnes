@@ -1091,6 +1091,11 @@ const integrationChildren = [
   "prospective-preparation-reentry",
   "stateless-source-review",
   "durable-work-resumption",
+  "cumulative-initial-history",
+  "cumulative-successor-history",
+  "cumulative-scoped-history",
+  "cumulative-work-surfaces",
+  "cumulative-read-budgets",
   "source-bound-work-handoff",
   "stateless-observation-checkpoint",
   "stateless-sol-low",
@@ -1237,8 +1242,19 @@ assert.equal(countOccurrences(firstWorkFixture, "await assertSuccessorExpectatio
 const successorRevisionRegistration = readCanonicalChildRegistration(integrationSource, "unexecuted-successor-revision");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"--successor-revision-only"'])
   requireText(successorRevisionRegistration.block, fragment, "saved successor revision retains one bounded complete owner");
-assert.equal(countOccurrences(firstWorkFixture, "await assertUnexecutedSuccessorRevisionV01();"), 1,
-  "the successor revision lifecycle runs once without extending the initial preparation child");
+assert.equal(countOccurrences(firstWorkFixture, "await assertUnexecutedSuccessorRevisionV01();"), 3,
+  "the existing successor case and two explicit cumulative fixtures have separate invocations");
+for (const [id, flag, timeout] of [
+  ["cumulative-initial-history", "--cumulative-history-only", "120_000"],
+  ["cumulative-successor-history", "--cumulative-successor-only", "300_000"],
+  ["cumulative-scoped-history", "--cumulative-scoped-only", "45_000"],
+  ["cumulative-work-surfaces", "--cumulative-surfaces-only", "120_000"],
+  ["cumulative-read-budgets", "--cumulative-budgets-only", "30_000"],
+]) {
+  const registration = readCanonicalChildRegistration(integrationSource, id);
+  for (const fragment of ['group: "supporting-serial"', `timeoutMs: ${timeout}`, 'requireNaturalExit: true', `"${flag}"`])
+    requireText(registration.block, fragment, "cumulative history owns bounded separate verification children");
+}
 const successorRegistration = readCanonicalChildRegistration(integrationSource, "authored-successor-handoff");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 45_000', '"process-owning"', '"--successor-handoff-only"'])
   requireText(successorRegistration.block, fragment, "authored successor retains one bounded serial owner");
