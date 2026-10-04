@@ -307,7 +307,7 @@ function readProjectWorkInitializationStrictV01(
   // A sparse predecessor may still select only current state. Work succession
   // comes from validated packet lineage, not equality with all canonical state.
   const semanticPredecessors = new Set(inspected.flatMap((entry) => [
-    ...((entry.lineage_kind === "stateless_review_replacement" || entry.lineage_kind === "semantic_transition" || entry.lineage_kind === "authored_successor_task") && entry.prior_packet
+    ...((entry.lineage_kind === "stateless_review_terminal_successor" || entry.lineage_kind === "stateless_review_replacement" || entry.lineage_kind === "semantic_transition" || entry.lineage_kind === "authored_successor_task") && entry.prior_packet
       ? [`${entry.prior_packet.packet_id}|${entry.prior_packet.packet_fingerprint}`] : []),
     // The validated bounded preparation compiler retains its exact source
     // packet as lineage, not a competing current task.
@@ -350,7 +350,7 @@ function readProjectWorkInitializationStrictV01(
     !invalidBlocksCurrent
   ) {
     const state =
-      current.lineage_kind === "stateless_review_replacement" ? "defined_new_task" :
+      (current.lineage_kind === "stateless_review_terminal_successor" || current.lineage_kind === "stateless_review_replacement") ? "defined_new_task" :
       current.lineage_kind === "bounded_preparation" ? "defined_preparation_work" :
       current.lineage_kind === "authored_successor_task" ? "defined_successor_work" :
       current.lineage_kind === "initial_user_defined"
@@ -361,7 +361,7 @@ function readProjectWorkInitializationStrictV01(
             ? "defined_transition_work"
             : "defined_operational_continuation_work";
     const reason =
-      current.lineage_kind === "stateless_review_replacement" ? "current_new_task_packet" :
+      (current.lineage_kind === "stateless_review_terminal_successor" || current.lineage_kind === "stateless_review_replacement") ? "current_new_task_packet" :
       current.lineage_kind === "bounded_preparation" ? "current_preparation_packet" :
       current.lineage_kind === "authored_successor_task" ? "current_successor_packet" :
       current.lineage_kind === "initial_user_defined"

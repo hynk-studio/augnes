@@ -82,6 +82,7 @@ export interface ProjectWorkInitializationV01 {
       | "authored_successor_task"
       | "bounded_preparation"
       | "stateless_review_replacement"
+      | "stateless_review_terminal_successor"
       | "semantic_transition"
       | "source_linked_operational_continuation";
   };

@@ -716,6 +716,17 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "stateless-terminal-authorship",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning"],
+      label: "terminal returned-response authorship, legacy evidence, fresh grant and recovery refusal",
+      ...rootNode("scripts/test-stateless-source-review.ts", "--terminal-authorship"),
+      // Keep the original source-review child within its existing minute bound.
+      // These ordinary legacy/current histories measured 28.4 s independently.
+      timeoutMs: 60_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "project-direction",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning"],

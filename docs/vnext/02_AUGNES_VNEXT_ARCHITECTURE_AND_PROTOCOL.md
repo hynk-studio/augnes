@@ -979,11 +979,50 @@ The ordinary authenticated saved-review reader and UI expose these records as
 non-authoritative evidence, including quarantined late public results under the
 original attempt. Fencing still prevents application, stage advancement or effects
 on replacement work. Invalid or missing legacy evidence remains unavailable;
-historical receipts and omitted responses are never reconstructed. A known-invalid
-terminal review without a RunReceipt cannot use completed-result successor
-preparation or unknown-outcome disposition, and its admission still prevents
-pre-execution revision. An explicit linked-work contract for that distinct case
-is a separate follow-up; evidence retention does not supply it.
+historical receipts and omitted responses are never reconstructed. A terminal
+review without a RunReceipt cannot use completed-result successor preparation or
+unknown-outcome disposition, and its admission still prevents pre-execution
+revision.
+
+`stateless_returned_attempt_successor.v0.1` provides separate explicit authorship
+for one narrower case: a stopped bounded source-review run with one failed model
+step, `returned_invalid`, a completed/live-success Gateway receipt, no running
+step or RunReceipt, and valid same-project packet, finite grant, invocation,
+generation and failure-history bindings. New records must identify host
+validation; legacy records may lack public failure evidence. A legacy generic
+label proves neither semantic invalidity nor the exact failing predicate; a
+persistence failure remains possible. The new packet carries that unavailability,
+never reconstructed diagnostics. Known result-persistence failure, receipt
+projection failure, Gateway rejection, unknown dispatch, active work and other
+profiles remain outside this contract.
+
+Authenticated saved review → source comparison → authorship preview → explicit
+writer creates an immutable new work/packet with a null grant. The preview binds
+the entire historical run snapshot, failed step/generation/revision, packet/grant/
+receipt fingerprints, current active selection revision, physical root, effective
+selected direction, task definition and newly read source digests. The atomic
+writer revalidates these bindings, persists the packet and its direction binding,
+and verifies lineage/currentness together. An exact duplicate can acknowledge only
+the unchanged immediate, unadmitted result. Conflicting or stale requests leave no
+partial packet/binding. Expired predecessor dates remain historical; the new work
+receives the ordinary later-packet lifetime. No automation, route lookup, provider
+credential, grant, run or provider request is needed for authorship.
+
+Mandatory operational lineage contains bounded predecessor identities and evidence
+availability, separately from explicitly selected substantive notes. The compiler
+retains all inherited unknown-effect obligations. Existing comparison/omission
+rules govern optional notes; rejected answers are reviewable under the old run
+and are never selected automatically. At most eight terminal predecessor bindings
+and 12,000 canonical UTF-8 bytes are retained; authored material is limited to
+48,000 bytes and existing packet/selected-source bounds still apply. Overflow
+refuses without truncation. Both later stateless judgments receive the operational
+warning/bindings, subject to unchanged message/request caps and fresh finite
+data/spend authorization; unused historical allowance is not reused. Completed
+result successors and their revisions preserve this mandatory lineage. Native
+execution, shared unsettled admission, portability refusal and recovery suspension
+remain conservative; restored history is readable but does not restore execution
+or new-authorship eligibility. Historical runs, steps, receipts and grants are
+unchanged by the new writer, with no successful RunReceipt manufactured.
 
 Transport exceptions may retain a bounded diagnostic observation alongside the
 unchanged failure receipt: fixed transport phase, allowlisted error name and

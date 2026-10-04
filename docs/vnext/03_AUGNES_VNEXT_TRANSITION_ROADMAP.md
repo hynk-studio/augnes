@@ -398,7 +398,8 @@ preservation and owned-process cleanup were reported verified. Candidate totals
 are 3 grants / 3 runs / 5 historical provider-call accounting. All previous runs,
 receipts, selected Work review and mandatory uncertainty remain unchanged.
 
-The current offline slice preserves bounded returned public evidence and precise
+The offline slice reviewed in Draft #1388 at
+`c2a3b5ae30f5f91734f57a239fe248a0bee8b22d` preserves bounded returned public evidence and precise
 prospective rejection attribution through existing ledger/read/UI owners. It
 does not recover the missing historical second result, weaken judgment validation,
 force reading, hint an answer or run another comparison. Scripted ordinary-path
@@ -406,14 +407,32 @@ checks distinguish rationale overflow, missing source anchor, unavailable
 observation use, Gateway refusal, persistence failure and late-result fencing.
 Their fixtures are development evidence, not reconstructions of the live response.
 
-Next decision: review this evidence-preservation slice and exact-head verification,
-then define a narrowly bound ordinary linked-work path after a known-invalid
-terminal attempt without a RunReceipt. Completed-result preparation requires a
-settled completed receipt; pre-execution revision refuses this already admitted
-work; unknown-request disposition is inapplicable. Any follow-up must preserve
-failed evidence, use explicit authenticated authorship and a new null-grant packet,
-and require separate fresh execution/data/spend authority. No candidate mutation
-or additional live attempt belongs to this slice. GPT-4.1 adequacy, comparative
+The next bounded implementation adds ordinary explicit linked authorship after a
+stopped stateless model step with a completed Gateway response but no RunReceipt.
+Authenticated review, source comparison and preview bind historical failure
+evidence separately from current task/source/root/direction/selection. The writer
+creates fresh immutable work with no grant, even after the predecessor packet and
+grant expire. It preserves optional attributed Work notes through explicit
+selection, mandatory unknown effects and operational failure provenance. Rejected
+answers are not automatically selected. Current host-validation evidence and
+legacy missing evidence have distinct availability; the historical candidate's
+exact rejection cause remains unavailable, including the possibility of a
+persistence failure. This does not repair or reclassify its records.
+
+Ordinary disposable projects exercise the authenticated path and separately
+authorized scripted consumer, including the exact old `65f6efc9` host writer for
+legacy compatibility. The real review component connects comparison, preview and
+authorship to the authenticated HTTP owner. No shared unsettled predicate,
+completed-result, native or recovery authority is relaxed. Known persistence and
+receipt-projection failures still need separate contracts. The retained candidate
+remains read-only, expired and unchanged at 3 grants / 3 runs / 5 historical calls;
+this engineering slice does not apply new authorship to it.
+
+Next decision: review this linked-authorship implementation and its exact-head
+verification, then explicitly select the candidate's new task, current source and
+notes for local null-grant authorship. Any execution requires a separately fresh
+finite authorization; the closed comparison's unused allowance is not available.
+No candidate mutation or additional live attempt belongs to this slice. GPT-4.1 adequacy, comparative
 usefulness, live interruption recovery and environment transfer remain
 unestablished. Interrupted live progression and comparative usefulness remain
 **NOT RUN**. Earlier

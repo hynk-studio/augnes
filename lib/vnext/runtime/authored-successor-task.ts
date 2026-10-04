@@ -1,3 +1,4 @@
+import { statelessMandatoryEntries } from "../stateless-work";
 import { assertStatelessUnsettledAdmission, statelessUnresolvedEntries } from "./stateless-review-disposition";
 import { assertExpectedPacketDirection, effectiveDirection, readPacketDirectionInterpretation } from "../persistence/project-direction-store";
 import { PROSPECTIVE_INPUT, SELECTED_SOURCE_INSPECTION } from "../prospective-agenda";
@@ -274,8 +275,8 @@ function build(input: { prior: TaskContextPacketV01; receipt: ReturnType<typeof 
       perspective_ref: null, bounded_summary: definition.objective, as_of: at,
       items: [...outlookItems, { item_kind: "active_goal", summary: definition.objective, source_refs: [fingerprint], external_refs: [definitionRef], currentness }],
       source_refs: [fingerprint], external_refs: [definitionRef], currentness, warnings: ["Explicit user-authored task, not an inference from accepted context."] },
-    selected_context: [...prior.selected_context.filter(e => e.entry_kind === "accepted_state_ref"), ...statelessUnresolvedEntries(prior), ...entries, ...selected],
-    excluded_context: prior.selected_context.filter(e => e.entry_kind !== "accepted_state_ref" && !statelessUnresolvedEntries(prior).some(note => note.entry_id === e.entry_id) && !selected.some(note => note.entry_id === e.entry_id)).map(e => ({ entry_id: e.entry_id,
+    selected_context: [...prior.selected_context.filter(e => e.entry_kind === "accepted_state_ref"), ...statelessMandatoryEntries(prior), ...entries, ...selected],
+    excluded_context: prior.selected_context.filter(e => e.entry_kind !== "accepted_state_ref" && !statelessMandatoryEntries(prior).some(note => note.entry_id === e.entry_id) && !selected.some(note => note.entry_id === e.entry_id)).map(e => ({ entry_id: e.entry_id,
       source_ref: e.source_ref, external_ref: e.external_ref, why_excluded: material.request.selected_sources?.omitted_sources.find(row => row.source_binding === e.source_ref)?.reason ?? "Historical predecessor context; not an active successor instruction.", currentness: e.currentness })),
     tensions: [], risks: [], gaps: [],
     constraints: { required_checks: definition.checks.map(c => c.check_id).sort(), forbidden_actions: definition.stop_conditions,
@@ -290,7 +291,7 @@ function build(input: { prior: TaskContextPacketV01; receipt: ReturnType<typeof 
       ...(outlookItems.length ? [outlookVersion!] : []),
       ...(selected.some(e => reviewedOutcomeSourceRef(e)) ? [REVIEWED_OUTCOME_SOURCE_V01] : []), ...(material.request.revalidation ? [AUTHORED_SUCCESSOR_REVALIDATION_V01] : [])], legacy_scope_ref: null,
       source_refs: [...prior.compatibility.source_refs, ...refs], unmapped_fields: [], warnings: [] },
-  }, { required_selected_entry_ids: [...prior.selected_context.filter(e => e.entry_kind === "accepted_state_ref"), ...statelessUnresolvedEntries(prior), ...entries, ...selected].map(e => e.entry_id) });
+  }, { required_selected_entry_ids: [...prior.selected_context.filter(e => e.entry_kind === "accepted_state_ref"), ...statelessMandatoryEntries(prior), ...entries, ...selected].map(e => e.entry_id) });
   return { packet, successor_definition_ref: definitionRef, operator_action_ref: operatorRef,
     immediate_prior_packet_ref: priorRef, predecessor_receipt_ref: receiptRef };
 }

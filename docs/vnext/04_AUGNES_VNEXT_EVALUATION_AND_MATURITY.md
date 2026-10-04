@@ -433,9 +433,39 @@ usage from host validation, dispatch uncertainty, failed step/result persistence
 failed receipt projection and quarantined late results. Preserve cancelled,
 pre-egress, stale-generation and recovery behavior. Missing legacy evidence stays
 unavailable; neither these fixtures nor new code reconstruct historical responses.
-Verify that known-invalid terminal work cannot borrow unknown disposition or a
-fabricated completed receipt to bypass successor/revision guards. New linked-work
-semantics belong to a separately reviewed follow-up.
+Verify that a returned-response terminal attempt cannot borrow unknown disposition
+or a fabricated completed receipt to bypass completed-result/revision guards.
+For the separate bounded terminal-authorship path, create positive history through
+ordinary authorship and finite authorization, scripting only provider transport.
+Test both current host-validation evidence and an explicitly identified old writer
+whose public result and rejection cause were not retained. Do not delete fields or
+repair ledger rows to fabricate the positive compatibility case. Neither a generic
+`returned_invalid` label nor a new fixture establishes the historical cause.
+
+After packet/grant expiry and with automation disabled and no provider credential,
+compare selected notes, preview current bindings and explicitly author a fresh
+null-grant packet. Verify the real review UI/API connection and fresh-process
+authenticated readback, unchanged historical records/control/grant/run/call counts,
+exact omissions, mandatory unknown effects and failure availability.
+
+For the same predecessor, changing the question or ranges must preserve the
+authored draft, explicit note selections and applicable omission reasons while
+invalidating comparison/preview. Delay real authenticated comparison and preview
+responses while editing; stale responses must not restore older requests or enable
+authorship. A fresh comparison/preview/save must persist the displayed selection
+and task, with unchanged historical records, control and execution counts.
+
+Stale failure snapshots, wrong projects/physical roots/directions/selections,
+concurrent writes and conflicting duplicates must refuse atomically. Only the immediate unchanged
+unadmitted result permits exact duplicate acknowledgement. Unknown/active attempts,
+known persistence failures and receipt-projection failures remain ineligible.
+Then require a distinct fresh finite grant for the scripted two-judgment consumer;
+both inputs must preserve operational uncertainty and explicitly selected notes
+without automatically including the rejected answer. Preserve these obligations
+through completed-result successor/revision and recovery readback. Recovery must
+still suspend authorship/execution; native and portability paths must not inherit
+the exception. This proves bounded local continuity and transmission, not model
+compliance, adequacy, usefulness, live interruption recovery or environment transfer.
 
 Also exercise
 normal unattended internal progress, justified no-action/defer/stop, exact
