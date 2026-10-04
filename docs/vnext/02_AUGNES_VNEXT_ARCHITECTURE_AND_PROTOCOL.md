@@ -932,7 +932,10 @@ not a guarantee of completion or a model-adequacy finding.
 The ordinary preview displays and binds this exact configuration and limits.
 Its versioned descriptor fingerprint is part of the existing model reference,
 cost authority and immutable grant, and the serializer binds it in its route
-fingerprint. Changing effort, mode, route or limits requires fresh authority.
+fingerprint. The public non-invocable Gateway contract owns descriptor validation;
+product callers neither import the private OpenAI adapter boundary nor acquire
+its session. Provider serialization remains adapter-owned. Changing effort, mode,
+route or limits requires fresh authority.
 Historical grants remain readable with their original limits/projection; an old
 unbound model reference cannot authorize the new configured route. Other model
 routes retain their prior behavior. There is no model registry, automatic

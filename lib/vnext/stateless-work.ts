@@ -1,4 +1,5 @@
-import { OPENAI_PLANNER_SOL_LOW, isOpenAIPlannerSolLowRoute, type OpenAIPlannerSolLow } from "./model-gateway/openai/planner-reasoning";
+import { readBoundPlannerExecutionConfigurationV01 } from "./model-gateway/planner-execution-configuration";
+import type { PlannerModelExecutionConfigurationV01 } from "./model-gateway/contracts";
 import { canonicalizeProtocolValueV01 as canonical, createProtocolSha256V01 as hash, parseStrictIsoTimestampV01 } from "./protocol-primitives";
 import { readSelectedWorkSources, selectedWorkSourceInput, reviewedOutcomeSourceRef } from "@/lib/intake/selected-work-source-comparison";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
@@ -35,7 +36,7 @@ export interface StatelessGrantRequest {
   workspace_id: string; project_id: string; packet_id: string; packet_fingerprint: string;
   review_ref: string; root_fingerprint: string; host_fingerprint: string;
   control_revision: number; expires_at: string; limits: typeof STATELESS_LIMITS | typeof STATELESS_SOL_LOW_LIMITS;
-  model_configuration?: OpenAIPlannerSolLow;
+  model_configuration?: PlannerModelExecutionConfigurationV01;
   cost_budget: ModelGatewayCostBudgetV01;
   /** Absent only in historical grants, whose model input omitted ordinary notes. */
   selected_notes_ref?: string;
@@ -103,9 +104,10 @@ export function validateStatelessGrant(value: unknown): value is StatelessGrant 
     const limits = "model_configuration" in r ? STATELESS_SOL_LOW_LIMITS : STATELESS_LIMITS;
     reviewCheck(Number.isSafeInteger(r.control_revision) && Number(r.control_revision) > 0 && canonical(r.limits) === canonical(limits), "grant_limits");
     const budget = validateModelGatewayCostBudgetV01(r.cost_budget);
-    if ("model_configuration" in r) reviewCheck(canonical(r.model_configuration) === canonical(OPENAI_PLANNER_SOL_LOW) &&
-      isOpenAIPlannerSolLowRoute(budget.authority.model_ref) && budget.authority.provider_ref.external_id === "openai", "grant_model_configuration");
-    else reviewCheck(!isOpenAIPlannerSolLowRoute(budget.authority.model_ref), "grant_model_configuration");
+    const configuration = readBoundPlannerExecutionConfigurationV01(budget.authority.model_ref);
+    if ("model_configuration" in r) reviewCheck(configuration && canonical(r.model_configuration) === canonical(configuration) &&
+      budget.authority.provider_ref.external_id === configuration.provider, "grant_model_configuration");
+    else reviewCheck(!configuration, "grant_model_configuration");
     reviewCheck(budget.authority.workspace_id === r.workspace_id && budget.authority.project_id === r.project_id && budget.authority.purpose === "planner_plan" &&
       budget.maximum_input_units === limits.input_bytes && budget.maximum_output_units === limits.output_tokens && budget.timeout_ms === limits.invocation_ms, "grant_cost");
     reviewCheck(typeof v.issued_at === "string" && parseStrictIsoTimestampV01(v.issued_at) !== null && typeof r.expires_at === "string" && parseStrictIsoTimestampV01(r.expires_at) !== null &&

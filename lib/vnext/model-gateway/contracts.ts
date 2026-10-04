@@ -59,6 +59,13 @@ export const MODEL_INVOCATION_ENVELOPE_VERSION_V01 =
 export const OBSERVE_MODEL_GATEWAY_PURPOSE_V01 =
   "observe_delta_compile" as const;
 export const PLANNER_MODEL_GATEWAY_PURPOSE_V01 = "planner_plan" as const;
+/** Public, non-invocable configuration projection. The Gateway validates it
+ * against its adapter-owned route; callers do not own provider configuration. */
+export interface PlannerModelExecutionConfigurationV01 {
+  configuration_version: string; provider: string; model: string;
+  reasoning: { effort: "low"; mode: "standard" };
+  store: false; previous_response_id: null; service_tier: null;
+}
 export const TEMPORAL_MODEL_GATEWAY_PURPOSE_V01 =
   "temporal_interpretation" as const;
 export const STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01 =

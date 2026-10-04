@@ -1,4 +1,3 @@
-import { OPENAI_PLANNER_SOL_LOW, isOpenAIPlannerSolLowRoute } from "../model-gateway/openai/planner-reasoning";
 import { readTerminalAuthorshipPreparation, assertTerminalHistoryActive } from "./stateless-terminal-authorship";
 import { assertStatelessUnsettledAdmission, prepareLinkedStatelessWork, readStatelessDispositionPreparation, statelessUnresolvedEntries } from "./stateless-review-disposition";
 import { stateOf, readRun, patchRun } from "./stateless-review-ledger";
@@ -28,7 +27,7 @@ import { readProjectWorkInitializationV01 } from "./project-work-initialization"
 import { inspectVNextOperatorPilotPacketLineageV01, projectVNextOperatorPilotContinuityV01 } from "./operator-pilot-project-continuity";
 import { revisePreExecutionProjectWorkV01 } from "./project-work-revision";
 import { openVNextLocalOperatorDatabaseV01, admitVNextLocalOperatorMutationInsideTransactionV01, type VNextLocalOperatorPilotConfigV01 as Config, type VNextLocalOperatorSessionCredentialV01 as Credential } from "./local-operator-session";
-import { invokePlannerModelGatewayV01, preparePlannerModelGatewayRouteV01 } from "../model-gateway/model-gateway";
+import { invokePlannerModelGatewayV01, preparePlannerModelGatewayRouteV01, readPlannerModelGatewayExecutionConfigurationV01 } from "../model-gateway/model-gateway";
 import { buildPlannerModelInvocationEnvelopeV01 } from "@/lib/planner/planner";
 import { buildModelInvocationCapabilityGrantV01, authorizeModelInvocationCapabilityGrantV01 } from "../automation/model-invocation-capability-grant";
 import { buildModelGatewayCostAuthorityV01, buildModelGatewayCostBudgetV01, assertModelGatewayCostBudgetCurrentV01 } from "../model-gateway/cost-authority";
@@ -146,8 +145,7 @@ export async function previewStatelessReview(db: Database.Database, options: Sta
   assertTerminalHistoryActive(db, config, packet);
   const session = await preparePlannerModelGatewayRouteV01({ adapter: options.adapter });
   check(session, "model_configuration_unavailable"); // preparation has no provider egress
-  const modelConfiguration = isOpenAIPlannerSolLowRoute(session.model_ref) ? OPENAI_PLANNER_SOL_LOW : null;
-  check(session.model_ref.external_id !== OPENAI_PLANNER_SOL_LOW.model || modelConfiguration, "model_configuration_unbound");
+  const modelConfiguration = readPlannerModelGatewayExecutionConfigurationV01(session.model_ref, { require_current_binding: true });
   const limits = modelConfiguration ? STATELESS_SOL_LOW_LIMITS : LIMITS;
   const expires = new Date(Math.min(Date.parse(at) + 600_000, packet.expires_at ? Date.parse(packet.expires_at) : Infinity)).toISOString();
   const authority = buildModelGatewayCostAuthorityV01({ authority_kind: "provider_model_pricing_snapshot", workspace_id: config.workspace_id, project_id: config.project_id,
@@ -186,7 +184,8 @@ export function authorizeStatelessReview(db: Database.Database, options: Statele
     // Old grants remain readable/continuable with their original projection.
     // Issuing any new grant requires the explicitly reviewed note projection.
     check(request?.selected_notes_ref === readStatelessSelectedNotes(currentPacket(db, options.config, admission.action_observed_at)).fingerprint, "selected_notes_authorization_required");
-    check(request.cost_budget?.authority?.model_ref?.external_id !== OPENAI_PLANNER_SOL_LOW.model || request.model_configuration, "model_configuration_authorization_required");
+    check(canonical(request.model_configuration ?? null) === canonical(readPlannerModelGatewayExecutionConfigurationV01(request.cost_budget.authority.model_ref,
+      { require_current_binding: true })), "model_configuration_authorization_required");
     const grant = insertStatelessGrant(db, request, options.config.operator_id, admission.action_observed_at);
     const { root, review } = assertGrantCurrent(db, options.config, grant, admission.action_observed_at);
     const authorizationRead = readBundle(root.root, review, now(), true);

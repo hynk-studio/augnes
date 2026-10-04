@@ -1,4 +1,4 @@
-import { openAIPlannerReasoningConfiguration, OPENAI_PLANNER_SOL_LOW_REF } from "./planner-reasoning";
+import { openAIPlannerReasoningConfiguration, OPENAI_PLANNER_SOL_LOW_REF } from "../planner-execution-configuration";
 import {
   assertModelEgressTextIsSafe,
   refuseModelEgress,

@@ -1,4 +1,4 @@
-import { OPENAI_PLANNER_SOL_LOW, OPENAI_PLANNER_SOL_LOW_REF } from "../lib/vnext/model-gateway/openai/planner-reasoning";
+import { OPENAI_PLANNER_SOL_LOW, OPENAI_PLANNER_SOL_LOW_REF } from "../lib/vnext/model-gateway/planner-execution-configuration";
 import { STATELESS_LIMITS, STATELESS_SOL_LOW_LIMITS } from "../lib/vnext/stateless-work";
 import { statelessTerminalEntries, statelessMandatoryEntries } from "../lib/vnext/stateless-work";
 import { inspectStatelessTerminalSuccessor, readTerminalAuthorshipPreparation, readTerminalAttemptHistory, assertTerminalHistoryActive, previewTerminalAuthorship } from "../lib/vnext/runtime/stateless-terminal-authorship";
