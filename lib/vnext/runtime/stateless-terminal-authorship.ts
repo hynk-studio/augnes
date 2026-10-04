@@ -21,6 +21,7 @@ import { normalizeInitialProjectWorkDefinitionV01 } from "./initial-project-work
 import { inspectVNextOperatorPilotPacketLineageV01, readCurrentProjectWorkPacketLineageV01 } from "./operator-pilot-project-continuity";
 import { admitVNextLocalOperatorMutationInsideTransactionV01, type VNextLocalOperatorPilotConfigV01 as Config, type VNextLocalOperatorSessionCredentialV01 as Credential } from "./local-operator-session";
 import { VNEXT_OPERATOR_PILOT_LATER_PACKET_TTL_MS_V01 } from "./operator-pilot-semantic-transition";
+import { DURABLE_AUTHORED_WORK_V01 } from "@/types/vnext/project-work-initialization";
 
 type Scope = Pick<Config, "workspace_id" | "project_id">;
 const digest = (v: unknown) => hash(canonical(v));
@@ -100,11 +101,12 @@ export function readTerminalAuthorshipPreparation(db: Database.Database, config:
 
 interface Request { predecessor: TerminalAttemptBinding; definition: TaskContextPacketV01["task"]; material: unknown; notes: unknown[]; omitted_sources: Array<{ source_binding: string; reason: string }> }
 interface PreviewMaterial {
+  resumes_packet?: { packet_id: string; packet_fingerprint: string };
   predecessor: TerminalAttemptBinding; definition: TaskContextPacketV01["task"]; review: SourceReview;
   selected: ReturnType<typeof readSelectedWorkSources>; omitted_sources: Request["omitted_sources"]; comparison_fingerprint: string;
   root_fingerprint: string; direction_ref: string | null; selection_revision: number;
 }
-interface Material extends PreviewMaterial { session_id: string; operator_id: string }
+interface Material extends PreviewMaterial { session_id: string; operator_id: string; work_lifetime?: typeof DURABLE_AUTHORED_WORK_V01 }
 function requestFrom(value: unknown): Request {
   const r = reviewObject(value, ["predecessor", "definition", "material", "notes", "omitted_sources"]);
   const b = reviewObject(r.predecessor, ["run_id", "step_id", "generation", "revision", "packet_id", "packet_fingerprint", "grant_id", "grant_fingerprint", "receipt_fingerprint", "history_fingerprint"]);
@@ -141,21 +143,49 @@ function compileMaterial(db: Database.Database, config: Config, raw: unknown, at
     Object.values(directionCurrent(db, direction, at)).every(Boolean) : selectedDirection.length === 0, "terminal_authorship_direction_required");
   const material: PreviewMaterial = { predecessor: h.binding, definition: request.definition, review, selected: comparison.entries, omitted_sources: request.omitted_sources,
     comparison_fingerprint: comparison.fingerprint, root_fingerprint: rootBinding(db, config).fingerprint, direction_ref: direction?.ref ?? null, selection_revision: active.selection_revision };
+  const current = readCurrentProjectWorkPacketLineageV01(db, config);
+  if (current && isStatelessTerminalSuccessor(current.packet)) {
+    const { session_id: _session, operator_id: _operator, work_lifetime: _lifetime, resumes_packet, ...saved } = materialFrom(current.packet);
+    if (equal(saved, material)) {
+      if (resumes_packet) material.resumes_packet = resumes_packet;
+      else if (current.packet.expires_at !== null) material.resumes_packet = { packet_id: current.packet.packet_id, packet_fingerprint: current.packet.integrity.fingerprint };
+    }
+  }
   return { ...h, material, comparison, preparation_bytes: observed.bytes_read, preview_binding: digest({ version: STATELESS_TERMINAL_WORK, material }) };
 }
 function materialFrom(packet: TaskContextPacketV01): Material {
   const entries = packet.selected_context.filter(e => e.entry_id === MATERIAL);
   check(entries.length === 1 && typeof entries[0]!.bounded_summary === "string" && Buffer.byteLength(entries[0]!.bounded_summary!) <= 48_000, "terminal_authorship_material_missing");
-  return reviewObject(JSON.parse(entries[0]!.bounded_summary!), ["predecessor", "definition", "review", "selected", "omitted_sources", "comparison_fingerprint", "root_fingerprint", "direction_ref", "selection_revision", "session_id", "operator_id"]) as unknown as Material;
+  const raw = JSON.parse(entries[0]!.bounded_summary!);
+  check(raw.work_lifetime === undefined || raw.work_lifetime === DURABLE_AUTHORED_WORK_V01, "terminal_authorship_lifetime_invalid");
+  if (raw.resumes_packet !== undefined) {
+    const binding = reviewObject(raw.resumes_packet, ["packet_id", "packet_fingerprint"]);
+    reviewText(binding.packet_id, 100); reviewSha(binding.packet_fingerprint);
+    check(raw.work_lifetime === DURABLE_AUTHORED_WORK_V01, "terminal_authorship_lifetime_invalid");
+  }
+  return reviewObject(raw, ["predecessor", "definition", "review", "selected", "omitted_sources", "comparison_fingerprint", "root_fingerprint", "direction_ref", "selection_revision", "session_id", "operator_id", ...(raw.work_lifetime !== undefined ? ["work_lifetime"] : []), ...(raw.resumes_packet !== undefined ? ["resumes_packet"] : [])]) as unknown as Material;
 }
 export const isStatelessTerminalSuccessor = (p: TaskContextPacketV01) => p.compatibility.source_contracts.includes(STATELESS_TERMINAL_WORK);
 export const terminalAuthorshipKey = (p: TaskContextPacketV01) => {
-  const { session_id: _session, operator_id: _operator, ...material } = materialFrom(p);
+  const { session_id: _session, operator_id: _operator, work_lifetime: _lifetime, ...material } = materialFrom(p);
   return digest({ version: STATELESS_TERMINAL_WORK, material });
 };
+/** Reconstruct the existing writer request so elapsed time requires no form reentry. */
+export function readTerminalWorkResumption(db: Database.Database, config: Config, packet: TaskContextPacketV01, at: string) {
+  const m = materialFrom(packet), prior = readTerminalAttemptHistory(db, config, m.predecessor.run_id).packet;
+  const previous = readSelectedWorkSources(prior);
+  const request: Request = { predecessor: m.predecessor, definition: m.definition,
+    material: { question: m.review.question, files: m.review.files.map(({ path, start_line, end_line }) => ({ path, start_line, end_line })) },
+    notes: m.selected.filter(e => { try { return JSON.parse(selectedWorkSourceInput(e).text).profile !== STATELESS_WORK; } catch { return true; } })
+      .map(e => previous.some(p => equal(p, e)) ? { saved_source_id: e.entry_id } : selectedWorkSourceInput(e)), omitted_sources: m.omitted_sources };
+  const preview = previewTerminalAuthorship(db, config, request, at);
+  check(preview.material.resumes_packet?.packet_id === packet.packet_id, "terminal_authorship_resume_invalid");
+  return { action: "author_terminal_work" as const, request, expected_preview: preview.preview_binding };
+}
 function build(prior: TaskContextPacketV01, material: Material, availability: ReturnType<typeof readTerminalAttemptHistory>["availability"], at: string) {
   const fp = digest(material), ref: ExternalRefV01 = { ref_version: "external_ref.v0.1", ref_type: "authored_work", external_id: `stateless-successor:${fp.slice(7,31)}`, source_ref: fp, observed_at: at, trust_class: "user_declaration", compatibility_namespace: STATELESS_TERMINAL_WORK };
   const priorRef: ExternalRefV01 = { ...ref, ref_type: "task_context_packet", external_id: prior.packet_id, source_ref: prior.integrity.fingerprint, observed_at: prior.generated_at, trust_class: "direct_local_observation" };
+  const refs = [ref, priorRef, ...(material.resumes_packet ? [{ ...priorRef, external_id: material.resumes_packet.packet_id, source_ref: material.resumes_packet.packet_fingerprint, observed_at: at }] : [])];
   const currentness = { status: "fresh" as const, as_of: at, basis: "Explicit new work; terminal predecessor retained without completion or semantic acceptance.", source_ref: ref };
   const old = statelessTerminalEntries(prior);
   check(old.length <= 1, "terminal_authorship_history_bound");
@@ -165,13 +195,13 @@ function build(prior: TaskContextPacketV01, material: Material, availability: Re
   const selected = [...prior.selected_context.filter(e => e.entry_kind === "accepted_state_ref"), ...statelessMandatoryEntries(prior).filter(e => e.entry_id !== STATELESS_TERMINAL_CONTEXT), ...material.selected,
     { entry_id: MATERIAL, entry_kind: "source_ref" as const, source_ref: fp, external_ref: priorRef, why_included: "Authenticated explicit authorship and historical bindings, not execution authority.", bounded_summary: canonical(material), trust_class: "direct_local_observation" as const, currentness, compatibility_source_ref: ref },
     { entry_id: STATELESS_TERMINAL_CONTEXT, entry_kind: "evidence_ref" as const, source_ref: digest(predecessors), external_ref: priorRef, why_included: WARNING, bounded_summary: canonical({ warning: WARNING, predecessors }), trust_class: "direct_local_observation" as const, currentness, compatibility_source_ref: ref }];
-  return buildTaskContextPacketV01({ ...prior, work_ref: ref, generated_at: at, expires_at: new Date(Date.parse(at) + VNEXT_OPERATOR_PILOT_LATER_PACKET_TTL_MS_V01).toISOString(), task: material.definition,
+  return buildTaskContextPacketV01({ ...prior, work_ref: ref, generated_at: at, expires_at: material.work_lifetime ? null : new Date(Date.parse(at) + VNEXT_OPERATOR_PILOT_LATER_PACKET_TTL_MS_V01).toISOString(), task: material.definition,
     current_projection: { projection_kind: "current_working_perspective", projection_only: true, canonical_state: false, perspective_ref: null, bounded_summary: material.definition.goal, as_of: at,
       items: [{ item_kind: "active_goal", summary: material.definition.goal, source_refs: [fp], external_refs: [ref], currentness }], source_refs: [fp], external_refs: [ref], currentness, warnings: [WARNING] },
     selected_context: selected, excluded_context: prior.selected_context.filter(e => !selected.some(s => s.entry_id === e.entry_id)).map(e => ({ entry_id: e.entry_id, source_ref: e.source_ref, external_ref: e.external_ref, currentness: e.currentness,
       why_excluded: material.omitted_sources.find(o => o.source_binding === e.source_ref)?.reason ?? "Historical operational context retained through the exact predecessor; not selected as substantive context." })),
     capability_grant: null, source_status: { ...prior.source_status, currentness, source_refs: [fp, prior.integrity.fingerprint], external_refs: [ref, priorRef], warnings: [WARNING] },
-    compatibility: { source_contracts: [STATELESS_TERMINAL_WORK], legacy_scope_ref: null, source_refs: [ref, priorRef], unmapped_fields: [], warnings: [WARNING] },
+    compatibility: { source_contracts: [STATELESS_TERMINAL_WORK, ...(material.work_lifetime ? [DURABLE_AUTHORED_WORK_V01] : [])], legacy_scope_ref: null, source_refs: refs, unmapped_fields: [], warnings: [WARNING] },
   }, { required_selected_entry_ids: selected.map(e => e.entry_id) });
 }
 
@@ -193,9 +223,17 @@ export function inspectStatelessTerminalSuccessor(db: Database.Database, input: 
   check((effectiveDirection(db, input.config, input.packet.generated_at)?.ref ?? null) === m.direction_ref, "terminal_authorship_direction_changed");
   assertPacketDirectionCurrent(db, input.packet, input.packet.generated_at);
   assertHistoricalStatelessSession(db, input.config, m.session_id, input.packet.generated_at, m.operator_id);
+  if (m.resumes_packet) {
+    const old = readHistoricalStatelessPacket(db, input.config, m.resumes_packet.packet_id, m.resumes_packet.packet_fingerprint);
+    check(isStatelessTerminalSuccessor(old) && old.expires_at !== null && old.generated_at < input.packet.generated_at, "terminal_authorship_resume_invalid");
+    const { session_id: _session, operator_id: _operator, work_lifetime: _lifetime, resumes_packet: _resume, ...definition } = m;
+    check(!materialFrom(old).resumes_packet && terminalAuthorshipKey(old) === digest({ version: STATELESS_TERMINAL_WORK, material: definition }), "terminal_authorship_resume_changed");
+    inspectStatelessTerminalSuccessor(db, { config: input.config, packet: old });
+    assertUnadmitted(db, input.config, old);
+  }
   check(equal(build(h.packet, m, h.availability, input.packet.generated_at), input.packet), "terminal_authorship_compiler_binding");
   const prior = inspectVNextOperatorPilotPacketLineageV01(db, { config: input.config, packet_id: h.packet.packet_id, packet_fingerprint: h.packet.integrity.fingerprint });
-  return { lineage_kind: "stateless_review_terminal_successor", packet: input.packet, prior_packet: { packet_id: h.packet.packet_id, packet_fingerprint: h.packet.integrity.fingerprint },
+  return { lineage_kind: "stateless_review_terminal_successor", packet: input.packet, prior_packet: m.resumes_packet ?? { packet_id: h.packet.packet_id, packet_fingerprint: h.packet.integrity.fingerprint },
     projection_current: prior.lineage_kind === "authored_successor_task" ? prior.inherited_context_current : prior.projection_current, source_transition_receipt: null };
 }
 /** Inherited operational bindings are checked at finite admission, including
@@ -210,12 +248,20 @@ export function assertTerminalHistoryActive(db: Database.Database, scope: Scope,
     check(equal(binding, h.binding) && equal(p.evidence, h.availability) && !stateOf(h.run).recovery_suspended, "terminal_authorship_history_suspended_or_changed");
   }
 }
-function currentMatches(db: Database.Database, config: Config, prior: TaskContextPacketV01, key: string) {
+function assertUnadmitted(db: Database.Database, config: Scope, packet: TaskContextPacketV01) {
+  check(!db.prepare("SELECT 1 FROM autonomy_runs WHERE scope=? AND CASE WHEN json_valid(metadata_json) THEN json_extract(metadata_json,'$.packet_id')=? ELSE 1 END LIMIT 1").get(config.project_id, packet.packet_id), "terminal_authorship_result_already_admitted");
+}
+function currentMatches(db: Database.Database, config: Config, prior: TaskContextPacketV01, key: string, resumes?: PreviewMaterial["resumes_packet"], at?: string) {
   const current = readCurrentProjectWorkPacketLineageV01(db, config);
   check(current?.projection_current, "terminal_authorship_current_work_changed");
   if (isStatelessTerminalSuccessor(current.packet) && terminalAuthorshipKey(current.packet) === key) {
-    check(!db.prepare("SELECT 1 FROM autonomy_runs WHERE scope=? AND CASE WHEN json_valid(metadata_json) THEN json_extract(metadata_json,'$.packet_id')=? ELSE 1 END LIMIT 1").get(config.project_id, current.packet.packet_id), "terminal_authorship_result_already_admitted");
+    assertUnadmitted(db, config, current.packet);
     return current.packet;
+  }
+  if (resumes && current.packet.packet_id === resumes.packet_id && current.packet.integrity.fingerprint === resumes.packet_fingerprint) {
+    check(current.packet.expires_at !== null && current.packet.capability_grant === null &&
+      validateTaskContextPacketV01(current.packet, { evaluated_at: at! }).errors.every(e => e.code === "packet_expired"), "terminal_authorship_resume_invalid");
+    assertUnadmitted(db, config, current.packet); return null;
   }
   check(current.packet.packet_id === prior.packet_id && current.packet.integrity.fingerprint === prior.integrity.fingerprint, "terminal_authorship_current_work_changed");
   return null;
@@ -223,7 +269,7 @@ function currentMatches(db: Database.Database, config: Config, prior: TaskContex
 export function previewTerminalAuthorship(db: Database.Database, config: Config, request: unknown, at: string, compareOnly = false) {
   return db.transaction(() => {
     const p = compileMaterial(db, config, request, at, !compareOnly);
-    currentMatches(db, config, p.packet, p.preview_binding);
+    currentMatches(db, config, p.packet, p.preview_binding, p.material.resumes_packet, at);
     assertStatelessUnsettledAdmission(db, config, p.packet); assertTerminalHistoryActive(db, config, p.packet);
     return { preview_binding: p.preview_binding, material: p.material, comparison: p.comparison, evidence: p.availability, warning: WARNING,
       preparation_bytes: p.preparation_bytes, authorized: false, execution_grant: null };
@@ -235,10 +281,10 @@ export function authorTerminalWork(db: Database.Database, input: { config: Confi
     const admission = admitVNextLocalOperatorMutationInsideTransactionV01(db, { ...input, clock: { now: input.now } });
     const p = compileMaterial(db, input.config, input.request, admission.action_observed_at, true);
     check(p.preview_binding === reviewSha(input.expected_preview), "terminal_authorship_preview_changed");
-    const priorResult = currentMatches(db, input.config, p.packet, p.preview_binding);
+    const priorResult = currentMatches(db, input.config, p.packet, p.preview_binding, p.material.resumes_packet, admission.action_observed_at);
     assertStatelessUnsettledAdmission(db, input.config, p.packet); assertTerminalHistoryActive(db, input.config, p.packet);
     if (priorResult) { db.exec("COMMIT"); return { packet: priorResult, status: "exact_replay" as const, session_admission: admission }; }
-    const packet = build(p.packet, { ...p.material, session_id: admission.session.session_id, operator_id: input.config.operator_id }, p.availability, admission.action_observed_at);
+    const packet = build(p.packet, { ...p.material, work_lifetime: DURABLE_AUTHORED_WORK_V01, session_id: admission.session.session_id, operator_id: input.config.operator_id }, p.availability, admission.action_observed_at);
     readSourceReview(packet);
     check(validateTaskContextPacketV01(packet, { evaluated_at: admission.action_observed_at }).status === "valid", "terminal_authorship_packet_invalid");
     const write = insertVNextCoreRecordV01(db, { ...input.config, record_kind: "task_context_packet", record_id: packet.packet_id, fingerprint: packet.integrity.fingerprint,

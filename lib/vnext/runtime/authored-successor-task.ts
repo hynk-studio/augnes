@@ -5,7 +5,7 @@ import { PROSPECTIVE_INPUT, SELECTED_SOURCE_INSPECTION } from "../prospective-ag
 import { SELECTED_SOURCE_RESULT } from "../native-host/selected-source-inspection-adapter";
 import { isOrdinarySuccessorRevisionV01, inspectOrdinarySuccessorRevisionV01, ordinarySuccessorRevisionMaterialV01, ordinarySuccessorRevisionIdempotencyKeyV01 } from "./authored-successor-revision";
 import { RETRY_INSPECTION_OUTLOOK_V02, retryInspectionOutlookVersion, retryInspectionProjectionItemsV01, retryInspectionResultContextV01, type RetryInspectionOutlookVersion } from "../retry-inspection-outlook";
-import { AUTHORED_SUCCESSOR_TASK_V01, AUTHORED_SUCCESSOR_REVALIDATION_V01, AUTHORED_SUCCESSOR_CONTEXT_V01 } from "@/types/vnext/project-work-initialization";
+import { AUTHORED_SUCCESSOR_TASK_V01, AUTHORED_SUCCESSOR_REVALIDATION_V01, AUTHORED_SUCCESSOR_CONTEXT_V01, DURABLE_AUTHORED_WORK_V01 } from "@/types/vnext/project-work-initialization";
 import { buildSelectedWorkSourceEntry, compareSelectedWorkSources, normalizeNativeSelectedWorkSources, SelectedWorkSourceError } from "@/lib/intake/selected-work-source-comparison";
 import { REVIEWED_OUTCOME_SOURCE_V01, type SelectedWorkSourceSelection, type ReviewedOutcomeSourceRefV01 } from "@/types/vnext/project-work-revision";
 import { assertReviewedOutcomeSelectionV01, readReviewedOutcomeReuseV01 } from "@/lib/vnext/persistence/reviewed-outcome-source";
@@ -64,7 +64,7 @@ export function readResultWorkPreparationV01(db: Database.Database, input: {
     initialization.active_project_id === input.config.project_id && initialization.active_selection_revision !== null &&
     initialization.current_packet?.packet_id === r.packet.packet_id &&
     initialization.current_packet.packet_fingerprint === r.packet.integrity.fingerprint &&
-    continuity.packet_currentness === "fresh" && (r.run.status === "completed" || isSettledInspectionResult(r)) && r.receipt.execution.status === "completed" &&
+    ["fresh", "expired"].includes(continuity.packet_currentness) && (r.run.status === "completed" || isSettledInspectionResult(r)) && r.receipt.execution.status === "completed" &&
     r.run.metadata.terminal_receipt_persisted === true && r.run.metadata.reconciliation_required === false &&
     listAutonomyRunLedgerRecords({ db, scope: input.config.project_id, limit: 1 })[0]?.run_id === r.run.run_id,
   "preparation_unavailable");
@@ -152,6 +152,7 @@ export interface DefineAuthoredSuccessorTaskRequestV01 {
   revalidation?: { profile: typeof AUTHORED_SUCCESSOR_REVALIDATION_V01; expires_at: string };
 }
 interface SourceMaterial {
+  work_lifetime?: typeof DURABLE_AUTHORED_WORK_V01;
   request: DefineAuthoredSuccessorTaskRequestV01;
   source_root_ref: ExternalRefV01;
   physical_root_fingerprint: string;
@@ -269,7 +270,7 @@ function build(input: { prior: TaskContextPacketV01; receipt: ReturnType<typeof 
       trust_class: "direct_local_observation" as const, currentness, compatibility_source_ref: priorRef },
   ];
   const packet = buildTaskContextPacketV01({ workspace_id: prior.workspace_id, project_id: prior.project_id, work_ref: definitionRef,
-    generated_at: at, expires_at: material.request.revalidation?.expires_at ?? prior.expires_at,
+    generated_at: at, expires_at: material.work_lifetime ? null : material.request.revalidation?.expires_at ?? prior.expires_at,
     task: { goal: definition.objective, success_criteria: definition.checks.map(c => c.criterion), non_goals: definition.stop_conditions },
     current_projection: { projection_kind: "current_working_perspective", projection_only: true, canonical_state: false,
       perspective_ref: null, bounded_summary: definition.objective, as_of: at,
@@ -288,6 +289,7 @@ function build(input: { prior: TaskContextPacketV01; receipt: ReturnType<typeof 
     source_status: { status: prior.source_status.status, currentness, source_refs: [...prior.source_status.source_refs, ...refs.map(r => r.source_ref!)],
       external_refs: [...prior.source_status.external_refs, ...refs], warnings: ["The predecessor remains immutable; file reads and comparison results retain their actual evidence basis."] },
     compatibility: { source_contracts: [AUTHORED_SUCCESSOR_TASK_V01, ...(material.request.selected_sources ? [AUTHORED_SUCCESSOR_CONTEXT_V01] : []),
+      ...(material.work_lifetime ? [DURABLE_AUTHORED_WORK_V01] : []),
       ...(outlookItems.length ? [outlookVersion!] : []),
       ...(selected.some(e => reviewedOutcomeSourceRef(e)) ? [REVIEWED_OUTCOME_SOURCE_V01] : []), ...(material.request.revalidation ? [AUTHORED_SUCCESSOR_REVALIDATION_V01] : [])], legacy_scope_ref: null,
       source_refs: [...prior.compatibility.source_refs, ...refs], unmapped_fields: [], warnings: [] },
@@ -301,7 +303,8 @@ function materialFrom(packet: TaskContextPacketV01): SourceMaterial {
   check(entries.length === 1 && typeof entries[0]!.bounded_summary === "string" && Buffer.byteLength(entries[0]!.bounded_summary!) <= 24_576, "source_material_missing");
   let m: SourceMaterial;
   try { m = JSON.parse(entries[0]!.bounded_summary!); } catch { check(false, "source_material_invalid"); }
-  check(m! && equal(Object.keys(m!).sort(), ["physical_root_fingerprint", "request", "session_id", "source_root_ref"]), "source_material_invalid");
+  check(m! && equal(Object.keys(m!).sort(), ["physical_root_fingerprint", "request", "session_id", "source_root_ref", ...(m!.work_lifetime !== undefined ? ["work_lifetime"] : [])].sort()) &&
+    (m!.work_lifetime === undefined || (m!.work_lifetime === DURABLE_AUTHORED_WORK_V01 && !!m!.request.selected_sources && !m!.request.revalidation)), "source_material_invalid");
   return { ...m!, request: parseRequest(m!.request) };
 }
 
@@ -320,7 +323,7 @@ export async function defineAuthoredSuccessorTaskV01(db: Database.Database, inpu
   if (request.revalidation) check(readProjectRunResultSourceBindingV01(db, { ...input.config,
     receipt_id: request.expected_latest_receipt_id }).run, "local_predecessor_required");
   const instructionFiles = structuredClone(input.approved_instruction_files ?? []);
-  const root = request.revalidation
+  const root = request.revalidation || request.selected_sources
     ? await inspectPersistedHostProjectRootV01(db, { config: input.config, evaluated_at: at })
     : (await admitPersistedHostTaskContextPacketV01(db, { config: input.config,
       packet_id: request.expected_current_packet_id, packet_fingerprint: request.expected_current_packet_fingerprint,
@@ -345,7 +348,7 @@ export async function defineAuthoredSuccessorTaskV01(db: Database.Database, inpu
     assertExpectedPacketDirection(db, input.config, expectedDirection, auth.action_observed_at);
     const selection = readActiveProjectSelectionV01(db, input.config.workspace_id);
     check(selection?.project_id === input.config.project_id && selection.selection_revision === request.expected_active_selection_revision, "selection_changed");
-    if (request.revalidation) assertRevalidatedHistoryCurrent(db, input.config, request, auth.action_observed_at);
+    if (request.revalidation || request.selected_sources) assertRevalidatedHistoryCurrent(db, input.config, request, auth.action_observed_at);
     else {
       const continuity = projectVNextOperatorPilotContinuityV01(db, { config: input.config, clock: { now: () => auth.action_observed_at } });
       check(continuity.latest_compiled_packet?.packet_id === request.expected_current_packet_id &&
@@ -375,7 +378,8 @@ export async function defineAuthoredSuccessorTaskV01(db: Database.Database, inpu
     check(Date.parse(auth.action_observed_at) > Date.parse(predecessor.packet.generated_at) &&
       Date.parse(auth.action_observed_at) >= Date.parse(predecessor.receipt.recorded_at), "authorship_time");
     const built = build({ prior: predecessor.packet, receipt: predecessor.receipt, operator_id: input.config.operator_id,
-      at: auth.action_observed_at, material: { request, source_root_ref: root.root_scope_ref, physical_root_fingerprint: fingerprintNativeHostPhysicalRootIdentityV01(root.physical_root_identity), session_id: auth.session.session_id } });
+      at: auth.action_observed_at, material: { request, ...(request.selected_sources ? { work_lifetime: DURABLE_AUTHORED_WORK_V01 } : {}),
+        source_root_ref: root.root_scope_ref, physical_root_fingerprint: fingerprintNativeHostPhysicalRootIdentityV01(root.physical_root_identity), session_id: auth.session.session_id } });
     const validation = validateTaskContextPacketV01(built.packet, { evaluated_at: auth.action_observed_at });
     check(validation.status === "valid", "packet_invalid");
     const write = insertVNextCoreRecordV01(db, { record_kind: "task_context_packet", record_id: built.packet.packet_id,

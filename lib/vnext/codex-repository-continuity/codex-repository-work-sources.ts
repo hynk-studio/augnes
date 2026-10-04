@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { readProjectWorkRevisionEligibilityStrictV01 } from "@/lib/vnext/runtime/project-work-revision";
 import type { TaskContextPacketSelectedEntryV01 } from "@/types/vnext/task-context-packet";
 import { getDatabasePath } from "@/lib/db";
 import { isPublicSafeSourceLocatorV01 } from "@/lib/research-source/sanitize-source-ref";
@@ -72,8 +73,10 @@ export async function readCodexRepositoryWorkSourcesV01(
       return project({ ...result, status: "refresh_required", reason: "snapshot_changed" });
     }
     if (
-      continuity.current_work.status !== "current_work" ||
-      continuity.current_work.currentness !== "fresh" ||
+      !["current_work", "stale_current_work"].includes(continuity.current_work.status) ||
+      !(continuity.current_work.currentness === "fresh" ||
+        (continuity.current_work.currentness === "stale" && readProjectWorkRevisionEligibilityStrictV01(db,
+          { workspace_id: resolution.workspace_id!, project_id: resolution.project_id! }, { evaluated_at: dependencies.now?.() }).eligible)) ||
       continuity.project.root_availability !== "available"
     ) return project(result);
     if (!work?.current_packet || !work.current_work) return project(result);

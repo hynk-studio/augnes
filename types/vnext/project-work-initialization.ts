@@ -5,6 +5,7 @@ import type { ProjectWorkRevisionEligibilityV01 } from "./project-work-revision"
 export const AUTHORED_SUCCESSOR_TASK_V01 = "augnes.authored-successor-task.v0.1" as const;
 export const AUTHORED_SUCCESSOR_CONTEXT_V01 = "augnes.authored-successor-context.v0.1" as const;
 export const AUTHORED_SUCCESSOR_REVALIDATION_V01 = "augnes.authored-successor-revalidation.v0.1" as const;
+export const DURABLE_AUTHORED_WORK_V01 = "augnes.durable-authored-work.v0.1" as const;
 
 export const PROJECT_WORK_INITIALIZATION_VERSION_V01 =
   "project_work_initialization.v0.1" as const;
@@ -75,6 +76,7 @@ export interface ProjectWorkInitializationV01 {
     packet_id: string;
     packet_fingerprint: string;
     generated_at: string;
+    expires_at?: string | null;
     lineage_kind:
       | "initial_user_defined"
       | "pre_execution_user_revision"

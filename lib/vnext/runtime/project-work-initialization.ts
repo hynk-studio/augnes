@@ -416,6 +416,7 @@ function readProjectWorkInitializationStrictV01(
         packet_id: current.packet.packet_id,
         packet_fingerprint: current.packet.integrity.fingerprint,
         generated_at: current.packet.generated_at,
+        expires_at: current.packet.expires_at,
         lineage_kind: current.lineage_kind,
       },
       mutation_eligible: false,

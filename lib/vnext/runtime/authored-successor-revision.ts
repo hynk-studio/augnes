@@ -11,7 +11,7 @@ import { assertVNextCoreRecordMatchesProtocolPayloadBindingV01, insertVNextCoreR
 import { readCanonicalProjectWithRootV01 } from "@/lib/vnext/persistence/project-identity-registry";
 import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
 import { buildTaskContextPacketV01, validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
-import { AUTHORED_SUCCESSOR_CONTEXT_V01, AUTHORED_SUCCESSOR_TASK_V01 } from "@/types/vnext/project-work-initialization";
+import { AUTHORED_SUCCESSOR_CONTEXT_V01, AUTHORED_SUCCESSOR_TASK_V01, DURABLE_AUTHORED_WORK_V01 } from "@/types/vnext/project-work-initialization";
 import { AUTHORED_SUCCESSOR_REVISION_V01, MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01, type RevisePreExecutionProjectWorkRequestV01 } from "@/types/vnext/project-work-revision";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
@@ -28,6 +28,7 @@ function check(value: unknown, reason: string): asserts value {
 
 type Scope = Pick<VNextLocalOperatorPilotConfigV01, "workspace_id" | "project_id">;
 interface Material {
+  work_lifetime?: typeof DURABLE_AUTHORED_WORK_V01;
   request: RevisePreExecutionProjectWorkRequestV01;
   origin_packet_id: string;
   origin_packet_fingerprint: string;
@@ -47,7 +48,8 @@ export function ordinarySuccessorRevisionMaterialV01(packet: TaskContextPacketV0
     Buffer.byteLength(entries[0]!.bounded_summary!) <= 24_576, "revision_material_missing");
   let m: Material;
   try { m = JSON.parse(entries[0]!.bounded_summary!); } catch { check(false, "revision_material_invalid"); }
-  check(m! && equal(Object.keys(m!).sort(), ["origin_packet_fingerprint", "origin_packet_id", "physical_root_fingerprint", "request", "revision_number", "session_id", "source_root_ref"]) &&
+  check(m! && equal(Object.keys(m!).sort(), ["origin_packet_fingerprint", "origin_packet_id", "physical_root_fingerprint", "request", "revision_number", "session_id", "source_root_ref", ...(m!.work_lifetime !== undefined ? ["work_lifetime"] : [])].sort()) &&
+    (m!.work_lifetime === undefined || m!.work_lifetime === DURABLE_AUTHORED_WORK_V01) &&
     Number.isSafeInteger(m!.revision_number) && m!.revision_number > 0 && m!.revision_number <= MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01 &&
     typeof m!.session_id === "string", "revision_material_invalid");
   const request = parseProjectWorkRevisionRequestV01(m!.request);
@@ -83,7 +85,9 @@ export function buildOrdinarySuccessorRevisionV01(prior: TaskContextPacketV01, a
   const priorRef = ref("task_context_packet", prior.packet_id, prior.integrity.fingerprint, prior.generated_at);
   const originRef = ref("origin_work_preparation", material.origin_packet_id, material.origin_packet_fingerprint);
   const refs = [definitionRef, operatorRef, priorRef, originRef, anchor.predecessor_receipt_ref, material.source_root_ref];
-  const currentness = { status: "fresh" as const, as_of: at, basis: "Authenticated same-task revision of an unexecuted outcome-linked preparation; inherited lifetime and authority are unchanged.", source_ref: definitionRef };
+  const currentness = { status: "fresh" as const, as_of: at, basis: material.work_lifetime
+    ? "Authenticated durable same-task authorship; historical observations and execution authority are unchanged."
+    : "Authenticated same-task revision of an unexecuted outcome-linked preparation; inherited lifetime and authority are unchanged.", source_ref: definitionRef };
   const authoredDefinition = { objective: definition.goal, checks: definition.success_criteria.map((criterion, index) => ({ check_id: `criterion_${index + 1}`, criterion })),
     stop_conditions: definition.non_goals, materials: [], approved_instruction_hashes: [] };
   const entries = [
@@ -96,7 +100,7 @@ export function buildOrdinarySuccessorRevisionV01(prior: TaskContextPacketV01, a
     ...selected,
   ];
   const packet = buildTaskContextPacketV01({ workspace_id: prior.workspace_id, project_id: prior.project_id, work_ref: definitionRef,
-    generated_at: at, expires_at: prior.expires_at, task: definition,
+    generated_at: at, expires_at: material.work_lifetime ? null : prior.expires_at, task: definition,
     current_projection: { projection_kind: "current_working_perspective", projection_only: true, canonical_state: false, perspective_ref: null,
       bounded_summary: definition.goal, as_of: at, items: [...outlookItems, { item_kind: "active_goal", summary: definition.goal, source_refs: [fingerprint], external_refs: [definitionRef], currentness }],
       source_refs: [fingerprint], external_refs: [definitionRef], currentness, warnings: ["Revision is a user declaration, not semantic acceptance or execution authority."] },
@@ -112,6 +116,7 @@ export function buildOrdinarySuccessorRevisionV01(prior: TaskContextPacketV01, a
     capability_grant: null, return_contract: prior.return_contract,
     source_status: { ...prior.source_status, currentness, source_refs: refs.map(r => r.source_ref!), external_refs: refs },
     compatibility: { source_contracts: [AUTHORED_SUCCESSOR_TASK_V01, AUTHORED_SUCCESSOR_CONTEXT_V01, AUTHORED_SUCCESSOR_REVISION_V01,
+      ...(material.work_lifetime ? [DURABLE_AUTHORED_WORK_V01] : []),
       ...(outlookItems.length ? [outlookVersion!] : []),
       ...(selected.some(e => reviewedOutcomeSourceRef(e)) ? [REVIEWED_OUTCOME_SOURCE_V01] : [])],
       legacy_scope_ref: prior.compatibility.legacy_scope_ref, source_refs: refs, unmapped_fields: [], warnings: [] },
@@ -178,7 +183,10 @@ export function inspectCurrentOrdinarySuccessorRevisionChainV01(db: Database.Dat
   const packets = familyPackets(db, scope, lineage.packet);
   const material = isOrdinarySuccessorRevisionV01(lineage.packet) ? ordinarySuccessorRevisionMaterialV01(lineage.packet) : null;
   return { tip_packet: lineage.packet, tip_lineage_kind: "authored_successor_task" as const, packets, packet_ids: packets.map(p => p.packet_id),
-    revision_count: packets.length - 1, projection_current: lineage.projection_current && validateTaskContextPacketV01(lineage.packet, { evaluated_at: evaluatedAt ?? new Date().toISOString() }).status === "valid",
+    // This is authorship eligibility, never execution admission. Preserve all
+    // independent currentness errors while permitting historical envelope expiry.
+    revision_count: packets.length - 1, projection_current: lineage.projection_current && lineage.packet.capability_grant === null &&
+      validateTaskContextPacketV01(lineage.packet, { evaluated_at: evaluatedAt ?? new Date().toISOString() }).errors.every(e => e.code === "packet_expired"),
     tip_revision: material ? { prior_packet: packets.at(-2)!, packet: lineage.packet, material } : null, lineage,
     root: material ?? readOrdinarySuccessorRootBindingV01(lineage.packet) };
 }
@@ -228,11 +236,11 @@ export function saveOrdinarySuccessorRevisionInsideTransactionV01(db: Database.D
       compareSelectedWorkSources(chain.tip_packet, request.selected_source_context, retained.refs).fingerprint === request.expected_source_comparison, "revision_source_comparison");
   }
   const definition = normalizeInitialProjectWorkDefinitionV01(request);
-  if (equal(definition, chain.tip_packet.task) && equal(request.selected_source_context ?? readSelectedWorkSources(chain.tip_packet), readSelectedWorkSources(chain.tip_packet))) {
+  if (chain.tip_packet.expires_at === null && equal(definition, chain.tip_packet.task) && equal(request.selected_source_context ?? readSelectedWorkSources(chain.tip_packet), readSelectedWorkSources(chain.tip_packet))) {
     return { packet: chain.tip_packet, status: "exact_replay" as const };
   }
   check(chain.revision_count < MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01 && Date.parse(admission.action_observed_at) > Date.parse(chain.tip_packet.generated_at), "revision_limit_or_time");
-  const material: Material = { request, revision_number: chain.revision_count + 1, session_id: admission.session.session_id,
+  const material: Material = { request, work_lifetime: DURABLE_AUTHORED_WORK_V01, revision_number: chain.revision_count + 1, session_id: admission.session.session_id,
     origin_packet_id: chain.packets[0]!.packet_id, origin_packet_fingerprint: chain.packets[0]!.integrity.fingerprint,
     source_root_ref: chain.root.source_root_ref, physical_root_fingerprint: chain.root.physical_root_fingerprint };
   const built = buildOrdinarySuccessorRevisionV01(chain.tip_packet, chain.lineage, material, scope.operator_id, admission.action_observed_at);

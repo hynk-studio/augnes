@@ -559,6 +559,29 @@ is review of this bounded handoff and then explicit real-candidate local transfe
 into a named fresh DB/root; any further live execution needs separate exact
 model/data/spend authority. Existing live allowances remain consumed.
 
+### Current lifecycle slice — Durable local work resumption (#1393)
+
+Stacked on #1392, the first local lifecycle correction separates ordinary saved
+authorship from incidental execution/pilot expiry. Initial preparation already
+had a null lifetime. Current-source reproduction with the exact #1392 writers
+showed four-day refusal in ordinary result preparation and same-task editing.
+The linked unknown-attempt writer also assigned the same eight-hour lifetime.
+New ordinary successors/revisions and both stateless authoring families now use
+the additive durable compiler distinction described in 02. Supported historical
+finite work resumes by explicit append-only authorship, preserving its bytes and
+all unresolved history; reads never refresh it.
+
+Disposable verification covers historical compiler reconstruction, expiry and
+multi-day clocks, ordinary authenticated writers, the real work editor and
+repository revision channel, fresh processes, exact replay and stale refusals.
+Finite authentication and execution still require separate current admission.
+This is local correctness evidence, not real-candidate use, hosted Web Planning
+parity, cross-device transfer or comparative usefulness. The retained #1392
+candidate and proposed receiving operation above remain untouched by this slice.
+Cumulative bounds, broader project management and hosted-store changes remain
+later reviewed work. Draft review and exact-head verification do not grant merge,
+deployment, installation or live-provider authority.
+
 ### Current P2/P3/P4/P5 — Project direction and decision authority (#1382)
 
 The 2026-10-02 north-star review authorized this connected increment after merged

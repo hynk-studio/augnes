@@ -716,6 +716,18 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "durable-work-resumption",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning"],
+      label: "historical finite work, multi-day authenticated human and agent resumption",
+      ...rootNode("scripts/test-stateless-source-review.ts", "--durable-work"),
+      // Separate lifecycle child preserves the existing source-review deadline.
+      // Eight fresh processes and three owned browsers measured 51.0 s alone;
+      // no existing child bound is increased.
+      timeoutMs: 90_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "source-bound-work-handoff",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning"],

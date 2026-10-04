@@ -1430,8 +1430,9 @@ also permits an exact latest **failed run / failed terminal receipt** when the
 local ledger confirms terminal persistence and no reconciliation is required.
 It does not broaden eligibility to other terminal statuses or import execution
 authority from a portable receipt. Failure, verification, proposals and consumed
-allowances remain unchanged. The legacy request still requires completed
-execution and a fresh predecessor, and still inherits its expiry.
+allowances remain unchanged. The legacy scoped request still requires completed
+execution and a fresh predecessor, and still inherits its expiry. Ordinary
+selected-context authorship follows the durable-work boundary below.
 
 Explicit revalidation distinguishes historical task-envelope expiry from current
 authorship admission. Normal current selection, accepted-state lineage, registered
@@ -1468,9 +1469,10 @@ result missing a required comparison check is not verified task completion.
 The additive `augnes.authored-successor-context.v0.1` profile connects normal
 result review to ordinary next-work preparation through the same authenticated
 authored-successor writer. It requires the exact latest completed local run and
-receipt, fresh current packet, active selection and physical root. Failed or
-unsettled runs, expired or superseded context, stale previews and competing saves
-refuse; it does not renew a lifetime or reuse the scoped revalidation profile.
+receipt, exact current packet, active selection and physical root. Failed or
+unsettled runs, superseded context, independent validation errors, stale previews
+and competing saves refuse. Historical envelope expiry alone may be crossed by
+explicit durable authorship; the scoped revalidation profile remains separate.
 Read, comparison and preview are zero-write. Explicit save appends one packet;
 execution still requires its independent normal admission.
 The ordinary save checks the complete project ledger for nonterminal or
@@ -1557,9 +1559,10 @@ without manufacturing a local run. A later ordinary successor binds the revised
 tip's actual result through the existing result writer.
 
 Revision preserves accepted-context lineage, mandatory checks and forbidden
-actions, classification, return contract, context limits and expiry. Editing
-the displayed task does not remove those inherited constraints or renew its
-lifetime. Only selected notes enter the revised consumer; omitted originals
+actions, classification, return contract and context limits. Historical compiler
+material also preserves its original inherited expiry. New ordinary revisions
+use the durable-work boundary below. Only selected notes enter the revised
+consumer; omitted originals
 remain in immutable history. Retained-note lookup stays within this same-task
 family and requires explicit reselection. Selection never verifies a report,
 accepts an interpretation or erases its underlying observation.
@@ -1574,6 +1577,52 @@ An unchanged request or exact immediate replay appends no packet. Successful
 saves add only the packet and normal session bookkeeping; refusals roll back
 both. There is no grant, Decision, Transition, semantic acceptance, execution,
 new Core kind, database, migration or automatic activation of historical work.
+
+#### Durable local authored work (#1393)
+
+Initial work already has no automatic expiry. New ordinary result successors,
+their same-task revisions, returned-attempt terminal authorship and linked work
+after an explicit unknown-attempt disposition now author `expires_at: null` with
+`capability_grant: null`. Their authenticated compiler material carries the
+additive `augnes.durable-authored-work.v0.1` lifetime distinction. Reconstruction
+without that distinction uses the historical compiler's exact inherited or
+eight-hour lifetime, including already-null predecessors. Old timestamps, packet
+bytes, fingerprints and session provenance are never rewritten. Older strict
+readers refuse the new material; no schema or portable envelope migration occurs.
+
+Reads and previews remain zero-write. An otherwise current finite ordinary
+preparation can be saved through the existing revision writer, including an
+unchanged definition, to append one durable revision. An exact settled result
+can likewise author its next ordinary task after historical envelope expiry.
+The separate scoped finite revalidation, execution/preparation profiles and
+time-sensitive premises retain their own contracts.
+
+For an unadmitted finite terminal/linked preparation, its existing writer can
+append the same preparation with an exact `resumes_packet` reference. Its task,
+selection, original failed/unknown attempt and unresolved obligations remain
+bound; changed material, selection/root/direction, admission or recovery
+suspension refuses. Only the immediate unchanged result can acknowledge replay.
+The existing history and revision bounds are unchanged.
+The source-review panel loads the saved preparation and offers **Resume saved
+work**, using that writer's exact saved material without form reentry or a new
+content-review ceremony. Reading this action does not append work. Authorization
+review remains unavailable until the explicit resumption has succeeded.
+
+The human revision editor and authenticated repository revision channel share
+the ordinary revision owner. The agent reader reports an expired envelope as
+stale, with Start blocked, while the validated authorship eligibility can permit
+editing. Exact source, semantic lineage, physical root, selection, direction,
+session/channel identity and concurrent-write checks remain independent. An
+ordinary save does not renew a grant, attempt deadline, controller lease,
+preparation ticket, cancellation, automation or authentication. Normal nonce
+bookkeeping and a separately authenticated new session remain their existing
+operations. Historical selected observations retain their own currentness.
+
+Terminal and result authorship still use their existing operator routes; this
+change adds no corresponding Companion tool or delegation. Portable and recovery
+readers reconstruct supported ordinary history; stateless and imported-handoff
+export refusals and stateless recovery suspension remain in force. The #1392
+handoff scope, attribution and mandatory unknown effects are unchanged.
 
 #### Trusted-local read-only input snapshots
 

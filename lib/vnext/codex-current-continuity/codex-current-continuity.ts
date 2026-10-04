@@ -434,7 +434,7 @@ function readCurrentWorkV01(
       ? "unavailable_or_ambiguous" as const
       : continuity.packet_currentness === "fresh"
         ? "fresh" as const
-        : continuity.packet_currentness === "stale"
+        : continuity.packet_currentness === "stale" || continuity.packet_currentness === "expired"
           ? "stale" as const
           : "unavailable_or_ambiguous" as const;
   const unresolvedHistory = initialization.state === "existing_history_without_current_packet";

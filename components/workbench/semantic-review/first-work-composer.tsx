@@ -62,6 +62,7 @@ export function FirstWorkComposer({
   const issues = validationIssuesV01(definition);
   const unchanged =
     mode === "revision" &&
+    !(initialization.current_packet?.lineage_kind === "authored_successor_task" && typeof initialization.current_packet.expires_at === "string") &&
     initialDefinition !== undefined &&
     sameDefinitionV01(definition, initialDefinition) && sourceSelection === null;
   const prefix = mode === "new_task" ? "new-work" : mode === "revision" ? "work-revision" : "first-work";

@@ -1,4 +1,5 @@
 import { checkpointProcessReplacement } from "./test-stateless-observation-checkpoint";
+import { durableWorkContract } from "./test-durable-work-resumption";
 import { OPENAI_PLANNER_SOL_LOW, OPENAI_PLANNER_SOL_LOW_REF } from "../lib/vnext/model-gateway/planner-execution-configuration";
 import { STATELESS_LIMITS, STATELESS_SOL_LOW_LIMITS } from "../lib/vnext/stateless-work";
 import { statelessTerminalEntries, statelessMandatoryEntries } from "../lib/vnext/stateless-work";
@@ -743,8 +744,8 @@ async function terminalAuthorshipContract() {
     assert.equal(failed.run.steps[2]!.output.failure_evidence === undefined, legacy);
     const oldPacket = listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet"], limit: 128 }).find(r => r.record_id === grant.packet_id)!.payload as any;
     const oldGrants = canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["capability_grant"], limit: 128 }));
-    controlFor(f, false); f.tick(Date.parse(oldPacket.expires_at) - Date.parse(f.now()) + 1); f.refreshSession();
-    assert.ok(f.now() > oldPacket.expires_at && f.now() > grant.expires_at);
+    controlFor(f, false); f.tick(Math.max(Date.parse(oldPacket.expires_at ?? grant.expires_at), Date.parse(f.now())) - Date.parse(f.now()) + 1); f.refreshSession();
+    assert.ok((oldPacket.expires_at === null || f.now() > oldPacket.expires_at) && f.now() > grant.expires_at);
     const beforeControl = canonical(readProjectAutomationControlV01(f.db, f.scope)), beforeCalls = f.calls;
     // No model route or provider credential is needed for read/compare/preview/save.
     f.controls.transform = () => {};
@@ -814,7 +815,7 @@ async function terminalAuthorshipContract() {
     assert.equal(duplicate.status, "exact_replay"); assert.deepEqual(duplicate.packet, packet);
     await f.call({ action: "author_terminal_work", request: { ...request, definition: { ...request.definition, goal: "Conflicting authorship" } }, expected_preview: preview.preview_binding }, 409);
     assert.equal(packet.capability_grant, null); assert.notEqual(packet.work_ref.external_id, oldPacket.work_ref.external_id);
-    assert.ok(packet.generated_at > oldPacket.expires_at && packet.expires_at > packet.generated_at);
+    assert.ok(packet.generated_at > oldPacket.generated_at); assert.equal(packet.expires_at, null);
     assert.equal(readProjectWorkInitializationV01(f.db, f.config).current_packet?.packet_id, packet.packet_id);
     assert.equal(readPacketDirectionInterpretation(f.db, packet, f.now()).status, "current");
     assert.deepEqual(statelessUnresolvedEntries(packet), statelessUnresolvedEntries(oldPacket));
@@ -1075,6 +1076,10 @@ async function observationCheckpointContract() {
 
 async function main() {
   try {
+    if (["--durable-work", "--durable-work-baseline"].includes(process.argv[2]!)) {
+      await durableWorkContract(fixture, root, process.argv[2] === "--durable-work-baseline");
+      assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0); return;
+    }
     if (process.argv[2] === "--observation-checkpoint") {
       await observationCheckpointContract(); assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0);
       console.log(JSON.stringify({ status: "passed", checkpoint: "ordinary_authenticated_http", process_replacement: true, no_replay: true, original_grant_and_deadline: true, stale_and_concurrent_controllers: "refused", cancellation_expiry_unknown_recovery: "refused", provider_egress: 0 })); return;

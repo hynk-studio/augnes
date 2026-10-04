@@ -549,6 +549,29 @@ reported or unknown token/cost values, human interventions, cleanup and unrun ch
 Exact-head correctness follows Local Canonical; it is not an ordinary-use or
 usefulness result and does not complete the whole continuity program.
 
+### Durable local work resumption (#1393)
+
+Distinguish already-durable initial work from the observed finite successor
+paths. Reproduce pre-change failure using the pinned historical writers and real
+authenticated readers/writers, then cross the old boundary and several days in
+disposable data. A timestamp edit or resealed fixture is not positive historical
+compatibility evidence. Readback must preserve exact old bytes, fingerprints,
+selected-note provenance and mandatory failure/unknown-effect context.
+
+Exercise unchanged human editing and the supported authenticated agent revision
+channel, including a fresh process and later readback. Show zero-write reads and
+previews, exact immediate replay, stale competing requests and changed bindings.
+Check expired authentication, grants/deadlines, cancelled/unsettled attempts and
+recovery suspension separately from work eligibility. A durable definition must
+not create or renew permission, runs, control or provider calls. Source version
+drift remains distinct from historical observation availability. The older
+scoped finite profile and portable/refusal boundaries retain their own tests.
+
+Report unsupported surfaces precisely: operator terminal/result authorship is
+not a new Companion tool; local changes do not qualify the hosted store. Owned
+runtime cleanup and final exact-head Canonical evidence establish bounded
+correctness, not comparative usefulness or the retained real candidate's result.
+
 ### Prospective preparation and event/time re-entry
 
 For [#1380](https://github.com/hynk-studio/augnes/issues/1380), keep three evidence

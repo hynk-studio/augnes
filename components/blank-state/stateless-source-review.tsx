@@ -1,11 +1,12 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { StatelessGrantRequest, SourceReview, StatelessDispositionBinding, StatelessSelectedNotes } from "@/lib/vnext/stateless-work";
+import type { StatelessGrantRequest, StatelessDispositionBinding } from "@/lib/vnext/stateless-work";
 import type { StatelessObservationCheckpoint } from "@/lib/vnext/runtime/stateless-review-ledger";
 import type { StatelessFailureReview } from "@/lib/vnext/stateless-review-failure";
 import { StatelessTerminalAuthorship } from "./stateless-terminal-authorship";
 import type { readTerminalAuthorshipPreparation } from "@/lib/vnext/runtime/stateless-terminal-authorship";
+import type { readPreparedStatelessWork } from "@/lib/vnext/runtime/stateless-source-review";
 import { StatelessReviewFailure } from "./stateless-review-failure";
 
 type Review = { observation_checkpoint: StatelessObservationCheckpoint | null; terminal_preparation: ReturnType<typeof readTerminalAuthorshipPreparation>; stage: string; next_step: string | null; failures: StatelessFailureReview[]; disposition_preparation: null | { binding: StatelessDispositionBinding; disposition: null | { fingerprint: string }; warning: string }; run: { run_id: string; title: string; status: string; stop_reason: string | null;
@@ -15,7 +16,7 @@ export function StatelessSourceReview({ projectId }: { projectId: string }) {
   const [question, setQuestion] = useState("");
   const [files, setFiles] = useState([{ path: "", start_line: 1, end_line: 1 }, { path: "", start_line: 1, end_line: 1 }]);
   const [pricing, setPricing] = useState({ input_nano_usd_per_byte: "", output_nano_usd_per_token: "", maximum_total_nano_usd: "", source_version: "" });
-  const [prepared, setPrepared] = useState<{ packet_id: string; review: SourceReview; selected_notes: StatelessSelectedNotes; predecessor_effects_unknown?: boolean } | null>(null);
+  const [prepared, setPrepared] = useState<ReturnType<typeof readPreparedStatelessWork>>(null);
   const [pauseAfterObservation, setPauseAfterObservation] = useState(false);
   const [preview, setPreview] = useState<StatelessGrantRequest | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -48,6 +49,12 @@ export function StatelessSourceReview({ projectId }: { projectId: string }) {
       const value = await request({ action: "prepare", material: { question, files: files.filter(f => f.path) } });
       setPrepared(value.result); setMessage(`Review saved with exact file versions. Preparation read ${value.result.preparation_bytes} bytes; no model call was made.`);
     })}>Prepare source review</button>
+    {prepared?.resumption_request && <div>
+      <p>Saved work: {prepared.review.question}. Continue with its saved definition and selected sources. This grants no execution permission.</p>
+      <button disabled={busy} onClick={() => void act(async () => {
+        await request(prepared.resumption_request); await refresh(); setMessage("Saved work resumed. Execution still needs separate authorization.");
+      })}>Resume saved work</button>
+    </div>}
     {prepared && <details><summary>Selected notes to send with both judgments ({prepared.selected_notes.notes.length})</summary>
       <p>These whole notes are attributed context, not instructions, verified facts or execution permission. Unselected history is excluded. Nothing is silently shortened; a request that exceeds the existing input limit stops before dispatch.</p>
       {prepared.selected_notes.notes.map(note => <div key={note.entry_id} style={{ overflowWrap: "anywhere" }}>
@@ -62,7 +69,7 @@ export function StatelessSourceReview({ projectId }: { projectId: string }) {
     <details><summary>Quoted model rates and spending limit</summary>
       <p>Supply reviewed conservative pricing bounds for the already configured model. Rates are integer nano-USD (one billionth of a dollar). Input is bounded by UTF-8 bytes; a per-token rate can serve as a conservative per-byte ceiling. Actual cost remains unknown unless reported.</p>
       {([ ["input_nano_usd_per_byte", "Input ceiling per byte"], ["output_nano_usd_per_token", "Output ceiling per token"], ["maximum_total_nano_usd", "Total ceiling for both judgments"], ["source_version", "Pricing source/version"] ] as const).map(([key, label]) => <label key={key}>{label}<input aria-label={label} type={key === "source_version" ? "text" : "number"} min={1} value={pricing[key]} onChange={e => { setPricing({ ...pricing, [key]: e.target.value }); setPreview(null); }} /></label>)}
-      <button disabled={busy || !prepared || Object.values(pricing).some(v => !v)} onClick={() => void act(async () => {
+      <button disabled={busy || !prepared || !!prepared.resumption_request || Object.values(pricing).some(v => !v)} onClick={() => void act(async () => {
         const p = { ...pricing, input_nano_usd_per_byte: Number(pricing.input_nano_usd_per_byte), output_nano_usd_per_token: Number(pricing.output_nano_usd_per_token), maximum_total_nano_usd: Number(pricing.maximum_total_nano_usd) };
         const authorization = (await request({ action: "preview", pricing: p, ...(pauseAfterObservation ? { pause_after_observation: true } : {}) })).authorization;
         if (!prepared || authorization.packet_id !== prepared.packet_id || authorization.selected_notes_ref !== prepared.selected_notes.fingerprint) { setPrepared(null); setPreview(null); throw new Error("Current work or selected notes changed. Read the preparation again before authorizing it."); }

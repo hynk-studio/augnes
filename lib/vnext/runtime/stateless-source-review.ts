@@ -1,6 +1,6 @@
 import { handoffModelContext } from "../work-handoff";
-import { readTerminalAuthorshipPreparation, assertTerminalHistoryActive } from "./stateless-terminal-authorship";
-import { assertStatelessUnsettledAdmission, prepareLinkedStatelessWork, readStatelessDispositionPreparation, statelessUnresolvedEntries } from "./stateless-review-disposition";
+import { readTerminalAuthorshipPreparation, assertTerminalHistoryActive, isStatelessTerminalSuccessor, readTerminalWorkResumption } from "./stateless-terminal-authorship";
+import { assertStatelessUnsettledAdmission, prepareLinkedStatelessWork, readStatelessDispositionPreparation, statelessUnresolvedEntries, isStatelessReplacement, readReplacementWorkResumption } from "./stateless-review-disposition";
 import { stateOf, readRun, patchRun, readObservationCheckpoint } from "./stateless-review-ledger";
 import { buildStatelessFailureEvidence, readStatelessFailureReviews, StatelessJudgmentRejection, validateStatelessJudgment, type StatelessFailureEvidence, type StatelessFailureLayer, type StatelessFailureCode } from "../stateless-review-failure";
 import type Database from "better-sqlite3";
@@ -41,6 +41,7 @@ import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 import type { AutonomyRunRecord, AutonomyRunStepRecord } from "@/types/autonomy-runner-execution";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type { PlannerStateBriefV01 } from "../model-gateway/contracts";
+import { validateTaskContextPacketV01 } from "../task-context-packet";
 
 type Scope = Pick<Config, "workspace_id" | "project_id">;
 export interface StatelessReviewOptions { config: Config; now?: () => string; adapter?: ModelAdapterV01 }
@@ -65,10 +66,17 @@ function currentPacket(db: Database.Database, config: Config, at: string) {
 }
 export function readPreparedStatelessWork(db: Database.Database, config: Config, at: string) {
   try {
-    const packet = currentPacket(db, config, at);
+    const state = projectVNextOperatorPilotContinuityV01(db, { config, clock: { now: () => at } });
+    check(state.latest_compiled_packet && ["fresh", "expired"].includes(state.packet_currentness), "current_packet_required");
+    const lineage = inspectVNextOperatorPilotPacketLineageV01(db, { config, ...state.latest_compiled_packet }), packet = lineage.packet;
+    check(lineage.projection_current && validateTaskContextPacketV01(packet, { evaluated_at: at }).errors.every(e => e.code === "packet_expired"), "current_packet_required");
     const issued = db.prepare("SELECT 1 FROM autonomy_runs WHERE scope=? AND CASE WHEN json_valid(metadata_json) THEN json_extract(metadata_json,'$.packet_id')=? ELSE 1 END LIMIT 1").get(config.project_id, packet.packet_id);
     if (issued || packet.capability_grant) return null;
-    return { packet_id: packet.packet_id, review: readSourceReview(packet), selected_notes: readStatelessSelectedNotes(packet), predecessor_effects_unknown: statelessUnresolvedEntries(packet).length > 0 };
+    const resumption_request = packet.expires_at === null ? null : isStatelessTerminalSuccessor(packet) ? readTerminalWorkResumption(db, config, packet, at)
+      : isStatelessReplacement(packet) ? readReplacementWorkResumption(packet) : null;
+    if (state.packet_currentness === "expired" && !resumption_request) return null;
+    return { packet_id: packet.packet_id, review: readSourceReview(packet), selected_notes: readStatelessSelectedNotes(packet), predecessor_effects_unknown: statelessUnresolvedEntries(packet).length > 0,
+      ...(resumption_request ? { resumption_request } : {}) };
   } catch { return null; }
 }
 function readBundle(root: string, review: SourceReview, at: string, bindVersions: boolean): ReviewObservation {
