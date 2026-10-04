@@ -2609,7 +2609,7 @@ async function invokeLiveAdapter(
       }),
       providerRejectionObservation,
       providerResponseInvalidObservation,
-      receivedResult,
+      receivedResult ?? (error instanceof ModelGatewayAdapterFailureV01 ? error.received_result : null),
       error instanceof ModelGatewayAdapterFailureV01
         ? normalizeModelTransportFailureObservationV01(error.transport_failure_observation)
         : null,

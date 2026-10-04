@@ -1,3 +1,4 @@
+import { openAIPlannerReasoningConfiguration, OPENAI_PLANNER_SOL_LOW_REF } from "./planner-reasoning";
 import {
   assertModelEgressTextIsSafe,
   refuseModelEgress,
@@ -163,7 +164,7 @@ export const OPENAI_RESPONSES_OBSERVE_ADAPTER_VERSION_V01 =
 export const OPENAI_RESPONSES_PLANNER_ADAPTER_ID_V01 =
   "openai_responses.planner" as const;
 export const OPENAI_RESPONSES_PLANNER_ADAPTER_VERSION_V01 =
-  "openai_responses_planner_adapter.v0.1" as const;
+  "openai_responses_planner_adapter.v0.2" as const;
 export const OPENAI_RESPONSES_TEMPORAL_ADAPTER_ID_V01 =
   "openai_responses.temporal" as const;
 export const OPENAI_RESPONSES_TEMPORAL_ADAPTER_VERSION_V01 =
@@ -497,6 +498,7 @@ export function createOpenAIResponsesAdapterV01(
           : optionalConfigurationText(environment.OPENAI_MODEL) ?? DEFAULT_MODEL,
       );
       const implementation = describeOpenAIImplementation(purpose);
+      const reasoningConfiguration = purpose === PLANNER_MODEL_GATEWAY_PURPOSE_V01 ? openAIPlannerReasoningConfiguration(model) : null;
 
       return {
         ...implementation,
@@ -512,6 +514,7 @@ export function createOpenAIResponsesAdapterV01(
           ref_version: "external_ref.v0.1",
           ref_type: "provider_model",
           external_id: model,
+          ...(reasoningConfiguration ? { source_ref: OPENAI_PLANNER_SOL_LOW_REF } : {}),
           provider: "openai",
           trust_class: "direct_local_observation",
         },
@@ -530,7 +533,9 @@ export function createOpenAIResponsesAdapterV01(
           const schemaFingerprint = request.schema_fingerprint;
           const requestFingerprint = request.request_fingerprint;
           const routeFingerprint = request.adapter_request_route_fingerprint;
-          let clientRequestId: string | null = null;
+          let clientRequestId: string | null = purpose === PLANNER_MODEL_GATEWAY_PURPOSE_V01
+            ? createDeterministicModelClientRequestIdV01({ purpose, provider_request_trace_id: requestFingerprint, call_slot_id: "planner", model }) : null;
+          let receivedResult: { usage: ModelGatewayNormalizedUsageV01 | null } | null = null;
           if (isOperationalReentryMatchedCohortPurposeV01(purpose)) {
             if (
               input.input_kind !==
@@ -594,6 +599,7 @@ export function createOpenAIResponsesAdapterV01(
                     schema_fingerprint: schemaFingerprint,
                   })
                 : null,
+              null, receivedResult,
             );
           };
           lifecycle.report_input_bytes(utf8ByteLength(requestBody));
@@ -722,6 +728,15 @@ export function createOpenAIResponsesAdapterV01(
               provider_request_id: readProviderRequestIdV01(response),
             });
           }
+          // Keep only normalized reported counts before a Planner status/parse
+          // refusal. Incomplete reasoning can be billed without a public answer.
+          if (purpose === PLANNER_MODEL_GATEWAY_PURPOSE_V01) {
+            try { receivedResult = { usage: normalizeUsage(record.usage) }; }
+            catch { responseInvalid("response_usage_invalid", {
+              provider_status: boundedProviderStatusV01(record.status), incomplete_reason: boundedIncompleteReasonV01(record),
+              output_text_present: extractOutputText(record) !== null, provider_request_id: readProviderRequestIdV01(response),
+            }); }
+          }
           if (Object.hasOwn(record, "status") && record.status !== "completed") {
             responseInvalid("response_status_not_completed", {
               provider_status: boundedProviderStatusV01(record.status),
@@ -793,6 +808,17 @@ type PurposeCodec = {
   ): ModelAdapterInvocationResultV01;
 };
 
+/** Exact offline serialization seam. It prepares no session or authority and
+ * sends nothing; the invocable adapter uses the same serializer and codec. */
+export function projectOpenAIResponsesPlannerRequestV01(input: {
+  model: string; material: Extract<ModelAdapterInputV01, { input_kind: "planner_plan" }>;
+  max_output_tokens: number; max_input_bytes: number;
+}) {
+  return buildOpenAIResponsesRequestMaterialV01({ purpose: PLANNER_MODEL_GATEWAY_PURPOSE_V01,
+    codec: codecFor(input.material), model: input.model, implementation: describeOpenAIImplementation(PLANNER_MODEL_GATEWAY_PURPOSE_V01),
+    max_output_tokens: input.max_output_tokens, max_input_bytes: input.max_input_bytes });
+}
+
 function buildOpenAIResponsesRequestMaterialV01(input: {
   purpose: ModelGatewayPurposeV01;
   codec: PurposeCodec;
@@ -845,6 +871,8 @@ function buildOpenAIResponsesRequestMaterialV01(input: {
         },
       },
       max_output_tokens: input.max_output_tokens,
+      ...(input.purpose === PLANNER_MODEL_GATEWAY_PURPOSE_V01 && openAIPlannerReasoningConfiguration(input.model)
+        ? { reasoning: openAIPlannerReasoningConfiguration(input.model)!.reasoning } : {}),
       store: false,
     },
     Math.min(input.codec.final_request_bytes, input.max_input_bytes),
@@ -860,6 +888,8 @@ function buildOpenAIResponsesRequestMaterialV01(input: {
         purpose: input.purpose,
         provider: "openai",
         model: input.model,
+        ...(input.purpose === PLANNER_MODEL_GATEWAY_PURPOSE_V01 && openAIPlannerReasoningConfiguration(input.model)
+          ? { model_configuration: openAIPlannerReasoningConfiguration(input.model) } : {}),
         adapter_implementation_id:
           input.implementation.implementation_id,
         adapter_implementation_version:
@@ -1346,6 +1376,14 @@ function normalizeUsage(value: unknown): ModelGatewayNormalizedUsageV01 | null {
   const outputTokens = requireUsageCount(record.output_tokens);
   const totalTokens = requireUsageCount(record.total_tokens);
   let cachedInputTokens: number | undefined;
+  let reasoningTokens: number | undefined;
+  if (Object.hasOwn(record, "output_tokens_details")) {
+    const details = requireProviderRecord(record.output_tokens_details);
+    if (Object.hasOwn(details, "reasoning_tokens")) {
+      reasoningTokens = requireUsageCount(details.reasoning_tokens);
+      if (reasoningTokens > outputTokens) throw new Error("usage_invalid");
+    }
+  }
   if (Object.hasOwn(record, "input_tokens_details")) {
     const details = requireProviderRecord(record.input_tokens_details);
     cachedInputTokens = requireUsageCount(details.cached_tokens);
@@ -1361,6 +1399,7 @@ function normalizeUsage(value: unknown): ModelGatewayNormalizedUsageV01 | null {
       ? {}
       : { cached_input_tokens: cachedInputTokens }),
     output_tokens: outputTokens,
+    ...(reasoningTokens === undefined ? {} : { reasoning_tokens: reasoningTokens }),
     total_tokens: totalTokens,
   };
 }

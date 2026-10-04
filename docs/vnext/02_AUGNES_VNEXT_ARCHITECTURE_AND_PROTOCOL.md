@@ -907,7 +907,7 @@ separately from mechanical delivery and does not prove semantic validity.
 
 The grant binds project, packet, source inventory, physical root, host, current
 control revision, provider/model cost snapshot and an expiry of at most ten minutes.
-Its fixed ceilings are two model requests, 16,384 input bytes and 1,024 output tokens
+The legacy ceilings are two model requests, 16,384 input bytes and 1,024 output tokens
 per request, fifteen seconds per invocation, one read bundle of at most two regular
 files / 65,536 bytes, 4,096 excerpt bytes, ten seconds per read, and forty-five
 seconds per foreground host call. Local file deadlines are checked before and
@@ -918,6 +918,39 @@ costs, not extra completed action bundles. No command execution, retry or provid
 failover is available. Pricing rates and provenance are explicit operator inputs;
 the Gateway checks the quote, route and per-call ceiling, while actual cost remains
 unknown unless reported. Missing credentials or rates do not authorize fallback.
+
+The explicitly configured OpenAI Planner route `gpt-6.1-sol` adds one bounded
+alternative: `reasoning.effort=low`, `reasoning.mode=standard`, 4,096 total output
+tokens per request (reasoning plus public output), sixty seconds per invocation
+and 150 seconds per attempt from its first persisted claim, including restart.
+It stays within the existing shared Gateway/capability ceilings. The public
+judgment rationale remains limited to 1,200 UTF-8 bytes; source, input, action,
+call-count and no-retry limits do not increase. A provider may exhaust that token
+allowance before producing any public answer. This is a finite trial profile,
+not a guarantee of completion or a model-adequacy finding.
+
+The ordinary preview displays and binds this exact configuration and limits.
+Its versioned descriptor fingerprint is part of the existing model reference,
+cost authority and immutable grant, and the serializer binds it in its route
+fingerprint. Changing effort, mode, route or limits requires fresh authority.
+Historical grants remain readable with their original limits/projection; an old
+unbound model reference cannot authorize the new configured route. Other model
+routes retain their prior behavior. There is no model registry, automatic
+fallback or implicit follow-on allowance. Responses use `store:false`, no
+previous-response chain and no explicit service tier.
+
+For a returned incomplete Planner response, retain only allowlisted status,
+incomplete reason, public-output-presence and bounded request/schema attribution
+through the existing diagnostic/ledger/review path. Preserve reported usage when
+valid, including an optional `reasoning_tokens` count no greater than reported
+output tokens. Hidden reasoning and raw provider bodies are never retained. An
+incomplete `max_output_tokens` result is `returned_incomplete`, a resource-limit
+failure rather than a task judgment; it has no successful RunReceipt and cannot
+retry. Content filtering and unknown reasons stay distinct. Failure-receipt
+usage/cost semantics remain unchanged; reported incomplete/over-budget counts
+are separate evidence, not measured cost or successful execution. Missing legacy
+counts/diagnostics remain unavailable. These Gateway failures do not gain the
+host-rejected terminal-authorship exception below.
 
 Existing ledger steps own unissued, claimed/outcome-unknown, stored-result, and
 second-judgment attribution. Every claim commits before dispatch. Permission,

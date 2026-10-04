@@ -716,6 +716,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "stateless-sol-low",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning"],
+      label: "bound low reasoning, incomplete usage, restart and no-replay diagnostics",
+      ...rootNode("scripts/test-stateless-source-review.ts", "--sol-low"),
+      timeoutMs: 60_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "stateless-terminal-authorship",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning"],

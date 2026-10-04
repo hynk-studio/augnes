@@ -467,6 +467,8 @@ export class ModelGatewayAdapterFailureV01 extends Error {
     readonly provider_rejection_observation: ModelProviderRejectionObservationV01 | null = null,
     readonly provider_response_invalid_observation: ModelProviderResponseInvalidObservationV01 | null = null,
     readonly transport_failure_observation: ModelTransportFailureObservationV01 | null = null,
+    /** A received response may be incomplete; no normalized answer is implied. */
+    readonly received_result: { usage: ModelGatewayNormalizedUsageV01 | null } | null = null,
   ) {
     super("Model adapter invocation failed.");
     this.name = "ModelGatewayAdapterFailureV01";
@@ -479,8 +481,8 @@ export class ModelGatewayInvocationErrorV01 extends Error {
     readonly receipt: ModelInvocationReceiptV02 | null = null,
     readonly provider_rejection_observation: ModelProviderRejectionObservationV01 | null = null,
     readonly provider_response_invalid_observation: ModelProviderResponseInvalidObservationV01 | null = null,
-    /** An adapter returned a normalized result, subsequently refused by the
-     * Gateway. Only bounded reported usage survives, never output or cost. */
+    /** An adapter received a response or returned a normalized result, later
+     * refused. Only bounded reported usage survives, never output or cost. */
     readonly received_result: { usage: ModelGatewayNormalizedUsageV01 | null } | null = null,
     readonly transport_failure_observation: ModelTransportFailureObservationV01 | null = null,
   ) {
