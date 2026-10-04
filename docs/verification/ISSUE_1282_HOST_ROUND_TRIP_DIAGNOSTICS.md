@@ -1,7 +1,7 @@
 # Host-round-trip diagnostic boundary (#1282)
 
-The original #1282 contract below remains historical. The final section records
-the separately authorized prospective #1316 acceptance expansion.
+The original #1282 contract below remains historical. The final sections record
+the separately authorized prospective #1316 and #1394 acceptance expansions.
 
 This is diagnostic evidence, with no acceptance authority. The request-verdict
 owner, `expectedFailedRequest`, deadlines, polling, navigation, phase order and
@@ -113,7 +113,7 @@ its own new exact-head planner and deciding run. No old receipt transfers, and
 
 ## Prospective session-refusal cancellation contract (#1316)
 
-The private verdict owner now has two separate outcomes. The completed marked
+The #1316 private verdict owner introduced two separate outcomes. The completed marked
 unavailable-execution probe keeps its exact request, marker, 404 and explicit
 probe/body-completion requirements. The new
 `expected_session_refusal_cleanup_cancellation` outcome does not mean completed
@@ -127,7 +127,7 @@ client view, not revocation of a real server credential. Ordinary requests get
 no probe marker, changed headers, retries or timing changes.
 
 An authentic private handle connects the verdict owner to bounded live pins.
-The owner validates the same protocol connection/session/request, document,
+The original #1316 owner validates the same protocol connection/session/request, document,
 consumer, initial-read effect/generation and native controller, with an observed
 404 before canceled `net::ERR_ABORTED`. It requires exact-once refusal delivery,
 authenticated-to-locked and enabled-to-disabled transitions, and ordered
@@ -151,3 +151,58 @@ consumer/authentication scenario without forcing an intermittent abort; absence
 of cancellation is non-observation. Historical failures remain failed under
 their original contract. This expansion neither repairs the older HTTP 500
 nor establishes installed current-source restoration within its 10s deadline.
+
+## Cancellation before response headers (#1394)
+
+The reviewed #1394 head failed this contract on an initial read with no observed
+response headers. Its retained raw diagnostic trace records refusal, lock,
+cleanup, controller abort and cancellation settlement; the exported aliases
+cannot prove private identity or qualify that historical failure. Both failed
+deciding attempts remain failed under their original heads and contracts.
+
+A deterministic reproduction executes the current delegated-read hook,
+`loadPrivateView`, `updateSessionState`, current-read guard, branded Response and
+native AbortController together through the private verdict owner. It reproduces
+the rejection when authenticated effect cleanup cancels the pending fetch before
+headers. React commits and protocol events in this test are controlled transport,
+not Browser evidence. Waiting for a 404 would change the application's legitimate
+cleanup behavior; the correction belongs to this prospective verification
+contract. Application fetch, authentication, cleanup and polling are unchanged.
+
+The cancellation outcome now permits exactly two response states, after the
+same complete private causal proof:
+
+- An observed 404 in both private protocol owners, after this request starts and
+  before its canceled failure. Existing unknown or abort-failed body settlement
+  remains supported.
+- No response in either private protocol owner: status is null, response
+  sequence is absent, and the hook has no headers, body-start, body-failure or
+  body-completion observation. This reports `response_observed: false`,
+  `response_status: null`, `body_settlement: "unknown"` and
+  `completed_read: false`. It never manufactures a 404 or successful read.
+
+The observed case explicitly reports `response_observed: true` and
+`response_status: 404`. Both cases require the same authenticated initial read,
+exact branded 401 consumed after the current-read guard, locked state, next
+disabled effect, same-controller cleanup/abort bracket, and canceled
+`net::ERR_ABORTED` settlement. The signal, aborted-read and consumer-return
+sequence and network failure must finish before the scenario seal. Settlement
+must still belong to the locked consumer. The seal continues to follow the
+existing locked/hidden UI and no-write/authority assertions.
+
+Absence of headers alone grants no exception. Private connection/session/request,
+document, consumer, effect and controller correlation must remain complete and
+unambiguous. Lost observations, disagreement between the protocol owners,
+late or duplicate responses, an application-observed response without its
+protocol evidence, other statuses, independent fetch/body failures, completed
+bodies, wrong controllers, stale consumers, polling, navigation and unmount
+remain refusals. Missing body settlement still makes the public diagnostic
+snapshot incomplete; those public summaries never supply acceptance authority.
+
+Positive tests cover both response states and abort-failed bodies. The negative
+private-owner matrix covers both states, and combined source-callback tests
+exercise stale reads, invalid JSON, 403, copied/unbranded Responses and independent
+fetch/body failure. The completed marked-probe contract is unchanged. Synthetic
+proof, prospective exact-head Browser qualification and the historical failed
+receipts remain separate evidence; only a new clean-head deciding run can remove
+the current verification HOLD.

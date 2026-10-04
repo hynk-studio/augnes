@@ -65,8 +65,14 @@ export function createProjectExperienceRequestVerdictV1({ cancellationEvidence }
       consumer.documentKey !== generation.documentKey || generation.owner !== 'delegated_work_initial_read') {
       return rejected('cancellation_refusal_unbound');
     }
-    if (!response || response.path !== PROBE_PATH || response.status !== 404 || !pin.responseBeforeFailure ||
-      pin.status !== 404 || entry.error_text !== 'net::ERR_ABORTED' || pin.error !== 'net::ERR_ABORTED' ||
+    // Cancellation can settle before headers. Both private protocol owners must
+    // agree on the absence; neither a missing status alone nor a public pin can
+    // establish this case. Any observed response still has to be the same 404.
+    const observed404 = response?.path === PROBE_PATH && response.status === 404 &&
+      context.response === response && pin.response === true && pin.responseBeforeFailure === true && pin.status === 404;
+    const beforeHeaders = response === null && context.response === null && pin.response === false &&
+      pin.responseBeforeFailure === false && pin.status === null && pin.responseSequence === undefined;
+    if ((!observed404 && !beforeHeaders) || entry.error_text !== 'net::ERR_ABORTED' || pin.error !== 'net::ERR_ABORTED' ||
       canceled !== true || pin.canceled !== true || pin.failurePhase !== PROBE_PHASE) {
       return rejected('cancellation_response_or_failure_mismatch');
     }
@@ -96,7 +102,7 @@ export function createProjectExperienceRequestVerdictV1({ cancellationEvidence }
     if (enabled.enabled !== true || enabled.auth !== 'authenticated' || initial.auth !== 'authenticated' ||
       [read, controller, fetch, refused].some(event => event.auth !== 'authenticated') || refused.status !== 401 ||
       scenario.delivery.event !== refused || locked.auth !== 'locked_or_refused' || disabled.enabled !== false ||
-      [effectCleanup, cleanup, abort, signal, returned, disabled].some(event => event.auth !== 'locked_or_refused') ||
+      [effectCleanup, cleanup, abort, signal, returned, disabled, settled, consumerReturned].some(event => event.auth !== 'locked_or_refused') ||
       consumer.events.some(event => event.kind === 'consumer_disposed' && event.sequence <= scenario.sealSequence) ||
       consumer.events.some(event => event.kind === 'auth_transition_requested' &&
         event.sequence <= scenario.sealSequence && event !== authenticated && event !== locked &&
@@ -107,9 +113,10 @@ export function createProjectExperienceRequestVerdictV1({ cancellationEvidence }
       (index === 0 || values[index - 1] < value));
     if (!ordered([...chain.map(event => event.sequence), pin.sequence, refused.sequence, locked.sequence,
       effectCleanup.sequence, cleanup.sequence, abort.sequence, signal.sequence, returned.sequence]) ||
-      returned.sequence >= pin.failureSequence || !ordered([pin.responseSequence, pin.failureSequence]) ||
+      !ordered([returned.sequence, pin.failureSequence, scenario.sealSequence]) ||
+      (observed404 && !ordered([pin.sequence, pin.responseSequence, pin.failureSequence])) ||
       !ordered([returned.sequence, disabled.sequence, scenario.sealSequence]) ||
-      !ordered([signal.sequence, settled.sequence, consumerReturned.sequence])) {
+      !ordered([signal.sequence, settled.sequence, consumerReturned.sequence, scenario.sealSequence])) {
       return rejected('cancellation_order_mismatch');
     }
     // A later cleanup never repairs an independently failed read/body. Body
@@ -119,6 +126,7 @@ export function createProjectExperienceRequestVerdictV1({ cancellationEvidence }
     const bodyStarted = events.filter(event => event.kind === 'body_read_started');
     if (pin.finished || events.some(event => event.kind === 'read_failed' || event.kind === 'body_read_completed' || event.kind === 'probe_completed') ||
       bodyFailed.length > 1 || headers.length > 1 || bodyStarted.length > 1 ||
+      (beforeHeaders && (headers.length !== 0 || bodyStarted.length !== 0 || bodyFailed.length !== 0)) ||
       headers.some(event => event.status !== 404) ||
       bodyFailed.some(event => event.sequence <= signal.sequence || event.sequence >= settled.sequence) ||
       (bodyStarted.length !== bodyFailed.length) || (headers.length !== bodyStarted.length) ||
@@ -126,6 +134,7 @@ export function createProjectExperienceRequestVerdictV1({ cancellationEvidence }
       return rejected('cancellation_independent_read_failure');
     }
     return { expected: true, reason: 'expected_session_refusal_cleanup_cancellation',
+      response_observed: observed404, response_status: observed404 ? 404 : null,
       body_settlement: bodyFailed.length ? 'failed' : 'unknown', completed_read: false };
   }
 
