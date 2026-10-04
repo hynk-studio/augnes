@@ -1013,7 +1013,9 @@ attested by an unavailable source database. Receiving labels remain
 accepted state. Original note identity/provenance remains in the immutable
 snapshot; destination-selected notes acquire destination identities and imported
 trust without changing their text. The destination locator binds the snapshot and
-original entry; selected-note projection exposes its original source/provenance.
+original entry; selected-note projection exposes its original source/provenance
+only when the complete selected entry still matches the imported entry. Locally
+edited notes retain their own attribution, even when their locator is unchanged.
 
 The authenticated review UI uploads/reviews this material and previews ordinary
 first-work authorship in a fresh selected project. The existing atomic writer

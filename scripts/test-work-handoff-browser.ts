@@ -21,6 +21,7 @@ import { readSelectedWorkSources, selectedWorkSourceInput } from "../lib/intake/
 import { previewActivePortableProjectV01 } from "../lib/vnext/portability/portable-project";
 import { runDirectNativeHostRoundTripV01 } from "../lib/vnext/runtime/direct-native-host-round-trip";
 import { readWorkHandoff, handoffHash } from "../lib/vnext/work-handoff";
+import { readStatelessSelectedNotes } from "../lib/vnext/stateless-work";
 import { canonicalizeProtocolValueV01 as canonical } from "../lib/vnext/protocol-primitives";
 import { validateRecoveryCanonicalDatabaseV01 } from "./recovery-canonical-record-validator";
 class CDP {
@@ -116,6 +117,24 @@ async function main() {
   const next = await http("/api/vnext/operator/project-continuity", request); await http("/api/vnext/operator/project-continuity", next.request, 201);
   assert.deepEqual(readWorkHandoff(current()), snapshot); assert.equal(current().capability_grant, null); assert.equal(calls, 0);
   await http(endpoint, { action: "receive", request: previewRequest, expected_preview: handoffHash(previewRequest) }, 409);
+  const importedNotes = readSelectedWorkSources(current()).map(selectedWorkSourceInput);
+  async function reviseNotes(notes: typeof importedNotes) {
+    const work = readProjectWorkInitializationV01(db, config), packet = current();
+    const compared = (await http("/api/vnext/operator/project-continuity", { action: "compare_selected_work_sources", expected_current_packet_id: packet.packet_id, expected_current_packet_fingerprint: packet.integrity.fingerprint, notes })).comparison;
+    await http("/api/vnext/operator/project-continuity", { action: "revise_pre_execution_project_work", workspace_id: config.workspace_id, project_id: config.project_id,
+      expected_active_project_id: config.project_id, expected_active_selection_revision: work.active_selection_revision,
+      expected_current_packet_id: packet.packet_id, expected_current_packet_fingerprint: packet.integrity.fingerprint,
+      expected_current_lineage_kind: work.current_packet!.lineage_kind, ...work.current_work,
+      selected_source_context: compared.entries, expected_source_comparison: compared.fingerprint }, 201);
+  }
+  // A locator alone cannot attribute locally edited content to the original note.
+  await reviseNotes(importedNotes.map((note, i) => i ? note : { ...note, text: "Receiving operator's changed interpretation.", provenance: "derived_interpretation" }));
+  assert.equal(readStatelessSelectedNotes(current()).notes[0]!.imported_attribution, undefined);
+  assert.equal(readStatelessSelectedNotes(current()).notes[0]!.text, "Receiving operator's changed interpretation.");
+  assert.deepEqual(readWorkHandoff(current()), snapshot); assert.equal(calls, 0);
+  await reviseNotes(importedNotes);
+  assert.equal(readStatelessSelectedNotes(current()).notes[0]!.imported_attribution!.source_entry_id, snapshot.selected_notes[0].entry_id);
+  assert.equal(current().capability_grant, null); assert.equal(readProjectAutomationControlV01(db, config)?.enabled ?? false, false);
   const material = { question: "What does the current selected source establish?", files: [{ path: "entry.ts", start_line: 1, end_line: 1 }] };
   await http(reviewEndpoint, { action: "prepare", material }); assert.deepEqual(readWorkHandoff(current()), snapshot);
   await http(reviewEndpoint, { action: "preview", pricing: { input_nano_usd_per_byte: 1000, output_nano_usd_per_token: 1000, maximum_total_nano_usd: 100000000, source_version: "scripted-only" } }, 409);

@@ -118,6 +118,10 @@ const importedNoteLocator = (h: WorkHandoff, e: TaskContextPacketSelectedEntryV0
 export function handoffNoteAttribution(packet: TaskContextPacketV01, entry: TaskContextPacketSelectedEntryV01) {
   const h = readWorkHandoff(packet); if (!h) return null;
   const source = selectedWorkSourceInput(entry).source, original = h.selected_notes.find(e => importedNoteLocator(h, e) === source);
-  return original ? { handoff_fingerprint: h.fingerprint, source_entry_id: original.entry_id, source_ref: original.source_ref,
-    original_source: selectedWorkSourceInput(original).source, original_provenance: original.trust_class } : null;
+  if (!original) return null;
+  const imported = buildSelectedWorkSourceEntry(packet, { ...selectedWorkSourceInput(original), source, provenance: "imported_unverified" });
+  // Local edits keep their own attribution; a retained locator is not identity.
+  if (canonical(imported) !== canonical(entry)) return null;
+  return { handoff_fingerprint: h.fingerprint, source_entry_id: original.entry_id, source_ref: original.source_ref,
+    original_source: selectedWorkSourceInput(original).source, original_provenance: original.trust_class };
 }
