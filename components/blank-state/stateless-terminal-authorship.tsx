@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { readTerminalAuthorshipPreparation, previewTerminalAuthorship } from "@/lib/vnext/runtime/stateless-terminal-authorship";
 
 type Preparation = NonNullable<ReturnType<typeof readTerminalAuthorshipPreparation>>;
@@ -15,11 +15,22 @@ export function StatelessTerminalAuthorship({ preparation, material, request, sa
   const [selected, setSelected] = useState(preparation.sources.filter(e => {
     try { return JSON.parse(e.bounded_summary ?? "{}").profile !== "stateless_source_review.v0.1"; } catch { return true; }
   }).map(e => e.entry_id));
-  const [comparison, setComparison] = useState<Preview | null>(null);
+  const [comparisonResult, setComparison] = useState<{ value: Preview; identity: string } | null>(null);
   const [reasons, setReasons] = useState<Record<string, string>>({});
-  const [preview, setPreview] = useState<{ value: Preview; request: unknown } | null>(null);
+  const [previewResult, setPreview] = useState<{ value: Preview; request: unknown; identity: string } | null>(null);
   const [message, setMessage] = useState(""); const [busy, setBusy] = useState(false);
-  function reset() { setComparison(null); setPreview(null); setMessage(""); }
+  const revision = useRef(0), sequence = useRef(0), mounted = useRef(true);
+  const context = JSON.stringify([preparation, material]);
+  const comparisonIdentity = JSON.stringify([context, definition, selected]);
+  const identity = JSON.stringify([comparisonIdentity, reasons]);
+  const currentIdentity = useRef(identity); currentIdentity.current = identity;
+  // Hide stale values in the material-change render, before the effect clears
+  // them. An old request must never be submitted beside a newer displayed draft.
+  const comparison = comparisonResult?.identity === comparisonIdentity ? comparisonResult.value : null;
+  const preview = previewResult?.identity === identity ? previewResult : null;
+  function reset(clearComparison = true) { revision.current++; if (clearComparison) setComparison(null); setPreview(null); setMessage(""); }
+  useEffect(() => { revision.current++; setComparison(null); setPreview(null); setMessage(""); }, [context]);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; sequence.current++; }; }, []);
   function authoredRequest() {
     return { predecessor: preparation.binding, definition, material, notes: selected.map(id => {
       const e = sources.find(s => s.entry_id === id)!;
@@ -27,8 +38,12 @@ export function StatelessTerminalAuthorship({ preparation, material, request, sa
         : { source: e.compatibility_source_ref!.external_id, text: e.bounded_summary, observed_at: e.external_ref?.observed_at ?? null, provenance: e.trust_class, label: e.why_included };
     }), omitted_sources: (comparison?.comparison.unselected_previous ?? []).map(e => ({ source_binding: e.source_ref!, reason: reasons[e.source_ref!] ?? "" })) };
   }
-  async function act(fn: () => Promise<void>) {
-    setBusy(true); setMessage(""); try { await fn(); } catch (e) { setMessage(e instanceof Error ? e.message : "Authorship refused. Read current work again."); } finally { setBusy(false); }
+  async function act(fn: (current: () => boolean) => Promise<void>) {
+    const id = ++sequence.current, atRevision = revision.current, atIdentity = identity;
+    const current = () => mounted.current && id === sequence.current && atRevision === revision.current && atIdentity === currentIdentity.current;
+    setBusy(true); setMessage(""); try { await fn(current); }
+    catch (e) { if (current()) setMessage(e instanceof Error ? e.message : "Authorship refused. Read current work again."); }
+    finally { if (mounted.current && id === sequence.current) setBusy(false); }
   }
   return <details data-stateless-terminal-authorship="v0.1"><summary>Prepare new work linked to this stopped attempt</summary>
     <p>{preparation.warning}</p>
@@ -42,17 +57,22 @@ export function StatelessTerminalAuthorship({ preparation, material, request, sa
       <p>Source: {e.compatibility_source_ref?.external_id}; observed: {e.external_ref?.observed_at ?? "unavailable"}</p>
       <p style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{e.bounded_summary}</p>
     </div>)}
-    <button disabled={busy || preparation.recovery_suspended || !material.question || !material.files.length} onClick={() => void act(async () => {
+    <button disabled={busy || preparation.recovery_suspended || !material.question || !material.files.length} onClick={() => void act(async current => {
       setPreview(null); const body = { ...authoredRequest(), omitted_sources: [] };
-      setComparison((await request({ action: "compare_terminal_sources", request: body })).preparation); setReasons({});
+      const value: Preview = (await request({ action: "compare_terminal_sources", request: body })).preparation;
+      if (!current()) return;
+      setComparison({ value, identity: comparisonIdentity });
+      setReasons(prior => Object.fromEntries(value.comparison.unselected_previous.filter(e => prior[e.source_ref!] !== undefined).map(e => [e.source_ref!, prior[e.source_ref!]!])));
     })}>Compare selected context for new work</button>
     {comparison && <div>
       <p>{comparison.preparation_bytes} local bytes checked. No model call or execution authority.</p>
       {comparison.comparison.unselected_previous.map(e => <label key={e.entry_id}>Reason for leaving out: {e.compatibility_source_ref?.external_id}
-        <input aria-label={`Omission reason ${e.entry_id}`} value={reasons[e.source_ref!] ?? ""} onChange={event => { setReasons({ ...reasons, [e.source_ref!]: event.target.value }); setPreview(null); }} />
+        <input aria-label={`Omission reason ${e.entry_id}`} value={reasons[e.source_ref!] ?? ""} onChange={event => { setReasons({ ...reasons, [e.source_ref!]: event.target.value }); reset(false); }} />
       </label>)}
-      <button disabled={busy || comparison.comparison.unselected_previous.some(e => !reasons[e.source_ref!]?.trim())} onClick={() => void act(async () => {
-        const body = authoredRequest(); setPreview({ request: body, value: (await request({ action: "preview_terminal_work", request: body })).preparation });
+      <button disabled={busy || comparison.comparison.unselected_previous.some(e => !reasons[e.source_ref!]?.trim())} onClick={() => void act(async current => {
+        setPreview(null); const body = authoredRequest();
+        const value: Preview = (await request({ action: "preview_terminal_work", request: body })).preparation;
+        if (current()) setPreview({ request: body, value, identity });
       })}>Preview linked authorship</button>
     </div>}
     {preview && <div data-terminal-authorship-preview>
@@ -61,6 +81,7 @@ export function StatelessTerminalAuthorship({ preparation, material, request, sa
       <p>Selected notes and operational lineage above will be saved. Automation stays unchanged. This creates a new packet with no execution grant; execution needs separate authorization.</p>
       <details><summary>Review exact bindings</summary><pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{JSON.stringify({ preview: preview.value.preview_binding, predecessor: preview.value.material.predecessor, root: preview.value.material.root_fingerprint, direction: preview.value.material.direction_ref, selection: preview.value.material.selection_revision }, null, 2)}</pre></details>
       <button disabled={busy} onClick={() => void act(async () => {
+        if (preview.identity !== currentIdentity.current) return;
         await request({ action: "author_terminal_work", request: preview.request, expected_preview: preview.value.preview_binding }); setPreview(null); setComparison(null); await saved(); setMessage("New linked work saved with no execution permission. The stopped attempt remains unchanged.");
       })}>Author new linked work</button>
     </div>}

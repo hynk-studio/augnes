@@ -83,7 +83,8 @@ export function StatelessSourceReview({ projectId }: { projectId: string }) {
       {review.stage === "disposition_invalid" && <p>The saved work decision could not be validated. Execution remains blocked; the earlier outcome is unresolved.</p>}
       {review.run.steps.map(step => <p key={step.title}>{step.title}: {step.status}{step.output.judgment ? ` — ${step.output.judgment.rationale}` : step.output.observation ? ` — ${step.output.observation.availability}, ${step.output.observation.bytes_read} bytes` : ""}</p>)}
       {review.failures.map((failure, index) => <StatelessReviewFailure key={`${failure.step_id}:${index}`} review={failure} />)}
-      {review.terminal_preparation && <StatelessTerminalAuthorship key={`${review.run.run_id}:${question}:${JSON.stringify(files)}`} preparation={review.terminal_preparation} material={{ question, files: files.filter(f => f.path) }} request={request} saved={refresh} />}
+      {/* Material edits keep the draft; a different historical predecessor starts a new one. */}
+      {review.terminal_preparation && <StatelessTerminalAuthorship key={`${projectId}:${JSON.stringify(review.terminal_preparation.binding)}`} preparation={review.terminal_preparation} material={{ question, files: files.filter(f => f.path) }} request={request} saved={refresh} />}
       {review.stage === "ready" && <button disabled={busy} onClick={() => void act(async () => { await request({ action: "continue", run_id: review.run.run_id }); await refresh(); })}>Continue from saved results</button>}
       {review.disposition_preparation && !review.disposition_preparation.disposition && <button disabled={busy} onClick={() => void act(async () => {
         await request({ action: "end_work", binding: review.disposition_preparation!.binding }); await refresh();

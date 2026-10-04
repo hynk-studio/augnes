@@ -16,6 +16,11 @@ import { issueVNextLocalOperatorBootstrapV01, consumeVNextLocalOperatorBootstrap
   revokeVNextLocalOperatorSessionByCredentialV01, VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01, VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01 } from "../lib/vnext/runtime/local-operator-session";
 import { readProjectAutomationControlV01 } from "../lib/vnext/persistence/project-control-store";
 import { readProjectWorkInitializationV01 } from "../lib/vnext/runtime/project-work-initialization";
+import { readSelectedWorkSources } from "../lib/intake/selected-work-source-comparison";
+import { readSourceReview, statelessMandatoryEntries } from "../lib/vnext/stateless-work";
+import { canonicalizeProtocolValueV01 as canonical } from "../lib/vnext/protocol-primitives";
+import { listVNextCoreRecordsV01 } from "../lib/vnext/persistence/durable-semantic-store";
+import type { TaskContextPacketV01 } from "../types/vnext/task-context-packet";
 
 class CDP {
   ws: WebSocket; next = 0; pending = new Map<number, { ok: (v: any) => void; no: (e: Error) => void; timer: ReturnType<typeof setTimeout> }>();
@@ -39,21 +44,32 @@ async function main() {
   const guard = installZeroNetworkGuard({ allowLoopback: true }), db = new Database(config.database_path), clock = { now: () => at };
   const owned = new Set(); let child: ReturnType<typeof registerOwnedChild> | undefined, c: CDP | undefined, cookie = "", origin = "";
   let external = 0, failures = 0; const actions: string[] = [], responses: Array<{ status: number; error: string | null }> = [];
+  let holdNext = ""; const held: Array<() => void> = []; let submitted: any = null;
   const route = createStatelessSourceReviewHandler({ clock, environment: { NODE_ENV: "test", AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1", AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: config.workspace_id,
     AUGNES_VNEXT_OPERATOR_PROJECT_ID: config.project_id, AUGNES_VNEXT_OPERATOR_ID: config.operator_id, AUGNES_DB_PATH: config.database_path, OPENAI_API_KEY: "" } });
   const endpoint = `/api/vnext/operator/stateless-source-review?project_id=${config.project_id}`;
   const counts = () => [db.prepare("SELECT COUNT(*) n FROM autonomy_runs").get(), db.prepare("SELECT COUNT(*) n FROM vnext_core_records WHERE record_kind='capability_grant'").get()];
   const before = counts(); let script = "";
+  const history = () => canonical(["autonomy_runs", "autonomy_run_steps", "autonomy_run_events"].map(table => db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all()));
+  const beforeHistory = history(), beforeControl = canonical(readProjectAutomationControlV01(db, config));
+  const currentPacket = () => {
+    const id = readProjectWorkInitializationV01(db, config).current_packet!.packet_id;
+    return listVNextCoreRecordsV01(db, { ...config, record_kinds: ["task_context_packet"], limit: 128 }).find(r => r.record_id === id)!.payload as TaskContextPacketV01;
+  };
+  const priorPacket = currentPacket();
+  const observations: Record<string, boolean> = {};
   const server = trackServerConnections(createServer(async (req, res) => {
     try {
       if (req.url === "/app.js") { res.setHeader("Content-Type", "application/javascript"); res.end(script); return; }
       if (!req.url?.startsWith("/api/")) { res.setHeader("Content-Type", "text/html"); res.end('<div id="root"></div><script src="/app.js"></script>'); return; }
       const chunks: Buffer[] = []; for await (const chunk of req) chunks.push(Buffer.from(chunk)); const body = Buffer.concat(chunks).toString();
-      if (body) actions.push(JSON.parse(body).action);
+      const action = body ? JSON.parse(body).action : ""; if (action) actions.push(action);
+      if (action === "author_terminal_work") submitted = JSON.parse(body).request;
       const response = await route(new Request(origin + req.url, { method: req.method, headers: req.headers as Record<string, string>, ...(body ? { body } : {}) }));
       response.headers.forEach((v, k) => res.setHeader(k, v));
       if (response.headers.get("set-cookie")) cookie = response.headers.get("set-cookie")!.split(";")[0]!;
       const text = await response.text(); responses.push({ status: response.status, error: JSON.parse(text).error ?? null });
+      if (holdNext && action === holdNext) { holdNext = ""; await new Promise<void>(release => held.push(release)); }
       res.statusCode = response.status; res.end(text);
     } catch { failures++; res.statusCode = 500; res.end("fixture_http_failed"); }
   }));
@@ -81,24 +97,88 @@ async function main() {
     await c.send("Page.navigate", { url: origin });
     const click = async (text: string) => { await until(() => browser.eval(`[...document.querySelectorAll('button')].some(e=>e.textContent===${JSON.stringify(text)}&&!e.disabled)`), text); await browser.eval(`[...document.querySelectorAll('button')].find(e=>e.textContent===${JSON.stringify(text)}).click()`); };
     const set = (selector: string, value: string) => browser.eval(`(()=>{const e=document.querySelector(${JSON.stringify(selector)}); Object.getOwnPropertyDescriptor(e.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype,'value').set.call(e,${JSON.stringify(value)});e.dispatchEvent(new Event('input',{bubbles:true}));})()`);
-    await until(() => browser.eval("!!document.querySelector('[data-stateless-source-review]')"), "component");
-    await browser.eval("document.querySelector('[data-stateless-source-review]').open=true");
-    await click("Read saved source reviews"); await until(() => browser.eval("!!document.querySelector('[data-stateless-terminal-authorship]')"), "review");
-    await set('[aria-label="Source-review question"]', request.material.question); await set('[aria-label="Review file 1"]', request.material.files[0].path);
-    await set('input[type="number"]', String(request.material.files[0].start_line));
-    await set('label:has(input[type="number"]) + label input', String(request.material.files[0].end_line));
+    const load = async () => {
+      await until(() => browser.eval("!!document.querySelector('[data-stateless-source-review]')"), "component");
+      await browser.eval("document.querySelector('[data-stateless-source-review]').open=true");
+      await click("Read saved source reviews"); await until(() => browser.eval("!!document.querySelector('[data-stateless-terminal-authorship]')"), "review");
+      await set('[aria-label="Source-review question"]', request.material.question); await set('[aria-label="Review file 1"]', request.material.files[0].path);
+      await set('input[type="number"]', String(request.material.files[0].start_line));
+      await set('label:has(input[type="number"]) + label input', String(request.material.files[0].end_line));
+      await browser.eval("document.querySelector('[data-stateless-terminal-authorship]').open=true");
+    };
+    const define = async () => {
+      await set('[aria-label="New work goal"]', request.definition.goal);
+      await set('[aria-label="New work success criteria"]', request.definition.success_criteria.join("\n"));
+      await set('[aria-label="New work non-goals"]', request.definition.non_goals.join("\n"));
+    };
+    const note = "[...document.querySelectorAll('[data-stateless-terminal-authorship] label')].find(e=>e.textContent.includes('Changed assumption / user correction')).querySelector('input')";
+    const selectNote = async (selected: boolean) => { await browser.eval(`(()=>{const e=${note};if(e.checked!==${selected})e.click();})()`); };
+    const omissionValues = () => browser.eval("Object.fromEntries([...document.querySelectorAll('input[aria-label^=\"Omission reason\"]')].map(e=>[e.getAttribute('aria-label'),e.value]))") as Promise<Record<string, string>>;
+    const compare = async () => { await click("Compare selected context for new work"); await until(() => browser.eval("!!document.querySelector('input[aria-label^=\"Omission reason\"]')"), "comparison"); };
+    const fillReasons = async () => { for (const [label, value] of Object.entries(await omissionValues())) if (!value) await set(`[aria-label=${JSON.stringify(label)}]`, "Explicit non-selection for this new task; retain the source as historical context only."); };
+    const previewReady = () => until(() => browser.eval("!!document.querySelector('[data-terminal-authorship-preview]')"), "preview");
+    const settled = () => until(() => browser.eval("[...document.querySelectorAll('button')].some(e=>e.textContent==='Compare selected context for new work'&&!e.disabled)"), "request_settled");
+    await load(); await define(); await selectNote(false); await compare(); await fillReasons();
+    const reasons = await omissionValues();
+    await click("Preview linked authorship"); await previewReady();
+    await set('[aria-label="Source-review question"]', "Inspect only the second source line and attribute its direct observation.");
+    await set('[aria-label="Review file 1"]', "editing-path.ts"); await set('[aria-label="Review file 1"]', "entry.ts");
+    await set('input[type="number"]', "2");
+    observations.draft_survived_material_edits = await browser.eval(`document.querySelector('[aria-label="New work goal"]').value===${JSON.stringify(request.definition.goal)}&&document.querySelector('[aria-label="New work success criteria"]').value===${JSON.stringify(request.definition.success_criteria.join("\n"))}&&document.querySelector('[aria-label="New work non-goals"]').value===${JSON.stringify(request.definition.non_goals.join("\n"))}&&!(${note}).checked`);
+    observations.material_invalidated_preview = await browser.eval("!document.querySelector('[data-terminal-authorship-preview]')");
     await browser.eval("document.querySelector('[data-stateless-terminal-authorship]').open=true");
-    await set('[aria-label="New work goal"]', request.definition.goal); await set('[aria-label="New work success criteria"]', request.definition.success_criteria.join("\n")); await set('[aria-label="New work non-goals"]', request.definition.non_goals.join("\n"));
-    await click("Compare selected context for new work"); await until(() => browser.eval("!!document.querySelector('input[aria-label^=\"Omission reason\"]')"), "comparison");
-    const labels = await c.eval("[...document.querySelectorAll('input[aria-label^=\"Omission reason\"]')].map(e=>e.getAttribute('aria-label'))");
-    for (const label of labels) await set(`[aria-label=${JSON.stringify(label)}]`, "Explicit new source question; prior inventory remains historical.");
-    await click("Preview linked authorship"); await click("Author new linked work");
+    await compare(); const afterReasons = await omissionValues();
+    observations.applicable_omission_reasons_survived = Object.entries(reasons).every(([key, value]) => afterReasons[key] === value);
+
+    // Keep this draft throughout. The response is produced by the authenticated
+    // owner, then held at HTTP delivery while the user changes their selection.
+    await selectNote(true); await compare(); await fillReasons();
+    holdNext = "preview_terminal_work"; await click("Preview linked authorship"); await until(async () => held.length === 1, "held_preview");
+    await selectNote(false); held.shift()!(); await settled();
+    observations.delayed_preview_discarded_after_note_edit = await browser.eval(`!document.querySelector('[data-terminal-authorship-preview]')&&!(${note}).checked`);
+    await selectNote(true);
+    holdNext = "compare_terminal_sources"; await click("Compare selected context for new work"); await until(async () => held.length === 1, "held_comparison");
+    await set('[aria-label="New work goal"]', request.definition.goal + " after a pending comparison"); await selectNote(false);
+    held.shift()!(); await settled();
+    observations.delayed_comparison_discarded_after_draft_edit = Object.keys(await omissionValues()).length === 0;
+    console.log(JSON.stringify({ ui_state_observations: observations }));
+    assert.ok(Object.values(observations).every(Boolean), `terminal_ui_state_findings:${JSON.stringify(observations)}`);
+
+    // A fresh compare/preview/save must use the displayed edited draft, without
+    // selecting the omitted note or touching any execution/history record.
+    await compare(); await fillReasons(); await click("Preview linked authorship"); await previewReady();
+    // Omission edits also invalidate pending previews, without discarding the comparison.
+    const reasonLabel = Object.keys(await omissionValues())[0]!;
+    await set(`[aria-label=${JSON.stringify(reasonLabel)}]`, "Updated explicit omission rationale.");
+    holdNext = "preview_terminal_work"; await click("Preview linked authorship"); await until(async () => held.length === 1, "held_reason_preview");
+    await set(`[aria-label=${JSON.stringify(reasonLabel)}]`, "Final explicit omission rationale."); held.shift()!(); await settled();
+    assert.equal(await browser.eval("!!document.querySelector('[data-terminal-authorship-preview]')"), false);
+    await click("Preview linked authorship"); await previewReady();
+    const finalReasons = await omissionValues();
+    await click("Author new linked work");
     try { await until(() => browser.eval("document.body.innerText.includes('New linked work saved with no execution permission.')"), "saved"); }
     catch { throw new Error(`browser_authorship_failed:${JSON.stringify(responses)}`); }
-    assert.equal(readProjectWorkInitializationV01(db, config).current_packet?.lineage_kind, "stateless_review_terminal_successor");
+    const current = readProjectWorkInitializationV01(db, config).current_packet!;
+    const packet = currentPacket();
+    assert.equal(current.lineage_kind, "stateless_review_terminal_successor");
+    const expectedDefinition = { ...request.definition, goal: request.definition.goal + " after a pending comparison" };
+    assert.deepEqual(packet.task, expectedDefinition); assert.deepEqual(submitted.definition, expectedDefinition); assert.equal(packet.capability_grant, null);
+    assert.deepEqual(submitted.material, { question: "Inspect only the second source line and attribute its direct observation.", files: [{ path: "entry.ts", start_line: 2, end_line: 2 }] });
+    const omittedNote = readSelectedWorkSources(priorPacket).find(e => e.why_included === "Changed assumption / user correction")!;
+    assert.ok(!submitted.notes.some((n: any) => n.saved_source_id === omittedNote.entry_id));
+    assert.deepEqual(submitted.omitted_sources.map((e: any) => e.reason).sort(), Object.values(finalReasons).sort());
+    const authoredMaterial = packet.selected_context.find(e => e.entry_id === "stateless_returned_attempt_successor.v0.1:source")!;
+    assert.deepEqual(JSON.parse(authoredMaterial.bounded_summary!).omitted_sources, submitted.omitted_sources);
+    assert.equal(readSourceReview(packet).question, "Inspect only the second source line and attribute its direct observation.");
+    assert.equal(readSourceReview(packet).files[0]!.start_line, 2);
+    assert.ok(!readSelectedWorkSources(packet).some(e => e.why_included === "Changed assumption / user correction"));
+    for (const entry of statelessMandatoryEntries(priorPacket)) assert.ok(packet.selected_context.some(e => canonical(e) === canonical(entry)));
+    assert.equal(history(), beforeHistory); assert.equal(canonical(readProjectAutomationControlV01(db, config)), beforeControl);
     assert.deepEqual(counts(), before); assert.equal(readProjectAutomationControlV01(db, config)!.enabled, false);
-    assert.deepEqual(actions, ["compare_terminal_sources", "preview_terminal_work", "author_terminal_work"]); assert.equal(external, 0); assert.equal(failures, 0); assert.equal(guard.attempts.length, 0);
+    assert.equal(actions.filter(a => a === "author_terminal_work").length, 1); assert.ok(actions.every(a => ["compare_terminal_sources", "preview_terminal_work", "author_terminal_work"].includes(a)));
+    assert.equal(external, 0); assert.equal(failures, 0); assert.equal(guard.attempts.length, 0);
   } finally {
+    held.splice(0).forEach(release => release());
     try {
       if (cookie) { const credential = readVNextLocalOperatorCredentialFromRequestV01(new Request(origin, { headers: { cookie } })); assert.ok(revokeVNextLocalOperatorSessionByCredentialV01(db, { config, credential, clock }).revoked_at);
         assert.equal((await route(new Request(origin + endpoint, { headers: { host: new URL(origin).host, origin, cookie } }))).status, 401); }

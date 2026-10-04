@@ -446,9 +446,17 @@ After packet/grant expiry and with automation disabled and no provider credentia
 compare selected notes, preview current bindings and explicitly author a fresh
 null-grant packet. Verify the real review UI/API connection and fresh-process
 authenticated readback, unchanged historical records/control/grant/run/call counts,
-exact omissions, mandatory unknown effects and failure availability. Stale failure
-snapshots, wrong projects/physical roots/directions/selections, concurrent writes
-and conflicting duplicates must refuse atomically. Only the immediate unchanged
+exact omissions, mandatory unknown effects and failure availability.
+
+For the same predecessor, changing the question or ranges must preserve the
+authored draft, explicit note selections and applicable omission reasons while
+invalidating comparison/preview. Delay real authenticated comparison and preview
+responses while editing; stale responses must not restore older requests or enable
+authorship. A fresh comparison/preview/save must persist the displayed selection
+and task, with unchanged historical records, control and execution counts.
+
+Stale failure snapshots, wrong projects/physical roots/directions/selections,
+concurrent writes and conflicting duplicates must refuse atomically. Only the immediate unchanged
 unadmitted result permits exact duplicate acknowledgement. Unknown/active attempts,
 known persistence failures and receipt-projection failures remain ineligible.
 Then require a distinct fresh finite grant for the scripted two-judgment consumer;
