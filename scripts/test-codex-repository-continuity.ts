@@ -172,9 +172,12 @@ function assertCurrentWorkReadV01(): void {
         const get = statement.get.bind(statement);
         statement.get = ((...args: unknown[]) => { if (args[0] === "evidence_record") evidenceReads++; return get(...args); }) as typeof statement.get;
       }
-      if (/record_kind = 'task_context_packet'[\s\S]*LIMIT/u.test(sql)) {
-        const all = statement.all.bind(statement);
-        statement.all = ((...args: unknown[]) => { chainLoads++; return all(...args); }) as typeof statement.all;
+      // Each chain reconstruction executes one historical-cutoff traversal.
+      // Packet reads now use the shared parameterized keyset iterator: one
+      // inventory scan is not one reconstruction, and one page is not a chain.
+      if (/^SELECT record_kind, record_id, created_at FROM vnext_core_records WHERE workspace_id = \? AND project_id = \? AND created_at <= \? ORDER BY created_at, record_kind, record_id$/u.test(sql.replace(/\s+/gu, " ").trim())) {
+        const iterate = statement.iterate.bind(statement);
+        statement.iterate = ((...args: unknown[]) => { chainLoads++; return iterate(...args); }) as typeof statement.iterate;
       }
       return statement;
     }) as typeof db.prepare;
@@ -186,6 +189,9 @@ function assertCurrentWorkReadV01(): void {
       assert.deepEqual(strict(), standalone.at(-1));
       assert.equal(chainLoads, 1, "strict continuity reconstructs the whole chain once, not per packet");
       assert.equal(evidenceReads, evidence.length, "strict continuity still validates every canonical Evidence record");
+      assert.deepEqual(strict(), standalone.at(-1));
+      assert.equal(chainLoads, 2, "an actual second read must be observed as a second reconstruction");
+      assert.equal(evidenceReads, evidence.length * 2, "the next read must revalidate Evidence instead of reusing authority");
     }
     finally { db.prepare = prepare; }
     assert.deepEqual(batch(db, { ...config, project_id: "project:foreign" }), identities.map(() => null));
