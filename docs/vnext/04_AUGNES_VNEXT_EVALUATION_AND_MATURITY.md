@@ -433,6 +433,23 @@ usage from host validation, dispatch uncertainty, failed step/result persistence
 failed receipt projection and quarantined late results. Preserve cancelled,
 pre-egress, stale-generation and recovery behavior. Missing legacy evidence stays
 unavailable; neither these fixtures nor new code reconstruct historical responses.
+
+For the bounded Sol low-reasoning route, use disposable ordinary work and
+authenticated finite previews/grants with scripted transport only. Verify the
+exact effort/mode and combined reasoning/public-output cap in both serialized
+requests, configuration-bound cost authority, changed/missing-binding refusal,
+unchanged legacy routes and no automatic fallback. Exercise reported reasoning
+counts, malformed usage, over-budget output and incomplete responses with and
+without public text. Fresh-process API/UI review must distinguish an exhausted
+output allowance from host judgment rejection and actual dispatch loss, without
+retaining hidden content or inventing cost. Verify attempt time across restart,
+cancellation, route drift, late-result fencing and no replay. Candidate payload
+accounting must use the same final builder/serializer, separate exact current
+bytes from hypothetical future judgments/observations, and refuse overflow
+without truncation. Scripted compatibility proves no live availability, model
+compliance or adequacy. A resource-limited response alone is not a task-quality
+finding; selecting a different allowance would require another explicit decision.
+
 Verify that a returned-response terminal attempt cannot borrow unknown disposition
 or a fabricated completed receipt to bypass completed-result/revision guards.
 For the separate bounded terminal-authorship path, create positive history through

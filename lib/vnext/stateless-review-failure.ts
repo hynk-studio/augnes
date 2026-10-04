@@ -1,3 +1,6 @@
+import { projectModelProviderResponseInvalidObservationV01, type ModelProviderResponseInvalidObservationV01 } from "./model-gateway/provider-response-invalid-observation";
+import { validateModelInvocationReceiptUsageV02 } from "./model-gateway/model-invocation-receipt";
+import type { ModelInvocationReceiptUsageV02 } from "@/types/vnext/model-invocation-receipt";
 import type { AutonomyRunRecord, AutonomyRunStepRecord } from "@/types/autonomy-runner-execution";
 import { MODEL_GATEWAY_FAILURE_CODES_V01, type PlannerModelGatewayResultV01, type PlannerRecommendationV01 } from "./model-gateway/contracts";
 import { canonicalizeProtocolValueV01 as canonical, createProtocolSha256V01 as hash } from "./protocol-primitives";
@@ -59,7 +62,9 @@ export function buildStatelessFailureEvidence(input: Omit<StatelessFailureEviden
   const evidence = { ...body, fingerprint: hash(canonical(body)) };
   return Buffer.byteLength(canonical(evidence)) <= STATELESS_FAILURE_BOUNDS.record_bytes ? evidence : null;
 }
-export type StatelessFailureReview = { step_id: string; availability: "available"; evidence: StatelessFailureEvidence }
+export type StatelessFailureReview = { step_id: string; availability: "available"; evidence: StatelessFailureEvidence;
+  provider_response: ModelProviderResponseInvalidObservationV01 | null; reported_usage: ModelInvocationReceiptUsageV02 | null;
+  resource_limit_failure: boolean }
   | { step_id: string; availability: "unavailable"; reason: "not_recorded" | "invalid_record" | "storage_bound" };
 
 function readEvidence(value: unknown, run: AutonomyRunRecord, step: AutonomyRunStepRecord, generation: unknown): StatelessFailureEvidence | null {
@@ -91,7 +96,22 @@ export function readStatelessFailureReviews(run: AutonomyRunRecord): StatelessFa
   const reviews: StatelessFailureReview[] = [];
   const add = (step: AutonomyRunStepRecord, output: Record<string, unknown>, generation: unknown) => {
     const evidence = readEvidence(output.failure_evidence, run, step, generation);
-    reviews.push(evidence ? { step_id: step.step_id, availability: "available", evidence } : { step_id: step.step_id, availability: "unavailable",
+    let providerResponse: ModelProviderResponseInvalidObservationV01 | null = null;
+    let reportedUsage: ModelInvocationReceiptUsageV02 | null = null;
+    if (evidence) {
+      try {
+        const raw = output.provider_response_invalid_observation as ModelProviderResponseInvalidObservationV01;
+        const normalized = projectModelProviderResponseInvalidObservationV01(raw);
+        if (canonical(raw) === canonical(normalized)) providerResponse = normalized;
+      } catch { /* Missing or malformed legacy diagnostics remain unavailable. */ }
+      try {
+        const raw = (output.received_model_result as { usage?: unknown } | undefined)?.usage;
+        validateModelInvocationReceiptUsageV02(raw);
+        reportedUsage = raw === null ? null : structuredClone(raw as ModelInvocationReceiptUsageV02);
+      } catch { /* No inferred usage or cost. */ }
+    }
+    reviews.push(evidence ? { step_id: step.step_id, availability: "available", evidence, provider_response: providerResponse, reported_usage: reportedUsage,
+      resource_limit_failure: providerResponse?.provider_status === "incomplete" && providerResponse.incomplete_reason === "max_output_tokens" } : { step_id: step.step_id, availability: "unavailable",
       reason: output.failure_evidence ? "invalid_record" : output.failure_evidence_unavailable === "storage_bound" ? "storage_bound" : "not_recorded" });
   };
   for (const step of run.steps) if (step.title !== "observe" && (step.status === "failed" || step.output.failure_receipt || step.output.dispatch_outcome)) {

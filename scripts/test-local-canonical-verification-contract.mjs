@@ -1090,6 +1090,7 @@ const integrationChildren = [
   "current-work-read",
   "prospective-preparation-reentry",
   "stateless-source-review",
+  "stateless-sol-low",
   "stateless-terminal-authorship",
   "project-direction",
   "retry-inspection-outlook",

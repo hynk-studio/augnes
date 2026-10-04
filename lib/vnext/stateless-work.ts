@@ -1,3 +1,5 @@
+import { readBoundPlannerExecutionConfigurationV01 } from "./model-gateway/planner-execution-configuration";
+import type { PlannerModelExecutionConfigurationV01 } from "./model-gateway/contracts";
 import { canonicalizeProtocolValueV01 as canonical, createProtocolSha256V01 as hash, parseStrictIsoTimestampV01 } from "./protocol-primitives";
 import { readSelectedWorkSources, selectedWorkSourceInput, reviewedOutcomeSourceRef } from "@/lib/intake/selected-work-source-comparison";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
@@ -19,6 +21,10 @@ export interface StatelessDispositionBinding {
 export const STATELESS_LIMITS = Object.freeze({ model_invocations: 2, action_bundles: 1, files: 2,
   source_bytes: 65_536, excerpt_bytes: 4_096, input_bytes: 16_384, output_tokens: 1_024,
   invocation_ms: 15_000, action_ms: 10_000, host_ms: 45_000, attempts: 1 });
+/** Reasoning and public output share this provider token cap. Public judgment
+ * and all source/input/action bounds remain unchanged. */
+export const STATELESS_SOL_LOW_LIMITS = Object.freeze({ ...STATELESS_LIMITS,
+  output_tokens: 4096, invocation_ms: 60_000, host_ms: 150_000 });
 export interface ReviewFile { path: string; start_line: number; end_line: number; digest: string }
 export interface SourceReview { profile: typeof STATELESS_WORK; question: string; files: ReviewFile[] }
 export interface ReviewObservation {
@@ -29,7 +35,8 @@ export interface ReviewObservation {
 export interface StatelessGrantRequest {
   workspace_id: string; project_id: string; packet_id: string; packet_fingerprint: string;
   review_ref: string; root_fingerprint: string; host_fingerprint: string;
-  control_revision: number; expires_at: string; limits: typeof STATELESS_LIMITS;
+  control_revision: number; expires_at: string; limits: typeof STATELESS_LIMITS | typeof STATELESS_SOL_LOW_LIMITS;
+  model_configuration?: PlannerModelExecutionConfigurationV01;
   cost_budget: ModelGatewayCostBudgetV01;
   /** Absent only in historical grants, whose model input omitted ordinary notes. */
   selected_notes_ref?: string;
@@ -87,16 +94,22 @@ export function validateStatelessGrant(value: unknown): value is StatelessGrant 
   try {
     const v = reviewObject(value, ["grant_version", "grant_id", "grant_fingerprint", "workspace_id", "project_id", "approved_by", "issued_at", "request"]);
     const r = reviewObject(v.request, ["workspace_id", "project_id", "packet_id", "packet_fingerprint", "review_ref", "root_fingerprint", "host_fingerprint", "control_revision", "expires_at", "limits", "cost_budget",
-      ...(v.request && typeof v.request === "object" && "selected_notes_ref" in v.request ? ["selected_notes_ref"] : [])]);
+      ...(v.request && typeof v.request === "object" && "selected_notes_ref" in v.request ? ["selected_notes_ref"] : []),
+      ...(v.request && typeof v.request === "object" && "model_configuration" in v.request ? ["model_configuration"] : [])]);
     if ("selected_notes_ref" in r) reviewSha(r.selected_notes_ref);
     reviewCheck(v.grant_version === STATELESS_GRANT && v.workspace_id === r.workspace_id && v.project_id === r.project_id, "grant_scope");
     for (const key of ["packet_fingerprint", "review_ref", "root_fingerprint", "host_fingerprint"]) reviewSha(r[key]);
     for (const key of ["workspace_id", "project_id", "packet_id"]) reviewText(r[key], 256);
     reviewText(v.approved_by, 256);
-    reviewCheck(Number.isSafeInteger(r.control_revision) && Number(r.control_revision) > 0 && canonical(r.limits) === canonical(STATELESS_LIMITS), "grant_limits");
+    const limits = "model_configuration" in r ? STATELESS_SOL_LOW_LIMITS : STATELESS_LIMITS;
+    reviewCheck(Number.isSafeInteger(r.control_revision) && Number(r.control_revision) > 0 && canonical(r.limits) === canonical(limits), "grant_limits");
     const budget = validateModelGatewayCostBudgetV01(r.cost_budget);
+    const configuration = readBoundPlannerExecutionConfigurationV01(budget.authority.model_ref);
+    if ("model_configuration" in r) reviewCheck(configuration && canonical(r.model_configuration) === canonical(configuration) &&
+      budget.authority.provider_ref.external_id === configuration.provider, "grant_model_configuration");
+    else reviewCheck(!configuration, "grant_model_configuration");
     reviewCheck(budget.authority.workspace_id === r.workspace_id && budget.authority.project_id === r.project_id && budget.authority.purpose === "planner_plan" &&
-      budget.maximum_input_units === STATELESS_LIMITS.input_bytes && budget.maximum_output_units === STATELESS_LIMITS.output_tokens && budget.timeout_ms === STATELESS_LIMITS.invocation_ms, "grant_cost");
+      budget.maximum_input_units === limits.input_bytes && budget.maximum_output_units === limits.output_tokens && budget.timeout_ms === limits.invocation_ms, "grant_cost");
     reviewCheck(typeof v.issued_at === "string" && parseStrictIsoTimestampV01(v.issued_at) !== null && typeof r.expires_at === "string" && parseStrictIsoTimestampV01(r.expires_at) !== null &&
       Date.parse(r.expires_at) > Date.parse(v.issued_at) && Date.parse(r.expires_at) - Date.parse(v.issued_at) <= 600_000, "grant_time");
     const typed = value as StatelessGrant;

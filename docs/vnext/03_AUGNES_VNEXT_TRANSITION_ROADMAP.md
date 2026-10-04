@@ -407,7 +407,7 @@ checks distinguish rationale overflow, missing source anchor, unavailable
 observation use, Gateway refusal, persistence failure and late-result fencing.
 Their fixtures are development evidence, not reconstructions of the live response.
 
-The next bounded implementation adds ordinary explicit linked authorship after a
+The bounded implementation in Draft #1389 adds ordinary explicit linked authorship after a
 stopped stateless model step with a completed Gateway response but no RunReceipt.
 Authenticated review, source comparison and preview bind historical failure
 evidence separately from current task/source/root/direction/selection. The writer
@@ -425,14 +425,58 @@ legacy compatibility. The real review component connects comparison, preview and
 authorship to the authenticated HTTP owner. No shared unsettled predicate,
 completed-result, native or recovery authority is relaxed. Known persistence and
 receipt-projection failures still need separate contracts. The retained candidate
-remains read-only, expired and unchanged at 3 grants / 3 runs / 5 historical calls;
-this engineering slice does not apply new authorship to it.
+remained read-only, expired and unchanged at 3 grants / 3 runs / 5 historical calls
+during that engineering slice; it did not apply new authorship to the candidate.
 
-Next decision: review this linked-authorship implementation and its exact-head
-verification, then explicitly select the candidate's new task, current source and
-notes for local null-grant authorship. Any execution requires a separately fresh
-finite authorization; the closed comparison's unused allowance is not available.
-No candidate mutation or additional live attempt belongs to this slice. GPT-4.1 adequacy, comparative
+Work then accepted the terminal-authorship UI correction at
+`f8aa94009aefae9909990ed6784c3130b32e84f7`. A separately authorized local operation
+on 2026-10-04 authored work `stateless-successor:c1ca778280f7c4b72fa77c60`, packet
+`task-context-packet:f2355965bf99dbcc5639d70`, fingerprint
+`sha256:1c7af5c18a4700645a30e13e8ffe58cf798f47b8e89eb6287598658bae294556`,
+with ordinary expiry `2026-10-04T10:24:14.051Z`. It retains the explicit Work note,
+its original source/receipt attribution and full-report non-selection reason,
+mandatory unknown effects and terminal failure availability. The task asks only
+what relationship the selected excerpts establish. Current material is
+`project-direction-execution.ts:25–28` and `prospective-reentry.ts:163–168`:
+16,866 full-file bytes / 652 excerpt bytes. No rejected answer or expected answer
+was selected. Authenticated fresh-process readback, null grant, disabled control,
+unchanged historical records and 3 / 3 / 5 accounting were reported verified;
+supported logout returned success and subsequent access returned HTTP 401.
+
+The current offline slice prepares one `gpt-6.1-sol` attempt with explicit low
+effort and standard reasoning mode, replacing the GPT-4.1-only proposal. GPT-6
+Luna remains a later cost-efficiency candidate; no comparison/fallback is started.
+The existing ordinary route binds these settings and the finite 4,096-token,
+60-second invocation and 150-second attempt limits to fresh authority. It keeps
+public rationale and input/source/action caps unchanged. Returned incomplete
+responses expose bounded status/reason and reported reasoning usage without
+hidden reasoning, retries, successful receipts or invented billing. The candidate
+is read-only during this slice; its packet is neither recreated nor renewed.
+
+Zero-egress accounting through the final builder/serializer found a 5,671-byte
+choose message / 8,124-byte request, and a hypothetical read-and-conclude message
+of 7,500 bytes / 10,227 serialized bytes. These are time-bound preparation
+measurements, not future judgments or bindings. A longer first public judgment
+can overflow the unchanged 8,192-byte message cap; that stops before the second
+dispatch. No delivery guarantee is inferred from a plausible fitting example.
+
+The 2026-10-04 [official pricing](https://developers.openai.com/api/docs/pricing)
+lists Standard short-context Sol input / cached input / cache write / output at
+USD 2 / 0.10 / 2.50 / 10 per million tokens. The proposed tier-unresolved operator
+estimate uses 2,500 nano-USD per serialized byte and 10,000 per total output token:
+two times `(16,384 × 2,500 + 4,096 × 10,000)` = USD 0.16384, within a proposed
+USD 0.20 total envelope. Charging every serialized byte as an input token at the
+cache-write rate is a conservative accounting assumption, not measured tokens or
+a billing guarantee. The project's service tier and key ownership remain
+unresolved metadata, not prerequisites. The original unknown cost stays separate.
+
+Next decision: review this bounded configuration and exact-head verification,
+then separately authorize one ordinary Sol attempt, its temporary automation,
+fresh finite grant and specified transmission before the existing packet expires.
+No candidate grant, preview requiring enabled control or provider request has
+been issued in this preparation. Expiry or changed bindings require a new
+decision, not backdating, substitution or silent renewal. The closed comparison's
+unused allowance is unavailable. GPT-4.1 and Sol adequacy, comparative
 usefulness, live interruption recovery and environment transfer remain
 unestablished. Interrupted live progression and comparative usefulness remain
 **NOT RUN**. Earlier

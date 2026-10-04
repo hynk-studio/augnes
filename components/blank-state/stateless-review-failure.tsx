@@ -21,6 +21,9 @@ export function StatelessReviewFailure({ review }: { review: StatelessFailureRev
   const e = review.evidence, p = e.public_result;
   return <div data-stateless-failure={e.layer} style={{ overflowWrap: "anywhere" }}>
     <p>{reasons[e.code] ?? "The invocation stopped before its result could be accepted by this profile."} Stage: {e.stage}; layer: {e.layer}; reason: {e.code}.</p>
+    {review.resource_limit_failure && <p>The provider reached the shared reasoning and output token limit. A complete judgment was not obtained. This is a resource-limit failure, not evidence that the task judgment was wrong.</p>}
+    {review.provider_response && <p>Returned response: {review.provider_response.provider_status ?? "unavailable"}; reason: {review.provider_response.incomplete_reason ?? "unavailable"}; public output present: {String(review.provider_response.output_text_present)}.</p>}
+    {review.reported_usage && <p>Provider-reported usage: {review.reported_usage.input_tokens} input, {review.reported_usage.output_tokens} total output tokens (reasoning subset: {review.reported_usage.reasoning_tokens ?? "unavailable"}). Provider cost remains unavailable.</p>}
     <p>This evidence is non-authoritative. It does not establish successful work, provider settlement or permission to retry.</p>
     {p.availability === "complete" ? <details><summary>Returned public judgment (not accepted)</summary>
       {p.recommendations!.map((r, i) => <div key={i}>
@@ -33,7 +36,7 @@ export function StatelessReviewFailure({ review }: { review: StatelessFailureRev
       : "Normalized public content is unavailable. The invocation receipt alone does not reveal the judgment."}</p>}
     <details><summary>Validation and source attribution</summary>
       <pre style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify({ host_rejection_code: e.host_rejection_code, validation: e.validation, binding: e.binding,
-        public_content: p.availability === "unavailable" ? p : { availability: p.availability, bytes: p.bytes, fingerprint: p.fingerprint }, evidence_fingerprint: e.fingerprint }, null, 2)}</pre>
+        provider_response: review.provider_response, reported_usage: review.reported_usage, public_content: p.availability === "unavailable" ? p : { availability: p.availability, bytes: p.bytes, fingerprint: p.fingerprint }, evidence_fingerprint: e.fingerprint }, null, 2)}</pre>
     </details>
   </div>;
 }

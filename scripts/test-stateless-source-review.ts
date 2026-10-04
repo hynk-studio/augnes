@@ -1,3 +1,5 @@
+import { OPENAI_PLANNER_SOL_LOW, OPENAI_PLANNER_SOL_LOW_REF } from "../lib/vnext/model-gateway/planner-execution-configuration";
+import { STATELESS_LIMITS, STATELESS_SOL_LOW_LIMITS } from "../lib/vnext/stateless-work";
 import { statelessTerminalEntries, statelessMandatoryEntries } from "../lib/vnext/stateless-work";
 import { inspectStatelessTerminalSuccessor, readTerminalAuthorshipPreparation, readTerminalAttemptHistory, assertTerminalHistoryActive, previewTerminalAuthorship } from "../lib/vnext/runtime/stateless-terminal-authorship";
 import { StatelessTerminalAuthorship } from "../components/blank-state/stateless-terminal-authorship";
@@ -55,10 +57,12 @@ const databases: Database.Database[] = [];
 // Recovery's existing process owner uses an exact loopback ownership probe.
 const zeroNetwork = installZeroNetworkGuard({ allowLoopback: true });
 const sourceText = "export function choose() { return 'advisory'; }\nexport function inspect() { return 'exact source bytes'; }\n";
-function scripted(firstChoice = "read_selected_sources", secondChoice = "use_observation") {
+function scripted(firstChoice = "read_selected_sources", secondChoice = "use_observation", model = "gpt-4.1-mini") {
   const inputs: any[] = [], serializedRequests: string[] = []; let calls = 0;
   const controls = { lose: false, transportError: new Error("simulated_transport_loss_after_dispatch") as unknown, outputTokens: 80, dispatch: async () => {}, transform: (_output: any, _input: any) => {} };
-  const adapter = createOpenAIResponsesAdapterV01({ environment: { OPENAI_API_KEY: "scripted-transport-only-not-a-key", OPENAI_MODEL: "gpt-4.1-mini" }, transport: async request => {
+  const environment = { OPENAI_API_KEY: "scripted-transport-only-not-a-key", OPENAI_MODEL: model };
+  const responseControls = { status: null as string | null, incompleteReason: null as string | null, reasoningTokens: null as number | null, omitOutput: false };
+  const adapter = createOpenAIResponsesAdapterV01({ environment, transport: async request => {
     calls++; serializedRequests.push(request.body); const body = JSON.parse(request.body);
     assert.equal(body.store, false); assert.equal(body.previous_response_id, undefined);
     const material = JSON.parse(body.input[1].content[0].text); const input = JSON.parse(material.message); inputs.push(input);
@@ -68,11 +72,17 @@ function scripted(firstChoice = "read_selected_sources", secondChoice = "use_obs
     const output = { recommendations: [{ title: "Bounded entrypoint finding", rationale: input.stage === "choose" ? (choice === "read_selected_sources" ? "Read the selected excerpt because the question concerns this entrypoint." : "The question needs broader evidence; defer this read rather than treating a limited excerpt as sufficient.") : (choice === "use_observation" ? "The selected excerpt exposes advisory output and bounded result reentry. These fragments do not prove a broader connection." : "Retain uncertainty because this observation is unavailable or insufficient for the question."),
       tool_name: choice, priority: "now", grounded_state_keys: [input.stage === "choose" ? input.review_ref : input.observation_fingerprint] }] };
     controls.transform(output, input);
-    return { ok: true, status: 200, json: async () => ({ output: [{ type: "message", content: [{ type: "output_text", text: JSON.stringify(output) }] }], usage: { input_tokens: 200, output_tokens: controls.outputTokens, total_tokens: 200 + controls.outputTokens } }) };
+    return { ok: true, status: 200, json: async () => ({
+      ...(responseControls.status ? { status: responseControls.status } : {}),
+      ...(responseControls.incompleteReason ? { incomplete_details: { reason: responseControls.incompleteReason } } : {}),
+      output: responseControls.omitOutput ? [{ type: "reasoning", encrypted_content: "scripted-hidden-content-must-not-persist" }]
+        : [{ type: "message", content: [{ type: "output_text", text: JSON.stringify(output) }] }],
+      usage: { input_tokens: 200, output_tokens: controls.outputTokens, total_tokens: 200 + controls.outputTokens,
+        ...(responseControls.reasoningTokens === null ? {} : { output_tokens_details: { reasoning_tokens: responseControls.reasoningTokens } }) } }) };
   } });
-  return { adapter, inputs, serializedRequests, controls, get calls() { return calls; } };
+  return { adapter, inputs, serializedRequests, controls, responseControls, environment, get calls() { return calls; } };
 }
-async function fixture(name: string, firstChoice = "read_selected_sources", secondChoice = "use_observation", auditSources = false) {
+async function fixture(name: string, firstChoice = "read_selected_sources", secondChoice = "use_observation", auditSources = false, model = "gpt-4.1-mini") {
   const dir = path.join(root, name); mkdirSync(dir); const projectRoot = path.join(dir, "project"); mkdirSync(projectRoot);
   writeFileSync(path.join(projectRoot, "entry.ts"), sourceText);
   const selected = auditSources ? [
@@ -102,7 +112,7 @@ async function fixture(name: string, firstChoice = "read_selected_sources", seco
   tick();
   const control = readProjectAutomationControlV01(db, scope);
   mutateProjectControlV01(db, { ...scope, action: "enable_automation", expected_active_project_id: scope.project_id, expected_active_selection_revision: active.selection_revision, expected_control_revision: control?.revision ?? null }, { now });
-  const script = scripted(firstChoice, secondChoice);
+  const script = scripted(firstChoice, secondChoice, model);
   const { adapter, inputs } = script;
   const environment = { NODE_ENV: "test" as const, AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1", AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: scope.workspace_id,
     AUGNES_VNEXT_OPERATOR_PROJECT_ID: scope.project_id, AUGNES_VNEXT_OPERATOR_ID: config.operator_id, AUGNES_DB_PATH: databasePath };
@@ -132,7 +142,7 @@ async function fixture(name: string, firstChoice = "read_selected_sources", seco
     if (response.headers.get("set-cookie")) cookie = response.headers.get("set-cookie")!.split(";")[0]!;
     return value;
   };
-  return { db, scope, config, projectRoot, now, tick, adapter, inputs, serializedRequests: script.serializedRequests, call, preview, credential, direction, continuity, preparationBytes: prepared.result.preparation_bytes, controls: script.controls,
+  return { db, scope, config, projectRoot, now, tick, adapter, inputs, serializedRequests: script.serializedRequests, call, preview, credential, direction, continuity, preparationBytes: prepared.result.preparation_bytes, controls: script.controls, responseControls: script.responseControls, modelEnvironment: script.environment,
     host: (id: string, customAdapter = adapter) => new StatelessSourceReviewHost({ config, now, adapter: customAdapter }, id),
     get calls() { return script.calls; }, loseDispatch(error?: unknown) { script.controls.lose = true; if (error !== undefined) script.controls.transportError = error; },
     refreshSession() { const b = issueVNextLocalOperatorBootstrapV01(db, { config, clock: { now } }); const s = consumeVNextLocalOperatorBootstrapV01(db, { config, clock: { now }, bootstrap_token: b.bootstrap_token }); cookie = `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${s.cookie_value}`; },
@@ -885,8 +895,120 @@ async function readTerminalChild(filename: string) {
     assert.equal(requests, 0); console.log(JSON.stringify({ cases: inputs.length, calls: 0, fresh_authenticated_read: true, actual_product_component: true, logout: 401 }));
   } finally { rmSync(root, { recursive: true, force: true }); network.unsubscribe(onNetwork); zeroNetwork.restore(); }
 }
+async function solLowContract() {
+  const model = "gpt-6.1-sol", pricing = { input_nano_usd_per_byte: 2500, output_nano_usd_per_token: 10000,
+    maximum_total_nano_usd: 200_000_000, source_version: "scripted-sol-low-not-live-authority" };
+  const make = (name: string) => fixture(`sol-${name}`, "read_selected_sources", "use_observation", false, model);
+  const legacy = await fixture("sol-legacy");
+  assert.deepEqual(legacy.preview.limits, STATELESS_LIMITS); assert.equal(legacy.preview.model_configuration, undefined);
+  assert.equal((await legacy.call({ action: "authorize_and_run", authorization: legacy.preview })).result.run.status, "completed");
+  assert.equal(JSON.parse(legacy.serializedRequests[0]!).reasoning, undefined); assert.equal(JSON.parse(legacy.serializedRequests[0]!).max_output_tokens, 1024);
+
+  const normal = await make("normal");
+  const preview = (await normal.call({ action: "preview", pricing })).authorization;
+  assert.deepEqual(preview.model_configuration, OPENAI_PLANNER_SOL_LOW); assert.deepEqual(preview.limits, STATELESS_SOL_LOW_LIMITS);
+  assert.equal(preview.cost_budget.authority.model_ref.source_ref, OPENAI_PLANNER_SOL_LOW_REF);
+  assert.equal(normal.calls, 0);
+  // Changing effort, omission, limits or cost after review creates no grant/run.
+  for (const change of [
+    (p: any) => { p.model_configuration.reasoning.effort = "medium"; },
+    (p: any) => { p.model_configuration.reasoning.mode = "pro"; },
+    (p: any) => { delete p.model_configuration; },
+    (p: any) => { p.limits.output_tokens++; },
+    (p: any) => { p.cost_budget.authority.model_ref.source_ref = hash("another-setting"); },
+  ]) { const altered = structuredClone(preview); change(altered); await normal.call({ action: "authorize_and_run", authorization: altered }, 409); }
+  assert.equal(listVNextCoreRecordsV01(normal.db, { ...normal.scope, record_kinds: ["capability_grant"], limit: 128 }).length, 0);
+  await normal.call({ action: "preview", pricing: { ...pricing, maximum_total_nano_usd: 1 } }, 409);
+  normal.controls.outputTokens = 3200; normal.responseControls.reasoningTokens = 3000;
+  const auth = normal.authorizeOnly(preview), host = normal.host(auth.run_id);
+  assert.equal(await host.step(), true); assert.equal(await host.step(), true);
+  const observation = canonical(host.read().run.steps[1]); assert.equal(normal.calls, 1);
+  const receipt = host.read().run.steps[0]!.output.model_receipt as any;
+  assert.equal(receipt.usage.reasoning_tokens, 3000); validateModelInvocationReceiptV02(receipt);
+  assert.deepEqual(JSON.parse(normal.serializedRequests[0]!).reasoning, { effort: "low", mode: "standard" });
+  assert.equal(JSON.parse(normal.serializedRequests[0]!).max_output_tokens, 4096);
+  assert.equal(JSON.parse(normal.serializedRequests[0]!).store, false);
+  assert.equal(JSON.parse(normal.serializedRequests[0]!).service_tier, undefined);
+  assert.equal(JSON.parse(normal.serializedRequests[0]!).previous_response_id, undefined);
+  rmSync(path.join(normal.projectRoot, "entry.ts"));
+  const resumePath = path.join(root, "sol-resume.json"); writeFileSync(resumePath, JSON.stringify({ config: normal.config, run_id: auth.run_id, at: normal.now(), model }));
+  const resumed = spawnSync(process.execPath, ["--import", "tsx", "scripts/test-stateless-source-review.ts", "--resume", resumePath], { encoding: "utf8", timeout: 20000, env: { ...process.env, OPENAI_API_KEY: "" } });
+  assert.equal(resumed.status, 0, resumed.stderr); const resumedResult = JSON.parse(resumed.stdout);
+  assert.equal(resumedResult.calls, 1); assert.deepEqual(JSON.parse(resumedResult.serialized_request).reasoning, { effort: "low", mode: "standard" });
+  assert.equal(canonical(host.read().run.steps[1]), observation); assert.equal(host.read().run.status, "completed");
+  validateRecoveryCanonicalDatabaseV01(normal.db);
+
+  const readbacks: any[] = [];
+  for (const kind of ["output-limit", "output-limit-public", "content-filter", "unknown-reason", "over-budget", "invalid-usage", "public-bound"] as const) {
+    const f = await make(kind);
+    f.controls.outputTokens = kind === "over-budget" ? 4097 : 4096; f.responseControls.reasoningTokens = kind === "invalid-usage" ? 4097 : 3900;
+    if (["output-limit", "output-limit-public", "content-filter", "unknown-reason"].includes(kind)) {
+      f.responseControls.status = "incomplete"; f.responseControls.incompleteReason = kind.startsWith("output-limit") ? "max_output_tokens" : kind === "content-filter" ? "content_filter" : "private-provider-reason-must-not-persist";
+      f.responseControls.omitOutput = kind !== "output-limit-public";
+    }
+    if (kind === "public-bound") f.controls.transform = output => { output.recommendations[0].rationale = "x".repeat(1201); };
+    const result = (await f.call({ action: "authorize_and_run", authorization: f.preview })).result;
+    assert.equal(f.calls, 1); assert.equal(result.run.status, "stopped"); assert.equal(result.receipt, null);
+    const failed = result.run.steps[0], review = result.failures[0]; assert.equal(failed.status, "failed");
+    assert.equal(failed.output.dispatch_outcome, f.responseControls.status ? "returned_incomplete" : "returned_invalid");
+    assert.equal(review.resource_limit_failure, kind.startsWith("output-limit"));
+    assert.ok(!canonical(result.run).includes("scripted-hidden-content-must-not-persist"));
+    assert.ok(!canonical(result.run).includes("private-provider-reason-must-not-persist"));
+    if (f.responseControls.status) {
+      assert.equal(review.provider_response.provider_status, "incomplete"); assert.equal(review.provider_response.stage, "response_status_not_completed");
+      assert.equal(review.provider_response.incomplete_reason, kind === "unknown-reason" ? "unknown" : f.responseControls.incompleteReason);
+      assert.equal(review.provider_response.output_text_present, kind === "output-limit-public");
+      assert.equal(review.reported_usage.reasoning_tokens, 3900); assert.equal(failed.output.failure_receipt.usage, null);
+      assert.equal(result.terminal_preparation, null, "Incomplete provider results do not enter host-rejected terminal authorship");
+    }
+    if (kind === "over-budget") { assert.equal(review.evidence.code, "model_gateway_budget_refused"); assert.equal(review.reported_usage.output_tokens, 4097); }
+    if (kind === "invalid-usage") { assert.equal(review.provider_response.stage, "response_usage_invalid"); assert.equal(review.reported_usage, null); }
+    if (kind === "public-bound") { assert.equal(review.evidence.code, "rationale_bound_exceeded"); assert.equal(review.evidence.layer, "host_validation"); }
+    const markup = renderToStaticMarkup(createElement(StatelessReviewFailure, { review }));
+    if (kind === "output-limit") { assert.ok(markup.includes("resource-limit failure")); assert.ok(markup.includes("3900")); }
+    const saved = canonical(result.run); await f.call({ action: "continue", run_id: result.run.run_id }); assert.equal(f.calls, 1); assert.equal(canonical(f.host(result.run.run_id).read().run), saved);
+    readbacks.push({ config: f.config, run_id: result.run.run_id, at: f.now(), expected: review, saved });
+  }
+  const readPath = path.join(root, "sol-readbacks.json"); writeFileSync(readPath, JSON.stringify(readbacks));
+  const fresh = spawnSync(process.execPath, ["--import", "tsx", "scripts/test-stateless-source-review.ts", "--read-rejection", readPath], { encoding: "utf8", timeout: 20000, env: { ...process.env, OPENAI_API_KEY: "" } });
+  assert.equal(fresh.status, 0, fresh.stderr); assert.equal(JSON.parse(fresh.stdout).calls, 0);
+
+  const drift = await make("route-drift"); drift.modelEnvironment.OPENAI_MODEL = "gpt-4.1-mini";
+  const drifted = (await drift.call({ action: "authorize_and_run", authorization: drift.preview })).result;
+  assert.equal(drift.calls, 0); assert.equal(drifted.run.status, "stopped"); assert.equal(drifted.run.steps[0].output.dispatch_outcome, "not_issued");
+  const timeout = await make("attempt-time"); const timed = timeout.authorizeOnly();
+  assert.equal(await timeout.host(timed.run_id).step(), true); timeout.tick(STATELESS_SOL_LOW_LIMITS.host_ms + 1);
+  const expired = (await timeout.call({ action: "continue", run_id: timed.run_id })).result;
+  assert.equal(expired.run.stop_reason, "attempt_time_limit_before_dispatch"); assert.equal(timeout.calls, 1); assert.equal(expired.run.steps[1].status, "planned");
+
+  const cancel = await make("cancel-during-dispatch"), cancelAuth = cancel.authorizeOnly(), cancelHost = cancel.host(cancelAuth.run_id);
+  cancel.controls.dispatch = async () => { await cancel.call({ action: "cancel", run_id: cancelAuth.run_id }); };
+  const cancelled = await cancelHost.run(); assert.equal(cancelled.run.status, "cancelled");
+  assert.equal(cancelled.run.steps[0]!.status, "completed"); assert.equal(cancelled.run.steps[1]!.status, "planned");
+  await cancel.call({ action: "continue", run_id: cancelAuth.run_id }); assert.equal(cancel.calls, 1);
+
+  const lost = await make("unknown"); lost.loseDispatch();
+  const unknown = (await lost.call({ action: "authorize_and_run", authorization: lost.preview })).result;
+  assert.equal(unknown.stage, "dispatch_outcome_unknown"); assert.equal(unknown.run.metadata.reconciliation_required, true);
+  await lost.call({ action: "continue", run_id: unknown.run.run_id }); assert.equal(lost.calls, 1);
+  const late = await make("late"); const lateAuth = late.authorizeOnly();
+  let release!: () => void; late.controls.dispatch = () => new Promise<void>(resolve => { release = resolve; });
+  const pending = late.host(lateAuth.run_id).step();
+  while (!release) await new Promise(resolve => setTimeout(resolve, 1));
+  const binding = late.host(lateAuth.run_id).read().disposition_preparation!.binding;
+  await late.call({ action: "end_work", binding }); release(); await assert.rejects(pending);
+  const quarantined = late.host(lateAuth.run_id).read(); assert.equal(quarantined.stage, "ended_effects_unknown");
+  assert.ok(quarantined.run.events.some(e => e.payload.profile === "stateless_late_model_receipt.v0.1"));
+  assert.equal(quarantined.run.steps[2]!.status, "planned"); await late.call({ action: "continue", run_id: lateAuth.run_id }); assert.equal(late.calls, 1);
+}
+
 async function main() {
   try {
+    if (process.argv[2] === "--sol-low") {
+      await solLowContract(); assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0);
+      console.log(JSON.stringify({ status: "passed", model_configuration: "gpt-6.1-sol-low-standard", scripted_only: true, authority_and_usage: true,
+        incomplete_resource_failure: true, fresh_process_readback_and_restart: true, stale_route_refused: true, late_fencing: true, external_requests: requests })); return;
+    }
     if (["--terminal-authorship", "--terminal-browser"].includes(process.argv[2]!)) {
       await terminalAuthorshipContract(); assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0);
       console.log(JSON.stringify({ status: "passed", terminal_authorship: "ordinary_preview_new_packet_fresh_grant", legacy_writer: "65f6efc92d969c47e86152efa9388aba4c169c63", candidate_writes: 0, external_requests: requests })); return;
@@ -1172,8 +1294,8 @@ async function main() {
 }
 async function resumeChild(filename: string) {
   try {
-    const { config, run_id, at } = JSON.parse(readFileSync(filename, "utf8"));
-    const script = scripted(); const result = await new StatelessSourceReviewHost({ config, now: () => at, adapter: script.adapter }, run_id).run();
+    const { config, run_id, at, model = "gpt-4.1-mini" } = JSON.parse(readFileSync(filename, "utf8"));
+    const script = scripted("read_selected_sources", "use_observation", model); const result = await new StatelessSourceReviewHost({ config, now: () => at, adapter: script.adapter }, run_id).run();
     assert.equal(result.run.status, "completed"); assert.equal(requests, 0);
     console.log(JSON.stringify({ calls: script.calls, observation: script.inputs[0].observation, selected_notes: script.inputs[0].selected_work_notes, serialized_request: script.serializedRequests[0], external_requests: requests }));
   } finally { rmSync(root, { recursive: true, force: true }); network.unsubscribe(onNetwork); }

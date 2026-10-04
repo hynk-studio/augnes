@@ -59,6 +59,13 @@ export const MODEL_INVOCATION_ENVELOPE_VERSION_V01 =
 export const OBSERVE_MODEL_GATEWAY_PURPOSE_V01 =
   "observe_delta_compile" as const;
 export const PLANNER_MODEL_GATEWAY_PURPOSE_V01 = "planner_plan" as const;
+/** Public, non-invocable configuration projection. The Gateway validates it
+ * against its adapter-owned route; callers do not own provider configuration. */
+export interface PlannerModelExecutionConfigurationV01 {
+  configuration_version: string; provider: string; model: string;
+  reasoning: { effort: "low"; mode: "standard" };
+  store: false; previous_response_id: null; service_tier: null;
+}
 export const TEMPORAL_MODEL_GATEWAY_PURPOSE_V01 =
   "temporal_interpretation" as const;
 export const STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01 =
@@ -467,6 +474,8 @@ export class ModelGatewayAdapterFailureV01 extends Error {
     readonly provider_rejection_observation: ModelProviderRejectionObservationV01 | null = null,
     readonly provider_response_invalid_observation: ModelProviderResponseInvalidObservationV01 | null = null,
     readonly transport_failure_observation: ModelTransportFailureObservationV01 | null = null,
+    /** A received response may be incomplete; no normalized answer is implied. */
+    readonly received_result: { usage: ModelGatewayNormalizedUsageV01 | null } | null = null,
   ) {
     super("Model adapter invocation failed.");
     this.name = "ModelGatewayAdapterFailureV01";
@@ -479,8 +488,8 @@ export class ModelGatewayInvocationErrorV01 extends Error {
     readonly receipt: ModelInvocationReceiptV02 | null = null,
     readonly provider_rejection_observation: ModelProviderRejectionObservationV01 | null = null,
     readonly provider_response_invalid_observation: ModelProviderResponseInvalidObservationV01 | null = null,
-    /** An adapter returned a normalized result, subsequently refused by the
-     * Gateway. Only bounded reported usage survives, never output or cost. */
+    /** An adapter received a response or returned a normalized result, later
+     * refused. Only bounded reported usage survives, never output or cost. */
     readonly received_result: { usage: ModelGatewayNormalizedUsageV01 | null } | null = null,
     readonly transport_failure_observation: ModelTransportFailureObservationV01 | null = null,
   ) {

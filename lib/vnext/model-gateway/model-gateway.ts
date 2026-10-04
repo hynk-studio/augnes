@@ -1,4 +1,6 @@
 import type Database from "better-sqlite3";
+import { OPENAI_PLANNER_SOL_LOW, isOpenAIPlannerSolLowRoute } from "./planner-execution-configuration";
+import type { PlannerModelExecutionConfigurationV01 } from "./contracts";
 
 import { openDatabase, type StateEntry } from "@/lib/db";
 import { normalizeModelTransportFailureObservationV01 } from "@/lib/vnext/model-gateway/transport-failure-observation";
@@ -499,6 +501,19 @@ export function readModelGatewayInteractiveAdmissionForRootV01(
   } finally {
     db.close();
   }
+}
+
+/** Non-invocable configuration read for preview and historical grant validation.
+ * New authority must refuse a known route missing its current configuration
+ * binding; old unbound references remain readable with their historical scope. */
+export function readPlannerModelGatewayExecutionConfigurationV01(
+  model: ModelAdapterSessionV01["model_ref"],
+  options: { require_current_binding?: boolean } = {},
+): PlannerModelExecutionConfigurationV01 | null {
+  if (model.external_id !== OPENAI_PLANNER_SOL_LOW.model) return null;
+  if (isOpenAIPlannerSolLowRoute(model)) return structuredClone(OPENAI_PLANNER_SOL_LOW);
+  if (options.require_current_binding) throw gatewayFailure("model_gateway_provider_response_invalid");
+  return null;
 }
 
 /** Read only the configured Planner route for a finite authorization preview.
@@ -2609,7 +2624,7 @@ async function invokeLiveAdapter(
       }),
       providerRejectionObservation,
       providerResponseInvalidObservation,
-      receivedResult,
+      receivedResult ?? (error instanceof ModelGatewayAdapterFailureV01 ? error.received_result : null),
       error instanceof ModelGatewayAdapterFailureV01
         ? normalizeModelTransportFailureObservationV01(error.transport_failure_observation)
         : null,

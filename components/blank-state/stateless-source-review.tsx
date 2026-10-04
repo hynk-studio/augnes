@@ -65,10 +65,11 @@ export function StatelessSourceReview({ projectId }: { projectId: string }) {
       })}>Review authorization</button>
     </details>
     {preview && prepared && <div>
+      {preview.model_configuration && <p>Reasoning effort low, standard mode. The output cap includes reasoning and public output; the public rationale remains limited to 1,200 bytes. The complete attempt has a {preview.limits.host_ms / 1000}-second limit across restart. No fallback is authorized.</p>}
       <p>Saved question: {prepared.review.question}</p>
       {prepared.predecessor_effects_unknown && <p>The earlier request may have run or incurred cost. This authorization is for distinct new work. It does not settle, refund or reuse the earlier allowance.</p>}
       <ul style={{ overflowWrap: "anywhere" }}>{prepared.review.files.map(file => <li key={file.path}>{file.path}, lines {file.start_line}–{file.end_line}</li>)}</ul>
-      <p>{preview.cost_budget.authority.provider_ref.external_id} / {preview.cost_budget.authority.model_ref.external_id}. At most two model requests, 16,384 input bytes and 1,024 output tokens each; 15 seconds each. One local read of at most two files / 65,536 bytes, returning at most 4,096 excerpt bytes. No commands or automatic retries.</p>
+      <p>{preview.cost_budget.authority.provider_ref.external_id} / {preview.cost_budget.authority.model_ref.external_id}. At most two model requests, {preview.limits.input_bytes.toLocaleString("en-US")} input bytes and {preview.limits.output_tokens.toLocaleString("en-US")} output tokens each; {preview.limits.invocation_ms / 1000} seconds each. One local read of at most two files / 65,536 bytes, returning at most 4,096 excerpt bytes. No commands or automatic retries.</p>
       <p>Authorization and first judgment each recheck up to 65,536 local bytes in addition to preparation and the action read. Model usage and cost are recorded when available.</p>
       <p>Total ceiling: ${(preview.cost_budget.maximum_permitted_cost * 2 / 1e9).toFixed(6)}. Permission expires {preview.expires_at}. The question, task, selected working direction, the selected notes shown above with their source attribution, predecessor uncertainty and excerpts may be sent to this model.</p>
       <button disabled={busy} onClick={() => void act(async () => { await request({ action: "authorize_and_run", authorization: preview }); setPreview(null); await refresh(); })}>Authorize and run source review</button>
