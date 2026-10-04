@@ -2177,7 +2177,10 @@ await runOperatorExecutionBrowserChildV1({
         // the same-task editor, not the unsaved result composer above.
         const savedBRows = historyRows();
         const savedBPacket = savedBRows.filter(row => row.record_kind === "task_context_packet").map(row => JSON.parse(row.payload_json)).find(packet => packet.task.goal === nextGoal);
-        assert(savedBPacket?.expires_at, "The Browser case has a real inherited finite lifetime");
+        // This UI authors fresh ordinary work. Historical finite packets keep
+        // their separate predecessor-writer coverage in durable-work-resumption.
+        assert.equal(savedBPacket?.expires_at, null, "Fresh ordinary successor work is durable");
+        assert.equal(savedBPacket.capability_grant, null, "Saving work does not renew execution authority");
         await lifecycle.waitForCondition(`document.querySelector('[data-work-revision-action="open"]') !== null`, "saved successor revision action");
         assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-new-work-action="open"]') === null`), true);
         await clickSelector(lifecycle, '[data-work-revision-action="open"]');
@@ -2204,6 +2207,7 @@ await runOperatorExecutionBrowserChildV1({
         for (const row of savedBRows) assert.deepEqual(historyRows().find(value => value.record_id === row.record_id), row);
         const revisedPacket = historyRows().filter(row => row.record_kind === "task_context_packet").map(row => JSON.parse(row.payload_json)).find(packet => packet.task.goal === revisedGoal);
         assert.equal(revisedPacket.expires_at, savedBPacket.expires_at);
+        assert.equal(revisedPacket.capability_grant, null);
         assert.deepEqual(revisedPacket.constraints.required_checks, savedBPacket.constraints.required_checks);
         assert.deepEqual(revisedPacket.constraints.forbidden_actions, savedBPacket.constraints.forbidden_actions);
         assert.deepEqual(revisedPacket.selected_context.filter(entry => entry.entry_kind === "accepted_state_ref"), savedBPacket.selected_context.filter(entry => entry.entry_kind === "accepted_state_ref"));
