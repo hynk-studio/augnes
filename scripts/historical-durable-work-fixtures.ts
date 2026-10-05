@@ -28,9 +28,9 @@ export async function historicalDurableWorkFixtures(root: string) {
   writeFileSync(producer, readFileSync(path.join(repository, "scripts/historical-durable-work-producer.ts")));
   const output = path.join(root, "historical-work.json");
   const result = await runCanonicalChild({ suite: "durable-work-history", label: "pinned predecessor authentic authoring", command: process.execPath,
-    args: ["--import", "tsx", producer, harness, output], cwd: repository, timeoutMs: 45_000,
+    args: ["--import", "tsx", producer, harness, output], cwd: repository, timeoutMs: 45_000, resourceOwner: undefined,
     env: { ...process.env, OPENAI_API_KEY: "", TSX_TSCONFIG_PATH: path.join(source, "tsconfig.json"), AUGNES_TEST_HISTORICAL_FIXTURE_ROOT: data } });
-  assert.equal(canonicalChildAcceptanceFailure(result, { requireNaturalExit: true }), null);
+  assert.equal(canonicalChildAcceptanceFailure(result, { suite: "durable-work-history", timeoutMs: 45_000, requireNaturalExit: true }), null);
   const bytes = readFileSync(output); assert(bytes.length <= 1024 * 1024);
   const fixtures = JSON.parse(bytes.toString());
   for (const fixture of Object.values(fixtures) as any[]) {
