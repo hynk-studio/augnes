@@ -157,7 +157,7 @@ async function fixture(name: string, firstChoice = "read_selected_sources", seco
     host: (id: string, customAdapter = adapter) => new StatelessSourceReviewHost({ config, now, adapter: customAdapter }, id),
     get calls() { return script.calls; }, loseDispatch(error?: unknown) { script.controls.lose = true; if (error !== undefined) script.controls.transportError = error; },
     refreshSession() { const b = issueVNextLocalOperatorBootstrapV01(db, { config, clock: { now } }); const s = consumeVNextLocalOperatorBootstrapV01(db, { config, clock: { now }, bootstrap_token: b.bootstrap_token }); cookie = `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${s.cookie_value}`; },
-    authorizeOnly(request = preview) { tick(); const authorized = authorizeStatelessReview(db, { config, now, adapter }, credential(), request); cookie = `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${authorized.session_admission.cookie_value}`; return authorized; } };
+    authorizeOnly(request = preview, issuer = authorizeStatelessReview) { tick(); const authorized = issuer(db, { config, now, adapter }, credential(), request); cookie = `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${authorized.session_admission.cookie_value}`; return authorized; } };
 }
 const notePricing = { input_nano_usd_per_byte: 1000, output_nano_usd_per_token: 1000, maximum_total_nano_usd: 100_000_000, source_version: "scripted-selected-note-price" };
 async function selectOrdinaryNotes(f: Awaited<ReturnType<typeof fixture>>, notes: unknown[]) {
@@ -709,16 +709,16 @@ async function readRejectedFixture({ config, run_id, at, expected, saved }: any)
     assert.equal((await call()).status, 401);
   } finally { db.close(); }
 }
-async function historicalResponseHost() {
+async function historicalResponseHost(revision = "65f6efc92d969c47e86152efa9388aba4c169c63") {
   // Explicit compatibility writer, not a deleted-field fixture or repaired ledger.
   // Execute the exact old host with ordinary current setup/grants and controlled
   // Responses transport. Its own catch persists the legacy unavailable evidence.
-  const ref = "65f6efc92d969c47e86152efa9388aba4c169c63:lib/vnext/runtime/stateless-source-review.ts";
+  const ref = `${revision}:lib/vnext/runtime/stateless-source-review.ts`;
   const source = spawnSync("git", ["show", ref], { encoding: "utf8", timeout: 5000 });
   assert.equal(source.status, 0, "Pinned legacy compatibility writer must be available; never reconstruct it");
-  const file = path.join(root, "legacy-response-host.ts");
+  const file = path.join(root, `legacy-response-host-${revision}.ts`);
   writeFileSync(file, source.stdout.replace(/from "(\.\.?\/[^"\n]+)"/g, (_match, specifier) => `from "${path.resolve("lib/vnext/runtime", specifier)}"`));
-  return (await import(pathToFileURL(file).href)).StatelessSourceReviewHost as typeof StatelessSourceReviewHost;
+  return await import(pathToFileURL(file).href) as Pick<typeof import("../lib/vnext/runtime/stateless-source-review"), "StatelessSourceReviewHost" | "previewStatelessReview" | "authorizeStatelessReview">;
 }
 function controlFor(f: Awaited<ReturnType<typeof fixture>>, enabled: boolean) {
   const active = readActiveProjectSelectionV01(f.db, f.scope.workspace_id)!, control = readProjectAutomationControlV01(f.db, f.scope)!;
@@ -726,9 +726,10 @@ function controlFor(f: Awaited<ReturnType<typeof fixture>>, enabled: boolean) {
     expected_active_selection_revision: active.selection_revision, expected_control_revision: control.revision }, { now: f.now });
 }
 async function terminalAuthorshipContract() {
-  const LegacyHost = await historicalResponseHost(), readbacks: unknown[] = [];
-  for (const legacy of [false, true]) {
-    const f = await fixture(`terminal-authorship-${legacy ? "legacy" : "current"}`);
+  const legacyHost = await historicalResponseHost(), legacyGrantHost = await historicalResponseHost("d6101051213965a45798c7738852d8af3eddc966"), readbacks: unknown[] = [];
+  for (const variant of ["current", "legacy", "legacy-grant"] as const) {
+    const legacy = variant !== "current", old = variant === "legacy-grant" ? legacyGrantHost : legacyHost;
+    const f = await fixture(`terminal-authorship-${variant}`);
     const workNote = { source: "Attributed Work review", observed_at: f.now(), provenance: "derived_interpretation", label: "Changed assumption / user correction", text: "Work review: separate observed direct calls from hypotheses. Earlier claims are not established premises." };
     await selectOrdinaryNotes(f, [...currentNotes(f), workNote]);
     const direction = await f.direction({ action: "decide", expected_ref: null, content: { purpose: "Trace the selected source", criteria: [], constraints: [] }, reason: "Explicit development direction", status: "active", proposal_ref: null });
@@ -742,9 +743,13 @@ async function terminalAuthorshipContract() {
       material: { question: "Inspect the selected trace before drawing a connection", files: [{ path: "entry.ts", start_line: 1, end_line: 2 }] } });
     f.controls.lose = false;
     f.controls.transform = (output, input) => { if (input.stage === "conclude") { output.recommendations[0].grounded_state_keys = ["wrong-anchor"]; output.recommendations[0].rationale = "REJECTED_PUBLIC_JUDGMENT_NOT_SELECTED: a controlled response, not a finding."; } };
-    const grant = (await f.call({ action: "preview", pricing: notePricing })).authorization;
-    const auth = f.authorizeOnly(grant);
-    const host = legacy ? new LegacyHost({ config: f.config, now: f.now, adapter: f.adapter }, auth.run_id) : f.host(auth.run_id);
+    // The exact pre-note issuer creates its own original request/grant; never
+    // strip fields, forge fingerprints or backfill unavailable evidence.
+    const grant = variant === "legacy-grant" ? await old.previewStatelessReview(f.db, { config: f.config, now: f.now, adapter: f.adapter }, notePricing)
+      : (await f.call({ action: "preview", pricing: notePricing })).authorization;
+    const auth = f.authorizeOnly(grant, variant === "legacy-grant" ? old.authorizeStatelessReview : authorizeStatelessReview);
+    if (variant === "legacy-grant") { assert.equal(auth.grant.request.selected_notes_ref, undefined); assert.equal(auth.grant.request.model_configuration, undefined); }
+    const host = legacy ? new old.StatelessSourceReviewHost({ config: f.config, now: f.now, adapter: f.adapter }, auth.run_id) : f.host(auth.run_id);
     await assert.rejects(() => host.run());
     const failed = f.host(auth.run_id).read(), snapshot = canonical(failed.run);
     assert.equal(failed.run.status, "stopped"); assert.equal(failed.run.steps[2]!.status, "failed"); assert.equal(failed.receipt, null);
@@ -837,7 +842,7 @@ async function terminalAuthorshipContract() {
     await f.call({ action: "preview", pricing: notePricing }, 409); assert.equal(f.calls, beforeCalls);
     assert.equal(validateRecoveryCanonicalDatabaseV01(f.db).status, "valid");
     readbacks.push({ config: f.config, run_id: auth.run_id, unknown_id: unknown.run.run_id, at: f.now(), packet, snapshot, unknownSnapshot, request });
-    const backup = await recoveryBackup(f, `terminal-${legacy}`), recovered = new Database(path.join(backup.backupPath, RECOVERY_DATABASE_PAYLOAD));
+    const backup = await recoveryBackup(f, `terminal-${variant}`), recovered = new Database(path.join(backup.backupPath, RECOVERY_DATABASE_PAYLOAD));
     try {
       assert.equal(validateRecoveryCanonicalDatabaseV01(recovered).status, "valid");
       assert.ok(inspectStatelessTerminalSuccessor(recovered, { config: { ...f.config, database_path: recovered.name }, packet }).packet);
@@ -858,7 +863,7 @@ async function terminalAuthorshipContract() {
     assert.throws(() => previewActivePortableProjectV01(f.db), /portable_stateless_review_not_supported/);
     // Save a read-only test copy before fresh authorization, so child readback
     // observes the prepared packet and disabled control without later state drift.
-    const copy = path.join(root, `terminal-read-${legacy}.db`); await f.db.backup(copy); (readbacks.at(-1) as any).config = { ...f.config, database_path: copy };
+    const copy = path.join(root, `terminal-read-${variant}.db`); await f.db.backup(copy); (readbacks.at(-1) as any).config = { ...f.config, database_path: copy };
     controlFor(f, true); await f.call({ action: "authorize_and_run", authorization: grant }, 409);
     const fresh = (await f.call({ action: "preview", pricing: notePricing })).authorization;
     const result = (await f.call({ action: "authorize_and_run", authorization: fresh })).result;
@@ -878,7 +883,7 @@ async function terminalAuthorshipContract() {
   }
   const file = path.join(root, "terminal-readbacks.json"); writeFileSync(file, JSON.stringify(readbacks));
   const child = spawnSync(process.execPath, ["--import", "tsx", "scripts/test-stateless-source-review.ts", "--read-terminal", file], { encoding: "utf8", timeout: 20000, env: { ...process.env, OPENAI_API_KEY: "" } });
-  assert.equal(child.status, 0, child.stderr || child.stdout); assert.equal(JSON.parse(child.stdout).cases, 2);
+  assert.equal(child.status, 0, child.stderr || child.stdout); assert.equal(JSON.parse(child.stdout).cases, 3);
 }
 async function readTerminalChild(filename: string) {
   try {
@@ -893,7 +898,8 @@ async function readTerminalChild(filename: string) {
         const response = await request(); assert.equal(response.status, 200); const value = await response.json();
         assert.equal(value.preparation.packet_id, packet.packet_id); assert.equal(readProjectAutomationControlV01(db, config)!.enabled, false);
         const review = value.reviews.find((r: any) => r.run.run_id === input.run_id), unknown = value.reviews.find((r: any) => r.run.run_id === input.unknown_id);
-        assert.equal(canonical(review.run), input.snapshot); assert.equal(canonical(unknown.run), input.unknownSnapshot);
+        assert.equal(canonical(review.run), input.snapshot);
+        if (input.unknown_id) assert.equal(canonical(unknown.run), input.unknownSnapshot);
         const markup = renderToStaticMarkup(createElement(StatelessTerminalAuthorship, { preparation: review.terminal_preparation, material: input.request.material, request: async () => { throw new Error("readback_must_not_mutate"); }, saved: async () => {} }));
         assert.ok(markup.includes("Compare selected context for new work") && markup.includes("The provider response returned.") && markup.includes("Attributed Work review"));
         assert.ok(markup.includes(review.terminal_preparation.evidence.layer));
@@ -906,7 +912,114 @@ async function readTerminalChild(filename: string) {
     assert.equal(requests, 0); console.log(JSON.stringify({ cases: inputs.length, calls: 0, fresh_authenticated_read: true, actual_product_component: true, logout: 401 }));
   } finally { rmSync(root, { recursive: true, force: true }); network.unsubscribe(onNetwork); zeroNetwork.restore(); }
 }
+async function solTerminalAuthorshipContract() {
+  const attempts = [];
+  for (const stage of ["choose", "conclude"] as const) {
+    const f = await fixture(`sol-terminal-${stage}`, "read_selected_sources", "use_observation", false, "gpt-6.1-sol");
+    const workNote = { source: "Attributed Work review", observed_at: f.now(), provenance: "derived_interpretation", label: "Changed assumption / user correction", text: "Separate the returned response from an accepted finding; inspect the remaining source connection." };
+    await selectOrdinaryNotes(f, [...currentNotes(f), workNote]);
+    const authorization = (await f.call({ action: "preview", pricing: notePricing })).authorization;
+    f.controls.transform = (output, input) => {
+      if (input.stage !== stage) return;
+      if (stage === "choose") output.recommendations[0].rationale = "x".repeat(1201);
+      else output.recommendations[0].grounded_state_keys = ["wrong-anchor"];
+    };
+    const returned = (await f.call({ action: "authorize_and_run", authorization })).result;
+    const saved = (await f.call()).reviews.find((r: any) => r.run.run_id === returned.run.run_id);
+    assert.deepEqual(saved.run, returned.run);
+    const failed = saved.run.steps[stage === "choose" ? 0 : 2], receipt = failed.output.failure_receipt;
+    assert.equal(f.calls, stage === "choose" ? 1 : 2);
+    assert.equal(saved.run.status, "stopped"); assert.equal(saved.receipt, null);
+    assert.equal(failed.status, "failed"); assert.equal(failed.output.dispatch_outcome, "returned_invalid");
+    assert.equal(receipt.status, "completed"); assert.equal(receipt.outcome, "live_success");
+    assert.equal(saved.failures[0].evidence.layer, "host_validation");
+    assert.equal(saved.failures[0].evidence.code, stage === "choose" ? "rationale_bound_exceeded" : "source_anchor_missing");
+    let historyError: string | null = null;
+    try { readTerminalAttemptHistory(f.db, f.config, saved.run.run_id); }
+    catch (error) { historyError = (error as Error).message; }
+    console.log(JSON.stringify({ stage, response_received: true, host_validation_rejected: true, saved_review: true,
+      terminal_preparation: !!saved.terminal_preparation, historical_verification_error: historyError, scripted_calls: f.calls, provider_egress: requests }));
+    attempts.push({ f, saved, failed, authorization });
+  }
+  assert.deepEqual(attempts.map(a => !!a.saved.terminal_preparation), [true, true], "Both Sol host-rejected judgments must expose ordinary terminal authorship");
+  const readbacks = [];
+  for (const { f, saved, failed, authorization } of attempts) {
+    const runId = saved.run.run_id, snapshot = canonical(saved.run), beforeCalls = f.calls;
+    const records = () => listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet", "capability_grant", "run_receipt"], limit: 128 });
+    const originalCore = records();
+    // Expiry, changed current control and a different current route cannot
+    // reinterpret immutable historical authority as today's permission.
+    controlFor(f, false); f.tick(600_001); f.refreshSession();
+    f.modelEnvironment.OPENAI_MODEL = "gpt-4.1-mini"; f.modelEnvironment.OPENAI_API_KEY = "";
+    assert.ok(f.now() > authorization.expires_at);
+    const beforeControl = canonical(readProjectAutomationControlV01(f.db, f.scope));
+    const preparation = (await f.call()).reviews.find((r: any) => r.run.run_id === runId).terminal_preparation;
+    assert.deepEqual(preparation.binding, saved.terminal_preparation.binding);
+    const request = { predecessor: preparation.binding, definition: { goal: "Inspect the remaining source connection", success_criteria: ["Attribute a direct edge to source"], non_goals: ["No accepted state or execution permission"] },
+      material: { question: "What connection does the current selected source establish?", files: [{ path: "entry.ts", start_line: 1, end_line: 2 }] },
+      notes: preparation.sources.filter((e: any) => e.bounded_summary.includes("Attributed Work review")).map((e: any) => ({ saved_source_id: e.entry_id })), omitted_sources: [] as any[] };
+    const comparison = (await f.call({ action: "compare_terminal_sources", request })).preparation.comparison;
+    request.omitted_sources = comparison.unselected_previous.map((e: any) => ({ source_binding: e.source_ref, reason: "Retain the previous question as history; select the new question explicitly." }));
+    const preview = (await f.call({ action: "preview_terminal_work", request })).preparation;
+    await f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding }, 401, { cookie: "" });
+    await f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding }, 409, {}, `project:${randomUUID()}`);
+    const otherConfig = { ...f.config, operator_id: "operator:other-principal" }, clock = { now: f.now };
+    const bootstrap = issueVNextLocalOperatorBootstrapV01(f.db, { config: otherConfig, clock });
+    const otherSession = consumeVNextLocalOperatorBootstrapV01(f.db, { config: otherConfig, clock, bootstrap_token: bootstrap.bootstrap_token });
+    const otherCookie = `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${otherSession.cookie_value}`;
+    await f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding }, 403, { cookie: otherCookie });
+    const otherCredential = readVNextLocalOperatorCredentialFromRequestV01(new Request("http://127.0.0.1", { headers: { cookie: otherCookie } }));
+    assert.ok(revokeVNextLocalOperatorSessionByCredentialV01(f.db, { config: otherConfig, credential: otherCredential, clock }).revoked_at);
+    // Only negative, rolled-back corruption. No invented grant or receipt can
+    // provide the positive authorship evidence above or below.
+    const changedGrant = structuredClone(originalCore.find(r => r.record_id === preparation.binding.grant_id)!.payload) as any;
+    changedGrant.request.limits.output_tokens = 1024;
+    assert.equal(validateStatelessGrant(changedGrant), false, "Original limits cannot change under a saved fingerprint");
+    for (const field of ["grant-binding", "grant-lineage", "cost-authority", "evidence"] as const) {
+      f.db.exec("BEGIN IMMEDIATE");
+      try {
+        if (field === "grant-binding") f.db.prepare("UPDATE autonomy_runs SET metadata_json=json_set(metadata_json,'$.stateless_review.grant_fingerprint',?) WHERE run_id=?").run(hash("tampered-original-grant"), runId);
+        else {
+          const output = structuredClone(failed.output);
+          if (field === "grant-lineage") output.failure_receipt.grant_lineage_ref.source_ref = hash("tampered-lineage");
+          if (field === "cost-authority") output.failure_receipt.budget.cost_budget.authority.model_ref.source_ref = hash("tampered-cost-authority");
+          if (field === "evidence") output.failure_evidence = { code: "malformed_record" };
+          updateAutonomyRunStepLedgerFields(failed.step_id, { output }, { db: f.db });
+        }
+        assert.throws(() => readTerminalAttemptHistory(f.db, f.config, runId), field);
+        assert.equal(readTerminalAuthorshipPreparation(f.db, f.config, runId, f.now()), null, field);
+      } finally { f.db.exec("ROLLBACK"); }
+    }
+    if (process.argv[2] === "--sol-terminal-browser" && failed.step_index === 3) {
+      const copy = path.join(root, "sol-terminal-browser-copy.db"); await f.db.backup(copy);
+      const input = path.join(root, "sol-terminal-browser-input.json"); writeFileSync(input, JSON.stringify({ config: { ...f.config, database_path: copy }, at: f.now(), request }));
+      const ui = spawnSync(process.execPath, ["--import", "tsx", "scripts/test-stateless-terminal-browser.ts", input], { encoding: "utf8", timeout: 90000, env: { ...process.env, OPENAI_API_KEY: "" } });
+      assert.equal(ui.status, 0, ui.stderr || ui.stdout); console.log(ui.stdout.trim());
+    }
+    const authored = (await f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding })).result;
+    const packet = authored.packet;
+    assert.equal(packet.capability_grant, null); assert.equal(packet.expires_at, null);
+    assert.notEqual(packet.packet_id, authorization.packet_id);
+    assert.equal(readProjectWorkInitializationV01(f.db, f.config).current_packet?.packet_id, packet.packet_id);
+    assert.equal(inspectStatelessTerminalSuccessor(f.db, { config: f.config, packet }).projection_current, true);
+    assert.ok(statelessTerminalEntries(packet)[0]!.bounded_summary!.includes(runId));
+    assert.equal((await f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding })).result.status, "exact_replay");
+    assert.equal(records().length, originalCore.length + 1);
+    assert.deepEqual(records().filter(r => originalCore.some(old => old.record_id === r.record_id)), originalCore);
+    assert.equal(canonical((await f.call({ action: "continue", run_id: runId })).result.run), snapshot);
+    assert.equal(f.calls, beforeCalls); assert.equal(canonical(readProjectAutomationControlV01(f.db, f.scope)), beforeControl);
+    f.tick(86_400_000); f.refreshSession();
+    assert.equal((await f.call()).preparation.packet_id, packet.packet_id);
+    readbacks.push({ config: f.config, run_id: runId, at: f.now(), packet, snapshot, request });
+  }
+  const file = path.join(root, "sol-terminal-readbacks.json"); writeFileSync(file, JSON.stringify(readbacks));
+  const child = spawnSync(process.execPath, ["--import", "tsx", "scripts/test-stateless-source-review.ts", "--read-terminal", file], { encoding: "utf8", timeout: 20000, env: { ...process.env, OPENAI_API_KEY: "" } });
+  assert.equal(child.status, 0, child.stderr || child.stdout); assert.equal(JSON.parse(child.stdout).cases, 2);
+  console.log(JSON.stringify({ sol_terminal_authorship: "choose_and_conclude", historical_grant_validated_after_expiry: true, successor_grant: null,
+    original_records_unchanged: true, exact_replay: true, fresh_process_readback: true, provider_egress: requests }));
+}
 async function solLowContract() {
+  await solTerminalAuthorshipContract();
   const model = "gpt-6.1-sol", pricing = { input_nano_usd_per_byte: 2500, output_nano_usd_per_token: 10000,
     maximum_total_nano_usd: 200_000_000, source_version: "scripted-sol-low-not-live-authority" };
   const make = (name: string) => fixture(`sol-${name}`, "read_selected_sources", "use_observation", false, model);
@@ -1098,9 +1211,12 @@ async function main() {
       console.log(JSON.stringify({ status: "passed", model_configuration: "gpt-6.1-sol-low-standard", scripted_only: true, authority_and_usage: true,
         incomplete_resource_failure: true, fresh_process_readback_and_restart: true, stale_route_refused: true, late_fencing: true, external_requests: requests })); return;
     }
+    if (["--sol-terminal-authorship", "--sol-terminal-browser"].includes(process.argv[2]!)) {
+      await solTerminalAuthorshipContract(); assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0); return;
+    }
     if (["--terminal-authorship", "--terminal-browser"].includes(process.argv[2]!)) {
       await terminalAuthorshipContract(); assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0);
-      console.log(JSON.stringify({ status: "passed", terminal_authorship: "ordinary_preview_new_packet_fresh_grant", legacy_writer: "65f6efc92d969c47e86152efa9388aba4c169c63", candidate_writes: 0, external_requests: requests })); return;
+      console.log(JSON.stringify({ status: "passed", terminal_authorship: "ordinary_preview_new_packet_fresh_grant", legacy_writer: "65f6efc92d969c47e86152efa9388aba4c169c63", legacy_grant_writer: "d6101051213965a45798c7738852d8af3eddc966", candidate_writes: 0, external_requests: requests })); return;
     }
     if (process.argv[2] === "--rejection-evidence") {
       await rejectionEvidenceContract(); assert.equal(requests, 0);

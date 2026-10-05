@@ -15,7 +15,7 @@ import { insertAutonomyRunLedgerRecord, updateAutonomyRunLedgerFields, updateAut
 import { buildDefaultRunnerAuthorityBoundary, buildDefaultRunnerBudgetSnapshot, buildDefaultRunnerSourceRefs, isTerminalRunnerStatus } from "@/lib/autonomy/runner-state";
 import { canonicalizeProtocolValueV01 as canonical, createProtocolSha256V01 as hash } from "../protocol-primitives";
 import { statelessTerminalEntries, statelessMandatoryEntries, STATELESS_WORK, STATELESS_LIMITS as LIMITS, STATELESS_SOL_LOW_LIMITS, reviewCheck as check, reviewObject, reviewText, reviewFile, readSourceReview, readStatelessSelectedNotes, reviewRef, type SourceReview, type ReviewObservation, type StatelessGrantRequest, type StatelessGrant } from "../stateless-work";
-import { insertStatelessGrant, readStatelessGrant } from "../persistence/stateless-work-grant";
+import { insertStatelessGrant, readStatelessGrant, buildStatelessModelInvocationGrant } from "../persistence/stateless-work-grant";
 import { readCanonicalProjectWithRootV01 } from "../persistence/project-identity-registry";
 import { readActiveProjectSelectionV01 } from "../persistence/project-lifecycle-registry";
 import { readProjectAutomationControlV01 } from "../persistence/project-control-store";
@@ -30,7 +30,7 @@ import { revisePreExecutionProjectWorkV01 } from "./project-work-revision";
 import { openVNextLocalOperatorDatabaseV01, admitVNextLocalOperatorMutationInsideTransactionV01, type VNextLocalOperatorPilotConfigV01 as Config, type VNextLocalOperatorSessionCredentialV01 as Credential } from "./local-operator-session";
 import { invokePlannerModelGatewayV01, preparePlannerModelGatewayRouteV01, readPlannerModelGatewayExecutionConfigurationV01 } from "../model-gateway/model-gateway";
 import { buildPlannerModelInvocationEnvelopeV01 } from "@/lib/planner/planner";
-import { buildModelInvocationCapabilityGrantV01, authorizeModelInvocationCapabilityGrantV01 } from "../automation/model-invocation-capability-grant";
+import { authorizeModelInvocationCapabilityGrantV01 } from "../automation/model-invocation-capability-grant";
 import { buildModelGatewayCostAuthorityV01, buildModelGatewayCostBudgetV01, assertModelGatewayCostBudgetCurrentV01 } from "../model-gateway/cost-authority";
 import { isModelGatewayInvocationErrorV01, type ModelAdapterV01, type ModelInvocationReceiptV02, type PlannerRecommendationV01, type PlannerModelGatewayResultV01 } from "../model-gateway/contracts";
 import { projectModelInvocationReceiptToRunReceiptEntryV02 } from "../model-gateway/run-receipt-projection";
@@ -336,10 +336,7 @@ export class StatelessSourceReviewHost {
           packet_id: grant.request.packet_id, packet_fingerprint: grant.request.packet_fingerprint, grant_id: grant.grant_id, grant_fingerprint: grant.grant_fingerprint,
           input_fingerprint: fingerprint(input), review_ref: grant.request.review_ref, selected_notes_ref: grant.request.selected_notes_ref ?? null,
           observation_fingerprint: step.step_index === 3 ? String(run.steps[1]!.output.observation_fingerprint) : null, receipt_fingerprint: null };
-        const modelGrant = buildModelInvocationCapabilityGrantV01({ grant_id: `${grant.grant_id}.${step.title}`, workspace_id: grant.workspace_id, project_id: grant.project_id,
-          work_id: String(run.metadata.work_id), run_id: run.run_id, automation_control_revision: grant.request.control_revision, permitted_purposes: ["planner_plan"], permitted_execution_modes: ["live"], provider_egress_allowed: true,
-          max_provider_calls: 1, max_input_bytes: limits.input_bytes, max_output_tokens: limits.output_tokens, max_timeout_ms: limits.invocation_ms,
-          allowed_data_classifications: ["private"], issued_at: grant.issued_at, expires_at: grant.request.expires_at, status: "active", capability_status: "available" });
+        const modelGrant = buildStatelessModelInvocationGrant(grant, { work_id: String(run.metadata.work_id), run_id: run.run_id, stage: step.title });
         const budget = { max_input_bytes: limits.input_bytes, max_output_tokens: limits.output_tokens, max_provider_calls: 1 as const, cost_budget: grant.request.cost_budget };
         const guardCurrentClaim = () => {
           const guard = this.open();

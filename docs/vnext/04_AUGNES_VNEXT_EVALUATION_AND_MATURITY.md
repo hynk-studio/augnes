@@ -450,6 +450,14 @@ without truncation. Scripted compatibility proves no live availability, model
 compliance or adequacy. A resource-limited response alone is not a task-quality
 finding; selecting a different allowance would require another explicit decision.
 
+For eligible Sol host rejections at both judgments, verify saved-review preparation
+and ordinary compare → preview → author operations, including after original grant
+expiry and current route/control changes. The separate durable successor must have
+a null execution grant and preserve the failed attempt and exact original records.
+Use fresh-process authenticated readback and the existing review component; retain
+mini/legacy compatibility, exact replay and tampered-lineage/cost/evidence refusals.
+Successful authorship does not establish successful execution or accepted state.
+
 For optional observation-boundary interruption, use the ordinary authenticated
 preview/authorization and Continue HTTP paths with scripted provider transport.
 Prove the runtime returns after observation persistence and before a conclude
