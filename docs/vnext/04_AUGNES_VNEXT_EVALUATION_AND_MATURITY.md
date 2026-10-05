@@ -662,6 +662,34 @@ exact comparison's selection/snapshot mismatch visible as `non_conformant`, whil
 checking every historical record and relational result separately. Do not copy
 the source selection token or normalize the difference away to obtain equality.
 
+For #1401, compare that same pair using explicit report v0.2 and profile
+`preserved_history_fresh_selection.v0.1`. Conformance requires all three separate
+results: exact historical/preserved-field checks, relational correspondence and
+validated local observations. Preserve the embedded legacy non-conformance; its
+expected test result alone cannot discharge the integration/adoption hold.
+Allow only the destination selection revision and its necessarily derived
+snapshot binding (plus the private material's selection field). Independently
+invoke the actual snapshot reader and hash owner on both databases, validate
+project/work/root and all remaining material, and reread at the capture point.
+Neither a SHA-shaped value, a changed digest, copied seal, fabricated matching
+JSON nor caller-asserted freshness is an observation.
+
+Assert specific failures for historical identity/fingerprint and semantic drift,
+wrong scope/root/packet, cutoff/rule drift, altered obligations, Decision versus
+Transition, retired/unknown promotion, copied/stale selection, forged or
+mismatched binding, missing/partial reads, changes between collection and use,
+and resealed report tampering. Confirm byte-identical databases before/after
+comparison, deterministic replay of identical captures and identical preservation
+verdicts across independent portable imports with fresh identities. Reuse the
+existing recovery owner for independent restores with unchanged immutable backup
+and history; the imported RC1 chain also requires fresh-process snapshot-owner
+readback. Supported mutation probes belong to a separate fixture
+stage: stale source/earlier observations refuse while a current read can reopen.
+Retain the existing selected/cleared/never-selected recovery checks. Local
+captures are historical evidence after collection, not transferable attestations
+or write authority. Supply the new exact-head receipt for review; reporting its
+existence does not establish independent inspection or integration approval.
+
 ### Prospective preparation and event/time re-entry
 
 For [#1380](https://github.com/hynk-studio/augnes/issues/1380), keep three evidence

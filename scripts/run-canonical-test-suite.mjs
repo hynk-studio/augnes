@@ -532,6 +532,20 @@ const suites = {
       timeoutMs: 600_000,
     },
     {
+      id: "reconstruction-selection-conformance",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "backup-restore", "project-root", "mutable-module-state", "process-owning"],
+      label: "prospective RC1 preservation and independent fresh owner observations",
+      ...rootNode("scripts/test-reconstruction-conformance.ts", "--selection-profile"),
+      // Separate prospective owner: the same authenticated source construction,
+      // complete current-owner collection/revalidation, negative controls, and
+      // a second supported import with a fresh-process read. Existing selected,
+      // cleared and never-selected restore coverage keeps its original owner.
+      // Keep legacy RC1 at 600s.
+      timeoutMs: 1_200_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "codex-qualified-runtime-registry",
       group: "supporting-serial",
       requirements: ["filesystem", "project-root", "mutable-module-state"],

@@ -15,6 +15,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import Database from "better-sqlite3";
+import { testReconstructionConformanceV02 } from "./test-reconstruction-conformance-v02";
 
 import { createDeterministicCodexAdapterV01 } from "../lib/vnext/native-host/deterministic-codex-adapter";
 import {
@@ -179,6 +180,7 @@ const network = installZeroNetworkGuard({
 });
 
 async function main(): Promise<void> {
+  const selectionProfile = process.argv[2] === "--selection-profile";
   let source: Database.Database | null = null;
   let reconstructed: Database.Database | null = null;
   let completionSummary: Record<string, unknown> | null = null;
@@ -567,18 +569,47 @@ async function main(): Promise<void> {
     assert.equal(replay.integrity.fingerprint, validReport.integrity.fingerprint);
     record("valid_report_is_two_lane_bounded_safe_and_deterministically_replayable");
 
-    verifySourceBoundaryBindingsV01(validInput);
-    verifySourceAndRuleDriftV01(validInput);
-    verifyAuthorityFarSubstitutionsV01(validInput);
-    verifyNegativeSpaceV01(
-      validInput,
-      baselineOwners.missing_lineage,
-      reconstructedOwners.missing_lineage,
-    );
-    verifyRelationVocabularyV01(validReport);
-    verifyCrossProjectRefusalV01(validInput);
-    verifyReportPrivacyBoundaryV01(validInput, validReport);
-    verifyReportTamperRefusalV01(validInput, validReport);
+    if (!selectionProfile) {
+      verifySourceBoundaryBindingsV01(validInput);
+      verifySourceAndRuleDriftV01(validInput);
+      verifyAuthorityFarSubstitutionsV01(validInput);
+      verifyNegativeSpaceV01(
+        validInput,
+        baselineOwners.missing_lineage,
+        reconstructedOwners.missing_lineage,
+      );
+      verifyRelationVocabularyV01(validReport);
+      verifyCrossProjectRefusalV01(validInput);
+      verifyReportPrivacyBoundaryV01(validInput, validReport);
+      verifyReportTamperRefusalV01(validInput, validReport);
+    }
+
+    // Complete the legacy comparison before the successor's separate mutation
+    // and independent reconstruction stages.
+    reconstructed.close();
+    reconstructed = null;
+    const prospective = selectionProfile ? await testReconstructionConformanceV02({
+      input: validInput, portable: portableBaseline.package,
+      baseline_path: sourceDbPath, reconstructed_path: reconstructedDbPath,
+      operator_id: fixtureManifest.operator_id, temporary_root: tempRoot,
+      reconstruct: destinationPath => {
+        assert.deepEqual(readdirSync(exactRegisteredRoot), []);
+        rmdirSync(exactRegisteredRoot);
+        initializeDatabaseV01(destinationPath);
+        const second = new Database(destinationPath, { fileMustExist: true });
+        try {
+          second.pragma("foreign_keys = ON");
+          const result = importPortableProjectV01(second, { bytes: portableBaseline.bytes,
+            destination_root_base: sharedProjectRootBase, imported_at: BOUNDARY_AT });
+          assert.equal(result.status, "imported");
+          assert.equal(result.projection_reader_verification, "verified");
+          assert.equal(result.semantic_authority_created, false);
+          assert.equal(result.automation_authority_created, false);
+          assert.equal(result.external_action_created, false);
+        } finally { second.close(); }
+      },
+    }) : null;
+    if (selectionProfile) record("prospective_profile_preserves_legacy_verdict_and_requires_actual_fresh_owner_observations");
 
     assert.equal(network.attempts.length, 0);
     assert.equal(validReport.authority.calls_model_or_provider, false);
@@ -591,7 +622,7 @@ async function main(): Promise<void> {
 
     completionSummary = {
       status: "pass",
-      contract: "reconstruction_conformance_test.v0.1",
+      contract: selectionProfile ? "reconstruction_selection_conformance_test.v0.1" : "reconstruction_conformance_test.v0.1",
       assertions,
       assertion_count: assertions.length,
       source_record_count:
@@ -608,9 +639,10 @@ async function main(): Promise<void> {
       exact_integrity: validReport.exact_integrity.status,
       exact_difference: "codex_current_continuity_projection: fresh local selection and snapshot",
       relational_semantic: validReport.relational_semantic.status,
+      ...(selectionProfile ? { prospective } : {}),
       provider_calls: 0,
       external_network_calls: network.attempts.length,
-      owned_processes_started: 0,
+      owned_processes_started: selectionProfile ? 1 : 0,
       owned_listeners_started: 0,
       disposable_roots: [
         "home",

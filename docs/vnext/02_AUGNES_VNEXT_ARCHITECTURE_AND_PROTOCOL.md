@@ -276,6 +276,39 @@ a different live continuity snapshot. The existing RC1 exact comparer retains
 that difference as `non_conformant`; it does not normalize it into exact equality.
 Canonical historical bytes and the separate relational comparison remain
 independently checked. This does not transfer source selection authority.
+
+The prospective RC1 `reconstruction_conformance_report.v0.2` profile
+`preserved_history_fresh_selection.v0.1` qualifies preserved history **and** an
+independent fresh local observation. It embeds the unchanged v0.1 report and
+verdict. Its only live differences are `continuity.project.selection_revision`,
+`continuity.snapshot.binding`, and the private snapshot material's
+`selection_revision`. Selection must still name the same active project in the
+same workspace; destination and source observations must differ. Snapshot
+version, algorithm, exactness, project/root/work identity, execution, result,
+review, currentness, next action and every other field remain exact. The profile
+does not grant a general environmental normalization exception.
+
+The bounded read-only collector opens each independent database, checks complete
+canonical history against counted storage pages and the portable owner, and
+invokes the actual current-continuity private snapshot reader and binding owner.
+It independently reads Project Verify, requires RC1's lineage from an applied
+Transition to a later packet, and reads unresolved feedback. Empty or irrelevant lineage query
+collections do not qualify. It checks the
+durable selection against the private material and public projection, then
+rereads at capture to refuse changes between collection and use. Missing,
+partial, unknown-shaped or failed observations cannot qualify conformance.
+Process-local opaque captures keep private material internal and prevent caller
+JSON or a self-consistent fabricated hash from posing as a reader invocation.
+They are bounded local evidence, not remote attestation or execution authority.
+Pure replay remains deterministic for identical captured inputs; it makes no
+claim about later live state. A new current evaluation requires a new capture.
+
+This profile covers the source-authenticated RC1 active-project portable chain
+and recovery of that imported chain, including its pending feedback. It does not
+silently qualify excluded personal history, absent work, cleared selection or
+never-selected workspaces. Those restore states retain their existing selection
+safety contract and recovery tests. No database migration, projection cache,
+selection writer, credential renewal or historical rewrite is introduced.
 Explicit hosted snapshot exports carry the opaque observation under the local
 projection contract. The prior numeric fictional fixture stays byte-identical;
 earlier private Site qualification does not qualify this new field shape. Hosted

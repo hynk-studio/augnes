@@ -637,6 +637,26 @@ PR. Prior receipts remain historical. Issue #1399 stays open for review; hosted
 rollout, actual live-agent adoption, retained-candidate use, provider execution
 and general usefulness are outside this slice.
 
+### Current RC1 follow-up — Selection reconstruction conformance (#1401)
+
+Stacked on Draft #1400, this bounded local comparison adds the prospective
+`preserved_history_fresh_selection.v0.1` profile under report v0.2. The same
+independently imported RC1 fixture retains v0.1's exact `non_conformant` result
+and conformant relational lane. The new profile separately requires exact
+preserved history and continuity fields, relational correspondence, and actual
+fresh local selection/snapshot owner observations. Private material stays inside
+the read-only collector; report parsing and deterministic replay retain explicit
+version dispatch. Product selection and restore writers are unchanged.
+
+Disposable evidence includes two independent supported portable reconstructions,
+fresh-process snapshot readback, stale management refusals and specific drift,
+incomplete-read and tampering controls. Repeated restore of the same immutable
+backup in selected, cleared and never-selected states reuses #1400's focused owner. Final
+exact-head Local Canonical evidence belongs to this candidate, not its
+predecessor. Issues #1401 and #1399 remain open; integration/adoption remains a
+review decision. Hosted compatibility, remote attestation, live-candidate use,
+installation, execution, deployment and usefulness are outside this change.
+
 ### Current P2/P3/P4/P5 — Project direction and decision authority (#1382)
 
 The 2026-10-02 north-star review authorized this connected increment after merged

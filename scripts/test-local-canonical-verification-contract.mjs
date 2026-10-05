@@ -1074,6 +1074,7 @@ const integrationChildren = [
   "project-verify-production-lifecycle",
   "project-verify-operator-adapter",
   "reconstruction-conformance",
+  "reconstruction-selection-conformance",
   "codex-qualified-runtime-registry",
   "codex-ordinary-runtime-candidate",
   "codex-rolling-stable-candidate",
@@ -1180,6 +1181,11 @@ for (const childId of integrationChildren) {
   );
 }
 // Separate complete owners retain their own 30s ceiling and run once each.
+const legacyReconstruction = readCanonicalChildRegistration(integrationSource, "reconstruction-conformance");
+requireText(legacyReconstruction.block, "timeoutMs: 600_000", "legacy RC1 retains its original deadline");
+const selectionReconstruction = readCanonicalChildRegistration(integrationSource, "reconstruction-selection-conformance");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 1_200_000', 'requireNaturalExit: true', '"--selection-profile"', '"process-owning"'])
+  requireText(selectionReconstruction.block, fragment, "prospective RC1 has one bounded observation and recovery owner");
 const webPlanningRegistration = readCanonicalChildRegistration(integrationSource, "web-planning-d1");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 120_000', 'requireNaturalExit: true', '"scripts/test-web-planning.mjs"', '"backup-restore"'])
   requireText(webPlanningRegistration.block, fragment, "web planning D1 retains one bounded storage and recovery owner");
