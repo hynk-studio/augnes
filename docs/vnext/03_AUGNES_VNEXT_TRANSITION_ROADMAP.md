@@ -600,6 +600,25 @@ comparative usefulness. Exact-head verification and cleanup belong to the Draft
 PR receipt. The retained real candidate, broader project management, hosted
 store, provider execution, installation and deployment remain outside this slice.
 
+### Current lifecycle slice — Cumulative Web Planning history (#1397)
+
+Stacked on #1396, this bounded local candidate removes Web Planning's revision-32
+constraint in application admission, references and SQL through forward schema-3
+migration. Its [Web-owned contract](../../apps/web_planning/README.md#cumulative-saved-history-1397)
+keeps one atomic bounded history observation, explicit operation budgets,
+transactional chunked reconstruction and ordinary human/browser-agent-facing
+Save and Saved context. Historical envelopes, files, provenance, erased IDs,
+independent copies and the separate 24-hour authorization seals remain intact.
+
+Real disposable Worker/D1 checks distinguish predecessor-writer history from
+constructed larger prefixes, preserve both migration owners, and exercise
+restart, later edits, incomplete reads, conflicting heads and rollback. Draft
+review, final exact-head Canonical evidence and cleanup are separate from hosted
+migration, live-client adoption or usefulness. Issue #1397 remains open; no live
+store, retained real candidate, provider, installation or deployment is used.
+The predecessor's successful and failed verification records retain their exact
+source identities and do not qualify this candidate.
+
 ### Current P2/P3/P4/P5 — Project direction and decision authority (#1382)
 
 The 2026-10-02 north-star review authorized this connected increment after merged

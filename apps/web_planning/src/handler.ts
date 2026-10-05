@@ -1,7 +1,7 @@
 /// <reference path="./assets.d.ts" />
 import { FILE_EXPORT_REQUEST_BYTES, historyFiles, selectedFiles, validateFileExport } from "./files";
 import { authorize, csrfCookie, csrfToken, readTicket, requireCsrf, requireScope, ticket, type Environment, type Principal } from "./access";
-import { binding, canonical, exact, exportWork, fail, hash, MAX_REVISIONS, makeRevision, normalizePayload, reference, Refusal, REQUEST_BYTES, requestFingerprint, sameBinding, UUID, validateExport } from "./contract";
+import { assertHistoryBudget, binding, canonical, exact, exportWork, fail, hash, makeRevision, normalizePayload, reference, Refusal, REQUEST_BYTES, requestFingerprint, sameBinding, UUID, validateExport } from "./contract";
 import { inspectDraftCapacity } from "./capacity";
 import { append, completeExport, downloadFile, eraseWork, headBinding, headsCurrent, listWork, readWork, reconstruct, requestRevision } from "./store";
 import { page, renderContext, renderComparison, renderPreview, style } from "./page";
@@ -41,7 +41,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
         const listed=await listWork(access,cursor);
         return json({items:listed.items.map(r=>({work_id:r.work_id,goal:r.definition.goal,recorded_at:r.recorded_at,...headBinding(r),branch_of:r.relations?.origin?.source.work_id??null})),next:listed.next});
       }
-      const fileMatch=path.match(/^\/api\/work\/([a-f0-9-]+)\/files\/([1-9][0-9]?)\/([a-f0-9]{64})\/([0-7])$/);
+      const fileMatch=path.match(/^\/api\/work\/([a-f0-9-]+)\/files\/([1-9][0-9]{0,15})\/([a-f0-9]{64})\/([0-7])$/);
       if(fileMatch && UUID.test(fileMatch[1]) && !url.search) {
         const chain=await readWork(access,fileMatch[1]);
         const revision=chain.find(r=>r.revision===Number(fileMatch[2]) && r.fingerprint==="sha256:"+fileMatch[3]);
@@ -53,7 +53,11 @@ export async function handle(request:Request,env:Environment,principal:Principal
       const match=path.match(/^\/api\/work\/([a-f0-9-]+)(?:\/(history|export))?$/);
       if(match && UUID.test(match[1]) && !url.search) {
         const chain=await readWork(access,match[1]); if(!chain.length)fail("work_not_found",404);
-        if(match[2]==="export")return new Response(canonical(chain.some(r=>r.files!==undefined)?await completeExport(access,chain):exportWork(chain)),{headers:{...headers,"Content-Type":"application/json","Content-Disposition":"attachment; filename=planning-work.json"}});
+        if(match[2]==="export"){
+          const value=chain.some(r=>r.files!==undefined)?await completeExport(access,chain):exportWork(chain);
+          if(!await headsCurrent(access,reference(chain.at(-1)!),reference(chain.at(-1)!)))fail("refresh_required",409);
+          return new Response(canonical(value),{headers:{...headers,"Content-Type":"application/json","Content-Disposition":"attachment; filename=planning-work.json"}});
+        }
         return json(match[2]==="history"?{revisions:chain}:{saved:chain.at(-1)});
       }
       fail("not_found",404);
@@ -113,7 +117,9 @@ export async function handle(request:Request,env:Environment,principal:Principal
       const chain=await readWork(access,id), head=chain.at(-1);
       if(!head)fail("work_not_found",404);
       if(!sameBinding(headBinding(head),expected))fail("refresh_required",409);
-      if(action==="context") {const refs=await referenceAvailability(access,head);return html(renderContext(head,chain.at(-2),refs.availability,refs.reviewSource));}
+      if(action==="context") {const refs=await referenceAvailability(access,head);
+        if(!await headsCurrent(access,reference(head),reference(head)))fail("refresh_required",409);
+        return html(renderContext(head,chain.at(-2),refs.availability,refs.reviewSource));}
       if(action==="ticket") {
         const prepared=bound?selectedFiles(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits,head),input.files,head):undefined;
         if(prepared)historyFiles([...chain,{files:prepared.payload.files} as typeof head]);
@@ -144,9 +150,10 @@ export async function handle(request:Request,env:Environment,principal:Principal
     }
     if(!previousRequest) {
       if(!sameBinding(headBinding(previous.at(-1)),t.expected))fail("conflict",409);
-      if(t.expected.revision===MAX_REVISIONS)fail("history_capacity",409);
       historyFiles([...previous,{files:payload.files} as NonNullable<typeof base>]);
-      await append(access,makeRevision(access,id,t.expected,t.request_key,payload,new Date().toISOString()),undefined,bodies);
+      const next=makeRevision(access,id,t.expected,t.request_key,payload,new Date().toISOString());
+      assertHistoryBudget([...previous,next]);
+      await append(access,next,undefined,bodies);
     }
     const chain=await readWork(access,id);
     const saved=chain.find(r=>r.request_key===t.request_key);

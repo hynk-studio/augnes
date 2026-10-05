@@ -601,6 +601,30 @@ incomplete-read refusals, not unlimited-scale support. Local Canonical binds the
 new exact clean head; predecessor receipts remain historical and cannot qualify
 this correction. None of these fixtures operate on the retained real candidate.
 
+### Cumulative Web Planning history (#1397)
+
+Use the real disposable Worker/D1 and its supported migration owners. First
+reproduce revision 33 refusing through the predecessor's normal writer. Preserve
+nonempty mixed-format rows, fingerprints, file bodies, owner mapping and erased
+IDs across the forward migration; distinguish these historical bytes from
+canonical constructed larger fixtures. Test old/new binary refusal and failed
+migration rollback. Local evidence does not authorize a hosted migration.
+
+The existing atomic history statement is retained rather than paginated. Prove
+its mandatory completeness observation rejects missing, reordered, corrupt or
+foreign rows, and that resource exhaustion cannot become an empty/current result.
+Measure query count, rows, bytes and elapsed behavior. Cross reconstruction
+chunks with all-or-nothing failure, and test source/target drift beyond the old
+boundary, replay, unknown outcomes and erase/copy independence.
+
+Use ordinary browser editor saves past 32, fresh workerd and tab readback, exact
+Saved context and another edit after multiple days with fresh authorization.
+Expired save/operation tickets and CSRF remain negative controls. Label the
+shared browser-agent-facing content separately from actual live-client, hosted
+or non-Mac acceptance. Finite operation budgets and original independent limits
+remain explicit. Exact-head Canonical evidence, preserved failures and completed
+owned cleanup establish bounded correctness, not unlimited scale or usefulness.
+
 ### Prospective preparation and event/time re-entry
 
 For [#1380](https://github.com/hynk-studio/augnes/issues/1380), keep three evidence

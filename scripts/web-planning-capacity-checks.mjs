@@ -76,10 +76,10 @@ export async function checkCapacity({c,scope,passed}){
  const adaptedInput={definition,notes:previous.sources.map((s,i)=>({...small[i],text:'changed '+i,provenance:'derived_interpretation'})),material_edits:previous.sources.map(s=>({dependencies:[],adapts:s.source_ref}))};
  const relationMetric=inspectDraftCapacity(scope,adaptedInput,previous);assert(relationMetric.relations.used>RELATION_BYTES);assert.equal(relationMetric.fits,false);assert(relationMetric.issues.some(i=>i.code==='relation_budget_exceeded'));
  assert.throws(()=>editedPayload(scope,normalizePayload(scope,definition,adaptedInput.notes),adaptedInput.notes,adaptedInput.material_edits,previous),e=>e.code==='relation_budget_exceeded');
- const full={...first,revision:32};assert(inspectDraftCapacity(scope,{...initial,definition:{...definition,goal:definition.goal+" updated"}},full).issues.some(i=>i.code==='history_capacity'));
+ const full={...first,revision:32};assert.equal(inspectDraftCapacity(scope,{...initial,definition:{...definition,goal:definition.goal+" updated"}},full).fits,true);
  const unchanged={definition:first.definition,notes:first.sources.map(s=>({text:s.bounded_summary,source:s.compatibility_source_ref.external_id,label:s.why_included,provenance:s.trust_class,observed_at:s.external_ref.observed_at})),material_edits:first.sources.map(s=>({dependencies:first.relations.materials.find(m=>m.source_ref===s.source_ref).dependencies.map(ref=>first.sources.findIndex(s=>s.source_ref===ref)),adapts:null}))};
  assert.equal(inspectDraftCapacity(scope,unchanged,full).fits,true);
- passed('capacity: independent relation budget and history/no-op admission remain authoritative');
+ passed('capacity: independent relation budget and history disclosure and no-op remain authoritative');
  const envelopes=capacityEnvelopeEstimates(scope);assert(envelopes[1].request_bytes_upper_bound<1_500_000);assert(envelopes[2].request_bytes_upper_bound>1_500_000);
  console.log(JSON.stringify({synthetic_capacity_example:{baseline,addition:overMetric.selection.used,after_revision:metric.selection.used,text:metric.selection.text_bytes,metadata:metric.selection.metadata_bytes,relation:metric.relations.used,save_refusals:1,editing:'append one result; inspect; one deliberate refusal check; replace existing result detail and preserve three required notes',general_usability_claim:false},hypothetical_component_envelope_bounds:envelopes}));
 }

@@ -27,7 +27,7 @@ export async function checkFiles({start,client,newWork,save,passed,root,open}) {
  await old.close();open.splice(open.indexOf(old),1);old=await start('nonempty-v2-direct',options);oc=await client(old);
  assert.equal(await (await old.mf.dispatchFetch(old.origin+`/api/work/${ow.id}/export`,{headers:{cookie:oc.cookies}})).text(),oldBytes);
  assert.deepEqual((await old.db.prepare('SELECT envelope FROM web_planning_revision ORDER BY revision').all()).results,rowsBefore);
- assert.deepEqual((await old.db.prepare('SELECT name FROM d1_migrations ORDER BY id').all()).results.map(r=>r.name),['0000_web_planning.sql','0001_schema_version.sql','0002_revision_files.sql']);
+ assert.deepEqual((await old.db.prepare('SELECT name FROM d1_migrations ORDER BY id').all()).results.map(r=>r.name),['0000_web_planning.sql','0001_schema_version.sql','0002_revision_files.sql','0003_cumulative_history.sql']);
  passed('files: accepted hosted 7d4320a writer creates mixed v0.1/v0.2 history; pinned Wrangler upgrades nonempty D1 once with byte-identical envelopes/export');
  const server=await start('files'),c=await client(server);
  const count=async table=>(await server.db.prepare(`SELECT count(*) n FROM ${table}`).first()).n;
@@ -151,7 +151,7 @@ export async function checkFiles({start,client,newWork,save,passed,root,open}) {
  const exportBound=capacityEnvelopeEstimates(fixtureScope)[0].request_bytes_upper_bound+32*Buffer.byteLength(',"files":'+canonical(largestManifest))+1398144+4096;
  assert(exportBound<FILE_EXPORT_REQUEST_BYTES);
  assert.equal((await c.request('/api/reconstruct-files',{export:'x'.repeat(FILE_EXPORT_REQUEST_BYTES),confirm:'reconstruct-empty-store'})).status,413);
- console.log(JSON.stringify({file_export_conservative_request_bound:exportBound,limit:FILE_EXPORT_REQUEST_BYTES,body_insert_max_parameters:59,reconstruction_batch_max_statements:34}));
+ console.log(JSON.stringify({historical_32_revision_file_export_bound:exportBound,limit:FILE_EXPORT_REQUEST_BYTES,body_insert_max_parameters:59,reconstruction_batch_max_statements:18}));
  const maxFile=n=>({name:`bounded-${n}.bin`,role:'other',data:Buffer.alloc(FILE_LIMIT,n).toString('base64')});
  const invalid=await newWork(c);
  for(const [files,code] of [
