@@ -1,3 +1,4 @@
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import type { TaskContextPacketSelectedEntryV01, TaskContextPacketV01 } from "./task-context-packet";
 import type { ProjectWorkDefinitionV01 } from "./project-work-initialization";
 
@@ -40,7 +41,6 @@ export const PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01 =
 export const PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01 =
   "augnes.vnext.pre-execution-new-work-compiler.v0.1" as const;
 export const AUTHORED_SUCCESSOR_REVISION_V01 = "augnes.authored-successor-revision.v0.1" as const;
-export const MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01 = 32 as const;
 
 export type PreExecutionProjectWorkLineageKindV01 =
   | "initial_user_defined"
@@ -65,7 +65,7 @@ export interface ProjectWorkRevisionEligibilityV01 {
   workspace_id: string;
   project_id: string;
   active_project_id: string | null;
-  active_selection_revision: number | null;
+  active_selection_revision: ProjectSelectionRevision | null;
   current_packet_id: string | null;
   current_packet_fingerprint: string | null;
   current_lineage_kind: PreExecutionProjectWorkLineageKindV01 | "authored_successor_task" | null;
@@ -96,7 +96,7 @@ export interface RevisePreExecutionProjectWorkRequestV01 {
   workspace_id: string;
   project_id: string;
   expected_active_project_id: string;
-  expected_active_selection_revision: number;
+  expected_active_selection_revision: ProjectSelectionRevision;
   expected_current_packet_id: string;
   expected_current_packet_fingerprint: string;
   expected_current_lineage_kind: PreExecutionProjectWorkLineageKindV01 | "authored_successor_task";

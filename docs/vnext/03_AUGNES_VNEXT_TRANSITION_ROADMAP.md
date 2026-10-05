@@ -206,6 +206,457 @@ authorize an ordinary case through this grant owner; observe actual choice, prep
 human repair burden before considering broader activation. The absence of that
 case does not invalidate the bounded engineering or establish real-world benefit.
 
+### Current P4/P5 — First stateless bounded product work (#1384)
+
+The first implementation connects ordinary authored work → explicit finite grant →
+stateless Gateway judgment → allowed local source read or justified non-use →
+durable observation → second stateless judgment. Current source confirmed the
+composition gap: the policy Planner returns recommendations, prospective re-entry
+is zero-model literal inspection, and P4.6's coordinator is a separate research
+path. Their owners are reused without converting research permission into product
+permission or widening the older inspection grant. See the
+[bounded profile contract in 02](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#stateless-bounded-source-review-1384).
+
+The exposed development consumer selects `policy-triggered-planner-run.ts` lines
+141–164 and `prospective-reentry.ts` lines 112–131, with full-file version hashes,
+to inspect the recommendation/result-reentry connections those fragments actually
+show. Scripted Gateway responses establish delivery and attribution only. This
+bounded selection cannot establish repository-wide absence or answer the whole
+continuity audit. Tests author the question through the ordinary route, explicitly
+authorize it, read real excerpts, admit the result and read it back. A fresh child
+process completes the second judgment from the database after the source file is
+removed, preserving the observation and attempt. No internal human handoff occurs
+on the normal authorized path. The ordinary UI exposes authoring, finite pricing
+and permission review, saved results, interruption continuation and cancellation.
+
+The #1385 review confirmed three integration gaps: terminal-only conflict checks,
+missing compatible settlement/root attribution for ordinary successor authorship,
+and a returned over-budget result classified as unknown. Corrections reuse the
+ledger conflict owner, root identity owner and ordinary authenticated successor
+writer, and retain bounded received-result/usage evidence alongside Gateway
+failure receipts. Positive verification selects the attributed unverified review
+through result preparation and preview, then authors a new packet with no inherited
+grant. Existing Codex successor wording/lineage and historical records remain
+compatible; no ledger repair or invented native execution supplies this path.
+
+The original unbound card is historical. Ordinary onboarding and authorship
+subsequently prepared a genuinely new candidate; this did not recover unavailable
+Companion continuity. On 2026-10-03 the user separately authorized that candidate's
+ordinary control, finite grant, reviewed data transmission and at most two
+`gpt-4.1-mini` calls under the declared USD 0.10 envelope. The authorized attempt
+at `a7d8cfce0e9f33d42df9077e2d8da3321c19c9d3` made one Gateway-accounted Responses
+attempt and obtained no normalized judgment. Its durable run remains paused with
+unknown dispatch and reconciliation required; no observation or second judgment
+ran. API-key project ownership and actual service tier remain unresolved metadata;
+the user closed their investigation as prerequisites. Do not reopen those gates.
+
+The original configured route was OpenAI Responses / `gpt-4.1-mini`, with no
+account/provider/model switch. The historical
+[official route-pricing reference](https://developers.openai.com/api/docs/models/gpt-4.1-mini)
+was reviewed that day as USD 0.40 input, 0.10 cached input and 1.60 output per million
+tokens. The request did not pin `service_tier`, and that quote did not verify the
+project's tier or guarantee provider billing. No caching discount was assumed.
+
+The authorized attempt consumed `input_nano_usd_per_byte=1000`,
+`output_nano_usd_per_token=1600`,
+`source_version=operator-estimate-gpt-4.1-mini-2026-10-03-tier-unresolved`, and
+`maximum_total_nano_usd=100000000` (USD 0.10 total, 0.05 per invocation).
+The byte rate was an operator-declared conservative bound, not OpenAI's billing
+unit. At 16,384 input bytes and 1,024 output tokens per request, the quote computes
+USD 0.0180224 per call / 0.0360448 for two. This is a conditional envelope estimate,
+not measured cost or a provider-side billing guarantee. Retain two calls maximum,
+fifteen seconds per call, one two-file 65,536-byte read with at most 4,096 excerpt
+bytes, ten seconds per read and forty-five seconds per foreground call.
+
+Selected source versions (full-file SHA-256, unchanged from the reviewed PR head):
+
+| Source | Lines | SHA-256 |
+| --- | --- | --- |
+| `lib/vnext/automation/policy-triggered-planner-run.ts` | 141–164 | `ea5cc75e8862691c95d39baa11c8954ba4c8e8d26b2e452875f09b8ea20b9292` |
+| `lib/vnext/runtime/prospective-reentry.ts` | 112–131 | `dd1f769c2909a0cfeee1f7efe4750c04288fb94f243ff89218097810171a5061` |
+
+The reviewed transmission boundary covered the authored task/question, consumed working direction,
+project identity, packet/source fingerprints, relative file inventory, cutoff,
+bounded instructions/schema, and on the second call the first normalized judgment
+plus exact observation/excerpts. The selected excerpts total 2,737 UTF-8 bytes;
+full files are read locally. Requests use `store:false` and no previous-response
+chain. No raw response, hidden reasoning or credential becomes product state.
+
+The original attempt and all later local diagnosis remain distinct evidence.
+The retained candidate is project `project:911ec94e-8664-4928-8f3f-38700e0d85f9`,
+packet `task-context-packet:4a55dd085f7b9988eae4b52`, with fingerprint
+`sha256:33a5fbdeabc54629d187288747b58d952dd3aaa16f10269ef991b2b74b9390d0`.
+Run `stateless-review:f130d084e7c13725491d87b3` retains its original unknown
+outcome; these are observed ordinary-writer bindings, not inferred source IDs.
+The first attempted request was 3,892 serialized bytes. Provider receipt,
+execution, reported usage and cost remain unavailable. A missing response never
+establishes absence of delivery or charge.
+
+Zero-provider-egress diagnosis at `73ac10f6730fd23a0f983f1e834bd948dcb6a507`
+established a candidate sandbox defect: local macOS resolver IPC was denied.
+A separate corrected profile admitted a local daemon connection without a DNS
+query. This later discriminator does not settle the original request. The
+adapter/Gateway/ledger now retain bounded allowlisted transport diagnostics;
+historical records were not backfilled. The exact-head Local Canonical PASS is
+local correctness evidence, not provider readiness or usefulness. Details and
+preserved failures are in [the diagnosis report](https://github.com/hynk-studio/augnes/pull/1385#issuecomment-5967319917).
+
+The bounded Draft implementation adds explicit local disposition, linked new-work
+authorship and separately authorized fresh execution for this model-request
+uncertainty only. It reuses authentication, ledger/events, packet lineage and
+finite grants. Ending work preserves unknown effects and fences late result
+application; preparation creates no grant; fresh execution has all current gates.
+Scripted ordinary-path checks cover durable uncertainty, disabled/expired authority,
+source-free disposition, fresh-process readback, concurrent/stale submissions,
+late receipts, distinct replacement completion and ordinary successor authorship.
+Review corrections connect unchanged selected direction to atomic linked
+preparation and connect the ordinary successor's next question/file preparation
+to a fresh preview/grant and scripted loop. The mandatory predecessor warning
+survives revision, fresh-process readback and recovery; current-work admission and
+unrelated unsettled history still block. The earlier Standard pricing label was
+a proposal; the executed attempt's consumed attribution above remains tier-unresolved.
+No provider-outcome lookup, manual settlement system or generic execution exception
+is introduced. See 02 for the bounded contract and 04 for deciding criteria.
+
+The development-stage record at `af68cf68444b746d1a34c8f673bb8b1090743623`
+left candidate disposition and additional live execution **NOT RUN**. That was a
+historical boundary, not a statement about later separately authorized operations.
+On 2026-10-03, ordinary authenticated local disposition ended further work on
+`stateless-review:f130d084e7c13725491d87b3`, retaining its unknown effects, original
+claim/failure receipt and `reconciliation_required:true`. The distinct linked
+packet `task-context-packet:58ad16f17fa4ec44dcaec9f` initially had no grant.
+
+A separately authorized live attempt at that same source then completed normally:
+run `stateless-review:c0a680e81b7c0b2f90d2f1dc`, receipt
+`run-receipt:7cddec4b546267ed4d038ecd`, fingerprint
+`sha256:1275501c76a4829d7cc4ec47670e8824b967531f1a32ceadf8969f79d5eea791`.
+It chose `read_selected_sources`, persisted one 55,309-byte local read / 2,737-byte
+excerpt observation, and returned `use_observation`. Observation fingerprint:
+`sha256:777869858cc6f81127c2af60855938db941fe61a216d9099ab2fcd19285c55ce`.
+The two Responses requests were 4,275 and 9,546 serialized bytes. Reported usage
+was 3,207 input and 489 output tokens; provider cost was not reported. The same
+tier-unresolved operator estimate applied; the original attempt's unknown cost
+remains separate. Automation was disabled afterward and supported logout and
+process cleanup were verified. No semantic state was accepted by execution.
+
+Work accepted operational completion but did not select the report's assertion
+that planner runs trigger or depend on reentry judgments. The selected excerpts
+show validation/opener selection and reentry checks/saved state/`cycle.runScheduled`;
+they establish no call or data relation between the two routines. Repository-wide
+absence is also unestablished. This is Work's source review, not a model-produced
+correction. The original report, observation, criterion assessment and both runs
+remain unchanged.
+
+The next authorized zero-model operation at `af68cf68` used ordinary result
+preparation/comparison/preview/authorship to retain that separately attributed
+`derived_interpretation` review in work `successor-task:a9cd127b77c07711a102e743`,
+packet `task-context-packet:d599427113a97f59ff3b47a`, fingerprint
+`sha256:40cdbcef88dd0dcb6958f2c382784172158fa149b21b673061642700cf675bbd`.
+Its task is to trace actual callers/data flow, attributing findings and separating
+observations from hypotheses. The full model report was not selected; the reason
+is in the review note. Only comparison-returned `unselected_previous` entries
+supply omission bindings. Fresh-process readback retained the exact receipt,
+observation/source attribution, mandatory unresolved predecessor and null grant.
+Automation stayed disabled; scoped grants/runs/provider accounting remained
+2/2/3. No new execution was authorized or attempted.
+
+Current source inspection and an ordinary scripted reproduction confirmed that
+selected notes survived successor/revision authorship but were omitted from the
+stateless model input. That omission did not cause the earlier overclaim because
+Work's review did not yet exist. The bounded implementation in Draft #1387 connects the
+explicit selected-note projection to both judgments and fresh transmission
+authority, with unchanged limits and no automatic historical report selection.
+See 02 for the projection contract and 04 for delivery versus semantic evidence.
+
+Work accepted that correction at `65f6efc92d969c47e86152efa9388aba4c169c63`.
+Subsequent ordinary preparation saved the direct-call trace in
+`task-context-packet:f8a6cb10dc730491427aa63`, fingerprint
+`sha256:e52616507df90d48f7d4b8615aedbe028c9b2f523a125accd6ef5c9c17d71b63`.
+The frozen four-attempt mini/GPT-4.1 comparison was then separately authorized.
+On 2026-10-04 Asia/Seoul (2026-10-03 UTC), its first mini attempt at that exact
+source created run `stateless-review:5cc0dd2353903d40b84fe4cd` and stopped after
+two returned responses. Its accepted first public choice was `no_action`; no
+source excerpt was sent because it declined inspection. That choose input held
+inventory and selected context, not the new code. Its rationale claimed inspected
+excerpts and applied the historical planner/reentry correction to a distinct
+`runDirectionInspection` → `runFor` → `wake` question. This supports a negative
+observation about choosing inspection and scoping the correction, not demonstrated
+misreading of transmitted code or general mini incapability.
+
+The second HTTP 200 response completed Gateway normalization within its bounds,
+then the host recorded `returned_invalid` and a generic refusal. Its normalized
+public result and exact later rejection layer/predicate were not retained and
+remain **UNAVAILABLE**; surviving evidence cannot exclude a persistence failure.
+There is no completed RunReceipt. The other three attempts are **NOT RUN**, with
+no completed pair or GPT-4.1 observation. The sequence is closed; unused calls
+and allowance cannot be reused. Two request bodies totaled 15,111 serialized
+bytes; reported usage was 3,764 input / 385 output tokens. The consumed
+tier-unresolved operator estimate was USD 0.016189, not reported billing.
+Original unknown effects/cost remain separate. Automation was disabled at
+revision 6; logout/revocation and subsequent HTTP 401, model-configuration
+preservation and owned-process cleanup were reported verified. Candidate totals
+are 3 grants / 3 runs / 5 historical provider-call accounting. All previous runs,
+receipts, selected Work review and mandatory uncertainty remain unchanged.
+
+The offline slice reviewed in Draft #1388 at
+`c2a3b5ae30f5f91734f57a239fe248a0bee8b22d` preserves bounded returned public evidence and precise
+prospective rejection attribution through existing ledger/read/UI owners. It
+does not recover the missing historical second result, weaken judgment validation,
+force reading, hint an answer or run another comparison. Scripted ordinary-path
+checks distinguish rationale overflow, missing source anchor, unavailable
+observation use, Gateway refusal, persistence failure and late-result fencing.
+Their fixtures are development evidence, not reconstructions of the live response.
+
+The bounded implementation in Draft #1389 adds ordinary explicit linked authorship after a
+stopped stateless model step with a completed Gateway response but no RunReceipt.
+Authenticated review, source comparison and preview bind historical failure
+evidence separately from current task/source/root/direction/selection. The writer
+creates fresh immutable work with no grant, even after the predecessor packet and
+grant expire. It preserves optional attributed Work notes through explicit
+selection, mandatory unknown effects and operational failure provenance. Rejected
+answers are not automatically selected. Current host-validation evidence and
+legacy missing evidence have distinct availability; the historical candidate's
+exact rejection cause remains unavailable, including the possibility of a
+persistence failure. This does not repair or reclassify its records.
+
+Ordinary disposable projects exercise the authenticated path and separately
+authorized scripted consumer, including the exact old `65f6efc9` host writer for
+legacy compatibility. The real review component connects comparison, preview and
+authorship to the authenticated HTTP owner. No shared unsettled predicate,
+completed-result, native or recovery authority is relaxed. Known persistence and
+receipt-projection failures still need separate contracts. The retained candidate
+remained read-only, expired and unchanged at 3 grants / 3 runs / 5 historical calls
+during that engineering slice; it did not apply new authorship to the candidate.
+
+Work then accepted the terminal-authorship UI correction at
+`f8aa94009aefae9909990ed6784c3130b32e84f7`. A separately authorized local operation
+on 2026-10-04 authored work `stateless-successor:c1ca778280f7c4b72fa77c60`, packet
+`task-context-packet:f2355965bf99dbcc5639d70`, fingerprint
+`sha256:1c7af5c18a4700645a30e13e8ffe58cf798f47b8e89eb6287598658bae294556`,
+with ordinary expiry `2026-10-04T10:24:14.051Z`. It retains the explicit Work note,
+its original source/receipt attribution and full-report non-selection reason,
+mandatory unknown effects and terminal failure availability. The task asks only
+what relationship the selected excerpts establish. Current material is
+`project-direction-execution.ts:25–28` and `prospective-reentry.ts:163–168`:
+16,866 full-file bytes / 652 excerpt bytes. No rejected answer or expected answer
+was selected. Authenticated fresh-process readback, null grant, disabled control,
+unchanged historical records and 3 / 3 / 5 accounting were reported verified;
+supported logout returned success and subsequent access returned HTTP 401.
+
+The earlier offline slice prepared one `gpt-6.1-sol` attempt with explicit low
+effort and standard reasoning mode, replacing the GPT-4.1-only proposal. GPT-6
+Luna remains a later cost-efficiency candidate; no comparison/fallback is started.
+The existing ordinary route binds these settings and the finite 4,096-token,
+60-second invocation and 150-second attempt limits to fresh authority. It keeps
+public rationale and input/source/action caps unchanged. Returned incomplete
+responses expose bounded status/reason and reported reasoning usage without
+hidden reasoning, retries, successful receipts or invented billing. The candidate
+remained read-only during that slice; its packet was neither recreated nor renewed.
+
+Zero-egress accounting through the final builder/serializer found a 5,671-byte
+choose message / 8,124-byte request, and a hypothetical read-and-conclude message
+of 7,500 bytes / 10,227 serialized bytes. These are time-bound preparation
+measurements, not future judgments or bindings. A longer first public judgment
+can overflow the unchanged 8,192-byte message cap; that stops before the second
+dispatch. No delivery guarantee is inferred from a plausible fitting example.
+
+The 2026-10-04 [official pricing](https://developers.openai.com/api/docs/pricing)
+lists Standard short-context Sol input / cached input / cache write / output at
+USD 2 / 0.10 / 2.50 / 10 per million tokens. The proposed tier-unresolved operator
+estimate uses 2,500 nano-USD per serialized byte and 10,000 per total output token:
+two times `(16,384 × 2,500 + 4,096 × 10,000)` = USD 0.16384, within a proposed
+USD 0.20 total envelope. Charging every serialized byte as an input token at the
+cache-write rate is a conservative accounting assumption, not measured tokens or
+a billing guarantee. The project's service tier and key ownership remain
+unresolved metadata, not prerequisites. The original unknown cost stays separate.
+
+That proposal was separately authorized and executed on 2026-10-04 at
+`c7e418fc85234edeef197fe9dced2a891560ac05`. Run
+`stateless-review:337b7081305bd7b6669c1330` completed two calls in 13,845 ms:
+inspection was selected, the 652-byte observation was persisted, and conclude
+used that observation. Receipt `run-receipt:8d59d4371e0e5e7e9eb3b401` has fingerprint
+`sha256:6c3d3fc4af5857747aad7dd181287e64e2042f9900f06878721898ebfd35d288`;
+observation fingerprint is
+`sha256:c6bcd1038c0d67f729938887e0f9af460cff1d2de0b7a434c0f4440e7996913f`.
+Reported usage was 4,958 input / 449 output tokens, including zero reported
+reasoning tokens. Provider cost was unavailable; the declared estimate was
+USD 0.0516575. The conclude message occupied 8,016 of 8,192 bytes. Cleanup
+disabled automation, revoked the latest session with subsequent HTTP 401 and
+stopped owned processes. Accounting became 4 grants / 4 runs / 7 historical calls.
+
+Work accepts the finding only within the supplied excerpts: the visible named
+constructor → `runFor` → `wake` pattern, with import/class resolution, downstream
+behavior and runtime effects unestablished. The model chose inspection, used its
+persisted observation and scoped the historical note correctly. This is successful
+behavior on exposed development material, not general model adequacy, a claim of
+self-correction or comparative usefulness. The earlier preparation's hypothetical
+payload measurements and NOT RUN labels above remain dated preparation evidence.
+
+The checkpoint implementation slice selects a concise attributed finding and Work review
+through ordinary completed-result authorship, then prepares a bounded question
+about continuation after a saved observation. It adds an optional, grant-bound
+pause at that durable boundary and authenticated continuation under the original
+grant and attempt clock. Disposable ordinary HTTP checks use scripted transport
+and real process replacement; internal `step()` calls alone are not the product
+path evidence. The candidate receives no new grant or provider call in this slice.
+
+The proposal at that checkpoint was: review the exact-source correction, saved successor and complete
+payload accounting, then separately authorize the whole live interruption exercise
+including both stages, process replacement, reauthentication and cleanup. Expiry or
+changed bindings require a new decision, not backdating or silent renewal. The
+closed comparison's unused allowance remains unavailable. GPT-4.1 and general Sol
+adequacy, comparative usefulness, live interruption recovery and environment
+transfer remain unestablished. The portable exporter still refuses projects with
+stateless grants; copying SQLite is not qualified environment transfer. At that
+preparation checkpoint, interrupted live progression and comparative usefulness
+were **NOT RUN**. Earlier
+failures and receipts retain their original dates and source identities. Existing
+Companion continuity remains unavailable. Same-database account/session changes,
+meaningful unfinished-work transfer (#1149), semantic selection quality,
+cross-project recurrence and strong comparative evaluation remain separate.
+P4.6's negative findings and #1342/#1372 ownership are unchanged. This does not
+complete the continuity program.
+
+
+On 2026-10-04 the separately authorized live planned checkpoint exercise ran on
+`38b0e8dce63aa96ca99b8ca756b2597ceae52381`: run
+`stateless-review:3f1793e96ee25abafacc7024`, receipt
+`run-receipt:f06908e64bbafdfee65aaeac` / fingerprint
+`sha256:6bd15b5ba1f252cdaa844872967bf7bea502e3b14190915e87c79cfdaeb91f1d`.
+The model selected inspection; an 855-byte observation was persisted. Logout,
+owned-runtime shutdown, a fresh runtime/session and exact checkpoint continuation
+completed the same grant/run without replay in 21,961 ms. Observation fingerprint:
+`sha256:e4a9b9ad0ed86d75ff8ae7f55f48687fee7361e9d8322ae382891d5fc66090d8`.
+Reported usage: 4,288 input / 466 output tokens; zero reported reasoning tokens.
+The estimate was USD 0.0476425; billing and historical unknown cost remain separate.
+Accounting became 5 grants / 5 runs / 9 entries; cleanup disabled automation and
+verified logout/HTTP 401. Work accepts this planned same-machine restart and the
+excerpt-supported visible continuation guards, including excluding the unrelated
+historical note as evidence. Receipt `verification:not_run` remains unchanged.
+Arbitrary crash recovery, unknown-effect settlement and broader adequacy/usefulness
+are not established. Earlier NOT RUN statements above describe their dated slices.
+
+The subsequent offline handoff batch used ordinary result comparison/selection,
+preview and authenticated successor authorship on that unchanged source. It saved
+work `successor-task:1b32be90988b8511b7a47eeb`, packet
+`task-context-packet:5caa7893d73ddab8db20bef`, fingerprint
+`sha256:a0ba704405ccd6f24858cbf7edcf3191f39e665d35744d75c6fddc298cb56fa7`,
+with historical ordinary expiry `2026-10-04T10:24:14.051Z`. One concise attributed
+finding/Work review was selected; the previous inventory and unrelated constructor
+note were explicitly omitted with reasons. The full report was not selected.
+Fresh runtime/client and read-only process checks preserved mandatory history,
+null grant, disabled automation and 5/5/9 accounting. The first client stopped on
+criteria-order normalization after preview and before authorship; its successful
+logout/401 and failure record were preserved. The corrected client completed one
+authorship operation. No provider call or candidate migration occurred.
+
+The current implementation supplies an authenticated handoff review/export and
+receiving first-work consumer using existing packet storage. Disposable independent
+DBs/roots test transferred bytes, source-absent receiving review, ordinary successor
+preparation and fresh scripted authority. This is isolated same-machine evidence,
+not a qualified real-candidate, cross-device or cloud transfer. The next decision
+is review of this bounded handoff and then explicit real-candidate local transfer
+into a named fresh DB/root; any further live execution needs separate exact
+model/data/spend authority. Existing live allowances remain consumed.
+
+### Current lifecycle slice — Durable local work resumption (#1393)
+
+Stacked on #1392, the first local lifecycle correction separates ordinary saved
+authorship from incidental execution/pilot expiry. Initial preparation already
+had a null lifetime. Current-source reproduction with the exact #1392 writers
+showed four-day refusal in ordinary result preparation and same-task editing.
+The linked unknown-attempt writer also assigned the same eight-hour lifetime.
+New ordinary successors/revisions and both stateless authoring families now use
+the additive durable compiler distinction described in 02. Supported historical
+finite work resumes by explicit append-only authorship, preserving its bytes and
+all unresolved history; reads never refresh it.
+
+Disposable verification covers historical compiler reconstruction, expiry and
+multi-day clocks, ordinary authenticated writers, the real work editor and
+repository revision channel, fresh processes, exact replay and stale refusals.
+Finite authentication and execution still require separate current admission.
+This is local correctness evidence, not real-candidate use, hosted Web Planning
+parity, cross-device transfer or comparative usefulness. The retained #1392
+candidate and proposed receiving operation above remain untouched by this slice.
+The next bounded cumulative-history correction is recorded below; broader project
+management and hosted-store changes remain later reviewed work. Draft review and exact-head verification do not grant merge,
+deployment, installation or live-provider authority.
+
+### Current lifecycle slice — Cumulative native history (#1395)
+
+Stacked on #1394, this slice removes native work's 32-revision admission and
+reconstruction ceiling, the scoped revalidation 128-run listing refusal and the
+256-packet successor listing refusal. Supporting packet readers and preparation
+admission no longer impose their adjacent 128-packet/33-ID boundaries. Complete
+paged reads, conservative conflict queries and iterative family reconstruction
+preserve current-tip selection and immutable ancestry. The historical packets
+and #1394 verification records remain unchanged.
+
+Disposable fixtures cross the former boundaries using authenticated writers and
+canonical compiler-built prefixes; recovery, portable consumers, existing human
+editing and authenticated agent routes remain the deciding behavioral surfaces.
+Query/traversal measurements qualify bounded correctness, not unlimited scale or
+comparative usefulness. Exact-head verification and cleanup belong to the Draft
+PR receipt. The retained real candidate, broader project management, hosted
+store, provider execution, installation and deployment remain outside this slice.
+
+### Current lifecycle slice — Cumulative Web Planning history (#1397)
+
+Stacked on #1396, this bounded local candidate removes Web Planning's revision-32
+constraint in application admission, references and SQL through forward schema-3
+migration. Its [Web-owned contract](../../apps/web_planning/README.md#cumulative-saved-history-1397)
+keeps one atomic bounded history observation, explicit operation budgets,
+transactional chunked reconstruction and ordinary human/browser-agent-facing
+Save and Saved context. Historical envelopes, files, provenance, erased IDs,
+independent copies and the separate 24-hour authorization seals remain intact.
+
+Real disposable Worker/D1 checks distinguish predecessor-writer history from
+constructed larger prefixes, preserve both migration owners, and exercise
+restart, later edits, incomplete reads, conflicting heads and rollback. Draft
+review, final exact-head Canonical evidence and cleanup are separate from hosted
+migration, live-client adoption or usefulness. Issue #1397 remains open; no live
+store, retained real candidate, provider, installation or deployment is used.
+The predecessor's successful and failed verification records retain their exact
+source identities and do not qualify this candidate.
+
+### Current lifecycle slice — Native project management (#1399)
+
+Stacked on #1398, this local candidate adds registered-project discovery to the
+existing management surface and capability-scoped discovery to the existing
+agent direction endpoint. Open, rename, folder recovery and direction mutations
+retain their owners. Predecessor handler reproduction found registered projects
+absent from recents and accepted stale observations across A → none → A and
+none → A → none. Persistent active/empty selection revisions correct those cases;
+historical numeric work remains reconstructable without rewriting its records.
+
+Disposable checks cover paginated and fresh-process discovery, existing human
+controls, authenticated deterministic clients, capability refusals, incomplete
+reads, stale/concurrent mutations, forward migration and recovery/portability.
+Final exact-head Canonical evidence and cleanup belong to this candidate's Draft
+PR. Prior receipts remain historical. Issue #1399 stays open for review; hosted
+rollout, actual live-agent adoption, retained-candidate use, provider execution
+and general usefulness are outside this slice.
+
+### Current RC1 follow-up — Selection reconstruction conformance (#1401)
+
+Stacked on Draft #1400, this bounded local comparison adds the prospective
+`preserved_history_fresh_selection.v0.1` profile under report v0.2. The same
+independently imported RC1 fixture retains v0.1's exact `non_conformant` result
+and conformant relational lane. The new profile separately requires exact
+preserved history and continuity fields, relational correspondence, and actual
+fresh local selection/snapshot owner observations. Private material stays inside
+the read-only collector; report parsing and deterministic replay retain explicit
+version dispatch. Product selection and restore writers are unchanged.
+
+Disposable evidence includes two independent supported portable reconstructions,
+fresh-process snapshot readback, stale management refusals and specific drift,
+incomplete-read and tampering controls. Repeated restore of the same immutable
+backup in selected, cleared and never-selected states reuses #1400's focused owner. Final
+exact-head Local Canonical evidence belongs to this candidate, not its
+predecessor. Issues #1401 and #1399 remain open; integration/adoption remains a
+review decision. Hosted compatibility, remote attestation, live-candidate use,
+installation, execution, deployment and usefulness are outside this change.
+
 ### Current P2/P3/P4/P5 — Project direction and decision authority (#1382)
 
 The 2026-10-02 north-star review authorized this connected increment after merged
@@ -1901,8 +2352,10 @@ model-authored planning, C9, or PC6.
 defines the currently authorized CUX7 slice. It lets an authenticated user
 review the complete current work definition in AI Workplane and save an
 append-only revision only while the project remains active, its root is
-available, the exact initial/revision packet chain is valid and current, fewer
-than 32 revisions exist, and no execution or other work history exists.
+available, the exact initial/revision packet chain is valid and current, and no
+execution or other work history exists. CUX7 originally imposed a 32-revision
+ceiling; the cumulative native history slice above removes that lifetime cap
+while retaining explicit operation budgets.
 
 Revision reuses the CUX6B normalizer and limits. It creates one ordinary
 TaskContextPacket with exact prior-packet and local operator provenance; it is
@@ -1915,8 +2368,8 @@ identity.
 Continuities, AI Workplane, GuideBrief, delegated-work preparation, project
 continuity, portability, backup/restore, and recovery share one current-packet
 and eligibility interpretation. Branches, cycles, missing or changed prior
-packets, ambiguous tips, invalid provenance, history races, and revision-limit
-overflow fail closed. Historical semantic-transition and initial host request
+packets, ambiguous tips, invalid provenance, history races, and incomplete
+required reads fail closed. Historical semantic-transition and initial host request
 identities remain unchanged, and no schema, NativeHostRequest, TaskContextPacket,
 or portable-project version bump is introduced.
 

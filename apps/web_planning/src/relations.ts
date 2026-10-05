@@ -1,4 +1,4 @@
-import { binding, boundedText, canonical, dispositions, exact, fail, hash, headBinding, inspectRelations, makeRevision, MAX_REVISIONS, normalizePayload, reference, RELATION_BYTES, requestFingerprint, sameBinding, selectedWorkSourceInput, UUID, validateRelations, workRef, type Material, type Payload, type Relations, type Revision, type Scope, type WorkRef } from "./contract";
+import { assertHistoryBudget, binding, boundedText, canonical, dispositions, exact, fail, hash, headBinding, inspectRelations, makeRevision, normalizePayload, reference, RELATION_BYTES, requestFingerprint, sameBinding, selectedWorkSourceInput, UUID, validateRelations, workRef, type Material, type Payload, type Relations, type Revision, type Scope, type WorkRef } from "./contract";
 import { seal, unseal, type Access } from "./access";
 import { append, headsCurrent, readWork, requestRevision, type Store } from "./store";
 
@@ -157,8 +157,9 @@ export async function saveOperation(a:Access,id:string,value:unknown,input:unkno
     if(!await headsCurrent(a,reference(target),t.source))fail("refresh_required",409);
     return {outcome:"saved",saved:target,head:headBinding(target),noop:true};
   }
-  if(t.expected.revision===MAX_REVISIONS)fail("history_capacity",409);
-  await append(a,makeRevision(a,id,t.expected,t.request_key,payload,new Date().toISOString()),t.source);
+  const next=makeRevision(a,id,t.expected,t.request_key,payload,new Date().toISOString());
+  assertHistoryBudget([...chain,next]);
+  await append(a,next,t.source);
   const after=await readWork(a,id),result=after.find(r=>r.request_key===t.request_key);
   if(!result)fail("refresh_required",409);
   if(result.request_fingerprint!==t.request_fingerprint)fail("altered_replay",409);

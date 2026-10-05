@@ -1,6 +1,8 @@
 "use client";
 
+import { WorkHandoff } from "./work-handoff";
 import { useEffect, useState } from "react";
+import { StatelessSourceReview } from "./stateless-source-review";
 import { useRouter } from "next/navigation";
 import type { DirectionContent, DirectionView } from "@/lib/vnext/project-direction";
 
@@ -118,6 +120,8 @@ export function ProjectDirection({ projectId, initial }: { projectId: string; in
             : "The bounded host ended. Review the recorded agenda and execution state before trying again."); setAgenda(null);
         })}>Authorize and inspect</button></div>}
     </details>}
+    <StatelessSourceReview projectId={projectId} />
+    <WorkHandoff key={projectId} projectId={projectId} />
     <details><summary>Authorize a bounded agent role</summary>
       <p>Authorize direction decisions for the next hour, up to 8 mutations and one new project. The role can choose among the directions below without repeated confirmation. It receives no execution permission.</p>
       <label>New project name<input value={agentName} onChange={e => setAgentName(e.target.value)} /></label>

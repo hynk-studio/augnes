@@ -99,6 +99,14 @@ Resume quality is not the volume of stored context. It is the ability to reach
 the first correct action with less repeated explanation and fewer wrong-context
 corrections.
 
+Saved local work is a durable definition of what to do. Ordinary authored work
+must remain readable and usable across elapsed days and process replacement
+without asking the person to manage technical lifetimes. Authentication, scoped
+execution permission and time-sensitive premises keep their independent bounds.
+Reopening work does not renew them or turn historical observations into current
+facts. A compatible historical finite definition can be explicitly resumed through
+its existing writer without changing the original record.
+
 ### Verify
 
 Separate observation, attestation, evidence, claim, inference, uncertainty, and

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import type { ProjectSelectionRevision } from "../lib/vnext/project-selection";
 
 import assert from "node:assert/strict";
 import { buildEvidenceRecordV01, buildClaimRecordV01, createClaimApplicabilityScopeV01 } from "../lib/vnext/project-verify-material";
@@ -129,7 +130,7 @@ function assertCurrentWorkReadV01(): void {
       bootstrap_token: issueVNextLocalOperatorBootstrapV01(db, { config, clock }).bootstrap_token }).credential;
     let packet = defineInitialProjectWorkV01(db, { config, clock, credential: credential(), request: {
       action: "define_initial_project_work", ...scope, expected_active_project_id: scope.project_id,
-      expected_active_selection_revision: 1, expected_initialization_state: "not_defined",
+      expected_active_selection_revision: readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision, expected_initialization_state: "not_defined",
       goal: "Read one coherent preparation", success_criteria: ["Keep exact lineage"], non_goals: ["No execution"],
     } }).packet;
     const evidence = [0, 1, 2, 3].map((i) => {
@@ -144,7 +145,7 @@ function assertCurrentWorkReadV01(): void {
       return record;
     });
     const request = (goal: string) => ({ action: "revise_pre_execution_project_work" as const, ...scope,
-      expected_active_project_id: scope.project_id, expected_active_selection_revision: 1,
+      expected_active_project_id: scope.project_id, expected_active_selection_revision: readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision,
       expected_current_packet_id: packet.packet_id, expected_current_packet_fingerprint: packet.integrity.fingerprint,
       expected_current_lineage_kind: packetLineageKindV01(packet)!, ...packet.task, goal });
     for (let i = 1; i <= 3; i++) packet = revisePreExecutionProjectWorkV01(db, {
@@ -172,9 +173,12 @@ function assertCurrentWorkReadV01(): void {
         const get = statement.get.bind(statement);
         statement.get = ((...args: unknown[]) => { if (args[0] === "evidence_record") evidenceReads++; return get(...args); }) as typeof statement.get;
       }
-      if (/record_kind = 'task_context_packet'[\s\S]*LIMIT/u.test(sql)) {
-        const all = statement.all.bind(statement);
-        statement.all = ((...args: unknown[]) => { chainLoads++; return all(...args); }) as typeof statement.all;
+      // Each chain reconstruction executes one historical-cutoff traversal.
+      // Packet reads now use the shared parameterized keyset iterator: one
+      // inventory scan is not one reconstruction, and one page is not a chain.
+      if (/^SELECT record_kind, record_id, created_at FROM vnext_core_records WHERE workspace_id = \? AND project_id = \? AND created_at <= \? ORDER BY created_at, record_kind, record_id$/u.test(sql.replace(/\s+/gu, " ").trim())) {
+        const iterate = statement.iterate.bind(statement);
+        statement.iterate = ((...args: unknown[]) => { chainLoads++; return iterate(...args); }) as typeof statement.iterate;
       }
       return statement;
     }) as typeof db.prepare;
@@ -186,6 +190,9 @@ function assertCurrentWorkReadV01(): void {
       assert.deepEqual(strict(), standalone.at(-1));
       assert.equal(chainLoads, 1, "strict continuity reconstructs the whole chain once, not per packet");
       assert.equal(evidenceReads, evidence.length, "strict continuity still validates every canonical Evidence record");
+      assert.deepEqual(strict(), standalone.at(-1));
+      assert.equal(chainLoads, 2, "an actual second read must be observed as a second reconstruction");
+      assert.equal(evidenceReads, evidence.length * 2, "the next read must revalidate Evidence instead of reusing authority");
     }
     finally { db.prepare = prepare; }
     assert.deepEqual(batch(db, { ...config, project_id: "project:foreign" }), identities.map(() => null));
@@ -359,17 +366,32 @@ async function assertCurrentSourcesRevisionDepthV01(): Promise<void> {
       assert.equal(JSON.stringify(transported).includes("<b>Literal instruction"), false);
       assert.equal(JSON.stringify(transported).includes("/Users/disposable/withheld"), false);
     }
-    let initializationScans = 0;
+    let initializationScans = 0, historyCutoffScans = 0;
     const prepare = db.prepare.bind(db);
     db.prepare = ((sql: string) => {
-      if (/ORDER BY created_at, record_kind, record_id/u.test(sql)) initializationScans++;
+      const query = sql.replace(/\s+/gu, " ").trim();
+      // Identify the complete initialization query, not its shared ordering.
+      // The cumulative-history validator also orders cutoff rows this way;
+      // those reads do not repeat current-work initialization.
+      if (/^SELECT record_kind, record_id, workspace_id, project_id, fingerprint, idempotency_key, payload_json, created_at FROM vnext_core_records WHERE workspace_id = \? AND project_id = \? ORDER BY created_at, record_kind, record_id LIMIT \?$/u.test(query)) initializationScans++;
+      if (/^SELECT record_kind, record_id, created_at FROM vnext_core_records WHERE workspace_id = \? AND project_id = \? AND created_at <= \? ORDER BY created_at, record_kind, record_id$/u.test(query)) historyCutoffScans++;
       return prepare(sql);
     }) as typeof db.prepare;
     const started = performance.now();
-    const result = await readCodexRepositoryWorkSourcesV01(db, { repository_root: root, expected_snapshot_binding: binding });
-    db.prepare = prepare;
+    let result: Awaited<ReturnType<typeof readCodexRepositoryWorkSourcesV01>>, sourceReadScans: number, readMs: number;
+    try {
+      result = await readCodexRepositoryWorkSourcesV01(db, { repository_root: root, expected_snapshot_binding: binding });
+      readMs = Math.round(performance.now() - started);
+      sourceReadScans = initializationScans;
+      assert.equal(sourceReadScans, 1, "one coherent source read must not repeat canonical work/lineage initialization already used by its snapshot");
+      assert.equal(historyCutoffScans, 3, "separate historical-cutoff reads must not masquerade as current-work initialization");
+      // An actual duplicate owner invocation must still trip the one-read
+      // invariant. A narrowed SQL observer may not silently miss real repeats.
+      readProjectWorkInitializationV01(db, scope);
+      assert.equal(initializationScans, 2, "duplicate initialization negative control must be observed");
+    } finally { db.prepare = prepare; }
     console.log(JSON.stringify({ current_sources_revision_depth: 14, note_occurrences: 64,
-      initialization_scans: initializationScans, read_ms: Math.round(performance.now() - started) }));
+      initialization_scans: sourceReadScans, duplicate_initialization_negative_control: "detected", read_ms: readMs }));
     assert.equal(result.status, "available");
     assert.equal(result.snapshot_binding, binding);
     assert.equal(result.packet_fingerprint, packet.integrity.fingerprint);
@@ -377,7 +399,6 @@ async function assertCurrentSourcesRevisionDepthV01(): Promise<void> {
     assert.deepEqual(result.sources.map(s => s.source_binding), notes.map(s => s.source_ref));
     assert.equal(result.sources.filter(s => s.source_locator === null).length, 1);
     assert.deepEqual(db.serialize(), before);
-    assert.equal(initializationScans, 1, "one coherent source read must not repeat canonical work/lineage initialization already used by its snapshot");
   } finally { db.close(); }
 }
 
@@ -498,8 +519,8 @@ async function assertCompanionWorkRevisionV01(limitOnly = false): Promise<void> 
     const call = (input: unknown, override = channel) => reviseCodexRepositoryWorkV01(db, input, override, dependencies);
     const prepare = async (changes: unknown) => ({ action: "preview", repository_root: root, expected_snapshot_binding: await snapshot(), changes });
     if (limitOnly) {
-    // Existing limit remains 32. The final inserted revision can still be
-    // acknowledged once more, without minting a 33rd revision.
+    // Cross the former lifetime boundary through the real delegated writer;
+    // its separate per-channel mutation budget is unchanged.
     const prefix = inspectPreExecutionProjectWorkRevisionChainV01(db, scope);
     let prefixPacket = prefix.tip_packet;
     const fixtureCredential = initialCredential;
@@ -528,7 +549,12 @@ async function assertCompanionWorkRevisionV01(limitOnly = false): Promise<void> 
     assert.equal((await call(finalSave)).status, "saved");
     assert.equal((await call(finalSave)).status, "exact_replay");
     assert.equal((db.prepare("SELECT count(*) AS count FROM vnext_core_records WHERE record_kind = 'task_context_packet' AND workspace_id = ? AND project_id = ?").get(scope.workspace_id, scope.project_id) as { count: number }).count, 33);
-      console.log(JSON.stringify({ contract: "codex_repository_work_revision.v0.1", final_revision_slot_and_replay: "pass" }));
+    const next = await prepare({ goal: "Continue past revision 32" });
+    const nextSave = { ...next, action: "save", preview_binding: (await call(next)).preview_binding };
+    assert.equal((await call(nextSave)).status, "saved");
+    assert.equal((await call(nextSave)).status, "exact_replay");
+    assert.equal(inspectPreExecutionProjectWorkRevisionChainV01(db, scope).revision_count, 33);
+      console.log(JSON.stringify({ contract: "codex_repository_work_revision.v0.1", former_boundary_and_replay: "pass", revision_count: 33 }));
       return;
     }
     const before = db.serialize();
@@ -1277,7 +1303,7 @@ async function assertRepositoryAttachmentUsesExactProjectContinuityV01(): Promis
   }
 }
 
-function beforeSelectionRevisionOrThrow(db: Database.Database, workspaceId: string): number {
+function beforeSelectionRevisionOrThrow(db: Database.Database, workspaceId: string): ProjectSelectionRevision {
   const selection = readActiveProjectSelectionV01(db, workspaceId);
   assert(selection);
   return selection.selection_revision;
@@ -1312,7 +1338,7 @@ function registerV01(db: Database.Database, workspaceId: string, root: string, d
   }, { create_uuid: () => uuid, now: () => NOW });
 }
 
-function selectV01(db: Database.Database, workspaceId: string, projectId: string, expectedProjectId: string | null, expectedRevision: number | null): void {
+function selectV01(db: Database.Database, workspaceId: string, projectId: string, expectedProjectId: string | null, expectedRevision: ProjectSelectionRevision | null): void {
   selectActiveProjectV01(db, {
     workspace_id: workspaceId,
     project_id: projectId,
@@ -1351,7 +1377,7 @@ async function assertNewWorkPreparationV01(): Promise<void> {
     const definition = (goal: string) => ({ goal, success_criteria: ["Fresh readers agree"], non_goals: ["No execution or acceptance"] });
     const first = defineInitialProjectWorkV01(db, { config, credential: credential(), clock, request: {
       action: "define_initial_project_work", ...scope, expected_active_project_id: scope.project_id,
-      expected_active_selection_revision: 1, expected_initialization_state: "not_defined", ...definition("X: inspect packaging"),
+      expected_active_selection_revision: readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision, expected_initialization_state: "not_defined", ...definition("X: inspect packaging"),
     } }).packet;
     const channel = { key: "disposable-new-work", instance_id: "instance", generation_id: "generation", repository_fingerprint: "e".repeat(64) };
     const snapshot = async () => (await readCodexRepositoryContinuityV01(db, { repository_root: root }, dependencies)).continuity!.snapshot.binding!;
@@ -1398,7 +1424,7 @@ async function assertNewWorkPreparationV01(): Promise<void> {
     assert.deepEqual(db.serialize(), before, "failed insert rolls back its authenticated admission");
     let reserved = false;
     const result = await reviseCodexRepositoryWorkV01(db, save, channel, { ...dependencies, inspect_physical_root: async value => {
-      assert.throws(() => selectV01(second!, scope.workspace_id, scope.project_id, scope.project_id, 1), /locked/u);
+      assert.throws(() => selectV01(second!, scope.workspace_id, scope.project_id, scope.project_id, readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision), /locked/u);
       reserved = true; return inspectNativeHostPhysicalRootIdentityV01(value);
     } });
     assert(reserved); assert.equal(result.status, "saved"); assert.equal(result.effects.work_revision_created, false);
@@ -1442,7 +1468,7 @@ async function assertNewWorkPreparationV01(): Promise<void> {
     // Browser-domain preview and authenticated save share the exact same writer.
     const prior = chain().tip_packet, selected = readSelectedWorkSources(prior);
     const draft = { action: "preview_new_project_work", ...scope, expected_active_project_id: scope.project_id,
-      expected_active_selection_revision: 1, expected_current_packet_id: prior.packet_id,
+      expected_active_selection_revision: readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision, expected_current_packet_id: prior.packet_id,
       expected_current_packet_fingerprint: prior.integrity.fingerprint, expected_current_lineage_kind: chain().tip_lineage_kind,
       ...definition("Z: another explicit task"), selected_source_context: [], expected_source_comparison: compareSelectedWorkSources(prior, []).fingerprint,
       omitted_sources: selected.map(entry => ({ source_binding: entry.source_ref!, reason: "Keep as prior-task history; no relevance asserted for Z." })) };
@@ -1456,7 +1482,7 @@ async function assertNewWorkPreparationV01(): Promise<void> {
     } }), /new_work_preview_changed/u);
     assert.throws(() => revisePreExecutionProjectWorkV01(db, { config, credential: browserCredential, clock, request: {
       action: "revise_pre_execution_project_work", ...scope, expected_active_project_id: scope.project_id,
-      expected_active_selection_revision: 1, expected_current_packet_id: x.packet_id,
+      expected_active_selection_revision: readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision, expected_current_packet_id: x.packet_id,
       expected_current_packet_fingerprint: x.integrity.fingerprint, expected_current_lineage_kind: "pre_execution_user_revision",
       ...definition("An old binding must not edit X"),
     } }), /work_revision_current_packet_changed/u);
@@ -1478,7 +1504,7 @@ async function assertNewWorkPreparationV01(): Promise<void> {
       // This is an ambiguity refusal fixture, not a supported preparation write.
       const conflictingDefinition = definition("Conflicting branch, never current");
       const conflictingRequest = { action: "revise_pre_execution_project_work" as const, ...scope,
-        expected_active_project_id: scope.project_id, expected_active_selection_revision: 1,
+        expected_active_project_id: scope.project_id, expected_active_selection_revision: readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision,
         expected_current_packet_id: x.packet_id, expected_current_packet_fingerprint: x.integrity.fingerprint,
         expected_current_lineage_kind: "pre_execution_user_revision" as const, ...conflictingDefinition };
       const branch = buildPreExecutionProjectWorkRevisionPacketV01({ request: conflictingRequest, definition: conflictingDefinition,
@@ -1517,7 +1543,7 @@ async function assertSupportMaterialRevisionV01(): Promise<void> {
       bootstrap_token: issueVNextLocalOperatorBootstrapV01(db, { config, clock }).bootstrap_token }).credential;
     const initial = defineInitialProjectWorkV01(db, { config, credential: credential(), clock, request: {
       action: "define_initial_project_work", ...scope, expected_active_project_id: scope.project_id,
-      expected_active_selection_revision: 1, expected_initialization_state: "not_defined",
+      expected_active_selection_revision: readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision, expected_initialization_state: "not_defined",
       goal: "Inspect the bounded preparation", success_criteria: ["Preserve exact sources"], non_goals: ["No execution or semantic acceptance"],
     } }).packet;
     const initialRows = db.prepare("SELECT * FROM vnext_core_records ORDER BY record_id").all();
@@ -1548,7 +1574,7 @@ async function assertSupportMaterialRevisionV01(): Promise<void> {
       const authorized = credential(), before = db.serialize();
       assert.throws(() => revisePreExecutionProjectWorkV01(db, { config, credential: authorized, clock, request: {
         action: "revise_pre_execution_project_work", ...scope, expected_active_project_id: scope.project_id,
-        expected_active_selection_revision: 1, expected_current_packet_id: initial.packet_id,
+        expected_active_selection_revision: readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision, expected_current_packet_id: initial.packet_id,
         expected_current_packet_fingerprint: initial.integrity.fingerprint, expected_current_lineage_kind: "initial_user_defined",
         ...initial.task, goal: "Revise with unrelated support",
       } }), /work_revision_history_changed/u);
@@ -1602,7 +1628,7 @@ async function assertSupportMaterialRevisionV01(): Promise<void> {
     const compared = compareSelectedWorkSources(firstPacket, selected);
     const second = revisePreExecutionProjectWorkV01(db, { config, credential: credential(), clock, request: {
       action: "revise_pre_execution_project_work", ...scope, expected_active_project_id: scope.project_id,
-      expected_active_selection_revision: 1, expected_current_packet_id: firstPacket.packet_id,
+      expected_active_selection_revision: readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision, expected_current_packet_id: firstPacket.packet_id,
       expected_current_packet_fingerprint: firstPacket.integrity.fingerprint, expected_current_lineage_kind: "pre_execution_user_revision",
       ...firstPacket.task, goal: "Second revision with support still present", selected_source_context: selected,
       expected_source_comparison: compared.fingerprint,
@@ -1749,7 +1775,7 @@ async function assertSupportMaterialRevisionV01(): Promise<void> {
     try {
       const rootChain = chain();
       const request = { action: "revise_pre_execution_project_work" as const, ...scope,
-        expected_active_project_id: scope.project_id, expected_active_selection_revision: 1,
+        expected_active_project_id: scope.project_id, expected_active_selection_revision: readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision,
         expected_current_packet_id: initial.packet_id, expected_current_packet_fingerprint: initial.integrity.fingerprint,
         expected_current_lineage_kind: "initial_user_defined" as const,
         ...initial.task, goal: "Competing preparation must remain ambiguous" };
@@ -1773,10 +1799,10 @@ async function assertSupportMaterialRevisionV01(): Promise<void> {
     const pending = { action: "preview", repository_root: root, expected_snapshot_binding: (await resume()).continuity!.snapshot.binding!,
       changes: { goal: "Third revision if still eligible" } };
     const pendingPreview = await call(pending), pendingSave = { ...pending, action: "save", preview_binding: pendingPreview.preview_binding };
-    selectV01(db, scope.workspace_id, otherScope.project_id, scope.project_id, 1);
+    selectV01(db, scope.workspace_id, otherScope.project_id, scope.project_id, readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision);
     const inactive = db.serialize();
     await assert.rejects(call(pendingSave)); assert.deepEqual(db.serialize(), inactive);
-    selectV01(db, scope.workspace_id, scope.project_id, otherScope.project_id, 2);
+    selectV01(db, scope.workspace_id, scope.project_id, otherScope.project_id, readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision);
     await assert.rejects(call(pendingSave), /refresh_required/u);
     const executionPending = { ...pending, expected_snapshot_binding: (await resume()).continuity!.snapshot.binding! };
     const executionPreview = await call(executionPending);

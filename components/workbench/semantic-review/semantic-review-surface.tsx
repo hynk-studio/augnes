@@ -1,5 +1,7 @@
 "use client";
 
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
+
 import { useRouter } from "next/navigation";
 import {
   useCallback,
@@ -64,7 +66,7 @@ type PrivateSemanticReviewViewV01 =
 interface WorkRevisionEditorBindingV01 {
   workspace_id: string;
   project_id: string;
-  active_selection_revision: number;
+  active_selection_revision: ProjectSelectionRevision;
   current_packet_id: string;
   current_packet_fingerprint: string;
   current_lineage_kind: "initial_user_defined" | "pre_execution_user_revision" | "pre_execution_new_task" | "authored_successor_task";

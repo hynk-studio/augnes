@@ -78,11 +78,11 @@ export async function reviseCodexRepositoryWorkV01(
     const { projection: continuity, binding_material: material } = await readCodexCurrentContinuitySnapshotV01(db, {
       viewed_project_id: scope.project_id,
     }, dependencies);
-    if (continuity.snapshot.status !== "exact" || continuity.current_work.status !== "current_work" ||
-      continuity.current_work.currentness !== "fresh" || continuity.project.root_availability !== "available") refuse("current_work_unavailable");
+    if (continuity.snapshot.status !== "exact" || !["current_work", "stale_current_work"].includes(continuity.current_work.status) ||
+      !["fresh", "stale"].includes(continuity.current_work.currentness) || continuity.project.root_availability !== "available") refuse("current_work_unavailable");
     const chain = inspectRevisableProjectWorkChainV01(db, scope);
     if (input.intent === "new_task" && chain.tip_lineage_kind === "authored_successor_task") refuse("work_revision_not_eligible");
-    const eligibility = readProjectWorkRevisionEligibilityStrictV01(db, scope);
+    const eligibility = readProjectWorkRevisionEligibilityStrictV01(db, scope, { evaluated_at: dependencies.now?.() });
     stale = continuity.snapshot.binding !== input.expected_snapshot_binding;
     if (input.action === "preview" && stale) refuse("refresh_required");
     if (!eligibility.eligible && !(input.action === "save" && stale && eligibility.status === "revision_limit_reached")) refuse("work_revision_not_eligible");
@@ -125,7 +125,8 @@ export async function reviseCodexRepositoryWorkV01(
     };
     if (input.intent === "new_task") request.preparation = compareNewProjectWorkV01(basis, request,
       currentPreparationRootBindingV01(db, scope), operations.omitted_sources).preparation;
-    const seal = sealPreview(channel, input.expected_snapshot_binding, request, material);
+    const seal = sealPreview(channel, input.expected_snapshot_binding, request, material,
+      lineage === "authored_successor_task" && basis.expires_at !== null);
     if (input.action === "save" && !sameSeal(seal, input.preview_binding!)) refuse(stale ? "refresh_required" : "preview_changed");
     let packet = basis;
     let status: RepositoryWorkRevisionProjectionV01["status"] = "previewed";
@@ -182,13 +183,21 @@ export async function loadCodexRepositoryWorkRevisionV01(value: unknown, channel
   } finally { db.close(); }
 }
 
-function sealPreview(channel: CompanionWorkChannelV01, snapshot: string, request: RevisePreExecutionProjectWorkRequestV01, value: unknown): string {
+function sealPreview(channel: CompanionWorkChannelV01, snapshot: string, request: RevisePreExecutionProjectWorkRequestV01, value: unknown, resumesFiniteWork = false): string {
   const material = object(value);
   const work = object(material.current_work);
   // Preserve all other canonical owner fields verbatim. These are the only
   // changes a normal pre-execution revision (including the final slot) implies.
   const { current_packet: _packet, current_work: _work, ...invariant } = material;
   const { lineage_kind: _lineage, revision_eligible: _eligible, revision_reason: _reason, ...stableWork } = work;
+  if (resumesFiniteWork) {
+    // These display/admission projections necessarily change from expired work
+    // to its durable revision. Keep direction, root, selection, configuration,
+    // execution and result bindings sealed. The shared writer must still prove
+    // the immediate exact replay; this seal never admits a stale new write.
+    for (const key of ["status", "currentness", "start_eligible", "start_blocker_code"]) delete stableWork[key];
+    delete invariant.next_action_kind;
+  }
   const { key, ...identity } = channel;
   return `sha256:${createHmac("sha256", key).update(canonicalizeProtocolValueV01({
     contract: CODEX_REPOSITORY_WORK_REVISION_VERSION_V01, identity, snapshot, request,

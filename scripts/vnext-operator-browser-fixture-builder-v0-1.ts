@@ -45,6 +45,8 @@ import {
   rebindCanonicalProjectLocalRootV01,
 } from "../lib/vnext/persistence/project-identity-registry";
 import {
+  removeRecentProjectV01,
+  readProjectSelectionStateV02,
   selectActiveProjectV01,
   touchRecentProjectV01,
 } from "../lib/vnext/persistence/project-lifecycle-registry";
@@ -849,9 +851,9 @@ function finalizeTransferredDatabase(
       },
       { now: () => boundAt },
     );
-    db.prepare(
-      "DELETE FROM vnext_active_project_selections WHERE workspace_id = ?",
-    ).run(WORKSPACE_ID);
+    const beforeClear = readProjectSelectionStateV02(db, WORKSPACE_ID)!;
+    removeRecentProjectV01(db, { workspace_id: WORKSPACE_ID, project_id: PROJECT_ID,
+      expected_project_id: beforeClear.project_id, expected_revision: beforeClear.selection_revision });
     db.prepare("DELETE FROM vnext_recent_projects WHERE workspace_id = ?").run(
       WORKSPACE_ID,
     );

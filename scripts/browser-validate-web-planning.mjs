@@ -1,4 +1,6 @@
 import { browserFileJourney } from './browser-web-planning-files.mjs';
+import { browserHistoryJourney } from './browser-web-planning-history.mjs';
+import { advancedClock } from './web-planning-history-checks.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -265,6 +267,9 @@ try {
  console.log('web-planning-browser: direct complete branch and comparison-recovery journey');
  await browserCapacityJourney({a:d,click,set,settled,saved,wait,navigate,origin:directOrigin,downloads:path.join(root,'capacity-downloads'),requests,responses,checks});
  await browserFileJourney({a:d,debug,origin:directOrigin,page,click,set,settled,saved,wait,navigate,requestsOnly,root,checks});
+ await browserHistoryJourney({a:d,debug,origin:directOrigin,page,click,set,settled,saved,wait,navigate,checks,
+   restart:async()=>{for(const c of clients)await navigate(c,'about:blank');const bindings=local.env;await local.close();local=null;
+     local=await startLocal({...directOptions,port:Number(new URL(directOrigin).port),bindings,code:advancedClock(directOptions.code)});}});
  for(const boundary of ['redirect','challenge']){
    d.accessBoundary=boundary;await click(d,'saved-context');await settled(d);
    assert.equal(await d.eval("accessLost&&work===null&&saved===null&&comparison===null&&!document.getElementById('context-view')&&!document.body.innerText.includes('Access login challenge')"),true);

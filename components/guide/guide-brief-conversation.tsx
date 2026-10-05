@@ -1,5 +1,7 @@
 "use client";
 
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
+
 import {
   type FormEvent,
   useEffect,
@@ -909,7 +911,7 @@ function sameInterpretationBindingV01(
     scope_key: string;
     capability_snapshot_fingerprint: string;
     candidate_set_fingerprint: string;
-    active_selection_revision: number | null;
+    active_selection_revision: ProjectSelectionRevision | null;
     mounted_host_generation: string;
     previous_answer_anchor_claim_identity: string;
   },
@@ -917,7 +919,7 @@ function sameInterpretationBindingV01(
     scope_key: string;
     capability_snapshot_fingerprint: string;
     candidate_set_fingerprint: string;
-    active_selection_revision: number | null;
+    active_selection_revision: ProjectSelectionRevision | null;
     mounted_host_generation: string;
     previous_answer_anchor_claim_identity: string;
   },

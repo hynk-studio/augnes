@@ -1,3 +1,5 @@
+import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import { createHash, randomUUID } from "node:crypto";
 
 import { buildStateBrief } from "@/lib/state/brief";
@@ -26,7 +28,7 @@ export type PlanRequest = {
   workspace_id: string;
   project_id: string;
   expected_active_project_id: string;
-  expected_active_selection_revision: number;
+  expected_active_selection_revision: ProjectSelectionRevision;
   message: string;
   project_root?: {
     path_flavor: "posix" | "win32";
@@ -74,9 +76,7 @@ export function validatePlanRequest(body: unknown): PlanRequest {
     "expected_active_project_id",
   );
   if (
-    typeof body.expected_active_selection_revision !== "number" ||
-    !Number.isSafeInteger(body.expected_active_selection_revision) ||
-    body.expected_active_selection_revision < 1
+    !isHistoricalProjectSelectionRevision(body.expected_active_selection_revision)
   ) {
     throw new Error("expected_active_selection_revision is required.");
   }

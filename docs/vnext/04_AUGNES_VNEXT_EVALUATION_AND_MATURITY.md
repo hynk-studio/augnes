@@ -339,6 +339,357 @@ Count input estimation, note preparation, maintenance, verification and repeated
 human context repair. No live comparison is required to qualify this implementation;
 attributable improvement from experience remains a separate, unobserved claim.
 
+### Stateless bounded product work
+
+For [#1384](https://github.com/hynk-studio/augnes/issues/1384), distinguish the
+actual delivered observation, the model's normalized claimed use/non-use, semantic
+validity, and comparative usefulness. Exact strings, a valid closed choice or a
+source fingerprint establish neither a justified conclusion nor learned capability.
+The exposed two-entrypoint audit case is development material, not an independent
+efficacy sample. At the original `a7d8cfce` attempt on 2026-10-03, live judgment
+and strong-baseline usefulness were NOT RUN. The later separately authorized
+`af68cf68` attempt completed two live judgments and one read that day; Work did
+not select its unsupported planner-to-reentry dependency assertion as a premise.
+That operational completion does not validate the inference. On 2026-10-04
+Asia/Seoul (2026-10-03 UTC), the first separately authorized mini comparison arm
+at `65f6efc9` received the selected Work correction but chose non-use while
+mis-scoping it to a new direct-call question. Choose had inventory/context, not
+the new source excerpts: assess the inspection choice and correction scope, not
+a supposed misreading of transmitted code. The second returned/normalized public
+result and exact later failing predicate are unavailable. Three subsequent arms
+were NOT RUN after the required stop. This is one exposed, unblinded negative
+observation, not a matched model comparison, general mini incapability or evidence
+that GPT-4.1 would improve it. Comparative usefulness remains NOT RUN; preserve
+P4.6's negative result and earlier dated NOT RUN records.
+
+Positive mechanism checks use ordinary authorship and authenticated authorization,
+real bounded file reads, Gateway transport-only scripting, durable result admission
+and normal readback. Do not insert grants or ledger state to make a positive path
+work. Isolated corruption/dispatch-fault interventions must be labelled. Exercise
+the completed result's ordinary preparation, explicit selection and authenticated
+successor creation, including source attribution, unverified status and absence
+of inherited execution authority. Discriminate terminal unreconciled, malformed,
+settled and permitted legacy-omission ledger records, excluding only the own run.
+Returned over-budget usage is reported evidence, never measured cost or success;
+assert its durable classification and unchanged no-retry continuation separately
+from actual transport loss and pre-egress refusal.
+
+For model-request disposition, require an ordinary authored/authorized run with
+scripted transport loss, then an authenticated local end-work decision and
+explicit linked preparation with zero additional provider calls and no grant.
+Retain the original unknown outcome, receipt, claim generation attribution and
+reconciliation history. Fresh-process readback must retain both the decision and
+uncertainty. Test source/root/route unavailability and disabled/expired execution
+authority separately from the still-required authenticated historical bindings.
+Disposition must remain local; new execution must enforce all current source,
+direction, root, control, quote and finite-grant gates.
+Author and select an active direction through ordinary writers before the unknown
+attempt; linked preparation must accept that unchanged selection. Changed or
+incorrectly selected direction must refuse without partial packet/binding state.
+
+Use a deferred transport response to prove that disposition fences the old
+generation, retains bounded late evidence under that attempt and cannot advance
+it, accept its judgment, reopen work or affect the replacement. Local fencing
+never proves provider cancellation. Demonstrate a distinct fresh grant/run,
+completed scripted loop, explicit ordinary result selection and null-grant
+successor with the predecessor's unresolved warning intact.
+Then prepare a new question/file selection on that successor, reopen it, obtain
+a distinct ordinary preview/grant and complete another scripted loop. Compilation,
+lineage validation, fresh readback, recovery and both model inputs must retain
+the mandatory warning and exact predecessor links. The original unknown claim
+and failure receipt remain unchanged; no previous grant executes the new work.
+Current-work run admission still blocks revision. Discriminate stale,
+concurrent and duplicate submissions, wrong projects, missing disposition proof,
+malformed/unrelated/undisposed runs and permitted legacy omission. Older valid
+failures without optional diagnostics remain eligible without backfill. The
+shared unsettled default stays conservative; native execution, unknown local
+actions and other effect classes must not acquire the exception. Label isolated
+negative compatibility/corruption fixtures; they cannot supply positive authority.
+
+Selected-note delivery checks must author and explicitly select an attributed
+review note through ordinary result comparison, preview and successor authorship,
+then prepare the source question separately. Verify fresh-process reconstruction,
+exact identity/provenance/source links and both serialized scripted adapter
+requests. Exclude unselected notes and the whole unselected prior report; do not
+copy a correction into the task/question to simulate delivery. Bind the reviewed
+projection to fresh authority, refuse changed or missing bindings, and preserve
+older grants' original transmission scope and historical reads. Exercise overflow
+before the first and second dispatch without silent omission, extra attempts or
+loss of the mandatory unknown-history warning. Scripted delivery establishes
+transmission correctness only, not live compliance, semantic improvement or
+comparative usefulness. The omission did not cause the first live overclaim:
+Work's later review note did not exist at that time.
+
+For returned-but-rejected public evidence, use ordinary preparation, finite preview
+and authenticated authorization with only provider transport scripted. Exercise
+post-Gateway rationale overflow, missing source anchor and attempted use of an
+unavailable observation. Assert exact layer/stage, allowlisted predicate and
+bounded validation facts; retain whole normalized public content within the
+declared storage bounds or explicitly record omission and size/fingerprint.
+Fresh-process authenticated API readback and rendering in the ordinary saved-review
+component must expose the evidence without accepting it. Continue must preserve
+the run and issue zero additional calls. Distinguish Gateway rejection and reported
+usage from host validation, dispatch uncertainty, failed step/result persistence,
+failed receipt projection and quarantined late results. Preserve cancelled,
+pre-egress, stale-generation and recovery behavior. Missing legacy evidence stays
+unavailable; neither these fixtures nor new code reconstruct historical responses.
+
+For the bounded Sol low-reasoning route, use disposable ordinary work and
+authenticated finite previews/grants with scripted transport only. Verify the
+exact effort/mode and combined reasoning/public-output cap in both serialized
+requests, configuration-bound cost authority, changed/missing-binding refusal,
+unchanged legacy routes and no automatic fallback. Exercise reported reasoning
+counts, malformed usage, over-budget output and incomplete responses with and
+without public text. Fresh-process API/UI review must distinguish an exhausted
+output allowance from host judgment rejection and actual dispatch loss, without
+retaining hidden content or inventing cost. Verify attempt time across restart,
+cancellation, route drift, late-result fencing and no replay. Candidate payload
+accounting must use the same final builder/serializer, separate exact current
+bytes from hypothetical future judgments/observations, and refuse overflow
+without truncation. Scripted compatibility proves no live availability, model
+compliance or adequacy. A resource-limited response alone is not a task-quality
+finding; selecting a different allowance would require another explicit decision.
+
+For optional observation-boundary interruption, use the ordinary authenticated
+preview/authorization and Continue HTTP paths with scripted provider transport.
+Prove the runtime returns after observation persistence and before a conclude
+claim, then terminate that owned process. A different process and fresh session
+must reconstruct the exact saved boundary, consume the same finite grant and
+attempt clock, and dispatch only conclude. Remove disposable source bytes after
+observation to discriminate persisted-data use from an unnoticed reread. Verify
+unchanged completed steps, original observation/receipt attribution, one call per
+stage, supported logout and zero remaining owned processes.
+
+Exercise stale revisions, wrong projects, simultaneous controllers, controller
+replacement before claim, cancellation, disabled control, grant/attempt expiry,
+unknown claims and recovery suspension. None may renew authority or replay a
+stage. Historical unflagged grants retain uninterrupted behavior. Scripted process
+replacement proves the supported local path, not live interruption recovery or
+environment transfer; the exporter refuses stateless-grant projects. A subsequent
+live exercise needs one separately authorized finite scope covering both stages,
+shutdown/restart, reauthentication and cleanup. A fitting hypothetical successor
+input is not proof that every possible first public judgment fits; report exact
+known payloads and future-dependent bounds separately.
+
+For source-bound unfinished-work handoff, use separate ordinary source/destination
+projects, databases and physical roots. Source authorship and any execution history
+must come through existing writers and finite authorization, scripting only model
+transport. Export the explicitly selected bounded snapshot; remove source DB/root
+and runtime access before the receiving process starts. Exercise the actual review
+component and authenticated receiving writer, fresh-process reconstruction,
+ordinary different-task preparation and current material verification. Missing or
+changed local files must remain distinct from available historical excerpt bytes.
+Test missing/foreign lineage, corrupt bytes, stale selection/root/direction/preview,
+conflicting duplicates, null authority and old-grant refusal. Confirm complete
+mandatory uncertainty through revision and subsequent result authorship; optional
+notes may be reconsidered without deleting the source snapshot. A separate fresh
+destination control/preview/grant may exercise the scripted consumer. Preserve
+native/export refusals and recovery suspension. Hash validity does not authenticate
+an imported source; do not count a resealed self-declaration as independently
+verified provenance. Record bounds/refusals and cleanup failures, including browser
+process cleanup. No paid call is needed to prove this transport and consumer path.
+
+The 2026-10-04 live run `stateless-review:3f1793e96ee25abafacc7024` at
+`38b0e8dce63aa96ca99b8ca756b2597ceae52381` adds accepted planned same-machine
+checkpoint restart evidence. It does not retrospectively change earlier NOT RUN
+records or qualify arbitrary crashes, unknown dispatch settlement, environment
+transfer, general model adequacy or comparative usefulness. Keep the receipt's
+verification status separate from the attributed Work review. A disposable local
+receiving test likewise does not establish actual candidate migration or
+cross-device/cloud continuity; those need a concrete separately authorized trial.
+
+Verify that a returned-response terminal attempt cannot borrow unknown disposition
+or a fabricated completed receipt to bypass completed-result/revision guards.
+For the separate bounded terminal-authorship path, create positive history through
+ordinary authorship and finite authorization, scripting only provider transport.
+Test both current host-validation evidence and an explicitly identified old writer
+whose public result and rejection cause were not retained. Do not delete fields or
+repair ledger rows to fabricate the positive compatibility case. Neither a generic
+`returned_invalid` label nor a new fixture establishes the historical cause.
+
+After packet/grant expiry and with automation disabled and no provider credential,
+compare selected notes, preview current bindings and explicitly author a fresh
+null-grant packet. Verify the real review UI/API connection and fresh-process
+authenticated readback, unchanged historical records/control/grant/run/call counts,
+exact omissions, mandatory unknown effects and failure availability.
+
+For the same predecessor, changing the question or ranges must preserve the
+authored draft, explicit note selections and applicable omission reasons while
+invalidating comparison/preview. Delay real authenticated comparison and preview
+responses while editing; stale responses must not restore older requests or enable
+authorship. A fresh comparison/preview/save must persist the displayed selection
+and task, with unchanged historical records, control and execution counts.
+
+Stale failure snapshots, wrong projects/physical roots/directions/selections,
+concurrent writes and conflicting duplicates must refuse atomically. Only the immediate unchanged
+unadmitted result permits exact duplicate acknowledgement. Unknown/active attempts,
+known persistence failures and receipt-projection failures remain ineligible.
+Then require a distinct fresh finite grant for the scripted two-judgment consumer;
+both inputs must preserve operational uncertainty and explicitly selected notes
+without automatically including the rejected answer. Preserve these obligations
+through completed-result successor/revision and recovery readback. Recovery must
+still suspend authorship/execution; native and portability paths must not inherit
+the exception. This proves bounded local continuity and transmission, not model
+compliance, adequacy, usefulness, live interruption recovery or environment transfer.
+
+Also exercise
+normal unattended internal progress, justified no-action/defer/stop, exact
+source/time/availability in the second input, and fresh-process continuation after
+observation persistence. Reopening must consume the saved result without replaying
+the action. Separate unissued, dispatched-unknown, returned-invalid, durably stored,
+and context-incorporated states. A timeout, a lost response, or a fenced controller
+is not evidence of zero calls/cost or stopped remote execution.
+
+Changed sources, direction, root/project, expired/revoked permission, cancellation,
+stale generations and exhausted budgets must stop the affected admission while
+retaining history. Test the ordinary UI reader and authoring/authorization route,
+suspended recovery eligibility, and existing zero-model/Codex compatibility.
+Report source preparation/revalidation bytes separately from action bytes, calls,
+reported or unknown token/cost values, human interventions, cleanup and unrun checks.
+Exact-head correctness follows Local Canonical; it is not an ordinary-use or
+usefulness result and does not complete the whole continuity program.
+
+### Durable local work resumption (#1393)
+
+Distinguish already-durable initial work from the observed finite successor
+paths. Reproduce pre-change failure using the pinned historical writers and real
+authenticated readers/writers, then cross the old boundary and several days in
+disposable data. A timestamp edit or resealed fixture is not positive historical
+compatibility evidence. Readback must preserve exact old bytes, fingerprints,
+selected-note provenance and mandatory failure/unknown-effect context.
+
+Exercise unchanged human editing and the supported authenticated agent revision
+channel, including a fresh process and later readback. Show zero-write reads and
+previews, exact immediate replay, stale competing requests and changed bindings.
+Check expired authentication, grants/deadlines, cancelled/unsettled attempts and
+recovery suspension separately from work eligibility. A durable definition must
+not create or renew permission, runs, control or provider calls. Source version
+drift remains distinct from historical observation availability. The older
+scoped finite profile and portable/refusal boundaries retain their own tests.
+
+Report unsupported surfaces precisely: operator terminal/result authorship is
+not a new Companion tool; local changes do not qualify the hosted store. Owned
+runtime cleanup and final exact-head Canonical evidence establish bounded
+correctness, not comparative usefulness or the retained real candidate's result.
+
+### Cumulative native work history (#1395)
+
+Reproduce the 32-revision, scoped 128-run and 256-packet refusals before changing
+admission. Cross below/at/above and several read pages with genuine supported
+writers and validated canonical fixture prefixes; disclose constructed fixtures
+separately from historical user activity. No timestamp edits or resealing may
+stand in for positive historical compatibility evidence.
+
+Check exact current tips, unchanged earlier rows, fresh-process readback and a
+further edit through human and authenticated agent routes. Place relevant
+successors and unresolved runs beyond the first read batch. Missing, malformed,
+branched, cyclic, foreign and contradictory required lineage must remain
+unavailable. Exact replay, stale competing saves, source/direction/root drift,
+context bounds and independent execution/authentication limits remain negative
+controls. Exercise canonical recovery and supported portable reconstruction,
+including suspended credentials and no reconstructed execution permission.
+
+Measure query/traversal counts and elapsed read cost at increasing fixture sizes.
+Identify the actual read operation when counting initialization: shared SQL
+ordering alone cannot distinguish initialization from historical-cutoff checks.
+A duplicate initialization control must remain detectable. Packet-page counts
+are not reconstruction counts; a second read must reconstruct and revalidate
+Evidence again, with no authority reused across reads.
+Avoid reconstructing the same ancestors once per candidate in a batch and avoid
+recursive revision depth. Report retained operation/byte limits and honest
+incomplete-read refusals, not unlimited-scale support. Local Canonical binds the
+new exact clean head; predecessor receipts remain historical and cannot qualify
+this correction. None of these fixtures operate on the retained real candidate.
+
+### Cumulative Web Planning history (#1397)
+
+Use the real disposable Worker/D1 and its supported migration owners. First
+reproduce revision 33 refusing through the predecessor's normal writer. Preserve
+nonempty mixed-format rows, fingerprints, file bodies, owner mapping and erased
+IDs across the forward migration; distinguish these historical bytes from
+canonical constructed larger fixtures. Test old/new binary refusal and failed
+migration rollback. Local evidence does not authorize a hosted migration.
+
+The existing atomic history statement is retained rather than paginated. Prove
+its mandatory completeness observation rejects missing, reordered, corrupt or
+foreign rows, and that resource exhaustion cannot become an empty/current result.
+Measure query count, rows, bytes and elapsed behavior. Cross reconstruction
+chunks with all-or-nothing failure, and test source/target drift beyond the old
+boundary, replay, unknown outcomes and erase/copy independence.
+
+Use ordinary browser editor saves past 32, fresh workerd and tab readback, exact
+Saved context and another edit after multiple days with fresh authorization.
+Expired save/operation tickets and CSRF remain negative controls. Label the
+shared browser-agent-facing content separately from actual live-client, hosted
+or non-Mac acceptance. Finite operation budgets and original independent limits
+remain explicit. Exact-head Canonical evidence, preserved failures and completed
+owned cleanup establish bounded correctness, not unlimited scale or usefulness.
+
+### Native project discovery and selection freshness (#1399)
+
+Distinguish the predecessor's actual recent-only handler observation and stale
+write acceptance from source inspection of alternate paths. The existing folder
+connection and delegated-project display are not missing features. Measure the
+new ordinary find/open journey separately: from project management it takes two
+actions for a first-page available project, plus explicit continuation when
+needed. This fixture count is not a broad usefulness or live-agent claim.
+
+Use disposable identity/root history and real human controls for removal,
+cancellation, discovery, same-identity reopen and fresh runtime readback. Check
+unavailable roots through the existing recovery owner. Exercise real authenticated
+agent handlers and a fresh deterministic process, including unrelated projects,
+wrong principals, expiry, revocation, exhausted writes and unchanged human focus.
+Cover first/later page loss and selection drift; partial history is not absence.
+Check A → B → A, A → none → A, none → A → none, concurrent requests and rollback
+of related recency/identity writes. Exact supported predecessor-store migration,
+unchanged history, old-observation refusal and recovery/portable readers qualify
+compatibility. Preserve failed attempts and require a new exact clean HEAD's
+planner-selected evidence; predecessor receipts cannot qualify this source.
+Historical resumption fixtures must run the pinned predecessor's product owners
+in a disposable process before current-source migration. Combining an old writer
+with today's selection schema does not reproduce an old store. Check finite and
+non-expiring packets, unchanged Core bytes and authority, fresh-process human and
+agent continuation, and refusal of a held resumption request across selection
+clear/reopen. A fresh read may rebind the saved definition; it cannot renew its
+execution authority or bypass changed source/root/direction checks.
+Restore coverage uses the supported backup and atomic restore owners, then the
+real management handlers in a fresh process. Check selected, cleared and
+never-selected states, repeated restoration of the same immutable backup, old
+request refusal, legitimate fresh reopen, preserved history/files and failure
+before publication. A process restart alone does not substitute for this check.
+Portable import creates independent selection authority. Keep the existing RC1
+exact comparison's selection/snapshot mismatch visible as `non_conformant`, while
+checking every historical record and relational result separately. Do not copy
+the source selection token or normalize the difference away to obtain equality.
+
+For #1401, compare that same pair using explicit report v0.2 and profile
+`preserved_history_fresh_selection.v0.1`. Conformance requires all three separate
+results: exact historical/preserved-field checks, relational correspondence and
+validated local observations. Preserve the embedded legacy non-conformance; its
+expected test result alone cannot discharge the integration/adoption hold.
+Allow only the destination selection revision and its necessarily derived
+snapshot binding (plus the private material's selection field). Independently
+invoke the actual snapshot reader and hash owner on both databases, validate
+project/work/root and all remaining material, and reread at the capture point.
+Neither a SHA-shaped value, a changed digest, copied seal, fabricated matching
+JSON nor caller-asserted freshness is an observation.
+
+Assert specific failures for historical identity/fingerprint and semantic drift,
+wrong scope/root/packet, cutoff/rule drift, altered obligations, Decision versus
+Transition, retired/unknown promotion, copied/stale selection, forged or
+mismatched binding, missing/partial reads, changes between collection and use,
+and resealed report tampering. Confirm byte-identical databases before/after
+comparison, deterministic replay of identical captures and identical preservation
+verdicts across independent portable imports with fresh identities. Reuse the
+existing recovery owner for independent restores with unchanged immutable backup
+and history; the imported RC1 chain also requires fresh-process snapshot-owner
+readback. Supported mutation probes belong to a separate fixture
+stage: stale source/earlier observations refuse while a current read can reopen.
+Retain the existing selected/cleared/never-selected recovery checks. Local
+captures are historical evidence after collection, not transferable attestations
+or write authority. Supply the new exact-head receipt for review; reporting its
+existence does not establish independent inspection or integration approval.
+
 ### Prospective preparation and event/time re-entry
 
 For [#1380](https://github.com/hynk-studio/augnes/issues/1380), keep three evidence

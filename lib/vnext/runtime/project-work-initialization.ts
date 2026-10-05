@@ -1,3 +1,8 @@
+import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
+import { parseWorkHandoff, readWorkHandoff, handoffCheck } from "../work-handoff";
+import { rootBinding } from "./stateless-source-review";
+import { effectiveDirection, assertPacketDirectionCurrent } from "../persistence/project-direction-store";
 import { SELECTED_SOURCE_INSPECTION } from "../prospective-agenda";
 import { accessSync, constants, statSync } from "node:fs";
 
@@ -37,6 +42,8 @@ import {
   VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
 } from "@/lib/vnext/runtime/persisted-semantic-context-compiler";
 import {
+  AUTHORED_SUCCESSOR_CONTEXT_V01,
+  AUTHORED_SUCCESSOR_TASK_V01,
   PROJECT_WORK_INITIALIZATION_VERSION_V01,
   type DefineInitialProjectWorkRequestV01,
   type DefineInitialProjectWorkResultV01,
@@ -135,6 +142,13 @@ export function defineInitialProjectWorkV01(
     if (!rootAvailable(registration.root_binding.local_root.normalized_path)) {
       refuse("first_work_root_unavailable", 409);
     }
+    if (request.handoff) {
+      const h = parseWorkHandoff(request.handoff.snapshot);
+      handoffCheck(Object.keys(request.handoff).sort().join() === "expected_direction_ref,expected_root_fingerprint,snapshot" &&
+        h.source.project_id !== request.project_id && canonicalizeProtocolValueV01(h.task) === canonicalizeProtocolValueV01(definition) &&
+        rootBinding(db, input.config).fingerprint === request.handoff.expected_root_fingerprint &&
+        (effectiveDirection(db, input.config, sessionAdmission.action_observed_at)?.ref ?? null) === request.handoff.expected_direction_ref, "receiving_binding_changed");
+    }
     const initialization = readProjectWorkInitializationStrictV01(
       db,
       input.config,
@@ -154,6 +168,7 @@ export function defineInitialProjectWorkV01(
       });
       if (!record) refuse("first_work_packet_missing", 409);
       const packet = record.payload as TaskContextPacketV01;
+      handoffCheck((readWorkHandoff(packet)?.fingerprint ?? null) === (request.handoff?.snapshot.fingerprint ?? null), "duplicate_changed");
       db.exec("COMMIT");
       return resultV01("exact_replay", packet, definition, sessionAdmission);
     }
@@ -171,6 +186,7 @@ export function defineInitialProjectWorkV01(
       expected_active_selection_revision:
         request.expected_active_selection_revision,
       definition,
+      ...(request.handoff ? { handoff: request.handoff.snapshot } : {}),
       generated_at: sessionAdmission.action_observed_at,
     });
     if (
@@ -193,6 +209,7 @@ export function defineInitialProjectWorkV01(
     if (write.status !== "inserted") {
       refuse("first_work_insert_conflict", 409);
     }
+    if (request.handoff) assertPacketDirectionCurrent(db, built.packet, built.packet.generated_at);
     const lineage = inspectInitialProjectWorkPacketLineageV01(db, {
       workspace_id: input.config.workspace_id,
       project_id: input.config.project_id,
@@ -307,7 +324,7 @@ function readProjectWorkInitializationStrictV01(
   // A sparse predecessor may still select only current state. Work succession
   // comes from validated packet lineage, not equality with all canonical state.
   const semanticPredecessors = new Set(inspected.flatMap((entry) => [
-    ...((entry.lineage_kind === "semantic_transition" || entry.lineage_kind === "authored_successor_task") && entry.prior_packet
+    ...((entry.lineage_kind === "stateless_review_terminal_successor" || entry.lineage_kind === "stateless_review_replacement" || entry.lineage_kind === "semantic_transition" || entry.lineage_kind === "authored_successor_task") && entry.prior_packet
       ? [`${entry.prior_packet.packet_id}|${entry.prior_packet.packet_fingerprint}`] : []),
     // The validated bounded preparation compiler retains its exact source
     // packet as lineage, not a competing current task.
@@ -350,6 +367,7 @@ function readProjectWorkInitializationStrictV01(
     !invalidBlocksCurrent
   ) {
     const state =
+      (current.lineage_kind === "stateless_review_terminal_successor" || current.lineage_kind === "stateless_review_replacement") ? "defined_new_task" :
       current.lineage_kind === "bounded_preparation" ? "defined_preparation_work" :
       current.lineage_kind === "authored_successor_task" ? "defined_successor_work" :
       current.lineage_kind === "initial_user_defined"
@@ -360,6 +378,7 @@ function readProjectWorkInitializationStrictV01(
             ? "defined_transition_work"
             : "defined_operational_continuation_work";
     const reason =
+      (current.lineage_kind === "stateless_review_terminal_successor" || current.lineage_kind === "stateless_review_replacement") ? "current_new_task_packet" :
       current.lineage_kind === "bounded_preparation" ? "current_preparation_packet" :
       current.lineage_kind === "authored_successor_task" ? "current_successor_packet" :
       current.lineage_kind === "initial_user_defined"
@@ -370,17 +389,16 @@ function readProjectWorkInitializationStrictV01(
             ? "current_transition_packet"
             : "current_operational_continuation_packet";
     const selectedSources = readSelectedWorkSources(current.packet);
+    const byPacket = new Map(inspected.map(entry => [`${entry.packet.packet_id}|${entry.packet.integrity.fingerprint}`, entry]));
     let taskOrigin = current;
     // All entries were validated above. Follow exact edges, never timestamps.
     while (taskOrigin.lineage_kind === "pre_execution_user_revision" && taskOrigin.prior_packet) {
-      const prior = inspected.find(entry => entry.packet.packet_id === taskOrigin.prior_packet!.packet_id &&
-        entry.packet.integrity.fingerprint === taskOrigin.prior_packet!.packet_fingerprint);
+      const prior = byPacket.get(`${taskOrigin.prior_packet.packet_id}|${taskOrigin.prior_packet.packet_fingerprint}`);
       if (!prior) break;
       taskOrigin = prior;
     }
     const previous = taskOrigin.lineage_kind === "pre_execution_new_task" && taskOrigin.prior_packet
-      ? inspected.find(entry => entry.packet.packet_id === taskOrigin.prior_packet!.packet_id &&
-        entry.packet.integrity.fingerprint === taskOrigin.prior_packet!.packet_fingerprint) : null;
+      ? byPacket.get(`${taskOrigin.prior_packet.packet_id}|${taskOrigin.prior_packet.packet_fingerprint}`) : null;
     return {
       ...baseV01(
         input,
@@ -401,6 +419,8 @@ function readProjectWorkInitializationStrictV01(
         packet_id: current.packet.packet_id,
         packet_fingerprint: current.packet.integrity.fingerprint,
         generated_at: current.packet.generated_at,
+        ...(current.lineage_kind === "authored_successor_task" && current.packet.compatibility.source_contracts.includes(AUTHORED_SUCCESSOR_CONTEXT_V01)
+          ? { expires_at: current.packet.expires_at } : {}),
         lineage_kind: current.lineage_kind,
       },
       mutation_eligible: false,
@@ -425,7 +445,7 @@ function readProjectWorkInitializationStrictV01(
       current_packet: null,
       mutation_eligible:
         active?.project_id === input.project_id &&
-        active.selection_revision > 0,
+        isHistoricalProjectSelectionRevision(active.selection_revision),
     };
   }
   const unresolvedReason: ProjectWorkInitializationV01["reason"] =
@@ -462,6 +482,7 @@ function invalidPacketReasonV01(
   const contracts = Array.isArray(candidate.compatibility?.source_contracts)
     ? candidate.compatibility.source_contracts
     : [];
+  if (contracts.includes(AUTHORED_SUCCESSOR_TASK_V01)) return "invalid_packet_lineage";
   if (contracts.includes(SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01)) {
     return "invalid_operational_continuation_lineage";
   }
@@ -542,17 +563,17 @@ function parseRequestV01(value: unknown): DefineInitialProjectWorkRequestV01 {
   }
   const request = value as Record<string, unknown>;
   const actual = Object.keys(request).sort();
-  const expected = [...REQUEST_KEYS].sort();
+  const expected = [...REQUEST_KEYS, ...("handoff" in request ? ["handoff"] : [])].sort();
   if (
     canonicalizeProtocolValueV01(actual) !==
     canonicalizeProtocolValueV01(expected) ||
+    ("handoff" in request && (!request.handoff || typeof request.handoff !== "object" || Array.isArray(request.handoff))) ||
     request.action !== "define_initial_project_work" ||
     request.expected_initialization_state !== "not_defined" ||
     typeof request.workspace_id !== "string" ||
     typeof request.project_id !== "string" ||
     typeof request.expected_active_project_id !== "string" ||
-    !Number.isSafeInteger(request.expected_active_selection_revision) ||
-    Number(request.expected_active_selection_revision) < 1
+    !isHistoricalProjectSelectionRevision(request.expected_active_selection_revision)
   ) {
     refuse("first_work_request_invalid", 400);
   }
@@ -582,7 +603,7 @@ function sameDefinitionV01(
 function baseV01(
   input: { workspace_id: string; project_id: string },
   activeProjectId: string | null,
-  activeSelectionRevision: number | null,
+  activeSelectionRevision: ProjectSelectionRevision | null,
   revisionEligibility?: ReturnType<
     typeof readProjectWorkRevisionEligibilityV01
   >,
@@ -624,7 +645,7 @@ function unavailableV01(
   reason: "project_unavailable" | "root_unavailable" | "source_unavailable",
 ): ProjectWorkInitializationV01 {
   let activeProjectId: string | null = null;
-  let activeSelectionRevision: number | null = null;
+  let activeSelectionRevision: ProjectSelectionRevision | null = null;
   try {
     const active = readActiveProjectSelectionV01(db, input.workspace_id);
     activeProjectId = active?.project_id ?? null;

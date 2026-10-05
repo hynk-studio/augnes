@@ -4,7 +4,7 @@ import { blob, check, foreignKey, integer, primaryKey, sqliteTable, text, unique
 // Hosted planning schema only. No installed native Augnes database imports.
 export const schemaVersion=sqliteTable('web_planning_schema',{
   version:integer('version').primaryKey(),
-},t=>[check('web_planning_schema_version',sql`${t.version} = 2`)]);
+},t=>[check('web_planning_schema_version',sql`${t.version} = 3`)]);
 
 export const workspace=sqliteTable('web_planning_workspace',{
   singleton:integer('singleton').primaryKey(),
@@ -30,7 +30,7 @@ export const revision=sqliteTable('web_planning_revision',{
   primaryKey({columns:[t.workspace_id,t.project_id,t.work_id,t.revision]}),
   unique('web_planning_revision_request').on(t.workspace_id,t.project_id,t.request_key),
   foreignKey({columns:[t.workspace_id,t.project_id],foreignColumns:[workspace.workspace_id,workspace.project_id]}),
-  check('web_planning_revision_bound',sql`${t.revision} BETWEEN 1 AND 32`),
+  check('web_planning_revision_positive',sql`typeof(${t.revision}) = 'integer' AND ${t.revision} BETWEEN 1 AND 9007199254740991`),
   check('web_planning_revision_json',sql`json_valid(${t.envelope})`),
 ]);
 

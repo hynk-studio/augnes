@@ -193,7 +193,7 @@ const PROFILE_CONTRACTS = Object.freeze({
       "transport_fixture_path",
       "transport_counter_path",
     ]),
-    active_selection_contract: "profile_to_automation_revision_plus_4",
+    active_selection_contract: "profile_to_automation_fresh_revision",
     project_control_contract: "unchanged",
     run_update_contract: "no_preexisting_run_update",
   }),
@@ -213,7 +213,7 @@ const PROFILE_CONTRACTS = Object.freeze({
     event_type_status_counts: Object.freeze({ "run_completed:completed": 2, "run_created:running": 2, "run_started:running": 2, "step_completed:completed": 2, "step_started:running": 2 }),
     approval_trace_event_kinds: Object.freeze([]),
     allowed_seam_keys: Object.freeze([]),
-    active_selection_contract: "expectation_to_primary_revision_plus_1",
+    active_selection_contract: "expectation_to_primary_fresh_revision",
     project_control_contract: "unchanged",
     run_update_contract: "no_preexisting_run_update",
   }),
@@ -1143,10 +1143,14 @@ function assertActiveSelectionContract(diff, contract, manifest) {
   }
   assert.equal(updated.length, 1);
   const expectation = contract.profile === "work_expectation";
-  assert.equal(contract.active_selection_contract, expectation ? "expectation_to_primary_revision_plus_1" : "profile_to_automation_revision_plus_4");
+  assert.equal(contract.active_selection_contract, expectation ? "expectation_to_primary_fresh_revision" : "profile_to_automation_fresh_revision");
   assert.equal(updated[0].before_identity.project_id, expectation ? manifest.expectation_project_id : manifest.profile_project_id);
   assert.equal(updated[0].after_identity.project_id, expectation ? manifest.project_id : manifest.automation_project_id);
-  assert.equal(updated[0].after_identity.selection_revision, updated[0].before_identity.selection_revision + (expectation ? 1 : 4));
+  // Revisions identify observations, not a count of selections. Retain the
+  // exact one-row effect and before/after project scopes with a fresh token.
+  assert.match(updated[0].before_identity.selection_revision, /^selection:[0-9a-f]{32}$/u);
+  assert.match(updated[0].after_identity.selection_revision, /^selection:[0-9a-f]{32}$/u);
+  assert.notEqual(updated[0].after_identity.selection_revision, updated[0].before_identity.selection_revision);
 }
 
 function assertScopeAllowed(entry, manifest, contract) {

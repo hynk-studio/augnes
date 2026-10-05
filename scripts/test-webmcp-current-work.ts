@@ -1,3 +1,4 @@
+import { differentSelectionRevision } from "./test-selection-observation";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
@@ -126,7 +127,7 @@ export async function assertWebMcpCurrentWork(input: {
 
   const mutations: Array<[string, (p: ReadPayload) => void, string]> = [
     ["project", p => { p.project.project_id = p.work_initialization.project_id = p.work_initialization.active_project_id = "project:foreign"; }, "refresh_current_work_required"],
-    ["active selection", p => { p.work_initialization.active_selection_revision!++; }, "refresh_current_work_required"],
+    ["active selection", p => { p.work_initialization.active_selection_revision = differentSelectionRevision(p.work_initialization.active_selection_revision!); }, "refresh_current_work_required"],
     ["inactive project", p => { p.work_initialization.active_project_id = "project:foreign"; }, "refresh_current_work_required"],
     ["packet", p => { p.work_initialization.current_packet!.packet_id = "packet:foreign"; }, "refresh_current_work_required"],
     ["fingerprint", p => { p.work_initialization.current_packet!.packet_fingerprint = `sha256:${"a".repeat(64)}`; }, "refresh_current_work_required"],

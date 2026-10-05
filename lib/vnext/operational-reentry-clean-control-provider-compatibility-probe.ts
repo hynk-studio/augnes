@@ -1,3 +1,4 @@
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import {
   OPERATIONAL_REENTRY_MATCHED_COHORT_COMMON_TASK_EVIDENCE_FINGERPRINT_V02,
   operationalReentryMatchedCohortCaseFixtureV02,
@@ -162,7 +163,7 @@ export interface OperationalReentryCleanControlProviderCompatibilityProbeAuthori
     "https://github.com/hynk-studio/augnes.git";
   workspace_id: string;
   project_id: string;
-  expected_active_selection_revision: number;
+  expected_active_selection_revision: ProjectSelectionRevision;
   project_root_fingerprint: string;
   case_fingerprint: string;
   common_task_evidence_fingerprint: string;

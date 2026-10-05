@@ -18,6 +18,7 @@ import {
 import path from "node:path";
 
 import Database from "better-sqlite3";
+import { invalidateRestoredProjectSelectionsV02 } from "../lib/vnext/persistence/project-lifecycle-schema.mjs";
 
 import {
   createRecoveryPrivateMaterialIdentityContext,
@@ -1305,6 +1306,16 @@ export async function restoreRuntimeDatabase({
         },
       },
     });
+    // Restoring the same backup must not revive an earlier browser observation.
+    // The verified backup stays immutable; only this owned unpublished stage
+    // receives fresh selection identities before readers and publication run.
+    let restoredSelections;
+    try {
+      restoredSelections = new Database(stagingPath, { fileMustExist: true });
+      restoredSelections.pragma("journal_mode = DELETE");
+      restoredSelections.pragma("foreign_keys = ON");
+      invalidateRestoredProjectSelectionsV02(restoredSelections);
+    } finally { restoredSelections?.close(); }
     if (requirePackageIdentityGuard) {
       requireRuntimePackageIdentityGuard(stagingPath);
     }
@@ -1930,7 +1941,11 @@ function verifyProjectRegistryBindings(database) {
        LEFT JOIN vnext_project_identities AS project
          ON project.workspace_id = active.workspace_id
         AND project.project_id = active.project_id
-       WHERE project.project_id IS NULL`,
+       LEFT JOIN vnext_workspace_identities AS workspace
+         ON workspace.workspace_id = active.workspace_id
+       WHERE workspace.workspace_id IS NULL
+          OR (active.project_id IS NOT NULL AND project.project_id IS NULL)
+          OR (active.project_id IS NULL AND active.active_project_selection_version != 'active_project_selection.v0.2')`,
     )
     .get().count;
   if (missingActiveProject !== 0) {

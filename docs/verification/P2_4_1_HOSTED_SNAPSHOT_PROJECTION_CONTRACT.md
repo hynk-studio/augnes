@@ -59,6 +59,14 @@ import. It carries:
 - `unresolved: []` with `unresolved_scope: not_included`, explicit limitations,
   and a canonical fingerprint over the envelope excluding `integrity`.
 
+The #1399 native selection migration extends the local producer's observation
+field to a positive historical integer or current `selection:` token. New
+exports carry the opaque token without converting it to a counter. The committed
+numeric fixture and its fingerprints remain unchanged. The private Site's earlier
+fixture qualification does not qualify token-shaped exports; no hosted consumer
+is accessed or changed by this local slice. External clients that assumed a
+number need separate compatibility qualification before using new exports.
+
 Packet/source fingerprints identify captured content, not ongoing hosted truth
 or export authorization. The local current packet is established at capture;
 after externalization its currentness is **not continuously verified**. A source
@@ -94,8 +102,11 @@ sync. It does not inspect or transfer retained user material.
 local-export discriminant exercises the real adapter contract over disposable
 synthetic inputs; it is not an export of a retained user project. The test creates
 an in-memory database through existing migrations, registry, authenticated
-initial/revision writers and strict current readers, then compares the producer's
-JSON to the committed bytes. There is no production fixture-writing path.
+initial/revision writers and strict current readers. Originally the output matched
+the committed bytes. Since #1399, the test pins those historical bytes and
+fingerprint separately, checks the new producer against its exact current reads,
+and permits only the fresh selection and its derived packet/work references to
+differ from that fixture. There is no production fixture-writing path.
 
 - File: 5,938 bytes; SHA-256 `03d96fbfe4c2291658f6aeec4030ed84128d719d114c81509f9b32d6a3359821`.
 - Canonical content fingerprint: `sha256:97aed29f24743940969a59063ca99e8bd9344f44687994698ef52d3be4d70edd`.

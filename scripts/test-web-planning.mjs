@@ -1,4 +1,5 @@
 import { checkFiles } from './web-planning-file-checks.mjs';
+import { checkCumulativeHistory } from './web-planning-history-checks.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -156,13 +157,14 @@ try {
  passed('save/erase concurrency serializes to whole save or whole erasure');
  const cap=await newWork(c);let capHead=(await save(c,cap)).data.saved;
  for(let i=2;i<=32;i++)capHead=(await save(c,await edit(c,capHead,'Capacity revision '+i))).data.saved;
- const capWrite=await edit(c,capHead,'Overflow');assert.equal((await save(c,capWrite)).data.error,'history_capacity');assert.equal((await c.request('/api/work/'+cap.id+'/history')).data.revisions.length,32);
+ const capWrite=await edit(c,capHead,'Continued beyond 32');assert.equal((await save(c,capWrite)).data.saved.revision,33);assert.equal((await c.request('/api/work/'+cap.id+'/history')).data.revisions.length,33);
  for(let i=0;i<10;i++)assert.equal((await save(c,await newWork(c,{...baseDefinition,goal:'List item '+i},[]))).status,200);
  const p1=await c.request('/api/works');assert.equal(p1.data.items.length,10);assert(p1.data.next);const p2=await c.request('/api/works?cursor='+p1.data.next);assert(p2.data.items.length>0);assert(!p2.data.items.some(i=>p1.data.items.some(j=>i.work_id===j.work_id)));
- passed('32-revision capacity and work-list pagination are bounded with exact effects');
+ passed('ordinary revision 33 and retained ten-item list paging have exact effects');
  await checkCapacity({c,scope:fixtureScope,passed});
  await checkBranching({start,client,newWork,save,edit,passed,open});
  await checkFiles({start,client,newWork,save,passed,root,open});
  await checkCloudflarePlanning({root,start,client,newWork,save,edit,passed,open});
+ await checkCumulativeHistory({root,start,client,newWork,save,edit,passed,open});
  console.log(JSON.stringify({web_planning_d1_checks:checks,storage:'Miniflare/workerd D1',hosted_acceptance:false}));
 } finally {for(const server of open.reverse())await server.close();console.log('web_planning_owned_runtime_cleanup_complete');}

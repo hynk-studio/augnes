@@ -1,3 +1,4 @@
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 export const CODEX_CURRENT_CONTINUITY_VERSION_V01 =
   "codex_current_continuity.v0.1" as const;
 export const CODEX_CURRENT_CONTINUITY_SNAPSHOT_VERSION_V01 =
@@ -40,6 +41,8 @@ export type CodexCurrentContinuityWorkStatusV01 =
 
 export type CodexCurrentContinuityLineageKindV01 =
   | "bounded_preparation"
+  | "stateless_review_terminal_successor"
+  | "stateless_review_replacement"
   | "initial_user_defined"
   | "pre_execution_user_revision"
       | "pre_execution_new_task"
@@ -164,7 +167,7 @@ export interface CodexCurrentContinuityV01 {
     project_key: string | null;
     display_name: string | null;
     active: boolean;
-    selection_revision: number | null;
+    selection_revision: ProjectSelectionRevision | null;
     root_availability:
       | "available"
       | "missing"

@@ -197,7 +197,7 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
             workspaceId: 'workspace:11111111-1111-4111-8111-111111111111',
             projectId: 'project:22222222-2222-4222-8222-222222222222',
             expectedActiveProjectId: 'project:22222222-2222-4222-8222-222222222222',
-            expectedActiveSelectionRevision: 1,
+            expectedActiveSelectionRevision: "selection:00000000000000000000000000000001",
             executionMode: 'deterministic',
             message: 'Record the current bridge smoke context.',
           },
@@ -205,7 +205,7 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
             workspaceId: 'workspace:11111111-1111-4111-8111-111111111111',
             projectId: 'project:22222222-2222-4222-8222-222222222222',
             expectedActiveProjectId: 'project:22222222-2222-4222-8222-222222222222',
-            expectedActiveSelectionRevision: 1,
+            expectedActiveSelectionRevision: "selection:00000000000000000000000000000001",
             executionMode: 'deterministic',
             message: 'What should happen next?',
           },
@@ -567,7 +567,7 @@ async function main() {
     workspaceId: canonicalSuccessReceipt.workspace_id,
     projectId: canonicalSuccessReceipt.project_id,
     expectedActiveProjectId: canonicalSuccessReceipt.project_id,
-    expectedActiveSelectionRevision: 1,
+    expectedActiveSelectionRevision: "selection:00000000000000000000000000000001",
     message: "Validate the complete mock receipt fixture.",
     executionMode: "deterministic",
   });
@@ -582,7 +582,7 @@ async function main() {
     workspaceId: canonicalSuccessReceipt.workspace_id,
     projectId: canonicalSuccessReceipt.project_id,
     expectedActiveProjectId: canonicalSuccessReceipt.project_id,
-    expectedActiveSelectionRevision: 1,
+    expectedActiveSelectionRevision: "selection:00000000000000000000000000000001",
     message: "Validate the complete Planner mock receipt fixture.",
     executionMode: "deterministic",
   });
@@ -617,7 +617,7 @@ async function main() {
       workspaceId: canonicalSuccessReceipt.workspace_id,
       projectId: canonicalSuccessReceipt.project_id,
       expectedActiveProjectId: canonicalSuccessReceipt.project_id,
-      expectedActiveSelectionRevision: 1,
+      expectedActiveSelectionRevision: "selection:00000000000000000000000000000001",
       message: "Validate the Observe bridge receipt boundary.",
       executionMode: "deterministic",
     });
@@ -638,7 +638,7 @@ async function main() {
       workspaceId: canonicalSuccessReceipt.workspace_id,
       projectId: canonicalSuccessReceipt.project_id,
       expectedActiveProjectId: canonicalSuccessReceipt.project_id,
-      expectedActiveSelectionRevision: 1,
+      expectedActiveSelectionRevision: "selection:00000000000000000000000000000001",
       message: "Validate the Planner bridge receipt boundary.",
       executionMode: "deterministic",
     });

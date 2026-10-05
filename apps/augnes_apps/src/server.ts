@@ -3108,7 +3108,7 @@ export function createMcpAppServer(
           expectedActiveProjectId: z
             .string()
             .regex(/^project:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i),
-          expectedActiveSelectionRevision: z.number().int().positive(),
+          expectedActiveSelectionRevision: z.string().regex(/^selection:[0-9a-f]{32}$/u),
           message: z.string().min(1),
           projectRoot: z
             .object({
@@ -3176,7 +3176,7 @@ export function createMcpAppServer(
           expectedActiveProjectId: z
             .string()
             .regex(/^project:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i),
-          expectedActiveSelectionRevision: z.number().int().positive(),
+          expectedActiveSelectionRevision: z.string().regex(/^selection:[0-9a-f]{32}$/u),
           message: z.string().min(1),
           projectRoot: z
             .object({

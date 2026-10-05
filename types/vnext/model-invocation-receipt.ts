@@ -67,6 +67,8 @@ export interface ModelInvocationReceiptUsageV02 {
   /** Provider-reported cached subset when the provider exposes it. */
   cached_input_tokens?: number;
   output_tokens: number;
+  /** Provider-reported reasoning subset, never reasoning content. */
+  reasoning_tokens?: number;
   total_tokens: number;
 }
 

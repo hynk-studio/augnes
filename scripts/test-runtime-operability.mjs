@@ -47,6 +47,7 @@ import {
 } from "../lib/vnext/persistence/repository-execution-store";
 import {
   readActiveProjectSelectionV01,
+  readProjectSelectionStateV02,
   selectActiveProjectV01,
   touchRecentProjectV01,
 } from "../lib/vnext/persistence/project-lifecycle-registry";
@@ -3493,7 +3494,7 @@ async function registerRepositoryForUnsupportedWindowsV01(input) {
       project_id: registration.project.project_id,
       now,
     });
-    const active = readActiveProjectSelectionV01(db, workspace.workspace_id);
+    const active = readProjectSelectionStateV02(db, workspace.workspace_id);
     const selection = selectActiveProjectV01(db, {
       workspace_id: workspace.workspace_id,
       project_id: registration.project.project_id,

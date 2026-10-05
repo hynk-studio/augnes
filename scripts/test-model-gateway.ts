@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import type { ProjectSelectionRevision } from "../lib/vnext/project-selection";
+import { differentSelectionRevision } from "./test-selection-observation";
 import assert from "node:assert/strict";
 import { channel } from "node:diagnostics_channel";
 import {
@@ -1115,6 +1117,7 @@ async function runStrategicGatewayCases(fixture: Fixture) {
   );
   assert.equal(cancelledFailure.code, "model_gateway_cancelled");
   assert.equal(cancelledFailure.receipt?.outcome, "cancelled");
+  assert.equal(cancelledFailure.received_result, null);
   assert.equal(liveTransportCalls, 0);
 
   let strategicBudgetTransportCalls = 0;
@@ -1140,6 +1143,12 @@ async function runStrategicGatewayCases(fixture: Fixture) {
   );
   assert.equal(budgetFailure.code, "model_gateway_budget_refused");
   assert.equal(budgetFailure.receipt?.budget.decision, "refused");
+  assert.deepEqual(budgetFailure.received_result?.usage, {
+    basis: "provider_report", quality: "reported", source: "provider_response",
+    input_tokens: 120, output_tokens: input.budget.model.max_output_tokens + 1,
+    total_tokens: input.budget.model.max_output_tokens + 121,
+  });
+  assert.equal(budgetFailure.receipt?.cost.amount, null);
   assert.equal(strategicBudgetTransportCalls, 1);
 
   let malformedTransportCalls = 0;
@@ -1474,7 +1483,7 @@ async function runRemainingCallerCases(fixture: Fixture) {
     plannerRequestBody(fixture, { project_id: UNKNOWN_PROJECT_ID }),
     plannerRequestBody(fixture, { workspace_id: UNKNOWN_WORKSPACE_ID }),
     plannerRequestBody(fixture, {
-      expected_active_selection_revision: fixture.activeRevision + 1,
+      expected_active_selection_revision: differentSelectionRevision(fixture.activeRevision),
     }),
     plannerRequestBody(fixture, {
       project_id: fixture.projectBId,
@@ -3274,7 +3283,7 @@ function envelope(
     message?: string;
     projectId?: string;
     projectRoot?: Fixture["projectARoot"];
-    activeRevision?: number;
+    activeRevision?: ProjectSelectionRevision;
     currentState?: StateEntry[];
     signal?: AbortSignal;
     timeoutMs?: number;

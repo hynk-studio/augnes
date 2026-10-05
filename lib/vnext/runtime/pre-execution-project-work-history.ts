@@ -1,3 +1,5 @@
+import { validateStatelessGrant } from "../stateless-work";
+import { readStatelessGrant } from "../persistence/stateless-work-grant";
 import type Database from "better-sqlite3";
 import { readEvidenceRecordV01 } from "@/lib/vnext/persistence/project-verify-material-store";
 import { readVNextCoreRecordV01 } from "../persistence/durable-semantic-store";
@@ -18,7 +20,12 @@ export function isNonBlockingPreExecutionRecordV01(
   if (row.record_kind === "work_expectation_record") return true;
   if (row.record_kind === "capability_grant") {
     const record = readVNextCoreRecordV01(db, { ...scope, record_kind: "capability_grant", record_id: row.record_id });
-    if (!record || !validateProspectiveAuthorization(record.payload)) return false;
+    if (!record) return false;
+    if (validateStatelessGrant(record.payload)) {
+      const grant = readStatelessGrant(db, { ...scope, grant_id: row.record_id, grant_fingerprint: record.fingerprint });
+      return preparationPacketIds.has(grant.request.packet_id);
+    }
+    if (!validateProspectiveAuthorization(record.payload)) return false;
     // Explicit permission without queued/executed work is not work history.
     // Revision preserves the grant's old source; admission then refuses it.
     const grant = readProspectiveAuthorization(db, { ...scope, grant_id: row.record_id, grant_fingerprint: record.fingerprint });

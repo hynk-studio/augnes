@@ -1,5 +1,7 @@
 "use client";
 
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
+
 import { useEffect, useRef, useState } from "react";
 import type { ProjectWorkInitializationV01 } from "@/types/vnext/project-work-initialization";
 import type { WorkExpectation, WorkExpectationComparison } from "@/types/vnext/work-expectation";
@@ -93,7 +95,7 @@ export function ExpectationHistory({ records }: { records: WorkExpectation[] }) 
 
 export function WorkExpectationResult({ comparison, receiptId, receiptFingerprint, selectionRevision, onSaved }: {
   comparison: WorkExpectationComparison; receiptId: string; receiptFingerprint: string;
-  selectionRevision: number | null; onSaved?: () => Promise<void>;
+  selectionRevision: ProjectSelectionRevision | null; onSaved?: () => Promise<void>;
 }) {
   const [outcome, setOutcome] = useState("unknown");
   const [observation, setObservation] = useState("");

@@ -1,3 +1,4 @@
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import type { ExternalRefV01 } from "./external-ref";
 import type { ProjectWorkDefinitionV01, ProjectWorkInitializationV01 } from "./project-work-initialization";
 import type { TaskContextPacketSelectedEntryV01 } from "./task-context-packet";
@@ -34,7 +35,7 @@ export interface HostedResearchProjectionV02 {
   work: ProjectWorkDefinitionV01 & { work_ref: string | ExternalRefV01 | null };
   source_binding: {
     initialization_version: ProjectWorkInitializationV01["initialization_version"];
-    active_selection_revision: number;
+    active_selection_revision: ProjectSelectionRevision;
     active_selection_selected_at: string;
     packet_id: string;
     packet_fingerprint: string;

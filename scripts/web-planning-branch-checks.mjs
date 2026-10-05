@@ -22,8 +22,8 @@ export async function checkBranching({start,client,newWork,save,edit,passed,open
  async function reopen(code){await local.close();open.splice(open.indexOf(local),1);local=await start('nonempty-v0',{port:Number(new URL(originalEnv.APP_ORIGIN).port),bindings:originalEnv,...(code?{code}:{})});if(!code)c=await client(local);}
  await reopen();assert.deepEqual((await c.request('/api/work/'+w.id+'/export')).data,oldExport);
  assert.deepEqual(await local.db.prepare('SELECT envelope FROM web_planning_revision WHERE work_id=?').bind(w.id).first(),oldRow);
- assert.deepEqual((await local.db.prepare('SELECT version FROM web_planning_schema').all()).results,[{version:2}]);
- passed('nonempty v0 production-written store upgrades to schema 2 with unchanged old envelopes and exports');
+ assert.deepEqual((await local.db.prepare('SELECT version FROM web_planning_schema').all()).results,[{version:3}]);
+ passed('nonempty v0 production-written store upgrades to schema 3 with unchanged old envelopes and exports');
  const operation=(id,action,input)=>c.request('/api/work/'+id+'/'+action,input);
  async function branch(r,reason='Explore measured evening conditions before recommending a room') {const p=await operation(r.work_id,'branch-preview',{expected:headBinding(r),intent:{reason}});assert.equal(p.status,200,JSON.stringify(p.data));return p.data;}
  async function commit(p){return operation(p.work_id,'relation-save',{ticket:p.ticket,intent:p.intent});}

@@ -254,7 +254,7 @@ eligible. A changed binding returns `refresh_required` with no replacement
 snapshot or history; the caller must explicitly refresh Resume.
 
 Case-insensitive all-terms search uses 160 query
-characters, eight terms, at most 33 packets/264 note occurrences/1,056,000
+characters, eight terms, at most 4,096 packets/264 note occurrences/1,056,000
 serialized entry bytes scanned, and eight whole original result rows/20,000
 canonical result bytes returned. The existing selected-note budgets still
 apply. No row or condition is clipped, query broadened, locator fetched or
@@ -269,19 +269,22 @@ Repeated snapshots count in full before consolidation. The scan ceiling is
 33 × the native 32,000-byte selected-array admission ceiling. For a nonempty
 array of n notes, counted entry bytes exclude n + 1 bytes of brackets and
 separators; this is a conservative finite envelope, not a measured memory
-requirement. Packet and per-snapshot validation remain independent. With valid
-snapshots inside the packet bound, cumulative bytes cannot exceed this ceiling.
-The scanner's 33-packet bound does not grant endpoint eligibility: both initial
-and ordinary authored-successor preparation families still refuse lookup at
-revision 32. An initial packet has no selected notes; an authored-successor
-root may contain them. A different-task preparation cuts lookup to its task
-suffix; it does not reset the revision limit or expose predecessor-task notes.
-Storage, recovery, portable packages and edit eligibility are unchanged.
+requirement. Packet and per-snapshot validation remain independent. The
+cumulative-history correction (#1395) separates packet traversal from the
+unchanged note-occurrence and byte budgets. Empty snapshots can span more
+pages; many valid note-bearing snapshots can still exhaust lookup capacity.
+Initial and ordinary authored-successor families remain editable beyond
+revision 32 under their currentness and execution checks. An initial packet has
+no selected notes; an authored-successor root may contain them. A different-task
+preparation cuts lookup to its task suffix without exposing predecessor-task
+notes. Lookup exhaustion does not change stored history or edit eligibility.
 
-The current proxy accepts exactly the previous 396,000-byte or current
-1,056,000-byte advertised scan policy; every other advertised limit remains
-fixed. This allows a refreshed client to read the previous runtime. Older
-proxies require 396,000 and reject even a small successful response from the
+The current proxy accepts exactly three advertised scan policies: 33 packets
+with 396,000 or 1,056,000 entry bytes, and 4,096 packets with 1,056,000 entry
+bytes. Every other advertised limit remains fixed, including 264 note
+occurrences and the result envelope. Counts must fit the advertised policy.
+This allows a refreshed client to read either previous runtime. Older proxies
+reject the new packet policy even for a small successful response from the
 new runtime. An unchanged projection shape or plugin version string does not
 establish artifact compatibility. Installed use requires the supported plugin
 refresh and a new client session loading that artifact; source verification

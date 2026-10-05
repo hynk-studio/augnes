@@ -1,10 +1,10 @@
 import { inspectInitialProjectWorkDefinitionV01 } from "../../../lib/intake/work-definition";
 import { buildSelectedWorkSourceEntry, inspectSelectedWorkSources, SELECTED_WORK_SOURCE_LIMITS } from "../../../lib/intake/selected-work-source-comparison";
 import { INITIAL_PROJECT_WORK_LIMITS_V01 } from "../../../types/vnext/project-work-initialization";
-import { canonical, exact, headBinding, MAX_REVISIONS, RELATION_BYTES, REQUEST_BYTES, type Payload, type Revision, type Scope } from "./contract";
+import { canonical, exact, headBinding, HISTORY_READ_BYTES, HISTORY_READ_ROWS, RELATION_BYTES, REQUEST_BYTES, type Payload, type Revision, type Scope } from "./contract";
 import { inspectEditedPayload } from "./relations";
 
-export const CAPACITY_FORMAT = "web_planning_capacity.v0.1";
+export const CAPACITY_FORMAT = "web_planning_capacity.v0.2";
 export const canonicalBytes = (value: unknown) => new TextEncoder().encode(canonical(value)).byteLength;
 const textBytes = (text: string) => canonicalBytes(text) - 2; // JSON string content, including escapes
 const code = (error: unknown) => {
@@ -59,10 +59,9 @@ export function inspectDraftCapacity(scope: Scope, input: {definition: unknown; 
       if(relationBytes>RELATION_BYTES)issue("relation_budget_exceeded");
     } catch(error) { issue(code(error)); }
   }
-  // This mirrors the bound ordinary-save no-op. A full history may acknowledge
-  // unchanged v0.2 material, but cannot accept a new revision.
+  // Draft fit describes planning material, not a reservation for history or
+  // file storage. Admission checks the complete proposed history on Save.
   const noop=!!(payload && previous?.relations && canonical(payload)===canonical({definition:previous.definition,sources:previous.sources,relations:previous.relations}));
-  if(previous?.revision===MAX_REVISIONS && !noop)issue("history_capacity");
   return {
     format:CAPACITY_FORMAT, expected:headBinding(previous), fits:issues.length===0 && !!payload, issues,
     notes:quantity(notes?.length??null,SELECTED_WORK_SOURCE_LIMITS.entries), rows,
@@ -71,6 +70,6 @@ export function inspectDraftCapacity(scope: Scope, input: {definition: unknown; 
       text_bytes:selectedTextBytes,metadata_bytes:selectionBytes===null?null:selectionBytes-selectedTextBytes!},
     definition:quantity(definitionBytes,INITIAL_PROJECT_WORK_LIMITS_V01.definition_bytes),
     relations:quantity(relationBytes,RELATION_BYTES),
-    history:quantity(previous?.revision??0,MAX_REVISIONS), noop, request_byte_limit:REQUEST_BYTES,
+    history:{revisions:previous?.revision??0,read_row_limit:HISTORY_READ_ROWS,read_byte_limit:HISTORY_READ_BYTES}, noop, request_byte_limit:REQUEST_BYTES,
   };
 }

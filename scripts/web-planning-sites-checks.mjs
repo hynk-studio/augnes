@@ -19,19 +19,20 @@ const sqlParts=text=>text.split('--> statement-breakpoint').map(s=>s.trim());
 async function migrationParity(folder,generated) {
   const journal=await json(path.join(folder,'meta/_journal.json'));
   assert.equal(journal.dialect,'sqlite');
-  assert.deepEqual(journal.entries.map(e=>[e.idx,e.tag,e.breakpoints]),[[0,'0000_web_planning',true],[1,'0001_schema_version',true],[2,'0002_revision_files',true]]);
+  assert.deepEqual(journal.entries.map(e=>[e.idx,e.tag,e.breakpoints]),[[0,'0000_web_planning',true],[1,'0001_schema_version',true],[2,'0002_revision_files',true],[3,'0003_cumulative_history',true]]);
   assert(journal.entries.every((e,i)=>i===0||e.when>journal.entries[i-1].when));
-  const snapshots=await Promise.all(['0000','0001','0002'].map(n=>json(path.join(folder,`meta/${n}_snapshot.json`))));
+  const snapshots=await Promise.all(['0000','0001','0002','0003'].map(n=>json(path.join(folder,`meta/${n}_snapshot.json`))));
   assert.deepEqual(shape(snapshots[0]),shape(snapshots[1]),'historical snapshots changed');
-  assert.deepEqual(shape(snapshots[2]),shape(generated.snapshot),'Drizzle schema/snapshot drift');
-  assert.equal(snapshots[1].prevId,snapshots[0].id);assert.equal(snapshots[2].prevId,snapshots[1].id);
+  assert.deepEqual(shape(snapshots[3]),shape(generated.snapshot),'Drizzle schema/snapshot drift');
+  assert.equal(snapshots[1].prevId,snapshots[0].id);assert.equal(snapshots[2].prevId,snapshots[1].id);assert.equal(snapshots[3].prevId,snapshots[2].id);
   const initial=await readFile(path.join(folder,'0000_web_planning.sql'),'utf8');
   const oldStatements=await generateSQLiteMigration(await generateSQLiteDrizzleJson({}),snapshots[0]);
   assert.deepEqual(sqlParts(initial),oldStatements.map(s=>s.trim()),'historical Drizzle schema/SQL drift');
   const upgrade=await readFile(path.join(folder,'0002_revision_files.sql'),'utf8');
+  const cumulative=await readFile(path.join(folder,'0003_cumulative_history.sql'),'utf8');
   for(const statement of generated.statements){
-    const changed=/^CREATE TABLE `web_planning_(file|schema)`/.test(statement);
-    assert((changed?upgrade:initial).includes(statement.trim()),'Drizzle schema/SQL drift');
+    const owner=/^CREATE TABLE `web_planning_(revision|schema)`/.test(statement)?cumulative:/^CREATE TABLE `web_planning_file`/.test(statement)?upgrade:initial;
+    assert(owner.includes(statement.trim()),'Drizzle schema/SQL drift');
   }
   assert.match(upgrade,/RAISE\(ABORT, 'file_history_count_exceeded'\)/);
   assert.match(upgrade,/RAISE\(ABORT, 'file_history_bytes_exceeded'\)/);
@@ -52,13 +53,13 @@ export async function checkSitesArtifact(artifact,code) {
   // Negative controls: generator changes must fail even if checked-in SQL and
   // snapshots agree with each other. No second handwritten schema is retained.
   await assert.rejects(migrationParity(folder,{...generated,snapshot:{...snapshot,tables:{}}}),/schema\/snapshot drift/);
-  await assert.rejects(migrationParity(folder,{...generated,statements:statements.map(s=>s.replace('BETWEEN 1 AND 32','BETWEEN 1 AND 33'))}),/schema\/SQL drift/);
+  await assert.rejects(migrationParity(folder,{...generated,statements:statements.map(s=>s.replace('BETWEEN 1 AND 9007199254740991','BETWEEN 1 AND 33'))}),/schema\/SQL drift/);
   assert(committed.initial.includes('json_valid'));
   const tree=(await readdir(artifact,{recursive:true,withFileTypes:true})).filter(e=>e.isFile())
     .map(e=>path.relative(artifact,path.join(e.parentPath,e.name))).sort();
   assert.deepEqual(tree,[
-    '.openai/drizzle/0000_web_planning.sql','.openai/drizzle/0001_schema_version.sql','.openai/drizzle/0002_revision_files.sql',
-    '.openai/drizzle/meta/0000_snapshot.json','.openai/drizzle/meta/0001_snapshot.json','.openai/drizzle/meta/0002_snapshot.json','.openai/drizzle/meta/_journal.json',
+    '.openai/drizzle/0000_web_planning.sql','.openai/drizzle/0001_schema_version.sql','.openai/drizzle/0002_revision_files.sql','.openai/drizzle/0003_cumulative_history.sql',
+    '.openai/drizzle/meta/0000_snapshot.json','.openai/drizzle/meta/0001_snapshot.json', '.openai/drizzle/meta/0002_snapshot.json','.openai/drizzle/meta/0003_snapshot.json','.openai/drizzle/meta/_journal.json',
     '.openai/hosting.json','server/.vite/manifest.json','server/index.js','server/wrangler.json',
   ]);
   assert.deepEqual(await json(path.join(artifact,'.openai/hosting.json')),{d1:'DB',r2:null});
@@ -131,7 +132,7 @@ export async function exerciseSitesBootstrap({start,artifact,code,runtimeConfig,
   }
   await server.db.prepare('DELETE FROM web_planning_schema').run();
   assert.equal((await request(server)).status,503);assert.equal(await count(server),0);
-  await server.db.prepare('INSERT INTO web_planning_schema(version) VALUES (2)').run();
+  await server.db.prepare('INSERT INTO web_planning_schema(version) VALUES (3)').run();
   const direct=await start('sites-direct-entry',options);
   assert.equal((await request(direct)).status,200);assert.equal(await count(direct),1);
   const responses=await Promise.all(Array.from({length:8},()=>request(server,undefined,navigation('cross-site'))));
@@ -155,23 +156,24 @@ export async function exerciseSitesBootstrap({start,artifact,code,runtimeConfig,
   // Constraint tests execute the staged Drizzle material on real D1, including
   // boundaries otherwise masked by the application's validation/conditional SQL.
   const db=server.db;
-  assert.deepEqual((await db.prepare('SELECT version FROM web_planning_schema').all()).results,[{version:2}]);
-  assert.equal((await db.prepare('SELECT count(*) n FROM __drizzle_migrations').first()).n,3);
-  await assert.rejects(db.prepare('INSERT INTO web_planning_schema VALUES (2)').run());
+  assert.deepEqual((await db.prepare('SELECT version FROM web_planning_schema').all()).results,[{version:3}]);
+  assert.equal((await db.prepare('SELECT count(*) n FROM __drizzle_migrations').first()).n,4);
+  await assert.rejects(db.prepare('INSERT INTO web_planning_schema VALUES (3)').run());
   await assert.rejects(db.prepare('INSERT INTO web_planning_schema VALUES (1)').run());
   await assert.rejects(db.prepare('UPDATE web_planning_workspace SET singleton=2').run());
   const insert=(work,revision,requestKey,envelope='{}',workspace=expected.workspace_id)=>db.prepare(
     'INSERT INTO web_planning_revision VALUES (?,?,?,?,?,?,?,?)').bind(workspace,expected.project_id,work,revision,'fp',requestKey,'request-fp',envelope).run();
-  for(const n of [0,33])await assert.rejects(insert('constraint',n,'key'));
+  for(const n of [0,1.5,9007199254740992])await assert.rejects(insert('constraint',n,'key'));
   await assert.rejects(insert('constraint',1,'key','invalid-json'));
   await assert.rejects(insert('constraint',1,'key','{}','wrong-workspace'));
+  await insert('extended',33,'extended-key');
   await insert('constraint',1,'key');
   await assert.rejects(insert('constraint',1,'different-key'));
   await assert.rejects(insert('another-work',1,'key'));
   const erased=(workspace=expected.workspace_id)=>db.prepare('INSERT INTO web_planning_erased VALUES (?,?,?)').bind(workspace,expected.project_id,'constraint').run();
   await assert.rejects(erased('wrong-workspace'));await erased();await assert.rejects(erased());
   await db.batch([db.prepare('DELETE FROM web_planning_revision'),db.prepare('DELETE FROM web_planning_erased')]);
-  passed('staged Drizzle journal applies to empty real D1; version, scope foreign keys, JSON, 1..32 and uniqueness constraints enforce');
+  passed('staged Drizzle journal applies to empty real D1; version, scope foreign keys, JSON, positive safe integer and uniqueness constraints enforce');
 
   const c=await client(server,{sites:true,entryHeaders:navigation('cross-site')});
   const mutation={workspace_id:server.env.WORKSPACE_ID,project_id:server.env.PROJECT_ID};

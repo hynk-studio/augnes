@@ -25,6 +25,89 @@ were byte-identical before/after. Sign-in and operator repairs, limited security
 observations and lack of general time-saving evidence remain. #1354's separate
 Sites rollout is deferred; its resources and evidence are untouched.
 
+## Cumulative saved history (#1397)
+
+The current local candidate removes the Web revision-32 lifetime constraint.
+The same saved work can continue through ordinary edits and supported
+incorporation. Revision identities are positive safe integers; envelopes,
+request keys, predecessor fingerprints, provenance, judgments and file bodies
+are unchanged. Saved work already has no expiry. The independent 24-hour save,
+operation-ticket and CSRF seals remain unchanged, including read-only resolution
+of an original request after its ticket expires. No credential, native grant,
+execution, synchronization or automatic retry is added.
+
+The existing primary SQL observation remains atomic. There is **no history
+pagination**: the statement observes the erased-ID guard, ordered envelopes,
+indexed identities, completeness counts/bytes and file metadata together. It
+scans at most 1,025 envelope rows and 17 file metadata rows. A required summary
+must agree with every returned row; missing, reordered, malformed, foreign or
+oversized history refuses in full. Oversized data returns only its refusal
+summary, never a valid-looking prefix. Validation visits each envelope once,
+without recursive ancestry or repeated prefix reconstruction. Current Saved
+context and complete export also recheck the exact head after dependent reads;
+SQL append still owns both target/source head and erased-ID admission.
+
+| Operation resource | Current bound |
+| --- | --- |
+| One complete history | 1,024 rows and 1,400,000 canonical UTF-8 envelope-array bytes |
+| One authenticated request | 40 D1 statements, including authentication and each transactional batch statement |
+| History validation across one request | 10,240 rows and 14,000,000 envelope bytes, permitting a ten-item page of maximum histories |
+| Reconstruction chunk | At most 128 revisions or 200,000 canonical bytes; a single valid envelope fits below this byte bound |
+| Reconstruction transaction | At most 16 revision chunks, one empty-store assertion and one optional body insert |
+
+These are finite operation budgets, not unlimited-history claims. A new revision
+must keep the complete history within the read budget. Exhaustion reports
+`history_read_budget_exceeded`, distinct from a competing-head conflict; no row
+is compacted or discarded. Draft capacity v0.2 describes planning-material fit
+and discloses complete-history budgets, rather than promising 32 storage slots
+or reserving space. Actual history/file admission remains on Save. The existing
+note, definition, relation, file, ten-item list and ingress limits are unchanged.
+
+The byte budget preserves the former maximum envelope, leaves room for the
+existing 1,500,000-byte reconstruction request, and together with at most
+1,398,144 base64 body bytes and bounded packaging stays below the separate
+3,000,000-byte file reconstruction request. Each revision chunk is one bound
+JSON array consumed with `json_each`, avoiding per-revision queries or a growing
+SQL-parameter list. All chunks, the empty-store assertion (including erased
+IDs) and bodies share one D1 transaction. No partial reconstruction is committed;
+readback still validates the entire result. At most 22 statements are needed for
+a maximal file reconstruction including authorization and readback.
+
+These choices use the current primary [D1 limits](https://developers.cloudflare.com/d1/platform/limits/)
+(50 queries on Free, 100 parameters, 2 MB string/row, 100 KB SQL, 30-second query
+limit) and [D1 batch and primary-read contract](https://developers.cloudflare.com/d1/worker-api/d1-database/).
+The code does not opt into read replicas. D1 preserves foreign keys during
+[migrations](https://developers.cloudflare.com/d1/sql-api/foreign-keys/).
+Local measurements are engineering checks, not hosted CPU, latency, throughput
+or remaining-account-allowance qualification.
+
+Forward migration `0003_cumulative_history.sql` requires schema 2 and copies
+existing revision rows exactly into the replacement table with the positive
+safe-integer constraint. It retains the primary/request uniqueness and workspace
+foreign key, leaves owner mapping, file rows/quotas and erased IDs intact, and
+writes schema 3 last. Use the existing transactional Drizzle/Sites or pinned
+Wrangler migration owner with writers quiesced. Shipped migrations/snapshots
+0000–0002 remain unchanged. The new binary refuses schema 2 and a schema-3 marker
+without the new revision constraint; the schema-2 predecessor refuses schema 3
+on every route. Envelope/export formats stay v0.1/v0.2/v0.3: historical exports
+remain valid, while older export readers refuse chains beyond their old bound. A code-only rollback is incompatible even if a particular work
+has fewer than 33 revisions. Preserve complete exports and provider recovery
+material; roll forward with compatible code. Never reset the marker or truncate
+history to simulate rollback. No live migration or rollout is commissioned.
+
+Disposable real D1 checks retain old-writer v0.1/v0.2/v0.3 rows, bodies and
+exports across both migration owners; reproduce revision-33 refusal before
+upgrade; and continue through 33, restart, four-day clock advance and fresh
+seals to 34. A separately labelled 260-row canonical fixture crosses three
+reconstruction row chunks while its history remains one atomic read. Negative
+controls cover lost observations, corruption, competing later-history heads,
+resource exhaustion, later-chunk rollback and erase/copy boundaries. The owned
+Chrome check uses ordinary editor saves, a fresh workerd process and fresh tab,
+and the same private Saved context visible to authorized browser agents. It is
+neither hosted/non-Mac acceptance nor actual live-agent adoption. Exact-head
+Canonical evidence and cleanup belong to the Draft PR; prior failures remain
+historical evidence. The retained real candidate and hosted stores are untouched.
+
 ## Revision-bound private files (#1372)
 
 Current local implementation / Draft-HOLD: choose files in the ordinary editor, review
@@ -64,13 +147,13 @@ continues unchanged, including independent copies after source erasure.
 | Name / role | 160 UTF-8 name bytes; Unicode preserved, no path separators, controls, bidi overrides or malformed Unicode; report/source/results/other |
 | Ordinary JSON request | Existing 1,500,000-byte streaming cap, including base64 uploads; old routes are not enlarged |
 | File-export reconstruction | Only `POST /api/reconstruct-files`: 3,000,000-byte streaming cap for v0.3 complete exports |
-| Planning material | Existing note, definition, relation, 32-revision and list-page limits remain unchanged |
+| Planning material | Existing note, definition, relation and list-page limits remain; complete-history operation budgets are specified above |
 
 The 69,216-byte representative bundle motivates small bounded outputs: the
 per-file ceiling exceeds its largest 39,801-byte result by over six times, while
 history can keep 16 distinct versions/bodies. Four wholly replaced four-file
-bundles reach the count limit even before the byte limit; 32 planning revisions
-do not promise 32 complete file replacements. Reused bytes are charged once in
+bundles reach the count limit even before the byte limit; additional planning
+revisions do not promise additional complete file replacements. Reused bytes are charged once in
 history, never globally shared across works. Planning Draft capacity retains its
 original meaning; file selection counts/sizes are separate and retained-history
 admission is checked on Save. Refusals preserve edits and identify the limiting
@@ -92,11 +175,10 @@ no-store, nosniff, attachment/octet-stream with safe UTF-8 names.
 2,000,000 bytes per BLOB/row and 100 bound parameters per statement. Each body
 row stays below 263 KiB; the largest body INSERT uses 59 parameters for 16
 bodies. Export reads at most 1 MiB of bodies; base64 is at most 1,398,144 bytes
-including per-body padding. The existing conservative 32-revision envelope
-bound plus file descriptors/packaging is 2,691,682 bytes, below 3 MB. Reconstruction uses
-at most 34 transactional statements (empty-store assertion, 32 revisions, one
-body insert); admission, validation and readback stay below the 50-query Free
-per-invocation ceiling. These are bounded design/local checks, not measured
+including per-body padding. The original conservative 32-revision envelope
+bound plus file descriptors/packaging was 2,691,682 bytes, below 3 MB. The current
+complete-history byte budget and chunked reconstruction above preserve both
+transport limits and the 50-query Free per-invocation ceiling. These are bounded design/local checks, not measured
 hosted latency, load or remaining provider allowance.
 
 `web_planning_export.v0.3` / `web-planning/3` carries all original revisions and
@@ -165,7 +247,7 @@ retain originals. No content is automatically shortened, removed or summarized.
 `POST /api/capacity` and `POST /api/work/:id/capacity` use the normal private
 identity, scope, origin and CSRF gates. Existing-work checks validate history and
 recheck its head. They return quantities and bounded validation codes, not saved
-revisions or tickets. One check reads up to the existing 32-revision chain and
+revisions or tickets. One check validates the complete history within the operation budgets above and
 performs a current-head query; there is no cache or write. This adds bounded
 read/validation cost. It is not a hosted CPU/latency qualification. Final Save
 still owns authorization, currentness, replay, admission and persistence. “Fits
@@ -264,7 +346,8 @@ server/.vite/manifest.json
 .openai/drizzle/0000_web_planning.sql
 .openai/drizzle/0001_schema_version.sql
 .openai/drizzle/0002_revision_files.sql
-.openai/drizzle/meta/{_journal,0000_snapshot,0001_snapshot,0002_snapshot}.json
+.openai/drizzle/0003_cumulative_history.sql
+.openai/drizzle/meta/{_journal,0000_snapshot,0001_snapshot,0002_snapshot,0003_snapshot}.json
 ```
 
 The deployment entry is `src/worker.ts`, an ESM Worker `fetch(request, env)`.
@@ -314,7 +397,7 @@ npm run web:build:cloudflare
 ```
 
 The existing esbuild owner emits `apps/web_planning/dist-cloudflare/worker.js`,
-`wrangler.json`, and `migrations/{0000_web_planning,0001_schema_version,0002_revision_files}.sql`.
+`wrangler.json`, and `migrations/{0000_web_planning,0001_schema_version,0002_revision_files,0003_cumulative_history}.sql`.
 It rejects local environment files, native/test imports and bound production
 configuration. The artifact has no development identity, real account/database
 IDs, secrets, asset router or preview URL. Builds replace this generated folder;
@@ -492,8 +575,8 @@ bounded chain and its indexed columns. There is no mutable current pointer,
 last-write-wins update, automatic merge or partial note write. Definition limits
 are 2,000 goal codepoints, twelve 500-codepoint criteria/non-goals and 12,000
 canonical UTF-8 bytes. Selection limits are eight 2,000-codepoint whole notes and
-12,000 serialized source-entry bytes. History is at most 32 revisions; lists use
-ten-item keyset pages. Normalization trims/deduplicates/sorts under the original
+12,000 serialized source-entry bytes. Complete history uses the operation budgets
+above; lists retain ten-item keyset pages. Normalization trims/deduplicates/sorts under the original
 contract, without truncating overflowing material.
 
 Save tickets bind server-issued work/request identity, scope and displayed
@@ -600,8 +683,8 @@ an immutable origin with its selected bindings and bounded starting judgment,
 one provenance/dependency descriptor per selected unit, and the latest local
 comparison judgment. Metadata is capped at 12,000 canonical UTF-8 bytes;
 reason/rationale/question fields at 500 codepoints, with at most eight units
-and seven dependencies each. Existing definition, source, 32-revision and
-10-item list bounds remain. Saved context reads at most two direct referenced
+and seven dependencies each. Existing definition, source and
+10-item list bounds remain; cumulative-history operation budgets are specified above. Saved context reads at most two direct referenced
 works, never scans a transitive graph. Both human and browser-agent readers get
 the same server-rendered exact-revision meaning, with progressive bindings and
 honest source availability. Reading establishes delivery, not understanding.

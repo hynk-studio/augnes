@@ -113,6 +113,9 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
   };
   const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
   const prospectiveAdditions = [
+    // #1399 adds saved-project discovery with its own exact action/assertion
+    // pin below. Preserve the digest of every preceding phase unchanged.
+    ['    await validateSavedProjectDiscoveryV02({ fixture, manifest, projectAlphaId, projectAlphaDestination });\n', ''],
     // #1382 adds one separately pinned human direction journey; every earlier
     // reviewed action, assertion and deadline retains its original digest.
     ['    await validateProjectDirectionUI(accessDatabasePath, projectAlphaId);\n', ''],
@@ -134,7 +137,10 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
   for (const [addition] of prospectiveAdditions) assert.equal(source.split(addition).length, 2, 'exact prospective call site');
   const withoutProspectiveAdditions = text => prospectiveAdditions.reduce((result, [addition, previous]) => result.replace(addition, previous), text);
   const expected = {
-    validateProjectDirectionUI: '9cbc97e00b72c0fcd10434d9580c55a1daf70f3b54c8b17cb43063b16076bb8c',
+    validateSavedProjectDiscoveryV02: 'c9a79ea30f5485ad6322e712d267524a27e2d8a158693c1fbb81793f6897916d',
+    // #1384 adds the reader/editor and unsaved-authorization refusal before
+    // unchanged responsive checks. Earlier actions/assertions/deadlines remain.
+    validateProjectDirectionUI: 'b9eb7a6c3271a9345f09ec0681353f17156a4ae7aaec1f02912169e725dcd1f2',
     runPhase: '547dcdc354d69e5288144b6a888c436e546102d509cdec352673c929ec0191d2',
     navigate: '2dbcba067b8c962ccb04e72155be6129be5f4e4a2447935621ac85208cfefddf',
     waitForRequestQuiet: 'b6fe49600739070ebf72e8048a26b605a7ff2a255c7d1ad86a9ee0c35c7c3c74',
@@ -152,7 +158,7 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
     }
     ts.forEachChild(node, visit);
   }
-  visit(file); assert.equal(found.length, 5);
+  visit(file); assert.equal(found.length, 6);
   assert.equal(hash(phases), '1d76d884d3ee26e92769e3e66a22f25c77a639f8e6d77cab400ea8ed8a91d984');
   assert(source.includes('const DEFAULT_TIMEOUT_MS = 45_000;'));
   assert(source.includes('const REQUEST_QUIET_MS = 500;'));

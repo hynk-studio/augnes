@@ -19,7 +19,7 @@ import { createRequire } from "node:module";
 import net from "node:net";
 import { networkInterfaces, tmpdir } from "node:os";
 import path from "node:path";
-import { chooseBrowserPorts } from "./browser-preferred-ports.mjs";
+import { chooseBrowserPorts, readBrowserPortAllocationDiagnostic } from "./browser-preferred-ports.mjs";
 import {
   TASK_CONTEXT_PACKET_FIXTURE_EXPIRES_AT,
   TASK_CONTEXT_PACKET_FIXTURE_GENERATED_AT,
@@ -53,6 +53,7 @@ import {
 } from "../lib/vnext/persistence/project-identity-registry.ts";
 import {
   readActiveProjectSelectionV01,
+  readProjectSelectionStateV02,
   selectActiveProjectV01,
   touchRecentProjectV01,
 } from "../lib/vnext/persistence/project-lifecycle-registry.ts";
@@ -337,6 +338,7 @@ const result = {
   total_duration_ms: null,
   supervisor_exit_diagnostic: null,
   e2e_timing_summary: null,
+  browser_port_allocation_diagnostic: null,
   failure: null,
 };
 
@@ -433,6 +435,7 @@ try {
   await main();
   functionalExecutionSucceeded = true;
 } catch (error) {
+  result.browser_port_allocation_diagnostic ??= readBrowserPortAllocationDiagnostic(error);
   result.failure = safeError(error);
   process.exitCode = 1;
 } finally {
@@ -443,7 +446,7 @@ try {
   const finishCleanupTiming = timing.start("cleanup", "global cleanup");
   try {
     await cleanup();
-    result.cleanup_complete = true;
+    result.cleanup_complete = result.browser_port_allocation_diagnostic?.cleanup_complete !== false;
   } catch (error) {
     if (!result.failure) result.failure = safeError(error);
     process.exitCode = 1;
@@ -465,6 +468,7 @@ try {
   result.owned_process_residue_count = ownedBrowserProcesses.size;
   try {
     result.listener_residue_count =
+      result.browser_port_allocation_diagnostic?.cleanup_complete === false ? null :
       (appPort && (await canConnectToListener("127.0.0.1", appPort)) ? 1 : 0) +
       (bridgePort && (await canConnectToListener("127.0.0.1", bridgePort)) ? 1 : 0) +
       (debugPort && (await canConnectToListener("127.0.0.1", debugPort)) ? 1 : 0);
@@ -571,7 +575,9 @@ async function main() {
   result.active_packet_id = activePacketId;
   result.active_packet_fingerprint = activePacketFingerprint;
 
-  ({ app: appPort, bridge: bridgePort, debug: debugPort } = await chooseBrowserPorts());
+  const allocation = await chooseBrowserPorts();
+  result.browser_port_allocation_diagnostic = readBrowserPortAllocationDiagnostic(allocation);
+  ({ app: appPort, bridge: bridgePort, debug: debugPort } = allocation);
   appOrigin = `http://127.0.0.1:${appPort}`;
   const runtimeEnvironment = isolatedRuntimeEnvironment({
     databasePath,
@@ -3052,6 +3058,9 @@ function activateFixtureProjectForContinuity(
   try {
     writableDatabase.pragma("foreign_keys = ON");
     const selectedAt = "2026-07-21T06:00:00.000Z";
+    const clearedSelection = readProjectSelectionStateV02(writableDatabase, workspaceId);
+    assert(clearedSelection, "transferred fixture must retain its cleared selection observation");
+    assert.equal(clearedSelection.project_id, null);
     touchRecentProjectV01(writableDatabase, {
       workspace_id: workspaceId,
       project_id: projectId,
@@ -3061,8 +3070,8 @@ function activateFixtureProjectForContinuity(
       workspace_id: workspaceId,
       project_id: projectId,
       now: selectedAt,
-      expected_project_id: null,
-      expected_revision: null,
+      expected_project_id: clearedSelection.project_id,
+      expected_revision: clearedSelection.selection_revision,
     });
   } finally {
     writableDatabase.close();

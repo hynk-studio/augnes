@@ -5,7 +5,7 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
 import { getOrCreateDefaultWorkspaceIdentityV01, getOrCreateCanonicalProjectForLocalRootV01, normalizeLocalProjectRootRefV01 } from "../lib/vnext/persistence/project-identity-registry";
-import { selectActiveProjectV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
+import { readActiveProjectSelectionV01, selectActiveProjectV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import { defineInitialProjectWorkV01, readProjectWorkInitializationV01 } from "../lib/vnext/runtime/project-work-initialization";
 import { issueVNextLocalOperatorBootstrapV01, consumeVNextLocalOperatorBootstrapV01 } from "../lib/vnext/runtime/local-operator-session";
 import { buildSelectedWorkSourceEntry, normalizeNativeSelectedWorkSources, readSelectedWorkSources } from "../lib/intake/selected-work-source-comparison";
@@ -68,7 +68,7 @@ export async function assertCompanionWorkRevisionEnvelopeV01(temporaryRoot: stri
     const credential = consumeVNextLocalOperatorBootstrapV01(db, { config,
       bootstrap_token: issueVNextLocalOperatorBootstrapV01(db, { config }).bootstrap_token }).credential;
     const initial = defineInitialProjectWorkV01(db, { config, credential, request: { action: "define_initial_project_work",
-      ...scope, expected_active_project_id: scope.project_id, expected_active_selection_revision: 1,
+      ...scope, expected_active_project_id: scope.project_id, expected_active_selection_revision: readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision,
       expected_initialization_state: "not_defined", goal: "Preserve the complete Companion selection",
       success_criteria: ["One explicit save; exact sources after reopen"], non_goals: ["No execution"] } }).packet;
     await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));

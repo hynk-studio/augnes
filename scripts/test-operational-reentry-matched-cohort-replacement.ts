@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { differentSelectionRevision } from "./test-selection-observation";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import {
@@ -409,7 +410,7 @@ function verifyAuthorizationAndPreparedIdentityV01(
         admission: {
           ...admission,
           expected_active_selection_revision:
-            admission.expected_active_selection_revision + 1,
+            differentSelectionRevision(admission.expected_active_selection_revision),
         },
         route,
         compatibility_gate: compatibilityGate,

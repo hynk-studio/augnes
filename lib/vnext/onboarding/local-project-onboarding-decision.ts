@@ -1,3 +1,4 @@
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import {
@@ -15,7 +16,7 @@ type PreparedCandidateBindingV01 = {
   selection_token: string;
   inspection_fingerprint: string;
   expected_active_project_id: string | null;
-  expected_active_selection_revision: number | null;
+  expected_active_selection_revision: ProjectSelectionRevision | null;
 };
 
 type DecisionBindingV01 = PreparedCandidateBindingV01 & {

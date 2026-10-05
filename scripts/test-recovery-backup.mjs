@@ -629,6 +629,25 @@ function createPinnedMergedR8ALegacyFixture(databasePath, fixtureMarkerId) {
   try {
     database.pragma("foreign_keys = ON");
     restorePreAcgc5bCoreRecordConstraint(database);
+    // This fixture represents the pinned R8-A schema, including its original
+    // numeric selection table, not a mixture with the current v0.2 table.
+    assert.equal(database.prepare("SELECT count(*) AS n FROM vnext_active_project_selections").get().n, 0);
+    database.exec(`
+      DROP TRIGGER trg_vnext_project_selection_retain;
+      DROP TABLE vnext_active_project_selections;
+      CREATE TABLE vnext_active_project_selections (
+        workspace_id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        active_project_selection_version TEXT NOT NULL CHECK (
+          active_project_selection_version = 'active_project_selection.v0.1'
+        ),
+        selection_revision INTEGER NOT NULL CHECK (selection_revision > 0),
+        selected_at TEXT NOT NULL CHECK (length(trim(selected_at)) > 0),
+        FOREIGN KEY (workspace_id, project_id)
+          REFERENCES vnext_project_identities(workspace_id, project_id)
+          ON UPDATE RESTRICT ON DELETE RESTRICT
+      );
+    `);
     database.exec(
       "DROP INDEX idx_vnext_local_operator_sessions_decision_nonce;" +
         "DROP INDEX idx_vnext_local_operator_sessions_decision_token;" +

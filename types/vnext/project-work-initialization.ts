@@ -1,3 +1,4 @@
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import type { TaskContextPacketSelectedEntryV01, TaskContextPacketV01 } from "./task-context-packet";
 import type { ProjectWorkRevisionEligibilityV01 } from "./project-work-revision";
 
@@ -5,6 +6,7 @@ import type { ProjectWorkRevisionEligibilityV01 } from "./project-work-revision"
 export const AUTHORED_SUCCESSOR_TASK_V01 = "augnes.authored-successor-task.v0.1" as const;
 export const AUTHORED_SUCCESSOR_CONTEXT_V01 = "augnes.authored-successor-context.v0.1" as const;
 export const AUTHORED_SUCCESSOR_REVALIDATION_V01 = "augnes.authored-successor-revalidation.v0.1" as const;
+export const DURABLE_AUTHORED_WORK_V01 = "augnes.durable-authored-work.v0.1" as const;
 
 export const PROJECT_WORK_INITIALIZATION_VERSION_V01 =
   "project_work_initialization.v0.1" as const;
@@ -66,7 +68,7 @@ export interface ProjectWorkInitializationV01 {
     | "root_unavailable"
     | "source_unavailable";
   active_project_id: string | null;
-  active_selection_revision: number | null;
+  active_selection_revision: ProjectSelectionRevision | null;
   current_work: ProjectWorkDefinitionV01 | null;
   selected_source_context?: TaskContextPacketSelectedEntryV01[];
   /** Reconstructed task boundary, including after ordinary revisions of the new task. */
@@ -75,12 +77,15 @@ export interface ProjectWorkInitializationV01 {
     packet_id: string;
     packet_fingerprint: string;
     generated_at: string;
+    expires_at?: string | null;
     lineage_kind:
       | "initial_user_defined"
       | "pre_execution_user_revision"
       | "pre_execution_new_task"
       | "authored_successor_task"
       | "bounded_preparation"
+      | "stateless_review_replacement"
+      | "stateless_review_terminal_successor"
       | "semantic_transition"
       | "source_linked_operational_continuation";
   };
@@ -92,11 +97,12 @@ export interface ProjectWorkInitializationV01 {
 }
 
 export interface DefineInitialProjectWorkRequestV01 {
+  handoff?: { snapshot: import("@/lib/vnext/work-handoff").WorkHandoff; expected_root_fingerprint: string; expected_direction_ref: string | null };
   action: "define_initial_project_work";
   workspace_id: string;
   project_id: string;
   expected_active_project_id: string;
-  expected_active_selection_revision: number;
+  expected_active_selection_revision: ProjectSelectionRevision;
   expected_initialization_state: "not_defined";
   goal: string;
   success_criteria: string[];

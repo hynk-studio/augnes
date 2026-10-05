@@ -236,6 +236,98 @@ Repository
 
 ### 2.5 canonical project identity and mutable display label
 
+Native registered-project discovery (#1399) reads the existing canonical identity
+and root registry. Recent membership, browser selection and project direction are
+separate. Human discovery returns at most 20 entries / 1 MiB per request, with an
+explicit continuation over the captured identity range. A mandatory SQL summary
+and lookahead distinguish completion from partial observation. Changed selection,
+missing results or changed returned identity/root refuse the page; refresh starts
+a new observation. Missing roots remain discoverable and cannot be rebound by a
+read or ordinary open. No archive state or project-erasure operation is added.
+
+`active_project_selection.v0.2` retains a row when selection becomes empty and
+uses an opaque `selection:` revision. Every select or active clear replaces that
+durable revision. Selection-dependent mutations compare both project (including
+null) and revision atomically, including related identity/recency effects. The
+forward migration assigns fresh revisions to all existing workspaces, preserving
+the selected project or empty state. Old counters were discarded on clear, so
+neither old numeric observations nor pre-upgrade empty observations can authorize
+current writes. Historical packets retain their numeric observations, original
+request references, bytes and fingerprints; reconstruction accepts both forms.
+Resuming an unexecuted finite terminal or linked work packet compares its saved
+definition independently of that historical observation. It preserves exact
+historical replay keys and packet reconstruction, then binds the new write to
+today's selection: terminal authorship uses its existing preview fingerprint;
+linked preparation requires the observation returned by the current read.
+Missing, numeric, or changed live observations refuse. Root, source, direction,
+predecessor and unresolved-effect checks still apply; this grants no execution
+permission and changes no historical material.
+Existing prepared selections and clients must refresh after upgrade. Older
+binaries cannot consume the new store schema; recovery uses the existing backup
+and staged migration owner, not a backward rewrite of history.
+An explicit recovery restore gives every workspace a fresh selection observation
+in its owned unpublished stage, including selected, cleared and never-selected
+states. Restoring the same backup again cannot revive a held management request.
+The selected project and selection time are preserved; backup bytes, Core history,
+roots, grants and direction accounting are unchanged by this invalidation. The
+existing reader validation and atomic publication/rollback still own restore.
+Portable import likewise creates a fresh local selection revision and therefore
+a different live continuity snapshot. The existing RC1 exact comparer retains
+that difference as `non_conformant`; it does not normalize it into exact equality.
+Canonical historical bytes and the separate relational comparison remain
+independently checked. This does not transfer source selection authority.
+
+The prospective RC1 `reconstruction_conformance_report.v0.2` profile
+`preserved_history_fresh_selection.v0.1` qualifies preserved history **and** an
+independent fresh local observation. It embeds the unchanged v0.1 report and
+verdict. Its only live differences are `continuity.project.selection_revision`,
+`continuity.snapshot.binding`, and the private snapshot material's
+`selection_revision`. Selection must still name the same active project in the
+same workspace; destination and source observations must differ. Snapshot
+version, algorithm, exactness, project/root/work identity, execution, result,
+review, currentness, next action and every other field remain exact. The profile
+does not grant a general environmental normalization exception.
+
+The bounded read-only collector opens each independent database, checks complete
+canonical history against counted storage pages and the portable owner, and
+invokes the actual current-continuity private snapshot reader and binding owner.
+It independently reads Project Verify, requires RC1's lineage from an applied
+Transition to a later packet, and reads unresolved feedback. Empty or irrelevant lineage query
+collections do not qualify. It checks the
+durable selection against the private material and public projection, then
+rereads at capture to refuse changes between collection and use. Missing,
+partial, unknown-shaped or failed observations cannot qualify conformance.
+Process-local opaque captures keep private material internal and prevent caller
+JSON or a self-consistent fabricated hash from posing as a reader invocation.
+They are bounded local evidence, not remote attestation or execution authority.
+Pure replay remains deterministic for identical captured inputs; it makes no
+claim about later live state. A new current evaluation requires a new capture.
+
+This profile covers the source-authenticated RC1 active-project portable chain
+and recovery of that imported chain, including its pending feedback. It does not
+silently qualify excluded personal history, absent work, cleared selection or
+never-selected workspaces. Those restore states retain their existing selection
+safety contract and recovery tests. No database migration, projection cache,
+selection writer, credential renewal or historical rewrite is introduced.
+Explicit hosted snapshot exports carry the opaque observation under the local
+projection contract. The prior numeric fictional fixture stays byte-identical;
+earlier private Site qualification does not qualify this new field shape. Hosted
+consumer compatibility remains a separate, unperformed qualification.
+
+Agent rediscovery reuses project-direction authentication and the exact existing
+project scope check in one database snapshot. It considers only explicit project
+IDs, exact continuations and attributable decisions for the current grant. The
+existing four-project, two-continuation, two-creation-slot and twenty-mutation
+bounds make this a complete catalog of at most eight candidates, with a 256 KiB
+project response bound; incomplete observations refuse. A missing decision or
+revocation row in the existing direction reader cannot prove current scope or
+continued authority. Its mandatory count preserves the existing 512-record
+direction-history refusal bound. Credential expiry,
+revocation, principal, direction/parent currentness, mutation sequence and budgets
+remain independent. Reading an exhausted write capability does not replenish it.
+Discovery changes no selection, recency, creation-slot consumption, direction,
+Core state, execution permission or automation.
+
 `ProjectIdentityV01`의 canonical identity는 `workspace_id`, `project_id`,
 `project_identity_version`, `identity_kind`, `identity_source`, `created_at`으로
 구성되며 이 필드들은 immutable이다. 기존
@@ -545,8 +637,8 @@ initialization owner with the fail-closed managed-run-history owner. In the
 initial/pre-execution preparation family, any exact
 project run row, blocking Core work history, semantic state/head, semantic
 successor, ambiguous or invalid lineage, unavailable
-source, inactive project, unavailable root, or the fixed 32-revision bound
-blocks revision. Canonical Evidence support material and existing work-expectation
+source, inactive project or unavailable root blocks revision. Historical revision
+count is not an eligibility condition. Canonical Evidence support material and existing work-expectation
 records may coexist with the validated preparation chain. Evidence is read through
 its canonical owner, including scope, payload/envelope integrity and reserved
 producer-source authentication; malformed or forged material fails closed. This
@@ -558,7 +650,7 @@ The same rule applies at each historical revision cutoff and current admission.
 It reuses the initial-work normalizer and all code-point, list, control-character,
 UTF-8, and packet-budget limits. In one immediate transaction it revalidates
 session admission, project/selection/root scope, exact current packet identity,
-lineage, no execution or blocking work history, and revision count. An unchanged
+lineage, no execution or blocking work history, and exact revision order. An unchanged
 normalized definition is `exact_replay` with no write. An identical concurrent
 successor may replay; any different stale request refuses.
 
@@ -610,8 +702,9 @@ older validator sees an unsupported family member rather than overlooking a
 superseding packet. New definition/request references bind the explicit action,
 exact prior packet, authenticated operator/session, active selection, registered
 root binding, reviewed definition, complete selected-source comparison and
-omission reasons. The original first-work ancestor remains unique. The existing
-32-edge preparation-chain bound includes both revisions and new-task edges.
+omission reasons. The original first-work ancestor remains unique. Both
+same-task revisions and new-task edges retain monotonically ordered safe integer
+identities without a fixed lifetime revision ceiling.
 There is no table, mutable current-work pointer, new Core record kind or migration.
 
 A preview shows both definitions (goal, success criteria and non-goals), selected
@@ -859,6 +952,347 @@ earlier judgment or its evidence; a direction-only change preserves support and
 method conditions. GuideBrief and Start projections expose the same reconsideration
 boundary without acquiring mutation or execution rights.
 
+#### Stateless bounded source review (#1384)
+
+The opt-in `stateless_source_review.v0.1` product profile composes existing
+ordinary work revision, immutable capability grants, Planner Gateway, autonomy
+ledger, bounded local reading and structured RunReceipt admission. It is distinct
+from the zero-model prospective inspection profile and P4.6 research permission.
+The project surface prepares a question and one or two exact UTF-8 file ranges
+as a selected whole note on ordinary null-grant work. Preparation binds full-file
+hashes and selected line ranges, preserving the task and other selected sources.
+Every reader or mutation request binds the displayed project ID to the immutable
+session scope; selection or a stale cookie cannot retarget it.
+Only the local authenticated authorization route can issue the separate
+`stateless_source_review_grant.v0.1` Core capability record and one ledger run.
+No recommendation, selected note, working direction or research budget grants
+execution authority.
+
+Both stateless judgments can consume the explicitly selected ordinary whole notes
+through `stateless_selected_work_notes.v0.1`. This bounded projection retains each
+note's identity/fingerprint, source locator, observation time, provenance, label,
+complete text and any reviewed-outcome source binding. It excludes the separately
+bound question/inventory note, unselected history and unselected predecessor
+reports. Notes are attributed context, not instructions, established facts,
+accepted state or execution authority. Their delivery does not establish their
+truth or a model's correct use of them.
+
+Ordinary preparation/readback shows this exact projection without enabling
+automation. The finite preview binds its fingerprint in `selected_notes_ref`,
+alongside the existing packet/source/control/cost bindings. New authenticated
+issuance requires that explicit current binding. Historical grants without it
+remain readable and retain their original input projection, which omitted these
+notes; they cannot silently gain transmission scope. No historical record is
+rewritten. Each complete model input still obeys the existing 8,192-byte message
+bound and 16,384-byte serialized-request cap. Overflow stops before the affected
+dispatch, without truncation or omission; already observed earlier stages remain
+saved. Preparation or preview does not promise that a future observation and
+judgment will fit together within those unchanged limits.
+
+One authorization covers choose → observe/non-use → conclude in a finite foreground
+request, with no per-step copy or “next”. The closed first choices are
+`read_selected_sources`, `no_action`, `defer`, and `stop`; the second choices are
+`use_observation`, `decline_observation`, `defer`, and `stop`. First-stage stop ends
+work immediately. Only the allowlisted read is executable. The supplied normalized
+judgment and exact observation become this work's next input; they do not change
+accepted state, direction, or another work item. A model's claimed use is recorded
+separately from mechanical delivery and does not prove semantic validity.
+
+The grant binds project, packet, source inventory, physical root, host, current
+control revision, provider/model cost snapshot and an expiry of at most ten minutes.
+The legacy ceilings are two model requests, 16,384 input bytes and 1,024 output tokens
+per request, fifteen seconds per invocation, one read bundle of at most two regular
+files / 65,536 bytes, 4,096 excerpt bytes, ten seconds per read, and forty-five
+seconds per foreground host call. Local file deadlines are checked before and
+after bounded synchronous file operations; they cannot forcibly interrupt a blocked
+OS filesystem call. Local preparation, authorization and first-step
+version checks each read at most 65,536 bytes separately; these are preparation
+costs, not extra completed action bundles. No command execution, retry or provider
+failover is available. Pricing rates and provenance are explicit operator inputs;
+the Gateway checks the quote, route and per-call ceiling, while actual cost remains
+unknown unless reported. Missing credentials or rates do not authorize fallback.
+
+The explicitly configured OpenAI Planner route `gpt-6.1-sol` adds one bounded
+alternative: `reasoning.effort=low`, `reasoning.mode=standard`, 4,096 total output
+tokens per request (reasoning plus public output), sixty seconds per invocation
+and 150 seconds per attempt from its first persisted claim, including restart.
+It stays within the existing shared Gateway/capability ceilings. The public
+judgment rationale remains limited to 1,200 UTF-8 bytes; source, input, action,
+call-count and no-retry limits do not increase. A provider may exhaust that token
+allowance before producing any public answer. This is a finite trial profile,
+not a guarantee of completion or a model-adequacy finding.
+
+The ordinary preview displays and binds this exact configuration and limits.
+Its versioned descriptor fingerprint is part of the existing model reference,
+cost authority and immutable grant, and the serializer binds it in its route
+fingerprint. The public non-invocable Gateway contract owns descriptor validation;
+product callers neither import the private OpenAI adapter boundary nor acquire
+its session. Provider serialization remains adapter-owned. Changing effort, mode,
+route or limits requires fresh authority.
+Historical grants remain readable with their original limits/projection; an old
+unbound model reference cannot authorize the new configured route. Other model
+routes retain their prior behavior. There is no model registry, automatic
+fallback or implicit follow-on allowance. Responses use `store:false`, no
+previous-response chain and no explicit service tier.
+
+For a returned incomplete Planner response, retain only allowlisted status,
+incomplete reason, public-output-presence and bounded request/schema attribution
+through the existing diagnostic/ledger/review path. Preserve reported usage when
+valid, including an optional `reasoning_tokens` count no greater than reported
+output tokens. Hidden reasoning and raw provider bodies are never retained. An
+incomplete `max_output_tokens` result is `returned_incomplete`, a resource-limit
+failure rather than a task judgment; it has no successful RunReceipt and cannot
+retry. Content filtering and unknown reasons stay distinct. Failure-receipt
+usage/cost semantics remain unchanged; reported incomplete/over-budget counts
+are separate evidence, not measured cost or successful execution. Missing legacy
+counts/diagnostics remain unavailable. These Gateway failures do not gain the
+host-rejected terminal-authorship exception below.
+
+Existing ledger steps own unissued, claimed/outcome-unknown, stored-result, and
+second-judgment attribution. Every claim commits before dispatch. Permission,
+current direction/source, scope, remaining stage budget and generation are checked
+at admission and immediately before model egress. A claimed step cannot be replayed.
+After a stored observation, a fresh process can construct the next request from
+SQLite and its registered project alone, even if the original file is unavailable.
+It consumes historical exact bytes with their time, digest and availability. No
+provider thread, previous-response chain, Codex process, hidden transcript or
+private controller memory is needed. A returned result commits before receipt
+projection. Cancellation stops new stages but retains already returned results;
+timeout or transport loss after dispatch retains unknown cost/effect. A stale
+controller cannot settle another generation; its returned receipt can be retained
+as a quarantined ledger event without resolving the outstanding claim.
+
+The ordinary review preview can explicitly request `pause_after_observation`.
+This optional choice is part of the immutable finite grant; omission keeps the
+uninterrupted foreground path. The observation (including justified non-use) and
+paused state commit together before any conclude claim. Authenticated readback
+exposes the exact saved boundary: run/revision, grant, packet, choose/result and
+observation fingerprints and observation generation. This is saved local progress,
+not provider settlement, cancellation or a new execution allowance.
+
+An authenticated Continue consumes that exact boundary atomically, revalidates
+current authority and the original attempt deadline, and issues a local controller
+generation. Only that controller may claim conclude. A newer continuation fences
+an older unclaimed controller; an active claim, cancellation, expired authority,
+recovery suspension or reconciliation obligation cannot be relabelled as resumable.
+Runtime shutdown and a fresh session do not renew the grant, reset the clock,
+re-read completed material or replay a model call. The remaining request uses the
+persisted observation and first public judgment. The original grant expiry and
+total attempt clock include downtime. This supports explicit interruption exercises
+without requiring a person to advance each stage of ordinary uninterrupted work.
+
+#### Source-bound unfinished-work handoff
+
+`source_bound_work_handoff.v0.1` is a bounded imported snapshot carried by an
+existing TaskContextPacket selected entry, not a new Core record/table, project
+restore image, run store or authority. An authenticated source reader exports an
+explicit unexecuted ordinary successor and one linked completed stateless
+observation. It validates current packet/selection/root, receipt/run lineage and
+local unsettled/disposition/history owners. It transfers the task and criteria,
+explicitly selected whole notes, actual saved excerpt bytes and digests, receipt
+verification status, source identities, mandatory unknown/returned-attempt
+provenance and recorded omission reasons. Full reports, hidden reasoning, sessions,
+controller credentials and executable grants are not exported. Historical grant
+and generation identifiers are attribution only. Expired historical dates remain
+unchanged and confer no current authority.
+
+The complete canonical snapshot is capped at 24,576 UTF-8 bytes, eight existing
+bounded notes, two files and 4,096 excerpt bytes. Overflow, missing bytes, digest
+mismatch, foreign note/evidence scope or malformed required lineage refuses;
+nothing is silently shortened. Its digest binds reviewed bytes, not source
+authenticity: an imported or deliberately resealed document is not independently
+attested by an unavailable source database. Receiving labels remain
+`imported_unverified`; neither its self-declared source nor its prose establishes
+accepted state. Original note identity/provenance remains in the immutable
+snapshot; destination-selected notes acquire destination identities and imported
+trust without changing their text. The destination locator binds the snapshot and
+original entry; selected-note projection exposes its original source/provenance
+only when the complete selected entry still matches the imported entry. Locally
+edited notes retain their own attribution, even when their locator is unchanged.
+
+The authenticated review UI uploads/reviews this material and previews ordinary
+first-work authorship in a fresh selected project. The existing atomic writer
+binds the exact task/snapshot, destination physical root, selection revision,
+effective direction and local authenticated action. It creates a normal initial
+packet with null grant and leaves automation unchanged. A conflicting/stale request
+refuses; an exact duplicate can acknowledge only the unchanged immediate initial
+work. No source DB or runtime is consulted by the receiver. An explicit bounded
+read can compare current destination files with the transferred historical bytes;
+absence/change cannot be reported as verified current material. Ordinary different-
+task comparison/preview and revision carry the mandatory snapshot, while optional
+notes follow existing explicit selection/omission rules. A new stateless run must
+prepare current local material and obtain its own current control, finite preview
+and grant. Its model inputs receive compact imported operational obligations plus
+only the currently selected notes, not automatically the historical observation
+or report. Existing input/output/cost limits still refuse overflow before dispatch.
+
+This first consumer supports one completed stateless observation and ordinary
+unexecuted successor, without effective source direction, accepted semantic state,
+reviewed-outcome pairs or nested handoffs. Those require separate contracts rather
+than lossy export. Native execution remains refused for imported handoff packets.
+Whole-project export retains the stateless-grant and direction refusals and also
+refuses these imported packets. Recovery validates the existing packet lineage;
+its stateless execution suspension is unchanged. This is explicit new authorship
+with historical context, not restoration of execution eligibility, external-effect
+settlement or a claim of cross-device/cloud qualification.
+
+Project unsettled-run guards remain conservative by default, excluding only this
+run when admitting its own next step through the shared ledger owner. Terminal
+status alone is not
+settlement: malformed metadata or a present reconciliation flag other than false
+remains unresolved; the existing legacy omission allowance is unchanged.
+Readback uses the authenticated project reader and normal structured result owner.
+Completed reviews persist explicit reconciliation completion and the existing
+registered-root and separate physical-root bindings. Their results can enter the
+ordinary result preparation, explicit source selection, preview and authenticated
+successor writer as imported, unverified context. The successor is a new null-grant
+packet; the preceding grant supplies no permission for it. Existing historical
+records lacking these bindings are not repaired or given inferred attribution.
+Gateway refusal after a normalized response retains a bounded received-result
+observation and reported usage in the ledger alongside the failure receipt. This
+distinguishes returned-invalid from pre-egress refusal and dispatched-unknown;
+the v0.2 failure receipt and its unavailable-cost semantics are unchanged. No
+classification grants retry or semantic acceptance.
+
+After Gateway success, host rejection retains the normalized public Planner
+recommendations separately from an applied step judgment. The existing failed
+step or quarantined ledger event owns `stateless_model_failure.v0.1`: an
+allowlisted code, actual layer/stage, bounded predicate facts, and exact
+project/run/step/invocation/generation, packet/grant, input, review, selected-note,
+observation and receipt fingerprints. Host rationale, choice, cardinality,
+source-anchor and observation-availability checks remain enforced. Gateway
+refusal, unknown dispatch, host validation, result persistence, receipt projection
+and generation/disposition fencing are distinct. A receipt-projection failure
+keeps the already committed steps; a failed result commit retains returned
+evidence as unapplied. Neither manufactures a completed RunReceipt or permits
+continuation/retry. If storage itself cannot persist failure evidence, the
+original claim remains unreplayed; retention cannot promise database availability.
+
+The public projection retains only planner identity and the normalized title,
+rationale, closed choice, priority and source anchors, at most five recommendations
+and 8,192 canonical UTF-8 bytes. Larger complete public content is explicitly
+omitted with its byte/count/fingerprint metadata; no shortened text is presented
+as complete. The entire evidence record is bounded to 16,384 canonical UTF-8
+bytes with bounded local identity fields; inability to retain it is marked
+unavailable. Raw provider payloads, exception messages/stacks, prompts, credentials,
+hidden reasoning and transcripts are excluded. This changes neither provider
+transmission authority nor existing call/input/output/cost limits.
+
+The ordinary authenticated saved-review reader and UI expose these records as
+non-authoritative evidence, including quarantined late public results under the
+original attempt. Fencing still prevents application, stage advancement or effects
+on replacement work. Invalid or missing legacy evidence remains unavailable;
+historical receipts and omitted responses are never reconstructed. A terminal
+review without a RunReceipt cannot use completed-result successor preparation or
+unknown-outcome disposition, and its admission still prevents pre-execution
+revision.
+
+`stateless_returned_attempt_successor.v0.1` provides separate explicit authorship
+for one narrower case: a stopped bounded source-review run with one failed model
+step, `returned_invalid`, a completed/live-success Gateway receipt, no running
+step or RunReceipt, and valid same-project packet, finite grant, invocation,
+generation and failure-history bindings. New records must identify host
+validation; legacy records may lack public failure evidence. A legacy generic
+label proves neither semantic invalidity nor the exact failing predicate; a
+persistence failure remains possible. The new packet carries that unavailability,
+never reconstructed diagnostics. Known result-persistence failure, receipt
+projection failure, Gateway rejection, unknown dispatch, active work and other
+profiles remain outside this contract.
+
+Authenticated saved review → source comparison → authorship preview → explicit
+writer creates an immutable new work/packet with a null grant. The preview binds
+the entire historical run snapshot, failed step/generation/revision, packet/grant/
+receipt fingerprints, current active selection revision, physical root, effective
+selected direction, task definition and newly read source digests. The atomic
+writer revalidates these bindings, persists the packet and its direction binding,
+and verifies lineage/currentness together. An exact duplicate can acknowledge only
+the unchanged immediate, unadmitted result. Conflicting or stale requests leave no
+partial packet/binding. Expired predecessor dates remain historical; the new work
+receives the ordinary later-packet lifetime. No automation, route lookup, provider
+credential, grant, run or provider request is needed for authorship.
+
+Mandatory operational lineage contains bounded predecessor identities and evidence
+availability, separately from explicitly selected substantive notes. The compiler
+retains all inherited unknown-effect obligations. Existing comparison/omission
+rules govern optional notes; rejected answers are reviewable under the old run
+and are never selected automatically. At most eight terminal predecessor bindings
+and 12,000 canonical UTF-8 bytes are retained; authored material is limited to
+48,000 bytes and existing packet/selected-source bounds still apply. Overflow
+refuses without truncation. Both later stateless judgments receive the operational
+warning/bindings, subject to unchanged message/request caps and fresh finite
+data/spend authorization; unused historical allowance is not reused. Completed
+result successors and their revisions preserve this mandatory lineage. Native
+execution, shared unsettled admission, portability refusal and recovery suspension
+remain conservative; restored history is readable but does not restore execution
+or new-authorship eligibility. Historical runs, steps, receipts and grants are
+unchanged by the new writer, with no successful RunReceipt manufactured.
+
+Transport exceptions may retain a bounded diagnostic observation alongside the
+unchanged failure receipt: fixed transport phase, allowlisted error name and
+error/direct-cause codes, and the observed abort flag. Messages, stacks, headers,
+credentials, URLs and request/response bodies are excluded. These local diagnostics
+do not establish provider delivery, billing or outcome, settle an unknown claim,
+or authorize replay. Historical failures without them remain unchanged.
+
+The same authenticated review surface can explicitly **end further work** on an
+unknown model request in this profile's choose or conclude stage. This records
+`stateless_model_request_disposition.v0.1` in the existing ledger metadata and
+events. It is a local work decision, not provider settlement, remote cancellation,
+success, non-delivery or zero cost. It applies neither to an unknown local read
+nor to native execution, commands or other effect classes. A valid historical
+failure receipt needs no newer optional diagnostic observation. Missing evidence
+is not backfilled. A new in-flight controller records its bounded model-request
+claim immediately before transport; that local claim also does not prove delivery.
+
+The writer authenticates the exact project and compares the historical run,
+step generation, packet/grant/failure evidence and current run revision inside
+one immediate transaction. Identical resubmission acknowledges the original
+decision; a stale or competing binding refuses. Automation permission, grant
+expiry, current source bytes/root availability and model-route availability are
+not gates on ending work. It keeps the reconciliation obligation and original
+claim evidence. The commit generation is fenced, with the original generation
+retained explicitly; even an older generation-only result writer cannot complete
+that abandoned claim. A late controller can retain a bounded invocation receipt
+and reported usage under the original run, without applying a judgment, advancing
+stages, settling uncertainty or affecting replacement work.
+
+**Prepare linked work** is a separate explicit authenticated authoring action.
+It creates a `stateless_source_review_replacement.v0.1` packet in the same project,
+with a new question/current source versions, inherited success criteria/non-goals,
+validated predecessor/disposition lineage and an attributed unresolved-effect
+warning. It does not revise the issued packet, impersonate a completed result,
+enable automation, create a run/grant or invoke a provider. It requires the exact
+current predecessor; duplicate preparation can acknowledge only its identical
+immediate replacement. At most eight unresolved predecessors are retained in this
+bounded chain; exceeding the bound refuses without truncation.
+The ordinary insertion creates the binding for the direction actually selected
+by the new packet, then validates its currentness in the same transaction. A
+changed or incorrectly selected direction rolls back both packet and binding.
+
+Only this profile's linked authoring, finite admission, completed-result successor
+writer and that successor's zero-model ordinary revision may use the disposition
+exception. They read the shared conservative unsettled predicate and validate
+every relevant disposition against authenticated historical
+provenance, unchanged claim evidence and the packet's exact links. Missing,
+malformed, unrelated or undisposed records still block; no arbitrary old run ID,
+terminal status or reconciliation reset supplies admission. Generic/native paths
+retain their prior refusal and cannot execute a packet carrying this uncertainty.
+Fresh execution still requires current source/direction/root/control validation,
+a new finite preview, explicit data/spend authorization and a distinct grant/run.
+The predecessor's unknown cost is neither zero nor refunded allowance. A completed
+replacement reaches ordinary result selection and null-grant successor authorship;
+the unresolved predecessor warning remains separate from selectable result prose.
+Subsequent question/file preparation preserves that mandatory entry and its exact
+links through compilation, lineage reconstruction, fresh readback and recovery.
+An admitted run on the current successor still prevents revision. Preparation
+issues no grant; executing the revised packet requires a new preview and grant.
+
+Recovery retains grants, results and unknown claims but
+suspends this profile's execution eligibility. Portable project export refuses a
+project containing its grants until unfinished-work transfer has its own supported
+contract; it cannot silently drop the ledger or inherit authority. Existing
+zero-model Core, prospective and Codex Start/Resume paths keep their contracts.
+
 #### Prospective preparation and local re-entry (#1380)
 
 The opt-in `augnes.prospective-input.v0.1` profile uses the existing selected
@@ -1089,8 +1523,9 @@ also permits an exact latest **failed run / failed terminal receipt** when the
 local ledger confirms terminal persistence and no reconciliation is required.
 It does not broaden eligibility to other terminal statuses or import execution
 authority from a portable receipt. Failure, verification, proposals and consumed
-allowances remain unchanged. The legacy request still requires completed
-execution and a fresh predecessor, and still inherits its expiry.
+allowances remain unchanged. The legacy scoped request still requires completed
+execution and a fresh predecessor, and still inherits its expiry. Ordinary
+selected-context authorship follows the durable-work boundary below.
 
 Explicit revalidation distinguishes historical task-envelope expiry from current
 authorship admission. Normal current selection, accepted-state lineage, registered
@@ -1127,17 +1562,19 @@ result missing a required comparison check is not verified task completion.
 The additive `augnes.authored-successor-context.v0.1` profile connects normal
 result review to ordinary next-work preparation through the same authenticated
 authored-successor writer. It requires the exact latest completed local run and
-receipt, fresh current packet, active selection and physical root. Failed or
-unsettled runs, expired or superseded context, stale previews and competing saves
-refuse; it does not renew a lifetime or reuse the scoped revalidation profile.
+receipt, exact current packet, active selection and physical root. Failed or
+unsettled runs, superseded context, independent validation errors, stale previews
+and competing saves refuse. Historical envelope expiry alone may be crossed by
+explicit durable authorship; the scoped revalidation profile remains separate.
 Read, comparison and preview are zero-write. Explicit save appends one packet;
 execution still requires its independent normal admission.
 The ordinary save checks the complete project ledger for nonterminal or
 unresolved runs inside its atomic transaction, returning only an existence
 result. Retained terminal history alone imposes no run-count ceiling. Unknown
 statuses, malformed metadata and invalid reconciliation flags refuse; legacy
-terminal rows without a reconciliation flag remain supported. The older scoped
-revalidation profile keeps its existing conservative history bound.
+terminal rows without a reconciliation flag remain supported. Scoped revalidation
+uses this same complete conservative conflict predicate; its finite lifetime,
+local-result, file/instruction inventory and execution restrictions remain.
 
 The existing source-note editor carries only explicitly selected whole notes,
 with original provenance, source time and unknown currentness. The result report
@@ -1209,16 +1646,17 @@ ordinary family use the separately bounded pre-outcome expectation contract abov
 
 Each save appends one immutable TaskContextPacket with the immediate prior
 packet, original preparation, genuine predecessor receipt, source/root bindings
-and authenticated revision request. Reconstruction follows one ordered tip,
-bounded to 32 revisions; branches, malformed lineage and ambiguous currentness
-refuse. Historical reads remain valid after legitimate execution and restore,
+and authenticated revision request. Reconstruction follows one ordered tip;
+branches, malformed lineage and ambiguous currentness refuse independently of
+historical revision count. Historical reads remain valid after legitimate execution and restore,
 without manufacturing a local run. A later ordinary successor binds the revised
 tip's actual result through the existing result writer.
 
 Revision preserves accepted-context lineage, mandatory checks and forbidden
-actions, classification, return contract, context limits and expiry. Editing
-the displayed task does not remove those inherited constraints or renew its
-lifetime. Only selected notes enter the revised consumer; omitted originals
+actions, classification, return contract and context limits. Historical compiler
+material also preserves its original inherited expiry. New ordinary revisions
+use the durable-work boundary below. Only selected notes enter the revised
+consumer; omitted originals
 remain in immutable history. Retained-note lookup stays within this same-task
 family and requires explicit reselection. Selection never verifies a report,
 accepts an interpretation or erases its underlying observation.
@@ -1233,6 +1671,102 @@ An unchanged request or exact immediate replay appends no packet. Successful
 saves add only the packet and normal session bookkeeping; refusals roll back
 both. There is no grant, Decision, Transition, semantic acceptance, execution,
 new Core kind, database, migration or automatic activation of historical work.
+
+#### Cumulative native work history (#1395)
+
+Initial preparation (including explicit different-task edges) and ordinary
+outcome-linked revisions have no fixed 32-revision lifetime ceiling. The same
+compiler fields, safe integer ordering, fingerprints and immutable envelopes
+remain authoritative; no migration, counter reset, compaction or new Core kind
+is involved. Current readers reconstruct mixed old and extended chains through
+recovery and supported portable import. Older readers retain their historical
+bounds and cannot be promised to use an extended chain; rollback preserves its
+bytes but requires a current reader for continuation.
+
+Required packet history uses the existing indexed 64-row keyset iterator inside
+a synchronous read snapshot. A complete successor-edge index replaces the
+256-row listing test. An incomplete page is never absence. Initial revision
+history validates each Core row at its first applicable cutoff and checks run
+absence through the final cutoff. Ordinary revision families are walked
+iteratively; batch currentness and recovery readers reuse their validated family
+within that read only. No cached authority or validation survives a mutation,
+request, database or project boundary. Missing, malformed, cyclic, branched,
+foreign or contradictory required ancestry fails closed.
+
+Resource limits remain explicit and separate from the stored revision number:
+current project reads retain their 4,096-record operation budget, packet history
+also has a 16 MiB serialized payload budget, and preparation admission binds its
+packet-ID set as one SQLite JSON parameter with a 1 MiB input budget. Exhaustion
+means unavailable required evidence, never an empty history or an invalidated
+historical packet. Retained-note search keeps its original 264-occurrence and
+1,056,000-byte scan budgets, eight-result/20,000-byte response limits and exact
+current-task scope; more empty preparation snapshots do not consume note bytes.
+An incomplete note scan refuses rather than returning an apparent no-match.
+Other context, request, expectation, delegated mutation, active-run and portable
+package limits are unchanged. The separate operator review projection retains
+its 128-record budgets for run receipts and context-use reviews. These are
+bounded local reads, not unlimited-scale support or hosted Web Planning parity.
+
+The human work editor and authenticated repository-agent writer share unchanged
+selection, direction, physical-root, source comparison, exact replay and atomic
+concurrency checks. Revision never renews a session, grant, deadline, controller,
+automation or recovery credential. Historical finite packets and durable #1393
+packets keep their compiler distinctions and unresolved obligations. The #1392
+handoff/export scope is unchanged.
+
+Retained-source Companion disclosure advertises the new packet traversal budget
+with the unchanged note/result budgets. Its closed parser accepts that exact
+policy and both historical policies for client-first refresh; arbitrary limits
+still refuse. Older installed proxies need a refreshed artifact and fresh client
+session before using the updated runtime. Source verification does not install
+or activate that client; the bounded wire owner is the
+[current-continuity contract](../CODEX_CURRENT_CONTINUITY_V0_1.md#explicit-retained-note-lookup-and-reselection).
+
+#### Durable local authored work (#1393)
+
+Initial work already has no automatic expiry. New ordinary result successors,
+their same-task revisions, returned-attempt terminal authorship and linked work
+after an explicit unknown-attempt disposition now author `expires_at: null` with
+`capability_grant: null`. Their authenticated compiler material carries the
+additive `augnes.durable-authored-work.v0.1` lifetime distinction. Reconstruction
+without that distinction uses the historical compiler's exact inherited or
+eight-hour lifetime, including already-null predecessors. Old timestamps, packet
+bytes, fingerprints and session provenance are never rewritten. Older strict
+readers refuse the new material; no schema or portable envelope migration occurs.
+
+Reads and previews remain zero-write. An otherwise current finite ordinary
+preparation can be saved through the existing revision writer, including an
+unchanged definition, to append one durable revision. An exact settled result
+can likewise author its next ordinary task after historical envelope expiry.
+The separate scoped finite revalidation, execution/preparation profiles and
+time-sensitive premises retain their own contracts.
+
+For an unadmitted finite terminal/linked preparation, its existing writer can
+append the same preparation with an exact `resumes_packet` reference. Its task,
+selection, original failed/unknown attempt and unresolved obligations remain
+bound; changed material, selection/root/direction, admission or recovery
+suspension refuses. Only the immediate unchanged result can acknowledge replay.
+The existing history and revision bounds are unchanged.
+The source-review panel loads the saved preparation and offers **Resume saved
+work**, using that writer's exact saved material without form reentry or a new
+content-review ceremony. Reading this action does not append work. Authorization
+review remains unavailable until the explicit resumption has succeeded.
+
+The human revision editor and authenticated repository revision channel share
+the ordinary revision owner. The agent reader reports an expired envelope as
+stale, with Start blocked, while the validated authorship eligibility can permit
+editing. Exact source, semantic lineage, physical root, selection, direction,
+session/channel identity and concurrent-write checks remain independent. An
+ordinary save does not renew a grant, attempt deadline, controller lease,
+preparation ticket, cancellation, automation or authentication. Normal nonce
+bookkeeping and a separately authenticated new session remain their existing
+operations. Historical selected observations retain their own currentness.
+
+Terminal and result authorship still use their existing operator routes; this
+change adds no corresponding Companion tool or delegation. Portable and recovery
+readers reconstruct supported ordinary history; stateless and imported-handoff
+export refusals and stateless recovery suspension remain in force. The #1392
+handoff scope, attribution and mandatory unknown effects are unchanged.
 
 #### Trusted-local read-only input snapshots
 

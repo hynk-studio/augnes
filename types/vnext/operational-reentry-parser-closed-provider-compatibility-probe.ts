@@ -1,3 +1,4 @@
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import type { ModelProviderRejectionObservationV01 } from "@/lib/vnext/model-gateway/provider-rejection-observation";
 import type { ModelProviderResponseInvalidObservationV01 } from "@/lib/vnext/model-gateway/provider-response-invalid-observation";
 import type { ExternalRefV01 } from "./external-ref";
@@ -68,7 +69,7 @@ export interface OperationalReentryParserClosedProviderCompatibilityProbeAuthori
   expires_at: string;
   workspace_id: string;
   project_id: string;
-  expected_active_selection_revision: number;
+  expected_active_selection_revision: ProjectSelectionRevision;
   project_root_fingerprint: string;
   gateway_authorization_project_is_lab_experiment_meaning: false;
   case_fingerprint: string;

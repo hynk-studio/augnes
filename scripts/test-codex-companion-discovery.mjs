@@ -495,6 +495,27 @@ try {
     assert.deepEqual(parseRepositoryRetainedSourcesResponseV01(previousRuntime), previousRuntime);
     retainedScenario = { body: previousRuntime };
     assert.deepEqual((await callRetained()).structuredContent.lookup, previousRuntime.lookup);
+    const cumulativeRuntime = structuredClone(retainedProjection);
+    cumulativeRuntime.lookup.limits.packets = 4096;
+    for (const count of [32, 33, 34, 321, 4096]) {
+      cumulativeRuntime.lookup.scanned_packets = count;
+      assert.deepEqual(parseRepositoryRetainedSourcesResponseV01(cumulativeRuntime), cumulativeRuntime);
+      retainedScenario = { body: cumulativeRuntime };
+      assert.deepEqual((await callRetained()).structuredContent.lookup, cumulativeRuntime.lookup);
+    }
+    for (const mutate of [
+      value => { value.lookup.limits.packets = 4097; },
+      value => { value.lookup.scanned_packets = 4097; },
+      value => { value.lookup.scanned_entry_occurrences = 265; },
+      value => { value.lookup.limits.note_occurrences = 265; },
+      value => { value.lookup.limits.scanned_entry_utf8_bytes = 396000; },
+      value => { value.lookup.limits.packets = 33; value.lookup.scanned_packets = 34; },
+    ]) {
+      const invalid = structuredClone(cumulativeRuntime); mutate(invalid);
+      assert.throws(() => parseRepositoryRetainedSourcesResponseV01(invalid), /contract_invalid/u);
+      retainedScenario = { body: invalid };
+      assert.equal((await callRetained()).structuredContent.companion.status, "unavailable");
+    }
     for (const ceiling of [0, 396001, 1055999, 1056001, "1056000"]) {
       const unknownPolicy = structuredClone(retainedProjection);
       unknownPolicy.lookup.limits.scanned_entry_utf8_bytes = ceiling;

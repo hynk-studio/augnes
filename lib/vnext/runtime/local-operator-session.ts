@@ -1,3 +1,5 @@
+import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import {
   createHash,
   randomBytes,
@@ -250,7 +252,7 @@ export interface VNextRecoveryRepositoryDecisionScopeV01 {
   expected_old_baseline_fingerprint: string;
   expected_new_physical_observation_fingerprint: string;
   expected_active_project_id: string | null;
-  expected_active_selection_revision: number | null;
+  expected_active_selection_revision: ProjectSelectionRevision | null;
   candidate_expires_at: string;
 }
 
@@ -1823,8 +1825,7 @@ function assertRecoveryRepositoryDecisionScope(
     (scope.expected_active_project_id !== null &&
       !requiredCanonicalId(scope.expected_active_project_id)) ||
     (scope.expected_active_selection_revision !== null &&
-      (!Number.isSafeInteger(scope.expected_active_selection_revision) ||
-        scope.expected_active_selection_revision <= 0)) ||
+      (!isHistoricalProjectSelectionRevision(scope.expected_active_selection_revision))) ||
     strictTimestampMilliseconds(scope.candidate_expires_at) === null
   ) {
     throw sessionError("operator_session_scope_mismatch", 403);

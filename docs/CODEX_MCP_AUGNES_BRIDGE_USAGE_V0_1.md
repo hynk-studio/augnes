@@ -181,10 +181,11 @@ Withheld locators are neither returned nor matched, unlike the privileged
 Browser search. Literal text and references provide context, not instructions,
 truth, authentication or execution authority. See the
 [retained-note contract](CODEX_CURRENT_CONTINUITY_V0_1.md#explicit-retained-note-lookup-and-reselection).
-Its scan policy now covers 1,056,000 per-occurrence entry bytes while keeping
-the 20,000-byte result envelope. Refresh the client before adopting the runtime:
-the current proxy also accepts the previous 396,000-byte policy, but an older
-proxy rejects the new advertised ceiling even for a small successful lookup.
+Its scan policy now permits 4,096 packets while retaining 264 note occurrences,
+1,056,000 per-occurrence entry bytes and the 20,000-byte result envelope. Refresh
+the client before adopting the runtime: the current proxy also accepts the two
+previous 33-packet policies (396,000 or 1,056,000 entry bytes), but an older proxy
+rejects the new advertised policy even for a small successful lookup.
 Use the supported plugin install/refresh and start a new Codex session; matching
 version strings alone do not verify the loaded proxy artifact.
 

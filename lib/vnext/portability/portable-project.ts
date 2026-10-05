@@ -1,3 +1,4 @@
+import { handoffEntries } from "../work-handoff";
 import { readDirectionRecords } from "../persistence/project-direction-store";
 import type { WorkExpectationRecord } from "@/types/vnext/work-expectation";
 import { AUTHORED_SUCCESSOR_TASK_V01 } from "@/lib/vnext/authored-successor-task";
@@ -25,6 +26,7 @@ import {
 import {
   readActiveProjectSelectionV01,
   selectActiveProjectV01,
+  readProjectSelectionStateV02,
   touchRecentProjectV01,
 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import {
@@ -203,8 +205,10 @@ export function previewActivePortableProjectV01(
   db: Database.Database,
 ): PortableProjectPreviewV01 {
   const scope = requireActiveProjectScopeV01(db);
+  if (db.prepare("SELECT 1 FROM vnext_core_records WHERE workspace_id=? AND project_id=? AND record_kind='capability_grant' AND json_extract(payload_json,'$.grant_version')='stateless_source_review_grant.v0.1' LIMIT 1").get(scope.workspace_id, scope.project_id)) refuseV01("portable_stateless_review_not_supported_use_recovery_backup", 409);
   if (readDirectionRecords(db, scope).length) refuseV01("portable_project_direction_not_supported_use_recovery_backup", 409);
   const all = readBoundedProjectRecordsV01(db, scope);
+  refuseImportedWorkHandoff(all);
   const personal = readPersonalPerspectiveEffectiveScopeV01(db, scope);
   const personalBound = all.filter(recordContainsPersonalPerspectiveV01);
   const selected = selectPortableRecordsV01(all, false);
@@ -243,6 +247,7 @@ export function exportActivePortableProjectV01(
     refuseV01("portable_project_timestamp_invalid");
   }
   const scope = requireActiveProjectScopeV01(db);
+  if (db.prepare("SELECT 1 FROM vnext_core_records WHERE workspace_id=? AND project_id=? AND record_kind='capability_grant' AND json_extract(payload_json,'$.grant_version')='stateless_source_review_grant.v0.1' LIMIT 1").get(scope.workspace_id, scope.project_id)) refuseV01("portable_stateless_review_not_supported_use_recovery_backup", 409);
   if (readDirectionRecords(db, scope).length) refuseV01("portable_project_direction_not_supported_use_recovery_backup", 409);
   const workspace = readDefaultWorkspaceIdentityV01(db);
   const project = readCanonicalProjectIdentityV01(db, scope);
@@ -255,6 +260,7 @@ export function exportActivePortableProjectV01(
     refuseV01("portable_project_personal_scope_not_included", 409);
   }
   const sourceRecords = readBoundedProjectRecordsV01(db, scope);
+  refuseImportedWorkHandoff(sourceRecords);
   const selected = selectPortableRecordsV01(
     sourceRecords,
     input.include_personal_perspective,
@@ -614,7 +620,7 @@ export function importPortableProjectV01(
         project_id: portablePackage.manifest.project.project_id,
         now: importedAt,
       });
-      const active = readActiveProjectSelectionV01(
+      const active = readProjectSelectionStateV02(
         db,
         portablePackage.manifest.workspace.workspace_id,
       );
@@ -1290,4 +1296,8 @@ function ensureSafeExistingDirectoryV01(directory: string, code: string): void {
 
 function refuseV01(code: string, status = 422): never {
   throw new PortableProjectErrorV01(code, status);
+}
+
+function refuseImportedWorkHandoff(records: ReturnType<typeof readBoundedProjectRecordsV01>) {
+  if (records.some(r => r.record_kind === "task_context_packet" && handoffEntries(r.payload as TaskContextPacketV01).length)) refuseV01("portable_imported_work_handoff_not_supported_use_recovery_backup", 409);
 }

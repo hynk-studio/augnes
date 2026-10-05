@@ -11,7 +11,15 @@ export const COMPATIBILITY = "web-planning/1";
 export const RELATION_FORMAT = "web_planning_revision.v0.2";
 export const RELATION_EXPORT_FORMAT = "web_planning_export.v0.2";
 export const RELATION_COMPATIBILITY = "web-planning/2";
-export const MAX_REVISIONS = 32;
+// Operation budgets, not a persisted revision-number/lifetime constraint. Keep
+// a complete envelope array portable through the existing 1.5 MB JSON route
+// (and, with at most 1,398,144 base64 body bytes, the 3 MB file route).
+export const HISTORY_READ_ROWS = 1_024;
+export const HISTORY_READ_BYTES = 1_400_000;
+export const canonicalBytes = (value: unknown) => new TextEncoder().encode(canonical(value)).byteLength;
+export function assertHistoryBudget(values: unknown[]): void {
+  if (values.length > HISTORY_READ_ROWS || canonicalBytes(values) > HISTORY_READ_BYTES) fail("history_read_budget_exceeded", 422);
+}
 export const RELATION_BYTES = 12_000;
 export const REQUEST_BYTES = 1_500_000;
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -46,7 +54,7 @@ export function exact(value: unknown, keys: string): asserts value is Record<str
 }
 export function binding(value: unknown): Binding {
   exact(value, "revision,fingerprint");
-  if (!Number.isInteger(value.revision) || value.revision < 0 || value.revision > MAX_REVISIONS ||
+  if (!Number.isSafeInteger(value.revision) || value.revision < 0 ||
     (value.revision === 0 ? value.fingerprint !== null : !FINGERPRINT.test(value.fingerprint))) fail("invalid_binding");
   return value as unknown as Binding;
 }
@@ -68,7 +76,7 @@ export function boundedText(value: unknown, required = false): string {
 }
 export function workRef(value: unknown): WorkRef {
   exact(value, "work_id,revision,fingerprint");
-  if (!UUID.test(value.work_id) || !Number.isInteger(value.revision) || value.revision < 1 || value.revision > MAX_REVISIONS || !FINGERPRINT.test(value.fingerprint)) fail("invalid_source_binding");
+  if (!UUID.test(value.work_id) || !Number.isSafeInteger(value.revision) || value.revision < 1 || !FINGERPRINT.test(value.fingerprint)) fail("invalid_source_binding");
   return value as unknown as WorkRef;
 }
 export function reference(r: Revision): WorkRef { return {work_id:r.work_id,revision:r.revision,fingerprint:r.fingerprint}; }
@@ -121,6 +129,8 @@ export function requestFingerprint(scope: Scope, work_id: string, expected: Bind
   return hash(canonical({ ...scopeMaterial(scope), work_id, expected, request_key, ...payload }));
 }
 export function makeRevision(scope: Scope, work_id: string, expected: Binding, request_key: string, payload: Payload, recorded_at: string): Revision {
+  binding(expected);
+  if (!Number.isSafeInteger(expected.revision + 1)) fail("revision_identity_exhausted");
   if (payload.files!==undefined) fileManifest(payload.files);
   if (payload.relations) validateRelations(payload.relations,payload,work_id);
   const material = { ...scopeMaterial(scope), format: payload.files!==undefined ? FILE_FORMAT : payload.relations ? RELATION_FORMAT : FORMAT, schema: 1, compatibility: payload.files!==undefined ? FILE_COMPATIBILITY : payload.relations ? RELATION_COMPATIBILITY : COMPATIBILITY,
@@ -133,7 +143,8 @@ export function headBinding(revision?: Revision): Binding {
 }
 export function sameBinding(a: Binding, b: Binding): boolean { return canonical(a) === canonical(b); }
 export function validateChain(scope: Scope, work_id: string, values: unknown[]): Revision[] {
-  if (!UUID.test(work_id) || !values.length || values.length > MAX_REVISIONS) fail("invalid_history", 503);
+  if (!UUID.test(work_id) || !values.length) fail("invalid_history", 503);
+  assertHistoryBudget(values);
   const revisions: Revision[] = []; const keys = new Set();
   for (const value of values) {
     const filed=(value as Revision)?.format===FILE_FORMAT;

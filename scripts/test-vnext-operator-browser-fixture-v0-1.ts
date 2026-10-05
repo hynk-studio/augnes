@@ -26,6 +26,7 @@ import { buildBlankStateContinuityV01 } from "../lib/vnext/blank-state/blank-sta
 import { readBlankStateSourceV01 } from "../lib/vnext/blank-state/blank-state-source";
 import {
   selectActiveProjectV01,
+  readProjectSelectionStateV02,
   touchRecentProjectV01,
 } from "../lib/vnext/persistence/project-lifecycle-registry";
 
@@ -297,7 +298,7 @@ try {
     project_id: typedManifest.project_id,
     now: "2026-07-17T12:05:00.000Z",
     expected_project_id: null,
-    expected_revision: null,
+    expected_revision: readProjectSelectionStateV02(continuityDb, typedManifest.workspace_id)?.selection_revision ?? null,
   });
   const continuityEnvironment = {
     AUGNES_VNEXT_OPERATOR_PILOT_ENABLED:

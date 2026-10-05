@@ -3,7 +3,7 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import { realpathSync, statSync } from "node:fs";
 import { canonicalizeProtocolValueV01 as canonical, createProtocolSha256V01 as hash } from "../protocol-primitives";
 import { DIRECTION_VERSION, parseDirectionContent, directionObject, directionRef, directionText, directionInteger, directionArray, type DirectionCreation, type DirectionDecision, type DirectionEntry, type DirectionGrant, type DirectionPrincipal, type DirectionParent } from "../project-direction";
-import { appendDirectionRecord, directionCheck as check, directionCurrent, effectiveDirection, findDirectionGrant, grantAvailable, readDirectionRecord, readDirectionRecords, readProjectDirection, type DirectionScope } from "../persistence/project-direction-store";
+import { appendDirectionRecord, directionCheck as check, directionCurrent, effectiveDirection, findDirectionGrant, grantAvailable, readDirectionRecord, readDirectionRecords, readProjectDirection, ProjectDirectionError, type DirectionScope } from "../persistence/project-direction-store";
 import { getOrCreateCanonicalProjectForLocalRootV01, normalizeLocalProjectRootRefV01, readCanonicalProjectIdentityV01 } from "../persistence/project-identity-registry";
 import { readVNextCoreRecordV01 } from "../persistence/durable-semantic-store";
 import { admitVNextLocalOperatorMutationInsideTransactionV01, type VNextLocalOperatorPilotConfigV01, type VNextLocalOperatorSessionCredentialV01 } from "./local-operator-session";
@@ -155,6 +155,46 @@ function agentProject(db: Database.Database, access: DirectionAgentAccess, proje
 export function readAgentDirection(db: Database.Database, access: DirectionAgentAccess, projectId: string, at: string) {
   const { scope } = agentProject(db, access, projectId, at);
   return readProjectDirection(db, scope, at);
+}
+
+/** Complete discovery within this grant's existing bounded authority. Call in
+ * the same database snapshot as authentication; never enumerate the workspace. */
+export function discoverAgentProjects(db: Database.Database, access: DirectionAgentAccess, at: string) {
+  const grant = access.grant;
+  const observations = db.prepare(`WITH decisions AS MATERIALIZED (
+    SELECT project_id,ref FROM vnext_project_direction_records
+    WHERE workspace_id=? AND json_extract(body_json,'$.authority_ref')=? AND kind='decision'
+    ORDER BY ordinal LIMIT 21
+  ) SELECT 0 AS summary,project_id,ref,NULL AS n FROM decisions
+    UNION ALL SELECT 1,NULL,NULL,count(*) FROM decisions ORDER BY summary DESC`)
+    .all(grant.value.workspace_id, grant.ref) as Array<{summary:number;project_id:string;ref:string;n:number}>;
+  const [summary, ...decisions] = observations;
+  check(summary?.summary === 1 && summary.n === decisions.length && decisions.length <= grant.value.max_mutations &&
+    decisions.every(r => r.summary === 0) && new Set(decisions.map(r => r.ref)).size === decisions.length,
+  "discovery_incomplete");
+  for (const row of decisions) {
+    const entry = readDirectionRecord(db, { workspace_id: grant.value.workspace_id, project_id: row.project_id }, row.ref);
+    check(entry.value.kind === "decision" && entry.value.authority_ref === grant.ref, "discovery_incomplete");
+  }
+  const ids = [...new Set([...grant.value.project_ids, ...grant.value.continuations.map(c => c.project_id), ...decisions.map(d => d.project_id)])].sort();
+  // Four explicit projects, two continuations and two creation slots. These
+  // existing policy limits bound the complete catalog, not project lifetime.
+  check(ids.length <= 8, "discovery_incomplete");
+  const projects = ids.flatMap(projectId => {
+    let selected;
+    try { selected = agentProject(db, access, projectId, at); }
+    catch (error) {
+      if (error instanceof ProjectDirectionError && error.code === "project_direction_agent_project_scope") return [];
+      throw error;
+    }
+    const project = readCanonicalProjectIdentityV01(db, selected.scope);
+    check(project, "discovery_incomplete");
+    return [{ project, effective: selected.current,
+      direction_current: selected.current ? directionCurrent(db, selected.current, at) : null,
+      permission: selected.owned ? "within_policy_direction_and_proposals" : "proposals_only" }];
+  });
+  check(Buffer.byteLength(JSON.stringify(projects), "utf8") <= 256 * 1024, "discovery_incomplete");
+  return { projects, complete: true as const, next_cursor: null, remaining_mutations: Math.max(0, grant.value.max_mutations - access.sequence) };
 }
 export function mutateAgentDirection(db: Database.Database, input: { token: string; request: unknown; at: string }) {
   check(!db.inTransaction, "transaction_conflict");

@@ -1,3 +1,4 @@
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import type { ExternalRefV01 } from "./external-ref";
 import type {
   OperationalContextSelectionDecisionBindingV01,
@@ -111,7 +112,7 @@ export interface AdmitSourceLinkedOperationalContinuationRequestV01 {
   workspace_id: string;
   project_id: string;
   expected_active_project_id: string;
-  expected_active_selection_revision: number;
+  expected_active_selection_revision: ProjectSelectionRevision;
   expected_current_packet_a_id: string;
   expected_current_packet_a_fingerprint: string;
   source_request: Omit<

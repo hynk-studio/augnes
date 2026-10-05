@@ -1,3 +1,5 @@
+import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import type Database from "better-sqlite3";
 
 import {
@@ -100,7 +102,7 @@ export interface ProjectControlMutationInputV01 {
   project_id: string;
   action: ProjectControlActionV01;
   expected_active_project_id: string;
-  expected_active_selection_revision: number;
+  expected_active_selection_revision: ProjectSelectionRevision;
   expected_control_revision: number | null;
 }
 
@@ -620,8 +622,7 @@ function validateMutationInput(input: ProjectControlMutationInputV01): void {
     typeof input.workspace_id !== "string" ||
     typeof input.project_id !== "string" ||
     typeof input.expected_active_project_id !== "string" ||
-    !Number.isSafeInteger(input.expected_active_selection_revision) ||
-    input.expected_active_selection_revision <= 0 ||
+    !isHistoricalProjectSelectionRevision(input.expected_active_selection_revision) ||
     !(
       input.expected_control_revision === null ||
       (Number.isSafeInteger(input.expected_control_revision) &&

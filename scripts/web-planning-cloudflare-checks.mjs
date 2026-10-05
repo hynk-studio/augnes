@@ -19,8 +19,8 @@ export async function checkCloudflarePlanning({root,start,client,newWork,save,ed
  assert.equal(runtimeConfig.preview_urls,false);assert.equal(runtimeConfig.workers_dev,false);assert.equal(runtimeConfig.no_bundle,true);assert.equal(runtimeConfig.main,'worker.js');
  assert.equal(runtimeConfig.d1_databases[0].database_id,'00000000-0000-4000-8000-000000000000');
  assert.deepEqual((await readdir(artifact,{recursive:true,withFileTypes:true})).filter(e=>e.isFile()).map(e=>path.relative(artifact,path.join(e.parentPath,e.name))).sort(),
-   ['migrations/0000_web_planning.sql','migrations/0001_schema_version.sql','migrations/0002_revision_files.sql','worker.js','wrangler.json']);
- for(const sql of ['0000_web_planning.sql','0001_schema_version.sql','0002_revision_files.sql'])assert.equal(await readFile(path.join(artifact,'migrations',sql),'utf8'),await readFile(path.join(webRoot,'drizzle',sql),'utf8'));
+   ['migrations/0000_web_planning.sql','migrations/0001_schema_version.sql','migrations/0002_revision_files.sql','migrations/0003_cumulative_history.sql','worker.js','wrangler.json']);
+ for(const sql of ['0000_web_planning.sql','0001_schema_version.sql','0002_revision_files.sql','0003_cumulative_history.sql'])assert.equal(await readFile(path.join(artifact,'migrations',sql),'utf8'),await readFile(path.join(webRoot,'drizzle',sql),'utf8'));
  for(const forbidden of ['LOCAL_SESSION','/_local/login','web_planning_local=','synthetic-owner@example.test','web-planning-artifact-secret-sentinel',
    'MF-Original-URL','local_dispatch_only','sitesPrincipal','get("oai-authenticated-user-email")','getUserEmail','better-sqlite3'])assert(!code.includes(forbidden),forbidden);
  const dryRun=await runCanonicalChild({suite:'web-planning',label:'direct-build-dry-run',command:process.execPath,
@@ -32,7 +32,7 @@ export async function checkCloudflarePlanning({root,start,client,newWork,save,ed
  let server=await start('direct',options);
  const count=async s=>(await s.db.prepare('SELECT count(*) n FROM web_planning_workspace').first()).n;
  assert.equal(await count(server),0);
- assert.deepEqual((await server.db.prepare('SELECT name FROM d1_migrations ORDER BY id').all()).results.map(r=>r.name),['0000_web_planning.sql','0001_schema_version.sql','0002_revision_files.sql']);
+ assert.deepEqual((await server.db.prepare('SELECT name FROM d1_migrations ORDER BY id').all()).results.map(r=>r.name),['0000_web_planning.sql','0001_schema_version.sql','0002_revision_files.sql','0003_cumulative_history.sql']);
  assert.equal(await server.db.prepare("SELECT name FROM sqlite_master WHERE name='__drizzle_migrations'").first(),null);
  const spoof={'oai-authenticated-user-email':server.env.OWNER_EMAIL,'Cf-Access-Authenticated-User-Email':server.env.OWNER_EMAIL,'Cf-Access-Jwt-Assertion':'forged','cookie':'web_planning_local=forged'};
  // Reconfigure the same disposable workerd to exercise the official Access

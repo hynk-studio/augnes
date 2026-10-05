@@ -31,7 +31,7 @@ export const ProjectionSchema = z.object({
     project_key: NullableStringSchema,
     display_name: NullableStringSchema,
     active: z.boolean(),
-    selection_revision: z.number().int().nonnegative().nullable(),
+    selection_revision: z.union([z.number().int().nonnegative(), z.string().regex(/^selection:[0-9a-f]{32}$/u)]).nullable(),
     root_availability: z.enum([
       "available",
       "missing",
@@ -57,6 +57,8 @@ export const ProjectionSchema = z.object({
       "pre_execution_user_revision",
       "pre_execution_new_task",
       "bounded_preparation",
+      "stateless_review_terminal_successor",
+      "stateless_review_replacement",
       "authored_successor_task",
       "semantic_transition",
       "source_linked_operational_continuation",

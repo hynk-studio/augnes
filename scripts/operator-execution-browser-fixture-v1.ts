@@ -25,6 +25,7 @@ import {
 } from "../lib/vnext/persistence/project-identity-registry";
 import {
   readActiveProjectSelectionV01,
+  readProjectSelectionStateV02,
   selectActiveProjectV01,
   touchRecentProjectV01,
 } from "../lib/vnext/persistence/project-lifecycle-registry";
@@ -300,6 +301,7 @@ export async function buildOperatorExecutionBrowserFixtureV1(input: {
         now: input.reference_time,
       });
     }
+    const initialSelection = readProjectSelectionStateV02(database, sourceManifest.workspace_id);
     let current = readActiveProjectSelectionV01(
       database,
       sourceManifest.workspace_id,
@@ -312,7 +314,7 @@ export async function buildOperatorExecutionBrowserFixtureV1(input: {
           project_id: automationProjectId,
           now: input.reference_time,
           expected_project_id: current?.project_id ?? null,
-          expected_revision: current?.selection_revision ?? null,
+          expected_revision: current?.selection_revision ?? initialSelection?.selection_revision ?? null,
         });
       }
       const automationPacket = await admitFreshAutomationSourcePacketV1(
@@ -345,7 +347,7 @@ export async function buildOperatorExecutionBrowserFixtureV1(input: {
       project_id: selectedProjectId,
       now: input.reference_time,
       expected_project_id: current?.project_id ?? null,
-      expected_revision: current?.selection_revision ?? null,
+      expected_revision: current?.selection_revision ?? initialSelection?.selection_revision ?? null,
     });
     assert.equal(database.pragma("integrity_check", { simple: true }), "ok");
   } finally {

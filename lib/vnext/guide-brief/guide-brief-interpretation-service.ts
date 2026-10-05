@@ -1,3 +1,5 @@
+import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import { randomBytes, randomUUID } from "node:crypto";
 
 import { openDatabase } from "@/lib/db";
@@ -72,7 +74,7 @@ export interface GuideBriefInterpretationServiceDependenciesV01
   token_bytes?: () => string;
   read_active_selection?: (
     workspaceId: string,
-  ) => { project_id: string; selection_revision: number } | null;
+  ) => { project_id: string; selection_revision: ProjectSelectionRevision } | null;
   fingerprint_guide?: typeof buildGuideBriefConversationGuideFingerprintV01;
   load_pc5_binding?: (input: {
     guide: Awaited<ReturnType<typeof loadProjectGuideBriefV02>>["guide"];
@@ -427,8 +429,7 @@ export function validateGuideBriefInterpretationRequestV01(
     !CANONICAL_WORKSPACE.test(input.workspace_id) ||
     typeof input.project_id !== "string" ||
     !CANONICAL_PROJECT.test(input.project_id) ||
-    !Number.isSafeInteger(input.expected_active_selection_revision) ||
-    Number(input.expected_active_selection_revision) < 1 ||
+    !isHistoricalProjectSelectionRevision(input.expected_active_selection_revision) ||
     typeof input.pc4_scope_key !== "string" ||
     !SCOPE_KEY.test(input.pc4_scope_key) ||
     typeof input.guide_material_fingerprint !== "string" ||
