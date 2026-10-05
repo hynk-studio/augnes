@@ -18,6 +18,7 @@ import {
 import path from "node:path";
 
 import Database from "better-sqlite3";
+import { invalidateRestoredProjectSelectionsV02 } from "../lib/vnext/persistence/project-lifecycle-schema.mjs";
 
 import {
   createRecoveryPrivateMaterialIdentityContext,
@@ -1305,6 +1306,16 @@ export async function restoreRuntimeDatabase({
         },
       },
     });
+    // Restoring the same backup must not revive an earlier browser observation.
+    // The verified backup stays immutable; only this owned unpublished stage
+    // receives fresh selection identities before readers and publication run.
+    let restoredSelections;
+    try {
+      restoredSelections = new Database(stagingPath, { fileMustExist: true });
+      restoredSelections.pragma("journal_mode = DELETE");
+      restoredSelections.pragma("foreign_keys = ON");
+      invalidateRestoredProjectSelectionsV02(restoredSelections);
+    } finally { restoredSelections?.close(); }
     if (requirePackageIdentityGuard) {
       requireRuntimePackageIdentityGuard(stagingPath);
     }

@@ -1424,7 +1424,7 @@ async function assertNewWorkPreparationV01(): Promise<void> {
     assert.deepEqual(db.serialize(), before, "failed insert rolls back its authenticated admission");
     let reserved = false;
     const result = await reviseCodexRepositoryWorkV01(db, save, channel, { ...dependencies, inspect_physical_root: async value => {
-      assert.throws(() => selectV01(second!, scope.workspace_id, scope.project_id, scope.project_id, 1), /locked/u);
+      assert.throws(() => selectV01(second!, scope.workspace_id, scope.project_id, scope.project_id, readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision), /locked/u);
       reserved = true; return inspectNativeHostPhysicalRootIdentityV01(value);
     } });
     assert(reserved); assert.equal(result.status, "saved"); assert.equal(result.effects.work_revision_created, false);
@@ -1799,10 +1799,10 @@ async function assertSupportMaterialRevisionV01(): Promise<void> {
     const pending = { action: "preview", repository_root: root, expected_snapshot_binding: (await resume()).continuity!.snapshot.binding!,
       changes: { goal: "Third revision if still eligible" } };
     const pendingPreview = await call(pending), pendingSave = { ...pending, action: "save", preview_binding: pendingPreview.preview_binding };
-    selectV01(db, scope.workspace_id, otherScope.project_id, scope.project_id, 1);
+    selectV01(db, scope.workspace_id, otherScope.project_id, scope.project_id, readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision);
     const inactive = db.serialize();
     await assert.rejects(call(pendingSave)); assert.deepEqual(db.serialize(), inactive);
-    selectV01(db, scope.workspace_id, scope.project_id, otherScope.project_id, 2);
+    selectV01(db, scope.workspace_id, scope.project_id, otherScope.project_id, readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision);
     await assert.rejects(call(pendingSave), /refresh_required/u);
     const executionPending = { ...pending, expected_snapshot_binding: (await resume()).continuity!.snapshot.binding! };
     const executionPreview = await call(executionPending);

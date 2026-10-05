@@ -652,6 +652,11 @@ non-expiring packets, unchanged Core bytes and authority, fresh-process human an
 agent continuation, and refusal of a held resumption request across selection
 clear/reopen. A fresh read may rebind the saved definition; it cannot renew its
 execution authority or bypass changed source/root/direction checks.
+Restore coverage uses the supported backup and atomic restore owners, then the
+real management handlers in a fresh process. Check selected, cleared and
+never-selected states, repeated restoration of the same immutable backup, old
+request refusal, legitimate fresh reopen, preserved history/files and failure
+before publication. A process restart alone does not substitute for this check.
 Portable import creates independent selection authority. Keep the existing RC1
 exact comparison's selection/snapshot mismatch visible as `non_conformant`, while
 checking every historical record and relational result separately. Do not copy

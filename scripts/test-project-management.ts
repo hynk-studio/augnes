@@ -12,6 +12,7 @@ import { declareAndInspectLocalProjectV01, confirmLocalProjectOnboardingV01, lis
 import { GET, POST } from "../app/api/vnext/projects/route";
 import { readBlankStateSourceV01 } from "../lib/vnext/blank-state/blank-state-source";
 import { runCanonicalChild, canonicalChildAcceptanceFailure } from "./canonical-child-runner.mjs";
+import { testProjectSelectionRecovery } from "./test-project-selection-recovery";
 
 async function call(body?: unknown, query = "", expected = 200) {
   const response = await (body ? POST : GET)(new Request(`http://127.0.0.1/api/vnext/projects${query}`, {
@@ -122,6 +123,7 @@ export async function testProjectManagement() {
       args: ["--import", "tsx", "scripts/test-project-management.ts", "--readback", input], cwd: process.cwd(), env: process.env, timeoutMs: 30_000 });
     assert.equal(canonicalChildAcceptanceFailure(result, { suite: "project-management", timeoutMs: 30_000, requireNaturalExit: true }), null);
     await testLegacyMigration(db, workspace.workspace_id, a, root);
+    await testProjectSelectionRecovery();
     console.log(JSON.stringify({ project_management: "pass", registered:25, pages:[20,5], stale_cycles:["A-B-A","A-none-A","none-A-none"], concurrent_winners:1, lost_first_and_later_pages:"refused", fresh_process:true, provider_calls:0 }));
   } finally { db.close(); if (previous === undefined) delete process.env.AUGNES_DB_PATH; else process.env.AUGNES_DB_PATH = previous; rmSync(root, { recursive:true, force:true }); }
 }

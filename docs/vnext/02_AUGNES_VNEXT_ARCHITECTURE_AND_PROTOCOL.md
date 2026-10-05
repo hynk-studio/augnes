@@ -265,6 +265,12 @@ permission and changes no historical material.
 Existing prepared selections and clients must refresh after upgrade. Older
 binaries cannot consume the new store schema; recovery uses the existing backup
 and staged migration owner, not a backward rewrite of history.
+An explicit recovery restore gives every workspace a fresh selection observation
+in its owned unpublished stage, including selected, cleared and never-selected
+states. Restoring the same backup again cannot revive a held management request.
+The selected project and selection time are preserved; backup bytes, Core history,
+roots, grants and direction accounting are unchanged by this invalidation. The
+existing reader validation and atomic publication/rollback still own restore.
 Portable import likewise creates a fresh local selection revision and therefore
 a different live continuity snapshot. The existing RC1 exact comparer retains
 that difference as `non_conformant`; it does not normalize it into exact equality.
