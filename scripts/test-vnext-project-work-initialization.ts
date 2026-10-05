@@ -5747,26 +5747,50 @@ async function assertExpectationSchemaCompatibilityV01(): Promise<void> {
       operator_mutation: { credential: credentialFromCookieV01(initial.session_admission.cookie_value), clock: fixedClock("2026-08-01T00:00:10.000Z") } }, { now: timestampSequenceV01("2026-08-01T00:00:10.000Z") });
     const oldDetail = readProjectRunResultDetailV01(fixture.db, { ...fixture, receipt_id: oldResult.receipt.receipt_id });
     const before = fixture.db.prepare("SELECT * FROM vnext_core_records ORDER BY record_id").all();
+    const selectionBefore = readActiveProjectSelectionV01(fixture.db, fixture.workspace_id)!;
     const schema = readFileSync(path.join(process.cwd(), "lib/db/schema.sql"), "utf8");
     const table = schema.match(/CREATE TABLE IF NOT EXISTS vnext_core_records \([\s\S]*?\n\);/u)?.[0];
     assert(table);
-    // DDL-only predecessor fixture. All canonical rows above came from normal
-    // authenticated producers and are copied intact, never invented or edited.
+    // Construct the exact predecessor structure, including a fixture-only
+    // numeric selection. Core rows come from current authenticated producers
+    // and stay intact; this is not a claim of historical writer reproduction.
     fixture.db.exec("BEGIN IMMEDIATE");
     fixture.db.exec("ALTER TABLE vnext_core_records RENAME TO expectation_schema_fixture_backup");
     fixture.db.exec(table.replace(/,\s*'work_expectation_record'/u, ""));
     fixture.db.exec("INSERT INTO vnext_core_records SELECT * FROM expectation_schema_fixture_backup; DROP TABLE expectation_schema_fixture_backup");
     fixture.db.exec(schema);
+    fixture.db.exec(`
+      DROP TRIGGER trg_vnext_project_selection_retain;
+      DROP TABLE vnext_active_project_selections;
+      CREATE TABLE vnext_active_project_selections (
+        workspace_id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        active_project_selection_version TEXT NOT NULL CHECK (
+          active_project_selection_version = 'active_project_selection.v0.1'
+        ),
+        selection_revision INTEGER NOT NULL CHECK (selection_revision > 0),
+        selected_at TEXT NOT NULL CHECK (length(trim(selected_at)) > 0),
+        FOREIGN KEY (workspace_id, project_id)
+          REFERENCES vnext_project_identities(workspace_id, project_id)
+          ON UPDATE RESTRICT ON DELETE RESTRICT
+      );
+    `);
+    fixture.db.prepare("INSERT INTO vnext_active_project_selections VALUES (?,?,'active_project_selection.v0.1',1,?)")
+      .run(fixture.workspace_id, fixture.project_id, T0);
     fixture.db.exec("DROP TABLE vnext_project_direction_credentials; DROP TABLE vnext_project_direction_records; DROP TABLE vnext_prospective_reentry");
     fixture.db.exec("COMMIT");
     assert.equal(structuralSchemaContractSignature(fixture.db), "66f470e7a6e5bc2a10d5e2b0437dc95165596ae55f915ecd27ee1666e130f980");
     assert.equal((await inspectRuntimeDatabase({ databasePath: fixture.config.database_path })).database_state, "old");
     applyCanonicalDatabaseMigrations(fixture.db);
+    const selectionAfter = readActiveProjectSelectionV01(fixture.db, fixture.workspace_id)!;
+    assert.equal(selectionAfter.project_id, selectionBefore.project_id);
+    assert.notEqual(selectionAfter.selection_revision, selectionBefore.selection_revision);
+    assert.match(String(selectionAfter.selection_revision), /^selection:[0-9a-f]{32}$/);
     assert.equal((await inspectRuntimeDatabase({ databasePath: fixture.config.database_path })).database_state, "current");
     assert.deepEqual(fixture.db.prepare("SELECT * FROM vnext_core_records ORDER BY record_id").all(), before);
     assert.equal(validateRecoveryCanonicalDatabaseV01(fixture.db).status, "valid");
     assert.deepEqual(readProjectRunResultDetailV01(fixture.db, { ...fixture, receipt_id: oldResult.receipt.receipt_id }), oldDetail);
-    console.log("expectation schema: exact merged predecessor admitted, normal migration preserves authenticated canonical rows");
+    console.log("expectation schema: constructed exact predecessor schema admitted; migration preserves current authenticated Core rows");
   } finally { fixture.db.close(); }
 }
 
