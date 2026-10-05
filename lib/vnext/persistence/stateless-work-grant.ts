@@ -1,7 +1,8 @@
 import type Database from "better-sqlite3";
 import { insertVNextCoreRecordV01, readVNextCoreRecordV01 } from "./durable-semantic-store";
 import { canonicalizeProtocolValueV01 as canonical, createProtocolSha256V01 as hash } from "../protocol-primitives";
-import { readSourceReview, readStatelessSelectedNotes, reviewRef, reviewCheck as check, validateStatelessGrant, statelessGrantKey, STATELESS_GRANT, type StatelessGrantRequest } from "../stateless-work";
+import { readSourceReview, readStatelessSelectedNotes, reviewRef, reviewCheck as check, validateStatelessGrant, statelessGrantKey, STATELESS_GRANT, type StatelessGrant, type StatelessGrantRequest } from "../stateless-work";
+import { buildModelInvocationCapabilityGrantV01 } from "../automation/model-invocation-capability-grant";
 import { validateTaskContextPacketV01 } from "../task-context-packet";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 
@@ -20,6 +21,16 @@ export function readStatelessGrant(db: Database.Database, scope: { workspace_id:
     (grant.request.selected_notes_ref === undefined || grant.request.selected_notes_ref === readStatelessSelectedNotes(packet).fingerprint) &&
     (!packet.expires_at || grant.request.expires_at <= packet.expires_at), "grant_source_conflict");
   return grant;
+}
+
+/** Derive invocation lineage from the validated immutable record for execution
+ * and historical readback alike. This neither renews nor authorizes the grant. */
+export function buildStatelessModelInvocationGrant(grant: StatelessGrant, input: { work_id: string; run_id: string; stage: string }) {
+  const { limits } = grant.request;
+  return buildModelInvocationCapabilityGrantV01({ grant_id: `${grant.grant_id}.${input.stage}`, workspace_id: grant.workspace_id, project_id: grant.project_id,
+    work_id: input.work_id, run_id: input.run_id, automation_control_revision: grant.request.control_revision, permitted_purposes: ["planner_plan"], permitted_execution_modes: ["live"], provider_egress_allowed: true,
+    max_provider_calls: 1, max_input_bytes: limits.input_bytes, max_output_tokens: limits.output_tokens, max_timeout_ms: limits.invocation_ms,
+    allowed_data_classifications: ["private"], issued_at: grant.issued_at, expires_at: grant.request.expires_at, status: "active", capability_status: "available" });
 }
 
 /** Only the authenticated issuer calls this inside its immediate transaction. */

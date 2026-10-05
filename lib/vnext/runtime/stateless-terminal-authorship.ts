@@ -7,15 +7,14 @@ import { normalizeWorkId } from "@/lib/work";
 import { buildSelectedWorkSourceEntry, compareSelectedWorkSources, readSelectedWorkSources, selectedWorkSourceInput, assertReviewedOutcomeSourcesRetained } from "@/lib/intake/selected-work-source-comparison";
 import { buildTaskContextPacketV01, validateTaskContextPacketV01 } from "../task-context-packet";
 import { canonicalizeProtocolValueV01 as canonical, createProtocolSha256V01 as hash, parseStrictIsoTimestampV01 } from "../protocol-primitives";
-import { STATELESS_WORK, STATELESS_TERMINAL_WORK, STATELESS_TERMINAL_CONTEXT, STATELESS_LIMITS, statelessTerminalEntries, statelessMandatoryEntries, readSourceReview, reviewCheck as check, reviewObject, reviewText, reviewSha, type SourceReview } from "../stateless-work";
+import { STATELESS_WORK, STATELESS_TERMINAL_WORK, STATELESS_TERMINAL_CONTEXT, statelessTerminalEntries, statelessMandatoryEntries, readSourceReview, reviewCheck as check, reviewObject, reviewText, reviewSha, type SourceReview } from "../stateless-work";
 import { readStatelessFailureReviews } from "../stateless-review-failure";
-import { readStatelessGrant } from "../persistence/stateless-work-grant";
+import { readStatelessGrant, buildStatelessModelInvocationGrant } from "../persistence/stateless-work-grant";
 import { insertVNextCoreRecordV01 } from "../persistence/durable-semantic-store";
 import { readActiveProjectSelectionV01 } from "../persistence/project-lifecycle-registry";
 import { effectiveDirection, directionCurrent, assertPacketDirectionCurrent } from "../persistence/project-direction-store";
 import { directionSource, selectedDirectionProfile, DIRECTION_SOURCE } from "../project-direction-source";
 import { validateModelInvocationReceiptV02 } from "../model-gateway/model-invocation-receipt";
-import { buildModelInvocationCapabilityGrantV01 } from "../automation/model-invocation-capability-grant";
 import { readRun, stateOf } from "./stateless-review-ledger";
 import { readHistoricalStatelessPacket, assertHistoricalStatelessSession, assertStatelessUnsettledAdmission } from "./stateless-review-disposition";
 import { rootBinding, prepareMaterial } from "./stateless-source-review";
@@ -58,10 +57,7 @@ export function readTerminalAttemptHistory(db: Database.Database, scope: Scope, 
   "terminal_authorship_step_shape_unsupported");
   const generation = reviewText(step.output.generation, 100), input = reviewSha(step.output.input_fingerprint);
   const receipt = validateModelInvocationReceiptV02(step.output.failure_receipt);
-  const modelGrant = buildModelInvocationCapabilityGrantV01({ grant_id: `${grant.grant_id}.${step.title}`, workspace_id: scope.workspace_id, project_id: scope.project_id, work_id: String(run.metadata.work_id), run_id: runId,
-    automation_control_revision: grant.request.control_revision, permitted_purposes: ["planner_plan"], permitted_execution_modes: ["live"], provider_egress_allowed: true,
-    max_provider_calls: 1, max_input_bytes: STATELESS_LIMITS.input_bytes, max_output_tokens: STATELESS_LIMITS.output_tokens, max_timeout_ms: STATELESS_LIMITS.invocation_ms,
-    allowed_data_classifications: ["private"], issued_at: grant.issued_at, expires_at: grant.request.expires_at, status: "active", capability_status: "available" });
+  const modelGrant = buildStatelessModelInvocationGrant(grant, { work_id: String(run.metadata.work_id), run_id: runId, stage: step.title });
   check(receipt.workspace_id === scope.workspace_id && receipt.project_id === scope.project_id && receipt.run_id === runId && receipt.work_id === run.metadata.work_id &&
     receipt.invocation_id === step.step_id && receipt.purpose === "planner_plan" && receipt.invocation_origin === "policy_triggered" &&
     receipt.status === "completed" && receipt.outcome === "live_success" && receipt.requested_mode === "live" && receipt.execution_mode === "live" &&

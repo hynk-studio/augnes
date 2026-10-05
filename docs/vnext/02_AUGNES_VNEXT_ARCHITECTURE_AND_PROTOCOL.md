@@ -1199,6 +1199,14 @@ never reconstructed diagnostics. Known result-persistence failure, receipt
 projection failure, Gateway rejection, unknown dispatch, active work and other
 profiles remain outside this contract.
 
+Historical receipt verification derives invocation lineage from the validated
+original grant, including its original limits, scope, control revision and dates.
+It uses the same derivation as execution, so eligible first- and final-judgment
+host rejections retain both mini and configured Sol compatibility. Current route
+settings and elapsed expiry do not replace that authority or renew permission;
+exact grant, receipt and cost-authority checks remain required. Supported older
+grants keep their original optional-field omissions and evidence availability.
+
 Authenticated saved review → source comparison → authorship preview → explicit
 writer creates an immutable new work/packet with a null grant. The preview binds
 the entire historical run snapshot, failed step/generation/revision, packet/grant/
