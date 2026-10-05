@@ -1,4 +1,4 @@
-import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
+import { isCurrentProjectSelectionRevision, type ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import { handoffEntries } from "../work-handoff";
 import type Database from "better-sqlite3";
 import type { AutonomyRunRecord } from "@/types/autonomy-runner-execution";
@@ -105,7 +105,9 @@ export function readStatelessDisposition(db: Database.Database, scope: Scope, ru
 export function readStatelessDispositionPreparation(db: Database.Database, scope: Scope, run: AutonomyRunRecord) {
   try {
     const disposition = readStatelessDisposition(db, scope, run);
-    return { binding: disposition?.binding ?? historicalBinding(db, scope, run), disposition, warning: WARNING };
+    const active = readActiveProjectSelectionV01(db, scope.workspace_id);
+    return { binding: disposition?.binding ?? historicalBinding(db, scope, run), disposition, warning: WARNING,
+      expected_active_selection_revision: active?.project_id === scope.project_id ? active.selection_revision : null };
   } catch { return null; }
 }
 export function endStatelessReviewWork(db: Database.Database, input: { config: Config; credential: Credential; binding: unknown; now: () => string }) {
@@ -180,11 +182,15 @@ function replacementMaterial(packet: TaskContextPacketV01): ReplacementMaterial 
   return reviewObject(raw, ["disposition", "prior_packet", "review", "session_id", "operator_id", "selection_revision", ...(raw.work_lifetime !== undefined ? ["work_lifetime"] : []), ...(raw.resumes_packet !== undefined ? ["resumes_packet"] : [])]) as unknown as ReplacementMaterial;
 }
 const replacementKey = (m: ReplacementMaterial) => fingerprint({ profile: STATELESS_REPLACEMENT, disposition: m.disposition, prior_packet: m.prior_packet, review: m.review, selection_revision: m.selection_revision, ...(m.resumes_packet ? { resumes_packet: m.resumes_packet } : {}) });
+const replacementDefinition = (m: ReplacementMaterial) => ({ disposition: m.disposition, prior_packet: m.prior_packet, review: m.review });
 export const statelessReplacementIdempotencyKey = (p: TaskContextPacketV01) => isStatelessReplacement(p) ? replacementKey(replacementMaterial(p)) : null;
 /** The existing authenticated writer rechecks current source versions and lineage. */
-export function readReplacementWorkResumption(packet: TaskContextPacketV01) {
+export function readReplacementWorkResumption(db: Database.Database, config: Config, packet: TaskContextPacketV01) {
   const m = replacementMaterial(packet);
+  const active = readActiveProjectSelectionV01(db, config.workspace_id);
+  check(active?.project_id === config.project_id, "replacement_project_not_active");
   return { action: "prepare_linked_work" as const, disposition: m.disposition,
+    expected_active_selection_revision: active.selection_revision,
     material: { question: m.review.question, files: m.review.files.map(({ path, start_line, end_line }) => ({ path, start_line, end_line })) } };
 }
 function buildReplacement(prior: TaskContextPacketV01, m: ReplacementMaterial, at: string, resumed?: TaskContextPacketV01): TaskContextPacketV01 {
@@ -225,8 +231,7 @@ export function inspectStatelessReplacement(db: Database.Database, input: { conf
   if (m.resumes_packet) {
     const old = packetFrom(db, config, m.resumes_packet.packet_id, m.resumes_packet.packet_fingerprint);
     check(isStatelessReplacement(old) && old.expires_at !== null && old.generated_at < packet.generated_at, "replacement_resume_invalid");
-    const { resumes_packet: _resume, ...original } = m;
-    check(!replacementMaterial(old).resumes_packet && replacementKey(replacementMaterial(old)) === replacementKey(original), "replacement_resume_changed");
+    check(!replacementMaterial(old).resumes_packet && same(replacementDefinition(replacementMaterial(old)), replacementDefinition(m)), "replacement_resume_changed");
     inspectStatelessReplacement(db, { config, packet: old });
     assertReplacementUnadmitted(db, config, old);
     resumed = old;
@@ -239,7 +244,7 @@ function assertReplacementUnadmitted(db: Database.Database, scope: Scope, packet
   check(!db.prepare("SELECT 1 FROM autonomy_runs WHERE scope=? AND CASE WHEN json_valid(metadata_json) THEN json_extract(metadata_json,'$.packet_id')=? ELSE 1 END LIMIT 1").get(scope.project_id, packet.packet_id), "replacement_result_already_admitted");
 }
 /** Explicit ordinary new-work writer. This never enables control, grants or runs. */
-export function prepareLinkedStatelessWork(db: Database.Database, input: { config: Config; credential: Credential; disposition: Link; review: SourceReview; now: () => string }) {
+export function prepareLinkedStatelessWork(db: Database.Database, input: { config: Config; credential: Credential; disposition: Link; review: SourceReview; expected_active_selection_revision: unknown; now: () => string }) {
   check(!db.inTransaction, "replacement_transaction_conflict"); db.exec("BEGIN IMMEDIATE");
   try {
     const admission = admitVNextLocalOperatorMutationInsideTransactionV01(db, { ...input, clock: { now: input.now } });
@@ -248,13 +253,14 @@ export function prepareLinkedStatelessWork(db: Database.Database, input: { confi
     const prior = packetFrom(db, input.config, d.binding.packet_id, d.binding.packet_fingerprint);
     const active = readActiveProjectSelectionV01(db, input.config.workspace_id);
     check(active?.project_id === input.config.project_id, "replacement_project_not_active");
+    check(isCurrentProjectSelectionRevision(input.expected_active_selection_revision) && active.selection_revision === input.expected_active_selection_revision, "replacement_selection_changed");
     const m: ReplacementMaterial = { work_lifetime: DURABLE_AUTHORED_WORK_V01, disposition: input.disposition, prior_packet: { packet_id: prior.packet_id, packet_fingerprint: prior.integrity.fingerprint }, review: input.review,
       session_id: admission.session.session_id, operator_id: input.config.operator_id, selection_revision: active.selection_revision };
     const current = readCurrentProjectWorkPacketLineageV01(db, input.config);
     // A duplicate can acknowledge only its unchanged immediate preparation.
     if (current && isStatelessReplacement(current.packet)) {
       const { resumes_packet, ...saved } = replacementMaterial(current.packet);
-      if (replacementKey(saved) === replacementKey(m)) {
+      if (same(replacementDefinition(saved), replacementDefinition(m))) {
         if (resumes_packet) m.resumes_packet = resumes_packet;
         else if (current.packet.expires_at !== null) m.resumes_packet = { packet_id: current.packet.packet_id, packet_fingerprint: current.packet.integrity.fingerprint };
       }

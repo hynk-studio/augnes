@@ -39,9 +39,10 @@ export function createStatelessSourceReviewHandler(options: { environment?: Node
         admission = ended.session_admission;
         result = new StatelessSourceReviewHost(hostOptions, ended.disposition.binding.run_id).read();
       } else if (body.action === "prepare_linked_work") {
-        reviewObject(body, ["action", "disposition", "material"]);
+        reviewObject(body, ["action", "disposition", "material", "expected_active_selection_revision"]);
         const link = reviewObject(body.disposition, ["run_id", "disposition_fingerprint"]);
         const prepared = prepareStatelessReplacement(db, { config, credential, request: body.material, now: hostOptions.now,
+          expected_active_selection_revision: body.expected_active_selection_revision,
           disposition: { run_id: reviewText(link.run_id, 160), disposition_fingerprint: reviewSha(link.disposition_fingerprint) } });
         admission = prepared.session_admission;
         result = { packet_id: prepared.packet_id, review: prepared.review, selected_notes: prepared.selected_notes, status: prepared.status, preparation_bytes: prepared.preparation_bytes, authorized: false, predecessor_effects_unknown: true };

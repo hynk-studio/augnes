@@ -109,6 +109,13 @@ interface PreviewMaterial {
   root_fingerprint: string; direction_ref: string | null; selection_revision: ProjectSelectionRevision;
 }
 interface Material extends PreviewMaterial { session_id: string; operator_id: string; work_lifetime?: typeof DURABLE_AUTHORED_WORK_V01 }
+// A saved definition is durable context. Its historical selection observation
+// is not today's write authority; the new preview binds the live selection.
+function savedDefinition(m: Material | PreviewMaterial) {
+  const { selection_revision: _selection, resumes_packet: _resume, ...rest } = m;
+  const { session_id: _session, operator_id: _operator, work_lifetime: _lifetime, ...definition } = rest as Omit<Material, "selection_revision" | "resumes_packet">;
+  return definition;
+}
 function requestFrom(value: unknown): Request {
   const r = reviewObject(value, ["predecessor", "definition", "material", "notes", "omitted_sources"]);
   const b = reviewObject(r.predecessor, ["run_id", "step_id", "generation", "revision", "packet_id", "packet_fingerprint", "grant_id", "grant_fingerprint", "receipt_fingerprint", "history_fingerprint"]);
@@ -148,7 +155,7 @@ function compileMaterial(db: Database.Database, config: Config, raw: unknown, at
   const current = readCurrentProjectWorkPacketLineageV01(db, config);
   if (current && isStatelessTerminalSuccessor(current.packet)) {
     const { session_id: _session, operator_id: _operator, work_lifetime: _lifetime, resumes_packet, ...saved } = materialFrom(current.packet);
-    if (equal(saved, material)) {
+    if (equal(savedDefinition(saved), savedDefinition(material))) {
       if (resumes_packet) material.resumes_packet = resumes_packet;
       else if (current.packet.expires_at !== null) material.resumes_packet = { packet_id: current.packet.packet_id, packet_fingerprint: current.packet.integrity.fingerprint };
     }
@@ -228,8 +235,7 @@ export function inspectStatelessTerminalSuccessor(db: Database.Database, input: 
   if (m.resumes_packet) {
     const old = readHistoricalStatelessPacket(db, input.config, m.resumes_packet.packet_id, m.resumes_packet.packet_fingerprint);
     check(isStatelessTerminalSuccessor(old) && old.expires_at !== null && old.generated_at < input.packet.generated_at, "terminal_authorship_resume_invalid");
-    const { session_id: _session, operator_id: _operator, work_lifetime: _lifetime, resumes_packet: _resume, ...definition } = m;
-    check(!materialFrom(old).resumes_packet && terminalAuthorshipKey(old) === digest({ version: STATELESS_TERMINAL_WORK, material: definition }), "terminal_authorship_resume_changed");
+    check(!materialFrom(old).resumes_packet && equal(savedDefinition(materialFrom(old)), savedDefinition(m)), "terminal_authorship_resume_changed");
     inspectStatelessTerminalSuccessor(db, { config: input.config, packet: old });
     assertUnadmitted(db, input.config, old);
   }

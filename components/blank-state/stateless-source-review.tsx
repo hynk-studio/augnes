@@ -1,15 +1,16 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { StatelessGrantRequest, StatelessDispositionBinding } from "@/lib/vnext/stateless-work";
+import type { StatelessGrantRequest } from "@/lib/vnext/stateless-work";
 import type { StatelessObservationCheckpoint } from "@/lib/vnext/runtime/stateless-review-ledger";
 import type { StatelessFailureReview } from "@/lib/vnext/stateless-review-failure";
 import { StatelessTerminalAuthorship } from "./stateless-terminal-authorship";
 import type { readTerminalAuthorshipPreparation } from "@/lib/vnext/runtime/stateless-terminal-authorship";
 import type { readPreparedStatelessWork } from "@/lib/vnext/runtime/stateless-source-review";
+import type { readStatelessDispositionPreparation } from "@/lib/vnext/runtime/stateless-review-disposition";
 import { StatelessReviewFailure } from "./stateless-review-failure";
 
-type Review = { observation_checkpoint: StatelessObservationCheckpoint | null; terminal_preparation: ReturnType<typeof readTerminalAuthorshipPreparation>; stage: string; next_step: string | null; failures: StatelessFailureReview[]; disposition_preparation: null | { binding: StatelessDispositionBinding; disposition: null | { fingerprint: string }; warning: string }; run: { run_id: string; title: string; status: string; stop_reason: string | null;
+type Review = { observation_checkpoint: StatelessObservationCheckpoint | null; terminal_preparation: ReturnType<typeof readTerminalAuthorshipPreparation>; stage: string; next_step: string | null; failures: StatelessFailureReview[]; disposition_preparation: ReturnType<typeof readStatelessDispositionPreparation>; run: { run_id: string; title: string; status: string; stop_reason: string | null;
   steps: Array<{ title: string; status: string; output: { judgment?: { rationale: string }; observation?: { availability: string; bytes_read: number } } }> } };
 export function StatelessSourceReview({ projectId }: { projectId: string }) {
   const router = useRouter();
@@ -107,9 +108,10 @@ export function StatelessSourceReview({ projectId }: { projectId: string }) {
       })}>End further work; keep outcome unknown</button>}
       {review.disposition_preparation?.disposition && <div>
         <p>To prepare distinct linked work, enter a question and current file ranges above. Existing success criteria and non-goals carry forward. Preparation makes no model request and grants no execution permission.</p>
-        <button disabled={busy || !question || !files[0].path} onClick={() => void act(async () => {
+        <button disabled={busy || !question || !files[0].path || !review.disposition_preparation?.expected_active_selection_revision} onClick={() => void act(async () => {
           setPrepared(null); setPreview(null);
-          const value = await request({ action: "prepare_linked_work", disposition: { run_id: review.run.run_id, disposition_fingerprint: review.disposition_preparation!.disposition!.fingerprint }, material: { question, files: files.filter(f => f.path) } });
+          const value = await request({ action: "prepare_linked_work", disposition: { run_id: review.run.run_id, disposition_fingerprint: review.disposition_preparation!.disposition!.fingerprint },
+            expected_active_selection_revision: review.disposition_preparation!.expected_active_selection_revision, material: { question, files: files.filter(f => f.path) } });
           setPrepared(value.result); setMessage("Linked new work saved. The earlier outcome remains unknown. Review fresh authorization separately when ready.");
         })}>Prepare linked work from the question above</button>
       </div>}

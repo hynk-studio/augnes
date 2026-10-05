@@ -73,7 +73,7 @@ export function readPreparedStatelessWork(db: Database.Database, config: Config,
     const issued = db.prepare("SELECT 1 FROM autonomy_runs WHERE scope=? AND CASE WHEN json_valid(metadata_json) THEN json_extract(metadata_json,'$.packet_id')=? ELSE 1 END LIMIT 1").get(config.project_id, packet.packet_id);
     if (issued || packet.capability_grant) return null;
     const resumption_request = packet.expires_at === null ? null : isStatelessTerminalSuccessor(packet) ? readTerminalWorkResumption(db, config, packet, at)
-      : isStatelessReplacement(packet) ? readReplacementWorkResumption(packet) : null;
+      : isStatelessReplacement(packet) ? readReplacementWorkResumption(db, config, packet) : null;
     if (state.packet_currentness === "expired" && !resumption_request) return null;
     return { packet_id: packet.packet_id, review: readSourceReview(packet), selected_notes: readStatelessSelectedNotes(packet), predecessor_effects_unknown: statelessUnresolvedEntries(packet).length > 0,
       ...(resumption_request ? { resumption_request } : {}) };
@@ -114,7 +114,7 @@ export function prepareMaterial(db: Database.Database, config: Config, request: 
   review.files = observed.sources.map(({ text: _text, excerpt_digest: _digest, ...f }) => f);
   return { review, observed };
 }
-export function prepareStatelessReplacement(db: Database.Database, input: { config: Config; credential: Credential; disposition: { run_id: string; disposition_fingerprint: string }; request: unknown; now: () => string }) {
+export function prepareStatelessReplacement(db: Database.Database, input: { config: Config; credential: Credential; disposition: { run_id: string; disposition_fingerprint: string }; request: unknown; expected_active_selection_revision: unknown; now: () => string }) {
   const { review, observed } = prepareMaterial(db, input.config, input.request, input.now());
   const result = prepareLinkedStatelessWork(db, { ...input, review });
   return { ...result, review, selected_notes: readStatelessSelectedNotes(result.packet), preparation_bytes: observed.bytes_read, packet_id: result.packet.packet_id, authorized: false };

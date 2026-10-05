@@ -1,32 +1,25 @@
 // Genuine historical packets are authored by the pinned predecessor writers,
 // never by changing timestamps, resealing packets, or repairing database rows.
 import assert from "node:assert/strict";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { canonicalizeProtocolValueV01 as canonical } from "../lib/vnext/protocol-primitives";
 import { readProjectWorkInitializationV01 } from "../lib/vnext/runtime/project-work-initialization";
 import { readProjectWorkRevisionEligibilityStrictV01 } from "../lib/vnext/runtime/project-work-revision";
 import { readCurrentProjectWorkPacketLineageV01, projectVNextOperatorPilotContinuityV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity";
 import { readResultWorkPreparationV01 } from "../lib/vnext/runtime/authored-successor-task";
-import { mutateProjectControlV01, readProjectAutomationControlV01 } from "../lib/vnext/persistence/project-control-store";
+import { readProjectAutomationControlV01 } from "../lib/vnext/persistence/project-control-store";
+import { readActiveProjectSelectionV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
+import { POST as manageProject } from "../app/api/vnext/projects/route";
+import { historicalDurableWorkFixtures, DURABLE_WORK_PREDECESSOR } from "./historical-durable-work-fixtures";
 import { validateRecoveryCanonicalDatabaseV01 } from "./recovery-canonical-record-validator";
 import { registerOwnedChild, waitForOwnedProcessExit, terminateOwnedProcessTree } from "./test-harness-process-lifecycle.mjs";
 
-const predecessor = "d9b6b56f0de6dcb0a36ac591b13a3672f99fa71a";
-const pricing = { input_nano_usd_per_byte: 1000, output_nano_usd_per_token: 1000, maximum_total_nano_usd: 100_000_000, source_version: "durable-work-scripted" };
-const material = { question: "Which connection is visible in this exact excerpt?", files: [{ path: "entry.ts", start_line: 1, end_line: 2 }] };
+const predecessor = DURABLE_WORK_PREDECESSOR;
 const definition = { goal: "Continue the bounded saved investigation", success_criteria: ["Preserve attributed uncertainty"], non_goals: ["No execution or semantic acceptance"] };
 
-async function oldWriter(root: string, name: string, replacements: Record<string, string> = {}, file = `lib/vnext/runtime/${name}.ts`) {
-  const source = spawnSync("git", ["show", `${predecessor}:${file}`], { encoding: "utf8", timeout: 5000 });
-  assert.equal(source.status, 0, "Historical writer must be available at the exact predecessor");
-  const target = path.join(root, `historical-${name}.ts`);
-  writeFileSync(target, source.stdout.replace(/from "((?:\.\.?\/|@\/)[^"\n]+)"/g,
-    (_match, specifier) => `from "${replacements[specifier] ?? (specifier.startsWith(".") ? path.resolve(path.dirname(file), specifier) : specifier)}"`));
-  return { module: await import(pathToFileURL(target).href), path: target };
-}
 const current = (f: any) => readCurrentProjectWorkPacketLineageV01(f.db, f.config)!.packet;
 const revision = (f: any) => {
   const w = readProjectWorkInitializationV01(f.db, f.config), p = current(f);
@@ -36,6 +29,23 @@ const revision = (f: any) => {
 };
 const core = (f: any) => f.db.prepare("SELECT * FROM vnext_core_records ORDER BY rowid").all();
 const authority = (f: any) => canonical([readProjectAutomationControlV01(f.db, f.scope), ...["autonomy_runs", "autonomy_run_steps", "autonomy_run_events"].map(table => f.db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all())]);
+
+async function clearAndReopen(f: any) {
+  const previous = process.env.AUGNES_DB_PATH;
+  process.env.AUGNES_DB_PATH = f.config.database_path;
+  try {
+    const selected = readActiveProjectSelectionV01(f.db, f.scope.workspace_id)!;
+    let revision = selected.selection_revision;
+    for (const action of ["remove", "open"]) {
+      const response = await manageProject(new Request("http://127.0.0.1/api/vnext/projects", { method: "POST",
+        headers: { host: "127.0.0.1", origin: "http://127.0.0.1", "content-type": "application/json" },
+        body: JSON.stringify({ action, project_id: f.scope.project_id, expected_project_id: action === "remove" ? f.scope.project_id : null, expected_revision: revision }) }));
+      const value = await response.json(); assert.equal(response.status, 200, canonical(value));
+      revision = value.result.selection.selection_revision;
+    }
+    assert.notEqual(revision, selected.selection_revision);
+  } finally { if (previous === undefined) delete process.env.AUGNES_DB_PATH; else process.env.AUGNES_DB_PATH = previous; }
+}
 
 async function freshSurfaces(f: any, root: string, modes = process.platform === "darwin" ? ["human", "agent"] : ["agent"]) {
   for (const mode of modes) {
@@ -54,44 +64,43 @@ async function freshSurfaces(f: any, root: string, modes = process.platform === 
   }
 }
 
-export async function durableWorkContract(createFixture: (name: string) => Promise<any>, root: string, baseline = false) {
-  const terminal = await oldWriter(root, "stateless-terminal-authorship");
-  const successor = await oldWriter(root, "authored-successor-task");
-  // Pin the historical revision-number contract with its writers. It is no
-  // longer a current lifetime constraint; importing current constants would
-  // silently turn the predecessor's numeric comparison into <= undefined.
-  const oldRevisionTypes = await oldWriter(root, "project-work-revision-types", {}, "types/vnext/project-work-revision.ts");
-  const oldRevisionImports = { "@/types/vnext/project-work-revision": oldRevisionTypes.path };
-  const oldRevision = await oldWriter(root, "authored-successor-revision", oldRevisionImports);
-  const revisionOwner = await oldWriter(root, "project-work-revision", { ...oldRevisionImports, "./authored-successor-revision": oldRevision.path });
+export async function durableWorkContract(createFixture: (name: string, restored?: any) => Promise<any>, root: string, baseline = false) {
+  const historical = await historicalDurableWorkFixtures(root);
+  const restore = async (name: string) => {
+    const saved = historical[name], f = await createFixture(`durable-${name}`, saved);
+    const fingerprint = (bytes: string) => createHash("sha256").update(bytes).digest("hex");
+    assert.equal(fingerprint(canonical(core(f))), saved.core_fingerprint, "Upgrade preserves every historical Core byte");
+    assert.equal(fingerprint(authority(f)), saved.authority_fingerprint, "Upgrade does not renew runs, grants or automation");
+    assert.equal(current(f).integrity.fingerprint, saved.packet_fingerprint);
+    const selection = readActiveProjectSelectionV01(f.db, f.scope.workspace_id)!;
+    assert.equal(selection.project_id, saved.selection.project_id);
+    assert.match(String(selection.selection_revision), /^selection:[0-9a-f]{32}$/);
+    return f;
+  };
   if (!baseline) {
     // Re-enter both pre-receipt authoring families without inventing a receipt.
     for (const kind of ["terminal", "replacement"] as const) {
-      const f = await createFixture(`durable-unexecuted-${kind}`);
-      f.controls.lose = kind === "replacement";
-      if (kind === "terminal") f.controls.transform = (output: any) => { output.recommendations[0].grounded_state_keys = ["wrong-source"]; };
-      const attempt = (await f.call({ action: "authorize_and_run", authorization: f.preview })).result;
+      const f = await restore(kind);
       let body: any;
-      if (kind === "terminal") {
-        const request = { predecessor: attempt.terminal_preparation.binding, definition, material, notes: [], omitted_sources: [] as any[] };
-        request.omitted_sources = (await f.call({ action: "compare_terminal_sources", request })).preparation.comparison.unselected_previous.map((e: any) => ({ source_binding: e.source_ref, reason: "Explicitly select current inventory." }));
-        const preview = (await f.call({ action: "preview_terminal_work", request })).preparation;
-        f.tick(); terminal.module.authorTerminalWork(f.db, { config: f.config, credential: f.credential(), request, expected_preview: preview.preview_binding, now: f.now });
-        body = { action: "author_terminal_work", request };
-      } else {
-        const ended = (await f.call({ action: "end_work", binding: attempt.disposition_preparation.binding })).result;
-        const old = await oldWriter(root, "stateless-review-disposition");
-        const { prepareMaterial } = await import("../lib/vnext/runtime/stateless-source-review");
-        body = { action: "prepare_linked_work", disposition: { run_id: ended.run.run_id, disposition_fingerprint: ended.run.metadata.stateless_review_disposition.fingerprint }, material };
-        f.tick(); old.module.prepareLinkedStatelessWork(f.db, { config: f.config, credential: f.credential(), disposition: body.disposition, review: prepareMaterial(f.db, f.config, material, f.now()).review, now: f.now });
-      }
-      assert.ok(current(f).expires_at); f.refreshSession();
+      assert.ok(current(f).expires_at);
       const frozen = core(f), control = authority(f), task = current(f).task, calls = f.calls;
       f.tick(4 * 24 * 3600_000); await f.call(undefined, 401); f.refreshSession();
       const beforeRead = f.db.serialize();
       body = (await f.call()).preparation.resumption_request;
       assert.ok(body, "Ordinary authenticated read supplies saved authorship without form reentry");
       assert(beforeRead.equals(f.db.serialize()));
+      await clearAndReopen(f);
+      const afterReselection = f.db.serialize();
+      await f.call(body, 409);
+      assert(afterReselection.equals(f.db.serialize()), "Held saved-work request cannot cross selection ABA");
+      body = (await f.call()).preparation.resumption_request;
+      assert.ok(body, "A fresh read rebinds saved context to the current selection");
+      if (kind === "replacement") {
+        for (const selection of [undefined, null, 1, "invalid"]) {
+          const invalid = { ...body, expected_active_selection_revision: selection };
+          await f.call(invalid, 409); assert(afterReselection.equals(f.db.serialize()));
+        }
+      }
       if (process.platform === "darwin") await freshSurfaces(f, root, [`stateless-${kind}`]);
       const unchanged = f.db.serialize(), sourcePath = path.join(f.projectRoot, "entry.ts"), bytes = readFileSync(sourcePath);
       try {
@@ -106,43 +115,12 @@ export async function durableWorkContract(createFixture: (name: string) => Promi
       const packet = current(f); await f.call(body); assert.equal(current(f).packet_id, packet.packet_id);
       assert.deepEqual(core(f).slice(0, frozen.length), frozen); assert.equal(authority(f), control); assert.equal(f.calls, calls);
       assert.equal(validateRecoveryCanonicalDatabaseV01(f.db).status, "valid");
-      console.log(JSON.stringify({ historical_stateless_resumption: kind, days: 4, no_grant_or_run: true, changed_source_and_physical_root: "atomic_refusal" }));
+      console.log(JSON.stringify({ historical_stateless_resumption: kind, days: 4, no_grant_or_run: true, selection_ABA: "stale_refused_fresh_rebound", changed_source_and_physical_root: "atomic_refusal" }));
     }
   }
   for (const saved of [false, true]) {
-    const f = await createFixture(`durable-${saved}`);
-    assert.equal(current(f).expires_at, null, "Initial preparation already has no expiry");
-    f.controls.transform = (output: any) => { output.recommendations[0].grounded_state_keys = ["wrong-source"]; };
-    const first = (await f.call({ action: "authorize_and_run", authorization: f.preview })).result;
-    assert.equal(first.run.status, "stopped");
-    const prep = first.terminal_preparation;
-    const request = { predecessor: prep.binding, definition, material, notes: [], omitted_sources: [] as any[] };
-    request.omitted_sources = (await f.call({ action: "compare_terminal_sources", request })).preparation.comparison.unselected_previous
-      .map((e: any) => ({ source_binding: e.source_ref, reason: "Replace the prior inventory with current selected bytes." }));
-    const preview = (await f.call({ action: "preview_terminal_work", request })).preparation;
-    f.tick();
-    const historical = terminal.module.authorTerminalWork(f.db, { config: f.config, credential: f.credential(), request, expected_preview: preview.preview_binding, now: f.now });
-    assert.ok(historical.packet.expires_at);
-    f.refreshSession(); f.controls.transform = () => {};
-    const grant = (await f.call({ action: "preview", pricing })).authorization;
-    const completed = (await f.call({ action: "authorize_and_run", authorization: grant })).result;
-    assert.equal(completed.run.status, "completed");
-    if (saved) {
-      const prep = await f.continuity({ action: "read_result_work_preparation", receipt_id: completed.receipt.receipt_id });
-      const comparison = (await f.continuity({ action: "compare_result_work_sources", binding: prep.binding, notes: [] })).comparison;
-      const preview = await f.continuity({ action: "preview_result_work", binding: prep.binding, definition,
-        selected_sources: { selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint,
-          omitted_sources: comparison.unselected_previous.map((e: any) => ({ source_binding: e.source_ref, reason: "Keep the evidence in immutable history." })) } });
-      f.tick(); await successor.module.defineAuthoredSuccessorTaskV01(f.db, { config: f.config, credential: f.credential(), request: preview.request, clock: { now: f.now } });
-      f.refreshSession(); f.tick();
-      const historicalRevision = revisionOwner.module.revisePreExecutionProjectWorkV01(f.db, { config: f.config, credential: f.credential(),
-        request: { ...revision(f), goal: "Edit the saved investigation before expiry" }, clock: { now: f.now } });
-      assert.equal(historicalRevision.packet.expires_at, historical.packet.expires_at);
-      f.refreshSession();
-    }
-    const selected = readProjectWorkInitializationV01(f.db, f.config);
-    mutateProjectControlV01(f.db, { ...f.scope, action: "disable_automation", expected_active_project_id: f.scope.project_id,
-      expected_active_selection_revision: selected.active_selection_revision!, expected_control_revision: readProjectAutomationControlV01(f.db, f.scope)!.revision }, { now: f.now });
+    const name = saved ? "saved" : "result", f = await restore(name), completed = historical[name].completed;
+    assert.ok(current(f).expires_at);
     const frozen = core(f), frozenAuthority = authority(f), calls = f.calls, expiredPacket = current(f);
     f.tick(4 * 24 * 3600_000); f.refreshSession();
     assert.equal(projectVNextOperatorPilotContinuityV01(f.db, { config: f.config, clock: { now: f.now } }).packet_currentness, "expired");
@@ -187,17 +165,7 @@ export async function durableWorkContract(createFixture: (name: string) => Promi
     assert.equal(authority(f), frozenAuthority); assert.equal(f.calls, calls);
   }
   if (!baseline) {
-    const f = await createFixture("historical-null-work");
-    const completed = (await f.call({ action: "authorize_and_run", authorization: f.preview })).result;
-    const prep = await f.continuity({ action: "read_result_work_preparation", receipt_id: completed.receipt.receipt_id });
-    const comparison = (await f.continuity({ action: "compare_result_work_sources", binding: prep.binding, notes: [] })).comparison;
-    const preview = await f.continuity({ action: "preview_result_work", binding: prep.binding, definition,
-      selected_sources: { selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint,
-        omitted_sources: comparison.unselected_previous.map((e: any) => ({ source_binding: e.source_ref, reason: "Preserve the old source inventory in history." })) } });
-    f.tick(); await successor.module.defineAuthoredSuccessorTaskV01(f.db, { config: f.config, credential: f.credential(), request: preview.request, clock: { now: f.now } });
-    f.refreshSession(); f.tick();
-    revisionOwner.module.revisePreExecutionProjectWorkV01(f.db, { config: f.config, credential: f.credential(),
-      request: { ...revision(f), goal: "Historical already-durable work" }, clock: { now: f.now } });
+    const f = await restore("null");
     const old = current(f), frozen = core(f), control = authority(f), calls = f.calls;
     assert.equal(old.expires_at, null); assert.ok(!old.compatibility.source_contracts.includes("augnes.durable-authored-work.v0.1"));
     f.tick(4 * 24 * 3600_000); f.refreshSession();

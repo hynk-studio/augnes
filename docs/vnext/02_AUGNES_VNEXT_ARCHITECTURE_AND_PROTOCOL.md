@@ -254,6 +254,14 @@ the selected project or empty state. Old counters were discarded on clear, so
 neither old numeric observations nor pre-upgrade empty observations can authorize
 current writes. Historical packets retain their numeric observations, original
 request references, bytes and fingerprints; reconstruction accepts both forms.
+Resuming an unexecuted finite terminal or linked work packet compares its saved
+definition independently of that historical observation. It preserves exact
+historical replay keys and packet reconstruction, then binds the new write to
+today's selection: terminal authorship uses its existing preview fingerprint;
+linked preparation requires the observation returned by the current read.
+Missing, numeric, or changed live observations refuse. Root, source, direction,
+predecessor and unresolved-effect checks still apply; this grants no execution
+permission and changes no historical material.
 Existing prepared selections and clients must refresh after upgrade. Older
 binaries cannot consume the new store schema; recovery uses the existing backup
 and staged migration owner, not a backward rewrite of history.

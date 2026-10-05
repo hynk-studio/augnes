@@ -645,6 +645,13 @@ of related recency/identity writes. Exact supported predecessor-store migration,
 unchanged history, old-observation refusal and recovery/portable readers qualify
 compatibility. Preserve failed attempts and require a new exact clean HEAD's
 planner-selected evidence; predecessor receipts cannot qualify this source.
+Historical resumption fixtures must run the pinned predecessor's product owners
+in a disposable process before current-source migration. Combining an old writer
+with today's selection schema does not reproduce an old store. Check finite and
+non-expiring packets, unchanged Core bytes and authority, fresh-process human and
+agent continuation, and refusal of a held resumption request across selection
+clear/reopen. A fresh read may rebind the saved definition; it cannot renew its
+execution authority or bypass changed source/root/direction checks.
 Portable import creates independent selection authority. Keep the existing RC1
 exact comparison's selection/snapshot mismatch visible as `non_conformant`, while
 checking every historical record and relational result separately. Do not copy

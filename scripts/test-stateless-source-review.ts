@@ -84,9 +84,12 @@ function scripted(firstChoice = "read_selected_sources", secondChoice = "use_obs
   } });
   return { adapter, inputs, serializedRequests, controls, responseControls, environment, get calls() { return calls; } };
 }
-async function fixture(name: string, firstChoice = "read_selected_sources", secondChoice = "use_observation", auditSources = false, model = "gpt-4.1-mini") {
-  const dir = path.join(root, name); mkdirSync(dir); const projectRoot = path.join(dir, "project"); mkdirSync(projectRoot);
-  writeFileSync(path.join(projectRoot, "entry.ts"), sourceText);
+async function fixture(name: string, firstChoice = "read_selected_sources", secondChoice = "use_observation", auditSources = false, model = "gpt-4.1-mini", restored?: {
+  config: { workspace_id: string; project_id: string; operator_id: string; database_path: string }; projectRoot: string; at: string;
+}) {
+  const dir = restored ? path.dirname(restored.config.database_path) : path.join(root, name);
+  const projectRoot = restored?.projectRoot ?? path.join(dir, "project");
+  if (!restored) { mkdirSync(dir); mkdirSync(projectRoot); writeFileSync(path.join(projectRoot, "entry.ts"), sourceText); }
   const selected = auditSources ? [
     { path: "planner.ts", start_line: 141, end_line: 164 },
     { path: "prospective.ts", start_line: 112, end_line: 131 },
@@ -95,25 +98,31 @@ async function fixture(name: string, firstChoice = "read_selected_sources", seco
     writeFileSync(path.join(projectRoot, "planner.ts"), readFileSync("lib/vnext/automation/policy-triggered-planner-run.ts"));
     writeFileSync(path.join(projectRoot, "prospective.ts"), readFileSync("lib/vnext/runtime/prospective-reentry.ts"));
   }
-  const databasePath = path.join(dir, "review.db"), db = new Database(databasePath); databases.push(db); db.pragma("foreign_keys=ON"); applyCanonicalDatabaseMigrations(db);
-  const workspace = getOrCreateDefaultWorkspaceIdentityV01(db), registration = getOrCreateCanonicalProjectForLocalRootV01(db, { workspace_id: workspace.workspace_id,
-    local_root: normalizeLocalProjectRootRefV01(projectRoot, { base_path: root }), display_name: name });
-  const scope = { workspace_id: workspace.workspace_id, project_id: registration.project.project_id };
-  const config = { ...scope, enabled: true as const, operator_id: "operator:stateless-test", database_path: databasePath };
-  let time = Date.now() + 10; const now = () => new Date(time).toISOString(), tick = (ms = 10) => { time += ms; };
-  selectActiveProjectV01(db, { ...scope, expected_project_id: null, expected_revision: null, now: now() });
+  const databasePath = restored?.config.database_path ?? path.join(dir, "review.db"), db = new Database(databasePath); databases.push(db); db.pragma("foreign_keys=ON"); applyCanonicalDatabaseMigrations(db);
+  let scope: { workspace_id: string; project_id: string };
+  if (restored) scope = { workspace_id: restored.config.workspace_id, project_id: restored.config.project_id };
+  else {
+    const workspace = getOrCreateDefaultWorkspaceIdentityV01(db), registration = getOrCreateCanonicalProjectForLocalRootV01(db, { workspace_id: workspace.workspace_id,
+      local_root: normalizeLocalProjectRootRefV01(projectRoot, { base_path: root }), display_name: name });
+    scope = { workspace_id: workspace.workspace_id, project_id: registration.project.project_id };
+  }
+  const config = { ...scope, enabled: true as const, operator_id: restored?.config.operator_id ?? "operator:stateless-test", database_path: databasePath };
+  let time = restored ? Date.parse(restored.at) : Date.now() + 10; const now = () => new Date(time).toISOString(), tick = (ms = 10) => { time += ms; };
+  if (!restored) selectActiveProjectV01(db, { ...scope, expected_project_id: null, expected_revision: null, now: now() });
   const active = readActiveProjectSelectionV01(db, scope.workspace_id)!;
   const bootstrap = issueVNextLocalOperatorBootstrapV01(db, { config, clock: { now } }), session = consumeVNextLocalOperatorBootstrapV01(db, { config, clock: { now }, bootstrap_token: bootstrap.bootstrap_token });
   let cookie = `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${session.cookie_value}`;
   const credential = () => readVNextLocalOperatorCredentialFromRequestV01(new Request("http://127.0.0.1", { headers: { cookie } }));
-  tick();
-  const initial = defineInitialProjectWorkV01(db, { config, credential: credential(), clock: { now }, request: { action: "define_initial_project_work", ...scope,
-    expected_active_project_id: scope.project_id, expected_active_selection_revision: active.selection_revision, expected_initialization_state: "not_defined",
-    goal: "Identify the connections established by the selected entrypoints", success_criteria: ["Attribute findings to exact excerpts and preserve uncertainty"], non_goals: ["No repository-wide absence claim or semantic acceptance"] } });
-  assert.equal(initial.packet.capability_grant, null); cookie = `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${initial.session_admission.cookie_value}`;
-  tick();
-  const control = readProjectAutomationControlV01(db, scope);
-  mutateProjectControlV01(db, { ...scope, action: "enable_automation", expected_active_project_id: scope.project_id, expected_active_selection_revision: active.selection_revision, expected_control_revision: control?.revision ?? null }, { now });
+  if (!restored) {
+    tick();
+    const initial = defineInitialProjectWorkV01(db, { config, credential: credential(), clock: { now }, request: { action: "define_initial_project_work", ...scope,
+      expected_active_project_id: scope.project_id, expected_active_selection_revision: active.selection_revision, expected_initialization_state: "not_defined",
+      goal: "Identify the connections established by the selected entrypoints", success_criteria: ["Attribute findings to exact excerpts and preserve uncertainty"], non_goals: ["No repository-wide absence claim or semantic acceptance"] } });
+    assert.equal(initial.packet.capability_grant, null); cookie = `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${initial.session_admission.cookie_value}`;
+    tick();
+    const control = readProjectAutomationControlV01(db, scope);
+    mutateProjectControlV01(db, { ...scope, action: "enable_automation", expected_active_project_id: scope.project_id, expected_active_selection_revision: active.selection_revision, expected_control_revision: control?.revision ?? null }, { now });
+  }
   const script = scripted(firstChoice, secondChoice, model);
   const { adapter, inputs } = script;
   const environment = { NODE_ENV: "test" as const, AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1", AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: scope.workspace_id,
@@ -127,10 +136,10 @@ async function fixture(name: string, firstChoice = "read_selected_sources", seco
     if (response.headers.get("set-cookie")) cookie = response.headers.get("set-cookie")!.split(";")[0]!;
     return value;
   }
-  const prepared = await call({ action: "prepare", material: { question: "What connection does this exact entrypoint establish, and what remains unestablished?", files: selected } });
-  const preview = (await call({ action: "preview", pricing: { input_nano_usd_per_byte: 1000, output_nano_usd_per_token: 1000, maximum_total_nano_usd: 100_000_000, source_version: "scripted-test-price-not-live-authority" } })).authorization;
+  const prepared = restored ? null : await call({ action: "prepare", material: { question: "What connection does this exact entrypoint establish, and what remains unestablished?", files: selected } });
+  const preview = restored ? null : (await call({ action: "preview", pricing: { input_nano_usd_per_byte: 1000, output_nano_usd_per_token: 1000, maximum_total_nano_usd: 100_000_000, source_version: "scripted-test-price-not-live-authority" } })).authorization;
   assert.equal(script.calls, 0);
-  assert.equal(listVNextCoreRecordsV01(db, { ...scope, record_kinds: ["capability_grant"], limit: 128 }).length, 0);
+  if (!restored) assert.equal(listVNextCoreRecordsV01(db, { ...scope, record_kinds: ["capability_grant"], limit: 128 }).length, 0);
   const direction = async (request: unknown) => {
     tick(); const response = await createProjectDirectionHandler({ environment, clock: { now } })(new Request(`http://127.0.0.1/api/vnext/operator/project-direction?project_id=${scope.project_id}`, {
       method: "POST", headers: { host: "127.0.0.1", origin: "http://127.0.0.1", cookie, "content-type": "application/json" }, body: JSON.stringify(request) }));
@@ -144,7 +153,7 @@ async function fixture(name: string, firstChoice = "read_selected_sources", seco
     if (response.headers.get("set-cookie")) cookie = response.headers.get("set-cookie")!.split(";")[0]!;
     return value;
   };
-  return { db, scope, config, projectRoot, now, tick, adapter, inputs, serializedRequests: script.serializedRequests, call, preview, credential, direction, continuity, preparationBytes: prepared.result.preparation_bytes, controls: script.controls, responseControls: script.responseControls, modelEnvironment: script.environment,
+  return { db, scope, config, projectRoot, now, tick, adapter, inputs, serializedRequests: script.serializedRequests, call, preview, credential, direction, continuity, preparationBytes: prepared?.result.preparation_bytes ?? 0, controls: script.controls, responseControls: script.responseControls, modelEnvironment: script.environment,
     host: (id: string, customAdapter = adapter) => new StatelessSourceReviewHost({ config, now, adapter: customAdapter }, id),
     get calls() { return script.calls; }, loseDispatch(error?: unknown) { script.controls.lose = true; if (error !== undefined) script.controls.transportError = error; },
     refreshSession() { const b = issueVNextLocalOperatorBootstrapV01(db, { config, clock: { now } }); const s = consumeVNextLocalOperatorBootstrapV01(db, { config, clock: { now }, bootstrap_token: b.bootstrap_token }); cookie = `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${s.cookie_value}`; },
@@ -258,7 +267,7 @@ async function directionDispositionContract() {
     const records = () => canonical({ packets: listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet"], limit: 128 }),
       directions: f.db.prepare("SELECT * FROM vnext_project_direction_records ORDER BY ref").all() });
     const before = records();
-    const linked = await f.call({ action: "prepare_linked_work", disposition: { run_id: lost.run.run_id,
+    const linked = await f.call({ action: "prepare_linked_work", expected_active_selection_revision: readActiveProjectSelectionV01(f.db, f.scope.workspace_id)!.selection_revision, disposition: { run_id: lost.run.run_id,
       disposition_fingerprint: ended.run.metadata.stateless_review_disposition.fingerprint }, material: replacementMaterial }, mode === "unchanged" ? 200 : 409);
     if (mode === "unchanged") {
       const packet = listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet"], limit: 128 }).find(r => r.record_id === linked.result.packet_id)!.payload as any;
@@ -291,7 +300,7 @@ async function dispositionContract() {
   await f.call({ action: "end_work", binding }, 401, { cookie: "" });
   await f.call({ action: "end_work", binding }, 409, {}, `project:${randomUUID()}`);
   await f.call({ action: "end_work", binding: { ...binding, generation: "another-controller" } }, 409);
-  await f.call({ action: "prepare_linked_work", disposition: { run_id: lost.run.run_id, disposition_fingerprint: hash("not-a-disposition") }, material: replacementMaterial }, 409);
+  await f.call({ action: "prepare_linked_work", expected_active_selection_revision: readActiveProjectSelectionV01(f.db, f.scope.workspace_id)!.selection_revision, disposition: { run_id: lost.run.run_id, disposition_fingerprint: hash("not-a-disposition") }, material: replacementMaterial }, 409);
   const active = readActiveProjectSelectionV01(f.db, f.scope.workspace_id)!;
   mutateProjectControlV01(f.db, { ...f.scope, action: "disable_automation", expected_active_project_id: f.scope.project_id, expected_active_selection_revision: active.selection_revision, expected_control_revision: 1 }, { now: f.now });
   f.tick(600_001); rmSync(path.join(f.projectRoot, "entry.ts"));
@@ -315,9 +324,9 @@ async function dispositionContract() {
   assert.equal(child.status, 0, child.stderr); assert.equal(JSON.parse(child.stdout.trim()).provider_calls, 0);
   const link = { run_id: lost.run.run_id, disposition_fingerprint: ended.run.metadata.stateless_review_disposition.fingerprint };
   renameSync(`${f.projectRoot}-offline`, f.projectRoot);
-  await f.call({ action: "prepare_linked_work", disposition: link, material: replacementMaterial }, 409);
+  await f.call({ action: "prepare_linked_work", expected_active_selection_revision: readActiveProjectSelectionV01(f.db, f.scope.workspace_id)!.selection_revision, disposition: link, material: replacementMaterial }, 409);
   writeFileSync(path.join(f.projectRoot, "entry.ts"), sourceText);
-  const linked = (await f.call({ action: "prepare_linked_work", disposition: link, material: replacementMaterial })).result;
+  const linked = (await f.call({ action: "prepare_linked_work", expected_active_selection_revision: readActiveProjectSelectionV01(f.db, f.scope.workspace_id)!.selection_revision, disposition: link, material: replacementMaterial })).result;
   assert.equal(f.calls, 1); assert.notEqual(linked.packet_id, f.preview.packet_id); assert.equal(linked.authorized, false);
   const saved = readProjectWorkInitializationV01(f.db, f.config);
   assert.equal(saved.current_packet?.packet_id, linked.packet_id); assert.equal(saved.current_packet?.lineage_kind, "stateless_review_replacement");
@@ -325,8 +334,8 @@ async function dispositionContract() {
   const packet = listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet"], limit: 128 }).find(r => r.record_id === linked.packet_id)!.payload as any;
   assert.equal(packet.capability_grant, null); assert.equal(statelessUnresolvedEntries(packet).length, 1);
   assert.ok(statelessUnresolvedEntries(packet)[0]!.bounded_summary!.includes("cost remain unknown"));
-  assert.equal((await f.call({ action: "prepare_linked_work", disposition: link, material: replacementMaterial })).result.packet_id, linked.packet_id);
-  await f.call({ action: "prepare_linked_work", disposition: link, material: { ...replacementMaterial, question: "Competing definition" } }, 409);
+  assert.equal((await f.call({ action: "prepare_linked_work", expected_active_selection_revision: readActiveProjectSelectionV01(f.db, f.scope.workspace_id)!.selection_revision, disposition: link, material: replacementMaterial })).result.packet_id, linked.packet_id);
+  await f.call({ action: "prepare_linked_work", expected_active_selection_revision: readActiveProjectSelectionV01(f.db, f.scope.workspace_id)!.selection_revision, disposition: link, material: { ...replacementMaterial, question: "Competing definition" } }, 409);
   assert.equal((await f.call()).preparation.packet_id, linked.packet_id);
   assert.equal(hasUnsettledAutonomyRunLedgerRecords({ db: f.db, scope: f.scope.project_id }), true, "The shared default does not settle or ignore disposed runs");
   assertStatelessUnsettledAdmission(f.db, f.scope, packet);
@@ -504,7 +513,7 @@ async function dispositionContract() {
     const inflight = host.read(); assert.ok(inflight.disposition_preparation);
     const end = (await late.call({ action: "end_work", binding: inflight.disposition_preparation!.binding })).result;
     const before = canonical(end.run.steps);
-    await late.call({ action: "prepare_linked_work", disposition: { run_id: authorized.run_id, disposition_fingerprint: end.run.metadata.stateless_review_disposition.fingerprint }, material: replacementMaterial });
+    await late.call({ action: "prepare_linked_work", expected_active_selection_revision: readActiveProjectSelectionV01(late.db, late.scope.workspace_id)!.selection_revision, disposition: { run_id: authorized.run_id, disposition_fingerprint: end.run.metadata.stateless_review_disposition.fingerprint }, material: replacementMaterial });
     const preview = (await late.call({ action: "preview", pricing })).authorization;
     const completed = (await late.call({ action: "authorize_and_run", authorization: preview })).result;
     assert.equal(completed.run.status, "completed"); const finished = canonical(completed.run);
@@ -729,7 +738,7 @@ async function terminalAuthorshipContract() {
     assert.equal(unknown.terminal_preparation, null);
     const ended = (await f.call({ action: "end_work", binding: unknown.disposition_preparation.binding })).result;
     const unknownSnapshot = canonical(ended.run);
-    await f.call({ action: "prepare_linked_work", disposition: { run_id: ended.run.run_id, disposition_fingerprint: ended.disposition_preparation.disposition.fingerprint },
+    await f.call({ action: "prepare_linked_work", expected_active_selection_revision: readActiveProjectSelectionV01(f.db, f.scope.workspace_id)!.selection_revision, disposition: { run_id: ended.run.run_id, disposition_fingerprint: ended.disposition_preparation.disposition.fingerprint },
       material: { question: "Inspect the selected trace before drawing a connection", files: [{ path: "entry.ts", start_line: 1, end_line: 2 }] } });
     f.controls.lose = false;
     f.controls.transform = (output, input) => { if (input.stage === "conclude") { output.recommendations[0].grounded_state_keys = ["wrong-anchor"]; output.recommendations[0].rationale = "REJECTED_PUBLIC_JUDGMENT_NOT_SELECTED: a controlled response, not a finding."; } };
@@ -1077,7 +1086,7 @@ async function observationCheckpointContract() {
 async function main() {
   try {
     if (["--durable-work", "--durable-work-baseline"].includes(process.argv[2]!)) {
-      await durableWorkContract(fixture, root, process.argv[2] === "--durable-work-baseline");
+      await durableWorkContract((name, restored) => fixture(name, "read_selected_sources", "use_observation", false, "gpt-4.1-mini", restored), root, process.argv[2] === "--durable-work-baseline");
       assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0); return;
     }
     if (process.argv[2] === "--observation-checkpoint") {

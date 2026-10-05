@@ -70,7 +70,7 @@ async function main() {
  source.loss(true); const lost = (await source.call("review", { action: "authorize_and_run", authorization: oldGrant })).result;
  assert.equal(lost.run.metadata.reconciliation_required, true);
  const ended = (await source.call("review", { action: "end_work", binding: lost.disposition_preparation.binding })).result;
- await source.call("review", { action: "prepare_linked_work", disposition: { run_id: lost.run.run_id, disposition_fingerprint: ended.run.metadata.stateless_review_disposition.fingerprint }, material });
+ await source.call("review", { action: "prepare_linked_work", expected_active_selection_revision: ended.disposition_preparation.expected_active_selection_revision, disposition: { run_id: lost.run.run_id, disposition_fingerprint: ended.run.metadata.stateless_review_disposition.fingerprint }, material });
  source.loss(false); const grant = (await source.call("review", { action: "preview", pricing })).authorization;
  const completed = (await source.call("review", { action: "authorize_and_run", authorization: grant })).result;
  assert.equal(completed.run.status, "completed"); await successor(source, completed.receipt); source.control(false);
