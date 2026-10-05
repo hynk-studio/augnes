@@ -31,6 +31,7 @@ import { insertVNextCoreRecordV01 } from "../lib/vnext/persistence/durable-seman
 import { admitStructuredRunReceiptV01 } from "../lib/vnext/persistence/structured-run-receipt-admission";
 import {
   readActiveProjectSelectionV01,
+  readProjectSelectionStateV02,
   selectActiveProjectV01,
   touchRecentProjectV01,
 } from "../lib/vnext/persistence/project-lifecycle-registry";
@@ -294,7 +295,7 @@ export function admitProjectExperienceRenderedStateV1(input: {
       project_id: input.manifest.project_id,
       now: input.admitted_at,
     });
-    const active = readActiveProjectSelectionV01(
+    const active = readProjectSelectionStateV02(
       database,
       input.manifest.workspace_id,
     );

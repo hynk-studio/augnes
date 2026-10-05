@@ -1,3 +1,4 @@
+import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import { assertExpectedPacketDirection, ProjectDirectionError } from "../persistence/project-direction-store";
 import { inspectCurrentOrdinarySuccessorRevisionChainV01, assertOrdinarySuccessorRevisionRootV01, ordinarySuccessorRevisionExecutionBlockedV01, saveOrdinarySuccessorRevisionInsideTransactionV01 } from "./authored-successor-revision";
 import { AUTHORED_SUCCESSOR_CONTEXT_V01 } from "@/types/vnext/project-work-initialization";
@@ -118,8 +119,7 @@ export function readProjectWorkRevisionEligibilityStrictV01(
   }
   if (
     active?.project_id !== input.project_id ||
-    !Number.isSafeInteger(active.selection_revision) ||
-    active.selection_revision < 1
+    !isHistoricalProjectSelectionRevision(active.selection_revision)
   ) {
     return eligibilityV01(input, {
       ...activeBinding,
@@ -583,8 +583,7 @@ export function parseProjectWorkRevisionRequestV01(value: unknown): RevisePreExe
     typeof request.workspace_id !== "string" ||
     typeof request.project_id !== "string" ||
     typeof request.expected_active_project_id !== "string" ||
-    !Number.isSafeInteger(request.expected_active_selection_revision) ||
-    Number(request.expected_active_selection_revision) < 1 ||
+    !isHistoricalProjectSelectionRevision(request.expected_active_selection_revision) ||
     typeof request.expected_current_packet_id !== "string" ||
     typeof request.expected_current_packet_fingerprint !== "string" ||
     !/^sha256:[a-f0-9]{64}$/u.test(

@@ -1,3 +1,4 @@
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 export const CODEX_CURRENT_CONTINUITY_VERSION_V01 =
   "codex_current_continuity.v0.1" as const;
 export const CODEX_CURRENT_CONTINUITY_SNAPSHOT_VERSION_V01 =
@@ -166,7 +167,7 @@ export interface CodexCurrentContinuityV01 {
     project_key: string | null;
     display_name: string | null;
     active: boolean;
-    selection_revision: number | null;
+    selection_revision: ProjectSelectionRevision | null;
     root_availability:
       | "available"
       | "missing"

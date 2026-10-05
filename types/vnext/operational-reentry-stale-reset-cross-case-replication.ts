@@ -1,3 +1,4 @@
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import type { ExternalRefV01 } from "./external-ref";
 import type {
   ModelGatewayCostBudgetV01,
@@ -346,7 +347,7 @@ export interface OperationalReentryStaleResetCrossCaseAuthorizationV01 {
   authorized_origin: "https://github.com/hynk-studio/augnes.git";
   workspace_id: string;
   project_id: string;
-  expected_active_selection_revision: number;
+  expected_active_selection_revision: ProjectSelectionRevision;
   project_root_fingerprint: string;
   gateway_authorization_project_is_lab_experiment_meaning: false;
   case_id: OperationalReentryStaleResetCrossCaseIdV01;

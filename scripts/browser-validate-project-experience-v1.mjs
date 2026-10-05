@@ -2710,6 +2710,7 @@ async function main() {
     assert.equal(staleOpen.body.error_code, "active_selection_conflict");
     result.folder_onboarding_stale_active_conflict = true;
     completeDetailedField("folder_onboarding_stale_active_conflict");
+    await validateSavedProjectDiscoveryV02({ fixture, manifest, projectAlphaId, projectAlphaDestination });
     result.folder_onboarding_restart_reopen = true;
     completeDetailedField("folder_onboarding_restart_reopen");
 
@@ -3452,6 +3453,88 @@ async function terminateRuntime() {
   serverProcessRecord = null;
   serverClosePromise = null;
   serverPublicDiagnosticCapture = null;
+}
+
+async function validateSavedProjectDiscoveryV02({ fixture, manifest, projectAlphaId, projectAlphaDestination }) {
+  // Ordinary human rediscovery uses the existing management controls. Keep
+  // the removed identity and all historical bytes through a fresh runtime.
+  await navigate(`${appOrigin}${projectAlphaDestination}#project-settings`);
+  await waitForCondition(`document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null && document.querySelector('#project-management') !== null`, "saved project management ready");
+  const registeredBefore = await browserFetchJson('/api/vnext/projects?view=registered');
+  assert.equal(registeredBefore.status,200);
+  const alphaBefore = registeredBefore.body.projects.find(entry => entry.project.project_id === projectAlphaId);
+  assert(alphaBefore);
+  const historyDatabase = new Database(fixture.writable_database_path, {readonly:true,fileMustExist:true});
+  const historyRows = () => historyDatabase.prepare("SELECT record_id,fingerprint,payload_json FROM vnext_core_records WHERE project_id=? ORDER BY record_id").all(projectAlphaId);
+  const historyBefore = historyRows();
+  try {
+    const alphaRecentSelector = `#recent-projects li:has(strong)`;
+    await evaluateBoolean(`(() => { const row = [...document.querySelectorAll(${JSON.stringify(alphaRecentSelector)})].find(row => row.querySelector('strong').textContent === ${JSON.stringify(alphaBefore.project.display_name)}); const button=[...row.querySelectorAll('button')].find(b=>b.textContent==='Remove from recents'); button.click(); return true; })()`);
+    await waitForCondition(`document.querySelector('[role="dialog"]')?.textContent.includes('Stored project data and local files are not deleted') === true`, "data-preserving removal confirmation");
+    await clickButtonByText('Cancel','[role="dialog"]');
+    assert((await readRecentProjectsInBrowser()).recent_projects.some(entry=>entry.project.project_id===projectAlphaId));
+    await evaluateBoolean(`(() => { const row = [...document.querySelectorAll('#recent-projects li')].find(row => row.querySelector('strong').textContent === ${JSON.stringify(alphaBefore.project.display_name)}); [...row.querySelectorAll('button')].find(b=>b.textContent==='Remove from recents').click(); return true; })()`);
+    await clickButtonByText('Remove from recents','[role="dialog"]');
+    // firstOpen deliberately changed the selection after this document was
+    // rendered. A fragment navigation does not refresh its held observation.
+    await waitForCondition(`document.querySelector('[role="dialog"] [role="alert"]')?.textContent.includes('The current project changed') === true`, "held removal observation refuses after selection changed");
+    assert((await readRecentProjectsInBrowser()).recent_projects.some(entry=>entry.project.project_id===projectAlphaId));
+    assert.deepEqual(historyRows(),historyBefore);
+    await clickButtonByText('Cancel','[role="dialog"]');
+    await navigate(`${appOrigin}/`);
+    await waitForCondition(`location.pathname === '/'`, "fresh management document after stale removal");
+    await navigate(`${appOrigin}${projectAlphaDestination}#project-settings`);
+    await waitForCondition(`document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null && location.pathname === ${JSON.stringify(projectAlphaDestination)}`, "fresh removal observation ready");
+    await evaluateBoolean(`(() => { const row = [...document.querySelectorAll('#recent-projects li')].find(row => row.querySelector('strong').textContent === ${JSON.stringify(alphaBefore.project.display_name)}); [...row.querySelectorAll('button')].find(b=>b.textContent==='Remove from recents').click(); return true; })()`);
+    await clickButtonByText('Remove from recents','[role="dialog"]');
+    await waitForCondition(`document.querySelector('[role="dialog"]') === null && document.body.textContent.includes('Use Find saved projects to reopen it')`, "removed shortcut retains discovery route");
+    assert(!(await readRecentProjectsInBrowser()).recent_projects.some(entry=>entry.project.project_id===projectAlphaId));
+    await restartRuntime(fixture.writable_database_path,manifest,projectAlphaId);
+    await navigate(`${appOrigin}/#project-settings`);
+    await waitForCondition(`document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null && document.querySelector('#registered-projects button:not(:disabled)') !== null`, "fresh-process saved project entry");
+    await clickButtonByText('Find saved projects','#registered-projects');
+    await waitForCondition(`document.querySelector('[data-saved-project="${projectAlphaId}"]')?.textContent.includes('Not in recents') === true`, "removed project rediscovered");
+    const rediscovered = await browserFetchJson('/api/vnext/projects?view=registered');
+    const same = rediscovered.body.projects.find(entry=>entry.project.project_id===projectAlphaId);
+    assert.deepEqual(same.project,alphaBefore.project); assert.deepEqual(same.local_root,alphaBefore.local_root);
+    await clickButtonByText('Make current and open',`[data-saved-project="${projectAlphaId}"]`);
+    await waitForCondition(`location.pathname === ${JSON.stringify(projectAlphaDestination)} && document.querySelector('[data-blank-state-active="true"]') !== null`, "same saved project reopened");
+    assert.deepEqual(historyRows(),historyBefore,"remove, restart and rediscovery preserve historical bytes and fingerprints");
+    const staleAfterClear = await browserFetchJson('/api/vnext/projects',{method:'POST',explicitBody:{action:'open',project_id:projectAlphaId,expected_project_id:alphaBefore.active_project_id,expected_revision:alphaBefore.active_selection_revision}});
+    assert.equal(staleAfterClear.status,409);
+    console.log(JSON.stringify({human_saved_project_discovery:'pass',fresh_process:true,identity_root_history_preserved:true,remove_cancel_preserved:true,stale_removal_preserved:true,stale_clear_reopen_refused:true,rediscovery_actions_from_management:2,provider_calls:0}));
+  } finally { historyDatabase.close(); }
+  const agentRoot=path.join(tempRoot,"Agent-created saved project");mkdirSync(agentRoot);
+  // The home surface links to protected review; its authentication form is
+  // owned by that route, not the project-management page.
+  await navigate(`${appOrigin}/workbench/semantic-review`);
+  await authenticateCurrentPage(fixture.writable_database_path,manifest,projectAlphaId);
+  const allowedDirection={purpose:"Inspect a disposable source question",criteria:[],constraints:[]};
+  const policy=await browserFetchJson(`/api/vnext/operator/project-direction?project_id=${encodeURIComponent(projectAlphaId)}`,{method:'POST',explicitBody:{action:'authorize_agent',role:'role:discovery-fixture',allowed_directions:[allowedDirection],max_mutations:1,expires_in_minutes:10,creation_slots:[{root:agentRoot,display_name:'Agent-created saved project',delegation:null}]}});
+  assert.equal(policy.status,200);
+  // The deterministic agent uses the real bearer transport; the credential
+  // stays in memory and is never copied into the browser URL or evidence.
+  const createdResponse=await fetch(`${appOrigin}/api/vnext/agent/project-direction`,{method:'POST',headers:{host:new URL(appOrigin).host,origin:appOrigin,'content-type':'application/json',authorization:`Bearer ${policy.body.credential}`},body:JSON.stringify({sequence:0,project_id:null,operation:{action:'create_project',slot:0,content:allowedDirection,reason:'Disposable rediscovery exercise'}})});
+  assert.equal(createdResponse.status,200);
+  const created=await createdResponse.json();
+  const beforeAgentOpen=await readRecentProjectsInBrowser();
+  assert.equal(beforeAgentOpen.recent_projects.find(entry=>entry.is_active).project.project_id,projectAlphaId);
+  assert(!beforeAgentOpen.recent_projects.some(entry=>entry.project.project_id===created.project_id));
+  await cdp.send('Network.clearBrowserCookies');
+  await navigate(`${appOrigin}/#project-settings`);
+  await waitForCondition(`document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null && document.querySelector('#registered-projects button:not(:disabled)') !== null`,"agent-created project discovery entry");
+  await clickButtonByText('Find saved projects','#registered-projects');
+  await waitForCondition(`document.querySelector('[data-saved-project="${created.project_id}"]')?.textContent.includes('Not in recents') === true`,"human discovers agent-created project");
+  await clickButtonByText('Make current and open',`[data-saved-project="${created.project_id}"]`);
+  await waitForCondition(`document.querySelector('[data-project-context-label="Current project"]')?.textContent.includes('Agent-created saved project') === true`,"human opens same agent-created identity");
+  assert.equal((await readRecentProjectsInBrowser()).recent_projects.find(entry=>entry.is_active).project.project_id,created.project_id);
+  await navigate(`${appOrigin}/#project-settings`);
+  await waitForCondition(`document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null && document.querySelector('#registered-projects button:not(:disabled)') !== null`,"return to saved projects");
+  await clickButtonByText('Find saved projects','#registered-projects');
+  await waitForCondition(`document.querySelector('[data-saved-project="${projectAlphaId}"]') !== null`,"original project remains discoverable");
+  await clickButtonByText('Make current and open',`[data-saved-project="${projectAlphaId}"]`);
+  await waitForCondition(`location.pathname === ${JSON.stringify(projectAlphaDestination)}`,"return to original identity");
+  console.log(JSON.stringify({human_opens_agent_created_project:'pass',agent_creation_human_focus_recents_unchanged:true,agent_client:'deterministic_authenticated_transport',provider_calls:0}));
 }
 
 async function authenticateCurrentPage(databasePath, manifest, projectId) {

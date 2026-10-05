@@ -883,7 +883,7 @@ function continuityV01(value) {
   booleanV01(value.project.active);
   nullableStringV01(value.project.display_name);
   nullableStringV01(value.project.project_key);
-  nullableIntegerV01(value.project.selection_revision);
+  if (!(typeof value.project.selection_revision === "string" && /^selection:[0-9a-f]{32}$/u.test(value.project.selection_revision))) nullableIntegerV01(value.project.selection_revision);
   stringV01(value.project.root_availability);
   stringV01(value.project.status);
   exactObjectV01(value.current_work, ["currentness", "goal", "lineage_kind", "non_goals", "revision_blocker", "revision_eligible", "start_blocker", "start_eligible", "status", "success_criteria", ...(value.current_work.previous_preparation ? ["previous_preparation"] : [])], "current work");

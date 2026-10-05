@@ -625,6 +625,31 @@ or non-Mac acceptance. Finite operation budgets and original independent limits
 remain explicit. Exact-head Canonical evidence, preserved failures and completed
 owned cleanup establish bounded correctness, not unlimited scale or usefulness.
 
+### Native project discovery and selection freshness (#1399)
+
+Distinguish the predecessor's actual recent-only handler observation and stale
+write acceptance from source inspection of alternate paths. The existing folder
+connection and delegated-project display are not missing features. Measure the
+new ordinary find/open journey separately: from project management it takes two
+actions for a first-page available project, plus explicit continuation when
+needed. This fixture count is not a broad usefulness or live-agent claim.
+
+Use disposable identity/root history and real human controls for removal,
+cancellation, discovery, same-identity reopen and fresh runtime readback. Check
+unavailable roots through the existing recovery owner. Exercise real authenticated
+agent handlers and a fresh deterministic process, including unrelated projects,
+wrong principals, expiry, revocation, exhausted writes and unchanged human focus.
+Cover first/later page loss and selection drift; partial history is not absence.
+Check A → B → A, A → none → A, none → A → none, concurrent requests and rollback
+of related recency/identity writes. Exact supported predecessor-store migration,
+unchanged history, old-observation refusal and recovery/portable readers qualify
+compatibility. Preserve failed attempts and require a new exact clean HEAD's
+planner-selected evidence; predecessor receipts cannot qualify this source.
+Portable import creates independent selection authority. Keep the existing RC1
+exact comparison's selection/snapshot mismatch visible as `non_conformant`, while
+checking every historical record and relational result separately. Do not copy
+the source selection token or normalize the difference away to obtain equality.
+
 ### Prospective preparation and event/time re-entry
 
 For [#1380](https://github.com/hynk-studio/augnes/issues/1380), keep three evidence

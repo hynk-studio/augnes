@@ -236,6 +236,51 @@ Repository
 
 ### 2.5 canonical project identity and mutable display label
 
+Native registered-project discovery (#1399) reads the existing canonical identity
+and root registry. Recent membership, browser selection and project direction are
+separate. Human discovery returns at most 20 entries / 1 MiB per request, with an
+explicit continuation over the captured identity range. A mandatory SQL summary
+and lookahead distinguish completion from partial observation. Changed selection,
+missing results or changed returned identity/root refuse the page; refresh starts
+a new observation. Missing roots remain discoverable and cannot be rebound by a
+read or ordinary open. No archive state or project-erasure operation is added.
+
+`active_project_selection.v0.2` retains a row when selection becomes empty and
+uses an opaque `selection:` revision. Every select or active clear replaces that
+durable revision. Selection-dependent mutations compare both project (including
+null) and revision atomically, including related identity/recency effects. The
+forward migration assigns fresh revisions to all existing workspaces, preserving
+the selected project or empty state. Old counters were discarded on clear, so
+neither old numeric observations nor pre-upgrade empty observations can authorize
+current writes. Historical packets retain their numeric observations, original
+request references, bytes and fingerprints; reconstruction accepts both forms.
+Existing prepared selections and clients must refresh after upgrade. Older
+binaries cannot consume the new store schema; recovery uses the existing backup
+and staged migration owner, not a backward rewrite of history.
+Portable import likewise creates a fresh local selection revision and therefore
+a different live continuity snapshot. The existing RC1 exact comparer retains
+that difference as `non_conformant`; it does not normalize it into exact equality.
+Canonical historical bytes and the separate relational comparison remain
+independently checked. This does not transfer source selection authority.
+Explicit hosted snapshot exports carry the opaque observation under the local
+projection contract. The prior numeric fictional fixture stays byte-identical;
+earlier private Site qualification does not qualify this new field shape. Hosted
+consumer compatibility remains a separate, unperformed qualification.
+
+Agent rediscovery reuses project-direction authentication and the exact existing
+project scope check in one database snapshot. It considers only explicit project
+IDs, exact continuations and attributable decisions for the current grant. The
+existing four-project, two-continuation, two-creation-slot and twenty-mutation
+bounds make this a complete catalog of at most eight candidates, with a 256 KiB
+project response bound; incomplete observations refuse. A missing decision or
+revocation row in the existing direction reader cannot prove current scope or
+continued authority. Its mandatory count preserves the existing 512-record
+direction-history refusal bound. Credential expiry,
+revocation, principal, direction/parent currentness, mutation sequence and budgets
+remain independent. Reading an exhausted write capability does not replenish it.
+Discovery changes no selection, recency, creation-slot consumption, direction,
+Core state, execution permission or automation.
+
 `ProjectIdentityV01`의 canonical identity는 `workspace_id`, `project_id`,
 `project_identity_version`, `identity_kind`, `identity_source`, `created_at`으로
 구성되며 이 필드들은 immutable이다. 기존

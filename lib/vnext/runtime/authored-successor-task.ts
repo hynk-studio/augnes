@@ -1,3 +1,5 @@
+import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import { readProjectWorkPacketHistoryV01 } from "./project-work-packet-history";
 import { statelessMandatoryEntries } from "../stateless-work";
 import { assertStatelessUnsettledAdmission, statelessUnresolvedEntries } from "./stateless-review-disposition";
@@ -142,7 +144,7 @@ export interface DefineAuthoredSuccessorTaskRequestV01 {
   expected_current_packet_fingerprint: string;
   expected_latest_receipt_id: string;
   expected_latest_receipt_fingerprint: string;
-  expected_active_selection_revision: number;
+  expected_active_selection_revision: ProjectSelectionRevision;
   expected_root_fingerprint: string;
   expected_direction_ref?: string | null;
   definition: AuthoredSuccessorTaskDefinitionV01;
@@ -176,7 +178,7 @@ function parseRequest(value: unknown): DefineAuthoredSuccessorTaskRequestV01 {
   check(equal(Object.keys(r).sort(), ["action", "definition", "expected_active_selection_revision", "expected_current_packet_fingerprint",
     "expected_current_packet_id", "expected_latest_receipt_fingerprint", "expected_latest_receipt_id", "expected_root_fingerprint", ...(r.expected_direction_ref !== undefined ? ["expected_direction_ref"] : []), ...(r.revalidation !== undefined ? ["revalidation"] : []), ...(r.selected_sources !== undefined ? ["selected_sources"] : [])].sort()), "request_fields");
   check(r.expected_direction_ref === undefined || r.expected_direction_ref === null || /^sha256:[a-f0-9]{64}$/u.test(r.expected_direction_ref), "direction_binding_invalid");
-  check(r.action === ACTION && Number.isSafeInteger(r.expected_active_selection_revision) && r.expected_active_selection_revision > 0 &&
+  check(r.action === ACTION && isHistoricalProjectSelectionRevision(r.expected_active_selection_revision) &&
     /^task-context-packet:[a-f0-9]+$/u.test(r.expected_current_packet_id) && /^run-receipt:[a-f0-9]+$/u.test(r.expected_latest_receipt_id) &&
     [r.expected_current_packet_fingerprint, r.expected_latest_receipt_fingerprint, r.expected_root_fingerprint].every(v => /^sha256:[a-f0-9]{64}$/u.test(v)), "request_binding");
   if (r.revalidation !== undefined) check(r.revalidation &&

@@ -1445,6 +1445,10 @@ function databaseTableExistsV01(
 function currentProductReaderSchemaAvailableV01(
   db: Database.Database,
 ): boolean {
+  // Exact supported legacy stores are checked again after the selection upgrade.
+  // Their numeric observations cannot be interpreted by current live readers.
+  const selectionTable = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='vnext_active_project_selections'").get() as { sql: string } | undefined;
+  if (selectionTable && !selectionTable.sql.includes("active_project_selection.v0.2")) return false;
   // The exact pre-F1 Core table cannot satisfy the new protected-reader schema
   // assertion until migrated. Record/relation validation still runs here;
   // bootstrap separately admits only exact supported whole-schema signatures

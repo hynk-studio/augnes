@@ -7,7 +7,7 @@ import {
   ProjectIdentityRegistryErrorV01,
   readDefaultWorkspaceIdentityV01,
 } from "@/lib/vnext/persistence/project-identity-registry";
-import { readActiveProjectSelectionV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
+import { readProjectSelectionStateV02 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import { readProjectContinuityPinProjectionV01 } from "@/lib/vnext/persistence/project-continuity-pin-store";
 import {
   ProjectHomeProjectionErrorV01,
@@ -67,7 +67,7 @@ export async function readBlankStateSourceV01(
   const recentProjects = await listRecentProjectsV01(db);
   const workspace = readDefaultWorkspaceIdentityV01(db);
   const activeSelection = workspace
-    ? readActiveProjectSelectionV01(db, workspace.workspace_id)
+    ? readProjectSelectionStateV02(db, workspace.workspace_id)
     : null;
   const requestedProjectId = input.requested_project_id ?? null;
   const targetProjectId = input.route_mode === "viewed_project"
@@ -79,6 +79,7 @@ export async function readBlankStateSourceV01(
       route_mode: input.route_mode,
       requested_project_id: requestedProjectId,
       active_project_id: activeSelection?.project_id ?? null,
+      active_selection_revision: activeSelection?.selection_revision ?? null,
       recent_projects: recentProjects,
       projection: null,
       project_resolution: "none",
@@ -149,6 +150,7 @@ export async function readBlankStateSourceV01(
     route_mode: input.route_mode,
     requested_project_id: requestedProjectId,
     active_project_id: activeSelection?.project_id ?? null,
+    active_selection_revision: activeSelection?.selection_revision ?? null,
     recent_projects: recentProjects,
     projection,
     project_resolution: projection ? "resolved" : projectResolution,

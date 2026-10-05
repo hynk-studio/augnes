@@ -26,6 +26,7 @@ import {
 import {
   readActiveProjectSelectionV01,
   selectActiveProjectV01,
+  readProjectSelectionStateV02,
   touchRecentProjectV01,
 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import {
@@ -619,7 +620,7 @@ export function importPortableProjectV01(
         project_id: portablePackage.manifest.project.project_id,
         now: importedAt,
       });
-      const active = readActiveProjectSelectionV01(
+      const active = readProjectSelectionStateV02(
         db,
         portablePackage.manifest.workspace.workspace_id,
       );

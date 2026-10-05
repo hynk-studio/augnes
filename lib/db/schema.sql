@@ -4359,17 +4359,25 @@ CREATE INDEX IF NOT EXISTS idx_vnext_recent_projects_workspace_opened
   ON vnext_recent_projects(workspace_id, last_opened_at DESC, project_id);
 
 CREATE TABLE IF NOT EXISTS vnext_active_project_selections (
-  workspace_id TEXT PRIMARY KEY,
-  project_id TEXT NOT NULL,
-  active_project_selection_version TEXT NOT NULL CHECK (
-    active_project_selection_version = 'active_project_selection.v0.1'
-  ),
-  selection_revision INTEGER NOT NULL CHECK (selection_revision > 0),
-  selected_at TEXT NOT NULL CHECK (length(trim(selected_at)) > 0),
-  FOREIGN KEY (workspace_id, project_id)
-    REFERENCES vnext_project_identities(workspace_id, project_id)
-    ON UPDATE RESTRICT ON DELETE RESTRICT
-);
+    workspace_id TEXT PRIMARY KEY,
+    project_id TEXT,
+    active_project_selection_version TEXT NOT NULL CHECK (
+      active_project_selection_version = 'active_project_selection.v0.2'
+    ),
+    selection_revision TEXT NOT NULL CHECK (
+      length(selection_revision) = 42 AND substr(selection_revision, 1, 10) = 'selection:'
+      AND substr(selection_revision, 11) NOT GLOB '*[^0-9a-f]*'
+    ),
+    selected_at TEXT NOT NULL CHECK (length(trim(selected_at)) > 0),
+    FOREIGN KEY (workspace_id) REFERENCES vnext_workspace_identities(workspace_id)
+      ON UPDATE RESTRICT ON DELETE RESTRICT,
+    FOREIGN KEY (workspace_id, project_id)
+      REFERENCES vnext_project_identities(workspace_id, project_id)
+      ON UPDATE RESTRICT ON DELETE RESTRICT
+  );
+  CREATE TRIGGER IF NOT EXISTS trg_vnext_project_selection_retain
+    BEFORE DELETE ON vnext_active_project_selections
+    BEGIN SELECT RAISE(ABORT, 'project_selection_delete_refused'); END;
 
 CREATE TABLE IF NOT EXISTS vnext_project_automation_controls (
   workspace_id TEXT NOT NULL,
@@ -4608,6 +4616,8 @@ CREATE TABLE IF NOT EXISTS vnext_project_direction_records (
 );
 CREATE INDEX IF NOT EXISTS idx_vnext_project_direction_scope
   ON vnext_project_direction_records(workspace_id,project_id,kind,recorded_at,ordinal);
+CREATE INDEX IF NOT EXISTS idx_vnext_project_direction_authority
+  ON vnext_project_direction_records(workspace_id,json_extract(body_json,'$.authority_ref'),kind,ordinal);
 CREATE TRIGGER IF NOT EXISTS trg_vnext_project_direction_update
   BEFORE UPDATE ON vnext_project_direction_records BEGIN SELECT RAISE(ABORT,'project_direction_immutable'); END;
 CREATE TRIGGER IF NOT EXISTS trg_vnext_project_direction_delete

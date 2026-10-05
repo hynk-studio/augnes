@@ -1,3 +1,4 @@
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import type {
   BlankStateAttentionCategoryV01,
   BlankStateFocusV01,
@@ -245,7 +246,7 @@ export interface ProjectGuideBriefV02 {
     project_display_name: string | null;
     project_context: ProjectGuideBriefProjectContextV02;
     active_project_id: string | null;
-    active_selection_revision: number | null;
+    active_selection_revision: ProjectSelectionRevision | null;
     root_resolution: "none" | "available" | "unavailable" | "not_found";
   };
   source_status: ProjectGuideBriefSourceStatusV02;

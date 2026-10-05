@@ -1,5 +1,7 @@
 #!/usr/bin/env node
+import { differentSelectionRevision } from "./test-selection-observation";
 import assert from "node:assert/strict";
+import { testProjectManagement } from "./test-project-management";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, renameSync, symlinkSync, unlinkSync } from "node:fs";
 import { open as openFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -223,6 +225,7 @@ async function rebindWithBrowserDecisionV01(
 }
 
 async function main() {
+  await testProjectManagement();
 try {
   assert.deepEqual(
     parseLocalProjectPathDeclarationV01(declaredDarwinUnicodePath, {
@@ -1846,7 +1849,10 @@ try {
   assert.equal(JSON.stringify(db.prepare("SELECT * FROM vnext_recent_projects ORDER BY workspace_id, project_id").all()), recencyBeforeStaleRemoval);
   currentActiveSnapshot = activeSnapshot(await listRecentProjectsV01(db));
   const removed = removeProjectFromRecentV01(db, { project_id: confirmedA.project.project_id, ...currentActiveSnapshot });
-  assert.deepEqual(removed, { removed: true, project_data_preserved: true });
+  assert.equal(removed.removed, true);
+  assert.equal(removed.project_data_preserved, true);
+  assert.equal(removed.selection?.project_id, null);
+  assert.equal(typeof removed.selection?.selection_revision, "string");
   assert(await readProjectDestinationV01(db, confirmedA.project.project_id));
   assert.equal((await listRecentProjectsV01(db)).some((entry) => entry.is_active), false);
 
@@ -1856,7 +1862,7 @@ try {
   await assert.rejects(openRecentProjectV01(db, {
     project_id: confirmedA.project.project_id,
     expected_project_id: null,
-    expected_revision: null,
+    expected_revision: removed.selection!.selection_revision,
   }), /project_root_unavailable/);
   writeFileSync(folderA, "not a directory");
   assert.equal(await readRootAvailabilityV01(folderA), "not_directory");
@@ -1884,7 +1890,7 @@ try {
         fingerprintProjectRootBindingV01(staleDestination.root_binding),
       expected_old_baseline_fingerprint: staleBaseline.baseline_fingerprint,
       expected_active_project_id: null,
-      expected_active_selection_revision: null,
+      expected_active_selection_revision: removed.selection!.selection_revision,
     },
     { open_database: open, now: () => "2026-07-15T00:04:20.000Z" },
   );
@@ -1894,7 +1900,7 @@ try {
   await openRecentProjectV01(db, {
     project_id: confirmedB.project.project_id,
     expected_project_id: null,
-    expected_revision: null,
+    expected_revision: removed.selection!.selection_revision,
     now: "2026-07-15T00:04:30.000Z",
   });
   const rowsBeforeNullConflict = JSON.stringify({
@@ -1915,6 +1921,14 @@ try {
     recent: db.prepare("SELECT * FROM vnext_recent_projects ORDER BY workspace_id, project_id").all(),
     active: db.prepare("SELECT * FROM vnext_active_project_selections ORDER BY workspace_id").all(),
   }), rowsBeforeNullConflict, "null-to-project conflicts must leave no partial rows");
+  // Return to the same empty selection captured by staleRecovery. The old
+  // implementation deleted that observation, so this used to match again.
+  const removedBForRecovery = removeProjectFromRecentV01(db, {
+    project_id: confirmedB.project.project_id,
+    ...activeSnapshot(await listRecentProjectsV01(db)),
+  });
+  assert.equal(removedBForRecovery.selection?.project_id, null);
+  assert.notEqual(removedBForRecovery.selection?.selection_revision, removed.selection!.selection_revision);
   const stateBeforeStaleRebind = JSON.stringify({
     roots: db.prepare("SELECT * FROM vnext_project_root_bindings ORDER BY workspace_id, project_id").all(),
     refs: db.prepare("SELECT * FROM vnext_project_external_ref_bindings ORDER BY workspace_id, project_id, ref_fingerprint").all(),
@@ -1938,7 +1952,13 @@ try {
   }), stateBeforeStaleRebind, "stale rebind must roll back root, recency, refs, and active state");
   assert.equal(readFileSync(path.join(`${folderA}.missing`, ".git", "config"), "utf8"), oldFolderConfigBeforeRecovery);
   assert.deepEqual(readdirSync(folderA2).sort(), replacementContentsBeforeRecovery);
-  assert.equal((await listRecentProjectsV01(db)).find((entry) => entry.is_active)?.project.project_id, confirmedB.project.project_id);
+  assert.equal((await listRecentProjectsV01(db)).some((entry) => entry.is_active), false);
+  await openRecentProjectV01(db, {
+    project_id: confirmedB.project.project_id,
+    expected_project_id: null,
+    expected_revision: removedBForRecovery.selection!.selection_revision,
+    now: "2026-07-15T00:04:55.000Z",
+  });
 
   const recoveryActive = activeSnapshot(await listRecentProjectsV01(db));
   process.env.AUGNES_TEST_FOLDER_PICKER_PATH = folderA2;
@@ -2969,12 +2989,12 @@ try {
     expected_project_id: activeForRoute.expected_project_id,
   })));
   assert.equal(missingRevisionResponse.status, 400, "Open must require the complete active-selection snapshot");
-  assert(activeForRoute.expected_revision && activeForRoute.expected_revision > 1);
+  assert.equal(typeof activeForRoute.expected_revision, "string");
   const staleRevisionResponse = await projectRoutePost(routeRequest(JSON.stringify({
     action: "open",
     project_id: confirmedB.project.project_id,
     expected_project_id: activeForRoute.expected_project_id,
-    expected_revision: activeForRoute.expected_revision - 1,
+    expected_revision: differentSelectionRevision(activeForRoute.expected_revision!),
   })));
   assert.equal(staleRevisionResponse.status, 409);
   assert.equal((await staleRevisionResponse.json() as { error_code: string }).error_code, "active_selection_conflict");

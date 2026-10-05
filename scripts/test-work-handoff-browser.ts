@@ -1,3 +1,4 @@
+import { readActiveProjectSelectionV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
@@ -104,7 +105,7 @@ async function main() {
   assert.equal(received.workspace_id, config.workspace_id); assert.notEqual(received.project_id, snapshot.source.project_id);
   await http(reviewEndpoint, { action: "authorize_and_run", authorization: oldGrant }, 409); assert.equal(calls, 0);
   // Exact duplicate acknowledges only this unchanged immediate first work.
-  const previewRequest = { action: "define_initial_project_work", workspace_id: config.workspace_id, project_id: config.project_id, expected_active_project_id: config.project_id, expected_active_selection_revision: 1, expected_initialization_state: "not_defined", ...snapshot.task, handoff: { snapshot, expected_root_fingerprint: (await import("../lib/vnext/runtime/stateless-source-review")).rootBinding(db, config).fingerprint, expected_direction_ref: null } };
+  const previewRequest = { action: "define_initial_project_work", workspace_id: config.workspace_id, project_id: config.project_id, expected_active_project_id: config.project_id, expected_active_selection_revision: readActiveProjectSelectionV01(db, config.workspace_id)!.selection_revision, expected_initialization_state: "not_defined", ...snapshot.task, handoff: { snapshot, expected_root_fingerprint: (await import("../lib/vnext/runtime/stateless-source-review")).rootBinding(db, config).fingerprint, expected_direction_ref: null } };
   await http(endpoint, { action: "receive", request: { ...previewRequest, goal: "Changed after preview" }, expected_preview: handoffHash(previewRequest) }, 409);
   const duplicate = await http(endpoint, { action: "receive", request: previewRequest, expected_preview: handoffHash(previewRequest) }); assert.equal(duplicate.status, "exact_replay");
   assert.equal((await http(endpoint, { action: "verify_material", expected_packet_fingerprint: received.integrity.fingerprint })).matches_historical_material, true);

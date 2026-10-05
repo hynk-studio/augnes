@@ -1555,7 +1555,7 @@ export interface StateRuntimePlanInput {
   workspaceId: string;
   projectId: string;
   expectedActiveProjectId: string;
-  expectedActiveSelectionRevision: number;
+  expectedActiveSelectionRevision: number | string;
   message: string;
   projectRoot?: {
     pathFlavor: "posix" | "win32";
@@ -1567,7 +1567,7 @@ export interface StateRuntimeObserveInput {
   workspaceId: string;
   projectId: string;
   expectedActiveProjectId: string;
-  expectedActiveSelectionRevision: number;
+  expectedActiveSelectionRevision: number | string;
   message: string;
   projectRoot?: {
     pathFlavor: "posix" | "win32";

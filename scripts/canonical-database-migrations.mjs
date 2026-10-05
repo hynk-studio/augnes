@@ -66,6 +66,11 @@ export const CANONICAL_DATABASE_RECORD_CONTRACT_VERSION = 1;
 // treated as migratable Augnes state.
 export const CANONICAL_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES =
   Object.freeze([
+    // Exact #1399 schema with only the migration ledger and package identity
+    // guard absent, retaining the existing bounded ledgerless recovery lane.
+    "872e629d1b1e122cb5e85283ec119a04b918a4688cef29e24bbd085cd8ba1646",
+    // Exact #1398 schema before durable active/empty selection observations.
+    "05472650bc9bec935c2ece2a2cff9678cf3d361dea46599e9e1d83ed0e571326",
     // Complete #1382 ledgerless schema, with only the two recovery-owned
     // metadata tables absent; no arbitrary partial database is admitted.
     "207d6ef998f1a632c6bf1dca6fcfe7ff3695c2a12a22e9c0b3da41970d836c08",

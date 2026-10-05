@@ -1,3 +1,5 @@
+import { differentSelectionRevision } from "./test-selection-observation";
+import { readVNextCoreRecordV01 } from "../lib/vnext/persistence/durable-semantic-store";
 import { installZeroNetworkGuard } from "./test-harness-zero-network-guard.mjs";
 import { buildWorkExpectationRecord, expectationRef } from "../lib/vnext/work-expectation";
 import { RETRY_INSPECTION_INPUT_V01, RETRY_INSPECTION_OUTLOOK_V01, RETRY_INSPECTION_OUTLOOK_V02, buildRetryInspectionOutlookV01, buildRetryInspectionOutlookV02, readRetryInspectionOutlookV01, retryInspectionGuidanceV01, type RetryInspectionInputV01 } from "../lib/vnext/retry-inspection-outlook";
@@ -202,6 +204,7 @@ async function main(): Promise<void> {
       return;
     }
     assertNormalizationAndCompilerV01();
+    assertHistoricalNumericSelectionLineageV01();
     assertNativeHostRunIdentityCompatibilityV01();
     assertInitializationReadPolicyV01();
     assertLocalReviewAccessIssuanceV01();
@@ -637,7 +640,7 @@ async function assertOutcomeReuseV01(): Promise<void> {
         } finally { replace.run(original.status, original.metadata_json, historicalId); }
       }
       await unchanged({ ...preview.request, expected_latest_receipt_fingerprint: `sha256:${"0".repeat(64)}` }, /predecessor_unsettled_or_mismatched/);
-      await unchanged({ ...preview.request, expected_active_selection_revision: preparation.binding.expected_active_selection_revision + 1 }, /selection_changed/);
+      await unchanged({ ...preview.request, expected_active_selection_revision: differentSelectionRevision(preparation.binding.expected_active_selection_revision) }, /selection_changed/);
       await unchanged({ ...preview.request, selected_sources: { ...selected_sources, omitted_sources: [] } }, /source_omissions_invalid/);
       const foreignEntry = buildSelectedWorkSourceEntry({ ...fixture, project_id: "project:foreign" }, notes[2]);
       await unchanged({ ...preview.request, selected_sources: { ...selected_sources, selected_source_context: [foreignEntry] } }, /selected_source_context_invalid/);
@@ -2034,7 +2037,7 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
               await assert.rejects(author({ ...revalidated, revalidation: { ...revalidated.revalidation, profile: "unsupported.v9" } }), /revalidation_invalid/);
               await assert.rejects(author({ ...revalidated, expected_latest_receipt_id: laterReceipt.receipt_id,
                 expected_latest_receipt_fingerprint: laterReceipt.integrity.fingerprint }), /predecessor_unsettled_or_mismatched/);
-              await assert.rejects(author({ ...revalidated, expected_active_selection_revision: revalidated.expected_active_selection_revision + 1 }), /selection_changed/);
+              await assert.rejects(author({ ...revalidated, expected_active_selection_revision: differentSelectionRevision(revalidated.expected_active_selection_revision) }), /selection_changed/);
               await assert.rejects(author({ ...revalidated, expected_root_fingerprint: `sha256:${"0".repeat(64)}` }), /root_changed/);
               await assert.rejects(author({ ...revalidated, definition: { ...revalidated.definition,
                 materials: revalidated.definition.materials.map(m => ({ ...m, sha256: "0".repeat(64) })) } }), /reviewed_inputs_changed/);
@@ -3088,6 +3091,41 @@ function assertInitialWorkPortabilityV01(): void {
     source.db.close();
     destination.close();
   }
+}
+
+function assertHistoricalNumericSelectionLineageV01(): void {
+  const fixture = createFixtureV01("historical-numeric-selection");
+  try {
+    const credential = authenticatedSessionV01(fixture, "historical");
+    // Historical packet construction is deliberately numeric. It is not a
+    // current writer admission and must never replace the live selection token.
+    const historical = buildInitialProjectWorkTaskContextPacketV01({
+      workspace_id: fixture.workspace_id,
+      project_id: fixture.project_id,
+      operator_id: fixture.config.operator_id,
+      session_id: credential.session_id,
+      expected_active_selection_revision: 1,
+      definition: { goal: "Continue preserved historical work", success_criteria: ["Original bytes remain readable"], non_goals: [] },
+      generated_at: T2,
+    });
+    insertVNextCoreRecordV01(fixture.db, {
+      ...fixture, record_kind: "task_context_packet", record_id: historical.packet.packet_id,
+      fingerprint: historical.packet.integrity.fingerprint,
+      idempotency_key: historical.lineage.idempotency_key, payload: historical.packet, created_at: T2,
+    });
+    const bytes = canonicalizeProtocolValueV01(historical.packet);
+    const selection = readActiveProjectSelectionV01(fixture.db, fixture.workspace_id);
+    assert.equal(inspectInitialProjectWorkPacketLineageV01(fixture.db, { ...fixture, packet: historical.packet }).projection_current, true);
+    const current = readProjectWorkInitializationV01(fixture.db, fixture);
+    assert.equal(current.state, "defined_initial_work");
+    assert.equal(current.current_packet?.packet_id, historical.packet.packet_id);
+    assert.equal(canonicalizeProtocolValueV01(readVNextCoreRecordV01(fixture.db, {
+      ...fixture, record_kind: "task_context_packet", record_id: historical.packet.packet_id,
+    })!.payload), bytes);
+    const portable = exportActivePortableProjectV01(fixture.db, { include_personal_perspective: false, exported_at: "2026-08-01T00:00:03.000Z" });
+    assert.equal(parseAndValidatePortableProjectV01(portable.bytes).records[0]?.fingerprint, historical.packet.integrity.fingerprint);
+    assert.deepEqual(readActiveProjectSelectionV01(fixture.db, fixture.workspace_id), selection);
+  } finally { fixture.db.close(); }
 }
 
 function assertNormalizationAndCompilerV01(): void {
@@ -4869,7 +4907,7 @@ async function assertReviewedOutcomeReuseV01(overBudget = false): Promise<void> 
     const altered = reuse.entries.map(entry => buildReviewedOutcomeSourceEntry(fixture, { ...selectedWorkSourceInput(entry), text: entry.bounded_summary + " ALTERED" }, reuse.binding,
       entry.compatibility_source_ref!.ref_type === "reviewed_outcome_report" ? "report" : "expectation"));
     await reject(fixture.db, withEntries(altered), /reviewed_outcome_selection_changed/);
-    await reject(fixture.db, { ...preview.request, expected_active_selection_revision: preparation.binding.expected_active_selection_revision + 1 }, /selection_changed/);
+    await reject(fixture.db, { ...preview.request, expected_active_selection_revision: differentSelectionRevision(preparation.binding.expected_active_selection_revision) }, /selection_changed/);
     const foreign = reuse.entries.map(entry => buildReviewedOutcomeSourceEntry({ ...fixture, project_id: "project:foreign" }, selectedWorkSourceInput(entry), reuse.binding,
       entry.compatibility_source_ref!.ref_type === "reviewed_outcome_report" ? "report" : "expectation"));
     await reject(fixture.db, { ...preview.request, selected_sources: { ...selected_sources, selected_source_context: foreign } }, /selected_source_context_invalid/);

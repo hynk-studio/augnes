@@ -1,3 +1,4 @@
+import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import {
   admitGovernedActorLabMemoryCandidateV01,
   buildGovernedActorLabCuratedKnowledgeInputV01,
@@ -3459,7 +3460,7 @@ function persistentArmV01(arm: GovernedActorLabBaselineArmV01): boolean {
 function assertAdmissionV01(admission: ModelGatewayInteractiveAdmissionV01): void {
   if (
     admission.gateway_authorization_project_is_lab_experiment_meaning !== false ||
-    admission.expected_active_selection_revision < 1 ||
+    !isHistoricalProjectSelectionRevision(admission.expected_active_selection_revision) ||
     !admission.workspace_id.startsWith("workspace:") ||
     !admission.project_id.startsWith("project:") ||
     admission.project_root.normalized_path.length === 0

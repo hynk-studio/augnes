@@ -1,3 +1,4 @@
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import type { TaskContextPacketSelectedEntryV01, TaskContextPacketV01 } from "./task-context-packet";
 import type { ProjectWorkRevisionEligibilityV01 } from "./project-work-revision";
 
@@ -67,7 +68,7 @@ export interface ProjectWorkInitializationV01 {
     | "root_unavailable"
     | "source_unavailable";
   active_project_id: string | null;
-  active_selection_revision: number | null;
+  active_selection_revision: ProjectSelectionRevision | null;
   current_work: ProjectWorkDefinitionV01 | null;
   selected_source_context?: TaskContextPacketSelectedEntryV01[];
   /** Reconstructed task boundary, including after ordinary revisions of the new task. */
@@ -101,7 +102,7 @@ export interface DefineInitialProjectWorkRequestV01 {
   workspace_id: string;
   project_id: string;
   expected_active_project_id: string;
-  expected_active_selection_revision: number;
+  expected_active_selection_revision: ProjectSelectionRevision;
   expected_initialization_state: "not_defined";
   goal: string;
   success_criteria: string[];

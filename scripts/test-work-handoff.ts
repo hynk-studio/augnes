@@ -1,4 +1,5 @@
 import { registerOwnedChild, waitForOwnedProcessExit, terminateOwnedProcessTree } from "./test-harness-process-lifecycle.mjs";
+import { differentSelectionRevision } from "./test-selection-observation";
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, realpathSync, writeFileSync, readFileSync, rmSync, renameSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -93,7 +94,7 @@ async function main() {
  await dest.call("handoff", { action: "receive", request: stale, expected_preview: handoffHash(stale) }, 409);
  stale.handoff.expected_root_fingerprint = preview.request.handoff.expected_root_fingerprint; stale.handoff.expected_direction_ref = handoffHash("other-direction");
  await dest.call("handoff", { action: "receive", request: stale, expected_preview: handoffHash(stale) }, 409);
- stale.handoff.expected_direction_ref = null; stale.expected_active_selection_revision++;
+ stale.handoff.expected_direction_ref = null; stale.expected_active_selection_revision = differentSelectionRevision(stale.expected_active_selection_revision);
  await dest.call("handoff", { action: "receive", request: stale, expected_preview: handoffHash(stale) }, 409);
  await dest.call("review", { action: "authorize_and_run", authorization: oldGrant }, 409); assert.equal(dest.calls, 0);
  const transferPath = path.join(root, "selected-handoff.json"); writeFileSync(transferPath, canonical(bundle));

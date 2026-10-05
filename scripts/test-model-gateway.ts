@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import type { ProjectSelectionRevision } from "../lib/vnext/project-selection";
+import { differentSelectionRevision } from "./test-selection-observation";
 import assert from "node:assert/strict";
 import { channel } from "node:diagnostics_channel";
 import {
@@ -1481,7 +1483,7 @@ async function runRemainingCallerCases(fixture: Fixture) {
     plannerRequestBody(fixture, { project_id: UNKNOWN_PROJECT_ID }),
     plannerRequestBody(fixture, { workspace_id: UNKNOWN_WORKSPACE_ID }),
     plannerRequestBody(fixture, {
-      expected_active_selection_revision: fixture.activeRevision + 1,
+      expected_active_selection_revision: differentSelectionRevision(fixture.activeRevision),
     }),
     plannerRequestBody(fixture, {
       project_id: fixture.projectBId,
@@ -3281,7 +3283,7 @@ function envelope(
     message?: string;
     projectId?: string;
     projectRoot?: Fixture["projectARoot"];
-    activeRevision?: number;
+    activeRevision?: ProjectSelectionRevision;
     currentState?: StateEntry[];
     signal?: AbortSignal;
     timeoutMs?: number;

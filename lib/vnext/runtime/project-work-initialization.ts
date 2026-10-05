@@ -1,3 +1,5 @@
+import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import { parseWorkHandoff, readWorkHandoff, handoffCheck } from "../work-handoff";
 import { rootBinding } from "./stateless-source-review";
 import { effectiveDirection, assertPacketDirectionCurrent } from "../persistence/project-direction-store";
@@ -443,7 +445,7 @@ function readProjectWorkInitializationStrictV01(
       current_packet: null,
       mutation_eligible:
         active?.project_id === input.project_id &&
-        active.selection_revision > 0,
+        isHistoricalProjectSelectionRevision(active.selection_revision),
     };
   }
   const unresolvedReason: ProjectWorkInitializationV01["reason"] =
@@ -571,8 +573,7 @@ function parseRequestV01(value: unknown): DefineInitialProjectWorkRequestV01 {
     typeof request.workspace_id !== "string" ||
     typeof request.project_id !== "string" ||
     typeof request.expected_active_project_id !== "string" ||
-    !Number.isSafeInteger(request.expected_active_selection_revision) ||
-    Number(request.expected_active_selection_revision) < 1
+    !isHistoricalProjectSelectionRevision(request.expected_active_selection_revision)
   ) {
     refuse("first_work_request_invalid", 400);
   }
@@ -602,7 +603,7 @@ function sameDefinitionV01(
 function baseV01(
   input: { workspace_id: string; project_id: string },
   activeProjectId: string | null,
-  activeSelectionRevision: number | null,
+  activeSelectionRevision: ProjectSelectionRevision | null,
   revisionEligibility?: ReturnType<
     typeof readProjectWorkRevisionEligibilityV01
   >,
@@ -644,7 +645,7 @@ function unavailableV01(
   reason: "project_unavailable" | "root_unavailable" | "source_unavailable",
 ): ProjectWorkInitializationV01 {
   let activeProjectId: string | null = null;
-  let activeSelectionRevision: number | null = null;
+  let activeSelectionRevision: ProjectSelectionRevision | null = null;
   try {
     const active = readActiveProjectSelectionV01(db, input.workspace_id);
     activeProjectId = active?.project_id ?? null;

@@ -1,3 +1,5 @@
+import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import type Database from "better-sqlite3";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
@@ -104,7 +106,7 @@ interface PreviewMaterial {
   resumes_packet?: { packet_id: string; packet_fingerprint: string };
   predecessor: TerminalAttemptBinding; definition: TaskContextPacketV01["task"]; review: SourceReview;
   selected: ReturnType<typeof readSelectedWorkSources>; omitted_sources: Request["omitted_sources"]; comparison_fingerprint: string;
-  root_fingerprint: string; direction_ref: string | null; selection_revision: number;
+  root_fingerprint: string; direction_ref: string | null; selection_revision: ProjectSelectionRevision;
 }
 interface Material extends PreviewMaterial { session_id: string; operator_id: string; work_lifetime?: typeof DURABLE_AUTHORED_WORK_V01 }
 function requestFrom(value: unknown): Request {
@@ -216,7 +218,7 @@ export function inspectStatelessTerminalSuccessor(db: Database.Database, input: 
     Array.isArray(m.omitted_sources) && m.omitted_sources.length <= 8 &&
     equal(m.omitted_sources.map(o => reviewSha(o.source_binding)).sort(), comparison.unselected_previous.map(e => e.source_ref!).sort()) &&
     m.omitted_sources.every(o => reviewText(o.reason, 500) === o.reason) &&
-    reviewSha(m.root_fingerprint) === m.root_fingerprint && Number.isSafeInteger(m.selection_revision) && m.selection_revision > 0,
+    reviewSha(m.root_fingerprint) === m.root_fingerprint && isHistoricalProjectSelectionRevision(m.selection_revision),
   "terminal_authorship_material_invalid");
   // Historical consumption is checked at authorship time, not against today's
   // direction or source bytes. Execution independently requires current gates.

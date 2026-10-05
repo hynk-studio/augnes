@@ -1,3 +1,4 @@
+import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import { INITIAL_PROJECT_WORK_LIMITS_V01 } from "@/types/vnext/project-work-initialization";
 import { SELECTED_WORK_SOURCE_LABELS } from "@/types/vnext/project-work-revision";
 
@@ -66,11 +67,10 @@ function readBinding(value: unknown) {
   const lineage = Object.hasOwn(LINEAGES, state) ? LINEAGES[state] : null;
   const packet = object(init.current_packet);
   if (!lineage || init.reason !== lineage[0] || packet.lineage_kind !== lineage[1] ||
-      init.active_project_id !== project_id || !Number.isSafeInteger(init.active_selection_revision) ||
-      (init.active_selection_revision as number) < 1) throw new Error("binding");
+      init.active_project_id !== project_id || !isHistoricalProjectSelectionRevision(init.active_selection_revision)) throw new Error("binding");
   return {
     workspace_id, project_id, state, reason: lineage[0],
-    active_selection_revision: init.active_selection_revision as number,
+    active_selection_revision: init.active_selection_revision,
     current_packet: {
       packet_id: identity(packet.packet_id), packet_fingerprint: fingerprint(packet.packet_fingerprint),
       generated_at: timestamp(packet.generated_at), lineage_kind: lineage[1],

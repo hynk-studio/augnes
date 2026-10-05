@@ -1930,7 +1930,11 @@ function verifyProjectRegistryBindings(database) {
        LEFT JOIN vnext_project_identities AS project
          ON project.workspace_id = active.workspace_id
         AND project.project_id = active.project_id
-       WHERE project.project_id IS NULL`,
+       LEFT JOIN vnext_workspace_identities AS workspace
+         ON workspace.workspace_id = active.workspace_id
+       WHERE workspace.workspace_id IS NULL
+          OR (active.project_id IS NOT NULL AND project.project_id IS NULL)
+          OR (active.project_id IS NULL AND active.active_project_selection_version != 'active_project_selection.v0.2')`,
     )
     .get().count;
   if (missingActiveProject !== 0) {

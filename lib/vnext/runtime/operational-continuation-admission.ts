@@ -1,3 +1,4 @@
+import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import type Database from "better-sqlite3";
 
 import { readLatestManagedLiveAutonomyRunSummaryV01 } from "@/lib/autonomy/runner-ledger";
@@ -359,8 +360,7 @@ function parseRequestV01(
     typeof value.workspace_id !== "string" ||
     typeof value.project_id !== "string" ||
     typeof value.expected_active_project_id !== "string" ||
-    !Number.isSafeInteger(value.expected_active_selection_revision) ||
-    Number(value.expected_active_selection_revision) < 1 ||
+    !isHistoricalProjectSelectionRevision(value.expected_active_selection_revision) ||
     typeof value.expected_current_packet_a_id !== "string" ||
     !/^sha256:[a-f0-9]{64}$/u.test(
       String(value.expected_current_packet_a_fingerprint),

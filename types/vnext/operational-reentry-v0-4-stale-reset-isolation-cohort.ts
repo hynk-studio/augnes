@@ -1,3 +1,4 @@
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import type { ModelGatewayCostBudgetV01, ModelInvocationReceiptV02 } from "./model-invocation-receipt";
 import type {
   OperationalReentryMatchedCohortIntegrityV04,
@@ -381,7 +382,7 @@ export interface OperationalReentryV04StaleResetIsolationAuthorizationV01 {
   expires_at: string;
   workspace_id: string;
   project_id: string;
-  expected_active_selection_revision: number;
+  expected_active_selection_revision: ProjectSelectionRevision;
   project_root_fingerprint: string;
   gateway_authorization_project_is_lab_experiment_meaning: false;
   case_fingerprint: string;

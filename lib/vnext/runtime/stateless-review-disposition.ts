@@ -1,3 +1,4 @@
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import { handoffEntries } from "../work-handoff";
 import type Database from "better-sqlite3";
 import type { AutonomyRunRecord } from "@/types/autonomy-runner-execution";
@@ -163,7 +164,7 @@ export function assertStatelessUnsettledAdmission(db: Database.Database, scope: 
 }
 
 const MATERIAL = `${STATELESS_REPLACEMENT}:source`;
-interface ReplacementMaterial { disposition: Link; prior_packet: { packet_id: string; packet_fingerprint: string }; review: SourceReview; session_id: string; operator_id: string; selection_revision: number;
+interface ReplacementMaterial { disposition: Link; prior_packet: { packet_id: string; packet_fingerprint: string }; review: SourceReview; session_id: string; operator_id: string; selection_revision: ProjectSelectionRevision;
   work_lifetime?: typeof DURABLE_AUTHORED_WORK_V01; resumes_packet?: { packet_id: string; packet_fingerprint: string } }
 export const isStatelessReplacement = (packet: TaskContextPacketV01) => packet.compatibility.source_contracts.includes(STATELESS_REPLACEMENT);
 function replacementMaterial(packet: TaskContextPacketV01): ReplacementMaterial {

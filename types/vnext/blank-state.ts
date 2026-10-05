@@ -136,6 +136,7 @@ export interface ContinuitiesTemporalContextV01 {
 }
 
 export interface BlankStateSourceV01 {
+  active_selection_revision?: import("@/lib/vnext/project-selection").ProjectSelectionRevision | null;
   project_direction?: import("@/lib/vnext/project-direction").DirectionView;
   route_mode: BlankStateRouteModeV01;
   requested_project_id: string | null;

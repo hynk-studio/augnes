@@ -46,6 +46,7 @@ import { admitClaimEvidenceRelationV01 } from "../lib/vnext/persistence/project-
 import {
   readActiveProjectSelectionV01,
   selectActiveProjectV01,
+  readProjectSelectionStateV02,
   touchRecentProjectV01,
 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import {
@@ -225,9 +226,9 @@ async function main(): Promise<void> {
       project_id: baseFixtureManifest.project_id,
       now: rc1TimeV01(-1),
       expected_project_id: null,
-      expected_revision: null,
+      expected_revision: readProjectSelectionStateV02(source, baseFixtureManifest.workspace_id)?.selection_revision ?? null,
     });
-    assert.equal(sourceSelection.selection_revision, 1);
+    assert.match(String(sourceSelection.selection_revision), /^selection:[0-9a-f]{32}$/u);
     const augmentation = await augmentRc1SourceLifecycleV01(
       source,
       sourceDbPath,
@@ -310,7 +311,7 @@ async function main(): Promise<void> {
       fixtureManifest.workspace_id,
     );
     assert(baselineSelection);
-    assert.equal(baselineSelection.selection_revision, 1);
+    assert.equal(baselineSelection.selection_revision, sourceSelection.selection_revision);
 
     const sourceBeforeRead = databaseFingerprintV01(sourceDbPath);
     source.pragma("query_only = ON");
@@ -388,13 +389,10 @@ async function main(): Promise<void> {
     assert.equal(imported.automation_authority_created, false);
     assert.equal(imported.external_action_created, false);
     assert.equal(existsSync(exactRegisteredRoot), true);
-    assert.equal(
-      readActiveProjectSelectionV01(
-        reconstructed,
-        fixtureManifest.workspace_id,
-      )?.selection_revision,
-      1,
-    );
+    const reconstructedSelection = readActiveProjectSelectionV01(reconstructed, fixtureManifest.workspace_id)!;
+    assert.match(String(reconstructedSelection.selection_revision), /^selection:[0-9a-f]{32}$/u);
+    assert.notEqual(reconstructedSelection.selection_revision, baselineSelection.selection_revision,
+      "portable reconstruction creates fresh local selection authority");
 
     const reconstructedBeforeRead = databaseFingerprintV01(reconstructedDbPath);
     reconstructed.pragma("query_only = ON");
@@ -475,8 +473,15 @@ async function main(): Promise<void> {
 
     assert.deepEqual(
       reconstructedOwners.continuity,
-      baselineOwners.continuity,
+      {
+        ...baselineOwners.continuity,
+        project: { ...baselineOwners.continuity.project,
+          selection_revision: reconstructedSelection.selection_revision },
+        snapshot: reconstructedOwners.continuity.snapshot,
+      },
     );
+    assert.notEqual(reconstructedOwners.continuity.snapshot.binding, baselineOwners.continuity.snapshot.binding,
+      "the exact live snapshot binds the fresh local selection, not imported authority");
     assert.deepEqual(
       reconstructedOwners.reconciliation,
       baselineOwners.reconciliation,
@@ -506,7 +511,7 @@ async function main(): Promise<void> {
     );
     assertFeedbackOwnerBindingsV01(baselineEnvironment);
     assertFeedbackOwnerBindingsV01(reconstructedEnvironment);
-    record("exact_current_continuity_reconciliation_linked_lineage_negative_space_and_feedback_pending_match");
+    record("current_continuity_differs_only_in_fresh_local_selection_and_snapshot_while_history_and_semantics_match");
 
     for (const [side, environment] of [
       ["baseline", baselineEnvironment],
@@ -535,21 +540,13 @@ async function main(): Promise<void> {
       reconstructed: reconstructedEnvironment,
     };
     const validReport = buildReconstructionConformanceReportV01(validInput);
-    assert.equal(
-      validReport.exact_integrity.status,
-      "conformant",
-      JSON.stringify(
-        validReport.exact_integrity.checks.filter(
-          (check) => check.status !== "match",
-        ),
-      ),
-    );
+    assertFreshSelectionDifferenceV01(validReport);
     assert.equal(validReport.relational_semantic.status, "conformant");
     assert.equal(validReport.relational_semantic.differences.length, 0);
     assert.deepEqual(validReport.relational_semantic.incomplete_reasons, []);
     assert.equal(
       validReport.exact_integrity.checks.every(
-        (check) => check.status === "match" && check.non_compensable,
+        (check) => check.non_compensable,
       ),
       true,
     );
@@ -608,6 +605,9 @@ async function main(): Promise<void> {
           completeness: lineage.completeness.status,
         })),
       report_fingerprint: validReport.integrity.fingerprint,
+      exact_integrity: validReport.exact_integrity.status,
+      exact_difference: "codex_current_continuity_projection: fresh local selection and snapshot",
+      relational_semantic: validReport.relational_semantic.status,
       provider_calls: 0,
       external_network_calls: network.attempts.length,
       owned_processes_started: 0,
@@ -1512,6 +1512,14 @@ interface CurrentOwnersV01 {
   managed_run_projection_reads: number;
 }
 
+function assertFreshSelectionDifferenceV01(report: ReconstructionConformanceReportV01): void {
+  // Keep the existing exact comparison strict. Portable reconstruction creates
+  // independent local selection authority, so this one live projection differs.
+  assert.equal(report.exact_integrity.status, "non_conformant");
+  assert.deepEqual(report.exact_integrity.checks.filter(check => check.status !== "match")
+    .map(check => [check.check, check.status]), [["codex_current_continuity_projection", "mismatch"]]);
+}
+
 async function readCurrentOwnersV01(
   db: Database.Database,
   databasePath: string,
@@ -2028,10 +2036,7 @@ function verifySourceBoundaryBindingsV01(
       true,
     );
   }
-  assert.equal(
-    buildReconstructionConformanceReportV01(validInput).exact_integrity.status,
-    "conformant",
-  );
+  assertFreshSelectionDifferenceV01(buildReconstructionConformanceReportV01(validInput));
 
   const forgedWork = cloneInputV01(validInput);
   for (const environment of [forgedWork.baseline, forgedWork.reconstructed]) {
@@ -2150,6 +2155,7 @@ function verifySourceAndRuleDriftV01(
     [
       "canonical_source_record_manifest",
       "rc1_fixture_source_presence_and_current_owner_bindings",
+      "codex_current_continuity_projection",
     ],
   );
 
@@ -2197,18 +2203,14 @@ function verifySourceAndRuleDriftV01(
     lineage.observed_at = later;
     refingerprintLineageV01(lineage);
   }
-  assert.equal(
-    buildReconstructionConformanceReportV01(cutoffDrift).exact_integrity.status,
-    "non_conformant",
-  );
+  assert.equal(buildReconstructionConformanceReportV01(cutoffDrift).exact_integrity.checks
+    .find(check => check.check === "decision_time_cutoff")?.status, "mismatch");
 
   const ruleDrift = cloneInputV01(validInput);
   ruleDrift.reconstructed.source_boundary.portable_rebuild_binding_version =
     "reconstruction_conformance_portable_rebuild_binding.v0.2";
-  assert.equal(
-    buildReconstructionConformanceReportV01(ruleDrift).exact_integrity.status,
-    "non_conformant",
-  );
+  assert.equal(buildReconstructionConformanceReportV01(ruleDrift).exact_integrity.checks
+    .find(check => check.check === "portable_contract_and_rc1_rebuild_binding")?.status, "mismatch");
 
   record("source_cutoff_and_rc1_research_method_drift_are_non_compensable");
 }
@@ -2282,7 +2284,7 @@ function verifyNegativeSpaceV01(
   reconstructedMissing: ProjectVerifyLineageV01,
 ): void {
   const validReport = buildReconstructionConformanceReportV01(validInput);
-  assert.equal(validReport.exact_integrity.status, "conformant");
+  assertFreshSelectionDifferenceV01(validReport);
   assert.equal(validReport.relational_semantic.status, "conformant");
   const sourceRelations = validReport.relational_semantic.baseline_relations.filter(
     (relation) => relation.relation_kind.startsWith("source_"),
@@ -2376,7 +2378,8 @@ function verifyNegativeSpaceV01(
   const missingReport = buildReconstructionConformanceReportV01(
     missingPreserved,
   );
-  assert.equal(missingReport.exact_integrity.status, "incomplete");
+  assert.equal(missingReport.exact_integrity.status, "non_conformant");
+  assert.equal(missingReport.exact_integrity.checks.find(check => check.check === "project_verify_exact_lineage_collection")?.status, "incomplete");
   assert.equal(missingReport.relational_semantic.status, "incomplete");
   assert.deepEqual(missingReport.relational_semantic.differences, []);
   assert.equal(
@@ -2415,7 +2418,7 @@ function verifyNegativeSpaceV01(
       "Current work is stale.";
   }
   const staleReport = buildReconstructionConformanceReportV01(stalePreserved);
-  assert.equal(staleReport.exact_integrity.status, "conformant");
+  assertFreshSelectionDifferenceV01(staleReport);
   assert.equal(staleReport.relational_semantic.status, "conformant");
   const stalePromoted = cloneInputV01(stalePreserved);
   stalePromoted.reconstructed.continuity.current_work.status = "current_work";
@@ -2445,7 +2448,7 @@ function verifyNegativeSpaceV01(
   const unknownReport = buildReconstructionConformanceReportV01(
     unknownPreserved,
   );
-  assert.equal(unknownReport.exact_integrity.status, "conformant");
+  assertFreshSelectionDifferenceV01(unknownReport);
   assert.equal(unknownReport.relational_semantic.status, "conformant");
   const unknownPromoted = cloneInputV01(unknownPreserved);
   const promotedCriterion =
@@ -2806,7 +2809,7 @@ function verifyReportTamperRefusalV01(
   validReport: ReconstructionConformanceReportV01,
 ): void {
   const tampered = structuredClone(validReport);
-  tampered.exact_integrity.status = "non_conformant";
+  tampered.exact_integrity.status = "conformant";
   const { integrity: _integrity, ...withoutIntegrity } = tampered;
   tampered.integrity.fingerprint = fingerprintV01(withoutIntegrity);
   assert.throws(

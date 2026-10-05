@@ -619,6 +619,24 @@ store, retained real candidate, provider, installation or deployment is used.
 The predecessor's successful and failed verification records retain their exact
 source identities and do not qualify this candidate.
 
+### Current lifecycle slice — Native project management (#1399)
+
+Stacked on #1398, this local candidate adds registered-project discovery to the
+existing management surface and capability-scoped discovery to the existing
+agent direction endpoint. Open, rename, folder recovery and direction mutations
+retain their owners. Predecessor handler reproduction found registered projects
+absent from recents and accepted stale observations across A → none → A and
+none → A → none. Persistent active/empty selection revisions correct those cases;
+historical numeric work remains reconstructable without rewriting its records.
+
+Disposable checks cover paginated and fresh-process discovery, existing human
+controls, authenticated deterministic clients, capability refusals, incomplete
+reads, stale/concurrent mutations, forward migration and recovery/portability.
+Final exact-head Canonical evidence and cleanup belong to this candidate's Draft
+PR. Prior receipts remain historical. Issue #1399 stays open for review; hosted
+rollout, actual live-agent adoption, retained-candidate use, provider execution
+and general usefulness are outside this slice.
+
 ### Current P2/P3/P4/P5 — Project direction and decision authority (#1382)
 
 The 2026-10-02 north-star review authorized this connected increment after merged

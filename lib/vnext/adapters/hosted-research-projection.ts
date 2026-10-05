@@ -1,3 +1,4 @@
+import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import {
   normalizeSelectedWorkSources,
   SELECTED_WORK_SOURCE_NAMESPACE,
@@ -61,7 +62,7 @@ export function buildHostedResearchProjectionV02(input: HostedResearchProjection
     !lineage.projection_current ||
     [current, packet, selection].some((scope) => scope.workspace_id !== project.workspace_id || scope.project_id !== project.project_id) ||
     current.active_project_id !== project.project_id ||
-    !Number.isSafeInteger(selection.selection_revision) || selection.selection_revision < 1 ||
+    !isHistoricalProjectSelectionRevision(selection.selection_revision) ||
     current.active_selection_revision !== selection.selection_revision ||
     current.current_packet.packet_id !== packet.packet_id ||
     current.current_packet.packet_fingerprint !== packet.integrity.fingerprint ||

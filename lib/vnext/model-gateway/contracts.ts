@@ -1,3 +1,4 @@
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import type { StateEntry } from "@/lib/db";
 import type { buildStateBrief } from "@/lib/state/brief";
 import type { ValidatedProposal } from "@/lib/observe/proposal-contract";
@@ -130,7 +131,7 @@ export type ModelGatewayPolicyInputV01 =
   | {
       invocation_origin: "interactive";
       expected_active_project_id: string;
-      expected_active_selection_revision: number;
+      expected_active_selection_revision: ProjectSelectionRevision;
     }
   | {
       invocation_origin: "policy_triggered";

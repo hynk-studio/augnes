@@ -87,7 +87,17 @@ function decode(row: Row): DirectionEntry {
 export function readDirectionRecords(db: Database.Database, scope: DirectionScope, at = new Date().toISOString()): DirectionEntry[] {
   if (!hasStore(db)) return [];
   directionTime(at);
-  const rows = db.prepare("SELECT * FROM vnext_project_direction_records WHERE workspace_id=? AND project_id=? AND recorded_at<=? ORDER BY recorded_at,ordinal LIMIT 513").all(scope.workspace_id, scope.project_id, at) as Row[];
+  const observed = db.prepare(`WITH direction_history AS MATERIALIZED (
+    SELECT * FROM vnext_project_direction_records WHERE workspace_id=? AND project_id=? AND recorded_at<=?
+    ORDER BY recorded_at,ordinal LIMIT 513
+  ) SELECT 0 AS summary,ordinal,workspace_id,project_id,kind,ref,recorded_at,body_json,NULL AS n FROM direction_history
+    UNION ALL SELECT 1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,count(*) FROM direction_history
+    ORDER BY summary DESC,recorded_at,ordinal`).all(scope.workspace_id, scope.project_id, at) as Array<Row & { summary: number; n: number; ordinal: number }>;
+  const [summary, ...rows] = observed;
+  // A lost final decision or revocation is not evidence of current scope or
+  // continued authority. Preserve the existing history bound, detect every row.
+  directionCheck(summary?.summary === 1 && summary.n === rows.length &&
+    rows.every(row => row.summary === 0) && new Set(rows.map(row => row.ordinal)).size === rows.length, "history_incomplete");
   directionCheck(rows.length <= 512, "history_bound");
   return rows.map(decode);
 }

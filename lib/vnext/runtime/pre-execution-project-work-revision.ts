@@ -1,3 +1,4 @@
+import { isHistoricalProjectSelectionRevision } from "../project-selection";
 import { readProjectWorkPacketHistoryV01, PROJECT_WORK_HISTORY_READ_BUDGET_V01, ProjectWorkPacketHistoryReadErrorV01 } from "./project-work-packet-history";
 import { handoffEntries } from "../work-handoff";
 import type Database from "better-sqlite3";
@@ -43,7 +44,7 @@ export const PRE_EXECUTION_PROJECT_WORK_REVISION_REQUEST_NAMESPACE_V01 =
 
 const REVISION_DEFINITION_ID =
   /^work-definition-(?:revision|preparation):(\d+):([a-f0-9]{24})$/u;
-const REVISION_REQUEST_ID = /^work-(?:revision|preparation)-request:(\d+):([a-f0-9]{24})$/u;
+const REVISION_REQUEST_ID = /^work-(?:revision|preparation)-request:(\d+|selection:[a-f0-9]{32}):([a-f0-9]{24})$/u;
 const REVISION_PACKET_CONTEXT_BUDGET_V01 = Object.freeze({
   max_selected_entries: 4,
   max_projection_items: 1,
@@ -613,12 +614,11 @@ function inspectRevisionPacketV01(
   const definitionMatch = REVISION_DEFINITION_ID.exec(definitionRef.external_id);
   const requestMatch = REVISION_REQUEST_ID.exec(requestRef.external_id);
   const revisionNumber = definitionMatch ? Number(definitionMatch[1]) : NaN;
-  const activeRevision = requestMatch ? Number(requestMatch[1]) : NaN;
+  const activeRevision = requestMatch?.[1]?.startsWith("selection:") ? requestMatch[1] : Number(requestMatch?.[1]);
   if (
     !Number.isSafeInteger(revisionNumber) ||
     revisionNumber < 1 ||
-    !Number.isSafeInteger(activeRevision) ||
-    activeRevision < 1 ||
+    !isHistoricalProjectSelectionRevision(activeRevision) ||
     definitionMatch?.[2] !== requestMatch?.[2] ||
     definitionRef.trust_class !== "user_declaration" ||
     definitionRef.compatibility_namespace !== compiler ||

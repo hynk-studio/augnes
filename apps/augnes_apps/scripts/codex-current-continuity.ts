@@ -31,7 +31,7 @@ export const ProjectionSchema = z.object({
     project_key: NullableStringSchema,
     display_name: NullableStringSchema,
     active: z.boolean(),
-    selection_revision: z.number().int().nonnegative().nullable(),
+    selection_revision: z.union([z.number().int().nonnegative(), z.string().regex(/^selection:[0-9a-f]{32}$/u)]).nullable(),
     root_availability: z.enum([
       "available",
       "missing",

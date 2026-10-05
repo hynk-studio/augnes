@@ -1,3 +1,5 @@
+import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import type Database from "better-sqlite3";
 import { OPENAI_PLANNER_SOL_LOW, isOpenAIPlannerSolLowRoute } from "./planner-execution-configuration";
 import type { PlannerModelExecutionConfigurationV01 } from "./contracts";
@@ -455,7 +457,7 @@ export interface OperationalReentryStaleResetCrossCaseModelGatewayDependenciesV0
 export interface ModelGatewayInteractiveAdmissionV01 {
   workspace_id: string;
   project_id: string;
-  expected_active_selection_revision: number;
+  expected_active_selection_revision: ProjectSelectionRevision;
   project_root: {
     path_flavor: "posix" | "win32";
     normalized_path: string;
@@ -3168,11 +3170,7 @@ function validatePolicy(value: unknown): ModelInvocationEnvelopeV01["policy"] {
         readOwn(record, "expected_active_project_id"),
         "project",
       ),
-      expected_active_selection_revision: requireInteger(
-        readOwn(record, "expected_active_selection_revision"),
-        1,
-        Number.MAX_SAFE_INTEGER,
-      ),
+      expected_active_selection_revision: requireSelectionRevision(readOwn(record, "expected_active_selection_revision")),
     };
   }
   if (origin === "policy_triggered") {
@@ -3876,6 +3874,11 @@ function requireSha256(value: unknown) {
   if (typeof value !== "string" || !/^sha256:[0-9a-f]{64}$/.test(value)) {
     invalid();
   }
+  return value;
+}
+
+function requireSelectionRevision(value: unknown) {
+  if (!isHistoricalProjectSelectionRevision(value)) invalid();
   return value;
 }
 

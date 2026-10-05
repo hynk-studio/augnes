@@ -1,3 +1,4 @@
+import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import { readProjectDirection } from "../persistence/project-direction-store";
 import Database from "better-sqlite3";
 import { existsSync, statSync } from "node:fs";
@@ -1370,7 +1371,7 @@ export function assertCodexCurrentContinuityV01(
   if (projection.snapshot.status === "exact" ? !/^sha256:[a-f0-9]{64}$/u.test(projection.snapshot.binding ?? "") : projection.snapshot.binding !== null) throw new Error("codex_current_continuity_snapshot_invalid");
   if ((projection.source_status === "exact") !== (projection.snapshot.status === "exact")) throw new Error("codex_current_continuity_source_snapshot_mismatch");
   if (projection.project.project_key !== null && !/^sha256:[a-f0-9]{64}$/u.test(projection.project.project_key)) throw new Error("codex_current_continuity_project_key_invalid");
-  if (projection.project.selection_revision !== null && (!Number.isSafeInteger(projection.project.selection_revision) || projection.project.selection_revision < 0)) throw new Error("codex_current_continuity_selection_revision_invalid");
+  if (projection.project.selection_revision !== null && (!isHistoricalProjectSelectionRevision(projection.project.selection_revision, 0))) throw new Error("codex_current_continuity_selection_revision_invalid");
   assertBoundedNullableTextV01(projection.project.display_name, 256, "project_display_name");
   assertBoundedNullableTextV01(projection.current_work.goal, CODEX_CURRENT_CONTINUITY_LIMITS_V01.goal_characters, "goal");
   assertBoundedStringsV01(projection.current_work.success_criteria, CODEX_CURRENT_CONTINUITY_LIMITS_V01.detail_items, CODEX_CURRENT_CONTINUITY_LIMITS_V01.detail_characters, "success_criteria");

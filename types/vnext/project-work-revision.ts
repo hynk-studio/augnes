@@ -1,3 +1,4 @@
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import type { TaskContextPacketSelectedEntryV01, TaskContextPacketV01 } from "./task-context-packet";
 import type { ProjectWorkDefinitionV01 } from "./project-work-initialization";
 
@@ -64,7 +65,7 @@ export interface ProjectWorkRevisionEligibilityV01 {
   workspace_id: string;
   project_id: string;
   active_project_id: string | null;
-  active_selection_revision: number | null;
+  active_selection_revision: ProjectSelectionRevision | null;
   current_packet_id: string | null;
   current_packet_fingerprint: string | null;
   current_lineage_kind: PreExecutionProjectWorkLineageKindV01 | "authored_successor_task" | null;
@@ -95,7 +96,7 @@ export interface RevisePreExecutionProjectWorkRequestV01 {
   workspace_id: string;
   project_id: string;
   expected_active_project_id: string;
-  expected_active_selection_revision: number;
+  expected_active_selection_revision: ProjectSelectionRevision;
   expected_current_packet_id: string;
   expected_current_packet_fingerprint: string;
   expected_current_lineage_kind: PreExecutionProjectWorkLineageKindV01 | "authored_successor_task";

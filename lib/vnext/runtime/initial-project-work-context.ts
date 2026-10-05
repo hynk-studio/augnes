@@ -1,3 +1,4 @@
+import { isHistoricalProjectSelectionRevision, type ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import { readWorkHandoff, receivedHandoffEntries, type WorkHandoff } from "../work-handoff";
 import { InitialProjectWorkContextErrorV01, normalizeInitialProjectWorkDefinitionV01 } from "@/lib/intake/work-definition";
 export { InitialProjectWorkContextErrorV01, normalizeInitialProjectWorkDefinitionV01 } from "@/lib/intake/work-definition";
@@ -47,7 +48,7 @@ export const INITIAL_PROJECT_WORK_PACKET_CONTEXT_BUDGET_V01 = {
   ),
 } as const;
 
-const REQUEST_ID_PATTERN = /^first-work-request:(\d+):([a-f0-9]{24})$/u;
+const REQUEST_ID_PATTERN = /^first-work-request:(\d+|selection:[a-f0-9]{32}):([a-f0-9]{24})$/u;
 const DEFINITION_ID_PATTERN = /^first-work-definition:[a-f0-9]{24}$/u;
 
 export interface InitialProjectWorkLineageMaterialV01 {
@@ -72,7 +73,7 @@ export function createInitialProjectWorkLineageMaterialV01(input: {
   project_id: string;
   operator_id: string;
   session_id: string;
-  expected_active_selection_revision: number;
+  expected_active_selection_revision: ProjectSelectionRevision;
   definition: ProjectWorkDefinitionV01;
   handoff?: WorkHandoff;
   observed_at: string;
@@ -162,7 +163,7 @@ export function buildInitialProjectWorkTaskContextPacketV01(input: {
   project_id: string;
   operator_id: string;
   session_id: string;
-  expected_active_selection_revision: number;
+  expected_active_selection_revision: ProjectSelectionRevision;
   definition: ProjectWorkDefinitionV01;
   handoff?: WorkHandoff;
   generated_at: string;
@@ -436,8 +437,8 @@ export function inspectInitialProjectWorkPacketLineageV01(
     refuse("initial_project_work_provenance_invalid");
   }
   const requestMatch = REQUEST_ID_PATTERN.exec(requestRef.external_id);
-  const revision = requestMatch ? Number(requestMatch[1]) : NaN;
-  if (!Number.isSafeInteger(revision) || revision < 1) {
+  const revision = requestMatch?.[1]?.startsWith("selection:") ? requestMatch[1] : Number(requestMatch?.[1]);
+  if (!isHistoricalProjectSelectionRevision(revision)) {
     refuse("initial_project_work_request_ref_invalid");
   }
   const session = readVNextLocalOperatorSessionHistoryV01(db, {
