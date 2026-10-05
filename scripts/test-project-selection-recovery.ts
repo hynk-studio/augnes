@@ -57,16 +57,18 @@ export async function testProjectSelectionRecovery() {
       const saved = observation(db, workspace), original = history(db);
       const held = state === "selected" ? { action: "rename", project_id: project, expected_active_project_id: project, expected_active_selection_revision: saved.expected_revision,
         expected_current_display_name: "Restore fixture", requested_display_name: "Stale name" } : { action: "open", project_id: project, ...saved };
+      // These JavaScript owners infer only their defaulted options in TypeScript.
+      // Keep the fixture on their real full input contract without changing it.
       const backup = await createRecoveryBackup({ databasePath, backupDirectory, applicationScopeFingerprint: fingerprint,
         sourceApplication: { application_version: null, build_identity: null, package_contract: null, package_contract_version: null, runtime_contract: null, runtime_schema_version: null },
-        reason: "manual_recovery", inspectDatabase: inspectRecoveryDatabaseFile });
+        reason: "manual_recovery", inspectDatabase: inspectRecoveryDatabaseFile } as unknown as Parameters<typeof createRecoveryBackup>[0]);
       const backupBytes = digest(backup.payloadPath);
       if (state === "selected") { await select("remove"); await select("open"); }
       else { await select("open"); await select("remove"); }
       await request(held, 409);
       const moved = observation(db, workspace);
       const restore = { databasePath, backupDirectory, repositoryRoot, instanceId: `selection-recovery-${state}`, repositoryFingerprint: fingerprint,
-        runtimeOwnershipGeneration: "owned-selection-fixture", databaseOverrideActive: true, selectedBackupId: backup.manifest.backup_id };
+        runtimeOwnershipGeneration: "owned-selection-fixture", databaseOverrideActive: true, selectedBackupId: backup.manifest.backup_id } as unknown as NonNullable<Parameters<typeof restoreRuntimeDatabase>[0]>;
       db.close();
       // A failure after stage invalidation cannot publish the new token or rows.
       await assert.rejects(restoreRuntimeDatabase({ ...restore, dependencies: { verifyPreparedDatabase: () => { throw new Error("injected_stage_refusal"); } } }), /database_integrity_failed/);
