@@ -425,6 +425,26 @@ deterministic ownership over throughput:
   tree termination, stream closure, and exact cleanup assertions remain owned
   by the current runners.
 
+Browser preferred-port allocation is a bounded loopback probe, not a runtime
+reservation. It keeps at most 20 probes and three distinct role ports within
+the supervisor's accepted preferred-port range. When the OS returns one of the
+upper 20 ports, the next probe explicitly binds that candidate minus 20; merely
+transforming an unprobed number does not establish availability. That probe
+consumes the same budget. An occupied fallback remains unavailable; independent
+probe and cleanup errors fail closed. Every probe closes before launch, and the
+existing supervisor still owns later runtime collisions. No delay, Browser retry
+or enlarged search budget is introduced.
+
+The sanitized `browser_port_allocation.v1` diagnostic retains probe order,
+requested/observed port numbers, selection or rejection reason, failure stage,
+allowlisted error codes and cleanup outcomes. It excludes raw errors, paths and
+environment material. Allocator-owned evidence survives initialization failure
+before a lifecycle is returned, including in navigation-diagnostic child output.
+Secondary cleanup failure must not replace the primary failure or be reported
+as complete cleanup. Allocation failure remains distinct from navigation or
+later launch failure. A new local reproduction or deterministic control does not
+reconstruct an unavailable historical candidate sequence.
+
 The full surface and every owner-targeted plan require
 at least two logical CPUs, 8 GiB physical memory, and 15 GiB free
 repository-volume disk before dependency or long phases. Quick,

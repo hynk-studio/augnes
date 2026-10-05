@@ -35,7 +35,7 @@ import {
   createRepositoryExecutionDecisionRequestV01,
 } from "../lib/vnext/repository-execution/repository-execution.ts";
 import { createBrowserSupervisorPublicDiagnosticCapture } from "./browser-supervisor-public-diagnostic.mjs";
-import { chooseBrowserPorts } from "./browser-preferred-ports.mjs";
+import { chooseBrowserPorts, readBrowserPortAllocationDiagnostic } from "./browser-preferred-ports.mjs";
 import { createBrowserE2ETimingRecorder } from "./browser-e2e-timing.mjs";
 import { createProjectExperienceRequestDiagnosticsV1 } from "./project-experience-request-diagnostics-v1.mjs";
 import { CONSUMER_DIAGNOSTIC_BINDING_V1 } from "./project-experience-consumer-diagnostics-v1.mjs";
@@ -325,6 +325,7 @@ const result = {
   request_response_console_ledger_summary: null,
   supervisor_exit_diagnostic: null,
   e2e_timing_summary: null,
+  browser_port_allocation_diagnostic: null,
   failure: null,
 };
 
@@ -411,6 +412,7 @@ try {
   functionalExecutionSucceeded = true;
   emitRequestDiagnostics("scenario_complete");
 } catch (error) {
+  result.browser_port_allocation_diagnostic ??= readBrowserPortAllocationDiagnostic(error);
   result.failure = safeError(error);
   process.exitCode = 1;
   emitRequestDiagnostics("scenario_failure");
@@ -422,7 +424,7 @@ try {
   const finishCleanupTiming = timing.start("cleanup", "global cleanup");
   try {
     await cleanup();
-    result.cleanup_complete = true;
+    result.cleanup_complete = result.browser_port_allocation_diagnostic?.cleanup_complete !== false;
   } catch (error) {
     if (!result.failure) {
       result.failure = safeError(error);
@@ -434,7 +436,8 @@ try {
   result.owned_streams_settled = ownedBrowserProcesses.size === 0;
   result.owned_process_residue_count = ownedBrowserProcesses.size;
   try {
-    result.listener_residue_count = await listenerResidueCount();
+    result.listener_residue_count = result.browser_port_allocation_diagnostic?.cleanup_complete === false
+      ? null : await listenerResidueCount();
   } catch (error) {
     if (!result.failure) {
       result.failure = safeError(error);
@@ -623,7 +626,9 @@ async function main() {
     fixture.writable_database_path,
   );
 
-  ({ app: appPort, bridge: bridgePort, debug: debugPort } = await chooseBrowserPorts());
+  const allocation = await chooseBrowserPorts();
+  result.browser_port_allocation_diagnostic = readBrowserPortAllocationDiagnostic(allocation);
+  ({ app: appPort, bridge: bridgePort, debug: debugPort } = allocation);
   appOrigin = `http://127.0.0.1:${appPort}`;
   const chromeExecutable = chromeCandidates.find((candidate) =>
     existsSync(candidate),

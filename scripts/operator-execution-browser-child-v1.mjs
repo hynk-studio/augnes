@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
+import { readBrowserPortAllocationDiagnostic } from "./browser-preferred-ports.mjs";
 
 import {
   OPERATOR_EXECUTION_FIXTURE_VERSION_V1,
@@ -126,6 +127,7 @@ export async function runOperatorExecutionBrowserChildV1({
     acceptance_bound_ms: ACCEPTANCE_BOUND_MS,
     e2e_timing_summary: null,
     browser_failure_diagnostic: null,
+    browser_port_allocation_diagnostic: null,
     browser_failure_snapshot: null,
     failure_evidence_capture_errors: [],
     supervisor_exit_diagnostic: null,
@@ -174,6 +176,7 @@ export async function runOperatorExecutionBrowserChildV1({
       process_temp_root: roots.process_root,
       environment: prepared.environment ?? {},
     });
+    result.browser_port_allocation_diagnostic = lifecycle.port_allocation_diagnostic;
     lifecycle.recordFixtureConstruction(Date.now() - startedAt);
     beforeEffects = captureOperatorExecutionEffectSnapshotV1({
       database_path: fixture.writable_database_path,
@@ -218,6 +221,7 @@ export async function runOperatorExecutionBrowserChildV1({
     result.unowned_effect_count = 0;
     functionalExecutionSucceeded = true;
   } catch (error) {
+    result.browser_port_allocation_diagnostic ??= readBrowserPortAllocationDiagnostic(error);
     let failureEvidence = null;
     try { failureEvidence = lifecycle?.captureFailureEvidence?.() ?? null; } catch {
       result.failure_evidence_capture_errors.push("primary_capture_failed");
@@ -272,7 +276,13 @@ export async function runOperatorExecutionBrowserChildV1({
     );
     try {
       if (lifecycle) await lifecycle.cleanup();
-      result.cleanup_complete = true;
+      else {
+        // Initialization can fail before a lifecycle is returned. These roots
+        // were created by this child; no runtime/Browser has been launched.
+        rmSync(roots.temporary_root, { recursive: true, force: true });
+        rmSync(roots.process_root, { recursive: true, force: true });
+      }
+      result.cleanup_complete = result.browser_port_allocation_diagnostic?.cleanup_complete !== false;
     } catch (error) {
       if (!result.failure) {
         result.failure = safeError(error, {

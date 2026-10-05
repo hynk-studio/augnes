@@ -19,7 +19,7 @@ import { createRequire } from "node:module";
 import net from "node:net";
 import { networkInterfaces, tmpdir } from "node:os";
 import path from "node:path";
-import { chooseBrowserPorts } from "./browser-preferred-ports.mjs";
+import { chooseBrowserPorts, readBrowserPortAllocationDiagnostic } from "./browser-preferred-ports.mjs";
 import {
   TASK_CONTEXT_PACKET_FIXTURE_EXPIRES_AT,
   TASK_CONTEXT_PACKET_FIXTURE_GENERATED_AT,
@@ -338,6 +338,7 @@ const result = {
   total_duration_ms: null,
   supervisor_exit_diagnostic: null,
   e2e_timing_summary: null,
+  browser_port_allocation_diagnostic: null,
   failure: null,
 };
 
@@ -434,6 +435,7 @@ try {
   await main();
   functionalExecutionSucceeded = true;
 } catch (error) {
+  result.browser_port_allocation_diagnostic ??= readBrowserPortAllocationDiagnostic(error);
   result.failure = safeError(error);
   process.exitCode = 1;
 } finally {
@@ -444,7 +446,7 @@ try {
   const finishCleanupTiming = timing.start("cleanup", "global cleanup");
   try {
     await cleanup();
-    result.cleanup_complete = true;
+    result.cleanup_complete = result.browser_port_allocation_diagnostic?.cleanup_complete !== false;
   } catch (error) {
     if (!result.failure) result.failure = safeError(error);
     process.exitCode = 1;
@@ -466,6 +468,7 @@ try {
   result.owned_process_residue_count = ownedBrowserProcesses.size;
   try {
     result.listener_residue_count =
+      result.browser_port_allocation_diagnostic?.cleanup_complete === false ? null :
       (appPort && (await canConnectToListener("127.0.0.1", appPort)) ? 1 : 0) +
       (bridgePort && (await canConnectToListener("127.0.0.1", bridgePort)) ? 1 : 0) +
       (debugPort && (await canConnectToListener("127.0.0.1", debugPort)) ? 1 : 0);
@@ -572,7 +575,9 @@ async function main() {
   result.active_packet_id = activePacketId;
   result.active_packet_fingerprint = activePacketFingerprint;
 
-  ({ app: appPort, bridge: bridgePort, debug: debugPort } = await chooseBrowserPorts());
+  const allocation = await chooseBrowserPorts();
+  result.browser_port_allocation_diagnostic = readBrowserPortAllocationDiagnostic(allocation);
+  ({ app: appPort, bridge: bridgePort, debug: debugPort } = allocation);
   appOrigin = `http://127.0.0.1:${appPort}`;
   const runtimeEnvironment = isolatedRuntimeEnvironment({
     databasePath,

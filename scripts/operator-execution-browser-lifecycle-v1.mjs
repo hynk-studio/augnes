@@ -17,7 +17,7 @@ import {
 } from "../lib/vnext/runtime/local-operator-session.ts";
 import { createBrowserSupervisorPublicDiagnosticCapture } from "./browser-supervisor-public-diagnostic.mjs";
 import { createOperatorBrowserFailureSnapshotV1 } from "./operator-browser-failure-snapshot-v1.mjs";
-import { chooseBrowserPorts } from "./browser-preferred-ports.mjs";
+import { chooseBrowserPorts, readBrowserPortAllocationDiagnostic } from "./browser-preferred-ports.mjs";
 import { createBrowserE2ETimingRecorder } from "./browser-e2e-timing.mjs";
 import { createOperatorRequestFailureEvidenceV1 } from "./operator-execution-result-contract-v1.mjs";
 import {
@@ -62,7 +62,8 @@ export async function createOperatorExecutionBrowserLifecycleV1({
   ]) {
     mkdirSync(directory, { recursive: true, mode: 0o700 });
   }
-  const { app: appPort, bridge: bridgePort, debug: debugPort } = await chooseBrowserPorts();
+  const allocation = await chooseBrowserPorts();
+  const { app: appPort, bridge: bridgePort, debug: debugPort } = allocation;
   const appOrigin = `http://127.0.0.1:${appPort}`;
   const timing = createBrowserE2ETimingRecorder({ scope: child_id });
   const requests = [];
@@ -1067,6 +1068,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     runtime_state_directory: runtimeStateDirectory,
     download_directory: downloadDirectory,
     ports: Object.freeze({ app: appPort, bridge: bridgePort, debug: debugPort }),
+    port_allocation_diagnostic: readBrowserPortAllocationDiagnostic(allocation),
     requests,
     responses,
     console_errors: consoleErrors,
