@@ -53,6 +53,7 @@ import {
 } from "../lib/vnext/persistence/project-identity-registry.ts";
 import {
   readActiveProjectSelectionV01,
+  readProjectSelectionStateV02,
   selectActiveProjectV01,
   touchRecentProjectV01,
 } from "../lib/vnext/persistence/project-lifecycle-registry.ts";
@@ -3052,6 +3053,9 @@ function activateFixtureProjectForContinuity(
   try {
     writableDatabase.pragma("foreign_keys = ON");
     const selectedAt = "2026-07-21T06:00:00.000Z";
+    const clearedSelection = readProjectSelectionStateV02(writableDatabase, workspaceId);
+    assert(clearedSelection, "transferred fixture must retain its cleared selection observation");
+    assert.equal(clearedSelection.project_id, null);
     touchRecentProjectV01(writableDatabase, {
       workspace_id: workspaceId,
       project_id: projectId,
@@ -3061,8 +3065,8 @@ function activateFixtureProjectForContinuity(
       workspace_id: workspaceId,
       project_id: projectId,
       now: selectedAt,
-      expected_project_id: null,
-      expected_revision: null,
+      expected_project_id: clearedSelection.project_id,
+      expected_revision: clearedSelection.selection_revision,
     });
   } finally {
     writableDatabase.close();
