@@ -41,6 +41,14 @@ The receipt preserves the established evidence vocabulary:
 This is a shared local host and does not provide independent hosted reproduction.
 GitHub remains source control, pull-request, review, and history infrastructure only.
 
+Explicitly user-authorized isolated Codex Cloud checkouts may inspect source,
+implement changes, run focused development tests and static documentation
+checks, and create branches, commits, pushes, and Draft pull requests within
+task scope. These are development feedback, not actual Mac integration evidence
+or a Mac Local Canonical receipt. The actual Mac installed runtime and Local
+Canonical host remain rooted at `/Users/hynk/code/augnes`; the executor's exact
+Mac root, origin, platform, and deciding-evidence gates remain unchanged.
+
 ## Repository-owned entry points
 
 Use the stable executor commands for behavior-affecting changes. The
