@@ -30,6 +30,58 @@ record. A phase becomes completed only when that pull request merges. This
 lifecycle wording remains truthful before and after merge without treating a
 Draft PR as completed runtime.
 
+## Status reconciliation — 2026-10-06
+
+The reviewed integration baseline is main
+`6132a37ceb34799ad65c6233e58ed6405abf2a01`: aggregate
+[#1404](https://github.com/hynk-studio/augnes/pull/1404), the Sol historical-grant
+correction [#1406](https://github.com/hynk-studio/augnes/pull/1406), and the
+precisely evidenced result-persistence-failure successor path
+[#1409](https://github.com/hynk-studio/augnes/pull/1409) are merged. The twelve
+incremental heads #1386, #1387, #1388, #1389, #1390, #1391, #1392, #1394, #1396,
+#1398, #1400 and #1402 are ancestors of that baseline and their PRs are closed
+as included through #1404. Individual closed-unmerged PR state does not mean
+their implementation is missing. Historical receipts remain exact-head evidence;
+this reconciliation is not another verification run or a transfer of a receipt.
+
+The bounded implementation/investigation issues #1224, #1261, #1311, #1320,
+#1322, #1329, #1347, #1375, #1384, #1393, #1395, #1397, #1399, #1401 and #1403
+are closed with their limits retained in
+[#1209](https://github.com/hynk-studio/augnes/issues/1209). #1224's prospective
+budget relaxation is not measured speedup. P4.6's strong adaptive memo and
+procedural conditions reached the same supported outcome, without observed
+additional revision benefit. #1376 has a standalone executable reuse consumer;
+ordinary product integration and general learning remain incomplete.
+
+[#1407](https://github.com/hynk-studio/augnes/issues/1407) and
+[#1410](https://github.com/hynk-studio/augnes/issues/1410) record completed native
+adoption on the approved Mac/store, fresh Browser and installed Operator readback,
+explicit revision and controlled restart. These are the executing lane's bounded
+observations, not a new Mac inspection by this documentation edit. #1410 preserves
+all 35 pre-cutover records and adds one revision; its verified 34-record backup
+does not cover the two later records. Restore testing and full build attestation
+remain unqualified. #1408's independent-session progression observation remains
+partial; coordinator implementation and later adoption do not upgrade it.
+
+Remaining work stays with existing owners: #1213 for result-informed semantic
+selection/updating; #1214 for useful multi-step progression, general failure
+continuation, reuse integration and matched total-burden evaluation; #1215/#1149
+for unfinished obligations and required-byte transfer; #1372 for actual hosted
+file-backed continuation, schema-3 adoption and live consumers. #1212 retains
+broader product/client gaps, including native retirement beyond recents removal.
+Unknown provider effects/cost and unavailable rejection evidence remain unknown.
+Finite operation bounds require an actual blocked-operation diagnosis before
+further scale work. Neither local adoption nor excerpt delivery qualifies
+cross-account/device/cloud continuation or long-term usefulness.
+
+Old PR #1148 is closed unmerged as preserved research input under #1215/P5.7;
+its note was not merged wholesale. #1195/#1196 and #1206 are closed historical
+HOLD / NOT_QUALIFIED attempts, with future managed-runtime qualification retained
+in #1199. #1130's authentic observation, #1150's partial governed substrate,
+#1273's actual Site-tool result use and #1354's deferred Sites route remain open.
+Current status follows these bounded dispositions; dated evidence and existing
+section anchors below remain historical/reference material where applicable.
+
 ## P3/P4/P5 direction: experience that improves later work
 
 Under the existing [product doctrine](./01_AUGNES_VNEXT_MASTERPLAN.md) and
@@ -104,11 +156,11 @@ gaps that obstruct actual work. [#1372](https://github.com/hynk-studio/augnes/is
 remains separately authorized private file-backed Web continuation work after
 the reviewed, closed [#1371](https://github.com/hynk-studio/augnes/issues/1371).
 It may deliver future capability artifacts, but is not a universal prerequisite
-for independent code/research experiments. #1372 owns its Web README and directly
-relevant Web-status corrections below; [Draft #1342](https://github.com/hynk-studio/augnes/pull/1342)
-owns the three #1340 status paragraphs. This alignment leaves those sections and
-anchors intact and does not treat pending corrections as a blocker for this
-candidate.
+for independent code/research experiments. #1372 owns its Web README and hosted
+rollout/acceptance. [#1342](https://github.com/hynk-studio/augnes/pull/1342) owns
+the bounded roadmap reconciliation, including #1340's three status paragraphs.
+Those explanatory corrections preserve existing anchors and do not make
+documentation cleanup a blocker for this candidate.
 
 The independently eligible small [GCML computational comparison](#research--goal-directed-recombination-and-candidate-paths-1214)
 and other bounded research questions retain their own scope and authority; full
@@ -156,8 +208,8 @@ The ordinary-case evidence obligation remains: identify one authorized case with
 defensible inputs and observe the worker's first choice, result and total
 preparation/repair burden. #1380 explicitly authorizes the narrow prospective
 capability below before that observation. Broader/default activation still requires
-evidence from ordinary use. P4.6's negative findings, #1342's three
-status passages, and #1372's Web rollout/acceptance ownership remain unchanged.
+evidence from ordinary use. P4.6's negative findings and #1372's Web
+rollout/acceptance ownership remain unchanged by #1342's status reconciliation.
 
 ### Completed bounded mechanism — Prospective preparation and event/time re-entry (#1380)
 
@@ -207,6 +259,11 @@ human repair burden before considering broader activation. The absence of that
 case does not invalidate the bounded engineering or establish real-world benefit.
 
 ### Current P4/P5 — First stateless bounded product work (#1384)
+
+**Completed within the initial bounded implementation scope** through #1404,
+with subsequent corrections #1406 and #1409. The existing heading remains a
+stable reference. Ordinary progression, semantic updating, transfer and usefulness
+obligations continue under #1213/#1214/#1215 and #1372; this does not complete them.
 
 The first implementation connects ordinary authored work → explicit finite grant →
 stateless Gateway judgment → allowed local source read or justified non-use →
@@ -524,7 +581,7 @@ failures and receipts retain their original dates and source identities. Existin
 Companion continuity remains unavailable. Same-database account/session changes,
 meaningful unfinished-work transfer (#1149), semantic selection quality,
 cross-project recurrence and strong comparative evaluation remain separate.
-P4.6's negative findings and #1342/#1372 ownership are unchanged. This does not
+P4.6's negative findings and #1372's hosted obligations are unchanged. This does not
 complete the continuity program.
 
 
@@ -571,6 +628,10 @@ model/data/spend authority. Existing live allowances remain consumed.
 
 ### Current lifecycle slice — Durable local work resumption (#1393)
 
+**Completed within the bounded implementation scope:** #1394 is included in
+merged #1404 and #1393 is closed. #1407/#1410 separately record approved-native
+adoption; the protected retained candidate remains outside that acceptance.
+
 Stacked on #1392, the first local lifecycle correction separates ordinary saved
 authorship from incidental execution/pilot expiry. Initial preparation already
 had a null lifetime. Current-source reproduction with the exact #1392 writers
@@ -588,11 +649,16 @@ Finite authentication and execution still require separate current admission.
 This is local correctness evidence, not real-candidate use, hosted Web Planning
 parity, cross-device transfer or comparative usefulness. The retained #1392
 candidate and proposed receiving operation above remain untouched by this slice.
-The next bounded cumulative-history correction is recorded below; broader project
-management and hosted-store changes remain later reviewed work. Draft review and exact-head verification do not grant merge,
-deployment, installation or live-provider authority.
+The subsequent cumulative-history and native project-management corrections below
+are also integrated. Hosted-store adoption remains with #1372. Historical Draft
+review and exact-head verification did not themselves authorize installation,
+deployment or live-provider use.
 
 ### Current lifecycle slice — Cumulative native history (#1395)
+
+**Completed within the bounded implementation scope:** #1396 is included in
+merged #1404 and #1395 is closed. Complete packet-history reads retain their
+4,096-record/16 MiB bounds; the 320-revision fixtures do not qualify unlimited growth.
 
 Stacked on #1394, this slice removes native work's 32-revision admission and
 reconstruction ceiling, the scoped revalidation 128-run listing refusal and the
@@ -607,12 +673,16 @@ canonical compiler-built prefixes; recovery, portable consumers, existing human
 editing and authenticated agent routes remain the deciding behavioral surfaces.
 Query/traversal measurements qualify bounded correctness, not unlimited scale or
 comparative usefulness. Exact-head verification and cleanup belong to the Draft
-PR receipt. The retained real candidate, broader project management, hosted
-store, provider execution, installation and deployment remain outside this slice.
+PR receipt. The retained real candidate, hosted store and provider execution
+remain outside this slice. Later native management and approved installation are
+recorded separately in #1399/#1400 and #1407/#1410.
 
 ### Current lifecycle slice — Cumulative Web Planning history (#1397)
 
-Stacked on #1396, this bounded local candidate removes Web Planning's revision-32
+**Completed local implementation:** #1398 is included in merged #1404 and #1397
+is closed. Actual hosted adoption remains with #1372.
+
+Originally stacked on #1396, this bounded correction removes Web Planning's revision-32
 constraint in application admission, references and SQL through forward schema-3
 migration. Its [Web-owned contract](../../apps/web_planning/README.md#cumulative-saved-history-1397)
 keeps one atomic bounded history observation, explicit operation budgets,
@@ -624,14 +694,20 @@ Real disposable Worker/D1 checks distinguish predecessor-writer history from
 constructed larger prefixes, preserve both migration owners, and exercise
 restart, later edits, incomplete reads, conflicting heads and rollback. Draft
 review, final exact-head Canonical evidence and cleanup are separate from hosted
-migration, live-client adoption or usefulness. Issue #1397 remains open; no live
-store, retained real candidate, provider, installation or deployment is used.
+migration, live-client adoption or usefulness. #1372 retains coordinated schema-3
+code/reader adoption, writer quiescence and compatible recovery or roll-forward;
+code-only rollback is insufficient. No live store, retained real candidate,
+provider, installation or deployment was used by this local implementation.
 The predecessor's successful and failed verification records retain their exact
 source identities and do not qualify this candidate.
 
 ### Current lifecycle slice — Native project management (#1399)
 
-Stacked on #1398, this local candidate adds registered-project discovery to the
+**Completed bounded implementation:** #1400 is included in merged #1404 and
+#1399 is closed. #1407/#1410 separately record approved-native adoption.
+Archive/discard/project erasure was not added; recents removal preserves data.
+
+Originally stacked on #1398, this correction adds registered-project discovery to the
 existing management surface and capability-scoped discovery to the existing
 agent direction endpoint. Open, rename, folder recovery and direction mutations
 retain their owners. Predecessor handler reproduction found registered projects
@@ -643,13 +719,17 @@ Disposable checks cover paginated and fresh-process discovery, existing human
 controls, authenticated deterministic clients, capability refusals, incomplete
 reads, stale/concurrent mutations, forward migration and recovery/portability.
 Final exact-head Canonical evidence and cleanup belong to this candidate's Draft
-PR. Prior receipts remain historical. Issue #1399 stays open for review; hosted
-rollout, actual live-agent adoption, retained-candidate use, provider execution
-and general usefulness are outside this slice.
+PR. Prior receipts remain historical. Hosted consumers remain with #1372 and
+broader product gaps with #1212. Retained-candidate use, provider execution and
+general usefulness remain outside this slice; later native acceptance is bounded
+to the approved store and clients, not every consumer.
 
 ### Current RC1 follow-up — Selection reconstruction conformance (#1401)
 
-Stacked on Draft #1400, this bounded local comparison adds the prospective
+**Completed prospective disposable-conformance scope:** #1402 is included in
+merged #1404 and #1401 is closed. Legacy v0.1 retains its original verdict.
+
+Originally stacked on #1400, this bounded local comparison adds the prospective
 `preserved_history_fresh_selection.v0.1` profile under report v0.2. The same
 independently imported RC1 fixture retains v0.1's exact `non_conformant` result
 and conformant relational lane. The new profile separately requires exact
@@ -663,9 +743,10 @@ fresh-process snapshot readback, stale management refusals and specific drift,
 incomplete-read and tampering controls. Repeated restore of the same immutable
 backup in selected, cleared and never-selected states reuses #1400's focused owner. Final
 exact-head Local Canonical evidence belongs to this candidate, not its
-predecessor. Issues #1401 and #1399 remain open; integration/adoption remains a
-review decision. Hosted compatibility, remote attestation, live-candidate use,
-installation, execution, deployment and usefulness are outside this change.
+predecessor. #1403's integration preparation is complete through #1404;
+#1407/#1410 subsequently record the separately authorized native adoption.
+Hosted compatibility, remote attestation, protected live-candidate transfer,
+execution, deployment and usefulness are outside this comparison change.
 
 ### Current P2/P3/P4/P5 — Project direction and decision authority (#1382)
 
@@ -781,11 +862,13 @@ automatically delivered worker instruction.
 
 [#1340](https://github.com/hynk-studio/augnes/pull/1340), for #1339's explicit
 saved outcome-report/forecast-context selection and exact historical delivery,
-remains **open Draft / HOLD**. It owns its implementation contract and the
-corresponding 02/03 mechanism text. Its selection/delivery evidence does not
-establish better judgment, human-effort savings, autonomous learning or
-separate-task transfer. The failed deciding run on `5b1994fa` remains
-non-deciding; the original UI startup timeout's cause remains unknown.
+is **Completed within its bounded implementation scope**: the final integrated
+candidate was reviewed and #1340 merged on 2026-09-27; #1339 is closed as
+completed. Its implementation contract and corresponding 02/03 mechanism text
+remain bounded selection/delivery support, not evidence of production adoption,
+better judgment, human-effort savings, autonomous learning or separate-task
+transfer. The original failed attempts remain historical and non-deciding;
+the original UI startup timeout's cause remains unknown.
 
 The bounded isolated observation and the single ordered four-scenario
 navigation-diagnostics observation on `944b2f561013cfcdb05167fcd392a1ccd16f462c`
@@ -797,17 +880,17 @@ observations. The retained diagnostic-capture improvement addresses demonstrated
 evidence loss, not an established cause of the startup timeout. Neither
 observation transfers or replaces exact-head verification evidence.
 
-On 2026-09-27, the user explicitly authorized integrating reviewed main
-`e2e0af3279d5db31105b88b5ed456945563f9f30` from #1341 into this PR, freezing the
-final candidate and performing one planner-required deciding verification
-attempt on that exact clean integrated head. This decision supersedes the
-diagnostic-only deferral; it does not relax verification policy or authorize
-repeated attempts until PASS. No further standalone diagnostic execution or
-speculative startup repair precedes that attempt. Merge and production adoption
-remain on HOLD pending review of the result. The later-use preference here,
-including the ordinary-use pointers in completed slices below, cannot replace
-that engineering decision or bypass its HOLD. No unmerged capability is treated
-as current-main support.
+The authorized final integrated-head verification on
+`f75c5c608142e7eda2f6b8f06166bcb37d05fe8b`, incorporating #1341's reviewed main
+`e2e0af3279d5db31105b88b5ed456945563f9f30`, passed all 15 required Full Canonical
+phases. Its exact-head receipt remains historical verification evidence for
+that candidate. Subsequent review and merge produced then-main
+`e43651db9ed52d3ab3352b977d711220e534befe`, with the shared source tree
+`df5750a6aeb576a2bb3d6b5d6389e8ebc38d1b2b`. Merge and tree equality neither
+transfer the receipt to a new head nor establish installed application adoption
+or usefulness. The bounded implementation is complete; production adoption
+requires separate authority and evidence. This closeout does not reopen startup
+diagnosis, repeat verification or change #1341's broader direction.
 
 At ordinary-use entry, recheck the exact available path and its eligibility;
 manual note reuse is distinct from #1340's saved-report selection. Do not infer
@@ -1748,13 +1831,14 @@ groups whole, and selection checks both note slots and serialized bytes before
 adding the pair. This closes the earlier single-hit comparison refusal without
 relaxing snapshot coherence or replacing the saved report with a later one.
 
-This is **Current while its Draft PR is open**, and **Completed within this
-bounded selection/delivery scope after merge**. Disposable deterministic and
-Browser evidence establish the mechanics and observable transcription/selection
-steps only. They do not establish predictive accuracy, better judgment, human
-time savings or automatic learning. Production adoption, remote transport and
-held/consumed P3/P5 studies remain outside this issue. Next: review the bounded
-connection and retain or revise it on its producer-to-consumer evidence.
+This is **Completed within its bounded selection/delivery scope**, following
+review and merge of [#1340](https://github.com/hynk-studio/augnes/pull/1340).
+Disposable deterministic and Browser evidence establish the mechanics and
+observable transcription/selection steps only. They do not establish predictive
+accuracy, better judgment, human time savings or automatic learning. Production
+adoption, remote transport and held/consumed P3/P5 studies remain outside this
+issue. Next: identify one separately authorized ordinary-use opportunity under
+the prerequisites above; no feature extension or study follows automatically.
 
 ## P2/P3 saved outcome-linked preparation revision (#1335)
 

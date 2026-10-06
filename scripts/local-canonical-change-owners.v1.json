@@ -374,6 +374,15 @@
       "consumer_paths": [
         "fixtures/vnext/protocol/task-context-packet-v0-1.ts"
       ],
+      "reference_consumers": [
+        {
+          "path": "apps/web_planning/README.md",
+          "targets": [
+            "docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md"
+          ],
+          "scope": "Regular-file explanatory provenance link to the retained hosted-closeout anchor. The Web build and distributable payload do not consume this README; it is not an agent instruction owner. This edge does not classify README edits, other targets, executable readers, or dispositions as safe. Exact-tree incoming-reference validation and meaning review remain required."
+        }
+      ],
       "disposition": "full"
     },
     {
