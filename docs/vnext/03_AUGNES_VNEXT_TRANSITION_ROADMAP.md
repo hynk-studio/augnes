@@ -30,6 +30,58 @@ record. A phase becomes completed only when that pull request merges. This
 lifecycle wording remains truthful before and after merge without treating a
 Draft PR as completed runtime.
 
+## Status reconciliation — 2026-10-06
+
+The reviewed integration baseline is main
+`6132a37ceb34799ad65c6233e58ed6405abf2a01`: aggregate
+[#1404](https://github.com/hynk-studio/augnes/pull/1404), the Sol historical-grant
+correction [#1406](https://github.com/hynk-studio/augnes/pull/1406), and the
+precisely evidenced result-persistence-failure successor path
+[#1409](https://github.com/hynk-studio/augnes/pull/1409) are merged. The twelve
+incremental heads #1386, #1387, #1388, #1389, #1390, #1391, #1392, #1394, #1396,
+#1398, #1400 and #1402 are ancestors of that baseline and their PRs are closed
+as included through #1404. Individual closed-unmerged PR state does not mean
+their implementation is missing. Historical receipts remain exact-head evidence;
+this reconciliation is not another verification run or a transfer of a receipt.
+
+The bounded implementation/investigation issues #1224, #1261, #1311, #1320,
+#1322, #1329, #1347, #1375, #1384, #1393, #1395, #1397, #1399, #1401 and #1403
+are closed with their limits retained in
+[#1209](https://github.com/hynk-studio/augnes/issues/1209). #1224's prospective
+budget relaxation is not measured speedup. P4.6's strong adaptive memo and
+procedural conditions reached the same supported outcome, without observed
+additional revision benefit. #1376 has a standalone executable reuse consumer;
+ordinary product integration and general learning remain incomplete.
+
+[#1407](https://github.com/hynk-studio/augnes/issues/1407) and
+[#1410](https://github.com/hynk-studio/augnes/issues/1410) record completed native
+adoption on the approved Mac/store, fresh Browser and installed Operator readback,
+explicit revision and controlled restart. These are the executing lane's bounded
+observations, not a new Mac inspection by this documentation edit. #1410 preserves
+all 35 pre-cutover records and adds one revision; its verified 34-record backup
+does not cover the two later records. Restore testing and full build attestation
+remain unqualified. #1408's independent-session progression observation remains
+partial; coordinator implementation and later adoption do not upgrade it.
+
+Remaining work stays with existing owners: #1213 for result-informed semantic
+selection/updating; #1214 for useful multi-step progression, general failure
+continuation, reuse integration and matched total-burden evaluation; #1215/#1149
+for unfinished obligations and required-byte transfer; #1372 for actual hosted
+file-backed continuation, schema-3 adoption and live consumers. #1212 retains
+broader product/client gaps, including native retirement beyond recents removal.
+Unknown provider effects/cost and unavailable rejection evidence remain unknown.
+Finite operation bounds require an actual blocked-operation diagnosis before
+further scale work. Neither local adoption nor excerpt delivery qualifies
+cross-account/device/cloud continuation or long-term usefulness.
+
+Old PR #1148 is closed unmerged as preserved research input under #1215/P5.7;
+its note was not merged wholesale. #1195/#1196 and #1206 are closed historical
+HOLD / NOT_QUALIFIED attempts, with future managed-runtime qualification retained
+in #1199. #1130's authentic observation, #1150's partial governed substrate,
+#1273's actual Site-tool result use and #1354's deferred Sites route remain open.
+Current status follows these bounded dispositions; dated evidence and existing
+section anchors below remain historical/reference material where applicable.
+
 ## P3/P4/P5 direction: experience that improves later work
 
 Under the existing [product doctrine](./01_AUGNES_VNEXT_MASTERPLAN.md) and
@@ -37,7 +89,9 @@ Under the existing [product doctrine](./01_AUGNES_VNEXT_MASTERPLAN.md) and
 north star is user-owned, persistent project problem-solving capability built
 from the experience, corrections and reusable methods of a user and replaceable
 models. The product-facing loop stays **Resume -> Verify -> Decide**. This adds
-no learning mode, dashboard, approval ritual, phase or implementation mandate.
+no learning mode, dashboard, approval ritual or new phase. The prospective
+candidate below gives that direction a bounded next implementation outcome;
+documentation does not authorize its runtime or research execution.
 
 The product question is whether valid project understanding and corrections
 help later work more than strong practical alternatives, without unjustified
@@ -46,6 +100,732 @@ models, adaptive memory, project context, agents, governance and automation;
 none of these categories is an exclusive Augnes advantage. Users or small teams
 conducting uncertain research/development across sessions, tools or models are
 a primary target-user hypothesis, not established product-market fit.
+
+### Next P4/P5 — Executable capability reuse from experience (#1373)
+
+The 2026-10-01 [#1373 alignment](https://github.com/hynk-studio/augnes/issues/1373)
+promotes **experience → executable reusable method → separate successor use →
+outcome-informed revision/non-use** as the next new capability implementation
+candidate within P4/P5. This is an explicit prospective sequencing change. The
+01/03/04 alignment left this runtime candidate **Next**, with implementation and
+live study **NOT_STARTED** at that time. [#1375](https://github.com/hynk-studio/augnes/issues/1375)
+now authorizes the **Current** bounded standalone implementation: a source-derived
+exact solver, a separate retry-workflow consumer and outcome-informed qualification.
+The [callable, usage and development evidence](../../scripts/executable-reuse/README.md)
+retain source identity, independent reference calculations, explicit non-use and
+exposure limits. [#1376](https://github.com/hynk-studio/augnes/pull/1376) merged on
+2026-10-01, completing that standalone slice. Its product integration, hosted delivery,
+autonomous learning and comparative usefulness are not established by that merge. No live study
+or historical campaign restart is authorized by this implementation.
+
+The first slice should connect an actual usable asset, an actual consumer, an
+observed downstream result and a traceable feedback connection:
+
+1. Start with solved experience/task A and derive or minimally qualify an
+   executable method, retaining its source, applicable conditions and limits.
+2. Use it for a current goal in genuinely separate task B through a bounded
+   callable path, and observe the resulting work. Repeated sessions or small
+   variants of A do not establish separate-task use.
+3. Connect B's outcomes to a justified revision, unchanged retention or non-use.
+   Include a discriminating changed condition C when needed to assess whether
+   that response is appropriate; C is not a fixed task-count requirement.
+
+Inspect the existing [P4.6 EXTRACT/APPLY/REVISE owners](../../scripts/conditional-procedure-learning/)
+and [composition producers/consumers](../../lib/vnext/strategy-composition-case.ts)
+before choosing an extension. P4.6's natural-language procedures and closed
+coordinator probes already exercise bounded extraction, application and local
+revision. They do not prove this proposed reusable executable capability loop:
+the [observed sequence](../verification/P4_6_CONDITIONAL_PROCEDURE_LEARNING.md)
+found no additional behavioral advantage over the strong adaptive memo and no
+added revision benefit in its one three-task sequence. Preserve those findings,
+exposure limits and frozen dispositions; do not restart it or inherit unused
+budgets.
+
+[#1366's computation artifacts](https://github.com/hynk-studio/augnes/issues/1366)
+are one grounded source-inspection/reuse candidate, not a required module or an
+established transfer result. That completed numerical case is not rerun by this
+sequence, and private originals remain private. If original code plus minimal
+qualification already serves B, use it without wrapping it in a framework.
+Assess the reusable asset, goal-conditioned selection/composition and
+outcome-driven updating as separate contributions. All three need not be new
+mechanisms or prerequisites for the first useful increment; no new selector,
+registry or universal module format is presumed.
+
+Prioritize concrete capability learning/reuse and product defects or delivery
+gaps that obstruct actual work. [#1372](https://github.com/hynk-studio/augnes/issues/1372)
+remains separately authorized private file-backed Web continuation work after
+the reviewed, closed [#1371](https://github.com/hynk-studio/augnes/issues/1371).
+It may deliver future capability artifacts, but is not a universal prerequisite
+for independent code/research experiments. #1372 owns its Web README and hosted
+rollout/acceptance. [#1342](https://github.com/hynk-studio/augnes/pull/1342) owns
+the bounded roadmap reconciliation, including #1340's three status paragraphs.
+Those explanatory corrections preserve existing anchors and do not make
+documentation cleanup a blocker for this candidate.
+
+The independently eligible small [GCML computational comparison](#research--goal-directed-recombination-and-candidate-paths-1214)
+and other bounded research questions retain their own scope and authority; full
+platform completion or prior broad real-world usefulness is not an entry gate
+for a useful mechanism experiment. Default product activation still requires
+the distinct evidence in [04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#method-improvement-evidence).
+Defer unneeded marketplace/SDK work, universal registries/graphs, additional UI
+and host expansion until a concrete consumer justifies them. This priority
+neither cancels authorized work nor makes all P1/P2 work blocked. Dated historical
+scopes, study results and unrelated Current/Next work below retain their bounds.
+
+### Current P3/P4/P5 — Project retry-inspection outlook (#1213)
+
+Under #1209, the first bounded project working-model implementation merged in
+[#1379](https://github.com/hynk-studio/augnes/pull/1379). P3 #1213
+owns the source-bound conditional judgment, P4 #1214 the optional method choice,
+and P5 #1215 its result-to-successor connection. It does not complete those phases.
+
+The missing connection was a prospective method recommendation between selected
+project context and native task execution. Existing result and selected-note
+writers already supplied the later-use path. The implementation connects:
+
+`selected project direction + workflow/inspection premises -> frozen packet outlook
+-> task-start GuideBrief + exact Codex packet -> receipt-backed result note
+-> selected outcome dependency -> ordinary successor outlook`.
+
+The [02 input/producer contract](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#project-retry-inspection-working-outlook)
+limits this to stationary retry work and optional inspection. A simple exact renewal
+formula is sufficient; #1376 remains a separately qualified executable and an
+independent numerical reference. No general selector, empirical rate learning,
+automatic source extraction or new approval workflow is implemented. Source-note
+authoring, selection and outcome-informed input revision remain explicit work.
+
+The constructed development scenario uses normal authenticated writers, the
+production App Server adapter with a scripted child that actually reads a disposable
+inspection observation, normal receipt/result preparation, and fresh successor
+admission. It exercises direct -> inspect -> investigate as the selected cost and
+then outcome-supported uncertainty change, immutable prior judgments, unchanged
+conditions, priority changes, missing support and horizon expiry. This establishes
+bounded correctness/delivery and a scripted action change, not a live model's
+judgment, real project benefit or attributable learning. No historical method
+rejection or successful real-world reuse is invented.
+
+The ordinary-case evidence obligation remains: identify one authorized case with
+defensible inputs and observe the worker's first choice, result and total
+preparation/repair burden. #1380 explicitly authorizes the narrow prospective
+capability below before that observation. Broader/default activation still requires
+evidence from ordinary use. P4.6's negative findings and #1372's Web
+rollout/acceptance ownership remain unchanged by #1342's status reconciliation.
+
+### Completed bounded mechanism — Prospective preparation and event/time re-entry (#1380)
+
+The user authorized this prospective sequencing change on 2026-10-02:
+implement and verify one opt-in local agenda now, while retaining #1379's ordinary
+case as an outstanding obligation and a prerequisite to broader/default activation.
+[#1380](https://github.com/hynk-studio/augnes/issues/1380) is merged through #1381
+with its reviewed authoring/authorization and temporal corrections. It does not complete #1213, #1214 or #1215, reopen
+P4.6, inherit research budgets, or authorize a live comparative study.
+
+The bounded source path is selected direction/notes → candidate decision agenda →
+one complementary selected-source inspection bundle → explicit authenticated
+preparation authorization → arm → existing policy/grant/native
+admission → source-bound receipt → durable result-event/time reconsideration →
+revised/retained/withdrawn judgment and next action. Explicit later authorship uses
+the normal result-source comparison and successor writer. One local host, one
+project, one active agenda and one work attempt are supported; no default daemon,
+generic scheduler, dashboard, global event bus or host expansion is introduced.
+The [02 contract](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#prospective-preparation-and-local-re-entry-1380)
+owns temporal distinctions, eligibility, attribution and authority.
+
+The constructed development check uses ordinary initial authorship and selected-note
+revision with a null grant, authenticated authorization preview/opt-in and arming,
+atomic grant/run admission, real bounded local file reads,
+native receipt, durable re-entry and ordinary successor. It also checks changed
+timing, complementary observations, A → B → A, contradictory evidence, broken
+premises, unavailable channels, concurrent/overdue wakes, cancellation, changed
+permission, source drift and interruption after claim. A bounded foreground host
+loop exercises actual timer/admission/result handling with zero model calls.
+The reviewed-head fixture had supplied its own grant and masked an ordinary
+authorship-to-preparation gap, including a semantic-lineage assumption in the
+execution reader. The correction adds the bounded grant connection and validates
+the distinct preparation lineage through production owners. Future result rows
+are also excluded before completion and evidence-reference calculation, with full
+judgment equality checked before their availability boundary.
+This is scripted mechanism and runtime-reachability evidence, not agenda discovery, model judgment or
+comparative usefulness. Final exact-head verification belongs to the PR receipt.
+
+Ordinary model use is **NOT RUN**: no ordinary task with a qualified explicit
+project/work grant and defensible prospective inputs was supplied for this slice.
+Ordinary authored packets still have no embedded automation grant; the explicit
+authenticated preparation authorization now connects them to the bounded host.
+The implementation does not manufacture authority from a wake or a prepared agenda.
+Next: review the corrected exact source/verification, then select and explicitly
+authorize an ordinary case through this grant owner; observe actual choice, preparation and
+human repair burden before considering broader activation. The absence of that
+case does not invalidate the bounded engineering or establish real-world benefit.
+
+### Current P4/P5 — First stateless bounded product work (#1384)
+
+**Completed within the initial bounded implementation scope** through #1404,
+with subsequent corrections #1406 and #1409. The existing heading remains a
+stable reference. Ordinary progression, semantic updating, transfer and usefulness
+obligations continue under #1213/#1214/#1215 and #1372; this does not complete them.
+
+The first implementation connects ordinary authored work → explicit finite grant →
+stateless Gateway judgment → allowed local source read or justified non-use →
+durable observation → second stateless judgment. Current source confirmed the
+composition gap: the policy Planner returns recommendations, prospective re-entry
+is zero-model literal inspection, and P4.6's coordinator is a separate research
+path. Their owners are reused without converting research permission into product
+permission or widening the older inspection grant. See the
+[bounded profile contract in 02](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#stateless-bounded-source-review-1384).
+
+The exposed development consumer selects `policy-triggered-planner-run.ts` lines
+141–164 and `prospective-reentry.ts` lines 112–131, with full-file version hashes,
+to inspect the recommendation/result-reentry connections those fragments actually
+show. Scripted Gateway responses establish delivery and attribution only. This
+bounded selection cannot establish repository-wide absence or answer the whole
+continuity audit. Tests author the question through the ordinary route, explicitly
+authorize it, read real excerpts, admit the result and read it back. A fresh child
+process completes the second judgment from the database after the source file is
+removed, preserving the observation and attempt. No internal human handoff occurs
+on the normal authorized path. The ordinary UI exposes authoring, finite pricing
+and permission review, saved results, interruption continuation and cancellation.
+
+The #1385 review confirmed three integration gaps: terminal-only conflict checks,
+missing compatible settlement/root attribution for ordinary successor authorship,
+and a returned over-budget result classified as unknown. Corrections reuse the
+ledger conflict owner, root identity owner and ordinary authenticated successor
+writer, and retain bounded received-result/usage evidence alongside Gateway
+failure receipts. Positive verification selects the attributed unverified review
+through result preparation and preview, then authors a new packet with no inherited
+grant. Existing Codex successor wording/lineage and historical records remain
+compatible; no ledger repair or invented native execution supplies this path.
+
+The original unbound card is historical. Ordinary onboarding and authorship
+subsequently prepared a genuinely new candidate; this did not recover unavailable
+Companion continuity. On 2026-10-03 the user separately authorized that candidate's
+ordinary control, finite grant, reviewed data transmission and at most two
+`gpt-4.1-mini` calls under the declared USD 0.10 envelope. The authorized attempt
+at `a7d8cfce0e9f33d42df9077e2d8da3321c19c9d3` made one Gateway-accounted Responses
+attempt and obtained no normalized judgment. Its durable run remains paused with
+unknown dispatch and reconciliation required; no observation or second judgment
+ran. API-key project ownership and actual service tier remain unresolved metadata;
+the user closed their investigation as prerequisites. Do not reopen those gates.
+
+The original configured route was OpenAI Responses / `gpt-4.1-mini`, with no
+account/provider/model switch. The historical
+[official route-pricing reference](https://developers.openai.com/api/docs/models/gpt-4.1-mini)
+was reviewed that day as USD 0.40 input, 0.10 cached input and 1.60 output per million
+tokens. The request did not pin `service_tier`, and that quote did not verify the
+project's tier or guarantee provider billing. No caching discount was assumed.
+
+The authorized attempt consumed `input_nano_usd_per_byte=1000`,
+`output_nano_usd_per_token=1600`,
+`source_version=operator-estimate-gpt-4.1-mini-2026-10-03-tier-unresolved`, and
+`maximum_total_nano_usd=100000000` (USD 0.10 total, 0.05 per invocation).
+The byte rate was an operator-declared conservative bound, not OpenAI's billing
+unit. At 16,384 input bytes and 1,024 output tokens per request, the quote computes
+USD 0.0180224 per call / 0.0360448 for two. This is a conditional envelope estimate,
+not measured cost or a provider-side billing guarantee. Retain two calls maximum,
+fifteen seconds per call, one two-file 65,536-byte read with at most 4,096 excerpt
+bytes, ten seconds per read and forty-five seconds per foreground call.
+
+Selected source versions (full-file SHA-256, unchanged from the reviewed PR head):
+
+| Source | Lines | SHA-256 |
+| --- | --- | --- |
+| `lib/vnext/automation/policy-triggered-planner-run.ts` | 141–164 | `ea5cc75e8862691c95d39baa11c8954ba4c8e8d26b2e452875f09b8ea20b9292` |
+| `lib/vnext/runtime/prospective-reentry.ts` | 112–131 | `dd1f769c2909a0cfeee1f7efe4750c04288fb94f243ff89218097810171a5061` |
+
+The reviewed transmission boundary covered the authored task/question, consumed working direction,
+project identity, packet/source fingerprints, relative file inventory, cutoff,
+bounded instructions/schema, and on the second call the first normalized judgment
+plus exact observation/excerpts. The selected excerpts total 2,737 UTF-8 bytes;
+full files are read locally. Requests use `store:false` and no previous-response
+chain. No raw response, hidden reasoning or credential becomes product state.
+
+The original attempt and all later local diagnosis remain distinct evidence.
+The retained candidate is project `project:911ec94e-8664-4928-8f3f-38700e0d85f9`,
+packet `task-context-packet:4a55dd085f7b9988eae4b52`, with fingerprint
+`sha256:33a5fbdeabc54629d187288747b58d952dd3aaa16f10269ef991b2b74b9390d0`.
+Run `stateless-review:f130d084e7c13725491d87b3` retains its original unknown
+outcome; these are observed ordinary-writer bindings, not inferred source IDs.
+The first attempted request was 3,892 serialized bytes. Provider receipt,
+execution, reported usage and cost remain unavailable. A missing response never
+establishes absence of delivery or charge.
+
+Zero-provider-egress diagnosis at `73ac10f6730fd23a0f983f1e834bd948dcb6a507`
+established a candidate sandbox defect: local macOS resolver IPC was denied.
+A separate corrected profile admitted a local daemon connection without a DNS
+query. This later discriminator does not settle the original request. The
+adapter/Gateway/ledger now retain bounded allowlisted transport diagnostics;
+historical records were not backfilled. The exact-head Local Canonical PASS is
+local correctness evidence, not provider readiness or usefulness. Details and
+preserved failures are in [the diagnosis report](https://github.com/hynk-studio/augnes/pull/1385#issuecomment-5967319917).
+
+The bounded Draft implementation adds explicit local disposition, linked new-work
+authorship and separately authorized fresh execution for this model-request
+uncertainty only. It reuses authentication, ledger/events, packet lineage and
+finite grants. Ending work preserves unknown effects and fences late result
+application; preparation creates no grant; fresh execution has all current gates.
+Scripted ordinary-path checks cover durable uncertainty, disabled/expired authority,
+source-free disposition, fresh-process readback, concurrent/stale submissions,
+late receipts, distinct replacement completion and ordinary successor authorship.
+Review corrections connect unchanged selected direction to atomic linked
+preparation and connect the ordinary successor's next question/file preparation
+to a fresh preview/grant and scripted loop. The mandatory predecessor warning
+survives revision, fresh-process readback and recovery; current-work admission and
+unrelated unsettled history still block. The earlier Standard pricing label was
+a proposal; the executed attempt's consumed attribution above remains tier-unresolved.
+No provider-outcome lookup, manual settlement system or generic execution exception
+is introduced. See 02 for the bounded contract and 04 for deciding criteria.
+
+The development-stage record at `af68cf68444b746d1a34c8f673bb8b1090743623`
+left candidate disposition and additional live execution **NOT RUN**. That was a
+historical boundary, not a statement about later separately authorized operations.
+On 2026-10-03, ordinary authenticated local disposition ended further work on
+`stateless-review:f130d084e7c13725491d87b3`, retaining its unknown effects, original
+claim/failure receipt and `reconciliation_required:true`. The distinct linked
+packet `task-context-packet:58ad16f17fa4ec44dcaec9f` initially had no grant.
+
+A separately authorized live attempt at that same source then completed normally:
+run `stateless-review:c0a680e81b7c0b2f90d2f1dc`, receipt
+`run-receipt:7cddec4b546267ed4d038ecd`, fingerprint
+`sha256:1275501c76a4829d7cc4ec47670e8824b967531f1a32ceadf8969f79d5eea791`.
+It chose `read_selected_sources`, persisted one 55,309-byte local read / 2,737-byte
+excerpt observation, and returned `use_observation`. Observation fingerprint:
+`sha256:777869858cc6f81127c2af60855938db941fe61a216d9099ab2fcd19285c55ce`.
+The two Responses requests were 4,275 and 9,546 serialized bytes. Reported usage
+was 3,207 input and 489 output tokens; provider cost was not reported. The same
+tier-unresolved operator estimate applied; the original attempt's unknown cost
+remains separate. Automation was disabled afterward and supported logout and
+process cleanup were verified. No semantic state was accepted by execution.
+
+Work accepted operational completion but did not select the report's assertion
+that planner runs trigger or depend on reentry judgments. The selected excerpts
+show validation/opener selection and reentry checks/saved state/`cycle.runScheduled`;
+they establish no call or data relation between the two routines. Repository-wide
+absence is also unestablished. This is Work's source review, not a model-produced
+correction. The original report, observation, criterion assessment and both runs
+remain unchanged.
+
+The next authorized zero-model operation at `af68cf68` used ordinary result
+preparation/comparison/preview/authorship to retain that separately attributed
+`derived_interpretation` review in work `successor-task:a9cd127b77c07711a102e743`,
+packet `task-context-packet:d599427113a97f59ff3b47a`, fingerprint
+`sha256:40cdbcef88dd0dcb6958f2c382784172158fa149b21b673061642700cf675bbd`.
+Its task is to trace actual callers/data flow, attributing findings and separating
+observations from hypotheses. The full model report was not selected; the reason
+is in the review note. Only comparison-returned `unselected_previous` entries
+supply omission bindings. Fresh-process readback retained the exact receipt,
+observation/source attribution, mandatory unresolved predecessor and null grant.
+Automation stayed disabled; scoped grants/runs/provider accounting remained
+2/2/3. No new execution was authorized or attempted.
+
+Current source inspection and an ordinary scripted reproduction confirmed that
+selected notes survived successor/revision authorship but were omitted from the
+stateless model input. That omission did not cause the earlier overclaim because
+Work's review did not yet exist. The bounded implementation in Draft #1387 connects the
+explicit selected-note projection to both judgments and fresh transmission
+authority, with unchanged limits and no automatic historical report selection.
+See 02 for the projection contract and 04 for delivery versus semantic evidence.
+
+Work accepted that correction at `65f6efc92d969c47e86152efa9388aba4c169c63`.
+Subsequent ordinary preparation saved the direct-call trace in
+`task-context-packet:f8a6cb10dc730491427aa63`, fingerprint
+`sha256:e52616507df90d48f7d4b8615aedbe028c9b2f523a125accd6ef5c9c17d71b63`.
+The frozen four-attempt mini/GPT-4.1 comparison was then separately authorized.
+On 2026-10-04 Asia/Seoul (2026-10-03 UTC), its first mini attempt at that exact
+source created run `stateless-review:5cc0dd2353903d40b84fe4cd` and stopped after
+two returned responses. Its accepted first public choice was `no_action`; no
+source excerpt was sent because it declined inspection. That choose input held
+inventory and selected context, not the new code. Its rationale claimed inspected
+excerpts and applied the historical planner/reentry correction to a distinct
+`runDirectionInspection` → `runFor` → `wake` question. This supports a negative
+observation about choosing inspection and scoping the correction, not demonstrated
+misreading of transmitted code or general mini incapability.
+
+The second HTTP 200 response completed Gateway normalization within its bounds,
+then the host recorded `returned_invalid` and a generic refusal. Its normalized
+public result and exact later rejection layer/predicate were not retained and
+remain **UNAVAILABLE**; surviving evidence cannot exclude a persistence failure.
+There is no completed RunReceipt. The other three attempts are **NOT RUN**, with
+no completed pair or GPT-4.1 observation. The sequence is closed; unused calls
+and allowance cannot be reused. Two request bodies totaled 15,111 serialized
+bytes; reported usage was 3,764 input / 385 output tokens. The consumed
+tier-unresolved operator estimate was USD 0.016189, not reported billing.
+Original unknown effects/cost remain separate. Automation was disabled at
+revision 6; logout/revocation and subsequent HTTP 401, model-configuration
+preservation and owned-process cleanup were reported verified. Candidate totals
+are 3 grants / 3 runs / 5 historical provider-call accounting. All previous runs,
+receipts, selected Work review and mandatory uncertainty remain unchanged.
+
+The offline slice reviewed in Draft #1388 at
+`c2a3b5ae30f5f91734f57a239fe248a0bee8b22d` preserves bounded returned public evidence and precise
+prospective rejection attribution through existing ledger/read/UI owners. It
+does not recover the missing historical second result, weaken judgment validation,
+force reading, hint an answer or run another comparison. Scripted ordinary-path
+checks distinguish rationale overflow, missing source anchor, unavailable
+observation use, Gateway refusal, persistence failure and late-result fencing.
+Their fixtures are development evidence, not reconstructions of the live response.
+
+The bounded implementation in Draft #1389 adds ordinary explicit linked authorship after a
+stopped stateless model step with a completed Gateway response but no RunReceipt.
+Authenticated review, source comparison and preview bind historical failure
+evidence separately from current task/source/root/direction/selection. The writer
+creates fresh immutable work with no grant, even after the predecessor packet and
+grant expire. It preserves optional attributed Work notes through explicit
+selection, mandatory unknown effects and operational failure provenance. Rejected
+answers are not automatically selected. Current host-validation evidence and
+legacy missing evidence have distinct availability; the historical candidate's
+exact rejection cause remains unavailable, including the possibility of a
+persistence failure. This does not repair or reclassify its records.
+
+Ordinary disposable projects exercise the authenticated path and separately
+authorized scripted consumer, including the exact old `65f6efc9` host writer for
+legacy compatibility. The real review component connects comparison, preview and
+authorship to the authenticated HTTP owner. No shared unsettled predicate,
+completed-result, native or recovery authority is relaxed. In that slice, known
+persistence and receipt-projection failures remained outside the contract. The retained candidate
+remained read-only, expired and unchanged at 3 grants / 3 runs / 5 historical calls
+during that engineering slice; it did not apply new authorship to the candidate.
+
+The bounded [#1408](https://github.com/hynk-studio/augnes/issues/1408) extension
+reuses this same authorship owner for precisely evidenced result-persistence
+failure at either judgment. It requires the historical returned receipt, exact
+dispatch claim, available failure-layer evidence and stopped publication fence;
+new work has no execution grant. Missing classification cannot use legacy
+host-rejection compatibility. Receipt projection, provider settlement, replay and
+later execution of the new family remain outside this qualification. Disposable
+scripted correctness and the separate native development-continuity observation
+must retain their distinct evidence and preparation/repair limits.
+
+Work then accepted the terminal-authorship UI correction at
+`f8aa94009aefae9909990ed6784c3130b32e84f7`. A separately authorized local operation
+on 2026-10-04 authored work `stateless-successor:c1ca778280f7c4b72fa77c60`, packet
+`task-context-packet:f2355965bf99dbcc5639d70`, fingerprint
+`sha256:1c7af5c18a4700645a30e13e8ffe58cf798f47b8e89eb6287598658bae294556`,
+with ordinary expiry `2026-10-04T10:24:14.051Z`. It retains the explicit Work note,
+its original source/receipt attribution and full-report non-selection reason,
+mandatory unknown effects and terminal failure availability. The task asks only
+what relationship the selected excerpts establish. Current material is
+`project-direction-execution.ts:25–28` and `prospective-reentry.ts:163–168`:
+16,866 full-file bytes / 652 excerpt bytes. No rejected answer or expected answer
+was selected. Authenticated fresh-process readback, null grant, disabled control,
+unchanged historical records and 3 / 3 / 5 accounting were reported verified;
+supported logout returned success and subsequent access returned HTTP 401.
+
+The earlier offline slice prepared one `gpt-6.1-sol` attempt with explicit low
+effort and standard reasoning mode, replacing the GPT-4.1-only proposal. GPT-6
+Luna remains a later cost-efficiency candidate; no comparison/fallback is started.
+The existing ordinary route binds these settings and the finite 4,096-token,
+60-second invocation and 150-second attempt limits to fresh authority. It keeps
+public rationale and input/source/action caps unchanged. Returned incomplete
+responses expose bounded status/reason and reported reasoning usage without
+hidden reasoning, retries, successful receipts or invented billing. The candidate
+remained read-only during that slice; its packet was neither recreated nor renewed.
+
+Zero-egress accounting through the final builder/serializer found a 5,671-byte
+choose message / 8,124-byte request, and a hypothetical read-and-conclude message
+of 7,500 bytes / 10,227 serialized bytes. These are time-bound preparation
+measurements, not future judgments or bindings. A longer first public judgment
+can overflow the unchanged 8,192-byte message cap; that stops before the second
+dispatch. No delivery guarantee is inferred from a plausible fitting example.
+
+The 2026-10-04 [official pricing](https://developers.openai.com/api/docs/pricing)
+lists Standard short-context Sol input / cached input / cache write / output at
+USD 2 / 0.10 / 2.50 / 10 per million tokens. The proposed tier-unresolved operator
+estimate uses 2,500 nano-USD per serialized byte and 10,000 per total output token:
+two times `(16,384 × 2,500 + 4,096 × 10,000)` = USD 0.16384, within a proposed
+USD 0.20 total envelope. Charging every serialized byte as an input token at the
+cache-write rate is a conservative accounting assumption, not measured tokens or
+a billing guarantee. The project's service tier and key ownership remain
+unresolved metadata, not prerequisites. The original unknown cost stays separate.
+
+That proposal was separately authorized and executed on 2026-10-04 at
+`c7e418fc85234edeef197fe9dced2a891560ac05`. Run
+`stateless-review:337b7081305bd7b6669c1330` completed two calls in 13,845 ms:
+inspection was selected, the 652-byte observation was persisted, and conclude
+used that observation. Receipt `run-receipt:8d59d4371e0e5e7e9eb3b401` has fingerprint
+`sha256:6c3d3fc4af5857747aad7dd181287e64e2042f9900f06878721898ebfd35d288`;
+observation fingerprint is
+`sha256:c6bcd1038c0d67f729938887e0f9af460cff1d2de0b7a434c0f4440e7996913f`.
+Reported usage was 4,958 input / 449 output tokens, including zero reported
+reasoning tokens. Provider cost was unavailable; the declared estimate was
+USD 0.0516575. The conclude message occupied 8,016 of 8,192 bytes. Cleanup
+disabled automation, revoked the latest session with subsequent HTTP 401 and
+stopped owned processes. Accounting became 4 grants / 4 runs / 7 historical calls.
+
+Work accepts the finding only within the supplied excerpts: the visible named
+constructor → `runFor` → `wake` pattern, with import/class resolution, downstream
+behavior and runtime effects unestablished. The model chose inspection, used its
+persisted observation and scoped the historical note correctly. This is successful
+behavior on exposed development material, not general model adequacy, a claim of
+self-correction or comparative usefulness. The earlier preparation's hypothetical
+payload measurements and NOT RUN labels above remain dated preparation evidence.
+
+The checkpoint implementation slice selects a concise attributed finding and Work review
+through ordinary completed-result authorship, then prepares a bounded question
+about continuation after a saved observation. It adds an optional, grant-bound
+pause at that durable boundary and authenticated continuation under the original
+grant and attempt clock. Disposable ordinary HTTP checks use scripted transport
+and real process replacement; internal `step()` calls alone are not the product
+path evidence. The candidate receives no new grant or provider call in this slice.
+
+The proposal at that checkpoint was: review the exact-source correction, saved successor and complete
+payload accounting, then separately authorize the whole live interruption exercise
+including both stages, process replacement, reauthentication and cleanup. Expiry or
+changed bindings require a new decision, not backdating or silent renewal. The
+closed comparison's unused allowance remains unavailable. GPT-4.1 and general Sol
+adequacy, comparative usefulness, live interruption recovery and environment
+transfer remain unestablished. The portable exporter still refuses projects with
+stateless grants; copying SQLite is not qualified environment transfer. At that
+preparation checkpoint, interrupted live progression and comparative usefulness
+were **NOT RUN**. Earlier
+failures and receipts retain their original dates and source identities. Existing
+Companion continuity remains unavailable. Same-database account/session changes,
+meaningful unfinished-work transfer (#1149), semantic selection quality,
+cross-project recurrence and strong comparative evaluation remain separate.
+P4.6's negative findings and #1372's hosted obligations are unchanged. This does not
+complete the continuity program.
+
+
+On 2026-10-04 the separately authorized live planned checkpoint exercise ran on
+`38b0e8dce63aa96ca99b8ca756b2597ceae52381`: run
+`stateless-review:3f1793e96ee25abafacc7024`, receipt
+`run-receipt:f06908e64bbafdfee65aaeac` / fingerprint
+`sha256:6bd15b5ba1f252cdaa844872967bf7bea502e3b14190915e87c79cfdaeb91f1d`.
+The model selected inspection; an 855-byte observation was persisted. Logout,
+owned-runtime shutdown, a fresh runtime/session and exact checkpoint continuation
+completed the same grant/run without replay in 21,961 ms. Observation fingerprint:
+`sha256:e4a9b9ad0ed86d75ff8ae7f55f48687fee7361e9d8322ae382891d5fc66090d8`.
+Reported usage: 4,288 input / 466 output tokens; zero reported reasoning tokens.
+The estimate was USD 0.0476425; billing and historical unknown cost remain separate.
+Accounting became 5 grants / 5 runs / 9 entries; cleanup disabled automation and
+verified logout/HTTP 401. Work accepts this planned same-machine restart and the
+excerpt-supported visible continuation guards, including excluding the unrelated
+historical note as evidence. Receipt `verification:not_run` remains unchanged.
+Arbitrary crash recovery, unknown-effect settlement and broader adequacy/usefulness
+are not established. Earlier NOT RUN statements above describe their dated slices.
+
+The subsequent offline handoff batch used ordinary result comparison/selection,
+preview and authenticated successor authorship on that unchanged source. It saved
+work `successor-task:1b32be90988b8511b7a47eeb`, packet
+`task-context-packet:5caa7893d73ddab8db20bef`, fingerprint
+`sha256:a0ba704405ccd6f24858cbf7edcf3191f39e665d35744d75c6fddc298cb56fa7`,
+with historical ordinary expiry `2026-10-04T10:24:14.051Z`. One concise attributed
+finding/Work review was selected; the previous inventory and unrelated constructor
+note were explicitly omitted with reasons. The full report was not selected.
+Fresh runtime/client and read-only process checks preserved mandatory history,
+null grant, disabled automation and 5/5/9 accounting. The first client stopped on
+criteria-order normalization after preview and before authorship; its successful
+logout/401 and failure record were preserved. The corrected client completed one
+authorship operation. No provider call or candidate migration occurred.
+
+The current implementation supplies an authenticated handoff review/export and
+receiving first-work consumer using existing packet storage. Disposable independent
+DBs/roots test transferred bytes, source-absent receiving review, ordinary successor
+preparation and fresh scripted authority. This is isolated same-machine evidence,
+not a qualified real-candidate, cross-device or cloud transfer. The next decision
+is review of this bounded handoff and then explicit real-candidate local transfer
+into a named fresh DB/root; any further live execution needs separate exact
+model/data/spend authority. Existing live allowances remain consumed.
+
+### Current lifecycle slice — Durable local work resumption (#1393)
+
+**Completed within the bounded implementation scope:** #1394 is included in
+merged #1404 and #1393 is closed. #1407/#1410 separately record approved-native
+adoption; the protected retained candidate remains outside that acceptance.
+
+Stacked on #1392, the first local lifecycle correction separates ordinary saved
+authorship from incidental execution/pilot expiry. Initial preparation already
+had a null lifetime. Current-source reproduction with the exact #1392 writers
+showed four-day refusal in ordinary result preparation and same-task editing.
+The linked unknown-attempt writer also assigned the same eight-hour lifetime.
+New ordinary successors/revisions and both stateless authoring families now use
+the additive durable compiler distinction described in 02. Supported historical
+finite work resumes by explicit append-only authorship, preserving its bytes and
+all unresolved history; reads never refresh it.
+
+Disposable verification covers historical compiler reconstruction, expiry and
+multi-day clocks, ordinary authenticated writers, the real work editor and
+repository revision channel, fresh processes, exact replay and stale refusals.
+Finite authentication and execution still require separate current admission.
+This is local correctness evidence, not real-candidate use, hosted Web Planning
+parity, cross-device transfer or comparative usefulness. The retained #1392
+candidate and proposed receiving operation above remain untouched by this slice.
+The subsequent cumulative-history and native project-management corrections below
+are also integrated. Hosted-store adoption remains with #1372. Historical Draft
+review and exact-head verification did not themselves authorize installation,
+deployment or live-provider use.
+
+### Current lifecycle slice — Cumulative native history (#1395)
+
+**Completed within the bounded implementation scope:** #1396 is included in
+merged #1404 and #1395 is closed. Complete packet-history reads retain their
+4,096-record/16 MiB bounds; the 320-revision fixtures do not qualify unlimited growth.
+
+Stacked on #1394, this slice removes native work's 32-revision admission and
+reconstruction ceiling, the scoped revalidation 128-run listing refusal and the
+256-packet successor listing refusal. Supporting packet readers and preparation
+admission no longer impose their adjacent 128-packet/33-ID boundaries. Complete
+paged reads, conservative conflict queries and iterative family reconstruction
+preserve current-tip selection and immutable ancestry. The historical packets
+and #1394 verification records remain unchanged.
+
+Disposable fixtures cross the former boundaries using authenticated writers and
+canonical compiler-built prefixes; recovery, portable consumers, existing human
+editing and authenticated agent routes remain the deciding behavioral surfaces.
+Query/traversal measurements qualify bounded correctness, not unlimited scale or
+comparative usefulness. Exact-head verification and cleanup belong to the Draft
+PR receipt. The retained real candidate, hosted store and provider execution
+remain outside this slice. Later native management and approved installation are
+recorded separately in #1399/#1400 and #1407/#1410.
+
+### Current lifecycle slice — Cumulative Web Planning history (#1397)
+
+**Completed local implementation:** #1398 is included in merged #1404 and #1397
+is closed. Actual hosted adoption remains with #1372.
+
+Originally stacked on #1396, this bounded correction removes Web Planning's revision-32
+constraint in application admission, references and SQL through forward schema-3
+migration. Its [Web-owned contract](../../apps/web_planning/README.md#cumulative-saved-history-1397)
+keeps one atomic bounded history observation, explicit operation budgets,
+transactional chunked reconstruction and ordinary human/browser-agent-facing
+Save and Saved context. Historical envelopes, files, provenance, erased IDs,
+independent copies and the separate 24-hour authorization seals remain intact.
+
+Real disposable Worker/D1 checks distinguish predecessor-writer history from
+constructed larger prefixes, preserve both migration owners, and exercise
+restart, later edits, incomplete reads, conflicting heads and rollback. Draft
+review, final exact-head Canonical evidence and cleanup are separate from hosted
+migration, live-client adoption or usefulness. #1372 retains coordinated schema-3
+code/reader adoption, writer quiescence and compatible recovery or roll-forward;
+code-only rollback is insufficient. No live store, retained real candidate,
+provider, installation or deployment was used by this local implementation.
+The predecessor's successful and failed verification records retain their exact
+source identities and do not qualify this candidate.
+
+### Current lifecycle slice — Native project management (#1399)
+
+**Completed bounded implementation:** #1400 is included in merged #1404 and
+#1399 is closed. #1407/#1410 separately record approved-native adoption.
+Archive/discard/project erasure was not added; recents removal preserves data.
+
+Originally stacked on #1398, this correction adds registered-project discovery to the
+existing management surface and capability-scoped discovery to the existing
+agent direction endpoint. Open, rename, folder recovery and direction mutations
+retain their owners. Predecessor handler reproduction found registered projects
+absent from recents and accepted stale observations across A → none → A and
+none → A → none. Persistent active/empty selection revisions correct those cases;
+historical numeric work remains reconstructable without rewriting its records.
+
+Disposable checks cover paginated and fresh-process discovery, existing human
+controls, authenticated deterministic clients, capability refusals, incomplete
+reads, stale/concurrent mutations, forward migration and recovery/portability.
+Final exact-head Canonical evidence and cleanup belong to this candidate's Draft
+PR. Prior receipts remain historical. Hosted consumers remain with #1372 and
+broader product gaps with #1212. Retained-candidate use, provider execution and
+general usefulness remain outside this slice; later native acceptance is bounded
+to the approved store and clients, not every consumer.
+
+### Current RC1 follow-up — Selection reconstruction conformance (#1401)
+
+**Completed prospective disposable-conformance scope:** #1402 is included in
+merged #1404 and #1401 is closed. Legacy v0.1 retains its original verdict.
+
+Originally stacked on #1400, this bounded local comparison adds the prospective
+`preserved_history_fresh_selection.v0.1` profile under report v0.2. The same
+independently imported RC1 fixture retains v0.1's exact `non_conformant` result
+and conformant relational lane. The new profile separately requires exact
+preserved history and continuity fields, relational correspondence, and actual
+fresh local selection/snapshot owner observations. Private material stays inside
+the read-only collector; report parsing and deterministic replay retain explicit
+version dispatch. Product selection and restore writers are unchanged.
+
+Disposable evidence includes two independent supported portable reconstructions,
+fresh-process snapshot readback, stale management refusals and specific drift,
+incomplete-read and tampering controls. Repeated restore of the same immutable
+backup in selected, cleared and never-selected states reuses #1400's focused owner. Final
+exact-head Local Canonical evidence belongs to this candidate, not its
+predecessor. #1403's integration preparation is complete through #1404;
+#1407/#1410 subsequently record the separately authorized native adoption.
+Hosted compatibility, remote attestation, protected live-candidate transfer,
+execution, deployment and usefulness are outside this comparison change.
+
+### Current P2/P3/P4/P5 — Project direction and decision authority (#1382)
+
+The 2026-10-02 north-star review authorized this connected increment after merged
+#1381. The implementation connects optional project UI direction → immutable
+revision and actual bounded human/agent admission → ordinary preparation → separate
+execution grant/arm → selected-source inspection → receipt/re-entry → successor.
+The shared authenticated agent route supports independent creation, within-policy
+revision/pause, delegated child creation and attributed return. Explicit renewal
+lets a replacement executor recover the same logical role without rewriting
+history. Pending Start projections and final admission enforce reconsideration;
+already admitted work retains its source basis.
+The PR #1383 correction distinguishes consumed historical direction/agenda from
+current recommendation, rechecks expected direction inside authoring, and records
+creation-slot attribution independently of later root relocation. Complete proposal
+acceptance and conflict-aware editor refresh close the human UI correction.
+
+Development checks exercise these production owners with disposable data, exact
+prior revisions, replay/authority/parent boundaries, factual and method preservation,
+real file inspection, recovery and fresh readers. The browser owner includes the
+normal human author/revise/reload flow, authenticated agent proposal acceptance
+with changed criteria/constraints, purpose-only save/reload, dirty-editor refresh
+and responsive checks. Production regressions cover canonical relocation of both
+independent and delegated projects, slot reuse refusal and suspended-credential
+recovery. Exact-head pass and
+cleanup evidence belong to the Draft PR receipt, not this status paragraph.
+This does not complete P3/P4/P5 or measure ordinary model judgment/usefulness.
+
+The ordinary-use candidate is real #1382 continuation: before choosing the next
+increment, ask whether the canonical `README.md` and `AGENTS.md` consistently
+preserve the direction/Start authority distinction. Proposed bounds are two
+selected top-level files, their pre-action hashes and literal checks, one ten-second
+inspection, no commands/provider/network, one source-bound receipt and one
+explicit successor. Record the prospective question/first choice before execution,
+then result and authoring/preparation/repair burden. This is developer-exposed real
+work until an authorized ordinary worker actually makes the judgment.
+The live Companion lifecycle read for this checkout returned `not_installed`;
+canonical Resume/work-source discovery is unavailable. No daemon was installed.
+A runnable ordinary case still needs a live authorized continuity surface, exact
+current project/work selection, the bounded inspection grant and host admission,
+and a legitimate ordinary worker/observation budget. The pre-action source candidates
+are `README.md` (23,236 bytes, SHA-256 `dd9020e7e0456f9051f3c4b101930ad195c616056e9b7251be4b826ee3745eab`)
+and `AGENTS.md` (10,271 bytes, SHA-256 `2f7ca62017e72d3e6a23b9db71ca457ec70f7751699567c6149b83dad0222c62`).
+Proposed literal checks are “it grants no execution” and “Semantic, execution”,
+respectively; these establish text presence only, not semantic consistency.
+Revalidate exact bytes before authorization. Engineering does not invent
+those inputs. Portable direction export remains unsupported; recovery backup
+preserves its history with credentials disabled. Broader automation, general
+purpose optimization, hosted mutations and a comparative campaign remain outside
+this increment. Pre-correction draft agent genesis lacking immutable creation
+attribution is byte-preserved and directly readable as historical direction, but
+blocks supported application startup as well as recovery for the whole database,
+including co-resident ordinary projects. The public inspection/startup diagnostic
+is `database_canonical_invariant_failed`; the specific
+`project_direction_creation_attribution_missing` cause is internal. Automatic
+backfill from the current root and validation bypass remain unsupported.
+
+The 2026-10-03 bounded read-only closeout inspected the canonical application
+database (2 projects, 23 Core records) and its three retained application backups
+dated 2026-08-26, 2026-09-13 and 2026-09-24. None contains the direction tables, so
+no affected non-disposable agent genesis exists in those inspected databases.
+File identities and bytes were unchanged. The repository legacy database path
+was absent, and the two retained #1382 evidence directories contained no SQLite
+images; their recorded test cases are disposable evidence, not canonical user data.
+Other checkouts, hosts, unregistered copies and removed temporary fixtures were not
+searched. This is a bounded observation, not a global absence claim or an inference
+from the unavailable Companion.
+
+A disposable mixed legacy/ordinary database demonstrated whole-database refusal
+through `inspectRecoveryDatabaseFile` and `prepareRuntimeDatabase`, while its
+direct historical reader remained usable. Ordinary-only and current-format mixed
+controls passed both public boundaries; all three database images remained
+unchanged and owned temporary resources were removed. No affected inspected user
+data requires a migration proposal. Retain this explicit Draft-format
+incompatibility; any later affected data must be preserved with its prior readable
+version and assessed from trusted creation evidence before activation. Next:
+review this compatibility disposition with the bounded implementation, then
+authorize the specific ordinary case and measure its actual first decision and
+repair burden. Ordinary model judgment and comparative usefulness remain unmeasured.
 
 ### Later ordinary-use evidence and current prerequisites
 
@@ -104,7 +884,7 @@ The authorized final integrated-head verification on
 `f75c5c608142e7eda2f6b8f06166bcb37d05fe8b`, incorporating #1341's reviewed main
 `e2e0af3279d5db31105b88b5ed456945563f9f30`, passed all 15 required Full Canonical
 phases. Its exact-head receipt remains historical verification evidence for
-that candidate. Subsequent review and merge produced current main
+that candidate. Subsequent review and merge produced then-main
 `e43651db9ed52d3ab3352b977d711220e534befe`, with the shared source tree
 `df5750a6aeb576a2bb3d6b5d6389e8ebc38d1b2b`. Merge and tree equality neither
 transfer the receipt to a new head nor establish installed application adoption
@@ -149,6 +929,104 @@ Context activation, relevance or temporary non-selection cannot delete material,
 change obligations/authority, accept semantics, renew expiry or mutate canonical
 evidence and immutable historical bindings. Reconstruction and deliberate
 non-use follow 04; current writers and 02 retain semantic ownership.
+
+### Research — goal-directed recombination and candidate paths (#1214)
+
+The 2026-09-30 [#1214 amendment](https://github.com/hynk-studio/augnes/issues/1214)
+refines the recombination and stagnation questions above within existing phases:
+
+> With the same experience and raw-source access, the same strong work model,
+> tools, authority, and relevant total budget, does identifying the change
+> required by the current goal and composing conditional methods into new action
+> orders and outcome branches improve the next action and actual downstream
+> result relative to a strong source-linked adaptive memo and simpler selection/search?
+
+P3 supplies observations, competing explanations, unresolved conditions and
+discriminating questions; P4 studies composition, candidate-path generation and
+selection; P5 evaluates appropriate reuse, revision or non-use in genuinely
+separate successor tasks. Making an existing conditional procedure more elaborate,
+replaying a past answer/trajectory, and generating a new combination, ordering or
+outcome-dependent path are distinct. The initial target is the next discriminating
+action in a small investigation/development task. The longer-term target remains
+the next meaningful action and solution path, not a policy of always investigating
+more.
+
+- Bind experience and action effects to relevant source revision, predecessor
+  actions, available tools, applicability conditions, observed outcomes and
+  revision/retention/non-use conditions. Keep expected effect, actual observation,
+  post-hoc interpretation and causal contribution distinct. A context-independent
+  fixed transition is not required: modify then verify may differ materially from
+  verify then modify.
+- Separate the final project goal, the question currently being discriminated
+  and mandatory constraints. A scalar distance-to-goal, completion or confidence
+  score cannot alone define progress: useful falsification, a necessary temporary
+  detour or increased justified uncertainty may advance the work.
+- Leave unknown future outcomes as conditional branches or unknown; do not plan
+  onward from an imagined successful experiment. Candidates must differ in
+  assumptions, action ordering, required observations or result-dependent branches,
+  not wording alone. Direct execution, narrow lookup, one known method or deliberate
+  non-use may suffice without extra path generation.
+
+At later implementation, inspect the actual producers/consumers of
+[`StrategyComponentCandidateV01` / `StrategyCompositionCaseV01`](../../types/vnext/strategy-composition-case.ts)
+and [`scripts/conditional-procedure-learning/`](../../scripts/conditional-procedure-learning/)
+as reuse candidates. Their conditions, expected effects, provenance and
+`must_precede`/`depends_on` relations, and the bounded EXTRACT/APPLY/REVISE path,
+do not establish goal-directed planning or learning benefit. If existing types
+distort this question, a small rebuildable research representation may be justified
+under later scope; this adoption changes no types. A few paths or roughly 2–4
+steps are adjustable development starting points, not product limits or success
+criteria.
+
+The algorithmic reference is Hui Lin, Yukun Yang, Rong Zhao, Giovanni Pezzulo and
+Wolfgang Maass, [“Neural sampling from cognitive maps enables goal-directed
+imagination and planning”](https://doi.org/10.1038/s42256-026-01254-4),
+*Nature Machine Intelligence* 8, 1045–1065 (2026). GCML combines cognitive maps,
+stochastic sampling and compositional coding to generate solution trajectories,
+including states/goals not directly encountered during training in its studied
+domains. It is a research candidate, not adopted Augnes architecture or evidence
+about generic long-horizon software work. Keep three sources of claims separate:
+
+- **Paper:** Fig. 2 describes learned forward action embedding V and goal-directed
+  bootstrapped state prediction. Silhouette Methods also assume direct environment
+  access to the g1 affordance signal during imagined steps, while describing
+  V-based next-state prediction.
+- **Static public code:** the [GCML-tag notebook at commit `ff76859b`](https://github.com/LH-cbicr/GCML/blob/ff76859b71a2bc2056b50f5e052475351c007f76/gcml_tiling.ipynb),
+  blob `5b009f30ff5e2490a58fd5f295e064acef0d78fe`, uses `env.check_affordance`
+  and its returned `next_state` in `move_one_step_trajectory`. This bounded static
+  observation is neither reproduction nor refutation of the full paper.
+- **Augnes hypothesis:** the question above requires its own executable comparison;
+  neither the paper nor that code establishes Augnes usefulness.
+
+The later sequence is **small executable research implementation under separately
+fixed scope/budget → fixed comparison → connect only demonstrated useful parts to
+real successor work**. The first implementation must connect the same inputs,
+competing methods, an environment or actual result, and observable behavior into
+an executable/comparable path. Another memo format, schema inventory or readiness
+document cannot substitute for it. Small reversible research development need not
+first prove long-horizon real-world usefulness; full product completion, full paper
+reproduction, a large benchmark matrix or a general world model are not entry
+requirements. Default product activation instead needs repeated usefulness and
+acceptable maintenance/total burden for the claimed scope. Comparison and
+interpretation belong to [04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#goal-directed-recombination-and-candidate-paths-p4p5).
+
+The [P4.6 #1320/#1321 record](../verification/P4_6_CONDITIONAL_PROCEDURE_LEARNING.md)
+retains no observed additional behavioral advantage over a strong free-form memo
+and no additional behavioral value from online revision in its one three-task sequence:
+historical/constructed cases, case-author evaluation, exposure and 18 initiated
+study turns remain limitations. Do not restart it or inherit unused budget.
+#1214's 2026-09-25 study concerns current-state update/next-inspection coupling
+and timing; this amendment concerns composing and selecting paths from the same
+experience. The first contribution comparison does not also vary extraction/
+curation K, retrieval, model identity or temporal coupling. #1366's separate
+successor-feature research/session succession, #1150's source-only scope and the
+other study dispositions/budgets below remain unchanged.
+
+Status remains **Research**. Algorithm implementation, live research execution
+and product activation remain **NOT_STARTED** for this amendment. Documentation
+adoption establishes neither implementation nor usefulness, creates no new phase
+and does not reorder unrelated Current/Next work. #1214 connects phase scope;
+this roadmap owns sequencing and 04 owns evaluation.
 
 ### Portfolio and longer-term challenge
 
@@ -245,6 +1123,490 @@ checks exercise the real preparation controls. These are candidate-runtime
 mechanical checks, not an installed-production save or measured burden reduction.
 Installation and first real-work use require separate reviewed authority after
 merge; unrelated installed #1314 and all research conclusions remain unchanged.
+
+<a id="current-p2p5--web-augnes-v0-task-b-local-candidate-1345"></a>
+
+## Completed P2/P5 — Web Augnes v0 hosted slice (#1345)
+
+[#1345](https://github.com/hynk-studio/augnes/issues/1345) is **Completed for the
+bounded owner-private, one-owner, synthetic-data Web v0 hosted vertical slice**,
+following merged [#1349](https://github.com/hynk-studio/augnes/pull/1349) and its
+[reviewed final closeout](https://github.com/hynk-studio/augnes/issues/1345#issuecomment-5865414744).
+The accepted main `7a0ab5d816f26524f58102092a09696a3af8122f` and deployed reviewed
+head `a7887ebb9bffb64ec1c3d4262a68472f25d40b24` share tree
+`1e28c0544324c2f3b8782afb48eddca31a5860ec`. No rebuild, redeployment or resource
+change follows from that merge identity.
+
+The independent authored-planning Worker implements the merged Task A contract
+below. Its
+[application entry and hosting handoff](../../apps/web_planning/README.md)
+describe create/select → attributed definition/context → deliberate Save →
+server reopen → exact-revision Saved context, plus conflict, replay, export,
+reconstruction and whole-work erasure. The final closeout supersedes earlier
+local-candidate/remaining-hosted status; it does not establish native managed-work
+parity, real-data readiness, multi-user/public use or general usefulness.
+
+Accepted hosted observations include:
+
+- private one-owner Site and D1 schema/migration admission;
+- configured-owner bootstrap to exactly one workspace mapping;
+- durable hosted Save and fresh server reads, with exact current revision binding;
+- ordered conflicting-save refusal, retaining the losing draft;
+- stale Saved-context refusal instead of silent substitution;
+- whole-work erasure, delayed old-view write/replay refusal (HTTP 410), and
+  no resurrection;
+- actual authenticated remote browser-agent consumption of Saved context;
+- complete export download and validation, including the full revision 1 → 2
+  chain, selected context, fingerprints and unknown-currentness/open-question meaning.
+
+The final acceptance did **not independently establish** genuinely isolated or
+incognito authentication-session reopen, a fresh final logged-out gate test,
+arbitrary client identity-header stripping/overwrite, or exhaustive absence of
+every alternate/backend bypass path. Malformed or absent hosted identity
+injection, deliberate external-link entry, a simultaneous hosted network race,
+and raw signed-save replay remain unperformed. One earlier old-tab Saved-context
+403 recovered after normal reload; its exact cause remains unclassified. Ordered
+conflict and delayed old-view refusal do not substitute for those unrun checks.
+
+Sites' private/authenticated identity boundary remains a **platform dependency /
+residual trust assumption** for this accepted v0 scope, not independently proven
+header integrity or universal backend isolation. Preserve both existing account
+resource sets and the retained private synthetic work. Expansion may require
+new access/trust review; this closeout authorizes no Site/D1, configuration,
+secret, audience, real-data or deployment change.
+
+The merged [Sites compatibility repair (#1347)](https://github.com/hynk-studio/augnes/issues/1347)
+replaced the custom artifact with official Sites/Cloudflare Vite output and
+Drizzle migration material. Its preconfigured-owner bootstrap fills the missing
+initial-mapping path only after the existing identity/origin/schema gates; it
+cannot choose a first visitor or rebind an owner. The application handoff owns
+exact tool versions and local qualification; the reviewed closeout above owns
+the final hosted disposition. The following preparation and development record
+remains historical and does not authorize another hosted attempt.
+
+B used the supported different-task preview/save, retained the exact open-issue
+correction, and replaced A's selected kickoff notes with the two issue-attributed
+B notes while preserving A in unexecuted history (`prior_work_marked_complete=false`).
+Fresh Resume and selected-source reads bound snapshot
+`sha256:31bf725b21f32cf5cd3ef8cae24009932c8173ef8b80c19a40f862b333e7e7bd`;
+the persisted definition was reread at that binding. Its first parallel reader
+returned `unavailable / companion_unavailable`; an isolated read succeeded.
+Managed Start still said “The local managed-work configuration is unavailable
+for this project.” B therefore ran in the ordinary **prepared-context/direct
+Codex session**, with no native run/result/receipt or A completion invented.
+
+The full merged design, saved issue definition and correction were consumed.
+They fixed the one-owner text/link scope, exact save/currentness semantics and
+the distinction between open issues and current implementation. Real local D1
+and browser checks exercise production handlers; the separate actual local
+agent read is recorded in the application handoff. Development corrections
+included a non-mutating tamper fixture, headless keyboard focus, and clearing the
+access-loss status target. The first deciding head's package fixture refused a
+root Miniflare dependency delta; the web development graph was then isolated in
+its own locked package, with a clean-install/receipt phase under the existing
+verification owner. The failed receipt and historical dependency guard remain
+intact. No repeated human repair or comparative usefulness
+claim is established. Task A's original preparation and observations below
+remain historical evidence, not a retrofitted native chronology.
+
+<a id="next-p2p5--private-branching-comparison-and-selective-incorporation-1351"></a>
+
+<a id="current-p2p5--private-branching-comparison-and-selective-incorporation-1351"></a>
+
+## Completed P2/P5 — Private branching, comparison and selective incorporation (#1351)
+
+[#1351](https://github.com/hynk-studio/augnes/issues/1351) completed through
+reviewed, user-merged #1353: exact saved revision → independent private branch
+→ comparison → qualified whole-unit selective incorporation → fresh Saved
+context. Its v0.2 Web envelope retains source attribution, represented
+conditions and explicit non-adoption judgments without changing native Core
+meaning. The comparison-refresh correction preserves draft judgments on
+non-authentication failures and requires a fresh comparison before a new save.
+Its failed attempts and exact-head verification retain their original scope;
+merge does not transfer the receipt or establish downstream usefulness.
+
+The [Web contract](../../apps/web_planning/README.md#private-branches-and-selective-incorporation)
+owns these mechanics. [#1356](https://github.com/hynk-studio/augnes/issues/1356)
+subsequently accepted the bounded direct-Cloudflare synthetic hosted journey.
+That is distinct from independent model evaluation, general real-data readiness
+and comparative usefulness; [04's evaluation](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#method-improvement-evidence)
+still governs those claims. #1345's dated Sites trust limits remain intact.
+
+**Later**, as extensions of the same private continuous-work product:
+
+- selected publication → another principal's continuation → contribution to
+  another owner's work → recipient-owned partial incorporation;
+- correction/reconsideration propagation, open collaboration and discovery of
+  work that can be continued;
+- budgeted agent-scale branching and, where later justified, page-independent
+  access or other new transports, including WebMCP.
+
+These directions add no public/network prerequisite, implementation phase,
+Core/native authority, automatic semantic merge, execution grant or hosted
+resource change. [01](./01_AUGNES_VNEXT_MASTERPLAN.md) owns product meaning;
+[02](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#14-product-projections-do-not-create-core-authority)
+retains the host-owned planning-envelope boundary.
+
+<a id="direct-hosting-adapter-candidate-1356"></a>
+
+### Completed direct hosting and bounded use; current file delivery (#1372)
+
+[#1356](https://github.com/hynk-studio/augnes/issues/1356) accepted the first
+one-Worker/one-D1/owner-only-Access deployment and synthetic branching journey.
+[#1364](https://github.com/hynk-studio/augnes/issues/1364) accepted a later
+same-Worker Saved-context navigation update and preservation report. Its anonymous
+403 remains an unclassified refusal with a failed expected-302 assertion, not
+proof of the producing layer or a new login/security qualification. Its new
+exports were Mac-local in that review; do not relabel them independently checked
+attachments. [#1354](https://github.com/hynk-studio/augnes/issues/1354) remains the
+separate deferred Sites rollout, with its resources and evidence untouched.
+
+[#1366](https://github.com/hynk-studio/augnes/issues/1366) completed one assisted
+research succession, reproducible numerical analysis and return to saved work.
+Its reviewed private package preserves scientific qualifications and reconstructed
+failed-save evidence. It is neither a separate-task transfer result nor proof of
+comparative usefulness. The narrow remaining selection margin, editing burden
+and manual file handoff motivated distinct follow-ups.
+[#1369](https://github.com/hynk-studio/augnes/issues/1369), merged as #1370,
+implemented draft-capacity feedback without changing note budgets.
+[#1371](https://github.com/hynk-studio/augnes/issues/1371) accepted its same-Worker
+rollout, two-revision synthetic recovery and actual private export attachments:
+11,947 → 13,713 unsaved → 10,954 source bytes, two recovery edits, no failed UI
+save; five pre-existing works retained byte-identical exports. Operator repairs,
+security limits and the lack of general usability/time-saving evidence remain.
+
+[#1372](https://github.com/hynk-studio/augnes/issues/1372) is **Current / Draft**:
+explicitly selected small files alongside an exact saved Web revision,
+authenticated byte download from Saved context and portable export/reconstruction.
+The [Web-owned file contract](../../apps/web_planning/README.md#revision-bound-private-files-1372)
+uses bounded D1 bodies, v0.3 envelopes and a new schema compatibility gate.
+Its synthetic same-Mac downloaded-file continuation is engineering feasibility,
+not hosted/non-Mac acceptance or learned capability. Required exact-head
+verification remains a readiness gate; the reported Companion lifecycle blocker
+must be resolved separately without repair by this task. Review and user merge
+precede any separately authorized migration, rollout or actual successor use.
+This lane does not implement or absorb #1375/#1376's executable-method work.
+
+<a id="current-p2p5--web-augnes-v0-task-a-1343"></a>
+
+## P2/P5 — Web Augnes v0 Task A design record (#1343)
+
+Retained design record for [#1343](https://github.com/hynk-studio/augnes/issues/1343),
+authored by Codex on 2026-09-27 against `e43651db9ed52d3ab3352b977d711220e534befe`.
+Its source/account observations and proposed B checks below remain the record
+at that time; the completed B section above supplies the final hosted status
+and residual limits. This is a direct-session design outcome, not a native
+execution result.
+[01](./01_AUGNES_VNEXT_MASTERPLAN.md), [02](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md)
+and [04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md) retain product, semantic
+and evaluation authority. This section records only the proposed design and sequence.
+Nothing here activates implementation, hosting, spending or Task B.
+
+### Decision
+
+Build a **private personal planning workspace on a new ChatGPT Site**, with
+**D1 as the proposed durable store**, one authenticated owner, and text/links
+only. Use a Sites-compatible frontend and a small server adapter. A saved web
+work item is authoritative for what that user authored and selected in this
+web workspace. It is not accepted knowledge, a native managed task, or approval.
+The web workspace is independent of the local workspace and needs no running
+Mac, Companion, tunnel or server-side model. There is no automatic synchronization.
+
+D1 fits bounded structured definitions, attributed notes and atomic revisions;
+browser storage and the bundled Workbench snapshot fail cross-session/server
+durability, while a separate database service adds an unnecessary operator.
+R2 adds nothing to this text-only slice. Choose D1 subject to the specific
+hosting checks below, rather than promising that local SQLite code runs there.
+If those checks fail, retain the local implementation candidate and return the
+specific incompatibility for review; do not silently add infrastructure.
+
+The minimum agent path is **an actual browser agent reading the authenticated
+saved-work page**. This uses the same server read as the human view. WebMCP and
+page-independent MCP are extensions, not dependencies of the first useful loop.
+
+### Evidence and feasibility
+
+Primary documentation was read on 2026-09-27. These are separate evidence lanes:
+
+| Question | Documented capability | Current source / local support | Account observation and remaining condition |
+|---|---|---|---|
+| Hosting | [Sites guide](https://learn.chatgpt.com/docs/sites) separates local Codex editing from Sites management in ChatGPT web/desktop, and save-version from production deployment. | No Sites hosting manifest exists in this checkout; the full local Next/Companion runtime is not a hosted build. | Read-only Sites listing succeeds. A new private app and compatible artifact remain unprovisioned/unqualified. No invented Sites CLI command. |
+| Persistence | The guide offers D1 for structured data and R2 for file content. [D1 API](https://developers.cloudflare.com/d1/worker-api/d1-database/) documents bound statements and transactional batch rollback. | Current work writers use synchronous `better-sqlite3`, `BEGIN IMMEDIATE`, filesystem roots and local operator sessions. | D1 binding, migration execution, quotas and exact Worker API compatibility for the new app are unknown. No storage was requested. |
+| Identity | The guide documents forwarded `oai-authenticated-user-email`; [Sites access guidance](https://help.openai.com/en/articles/20001339-creating-and-managing-chatgpt-sites) separates audience from app authentication. | Local session/loopback authentication cannot be reused as hosted authentication. | Existing Workbench v3 is active and **public** in the account listing, regardless of its older private description. Its audience/data stay intact. New owner-private ingress and header integrity need qualification. |
+| Agent access | [Chrome's comparison](https://developer.chrome.com/docs/ai/webmcp/compare-mcp) describes WebMCP as live-page scoped, distinct from backend MCP. | `webmcp-current-work.ts` already does authenticated fresh reads, displayed-binding checks and unregister-on-navigation. That route is local, not a ready hosted adapter. | This session has browser-control tooling; no agent has read a new private Web Augnes page. That actual read is a B acceptance check, not inferred from registration. |
+| Recovery | Sites code versions and D1 data have separate lifecycles. [D1 Time Travel](https://developers.cloudflare.com/d1/reference/time-travel/) describes database recovery. | Existing local portable/recovery owners preserve native records; hosted projections are not backups. | Account-level access to Sites-managed D1 recovery/retention is unknown. Do not promise Cloudflare dashboard/CLI access or rely on it as the only recovery path. |
+
+P2.4's [closeout](../verification/P2_4_BOUNDED_PRIVATE_HOSTED_CLOSEOUT.md)
+established export → transient draft → reload to sample. P2.5's public surface
+does not change that persistence contract. Neither is evidence that web-native
+durable work already exists. Sites beta limits can affect storage/availability;
+current account capacity and cost are unknown, not zero.
+
+### One user, one journey
+
+The primary user is the project owner researching a development decision across
+days and AI sessions. The work object is a **saved planning item**: goal,
+success criteria, non-goals and explicitly selected, attributed context.
+One web workspace contains one project in v0; it can list several work items.
+Selecting one is navigation, not changing another task's canonical currentness.
+
+1. Sign in and open the workspace. The empty state offers **New work**; a return
+   visit lists saved items with their goal and last confirmed save. Select an
+   item or start an unsaved draft. No repository path or protocol ID is requested.
+2. Enter the definition and add text/link context with source attribution,
+   a plain-language note type and known observation time (otherwise unknown).
+   These map to existing provenance/review labels. Show corrections beside the
+   material they qualify; never turn an authored label into verification.
+3. Review the changed definition/selection inline and press **Save** once to
+   commit deliberately. Unsaved edits remain local to the tab and visibly unsaved.
+   The saved view shows the last confirmed revision/time and a short deterministic
+   change summary, selected context and unresolved questions. Its next action is
+   edit, reopen saved context, or ask the user's external agent to read it.
+4. In a fresh signed-in session, reopen from the server. No bundled sample,
+   browser cache or earlier assistant message supplies real work. Show what changed
+   since the displayed revision when available; otherwise say that comparison is
+   unknown. Source truth/currentness stays unknown unless separately verified.
+5. Ask the configured browser-capable AI host to read **Saved context**. Expand
+   the complete bounded definition and notes in semantic HTML with attribution,
+   revision and observation time. The agent states the goal, one applicable
+   constraint/correction and any selected unresolved question from that read,
+   reporting absence when appropriate. It does not Save.
+
+The default page answers what the work is, what was saved, what changed, and
+what can happen next. Exact fingerprints, history and export live in details;
+there is no model chat, protocol dashboard, run scheduler or approval engine.
+
+### Durable meaning and write contract
+
+**Proposed host envelope:** `web_planning_revision.v0.1`, containing stable
+workspace/project/work IDs, revision number, predecessor fingerprint, normalized
+definition, complete selected-source entries, author reference, recorded time,
+schema version, content fingerprint and request identity. This is host-owned
+planning data, not a new Core record kind. It must not claim `initial_user_defined`
+native admission, a TaskContextPacket receipt, accepted state or execution eligibility.
+Result and expectation fields are absent in this first slice.
+
+Reuse definition normalization and selected-source representations/budgets:
+2,000 goal characters; at most 12 criteria and 12 non-goals, 500 characters each;
+12,000 definition bytes; eight whole notes, 2,000 characters each and 12,000
+serialized source-entry bytes. Overflow refuses without clipping or silently
+dropping an original/correction. Keep recorded time distinct from observation
+time, and content binding distinct from source authenticity or future freshness.
+
+The minimum D1 layout is a workspace/owner identity mapping plus an append-only
+planning-revision relation (including a content-free erasure marker). Each
+revision stores the whole bounded definition and selection in one row;
+no independent note write or mutable current pointer
+is needed. Human and agent reads reconstruct the same validated linear head.
+The mapping is deployment/application identity, not a second semantic authority.
+Bound v0 history to 32 revisions per item, with an explicit capacity refusal;
+paginate the work list. Raising this limit needs bounded read/export evidence.
+
+| Situation | Required behavior |
+|---|---|
+| First save | A server-issued draft identity and request key bind the authenticated workspace/project. One conditional insert creates revision 1; no first-save row exists before the explicit Save. |
+| Later save | Bind exact workspace/project/work, expected revision **and** fingerprint, normalized payload and request key. A single conditional insert validates the current predecessor in SQL; uniqueness of `(workspace, project, work, revision)` prevents two successors. Reconstruct and validate before returning Saved. |
+| Same request again | A unique scoped request key maps to one payload fingerprint/revision. Identical replay returns that saved revision; changed material with the same key refuses. This is product idempotency, not new authority. |
+| Two tabs | The first different write wins; the other receives conflict with no inserted successor. Keep its unsaved text, show saved versus draft, and require a fresh reviewed Save. Never auto-merge or use last-write-wins. |
+| Timeout / lost response | Show Save outcome unknown, retain draft/request key, then explicitly reread that request and head. Absence while a request may be in flight is not proof of failure. Any user-requested retry uses the same key/content; no automatic retry or replacement request. |
+| Validation / storage failure | No partial definition/context/history is committed. A single-row save avoids cross-row partial writes; any future multi-row operation must use an atomic transaction and rollback test. A failed read is unavailable, not empty work. |
+| Stale page / agent | A context read includes the displayed binding; changed head returns refresh-required without substitute notes. Refresh is explicit. Sign-out or access loss discards private displayed material and registration. |
+
+Use primary reads for v0, with no application cache of private current state and
+`Cache-Control: no-store`. D1's [replication contract](https://developers.cloudflare.com/d1/best-practices/read-replication/)
+routes queries to primary without Sessions API replication. Replication/bookmark
+support can follow only with equivalent currentness evidence. The conditional
+insert and uniqueness behavior still need real D1-compatible tests in B; an
+earlier JavaScript read followed by an unconditional insert is insufficient.
+
+No local workspace is mirrored. A web ID is not a repository path, GitHub ID,
+Sites project ID or local Augnes ID. Links to external work stay attributed
+references. Separate web items do not complete prior work; results from an
+external AI remain attributed reports until their relevant owner admits them.
+
+### Identity, access, export and recovery
+
+Create a new Site under the intended personal account with its narrowest private
+audience, then bind the authenticated owner to one randomly assigned durable
+workspace/project identity. Never claim the first arbitrary visitor as owner.
+Use the platform-verified email only as an external login reference mapped on
+the server; never as a client-supplied workspace selector or primary project ID.
+Renaming the app or account does not rename/rebind durable work automatically.
+
+Every HTML, JSON, history, export and mutation handler checks the same owner and
+workspace/project scope. Missing/ambiguous identity denies access. Require same
+origin and CSRF protection for writes; render context as inert text and do not
+fetch supplied source URLs. No public data route, wildcard CORS or credentials
+in source, prompts, URLs, exported content or logs. Verify that Sites ingress
+overwrites spoofed identity headers and that no direct backend URL bypasses it
+before real data enters. If that cannot be shown, private real-work release is
+blocked; a header name by itself is not authentication.
+
+Private audience is an outer visitor gate; application authorization is separate.
+Sites operators/admins and editors are a platform trust boundary, not a promise
+of owner-only encryption. Do not grant collaborators or public access for v0.
+Public discovery of product information is optional and never indexes private
+work; robots/noindex is not an access control.
+
+**Export** is an explicit authenticated download of the complete work revision
+chain plus format/schema versions, original scope, source bindings, timestamps,
+fingerprints and code/schema compatibility marker. A saved-context view is not
+a recovery package. Exclude credentials, local paths, execution grants and raw
+model transcripts. Unknown provenance/currentness remains unknown after export.
+
+**Reconstruction** validates envelopes, bounds, parent chain, unique head and
+fingerprints in an empty disposable store, then compares definition/selection
+readback. A live replacement requires explicit owner authorization, quiescing the
+old writer and binding the replacement before reopening writes: one live authority
+per workspace. Import never authorizes native execution or local-workspace merge.
+Unverified imported authorship stays an attestation, not independently verified fact.
+
+**Deletion** is explicit whole-work erasure, with export offered first and exact
+head confirmation. Delete that work's entire revision/request history atomically,
+not selected historical rows; a changed head refuses. A retained erased-ID marker
+prevents delayed requests from recreating it and contains no work text. Disclose
+that downloaded exports and provider backups are outside that deletion; do not
+promise immediate backup erasure or timed retention not observed in this account.
+
+**Code recovery** selects a compatible prior code version; it does not roll back
+D1 data. Migrations must preserve readable earlier data or refuse unsafe rollback.
+**Data recovery** uses a validated export/reconstruction, or a separately verified
+provider recovery operation. Never delete a Site to reset data: Sites deletion is
+documented as permanent. Test reconstruction before admitting irreplaceable work.
+
+### Reuse and minimum adapters
+
+| Existing owner | Use in B and boundary |
+|---|---|
+| `lib/vnext/runtime/initial-project-work-context.ts`, `types/vnext/project-work-initialization.ts` | Reuse/extract the exact definition normalizer and limits into a portable dependency surface. The current module imports local lineage/session readers; importing the whole module is not a Worker port. |
+| `lib/intake/selected-work-source-comparison.ts`, `types/vnext/project-work-revision.ts` | Reuse note validation, attribution, labels, bindings and whole-note budgets. Preserve original versus corrected material. No historical `reviewed_outcome` identity may be manufactured for a web report. |
+| `lib/vnext/protocol-primitives.ts` | Reuse canonical serialization/fingerprint meaning. Its `node:crypto` dependency needs Worker compatibility or an equivalent host hash adapter with byte-for-byte conformance checks. |
+| `lib/vnext/runtime/project-work-initialization.ts`, `lib/vnext/runtime/project-work-revision.ts` | Reference existing admission, linear ancestry, replay/refusal and no-partial-write behavior. Do not copy the synchronous DB, root availability override, local session or managed-run admission into hosted code. |
+| `lib/vnext/adapters/webmcp-current-work.ts`, `components/workbench/semantic-review/current-work-webmcp.tsx` | Reuse displayed-binding, authenticated read and disposal semantics when WebMCP is separately adapted. Existing tool schema expects native initialization and cannot certify the new envelope. |
+| `lib/vnext/adapters/hosted-research-projection.ts` | Reuse privacy/currentness distinctions and presentation concepts; its bounded export is not the durable store or recovery format. |
+| Existing expectation, result, review and Transition owners in 02 | Keep their authority intact. B stores no native forecast/result/receipt and exposes no Decide/Start controls. Later native integration needs its own admitted host profile and parity review. |
+
+Only four new hosting responsibilities are needed: verified-identity mapping;
+D1 revision persistence with atomic concurrency; authenticated saved-work
+read/save/export/erase routes; and the compact human page consumed by an agent.
+The host envelope is the deliberately smaller alternative to porting the entire
+local Core/runtime now. It delivers durable authored planning, not full native
+managed-work parity. That product limit must remain visible in B's review.
+
+### Consumer paths
+
+| Consumer | v0 contract and entry conditions |
+|---|---|
+| Human | Private Site access plus application owner authentication. Create/select, deliberate Save and server reopen; no AI required. |
+| Browser agent — selected path | User authorizes the chosen host to use a signed-in tab, selects the work and opens Saved context. Agent reads the actual rendered complete bounded material and its revision. A plain external URL fetch cannot inherit that session. |
+| Page-bound WebMCP | Optional later adapter, requiring an open authenticated page, supported browser API **and** a host that actually invokes it. [Tool hints](https://developer.chrome.com/docs/ai/webmcp/secure-tools) do not grant authentication or write authority. Registration, invocation and appropriate consumption are different observations. |
+| Page-independent authenticated access | Deferred. Requires a separately reviewed token/OAuth/service transport and workspace authorization; the local connected-project reader still requires the Mac and is not this hosted solution. Browser cookies are never exported to make a headless client work. |
+| Public discovery | No private-work discovery or anonymous read. Existing public demo/artifact remains separate. |
+
+If the selected host cannot access the signed-in page, the fallback is explicit
+user export/copy of selected context to that host, labeled manual transfer with
+capture time and stale risk. This preserves useful work but does **not** pass B's
+actual authenticated agent-read acceptance. Do not open the audience to pass it.
+
+### Task B proposed for separate authorization
+
+**Build one new private web planning slice:** create/select work → add attributed
+context → confirm durable Save → fresh-session reopen → one actual browser-agent
+read. Include the revision conflict, export/reconstruction and erasure safeguards
+needed before retaining real work. Do not add R2, model inference, automatic
+execution, local synchronization, generic MCP/OAuth, team editing or an approval
+engine. No B work or canonical B preparation occurs during A.
+
+Named prerequisites: review this scope/envelope limit; authorize B's local
+implementation; choose the exact Sites account and owner; establish quota/budget
+and separately authorize one new private Site/D1 before any provisioning or
+deployment; prove trusted ingress and compatible artifact/migrations; choose a
+browser-capable AI host with user-approved signed-in-page access; approve any
+real content used in hosted acceptance. Synthetic local checks can precede
+hosting authorization. Account gaps do not justify another generic investigation.
+
+Acceptance checks, with exact source/version and workspace bindings:
+
+1. Human creates a definition plus original context and an attributed open
+   question (or a genuine correction when present); Save and a fresh
+   browser/server session return the same full saved material. Browser storage
+   cleared; no sample substitution.
+2. Two tabs submit different saves from one head: exactly one successor, other
+   draft preserved and refused. Identical replay keeps one revision; altered replay refuses.
+   Inject commit failure/lost response and prove no partial/duplicate work.
+3. Signed-out, wrong-owner, wrong-workspace/project, spoofed-header and cross-origin
+   reads/writes/export/erase refuse without data leakage. An old displayed
+   binding cannot return newly selected notes as if unchanged.
+4. Export → empty disposable store → fresh reader reproduces the exact history
+   and selected text/provenance. Unknown schema, missing parent, tampering and
+   unsafe code rollback refuse. Erasure removes content and blocks delayed replay.
+5. In an authorized private deployment, reopen with the local Augnes service
+   unavailable from a separate client. One actual agent reads the saved page and
+   cites its revision plus relevant constraint and uncertainty. Record host,
+   page/session prerequisite, tool call, returned material and actual use; a
+   screenshot or successful tool registration alone does not pass.
+
+Stop B at its own review. A local-only pass cannot establish Mac-independent
+hosted operation. If hosted authorization or agent access is unavailable, report
+that exact untested acceptance item without inventing completion or broadening B.
+
+### Actual A preparation and context use
+
+The clean checkout moved from merged-work branch `codex/1339-reviewed-outcome-reuse`
+at `f75c5c608142e7eda2f6b8f06166bcb37d05fe8b` to
+`codex/1343-web-v0-contract` from authenticated reviewed main
+`e43651db9ed52d3ab3352b977d711220e534befe`. There was one worktree.
+[#1342](https://github.com/hynk-studio/augnes/pull/1342) was read at
+`af4ca705dbc6a7264e5e39e9f6ee9066b6a494d1`; its three status corrections are
+neither duplicated nor prerequisites. #1148/startup investigations were not reopened.
+
+Normal installed lifecycle returned live/exact. Resume and selected-source read
+confirmed the expected fresh, revision-eligible, unexecuted P2 preparation.
+The existing installed different-task tool preview was inspected, then the
+authenticated prepare returned `saved`, `work_preparation_created=true` and
+`prior_work_marked_complete=false`. Complete #1343 goal, six criteria and three
+non-goals were saved. The exact correction binding
+`sha256:ac24ce6dd08aa08c888dc8de8705dfe575c821deb46d3f8c0bc18c5d88a2dc00`
+was retained; the obsolete App question was omitted explicitly as outside A and
+addressed by #1332, remaining in historical unexecuted preparation.
+
+Both kickoff notes were authored at `2026-09-27T05:46:52.000Z`, with the issue's
+exact source labels/text and distinct `user_declaration` / `derived_interpretation`
+attribution. Fresh Resume and source read returned all three notes at snapshot
+`sha256:8e12c5410b17f417b9207799dc86bd8c4f2feb4877771887906c1efdd5cf3ccb`
+and packet `sha256:ac412d70144f99b77a535d40e6b73735a89c109c08d8dc350b92a5a0ddfeb589`.
+The merged repository's `connected-project-reader.mjs`, invoked locally through
+its normal handler, separately reread the persisted definition and selection
+at that same binding (05:47:48 UTC). This was local reader use, not a ChatGPT
+connection or fresh installed-plugin adoption. Projected source labels remained
+withheld where the existing disclosure rule required it.
+
+Managed Start was unavailable before and after save: **“The local managed-work
+configuration is unavailable for this project.”** Current source maps that to
+`operator_configuration_unavailable`, not a broken Companion or failed provider.
+No attachment/grant/Start, fixture run, native result or completion was invented.
+A therefore used **prepared-context/direct-session execution**. The installed
+proxy differs from merged source in connected-reader support, but existing
+preparation/read tools worked; no plugin update or service refresh was necessary
+or performed. A future install still requires its real fresh-session boundary.
+
+Actual use: the saved user note kept delivery primary; the hypothesis note framed
+the durability/access decisions; the retained correction prevented treating open
+P2 issues as missing implementation. Current source, official docs and account
+readback supplied the decisions. The first material decision was independent
+hosted authored context, because the local writer requires roots/sessions/SQLite.
+The simpler browser-agent read avoids making WebMCP adoption or a tunnel a v0 gate.
+Neither choice was pre-authored as a worker conclusion or measured as improvement.
+No forecast was useful or authored. No additional human context repair was
+observed during A; the kickoff framing and selected correction were exposed input,
+not autonomous retrieval or independent evidence. B has not encountered A's outcome.
+
+This section/PR preserves the attributed external outcome for review. Canonical A
+remains prepared with no run/result/proposal. The only local product writes were
+the supported preparation and its authentication bookkeeping; existing service,
+configuration, data, receipts and diagnostics were otherwise left in place.
+No Site/storage/access mutation, data upload, new credential, provider campaign,
+temporary runtime or generated execution evidence was involved.
 
 ## Completed P2.4.1 — Bounded local hosted snapshot contract
 
@@ -1084,8 +2446,10 @@ model-authored planning, C9, or PC6.
 defines the currently authorized CUX7 slice. It lets an authenticated user
 review the complete current work definition in AI Workplane and save an
 append-only revision only while the project remains active, its root is
-available, the exact initial/revision packet chain is valid and current, fewer
-than 32 revisions exist, and no execution or other work history exists.
+available, the exact initial/revision packet chain is valid and current, and no
+execution or other work history exists. CUX7 originally imposed a 32-revision
+ceiling; the cumulative native history slice above removes that lifetime cap
+while retaining explicit operation budgets.
 
 Revision reuses the CUX6B normalizer and limits. It creates one ordinary
 TaskContextPacket with exact prior-packet and local operator provenance; it is
@@ -1098,8 +2462,8 @@ identity.
 Continuities, AI Workplane, GuideBrief, delegated-work preparation, project
 continuity, portability, backup/restore, and recovery share one current-packet
 and eligibility interpretation. Branches, cycles, missing or changed prior
-packets, ambiguous tips, invalid provenance, history races, and revision-limit
-overflow fail closed. Historical semantic-transition and initial host request
+packets, ambiguous tips, invalid provenance, history races, and incomplete
+required reads fail closed. Historical semantic-transition and initial host request
 identities remain unchanged, and no schema, NativeHostRequest, TaskContextPacket,
 or portable-project version bump is introduced.
 

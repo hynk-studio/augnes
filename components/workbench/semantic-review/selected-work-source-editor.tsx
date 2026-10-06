@@ -67,7 +67,7 @@ export function SelectedWorkSourceEditor({ initialization, busy, onChange, newTa
     const body = await response.json() as { status?: string; comparison?: Comparison; error_code?: string };
     if (!response.ok || body.status !== "selected_source_comparison" || !body.comparison) {
       if (body.error_code === "selected_source_context_budget_exceeded" || body.error_code === "task_context_mandatory_selection_budget_exceeded") {
-        throw new Error("The complete selection exceeds the eight-note or 12,000-byte context budget. Exclude notes before continuing. Nothing was saved or clipped.");
+        throw new Error("The complete selection exceeds the eight-note or 32,000-byte context budget. Exclude notes before continuing. Nothing was saved or clipped.");
       }
       throw new Error("Comparison could not be completed. Check the note size and reload if current work has changed.");
     }

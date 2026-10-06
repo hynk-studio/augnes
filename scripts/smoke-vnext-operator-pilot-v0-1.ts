@@ -12471,7 +12471,7 @@ async function assertDirectHostPrestartRefusalsOnClonesV01(input: {
         project_id: FOREIGN_PROJECT_ID,
         now: addIsoMillisecondsV01(input.packet.generated_at, 30_000),
         expected_project_id: input.config.project_id,
-        expected_revision: 1,
+        expected_revision: readActiveProjectSelectionV01(db, input.config.workspace_id)!.selection_revision,
       });
       return { ...input.config, project_id: FOREIGN_PROJECT_ID };
     },

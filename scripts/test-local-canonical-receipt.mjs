@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 
 import {
   LOCAL_CANONICAL_RECEIPT_SCHEMA,
@@ -106,6 +107,7 @@ const baseReceipt = {
     installed_trees: "not_deciding_authority",
     root_lock_sha256: "3".repeat(64),
     nested_lock_sha256: "4".repeat(64),
+    web_planning_lock_sha256: "6".repeat(64),
   },
   executor: {
     version: 1,
@@ -231,6 +233,7 @@ const validContext = {
   currentLocks: {
     root: "3".repeat(64),
     nested: "4".repeat(64),
+    webPlanning: "6".repeat(64),
   },
   currentExecutorFingerprint: "5".repeat(64),
   expectedSelectedPlan: "operating-policy-only",
@@ -362,6 +365,7 @@ const targetedPhaseIds = [
   "targeted-change-validator",
   "dependencies-root",
   "dependencies-nested",
+  "dependencies-web-planning",
   "unit",
 ];
 targetedReceipt.evidence.planner_plan = "owner-targeted";
@@ -403,11 +407,65 @@ targetedReceipt.phases = [
   },
   {
     ...structuredClone(baseReceipt.phases[0]),
+    id: "dependencies-web-planning",
+    label: "isolated web planning clean development dependency installation",
+    command: "npm ci --no-audit --no-fund",
+    cwd_scope: "web-planning-app",
+    exclusive: true,
+    browser: false,
+  },
+  {
+    ...structuredClone(baseReceipt.phases[0]),
     id: "unit",
     browser: false,
   },
 ];
 const finalizedTargetedReceipt = finalizeReceipt(targetedReceipt);
+const reuseReceipt = structuredClone(targetedReceipt);
+reuseReceipt.evidence.planner_targeted_phase_ids = [
+  ...targetedPhaseIds.slice(0, 4), ...CODEX_REUSE_PHASE_IDS,
+];
+reuseReceipt.phases = [
+  ...reuseReceipt.phases.slice(0, 4),
+  ...CODEX_REUSE_PHASE_IDS.map((id) => ({
+    ...structuredClone(baseReceipt.phases[0]), id,
+    label: `Canonical ${id} check`,
+    command: `node scripts/run-canonical-test-suite.mjs ${id}`,
+    cwd_scope: "root", exclusive: true, browser: false,
+    cleanup: { completed: true, remaining_owned_processes: 0,
+      termination_reason: "natural_exit", exit_observed: true, streams_closed: true },
+  })),
+];
+const reuseContext = {
+  ...validContext, expectedSelectedPlan: "owner-targeted",
+  expectedOwnerIds: ["codex-user-reuse-hook"],
+  expectedTargetedPhaseIds: reuseReceipt.evidence.planner_targeted_phase_ids,
+  expectedPhaseIds: reuseReceipt.evidence.planner_targeted_phase_ids,
+};
+assert.equal(inspectReceiptForDecision(finalizeReceipt(reuseReceipt), reuseContext).valid_deciding_evidence, true);
+for (const mutate of [
+  (r) => r.phases.pop(),
+  (r) => r.phases.push(structuredClone(r.phases.at(-1))),
+  (r) => r.phases.splice(4, 3, ...r.phases.slice(4).reverse()),
+  (r) => { r.phases[4].id = "foreign-check"; },
+  (r) => { r.phases[4].command = "node scripts/unrelated-test.mjs"; },
+  (r) => { r.phases[4].command = "npm test"; },
+  (r) => { r.phases[4].cwd_scope = "nested-app"; },
+  (r) => { r.phases[4].exclusive = false; },
+  (r) => { r.phases[4].status = "not_run"; },
+  (r) => { r.phases[4].cleanup.exit_observed = false; },
+  (r) => { r.phases[4].cleanup.streams_closed = false; },
+  (r) => { r.phases[4].cleanup.termination_reason = "timeout"; },
+]) {
+  const candidate = structuredClone(reuseReceipt);
+  mutate(candidate);
+  assert.equal(inspectReceiptForDecision(finalizeReceipt(candidate), reuseContext).valid_deciding_evidence, false);
+}
+// A self-consistent shortened claim is still incomplete for this owner.
+const incompleteReuse = structuredClone(reuseReceipt);
+incompleteReuse.phases.pop();
+incompleteReuse.evidence.planner_targeted_phase_ids.pop();
+assert(inspectReceiptForDecision(finalizeReceipt(incompleteReuse)).issues.includes("receipt_codex_reuse_inventory_invalid"));
 const targetedContext = {
   ...validContext,
   expectedSelectedPlan: "owner-targeted",
@@ -472,6 +530,9 @@ for (const mutate of [
   (receipt) => {
     receipt.phases[2].cwd_scope = "root";
   },
+  (receipt) => {
+    receipt.phases[3].cwd_scope = "root";
+  },
 ]) {
   const candidate = structuredClone(targetedReceipt);
   mutate(candidate);
@@ -507,6 +568,15 @@ assert(
     targetedContext,
   ).issues.includes("phase_not_passing:dependencies-root"),
 );
+assert(
+  inspectReceiptForDecision(finalizedTargetedReceipt, {
+    ...targetedContext,
+    currentLocks: { ...targetedContext.currentLocks, webPlanning: "7".repeat(64) },
+  }).issues.includes("receipt_stale_lockfiles"),
+);
+const missingWebLock = structuredClone(targetedReceipt);
+delete missingWebLock.dependencies.web_planning_lock_sha256;
+assert(inspectReceiptForDecision(finalizeReceipt(missingWebLock), targetedContext).issues.includes("receipt_source_identity_invalid"));
 assert(
   inspectReceiptForDecision(finalizedTargetedReceipt, {
     ...targetedContext,

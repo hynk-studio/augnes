@@ -1,3 +1,5 @@
+import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import { NextResponse } from "next/server";
 
 import { openDatabase } from "@/lib/db";
@@ -74,7 +76,7 @@ function parseBody(body: Record<string, unknown>): {
   action: ProjectControlActionV01;
   project_id: string;
   expected_active_project_id: string;
-  expected_active_selection_revision: number;
+  expected_active_selection_revision: ProjectSelectionRevision;
   expected_control_revision: number | null;
 } {
   if (
@@ -84,7 +86,7 @@ function parseBody(body: Record<string, unknown>): {
     !ACTIONS.has(body.action as ProjectControlActionV01) ||
     !validId(body.project_id) ||
     !validId(body.expected_active_project_id) ||
-    !validRevision(body.expected_active_selection_revision) ||
+    !isHistoricalProjectSelectionRevision(body.expected_active_selection_revision) ||
     !(
       body.expected_control_revision === null ||
       validRevision(body.expected_control_revision)

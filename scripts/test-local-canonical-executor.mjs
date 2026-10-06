@@ -17,6 +17,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -79,6 +80,7 @@ const ownerTargetedUnitPhaseIds = [
   "targeted-change-validator",
   "dependencies-root",
   "dependencies-nested",
+  "dependencies-web-planning",
   "unit",
 ];
 const executorSource = readFileSync(
@@ -386,8 +388,39 @@ assert.equal(ownerTargetedPhases[1].display, "npm ci --no-audit --no-fund");
 assert.equal(ownerTargetedPhases[1].cwdScope, "root");
 assert.equal(ownerTargetedPhases[2].display, "npm ci --no-audit --no-fund");
 assert.equal(ownerTargetedPhases[2].cwdScope, "nested-app");
-assert.equal(ownerTargetedPhases[3].display, "npm test");
+assert.equal(ownerTargetedPhases[3].display, "npm ci --no-audit --no-fund");
+assert.equal(ownerTargetedPhases[3].cwdScope, "web-planning-app");
+assert.equal(ownerTargetedPhases[3].timeoutMs, 600_000);
 assert.equal(ownerTargetedPhases[3].exclusive, true);
+assert.equal(ownerTargetedPhases[4].display, "npm test");
+assert.equal(ownerTargetedPhases[4].exclusive, true);
+const reusePhaseIds = [...ownerTargetedUnitPhaseIds.slice(0, 4), ...CODEX_REUSE_PHASE_IDS];
+const reusePhases = buildPhasePlan({
+  mode: "changed", selectedPlan: "owner-targeted", baseSha, headSha,
+  targetedPhaseIds: reusePhaseIds,
+});
+assert.deepEqual(reusePhases.map((phase) => phase.id), reusePhaseIds);
+for (const phase of reusePhases.slice(4)) {
+  assert.equal(phase.command, process.execPath);
+  assert.deepEqual(phase.args, ["scripts/run-canonical-test-suite.mjs", phase.id]);
+  assert.equal(phase.display, `node scripts/run-canonical-test-suite.mjs ${phase.id}`);
+  assert.equal(phase.cwdScope, "root");
+  assert.equal(phase.timeoutMs, 60_000);
+  assert.equal(phase.exclusive, true);
+  assert.equal(phase.browser, false);
+}
+for (const invalidIds of [
+  reusePhaseIds.slice(0, -1),
+  [...reusePhaseIds, CODEX_REUSE_PHASE_IDS[0]],
+  [...reusePhaseIds.slice(0, 4), ...CODEX_REUSE_PHASE_IDS.toReversed()],
+  [...reusePhaseIds.slice(0, 4), "unit", ...CODEX_REUSE_PHASE_IDS],
+  [...reusePhaseIds.slice(0, -1), "caller-command"],
+]) {
+  assert.throws(() => buildPhasePlan({
+    mode: "changed", selectedPlan: "owner-targeted", baseSha, headSha,
+    targetedPhaseIds: invalidIds,
+  }), (error) => error?.code === "invalid_owner_targeted_phase_inventory");
+}
 assert.throws(
   () =>
     buildPhasePlan({
@@ -410,6 +443,7 @@ assert.throws(
         "targeted-change-validator",
         "dependencies-root",
         "dependencies-nested",
+        "dependencies-web-planning",
         "caller-selected-command",
       ],
     }),
@@ -424,6 +458,7 @@ const ownerTargetedBrowserPhases = buildPhasePlan({
     "targeted-change-validator",
     "dependencies-root",
     "dependencies-nested",
+    "dependencies-web-planning",
     "typecheck",
     "unit",
     "e2e-operator-multi-candidate",
@@ -435,6 +470,7 @@ assert.deepEqual(
     "targeted-change-validator",
     "dependencies-root",
     "dependencies-nested",
+    "dependencies-web-planning",
     "typecheck",
     "unit",
     "e2e-operator-multi-candidate",
@@ -655,6 +691,7 @@ assert.deepEqual(
 for (const required of [
   "dependencies-root",
   "dependencies-nested",
+  "dependencies-web-planning",
   ...(process.platform === "win32" ? ["native-windows-identity"] : []),
   "typecheck",
   "build",
@@ -688,7 +725,7 @@ assert(
 );
 for (const phaseId of RESOURCE_EXCLUSIVE_PHASE_IDS) {
   assert.equal(
-    fullPlan.find((phase) => phase.id === phaseId)?.exclusive,
+    [...fullPlan, ...reusePhases].find((phase) => phase.id === phaseId)?.exclusive,
     true,
     phaseId,
   );
@@ -734,6 +771,7 @@ assert.deepEqual(
   [
     "dependencies-root",
     "dependencies-nested",
+    "dependencies-web-planning",
     ...(process.platform === "win32" ? ["native-windows-identity"] : []),
     "typecheck",
     "build",

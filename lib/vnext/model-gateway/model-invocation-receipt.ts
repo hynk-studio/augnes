@@ -164,7 +164,7 @@ export function validateModelInvocationReceiptV02(
       receipt.egress_policy_version,
       MODEL_GATEWAY_EGRESS_POLICY_VERSION_V01,
     );
-    validateUsage(receipt.usage);
+    validateModelInvocationReceiptUsageV02(receipt.usage);
     validateCost(receipt.cost);
     validateBudget(receipt.budget);
     member(receipt.cancellation_disposition, ["not_cancelled", "cancelled"]);
@@ -243,7 +243,7 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   );
 }
 
-function validateUsage(value: unknown): void {
+export function validateModelInvocationReceiptUsageV02(value: unknown): void {
   if (value === null) return;
   const keys = [
     "basis",
@@ -255,9 +255,7 @@ function validateUsage(value: unknown): void {
   ];
   const usage = exactRecord(
     value,
-    isPlainRecord(value) && Object.hasOwn(value, "cached_input_tokens")
-      ? [...keys, "cached_input_tokens"]
-      : keys,
+    [...keys, ...["cached_input_tokens", "reasoning_tokens"].filter(key => isPlainRecord(value) && Object.hasOwn(value, key))],
   );
   literal(usage.basis, "provider_report");
   literal(usage.quality, "reported");
@@ -268,6 +266,10 @@ function validateUsage(value: unknown): void {
     if (Number(usage.cached_input_tokens) > Number(usage.input_tokens)) invalid();
   }
   nonnegativeInteger(usage.output_tokens);
+  if (Object.hasOwn(usage, "reasoning_tokens")) {
+    nonnegativeInteger(usage.reasoning_tokens);
+    if (Number(usage.reasoning_tokens) > Number(usage.output_tokens)) invalid();
+  }
   nonnegativeInteger(usage.total_tokens);
   if (
     Number(usage.total_tokens) <

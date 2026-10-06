@@ -325,6 +325,8 @@ async function runScenario(scenario) {
   // assertion failure must not discard this child's failure-time snapshot.
   process.stdout.write(`${JSON.stringify({ scenario, exit: { code: exit.code, signal: exit.signal },
     duration_ms: result.total_duration_ms, browser_failure_snapshot: result.browser_failure_snapshot,
+    browser_port_allocation_diagnostic: result.browser_port_allocation_diagnostic,
+    failure: result.failure,
     supervisor_exit_diagnostic: result.supervisor_exit_diagnostic,
     cleanup_complete: result.cleanup_complete, owned_process_residue_count: result.owned_process_residue_count,
     listener_residue_count: result.listener_residue_count })}\n`);
@@ -370,6 +372,13 @@ function assertSupervisorDiagnostic(result) {
 }
 
 function assertCompleteCleanup(result) {
+  const allocation = result.browser_port_allocation_diagnostic;
+  assert.equal(allocation?.diagnostic_version, "browser_port_allocation.v1");
+  assert.equal(allocation.status, "allocated", "navigation controls must reach the original document assertion after allocation");
+  assert.equal(allocation.cleanup_complete, true);
+  assert.equal(allocation.probe_limit, 20);
+  assert.equal(new Set(allocation.selected_ports).size, 3);
+  assert.equal(allocation.selected_ports.every(port => port >= 1_024 && port <= 65_515), true);
   assert.equal(result.cleanup_complete, true);
   assert.equal(result.owned_streams_settled, true);
   assert.equal(result.owned_process_residue_count, 0);

@@ -42,8 +42,9 @@ export function RetainedWorkSourceLookup({ initialization, disabled, remainingSl
           expected_active_project_id: initialization.active_project_id,
           expected_active_selection_revision: initialization.active_selection_revision }),
       });
-      const body = await response.json() as { status?: string; recall?: Recall };
+      const body = await response.json() as { status?: string; recall?: Recall; error_code?: string };
       if (id !== requestId.current) return;
+      if (body.error_code === "retained_source_scan_bound_exceeded") throw new Error("Retained-note lookup reached its scan capacity. No partial results were returned. Current selected notes remain available; changing the query or reloading will not reduce this history.");
       if (!response.ok || body.status !== "retained_source_recall" || !body.recall) throw new Error("Retained notes are unavailable for this comparison. Check the query bounds or reload current work before searching again.");
       setResult(body.recall);
     } catch (failure) {
@@ -51,7 +52,7 @@ export function RetainedWorkSourceLookup({ initialization, disabled, remainingSl
     } finally { setSearching(false); }
   }
 
-  return <details data-retained-work-sources>
+  return <details className={styles.retainedSources} data-retained-work-sources>
     <summary>Find notes from earlier work revisions</summary>
     <p className={styles.copy}>Search saved note snapshots in this unstarted work’s revision history, including notes excluded from current preparation. Searching selects and saves nothing.</p>
     <label htmlFor="retained-source-query">Words from the question, note or source</label>

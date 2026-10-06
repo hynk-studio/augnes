@@ -1,3 +1,4 @@
+import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import { inspectRevisableProjectWorkChainV01 } from "@/lib/vnext/runtime/project-work-revision";
 import { NewProjectWorkPreparationErrorV01 } from "@/lib/vnext/runtime/new-project-work-preparation";
 import { AuthoredSuccessorTaskErrorV01 } from "@/lib/vnext/authored-successor-task";
@@ -152,7 +153,9 @@ export function createVNextOperatorContextUseReviewHandlerV01(
         clock: options.clock,
       });
       db = (options.open_database ?? openVNextLocalOperatorDatabaseV01)(config);
-      const body = await readBoundedVNextLocalOperatorBodyV01(request);
+      // A native revision carries up to 32,000 selected-entry bytes plus the
+      // bounded definition and bindings. Other operator routes retain 16 KiB.
+      const body = await readBoundedVNextLocalOperatorBodyV01(request, 64_000);
       const companionPreparation = readVNextLocalReviewProfileV01(environment) === "companion_first_work_v1";
       if (companionPreparation && ![
         "define_initial_project_work",
@@ -174,8 +177,7 @@ export function createVNextOperatorContextUseReviewHandlerV01(
           "expected_current_packet_id", "expected_current_packet_fingerprint"];
         if (Object.keys(body).sort().join(",") !== keys.sort().join(",") ||
           typeof body.expected_active_project_id !== "string" ||
-          !Number.isSafeInteger(body.expected_active_selection_revision) ||
-          (body.expected_active_selection_revision as number) < 1 ||
+          !isHistoricalProjectSelectionRevision(body.expected_active_selection_revision) ||
           typeof body.expected_current_packet_id !== "string" ||
           typeof body.expected_current_packet_fingerprint !== "string") {
           throw new VNextOperatorPilotContinuityErrorV01("hosted_snapshot_request_invalid", 400);

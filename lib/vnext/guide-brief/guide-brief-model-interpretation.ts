@@ -1,3 +1,5 @@
+import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import {
   GUIDE_BRIEF_CONVERSATION_INTENTS_V01,
   type GuideBriefConversationIntentV01,
@@ -263,7 +265,7 @@ export function isGuideBriefModelInterpretationEligibleV01(input: {
   project_context: "none" | "current" | "viewed";
   active_project_id: string | null;
   project_id: string | null;
-  active_selection_revision: number | null;
+  active_selection_revision: ProjectSelectionRevision | null;
   available_intents: readonly GuideBriefConversationIntentV01[];
   available_actions?: readonly BrowserActionCapabilityV01[];
 }): boolean {
@@ -297,8 +299,7 @@ export function isGuideBriefModelInterpretationEligibleV01(input: {
     input.project_context === "current" &&
     input.project_id !== null &&
     input.active_project_id === input.project_id &&
-    Number.isSafeInteger(input.active_selection_revision) &&
-    Number(input.active_selection_revision) > 0 &&
+    isHistoricalProjectSelectionRevision(input.active_selection_revision) &&
     input.available_intents.length + (input.available_actions?.length ?? 0) > 0 &&
     input.available_intents.length + (input.available_actions?.length ?? 0) <=
       GUIDE_BRIEF_INTERPRETATION_LIMITS_V01.candidates &&

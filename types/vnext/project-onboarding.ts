@@ -1,3 +1,4 @@
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import type { ExternalRefV01 } from "./external-ref";
 import type {
   LocalProjectRootRefV01,
@@ -10,7 +11,7 @@ export const LOCAL_PROJECT_INSPECTION_VERSION_V01 =
 export const RECENT_PROJECT_ENTRY_VERSION_V01 =
   "recent_project_entry.v0.1" as const;
 export const ACTIVE_PROJECT_SELECTION_VERSION_V01 =
-  "active_project_selection.v0.1" as const;
+  "active_project_selection.v0.2" as const;
 export const LOCAL_PROJECT_PATH_DECLARATION_VERSION_V01 =
   "local_project_path_declaration.v0.1" as const;
 export const LOCAL_PROJECT_ONBOARDING_DECISION_VERSION_V01 =
@@ -74,10 +75,19 @@ export interface RecentProjectEntryV01 {
   last_opened_at: string;
   is_active: boolean;
   active_project_id: string | null;
-  active_selection_revision: number | null;
+  active_selection_revision: ProjectSelectionRevision | null;
   root_binding_fingerprint: string;
   physical_root_baseline_fingerprint: string | null;
   repository_execution_decision: RepositoryExecutionDecisionRequestProjectionV01 | null;
+}
+
+export type ProjectManagementEntryV02 = Omit<RecentProjectEntryV01,
+  "recent_project_entry_version" | "created_at" | "last_opened_at">;
+export type RegisteredProjectEntryV02 = ProjectManagementEntryV02 & { in_recents: boolean };
+export interface RegisteredProjectPageV02 {
+  projects: RegisteredProjectEntryV02[];
+  next_cursor: string | null;
+  complete: boolean;
 }
 
 export interface ActiveProjectSelectionV01 {
@@ -85,7 +95,7 @@ export interface ActiveProjectSelectionV01 {
     typeof ACTIVE_PROJECT_SELECTION_VERSION_V01;
   workspace_id: string;
   project_id: string;
-  selection_revision: number;
+  selection_revision: ProjectSelectionRevision;
   selected_at: string;
 }
 
@@ -140,5 +150,7 @@ export type ProjectOnboardingErrorCodeV01 =
   | "project_scope_conflict"
   | "project_external_ref_conflict"
   | "active_selection_conflict"
+  | "project_discovery_incomplete"
+  | "project_discovery_changed"
   | "project_not_recent"
   | "project_root_unavailable";

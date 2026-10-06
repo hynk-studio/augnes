@@ -560,7 +560,7 @@ export class LiveNativeHostRunServiceV01 {
     config: VNextLocalOperatorPilotConfigV01;
     automation_context: NativeHostAutomationContextV01;
     claim: PreparedNativeHostRunClaimV01;
-    session_admission: VNextLocalOperatorSessionMutationAdmissionV01;
+    session_admission: VNextLocalOperatorSessionMutationAdmissionV01 | null;
   }): Promise<LiveNativeHostStartResultV01> {
     const key = projectKeyV01(input.config);
     const active = this.controllers.get(key);

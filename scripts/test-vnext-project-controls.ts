@@ -58,6 +58,7 @@ import {
   readActiveProjectSelectionV01,
   removeRecentProjectV01,
   selectActiveProjectV01,
+  readProjectSelectionStateV02,
   touchRecentProjectV01,
 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import {
@@ -1711,7 +1712,7 @@ async function main() {
       workspace_id: workspace.workspace_id,
       project_id: projectA.project.project_id,
       expected_project_id: null,
-      expected_revision: null,
+      expected_revision: readProjectSelectionStateV02(db, workspace.workspace_id)!.selection_revision,
       now: "2026-07-16T00:13:00.000Z",
     });
     rebindCanonicalProjectLocalRootV01(

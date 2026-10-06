@@ -3,6 +3,7 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 
 import {
   assertCanonicalConcurrentChildLabelsV01,
@@ -116,6 +117,15 @@ const projectExperienceStep = {
   timeoutMs: 360_000,
   requireNaturalExit: true,
 };
+const webPlanningBrowserStep = {
+  id: "web-planning-browser",
+  group: "project-experience",
+  requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "browser-profile-owning", "cdp-session-owning"],
+  label: "durable web planning real D1 Browser producer and consumer",
+  ...rootNode("scripts/browser-validate-web-planning.mjs"),
+  timeoutMs: 180_000,
+  requireNaturalExit: true,
+};
 const continuityStep = {
   id: "continuity",
   group: "continuity",
@@ -141,6 +151,19 @@ const goldenStep = {
 
 const suites = {
   unit: [
+    {
+      label: "source-derived exact solver and separate retry workflow consumer (Python stdlib)",
+      command: "python3",
+      args: ["-E", "-s", "-B", "scripts/executable-reuse/test_workflow_cost.py"],
+      cwd: repoRoot,
+      timeoutMs: 10_000,
+      requireNaturalExit: true,
+    },
+    {
+      label: "web planning Worker strict type compatibility",
+      ...rootNode("node_modules/typescript/bin/tsc", "-p", "apps/web_planning/tsconfig.json", "--noEmit"),
+      timeoutMs: 30_000,
+    },
     {
       label: "conditional procedure recipes, lineage, limits and disposable probes (zero model)",
       ...rootNode("scripts/test-conditional-procedure-learning.ts"),
@@ -348,7 +371,7 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
-      label: "Companion final revision slot and exact successor replay",
+      label: "Companion revision beyond the former lifetime boundary and exact replay",
       ...rootNode("scripts/test-codex-repository-continuity.ts", "--work-revision-limit-only"),
       timeoutMs: 30_000,
     },
@@ -371,6 +394,7 @@ const suites = {
       timeoutMs: 180_000,
     },
     {
+      id: "codex-companion-discovery",
       label: "live Companion discovery and dynamic bridge-port contract",
       ...rootNode("scripts/test-codex-companion-discovery.mjs"),
       timeoutMs: 30_000,
@@ -381,11 +405,13 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      id: "augnes-operator-plugin-setup",
       label: "Augnes Operator reviewed plugin install and cache contract",
       ...rootNode("scripts/test-augnes-operator-plugin-setup.mjs"),
       timeoutMs: 30_000,
     },
     {
+      id: "codex-user-hook-migration",
       label: "Codex explicit-reuse hook migration and uninstall contract",
       ...rootNode("scripts/test-codex-augnes-user-hook-migration.mjs"),
       timeoutMs: 30_000,
@@ -429,6 +455,15 @@ const suites = {
     },
   ],
   integration: [
+    {
+      id: "web-planning-d1",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "backup-restore"],
+      label: "durable web planning production handlers and local D1 integrity",
+      ...rootNode("scripts/test-web-planning.mjs"),
+      timeoutMs: 120_000,
+      requireNaturalExit: true,
+    },
     {
       id: "project-verify-material",
       group: "supporting-serial",
@@ -495,6 +530,20 @@ const suites = {
       // portable import, and two independent owner reads measured about 420s
       // on exact local Node 24 arm64 during RC1 implementation. Bound at 600s.
       timeoutMs: 600_000,
+    },
+    {
+      id: "reconstruction-selection-conformance",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "backup-restore", "project-root", "mutable-module-state", "process-owning"],
+      label: "prospective RC1 preservation and independent fresh owner observations",
+      ...rootNode("scripts/test-reconstruction-conformance.ts", "--selection-profile"),
+      // Separate prospective owner: the same authenticated source construction,
+      // complete current-owner collection/revalidation, negative controls, and
+      // a second supported import with a fresh-process read. Existing selected,
+      // cleared and never-selected restore coverage keeps its original owner.
+      // Keep legacy RC1 at 600s.
+      timeoutMs: 1_200_000,
+      requireNaturalExit: true,
     },
     {
       id: "codex-qualified-runtime-registry",
@@ -652,6 +701,181 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      id: "current-work-read",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem"],
+      label: "current-work read parity, bounded reuse, snapshot isolation and fresh writer reconstruction",
+      ...rootNode("scripts/test-codex-repository-continuity.ts", "--current-work-read-only"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "prospective-preparation-reentry",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning"],
+      label: "prospective agenda, bounded host wake, real preparation, recovery and successor",
+      ...rootNode("scripts/test-prospective-reentry.ts"),
+      // Includes a real backup's full canonical validation and three bounded
+      // host loops; the focused production-boundary check measured 39.5 s.
+      timeoutMs: 90_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "stateless-source-review",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning"],
+      label: "ordinary stateless source review, fresh-process result reentry and no-replay fencing",
+      ...rootNode("scripts/test-stateless-source-review.ts"),
+      timeoutMs: 60_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "durable-work-resumption",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning"],
+      label: "historical finite work, multi-day authenticated human and agent resumption",
+      ...rootNode("scripts/test-stateless-source-review.ts", "--durable-work"),
+      // Separate lifecycle child preserves the existing source-review deadline.
+      // Eight fresh processes and three owned browsers measured 51.0 s alone;
+      // no existing child bound is increased.
+      timeoutMs: 90_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "cumulative-initial-history",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "mutable-module-state"],
+      label: "initial work through 320 revisions, complete ancestry, recovery and portable reconstruction",
+      ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--cumulative-history-only"),
+      // Canonical builder prefixes plus real boundary saves, measured 77.4 s.
+      timeoutMs: 120_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "cumulative-successor-history",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "mutable-module-state", "process-owning"],
+      label: "ordinary successor through 320 revisions, later-page conflicts and portable reconstruction",
+      ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--cumulative-successor-only"),
+      // Includes genuine local predecessor and full recovery/export/import;
+      // measured 235.4 s independently, without extending any existing child.
+      timeoutMs: 300_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "cumulative-scoped-history",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "mutable-module-state", "process-owning"],
+      label: "scoped revalidation beyond 128 settled runs and complete unresolved-history refusals",
+      ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--cumulative-scoped-only"),
+      timeoutMs: 45_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "cumulative-work-surfaces",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "mutable-module-state", "process-owning", "listener-port-owning", "browser-profile-owning", "cdp-session-owning"],
+      label: "human and authenticated agent edits beyond revision 32 and fresh-process continuation",
+      ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--cumulative-surfaces-only"),
+      // Eight fresh processes and two owned browsers measured 81.6 s.
+      timeoutMs: 120_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "cumulative-read-budgets",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "mutable-module-state"],
+      label: "complete packet reads at operation limits and explicit refusal on exhausted evidence",
+      ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--cumulative-budgets-only"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "source-bound-work-handoff",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning"],
+      label: "source-absent work handoff, authenticated receiving UI and fresh authority",
+      ...rootNode("scripts/test-work-handoff.ts"),
+      timeoutMs: 60_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "stateless-observation-checkpoint",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning"],
+      label: "authenticated observation checkpoint, process replacement and original authority",
+      ...rootNode("scripts/test-stateless-source-review.ts", "--observation-checkpoint"),
+      // Keep the existing source-review child within its minute budget.
+      // This owns the same ordinary fixture with separate bounded cleanup.
+      timeoutMs: 60_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "stateless-sol-low",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning"],
+      label: "bound low reasoning, incomplete usage, restart and no-replay diagnostics",
+      ...rootNode("scripts/test-stateless-source-review.ts", "--sol-low"),
+      timeoutMs: 60_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "stateless-terminal-authorship",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning"],
+      label: "terminal returned-response authorship, legacy evidence, fresh grant and recovery refusal",
+      ...rootNode("scripts/test-stateless-source-review.ts", "--terminal-authorship"),
+      // Keep the original source-review child within its existing minute bound.
+      // These ordinary legacy/current histories measured 28.4 s independently.
+      timeoutMs: 60_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "project-direction",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning"],
+      label: "authenticated project direction, delegation, preparation, receipt and successor",
+      ...rootNode("scripts/test-project-direction.ts"),
+      timeoutMs: 90_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "retry-inspection-outlook",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning"],
+      label: "source-bound project outlook, native consumer, result and successor reconsideration",
+      ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--retry-inspection-only"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "pre-execution-support-material",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning"],
+      label: "support material revision admission, reconstruction, Companion, reopen and recovery",
+      ...rootNode("scripts/test-codex-repository-continuity.ts", "--support-material-revision-only"),
+      timeoutMs: 60_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "native-selected-source-budget",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem"],
+      label: "native selected-source byte boundaries, authenticated save, reopen, portability and worker delivery",
+      ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--selected-source-budget-only"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "retained-source-capacity",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem"],
+      label: "retained lookup capacity disposition, real repository reader and proxy, current sources and recovery",
+      ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--retained-source-capacity-only"),
+      timeoutMs: 60_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "project-work-expectation",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem"],
@@ -684,11 +908,10 @@ const suites = {
       id: "ordinary-successor-expectation-final-slot",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem"],
-      label: "final ordinary revision expectation, unchanged edit budget and actual attempt binding",
+      label: "ordinary revision expectation beyond the former boundary and actual attempt binding",
       ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--successor-expectation-limit-only"),
-      // The 32-revision boundary uses the existing builder/store fixture prefix
-      // and real final save/Start/result owners; measured 82.4s independently.
-      // Keep it separate from the 45s lifecycle and all older child budgets.
+      // Preserve this child's existing deadline while exercising revision 33
+      // through the real save/Start/result owners and canonical fixture prefix.
       timeoutMs: 120_000,
       requireNaturalExit: true,
     },
@@ -1214,6 +1437,7 @@ const suites = {
   ],
   e2e: [
     { ...projectExperienceStep },
+    { ...webPlanningBrowserStep },
     { ...operatorReviewControlStep },
     { ...operatorBrowserNavigationDiagnosticsStep },
     { ...operatorNativeHostExecutionStep },
@@ -1222,7 +1446,7 @@ const suites = {
     { ...continuityStep },
     { ...goldenStep },
   ],
-  "e2e-project-experience": [{ ...projectExperienceStep }],
+  "e2e-project-experience": [{ ...projectExperienceStep }, { ...webPlanningBrowserStep }],
   "e2e-operator-review-control": [
     { ...operatorReviewControlStep },
     { ...operatorBrowserNavigationDiagnosticsStep },
@@ -1244,6 +1468,13 @@ const suites = {
 };
 
 const integrationInventory = suites.integration;
+// Reuse the complete registered children, including their timeout and resource
+// handling. Stable IDs must never depend on positions in a filtered inventory.
+for (const id of CODEX_REUSE_PHASE_IDS) {
+  const checks = suites.unit.filter((step) => step.id === id);
+  if (checks.length !== 1) throw new Error(`Codex reuse check inventory invalid: ${id}`);
+  suites[id] = checks;
+}
 suites["integration-operator"] = integrationInventory.filter(
   (step) => step.group === "operator-process",
 );

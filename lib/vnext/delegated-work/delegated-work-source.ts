@@ -1,3 +1,4 @@
+import { assertPacketDirectionCurrent } from "../persistence/project-direction-store";
 import type Database from "better-sqlite3";
 
 import { readLatestManagedLiveDelegatedWorkLedgerSliceV01 } from "@/lib/autonomy/runner-ledger";
@@ -62,7 +63,11 @@ export function readDelegatedWorkProjectionV01(
       projectionRun == null &&
       continuity.packet_currentness === "fresh" &&
       continuity.latest_compiled_packet != null;
-    if (!startEligible && projectionRun == null) {
+    if (startEligible && packet) {
+      try { assertPacketDirectionCurrent(db, packet, input.now?.() ?? new Date().toISOString()); }
+      catch { startEligible = false; startBlocker = "Project direction or delegation changed. Reconsider pending work before starting."; }
+    }
+    if (!startEligible && projectionRun == null && !startBlocker) {
       startBlocker =
         continuity.latest_compiled_packet == null
           ? "Current work instructions are not available yet."

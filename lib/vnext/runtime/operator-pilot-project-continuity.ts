@@ -1,6 +1,14 @@
+import { isOrdinarySuccessorRevisionV01, inspectOrdinarySuccessorRevisionLineagesV01 } from "./authored-successor-revision";
+import { readProjectWorkPacketHistoryV01 } from "./project-work-packet-history";
+import { isStatelessTerminalSuccessor, inspectStatelessTerminalSuccessor, terminalAuthorshipKey } from "./stateless-terminal-authorship";
+import { isStatelessReplacement, inspectStatelessReplacement, statelessReplacementIdempotencyKey } from "./stateless-review-disposition";
 import { AUTHORED_SUCCESSOR_TASK_V01 } from "@/lib/vnext/authored-successor-task";
 import { inspectAuthoredSuccessorPacketV01, isStandaloneAuthoredSuccessorV01, authoredSuccessorPacketIdempotencyKeyV01, type AuthoredSuccessorPacketLineageV01 } from "./authored-successor-task";
 import type Database from "better-sqlite3";
+import { PROSPECTIVE_PREPARATION_PACKET, SELECTED_SOURCE_INSPECTION } from "../prospective-agenda";
+import { readProspectiveAuthorization, prospectiveAuthorizationSummary } from "../persistence/prospective-authorization";
+import { readCurrentVNextAutomationWorkSnapshotV01, readBoundedAutomationCapabilityGrantV01, createAutomationWorkRefV01, createBoundedAutomationGrantRefV01 } from "../persistence/bounded-automation-authority";
+import { buildBoundedAutomationTaskContextPacketV01 } from "./persisted-semantic-context-compiler";
 
 import { VNEXT_LOCAL_CONTEXT_USE_PROBE_VERSION_V01 } from "@/lib/vnext/adapters/local-context-use-probe";
 import {
@@ -56,7 +64,8 @@ import {
   inspectInitialProjectWorkPacketLineageV01,
 } from "@/lib/vnext/runtime/initial-project-work-context";
 import {
-  inspectPreExecutionProjectWorkRevisionPacketV01,
+  inspectPreExecutionProjectWorkRevisionLineagesV01,
+  PreExecutionProjectWorkRevisionErrorV01,
   preExecutionProjectWorkRevisionIdempotencyKeyV01,
 } from "@/lib/vnext/runtime/pre-execution-project-work-revision";
 import {
@@ -146,6 +155,9 @@ export interface VNextOperatorPilotProjectContinuityV01 {
       | "pre_execution_user_revision"
       | "pre_execution_new_task"
       | "authored_successor_task"
+      | "bounded_preparation"
+      | "stateless_review_replacement"
+      | "stateless_review_terminal_successor"
       | "semantic_transition"
       | "source_linked_operational_continuation";
   } | null;
@@ -243,6 +255,9 @@ export interface VNextOperatorPilotOperationalContinuationPacketLineageInspectio
 }
 
 export type VNextOperatorPilotPacketLineageInspectionV01 =
+  | ReturnType<typeof inspectStatelessTerminalSuccessor>
+  | ReturnType<typeof inspectStatelessReplacement>
+  | { lineage_kind: "bounded_preparation"; packet: TaskContextPacketV01; prior_packet: { packet_id: string; packet_fingerprint: string }; projection_current: boolean; source_transition_receipt: null }
   | AuthoredSuccessorPacketLineageV01
   | VNextOperatorPilotTransitionPacketLineageInspectionV01
   | VNextOperatorPilotInitialPacketLineageInspectionV01
@@ -463,6 +478,67 @@ export function inspectVNextOperatorPilotPacketLineageV01(
     packet_fingerprint: string;
   },
 ): VNextOperatorPilotPacketLineageInspectionV01 {
+  return db.transaction(() => inspectPacketLineageInsideReadV01(db, input, revisionLineageReaderInsideReadV01(db, input.config)))();
+}
+
+/** Current-work projection owns this synchronous read transaction. Its lazy
+ * revision result (including failure) is private to the batch: no callback,
+ * session handle or cached result can cross a write, request, scope or database.
+ * Each packet still goes through its ordinary envelope, semantic and operational
+ * lineage checks. A failed inspection stays a failed candidate, not empty history. */
+export function inspectVNextOperatorPilotPacketLineagesV01(
+  db: Database.Database,
+  input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    packets: Array<{ packet_id: string; packet_fingerprint: string }>;
+  },
+): Array<VNextOperatorPilotPacketLineageInspectionV01 | null> {
+  return db.transaction(() => {
+    const readRevision = revisionLineageReaderInsideReadV01(db, input.config);
+    return input.packets.map((identity) => {
+      try {
+        return inspectPacketLineageInsideReadV01(db, { config: input.config, ...identity }, readRevision);
+      } catch {
+        return null;
+      }
+    });
+  })();
+}
+
+/** Private to a synchronous transaction owned by either of its two callers. Nothing
+ * escapes that invocation or survives a write; strict and nullable callers keep
+ * their own failure handling. Packet-specific checks still run for every entry. */
+function revisionLineageReaderInsideReadV01(db: Database.Database, config: VNextLocalOperatorPilotConfigV01) {
+  let revisions: { value: Map<string, ReturnType<typeof inspectPreExecutionProjectWorkRevisionLineagesV01>[number]> } | { error: unknown } | undefined;
+  const ordinary = new Map<string, AuthoredSuccessorPacketLineageV01>();
+  let ordinaryFailure: { error: unknown } | undefined;
+  return (packet: TaskContextPacketV01) => {
+    if (isOrdinarySuccessorRevisionV01(packet)) {
+      if (ordinaryFailure) throw ordinaryFailure.error;
+      if (!ordinary.has(packet.packet_id)) {
+        try { for (const r of inspectOrdinarySuccessorRevisionLineagesV01(db, config, packet)) ordinary.set(r.packet.packet_id, r); }
+        catch (error) { ordinaryFailure = { error }; throw error; }
+      }
+      const found = ordinary.get(packet.packet_id);
+      if (!found || found.packet.integrity.fingerprint !== packet.integrity.fingerprint) throw continuityError("operator_pilot_revision_missing", 409);
+      return found;
+    }
+    if (!revisions) {
+      try { revisions = { value: new Map(inspectPreExecutionProjectWorkRevisionLineagesV01(db, config).map(r => [r.packet.packet_id, r])) }; }
+      catch (error) { revisions = { error }; }
+    }
+    if ("error" in revisions) throw revisions.error;
+    const lineage = revisions.value.get(packet.packet_id);
+    if (!lineage || lineage.packet.integrity.fingerprint !== packet.integrity.fingerprint) throw new PreExecutionProjectWorkRevisionErrorV01("work_revision_packet_missing", 409);
+    return lineage;
+  };
+}
+
+function inspectPacketLineageInsideReadV01(
+  db: Database.Database,
+  input: { config: VNextLocalOperatorPilotConfigV01; packet_id: string; packet_fingerprint: string },
+  readRevision = revisionLineageReaderInsideReadV01(db, input.config),
+): VNextOperatorPilotPacketLineageInspectionV01 {
   assertVNextDurableSemanticStoreSchemaV01(db);
   const packet = loadPacket(
     db,
@@ -471,6 +547,35 @@ export function inspectVNextOperatorPilotPacketLineageV01(
     input.packet_fingerprint,
   );
   validateCurrentSemanticState(db, input.config);
+  if (isStatelessTerminalSuccessor(packet)) return inspectStatelessTerminalSuccessor(db, { config: input.config, packet });
+  if (isStatelessReplacement(packet)) return inspectStatelessReplacement(db, { config: input.config, packet });
+  if (packet.compatibility.source_contracts.includes(PROSPECTIVE_PREPARATION_PACKET)) {
+    const grantRef = packet.capability_grant?.grant_external_ref;
+    if (!grantRef?.source_ref) throw continuityError("prospective_preparation_grant_missing", 409);
+    const grant = readBoundedAutomationCapabilityGrantV01(db, { ...input.config, grant_id: grantRef.external_id, grant_fingerprint: grantRef.source_ref });
+    const work = readCurrentVNextAutomationWorkSnapshotV01(db, { ...input.config, work_id: grant.work_source_ref.external_id })?.source;
+    if (!work || work.source_grant_record_status !== "explicit_preparation_authorization" || work.operation_profile !== SELECTED_SOURCE_INSPECTION ||
+      !grant.source_grant_ref.source_ref) throw continuityError("prospective_preparation_work_missing", 409);
+    const authorization = readProspectiveAuthorization(db, { ...input.config, grant_id: grant.source_grant_ref.external_id, grant_fingerprint: grant.source_grant_ref.source_ref });
+    if (canonicalizeProtocolValueV01(prospectiveAuthorizationSummary(authorization)) !== canonicalizeProtocolValueV01(work.source_capability_grant) ||
+      authorization.request.packet_id !== work.source_packet.packet_id || authorization.request.packet_fingerprint !== work.source_packet.packet_fingerprint ||
+      grant.root_fingerprint !== authorization.request.root_fingerprint || grant.control_revision !== authorization.request.control_revision ||
+      grant.budget.max_commands !== 0 || grant.budget.max_runtime_ms > authorization.request.budget.max_runtime_ms ||
+      Date.parse(grant.issued_at) < Date.parse(authorization.issued_at) || Date.parse(grant.expires_at) > Date.parse(authorization.expires_at))
+      throw continuityError("prospective_preparation_authorization_conflict", 409);
+    // Authorization's source reader requires a null-grant authored packet, so
+    // this recursion cannot follow another preparation or an authority cycle.
+    const prior = inspectPacketLineageInsideReadV01(db, { config: input.config, ...work.source_packet }, readRevision);
+    const expected = buildBoundedAutomationTaskContextPacketV01({ ...input.config, source_packet: prior.packet, work, grant,
+      work_ref: createAutomationWorkRefV01(work), grant_ref: createBoundedAutomationGrantRefV01(grant), generated_at: packet.generated_at });
+    if (canonicalizeProtocolValueV01(expected) !== canonicalizeProtocolValueV01(packet)) throw continuityError("prospective_preparation_packet_conflict", 409);
+    return { lineage_kind: "bounded_preparation", packet, prior_packet: work.source_packet, projection_current: prior.projection_current, source_transition_receipt: null };
+  }
+  if (isOrdinarySuccessorRevisionV01(packet)) {
+    const lineage = readRevision(packet);
+    if (lineage.lineage_kind !== "authored_successor_task") throw continuityError("operator_pilot_revision_profile_invalid", 409);
+    return lineage;
+  }
   if (isStandaloneAuthoredSuccessorV01(packet)) {
     return inspectAuthoredSuccessorPacketV01(db, { config: input.config, packet });
   }
@@ -556,11 +661,8 @@ export function inspectVNextOperatorPilotPacketLineageV01(
   if (
     packet.compatibility.source_contracts.some(contract => (contract === PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01 || contract === PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01))
   ) {
-    const lineage = inspectPreExecutionProjectWorkRevisionPacketV01(db, {
-      workspace_id: input.config.workspace_id,
-      project_id: input.config.project_id,
-      packet,
-    });
+    const lineage = readRevision(packet);
+    if (lineage.lineage_kind === "authored_successor_task") throw continuityError("operator_pilot_revision_profile_invalid", 409);
     return {
       lineage_kind: lineage.lineage_kind,
       packet,
@@ -953,33 +1055,36 @@ export function readCurrentProjectWorkPacketLineageV01(db: Database.Database, co
 }
 
 function loadCurrentWorkPackets(db: Database.Database, config: VNextLocalOperatorPilotConfigV01) {
-  const lineages = loadRecords(db, config, "task_context_packet")
-    .map((record) => loadPacket(db, config, record.record_id, record.fingerprint))
-    .filter(
-      (packet) =>
-        packet.compatibility.source_contracts.includes(AUTHORED_SUCCESSOR_TASK_V01) ||
-        packet.compatibility.source_contracts.includes(
-          VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
-        ) ||
-        packet.compatibility.source_contracts.includes(
-          INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01,
-        ) ||
-        packet.compatibility.source_contracts.some(contract => (contract === PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01 || contract === PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01)) ||
-        packet.compatibility.source_contracts.includes(
-          SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01,
-        ),
-    )
-    .map((packet) => inspectVNextOperatorPilotPacketLineageV01(db, {
-      config, packet_id: packet.packet_id, packet_fingerprint: packet.integrity.fingerprint,
-    }));
-  // Sparse semantic predecessors may still match accepted state. Their exact
-  // successor edges nevertheless make them historical work, just as in the
-  // normal project-work reader; they must not hide a later authored tip.
-  const superseded = new Set(lineages.flatMap(lineage =>
-    (lineage.lineage_kind === "authored_successor_task" || lineage.lineage_kind === "semantic_transition")
-      ? [`${lineage.prior_packet.packet_id}|${lineage.prior_packet.packet_fingerprint}`] : []));
-  return lineages.map(lineage => superseded.has(`${lineage.packet.packet_id}|${lineage.packet.integrity.fingerprint}`)
-    ? { ...lineage, projection_current: false } : lineage);
+  return db.transaction(() => {
+    const readRevision = revisionLineageReaderInsideReadV01(db, config);
+    const lineages = readProjectWorkPacketHistoryV01(db, config)
+      .map((record) => loadPacket(db, config, record.record_id, record.fingerprint))
+      .filter(
+        (packet) =>
+          isStatelessTerminalSuccessor(packet) || isStatelessReplacement(packet) || packet.compatibility.source_contracts.includes(AUTHORED_SUCCESSOR_TASK_V01) ||
+          packet.compatibility.source_contracts.includes(
+            VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
+          ) ||
+          packet.compatibility.source_contracts.includes(
+            INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01,
+          ) ||
+          packet.compatibility.source_contracts.some(contract => (contract === PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01 || contract === PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01)) ||
+          packet.compatibility.source_contracts.includes(
+            SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01,
+          ),
+      )
+      .map((packet) => inspectPacketLineageInsideReadV01(db, {
+        config, packet_id: packet.packet_id, packet_fingerprint: packet.integrity.fingerprint,
+      }, readRevision));
+    // Sparse semantic predecessors may still match accepted state. Their exact
+    // successor edges nevertheless make them historical work, just as in the
+    // normal project-work reader; they must not hide a later authored tip.
+    const superseded = new Set(lineages.flatMap(lineage =>
+      (lineage.lineage_kind === "stateless_review_terminal_successor" || lineage.lineage_kind === "stateless_review_replacement" || lineage.lineage_kind === "authored_successor_task" || lineage.lineage_kind === "semantic_transition" || lineage.lineage_kind === "bounded_preparation")
+        ? [`${lineage.prior_packet.packet_id}|${lineage.prior_packet.packet_fingerprint}`] : []));
+    return lineages.map(lineage => superseded.has(`${lineage.packet.packet_id}|${lineage.packet.integrity.fingerprint}`)
+      ? { ...lineage, projection_current: false } : lineage);
+  })();
 }
 
 function validateCompiledPacketLineage(
@@ -1178,7 +1283,7 @@ function loadPacket(
     packet.integrity.fingerprint,
     packet.packet_id,
     packet.generated_at,
-    authoredSuccessorPacketIdempotencyKeyV01(packet) ??
+    (isStatelessTerminalSuccessor(packet) ? terminalAuthorshipKey(packet) : statelessReplacementIdempotencyKey(packet)) ?? authoredSuccessorPacketIdempotencyKeyV01(packet) ??
     initialProjectWorkIdempotencyKeyV01(packet) ??
       preExecutionProjectWorkRevisionIdempotencyKeyV01(packet) ??
       operationalContinuationPacketIdempotencyKeyV01(db, {

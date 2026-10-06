@@ -12,10 +12,12 @@
 
 ## 1. Product definition
 
-> **Augnes maintains the state, temporal lineage, evidence, perspectives,
-> unresolved judgments, and next meaningful actions of long-horizon work, and
-> projects the same product meaning into the host-native interfaces where the
-> user is already working.**
+> **Augnes's product direction is user-owned project problem-solving capability
+> accumulated from experience: retain useful methods, select and compose them
+> for current goals and conditions, and improve or appropriately leave them
+> unused through observed outcomes. Durable state, temporal lineage, evidence,
+> perspectives, unresolved judgments, and next meaningful actions let that work
+> continue with the same product meaning across host-native interfaces.**
 
 > **The product invariant is the continuity of meaning, not the replication of
 > one interface.**
@@ -30,8 +32,55 @@ scheduler products.
 
 Augnes owns continuity around that work: what the work is, how it changed over
 time, what was observed, what supports a claim, what remains uncertain, what
-requires human judgment, and what should matter next. A surface is useful only
-when it helps the same durable work continue.
+requires human judgment, and what should matter next. This continuity is the
+substrate for retaining useful methods and doing later work better, not an end
+measured by stored context. Broader capability, reliable outcomes and the range
+of tractable problems are product outcomes alongside continuity and lower burden.
+
+Reusable capability may take the form of executable code, tools, computational
+models, conditional methods or task-appropriate combinations. A minimal shared
+description can make diverse implementations usable without one universal module
+format. Current goals and conditions may justify unchanged reuse, revision,
+composition, a newly generated replacement or non-use; direct work remains valid
+when sufficient. Observed outcomes should inform later configurations and
+genuinely separate tasks, with exact source, conditions and limitations retained.
+This is product direction, not a claim that an autonomous learning platform is
+already implemented. [03](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#next-p4p5--executable-capability-reuse-from-experience-1373)
+owns the next bounded implementation candidate and
+[04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#development-verification-and-usefulness)
+owns the evidence needed for each claim.
+
+A project's working understanding should connect its past observations, current
+conditions, conditional futures and practical methods to a useful next proposal.
+Project direction spans tasks; completing or editing one task does not redefine
+it. An exploratory direction can retain interests, constraints and open questions
+without a fixed destination. Desired outcomes guide priorities, never rewrite
+observations. An outlook names what continues under its baseline, what action or
+preparation could change it, its horizon, uncertainty and reconsideration trigger;
+waiting and investigation also have costs. Available resources, applicability,
+observed performance and limitations inform feasibility separately from permission.
+Later outcomes should change only the judgments they bear on, preserving each
+earlier judgment's sources and information cutoff. The first bounded connection
+is owned by [03](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#current-p3p4p5--project-retry-inspection-outlook-1213).
+
+Web Augnes is a workspace where humans and agents continue long-horizon work,
+explore independent directions, compare evidence and outcomes, and selectively
+incorporate useful changes. Private usefulness must work before public or
+network scale. Selective, revision-bound publication and cross-owner
+participation are later extensions of this same continuous-work product, not
+prerequisites or a separate agent-social-network identity. The product-facing
+loop remains **Resume → Verify → Decide**.
+
+An independent direction starts from an exact source revision with an explicit
+reason for divergence; later source changes do not silently rewrite that start.
+Comparison should let a recipient incorporate a qualified observation while
+declining its broader recommendation and keeping the source work independent.
+Later correction or changed applicability calls for relevant reconsideration,
+not automatic agreement, reversal or execution. These are product requirements;
+[03](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#next-p2p5--private-branching-comparison-and-selective-incorporation-1351)
+owns their sequence and implemented scope, and
+[04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#method-improvement-evidence)
+owns the comparison with strong alternatives and total-burden evaluation.
 
 ## 2. Product compass: Resume / Verify / Decide
 
@@ -42,12 +91,21 @@ Recover the current coordinates of long-horizon work:
 - work identity, scope, goal, and important constraints;
 - the current meaningful situation and last meaningful change;
 - accepted, rejected, stale, conflicted, or unresolved material;
+- relevant reusable methods, their applicability and known limits;
 - pending human judgment;
 - the next meaningful action.
 
 Resume quality is not the volume of stored context. It is the ability to reach
 the first correct action with less repeated explanation and fewer wrong-context
 corrections.
+
+Saved local work is a durable definition of what to do. Ordinary authored work
+must remain readable and usable across elapsed days and process replacement
+without asking the person to manage technical lifetimes. Authentication, scoped
+execution permission and time-sensitive premises keep their independent bounds.
+Reopening work does not renew them or turn historical observations into current
+facts. A compatible historical finite definition can be explicitly resumed through
+its existing writer without changing the original record.
 
 ### Verify
 
@@ -64,8 +122,10 @@ Present the consequential judgment and its effect without making the user
 operate the underlying protocol. Recommendation is not decision. Candidate is
 not accepted state. A user decision is not an applied Transition.
 
-If a capability does not materially improve Resume, Verify, or Decide, it is
-unlikely to deserve default product presence.
+Default product presence should help users Resume, Verify or Decide about work
+and its capabilities. A method can earn its place by improving actual outcomes
+or enabling previously impractical work through that flow; it need not create
+another visible step or surface.
 
 ## 3. Cross-surface continuity
 
@@ -87,6 +147,13 @@ another about:
 
 Cross-surface consistency does not require identical interfaces. Each host
 should use its native strengths while preserving the same product meaning.
+
+Humans and agents consume the same validated work meaning, with exact
+revision/currentness, attribution, relevant inherited and missing context, and
+allowed-operation boundaries. Reading should expand from bounded current work
+to relevant changes and evidence on demand. Temporary agent exploration need
+not become durable work; agent count cannot expand an owner's delegation or
+aggregate compute, storage, external-action and human-review budgets.
 
 ## 4. Continuous-work responsibilities
 
@@ -133,9 +200,10 @@ agent shell or expose the internal research substrate by default.
 Work detail is timeline-first. It explains meaningful transitions in the work,
 not an exhaustive event, commit, tool, model, protocol, or telemetry log.
 
-The temporal narrative should make cause, change, current meaning, and the next
-decision understandable. Exact exhaustive records remain available through
-Inspector when needed.
+The temporal narrative should make cause, meaningful change, consequential
+disagreement, current meaning, and the next judgment understandable. Branch
+comparison belongs in that work context, with material differences first and
+exact provenance progressively disclosed through Inspector when needed.
 
 ### Relationship exploration: bounded connection view
 
@@ -224,6 +292,36 @@ important result or change, consequential uncertainty or risk, pending
 judgment, and next meaningful action. Supporting information is progressively
 disclosed; exact records remain available without becoming the normal path.
 
+Branch count, graph size, agent count and activity volume are not product value
+by themselves. Exploration earns its place through useful continuation and
+judgment without turning the human surface into branch or protocol management.
+Users should obtain the benefit of reusable methods without managing a capability
+registry, schema or internal orchestration.
+
+Project direction is an optional short outcome or open question in the existing
+project surface. Criteria, authority, delegation and history remain disclosed on
+demand. Working direction guides selection; accepted goals and current task
+instructions remain distinct, explicitly bound inputs. GuideBrief interprets those
+inputs and cannot silently make a direction effective.
+Retaining an earlier direction or agenda in a newly authored task preserves
+history; it does not establish reconsideration. Current guidance and new Start
+admission must agree on the direction actually selected by the work. Proposal
+review shows purpose, criteria and constraints together. Acceptance loads that
+complete content into the editor; refreshed state discloses conflicting unsaved
+edits rather than silently rebasing them.
+
+For the human's own work, the human retains the north star. A separately authorized
+agent-directed project has a provider-neutral logical decision role that can make
+within-scope decisions without per-step ratification. Creation attribution,
+direction decision rights, a parent delegation and execution/resource permission
+are independent. Replacement executors reconstruct the same history through current
+bounded authorization. A child returns attributed material; it does not rewrite its
+parent's purpose or inherit credentials. Parentage is not a prerequisite for method
+reuse. Changing preference changes relevance and selection, not the validity of
+observations, forecasts, counterevidence or still-applicable methods.
+Moving a project's local folder does not change its creation attribution or free
+an already consumed delegation slot.
+
 ## 7. Product and Core authority boundary
 
 This doctrine defines product meaning and responsibility. The sole authority
@@ -250,12 +348,22 @@ Product projections may request or present a bounded Core operation. They do
 not define a new protocol object or make a durable change merely by appearing
 in a product doctrine or interface.
 
+The [Web Planning host envelope](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#14-product-projections-do-not-create-core-authority)
+remains host-owned authored planning data. Branching or incorporation does not
+create native acceptance, a Core record, `ReviewDecision`, Transition, execution
+grant or new authority principal. Publication, contribution, recipient
+incorporation and external action remain separate permissions; a branch
+inherits neither credentials nor execution rights. Later selective publication
+must leave unselected private material private, and private edits must not
+silently republish it.
+
 ## 8. Local-first, provider-neutral continuity
 
 The user-owned Augnes workspace is the continuity boundary for project state,
-lineage, reviewed decisions, and selected reusable context. Provider memory,
-model sessions, and host UI may assist but do not silently replace reviewed
-project state.
+lineage, reviewed decisions, selected reusable context and methods. Reuse preserves
+project/scope isolation and exact lineage; it does not import another project's
+authority or execution rights. Provider memory, model sessions, and host UI may
+assist but do not silently replace reviewed project state or human judgment.
 
 External systems retain their own source of truth:
 
@@ -266,13 +374,17 @@ External systems retain their own source of truth:
   decisions, continuity, and Perspective lineage.
 
 Provider-specific IDs remain external references. Replacing a provider should
-not require redefining product meaning or Core semantics.
+not require redefining product meaning or Core semantics. Replaceable models may
+help derive, select or revise methods; their availability must not determine the
+ability to inspect durable work or use Core continuity, decision and recovery
+paths. Reusing a method does not itself authorize its execution.
 
 ## 9. Product feature-change test
 
 Future product and research work must answer:
 
-1. Which core user question does this improve?
+1. Which user goal or question does this improve, and what capability, reliable
+   outcome or tractable problem range could change?
 2. What interpretation burden does the system absorb?
 3. What durable product meaning must remain consistent across surfaces?
 4. Why does this capability deserve any default user-facing presence?
@@ -281,8 +393,10 @@ Future product and research work must answer:
    replaced?
 7. How is uncertainty preserved?
 8. How is user authority preserved?
-9. How does the result return to long-term continuity?
-10. What later outcome would demonstrate usefulness or reveal failure?
+9. How do observed outcomes return to continuity and inform later method reuse,
+   composition, revision, replacement or non-use?
+10. What actual later outcome would demonstrate usefulness or reveal failure
+    relative to a strong practical alternative and its total burden under [04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#method-improvement-evidence)?
 
 A capability that cannot answer these questions remains research, internal
 capability, compatibility, or deferred work rather than default product UI.

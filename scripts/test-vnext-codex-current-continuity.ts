@@ -1819,7 +1819,7 @@ function assertSnapshotMaterialMatrixV01(): void {
       start_eligible: true,
       start_blocker_code: null,
       revision_eligible: true,
-      revision_reason: "current_initial_packet_zero_history",
+      revision_reason: "current_unexecuted_initial",
     },
     next_action_kind: "start_current_work",
     source_status: "exact",

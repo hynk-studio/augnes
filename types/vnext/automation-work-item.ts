@@ -28,7 +28,7 @@ export interface VNextAutomationWorkSourceV01 {
   project_id: string;
   work_id: string;
   work_class: "bounded_project_task";
-  operation_profile: typeof LOCAL_PROJECT_ROOT_VERIFICATION_WORK_PROFILE_V01;
+  operation_profile: typeof LOCAL_PROJECT_ROOT_VERIFICATION_WORK_PROFILE_V01 | "selected_source_inspection.v0.1";
   title: string;
   task: {
     goal: string;
@@ -46,7 +46,7 @@ export interface VNextAutomationWorkSourceV01 {
   };
   source_capability_grant: TaskContextPacketBoundedCapabilitySummaryV01;
   source_capability_grant_fingerprint: string;
-  source_grant_record_status: "exact_record" | "packet_bound_summary";
+  source_grant_record_status: "exact_record" | "packet_bound_summary" | "explicit_preparation_authorization";
   required_context_refs: ExternalRefV01[];
   proposed_files: string[];
   required_checks: string[];

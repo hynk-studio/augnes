@@ -66,6 +66,16 @@ export const CANONICAL_DATABASE_RECORD_CONTRACT_VERSION = 1;
 // treated as migratable Augnes state.
 export const CANONICAL_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES =
   Object.freeze([
+    // Exact #1399 schema with only the migration ledger and package identity
+    // guard absent, retaining the existing bounded ledgerless recovery lane.
+    "872e629d1b1e122cb5e85283ec119a04b918a4688cef29e24bbd085cd8ba1646",
+    // Exact #1398 schema before durable active/empty selection observations.
+    "05472650bc9bec935c2ece2a2cff9678cf3d361dea46599e9e1d83ed0e571326",
+    // Complete #1382 ledgerless schema, with only the two recovery-owned
+    // metadata tables absent; no arbitrary partial database is admitted.
+    "207d6ef998f1a632c6bf1dca6fcfe7ff3695c2a12a22e9c0b3da41970d836c08",
+    // Exact merged #1381 schema; direction history is additive.
+    "974fa6e9495ce84a42ef47f4b2932de8334c676469c3f32b0565cbdd8610d948",
     "800d9cdf741cf7b85362e8ee9c101b6b33d923a41ff1efdddc098e32df776a4a",
     // Exact CUX1 pre-Pinned schema. CUX2 migrates it additively.
     "91f244d9ecda6e7702370a9cc0382c244bb9bf7929bc5abd722fa833ff1c5e7e",
@@ -123,6 +133,12 @@ export const CANONICAL_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES =
     // Exact F1 schema with only the migration ledger and package identity
     // guard absent, for the existing bounded ledgerless recovery lane.
     "548df1c54ff6bafff41cdc1ad09b9a724c4e0ac5087d5b20d1b2651ad06dd0b1",
+    // Exact merged #1379 schema. #1380 adds only machine-local prospective
+    // eligibility; existing Core records, grants and run history are unchanged.
+    "ef52834e336468afde007eb513d1ea555e06d60aed64256a24e7f0e773cfd7da",
+    // Exact #1380 schema with only the migration ledger and package identity
+    // guard absent, for the existing bounded ledgerless recovery fixture.
+    "9c70e925c3c49a1b945f0fa62e9ad027cd97c0ce01284c9a7eb14ff2d6be8568",
   ]);
 export const CANONICAL_DATABASE_MIGRATION_IDS = Object.freeze([
   "0001_r8_recovery_contract",

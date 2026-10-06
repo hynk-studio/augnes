@@ -10,6 +10,15 @@ import type {
   NativeHostPhysicalRootIdentityV01,
   NativeHostPosixPhysicalRootIdentityV01,
 } from "@/types/vnext/native-host-adapter";
+import type { ProjectLocalRootBindingV01 } from "@/types/vnext/project-identity";
+
+/** Registered scope and physical filesystem identity are separate bindings. */
+export function fingerprintNativeHostProjectRootScopeV01(binding: ProjectLocalRootBindingV01): string {
+  return createProtocolSha256V01(canonicalizeProtocolValueV01({
+    workspace_id: binding.workspace_id, project_id: binding.project_id,
+    local_root: binding.local_root, binding_version: binding.binding_version, bound_at: binding.bound_at,
+  }));
+}
 
 export class NativeHostProjectRootIdentityErrorV01 extends Error {
   constructor(readonly code: string) {

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -206,7 +207,8 @@ try {
   });
   rejects(changedSelection, "current_read_binding_mismatch");
   const recaptured = buildHostedResearchProjectionV02(fixture.read());
-  assert.equal(recaptured.source_binding.active_selection_revision, input.active_selection!.selection_revision + 1);
+  assert.equal(recaptured.source_binding.active_selection_revision, changedSelection.active_selection.selection_revision);
+  assert.notEqual(recaptured.source_binding.active_selection_revision, input.active_selection!.selection_revision);
   const changedFingerprint = structuredClone(input);
   changedFingerprint.initialization.current_packet!.packet_fingerprint = `sha256:${"0".repeat(64)}`;
   rejects(changedFingerprint, "current_read_binding_mismatch");
@@ -271,7 +273,22 @@ try {
 
   assert.throws(() => parseAndValidatePortableProjectV01(Buffer.from(JSON.stringify(result))), "hosted projection is not a canonical recovery package");
   const fixtureBytes = readFileSync(FIXTURE, "utf8");
-  assert.equal(fixtureBytes, `${JSON.stringify(result, null, 2)}\n`, "committed synthetic fixture must match the producer byte for byte");
+  // The qualified historical fixture retains its numeric observation and exact
+  // bytes. New authenticated writers produce independent opaque observations;
+  // do not rewrite the historical fixture or copy its selection into live data.
+  assert.equal(createHash("sha256").update(fixtureBytes).digest("hex"), "03d96fbfe4c2291658f6aeec4030ed84128d719d114c81509f9b32d6a3359821");
+  const historical = JSON.parse(fixtureBytes);
+  const { integrity: oldIntegrity, ...oldContent } = historical;
+  assert.equal(oldIntegrity.content_fingerprint, createProtocolSha256V01(canonicalizeProtocolValueV01(oldContent)));
+  assert.equal(historical.source_binding.active_selection_revision, 1);
+  assert.match(String(result.source_binding.active_selection_revision), /^selection:[0-9a-f]{32}$/u);
+  assert.deepEqual(result, { ...historical,
+    work: { ...historical.work, work_ref: result.work.work_ref },
+    source_binding: { ...historical.source_binding,
+      active_selection_revision: result.source_binding.active_selection_revision,
+      packet_id: result.source_binding.packet_id, packet_fingerprint: result.source_binding.packet_fingerprint },
+    integrity: result.integrity,
+  }, "only the fresh observation and its derived exact packet/work fingerprints differ");
   assert.equal(networkCalls, 0);
   console.log(JSON.stringify({ status: "pass", schema: result.schema, fixture: FIXTURE, content_fingerprint: integrity.content_fingerprint, network_calls: networkCalls }));
 } finally {

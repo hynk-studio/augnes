@@ -1141,10 +1141,31 @@ function testMigrationParityAndPrePinnedUpgradeV01(): void {
       .prepare("SELECT COUNT(*) AS count FROM vnext_core_records")
       .get() as { count: number };
     restorePreAcgc5bCoreRecordConstraintV01(runtime);
+    // Recreate the actual historical selection table too. Keeping v0.2 here
+    // would manufacture a hybrid schema, not the pinned pre-CUX2 predecessor.
+    assert.equal(
+      (runtime.prepare("SELECT count(*) AS n FROM vnext_active_project_selections").get() as { n: number }).n,
+      0,
+    );
     runtime.exec(`
+      DROP TRIGGER trg_vnext_project_selection_retain;
+      DROP TABLE vnext_active_project_selections;
+      CREATE TABLE vnext_active_project_selections (
+        workspace_id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        active_project_selection_version TEXT NOT NULL CHECK (
+          active_project_selection_version = 'active_project_selection.v0.1'
+        ),
+        selection_revision INTEGER NOT NULL CHECK (selection_revision > 0),
+        selected_at TEXT NOT NULL CHECK (length(trim(selected_at)) > 0),
+        FOREIGN KEY (workspace_id, project_id)
+          REFERENCES vnext_project_identities(workspace_id, project_id)
+          ON UPDATE RESTRICT ON DELETE RESTRICT
+      );
       DROP INDEX idx_vnext_project_continuity_pins_project_order;
       DROP TABLE vnext_project_continuity_pins;
       DROP TABLE vnext_project_continuity_pin_collections;
+      DROP TABLE vnext_project_direction_credentials; DROP TABLE vnext_project_direction_records; DROP TABLE vnext_prospective_reentry;
       DROP TABLE vnext_repository_managed_resume_cancellations;
       DROP TABLE vnext_repository_managed_resume_runtime_claim_history;
       DROP TABLE vnext_repository_managed_resume_runtime_claims;

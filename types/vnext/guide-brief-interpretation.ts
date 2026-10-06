@@ -1,3 +1,4 @@
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import type {
   GuideBriefConversationAnswerAnchorV01,
   GuideBriefConversationIntentV01,
@@ -68,7 +69,7 @@ export interface GuideBriefInterpretationRequestV01 {
   utterance: string;
   workspace_id: string;
   project_id: string;
-  expected_active_selection_revision: number;
+  expected_active_selection_revision: ProjectSelectionRevision;
   pc4_scope_key: string;
   guide_material_fingerprint: string;
   candidate_set_fingerprint: string;

@@ -171,8 +171,22 @@ fingerprint and only the current selected notes: saved excerpt text, source
 binding, authored review label, trust class, observation time and source
 currentness. Missing observation times are explicitly `null`; selected-source
 currentness remains `unknown`. The canonical whole-note limits (eight entries,
-2,000 characters each, 12,000 serialized source-entry bytes) apply before
+2,000 characters each, 32,000 serialized source-entry bytes) apply before
 projection. Invalid or over-budget sources refuse; nothing is silently clipped.
+The native Browser comparison/save route permits a 64,000-byte request envelope
+for the selected entries, bounded work definition and bindings. Hosted planning and
+hosted snapshot projection retain their 12,000-byte selection contract. Stored
+entries and historical fingerprints are unchanged; current-code export/import
+and recovery accept the larger native selection. Older readers still refuse
+selections above their 12,000-byte ceiling, so such records require a reader with
+this native allowance. This is admission capacity, not a token or provider-cost
+budget; packet, GuideBrief and host request limits remain separate. Companion
+work-revision preview/save also permits a 64,000-byte request envelope for compact
+note edits, definition changes and exact bindings; its wire shape and proxy parser
+are unchanged. Read-only Resume and source/retained lookup retain their 16 KiB
+request envelopes. Retained lookup uses a separate 1,056,000-byte cumulative
+scan ceiling aligned with admitted native snapshots and the unchanged
+20,000-byte result ceiling; its work eligibility and task scope remain bounded.
 
 The opt-in connected-project reader requests `include_work_definition: true`
 on that same private route. Only this exact additional input is admitted; the
@@ -239,14 +253,42 @@ read is introduced. Current notes being readable does not imply this lookup is
 eligible. A changed binding returns `refresh_required` with no replacement
 snapshot or history; the caller must explicitly refresh Resume.
 
-The existing case-insensitive all-terms search and limits remain: 160 query
-characters, eight terms, at most 33 packets/264 note occurrences/396,000
+Case-insensitive all-terms search uses 160 query
+characters, eight terms, at most 4,096 packets/264 note occurrences/1,056,000
 serialized entry bytes scanned, and eight whole original result rows/20,000
 canonical result bytes returned. The existing selected-note budgets still
 apply. No row or condition is clipped, query broadened, locator fetched or
 selection changed. `available` with zero matches is a bounded no-match, not
 global absence. `ineligible`, `unavailable`, `invalid` (query or invalid retained
 material), and `refresh_required` remain distinct and carry no lookup payload.
+`unavailable` with `retained_source_scan_bound_exceeded` means the cumulative
+lookup capacity was exhausted, not that retained material is corrupt or absent.
+No incomplete search is returned as a successful empty lookup. Current-source
+reading and recovery have their own validation paths and remain independent.
+Repeated snapshots count in full before consolidation. The scan ceiling is
+33 × the native 32,000-byte selected-array admission ceiling. For a nonempty
+array of n notes, counted entry bytes exclude n + 1 bytes of brackets and
+separators; this is a conservative finite envelope, not a measured memory
+requirement. Packet and per-snapshot validation remain independent. The
+cumulative-history correction (#1395) separates packet traversal from the
+unchanged note-occurrence and byte budgets. Empty snapshots can span more
+pages; many valid note-bearing snapshots can still exhaust lookup capacity.
+Initial and ordinary authored-successor families remain editable beyond
+revision 32 under their currentness and execution checks. An initial packet has
+no selected notes; an authored-successor root may contain them. A different-task
+preparation cuts lookup to its task suffix without exposing predecessor-task
+notes. Lookup exhaustion does not change stored history or edit eligibility.
+
+The current proxy accepts exactly three advertised scan policies: 33 packets
+with 396,000 or 1,056,000 entry bytes, and 4,096 packets with 1,056,000 entry
+bytes. Every other advertised limit remains fixed, including 264 note
+occurrences and the result envelope. Counts must fit the advertised policy.
+This allows a refreshed client to read either previous runtime. Older proxies
+reject the new packet policy even for a small successful response from the
+new runtime. An unchanged projection shape or plugin version string does not
+establish artifact compatibility. Installed use requires the supported plugin
+refresh and a new client session loading that artifact; source verification
+does not perform installation or refresh an already loaded proxy.
 
 Results expose the existing client-disclosed note projection, exact reusable
 `source` reference, current versus historical selection, first recording time,

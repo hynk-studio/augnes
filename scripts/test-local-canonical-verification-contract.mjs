@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { CODEX_REUSE_OWNER_IDS, CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 import { assertVerificationDocumentation } from "./validate-canonical-docs-change.mjs";
 import { buildPhasePlan, OPERATING_POLICY_PHASE_IDS } from "./run-local-canonical-verification.mjs";
 import { spawnSync } from "node:child_process";
@@ -194,7 +195,7 @@ for (const fragment of [
   "dirty-worktree status",
   "operating system and architecture",
   "Node and npm versions",
-  "root and nested lockfile fingerprints",
+  "root, Apps and web-planning lockfile fingerprints",
   "selected plan",
   "each selected command and result",
   "finite duration",
@@ -480,6 +481,7 @@ for (const fragment of [
   `export const RESOURCE_EXCLUSIVE_PHASE_IDS`,
   `"dependencies-root"`,
   `"dependencies-nested"`,
+  `"dependencies-web-planning"`,
   `"typecheck"`,
   `"build"`,
   `"unit"`,
@@ -878,8 +880,8 @@ assert.equal(
   "targeted-change-validator",
 );
 assert.deepEqual(
-  changeOwnerManifest.targeted_phase_order.slice(1, 3),
-  ["dependencies-root", "dependencies-nested"],
+  changeOwnerManifest.targeted_phase_order.slice(1, 4),
+  ["dependencies-root", "dependencies-nested", "dependencies-web-planning"],
 );
 assert.deepEqual(
   changeOwnerManifest.targeted_owners.map((owner) => owner.id),
@@ -901,6 +903,27 @@ assert.deepEqual(
   ["typecheck", "unit", "authority", "e2e-project-experience"],
   "the Browser harness must retain its authority-suite static contract consumer",
 );
+for (const id of CODEX_REUSE_OWNER_IDS) {
+  const owner = changeOwnerManifest.targeted_owners.find((owner) => owner.id === id);
+  assert.deepEqual(owner.phase_ids, CODEX_REUSE_PHASE_IDS);
+  assert.equal(owner.deletion_policy, "full");
+  assert(Array.isArray(owner.path_rules.literal_exact_paths));
+}
+for (const [id, script] of [
+  ["codex-companion-discovery", "scripts/test-codex-companion-discovery.mjs"],
+  ["augnes-operator-plugin-setup", "scripts/test-augnes-operator-plugin-setup.mjs"],
+  ["codex-user-hook-migration", "scripts/test-codex-augnes-user-hook-migration.mjs"],
+]) {
+  const registrations = [...canonicalSuite.matchAll(new RegExp(
+    `id: "${id}",\\s+label: "[^"\\n]+",\\s+\\.\\.\\.rootNode\\("([^"\\n]+)"\\),\\s+timeoutMs: ([0-9_]+)`, "g",
+  ))];
+  assert.equal(registrations.length, 1, `${id}: exactly one Full unit registration`);
+  assert.equal(registrations[0][1], script, `${id}: exact existing child`);
+  assert.equal(registrations[0][2], "30_000", `${id}: unchanged child bound`);
+}
+assert(canonicalSuite.includes("suites.unit.filter((step) => step.id === id)"));
+assert(canonicalSuite.includes("checks.length !== 1"));
+assert(localPolicy.includes("three named checks"));
 assert.deepEqual(
   changeOwnerManifest.targeted_owners
     .filter((owner) => owner.deletion_policy === "targeted")
@@ -1045,11 +1068,13 @@ assert.equal(
 );
 
 const integrationChildren = [
+  "web-planning-d1",
   "project-verify-material",
   "project-verify-lifecycle",
   "project-verify-production-lifecycle",
   "project-verify-operator-adapter",
   "reconstruction-conformance",
+  "reconstruction-selection-conformance",
   "codex-qualified-runtime-registry",
   "codex-ordinary-runtime-candidate",
   "codex-rolling-stable-candidate",
@@ -1063,6 +1088,24 @@ const integrationChildren = [
   "policy-triggered-model-run",
   "project-home",
   "project-work-initialization",
+  "current-work-read",
+  "prospective-preparation-reentry",
+  "stateless-source-review",
+  "durable-work-resumption",
+  "cumulative-initial-history",
+  "cumulative-successor-history",
+  "cumulative-scoped-history",
+  "cumulative-work-surfaces",
+  "cumulative-read-budgets",
+  "source-bound-work-handoff",
+  "stateless-observation-checkpoint",
+  "stateless-sol-low",
+  "stateless-terminal-authorship",
+  "project-direction",
+  "retry-inspection-outlook",
+  "pre-execution-support-material",
+  "native-selected-source-budget",
+  "retained-source-capacity",
   "project-work-expectation",
   "reviewed-outcome-reuse",
   "ordinary-successor-expectation",
@@ -1138,6 +1181,14 @@ for (const childId of integrationChildren) {
   );
 }
 // Separate complete owners retain their own 30s ceiling and run once each.
+const legacyReconstruction = readCanonicalChildRegistration(integrationSource, "reconstruction-conformance");
+requireText(legacyReconstruction.block, "timeoutMs: 600_000", "legacy RC1 retains its original deadline");
+const selectionReconstruction = readCanonicalChildRegistration(integrationSource, "reconstruction-selection-conformance");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 1_200_000', 'requireNaturalExit: true', '"--selection-profile"', '"process-owning"'])
+  requireText(selectionReconstruction.block, fragment, "prospective RC1 has one bounded observation and recovery owner");
+const webPlanningRegistration = readCanonicalChildRegistration(integrationSource, "web-planning-d1");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 120_000', 'requireNaturalExit: true', '"scripts/test-web-planning.mjs"', '"backup-restore"'])
+  requireText(webPlanningRegistration.block, fragment, "web planning D1 retains one bounded storage and recovery owner");
 for (const id of ["project-work-initialization", "project-work-expectation", "project-work-scoped-host"]) {
   const registration = readCanonicalChildRegistration(integrationSource, id);
   requireText(registration.block, `timeoutMs: 30_000`, `${id} deadline changed`);
@@ -1155,6 +1206,33 @@ assert.equal(countOccurrences(firstWorkFixture, "await assertScopedNativeHostCon
   "the default initialization path must not repeat the scoped matrix");
 const successorExpectationRegistration = readCanonicalChildRegistration(integrationSource, "ordinary-successor-expectation");
 const reviewedOutcomeRegistration = readCanonicalChildRegistration(integrationSource, "reviewed-outcome-reuse");
+const supportMaterialRegistration = readCanonicalChildRegistration(integrationSource, "pre-execution-support-material");
+const currentWorkReadRegistration = readCanonicalChildRegistration(integrationSource, "current-work-read");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"--current-work-read-only"'])
+  requireText(currentWorkReadRegistration.block, fragment, "current-work read isolation has its own bounded child");
+const prospectiveRegistration = readCanonicalChildRegistration(integrationSource, "prospective-preparation-reentry");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 90_000', 'requireNaturalExit: true', '"process-owning"', '"scripts/test-prospective-reentry.ts"'])
+  requireText(prospectiveRegistration.block, fragment, "prospective preparation owns its bounded host lifecycle and result recovery");
+const directionRegistration = readCanonicalChildRegistration(integrationSource, "project-direction");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 90_000', 'requireNaturalExit: true', '"process-owning"', '"scripts/test-project-direction.ts"'])
+  requireText(directionRegistration.block, fragment, "direction authority owns one bounded admission/result/recovery child");
+const retryInspectionRegistration = readCanonicalChildRegistration(integrationSource, "retry-inspection-outlook");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"process-owning"', '"--retry-inspection-only"'])
+  requireText(retryInspectionRegistration.block, fragment, "retry-inspection outlook retains one bounded native consumer and successor owner");
+assert.equal(countOccurrences(firstWorkFixture, "await assertRetryInspectionLoopV01();"), 1,
+  "the outlook loop runs once without extending the default initialization child");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 60_000', 'requireNaturalExit: true', '"process-owning"', '"--support-material-revision-only"'])
+  requireText(supportMaterialRegistration.block, fragment, "support material has one complete admission, reconstruction and consumer owner");
+const selectedSourceBudgetRegistration = readCanonicalChildRegistration(integrationSource, "native-selected-source-budget");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"--selected-source-budget-only"'])
+  requireText(selectedSourceBudgetRegistration.block, fragment, "native source budget has one bounded complete owner");
+assert.equal(countOccurrences(firstWorkFixture, "await assertNativeSelectedSourceBudgetV01();"), 1,
+  "the full budget matrix runs once without extending the initialization child");
+const retainedSourceCapacityRegistration = readCanonicalChildRegistration(integrationSource, "retained-source-capacity");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 60_000', 'requireNaturalExit: true', '"--retained-source-capacity-only"'])
+  requireText(retainedSourceCapacityRegistration.block, fragment, "retained capacity has one bounded reader, proxy and recovery owner");
+assert.equal(countOccurrences(firstWorkFixture, "await assertRetainedSourceScanBudgetV01();"), 1,
+  "the cumulative history case runs once without extending the per-selection matrix");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"--reviewed-outcome-reuse-only"'])
   requireText(reviewedOutcomeRegistration.block, fragment, "saved review reuse has one bounded producer-to-consumer owner");
 assert.equal(countOccurrences(firstWorkFixture, "await assertReviewedOutcomeReuseV01();"), 1);
@@ -1170,8 +1248,19 @@ assert.equal(countOccurrences(firstWorkFixture, "await assertSuccessorExpectatio
 const successorRevisionRegistration = readCanonicalChildRegistration(integrationSource, "unexecuted-successor-revision");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"--successor-revision-only"'])
   requireText(successorRevisionRegistration.block, fragment, "saved successor revision retains one bounded complete owner");
-assert.equal(countOccurrences(firstWorkFixture, "await assertUnexecutedSuccessorRevisionV01();"), 1,
-  "the successor revision lifecycle runs once without extending the initial preparation child");
+assert.equal(countOccurrences(firstWorkFixture, "await assertUnexecutedSuccessorRevisionV01();"), 3,
+  "the existing successor case and two explicit cumulative fixtures have separate invocations");
+for (const [id, flag, timeout] of [
+  ["cumulative-initial-history", "--cumulative-history-only", "120_000"],
+  ["cumulative-successor-history", "--cumulative-successor-only", "300_000"],
+  ["cumulative-scoped-history", "--cumulative-scoped-only", "45_000"],
+  ["cumulative-work-surfaces", "--cumulative-surfaces-only", "120_000"],
+  ["cumulative-read-budgets", "--cumulative-budgets-only", "30_000"],
+]) {
+  const registration = readCanonicalChildRegistration(integrationSource, id);
+  for (const fragment of ['group: "supporting-serial"', `timeoutMs: ${timeout}`, 'requireNaturalExit: true', `"${flag}"`])
+    requireText(registration.block, fragment, "cumulative history owns bounded separate verification children");
+}
 const successorRegistration = readCanonicalChildRegistration(integrationSource, "authored-successor-handoff");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 45_000', '"process-owning"', '"--successor-handoff-only"'])
   requireText(successorRegistration.block, fragment, "authored successor retains one bounded serial owner");

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import type { ProjectSelectionRevision } from "../lib/vnext/project-selection";
 
 import assert from "node:assert/strict";
 import { channel } from "node:diagnostics_channel";
@@ -822,7 +823,7 @@ async function activeRunLimitRefusal(
 
 async function admissionRefusalCases(
   fixture: Fixture,
-  activeSelectionRevision: number,
+  activeSelectionRevision: ProjectSelectionRevision,
   grants: Map<string, ModelInvocationCapabilityGrantV01>,
   adapter: ModelAdapterV01,
   transportCalls: () => number,
@@ -918,7 +919,7 @@ async function admissionRefusalCases(
 
 function mutateAutomationControl(
   fixture: Fixture,
-  activeSelectionRevision: number,
+  activeSelectionRevision: ProjectSelectionRevision,
   expectedControlRevision: number,
   action: "pause_automation" | "disable_automation" | "enable_automation",
   now: string,

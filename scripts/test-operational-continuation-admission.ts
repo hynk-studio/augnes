@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { differentSelectionRevision } from "./test-selection-observation";
 
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -1433,7 +1434,7 @@ function assertPreAdmissionRefusalsAndAtomicityV01(
   );
 
   const staleSelection = structuredClone(request);
-  staleSelection.expected_active_selection_revision += 1;
+  staleSelection.expected_active_selection_revision = differentSelectionRevision(staleSelection.expected_active_selection_revision);
   refuseWithoutMutation(
     staleSelection,
     /operational_continuation_active_selection_changed/u,

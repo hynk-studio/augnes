@@ -1,3 +1,4 @@
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import Database from "better-sqlite3";
 
 import {
@@ -1199,7 +1200,7 @@ function admitPreparedStrategicProposalV01(
     source_proposal_id: string;
     source_proposal_fingerprint: string;
     expected_analysis_identity: string;
-    expected_active_selection_revision: number;
+    expected_active_selection_revision: ProjectSelectionRevision;
     model_output: Parameters<
       typeof materializeStrategicAdvantageTransferProposalV01
     >[0]["model_output"];

@@ -1,3 +1,11 @@
+import { assertPacketDirectionCurrent } from "../persistence/project-direction-store";
+import { readSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
+import { readAgendaInput, judgeAgenda, SELECTED_SOURCE_INSPECTION } from "../prospective-agenda";
+import { SELECTED_SOURCE_INSPECTION_TASK, SELECTED_SOURCE_INSPECTION_TITLE, SELECTED_SOURCE_INSPECTION_CHECKS, SELECTED_SOURCE_INSPECTION_OUTPUTS } from "../automation/selected-source-inspection-profile";
+import { readReentry, readArmedReentryForWork, writeReentry, type ReentryState } from "../persistence/prospective-reentry-store";
+import { SELECTED_SOURCE_ADAPTER } from "../native-host/selected-source-inspection-adapter";
+import { currentProspectiveAuthorization, prospectiveHostFingerprint } from "./prospective-authorization";
+import type { ProspectiveAuthorizationRef } from "../persistence/prospective-authorization";
 import type Database from "better-sqlite3";
 
 import {
@@ -175,7 +183,7 @@ export class BoundedAutomationCycleServiceV01 {
     }
   }
 
-  queueCurrentTask(input: MutationInputV01): {
+  queueCurrentTask(input: MutationInputV01 & { preparation?: { host_fingerprint: string; agenda_ref: string; authorization_ref?: ProspectiveAuthorizationRef } }): {
     status: "inserted" | "exact_replay";
     projection: BoundedAutomationCycleProjectionV01;
     session_admission: VNextLocalOperatorSessionMutationAdmissionV01;
@@ -184,13 +192,22 @@ export class BoundedAutomationCycleServiceV01 {
     let sessionAdmission: VNextLocalOperatorSessionMutationAdmissionV01;
     try {
       authenticateVNextLocalOperatorSessionV01(db, input);
+      db.exec("BEGIN IMMEDIATE");
+      sessionAdmission = admitVNextLocalOperatorMutationInsideTransactionV01(db, input);
       const observedAt = this.now();
-      const packet = resolveQueueableCurrentPacketV01(db, input.config, observedAt);
-      const sourceGrant = packet.capability_grant;
+      const packet = resolveQueueableCurrentPacketV01(db, input.config, observedAt, !!input.preparation);
+      assertPacketDirectionCurrent(db, packet, observedAt);
+      const agenda = input.preparation ? readAgendaInput(readSelectedWorkSources(packet), observedAt) : null;
+      if (input.preparation && (!agenda || agenda.source_ref !== input.preparation.agenda_ref || !/^sha256:[a-f0-9]{64}$/u.test(input.preparation.host_fingerprint) || this.liveService.readCapabilityContractV01().adapter_version !== SELECTED_SOURCE_ADAPTER)) refuseV01("prospective_qualified_host_or_agenda_required");
+      const authorization = input.preparation?.authorization_ref ? currentProspectiveAuthorization(db, {
+        config: input.config, ref: input.preparation.authorization_ref, packet, host_fingerprint: prospectiveHostFingerprint(), at: observedAt,
+      }) : null;
+      if (authorization && (input.preparation!.host_fingerprint !== authorization.grant.request.host_fingerprint || agenda?.source_ref !== authorization.grant.request.agenda_ref)) refuseV01("prospective_authorization_stale");
+      const sourceGrant = authorization?.summary ?? packet.capability_grant;
       if (!sourceGrant?.grant_external_ref || sourceGrant.coverage !== "enforced") {
         refuseV01("bounded_automation_source_grant_required", 409);
       }
-      const budget = budgetV01(this.liveService.readCapabilityContractV01().timeout_ms);
+      const budget = budgetV01(this.liveService.readCapabilityContractV01().timeout_ms, !!authorization);
       const sourceGrantFingerprint = createProtocolSha256V01(
         canonicalizeProtocolValueV01(sourceGrant),
       );
@@ -201,7 +218,7 @@ export class BoundedAutomationCycleServiceV01 {
         project_id: input.config.project_id,
       });
       if (
-        sourceGrantRecord &&
+        !authorization && sourceGrantRecord &&
         (sourceGrantRecord.fingerprint !== sourceGrant.grant_external_ref.source_ref ||
           !validateBoundedAutomationCapabilityGrantV01(sourceGrantRecord.payload) ||
           sourceGrantRecord.payload.workspace_id !== input.config.workspace_id ||
@@ -230,9 +247,9 @@ export class BoundedAutomationCycleServiceV01 {
         workspace_id: input.config.workspace_id,
         project_id: input.config.project_id,
         work_class: "bounded_project_task",
-        operation_profile: LOCAL_PROJECT_ROOT_VERIFICATION_WORK_PROFILE_V01,
-        title: LOCAL_PROJECT_ROOT_VERIFICATION_TITLE_V01,
-        task: structuredClone(LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01),
+        operation_profile: agenda ? SELECTED_SOURCE_INSPECTION : LOCAL_PROJECT_ROOT_VERIFICATION_WORK_PROFILE_V01,
+        title: agenda ? SELECTED_SOURCE_INSPECTION_TITLE : LOCAL_PROJECT_ROOT_VERIFICATION_TITLE_V01,
+        task: structuredClone(agenda ? SELECTED_SOURCE_INSPECTION_TASK : LOCAL_PROJECT_ROOT_VERIFICATION_TASK_V01),
         source_task: structuredClone(packet.task),
         source_packet: {
           packet_id: packet.packet_id,
@@ -240,13 +257,13 @@ export class BoundedAutomationCycleServiceV01 {
         },
         source_capability_grant: structuredClone(sourceGrant),
         source_capability_grant_fingerprint: sourceGrantFingerprint,
-        source_grant_record_status: sourceGrantRecord ? "exact_record" : "packet_bound_summary",
+        source_grant_record_status: authorization ? "explicit_preparation_authorization" : sourceGrantRecord ? "exact_record" : "packet_bound_summary",
         required_context_refs: packet.selected_context.flatMap((entry) =>
           entry.external_ref ? [entry.external_ref] : [],
         ),
         proposed_files: [],
-        required_checks: [...LOCAL_PROJECT_ROOT_VERIFICATION_REQUIRED_CHECKS_V01],
-        expected_outputs: [...LOCAL_PROJECT_ROOT_VERIFICATION_EXPECTED_OUTPUTS_V01],
+        required_checks: [...(agenda ? SELECTED_SOURCE_INSPECTION_CHECKS : LOCAL_PROJECT_ROOT_VERIFICATION_REQUIRED_CHECKS_V01)],
+        expected_outputs: [...(agenda ? SELECTED_SOURCE_INSPECTION_OUTPUTS : LOCAL_PROJECT_ROOT_VERIFICATION_EXPECTED_OUTPUTS_V01)],
         blocked_actions: [...new Set([
           ...packet.constraints.forbidden_actions,
           ...PROFILE_FORBIDDEN_CAPABILITIES_V01,
@@ -266,12 +283,26 @@ export class BoundedAutomationCycleServiceV01 {
         },
         created_at: observedAt,
       });
-      db.exec("BEGIN IMMEDIATE");
-      sessionAdmission = admitVNextLocalOperatorMutationInsideTransactionV01(db, input);
       const write = admitQueuedVNextAutomationWorkV01(db, {
         source,
         observed_at: observedAt,
       });
+      if (agenda && input.preparation) {
+        const control = readProjectAutomationControlV01(db, input.config);
+        if (!control?.enabled || control.paused) refuseV01("prospective_explicit_project_grant_required");
+        const judgment = judgeAgenda(agenda, observedAt);
+        if (judgment.action === "withdraw") refuseV01("prospective_agenda_withdrawn");
+        const scope = { ...input.config, agenda_ref: agenda.source_ref };
+        if (readReentry(db, scope)) refuseV01("prospective_agenda_already_armed");
+        writeReentry(db, {
+          workspace_id: input.config.workspace_id, project_id: input.config.project_id, agenda_ref: agenda.source_ref,
+          host_fingerprint: input.preparation.host_fingerprint, phase: "armed", revision: 1,
+          packet_id: packet.packet_id, packet_fingerprint: packet.integrity.fingerprint, work_id: source.work_id, work_fingerprint: source.work_fingerprint,
+          control_revision: control.revision, next_wake_at: judgment.action === "prepare" ? observedAt : judgment.next_recheck_at,
+          event_key: agenda.agenda.event_key, event_refs: [], receipt_id: null, receipt_fingerprint: null,
+          history: [{ at: observedAt, reason: "explicit_operator_opt_in", judgment }],
+        }, null);
+      }
       db.exec("COMMIT");
       return {
         status: write.status,
@@ -290,6 +321,18 @@ export class BoundedAutomationCycleServiceV01 {
   }
 
   async runOne(input: MutationInputV01 & { expected_control_revision: number }) {
+    return this.runClaim(input);
+  }
+
+  // Internal selected-host entrypoint. It consumes durable opt-in eligibility,
+  // never a session cookie, and reuses the exact grant/run admission transaction.
+  async runScheduled(input: { config: VNextLocalOperatorPilotConfigV01; expected_control_revision: number;
+    scheduled_wake: { agenda_ref: string; host_fingerprint: string } }) {
+    return this.runClaim(input);
+  }
+
+  private async runClaim(input: (MutationInputV01 | { config: VNextLocalOperatorPilotConfigV01;
+    scheduled_wake: { agenda_ref: string; host_fingerprint: string } }) & { expected_control_revision: number }) {
     const db = this.openDatabase(input.config);
     let context: NativeHostAutomationContextV01 | null = null;
     let prepared:
@@ -299,17 +342,21 @@ export class BoundedAutomationCycleServiceV01 {
           >
         >
       | null = null;
-    let sessionAdmission!: VNextLocalOperatorSessionMutationAdmissionV01;
+    let sessionAdmission: VNextLocalOperatorSessionMutationAdmissionV01 | null = null;
+    let wake: ReentryState | null = null;
     let exactReplay = false;
     try {
-      authenticateVNextLocalOperatorSessionV01(db, input);
+      if ("credential" in input) authenticateVNextLocalOperatorSessionV01(db, input);
       db.exec("BEGIN IMMEDIATE");
-      sessionAdmission = admitVNextLocalOperatorMutationInsideTransactionV01(
-        db,
-        input,
-      );
+      if ("credential" in input) sessionAdmission = admitVNextLocalOperatorMutationInsideTransactionV01(db, input);
       this.failAtomicStageV01("after_mutation_admission");
-      const observedAt = sessionAdmission.action_observed_at;
+      const observedAt = sessionAdmission?.action_observed_at ?? this.now();
+      if ("scheduled_wake" in input) {
+        wake = readReentry(db, { ...input.config, agenda_ref: input.scheduled_wake.agenda_ref });
+        if (!wake || wake.phase !== "armed" || wake.host_fingerprint !== input.scheduled_wake.host_fingerprint ||
+          wake.control_revision !== input.expected_control_revision || !wake.next_wake_at || Date.parse(wake.next_wake_at) > Date.parse(observedAt) ||
+          wake.history.length >= 22 || this.liveService.readCapabilityContractV01().adapter_version !== SELECTED_SOURCE_ADAPTER) refuseV01("prospective_wake_not_admitted");
+      }
       const currentControl = readProjectAutomationControlV01(db, input.config);
       if (
         !currentControl ||
@@ -353,6 +400,15 @@ export class BoundedAutomationCycleServiceV01 {
         ) {
           refuseV01(`bounded_automation_${resolved.reason}`, 409);
         }
+        if (wake) {
+          const currentPacket = resolveQueueableCurrentPacketV01(db, input.config, observedAt, true);
+          if (currentPacket.packet_id !== wake.packet_id || currentPacket.integrity.fingerprint !== wake.packet_fingerprint) refuseV01("prospective_current_packet_changed");
+          const agenda = readAgendaInput(readSelectedWorkSources(resolved.source_packet), observedAt);
+          if (resolved.work.source.work_id !== wake.work_id || resolved.work.source.work_fingerprint !== wake.work_fingerprint ||
+            resolved.work.source.operation_profile !== SELECTED_SOURCE_INSPECTION || resolved.source_packet.packet_id !== wake.packet_id ||
+            resolved.source_packet.integrity.fingerprint !== wake.packet_fingerprint || !agenda || agenda.source_ref !== wake.agenda_ref ||
+            judgeAgenda(agenda, observedAt).action !== "prepare") refuseV01("prospective_source_or_preparation_changed");
+        } else if (resolved.work.source.operation_profile === SELECTED_SOURCE_INSPECTION) refuseV01("prospective_wake_owner_required");
         const grantWrite = admitBoundedAutomationCapabilityGrantV01(
           db,
           resolved.grant,
@@ -426,6 +482,7 @@ export class BoundedAutomationCycleServiceV01 {
           observed_at: observedAt,
         });
         this.failAtomicStageV01("after_work_claim");
+        if (wake) writeReentry(db, { ...wake, revision: wake.revision + 1, phase: "claimed", next_wake_at: null }, wake.revision);
         this.liveService.admitPolicyTriggeredRunClaimInsideTransactionV01(db, {
           config: input.config,
           automation_context: context,
@@ -772,7 +829,7 @@ function resolveBoundedAutomationAdmissionV01(
   grant: BoundedAutomationCapabilityGrantV01 | null;
   budget: BoundedAutomationBudgetV01;
 } {
-  const budget = budgetV01(input.host.timeout_ms);
+  let budget = budgetV01(input.host.timeout_ms);
   const controlStatus = readProjectAutomationEffectiveStatusV01(db, input.config);
   const control = readProjectAutomationControlV01(db, input.config);
   if (!control) return emptyAdmissionV01("not_configured", "automation_not_configured", budget);
@@ -782,11 +839,14 @@ function resolveBoundedAutomationAdmissionV01(
     return emptyAdmissionV01("policy_denied", "automation_policy_invalid", budget, control.revision);
   }
   const selection = selectBoundedAutomationWorkSourceV01(
-    listCurrentVNextAutomationWorkSnapshotsV01(db, input.config),
+    listCurrentVNextAutomationWorkSnapshotsV01(db, input.config).filter(work =>
+      work.source.operation_profile !== SELECTED_SOURCE_INSPECTION ||
+      readArmedReentryForWork(db, input.config, work.source.work_id)?.work_fingerprint === work.source.work_fingerprint),
   );
   if (selection.status === "none") return emptyAdmissionV01("no_eligible_work", "no_eligible_work", budget, control.revision);
   if (selection.status === "ambiguous") return emptyAdmissionV01("work_ambiguous", "work_ambiguous", budget, control.revision);
   const work = selection.work;
+  budget = budgetV01(input.host.timeout_ms, work.source.source_grant_record_status === "explicit_preparation_authorization");
   let packet: TaskContextPacketV01;
   try {
     const lineage = inspectVNextOperatorPilotPacketLineageV01(db, {
@@ -801,7 +861,7 @@ function resolveBoundedAutomationAdmissionV01(
   } catch {
     return { ...emptyAdmissionV01("policy_denied", "work_source_stale", budget, control.revision), work };
   }
-  if (sourcePacketAlreadyExecutedV01(db, input.config, work.source.source_packet)) {
+  if (work.source.operation_profile !== SELECTED_SOURCE_INSPECTION && sourcePacketAlreadyExecutedV01(db, input.config, work.source.source_packet)) {
     return {
       ...emptyAdmissionV01(
         "policy_denied",
@@ -1036,7 +1096,7 @@ function validateExactCycleReplayInsideTransactionV01(
     run.metadata.adapter_version !== input.host.adapter_version ||
     run.metadata.capability_version !== input.host.capability_version ||
     canonicalizeProtocolValueV01(grant.budget) !==
-      canonicalizeProtocolValueV01(budgetV01(input.host.timeout_ms)) ||
+      canonicalizeProtocolValueV01(budgetV01(input.host.timeout_ms, input.work.source.source_grant_record_status === "explicit_preparation_authorization")) ||
     canonicalizeProtocolValueV01(run.metadata.automation_context) !==
       canonicalizeProtocolValueV01(context) ||
     Date.parse(grant.expires_at) <= Date.parse(input.observed_at) ||
@@ -1079,7 +1139,11 @@ export function buildBoundedAutomationCapabilityGrantV01(input: {
   expires_at: string;
   budget: BoundedAutomationBudgetV01;
 }): BoundedAutomationCapabilityGrantV01 {
-  const sourceGrant = input.source_packet.capability_grant;
+  const explicitPreparation = input.work.source_grant_record_status === "explicit_preparation_authorization";
+  const sourceGrant = explicitPreparation ? input.work.source_capability_grant : input.source_packet.capability_grant;
+  if (explicitPreparation && (input.source_packet.capability_grant !== null || input.work.operation_profile !== SELECTED_SOURCE_INSPECTION ||
+    input.budget.max_commands !== 0 || input.budget.max_runtime_ms > 10_000 || !sourceGrant?.resource_scope.includes(`project_root:${input.root_fingerprint}`))) refuseV01("prospective_authorization_grant_conflict");
+  if (input.work.operation_profile === SELECTED_SOURCE_INSPECTION && input.host.adapter_version !== SELECTED_SOURCE_ADAPTER) refuseV01("prospective_inspection_host_required");
   if (
     input.host.execution_profile !== "deterministic_zero_model" ||
     input.host.provider_egress !== "forbidden" ||
@@ -1194,6 +1258,18 @@ function assertCurrentSourceGrantBindingV01(
   },
 ): void {
   const source = input.work.source;
+  if (source.source_grant_record_status === "explicit_preparation_authorization") {
+    const ref = source.source_capability_grant.grant_external_ref;
+    if (source.operation_profile !== SELECTED_SOURCE_INSPECTION || !ref?.source_ref) refuseV01("prospective_authorization_binding_invalid");
+    const authorization = currentProspectiveAuthorization(db, { config: input.config,
+      ref: { grant_id: ref.external_id, grant_fingerprint: ref.source_ref }, packet: input.packet,
+      host_fingerprint: prospectiveHostFingerprint(), at: input.observed_at });
+    if (canonicalizeProtocolValueV01(authorization.summary) !== canonicalizeProtocolValueV01(source.source_capability_grant) ||
+      createProtocolSha256V01(canonicalizeProtocolValueV01(authorization.summary)) !== source.source_capability_grant_fingerprint ||
+      source.budget_projection.max_commands !== 0 || source.budget_projection.max_runtime_ms > authorization.grant.request.budget.max_runtime_ms)
+      refuseV01("prospective_authorization_binding_invalid");
+    return;
+  }
   const packetGrant = input.packet.capability_grant;
   if (
     !packetGrant?.grant_external_ref ||
@@ -1234,7 +1310,7 @@ function assertCurrentSourceGrantBindingV01(
   }
 }
 
-function resolveQueueableCurrentPacketV01(db: Database.Database, config: VNextLocalOperatorPilotConfigV01, observedAt: string): TaskContextPacketV01 {
+function resolveQueueableCurrentPacketV01(db: Database.Database, config: VNextLocalOperatorPilotConfigV01, observedAt: string, distinctPreparation = false): TaskContextPacketV01 {
   const continuity = projectVNextOperatorPilotContinuityV01(db, { config, clock: { now: () => observedAt } });
   const latest = continuity.latest_compiled_packet;
   if (!latest || continuity.packet_currentness !== "fresh") refuseV01("bounded_automation_queue_packet_unavailable", 409);
@@ -1245,7 +1321,7 @@ function resolveQueueableCurrentPacketV01(db: Database.Database, config: VNextLo
   });
   if (!lineage.projection_current) refuseV01("bounded_automation_queue_packet_stale", 409);
   if (
-    sourcePacketAlreadyExecutedV01(db, config, {
+    !distinctPreparation && sourcePacketAlreadyExecutedV01(db, config, {
       packet_id: latest.packet_id,
       packet_fingerprint: latest.packet_fingerprint,
     })
@@ -1286,14 +1362,14 @@ function queueablePacketAvailableV01(db: Database.Database, config: VNextLocalOp
   try { resolveQueueableCurrentPacketV01(db, config, observedAt); return true; } catch { return false; }
 }
 
-function budgetV01(timeoutMs: number): BoundedAutomationBudgetV01 {
+function budgetV01(timeoutMs: number, explicitPreparation = false): BoundedAutomationBudgetV01 {
   return {
     budget_version: "bounded_automation_budget.v0.1",
     max_work_items: 1,
     max_active_runs: 1,
     max_attempts: 1,
     max_runtime_ms: timeoutMs,
-    max_commands: MAX_COMMANDS_V01,
+    max_commands: explicitPreparation ? 0 : MAX_COMMANDS_V01,
     max_augnes_model_invocations: 0,
     max_augnes_model_tokens: 0,
     max_augnes_model_cost_units: 0,

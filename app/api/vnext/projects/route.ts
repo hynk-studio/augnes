@@ -1,3 +1,4 @@
+import { isCurrentProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import { NextResponse } from "next/server";
 
 import { openDatabase } from "@/lib/db";
@@ -9,6 +10,7 @@ import {
   declareAndInspectLocalProjectRecoveryV01,
   declareAndInspectLocalProjectV01,
   listRecentProjectsV01,
+  listRegisteredProjectsV02,
   openRecoveredLocalProjectFromSelectionV01,
   openRecentProjectV01,
   pickAndInspectLocalProjectRecoveryV01,
@@ -67,6 +69,11 @@ export async function GET(request: Request) {
   try {
     const url = assertVNextLocalOperatorRequestBoundaryV01(request, { mutating: false });
     db = openDatabase();
+    if (url.searchParams.get("view") === "registered") {
+      if ([...url.searchParams.keys()].some(k=>!["view","cursor"].includes(k)) || url.searchParams.getAll("view").length!==1 || url.searchParams.getAll("cursor").length>1) throw new ProjectOnboardingErrorV01("selection_invalid",400);
+      return json({ok:true,...await listRegisteredProjectsV02(db,url.searchParams.get("cursor"))});
+    }
+    if ([...url.searchParams.keys()].some(k=>k!=="project_id") || url.searchParams.getAll("project_id").length>1) throw new ProjectOnboardingErrorV01("selection_invalid",400);
     const projectId = url.searchParams.get("project_id");
     if (projectId) {
       const project = await readProjectDestinationV01(db, projectId);
@@ -624,14 +631,14 @@ function requiredNullableString(record: Record<string, unknown>, key: string): s
   if (value === null || (typeof value === "string" && value.length > 0)) return value;
   throw new ProjectOnboardingErrorV01("selection_invalid");
 }
-function requiredNullableRevision(record: Record<string, unknown>, key: string): number | null {
+function requiredNullableRevision(record: Record<string, unknown>, key: string): string | null {
   if (!Object.hasOwn(record, key)) throw new ProjectOnboardingErrorV01("selection_invalid");
   const value = record[key];
-  if (value === null || (typeof value === "number" && Number.isSafeInteger(value) && value > 0)) return value;
+  if (value === null || isCurrentProjectSelectionRevision(value)) return value;
   throw new ProjectOnboardingErrorV01("selection_invalid");
 }
-function requiredRevision(value: unknown): number {
-  if (typeof value === "number" && Number.isSafeInteger(value) && value > 0) return value;
+function requiredRevision(value: unknown): string {
+  if (isCurrentProjectSelectionRevision(value)) return value;
   throw new ProjectOnboardingErrorV01("selection_invalid");
 }
 function requiredRecoveryScope(

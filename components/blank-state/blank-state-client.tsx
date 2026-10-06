@@ -1,5 +1,8 @@
 "use client";
 
+import { RegisteredProjects } from "./registered-projects";
+import { ProjectDirection } from "./project-direction";
+
 import {
   useEffect,
   useMemo,
@@ -55,13 +58,14 @@ import type {
   LocalProjectRecoverySelectionOutcomeV01,
   ProjectOnboardingErrorCodeV01,
   RecentProjectEntryV01,
+  ProjectManagementEntryV02,
 } from "@/types/vnext/project-onboarding";
 import type { ProjectGuideBriefV02 } from "@/types/vnext/guide-brief";
 import type { ManagementSafetyViewV01 } from "@/types/vnext/management-safety";
 import { PROJECT_DISPLAY_NAME_MAX_LENGTH_V01 } from "@/types/vnext/project-identity";
 
 type ProjectRecoveryStateV01 = {
-  entry: RecentProjectEntryV01;
+  entry: ProjectManagementEntryV02;
   mode: "picker" | "path";
   picker: LocalProjectRecoverySelectionOutcomeV01 | null;
   picker_pending: boolean;
@@ -166,6 +170,8 @@ export function BlankStateClient({
   managementSafety: ManagementSafetyViewV01;
 }) {
   const [recent, setRecent] = useState(source.recent_projects);
+  const [selection, setSelection] = useState({ project_id: source.active_project_id,
+    revision: source.active_selection_revision ?? source.recent_projects[0]?.active_selection_revision ?? null });
   const [picker, setPicker] = useState<LocalFolderPickerOutcomeV01 | null>(null);
   const [busy, setBusy] = useState(false);
   const [pickerPending, setPickerPending] = useState(false);
@@ -477,7 +483,7 @@ export function BlankStateClient({
     }
   }
 
-  async function open(entry: RecentProjectEntryV01) {
+  async function open(entry: ProjectManagementEntryV02) {
     if (entry.root_availability !== "available") {
       setMessage(errorMessage("Locate the folder before opening this project."));
       return;
@@ -506,9 +512,8 @@ export function BlankStateClient({
       await mutate({
         action: "open",
         project_id: projectId,
-        expected_project_id: source.active_project_id,
-        expected_revision: source.recent_projects.find((entry) => entry.is_active)
-          ?.active_selection_revision ?? null,
+        expected_project_id: selection.project_id,
+        expected_revision: selection.revision,
       });
       window.location.reload();
     } catch {
@@ -525,18 +530,20 @@ export function BlankStateClient({
     setMessage(null);
     setDialogError(null);
     try {
-      await mutate({
+      const result = await mutate({
         action: "remove",
         project_id: entry.project.project_id,
         expected_project_id: entry.active_project_id,
         expected_revision: entry.active_selection_revision,
       });
+      setSelection({ project_id: result.result.selection?.project_id ?? null,
+        revision: result.result.selection?.selection_revision ?? null });
       setRecent((items) => items
         .filter((item) => item.project.project_id !== entry.project.project_id)
         .map((item) => entry.is_active
-          ? { ...item, is_active: false, active_project_id: null, active_selection_revision: null }
+          ? { ...item, is_active: false, active_project_id: null, active_selection_revision: result.result.selection?.selection_revision ?? null }
           : item));
-      setMessage(infoMessage("Removed from recent projects. Project data remains stored."));
+      setMessage(infoMessage("Removed from recent projects. Project data remains stored. Use Find saved projects to reopen it."));
       setPendingRemoval(null);
     } catch (error) {
       setDialogError(error instanceof Error && error.message === "active_selection_conflict"
@@ -547,7 +554,7 @@ export function BlankStateClient({
     }
   }
 
-  function locate(entry: RecentProjectEntryV01) {
+  function locate(entry: ProjectManagementEntryV02) {
     pickerAttemptRef.current += 1;
     pickerAbortRef.current?.abort();
     pickerAbortRef.current = null;
@@ -571,7 +578,7 @@ export function BlankStateClient({
     });
   }
 
-  function recoveryScope(entry: RecentProjectEntryV01) {
+  function recoveryScope(entry: ProjectManagementEntryV02) {
     return {
       project_id: entry.project.project_id,
       expected_old_root_binding_fingerprint:
@@ -1160,6 +1167,7 @@ export function BlankStateClient({
             </div>
             ) : null}
 
+            {projection && source.project_direction && <ProjectDirection key={projection.project_id} projectId={projection.project_id} initial={source.project_direction} />}
             <section
               className="blank-state-continuity"
               aria-labelledby="continuity-list-title"
@@ -1514,8 +1522,8 @@ function ContinuityItem({
   primaryEntry: RecentProjectEntryV01 | null;
   busy: boolean;
   onChoose: () => void;
-  onOpen: (entry: RecentProjectEntryV01) => void;
-  onLocate: (entry: RecentProjectEntryV01) => void;
+  onOpen: (entry: ProjectManagementEntryV02) => void;
+  onLocate: (entry: ProjectManagementEntryV02) => void;
   onActivate: (projectId: string) => void;
 }) {
   const delegatedStage = item.source_family === "delegated_work"
@@ -1777,8 +1785,8 @@ function PrimaryAction({
   busy: boolean;
   recentEntry: RecentProjectEntryV01 | null;
   onChoose: () => void;
-  onOpen: (entry: RecentProjectEntryV01) => void;
-  onLocate: (entry: RecentProjectEntryV01) => void;
+  onOpen: (entry: ProjectManagementEntryV02) => void;
+  onLocate: (entry: ProjectManagementEntryV02) => void;
   onActivate: (projectId: string) => void;
 }) {
   if (action.kind === "link") {
@@ -2186,8 +2194,8 @@ function ProjectManagement({
   onDeclaredPathChange: (value: string) => void;
   onReviewDeclaredPath: () => void;
   onConfirm: (displayName: string) => void;
-  onOpen: (entry: RecentProjectEntryV01) => void;
-  onLocate: (entry: RecentProjectEntryV01) => void;
+  onOpen: (entry: ProjectManagementEntryV02) => void;
+  onLocate: (entry: ProjectManagementEntryV02) => void;
   onRemove: (entry: RecentProjectEntryV01) => void;
   onCancelInspection: () => void;
 }) {
@@ -2535,6 +2543,7 @@ function ProjectManagement({
         )}
       </div>
       ) : null}
+      <RegisteredProjects key={JSON.stringify(recent.map(entry => [entry.project.project_id, entry.active_selection_revision, entry.project.display_name]))} busy={busy} onOpen={onOpen} onLocate={onLocate} />
     </section>
   );
 }

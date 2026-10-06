@@ -34,13 +34,13 @@ export async function readCodexRepositoryRetainedSourcesV01(
     result.reason = "current_work_unavailable";
     const scope = { workspace_id: resolution.workspace_id!, project_id: resolution.project_id! };
     const continuity = await readCodexProjectContinuityV01(db, { project_id: scope.project_id }, dependencies);
-    const eligibility = readProjectWorkRevisionEligibilityStrictV01(db, scope);
+    const eligibility = readProjectWorkRevisionEligibilityStrictV01(db, scope, { evaluated_at: dependencies.now?.() });
     if (eligibility.reason === "revision_chain_invalid") return { ...result, status: "invalid", reason: "retained_sources_invalid" };
     if (continuity.snapshot.status !== "exact") return result;
     if (continuity.snapshot.binding !== input.expected_snapshot_binding) {
       return { ...result, status: "refresh_required", reason: "snapshot_changed" };
     }
-    if (continuity.current_work.status !== "current_work" || continuity.current_work.currentness !== "fresh" ||
+    if (!["current_work", "stale_current_work"].includes(continuity.current_work.status) || !["fresh", "stale"].includes(continuity.current_work.currentness) ||
       continuity.project.root_availability !== "available") return result;
     if (!eligibility.eligible) return eligibility.status === "unavailable" ? result : {
       ...result, status: "ineligible", reason: "work_revision_not_eligible",
@@ -70,6 +70,9 @@ export async function readCodexRepositoryRetainedSourcesV01(
       };
     } catch (error) {
       if (!(error instanceof SelectedWorkSourceError || error instanceof PreExecutionProjectWorkRevisionErrorV01)) throw error;
+      if (error.code === "retained_source_scan_bound_exceeded") {
+        return { ...result, status: "unavailable", reason: "retained_source_scan_bound_exceeded" };
+      }
       return { ...result, status: "invalid", reason: error.code === "retained_source_query_invalid" ? error.code : "retained_sources_invalid" };
     }
   } finally { db.exec("ROLLBACK"); }

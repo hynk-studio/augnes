@@ -1,9 +1,13 @@
+import { isHistoricalProjectSelectionRevision } from "../project-selection";
+import { readProjectWorkPacketHistoryV01, PROJECT_WORK_HISTORY_READ_BUDGET_V01, ProjectWorkPacketHistoryReadErrorV01 } from "./project-work-packet-history";
+import { handoffEntries } from "../work-handoff";
 import type Database from "better-sqlite3";
+import { PROSPECTIVE_PREPARATION_PACKET } from "../prospective-agenda";
+import { RETRY_INSPECTION_OUTLOOK_V02, retryInspectionOutlookVersion, retryInspectionProjectionItemsV01, type RetryInspectionOutlookVersion } from "../retry-inspection-outlook";
 import { compareNewProjectWorkV01 } from "./new-project-work-preparation";
-import { assertReviewedOutcomeSourcesRetained, normalizeSelectedWorkSources, readSelectedWorkSources, compareSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
+import { assertReviewedOutcomeSourcesRetained, normalizeNativeSelectedWorkSources, readSelectedWorkSources, compareSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
 
 import {
-  assertVNextCoreRecordMatchesProtocolPayloadBindingV01,
   type VNextCoreRecordEnvelopeV01,
 } from "@/lib/vnext/persistence/durable-semantic-store";
 import {
@@ -17,6 +21,7 @@ import {
   normalizeInitialProjectWorkDefinitionV01,
 } from "@/lib/vnext/runtime/initial-project-work-context";
 import { readVNextLocalOperatorSessionHistoryV01 } from "@/lib/vnext/runtime/local-operator-session";
+import { isNonBlockingPreExecutionRecordV01 } from "./pre-execution-project-work-history";
 import { inspectProjectManagedRunHistoryV01 } from "@/lib/vnext/runtime/project-managed-run-history";
 import { VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01 } from "@/lib/vnext/runtime/persisted-semantic-context-compiler";
 import {
@@ -26,7 +31,6 @@ import {
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type { ProjectWorkDefinitionV01 } from "@/types/vnext/project-work-initialization";
 import {
-  MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01,
   PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
   PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01,
   type PreExecutionProjectWorkLineageKindV01,
@@ -40,8 +44,7 @@ export const PRE_EXECUTION_PROJECT_WORK_REVISION_REQUEST_NAMESPACE_V01 =
 
 const REVISION_DEFINITION_ID =
   /^work-definition-(?:revision|preparation):(\d+):([a-f0-9]{24})$/u;
-const REVISION_REQUEST_ID = /^work-(?:revision|preparation)-request:(\d+):([a-f0-9]{24})$/u;
-const MAX_PACKET_ROWS = 256;
+const REVISION_REQUEST_ID = /^work-(?:revision|preparation)-request:(\d+|selection:[a-f0-9]{32}):([a-f0-9]{24})$/u;
 const REVISION_PACKET_CONTEXT_BUDGET_V01 = Object.freeze({
   max_selected_entries: 4,
   max_projection_items: 1,
@@ -103,7 +106,7 @@ export function createPreExecutionProjectWorkRevisionMaterialV01(input: {
   observed_at: string;
 }): PreExecutionProjectWorkRevisionMaterialV01 {
   const definition = normalizeInitialProjectWorkDefinitionV01(input.definition);
-  const selectedSources = normalizeSelectedWorkSources(input.request,
+  const selectedSources = normalizeNativeSelectedWorkSources(input.request,
     input.request.selected_source_context ?? readSelectedWorkSources(input.prior_packet));
   // Saved result reuse belongs to receipt-backed ordinary succession only.
   assertReviewedOutcomeSourcesRetained(selectedSources, []);
@@ -223,12 +226,13 @@ export function buildPreExecutionProjectWorkRevisionPacketV01(input: {
   prior_packet: TaskContextPacketV01;
   origin_first_work_definition_ref: ExternalRefV01;
   generated_at: string;
+  outlook_version?: RetryInspectionOutlookVersion | null;
 }): {
   packet: TaskContextPacketV01;
   lineage: PreExecutionProjectWorkRevisionMaterialV01;
 } {
   const definition = normalizeInitialProjectWorkDefinitionV01(input.definition);
-  const selectedSources = normalizeSelectedWorkSources(input.request,
+  const selectedSources = normalizeNativeSelectedWorkSources(input.request,
     input.request.selected_source_context ?? readSelectedWorkSources(input.prior_packet));
   const lineage = createPreExecutionProjectWorkRevisionMaterialV01({
     ...input,
@@ -252,6 +256,8 @@ export function buildPreExecutionProjectWorkRevisionPacketV01(input: {
     basis: newTask ? "Bound to an explicit authenticated different-task preparation; the prior work is not completed." : "Bound to the exact authenticated pre-execution work revision.",
     source_ref: lineage.revision_definition_ref,
   };
+  const outlookVersion = input.outlook_version === undefined ? RETRY_INSPECTION_OUTLOOK_V02 : input.outlook_version;
+  const outlookItems = retryInspectionProjectionItemsV01(selectedSources, input.generated_at, outlookVersion);
   let packet: TaskContextPacketV01;
   try {
     packet = buildTaskContextPacketV01({
@@ -269,6 +275,7 @@ export function buildPreExecutionProjectWorkRevisionPacketV01(input: {
         bounded_summary: definition.goal,
         as_of: input.generated_at,
         items: [
+          ...outlookItems,
           {
             item_kind: "active_goal",
             summary: definition.goal,
@@ -285,6 +292,7 @@ export function buildPreExecutionProjectWorkRevisionPacketV01(input: {
         ],
       },
       selected_context: [
+        ...handoffEntries(input.prior_packet),
         ...selectedSources,
         {
           entry_id: `work-revision-definition:${lineage.revision_definition_ref.external_id}`,
@@ -355,8 +363,8 @@ export function buildPreExecutionProjectWorkRevisionPacketV01(input: {
         required_checks: newTask ? input.prior_packet.constraints.required_checks : [],
         forbidden_actions: newTask ? input.prior_packet.constraints.forbidden_actions : [],
         data_classification: "private",
-        context_budget: selectedSources.length > 0
-          ? { ...REVISION_PACKET_CONTEXT_BUDGET_V01, max_selected_entries: 12 }
+        context_budget: selectedSources.length > 0 || handoffEntries(input.prior_packet).length > 0
+          ? { ...REVISION_PACKET_CONTEXT_BUDGET_V01, max_selected_entries: handoffEntries(input.prior_packet).length ? 13 : 12, max_projection_items: 1 + outlookItems.length }
           : REVISION_PACKET_CONTEXT_BUDGET_V01,
       },
       capability_grant: null,
@@ -391,6 +399,7 @@ export function buildPreExecutionProjectWorkRevisionPacketV01(input: {
       compatibility: {
         source_contracts: [
           PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
+          ...(outlookItems.length ? [outlookVersion!] : []),
           ...(newTask ? [PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01] : []),
         ],
         legacy_scope_ref: null,
@@ -411,7 +420,7 @@ export function buildPreExecutionProjectWorkRevisionPacketV01(input: {
         newTask ? "Preparing a different task preserves prior unresolved matters and transfers no execution grant or approval." : "Saving this revision changes bounded working context but does not start execution.",
         "This revision is not accepted semantic state, a proposal, approval, ReviewDecision, or Transition.",
       ],
-    });
+    }, { required_selected_entry_ids: handoffEntries(input.prior_packet).map(e => e.entry_id) });
   } catch (error) {
     if (error instanceof RangeError) refuse("work_revision_packet_budget_exceeded");
     throw error;
@@ -444,6 +453,32 @@ export function inspectPreExecutionProjectWorkRevisionChainV01(
   db: Database.Database,
   input: { workspace_id: string; project_id: string },
 ): PreExecutionProjectWorkChainInspectionV01 {
+  // The synchronous inspection owns a SQLite read snapshot (a savepoint when
+  // called by a writer). Nothing is retained across calls or across an insert.
+  return db.transaction(() => inspectRevisionChainInsideReadV01(db, input).chain)();
+}
+
+/** Complete, validated revision projections, produced together in one read.
+ * No read session or caller-supplied validation result escapes this boundary. */
+export function inspectPreExecutionProjectWorkRevisionLineagesV01(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string },
+): PreExecutionProjectWorkRevisionLineageV01[] {
+  return db.transaction(() => {
+    const { chain, revisions } = inspectRevisionChainInsideReadV01(db, input);
+    return revisions.map((revision) => ({
+      ...revision,
+      projection_current: chain.projection_current &&
+        revision.packet.packet_id === chain.tip_packet.packet_id &&
+        revision.packet.integrity.fingerprint === chain.tip_packet.integrity.fingerprint,
+    }));
+  })();
+}
+
+function inspectRevisionChainInsideReadV01(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string },
+): { chain: PreExecutionProjectWorkChainInspectionV01; revisions: PreExecutionProjectWorkRevisionLineageV01[] } {
   const records = loadPacketRecords(db, input);
   const initialRecords = records.filter(
     (record) =>
@@ -462,9 +497,6 @@ export function inspectPreExecutionProjectWorkRevisionChainV01(
   const revisionRecords = records.filter((record) =>
     isStandaloneRevisionPacketV01(record.packet),
   );
-  if (revisionRecords.length > MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01) {
-    refuse("work_revision_limit_reached", 409);
-  }
   const recordsById = new Map(
     records.map((record) => [record.packet.packet_id, record] as const),
   );
@@ -519,6 +551,7 @@ export function inspectPreExecutionProjectWorkRevisionChainV01(
   }
   validatePreExecutionHistoryAtEachRevisionV01(db, input, genesis, ordered);
   const semanticSuccessor = records.some((record) =>
+    !hasContract(record.packet, PROSPECTIVE_PREPARATION_PACKET) &&
     hasContract(
       record.packet,
       VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
@@ -529,7 +562,7 @@ export function inspectPreExecutionProjectWorkRevisionChainV01(
   const projectionCurrent =
     !semanticSuccessor && semanticState === 0 && semanticHeads === 0;
   const tipRevision = ordered.at(-1) ?? null;
-  return {
+  const chain: PreExecutionProjectWorkChainInspectionV01 = {
     genesis_packet: genesis,
     tip_packet: tipRevision?.packet ?? genesis,
     tip_lineage_kind: tipRevision
@@ -544,6 +577,7 @@ export function inspectPreExecutionProjectWorkRevisionChainV01(
     packet_ids: [genesis.packet_id, ...ordered.map((entry) => entry.packet.packet_id)],
     packets: [genesis, ...ordered.map((entry) => entry.packet)],
   };
+  return { chain, revisions: ordered };
 }
 
 export function inspectPreExecutionProjectWorkRevisionPacketV01(
@@ -554,55 +588,12 @@ export function inspectPreExecutionProjectWorkRevisionPacketV01(
     packet: TaskContextPacketV01;
   },
 ): PreExecutionProjectWorkRevisionLineageV01 {
-  const records = loadPacketRecords(db, input);
-  const record = records.find(
-    (candidate) =>
-      candidate.packet.packet_id === input.packet.packet_id &&
-      candidate.packet.integrity.fingerprint ===
-        input.packet.integrity.fingerprint,
-  );
-  if (!record || !isStandaloneRevisionPacketV01(record.packet)) {
-    refuse("work_revision_packet_missing", 409);
-  }
-  const initialRecords = records.filter(
-    (candidate) =>
-      hasContract(
-        candidate.packet,
-        INITIAL_PROJECT_WORK_CONTEXT_COMPILER_VERSION_V01,
-      ) &&
-      !hasContract(
-        candidate.packet,
-        VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
-      ) &&
-      !hasContract(
-        candidate.packet,
-        SOURCE_LINKED_OPERATIONAL_CONTINUATION_VERSION_V01,
-      ),
-  );
-  if (initialRecords.length !== 1) {
-    refuse("work_revision_genesis_count_invalid", 409);
-  }
-  const genesisLineage = inspectInitialProjectWorkPacketLineageV01(db, {
-    ...input,
-    packet: initialRecords[0]!.packet,
-  });
-  const recordsById = new Map(
-    records.map((candidate) => [candidate.packet.packet_id, candidate] as const),
-  );
-  const inspected = inspectRevisionPacketV01(
-    db,
-    input,
-    record,
-    genesisLineage.definition_ref,
-    recordsById,
-  );
-  const chain = inspectPreExecutionProjectWorkRevisionChainV01(db, input);
-  const projectionCurrent =
-    chain.projection_current &&
-    chain.tip_packet.packet_id === inspected.packet.packet_id &&
-    chain.tip_packet.integrity.fingerprint ===
-      inspected.packet.integrity.fingerprint;
-  return { ...inspected, projection_current: projectionCurrent };
+  return db.transaction(() => {
+    const lineage = inspectPreExecutionProjectWorkRevisionLineagesV01(db, input).find(r =>
+      r.packet.packet_id === input.packet.packet_id && r.packet.integrity.fingerprint === input.packet.integrity.fingerprint);
+    if (!lineage) refuse("work_revision_packet_missing", 409);
+    return lineage;
+  })();
 }
 
 function inspectRevisionPacketV01(
@@ -623,12 +614,11 @@ function inspectRevisionPacketV01(
   const definitionMatch = REVISION_DEFINITION_ID.exec(definitionRef.external_id);
   const requestMatch = REVISION_REQUEST_ID.exec(requestRef.external_id);
   const revisionNumber = definitionMatch ? Number(definitionMatch[1]) : NaN;
-  const activeRevision = requestMatch ? Number(requestMatch[1]) : NaN;
+  const activeRevision = requestMatch?.[1]?.startsWith("selection:") ? requestMatch[1] : Number(requestMatch?.[1]);
   if (
     !Number.isSafeInteger(revisionNumber) ||
     revisionNumber < 1 ||
-    !Number.isSafeInteger(activeRevision) ||
-    activeRevision < 1 ||
+    !isHistoricalProjectSelectionRevision(activeRevision) ||
     definitionMatch?.[2] !== requestMatch?.[2] ||
     definitionRef.trust_class !== "user_declaration" ||
     definitionRef.compatibility_namespace !== compiler ||
@@ -701,6 +691,7 @@ function inspectRevisionPacketV01(
     prior_packet: priorRecord.packet,
     origin_first_work_definition_ref: originDefinitionRef,
     generated_at: packet.generated_at,
+    outlook_version: retryInspectionOutlookVersion(packet),
   });
   if (
     canonicalizeProtocolValueV01(expected.packet) !==
@@ -729,34 +720,29 @@ function validatePreExecutionHistoryAtEachRevisionV01(
   genesis: TaskContextPacketV01,
   revisions: PreExecutionProjectWorkRevisionLineageV01[],
 ): void {
+  const latest = revisions.at(-1);
+  if (!latest) return;
   const allowed = new Set([genesis.packet_id]);
-  for (const revision of revisions) {
-    allowed.add(revision.packet.packet_id);
-    const coreRows = db
-      .prepare(
-        `SELECT record_kind, record_id FROM vnext_core_records
-          WHERE workspace_id = ? AND project_id = ? AND created_at <= ?`,
-      )
-      .all(input.workspace_id, input.project_id, revision.packet.generated_at) as Array<{
-      record_kind: string;
-      record_id: string;
-    }>;
-    if (
-      coreRows.some(
-        (row) =>
-          row.record_kind !== "work_expectation_record" && (row.record_kind !== "task_context_packet" || !allowed.has(row.record_id)),
-      )
-    ) {
-      refuse("work_revision_history_predates_revision", 409);
+  const rows = db.prepare(`SELECT record_kind, record_id, created_at FROM vnext_core_records
+    WHERE workspace_id = ? AND project_id = ? AND created_at <= ? ORDER BY created_at, record_kind, record_id`)
+    .iterate(input.workspace_id, input.project_id, latest.packet.generated_at) as Iterable<{ record_kind: string; record_id: string; created_at: string }>;
+  const iterator = rows[Symbol.iterator]();
+  let next = iterator.next(), inspected = 0;
+  try {
+    // Allowed packet membership is monotone. Validate each row at its first
+    // revision cutoff; later cutoffs cannot invalidate an earlier membership.
+    for (const revision of revisions) {
+      allowed.add(revision.packet.packet_id);
+      while (!next.done && next.value.created_at <= revision.packet.generated_at) {
+        if (++inspected > PROJECT_WORK_HISTORY_READ_BUDGET_V01.records) refuse("work_revision_history_read_budget_exceeded", 409);
+        if (!isNonBlockingPreExecutionRecordV01(db, input, next.value, allowed)) refuse("work_revision_history_predates_revision", 409);
+        next = iterator.next();
+      }
     }
-    const runHistory = inspectProjectManagedRunHistoryV01(db, {
-      ...input,
-      created_at_lte: revision.packet.generated_at,
-    });
-    if (runHistory.status !== "none") {
-      refuse("work_revision_run_history_predates_revision", 409);
-    }
-  }
+  } finally { iterator.return?.(); }
+  // Absence through the last cutoff proves absence at every earlier cutoff.
+  const runHistory = inspectProjectManagedRunHistoryV01(db, { ...input, created_at_lte: latest.packet.generated_at });
+  if (runHistory.status !== "none") refuse("work_revision_run_history_predates_revision", 409);
 }
 
 interface PacketRecordV01 extends VNextCoreRecordEnvelopeV01 {
@@ -767,60 +753,16 @@ function loadPacketRecords(
   db: Database.Database,
   input: { workspace_id: string; project_id: string },
 ): PacketRecordV01[] {
-  let rows: Array<{
-    record_kind: "task_context_packet";
-    record_id: string;
-    workspace_id: string;
-    project_id: string;
-    fingerprint: string;
-    idempotency_key: string | null;
-    payload_json: string;
-    created_at: string;
-  }>;
-  try {
-    rows = db
-      .prepare(
-        `SELECT record_kind, record_id, workspace_id, project_id, fingerprint,
-                idempotency_key, payload_json, created_at
-           FROM vnext_core_records
-          WHERE workspace_id = ? AND project_id = ?
-            AND record_kind = 'task_context_packet'
-          ORDER BY created_at, record_id LIMIT ?`,
-      )
-      .all(input.workspace_id, input.project_id, MAX_PACKET_ROWS + 1) as typeof rows;
-  } catch {
-    refuse("work_revision_source_unavailable", 409);
+  try { return readProjectWorkPacketHistoryV01(db, input); }
+  catch (error) {
+    if (error instanceof ProjectWorkPacketHistoryReadErrorV01)
+      return refuse(error.reason === "read_budget_exceeded" ? "work_revision_history_read_budget_exceeded" : `work_revision_${error.reason}`, 409);
+    if (error instanceof Error && error.message === "vnext_core_record_payload_corrupt") return refuse("work_revision_packet_invalid", 409);
+    if (typeof (error as { code?: unknown })?.code === "string" && (error as { code: string }).code.startsWith("SQLITE_"))
+      return refuse("work_revision_source_unavailable", 409);
+    // Core envelope/fingerprint failures retain their hard integrity refusal.
+    throw error;
   }
-  if (rows.length > MAX_PACKET_ROWS) refuse("work_revision_packet_bound_exceeded", 409);
-  return rows.map((row) => {
-    let packet: TaskContextPacketV01;
-    try {
-      packet = JSON.parse(row.payload_json) as TaskContextPacketV01;
-    } catch {
-      refuse("work_revision_packet_invalid", 409);
-    }
-    if (
-      validateTaskContextPacketV01(packet, {
-        evaluated_at: packet?.generated_at ?? "",
-      }).status !== "valid"
-    ) {
-      refuse("work_revision_packet_invalid", 409);
-    }
-    const record = { ...row, payload: packet } as VNextCoreRecordEnvelopeV01;
-    assertVNextCoreRecordMatchesProtocolPayloadBindingV01(record, {
-      workspace_id: packet.workspace_id,
-      project_id: packet.project_id,
-      fingerprint: packet.integrity.fingerprint,
-    });
-    if (
-      row.record_id !== packet.packet_id ||
-      row.created_at !== packet.generated_at ||
-      row.fingerprint !== packet.integrity.fingerprint
-    ) {
-      refuse("work_revision_packet_envelope_invalid", 409);
-    }
-    return { ...record, packet } as PacketRecordV01;
-  });
 }
 
 function readValidatedPacketRecordByIdentity(

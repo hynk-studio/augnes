@@ -1,6 +1,11 @@
 #!/usr/bin/env node
+import type { ProjectSelectionRevision } from "../lib/vnext/project-selection";
 
 import assert from "node:assert/strict";
+import { buildEvidenceRecordV01, buildClaimRecordV01, createClaimApplicabilityScopeV01 } from "../lib/vnext/project-verify-material";
+import { admitEvidenceRecordV01, readEvidenceRecordV01, admitClaimRecordV01 } from "../lib/vnext/persistence/project-verify-material-store";
+import { exportActivePortableProjectV01, importPortableProjectV01 } from "../lib/vnext/portability/portable-project";
+import { readProjectWorkRevisionEligibilityV01 } from "../lib/vnext/runtime/project-work-revision";
 import { spawnSync } from "node:child_process";
 import { admitPersistedHostTaskContextPacketV01 } from "../lib/vnext/runtime/direct-native-host-round-trip";
 import { previewNewProjectWorkV01 } from "../lib/vnext/runtime/project-work-revision";
@@ -27,7 +32,7 @@ import { buildSelectedWorkSourceEntry, compareSelectedWorkSources, normalizeSele
 import { readProjectWorkInitializationV01 } from "../lib/vnext/runtime/project-work-initialization";
 import { insertVNextCoreRecordV01 } from "../lib/vnext/persistence/durable-semantic-store";
 import { buildTaskContextPacketV01, validateTaskContextPacketV01 } from "../lib/vnext/task-context-packet";
-import { inspectVNextOperatorPilotPacketLineageV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity";
+import { inspectVNextOperatorPilotPacketLineageV01, inspectVNextOperatorPilotPacketLineagesV01, readCurrentProjectWorkPacketLineageV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity";
 import { StateRuntimeHttpAdapter } from "../apps/augnes_apps/src/adapters/state-runtime-http";
 import {
   readCodexRepositoryContinuityV01,
@@ -55,6 +60,7 @@ import {
 import { insertAutonomyRunLedgerRecord } from "../lib/autonomy/runner-ledger";
 import { buildDefaultRunnerSourceRefs, buildDefaultRunnerBudgetSnapshot, buildDefaultRunnerAuthorityBoundary } from "../lib/autonomy/runner-state";
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
+import { assertCompanionWorkRevisionEnvelopeV01 } from "./companion-work-revision-envelope-checks";
 
 const NOW = "2026-08-03T00:00:00.000Z";
 const ROOT = mkdtempSync(path.join(tmpdir(), "augnes-cdx2b1-"));
@@ -62,6 +68,7 @@ const ROOT = mkdtempSync(path.join(tmpdir(), "augnes-cdx2b1-"));
 void main().finally(() => rmSync(ROOT, { recursive: true, force: true }));
 
 async function main(): Promise<void> {
+  if (process.argv.includes("--work-revision-envelope-only")) { await assertCompanionWorkRevisionEnvelopeV01(ROOT); return; }
   if (process.argv.includes("--fresh-preparation-read")) {
     const db = new Database(process.argv[3]!, { readonly: true, fileMustExist: true });
     try {
@@ -76,10 +83,15 @@ async function main(): Promise<void> {
     } finally { db.close(); }
     return;
   }
+  if (process.argv.includes("--support-material-revision-only")) { await assertSupportMaterialRevisionV01(); return; }
+  if (process.argv.includes("--current-work-read-only")) { assertCurrentWorkReadV01(); return; }
   if (process.argv.includes("--new-work-only")) { await assertNewWorkPreparationV01(); return; }
   if (process.argv.includes("--work-revision-only") || process.argv.includes("--work-revision-limit-only")) {
     await assertCompanionWorkRevisionV01(process.argv.includes("--work-revision-limit-only"));
-    if (process.argv.includes("--work-revision-only")) await assertCompanionRetainedBoundsV01();
+    if (process.argv.includes("--work-revision-only")) {
+      await assertCompanionRetainedBoundsV01();
+      await assertCompanionWorkRevisionEnvelopeV01(ROOT);
+    }
     return;
   }
   await assertNewWorkPreparationV01();
@@ -100,6 +112,213 @@ async function main(): Promise<void> {
     same_path_replacement_baseline: false,
     selected_sources_snapshot_and_route_contract: true,
   }, null, 2));
+}
+
+/** Separate bounded child: read reuse must not become cross-write authority. */
+function assertCurrentWorkReadV01(): void {
+  const db = databaseV01("current-work-read");
+  try {
+    db.pragma("journal_mode = WAL");
+    const workspace = workspaceV01(db), root = projectRootV01("current-work-read");
+    const registration = registerV01(db, workspace.workspace_id, root, "Current read", "67000000-0000-4000-8000-000000000001");
+    const scope = { workspace_id: workspace.workspace_id, project_id: registration.project.project_id };
+    selectV01(db, scope.workspace_id, scope.project_id, null, null);
+    const config: VNextLocalOperatorPilotConfigV01 = { enabled: true, ...scope, operator_id: "operator:current-read", database_path: db.name };
+    let ticks = 0;
+    const clock = { now: () => new Date(Date.parse(NOW) + ticks++ * 1000).toISOString() };
+    const credential = () => consumeVNextLocalOperatorBootstrapV01(db, { config, clock,
+      bootstrap_token: issueVNextLocalOperatorBootstrapV01(db, { config, clock }).bootstrap_token }).credential;
+    let packet = defineInitialProjectWorkV01(db, { config, clock, credential: credential(), request: {
+      action: "define_initial_project_work", ...scope, expected_active_project_id: scope.project_id,
+      expected_active_selection_revision: readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision, expected_initialization_state: "not_defined",
+      goal: "Read one coherent preparation", success_criteria: ["Keep exact lineage"], non_goals: ["No execution"],
+    } }).packet;
+    const evidence = [0, 1, 2, 3].map((i) => {
+      const at = clock.now(), ref = { ref_version: "external_ref.v0.1" as const, ref_type: "project_verify_source",
+        external_id: `note:read-${i}`, trust_class: "user_declaration" as const, observed_at: at };
+      const record = buildEvidenceRecordV01({ ...scope, identity_namespace: "augnes.test.current-read.v0.1", identity_key: String(i),
+        evidence_kind: "user_declared_material", subject_refs: [ref], source_refs: [ref], source_observed_or_reported_at: at,
+        recorded_at: at, trust_class: "user_declaration", coverage: "partial", bounded_summary: `Unselected support ${i}`,
+        material_fingerprint: null, limitations: ["Not acceptance"], uncertainty: ["Unverified"],
+        producer: { producer_kind: "user", producer_profile: "disposable-current-read.v0.1" } });
+      assert.equal(admitEvidenceRecordV01(db, { ...scope, evidence: record }).status, "inserted");
+      return record;
+    });
+    const request = (goal: string) => ({ action: "revise_pre_execution_project_work" as const, ...scope,
+      expected_active_project_id: scope.project_id, expected_active_selection_revision: readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision,
+      expected_current_packet_id: packet.packet_id, expected_current_packet_fingerprint: packet.integrity.fingerprint,
+      expected_current_lineage_kind: packetLineageKindV01(packet)!, ...packet.task, goal });
+    for (let i = 1; i <= 3; i++) packet = revisePreExecutionProjectWorkV01(db, {
+      config, clock, credential: credential(), request: request(`Revision ${i}`),
+    }).packet;
+    const chain = inspectPreExecutionProjectWorkRevisionChainV01(db, scope);
+    const identities = chain.packets.map((p) => ({ packet_id: p.packet_id, packet_fingerprint: p.integrity.fingerprint }));
+    const standalone = identities.map((identity) => inspectVNextOperatorPilotPacketLineageV01(db, { config, ...identity }));
+    const batch = (database = db, projectConfig = config) => inspectVNextOperatorPilotPacketLineagesV01(database, { config: projectConfig, packets: identities });
+    const strict = (database = db, projectConfig = config) => readCurrentProjectWorkPacketLineageV01(database, projectConfig);
+    const before = db.serialize();
+    assert.deepEqual(batch(), standalone, "batch preserves every standalone lineage field");
+    assert.deepEqual(strict(), standalone.at(-1), "strict current lineage preserves the standalone projection");
+    const expected = readProjectWorkInitializationV01(db, scope);
+    assert.equal(expected.state, "defined_revised_work");
+    assert.equal(expected.revision_eligibility.eligible, true);
+    assert.deepEqual(db.serialize(), before);
+
+    // Count actual executed reads, not prepared statements or inferred exports.
+    const prepare = db.prepare.bind(db);
+    let evidenceReads = 0, chainLoads = 0;
+    db.prepare = ((sql: string) => {
+      const statement = prepare(sql);
+      if (/SELECT \* FROM vnext_core_records/u.test(sql)) {
+        const get = statement.get.bind(statement);
+        statement.get = ((...args: unknown[]) => { if (args[0] === "evidence_record") evidenceReads++; return get(...args); }) as typeof statement.get;
+      }
+      // Each chain reconstruction executes one historical-cutoff traversal.
+      // Packet reads now use the shared parameterized keyset iterator: one
+      // inventory scan is not one reconstruction, and one page is not a chain.
+      if (/^SELECT record_kind, record_id, created_at FROM vnext_core_records WHERE workspace_id = \? AND project_id = \? AND created_at <= \? ORDER BY created_at, record_kind, record_id$/u.test(sql.replace(/\s+/gu, " ").trim())) {
+        const iterate = statement.iterate.bind(statement);
+        statement.iterate = ((...args: unknown[]) => { chainLoads++; return iterate(...args); }) as typeof statement.iterate;
+      }
+      return statement;
+    }) as typeof db.prepare;
+    try {
+      assert.deepEqual(readProjectWorkInitializationV01(db, scope), expected);
+      assert.equal(chainLoads, 2, "eligibility and the private packet batch each reconstruct once");
+      assert.equal(evidenceReads, evidence.length * 3, "canonical Evidence once per chain plus current eligibility");
+      chainLoads = 0; evidenceReads = 0;
+      assert.deepEqual(strict(), standalone.at(-1));
+      assert.equal(chainLoads, 1, "strict continuity reconstructs the whole chain once, not per packet");
+      assert.equal(evidenceReads, evidence.length, "strict continuity still validates every canonical Evidence record");
+      assert.deepEqual(strict(), standalone.at(-1));
+      assert.equal(chainLoads, 2, "an actual second read must be observed as a second reconstruction");
+      assert.equal(evidenceReads, evidence.length * 2, "the next read must revalidate Evidence instead of reusing authority");
+    }
+    finally { db.prepare = prepare; }
+    assert.deepEqual(batch(db, { ...config, project_id: "project:foreign" }), identities.map(() => null));
+    assert.equal(strict(db, { ...config, project_id: "project:foreign" }), null);
+
+    // A serialized WAL database needs a file-backed reopen; an in-memory
+    // deserialize cannot provide its WAL sidecars.
+    const copyPath = path.join(ROOT, "current-work-read-copy.db");
+    writeFileSync(copyPath, db.serialize());
+    const copy = new Database(copyPath);
+    try {
+      assert.deepEqual(batch(copy), standalone, "same identities in another database require their own read");
+      assert.deepEqual(strict(copy), standalone.at(-1));
+      const trigger = copy.prepare("SELECT sql FROM sqlite_master WHERE name = 'trg_vnext_core_records_immutable_update'").get() as { sql: string };
+      copy.exec("BEGIN");
+      copy.exec("DROP TRIGGER trg_vnext_core_records_immutable_update");
+      copy.prepare("UPDATE vnext_core_records SET payload_json = '{}' WHERE record_id = ?").run(evidence[0]!.evidence_id);
+      copy.exec(trigger.sql);
+      assert(batch(copy).slice(1).every((lineage) => lineage === null), "same-connection mutation cannot reuse an earlier validation");
+      let standaloneError: Error | undefined;
+      assert.throws(() => inspectVNextOperatorPilotPacketLineageV01(copy, { config, ...identities[1]! }), (error) => {
+        assert(error instanceof Error); standaloneError = error; return true;
+      });
+      assert.throws(() => strict(copy), (error) => {
+        assert(error instanceof Error); assert.equal(error.name, standaloneError!.name);
+        assert.equal(error.message, standaloneError!.message); return true;
+      }, "strict continuity preserves the standalone integrity failure");
+      assert.equal(readProjectWorkInitializationV01(copy, scope).current_packet, null);
+      assert.deepEqual(batch(), standalone, "corrupt copy cannot poison a different database");
+      assert.deepEqual(strict(), standalone.at(-1));
+      copy.exec("ROLLBACK");
+      assert.deepEqual(batch(copy), standalone, "rollback gets a fresh complete reconstruction");
+      assert.deepEqual(strict(copy), standalone.at(-1));
+    } finally { copy.close(); }
+
+    const blockingClaim = (key: string) => buildClaimRecordV01({ ...scope,
+      family_origin: { origin_namespace: "augnes.test.current-read-claim.v0.1", origin_seed: key,
+        origin_profile: evidence[0]!.producer.producer_profile, origin_producer_kind: "user" },
+      revision: 1, prior_claim_ref: null, operation_intent: "create", operation_target_claim_ref: null,
+      proposition: "A Claim remains blocking preparation history.", subject_refs: evidence[0]!.subject_refs, source_refs: evidence[0]!.source_refs,
+      applicability_scope: createClaimApplicabilityScopeV01({ subject_refs: evidence[0]!.subject_refs }),
+      limitations: ["No acceptance"], uncertainty: ["Unverified"], producer: evidence[0]!.producer, created_at: evidence[0]!.recorded_at,
+    });
+    // Inject a legitimate material write after packet insertion, in the writer's
+    // own transaction. Post-insert reconstruction must not reuse its pre-read.
+    const authorized = credential(), beforeFailedWrite = db.serialize();
+    let injected = false;
+    db.prepare = ((sql: string) => {
+      const statement = prepare(sql);
+      if (/INSERT INTO vnext_core_records/u.test(sql)) {
+        const run = statement.run.bind(statement);
+        statement.run = ((...args: unknown[]) => {
+          const result = run(...args);
+          if (!injected && args[0] === "task_context_packet") {
+            injected = true;
+            admitClaimRecordV01(db, { ...scope, claim: blockingClaim("post-insert") });
+          }
+          return result;
+        }) as typeof statement.run;
+      }
+      return statement;
+    }) as typeof db.prepare;
+    try { assert.throws(() => revisePreExecutionProjectWorkV01(db, { config, clock, credential: authorized, request: request("Must roll back") }), /work_revision_history_predates_revision/u); }
+    finally { db.prepare = prepare; }
+    assert(injected);
+    assert.deepEqual(db.serialize(), beforeFailedWrite, "post-insert refusal rolls back packet, Claim and authorization consumption");
+    assert.deepEqual(readProjectWorkInitializationV01(db, scope), expected);
+
+    const strictCopyPath = path.join(ROOT, "strict-current-work-read-copy.db");
+    writeFileSync(strictCopyPath, db.serialize());
+    const strictCopy = new Database(strictCopyPath);
+    strictCopy.pragma("journal_mode = WAL");
+    const strictWriter = new Database(strictCopyPath);
+    const strictPrepare = strictCopy.prepare.bind(strictCopy);
+    let strictCommitted = false;
+    strictCopy.prepare = ((sql: string) => {
+      const statement = strictPrepare(sql);
+      if (/SELECT \* FROM vnext_core_records/u.test(sql)) {
+        const get = statement.get.bind(statement);
+        statement.get = ((...args: unknown[]) => {
+          const value = get(...args);
+          if (!strictCommitted && args[0] === "task_context_packet") {
+            strictCommitted = true;
+            admitClaimRecordV01(strictWriter, { ...scope, claim: blockingClaim("strict-concurrent") });
+          }
+          return value;
+        }) as typeof statement.get;
+      }
+      return statement;
+    }) as typeof strictCopy.prepare;
+    try {
+      assert.deepEqual(strict(strictCopy), standalone.at(-1), "strict continuity owns its entire read snapshot");
+      assert(strictCommitted);
+      assert.throws(() => strict(strictCopy), /work_revision_history_predates_revision/u, "next strict read sees the committed blocker");
+    } finally { strictWriter.close(); strictCopy.close(); }
+
+    // A second connection commits during the batch after its first packet read.
+    // WAL lets that writer finish; the active read sees one earlier snapshot.
+    const writer = new Database(db.name);
+    let committed = false;
+    db.prepare = ((sql: string) => {
+      const statement = prepare(sql);
+      if (/SELECT \* FROM vnext_core_records/u.test(sql)) {
+        const get = statement.get.bind(statement);
+        statement.get = ((...args: unknown[]) => {
+          const value = get(...args);
+          if (!committed && args[0] === "task_context_packet") {
+            committed = true;
+            admitClaimRecordV01(writer, { ...scope, claim: blockingClaim("concurrent") });
+          }
+          return value;
+        }) as typeof statement.get;
+      }
+      return statement;
+    }) as typeof db.prepare;
+    try { assert.deepEqual(batch(), standalone, "a concurrent commit cannot mix snapshots within the batch"); }
+    finally { db.prepare = prepare; writer.close(); }
+    assert(committed);
+    assert(batch().slice(1).every((lineage) => lineage === null), "next batch must observe the committed historical blocker");
+    assert.throws(() => strict(), /work_revision_history_predates_revision/u);
+    assert.equal(readProjectWorkInitializationV01(db, scope).current_packet, null);
+    assert.throws(() => inspectPreExecutionProjectWorkRevisionChainV01(db, scope), /work_revision_history_predates_revision/u);
+    console.log(JSON.stringify({ current_work_read: "pass", chain_loads: chainLoads, canonical_evidence_reads: evidenceReads,
+      exact_lineage_parity: true, cross_database_and_scope: true, rollback: true, post_insert_validation: true,
+      concurrent_snapshot: true, fresh_read_after_commit: true }));
+  } finally { db.close(); }
 }
 
 /** Operational shape: 14 packets, five bounded selected notes, no retained data. */
@@ -147,17 +366,32 @@ async function assertCurrentSourcesRevisionDepthV01(): Promise<void> {
       assert.equal(JSON.stringify(transported).includes("<b>Literal instruction"), false);
       assert.equal(JSON.stringify(transported).includes("/Users/disposable/withheld"), false);
     }
-    let initializationScans = 0;
+    let initializationScans = 0, historyCutoffScans = 0;
     const prepare = db.prepare.bind(db);
     db.prepare = ((sql: string) => {
-      if (/ORDER BY created_at, record_kind, record_id/u.test(sql)) initializationScans++;
+      const query = sql.replace(/\s+/gu, " ").trim();
+      // Identify the complete initialization query, not its shared ordering.
+      // The cumulative-history validator also orders cutoff rows this way;
+      // those reads do not repeat current-work initialization.
+      if (/^SELECT record_kind, record_id, workspace_id, project_id, fingerprint, idempotency_key, payload_json, created_at FROM vnext_core_records WHERE workspace_id = \? AND project_id = \? ORDER BY created_at, record_kind, record_id LIMIT \?$/u.test(query)) initializationScans++;
+      if (/^SELECT record_kind, record_id, created_at FROM vnext_core_records WHERE workspace_id = \? AND project_id = \? AND created_at <= \? ORDER BY created_at, record_kind, record_id$/u.test(query)) historyCutoffScans++;
       return prepare(sql);
     }) as typeof db.prepare;
     const started = performance.now();
-    const result = await readCodexRepositoryWorkSourcesV01(db, { repository_root: root, expected_snapshot_binding: binding });
-    db.prepare = prepare;
+    let result: Awaited<ReturnType<typeof readCodexRepositoryWorkSourcesV01>>, sourceReadScans: number, readMs: number;
+    try {
+      result = await readCodexRepositoryWorkSourcesV01(db, { repository_root: root, expected_snapshot_binding: binding });
+      readMs = Math.round(performance.now() - started);
+      sourceReadScans = initializationScans;
+      assert.equal(sourceReadScans, 1, "one coherent source read must not repeat canonical work/lineage initialization already used by its snapshot");
+      assert.equal(historyCutoffScans, 3, "separate historical-cutoff reads must not masquerade as current-work initialization");
+      // An actual duplicate owner invocation must still trip the one-read
+      // invariant. A narrowed SQL observer may not silently miss real repeats.
+      readProjectWorkInitializationV01(db, scope);
+      assert.equal(initializationScans, 2, "duplicate initialization negative control must be observed");
+    } finally { db.prepare = prepare; }
     console.log(JSON.stringify({ current_sources_revision_depth: 14, note_occurrences: 64,
-      initialization_scans: initializationScans, read_ms: Math.round(performance.now() - started) }));
+      initialization_scans: sourceReadScans, duplicate_initialization_negative_control: "detected", read_ms: readMs }));
     assert.equal(result.status, "available");
     assert.equal(result.snapshot_binding, binding);
     assert.equal(result.packet_fingerprint, packet.integrity.fingerprint);
@@ -165,7 +399,6 @@ async function assertCurrentSourcesRevisionDepthV01(): Promise<void> {
     assert.deepEqual(result.sources.map(s => s.source_binding), notes.map(s => s.source_ref));
     assert.equal(result.sources.filter(s => s.source_locator === null).length, 1);
     assert.deepEqual(db.serialize(), before);
-    assert.equal(initializationScans, 1, "one coherent source read must not repeat canonical work/lineage initialization already used by its snapshot");
   } finally { db.close(); }
 }
 
@@ -286,8 +519,8 @@ async function assertCompanionWorkRevisionV01(limitOnly = false): Promise<void> 
     const call = (input: unknown, override = channel) => reviseCodexRepositoryWorkV01(db, input, override, dependencies);
     const prepare = async (changes: unknown) => ({ action: "preview", repository_root: root, expected_snapshot_binding: await snapshot(), changes });
     if (limitOnly) {
-    // Existing limit remains 32. The final inserted revision can still be
-    // acknowledged once more, without minting a 33rd revision.
+    // Cross the former lifetime boundary through the real delegated writer;
+    // its separate per-channel mutation budget is unchanged.
     const prefix = inspectPreExecutionProjectWorkRevisionChainV01(db, scope);
     let prefixPacket = prefix.tip_packet;
     const fixtureCredential = initialCredential;
@@ -316,7 +549,12 @@ async function assertCompanionWorkRevisionV01(limitOnly = false): Promise<void> 
     assert.equal((await call(finalSave)).status, "saved");
     assert.equal((await call(finalSave)).status, "exact_replay");
     assert.equal((db.prepare("SELECT count(*) AS count FROM vnext_core_records WHERE record_kind = 'task_context_packet' AND workspace_id = ? AND project_id = ?").get(scope.workspace_id, scope.project_id) as { count: number }).count, 33);
-      console.log(JSON.stringify({ contract: "codex_repository_work_revision.v0.1", final_revision_slot_and_replay: "pass" }));
+    const next = await prepare({ goal: "Continue past revision 32" });
+    const nextSave = { ...next, action: "save", preview_binding: (await call(next)).preview_binding };
+    assert.equal((await call(nextSave)).status, "saved");
+    assert.equal((await call(nextSave)).status, "exact_replay");
+    assert.equal(inspectPreExecutionProjectWorkRevisionChainV01(db, scope).revision_count, 33);
+      console.log(JSON.stringify({ contract: "codex_repository_work_revision.v0.1", former_boundary_and_replay: "pass", revision_count: 33 }));
       return;
     }
     const before = db.serialize();
@@ -1065,7 +1303,7 @@ async function assertRepositoryAttachmentUsesExactProjectContinuityV01(): Promis
   }
 }
 
-function beforeSelectionRevisionOrThrow(db: Database.Database, workspaceId: string): number {
+function beforeSelectionRevisionOrThrow(db: Database.Database, workspaceId: string): ProjectSelectionRevision {
   const selection = readActiveProjectSelectionV01(db, workspaceId);
   assert(selection);
   return selection.selection_revision;
@@ -1100,7 +1338,7 @@ function registerV01(db: Database.Database, workspaceId: string, root: string, d
   }, { create_uuid: () => uuid, now: () => NOW });
 }
 
-function selectV01(db: Database.Database, workspaceId: string, projectId: string, expectedProjectId: string | null, expectedRevision: number | null): void {
+function selectV01(db: Database.Database, workspaceId: string, projectId: string, expectedProjectId: string | null, expectedRevision: ProjectSelectionRevision | null): void {
   selectActiveProjectV01(db, {
     workspace_id: workspaceId,
     project_id: projectId,
@@ -1139,7 +1377,7 @@ async function assertNewWorkPreparationV01(): Promise<void> {
     const definition = (goal: string) => ({ goal, success_criteria: ["Fresh readers agree"], non_goals: ["No execution or acceptance"] });
     const first = defineInitialProjectWorkV01(db, { config, credential: credential(), clock, request: {
       action: "define_initial_project_work", ...scope, expected_active_project_id: scope.project_id,
-      expected_active_selection_revision: 1, expected_initialization_state: "not_defined", ...definition("X: inspect packaging"),
+      expected_active_selection_revision: readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision, expected_initialization_state: "not_defined", ...definition("X: inspect packaging"),
     } }).packet;
     const channel = { key: "disposable-new-work", instance_id: "instance", generation_id: "generation", repository_fingerprint: "e".repeat(64) };
     const snapshot = async () => (await readCodexRepositoryContinuityV01(db, { repository_root: root }, dependencies)).continuity!.snapshot.binding!;
@@ -1186,7 +1424,7 @@ async function assertNewWorkPreparationV01(): Promise<void> {
     assert.deepEqual(db.serialize(), before, "failed insert rolls back its authenticated admission");
     let reserved = false;
     const result = await reviseCodexRepositoryWorkV01(db, save, channel, { ...dependencies, inspect_physical_root: async value => {
-      assert.throws(() => selectV01(second!, scope.workspace_id, scope.project_id, scope.project_id, 1), /locked/u);
+      assert.throws(() => selectV01(second!, scope.workspace_id, scope.project_id, scope.project_id, readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision), /locked/u);
       reserved = true; return inspectNativeHostPhysicalRootIdentityV01(value);
     } });
     assert(reserved); assert.equal(result.status, "saved"); assert.equal(result.effects.work_revision_created, false);
@@ -1230,7 +1468,7 @@ async function assertNewWorkPreparationV01(): Promise<void> {
     // Browser-domain preview and authenticated save share the exact same writer.
     const prior = chain().tip_packet, selected = readSelectedWorkSources(prior);
     const draft = { action: "preview_new_project_work", ...scope, expected_active_project_id: scope.project_id,
-      expected_active_selection_revision: 1, expected_current_packet_id: prior.packet_id,
+      expected_active_selection_revision: readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision, expected_current_packet_id: prior.packet_id,
       expected_current_packet_fingerprint: prior.integrity.fingerprint, expected_current_lineage_kind: chain().tip_lineage_kind,
       ...definition("Z: another explicit task"), selected_source_context: [], expected_source_comparison: compareSelectedWorkSources(prior, []).fingerprint,
       omitted_sources: selected.map(entry => ({ source_binding: entry.source_ref!, reason: "Keep as prior-task history; no relevance asserted for Z." })) };
@@ -1244,7 +1482,7 @@ async function assertNewWorkPreparationV01(): Promise<void> {
     } }), /new_work_preview_changed/u);
     assert.throws(() => revisePreExecutionProjectWorkV01(db, { config, credential: browserCredential, clock, request: {
       action: "revise_pre_execution_project_work", ...scope, expected_active_project_id: scope.project_id,
-      expected_active_selection_revision: 1, expected_current_packet_id: x.packet_id,
+      expected_active_selection_revision: readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision, expected_current_packet_id: x.packet_id,
       expected_current_packet_fingerprint: x.integrity.fingerprint, expected_current_lineage_kind: "pre_execution_user_revision",
       ...definition("An old binding must not edit X"),
     } }), /work_revision_current_packet_changed/u);
@@ -1266,7 +1504,7 @@ async function assertNewWorkPreparationV01(): Promise<void> {
       // This is an ambiguity refusal fixture, not a supported preparation write.
       const conflictingDefinition = definition("Conflicting branch, never current");
       const conflictingRequest = { action: "revise_pre_execution_project_work" as const, ...scope,
-        expected_active_project_id: scope.project_id, expected_active_selection_revision: 1,
+        expected_active_project_id: scope.project_id, expected_active_selection_revision: readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision,
         expected_current_packet_id: x.packet_id, expected_current_packet_fingerprint: x.integrity.fingerprint,
         expected_current_lineage_kind: "pre_execution_user_revision" as const, ...conflictingDefinition };
       const branch = buildPreExecutionProjectWorkRevisionPacketV01({ request: conflictingRequest, definition: conflictingDefinition,
@@ -1285,4 +1523,303 @@ async function assertNewWorkPreparationV01(): Promise<void> {
     assert.equal((db.prepare("SELECT count(*) AS n FROM autonomy_runs").get() as { n: number }).n, 0);
     console.log(JSON.stringify({ contract: "explicit_new_work_preparation", normal_writers_X_Y_revision_Z: "pass", fresh_process_resume_sources_browser: "pass", exact_replay_no_reactivation: "pass", rollback_history_recovery: "pass", model_calls: 0 }));
   } finally { try { second?.close(); } finally { db.close(); } assert.equal(db.open, false); assert.notEqual(second?.open, true); }
+}
+
+/** Real immutable Evidence admission alongside an authenticated preparation chain. */
+async function assertSupportMaterialRevisionV01(): Promise<void> {
+  const { parseRepositoryContinuityResponseV01, parseRepositoryWorkRevisionResponseV01,
+    parseRepositoryWorkSourcesResponseV01 } = await import("../plugins/augnes-operator/mcp/companion-proxy.mjs");
+  const db = databaseV01("support-material-revision");
+  try {
+    const workspace = workspaceV01(db), root = projectRootV01("support-material-revision");
+    const registration = registerV01(db, workspace.workspace_id, root, "Support material revision", "64000000-0000-4000-8000-000000000001");
+    const scope = { workspace_id: workspace.workspace_id, project_id: registration.project.project_id };
+    selectV01(db, scope.workspace_id, scope.project_id, null, null);
+    const config: VNextLocalOperatorPilotConfigV01 = { enabled: true, ...scope, operator_id: "operator:support-material", database_path: db.name };
+    let ticks = 0;
+    const clock = { now: () => new Date(Date.parse(NOW) + ticks++ * 1000).toISOString() };
+    const dependencies = { now: clock.now, managed_start_available: () => false, read_operator_config: () => null };
+    const credential = () => consumeVNextLocalOperatorBootstrapV01(db, { config, clock,
+      bootstrap_token: issueVNextLocalOperatorBootstrapV01(db, { config, clock }).bootstrap_token }).credential;
+    const initial = defineInitialProjectWorkV01(db, { config, credential: credential(), clock, request: {
+      action: "define_initial_project_work", ...scope, expected_active_project_id: scope.project_id,
+      expected_active_selection_revision: readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision, expected_initialization_state: "not_defined",
+      goal: "Inspect the bounded preparation", success_criteria: ["Preserve exact sources"], non_goals: ["No execution or semantic acceptance"],
+    } }).packet;
+    const initialRows = db.prepare("SELECT * FROM vnext_core_records ORDER BY record_id").all();
+    assert.equal(readProjectWorkRevisionEligibilityV01(db, scope).status, "eligible_initial_packet");
+    const evidence: ReturnType<typeof buildEvidenceRecordV01>[] = [];
+    const addEvidence = (key: string, target = scope) => {
+      const at = clock.now();
+      const ref = { ref_version: "external_ref.v0.1" as const, ref_type: "project_verify_source",
+        external_id: `note:${key}`, trust_class: "user_declaration" as const, observed_at: at };
+      const material = buildEvidenceRecordV01({ ...target,
+        identity_namespace: "augnes.test.preparation-support.v0.1", identity_key: key,
+        evidence_kind: "user_declared_material", subject_refs: [ref], source_refs: [ref],
+        source_observed_or_reported_at: at, recorded_at: at, trust_class: "user_declaration", coverage: "partial",
+        bounded_summary: `Unselected support ${key}; conditions remain unverified.`, material_fingerprint: null,
+        limitations: ["Support is not acceptance or execution."], uncertainty: ["Applicability remains open."],
+        producer: { producer_kind: "user", producer_profile: "disposable-support-material.v0.1" },
+      });
+      assert.equal(admitEvidenceRecordV01(db, { ...target, evidence: material }).status, "inserted");
+      if (target.project_id === scope.project_id) evidence.push(material);
+      return material;
+    };
+    addEvidence("before-preview");
+    const initialRead = readProjectWorkInitializationV01(db, scope);
+    const eligibility = readProjectWorkRevisionEligibilityV01(db, scope);
+    console.log(JSON.stringify({ support_material_baseline: { current: initialRead.state, evidence_records: 1,
+      status: eligibility.status, reason: eligibility.reason, packet: initialRead.current_packet?.packet_id } }));
+    if (!eligibility.eligible) {
+      const authorized = credential(), before = db.serialize();
+      assert.throws(() => revisePreExecutionProjectWorkV01(db, { config, credential: authorized, clock, request: {
+        action: "revise_pre_execution_project_work", ...scope, expected_active_project_id: scope.project_id,
+        expected_active_selection_revision: readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision, expected_current_packet_id: initial.packet_id,
+        expected_current_packet_fingerprint: initial.integrity.fingerprint, expected_current_lineage_kind: "initial_user_defined",
+        ...initial.task, goal: "Revise with unrelated support",
+      } }), /work_revision_history_changed/u);
+      assert.deepEqual(db.serialize(), before);
+      console.log("original authenticated revision refusal: work_revision_history_changed; database unchanged");
+    }
+    assert.equal(eligibility.status, "eligible_initial_packet", "canonical support material must not close preparation editing");
+    assert.equal(eligibility.reason, "current_unexecuted_initial");
+    const channel = { key: "disposable-support-channel", instance_id: "support-instance", generation_id: "support-generation", repository_fingerprint: "f".repeat(64) };
+    const resume = async () => {
+      const value = await readCodexRepositoryContinuityV01(db, { repository_root: root }, dependencies);
+      assert.deepEqual(parseRepositoryContinuityResponseV01(JSON.parse(JSON.stringify(value))), value);
+      return value;
+    };
+    const call = async (input: unknown) => {
+      const value = await reviseCodexRepositoryWorkV01(db, input, channel, dependencies);
+      assert.deepEqual(parseRepositoryWorkRevisionResponseV01(JSON.parse(JSON.stringify(value))), value);
+      return value;
+    };
+    const chain = () => inspectPreExecutionProjectWorkRevisionChainV01(db, scope);
+    const note = { source: "explicit:selected-note", text: "Selected condition only; Evidence stays unselected.",
+      observed_at: NOW, provenance: "user_declaration", label: "Open question" };
+    const input = { action: "preview", repository_root: root, expected_snapshot_binding: (await resume()).continuity!.snapshot.binding!,
+      changes: { goal: "Revise with unrelated support", sources: { add: [note] } } };
+    const preview = await call(input);
+    addEvidence("between-preview-and-save");
+    assert.equal((await resume()).continuity!.snapshot.binding, input.expected_snapshot_binding,
+      "unselected support does not replace work, active selection or execution bindings");
+    const save = { ...input, action: "save", preview_binding: preview.preview_binding };
+    const before = db.serialize();
+    await assert.rejects(call({ ...save, changes: { goal: "Changed after authorization" } }), /preview_changed/u);
+    db.exec("CREATE TEMP TRIGGER reject_support_revision BEFORE INSERT ON vnext_core_records BEGIN SELECT RAISE(ABORT, 'support_revision_rollback'); END");
+    await assert.rejects(call(save), /support_revision_rollback/u);
+    db.exec("DROP TRIGGER reject_support_revision");
+    assert.deepEqual(db.serialize(), before, "admission and packet append roll back together");
+    const first = await call(save);
+    assert.equal(first.status, "saved");
+    assert.equal(chain().revision_count, 1);
+    assert.equal(chain().tip_packet.integrity.fingerprint, first.packet_fingerprint);
+    assert.equal((await call(save)).status, "exact_replay");
+    assert.equal(chain().revision_count, 1);
+    const selected = readSelectedWorkSources(chain().tip_packet);
+    assert.equal(selected.length, 1);
+    assert.equal(selected[0]!.bounded_summary, note.text);
+    assert.equal(selected[0]!.trust_class, note.provenance);
+    assert.equal(selected[0]!.external_ref!.observed_at, note.observed_at);
+    assert.equal(selected[0]!.currentness.as_of, note.observed_at);
+    const firstPacket = chain().tip_packet;
+    addEvidence("between-revisions");
+    // Browser-domain authenticated save shares the same chain and history rule.
+    const compared = compareSelectedWorkSources(firstPacket, selected);
+    const second = revisePreExecutionProjectWorkV01(db, { config, credential: credential(), clock, request: {
+      action: "revise_pre_execution_project_work", ...scope, expected_active_project_id: scope.project_id,
+      expected_active_selection_revision: readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision, expected_current_packet_id: firstPacket.packet_id,
+      expected_current_packet_fingerprint: firstPacket.integrity.fingerprint, expected_current_lineage_kind: "pre_execution_user_revision",
+      ...firstPacket.task, goal: "Second revision with support still present", selected_source_context: selected,
+      expected_source_comparison: compared.fingerprint,
+    } });
+    assert.equal(second.status, "inserted");
+    assert.equal(second.revision_eligibility.reason, "current_unexecuted_revision");
+    assert.equal(chain().revision_count, 2);
+    assert.deepEqual(db.prepare("SELECT record_kind, count(*) AS n FROM vnext_core_records GROUP BY record_kind ORDER BY record_kind").all(),
+      [{ record_kind: "evidence_record", n: 3 }, { record_kind: "task_context_packet", n: 3 }]);
+    for (const table of ["autonomy_runs", "vnext_semantic_state_entries", "vnext_semantic_target_heads"]) {
+      assert.equal((db.prepare(`SELECT count(*) AS n FROM ${table}`).get() as { n: number }).n, 0);
+    }
+    assert.deepEqual(readSelectedWorkSources(second.packet), selected);
+    await assert.rejects(call(save), /refresh_required/u, "an older predecessor cannot authorize another append");
+    const sourceRead = await readCodexRepositoryWorkSourcesV01(db, { repository_root: root,
+      expected_snapshot_binding: (await resume()).continuity!.snapshot.binding! }, dependencies);
+    assert.deepEqual(parseRepositoryWorkSourcesResponseV01(JSON.parse(JSON.stringify(sourceRead))), sourceRead);
+    assert.equal(sourceRead.sources.length, 1, "the support records were not implicitly selected");
+    const fresh = spawnSync(process.execPath, ["--import", "tsx", "scripts/test-codex-repository-continuity.ts",
+      "--fresh-preparation-read", db.name, root, JSON.stringify(scope)], { encoding: "utf8", timeout: 30_000, maxBuffer: 256 * 1024 });
+    assert.equal(fresh.status, 0, fresh.stderr);
+    const reopened = JSON.parse(fresh.stdout);
+    assert.equal(reopened.initialization.state, "defined_revised_work");
+    assert.equal(reopened.initialization.current_work.goal, second.definition.goal);
+    assert.equal(reopened.initialization.revision_eligibility.eligible, true);
+    assert.equal(reopened.resume.continuity.current_work.revision_eligible, true);
+    assert.equal(reopened.sources.packet_fingerprint, second.packet.integrity.fingerprint);
+    assert.deepEqual(reopened.sources.sources, sourceRead.sources);
+    assert.equal(validateRecoveryCanonicalDatabaseV01(db).status, "valid");
+    for (const record of evidence) assert.deepEqual(readEvidenceRecordV01(db, { ...scope, evidence_id: record.evidence_id }), record);
+    for (const row of initialRows as Array<Record<string, unknown>>) assert.deepEqual(db.prepare("SELECT * FROM vnext_core_records WHERE record_id = ?").get(row.record_id), row);
+
+    const destination = databaseV01("support-material-import");
+    try {
+      const exported = exportActivePortableProjectV01(db, { include_personal_perspective: false, exported_at: clock.now() });
+      const destinationBase = projectRootV01("support-material-import-root");
+      assert.equal(importPortableProjectV01(destination, { bytes: exported.bytes,
+        destination_root_base: destinationBase, imported_at: clock.now() }).status, "imported");
+      assert.equal(validateRecoveryCanonicalDatabaseV01(destination).status, "valid");
+      assert.deepEqual(inspectPreExecutionProjectWorkRevisionChainV01(destination, scope).packets, chain().packets);
+      for (const record of evidence) assert.deepEqual(readEvidenceRecordV01(destination, { ...scope, evidence_id: record.evidence_id }), record);
+      assert.equal(readProjectWorkInitializationV01(destination, scope).current_work!.goal, second.definition.goal);
+    } finally { destination.close(); }
+
+    // Exercise the actual private Companion route with disposable channel
+    // credentials, then its strict proxy parser. No Browser cookie or live service.
+    const routePath = path.join(ROOT, "support-material-route.db");
+    writeFileSync(routePath, db.serialize());
+    const environment = { ...process.env };
+    try {
+      Object.assign(process.env, { AUGNES_DB_PATH: routePath, AUGNES_RUNTIME_CHILD_ROLE: "ui",
+        AUGNES_RUNTIME_INSTANCE_ID: "support-route-instance", AUGNES_RUNTIME_GENERATION_ID: "support-route-generation",
+        AUGNES_RUNTIME_REPOSITORY_FINGERPRINT: "a".repeat(64), AUGNES_COMPANION_PROXY_TOKEN: "disposable-support-route-credential" });
+      delete process.env.AUGNES_RECOVERY_MODE;
+      const { POST: revisionPOST } = await import("../app/api/augnes/repository-work-revision/route");
+      const headers = { "content-type": "application/json", "x-augnes-companion-proxy": "disposable-support-route-credential",
+        "x-augnes-runtime-instance": "support-route-instance", "x-augnes-runtime-generation": "support-route-generation",
+        "x-augnes-runtime-repository": "a".repeat(64) };
+      const routeResume = await repositoryContinuityPOST(new Request("http://127.0.0.1:3000/api/augnes/read/codex-repository-continuity?scope=repository:local", {
+        method: "POST", headers: { ...headers, "x-augnes-local-readonly": "codex-repository-continuity-v0.1" },
+        body: JSON.stringify({ repository_root: root }),
+      }));
+      assert.equal(routeResume.status, 200);
+      const routeCurrent = parseRepositoryContinuityResponseV01(await routeResume.json());
+      const routeInput = { action: "preview", repository_root: root, expected_snapshot_binding: routeCurrent.continuity.snapshot.binding,
+        changes: { goal: "Authenticated Companion route with retained support" } };
+      const post = (value: unknown, token = headers["x-augnes-companion-proxy"]) => revisionPOST(new Request(
+        "http://127.0.0.1:3000/api/augnes/repository-work-revision?scope=repository:local", {
+          method: "POST", headers: { ...headers, "x-augnes-local-work-revision": "codex-repository-work-revision-v0.1", "x-augnes-companion-proxy": token },
+          body: JSON.stringify(value),
+        }));
+      assert.equal((await post(routeInput, "incorrect-disposable-credential")).status, 403);
+      const routePreviewResponse = await post(routeInput);
+      assert.equal(routePreviewResponse.status, 200);
+      const routePreview = parseRepositoryWorkRevisionResponseV01(await routePreviewResponse.json());
+      const routeSave = { ...routeInput, action: "save", preview_binding: routePreview.preview_binding };
+      const routeSavedResponse = await post(routeSave);
+      assert.equal(routeSavedResponse.status, 200);
+      const routeSaved = parseRepositoryWorkRevisionResponseV01(await routeSavedResponse.json());
+      assert.equal(routeSaved.status, "saved");
+      const routeReplay = await post(routeSave);
+      assert.equal(routeReplay.status, 200);
+      assert.equal(parseRepositoryWorkRevisionResponseV01(await routeReplay.json()).status, "exact_replay");
+      const reopenedRoute = new Database(routePath, { readonly: true, fileMustExist: true });
+      try {
+        const readback = inspectPreExecutionProjectWorkRevisionChainV01(reopenedRoute, scope);
+        assert.equal(readback.revision_count, 3);
+        assert.equal(readback.tip_packet.integrity.fingerprint, routeSaved.packet_fingerprint);
+        assert.deepEqual(readSelectedWorkSources(readback.tip_packet), selected);
+        for (const record of evidence) assert.deepEqual(readEvidenceRecordV01(reopenedRoute, { ...scope, evidence_id: record.evidence_id }), record);
+        assert.equal(validateRecoveryCanonicalDatabaseV01(reopenedRoute).status, "valid");
+      } finally { reopenedRoute.close(); }
+    } finally { process.env = environment; }
+
+    // Corruption stays with the canonical Evidence owner. Fault injection is
+    // confined to copies; restore the immutable trigger before any reader runs.
+    for (const fault of ["typed-payload", "envelope-fingerprint", "foreign-scope"] as const) {
+      const copy = new Database(db.serialize());
+      try {
+        const original = evidence[0]!;
+        const trigger = copy.prepare("SELECT sql FROM sqlite_master WHERE name = 'trg_vnext_core_records_immutable_update'").get() as { sql: string };
+        copy.exec("DROP TRIGGER trg_vnext_core_records_immutable_update");
+        if (fault === "typed-payload") copy.prepare("UPDATE vnext_core_records SET payload_json = '{}' WHERE record_id = ?").run(original.evidence_id);
+        if (fault === "envelope-fingerprint") copy.prepare("UPDATE vnext_core_records SET fingerprint = ? WHERE record_id = ?").run(`sha256:${"0".repeat(64)}`, original.evidence_id);
+        if (fault === "foreign-scope") {
+          const foreign = buildEvidenceRecordV01({ ...original, project_id: "project:foreign-evidence" });
+          copy.prepare("UPDATE vnext_core_records SET record_id = ?, fingerprint = ?, idempotency_key = ?, payload_json = ? WHERE record_id = ?")
+            .run(foreign.evidence_id, foreign.integrity.fingerprint, foreign.idempotency_key, JSON.stringify(foreign), original.evidence_id);
+        }
+        copy.exec(trigger.sql);
+        const broken = copy.serialize();
+        assert.equal(readProjectWorkRevisionEligibilityV01(copy, scope).eligible, false, fault);
+        assert.throws(() => inspectPreExecutionProjectWorkRevisionChainV01(copy, scope),
+          fault === "typed-payload" ? /persisted_evidence_record_invalid/u : /project_verify_material_envelope_binding_conflict/u, fault);
+        assert.notEqual(validateRecoveryCanonicalDatabaseV01(copy).status, "valid", fault);
+        assert.deepEqual(copy.serialize(), broken, "validation does not repair or erase corrupt material");
+      } finally { copy.close(); }
+    }
+    // The exception is limited to validated Evidence support, not every
+    // non-executing record. A canonical Claim candidate retains the old gate.
+    const claimed = new Database(db.serialize());
+    try {
+      const support = evidence[0]!;
+      const claim = buildClaimRecordV01({ ...scope,
+        family_origin: { origin_namespace: "augnes.test.preparation-claim.v0.1", origin_seed: "blocking-candidate",
+          origin_profile: support.producer.producer_profile, origin_producer_kind: support.producer.producer_kind },
+        revision: 1, prior_claim_ref: null, operation_intent: "create", operation_target_claim_ref: null,
+        proposition: "A recorded Claim candidate remains outside this bounded Evidence exception.",
+        subject_refs: support.subject_refs, source_refs: support.source_refs,
+        applicability_scope: createClaimApplicabilityScopeV01({ subject_refs: support.subject_refs }),
+        limitations: ["No truth or acceptance claim."], uncertainty: ["Applicability unverified."],
+        producer: support.producer, created_at: clock.now(),
+      });
+      assert.equal(admitClaimRecordV01(claimed, { ...scope, claim }).status, "inserted");
+      assert.equal(readProjectWorkRevisionEligibilityV01(claimed, scope).status, "blocked_work_history");
+      assert.equal(inspectPreExecutionProjectWorkRevisionChainV01(claimed, scope).revision_count, 2,
+        "later blocking material closes editing without invalidating earlier revisions");
+      assert.equal(validateRecoveryCanonicalDatabaseV01(claimed).status, "valid");
+    } finally { claimed.close(); }
+
+    // A well-formed alternate revision still cannot branch the authenticated chain.
+    const branchCredential = credential();
+    const branched = new Database(db.serialize());
+    try {
+      const rootChain = chain();
+      const request = { action: "revise_pre_execution_project_work" as const, ...scope,
+        expected_active_project_id: scope.project_id, expected_active_selection_revision: readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision,
+        expected_current_packet_id: initial.packet_id, expected_current_packet_fingerprint: initial.integrity.fingerprint,
+        expected_current_lineage_kind: "initial_user_defined" as const,
+        ...initial.task, goal: "Competing preparation must remain ambiguous" };
+      const branch = buildPreExecutionProjectWorkRevisionPacketV01({ request, operator_id: config.operator_id,
+        session_id: branchCredential.session_id, revision_number: 1, definition: request, prior_packet: initial,
+        origin_first_work_definition_ref: rootChain.origin_first_work_definition_ref, generated_at: clock.now() });
+      insertVNextCoreRecordV01(branched, { record_kind: "task_context_packet", record_id: branch.packet.packet_id, ...scope,
+        fingerprint: branch.packet.integrity.fingerprint, idempotency_key: branch.lineage.idempotency_key,
+        payload: branch.packet, created_at: branch.packet.generated_at });
+      assert.equal(readProjectWorkRevisionEligibilityV01(branched, scope).eligible, false);
+      assert.throws(() => inspectPreExecutionProjectWorkRevisionChainV01(branched, scope), /work_revision_branch_invalid/u);
+    } finally { branched.close(); }
+
+    // A legitimate foreign project with only Evidence is not an empty project.
+    const otherRoot = projectRootV01("support-material-foreign");
+    const other = registerV01(db, scope.workspace_id, otherRoot, "Foreign support", "64000000-0000-4000-8000-000000000002");
+    const otherScope = { workspace_id: scope.workspace_id, project_id: other.project.project_id };
+    addEvidence("foreign", otherScope);
+    assert.equal(readProjectWorkInitializationV01(db, otherScope).state, "existing_history_without_current_packet");
+    assert.equal(chain().revision_count, 2);
+    const pending = { action: "preview", repository_root: root, expected_snapshot_binding: (await resume()).continuity!.snapshot.binding!,
+      changes: { goal: "Third revision if still eligible" } };
+    const pendingPreview = await call(pending), pendingSave = { ...pending, action: "save", preview_binding: pendingPreview.preview_binding };
+    selectV01(db, scope.workspace_id, otherScope.project_id, scope.project_id, readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision);
+    const inactive = db.serialize();
+    await assert.rejects(call(pendingSave)); assert.deepEqual(db.serialize(), inactive);
+    selectV01(db, scope.workspace_id, scope.project_id, otherScope.project_id, readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision);
+    await assert.rejects(call(pendingSave), /refresh_required/u);
+    const executionPending = { ...pending, expected_snapshot_binding: (await resume()).continuity!.snapshot.binding! };
+    const executionPreview = await call(executionPending);
+    const at = clock.now();
+    insertAutonomyRunLedgerRecord({ run_id: "run:support-material-blocker", scope: scope.project_id,
+      autonomy_contract_ref: null, title: "Admitted but not executed", status: "queued", scheduled_for: null,
+      started_at: null, finished_at: null, created_at: at, updated_at: at, stop_reason: null,
+      source_refs: buildDefaultRunnerSourceRefs(), budget_snapshot: buildDefaultRunnerBudgetSnapshot(),
+      authority_boundary: buildDefaultRunnerAuthorityBoundary(), metadata: scope }, [], [], { db });
+    assert.equal(readProjectWorkRevisionEligibilityV01(db, scope).status, "blocked_execution_started");
+    const blocked = db.serialize();
+    await assert.rejects(call({ ...executionPending, action: "save", preview_binding: executionPreview.preview_binding }));
+    assert.deepEqual(db.serialize(), blocked);
+    assert.equal(chain().revision_count, 2, "later execution admission blocks editing without corrupting prior preparation");
+    console.log(JSON.stringify({ support_material_revision: "pass", authenticated_writers: ["Companion", "Browser-domain"],
+      revisions: 2, evidence_records: evidence.length, timing: ["before preview", "between preview and save", "between revisions"],
+      fresh_process: true, authenticated_companion_route_and_parser: true, immutable_prior_material: true, recovery_and_portability: true, no_implicit_selection: true,
+      changed_binding_rejected: true, failed_write_atomic: true, exact_replay: true, execution_admission_blocks: true }));
+  } finally { db.close(); }
 }

@@ -4359,17 +4359,25 @@ CREATE INDEX IF NOT EXISTS idx_vnext_recent_projects_workspace_opened
   ON vnext_recent_projects(workspace_id, last_opened_at DESC, project_id);
 
 CREATE TABLE IF NOT EXISTS vnext_active_project_selections (
-  workspace_id TEXT PRIMARY KEY,
-  project_id TEXT NOT NULL,
-  active_project_selection_version TEXT NOT NULL CHECK (
-    active_project_selection_version = 'active_project_selection.v0.1'
-  ),
-  selection_revision INTEGER NOT NULL CHECK (selection_revision > 0),
-  selected_at TEXT NOT NULL CHECK (length(trim(selected_at)) > 0),
-  FOREIGN KEY (workspace_id, project_id)
-    REFERENCES vnext_project_identities(workspace_id, project_id)
-    ON UPDATE RESTRICT ON DELETE RESTRICT
-);
+    workspace_id TEXT PRIMARY KEY,
+    project_id TEXT,
+    active_project_selection_version TEXT NOT NULL CHECK (
+      active_project_selection_version = 'active_project_selection.v0.2'
+    ),
+    selection_revision TEXT NOT NULL CHECK (
+      length(selection_revision) = 42 AND substr(selection_revision, 1, 10) = 'selection:'
+      AND substr(selection_revision, 11) NOT GLOB '*[^0-9a-f]*'
+    ),
+    selected_at TEXT NOT NULL CHECK (length(trim(selected_at)) > 0),
+    FOREIGN KEY (workspace_id) REFERENCES vnext_workspace_identities(workspace_id)
+      ON UPDATE RESTRICT ON DELETE RESTRICT,
+    FOREIGN KEY (workspace_id, project_id)
+      REFERENCES vnext_project_identities(workspace_id, project_id)
+      ON UPDATE RESTRICT ON DELETE RESTRICT
+  );
+  CREATE TRIGGER IF NOT EXISTS trg_vnext_project_selection_retain
+    BEFORE DELETE ON vnext_active_project_selections
+    BEGIN SELECT RAISE(ABORT, 'project_selection_delete_refused'); END;
 
 CREATE TABLE IF NOT EXISTS vnext_project_automation_controls (
   workspace_id TEXT NOT NULL,
@@ -4572,3 +4580,51 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_local_operator_sessions_decision_tok
 CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_local_operator_sessions_decision_nonce
   ON vnext_local_operator_sessions(decision_action_nonce_hash)
   WHERE decision_action_nonce_hash IS NOT NULL;
+
+
+CREATE TABLE IF NOT EXISTS vnext_prospective_reentry (
+  workspace_id TEXT NOT NULL,
+  project_id TEXT NOT NULL,
+  agenda_ref TEXT NOT NULL,
+  host_fingerprint TEXT NOT NULL,
+  phase TEXT NOT NULL CHECK (phase IN ('armed','claimed','settled','stopped')),
+  revision INTEGER NOT NULL CHECK (revision > 0),
+  recovery_suspended INTEGER NOT NULL DEFAULT 0 CHECK (recovery_suspended IN (0,1)),
+  body_json TEXT NOT NULL CHECK (json_valid(body_json) AND length(body_json) <= 200000),
+  fingerprint TEXT NOT NULL,
+  PRIMARY KEY (workspace_id, project_id, agenda_ref),
+  FOREIGN KEY (workspace_id, project_id)
+    REFERENCES vnext_project_identities(workspace_id, project_id)
+    ON UPDATE RESTRICT ON DELETE RESTRICT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_prospective_active_host
+  ON vnext_prospective_reentry(host_fingerprint) WHERE phase IN ('armed','claimed','settled');
+CREATE UNIQUE INDEX IF NOT EXISTS idx_vnext_prospective_active_project
+  ON vnext_prospective_reentry(workspace_id, project_id) WHERE phase IN ('armed','claimed','settled');
+
+-- Bounded project direction, delegation and local credentials (#1382).
+
+CREATE TABLE IF NOT EXISTS vnext_project_direction_records (
+  ordinal INTEGER PRIMARY KEY AUTOINCREMENT,
+  workspace_id TEXT NOT NULL,
+  project_id TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('decision','grant','proposal','return','binding','revocation')),
+  ref TEXT NOT NULL UNIQUE,
+  recorded_at TEXT NOT NULL,
+  body_json TEXT NOT NULL CHECK (json_valid(body_json) AND length(body_json) <= 32768),
+  FOREIGN KEY (workspace_id,project_id) REFERENCES vnext_project_identities(workspace_id,project_id)
+);
+CREATE INDEX IF NOT EXISTS idx_vnext_project_direction_scope
+  ON vnext_project_direction_records(workspace_id,project_id,kind,recorded_at,ordinal);
+CREATE INDEX IF NOT EXISTS idx_vnext_project_direction_authority
+  ON vnext_project_direction_records(workspace_id,json_extract(body_json,'$.authority_ref'),kind,ordinal);
+CREATE TRIGGER IF NOT EXISTS trg_vnext_project_direction_update
+  BEFORE UPDATE ON vnext_project_direction_records BEGIN SELECT RAISE(ABORT,'project_direction_immutable'); END;
+CREATE TRIGGER IF NOT EXISTS trg_vnext_project_direction_delete
+  BEFORE DELETE ON vnext_project_direction_records BEGIN SELECT RAISE(ABORT,'project_direction_immutable'); END;
+CREATE TABLE IF NOT EXISTS vnext_project_direction_credentials (
+  grant_ref TEXT PRIMARY KEY REFERENCES vnext_project_direction_records(ref),
+  token_hash TEXT UNIQUE,
+  sequence INTEGER NOT NULL DEFAULT 0 CHECK (sequence >= 0),
+  suspended INTEGER NOT NULL DEFAULT 0 CHECK (suspended IN (0,1))
+);

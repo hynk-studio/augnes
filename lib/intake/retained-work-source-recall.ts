@@ -1,14 +1,17 @@
+import { PROJECT_WORK_HISTORY_READ_BUDGET_V01 } from "../vnext/runtime/project-work-packet-history";
 import { canonicalizeProtocolValueV01 } from "@/lib/vnext/protocol-primitives";
 import type { PreExecutionProjectWorkChainInspectionV01 } from "@/lib/vnext/runtime/pre-execution-project-work-revision";
-import { PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01, MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01, type RetainedWorkSourceRef } from "@/types/vnext/project-work-revision";
+import { PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01, type RetainedWorkSourceRef } from "@/types/vnext/project-work-revision";
 import type { TaskContextPacketSelectedEntryV01 } from "@/types/vnext/task-context-packet";
-import { normalizeRetainedWorkSourceRefs, readSelectedWorkSources, reviewedOutcomeSourceRef, SelectedWorkSourceError, SELECTED_WORK_SOURCE_LIMITS } from "./selected-work-source-comparison";
+import { normalizeRetainedWorkSourceRefs, readSelectedWorkSources, reviewedOutcomeSourceRef, SelectedWorkSourceError, NATIVE_SELECTED_WORK_SOURCE_LIMITS } from "./selected-work-source-comparison";
 
 export const RETAINED_WORK_SOURCE_LIMITS = {
   query_characters: 160, query_terms: 8, results: 8, result_utf8_bytes: 20_000,
-  packets: MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01 + 1,
-  note_occurrences: (MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01 + 1) * SELECTED_WORK_SOURCE_LIMITS.entries,
-  scanned_entry_utf8_bytes: (MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01 + 1) * SELECTED_WORK_SOURCE_LIMITS.bytes,
+  packets: PROJECT_WORK_HISTORY_READ_BUDGET_V01.records,
+  note_occurrences: 33 * NATIVE_SELECTED_WORK_SOURCE_LIMITS.entries,
+  // Preserve the original byte and note-work budgets independently of revision
+  // count. An incomplete scan refuses; it cannot return an apparent no-match.
+  scanned_entry_utf8_bytes: 33 * NATIVE_SELECTED_WORK_SOURCE_LIMITS.bytes,
 } as const;
 type Chain = Pick<PreExecutionProjectWorkChainInspectionV01, "packets" | "tip_packet">;
 export interface RetainedWorkSourceHit {
@@ -37,6 +40,7 @@ export function recallRetainedWorkSources(chain: Chain, query: unknown,
     for (const entry of readSelectedWorkSources(packet)) {
       scannedEntries += 1;
       scannedEntryBytes += utf8(entry);
+      if (scannedEntries > RETAINED_WORK_SOURCE_LIMITS.note_occurrences || scannedEntryBytes > RETAINED_WORK_SOURCE_LIMITS.scanned_entry_utf8_bytes) throw new SelectedWorkSourceError("retained_source_scan_bound_exceeded");
       const previous = unique.get(entry.entry_id);
       if (previous) {
         previous.packet_occurrences += 1;

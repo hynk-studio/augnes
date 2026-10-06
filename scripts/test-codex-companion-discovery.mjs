@@ -458,7 +458,7 @@ try {
     const retainedProjection = {
       ...sourceProjection, projection_version: "codex_repository_retained_sources.v0.1", reason: "retained_selected_sources",
       lookup: { scope: "selected_note_snapshots_in_current_pre_execution_revision_chain", cutoff_recorded_at: "2026-09-01T00:00:00.000Z",
-        limits: { query_characters: 160, query_terms: 8, results: 8, result_utf8_bytes: 20000, packets: 33, note_occurrences: 264, scanned_entry_utf8_bytes: 396000 },
+        limits: { query_characters: 160, query_terms: 8, results: 8, result_utf8_bytes: 20000, packets: 33, note_occurrences: 264, scanned_entry_utf8_bytes: 1056000 },
         scanned_packets: 3, scanned_entry_occurrences: 12, unique_entries: 9, matching_entries: 9, returned_entries: 8, omitted_matching_entries: 1,
         truncated: true, result_utf8_bytes: 0, qualifications: ["Repeated copies are not independent evidence; no match is bounded."],
         results: Array.from({ length: 8 }, (_, i) => {
@@ -489,6 +489,40 @@ try {
     const callRetained = () => client.callTool({ name: "augnes_lookup_repository_retained_sources", arguments: { repositoryRoot: process.cwd(), expectedSnapshotBinding: sourceBinding, query: "literal" } });
     retainedScenario = { body: retainedProjection };
     assert.equal((await callRetained()).structuredContent.lookup.returned_entries, 8);
+    // Client-first refresh also supports the exact previous runtime policy.
+    const previousRuntime = structuredClone(retainedProjection);
+    previousRuntime.lookup.limits.scanned_entry_utf8_bytes = 396000;
+    assert.deepEqual(parseRepositoryRetainedSourcesResponseV01(previousRuntime), previousRuntime);
+    retainedScenario = { body: previousRuntime };
+    assert.deepEqual((await callRetained()).structuredContent.lookup, previousRuntime.lookup);
+    const cumulativeRuntime = structuredClone(retainedProjection);
+    cumulativeRuntime.lookup.limits.packets = 4096;
+    for (const count of [32, 33, 34, 321, 4096]) {
+      cumulativeRuntime.lookup.scanned_packets = count;
+      assert.deepEqual(parseRepositoryRetainedSourcesResponseV01(cumulativeRuntime), cumulativeRuntime);
+      retainedScenario = { body: cumulativeRuntime };
+      assert.deepEqual((await callRetained()).structuredContent.lookup, cumulativeRuntime.lookup);
+    }
+    for (const mutate of [
+      value => { value.lookup.limits.packets = 4097; },
+      value => { value.lookup.scanned_packets = 4097; },
+      value => { value.lookup.scanned_entry_occurrences = 265; },
+      value => { value.lookup.limits.note_occurrences = 265; },
+      value => { value.lookup.limits.scanned_entry_utf8_bytes = 396000; },
+      value => { value.lookup.limits.packets = 33; value.lookup.scanned_packets = 34; },
+    ]) {
+      const invalid = structuredClone(cumulativeRuntime); mutate(invalid);
+      assert.throws(() => parseRepositoryRetainedSourcesResponseV01(invalid), /contract_invalid/u);
+      retainedScenario = { body: invalid };
+      assert.equal((await callRetained()).structuredContent.companion.status, "unavailable");
+    }
+    for (const ceiling of [0, 396001, 1055999, 1056001, "1056000"]) {
+      const unknownPolicy = structuredClone(retainedProjection);
+      unknownPolicy.lookup.limits.scanned_entry_utf8_bytes = ceiling;
+      assert.throws(() => parseRepositoryRetainedSourcesResponseV01(unknownPolicy), /contract_invalid/u);
+      retainedScenario = { body: unknownPolicy };
+      assert.equal((await callRetained()).structuredContent.companion.status, "unavailable");
+    }
     for (const scenario of [
       { body: { ...retainedProjection, snapshot_binding: `sha256:${"b".repeat(64)}` } },
       { body: retainedProjection, generation: "stale-generation" },
@@ -501,6 +535,7 @@ try {
     }
     const retainedResponses = [retainedProjection, ...[
       ["refresh_required", "snapshot_changed"], ["unavailable", "current_work_unavailable"],
+      ["unavailable", "retained_source_scan_bound_exceeded"], ["invalid", "retained_sources_invalid"],
       ["ineligible", "work_revision_not_eligible"], ["invalid", "retained_source_query_invalid"],
     ].map(([status, reason]) => ({ ...retainedProjection, status, reason, snapshot_binding: null, packet_fingerprint: null, lookup: null }))];
     const syntheticMarker = "synthetic-retained-response-extra-material";
@@ -516,6 +551,15 @@ try {
       assert.equal(companion.status, "live");
       assert.deepEqual(projection, body);
       assert.equal(control.isError, body.status === "invalid");
+      if (body.reason === "retained_source_scan_bound_exceeded") {
+        assert.match(control.content[0].text, /scan capacity.*not invalid material or a no-match result/u);
+        assert.equal(control.structuredContent.lookup, null);
+        for (const status of ["available", "invalid", "ineligible"]) {
+          assert.throws(() => parseRepositoryRetainedSourcesResponseV01({ ...body, status }), /contract_invalid/u);
+        }
+        assert.throws(() => parseRepositoryRetainedSourcesResponseV01({ ...body, repository_resolution: "project_not_registered" }), /contract_invalid/u);
+        assert.throws(() => parseRepositoryRetainedSourcesResponseV01({ ...body, lookup: retainedProjection.lookup }), /contract_invalid/u);
+      }
       for (const extra of unexpectedFields) {
         const malformed = { ...body, ...extra };
         assert.throws(() => parseRepositoryRetainedSourcesResponseV01(malformed), /contract_invalid/u,

@@ -1,3 +1,4 @@
+import { differentSelectionRevision } from "./test-selection-observation";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import {
@@ -892,7 +893,7 @@ async function verifyAuthorizationRefusalsV01(
   const changedAdmission = {
     ...admission,
     expected_active_selection_revision:
-      admission.expected_active_selection_revision + 1,
+      differentSelectionRevision(admission.expected_active_selection_revision),
   };
   assert.throws(
     () => build(authorization, changedAdmission),

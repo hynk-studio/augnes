@@ -1,3 +1,4 @@
+import { readPacketDirectionInterpretation } from "../persistence/project-direction-store";
 import type Database from "better-sqlite3";
 import { closeSync, constants, fstatSync, fsyncSync, lstatSync, openSync, realpathSync, writeSync } from "node:fs";
 import path from "node:path";
@@ -156,7 +157,8 @@ export async function preparePersistedCodexContinuationV01(db: Database.Database
       resolveImmediatePersistedSemanticPriorPacketV01({ packet: later.packet, prior_packets: [packet] }).status === "resolved", "later_packet_lineage");
     const project = readCanonicalProjectWithRootV01(db, config);
     requireBound(project, "project_missing");
-    return { admission: later, guide: buildTaskStartGuideBriefCodexProjectionV02({ packet: later.packet, project_name: project.project.display_name }) };
+    return { admission: later, guide: buildTaskStartGuideBriefCodexProjectionV02({ packet: later.packet, project_name: project.project.display_name,
+      direction: readPacketDirectionInterpretation(db, later.packet, new Date().toISOString()) }) };
   }
   return {
     predecessor, dispositionPath, assertPredecessor, append, admitB,

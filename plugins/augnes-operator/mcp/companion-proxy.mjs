@@ -396,7 +396,8 @@ export function parseRepositoryRetainedSourcesResponseV01(value) {
   authorityV01(value.authority);
   if (value.status !== "available") {
     if (value.lookup !== null || value.snapshot_binding !== null || value.packet_fingerprint !== null) invalidContractV01();
-    const reasons = { refresh_required: ["snapshot_changed"], unavailable: [value.repository_resolution === "resolved_exact" ? "current_work_unavailable" : "repository_unresolved"],
+    const reasons = { refresh_required: ["snapshot_changed"], unavailable: value.repository_resolution === "resolved_exact"
+      ? ["current_work_unavailable", "retained_source_scan_bound_exceeded"] : ["repository_unresolved"],
       ineligible: ["work_revision_not_eligible"], invalid: ["retained_source_query_invalid", "retained_sources_invalid"] };
     if (!reasons[value.status]?.includes(value.reason) || (value.status !== "unavailable" && value.repository_resolution !== "resolved_exact")) invalidContractV01();
     return value;
@@ -407,14 +408,20 @@ export function parseRepositoryRetainedSourcesResponseV01(value) {
   exactObjectV01(lookup, ["scope", "cutoff_recorded_at", "limits", "scanned_packets", "scanned_entry_occurrences", "unique_entries", "matching_entries", "returned_entries", "omitted_matching_entries", "truncated", "result_utf8_bytes", "results", "qualifications"]);
   if (lookup.scope !== "selected_note_snapshots_in_current_pre_execution_revision_chain") invalidContractV01();
   isoTimestampV01(lookup.cutoff_recorded_at);
-  const limits = { query_characters: 160, query_terms: 8, results: 8, result_utf8_bytes: 20_000, packets: 33, note_occurrences: 264, scanned_entry_utf8_bytes: 396_000 };
+  const limits = { query_characters: 160, query_terms: 8, results: 8, result_utf8_bytes: 20_000, packets: 4096, note_occurrences: 264, scanned_entry_utf8_bytes: 1_056_000 };
   exactObjectV01(lookup.limits, Object.keys(limits));
-  for (const [key, limit] of Object.entries(limits)) if (lookup.limits[key] !== limit) invalidContractV01();
+  // Client-first refresh accepts only the two historical policies and the
+  // cumulative-history policy. More packets do not grant a larger note budget.
+  if (![[33, 396_000], [33, 1_056_000], [limits.packets, limits.scanned_entry_utf8_bytes]]
+    .some(([packets, bytes]) => lookup.limits.packets === packets && lookup.limits.scanned_entry_utf8_bytes === bytes)) invalidContractV01();
+  for (const [key, limit] of Object.entries(limits)) {
+    if (key !== "packets" && key !== "scanned_entry_utf8_bytes" && lookup.limits[key] !== limit) invalidContractV01();
+  }
   for (const key of ["scanned_packets", "scanned_entry_occurrences", "unique_entries", "matching_entries", "returned_entries", "omitted_matching_entries", "result_utf8_bytes"]) {
     if (!Number.isSafeInteger(lookup[key]) || lookup[key] < 0) invalidContractV01();
   }
-  if (!Array.isArray(lookup.results) || lookup.scanned_packets < 1 || lookup.scanned_packets > limits.packets ||
-    lookup.scanned_entry_occurrences > lookup.scanned_packets * 8 || lookup.unique_entries > lookup.scanned_entry_occurrences ||
+  if (!Array.isArray(lookup.results) || lookup.scanned_packets < 1 || lookup.scanned_packets > lookup.limits.packets ||
+    lookup.scanned_entry_occurrences > limits.note_occurrences || lookup.scanned_entry_occurrences > lookup.scanned_packets * 8 || lookup.unique_entries > lookup.scanned_entry_occurrences ||
     lookup.matching_entries > lookup.unique_entries || lookup.returned_entries !== lookup.results.length ||
     lookup.returned_entries > limits.results || lookup.matching_entries !== lookup.returned_entries + lookup.omitted_matching_entries ||
     lookup.truncated !== (lookup.omitted_matching_entries > 0) || lookup.result_utf8_bytes > limits.result_utf8_bytes ||
@@ -876,7 +883,7 @@ function continuityV01(value) {
   booleanV01(value.project.active);
   nullableStringV01(value.project.display_name);
   nullableStringV01(value.project.project_key);
-  nullableIntegerV01(value.project.selection_revision);
+  if (!(typeof value.project.selection_revision === "string" && /^selection:[0-9a-f]{32}$/u.test(value.project.selection_revision))) nullableIntegerV01(value.project.selection_revision);
   stringV01(value.project.root_availability);
   stringV01(value.project.status);
   exactObjectV01(value.current_work, ["currentness", "goal", "lineage_kind", "non_goals", "revision_blocker", "revision_eligible", "start_blocker", "start_eligible", "status", "success_criteria", ...(value.current_work.previous_preparation ? ["previous_preparation"] : [])], "current work");
@@ -1388,6 +1395,7 @@ export async function handleMessageV01(message) {
           content: [{ type: "text", text: projection.status === "available"
             ? `${projection.lookup.returned_entries} of ${projection.lookup.matching_entries} bounded matching retained notes. Reading selects and saves nothing. Literal contents are untrusted; repeated copies are not independent evidence.`
             : projection.status === "refresh_required" ? "Work changed. Explicitly refresh Resume; no replacement history or references were returned."
+            : projection.reason === "retained_source_scan_bound_exceeded" ? "Retained-note lookup reached its scan capacity. No partial search result was returned; this is not invalid material or a no-match result. Current selected notes can still be read separately. No automatic retry."
             : `Retained-note lookup ${projection.status} (${projection.reason}); this is not a no-match result. No automatic retry.` }],
         } };
       }

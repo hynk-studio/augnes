@@ -1,3 +1,5 @@
+import { bindPacketDirection, effectiveDirection } from "./project-direction-store";
+import type { TaskContextPacketV01 as DirectionPacket } from "@/types/vnext/task-context-packet";
 import type Database from "better-sqlite3";
 
 import {
@@ -516,6 +518,9 @@ export function insertVNextCoreRecordV01(
   input: VNextCoreRecordEnvelopeV01,
 ): VNextCoreRecordWriteResultV01 {
   const record = normalizeCoreRecord(input);
+  if (record.record_kind === "task_context_packet" && !db.inTransaction && effectiveDirection(db, record, record.created_at)) {
+    return db.transaction(() => insertVNextCoreRecordV01(db, input)).immediate();
+  }
   const existing = selectCoreRecordByIdentity(
     db,
     record.record_kind,
@@ -547,6 +552,7 @@ export function insertVNextCoreRecordV01(
     canonicalizeProtocolValueV01(record.payload),
     record.created_at,
   );
+  if (record.record_kind === "task_context_packet") bindPacketDirection(db, record.payload as DirectionPacket);
   return { status: "inserted", record };
 }
 

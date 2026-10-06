@@ -25,6 +25,7 @@ import {
   planCanonicalChange,
 } from "./canonical-change-planner.mjs";
 import { runCanonicalChild } from "./canonical-child-runner.mjs";
+import { CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 import { admitIntegrationBase } from "./local-canonical-integration-base.mjs";
 import {
   acquireCheckoutVerificationOwnership,
@@ -76,6 +77,7 @@ const repositoryRoot = path.resolve(
   "..",
 );
 const nestedAppRoot = path.join(repositoryRoot, "apps", "augnes_apps");
+const webPlanningRoot = path.join(repositoryRoot, "apps", "web_planning");
 const artifactRoot = path.join(repositoryRoot, LOCAL_ARTIFACT_DIRECTORY);
 const receiptRoot = path.join(artifactRoot, "receipts");
 const logRoot = path.join(artifactRoot, "logs");
@@ -89,6 +91,7 @@ const GENERATED_NEXT_DIRECTORY = ".next";
 const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/browser-verification-owners.v1.json",
   "scripts/canonical-change-planner.mjs",
+  "scripts/codex-reuse-verification-ownership.mjs",
   "scripts/canonical-child-runner.mjs",
   "scripts/canonical-test-environment.mjs",
   "scripts/canonical-repository-identity.mjs",
@@ -125,6 +128,7 @@ export const OPERATING_POLICY_PHASE_IDS = Object.freeze([
 export const FULL_PHASE_IDS = Object.freeze([
   "dependencies-root",
   "dependencies-nested",
+  "dependencies-web-planning",
   ...(process.platform === "win32" ? ["native-windows-identity"] : []),
   "typecheck",
   "build",
@@ -143,9 +147,11 @@ export const FULL_PHASE_IDS = Object.freeze([
 export const RESOURCE_EXCLUSIVE_PHASE_IDS = Object.freeze([
   "dependencies-root",
   "dependencies-nested",
+  "dependencies-web-planning",
   ...(process.platform === "win32" ? ["native-windows-identity"] : []),
   "build",
   "unit",
+  ...CODEX_REUSE_PHASE_IDS,
   "authority",
   "integration",
   "operability",
@@ -914,6 +920,7 @@ export async function executeLocalCanonicalVerification({
             : "not_deciding_authority",
       root_lock_sha256: locks.root,
       nested_lock_sha256: locks.nested,
+      web_planning_lock_sha256: locks.webPlanning,
     },
     executor: {
       version: LOCAL_CANONICAL_EXECUTOR_VERSION,
@@ -1172,13 +1179,18 @@ function operatingPolicyPhases({ baseSha, headSha }) {
 }
 
 function ownerTargetedPhases({ baseSha, headSha, targetedPhaseIds }) {
+  const reuseIds = Array.isArray(targetedPhaseIds)
+    ? targetedPhaseIds.filter((id) => CODEX_REUSE_PHASE_IDS.includes(id)) : [];
   if (
     !Array.isArray(targetedPhaseIds) ||
-    targetedPhaseIds.length < 4 ||
+    targetedPhaseIds.length < 5 ||
     targetedPhaseIds[0] !== "targeted-change-validator" ||
     targetedPhaseIds[1] !== "dependencies-root" ||
     targetedPhaseIds[2] !== "dependencies-nested" ||
+    targetedPhaseIds[3] !== "dependencies-web-planning" ||
     new Set(targetedPhaseIds).size !== targetedPhaseIds.length ||
+    (reuseIds.length > 0 && (targetedPhaseIds.includes("unit") ||
+      JSON.stringify(reuseIds) !== JSON.stringify(CODEX_REUSE_PHASE_IDS))) ||
     JSON.stringify(targetedPhaseIds) !==
       JSON.stringify(
         TARGETED_PHASE_ORDER.filter((phaseId) =>
@@ -1215,6 +1227,17 @@ function ownerTargetedPhases({ baseSha, headSha, targetedPhaseIds }) {
 }
 
 function targetedCanonicalPhaseDefinition(id, { baseSha, headSha }) {
+  if (CODEX_REUSE_PHASE_IDS.includes(id)) {
+    return phaseDefinition({
+      id,
+      label: `Canonical ${id} check`,
+      command: process.execPath,
+      args: ["scripts/run-canonical-test-suite.mjs", id],
+      display: `node scripts/run-canonical-test-suite.mjs ${id}`,
+      // Retain the child's 30s bound plus bounded suite startup/cleanup.
+      timeoutMs: 60_000,
+    });
+  }
   const canonicalSuitePhases = {
     "dependencies-root": () =>
       npmPhase(
@@ -1230,6 +1253,14 @@ function targetedCanonicalPhaseDefinition(id, { baseSha, headSha }) {
         ["ci", "--no-audit", "--no-fund"],
         600_000,
         "nested-app",
+      ),
+    "dependencies-web-planning": () =>
+      npmPhase(
+        "dependencies-web-planning",
+        "isolated web planning clean development dependency installation",
+        ["ci", "--no-audit", "--no-fund"],
+        600_000,
+        "web-planning-app",
       ),
     typecheck: () =>
       npmPhase("typecheck", "TypeScript typecheck", ["run", "typecheck"], 300_000),
@@ -1283,6 +1314,13 @@ function fullPhases({ baseSha, headSha, browserPhaseIds }) {
       ["ci", "--no-audit", "--no-fund"],
       600_000,
       "nested-app",
+    ),
+    npmPhase(
+      "dependencies-web-planning",
+      "isolated web planning clean development dependency installation",
+      ["ci", "--no-audit", "--no-fund"],
+      600_000,
+      "web-planning-app",
     ),
     ...(process.platform === "win32"
       ? [
@@ -1447,7 +1485,8 @@ async function executePhase({
       label: phase.label,
       command: phase.command,
       args: phase.args,
-      cwd: phase.cwdScope === "nested-app" ? nestedAppRoot : repositoryRoot,
+      cwd: phase.cwdScope === "nested-app" ? nestedAppRoot :
+        phase.cwdScope === "web-planning-app" ? webPlanningRoot : repositoryRoot,
       env: buildLocalPhaseEnvironment(process.env, {
         browserExecutablePath: phase.browser ? browserExecutablePath : null,
       }),
@@ -1484,7 +1523,7 @@ async function executePhase({
   capture.close();
   const finishedMs = Date.now();
   const lifecyclePassed =
-    phase.browser !== true ||
+    (phase.browser !== true && !CODEX_REUSE_PHASE_IDS.includes(phase.id)) ||
     (result.termination_reason === "natural_exit" &&
       result.exit_observed === true &&
       result.streams_closed === true);
@@ -1603,6 +1642,7 @@ function collectLockFingerprints() {
     nested: hashFile(
       path.join(repositoryRoot, "apps", "augnes_apps", "package-lock.json"),
     ),
+    webPlanning: hashFile(path.join(webPlanningRoot, "package-lock.json")),
   };
 }
 

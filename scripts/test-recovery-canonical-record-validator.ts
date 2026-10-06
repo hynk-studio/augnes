@@ -409,11 +409,14 @@ async function main(): Promise<void> {
       );
       assert.equal(restoreResult.safetyBackupCreated, true);
       assert.equal(restoreResult.safetyBackupRecoveryEligible, true);
-      assert.deepEqual(
-        readLogicalDatabaseSnapshotV01(restoredDatabasePath),
-        selectedSnapshot,
-        "atomic restore must publish the exact semantic-rich selected state",
-      );
+      const restoredSnapshot = readLogicalDatabaseSnapshotV01(restoredDatabasePath);
+      assertFreshSelectionRestoreV02(selectedSnapshot, restoredSnapshot);
+      assert.throws(() => assertFreshSelectionRestoreV02(selectedSnapshot, selectedSnapshot),
+        /restore must invalidate the old selection observation/u);
+      const changedHistory = structuredClone(restoredSnapshot);
+      changedHistory.tables.find(table => table.table_name === "vnext_core_records")!.rows[0]!.payload_json = "{}";
+      assert.throws(() => assertFreshSelectionRestoreV02(selectedSnapshot, changedHistory),
+        /restore must preserve every other field/u);
       assert.deepEqual(
         readSemanticAuthorityCountsV01(restoredDatabasePath),
         authorityCountsBefore,
@@ -428,7 +431,7 @@ async function main(): Promise<void> {
       );
       assert.deepEqual(
         readLogicalDatabaseSnapshotV01(restoredDatabasePath),
-        selectedSnapshot,
+        restoredSnapshot,
         "restored product reader verification must remain read-only",
       );
 
@@ -621,6 +624,7 @@ async function main(): Promise<void> {
         normal_probe_receipt_recovery_and_restore: true,
         probe_packet_source_role_and_transition_refusals: true,
         exact_durable_canonical_ledger_replay_round_trip: true,
+        restored_selection_observation: "fresh_only_field_change",
         project_home_workbench_inspector_round_trip: true,
         safety_backup_preserved_displaced_state: true,
         semantic_authority_created_by_recovery: false,
@@ -1383,7 +1387,7 @@ function addDisplacedStateMarkerV01(databasePath: string): void {
   chmodSync(databasePath, 0o600);
 }
 
-function readLogicalDatabaseSnapshotV01(databasePath: string): unknown {
+function readLogicalDatabaseSnapshotV01(databasePath: string) {
   const db = new Database(databasePath, {
     readonly: true,
     fileMustExist: true,
@@ -1437,6 +1441,26 @@ function readLogicalDatabaseSnapshotV01(databasePath: string): unknown {
   } finally {
     db.close();
   }
+}
+
+function assertFreshSelectionRestoreV02(
+  before: ReturnType<typeof readLogicalDatabaseSnapshotV01>,
+  after: ReturnType<typeof readLogicalDatabaseSnapshotV01>,
+): void {
+  const expected = structuredClone(before);
+  const selected = expected.tables.find(table => table.table_name === "vnext_active_project_selections");
+  const restored = after.tables.find(table => table.table_name === "vnext_active_project_selections");
+  assert(selected && restored);
+  assert.equal(selected.rows.length, 1, "semantic fixture must bind one workspace selection");
+  assert.equal(restored.rows.length, 1);
+  const freshRevision = restored.rows[0]!.selection_revision;
+  assert.equal(typeof freshRevision, "string");
+  assert.match(freshRevision as string, /^selection:[0-9a-f]{32}$/u);
+  assert.notEqual(freshRevision, selected.rows[0]!.selection_revision,
+    "restore must invalidate the old selection observation");
+  selected.rows[0]!.selection_revision = freshRevision;
+  assert.deepEqual(after, expected,
+    "restore must preserve every other field, historical row, ledger, replay record and schema object");
 }
 
 function quoteSqliteIdentifierV01(value: string): string {

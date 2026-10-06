@@ -1,6 +1,11 @@
+import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import type Database from "better-sqlite3";
+import { OPENAI_PLANNER_SOL_LOW, isOpenAIPlannerSolLowRoute } from "./planner-execution-configuration";
+import type { PlannerModelExecutionConfigurationV01 } from "./contracts";
 
 import { openDatabase, type StateEntry } from "@/lib/db";
+import { normalizeModelTransportFailureObservationV01 } from "@/lib/vnext/model-gateway/transport-failure-observation";
 import {
   assertModelEgressTextIsSafe,
   cloneBoundedModelEgressJson,
@@ -452,7 +457,7 @@ export interface OperationalReentryStaleResetCrossCaseModelGatewayDependenciesV0
 export interface ModelGatewayInteractiveAdmissionV01 {
   workspace_id: string;
   project_id: string;
-  expected_active_selection_revision: number;
+  expected_active_selection_revision: ProjectSelectionRevision;
   project_root: {
     path_flavor: "posix" | "win32";
     normalized_path: string;
@@ -498,6 +503,40 @@ export function readModelGatewayInteractiveAdmissionForRootV01(
   } finally {
     db.close();
   }
+}
+
+/** Non-invocable configuration read for preview and historical grant validation.
+ * New authority must refuse a known route missing its current configuration
+ * binding; old unbound references remain readable with their historical scope. */
+export function readPlannerModelGatewayExecutionConfigurationV01(
+  model: ModelAdapterSessionV01["model_ref"],
+  options: { require_current_binding?: boolean } = {},
+): PlannerModelExecutionConfigurationV01 | null {
+  if (model.external_id !== OPENAI_PLANNER_SOL_LOW.model) return null;
+  if (isOpenAIPlannerSolLowRoute(model)) return structuredClone(OPENAI_PLANNER_SOL_LOW);
+  if (options.require_current_binding) throw gatewayFailure("model_gateway_provider_response_invalid");
+  return null;
+}
+
+/** Read only the configured Planner route for a finite authorization preview.
+ * Keep the invocable session inside the Gateway boundary. Invocation still
+ * rechecks the admitted provider/model and cost authority before egress. */
+export async function preparePlannerModelGatewayRouteV01(
+  dependencies: Pick<SharedModelGatewayDependenciesV01, "adapter"> = {},
+): Promise<Pick<ModelAdapterSessionV01, "provider_ref" | "model_ref"> | null> {
+  const adapter = dependencies.adapter ?? createOpenAIResponsesAdapterV01();
+  const session = await adapter.prepare(
+    PLANNER_MODEL_GATEWAY_PURPOSE_V01,
+    new AbortController().signal,
+  );
+  if (!session) return null;
+  if (session.purpose !== PLANNER_MODEL_GATEWAY_PURPOSE_V01) {
+    throw gatewayFailure("model_gateway_provider_response_invalid");
+  }
+  return {
+    provider_ref: structuredClone(session.provider_ref),
+    model_ref: structuredClone(session.model_ref),
+  };
 }
 
 /** Prepares and freezes the production route without invoking provider egress. */
@@ -1681,7 +1720,7 @@ async function invokeModelGatewayV01(
         OPERATIONAL_REENTRY_MATCHED_COHORT_V04_MODEL_GATEWAY_PURPOSE_V01 ||
       envelope.purpose ===
         OPERATIONAL_REENTRY_STALE_RESET_CROSS_CASE_REPLICATION_MODEL_GATEWAY_PURPOSE_V01 ||
-      (envelope.purpose === GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01 &&
+      ((envelope.purpose === GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01 || envelope.purpose === PLANNER_MODEL_GATEWAY_PURPOSE_V01) &&
         envelope.budget.cost_budget !== undefined)
     ) {
       const costBudget = envelope.budget.cost_budget;
@@ -2433,6 +2472,7 @@ async function invokeLiveAdapter(
 ): Promise<InternalGatewayResultV01> {
   let egressAttempted = false;
   let inputBytesUsed: number | null = null;
+  let receivedResult: ModelGatewayInvocationErrorV01["received_result"] = null;
 
   try {
     lifecycle.throwIfStopped();
@@ -2474,6 +2514,10 @@ async function invokeLiveAdapter(
         },
       ),
     );
+    // Keep received-but-refused distinct from transport loss. V0.2 failure
+    // receipts do not admit over-budget usage; retain that reported evidence
+    // separately without turning the failed receipt into a success.
+    receivedResult = { usage: result.usage };
     lifecycle.throwIfStopped();
     if (result.purpose !== envelope.purpose) {
       throw gatewayFailure("model_gateway_provider_response_invalid");
@@ -2582,6 +2626,10 @@ async function invokeLiveAdapter(
       }),
       providerRejectionObservation,
       providerResponseInvalidObservation,
+      receivedResult ?? (error instanceof ModelGatewayAdapterFailureV01 ? error.received_result : null),
+      error instanceof ModelGatewayAdapterFailureV01
+        ? normalizeModelTransportFailureObservationV01(error.transport_failure_observation)
+        : null,
     );
   }
 }
@@ -2980,7 +3028,7 @@ function validateBudget(
     "max_input_bytes",
     "max_output_tokens",
     "max_provider_calls",
-  ], purpose === STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01 ||
+  ], purpose === PLANNER_MODEL_GATEWAY_PURPOSE_V01 || purpose === STRATEGIC_ADVANTAGE_TRANSFER_MODEL_GATEWAY_PURPOSE_V01 ||
     purpose === GOVERNED_ACTOR_LAB_MODEL_GATEWAY_PURPOSE_V01 ||
     isOperationalReentryMatchedCohortPurposeV01(purpose)
     ? ["cost_budget"]
@@ -3122,11 +3170,7 @@ function validatePolicy(value: unknown): ModelInvocationEnvelopeV01["policy"] {
         readOwn(record, "expected_active_project_id"),
         "project",
       ),
-      expected_active_selection_revision: requireInteger(
-        readOwn(record, "expected_active_selection_revision"),
-        1,
-        Number.MAX_SAFE_INTEGER,
-      ),
+      expected_active_selection_revision: requireSelectionRevision(readOwn(record, "expected_active_selection_revision")),
     };
   }
   if (origin === "policy_triggered") {
@@ -3833,6 +3877,11 @@ function requireSha256(value: unknown) {
   return value;
 }
 
+function requireSelectionRevision(value: unknown) {
+  if (!isHistoricalProjectSelectionRevision(value)) invalid();
+  return value;
+}
+
 function requireInteger(value: unknown, minimum: number, maximum: number) {
   if (
     typeof value !== "number" ||
@@ -3861,12 +3910,16 @@ function gatewayFailure(
   receipt: ModelInvocationReceiptV02 | null = null,
   providerRejectionObservation: ModelGatewayInvocationErrorV01["provider_rejection_observation"] = null,
   providerResponseInvalidObservation: ModelGatewayInvocationErrorV01["provider_response_invalid_observation"] = null,
+  receivedResult: ModelGatewayInvocationErrorV01["received_result"] = null,
+  transportFailureObservation: ModelGatewayInvocationErrorV01["transport_failure_observation"] = null,
 ) {
   return new ModelGatewayInvocationErrorV01(
     code,
     receipt,
     providerRejectionObservation,
     providerResponseInvalidObservation,
+    receivedResult,
+    transportFailureObservation,
   );
 }
 

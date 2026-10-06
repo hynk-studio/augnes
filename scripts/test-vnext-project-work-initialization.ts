@@ -1,4 +1,8 @@
+import { differentSelectionRevision } from "./test-selection-observation";
+import { readVNextCoreRecordV01 } from "../lib/vnext/persistence/durable-semantic-store";
+import { installZeroNetworkGuard } from "./test-harness-zero-network-guard.mjs";
 import { buildWorkExpectationRecord, expectationRef } from "../lib/vnext/work-expectation";
+import { RETRY_INSPECTION_INPUT_V01, RETRY_INSPECTION_OUTLOOK_V01, RETRY_INSPECTION_OUTLOOK_V02, buildRetryInspectionOutlookV01, buildRetryInspectionOutlookV02, readRetryInspectionOutlookV01, retryInspectionGuidanceV01, type RetryInspectionInputV01 } from "../lib/vnext/retry-inspection-outlook";
 import { ORDINARY_SUCCESSOR_EXPECTATION_CHRONOLOGY, type WorkExpectation, type WorkExpectationAttempt } from "../types/vnext/work-expectation";
 import { createWorkExpectationHandler } from "../app/api/vnext/operator/work-expectations/route";
 import { assertWebMcpCurrentWork } from "./test-webmcp-current-work";
@@ -31,9 +35,9 @@ import { LiveNativeHostRunServiceV01 } from "../lib/vnext/runtime/live-native-ho
 import { createCodexAppServerAdapterV01 } from "../lib/vnext/native-host/codex-app-server-adapter";
 import { createCodexScopedTaskV01, createCodexFeasibilityWindowV01, createPersistedCodexFeasibilityContinuationV01, readCodexScopedSnapshotV01, releaseCodexScopedTaskV01 } from "../lib/vnext/native-host/codex-scoped-task";
 import { buildTaskStartGuideBriefCodexProjectionV02 } from "../lib/vnext/guide-brief/project-guide-brief";
-import { buildSelectedWorkSourceEntry, compareSelectedWorkSources, normalizeSelectedWorkSources, readSelectedWorkSources } from "../lib/intake/selected-work-source-comparison";
+import { buildSelectedWorkSourceEntry, compareSelectedWorkSources, normalizeNativeSelectedWorkSources, readSelectedWorkSources } from "../lib/intake/selected-work-source-comparison";
 import { SELECTED_WORK_SOURCE_LABELS } from "../types/vnext/project-work-revision";
-import { recallRetainedWorkSources, resolveRetainedWorkSources } from "../lib/intake/retained-work-source-recall";
+import { recallRetainedWorkSources, resolveRetainedWorkSources, RETAINED_WORK_SOURCE_LIMITS } from "../lib/intake/retained-work-source-recall";
 
 import {
   insertVNextCoreRecordV01,
@@ -141,10 +145,25 @@ void main().catch((error) => {
 
 async function main(): Promise<void> {
   const initializationStarted = performance.now();
+  const cumulativeNetwork = process.argv.some(a => a.startsWith("--cumulative-")) ? installZeroNetworkGuard({ allowLoopback: true }) : null;
   try {
+    if (process.argv.includes("--cumulative-budgets-only")) {
+      const { cumulativeReadBudgets } = await import("./test-cumulative-work-history");
+      cumulativeReadBudgets({ createFixtureV01 }); return;
+    }
+    if (process.argv.includes("--cumulative-history-only") || process.argv.includes("--cumulative-surfaces-only")) {
+      const { cumulativeRevisionHistory } = await import("./test-cumulative-work-history");
+      await cumulativeRevisionHistory({ ROOT, createFixtureV01, authenticatedSessionV01, requestV01, revisionRequestV01, credentialFromCookieV01, insertManagedRunV01 });
+      if (process.argv.includes("--cumulative-surfaces-only")) await assertUnexecutedSuccessorRevisionV01();
+      return;
+    }
+    if (process.argv.includes("--retry-inspection-only")) { await assertRetryInspectionLoopV01(); return; }
+    if (process.argv.includes("--selected-source-budget-only")) { await assertNativeSelectedSourceBudgetV01(); return; }
+    if (process.argv.includes("--retained-source-capacity-only")) { await assertRetainedSourceScanBudgetV01(); return; }
     if (process.argv.includes("--reviewed-outcome-reuse-only")) { await assertReviewedOutcomeReuseV01(); await assertReviewedOutcomeReuseV01(true); return; }
     if (process.argv.includes("--successor-expectation-only")) { await assertSuccessorExpectationV01(); return; }
     if (process.argv.includes("--successor-expectation-limit-only")) { await assertSuccessorExpectationV01(true); return; }
+    if (process.argv.includes("--cumulative-successor-only")) { await assertUnexecutedSuccessorRevisionV01(); return; }
     if (process.argv.includes("--successor-revision-only")) { await assertUnexecutedSuccessorRevisionV01(); return; }
     if (process.argv.includes("--outcome-reuse-only")) { await assertOutcomeReuseV01(); return; }
     if (process.argv.includes("--webmcp-only")) { await assertWebMcpCurrentReadV01(); return; }
@@ -168,7 +187,7 @@ async function main(): Promise<void> {
       await assertOutcomeReuseV01();
       return;
     }
-    if (process.argv.includes("--settled-expired-successor-refusals-only")) {
+    if (process.argv.includes("--settled-expired-successor-refusals-only") || process.argv.includes("--cumulative-scoped-only")) {
       await assertPersistedScopedContinuationV01(["settled_expired_refusals"]);
       return;
     }
@@ -185,6 +204,7 @@ async function main(): Promise<void> {
       return;
     }
     assertNormalizationAndCompilerV01();
+    assertHistoricalNumericSelectionLineageV01();
     assertNativeHostRunIdentityCompatibilityV01();
     assertInitializationReadPolicyV01();
     assertLocalReviewAccessIssuanceV01();
@@ -216,11 +236,11 @@ async function main(): Promise<void> {
       korean_and_unicode: true,
       exact_replay: true,
       revision_exact_replay: true,
-      revision_exact_successor_replay_requires_zero_history: true,
+      revision_exact_successor_replay_requires_no_blocking_history: true,
       revision_append_only: true,
       revision_stale_cas_refused: true,
       revision_branch_and_missing_prior_refused: true,
-      revision_limit_refused_without_write: true,
+      revisions_beyond_former_limit: true,
       authenticated_transaction: true,
       save_execution_started: false,
       separate_native_host_start: true,
@@ -232,6 +252,8 @@ async function main(): Promise<void> {
     }, null, 2));
   } finally {
     rmSync(ROOT, { recursive: true, force: true });
+    cumulativeNetwork?.restore();
+    assert.equal(cumulativeNetwork?.attempts.length ?? 0, 0);
   }
 }
 
@@ -260,6 +282,10 @@ async function assertUnexecutedSuccessorRevisionV01(): Promise<void> {
     });
     const saved = await defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config,
       credential: credentialFromCookieV01(first.session_admission!.cookie_value), request: preview.request, clock });
+    if (process.argv.includes("--cumulative-successor-only") || process.argv.includes("--cumulative-surfaces-only")) {
+      const { cumulativeRevisionHistory } = await import("./test-cumulative-work-history");
+      await cumulativeRevisionHistory({ ROOT, revisionRequestV01, credentialFromCookieV01, insertManagedRunV01 }, { fixture, saved }); return;
+    }
     fixture.db.close(); fixture.db = new Database(fixture.config.database_path);
     const current = readProjectWorkInitializationV01(fixture.db, fixture);
     const eligibility = readProjectWorkRevisionEligibilityV01(fixture.db, fixture);
@@ -614,7 +640,7 @@ async function assertOutcomeReuseV01(): Promise<void> {
         } finally { replace.run(original.status, original.metadata_json, historicalId); }
       }
       await unchanged({ ...preview.request, expected_latest_receipt_fingerprint: `sha256:${"0".repeat(64)}` }, /predecessor_unsettled_or_mismatched/);
-      await unchanged({ ...preview.request, expected_active_selection_revision: preparation.binding.expected_active_selection_revision + 1 }, /selection_changed/);
+      await unchanged({ ...preview.request, expected_active_selection_revision: differentSelectionRevision(preparation.binding.expected_active_selection_revision) }, /selection_changed/);
       await unchanged({ ...preview.request, selected_sources: { ...selected_sources, omitted_sources: [] } }, /source_omissions_invalid/);
       const foreignEntry = buildSelectedWorkSourceEntry({ ...fixture, project_id: "project:foreign" }, notes[2]);
       await unchanged({ ...preview.request, selected_sources: { ...selected_sources, selected_source_context: [foreignEntry] } }, /selected_source_context_invalid/);
@@ -1966,6 +1992,40 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
             };
             const history = listVNextCoreRecordsV01(fixture.db, { ...fixture, record_kinds: [...VNEXT_CORE_RECORD_KINDS_V01], limit: 100 });
             if (scenario === "settled_expired_refusals") {
+              if (process.argv.includes("--cumulative-scoped-only")) {
+                // Real scoped authorship crosses the old listing boundary while
+                // preserving its finite lifetime and local predecessor contract.
+                let runCount = (fixture.db.prepare("SELECT count(*) AS n FROM autonomy_runs WHERE scope = ?").get(fixture.project_id) as { n: number }).n;
+                for (const count of [127, 128, 129, 321]) {
+                  for (; runCount < count; runCount++) insertManagedRunV01(fixture, {
+                    run_id: `fixture:scoped-history:${runCount}`, scope: fixture.project_id,
+                    created_at: first.receipt.finished_at!, metadata_json: '{"fixture_only":true,"reconciliation_required":false}',
+                  });
+                  const copy = new Database(fixture.db.serialize());
+                  try {
+                    const before = copy.prepare("SELECT * FROM vnext_core_records ORDER BY rowid").all();
+                    const saved = await defineAuthoredSuccessorTaskV01(copy, { config: fixture.config, credential: freshCredential,
+                      request: revalidated, clock, approved_instruction_files: approvedInstructionFiles });
+                    assert.equal(saved.status, "inserted"); assert.equal(saved.packet.expires_at, revalidated.revalidation.expires_at);
+                    assert.equal(saved.packet.capability_grant, null);
+                    assert.deepEqual(copy.prepare("SELECT * FROM vnext_core_records ORDER BY rowid").all().slice(0, before.length), before);
+                    console.log(JSON.stringify({ scoped_history_runs: count, authorship: "inserted", lifetime: "finite_unchanged", new_worker_launches: 0 }));
+                  } finally { copy.close(); }
+                }
+                const oldId = "fixture:scoped-history:99";
+                assert(!listAutonomyRunLedgerRecords({ db: fixture.db, scope: fixture.project_id, limit: 128 }).some(r => r.run_id === oldId));
+                const old = fixture.db.prepare("SELECT status, metadata_json FROM autonomy_runs WHERE run_id=?").get(oldId) as { status: string; metadata_json: string };
+                for (const [status, metadata] of [["running", "{}"], ["completed", '{"reconciliation_required":true}'],
+                  ["unknown-fixture", "{}"], ["completed", "[]"], ["completed", "{"], ["completed", '{"reconciliation_required":null}']]) {
+                  fixture.db.prepare("UPDATE autonomy_runs SET status=?, metadata_json=? WHERE run_id=?").run(status, metadata, oldId);
+                  const before = fixture.db.serialize();
+                  try { await assert.rejects(author(), /conflicting_run|history|metadata|json/); assert(before.equals(fixture.db.serialize())); }
+                  finally { fixture.db.prepare("UPDATE autonomy_runs SET status=?, metadata_json=? WHERE run_id=?").run(old.status, old.metadata_json, oldId); }
+                }
+                console.log(JSON.stringify({ cumulative_scoped: "passed", later_page_conflicts: 6, provider_calls: 0 }));
+                return;
+              }
+
               for (const expires_at of [null, expiredAt, "invalid", new Date(Date.parse(expiredAt) + 8 * 3_600_000 + 1).toISOString()])
                 await assert.rejects(author({ ...revalidated, revalidation: { ...revalidated.revalidation, expires_at } }), /revalidation_invalid|lifetime_invalid/);
               const shortBootstrap = issueVNextLocalOperatorBootstrapV01(fixture.db, { config: fixture.config, clock });
@@ -1977,7 +2037,7 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
               await assert.rejects(author({ ...revalidated, revalidation: { ...revalidated.revalidation, profile: "unsupported.v9" } }), /revalidation_invalid/);
               await assert.rejects(author({ ...revalidated, expected_latest_receipt_id: laterReceipt.receipt_id,
                 expected_latest_receipt_fingerprint: laterReceipt.integrity.fingerprint }), /predecessor_unsettled_or_mismatched/);
-              await assert.rejects(author({ ...revalidated, expected_active_selection_revision: revalidated.expected_active_selection_revision + 1 }), /selection_changed/);
+              await assert.rejects(author({ ...revalidated, expected_active_selection_revision: differentSelectionRevision(revalidated.expected_active_selection_revision) }), /selection_changed/);
               await assert.rejects(author({ ...revalidated, expected_root_fingerprint: `sha256:${"0".repeat(64)}` }), /root_changed/);
               await assert.rejects(author({ ...revalidated, definition: { ...revalidated.definition,
                 materials: revalidated.definition.materials.map(m => ({ ...m, sha256: "0".repeat(64) })) } }), /reviewed_inputs_changed/);
@@ -1997,16 +2057,6 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
               updateAutonomyRunLedgerFields(olderRun.run_id, { status: "paused", metadata: { ...olderRun.metadata, reconciliation_required: true } }, { db: fixture.db });
               try { await assert.rejects(author(), /conflicting_run/); }
               finally { updateAutonomyRunLedgerFields(olderRun.run_id, { status: olderRun.status, metadata: olderRun.metadata }, { db: fixture.db }); }
-              // The ordinary profile's complete conflict query must not relax
-              // this older scoped revalidation profile's retained scan bound.
-              const runCount = (fixture.db.prepare("SELECT count(*) AS n FROM autonomy_runs WHERE scope = ?").get(fixture.project_id) as { n: number }).n;
-              for (let index = runCount; index < 128; index++) insertManagedRunV01(fixture, {
-                run_id: `fixture:scoped-history:${index}`, scope: fixture.project_id,
-                created_at: first.receipt.finished_at!, metadata_json: '{"fixture_only":true,"reconciliation_required":false}',
-              });
-              const boundedHistory = fixture.db.serialize();
-              await assert.rejects(author(), /conflicting_run/);
-              assert(boundedHistory.equals(fixture.db.serialize()), "Scoped history-bound refusal preserves packet and session state");
               for (const material of revalidated.definition.materials) {
                 const sourcePath = path.join(fixture.root, material.relative_path), bytes = readFileSync(sourcePath);
                 writeFileSync(sourcePath, "synthetic changed material\n");
@@ -2551,7 +2601,7 @@ async function assertSelectedSourceNextWorkV01(): Promise<void> {
     assert.deepEqual(comparison, compareSelectedWorkSources(initial.packet, [...notes].reverse()));
     assert.deepEqual(comparison.entries.map((entry) => entry.bounded_summary), texts);
     assert.equal(comparison.rows.filter((row) => row.user_correction).length, 1);
-    assert.deepEqual(normalizeSelectedWorkSources(fixture, [...notes, notes[0]]), comparison.entries);
+    assert.deepEqual(normalizeNativeSelectedWorkSources(fixture, [...notes, notes[0]]), comparison.entries);
     const chronologicalChange = buildSelectedWorkSourceEntry(fixture, {
       source: "Selected review/history digest, revision 1", observed_at: "2026-08-01T00:00:07.000Z",
       provenance: "user_declaration", label: SELECTED_WORK_SOURCE_LABELS[0], text: texts[0],
@@ -2563,11 +2613,11 @@ async function assertSelectedSourceNextWorkV01(): Promise<void> {
       label: SELECTED_WORK_SOURCE_LABELS[6], text: initial.packet.task.goal,
     });
     assert.equal(compareSelectedWorkSources(initial.packet, [exactWorkText]).rows[0]?.comparison, "reconfirmed_work_text");
-    assert.throws(() => normalizeSelectedWorkSources({ ...fixture, project_id: "project:foreign" }, notes), /selected_source_context_invalid/u);
-    assert.throws(() => normalizeSelectedWorkSources(fixture, [{ ...notes[0], source_ref: "sha256:bad" }]), /selected_source_context_invalid/u);
-    assert.throws(() => normalizeSelectedWorkSources(fixture, [...notes, chronologicalChange, chronologicalChange]), /task_context_mandatory_selection_budget_exceeded/u);
+    assert.throws(() => normalizeNativeSelectedWorkSources({ ...fixture, project_id: "project:foreign" }, notes), /selected_source_context_invalid/u);
+    assert.throws(() => normalizeNativeSelectedWorkSources(fixture, [{ ...notes[0], source_ref: "sha256:bad" }]), /selected_source_context_invalid/u);
+    assert.throws(() => normalizeNativeSelectedWorkSources(fixture, [...notes, chronologicalChange, chronologicalChange]), /task_context_mandatory_selection_budget_exceeded/u);
     assert.throws(() => buildSelectedWorkSourceEntry(fixture, { source: "", text: "missing source", observed_at: null, provenance: "user_declaration", label: SELECTED_WORK_SOURCE_LABELS[0] }), /selected_source_context_invalid/u);
-    assert.throws(() => normalizeSelectedWorkSources(fixture, texts.map((_, index) => buildSelectedWorkSourceEntry(fixture, {
+    assert.throws(() => normalizeNativeSelectedWorkSources(fixture, texts.map((_, index) => buildSelectedWorkSourceEntry(fixture, {
       source: `Budget note ${index}`, observed_at: null, provenance: "user_declaration", label: SELECTED_WORK_SOURCE_LABELS[index], text: "한".repeat(2_000),
     }))), /selected_source_context_budget_exceeded/u);
 
@@ -3041,6 +3091,41 @@ function assertInitialWorkPortabilityV01(): void {
     source.db.close();
     destination.close();
   }
+}
+
+function assertHistoricalNumericSelectionLineageV01(): void {
+  const fixture = createFixtureV01("historical-numeric-selection");
+  try {
+    const credential = authenticatedSessionV01(fixture, "historical");
+    // Historical packet construction is deliberately numeric. It is not a
+    // current writer admission and must never replace the live selection token.
+    const historical = buildInitialProjectWorkTaskContextPacketV01({
+      workspace_id: fixture.workspace_id,
+      project_id: fixture.project_id,
+      operator_id: fixture.config.operator_id,
+      session_id: credential.session_id,
+      expected_active_selection_revision: 1,
+      definition: { goal: "Continue preserved historical work", success_criteria: ["Original bytes remain readable"], non_goals: [] },
+      generated_at: T2,
+    });
+    insertVNextCoreRecordV01(fixture.db, {
+      ...fixture, record_kind: "task_context_packet", record_id: historical.packet.packet_id,
+      fingerprint: historical.packet.integrity.fingerprint,
+      idempotency_key: historical.lineage.idempotency_key, payload: historical.packet, created_at: T2,
+    });
+    const bytes = canonicalizeProtocolValueV01(historical.packet);
+    const selection = readActiveProjectSelectionV01(fixture.db, fixture.workspace_id);
+    assert.equal(inspectInitialProjectWorkPacketLineageV01(fixture.db, { ...fixture, packet: historical.packet }).projection_current, true);
+    const current = readProjectWorkInitializationV01(fixture.db, fixture);
+    assert.equal(current.state, "defined_initial_work");
+    assert.equal(current.current_packet?.packet_id, historical.packet.packet_id);
+    assert.equal(canonicalizeProtocolValueV01(readVNextCoreRecordV01(fixture.db, {
+      ...fixture, record_kind: "task_context_packet", record_id: historical.packet.packet_id,
+    })!.payload), bytes);
+    const portable = exportActivePortableProjectV01(fixture.db, { include_personal_perspective: false, exported_at: "2026-08-01T00:00:03.000Z" });
+    assert.equal(parseAndValidatePortableProjectV01(portable.bytes).records[0]?.fingerprint, historical.packet.integrity.fingerprint);
+    assert.deepEqual(readActiveProjectSelectionV01(fixture.db, fixture.workspace_id), selection);
+  } finally { fixture.db.close(); }
 }
 
 function assertNormalizationAndCompilerV01(): void {
@@ -4255,7 +4340,7 @@ function assertRevisionLimitV01(): void {
       fixture.db,
       fixture.config,
     );
-    assert.equal(eligibility.status, "revision_limit_reached");
+    assert.equal(eligibility.status, "eligible_revised_packet");
     assert.equal(eligibility.revision_count, 32);
     assert(lastRevisionRequest);
     const limitReplay = revisePreExecutionProjectWorkV01(fixture.db, {
@@ -4268,36 +4353,15 @@ function assertRevisionLimitV01(): void {
     assert.equal(limitReplay.packet.packet_id, currentPacket.packet_id);
     assert.equal(limitReplay.run_created, false);
     assert.equal(limitReplay.execution_started, false);
-    assert.throws(
-      () =>
-        revisePreExecutionProjectWorkV01(fixture.db, {
-          config: fixture.config,
-          credential: credentialFromCookieV01(
-            limitReplay.session_admission.cookie_value,
-          ),
-          request: revisionRequestV01(
-            fixture,
-            currentPacket,
-            currentLineage,
-            {
-              goal: "Revision 33 must be refused",
-              success_criteria: ["No packet is written"],
-              non_goals: [],
-            },
-          ),
-          clock: fixedClock("2026-08-01T00:00:35.000Z"),
-        }),
-      errorCode("work_revision_limit_reached"),
-    );
-    assert.equal(
-      listVNextCoreRecordsV01(fixture.db, {
-        workspace_id: fixture.workspace_id,
-        project_id: fixture.project_id,
-        record_kinds: ["task_context_packet"],
-        limit: 64,
-      }).length,
-      33,
-    );
+    const extended = revisePreExecutionProjectWorkV01(fixture.db, {
+      config: fixture.config, credential: credentialFromCookieV01(limitReplay.session_admission.cookie_value),
+      request: revisionRequestV01(fixture, currentPacket, currentLineage, {
+        goal: "Revision 33 remains ordinary work", success_criteria: ["The complete immutable chain remains usable"], non_goals: [],
+      }), clock: fixedClock("2026-08-01T00:00:35.000Z"),
+    });
+    assert.equal(extended.status, "inserted");
+    assert.equal(extended.revision_eligibility.revision_count, 33);
+    assert.equal(listVNextCoreRecordsV01(fixture.db, { ...fixture, record_kinds: ["task_context_packet"], limit: 64 }).length, 34);
     const recovery = validateRecoveryCanonicalDatabaseV01(fixture.db);
     assert.equal(recovery.status, "valid", recovery.code);
   } finally {
@@ -4843,15 +4907,15 @@ async function assertReviewedOutcomeReuseV01(overBudget = false): Promise<void> 
     const altered = reuse.entries.map(entry => buildReviewedOutcomeSourceEntry(fixture, { ...selectedWorkSourceInput(entry), text: entry.bounded_summary + " ALTERED" }, reuse.binding,
       entry.compatibility_source_ref!.ref_type === "reviewed_outcome_report" ? "report" : "expectation"));
     await reject(fixture.db, withEntries(altered), /reviewed_outcome_selection_changed/);
-    await reject(fixture.db, { ...preview.request, expected_active_selection_revision: preparation.binding.expected_active_selection_revision + 1 }, /selection_changed/);
+    await reject(fixture.db, { ...preview.request, expected_active_selection_revision: differentSelectionRevision(preparation.binding.expected_active_selection_revision) }, /selection_changed/);
     const foreign = reuse.entries.map(entry => buildReviewedOutcomeSourceEntry({ ...fixture, project_id: "project:foreign" }, selectedWorkSourceInput(entry), reuse.binding,
       entry.compatibility_source_ref!.ref_type === "reviewed_outcome_report" ? "report" : "expectation"));
     await reject(fixture.db, { ...preview.request, selected_sources: { ...selected_sources, selected_source_context: foreign } }, /selected_source_context_invalid/);
     const malformed = reuse.entries.map(e => ({ ...e, compatibility_source_ref: { ...e.compatibility_source_ref!, ref_type: null } }));
     await reject(fixture.db, { ...preview.request, selected_sources: { ...selected_sources, selected_source_context: malformed } }, /selected_source_context_invalid/);
     assert.throws(() => compareResultWorkSourcesV01(fixture.db, { config: fixture.config, binding: preparation.binding, notes: [{ reviewed_outcome_ref: { ...reuse.binding, extra: true } }], clock }), /reviewed_outcome_changed/);
-    assert.throws(() => normalizeSelectedWorkSources(fixture, [reuse.entries[0]]), /selected_source_context_invalid/, "A generated snapshot must retain its coherent context");
-    const notes = Array.from({ length: 7 }, (_, index) => ({ source: `authored note ${index}`, observed_at: null, provenance: "user_declaration", label: "Open question", text: "x".repeat(2000) }));
+    assert.throws(() => normalizeNativeSelectedWorkSources(fixture, [reuse.entries[0]]), /selected_source_context_invalid/, "A generated snapshot must retain its coherent context");
+    const notes = Array.from({ length: 7 }, (_, index) => ({ source: `authored note ${index}`, observed_at: null, provenance: "user_declaration", label: "Open question", text: "한".repeat(2000) }));
     assert.throws(() => compareResultWorkSourcesV01(fixture.db, { config: fixture.config, binding: preparation.binding, notes: [{ reviewed_outcome_ref: reuse.binding }, ...notes], clock }), /budget_exceeded/);
     assert.throws(() => compareResultWorkSourcesV01(fixture.db, { config: fixture.config, binding: preparation.binding, notes: [{ reviewed_outcome_ref: reuse.binding }, ...notes.slice(0, 6)], clock }), /selected_source_context_budget_exceeded/, "Eight whole notes still obey the serialized-byte budget");
     const snapshot = fixture.db.serialize();
@@ -4991,11 +5055,11 @@ async function assertReviewedOutcomeReuseV01(overBudget = false): Promise<void> 
     const fits = await route({ action: "compare_selected_work_sources", notes: capacityNotes.slice(0, 6), retained_source_refs: refs });
     const eightNoteBytes = Buffer.byteLength(canonicalizeProtocolValueV01([...capacityNotes.slice(0, 6).map(note => buildSelectedWorkSourceEntry(fixture, note)), ...reuse.entries]), "utf8");
     console.log(JSON.stringify({ reviewed_outcome_capacity: { notes: 8, selected_bytes: eightNoteBytes, status: fits.status } }));
-    assert.equal(fits.status, 422, "Two slots are available, but the exact complete material still exceeds the byte budget");
-    assert(eightNoteBytes > 12_000); assert.equal((await fits.json()).error_code, "selected_source_context_budget_exceeded");
+    assert.equal(fits.status, 200, "The complete pair and six short notes fit the native packaging allowance");
+    assert(eightNoteBytes > 12_000 && eightNoteBytes < 32_000); assert.equal((await fits.json()).comparison.entries.length, 8);
     for (const [notes, retained_source_refs, errorCode] of [
       [capacityNotes, refs, "task_context_mandatory_selection_budget_exceeded"],
-      [[{ ...capacityNotes[0], text: "한".repeat(2_000) }, { ...capacityNotes[1], text: "한".repeat(2_000) }], refs, "selected_source_context_budget_exceeded"],
+      [capacityNotes.slice(0, 6).map(note => ({ ...note, text: "한".repeat(2_000) })), refs, "selected_source_context_budget_exceeded"],
       [[], refs.slice(0, 1), "selected_source_context_invalid"],
       [[], [{ ...refs[0], source_fingerprint: `sha256:${"0".repeat(64)}` }, refs[1]], "retained_source_changed_or_unavailable"],
       [[], [{ ...refs[0], packet_id: initial.packet.packet_id }, refs[1]], "retained_source_changed_or_unavailable"],
@@ -5224,7 +5288,7 @@ async function assertSuccessorExpectationV01(finalRevisionOnly = false): Promise
       // Combine genuine fixture writes solely to exercise corrupt ambiguity.
       insertVNextCoreRecordV01(ambiguousDb, branchRow);
       const before = ambiguousDb.serialize();
-      assert.throws(() => recordWorkExpectationMaterial(ambiguousDb, { config: fixture.config, credential, request: currentRequest, clock: fixedClock("2026-08-01T00:00:25.000Z") }), /current|pre_start_only/);
+      assert.throws(() => recordWorkExpectationMaterial(ambiguousDb, { config: fixture.config, credential, request: currentRequest, clock: fixedClock("2026-08-01T00:00:25.000Z") }), errorCode("successor_task_successor_branch_invalid"));
       assert(before.equals(ambiguousDb.serialize()));
       ambiguousDb.exec("BEGIN IMMEDIATE");
       assert.equal(bindWorkExpectationToAttempt(ambiguousDb, { ...fixture, packet: b2.packet, run_id: "fixture:ambiguous", mode: "interactive", started_at: "2026-08-01T00:00:30.000Z" }), null);
@@ -5404,12 +5468,12 @@ async function assertSuccessorExpectationOptionalV01(original: FixtureV01, packe
         current = revised.packet; credential = credentialFromCookieV01(revised.session_admission.cookie_value);
         console.log(JSON.stringify({ successor_final_slot: "final_revision_saved" }));
         const preparation = readWorkExpectationPreparation(fixture.db, fixture);
-        assert.equal(preparation.eligibility.status, "revision_limit_reached");
+        assert.equal(preparation.eligibility.status, "eligible_successor_packet");
         assert.equal(preparation.authoring_available, true, "A supported final revision can receive its own explicit expectation");
-        const before = fixture.db.serialize();
-        assert.throws(() => revisePreExecutionProjectWorkV01(fixture.db, { config: fixture.config, credential,
-          request: revisionRequestV01(fixture, current, "authored_successor_task", { ...current.task, goal: "No 33rd revision" }), clock: fixedClock(now()) }), /revision_limit/);
-        assert(before.equals(fixture.db.serialize()));
+        const extended = revisePreExecutionProjectWorkV01(fixture.db, { config: fixture.config, credential,
+          request: revisionRequestV01(fixture, current, "authored_successor_task", { ...current.task, goal: "Explicit expectation beyond revision 32" }), clock: fixedClock(now()) });
+        current = extended.packet; credential = credentialFromCookieV01(extended.session_admission.cookie_value);
+        assert.equal(extended.revision_eligibility.revision_count, 33);
         const saved = recordWorkExpectationMaterial(fixture.db, { config: fixture.config, credential, request: request(), clock: fixedClock(now()) });
         credential = credentialFromCookieV01(saved.session_admission.cookie_value); finalForecastId = saved.record.record_id;
         console.log(JSON.stringify({ successor_final_slot: "explicit_expectation_saved" }));
@@ -5683,25 +5747,50 @@ async function assertExpectationSchemaCompatibilityV01(): Promise<void> {
       operator_mutation: { credential: credentialFromCookieV01(initial.session_admission.cookie_value), clock: fixedClock("2026-08-01T00:00:10.000Z") } }, { now: timestampSequenceV01("2026-08-01T00:00:10.000Z") });
     const oldDetail = readProjectRunResultDetailV01(fixture.db, { ...fixture, receipt_id: oldResult.receipt.receipt_id });
     const before = fixture.db.prepare("SELECT * FROM vnext_core_records ORDER BY record_id").all();
+    const selectionBefore = readActiveProjectSelectionV01(fixture.db, fixture.workspace_id)!;
     const schema = readFileSync(path.join(process.cwd(), "lib/db/schema.sql"), "utf8");
     const table = schema.match(/CREATE TABLE IF NOT EXISTS vnext_core_records \([\s\S]*?\n\);/u)?.[0];
     assert(table);
-    // DDL-only predecessor fixture. All canonical rows above came from normal
-    // authenticated producers and are copied intact, never invented or edited.
+    // Construct the exact predecessor structure, including a fixture-only
+    // numeric selection. Core rows come from current authenticated producers
+    // and stay intact; this is not a claim of historical writer reproduction.
     fixture.db.exec("BEGIN IMMEDIATE");
     fixture.db.exec("ALTER TABLE vnext_core_records RENAME TO expectation_schema_fixture_backup");
     fixture.db.exec(table.replace(/,\s*'work_expectation_record'/u, ""));
     fixture.db.exec("INSERT INTO vnext_core_records SELECT * FROM expectation_schema_fixture_backup; DROP TABLE expectation_schema_fixture_backup");
     fixture.db.exec(schema);
+    fixture.db.exec(`
+      DROP TRIGGER trg_vnext_project_selection_retain;
+      DROP TABLE vnext_active_project_selections;
+      CREATE TABLE vnext_active_project_selections (
+        workspace_id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        active_project_selection_version TEXT NOT NULL CHECK (
+          active_project_selection_version = 'active_project_selection.v0.1'
+        ),
+        selection_revision INTEGER NOT NULL CHECK (selection_revision > 0),
+        selected_at TEXT NOT NULL CHECK (length(trim(selected_at)) > 0),
+        FOREIGN KEY (workspace_id, project_id)
+          REFERENCES vnext_project_identities(workspace_id, project_id)
+          ON UPDATE RESTRICT ON DELETE RESTRICT
+      );
+    `);
+    fixture.db.prepare("INSERT INTO vnext_active_project_selections VALUES (?,?,'active_project_selection.v0.1',1,?)")
+      .run(fixture.workspace_id, fixture.project_id, T0);
+    fixture.db.exec("DROP TABLE vnext_project_direction_credentials; DROP TABLE vnext_project_direction_records; DROP TABLE vnext_prospective_reentry");
     fixture.db.exec("COMMIT");
     assert.equal(structuralSchemaContractSignature(fixture.db), "66f470e7a6e5bc2a10d5e2b0437dc95165596ae55f915ecd27ee1666e130f980");
     assert.equal((await inspectRuntimeDatabase({ databasePath: fixture.config.database_path })).database_state, "old");
     applyCanonicalDatabaseMigrations(fixture.db);
+    const selectionAfter = readActiveProjectSelectionV01(fixture.db, fixture.workspace_id)!;
+    assert.equal(selectionAfter.project_id, selectionBefore.project_id);
+    assert.notEqual(selectionAfter.selection_revision, selectionBefore.selection_revision);
+    assert.match(String(selectionAfter.selection_revision), /^selection:[0-9a-f]{32}$/);
     assert.equal((await inspectRuntimeDatabase({ databasePath: fixture.config.database_path })).database_state, "current");
     assert.deepEqual(fixture.db.prepare("SELECT * FROM vnext_core_records ORDER BY record_id").all(), before);
     assert.equal(validateRecoveryCanonicalDatabaseV01(fixture.db).status, "valid");
     assert.deepEqual(readProjectRunResultDetailV01(fixture.db, { ...fixture, receipt_id: oldResult.receipt.receipt_id }), oldDetail);
-    console.log("expectation schema: exact merged predecessor admitted, normal migration preserves authenticated canonical rows");
+    console.log("expectation schema: constructed exact predecessor schema admitted; migration preserves current authenticated Core rows");
   } finally { fixture.db.close(); }
 }
 
@@ -5896,6 +5985,221 @@ function revisionRequestV01(
   };
 }
 
+function assertRetryInspectionSelectionV02(): void {
+  const scope = { workspace_id: "outlook-regression-workspace", project_id: "outlook-regression-project" };
+  const profile = RETRY_INSPECTION_INPUT_V01;
+  const direction: Extract<RetryInspectionInputV01, { kind: "direction" }> = { profile, kind: "direction", purpose: "Complete stationary retry work", priority: "reduce_work" };
+  const workflow: Extract<RetryInspectionInputV01, { kind: "workflow" }> = { profile, kind: "workflow", attempt: 7, verification: 2, repair: 3,
+    direct_success: { numerator: 1, denominator: 2 }, stationary: true, unit: "effort units", valid_until: "2026-08-01T00:00:59.000Z", support_refs: [] };
+  const inspection: Extract<RetryInspectionInputV01, { kind: "inspection" }> = { profile, kind: "inspection", cost: 8,
+    success: { numerator: 3, denominator: 5 }, available: true, preparation: "Obtain the optional inspection resource.", valid_until: workflow.valid_until, support_refs: [] };
+  const entries = (w = workflow, i = inspection, d = direction) => normalizeNativeSelectedWorkSources(scope, [d, w, i].map(value =>
+    buildSelectedWorkSourceEntry(scope, { source: `Constructed selection regression / ${value.kind}`, text: JSON.stringify(value),
+      provenance: value.kind === "direction" ? "user_declaration" : "imported_unverified", label: "New candidate", observed_at: T1 })));
+  const at = "2026-08-01T00:00:06.000Z";
+  const zero = { numerator: 0, denominator: 1 };
+  const beneficial = { ...inspection, cost: 2, success: { numerator: 3, denominator: 4 } };
+  // Golden v0.1 IDs captured from f61d3c3 with these exact normalized notes.
+  // Corrected judgments get a new version/identity; the historical ones remain reproducible.
+  const cases = [
+    { name: "costly_unavailable", w: workflow, i: { ...inspection, available: false }, before: "prepare", after: "direct", why: /91\/3.*does not improve.*21/u,
+      legacy: "sha256:ff2b99b56b23f54960b5e3f2689b47e8f25c690e96913dad29906c0b07d685f6" },
+    { name: "costly_unknown_availability", w: workflow, i: { ...inspection, available: null }, before: "observe", after: "direct", why: /91\/3.*does not improve.*21/u,
+      legacy: "sha256:dd5a1722954e23c9d26930f8539b625d8660d226c2cf2d86b05f181674415f76" },
+    { name: "direct_non_completing", w: { ...workflow, direct_success: zero }, i: beneficial, before: "observe", after: "inspect", why: /Direct work is non-completing.*inspection.*47\/3/u,
+      legacy: "sha256:1896ca87e144cab5fa1cd16297f5f2fe5614bce12604241d08a8264cfca9f5c9" },
+    { name: "inspection_non_completing", w: workflow, i: { ...inspection, success: zero }, before: "observe", after: "direct", why: /Inspection is non-completing.*direct work.*21/u,
+      legacy: "sha256:df339f914ca3b67752f3fcee594b74b5c0f56f844facd9d0c72e8418efce0322" },
+  ];
+  for (const c of cases) {
+    const selected = entries(c.w, c.i), original = buildRetryInspectionOutlookV01(selected, at)!, revised = buildRetryInspectionOutlookV02(selected, at)!;
+    assert.equal(original.action, c.before, c.name); assert.equal(original.judgment_id, c.legacy, c.name);
+    assert.equal(revised.action, c.after, c.name); assert.notEqual(revised.judgment_id, original.judgment_id);
+    assert.deepEqual(revised.baseline, original.baseline); assert.deepEqual(revised.alternative, original.alternative);
+    assert.match(revised.recommendation, c.after === "direct" ? /^Continue directly with every mandatory check/u : /^Consider optional inspection.*every mandatory check/u);
+    assert.match(revised.why_now, c.why);
+    if (c.i.available !== true) assert(revised.uncertainty.some(value => /resource.*unavailable|availability is unknown/u.test(value)));
+  }
+  const select = (w = workflow, i: typeof inspection = beneficial, d = direction) => buildRetryInspectionOutlookV02(entries(w, i, d), at)!;
+  assert.equal(select().action, "inspect");
+  const unavailable = select(workflow, { ...beneficial, available: false });
+  assert.equal(unavailable.action, "prepare"); assert.match(unavailable.recommendation, /^Prepare/u); assert.match(unavailable.why_now, /47\/3.*21.*resource is reported unavailable/u);
+  const unknownResource = select(workflow, { ...beneficial, available: null });
+  assert.equal(unknownResource.action, "observe"); assert.match(unknownResource.recommendation, /resource availability/u); assert.match(unknownResource.why_now, /47\/3.*21.*availability is unknown/u);
+  for (const [w, i] of [[workflow, { ...beneficial, success: null }], [{ ...workflow, direct_success: null }, beneficial],
+    [workflow, { ...beneficial, success: null, available: false }], [{ ...workflow, direct_success: zero }, { ...beneficial, success: null }]] as const) {
+    const unknown = select(w, i); assert.equal(unknown.action, "observe"); assert.match(unknown.recommendation, /unknown completion or performance/u); assert.match(unknown.why_now, /unknown estimate can affect/u);
+  }
+  const blockedCompletion = select({ ...workflow, direct_success: zero }, { ...beneficial, available: false });
+  assert.equal(blockedCompletion.action, "prepare"); assert.match(blockedCompletion.why_now, /Direct work is non-completing.*unavailable/u);
+  const neither = select({ ...workflow, attempt: 0, verification: 0, repair: 0, direct_success: zero }, { ...inspection, cost: 0, success: zero });
+  assert.equal(neither.action, "withdraw"); assert.equal(neither.baseline.expected_work, null); assert.equal(neither.alternative.expected_work, null);
+  assert.match(neither.recommendation, /^Withdraw both methods/u); assert.match(neither.why_now, /neither workflow completes.*not unknown performance or an infinite work estimate/u);
+  const zeroCostCompletion = select({ ...workflow, attempt: 0, verification: 0, repair: 0 }, { ...inspection, cost: 0, success: zero, available: false });
+  assert.equal(zeroCostCompletion.action, "direct"); assert.equal(zeroCostCompletion.baseline.expected_work, "0"); assert.equal(zeroCostCompletion.alternative.expected_work, null);
+  const tied = select(workflow, { ...inspection, cost: 0, success: workflow.direct_success, available: null });
+  assert.equal(tied.action, "direct"); assert.equal(tied.baseline.expected_work, tied.alternative.expected_work);
+  const learning = { ...direction, priority: "learn_inspection" as const };
+  const learn = select(workflow, inspection, learning);
+  assert.equal(learn.action, "observe"); assert.match(learn.recommendation, /bounded observation/u); assert.match(learn.why_now, /declared project priority/u);
+  assert.equal(select(workflow, { ...inspection, available: false }, learning).action, "prepare");
+  assert.equal(select(workflow, { ...inspection, available: null }, learning).action, "observe");
+  assert.equal(select(workflow, { ...inspection, success: zero }, learning).action, "observe");
+  assert.equal(select().judgment_id, buildRetryInspectionOutlookV02(entries(workflow, beneficial), "2026-08-01T00:00:07.000Z")!.judgment_id);
+}
+
+async function assertRetryInspectionLoopV01(): Promise<void> {
+  assertRetryInspectionSelectionV02();
+  const fixture = createFixtureV01("retry-inspection-loop", false, true);
+  try {
+    const at = (second: number) => `2026-08-01T00:00:${String(second).padStart(2, "0")}.000Z`;
+    const initial = defineInitialProjectWorkV01(fixture.db, { config: fixture.config,
+      credential: authenticatedSessionV01(fixture, "outlook-author"), request: requestV01(fixture, {
+        goal: "Choose the next bounded retry-workflow check", success_criteria: ["Report what was observed; leave unmeasured performance unknown"], non_goals: ["Do not skip mandatory verification"] }), clock: fixedClock(T2) });
+    let credential = credentialFromCookieV01(initial.session_admission.cookie_value);
+    let packet = initial.packet;
+    const direction: RetryInspectionInputV01 = { profile: RETRY_INSPECTION_INPUT_V01, kind: "direction",
+      purpose: "Develop a dependable workflow across multiple tasks; unresolved inspection performance remains an open question.", priority: "reduce_work" };
+    const workflow: RetryInspectionInputV01 = { profile: RETRY_INSPECTION_INPUT_V01, kind: "workflow", attempt: 7, verification: 2, repair: 3,
+      direct_success: { numerator: 1, denominator: 2 }, stationary: true, unit: "effort units", valid_until: at(59), support_refs: [] };
+    const inspection: RetryInspectionInputV01 = { profile: RETRY_INSPECTION_INPUT_V01, kind: "inspection", cost: 8,
+      success: { numerator: 3, denominator: 5 }, available: true, preparation: "Confirm the inspection resource and bound the observation.", valid_until: at(59), support_refs: [] };
+    const note = (value: RetryInspectionInputV01) => buildSelectedWorkSourceEntry(fixture, {
+      source: `Constructed planning assumptions / ${value.kind} / versioned by content`, text: canonicalizeProtocolValueV01(value),
+      provenance: value.kind === "direction" ? "user_declaration" : "imported_unverified", label: "New candidate", observed_at: T1,
+    });
+    const entries = (i = inspection, w = workflow, d = direction) => [note(d), note(w), note(i)];
+    const revise = (selected: TaskContextPacketV01["selected_context"], second: number, goal = packet.task.goal) => {
+      const comparison = compareSelectedWorkSources(packet, selected);
+      const request = { ...revisionRequestV01(fixture, packet, packet.packet_id === initial.packet.packet_id ? "initial_user_defined" : "pre_execution_user_revision", { ...packet.task, goal }),
+        selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint };
+      const saved = revisePreExecutionProjectWorkV01(fixture.db, { config: fixture.config, credential, request, clock: fixedClock(at(second)) });
+      packet = saved.packet; credential = credentialFromCookieV01(saved.session_admission.cookie_value);
+      assert.equal(saved.execution_started, false); assert.equal(saved.semantic_state_changed, false);
+      return readRetryInspectionOutlookV01(packet)!;
+    };
+    const held = revise(entries(), 3);
+    const historical = structuredClone(packet);
+    assert.equal(held.version, RETRY_INSPECTION_OUTLOOK_V02);
+    assert.equal(held.action, "direct"); assert.equal(held.baseline.expected_work, "21"); assert.equal(held.alternative.expected_work, "91/3");
+    const unchanged = revise(entries(), 4, "Check a different task without redefining project direction");
+    assert.equal(unchanged.judgment_id, held.judgment_id); assert.deepEqual(unchanged.project_direction, held.project_direction);
+    const lowCost = { ...inspection, cost: 2, success: { numerator: 3, denominator: 4 } };
+    const changed = revise(entries(lowCost), 5);
+    assert.equal(changed.action, "inspect"); assert.equal(changed.alternative.expected_work, "47/3");
+    assert.notEqual(changed.judgment_id, held.judgment_id);
+    assert.deepEqual(readRetryInspectionOutlookV01(historical), held, "Later sources do not rewrite the recorded judgment or cutoff");
+    assert.equal(retryInspectionGuidanceV01(packet, at(59))!.includes("expired"), true);
+    assert.throws(() => retryInspectionGuidanceV01(packet, "invalid"), /read_time_invalid/);
+    const tampered = structuredClone(packet); tampered.selected_context = tampered.selected_context.map(entry => entry.entry_id === note(lowCost).entry_id ? note(inspection) : entry);
+    assert.throws(() => readRetryInspectionOutlookV01(tampered), /binding_invalid/);
+    const substitutedVersion = structuredClone(packet);
+    substitutedVersion.compatibility.source_contracts = substitutedVersion.compatibility.source_contracts.map(value => value === RETRY_INSPECTION_OUTLOOK_V02 ? RETRY_INSPECTION_OUTLOOK_V01 : value);
+    assert.throws(() => readRetryInspectionOutlookV01(substitutedVersion), /binding_invalid/);
+    const ambiguousVersion = structuredClone(packet); ambiguousVersion.compatibility.source_contracts.push(RETRY_INSPECTION_OUTLOOK_V01);
+    assert.throws(() => readRetryInspectionOutlookV01(ambiguousVersion), /version_invalid/);
+    const unknownVersion = structuredClone(packet);
+    unknownVersion.compatibility.source_contracts = unknownVersion.compatibility.source_contracts.map(value => value === RETRY_INSPECTION_OUTLOOK_V02 ? "augnes.retry-inspection-outlook.v9" : value);
+    assert.throws(() => readRetryInspectionOutlookV01(unknownVersion), /version_invalid/);
+    // Boundary cases use the same read-only producer; no outcomes are invented.
+    assert.equal(buildRetryInspectionOutlookV02(entries({ ...lowCost, available: false }), at(6))!.action, "prepare");
+    assert.equal(buildRetryInspectionOutlookV02(entries({ ...lowCost, available: null }), at(6))!.action, "observe");
+    const missing = buildRetryInspectionOutlookV02(entries({ ...lowCost, success: null }), at(6))!;
+    assert.equal(missing.action, "observe"); assert.equal(missing.alternative.status, "unknown"); assert.equal(missing.baseline.expected_work, "21");
+    assert.equal(buildRetryInspectionOutlookV02(entries(lowCost, { ...workflow, stationary: false }), at(6))!.action, "withdraw");
+    assert.equal(buildRetryInspectionOutlookV02(entries(lowCost, { ...workflow, direct_success: { numerator: 0, denominator: 1 } }), at(6))!.baseline.status, "non_completing");
+    const changedDirection = buildRetryInspectionOutlookV02(entries(inspection, workflow, { ...direction, priority: "learn_inspection" }), at(6))!;
+    assert.equal(changedDirection.action, "observe"); assert.deepEqual(changedDirection.baseline, held.baseline); assert.deepEqual(changedDirection.alternative, held.alternative);
+    assert.deepEqual(buildRetryInspectionOutlookV02(entries(lowCost).reverse(), at(5)), changed, "Note ordering is not evidence");
+    const dependent = { ...lowCost, support_refs: [`sha256:${"0".repeat(64)}`] };
+    const lost = buildRetryInspectionOutlookV02(entries(dependent), at(6))!;
+    assert.equal(lost.action, "observe"); assert.equal(lost.baseline.expected_work, "21"); assert.equal(lost.alternative.status, "unknown");
+    const unrelated = buildSelectedWorkSourceEntry(fixture, { source: "Unrelated note", text: "No change to this decision", observed_at: T1, provenance: "imported_unverified", label: "Open question" });
+    assert.equal(buildRetryInspectionOutlookV02([...entries(lowCost), unrelated], at(6))!.judgment_id, changed.judgment_id);
+    const future = note(lowCost); const futureNote = buildSelectedWorkSourceEntry(fixture, { ...selectedWorkSourceInput(future), observed_at: at(58) });
+    assert.equal(buildRetryInspectionOutlookV02([note(direction), note(workflow), futureNote], at(6))!.action, "observe");
+    const duplicate = buildSelectedWorkSourceEntry(fixture, { ...selectedWorkSourceInput(note(lowCost)), source: "Competing source" });
+    assert.equal(buildRetryInspectionOutlookV02([...entries(lowCost), duplicate], at(6))!.action, "observe");
+    const malformed = buildSelectedWorkSourceEntry(fixture, { ...selectedWorkSourceInput(note(lowCost)),
+      text: JSON.stringify({ ...lowCost, cost: -1 }) });
+    assert.equal(buildRetryInspectionOutlookV02([note(direction), note(workflow), malformed], at(6))!.action, "observe");
+    assert.equal(buildRetryInspectionOutlookV02(entries({ ...lowCost, valid_until: at(4) }), at(6))!.baseline.expected_work, "21");
+    // Normal persisted admission and the production App Server adapter deliver
+    // the packet/GuideBrief to a real child. Only the model is a scripted fixture.
+    writeFileSync(path.join(fixture.root, "inspection-observation.txt"), "Inspection observed condition drift; a stationary success estimate has not been established.\n");
+    const hostHome = path.join(ROOT, "retry-inspection-host"); mkdirSync(hostHome);
+    const trace = path.join(ROOT, "retry-inspection-trace.jsonl");
+    const adapterFor = (second: number, tracePath: string) => createCodexAppServerAdapterV01({ now: timestampSequenceV01(at(second)), launch: {
+      command: process.execPath, prefix_args: [path.join(process.cwd(), "scripts/fixtures/fake-codex-app-server.mjs")],
+      environment: { NODE_ENV: "test", HOME: hostHome, CODEX_HOME: hostHome, PATH: process.env.PATH,
+        FAKE_CODEX_SCENARIO: "project_retry_inspection", FAKE_CODEX_TRACE_PATH: tracePath },
+    } });
+    let delivered: NativeHostRequestV01 | null = null;
+    const result = await runDirectNativeHostRoundTripV01(fixture.db, { config: fixture.config, mode: "interactive",
+      operator_mutation: { credential, clock: fixedClock(at(9)) } }, { adapter: adapterFor(10, trace), now: timestampSequenceV01(at(9)),
+      on_invocation_admitted: ({ request }) => { delivered = structuredClone(request); }, timeout_ms: 8_000, stop_settle_timeout_ms: 2_000 });
+    assert.equal(result.receipt.execution.status, "completed", JSON.stringify({ execution: result.receipt.execution,
+      fixture_failures: existsSync(trace) ? readFileSync(trace, "utf8").split("\n").filter(line => /handler_error|retry_inspection|error_code/u.test(line)) : [] }));
+    assert(delivered); assert((delivered as NativeHostRequestV01).guide_brief!.suggested_next_action.includes(changed.recommendation));
+    assert(result.receipt.result_summary.summary.includes("Constructed consumer chose inspect"));
+    assert(result.receipt.result_summary.summary.includes("condition drift"));
+    assert.equal(result.receipt.task_context_packet_ref?.source_ref, packet.integrity.fingerprint);
+    credential = credentialFromCookieV01(result.session_admission!.cookie_value);
+    const clock = fixedClock(at(35));
+    const beforeRead = fixture.db.serialize();
+    const preparation = readResultWorkPreparationV01(fixture.db, { config: fixture.config, receipt_id: result.receipt.receipt_id, clock });
+    assert(preparation.result_source && preparation.result_source.bounded_summary);
+    assert(preparation.result_source.bounded_summary.includes(changed.judgment_id));
+    assert(preparation.result_source.bounded_summary.includes("consequence of our work"));
+    assert(beforeRead.equals(fixture.db.serialize()), "Result projection is zero-write");
+    const observation = preparation.result_source;
+    const updatedInspection = { ...lowCost, success: null, support_refs: [observation.source_ref!] };
+    const selected = [note(direction), note(workflow), note(updatedInspection), observation];
+    const comparison = compareResultWorkSourcesV01(fixture.db, { config: fixture.config, binding: preparation.binding,
+      notes: selected.map(selectedWorkSourceInput), clock });
+    const preview = previewResultWorkV01(fixture.db, { config: fixture.config, binding: preparation.binding, clock,
+      definition: { goal: "Determine whether stable inspection conditions can be established", success_criteria: ["Keep the failed applicability assumption and original observation distinct"], non_goals: ["Do not infer a learned success rate"] },
+      selected_sources: { selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint,
+        omitted_sources: readSelectedWorkSources(packet).filter(entry => !selected.some(next => next.entry_id === entry.entry_id)).map(entry => ({ source_binding: entry.source_ref!, reason: "Revise the estimate using the actual inspection observation; original remains historical." })) } });
+    const successor = await defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config, credential, request: preview.request, clock });
+    const later = readRetryInspectionOutlookV01(successor.packet)!;
+    assert.equal(later.version, RETRY_INSPECTION_OUTLOOK_V02);
+    assert.equal(later.action, "observe"); assert.equal(later.alternative.status, "unknown");
+    assert(later.sources.some(source => source.source_ref === observation.source_ref && source.role === "supporting_observation"));
+    assert.deepEqual(later.project_direction, changed.project_direction);
+    assert.deepEqual(readRetryInspectionOutlookV01(historical), held);
+    const successorRevision = revisePreExecutionProjectWorkV01(fixture.db, { config: fixture.config,
+      credential: credentialFromCookieV01(successor.session_admission.cookie_value), clock: fixedClock(at(36)),
+      request: revisionRequestV01(fixture, successor.packet, "authored_successor_task", { ...successor.packet.task,
+        goal: "Inspect the retained applicability question without rewriting project direction" }) });
+    assert.equal(readRetryInspectionOutlookV01(successorRevision.packet)!.judgment_id, later.judgment_id);
+    assert.equal(readRetryInspectionOutlookV01(successorRevision.packet)!.version, RETRY_INSPECTION_OUTLOOK_V02);
+    const reopened = new Database(fixture.db.serialize());
+    try {
+      const admission = await admitPersistedHostTaskContextPacketV01(reopened, { config: fixture.config, packet_id: successorRevision.packet.packet_id,
+        packet_fingerprint: successorRevision.packet.integrity.fingerprint, evaluated_at: at(40) });
+      assert.equal(readRetryInspectionOutlookV01(admission.packet)!.action, "observe");
+      assert(readSelectedWorkSources(admission.packet).some(entry => entry.source_ref === observation.source_ref));
+      assert.equal(validateRecoveryCanonicalDatabaseV01(reopened).status, "valid");
+    } finally { reopened.close(); }
+    const nextResult = await runDirectNativeHostRoundTripV01(fixture.db, { config: fixture.config, mode: "interactive",
+      operator_mutation: { credential: credentialFromCookieV01(successorRevision.session_admission.cookie_value), clock: fixedClock(at(45)) } }, {
+      adapter: adapterFor(46, path.join(ROOT, "retry-inspection-later-trace.jsonl")), now: timestampSequenceV01(at(45)),
+      timeout_ms: 8_000, stop_settle_timeout_ms: 2_000,
+      on_invocation_admitted: ({ request }) => {
+        assert(request.guide_brief!.suggested_next_action.includes(later.recommendation));
+        assert(readSelectedWorkSources(request.packet).some(entry => entry.source_ref === observation.source_ref));
+      },
+    });
+    assert.equal(nextResult.receipt.execution.status, "completed");
+    assert(nextResult.receipt.result_summary.summary.includes("Constructed consumer chose observe"));
+    assert(nextResult.receipt.result_summary.summary.includes("outcome remains unknown"));
+    console.log(JSON.stringify({ retry_inspection_loop: "pass", case: "constructed_exposed", path: "authenticated_revision -> native_App_Server_fixture_consumer -> receipt -> selected_result -> ordinary_successor -> fresh_admission",
+      actions: [held.action, changed.action, later.action], expected_work: [held.baseline.expected_work, held.alternative.expected_work, changed.alternative.expected_work],
+      actual_optional_file_read: true, model_calls: 0, real_use_benefit: "not_observed", learned_rates: false }));
+  } finally { fixture.db.close(); }
+}
+
 function insertHistoryRecordV01(
   fixture: FixtureV01,
   recordKind: VNextCoreRecordKindV01,
@@ -6062,5 +6366,266 @@ async function assertNewWorkAdmissionV01(): Promise<void> {
     assert.throws(() => preview(saved.packet, "pre_execution_new_task", "No executed-work succession through preparation"), /work_revision_execution_started/u);
     assert.equal(validateRecoveryCanonicalDatabaseV01(fixture.db).status, "valid");
     console.log(JSON.stringify({ new_work_normal_execution_admission_and_start_after_preview: "pass", model_calls: 0 }));
+  } finally { fixture.db.close(); }
+}
+
+async function assertNativeSelectedSourceBudgetV01(): Promise<void> {
+  const { createVNextOperatorContextUseReviewHandlerV01: postFactory } = await import('@/app/api/vnext/operator/project-continuity/route');
+  const { readCodexRepositoryWorkSourcesV01 } = await import('@/lib/vnext/codex-repository-continuity/codex-repository-work-sources');
+  const { parseRepositoryRetainedSourcesResponseV01 } = await import('../plugins/augnes-operator/mcp/companion-proxy.mjs');
+  const measure=(v:unknown)=>Buffer.byteLength(canonicalizeProtocolValueV01(v));
+  for (const [name,n,size,ch,time] of [
+    ['2x2000',2,2000,'a',null],['4x1000',4,1000,'a',null],['8x500',8,500,'a',null],['8x50',8,50,'a',null],
+    ['8x50-known',8,50,'a','2026-09-29T00:00:00.000Z'],['8x500-known',8,500,'a','2026-09-29T00:00:00.000Z'],
+    ['8x500-utf8',8,500,'한',null],['8x500-utf8-known',8,500,'한','2026-09-29T00:00:00.000Z'],['8x2000',8,2000,'a',null],
+    ['8x1000-utf8',8,1000,'한',null],['exact-ceiling',8,800,'한',null],['eight-bytes',8,1,'index','2026-09-29T00:00:00.000Z']
+  ] as const) {
+    const fixture=createFixtureV01('audit-'+name,true,true,true);
+    try {
+      const initial=defineInitialProjectWorkV01(fixture.db,{config:fixture.config,credential:authenticatedSessionV01(fixture,'audit'),request:requestV01(fixture),clock:fixedClock(T2)});
+      const original=fixture.db.prepare('SELECT payload_json FROM vnext_core_records WHERE record_id=?').get(initial.packet.packet_id);
+      const notes=Array.from({length:n},(_,i)=>({source:ch==='index'?'a':`note-${i}`,text:ch==='index'?String.fromCharCode(97+i):ch.repeat(size),observed_at:time,provenance:'user_declaration',label:ch==='index'?'Next check':'Open question'}));
+      if(name==='exact-ceiling') {
+        let remaining=32_000-measure(notes.map(note=>buildSelectedWorkSourceEntry(fixture,note)));
+        for(const note of notes){const add=Math.min(remaining,2_000-[...note.text].length);note.text+='a'.repeat(add);remaining-=add;}
+        assert.equal(remaining,0);
+      }
+      const entries=notes.map(note=>buildSelectedWorkSourceEntry(fixture,note));
+      if(name==='exact-ceiling') {
+        assert.equal(measure(entries),32_000);
+        assert.equal(normalizeNativeSelectedWorkSources(fixture,entries).length,8);
+        const overflow=structuredClone(notes);overflow.at(-1)!.text+='a';
+        assert.equal(measure(overflow.map(note=>buildSelectedWorkSourceEntry(fixture,note))),32_001);
+        assert.throws(()=>normalizeNativeSelectedWorkSources(fixture,overflow.map(note=>buildSelectedWorkSourceEntry(fixture,note))),/selected_source_context_budget_exceeded/);
+      }
+      const { normalizeSelectedWorkSources: hostedNormalize } = await import('@/lib/intake/selected-work-source-comparison');
+      const { normalizePayload: hostedPlanning } = await import('@/apps/web_planning/src/contract');
+      const hostedInput=()=>hostedPlanning({...fixture,author_ref:'audit:author'},initial.packet.task,notes);
+      if(measure(entries)>12_000) assert.throws(hostedInput,/selected_source_context_budget_exceeded/);
+      else assert.deepEqual(hostedInput().sources,normalizeNativeSelectedWorkSources(fixture,entries));
+      if(measure(entries)>12_000)assert.throws(()=>hostedNormalize(fixture,entries),/selected_source_context_budget_exceeded/);
+      else assert.deepEqual(hostedNormalize(fixture,entries),normalizeNativeSelectedWorkSources(fixture,entries));
+      const handler=postFactory({clock:fixedClock('2026-08-01T00:00:03.000Z'),environment:{NODE_ENV:'test',AUGNES_DB_PATH:fixture.config.database_path,AUGNES_VNEXT_OPERATOR_PILOT_ENABLED:'1',AUGNES_VNEXT_OPERATOR_WORKSPACE_ID:fixture.workspace_id,AUGNES_VNEXT_OPERATOR_PROJECT_ID:fixture.project_id,AUGNES_VNEXT_OPERATOR_ID:fixture.config.operator_id}});
+      const post=(body:unknown,cookie=initial.session_admission.cookie_value)=>handler(new Request('http://127.0.0.1:3000/api/vnext/operator/project-continuity',{method:'POST',headers:{host:'127.0.0.1:3000',origin:'http://127.0.0.1:3000','content-type':'application/json',cookie:`${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${cookie}`},body:JSON.stringify(body)}));
+      const before=fixture.db.serialize();
+      const {readBoundedVNextLocalOperatorBodyV01: readBody}=await import('@/lib/vnext/runtime/local-operator-session');
+      const largeBody=JSON.stringify({text:'x'.repeat(17_000)});
+      const bodyRequest=()=>new Request('http://127.0.0.1:3000',{method:'POST',headers:{'content-type':'application/json'},body:largeBody});
+      await assert.rejects(readBody(bodyRequest()),/operator_pilot_body_too_large/);
+      assert.equal((await readBody(bodyRequest(),64_000)).text,'x'.repeat(17_000));
+      const tooLarge=await post({text:'x'.repeat(64_000)});assert.equal(tooLarge.status,413);
+      const response=await post({action:'compare_selected_work_sources',expected_current_packet_id:initial.packet.packet_id,expected_current_packet_fingerprint:initial.packet.integrity.fingerprint,notes});
+      const compared=await response.json();assert(before.equals(fixture.db.serialize()));
+      assert.equal(response.status, name === '8x1000-utf8' ? 422 : 200);
+      const row:any={name,body_bytes:notes.reduce((a,n)=>a+Buffer.byteLength(n.text),0),entries_bytes:measure(entries),compare_status:response.status,compare_error:compared.error_code??null};
+      if(response.status===200){
+        const request={...revisionRequestV01(fixture,initial.packet,'initial_user_defined',initial.packet.task),selected_source_context:compared.comparison.entries,expected_source_comparison:compared.comparison.fingerprint};
+        row.save_request_bytes=Buffer.byteLength(JSON.stringify(request));
+        const saved=await post(request);const body=await saved.json();assert.equal(saved.status,201,JSON.stringify(body));row.save_status=saved.status;row.save_error=body.error_code??null;
+        if(saved.status===201){
+          const packet=(fixture.db.prepare('SELECT payload_json FROM vnext_core_records WHERE record_id=?').get(body.work_initialization.current_packet.packet_id) as any);const current=JSON.parse(packet.payload_json);
+          assert.deepEqual(fixture.db.prepare('SELECT payload_json FROM vnext_core_records WHERE record_id=?').get(initial.packet.packet_id),original);
+          const fresh=new Database(fixture.config.database_path,{readonly:true});
+          try{
+            const read=readProjectWorkInitializationV01(fresh,fixture);assert.deepEqual(read.selected_source_context,compared.comparison.entries);row.reopen_state=read.state;
+            const dependencies={now:()=> '2026-08-01T00:00:04.000Z',read_operator_config:()=>fixture.config,managed_start_available:()=>false};
+            const resumed=await readCodexCurrentContinuityV01(fresh,{viewed_project_id:fixture.project_id},dependencies);
+            const sourceRead=await readCodexRepositoryWorkSourcesV01(fresh,{repository_root:fixture.root,expected_snapshot_binding:resumed.snapshot.binding!,include_work_definition:true},dependencies);
+            row.codex_read_status=sourceRead.status;row.codex_sources=sourceRead.sources.length;assert.equal(sourceRead.status,'available');assert.equal(sourceRead.sources.length,n);
+            const retained=await readCodexRepositoryRetainedSourcesV01(fresh,{repository_root:fixture.root,expected_snapshot_binding:resumed.snapshot.binding!,query:ch==='index'?'a':ch},dependencies);
+            assert.equal(retained.status,'available');assert.equal(retained.lookup?.limits.scanned_entry_utf8_bytes,1_056_000);
+            assert.deepEqual(parseRepositoryRetainedSourcesResponseV01(JSON.parse(JSON.stringify(retained))),retained);
+            row.companion_retained_projection='accepted by real proxy parser';
+            const admission=await admitPersistedHostTaskContextPacketV01(fresh,{config:fixture.config,packet_id:current.packet_id,packet_fingerprint:current.integrity.fingerprint,evaluated_at:'2026-08-01T00:00:04.000Z'});
+            row.packet_bytes=measure(admission.packet);row.guide_bytes=measure(buildTaskStartGuideBriefCodexProjectionV02({packet:admission.packet,project_name:'Audit'}));
+          }finally{fresh.close()}
+          const exported=exportActivePortableProjectV01(fixture.db,{include_personal_perspective:false,exported_at:'2026-08-01T00:00:04.000Z'});
+          parseAndValidatePortableProjectV01(exported.bytes);
+          const imported=new Database(':memory:');
+          try {
+            applyCanonicalDatabaseMigrations(imported);
+            const destination=path.join(ROOT,`budget-import-${name}`);mkdirSync(destination);
+            assert.equal(importPortableProjectV01(imported,{bytes:exported.bytes,destination_root_base:destination,imported_at:'2026-08-01T00:00:04.000Z'}).status,'imported');
+            const restored=readProjectWorkInitializationV01(imported,fixture);
+            assert.deepEqual(restored.selected_source_context,compared.comparison.entries);
+            assert.equal(restored.current_packet?.packet_fingerprint,current.integrity.fingerprint);
+            row.portability='exact selected entries and packet fingerprint';
+          } finally { imported.close(); }
+          row.recovery=validateRecoveryCanonicalDatabaseV01(fixture.db).status;assert.equal(row.recovery,'valid');
+          const cookie=(saved.headers.get('set-cookie')??'').split(';')[0].split('=').slice(1).join('=');
+          const replay=await post(request,cookie);row.replay_status=replay.status;const replayBody=await replay.json();assert.equal(replayBody.status,'exact_replay');assert.equal(countProjectPacketsV01(fixture),2);
+          const credential=credentialFromCookieV01((replay.headers.get('set-cookie')??'').split(';')[0].split('=').slice(1).join('='));
+          let consumer:NativeHostRequestV01|undefined;
+          const run=await runDirectNativeHostRoundTripV01(fixture.db,{config:fixture.config,mode:'interactive',operator_mutation:{credential,clock:fixedClock('2026-08-01T00:00:05.000Z')}},{adapter:createDeterministicCodexAdapterV01({now:timestampSequenceV01('2026-08-01T00:00:06.000Z'),observe:({request})=>{consumer=structuredClone(request)}}),now:timestampSequenceV01('2026-08-01T00:00:05.000Z')});
+          assert(consumer);assert.deepEqual(readSelectedWorkSources(consumer.packet),compared.comparison.entries);row.worker_request_bytes=measure(consumer);row.worker='deterministic adapter; zero model';row.run_status=run.receipt.execution.status;
+        }else assert(before.equals(fixture.db.serialize()));
+      }
+      console.log(JSON.stringify(row));
+    }finally{fixture.db.close()}
+  }
+}
+
+async function assertRetainedSourceScanBudgetV01(): Promise<void> {
+  const { parseRepositoryRetainedSourcesResponseV01 } = await import('../plugins/augnes-operator/mcp/companion-proxy.mjs');
+  const { readCodexRepositoryWorkSourcesV01 } = await import('@/lib/vnext/codex-repository-continuity/codex-repository-work-sources');
+  const fixture=createFixtureV01('retained-scan-budget',true,true,true);
+  try {
+    const credential=authenticatedSessionV01(fixture,'scan-budget');
+    const initial=defineInitialProjectWorkV01(fixture.db,{config:fixture.config,credential,request:requestV01(fixture),clock:fixedClock(T2)});
+    const origin=inspectInitialProjectWorkPacketLineageV01(fixture.db,{...fixture,packet:initial.packet}).definition_ref;
+    let entries=normalizeNativeSelectedWorkSources(fixture,Array.from({length:8},(_,index)=>buildSelectedWorkSourceEntry(fixture,{
+      source:`note-${index}`,text:'한'.repeat(850),observed_at:null,provenance:'user_declaration',label:'Open question',
+    })));
+    let packet=initial.packet;
+    let originalHistoricalEntry: typeof entries[number] | undefined;
+    let originalHistoricalPacket = initial.packet;
+    let admittedBytes=0;
+    const dependencies={now:()=>new Date(Date.parse(T2)+90_000).toISOString(),read_operator_config:()=>fixture.config,managed_start_available:()=>false};
+    const observeLookup=async (snapshots:number) => {
+      const resume=await readCodexCurrentContinuityV01(fixture.db,{viewed_project_id:fixture.project_id},dependencies);
+      assert.equal(resume.snapshot.status,'exact');
+      const input={repository_root:fixture.root,expected_snapshot_binding:resume.snapshot.binding!,query:'ARCHIVE_NEEDLE'};
+      const before=fixture.db.serialize();
+      const started=performance.now();
+      const response=await readCodexRepositoryRetainedSourcesV01(fixture.db,input,dependencies);
+      const elapsed=Math.round(performance.now()-started);
+      assert.deepEqual(parseRepositoryRetainedSourcesResponseV01(JSON.parse(JSON.stringify(response))),response);
+      assert(before.equals(fixture.db.serialize()),'Repository lookup and projection parsing write nothing');
+      const current=await readCodexRepositoryWorkSourcesV01(fixture.db,input,dependencies);
+      assert.equal(current.status,'available'); assert.equal(current.sources.length,entries.length);
+      for (const entry of entries) {
+        const note=current.sources.find(note=>note.source_binding===entry.source_ref);
+        assert(note); assert.equal(note.excerpt_text,entry.bounded_summary);
+        assert.equal(note.observed_at,entry.external_ref!.observed_at??null);
+        assert.equal(note.trust_class,entry.trust_class);
+      }
+      assert.deepEqual(readProjectWorkInitializationV01(fixture.db,fixture).selected_source_context,entries);
+      assert(before.equals(fixture.db.serialize()),'Current source reading remains read only');
+      console.log(JSON.stringify({retained_capacity_repository_reader:snapshots,status:response.status,reason:response.reason,
+        lookup:response.lookup===null?null:{scanned_packets:response.lookup.scanned_packets,returned_entries:response.lookup.returned_entries},
+        companion_parser:'accepted',current_sources:current.status,elapsed_ms:elapsed,writes:0}));
+      assert.equal(response.status, 'available');
+      const hit=response.lookup!.results.find(hit=>hit.source.entry_id===originalHistoricalEntry!.entry_id);
+      assert(hit); assert.equal(hit.selection,'historical_not_selected');
+      assert.deepEqual(hit.source, {packet_id:originalHistoricalPacket.packet_id,
+        packet_fingerprint:originalHistoricalPacket.integrity.fingerprint,
+        entry_id:originalHistoricalEntry!.entry_id,source_fingerprint:originalHistoricalEntry!.source_ref});
+      assert.equal(hit.note.excerpt_text,originalHistoricalEntry!.bounded_summary);
+      assert.equal(hit.note.observed_at,originalHistoricalEntry!.external_ref!.observed_at??null);
+      assert.equal(hit.note.trust_class,originalHistoricalEntry!.trust_class);
+      assert.equal(hit.note.review_label,'Open question');
+      return {response,input};
+    };
+    // Use the same production builder and Core writer as the existing revision
+    // limit fixture, then validate the complete chain through its real owner.
+    const append = (index:number) => {
+      entries=normalizeNativeSelectedWorkSources(fixture,Array.from({length:8},(_,note)=>buildSelectedWorkSourceEntry(fixture,{
+        source:`note-${note}`,
+        text:index===1 && note===0 ? 'ARCHIVE_NEEDLE '+'한'.repeat(844)
+          : index<=13 ? '한'.repeat(850) : `ACCUMULATION revision ${index} note ${note} `+'한'.repeat(780),
+        observed_at:index>13 && note%2===0 ? T0 : null,provenance:'user_declaration',label:'Open question',
+      })));
+      const definition={goal:`Retained scan revision ${index}`,success_criteria:['Preserve complete notes'],non_goals:[]};
+      const request={...revisionRequestV01(fixture,packet,index===1?'initial_user_defined':'pre_execution_user_revision',definition),
+        selected_source_context:entries,expected_source_comparison:compareSelectedWorkSources(packet,entries).fingerprint};
+      const generated_at=new Date(Date.parse(T2)+index*1000).toISOString();
+      const revised=buildPreExecutionProjectWorkRevisionPacketV01({request,operator_id:fixture.config.operator_id,
+        session_id:credential.session_id,revision_number:index,definition,prior_packet:packet,
+        origin_first_work_definition_ref:origin,generated_at});
+      insertVNextCoreRecordV01(fixture.db,{record_kind:'task_context_packet',record_id:revised.packet.packet_id,
+        workspace_id:fixture.workspace_id,project_id:fixture.project_id,fingerprint:revised.packet.integrity.fingerprint,
+        idempotency_key:revised.lineage.idempotency_key,payload:revised.packet,created_at:generated_at});
+      packet=revised.packet;
+      if(index===1) {
+        originalHistoricalPacket=packet;
+        originalHistoricalEntry=entries.find(entry=>entry.bounded_summary!.includes('ARCHIVE_NEEDLE'))!;
+      }
+    };
+    for(let index=1;index<=31;index++) {
+      append(index);
+      if(index===12) {
+        const lookup=recallRetainedWorkSources(inspectRevisableProjectWorkChainV01(fixture.db,fixture),'한');
+        admittedBytes=lookup.scanned_entry_utf8_bytes;
+        assert(admittedBytes<=396_000);
+        await observeLookup(index);
+      }
+      if(index===13) {
+        const lookup=recallRetainedWorkSources(inspectRevisableProjectWorkChainV01(fixture.db,fixture),'ARCHIVE_NEEDLE');
+        assert.equal(admittedBytes,381_213); assert.equal(lookup.scanned_entry_utf8_bytes,412_981);
+        await observeLookup(index);
+      }
+    }
+    const chain=inspectRevisableProjectWorkChainV01(fixture.db,fixture);
+    const before=fixture.db.serialize();
+    const accumulated=recallRetainedWorkSources(chain,'ACCUMULATION');
+    assert(accumulated.scanned_entry_utf8_bytes>396_000);
+    assert.equal(accumulated.scanned_packets,32); assert.equal(accumulated.scanned_entry_occurrences,248);
+    assert.equal(accumulated.matching_entries,18*8);
+    assert(accumulated.returned_entries>0 && accumulated.returned_entries<8);
+    assert.equal(accumulated.omitted_matching_entries,accumulated.matching_entries-accumulated.returned_entries);
+    assert(accumulated.truncated); assert(accumulated.result_utf8_bytes<=20_000);
+    assert.equal(accumulated.limits.scanned_entry_utf8_bytes,1_056_000);
+    // Helper-only boundary shapes, not admitted Core lineage. The endpoint
+    // enforces independent occurrence/byte budgets. Each snapshot uses the real normalizer.
+    const synthetic={...chain,packets:Array.from({length:33},()=>chain.tip_packet)};
+    const boundary=recallRetainedWorkSources(synthetic,'ACCUMULATION');
+    assert.equal(boundary.scanned_entry_occurrences,264);
+    const entryBytes=entries.reduce((n,entry)=>n+Buffer.byteLength(canonicalizeProtocolValueV01(entry),'utf8'),0);
+    assert.equal(Buffer.byteLength(canonicalizeProtocolValueV01(entries),'utf8'),entryBytes+entries.length+1);
+    assert.equal(boundary.scanned_entry_utf8_bytes,33*entryBytes);
+    assert(boundary.scanned_entry_utf8_bytes<=RETAINED_WORK_SOURCE_LIMITS.scanned_entry_utf8_bytes);
+    assert.throws(()=>recallRetainedWorkSources({...synthetic,packets:[...synthetic.packets,chain.tip_packet]},'ACCUMULATION'),
+      /retained_source_scan_bound_exceeded/u);
+    assert(before.equals(fixture.db.serialize()));
+    assert.equal(readProjectWorkInitializationV01(fixture.db,fixture).state,'defined_revised_work');
+    assert.deepEqual(readSelectedWorkSources(chain.tip_packet),entries);
+    const {input}=await observeLookup(31);
+    const invalidQuery=await readCodexRepositoryRetainedSourcesV01(fixture.db,{...input,query:''},dependencies);
+    assert.equal(invalidQuery.status,'invalid'); assert.equal(invalidQuery.reason,'retained_source_query_invalid');
+    assert.deepEqual(parseRepositoryRetainedSourcesResponseV01(JSON.parse(JSON.stringify(invalidQuery))),invalidQuery);
+    const forged=new Database(fixture.db.serialize());
+    try {
+      // Deliberate integrity fault in an isolated copy, with the immutable
+      // trigger restored before the real reader observes the forged row.
+      const trigger=forged.prepare("SELECT sql FROM sqlite_master WHERE name='trg_vnext_core_records_immutable_update'").get() as {sql:string};
+      forged.exec('DROP TRIGGER trg_vnext_core_records_immutable_update');
+      forged.prepare('UPDATE vnext_core_records SET fingerprint=? WHERE record_id=?').run(`sha256:${'0'.repeat(64)}`,packet.packet_id);
+      forged.exec(trigger.sql);
+      const forgedBefore=forged.serialize();
+      await assert.rejects(readCodexRepositoryRetainedSourcesV01(forged,input,dependencies),
+        /vnext_core_record_fingerprint_mismatch/u, 'A forged record envelope retains its hard integrity refusal');
+      assert(forgedBefore.equals(forged.serialize()));
+      forged.exec('DROP TRIGGER trg_vnext_core_records_immutable_update');
+      const malformedPacket={...packet,integrity:{...packet.integrity,fingerprint:`sha256:${'0'.repeat(64)}`}};
+      forged.prepare('UPDATE vnext_core_records SET fingerprint=?,payload_json=? WHERE record_id=?')
+        .run(packet.integrity.fingerprint,JSON.stringify(malformedPacket),packet.packet_id);
+      forged.exec(trigger.sql);
+      const invalidBefore=forged.serialize();
+      const invalid=await readCodexRepositoryRetainedSourcesV01(forged,input,dependencies);
+      assert.equal(invalid.status,'invalid'); assert.equal(invalid.reason,'retained_sources_invalid');
+      assert.deepEqual(parseRepositoryRetainedSourcesResponseV01(JSON.parse(JSON.stringify(invalid))),invalid);
+      assert(invalidBefore.equals(forged.serialize()));
+    } finally { forged.close(); }
+    assert(before.equals(fixture.db.serialize()));
+    append(32);
+    await observeLookup(32);
+    append(33);
+    await observeLookup(33);
+    append(34); // The independent 264-note budget, not revision age, refuses.
+    const resume=await readCodexCurrentContinuityV01(fixture.db,{viewed_project_id:fixture.project_id},dependencies);
+    const finalInput={...input,expected_snapshot_binding:resume.snapshot.binding!};
+    const beforeUnavailable=fixture.db.serialize();
+    const unavailable=await readCodexRepositoryRetainedSourcesV01(fixture.db,finalInput,dependencies);
+    assert.equal(unavailable.status,'unavailable'); assert.equal(unavailable.reason,'retained_source_scan_bound_exceeded');
+    assert.equal(unavailable.lookup,null);
+    assert.deepEqual(parseRepositoryRetainedSourcesResponseV01(JSON.parse(JSON.stringify(unavailable))),unavailable);
+    assert.equal(readProjectWorkRevisionEligibilityV01(fixture.db,fixture).eligible,true);
+    assert.equal((await readCodexRepositoryWorkSourcesV01(fixture.db,finalInput,dependencies)).status,'available');
+    assert(beforeUnavailable.equals(fixture.db.serialize()));
+    const recoveryStarted=performance.now();
+    assert.equal(validateRecoveryCanonicalDatabaseV01(fixture.db).status,'valid');
+    console.log(JSON.stringify({retained_scan_budget:1_056_000,validated_revisions:34,old_boundary_bytes:admittedBytes,
+      revision_33_lookup:'available',revision_34_lookup:unavailable.reason,current_selection:'preserved',recovery:'valid',
+      recovery_elapsed_ms:Math.round(performance.now()-recoveryStarted),writes_by_lookup:0}));
   } finally { fixture.db.close(); }
 }

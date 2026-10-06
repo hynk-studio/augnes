@@ -1,3 +1,5 @@
+import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
+import { readProjectDirection } from "../persistence/project-direction-store";
 import Database from "better-sqlite3";
 import { existsSync, statSync } from "node:fs";
 
@@ -433,7 +435,7 @@ function readCurrentWorkV01(
       ? "unavailable_or_ambiguous" as const
       : continuity.packet_currentness === "fresh"
         ? "fresh" as const
-        : continuity.packet_currentness === "stale"
+        : continuity.packet_currentness === "stale" || continuity.packet_currentness === "expired"
           ? "stale" as const
           : "unavailable_or_ambiguous" as const;
   const unresolvedHistory = initialization.state === "existing_history_without_current_packet";
@@ -461,7 +463,11 @@ function readCurrentWorkV01(
     : status === "current_work_ambiguous" || status === "current_work_unavailable"
       ? "unavailable_or_ambiguous" as const
       : packetCurrentness;
-  const startBlockerCode = !eligibility.is_active
+  const direction = readProjectDirection(db, config, generatedAt);
+  const directionChanged = direction.pending_work.some(w => w.packet_id === packet?.packet_id && w.needs_reconsideration);
+  const startBlockerCode = directionChanged
+    ? "project_direction_reconsideration_required"
+    : !eligibility.is_active
     ? "project_inactive"
     : !eligibility.root_available
       ? "root_unavailable"
@@ -512,6 +518,7 @@ function readCurrentWorkV01(
       status,
       lineage_kind: packet?.lineage_kind ?? null,
       currentness,
+      ...(direction.effective ? { direction_basis: { ref: direction.effective.ref, parent_current: direction.parent_current, authority_current: direction.authority_current } } : {}),
       operator_configuration_available: eligibility.operator_config_available,
       start_eligible: startBlockerCode === null,
       start_blocker_code: startBlockerCode,
@@ -1364,7 +1371,7 @@ export function assertCodexCurrentContinuityV01(
   if (projection.snapshot.status === "exact" ? !/^sha256:[a-f0-9]{64}$/u.test(projection.snapshot.binding ?? "") : projection.snapshot.binding !== null) throw new Error("codex_current_continuity_snapshot_invalid");
   if ((projection.source_status === "exact") !== (projection.snapshot.status === "exact")) throw new Error("codex_current_continuity_source_snapshot_mismatch");
   if (projection.project.project_key !== null && !/^sha256:[a-f0-9]{64}$/u.test(projection.project.project_key)) throw new Error("codex_current_continuity_project_key_invalid");
-  if (projection.project.selection_revision !== null && (!Number.isSafeInteger(projection.project.selection_revision) || projection.project.selection_revision < 0)) throw new Error("codex_current_continuity_selection_revision_invalid");
+  if (projection.project.selection_revision !== null && (!isHistoricalProjectSelectionRevision(projection.project.selection_revision, 0))) throw new Error("codex_current_continuity_selection_revision_invalid");
   assertBoundedNullableTextV01(projection.project.display_name, 256, "project_display_name");
   assertBoundedNullableTextV01(projection.current_work.goal, CODEX_CURRENT_CONTINUITY_LIMITS_V01.goal_characters, "goal");
   assertBoundedStringsV01(projection.current_work.success_criteria, CODEX_CURRENT_CONTINUITY_LIMITS_V01.detail_items, CODEX_CURRENT_CONTINUITY_LIMITS_V01.detail_characters, "success_criteria");
@@ -1498,10 +1505,10 @@ function requireTimestampV01(value: string): void {
 function revisionReasonV01(reason: ProjectWorkInitializationV01["revision_eligibility"]["reason"]): string {
   const copy: Record<typeof reason, string> = {
     current_unexecuted_successor: "Current outcome-linked preparation has not started; same-task revision is available.",
-    current_initial_packet_zero_history: "Current initial work may be revised before execution.",
-    current_revision_packet_zero_history: "Current revised work may be revised again before execution.",
+    current_unexecuted_initial: "Current initial work may be revised before execution.",
+    current_unexecuted_revision: "Current revised work may be revised again before execution.",
     managed_run_history_present: "Work revision closes after managed execution history exists.",
-    durable_work_history_present: "Work revision closes after durable work history exists.",
+    durable_work_history_present: "Execution, admission or other blocking work history prevents this preparation from being revised.",
     operational_continuation_not_revisable:
       "Source-linked operational continuation work cannot be reopened as a pre-execution revision.",
     current_packet_stale_or_unavailable: "The current work packet is stale or unavailable.",
@@ -1524,6 +1531,7 @@ function startBlockerCopyV01(code: string | null): string | null {
       "The local managed-work configuration is unavailable for this project.",
     no_current_work: "Current work has not been defined.",
     current_work_not_exact: "Current work cannot be proven fresh.",
+    project_direction_reconsideration_required: "Project direction or delegation changed. Reconsider pending work before starting.",
     current_work_not_fresh: "Current work must be refreshed before it can start.",
   };
   return copy[code] ?? "Current work cannot start from this exact state.";

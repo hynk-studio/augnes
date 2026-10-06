@@ -1,3 +1,5 @@
+import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import {
   createHash,
   randomBytes,
@@ -250,7 +252,7 @@ export interface VNextRecoveryRepositoryDecisionScopeV01 {
   expected_old_baseline_fingerprint: string;
   expected_new_physical_observation_fingerprint: string;
   expected_active_project_id: string | null;
-  expected_active_selection_revision: number | null;
+  expected_active_selection_revision: ProjectSelectionRevision | null;
   candidate_expires_at: string;
 }
 
@@ -1487,6 +1489,7 @@ function exactNextLoopbackRuntimeUrl(
 
 export async function readBoundedVNextLocalOperatorBodyV01(
   request: Request,
+  maxBytes = VNEXT_LOCAL_OPERATOR_MAX_BODY_BYTES_V01,
 ): Promise<Record<string, unknown>> {
   const lengthHeader = request.headers.get("content-length");
   if (lengthHeader) {
@@ -1494,7 +1497,7 @@ export async function readBoundedVNextLocalOperatorBodyV01(
     if (!Number.isInteger(length) || length < 0) {
       throw sessionError("operator_pilot_body_invalid", 400);
     }
-    if (length > VNEXT_LOCAL_OPERATOR_MAX_BODY_BYTES_V01) {
+    if (length > maxBytes) {
       throw sessionError("operator_pilot_body_too_large", 413);
     }
   }
@@ -1509,7 +1512,7 @@ export async function readBoundedVNextLocalOperatorBodyV01(
   ) {
     throw sessionError("operator_pilot_content_type_unsupported", 415);
   }
-  const text = await readBoundedText(request);
+  const text = await readBoundedText(request, maxBytes);
   if (contentType === "application/json") {
     try {
       const value = JSON.parse(text) as unknown;
@@ -1748,7 +1751,7 @@ function serializeCredential(
   ].join(".");
 }
 
-async function readBoundedText(request: Request): Promise<string> {
+async function readBoundedText(request: Request, maxBytes: number): Promise<string> {
   if (!request.body) return "";
   const reader = request.body.getReader();
   const decoder = new TextDecoder();
@@ -1758,7 +1761,7 @@ async function readBoundedText(request: Request): Promise<string> {
     const { done, value } = await reader.read();
     if (done) break;
     size += value.byteLength;
-    if (size > VNEXT_LOCAL_OPERATOR_MAX_BODY_BYTES_V01) {
+    if (size > maxBytes) {
       throw sessionError("operator_pilot_body_too_large", 413);
     }
     text += decoder.decode(value, { stream: true });
@@ -1822,8 +1825,7 @@ function assertRecoveryRepositoryDecisionScope(
     (scope.expected_active_project_id !== null &&
       !requiredCanonicalId(scope.expected_active_project_id)) ||
     (scope.expected_active_selection_revision !== null &&
-      (!Number.isSafeInteger(scope.expected_active_selection_revision) ||
-        scope.expected_active_selection_revision <= 0)) ||
+      (!isHistoricalProjectSelectionRevision(scope.expected_active_selection_revision))) ||
     strictTimestampMilliseconds(scope.candidate_expires_at) === null
   ) {
     throw sessionError("operator_session_scope_mismatch", 403);

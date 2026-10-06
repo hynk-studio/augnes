@@ -177,6 +177,10 @@ for (const delta of [-1, 1]) {
   assert.throws(() => validate(changedPackets.before, changedPackets.after, { ...manifest, profile: "native_host_execution" }, result),
     /operator_effect_core_kind_set_mismatch/u, "Revisions and new preparation must have the exact bounded packet effects");
 }
+const missingSupport = nativeSnapshots();
+missingSupport.after.rows.splice(missingSupport.after.rows.findIndex(row => row.identity.record_kind === "evidence_record"), 1);
+assert.throws(() => validate(missingSupport.before, missingSupport.after, { ...manifest, profile: "native_host_execution" }, result),
+  /operator_effect_core_kind_set_mismatch/u, "the Browser support record is an exact owned effect");
 const wrongEvent = nativeSnapshots();
 wrongEvent.after.rows.find((entry) => entry.table === "autonomy_run_events")
   .identity.event_type = "run_event_replaced_at_equal_count";
@@ -208,6 +212,14 @@ assert.throws(
 
 const validExpectation = expectationSnapshots();
 assert.doesNotThrow(() => validate(validExpectation.before, validExpectation.after, { ...manifest, profile: "work_expectation" }, result));
+for (const [profile, fixture] of [["native_host_execution", nativeSnapshots], ["work_expectation", expectationSnapshots]]) {
+  for (const revision of [1, "selection:malformed", "selection:" + "1".padStart(32, "0")]) {
+    const candidate = fixture();
+    candidate.after.rows.find(row => row.table === "vnext_active_project_selections").identity.selection_revision = revision;
+    assert.throws(() => validate(candidate.before, candidate.after, { ...manifest, profile }, result),
+      undefined, "numeric, malformed or reused selection cannot satisfy a fresh selection effect");
+  }
+}
 const expectationNegatives = [
   ["foreign receipt with equal counts", rows => { rows.find(e => e.identity.expectation_binding?.kind === "outcome_report").identity.expectation_binding.receipt_id = "receipt:foreign"; }],
   ["different frozen prediction", rows => { rows.find(e => e.identity.expectation_binding?.kind === "attempt_binding").identity.expectation_binding.expectation_id = "expectation:foreign"; }],
@@ -359,6 +371,7 @@ function expectationSnapshots() {
 
 function nativeSnapshots() {
   const coreCounts = {
+    evidence_record: 1,
     automation_work_item: 4,
     capability_grant: 1,
     task_context_packet: 10, // Includes the outcome-linked preparation and its same-task revision.
@@ -709,7 +722,7 @@ function activeSelectionRow(projectId, revision) {
     identity: {
       workspace_id: "workspace:test",
       project_id: projectId,
-      selection_revision: revision,
+      selection_revision: `selection:${revision.toString(16).padStart(32, "0")}`,
     },
   });
   value.row_fingerprint = sha(`${projectId}:${revision}`);

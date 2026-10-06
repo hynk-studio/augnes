@@ -1,3 +1,5 @@
+import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import {
   buildOperationalReentryStaleResetCrossCaseProviderMaterialV01,
   OPERATIONAL_REENTRY_STALE_RESET_R1_CASE_ID_V01,
@@ -1281,7 +1283,7 @@ export function buildOperationalReentryStaleResetCrossCaseCompatibilityAuthoriza
     authorized_origin: "https://github.com/hynk-studio/augnes.git";
     workspace_id: string;
     project_id: string;
-    expected_active_selection_revision: number;
+    expected_active_selection_revision: ProjectSelectionRevision;
     project_root_fingerprint: string;
     provider_contract_fingerprint: string;
     route_fingerprint: string;
@@ -1400,8 +1402,7 @@ export function validateOperationalReentryStaleResetCrossCaseReplicationAuthoriz
     !ORIGINS.has(authorization.authorized_origin) ||
     !SAFE_ID.test(authorization.workspace_id) ||
     !SAFE_ID.test(authorization.project_id) ||
-    !Number.isSafeInteger(authorization.expected_active_selection_revision) ||
-    authorization.expected_active_selection_revision < 0 ||
+    !isHistoricalProjectSelectionRevision(authorization.expected_active_selection_revision, 0) ||
     !SHA256.test(authorization.project_root_fingerprint) ||
     authorization.gateway_authorization_project_is_lab_experiment_meaning !== false ||
     authorization.case_version !== spec.case_version ||
@@ -1602,8 +1603,7 @@ export function validateOperationalReentryStaleResetCrossCaseCompatibilityAuthor
     !SAFE_ID.test(authorization.workspace_id) ||
     typeof authorization.project_id !== "string" ||
     !SAFE_ID.test(authorization.project_id) ||
-    !Number.isSafeInteger(authorization.expected_active_selection_revision) ||
-    Number(authorization.expected_active_selection_revision) < 0 ||
+    !isHistoricalProjectSelectionRevision(authorization.expected_active_selection_revision, 0) ||
     typeof authorization.project_root_fingerprint !== "string" ||
     !SHA256.test(authorization.project_root_fingerprint) ||
     authorization.gateway_authorization_project_is_lab_experiment_meaning !== false ||

@@ -1,5 +1,7 @@
 "use client";
 
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
+
 import { useRouter } from "next/navigation";
 import {
   useCallback,
@@ -64,7 +66,7 @@ type PrivateSemanticReviewViewV01 =
 interface WorkRevisionEditorBindingV01 {
   workspace_id: string;
   project_id: string;
-  active_selection_revision: number;
+  active_selection_revision: ProjectSelectionRevision;
   current_packet_id: string;
   current_packet_fingerprint: string;
   current_lineage_kind: "initial_user_defined" | "pre_execution_user_revision" | "pre_execution_new_task" | "authored_successor_task";
@@ -1401,7 +1403,7 @@ function workRevisionErrorCopyV01(value: unknown): string {
     ? "Another revision was saved first. The current work definition has been reloaded."
     : value === "work_revision_execution_started" ||
         value === "work_revision_history_changed"
-      ? "Work started or new work history appeared before this revision was saved. Continue through the review and decision flow."
+      ? "Work started or blocking work history appeared before this revision was saved. Continue through the review and decision flow."
       : value === "work_revision_active_selection_conflict"
         ? "The active project changed before this revision was saved. The current project sources have been reloaded."
         : value === "work_revision_root_unavailable"

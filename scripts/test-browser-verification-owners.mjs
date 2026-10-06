@@ -95,6 +95,14 @@ for (const suite of [
   );
 }
 
+const webPlanning = manifest.owners.project_experience.supporting_children;
+assert.equal(webPlanning.length, 1);
+assert.equal(webPlanning[0].executable_source, "scripts/browser-validate-web-planning.mjs");
+assert.equal(existsSync(path.join(root, webPlanning[0].executable_source)), true);
+assert.equal(webPlanning[0].native_or_hosted_acceptance, false);
+for (const suite of ["e2e", '"e2e-project-experience"']) {
+  assert.equal(suiteBlock(canonicalSuiteSource, suite).split("{ ...webPlanningBrowserStep }").length - 1, 1);
+}
 const permanentOwners = [
   manifest.owners.project_experience,
   ...manifest.owners.operator_execution.children,
@@ -115,8 +123,8 @@ assert.equal(detailedFields.length, new Set(detailedFields).size, "detailed_owne
 assert.equal(semanticMarkers.length, new Set(semanticMarkers).size, "semantic_marker_overlap");
 
 const project = loadProjectExperienceResultContractV1();
-assert.equal(project.field_ids.length, 69);
-assert.equal(project.marker_ids.length, 8);
+assert.equal(project.field_ids.length, 70);
+assert.equal(project.marker_ids.length, 9);
 const operator = loadOperatorExecutionOwnerContractV1();
 assert.equal(operator.children.length, 4);
 assert.equal(operator.field_ids.length, 140);

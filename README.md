@@ -78,6 +78,22 @@ Supported operation and detailed managed-run/platform qualifications are in
 
 ## Quickstart
 
+In local project settings, **Find saved projects** includes registered projects
+missing from recents and projects created by an authorized agent. **Load more
+saved projects** continues the list; refresh includes newly registered projects.
+Opening uses the same project identity and saved name. **Remove from recents**
+removes a shortcut and preserves project data and files; find it again here.
+Unavailable folders use the existing **Locate folder** review and recovery flow.
+This is local organization, separate from Web Planning's explicit erasure.
+
+Authenticated local project-direction clients can read
+`GET /api/vnext/agent/project-direction` without a project ID to rediscover only
+projects readable under that capability. The complete bounded response includes
+current direction, permission, sequence and remaining mutation budget. Reading
+does not change browser focus or recents, consume a mutation, renew credentials,
+or grant execution. Continue through the existing permitted operations; expiry
+or revocation requires separately authorized fresh authentication.
+
 The source checkout supports maintained even-numbered Node.js 22 and 24 lines
 with npm 10 or 11. Exact Local Canonical verification uses Node.js 24.18.0 and
 npm 11.16.0.

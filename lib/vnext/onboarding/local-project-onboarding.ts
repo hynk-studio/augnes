@@ -1,3 +1,4 @@
+import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import { execFile } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import {
@@ -31,8 +32,10 @@ import {
 } from "@/lib/vnext/persistence/project-identity-registry";
 import {
   ensureVNextProjectLifecycleSchemaV01,
+  ProjectLifecycleErrorV01,
   listRecentProjectRowsV01,
   readActiveProjectSelectionV01,
+  readProjectSelectionStateV02,
   removeRecentProjectV01,
   selectActiveProjectV01,
   touchRecentProjectV01,
@@ -65,6 +68,8 @@ import {
   type ProjectRootRebindResultV01,
   type ProjectRootAvailabilityV01,
   type RecentProjectEntryV01,
+  type ProjectManagementEntryV02,
+  type RegisteredProjectPageV02,
 } from "@/types/vnext/project-onboarding";
 import type { PhysicalRootObservationV01 } from "@/types/vnext/repository-execution";
 
@@ -495,7 +500,7 @@ export interface LocalProjectRecoveryScopeInputV01 {
   expected_old_root_binding_fingerprint: string;
   expected_old_baseline_fingerprint: string | null;
   expected_active_project_id: string | null;
-  expected_active_selection_revision: number | null;
+  expected_active_selection_revision: ProjectSelectionRevision | null;
 }
 
 type ConnectNewProjectSelectionPurposeV01 = {
@@ -526,7 +531,7 @@ type SelectionRecord = {
   expires_at: number;
   expected_workspace_id: string | null;
   expected_active_project_id: string | null;
-  expected_active_revision: number | null;
+  expected_active_revision: ProjectSelectionRevision | null;
 };
 const selections = new Map<string, SelectionRecord>();
 
@@ -642,7 +647,7 @@ async function prepareLocalProjectSelectionV01(
     });
     assertExactPreparedPhysicalIdentityV01(inspection);
     const active = workspace
-      ? readActiveProjectSelectionV01(db, workspace.workspace_id)
+      ? readProjectSelectionStateV02(db, workspace.workspace_id)
       : null;
     const recovery = options.recovery_scope
       ? await inspectRecoverySelectionScopeV01(db, {
@@ -715,7 +720,7 @@ async function inspectRecoverySelectionScopeV01(
   input: {
     scope: LocalProjectRecoveryScopeInputV01;
     inspection: LocalProjectInspectionV01;
-    active: ReturnType<typeof readActiveProjectSelectionV01>;
+    active: ReturnType<typeof readProjectSelectionStateV02>;
     workspace_id: string | null;
     now?: () => string;
     repository_execution_dependencies?: RepositoryExecutionDependenciesV01;
@@ -1064,7 +1069,7 @@ export function renameActiveProjectDisplayNameV01(
   input: {
     project_id: string;
     expected_active_project_id: string;
-    expected_active_selection_revision: number;
+    expected_active_selection_revision: ProjectSelectionRevision;
     expected_current_display_name: string | null;
     requested_display_name: string;
   },
@@ -1346,39 +1351,84 @@ export async function openRecoveredLocalProjectFromSelectionV01(
 export async function listRecentProjectsV01(db: Database.Database): Promise<RecentProjectEntryV01[]> {
   const workspace = readDefaultWorkspaceIdentityV01(db);
   if (!workspace) return [];
-  const active = readActiveProjectSelectionV01(db, workspace.workspace_id);
+  const active = readProjectSelectionStateV02(db, workspace.workspace_id);
   const nodeObservation = await inspectPhysicalRootForExecutionV01(
     db,
     path.dirname(path.resolve(db.name)),
   );
   const rows = listRecentProjectRowsV01(db, workspace.workspace_id);
-  return Promise.all(rows.map(async (row) => {
-    const registration = readCanonicalProjectWithRootV01(db, row)!;
-    return {
-      recent_project_entry_version: RECENT_PROJECT_ENTRY_VERSION_V01,
-      project: registration.project,
-      local_root: registration.root_binding.local_root,
-      root_availability: await readRootAvailabilityV01(registration.root_binding.local_root.normalized_path),
-      created_at: row.created_at,
-      last_opened_at: row.last_opened_at,
-      is_active: active?.project_id === row.project_id,
-      active_project_id: active?.project_id ?? null,
-      active_selection_revision: active?.selection_revision ?? null,
-      root_binding_fingerprint: fingerprintProjectRootBindingV01(registration.root_binding),
-      physical_root_baseline_fingerprint: nodeObservation.status === "exact"
-        ? readPhysicalRootBaselineV01(db, {
-            workspace_id: workspace.workspace_id,
-            project_id: row.project_id,
-            node_scope_fingerprint: nodeObservation.node_scope_fingerprint,
-          })?.baseline_fingerprint ?? null
-        : null,
-      repository_execution_decision:
-        readOpenRepositoryExecutionDecisionProjectionV01(db, {
-          workspace_id: workspace.workspace_id,
-          project_id: row.project_id,
-        }),
-    };
-  }));
+  return Promise.all(rows.map(async row => ({
+    ...await projectManagementEntry(db, row, active, nodeObservation),
+    recent_project_entry_version: RECENT_PROJECT_ENTRY_VERSION_V01,
+    created_at: row.created_at, last_opened_at: row.last_opened_at,
+  })));
+}
+
+async function projectManagementEntry(db: Database.Database, scope: { workspace_id: string; project_id: string },
+  active: ReturnType<typeof readProjectSelectionStateV02>,
+  nodeObservation: Awaited<ReturnType<typeof inspectPhysicalRootForExecutionV01>>): Promise<ProjectManagementEntryV02> {
+  const registration = readCanonicalProjectWithRootV01(db, scope);
+  if (!registration) throw new ProjectOnboardingErrorV01("project_scope_conflict", 409);
+  // Capture database metadata before the asynchronous filesystem availability observation.
+  const entry = {
+    project: registration.project, local_root: registration.root_binding.local_root,
+    is_active: active?.project_id === scope.project_id,
+    active_project_id: active?.project_id ?? null, active_selection_revision: active?.selection_revision ?? null,
+    root_binding_fingerprint: fingerprintProjectRootBindingV01(registration.root_binding),
+    physical_root_baseline_fingerprint: nodeObservation.status === "exact"
+      ? readPhysicalRootBaselineV01(db, { ...scope, node_scope_fingerprint: nodeObservation.node_scope_fingerprint })?.baseline_fingerprint ?? null : null,
+    repository_execution_decision: readOpenRepositoryExecutionDecisionProjectionV01(db, scope),
+  };
+  return { ...entry, root_availability: await readRootAvailabilityV01(entry.local_root.normalized_path) };
+}
+
+/** Registered native projects, bounded to 20 entries from one identity snapshot.
+ * Recency is list organization, not project existence or authority. */
+export async function listRegisteredProjectsV02(db: Database.Database, cursor: string | null): Promise<RegisteredProjectPageV02> {
+  const workspace = readDefaultWorkspaceIdentityV01(db);
+  if (!workspace) {
+    if (cursor !== null) throw new ProjectOnboardingErrorV01("selection_invalid", 400);
+    return { projects: [], next_cursor: null, complete: true };
+  }
+  const nodeObservation = await inspectPhysicalRootForExecutionV01(db, path.dirname(path.resolve(db.name)));
+  const snapshot = db.transaction(() => {
+    const active = readProjectSelectionStateV02(db, workspace.workspace_id);
+    const maximum = (db.prepare("SELECT coalesce(max(rowid),0) AS n FROM vnext_project_identities WHERE workspace_id=?").get(workspace.workspace_id) as { n: number }).n;
+    let upper = maximum, after = 0;
+    if (cursor !== null) {
+      let value;
+      try { if (cursor.length > 1024 || !/^[A-Za-z0-9_-]+$/u.test(cursor)) throw new Error(); value=JSON.parse(Buffer.from(cursor,"base64url").toString("utf8")); } catch { throw new ProjectOnboardingErrorV01("selection_invalid",400); }
+      if (!value || Object.keys(value).sort().join() !== "after,selection,upper,workspace" ||
+          value.workspace !== workspace.workspace_id || !Number.isSafeInteger(value.after) || !Number.isSafeInteger(value.upper) ||
+          value.after < 0 || value.after >= value.upper || value.upper > maximum) throw new ProjectOnboardingErrorV01("selection_invalid",400);
+      if (value.selection !== (active?.selection_revision ?? null)) throw new ProjectLifecycleErrorV01("active_selection_conflict");
+      upper=value.upper;after=value.after;
+    }
+    // Summary and rows come from the same bounded SQL observation. A lost result
+    // row (including the lookahead) cannot turn an incomplete page into absence.
+    const result = db.prepare(`WITH page AS MATERIALIZED (
+      SELECT p.rowid AS position,p.project_id,EXISTS(SELECT 1 FROM vnext_recent_projects r WHERE r.workspace_id=p.workspace_id AND r.project_id=p.project_id) AS in_recents
+      FROM vnext_project_identities p JOIN vnext_project_root_bindings b USING(workspace_id,project_id)
+      WHERE p.workspace_id=? AND p.rowid>? AND p.rowid<=? ORDER BY p.rowid LIMIT 21
+    ) SELECT 0 AS summary,position,project_id,in_recents,NULL AS n FROM page
+      UNION ALL SELECT 1,NULL,NULL,NULL,count(*) FROM page ORDER BY summary DESC,position`)
+      .all(workspace.workspace_id,after,upper) as Array<{summary:number;position:number;project_id:string;in_recents:number;n:number}>;
+    const [summary,...rows]=result;
+    if (!summary || summary.summary!==1 || !Number.isSafeInteger(summary.n) || summary.n<0 || summary.n>21 ||
+        summary.n!==rows.length || rows.some((r,i)=>r.summary!==0 || !Number.isSafeInteger(r.position) || r.position<=(rows[i-1]?.position ?? after) || r.position>upper || ![0,1].includes(r.in_recents))) {
+      throw new ProjectOnboardingErrorV01("project_discovery_incomplete",409);
+    }
+    return {active,upper,rows,projects:rows.slice(0,20).map(row=>({row,promise:projectManagementEntry(db,{workspace_id:workspace.workspace_id,project_id:row.project_id},active,nodeObservation)}))};
+  })();
+  const projects=await Promise.all(snapshot.projects.map(async({row,promise})=>({...await promise,in_recents:row.in_recents===1})));
+  if ((readProjectSelectionStateV02(db,workspace.workspace_id)?.selection_revision ?? null)!==(snapshot.active?.selection_revision ?? null)) throw new ProjectLifecycleErrorV01("active_selection_conflict");
+  for (const project of projects) {
+    const current=readCanonicalProjectWithRootV01(db,project.project);
+    if (!current || JSON.stringify(current.project)!==JSON.stringify(project.project) || fingerprintProjectRootBindingV01(current.root_binding)!==project.root_binding_fingerprint) throw new ProjectOnboardingErrorV01("project_discovery_changed",409);
+  }
+  const next_cursor=snapshot.rows.length>20 ? Buffer.from(JSON.stringify({workspace:workspace.workspace_id,upper:snapshot.upper,after:snapshot.rows[19]!.position,selection:snapshot.active?.selection_revision ?? null})).toString("base64url") : null;
+  if (Buffer.byteLength(JSON.stringify(projects), "utf8") > 1024 * 1024) throw new ProjectOnboardingErrorV01("project_discovery_incomplete",409);
+  return {projects,next_cursor,complete:next_cursor===null};
 }
 
 export async function readRootAvailabilityV01(root: string): Promise<ProjectRootAvailabilityV01> {
@@ -1395,7 +1445,7 @@ export async function readRootAvailabilityV01(root: string): Promise<ProjectRoot
 }
 
 export async function openRecentProjectV01(db: Database.Database, input: {
-  project_id: string; expected_project_id: string | null; expected_revision: number | null; now?: string;
+  project_id: string; expected_project_id: string | null; expected_revision: ProjectSelectionRevision | null; now?: string;
 }) {
   const workspace = readDefaultWorkspaceIdentityV01(db);
   if (!workspace) throw new ProjectOnboardingErrorV01("project_scope_conflict", 404);
@@ -1421,7 +1471,7 @@ export async function openRecentProjectV01(db: Database.Database, input: {
 export function removeProjectFromRecentV01(db: Database.Database, input: {
   project_id: string;
   expected_project_id: string | null;
-  expected_revision: number | null;
+  expected_revision: ProjectSelectionRevision | null;
 }) {
   const workspace = readDefaultWorkspaceIdentityV01(db);
   if (!workspace) return { removed: false, project_data_preserved: true as const };
@@ -1431,7 +1481,7 @@ export function removeProjectFromRecentV01(db: Database.Database, input: {
     expected_project_id: input.expected_project_id,
     expected_revision: input.expected_revision,
   });
-  return { removed, project_data_preserved: true as const };
+  return { removed, project_data_preserved: true as const, selection: readProjectSelectionStateV02(db, workspace.workspace_id) };
 }
 
 export async function readProjectDestinationV01(db: Database.Database, projectId: string) {
@@ -1518,7 +1568,7 @@ function assertRecoverySelectionStateV01(
   ) {
     throw new ProjectOnboardingErrorV01("project_scope_conflict", 409);
   }
-  const active = readActiveProjectSelectionV01(db, workspaceId);
+  const active = readProjectSelectionStateV02(db, workspaceId);
   if (
     (active?.project_id ?? null) !== record.expected_active_project_id ||
     (active?.selection_revision ?? null) !== record.expected_active_revision

@@ -1,10 +1,12 @@
+import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
+import { assertExpectedPacketDirection, ProjectDirectionError } from "../persistence/project-direction-store";
 import { inspectCurrentOrdinarySuccessorRevisionChainV01, assertOrdinarySuccessorRevisionRootV01, ordinarySuccessorRevisionExecutionBlockedV01, saveOrdinarySuccessorRevisionInsideTransactionV01 } from "./authored-successor-revision";
 import { AUTHORED_SUCCESSOR_CONTEXT_V01 } from "@/types/vnext/project-work-initialization";
 import { compareNewProjectWorkV01, currentPreparationRootBindingV01, NewProjectWorkPreparationErrorV01 } from "./new-project-work-preparation";
 import { accessSync, constants, statSync } from "node:fs";
 
 import type Database from "better-sqlite3";
-import { compareSelectedWorkSources, normalizeRetainedWorkSourceRefs, normalizeSelectedWorkSources, readSelectedWorkSources, SelectedWorkSourceError } from "@/lib/intake/selected-work-source-comparison";
+import { compareSelectedWorkSources, normalizeRetainedWorkSourceRefs, normalizeNativeSelectedWorkSources, readSelectedWorkSources, SelectedWorkSourceError } from "@/lib/intake/selected-work-source-comparison";
 import { resolveRetainedWorkSources } from "@/lib/intake/retained-work-source-recall";
 
 import {
@@ -28,6 +30,7 @@ import {
   createPreExecutionProjectWorkRevisionMaterialV01,
   inspectPreExecutionProjectWorkRevisionChainV01,
 } from "@/lib/vnext/runtime/pre-execution-project-work-revision";
+import { isNonBlockingPreExecutionRecordV01 } from "./pre-execution-project-work-history";
 import { inspectProjectManagedRunHistoryV01 } from "@/lib/vnext/runtime/project-managed-run-history";
 import {
   inspectSourceLinkedOperationalContinuationLineageV01,
@@ -40,7 +43,6 @@ import {
 import { validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
 import type { ProjectWorkDefinitionV01 } from "@/types/vnext/project-work-initialization";
 import {
-  MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01,
   PRE_EXECUTION_PROJECT_WORK_REVISION_COMPILER_VERSION_V01,
   PRE_EXECUTION_NEW_WORK_COMPILER_VERSION_V01,
   PROJECT_WORK_REVISION_ELIGIBILITY_VERSION_V01,
@@ -117,8 +119,7 @@ export function readProjectWorkRevisionEligibilityStrictV01(
   }
   if (
     active?.project_id !== input.project_id ||
-    !Number.isSafeInteger(active.selection_revision) ||
-    active.selection_revision < 1
+    !isHistoricalProjectSelectionRevision(active.selection_revision)
   ) {
     return eligibilityV01(input, {
       ...activeBinding,
@@ -152,7 +153,6 @@ export function readProjectWorkRevisionEligibilityStrictV01(
     try { assertOrdinarySuccessorRevisionRootV01(db, input, successor); }
     catch { return eligibilityV01(input, { ...binding, status: "blocked_root_unavailable", reason: "root_unavailable" }); }
     if (ordinarySuccessorRevisionExecutionBlockedV01(db, input, successor)) return eligibilityV01(input, { ...binding, status: "blocked_execution_started", reason: "managed_run_history_present" });
-    if (successor.revision_count >= MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01) return eligibilityV01(input, { ...binding, status: "revision_limit_reached", reason: "revision_limit_reached" });
     return eligibilityV01(input, { ...binding, status: "eligible_successor_packet", reason: "current_unexecuted_successor" });
   }
   const continuation = readOperationalContinuationLineageStateV01(db, input);
@@ -190,7 +190,8 @@ export function readProjectWorkRevisionEligibilityStrictV01(
       return eligibilityV01(input, {
         ...activeBinding,
         status: "unavailable",
-        reason: "revision_chain_invalid",
+        reason: error.code === "work_revision_history_read_budget_exceeded" || error.code === "work_revision_source_unavailable"
+          ? "source_unavailable" : "revision_chain_invalid",
       });
     }
     throw error;
@@ -228,9 +229,7 @@ export function readProjectWorkRevisionEligibilityStrictV01(
     record_id: string;
   }>;
   const otherHistory = coreRows.some(
-    (row) =>
-      row.record_kind !== "work_expectation_record" && (row.record_kind !== "task_context_packet" ||
-      !allowedPackets.has(row.record_id)),
+    (row) => !isNonBlockingPreExecutionRecordV01(db, input, row, allowedPackets),
   );
   const semanticState = countScopedRowsV01(
     db,
@@ -256,15 +255,6 @@ export function readProjectWorkRevisionEligibilityStrictV01(
       reason: "durable_work_history_present",
     });
   }
-  if (
-    chain.revision_count >= MAX_PRE_EXECUTION_PROJECT_WORK_REVISIONS_V01
-  ) {
-    return eligibilityV01(input, {
-      ...binding,
-      status: "revision_limit_reached",
-      reason: "revision_limit_reached",
-    });
-  }
   return eligibilityV01(input, {
     ...binding,
     status:
@@ -273,8 +263,8 @@ export function readProjectWorkRevisionEligibilityStrictV01(
         : "eligible_revised_packet",
     reason:
       chain.tip_lineage_kind === "initial_user_defined"
-        ? "current_initial_packet_zero_history"
-        : "current_revision_packet_zero_history",
+        ? "current_unexecuted_initial"
+        : "current_unexecuted_revision",
   });
 }
 
@@ -286,6 +276,7 @@ export function revisePreExecutionProjectWorkV01(
     request: unknown;
     clock?: VNextLocalRuntimeClockV01;
     secret_source?: VNextLocalOperatorSecretSourceV01;
+    expected_direction_ref?: string;
   },
   dependencies: ProjectWorkRevisionDependenciesV01 = {},
 ): RevisePreExecutionProjectWorkResultV01 {
@@ -301,6 +292,7 @@ export function revisePreExecutionProjectWorkV01(
   db.exec("BEGIN IMMEDIATE");
   try {
     const admission = admitVNextLocalOperatorMutationInsideTransactionV01(db, input);
+    if (input.expected_direction_ref !== undefined) assertExpectedPacketDirection(db, input.config, input.expected_direction_ref, admission.action_observed_at);
     const result = revisePreExecutionProjectWorkInsideTransactionV01(db, {
       scope: input.config, request: input.request, admission,
     }, dependencies);
@@ -315,7 +307,7 @@ export function revisePreExecutionProjectWorkV01(
     if (error instanceof ProjectWorkRevisionErrorV01 ||
       error instanceof PreExecutionProjectWorkRevisionErrorV01 ||
       error instanceof VNextLocalOperatorSessionErrorV01 ||
-      error instanceof SelectedWorkSourceError || error instanceof NewProjectWorkPreparationErrorV01) throw error;
+      error instanceof SelectedWorkSourceError || error instanceof NewProjectWorkPreparationErrorV01 || error instanceof ProjectDirectionError) throw error;
     throw new ProjectWorkRevisionErrorV01("work_revision_write_failed", 409);
   }
 }
@@ -591,8 +583,7 @@ export function parseProjectWorkRevisionRequestV01(value: unknown): RevisePreExe
     typeof request.workspace_id !== "string" ||
     typeof request.project_id !== "string" ||
     typeof request.expected_active_project_id !== "string" ||
-    !Number.isSafeInteger(request.expected_active_selection_revision) ||
-    Number(request.expected_active_selection_revision) < 1 ||
+    !isHistoricalProjectSelectionRevision(request.expected_active_selection_revision) ||
     typeof request.expected_current_packet_id !== "string" ||
     typeof request.expected_current_packet_fingerprint !== "string" ||
     !/^sha256:[a-f0-9]{64}$/u.test(
@@ -619,7 +610,7 @@ export function parseProjectWorkRevisionRequestV01(value: unknown): RevisePreExe
     if (typeof request.expected_source_comparison !== "string" || !/^sha256:[a-f0-9]{64}$/u.test(request.expected_source_comparison)) {
       refuse("work_revision_request_invalid", 400);
     }
-    request.selected_source_context = normalizeSelectedWorkSources(
+    request.selected_source_context = normalizeNativeSelectedWorkSources(
       { workspace_id: request.workspace_id as string, project_id: request.project_id as string }, request.selected_source_context);
     if (request.retained_source_refs !== undefined) request.retained_source_refs = normalizeRetainedWorkSourceRefs(request.retained_source_refs);
   }

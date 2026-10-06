@@ -1,4 +1,9 @@
+import { isHistoricalProjectSelectionRevision, type ProjectSelectionRevision } from "@/lib/vnext/project-selection";
+import { readWorkHandoff, receivedHandoffEntries, type WorkHandoff } from "../work-handoff";
+import { InitialProjectWorkContextErrorV01, normalizeInitialProjectWorkDefinitionV01 } from "@/lib/intake/work-definition";
+export { InitialProjectWorkContextErrorV01, normalizeInitialProjectWorkDefinitionV01 } from "@/lib/intake/work-definition";
 import type Database from "better-sqlite3";
+import { PROSPECTIVE_PREPARATION_PACKET } from "../prospective-agenda";
 
 import {
   canonicalizeProtocolValueV01,
@@ -43,16 +48,8 @@ export const INITIAL_PROJECT_WORK_PACKET_CONTEXT_BUDGET_V01 = {
   ),
 } as const;
 
-const REQUEST_ID_PATTERN = /^first-work-request:(\d+):([a-f0-9]{24})$/u;
+const REQUEST_ID_PATTERN = /^first-work-request:(\d+|selection:[a-f0-9]{32}):([a-f0-9]{24})$/u;
 const DEFINITION_ID_PATTERN = /^first-work-definition:[a-f0-9]{24}$/u;
-const DISALLOWED_TEXT = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u;
-
-export class InitialProjectWorkContextErrorV01 extends Error {
-  constructor(readonly code: string, readonly status = 422) {
-    super(code);
-    this.name = "InitialProjectWorkContextErrorV01";
-  }
-}
 
 export interface InitialProjectWorkLineageMaterialV01 {
   definition_ref: ExternalRefV01;
@@ -71,51 +68,14 @@ export interface InitialProjectWorkPacketLineageV01 {
   operator_action_ref: ExternalRefV01;
 }
 
-export function normalizeInitialProjectWorkDefinitionV01(input: {
-  goal: unknown;
-  success_criteria: unknown;
-  non_goals: unknown;
-}): ProjectWorkDefinitionV01 {
-  const goal = normalizeBoundedTextV01(
-    input.goal,
-    INITIAL_PROJECT_WORK_LIMITS_V01.goal_characters,
-    "first_work_goal_invalid",
-  );
-  const successCriteria = normalizeBoundedListV01(
-    input.success_criteria,
-    1,
-    INITIAL_PROJECT_WORK_LIMITS_V01.success_criteria,
-    INITIAL_PROJECT_WORK_LIMITS_V01.success_criterion_characters,
-    "first_work_success_criteria_invalid",
-  );
-  const nonGoals = normalizeBoundedListV01(
-    input.non_goals,
-    0,
-    INITIAL_PROJECT_WORK_LIMITS_V01.non_goals,
-    INITIAL_PROJECT_WORK_LIMITS_V01.non_goal_characters,
-    "first_work_non_goals_invalid",
-  );
-  const definition = {
-    goal,
-    success_criteria: successCriteria,
-    non_goals: nonGoals,
-  };
-  if (
-    Buffer.byteLength(canonicalizeProtocolValueV01(definition), "utf8") >
-    INITIAL_PROJECT_WORK_LIMITS_V01.definition_bytes
-  ) {
-    refuse("first_work_definition_too_large");
-  }
-  return definition;
-}
-
 export function createInitialProjectWorkLineageMaterialV01(input: {
   workspace_id: string;
   project_id: string;
   operator_id: string;
   session_id: string;
-  expected_active_selection_revision: number;
+  expected_active_selection_revision: ProjectSelectionRevision;
   definition: ProjectWorkDefinitionV01;
+  handoff?: WorkHandoff;
   observed_at: string;
 }): InitialProjectWorkLineageMaterialV01 {
   const definitionFingerprint = createProtocolSha256V01(
@@ -124,6 +84,7 @@ export function createInitialProjectWorkLineageMaterialV01(input: {
       workspace_id: input.workspace_id,
       project_id: input.project_id,
       definition: input.definition,
+      ...(input.handoff ? { handoff_fingerprint: input.handoff.fingerprint } : {}),
     }),
   );
   const logicalDigest = definitionFingerprint.slice("sha256:".length);
@@ -148,6 +109,7 @@ export function createInitialProjectWorkLineageMaterialV01(input: {
         input.expected_active_selection_revision,
       expected_initialization_state: "not_defined",
       definition: input.definition,
+      ...(input.handoff ? { handoff_fingerprint: input.handoff.fingerprint } : {}),
     }),
   );
   const requestRef: ExternalRefV01 = {
@@ -201,8 +163,9 @@ export function buildInitialProjectWorkTaskContextPacketV01(input: {
   project_id: string;
   operator_id: string;
   session_id: string;
-  expected_active_selection_revision: number;
+  expected_active_selection_revision: ProjectSelectionRevision;
   definition: ProjectWorkDefinitionV01;
+  handoff?: WorkHandoff;
   generated_at: string;
 }): {
   packet: TaskContextPacketV01;
@@ -251,6 +214,7 @@ export function buildInitialProjectWorkTaskContextPacketV01(input: {
       ],
     },
     selected_context: [
+      ...(input.handoff ? receivedHandoffEntries(input, input.handoff, input.generated_at) : []),
       {
         entry_id: `initial-definition:${lineage.definition_ref.external_id}`,
         entry_kind: "source_ref",
@@ -299,7 +263,7 @@ export function buildInitialProjectWorkTaskContextPacketV01(input: {
       required_checks: [],
       forbidden_actions: [],
       data_classification: "private",
-      context_budget: INITIAL_PROJECT_WORK_PACKET_CONTEXT_BUDGET_V01,
+      context_budget: { ...INITIAL_PROJECT_WORK_PACKET_CONTEXT_BUDGET_V01, ...(input.handoff ? { max_selected_entries: 12 } : {}) },
     },
     capability_grant: null,
     return_contract: {
@@ -350,7 +314,7 @@ function buildInitialProjectWorkPacketWithinBudgetV01(
   input: Parameters<typeof buildTaskContextPacketV01>[0],
 ): TaskContextPacketV01 {
   try {
-    return buildTaskContextPacketV01(input);
+    return buildTaskContextPacketV01(input, { required_selected_entry_ids: input.selected_context.map(e => e.entry_id) });
   } catch (error) {
     if (error instanceof RangeError) {
       refuse("first_work_packet_budget_exceeded");
@@ -473,8 +437,8 @@ export function inspectInitialProjectWorkPacketLineageV01(
     refuse("initial_project_work_provenance_invalid");
   }
   const requestMatch = REQUEST_ID_PATTERN.exec(requestRef.external_id);
-  const revision = requestMatch ? Number(requestMatch[1]) : NaN;
-  if (!Number.isSafeInteger(revision) || revision < 1) {
+  const revision = requestMatch?.[1]?.startsWith("selection:") ? requestMatch[1] : Number(requestMatch?.[1]);
+  if (!isHistoricalProjectSelectionRevision(revision)) {
     refuse("initial_project_work_request_ref_invalid");
   }
   const session = readVNextLocalOperatorSessionHistoryV01(db, {
@@ -514,6 +478,7 @@ export function inspectInitialProjectWorkPacketLineageV01(
     session_id: session.session_id,
     expected_active_selection_revision: revision,
     definition: packet.task,
+    ...(readWorkHandoff(packet) ? { handoff: readWorkHandoff(packet)! } : {}),
     generated_at: packet.generated_at,
   });
   if (
@@ -564,7 +529,7 @@ export function inspectInitialProjectWorkPacketLineageV01(
   const laterTransitionPacket = initialRows.some((row) => {
     if (row.record_id === packet.packet_id) return false;
     const value = JSON.parse(row.payload_json) as TaskContextPacketV01;
-    return value.compatibility?.source_contracts?.includes(
+    return !value.compatibility?.source_contracts?.includes(PROSPECTIVE_PREPARATION_PACKET) && value.compatibility?.source_contracts?.includes(
       VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
     );
   });
@@ -615,43 +580,6 @@ function countRowsV01(
     )
     .get(input.workspace_id, input.project_id) as { count: number };
   return row.count;
-}
-
-function normalizeBoundedListV01(
-  value: unknown,
-  minimum: number,
-  maximum: number,
-  characterLimit: number,
-  code: string,
-): string[] {
-  if (!Array.isArray(value)) refuse(code);
-  const normalized = value
-    .filter((entry) => typeof entry !== "string" || entry.trim().length > 0)
-    .map((entry) => normalizeBoundedTextV01(entry, characterLimit, code));
-  const unique = [...new Set(normalized)].sort(compareCodeUnitsV01);
-  if (unique.length < minimum || unique.length > maximum) refuse(code);
-  return unique;
-}
-
-function normalizeBoundedTextV01(
-  value: unknown,
-  limit: number,
-  code: string,
-): string {
-  if (typeof value !== "string") refuse(code);
-  const normalized = value.trim();
-  if (
-    normalized.length === 0 ||
-    [...normalized].length > limit ||
-    DISALLOWED_TEXT.test(normalized)
-  ) {
-    refuse(code);
-  }
-  return normalized;
-}
-
-function compareCodeUnitsV01(left: string, right: string): number {
-  return left < right ? -1 : left > right ? 1 : 0;
 }
 
 function refuse(code: string, status = 422): never {

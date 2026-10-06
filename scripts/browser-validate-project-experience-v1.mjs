@@ -35,7 +35,7 @@ import {
   createRepositoryExecutionDecisionRequestV01,
 } from "../lib/vnext/repository-execution/repository-execution.ts";
 import { createBrowserSupervisorPublicDiagnosticCapture } from "./browser-supervisor-public-diagnostic.mjs";
-import { chooseBrowserPorts } from "./browser-preferred-ports.mjs";
+import { chooseBrowserPorts, readBrowserPortAllocationDiagnostic } from "./browser-preferred-ports.mjs";
 import { createBrowserE2ETimingRecorder } from "./browser-e2e-timing.mjs";
 import { createProjectExperienceRequestDiagnosticsV1 } from "./project-experience-request-diagnostics-v1.mjs";
 import { CONSUMER_DIAGNOSTIC_BINDING_V1 } from "./project-experience-consumer-diagnostics-v1.mjs";
@@ -262,6 +262,7 @@ const result = {
   retired_route_statuses: {},
   retired_routes_non_mutating: false,
   first_work_browser_viewports: false,
+  project_direction_ui: false,
   repository_decision_browser_confirmation: false,
   delegated_work_narrow_viewport_no_overflow: false,
   shared_inspector_narrow_viewport_no_overflow: false,
@@ -324,6 +325,7 @@ const result = {
   request_response_console_ledger_summary: null,
   supervisor_exit_diagnostic: null,
   e2e_timing_summary: null,
+  browser_port_allocation_diagnostic: null,
   failure: null,
 };
 
@@ -410,6 +412,7 @@ try {
   functionalExecutionSucceeded = true;
   emitRequestDiagnostics("scenario_complete");
 } catch (error) {
+  result.browser_port_allocation_diagnostic ??= readBrowserPortAllocationDiagnostic(error);
   result.failure = safeError(error);
   process.exitCode = 1;
   emitRequestDiagnostics("scenario_failure");
@@ -421,7 +424,7 @@ try {
   const finishCleanupTiming = timing.start("cleanup", "global cleanup");
   try {
     await cleanup();
-    result.cleanup_complete = true;
+    result.cleanup_complete = result.browser_port_allocation_diagnostic?.cleanup_complete !== false;
   } catch (error) {
     if (!result.failure) {
       result.failure = safeError(error);
@@ -433,7 +436,8 @@ try {
   result.owned_streams_settled = ownedBrowserProcesses.size === 0;
   result.owned_process_residue_count = ownedBrowserProcesses.size;
   try {
-    result.listener_residue_count = await listenerResidueCount();
+    result.listener_residue_count = result.browser_port_allocation_diagnostic?.cleanup_complete === false
+      ? null : await listenerResidueCount();
   } catch (error) {
     if (!result.failure) {
       result.failure = safeError(error);
@@ -622,7 +626,9 @@ async function main() {
     fixture.writable_database_path,
   );
 
-  ({ app: appPort, bridge: bridgePort, debug: debugPort } = await chooseBrowserPorts());
+  const allocation = await chooseBrowserPorts();
+  result.browser_port_allocation_diagnostic = readBrowserPortAllocationDiagnostic(allocation);
+  ({ app: appPort, bridge: bridgePort, debug: debugPort } = allocation);
   appOrigin = `http://127.0.0.1:${appPort}`;
   const chromeExecutable = chromeCandidates.find((candidate) =>
     existsSync(candidate),
@@ -1984,6 +1990,29 @@ async function main() {
       await readCurrentNotes([suppliedSource, correction]);
       assert(beforeReadBoundaries.equals(noteDatabase.serialize()), 'read-boundary cases do not alter stored state');
       assert.deepEqual(effects(), effectsBefore);
+      // The retained result is deliberately reselected through the real controls.
+      // Search and comparison remain read only; one explicit save appends once.
+      await openNotes();
+      await clickSelector('[data-retained-work-sources] > summary');
+      await setFormControlValue('#retained-source-query', 'IMAGE-r1');
+      await clickSelector('[data-retained-source-action="search"]');
+      await waitForCondition(`document.querySelector('[data-retained-source-hit]')?.textContent.includes(${JSON.stringify(firstNote)}) === true`, "historical note for explicit reselection");
+      assert.equal(await evaluateBoolean(`document.querySelector('[data-retained-work-sources]')?.textContent.includes('1056000') === true`), true);
+      await clickSelector('[data-retained-source-action="select"]');
+      assert(beforeReadBoundaries.equals(noteDatabase.serialize()), 'lookup and draft selection write nothing');
+      await compareAndSave(3);
+      await navigate(`${appOrigin}/workbench/semantic-review`);
+      await readCurrentNotes([suppliedSource, correction, firstNote]);
+      const reselected = await browserFetchJson('/api/vnext/operator/project-continuity');
+      const originalEntry = firstNotePackets.flatMap(row => JSON.parse(row.payload_json).selected_context)
+        .find(entry => entry.bounded_summary === firstNote);
+      assert(originalEntry);
+      assert.deepEqual(reselected.body.work_initialization.selected_source_context
+        .find(entry => entry.entry_id === originalEntry.entry_id), originalEntry);
+      assert.deepEqual(reselected.body.work_initialization.current_work, savedDefinition);
+      assert.equal(packets().length, finalPackets.length + 1);
+      assert.deepEqual(packets().filter(row => finalPackets.some(prior => prior.record_id === row.record_id)), finalPackets);
+      assert.deepEqual(effects(), effectsBefore);
     } finally { noteDatabase.close(); }
     const healthAfter = await (await fetch(`${appOrigin}/api/healthz`)).json();
     assert.equal(healthAfter.runtime_generation_id, healthBefore.runtime_generation_id);
@@ -1994,8 +2023,10 @@ async function main() {
       current_selected_notes_read_without_editor: true, current_note_disclosure_zero_write: true,
       current_note_scope_and_unavailable_boundaries: true, current_note_read_without_revision_permission: true,
       previous_source_bytes_preserved: true, retained_lookup_select_compare_cancel: true,
+      retained_lookup_select_compare_save_reopen: true,
       managed_execution_unavailable: true, note_operation_restart_count: 0,
       access_restart_count: 0, installed_service_observation: false }));
+    await validateProjectDirectionUI(accessDatabasePath, projectAlphaId);
     companionFirstWorkProfile = false;
     await restartRuntime(fixture.writable_database_path, manifest, projectAlphaId);
   });
@@ -2684,6 +2715,7 @@ async function main() {
     assert.equal(staleOpen.body.error_code, "active_selection_conflict");
     result.folder_onboarding_stale_active_conflict = true;
     completeDetailedField("folder_onboarding_stale_active_conflict");
+    await validateSavedProjectDiscoveryV02({ fixture, manifest, projectAlphaId, projectAlphaDestination });
     result.folder_onboarding_restart_reopen = true;
     completeDetailedField("folder_onboarding_restart_reopen");
 
@@ -3426,6 +3458,88 @@ async function terminateRuntime() {
   serverProcessRecord = null;
   serverClosePromise = null;
   serverPublicDiagnosticCapture = null;
+}
+
+async function validateSavedProjectDiscoveryV02({ fixture, manifest, projectAlphaId, projectAlphaDestination }) {
+  // Ordinary human rediscovery uses the existing management controls. Keep
+  // the removed identity and all historical bytes through a fresh runtime.
+  await navigate(`${appOrigin}${projectAlphaDestination}#project-settings`);
+  await waitForCondition(`document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null && document.querySelector('#project-management') !== null`, "saved project management ready");
+  const registeredBefore = await browserFetchJson('/api/vnext/projects?view=registered');
+  assert.equal(registeredBefore.status,200);
+  const alphaBefore = registeredBefore.body.projects.find(entry => entry.project.project_id === projectAlphaId);
+  assert(alphaBefore);
+  const historyDatabase = new Database(fixture.writable_database_path, {readonly:true,fileMustExist:true});
+  const historyRows = () => historyDatabase.prepare("SELECT record_id,fingerprint,payload_json FROM vnext_core_records WHERE project_id=? ORDER BY record_id").all(projectAlphaId);
+  const historyBefore = historyRows();
+  try {
+    const alphaRecentSelector = `#recent-projects li:has(strong)`;
+    await evaluateBoolean(`(() => { const row = [...document.querySelectorAll(${JSON.stringify(alphaRecentSelector)})].find(row => row.querySelector('strong').textContent === ${JSON.stringify(alphaBefore.project.display_name)}); const button=[...row.querySelectorAll('button')].find(b=>b.textContent==='Remove from recents'); button.click(); return true; })()`);
+    await waitForCondition(`document.querySelector('[role="dialog"]')?.textContent.includes('Stored project data and local files are not deleted') === true`, "data-preserving removal confirmation");
+    await clickButtonByText('Cancel','[role="dialog"]');
+    assert((await readRecentProjectsInBrowser()).recent_projects.some(entry=>entry.project.project_id===projectAlphaId));
+    await evaluateBoolean(`(() => { const row = [...document.querySelectorAll('#recent-projects li')].find(row => row.querySelector('strong').textContent === ${JSON.stringify(alphaBefore.project.display_name)}); [...row.querySelectorAll('button')].find(b=>b.textContent==='Remove from recents').click(); return true; })()`);
+    await clickButtonByText('Remove from recents','[role="dialog"]');
+    // firstOpen deliberately changed the selection after this document was
+    // rendered. A fragment navigation does not refresh its held observation.
+    await waitForCondition(`document.querySelector('[role="dialog"] [role="alert"]')?.textContent.includes('The current project changed') === true`, "held removal observation refuses after selection changed");
+    assert((await readRecentProjectsInBrowser()).recent_projects.some(entry=>entry.project.project_id===projectAlphaId));
+    assert.deepEqual(historyRows(),historyBefore);
+    await clickButtonByText('Cancel','[role="dialog"]');
+    await navigate(`${appOrigin}/`);
+    await waitForCondition(`location.pathname === '/'`, "fresh management document after stale removal");
+    await navigate(`${appOrigin}${projectAlphaDestination}#project-settings`);
+    await waitForCondition(`document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null && location.pathname === ${JSON.stringify(projectAlphaDestination)}`, "fresh removal observation ready");
+    await evaluateBoolean(`(() => { const row = [...document.querySelectorAll('#recent-projects li')].find(row => row.querySelector('strong').textContent === ${JSON.stringify(alphaBefore.project.display_name)}); [...row.querySelectorAll('button')].find(b=>b.textContent==='Remove from recents').click(); return true; })()`);
+    await clickButtonByText('Remove from recents','[role="dialog"]');
+    await waitForCondition(`document.querySelector('[role="dialog"]') === null && document.body.textContent.includes('Use Find saved projects to reopen it')`, "removed shortcut retains discovery route");
+    assert(!(await readRecentProjectsInBrowser()).recent_projects.some(entry=>entry.project.project_id===projectAlphaId));
+    await restartRuntime(fixture.writable_database_path,manifest,projectAlphaId);
+    await navigate(`${appOrigin}/#project-settings`);
+    await waitForCondition(`document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null && document.querySelector('#registered-projects button:not(:disabled)') !== null`, "fresh-process saved project entry");
+    await clickButtonByText('Find saved projects','#registered-projects');
+    await waitForCondition(`document.querySelector('[data-saved-project="${projectAlphaId}"]')?.textContent.includes('Not in recents') === true`, "removed project rediscovered");
+    const rediscovered = await browserFetchJson('/api/vnext/projects?view=registered');
+    const same = rediscovered.body.projects.find(entry=>entry.project.project_id===projectAlphaId);
+    assert.deepEqual(same.project,alphaBefore.project); assert.deepEqual(same.local_root,alphaBefore.local_root);
+    await clickButtonByText('Make current and open',`[data-saved-project="${projectAlphaId}"]`);
+    await waitForCondition(`location.pathname === ${JSON.stringify(projectAlphaDestination)} && document.querySelector('[data-blank-state-active="true"]') !== null`, "same saved project reopened");
+    assert.deepEqual(historyRows(),historyBefore,"remove, restart and rediscovery preserve historical bytes and fingerprints");
+    const staleAfterClear = await browserFetchJson('/api/vnext/projects',{method:'POST',explicitBody:{action:'open',project_id:projectAlphaId,expected_project_id:alphaBefore.active_project_id,expected_revision:alphaBefore.active_selection_revision}});
+    assert.equal(staleAfterClear.status,409);
+    console.log(JSON.stringify({human_saved_project_discovery:'pass',fresh_process:true,identity_root_history_preserved:true,remove_cancel_preserved:true,stale_removal_preserved:true,stale_clear_reopen_refused:true,rediscovery_actions_from_management:2,provider_calls:0}));
+  } finally { historyDatabase.close(); }
+  const agentRoot=path.join(tempRoot,"Agent-created saved project");mkdirSync(agentRoot);
+  // The home surface links to protected review; its authentication form is
+  // owned by that route, not the project-management page.
+  await navigate(`${appOrigin}/workbench/semantic-review`);
+  await authenticateCurrentPage(fixture.writable_database_path,manifest,projectAlphaId);
+  const allowedDirection={purpose:"Inspect a disposable source question",criteria:[],constraints:[]};
+  const policy=await browserFetchJson(`/api/vnext/operator/project-direction?project_id=${encodeURIComponent(projectAlphaId)}`,{method:'POST',explicitBody:{action:'authorize_agent',role:'role:discovery-fixture',allowed_directions:[allowedDirection],max_mutations:1,expires_in_minutes:10,creation_slots:[{root:agentRoot,display_name:'Agent-created saved project',delegation:null}]}});
+  assert.equal(policy.status,200);
+  // The deterministic agent uses the real bearer transport; the credential
+  // stays in memory and is never copied into the browser URL or evidence.
+  const createdResponse=await fetch(`${appOrigin}/api/vnext/agent/project-direction`,{method:'POST',headers:{host:new URL(appOrigin).host,origin:appOrigin,'content-type':'application/json',authorization:`Bearer ${policy.body.credential}`},body:JSON.stringify({sequence:0,project_id:null,operation:{action:'create_project',slot:0,content:allowedDirection,reason:'Disposable rediscovery exercise'}})});
+  assert.equal(createdResponse.status,200);
+  const created=await createdResponse.json();
+  const beforeAgentOpen=await readRecentProjectsInBrowser();
+  assert.equal(beforeAgentOpen.recent_projects.find(entry=>entry.is_active).project.project_id,projectAlphaId);
+  assert(!beforeAgentOpen.recent_projects.some(entry=>entry.project.project_id===created.project_id));
+  await cdp.send('Network.clearBrowserCookies');
+  await navigate(`${appOrigin}/#project-settings`);
+  await waitForCondition(`document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null && document.querySelector('#registered-projects button:not(:disabled)') !== null`,"agent-created project discovery entry");
+  await clickButtonByText('Find saved projects','#registered-projects');
+  await waitForCondition(`document.querySelector('[data-saved-project="${created.project_id}"]')?.textContent.includes('Not in recents') === true`,"human discovers agent-created project");
+  await clickButtonByText('Make current and open',`[data-saved-project="${created.project_id}"]`);
+  await waitForCondition(`document.querySelector('[data-project-context-label="Current project"]')?.textContent.includes('Agent-created saved project') === true`,"human opens same agent-created identity");
+  assert.equal((await readRecentProjectsInBrowser()).recent_projects.find(entry=>entry.is_active).project.project_id,created.project_id);
+  await navigate(`${appOrigin}/#project-settings`);
+  await waitForCondition(`document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null && document.querySelector('#registered-projects button:not(:disabled)') !== null`,"return to saved projects");
+  await clickButtonByText('Find saved projects','#registered-projects');
+  await waitForCondition(`document.querySelector('[data-saved-project="${projectAlphaId}"]') !== null`,"original project remains discoverable");
+  await clickButtonByText('Make current and open',`[data-saved-project="${projectAlphaId}"]`);
+  await waitForCondition(`location.pathname === ${JSON.stringify(projectAlphaDestination)}`,"return to original identity");
+  console.log(JSON.stringify({human_opens_agent_created_project:'pass',agent_creation_human_focus_recents_unchanged:true,agent_client:'deterministic_authenticated_transport',provider_calls:0}));
 }
 
 async function authenticateCurrentPage(databasePath, manifest, projectId) {
@@ -4776,6 +4890,102 @@ async function validateProjectRecoveryViewports() {
   await setViewport(1440, 1000);
 }
 
+async function validateProjectDirectionUI(accessDatabasePath, projectAlphaId) {
+  // Production human controls, on the disposable authored-work database.
+  const directionDb = new Database(accessDatabasePath);
+  const packetBytes = () => directionDb.prepare("SELECT record_id,payload_json FROM vnext_core_records WHERE project_id=? AND record_kind='task_context_packet' ORDER BY record_id").all(projectAlphaId);
+  const packetsBeforeDirection = packetBytes();
+  try {
+    await navigate(`${appOrigin}/projects/${encodeURIComponent(projectAlphaId)}`);
+    await waitForCondition(`document.querySelector('[data-project-direction-hydrated="true"]') !== null`, "project direction surface");
+    await clickSelector('[data-project-direction] > details > summary');
+    await setFormControlValue('[aria-label="Desired outcome or open question"]', 'Which source observations would help this project?');
+    await clickButtonByText('Save direction', '[data-project-direction]');
+    await waitForCondition(`document.querySelector('[data-project-direction]')?.textContent.includes('Revision 1') === true`, "effective human direction");
+    await setFormControlValue('[aria-label="Desired outcome or open question"]', 'Investigate the limits before choosing the next action');
+    await setFormControlValue('[aria-label="Why change direction?"]', 'Keep counterevidence visible while reconsidering selection');
+    await clickButtonByText('Save direction', '[data-project-direction]');
+    await waitForCondition(`document.querySelector('[data-project-direction]')?.textContent.includes('Revision 2') === true`, "revised human direction");
+    await navigate(`${appOrigin}/projects/${encodeURIComponent(projectAlphaId)}`);
+    await waitForCondition(`document.querySelector('[data-project-direction]')?.textContent.includes('Revision 2') === true`, "fresh direction reconstruction");
+    await waitForCondition(`document.querySelector('[data-project-direction-hydrated="true"]') !== null`, "reopened direction editor hydrated");
+    // Issue an actual bounded proposal capability through the authenticated UI
+    // transport. The secret remains inside this browser invocation, never in
+    // diagnostics, the DOM, an artifact or the test's returned value.
+    assert.equal(await evaluateBoolean(`(async () => {
+      const url = '/api/vnext/operator/project-direction?project_id=' + ${JSON.stringify(projectAlphaId)};
+      const read = await (await fetch(url, { cache: 'no-store' })).json();
+      const content = { purpose: 'Review the proposed source question', criteria: ['Preserve accepted proposal criteria'], constraints: ['Keep the accepted source boundary'] };
+      const issued = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+        action: 'authorize_agent', role: 'role:proposal-reviewer', allowed_directions: [content], max_mutations: 1, expires_in_minutes: 10, creation_slots: [] }) });
+      if (!issued.ok) return false;
+      const access = await issued.json();
+      const proposed = await fetch('/api/vnext/agent/project-direction', { method: 'POST', credentials: 'omit', headers: {
+        'Content-Type': 'application/json', Authorization: 'Bearer ' + access.credential }, body: JSON.stringify({ project_id: ${JSON.stringify(projectAlphaId)}, sequence: 0,
+          operation: { action: 'propose', expected_ref: read.state.effective.ref, content, reason: 'Preserve the full proposed content on acceptance' } }) });
+      return proposed.ok;
+    })()`), true);
+    await clickButtonByText('Refresh direction', '[data-project-direction]');
+    await waitForCondition(`document.querySelector('[data-project-direction]')?.textContent.includes('Proposed progress criteria: Preserve accepted proposal criteria') === true`, "full proposed criteria visible");
+    assert.equal(await evaluateBoolean(`document.querySelector('[data-project-direction]')?.textContent.includes('Proposed constraints: Keep the accepted source boundary')`), true);
+    await evaluateBoolean(`(() => { document.querySelectorAll('[data-project-direction] details').forEach(d => d.open = true); return true; })()`);
+    await setFormControlValue('[aria-label="Why change direction?"]', 'Accept the complete proposed direction');
+    await clickButtonByText('Use this proposed direction', '[data-project-direction]');
+    await waitForCondition(`document.querySelector('[data-project-direction]')?.textContent.includes('Revision 3') === true`, "proposal accepted");
+    assert.equal(await evaluateString(`document.querySelector('[aria-label="Useful progress (one per line)"]').value`), 'Preserve accepted proposal criteria');
+    assert.equal(await evaluateString(`document.querySelector('[aria-label="Constraints (one per line)"]').value`), 'Keep the accepted source boundary');
+    await setFormControlValue('[aria-label="Desired outcome or open question"]', 'Refine only the accepted purpose');
+    await setFormControlValue('[aria-label="Why change direction?"]', 'Purpose-only refinement after acceptance');
+    await clickButtonByText('Save direction', '[data-project-direction]');
+    await waitForCondition(`document.querySelector('[data-project-direction]')?.textContent.includes('Revision 4') === true`, "purpose-only edit saved");
+    await navigate(`${appOrigin}/projects/${encodeURIComponent(projectAlphaId)}`);
+    await waitForCondition(`document.querySelector('[data-project-direction]')?.textContent.includes('Revision 4') === true`, "accepted content reconstructed");
+    await waitForCondition(`document.querySelector('[data-project-direction-hydrated="true"]') !== null`, "accepted direction editor hydrated");
+    assert.deepEqual(await evaluateJson(`(async () => (await (await fetch('/api/vnext/operator/project-direction?project_id=' + ${JSON.stringify(projectAlphaId)}, { cache: 'no-store' })).json()).state.effective.value.content)()`), {
+      purpose: 'Refine only the accepted purpose', criteria: ['Preserve accepted proposal criteria'], constraints: ['Keep the accepted source boundary'],
+    });
+    await evaluateBoolean(`(() => { document.querySelectorAll('[data-project-direction] details').forEach(d => d.open = true); return true; })()`);
+    await setFormControlValue('[aria-label="Desired outcome or open question"]', 'Unsaved local exploration');
+    // Another authenticated mutation updates canonical state while the editor is
+    // dirty. Refresh must disclose the conflict and retain the original basis.
+    assert.equal(await evaluateBoolean(`(async () => {
+      const url = '/api/vnext/operator/project-direction?project_id=' + ${JSON.stringify(projectAlphaId)};
+      const value = await (await fetch(url, { cache: 'no-store' })).json();
+      return (await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'decide', expected_ref: value.state.effective.ref,
+        content: { purpose: 'Direction from another authenticated editor', criteria: ['External criterion'], constraints: ['External constraint'] }, reason: 'Observed outside this form', status: 'active', proposal_ref: null }) })).ok;
+    })()`), true);
+    await clickButtonByText('Refresh direction', '[data-project-direction]');
+    await waitForCondition(`document.querySelector('[data-project-direction]')?.textContent.includes('Your unsaved edits are preserved') === true`, "dirty editor conflict disclosed");
+    assert.equal(await evaluateString(`document.querySelector('[aria-label="Desired outcome or open question"]').value`), 'Unsaved local exploration');
+    assert.equal(await evaluateBoolean(`Array.from(document.querySelectorAll('[data-project-direction] button')).find(b => b.textContent === 'Save direction').disabled`), true);
+    await clickButtonByText('Discard edits and load latest direction', '[data-project-direction]');
+    await waitForCondition(`document.querySelector('[aria-label="Useful progress (one per line)"]').value === 'External criterion'`, "canonical editor restored explicitly");
+    assert.equal(await evaluateString(`document.querySelector('[aria-label="Constraints (one per line)"]').value`), 'External constraint');
+    assert.equal(await evaluateBoolean(`document.querySelector('[data-project-direction]')?.textContent.includes('Reconsider pending work') === true`), true);
+    assert.deepEqual(packetBytes(), packetsBeforeDirection, "Direction changes preserve task and selected factual source bytes");
+    await evaluateBoolean(`(() => { document.querySelector('[data-stateless-source-review]').open = true; return true; })()`);
+    await setFormControlValue('[aria-label="Source-review question"]', 'What do the selected entrypoints establish?');
+    await clickButtonByText('Read saved source reviews', '[data-stateless-source-review]');
+    await waitForCondition(`document.querySelector('[data-stateless-source-review]')?.textContent.includes('No saved source reviews.') === true`, "authenticated stateless source-review reader");
+    assert.equal(await evaluateString(`document.querySelector('[aria-label="Source-review question"]').value`), 'What do the selected entrypoints establish?');
+    assert.deepEqual(packetBytes(), packetsBeforeDirection, "Source-review reader and unsaved editor do not alter authored work");
+    await clickSelector('[data-stateless-source-review] > details > summary');
+    for (const [label, value] of [['Input ceiling per byte', '1000'], ['Output ceiling per token', '1000'], ['Total ceiling for both judgments', '100000000'], ['Pricing source/version', 'browser-test-no-authority']]) {
+      await setFormControlValue(`[aria-label="${label}"]`, value);
+    }
+    assert.equal(await evaluateBoolean(`Array.from(document.querySelectorAll('[data-stateless-source-review] button')).find(b => b.textContent === 'Review authorization').disabled`), true, 'unsaved question cannot enter authorization review');
+    for (const width of [390, 768, 1440]) {
+      await setViewport(width, 1000);
+      await evaluateBoolean(`(() => { document.querySelectorAll('[data-project-direction] details').forEach(d => d.open = true); return true; })()`);
+      assert.equal(await evaluateBoolean(`document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1`), true, `direction overflow at ${width}`);
+    }
+    assert.equal(await evaluateBoolean(`/sha256:|action_nonce|session_secret|augnes-direction\\./.test(document.querySelector('[data-project-direction]').innerText)`), false);
+    result.project_direction_ui = true;
+    completeDetailedField("project_direction_ui");
+    record("human_direction_author_revision_reconstruction_preserves_work");
+  } finally { directionDb.close(); }
+}
+
 async function validateProjectHomeViewports(state) {
   for (const { width, height } of [
     { width: 390, height: 844 },
@@ -4793,7 +5003,7 @@ async function validateProjectHomeViewports(state) {
     assert.equal(metrics.surface_horizontal_overflow, false);
     assert.equal(metrics.inside_viewport, true);
     assert.equal(metrics.primary_navigation_count, 2);
-    assert.equal(metrics.minimum_control_size, true);
+    assert.equal(metrics.minimum_control_size, true, `minimum control size: ${JSON.stringify(await evaluateJson(`Array.from(document.querySelector('[data-blank-state="v0.1"]').querySelectorAll('a, button, input, textarea, select, summary')).map(e => ({ tag: e.tagName, id: e.id, width: e.getBoundingClientRect().width, height: e.getBoundingClientRect().height })).filter(r => r.width > 0 && r.height > 0 && (r.width < 40 || r.height < 40))`))}`);
     viewportResults.push(metrics);
   }
   await setViewport(1440, 1000);

@@ -4,6 +4,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -29,6 +30,7 @@ export const OWNER_TARGETED_PLAN = "owner-targeted";
 export const OWNER_TARGETED_DEPENDENCY_PHASE_IDS = Object.freeze([
   "dependencies-root",
   "dependencies-nested",
+  "dependencies-web-planning",
 ]);
 export const TARGETED_PHASE_ORDER = Object.freeze([
   ...changeOwnerManifest.targeted_phase_order,
@@ -681,6 +683,11 @@ function orderedTargetedPhases(phaseIds) {
     ...OWNER_TARGETED_DEPENDENCY_PHASE_IDS,
     ...phaseIds,
   ]);
+  // The complete unit suite already runs these exact children. Mixed owners
+  // retain that broader obligation without running the same checks twice.
+  if (selected.has("unit")) {
+    for (const id of CODEX_REUSE_PHASE_IDS) selected.delete(id);
+  }
   const ordered = TARGETED_PHASE_ORDER.filter((phaseId) =>
     selected.has(phaseId)
   );
@@ -745,6 +752,7 @@ export function validateChangeOwnerManifest(manifest) {
     ...OWNER_TARGETED_DEPENDENCY_PHASE_IDS,
     "typecheck",
     "unit",
+    ...CODEX_REUSE_PHASE_IDS,
     "authority",
     "integration",
     "operability",

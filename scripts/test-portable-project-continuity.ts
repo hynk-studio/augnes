@@ -25,7 +25,7 @@ import {
   readCanonicalProjectIdentityV01,
   renameCanonicalProjectDisplayNameV01,
 } from "../lib/vnext/persistence/project-identity-registry";
-import { readActiveProjectSelectionV01, selectActiveProjectV01, touchRecentProjectV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
+import { removeRecentProjectV01, readProjectSelectionStateV02, readActiveProjectSelectionV01, selectActiveProjectV01, touchRecentProjectV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import { readProjectHomeDatabaseCompatibilityV01, readProjectHomeProjectionV01 } from "../lib/vnext/project-home/project-home-projection";
 import { readVNextOperatorPilotProposalDurableLineageV01 } from "../lib/vnext/runtime/operator-pilot-workbench-lineage";
 import { readSharedProjectInspectorV01 } from "../lib/vnext/runtime/shared-project-inspector";
@@ -88,7 +88,7 @@ try {
       project_id: fixtureManifest.project_id,
       now: "2026-07-21T02:29:00.000Z",
       expected_project_id: null,
-      expected_revision: null,
+      expected_revision: readProjectSelectionStateV02(source, fixtureManifest.workspace_id)?.selection_revision ?? null,
     });
   }
   const projectBeforePortableRename = readCanonicalProjectIdentityV01(source, {
@@ -533,11 +533,9 @@ try {
       );
     }
 
-    source
-      .prepare(
-        "DELETE FROM vnext_active_project_selections WHERE workspace_id = ?",
-      )
-      .run(fixtureManifest.workspace_id);
+    const beforeClear = readProjectSelectionStateV02(source, fixtureManifest.workspace_id)!;
+    removeRecentProjectV01(source, { workspace_id: fixtureManifest.workspace_id, project_id: beforeClear.project_id!,
+      expected_project_id: beforeClear.project_id, expected_revision: beforeClear.selection_revision });
     const refusedExport = await portabilityPost(localRequestV01("POST", {
       contentType: "application/json",
       body: JSON.stringify({
@@ -599,7 +597,7 @@ try {
       project_id: fixtureManifest.project_id,
       now: "2026-07-21T03:20:00.000Z",
       expected_project_id: null,
-      expected_revision: null,
+      expected_revision: readProjectSelectionStateV02(source, fixtureManifest.workspace_id)!.selection_revision,
     });
   } finally {
     if (previousDatabasePath === undefined) delete process.env.AUGNES_DB_PATH;
