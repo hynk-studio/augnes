@@ -5,6 +5,7 @@ import { STATELESS_LIMITS, STATELESS_SOL_LOW_LIMITS } from "../lib/vnext/statele
 import { statelessTerminalEntries, statelessMandatoryEntries } from "../lib/vnext/stateless-work";
 import { inspectStatelessTerminalSuccessor, readTerminalAuthorshipPreparation, readTerminalAttemptHistory, assertTerminalHistoryActive, previewTerminalAuthorship } from "../lib/vnext/runtime/stateless-terminal-authorship";
 import { StatelessTerminalAuthorship } from "../components/blank-state/stateless-terminal-authorship";
+import type { TaskContextPacketV01 } from "../types/vnext/task-context-packet";
 import { pathToFileURL } from "node:url";
 import { readStatelessDispositionPreparation, assertStatelessUnsettledAdmission, statelessUnresolvedEntries } from "../lib/vnext/runtime/stateless-review-disposition";
 import assert from "node:assert/strict";
@@ -619,7 +620,7 @@ async function rejectionEvidenceContract() {
     const calls = ["rationale", "unavailable"].includes(kind) ? 2 : 1;
     assert.equal(f.calls, calls); assert.equal(result.run.status, "stopped"); assert.equal(result.receipt, null);
     assert.equal(result.disposition_preparation, null, "Unknown-outcome disposition cannot be used for a known rejected result");
-    assert.equal(result.terminal_preparation === null, kind === "persistence", "Known persistence failures need a separate contract");
+    assert.ok(result.terminal_preparation, "Precisely evidenced returned failures expose separate null-grant authorship");
     const failed = result.run.steps.find((s: any) => s.status === "failed");
     assert.equal(failed.output.judgment, undefined, "Rejected advice is not the applied step output");
     assert.equal(failed.output.dispatch_outcome, kind === "persistence" ? "returned_unapplied" : "returned_invalid");
@@ -912,38 +913,51 @@ async function readTerminalChild(filename: string) {
     assert.equal(requests, 0); console.log(JSON.stringify({ cases: inputs.length, calls: 0, fresh_authenticated_read: true, actual_product_component: true, logout: 401 }));
   } finally { rmSync(root, { recursive: true, force: true }); network.unsubscribe(onNetwork); zeroNetwork.restore(); }
 }
-async function solTerminalAuthorshipContract() {
+async function terminalRouteAuthorshipContract({ model = "gpt-6.1-sol", persistence = false } = {}) {
   const attempts = [];
   for (const stage of ["choose", "conclude"] as const) {
-    const f = await fixture(`sol-terminal-${stage}`, "read_selected_sources", "use_observation", false, "gpt-6.1-sol");
+    const f = await fixture(`terminal-${model}-${persistence}-${stage}`, "read_selected_sources", "use_observation", false, model);
     const workNote = { source: "Attributed Work review", observed_at: f.now(), provenance: "derived_interpretation", label: "Changed assumption / user correction", text: "Separate the returned response from an accepted finding; inspect the remaining source connection." };
     await selectOrdinaryNotes(f, [...currentNotes(f), workNote]);
+    let unknownId: string | undefined, unknownSnapshot: string | undefined;
+    if (persistence && model === "gpt-4.1-mini" && stage === "choose") {
+      f.loseDispatch();
+      const unknown = (await f.call({ action: "authorize_and_run", authorization: (await f.call({ action: "preview", pricing: notePricing })).authorization })).result;
+      const ended = (await f.call({ action: "end_work", binding: unknown.disposition_preparation.binding })).result;
+      unknownId = ended.run.run_id; unknownSnapshot = canonical(ended.run);
+      await f.call({ action: "prepare_linked_work", expected_active_selection_revision: readActiveProjectSelectionV01(f.db, f.scope.workspace_id)!.selection_revision,
+        disposition: { run_id: unknownId, disposition_fingerprint: ended.disposition_preparation.disposition.fingerprint }, material: replacementMaterial });
+      f.controls.lose = false;
+    }
     const authorization = (await f.call({ action: "preview", pricing: notePricing })).authorization;
     f.controls.transform = (output, input) => {
-      if (input.stage !== stage) return;
+      if (persistence || input.stage !== stage) return;
       if (stage === "choose") output.recommendations[0].rationale = "x".repeat(1201);
       else output.recommendations[0].grounded_state_keys = ["wrong-anchor"];
     };
+    // Fail the actual result transaction after a valid scripted Gateway return.
+    // No positive ledger row, receipt or grant is supplied by the test.
+    if (persistence) f.db.exec(`CREATE TRIGGER refuse_scripted_result BEFORE UPDATE ON autonomy_run_steps WHEN NEW.status='completed' AND NEW.step_index=${stage === "choose" ? 1 : 3} BEGIN SELECT RAISE(ABORT,'private_result_storage_failure'); END`);
     const returned = (await f.call({ action: "authorize_and_run", authorization })).result;
     const saved = (await f.call()).reviews.find((r: any) => r.run.run_id === returned.run.run_id);
     assert.deepEqual(saved.run, returned.run);
     const failed = saved.run.steps[stage === "choose" ? 0 : 2], receipt = failed.output.failure_receipt;
-    assert.equal(f.calls, stage === "choose" ? 1 : 2);
+    assert.equal(f.calls, (stage === "choose" ? 1 : 2) + (unknownId ? 1 : 0));
     assert.equal(saved.run.status, "stopped"); assert.equal(saved.receipt, null);
-    assert.equal(failed.status, "failed"); assert.equal(failed.output.dispatch_outcome, "returned_invalid");
+    assert.equal(failed.status, "failed"); assert.equal(failed.output.dispatch_outcome, persistence ? "returned_unapplied" : "returned_invalid");
     assert.equal(receipt.status, "completed"); assert.equal(receipt.outcome, "live_success");
-    assert.equal(saved.failures[0].evidence.layer, "host_validation");
-    assert.equal(saved.failures[0].evidence.code, stage === "choose" ? "rationale_bound_exceeded" : "source_anchor_missing");
+    assert.equal(saved.failures[0].evidence.layer, persistence ? "result_persistence" : "host_validation");
+    assert.equal(saved.failures[0].evidence.code, persistence ? "result_persistence_failed" : stage === "choose" ? "rationale_bound_exceeded" : "source_anchor_missing");
     let historyError: string | null = null;
     try { readTerminalAttemptHistory(f.db, f.config, saved.run.run_id); }
     catch (error) { historyError = (error as Error).message; }
-    console.log(JSON.stringify({ stage, response_received: true, host_validation_rejected: true, saved_review: true,
+    console.log(JSON.stringify({ stage, model, response_received: true, failure_layer: saved.failures[0].evidence.layer, saved_review: true,
       terminal_preparation: !!saved.terminal_preparation, historical_verification_error: historyError, scripted_calls: f.calls, provider_egress: requests }));
-    attempts.push({ f, saved, failed, authorization });
+    attempts.push({ f, saved, failed, authorization, unknownId, unknownSnapshot });
   }
-  assert.deepEqual(attempts.map(a => !!a.saved.terminal_preparation), [true, true], "Both Sol host-rejected judgments must expose ordinary terminal authorship");
+  assert.deepEqual(attempts.map(a => !!a.saved.terminal_preparation), [true, true], "Both eligible returned judgments must expose ordinary terminal authorship");
   const readbacks = [];
-  for (const { f, saved, failed, authorization } of attempts) {
+  for (const { f, saved, failed, authorization, unknownId, unknownSnapshot } of attempts) {
     const runId = saved.run.run_id, snapshot = canonical(saved.run), beforeCalls = f.calls;
     const records = () => listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet", "capability_grant", "run_receipt"], limit: 128 });
     const originalCore = records();
@@ -960,7 +974,7 @@ async function solTerminalAuthorshipContract() {
       notes: preparation.sources.filter((e: any) => e.bounded_summary.includes("Attributed Work review")).map((e: any) => ({ saved_source_id: e.entry_id })), omitted_sources: [] as any[] };
     const comparison = (await f.call({ action: "compare_terminal_sources", request })).preparation.comparison;
     request.omitted_sources = comparison.unselected_previous.map((e: any) => ({ source_binding: e.source_ref, reason: "Retain the previous question as history; select the new question explicitly." }));
-    const preview = (await f.call({ action: "preview_terminal_work", request })).preparation;
+    let preview = (await f.call({ action: "preview_terminal_work", request })).preparation;
     await f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding }, 401, { cookie: "" });
     await f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding }, 409, {}, `project:${randomUUID()}`);
     const otherConfig = { ...f.config, operator_id: "operator:other-principal" }, clock = { now: f.now };
@@ -973,7 +987,7 @@ async function solTerminalAuthorshipContract() {
     // Only negative, rolled-back corruption. No invented grant or receipt can
     // provide the positive authorship evidence above or below.
     const changedGrant = structuredClone(originalCore.find(r => r.record_id === preparation.binding.grant_id)!.payload) as any;
-    changedGrant.request.limits.output_tokens = 1024;
+    changedGrant.request.limits.output_tokens++;
     assert.equal(validateStatelessGrant(changedGrant), false, "Original limits cannot change under a saved fingerprint");
     for (const field of ["grant-binding", "grant-lineage", "cost-authority", "evidence"] as const) {
       f.db.exec("BEGIN IMMEDIATE");
@@ -990,7 +1004,45 @@ async function solTerminalAuthorshipContract() {
         assert.equal(readTerminalAuthorshipPreparation(f.db, f.config, runId, f.now()), null, field);
       } finally { f.db.exec("ROLLBACK"); }
     }
-    if (process.argv[2] === "--sol-terminal-browser" && failed.step_index === 3) {
+    if (persistence && failed.step_index === 1) {
+      // Rehashed contradictory classification is still not positive evidence.
+      // All mutations below are isolated negative cases and rolled back.
+      for (const field of ["missing", "storage-bound", "layer", "code", "host-facts", "observation", "claim", "publication", "running", "profile", "recovery"] as const) {
+        f.db.exec("BEGIN IMMEDIATE");
+        try {
+          const output = structuredClone(failed.output);
+          if (field === "missing" || field === "storage-bound") {
+            delete output.failure_evidence;
+            if (field === "storage-bound") output.failure_evidence_unavailable = "storage_bound";
+          } else if (["layer", "code", "host-facts", "observation"].includes(field)) {
+            const e = output.failure_evidence;
+            if (field === "layer") e.layer = "host_validation";
+            if (field === "code") e.code = "receipt_persistence_failed";
+            if (field === "host-facts") e.host_rejection_code = "source_anchor_missing";
+            if (field === "observation") e.binding.observation_fingerprint = hash("unrelated-observation");
+            const { fingerprint: _fingerprint, ...body } = e; e.fingerprint = hash(canonical(body));
+          } else if (field === "claim") delete output.model_request_claim;
+          else if (field === "publication") output.model_receipt = output.failure_receipt;
+          if (field === "profile") f.db.prepare("UPDATE autonomy_runs SET autonomy_contract_ref=? WHERE run_id=?").run("unrelated-profile", runId);
+          if (field === "recovery") f.db.prepare("UPDATE autonomy_runs SET metadata_json=json_set(metadata_json,'$.stateless_review.recovery_suspended',json('true')) WHERE run_id=?").run(runId);
+          updateAutonomyRunStepLedgerFields(failed.step_id, { output, ...(field === "running" ? { status: "running" } : {}) }, { db: f.db });
+          assert.throws(() => previewTerminalAuthorship(f.db, f.config, request, f.now()), field);
+          if (field === "recovery") assert.equal(readTerminalAuthorshipPreparation(f.db, f.config, runId, f.now())!.recovery_suspended, true);
+          else assert.equal(readTerminalAuthorshipPreparation(f.db, f.config, runId, f.now()), null, field);
+        } finally { f.db.exec("ROLLBACK"); }
+      }
+      const beforeRefusals = canonical(records());
+      await f.call({ action: "author_terminal_work", request: { ...request, predecessor: { ...request.predecessor, history_fingerprint: hash("changed-history") } }, expected_preview: preview.preview_binding }, 409);
+      writeFileSync(path.join(f.projectRoot, "entry.ts"), sourceText + "// changed after preview\n");
+      await f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding }, 409);
+      writeFileSync(path.join(f.projectRoot, "entry.ts"), sourceText);
+      const selection = readActiveProjectSelectionV01(f.db, f.scope.workspace_id)!;
+      selectActiveProjectV01(f.db, { ...f.scope, now: f.now(), expected_project_id: f.scope.project_id, expected_revision: selection.selection_revision });
+      await f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding }, 409);
+      assert.equal(canonical(records()), beforeRefusals, "Refused authorship leaves no partial packet");
+      preview = (await f.call({ action: "preview_terminal_work", request })).preparation;
+    }
+    if ((process.argv[2] === "--sol-terminal-browser" || (persistence && model === "gpt-6.1-sol" && ["--persistence-browser", "--terminal-browser"].includes(process.argv[2]!))) && failed.step_index === 3) {
       const copy = path.join(root, "sol-terminal-browser-copy.db"); await f.db.backup(copy);
       const input = path.join(root, "sol-terminal-browser-input.json"); writeFileSync(input, JSON.stringify({ config: { ...f.config, database_path: copy }, at: f.now(), request }));
       const ui = spawnSync(process.execPath, ["--import", "tsx", "scripts/test-stateless-terminal-browser.ts", input], { encoding: "utf8", timeout: 90000, env: { ...process.env, OPENAI_API_KEY: "" } });
@@ -1003,6 +1055,12 @@ async function solTerminalAuthorshipContract() {
     assert.equal(readProjectWorkInitializationV01(f.db, f.config).current_packet?.packet_id, packet.packet_id);
     assert.equal(inspectStatelessTerminalSuccessor(f.db, { config: f.config, packet }).projection_current, true);
     assert.ok(statelessTerminalEntries(packet)[0]!.bounded_summary!.includes(runId));
+    const predecessor = originalCore.find(r => r.record_id === authorization.packet_id)!.payload as unknown as TaskContextPacketV01;
+    assert.deepEqual(statelessUnresolvedEntries(packet), statelessUnresolvedEntries(predecessor));
+    if (unknownId) {
+      assert.ok(statelessUnresolvedEntries(packet).length > 0);
+      assert.equal(canonical(f.host(unknownId).read().run), unknownSnapshot);
+    }
     assert.equal((await f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding })).result.status, "exact_replay");
     assert.equal(records().length, originalCore.length + 1);
     assert.deepEqual(records().filter(r => originalCore.some(old => old.record_id === r.record_id)), originalCore);
@@ -1010,16 +1068,41 @@ async function solTerminalAuthorshipContract() {
     assert.equal(f.calls, beforeCalls); assert.equal(canonical(readProjectAutomationControlV01(f.db, f.scope)), beforeControl);
     f.tick(86_400_000); f.refreshSession();
     assert.equal((await f.call()).preparation.packet_id, packet.packet_id);
-    readbacks.push({ config: f.config, run_id: runId, at: f.now(), packet, snapshot, request });
+    readbacks.push({ config: f.config, run_id: runId, at: f.now(), packet, snapshot, request, unknown_id: unknownId, unknownSnapshot });
   }
   const file = path.join(root, "sol-terminal-readbacks.json"); writeFileSync(file, JSON.stringify(readbacks));
   const child = spawnSync(process.execPath, ["--import", "tsx", "scripts/test-stateless-source-review.ts", "--read-terminal", file], { encoding: "utf8", timeout: 20000, env: { ...process.env, OPENAI_API_KEY: "" } });
   assert.equal(child.status, 0, child.stderr || child.stdout); assert.equal(JSON.parse(child.stdout).cases, 2);
-  console.log(JSON.stringify({ sol_terminal_authorship: "choose_and_conclude", historical_grant_validated_after_expiry: true, successor_grant: null,
+  console.log(JSON.stringify({ returned_terminal_authorship: "choose_and_conclude", model, persistence_failure: persistence, historical_grant_validated_after_expiry: true, successor_grant: null,
     original_records_unchanged: true, exact_replay: true, fresh_process_readback: true, provider_egress: requests }));
 }
+async function persistenceAuthorshipContract() {
+  for (const model of ["gpt-4.1-mini", "gpt-6.1-sol"]) await terminalRouteAuthorshipContract({ model, persistence: true });
+  const f = await fixture("persistence-outstanding-publication"), auth = f.authorizeOnly();
+  f.db.exec("CREATE TRIGGER refuse_scripted_result BEFORE UPDATE ON autonomy_run_steps WHEN NEW.status='completed' BEGIN SELECT RAISE(ABORT,'private_result_storage_failure'); END");
+  let release!: () => void, entered!: () => void;
+  const arrived = new Promise<void>(resolve => { entered = resolve; }), gate = new Promise<void>(resolve => { release = resolve; });
+  f.controls.dispatch = async () => { entered(); await gate; };
+  const pending = f.call({ action: "continue", run_id: auth.run_id });
+  await arrived;
+  let completed: any;
+  try {
+    // The in-flight writer consumed its nonce; a concurrent client signs in
+    // through the ordinary issuer instead of reusing that held request cookie.
+    f.refreshSession();
+    const held = (await f.call()).reviews.find((r: any) => r.run.run_id === auth.run_id);
+    assert.equal(held.run.steps[0].status, "running"); assert.equal(held.terminal_preparation, null);
+    assert.equal((await f.call({ action: "continue", run_id: auth.run_id })).result.terminal_preparation, null);
+    assert.equal(await f.host(auth.run_id).step(), false, "A second controller cannot claim or publish the running step");
+    assert.equal(f.calls, 1, "An outstanding publication cannot gain a second controller");
+  } finally { release(); completed = await pending; }
+  const failed = completed.result;
+  assert.equal(failed.run.stop_reason, "result_persistence_failed_no_retry");
+  assert.ok(failed.terminal_preparation); assert.equal(f.calls, 1);
+  assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0);
+}
 async function solLowContract() {
-  await solTerminalAuthorshipContract();
+  await terminalRouteAuthorshipContract();
   const model = "gpt-6.1-sol", pricing = { input_nano_usd_per_byte: 2500, output_nano_usd_per_token: 10000,
     maximum_total_nano_usd: 200_000_000, source_version: "scripted-sol-low-not-live-authority" };
   const make = (name: string) => fixture(`sol-${name}`, "read_selected_sources", "use_observation", false, model);
@@ -1212,10 +1295,13 @@ async function main() {
         incomplete_resource_failure: true, fresh_process_readback_and_restart: true, stale_route_refused: true, late_fencing: true, external_requests: requests })); return;
     }
     if (["--sol-terminal-authorship", "--sol-terminal-browser"].includes(process.argv[2]!)) {
-      await solTerminalAuthorshipContract(); assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0); return;
+      await terminalRouteAuthorshipContract(); assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0); return;
+    }
+    if (["--persistence-authorship", "--persistence-browser"].includes(process.argv[2]!)) {
+      await persistenceAuthorshipContract(); return;
     }
     if (["--terminal-authorship", "--terminal-browser"].includes(process.argv[2]!)) {
-      await terminalAuthorshipContract(); assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0);
+      await terminalAuthorshipContract(); await persistenceAuthorshipContract(); assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0);
       console.log(JSON.stringify({ status: "passed", terminal_authorship: "ordinary_preview_new_packet_fresh_grant", legacy_writer: "65f6efc92d969c47e86152efa9388aba4c169c63", legacy_grant_writer: "d6101051213965a45798c7738852d8af3eddc966", candidate_writes: 0, external_requests: requests })); return;
     }
     if (process.argv[2] === "--rejection-evidence") {

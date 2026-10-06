@@ -1188,21 +1188,33 @@ unknown-outcome disposition, and its admission still prevents pre-execution
 revision.
 
 `stateless_returned_attempt_successor.v0.1` provides separate explicit authorship
-for one narrower case: a stopped bounded source-review run with one failed model
-step, `returned_invalid`, a completed/live-success Gateway receipt, no running
+for a stopped bounded source-review run with one failed model
+step, a completed/live-success Gateway receipt, no running
 step or RunReceipt, and valid same-project packet, finite grant, invocation,
-generation and failure-history bindings. New records must identify host
-validation; legacy records may lack public failure evidence. A legacy generic
+generation and failure-history bindings. The host-rejection path requires
+`returned_invalid` and new records identifying host validation; legacy records
+may lack public failure evidence. A legacy generic
 label proves neither semantic invalidity nor the exact failing predicate; a
 persistence failure remains possible. The new packet carries that unavailability,
-never reconstructed diagnostics. Known result-persistence failure, receipt
-projection failure, Gateway rejection, unknown dispatch, active work and other
+never reconstructed diagnostics.
+
+#1408 also admits `result_persistence_failed_no_retry` / `returned_unapplied`
+at either model judgment, only with the exact dispatch claim and available,
+consistent `result_persistence` / `result_persistence_failed` evidence. The
+result publication must not have committed; its failed claim and stopped status
+are committed together, with no applied judgment, committed result, completion
+event or outstanding running claim. The existing terminal/generation fences
+prevent another controller from publishing or replaying it. Missing classification
+cannot borrow legacy host-rejection compatibility. Bounded public content may
+remain unavailable, and is never selected automatically. Authorship neither
+commits the missing judgment nor repairs receipts or settles provider effects.
+Receipt-projection failure, Gateway rejection, unknown dispatch, active work and other
 profiles remain outside this contract.
 
 Historical receipt verification derives invocation lineage from the validated
 original grant, including its original limits, scope, control revision and dates.
 It uses the same derivation as execution, so eligible first- and final-judgment
-host rejections retain both mini and configured Sol compatibility. Current route
+returned failures retain both mini and configured Sol compatibility. Current route
 settings and elapsed expiry do not replace that authority or renew permission;
 exact grant, receipt and cost-authority checks remain required. Supported older
 grants keep their original optional-field omissions and evidence availability.

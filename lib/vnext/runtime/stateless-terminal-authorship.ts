@@ -40,8 +40,9 @@ export interface TerminalAttemptBinding {
  * Recovery changes only its suspension bit; lineage remains readable. */
 export function readTerminalAttemptHistory(db: Database.Database, scope: Scope, runId: string) {
   const run = readRun(db, scope, runId), state = stateOf(run), grant = readStatelessGrant(db, { ...scope, ...state });
+  const persistenceFailed = run.stop_reason === "result_persistence_failed_no_retry";
   check(run.autonomy_contract_ref === STATELESS_WORK && run.status === "stopped" && !state.cancelled &&
-    run.stop_reason === "invocation_refused_or_result_invalid_no_retry" && run.metadata.reconciliation_required === false &&
+    (persistenceFailed || run.stop_reason === "invocation_refused_or_result_invalid_no_retry") && run.metadata.reconciliation_required === false &&
     run.metadata.stateless_review_disposition === undefined && run.metadata.run_receipt_id == null && run.metadata.terminal_receipt_persisted !== true &&
     run.run_id === `stateless-review:${grant.grant_id.slice("stateless-grant:".length)}` && run.metadata.work_id === normalizeWorkId(runId) &&
     run.metadata.packet_id === grant.request.packet_id && run.metadata.packet_fingerprint === grant.request.packet_fingerprint,
@@ -53,7 +54,7 @@ export function readTerminalAttemptHistory(db: Database.Database, scope: Scope, 
   check(run.steps.every((s, i) => s.step_id === `${runId}.${["choose", "observe", "conclude"][i]}` &&
     s.action_kind === (i === 1 ? "invoke_project_scoped_host_adapter" : "invoke_project_scoped_model_gateway") &&
     (s.step_index < step.step_index ? s.status === "completed" : s.step_index > step.step_index ? s.status === "planned" : true)) &&
-    step.output.dispatch_outcome === "returned_invalid" && step.output.judgment === undefined && step.output.result_fingerprint === undefined,
+    step.output.dispatch_outcome === (persistenceFailed ? "returned_unapplied" : "returned_invalid") && step.output.judgment === undefined && step.output.result_fingerprint === undefined,
   "terminal_authorship_step_shape_unsupported");
   const generation = reviewText(step.output.generation, 100), input = reviewSha(step.output.input_fingerprint);
   const receipt = validateModelInvocationReceiptV02(step.output.failure_receipt);
@@ -74,9 +75,23 @@ export function readTerminalAttemptHistory(db: Database.Database, scope: Scope, 
     check(claim.generation === generation && claim.invocation_id === step.step_id && typeof claim.at === "string" && parseStrictIsoTimestampV01(claim.at) !== null &&
       claim.at >= step.started_at! && claim.at < grant.request.expires_at && claim.at <= receipt.finished_at, "terminal_authorship_claim_changed");
   }
-  const evidence = readStatelessFailureReviews(run).find(e => e.step_id === step.step_id);
+  const failures = readStatelessFailureReviews(run);
+  const evidence = failures.find(e => e.step_id === step.step_id);
   check(evidence && !(evidence.availability === "unavailable" && evidence.reason === "invalid_record"), "terminal_authorship_evidence_invalid");
-  if (evidence.availability === "available") check(evidence.evidence.layer === "host_validation" &&
+  if (persistenceFailed) {
+    // A persistence error rolls back any open result transaction before the
+    // same claim's failure and stopped status commit together. Every
+    // controller rechecks terminal status/generation before another publication.
+    // Unlike legacy host rejection, missing classification cannot admit this path.
+    check(step.error_message === run.stop_reason && step.output.model_request_claim !== undefined &&
+      step.output.model_receipt === undefined && failures.length === 1 &&
+      !run.events.some(e => e.step_id === step.step_id && e.event_type === "step_completed") &&
+      evidence.availability === "available" && evidence.evidence.layer === "result_persistence" &&
+      evidence.evidence.code === "result_persistence_failed" && evidence.evidence.host_rejection_code === null && evidence.evidence.validation === null &&
+      evidence.evidence.binding.observation_fingerprint === (step.step_index === 3 ? run.steps[1]!.output.observation_fingerprint : null),
+    "terminal_authorship_persistence_evidence_required");
+  }
+  if (evidence.availability === "available") check(evidence.evidence.layer === (persistenceFailed ? "result_persistence" : "host_validation") &&
     evidence.evidence.binding.input_fingerprint === input && evidence.evidence.binding.receipt_fingerprint === digest(receipt) &&
     evidence.evidence.binding.review_ref === grant.request.review_ref && evidence.evidence.binding.selected_notes_ref === (grant.request.selected_notes_ref ?? null), "terminal_authorship_failure_shape_unsupported");
   const packet = readHistoricalStatelessPacket(db, scope, grant.request.packet_id, grant.request.packet_fingerprint);
