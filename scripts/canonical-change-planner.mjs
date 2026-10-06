@@ -590,7 +590,19 @@ function classifyDocumentationChange(change, context) {
     if ((!owner && context.delegated.has(file)) || /(^|\/)AGENTS\.md$/u.test(file) && file !== "AGENTS.md") {
       return fullClassification("unregistered-documentation-contract", `unregistered_documentation_contract:${file}`);
     }
-    const unknown = [...documentationConsumers(file, context), ...dynamicDocumentationConsumers(file, context)].filter((consumer) => !owner?.consumer_paths.includes(consumer));
+    const references = owner?.reference_consumers?.filter((reference) => reference.targets.includes(file)) ?? [];
+    // Check registered reference modes even when git grep does not read a
+    // symlink. Registration admits neither this consumer's edits nor other edges.
+    const unsafeReference = references.find((reference) =>
+      [context.baseSha, context.headSha].some((revision) => {
+        const mode = context.treeModes.get(revision).get(reference.path);
+        return mode !== undefined && mode !== "100644";
+      }));
+    if (unsafeReference) {
+      return fullClassification("unproven-documentation-consumers", `unproven_documentation_consumer:${file}:${unsafeReference.path}`);
+    }
+    const unknown = [...documentationConsumers(file, context), ...dynamicDocumentationConsumers(file, context)].filter((consumer) =>
+      !owner?.consumer_paths.includes(consumer) && !references.some((reference) => reference.path === consumer));
     if (unknown.length) {
       return fullClassification("unproven-documentation-consumers", `unproven_documentation_consumer:${file}:${unknown[0]}`);
     }
@@ -740,6 +752,16 @@ export function validateChangeOwnerManifest(manifest) {
         !Array.isArray(owner.consumer_paths) || !["full", "references"].includes(owner.disposition) ||
         (owner.disposition === "references" && !owner.consumer_scope)) {
       throw new Error("invalid documentation owner contract");
+    }
+    const references = owner.reference_consumers ?? [];
+    if (!Array.isArray(references) || references.some((reference) =>
+      typeof reference?.path !== "string" ||
+      reference.path !== normalizeRepositoryPath(reference.path) ||
+      !reference.path.endsWith(".md") || /(^|\/)(?:AGENTS|SKILL)\.md$/iu.test(reference.path) ||
+      !Array.isArray(reference.targets) || !reference.targets.length ||
+      reference.targets.some((target) => !owner.paths.includes(target)) ||
+      typeof reference.scope !== "string" || !reference.scope.trim())) {
+      throw new Error("invalid documentation reference consumer contract");
     }
     for (const file of owner.paths) {
       if (file !== normalizeRepositoryPath(file) || documented.has(file)) throw new Error("invalid or duplicate documentation path");

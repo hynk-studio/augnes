@@ -660,7 +660,17 @@ try {
   assert.throws(() => validateChangeOwnerManifest(duplicateLiteralManifest),
     /duplicate canonical targeted exact path/u);
   results.push("literal-owner-manifest-fail-closed");
+  for (const reference of [
+    { path: "apps/web_planning/AGENTS.md", targets: ["docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md"], scope: "Not a prose reference" },
+    { path: "apps/web_planning/README.md", targets: ["docs/unregistered.md"], scope: "Outside this owner" },
+  ]) {
+    const invalid = structuredClone(ownerManifest);
+    invalid.documentation_owners.find((owner) => owner.id === "active-authority-documentation").reference_consumers = [reference];
+    assert.throws(() => validateChangeOwnerManifest(invalid), /invalid documentation reference consumer contract/u);
+  }
+  results.push("reference-consumer-registration-is-target-bound");
 
+  runRegisteredReferenceConsumerCases();
   runIncomingReferenceCases();
   runDocumentationValidatorCases();
   runMarkdownAnchorBoundaryCases();
@@ -901,6 +911,85 @@ function runDocumentationValidatorCases() {
     targetedPhaseIds(...CODEX_REUSE_PHASE_IDS),
   );
   results.push("owner-targeted-exact-plan-validator");
+}
+
+function runRegisteredReferenceConsumerCases() {
+  const roadmap = "docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md";
+  const readme = "apps/web_planning/README.md";
+  const incoming = `[Hosted closeout](../../${roadmap}#hosted-closeout)\n`;
+  function fixture(name, seed = () => {}) {
+    const repo = createRepository(`registered-reference-${name}`, false);
+    repo.write(roadmap, "# Roadmap\n\n## Hosted closeout\n");
+    repo.write(readme, incoming);
+    seed(repo);
+    commitAll(repo.cwd, "existing consumers");
+    repo.baseSha = git(repo.cwd, ["rev-parse", "HEAD"]).trim();
+    repo.write(roadmap, "# Roadmap\n\n## Hosted closeout\n\nCompleted bounded implementation.\n");
+    return repo;
+  }
+  function proposed(repo) {
+    commitAll(repo.cwd, "roadmap correction");
+    return { cwd: repo.cwd, baseSha: repo.baseSha,
+      headSha: git(repo.cwd, ["rev-parse", "HEAD"]).trim() };
+  }
+  const regular = proposed(fixture("regular-readme"));
+  const accepted = validateCanonicalOperatingPolicyChange(regular);
+  assert.equal(accepted.status, "pass");
+  assert.equal(accepted.incoming_references_checked, 1);
+  assert.deepEqual(accepted.owner_ids, ["active-authority-documentation"]);
+  results.push("registered-regular-readme-reference-retains-static-validation");
+
+  const broken = fixture("removed-anchor");
+  broken.write(roadmap, "# Roadmap\n\n## Renamed closeout\n");
+  const brokenTree = proposed(broken);
+  // A worktree repair cannot rescue the exact proposed tree.
+  broken.write(roadmap, "# Roadmap\n\n## Hosted closeout\n");
+  assert.throws(() => validateCanonicalOperatingPolicyChange(brokenTree), /unresolved local Markdown anchor/u);
+  results.push("registered-readme-incoming-anchor-uses-exact-tree");
+
+  for (const [name, consumer, content] of [
+    ["executable-reader", "scripts/unknown-roadmap-reader.mjs", `readFileSync("${roadmap}");\n`],
+    ["other-readme", "apps/unknown/README.md", incoming],
+    ["instruction", "apps/web_planning/AGENTS.md", incoming],
+    ["dynamic-reader", "scripts/dynamic-roadmap-reader.mjs", 'readFileSync("docs/vnext/" + requestedName);\n'],
+    ["package", "package.json", JSON.stringify({ files: ["docs/vnext/**"] })],
+  ]) {
+    const repo = fixture(name, (value) => value.write(consumer, content));
+    const plan = planCanonicalChange({ eventName: "pull_request", ...proposed(repo) });
+    assert.equal(plan.plan, "full-canonical", name);
+    assert.ok(plan.full_reasons.includes(`unproven_documentation_consumer:${roadmap}:${consumer}`), name);
+    results.push(`registered-reference-preserves-${name}-refusal`);
+  }
+  if (process.platform !== "win32") {
+    for (const [mode, seed] of [
+      ["executable", (repo) => repo.chmod(readme, 0o755)],
+      ["symlink", (repo) => { repo.remove(readme); repo.symlink(`../../${roadmap}`, readme); }],
+    ]) {
+      const unsafe = fixture(`${mode}-readme`, seed);
+      const plan = planCanonicalChange({ eventName: "pull_request", ...proposed(unsafe) });
+      assert.equal(plan.plan, "full-canonical");
+      assert.ok(plan.full_reasons.includes(`unproven_documentation_consumer:${roadmap}:${readme}`));
+      results.push(`registered-readme-${mode}-mode-refused`);
+    }
+  }
+  const otherTarget = "docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md";
+  const other = fixture("other-authority-target", (repo) => {
+    repo.write(otherTarget, "# Evaluation\n");
+    repo.write(readme, `[Evaluation](../../${otherTarget})\n`);
+  });
+  other.write(otherTarget, "# Updated evaluation\n");
+  const otherPlan = planCanonicalChange({ eventName: "pull_request", ...proposed(other) });
+  assert.equal(otherPlan.plan, "full-canonical");
+  assert.ok(otherPlan.full_reasons.includes(`unproven_documentation_consumer:${otherTarget}:${readme}`));
+  results.push("registered-reference-does-not-admit-other-authority-targets");
+  const changed = fixture("readme-edit");
+  changed.write(readme, incoming + "Changed Web contract.\n");
+  assert.equal(planCanonicalChange({ eventName: "pull_request", ...proposed(changed) }).plan, "full-canonical");
+  results.push("registered-reference-does-not-admit-readme-edits");
+  const removed = fixture("roadmap-disposition");
+  removed.remove(roadmap);
+  assert.equal(planCanonicalChange({ eventName: "pull_request", ...proposed(removed) }).plan, "full-canonical");
+  results.push("registered-reference-does-not-admit-authority-disposition");
 }
 
 function runIncomingReferenceCases() {

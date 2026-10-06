@@ -5,6 +5,40 @@ Audit baseline: `22c0433d245da7e9357e7f6a50c7e6e0f31902cb` in
 protocol, research-sequencing, or execution-authority owner. Final exact-head
 execution evidence belongs in the accompanying Draft PR and local receipt.
 
+## Audited roadmap reference consumer (#1342)
+
+At base `6132a37ceb34799ad65c6233e58ed6405abf2a01`, the unchanged
+[`apps/web_planning/README.md`](../../apps/web_planning/README.md) links to the
+roadmap's retained hosted-closeout anchor. Original head
+`e0f81f40db2b2ec57bf264c67a0d1cdece873f17` selected `full-canonical` because
+that consumer was unregistered; its `operating-policy-only` validator refused.
+Those results remain the reproduction baseline in
+[#1342](https://github.com/hynk-studio/augnes/pull/1342).
+
+The reference is explanatory provenance, not executable input or delegation of
+agent instructions. Source inspection covered the Web package, TypeScript and
+Vite configuration, Worker entry points, `scripts/build-web-planning.mjs`, root
+instructions and the distributable payload owner. Web builds use the Worker
+module graph, disable public-directory assets and copy only build output or
+migrations; no README input was found. The private Web package declares no
+published file inventory. `assertAllowedDistributablePayloadPath` rejects both
+`apps/` and `docs/`. No instruction owner delegates to this README as agent
+instructions; its Web contract meaning remains subject to ordinary owner review.
+
+The manifest registers only this consumer-to-roadmap reference, in regular
+`100644` mode in each tree where it exists. It does not make the README itself
+an admitted documentation change or expand `isDocumentationPath`. Other targets,
+unknown readers, dynamic/package/instruction consumers, unsafe modes and
+unproven dispositions retain their conservative classification. Exact-tree
+incoming-reference checks still reject a removed target anchor, including when
+the working copy contains a repair. Existing deletion, reference-style link and
+other negative reference cases remain in the same focused contract.
+
+The combined planner/manifest/test correction requires Full Canonical under the
+unchanged self-change rule. An original-base/head result using the corrected
+classifier is diagnostic only; it cannot qualify this combined change or erase
+the original refusal.
+
 ## Finding and bounded change
 
 Most expensive coverage inspected protects current, distinct responsibilities.
