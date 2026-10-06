@@ -47,7 +47,8 @@ export function StatelessTerminalAuthorship({ preparation, material, request, sa
   }
   return <details data-stateless-terminal-authorship="v0.1"><summary>Prepare new work linked to this stopped attempt</summary>
     <p>{preparation.warning}</p>
-    <p>The provider response returned. Public judgment: {preparation.evidence.public_result}; rejection layer: {preparation.evidence.layer}; reason: {preparation.evidence.code}. Missing evidence stays unavailable. The old packet and grant remain historical even when expired.</p>
+    <p>The provider response returned. Public judgment: {preparation.evidence.public_result}; failure layer: {preparation.evidence.layer}; reason: {preparation.evidence.code}. Missing evidence stays unavailable. The old packet and grant remain historical even when expired.</p>
+    {preparation.evidence.layer === "result_persistence" && <p>The returned judgment was not committed. Preparing separate work does not retry that judgment, repair its receipt or settle provider effects.</p>}
     <p>Use the question and file ranges above for the new source selection. Choose substantive notes below; the stopped answer is not selected automatically. Operational history and earlier unknown effects are mandatory and separate.</p>
     {preparation.recovery_suspended && <p>Restored history is readable. New authorship and execution remain suspended.</p>}
     <label>New work goal<textarea aria-label="New work goal" value={definition.goal} onChange={e => { setDefinition({ ...definition, goal: e.target.value }); reset(); }} /></label>

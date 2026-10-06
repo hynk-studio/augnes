@@ -458,6 +458,19 @@ Use fresh-process authenticated readback and the existing review component; reta
 mini/legacy compatibility, exact replay and tampered-lineage/cost/evidence refusals.
 Successful authorship does not establish successful execution or accepted state.
 
+For #1408's known result-persistence extension, inject only an isolated storage
+fault after a valid scripted response. Verify first and final judgments for mini
+and Sol, the ordinary Browser compare/preview/save path, exact duplicate
+acknowledgement, fresh-process reconstruction and unchanged historical records.
+Require precise available failure classification and a stopped, generation-bound
+claim; refuse active publication, missing or contradictory evidence, stale
+selection/source/history, cross-project access and recovery suspension. Preserve
+inherited unknown effects and a null grant. Receipt projection, Gateway rejection
+and unknown dispatch retain their separate refusal boundaries. Native development
+re-entry is a separate observation: record the incoming first action, actual source
+exposure, note preparation and every coordination/repair cost. A failed or overlapping
+session boundary is not a successful sequential handoff or a usefulness comparison.
+
 For optional observation-boundary interruption, use the ordinary authenticated
 preview/authorization and Continue HTTP paths with scripted provider transport.
 Prove the runtime returns after observation persistence and before a conclude

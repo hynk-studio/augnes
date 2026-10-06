@@ -423,10 +423,20 @@ Ordinary disposable projects exercise the authenticated path and separately
 authorized scripted consumer, including the exact old `65f6efc9` host writer for
 legacy compatibility. The real review component connects comparison, preview and
 authorship to the authenticated HTTP owner. No shared unsettled predicate,
-completed-result, native or recovery authority is relaxed. Known persistence and
-receipt-projection failures still need separate contracts. The retained candidate
+completed-result, native or recovery authority is relaxed. In that slice, known
+persistence and receipt-projection failures remained outside the contract. The retained candidate
 remained read-only, expired and unchanged at 3 grants / 3 runs / 5 historical calls
 during that engineering slice; it did not apply new authorship to the candidate.
+
+The bounded [#1408](https://github.com/hynk-studio/augnes/issues/1408) extension
+reuses this same authorship owner for precisely evidenced result-persistence
+failure at either judgment. It requires the historical returned receipt, exact
+dispatch claim, available failure-layer evidence and stopped publication fence;
+new work has no execution grant. Missing classification cannot use legacy
+host-rejection compatibility. Receipt projection, provider settlement, replay and
+later execution of the new family remain outside this qualification. Disposable
+scripted correctness and the separate native development-continuity observation
+must retain their distinct evidence and preparation/repair limits.
 
 Work then accepted the terminal-authorship UI correction at
 `f8aa94009aefae9909990ed6784c3130b32e84f7`. A separately authorized local operation
