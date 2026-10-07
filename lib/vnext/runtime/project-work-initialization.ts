@@ -107,7 +107,7 @@ export function defineInitialProjectWorkV01(
   dependencies: ProjectWorkInitializationDependenciesV01 = {},
 ): DefineInitialProjectWorkResultV01 {
   const request = parseRequestV01(input.request);
-  const definition = normalizeInitialProjectWorkDefinitionV01(request);
+  normalizeInitialProjectWorkDefinitionV01(request);
   if (
     request.workspace_id !== input.config.workspace_id ||
     request.project_id !== input.config.project_id ||
@@ -125,9 +125,49 @@ export function defineInitialProjectWorkV01(
         clock: input.clock,
         secret_source: input.secret_source,
       });
+    const result = defineInitialProjectWorkInsideTransactionV01(db, {
+      scope: input.config, request, admission: sessionAdmission,
+    }, dependencies);
+    db.exec("COMMIT");
+    return { ...result, session_admission: {
+      cookie_value: sessionAdmission.cookie_value,
+      cookie_expires_at: sessionAdmission.cookie_expires_at,
+      cookie_max_age_seconds: sessionAdmission.cookie_max_age_seconds,
+    } };
+  } catch (error) {
+    if (db.inTransaction) db.exec("ROLLBACK");
+    if (error instanceof ProjectWorkInitializationErrorV01 || error instanceof InitialProjectWorkContextErrorV01 ||
+      error instanceof VNextLocalOperatorSessionErrorV01) throw error;
+    throw new ProjectWorkInitializationErrorV01("first_work_write_failed", 409);
+  }
+}
+
+/** Authenticated callers own admission and commit/rollback. Browser and private
+ * Companion use this same initial compiler, eligibility and lineage writer. */
+export function defineInitialProjectWorkInsideTransactionV01(
+  db: Database.Database,
+  input: {
+    scope: Pick<VNextLocalOperatorPilotConfigV01, "workspace_id" | "project_id" | "operator_id">;
+    request: unknown;
+    admission: { session: { session_id: string }; action_observed_at: string };
+  },
+  dependencies: ProjectWorkInitializationDependenciesV01 = {},
+): Omit<DefineInitialProjectWorkResultV01, "session_admission"> {
+  const request = parseRequestV01(input.request);
+  const definition = normalizeInitialProjectWorkDefinitionV01(request);
+  if (
+    request.workspace_id !== input.scope.workspace_id ||
+    request.project_id !== input.scope.project_id ||
+    request.expected_active_project_id !== input.scope.project_id
+  ) {
+    refuse("first_work_scope_conflict", 403);
+  }
+  if (!db.inTransaction) refuse("first_work_transaction_required", 409);
+  const sessionAdmission = input.admission;
+  try {
     const active = readActiveProjectSelectionV01(
       db,
-      input.config.workspace_id,
+      input.scope.workspace_id,
     );
     if (
       active?.project_id !== request.expected_active_project_id ||
@@ -135,7 +175,7 @@ export function defineInitialProjectWorkV01(
     ) {
       refuse("first_work_active_selection_conflict", 409);
     }
-    const registration = readCanonicalProjectWithRootV01(db, input.config);
+    const registration = readCanonicalProjectWithRootV01(db, input.scope);
     if (!registration) refuse("first_work_project_missing", 404);
     const rootAvailable =
       dependencies.root_available ?? rootAvailableSynchronouslyV01;
@@ -146,12 +186,12 @@ export function defineInitialProjectWorkV01(
       const h = parseWorkHandoff(request.handoff.snapshot);
       handoffCheck(Object.keys(request.handoff).sort().join() === "expected_direction_ref,expected_root_fingerprint,snapshot" &&
         h.source.project_id !== request.project_id && canonicalizeProtocolValueV01(h.task) === canonicalizeProtocolValueV01(definition) &&
-        rootBinding(db, input.config).fingerprint === request.handoff.expected_root_fingerprint &&
-        (effectiveDirection(db, input.config, sessionAdmission.action_observed_at)?.ref ?? null) === request.handoff.expected_direction_ref, "receiving_binding_changed");
+        rootBinding(db, input.scope).fingerprint === request.handoff.expected_root_fingerprint &&
+        (effectiveDirection(db, input.scope, sessionAdmission.action_observed_at)?.ref ?? null) === request.handoff.expected_direction_ref, "receiving_binding_changed");
     }
     const initialization = readProjectWorkInitializationStrictV01(
       db,
-      input.config,
+      input.scope,
       { root_available: rootAvailable },
     );
     if (
@@ -163,14 +203,13 @@ export function defineInitialProjectWorkV01(
       const record = readVNextCoreRecordV01(db, {
         record_kind: "task_context_packet",
         record_id: initialization.current_packet.packet_id,
-        workspace_id: input.config.workspace_id,
-        project_id: input.config.project_id,
+        workspace_id: input.scope.workspace_id,
+        project_id: input.scope.project_id,
       });
       if (!record) refuse("first_work_packet_missing", 409);
       const packet = record.payload as TaskContextPacketV01;
       handoffCheck((readWorkHandoff(packet)?.fingerprint ?? null) === (request.handoff?.snapshot.fingerprint ?? null), "duplicate_changed");
-      db.exec("COMMIT");
-      return resultV01("exact_replay", packet, definition, sessionAdmission);
+      return resultV01("exact_replay", packet, definition);
     }
     if (initialization.state === "defined_initial_work") {
       refuse("first_work_already_defined", 409);
@@ -179,9 +218,9 @@ export function defineInitialProjectWorkV01(
       refuse("first_work_state_changed", 409);
     }
     const built = buildInitialProjectWorkTaskContextPacketV01({
-      workspace_id: input.config.workspace_id,
-      project_id: input.config.project_id,
-      operator_id: input.config.operator_id,
+      workspace_id: input.scope.workspace_id,
+      project_id: input.scope.project_id,
+      operator_id: input.scope.operator_id,
       session_id: sessionAdmission.session.session_id,
       expected_active_selection_revision:
         request.expected_active_selection_revision,
@@ -211,17 +250,15 @@ export function defineInitialProjectWorkV01(
     }
     if (request.handoff) assertPacketDirectionCurrent(db, built.packet, built.packet.generated_at);
     const lineage = inspectInitialProjectWorkPacketLineageV01(db, {
-      workspace_id: input.config.workspace_id,
-      project_id: input.config.project_id,
+      workspace_id: input.scope.workspace_id,
+      project_id: input.scope.project_id,
       packet: built.packet,
     });
     if (!lineage.projection_current) {
       refuse("first_work_state_changed", 409);
     }
-    db.exec("COMMIT");
-    return resultV01("inserted", built.packet, definition, sessionAdmission);
+    return resultV01("inserted", built.packet, definition);
   } catch (error) {
-    if (db.inTransaction) db.exec("ROLLBACK");
     if (
       error instanceof ProjectWorkInitializationErrorV01 ||
       error instanceof InitialProjectWorkContextErrorV01 ||
@@ -672,19 +709,11 @@ function resultV01(
   status: "inserted" | "exact_replay",
   packet: TaskContextPacketV01,
   definition: ProjectWorkDefinitionV01,
-  admission: ReturnType<
-    typeof admitVNextLocalOperatorMutationInsideTransactionV01
-  >,
-): DefineInitialProjectWorkResultV01 {
+): Omit<DefineInitialProjectWorkResultV01, "session_admission"> {
   return {
     status,
     packet,
     definition,
-    session_admission: {
-      cookie_value: admission.cookie_value,
-      cookie_expires_at: admission.cookie_expires_at,
-      cookie_max_age_seconds: admission.cookie_max_age_seconds,
-    },
     run_created: false,
     provider_called: false,
     project_files_written: false,
