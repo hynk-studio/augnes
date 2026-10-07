@@ -1,0 +1,156 @@
+{
+  "pilot": "cloud-reuse-pilot-01-C1",
+  "status": "C1 ready for review; integration pending",
+  "review": "https://github.com/hynk-studio/augnes/pull/1415#pullrequestreview-5437795156",
+  "specific_extraction_observations": {
+    "source_bindings": [
+      {
+        "summary": "Source binding",
+        "was_open": false,
+        "open": true,
+        "before_ref_visible": false,
+        "after_ref_visible": true
+      },
+      {
+        "summary": "Source binding",
+        "was_open": false,
+        "open": true,
+        "before_ref_visible": false,
+        "after_ref_visible": true
+      },
+      {
+        "summary": "Source binding",
+        "was_open": false,
+        "open": true,
+        "before_ref_visible": false,
+        "after_ref_visible": true
+      },
+      {
+        "summary": "Source binding",
+        "was_open": false,
+        "open": true,
+        "before_ref_visible": false,
+        "after_ref_visible": true
+      },
+      {
+        "summary": "Source binding",
+        "was_open": false,
+        "open": true,
+        "before_ref_visible": false,
+        "after_ref_visible": true
+      }
+    ],
+    "dependency_and_exact_identity_disclosures_open": true,
+    "note_associations": 5,
+    "original_file_identities": 4,
+    "verified_fields": 92,
+    "all_matches": true,
+    "safe_metrics_persisted_before_comparison_failure": true,
+    "DOM_values_not_filled_from_expected": true
+  },
+  "checkpoint": {
+    "path": "checkpoint.json",
+    "complete": true,
+    "binding_hash": "sha256:e7f3bd6e523d65b03015fc8ea761dece607dca65dcdbddfdee9061a55b9edda0",
+    "observed_at": "2026-10-07T05:02:47.413Z",
+    "input_work_id": "47b083cb-833d-49e3-9652-fa6c8d814730",
+    "input_revision": 4,
+    "input_fingerprint": "sha256:fb42543992e0ca4f24866d611cc2178159904647ded24678f4f79b933d69d289",
+    "provenance": {
+      "current": "authenticated structured-history response",
+      "authenticated_dom": "authenticated Saved-context response DOM, per-note extraction with opened disclosures",
+      "dependencies": "structured history source-ref links checked against note-associated DOM dependency labels"
+    }
+  },
+  "agent_sequence": {
+    "read_tool_return": "complete checkpoint after fixture and parent cleanup",
+    "visible_response": "non-use applicability assessment citing recovered qualification/source attribution; prior exposure and unread attachment bodies disclosed",
+    "authored_file": "b3-judgment.json",
+    "authored_at": "2026-10-07T05:03:25Z",
+    "conclusion": "non-use",
+    "save_operation": "second fresh fixture; stable checkpoint binding verified; one ordinary save"
+  },
+  "successor": {
+    "result": "C1 saved for review",
+    "work_id": "47b083cb-833d-49e3-9652-fa6c8d814730",
+    "revision": 5,
+    "fingerprint": "sha256:dc61a525896d458c9a278759a1b375dfd2839a878464423f5798f639ffeb6f13",
+    "conclusion": "non-use",
+    "checkpoint_hash": "sha256:e7f3bd6e523d65b03015fc8ea761dece607dca65dcdbddfdee9061a55b9edda0",
+    "export_bytes": 73474,
+    "export_sha256": "d39689dbec4f524c4740203b08524d0a662b7b2ab7d6a01b53a8d31c925201a5",
+    "authenticated_judgment_download_byte_match": true,
+    "original_history_unchanged": true
+  },
+  "manifest": "save/manifest.json",
+  "all_original_notes_dependencies_revisions_and_bodies_preserved": true,
+  "execution": {
+    "read": {
+      "commit": "c5a829e811017e32f0f8aa54ccd71500392b4dc4",
+      "tree": "4a2ede28ac8e6b72219755cedd224534b530b8a2",
+      "helper_sha256": "06c41fd12f215fdf50e0fe684d50e97b1b1649db800b4f5e42bcd1104484db34"
+    },
+    "save": {
+      "commit": "eeeab130efa7c571c2d7b68bab175ce0e65bbcb3",
+      "tree": "8b2ed749abc63a3517d02cafcc49472190e8ae83",
+      "helper_sha256": "06c41fd12f215fdf50e0fe684d50e97b1b1649db800b4f5e42bcd1104484db34"
+    }
+  },
+  "counts": {
+    "this_continuation_authenticated_reads": 1,
+    "this_continuation_save_operations": 1,
+    "this_continuation_automatic_runtime_retries": 0,
+    "cumulative_C1_read_operations": 2,
+    "cumulative_C1_save_operations": 1,
+    "cumulative_C1_runtime_operations": 3,
+    "authored_save_requests": 1,
+    "unknown_save_resolutions": 0,
+    "actual_offline_DOM_control_fixtures": 1,
+    "offline_control_module_load_failure_before_fixture": 1,
+    "provider_api_calls": 0,
+    "permission_denials": 0
+  },
+  "timing": {
+    "intake_at": "2026-10-07T04:58:56Z",
+    "read_started_at": "2026-10-07T05:02:43.732Z",
+    "read_cleaned_at": "2026-10-07T05:02:47.628Z",
+    "judgment_authored_at": "2026-10-07T05:03:25Z",
+    "save_started_at": "2026-10-07T05:03:44.282Z",
+    "save_cleaned_at": "2026-10-07T05:03:48.451Z",
+    "active_work_stopped_at": "2026-10-07T05:04:15Z",
+    "intake_to_active_stop_seconds": 319,
+    "retention_started_at": "2026-10-07T05:04:15Z",
+    "read_cleanup_started_at": "2026-10-07T05:02:47.415Z",
+    "read_cleanup_finished_at": "2026-10-07T05:02:47.530Z",
+    "save_cleanup_started_at": "2026-10-07T05:03:48.267Z",
+    "save_cleanup_finished_at": "2026-10-07T05:03:48.378Z"
+  },
+  "permissions": "supported per-command with_additional_permissions network.enabled=true requested separately for controls/read/save; explicit synthetic-only browser flag; no transferred grant or denial bypass",
+  "cleanup": "Worker disposed, browser/debug listener settled, known owned process groups independently absent, both disposable roots removed; no claim about arbitrary escaped descendants",
+  "historical_evidence": "Original C1 failure and exact failing-assertion uncertainty preserved; all historical B files and NOT OBSERVED/scripted B3 labels unchanged.",
+  "exposure_limits": {
+    "same_task_follow_up": true,
+    "blind": false,
+    "independent": false,
+    "prior_exposure": "Original B3 scripted scope rule, historical NOT OBSERVED labels, earlier C1 failure, director reviews and repository context were already available.",
+    "actual_read": "Authenticated structured history and opened Saved-context DOM: current definition, all five selected notes/ref associations/attribution, dependencies and four-file manifest.",
+    "attachment_body_reads": [],
+    "attachment_links_are_not_body_reads": true,
+    "historical_status": "New assessment is not backdated into original B; historical scripted B3 and NOT OBSERVED remain unchanged."
+  },
+  "remaining_uncertainty": [
+    "Selected excerpts have unknown original-source completeness, availability and currentness; authenticated recovery does not verify their truth.",
+    "C1 did not read or execute the original attachment bodies or calculate B3.",
+    "No claim of blind evaluation, independent reasoning evidence, production authentication qualification or integration approval."
+  ],
+  "focused_checks": {
+    "extraction": "PASS: two positive and fourteen negative offline pinned-renderer DOM controls",
+    "binding": "PASS: all three conclusions allowed, ten wrong binding/time controls rejected",
+    "syntax": "PASS",
+    "diff": "PASS",
+    "actual_export_and_cleanup_controls": "PASS"
+  },
+  "mac_deciding_verification": "NOT RUN / integration pending",
+  "auto_merge": "disabled; Draft only",
+  "stop": "ChatGPT review"
+}

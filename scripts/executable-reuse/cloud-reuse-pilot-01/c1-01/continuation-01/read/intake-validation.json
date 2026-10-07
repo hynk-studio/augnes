@@ -1,0 +1,27 @@
+{
+  "base": "4a1d2137d126247645f8598df842d9b5e2bbc61b",
+  "input_bytes": 55006,
+  "input_sha256": "797fc35751add728b3b70914ddf8eac5fcfadb3bb4589ff0a956553504edde19",
+  "complete_chain_and_files_validated": true,
+  "revisions": [
+    {
+      "revision": 1,
+      "fingerprint": "sha256:616c6503c0ae6bb6b3f69ddeb4993c2e491ab492b5a3d2a8c5663706a51c4983"
+    },
+    {
+      "revision": 2,
+      "fingerprint": "sha256:95c62c2f728db3ddad3239e5bdc1be1d4b6c35512b3518b85477d3236ffddb51"
+    },
+    {
+      "revision": 3,
+      "fingerprint": "sha256:e6ccd20a726ea94a6f36ad4c028394e167bb85cca929ff563d74fc43cbbe72b4"
+    },
+    {
+      "revision": 4,
+      "fingerprint": "sha256:fb42543992e0ca4f24866d611cc2178159904647ded24678f4f79b933d69d289"
+    }
+  ],
+  "body_count": 4,
+  "source_baseline": "b73e5012c699f85a9e3b643b6cba82f8f195d3ce",
+  "source_tree": "5443ce03a9d193c03274379938fa1b391512ad25"
+}

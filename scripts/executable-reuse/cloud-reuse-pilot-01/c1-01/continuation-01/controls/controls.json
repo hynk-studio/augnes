@@ -1,0 +1,210 @@
+{
+  "result": "PASS",
+  "scope": "offline pinned-renderer DOM fixtures; no Worker/login/reconstruction",
+  "positive_count": 2,
+  "negative_count": 14,
+  "cases": [
+    {
+      "name": "collapsed disclosures; exact escaped text and whitespace",
+      "kind": "positive",
+      "field_count": 40,
+      "disclosures": [
+        {
+          "summary": "Source binding",
+          "was_open": false,
+          "open": true,
+          "before_ref_visible": false,
+          "after_ref_visible": true
+        },
+        {
+          "summary": "Source binding",
+          "was_open": false,
+          "open": true,
+          "before_ref_visible": false,
+          "after_ref_visible": true
+        },
+        {
+          "summary": "Material provenance and required context",
+          "was_open": false,
+          "open": true,
+          "before_ref_visible": null,
+          "after_ref_visible": null
+        },
+        {
+          "summary": "Exact saved details",
+          "was_open": false,
+          "open": true,
+          "before_ref_visible": null,
+          "after_ref_visible": null
+        }
+      ]
+    },
+    {
+      "name": "already expanded disclosures",
+      "kind": "positive",
+      "field_count": 40,
+      "disclosures": [
+        {
+          "summary": "Source binding",
+          "was_open": true,
+          "open": true,
+          "before_ref_visible": true,
+          "after_ref_visible": true
+        },
+        {
+          "summary": "Source binding",
+          "was_open": true,
+          "open": true,
+          "before_ref_visible": true,
+          "after_ref_visible": true
+        },
+        {
+          "summary": "Material provenance and required context",
+          "was_open": true,
+          "open": true,
+          "before_ref_visible": null,
+          "after_ref_visible": null
+        },
+        {
+          "summary": "Exact saved details",
+          "was_open": true,
+          "open": true,
+          "before_ref_visible": null,
+          "after_ref_visible": null
+        }
+      ]
+    },
+    {
+      "name": "missing source ref",
+      "kind": "deliberate negative",
+      "rejected": true,
+      "failed_checks": [
+        "notes.0.source_ref",
+        "notes.0.binding_node_count"
+      ]
+    },
+    {
+      "name": "swapped source refs",
+      "kind": "deliberate negative",
+      "rejected": true,
+      "failed_checks": [
+        "notes.0.source_ref",
+        "notes.1.source_ref"
+      ]
+    },
+    {
+      "name": "altered summary",
+      "kind": "deliberate negative",
+      "rejected": true,
+      "failed_checks": [
+        "notes.0.summary"
+      ]
+    },
+    {
+      "name": "missing summary",
+      "kind": "deliberate negative",
+      "rejected": true,
+      "failed_checks": [
+        "notes.0.summary"
+      ]
+    },
+    {
+      "name": "wrong revision",
+      "kind": "deliberate negative",
+      "rejected": true,
+      "failed_checks": [
+        "context.revision"
+      ]
+    },
+    {
+      "name": "wrong fingerprint",
+      "kind": "deliberate negative",
+      "rejected": true,
+      "failed_checks": [
+        "context.fingerprint"
+      ]
+    },
+    {
+      "name": "missing file",
+      "kind": "deliberate negative",
+      "rejected": true,
+      "failed_checks": [
+        "files.count",
+        "files.0.name",
+        "files.0.digest",
+        "files.0.bytes",
+        "files.0.url",
+        "files.0.description"
+      ]
+    },
+    {
+      "name": "wrong file digest",
+      "kind": "deliberate negative",
+      "rejected": true,
+      "failed_checks": [
+        "files.0.digest"
+      ]
+    },
+    {
+      "name": "wrong file bytes",
+      "kind": "deliberate negative",
+      "rejected": true,
+      "failed_checks": [
+        "files.0.bytes"
+      ]
+    },
+    {
+      "name": "wrong file name",
+      "kind": "deliberate negative",
+      "rejected": true,
+      "failed_checks": [
+        "files.0.name"
+      ]
+    },
+    {
+      "name": "wrong file URL",
+      "kind": "deliberate negative",
+      "rejected": true,
+      "failed_checks": [
+        "files.0.url"
+      ]
+    },
+    {
+      "name": "wrong attribution",
+      "kind": "deliberate negative",
+      "rejected": true,
+      "failed_checks": [
+        "notes.0.attribution.Source / attribution"
+      ]
+    },
+    {
+      "name": "missing dependency declaration",
+      "kind": "deliberate negative",
+      "rejected": true,
+      "failed_checks": [
+        "dependencies.count",
+        "dependencies.0"
+      ]
+    },
+    {
+      "name": "missing note",
+      "kind": "deliberate negative",
+      "rejected": true,
+      "failed_checks": [
+        "notes.count",
+        "notes.0.heading",
+        "notes.0.summary",
+        "notes.0.source_ref",
+        "notes.1.heading",
+        "notes.1.summary",
+        "notes.1.source_ref",
+        "notes.1.binding_node_count",
+        "notes.1.attribution.Source / attribution",
+        "notes.1.attribution.Provenance",
+        "notes.1.attribution.Observed",
+        "notes.1.attribution.Currentness"
+      ]
+    }
+  ],
+  "continuation_path_binding": "read/save/checkpoint/judgment/result share explicit continuation; old root rejected"
+}

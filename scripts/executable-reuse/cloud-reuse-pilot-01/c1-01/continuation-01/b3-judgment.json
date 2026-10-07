@@ -1,0 +1,55 @@
+{
+  "pilot": "cloud-reuse-pilot-01-C1",
+  "continuation_bundle": "scripts/executable-reuse/cloud-reuse-pilot-01/c1-01/continuation-01",
+  "input_commit": "4a1d2137d126247645f8598df842d9b5e2bbc61b",
+  "input_export_sha256": "797fc35751add728b3b70914ddf8eac5fcfadb3bb4589ff0a956553504edde19",
+  "work_id": "47b083cb-833d-49e3-9652-fa6c8d814730",
+  "revision": 4,
+  "fingerprint": "sha256:fb42543992e0ca4f24866d611cc2178159904647ded24678f4f79b933d69d289",
+  "checkpoint_hash": "sha256:e7f3bd6e523d65b03015fc8ea761dece607dca65dcdbddfdee9061a55b9edda0",
+  "case": "B3",
+  "inputs": {
+    "attempt": "11",
+    "mandatory_verification": "2",
+    "repair": "6",
+    "optional_inspection": "2",
+    "direct_success": "3/(5+k)",
+    "inspected_success": "4/(5+k)",
+    "failure_history": "k=0,1,2,...; no supplied finite cutoff"
+  },
+  "conclusion": "non-use",
+  "reasons": [
+    "The recovered qualification limits the unchanged callable to stationary finite-state problems with 1–8 square equations, and explicitly excludes history-dependent probabilities and infinite states.",
+    "B3 changes both success probabilities with an unbounded failure count k. Its stipulated cost values do not remove that mismatch. A stationary substitution, finite cutoff or solver expansion would change the commissioned case.",
+    "This is a supported-slice applicability assessment. It does not establish mathematical impossibility, an observed CLI refusal, or lack of a separately derived analytic method."
+  ],
+  "recovered_refs": [
+    "sha256:4a33ff148172582cdece6df346d1a0701e70895077b2ec1520789d827bad8760",
+    "sha256:8ef633167f47b7c80cc987408df3e9f69003456f6c45f334571e674744d230fd",
+    "sha256:f9ee789ded50948dac8ceb05b3550ae017b31903ff866f27550f881accecfd66"
+  ],
+  "observed_at": "2026-10-07T05:02:47.413Z",
+  "authored_at": "2026-10-07T05:03:25Z",
+  "attribution": {
+    "author": "running Codex agent in the current Cloud task",
+    "model_identifier": "unavailable",
+    "task_identifier": "unavailable",
+    "sequence": "complete authenticated read tool result after cleanup; visible agent assessment; this file authored in a subsequent tool operation",
+    "provider_model_api_calls": 0
+  },
+  "exposure_limits": {
+    "same_task_follow_up": true,
+    "blind": false,
+    "independent": false,
+    "prior_exposure": "Original B3 scripted scope rule, historical NOT OBSERVED labels, earlier C1 failure, director reviews and repository context were already available.",
+    "actual_read": "Authenticated structured history and opened Saved-context DOM: current definition, all five selected notes/ref associations/attribution, dependencies and four-file manifest.",
+    "attachment_body_reads": [],
+    "attachment_links_are_not_body_reads": true,
+    "historical_status": "New assessment is not backdated into original B; historical scripted B3 and NOT OBSERVED remain unchanged."
+  },
+  "uncertainties": [
+    "Selected excerpts have unknown original-source completeness, availability and currentness; authenticated recovery does not verify their truth.",
+    "C1 did not read or execute the original attachment bodies or calculate B3.",
+    "No claim of blind evaluation, independent reasoning evidence, production authentication qualification or integration approval."
+  ]
+}

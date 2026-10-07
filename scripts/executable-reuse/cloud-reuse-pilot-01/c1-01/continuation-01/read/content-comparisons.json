@@ -1,0 +1,26 @@
+[
+  {
+    "check_id": "reconstruction.saved-head",
+    "expected": {
+      "bytes": 13850,
+      "sha256": "2bf28d9bfac8ac3560bf426275221d908864b1c7acdb102be27c6e3658f6af1a"
+    },
+    "observed": {
+      "bytes": 13850,
+      "sha256": "2bf28d9bfac8ac3560bf426275221d908864b1c7acdb102be27c6e3658f6af1a"
+    },
+    "match": true
+  },
+  {
+    "check_id": "history.revisions-1-4",
+    "expected": {
+      "bytes": 39703,
+      "sha256": "9450c0b65260224b5f128289585d91a25138be6cb5e34618e2af168ccd3afa30"
+    },
+    "observed": {
+      "bytes": 39703,
+      "sha256": "9450c0b65260224b5f128289585d91a25138be6cb5e34618e2af168ccd3afa30"
+    },
+    "match": true
+  }
+]

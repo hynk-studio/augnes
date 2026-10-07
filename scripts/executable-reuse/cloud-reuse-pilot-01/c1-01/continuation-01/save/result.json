@@ -1,0 +1,12 @@
+{
+  "result": "C1 saved for review",
+  "work_id": "47b083cb-833d-49e3-9652-fa6c8d814730",
+  "revision": 5,
+  "fingerprint": "sha256:dc61a525896d458c9a278759a1b375dfd2839a878464423f5798f639ffeb6f13",
+  "conclusion": "non-use",
+  "checkpoint_hash": "sha256:e7f3bd6e523d65b03015fc8ea761dece607dca65dcdbddfdee9061a55b9edda0",
+  "export_bytes": 73474,
+  "export_sha256": "d39689dbec4f524c4740203b08524d0a662b7b2ab7d6a01b53a8d31c925201a5",
+  "authenticated_judgment_download_byte_match": true,
+  "original_history_unchanged": true
+}

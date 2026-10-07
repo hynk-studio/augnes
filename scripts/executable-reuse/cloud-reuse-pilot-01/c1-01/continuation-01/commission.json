@@ -1,0 +1,16 @@
+{
+  "review": "https://github.com/hynk-studio/augnes/pull/1415#pullrequestreview-5437795156",
+  "intake_at": "2026-10-07T04:58:56Z",
+  "reviewed_head": "f7cb63f9bd05271c1ed8fdabdd73bb932c0170e2",
+  "reviewed_tree": "4627a8fa323a0c46b64a8274cafcac0cae9735ca",
+  "unchanged_input_base": "4a1d2137d126247645f8598df842d9b5e2bbc61b",
+  "bundle": "scripts/executable-reuse/cloud-reuse-pilot-01/c1-01/continuation-01",
+  "limits": {"corrected_read": 1, "conditional_save": 1, "automatic_runtime_retries": 0},
+  "historical_failure": "preserved; exact historical assertion remains unknown",
+  "source_correction": "open selected-context disclosures and compare exact per-node text/ref/attribution/dependencies/file identity; DOM fields are never populated from expected input",
+  "controls": {"offline_positive": 2, "offline_negative": 14, "binding_alternatives_allowed": 3, "invalid_binding_time_cases_rejected": 10},
+  "control_setup_correction": "First control command failed before module evaluation with ERR_MODULE_NOT_FOUND for Playwright; no owned fixture or runtime started. Replaced that dependency with the unchanged existing CDP adapter. One actual offline DOM fixture then passed. This was not an authenticated runtime attempt.",
+  "environment": {"spec_revision": "16", "observed_spec_revision": "16", "observations_current": true, "network_policy": "restricted/enforced"},
+  "qualification": "current task model assessment only after complete authenticated checkpoint returns and cleanup passes; no calculator/provider/model runner",
+  "mac": "NOT RUN / integration pending"
+}

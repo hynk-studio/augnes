@@ -1,0 +1,83 @@
+{
+  "pilot": "cloud-reuse-pilot-01-C1",
+  "base": "4a1d2137d126247645f8598df842d9b5e2bbc61b",
+  "source_baseline": "b73e5012c699f85a9e3b643b6cba82f8f195d3ce",
+  "source_tree": "5443ce03a9d193c03274379938fa1b391512ad25",
+  "scope": {
+    "workspace_id": "155448c4-983f-4e32-83c5-6d340db5d4fd",
+    "project_id": "bb63e047-9125-43c0-88cd-79f6b212b2ad",
+    "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452"
+  },
+  "work_id": "47b083cb-833d-49e3-9652-fa6c8d814730",
+  "head_revision": 5,
+  "head_fingerprint": "sha256:dc61a525896d458c9a278759a1b375dfd2839a878464423f5798f639ffeb6f13",
+  "export": {
+    "path": "planning-work.json",
+    "format": "web_planning_export.v0.3",
+    "bytes": 73474,
+    "sha256": "d39689dbec4f524c4740203b08524d0a662b7b2ab7d6a01b53a8d31c925201a5",
+    "fingerprint": "sha256:d78e660599bb26f96b26fc513fa6cc0971517149d30343aa90477118c222f749"
+  },
+  "revisions": [
+    {
+      "revision": 1,
+      "fingerprint": "sha256:616c6503c0ae6bb6b3f69ddeb4993c2e491ab492b5a3d2a8c5663706a51c4983"
+    },
+    {
+      "revision": 2,
+      "fingerprint": "sha256:95c62c2f728db3ddad3239e5bdc1be1d4b6c35512b3518b85477d3236ffddb51"
+    },
+    {
+      "revision": 3,
+      "fingerprint": "sha256:e6ccd20a726ea94a6f36ad4c028394e167bb85cca929ff563d74fc43cbbe72b4"
+    },
+    {
+      "revision": 4,
+      "fingerprint": "sha256:fb42543992e0ca4f24866d611cc2178159904647ded24678f4f79b933d69d289"
+    },
+    {
+      "revision": 5,
+      "fingerprint": "sha256:dc61a525896d458c9a278759a1b375dfd2839a878464423f5798f639ffeb6f13"
+    }
+  ],
+  "selected_files": [
+    {
+      "bytes": 4973,
+      "digest": "sha256:7a0fabc8a0672f97d4c5a81b5eef9e61f5c7fca6447d50ae1bf09bc2be149c11",
+      "name": "workflow_cost.py",
+      "role": "source"
+    },
+    {
+      "bytes": 2242,
+      "digest": "sha256:7cdd11476badfed7b206a84ed5195209e38465dd74cc5e265a7d9ced203a804a",
+      "name": "exact_linear.py",
+      "role": "source"
+    },
+    {
+      "bytes": 523,
+      "digest": "sha256:37869ecc10f665461d7e3f1e53085329b0454bb8c2acda554ed64cae399a37cb",
+      "name": "producer-stdout.json",
+      "role": "results"
+    },
+    {
+      "bytes": 3266,
+      "digest": "sha256:f89a104ea6bb4f4feb698dcc96c761c88f0dad94a8bceef1979d24fdd94ae5e0",
+      "name": "consumer-results.json",
+      "role": "results"
+    },
+    {
+      "bytes": 3275,
+      "digest": "sha256:6e79e57a0a20eb6035192c84d3ad63277ee3cf86ae868de97bed75fa3e2c1aba",
+      "name": "b3-judgment.json",
+      "role": "results"
+    }
+  ],
+  "original_revisions_notes_dependencies_and_bodies_unchanged": true,
+  "checkpoint_hash": "sha256:e7f3bd6e523d65b03015fc8ea761dece607dca65dcdbddfdee9061a55b9edda0",
+  "judgment": {
+    "path": "../b3-judgment.json",
+    "bytes": 3275,
+    "sha256": "6e79e57a0a20eb6035192c84d3ad63277ee3cf86ae868de97bed75fa3e2c1aba",
+    "authenticated_download_byte_match": true
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "operation": "read",
+  "authentication": "fresh synthetic local login; normal reconstruction and authenticated history/context",
+  "before": {
+    "works": 0,
+    "revisions": 0,
+    "files": 0,
+    "erased": 0
+  },
+  "after": {
+    "works": 1,
+    "revisions": 4,
+    "files": 4,
+    "erased": 0
+  },
+  "observed_at": "2026-10-07T05:02:47.413Z",
+  "checkpoint_hash": "sha256:e7f3bd6e523d65b03015fc8ea761dece607dca65dcdbddfdee9061a55b9edda0",
+  "save_requests": 0,
+  "reconstruction_submissions": 1,
+  "unknown_outcome_resolutions": 0,
+  "write_retries": 0,
+  "readiness": {
+    "correct_document": true,
+    "document_complete": true,
+    "client_loaded": true,
+    "client_idle": true,
+    "list_state": "empty",
+    "list_complete": true,
+    "controls_ready": true,
+    "ready": true,
+    "client_http_200": true,
+    "list_http_200": true
+  },
+  "api_routes": [
+    {
+      "method": "GET",
+      "path": "/api/works"
+    },
+    {
+      "method": "POST",
+      "path": "/api/reconstruct-files"
+    },
+    {
+      "method": "GET",
+      "path": "/api/works"
+    },
+    {
+      "method": "GET",
+      "path": "/api/work/47b083cb-833d-49e3-9652-fa6c8d814730/history"
+    },
+    {
+      "method": "POST",
+      "path": "/api/work/47b083cb-833d-49e3-9652-fa6c8d814730/context"
+    }
+  ],
+  "provider_api_calls": 0,
+  "external_browser_requests": 0,
+  "worker_external_requests": 0,
+  "elapsed_before_cleanup_ms": 2558,
+  "blind_or_independent": false,
+  "prior_B3": "scripted rule; fresh judgment NOT OBSERVED remains historical"
+}

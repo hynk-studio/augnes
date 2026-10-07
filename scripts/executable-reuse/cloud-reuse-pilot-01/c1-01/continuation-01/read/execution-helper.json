@@ -1,0 +1,19 @@
+{
+  "operation": "read",
+  "base": "4a1d2137d126247645f8598df842d9b5e2bbc61b",
+  "helper_commit": "c5a829e811017e32f0f8aa54ccd71500392b4dc4",
+  "helper_tree": "4a2ede28ac8e6b72219755cedd224534b530b8a2",
+  "helper_sha256": "06c41fd12f215fdf50e0fe684d50e97b1b1649db800b4f5e42bcd1104484db34",
+  "continuation_bundle": "scripts/executable-reuse/cloud-reuse-pilot-01/c1-01/continuation-01",
+  "command": [
+    "node",
+    "--import",
+    "tsx",
+    "scripts/executable-reuse/cloud-reuse-pilot-01/c1-judgment.mjs",
+    "read",
+    "scripts/executable-reuse/cloud-reuse-pilot-01/c1-01/continuation-01",
+    "--allow-unsandboxed-synthetic-pilot"
+  ],
+  "permissions": "per-command network permission requested; synthetic loopback only",
+  "unsandboxed_pilot_opt_in": true
+}
