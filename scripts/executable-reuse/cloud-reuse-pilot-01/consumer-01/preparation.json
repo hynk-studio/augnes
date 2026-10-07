@@ -1,0 +1,52 @@
+{
+  "kind": "pure/syntax preparation only; no browser, store, reconstruction or solver execution",
+  "intake_external_and_internal_integrity": true,
+  "chain": [
+    {
+      "revision": 1,
+      "fingerprint": "sha256:616c6503c0ae6bb6b3f69ddeb4993c2e491ab492b5a3d2a8c5663706a51c4983"
+    },
+    {
+      "revision": 2,
+      "fingerprint": "sha256:95c62c2f728db3ddad3239e5bdc1be1d4b6c35512b3518b85477d3236ffddb51"
+    }
+  ],
+  "body_count": 3,
+  "original_qualification_and_result_preserved": true,
+  "successor_draft_capacities": [
+    {
+      "notes": 4,
+      "selection": {
+        "used": 8468,
+        "limit": 12000,
+        "remaining": 3532,
+        "unique_notes": 4,
+        "text_bytes": 2537,
+        "metadata_bytes": 5931
+      },
+      "relations": {
+        "used": 1032,
+        "limit": 12000,
+        "remaining": 10968
+      }
+    },
+    {
+      "notes": 5,
+      "selection": {
+        "used": 10598,
+        "limit": 12000,
+        "remaining": 1402,
+        "unique_notes": 5,
+        "text_bytes": 3181,
+        "metadata_bytes": 7417
+      },
+      "relations": {
+        "used": 1464,
+        "limit": 12000,
+        "remaining": 10536
+      }
+    }
+  ],
+  "source_context_not_dropped": true,
+  "python_syntax_and_oracle_import_inspection": "passed separately; consumer oracle imports json/sys/fractions only"
+}

@@ -1,0 +1,19 @@
+{
+  "result": "PASS",
+  "campaign": "BLOCKED before reconstruction",
+  "original_export": {
+    "bytes": 25632,
+    "sha256": "2634ccd6ec63ae50b4f05a8ff89e9fd8e723242f75f5cdeb512c81af4cc7d219"
+  },
+  "original_chain_and_bodies_unchanged": true,
+  "failed_invocations": 2,
+  "accepted_reconstructions": 0,
+  "saves": 0,
+  "calculations": 0,
+  "corruption_submissions": 0,
+  "executed_retry_helper": "439e7d0bfe7b370bb00c33b2fa9459ad724e6af7",
+  "helper_bytes_unchanged": true,
+  "disposable_cleanup": true,
+  "remaining_owned_processes": 0,
+  "deciding_canonical_evidence": false
+}

@@ -1,0 +1,18 @@
+{
+  "phase": "B",
+  "stage": "parent helper identity before resource creation",
+  "command": "node scripts/executable-reuse/cloud-reuse-pilot-01/run-consumer.mjs scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/attempt-1 --allow-unsandboxed-synthetic-pilot",
+  "helper_commit": "26377c95377e6b9a7019d4d4d554a2e95aeaf7d9",
+  "helper_tree": "24cb72950fc99fec8365c9cff4c2811ded9b3f9a",
+  "exit": 1,
+  "diagnostic": {"name": "Error", "code": "EPERM", "syscall": "spawnSync git", "arguments": ["rev-parse", "HEAD"]},
+  "resource_root_created": false,
+  "browser_started": false,
+  "store_started": false,
+  "reconstruction_requests": 0,
+  "save_requests": 0,
+  "owned_processes_remaining": 0,
+  "disposable_resources": "none created; original empty attempt directory retained",
+  "diagnostic_followup": {"operation": "ordinary async read-only git subprocess; same permissions", "exit": 0, "head": "26377c95377e6b9a7019d4d4d554a2e95aeaf7d9", "stderr": ""},
+  "retry_reason": "Replace helper synchronous reads with existing bounded asynchronous child lifecycle; no permission or product change. One permitted evidence-based setup/helper retry."
+}

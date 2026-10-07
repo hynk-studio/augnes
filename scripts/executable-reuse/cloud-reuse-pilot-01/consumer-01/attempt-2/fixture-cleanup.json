@@ -1,0 +1,8 @@
+{
+  "stage": "worker-initialization",
+  "owned_browser_processes_remaining": 0,
+  "worker_disposed": false,
+  "browser_listener_closed": true,
+  "failures": [],
+  "phase": "B"
+}

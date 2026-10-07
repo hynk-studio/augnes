@@ -1,0 +1,76 @@
+{
+  "phase": "B",
+  "scope": "preparation and immutable blocked evidence; no successful consumer runtime",
+  "checks": [
+    {
+      "command": "node --check scripts/executable-reuse/cloud-reuse-pilot-01/run-consumer.mjs",
+      "result": "PASS"
+    },
+    {
+      "command": "node --check scripts/executable-reuse/cloud-reuse-pilot-01/consumer-child.mjs",
+      "result": "PASS"
+    },
+    {
+      "command": "node --check scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/verify-retained.mjs",
+      "result": "PASS"
+    },
+    {
+      "command": "node --import tsx scripts/executable-reuse/cloud-reuse-pilot-01/test-preparation.mjs",
+      "result": "PASS",
+      "readiness_controls": {
+        "not_ready": 13,
+        "ready": 2
+      },
+      "scope_limit": "Existing producer-input controls are not B1/B2 execution or equality observations."
+    },
+    {
+      "operation": "Python compile/AST inspection of consumer-oracle.py and observe-downloaded.py without executing either",
+      "result": "PASS",
+      "oracle_imports": [
+        "fractions",
+        "json",
+        "sys"
+      ]
+    },
+    {
+      "command": "node --import tsx /workspace/work/prepare-consumer.mjs",
+      "result": "PASS",
+      "scope": "Pure reviewed-export validation and source-preserving successor-draft capacity; no store or revisions created",
+      "evidence": "preparation.json"
+    },
+    {
+      "command": "node --import tsx scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/verify-retained.mjs",
+      "result": "PASS",
+      "evidence": "retained-verification.json"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "operation": "Diff review for exact producer/base retention and application source",
+      "result": "PASS",
+      "scope": "Only four new experiment helpers and consumer-01 evidence; producer artifacts and application owners unchanged"
+    }
+  ],
+  "unrun": [
+    "accepted authenticated reconstruction",
+    "ordinary current-scope successor",
+    "Saved context recovery",
+    "authenticated downloads",
+    "downloaded-byte B1/B2 execution and oracle comparisons",
+    "B3 recovered-context decision",
+    "successor complete export",
+    "live corruption control and no-partial-data observation",
+    "Mac deciding verification"
+  ],
+  "planner": "Final exact PR base/head invocation and result are recorded separately in the PR body.",
+  "timings": "Individual pure-check duration and total task/human/platform usage unmeasured. Retry child duration 1653 ms is recorded separately.",
+  "integration": "NOT RUN / pending; no Canonical receipt or integration approval",
+  "retention_preparation_failure": {
+    "command": "git diff --cached --check",
+    "exit": 2,
+    "reason": "Raw helper-only patch has normal blank context lines containing one space; checker flags their trailing whitespace in the new patch artifact",
+    "resolution": "Retain exact patch bytes/digest in helper-change.json base64 wrapper; no code or failure evidence altered; no live retry"
+  }
+}

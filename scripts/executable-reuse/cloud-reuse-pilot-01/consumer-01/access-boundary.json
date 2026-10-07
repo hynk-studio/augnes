@@ -1,0 +1,66 @@
+{
+  "pilot": "cloud-reuse-pilot-01",
+  "phase": "B",
+  "commission_review": "https://github.com/hynk-studio/augnes/pull/1413#pullrequestreview-5436773654",
+  "root": "/workspace/augnes",
+  "origin": "https://github.com/hynk-studio/augnes.git",
+  "initial_branch": "work",
+  "initial_head": "b73e5012c699f85a9e3b643b6cba82f8f195d3ce",
+  "initial_tree": "5443ce03a9d193c03274379938fa1b391512ad25",
+  "initial_tracked_worktree": "clean",
+  "consumer_branch": "codex/cloud-reuse-pilot-01-consumer",
+  "consumer_base": "d3f9f0d538078b33c7db892666d50755a71337bf",
+  "consumer_base_tree": "731856ec86d7b2be73aca796893335bacea1c19d",
+  "branch_did_not_exist_at_connector_intake": true,
+  "worktrees_observed": [
+    "/workspace/augnes; initial branch work"
+  ],
+  "new_task_boundary": "This separately commissioned chat/task started its managed environment and read only the supplied handoff, GitHub issue/review and repository artifacts. Producer conversation, live runtime, profile and temporary storage were not accessed.",
+  "task_identifier": "unavailable",
+  "environment": {
+    "environment_id": "ccarenv_b64_Y2NhcmVudl9hZjNhZTI1NDAxOTQ4MTkxOTZjMmNjZDg3MTkxMzRkMg",
+    "source_config_id": "53871ca7-3435-492b-9705-32c8069bf189~cecfg_6ac546887788819dae1f4b8c4f134bc0",
+    "source_config_version_id": "53871ca7-3435-492b-9705-32c8069bf189~cecfgver_6ac548c690d8819db35e7635a69abedc",
+    "spec_revision": "2",
+    "observed_spec_revision": "2",
+    "observations_current": true,
+    "provider": "cloud",
+    "network_mode": "restricted",
+    "network_state": "unknown",
+    "secrets": [],
+    "outbound_identities": [],
+    "runtime_variables": []
+  },
+  "access": {
+    "repo_tooling_visibility": true,
+    "prepared_dependencies_present": true,
+    "authentication": "new synthetic local test login/session per fixture; no imported credentials/browser state",
+    "transport": "authorized connected GitHub App; shell git HTTPS proxy unavailable",
+    "host_policy": "restricted snapshot; no VPN; no TCP grants; network enforcement readiness unknown",
+    "browser_sandbox": "explicit task-scoped synthetic-loopback opt-in; no platform/OS changes",
+    "isolation_attestation": "unavailable; no blind evaluation, cross-account isolation or independent platform enforcement claim"
+  },
+  "failures": [
+    {
+      "stage": "artifact git fetch before live attempt",
+      "command": "git fetch origin codex/cloud-reuse-pilot-01-producer",
+      "exit": 128,
+      "reason": "Failed to connect to proxy port 8080; no destination-policy denial observed",
+      "resolution": "Authorized GitHub connector read Git objects; local blobs/trees/commits SHA-1 checked byte-for-byte against original object identities. No network bypass or producer mutation."
+    }
+  ],
+  "versions": {
+    "node": "v24.19.0",
+    "npm": "11.9.0",
+    "python": "3.12.14",
+    "chromium": "151.0.7922.173; Debian GNU/Linux 13",
+    "host": "Linux x86_64"
+  },
+  "limits": {
+    "primary_consumer_attempts": 1,
+    "maximum_evidence_based_setup_helper_retry": 1,
+    "reset_after_accepted_write": false,
+    "provider_api_expenditure": 0,
+    "mac_deciding_verification": "NOT RUN / integration pending"
+  }
+}

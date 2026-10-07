@@ -1,0 +1,40 @@
+{
+  "reviewed_parent": "d3f9f0d538078b33c7db892666d50755a71337bf",
+  "helper_commit": "439e7d0bfe7b370bb00c33b2fa9459ad724e6af7",
+  "helper_tree": "e22dfd254819621db94506cd5761edf9e6f9094f",
+  "command": [
+    "node",
+    "scripts/executable-reuse/cloud-reuse-pilot-01/run-consumer.mjs",
+    "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/attempt-2",
+    "--allow-unsandboxed-synthetic-pilot"
+  ],
+  "helper_files": [
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/run-consumer.mjs",
+      "bytes": 3484,
+      "sha256": "60a12d865d6df7ec089fe8c001eaf4b57b77f37890e76670edd97d88fc2f3fbc"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-child.mjs",
+      "bytes": 33140,
+      "sha256": "625b186262135904f09f0189ce7b3f12298d9faff6c65e9386998595d9dbf3c1"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/preparation.mjs",
+      "bytes": 2829,
+      "sha256": "7324a2ef370750d139bb9ddfcacffe1306a10d4f389ba6b0752b679955164c19"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/observe-downloaded.py",
+      "bytes": 1166,
+      "sha256": "7d3dbd7b05d8ba66f397dab190c4a94796eefe14238c800a06ecccf3ce5c0068"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-oracle.py",
+      "bytes": 1597,
+      "sha256": "f672414f75b832f3f0afe1e3586aac89b71a4532c3e85d80e0e235bc487f883b"
+    }
+  ],
+  "unsandboxed_pilot_opt_in": true,
+  "phase": "B"
+}

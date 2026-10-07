@@ -1,0 +1,27 @@
+{
+  "phase": "B",
+  "stage": "worker-initialization",
+  "check": "fresh empty disposable replacement store",
+  "diagnostic": {
+    "name": "Error",
+    "code": "EPERM",
+    "assertion_operator": null,
+    "evaluation": null
+  },
+  "readiness": null,
+  "progress": {
+    "work_id": null,
+    "revisions": [],
+    "reconstructed": false,
+    "transition": false,
+    "calculation": false,
+    "readback": false,
+    "export_downloaded": false,
+    "export_validated": false,
+    "corruption_control": false
+  },
+  "observed_save_requests": 0,
+  "unknown_outcome_resolutions": 0,
+  "browser_diagnostics": [],
+  "unexpected_failures": []
+}

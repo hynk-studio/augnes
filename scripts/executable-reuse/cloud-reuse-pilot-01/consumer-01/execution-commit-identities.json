@@ -1,0 +1,12 @@
+[
+  {
+    "sha": "26377c95377e6b9a7019d4d4d554a2e95aeaf7d9",
+    "raw_commit_utf8": "tree 24cb72950fc99fec8365c9cff4c2811ded9b3f9a\nparent d3f9f0d538078b33c7db892666d50755a71337bf\nauthor Hyunil Kim <hynk1240@outlook.com> 1791339906 +0000\ncommitter Hyunil Kim <hynk1240@outlook.com> 1791339906 +0000\n\nexperiment: prepare bounded separate Phase B consumer\n",
+    "scope": "local actual execution identity; remote retention is separately identified"
+  },
+  {
+    "sha": "439e7d0bfe7b370bb00c33b2fa9459ad724e6af7",
+    "raw_commit_utf8": "tree e22dfd254819621db94506cd5761edf9e6f9094f\nparent 26377c95377e6b9a7019d4d4d554a2e95aeaf7d9\nauthor Hyunil Kim <hynk1240@outlook.com> 1791339956 +0000\ncommitter Hyunil Kim <hynk1240@outlook.com> 1791339956 +0000\n\nexperiment: use bounded async reads for consumer helper retry\n",
+    "scope": "local actual execution identity; remote retention is separately identified"
+  }
+]

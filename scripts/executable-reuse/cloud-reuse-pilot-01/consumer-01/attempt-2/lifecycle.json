@@ -1,0 +1,22 @@
+{
+  "phase": "B",
+  "started_at": "2026-10-07T02:26:00.718Z",
+  "finished_at": "2026-10-07T02:26:02.414Z",
+  "child": {
+    "label": "consumer",
+    "exit_code": 1,
+    "signal": null,
+    "timed_out": false,
+    "duration_ms": 1653,
+    "spawn_error_code": null,
+    "exit_observed": true,
+    "streams_closed": true,
+    "cleanup_started": true,
+    "cleanup_completed": true,
+    "remaining_owned_processes": 0,
+    "termination_reason": "natural_exit"
+  },
+  "disposable_resources_removed": true,
+  "cleanup_failures": [],
+  "deciding_canonical_evidence": false
+}
