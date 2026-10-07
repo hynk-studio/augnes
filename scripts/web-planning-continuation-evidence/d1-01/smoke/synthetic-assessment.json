@@ -1,0 +1,27 @@
+{
+  "format": "web_planning_development_assessment.v1",
+  "input": {
+    "work_id": "bb214fa9-3bdf-45cf-9d33-1753740fefc2",
+    "revision": 2,
+    "fingerprint": "sha256:6bc7e4816c26669510b3ca31fcb35537cb019dff78e2c29fadead6a6c7b99f43",
+    "bytes": 9255,
+    "digest": "sha256:092bc916527d897ce9e0dc12019a96e868afd087e1a4534a1c416dd4b6bde004"
+  },
+  "checkpoint_hash": "sha256:4907fcd6b0a15574e8507faaa8f6eaad6f814045599470ae92d2498bac572437",
+  "bundle_id": "4e44f132-dbb6-4a41-b0d3-83d38c992ded",
+  "conclusion": "insufficient-context",
+  "reasons": [
+    "Explicitly synthetic regression payload; no observed model judgment."
+  ],
+  "recovered_refs": [
+    "sha256:0287efbbba00a92a26daaa48c799a58c9a692d87204ba69e8d8b4f8ad1449315",
+    "sha256:5b69325fb52af25cd97718167cdee3e15e7a27e85c409e28223f761426bc452d"
+  ],
+  "authored_at": "2026-10-07T06:03:02.050Z",
+  "attribution": {
+    "author": "D1 synthetic smoke orchestrator"
+  },
+  "exposure_limits": {
+    "synthetic": true
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "started_at": "2026-10-07T06:03:02.062Z",
+  "finished_at": "2026-10-07T06:03:06.684Z",
+  "child": {
+    "label": "web-planning-continuation.mjs",
+    "exit_code": 0,
+    "signal": null,
+    "timed_out": false,
+    "duration_ms": 4613,
+    "spawn_error_code": null,
+    "exit_observed": true,
+    "streams_closed": true,
+    "cleanup_started": true,
+    "cleanup_completed": true,
+    "remaining_owned_processes": 0,
+    "termination_reason": "natural_exit"
+  },
+  "diagnostic": null,
+  "fixture_cleanup": true,
+  "disposable_root_removed": true,
+  "cleanup_failures": [],
+  "stdout": {
+    "bytes": 0,
+    "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "stderr": {
+    "bytes": 0,
+    "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "runner_logs": {
+    "bytes": 1067,
+    "digest": "sha256:80b8ede89c73411d4f215df49b3fa5e9ca42e83724f005266a246b1b12a4f0b7"
+  },
+  "deciding_verification": false
+}

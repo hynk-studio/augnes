@@ -1,0 +1,6 @@
+{
+  "equal": true,
+  "main": "b73e5012c699f85a9e3b643b6cba82f8f195d3ce",
+  "original_sha256": "38a9f2ac1e5244f5a6bce1e8ce3ee1ab96844341a4e95e1fd2b1a4e610f59ee8",
+  "only_existing_validator_change": "import shared verbatim class"
+}
