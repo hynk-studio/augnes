@@ -1,0 +1,37 @@
+{
+  "started_at": "2026-10-07T06:31:21.333Z",
+  "finished_at": "2026-10-07T06:31:21.334Z",
+  "primary_error": {
+    "stage": "request.prepare",
+    "name": "Error",
+    "code": "PRIMARY_INJECTED",
+    "check_id": null
+  },
+  "secondary_errors": [
+    {
+      "stage": "lifecycle.report",
+      "name": "Error",
+      "code": "REPORT_INJECTED",
+      "check_id": null
+    }
+  ],
+  "child": null,
+  "child_state": "not-created",
+  "fixture_cleanup": false,
+  "disposable_root_removed": true,
+  "cleanup_failures": [],
+  "recovery": null,
+  "stdout": {
+    "bytes": 0,
+    "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "stderr": {
+    "bytes": 0,
+    "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "runner_logs": {
+    "bytes": 0,
+    "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "deciding_verification": false
+}

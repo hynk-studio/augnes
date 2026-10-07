@@ -1,0 +1,62 @@
+{
+  "review": 5438413471,
+  "intake_utc": "2026-10-07T06:23:23Z",
+  "validation_finished_utc": "2026-10-07T06:36:50Z",
+  "active_wall_seconds": 807,
+  "retention_started_utc": "2026-10-07T06:36:50Z",
+  "reviewed_head": "9666f50235bb4ead4a4542850c4079ffd66040cd",
+  "reviewed_tree": "4df2d34184b48fab2e4f08c26bec235ae072d77c",
+  "base": "b73e5012c699f85a9e3b643b6cba82f8f195d3ce",
+  "local_start_head": "6f850aced96622ae625d8ada5dbabeba5b05b0fa",
+  "corrected_smoke_execution_head": "2916b91a9b2613487ce20c0343d4f27868097eaa",
+  "corrected_smoke_execution_tree": "b83a2b91d08c15d8b3ec1cd24ccb994d4290aecd",
+  "focused_execution": "uncommitted corrected source, same helper/test bytes as corrected smoke execution commit",
+  "source_sha256": {
+    "scripts/web-planning-continuation.mjs": "360c3fe41438bbe5c90ee89bbec237b81181748333bd057427e0f69ac037759a",
+    "scripts/web-planning-continuation-contract.mjs": "0e3c4cb7adae2bc93102c35c16d2fa39d9ef359b261e40f8b3ca68ebfadf208e",
+    "scripts/test-web-planning-continuation.mjs": "ef96bc2a128d0013546a1f4b14bb617d1a4bf017c40899d08706d524dd530ad7",
+    "scripts/test-web-planning-continuation-failures.mjs": "d67ddde49a5231371338a792e33931a86421bd3841d9ce82bc36256a30d0c13d",
+    "scripts/smoke-web-planning-continuation.mjs": "6183c8a8eea150bc397bef1e579dd91dc5bb3f7e7d8b69b5801e0f44144962f0",
+    "scripts/web-planning-cdp.mjs": "ad47cbbe45451045c1befd80d17536ec06eeeadcbc395761cc40a2022b44d48e"
+  },
+  "counts": {
+    "pre_correction_reproduction": 1,
+    "failure_control_invocations": 2,
+    "failure_control_failed_invocations": 1,
+    "corrected_failure_controls_passed": 14,
+    "existing_focused_campaigns": 1,
+    "existing_focused_controls_passed": 64,
+    "new_smoke_campaigns": 1,
+    "smoke_retries": 0,
+    "new_authored_smoke_saves": 3,
+    "reconstructions": 2,
+    "unknown_save_resolutions": 0
+  },
+  "retained_roots": [
+    {
+      "root": "/tmp/ag-suite-cYIC1o",
+      "device": "33",
+      "inode": "9050",
+      "source": "failed intermediate failure-control invocation",
+      "primary_error": "INJECTED_OBSERVATION_LOST",
+      "secondary_actual_error": "ERR_CRYPTO_HASH_FINALIZED",
+      "settlement": "unresolved",
+      "reason": "original test process exited before Canonical owner settlement; original in-memory owner unavailable; no force release or manual deletion",
+      "targeted_host_observation": "no matching live Node child; not Canonical settlement or arbitrary-descendant absence"
+    }
+  ],
+  "corrected_control_roots_all_recovered": true,
+  "existing_focused_and_smoke_roots_removed": 4,
+  "fixture_cleanup_seconds": 0.402,
+  "approval_burden": {
+    "network_profiles_requested_separately": 2,
+    "profile": "supported per-command network permission plus explicit synthetic-loopback browser opt-in",
+    "denials": 0,
+    "clarification_questions": 0,
+    "manual_clicks": "unobserved"
+  },
+  "provider_expenditure": 0,
+  "original_evidence": "d1-01 unchanged; original successful smoke valid only for its original source",
+  "mac_deciding_verification": "NOT RUN / integration pending",
+  "handoff": "planner-selected verification PLUS standalone failure controls, existing focused suite and smoke; Full Canonical is not assumed to invoke them"
+}

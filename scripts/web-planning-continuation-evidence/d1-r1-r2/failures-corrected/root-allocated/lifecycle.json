@@ -1,0 +1,33 @@
+{
+  "started_at": "2026-10-07T06:32:56.130Z",
+  "finished_at": "2026-10-07T06:32:56.132Z",
+  "primary_error": {
+    "stage": "root.allocated",
+    "name": "Error",
+    "code": "EACCES",
+    "check_id": null
+  },
+  "secondary_errors": [],
+  "child": null,
+  "child_state": "not-created",
+  "child_pid": null,
+  "stream_capture_complete": true,
+  "root_state": "removed",
+  "fixture_cleanup": false,
+  "disposable_root_removed": true,
+  "cleanup_failures": [],
+  "recovery": null,
+  "stdout": {
+    "bytes": 0,
+    "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "stderr": {
+    "bytes": 0,
+    "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "runner_logs": {
+    "bytes": 0,
+    "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "deciding_verification": false
+}

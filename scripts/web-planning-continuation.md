@@ -136,3 +136,60 @@ Two actual command profiles used supported permissions, with no denial, no user
 clarification question and no provider expenditure. Manual approval clicks are
 not observable. These observations show this composition's synthetic behavior;
 they do not establish measured efficiency gains or transfer old pilot PASS.
+
+## R1/R2 failure-path correction
+
+Director review 5438413471 identified a polling loop surviving its deadline and
+unprotected root setup. The original D1 smoke above remains evidence for its
+original source. New records are in `web-planning-continuation-evidence/d1-r1-r2`.
+
+Deadlines now abort polling and stop scheduling further predicates. The helper
+joins the active operation and cancellation before reporting settled expiry;
+the default settlement allowance is 16 seconds (the unchanged CDP request owner
+has its own 15-second bound). If settlement is still unknown, the deadline error
+reports `unresolved`, and fixture cleanup cannot qualify. The listener probe
+destroys its socket on expiry and waits for its close event. Browser readiness
+and target fetches receive the abort signal and consume their response bodies.
+The moved CDP implementation and shared lifecycle owners are unchanged.
+
+Root preparation is protected immediately after the existing allocator returns.
+Reports distinguish `not-created`, `observed-settled` and `unresolved` consumers;
+not-created resources use null disposal observations. An initialization failure
+without a Worker handle remains unresolved. Safely settled roots use the existing
+Canonical cleanup API. Otherwise the returned/lifecycle report includes the local
+root path, device/inode identity, child PID when observed, original failure stage
+and cleanup-withheld reason. Primary, cleanup and reporting errors are separate.
+A reporting failure also returns the report on the thrown error. No error path
+returns a completed read/checkpoint. Stream digests are snapshots while a child
+is unresolved, so later owned runner output cannot fail by finalizing a digest.
+
+The new standalone controls use controlled deadlines and injected faults; they
+do not manipulate OS permissions. They also exercise an actually in-flight
+Canonical child, retain it at the injected observation failure, explicitly
+release that synthetic child, observe natural settlement and then remove its
+root through its original owner. An intermediate control exposed the digest
+finalization error; its failure and retained root `/tmp/ag-suite-cYIC1o` (device
+33, inode 9050) are recorded. That control process exited before owner settlement;
+no forced release/manual deletion was used. A targeted Linux observation found
+no matching live Node child, but does not constitute Canonical owner settlement.
+The corrected failure-control run recovered all of its own roots.
+
+```sh
+node --import tsx scripts/test-web-planning-continuation-failures.mjs NEW_FAILURE_OUTPUT
+node --import tsx scripts/test-web-planning-continuation.mjs NEW_FOCUSED_OUTPUT
+node --import tsx scripts/smoke-web-planning-continuation.mjs NEW_SMOKE_BUNDLE
+```
+
+Later Mac verification must explicitly run **all three standalone commands** on
+fresh paths, in addition to the planner-selected verification. Full Canonical
+alone does not establish that these new standalone scripts ran. Mac deciding
+verification remains NOT RUN / integration pending.
+
+Corrected-source validation: 14 failure-path controls and the existing 64 focused
+controls passed. One new synthetic smoke passed on local execution commit
+`2916b91a9b2613487ce20c0343d4f27868097eaa`, with exact downloaded assessment
+bytes, preserved history/selections and complete cleanup for its three fixtures.
+No smoke retry occurred. The failed intermediate control and its one retained
+root remain separate from these successful corrected-source results. Active
+correction/validation took 13m 27s; retention and cleanup timing are separately
+reported in the new evidence and PR metadata.

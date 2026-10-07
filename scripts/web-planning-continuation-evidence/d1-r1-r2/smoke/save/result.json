@@ -1,0 +1,26 @@
+{
+  "operation": "save",
+  "work_id": "64706b6f-ef34-4758-aa67-58f18ac43e34",
+  "revision": 3,
+  "fingerprint": "sha256:1aaaea321d143d74981f51df688bf72a792bdaffe6cd0260e94f0becd614f483",
+  "checkpoint_hash": "sha256:befdf09d7b2d5eaebf7bb877ecd8a67f21546956a8aee1dc1681f922832522cc",
+  "assessment": {
+    "name": "synthetic-assessment.json",
+    "bytes": 987,
+    "digest": "sha256:071bd22ca5e75d922fda82a7d85dc3eb146851f2f6daeefee5b8d3626400825d",
+    "authenticated_download_equal": true,
+    "synthetic": true
+  },
+  "export": {
+    "bytes": 15320,
+    "digest": "sha256:861f824cfd0f4f12c9e4d81aeafea5e9940f19165885041a6d6706bff0210994",
+    "fingerprint": "sha256:6255642df294f68350dfc1f6376e5a023d681134c3c468f2032d2236246b6922"
+  },
+  "original_history_and_selections_preserved": true,
+  "progress": {
+    "reconstruction_accepted": true,
+    "accepted_save": true,
+    "unknown_resolutions": 0
+  },
+  "authored_save_requests": 1
+}

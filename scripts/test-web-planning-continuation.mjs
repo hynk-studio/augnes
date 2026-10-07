@@ -38,7 +38,7 @@ async function controls(output,allow){
   const bundle=path.join(root,'bundle');await mkdir(bundle);await mkdir(path.join(bundle,'read'));
   await assert.rejects(bundlePaths(bundle,'read'),{code:'operation_output_exists'});checks.push('bundle.non-overwrite');
   const linked=path.join(root,'linked');await symlink(bundle,linked);await assert.rejects(bundlePaths(linked,'save'),{code:'bundle_not_regular'});checks.push('bundle.symlink-refused');
-  const goodCleanup={worker_disposed:true,browser_exit_observed:true,browser_streams_closed:true,debug_listener_closed:true,owned_browser_records:0,failures:[]};
+  const goodCleanup={resources:{worker:'observed-settled',browser:'observed-settled',listener:'observed-settled',cdp:'observed-settled',operations:'observed-settled'},cdp_closed:true,worker_disposed:true,browser_exit_observed:true,browser_streams_closed:true,debug_listener_closed:true,owned_browser_records:0,failures:[]};
   for(const k of ['worker_disposed','browser_exit_observed','browser_streams_closed','debug_listener_closed','owned_browser_records','failures'])reject('cleanup.'+k,()=>requireCleanup({...goodCleanup,[k]:k==='owned_browser_records'?1:k==='failures'?[{code:'observed_failure'}]:false}),'fixture_cleanup_incomplete');
   await withDevelopmentFixture(output,allow,async({c})=>{
     for(const [i,f] of fixtures.entries()){
