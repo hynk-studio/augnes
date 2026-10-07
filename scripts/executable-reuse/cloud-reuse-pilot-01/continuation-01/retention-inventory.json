@@ -1,0 +1,135 @@
+{
+  "pilot": "cloud-reuse-pilot-01",
+  "phase": "A",
+  "producer_status": "ready for review",
+  "source_baseline": "b73e5012c699f85a9e3b643b6cba82f8f195d3ce",
+  "executed_helper_commit": "5668649dbed8288fec4a7a000f6e83886eb90dde",
+  "original_inventory_commit": "fc81b4af8fb94db03125714eb8cdfe329e8e804b",
+  "inventory_scope": "Prepared helper and continuation evidence only; excludes this inventory itself; immutable retention commit reported separately in PR/final report",
+  "review": {
+    "credential_content_scan": "PASS",
+    "decoded_body_identities": "PASS",
+    "synthetic_context_attribution_conditions_and_dependencies": "PASS",
+    "original_inventory_at_original_commit": "PASS",
+    "original_history_files_unchanged": "PASS",
+    "all_retained_files_reviewed": "Known experiment source, synthetic work/export and bounded observations only; no credentials, auth values, DB copies, private production material, broad logs, conversations or hidden reasoning"
+  },
+  "files": [
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/continuation-01/PREPARATION.md",
+      "bytes": 4333,
+      "sha256": "538a26a1db046f236f7280690f6f3a9288f4b6f866303b827ed94385ad0b637e"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/continuation-01/README.md",
+      "bytes": 8943,
+      "sha256": "a8855e0950b318c6ec16f5ed1adadd529cbf55d809848a21d72b4e1190ec5764"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/continuation-01/attempt-3/cli-help.txt",
+      "bytes": 654,
+      "sha256": "ba3d780237fef7b76a04c45bd98aeff310a7e9c8c2138a9bad0a73e853139b7c"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/continuation-01/attempt-3/diagnostics.json",
+      "bytes": 2390,
+      "sha256": "c3dfb9ecaf1ca92ac38c1c8265c5cba9c7da6d656103b896545895a470240863"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/continuation-01/attempt-3/execution-helper.json",
+      "bytes": 1282,
+      "sha256": "62d46c98a76a56ab2f5907e2e3df1c624d8ef476f972ed22b7760411e7b8d5bd"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/continuation-01/attempt-3/execution.json",
+      "bytes": 2517,
+      "sha256": "6cb2f9d33557a63837963ee3d02016d2448e48b5f18fd71038f22d6864074c4c"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/continuation-01/attempt-3/fixture-cleanup.json",
+      "bytes": 172,
+      "sha256": "505edc1239fed2205d35b8da65a122aebea9641fef5e8d8b4768bf0a7d70608b"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/continuation-01/attempt-3/lifecycle.json",
+      "bytes": 592,
+      "sha256": "4029ff565155289eec7309eb389936cb3ccc6d9ae63cd0ab0635372e71512f8d"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/continuation-01/attempt-3/manifest.json",
+      "bytes": 2271,
+      "sha256": "9f33c086a37ead9f5a0353489152de1c7abe702219500d9c54e68f556b9c4c0b"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/continuation-01/attempt-3/planning-work.json",
+      "bytes": 25632,
+      "sha256": "2634ccd6ec63ae50b4f05a8ff89e9fd8e723242f75f5cdeb512c81af4cc7d219"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/continuation-01/attempt-3/producer-observation.json",
+      "bytes": 1700,
+      "sha256": "2447562eb08670b93ae8516537f2aa78b3e8b3cdf19e32e1d013ffbb68798b9f"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/continuation-01/attempt-3/producer-stdout.json",
+      "bytes": 523,
+      "sha256": "37869ecc10f665461d7e3f1e53085329b0454bb8c2acda554ed64cae399a37cb"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/continuation-01/original-inventory-binding.json",
+      "bytes": 629,
+      "sha256": "74cdfe456b528f898a629491d148080e7a447a19d1e3bb501cfb31b17328b8d5"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/continuation-01/post-retention-check-failure.json",
+      "bytes": 618,
+      "sha256": "087529b6a413f5be0da03b31d2c4ffc2a3da6768140ae4ce7ce12755df00b6b1"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/continuation-01/preparation-controls.json",
+      "bytes": 2209,
+      "sha256": "7b438ae2a147cc5cfe29abdf39d9efe42b3729d5509ceb00dc207555e4ee4c6c"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/continuation-01/retained-verification.json",
+      "bytes": 831,
+      "sha256": "262193811670b86a8950777df84c985d94d874c903e199bd2b69766a01a38ca3"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/continuation-01/verify-retained.mjs",
+      "bytes": 4552,
+      "sha256": "1911e17194905e7000afc24d22feb53e73d498e1214f83db7f40c72f071a1eae"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/oracle.py",
+      "bytes": 1230,
+      "sha256": "241efdcd9c278123a86c15ccb2797a8fdee029afc948d81fcf90ac92eee22240"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/preparation.mjs",
+      "bytes": 2829,
+      "sha256": "7324a2ef370750d139bb9ddfcacffe1306a10d4f389ba6b0752b679955164c19"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/producer-child.mjs",
+      "bytes": 23796,
+      "sha256": "b1dc67f3bc64fc4cc17d830f3608b77cf3dd7f86012b76a6e594ec78fc7c4059"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/run-producer.mjs",
+      "bytes": 3116,
+      "sha256": "359fb4e92e6c6c86c17853e702b0375dcf3364e858e1eaf4dd90ea0797e45be1"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/test-preparation.mjs",
+      "bytes": 3582,
+      "sha256": "4cfc74315be521eb3d77f6ea9f79e48542fa0e0daa217d77d26f23cbf8211db1"
+    }
+  ],
+  "export": {
+    "path": "scripts/executable-reuse/cloud-reuse-pilot-01/continuation-01/attempt-3/planning-work.json",
+    "bytes": 25632,
+    "sha256": "2634ccd6ec63ae50b4f05a8ff89e9fd8e723242f75f5cdeb512c81af4cc7d219"
+  },
+  "phase_b": "NOT RUN"
+}

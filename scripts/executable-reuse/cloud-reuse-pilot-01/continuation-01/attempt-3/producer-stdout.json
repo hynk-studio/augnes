@@ -1,0 +1,23 @@
+{
+  "inputs": {
+    "attempt": "9",
+    "verification": "3",
+    "repair": "4",
+    "direct_success": "2/5",
+    "inspection": "1",
+    "inspected_success": "2/3"
+  },
+  "evidence": "constructed development calculation; probabilities and costs are stipulated",
+  "workflows": {
+    "direct": {
+      "status": "finite",
+      "expected_work": "36"
+    },
+    "inspected": {
+      "status": "finite",
+      "expected_work": "43/2"
+    }
+  },
+  "inspection_minus_direct": "-29/2",
+  "comparison": "inspection_reduces_work"
+}

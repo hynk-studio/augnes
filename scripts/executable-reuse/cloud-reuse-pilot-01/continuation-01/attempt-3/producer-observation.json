@@ -1,0 +1,67 @@
+{
+  "phase": "A",
+  "host": "linux",
+  "authentication": "existing synthetic local login/session adapter; not live Cloudflare Access",
+  "browser_version": "Chromium 151.0.7922.173 built on Debian GNU/Linux 13 (trixie)",
+  "browser_sandbox_disabled": true,
+  "local_worker_origin": "http://127.0.0.1:44335",
+  "browser_debug_port": 35813,
+  "ordinary_save_requests": 2,
+  "unknown_outcome_resolutions": 0,
+  "write_retries": 0,
+  "runtime_external_requests": 0,
+  "intercepted_external_browser_requests": 0,
+  "browser_failures": [],
+  "api_routes": [
+    {
+      "method": "GET",
+      "path": "/api/works"
+    },
+    {
+      "method": "POST",
+      "path": "/api/drafts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/work/47b083cb-833d-49e3-9652-fa6c8d814730/save"
+    },
+    {
+      "method": "GET",
+      "path": "/api/works"
+    },
+    {
+      "method": "POST",
+      "path": "/api/work/47b083cb-833d-49e3-9652-fa6c8d814730/ticket"
+    },
+    {
+      "method": "POST",
+      "path": "/api/work/47b083cb-833d-49e3-9652-fa6c8d814730/save"
+    },
+    {
+      "method": "GET",
+      "path": "/api/works"
+    },
+    {
+      "method": "GET",
+      "path": "/api/works"
+    },
+    {
+      "method": "GET",
+      "path": "/api/work/47b083cb-833d-49e3-9652-fa6c8d814730"
+    },
+    {
+      "method": "POST",
+      "path": "/api/work/47b083cb-833d-49e3-9652-fa6c8d814730/context"
+    },
+    {
+      "method": "GET",
+      "path": "/api/work/47b083cb-833d-49e3-9652-fa6c8d814730/export"
+    }
+  ],
+  "revision_1_preserved": true,
+  "revision_2_readback": true,
+  "elapsed_before_cleanup_ms": 2620,
+  "provider_api_calls": 0,
+  "usage_other_than_observed": "unmeasured",
+  "phase_b": "NOT RUN"
+}

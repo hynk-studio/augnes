@@ -1,0 +1,11 @@
+{
+  "check": "additional read-only retained-export audit with nested git subprocess comparisons",
+  "stage": "pinned source body comparison after pure v0.3 package/chain validation",
+  "observed_error": "spawnSync git EPERM in default shell sandbox",
+  "producer_invocation": false,
+  "export_modified": false,
+  "safe_followup": "Use subprocess-free file/hash audit; pinned source and executed-helper commit bytes were already checked in preparation and the successful producer run",
+  "additional_browser_or_producer_retry": false,
+  "platform_permission_or_network_setting_changed": false,
+  "phase_b": "NOT RUN"
+}

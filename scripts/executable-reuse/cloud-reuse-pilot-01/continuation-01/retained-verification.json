@@ -1,0 +1,26 @@
+{
+  "kind": "read-only retained producer artifact audit; no reconstruction",
+  "result": "PASS",
+  "revisions": [
+    {
+      "revision": 1,
+      "fingerprint": "sha256:616c6503c0ae6bb6b3f69ddeb4993c2e491ab492b5a3d2a8c5663706a51c4983",
+      "files": 2
+    },
+    {
+      "revision": 2,
+      "fingerprint": "sha256:95c62c2f728db3ddad3239e5bdc1be1d4b6c35512b3518b85477d3236ffddb51",
+      "files": 3
+    }
+  ],
+  "exact_body_count": 3,
+  "export_bytes": 25632,
+  "export_sha256": "2634ccd6ec63ae50b4f05a8ff89e9fd8e723242f75f5cdeb512c81af4cc7d219",
+  "executed_helper_commit": "5668649dbed8288fec4a7a000f6e83886eb90dde",
+  "executed_helper_files_unchanged": true,
+  "input_equality": true,
+  "original_inventory_binding_valid": true,
+  "original_history_files_unchanged": true,
+  "cleanup_complete": true,
+  "phase_b": "NOT RUN"
+}

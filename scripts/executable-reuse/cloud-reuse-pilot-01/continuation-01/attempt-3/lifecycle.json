@@ -1,0 +1,23 @@
+{
+  "phase": "A",
+  "started_at": "2026-10-07T01:47:08.357Z",
+  "finished_at": "2026-10-07T01:47:12.219Z",
+  "child": {
+    "label": "producer",
+    "exit_code": 0,
+    "signal": null,
+    "timed_out": false,
+    "duration_ms": 3839,
+    "spawn_error_code": null,
+    "exit_observed": true,
+    "streams_closed": true,
+    "cleanup_started": true,
+    "cleanup_completed": true,
+    "remaining_owned_processes": 0,
+    "termination_reason": "natural_exit"
+  },
+  "disposable_resources_removed": true,
+  "cleanup_failures": [],
+  "phase_b": "NOT RUN",
+  "deciding_canonical_evidence": false
+}
