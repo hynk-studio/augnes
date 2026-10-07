@@ -1,0 +1,14 @@
+{
+  "stage": "loopback",
+  "check": "loopback listen",
+  "location": "node:net; prerequisite-child.mjs loopback",
+  "diagnostic": {
+    "name": "Error",
+    "code": "EPERM",
+    "syscall": "listen",
+    "errno": -1,
+    "assertion_operator": null,
+    "evaluation": null,
+    "cause": null
+  }
+}

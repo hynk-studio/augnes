@@ -1,0 +1,311 @@
+{
+  "pilot": "cloud-reuse-pilot-01",
+  "phase": "B same-task continuation",
+  "director_review": 5437304593,
+  "result": "BLOCKED on unresolved exact nested marker stdout; no Worker/browser fixture or additional full B invocation",
+  "identity": {
+    "reviewed_head": "1a1032a104fc15f55b122046b57f7139a7af5f4c",
+    "reviewed_tree": "fbdbaee50a83e26faf1917eac4bfd95db4b68749",
+    "producer_base": "d3f9f0d538078b33c7db892666d50755a71337bf",
+    "application_baseline": "b73e5012c699f85a9e3b643b6cba82f8f195d3ce",
+    "branch": "codex/cloud-reuse-pilot-01-consumer",
+    "execution_commit": "a402aeb18bd146a1e5b6b5fc169c2bf50775dc4c",
+    "execution_tree": "7b6e8867f3160d7642be9c9ef4e1ee558cb8e545",
+    "execution_commit_raw_base64": "dHJlZSA3YjZlODg2N2YzMTYwZDc2NDJiZTljOWVmNGUxZWU1NThjYjhlNTQ1CnBhcmVudCAxYTEwMzJhMTA0ZmMxNWY1NWIxMjIwNDZiNTdmNzEzOWE3YWY1ZjRjCmF1dGhvciBIeXVuaWwgS2ltIDxoeW5rMTI0MEBvdXRsb29rLmNvbT4gMTc5MTM0NDIwOSArMDAwMApjb21taXR0ZXIgSHl1bmlsIEtpbSA8aHluazEyNDBAb3V0bG9vay5jb20+IDE3OTEzNDQyMDkgKzAwMDAKCmV4cGVyaW1lbnQ6IHJldGFpbiBleGFjdCBwaWxvdCBkaWFnbm9zdGljcyBhbmQgY29ycmVjdCBwYXJ0aWFsIEIgYWNjb3VudGluZwo=",
+    "remote_retention_identity": "reported at exact final #1414 head; distinct from execution identity"
+  },
+  "source_repairs": [
+    "bounded exact byte capture and lifecycle persisted before marker assertions; runner logs separate",
+    "parent stderr retained, not discarded",
+    "missing portClosed supplied; timeout and permission failure stay failures",
+    "cleanup/reporting function persists diagnostic failures instead of masking earlier failure",
+    "CDP open/close deadlines and source-admission failure capture",
+    "independent read-only known process-group checks; no shared owner modification",
+    "numeric successor summary comes from actual stdout validated by independent comparison",
+    "B3 labelled scripted scope rule, fresh judgment NOT OBSERVED, resulting B report partial"
+  ],
+  "marker": {
+    "new_invocations": 1,
+    "confirmation_invocations": 0,
+    "argv": [
+      "-e",
+      "process.stdout.write('child-ok')"
+    ],
+    "node_entry": {
+      "path": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "bytes": 125989464,
+      "sha256": "bc17c508ffeed0ec622934f9b7fa72f8e78da65350e63c3eceb56fa688aa5e12"
+    },
+    "stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "retained_bytes": 0,
+      "hex": "",
+      "utf8_escaped": "\"\"",
+      "truncated": false,
+      "redacted": false,
+      "exact": true,
+      "chunk_types": []
+    },
+    "stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "retained_bytes": 0,
+      "hex": "",
+      "utf8_escaped": "\"\"",
+      "truncated": false,
+      "redacted": false,
+      "exact": true,
+      "chunk_types": []
+    },
+    "lifecycle": {
+      "label": "prerequisite nested child",
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "duration_ms": 56,
+      "spawn_error_code": null,
+      "exit_observed": true,
+      "streams_closed": true,
+      "cleanup_started": true,
+      "cleanup_completed": true,
+      "remaining_owned_processes": 0,
+      "termination_reason": "natural_exit"
+    },
+    "cause": "unresolved; no concrete pilot-local cause identified",
+    "interpretation": "zero captured bytes; separate runner logs exclude the proposed contamination explanation for this reproduction; historical missing output cannot be reconstructed",
+    "smallest_unresolved_requirement": "establish why the exact required stdout is absent under the recorded nested process profile; do not substitute exit status, trimming, side-channel output, or different invocation"
+  },
+  "loopback": {
+    "default": {
+      "result": "FAIL",
+      "stage": "loopback listen",
+      "diagnostic": {
+        "name": "Error",
+        "code": "EPERM",
+        "syscall": "listen",
+        "errno": -1,
+        "assertion_operator": null,
+        "evaluation": null,
+        "cause": null
+      }
+    },
+    "approval": {
+      "interface": "exec_command sandbox_permissions=with_additional_permissions; additional_permissions.network.enabled=true",
+      "requested": true,
+      "platform_accepted_and_executed": true,
+      "denied": false,
+      "scope": "one repeat of the same loopback-only command in a fresh owned root",
+      "additional_repeat_used": 1,
+      "global_configuration_changed": false,
+      "proxy_changed": false,
+      "bypass": false
+    },
+    "approved_repeat": "PASS: bind/connect/exchange/close 127.0.0.1",
+    "claim_limit": "This new controlled check establishes the current listen denial and successful scoped repeat; it does not retrospectively identify the syscall behind original B attempt-2 EPERM or explain marker stdout."
+  },
+  "counts": {
+    "marker_only_this_continuation": 1,
+    "marker_confirmations_this_continuation": 0,
+    "marker_probes_cumulative_including_prior_embedded_probe": 2,
+    "loopback_checks_this_continuation_and_cumulative": 2,
+    "loopback_permission_repeats": 1,
+    "prerequisite_harness_invocations_this_continuation": 3,
+    "prerequisite_harness_invocations_cumulative": 4,
+    "worker_browser_readiness_fixtures_this_continuation_and_cumulative": 0,
+    "full_B_invocations_this_continuation": 0,
+    "full_B_invocations_cumulative": 2,
+    "counting_note": "The prior prerequisite harness stopped at its embedded marker. This continuation uses three separately owned diagnostic roots: one marker and default/approved loopback. None is a Worker/browser readiness fixture."
+  },
+  "obligations": {
+    "worker_browser_login_readiness": "NOT RUN; marker gate failed",
+    "full_B": "NOT RUN in this continuation",
+    "reconstruction_downloads_B1_B2_successor_corruption": "NOT RUN",
+    "fresh_B3_judgment": "NOT OBSERVED",
+    "scripted_B3_scope_check": "prepared, not executed",
+    "accepted_reconstructions": 0,
+    "work_saves": 0,
+    "case_calculations": 0,
+    "corrupt_import_submissions": 0
+  },
+  "cleanup": {
+    "all_three_diagnostic_roots_removed": true,
+    "direct_child_streams_and_settlement": "observed and retained",
+    "shared_owner_tracked_remaining": 0,
+    "shared_owner_ps_snapshot_status": "not exposed; neither success nor failure inferred",
+    "independent_observation": "/proc metadata snapshot available; known outer/nested owned groups have zero live members",
+    "scope_limit": "No claim about arbitrary escaped or untracked descendants; known group identities in each retained lifecycle",
+    "residual_or_uncertain_owned_resources": false
+  },
+  "measurement": {
+    "start_anchor": "first request-file download mtime; earliest retained task-intake timestamp",
+    "start_epoch_ns": 1791343897387873594,
+    "start_utc": "2026-10-07T03:31:37.387874+00:00",
+    "evidence_cutoff_utc": "2026-10-07T03:40:49.437804+00:00",
+    "elapsed_to_evidence_cutoff_ms": 552049,
+    "elapsed_through_final_report": "reported in #1414 and final chat after retention/planner",
+    "initial_conversational_overhead_before_download": "not instrumented",
+    "prior_total_setup_time": "unmeasured",
+    "provider_calls": 0,
+    "provider_expenditure": 0,
+    "cpu_memory_network_platform_usage": "unmeasured",
+    "fixture_elapsed_ms": {
+      "marker-reproduction": 1910,
+      "loopback-default": 946,
+      "loopback-approved": 1065
+    }
+  },
+  "verification": {
+    "focused_checks": "focused-checks.json",
+    "exact_final_planner": "run and report against final remote retention head in #1414",
+    "mac_deciding_verification": "NOT RUN / integration pending"
+  },
+  "stopping": "Bounded campaign ended; marker gate unresolved; no second marker without a concrete pilot-local cause, no readiness fixture or B run.",
+  "retained_inventory": [
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-child.mjs",
+      "bytes": 33191,
+      "sha256": "9c1af3c8c1886bafa0a9feee0ce23f1a279dea89cd49a9b06d8dfc9f2b08d34a"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/prerequisite-child.mjs",
+      "bytes": 13583,
+      "sha256": "f640d1d0a5566ab7515cd67860a516402d9f975c30c0ed3bea5734027f87951d"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/run-consumer.mjs",
+      "bytes": 4534,
+      "sha256": "6229d7437caf7b9fb4aefbafa4693818268f85cd6091e93a6199bd0f9c383571"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/run-prerequisites.mjs",
+      "bytes": 4785,
+      "sha256": "b61ba232b13f2c166b22c1c395fdce1206a2d32c62865ceb9a524ff8ee255596"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/pilot-evidence.mjs",
+      "bytes": 5861,
+      "sha256": "89ab1e0b1aa65279490fbee27c1ad7c38c85002977f50860ff06c43f056579ef"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/test-pilot-evidence.mjs",
+      "bytes": 3621,
+      "sha256": "c80af42ede54f4599bcefe207d6ef70a842b69a2de6a2634b5ae7d4b67e9c980"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-02/environment.json",
+      "bytes": 711,
+      "sha256": "9f1695465abbea4c35c0db7ab2f67d0dfd80da7dbf0f52f94aea0f280d51ca5e"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-02/focused-checks.json",
+      "bytes": 1532,
+      "sha256": "b369eb3a144feff8652eb0695e23cdb35dfb2659e6f3266d2917a0739f85521e"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-02/loopback-approved/execution.json",
+      "bytes": 1455,
+      "sha256": "94659c82f932e8342d41b3ec410df2cffa37b949cd6fc081706790d98919fba9"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-02/loopback-approved/identity-read-1.json",
+      "bytes": 4524,
+      "sha256": "a0846634cd77e7fd8a896221ae1aaf2a95eb2d35a95f5addaf37f423dabd63b4"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-02/loopback-approved/identity-read-2.json",
+      "bytes": 4531,
+      "sha256": "2e11e1cd7ce2639887feff5c042d4713c0a6754eae21292252654bbb95523dbf"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-02/loopback-approved/lifecycle.json",
+      "bytes": 1281,
+      "sha256": "4e9290ce5afbdac17811315fe1c1945a6dd7c2dbb5745c0c0a51a71c61f1730c"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-02/loopback-approved/parent-output.json",
+      "bytes": 4707,
+      "sha256": "b0368c0d9ff3c43a17f0f5604ad6d8692fdac48e3778d780859cccd70884cd99"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-02/loopback-approved/result.json",
+      "bytes": 1022,
+      "sha256": "674f87094209f995553030d22c914e61db85acba5249824a4ae6d9d3a7916727"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-02/loopback-default/execution.json",
+      "bytes": 1454,
+      "sha256": "9a548b843bc492383bce75b43dd2d02eb13f146a36189101ddc137722d6cb44d"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-02/loopback-default/failure.json",
+      "bytes": 296,
+      "sha256": "ad6c2a3e17be4bcfc2a3590fdaddee7d27d44e6d190bdb7f35a6de6c2e6240fe"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-02/loopback-default/identity-read-1.json",
+      "bytes": 4524,
+      "sha256": "015d1e1cb18a0547380761ca76656fbce9b3bf7ec0ed0cea96e6a58c4ac1b0b1"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-02/loopback-default/identity-read-2.json",
+      "bytes": 4531,
+      "sha256": "bf2749b743c640d84f992bf0a580a8bdb6c4387d1d1d37c0dae0a5129a46f3f0"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-02/loopback-default/lifecycle.json",
+      "bytes": 1279,
+      "sha256": "628e389a11e83a58733b3c3a30da706f44b8e0566510dab6838583ada2779c04"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-02/loopback-default/parent-output.json",
+      "bytes": 4868,
+      "sha256": "5db9e831a93325429223cd83bbfabe3e3bb5a092ae3faf2be41cde6d2322987f"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-02/loopback-default/result.json",
+      "bytes": 1025,
+      "sha256": "a2107ebfabe8cee97a8f89d02ca4daada6dea1f296d136dd09de18082641def9"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-02/marker-reproduction/execution.json",
+      "bytes": 1453,
+      "sha256": "dca0765570a6e7d4fd821ed81846bbb7822cb197a217e8dcb7a47f6ab3a57c90"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-02/marker-reproduction/failure.json",
+      "bytes": 324,
+      "sha256": "a7289673837b2a376ede2fb2b4024e864dbfc92df885df8474beb196df45780e"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-02/marker-reproduction/identity-read-1.json",
+      "bytes": 4530,
+      "sha256": "5f93ff19cbfe8ae03c5855ebc0b51e8a3ba72430985156e962a089599a67cdd6"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-02/marker-reproduction/identity-read-2.json",
+      "bytes": 4531,
+      "sha256": "dd33c59f0f527295e28b2ac8479396b37f1ca84aad8ea1183fca02bae911b40f"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-02/marker-reproduction/lifecycle.json",
+      "bytes": 1294,
+      "sha256": "cfeddfa6416b10e8a9c98ebae489dc3663610d58d667d3eabd0bf6c99ba7cb83"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-02/marker-reproduction/marker.json",
+      "bytes": 5240,
+      "sha256": "ac1ed3b9724945c688b06d2d3a3e7e268862f893d2347a9fe348528c2b369f4d"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-02/marker-reproduction/parent-output.json",
+      "bytes": 4843,
+      "sha256": "d5243060ebfdc4e1a541e74fd72019282b0a2856fadd2d503f6d2b5db6cf62c1"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-02/marker-reproduction/result.json",
+      "bytes": 1064,
+      "sha256": "a63a1a298d1b4a47d938ac6eb83a80db1a060f9d4369ef28692ffe54a39c6cf1"
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "kind": "prerequisite qualification",
+  "reviewed_head": "1a1032a104fc15f55b122046b57f7139a7af5f4c",
+  "mode": "loopback",
+  "commit": "a402aeb18bd146a1e5b6b5fc169c2bf50775dc4c",
+  "tree": "7b6e8867f3160d7642be9c9ef4e1ee558cb8e545",
+  "helpers": [
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/run-prerequisites.mjs",
+      "bytes": 4785,
+      "sha256": "b61ba232b13f2c166b22c1c395fdce1206a2d32c62865ceb9a524ff8ee255596"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/prerequisite-child.mjs",
+      "bytes": 13583,
+      "sha256": "f640d1d0a5566ab7515cd67860a516402d9f975c30c0ed3bea5734027f87951d"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/preparation.mjs",
+      "bytes": 2829,
+      "sha256": "7324a2ef370750d139bb9ddfcacffe1306a10d4f389ba6b0752b679955164c19"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/pilot-evidence.mjs",
+      "bytes": 5861,
+      "sha256": "89ab1e0b1aa65279490fbee27c1ad7c38c85002977f50860ff06c43f056579ef"
+    }
+  ],
+  "command": [
+    "node",
+    "scripts/executable-reuse/cloud-reuse-pilot-01/run-prerequisites.mjs",
+    "loopback",
+    "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-02/loopback-default",
+    "--allow-unsandboxed-synthetic-pilot"
+  ],
+  "child_profile": "buildCanonicalChildEnvironment; same owner/profile as run-consumer",
+  "synthetic_browser_sandbox_opt_in": true
+}

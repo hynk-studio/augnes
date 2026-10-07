@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { createCanonicalTestResourceRoot, buildCanonicalChildEnvironment, cleanupCanonicalTestResources } from '../../canonical-test-environment.mjs';
 import { runCanonicalChild, canonicalChildAcceptanceFailure } from '../../canonical-child-runner.mjs';
 import { pilotArguments, unsandboxedPilotFlag } from './preparation.mjs';
+import { capture, writeJson, processGroupsAbsent, safeError } from './pilot-evidence.mjs';
 
 async function readCommand(command,args) {
   let stdout='',stderr='';
@@ -24,7 +25,7 @@ assert(!existsSync(output),'Output already exists; preserve the original attempt
 mkdirSync(output,{recursive:true});
 const started=new Date().toISOString();
 const helperFiles=[];
-for(const name of ['run-consumer.mjs','consumer-child.mjs','preparation.mjs','observe-downloaded.py','consumer-oracle.py']){const bytes=await readFile(path.join(here,name));helperFiles.push({path:path.relative(repo,path.join(here,name)),bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')});}
+for(const name of ['run-consumer.mjs','consumer-child.mjs','preparation.mjs','observe-downloaded.py','consumer-oracle.py','pilot-evidence.mjs']){const bytes=await readFile(path.join(here,name));helperFiles.push({path:path.relative(repo,path.join(here,name)),bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')});}
 await writeFile(path.join(output,'execution-helper.json'),JSON.stringify({reviewed_parent:'d3f9f0d538078b33c7db892666d50755a71337bf',
   helper_commit:(await readCommand('git',['rev-parse','HEAD'])).trim(),
   helper_tree:(await readCommand('git',['rev-parse','HEAD^{tree}'])).trim(),
@@ -32,20 +33,25 @@ await writeFile(path.join(output,'execution-helper.json'),JSON.stringify({review
   helper_files:helperFiles,unsandboxed_pilot_opt_in:options.unsandboxed,phase:'B'},null,2)+'\n');
 const owner=createCanonicalTestResourceRoot('ag-suite-');
 for(const name of ['home','runtime-state'])mkdirSync(path.join(owner.root,name));
-let child,error,cleanup;
+let child,error,cleanup,pid,independent;const stdout=capture(16384),stderr=capture(16384),logs=capture(16384);
 try {
   child=await runCanonicalChild({suite:'cloud-reuse-pilot-01',label:'consumer',command:process.execPath,
     args:['--import','tsx',path.join(here,'consumer-child.mjs'),output,...(options.unsandboxed?[unsandboxedPilotFlag]:[])],cwd:repo,
     env:buildCanonicalChildEnvironment({temporaryRoot:owner.root,resourceRoot:owner.root}),
-    resourceOwner:owner,timeoutMs:120000});
+    resourceOwner:owner,timeoutMs:120000,stdout,stderr,log:line=>logs.write(Buffer.from(line+'\n')),onSpawn:value=>{pid=value;}});
   error=canonicalChildAcceptanceFailure(child,{requireNaturalExit:true});
 } catch(e) { error=e; }
 finally {
-  cleanup=cleanupCanonicalTestResources([owner]);
+  independent=await processGroupsAbsent([pid]);
+  await writeJson(path.join(output,'parent-output.json'),{stdout:stdout.record(),stderr:stderr.record(),runner_logs:logs.record(),child:child??null,error:error instanceof Error?safeError(error):error??null,independent_cleanup:independent});
+  let fixtureCleanup;try{fixtureCleanup=JSON.parse(await readFile(path.join(output,'fixture-cleanup.json'),'utf8'));}catch{}
+  const safe=independent.available&&independent.known_groups_absent&&fixtureCleanup?.independent_cleanup?.available&&fixtureCleanup?.independent_cleanup?.known_groups_absent&&fixtureCleanup?.failures?.length===0;
+  cleanup=safe?cleanupCanonicalTestResources([owner]):[];
   await writeFile(path.join(output,'lifecycle.json'),JSON.stringify({phase:'B',started_at:started,
     finished_at:new Date().toISOString(),child:child??null,
-    disposable_resources_removed:cleanup.every(r=>r.completed),
+    independent_cleanup:independent,cleanup_withheld:!safe,retained_root:!safe?owner.root:null,
+    disposable_resources_removed:safe&&cleanup.every(r=>r.completed),
     cleanup_failures:cleanup.flatMap(r=>r.failures),deciding_canonical_evidence:false},null,2)+'\n');
 }
-assert(cleanup.every(r=>r.completed),'Disposable resource cleanup failed.');
+assert(cleanup.length>0&&cleanup.every(r=>r.completed),'Disposable cleanup incomplete or unqualified.');
 if(error)throw error;

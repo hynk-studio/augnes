@@ -1,0 +1,63 @@
+{
+  "command": "git",
+  "args": [
+    "rev-parse",
+    "HEAD^{tree}"
+  ],
+  "stdout": {
+    "bytes": 41,
+    "sha256": "5d42ed8f056f4d772d0a6a49eecc6f8e44026f36bc485d59a8ff3ad4094fdc54",
+    "retained_bytes": 41,
+    "hex": "376236653838363766333136306437363432626539633965663465316565353538636238653534350a",
+    "utf8_escaped": "\"7b6e8867f3160d7642be9c9ef4e1ee558cb8e545\\n\"",
+    "truncated": false,
+    "redacted": false,
+    "exact": true,
+    "chunk_types": [
+      "Buffer"
+    ]
+  },
+  "stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_bytes": 0,
+    "hex": "",
+    "utf8_escaped": "\"\"",
+    "truncated": false,
+    "redacted": false,
+    "exact": true,
+    "chunk_types": []
+  },
+  "runner_logs": {
+    "bytes": 988,
+    "sha256": "2673a8104fc1e3f12d9513f36f927627f50ae00fad42385642bcc94ace6548e6",
+    "retained_bytes": 988,
+    "hex": "5b63616e6f6e6963616c3a636c6f75642d72657573652d70696c6f742d30315d206368696c645f7374617274206c6162656c3d22707265726571756973697465206964656e74697479222074696d656f75745f6d733d31303030300a5b63616e6f6e6963616c3a636c6f75642d72657573652d70696c6f742d30315d206368696c645f737061776e206c6162656c3d22707265726571756973697465206964656e7469747922207069643d313235323020776169743d70726f636573735f657869740a5b63616e6f6e6963616c3a636c6f75642d72657573652d70696c6f742d30315d206368696c645f65786974206c6162656c3d22707265726571756973697465206964656e746974792220656c61707365645f6d733d3420657869745f636f64653d30207369676e616c3d6e756c6c207374646f75745f636c6f7365643d66616c7365207374646572725f636c6f7365643d66616c73650a5b63616e6f6e6963616c3a636c6f75642d72657573652d70696c6f742d30315d206368696c645f636c65616e75705f7374617274206c6162656c3d22707265726571756973697465206964656e746974792220656c61707365645f6d733d3420726561736f6e3d706f73745f657869745f736574746c656d656e7420657869745f6f627365727665643d74727565207374646f75745f636c6f7365643d66616c7365207374646572725f636c6f7365643d66616c73650a5b63616e6f6e6963616c3a636c6f75642d72657573652d70696c6f742d30315d206368696c645f636c65616e75705f726573756c74206c6162656c3d22707265726571756973697465206964656e746974792220656c61707365645f6d733d313020726561736f6e3d706f73745f657869745f736574746c656d656e74207465726d5f73656e743d66616c7365206b696c6c5f73656e743d66616c73652073747265616d735f636c6f7365643d747275652072656d61696e696e675f6f776e65645f70726f6365737365733d300a5b63616e6f6e6963616c3a636c6f75642d72657573652d70696c6f742d30315d206368696c645f726573756c74206c6162656c3d22707265726571756973697465206964656e7469747922206475726174696f6e5f6d733d313020657869745f636f64653d30207369676e616c3d6e756c6c2074696d65645f6f75743d66616c736520657869745f6f627365727665643d747275652073747265616d735f636c6f7365643d7472756520636c65616e75705f636f6d706c657465643d747275652072656d61696e696e675f6f776e65645f70726f6365737365733d30207465726d696e6174696f6e5f726561736f6e3d6e61747572616c5f657869740a",
+    "utf8_escaped": "\"[canonical:cloud-reuse-pilot-01] child_start label=\\\"prerequisite identity\\\" timeout_ms=10000\\n[canonical:cloud-reuse-pilot-01] child_spawn label=\\\"prerequisite identity\\\" pid=12520 wait=process_exit\\n[canonical:cloud-reuse-pilot-01] child_exit label=\\\"prerequisite identity\\\" elapsed_ms=4 exit_code=0 signal=null stdout_closed=false stderr_closed=false\\n[canonical:cloud-reuse-pilot-01] child_cleanup_start label=\\\"prerequisite identity\\\" elapsed_ms=4 reason=post_exit_settlement exit_observed=true stdout_closed=false stderr_closed=false\\n[canonical:cloud-reuse-pilot-01] child_cleanup_result label=\\\"prerequisite identity\\\" elapsed_ms=10 reason=post_exit_settlement term_sent=false kill_sent=false streams_closed=true remaining_owned_processes=0\\n[canonical:cloud-reuse-pilot-01] child_result label=\\\"prerequisite identity\\\" duration_ms=10 exit_code=0 signal=null timed_out=false exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=natural_exit\\n\"",
+    "truncated": false,
+    "redacted": false,
+    "exact": true,
+    "chunk_types": [
+      "Buffer",
+      "Buffer",
+      "Buffer",
+      "Buffer",
+      "Buffer",
+      "Buffer"
+    ]
+  },
+  "lifecycle": {
+    "label": "prerequisite identity",
+    "exit_code": 0,
+    "signal": null,
+    "timed_out": false,
+    "duration_ms": 10,
+    "spawn_error_code": null,
+    "exit_observed": true,
+    "streams_closed": true,
+    "cleanup_started": true,
+    "cleanup_completed": true,
+    "remaining_owned_processes": 0,
+    "termination_reason": "natural_exit"
+  }
+}

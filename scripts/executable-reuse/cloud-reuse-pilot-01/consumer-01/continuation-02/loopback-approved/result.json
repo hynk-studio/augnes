@@ -1,0 +1,38 @@
+{
+  "mode": "loopback",
+  "stage": "complete",
+  "check": "loopback close",
+  "observations": {
+    "child_process": false,
+    "loopback": true,
+    "worker": false,
+    "login_initial_list": false
+  },
+  "gate_pass": true,
+  "readiness": null,
+  "api_routes": [],
+  "browser_diagnostics": [],
+  "unexpected_failures": [],
+  "cleanup": {
+    "tracked_browser_processes_remaining": 0,
+    "worker_returned": false,
+    "worker_disposed": false,
+    "browser_listener_closed": true,
+    "failures": [],
+    "diagnostics": []
+  },
+  "independent_cleanup": {
+    "available": true,
+    "method": "read-only /proc numeric process metadata",
+    "groups": [],
+    "live_group_members": [],
+    "known_groups_absent": true,
+    "scope": "known owned process groups; no arbitrary escaped-descendant claim",
+    "shared_owner_snapshot_status": "not exposed by shared owner"
+  },
+  "elapsed_including_fixture_cleanup_ms": 33,
+  "reconstruction_submissions": 0,
+  "work_saves": 0,
+  "case_calculations": 0,
+  "corrupt_imports": 0
+}

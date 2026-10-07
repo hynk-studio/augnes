@@ -1,0 +1,37 @@
+{
+  "result": "PASS",
+  "execution_commit": "a402aeb18bd146a1e5b6b5fc169c2bf50775dc4c",
+  "commands": [
+    {
+      "command": "node scripts/executable-reuse/cloud-reuse-pilot-01/test-pilot-evidence.mjs",
+      "result": "PASS",
+      "controls": [
+        "single/split exact capture",
+        "empty/wrong/extra output refused",
+        "persistence before assertion",
+        "persistence failure is not acceptance",
+        "truncation disclosed and refused",
+        "debug-present cleanup/reporting branch",
+        "EPERM in listener-close verification is not reported closed",
+        "numeric text derived from independently verified supplied observations"
+      ]
+    },
+    {
+      "command": "node scripts/executable-reuse/cloud-reuse-pilot-01/test-preparation.mjs",
+      "result": "PASS; existing 13 not-ready and 2 ready pure controls; no live readiness claim"
+    },
+    {
+      "command": "node --check each modified/new executable pilot helper",
+      "result": "PASS"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "immutable_original_pilot_paths_checked": 62,
+  "historical_evidence_and_inventories_unchanged": true,
+  "application_shared_runtime_lifecycle_solver_unchanged": true,
+  "captured_output_integrity": "exact unredacted untruncated captures and separate runner logs checked",
+  "historical_auditor": "preserved at original identities; its current-helper equality assertions are historical and not silently refreshed or claimed to pass against changed helpers"
+}

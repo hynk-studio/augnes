@@ -11,29 +11,27 @@ import { startLocal, availablePort, fixtureScope } from '../../web-planning-loca
 import { runCanonicalChild, canonicalChildAcceptanceFailure } from '../../canonical-child-runner.mjs';
 import { registerOwnedChild, terminateOwnedProcessTree } from '../../test-harness-process-lifecycle.mjs';
 import { pilotArguments, workspaceReadinessExpression } from './preparation.mjs';
+import { capture, writeJson, persistMarker, safeError, portClosed, cleanupReport, processGroupsAbsent, sha256 } from './pilot-evidence.mjs';
 
 const here=path.dirname(fileURLToPath(import.meta.url)),repo=path.resolve(here,'../../..');
-const options=pilotArguments(process.argv.slice(2)),output=path.resolve(options.output),root=process.env.AUGNES_CANONICAL_TEMP_ROOT;
+const [mode,...args]=process.argv.slice(2);assert(['marker','loopback','readiness'].includes(mode));
+const options=pilotArguments(args),output=path.resolve(options.output),root=process.env.AUGNES_CANONICAL_TEMP_ROOT;
 assert(root,'Owned prerequisite root required.');
 const owned=new Set(),clients=[],traffic=[],failures=[],browserDiagnostics=new Set();
 let local,browser,debug,stage='child-process',check='bounded nested child',externalBrowserRequests=0,lastReadiness=null;
-const started=Date.now(),observations={child_process:false,loopback:false,worker:false,login_initial_list:false};
+const started=Date.now(),observations={child_process:false,loopback:false,worker:false,login_initial_list:false},groups=[];
 const chrome=[process.env.AUGNES_BROWSER_EXECUTABLE_PATH,'/usr/bin/chromium','/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].find(p=>p&&existsSync(p));
 class CDP {
   constructor(url){this.ws=new WebSocket(url);this.next=1;this.pending=new Map();this.handlers=[];}
-  async open(){await new Promise((ok,no)=>{this.ws.addEventListener('open',ok,{once:true});this.ws.addEventListener('error',no,{once:true});});
+  async open(){await new Promise((ok,no)=>{const timer=setTimeout(()=>no(Object.assign(new Error('cdp_open_timeout'),{code:'CDP_TIMEOUT'})),15000);this.ws.addEventListener('open',()=>{clearTimeout(timer);ok();},{once:true});this.ws.addEventListener('error',()=>{clearTimeout(timer);no(Object.assign(new Error('cdp_open_failed'),{code:'CDP_OPEN_FAILED'}));},{once:true});});
     this.ws.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.id){const p=this.pending.get(m.id);if(p){clearTimeout(p.timer);this.pending.delete(m.id);m.error?p.no(new Error(m.error.message)):p.ok(m.result);}}else for(const fn of this.handlers)fn(m);});return this;}
   send(method,params={}){return new Promise((ok,no)=>{const id=this.next++,timer=setTimeout(()=>{this.pending.delete(id);no(Object.assign(new Error('cdp_timeout'),{code:'CDP_TIMEOUT',pilot_method:method}));},15000);this.pending.set(id,{ok,no,timer});this.ws.send(JSON.stringify({id,method,params}));});}
   async eval(expression){const r=await this.send('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});
     if(r.exceptionDetails){const d=r.exceptionDetails;const error=Object.assign(new Error('browser_evaluation_exception'),{code:'BROWSER_EVALUATION_EXCEPTION',pilot_diagnostic:{exception_class:safeClass(d.exception?.className),line:Number.isInteger(d.lineNumber)?d.lineNumber:null,column:Number.isInteger(d.columnNumber)?d.columnNumber:null,location:'pilot evaluation; no expression or payload retained'}});throw error;}
     return r.result.value;}
-  async close(){for(const p of this.pending.values()){clearTimeout(p.timer);p.no(new Error('cdp_closed'));}this.pending.clear();await new Promise(ok=>{this.ws.addEventListener('close',ok,{once:true});this.ws.close();});}
+  async close(){for(const p of this.pending.values()){clearTimeout(p.timer);p.no(new Error('cdp_closed'));}this.pending.clear();if(this.ws.readyState===WebSocket.CLOSED)return;await new Promise((ok,no)=>{const timer=setTimeout(()=>no(Object.assign(new Error('cdp_close_timeout'),{code:'CDP_TIMEOUT'})),3000);this.ws.addEventListener('close',()=>{clearTimeout(timer);ok();},{once:true});this.ws.close();});}
 }
 function safeClass(name){return ['Error','ReferenceError','TypeError','SyntaxError','RangeError','AssertionError'].includes(name)?name:'unclassified';}
-function safeError(error,depth=0){return {name:safeClass(error?.name),code:typeof error?.code==='string'&&/^(?:ERR_[A-Z_]+|E[A-Z]+|CDP_TIMEOUT|BROWSER_[A-Z_]+)$/.test(error.code)?error.code:null,
-  syscall:['listen','bind','connect','spawn','spawnSync'].includes(error?.syscall)?error.syscall:null,
-  errno:Number.isInteger(error?.errno)?error.errno:null,evaluation:error?.pilot_diagnostic??null,
-  cause:depth<2&&error?.cause?safeError(error.cause,depth+1):null};}
 async function wait(fn,label){check=label;const deadline=Date.now()+15000;while(Date.now()<deadline){if(await fn())return;await delay(80);}throw Object.assign(new Error('bounded_check_timeout'),{code:'BROWSER_CHECK_TIMEOUT'});}
 const click=(c,id)=>c.eval(`document.getElementById(${JSON.stringify(id)}).click()`);
 const set=(c,id,value)=>c.eval(`(()=>{const e=document.getElementById(${JSON.stringify(id)});e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('input',{bubbles:true}));})()`);
@@ -75,30 +73,37 @@ async function loopback(){
   assert.equal(server.listening,false);
 }
 try{
-  let stdout='';const probe=await runCanonicalChild({suite:'cloud-reuse-pilot-01',label:'prerequisite nested child',command:process.execPath,args:['-e',"process.stdout.write('child-ok')"],cwd:repo,env:process.env,timeoutMs:10000,stdout:{write(c){stdout+=c;}},stderr:{write(){} }});
-  await writeFile(path.join(output,'child-process.json'),JSON.stringify(probe,null,2)+'\n');assert.equal(canonicalChildAcceptanceFailure(probe,{requireNaturalExit:true}),null);assert.equal(stdout,'child-ok');observations.child_process=true;
+ if(mode==='marker'){
+  stage='child-process';check='bounded nested child exact output';
+  const stdout=capture(),stderr=capture(),logs=capture(16384),probeArgs=['-e',"process.stdout.write('child-ok')"];
+  const probe=await runCanonicalChild({suite:'cloud-reuse-pilot-01',label:'prerequisite nested child',command:process.execPath,args:probeArgs,cwd:repo,env:process.env,timeoutMs:10000,stdout,stderr,log:line=>logs.write(Buffer.from(line+'\n')),onSpawn:pid=>groups.push(pid)});
+  const entry=await readFile(process.execPath),independent=await processGroupsAbsent(groups);
+  const evidence={command:process.execPath,args:probeArgs,entry:{path:process.execPath,bytes:entry.length,sha256:sha256(entry)},inline_source_sha256:sha256(Buffer.from(probeArgs[1])),expected_stdout_hex:Buffer.from('child-ok').toString('hex'),stdout:stdout.record(),stderr:stderr.record(),runner_logs:logs.record(),lifecycle:probe,independent_cleanup:independent};
+  await persistMarker(path.join(output,'marker.json'),evidence);
+  assert.equal(canonicalChildAcceptanceFailure(probe,{requireNaturalExit:true}),null);assert.equal(independent.available,true);assert.equal(independent.known_groups_absent,true);observations.child_process=true;
+ }else if(mode==='loopback'){
   stage='loopback';await loopback();observations.loopback=true;
+ }else{
   stage='worker-initialization';check='one existing startLocal, reconstruction disabled';
   local=await startLocal({root:path.join(root,'prerequisite-runtime'),bindings:{RECONSTRUCTION_MODE:''}});observations.worker=true;
   const count=await local.db.prepare('SELECT (SELECT count(*) FROM web_planning_revision) revisions,(SELECT count(*) FROM web_planning_file) files,(SELECT count(*) FROM web_planning_erased) erased').first();assert.deepEqual(count,{revisions:0,files:0,erased:0});
   debug=await availablePort();assert(chrome,'Real browser unavailable.');stage='browser-launch';check='owned fresh profile';
   const child=spawn(chrome,['--headless=new','--disable-gpu','--no-first-run','--no-default-browser-check','--disable-background-networking','--disable-component-update','--disable-default-apps','--disable-domain-reliability','--disable-extensions','--disable-sync','--metrics-recording-only','--no-pings','--password-store=basic','--use-mock-keychain',...(options.unsandboxed?['--no-sandbox']:[]),'--remote-debugging-address=127.0.0.1',`--remote-debugging-port=${debug}`,`--user-data-dir=${path.join(root,'prerequisite-profile')}`,'about:blank'],{stdio:['ignore','ignore','pipe'],detached:true});
-  browser=registerOwnedChild(owned,child,{label:'pilot-prerequisite-browser'});
+  browser=registerOwnedChild(owned,child,{label:'pilot-prerequisite-browser'});groups.push(browser.pid);
   child.stderr.on('data',chunk=>{const text=chunk.toString().slice(0,8192);for(const [pattern,code] of [[/SUID sandbox|No usable sandbox/,'browser_sandbox_unavailable'],[/Operation not permitted|Permission denied/,'browser_permission_refused']])if(pattern.test(text))browserDiagnostics.add(code);});
   await wait(async()=>{if(browser.exited||browser.spawnErrorCode)throw Object.assign(new Error('browser_launch_failed'),{code:'BROWSER_LAUNCH_FAILED'});try{return (await fetch(`http://127.0.0.1:${debug}/json/version`)).ok;}catch(error){if(error.cause?.code==='ECONNREFUSED')return false;throw error;}},'browser debug listener');
   async function login(c){stage='fresh-local-authentication';await navigate(c,local.origin+'/_local/login');await wait(()=>c.eval("document.title==='Local synthetic workspace'&&!!document.querySelector('form[method=post] button')"),'local login');await c.eval("document.querySelector('form button').click()");await readyWorkspace(c);}
   const a=await page();await login(a);assert.equal(lastReadiness.list_state,'empty');observations.login_initial_list=true;
   assert.deepEqual(await local.db.prepare('SELECT (SELECT count(*) FROM web_planning_revision) revisions,(SELECT count(*) FROM web_planning_file) files,(SELECT count(*) FROM web_planning_erased) erased').first(),count);
   assert.equal(local.externalRequests(),0);assert.equal(externalBrowserRequests,0);assert.deepEqual(failures,[]);
-  assert(traffic.every(t=>t.method==='GET'&&t.path==='/api/works'),'Only initial list read is allowed.');stage='complete';
+  assert(traffic.every(t=>t.method==='GET'&&t.path==='/api/works'),'Only initial list read is allowed.');
+ }
+ stage='complete';
 }catch(error){await writeFile(path.join(output,'failure.json'),JSON.stringify({stage,check,location:stage==='loopback'?'node:net; prerequisite-child.mjs loopback':stage==='worker-initialization'?'scripts/web-planning-local-runtime.mjs startLocal':'prerequisite-child.mjs',diagnostic:safeError(error)},null,2)+'\n');process.exitCode=1;}
 finally{
-  const cleanupFailures=[];
-  for(const c of clients)try{await c.close();}catch{cleanupFailures.push('cdp_close_failed');}
-  if(browser)try{await terminateOwnedProcessTree(browser);}catch{cleanupFailures.push('browser_process_cleanup_failed');}
-  if(local)try{await local.close();}catch{cleanupFailures.push('worker_cleanup_failed');}
-  const browserListenerClosed=debug?await portClosed(debug):true;
-  if(!browserListenerClosed)cleanupFailures.push('browser_listener_residue');
-  await writeFile(path.join(output,'result.json'),JSON.stringify({stage,check,observations,all_prerequisites_pass:Object.values(observations).every(Boolean)&&cleanupFailures.length===0,readiness:lastReadiness,api_routes:traffic,browser_diagnostics:[...browserDiagnostics],unexpected_failures:failures,cleanup:{owned_browser_processes_remaining:owned.size,worker_returned:!!local,worker_disposed:!!local&&!cleanupFailures.includes('worker_cleanup_failed'),browser_listener_closed:browserListenerClosed,failures:cleanupFailures},elapsed_including_fixture_cleanup_ms:Date.now()-started,reconstruction_submissions:0,work_saves:0,case_calculations:0,corrupt_imports:0},null,2)+'\n');
-  assert.deepEqual(cleanupFailures,[]);assert.equal(owned.size,0);
+  const cleanup=await cleanupReport({clients,browser,local,debug,owned},{terminate:terminateOwnedProcessTree,portClosed});
+  const independent=await processGroupsAbsent(groups);
+  const gate=mode==='marker'?observations.child_process:mode==='loopback'?observations.loopback:observations.worker&&observations.login_initial_list;
+  await writeJson(path.join(output,'result.json'),{mode,stage,check,observations,gate_pass:gate&&cleanup.failures.length===0&&independent.available&&independent.known_groups_absent,readiness:lastReadiness,api_routes:traffic,browser_diagnostics:[...browserDiagnostics],unexpected_failures:failures,cleanup,independent_cleanup:independent,elapsed_including_fixture_cleanup_ms:Date.now()-started,reconstruction_submissions:0,work_saves:0,case_calculations:0,corrupt_imports:0});
+  if(cleanup.failures.length||owned.size||!independent.available||!independent.known_groups_absent)process.exitCode=1;
 }

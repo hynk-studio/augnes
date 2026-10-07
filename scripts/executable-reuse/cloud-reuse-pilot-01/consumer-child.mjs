@@ -12,6 +12,7 @@ import { runCanonicalChild, canonicalChildAcceptanceFailure } from '../../canoni
 import { registerOwnedChild, terminateOwnedProcessTree } from '../../test-harness-process-lifecycle.mjs';
 import { validateFileExport } from '../../../apps/web_planning/src/files.ts';
 import { pilotArguments, workspaceReadinessExpression } from './preparation.mjs';
+import { safeError, portClosed, cleanupReport, processGroupsAbsent, verifiedNumericalSummary } from './pilot-evidence.mjs';
 
 async function readCommand(command,args) {
   let stdout='',stderr='';
@@ -26,10 +27,6 @@ const sourceTree='5443ce03a9d193c03274379938fa1b391512ad25';
 const options=pilotArguments(process.argv.slice(2));
 const root=process.env.AUGNES_CANONICAL_TEMP_ROOT,output=path.resolve(options.output);
 assert(root,'Owned fixture root required.');
-assert.equal((await readCommand('git',['rev-parse',baseline+'^{tree}'])).trim(),sourceTree);
-assert.equal(await readCommand('git',['diff',baseline,'--','apps/web_planning','scripts/web-planning-local-runtime.mjs',
-  'scripts/web-planning-local-ingress.ts','scripts/build-web-planning.mjs',
-  'scripts/executable-reuse/workflow_cost.py','scripts/executable-reuse/exact_linear.py']),'');
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
 const owned=new Set(),clients=[],traffic=[],failures=[];
 const progress={work_id:null,revisions:[],reconstructed:false,transition:false,calculation:false,readback:false,export_downloaded:false,export_validated:false,corruption_control:false};
@@ -37,21 +34,18 @@ const browserDiagnostics=new Set();
 let local,browser,debug,stage='source-admission',check='pinned source',externalBrowserRequests=0,unknownResolutions=0,lastReadiness=null;
 const started=Date.now();
 const chrome=[process.env.AUGNES_BROWSER_EXECUTABLE_PATH,'/usr/bin/chromium','/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].find(p=>p&&existsSync(p));
-assert(chrome,'Real browser unavailable.');
+
 class CDP {
   constructor(url){this.ws=new WebSocket(url);this.next=1;this.pending=new Map();this.handlers=[];}
-  async open(){await new Promise((ok,no)=>{this.ws.addEventListener('open',ok,{once:true});this.ws.addEventListener('error',no,{once:true});});
+  async open(){await new Promise((ok,no)=>{const timer=setTimeout(()=>no(Object.assign(new Error('cdp_open_timeout'),{code:'CDP_TIMEOUT'})),15000);this.ws.addEventListener('open',()=>{clearTimeout(timer);ok();},{once:true});this.ws.addEventListener('error',()=>{clearTimeout(timer);no(Object.assign(new Error('cdp_open_failed'),{code:'CDP_OPEN_FAILED'}));},{once:true});});
     this.ws.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.id){const p=this.pending.get(m.id);if(p){clearTimeout(p.timer);this.pending.delete(m.id);m.error?p.no(new Error(m.error.message)):p.ok(m.result);}}else for(const fn of this.handlers)fn(m);});return this;}
   send(method,params={}){return new Promise((ok,no)=>{const id=this.next++,timer=setTimeout(()=>{this.pending.delete(id);no(Object.assign(new Error('cdp_timeout'),{code:'CDP_TIMEOUT',pilot_method:method}));},15000);this.pending.set(id,{ok,no,timer});this.ws.send(JSON.stringify({id,method,params}));});}
   async eval(expression){const r=await this.send('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});
     if(r.exceptionDetails){const d=r.exceptionDetails;const error=Object.assign(new Error('browser_evaluation_exception'),{code:'BROWSER_EVALUATION_EXCEPTION',pilot_diagnostic:{exception_class:safeClass(d.exception?.className),line:Number.isInteger(d.lineNumber)?d.lineNumber:null,column:Number.isInteger(d.columnNumber)?d.columnNumber:null,location:'pilot evaluation; no expression or payload retained'}});throw error;}
     return r.result.value;}
-  async close(){for(const p of this.pending.values()){clearTimeout(p.timer);p.no(new Error('cdp_closed'));}this.pending.clear();await new Promise(ok=>{this.ws.addEventListener('close',ok,{once:true});this.ws.close();});}
+  async close(){for(const p of this.pending.values()){clearTimeout(p.timer);p.no(new Error('cdp_closed'));}this.pending.clear();if(this.ws.readyState===WebSocket.CLOSED)return;await new Promise((ok,no)=>{const timer=setTimeout(()=>no(Object.assign(new Error('cdp_close_timeout'),{code:'CDP_TIMEOUT'})),3000);this.ws.addEventListener('close',()=>{clearTimeout(timer);ok();},{once:true});this.ws.close();});}
 }
 function safeClass(name){return ['Error','ReferenceError','TypeError','SyntaxError','RangeError','AssertionError'].includes(name)?name:'unclassified';}
-function safeError(error){return {name:safeClass(error.name),code:typeof error.code==='string'&&/^(?:ERR_[A-Z_]+|E[A-Z]+|CDP_TIMEOUT|BROWSER_[A-Z_]+)$/.test(error.code)?error.code:null,
-  assertion_operator:typeof error.operator==='string'&&/^[A-Za-z]+$/.test(error.operator)?error.operator:null,
-  evaluation:error.pilot_diagnostic??null};}
 async function wait(fn,label){check=label;const deadline=Date.now()+15000;while(Date.now()<deadline){if(await fn())return;await delay(80);}throw Object.assign(new Error('bounded_check_timeout'),{code:'BROWSER_CHECK_TIMEOUT'});}
 const click=(c,id)=>c.eval(`document.getElementById(${JSON.stringify(id)}).click()`);
 const set=(c,id,value)=>c.eval(`(()=>{const e=document.getElementById(${JSON.stringify(id)});e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('input',{bubbles:true}));})()`);
@@ -90,8 +84,12 @@ async function save(c,n){await click(c,'save');
 }
 async function note(c,text,source,dependencies=false){await click(c,'add-note');await c.eval(`(()=>{const row=$('notes').lastElementChild;row.querySelector('[data-field=text]').value=${JSON.stringify(text)};row.querySelector('[data-field=source]').value=${JSON.stringify(source)};row.querySelector('[data-field=text]').dispatchEvent(new Event('input',{bubbles:true}));${dependencies?"const deps=row.querySelector('.dependencies');for(const o of deps.options)o.selected=true;deps.dispatchEvent(new Event('change',{bubbles:true}));":''}})()`);}
 async function select(c,files){const {root:dom}=await c.send('DOM.getDocument');const {nodeId}=await c.send('DOM.querySelector',{nodeId:dom.nodeId,selector:'#work-files'});await c.send('DOM.setFileInputFiles',{nodeId,files});await settled(c);}
-async function portClosed(port){return new Promise(ok=>{const c=net.connect(port,'127.0.0.1');c.once('connect',()=>{c.destroy();ok(false);});c.once('error',()=>ok(true));});}
 try {
+  assert.equal((await readCommand('git',['rev-parse',baseline+'^{tree}'])).trim(),sourceTree);
+assert.equal(await readCommand('git',['diff',baseline,'--','apps/web_planning','scripts/web-planning-local-runtime.mjs',
+  'scripts/web-planning-local-ingress.ts','scripts/build-web-planning.mjs',
+  'scripts/executable-reuse/workflow_cost.py','scripts/executable-reuse/exact_linear.py']),'');
+  assert(chrome,'Real browser unavailable.');
   stage='intake';check='exact reviewed transport';
   const intakeDir=path.join(here,'continuation-01/attempt-3');
   const importPath=path.join(intakeDir,'planning-work.json'),bytes=await readFile(importPath);
@@ -159,10 +157,11 @@ try {
   assert.deepEqual(transition.files,originalHead.files);assert.deepEqual(transition.sources.filter(s=>originalHead.sources.some(o=>o.source_ref===s.source_ref)),originalHead.sources);
   const transitionedHistory=await a.eval("api('/api/work/'+work+'/history')");assert.deepEqual(transitionedHistory.revisions.slice(0,2),intake.chain);
   await writeFile(path.join(output,'scope-transition.json'),JSON.stringify({revision:transition.revision,fingerprint:transition.fingerprint,definition:transition.definition,commission_ref:transition.sources.find(s=>s.compatibility_source_ref.external_id==='Director commission #1413; review 5436773654').source_ref,historical_revisions_equal:true,original_sources_and_files_retained:true},null,2)+'\n');
-  async function calculate(label,args,cwd=downloads){let stdout='',stderr='';check=label+' bounded execution';const result=await runCanonicalChild({suite:'cloud-reuse-pilot-01',label,command:'python3',args,cwd,env:process.env,timeoutMs:10000,stdout:{write(chunk){stdout+=chunk.toString();}},stderr:{write(chunk){stderr+=chunk.toString();}}});
+  async function calculate(label,args,cwd=downloads){let stdout='',stderr='',pid;check=label+' bounded execution';const result=await runCanonicalChild({suite:'cloud-reuse-pilot-01',label,command:'python3',args,cwd,env:process.env,timeoutMs:10000,stdout:{write(chunk){stdout+=chunk.toString();}},stderr:{write(chunk){stderr+=chunk.toString();}},onSpawn:value=>{pid=value;}});
+    const independent=await processGroupsAbsent([pid]);
     // Preserve failures before assertions. No stdout replacement or synthetic actuals.
-    await writeFile(path.join(output,label+'-stdout.txt'),stdout);await writeFile(path.join(output,label+'-lifecycle.json'),JSON.stringify({...result,stderr},null,2)+'\n');
-    assert.equal(canonicalChildAcceptanceFailure(result,{requireNaturalExit:true}),null);assert.equal(stderr,'');return {stdout,result};}
+    await writeFile(path.join(output,label+'-stdout.txt'),stdout);await writeFile(path.join(output,label+'-lifecycle.json'),JSON.stringify({...result,stderr,independent_cleanup:independent},null,2)+'\n');
+    assert.equal(canonicalChildAcceptanceFailure(result,{requireNaturalExit:true}),null);assert.equal(stderr,'');assert.equal(independent.available,true);assert.equal(independent.known_groups_absent,true);return {stdout,result};}
   stage='calculations';const wrapper=path.join(here,'observe-downloaded.py'),entry=path.join(downloads,'workflow_cost.py');
   const help=await calculate('cli-help',['-E','-s','-B',wrapper,entry,path.join(downloads,'help-provenance.json'),'--help']);
   for(const flag of ['--attempt','--verification','--repair','--direct-success','--inspection','--inspected-success'])assert(help.stdout.includes(flag));
@@ -180,21 +179,22 @@ try {
     await writeFile(path.join(output,label+'-provenance.json'),JSON.stringify(provenance,null,2)+'\n');
     const oracle=await calculate(label+'-oracle',['-E','-s','-B',path.join(here,'consumer-oracle.py'),label,path.join(output,label+'-stdout.txt')]);
     const comparison=JSON.parse(oracle.stdout);
-    calculations.push({case:label,actual_argv:['python3',...processArgs],inputs:observed.inputs,actual_stdout:label+'-stdout.txt',actual_stdout_sha256:sha(Buffer.from(actual.stdout)),provenance:label+'-provenance.json',execution:actual.result,expected_comparison:comparison,oracle_execution:oracle.result});
+    calculations.push({case:label,observed,actual_argv:['python3',...processArgs],inputs:observed.inputs,actual_stdout:label+'-stdout.txt',actual_stdout_sha256:sha(Buffer.from(actual.stdout)),provenance:label+'-provenance.json',execution:actual.result,expected_comparison:comparison,oracle_execution:oracle.result});
   }
   assert.equal(JSON.parse(await readFile(path.join(output,'B1-stdout.txt'))).comparison,'inspection_reduces_work');
   assert.equal(JSON.parse(await readFile(path.join(output,'B2-stdout.txt'))).comparison,'inspection_adds_work');
-  const b3={case:'B3',inputs:{attempt:'11',verification:'2',repair:'6',inspection:'2',direct_success:'3/(5+k)',inspected_success:'4/(5+k)',failures:'k=0,1,2,...; no finite cutoff'},decision:'agent non-use judgment',reason:'Recovered qualification limits the callable to stationary finite-state problems. Unbounded failure history changes probabilities with k. No stationary substitution, arbitrary cutoff or expanded solver is commissioned.',qualification_ref:qualification.source_ref,qualification_revision:2,qualification_fingerprint:originalHead.fingerprint,cli_run:false,observed_cli_refusal:false,mathematical_impossibility_claim:false};
-  await writeFile(path.join(output,'B3-judgment.json'),JSON.stringify(b3,null,2)+'\n');progress.calculation=true;
+  const b3={case:'B3',inputs:{attempt:'11',verification:'2',repair:'6',inspection:'2',direct_success:'3/(5+k)',inspected_success:'4/(5+k)',failures:'k=0,1,2,...; no finite cutoff'},decision:'scripted scope rule',fresh_agent_judgment:'NOT OBSERVED',authorship:'pre-authored pilot rule; no attributable recovered-context agent judgment',reason:'Recovered qualification limits the callable to stationary finite-state problems. Unbounded failure history changes probabilities with k. No stationary substitution, arbitrary cutoff or expanded solver is commissioned.',qualification_ref:qualification.source_ref,qualification_revision:2,qualification_fingerprint:originalHead.fingerprint,cli_run:false,observed_cli_refusal:false,mathematical_impossibility_claim:false};
+  await writeFile(path.join(output,'B3-scripted-scope-rule.json'),JSON.stringify(b3,null,2)+'\n');progress.calculation=true;
   stage='successor-results';check='ordinary result-file selection and concise dependent note';
   const resultText=JSON.stringify({B1:JSON.parse(await readFile(path.join(output,'B1-stdout.txt'))),B2:JSON.parse(await readFile(path.join(output,'B2-stdout.txt'))),independent:calculations.map(c=>c.expected_comparison),B3:b3,mandatory_verification:true},null,2)+'\n';
   await writeFile(path.join(selected,'consumer-results.json'),resultText);await writeFile(path.join(output,'consumer-results.json'),resultText);
   await select(a,[path.join(selected,'consumer-results.json')]);await wait(()=>a.eval('selectedFiles.length===4'),'explicit result selection');await a.eval("(()=>{const e=$('file-role-3');e.value='results';e.dispatchEvent(new Event('change',{bubbles:true}));})()");
-  await note(a,'B1 downloaded-byte execution: direct 77/3, inspected 81/4, difference -65/12; choose optional inspection under stipulated inputs. B2 newly executed with inspection 9: direct 77/3, inspected 29, difference 10/3; decline optional inspection. Independent Fraction renewal/input checks match. Verification 2 remains mandatory every attempt. B3 agent non-use: 3/(5+k), 4/(5+k) over unbounded failures violates recovered stationary finite-state qualification; no CLI refusal, constant substitution, cutoff or solver expansion. consumer-results.json retains actual outputs separately from expected comparisons. Historical producer notes are unchanged.', 'Observed B calculations; agent B3 applicability judgment',true);
+  const summary=verifiedNumericalSummary(calculations)+' Independent Fraction renewal/input checks match. B3 scripted scope rule: unbounded failure-dependent probabilities exceed the recovered stationary finite-state qualification; no CLI refusal, stationary substitution, cutoff or solver expansion. Fresh B3 agent judgment NOT OBSERVED; Phase B is partial. Actual outputs and scripted rule are retained separately in consumer-results.json. Historical producer notes are unchanged.';
+  await note(a,summary,'Observed B calculations; pre-authored B3 scope rule; fresh judgment NOT OBSERVED',true);
   await click(a,'check-capacity');await wait(()=>a.eval("!capacityInFlight&&$('draft-capacity').dataset.state==='fits'"),'result capacity fits');
   const successor=await save(a,4);assert.deepEqual(successor.files.slice(0,3),originalHead.files);progress.readback=true;
   const finalHistory=await a.eval("api('/api/work/'+work+'/history')");assert.deepEqual(finalHistory.revisions,[...intake.chain,transition,successor]);
-  await click(a,'saved-context');await settled(a);assert.match(await a.eval("$('context-view').innerText"),/B3 agent non-use/);
+  await click(a,'saved-context');await settled(a);assert.match(await a.eval("$('context-view').innerText"),/B3 scripted scope rule/);
   stage='successor-export';await a.eval("$('history-tools').open=true");await click(a,'export');await settled(a);await wait(async()=>(await readdir(downloads)).includes('planning-work.json'),'actual successor export');
   const exportBytes=await readFile(path.join(downloads,'planning-work.json'));await writeFile(path.join(output,'planning-work.json'),exportBytes);progress.export_downloaded=true;
   const exported=JSON.parse(exportBytes),validated=validateFileExport(manifest.scope,exported);assert.deepEqual(validated.chain,finalHistory.revisions);assert.equal(validated.bodies.length,4);
@@ -228,20 +228,15 @@ try {
   await writeFile(path.join(output,'corruption-control.json'),JSON.stringify({mutated_bytes:1,position,original_character:originalText[position],replacement_character:changed,original_sha256:sha(bytes),corrupt_sha256:sha(corruptBytes),embedded_checksums_unchanged:true,route:'/api/reconstruct-files',submitted_once:true,rejection,stage:'validateFileExport: package checksum before chain/body admission or reconstruct',before:controlBefore,after:controlAfter,ordinary_list_empty:true,corrupt_content_executed:false,scope:'corruption refusal and no partial admission; not malicious-author authenticity or arbitrary crash recovery'},null,2)+'\n');
   assert.equal(local.externalRequests(),0);assert.equal(externalBrowserRequests,0);assert.deepEqual(failures,[]);
   assert.equal(traffic.filter(t=>t.path.endsWith('/save')).length,2);assert.equal(traffic.filter(t=>t.method==='POST'&&t.path==='/api/reconstruct-files').length,2);
-  await writeFile(path.join(output,'consumer-observation.json'),JSON.stringify({phase:'B',result:'consumer ready for review',host:process.platform,browser_version:(await readCommand(chrome,['--version'])).trim(),browser_sandbox_disabled:sandboxDisabled,repo_tooling_visible:true,blind_evaluation:false,authentication:'fresh synthetic local authentication on each disposable fixture; not live Access',ordinary_save_requests:2,reconstruction_submissions:2,unknown_outcome_resolutions:unknownResolutions,write_retries:0,runtime_external_requests:local.externalRequests(),intercepted_external_browser_requests:externalBrowserRequests,api_routes:traffic,provider_api_calls:0,other_usage:'unmeasured',elapsed_before_cleanup_ms:Date.now()-started},null,2)+'\n');
-  stage='complete';console.log(JSON.stringify({consumer:'ready for review',work_id:successor.work_id,revision:successor.revision,export_bytes:exportBytes.length,export_sha256:sha(exportBytes),corruption_rejection:rejection}));
+  await writeFile(path.join(output,'consumer-observation.json'),JSON.stringify({phase:'B',result:'partial; fresh B3 judgment NOT OBSERVED',fresh_B3_judgment:'NOT OBSERVED',host:process.platform,browser_version:(await readCommand(chrome,['--version'])).trim(),browser_sandbox_disabled:sandboxDisabled,repo_tooling_visible:true,blind_evaluation:false,authentication:'fresh synthetic local authentication on each disposable fixture; not live Access',ordinary_save_requests:2,reconstruction_submissions:2,unknown_outcome_resolutions:unknownResolutions,write_retries:0,runtime_external_requests:local.externalRequests(),intercepted_external_browser_requests:externalBrowserRequests,api_routes:traffic,provider_api_calls:0,other_usage:'unmeasured',elapsed_before_cleanup_ms:Date.now()-started},null,2)+'\n');
+  stage='partial-results-retained';console.log(JSON.stringify({consumer:'partial; fresh B3 judgment NOT OBSERVED',work_id:successor.work_id,revision:successor.revision,export_bytes:exportBytes.length,export_sha256:sha(exportBytes),corruption_rejection:rejection}));
 } catch(error){await writeFile(path.join(output,'failed-attempt.json'),JSON.stringify({phase:'B',stage,check,diagnostic:safeError(error),readiness:lastReadiness,progress,observed_save_requests:traffic.filter(t=>t.path.endsWith('/save')).length,unknown_outcome_resolutions:unknownResolutions,browser_diagnostics:[...browserDiagnostics],unexpected_failures:failures},null,2)+'\n');throw new Error('pilot_failed:'+stage+':'+check);}
 
 finally {
-  const cleanupFailures=[];
-  for(const c of clients)try{await c.close();}catch{cleanupFailures.push('cdp_close_failed');}
-  if(browser)try{await terminateOwnedProcessTree(browser);}catch{cleanupFailures.push('browser_process_cleanup_failed');}
-  if(local)try{await local.close();}catch{cleanupFailures.push('worker_cleanup_failed');}
-  const browserListenerClosed=debug?await portClosed(debug):true;
-  if(!browserListenerClosed)cleanupFailures.push('browser_listener_residue');
-  await writeFile(path.join(output,'fixture-cleanup.json'),JSON.stringify({stage,owned_browser_processes_remaining:owned.size,
-    worker_disposed:!!local&&!cleanupFailures.includes('worker_cleanup_failed'),browser_listener_closed:browserListenerClosed,
-    failures:cleanupFailures,phase:'B'},null,2)+'\n');
+  const cleanup=await cleanupReport({clients,browser,local,debug,owned},{terminate:terminateOwnedProcessTree,portClosed});
+  const independent=await processGroupsAbsent(browser?[browser.pid]:[]),cleanupFailures=cleanup.failures;
+  if(!independent.available||!independent.known_groups_absent)cleanupFailures.push('independent_cleanup_unqualified');
+  await writeFile(path.join(output,'fixture-cleanup.json'),JSON.stringify({stage,...cleanup,independent_cleanup:independent,phase:'B'},null,2)+'\n');
   await writeFile(path.join(output,'diagnostics.json'),JSON.stringify({stage,check,progress,readiness:lastReadiness,
     observed_save_requests:traffic.filter(t=>t.path.endsWith('/save')).length,unknown_outcome_resolutions:unknownResolutions,
     browser_diagnostics:[...browserDiagnostics],browser_spawn_error:browser?.spawnErrorCode??null,browser_exit:browser?.exitResult??null,
