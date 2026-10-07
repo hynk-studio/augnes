@@ -22,8 +22,11 @@ const WORK_PREVIEW_TOOL_NAME = "augnes_preview_repository_work_revision";
 const WORK_SAVE_TOOL_NAME = "augnes_save_repository_work_revision";
 const NEW_WORK_PREVIEW_TOOL_NAME = "augnes_preview_repository_new_work";
 const NEW_WORK_SAVE_TOOL_NAME = "augnes_prepare_repository_new_work";
-const WORK_PREPARATION_TOOLS = [WORK_PREVIEW_TOOL_NAME, WORK_SAVE_TOOL_NAME, NEW_WORK_PREVIEW_TOOL_NAME, NEW_WORK_SAVE_TOOL_NAME];
-const WORK_SAVE_TOOLS = [WORK_SAVE_TOOL_NAME, NEW_WORK_SAVE_TOOL_NAME];
+const INITIAL_WORK_PREVIEW_TOOL_NAME = "augnes_preview_repository_initial_work";
+const INITIAL_WORK_SAVE_TOOL_NAME = "augnes_define_repository_initial_work";
+const INITIAL_WORK_TOOLS = [INITIAL_WORK_PREVIEW_TOOL_NAME, INITIAL_WORK_SAVE_TOOL_NAME];
+const WORK_PREPARATION_TOOLS = [WORK_PREVIEW_TOOL_NAME, WORK_SAVE_TOOL_NAME, NEW_WORK_PREVIEW_TOOL_NAME, NEW_WORK_SAVE_TOOL_NAME, ...INITIAL_WORK_TOOLS];
+const WORK_SAVE_TOOLS = [WORK_SAVE_TOOL_NAME, NEW_WORK_SAVE_TOOL_NAME, INITIAL_WORK_SAVE_TOOL_NAME];
 const WORK_REVISION_MARKER = "codex-repository-work-revision-v0.1";
 const LIFECYCLE_STATUS_TOOL_NAME = "augnes_companion_lifecycle_status";
 const LIFECYCLE_START_TOOL_NAME = "augnes_start_companion_service";
@@ -459,7 +462,7 @@ function unknownWorkSaveResultV01() {
   };
 }
 
-async function callRepositoryWorkRevisionV01(companion, args, save, newTask = false) {
+async function callRepositoryWorkRevisionV01(companion, args, save, newTask = false, initialWork = false) {
   const route = new URL("/api/augnes/repository-work-revision?scope=repository:local", `${companion.ui_url}/`);
   const response = await fetch(route, {
     method: "POST", redirect: "error",
@@ -472,6 +475,7 @@ async function callRepositoryWorkRevisionV01(companion, args, save, newTask = fa
     body: JSON.stringify({ action: save ? "save" : "preview", repository_root: args.repositoryRoot,
       expected_snapshot_binding: args.expectedSnapshotBinding, changes: args.changes,
       ...(newTask ? { intent: "new_task" } : {}),
+      ...(initialWork ? { intent: "initial_work" } : {}),
       ...(save ? { preview_binding: args.previewBinding } : {}) }),
     signal: AbortSignal.timeout(10_000),
   });
@@ -492,6 +496,8 @@ async function callRepositoryWorkRevisionV01(companion, args, save, newTask = fa
       ["new_work_preview_changed", 409], ["new_work_root_unavailable", 409],
       ["first_work_success_criteria_invalid", 422], ["first_work_non_goals_invalid", 422],
       ["first_work_definition_too_large", 422],
+      ["first_work_state_changed", 409], ["first_work_write_failed", 409],
+      ["first_work_active_selection_conflict", 409], ["first_work_root_unavailable", 409],
     ]);
     if (save && (!exactKeysV01(value, ["error"]) || !exactKeysV01(value.error, ["code", "status"]) ||
       value.error.status !== response.status || codes.get(value.error.code) !== response.status ||
@@ -503,10 +509,30 @@ async function callRepositoryWorkRevisionV01(companion, args, save, newTask = fa
   if (response.headers.get("x-augnes-runtime-instance") !== companion.instance_id ||
     response.headers.get("x-augnes-runtime-generation") !== companion.generation_id ||
     response.headers.get("x-augnes-runtime-repository") !== companion.repository_fingerprint) invalidContractV01();
-  const result = parseRepositoryWorkRevisionResponseV01(value);
+  const result = initialWork ? parseRepositoryInitialWorkResponseV01(value) : parseRepositoryWorkRevisionResponseV01(value);
   if (Boolean(result.preparation) !== newTask || result.expected_snapshot_binding !== args.expectedSnapshotBinding ||
     (save ? result.status === "previewed" || result.preview_binding !== args.previewBinding : result.status !== "previewed")) invalidContractV01();
   return result;
+}
+
+export function parseRepositoryInitialWorkResponseV01(value) {
+  exactObjectV01(value, ["projection_version", "status", "expected_snapshot_binding", "preview_binding", "packet_fingerprint", "definition", "effects", "authority"]);
+  if (value.projection_version !== "codex_repository_initial_work.v0.1" || !["previewed", "saved"].includes(value.status)) invalidContractV01();
+  const saved = value.status === "saved";
+  fingerprintV01(value.expected_snapshot_binding); fingerprintV01(value.preview_binding);
+  if (saved) fingerprintV01(value.packet_fingerprint);
+  else if (value.packet_fingerprint !== null) invalidContractV01();
+  exactObjectV01(value.definition, ["before", "after"]);
+  if (value.definition.before !== null) invalidContractV01();
+  exactObjectV01(value.definition.after, ["goal", "success_criteria", "non_goals"]);
+  stringV01(value.definition.after.goal); stringArrayV01(value.definition.after.success_criteria); stringArrayV01(value.definition.after.non_goals);
+  exactObjectV01(value.effects, ["initial_work_created", "authorization_record_created"]);
+  if (value.effects.initial_work_created !== saved || value.effects.authorization_record_created !== saved) invalidContractV01();
+  exactObjectV01(value.authority, AUTHORITY_KEYS);
+  for (const key of AUTHORITY_KEYS) {
+    if (value.authority[key] !== (["writes_database", "changes_operator_session"].includes(key) && saved)) invalidContractV01();
+  }
+  return value;
 }
 
 export function parseRepositoryWorkRevisionResponseV01(value) {
@@ -1005,6 +1031,21 @@ function sourceReadToolDescriptionV01() {
   });
 }
 
+function initialWorkToolDescriptionsV01() {
+  return workRevisionToolDescriptionsV01().map((tool, index) => {
+    const save = index === 1;
+    const { goal, success_criteria, non_goals } = tool.inputSchema.properties.changes.properties;
+    return exposeRequiredInputsInDescriptionV01({ ...tool,
+      name: save ? INITIAL_WORK_SAVE_TOOL_NAME : INITIAL_WORK_PREVIEW_TOOL_NAME,
+      title: save ? "Define the first repository work" : "Preview the first repository work",
+      description: "First ordinary work only, for an already registered and selected local project with no work history. Supply the complete goal, success_criteria and non_goals against a fresh Resume snapshot. Preview writes nothing; explicit save requires its previewBinding, identical normalized changes and independent Companion authentication within existing user authorization. Duplicate, concurrent or stale saves refuse; reconcile a lost response through explicit Resume/readback, never an automatic replacement save. Add attributed notes afterward through existing work revision. No project registration/selection, Browser login, execution grant, run, receipt, semantic acceptance or completion is created.",
+      inputSchema: { ...tool.inputSchema, properties: { ...tool.inputSchema.properties,
+        changes: { type: "object", additionalProperties: false, required: ["goal", "success_criteria", "non_goals"], properties: { goal, success_criteria, non_goals } },
+      } },
+    });
+  });
+}
+
 function workRevisionToolDescriptionsV01(newTask = false) {
   const note = {
     type: "object", additionalProperties: false,
@@ -1347,7 +1388,7 @@ export async function handleMessageV01(message) {
   if (message.method === "notifications/initialized" || message.method === "notifications/cancelled") return null;
   if (message.method === "ping") return { jsonrpc: "2.0", id: message.id, result: {} };
   if (message.method === "tools/list") {
-    return { jsonrpc: "2.0", id: message.id, result: { tools: [...lifecycleToolDescriptionsV01(), toolDescriptionV01(), sourceReadToolDescriptionV01(), retainedSourceLookupToolDescriptionV01(), ...workRevisionToolDescriptionsV01(), ...workRevisionToolDescriptionsV01(true), ...repositoryExecutionToolDescriptionsV01()] } };
+    return { jsonrpc: "2.0", id: message.id, result: { tools: [...lifecycleToolDescriptionsV01(), toolDescriptionV01(), sourceReadToolDescriptionV01(), retainedSourceLookupToolDescriptionV01(), ...initialWorkToolDescriptionsV01(), ...workRevisionToolDescriptionsV01(), ...workRevisionToolDescriptionsV01(true), ...repositoryExecutionToolDescriptionsV01()] } };
   }
   if (message.method === "tools/call") {
     const args = message.params?.arguments;
@@ -1400,13 +1441,13 @@ export async function handleMessageV01(message) {
         } };
       }
       if (WORK_PREPARATION_TOOLS.includes(toolName)) {
-        const projection = await callRepositoryWorkRevisionV01(discovery.companion, args, WORK_SAVE_TOOLS.includes(toolName), [NEW_WORK_PREVIEW_TOOL_NAME, NEW_WORK_SAVE_TOOL_NAME].includes(toolName));
+        const projection = await callRepositoryWorkRevisionV01(discovery.companion, args, WORK_SAVE_TOOLS.includes(toolName), [NEW_WORK_PREVIEW_TOOL_NAME, NEW_WORK_SAVE_TOOL_NAME].includes(toolName), INITIAL_WORK_TOOLS.includes(toolName));
         return { jsonrpc: "2.0", id: message.id, result: {
           isError: projection.status === "refused",
           structuredContent: { companion: { status: "live", mode: "http", binding: discovery.companion.binding }, ...projection },
           content: [{ type: "text", text: projection.status === "previewed"
             ? "Preview only; nothing saved. Inspect normalized changes. Save explicitly only within existing user authorization."
-            : projection.status === "saved" ? projection.preparation ? "Different task prepared. Prior preparation was not completed; no execution or semantic action. Resume again before reading sources." : "Work revision saved. No execution or semantic action. Explicitly Resume again before reading the new selection."
+            : projection.status === "saved" ? INITIAL_WORK_TOOLS.includes(toolName) ? "First work defined. No execution or semantic action. Explicitly Resume again before adding or reading sources." : projection.preparation ? "Different task prepared. Prior preparation was not completed; no execution or semantic action. Resume again before reading sources." : "Work revision saved. No execution or semantic action. Explicitly Resume again before reading the new selection."
             : projection.status === "exact_replay" ? projection.preparation ? "Existing identical preparation acknowledged; no new preparation. Authentication bookkeeping was recorded." : "Existing identical revision acknowledged; no new revision. Authentication bookkeeping was recorded."
             : `Work revision refused (${projection.reason}). No automatic refresh, rebase or retry was performed.` }],
         } };

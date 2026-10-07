@@ -27,8 +27,22 @@ export interface RepositoryWorkRevisionInputV01 {
   repository_root: string;
   expected_snapshot_binding: string;
   changes: RepositoryWorkChangesV01;
-  intent?: "new_task";
+  intent?: "new_task" | "initial_work";
   preview_binding?: string;
+}
+
+export const CODEX_REPOSITORY_INITIAL_WORK_VERSION_V01 = "codex_repository_initial_work.v0.1" as const;
+
+/** Empty-project definition only; selected notes use the existing revision path. */
+export interface RepositoryInitialWorkProjectionV01 {
+  projection_version: typeof CODEX_REPOSITORY_INITIAL_WORK_VERSION_V01;
+  status: "previewed" | "saved";
+  expected_snapshot_binding: string;
+  preview_binding: string;
+  packet_fingerprint: string | null;
+  definition: { before: null; after: ProjectWorkDefinitionV01 };
+  effects: { initial_work_created: boolean; authorization_record_created: boolean };
+  authority: RepositoryWorkRevisionProjectionV01["authority"];
 }
 
 /** Closed, rebuildable projection. No canonical records or authentication values. */

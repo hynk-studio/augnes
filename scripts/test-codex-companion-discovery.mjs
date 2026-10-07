@@ -13,6 +13,7 @@ import {
   discoverVerifiedCompanionV01,
   parseRepositoryWorkSourcesResponseV01,
   parseRepositoryWorkRevisionResponseV01,
+  parseRepositoryInitialWorkResponseV01,
   parseRepositoryRetainedSourcesResponseV01,
 } from "../plugins/augnes-operator/mcp/companion-proxy.mjs";
 import { createConnectedProjectReaderV01 } from "../plugins/augnes-operator/mcp/connected-project-reader.mjs";
@@ -183,6 +184,7 @@ const ui = createServer(async (request, response) => {
     let body = ""; for await (const chunk of request) body += chunk;
     assert.equal(JSON.parse(body).action, workRevisionScenario.action ?? "save");
     if (workRevisionScenario.newTask) assert.equal(JSON.parse(body).intent, "new_task");
+    if (workRevisionScenario.initialWork) assert.equal(JSON.parse(body).intent, "initial_work");
     if (workRevisionScenario.disconnect) return request.socket.destroy();
     response.setHeader("x-augnes-local-work-revision", "codex-repository-work-revision-v0.1");
     response.setHeader("x-augnes-runtime-instance", instance);
@@ -286,6 +288,8 @@ try {
       "augnes_resume_repository",
       "augnes_read_repository_work_sources",
       "augnes_lookup_repository_retained_sources",
+      "augnes_preview_repository_initial_work",
+      "augnes_define_repository_initial_work",
       "augnes_preview_repository_work_revision",
       "augnes_save_repository_work_revision",
       "augnes_preview_repository_new_work",
@@ -323,6 +327,11 @@ try {
     assert.equal(byName.get("augnes_read_repository_work_sources")?.annotations?.readOnlyHint, true);
     assert.equal(byName.get("augnes_lookup_repository_retained_sources")?.annotations?.readOnlyHint, true);
     assert.equal(byName.get("augnes_preview_repository_work_revision")?.annotations?.readOnlyHint, true);
+    assert.equal(byName.get("augnes_preview_repository_initial_work")?.annotations?.readOnlyHint, true);
+    assert.equal(byName.get("augnes_define_repository_initial_work")?.annotations?.readOnlyHint, false);
+    assert.equal(byName.get("augnes_define_repository_initial_work")?.annotations?.idempotentHint, false);
+    assert.deepEqual(byName.get("augnes_define_repository_initial_work")?.inputSchema.properties.changes.required, ["goal", "success_criteria", "non_goals"]);
+    assert.equal(Object.hasOwn(byName.get("augnes_define_repository_initial_work").inputSchema.properties.changes.properties, "sources"), false);
     assert.equal(byName.get("augnes_preview_repository_new_work")?.annotations?.readOnlyHint, true);
     assert.equal(byName.get("augnes_prepare_repository_new_work")?.annotations?.readOnlyHint, false);
     assert.equal(byName.get("augnes_prepare_repository_new_work")?.annotations?.idempotentHint, false);
@@ -583,6 +592,33 @@ try {
       effects: { work_revision_created: true, authorization_record_created: true }, source_material_authority: "untrusted_selected_context",
       authority: { ...sourceProjection.authority, writes_database: true, changes_operator_session: true } };
     assert.deepEqual(parseRepositoryWorkRevisionResponseV01(editProjection), editProjection);
+    const initialSave = () => client.callTool({ name: "augnes_define_repository_initial_work", arguments: {
+      repositoryRoot: process.cwd(), expectedSnapshotBinding: sourceBinding, previewBinding: sourceBinding, changes: editProjection.definition.after } });
+    for (const status of ["previewed", "saved"]) {
+      const saved = status === "saved";
+      const initial = { projection_version: "codex_repository_initial_work.v0.1", status,
+        expected_snapshot_binding: sourceBinding, preview_binding: sourceBinding, packet_fingerprint: saved ? sourceBinding : null,
+        definition: { before: null, after: editProjection.definition.after },
+        effects: { initial_work_created: saved, authorization_record_created: saved },
+        authority: { ...sourceProjection.authority, writes_database: saved, changes_operator_session: saved } };
+      assert.deepEqual(parseRepositoryInitialWorkResponseV01(initial), initial);
+      for (const changed of [ { ...initial, status: "exact_replay" }, { ...initial, preparation: { prior_work_marked_complete: false } },
+        { ...initial, authority: { ...initial.authority, creates_run: true } },
+        { ...initial, effects: { ...initial.effects, initial_work_created: !saved } } ]) {
+        assert.throws(() => parseRepositoryInitialWorkResponseV01(changed), /contract_invalid/u);
+      }
+      workRevisionScenario = { initialWork: true, action: saved ? "save" : "preview", body: initial };
+      const result = saved ? await initialSave() : await client.callTool({ name: "augnes_preview_repository_initial_work", arguments: {
+        repositoryRoot: process.cwd(), expectedSnapshotBinding: sourceBinding, changes: editProjection.definition.after } });
+      assert.equal(result.structuredContent.status, status);
+    }
+    for (const scenario of [{ disconnect: true }, { body: editProjection }, { body: { private: "must not escape" } }]) {
+      workRevisionScenario = { ...scenario, initialWork: true };
+      const previous = workRevisionCalls, unknown = await initialSave();
+      assert.equal(unknown.structuredContent.status, "outcome_unknown");
+      assert.equal(workRevisionCalls, previous + 1);
+      assert.equal(JSON.stringify(unknown).includes("must not escape"), false);
+    }
     assert.throws(() => parseRepositoryWorkRevisionResponseV01({ ...editProjection, authority: sourceProjection.authority }));
     const save = () => client.callTool({ name: "augnes_save_repository_work_revision", arguments: {
       repositoryRoot: process.cwd(), expectedSnapshotBinding: sourceBinding, previewBinding: sourceBinding, changes: { goal: "After" } } });

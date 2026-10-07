@@ -627,6 +627,22 @@ and transports no source-machine root or credentials. This additive
 interpretation requires neither a schema migration nor a TaskContextPacket,
 NativeHostRequest, or portable-project version bump.
 
+The private Companion first-work ingress (#1417) uses the same ordinary initial
+compiler and transaction-required writer as Browser authorship. Its distinct
+`initial_work` intent accepts only a complete definition for an already registered,
+selected empty project. Preview is read-only; independently authenticated save
+binds the exact repository/runtime, selection/root, snapshot and normalized
+definition before atomically admitting existing Companion provenance and the
+initial packet. The historical `initial_user_defined` lineage name describes the
+ordinary authored-work family; the actual author is reconstructed from its
+Companion-specific born-revoked session, without inventing Browser login or a
+human actor. Existing initial lineage and recovery validation remain unchanged.
+Stale/duplicate initial saves refuse; explicit readback reconciles uncertainty.
+No schema, Core kind, managed receipt, completion, execution grant or direction
+bearer entitlement is added. Selected notes and different-task preparation remain
+separate existing operations; external reports remain `imported_unverified` and
+their interpretation `derived_interpretation`.
+
 #### Pre-execution user revision boundary
 
 `project_work_revision_eligibility.v0.1` is the single deterministic owner for
