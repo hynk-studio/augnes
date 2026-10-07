@@ -1124,6 +1124,21 @@ mechanical checks, not an installed-production save or measured burden reduction
 Installation and first real-work use require separate reviewed authority after
 merge; unrelated installed #1314 and all research conclusions remain unchanged.
 
+### Current P2/P4 — Companion first ordinary work (#1417)
+
+The candidate adds first-work preview/save for an already registered and selected
+empty local project through the existing private Companion channel and shared
+initial writer. Ordinary note revision and different-task preparation are reused.
+The [consumer example](../../scripts/companion-first-work-consumer.md) starts with
+no packet, traverses proxy/HTTP/authenticated admission, executes the existing
+Web Planning file-manifest check in a separate process, and stores attributed
+reports and different result-informed next actions. Its incompatible branch
+actually checks a targeted role correction. Fresh client processes Resume/read
+the saved work and notes without copied context. This is scripted,
+developer-exposed disposable evidence, not ordinary-use usefulness, Autohunt,
+hosted adoption, independent transfer or installed-plugin rollout. Final exact-head
+verification and Draft review remain recorded with the candidate PR.
+
 <a id="current-p2p5--web-augnes-v0-task-b-local-candidate-1345"></a>
 
 ## Completed P2/P5 — Web Augnes v0 hosted slice (#1345)

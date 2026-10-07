@@ -203,6 +203,19 @@ installation/lifecycle refresh before installed use; it does not switch existing
 production work. Full input and recovery boundaries are in the
 [preparation contract](CODEX_CURRENT_CONTINUITY_V0_1.md#explicit-preview-and-save-of-prepared-work).
 
+When Resume reports no work in an already registered and selected local project,
+use `augnes_preview_repository_initial_work` with the exact snapshot binding and
+complete definition in `changes`, then `augnes_define_repository_initial_work`
+with the same normalized definition/binding and returned `previewBinding`.
+This defines the first ordinary work without Browser login. It does not register
+or select a project, acquire execution authority or mark anything complete.
+Preview writes nothing; save authenticates independently and refuses stale or
+duplicate creation. If its response is uncertain, explicitly Resume/read back
+before deciding anything further. Add sources with the ordinary revision tools
+after a fresh Resume. The [runnable consumer example](../scripts/companion-first-work-consumer.md)
+shows a real external file-contract check, attributed reports and result-informed
+continuation using a disposable local fixture.
+
 For a user-authorized update to existing eligible unstarted current work, call
 `augnes_preview_repository_work_revision` with the repository root, the same
 Resume binding and explicit `changes`. Inspect the normalized differences, then

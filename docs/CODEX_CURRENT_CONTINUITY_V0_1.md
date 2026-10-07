@@ -334,6 +334,33 @@ is no automatic retry, rebase, polling or save-on-search.
 
 ### Explicit preview and save of prepared work
 
+For an already registered and selected local project with `no_current_work` and
+validated `not_defined` initialization, use
+`augnes_preview_repository_initial_work` then
+`augnes_define_repository_initial_work`. Both take `repositoryRoot`, a fresh
+Resume `expectedSnapshotBinding`, and complete `changes` (`goal`,
+`success_criteria`, `non_goals`); save also takes the returned `previewBinding`.
+The existing private preparation route uses the distinct `intent: "initial_work"`.
+No selected-source input is accepted here. After creation, explicitly Resume
+and use ordinary note revision to add attributed context or external reports.
+
+Preview uses a read-only transaction and returns
+`codex_repository_initial_work.v0.1`, with no prior definition or packet.
+Save independently authenticates the current Companion channel. Its seal binds
+the normalized definition, full canonical snapshot, repository and runtime
+identity. A dedicated immediate transaction covers repository resolution,
+current selection/root/history eligibility, Companion admission, the shared
+transaction-required initial writer, and post-write lineage reconstruction.
+The Browser wrapper retains its authentication, cookies and replay behavior.
+Companion initial save refuses every stale/duplicate binding, including identical
+duplicates; it never reactivates genesis after revision or a different task.
+Concurrent creators leave one valid genesis. Storage failure rolls the admission
+and packet back together. A lost/invalid save response or uncertain contention
+requires deliberate Resume/readback, without replacement save or refresh-and-save.
+The born-revoked Companion admission records the actual channel, issues no
+Browser credential, and is validated by the existing initial lineage/recovery
+owners. There is no new table, Core kind, execution grant, run or receipt.
+
 For an explicitly user-declared **different task**, use
 `augnes_preview_repository_new_work` then `augnes_prepare_repository_new_work`.
 These use the same private preparation route, with `intent: "new_task"`, and the

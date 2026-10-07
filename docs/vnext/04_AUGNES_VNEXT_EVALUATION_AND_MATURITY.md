@@ -43,6 +43,22 @@ the whole product mature.
 
 ## Method-improvement evidence
 
+For #1417's bounded first-work ingress, the observed gap is an empty registered
+project that cannot use the existing revision tools. The hypothesis is that
+sharing initial authorship behind the private Companion channel enables the
+existing result-to-revision path without another work store or executor. Evaluate
+an empty-project proxy/HTTP bootstrap, independently authenticated atomic save,
+stale/concurrent refusal, uncertain-outcome readback, and ordinary lineage/recovery.
+The consumer must execute an existing check externally, retain exact source/input
+identity and observed exit status, and save different interpretations/actions for
+compatible and incompatible results. At least one branch performs its chosen
+follow-up. Fresh processes must recover the notes through normal readers.
+Scripted disposable compatibility inputs establish mechanism behavior only;
+external reports remain imported and unverified, and interpretations derived.
+Ordinary-use benefit, model judgment, Autohunt and independent transfer require
+separate evidence. The next decision is bounded implementation review, not an
+automatic expansion into those evaluations.
+
 The joint development responsibilities live in [AGENTS.md](../../AGENTS.md#joint-method-improvement).
 This section governs evidence and interpretation for work that changes a method
 or claims improved quality, capability, cost, latency, reliability, or user burden.

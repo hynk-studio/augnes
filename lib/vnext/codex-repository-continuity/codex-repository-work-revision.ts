@@ -15,6 +15,8 @@ import { CODEX_REPOSITORY_WORK_REVISION_VERSION_V01, type RepositoryWorkRevision
 import type { RevisePreExecutionProjectWorkRequestV01 } from "@/types/vnext/project-work-revision";
 import { resolveCodexRepositoryProjectV01, type CodexRepositoryContinuityDependenciesV01 } from "./codex-repository-continuity";
 import { projectSelectedWorkSourcesV01 } from "./codex-repository-work-sources";
+import { defineInitialProjectWorkInsideTransactionV01, readProjectWorkInitializationV01 } from "@/lib/vnext/runtime/project-work-initialization";
+import { CODEX_REPOSITORY_INITIAL_WORK_VERSION_V01, type RepositoryInitialWorkProjectionV01 } from "@/types/vnext/codex-repository-work-revision";
 
 export class RepositoryWorkRevisionTransportErrorV01 extends Error {
   constructor(readonly code: string, readonly status = 409) { super(code); }
@@ -30,12 +32,13 @@ export interface CompanionWorkChannelV01 {
 
 export function parseRepositoryWorkRevisionInputV01(value: unknown): RepositoryWorkRevisionInputV01 {
   const input = object(value);
-  const keys = [...(input.intent === "new_task" ? ["intent"] : []), "action", "repository_root", "expected_snapshot_binding", "changes", ...(input.action === "save" ? ["preview_binding"] : [])];
+  const keys = [...(["new_task", "initial_work"].includes(String(input.intent)) ? ["intent"] : []), "action", "repository_root", "expected_snapshot_binding", "changes", ...(input.action === "save" ? ["preview_binding"] : [])];
   exact(input, keys);
   if (!["preview", "save"].includes(String(input.action)) || typeof input.repository_root !== "string" ||
     !path.isAbsolute(input.repository_root) || input.repository_root.includes("\0") || !fingerprint(input.expected_snapshot_binding) ||
     (input.action === "save" && !fingerprint(input.preview_binding))) refuse("invalid_revision_input", 400);
   const changes = object(input.changes);
+  if (input.intent === "initial_work") exact(changes, ["goal", "success_criteria", "non_goals"]);
   if (input.intent === "new_task") {
     exact(changes, ["goal", "success_criteria", "non_goals", "sources"]);
     if (changes.sources === undefined) refuse("invalid_source_changes", 422);
@@ -67,6 +70,7 @@ export async function reviseCodexRepositoryWorkV01(
   dependencies: CodexRepositoryContinuityDependenciesV01 = {},
 ): Promise<RepositoryWorkRevisionProjectionV01> {
   const input = parseRepositoryWorkRevisionInputV01(value);
+  if (input.intent === "initial_work") refuse("invalid_revision_input", 400);
   if (!channel.key || !channel.instance_id || !channel.generation_id || !channel.repository_fingerprint) refuse("companion_unavailable", 503);
   if (db.inTransaction) refuse("work_revision_transaction_conflict");
   db.exec(input.action === "save" ? "BEGIN IMMEDIATE" : "BEGIN");
@@ -179,8 +183,72 @@ export async function loadCodexRepositoryWorkRevisionV01(value: unknown, channel
   try {
     if (input.action === "preview") db.pragma("query_only = ON");
     db.pragma("foreign_keys = ON"); db.pragma("busy_timeout = 5000");
-    return await reviseCodexRepositoryWorkV01(db, input, channel);
+    return input.intent === "initial_work"
+      ? await initializeCodexRepositoryWorkV01(db, input, channel)
+      : await reviseCodexRepositoryWorkV01(db, input, channel);
   } finally { db.close(); }
+}
+
+/** Initial creation never replays a stale request. Deliberate Resume/readback
+ * reconciles duplicate/concurrent saves and uncertain transport outcomes. */
+export async function initializeCodexRepositoryWorkV01(
+  db: Database.Database, value: unknown, channel: CompanionWorkChannelV01,
+  dependencies: CodexRepositoryContinuityDependenciesV01 = {},
+): Promise<RepositoryInitialWorkProjectionV01> {
+  const input = parseRepositoryWorkRevisionInputV01(value);
+  if (input.intent !== "initial_work") refuse("invalid_revision_input", 400);
+  if (!channel.key || !channel.instance_id || !channel.generation_id || !channel.repository_fingerprint) refuse("companion_unavailable", 503);
+  if (db.inTransaction) refuse("work_revision_transaction_conflict");
+  db.exec(input.action === "save" ? "BEGIN IMMEDIATE" : "BEGIN");
+  try {
+    const resolution = await resolveCodexRepositoryProjectV01(db, input, dependencies);
+    if (resolution.status !== "resolved_exact") refuse("repository_unresolved");
+    const scope = { workspace_id: resolution.workspace_id!, project_id: resolution.project_id! };
+    const { projection: continuity, binding_material: material } = await readCodexCurrentContinuitySnapshotV01(db, {
+      viewed_project_id: scope.project_id,
+    }, dependencies);
+    if (continuity.snapshot.status !== "exact" || continuity.snapshot.binding !== input.expected_snapshot_binding) refuse("refresh_required");
+    const initialization = readProjectWorkInitializationV01(db, scope);
+    if (!continuity.project.active || continuity.project.root_availability !== "available" ||
+      continuity.current_work.status !== "no_current_work" || initialization.state !== "not_defined" ||
+      !initialization.mutation_eligible) refuse("first_work_state_changed");
+    const definition = normalizeInitialProjectWorkDefinitionV01({ goal: input.changes.goal,
+      success_criteria: input.changes.success_criteria, non_goals: input.changes.non_goals });
+    const request = { action: "define_initial_project_work", ...scope,
+      expected_active_project_id: scope.project_id,
+      expected_active_selection_revision: initialization.active_selection_revision!,
+      expected_initialization_state: "not_defined", ...definition };
+    const { key, ...identity } = channel;
+    const seal = `sha256:${createHmac("sha256", key).update(canonicalizeProtocolValueV01({
+      contract: CODEX_REPOSITORY_INITIAL_WORK_VERSION_V01, identity,
+      snapshot: input.expected_snapshot_binding, request, material,
+    })).digest("hex")}`;
+    if (input.action === "save" && !sameSeal(seal, input.preview_binding!)) refuse("preview_changed");
+    let packetFingerprint: string | null = null;
+    if (input.action === "save") {
+      const admission = recordCompanionWorkAdmissionInsideTransactionV01(db, {
+        ...scope, observed_at: (dependencies.now ?? (() => new Date().toISOString()))(),
+      });
+      const result = defineInitialProjectWorkInsideTransactionV01(db, {
+        scope: { ...scope, operator_id: COMPANION_WORK_OPERATOR_ID_V01 }, request, admission,
+      });
+      if (result.status !== "inserted") refuse("first_work_state_changed");
+      packetFingerprint = result.packet.integrity.fingerprint;
+    }
+    const saved = input.action === "save";
+    const result: RepositoryInitialWorkProjectionV01 = {
+      projection_version: CODEX_REPOSITORY_INITIAL_WORK_VERSION_V01, status: saved ? "saved" : "previewed",
+      expected_snapshot_binding: input.expected_snapshot_binding, preview_binding: seal,
+      packet_fingerprint: packetFingerprint, definition: { before: null, after: definition },
+      effects: { initial_work_created: saved, authorization_record_created: saved },
+      authority: { ...CODEX_CURRENT_CONTINUITY_AUTHORITY_V01, writes_database: saved, changes_operator_session: saved },
+    };
+    db.exec(saved ? "COMMIT" : "ROLLBACK");
+    return result;
+  } catch (error) {
+    if (db.inTransaction) db.exec("ROLLBACK");
+    throw error;
+  }
 }
 
 function sealPreview(channel: CompanionWorkChannelV01, snapshot: string, request: RevisePreExecutionProjectWorkRequestV01, value: unknown, resumesFiniteWork = false): string {
