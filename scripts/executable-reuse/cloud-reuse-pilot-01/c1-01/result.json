@@ -1,0 +1,90 @@
+{
+  "pilot": "cloud-reuse-pilot-01-C1",
+  "status": "BLOCKED; authenticated read checkpoint incomplete",
+  "commission": "https://github.com/hynk-studio/augnes/pull/1414#pullrequestreview-5437651352",
+  "base": "4a1d2137d126247645f8598df842d9b5e2bbc61b",
+  "base_tree": "1840b92baa756ff0341d4cbf4f1169f87e74216c",
+  "execution_commit": "0e52db7defb8f710799699b00871771f5a9be151",
+  "execution_tree": "836fa36a7a032c71b09a23a83fe3dfa19a269a45",
+  "execution_helper_sha256": "ecffb2e534465757dfee574937a170163d8bdf695072740ae005779138ade10a",
+  "input": {
+    "path": "../consumer-01/continuation-03/consumer/planning-work.json",
+    "bytes": 55006,
+    "sha256": "797fc35751add728b3b70914ddf8eac5fcfadb3bb4589ff0a956553504edde19",
+    "work_id": "47b083cb-833d-49e3-9652-fa6c8d814730",
+    "revision": 4,
+    "fingerprint": "sha256:fb42543992e0ca4f24866d611cc2178159904647ded24678f4f79b933d69d289"
+  },
+  "read_observation": {
+    "normal_reconstruction_accepted": true,
+    "actual_saved_revision_equal_to_validated_input": true,
+    "server_history_revisions_1_to_4_equal": true,
+    "saved_context_requested": true,
+    "failure_stage": "authenticated-context-read",
+    "failure_check": "settled",
+    "failure_class": "AssertionError",
+    "complete_selected_content_check": "FAILED",
+    "checkpoint_returned_to_agent": false,
+    "recovered_refs_exposed_in_completed_checkpoint": [],
+    "attachment_contents_read_by_C1_agent": false
+  },
+  "sequence": {
+    "runtime_read": "failed after accepted reconstruction; fully cleaned",
+    "visible_agent_response": "reports block only; no B3 assessment",
+    "judgment_authorship": "NOT RUN",
+    "runtime_save": "NOT RUN",
+    "successor_revision_5": "NOT CREATED",
+    "authenticated_judgment_download": "NOT RUN",
+    "successor_export": "NOT CREATED"
+  },
+  "uncertainty": [
+    "Safe failure diagnostic did not retain which of the context inclusion assertions failed.",
+    "No authenticated content checkpoint was returned to the agent; transport parsing cannot replace it.",
+    "No C1 applicability judgment or successor was observed."
+  ],
+  "retry_disposition": "Not eligible: reconstruction was accepted in this operation. No runtime retry or reset.",
+  "counts": {
+    "primary_runtime_operations_started": 1,
+    "primary_runtime_operations_completed_successfully": 0,
+    "setup_retries": 0,
+    "fresh_disposable_stores": 1,
+    "reconstruction_submissions": 1,
+    "authored_saves": 0,
+    "unknown_outcome_resolutions": 0,
+    "external_provider_calls": 0
+  },
+  "permissions": {
+    "mechanism": "exec_command with_additional_permissions network.enabled=true requested for this command",
+    "denials_observed": 0,
+    "browser_flag": "--allow-unsandboxed-synthetic-pilot",
+    "scope": "owned local synthetic loopback fixture; no transferred grant or bypass"
+  },
+  "cleanup": {
+    "browser_worker_ports": "verified settled by fixture-cleanup.json",
+    "known_owned_process_groups": "absent by independent read-only /proc observations",
+    "temporary_root_removed": true,
+    "failures": [],
+    "scope": "known owned groups/resources only; arbitrary escaped descendants not claimed"
+  },
+  "timing": {
+    "intake_at": "2026-10-07T04:35:45Z",
+    "runtime_started_at": "2026-10-07T04:40:41.951Z",
+    "runtime_finished_and_cleaned_at": "2026-10-07T04:40:47.003Z",
+    "runtime_parent_lifecycle_ms": 5052,
+    "active_diagnosis_stopped_at": "2026-10-07T04:41:03Z",
+    "intake_to_diagnosis_stop_seconds": 318,
+    "retention_started_at": "2026-10-07T04:41:03Z",
+    "cleanup_only_duration": "not separately instrumented; fixture and parent completion times retained"
+  },
+  "exposure": "Exposed same-task follow-up, not blind or independent; no cognition attestation.",
+  "history_preservation": "All historical repository artifacts/branches unchanged. Original B3 scripted scope rule and fresh judgment NOT OBSERVED unchanged.",
+  "checks": {
+    "syntax": "node --check scripts/executable-reuse/cloud-reuse-pilot-01/c1-judgment.mjs: PASS",
+    "structural": "node --import tsx scripts/executable-reuse/cloud-reuse-pilot-01/test-c1-judgment.mjs: PASS; 3 verdict alternatives allowed and 10 invalid binding/time controls rejected",
+    "diff": "git diff --check: PASS",
+    "application_and_solver": "exact pinned tree checked; scoped source diff empty in runtime source-admission"
+  },
+  "mac_deciding_verification": "NOT RUN / integration pending",
+  "auto_merge": "disabled; Draft only",
+  "stopped_for": "ChatGPT review; no further runtime operation authorized under this accepted-attempt retry boundary"
+}

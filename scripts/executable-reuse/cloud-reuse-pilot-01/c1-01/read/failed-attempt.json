@@ -1,0 +1,35 @@
+{
+  "operation": "read",
+  "stage": "authenticated-context-read",
+  "check": "settled",
+  "diagnostic": {
+    "name": "AssertionError",
+    "code": "ERR_ASSERTION",
+    "syscall": null,
+    "errno": null,
+    "assertion_operator": null,
+    "evaluation": null,
+    "cause": null
+  },
+  "progress": {
+    "work_id": "47b083cb-833d-49e3-9652-fa6c8d814730",
+    "revisions": [],
+    "reconstructed": true,
+    "readback": false,
+    "export_downloaded": false
+  },
+  "readiness": {
+    "correct_document": true,
+    "document_complete": true,
+    "client_loaded": true,
+    "client_idle": true,
+    "list_state": "empty",
+    "list_complete": true,
+    "controls_ready": true,
+    "ready": true,
+    "client_http_200": true,
+    "list_http_200": true
+  },
+  "unknown_outcome_resolutions": 0,
+  "unexpected_failures": []
+}

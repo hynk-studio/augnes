@@ -1,0 +1,17 @@
+{
+  "pilot": "cloud-reuse-pilot-01-C1",
+  "review": "https://github.com/hynk-studio/augnes/pull/1414#pullrequestreview-5437651352",
+  "intake_at": "2026-10-07T04:35:45Z",
+  "base": "4a1d2137d126247645f8598df842d9b5e2bbc61b",
+  "base_tree": "1840b92baa756ff0341d4cbf4f1169f87e74216c",
+  "branch": "codex/cloud-reuse-pilot-01-b3-judgment",
+  "pr_base": "codex/cloud-reuse-pilot-01-consumer",
+  "runtime_operations": ["read with fresh store and cleanup before model checkpoint", "save with second fresh store and stable checkpoint validation"],
+  "maximum_setup_retries": 1,
+  "setup_retry_only_before_reconstruction_acceptance": true,
+  "agent_checkpoint_required_before_judgment_authorship": true,
+  "attachment_exposure": "manifest and Saved-context links; original attachment contents not read by C1 agent",
+  "focused_controls": "3 conclusions accepted structurally; 10 wrong binding/time controls rejected; stable key-order hash checked",
+  "historical_B3": "scripted scope rule remains historical; fresh judgment NOT OBSERVED in B",
+  "mac_deciding_verification": "NOT RUN / integration pending"
+}

@@ -1,0 +1,22 @@
+{
+  "operation": "read",
+  "stage": "authenticated-context-read",
+  "tracked_browser_processes_remaining": 0,
+  "worker_returned": true,
+  "worker_disposed": true,
+  "browser_listener_closed": true,
+  "failures": [],
+  "diagnostics": [],
+  "independent_cleanup": {
+    "available": true,
+    "method": "read-only /proc numeric process metadata",
+    "groups": [
+      14567
+    ],
+    "live_group_members": [],
+    "known_groups_absent": true,
+    "scope": "known owned process groups; no arbitrary escaped-descendant claim",
+    "shared_owner_snapshot_status": "not exposed by shared owner"
+  },
+  "elapsed_including_fixture_cleanup_ms": 3041
+}
