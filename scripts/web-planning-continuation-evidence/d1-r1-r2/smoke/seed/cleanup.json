@@ -1,0 +1,62 @@
+{
+  "started_at": "2026-10-07T06:36:28.604Z",
+  "finished_at": "2026-10-07T06:36:28.696Z",
+  "resources": {
+    "worker": "observed-settled",
+    "browser": "observed-settled",
+    "listener": "observed-settled",
+    "cdp": "observed-settled",
+    "operations": "observed-settled"
+  },
+  "worker_disposed": true,
+  "browser_exit_observed": true,
+  "browser_streams_closed": true,
+  "debug_listener_closed": true,
+  "cdp_closed": true,
+  "owned_browser_records": 0,
+  "failures": [],
+  "primary_error": null,
+  "operation_succeeded": true,
+  "recovery": {
+    "root": "/tmp/ag-suite-ocPq4f",
+    "worker_root": "/tmp/ag-suite-ocPq4f/runtime",
+    "browser_pid": 19359,
+    "debug_port": 38859
+  },
+  "additional_process_observation": "not collected; registry/owned exit and listener evidence are not arbitrary descendant absence",
+  "traffic": [
+    {
+      "method": "GET",
+      "path": "/api/works"
+    },
+    {
+      "method": "POST",
+      "path": "/api/drafts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/work/64706b6f-ef34-4758-aa67-58f18ac43e34/save"
+    },
+    {
+      "method": "GET",
+      "path": "/api/works"
+    },
+    {
+      "method": "POST",
+      "path": "/api/work/64706b6f-ef34-4758-aa67-58f18ac43e34/ticket"
+    },
+    {
+      "method": "POST",
+      "path": "/api/work/64706b6f-ef34-4758-aa67-58f18ac43e34/save"
+    },
+    {
+      "method": "GET",
+      "path": "/api/works"
+    },
+    {
+      "method": "GET",
+      "path": "/api/work/64706b6f-ef34-4758-aa67-58f18ac43e34/export"
+    }
+  ],
+  "complete": true
+}

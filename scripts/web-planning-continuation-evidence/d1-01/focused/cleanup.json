@@ -1,0 +1,13 @@
+{
+  "started_at": "2026-10-07T06:01:30.600Z",
+  "finished_at": "2026-10-07T06:01:30.771Z",
+  "worker_disposed": true,
+  "browser_exit_observed": true,
+  "browser_streams_closed": true,
+  "debug_listener_closed": true,
+  "owned_browser_records": 0,
+  "failures": [],
+  "additional_process_observation": "not collected; registry/owned exit and listener evidence are not arbitrary descendant absence",
+  "traffic": [],
+  "complete": true
+}

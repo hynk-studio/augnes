@@ -373,6 +373,10 @@ root/global Miniflare. The new runtime's locked transitive dependencies include
 sharp, workerd and their platform packages. No remote bindings, deploy commands
 or provider credentials are used by these entry points.
 
+Development-only Saved-context checkpoint and external assessment-save commands
+are documented in [the continuation helper](../../scripts/web-planning-continuation.md).
+They use disposable synthetic fixtures and do not attest to model reasoning.
+
 ## Direct Cloudflare adapter (#1356)
 
 The direct entry `src/cloudflare-worker.ts` shares the existing handler, UI,

@@ -1,0 +1,78 @@
+{
+  "commission_review": 5438050714,
+  "intake_utc": "2026-10-07T05:52:45Z",
+  "active_validation_finished_utc": "2026-10-07T06:03:08Z",
+  "active_validation_seconds": 623,
+  "retention_started_utc": "2026-10-07T06:03:08Z",
+  "base": "b73e5012c699f85a9e3b643b6cba82f8f195d3ce",
+  "focused_execution": {
+    "head": "b73e5012c699f85a9e3b643b6cba82f8f195d3ce",
+    "state": "candidate source uncommitted; same helper bytes as execution commit below",
+    "controls": 64,
+    "synthetic_identities": [
+      {
+        "work_id": "37eebef1-d185-4e43-8981-b460128244db",
+        "revision": 1,
+        "fingerprint": "sha256:cd3a2a54629149046c70218b3c7c6efee8319588d718106cbb1f2a734d3ca061",
+        "bytes": 4655,
+        "digest": "sha256:514a281cb3514365f8138ec261681e419c613fe71fe2fa1d44e5fb289def4769"
+      },
+      {
+        "work_id": "8f21e3d8-9b69-4721-a0be-3b844ee3a33e",
+        "revision": 2,
+        "fingerprint": "sha256:66fab87c0d863d83d4e0045e81db4d9e6ed1a4b0a7bb6f6255714a9dedc7721e",
+        "bytes": 9068,
+        "digest": "sha256:17f0c93153f61d5e2472814472be3e4edd1b3a53220bf2ad39f17cc76bc36c99"
+      }
+    ]
+  },
+  "smoke_execution": {
+    "head": "18217fd8c722a16c178f7c2f5acfe949e0c7eb61",
+    "tree": "361879aea74028a5beb92bf42af0d2bac7d0eb04",
+    "state": "source unchanged; generated evidence added during campaign",
+    "campaigns": 1,
+    "helper_setup_corrections": 0,
+    "new_authored_saves": 3,
+    "reconstruction_requests": 2,
+    "unknown_save_resolutions": 0,
+    "start": "2026-10-07T06:02:53.902Z",
+    "finish": "2026-10-07T06:03:06.685Z"
+  },
+  "source_sha256": {
+    "scripts/web-planning-continuation.mjs": "8a8ebf232512f98c22b010242cfe179921cba614ce617fbf6a45b68fb093f7d0",
+    "scripts/web-planning-continuation-contract.mjs": "f5bd36b4ef9f6b1926155697232d4d7f2c0607f757ccf61542ebe8c2a0e8b83e",
+    "scripts/web-planning-cdp.mjs": "ad47cbbe45451045c1befd80d17536ec06eeeadcbc395761cc40a2022b44d48e",
+    "scripts/test-web-planning-continuation.mjs": "b18bc0f71c2b7f8f8f23dbd6aeafa8def1ec0e2b5d6080d6c213c413e217af90",
+    "scripts/smoke-web-planning-continuation.mjs": "6183c8a8eea150bc397bef1e579dd91dc5bb3f7e7d8b69b5801e0f44144962f0"
+  },
+  "cleanup": {
+    "owned_fixtures": 4,
+    "all_worker_disposed": true,
+    "all_browser_exit_and_stream_closure": true,
+    "all_debug_listeners_closed": true,
+    "all_owned_roots_removed": true,
+    "additional_process_observation": "unavailable/not collected; no arbitrary descendant absence claim",
+    "fixture_cleanup_seconds": 0.417
+  },
+  "approval_burden": {
+    "actual_execution_profiles": 2,
+    "profile": "supported per-command loopback network permission, explicit unsandboxed synthetic browser opt-in",
+    "user_clarification_questions": 0,
+    "denials": 0,
+    "manual_approval_clicks": "not observable"
+  },
+  "results": {
+    "focused": "pass",
+    "smoke": "pass",
+    "adapter_equality": "pass",
+    "dependency_closure": "pass after audit-format setup correction",
+    "mac_deciding_verification": "NOT RUN / integration pending"
+  },
+  "legacy": {
+    "a": "d3f9f0d538078b33c7db892666d50755a71337bf",
+    "b": "4a1d2137d126247645f8598df842d9b5e2bbc61b",
+    "c1": "f5282c9ca41fcdaa88d5feccd30133ae0967fc47",
+    "local_c1_execution_reference": "40d1f2928c3eb71e95562460d50cc8994322174b"
+  },
+  "provider_expenditure": 0
+}

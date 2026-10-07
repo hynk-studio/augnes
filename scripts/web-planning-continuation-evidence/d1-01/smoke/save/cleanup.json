@@ -1,0 +1,66 @@
+{
+  "started_at": "2026-10-07T06:03:06.533Z",
+  "finished_at": "2026-10-07T06:03:06.637Z",
+  "worker_disposed": true,
+  "browser_exit_observed": true,
+  "browser_streams_closed": true,
+  "debug_listener_closed": true,
+  "owned_browser_records": 0,
+  "failures": [],
+  "additional_process_observation": "not collected; registry/owned exit and listener evidence are not arbitrary descendant absence",
+  "traffic": [
+    {
+      "method": "GET",
+      "path": "/api/works"
+    },
+    {
+      "method": "POST",
+      "path": "/api/reconstruct-files"
+    },
+    {
+      "method": "GET",
+      "path": "/api/works"
+    },
+    {
+      "method": "GET",
+      "path": "/api/work/bb214fa9-3bdf-45cf-9d33-1753740fefc2/history"
+    },
+    {
+      "method": "POST",
+      "path": "/api/work/bb214fa9-3bdf-45cf-9d33-1753740fefc2/context"
+    },
+    {
+      "method": "POST",
+      "path": "/api/work/bb214fa9-3bdf-45cf-9d33-1753740fefc2/capacity"
+    },
+    {
+      "method": "POST",
+      "path": "/api/work/bb214fa9-3bdf-45cf-9d33-1753740fefc2/ticket"
+    },
+    {
+      "method": "POST",
+      "path": "/api/work/bb214fa9-3bdf-45cf-9d33-1753740fefc2/save"
+    },
+    {
+      "method": "GET",
+      "path": "/api/works"
+    },
+    {
+      "method": "GET",
+      "path": "/api/work/bb214fa9-3bdf-45cf-9d33-1753740fefc2/history"
+    },
+    {
+      "method": "POST",
+      "path": "/api/work/bb214fa9-3bdf-45cf-9d33-1753740fefc2/context"
+    },
+    {
+      "method": "GET",
+      "path": "/api/work/bb214fa9-3bdf-45cf-9d33-1753740fefc2/files/3/388da3304aa0e97af9fb41ff0c4400ab8482ff50443c6af5439403483c465de7/1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/work/bb214fa9-3bdf-45cf-9d33-1753740fefc2/export"
+    }
+  ],
+  "complete": true
+}

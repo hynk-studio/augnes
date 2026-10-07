@@ -1,0 +1,15 @@
+{
+  "started_at": "2026-10-07T06:26:59.788Z",
+  "finished_at": "2026-10-07T06:26:59.789Z",
+  "child": null,
+  "diagnostic": {
+    "code": "EPERM"
+  },
+  "fixture_cleanup": false,
+  "disposable_root_removed": false,
+  "cleanup_failures": [],
+  "stdout": {},
+  "stderr": {},
+  "runner_logs": {},
+  "deciding_verification": false
+}

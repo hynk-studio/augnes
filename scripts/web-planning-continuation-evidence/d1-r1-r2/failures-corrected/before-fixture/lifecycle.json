@@ -1,0 +1,60 @@
+{
+  "started_at": "2026-10-07T06:32:56.138Z",
+  "finished_at": "2026-10-07T06:32:57.334Z",
+  "primary_error": {
+    "stage": "child.run",
+    "name": "Error",
+    "code": "development_child_failed",
+    "check_id": null
+  },
+  "secondary_errors": [
+    {
+      "stage": "fixture.report",
+      "name": "Error",
+      "code": "ENOENT",
+      "check_id": null
+    }
+  ],
+  "child": {
+    "label": "test-web-planning-continuation-failures.mjs",
+    "exit_code": 1,
+    "signal": null,
+    "timed_out": false,
+    "duration_ms": 1190,
+    "spawn_error_code": null,
+    "exit_observed": true,
+    "streams_closed": true,
+    "cleanup_started": true,
+    "cleanup_completed": true,
+    "remaining_owned_processes": 0,
+    "termination_reason": "natural_exit"
+  },
+  "child_state": "observed-settled",
+  "child_pid": 18998,
+  "stream_capture_complete": true,
+  "root_state": "retained",
+  "fixture_cleanup": false,
+  "disposable_root_removed": false,
+  "cleanup_failures": [],
+  "recovery": {
+    "root": "/tmp/ag-suite-NUUFuZ",
+    "device": "33",
+    "inode": "9174",
+    "child_state": "observed-settled",
+    "original_failure_stage": "child.run",
+    "cleanup_withheld_reason": "fixture_settlement_unproven"
+  },
+  "stdout": {
+    "bytes": 0,
+    "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "stderr": {
+    "bytes": 484,
+    "digest": "sha256:f87fc5734578d1547f92c765088f1d6c886218f07f4b5535743685638e5e3021"
+  },
+  "runner_logs": {
+    "bytes": 1151,
+    "digest": "sha256:1c0e1417b5e4ecbf58679a02949e0c6b259528b5c62eb81d93b7c4bef3ee7ebe"
+  },
+  "deciding_verification": false
+}

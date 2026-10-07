@@ -1,0 +1,11 @@
+{
+  "basis": "injected fixture dependencies created no external resources",
+  "recovery": [
+    {
+      "root": "/tmp/ag-suite-s4L5bF",
+      "completed": true,
+      "failure_count": 0,
+      "failures": []
+    }
+  ]
+}

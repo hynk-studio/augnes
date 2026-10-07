@@ -1,0 +1,25 @@
+{
+  "basis": "explicit test release followed by real Canonical settlement; no forced owner release",
+  "result": {
+    "label": "test-web-planning-continuation-failures.mjs",
+    "exit_code": 0,
+    "signal": null,
+    "timed_out": false,
+    "duration_ms": 1369,
+    "spawn_error_code": null,
+    "exit_observed": true,
+    "streams_closed": true,
+    "cleanup_started": true,
+    "cleanup_completed": true,
+    "remaining_owned_processes": 0,
+    "termination_reason": "natural_exit"
+  },
+  "recovery": [
+    {
+      "root": "/tmp/ag-suite-WqPKKt",
+      "completed": true,
+      "failure_count": 0,
+      "failures": []
+    }
+  ]
+}

@@ -1,0 +1,226 @@
+{
+  "format": "web_planning_development_checkpoint.v1",
+  "complete": false,
+  "observed_at": "2026-10-07T06:36:32.452Z",
+  "bundle_binding": "sha256:60a441f0fd0b1ca341dfb16d3fadb6db8f06274bd89bbeea7b3449c9c7e20091",
+  "bundle_id": "7627ce69-5ae1-435b-9c4f-4ac65a934a7c",
+  "material": {
+    "input": {
+      "work_id": "64706b6f-ef34-4758-aa67-58f18ac43e34",
+      "revision": 2,
+      "fingerprint": "sha256:6893d9635c76b1afdbc68dce268e60a57648eb428377e37fe5075f65437643e9",
+      "bytes": 9255,
+      "digest": "sha256:c008f36c3119ffe8c78ea32b3f94e989241073b4c0102ac5127e61394abf7afc"
+    },
+    "current": {
+      "workspace_id": "155448c4-983f-4e32-83c5-6d340db5d4fd",
+      "project_id": "bb63e047-9125-43c0-88cd-79f6b212b2ad",
+      "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+      "format": "web_planning_revision.v0.3",
+      "schema": 1,
+      "compatibility": "web-planning/3",
+      "work_id": "64706b6f-ef34-4758-aa67-58f18ac43e34",
+      "revision": 2,
+      "predecessor": "sha256:9acd9a708c5ec05e8da4d20472ace7ccbfd3ade9bb1f4905863002e56c42ae48",
+      "definition": {
+        "goal": "Synthetic D1 continuation <test> & exact, revision two",
+        "success_criteria": [
+          "Preserve history",
+          "Verify downloaded bytes"
+        ],
+        "non_goals": [
+          "No model judgment or code execution"
+        ]
+      },
+      "sources": [
+        {
+          "entry_id": "selected-source:0287efbbba00a92a26daaa48c799a58c9a692d87204ba69e8d8b4f8ad1449315",
+          "entry_kind": "source_ref",
+          "source_ref": "sha256:0287efbbba00a92a26daaa48c799a58c9a692d87204ba69e8d8b4f8ad1449315",
+          "external_ref": {
+            "ref_version": "external_ref.v0.1",
+            "ref_type": "selected_source_excerpt",
+            "external_id": "selected-source:0287efbbba00a92a26daaa48c799a58c9a692d87204ba69e8d8b4f8ad1449315",
+            "trust_class": "derived_interpretation",
+            "observed_at": "2026-10-01T00:00:00.000Z",
+            "source_ref": "sha256:0287efbbba00a92a26daaa48c799a58c9a692d87204ba69e8d8b4f8ad1449315",
+            "compatibility_namespace": "augnes.selected-source-excerpt.v0.1"
+          },
+          "why_included": "Open question",
+          "currentness": {
+            "status": "unknown",
+            "as_of": "2026-10-01T00:00:00.000Z",
+            "basis": "User-selected excerpt only. Original source completeness, availability and currentness have not been verified.",
+            "source_ref": {
+              "ref_version": "external_ref.v0.1",
+              "ref_type": "selected_source_excerpt",
+              "external_id": "selected-source:0287efbbba00a92a26daaa48c799a58c9a692d87204ba69e8d8b4f8ad1449315",
+              "trust_class": "derived_interpretation",
+              "observed_at": "2026-10-01T00:00:00.000Z",
+              "source_ref": "sha256:0287efbbba00a92a26daaa48c799a58c9a692d87204ba69e8d8b4f8ad1449315",
+              "compatibility_namespace": "augnes.selected-source-excerpt.v0.1"
+            }
+          },
+          "trust_class": "derived_interpretation",
+          "compatibility_source_ref": {
+            "ref_version": "external_ref.v0.1",
+            "ref_type": "selected_source_locator",
+            "external_id": "Synthetic attribution 1",
+            "compatibility_namespace": "augnes.selected-source-excerpt.v0.1",
+            "trust_class": "imported_unverified"
+          },
+          "bounded_summary": "B depends on A; currentness unknown"
+        },
+        {
+          "entry_id": "selected-source:5b69325fb52af25cd97718167cdee3e15e7a27e85c409e28223f761426bc452d",
+          "entry_kind": "source_ref",
+          "source_ref": "sha256:5b69325fb52af25cd97718167cdee3e15e7a27e85c409e28223f761426bc452d",
+          "external_ref": {
+            "ref_version": "external_ref.v0.1",
+            "ref_type": "selected_source_excerpt",
+            "external_id": "selected-source:5b69325fb52af25cd97718167cdee3e15e7a27e85c409e28223f761426bc452d",
+            "trust_class": "user_declaration",
+            "source_ref": "sha256:5b69325fb52af25cd97718167cdee3e15e7a27e85c409e28223f761426bc452d",
+            "compatibility_namespace": "augnes.selected-source-excerpt.v0.1"
+          },
+          "why_included": "Open question",
+          "currentness": {
+            "status": "unknown",
+            "as_of": null,
+            "basis": "User-selected excerpt only. Original source completeness, availability and currentness have not been verified.",
+            "source_ref": {
+              "ref_version": "external_ref.v0.1",
+              "ref_type": "selected_source_excerpt",
+              "external_id": "selected-source:5b69325fb52af25cd97718167cdee3e15e7a27e85c409e28223f761426bc452d",
+              "trust_class": "user_declaration",
+              "source_ref": "sha256:5b69325fb52af25cd97718167cdee3e15e7a27e85c409e28223f761426bc452d",
+              "compatibility_namespace": "augnes.selected-source-excerpt.v0.1"
+            }
+          },
+          "trust_class": "user_declaration",
+          "compatibility_source_ref": {
+            "ref_version": "external_ref.v0.1",
+            "ref_type": "selected_source_locator",
+            "external_id": "Synthetic attribution 0",
+            "compatibility_namespace": "augnes.selected-source-excerpt.v0.1",
+            "trust_class": "imported_unverified"
+          },
+          "bounded_summary": "A <tag> & \"quote\"\n  spaced\tvalue"
+        }
+      ],
+      "relations": {
+        "materials": [
+          {
+            "dependencies": [
+              "sha256:5b69325fb52af25cd97718167cdee3e15e7a27e85c409e28223f761426bc452d"
+            ],
+            "from": null,
+            "kind": "authored",
+            "source_ref": "sha256:0287efbbba00a92a26daaa48c799a58c9a692d87204ba69e8d8b4f8ad1449315"
+          },
+          {
+            "dependencies": [],
+            "from": null,
+            "kind": "authored",
+            "source_ref": "sha256:5b69325fb52af25cd97718167cdee3e15e7a27e85c409e28223f761426bc452d"
+          }
+        ],
+        "origin": null,
+        "review": null
+      },
+      "files": [
+        {
+          "bytes": 37,
+          "digest": "sha256:697d336c109625cf1c97e8d9f17e2b4ce19b0d934fc30cdf02e278bc5f9d73c1",
+          "name": "inert.txt",
+          "role": "other"
+        }
+      ],
+      "recorded_at": "2026-10-07T06:36:28.509Z",
+      "request_key": "aaf59298-488e-4cd1-9a51-891c40dc34ed",
+      "request_fingerprint": "sha256:8aab85b762c147580096f961994990d08d9af2c83a1cb49e11646d154fee5ccd",
+      "fingerprint": "sha256:6893d9635c76b1afdbc68dce268e60a57648eb428377e37fe5075f65437643e9"
+    },
+    "authenticated_dom": {
+      "present": true,
+      "revision": "2",
+      "fingerprint": "sha256:6893d9635c76b1afdbc68dce268e60a57648eb428377e37fe5075f65437643e9",
+      "definition": {
+        "goal": "Synthetic D1 continuation <test> & exact, revision two",
+        "success_criteria": [
+          "Preserve history",
+          "Verify downloaded bytes"
+        ],
+        "non_goals": [
+          "No model judgment or code execution"
+        ]
+      },
+      "notes": [
+        {
+          "heading": "1. Open question",
+          "summary": "B depends on A; currentness unknown",
+          "source_ref": "sha256:0287efbbba00a92a26daaa48c799a58c9a692d87204ba69e8d8b4f8ad1449315",
+          "binding_node_count": 1,
+          "attribution": {
+            "Source / attribution": "Synthetic attribution 1",
+            "Provenance": "derived_interpretation",
+            "Observed": "2026-10-01T00:00:00.000Z",
+            "Currentness": "Unknown — original source completeness, availability and currentness have not been verified."
+          }
+        },
+        {
+          "heading": "2. Open question",
+          "summary": "A <tag> & \"quote\"\n  spaced\tvalue",
+          "source_ref": "sha256:5b69325fb52af25cd97718167cdee3e15e7a27e85c409e28223f761426bc452d",
+          "binding_node_count": 1,
+          "attribution": {
+            "Source / attribution": "Synthetic attribution 0",
+            "Provenance": "user_declaration",
+            "Observed": "Unknown",
+            "Currentness": "Unknown — original source completeness, availability and currentness have not been verified."
+          }
+        }
+      ],
+      "dependencies": [
+        "Note 1: authored in this work. Required notes: 2.",
+        "Note 2: authored in this work. Required notes: none explicitly linked."
+      ],
+      "files": [
+        {
+          "name": "inert.txt",
+          "digest": "sha256:697d336c109625cf1c97e8d9f17e2b4ce19b0d934fc30cdf02e278bc5f9d73c1",
+          "bytes": "37",
+          "url": "/api/work/64706b6f-ef34-4758-aa67-58f18ac43e34/files/2/6893d9635c76b1afdbc68dce268e60a57648eb428377e37fe5075f65437643e9/0",
+          "description": "other · 37 bytes · sha256:697d336c109625cf1c97e8d9f17e2b4ce19b0d934fc30cdf02e278bc5f9d73c1"
+        }
+      ],
+      "identities": {
+        "work_id": "64706b6f-ef34-4758-aa67-58f18ac43e34",
+        "workspace_id": "155448c4-983f-4e32-83c5-6d340db5d4fd",
+        "project_id": "bb63e047-9125-43c0-88cd-79f6b212b2ad",
+        "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452",
+        "fingerprint": "sha256:6893d9635c76b1afdbc68dce268e60a57648eb428377e37fe5075f65437643e9",
+        "predecessor": "sha256:9acd9a708c5ec05e8da4d20472ace7ccbfd3ade9bb1f4905863002e56c42ae48",
+        "format": "web_planning_revision.v0.3",
+        "compatibility": "web-planning/3"
+      }
+    },
+    "history": [
+      {
+        "revision": 1,
+        "fingerprint": "sha256:9acd9a708c5ec05e8da4d20472ace7ccbfd3ade9bb1f4905863002e56c42ae48"
+      },
+      {
+        "revision": 2,
+        "fingerprint": "sha256:6893d9635c76b1afdbc68dce268e60a57648eb428377e37fe5075f65437643e9"
+      }
+    ]
+  },
+  "binding_hash": "sha256:befdf09d7b2d5eaebf7bb877ecd8a67f21546956a8aee1dc1681f922832522cc",
+  "provenance": {
+    "current": "authenticated structured history",
+    "authenticated_dom": "authenticated Saved-context DOM after opening disclosures"
+  },
+  "attachment_body_reads": [],
+  "verified_fields": 41
+}

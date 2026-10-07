@@ -1,0 +1,46 @@
+{
+  "started_at": "2026-10-07T06:02:57.863Z",
+  "finished_at": "2026-10-07T06:02:57.934Z",
+  "worker_disposed": true,
+  "browser_exit_observed": true,
+  "browser_streams_closed": true,
+  "debug_listener_closed": true,
+  "owned_browser_records": 0,
+  "failures": [],
+  "additional_process_observation": "not collected; registry/owned exit and listener evidence are not arbitrary descendant absence",
+  "traffic": [
+    {
+      "method": "GET",
+      "path": "/api/works"
+    },
+    {
+      "method": "POST",
+      "path": "/api/drafts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/work/bb214fa9-3bdf-45cf-9d33-1753740fefc2/save"
+    },
+    {
+      "method": "GET",
+      "path": "/api/works"
+    },
+    {
+      "method": "POST",
+      "path": "/api/work/bb214fa9-3bdf-45cf-9d33-1753740fefc2/ticket"
+    },
+    {
+      "method": "POST",
+      "path": "/api/work/bb214fa9-3bdf-45cf-9d33-1753740fefc2/save"
+    },
+    {
+      "method": "GET",
+      "path": "/api/works"
+    },
+    {
+      "method": "GET",
+      "path": "/api/work/bb214fa9-3bdf-45cf-9d33-1753740fefc2/export"
+    }
+  ],
+  "complete": true
+}

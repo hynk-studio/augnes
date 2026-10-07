@@ -1,0 +1,41 @@
+{
+  "started_at": "2026-10-07T06:36:28.838Z",
+  "finished_at": "2026-10-07T06:36:32.614Z",
+  "primary_error": null,
+  "secondary_errors": [],
+  "child": {
+    "label": "web-planning-continuation.mjs",
+    "exit_code": 0,
+    "signal": null,
+    "timed_out": false,
+    "duration_ms": 3758,
+    "spawn_error_code": null,
+    "exit_observed": true,
+    "streams_closed": true,
+    "cleanup_started": true,
+    "cleanup_completed": true,
+    "remaining_owned_processes": 0,
+    "termination_reason": "natural_exit"
+  },
+  "child_state": "observed-settled",
+  "child_pid": 19495,
+  "stream_capture_complete": true,
+  "root_state": "removed",
+  "fixture_cleanup": true,
+  "disposable_root_removed": true,
+  "cleanup_failures": [],
+  "recovery": null,
+  "stdout": {
+    "bytes": 0,
+    "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "stderr": {
+    "bytes": 0,
+    "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "runner_logs": {
+    "bytes": 1067,
+    "digest": "sha256:e0a66e54084592e5fc023e4a47c81766b0501b90e62e5001e39478414468a671"
+  },
+  "deciding_verification": false
+}
