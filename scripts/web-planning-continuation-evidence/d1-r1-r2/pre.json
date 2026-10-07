@@ -1,0 +1,65 @@
+{
+  "source_head": "9666f50235bb4ead4a4542850c4079ffd66040cd",
+  "source_sha256": "8a8ebf232512f98c22b010242cfe179921cba614ce617fbf6a45b68fb093f7d0",
+  "method": "verbatim function bodies; controlled timers and injected setup/runner faults, real canonical root allocation/removal",
+  "R1": {
+    "at_deadline_return": 1,
+    "after_next_poll": 2,
+    "error": "development_deadline",
+    "loop_explicitly_released": true,
+    "timers_remaining": 0
+  },
+  "R2": [
+    {
+      "fault": "setup",
+      "primary_caught": "EACCES",
+      "child_runner_calls": 0,
+      "helper_cleanup_calls": 0,
+      "lifecycle_written": false,
+      "recovery_identity_reported": false,
+      "root_retained_before_harness_recovery": true,
+      "harness_recovery": [
+        {
+          "root": "/tmp/ag-suite-yNV5BH",
+          "completed": true,
+          "failure_count": 0,
+          "failures": []
+        }
+      ]
+    },
+    {
+      "fault": "request",
+      "primary_caught": "EACCES",
+      "child_runner_calls": 0,
+      "helper_cleanup_calls": 0,
+      "lifecycle_written": false,
+      "recovery_identity_reported": false,
+      "root_retained_before_harness_recovery": true,
+      "harness_recovery": [
+        {
+          "root": "/tmp/ag-suite-r9oKOS",
+          "completed": true,
+          "failure_count": 0,
+          "failures": []
+        }
+      ]
+    },
+    {
+      "fault": "runner",
+      "primary_caught": "resource_cleanup_incomplete",
+      "child_runner_calls": 1,
+      "helper_cleanup_calls": 0,
+      "lifecycle_written": true,
+      "recovery_identity_reported": false,
+      "root_retained_before_harness_recovery": true,
+      "harness_recovery": [
+        {
+          "root": "/tmp/ag-suite-jaTBPn",
+          "completed": true,
+          "failure_count": 0,
+          "failures": []
+        }
+      ]
+    }
+  ]
+}

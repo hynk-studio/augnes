@@ -1,0 +1,35 @@
+{
+  "started_at": "2026-10-07T06:32:58.728Z",
+  "finished_at": "2026-10-07T06:32:58.728Z",
+  "resources": {
+    "worker": "observed-settled",
+    "browser": "not-created",
+    "listener": "not-created",
+    "cdp": "not-created",
+    "operations": "not-created"
+  },
+  "worker_disposed": true,
+  "browser_exit_observed": null,
+  "browser_streams_closed": null,
+  "debug_listener_closed": null,
+  "cdp_closed": null,
+  "owned_browser_records": 0,
+  "failures": [],
+  "primary_error": {
+    "stage": "browser.port",
+    "name": "Error",
+    "code": "PORT_INJECTED",
+    "check_id": null,
+    "settlement": null
+  },
+  "operation_succeeded": false,
+  "recovery": {
+    "root": "/tmp/ag-suite-s4L5bF",
+    "worker_root": "/tmp/ag-suite-s4L5bF/runtime",
+    "browser_pid": null,
+    "debug_port": null
+  },
+  "additional_process_observation": "not collected; registry/owned exit and listener evidence are not arbitrary descendant absence",
+  "traffic": [],
+  "complete": true
+}

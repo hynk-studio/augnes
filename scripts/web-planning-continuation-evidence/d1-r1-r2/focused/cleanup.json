@@ -1,0 +1,29 @@
+{
+  "started_at": "2026-10-07T06:33:44.717Z",
+  "finished_at": "2026-10-07T06:33:44.829Z",
+  "resources": {
+    "worker": "observed-settled",
+    "browser": "observed-settled",
+    "listener": "observed-settled",
+    "cdp": "observed-settled",
+    "operations": "observed-settled"
+  },
+  "worker_disposed": true,
+  "browser_exit_observed": true,
+  "browser_streams_closed": true,
+  "debug_listener_closed": true,
+  "cdp_closed": true,
+  "owned_browser_records": 0,
+  "failures": [],
+  "primary_error": null,
+  "operation_succeeded": true,
+  "recovery": {
+    "root": "/tmp/ag-suite-XdoTKm",
+    "worker_root": "/tmp/ag-suite-XdoTKm/runtime",
+    "browser_pid": 19118,
+    "debug_port": 46327
+  },
+  "additional_process_observation": "not collected; registry/owned exit and listener evidence are not arbitrary descendant absence",
+  "traffic": [],
+  "complete": true
+}

@@ -1,0 +1,23 @@
+{
+  "control_failure": "ERR_CRYPTO_HASH_FINALIZED",
+  "stage": "runner logging after unresolved-child report snapshot",
+  "correction": "snapshot digest.copy(), preserve later owned runner writes",
+  "recovery": {
+    "root": "/tmp/ag-suite-cYIC1o",
+    "device": "33",
+    "inode": "9050",
+    "child_state": "unresolved",
+    "original_failure_stage": "child.run",
+    "cleanup_withheld_reason": "child_settlement_unknown"
+  },
+  "root_retention_reason": "control process exited before original in-memory Canonical owner settlement; no force release or manual deletion",
+  "exact_holding_child_process_observation": "no matching live child in targeted Linux ps observation; this is not owner settlement or arbitrary descendant absence",
+  "checkpoint_completed": false,
+  "execution_source": "Uncommitted R1/R2 candidate before digest-snapshot correction; no execution commit was recorded for this failed control.",
+  "actual_error": "Error [ERR_CRYPTO_HASH_FINALIZED]: Digest already called",
+  "actual_stack_locations": [
+    "Hash.update (node:internal/crypto/hash:148:11)",
+    "sink.write (scripts/web-planning-continuation.mjs:19:123)",
+    "runCanonicalChild (scripts/canonical-child-runner.mjs:127:7)"
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "started_at": "2026-10-07T06:31:22.983Z",
+  "finished_at": "2026-10-07T06:31:22.990Z",
+  "primary_error": {
+    "stage": "child.run",
+    "name": "Error",
+    "code": "INJECTED_OBSERVATION_LOST",
+    "check_id": null
+  },
+  "secondary_errors": [
+    {
+      "stage": "fixture.report",
+      "name": "Error",
+      "code": "ENOENT",
+      "check_id": null
+    }
+  ],
+  "child": null,
+  "child_state": "unresolved",
+  "fixture_cleanup": false,
+  "disposable_root_removed": false,
+  "cleanup_failures": [],
+  "recovery": {
+    "root": "/tmp/ag-suite-cYIC1o",
+    "device": "33",
+    "inode": "9050",
+    "child_state": "unresolved",
+    "original_failure_stage": "child.run",
+    "cleanup_withheld_reason": "child_settlement_unknown"
+  },
+  "stdout": {
+    "bytes": 0,
+    "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "stderr": {
+    "bytes": 0,
+    "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "runner_logs": {
+    "bytes": 246,
+    "digest": "sha256:e74ec513dfc5d61c83f0e8384353f8eafc3c01c8fe1e2e3c393f68a12c5e1b7d"
+  },
+  "deciding_verification": false
+}

@@ -1,0 +1,53 @@
+{
+  "base": "b73e5012c699f85a9e3b643b6cba82f8f195d3ce",
+  "runtime_inputs": [
+    "apps/web_planning/src/contract.ts",
+    "apps/web_planning/src/files.ts",
+    "apps/web_planning/src/page.ts",
+    "lib/intake/selected-work-source-comparison.ts",
+    "lib/intake/work-definition.ts",
+    "lib/vnext/protocol-primitives.ts",
+    "lib/vnext/strict-iso-timestamp.ts",
+    "scripts/build-web-planning.mjs",
+    "scripts/canonical-child-runner.mjs",
+    "scripts/canonical-test-environment.mjs",
+    "scripts/smoke-web-planning-continuation.mjs",
+    "scripts/test-harness-process-lifecycle.mjs",
+    "scripts/test-web-planning-continuation.mjs",
+    "scripts/web-planning-cdp.mjs",
+    "scripts/web-planning-continuation-contract.mjs",
+    "scripts/web-planning-continuation.mjs",
+    "scripts/web-planning-local-runtime.mjs",
+    "types/vnext/external-ref.ts",
+    "types/vnext/project-work-initialization.ts",
+    "types/vnext/project-work-revision.ts"
+  ],
+  "external_imports": [
+    "esbuild",
+    "node:assert/strict",
+    "node:buffer",
+    "node:child_process",
+    "node:crypto",
+    "node:fs",
+    "node:fs/promises",
+    "node:module",
+    "node:net",
+    "node:os",
+    "node:path",
+    "node:url"
+  ],
+  "isolated_resolutions": {
+    "miniflare": "apps/web_planning/node_modules/miniflare/dist/src/index.js",
+    "drizzle-orm/d1": "apps/web_planning/node_modules/drizzle-orm/d1/index.cjs",
+    "drizzle-orm/d1/migrator": "apps/web_planning/node_modules/drizzle-orm/d1/migrator.cjs",
+    "wrangler": "apps/web_planning/node_modules/wrangler/wrangler-dist/cli.js"
+  },
+  "declared_loader": "root tsx",
+  "historical_runtime_imports": 0,
+  "lockfile_changes": 0,
+  "audit_setup_failure": {
+    "first": "esbuild audit defaulted to CJS; top-level await rejected",
+    "correction": "explicit ESM format matches actual Node ESM loader",
+    "candidate_source_changed": false
+  }
+}

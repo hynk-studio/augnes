@@ -1,0 +1,12 @@
+{
+  "input_export": "seed/planning-work.json",
+  "bundle": ".",
+  "expected": {
+    "work_id": "64706b6f-ef34-4758-aa67-58f18ac43e34",
+    "revision": 2,
+    "fingerprint": "sha256:6893d9635c76b1afdbc68dce268e60a57648eb428377e37fe5075f65437643e9",
+    "bytes": 9255,
+    "digest": "sha256:c008f36c3119ffe8c78ea32b3f94e989241073b4c0102ac5127e61394abf7afc"
+  },
+  "assessment_file": "synthetic-assessment.json"
+}

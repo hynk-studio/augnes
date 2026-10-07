@@ -1,0 +1,183 @@
+{
+  "synthetic_faults": true,
+  "R1": [
+    {
+      "check": "no-post-deadline-poll",
+      "calls_at_return": 1,
+      "calls_after": 1,
+      "timers_remaining": 0
+    },
+    {
+      "check": "expiry-during-await",
+      "returned_before_settlement": false,
+      "predicate_calls": 1,
+      "settlement": "observed-settled"
+    },
+    {
+      "check": "unsettled-operation-reported",
+      "settlement_at_return": "unresolved",
+      "controlled_operation_later_released": true
+    },
+    {
+      "check": "listener-deadline-disposes-and-joins-close",
+      "destroy_calls": 1,
+      "returned_before_close": false,
+      "settlement": "observed-settled"
+    },
+    {
+      "check": "listener-refused-only-after-close",
+      "pass": true
+    }
+  ],
+  "R2": [
+    {
+      "check": "root.allocated",
+      "child_calls": 0,
+      "root_removed": true,
+      "primary": {
+        "stage": "root.allocated",
+        "name": "Error",
+        "code": "EACCES",
+        "check_id": null
+      }
+    },
+    {
+      "check": "prepare.runtime-state",
+      "child_calls": 0,
+      "root_removed": true,
+      "primary": {
+        "stage": "prepare.runtime-state",
+        "name": "Error",
+        "code": "EACCES",
+        "check_id": null
+      }
+    },
+    {
+      "check": "request.prepare",
+      "child_calls": 0,
+      "root_removed": true,
+      "primary": {
+        "stage": "request.prepare",
+        "name": "Error",
+        "code": "EACCES",
+        "check_id": null
+      }
+    },
+    {
+      "check": "primary-survives-report-failure",
+      "primary": "PRIMARY_INJECTED",
+      "secondary": [
+        {
+          "stage": "lifecycle.report",
+          "name": "Error",
+          "code": "REPORT_INJECTED",
+          "check_id": null
+        }
+      ],
+      "root_removed": true
+    },
+    {
+      "check": "child-before-fixture",
+      "root_retained_at_failure": true,
+      "recovery": {
+        "root": "/tmp/ag-suite-NUUFuZ",
+        "device": "33",
+        "inode": "9174",
+        "child_state": "observed-settled",
+        "original_failure_stage": "child.run",
+        "cleanup_withheld_reason": "fixture_settlement_unproven"
+      },
+      "primary": {
+        "stage": "child.run",
+        "name": "Error",
+        "code": "development_child_failed",
+        "check_id": null
+      }
+    },
+    {
+      "check": "genuinely-in-flight-child-retained",
+      "settled_at_retention": false,
+      "recovery": {
+        "root": "/tmp/ag-suite-WqPKKt",
+        "device": "33",
+        "inode": "9188",
+        "child_state": "unresolved",
+        "original_failure_stage": "child.run",
+        "cleanup_withheld_reason": "child_settlement_unknown"
+      },
+      "primary": {
+        "stage": "child.run",
+        "name": "Error",
+        "code": "INJECTED_OBSERVATION_LOST",
+        "check_id": null
+      }
+    },
+    {
+      "check": "partial-initialize",
+      "resources": {
+        "worker": "unresolved",
+        "browser": "not-created",
+        "listener": "not-created",
+        "cdp": "not-created",
+        "operations": "not-created"
+      },
+      "cleanup_complete": false,
+      "primary": {
+        "stage": "worker.initialize",
+        "name": "Error",
+        "code": "INITIALIZATION_INJECTED",
+        "check_id": null,
+        "settlement": null
+      },
+      "failures": []
+    },
+    {
+      "check": "created-then-port-failure",
+      "resources": {
+        "worker": "observed-settled",
+        "browser": "not-created",
+        "listener": "not-created",
+        "cdp": "not-created",
+        "operations": "not-created"
+      },
+      "cleanup_complete": true,
+      "primary": {
+        "stage": "browser.port",
+        "name": "Error",
+        "code": "PORT_INJECTED",
+        "check_id": null,
+        "settlement": null
+      },
+      "failures": []
+    },
+    {
+      "check": "fixture-report-failure",
+      "resources": {
+        "worker": "observed-settled",
+        "browser": "not-created",
+        "listener": "not-created",
+        "cdp": "not-created",
+        "operations": "not-created"
+      },
+      "cleanup_complete": false,
+      "primary": {
+        "stage": "browser.port",
+        "name": "Error",
+        "code": "PORT_INJECTED",
+        "check_id": null,
+        "settlement": null
+      },
+      "failures": [
+        {
+          "stage": "fixture.report",
+          "name": "Error",
+          "code": "REPORT_INJECTED",
+          "check_id": null
+        }
+      ]
+    }
+  ],
+  "final_retained_roots": [],
+  "all_test_recoveries_observed": true,
+  "deciding_verification": false
+}

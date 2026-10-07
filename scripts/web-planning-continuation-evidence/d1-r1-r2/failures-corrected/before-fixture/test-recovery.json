@@ -1,0 +1,11 @@
+{
+  "basis": "dedicated child mode has no fixture creation; observed Canonical settlement",
+  "recovery": [
+    {
+      "root": "/tmp/ag-suite-NUUFuZ",
+      "completed": true,
+      "failure_count": 0,
+      "failures": []
+    }
+  ]
+}

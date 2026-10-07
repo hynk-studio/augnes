@@ -1,0 +1,11 @@
+{
+  "basis": "injected fixture dependencies created no external resources",
+  "recovery": [
+    {
+      "root": "/tmp/ag-suite-OzeGiS",
+      "completed": true,
+      "failure_count": 0,
+      "failures": []
+    }
+  ]
+}
