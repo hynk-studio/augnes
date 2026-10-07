@@ -1,0 +1,13 @@
+{
+  "stage": "child-process",
+  "check": "bounded nested child",
+  "location": "prerequisite-child.mjs",
+  "diagnostic": {
+    "name": "AssertionError",
+    "code": "ERR_ASSERTION",
+    "syscall": null,
+    "errno": null,
+    "evaluation": null,
+    "cause": null
+  }
+}

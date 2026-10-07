@@ -1,0 +1,14 @@
+{
+  "label": "prerequisite nested child",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "duration_ms": 76,
+  "spawn_error_code": null,
+  "exit_observed": true,
+  "streams_closed": true,
+  "cleanup_started": true,
+  "cleanup_completed": true,
+  "remaining_owned_processes": 0,
+  "termination_reason": "natural_exit"
+}

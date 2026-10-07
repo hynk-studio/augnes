@@ -1,0 +1,31 @@
+{
+  "kind": "prerequisite qualification",
+  "reviewed_head": "0f2269016a412942ea615f54cc761a36d3106be2",
+  "commit": "1f561431b588e28e9e8aa4c8243112b94a168bb5",
+  "tree": "bca7fb965274a6f3086ad735fe7642b05d03d7cf",
+  "helpers": [
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/run-prerequisites.mjs",
+      "bytes": 3308,
+      "sha256": "cd8327a2995d6161a323011dee4a40e438d0fec2554e9b54aeb0ee7a0b742346"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/prerequisite-child.mjs",
+      "bytes": 12941,
+      "sha256": "f4e4da135024a3e9ec44f58e2880f644c03e6352519025ef13b9d64e164dbee4"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/preparation.mjs",
+      "bytes": 2829,
+      "sha256": "7324a2ef370750d139bb9ddfcacffe1306a10d4f389ba6b0752b679955164c19"
+    }
+  ],
+  "command": [
+    "node",
+    "scripts/executable-reuse/cloud-reuse-pilot-01/run-prerequisites.mjs",
+    "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-01/prerequisite-default",
+    "--allow-unsandboxed-synthetic-pilot"
+  ],
+  "child_profile": "buildCanonicalChildEnvironment; same owner/profile as run-consumer",
+  "synthetic_browser_sandbox_opt_in": true
+}

@@ -1,0 +1,21 @@
+{
+  "environment_id": "ccarenv_b64_Y2NhcmVudl9hZjNhZTI1NDAxOTQ4MTkxOTZjMmNjZDg3MTkxMzRkMg",
+  "source_config_id": "53871ca7-3435-492b-9705-32c8069bf189~cecfg_6ac546887788819dae1f4b8c4f134bc0",
+  "source_config_version_id": "53871ca7-3435-492b-9705-32c8069bf189~cecfgver_6ac548c690d8819db35e7635a69abedc",
+  "spec_revision": "3",
+  "observed_spec_revision": "3",
+  "observations_current": true,
+  "observed_phase": "running",
+  "connectivity": "connected",
+  "network_policy": {
+    "mode": "restricted",
+    "state": "enforced",
+    "presets": [
+      "package_managers"
+    ]
+  },
+  "configured_capabilities_count": 0,
+  "secret_binding_count": 0,
+  "outbound_identity_count": 0,
+  "runtime_variable_count": 0
+}

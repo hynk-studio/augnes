@@ -1,0 +1,159 @@
+{
+  "pilot": "cloud-reuse-pilot-01",
+  "phase": "B same-task continuation",
+  "director_review": 5437062560,
+  "result": "BLOCKED at prerequisite child-output assertion; conditional B NOT RUN",
+  "identity": {
+    "reviewed_head": "0f2269016a412942ea615f54cc761a36d3106be2",
+    "reviewed_tree": "70fc19fec2a149f2469cd54fc2f13131f7754bb8",
+    "producer_base": "d3f9f0d538078b33c7db892666d50755a71337bf",
+    "application_baseline": "b73e5012c699f85a9e3b643b6cba82f8f195d3ce",
+    "branch": "codex/cloud-reuse-pilot-01-consumer",
+    "execution_commit": "1f561431b588e28e9e8aa4c8243112b94a168bb5",
+    "execution_tree": "bca7fb965274a6f3086ad735fe7642b05d03d7cf",
+    "execution_commit_raw_base64": "dHJlZSBiY2E3ZmI5NjUyNzRhNmYzMDg2YWQ3MzVmZTc2NDJiMDVkMDNkN2NmCnBhcmVudCAwZjIyNjkwMTZhNDEyOTQyZWE2MTVmNTRjYzc2MWEzNmQzMTA2YmUyCmF1dGhvciBIeXVuaWwgS2ltIDxoeW5rMTI0MEBvdXRsb29rLmNvbT4gMTc5MTM0MjA2NCArMDAwMApjb21taXR0ZXIgSHl1bmlsIEtpbSA8aHluazEyNDBAb3V0bG9vay5jb20+IDE3OTEzNDIwNjQgKzAwMDAKCmV4cGVyaW1lbnQ6IHF1YWxpZnkgUGhhc2UgQiBleGVjdXRpb24gcHJlcmVxdWlzaXRlcyB3aXRoIG93bmVkIGZpeHR1cmUK",
+    "remote_retention_identity": "reported at exact #1414 head; distinct from local execution commit"
+  },
+  "execution_permissions": {
+    "exec_command_profile": "use_default",
+    "supported_approval_interfaces": [
+      "exec_command with_additional_permissions network",
+      "request_permissions"
+    ],
+    "approval_requested": false,
+    "approval_granted": false,
+    "approval_denied": false,
+    "approval_unavailable": false,
+    "reason": "The observed gate is an assertion, with no denied-operation diagnostic. The commission permits a repeat only after approval of a denied prerequisite; no such repeat was made.",
+    "synthetic_chromium_sandbox_exception_opt_in": true,
+    "browser_started": false,
+    "policy_changed": false,
+    "proxy_changed": false
+  },
+  "qualification": {
+    "invocations": 1,
+    "repeats": 0,
+    "child_exit_and_lifecycle": "PASS; nested Node process exited 0 naturally, streams closed, zero owned residue",
+    "child_marker_gate": "FAIL; bounded nested child stdout did not equal child-ok",
+    "retained_stdout": false,
+    "uncertainty": "stdout bytes, length/hash and stderr were not retained; cause of marker mismatch is unresolved",
+    "loopback": "NOT RUN",
+    "worker": "NOT RUN",
+    "browser_login_initial_list": "NOT RUN",
+    "earlier_EPERM_cause": "unknown; this assertion neither identifies nor resolves the earlier denied syscall",
+    "source_hypothesis": "startLocal first calls availablePort -> listen(0,127.0.0.1); remains untested"
+  },
+  "consumer": {
+    "conditional_invocations": 0,
+    "cumulative_full_invocations": 2,
+    "original_failures_preserved": true,
+    "accepted_reconstructions": 0,
+    "ordinary_saves": 0,
+    "calculations": 0,
+    "corruption_submissions": 0,
+    "fresh_B3_judgment": "NOT OBSERVED",
+    "scripted_B3_check": "NOT RUN; existing pre-authored non-use rule is not fresh agent judgment",
+    "claim_accounting_corrections": "Deferred after failed prerequisite gate. Existing consumer remains unqualified: literal result summaries and scripted B3 must be corrected before any separately authorized B run."
+  },
+  "cleanup": {
+    "prerequisite_root_removed": true,
+    "child_settlement": {
+      "label": "prerequisites",
+      "exit_code": 1,
+      "signal": null,
+      "timed_out": false,
+      "duration_ms": 1505,
+      "spawn_error_code": null,
+      "exit_observed": true,
+      "streams_closed": true,
+      "cleanup_started": true,
+      "cleanup_completed": true,
+      "remaining_owned_processes": 0,
+      "termination_reason": "natural_exit"
+    },
+    "browser_started": false,
+    "worker_returned": false,
+    "owned_processes_remaining": 0,
+    "database_initialized": false,
+    "runtime_profile_created": false
+  },
+  "measurement": {
+    "parent_owned_fixture_elapsed_ms": 1507,
+    "qualification_child_ms": 1505,
+    "nested_child_ms": 76,
+    "in_child_with_cleanup_ms": 81,
+    "provider_calls": 0,
+    "provider_expenditure": 0,
+    "total_task_human_setup_time": "unmeasured",
+    "cpu_memory_network_platform_usage": "unmeasured"
+  },
+  "focused_checks": {
+    "node_syntax": "PASS for both prerequisite helpers",
+    "original_read_only_retained_audit": "PASS; verify-retained.mjs unchanged; audited original 2 failures only",
+    "existing_pure_preparation_controls": "PASS; 13 not-ready and 2 ready, no live readiness claim",
+    "original_pilot_files_unchanged": 57,
+    "product_runtime_solver_baseline_unchanged": true,
+    "execution_helper_bytes_match_commit": true,
+    "exact_final_planner": "run/report at final remote retention head in #1414; no circular self-head claim",
+    "mac_deciding_verification": "NOT RUN / integration pending"
+  },
+  "stopping": "Unmet prerequisite gate; no retry, permission change, full B invocation or integration/usefulness claim.",
+  "new_retained_inventory": [
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/run-prerequisites.mjs",
+      "bytes": 3308,
+      "sha256": "cd8327a2995d6161a323011dee4a40e438d0fec2554e9b54aeb0ee7a0b742346"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/prerequisite-child.mjs",
+      "bytes": 12941,
+      "sha256": "f4e4da135024a3e9ec44f58e2880f644c03e6352519025ef13b9d64e164dbee4"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-01/environment.json",
+      "bytes": 713,
+      "sha256": "6b72690dbcba55061855c32555d3cfa867631fcee5a6f11c0966e1f72c20f04b"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-01/prerequisite-default/child-process.json",
+      "bytes": 331,
+      "sha256": "454a61cd1a4c9ca82ae402223f1e96fa98449486664bda8be1749522d0f2f72c"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-01/prerequisite-default/execution.json",
+      "bytes": 1221,
+      "sha256": "645dae835a6486b884bce7405cf56fa71b03662bef0496b3e807b35a0de428ff"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-01/prerequisite-default/failure.json",
+      "bytes": 270,
+      "sha256": "ff8e0ce78b573da98874c59a84272f67134aa8e43d88596ec84d95d71d1dab3a"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-01/prerequisite-default/lifecycle.json",
+      "bytes": 490,
+      "sha256": "db8a03fbda0766f09179abd35a6b77b02ee6a984a06bc5428461b53e52145780"
+    },
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-01/prerequisite-default/result.json",
+      "bytes": 659,
+      "sha256": "0c75d90cc6abfa00600c87e1a0e1274b23692051ca910462576e13e9cf47c43e"
+    }
+  ],
+  "historical_inventories_preserved": [
+    {
+      "path": "scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/retention-inventory.json",
+      "sha256": "26688c2b3783ff8db5a600af96c28d16011c2e3d4c0657f7d299689581709dca"
+    }
+  ],
+  "network_policy_file": {
+    "path": "/etc/codex/network-policy.json",
+    "sha256": "e1589d6b2ac0d196c1fa791aa3214989e85ac7fe5bb28a74d7f12ca14c45a305",
+    "http_policy": "restricted",
+    "http_proxy_present": true,
+    "tcp_proxy_present": true,
+    "tcp_domains_count": 0,
+    "tcp_ip_ranges_count": 0,
+    "vpn_configured": false
+  }
+}
