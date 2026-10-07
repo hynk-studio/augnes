@@ -21,8 +21,16 @@ temporary program history belongs to supporting historical records.
 
 ## Repository and workspace identity
 
-- The sole current repository/root pair is `hynk-studio/augnes` and
+- The sole current repository is `hynk-studio/augnes`. The actual Mac
+  installed runtime and Local Canonical host remain rooted at
   `/Users/hynk/code/augnes`.
+- Explicitly user-authorized isolated Codex Cloud checkouts of this repository
+  may inspect source, implement changes, run focused development tests, and
+  create branches, commits, pushes, and Draft pull requests within task scope.
+  Resolve the authorized checkout root rather than requiring the Mac root for
+  that development work. Cloud feedback is not actual Mac integration evidence
+  or a Mac Local Canonical receipt; checkout access grants no additional
+  production, provider, deployment, or merge authority.
 - `hynk-studio/augnes-perspective-lab` and
   `/Users/hynk/code/augnes-temp` are historical provenance and rollback
   material only. They grant no current development, project, execution,
