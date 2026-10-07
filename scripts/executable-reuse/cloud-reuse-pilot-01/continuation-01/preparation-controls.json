@@ -1,0 +1,102 @@
+{
+  "kind": "pure preparation controls; no browser or solver execution",
+  "readiness_controls": [
+    {
+      "name": "absent DOM",
+      "expected_ready": false,
+      "observed_ready": false,
+      "pass": true
+    },
+    {
+      "name": "loading document",
+      "expected_ready": false,
+      "observed_ready": false,
+      "pass": true
+    },
+    {
+      "name": "wrong URL",
+      "expected_ready": false,
+      "observed_ready": false,
+      "pass": true
+    },
+    {
+      "name": "wrong title",
+      "expected_ready": false,
+      "observed_ready": false,
+      "pass": true
+    },
+    {
+      "name": "wrong scope",
+      "expected_ready": false,
+      "observed_ready": false,
+      "pass": true
+    },
+    {
+      "name": "client absent",
+      "expected_ready": false,
+      "observed_ready": false,
+      "pass": true
+    },
+    {
+      "name": "handler absent",
+      "expected_ready": false,
+      "observed_ready": false,
+      "pass": true
+    },
+    {
+      "name": "list absent",
+      "expected_ready": false,
+      "observed_ready": false,
+      "pass": true
+    },
+    {
+      "name": "list loading",
+      "expected_ready": false,
+      "observed_ready": false,
+      "pass": true
+    },
+    {
+      "name": "list unavailable",
+      "expected_ready": false,
+      "observed_ready": false,
+      "pass": true
+    },
+    {
+      "name": "client busy",
+      "expected_ready": false,
+      "observed_ready": false,
+      "pass": true
+    },
+    {
+      "name": "access lost",
+      "expected_ready": false,
+      "observed_ready": false,
+      "pass": true
+    },
+    {
+      "name": "control disabled",
+      "expected_ready": false,
+      "observed_ready": false,
+      "pass": true
+    },
+    {
+      "name": "ready empty",
+      "expected_ready": true,
+      "observed_ready": true,
+      "pass": true
+    },
+    {
+      "name": "ready saved",
+      "expected_ready": true,
+      "observed_ready": true,
+      "pass": true
+    }
+  ],
+  "unexpected_exception_propagates": true,
+  "sandbox_default": false,
+  "explicit_pilot_opt_in": true,
+  "unknown_options_refused": true,
+  "commissioned_input_equality": true,
+  "changed_and_extra_inputs_refused": true,
+  "phase_b": "NOT RUN"
+}

@@ -1,0 +1,11 @@
+{
+  "original_commit": "fc81b4af8fb94db03125714eb8cdfe329e8e804b",
+  "original_tree": "8482141020d94ff1c9ace630bdbd214f2053b84c",
+  "inventory_path": "scripts/executable-reuse/cloud-reuse-pilot-01/retention-manifest.json",
+  "inventory_bytes": 3155,
+  "inventory_sha256": "08405dbb1548d7885d2a72e9ad5d7adf2131440b1cb03cae6788bab7ba1051e9",
+  "scope": "Original 16-file inventory at its original commit only; not an inventory of the revised helper or continuation evidence",
+  "original_failure_and_standalone_calculation_files_preserved": true,
+  "original_inventory_validated_at_original_commit": true,
+  "phase_b": "NOT RUN"
+}
