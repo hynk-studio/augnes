@@ -1,0 +1,7 @@
+{
+  "phase": "A",
+  "stage": "setup",
+  "error_name": "AssertionError",
+  "error_code": "ERR_ASSERTION",
+  "phase_b": "NOT RUN"
+}

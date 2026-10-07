@@ -1,0 +1,13 @@
+{
+  "retry_helper_sha256": "aeb0c8ba0063fe657c086c8ec97f338d41b1fcdad6932e57c15b8dd7543cbb4c",
+  "observed_failure": "AssertionError: Browser evaluation failed at post-login readiness wait",
+  "source_diagnosis": "Readiness expression calls application-defined $ before client.js is available; existing browser owner uses document.getElementById with guards",
+  "pure_vm_control": "ReferenceError",
+  "producer_attempts": 2,
+  "additional_producer_retries": 0,
+  "ordinary_save_requests": 0,
+  "work_created": false,
+  "export_obtained": false,
+  "proposed_next_step": "Review and separately authorize one fresh producer execution using guarded readiness check",
+  "phase_b": "NOT RUN"
+}

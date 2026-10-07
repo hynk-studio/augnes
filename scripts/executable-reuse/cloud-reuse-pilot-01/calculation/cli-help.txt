@@ -1,0 +1,16 @@
+usage: workflow_cost.py [-h] [--attempt ATTEMPT] [--verification VERIFICATION]
+                        [--repair REPAIR] [--direct-success DIRECT_SUCCESS]
+                        [--inspection INSPECTION]
+                        [--inspected-success INSPECTED_SUCCESS]
+
+Undiscounted completion work for small, stipulated retry workflows. No
+empirical probabilities, check-skipping authority, model calls or file writes.
+
+options:
+  -h, --help            show this help message and exit
+  --attempt ATTEMPT
+  --verification VERIFICATION
+  --repair REPAIR
+  --direct-success DIRECT_SUCCESS
+  --inspection INSPECTION
+  --inspected-success INSPECTED_SUCCESS

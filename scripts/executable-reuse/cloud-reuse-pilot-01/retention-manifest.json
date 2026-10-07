@@ -1,0 +1,95 @@
+{
+  "pilot": "cloud-reuse-pilot-01",
+  "producer_status": "blocked",
+  "kind": "safe failure and standalone calculation retention; NOT a Web Planning export",
+  "review": {
+    "file_count": 16,
+    "credential_shape_scan": "pass",
+    "all_files_reviewed": "narrow experiment source, wholly synthetic observations and checked-in-source calculation; no auth values, private production material, database copies, broad logs, conversations or hidden reasoning",
+    "application_and_solver_unchanged": true
+  },
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 6899,
+      "sha256": "503425baea93723f373648eb2e4c0eb6b5780b045cf7eb0ce2be7340e90a76b0"
+    },
+    {
+      "path": "attempts/attempt-1/failed-attempt.json",
+      "bytes": 110,
+      "sha256": "c38ae478076e1c5c5e4e15f80f3a557052b14c6e9d3750a64a0634fbdfcbedfe"
+    },
+    {
+      "path": "attempts/attempt-1/fixture-cleanup.json",
+      "bytes": 169,
+      "sha256": "5abbbe712746ac7a9f7458f8529e7d7df50db245d219d29395176ad1450c8299"
+    },
+    {
+      "path": "attempts/attempt-1/lifecycle.json",
+      "bytes": 593,
+      "sha256": "aab45f6de48beda1fbd4a2d0a3faefbeeb3dd6f8247178a506367665bb85823b"
+    },
+    {
+      "path": "attempts/attempt-2/failed-attempt.json",
+      "bytes": 130,
+      "sha256": "80f42a136710c940b51933f1ceb042d3c5c357556e9fbf3093d0508f82468f04"
+    },
+    {
+      "path": "attempts/attempt-2/fixture-cleanup.json",
+      "bytes": 169,
+      "sha256": "5abbbe712746ac7a9f7458f8529e7d7df50db245d219d29395176ad1450c8299"
+    },
+    {
+      "path": "attempts/attempt-2/lifecycle.json",
+      "bytes": 592,
+      "sha256": "4c4bc7166d59b276778b3ce3d9b7bbc9ad2e07deba82eb04e0dad5199c4c51d5"
+    },
+    {
+      "path": "attempts/browser-diagnosis.json",
+      "bytes": 690,
+      "sha256": "0ab25fd6066605f4608fa44503582fbab2b518e54a80b5ece5099e62be0174d8"
+    },
+    {
+      "path": "attempts/helper-diagnosis.json",
+      "bytes": 688,
+      "sha256": "894f40b3457ba57b2cd1bd5881c19ec5ec43a10016076f2f45f53f4acd7864ba"
+    },
+    {
+      "path": "calculation/cli-help.txt",
+      "bytes": 654,
+      "sha256": "ba3d780237fef7b76a04c45bd98aeff310a7e9c8c2138a9bad0a73e853139b7c"
+    },
+    {
+      "path": "calculation/execution.json",
+      "bytes": 2900,
+      "sha256": "5da7511d827c419b07dc872c4cf9e999de088bc54fc21c4432b24549cbe4c62f"
+    },
+    {
+      "path": "calculation/producer-stdout.json",
+      "bytes": 523,
+      "sha256": "37869ecc10f665461d7e3f1e53085329b0454bb8c2acda554ed64cae399a37cb"
+    },
+    {
+      "path": "oracle.py",
+      "bytes": 1230,
+      "sha256": "241efdcd9c278123a86c15ccb2797a8fdee029afc948d81fcf90ac92eee22240"
+    },
+    {
+      "path": "producer-child.mjs",
+      "bytes": 18586,
+      "sha256": "ec0beaa4351dcaf7b995d3cb7f3a2af212007bb8af615f3b6ceb1140c1ce1998"
+    },
+    {
+      "path": "provenance.json",
+      "bytes": 3829,
+      "sha256": "688ff4fbb02b77c1b974764cedb67fb496fbaf740f0c51dabdbd2c899807f7aa"
+    },
+    {
+      "path": "run-producer.mjs",
+      "bytes": 2053,
+      "sha256": "69e2b8a4b76c80000bdbd9ebc19c1bae70368edf2c8728b782715b935f0942b5"
+    }
+  ],
+  "web_export": null,
+  "phase_b": "NOT RUN"
+}

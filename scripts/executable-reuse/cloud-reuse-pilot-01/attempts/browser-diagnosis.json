@@ -1,0 +1,13 @@
+{
+  "initial_failure": "browser_wait:browser before any work save",
+  "diagnostic": "bounded Chromium headless about:blank launch using repository child/resource owners",
+  "observed_cause": "SUID sandbox helper found but not configured correctly; Chromium aborts",
+  "diagnostic_signal": "SIGABRT",
+  "diagnostic_duration_ms": 87,
+  "diagnostic_cleanup_completed": true,
+  "remaining_owned_processes": 0,
+  "disposable_diagnostic_root_removed": true,
+  "bounded_helper_correction": "Add --no-sandbox on this Linux Cloud synthetic loopback fixture; do not alter browser installation, auth, application source, gates or assertions",
+  "permitted_producer_retry": 1,
+  "phase_b": "NOT RUN"
+}

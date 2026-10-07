@@ -1,0 +1,112 @@
+{
+  "phase": "A",
+  "status": "standalone calculation observed after producer fixture blocked; never saved to Web Planning",
+  "source_baseline": "b73e5012c699f85a9e3b643b6cba82f8f195d3ce",
+  "source_files": [
+    {
+      "name": "workflow_cost.py",
+      "path": "scripts/executable-reuse/workflow_cost.py",
+      "bytes": 4973,
+      "sha256": "7a0fabc8a0672f97d4c5a81b5eef9e61f5c7fca6447d50ae1bf09bc2be149c11"
+    },
+    {
+      "name": "exact_linear.py",
+      "path": "scripts/executable-reuse/exact_linear.py",
+      "bytes": 2242,
+      "sha256": "7cdd11476badfed7b206a84ed5195209e38465dd74cc5e265a7d9ced203a804a"
+    }
+  ],
+  "inputs": {
+    "attempt": "9",
+    "verification": "3",
+    "repair": "4",
+    "direct_success": "2/5",
+    "inspection": "1",
+    "inspected_success": "2/3"
+  },
+  "command": [
+    "python3",
+    "-E",
+    "-s",
+    "-B",
+    "scripts/executable-reuse/workflow_cost.py",
+    "--attempt",
+    "9",
+    "--verification",
+    "3",
+    "--repair",
+    "4",
+    "--direct-success",
+    "2/5",
+    "--inspection",
+    "1",
+    "--inspected-success",
+    "2/3"
+  ],
+  "stdout_file": "producer-stdout.json",
+  "stdout_bytes": 523,
+  "stdout_sha256": "37869ecc10f665461d7e3f1e53085329b0454bb8c2acda554ed64cae399a37cb",
+  "stderr": "",
+  "execution": {
+    "label": "stipulated-calculation",
+    "exit_code": 0,
+    "signal": null,
+    "timed_out": false,
+    "duration_ms": 32,
+    "spawn_error_code": null,
+    "exit_observed": true,
+    "streams_closed": true,
+    "cleanup_started": true,
+    "cleanup_completed": true,
+    "remaining_owned_processes": 0,
+    "termination_reason": "natural_exit"
+  },
+  "help_execution": {
+    "label": "cli-help",
+    "exit_code": 0,
+    "signal": null,
+    "timed_out": false,
+    "duration_ms": 40,
+    "spawn_error_code": null,
+    "exit_observed": true,
+    "streams_closed": true,
+    "cleanup_started": true,
+    "cleanup_completed": true,
+    "remaining_owned_processes": 0,
+    "termination_reason": "natural_exit"
+  },
+  "oracle": {
+    "method": "independent renewal formula; Python fractions only",
+    "direct": "36",
+    "inspected": "43/2",
+    "inspection_minus_direct": "-29/2",
+    "matches": true
+  },
+  "oracle_command": [
+    "python3",
+    "-E",
+    "-s",
+    "-B",
+    "scripts/executable-reuse/cloud-reuse-pilot-01/oracle.py",
+    "scripts/executable-reuse/cloud-reuse-pilot-01/calculation/producer-stdout.json"
+  ],
+  "oracle_execution": {
+    "label": "independent-oracle",
+    "exit_code": 0,
+    "signal": null,
+    "timed_out": false,
+    "duration_ms": 23,
+    "spawn_error_code": null,
+    "exit_observed": true,
+    "streams_closed": true,
+    "cleanup_started": true,
+    "cleanup_completed": true,
+    "remaining_owned_processes": 0,
+    "termination_reason": "natural_exit"
+  },
+  "disposable_roots_removed": true,
+  "work_id": null,
+  "saved_revisions": 0,
+  "export": null,
+  "phase_b": "NOT RUN"
+}
