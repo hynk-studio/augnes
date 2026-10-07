@@ -1,17 +1,29 @@
 ---
 name: augnes-live-repository-continuity
-description: Resume current repository continuity, manage its trusted attachment, and start or cancel one Browser-confirmed attachment-backed managed run through the live supervised Augnes Companion.
+description: Resume local Augnes work, define its first task, revise selected notes or prepare an explicitly different task. Separately manage trusted attachments and Browser-confirmed managed runs through the live supervised Companion.
 ---
 
 # Augnes Live Repository Continuity
 
 Use this skill when the user says “Resume this repository with Augnes,” “What
 was I working on here?”, “Continue from the current Augnes context,” or “Show
-the current Augnes project state.”
+the current Augnes project state.” Also use it for authorized ordinary work
+creation, saved-note updates and explicit different-task preparation.
 
-1. Supply the exact current local repository root to
+Use the ready client's loaded Operator tools. The installed plugin already
+owns its per-session stdio proxy; normal reads and saves need no additional SDK
+reader, proxy, worker or fresh client. Installation/onboarding and a genuinely
+necessary client reload are setup, separate from ordinary use. Never install
+an unmerged candidate into the live cache to make an observation pass.
+
+## Enter the installed workflow
+
+1. Supply the exact Augnes application/service checkout root to
    `augnes_companion_lifecycle_status`. Lifecycle state is machine-local
-   infrastructure state, not canonical repository continuity.
+   infrastructure state, not canonical repository continuity. For Resume and
+   ordinary work tools, `repositoryRoot` is instead the intended project's
+   registered local root, which can be an ordinary non-repository task folder.
+   Do not substitute the application checkout for a different task's root.
 2. If status is `live` with canonical Resume available, call
    `augnes_resume_repository` exactly once. If status is `installed_stopped`
    or offers one exact recoverable start, call
@@ -35,8 +47,66 @@ the current Augnes project state.”
    result. Do not reconstruct missing continuity from source, docs, fixtures,
    GuideBrief, Work Brief, names, branches, GitHub URLs, or active Browser
    selection.
+
+## Ordinary work: choose the current task's branch
+
+Within the user's authorized purpose, preview, explicit save and fresh-binding
+readback are technical steps, not repeated requests for human approval. New
+purpose, resources or effects retain their own authorization. Host command,
+MCP and Browser permissions are separate; neither a tool annotation nor an
+Augnes preview grants host access. Preserve a refusal and its layer instead of
+retrying through a shell wrapper or another tool.
+
+- **First work:** require an already registered, selected local project whose
+  Resume reports `no_current_work` and whose initialization is `not_defined`.
+  Call `augnes_preview_repository_initial_work` with `repositoryRoot`, the
+  exact `continuity.snapshot.binding` as `expectedSnapshotBinding`, and complete
+  `changes` containing `goal`, `success_criteria` and `non_goals`. Inspect the
+  normalized definition, then call `augnes_define_repository_initial_work`
+  with the same changes/binding and returned `preview_binding` as
+  `previewBinding`. No sources are accepted at this step. Resume again, then
+  add attributed notes through same-task revision. Missing registration or
+  selection uses normal project onboarding; never reset prior work to create
+  an empty state.
+- **Same task:** Resume, explicitly read relevant selected sources, preview
+  `changes` with `augnes_preview_repository_work_revision`, then save the same
+  request and returned `previewBinding` with
+  `augnes_save_repository_work_revision`. Use the source/revision rules below;
+  omitted fields and notes stay unchanged server-side.
+- **Explicitly different task:** only within the same project's unique
+  unexecuted initial/revised preparation chain, Resume and read current sources,
+  then use `augnes_preview_repository_new_work` followed by
+  `augnes_prepare_repository_new_work`. Supply complete `goal`,
+  `success_criteria`, `non_goals` and `sources` in `changes`, the exact Resume
+  binding and, for prepare, the returned `previewBinding`. `sources.keep`
+  lists exact current source bindings; `sources.omitted_sources` gives
+  `{source_binding, reason}` for every omitted note. Optional `sources.add`
+  contains complete `source`, `text`, `observed_at` (known time or `null`),
+  `provenance` and `label` fields. Inspect both definitions and source changes.
+  Nothing carries by omission; `prior_work_marked_complete: false` remains.
+  This is not succession from executed work or permission to reactivate history.
+
+After any successful save, explicitly Resume again and read selected sources
+with the new binding. Check the saved finding/refinement before the next useful
+update in the same client. Attribute external reports as `imported_unverified`
+and agent interpretations as `derived_interpretation`; neither is a RunReceipt
+or semantic acceptance. For an uncertain save outcome, deliberately Resume/read
+back before deciding further action; never issue a replacement save or automatic
+refresh-and-save. Initial creation refuses even identical duplicate saves;
+revision/different-task exact replay can only acknowledge the immediate successor.
+
+These ordinary paths need no Browser login, manual token/context transfer,
+managed execution attachment, provider readiness or Start grant. They preserve
+independent Companion authentication, runtime/root identity, project isolation,
+source attribution and currentness checks. Keep full-table audits, process scans,
+keep-awake leases and independent readback clients in separately justified
+diagnostics, not this recipe; the canonical owners still perform their checks.
+
+## Managed execution: only when separately requested
+
 8. When later managed work needs a trusted repository attachment, call
-   `augnes_prepare_repository_execution` with the same physical root. Exact
+   `augnes_prepare_repository_execution` with the intended project's exact
+   physical Git root. Exact
    preparation is silent and requires no Browser-active match.
 9. If the result is `baseline_adoption_required`, request the one explicit
    legacy-root decision, direct the user to confirm the exact request in Augnes
