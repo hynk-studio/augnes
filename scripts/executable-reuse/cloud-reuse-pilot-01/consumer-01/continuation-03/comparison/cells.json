@@ -1,0 +1,359 @@
+[
+  {
+    "id": 1,
+    "name": "Node inline / runner",
+    "command": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "args": [
+      "-e",
+      "process.stdout.write('child-ok')"
+    ],
+    "stdout": {
+      "bytes": 8,
+      "sha256": "7adf480b0a0e361c71403568f9cdf454cc39e6229c054bc50d1df2bc36fe39cc",
+      "retained_bytes": 8,
+      "hex": "6368696c642d6f6b",
+      "truncated": false,
+      "redacted": false,
+      "exact": true,
+      "chunks": 1
+    },
+    "stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "retained_bytes": 0,
+      "hex": "",
+      "truncated": false,
+      "redacted": false,
+      "exact": true,
+      "chunks": 0
+    },
+    "runner_logs": "[canonical:cloud-reuse-pilot-01] child_start label=\"Node inline / runner\" timeout_ms=10000\n[canonical:cloud-reuse-pilot-01] child_spawn label=\"Node inline / runner\" pid=13147 wait=process_exit\n[canonical:cloud-reuse-pilot-01] child_exit label=\"Node inline / runner\" elapsed_ms=71 exit_code=0 signal=null stdout_closed=true stderr_closed=true\n[canonical:cloud-reuse-pilot-01] child_cleanup_start label=\"Node inline / runner\" elapsed_ms=71 reason=post_exit_settlement exit_observed=true stdout_closed=true stderr_closed=true\n[canonical:cloud-reuse-pilot-01] child_cleanup_result label=\"Node inline / runner\" elapsed_ms=82 reason=post_exit_settlement term_sent=false kill_sent=false streams_closed=true remaining_owned_processes=0\n[canonical:cloud-reuse-pilot-01] child_result label=\"Node inline / runner\" duration_ms=82 exit_code=0 signal=null timed_out=false exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=natural_exit\n",
+    "lifecycle": {
+      "label": "Node inline / runner",
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "duration_ms": 82,
+      "spawn_error_code": null,
+      "exit_observed": true,
+      "streams_closed": true,
+      "cleanup_started": true,
+      "cleanup_completed": true,
+      "remaining_owned_processes": 0,
+      "termination_reason": "natural_exit"
+    },
+    "error": null,
+    "independent_cleanup": {
+      "available": true,
+      "method": "read-only /proc numeric process metadata",
+      "groups": [
+        13147
+      ],
+      "live_group_members": [],
+      "known_groups_absent": true,
+      "scope": "known owned process groups; no arbitrary escaped-descendant claim",
+      "shared_owner_snapshot_status": "not exposed by shared owner"
+    },
+    "exact_expected_result": true,
+    "ordinary_success_accepted": true,
+    "cell_pass": true
+  },
+  {
+    "id": 2,
+    "name": "Node inline / native",
+    "command": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "args": [
+      "-e",
+      "process.stdout.write('child-ok')"
+    ],
+    "stdout": {
+      "bytes": 8,
+      "sha256": "7adf480b0a0e361c71403568f9cdf454cc39e6229c054bc50d1df2bc36fe39cc",
+      "retained_bytes": 8,
+      "hex": "6368696c642d6f6b",
+      "truncated": false,
+      "redacted": false,
+      "exact": true,
+      "chunks": 1
+    },
+    "stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "retained_bytes": 0,
+      "hex": "",
+      "truncated": false,
+      "redacted": false,
+      "exact": true,
+      "chunks": 0
+    },
+    "runner_logs": "",
+    "lifecycle": {
+      "label": "comparison-native",
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "duration_ms": 63,
+      "spawn_error_code": null,
+      "exit_observed": true,
+      "streams_closed": true,
+      "cleanup_completed": true,
+      "remaining_owned_processes": 0,
+      "termination_reason": "natural_exit",
+      "error": null
+    },
+    "error": null,
+    "independent_cleanup": {
+      "available": true,
+      "method": "read-only /proc numeric process metadata",
+      "groups": [
+        13155
+      ],
+      "live_group_members": [],
+      "known_groups_absent": true,
+      "scope": "known owned process groups; no arbitrary escaped-descendant claim",
+      "shared_owner_snapshot_status": "not exposed by shared owner"
+    },
+    "exact_expected_result": true,
+    "ordinary_success_accepted": true,
+    "cell_pass": true
+  },
+  {
+    "id": 3,
+    "name": "Node file / runner",
+    "command": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "args": [
+      "/tmp/ag-suite-I9H33E/calculation/marker.cjs"
+    ],
+    "stdout": {
+      "bytes": 8,
+      "sha256": "7adf480b0a0e361c71403568f9cdf454cc39e6229c054bc50d1df2bc36fe39cc",
+      "retained_bytes": 8,
+      "hex": "6368696c642d6f6b",
+      "truncated": false,
+      "redacted": false,
+      "exact": true,
+      "chunks": 1
+    },
+    "stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "retained_bytes": 0,
+      "hex": "",
+      "truncated": false,
+      "redacted": false,
+      "exact": true,
+      "chunks": 0
+    },
+    "runner_logs": "[canonical:cloud-reuse-pilot-01] child_start label=\"Node file / runner\" timeout_ms=10000\n[canonical:cloud-reuse-pilot-01] child_spawn label=\"Node file / runner\" pid=13163 wait=process_exit\n[canonical:cloud-reuse-pilot-01] child_exit label=\"Node file / runner\" elapsed_ms=44 exit_code=0 signal=null stdout_closed=true stderr_closed=true\n[canonical:cloud-reuse-pilot-01] child_cleanup_start label=\"Node file / runner\" elapsed_ms=44 reason=post_exit_settlement exit_observed=true stdout_closed=true stderr_closed=true\n[canonical:cloud-reuse-pilot-01] child_cleanup_result label=\"Node file / runner\" elapsed_ms=51 reason=post_exit_settlement term_sent=false kill_sent=false streams_closed=true remaining_owned_processes=0\n[canonical:cloud-reuse-pilot-01] child_result label=\"Node file / runner\" duration_ms=51 exit_code=0 signal=null timed_out=false exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=natural_exit\n",
+    "lifecycle": {
+      "label": "Node file / runner",
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "duration_ms": 51,
+      "spawn_error_code": null,
+      "exit_observed": true,
+      "streams_closed": true,
+      "cleanup_started": true,
+      "cleanup_completed": true,
+      "remaining_owned_processes": 0,
+      "termination_reason": "natural_exit"
+    },
+    "error": null,
+    "independent_cleanup": {
+      "available": true,
+      "method": "read-only /proc numeric process metadata",
+      "groups": [
+        13163
+      ],
+      "live_group_members": [],
+      "known_groups_absent": true,
+      "scope": "known owned process groups; no arbitrary escaped-descendant claim",
+      "shared_owner_snapshot_status": "not exposed by shared owner"
+    },
+    "exact_expected_result": true,
+    "ordinary_success_accepted": true,
+    "cell_pass": true
+  },
+  {
+    "id": 4,
+    "name": "Node file / native",
+    "command": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "args": [
+      "/tmp/ag-suite-I9H33E/calculation/marker.cjs"
+    ],
+    "stdout": {
+      "bytes": 8,
+      "sha256": "7adf480b0a0e361c71403568f9cdf454cc39e6229c054bc50d1df2bc36fe39cc",
+      "retained_bytes": 8,
+      "hex": "6368696c642d6f6b",
+      "truncated": false,
+      "redacted": false,
+      "exact": true,
+      "chunks": 1
+    },
+    "stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "retained_bytes": 0,
+      "hex": "",
+      "truncated": false,
+      "redacted": false,
+      "exact": true,
+      "chunks": 0
+    },
+    "runner_logs": "",
+    "lifecycle": {
+      "label": "comparison-native",
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "duration_ms": 80,
+      "spawn_error_code": null,
+      "exit_observed": true,
+      "streams_closed": true,
+      "cleanup_completed": true,
+      "remaining_owned_processes": 0,
+      "termination_reason": "natural_exit",
+      "error": null
+    },
+    "error": null,
+    "independent_cleanup": {
+      "available": true,
+      "method": "read-only /proc numeric process metadata",
+      "groups": [
+        13171
+      ],
+      "live_group_members": [],
+      "known_groups_absent": true,
+      "scope": "known owned process groups; no arbitrary escaped-descendant claim",
+      "shared_owner_snapshot_status": "not exposed by shared owner"
+    },
+    "exact_expected_result": true,
+    "ordinary_success_accepted": true,
+    "cell_pass": true
+  },
+  {
+    "id": 5,
+    "name": "Python positive / runner",
+    "command": "python3",
+    "args": [
+      "-E",
+      "-s",
+      "-B",
+      "/tmp/ag-suite-I9H33E/calculation/marker.py"
+    ],
+    "stdout": {
+      "bytes": 16,
+      "sha256": "bd9bf39ebca807d996b3d880019e4407e92a7e41b67c6af402a56d5b040acb55",
+      "retained_bytes": 16,
+      "hex": "707974686f6e2d706f7369746976650a",
+      "truncated": false,
+      "redacted": false,
+      "exact": true,
+      "chunks": 1
+    },
+    "stderr": {
+      "bytes": 16,
+      "sha256": "2505e7f67ad3362d4f6f1ba8e6c4fb00345757f69678c60cb57547a913d4c3ab",
+      "retained_bytes": 16,
+      "hex": "706f7369746976652d7374646572720a",
+      "truncated": false,
+      "redacted": false,
+      "exact": true,
+      "chunks": 1
+    },
+    "runner_logs": "[canonical:cloud-reuse-pilot-01] child_start label=\"Python positive / runner\" timeout_ms=10000\n[canonical:cloud-reuse-pilot-01] child_spawn label=\"Python positive / runner\" pid=13179 wait=process_exit\n[canonical:cloud-reuse-pilot-01] child_exit label=\"Python positive / runner\" elapsed_ms=22 exit_code=0 signal=null stdout_closed=true stderr_closed=true\n[canonical:cloud-reuse-pilot-01] child_cleanup_start label=\"Python positive / runner\" elapsed_ms=22 reason=post_exit_settlement exit_observed=true stdout_closed=true stderr_closed=true\n[canonical:cloud-reuse-pilot-01] child_cleanup_result label=\"Python positive / runner\" elapsed_ms=29 reason=post_exit_settlement term_sent=false kill_sent=false streams_closed=true remaining_owned_processes=0\n[canonical:cloud-reuse-pilot-01] child_result label=\"Python positive / runner\" duration_ms=29 exit_code=0 signal=null timed_out=false exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=natural_exit\n",
+    "lifecycle": {
+      "label": "Python positive / runner",
+      "exit_code": 0,
+      "signal": null,
+      "timed_out": false,
+      "duration_ms": 29,
+      "spawn_error_code": null,
+      "exit_observed": true,
+      "streams_closed": true,
+      "cleanup_started": true,
+      "cleanup_completed": true,
+      "remaining_owned_processes": 0,
+      "termination_reason": "natural_exit"
+    },
+    "error": null,
+    "independent_cleanup": {
+      "available": true,
+      "method": "read-only /proc numeric process metadata",
+      "groups": [
+        13179
+      ],
+      "live_group_members": [],
+      "known_groups_absent": true,
+      "scope": "known owned process groups; no arbitrary escaped-descendant claim",
+      "shared_owner_snapshot_status": "not exposed by shared owner"
+    },
+    "exact_expected_result": true,
+    "ordinary_success_accepted": true,
+    "cell_pass": true
+  },
+  {
+    "id": 6,
+    "name": "Python negative / runner",
+    "command": "python3",
+    "args": [
+      "-E",
+      "-s",
+      "-B",
+      "/tmp/ag-suite-I9H33E/calculation/marker.py",
+      "negative"
+    ],
+    "stdout": {
+      "bytes": 16,
+      "sha256": "f77fe3db2f6d953d3a21d2671e514cd8fb102d50dc9930bdc68b5b7efbb6f488",
+      "retained_bytes": 16,
+      "hex": "707974686f6e2d6e656761746976650a",
+      "truncated": false,
+      "redacted": false,
+      "exact": true,
+      "chunks": 1
+    },
+    "stderr": {
+      "bytes": 16,
+      "sha256": "695f507e75aaf1d64e1fe03b97954e618a613c3d736bc9b7a2ad9553f9b51663",
+      "retained_bytes": 16,
+      "hex": "6e656761746976652d7374646572720a",
+      "truncated": false,
+      "redacted": false,
+      "exact": true,
+      "chunks": 1
+    },
+    "runner_logs": "[canonical:cloud-reuse-pilot-01] child_start label=\"Python negative / runner\" timeout_ms=10000\n[canonical:cloud-reuse-pilot-01] child_spawn label=\"Python negative / runner\" pid=13181 wait=process_exit\n[canonical:cloud-reuse-pilot-01] child_exit label=\"Python negative / runner\" elapsed_ms=19 exit_code=17 signal=null stdout_closed=true stderr_closed=true\n[canonical:cloud-reuse-pilot-01] child_cleanup_start label=\"Python negative / runner\" elapsed_ms=19 reason=post_exit_settlement exit_observed=true stdout_closed=true stderr_closed=true\n[canonical:cloud-reuse-pilot-01] child_cleanup_result label=\"Python negative / runner\" elapsed_ms=27 reason=post_exit_settlement term_sent=false kill_sent=false streams_closed=true remaining_owned_processes=0\n[canonical:cloud-reuse-pilot-01] child_result label=\"Python negative / runner\" duration_ms=27 exit_code=17 signal=null timed_out=false exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=natural_exit\n",
+    "lifecycle": {
+      "label": "Python negative / runner",
+      "exit_code": 17,
+      "signal": null,
+      "timed_out": false,
+      "duration_ms": 27,
+      "spawn_error_code": null,
+      "exit_observed": true,
+      "streams_closed": true,
+      "cleanup_started": true,
+      "cleanup_completed": true,
+      "remaining_owned_processes": 0,
+      "termination_reason": "natural_exit"
+    },
+    "error": null,
+    "independent_cleanup": {
+      "available": true,
+      "method": "read-only /proc numeric process metadata",
+      "groups": [
+        13181
+      ],
+      "live_group_members": [],
+      "known_groups_absent": true,
+      "scope": "known owned process groups; no arbitrary escaped-descendant claim",
+      "shared_owner_snapshot_status": "not exposed by shared owner"
+    },
+    "exact_expected_result": true,
+    "ordinary_success_accepted": false,
+    "cell_pass": true
+  }
+]

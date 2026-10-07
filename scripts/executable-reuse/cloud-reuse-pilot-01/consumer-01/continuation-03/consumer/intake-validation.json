@@ -1,0 +1,90 @@
+{
+  "original_retention": "d3f9f0d538078b33c7db892666d50755a71337bf",
+  "bytes": 25632,
+  "sha256": "2634ccd6ec63ae50b4f05a8ff89e9fd8e723242f75f5cdeb512c81af4cc7d219",
+  "format": "web_planning_export.v0.3",
+  "scope": {
+    "workspace_id": "155448c4-983f-4e32-83c5-6d340db5d4fd",
+    "project_id": "bb63e047-9125-43c0-88cd-79f6b212b2ad",
+    "author_ref": "e89e1ee0-d67c-40a9-bb0c-661a86965452"
+  },
+  "work_id": "47b083cb-833d-49e3-9652-fa6c8d814730",
+  "revisions": [
+    {
+      "revision": 1,
+      "fingerprint": "sha256:616c6503c0ae6bb6b3f69ddeb4993c2e491ab492b5a3d2a8c5663706a51c4983",
+      "definition": {
+        "goal": "cloud-reuse-pilot-01",
+        "success_criteria": [
+          "Record one stipulated producer calculation and preserve history",
+          "Retain exact qualified callable and dependency bytes"
+        ],
+        "non_goals": [
+          "Empirical probabilities, live hosting, comparative usefulness or integration approval",
+          "Phase B or reconstruction"
+        ]
+      },
+      "source_refs": [
+        "sha256:4a33ff148172582cdece6df346d1a0701e70895077b2ec1520789d827bad8760",
+        "sha256:8ef633167f47b7c80cc987408df3e9f69003456f6c45f334571e674744d230fd"
+      ],
+      "files": [
+        {
+          "bytes": 4973,
+          "digest": "sha256:7a0fabc8a0672f97d4c5a81b5eef9e61f5c7fca6447d50ae1bf09bc2be149c11",
+          "name": "workflow_cost.py",
+          "role": "source"
+        },
+        {
+          "bytes": 2242,
+          "digest": "sha256:7cdd11476badfed7b206a84ed5195209e38465dd74cc5e265a7d9ced203a804a",
+          "name": "exact_linear.py",
+          "role": "source"
+        }
+      ]
+    },
+    {
+      "revision": 2,
+      "fingerprint": "sha256:95c62c2f728db3ddad3239e5bdc1be1d4b6c35512b3518b85477d3236ffddb51",
+      "definition": {
+        "goal": "cloud-reuse-pilot-01",
+        "success_criteria": [
+          "Record one stipulated producer calculation and preserve history",
+          "Retain exact qualified callable and dependency bytes"
+        ],
+        "non_goals": [
+          "Empirical probabilities, live hosting, comparative usefulness or integration approval",
+          "Phase B or reconstruction"
+        ]
+      },
+      "source_refs": [
+        "sha256:4a33ff148172582cdece6df346d1a0701e70895077b2ec1520789d827bad8760",
+        "sha256:8ef633167f47b7c80cc987408df3e9f69003456f6c45f334571e674744d230fd",
+        "sha256:fad36115e5a6bf3d70caebe4ca427405caf32315576746fbb6e67afac9de161c"
+      ],
+      "files": [
+        {
+          "bytes": 4973,
+          "digest": "sha256:7a0fabc8a0672f97d4c5a81b5eef9e61f5c7fca6447d50ae1bf09bc2be149c11",
+          "name": "workflow_cost.py",
+          "role": "source"
+        },
+        {
+          "bytes": 2242,
+          "digest": "sha256:7cdd11476badfed7b206a84ed5195209e38465dd74cc5e265a7d9ced203a804a",
+          "name": "exact_linear.py",
+          "role": "source"
+        },
+        {
+          "bytes": 523,
+          "digest": "sha256:37869ecc10f665461d7e3f1e53085329b0454bb8c2acda554ed64cae399a37cb",
+          "name": "producer-stdout.json",
+          "role": "results"
+        }
+      ]
+    }
+  ],
+  "complete_chain_and_membership": true,
+  "body_count": 3,
+  "qualification_ref": "sha256:4a33ff148172582cdece6df346d1a0701e70895077b2ec1520789d827bad8760"
+}

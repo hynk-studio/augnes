@@ -1,0 +1,29 @@
+{
+  "argv": [
+    "/tmp/ag-suite-jRNI1s/calculation/workflow_cost.py",
+    "--attempt",
+    "11",
+    "--verification",
+    "2",
+    "--repair",
+    "6",
+    "--direct-success",
+    "3/5",
+    "--inspection",
+    "9",
+    "--inspected-success",
+    "4/5"
+  ],
+  "cwd": "/tmp/ag-suite-jRNI1s/calculation",
+  "executable": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+  "entry": {
+    "path": "/tmp/ag-suite-jRNI1s/calculation/workflow_cost.py",
+    "bytes": 4973,
+    "sha256": "7a0fabc8a0672f97d4c5a81b5eef9e61f5c7fca6447d50ae1bf09bc2be149c11"
+  },
+  "exact_linear": {
+    "path": "/tmp/ag-suite-jRNI1s/calculation/exact_linear.py",
+    "bytes": 2242,
+    "sha256": "7cdd11476badfed7b206a84ed5195209e38465dd74cc5e265a7d9ced203a804a"
+  }
+}

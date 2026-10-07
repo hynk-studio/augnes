@@ -1,0 +1,22 @@
+{
+  "cells_started": 6,
+  "safe_settlement": true,
+  "independent_cleanup": {
+    "available": true,
+    "method": "read-only /proc numeric process metadata",
+    "groups": [
+      13147,
+      13155,
+      13163,
+      13171,
+      13179,
+      13181
+    ],
+    "live_group_members": [],
+    "known_groups_absent": true,
+    "scope": "known owned process groups; no arbitrary escaped-descendant claim",
+    "shared_owner_snapshot_status": "not exposed by shared owner"
+  },
+  "relevant_file_cells_pass": true,
+  "legacy_inline_marker": "historical failures unchanged; current cells separately recorded"
+}

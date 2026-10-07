@@ -1,0 +1,18 @@
+{
+  "case": "B1",
+  "method": "independent Fraction renewal formula; direct inspection zero",
+  "expected_inputs": {
+    "attempt": "11",
+    "verification": "2",
+    "repair": "6",
+    "direct_success": "3/5",
+    "inspection": "2",
+    "inspected_success": "4/5"
+  },
+  "direct": "77/3",
+  "inspected": "81/4",
+  "inspection_minus_direct": "-65/12",
+  "comparison": "inspection_reduces_work",
+  "input_equality": true,
+  "matches": true
+}

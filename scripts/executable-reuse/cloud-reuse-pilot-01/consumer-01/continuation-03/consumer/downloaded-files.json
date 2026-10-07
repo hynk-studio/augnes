@@ -1,0 +1,18 @@
+[
+  {
+    "url": "/api/work/47b083cb-833d-49e3-9652-fa6c8d814730/files/2/95c62c2f728db3ddad3239e5bdc1be1d4b6c35512b3518b85477d3236ffddb51/0",
+    "name": "workflow_cost.py",
+    "digest": "sha256:7a0fabc8a0672f97d4c5a81b5eef9e61f5c7fca6447d50ae1bf09bc2be149c11",
+    "bytes": 4973,
+    "sha256": "7a0fabc8a0672f97d4c5a81b5eef9e61f5c7fca6447d50ae1bf09bc2be149c11",
+    "downloaded_via_authenticated_route": true
+  },
+  {
+    "url": "/api/work/47b083cb-833d-49e3-9652-fa6c8d814730/files/2/95c62c2f728db3ddad3239e5bdc1be1d4b6c35512b3518b85477d3236ffddb51/1",
+    "name": "exact_linear.py",
+    "digest": "sha256:7cdd11476badfed7b206a84ed5195209e38465dd74cc5e265a7d9ced203a804a",
+    "bytes": 2242,
+    "sha256": "7cdd11476badfed7b206a84ed5195209e38465dd74cc5e265a7d9ced203a804a",
+    "downloaded_via_authenticated_route": true
+  }
+]

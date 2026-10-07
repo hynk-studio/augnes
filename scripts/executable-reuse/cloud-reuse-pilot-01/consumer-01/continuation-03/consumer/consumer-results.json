@@ -1,0 +1,109 @@
+{
+  "B1": {
+    "inputs": {
+      "attempt": "11",
+      "verification": "2",
+      "repair": "6",
+      "direct_success": "3/5",
+      "inspection": "2",
+      "inspected_success": "4/5"
+    },
+    "evidence": "constructed development calculation; probabilities and costs are stipulated",
+    "workflows": {
+      "direct": {
+        "status": "finite",
+        "expected_work": "77/3"
+      },
+      "inspected": {
+        "status": "finite",
+        "expected_work": "81/4"
+      }
+    },
+    "inspection_minus_direct": "-65/12",
+    "comparison": "inspection_reduces_work"
+  },
+  "B2": {
+    "inputs": {
+      "attempt": "11",
+      "verification": "2",
+      "repair": "6",
+      "direct_success": "3/5",
+      "inspection": "9",
+      "inspected_success": "4/5"
+    },
+    "evidence": "constructed development calculation; probabilities and costs are stipulated",
+    "workflows": {
+      "direct": {
+        "status": "finite",
+        "expected_work": "77/3"
+      },
+      "inspected": {
+        "status": "finite",
+        "expected_work": "29"
+      }
+    },
+    "inspection_minus_direct": "10/3",
+    "comparison": "inspection_adds_work"
+  },
+  "independent": [
+    {
+      "case": "B1",
+      "method": "independent Fraction renewal formula; direct inspection zero",
+      "expected_inputs": {
+        "attempt": "11",
+        "verification": "2",
+        "repair": "6",
+        "direct_success": "3/5",
+        "inspection": "2",
+        "inspected_success": "4/5"
+      },
+      "direct": "77/3",
+      "inspected": "81/4",
+      "inspection_minus_direct": "-65/12",
+      "comparison": "inspection_reduces_work",
+      "input_equality": true,
+      "matches": true
+    },
+    {
+      "case": "B2",
+      "method": "independent Fraction renewal formula; direct inspection zero",
+      "expected_inputs": {
+        "attempt": "11",
+        "verification": "2",
+        "repair": "6",
+        "direct_success": "3/5",
+        "inspection": "9",
+        "inspected_success": "4/5"
+      },
+      "direct": "77/3",
+      "inspected": "29",
+      "inspection_minus_direct": "10/3",
+      "comparison": "inspection_adds_work",
+      "input_equality": true,
+      "matches": true
+    }
+  ],
+  "B3": {
+    "case": "B3",
+    "inputs": {
+      "attempt": "11",
+      "verification": "2",
+      "repair": "6",
+      "inspection": "2",
+      "direct_success": "3/(5+k)",
+      "inspected_success": "4/(5+k)",
+      "failures": "k=0,1,2,...; no finite cutoff"
+    },
+    "decision": "scripted scope rule",
+    "fresh_agent_judgment": "NOT OBSERVED",
+    "authorship": "pre-authored pilot rule; no attributable recovered-context agent judgment",
+    "reason": "Recovered qualification limits the callable to stationary finite-state problems. Unbounded failure history changes probabilities with k. No stationary substitution, arbitrary cutoff or expanded solver is commissioned.",
+    "qualification_ref": "sha256:4a33ff148172582cdece6df346d1a0701e70895077b2ec1520789d827bad8760",
+    "qualification_revision": 2,
+    "qualification_fingerprint": "sha256:95c62c2f728db3ddad3239e5bdc1be1d4b6c35512b3518b85477d3236ffddb51",
+    "cli_run": false,
+    "observed_cli_refusal": false,
+    "mathematical_impossibility_claim": false
+  },
+  "mandatory_verification": true
+}

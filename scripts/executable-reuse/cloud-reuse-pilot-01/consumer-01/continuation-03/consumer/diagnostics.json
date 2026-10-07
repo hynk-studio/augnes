@@ -1,0 +1,95 @@
+{
+  "stage": "partial-results-retained",
+  "check": "one normal authenticated reconstruction refusal",
+  "progress": {
+    "work_id": "47b083cb-833d-49e3-9652-fa6c8d814730",
+    "revisions": [
+      {
+        "revision": 3,
+        "fingerprint": "sha256:e6ccd20a726ea94a6f36ad4c028394e167bb85cca929ff563d74fc43cbbe72b4",
+        "files": [
+          {
+            "bytes": 4973,
+            "digest": "sha256:7a0fabc8a0672f97d4c5a81b5eef9e61f5c7fca6447d50ae1bf09bc2be149c11",
+            "name": "workflow_cost.py",
+            "role": "source"
+          },
+          {
+            "bytes": 2242,
+            "digest": "sha256:7cdd11476badfed7b206a84ed5195209e38465dd74cc5e265a7d9ced203a804a",
+            "name": "exact_linear.py",
+            "role": "source"
+          },
+          {
+            "bytes": 523,
+            "digest": "sha256:37869ecc10f665461d7e3f1e53085329b0454bb8c2acda554ed64cae399a37cb",
+            "name": "producer-stdout.json",
+            "role": "results"
+          }
+        ]
+      },
+      {
+        "revision": 4,
+        "fingerprint": "sha256:fb42543992e0ca4f24866d611cc2178159904647ded24678f4f79b933d69d289",
+        "files": [
+          {
+            "bytes": 4973,
+            "digest": "sha256:7a0fabc8a0672f97d4c5a81b5eef9e61f5c7fca6447d50ae1bf09bc2be149c11",
+            "name": "workflow_cost.py",
+            "role": "source"
+          },
+          {
+            "bytes": 2242,
+            "digest": "sha256:7cdd11476badfed7b206a84ed5195209e38465dd74cc5e265a7d9ced203a804a",
+            "name": "exact_linear.py",
+            "role": "source"
+          },
+          {
+            "bytes": 523,
+            "digest": "sha256:37869ecc10f665461d7e3f1e53085329b0454bb8c2acda554ed64cae399a37cb",
+            "name": "producer-stdout.json",
+            "role": "results"
+          },
+          {
+            "bytes": 3266,
+            "digest": "sha256:f89a104ea6bb4f4feb698dcc96c761c88f0dad94a8bceef1979d24fdd94ae5e0",
+            "name": "consumer-results.json",
+            "role": "results"
+          }
+        ]
+      }
+    ],
+    "reconstructed": true,
+    "transition": true,
+    "calculation": true,
+    "readback": true,
+    "export_downloaded": true,
+    "export_validated": true,
+    "corruption_control": true
+  },
+  "readiness": {
+    "correct_document": true,
+    "document_complete": true,
+    "client_loaded": true,
+    "client_idle": true,
+    "list_state": "empty",
+    "list_complete": true,
+    "controls_ready": true,
+    "ready": true,
+    "client_http_200": true,
+    "list_http_200": true
+  },
+  "observed_save_requests": 2,
+  "unknown_outcome_resolutions": 0,
+  "browser_diagnostics": [],
+  "browser_spawn_error": null,
+  "browser_exit": {
+    "code": 0,
+    "signal": null
+  },
+  "intercepted_external_browser_requests": 0,
+  "worker_external_requests": 0,
+  "unexpected_failures": [],
+  "elapsed_including_fixture_cleanup_ms": 5447,
+  "phase": "B"
+}

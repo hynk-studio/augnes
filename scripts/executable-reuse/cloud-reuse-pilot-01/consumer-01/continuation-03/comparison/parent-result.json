@@ -1,0 +1,54 @@
+{
+  "stdout": {
+    "bytes": 20,
+    "sha256": "3969e9a809508763c91e8c535262975504833c1fe71dcf619677169b296828ab",
+    "retained_bytes": 20,
+    "hex": "636f6d70617269736f6e2d68656c7065722d6f6b",
+    "truncated": false,
+    "redacted": false,
+    "exact": true,
+    "chunks": 1
+  },
+  "stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retained_bytes": 0,
+    "hex": "",
+    "truncated": false,
+    "redacted": false,
+    "exact": true,
+    "chunks": 0
+  },
+  "runner_logs": "[canonical:cloud-reuse-pilot-01] child_start label=\"comparison-helper\" timeout_ms=120000\n[canonical:cloud-reuse-pilot-01] child_spawn label=\"comparison-helper\" pid=13136 wait=process_exit\n[canonical:cloud-reuse-pilot-01] child_exit label=\"comparison-helper\" elapsed_ms=1110 exit_code=0 signal=null stdout_closed=true stderr_closed=true\n[canonical:cloud-reuse-pilot-01] child_cleanup_start label=\"comparison-helper\" elapsed_ms=1110 reason=post_exit_settlement exit_observed=true stdout_closed=true stderr_closed=true\n[canonical:cloud-reuse-pilot-01] child_cleanup_result label=\"comparison-helper\" elapsed_ms=1119 reason=post_exit_settlement term_sent=false kill_sent=false streams_closed=true remaining_owned_processes=0\n[canonical:cloud-reuse-pilot-01] child_result label=\"comparison-helper\" duration_ms=1119 exit_code=0 signal=null timed_out=false exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=natural_exit\n",
+  "child": {
+    "label": "comparison-helper",
+    "exit_code": 0,
+    "signal": null,
+    "timed_out": false,
+    "duration_ms": 1119,
+    "spawn_error_code": null,
+    "exit_observed": true,
+    "streams_closed": true,
+    "cleanup_started": true,
+    "cleanup_completed": true,
+    "remaining_owned_processes": 0,
+    "termination_reason": "natural_exit"
+  },
+  "error": null,
+  "independent_cleanup": {
+    "available": true,
+    "method": "read-only /proc numeric process metadata",
+    "groups": [
+      13136
+    ],
+    "live_group_members": [],
+    "known_groups_absent": true,
+    "scope": "known owned process groups; no arbitrary escaped-descendant claim",
+    "shared_owner_snapshot_status": "not exposed by shared owner"
+  },
+  "actual_tsx_helper_output_pass": true,
+  "disposable_resources_removed": true,
+  "cleanup_failures": [],
+  "retained_root": null,
+  "elapsed_including_cleanup_ms": 1130
+}

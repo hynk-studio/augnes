@@ -1,0 +1,292 @@
+{
+  "pilot": "cloud-reuse-pilot-01",
+  "director_review": 5437433951,
+  "outcome": "Partial B result retained; fresh B3 judgment NOT OBSERVED",
+  "matrix": [
+    {
+      "id": 1,
+      "name": "Node inline / runner",
+      "stdout_hex": "6368696c642d6f6b",
+      "stdout_bytes": 8,
+      "stdout_chunks": 1,
+      "stderr_hex": "",
+      "stderr_bytes": 0,
+      "stderr_chunks": 0,
+      "exit": 0,
+      "ordinary_success_accepted": true,
+      "cell_pass": true
+    },
+    {
+      "id": 2,
+      "name": "Node inline / native",
+      "stdout_hex": "6368696c642d6f6b",
+      "stdout_bytes": 8,
+      "stdout_chunks": 1,
+      "stderr_hex": "",
+      "stderr_bytes": 0,
+      "stderr_chunks": 0,
+      "exit": 0,
+      "ordinary_success_accepted": true,
+      "cell_pass": true
+    },
+    {
+      "id": 3,
+      "name": "Node file / runner",
+      "stdout_hex": "6368696c642d6f6b",
+      "stdout_bytes": 8,
+      "stdout_chunks": 1,
+      "stderr_hex": "",
+      "stderr_bytes": 0,
+      "stderr_chunks": 0,
+      "exit": 0,
+      "ordinary_success_accepted": true,
+      "cell_pass": true
+    },
+    {
+      "id": 4,
+      "name": "Node file / native",
+      "stdout_hex": "6368696c642d6f6b",
+      "stdout_bytes": 8,
+      "stdout_chunks": 1,
+      "stderr_hex": "",
+      "stderr_bytes": 0,
+      "stderr_chunks": 0,
+      "exit": 0,
+      "ordinary_success_accepted": true,
+      "cell_pass": true
+    },
+    {
+      "id": 5,
+      "name": "Python positive / runner",
+      "stdout_hex": "707974686f6e2d706f7369746976650a",
+      "stdout_bytes": 16,
+      "stdout_chunks": 1,
+      "stderr_hex": "706f7369746976652d7374646572720a",
+      "stderr_bytes": 16,
+      "stderr_chunks": 1,
+      "exit": 0,
+      "ordinary_success_accepted": true,
+      "cell_pass": true
+    },
+    {
+      "id": 6,
+      "name": "Python negative / runner",
+      "stdout_hex": "707974686f6e2d6e656761746976650a",
+      "stdout_bytes": 16,
+      "stdout_chunks": 1,
+      "stderr_hex": "6e656761746976652d7374646572720a",
+      "stderr_bytes": 16,
+      "stderr_chunks": 1,
+      "exit": 17,
+      "ordinary_success_accepted": false,
+      "cell_pass": true
+    }
+  ],
+  "identity": {
+    "reviewed_head": "965b01ed55a04fe6ee8ae45cd2b5e80ca6b638a2",
+    "reviewed_tree": "6dc415b1c55b4292782ecfa334523b78c3997c38",
+    "producer_base": "d3f9f0d538078b33c7db892666d50755a71337bf",
+    "application_baseline": "b73e5012c699f85a9e3b643b6cba82f8f195d3ce",
+    "execution_commit": "d15f16265f54bd18495848478837c0e4a2424855",
+    "execution_tree": "6ed9317d65e99ece316c5adb863b050b019f14e9",
+    "execution_commit_raw_base64": "dHJlZSA2ZWQ5MzE3ZDY1ZTk5ZWNlMzE2YzVhZGI4NjNiMDUwYjAxOWYxNGU5CnBhcmVudCA5NjViMDFlZDU1YTA0ZmU2ZWU4YWU0NWNkMmI1ZTgwY2E2YjYzOGEyCmF1dGhvciBIeXVuaWwgS2ltIDxoeW5rMTI0MEBvdXRsb29rLmNvbT4gMTc5MTM0NTQ0MCArMDAwMApjb21taXR0ZXIgSHl1bmlsIEtpbSA8aHluazEyNDBAb3V0bG9vay5jb20+IDE3OTEzNDU0NDAgKzAwMDAKCmV4cGVyaW1lbnQ6IGRlY2xhcmUgYm91bmRlZCBOb2RlIGFuZCBQeXRob24gZXhlY3V0aW9uLXBhdGggY29tcGFyaXNvbnMK",
+    "retention_identity": "exact final remote head/tree in PR #1414; execution identity distinct"
+  },
+  "permissions": {
+    "comparison": "supported per-command network request accepted/executed",
+    "readiness": "separate supported per-command network request accepted/executed",
+    "consumer": "separate supported per-command network request accepted/executed",
+    "requests": 3,
+    "denied": 0,
+    "prior_grant_assumed_transferable": false,
+    "unapproved_loopback_repeated": false,
+    "proxy_or_global_configuration_changed": false
+  },
+  "limited_qualification": {
+    "relevant_Node_file_runner_native_exact": true,
+    "Python_positive_negative_exact": true,
+    "negative_success_refusal_observed": true,
+    "actual_tsx_helper_pipe_output_exact": true,
+    "B_source_has_no_Node_inline_dependency": true,
+    "legacy_inline_failures": "unchanged failures at original identities",
+    "current_inline_comparisons": "both pass under current approved profile; invocation form did not discriminate in this bundle",
+    "claim_limit": "Forward qualification of observed file/helper/calculator paths only; no causal resolution or platform-wide claim. Compared cells share cwd/environment/pipes/permissions; historical probes differed in permission profile, cwd and imported helper modules.",
+    "loader_disclosure": "Comparison and B outer children use node --import tsx on .mjs; nested Node file cells use .cjs without loader; Python uses -E -s -B. Comparison calculation directory matches B calculation-directory role. B actual wrapper/import identity independently retained."
+  },
+  "readiness": {
+    "result": "PASS",
+    "worker_login_client_empty_list": true,
+    "reconstruction_disabled": true,
+    "work_saves": 0,
+    "calculations": 0,
+    "cleanup": "PASS"
+  },
+  "B": {
+    "additional_invocations": 1,
+    "result": "partial",
+    "reconstruction": "PASS through normal authenticated route; original 2 revisions and 3 bodies unchanged",
+    "scope_successor_revision": 3,
+    "result_successor_revision": 4,
+    "downloaded_entry_import_execution": "PASS; process-local provenance matches original reviewed hashes",
+    "B1": {
+      "inputs": {
+        "attempt": "11",
+        "verification": "2",
+        "repair": "6",
+        "direct_success": "3/5",
+        "inspection": "2",
+        "inspected_success": "4/5"
+      },
+      "evidence": "constructed development calculation; probabilities and costs are stipulated",
+      "workflows": {
+        "direct": {
+          "status": "finite",
+          "expected_work": "77/3"
+        },
+        "inspected": {
+          "status": "finite",
+          "expected_work": "81/4"
+        }
+      },
+      "inspection_minus_direct": "-65/12",
+      "comparison": "inspection_reduces_work"
+    },
+    "B2": {
+      "inputs": {
+        "attempt": "11",
+        "verification": "2",
+        "repair": "6",
+        "direct_success": "3/5",
+        "inspection": "9",
+        "inspected_success": "4/5"
+      },
+      "evidence": "constructed development calculation; probabilities and costs are stipulated",
+      "workflows": {
+        "direct": {
+          "status": "finite",
+          "expected_work": "77/3"
+        },
+        "inspected": {
+          "status": "finite",
+          "expected_work": "29"
+        }
+      },
+      "inspection_minus_direct": "10/3",
+      "comparison": "inspection_adds_work"
+    },
+    "independent_input_oracle_matches": true,
+    "fresh_B3_judgment": "NOT OBSERVED",
+    "B3": "scripted scope rule only",
+    "successor_export": {
+      "path": "planning-work.json",
+      "format": "web_planning_export.v0.3",
+      "bytes": 55006,
+      "sha256": "797fc35751add728b3b70914ddf8eac5fcfadb3bb4589ff0a956553504edde19",
+      "fingerprint": "sha256:308e1668fbc747dc8b14c0bcaed7a1ec831f722b54046324ee79e6bc60f5b887"
+    },
+    "work_id": "47b083cb-833d-49e3-9652-fa6c8d814730",
+    "revisions": [
+      {
+        "revision": 1,
+        "fingerprint": "sha256:616c6503c0ae6bb6b3f69ddeb4993c2e491ab492b5a3d2a8c5663706a51c4983"
+      },
+      {
+        "revision": 2,
+        "fingerprint": "sha256:95c62c2f728db3ddad3239e5bdc1be1d4b6c35512b3518b85477d3236ffddb51"
+      },
+      {
+        "revision": 3,
+        "fingerprint": "sha256:e6ccd20a726ea94a6f36ad4c028394e167bb85cca929ff563d74fc43cbbe72b4"
+      },
+      {
+        "revision": 4,
+        "fingerprint": "sha256:fb42543992e0ca4f24866d611cc2178159904647ded24678f4f79b933d69d289"
+      }
+    ],
+    "corruption_control": {
+      "mutated_bytes": 1,
+      "position": 64,
+      "original_character": "e",
+      "replacement_character": "A",
+      "original_sha256": "2634ccd6ec63ae50b4f05a8ff89e9fd8e723242f75f5cdeb512c81af4cc7d219",
+      "corrupt_sha256": "20377505df2a5bf4ce9c738460ce34954fb0dc940f518f023b686fff09eb8b61",
+      "embedded_checksums_unchanged": true,
+      "route": "/api/reconstruct-files",
+      "submitted_once": true,
+      "rejection": {
+        "accepted": false,
+        "status": 409,
+        "code": "export_integrity"
+      },
+      "stage": "validateFileExport: package checksum before chain/body admission or reconstruct",
+      "before": {
+        "works": 0,
+        "revisions": 0,
+        "files": 0,
+        "erased": 0
+      },
+      "after": {
+        "works": 0,
+        "revisions": 0,
+        "files": 0,
+        "erased": 0
+      },
+      "ordinary_list_empty": true,
+      "corrupt_content_executed": false,
+      "scope": "corruption refusal and no partial admission; not malicious-author authenticity or arbitrary crash recovery"
+    },
+    "ordinary_saves": 2,
+    "unknown_outcome_resolutions": 0,
+    "write_retries": 0
+  },
+  "counts": {
+    "this_bundle_cells": 6,
+    "this_bundle_repeats": 0,
+    "Node_comparison_cells": 4,
+    "Python_comparison_cells": 2,
+    "historical_marker_probes": 2,
+    "all_marker_or_comparison_cells_cumulative": 8,
+    "loopback_checks_cumulative": 2,
+    "Worker_browser_readiness_fixtures_this_and_cumulative": 1,
+    "prerequisite_harness_invocations_cumulative_excluding_comparison_bundle": 5,
+    "comparison_bundles": 1,
+    "full_B_invocations_this": 1,
+    "full_B_invocations_cumulative": 3,
+    "prior_B_setup_failures": 2
+  },
+  "cleanup": {
+    "comparison_readiness_consumer_roots_removed": true,
+    "B_corruption_store_separate_from_accepted_store": true,
+    "direct_children_and_streams_settled": true,
+    "tracked_remaining": 0,
+    "independent_known_owned_groups": "available /proc snapshots; zero live members in retained known groups",
+    "scope_limit": "shared internal ps outcome not exposed; no claim about arbitrary untracked/escaped descendants",
+    "provider_calls": 0,
+    "runtime_external_requests": 0,
+    "intercepted_external_browser_requests": 0
+  },
+  "checks": {
+    "comparison_pure_controls": "PASS; declared exact bytes/exits and negative success refusal",
+    "syntax_and_diff": "PASS",
+    "historical_pilot_paths_unchanged": 92,
+    "product_shared_runtime_solver_unchanged": true,
+    "retained_export_hash_chain_bodies": "PASS",
+    "stdout_input_oracle_provenance_checks": "PASS; no solver rerun",
+    "exact_final_planner": "reported on final PR head",
+    "Mac_deciding_verification": "NOT RUN / integration pending"
+  },
+  "timing": {
+    "intake_utc": "2026-10-07T03:55:08Z",
+    "live_execution_and_diagnosis_end_utc": "2026-10-07T03:59:17Z",
+    "active_phase_elapsed_seconds": 249,
+    "new_live_operations_stopped_before_15_minutes": true,
+    "retention_and_report_elapsed": "measured separately in final PR/chat",
+    "comparison_fixture_ms": 1130,
+    "readiness_fixture_ms": 4833,
+    "B_child_ms": 6767,
+    "B_including_fixture_cleanup_ms": 5447,
+    "prior_total_setup_burden": "unmeasured",
+    "CPU_memory_network_platform_usage": "unmeasured"
+  },
+  "stopping": "Bounded campaign finished. No further diagnostic layer, B retry, whole-B completion or integration claim."
+}

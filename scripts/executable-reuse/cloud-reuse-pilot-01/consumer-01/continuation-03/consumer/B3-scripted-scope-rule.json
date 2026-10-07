@@ -1,0 +1,22 @@
+{
+  "case": "B3",
+  "inputs": {
+    "attempt": "11",
+    "verification": "2",
+    "repair": "6",
+    "inspection": "2",
+    "direct_success": "3/(5+k)",
+    "inspected_success": "4/(5+k)",
+    "failures": "k=0,1,2,...; no finite cutoff"
+  },
+  "decision": "scripted scope rule",
+  "fresh_agent_judgment": "NOT OBSERVED",
+  "authorship": "pre-authored pilot rule; no attributable recovered-context agent judgment",
+  "reason": "Recovered qualification limits the callable to stationary finite-state problems. Unbounded failure history changes probabilities with k. No stationary substitution, arbitrary cutoff or expanded solver is commissioned.",
+  "qualification_ref": "sha256:4a33ff148172582cdece6df346d1a0701e70895077b2ec1520789d827bad8760",
+  "qualification_revision": 2,
+  "qualification_fingerprint": "sha256:95c62c2f728db3ddad3239e5bdc1be1d4b6c35512b3518b85477d3236ffddb51",
+  "cli_run": false,
+  "observed_cli_refusal": false,
+  "mathematical_impossibility_claim": false
+}

@@ -1,0 +1,45 @@
+{
+  "mode": "readiness",
+  "child": {
+    "label": "prerequisite readiness",
+    "exit_code": 0,
+    "signal": null,
+    "timed_out": false,
+    "duration_ms": 4793,
+    "spawn_error_code": null,
+    "exit_observed": true,
+    "streams_closed": true,
+    "cleanup_started": true,
+    "cleanup_completed": true,
+    "remaining_owned_processes": 0,
+    "termination_reason": "natural_exit"
+  },
+  "elapsed_ms": 4833,
+  "independent_cleanup": {
+    "available": true,
+    "method": "read-only /proc numeric process metadata",
+    "groups": [
+      13213
+    ],
+    "live_group_members": [],
+    "known_groups_absent": true,
+    "scope": "known owned process groups; no arbitrary escaped-descendant claim",
+    "shared_owner_snapshot_status": "not exposed by shared owner"
+  },
+  "child_independent_cleanup": {
+    "available": true,
+    "method": "read-only /proc numeric process metadata",
+    "groups": [
+      13244
+    ],
+    "live_group_members": [],
+    "known_groups_absent": true,
+    "scope": "known owned process groups; no arbitrary escaped-descendant claim",
+    "shared_owner_snapshot_status": "not exposed by shared owner"
+  },
+  "disposable_resources_removed": true,
+  "cleanup_withheld": false,
+  "retained_root": null,
+  "cleanup_failures": [],
+  "deciding_canonical_evidence": false
+}

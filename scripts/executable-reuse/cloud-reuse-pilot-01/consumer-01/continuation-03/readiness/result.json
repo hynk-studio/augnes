@@ -1,0 +1,56 @@
+{
+  "mode": "readiness",
+  "stage": "complete",
+  "check": "authenticated workspace and loaded client and completed list",
+  "observations": {
+    "child_process": false,
+    "loopback": false,
+    "worker": true,
+    "login_initial_list": true
+  },
+  "gate_pass": true,
+  "readiness": {
+    "correct_document": true,
+    "document_complete": true,
+    "client_loaded": true,
+    "client_idle": true,
+    "list_state": "empty",
+    "list_complete": true,
+    "controls_ready": true,
+    "ready": true,
+    "client_http_200": true,
+    "list_http_200": true
+  },
+  "api_routes": [
+    {
+      "method": "GET",
+      "path": "/api/works"
+    }
+  ],
+  "browser_diagnostics": [],
+  "unexpected_failures": [],
+  "cleanup": {
+    "tracked_browser_processes_remaining": 0,
+    "worker_returned": true,
+    "worker_disposed": true,
+    "browser_listener_closed": true,
+    "failures": [],
+    "diagnostics": []
+  },
+  "independent_cleanup": {
+    "available": true,
+    "method": "read-only /proc numeric process metadata",
+    "groups": [
+      13244
+    ],
+    "live_group_members": [],
+    "known_groups_absent": true,
+    "scope": "known owned process groups; no arbitrary escaped-descendant claim",
+    "shared_owner_snapshot_status": "not exposed by shared owner"
+  },
+  "elapsed_including_fixture_cleanup_ms": 3592,
+  "reconstruction_submissions": 0,
+  "work_saves": 0,
+  "case_calculations": 0,
+  "corrupt_imports": 0
+}

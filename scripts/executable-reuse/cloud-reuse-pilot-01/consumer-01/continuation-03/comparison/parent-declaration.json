@@ -1,0 +1,80 @@
+{
+  "cases": [
+    {
+      "id": 1,
+      "name": "Node inline / runner",
+      "runner": "canonical",
+      "form": "inline",
+      "stdout": "child-ok",
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "id": 2,
+      "name": "Node inline / native",
+      "runner": "native",
+      "form": "inline",
+      "stdout": "child-ok",
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "id": 3,
+      "name": "Node file / runner",
+      "runner": "canonical",
+      "form": "node-file",
+      "stdout": "child-ok",
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "id": 4,
+      "name": "Node file / native",
+      "runner": "native",
+      "form": "node-file",
+      "stdout": "child-ok",
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "id": 5,
+      "name": "Python positive / runner",
+      "runner": "canonical",
+      "form": "python",
+      "stdout": "python-positive\n",
+      "stderr": "positive-stderr\n",
+      "exit": 0
+    },
+    {
+      "id": 6,
+      "name": "Python negative / runner",
+      "runner": "canonical",
+      "form": "python-negative",
+      "stdout": "python-negative\n",
+      "stderr": "negative-stderr\n",
+      "exit": 17
+    }
+  ],
+  "helper_expected_stdout": "comparison-helper-ok",
+  "helper_expected_stderr": "",
+  "command": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+  "args": [
+    "--import",
+    "tsx",
+    "/workspace/augnes/scripts/executable-reuse/cloud-reuse-pilot-01/compare-execution-paths.mjs",
+    "--child",
+    "/workspace/augnes/scripts/executable-reuse/cloud-reuse-pilot-01/consumer-01/continuation-03/comparison"
+  ],
+  "cwd": "/workspace/augnes",
+  "entry": {
+    "path": "/workspace/augnes/scripts/executable-reuse/cloud-reuse-pilot-01/compare-execution-paths.mjs",
+    "bytes": 10774,
+    "sha256": "37c082b2631d2647abc4c8c519a7ea099152b65b4eac828fb711f49fba6085bb"
+  },
+  "interpreter": {
+    "path": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "bytes": 125989464,
+    "sha256": "bc17c508ffeed0ec622934f9b7fa72f8e78da65350e63c3eceb56fa688aa5e12"
+  },
+  "scope": "one six-cell comparison; native controls diagnostic only"
+}

@@ -1,0 +1,103 @@
+{
+  "cases": [
+    {
+      "id": 1,
+      "name": "Node inline / runner",
+      "runner": "canonical",
+      "form": "inline",
+      "stdout": "child-ok",
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "id": 2,
+      "name": "Node inline / native",
+      "runner": "native",
+      "form": "inline",
+      "stdout": "child-ok",
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "id": 3,
+      "name": "Node file / runner",
+      "runner": "canonical",
+      "form": "node-file",
+      "stdout": "child-ok",
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "id": 4,
+      "name": "Node file / native",
+      "runner": "native",
+      "form": "node-file",
+      "stdout": "child-ok",
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "id": 5,
+      "name": "Python positive / runner",
+      "runner": "canonical",
+      "form": "python",
+      "stdout": "python-positive\n",
+      "stderr": "positive-stderr\n",
+      "exit": 0
+    },
+    {
+      "id": 6,
+      "name": "Python negative / runner",
+      "runner": "canonical",
+      "form": "python-negative",
+      "stdout": "python-negative\n",
+      "stderr": "negative-stderr\n",
+      "exit": 17
+    }
+  ],
+  "node_source": "process.stdout.write('child-ok')",
+  "python_source": "import sys\nnegative = len(sys.argv) == 2 and sys.argv[1] == 'negative'\nsys.stdout.write('python-negative\\n' if negative else 'python-positive\\n')\nsys.stderr.write('negative-stderr\\n' if negative else 'positive-stderr\\n')\nsys.exit(17 if negative else 0)\n",
+  "helper_expected_stdout": "comparison-helper-ok",
+  "helper_expected_stderr": "",
+  "node": {
+    "path": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "bytes": 125989464,
+    "sha256": "bc17c508ffeed0ec622934f9b7fa72f8e78da65350e63c3eceb56fa688aa5e12"
+  },
+  "python": {
+    "path": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+    "bytes": 30894944,
+    "sha256": "fa67443527ed9647f760d807e2a38f26340757123e643c4639cf273ed15d5ea7"
+  },
+  "node_file": {
+    "path": "/tmp/ag-suite-I9H33E/calculation/marker.cjs",
+    "bytes": 32,
+    "sha256": "e4e1f2bc9895b05b3d4dbc3514c2dbd2dc8d1520b24016511f27b78abd5cdc05"
+  },
+  "python_file": {
+    "path": "/tmp/ag-suite-I9H33E/calculation/marker.py",
+    "bytes": 253,
+    "sha256": "12ee3bfecbbe56c1034882c368ffe7e6ed036aa6cf58c8e14ddad19f6cd63bf4"
+  },
+  "cwd": "/tmp/ag-suite-I9H33E/calculation",
+  "profile": {
+    "parent_child_loader": [
+      "--import",
+      "tsx"
+    ],
+    "nested_node_loader": [],
+    "nested_python_flags": [
+      "-E",
+      "-s",
+      "-B"
+    ],
+    "stdio": [
+      "ignore",
+      "pipe",
+      "pipe"
+    ],
+    "detached": true,
+    "environment": "same sanitized inherited child environment for all six cells; no values retained"
+  },
+  "limited_gate": "Node runner/native file cells exact; Python positive/negative exact and ordinary refusal; actual tsx helper stdout exact; source confirms B has no Node inline dependency. Legacy inline failures remain failures."
+}

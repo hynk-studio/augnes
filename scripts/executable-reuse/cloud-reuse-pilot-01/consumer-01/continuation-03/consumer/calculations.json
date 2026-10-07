@@ -1,0 +1,234 @@
+{
+  "calculations": [
+    {
+      "case": "B1",
+      "observed": {
+        "inputs": {
+          "attempt": "11",
+          "verification": "2",
+          "repair": "6",
+          "direct_success": "3/5",
+          "inspection": "2",
+          "inspected_success": "4/5"
+        },
+        "evidence": "constructed development calculation; probabilities and costs are stipulated",
+        "workflows": {
+          "direct": {
+            "status": "finite",
+            "expected_work": "77/3"
+          },
+          "inspected": {
+            "status": "finite",
+            "expected_work": "81/4"
+          }
+        },
+        "inspection_minus_direct": "-65/12",
+        "comparison": "inspection_reduces_work"
+      },
+      "actual_argv": [
+        "python3",
+        "-E",
+        "-s",
+        "-B",
+        "/workspace/augnes/scripts/executable-reuse/cloud-reuse-pilot-01/observe-downloaded.py",
+        "/tmp/ag-suite-jRNI1s/calculation/workflow_cost.py",
+        "/tmp/ag-suite-jRNI1s/calculation/B1-provenance.json",
+        "--attempt",
+        "11",
+        "--verification",
+        "2",
+        "--repair",
+        "6",
+        "--direct-success",
+        "3/5",
+        "--inspection",
+        "2",
+        "--inspected-success",
+        "4/5"
+      ],
+      "inputs": {
+        "attempt": "11",
+        "verification": "2",
+        "repair": "6",
+        "direct_success": "3/5",
+        "inspection": "2",
+        "inspected_success": "4/5"
+      },
+      "actual_stdout": "B1-stdout.txt",
+      "actual_stdout_sha256": "f12d73f81cbfa000cfcf676c7b6d7137b515b86eebe5f278f0a76bf04c64bb0f",
+      "provenance": "B1-provenance.json",
+      "execution": {
+        "label": "B1",
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_ms": 82,
+        "spawn_error_code": null,
+        "exit_observed": true,
+        "streams_closed": true,
+        "cleanup_started": true,
+        "cleanup_completed": true,
+        "remaining_owned_processes": 0,
+        "termination_reason": "natural_exit"
+      },
+      "expected_comparison": {
+        "case": "B1",
+        "method": "independent Fraction renewal formula; direct inspection zero",
+        "expected_inputs": {
+          "attempt": "11",
+          "verification": "2",
+          "repair": "6",
+          "direct_success": "3/5",
+          "inspection": "2",
+          "inspected_success": "4/5"
+        },
+        "direct": "77/3",
+        "inspected": "81/4",
+        "inspection_minus_direct": "-65/12",
+        "comparison": "inspection_reduces_work",
+        "input_equality": true,
+        "matches": true
+      },
+      "oracle_execution": {
+        "label": "B1-oracle",
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_ms": 39,
+        "spawn_error_code": null,
+        "exit_observed": true,
+        "streams_closed": true,
+        "cleanup_started": true,
+        "cleanup_completed": true,
+        "remaining_owned_processes": 0,
+        "termination_reason": "natural_exit"
+      }
+    },
+    {
+      "case": "B2",
+      "observed": {
+        "inputs": {
+          "attempt": "11",
+          "verification": "2",
+          "repair": "6",
+          "direct_success": "3/5",
+          "inspection": "9",
+          "inspected_success": "4/5"
+        },
+        "evidence": "constructed development calculation; probabilities and costs are stipulated",
+        "workflows": {
+          "direct": {
+            "status": "finite",
+            "expected_work": "77/3"
+          },
+          "inspected": {
+            "status": "finite",
+            "expected_work": "29"
+          }
+        },
+        "inspection_minus_direct": "10/3",
+        "comparison": "inspection_adds_work"
+      },
+      "actual_argv": [
+        "python3",
+        "-E",
+        "-s",
+        "-B",
+        "/workspace/augnes/scripts/executable-reuse/cloud-reuse-pilot-01/observe-downloaded.py",
+        "/tmp/ag-suite-jRNI1s/calculation/workflow_cost.py",
+        "/tmp/ag-suite-jRNI1s/calculation/B2-provenance.json",
+        "--attempt",
+        "11",
+        "--verification",
+        "2",
+        "--repair",
+        "6",
+        "--direct-success",
+        "3/5",
+        "--inspection",
+        "9",
+        "--inspected-success",
+        "4/5"
+      ],
+      "inputs": {
+        "attempt": "11",
+        "verification": "2",
+        "repair": "6",
+        "direct_success": "3/5",
+        "inspection": "9",
+        "inspected_success": "4/5"
+      },
+      "actual_stdout": "B2-stdout.txt",
+      "actual_stdout_sha256": "65664a6f4849d88be1ffec90b476429bade853d6d9f5e9b98a1d81068ea396ea",
+      "provenance": "B2-provenance.json",
+      "execution": {
+        "label": "B2",
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_ms": 80,
+        "spawn_error_code": null,
+        "exit_observed": true,
+        "streams_closed": true,
+        "cleanup_started": true,
+        "cleanup_completed": true,
+        "remaining_owned_processes": 0,
+        "termination_reason": "natural_exit"
+      },
+      "expected_comparison": {
+        "case": "B2",
+        "method": "independent Fraction renewal formula; direct inspection zero",
+        "expected_inputs": {
+          "attempt": "11",
+          "verification": "2",
+          "repair": "6",
+          "direct_success": "3/5",
+          "inspection": "9",
+          "inspected_success": "4/5"
+        },
+        "direct": "77/3",
+        "inspected": "29",
+        "inspection_minus_direct": "10/3",
+        "comparison": "inspection_adds_work",
+        "input_equality": true,
+        "matches": true
+      },
+      "oracle_execution": {
+        "label": "B2-oracle",
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_ms": 43,
+        "spawn_error_code": null,
+        "exit_observed": true,
+        "streams_closed": true,
+        "cleanup_started": true,
+        "cleanup_completed": true,
+        "remaining_owned_processes": 0,
+        "termination_reason": "natural_exit"
+      }
+    }
+  ],
+  "B3": {
+    "case": "B3",
+    "inputs": {
+      "attempt": "11",
+      "verification": "2",
+      "repair": "6",
+      "inspection": "2",
+      "direct_success": "3/(5+k)",
+      "inspected_success": "4/(5+k)",
+      "failures": "k=0,1,2,...; no finite cutoff"
+    },
+    "decision": "scripted scope rule",
+    "fresh_agent_judgment": "NOT OBSERVED",
+    "authorship": "pre-authored pilot rule; no attributable recovered-context agent judgment",
+    "reason": "Recovered qualification limits the callable to stationary finite-state problems. Unbounded failure history changes probabilities with k. No stationary substitution, arbitrary cutoff or expanded solver is commissioned.",
+    "qualification_ref": "sha256:4a33ff148172582cdece6df346d1a0701e70895077b2ec1520789d827bad8760",
+    "qualification_revision": 2,
+    "qualification_fingerprint": "sha256:95c62c2f728db3ddad3239e5bdc1be1d4b6c35512b3518b85477d3236ffddb51",
+    "cli_run": false,
+    "observed_cli_refusal": false,
+    "mathematical_impossibility_claim": false
+  }
+}

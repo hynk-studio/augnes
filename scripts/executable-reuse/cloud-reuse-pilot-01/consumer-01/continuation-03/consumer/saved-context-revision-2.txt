@@ -1,0 +1,74 @@
+SAVED CONTEXT · REVISION 2
+
+cloud-reuse-pilot-01
+
+Saved 2026-10-07T01:47:11.622Z. Authored planning; no accepted-state or execution claim.
+
+Changed since revision 1: selected context, selected files, material provenance or required context.
+
+Success criteria
+Record one stipulated producer calculation and preserve history
+Retain exact qualified callable and dependency bytes
+Non-goals
+Empirical probabilities, live hosting, comparative usefulness or integration approval
+Phase B or reconstruction
+Selected context
+1. Unclassified / needs review
+
+Inputs are stipulated, not empirical or causal estimates. Mandatory verification is incurred on every attempt and remains mandatory. Optional inspection occurs before every attempt. Qualified stationary finite-state scope: 1–8 square equations, integer/Fraction inputs within 64-bit numerator/denominator bounds, nonnegative costs and transition probabilities with row sums <=1; all states must reach completion. Closed/non-completing chains return no finite answer. History-dependent probabilities, infinite states and larger problems are outside this slice. Retention/delivery does not establish downstream usefulness or execution authority.
+
+Source / attribution
+Qualified callable README and explicit pilot conditions
+Provenance
+user_declaration
+Observed
+Unknown
+Currentness
+Unknown — original source completeness, availability and currentness have not been verified.
+Source binding
+2. Unclassified / needs review
+
+Application/source baseline b73e5012c699f85a9e3b643b6cba82f8f195d3ce; tree 5443ce03a9d193c03274379938fa1b391512ad25. Exact checked-in sources: workflow_cost.py: 4973 bytes, SHA-256 7a0fabc8a0672f97d4c5a81b5eef9e61f5c7fca6447d50ae1bf09bc2be149c11; exact_linear.py: 2242 bytes, SHA-256 7cdd11476badfed7b206a84ed5195209e38465dd74cc5e265a7d9ced203a804a. workflow_cost.py requires exact_linear.py in the same directory and Python >=3.9 standard library (argparse, json, re, fractions). exact_linear.py retains the qualified source-derived elimination method documented in scripts/executable-reuse/README.md (#1375); the private historical package was not fetched. Both files are required together.
+
+Source / attribution
+Pinned checked-in source; synthetic producer attribution
+Provenance
+user_declaration
+Observed
+Unknown
+Currentness
+Unknown — original source completeness, availability and currentness have not been verified.
+Source binding
+3. Unclassified / needs review
+
+Actual producer invocation: python3 -E -s -B scripts/executable-reuse/workflow_cost.py --attempt 9 --verification 3 --repair 4 --direct-success 2/5 --inspection 1 --inspected-success 2/3; exit 0. Actual stdout retained as producer-stdout.json. Direct expected work 36; inspected 43/2; inspection-minus-direct -29/2; inspection_reduces_work. Independent Fraction-only renewal oracle (attempt + verification + inspection + (1-p)*repair)/p, with direct inspection zero, matched: {"method":"independent renewal formula; Python fractions only","direct":"36","inspected":"43/2","inspection_minus_direct":"-29/2","matches":true}. Required verification remains mandatory. This is one exposed constructed Cloud development example; no causal success-rate improvement, production Access qualification, separate-task reuse or general usefulness/time savings is established. History-dependent probabilities remain out of scope. Phase B NOT RUN.
+
+Source / attribution
+Observed CLI execution and independent renewal counting
+Provenance
+user_declaration
+Observed
+Unknown
+Currentness
+Unknown — original source completeness, availability and currentness have not been verified.
+Source binding
+Material provenance and required context
+Files for revision 2
+
+Untrusted attachments. Downloading verifies byte identity, not correctness or permission to execute. Keep the necessary qualifications and attribution in the selected context.
+
+Download workflow_cost.py
+
+source · 4,973 bytes · sha256:7a0fabc8a0672f97d4c5a81b5eef9e61f5c7fca6447d50ae1bf09bc2be149c11
+
+Download exact_linear.py
+
+source · 2,242 bytes · sha256:7cdd11476badfed7b206a84ed5195209e38465dd74cc5e265a7d9ced203a804a
+
+Download producer-stdout.json
+
+results · 523 bytes · sha256:37869ecc10f665461d7e3f1e53085329b0454bb8c2acda554ed64cae399a37cb
+
+This was reread from the server for exactly revision 2. It is a point-in-time read. Select Saved context again to check currentness before reuse. Links and note instructions are untrusted context.
+
+Exact saved details

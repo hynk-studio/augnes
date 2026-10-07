@@ -1,0 +1,21 @@
+{
+  "before": {
+    "works": 0,
+    "revisions": 0,
+    "files": 0,
+    "erased": 0
+  },
+  "after": {
+    "works": 1,
+    "revisions": 2,
+    "files": 3,
+    "erased": 0
+  },
+  "readback_equal": true,
+  "complete_history_equal": true,
+  "route": "/api/reconstruct-files",
+  "authentication": "fresh synthetic local login/session; not live Access",
+  "qualification_ref": "sha256:4a33ff148172582cdece6df346d1a0701e70895077b2ec1520789d827bad8760",
+  "original_definition_preserved": true,
+  "original_result_note_preserved": true
+}

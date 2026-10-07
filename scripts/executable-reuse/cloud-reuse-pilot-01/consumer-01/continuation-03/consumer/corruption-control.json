@@ -1,0 +1,32 @@
+{
+  "mutated_bytes": 1,
+  "position": 64,
+  "original_character": "e",
+  "replacement_character": "A",
+  "original_sha256": "2634ccd6ec63ae50b4f05a8ff89e9fd8e723242f75f5cdeb512c81af4cc7d219",
+  "corrupt_sha256": "20377505df2a5bf4ce9c738460ce34954fb0dc940f518f023b686fff09eb8b61",
+  "embedded_checksums_unchanged": true,
+  "route": "/api/reconstruct-files",
+  "submitted_once": true,
+  "rejection": {
+    "accepted": false,
+    "status": 409,
+    "code": "export_integrity"
+  },
+  "stage": "validateFileExport: package checksum before chain/body admission or reconstruct",
+  "before": {
+    "works": 0,
+    "revisions": 0,
+    "files": 0,
+    "erased": 0
+  },
+  "after": {
+    "works": 0,
+    "revisions": 0,
+    "files": 0,
+    "erased": 0
+  },
+  "ordinary_list_empty": true,
+  "corrupt_content_executed": false,
+  "scope": "corruption refusal and no partial admission; not malicious-author authenticity or arbitrary crash recovery"
+}

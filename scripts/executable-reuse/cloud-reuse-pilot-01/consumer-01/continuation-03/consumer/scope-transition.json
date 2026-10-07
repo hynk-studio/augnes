@@ -1,0 +1,19 @@
+{
+  "revision": 3,
+  "fingerprint": "sha256:e6ccd20a726ea94a6f36ad4c028394e167bb85cca929ff563d74fc43cbbe72b4",
+  "definition": {
+    "goal": "cloud-reuse-pilot-01",
+    "success_criteria": [
+      "Assess B3 suitability without extending the model",
+      "Execute downloaded qualified bytes for B1 and B2 with independent comparisons",
+      "Preserve imported history and return a complete successor export"
+    ],
+    "non_goals": [
+      "Empirical probabilities, live hosting, comparative usefulness or integration approval",
+      "Product or solver expansion; execution from imported authority"
+    ]
+  },
+  "commission_ref": "sha256:a3ac23e8a427261eefdbf1cb3950f4dfabbb0f3f76960d34428e742b10f863b9",
+  "historical_revisions_equal": true,
+  "original_sources_and_files_retained": true
+}

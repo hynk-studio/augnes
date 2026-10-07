@@ -1,0 +1,110 @@
+{
+  "phase": "B",
+  "result": "partial; fresh B3 judgment NOT OBSERVED",
+  "fresh_B3_judgment": "NOT OBSERVED",
+  "host": "linux",
+  "browser_version": "Chromium 151.0.7922.173 built on Debian GNU/Linux 13 (trixie)",
+  "browser_sandbox_disabled": true,
+  "repo_tooling_visible": true,
+  "blind_evaluation": false,
+  "authentication": "fresh synthetic local authentication on each disposable fixture; not live Access",
+  "ordinary_save_requests": 2,
+  "reconstruction_submissions": 2,
+  "unknown_outcome_resolutions": 0,
+  "write_retries": 0,
+  "runtime_external_requests": 0,
+  "intercepted_external_browser_requests": 0,
+  "api_routes": [
+    {
+      "method": "GET",
+      "path": "/api/works"
+    },
+    {
+      "method": "POST",
+      "path": "/api/reconstruct-files"
+    },
+    {
+      "method": "GET",
+      "path": "/api/works"
+    },
+    {
+      "method": "GET",
+      "path": "/api/work/47b083cb-833d-49e3-9652-fa6c8d814730/history"
+    },
+    {
+      "method": "POST",
+      "path": "/api/work/47b083cb-833d-49e3-9652-fa6c8d814730/context"
+    },
+    {
+      "method": "GET",
+      "path": "/api/work/47b083cb-833d-49e3-9652-fa6c8d814730/files/2/95c62c2f728db3ddad3239e5bdc1be1d4b6c35512b3518b85477d3236ffddb51/0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/work/47b083cb-833d-49e3-9652-fa6c8d814730/files/2/95c62c2f728db3ddad3239e5bdc1be1d4b6c35512b3518b85477d3236ffddb51/1"
+    },
+    {
+      "method": "POST",
+      "path": "/api/work/47b083cb-833d-49e3-9652-fa6c8d814730/capacity"
+    },
+    {
+      "method": "POST",
+      "path": "/api/work/47b083cb-833d-49e3-9652-fa6c8d814730/ticket"
+    },
+    {
+      "method": "POST",
+      "path": "/api/work/47b083cb-833d-49e3-9652-fa6c8d814730/save"
+    },
+    {
+      "method": "GET",
+      "path": "/api/works"
+    },
+    {
+      "method": "GET",
+      "path": "/api/work/47b083cb-833d-49e3-9652-fa6c8d814730/history"
+    },
+    {
+      "method": "POST",
+      "path": "/api/work/47b083cb-833d-49e3-9652-fa6c8d814730/capacity"
+    },
+    {
+      "method": "POST",
+      "path": "/api/work/47b083cb-833d-49e3-9652-fa6c8d814730/ticket"
+    },
+    {
+      "method": "POST",
+      "path": "/api/work/47b083cb-833d-49e3-9652-fa6c8d814730/save"
+    },
+    {
+      "method": "GET",
+      "path": "/api/works"
+    },
+    {
+      "method": "GET",
+      "path": "/api/work/47b083cb-833d-49e3-9652-fa6c8d814730/history"
+    },
+    {
+      "method": "POST",
+      "path": "/api/work/47b083cb-833d-49e3-9652-fa6c8d814730/context"
+    },
+    {
+      "method": "GET",
+      "path": "/api/work/47b083cb-833d-49e3-9652-fa6c8d814730/export"
+    },
+    {
+      "method": "GET",
+      "path": "/api/works"
+    },
+    {
+      "method": "POST",
+      "path": "/api/reconstruct-files"
+    },
+    {
+      "method": "GET",
+      "path": "/api/works"
+    }
+  ],
+  "provider_api_calls": 0,
+  "other_usage": "unmeasured",
+  "elapsed_before_cleanup_ms": 5354
+}
