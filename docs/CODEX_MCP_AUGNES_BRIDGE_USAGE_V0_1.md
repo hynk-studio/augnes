@@ -35,6 +35,18 @@ New purpose, resources or effects still need their corresponding authorization.
 Ordinary authoring needs no managed attachment, Browser-confirmed Start grant,
 provider readiness, Browser login or manual credential/context copying.
 
+Selected notes must each fit **2,000 Unicode code points**, not UTF-16 code units.
+The combined selection allows at most **eight notes** and **32,000 bytes** in its
+native packaged representation, including provenance and repeated packaging;
+this is not a 32,000-character text allowance. Retained notes count toward the
+same selection limits. Keep complete attribution when authoring within them.
+For an overlength preview refusal (including `selected_source_context_invalid`),
+preserve the refusal and explicitly Resume/read the saved selection before
+deliberately revising the request. Do not silently truncate, drop notes, split
+material in a way that changes provenance, or repeat the identical invalid input.
+If a revised request is useful, inspect its new preview and save with that new
+binding; the refused preview does not authorize a save.
+
 ### Host permissions and setup boundaries
 
 Inspect the actual external Codex client/version and effective settings. The

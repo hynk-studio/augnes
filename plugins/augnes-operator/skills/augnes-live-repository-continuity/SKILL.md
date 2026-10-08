@@ -86,6 +86,17 @@ retrying through a shell wrapper or another tool.
   Nothing carries by omission; `prior_work_marked_complete: false` remains.
   This is not succession from executed work or permission to reactivate history.
 
+Keep each complete attributed selected note within **2,000 Unicode code points**
+(not UTF-16 code units). Select at most **eight notes**; the native packaged
+selection must fit **32,000 bytes**, including provenance and repeated packaging,
+not just note text. Retained and newly added notes share these selection limits.
+If an overlength preview refuses (including `selected_source_context_invalid`),
+preserve the original refusal, explicitly Resume and read the saved sources to
+establish current state, then deliberately revise the request if still useful.
+Do not silently truncate content, drop notes, split material in a way that changes
+its provenance, or resend the identical invalid request. Keep attribution intact
+and inspect a new preview before saving the revised request with its new binding.
+
 After any successful save, explicitly Resume again and read selected sources
 with the new binding. Check the saved finding/refinement before the next useful
 update in the same client. Attribute external reports as `imported_unverified`
