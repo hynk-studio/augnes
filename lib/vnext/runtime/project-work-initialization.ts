@@ -88,10 +88,21 @@ export function readProjectWorkInitializationV01(
   },
   dependencies: ProjectWorkInitializationDependenciesV01 = {},
 ): ProjectWorkInitializationV01 {
+  return readProjectWorkInitializationSnapshotV01(db, input, dependencies).projection;
+}
+
+/** Internal read-snapshot material. Never add the packet to the public projection. */
+export function readProjectWorkInitializationSnapshotV01(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string },
+  dependencies: ProjectWorkInitializationDependenciesV01 = {},
+): { projection: ProjectWorkInitializationV01; packet: TaskContextPacketV01 | null } {
+  let packet: TaskContextPacketV01 | null = null;
   try {
-    return readProjectWorkInitializationStrictV01(db, input, dependencies);
+    const projection = readProjectWorkInitializationStrictV01(db, input, dependencies, value => { packet = value; });
+    return { projection, packet };
   } catch {
-    return unavailableV01(db, input, "source_unavailable");
+    return { projection: unavailableV01(db, input, "source_unavailable"), packet: null };
   }
 }
 
@@ -277,6 +288,7 @@ function readProjectWorkInitializationStrictV01(
   db: Database.Database,
   input: { workspace_id: string; project_id: string },
   dependencies: ProjectWorkInitializationDependenciesV01,
+  retainPacket: (packet: TaskContextPacketV01) => void = () => {},
 ): ProjectWorkInitializationV01 {
   assertVNextDurableSemanticStoreSchemaV01(db);
   const registration = readCanonicalProjectWithRootV01(db, input);
@@ -436,6 +448,7 @@ function readProjectWorkInitializationStrictV01(
     }
     const previous = taskOrigin.lineage_kind === "pre_execution_new_task" && taskOrigin.prior_packet
       ? byPacket.get(`${taskOrigin.prior_packet.packet_id}|${taskOrigin.prior_packet.packet_fingerprint}`) : null;
+    retainPacket(current.packet);
     return {
       ...baseV01(
         input,

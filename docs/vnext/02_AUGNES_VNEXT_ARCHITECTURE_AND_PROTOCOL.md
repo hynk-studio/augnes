@@ -850,6 +850,18 @@ outlook marker retains its prior projection. Mixed, unknown or substituted versi
 cannot silently pass reconstruction. Older compilers cannot reconstruct the new
 projection and must not silently treat it as an older preparation.
 
+The explicit ordinary Companion
+[method-outlook read](../CODEX_CURRENT_CONTINUITY_V0_1.md#explicit-frozen-method-outlook-read)
+delivers this same frozen judgment without a managed run or raw packet access.
+Its fresh Resume binding and dedicated read snapshot preserve exact current work;
+separate read-time applicability uses the horizon and effective packet-direction
+owners. Expired, direction-historical or stale work requires reconsideration even
+when the stored judgment remains valid. Existing default reader DTOs are unchanged.
+External executor observations and deliberately revised interpretations use the
+existing ordinary revision writer, not receipt-backed outcome authority. The next
+packet retains the old history and recomputes through this producer; there is no
+new calculator, empirical rate learner, direction decision or execution grant.
+
 WorkExpectation below remains an operator-authored prediction about one exact
 criterion/attempt. This broader conditional outlook neither creates nor updates
 one, changes its chronology, or claims match/mismatch from a missing outcome.
