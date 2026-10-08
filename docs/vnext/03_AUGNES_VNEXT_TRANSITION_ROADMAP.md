@@ -101,6 +101,27 @@ none of these categories is an exclusive Augnes advantage. Users or small teams
 conducting uncertain research/development across sessions, tools or models are
 a primary target-user hypothesis, not established product-market fit.
 
+### Current P2/A2 — Project-free executable first benefit (#1422)
+
+[#1422](https://github.com/hynk-studio/augnes/issues/1422) delivers the existing
+#1376 workflow-cost callable through one
+[public-readable static entry](../../publications/workflow-cost-v1/README.md),
+equivalent no-JavaScript HTML, a version/content-bound manifest and both exact
+Python files. A fixed checked-in allowlist and deterministic generator refuse
+source drift; the fictional public case remains a separate unchanged contract.
+Reading, downloading and leaving with a result requires no Augnes installation,
+clone, account, project, Companion or private upload. Python 3.9+ and separately
+authorized consumer execution remain explicit prerequisites.
+
+The bounded delivery check serves shipped bytes over HTTP and executes the
+downloaded CLI/dependency outside the checkout, comparing fresh stipulated cases
+with renewal counting and refusing inconsistent downloads before execution.
+This qualifies functional delivery, not live public deployment, independent
+demand, learning, superiority or completion of A2/A4. Optional persistence uses
+existing ordinary-work readers and preview/save only within an authorized task.
+Public reads create/select no work. Broader integration, A3/A4/A5/A6 and #1372's
+private hosted obligations remain separate; no rollout is authorized here.
+
 ### Next P4/P5 — Executable capability reuse from experience (#1373)
 
 The 2026-10-01 [#1373 alignment](https://github.com/hynk-studio/augnes/issues/1373)

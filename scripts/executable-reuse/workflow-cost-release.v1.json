@@ -1,0 +1,22 @@
+{
+  "schema": "augnes.workflow-cost-release.v1",
+  "method": "workflow-cost",
+  "version": "1.0.0",
+  "source_revision": "ab4d2bdb86c8284d7d7843f7fafa189c8ca9cca1",
+  "python": ">=3.9, standard library only",
+  "entrypoint": "workflow_cost.py",
+  "members": [
+    {
+      "name": "workflow_cost.py",
+      "source": "scripts/executable-reuse/workflow_cost.py",
+      "bytes": 4973,
+      "sha256": "7a0fabc8a0672f97d4c5a81b5eef9e61f5c7fca6447d50ae1bf09bc2be149c11"
+    },
+    {
+      "name": "exact_linear.py",
+      "source": "scripts/executable-reuse/exact_linear.py",
+      "bytes": 2242,
+      "sha256": "7cdd11476badfed7b206a84ed5195209e38465dd74cc5e265a7d9ced203a804a"
+    }
+  ]
+}
