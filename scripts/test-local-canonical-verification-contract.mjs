@@ -1103,6 +1103,7 @@ const integrationChildren = [
   "stateless-terminal-authorship",
   "project-direction",
   "retry-inspection-outlook",
+  "companion-method-outlook",
   "pre-execution-support-material",
   "native-selected-source-budget",
   "retained-source-capacity",
@@ -1219,6 +1220,9 @@ for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 90_000', 'requ
 const retryInspectionRegistration = readCanonicalChildRegistration(integrationSource, "retry-inspection-outlook");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"process-owning"', '"--retry-inspection-only"'])
   requireText(retryInspectionRegistration.block, fragment, "retry-inspection outlook retains one bounded native consumer and successor owner");
+const companionOutlookRegistration = readCanonicalChildRegistration(integrationSource, "companion-method-outlook");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"process-owning"', '"mutable-module-state"', '"scripts/test-companion-method-outlook.ts"'])
+  requireText(companionOutlookRegistration.block, fragment, "ordinary outlook feedback retains one bounded authenticated consumer owner");
 assert.equal(countOccurrences(firstWorkFixture, "await assertRetryInspectionLoopV01();"), 1,
   "the outlook loop runs once without extending the default initialization child");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 60_000', 'requireNaturalExit: true', '"process-owning"', '"--support-material-revision-only"'])
