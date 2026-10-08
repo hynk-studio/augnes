@@ -1,5 +1,82 @@
 # Codex MCP / Augnes Companion usage v0.1
 
+## Ordinary installed work
+
+Use a ready local Codex client with the reviewed Augnes Operator plugin loaded.
+For example: “Use Augnes for this task, read its relevant saved notes, save this
+finding, and read it back.” The
+[Operator skill](../plugins/augnes-operator/skills/augnes-live-repository-continuity/SKILL.md)
+routes the request through the existing tools. The plugin already starts one
+stdio proxy for its client; routine work does not require an additional SDK
+reader, custom proxy, worker or a new session for each stage.
+
+Separate the Augnes **application/service checkout** used for lifecycle status
+from the **registered task root** supplied as `repositoryRoot` to Resume and
+work tools. A task root can be a normally onboarded non-repository folder.
+Lifecycle inspection does not register or select it. Use normal project
+onboarding when needed; preserve existing projects and their work.
+
+After the lifecycle owner permits canonical Resume, use this sequence:
+
+| Current task state and intent | Ordinary operation |
+|---|---|
+| Selected, registered project with no work history | Resume → initial-work preview → define first work with a complete goal, success criteria and non-goals. Resume again before adding notes. |
+| Authorized refinement of eligible unstarted work | Resume → explicit relevant source read → revision preview → save the same changes and preview binding. Unmentioned notes and definition fields stay unchanged. |
+| Explicitly different task in the eligible unexecuted initial/revised chain | Resume → source read → new-work preview → prepare with a complete definition, explicit retained source bindings and reasons for every omitted note. Prior work is not marked complete. |
+| Saved update | Fresh Resume → source read with that exact new binding → inspect the recovered finding and next action. Continue the next useful update in the same client. |
+
+The detailed input/currentness rules below and the
+[preparation contract](CODEX_CURRENT_CONTINUITY_V0_1.md#explicit-preview-and-save-of-prepared-work)
+remain controlling. Preview and save authenticate independently. Within an
+already-authorized purpose, the explicit save and fresh readback are technical
+operations, not another human confirmation ceremony. An uncertain save requires
+deliberate Resume/readback, never a replacement write or automatic refresh-and-save.
+New purpose, resources or effects still need their corresponding authorization.
+Ordinary authoring needs no managed attachment, Browser-confirmed Start grant,
+provider readiness, Browser login or manual credential/context copying.
+
+Selected notes must each fit **2,000 Unicode code points**, not UTF-16 code units.
+The combined selection allows at most **eight notes** and **32,000 bytes** in its
+native packaged representation, including provenance and repeated packaging;
+this is not a 32,000-character text allowance. Retained notes count toward the
+same selection limits. Keep complete attribution when authoring within them.
+For an overlength preview refusal (including `selected_source_context_invalid`),
+preserve the refusal and explicitly Resume/read the saved selection before
+deliberately revising the request. Do not silently truncate, drop notes, split
+material in a way that changes provenance, or repeat the identical invalid input.
+If a revised request is useful, inspect its new preview and save with that new
+binding; the refused preview does not authorize a save.
+
+### Host permissions and setup boundaries
+
+Inspect the actual external Codex client/version and effective settings. The
+Augnes-qualified managed-runtime version is a different identity. Choose only
+supported session/project controls through the host's normal interface; do not
+silently edit global policy. The official
+[permission guidance](https://learn.chatgpt.com/docs/permissions) distinguishes
+local command sandboxing from MCP/server, connector and Browser controls.
+Command network domain rules require an active network proxy to be enforced;
+they do not restrict every tool. A configuration example alone proves neither
+installed-version support nor enforcement. Do not use Full Access, global
+approval disabling or broad shell/interpreter allowlists as this workflow's fix.
+
+Installation, project registration/selection and any necessary client reload
+are setup. Ordinary calls reuse the loaded tools. Cache checks, full-table audits,
+host process scans, keep-awake leases and separately launched SDK readback belong
+only to specifically justified development/acceptance diagnostics. Preserve the
+authentication, discovery and identity checks performed by the canonical owners.
+If a required action refuses, retain its safe identity, context and layer once;
+do not tunnel a denied shell action through another tool or broaden access until
+it passes. A silent refusal is not a successful zero-approval sequence.
+
+When observing usability, count setup, routine and diagnostic approvals separately.
+Report the applied mode and actual operations, including required actions not run.
+The [subagent guidance](https://learn.chatgpt.com/docs/agent-configuration/subagents#approvals-and-sandbox-controls)
+describes inheritance of the parent's current permission mode. A true child,
+an independent app thread, the plugin process and a separate SDK client are
+different contexts; establish their actual settings/tool availability before
+attributing a gate. Avoiding delegation does not establish inheritance behavior.
+
 ## Repository execution attachment tools
 
 The supervised Companion keeps `augnes_resume_repository` as the
@@ -56,7 +133,7 @@ native component path, volume serial, file ID, or canonical private path.
 The supported CDX2B1 path is:
 
 ```text
-fresh local Codex
+ready local Codex client
 → installed augnes-operator plugin
 → plugin stdio discovery proxy
 → bounded checkout service lifecycle status
@@ -67,7 +144,8 @@ fresh local Codex
 → exact repository-scoped continuity
 ```
 
-Start the sole Companion lifecycle owner from the Augnes checkout:
+One-time, explicitly authorized installation of the sole Companion lifecycle
+owner starts from the Augnes checkout:
 
 ```bash
 npm install
@@ -198,9 +276,10 @@ no completion claim for the prior work. Prepare uses the reviewed preview and
 independent channel authentication; it starts nothing and transfers no authority.
 Then Resume and read selected sources using the fresh binding. The Browser's
 **Prepare a different task** action shares the same comparison and atomic writer.
-This is a candidate capability requiring separately authorized post-merge
-installation/lifecycle refresh before installed use; it does not switch existing
-production work. Full input and recovery boundaries are in the
+Use it only when the reviewed installed client/runtime exposes the operation;
+source or candidate availability alone is not installed adoption. Refresh a
+missing/stale installation only through its separately authorized setup owner.
+Full input and recovery boundaries are in the
 [preparation contract](CODEX_CURRENT_CONTINUITY_V0_1.md#explicit-preview-and-save-of-prepared-work).
 
 When Resume reports no work in an already registered and selected local project,
