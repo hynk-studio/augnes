@@ -25,6 +25,52 @@ calls, file writes, packages to install, model calls or shared-runtime consumers
 these tests as a 10-second bounded child with its ordinary isolation/cleanup;
 Python 3 must be available on that host, and absence is a failure, not a skip.
 
+## Public static delivery
+
+The [project-free entry](../../publications/workflow-cost-v1/README.md) and its
+[HTML form](../../publications/workflow-cost-v1/index.html) explain inputs,
+conditions and non-use before source history. The checked-in publication also
+contains a manifest and exact inert copies of `workflow_cost.py` and
+`exact_linear.py`; these are generated output, never a second maintained solver.
+An agent starts with the entry URL and retrieves all listed files into its own
+fresh directory. Only Python 3.9+, HTTP reading and independently authorized
+execution remain prerequisites. The optional ordinary-work recipe is separate.
+
+Publication maintenance uses one explicit
+[release allowlist](workflow-cost-release.v1.json) with fixed names, source
+paths, byte counts and SHA-256 pins. It refuses source drift; do not update a
+published code version in place. A reviewed code change needs a new release and
+directory. Both readable forms come from one authored representation in the
+[generator](../build-workflow-cost-publication.mjs); member hashes bind those
+forms and code to the manifest. Digests establish consistency, not publisher
+authentication. The source revision identifies the reused code, not a test of
+the later publication commit.
+
+From the repository, maintainers can check or regenerate the five shipped files:
+
+```sh
+node scripts/build-workflow-cost-publication.mjs --check
+node scripts/build-workflow-cost-publication.mjs --write
+node scripts/test-workflow-cost-publication.mjs
+```
+
+Copy `publications/workflow-cost-v1` as a unit to an ordinary static host; no
+application route, database or Companion is involved. For a deliberately started
+local preview, `python3 -m http.server 8080 --bind 127.0.0.1 --directory publications`
+serves `http://127.0.0.1:8080/workflow-cost-v1/index.html`. Stop that owned preview
+when finished. This instruction does not deploy the public Site or private Worker.
+
+The focused test serves the actual shipped bytes over credential-free loopback
+HTTP, starts a Python consumer with only that entry URL in a fresh non-repository
+directory, and downloads every required file before execution. It checks actual
+CLI/dependency paths, exact renewal results, non-completion, invalid inputs,
+missing/tampered/constructed mixed-version material, unsafe names, deterministic
+generation and source drift. Integrity failure prevents execution in that test
+consumer; arbitrary external clients are not controlled by this publication.
+These are developer-authored delivery/correctness checks, not independent demand,
+comparative superiority, autonomous learning or live deployment. The separate
+fictional public case retains its original schema, labels, routes and bytes.
+
 ## Source and actual consumer
 
 The privately retained original from completed [#1366](https://github.com/hynk-studio/augnes/issues/1366)
@@ -108,8 +154,9 @@ Codex inspected the source, authored guards, cases and reference checks, and
 retained this decision. Different formulas provide an implementation-independent
 correctness check, not a blind evaluator or independent transfer/usefulness study.
 The simple renewal formula itself is a strong direct alternative for the CLI
-cases. No comparative savings, autonomous extraction/learning, product integration,
-hosted delivery or automatic future-agent discovery is established. Setup involved
+cases. That standalone qualification establishes no comparative savings,
+autonomous extraction/learning, product integration, hosted delivery or automatic
+future-agent discovery. Setup involved
 one missing-probe lookup and direct original-source inspection; the first focused
 execution passed. Total human/prior-probe preparation time is unknown. Exact-head
 repository verification is reported separately in the PR; these results are not

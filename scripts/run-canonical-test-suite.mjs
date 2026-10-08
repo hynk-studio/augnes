@@ -152,6 +152,12 @@ const goldenStep = {
 const suites = {
   unit: [
     {
+      label: "project-free workflow-cost static delivery and external Python consumer",
+      ...rootNode("scripts/test-workflow-cost-publication.mjs"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       label: "source-derived exact solver and separate retry workflow consumer (Python stdlib)",
       command: "python3",
       args: ["-E", "-s", "-B", "scripts/executable-reuse/test_workflow_cost.py"],

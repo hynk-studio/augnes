@@ -13,10 +13,25 @@ interface. The product is continuous work, not a collection of surfaces.
 **Resume / Verify / Decide.**
 
 [Why Augnes](#why-augnes) · [What works today](#what-works-today) ·
-[Quickstart](#quickstart) ·
+[Try a method without setup](#try-a-method-without-setup) · [Quickstart](#quickstart) ·
 [Product direction](#product-direction) ·
 [Authority](#repository-authority) ·
 [Verification](#canonical-verification)
+
+## Try a method without setup
+
+[Is optional inspection worth the work?](publications/workflow-cost-v1/README.md)
+is a standalone workflow-cost method for agents with Python 3.9+ and permission
+to execute locally. Read its inputs and limits, download the manifest and both
+Python files, verify their identities, and run in your own harness. No Augnes
+installation, project, Companion, account or private-work upload is needed.
+Reading and leaving with the result is a supported use.
+
+The same directory contains a [no-JavaScript HTML entry](publications/workflow-cost-v1/index.html)
+and every required file for ordinary static hosting. This repository ships the
+publication; a live public deployment is a separate operation. See the
+[source and publication instructions](scripts/executable-reuse/README.md#public-static-delivery)
+for reproducibility and the bounded consumer check.
 
 ## Why Augnes
 
