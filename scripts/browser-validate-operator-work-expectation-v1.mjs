@@ -157,6 +157,10 @@ async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
   await lifecycle.navigate(`${appOrigin}/workbench/semantic-review?successor-expectation=reopen`);
   await saveBrowserExpectation(lifecycle, 'satisfied', 'P33_B_FORECAST_ONLY');
   const bForecast = (await readProtectedJson(lifecycle, fixture.manifest.expectation_project_id, '/api/vnext/operator/work-expectations')).history[0];
+  // Close the completed optional reader before revising its work. Its mounted
+  // draft retains B's binding; B1 still needs an explicit review below.
+  await lifecycle.evaluateBoolean(`(() => { document.querySelector('[data-work-expectation="preparation"]').open = false; return true; })()`);
+  await lifecycle.waitForCondition(`document.querySelector('[data-work-expectation="preparation"]').open === false`, 'saved B expectation panel closed');
   await clickSelector(lifecycle, '[data-work-revision-action="open"]');
   await lifecycle.waitForCondition(`document.querySelector('#work-revision-goal') !== null`, 'reopen saved B');
   assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-selected-work-sources]').textContent.includes('Historical operator-attested outcome report v2')`), true, 'Reopened work preserves selected R2 identity');
@@ -168,8 +172,11 @@ async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
   await clickSelector(lifecycle, '[data-augnes-primary-action="save-work-revision"]');
   await lifecycle.waitForCondition(`document.querySelector('#work-revision-goal') === null`, 'B1 saved without historical notes');
   assert.equal((await readProtectedJson(lifecycle, fixture.manifest.expectation_project_id, '/api/vnext/operator/work-expectations')).history.length, 0, 'B prediction did not transfer to B1');
-  await saveBrowserExpectation(lifecycle, 'satisfied', 'P33_B1_FORECAST_ONLY');
+  await saveBrowserExpectation(lifecycle, 'satisfied', 'P33_B1_FORECAST_ONLY', {
+    previousGoal: 'Inspect the cold observation', currentGoal: 'Inspect the cold observation with its uncertainty',
+  });
   const b1Forecast = (await readProtectedJson(lifecycle, fixture.manifest.expectation_project_id, '/api/vnext/operator/work-expectations')).history[0];
+  assert.notEqual(b1Forecast.packet_ref.external_id, bForecast.packet_ref.external_id, 'The reviewed forecast is saved only for B1');
   await lifecycle.navigate(resultUrl);
   await lifecycle.waitForCondition(`document.querySelector('[data-expectation-comparison="mismatch"]') !== null`, 'A review reopened after B1');
   await reportBrowserExpectation(lifecycle, 'unknown', 'R3_LATER_UNSELECTED: a later report does not replace the historical selection.');
