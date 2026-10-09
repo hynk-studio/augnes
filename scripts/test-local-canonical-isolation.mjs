@@ -107,6 +107,21 @@ try {
     assert.notEqual(envA[key], envB[key]);
   for (const key of ["OPENAI_API_KEY", "GH_TOKEN", "GITHUB_TOKEN", "CODEX_HOME"])
     assert.equal(Object.hasOwn(envA, key), false);
+  // Exercise a real nested tsx IPC server, not a shortened-path string check.
+  // macOS refused this under its long default temp root plus an outer lane root.
+  const nestedSocket = await runCanonicalChild({ suite: "isolation-contract", label: "nested tsx socket", command: process.execPath,
+    args: ["--input-type=module", "-e", `
+      import assert from 'node:assert/strict';
+      import {createCanonicalTestResourceRoot,buildCanonicalChildEnvironment,cleanupCanonicalTestResources} from ${JSON.stringify(moduleUrl("./canonical-test-environment.mjs"))};
+      import {runCanonicalChild} from ${JSON.stringify(moduleUrl("./canonical-child-runner.mjs"))};
+      const owner=createCanonicalTestResourceRoot('ag-c01-');
+      try { const result=await runCanonicalChild({suite:'nested-socket',label:'tsx IPC',command:process.execPath,
+        args:[${JSON.stringify(path.resolve("node_modules/tsx/dist/cli.mjs"))},'--eval','console.log("socket-bound")'],cwd:process.cwd(),
+        env:buildCanonicalChildEnvironment({temporaryRoot:owner.root}),resourceOwner:owner,timeoutMs:10000});
+        assert.equal(result.exit_code,0);assert.equal(result.cleanup_completed,true);assert.equal(result.remaining_owned_processes,0);
+      } finally { assert.equal(cleanupCanonicalTestResources([owner])[0].completed,true); }
+    `], cwd: process.cwd(), env: envA, timeoutMs: 15_000 });
+  assert.equal(nestedSocket.exit_code, 0); assert.equal(nestedSocket.remaining_owned_processes, 0);
   const childScript = `
     const fs = require('node:fs'), net = require('node:net');
     let count=0; const file=process.env.AUGNES_DB_PATH;
@@ -182,7 +197,7 @@ try {
   console.log(JSON.stringify({ test: "local-canonical-isolation", status: "pass", evidence: "contract_fixtures_not_deciding",
     registered_worktree_admission: true, aliases_and_shared_mutable_state_refused: true, bounded_capacity: true,
     interprocess_capacity_contention: true, stale_replaced_unsettled_capacity_refused: true, unaccounted_canonical_owner_refused: true, cancelled_A_leaves_B_working: true, unsettled_resources_refused: true,
-    private_outer_environment: true, owned_processes_and_listeners: 0 }));
+    private_outer_environment: true, actual_nested_tsx_socket: true, owned_processes_and_listeners: 0 }));
 } finally {
   for (const controller of controllers) controller.abort();
   await Promise.allSettled(pending);

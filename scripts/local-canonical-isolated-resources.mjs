@@ -9,7 +9,7 @@ import { physicalFingerprint } from "./local-canonical-verification-context.mjs"
 
 const resources = new WeakMap();
 export function createIsolatedInvocationResources(invocationId) {
-  const owner = createCanonicalTestResourceRoot("ag-suite-");
+  const owner = createCanonicalTestResourceRoot("ag-suite-", { shortSocketPaths: true });
   try {
     const environment = buildCanonicalChildEnvironment({ temporaryRoot: owner.root });
     // Keep ordinary npm/build mode selection; test suites still set their own mode.

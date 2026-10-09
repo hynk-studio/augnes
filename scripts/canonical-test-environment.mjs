@@ -8,9 +8,12 @@ const resourceOwners = new WeakMap();
 const sameObject = (a, b) => a.dev === b.dev && a.ino === b.ino && a.isDirectory() === b.isDirectory();
 const resourceError = code => Object.assign(new Error(code), { code });
 
-export function createCanonicalTestResourceRoot(prefix) {
+export function createCanonicalTestResourceRoot(prefix, { shortSocketPaths = false } = {}) {
   if (!/^ag-(?:suite|c[0-9]{2}|resource-test)-$/u.test(prefix)) throw resourceError("resource_prefix_invalid");
-  const parent = realpathSync(tmpdir());
+  // Darwin AF_UNIX paths are bounded. An outer invocation adds another level
+  // above child roots, so use the system short temp location when requested.
+  // The new directory still has the same physical owner and cleanup capability.
+  const parent = realpathSync(shortSocketPaths && process.platform === "darwin" ? "/tmp" : tmpdir());
   const root = realpathSync(mkdtempSync(path.join(parent, prefix)));
   const physical = lstatSync(root);
   const owner = Object.freeze({ root, device: String(physical.dev), inode: String(physical.ino) });

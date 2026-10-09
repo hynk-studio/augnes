@@ -127,7 +127,9 @@ are permitted. The outer invocation receives a
 private HOME, temp root, npm download/node-gyp caches, disposable database and
 runtime state through the existing child-resource owner. Child tests retain their
 own nested resources, browser profiles, loopback listeners and verified process
-trees. No writable dependency or build tree is borrowed from another lane.
+trees. On macOS the outer resource owner uses the system short temporary root,
+keeping nested Unix-domain IPC paths within the existing platform limit. No
+writable dependency or build tree is borrowed from another lane.
 
 The isolated executor only observes the accepted Companion through its supported
 read-only inspector before and after the run. Its private HOME prevents nested
