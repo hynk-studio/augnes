@@ -2772,7 +2772,7 @@ function ProjectOptions({
               progress, approval, cancellation, and resume are owned by AI
               Workplane.
             </p>
-            <DirectHostRoundTripAction />
+            <DirectHostRoundTripAction projectId={projection.project_id} />
           </section>
         ) : null}
 

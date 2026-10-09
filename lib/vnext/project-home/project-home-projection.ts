@@ -1,3 +1,4 @@
+import { projectClientHref } from "@/lib/vnext/project-client-href";
 import type Database from "better-sqlite3";
 
 import { sanitizeRepositoryRemoteV01 } from "@/lib/vnext/onboarding/local-project-onboarding";
@@ -487,24 +488,24 @@ export async function readProjectHomeProjectionV01(
     current_run_summary: automationCycle.run,
     cycle: automationCycle,
     inspector_href: automationCycle.run
-      ? createSharedInspectorHrefV01({
+      ? projectClientHref(createSharedInspectorHrefV01({
           target_kind: "automation_run",
           run_id: automationCycle.run.run_id,
-        })
+        }), input.project_id)
       : automationCycle.work_source
-        ? createSharedInspectorHrefV01({
+        ? projectClientHref(createSharedInspectorHrefV01({
             target_kind: "automation_work_item",
             record_id: automationCycle.work_source.work_id,
             expected_fingerprint: automationCycle.work_source.work_fingerprint,
-          })
+          }), input.project_id)
         : automationControl
-          ? createSharedInspectorHrefV01({
+          ? projectClientHref(createSharedInspectorHrefV01({
               target_kind: "automation_policy",
               policy_id: `${input.project_id}:${automationControl.revision}`,
               policy_fingerprint: createProtocolSha256V01(
                 canonicalizeProtocolValueV01(automationControl.policy),
               ),
-            })
+            }), input.project_id)
           : null,
   } satisfies ProjectHomeProjectionV01["automation"];
   const personalPerspective = {
@@ -582,9 +583,9 @@ export async function readProjectHomeProjectionV01(
     gap_count: taskFrame.gaps.length,
     personal_perspective_affected_task: personalPerspective.task_basis !== null,
     primary_action: primaryAction,
-    inspector_href: createSharedInspectorHrefV01({
+    inspector_href: projectClientHref(createSharedInspectorHrefV01({
       target_kind: "project_coordination",
-    }),
+    }), input.project_id),
     projection_only: true,
     semantic_authority_granted: false,
   } satisfies ProjectHomeProjectionV01["coordination"];
@@ -2061,11 +2062,11 @@ function readPersonalPerspectiveTaskBasis(
     packet_id: packetResult.packet.packet_id,
     packet_fingerprint: packetResult.packet.integrity.fingerprint,
     packet_generated_at: packetResult.packet.generated_at,
-    inspector_href: createSharedInspectorHrefV01({
+    inspector_href: projectClientHref(createSharedInspectorHrefV01({
       target_kind: "personal_perspective_inclusion",
       packet_id: packetResult.packet.packet_id,
       packet_fingerprint: packetResult.packet.integrity.fingerprint,
-    }),
+    }), input.project_id),
     selected_count: selected.length,
     items: selected.slice(0, PERSONAL_BASIS_LIMIT).map((entry) => ({
       summary:

@@ -18,7 +18,7 @@ export function exportWorkHandoff(db: Database.Database, config: Config, expecte
   const lineage = readCurrentProjectWorkPacketLineageV01(db, config), packet = lineage?.packet;
   check(packet && lineage.projection_current && packet.packet_id === expected.packet_id && packet.integrity.fingerprint === expected.packet_fingerprint && packet.capability_grant === null && !readWorkHandoff(packet), "current_unexecuted_work_required");
   check(packet.work_ref && typeof packet.work_ref === "object", "work_identity_required");
-  const init = readProjectWorkInitializationV01(db, config); check(init.active_project_id === config.project_id, "selection_changed");
+  const init = readProjectWorkInitializationV01(db, config); check(init.project_work_binding, "project_binding_unavailable");
   check(!db.prepare("SELECT 1 FROM autonomy_runs WHERE scope=? AND (NOT json_valid(metadata_json) OR json_extract(metadata_json,'$.packet_id')=?) LIMIT 1").get(config.project_id, packet.packet_id), "execution_history_present");
   check(!packet.selected_context.some(e => e.entry_kind === "accepted_state_ref"), "semantic_state_not_supported");
   check(!effectiveDirection(db, config, at), "direction_transfer_not_supported");
@@ -42,13 +42,13 @@ export function exportWorkHandoff(db: Database.Database, config: Config, expecte
 }
 
 /** Receiving preview is authenticated but read-only. The ordinary first-work
- * transaction checks this root, selection, direction and exact task again. */
+ * transaction checks this project root, direction and exact task again. */
 export function previewReceivedWork(db: Database.Database, config: Config, value: unknown, at: string) {
   const handoff = parseWorkHandoff(value), state = readProjectWorkInitializationV01(db, config);
-  check(state.state === "not_defined" && state.active_project_id === config.project_id && state.active_selection_revision !== null, "fresh_selected_project_required");
+  check(state.state === "not_defined" && state.project_work_binding, "fresh_bound_project_required");
   check(handoff.source.project_id !== config.project_id, "same_project_refused");
   const request: DefineInitialProjectWorkRequestV01 = { action: "define_initial_project_work", workspace_id: config.workspace_id, project_id: config.project_id,
-    expected_active_project_id: config.project_id, expected_active_selection_revision: state.active_selection_revision, expected_initialization_state: "not_defined", ...handoff.task,
+    expected_active_project_id: config.project_id, expected_active_selection_revision: state.active_selection_revision, expected_project_work_binding: state.project_work_binding, expected_initialization_state: "not_defined", ...handoff.task,
     handoff: { snapshot: handoff, expected_root_fingerprint: rootBinding(db, config).fingerprint, expected_direction_ref: effectiveDirection(db, config, at)?.ref ?? null } };
   return { request, fingerprint: handoffHash(request), execution_authority_granted: false, source_authenticity: "imported_unverified", material_availability: "transferred_historical_bytes", current_local_material: "not_verified" };
 }

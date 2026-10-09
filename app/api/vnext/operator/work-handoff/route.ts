@@ -46,7 +46,7 @@ export function createWorkHandoffHandler(options: { environment?: NodeJS.Process
       handoffCheck(req?.handoff && req.action === "define_initial_project_work", "request_invalid");
       const saved = defineInitialProjectWorkV01(db, { config, credential, request: body.request, clock: options.clock });
       return NextResponse.json({ ok: true, status: saved.status, packet: saved.packet, execution_authority_granted: false }, { status: saved.status === "inserted" ? 201 : 200,
-        headers: { ...headers, "Set-Cookie": serializeVNextLocalOperatorSessionCookieV01({ value: saved.session_admission.cookie_value, expires_at: saved.session_admission.cookie_expires_at, max_age_seconds: saved.session_admission.cookie_max_age_seconds, secure: url.protocol === "https:" }) } });
+        headers: { ...headers, "Set-Cookie": serializeVNextLocalOperatorSessionCookieV01({ request, value: saved.session_admission.cookie_value, expires_at: saved.session_admission.cookie_expires_at, max_age_seconds: saved.session_admission.cookie_max_age_seconds, secure: url.protocol === "https:" }) } });
     } catch (error) {
       return NextResponse.json({ ok: false, error: error instanceof VNextLocalOperatorSessionErrorV01 ? error.code : error instanceof Error && /^work_handoff_[a-z_]+$/.test(error.message) ? error.message : "work_handoff_refused" }, { status: error instanceof VNextLocalOperatorSessionErrorV01 ? error.status : 409, headers });
     } finally { db?.close(); }

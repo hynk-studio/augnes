@@ -1,7 +1,6 @@
 import type Database from "better-sqlite3";
 import { NextResponse } from "next/server";
-import { assertVNextLocalOperatorRequestBoundaryV01, authenticateVNextLocalOperatorSessionV01, openVNextLocalOperatorDatabaseV01, readBoundedVNextLocalOperatorBodyV01, readVNextLocalOperatorCredentialFromRequestV01, readVNextLocalOperatorPilotConfigV01, serializeVNextLocalOperatorSessionCookieV01, VNextLocalOperatorSessionErrorV01, type VNextLocalOperatorPilotConfigV01, type VNextLocalOperatorSecretSourceV01 } from "@/lib/vnext/runtime/local-operator-session";
-import { readActiveProjectSelectionV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
+import { assertVNextLocalOperatorRequestBoundaryV01, authenticateVNextLocalOperatorSessionV01, openVNextLocalOperatorDatabaseV01, readBoundedVNextLocalOperatorBodyV01, readVNextLocalOperatorCredentialFromRequestV01, resolveVNextLocalReviewConfigV01, serializeVNextLocalOperatorSessionCookieV01, VNextLocalOperatorSessionErrorV01, type VNextLocalOperatorPilotConfigV01, type VNextLocalOperatorSecretSourceV01 } from "@/lib/vnext/runtime/local-operator-session";
 import { WorkExpectationError } from "@/lib/vnext/work-expectation";
 import { readWorkExpectationPreparation, recordWorkExpectationMaterial } from "@/lib/vnext/runtime/work-expectation";
 import type { VNextLocalRuntimeClockV01 } from "@/lib/vnext/runtime/local-runtime-clock";
@@ -20,16 +19,14 @@ export function createWorkExpectationHandler(options: {
       const mutating = request.method === "POST";
       const url = assertVNextLocalOperatorRequestBoundaryV01(request, { mutating });
       if (url.search || !["GET", "POST"].includes(request.method)) throw new WorkExpectationError("expectation_request_invalid", 400);
-      const config = readVNextLocalOperatorPilotConfigV01(options.environment ?? process.env);
       const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
+      const config = resolveVNextLocalReviewConfigV01({ environment: options.environment ?? process.env, credential, clock: options.clock });
       db = (options.open_database ?? openVNextLocalOperatorDatabaseV01)(config);
       authenticateVNextLocalOperatorSessionV01(db, { config, credential, clock: options.clock });
-      if (readActiveProjectSelectionV01(db, config.workspace_id)?.project_id !== config.project_id)
-        throw new WorkExpectationError("expectation_selection_changed");
       if (!mutating) return NextResponse.json({ ok: true, ...readWorkExpectationPreparation(db, config) }, { headers });
       const result = recordWorkExpectationMaterial(db, { config, credential, request: await readBoundedVNextLocalOperatorBodyV01(request), clock: options.clock, secret_source: options.secret_source });
       return NextResponse.json({ ok: true, record: result.record, semantic_state_changed: false, execution_started: false }, {
-        status: 201, headers: { ...headers, "Set-Cookie": serializeVNextLocalOperatorSessionCookieV01({
+        status: 201, headers: { ...headers, "Set-Cookie": serializeVNextLocalOperatorSessionCookieV01({ request,
           value: result.session_admission.cookie_value, expires_at: result.session_admission.cookie_expires_at,
           max_age_seconds: result.session_admission.cookie_max_age_seconds, secure: url.protocol === "https:",
         }) },

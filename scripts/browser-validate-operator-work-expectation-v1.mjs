@@ -44,7 +44,7 @@ await runOperatorExecutionBrowserChildV1({
       await clickSelector(lifecycle, '[data-first-work-action="save"]');
       await lifecycle.waitForCondition(`document.querySelector('[data-current-work-definition]') !== null`, "expectation work prepared");
       await saveBrowserExpectation(lifecycle, "unsatisfied", "P32_FORECAST_ONLY_RESULT");
-      const prospective = (await readProtectedJson(lifecycle, '/api/vnext/operator/work-expectations')).history;
+      const prospective = (await readProtectedJson(lifecycle, fixture.manifest.expectation_project_id, '/api/vnext/operator/work-expectations')).history;
       assert.equal(prospective.length, 1);
       assert.equal(readExpectationState(fixture.writable_database_path, fixture.manifest.expectation_project_id).runs, 0);
       await lifecycle.navigate(`${appOrigin}/workbench/semantic-review?expectation-reload=1`);
@@ -60,7 +60,7 @@ await runOperatorExecutionBrowserChildV1({
       assert.equal(completedState.receipts.length, 1);
       const completedReceipt = completedState.receipts[0];
       assert(completedReceipt);
-      const resultUrl = `${appOrigin}/workbench/results/${completedReceipt.receipt_id.replace(":", "~")}`;
+      const resultUrl = `${appOrigin}/workbench/results/${completedReceipt.receipt_id.replace(":", "~")}?project_id=${encodeURIComponent(fixture.manifest.expectation_project_id)}`;
       await lifecycle.navigate(resultUrl);
       await lifecycle.waitForCondition(`document.querySelector('[data-expectation-comparison="unassessed"]') !== null`, "normal result consumer has original expectation");
       assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-expectation-comparison="unassessed"]').getBoundingClientRect().height > 0`), true, "The comparison is visible in normal result review");
@@ -69,17 +69,21 @@ await runOperatorExecutionBrowserChildV1({
       assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-task-success-status="satisfied"]') === null`), true);
       await reportBrowserExpectation(lifecycle, "satisfied", "R2_REPORT_ONLY_RESELECT: Correction: the operator now attests that the criterion was met.");
       await lifecycle.waitForCondition(`document.querySelector('[data-expectation-comparison="mismatch"]') !== null`, "report correction preserves expectation and changes comparison");
-      const comparison = (await readProtectedJson(lifecycle, '/api/vnext/operator/run-results?' + new URLSearchParams({ receipt_ref: completedReceipt.receipt_id }))).result.expectation;
+      const comparison = (await readProtectedJson(lifecycle, fixture.manifest.expectation_project_id, '/api/vnext/operator/run-results?' + new URLSearchParams({ receipt_ref: completedReceipt.receipt_id }))).result.expectation;
       assert.deepEqual(comparison.expectation, prospective[0], "Outcome reports preserve the original prospective record");
       assert.equal(comparison.attempt.run_id, completedReceipt.run_id);
       assert.equal(comparison.expectation.packet_ref.external_id, completedReceipt.task_context_packet_ref.external_id);
       assert.equal(comparison.expectation.packet_ref.source_ref, completedReceipt.task_context_packet_ref.source_ref);
       assert.equal(comparison.reports.length, 2);
       assert.equal(comparison.reports[1].previous_ref.external_id, comparison.reports[0].record_id);
-      await lifecycle.navigate(resultUrl + '?expectation-reload=1');
+      await lifecycle.navigate(resultUrl + '&expectation-reload=1');
       await lifecycle.waitForCondition(`document.querySelector('[data-expectation-comparison="mismatch"]') !== null && document.body.textContent.includes('corrections (2)')`, "comparison and report history survived reload");
       const sourceHref = await lifecycle.evaluateString(`document.querySelector('[data-expectation-source="packet"]').getAttribute('href')`);
-      await lifecycle.navigate(new URL(sourceHref, appOrigin).toString());
+      const sourceUrl = new URL(sourceHref, appOrigin);
+      assert.equal(sourceUrl.pathname, "/workbench/inspector");
+      assert.deepEqual(sourceUrl.searchParams.getAll("project_id"), [fixture.manifest.expectation_project_id]);
+      assert.equal(sourceUrl.searchParams.get("target"), "task_context_packet");
+      await lifecycle.navigate(sourceUrl.toString());
       await lifecycle.waitForCondition(`document.querySelector('[data-shared-project-inspector="v0.1"][data-inspector-target-kind="task_context_packet"]') !== null`, "expectation exact source navigation");
       await lifecycle.navigate(resultUrl);
       await lifecycle.waitForCondition(`document.querySelector('[data-expectation-comparison="mismatch"]') !== null`, "return to original comparison");
@@ -120,7 +124,7 @@ async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
   const projectId = fixture.manifest.expectation_project_id;
   const initial = readExpectationState(fixture.writable_database_path, projectId);
   const aReceipt = initial.receipts[0];
-  const resultUrl = `${appOrigin}/workbench/results/${aReceipt.receipt_id.replace(":", "~")}`;
+  const resultUrl = `${appOrigin}/workbench/results/${aReceipt.receipt_id.replace(":", "~")}?project_id=${encodeURIComponent(projectId)}`;
   await lifecycle.navigate(resultUrl);
   await lifecycle.waitForCondition(`document.querySelector('[data-result-work-action="open"]') !== null`, 'settled A can prepare ordinary B');
   await clickSelector(lifecycle, '[data-result-work-action="open"]');
@@ -144,13 +148,15 @@ async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
   assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-result-work-preview]').textContent.includes('Historical operator-attested outcome report v2') && document.querySelector('[data-result-work-preview]').textContent.includes('Original applicability conditions:')`), true);
   await clickSelector(lifecycle, '[data-result-work-action="save"]');
   await lifecycle.waitForCondition(`document.querySelector('[data-result-work-saved]') !== null`, 'ordinary B saved');
+  assert.equal(await lifecycle.evaluateString(`document.querySelector('[data-result-work-saved] a').getAttribute('href')`),
+    `/workbench/semantic-review?project_id=${encodeURIComponent(projectId)}`);
   await clickSelector(lifecycle, '[data-result-work-saved] a');
   await lifecycle.waitForCondition(`document.querySelector('[data-current-work-goal]')?.textContent === 'Inspect the cold observation'`, 'saved B fresh Browser read');
   // Bind responsive checks to the actual saved pair, before exclusion/reselection.
-  const retainedExpected = (await readProtectedJson(lifecycle, '/api/vnext/operator/project-continuity')).work_initialization.selected_source_context;
+  const retainedExpected = (await readProtectedJson(lifecycle, fixture.manifest.expectation_project_id, '/api/vnext/operator/project-continuity')).work_initialization.selected_source_context;
   await lifecycle.navigate(`${appOrigin}/workbench/semantic-review?successor-expectation=reopen`);
   await saveBrowserExpectation(lifecycle, 'satisfied', 'P33_B_FORECAST_ONLY');
-  const bForecast = (await readProtectedJson(lifecycle, '/api/vnext/operator/work-expectations')).history[0];
+  const bForecast = (await readProtectedJson(lifecycle, fixture.manifest.expectation_project_id, '/api/vnext/operator/work-expectations')).history[0];
   await clickSelector(lifecycle, '[data-work-revision-action="open"]');
   await lifecycle.waitForCondition(`document.querySelector('#work-revision-goal') !== null`, 'reopen saved B');
   assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-selected-work-sources]').textContent.includes('Historical operator-attested outcome report v2')`), true, 'Reopened work preserves selected R2 identity');
@@ -161,9 +167,9 @@ async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
   await lifecycle.setFormControlValue('#work-revision-goal', 'Inspect the cold observation with its uncertainty');
   await clickSelector(lifecycle, '[data-augnes-primary-action="save-work-revision"]');
   await lifecycle.waitForCondition(`document.querySelector('#work-revision-goal') === null`, 'B1 saved without historical notes');
-  assert.equal((await readProtectedJson(lifecycle, '/api/vnext/operator/work-expectations')).history.length, 0, 'B prediction did not transfer to B1');
+  assert.equal((await readProtectedJson(lifecycle, fixture.manifest.expectation_project_id, '/api/vnext/operator/work-expectations')).history.length, 0, 'B prediction did not transfer to B1');
   await saveBrowserExpectation(lifecycle, 'satisfied', 'P33_B1_FORECAST_ONLY');
-  const b1Forecast = (await readProtectedJson(lifecycle, '/api/vnext/operator/work-expectations')).history[0];
+  const b1Forecast = (await readProtectedJson(lifecycle, fixture.manifest.expectation_project_id, '/api/vnext/operator/work-expectations')).history[0];
   await lifecycle.navigate(resultUrl);
   await lifecycle.waitForCondition(`document.querySelector('[data-expectation-comparison="mismatch"]') !== null`, 'A review reopened after B1');
   await reportBrowserExpectation(lifecycle, 'unknown', 'R3_LATER_UNSELECTED: a later report does not replace the historical selection.');
@@ -211,13 +217,13 @@ async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
   for (const entry of retainedExpected) assert.deepEqual(compared.entries.find(saved => saved.entry_id === entry.entry_id), entry);
   await clickSelector(lifecycle, '[data-augnes-primary-action="save-work-revision"]');
   await lifecycle.waitForCondition(`document.querySelector('#work-revision-goal') === null`, 'note-only B2 saved');
-  assert.equal((await readProtectedJson(lifecycle, '/api/vnext/operator/work-expectations')).history.length, 0, 'B1 prediction did not transfer to B2');
+  assert.equal((await readProtectedJson(lifecycle, fixture.manifest.expectation_project_id, '/api/vnext/operator/work-expectations')).history.length, 0, 'B1 prediction did not transfer to B2');
   await lifecycle.navigate(`${appOrigin}/workbench/semantic-review?successor-expectation=final`);
   await lifecycle.waitForCondition(`document.querySelector('[data-work-revision-action="open"]') !== null`, 'fresh saved B2');
   await clickSelector(lifecycle, '[data-work-revision-action="open"]');
   await lifecycle.waitForCondition(`document.querySelector('#work-revision-goal') !== null`, 'reopened B2');
   await clickSelector(lifecycle, '[data-selected-work-sources] > summary');
-  const reopened = (await readProtectedJson(lifecycle, '/api/vnext/operator/project-continuity')).work_initialization;
+  const reopened = (await readProtectedJson(lifecycle, fixture.manifest.expectation_project_id, '/api/vnext/operator/project-continuity')).work_initialization;
   assert.deepEqual(reopened.selected_source_context, compared.entries, 'Save and fresh read preserve every full entry, timestamp, provenance and fingerprint');
   assert.equal(await lifecycle.evaluateBoolean(`(() => {
     const text = document.querySelector('[data-selected-work-sources]').textContent;
@@ -232,7 +238,7 @@ async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
   assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-selected-work-sources]').textContent.includes('R2_REPORT_ONLY_RESELECT') && document.querySelector('[data-selected-work-sources]').textContent.includes('P32_FORECAST_ONLY_RESULT') && !document.querySelector('[data-selected-work-sources]').textContent.includes('R3_LATER_UNSELECTED')`), true, 'Fresh saved-work UI reconstructs R2 and its forecast, not R3');
   await clickSelector(lifecycle, '[data-work-revision-action="cancel"]');
   await saveBrowserExpectation(lifecycle, 'unsatisfied', 'P33_B2_FORECAST_ONLY');
-  const finalForecast = (await readProtectedJson(lifecycle, '/api/vnext/operator/work-expectations')).history[0];
+  const finalForecast = (await readProtectedJson(lifecycle, fixture.manifest.expectation_project_id, '/api/vnext/operator/work-expectations')).history[0];
   assert.notEqual(finalForecast.packet_ref.external_id, bForecast.packet_ref.external_id);
   assert.notEqual(finalForecast.packet_ref.external_id, b1Forecast.packet_ref.external_id);
   assert.equal(readExpectationState(fixture.writable_database_path, projectId).runs, 1, 'Authoring and revision create no execution');
@@ -247,7 +253,7 @@ async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
   assert.equal(state.receipts.length, 2);
   const receipt = state.receipts.find(r => r.task_context_packet_ref.external_id === finalForecast.packet_ref.external_id);
   assert(receipt);
-  const bResultUrl = `${appOrigin}/workbench/results/${receipt.receipt_id.replace(":", "~")}`;
+  const bResultUrl = `${appOrigin}/workbench/results/${receipt.receipt_id.replace(":", "~")}?project_id=${encodeURIComponent(projectId)}`;
   await lifecycle.navigate(bResultUrl);
   await lifecycle.waitForCondition(`document.querySelector('[data-expectation-comparison="unassessed"]') !== null`, 'B2 result reads exact prospective binding');
   await reportBrowserExpectation(lifecycle, 'unsatisfied', 'The bounded observation did not establish the cold criterion.');
@@ -255,7 +261,7 @@ async function exerciseSavedSuccessorExpectation(fixture, lifecycle) {
   assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-task-success-status="satisfied"]') === null`), true);
   await reportBrowserExpectation(lifecycle, 'unknown', 'Correction: the observation is incomplete.');
   await lifecycle.waitForCondition(`document.querySelector('[data-expectation-comparison="unknown"]') !== null`, 'B2 correction preserves unknown');
-  const comparison = (await readProtectedJson(lifecycle, '/api/vnext/operator/run-results?' + new URLSearchParams({ receipt_ref: receipt.receipt_id }))).result.expectation;
+  const comparison = (await readProtectedJson(lifecycle, fixture.manifest.expectation_project_id, '/api/vnext/operator/run-results?' + new URLSearchParams({ receipt_ref: receipt.receipt_id }))).result.expectation;
   assert.deepEqual(comparison.expectation, finalForecast); assert.equal(comparison.attempt.run_id, receipt.run_id);
   assert.equal(comparison.attempt.chronology, 'same_transaction_as_first_local_interactive_ordinary_preparation_attempt.v0.1');
   assert.equal(comparison.history.length, 1); assert.equal(comparison.reports.length, 2);
@@ -434,9 +440,9 @@ function assertRetainedGroupViewport(observed, { width, mobile }) {
   }
 }
 
-async function readProtectedJson(lifecycle, route) {
+async function readProtectedJson(lifecycle, projectId, route) {
   return lifecycle.evaluateJson(`(async () => {
-    const response = await fetch(${JSON.stringify(route)}, { cache: 'no-store', credentials: 'same-origin' });
+    const response = await fetch(${JSON.stringify(route)}, { cache: 'no-store', credentials: 'same-origin', headers: { 'Augnes-Project-Id': ${JSON.stringify(projectId)} } });
     if (!response.ok) throw new Error('protected expectation read refused');
     return response.json();
   })()`);

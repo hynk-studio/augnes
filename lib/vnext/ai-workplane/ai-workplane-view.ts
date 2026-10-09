@@ -1,3 +1,4 @@
+import { projectClientHref } from "../project-client-href";
 import type { VNextOperatorPilotProjectContinuityV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
 import type { VNextOperatorPilotReviewListItemV01 } from "@/lib/vnext/runtime/operator-pilot-review-material";
 import type { ProjectRunResultDetailV01 } from "@/types/vnext/project-run-result";
@@ -49,7 +50,7 @@ export function buildAIWorkplaneHomeViewV01(input: {
 }): AIWorkplaneHomeViewV01 {
   const guide = input.guide;
   const projectName = guide?.identity.project_display_name ?? null;
-  const queue = buildAIWorkplaneQueueV01(input.proposals);
+  const queue = buildAIWorkplaneQueueV01(input.proposals, input.guide?.identity.project_id);
   const base = {
     presentation_version: AI_WORKPLANE_PRESENTATION_VERSION_V01,
     project_name: projectName,
@@ -341,6 +342,7 @@ export function buildAIWorkplaneHomeViewV01(input: {
 
 export function buildAIWorkplaneQueueV01(
   proposals: VNextOperatorPilotReviewListItemV01[],
+  projectId?: string | null,
 ): AIWorkplaneQueueItemV01[] {
   return [...proposals]
     .filter(
@@ -364,7 +366,7 @@ export function buildAIWorkplaneQueueV01(
         status,
         status_label: queueStatusLabel(status),
         reason: queueReason(proposal, status),
-        href: semanticReviewHref(proposal.proposal_id),
+        href: projectClientHref(semanticReviewHref(proposal.proposal_id), projectId),
         source_current: proposal.source_currentness === "fresh",
       };
     });

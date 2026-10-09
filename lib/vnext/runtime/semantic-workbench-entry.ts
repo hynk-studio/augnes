@@ -33,7 +33,7 @@ export function createRunResultWorkbenchEntryV01(input: {
       record_kind: "run_receipt",
       record_id: input.receipt_id,
     },
-    href: `/workbench/results/${input.receipt_id.replace(":", "~")}`,
+    href: `/workbench/results/${input.receipt_id.replace(":", "~")}?project_id=${encodeURIComponent(input.project_id)}`,
     action_label:
       input.entry_state === "assessment" ? "Verify result" : "Open result",
     reason: boundedReason(input.reason),
@@ -80,7 +80,7 @@ export function createProposalWorkbenchEntryV01(input: {
       record_kind: "episode_delta_proposal",
       record_id: input.proposal_id,
     },
-    href: `/workbench/semantic-review/${input.proposal_id.replace(":", "~")}`,
+    href: `/workbench/semantic-review/${input.proposal_id.replace(":", "~")}?project_id=${encodeURIComponent(input.project_id)}`,
     action_label: actionLabel[input.entry_state],
     reason: boundedReason(input.reason),
     review_required: input.entry_state !== "transition_applied",
@@ -104,7 +104,7 @@ export function createProjectReviewWorkbenchEntryV01(input: {
     entry_state: "project_review",
     origin: "unknown",
     source: { record_kind: "project_review", record_id: null },
-    href: "/workbench/semantic-review",
+    href: `/workbench/semantic-review?project_id=${encodeURIComponent(input.project_id)}`,
     action_label: input.review_required
       ? "Review project context"
       : "Open Semantic Workbench",

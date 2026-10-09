@@ -1,5 +1,7 @@
 "use client";
 
+import { projectClientHref } from "@/lib/vnext/project-client-href";
+
 import { WorkHandoff } from "./work-handoff";
 import { useEffect, useState } from "react";
 import { StatelessSourceReview } from "./stateless-source-review";
@@ -41,7 +43,8 @@ export function ProjectDirection({ projectId, initial }: { projectId: string; in
   const content = (): DirectionContent => ({ purpose, criteria: lines(criteria), constraints: lines(constraints) });
   async function request(url: string, body?: unknown) {
     const response = await fetch(url, { method: body ? "POST" : "GET", credentials: "same-origin", cache: "no-store",
-      ...(body ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}) });
+      headers: { "Augnes-Project-Id": projectId, ...(body ? { "Content-Type": "application/json" } : {}) },
+      ...(body ? { body: JSON.stringify(body) } : {}) });
     const value = await response.json();
     if (!response.ok) throw new Error(response.status === 401 || response.status === 404
       ? "Open protected project review to establish local access, then return here."
@@ -152,6 +155,6 @@ export function ProjectDirection({ projectId, initial }: { projectId: string; in
       </div>)}
     </details>
     {message && <p role="status">{message}</p>}
-    <a href="/workbench/semantic-review">Protected project review</a>
+    <a href={projectClientHref("/workbench/semantic-review", projectId)}>Protected project review</a>
   </section>;
 }

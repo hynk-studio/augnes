@@ -11,7 +11,7 @@ import {
   openVNextLocalOperatorDatabaseV01,
   readBoundedVNextLocalOperatorBodyV01,
   readVNextLocalOperatorCredentialFromRequestV01,
-  readVNextLocalOperatorPilotConfigV01,
+  resolveVNextLocalReviewConfigV01,
   serializeVNextLocalOperatorSessionCookieV01,
   type VNextLocalOperatorSessionMutationAdmissionV01,
   type VNextLocalOperatorSecretSourceV01,
@@ -64,8 +64,8 @@ export function createVNextOperatorAutomationCycleHandlerV01(
           ? ["action", "expected_control_revision"]
           : ["action"];
       assertExactKeysV01(body, expectedKeys);
-      const config = readVNextLocalOperatorPilotConfigV01(environment);
       const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
+      const config = resolveVNextLocalReviewConfigV01({ environment, credential, clock: options.clock });
       const authDb = openVNextLocalOperatorDatabaseV01(config);
       try {
         authenticateVNextLocalOperatorSessionV01(authDb, {
@@ -117,7 +117,7 @@ export function createVNextOperatorAutomationCycleHandlerV01(
           model_invocation_created: false,
         },
         result.status === "accepted" || result.status === "inserted" ? 202 : 200,
-        cookieFromAdmissionV01(result.session_admission, url),
+        cookieFromAdmissionV01(result.session_admission, url, request),
       );
     } catch (error) {
       return errorResponseV01(error);
@@ -137,8 +137,8 @@ export function createVNextOperatorAutomationCycleReadHandlerV01(
         mutating: false,
       });
       assertNoQueryV01(url);
-      const config = readVNextLocalOperatorPilotConfigV01(environment);
       const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
+      const config = resolveVNextLocalReviewConfigV01({ environment, credential, clock: options.clock });
       db = openVNextLocalOperatorDatabaseV01(config);
       authenticateVNextLocalOperatorSessionV01(db, {
         config,
@@ -265,9 +265,10 @@ function jsonResponse(
 function cookieFromAdmissionV01(
   admission: VNextLocalOperatorSessionMutationAdmissionV01 | null,
   url: URL,
+  request: Request,
 ): string | null {
   return admission
-    ? serializeVNextLocalOperatorSessionCookieV01({
+    ? serializeVNextLocalOperatorSessionCookieV01({ request,
         value: admission.cookie_value,
         expires_at: admission.cookie_expires_at,
         max_age_seconds: admission.cookie_max_age_seconds,

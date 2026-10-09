@@ -1,4 +1,4 @@
-import { readActiveProjectSelectionV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
+import { readActiveProjectSelectionV01, selectActiveProjectV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
@@ -14,7 +14,7 @@ import { createVNextOperatorContextUseReviewHandlerV01 } from "../app/api/vnext/
 import { createStatelessSourceReviewHandler } from "../app/api/vnext/operator/stateless-source-review/route";
 import { createVNextLocalOperatorSessionHandlersV01 } from "../app/api/vnext/operator/session/route";
 import { createOpenAIResponsesAdapterV01 } from "../lib/vnext/model-gateway/openai/responses-adapter";
-import { issueVNextLocalOperatorBootstrapV01, VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01, VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01 } from "../lib/vnext/runtime/local-operator-session";
+import { issueVNextLocalOperatorBootstrapV01, VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01 } from "../lib/vnext/runtime/local-operator-session";
 import { readCurrentProjectWorkPacketLineageV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity";
 import { readProjectWorkInitializationV01 } from "../lib/vnext/runtime/project-work-initialization";
 import { readProjectAutomationControlV01, mutateProjectControlV01 } from "../lib/vnext/persistence/project-control-store";
@@ -48,6 +48,11 @@ async function main() {
  const guard = installZeroNetworkGuard({ allowLoopback: true });
  let c: CDP | undefined, child: ReturnType<typeof registerOwnedChild> | undefined, cookie = "", origin = "", script = "", calls = 0, external = 0;
  const inputs: any[] = [];
+ const acceptCookies = (values: string[]) => {
+   const jar = new Map(cookie.split("; ").filter(Boolean).map(pair => { const index = pair.indexOf("="); return [pair.slice(0,index),pair.slice(index+1)]; }));
+   for (const value of values) { const pair = value.split(";")[0]!, index = pair.indexOf("="); if (value.includes("Max-Age=0")) jar.delete(pair.slice(0,index)); else jar.set(pair.slice(0,index),pair.slice(index+1)); }
+   cookie = [...jar].map(([name,value]) => `${name}=${value}`).join("; ");
+ };
  const environment = { NODE_ENV: "test" as const, OPENAI_API_KEY: "", AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1", AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: config.workspace_id, AUGNES_VNEXT_OPERATOR_PROJECT_ID: config.project_id, AUGNES_VNEXT_OPERATOR_ID: config.operator_id, AUGNES_DB_PATH: config.database_path };
  const adapter = createOpenAIResponsesAdapterV01({ environment: { OPENAI_API_KEY: "scripted-not-a-key", OPENAI_MODEL: "gpt-4.1-mini" }, transport: async req => {
   calls++; const input = JSON.parse(JSON.parse(JSON.parse(req.body).input[1].content[0].text).message); inputs.push(input);
@@ -62,11 +67,11 @@ async function main() {
    const chunks: Buffer[] = []; let size = 0; for await (const chunk of req) { size += chunk.length; assert.ok(size <= 64000); chunks.push(Buffer.from(chunk)); }
    const body = Buffer.concat(chunks).toString(); console.log(JSON.stringify({stage:"http",action:body?JSON.parse(body).action:"read",url:req.url})); const request = new Request(origin + req.url, { method: req.method, headers: req.headers as Record<string, string>, ...(body ? { body } : {}) });
    const response = await (req.url === "/api/vnext/operator/session" ? sessions[req.method === "POST" ? "POST" : "GET"] : req.url.startsWith("/api/vnext/operator/work-handoff") ? handoff : req.url.startsWith("/api/vnext/operator/stateless-source-review") ? review : continuity)(request);
-   response.headers.forEach((v, k) => { if (k !== "set-cookie") res.setHeader(k, v); }); const cookies = response.headers.getSetCookie(); if (cookies.length) res.setHeader("Set-Cookie", cookies); for (const value of cookies) if (value.startsWith(VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01 + "=")) cookie = value.split(";")[0]!;
+   response.headers.forEach((v, k) => { if (k !== "set-cookie") res.setHeader(k, v); }); const cookies = response.headers.getSetCookie(); if (cookies.length) res.setHeader("Set-Cookie", cookies); acceptCookies(cookies);
    res.statusCode = response.status; res.end(await response.text());
   } catch { res.statusCode = 500; res.end(JSON.stringify({ error: "test_http_failed" })); }
  }));
- async function http(route: string, body?: any, expected = 200) { const response = await fetch(origin + route, { signal: AbortSignal.timeout(10000), method: body ? "POST" : "GET", headers: { origin, cookie, ...(body ? { "content-type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) }); for (const value of response.headers.getSetCookie()) if (value.startsWith(VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01 + "=")) cookie = value.split(";")[0]!; const value = await response.json(); assert.equal(response.status, expected, canonical(value)); return value; }
+ async function http(route: string, body?: any, expected = 200) { const response = await fetch(origin + route, { signal: AbortSignal.timeout(10000), method: body ? "POST" : "GET", headers: { origin, cookie, "Augnes-Project-Id": config.project_id, ...(body ? { "content-type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) }); acceptCookies(response.headers.getSetCookie()); const value = await response.json(); assert.equal(response.status, expected, canonical(value)); return value; }
  const current = () => readCurrentProjectWorkPacketLineageV01(db, config)!.packet;
  try {
   script = (await build({ stdin: { contents: `import React from 'react'; import {createRoot} from 'react-dom/client'; import {WorkHandoff} from './components/blank-state/work-handoff'; createRoot(document.getElementById('root')).render(React.createElement(WorkHandoff,{projectId:${JSON.stringify(config.project_id)}}));`, resolveDir: process.cwd(), loader: "tsx" }, bundle: true, write: false, platform: "browser", define: { "process.env.NODE_ENV": '\"production\"' }, plugins: [{ name: "navigation-only", setup(b) { b.onResolve({ filter: /^next\/navigation$/ }, () => ({ path: "navigation", namespace: "test" })); b.onLoad({ filter: /.*/, namespace: "test" }, () => ({ contents: "export const useRouter = () => ({refresh(){}});" })); } }] })).outputFiles[0]!.text;
@@ -89,23 +94,26 @@ async function main() {
   await c.send("Network.enable"); await c.send("Runtime.enable"); await c.send("Page.enable");
   c.handlers.push(m => { if (m.method === "Fetch.requestPaused") { const local = m.params.request.url.startsWith(origin + "/"); if (!local) external++; void browser.send(local ? "Fetch.continueRequest" : "Fetch.failRequest", { requestId: m.params.requestId, ...(local ? {} : { errorReason: "BlockedByClient" }) }).catch(() => {}); } });
   await c.send("Fetch.enable", { patterns: [{ urlPattern: "*", requestStage: "Request" }] });
-  await c.send("Network.setCookie", { name: VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01, value: cookie.slice(cookie.indexOf("=") + 1), url: origin, path: VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01, httpOnly: true, sameSite: "Strict" });
+  for (const pair of cookie.split("; ")) await c.send("Network.setCookie", { name: pair.slice(0,pair.indexOf("=")), value: pair.slice(pair.indexOf("=") + 1), url: origin, path: VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01, httpOnly: true, sameSite: "Strict" });
   await c.send("Page.navigate", { url: origin }); await until(() => browser.eval("!!document.querySelector('[data-work-handoff]')"), "component");
   await browser.eval("document.querySelector('[data-work-handoff]').open=true");
   const document = await c.send("DOM.getDocument"), node = await c.send("DOM.querySelector", { nodeId: document.root.nodeId, selector: 'input[type="file"]' });
   await c.send("DOM.setFileInputFiles", { nodeId: node.nodeId, files: [handoffPath] });
-  await until(() => browser.eval("[...document.querySelectorAll('button')].some(e=>e.textContent==='Author this work in the selected project'&&!e.disabled)"), "preview");
+  await until(() => browser.eval("[...document.querySelectorAll('button')].some(e=>e.textContent==='Author this work in this project'&&!e.disabled)"), "preview");
   assert.equal(calls, 0); assert.equal((db.prepare("SELECT COUNT(*) n FROM autonomy_runs").get() as { n: number }).n, 0); assert.equal(readProjectAutomationControlV01(db, config)?.enabled ?? false, false);
   assert.ok(await browser.eval(`document.body.textContent.includes(${JSON.stringify(snapshot.evidence.observation.sources[0].text)})`));
-  await browser.eval("[...document.querySelectorAll('button')].find(e=>e.textContent==='Author this work in the selected project').click()");
+  await browser.eval("[...document.querySelectorAll('button')].find(e=>e.textContent==='Author this work in this project').click()");
   await until(() => browser.eval("document.body.textContent.includes('Work saved with no execution grant')"), "authored");
   const received = current(); assert.equal(received.capability_grant, null); assert.deepEqual(received.task, snapshot.task); assert.deepEqual(readWorkHandoff(received), snapshot);
+  const displayed = readActiveProjectSelectionV01(db, config.workspace_id)!;
+  assert.notEqual(displayed.project_id, config.project_id, "Browser receiving save does not select its authorized project");
+  selectActiveProjectV01(db, { workspace_id: config.workspace_id, project_id: config.project_id, expected_project_id: displayed.project_id, expected_revision: displayed.selection_revision, now: new Date().toISOString() });
   assert.throws(() => previewActivePortableProjectV01(db), /portable_imported_work_handoff_not_supported/);
   await assert.rejects(() => runDirectNativeHostRoundTripV01(db, { config, mode: "interactive" }), /direct_host_(run_conflict|unresolved_stateless_effects)/);
   assert.equal(received.workspace_id, config.workspace_id); assert.notEqual(received.project_id, snapshot.source.project_id);
   await http(reviewEndpoint, { action: "authorize_and_run", authorization: oldGrant }, 409); assert.equal(calls, 0);
   // Exact duplicate acknowledges only this unchanged immediate first work.
-  const previewRequest = { action: "define_initial_project_work", workspace_id: config.workspace_id, project_id: config.project_id, expected_active_project_id: config.project_id, expected_active_selection_revision: readActiveProjectSelectionV01(db, config.workspace_id)!.selection_revision, expected_initialization_state: "not_defined", ...snapshot.task, handoff: { snapshot, expected_root_fingerprint: (await import("../lib/vnext/runtime/stateless-source-review")).rootBinding(db, config).fingerprint, expected_direction_ref: null } };
+  const previewRequest = { action: "define_initial_project_work", workspace_id: config.workspace_id, project_id: config.project_id, expected_active_project_id: config.project_id, expected_active_selection_revision: readActiveProjectSelectionV01(db, config.workspace_id)!.selection_revision, expected_project_work_binding: readProjectWorkInitializationV01(db, config).project_work_binding, expected_initialization_state: "not_defined", ...snapshot.task, handoff: { snapshot, expected_root_fingerprint: (await import("../lib/vnext/runtime/stateless-source-review")).rootBinding(db, config).fingerprint, expected_direction_ref: null } };
   await http(endpoint, { action: "receive", request: { ...previewRequest, goal: "Changed after preview" }, expected_preview: handoffHash(previewRequest) }, 409);
   const duplicate = await http(endpoint, { action: "receive", request: previewRequest, expected_preview: handoffHash(previewRequest) }); assert.equal(duplicate.status, "exact_replay");
   assert.equal((await http(endpoint, { action: "verify_material", expected_packet_fingerprint: received.integrity.fingerprint })).matches_historical_material, true);

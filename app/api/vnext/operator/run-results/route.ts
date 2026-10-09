@@ -5,15 +5,12 @@ import {
   readDefaultWorkspaceIdentityV01,
 } from "@/lib/vnext/persistence/project-identity-registry";
 import {
-  readActiveProjectSelectionV01,
-} from "@/lib/vnext/persistence/project-lifecycle-registry";
-import {
   VNextLocalOperatorSessionErrorV01,
   assertVNextLocalOperatorRequestBoundaryV01,
   authenticateVNextLocalOperatorSessionV01,
   openVNextLocalOperatorDatabaseV01,
   readVNextLocalOperatorCredentialFromRequestV01,
-  readVNextLocalOperatorPilotConfigV01,
+  resolveVNextLocalReviewConfigV01,
   type VNextLocalOperatorPilotConfigV01,
 } from "@/lib/vnext/runtime/local-operator-session";
 import type { VNextLocalRuntimeClockV01 } from "@/lib/vnext/runtime/local-runtime-clock";
@@ -56,9 +53,8 @@ export function createVNextOperatorRunResultReadHandlerV01(
         mutating: false,
       });
       const receiptId = receiptIdFromQueryV01(url);
-      const config = readVNextLocalOperatorPilotConfigV01(environment);
-      const credential =
-        readVNextLocalOperatorCredentialFromRequestV01(request);
+      const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
+      const config = resolveVNextLocalReviewConfigV01({ environment, credential, clock: options.clock });
       db = openDatabase(config);
       authenticateVNextLocalOperatorSessionV01(db, {
         config,
@@ -66,14 +62,9 @@ export function createVNextOperatorRunResultReadHandlerV01(
         clock: options.clock,
       });
       const workspace = readDefaultWorkspaceIdentityV01(db);
-      const active = workspace
-        ? readActiveProjectSelectionV01(db, workspace.workspace_id)
-        : null;
       if (
         !workspace ||
-        !active ||
-        workspace.workspace_id !== config.workspace_id ||
-        active.project_id !== config.project_id
+        workspace.workspace_id !== config.workspace_id
       ) {
         throw new OperatorRunResultRouteErrorV01(
           "run_result_active_project_conflict",
@@ -82,7 +73,7 @@ export function createVNextOperatorRunResultReadHandlerV01(
       }
       const result = readProjectRunResultDetailV01(db, {
         workspace_id: workspace.workspace_id,
-        project_id: active.project_id,
+        project_id: config.project_id,
         receipt_id: receiptId,
       });
       return jsonV01(

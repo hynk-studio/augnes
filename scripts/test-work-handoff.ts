@@ -1,5 +1,4 @@
 import { registerOwnedChild, waitForOwnedProcessExit, terminateOwnedProcessTree } from "./test-harness-process-lifecycle.mjs";
-import { differentSelectionRevision } from "./test-selection-observation";
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, realpathSync, writeFileSync, readFileSync, rmSync, renameSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -85,7 +84,13 @@ async function main() {
  }
  const oversized = structuredClone(bundle); oversized.task.goal = "x".repeat(25000); const { fingerprint: _, ...large } = oversized; oversized.fingerprint = handoffHash(large);
  await dest.call("handoff", { action: "preview", handoff: oversized }, 409);
+ const otherRoot = path.join(dest.dir, "other-project"); mkdirSync(otherRoot);
+ const other = getOrCreateCanonicalProjectForLocalRootV01(dest.db, { workspace_id: dest.scope.workspace_id, local_root: normalizeLocalProjectRootRefV01(otherRoot, { base_path: root }), display_name: "Unrelated display" });
  const preview = (await dest.call("handoff", { action: "preview", handoff: bundle })).preview;
+ selectActiveProjectV01(dest.db, { workspace_id: dest.scope.workspace_id, project_id: other.project.project_id, expected_project_id: dest.scope.project_id, expected_revision: dest.active.selection_revision, now: new Date().toISOString() });
+ const inactivePreview = (await dest.call("handoff", { action: "preview", handoff: bundle })).preview;
+ assert.equal(inactivePreview.request.expected_project_work_binding, preview.request.expected_project_work_binding);
+
  renameSync(dest.projectRoot, dest.projectRoot + "-original"); mkdirSync(dest.projectRoot);
  try { await dest.call("handoff", { action: "receive", request: preview.request, expected_preview: preview.fingerprint }, 409); }
  finally { rmSync(dest.projectRoot, { recursive: true }); renameSync(dest.projectRoot + "-original", dest.projectRoot); }
@@ -94,7 +99,7 @@ async function main() {
  await dest.call("handoff", { action: "receive", request: stale, expected_preview: handoffHash(stale) }, 409);
  stale.handoff.expected_root_fingerprint = preview.request.handoff.expected_root_fingerprint; stale.handoff.expected_direction_ref = handoffHash("other-direction");
  await dest.call("handoff", { action: "receive", request: stale, expected_preview: handoffHash(stale) }, 409);
- stale.handoff.expected_direction_ref = null; stale.expected_active_selection_revision = differentSelectionRevision(stale.expected_active_selection_revision);
+ stale.handoff.expected_direction_ref = null; stale.expected_project_work_binding = handoffHash("other-project-binding");
  await dest.call("handoff", { action: "receive", request: stale, expected_preview: handoffHash(stale) }, 409);
  await dest.call("review", { action: "authorize_and_run", authorization: oldGrant }, 409); assert.equal(dest.calls, 0);
  const transferPath = path.join(root, "selected-handoff.json"); writeFileSync(transferPath, canonical(bundle));

@@ -38,7 +38,6 @@ import {
   readVNextCoreRecordV01,
 } from "@/lib/vnext/persistence/durable-semantic-store";
 import { readCanonicalProjectWithRootV01 } from "@/lib/vnext/persistence/project-identity-registry";
-import { readActiveProjectSelectionV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import {
   readProjectAutomationControlV01,
   readProjectAutomationEffectiveStatusV01,
@@ -801,7 +800,7 @@ export function readBoundedAutomationCycleProjectionV01(
         ? pendingContextUseReview.proposal_id
         : null,
     feedback_href: feedbackNeeded && pendingContextUseReview
-      ? `/workbench/semantic-review/${pendingContextUseReview.proposal_id.replace(":", "~")}`
+      ? `/workbench/semantic-review/${pendingContextUseReview.proposal_id.replace(":", "~")}?project_id=${encodeURIComponent(input.config.project_id)}`
       : null,
     next_action: nextAction,
     model_calls_allowed: 0,
@@ -974,14 +973,12 @@ function validateExactCycleReplayInsideTransactionV01(
     refuseV01("bounded_automation_replay_binding_missing", 409);
   }
   const control = readProjectAutomationControlV01(db, input.config);
-  const active = readActiveProjectSelectionV01(db, input.config.workspace_id);
   const registration = readCanonicalProjectWithRootV01(db, input.config);
   if (
     !control ||
     !control.enabled ||
     control.paused ||
     control.revision !== input.control_revision ||
-    active?.project_id !== input.config.project_id ||
     !registration ||
     !validateProjectAutomationPolicyV01(control.policy, input.config).valid
   ) {
@@ -1412,8 +1409,8 @@ function cycleRunProjectionV01(run: AutonomyRunSummary): NonNullable<BoundedAuto
     reconciliation_required: run.metadata.reconciliation_required === true,
     receipt_id: receiptId,
     proposal_id: proposalId,
-    result_href: receiptId ? `/workbench/results/${receiptId.replace(":", "~")}` : null,
-    proposal_href: proposalId ? `/workbench/semantic-review/${proposalId.replace(":", "~")}` : null,
+    result_href: receiptId ? `/workbench/results/${receiptId.replace(":", "~")}?project_id=${encodeURIComponent(run.scope)}` : null,
+    proposal_href: proposalId ? `/workbench/semantic-review/${proposalId.replace(":", "~")}?project_id=${encodeURIComponent(run.scope)}` : null,
   };
 }
 

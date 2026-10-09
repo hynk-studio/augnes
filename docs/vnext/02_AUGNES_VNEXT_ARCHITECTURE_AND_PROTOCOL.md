@@ -234,6 +234,37 @@ Repository
 - grant와 automation policy는 project 범위를 벗어나지 않는다.
 - export, archive, restore와 delete rehearsal은 project별로 검증한다.
 
+### Project-bound client operation
+
+Ordinary work preparation targets an authenticated project independently of the
+workspace's displayed/default selection (#1430). Browser tabs pin their project
+in the URL and select a project-specific HttpOnly session cookie. The public
+project selector grants nothing: the server checks the credential's immutable
+workspace/project/operator scope, expiry, revocation and mutation nonce.
+
+Initial work, supported unstarted revisions and different-task preparation use
+a server-derived project-work comparison binding over the registered root,
+observed physical root and effective direction. Revision/source writers also
+compare the exact packet, lineage and source comparison; preview seals and atomic
+writers retain stale-state and immediate-replay refusal. Legacy unbound requests
+retain their selection checks. Historical packet bytes are not rewritten.
+Repository-bound Companion snapshots exclude unrelated displayed selection while
+the default current-project reader remains selection-bound.
+
+A recoverable Browser refusal keeps entered definition text and selected notes in
+memory in the original project/operator editor. Refresh displays the current
+saved work; adopting it as the revision base is explicit and requires another
+source comparison. Unavailable authorization hides the draft until the same
+project/operator is authenticated again. Drafts are not persisted across closing
+or reloading a tab. Execution already in progress still forbids ordinary edits.
+
+Existing interactive and policy-run controllers retain project/run targeting,
+physical-root, packet, grant and control-revision checks. Display selection is
+not execution permission and does not cancel another project's run. Opening an
+inactive project remains read-only and side-effect-free; its explicit protected
+work link authenticates that project without making it the default selection.
+This does not add an execution mode or qualify parallel source verification.
+
 ### 2.5 canonical project identity and mutable display label
 
 Native registered-project discovery (#1399) reads the existing canonical identity
@@ -558,7 +589,7 @@ native-host transport paths. The normal R5 path admits the exact persisted
 
 `project_work_initialization.v0.1` is the shared deterministic, project-scoped,
 zero-model read owner for a project's work-initialization status. It returns
-`not_defined` only when the registered active project has an available local
+`not_defined` only when the registered target project has an available local
 root and exact reads prove that no TaskContextPacket, managed delegated run,
 RunReceipt, EpisodeDeltaProposal, ReviewDecision, StateTransitionReceipt,
 semantic-state projection, semantic target head, or other owned current
@@ -568,8 +599,10 @@ project/root is `unavailable`. Neither state permits genesis creation.
 
 `defineInitialProjectWorkV01` is the authenticated operator mutation for the
 one allowed genesis definition. Its bounded request binds the exact workspace,
-project, active project, active-selection revision, expected `not_defined`
-state, normalized user goal, success criteria, and optional non-goals. The
+project, server-derived project/root/physical-root/direction binding, expected
+`not_defined` state, normalized user goal, success criteria, and optional non-goals.
+New bound clients retain the observed selection only as provenance; it may be null
+for a never-selected project. Legacy unbound requests retain their selection CAS. The
 owner revalidates those facts in one immediate transaction and inserts exactly
 one existing `task_context_packet` Core record. The same normalized logical
 definition is `exact_replay`; a different later definition or concurrent state
@@ -615,7 +648,7 @@ Saving first work does not start a host run, invoke a provider/model, write the
 project root, or create a proposal, ReviewDecision, Transition, semantic state,
 or RunReceipt. The existing separately authenticated `Start Codex work`
 activation supplies execution authority and may admit a current initial packet
-through the same active-project, selection, root, packet-fingerprint,
+through the same authenticated target-project, root, packet-fingerprint,
 approval, idempotency, cancellation, reconciliation, and cleanup gates used by
 transition-compiled packets. Result and proposal lineage may reference the
 initial definition truthfully; they may not fabricate a Transition receipt.
@@ -630,8 +663,8 @@ NativeHostRequest, or portable-project version bump.
 The private Companion first-work ingress (#1417) uses the same ordinary initial
 compiler and transaction-required writer as Browser authorship. Its distinct
 `initial_work` intent accepts only a complete definition for an already registered,
-selected empty project. Preview is read-only; independently authenticated save
-binds the exact repository/runtime, selection/root, snapshot and normalized
+empty project. Preview is read-only; independently authenticated save
+binds the exact repository/runtime, target project/root, snapshot and normalized
 definition before atomically admitting existing Companion provenance and the
 initial packet. The historical `initial_user_defined` lineage name describes the
 ordinary authored-work family; the actual author is reconstructed from its
@@ -647,13 +680,14 @@ their interpretation `derived_interpretation`.
 
 `project_work_revision_eligibility.v0.1` is the single deterministic owner for
 revising defined work before execution. It binds the exact current packet ID
-and fingerprint, current lineage kind, linear revision count, active selection,
-root availability, and a bounded eligibility reason. It composes the existing
+and fingerprint, current lineage kind, linear revision count, target-project
+binding, root availability, and a bounded eligibility reason. Active selection
+remains display information and does not decide bound-client eligibility. It composes the existing
 initialization owner with the fail-closed managed-run-history owner. In the
 initial/pre-execution preparation family, any exact
 project run row, blocking Core work history, semantic state/head, semantic
 successor, ambiguous or invalid lineage, unavailable
-source, inactive project or unavailable root blocks revision. Historical revision
+source or unavailable root blocks revision. Historical revision
 count is not an eligibility condition. Canonical Evidence support material and existing work-expectation
 records may coexist with the validated preparation chain. Evidence is read through
 its canonical owner, including scope, payload/envelope integrity and reserved
@@ -665,10 +699,16 @@ The same rule applies at each historical revision cutoff and current admission.
 `revisePreExecutionProjectWorkV01` is an authenticated compare-and-set mutation.
 It reuses the initial-work normalizer and all code-point, list, control-character,
 UTF-8, and packet-budget limits. In one immediate transaction it revalidates
-session admission, project/selection/root scope, exact current packet identity,
+session admission, target-project/root/direction binding, exact current packet identity,
 lineage, no execution or blocking work history, and exact revision order. An unchanged
 normalized definition is `exact_replay` with no write. An identical concurrent
 successor may replay; any different stale request refuses.
+
+Bound initial/revision packets carry a `project_work_binding` reference that
+reconstructs the exact request without storing an absolute root or adding an
+authority ledger. Earlier packets keep their original selection observations and
+remain readable. Recovery and portability validate both shapes; restoring or
+importing data never makes its historical binding current write authority.
 
 The append-only compiler contract
 `augnes.vnext.pre-execution-work-revision-compiler.v0.1` creates one ordinary
@@ -716,7 +756,7 @@ The shared revision-family writer appends a TaskContextPacket with the additive
 `pre_execution_new_task` lineage. It retains the revision-family marker so an
 older validator sees an unsupported family member rather than overlooking a
 superseding packet. New definition/request references bind the explicit action,
-exact prior packet, authenticated operator/session, active selection, registered
+exact prior packet, authenticated operator/session, target-project and registered
 root binding, reviewed definition, complete selected-source comparison and
 omission reasons. The original first-work ancestor remains unique. Both
 same-task revisions and new-task edges retain monotonically ordered safe integer
@@ -726,7 +766,7 @@ There is no table, mutable current-work pointer, new Core record kind or migrati
 A preview shows both definitions (goal, success criteria and non-goals), selected
 context, omissions and their reasons, and that the old work is not marked
 complete. It writes nothing. Save requires the reviewed comparison and independent
-authentication. `BEGIN IMMEDIATE` covers admission, exact active selection/root/
+authentication. `BEGIN IMMEDIATE` covers admission, exact target-project/root/
 current-packet checks, no managed-run/blocking-work/semantic-history eligibility,
 insertion and reconstruction. A run admitted after preview blocks save; invalid
 or ambiguous history, changed material or stale bindings refuse atomically.
@@ -1610,7 +1650,9 @@ result missing a required comparison check is not verified task completion.
 The additive `augnes.authored-successor-context.v0.1` profile connects normal
 result review to ordinary next-work preparation through the same authenticated
 authored-successor writer. It requires the exact latest completed local run and
-receipt, exact current packet, active selection and physical root. Failed or
+receipt, exact current packet, server-verified target-project/direction binding
+and physical root. Read, source comparison, preview and save retain that target
+while another project is selected. Legacy requests retain their selection CAS. Failed or
 unsettled runs, superseded context, independent validation errors, stale previews
 and competing saves refuse. Historical envelope expiry alone may be crossed by
 explicit durable authorship; the scoped revalidation profile remains separate.

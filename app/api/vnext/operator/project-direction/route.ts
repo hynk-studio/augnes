@@ -28,7 +28,7 @@ export function createProjectDirectionHandler(options: { environment?: NodeJS.Pr
       const result = body.action === "run_inspection" ? await runDirectionInspection(db, { ...input, signal: request.signal })
         : body.action === "prepare_inspection" ? prepareDirectionAgenda(db, input) : mutateHumanDirection(db, input);
       const { session_admission: admission, ...publicResult } = result;
-      return NextResponse.json({ ok: true, ...publicResult }, { headers: { ...headers, "Set-Cookie": serializeVNextLocalOperatorSessionCookieV01({
+      return NextResponse.json({ ok: true, ...publicResult }, { headers: { ...headers, "Set-Cookie": serializeVNextLocalOperatorSessionCookieV01({ request,
         value: admission.cookie_value, expires_at: admission.cookie_expires_at, max_age_seconds: admission.cookie_max_age_seconds, secure: url.protocol === "https:" }) } });
     } catch (error) {
       const code = error instanceof ProjectDirectionError || error instanceof VNextLocalOperatorSessionErrorV01 ? error.code : "project_direction_request_refused";

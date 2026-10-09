@@ -14,7 +14,7 @@ export type ProjectGuideBriefLoadStateV02 =
   | "available"
   | "unavailable";
 
-export function useProjectGuideBriefV02(initialGuide?: ProjectGuideBriefV02) {
+export function useProjectGuideBriefV02(initialGuide?: ProjectGuideBriefV02, projectId?: string | null) {
   const [guide, setGuide] = useState<ProjectGuideBriefV02 | null>(
     initialGuide ?? null,
   );
@@ -35,6 +35,7 @@ export function useProjectGuideBriefV02(initialGuide?: ProjectGuideBriefV02) {
       const query = new URLSearchParams({
         scope: GUIDE_BRIEF_REQUEST_SCOPE_V02,
       });
+      if (projectId) query.set("project_id", projectId);
       const response = await fetch(`/api/augnes/read/guide-brief?${query}`, {
         method: "GET",
         cache: "no-store",
@@ -61,7 +62,7 @@ export function useProjectGuideBriefV02(initialGuide?: ProjectGuideBriefV02) {
         setStatus("unavailable");
       }
     }
-  }, []);
+  }, [projectId]);
 
   useEffect(() => {
     mountedRef.current = true;

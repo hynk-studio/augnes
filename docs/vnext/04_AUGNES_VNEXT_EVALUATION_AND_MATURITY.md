@@ -41,6 +41,26 @@ the whole product mature.
 7. Do not invent measured baselines, pass rates, user comprehension, or
    usefulness from fixtures or self-evaluation.
 
+## Independent project-client acceptance
+
+For #1430, distinguish project data isolation, usable client authorization,
+concurrent execution and isolated verification. Hold an A edit while a second
+tab in the same browser profile authenticates and changes B, interleave A→B→A
+selection, then save unchanged A with explicit work/source readback. Exercise
+initial work, source revision and different-task preview/save through Browser
+and repository-bound Companion consumers. Genuine A packet/source/root changes,
+wrong-project credentials, expired/revoked sessions and conflicting writes must
+still refuse. Inspect preserved text/source choices and explicit conflict
+recovery, plus fresh project-specific work/history reentry.
+
+Use distinct physical roots and controlled barriers to prove overlapping
+supported runs. Observe continued B progress after A cancellation/failure, and
+separately inspect A's scoped status, approval, cancellation and recovery while B
+is used. Report actual modes, lifecycle cleanup and unsupported cases. Disposable
+deterministic adapters establish bounded mechanics; they do not establish live
+provider behavior, measured productivity, installed adoption or parallel deciding
+verification. The PR records the final exact source and planner-selected result.
+
 ## Method-improvement evidence
 
 For #1417's bounded first-work ingress, the observed gap is an empty registered

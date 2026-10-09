@@ -127,8 +127,9 @@ export async function assertWebMcpCurrentWork(input: {
 
   const mutations: Array<[string, (p: ReadPayload) => void, string]> = [
     ["project", p => { p.project.project_id = p.work_initialization.project_id = p.work_initialization.active_project_id = "project:foreign"; }, "refresh_current_work_required"],
-    ["active selection", p => { p.work_initialization.active_selection_revision = differentSelectionRevision(p.work_initialization.active_selection_revision!); }, "refresh_current_work_required"],
-    ["inactive project", p => { p.work_initialization.active_project_id = "project:foreign"; }, "refresh_current_work_required"],
+    ["active selection", p => { p.work_initialization.active_selection_revision = differentSelectionRevision(p.work_initialization.active_selection_revision!); }, input.payload.work_initialization.project_work_binding ? "current_work_context" : "refresh_current_work_required"],
+    ["inactive project", p => { p.work_initialization.active_project_id = "project:foreign"; }, input.payload.work_initialization.project_work_binding ? "current_work_context" : "refresh_current_work_required"],
+    ["project root binding", p => { p.work_initialization.project_work_binding = `sha256:${"c".repeat(64)}`; }, "refresh_current_work_required"],
     ["packet", p => { p.work_initialization.current_packet!.packet_id = "packet:foreign"; }, "refresh_current_work_required"],
     ["fingerprint", p => { p.work_initialization.current_packet!.packet_fingerprint = `sha256:${"a".repeat(64)}`; }, "refresh_current_work_required"],
     ["no current work", p => { p.work_initialization.state = "not_defined"; p.work_initialization.reason = "zero_durable_work_history"; p.work_initialization.current_packet = null; p.work_initialization.current_work = null; }, "current_work_unavailable"],
@@ -219,7 +220,7 @@ export async function assertWebMcpCurrentWork(input: {
   assert.equal(delayedRegistrationSurvived, false);
   assert(before.equals(input.snapshot()));
   const component = readFileSync("components/workbench/semantic-review/current-work-webmcp.tsx", "utf8");
-  assert(component.includes("[binding, sessionKey]"));
+  assert(component.includes("[binding, sessionKey, fetch]"));
   assert(component.includes("return registerCurrentWorkWebMcp"));
   assert(component.includes("return null"));
   console.log(JSON.stringify({ webmcp_deterministic_fake: "pass", authenticated_reads: reads, database_bytes_changed: 0,

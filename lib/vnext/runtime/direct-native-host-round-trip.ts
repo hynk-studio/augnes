@@ -576,7 +576,9 @@ export async function prepareNativeHostRunClaimInsideTransactionV01(
     packet_id: input.packet_id,
     packet_fingerprint: input.packet_fingerprint,
     evaluated_at: input.claimed_at,
-    require_active_project: input.mode !== "repository_attachment",
+    // Admission binds the authenticated project, exact packet and physical root;
+    // the workspace display selection is not an execution credential.
+    require_active_project: false,
   });
   if (handoffEntries(admission.packet).length || statelessUnresolvedEntries(admission.packet).length) refuse("direct_host_unresolved_stateless_effects");
   assertPacketDirectionCurrent(db, admission.packet, input.claimed_at);
@@ -587,7 +589,7 @@ export async function prepareNativeHostRunClaimInsideTransactionV01(
     evaluated_at: input.claimed_at,
     automation_context: null,
     run_id: "preparing",
-    require_active_project: input.mode !== "repository_attachment",
+    require_active_project: false,
   });
   const identity = buildDirectNativeHostRunIdentityV01({
     config: input.config,
@@ -646,7 +648,7 @@ export function admitPreparedNativeHostRunClaimInsideTransactionV01(
     automation_context: input.automation_context,
     run_id: input.prepared.claim.run_id,
     transition_bounded_work: false,
-    require_active_project: input.mode !== "repository_attachment",
+    require_active_project: false,
   });
   createRunLedgerRecord(db, {
     input: {
@@ -814,7 +816,7 @@ export async function runDirectNativeHostRoundTripV01(
     config: input.config,
     ...selection,
     evaluated_at: prevalidatedAt,
-    require_active_project: input.mode !== "repository_attachment",
+    require_active_project: false,
   });
   if (admitted.packet.compatibility.source_contracts.includes(PROSPECTIVE_PREPARATION_PACKET) && input.mode !== "policy_triggered") refuse("prospective_wake_owner_required", 403);
   if (managedLive && adapter.provider_egress === "native_host_managed") {
@@ -919,7 +921,7 @@ export async function runDirectNativeHostRoundTripV01(
       evaluated_at: startedAt,
       automation_context: input.automation_context ?? null,
       run_id: identity.run_id,
-      require_active_project: input.mode !== "repository_attachment",
+      require_active_project: false,
     });
     const existingReceipt = readReceiptForRun(db, {
       workspace_id: input.config.workspace_id,
@@ -2561,7 +2563,7 @@ function buildDirectHostRunReceipt(input: {
       observation_id: packetObservationId,
       observation_kind: "validated_packet_and_root_binding",
       summary:
-        "Packet identity, fingerprint, current lineage, active project, and canonical root scope were validated before adapter start.",
+        "Packet identity, fingerprint, current lineage, authorized project scope, and canonical root scope were validated before adapter start.",
       event_at: result.started_at,
       observed_at: result.started_at,
       observer_ref: reporterRef,

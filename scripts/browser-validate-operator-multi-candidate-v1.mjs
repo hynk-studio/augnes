@@ -47,6 +47,7 @@ await runOperatorExecutionBrowserChildV1({
     const [candidateA, candidateB] = multi.candidate_ids;
     const proposalPath = multi.target_proposal_path;
     const appOrigin = lifecycle.app_origin;
+    const projectId = fixture.manifest.project_id;
 
     await lifecycle.runPhase("multi_candidate_session_and_scope", async () => {
       await lifecycle.navigate(`${appOrigin}${proposalPath}`);
@@ -56,7 +57,7 @@ await runOperatorExecutionBrowserChildV1({
       );
       result.credential_private_material_boundary = await lifecycle.authenticate();
       await lifecycle.waitForCondition(
-        `location.pathname === ${JSON.stringify(proposalPath)} && document.querySelector('[data-vnext-candidate-selector="v0.1"]')?.querySelectorAll('option').length === 2`,
+        `location.pathname === ${JSON.stringify(proposalPath)} && new URLSearchParams(location.search).get('project_id') === ${JSON.stringify(projectId)} && document.querySelector('[data-vnext-candidate-selector="v0.1"]')?.querySelectorAll('option').length === 2`,
         "two-candidate exact proposal",
       );
       const initial = await readSelectedCandidateShape(lifecycle);
@@ -395,7 +396,7 @@ await runOperatorExecutionBrowserChildV1({
       const beforeInspector = authoritySnapshot(fixture.writable_database_path);
       await submitGuideBriefInteractionCommand(lifecycle, "Open exact details.");
       await lifecycle.waitForCondition(
-        `location.pathname === '/workbench/inspector' && new URLSearchParams(location.search).get('target') === 'episode_delta_proposal'`,
+        `location.pathname === '/workbench/inspector' && new URLSearchParams(location.search).get('project_id') === ${JSON.stringify(projectId)} && new URLSearchParams(location.search).get('target') === 'episode_delta_proposal'`,
         "GuideBrief exact Inspector destination",
       );
       assert.deepEqual(authoritySnapshot(fixture.writable_database_path), beforeInspector);
@@ -550,7 +551,7 @@ await runOperatorExecutionBrowserChildV1({
           method: 'POST',
           cache: 'no-store',
           credentials: 'same-origin',
-          headers: { 'content-type': 'application/json' },
+          headers: { 'content-type': 'application/json', 'Augnes-Project-Id': new URL(location.href).searchParams.get('project_id') },
           body: JSON.stringify({
             proposal_id: ${JSON.stringify(exactBinding.pending_proposal_id)},
             proposal_fingerprint: ${JSON.stringify(exactBinding.pending_proposal_fingerprint)},
@@ -580,7 +581,7 @@ await runOperatorExecutionBrowserChildV1({
       );
       const homeBinding = await lifecycle.evaluateJson(`(async () => {
         const primary = document.querySelector('[data-ai-workplane-home="v0.1"] [data-ai-workplane-primary-action="link"]');
-        const response = await fetch('/api/vnext/operator/semantic-review', { cache: 'no-store' });
+        const response = await fetch('/api/vnext/operator/semantic-review', { cache: 'no-store', headers: { 'Augnes-Project-Id': new URL(location.href).searchParams.get('project_id') } });
         const body = await response.json();
         return {
           status: response.status,
@@ -604,7 +605,7 @@ await runOperatorExecutionBrowserChildV1({
       assert.equal(homeBinding.newer?.status, "needs_decision");
       assert.equal(
         homeBinding.primary_href,
-        exactBinding.pending_proposal_path,
+        `${exactBinding.pending_proposal_path}?project_id=${encodeURIComponent(projectId)}`,
         JSON.stringify(homeBinding),
       );
       assert.equal(
@@ -617,7 +618,7 @@ await runOperatorExecutionBrowserChildV1({
         true,
       );
       await lifecycle.waitForCondition(
-        `location.pathname === ${JSON.stringify(exactBinding.pending_proposal_path)} && document.querySelector('[data-vnext-candidate-selector="v0.1"]')?.value === ${JSON.stringify(exactBinding.preferred_candidate_id)} && document.querySelector('[data-vnext-transition-action="preview"]:not([disabled])') !== null`,
+        `location.pathname === ${JSON.stringify(exactBinding.pending_proposal_path)} && new URLSearchParams(location.search).get('project_id') === ${JSON.stringify(projectId)} && document.querySelector('[data-vnext-candidate-selector="v0.1"]')?.value === ${JSON.stringify(exactBinding.preferred_candidate_id)} && document.querySelector('[data-vnext-transition-action="preview"]:not([disabled])') !== null`,
         "pending exact applying candidate selected by default",
       );
       result.exact_ready_to_complete_navigation = true;
@@ -738,7 +739,7 @@ async function readSelectedCandidateShape(lifecycle) {
 
 async function readExactCandidateChain(lifecycle, proposalId, candidateId) {
   return lifecycle.evaluateJson(`(async () => {
-    const response = await fetch('/api/vnext/operator/semantic-review?' + new URLSearchParams({ proposal_id: ${JSON.stringify(proposalId)} }), { cache: 'no-store', credentials: 'same-origin' });
+    const response = await fetch('/api/vnext/operator/semantic-review?' + new URLSearchParams({ proposal_id: ${JSON.stringify(proposalId)} }), { cache: 'no-store', credentials: 'same-origin', headers: { 'Augnes-Project-Id': new URL(location.href).searchParams.get('project_id') } });
     const body = await response.json();
     const candidate = body.proposal?.candidates?.find((entry) => entry.candidate?.candidate_id === ${JSON.stringify(candidateId)});
     const transition = body.proposal?.transition_receipts?.find((entry) => entry.source_candidate?.candidate_id === candidate?.candidate?.candidate_id && entry.source_candidate?.candidate_fingerprint === candidate?.candidate_fingerprint);
@@ -925,7 +926,7 @@ async function activateGuideBriefModelAction(lifecycle, doubleClick = false) {
 
 async function readCandidateFingerprint(lifecycle, proposalId, candidateId) {
   const result = await lifecycle.evaluateJson(`(async () => {
-    const response = await fetch('/api/vnext/operator/semantic-review?' + new URLSearchParams({ proposal_id: ${JSON.stringify(proposalId)} }), { cache: 'no-store', credentials: 'same-origin' });
+    const response = await fetch('/api/vnext/operator/semantic-review?' + new URLSearchParams({ proposal_id: ${JSON.stringify(proposalId)} }), { cache: 'no-store', credentials: 'same-origin', headers: { 'Augnes-Project-Id': new URL(location.href).searchParams.get('project_id') } });
     const body = await response.json();
     const candidate = body.proposal?.candidates?.find((entry) => entry.candidate?.candidate_id === ${JSON.stringify(candidateId)});
     return {

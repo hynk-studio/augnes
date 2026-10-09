@@ -117,6 +117,15 @@ const projectExperienceStep = {
   timeoutMs: 360_000,
   requireNaturalExit: true,
 };
+const projectClientBrowserStep = {
+  id: "project-client-browser",
+  group: "project-experience",
+  requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "browser-profile-owning", "cdp-session-owning"],
+  label: "same-profile project clients, held saves and recoverable drafts in Browser",
+  ...rootNode("scripts/test-project-client-browser.ts"),
+  timeoutMs: 60_000,
+  requireNaturalExit: true,
+};
 const webPlanningBrowserStep = {
   id: "web-planning-browser",
   group: "project-experience",
@@ -696,6 +705,33 @@ const suites = {
       label:
         "Minimum Project Home projection, lineage, isolation, and read-only routing",
       ...rootNode("scripts/test-vnext-project-home.ts"),
+    },
+    {
+      id: "project-bound-work-writers",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem"],
+      label: "project-bound initial, revision, new-work and Companion writers with genuine conflicts",
+      ...rootNode("scripts/test-project-bound-work-writers.ts"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "project-client-sessions",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "mutable-module-state"],
+      label: "same-profile project cookies, interleaved authenticated routes and retained refusal boundaries",
+      ...rootNode("scripts/test-project-client-sessions.ts"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "project-client-runs",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "deterministic-fake-transport", "mutable-module-state"],
+      label: "overlapping project runs with independent status, approval, cancellation and readback",
+      ...rootNode("scripts/test-project-client-runs.ts"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
     },
     {
       id: "project-work-initialization",
@@ -1470,7 +1506,7 @@ const suites = {
     { ...continuityStep },
     { ...goldenStep },
   ],
-  "e2e-project-experience": [{ ...projectExperienceStep }, { ...webPlanningBrowserStep }],
+  "e2e-project-experience": [{ ...projectExperienceStep }, { ...projectClientBrowserStep }, { ...webPlanningBrowserStep }],
   "e2e-operator-review-control": [
     { ...operatorReviewControlStep },
     { ...operatorBrowserNavigationDiagnosticsStep },

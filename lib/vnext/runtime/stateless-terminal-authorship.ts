@@ -11,7 +11,7 @@ import { STATELESS_WORK, STATELESS_TERMINAL_WORK, STATELESS_TERMINAL_CONTEXT, st
 import { readStatelessFailureReviews } from "../stateless-review-failure";
 import { readStatelessGrant, buildStatelessModelInvocationGrant } from "../persistence/stateless-work-grant";
 import { insertVNextCoreRecordV01 } from "../persistence/durable-semantic-store";
-import { readActiveProjectSelectionV01 } from "../persistence/project-lifecycle-registry";
+import { readProjectWorkBindingV01 } from "./project-work-binding";
 import { effectiveDirection, directionCurrent, assertPacketDirectionCurrent } from "../persistence/project-direction-store";
 import { directionSource, selectedDirectionProfile, DIRECTION_SOURCE } from "../project-direction-source";
 import { validateModelInvocationReceiptV02 } from "../model-gateway/model-invocation-receipt";
@@ -117,13 +117,13 @@ interface PreviewMaterial {
   resumes_packet?: { packet_id: string; packet_fingerprint: string };
   predecessor: TerminalAttemptBinding; definition: TaskContextPacketV01["task"]; review: SourceReview;
   selected: ReturnType<typeof readSelectedWorkSources>; omitted_sources: Request["omitted_sources"]; comparison_fingerprint: string;
-  root_fingerprint: string; direction_ref: string | null; selection_revision: ProjectSelectionRevision;
+  root_fingerprint: string; direction_ref: string | null; selection_revision?: ProjectSelectionRevision; project_work_binding?: string;
 }
 interface Material extends PreviewMaterial { session_id: string; operator_id: string; work_lifetime?: typeof DURABLE_AUTHORED_WORK_V01 }
-// A saved definition is durable context. Its historical selection observation
-// is not today's write authority; the new preview binds the live selection.
+// A saved definition is durable context. New previews bind the target root and
+// direction; historical bindings remain attributable without constraining reentry.
 function savedDefinition(m: Material | PreviewMaterial) {
-  const { selection_revision: _selection, resumes_packet: _resume, ...rest } = m;
+  const { selection_revision: _selection, project_work_binding: _binding, resumes_packet: _resume, ...rest } = m;
   const { session_id: _session, operator_id: _operator, work_lifetime: _lifetime, ...definition } = rest as Omit<Material, "selection_revision" | "resumes_packet">;
   return definition;
 }
@@ -141,8 +141,8 @@ function requestFrom(value: unknown): Request {
 function compileMaterial(db: Database.Database, config: Config, raw: unknown, at: string, requireOmissions: boolean) {
   const request = requestFrom(raw), h = readTerminalAttemptHistory(db, config, request.predecessor.run_id);
   check(equal(request.predecessor, h.binding) && !stateOf(h.run).recovery_suspended, "terminal_authorship_history_changed");
-  const active = readActiveProjectSelectionV01(db, config.workspace_id);
-  check(active?.project_id === config.project_id, "terminal_authorship_selection_changed");
+  const binding = readProjectWorkBindingV01(db, config);
+  check(binding, "terminal_authorship_project_binding_unavailable");
   const { review, observed } = prepareMaterial(db, config, request.material, at);
   const notes = request.notes.map(n => {
     if (n && typeof n === "object" && "saved_source_id" in n) {
@@ -162,7 +162,7 @@ function compileMaterial(db: Database.Database, config: Config, raw: unknown, at
   check(direction ? selectedDirection.length === 1 && equal(selectedDirection[0], directionSource(direction)) && direction.value.status === "active" &&
     Object.values(directionCurrent(db, direction, at)).every(Boolean) : selectedDirection.length === 0, "terminal_authorship_direction_required");
   const material: PreviewMaterial = { predecessor: h.binding, definition: request.definition, review, selected: comparison.entries, omitted_sources: request.omitted_sources,
-    comparison_fingerprint: comparison.fingerprint, root_fingerprint: rootBinding(db, config).fingerprint, direction_ref: direction?.ref ?? null, selection_revision: active.selection_revision };
+    comparison_fingerprint: comparison.fingerprint, root_fingerprint: rootBinding(db, config).fingerprint, direction_ref: direction?.ref ?? null, project_work_binding: binding };
   const current = readCurrentProjectWorkPacketLineageV01(db, config);
   if (current && isStatelessTerminalSuccessor(current.packet)) {
     const { session_id: _session, operator_id: _operator, work_lifetime: _lifetime, resumes_packet, ...saved } = materialFrom(current.packet);
@@ -183,7 +183,7 @@ function materialFrom(packet: TaskContextPacketV01): Material {
     reviewText(binding.packet_id, 100); reviewSha(binding.packet_fingerprint);
     check(raw.work_lifetime === DURABLE_AUTHORED_WORK_V01, "terminal_authorship_lifetime_invalid");
   }
-  return reviewObject(raw, ["predecessor", "definition", "review", "selected", "omitted_sources", "comparison_fingerprint", "root_fingerprint", "direction_ref", "selection_revision", "session_id", "operator_id", ...(raw.work_lifetime !== undefined ? ["work_lifetime"] : []), ...(raw.resumes_packet !== undefined ? ["resumes_packet"] : [])]) as unknown as Material;
+  return reviewObject(raw, ["predecessor", "definition", "review", "selected", "omitted_sources", "comparison_fingerprint", "root_fingerprint", "direction_ref", ...(raw.project_work_binding !== undefined ? ["project_work_binding"] : ["selection_revision"]), "session_id", "operator_id", ...(raw.work_lifetime !== undefined ? ["work_lifetime"] : []), ...(raw.resumes_packet !== undefined ? ["resumes_packet"] : [])]) as unknown as Material;
 }
 export const isStatelessTerminalSuccessor = (p: TaskContextPacketV01) => p.compatibility.source_contracts.includes(STATELESS_TERMINAL_WORK);
 export const terminalAuthorshipKey = (p: TaskContextPacketV01) => {
@@ -236,7 +236,7 @@ export function inspectStatelessTerminalSuccessor(db: Database.Database, input: 
     Array.isArray(m.omitted_sources) && m.omitted_sources.length <= 8 &&
     equal(m.omitted_sources.map(o => reviewSha(o.source_binding)).sort(), comparison.unselected_previous.map(e => e.source_ref!).sort()) &&
     m.omitted_sources.every(o => reviewText(o.reason, 500) === o.reason) &&
-    reviewSha(m.root_fingerprint) === m.root_fingerprint && isHistoricalProjectSelectionRevision(m.selection_revision),
+    reviewSha(m.root_fingerprint) === m.root_fingerprint && (m.project_work_binding !== undefined ? reviewSha(m.project_work_binding) === m.project_work_binding : isHistoricalProjectSelectionRevision(m.selection_revision)),
   "terminal_authorship_material_invalid");
   // Historical consumption is checked at authorship time, not against today's
   // direction or source bytes. Execution independently requires current gates.

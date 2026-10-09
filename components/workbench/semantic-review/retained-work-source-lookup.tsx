@@ -1,5 +1,7 @@
 "use client";
 
+import { useProjectClientFetch } from "./project-client-scope";
+
 import { useRef, useState } from "react";
 import type { recallRetainedWorkSources, RetainedWorkSourceHit } from "@/lib/intake/retained-work-source-recall";
 import type { ProjectWorkInitializationV01 } from "@/types/vnext/project-work-initialization";
@@ -8,13 +10,16 @@ import styles from "./semantic-review.module.css";
 
 type Recall = ReturnType<typeof recallRetainedWorkSources>;
 
-export function RetainedWorkSourceLookup({ initialization, disabled, remainingSlots, isSelected, onSelect }: {
+export function RetainedWorkSourceLookup({ initialization, disabled, remainingSlots, isSelected, onSelect, onAccessRefused, onRefreshCurrentWork }: {
   initialization: ProjectWorkInitializationV01;
   disabled: boolean;
   remainingSlots: number;
   isSelected: (hit: RetainedWorkSourceHit) => boolean;
   onSelect: (hits: RetainedWorkSourceHit[]) => void;
+  onAccessRefused?: (errorCode?: string) => void;
+  onRefreshCurrentWork?: () => Promise<void>;
 }) {
+  const fetch = useProjectClientFetch();
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<Recall | null>(null);
   const [searching, setSearching] = useState(false);
@@ -39,13 +44,16 @@ export function RetainedWorkSourceLookup({ initialization, disabled, remainingSl
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ action: "lookup_retained_work_sources", query,
           expected_current_packet_id: packet.packet_id, expected_current_packet_fingerprint: packet.packet_fingerprint,
-          expected_active_project_id: initialization.active_project_id,
+          expected_active_project_id: initialization.project_id,
+          expected_project_work_binding: initialization.project_work_binding,
           expected_active_selection_revision: initialization.active_selection_revision }),
       });
       const body = await response.json() as { status?: string; recall?: Recall; error_code?: string };
+      if (response.status === 401 || response.status === 403) onAccessRefused?.(body.error_code);
+      if (response.status === 409) await onRefreshCurrentWork?.();
       if (id !== requestId.current) return;
       if (body.error_code === "retained_source_scan_bound_exceeded") throw new Error("Retained-note lookup reached its scan capacity. No partial results were returned. Current selected notes remain available; changing the query or reloading will not reduce this history.");
-      if (!response.ok || body.status !== "retained_source_recall" || !body.recall) throw new Error("Retained notes are unavailable for this comparison. Check the query bounds or reload current work before searching again.");
+      if (!response.ok || body.status !== "retained_source_recall" || !body.recall) throw new Error("Retained notes are unavailable for this comparison. Your selected notes are retained. Check the query bounds or review current work before searching again.");
       setResult(body.recall);
     } catch (failure) {
       if (id === requestId.current) setError(failure instanceof Error ? failure.message : "Retained notes unavailable.");

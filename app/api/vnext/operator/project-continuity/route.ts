@@ -1,4 +1,5 @@
 import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
+import { readProjectWorkBindingV01 } from "@/lib/vnext/runtime/project-work-binding";
 import { inspectRevisableProjectWorkChainV01 } from "@/lib/vnext/runtime/project-work-revision";
 import { NewProjectWorkPreparationErrorV01 } from "@/lib/vnext/runtime/new-project-work-preparation";
 import { AuthoredSuccessorTaskErrorV01 } from "@/lib/vnext/authored-successor-task";
@@ -224,13 +225,13 @@ export function createVNextOperatorContextUseReviewHandlerV01(
           body.action === "preview_result_work" ? ["action", "binding", "definition", "selected_sources"] : ["action", "request"];
         if (Object.keys(body).sort().join(",") !== fields.sort().join(",")) throw new AuthoredSuccessorTaskErrorV01("successor_task_request_fields");
         if (body.action === "prepare_result_work") {
-          const request = body.request as DefineAuthoredSuccessorTaskRequestV01;
-          if (!request?.selected_sources) throw new AuthoredSuccessorTaskErrorV01("successor_task_source_selection_required");
-          const result = await defineAuthoredSuccessorTaskV01(db, { config, credential, request, clock: options.clock, secret_source: options.secret_source });
+          const workRequest = body.request as DefineAuthoredSuccessorTaskRequestV01;
+          if (!workRequest?.selected_sources) throw new AuthoredSuccessorTaskErrorV01("successor_task_source_selection_required");
+          const result = await defineAuthoredSuccessorTaskV01(db, { config, credential, request: workRequest, clock: options.clock, secret_source: options.secret_source });
           return jsonResponse({ ok: true, status: result.status, packet_id: result.packet.packet_id,
             packet_fingerprint: result.packet.integrity.fingerprint, execution_started: false, run_created: false,
             semantic_state_changed: false, transition_created: false, execution_authority_granted: false }, 201,
-          serializeVNextLocalOperatorSessionCookieV01({ value: result.session_admission.cookie_value,
+          serializeVNextLocalOperatorSessionCookieV01({ request, value: result.session_admission.cookie_value,
             expires_at: result.session_admission.cookie_expires_at, max_age_seconds: result.session_admission.cookie_max_age_seconds, secure: url.protocol === "https:" }));
         }
         const result = db.transaction(() => {
@@ -254,10 +255,11 @@ export function createVNextOperatorContextUseReviewHandlerV01(
         authenticateVNextLocalOperatorSessionV01(db, { config, credential, clock: options.clock });
         const lookup = body.action === "lookup_retained_work_sources";
         const retained = lookup || body.retained_source_refs !== undefined;
-        const selectionBound = retained || companionPreparation;
+        const selectionBound = retained || companionPreparation || body.expected_project_work_binding !== undefined;
         const keys = ["action", "expected_current_packet_fingerprint", "expected_current_packet_id",
           ...(lookup ? ["query"] : ["notes"]),
           ...(selectionBound ? ["expected_active_project_id", "expected_active_selection_revision"] : []),
+          ...(body.expected_project_work_binding !== undefined ? ["expected_project_work_binding"] : []),
           ...(!lookup && retained ? ["retained_source_refs"] : [])];
         if (Object.keys(body).sort().join(",") !== keys.sort().join(",") ||
           (!lookup && (!Array.isArray(body.notes) || body.notes.length > 8))) {
@@ -266,8 +268,12 @@ export function createVNextOperatorContextUseReviewHandlerV01(
         const result = db.transaction(() => {
           if (selectionBound) {
             const eligibility = readProjectWorkRevisionEligibilityStrictV01(db!, config);
-            if (!eligibility.eligible || eligibility.active_project_id !== body.expected_active_project_id ||
-              eligibility.active_selection_revision !== body.expected_active_selection_revision) {
+            const projectBound = body.expected_project_work_binding !== undefined;
+            if (!eligibility.eligible || body.expected_active_project_id !== config.project_id ||
+              (projectBound ? typeof body.expected_project_work_binding !== "string" ||
+                body.expected_project_work_binding !== readProjectWorkBindingV01(db!, config)
+                : eligibility.active_project_id !== body.expected_active_project_id ||
+                  eligibility.active_selection_revision !== body.expected_active_selection_revision)) {
               throw new ProjectWorkRevisionErrorV01("retained_source_work_selection_changed_or_unavailable", 409);
             }
           }
@@ -310,7 +316,7 @@ export function createVNextOperatorContextUseReviewHandlerV01(
             execution_authority_granted: false,
           },
           result.status === "inserted" ? 201 : 200,
-          serializeVNextLocalOperatorSessionCookieV01({
+          serializeVNextLocalOperatorSessionCookieV01({ request,
             value: result.session_admission.cookie_value,
             expires_at: result.session_admission.cookie_expires_at,
             max_age_seconds:
@@ -353,7 +359,7 @@ export function createVNextOperatorContextUseReviewHandlerV01(
             execution_authority_granted: false,
           },
           result.status === "inserted" ? 201 : 200,
-          serializeVNextLocalOperatorSessionCookieV01({
+          serializeVNextLocalOperatorSessionCookieV01({ request,
             value: result.session_admission.cookie_value,
             expires_at: result.session_admission.cookie_expires_at,
             max_age_seconds:
@@ -383,7 +389,7 @@ export function createVNextOperatorContextUseReviewHandlerV01(
           semantic_authority_granted: false,
         },
         result.status === "inserted" ? 201 : 200,
-        serializeVNextLocalOperatorSessionCookieV01({
+        serializeVNextLocalOperatorSessionCookieV01({ request,
           value: result.session_admission.cookie_value,
           expires_at: result.session_admission.cookie_expires_at,
           max_age_seconds: result.session_admission.cookie_max_age_seconds,

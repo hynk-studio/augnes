@@ -45,7 +45,7 @@ export function prepareDirectionAgenda(db: Database.Database, input: {
   const current = effectiveDirection(db, input.config, at);
   check(current && current.ref === request.expected_ref, "stale_revision");
   const work = readProjectWorkInitializationV01(db, input.config);
-  check(work.current_packet && work.current_work && work.active_selection_revision, "define_ordinary_work_first");
+  check(work.current_packet && work.current_work && work.project_work_binding, "define_ordinary_work_first");
   check(["initial_user_defined", "pre_execution_user_revision", "pre_execution_new_task", "authored_successor_task"].includes(work.current_packet.lineage_kind), "preparation_profile_unsupported");
   const packet = inspectVNextOperatorPilotPacketLineageV01(db, { config: input.config, packet_id: work.current_packet.packet_id, packet_fingerprint: work.current_packet.packet_fingerprint }).packet;
   const registration = readCanonicalProjectWithRootV01(db, input.config);
@@ -95,6 +95,7 @@ export function prepareDirectionAgenda(db: Database.Database, input: {
   const result = revisePreExecutionProjectWorkV01(db, { ...input, expected_direction_ref: request.expected_ref, request: {
     action: "revise_pre_execution_project_work", workspace_id: input.config.workspace_id, project_id: input.config.project_id,
     expected_active_project_id: input.config.project_id, expected_active_selection_revision: work.active_selection_revision,
+    expected_project_work_binding: work.project_work_binding,
     expected_current_packet_id: packet.packet_id, expected_current_packet_fingerprint: packet.integrity.fingerprint,
     expected_current_lineage_kind: work.current_packet.lineage_kind, ...work.current_work,
     selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint,

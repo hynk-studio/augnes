@@ -7,7 +7,7 @@ import {
   openVNextLocalOperatorDatabaseV01,
   readBoundedVNextLocalOperatorBodyV01,
   readVNextLocalOperatorCredentialFromRequestV01,
-  readVNextLocalOperatorPilotConfigV01,
+  resolveVNextLocalReviewConfigV01,
   serializeVNextLocalOperatorSessionCookieV01,
   type VNextLocalOperatorPilotConfigV01,
   type VNextLocalOperatorSecretSourceV01,
@@ -64,10 +64,10 @@ export function createVNextOperatorSemanticTransitionHandlersV01(
         mutating: false,
       });
       const binding = parsePreviewQuery(requestUrl);
-      const config = readVNextLocalOperatorPilotConfigV01(environment);
+      const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
+      const config = resolveVNextLocalReviewConfigV01({ environment, credential, clock: options.clock });
       const reviewWindowConfig =
         readVNextOperatorPilotReviewWindowConfigV01(environment);
-      const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
       db = openDatabase(config);
       const result = prepareVNextOperatorPilotSemanticCommitPreviewV01(db, {
         config,
@@ -120,10 +120,10 @@ export function createVNextOperatorSemanticTransitionHandlersV01(
           400,
         );
       }
-      const config = readVNextLocalOperatorPilotConfigV01(environment);
+      const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
+      const config = resolveVNextLocalReviewConfigV01({ environment, credential, clock: options.clock });
       const reviewWindowConfig =
         readVNextOperatorPilotReviewWindowConfigV01(environment);
-      const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
       const parsed = parseActionBody(
         await readBoundedVNextLocalOperatorBodyV01(request),
       );
@@ -153,7 +153,7 @@ export function createVNextOperatorSemanticTransitionHandlersV01(
             semantic_authority_granted: false,
           },
           result.status === "inserted" ? 201 : 200,
-          mutationCookies(result.session_admission, requestUrl, true),
+          mutationCookies(result.session_admission, requestUrl, true, request),
         );
       }
       const result = applyVNextOperatorPilotReviewedSemanticTransitionV01(
@@ -184,7 +184,7 @@ export function createVNextOperatorSemanticTransitionHandlersV01(
           semantic_authority_granted: false,
         },
         result.status === "applied" ? 201 : 200,
-        mutationCookies(result.session_admission, requestUrl, false),
+        mutationCookies(result.session_admission, requestUrl, false, request),
       );
     } catch (error) {
       return routeErrorResponse(error);
@@ -253,9 +253,10 @@ function mutationCookies(
   },
   url: URL,
   clearPreview: boolean,
+  request: Request,
 ): string[] {
   const cookies = [
-    serializeVNextLocalOperatorSessionCookieV01({
+    serializeVNextLocalOperatorSessionCookieV01({ request,
       value: admission.cookie_value,
       expires_at: admission.cookie_expires_at,
       max_age_seconds: admission.cookie_max_age_seconds,
