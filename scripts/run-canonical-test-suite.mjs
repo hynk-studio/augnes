@@ -725,6 +725,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "project-transition-cookies",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "mutable-module-state"],
+      label: "project-scoped semantic previews, reordered cookie responses and retained authority conflicts",
+      ...rootNode("scripts/test-project-transition-cookies.ts"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "project-client-runs",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "deterministic-fake-transport", "mutable-module-state"],

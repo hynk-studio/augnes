@@ -1089,6 +1089,7 @@ const integrationChildren = [
   "project-home",
   "project-bound-work-writers",
   "project-client-sessions",
+  "project-transition-cookies",
   "project-client-runs",
   "project-work-initialization",
   "current-work-read",
@@ -1230,6 +1231,7 @@ for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requ
 for (const [id, script] of [
   ["project-bound-work-writers", "scripts/test-project-bound-work-writers.ts"],
   ["project-client-sessions", "scripts/test-project-client-sessions.ts"],
+  ["project-transition-cookies", "scripts/test-project-transition-cookies.ts"],
   ["project-client-runs", "scripts/test-project-client-runs.ts"],
 ]) {
   const child = readCanonicalChildRegistration(integrationSource, id);

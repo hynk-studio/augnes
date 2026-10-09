@@ -839,7 +839,7 @@ export function readVNextLocalOperatorRequestProjectV01(request: Request): strin
   return value;
 }
 
-function projectSessionCookieNameV01(name: string, projectId: string | undefined): string {
+export function projectScopedOperatorCookieNameV01(name: string, projectId: string | undefined): string {
   return projectId === undefined ? name : `${name}_${createHash("sha256").update(projectId, "utf8").digest("hex")}`;
 }
 
@@ -850,7 +850,7 @@ function readProjectCredentialCookieV01(request: Request, name: string, targetPr
     throw sessionError("operator_session_scope_mismatch", 403);
   }
   const projectId = requestedProjectId ?? targetProjectId;
-  const scopedName = projectSessionCookieNameV01(name, projectId);
+  const scopedName = projectScopedOperatorCookieNameV01(name, projectId);
   // Migrate a still-valid single-project session without requiring another
   // bootstrap. A malformed/present scoped cookie never falls back to another.
   const scopedPresent = request.headers.get("cookie")?.split(";").some(part => part.trim().startsWith(`${scopedName}=`));
@@ -1306,7 +1306,7 @@ export function serializeVNextLocalOperatorSessionCookieV01(input: {
 }): string {
   return serializeSessionCookieV01({
     ...input,
-    cookie_name: projectSessionCookieNameV01(VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01, input.request && readVNextLocalOperatorRequestProjectV01(input.request)),
+    cookie_name: projectScopedOperatorCookieNameV01(VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01, input.request && readVNextLocalOperatorRequestProjectV01(input.request)),
     path: VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01,
   });
 }
@@ -1321,7 +1321,7 @@ export function serializeVNextRepositoryDecisionSessionCookieV01(input: {
 }): string {
   return serializeSessionCookieV01({
     ...input,
-    cookie_name: projectSessionCookieNameV01(VNEXT_REPOSITORY_DECISION_SESSION_COOKIE_V01, input.project_id ?? (input.request && readVNextLocalOperatorRequestProjectV01(input.request))),
+    cookie_name: projectScopedOperatorCookieNameV01(VNEXT_REPOSITORY_DECISION_SESSION_COOKIE_V01, input.project_id ?? (input.request && readVNextLocalOperatorRequestProjectV01(input.request))),
     path: VNEXT_REPOSITORY_DECISION_SESSION_COOKIE_PATH_V01,
   });
 }
@@ -1388,7 +1388,7 @@ export function serializeVNextLocalOperatorSessionCookieClearV01(input: {
 }): string {
   return serializeSessionCookieClearV01({
     ...input,
-    cookie_name: projectSessionCookieNameV01(VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01, input.request && readVNextLocalOperatorRequestProjectV01(input.request)),
+    cookie_name: projectScopedOperatorCookieNameV01(VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01, input.request && readVNextLocalOperatorRequestProjectV01(input.request)),
     path: VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01,
   });
 }
@@ -1399,7 +1399,7 @@ export function serializeVNextRepositoryDecisionSessionCookieClearV01(input: {
 }): string {
   return serializeSessionCookieClearV01({
     ...input,
-    cookie_name: projectSessionCookieNameV01(VNEXT_REPOSITORY_DECISION_SESSION_COOKIE_V01, input.request && readVNextLocalOperatorRequestProjectV01(input.request)),
+    cookie_name: projectScopedOperatorCookieNameV01(VNEXT_REPOSITORY_DECISION_SESSION_COOKIE_V01, input.request && readVNextLocalOperatorRequestProjectV01(input.request)),
     path: VNEXT_REPOSITORY_DECISION_SESSION_COOKIE_PATH_V01,
   });
 }

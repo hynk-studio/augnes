@@ -242,6 +242,14 @@ in the URL and select a project-specific HttpOnly session cookie. The public
 project selector grants nothing: the server checks the credential's immutable
 workspace/project/operator scope, expiry, revocation and mutation nonce.
 
+Semantic-transition preview cookies use the same project namespace, derived from
+the authenticated scope. Preview issuance and confirmation cleanup affect only
+that project's pending review, including when responses arrive out of order.
+Signed session, proposal, decision, digest, expiry and current-state checks still
+apply. The former unscoped preview cookie is never a fallback; an old pending
+preview requires explicit re-review. Successful preview or confirmation expires
+that legacy cookie without selecting or deleting another project's scoped preview.
+
 Initial work, supported unstarted revisions and different-task preparation use
 a server-derived project-work comparison binding over the registered root,
 observed physical root and effective direction. Revision/source writers also

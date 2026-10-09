@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { checkAncillaryWorkDraftRecovery } from "./ancillary-work-draft-browser-checks";
 import { checkResultWorkDraftRecovery } from "./result-work-draft-browser-checks";
 import { checkWorkExpectationDraftRecovery } from "./work-expectation-draft-browser-checks";
+import { seedProjectTransition } from "./project-transition-fixture";
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, realpathSync, readFileSync, mkdirSync, rmSync } from "node:fs";
@@ -18,6 +19,7 @@ import { registerOwnedChild, terminateOwnedProcessTree, trackServerConnections, 
 import { createVNextOperatorContextUseReviewHandlerV01, createVNextOperatorProjectContinuityHandlerV01 } from "../app/api/vnext/operator/project-continuity/route";
 import { createVNextLocalOperatorSessionHandlersV01 } from "../app/api/vnext/operator/session/route";
 import { createVNextOperatorSemanticReviewHandlersV01 } from "../app/api/vnext/operator/semantic-review/route";
+import { createVNextOperatorSemanticTransitionHandlersV01 } from "../app/api/vnext/operator/semantic-transition/route";
 import { createVNextOperatorHostRoundTripReadHandlerV01 } from "../app/api/vnext/operator/host-round-trip/route";
 import { GET as guideRoute } from "../app/api/augnes/read/guide-brief/route";
 import { POST as projectRoute } from "../app/api/vnext/projects/route";
@@ -41,7 +43,7 @@ class CDP {
 }
 async function until(fn: () => Promise<unknown>, label: string) { const end = performance.now() + 15000; while (performance.now() < end) { if (await fn()) return; await delay(50); } throw new Error(`browser_wait:${label}`); }
 
-async function main() {
+async function main(semanticOnly = false) {
   const root = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-project-client-browser-")));
   const databasePath = path.join(root, "workspace.db"), db = new Database(databasePath);
   const owned = new Set(), guard = installZeroNetworkGuard({ allowLoopback: true }), priorDbPath = process.env.AUGNES_DB_PATH;
@@ -50,13 +52,20 @@ async function main() {
   const responseLog: Array<{ route: string; project: string | null; action: string; status: number; error: unknown }> = [];
   let holdA = false, reachedHold = false;
   const held: { release?: () => void } = {};
+  const transitionHeld: { project?: string; action?: string; reached: boolean; release?: () => void } = { reached: false };
+  const releaseTransitionResponse = () => {
+    const release = transitionHeld.release; assert.ok(release);
+    delete transitionHeld.release; release();
+  };
+  const appliedTransitions = new Map<string, any>();
   const clock = { now: () => new Date().toISOString() };
-  const environment = { NODE_ENV: "test" as const, AUGNES_DB_PATH: databasePath,
+  const environment: NodeJS.ProcessEnv = { NODE_ENV: "test", AUGNES_DB_PATH: databasePath,
     AUGNES_LOCAL_REVIEW_PROFILE: "companion_first_work_v1", AUGNES_RUNTIME_CONTRACT: "augnes-local-runtime-supervisor-v1",
     AUGNES_RUNTIME_CHILD_ROLE: "ui", AUGNES_DISTRIBUTION_MODE: "source" };
   const sessions = createVNextLocalOperatorSessionHandlersV01({ environment, clock });
   const continuity = { GET: createVNextOperatorProjectContinuityHandlerV01({ environment, clock }), POST: createVNextOperatorContextUseReviewHandlerV01({ environment, clock }) };
   const semantic = createVNextOperatorSemanticReviewHandlersV01({ environment, clock });
+  const transition = createVNextOperatorSemanticTransitionHandlersV01({ environment, clock });
   const host = createVNextOperatorHostRoundTripReadHandlerV01({ environment, clock });
   let a: VNextLocalOperatorPilotConfigV01, b: VNextLocalOperatorPilotConfigV01;
   const server = trackServerConnections(createServer(async (req, res) => {
@@ -76,11 +85,21 @@ async function main() {
       const route = endpoint === "/api/vnext/operator/session" ? sessions[method]
         : endpoint === "/api/vnext/operator/project-continuity" ? continuity[method]
           : endpoint === "/api/vnext/operator/semantic-review" ? semantic[method]
+            : endpoint === "/api/vnext/operator/semantic-transition" ? transition[method]
             : endpoint === "/api/vnext/operator/host-round-trip" ? host
               : endpoint === "/api/augnes/read/guide-brief" ? guideRoute
                 : endpoint === "/api/vnext/projects" ? projectRoute : null;
       assert.ok(route, `unexpected_fixture_route:${endpoint}`);
       const response = await route(request), text = await response.text();
+      if (endpoint === "/api/vnext/operator/semantic-transition") {
+        if (action === "apply" && response.status === 201) appliedTransitions.set(project!, JSON.parse(text));
+        // Hold the actual response, including its Set-Cookie headers, after the
+        // production handler completes. Another tab can finish in the meantime.
+        if (transitionHeld.project === project && transitionHeld.action === action) {
+          delete transitionHeld.project; transitionHeld.reached = true;
+          await new Promise<void>(resolve => { transitionHeld.release = resolve; });
+        }
+      }
       response.headers.forEach((value, key) => { if (key !== "set-cookie") res.setHeader(key, value); });
       const cookies = response.headers.getSetCookie(); if (cookies.length) res.setHeader("Set-Cookie", cookies);
       responseLog.push({ route: endpoint, project, action, status: response.status, error: JSON.parse(text).error_code ?? null });
@@ -98,7 +117,7 @@ async function main() {
         project_id: registration.project.project_id, operator_id: "operator:local-review" };
     }) as [VNextLocalOperatorPilotConfigV01, VNextLocalOperatorPilotConfigV01];
     selectActiveProjectV01(db, { ...a, expected_project_id: null, expected_revision: null, now: clock.now() });
-    const bundled = await build({ stdin: { contents: `import './app/globals.css';import React from 'react';import{createRoot}from'react-dom/client';import{SemanticReviewSurface}from'./components/workbench/semantic-review/semantic-review-surface';createRoot(document.getElementById('root')).render(React.createElement(SemanticReviewSurface,{projectId:new URL(location.href).searchParams.get('project_id')}));`, resolveDir: process.cwd(), loader: "tsx" }, outfile: path.join(root, "app.js"), bundle: true, write: false, platform: "browser", define: { "process.env.NODE_ENV": '"production"' },
+    const bundled = await build({ stdin: { contents: `import './app/globals.css';import React from 'react';import{createRoot}from'react-dom/client';import{SemanticReviewSurface}from'./components/workbench/semantic-review/semantic-review-surface';createRoot(document.getElementById('root')).render(React.createElement(SemanticReviewSurface,{projectId:new URL(location.href).searchParams.get('project_id'),proposalId:location.pathname.split('/semantic-review/')[1]?.replaceAll('~',':')}));`, resolveDir: process.cwd(), loader: "tsx" }, outfile: path.join(root, "app.js"), bundle: true, write: false, platform: "browser", define: { "process.env.NODE_ENV": '"production"' },
       plugins: [{ name: "fixture-navigation", setup(builder) { builder.onResolve({ filter: /^next\/navigation$/ }, () => ({ path: "fixture-navigation", namespace: "fixture" })); builder.onLoad({ filter: /.*/, namespace: "fixture" }, () => ({ contents: "export const useRouter=()=>({refresh(){}});export const useSearchParams=()=>new URLSearchParams(location.search);", loader: "js" })); } }] });
     script = bundled.outputFiles.find(file => file.path.endsWith(".js"))!.text; css = bundled.outputFiles.find(file => file.path.endsWith(".css"))?.text ?? "";
     await new Promise<void>(ok => server.listen(0, "127.0.0.1", ok)); origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
@@ -140,110 +159,176 @@ async function main() {
       assert.equal(await tab.eval(`fetch('/api/vnext/projects',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(${JSON.stringify({ action: "open", project_id: config.project_id, expected_project_id: active?.project_id ?? null, expected_revision: active?.selection_revision ?? null })})}).then(r=>r.status)`), 200);
     };
     const goalIs = (tab: CDP, goal: string) => until(() => tab.eval(`document.querySelector('[data-current-work-goal]')?.textContent===${JSON.stringify(goal)}`), goal);
-    const tabA = await newTab(a); await authenticate(tabA, a);
-    await until(() => tabA.eval("!!document.querySelector('#first-work-goal')"), "initial_A");
-    await set(tabA, "#first-work-goal", "A first unfinished edit"); await set(tabA, "#first-work-success-criteria", "A result must remain A");
-    const tabB = await newTab(b); await authenticate(tabB, b); await openSelection(tabB, b);
-    await until(() => tabB.eval("!!document.querySelector('#first-work-goal')"), "initial_B");
-    await set(tabB, "#first-work-goal", "B initial work"); await set(tabB, "#first-work-success-criteria", "B result must remain B");
-    await click(tabB, '[data-first-work-action="save"]'); await goalIs(tabB, "B initial work");
-    assert.equal(await tabA.eval("document.querySelector('#first-work-goal').value"), "A first unfinished edit");
-    await click(tabA, '[data-first-work-action="save"]'); await goalIs(tabA, "A first unfinished edit");
-    assert.equal(current(a)!.task.goal, "A first unfinished edit"); assert.equal(current(b)!.task.goal, "B initial work");
-    await openSelection(tabA, a);
-    await clickText(tabA, "Revise work definition"); await set(tabA, "#work-revision-goal", "A preserved revision");
-    await tabA.eval("document.querySelector('[data-selected-work-sources]').open=true");
-    await set(tabA, "#selected-note-source", "A source revision 1"); await set(tabA, "#selected-note-text", "Retain A exception exactly; B never receives this selected note.");
-    await click(tabA, '[data-selected-source-action="add"]'); await click(tabA, '[data-selected-source-action="compare"]');
-    await until(() => tabA.eval("!document.querySelector('[data-work-revision-action=save]').disabled"), "A_comparison");
-    await openSelection(tabB, b); await clickText(tabB, "Revise work definition"); await set(tabB, "#work-revision-goal", "B independently revised");
-    holdA = true; await click(tabA, '[data-work-revision-action="save"]'); await until(async () => reachedHold, "A_save_in_flight");
-    await click(tabB, '[data-work-revision-action="save"]'); await goalIs(tabB, "B independently revised");
-    await openSelection(tabB, a); assert.ok(held.release); held.release(); delete held.release;
-    await goalIs(tabA, "A preserved revision"); assert.equal(readSelectedWorkSources(current(a)!)[0]!.bounded_summary, "Retain A exception exactly; B never receives this selected note.");
-    assert.equal(readSelectedWorkSources(current(b)!).length, 0);
-    // Another A writer changes the exact work while the original edit remains.
-    await clickText(tabA, "Revise work definition"); await set(tabA, "#work-revision-goal", "A draft retained across conflict");
-    const conflict = await tabA.eval(`(async()=>{const h={'Augnes-Project-Id':${JSON.stringify(a.project_id)},'content-type':'application/json'};const r=await fetch('/api/vnext/operator/project-continuity',{headers:h});const w=(await r.json()).work_initialization;const s=await fetch('/api/vnext/operator/project-continuity',{method:'POST',headers:h,body:JSON.stringify({action:'revise_pre_execution_project_work',workspace_id:w.workspace_id,project_id:w.project_id,expected_active_project_id:w.project_id,expected_active_selection_revision:w.active_selection_revision,expected_project_work_binding:w.project_work_binding,expected_current_packet_id:w.current_packet.packet_id,expected_current_packet_fingerprint:w.current_packet.packet_fingerprint,expected_current_lineage_kind:w.current_packet.lineage_kind,...w.current_work,goal:'A newer competing work'})});return s.status})()`);
-    assert.equal(conflict, 201); await click(tabA, '[data-work-revision-action="save"]');
-    await until(() => tabA.eval("!!document.querySelector('[data-work-draft-conflict]')"), "genuine_conflict");
-    assert.equal(await tabA.eval("document.querySelector('#work-revision-goal').value"), "A draft retained across conflict");
-    assert.equal(current(a)!.task.goal, "A newer competing work");
-    await click(tabA, '[data-work-draft-action="rebase"]');
-    await tabA.eval("document.querySelector('[data-selected-work-sources]').open=true");
-    await click(tabA, '[data-selected-source-action="compare"]');
-    await click(tabA, '[data-work-revision-action="save"]'); await goalIs(tabA, "A draft retained across conflict");
-    // Different-new-work preparation and save retain B even with A selected.
-    const priorB = current(b)!.packet_id;
-    await clickText(tabB, "Prepare a different task");
-    await set(tabB, "#new-work-goal", "B different new work"); await set(tabB, "#new-work-success-criteria", "A history remains separate");
-    await tabB.eval("document.querySelector('[data-selected-work-sources]').open=true");
-    await click(tabB, '[data-selected-source-action="compare"]');
-    await click(tabB, '[data-augnes-primary-action="preview-new-work"]');
-    await until(() => tabB.eval("!!document.querySelector('[data-new-work-preview]')"), "B_new_work_preview");
-    const newWorkConflict = await tabB.eval(`(async()=>{const h={'Augnes-Project-Id':${JSON.stringify(b.project_id)},'content-type':'application/json'};const r=await fetch('/api/vnext/operator/project-continuity',{headers:h});const w=(await r.json()).work_initialization;return(await fetch('/api/vnext/operator/project-continuity',{method:'POST',headers:h,body:JSON.stringify({action:'revise_pre_execution_project_work',workspace_id:w.workspace_id,project_id:w.project_id,expected_active_project_id:w.project_id,expected_active_selection_revision:w.active_selection_revision,expected_project_work_binding:w.project_work_binding,expected_current_packet_id:w.current_packet.packet_id,expected_current_packet_fingerprint:w.current_packet.packet_fingerprint,expected_current_lineage_kind:w.current_packet.lineage_kind,...w.current_work,goal:'B competing preparation'})})).status})()`);
-    assert.equal(newWorkConflict, 201); await click(tabB, '[data-new-work-action="save"]');
-    await until(() => tabB.eval("!!document.querySelector('[data-work-draft-conflict]')"), "new_work_conflict");
-    assert.equal(await tabB.eval("document.querySelector('#new-work-goal').value"), "B different new work");
-    assert.equal(current(b)!.task.goal, "B competing preparation");
-    await click(tabB, '[data-work-draft-action="rebase"]');
-    await tabB.eval("document.querySelector('[data-selected-work-sources]').open=true");
-    await click(tabB, '[data-selected-source-action="compare"]');
-    await click(tabB, '[data-augnes-primary-action="preview-new-work"]');
-    await until(() => tabB.eval("!!document.querySelector('[data-new-work-preview]')"), "B_refreshed_preview");
-    assert.equal(await tabB.eval(`fetch('/api/vnext/operator/session',{method:'POST',headers:{'Augnes-Project-Id':${JSON.stringify(b.project_id)},'content-type':'application/json'},body:JSON.stringify({action:'logout'})}).then(r=>r.status)`), 200);
-    await click(tabB, '[data-new-work-action="save"]');
-    await until(() => tabB.eval("!!document.querySelector('#vnext-operator-bootstrap-token')"), "new_work_revoked");
-    assert.equal(await tabB.eval("!!document.querySelector('#new-work-goal')"), false);
-    assert.equal(current(b)!.task.goal, "B competing preparation");
-    await authenticate(tabB, b);
-    await until(() => tabB.eval("!!document.querySelector('[data-new-work-preview]')"), "new_work_restored");
-    assert.equal(await tabB.eval("document.querySelector('#new-work-goal').value"), "B different new work");
-    await click(tabB, '[data-new-work-action="save"]'); await goalIs(tabB, "B different new work");
-    assert.notEqual(current(b)!.packet_id, priorB);
-    assert.equal((db.prepare("SELECT COUNT(*) AS n FROM vnext_core_records WHERE record_id=?").get(priorB) as { n: number }).n, 1, "The original B work remains in history");
-    // Revocation hides the retained A draft; only matching renewed authority
-    // restores it. B's live tab remains authorized throughout.
-    await clickText(tabA, "Revise work definition"); await set(tabA, "#work-revision-goal", "A retained after reauthentication");
-    assert.equal(await tabA.eval(`fetch('/api/vnext/operator/session',{method:'POST',headers:{'Augnes-Project-Id':${JSON.stringify(a.project_id)},'content-type':'application/json'},body:JSON.stringify({action:'logout'})}).then(r=>r.status)`), 200);
-    await tabA.eval("document.querySelector('[data-selected-work-sources]').open=true");
-    await click(tabA, '[data-selected-source-action="compare"]');
-    await until(() => tabA.eval("!!document.querySelector('#vnext-operator-bootstrap-token')"), "A_revoked");
-    assert.equal(await tabA.eval("!!document.querySelector('#work-revision-goal')"), false);
-    const wrongIssue = issueVNextLocalOperatorBootstrapV01(db, { config: b, clock });
-    await set(tabA, "#vnext-operator-bootstrap-token", wrongIssue.bootstrap_token); await click(tabA, '[data-augnes-primary-action="unlock"]');
-    await until(() => tabA.eval("document.body.textContent.includes('operator_session_scope_mismatch')"), "wrong_project_token_refused");
-    assert.equal(await tabA.eval("!!document.querySelector('#work-revision-goal')"), false);
-    assert.equal(await tabB.eval(`fetch('/api/vnext/operator/session',{headers:{'Augnes-Project-Id':${JSON.stringify(b.project_id)}}}).then(r=>r.status)`), 200);
-    await authenticate(tabA, a);
-    await until(() => tabA.eval("!!document.querySelector('#work-revision-goal')"), "A_draft_restored");
-    assert.equal(await tabA.eval("document.querySelector('#work-revision-goal').value"), "A retained after reauthentication");
-    assert.equal(await tabA.eval("document.body.textContent.includes('Retain A exception exactly')"), true);
-    if (await tabA.eval("!!document.querySelector('[data-work-draft-action=rebase]')")) {
-      await click(tabA, '[data-work-draft-action="rebase"]'); await tabA.eval("document.querySelector('[data-selected-work-sources]').open=true"); await click(tabA, '[data-selected-source-action="compare"]');
+    if (semanticOnly) {
+      const freshA = await newTab(a), freshB = await newTab(b);
+      await authenticate(freshA, a); await authenticate(freshB, b);
+      await openSelection(freshB, b);
+      // One profile and cookie jar retain both real authenticated project sessions.
+      // Reuse the semantic-loop fixture and its exact source packet in each project.
+      // Enable the already-supported pilot transition lane for this fixture phase.
+      Object.assign(environment, { AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1", AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: a.workspace_id,
+        AUGNES_VNEXT_OPERATOR_PROJECT_ID: a.project_id, AUGNES_VNEXT_OPERATOR_ID: a.operator_id });
+      const transitions = [a, b].map(config => seedProjectTransition(db, config));
+      const transitionTabs = [freshA, freshB];
+      const navigateProposal = (tab: CDP, i: number) => tab.send("Page.navigate", { url: `${origin}/workbench/semantic-review/${transitions[i]!.proposal.proposal_id.replaceAll(":", "~")}?project_id=${transitions[i]!.config.project_id}` });
+      const step = (tab: CDP, name: string, status: string) => until(() => tab.eval(`!!document.querySelector('[data-vnext-transition-step="${name}"][data-vnext-transition-step-status="${status}"]')`), `${name}_${status}`);
+      const stateCount = () => (db.prepare("SELECT COUNT(*) AS n FROM vnext_semantic_state_entries").get() as { n: number }).n;
+      const beforeTransitions = stateCount();
+      for (const [i, material] of transitions.entries()) {
+        assert.equal(await transitionTabs[i]!.eval(`fetch('/api/vnext/operator/semantic-review',{method:'POST',headers:{'Augnes-Project-Id':${JSON.stringify(material.config.project_id)},'content-type':'application/json'},body:JSON.stringify(${JSON.stringify(material.decisionRequest)})}).then(r=>r.status)`), 201);
+        await navigateProposal(transitionTabs[i]!, i);
+        await step(transitionTabs[i]!, "preview", "not_prepared");
+      }
+      transitionHeld.project = b.project_id; transitionHeld.action = ""; transitionHeld.reached = false;
+      await click(freshB, '[data-vnext-transition-action="preview"]'); await until(async () => transitionHeld.reached, "B_preview_response_held");
+      await click(freshA, '[data-vnext-transition-action="preview"]'); await step(freshA, "preview", "prepared");
+      releaseTransitionResponse();
+      await step(freshB, "preview", "prepared");
+      assert.equal(stateCount(), beforeTransitions, "Previews cannot apply state");
+      transitionHeld.project = a.project_id; transitionHeld.action = "confirm"; transitionHeld.reached = false;
+      for (const tab of transitionTabs) await click(tab, '[data-vnext-transition-step="preview"] input[type="checkbox"]');
+      await click(freshA, '[data-vnext-transition-action="confirm"]'); await until(async () => transitionHeld.reached, "A_confirmation_response_held");
+      await click(freshB, '[data-vnext-transition-action="confirm"]'); await step(freshB, "confirmation", "recorded");
+      releaseTransitionResponse();
+      await step(freshA, "confirmation", "recorded");
+      assert.equal(stateCount(), beforeTransitions, "Confirmations cannot apply state");
+      for (const tab of transitionTabs) {
+        await click(tab, '[data-vnext-transition-step="confirmation"] input[type="checkbox"]');
+        await click(tab, '[data-vnext-transition-action="apply"]'); await step(tab, "apply", "applied");
+      }
+      assert.equal(stateCount(), beforeTransitions + 2);
+      const freshDb = new Database(databasePath, { readonly: true, fileMustExist: true });
+      try {
+        for (const material of transitions) {
+          const saved = appliedTransitions.get(material.config.project_id); assert.ok(saved);
+          for (const id of [saved.gate_record.gate_record_id, saved.transition_receipt.transition_receipt_id, saved.later_packet.packet_id]) {
+            const record = freshDb.prepare("SELECT project_id,payload_json FROM vnext_core_records WHERE record_id=?").get(id) as any;
+            assert.equal(record.project_id, material.config.project_id); assert.equal(JSON.parse(record.payload_json).project_id, material.config.project_id);
+          }
+          assert.equal(saved.transition_receipt.source_proposal.proposal_id, material.proposal.proposal_id);
+          assert.equal(readCurrentProjectWorkPacketLineageV01(freshDb, material.config)?.packet.packet_id, saved.later_packet.packet_id);
+        }
+      } finally { freshDb.close(); }
+      for (const [i, tab] of transitionTabs.entries()) {
+        await navigateProposal(tab, i);
+        await until(() => tab.eval("!!document.querySelector('[data-vnext-candidate-selector]')"), "fresh_candidate_history");
+        // Reentry prioritizes the fixture's other, undecided candidate. Select
+        // the candidate we applied to inspect its persisted completion history.
+        await tab.eval(`(()=>{const e=document.querySelector('[data-vnext-candidate-selector]');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(e,${JSON.stringify(transitions[i]!.decisionRequest.candidate_id)});e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+        await until(() => tab.eval("!!document.querySelector('[data-selected-work-current-stage=project_updated]')"), "fresh_project_updated_timeline");
+      }
+      assert.equal(readActiveProjectSelectionV01(db, workspace.workspace_id)!.project_id, b.project_id);
+      const transitionResponses = responseLog.filter(row => row.route === "/api/vnext/operator/semantic-transition");
+      assert.equal(transitionResponses.length, 6, "Exactly one explicit preview, confirmation and application per project");
+      assert(transitionResponses.every(row => row.status === (row.action ? 201 : 200)));
+      console.log(JSON.stringify({ same_profile_semantic_transition: "PASS", actual_UI_HTTP_flow: "preview, explicit review, confirm, explicit review, apply in A/B tabs", delayed_responses: "B preview after A preview; A confirmation after B confirmation", fresh_record_readback: "A/B gates, receipts, later packets and current lineage; fresh UI reentry", automatic_repreview_or_confirmation: 0 }));
+      assert.equal(errors, 0, JSON.stringify(responseLog)); assert.equal(external, 0); assert.equal(guard.attempts.length, 0);
+    } else {
+      const tabA = await newTab(a); await authenticate(tabA, a);
+      await until(() => tabA.eval("!!document.querySelector('#first-work-goal')"), "initial_A");
+      await set(tabA, "#first-work-goal", "A first unfinished edit"); await set(tabA, "#first-work-success-criteria", "A result must remain A");
+      const tabB = await newTab(b); await authenticate(tabB, b); await openSelection(tabB, b);
+      await until(() => tabB.eval("!!document.querySelector('#first-work-goal')"), "initial_B");
+      await set(tabB, "#first-work-goal", "B initial work"); await set(tabB, "#first-work-success-criteria", "B result must remain B");
+      await click(tabB, '[data-first-work-action="save"]'); await goalIs(tabB, "B initial work");
+      assert.equal(await tabA.eval("document.querySelector('#first-work-goal').value"), "A first unfinished edit");
+      await click(tabA, '[data-first-work-action="save"]'); await goalIs(tabA, "A first unfinished edit");
+      assert.equal(current(a)!.task.goal, "A first unfinished edit"); assert.equal(current(b)!.task.goal, "B initial work");
+      await openSelection(tabA, a);
+      await clickText(tabA, "Revise work definition"); await set(tabA, "#work-revision-goal", "A preserved revision");
+      await tabA.eval("document.querySelector('[data-selected-work-sources]').open=true");
+      await set(tabA, "#selected-note-source", "A source revision 1"); await set(tabA, "#selected-note-text", "Retain A exception exactly; B never receives this selected note.");
+      await click(tabA, '[data-selected-source-action="add"]'); await click(tabA, '[data-selected-source-action="compare"]');
+      await until(() => tabA.eval("!document.querySelector('[data-work-revision-action=save]').disabled"), "A_comparison");
+      await openSelection(tabB, b); await clickText(tabB, "Revise work definition"); await set(tabB, "#work-revision-goal", "B independently revised");
+      holdA = true; await click(tabA, '[data-work-revision-action="save"]'); await until(async () => reachedHold, "A_save_in_flight");
+      await click(tabB, '[data-work-revision-action="save"]'); await goalIs(tabB, "B independently revised");
+      await openSelection(tabB, a); assert.ok(held.release); held.release(); delete held.release;
+      await goalIs(tabA, "A preserved revision"); assert.equal(readSelectedWorkSources(current(a)!)[0]!.bounded_summary, "Retain A exception exactly; B never receives this selected note.");
+      assert.equal(readSelectedWorkSources(current(b)!).length, 0);
+      // Another A writer changes the exact work while the original edit remains.
+      await clickText(tabA, "Revise work definition"); await set(tabA, "#work-revision-goal", "A draft retained across conflict");
+      const conflict = await tabA.eval(`(async()=>{const h={'Augnes-Project-Id':${JSON.stringify(a.project_id)},'content-type':'application/json'};const r=await fetch('/api/vnext/operator/project-continuity',{headers:h});const w=(await r.json()).work_initialization;const s=await fetch('/api/vnext/operator/project-continuity',{method:'POST',headers:h,body:JSON.stringify({action:'revise_pre_execution_project_work',workspace_id:w.workspace_id,project_id:w.project_id,expected_active_project_id:w.project_id,expected_active_selection_revision:w.active_selection_revision,expected_project_work_binding:w.project_work_binding,expected_current_packet_id:w.current_packet.packet_id,expected_current_packet_fingerprint:w.current_packet.packet_fingerprint,expected_current_lineage_kind:w.current_packet.lineage_kind,...w.current_work,goal:'A newer competing work'})});return s.status})()`);
+      assert.equal(conflict, 201); await click(tabA, '[data-work-revision-action="save"]');
+      await until(() => tabA.eval("!!document.querySelector('[data-work-draft-conflict]')"), "genuine_conflict");
+      assert.equal(await tabA.eval("document.querySelector('#work-revision-goal').value"), "A draft retained across conflict");
+      assert.equal(current(a)!.task.goal, "A newer competing work");
+      await click(tabA, '[data-work-draft-action="rebase"]');
+      await tabA.eval("document.querySelector('[data-selected-work-sources]').open=true");
+      await click(tabA, '[data-selected-source-action="compare"]');
+      await click(tabA, '[data-work-revision-action="save"]'); await goalIs(tabA, "A draft retained across conflict");
+      // Different-new-work preparation and save retain B even with A selected.
+      const priorB = current(b)!.packet_id;
+      await clickText(tabB, "Prepare a different task");
+      await set(tabB, "#new-work-goal", "B different new work"); await set(tabB, "#new-work-success-criteria", "A history remains separate");
+      await tabB.eval("document.querySelector('[data-selected-work-sources]').open=true");
+      await click(tabB, '[data-selected-source-action="compare"]');
+      await click(tabB, '[data-augnes-primary-action="preview-new-work"]');
+      await until(() => tabB.eval("!!document.querySelector('[data-new-work-preview]')"), "B_new_work_preview");
+      const newWorkConflict = await tabB.eval(`(async()=>{const h={'Augnes-Project-Id':${JSON.stringify(b.project_id)},'content-type':'application/json'};const r=await fetch('/api/vnext/operator/project-continuity',{headers:h});const w=(await r.json()).work_initialization;return(await fetch('/api/vnext/operator/project-continuity',{method:'POST',headers:h,body:JSON.stringify({action:'revise_pre_execution_project_work',workspace_id:w.workspace_id,project_id:w.project_id,expected_active_project_id:w.project_id,expected_active_selection_revision:w.active_selection_revision,expected_project_work_binding:w.project_work_binding,expected_current_packet_id:w.current_packet.packet_id,expected_current_packet_fingerprint:w.current_packet.packet_fingerprint,expected_current_lineage_kind:w.current_packet.lineage_kind,...w.current_work,goal:'B competing preparation'})})).status})()`);
+      assert.equal(newWorkConflict, 201); await click(tabB, '[data-new-work-action="save"]');
+      await until(() => tabB.eval("!!document.querySelector('[data-work-draft-conflict]')"), "new_work_conflict");
+      assert.equal(await tabB.eval("document.querySelector('#new-work-goal').value"), "B different new work");
+      assert.equal(current(b)!.task.goal, "B competing preparation");
+      await click(tabB, '[data-work-draft-action="rebase"]');
+      await tabB.eval("document.querySelector('[data-selected-work-sources]').open=true");
+      await click(tabB, '[data-selected-source-action="compare"]');
+      await click(tabB, '[data-augnes-primary-action="preview-new-work"]');
+      await until(() => tabB.eval("!!document.querySelector('[data-new-work-preview]')"), "B_refreshed_preview");
+      assert.equal(await tabB.eval(`fetch('/api/vnext/operator/session',{method:'POST',headers:{'Augnes-Project-Id':${JSON.stringify(b.project_id)},'content-type':'application/json'},body:JSON.stringify({action:'logout'})}).then(r=>r.status)`), 200);
+      await click(tabB, '[data-new-work-action="save"]');
+      await until(() => tabB.eval("!!document.querySelector('#vnext-operator-bootstrap-token')"), "new_work_revoked");
+      assert.equal(await tabB.eval("!!document.querySelector('#new-work-goal')"), false);
+      assert.equal(current(b)!.task.goal, "B competing preparation");
+      await authenticate(tabB, b);
+      await until(() => tabB.eval("!!document.querySelector('[data-new-work-preview]')"), "new_work_restored");
+      assert.equal(await tabB.eval("document.querySelector('#new-work-goal').value"), "B different new work");
+      await click(tabB, '[data-new-work-action="save"]'); await goalIs(tabB, "B different new work");
+      assert.notEqual(current(b)!.packet_id, priorB);
+      assert.equal((db.prepare("SELECT COUNT(*) AS n FROM vnext_core_records WHERE record_id=?").get(priorB) as { n: number }).n, 1, "The original B work remains in history");
+      // Revocation hides the retained A draft; only matching renewed authority
+      // restores it. B's live tab remains authorized throughout.
+      await clickText(tabA, "Revise work definition"); await set(tabA, "#work-revision-goal", "A retained after reauthentication");
+      assert.equal(await tabA.eval(`fetch('/api/vnext/operator/session',{method:'POST',headers:{'Augnes-Project-Id':${JSON.stringify(a.project_id)},'content-type':'application/json'},body:JSON.stringify({action:'logout'})}).then(r=>r.status)`), 200);
+      await tabA.eval("document.querySelector('[data-selected-work-sources]').open=true");
+      await click(tabA, '[data-selected-source-action="compare"]');
+      await until(() => tabA.eval("!!document.querySelector('#vnext-operator-bootstrap-token')"), "A_revoked");
+      assert.equal(await tabA.eval("!!document.querySelector('#work-revision-goal')"), false);
+      const wrongIssue = issueVNextLocalOperatorBootstrapV01(db, { config: b, clock });
+      await set(tabA, "#vnext-operator-bootstrap-token", wrongIssue.bootstrap_token); await click(tabA, '[data-augnes-primary-action="unlock"]');
+      await until(() => tabA.eval("document.body.textContent.includes('operator_session_scope_mismatch')"), "wrong_project_token_refused");
+      assert.equal(await tabA.eval("!!document.querySelector('#work-revision-goal')"), false);
+      assert.equal(await tabB.eval(`fetch('/api/vnext/operator/session',{headers:{'Augnes-Project-Id':${JSON.stringify(b.project_id)}}}).then(r=>r.status)`), 200);
+      await authenticate(tabA, a);
+      await until(() => tabA.eval("!!document.querySelector('#work-revision-goal')"), "A_draft_restored");
+      assert.equal(await tabA.eval("document.querySelector('#work-revision-goal').value"), "A retained after reauthentication");
+      assert.equal(await tabA.eval("document.body.textContent.includes('Retain A exception exactly')"), true);
+      if (await tabA.eval("!!document.querySelector('[data-work-draft-action=rebase]')")) {
+        await click(tabA, '[data-work-draft-action="rebase"]'); await tabA.eval("document.querySelector('[data-selected-work-sources]').open=true"); await click(tabA, '[data-selected-source-action="compare"]');
+      }
+      await click(tabA, '[data-work-revision-action="save"]'); await goalIs(tabA, "A retained after reauthentication");
+      await openSelection(tabB, b);
+      const freshA = await newTab(a), freshB = await newTab(b);
+      await goalIs(freshA, "A retained after reauthentication"); await goalIs(freshB, "B different new work");
+      for (const width of [390, 768, 1440]) {
+        await freshA.send("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width === 390 });
+        assert.equal(await freshA.eval("document.documentElement.scrollWidth<=window.innerWidth+1"), true, `horizontal_overflow_${width}`);
+      }
+      assert.equal(readActiveProjectSelectionV01(db, workspace.workspace_id)!.project_id, b.project_id, "Opening an inactive A URL cannot switch the workspace selection");
+      assert.equal(await freshB.eval("document.body.textContent.includes('Retain A exception exactly')"), false);
+      const resultDraftComponent = await checkResultWorkDraftRecovery(tabA);
+      const expectationDraftComponent = await checkWorkExpectationDraftRecovery(tabA);
+      const ancillaryDraftComponent = await checkAncillaryWorkDraftRecovery(tabA);
+      assert.equal(errors, 0, JSON.stringify(responseLog)); assert.equal(external, 0); assert.equal(guard.attempts.length, 0);
+      console.log(JSON.stringify({ result: "PASS", harness: "production React components and HTTP handlers; Next navigation refresh stubbed", one_browser_profile: true, result_draft_component: resultDraftComponent, expectation_draft_component: expectationDraftComponent, ancillary_draft_component: ancillaryDraftComponent, interleaving: "A request held while B saves, then A released", initial_saves: "A and B", revision_source_save: "A retained text and selected note across A-B-A", conflict: "newer A preserved, draft retained and explicit refresh accepted", different_new_work: "B conflict refreshed and retained; revoked preview hidden then restored; saved while A selected; history retained", revoked_draft: "hidden; wrong-project refused; matching reauthentication restored text and sources", fresh_reentry: "correct A/B work; inactive URL does not select", viewport_widths: [390, 768, 1440], provider_calls: 0, external_requests: external, browser_errors: errors }));
     }
-    await click(tabA, '[data-work-revision-action="save"]'); await goalIs(tabA, "A retained after reauthentication");
-    await openSelection(tabB, b);
-    const freshA = await newTab(a), freshB = await newTab(b);
-    await goalIs(freshA, "A retained after reauthentication"); await goalIs(freshB, "B different new work");
-    for (const width of [390, 768, 1440]) {
-      await freshA.send("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width === 390 });
-      assert.equal(await freshA.eval("document.documentElement.scrollWidth<=window.innerWidth+1"), true, `horizontal_overflow_${width}`);
-    }
-    assert.equal(readActiveProjectSelectionV01(db, workspace.workspace_id)!.project_id, b.project_id, "Opening an inactive A URL cannot switch the workspace selection");
-    assert.equal(await freshB.eval("document.body.textContent.includes('Retain A exception exactly')"), false);
-    const resultDraftComponent = await checkResultWorkDraftRecovery(tabA);
-    const expectationDraftComponent = await checkWorkExpectationDraftRecovery(tabA);
-    const ancillaryDraftComponent = await checkAncillaryWorkDraftRecovery(tabA);
-    assert.equal(errors, 0, JSON.stringify(responseLog)); assert.equal(external, 0); assert.equal(guard.attempts.length, 0);
-    console.log(JSON.stringify({ result: "PASS", harness: "production React components and HTTP handlers; Next navigation refresh stubbed", one_browser_profile: true, result_draft_component: resultDraftComponent, expectation_draft_component: expectationDraftComponent, ancillary_draft_component: ancillaryDraftComponent, interleaving: "A request held while B saves, then A released", initial_saves: "A and B", revision_source_save: "A retained text and selected note across A-B-A", conflict: "newer A preserved, draft retained and explicit refresh accepted", different_new_work: "B conflict refreshed and retained; revoked preview hidden then restored; saved while A selected; history retained", revoked_draft: "hidden; wrong-project refused; matching reauthentication restored text and sources", fresh_reentry: "correct A/B work; inactive URL does not select", viewport_widths: [390, 768, 1440], provider_calls: 0, external_requests: external, browser_errors: errors }));
   } catch (error) {
     console.error("Browser route outcomes:", responseLog);
     // Only authored fixture DOM is inspected; credentials never enter a dump.
     for (const tab of tabs) { try { console.error(await tab.eval("document.body.innerText.slice(-5000)")); } catch {} }
     throw error;
   } finally {
-    held.release?.(); for (const tab of tabs) tab.close();
+    held.release?.(); transitionHeld.release?.(); for (const tab of tabs) tab.close();
     if (chrome) await terminateOwnedProcessTree(chrome);
     await closeTrackedServer(server); db.close(); guard.restore();
     if (priorDbPath === undefined) delete process.env.AUGNES_DB_PATH; else process.env.AUGNES_DB_PATH = priorDbPath;
@@ -253,4 +338,4 @@ async function main() {
     console.log(JSON.stringify({ project_client_browser_cleanup: "complete", owned_children: owned.size, listener_open: server.listening, database_open: db.open, temporary_root_exists: existsSync(root) }));
   }
 }
-void main().catch(error => { console.error(error); process.exitCode = 1; });
+void (async () => { await main(); await main(true); })().catch(error => { console.error(error); process.exitCode = 1; });

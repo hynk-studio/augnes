@@ -149,6 +149,7 @@ function validatePureConfiguration(): void {
   pass("gate_equal_to_preview_age_within_bounds_accepted");
 
   const cookie = serializeVNextOperatorPilotPreviewBindingCookieV01({
+    project_id: "project:preview-window",
     value: "bounded-preview-binding",
     expires_at: "2026-07-13T10:00:00.000Z",
     max_age_ms: recommended.preview_max_age_ms,
