@@ -23,7 +23,7 @@ export function admitVerificationContext({
   if (root !== path.resolve(repositoryRoot)) fail("verification_checkout_alias_refused");
   const origin = git(root, ["remote", "get-url", "origin"]);
   if (origin !== CANONICAL_ORIGIN_URL) fail("unauthorized_repository_origin");
-  if (git(root, ["rev-parse", "--show-toplevel"]) !== root) fail("verification_checkout_root_mismatch");
+  if (realpathSync(git(root, ["rev-parse", "--show-toplevel"])) !== root) fail("verification_checkout_root_mismatch");
   if (!["canonical", "isolated-worktree"].includes(kind)) fail("verification_context_invalid");
   let anchor = root;
   let common = realpathSync(path.resolve(root, git(root, ["rev-parse", "--git-common-dir"])));
@@ -34,7 +34,7 @@ export function admitVerificationContext({
     anchor = realpathSync(canonicalRoot);
     if (anchor !== canonicalRoot || root === anchor || inside(anchor, root) || inside(root, anchor))
       fail("isolated_verification_checkout_not_distinct");
-    if (git(anchor, ["rev-parse", "--show-toplevel"]) !== anchor ||
+    if (realpathSync(git(anchor, ["rev-parse", "--show-toplevel"])) !== anchor ||
         git(anchor, ["remote", "get-url", "origin"]) !== CANONICAL_ORIGIN_URL)
       fail("isolated_verification_anchor_invalid");
     const anchorCommon = realpathSync(path.resolve(anchor, git(anchor, ["rev-parse", "--git-common-dir"])));
@@ -46,10 +46,10 @@ export function admitVerificationContext({
       fail("isolated_verification_git_entry_invalid");
     const gitDir = realpathSync(git(root, ["rev-parse", "--absolute-git-dir"]));
     if (path.dirname(gitDir) !== path.join(common, "worktrees") ||
-        readFileSync(path.join(gitDir, "gitdir"), "utf8").trim() !== entry)
+        path.resolve(readFileSync(path.join(gitDir, "gitdir"), "utf8").trim()) !== entry)
       fail("isolated_verification_git_entry_invalid");
     const roots = git(anchor, ["worktree", "list", "--porcelain", "-z"])
-      .split("\0").filter(line => line.startsWith("worktree ")).map(line => line.slice(9));
+      .split("\0").filter(line => line.startsWith("worktree ")).map(line => path.resolve(line.slice(9)));
     if (roots.filter(entry => entry === root).length !== 1 ||
         roots.some(entry => entry !== root && (inside(root, entry) || inside(entry, root))))
       fail("isolated_verification_unregistered_checkout");
