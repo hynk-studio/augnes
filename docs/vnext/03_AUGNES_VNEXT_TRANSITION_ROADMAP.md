@@ -193,6 +193,29 @@ and host expansion until a concrete consumer justifies them. This priority
 neither cancels authorized work nor makes all P1/P2 work blocked. Dated historical
 scopes, study results and unrelated Current/Next work below retain their bounds.
 
+### Bounded P3/P4/P5 implementation — Different-goal experience use (#1427)
+
+Under [#1426](https://github.com/hynk-studio/augnes/issues/1426), the
+[#1427 assignment](https://github.com/hynk-studio/augnes/issues/1427#issuecomment-6073639283)
+connects existing ordinary source lookup/reselection and explicit new-task
+preparation to an [output-producing consumer](../../scripts/companion-experience-use.md).
+No backend/DTO gap was found: a caller seam and skill/usage guidance carry exact
+support and a separately attributed applicability interpretation into B before
+execution. Resolve A's retained sources before the task boundary; lookup remains
+task-suffix scoped and no new recall authority is introduced.
+
+The exposed synthetic A dashboard generates success-only latency, B uses the
+same delivered normalization bytes for all-attempt capacity accounting, and C
+retains B's goal while qualifying a separate changed-version/unit adapter. Real
+output files, authenticated ordinary writers, fresh readers, independent arithmetic
+and bounded refusal controls establish this constructed connection. Original
+methods, reports and packets remain intact; external success does not mark the
+prior ordinary work complete. This is scripted separate-task execution, not
+autonomous selection, comparative usefulness, empirical learning or Autohunt.
+The strong adaptive-memo reference remains eligible and a live-model comparison
+is NOT_RUN. Existing P4.6 negative findings, #1372 obligations and public releases
+are unchanged. #1428 remains a separate unassigned research specification.
+
 ### Current P3/P4/P5 — Project retry-inspection outlook (#1213)
 
 Under #1209, the first bounded project working-model implementation merged in
