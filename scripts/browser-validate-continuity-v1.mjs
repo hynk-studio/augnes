@@ -1402,7 +1402,7 @@ async function main() {
         method: 'POST',
         cache: 'no-store',
         credentials: 'same-origin',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', 'Augnes-Project-Id': ${JSON.stringify(manifest.project_id)} },
         body: JSON.stringify(${JSON.stringify(revisionRequest)})
       });
       return { status: response.status, body: await response.json() };
@@ -1436,7 +1436,7 @@ async function main() {
         method: 'POST',
         cache: 'no-store',
         credentials: 'same-origin',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', 'Augnes-Project-Id': ${JSON.stringify(manifest.project_id)} },
         body: JSON.stringify(${JSON.stringify(decisionRequest)})
       });
       return { status: response.status, body: await response.json() };
@@ -1462,7 +1462,8 @@ async function main() {
       const response = await fetch(${JSON.stringify(`/api/vnext/operator/semantic-transition?${previewQuery}`)}, {
         method: 'GET',
         cache: 'no-store',
-        credentials: 'same-origin'
+        credentials: 'same-origin',
+        headers: { 'Augnes-Project-Id': ${JSON.stringify(manifest.project_id)} }
       });
       return { status: response.status, body: await response.json() };
     })()`);
@@ -1487,7 +1488,7 @@ async function main() {
         method: 'POST',
         cache: 'no-store',
         credentials: 'same-origin',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', 'Augnes-Project-Id': ${JSON.stringify(manifest.project_id)} },
         body: JSON.stringify(${JSON.stringify(confirmationRequest)})
       });
       return { status: response.status, body: await response.json() };
@@ -1741,7 +1742,7 @@ async function main() {
         method: 'POST',
         cache: 'no-store',
         credentials: 'same-origin',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', 'Augnes-Project-Id': ${JSON.stringify(manifest.project_id)} },
         body: JSON.stringify({
           action: 'record_context_use_review',
           later_run_receipt_id: ${JSON.stringify(sourceReceiptRef.external_id)},
@@ -1785,7 +1786,8 @@ async function main() {
       }), {
         method: 'GET',
         cache: 'no-store',
-        credentials: 'same-origin'
+        credentials: 'same-origin',
+        headers: { 'Augnes-Project-Id': ${JSON.stringify(manifest.project_id)} }
       });
       return { status: response.status, body: await response.json() };
     })()`);
@@ -1856,6 +1858,7 @@ async function main() {
 
     const transitionCountsBeforeAccept = operationalTransitionEffectCountsV01(database);
     const acceptResponse = await submitOperationalBrowserDecisionV01({
+      projectId: manifest.project_id,
       proposal: operationalProposal,
       candidate: firstCandidate,
       decision: "accept",
@@ -1916,6 +1919,7 @@ async function main() {
 
     for (const candidate of operationalProposal.proposed_deltas.slice(1)) {
       const rejectResponse = await submitOperationalBrowserDecisionV01({
+        projectId: manifest.project_id,
         proposal: operationalProposal,
         candidate,
         decision: "reject",
@@ -1994,7 +1998,8 @@ async function main() {
       const response = await fetch('/api/vnext/operator/semantic-review', {
         method: 'GET',
         cache: 'no-store',
-        credentials: 'same-origin'
+        credentials: 'same-origin',
+        headers: { 'Augnes-Project-Id': ${JSON.stringify(manifest.project_id)} }
       });
       return { status: response.status, body: await response.json() };
     })()`);
@@ -2237,7 +2242,7 @@ async function main() {
         method: 'POST',
         cache: 'no-store',
         credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Augnes-Project-Id': ${JSON.stringify(manifest.project_id)} },
         body: JSON.stringify({
           action: 'bootstrap',
           bootstrap_token: ${JSON.stringify(bootstrapToken)}
@@ -2269,7 +2274,8 @@ async function main() {
     const importedWorkbenchProbe = await evaluateJson(`(async () => {
       const response = await fetch('/api/vnext/operator/semantic-review', {
         cache: 'no-store',
-        credentials: 'same-origin'
+        credentials: 'same-origin',
+        headers: { 'Augnes-Project-Id': ${JSON.stringify(manifest.project_id)} }
       });
       const body = await response.json();
       return { status: response.status, result: body.status ?? null, error_code: body.error_code ?? null };
@@ -2288,7 +2294,7 @@ async function main() {
     const importedInspectorProbe = await evaluateJson(`(async () => {
       const href = new URL(${JSON.stringify(importedInspectorHref)}, location.origin);
       href.pathname = '/api/vnext/operator/inspector';
-      const response = await fetch(href, { cache: 'no-store', credentials: 'same-origin' });
+      const response = await fetch(href, { cache: 'no-store', credentials: 'same-origin', headers: { 'Augnes-Project-Id': ${JSON.stringify(manifest.project_id)} } });
       const body = await response.json();
       return { status: response.status, result: body.status ?? null, error_code: body.error_code ?? null };
     })()`);
@@ -3250,6 +3256,7 @@ function operationalTransitionEffectCountsV01(targetDatabase) {
 }
 
 async function submitOperationalBrowserDecisionV01({
+  projectId,
   proposal,
   candidate,
   decision,
@@ -3271,7 +3278,7 @@ async function submitOperationalBrowserDecisionV01({
       method: 'POST',
       cache: 'no-store',
       credentials: 'same-origin',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'Augnes-Project-Id': ${JSON.stringify(projectId)} },
       body: JSON.stringify(${JSON.stringify(request)})
     });
     return { status: response.status, body: await response.json() };
