@@ -61,6 +61,25 @@ deterministic adapters establish bounded mechanics; they do not establish live
 provider behavior, measured productivity, installed adoption or parallel deciding
 verification. The PR records the final exact source and planner-selected result.
 
+## Isolated verification acceptance
+
+For #1430's environment slice, separate contract fixtures, focused development
+feedback, actual execution through the proposed isolated path, and the introducing
+PR's established canonical-checkout deciding receipt. Two idle processes or
+stubbed phases do not prove parallel qualification. Record actual overlapping
+dependency/build, runtime or Browser work in separately owned checkouts with
+unchanged phase inventories and deadlines. Show focused development progress
+while another lane verifies, then cancellation/failure of A with continued B
+progress and successful B cleanup.
+
+Observe installed Companion identity and availability and production database
+preservation without adopting a candidate. Retain admission, capacity, aliasing,
+same-checkout, stale/replaced-owner and unsettled-child refusals. Test copied or
+wrong source, base, environment, invocation, checkout and cleanup evidence.
+Report measured resource use, timing failures and unsupported capacity instead
+of weakening gates. A bounded successful overlap is not a general throughput
+claim; proportionate verification selection remains separately evaluated work.
+
 ## Method-improvement evidence
 
 For #1417's bounded first-work ingress, the observed gap is an empty registered

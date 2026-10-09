@@ -4,11 +4,13 @@ import { CANONICAL_REPOSITORY_ID } from "./canonical-repository-identity.mjs";
 import { INTEGRATION_BASE_CONTRACT, INTEGRATION_BASE_SOURCE } from "./local-canonical-integration-base.mjs";
 import { requiresCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
 import { CODEX_REUSE_OWNER_IDS, CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
+import { VERIFICATION_CONTEXT_CONTRACT } from "./local-canonical-verification-context.mjs";
+import { VERIFICATION_CAPACITY_CONTRACT, verificationCapacityLimit } from "./local-canonical-capacity.mjs";
 
 export const LOCAL_CANONICAL_RECEIPT_SCHEMA =
   "augnes.local-canonical-receipt.v1";
-export const LOCAL_CANONICAL_RECEIPT_VERSION = 2;
-export const LOCAL_CANONICAL_EXECUTOR_VERSION = 2;
+export const LOCAL_CANONICAL_RECEIPT_VERSION = 3;
+export const LOCAL_CANONICAL_EXECUTOR_VERSION = 3;
 export const MAX_RECEIPT_BYTES = 512 * 1024;
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/u;
@@ -136,6 +138,8 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     expectedTargetedPhaseIds = null,
     currentIntegrationBase = null,
     currentCheckoutFingerprint = null,
+    currentVerificationContext = null,
+    expectedRunId = null,
   } = options ?? {};
   const issues = [];
   try {
@@ -156,6 +160,8 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     "repository",
     "integration_base",
     "checkout_ownership",
+    "verification_context",
+    "capacity_ownership",
     "evidence",
     "environment",
     "dependencies",
@@ -205,6 +211,23 @@ export function inspectReceiptForDecision(receipt, options = {}) {
   }
   const mode = receipt?.evidence?.mode;
   const selectedPlan = receipt?.evidence?.selected_plan;
+  const context = receipt?.verification_context;
+  const isolated = context?.kind === "isolated-worktree";
+  if (context?.contract !== VERIFICATION_CONTEXT_CONTRACT ||
+      !["canonical", "isolated-worktree"].includes(context?.kind) ||
+      context?.repository_id !== CANONICAL_REPOSITORY_ID ||
+      context?.admission !== (isolated ? "registered_worktree_of_authorized_mac" : "fixed_canonical_root") ||
+      ![context?.anchor_fingerprint, context?.checkout_fingerprint, context?.git_common_fingerprint].every(value => SHA256_PATTERN.test(value ?? "")) ||
+      (isolated && (context.checkout_fingerprint === context.anchor_fingerprint || receipt?.environment?.operating_system !== "macOS"))) {
+    issues.push("receipt_verification_context_invalid");
+  }
+  if (!currentVerificationContext || canonicalSerialize(context) !== canonicalSerialize(currentVerificationContext))
+    issues.push("receipt_stale_verification_context");
+  if (!/^[0-9a-f]{32}$/u.test(receipt?.run?.invocation_id ?? "") ||
+      !Array.isArray(receipt?.phases) || receipt.phases.some(phase => phase.invocation_id !== receipt.run.invocation_id))
+    issues.push("receipt_invocation_identity_invalid");
+  if (typeof receipt?.run?.id !== "string" || !/^[A-Za-z0-9_-]{1,160}$/u.test(receipt.run.id) ||
+      (expectedRunId !== null && expectedRunId !== receipt.run.id)) issues.push("receipt_run_identity_invalid");
   if (selectedPlan === "documentation-only") issues.push("documentation_feedback_not_deciding");
   if (mode === "changed" || mode === "full") {
     if (!validAdmittedIntegrationBase(receipt?.integration_base, receipt?.repository) ||
@@ -227,7 +250,7 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     }
   }
   const ownership = receipt?.checkout_ownership;
-  const ownershipRequired = requiresCheckoutVerificationOwnership(selectedPlan);
+  const ownershipRequired = requiresCheckoutVerificationOwnership(selectedPlan) || isolated;
   if (ownership?.required !== ownershipRequired || (ownershipRequired && (
     ownership?.acquired !== true || ownership?.released !== true || ownership?.failure_code !== null ||
     !SHA256_PATTERN.test(ownership?.checkout_fingerprint ?? "") ||
@@ -245,6 +268,35 @@ export function inspectReceiptForDecision(receipt, options = {}) {
   if (ownershipRequired && ownership?.checkout_fingerprint !== currentCheckoutFingerprint) {
     issues.push("receipt_stale_checkout_identity");
   }
+  const capacity = receipt?.capacity_ownership;
+  const capacityRequired = receipt?.environment?.operating_system === "macOS" && ["full-canonical", "owner-targeted"].includes(selectedPlan);
+  if (capacity?.required !== capacityRequired || (capacityRequired && (
+    capacity?.contract !== VERIFICATION_CAPACITY_CONTRACT || capacity?.acquired !== true || capacity?.released !== true ||
+    capacity?.failure_code !== null || ![1, 2].includes(capacity?.limit) ||
+    capacity.limit !== verificationCapacityLimit(receipt?.environment?.resources ?? {}) ||
+    !Number.isSafeInteger(capacity?.slot) || capacity.slot < 1 || capacity.slot > capacity.limit ||
+    capacity?.invocation_id !== receipt?.run?.invocation_id ||
+    !SHA256_PATTERN.test(capacity?.checkout_fingerprint ?? "") || !/^[0-9a-f]{32}$/u.test(capacity?.ownership_id ?? "") ||
+    !isIsoTimestamp(capacity?.acquired_at) || !isIsoTimestamp(capacity?.released_at) ||
+    Date.parse(capacity.acquired_at) < Date.parse(receipt?.run?.started_at) ||
+    Date.parse(capacity.released_at) > Date.parse(receipt?.run?.finished_at) ||
+    Date.parse(capacity.released_at) < Date.parse(capacity.acquired_at) ||
+    (Array.isArray(receipt?.phases) && receipt.phases.some(phase =>
+      Date.parse(phase.started_at) < Date.parse(capacity.acquired_at) || Date.parse(phase.finished_at) > Date.parse(capacity.released_at)))
+  ))) issues.push("receipt_capacity_ownership_invalid");
+  const isolatedResources = receipt?.cleanup?.isolated_resources;
+  if (isolatedResources?.required !== isolated || (isolated && (
+    isolatedResources?.prepared !== true || isolatedResources?.completed !== true ||
+    isolatedResources?.failure_count !== 0 || !Array.isArray(isolatedResources?.failures) || isolatedResources.failures.length !== 0 ||
+    isolatedResources?.invocation_id !== receipt?.run?.invocation_id ||
+    !SHA256_PATTERN.test(isolatedResources?.fingerprint ?? "") ||
+    isolatedResources?.policy !== "private_outer_home_temp_cache_database_runtime"
+  ))) issues.push("receipt_isolated_resource_provenance_invalid");
+  const service = receipt?.cleanup?.companion_service;
+  if (service?.scope !== (isolated ? "accepted_checkout_read_only" : "installed_checkout_lifecycle") ||
+      (isolated && (service.maintenance_acquired !== false || service.before == null ||
+        canonicalSerialize(service.before) !== canonicalSerialize(service.after))))
+    issues.push("receipt_companion_scope_invalid");
   if (
     !["quick", "changed", "full"].includes(mode) ||
     (mode === "quick" && selectedPlan !== "quick-feedback") ||
@@ -336,7 +388,7 @@ export function inspectReceiptForDecision(receipt, options = {}) {
       receipt?.dependencies?.policy ===
         "owner_targeted_clean_npm_ci_root_and_nested" &&
       receipt?.dependencies?.download_cache ===
-        "npm_cache_reuse_permitted_not_authoritative" &&
+        (isolated ? "invocation_private_cache_not_authoritative" : "npm_cache_reuse_permitted_not_authoritative") &&
       receipt?.dependencies?.installed_trees ===
         "replaced_from_lockfiles_by_npm_ci" &&
       dependencyPhases.length === OWNER_TARGETED_DEPENDENCY_PHASES.length &&

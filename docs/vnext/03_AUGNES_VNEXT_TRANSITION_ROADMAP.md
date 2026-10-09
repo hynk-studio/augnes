@@ -30,20 +30,27 @@ record. A phase becomes completed only when that pull request merges. This
 lifecycle wording remains truthful before and after merge without treating a
 Draft PR as completed runtime.
 
-## Current: independent project clients (#1430)
+## Current: independent project clients and verification environments (#1430)
 
 The first product/client slice under [#1430](https://github.com/hynk-studio/augnes/issues/1430)
-and [#1212](https://github.com/hynk-studio/augnes/issues/1212) separates displayed
+and [#1212](https://github.com/hynk-studio/augnes/issues/1212) merged in
+[#1432](https://github.com/hynk-studio/augnes/pull/1432). It separates displayed
 selection from authenticated preparation, Browser sessions, repository-bound
-Companion writers and supported run observation/control. Its Draft PR owns the
-exact reproduction, focused Browser/runtime evidence and deciding-verification
-status; source implementation is separate from installed adoption.
+Companion writers and supported run observation/control, including project-scoped
+semantic-preview transport. Source integration is separate from installed adoption.
 
-This slice does not solve the Full Canonical queue. Isolated development/test
-environments, parallel qualified deciding environments and proportionate
-verification selection remain separate open improvements under #1430. They may
-proceed independently; current exact-head requirements still apply. The separate
-#1429 research implementation and its pending qualification are not included.
+The next infrastructure slice extends the existing Local Canonical executor to
+explicitly admitted, separately owned verification worktrees on the authorized
+Mac. Its Draft PR owns the actual overlap, cancellation, capacity, preservation
+and receipt evidence. The introducing PR still requires its own exact-head
+qualification through the established canonical checkout; proposed-path evidence
+does not waive that gate. The active [verification policy](../../.github/LOCAL_CANONICAL_VERIFICATION.md)
+owns admission and lifecycle requirements.
+
+The Full Canonical queue is not declared solved. Further environment qualification
+and proportionate verification selection remain open under #1430, with current
+planner coverage and fixed timing gates preserved. The separate #1429 research
+implementation and its qualification are not included.
 
 ## Status reconciliation — 2026-10-06
 

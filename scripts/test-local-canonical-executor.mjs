@@ -62,6 +62,8 @@ import { admitIntegrationBase } from "./local-canonical-integration-base.mjs";
 import { runCanonicalChild } from "./canonical-child-runner.mjs";
 import { finalizeReceipt, verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
 
+import { createIsolatedInvocationResources, isolatedInvocationEnvironment, cleanupIsolatedInvocationResources } from "./local-canonical-isolated-resources.mjs";
+
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
@@ -873,9 +875,11 @@ const ownedBlockEnd = executorSource.indexOf("\n  const serviceLifecycleRestored
 assert.ok(ownedBlockStart > 0 && ownedBlockEnd > ownedBlockStart);
 const ownedBlock = executorSource.slice(ownedBlockStart, ownedBlockEnd);
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-for (const scenario of ["wrong_npm", "checkout_busy", "acquisition_failure", "owned_failure", "unsettled_failure", "success", "absent_success", "stopped_success", "quick_success", "pre_lock_state_race", "maintenance_state_race"]) {
+for (const scenario of ["wrong_npm", "checkout_busy", "acquisition_failure", "owned_failure", "unsettled_failure", "success", "absent_success", "stopped_success", "quick_success", "isolated_success", "isolated_unsettled", "pre_lock_state_race", "maintenance_state_race"]) {
   const root = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-canonical-ownership-")));
   let competingOwner = null;
+  let privateResource = null;
+  let privateResourceCleaned = false;
   try {
     if (scenario === "checkout_busy") competingOwner = acquireCheckoutVerificationOwnership({ repositoryRoot: root });
     const next = path.join(root, ".next"), windows = path.join(root, "windows-helper");
@@ -889,13 +893,15 @@ for (const scenario of ["wrong_npm", "checkout_busy", "acquisition_failure", "ow
     const diagnosticBeforeLock = { next: existsSync(next), windows: existsSync(windows) };
     const calls = { acquire: 0, release: 0, phases: 0, remove: 0, checkoutAcquire: 0, checkoutRelease: 0, logPrepare: 0, prune: 0 };
     const quick = scenario === "quick_success";
+    const isolated = scenario.startsWith("isolated_");
+    const unsettled = ["unsettled_failure", "isolated_unsettled"].includes(scenario);
     const noServiceMaintenance = ["absent_success", "stopped_success"].includes(scenario);
     let activeOwner = null;
     let maintenanceSettled = false;
     let serviceState = { status: scenario === "absent_success" ? "not_installed" : scenario === "stopped_success" ? "installed_stopped" : scenario === "pre_lock_state_race" ? "maintenance" : "live" };
     const assertObservationOwned = () => {
       assertCheckoutVerificationOwnership(activeOwner, root);
-      assert(quick || maintenanceSettled, "authoritative generated-state reads follow maintenance admission");
+      assert(quick || isolated || maintenanceSettled, "authoritative generated-state reads follow maintenance admission");
     };
     const preflightIssues = [];
     if (scenario === "wrong_npm") {
@@ -905,6 +911,14 @@ for (const scenario of ["wrong_npm", "checkout_busy", "acquisition_failure", "ow
       assert.deepEqual(preflightIssues, ["canonical_npm_mismatch"]);
     }
     const context = {
+      checkoutContext: isolated ? "isolated-worktree" : "canonical", verificationContext: {}, signal: undefined,
+      createIsolatedInvocationResources: id => (privateResource = createIsolatedInvocationResources(id)),
+      cleanupIsolatedInvocationResources: (resource, options) => {
+        const result = cleanupIsolatedInvocationResources(resource, options);
+        privateResourceCleaned = result.completed; return result;
+      },
+      assertVerificationContext: () => true, verificationAnchorRoot: () => root,
+      invocationId: "a".repeat(32),
       plan: { selected_plan: quick ? "quick-feedback" : "full-canonical" }, OWNER_TARGETED_PLAN: "owner-targeted",
       preflightIssues, phaseDefinitions: [{ id: "synthetic" }], phaseReceipts: [{ id: "synthetic", status: "not_run" }],
       repositoryRoot: root, runLogRoot, runId: "synthetic", mode: "changed", hostResult: {},
@@ -959,15 +973,20 @@ for (const scenario of ["wrong_npm", "checkout_busy", "acquisition_failure", "ow
         if (lease) serviceState = lease.before;
         return { released: true };
       },
-      runPhasesSequentially, executePhase: async () => {
+      runPhasesSequentially, executePhase: async ({ isolatedResources }) => {
+        if (isolated) {
+          assert.equal(isolatedResources, privateResource);
+          assert.notEqual(isolatedInvocationEnvironment(isolatedResources).HOME, process.env.HOME);
+          assert.equal(calls.acquire, 0);
+        }
         assert.throws(() => acquireCheckoutVerificationOwnership({ repositoryRoot: root }), hasCode("checkout_owner_busy"));
         assert.equal(existsSync(next), quick, "deciding execution starts without pre-existing Next state");
         assert.equal(existsSync(windows), quick, "deciding execution starts without pre-existing helper state");
         calls.phases++; mkdirSync(next, { recursive: true }); writeFileSync(path.join(next, "partial-build"), "owned");
         mkdirSync(windows, { recursive: true }); writeFileSync(path.join(windows, "partial-helper"), "owned");
-        return { status: ["owned_failure", "unsettled_failure"].includes(scenario) ? "fail" : "pass",
+        return { status: ["owned_failure", "unsettled_failure", "isolated_unsettled"].includes(scenario) ? "fail" : "pass",
           duration_ms: 1, failure_code: "synthetic",
-          cleanup: { completed: scenario !== "unsettled_failure", remaining_owned_processes: scenario === "unsettled_failure" ? null : 0 } };
+          cleanup: { completed: !unsettled, remaining_owned_processes: unsettled ? null : 0 } };
       },
     };
     const result = await new AsyncFunction(...Object.keys(context), ownedBlock + "\nreturn { nextState, windowsHelperState, sharedGeneratedStateOwned, cleanupComplete, executionFailure, checkoutOwnership, serviceLifecycleBefore, serviceLifecycleAfter, generatedWindowsHelperPresentAfter }; ")(...Object.values(context));
@@ -993,8 +1012,8 @@ for (const scenario of ["wrong_npm", "checkout_busy", "acquisition_failure", "ow
         assert.equal(assertCheckoutVerificationOwnership(competingOwner, root), true);
       }
     } else {
-      const unsettled = scenario === "unsettled_failure";
-      assert.equal(calls.phases, 1); assert.equal(calls.release, quick || unsettled ? 0 : 1);
+      assert.equal(calls.phases, 1); assert.equal(calls.release, quick || isolated || unsettled ? 0 : 1);
+      if (isolated) assert.equal(privateResourceCleaned, !unsettled);
       assert.equal(result.sharedGeneratedStateOwned, true); assert.equal(result.cleanupComplete, !unsettled);
       assert.equal(result.nextState.removed_after_execution, !quick && !unsettled);
       assert.equal(result.windowsHelperState.removed_after_execution, !quick && !unsettled);
@@ -1022,10 +1041,11 @@ for (const scenario of ["wrong_npm", "checkout_busy", "acquisition_failure", "ow
     const acquired = !["wrong_npm", "checkout_busy"].includes(scenario);
     assert.equal(calls.checkoutRelease, acquired ? 1 : 0);
     assert.equal(calls.prune, acquired ? 1 : 0, "a refused/non-owner invocation never prunes artifacts");
-    assert.equal(result.checkoutOwnership.released, acquired && scenario !== "unsettled_failure");
-    assert.equal(existsSync(path.join(root, ".augnes-local-verification", CHECKOUT_OWNER_FILE)), ["checkout_busy", "unsettled_failure"].includes(scenario));
+    assert.equal(result.checkoutOwnership.released, acquired && !unsettled);
+    assert.equal(existsSync(path.join(root, ".augnes-local-verification", CHECKOUT_OWNER_FILE)), ["checkout_busy", "unsettled_failure", "isolated_unsettled"].includes(scenario));
   } finally {
     if (competingOwner) releaseCheckoutVerificationOwnership(competingOwner, root);
+    if (privateResource && !privateResourceCleaned) assert.equal(cleanupIsolatedInvocationResources(privateResource, { consumersSettled: true }).completed, true);
     rmSync(root, { recursive: true, force: true });
   }
 }
