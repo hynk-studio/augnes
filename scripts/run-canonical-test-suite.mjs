@@ -855,6 +855,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "companion-method-outlook",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "mutable-module-state"],
+      label: "ordinary frozen outlook, authenticated feedback and actual local prerequisite consumer",
+      ...rootNode("scripts/test-companion-method-outlook.ts"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "pre-execution-support-material",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning"],

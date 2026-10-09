@@ -113,6 +113,23 @@ source attribution and currentness checks. Keep full-table audits, process scans
 keep-awake leases and independent readback clients in separately justified
 diagnostics, not this recipe; the canonical owners still perform their checks.
 
+For an optional saved retry-inspection judgment, call
+`augnes_read_repository_method_outlook` with `repositoryRoot` and fresh Resume
+`expectedSnapshotBinding`. Keep the frozen judgment separate from `applicability`:
+`reconsideration_required` forbids treating historical advice as current;
+`absent` means no optional outlook, while `unavailable` is not absence. On
+`refresh_required`, explicitly Resume before reading again. Default readers
+remain unchanged; an older installed client may not advertise this new tool.
+Do not substitute raw packet access or install candidate code to bypass that gap.
+
+Use a relevant, independently authorized local check when useful. Preserve its
+actual report as `imported_unverified` and a justified premise revision as
+`derived_interpretation` through the same ordinary preview/save recipe. Keep
+other notes, mandatory checks and complete request/preview bindings. Resume,
+read the new outlook, then act on its current conditions or deliberately decline
+use. One observation does not establish success probabilities or causal benefit.
+No direction authority, managed receipt or execution grant comes from this read.
+
 ## Managed execution: only when separately requested
 
 8. When later managed work needs a trusted repository attachment, call

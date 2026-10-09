@@ -348,6 +348,18 @@ and an essential premise broken without a replacement model. Keep unaffected
 support and original source versions/cutoffs visible. A same-case revision or
 reopened session is not a separate independent task or an unexposed sample.
 
+For the #1424 ordinary Companion connection, the disposable proxy/HTTP consumer
+must read the frozen judgment, execute its own real prerequisite check, preserve
+the report and explicit interpretation through ordinary writers, and act after
+fresh readback. Availability confirmation may justify changing or retaining an
+action without changing stipulated probabilities. No managed receipt or effective
+direction is inferred. An unknown-availability path and known-available control
+establish result-conditioned wiring, not empirical calibration. Authentication,
+snapshot staleness, historical reconstruction, horizon/direction reconsideration,
+bounded source disclosure and zero read-attributable writes remain distinct from
+the usefulness claim. Live installation and independent consumer benefit are not
+established by this development fixture.
+
 The existing strong-comparison rules apply to any later usefulness claim. The
 baseline may forecast, revise source-linked adaptive notes, access the same code
 and tools, and reuse methods with a comparably strong model and relevant budget.

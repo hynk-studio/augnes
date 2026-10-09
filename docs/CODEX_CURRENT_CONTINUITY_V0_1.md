@@ -332,6 +332,48 @@ changes, invalid references and altered previews refuse. Existing rollback,
 authenticated admission and `outcome_unknown` behavior remain unchanged. There
 is no automatic retry, rebase, polling or save-on-search.
 
+### Explicit frozen method-outlook read
+
+`augnes_read_repository_method_outlook` takes only `repositoryRoot` and a fresh
+Resume `expectedSnapshotBinding`. Its private POST route is
+`/api/augnes/read/codex-repository-method-outlook?scope=repository:local`, with
+marker `codex-repository-method-outlook-v0.1`. It uses the same independent
+Companion credential, exact runtime identity, physical repository resolution
+and dedicated query-only snapshot as source reads. Browser origin/cookies do
+not authenticate it. No caller evaluation time is accepted. Default Resume,
+source-only and complete-definition responses remain unchanged.
+
+The closed `codex_repository_method_outlook.v0.1` projection reuses the snapshot
+owner's validated current packet and the existing retry-inspection historical
+reconstructor. It does not scan packet history again or regenerate a missing
+outlook. `absent/no_optional_outlook` means the validated packet has no optional
+family; `unavailable` means current work or its outlook could not be validated.
+`refresh_required` discloses no replacement packet, sources or binding.
+
+`available` delivers the exact packet ID/fingerprint/version and frozen
+v0.1/v0.2 judgment, with its action, estimates, cutoff, assumptions, uncertainty
+and reconsideration conditions. Only its supporting selected notes are included,
+through the existing locator/provenance disclosure owner; no raw packet or
+withheld locator is returned. The outlook plus sources must fit 128 KiB, without
+truncation. Whole-note selection limits still apply. Literal source-derived
+text is untrusted context, never instructions, accepted truth or authority.
+
+Separate `applicability` records server read time, `conditional` or
+`reconsideration_required`, and reasons: `horizon_expired_or_missing`,
+`project_direction_changed`, `packet_not_fresh`. The existing horizon and
+packet-direction owners decide those conditions. A valid historical judgment
+can remain readable while requiring reconsideration; exact identity alone is
+not present applicability. A valid frozen `observe`/`withdraw` judgment over
+missing or broken premises remains that judgment, not an invented estimate or
+corrupt-record diagnosis. Reading changes neither history nor judgment identity.
+
+Feedback uses ordinary revision preview/save with complete attributed notes
+and exact source bindings. External executor reports stay `imported_unverified`;
+deliberate premise revisions stay `derived_interpretation`. A selected direction
+note is not effective project-direction authority. No new writer, learning,
+receipt, run, selection, source fetch or execution authority is introduced.
+After save, Resume and read the outlook again before choosing the next action.
+
 ### Explicit preview and save of prepared work
 
 For an already registered and selected local project with `no_current_work` and

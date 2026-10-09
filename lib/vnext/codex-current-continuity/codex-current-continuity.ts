@@ -40,7 +40,8 @@ import {
   readProjectRunResultDetailV01,
   readProjectRunResultOverviewV01,
 } from "@/lib/vnext/runtime/project-run-result-read-model";
-import { readProjectWorkInitializationV01 } from "@/lib/vnext/runtime/project-work-initialization";
+import { readProjectWorkInitializationSnapshotV01 } from "@/lib/vnext/runtime/project-work-initialization";
+import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 import type { ManagedLiveDelegatedWorkLedgerSliceV01 } from "@/lib/autonomy/runner-ledger";
 import type { AutonomyRunSummary } from "@/types/autonomy-runner-execution";
 import type { ProjectRunResultDetailV01 } from "@/types/vnext/project-run-result";
@@ -218,7 +219,7 @@ export async function readCodexCurrentContinuitySnapshotV01(
     project_id: targetProjectId,
   }));
 
-  const workInitialization = readProjectWorkInitializationV01(db, scope, {
+  const { projection: workInitialization, packet: validatedPacket } = readProjectWorkInitializationSnapshotV01(db, scope, {
     root_available: () => rootAvailability === "available",
   });
   const configuredOperator = readMatchingOperatorConfigV01(
@@ -369,7 +370,7 @@ export async function readCodexCurrentContinuitySnapshotV01(
         next_action_kind: nextAction.kind,
         source_status: projection.source_status,
       };
-  return finalizeV01(projection, bindingMaterial, workInitialization);
+  return finalizeV01(projection, bindingMaterial, workInitialization, validatedPacket);
 }
 
 function openCurrentContinuityDatabaseV01(): Database.Database {
@@ -1289,12 +1290,14 @@ interface CodexCurrentContinuitySnapshotReadV01 {
   binding_material: unknown | null;
   /** Private validated material from the same read; not part of either seal or DTO. */
   work_initialization: ProjectWorkInitializationV01 | null;
+  validated_packet: TaskContextPacketV01 | null;
 }
 
 function finalizeV01(
   projection: CodexCurrentContinuityV01,
   bindingMaterial: unknown | null,
   workInitialization: ProjectWorkInitializationV01 | null = null,
+  validatedPacket: TaskContextPacketV01 | null = null,
 ): CodexCurrentContinuitySnapshotReadV01 {
   const withBinding: CodexCurrentContinuityV01 = bindingMaterial === null
     ? { ...projection, snapshot: unavailableSnapshotV01() }
@@ -1312,6 +1315,7 @@ function finalizeV01(
     projection: withBinding,
     binding_material: bindingMaterial,
     work_initialization: bindingMaterial === null ? null : workInitialization,
+    validated_packet: bindingMaterial === null ? null : validatedPacket,
   };
 }
 

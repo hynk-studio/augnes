@@ -215,6 +215,19 @@ independent numerical reference. No general selector, empirical rate learning,
 automatic source extraction or new approval workflow is implemented. Source-note
 authoring, selection and outcome-informed input revision remain explicit work.
 
+The bounded #1424 ordinary-consumer addition exposes the existing frozen judgment
+as `augnes_read_repository_method_outlook`, with separate read-time applicability
+and selected basis. It leaves default Resume/source contracts unchanged and uses
+existing authenticated ordinary revision for feedback. The
+[runnable consumer](../../scripts/companion-method-outlook-consumer.md) performs
+an actual local Node syntax-check prerequisite, saves the report and deliberate
+availability interpretation, then reads the new outlook and inspects the candidate.
+The constructed unknown-availability case changes `observe` to `inspect`; the
+known-available control retains `inspect`. Both decline execution on the actual
+candidate syntax error. This is exposed deterministic mechanism evidence, not
+independent model judgment, separate-task transfer, measured rates or workflow
+benefit. Installed adoption and broader Autohunt remain separate decisions.
+
 The constructed development scenario uses normal authenticated writers, the
 production App Server adapter with a scripted child that actually reads a disposable
 inspection observation, normal receipt/result preparation, and fresh successor

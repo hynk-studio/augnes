@@ -229,9 +229,16 @@ export function readRetryInspectionOutlookV01(packet: TaskContextPacketV01): Ret
 export function retryInspectionGuidanceV01(packet: TaskContextPacketV01, evaluatedAt: string): string | null {
   const view = readRetryInspectionOutlookV01(packet);
   if (!view) return null;
+  return retryInspectionReadHorizonV01(view, evaluatedAt).guidance;
+}
+
+/** Shared read-time horizon owner; never alters the saved judgment. */
+export function retryInspectionReadHorizonV01(view: RetryInspectionOutlook, evaluatedAt: string) {
   if (parseStrictIsoTimestampV01(evaluatedAt) === null) throw new Error("retry_inspection_read_time_invalid");
-  if (!view.horizon || Date.parse(view.horizon) <= Date.parse(evaluatedAt)) return "Recheck the expired or missing inspection horizon before using the historical recommendation. Required task checks still apply.";
-  return `${view.recommendation} ${view.why_now} Conditional guidance only; review the frozen project outlook and its sources in the packet.`;
+  const expired = !view.horizon || Date.parse(view.horizon) <= Date.parse(evaluatedAt);
+  return { expired, guidance: expired
+    ? "Recheck the expired or missing inspection horizon before using the historical recommendation. Required task checks still apply."
+    : `${view.recommendation} ${view.why_now} Conditional guidance only; review the frozen project outlook and its sources in the packet.` };
 }
 
 export function retryInspectionResultContextV01(packet: TaskContextPacketV01): string {

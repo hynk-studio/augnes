@@ -287,6 +287,7 @@ try {
       "augnes_start_companion_service",
       "augnes_resume_repository",
       "augnes_read_repository_work_sources",
+      "augnes_read_repository_method_outlook",
       "augnes_lookup_repository_retained_sources",
       "augnes_preview_repository_initial_work",
       "augnes_define_repository_initial_work",

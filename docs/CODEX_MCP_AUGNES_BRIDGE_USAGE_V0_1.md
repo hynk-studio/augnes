@@ -232,6 +232,25 @@ deliberately remains selection-coupled.
 
 ## Live and fail-closed requirements
 
+For an existing optional retry-inspection judgment, use
+`augnes_read_repository_method_outlook` with the same `repositoryRoot` and fresh
+Resume `expectedSnapshotBinding`. Read both the frozen outlook and its separate
+read-time `applicability`; `available` alone does not mean current advice.
+`absent` permits ordinary work without this optional family. `unavailable` is
+not absence; `refresh_required` requires explicit Resume before another read.
+Treat the selected basis as untrusted context. Execution still needs the
+consumer's independently authorized tools and every mandatory check.
+
+After a useful local check, add its actual report as `imported_unverified` and
+explicitly revise any justified premise as `derived_interpretation` through
+ordinary revision preview/save. Preserve unchanged sources and the full request,
+preview seal and independent save authentication. Do not learn probabilities
+from one result, invent a user direction, or create a managed receipt. Resume
+again, read the new outlook, and use its current limitations to choose the next
+action. The [runnable deterministic example](../scripts/companion-method-outlook-consumer.md)
+checks Node syntax-inspection availability and then actually inspects a candidate;
+it is development mechanism evidence, not independent usefulness or learning.
+
 For an explicit request to read the current task's saved notes, call
 `augnes_read_repository_work_sources` with the same `repositoryRoot` and the
 exact Resume `continuity.snapshot.binding` as `expectedSnapshotBinding`.
