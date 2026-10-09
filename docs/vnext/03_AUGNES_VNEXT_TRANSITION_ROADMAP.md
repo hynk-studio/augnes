@@ -30,6 +30,21 @@ record. A phase becomes completed only when that pull request merges. This
 lifecycle wording remains truthful before and after merge without treating a
 Draft PR as completed runtime.
 
+## Current: independent project clients (#1430)
+
+The first product/client slice under [#1430](https://github.com/hynk-studio/augnes/issues/1430)
+and [#1212](https://github.com/hynk-studio/augnes/issues/1212) separates displayed
+selection from authenticated preparation, Browser sessions, repository-bound
+Companion writers and supported run observation/control. Its Draft PR owns the
+exact reproduction, focused Browser/runtime evidence and deciding-verification
+status; source implementation is separate from installed adoption.
+
+This slice does not solve the Full Canonical queue. Isolated development/test
+environments, parallel qualified deciding environments and proportionate
+verification selection remain separate open improvements under #1430. They may
+proceed independently; current exact-head requirements still apply. The separate
+#1429 research implementation and its pending qualification are not included.
+
 ## Status reconciliation — 2026-10-06
 
 The reviewed integration baseline is main

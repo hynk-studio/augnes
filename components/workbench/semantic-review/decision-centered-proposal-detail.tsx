@@ -1,5 +1,9 @@
 "use client";
 
+import { projectClientHref } from "@/lib/vnext/project-client-href";
+
+import { useProjectClientHref } from "./project-client-scope";
+
 import {
   type RefObject,
   useRef,
@@ -112,6 +116,7 @@ export function DecisionCenteredProposalDetail({
   tryBeginOperatorMutation: () => boolean;
   endOperatorMutation: () => void;
 }) {
+  const scopedHref = useProjectClientHref();
   const proposal = read.proposal;
   const [transitionMutationBusy, setTransitionMutationBusy] = useState(false);
   const [
@@ -237,11 +242,11 @@ export function DecisionCenteredProposalDetail({
     /^sha256:[a-f0-9]{64}$/u.test(packetRef.source_ref)
       ? { packet_id: packetRef.external_id, packet_fingerprint: packetRef.source_ref }
       : null;
-  const proposalInspectorHref = createSharedInspectorHrefV01({
+  const proposalInspectorHref = projectClientHref(createSharedInspectorHrefV01({
     target_kind: "episode_delta_proposal",
     record_id: proposal.proposal_id,
     expected_fingerprint: proposal.integrity.fingerprint,
-  });
+  }), proposal.project_id);
   const nextDecisionCandidate =
     timeline?.current_position.primary_action_owner ===
       "candidate_selection" &&
@@ -337,6 +342,7 @@ export function DecisionCenteredProposalDetail({
             {revisionComparison ? (
               <SelectedChangeRevision
                 key={relationshipScopeKey}
+                projectId={proposal.project_id}
                 comparison={revisionComparison}
                 selected={selected}
               />
@@ -601,7 +607,7 @@ export function DecisionCenteredProposalDetail({
           </div>
           <a
             className={styles.linkButton}
-            href={proposalInspectorHref}
+            href={scopedHref(proposalInspectorHref)}
             data-proposal-to-shared-inspector="true"
             data-workbench-to-shared-inspector="true"
           >
@@ -1496,6 +1502,7 @@ function SelectedWorkRelationships({
     questionKey: SelectedWorkRelationshipQuestionKeyV01,
   ) => void;
 }) {
+  const scopedHref = useProjectClientHref();
   const highlighted = relationships.connections.find(
     (connection) =>
       connection.connection_id === relationships.highlighted_connection_id,
@@ -1638,7 +1645,7 @@ function SelectedWorkRelationships({
             <a
               key={destination.href}
               className={styles.inlineLink}
-              href={destination.href}
+              href={scopedHref(destination.href)}
               data-selected-work-relationship-secondary-destination="true"
             >
               {destination.label}

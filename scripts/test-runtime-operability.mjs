@@ -340,9 +340,9 @@ async function runRuntimeOperability() {
     registered_repository_status: registeredRepositoryMcpEvidence?.repository_status ?? null,
     initial_binding: registeredRepositoryMcpEvidence?.initial_binding ?? null,
     revised_binding: registeredRepositoryMcpEvidence?.revised_binding ?? null,
-    selection_coupled_binding: registeredRepositoryMcpEvidence?.selection_coupled_binding ?? null,
+    selection_independent_binding: registeredRepositoryMcpEvidence?.selection_independent_binding ?? null,
     browser_revision_refresh_verified: registeredRepositoryMcpEvidence?.revision_refresh === true,
-    browser_selection_coupling_verified: registeredRepositoryMcpEvidence?.selection_coupling === true,
+    browser_selection_independence_verified: registeredRepositoryMcpEvidence?.selection_independent_continuity === true,
     selection_independent_attachment_verified:
       registeredRepositoryMcpEvidence?.selection_independent_attachment === true,
     repository_attachment_binding:
@@ -475,8 +475,8 @@ function printRuntimeOperabilitySummary(summary, preservation) {
         registered_repository_status: summary.registered_repository_status,
         browser_revision_refresh_verified:
           summary.browser_revision_refresh_verified,
-        browser_selection_coupling_verified:
-          summary.browser_selection_coupling_verified,
+        browser_selection_independence_verified:
+          summary.browser_selection_independence_verified,
         selection_independent_attachment_verified:
           summary.selection_independent_attachment_verified,
         repository_attachment_binding: summary.repository_attachment_binding,
@@ -2976,25 +2976,29 @@ async function assertRegisteredRepositoryPositivePathV01({
   const selectedB = readFixtureSelectionV01();
   assert.equal(selectedB.project_id, registeredRuntimeProjectBId);
 
-  const selectionCoupledRead = await assertReadOnlyRepositoryCallV01({
+  const selectionIndependentRead = await assertReadOnlyRepositoryCallV01({
     repositoryRoot: repositories.repositoryA,
     callRepository,
   });
   assertExactRegisteredRepositoryResultV01({
-    result: selectionCoupledRead,
+    result: selectionIndependentRead,
     workspaceId: registeredA.workspace.workspace_id,
     projectId: registeredA.project.project_id,
     displayName: registeredA.project.display_name,
     definition: initialDefinition,
   });
-  const selectionCoupledContinuity = selectionCoupledRead.structuredContent.continuity;
-  const staleSelectionSources = await readSources(initialContinuity.snapshot.binding);
-  assert.equal(staleSelectionSources.structuredContent.status, "refresh_required");
-  assert.deepEqual(staleSelectionSources.structuredContent.sources, []);
-  assert.equal(selectionCoupledContinuity.project.status, "inactive_project");
-  assert.equal(selectionCoupledContinuity.project.active, false);
-  assert.equal(selectionCoupledContinuity.current_work.start_eligible, false);
-  assert.equal(selectionCoupledContinuity.current_work.start_blocker, "The project is not active.");
+  const selectionIndependentContinuity = selectionIndependentRead.structuredContent.continuity;
+  const selectionIndependentSources = await readSources(initialContinuity.snapshot.binding);
+  assert.equal(selectionIndependentSources.structuredContent.status, "available");
+  assert.deepEqual(selectionIndependentSources.structuredContent.sources, []);
+  assert.equal(selectionIndependentContinuity.snapshot.binding, initialContinuity.snapshot.binding);
+  assert.deepEqual(selectionIndependentContinuity.current_work, initialContinuity.current_work);
+  assert.equal(selectionIndependentContinuity.project.status, "inactive_project");
+  assert.equal(selectionIndependentContinuity.project.active, false);
+  assert.equal(selectionIndependentContinuity.current_work.start_eligible, true);
+  assert.equal(selectionIndependentContinuity.current_work.start_blocker, null);
+  assert.deepEqual(readFixtureSelectionV01(), selectedB,
+    "reading project A must preserve the displayed selection of project B");
 
   const afterSelectionPreparation = await callExecution(
     "augnes_prepare_repository_execution",
@@ -3017,6 +3021,14 @@ async function assertRegisteredRepositoryPositivePathV01({
     afterBChangePreparation.structuredContent.attachment.binding_fingerprint,
     initialAttachment.binding_fingerprint,
   );
+  const afterBChangeRead = await assertReadOnlyRepositoryCallV01({
+    repositoryRoot: repositories.repositoryA,
+    callRepository,
+  });
+  assert.equal(afterBChangeRead.structuredContent.continuity.snapshot.binding, initialContinuity.snapshot.binding);
+  assert.deepEqual(afterBChangeRead.structuredContent.continuity.current_work, initialContinuity.current_work);
+  assert.deepEqual(readFixtureSelectionV01(), selectedB,
+    "preparing project A after a project B edit must not activate A");
 
   selectFixtureProjectV01(registeredA.project.project_id);
 
@@ -3106,7 +3118,8 @@ async function assertRegisteredRepositoryPositivePathV01({
     contract: "codex_repository_work_sources.v0.1", stdio_proxy_route_reader: "pass",
     notes: sourceMaterial.sources.length, literal_ui_source_parity: true,
     withheld_locator_count: sourceMaterial.sources.filter((source) => source.source_locator === null).length,
-    empty_stale_selection_stale_packet_foreign_refusals: true,
+    empty_and_selection_independent_sources_verified: true,
+    stale_packet_and_foreign_project_refusals: true,
     browser_login_or_token_transfer_for_read: false, read_database_and_project_mutations: 0,
   }));
 
@@ -3207,6 +3220,8 @@ async function assertRegisteredRepositoryPositivePathV01({
     );
     assert.equal(exactStartReplay.structuredContent.status, "exact_replay");
     assert.equal(exactStartReplay.structuredContent.run_id, started.structuredContent.run_id);
+    assert.equal(readFixtureSelectionV01().project_id, registeredB.project.project_id,
+      "project A execution, status read and exact replay must not activate A");
     managedRunId = started.structuredContent.run_id;
     managedRunStatus = terminalRun.status;
     runReceiptId = terminalRun.metadata.run_receipt_id;
@@ -3297,7 +3312,7 @@ async function assertRegisteredRepositoryPositivePathV01({
       revisedRead.structuredContent.repository_resolution.status,
     initial_binding: initialContinuity.snapshot.binding,
     revised_binding: revisedContinuity.snapshot.binding,
-    selection_coupled_binding: selectionCoupledContinuity.snapshot.binding,
+    selection_independent_binding: selectionIndependentContinuity.snapshot.binding,
     repository_attachment_binding: initialAttachment.binding_fingerprint,
     consumed_attachment_binding: startOrExecutionCreated
       ? revisedAttachment.binding_fingerprint
@@ -3311,7 +3326,6 @@ async function assertRegisteredRepositoryPositivePathV01({
     attachment_stale_reason: staleValidation.structuredContent.attachment.stale_reason,
     same_path_replacement_blocked: true,
     revision_refresh: true,
-    selection_coupling: true,
     selection_independent_attachment: true,
     read_database_mutations: 0,
     read_project_file_mutations: 0,
@@ -3568,6 +3582,8 @@ function reviseFixtureWorkV01({
     const config = fixtureOperatorConfigV01(workspaceId, projectId);
     const selection = readActiveProjectSelectionV01(db, workspaceId);
     assert.equal(selection?.project_id, projectId);
+    const projectWorkBinding = readProjectWorkInitializationV01(db, config).project_work_binding;
+    assert(projectWorkBinding);
     const credential = issueFixtureOperatorCredentialV01(db, config, clock);
     return revisePreExecutionProjectWorkV01(db, {
       config,
@@ -3578,6 +3594,7 @@ function reviseFixtureWorkV01({
         project_id: projectId,
         expected_active_project_id: projectId,
         expected_active_selection_revision: selection.selection_revision,
+        expected_project_work_binding: projectWorkBinding,
         expected_current_packet_id: currentPacket.packet_id,
         expected_current_packet_fingerprint:
           currentPacket.integrity.fingerprint,

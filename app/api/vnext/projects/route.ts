@@ -493,7 +493,8 @@ export async function POST(request: Request) {
         : json(
             { ok: true, result },
             200,
-            serializeVNextRepositoryDecisionSessionCookieV01({
+            serializeVNextRepositoryDecisionSessionCookieV01({ request,
+              project_id: sessionAdmission.credential.cookie_project_id,
               value: sessionAdmission.cookie_value,
               expires_at: sessionAdmission.cookie_expires_at,
               max_age_seconds: sessionAdmission.cookie_max_age_seconds,
@@ -505,6 +506,7 @@ export async function POST(request: Request) {
       assertBrowserUserConfirmationV01(request);
       const credential = readVNextRepositoryDecisionCredentialFromRequestV01(
         request,
+        requiredString(body.project_id),
       );
       return json({ ok: true, confirmation:
         issueVNextRepositoryDecisionChallengeV01(db, {
@@ -518,6 +520,7 @@ export async function POST(request: Request) {
       assertBrowserUserConfirmationV01(request);
       const credential = readVNextRepositoryDecisionCredentialFromRequestV01(
         request,
+        requiredString(body.project_id),
       );
       const authorized = grantRepositoryExecutionDecisionFromBrowserSessionV01(db, {
         request_fingerprint: requiredString(body.request_fingerprint),
@@ -529,7 +532,8 @@ export async function POST(request: Request) {
       return json(
         { ok: true, result: authorized.decision },
         200,
-        serializeVNextRepositoryDecisionSessionCookieV01({
+        serializeVNextRepositoryDecisionSessionCookieV01({ request,
+          project_id: authorized.session_admission.credential.cookie_project_id,
           value: authorized.session_admission.cookie_value,
           expires_at: authorized.session_admission.cookie_expires_at,
           max_age_seconds:
@@ -705,6 +709,7 @@ function tryIssueGeneralRepositoryDecisionChallengeV01(
       request_fingerprint: requestFingerprint,
       credential: readVNextRepositoryDecisionCredentialFromRequestV01(
         request,
+        projectId,
       ),
     });
   } catch (error) {
@@ -721,7 +726,7 @@ function readMatchingRepositoryDecisionCredentialV01(
   challengeFingerprint: string,
 ): VNextLocalOperatorSessionCredentialV01 {
   const readers = [
-    () => readVNextRepositoryDecisionCredentialFromRequestV01(request),
+    () => readVNextRepositoryDecisionCredentialFromRequestV01(request, binding.recovery_project_id),
     () => readVNextRecoveryRepositoryDecisionCredentialFromRequestV01(
       request,
       selectionToken,

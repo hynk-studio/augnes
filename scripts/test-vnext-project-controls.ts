@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { projectClientHref, projectClientTargetQuery } from "../lib/vnext/project-client-href";
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -1242,16 +1243,17 @@ async function main() {
       packet_id: compiled.later_packet.packet_id,
       packet_fingerprint: compiled.later_packet.integrity.fingerprint,
     };
-    const personalInspectorHref = createSharedInspectorHrefV01(
+    const personalInspectorHref = projectClientHref(createSharedInspectorHrefV01(
       personalInspectorTarget,
-    );
+    ), projectA.project.project_id);
+    assert.deepEqual(new URL(personalInspectorHref, "http://127.0.0.1:3000").searchParams.getAll("project_id"), [projectA.project.project_id]);
     assert.equal(
       homeWithTaskBasis.personal_perspective.task_basis?.inspector_href,
       personalInspectorHref,
     );
     assert.deepEqual(
       parseSharedInspectorTargetV01(
-        new URL(personalInspectorHref, "http://127.0.0.1:3000"),
+        projectClientTargetQuery(new URL(personalInspectorHref, "http://127.0.0.1:3000").searchParams),
       ),
       personalInspectorTarget,
     );

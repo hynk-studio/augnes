@@ -1,4 +1,10 @@
 import assert from "node:assert/strict";
+import { buildSelectedWorkGuideBriefCapabilitySetV01 } from "../lib/vnext/guide-brief/guide-brief-pc5-capabilities";
+import { buildBrowserActionCapabilitySnapshotV01 } from "../lib/vnext/guide-brief/guide-brief-interaction-plan";
+import { projectClientHref, projectClientTargetQuery } from "../lib/vnext/project-client-href";
+import { createSharedInspectorHrefV01, parseSharedInspectorTargetV01 } from "../lib/vnext/shared-project-inspector-href";
+import type { SemanticReviewProposalDetailV01 } from "../components/workbench/semantic-review/semantic-review-types";
+
 
 import {
   appendGuideBriefConversationTurnV01,
@@ -1805,6 +1811,44 @@ if (remediationFailures.length > 0) {
   throw new Error(
     `PC4 remediation regressions failed: ${remediationFailures.length}`,
   );
+}
+
+// The component and server rebuild this descriptor independently. A scope
+// difference used to throw the component's strict owner-parity guard as soon as
+// its GuideBrief settled, hiding the post-result correction form.
+for (const projectId of [PROJECT_A, PROJECT_B]) {
+  const entry = planInput({ guide: guide({ project_id: projectId, active_project_id: projectId }) });
+  const selectedScope = entry.selected_work_scope!;
+  const selected = {
+    candidate: { candidate_id: selectedScope.candidate_id },
+    candidate_fingerprint: selectedScope.candidate_fingerprint,
+  } as SemanticReviewProposalDetailV01["candidates"][number];
+  const descriptor = buildSelectedWorkGuideBriefCapabilitySetV01({
+    guide: entry.guide,
+    read: { proposal: {
+      workspace_id: selectedScope.workspace_id, project_id: selectedScope.project_id,
+      proposal_id: selectedScope.proposal_id, integrity: { fingerprint: selectedScope.proposal_fingerprint },
+    } } as SemanticReviewProposalDetailV01,
+    selected,
+    timeline: entry.timeline!,
+    relationships: entry.relationships!.support_and_source!,
+    relationships_by_question: entry.relationships!,
+    relationship_scope_key: "selected-work:scoped-inspector",
+    next_decision_candidate: null, applying_decision: "accept", decision_eligible: false,
+    transition_preview_available: false, decision_current_focus_capability: null,
+    transition_current_focus_capability: null, owner_busy: false,
+  });
+  const target = { target_kind: "episode_delta_proposal" as const,
+    record_id: selectedScope.proposal_id, expected_fingerprint: selectedScope.proposal_fingerprint };
+  const componentHref = projectClientHref(createSharedInspectorHrefV01(target), projectId);
+  const inspector = descriptor.capabilities.find(item => item.action_key === "inspector.open_selected_work")!;
+  assert.equal(inspector.destination, componentHref, "Shared owner must match the scoped Browser navigation adapter");
+  assert.equal(inspector.owner_actionability_identity, componentHref);
+  assert.equal(descriptor.proposal_inspector_href, componentHref);
+  const url = new URL(componentHref, "http://127.0.0.1");
+  assert.deepEqual(url.searchParams.getAll("project_id"), [projectId]);
+  assert.deepEqual(parseSharedInspectorTargetV01(projectClientTargetQuery(url.searchParams)), target);
+  assert.ok(buildBrowserActionCapabilitySnapshotV01({ context: descriptor.context, capabilities: descriptor.capabilities }).fingerprint);
 }
 
 console.log("vNext GuideBrief conversation plan contract tests passed.");

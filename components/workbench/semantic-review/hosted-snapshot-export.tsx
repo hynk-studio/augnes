@@ -1,5 +1,7 @@
 "use client";
 
+import { useProjectClientFetch } from "./project-client-scope";
+
 import { useEffect, useRef, useState } from "react";
 import type { ProjectWorkInitializationV01 } from "@/types/vnext/project-work-initialization";
 import styles from "./semantic-review.module.css";
@@ -10,6 +12,7 @@ export function HostedSnapshotExport({ initialization, disabled }: {
   initialization: ProjectWorkInitializationV01;
   disabled: boolean;
 }) {
+  const fetch = useProjectClientFetch();
   const pending = useRef<AbortController | null>(null);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<{ error: boolean; text: string } | null>(null);

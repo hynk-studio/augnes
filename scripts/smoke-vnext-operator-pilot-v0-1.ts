@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { defineInitialProjectWorkV01 } from "../lib/vnext/runtime/project-work-initialization";
+import { readProjectWorkBindingV01 } from "../lib/vnext/runtime/project-work-binding";
 
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -2091,7 +2093,7 @@ async function assertDirectHostRoundTripCoverageV01(input: {
     );
     assert.equal(
       resultDetail.proposal.review_href,
-      `/workbench/semantic-review/${golden.proposal.proposal_id.replace(":", "~")}`,
+      `/workbench/semantic-review/${golden.proposal.proposal_id.replace(":", "~")}?project_id=${encodeURIComponent(input.config.project_id)}`,
     );
     assert.equal(assessment.packet_ref.external_id, input.packet.packet_id);
     assert.equal(
@@ -6110,11 +6112,83 @@ function normalizeTaskForAssertionV01(input: {
   };
 }
 
+async function assertPolicyProjectOverlapV01(input: { environment: NodeJS.ProcessEnv; jar: RouteCookieJar; packet: TaskContextPacketV01 }): Promise<void> {
+  await withOperatorDatabaseCloneV01("policy-project-overlap", input.environment, async ({ config }) => {
+    const clock = new ManualClock(addIsoMillisecondsV01(input.packet.generated_at, 40_000));
+    installPolicySafeLivePacketV01(config, input.packet, directHostPolicyContextV01(clock.now()), {
+      approval_capabilities: [], resources: [], expires_at: addIsoMillisecondsV01(clock.now(), 600_000),
+    });
+    const db = openVNextLocalOperatorDatabaseV01(config);
+    const held = new Map<string, { request: NativeHostRequestV01; control: Parameters<NativeHostAdapterV01["invoke"]>[1]; finish: () => void }>();
+    const delegate = createDeterministicCodexAdapterV01({ now: () => clock.now() });
+    const live = new LiveNativeHostRunServiceV01({ open_database: openVNextLocalOperatorDatabaseV01, now: () => clock.now(), timeout_ms: 60_000,
+      adapter_factory: () => ({ ...delegate, invoke(request, control) {
+        let release!: () => void; const barrier = new Promise<void>(resolve => { release = resolve; });
+        const finish = () => release(); control.cancellation_signal.addEventListener("abort", finish, { once: true });
+        const result = barrier.then(() => delegate.invoke(request, control).result).finally(() => control.cancellation_signal.removeEventListener("abort", finish));
+        const settled = result.then(() => undefined, () => undefined); held.set(request.project_id, { request, control, finish });
+        return { result, settled, request_stop: async () => { finish(); await settled; } };
+      } }),
+    });
+    const service = new BoundedAutomationCycleServiceV01({ open_database: openVNextLocalOperatorDatabaseV01, live_service: live, now: () => clock.now() });
+    const fromCookie = (cookie: string) => readVNextLocalOperatorCredentialFromRequestV01(new Request("http://127.0.0.1", { headers: { cookie: `augnes_vnext_operator_session_v01=${cookie}` } }));
+    async function progress(projectId: string, index: number) {
+      const owned = held.get(projectId)!;
+      await owned.control.lifecycle_sink!.report_event({ event_id: `native-host-event:policy-overlap:${projectId}:${index}`, run_id: owned.request.run_id,
+        state: "running", event_kind: "thread_status_changed", observed_at: clock.now(), coverage: "observed", host_refs: [], bounded_metadata: { progress: index } });
+    }
+    try {
+      const active = readActiveProjectSelectionV01(db, config.workspace_id)!;
+      const prior = readProjectAutomationControlV01(db, config);
+      if (!prior?.enabled || prior.paused) mutateProjectControlV01(db, { ...config,
+        action: prior?.enabled ? "resume_automation" : "enable_automation", expected_active_project_id: config.project_id,
+        expected_active_selection_revision: active.selection_revision, expected_control_revision: prior?.revision ?? null }, { now: () => clock.now() });
+      const rootB = path.join(tempRoot, "policy-overlap-project-b"); mkdirSync(rootB, { recursive: true });
+      const registration = getOrCreateCanonicalProjectForLocalRootV01(db, { workspace_id: config.workspace_id,
+        local_root: normalizeLocalProjectRootRefV01(rootB, { base_path: tempRoot }), display_name: "Policy overlap B" });
+      const b = { ...config, project_id: registration.project.project_id };
+      const issue = issueVNextLocalOperatorBootstrapV01(db, { config: b, clock });
+      const session = consumeVNextLocalOperatorBootstrapV01(db, { config: b, bootstrap_token: issue.bootstrap_token, clock });
+      const first = defineInitialProjectWorkV01(db, { config: b, credential: session.credential, clock, request: {
+        action: "define_initial_project_work", workspace_id: b.workspace_id, project_id: b.project_id, expected_active_project_id: b.project_id,
+        expected_active_selection_revision: active.selection_revision, expected_project_work_binding: readProjectWorkBindingV01(db, b)!,
+        expected_initialization_state: "not_defined", goal: "Observe independent B progress", success_criteria: ["B completes its own bounded result"], non_goals: ["No command or network execution"],
+      } });
+      selectActiveProjectV01(db, { workspace_id: config.workspace_id, project_id: b.project_id, expected_project_id: config.project_id,
+        expected_revision: active.selection_revision, now: clock.now() });
+      clock.set(addIsoMillisecondsV01(clock.now(), 1000));
+      const initialCredential = readVNextLocalOperatorCredentialFromRequestV01(routeRequest("/api/vnext/operator/automation-cycle", { method: "GET", jar: input.jar }));
+      const queued = service.queueCurrentTask({ config, credential: initialCredential, clock });
+      const startedA = await service.runOne({ config, credential: fromCookie(queued.session_admission.cookie_value), clock,
+        expected_control_revision: queued.projection.control_revision! });
+      await progress(config.project_id, 1);
+      const startedB = await live.start({ config: b, mode: "interactive", operator_mutation: { credential: fromCookie(first.session_admission.cookie_value), clock } });
+      await progress(b.project_id, 1); await progress(config.project_id, 2); await progress(b.project_id, 2);
+      assert.equal(live.read(config).status, "running"); assert.equal(live.read(b).status, "running");
+      assert.equal(held.get(config.project_id)!.request.mode, "policy_triggered");
+      assert.notEqual(held.get(config.project_id)!.request.root_scope.canonical_root, held.get(b.project_id)!.request.root_scope.canonical_root);
+      assert.equal(readActiveProjectSelectionV01(db, config.workspace_id)!.project_id, b.project_id);
+      const replay = await service.runOne({ config, credential: fromCookie(startedA.session_admission!.cookie_value), clock, expected_control_revision: queued.projection.control_revision! });
+      assert.equal(replay.status, "exact_replay");
+      await service.cancel({ config, credential: fromCookie(replay.session_admission!.cookie_value), clock });
+      const cancelled = await waitForLiveProjectionV01(live, config, projection => projection.receipt?.outcome === "cancelled");
+      assert.equal(cancelled.public_reason, "native_host_cancelled");
+      assert.equal(service.read(config).status, "review_needed");
+      assert.equal(held.get(b.project_id)!.control.cancellation_signal.aborted, false);
+      await progress(b.project_id, 3); held.get(b.project_id)!.finish();
+      await waitForLiveProjectionV01(live, b, projection => projection.status === "completed");
+      assert.equal(live.read(b).run_ref, startedB.projection.run_ref);
+      pass("policy_and_interactive_projects_overlap_with_targeted_cancellation_and_zero_model_calls");
+    } finally { for (const item of held.values()) item.finish(); await live.shutdown(); db.close(); }
+  });
+}
+
 async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
   environment: NodeJS.ProcessEnv;
   jar: RouteCookieJar;
   packet: TaskContextPacketV01;
 }): Promise<void> {
+  await assertPolicyProjectOverlapV01(input);
   await withOperatorDatabaseCloneV01(
     "bounded-automation-cycle-review-needed",
     input.environment,
@@ -6568,7 +6642,7 @@ async function assertBoundedAutomationCycleVerticalOnCloneV01(input: {
       );
       assert.equal(
         settled.feedback_href,
-        `/workbench/semantic-review/${settled.feedback_proposal_id.replace(":", "~")}`,
+        `/workbench/semantic-review/${settled.feedback_proposal_id.replace(":", "~")}?project_id=${encodeURIComponent(config.project_id)}`,
       );
       assert.equal(observations.length, 1);
       assert.equal(observations[0]?.request.mode, "policy_triggered");

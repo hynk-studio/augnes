@@ -39,10 +39,11 @@ export function createStatelessSourceReviewHandler(options: { environment?: Node
         admission = ended.session_admission;
         result = new StatelessSourceReviewHost(hostOptions, ended.disposition.binding.run_id).read();
       } else if (body.action === "prepare_linked_work") {
-        reviewObject(body, ["action", "disposition", "material", "expected_active_selection_revision"]);
+        reviewObject(body, ["action", "disposition", "material", ...("expected_project_work_binding" in body ? ["expected_project_work_binding"] : ["expected_active_selection_revision"])]);
         const link = reviewObject(body.disposition, ["run_id", "disposition_fingerprint"]);
         const prepared = prepareStatelessReplacement(db, { config, credential, request: body.material, now: hostOptions.now,
           expected_active_selection_revision: body.expected_active_selection_revision,
+          expected_project_work_binding: body.expected_project_work_binding,
           disposition: { run_id: reviewText(link.run_id, 160), disposition_fingerprint: reviewSha(link.disposition_fingerprint) } });
         admission = prepared.session_admission;
         result = { packet_id: prepared.packet_id, review: prepared.review, selected_notes: prepared.selected_notes, status: prepared.status, preparation_bytes: prepared.preparation_bytes, authorized: false, predecessor_effects_unknown: true };
@@ -80,7 +81,7 @@ export function createStatelessSourceReviewHandler(options: { environment?: Node
           try { result = await host.run(request.signal); } catch { result = host.read(); }
         }
       } else throw new Error("stateless_review_request_invalid");
-      return NextResponse.json({ ok: true, result }, { headers: { ...headers, "Set-Cookie": serializeVNextLocalOperatorSessionCookieV01({ value: admission.cookie_value,
+      return NextResponse.json({ ok: true, result }, { headers: { ...headers, "Set-Cookie": serializeVNextLocalOperatorSessionCookieV01({ request, value: admission.cookie_value,
         expires_at: admission.cookie_expires_at, max_age_seconds: admission.cookie_max_age_seconds, secure: url.protocol === "https:" }) } });
     } catch (error) {
       return NextResponse.json({ ok: false, error: error instanceof VNextLocalOperatorSessionErrorV01 ? error.code : error instanceof Error && /^stateless_review_[a-z_]+$/.test(error.message) ? error.message : "stateless_review_request_refused" }, { status: error instanceof VNextLocalOperatorSessionErrorV01 ? error.status : 409, headers });

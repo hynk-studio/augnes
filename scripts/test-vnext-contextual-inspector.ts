@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { projectClientEntryHref, projectClientHref, projectClientTargetQuery } from "../lib/vnext/project-client-href";
 
 import {
   buildContextualInspectorViewV01,
@@ -242,6 +243,15 @@ const TARGET_CASES: Array<{
   },
 ];
 
+const pinnedEntry = new URL(projectClientEntryHref("/workbench/inspector", {
+  target_kind: ["project_coordination", "project_coordination"],
+  unrecognized: ["first", "second"],
+}, "project:A"), "http://127.0.0.1:3000");
+assert.equal(pinnedEntry.searchParams.get("project_id"), "project:A");
+assert.deepEqual(pinnedEntry.searchParams.getAll("target_kind"), ["project_coordination", "project_coordination"]);
+assert.deepEqual(pinnedEntry.searchParams.getAll("unrecognized"), ["first", "second"]);
+assert.throws(() => parseSharedInspectorTargetV01(projectClientTargetQuery(pinnedEntry.searchParams)));
+
 for (const testCase of TARGET_CASES) {
   const href = createSharedInspectorHrefV01(testCase.target);
   assert.deepEqual(
@@ -251,6 +261,13 @@ for (const testCase of TARGET_CASES) {
     testCase.target,
   );
   assert.doesNotMatch(href, /return_to|return_label|workspace_id|project_id/u);
+  const scoped = new URL(projectClientHref(href, "project:other"), "http://127.0.0.1:3000");
+  const targetParams = projectClientTargetQuery(scoped.searchParams);
+  assert.equal(scoped.searchParams.get("project_id"), "project:other");
+  assert.equal(targetParams.has("project_id"), false);
+  assert.deepEqual(parseSharedInspectorTargetV01(targetParams), testCase.target);
+  targetParams.set("unrecognized", "refused");
+  assert.throws(() => parseSharedInspectorTargetV01(targetParams), /shared_inspector_target_fields_invalid/u);
   const projection = projectionV01(testCase.target);
   const view = buildContextualInspectorViewV01({
     inspector: projection,

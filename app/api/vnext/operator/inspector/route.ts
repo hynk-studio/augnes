@@ -12,7 +12,7 @@ import {
   authenticateVNextLocalOperatorSessionV01,
   openVNextLocalOperatorDatabaseV01,
   readVNextLocalOperatorCredentialFromRequestV01,
-  readVNextLocalOperatorPilotConfigV01,
+  resolveVNextLocalReviewConfigV01,
   type VNextLocalOperatorPilotConfigV01,
 } from "@/lib/vnext/runtime/local-operator-session";
 import {
@@ -64,8 +64,8 @@ export function createVNextOperatorSharedInspectorReadHandlerV01(
         mutating: false,
       });
       const target = parseSharedInspectorTargetV01(url);
-      const config = readVNextLocalOperatorPilotConfigV01(environment);
       const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
+      const config = resolveVNextLocalReviewConfigV01({ environment, credential, clock: options.clock });
       db = openDatabase(config);
       const authentication = authenticateVNextLocalOperatorSessionV01(db, {
         config,

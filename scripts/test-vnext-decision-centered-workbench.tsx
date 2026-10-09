@@ -781,7 +781,7 @@ try {
   );
   assert.equal(
     exactCompletionHome.primary_action?.href,
-    "/workbench/semantic-review/episode-delta-proposal~bbbbbbbbbbbbbbbbbbbbbbbb",
+    "/workbench/semantic-review/episode-delta-proposal~bbbbbbbbbbbbbbbbbbbbbbbb?project_id=project-r7b-workbench-contract",
   );
   assert.equal(
     exactCompletionHome.additional_items[0]?.proposal_id,

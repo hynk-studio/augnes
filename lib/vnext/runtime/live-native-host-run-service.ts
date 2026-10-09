@@ -1,3 +1,4 @@
+import { fingerprintNativeHostPhysicalRootIdentityV01 } from "@/lib/vnext/native-host/project-root-identity";
 import type Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 
@@ -23,9 +24,6 @@ import {
   createProtocolSha256V01,
   parseStrictIsoTimestampV01,
 } from "@/lib/vnext/protocol-primitives";
-import {
-  readActiveProjectSelectionV01,
-} from "@/lib/vnext/persistence/project-lifecycle-registry";
 import { readCanonicalProjectWithRootV01 } from "@/lib/vnext/persistence/project-identity-registry";
 import {
   readRepositoryManagedResumeAttemptV01,
@@ -620,7 +618,7 @@ export class LiveNativeHostRunServiceV01 {
         ) {
           refuseV01("live_host_start_conflict", 409);
         }
-        await this.assertRunStillBindsCurrentSelection(input.config, activeRun);
+        await this.assertRunStillBindsCurrentProject(input.config, activeRun);
         return {
           status: "exact_replay",
           projection: this.read(input.config),
@@ -644,7 +642,7 @@ export class LiveNativeHostRunServiceV01 {
         ) {
           refuseV01("live_host_start_conflict", 409);
         }
-        await this.assertRunStillBindsCurrentSelection(input.config, existing);
+        await this.assertRunStillBindsCurrentProject(input.config, existing);
         if (existing.status !== "paused") {
           this.pauseUnownedRun(input.config, existing);
         }
@@ -1613,7 +1611,7 @@ export class LiveNativeHostRunServiceV01 {
       return false;
     }
     try {
-      await this.assertRunStillBindsCurrentSelection(config, run);
+      await this.assertRunStillBindsCurrentProject(config, run);
       return true;
     } catch {
       return false;
@@ -1671,7 +1669,7 @@ export class LiveNativeHostRunServiceV01 {
     return run;
   }
 
-  private async assertRunStillBindsCurrentSelection(
+  private async assertRunStillBindsCurrentProject(
     config: VNextLocalOperatorPilotConfigV01,
     run: AutonomyRunSummary,
   ): Promise<void> {
@@ -1688,11 +1686,6 @@ export class LiveNativeHostRunServiceV01 {
     config: VNextLocalOperatorPilotConfigV01,
     run: AutonomyRunSummary,
   ): Promise<PersistedHostPacketAdmissionV01> {
-    const repositoryAttachmentRun = isRepositoryAttachmentRunV01(run);
-    const active = readActiveProjectSelectionV01(db, config.workspace_id);
-    if (!repositoryAttachmentRun && active?.project_id !== config.project_id) {
-      refuseV01("live_host_project_not_active", 409);
-    }
     const packetId = stringMetadataV01(run.metadata.packet_id);
     const packetFingerprint = stringMetadataV01(run.metadata.packet_fingerprint);
     if (!packetId || !packetFingerprint) refuseV01("live_host_packet_binding_missing", 409);
@@ -1701,9 +1694,11 @@ export class LiveNativeHostRunServiceV01 {
       packet_id: packetId,
       packet_fingerprint: packetFingerprint,
       evaluated_at: this.now(),
-      require_active_project: !repositoryAttachmentRun,
+      require_active_project: false,
     });
-    if (admitted.root_scope.root_fingerprint !== run.metadata.root_fingerprint) {
+    if (admitted.root_scope.root_fingerprint !== run.metadata.root_fingerprint ||
+      fingerprintNativeHostPhysicalRootIdentityV01(admitted.root_scope.physical_root_identity) !==
+        run.metadata.root_physical_identity_fingerprint) {
       refuseV01("live_host_root_binding_mismatch", 409);
     }
     return admitted;
@@ -1716,7 +1711,6 @@ export class LiveNativeHostRunServiceV01 {
     admitted: PersistedHostPacketAdmissionV01,
   ): void {
     if (!db.inTransaction) refuseV01("live_host_transaction_required", 500);
-    const active = readActiveProjectSelectionV01(db, config.workspace_id);
     const continuity = projectVNextOperatorPilotContinuityV01(db, {
       config,
       clock: { now: this.now },
@@ -1734,8 +1728,6 @@ export class LiveNativeHostRunServiceV01 {
         )
       : null;
     if (
-      (!isRepositoryAttachmentRunV01(run) &&
-        active?.project_id !== config.project_id) ||
       continuity.packet_currentness !== "fresh" ||
       continuity.latest_compiled_packet?.packet_id !== admitted.packet.packet_id ||
       continuity.latest_compiled_packet.packet_fingerprint !==

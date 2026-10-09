@@ -228,7 +228,7 @@ export async function readCodexCurrentContinuitySnapshotV01(
   );
   const lineageConfig = configuredOperator ?? syntheticReadConfigV01(scope);
   const work = readCurrentWorkV01(db, workInitialization, lineageConfig, generatedAt, {
-    is_active: isActive,
+    is_active: isActive || input.viewed_project_id != null,
     root_available: rootAvailability === "available",
     operator_config_available: configuredOperator !== null,
   });
@@ -320,7 +320,7 @@ export async function readCodexCurrentContinuitySnapshotV01(
     result.public.currentness === "unavailable_or_ambiguous" ||
     review.public.state === "review_source_unavailable_or_inconsistent";
   const nextAction = chooseCodexCurrentContinuityNextActionV01({
-    project_status: projectStatus,
+    project_status: input.viewed_project_id != null ? (rootAvailability === "available" ? "active_project" : "active_project_root_unavailable") : projectStatus,
     work: work.public,
     execution: execution.public,
     result: result.public,
@@ -352,8 +352,9 @@ export async function readCodexCurrentContinuitySnapshotV01(
     ? null
     : {
         workspace_id: workspace.workspace_id,
-        active_project_id: active?.project_id ?? null,
-        selection_revision: active?.selection_revision ?? null,
+        ...(input.viewed_project_id != null
+          ? { project_work_binding: workInitialization.project_work_binding ?? null }
+          : { active_project_id: active?.project_id ?? null, selection_revision: active?.selection_revision ?? null }),
         viewed_project_id: input.viewed_project_id ?? null,
         project_id: targetProjectId,
         project_fingerprint: createProtocolSha256V01(canonicalizeProtocolValueV01(registration.project)),
@@ -1416,7 +1417,7 @@ export function assertCodexCurrentContinuityV01(
   assertBoundedNullableTextV01(projection.next_action.reason, CODEX_CURRENT_CONTINUITY_LIMITS_V01.result_item_characters, "next_action_reason");
   if (Object.values(projection.authority).some((value) => value !== false)) throw new Error("codex_current_continuity_authority_invalid");
   if (projection.next_action.executes !== false) throw new Error("codex_current_continuity_action_authority_invalid");
-  if (projection.current_work.start_eligible && (projection.current_work.status !== "current_work" || projection.current_work.currentness !== "fresh" || !projection.project.active || projection.project.root_availability !== "available")) throw new Error("codex_current_continuity_start_eligibility_invalid");
+  if (projection.current_work.start_eligible && (projection.current_work.status !== "current_work" || projection.current_work.currentness !== "fresh" || projection.project.root_availability !== "available")) throw new Error("codex_current_continuity_start_eligibility_invalid");
   if (projection.latest_result.currentness === "current" && projection.latest_result.state !== "result_present") throw new Error("codex_current_continuity_result_currentness_invalid");
   if (projection.gaps.length > CODEX_CURRENT_CONTINUITY_LIMITS_V01.gaps) throw new Error("codex_current_continuity_gap_bound_exceeded");
   if (Buffer.byteLength(JSON.stringify(projection), "utf8") > CODEX_CURRENT_CONTINUITY_LIMITS_V01.serialized_bytes) throw new Error("codex_current_continuity_size_bound_exceeded");

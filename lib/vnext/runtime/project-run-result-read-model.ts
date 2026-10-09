@@ -1,3 +1,5 @@
+import { projectClientHref } from "@/lib/vnext/project-client-href";
+import { readProjectWorkBindingV01 } from "./project-work-binding";
 import { readActiveProjectSelectionV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import { readWorkExpectationComparison } from "@/lib/vnext/persistence/work-expectation-store";
 import type Database from "better-sqlite3";
@@ -209,6 +211,7 @@ export function readProjectRunResultDetailV01(
         },
     expectation,
     expectation_unavailable: expectationUnavailable,
+    expectation_project_work_binding: expectation ? readProjectWorkBindingV01(db, input) : null,
     expectation_active_selection_revision: expectation ? readActiveProjectSelectionV01(db, input.workspace_id)?.selection_revision ?? null : null,
     criterion_assessment: criterionAssessment,
     proposal: projectProposalReadbackV01(db, binding),
@@ -505,7 +508,7 @@ function projectProposalReadbackV01(
       proposal_fingerprint: related.proposal.integrity.fingerprint,
       proposal_status: "pending_review",
       admission_idempotency_key: identity.idempotency_key,
-      review_href: `/workbench/semantic-review/${related.proposal.proposal_id.replace(":", "~")}`,
+      review_href: `/workbench/semantic-review/${related.proposal.proposal_id.replace(":", "~")}?project_id=${encodeURIComponent(related.proposal.project_id)}`,
     };
   }
   if (metadata.run_assessment_proposal_status === "available") {
@@ -732,12 +735,12 @@ function projectReceiptSummaryV01(
     gap_count: receipt.gaps.length,
     trust_label: trustLabel,
     review_attention: reviewAttentionV01(receipt),
-    review_href: createRunResultReviewHrefV01(receipt.receipt_id),
-    inspector_href: createSharedInspectorHrefV01({
+    review_href: `${createRunResultReviewHrefV01(receipt.receipt_id)}?project_id=${encodeURIComponent(receipt.project_id)}`,
+    inspector_href: projectClientHref(createSharedInspectorHrefV01({
       target_kind: "run_receipt",
       record_id: receipt.receipt_id,
       expected_fingerprint: receipt.integrity.fingerprint,
-    }),
+    }), receipt.project_id),
     mode: runModeV01(
       receipt.execution_environment.runtime_labels.find((label) =>
         ["interactive", "policy_triggered"].includes(label),

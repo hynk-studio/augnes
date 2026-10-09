@@ -21,7 +21,7 @@ type DeterministicStateV01 =
  * Live Codex work, progress, approval, cancellation, and resume are owned by
  * the AI Workplane delegated-work surface.
  */
-export function DirectHostRoundTripAction() {
+export function DirectHostRoundTripAction({ projectId }: { projectId: string }) {
   const router = useRouter();
   const [state, setState] = useState<DeterministicStateV01>({
     status: "idle",
@@ -34,7 +34,7 @@ export function DirectHostRoundTripAction() {
       const response = await fetch(ROUTE, {
         method: "POST",
         credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Augnes-Project-Id": projectId },
         body: "{}",
       });
       const body = (await response.json()) as Record<string, unknown>;

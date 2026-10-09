@@ -9,7 +9,7 @@ import {
   openVNextLocalOperatorDatabaseV01,
   readBoundedVNextLocalOperatorBodyV01,
   readVNextLocalOperatorCredentialFromRequestV01,
-  readVNextLocalOperatorPilotConfigV01,
+  resolveVNextLocalReviewConfigV01,
   serializeVNextLocalOperatorSessionCookieV01,
   type VNextLocalOperatorPilotConfigV01,
   type VNextLocalOperatorSecretSourceV01,
@@ -80,8 +80,8 @@ export function createVNextOperatorHostRoundTripHandlerV01(
       });
       assertNoQueryV01(url);
       const body = await readBoundedVNextLocalOperatorBodyV01(request);
-      const config = readVNextLocalOperatorPilotConfigV01(environment);
       const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
+      const config = resolveVNextLocalReviewConfigV01({ environment, credential, clock: options.clock });
 
       if (Object.keys(body).length === 0) {
         db = openDatabase(config);
@@ -121,7 +121,7 @@ export function createVNextOperatorHostRoundTripHandlerV01(
             ...noSemanticAuthorityV01(),
           },
           result.status === "inserted" ? 201 : 200,
-          cookieFromAdmissionV01(result.session_admission, url),
+          cookieFromAdmissionV01(result.session_admission, url, request),
         );
       }
 
@@ -144,7 +144,7 @@ export function createVNextOperatorHostRoundTripHandlerV01(
             secret_source: options.secret_source,
           },
         });
-        const cookie = cookieFromAdmissionV01(result.session_admission, url);
+        const cookie = cookieFromAdmissionV01(result.session_admission, url, request);
         const delegated = readDelegatedForResponseV01(
           openDatabase,
           options.read_delegated_projection ?? readDelegatedWorkProjectionV01,
@@ -178,7 +178,7 @@ export function createVNextOperatorHostRoundTripHandlerV01(
           clock: options.clock,
           secret_source: options.secret_source,
         });
-        const cookie = cookieFromAdmissionV01(result.session_admission, url);
+        const cookie = cookieFromAdmissionV01(result.session_admission, url, request);
         const delegated = readDelegatedForResponseV01(
           openDatabase,
           options.read_delegated_projection ?? readDelegatedWorkProjectionV01,
@@ -210,6 +210,7 @@ export function createVNextOperatorHostRoundTripHandlerV01(
           const cookie = cookieFromAdmissionV01(
             result.session_admission,
             url,
+            request,
           );
           const delegated = readDelegatedForResponseV01(
             openDatabase,
@@ -229,7 +230,7 @@ export function createVNextOperatorHostRoundTripHandlerV01(
           );
         }
         const result = await liveService.resume(common);
-        const cookie = cookieFromAdmissionV01(result.session_admission, url);
+        const cookie = cookieFromAdmissionV01(result.session_admission, url, request);
         const delegated = readDelegatedForResponseV01(
           openDatabase,
           options.read_delegated_projection ?? readDelegatedWorkProjectionV01,
@@ -271,8 +272,8 @@ export function createVNextOperatorHostRoundTripReadHandlerV01(
         mutating: false,
       });
       assertNoQueryV01(url);
-      const config = readVNextLocalOperatorPilotConfigV01(environment);
       const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
+      const config = resolveVNextLocalReviewConfigV01({ environment, credential, clock: options.clock });
       db = openDatabase(config);
       authenticateVNextLocalOperatorSessionV01(db, {
         config,
@@ -465,9 +466,10 @@ function nowV01(clock?: VNextLocalRuntimeClockV01): string {
 function cookieFromAdmissionV01(
   admission: VNextLocalOperatorSessionMutationAdmissionV01 | null,
   url: URL,
+  request: Request,
 ): string | null {
   return admission
-    ? serializeVNextLocalOperatorSessionCookieV01({
+    ? serializeVNextLocalOperatorSessionCookieV01({ request,
         value: admission.cookie_value,
         expires_at: admission.cookie_expires_at,
         max_age_seconds: admission.cookie_max_age_seconds,

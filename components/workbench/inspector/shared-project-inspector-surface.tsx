@@ -1,3 +1,4 @@
+import { projectClientHref } from "@/lib/vnext/project-client-href";
 import type { ReactNode } from "react";
 
 import { ProductShell } from "@/components/product-shell";
@@ -46,7 +47,7 @@ export function SharedProjectInspectorSurface({
         <div className={styles.shell}>
           <a
             className={styles.returnLink}
-            href={view.related_context.href}
+            href={projectClientHref(view.related_context.href, inspector.project_id)}
             data-contextual-inspector-return={view.related_context.kind}
           >
             ← {view.related_context.label}

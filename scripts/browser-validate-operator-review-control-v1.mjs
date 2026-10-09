@@ -2,6 +2,7 @@
 
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
+import { createHash } from "node:crypto";
 import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import { createServer as createHttpServer } from "node:http";
 import path from "node:path";
@@ -279,7 +280,7 @@ await runOperatorExecutionBrowserChildV1({
         const active = current.recent_projects.find((entry) => entry.is_active);
         const response = await fetch('/api/vnext/project-controls', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Augnes-Project-Id': ${JSON.stringify(projectId)} },
           body: JSON.stringify({
             action: 'pause_automation',
             project_id: ${JSON.stringify(projectId)},
@@ -414,7 +415,7 @@ await runOperatorExecutionBrowserChildV1({
           "strategic analysis admission",
         );
         await lifecycle.waitForCondition(
-          `location.pathname.startsWith('/workbench/semantic-review/episode-delta-proposal~') && document.querySelector('[data-vnext-strategic-advantage-transfer="proposal"]') !== null`,
+          `location.pathname.startsWith('/workbench/semantic-review/episode-delta-proposal~') && new URLSearchParams(location.search).get('project_id') === ${JSON.stringify(projectId)} && document.querySelector('[data-vnext-strategic-advantage-transfer="proposal"]') !== null`,
           "strategic proposal material",
         );
         strategicPath = await lifecycle.evaluateString("location.pathname");
@@ -452,6 +453,8 @@ await runOperatorExecutionBrowserChildV1({
           `document.querySelector('[data-strategic-to-shared-inspector="true"]')?.getAttribute('href') ?? ''`,
         );
         assert.match(inspectorHref, /^\/workbench\/inspector\?/u);
+        assert.equal(new URL(inspectorHref, appOrigin).pathname, "/workbench/inspector");
+        assert.deepEqual(new URL(inspectorHref, appOrigin).searchParams.getAll("project_id"), [projectId]);
         await lifecycle.navigate(new URL(inspectorHref, appOrigin).toString());
         await lifecycle.waitForCondition(
           `document.querySelector('[data-shared-project-inspector="v0.1"] [data-inspector-section="strategic_perspective"]') !== null`,
@@ -542,7 +545,8 @@ await runOperatorExecutionBrowserChildV1({
         fixture.writable_database_path,
         projectId,
       );
-      const resultHref = `/workbench/results/${resultIdentity.receipt_id.replace(":", "~")}`;
+      const resultPath = `/workbench/results/${resultIdentity.receipt_id.replace(":", "~")}`;
+      const resultHref = `${resultPath}?project_id=${encodedProjectId}`;
       const before = databaseFingerprint(fixture.writable_database_path);
       const resultNavigationStart = lifecycle.responses.length;
       await lifecycle.navigate(`${appOrigin}${resultHref}`);
@@ -550,7 +554,7 @@ await runOperatorExecutionBrowserChildV1({
         () =>
           lifecycle.responses.slice(resultNavigationStart).some(
             (entry) =>
-              entry.path === resultHref &&
+              entry.path === resultPath &&
               entry.type === "Document",
           ),
         "result review document response",
@@ -559,7 +563,7 @@ await runOperatorExecutionBrowserChildV1({
         .slice(resultNavigationStart)
         .find(
           (entry) =>
-            entry.path === resultHref && entry.type === "Document",
+            entry.path === resultPath && entry.type === "Document",
         );
       assert.equal(
         resultDocumentResponse?.status,
@@ -596,6 +600,8 @@ await runOperatorExecutionBrowserChildV1({
       assert.equal(shape.shell, true, shapeDiagnostic);
       assert.equal(shape.read_only, false, shapeDiagnostic);
       assert.match(shape.proposal_link ?? "", /^\/workbench\/semantic-review\//u);
+      assert.match(new URL(shape.proposal_link ?? "", appOrigin).pathname, /^\/workbench\/semantic-review\/episode-delta-proposal~[a-f0-9]{24}$/u);
+      assert.deepEqual(new URL(shape.proposal_link, appOrigin).searchParams.getAll("project_id"), [projectId]);
       assert.equal(shape.assessment, true, shapeDiagnostic);
       assert.equal(shape.execution_and_success, true, shapeDiagnostic);
       assert.equal(shape.internal_input_count, 0, shapeDiagnostic);
@@ -634,6 +640,8 @@ await runOperatorExecutionBrowserChildV1({
         `document.querySelector('[data-run-result-to-shared-inspector="true"], [data-result-to-shared-inspector="true"], [data-run-result-inspector-forwarding] a')?.getAttribute('href') ?? ''`,
       );
       assert.match(inspectorHref, /^\/workbench\/inspector\?/u);
+      assert.equal(new URL(inspectorHref, appOrigin).pathname, "/workbench/inspector");
+      assert.deepEqual(new URL(inspectorHref, appOrigin).searchParams.getAll("project_id"), [projectId]);
       await lifecycle.navigate(new URL(inspectorHref, appOrigin).toString());
       await lifecycle.waitForCondition(
         `document.querySelector('[data-shared-project-inspector="v0.1"]') !== null`,
@@ -720,8 +728,9 @@ await runOperatorExecutionBrowserChildV1({
       result.shared_inspector_reload_idempotent = true;
       completeDetailedField("shared_inspector_reload_idempotent");
       const liveInspectorRead = await lifecycle.evaluateJson(`(async () => {
-        const response = await fetch('/api/vnext/operator/inspector' + location.search, {
-          method: 'GET', cache: 'no-store', credentials: 'same-origin'
+        const target = new URLSearchParams(location.search); target.delete('project_id');
+        const response = await fetch('/api/vnext/operator/inspector?' + target.toString(), {
+          method: 'GET', cache: 'no-store', credentials: 'same-origin', headers: { 'Augnes-Project-Id': ${JSON.stringify(projectId)} }
         });
         return { status: response.status, body: await response.json() };
       })()`);
@@ -853,9 +862,10 @@ await runOperatorExecutionBrowserChildV1({
         "pure_presentation_contract_only_no_production_failure_seam",
       );
       await lifecycle.restartRuntime(inspectorRouteFixture.project_id);
-      await lifecycle.navigate(`${appOrigin}/workbench/semantic-review`);
+      await lifecycle.navigate(`${appOrigin}/workbench/semantic-review?project_id=${encodeURIComponent(inspectorRouteFixture.project_id)}`);
       assert.equal(await lifecycle.authenticate(), true);
       const boundedInspectorUrl = new URL("/workbench/inspector", appOrigin);
+      boundedInspectorUrl.searchParams.set("project_id", inspectorRouteFixture.project_id);
       boundedInspectorUrl.searchParams.set("target", "run_receipt");
       boundedInspectorUrl.searchParams.set(
         "record_id",
@@ -1050,6 +1060,8 @@ await runOperatorExecutionBrowserChildV1({
 
     await lifecycle.runPhase("review_decision_and_transition", async () => {
       assert.match(resultProposalHref, /^\/workbench\/semantic-review\//u);
+      assert.match(new URL(resultProposalHref, appOrigin).pathname, /^\/workbench\/semantic-review\/episode-delta-proposal~[a-f0-9]{24}$/u);
+      assert.deepEqual(new URL(resultProposalHref, appOrigin).searchParams.getAll("project_id"), [projectId]);
       await lifecycle.navigate(`${appOrigin}${resultProposalHref}`);
       await lifecycle.waitForCondition(
         `document.querySelector('[data-vnext-semantic-review-detail="v0.1"]') !== null`,
@@ -1302,7 +1314,15 @@ await runOperatorExecutionBrowserChildV1({
         await lifecycle.restartRuntimePreservingBrowserSession(
           fixture.manifest.profile_project_id,
         );
-        await lifecycle.navigate(`${appOrigin}/workbench/semantic-review`);
+        // Preserve the refusal audit with genuinely wrong-project authority.
+        // Merely using another project no longer invalidates this valid session.
+        const cookieName = id => `augnes_vnext_operator_session_v01_${createHash("sha256").update(id).digest("hex")}`;
+        const browserCookies = await lifecycle.cdp().send("Network.getCookies", { urls: [appOrigin + "/api/vnext/operator/session"] });
+        const wrongProjectCookie = browserCookies.cookies.find(cookie => cookie.name === cookieName(projectId));
+        assert(wrongProjectCookie);
+        await lifecycle.cdp().send("Network.setCookie", { name: cookieName(fixture.manifest.profile_project_id), value: wrongProjectCookie.value,
+          url: appOrigin, path: "/api/vnext/operator", httpOnly: true, sameSite: "Strict" });
+        await lifecycle.navigate(`${appOrigin}/workbench/semantic-review?project_id=${encodeURIComponent(fixture.manifest.profile_project_id)}`);
         await lifecycle.waitForCondition(
           `document.querySelector('[data-vnext-operator-session="locked"]') !== null`,
           "mixed-project stale session locked",
@@ -1331,7 +1351,7 @@ await runOperatorExecutionBrowserChildV1({
         assert.equal(recovered, true);
         const authenticated = await lifecycle.evaluateJson(`(async () => {
           const response = await fetch('/api/vnext/operator/session', {
-            cache: 'no-store', credentials: 'same-origin'
+            cache: 'no-store', credentials: 'same-origin', headers: { 'Augnes-Project-Id': ${JSON.stringify(fixture.manifest.profile_project_id)} }
           });
           return { status: response.status, body: await response.json() };
         })()`);

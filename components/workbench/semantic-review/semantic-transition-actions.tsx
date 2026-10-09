@@ -1,5 +1,7 @@
 "use client";
 
+import { useProjectClientFetch, useProjectClientHref } from "./project-client-scope";
+
 import {
   forwardRef,
   useEffect,
@@ -84,6 +86,8 @@ export const SemanticTransitionActions = forwardRef<
   onPreviewAvailabilityChange,
   onCurrentFocusCapabilityChange,
 }, ref) {
+  const fetch = useProjectClientFetch();
+  const scopedHref = useProjectClientHref();
   const applyingDecisions = useMemo(
     () =>
       decisions.filter(
@@ -838,7 +842,7 @@ export const SemanticTransitionActions = forwardRef<
           >
             <a
               className={styles.secondaryButton}
-              href="/workbench/semantic-review"
+              href={scopedHref("/workbench/semantic-review")}
             >
               Return to AI Workplane
             </a>

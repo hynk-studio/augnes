@@ -86,6 +86,7 @@ import type {
   NativeHostApprovalRequestV01,
   NativeHostLifecycleEventV01,
   NativeHostRequestV01,
+  NativeHostInvocationControlV01,
 } from "../types/vnext/native-host-adapter";
 import { REPOSITORY_RUN_RESUME_LIMITS_V01 } from "../types/vnext/repository-run-resume";
 
@@ -244,6 +245,7 @@ async function main(): Promise<void> {
     await assertExactReplayStateMatrixV01(db, projectA.workspace_id);
     await assertQueuedCancellationV01(db, service, projectA.workspace_id);
     await assertRunningCancellationV01(db, projectA.workspace_id);
+    await assertIndependentManagedRunsV01(db, projectA.workspace_id);
     await assertCancellationDriftMatrixV01(db, projectA.workspace_id);
     await assertCancellationWithoutControllerV01(db, projectA.workspace_id);
     await assertAdapterLaunchFailureV01(db, projectA.workspace_id);
@@ -3405,6 +3407,65 @@ async function assertQueuedCancellationV01(
   assert.equal(replay.status, "exact_replay");
   assert.equal(replay.run_id, cancelledRunId);
   assert.equal(readAutonomyRunLedgerRecord(cancelledRunId, { db })?.status, "cancelled");
+}
+
+/** The existing repository attachment controller can own independent projects at
+ * once. Explicit barriers keep both invocations live until a scoped cancellation. */
+async function assertIndependentManagedRunsV01(db: Database.Database, workspaceId: string): Promise<void> {
+  const controls = new Map<string, { request: NativeHostRequestV01; control: NativeHostInvocationControlV01; finish: () => void }>();
+  const now = () => "2026-08-04T08:00:20.000Z";
+  const delegate = createDeterministicCodexAdapterV01({ now });
+  const service = new LiveNativeHostRunServiceV01({ open_database: openDatabaseV01, now, adapter_factory: () => ({ ...delegate,
+    invoke(request, control) {
+      let release!: () => void;
+      const barrier = new Promise<void>(resolve => { release = resolve; });
+      const finish = () => release();
+      control.cancellation_signal.addEventListener("abort", finish, { once: true });
+      const result = barrier.then(() => delegate.invoke(request, control).result)
+        .finally(() => control.cancellation_signal.removeEventListener("abort", finish));
+      const settled = result.then(() => undefined, () => undefined);
+      controls.set(request.project_id, { request, control, finish });
+      return { result, settled, request_stop: async () => { finish(); await settled; } };
+    },
+  }) });
+  async function progress(projectId: string, number: number) {
+    const owned = controls.get(projectId)!;
+    await owned.control.lifecycle_sink!.report_event({ event_id: `native-host-event:independent:${projectId}:${number}`,
+      run_id: owned.request.run_id, state: "running", event_kind: "thread_status_changed", observed_at: now(),
+      coverage: "observed", host_refs: [], bounded_metadata: { progress: number } });
+  }
+  try {
+    const a = await createPreparedFixtureV01(db, "independent-managed-a", "Independent managed A", "2026-08-04T08:00:00.000Z");
+    const b = await createPreparedFixtureV01(db, "independent-managed-b", "Independent managed B", "2026-08-04T08:00:03.000Z");
+    const start = async (fixture: typeof a) => {
+      const request = await requestAndGrantV01(db, service, fixture, "2026-08-04T08:00:10.000Z");
+      return startRepositoryManagedDelegationV01(db, startInputV01(fixture, request), service,
+        { now: () => "2026-08-04T08:00:12.000Z", platform: "darwin" });
+    };
+    const startedA = await start(a); await progress(a.project_id, 1);
+    const startedB = await start(b); await progress(b.project_id, 1);
+    assert.equal(startedA.status, "accepted"); assert.equal(startedB.status, "accepted");
+    assert.notEqual(controls.get(a.project_id)!.request.root_scope.canonical_root, controls.get(b.project_id)!.request.root_scope.canonical_root);
+    assert.equal(service.read(operatorConfig(workspaceId, a.project_id)).status, "running");
+    assert.equal(service.read(operatorConfig(workspaceId, b.project_id)).status, "running");
+    await progress(a.project_id, 2); await progress(b.project_id, 2);
+    selectProjectV01(db, workspaceId, a.project_id); await progress(b.project_id, 3); selectProjectV01(db, workspaceId, b.project_id);
+    const aRun = readAutonomyRunLedgerRecord(startedA.run_id, { db })!;
+    const cancelled = await cancelRepositoryManagedDelegationV01(db, { config: operatorConfig(workspaceId, a.project_id),
+      attachment_id: a.attachment_id, expected_attachment_binding_fingerprint: a.binding_fingerprint,
+      run_id: startedA.run_id, control_revision: Number(aRun.metadata.control_revision) }, service);
+    assert.equal(cancelled.status, "cancel_requested");
+    await waitForTerminalV01(db, startedA.run_id);
+    assert.equal(service.read(operatorConfig(workspaceId, a.project_id)).status, "cancelled");
+    assert.equal(controls.get(b.project_id)!.control.cancellation_signal.aborted, false);
+    assert.equal(service.read(operatorConfig(workspaceId, b.project_id)).status, "running");
+    await progress(b.project_id, 4); controls.get(b.project_id)!.finish();
+    await waitForTerminalV01(db, startedB.run_id);
+    assert.equal(service.read(operatorConfig(workspaceId, b.project_id)).status, "completed");
+    assert.equal(readActiveProjectSelectionV01(db, workspaceId)!.project_id, b.project_id);
+    console.log(JSON.stringify({ repository_project_independence: "pass", mode: "repository_attachment", adapter: "deterministic_zero_model",
+      projects: 2, physical_roots: 2, overlapping_progress: "A1 B1 A2 B2 B3 cancelA B4", cancellation_scoped: true, provider_calls: 0 }));
+  } finally { for (const owned of controls.values()) owned.finish(); await service.shutdown(); }
 }
 
 async function assertRunningCancellationV01(

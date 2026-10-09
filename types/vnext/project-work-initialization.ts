@@ -67,6 +67,7 @@ export interface ProjectWorkInitializationV01 {
     | "project_unavailable"
     | "root_unavailable"
     | "source_unavailable";
+  project_work_binding?: string | null;
   active_project_id: string | null;
   active_selection_revision: ProjectSelectionRevision | null;
   current_work: ProjectWorkDefinitionV01 | null;
@@ -101,8 +102,9 @@ export interface DefineInitialProjectWorkRequestV01 {
   action: "define_initial_project_work";
   workspace_id: string;
   project_id: string;
+  expected_project_work_binding?: string;
   expected_active_project_id: string;
-  expected_active_selection_revision: ProjectSelectionRevision;
+  expected_active_selection_revision: ProjectSelectionRevision | null;
   expected_initialization_state: "not_defined";
   goal: string;
   success_criteria: string[];

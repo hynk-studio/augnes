@@ -91,13 +91,11 @@ export async function durableWorkContract(createFixture: (name: string, restored
       assert(beforeRead.equals(f.db.serialize()));
       await clearAndReopen(f);
       const afterReselection = f.db.serialize();
-      await f.call(body, 409);
-      assert(afterReselection.equals(f.db.serialize()), "Held saved-work request cannot cross selection ABA");
-      body = (await f.call()).preparation.resumption_request;
-      assert.ok(body, "A fresh read rebinds saved context to the current selection");
+      assert.deepEqual((await f.call()).preparation.resumption_request, body, "Held saved-work request remains bound to unchanged project work through selection ABA");
+      assert(afterReselection.equals(f.db.serialize()));
       if (kind === "replacement") {
-        for (const selection of [undefined, null, 1, "invalid"]) {
-          const invalid = { ...body, expected_active_selection_revision: selection };
+        for (const binding of [undefined, null, 1, "invalid"]) {
+          const invalid = { ...body, expected_project_work_binding: binding };
           await f.call(invalid, 409); assert(afterReselection.equals(f.db.serialize()));
         }
       }
@@ -115,7 +113,7 @@ export async function durableWorkContract(createFixture: (name: string, restored
       const packet = current(f); await f.call(body); assert.equal(current(f).packet_id, packet.packet_id);
       assert.deepEqual(core(f).slice(0, frozen.length), frozen); assert.equal(authority(f), control); assert.equal(f.calls, calls);
       assert.equal(validateRecoveryCanonicalDatabaseV01(f.db).status, "valid");
-      console.log(JSON.stringify({ historical_stateless_resumption: kind, days: 4, no_grant_or_run: true, selection_ABA: "stale_refused_fresh_rebound", changed_source_and_physical_root: "atomic_refusal" }));
+      console.log(JSON.stringify({ historical_stateless_resumption: kind, days: 4, no_grant_or_run: true, selection_ABA: "unchanged_project_binding_retained", changed_source_and_physical_root: "atomic_refusal" }));
     }
   }
   for (const saved of [false, true]) {

@@ -1,5 +1,7 @@
 "use client";
 
+import { useWorkDraftState, type WorkComposerDraft } from "./work-composer-draft";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type {
@@ -26,8 +28,14 @@ export function FirstWorkComposer({
   resultBinding,
   resultSource,
   reviewedOutcome,
+  draft,
+  onAccessRefused,
+  onRefreshCurrentWork,
 }: {
   initialization: ProjectWorkInitializationV01;
+  draft?: WorkComposerDraft;
+  onAccessRefused?: (errorCode?: string) => void;
+  onRefreshCurrentWork?: () => Promise<void>;
   busy: boolean;
   onSave: (definition: ProjectWorkDefinitionV01, selection?: SelectedWorkSourceSelection, omissions?: Array<{ source_binding: string; reason: string }>) => Promise<void>;
   mode?: "initial" | "revision" | "new_task";
@@ -37,16 +45,16 @@ export function FirstWorkComposer({
   resultSource?: TaskContextPacketSelectedEntryV01 | null;
   reviewedOutcome?: ReviewedOutcomeReuseV01;
 }) {
-  const [goal, setGoal] = useState(initialDefinition?.goal ?? "");
-  const [criteriaText, setCriteriaText] = useState(
+  const [goal, setGoal] = useWorkDraftState(draft, "goal", initialDefinition?.goal ?? "");
+  const [criteriaText, setCriteriaText] = useWorkDraftState(draft, "criteria",
     initialDefinition?.success_criteria.join("\n") ?? "",
   );
-  const [nonGoalsText, setNonGoalsText] = useState(
+  const [nonGoalsText, setNonGoalsText] = useWorkDraftState(draft, "nonGoals",
     initialDefinition?.non_goals.join("\n") ?? "",
   );
   const goalRef = useRef<HTMLTextAreaElement>(null);
-  const [sourceSelection, setSourceSelection] = useState<SelectedWorkSourceSelection | null>(null);
-  const [sourcesPending, setSourcesPending] = useState(false);
+  const [sourceSelection, setSourceSelection] = useWorkDraftState<SelectedWorkSourceSelection | null>(draft, "sourceSelection", null);
+  const [sourcesPending, setSourcesPending] = useWorkDraftState(draft, "sourcesPending", false);
   const definition = useMemo(
     () => ({
       goal: goal.trim(),
@@ -55,7 +63,7 @@ export function FirstWorkComposer({
     }),
     [criteriaText, goal, nonGoalsText],
   );
-  const [omissionReasons, setOmissionReasons] = useState<Record<string, string>>({});
+  const [omissionReasons, setOmissionReasons] = useWorkDraftState<Record<string, string>>(draft, "omissions", {});
   const omitted = mode === "new_task" ? (initialization.selected_source_context ?? []).filter(entry =>
     !sourceSelection?.selected_source_context.some(selected => selected.source_ref === entry.source_ref)) : [];
   const selectionPending = sourcesPending || (mode === "new_task" && (!sourceSelection || omitted.some(entry => !omissionReasons[entry.source_ref!]?.trim())));
@@ -159,7 +167,7 @@ export function FirstWorkComposer({
             {issues[0]!.message}
           </p>
         ) : null}
-        {mode !== "initial" ? <SelectedWorkSourceEditor initialization={initialization} busy={busy} newTask={mode === "new_task"} resultBinding={resultBinding} resultSource={resultSource} reviewedOutcome={reviewedOutcome}
+        {mode !== "initial" ? <SelectedWorkSourceEditor composerDraft={draft} onAccessRefused={onAccessRefused} onRefreshCurrentWork={onRefreshCurrentWork} initialization={initialization} busy={busy} newTask={mode === "new_task"} resultBinding={resultBinding} resultSource={resultSource} reviewedOutcome={reviewedOutcome}
           onChange={(selection, pending) => { setSourceSelection(selection); setSourcesPending(pending); }} /> : null}
         {mode === "new_task" && omitted.map(entry => <label key={entry.entry_id}>
           Why omit this note? {entry.bounded_summary}

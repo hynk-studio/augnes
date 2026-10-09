@@ -80,8 +80,8 @@ attributing a gate. Avoiding delegation does not establish inheritance behavior.
 ## Repository execution attachment tools
 
 The supervised Companion keeps `augnes_resume_repository` as the
-selection-coupled, read-only CDX2B1 continuity tool and adds a separate
-selection-independent CDX2B2A family:
+repository-bound, read-only CDX2B1 continuity tool. The separate CDX2B2A
+execution family retains its own selection-independent admission:
 
 - `augnes_prepare_repository_execution` prepares or returns one exact
   project-scoped attachment;
@@ -206,7 +206,7 @@ The tool accepts only `repositoryRoot`. A successful result contains:
 
 - verified live Companion status and an opaque runtime binding;
 - repository resolution status;
-- the unchanged nested `codex_current_continuity.v0.1` projection;
+- the nested `codex_current_continuity.v0.1` projection;
 - ordinary-language current situation;
 - one next meaningful action;
 - a Browser project deep link when the supervised UI can truthfully provide
@@ -222,13 +222,14 @@ does not add a physical-identity outcome. CDX2B2A's separate execution owner
 uses its versioned node-local baseline to refuse same-path replacement; this
 does not redefine the read-only CDX2B1 response.
 
-Repository resolution remains attached to project A when Browser selects B,
-but the nested unchanged CDX2A projection intentionally retains active-project
-semantics: project status becomes inactive, selection revision and snapshot
-binding change, fresh work remains fresh, Start eligibility becomes false, and
-the next action asks to make A active. The separate CDX2B2A admission and
-attachment are selection-independent; the nested CDX2A continuity contract
-deliberately remains selection-coupled.
+Repository resolution and ordinary work preparation remain attached to project A
+when Browser selects or changes B. The projection reports the displayed selection,
+but its explicit-project snapshot and preview bindings compare A's work, sources,
+observed root and direction. Unrelated selection does not invalidate held initial,
+revision or different-task previews. Real target changes still require explicit
+Resume/read and a new preview. The default current-project reader remains
+selection-bound; CDX2B2A execution admission remains separate and grants no new
+mode or authority.
 
 ## Live and fail-closed requirements
 

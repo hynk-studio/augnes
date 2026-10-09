@@ -149,6 +149,7 @@ function validatePureConfiguration(): void {
   pass("gate_equal_to_preview_age_within_bounds_accepted");
 
   const cookie = serializeVNextOperatorPilotPreviewBindingCookieV01({
+    project_id: "project:preview-window",
     value: "bounded-preview-binding",
     expires_at: "2026-07-13T10:00:00.000Z",
     max_age_ms: recommended.preview_max_age_ms,
@@ -216,20 +217,44 @@ async function validateRouteFailClosedBeforeDatabaseOpen(): Promise<void> {
       throw new Error("database_must_not_open");
     },
   });
-  const response = await handlers.GET(
-    new Request(
-      "http://127.0.0.1:3000/api/vnext/operator/semantic-transition?proposal_id=p&proposal_fingerprint=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&decision_id=d&decision_fingerprint=sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-      { headers: { host: "127.0.0.1:3000" } },
-    ),
+  const previewUrl = "http://127.0.0.1:3000/api/vnext/operator/semantic-transition?proposal_id=p&proposal_fingerprint=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&decision_id=d&decision_fingerprint=sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+  const request = (method: "GET" | "POST", scoped: boolean) => new Request(
+    method === "GET" ? previewUrl : "http://127.0.0.1:3000/api/vnext/operator/semantic-transition",
+    { method, headers: { host: "127.0.0.1:3000", origin: "http://127.0.0.1:3000", "content-type": "application/json",
+      ...(scoped ? { "Augnes-Project-Id": environment.AUGNES_VNEXT_OPERATOR_PROJECT_ID } : {}) },
+      ...(method === "POST" ? { body: JSON.stringify({ action: "confirm" }) } : {}) },
   );
-  assert.equal(response.status, 503);
-  const body = (await response.json()) as { error_code?: string };
-  assert.equal(
-    body.error_code,
-    "operator_pilot_preview_max_age_config_invalid",
-  );
+  for (const method of ["GET", "POST"] as const) {
+    for (const scoped of [false, true]) {
+      const response = await handlers[method](request(method, scoped));
+      assert.equal(response.status, 503);
+      const body = (await response.json()) as { error_code?: string };
+      assert.equal(body.error_code, "operator_pilot_preview_max_age_config_invalid");
+      assert.equal(openCount, 0);
+      reject(`invalid_configuration_disables_${method.toLowerCase()}_${scoped ? "scoped" : "legacy"}_route_before_database_open`);
+    }
+  }
+  const validEnvironment = { ...environment, [VNEXT_OPERATOR_PILOT_PREVIEW_MAX_AGE_ENV_V01]: "900000" };
+  const validHandlers = createVNextOperatorSemanticTransitionHandlersV01({
+    environment: validEnvironment,
+    open_database: () => { openCount += 1; throw new Error("database_must_not_open"); },
+  });
+  for (const method of ["GET", "POST"] as const) {
+    for (const scoped of [false, true]) {
+      const response = await validHandlers[method](request(method, scoped));
+      assert.equal(response.status, 401, "Valid host policy must still require project credentials");
+      assert.equal((await response.json()).error_code, "operator_session_cookie_missing");
+      assert.equal(openCount, 0);
+      reject(`valid_configuration_preserves_${method.toLowerCase()}_${scoped ? "scoped" : "legacy"}_authentication_refusal`);
+    }
+  }
+  const disabled = createVNextOperatorSemanticTransitionHandlersV01({
+    environment: { ...environment, AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "0" },
+    open_database: () => { openCount += 1; throw new Error("database_must_not_open"); },
+  });
+  assert.equal((await disabled.GET(request("GET", true))).status, 404);
   assert.equal(openCount, 0);
-  reject("invalid_configuration_disables_route_before_database_open");
+  reject("disabled_pilot_precedes_invalid_review_window_configuration");
 }
 
 function validateDurableTimingIntegration(): void {

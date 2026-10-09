@@ -48,7 +48,7 @@ export const INITIAL_PROJECT_WORK_PACKET_CONTEXT_BUDGET_V01 = {
   ),
 } as const;
 
-const REQUEST_ID_PATTERN = /^first-work-request:(\d+|selection:[a-f0-9]{32}):([a-f0-9]{24})$/u;
+const REQUEST_ID_PATTERN = /^first-work-request:(null|\d+|selection:[a-f0-9]{32}):([a-f0-9]{24})$/u;
 const DEFINITION_ID_PATTERN = /^first-work-definition:[a-f0-9]{24}$/u;
 
 export interface InitialProjectWorkLineageMaterialV01 {
@@ -73,7 +73,8 @@ export function createInitialProjectWorkLineageMaterialV01(input: {
   project_id: string;
   operator_id: string;
   session_id: string;
-  expected_active_selection_revision: ProjectSelectionRevision;
+  expected_active_selection_revision: ProjectSelectionRevision | null;
+  expected_project_work_binding?: string;
   definition: ProjectWorkDefinitionV01;
   handoff?: WorkHandoff;
   observed_at: string;
@@ -105,8 +106,8 @@ export function createInitialProjectWorkLineageMaterialV01(input: {
       workspace_id: input.workspace_id,
       project_id: input.project_id,
       expected_active_project_id: input.project_id,
-      expected_active_selection_revision:
-        input.expected_active_selection_revision,
+      ...(input.expected_project_work_binding ? { expected_project_work_binding: input.expected_project_work_binding }
+        : { expected_active_selection_revision: input.expected_active_selection_revision }),
       expected_initialization_state: "not_defined",
       definition: input.definition,
       ...(input.handoff ? { handoff_fingerprint: input.handoff.fingerprint } : {}),
@@ -163,7 +164,8 @@ export function buildInitialProjectWorkTaskContextPacketV01(input: {
   project_id: string;
   operator_id: string;
   session_id: string;
-  expected_active_selection_revision: ProjectSelectionRevision;
+  expected_active_selection_revision: ProjectSelectionRevision | null;
+  expected_project_work_binding?: string;
   definition: ProjectWorkDefinitionV01;
   handoff?: WorkHandoff;
   generated_at: string;
@@ -177,6 +179,11 @@ export function buildInitialProjectWorkTaskContextPacketV01(input: {
     definition,
     observed_at: input.generated_at,
   });
+  const projectBindingRef: ExternalRefV01 | null = input.expected_project_work_binding ? {
+    ref_version: "external_ref.v0.1", ref_type: "project_work_binding", external_id: input.project_id,
+    trust_class: "direct_local_observation", observed_at: input.generated_at, source_ref: input.expected_project_work_binding,
+    compatibility_namespace: "augnes.project-work-binding.v0.1",
+  } : null;
   const currentness = {
     status: "fresh" as const,
     as_of: input.generated_at,
@@ -286,6 +293,7 @@ export function buildInitialProjectWorkTaskContextPacketV01(input: {
         lineage.definition_ref,
         lineage.request_ref,
         lineage.operator_action_ref,
+        ...(projectBindingRef ? [projectBindingRef] : []),
       ],
       warnings: [],
     },
@@ -296,6 +304,7 @@ export function buildInitialProjectWorkTaskContextPacketV01(input: {
         lineage.definition_ref,
         lineage.request_ref,
         lineage.operator_action_ref,
+        ...(projectBindingRef ? [projectBindingRef] : []),
       ],
       unmapped_fields: [],
       warnings: [
@@ -437,8 +446,13 @@ export function inspectInitialProjectWorkPacketLineageV01(
     refuse("initial_project_work_provenance_invalid");
   }
   const requestMatch = REQUEST_ID_PATTERN.exec(requestRef.external_id);
-  const revision = requestMatch?.[1]?.startsWith("selection:") ? requestMatch[1] : Number(requestMatch?.[1]);
-  if (!isHistoricalProjectSelectionRevision(revision)) {
+  const bindingRefs = packet.compatibility.source_refs.filter(ref => ref.ref_type === "project_work_binding");
+  if (bindingRefs.length > 1 || (bindingRefs[0] && (bindingRefs[0].external_id !== input.project_id ||
+    bindingRefs[0].compatibility_namespace !== "augnes.project-work-binding.v0.1" ||
+    bindingRefs[0].trust_class !== "direct_local_observation" || bindingRefs[0].observed_at !== packet.generated_at ||
+    !/^sha256:[a-f0-9]{64}$/u.test(bindingRefs[0].source_ref ?? "")))) refuse("initial_project_work_binding_invalid");
+  const revision = requestMatch?.[1] === "null" ? null : requestMatch?.[1]?.startsWith("selection:") ? requestMatch[1] : Number(requestMatch?.[1]);
+  if (!(isHistoricalProjectSelectionRevision(revision) || (revision === null && bindingRefs.length === 1))) {
     refuse("initial_project_work_request_ref_invalid");
   }
   const session = readVNextLocalOperatorSessionHistoryV01(db, {
@@ -477,6 +491,7 @@ export function inspectInitialProjectWorkPacketLineageV01(
     operator_id: session.operator_id,
     session_id: session.session_id,
     expected_active_selection_revision: revision,
+    ...(bindingRefs[0] ? { expected_project_work_binding: bindingRefs[0].source_ref! } : {}),
     definition: packet.task,
     ...(readWorkHandoff(packet) ? { handoff: readWorkHandoff(packet)! } : {}),
     generated_at: packet.generated_at,

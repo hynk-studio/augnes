@@ -8,7 +8,6 @@ import {
   openVNextLocalOperatorDatabaseV01,
   readBoundedVNextLocalOperatorBodyV01,
   readVNextLocalOperatorCredentialFromRequestV01,
-  readVNextLocalOperatorPilotConfigV01,
   assertVNextLocalReviewEnabledV01,
   resolveVNextLocalReviewConfigV01,
   serializeVNextLocalOperatorSessionCookieV01,
@@ -229,8 +228,8 @@ export function createVNextOperatorSemanticReviewHandlersV01(
           400,
         );
       }
-      const config = readVNextLocalOperatorPilotConfigV01(environment);
       const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
+      const config = resolveVNextLocalReviewConfigV01({ environment, credential, clock: options.clock });
       const body = await readBoundedVNextLocalOperatorBodyV01(request);
       db = openDatabase(config);
       if (
@@ -261,7 +260,7 @@ export function createVNextOperatorSemanticReviewHandlersV01(
             semantic_authority_granted: false,
           },
           result.status === "inserted" ? 201 : 200,
-          serializeVNextLocalOperatorSessionCookieV01({
+          serializeVNextLocalOperatorSessionCookieV01({ request,
             value: result.session_cookie.value,
             expires_at: result.session_cookie.expires_at,
             max_age_seconds: result.session_cookie.max_age_seconds,
@@ -311,7 +310,7 @@ export function createVNextOperatorSemanticReviewHandlersV01(
           },
           result.status === "inserted" ? 201 : 200,
           result.session_cookie
-            ? serializeVNextLocalOperatorSessionCookieV01({
+            ? serializeVNextLocalOperatorSessionCookieV01({ request,
                 value: result.session_cookie.value,
                 expires_at: result.session_cookie.expires_at,
                 max_age_seconds: result.session_cookie.max_age_seconds,
@@ -341,7 +340,7 @@ export function createVNextOperatorSemanticReviewHandlersV01(
           semantic_authority_granted: false,
         },
         result.status === "inserted" ? 201 : 200,
-        serializeVNextLocalOperatorSessionCookieV01({
+        serializeVNextLocalOperatorSessionCookieV01({ request,
           value: result.session_cookie.value,
           expires_at: result.session_cookie.expires_at,
           max_age_seconds: result.session_cookie.max_age_seconds,

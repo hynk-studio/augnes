@@ -26,10 +26,18 @@ async function snapshot(databasePath: string, config: VNextLocalOperatorPilotCon
   const db = new Database(databasePath, { readonly: true, fileMustExist: true });
   try {
     db.pragma("query_only = ON");
-    return await readCodexCurrentContinuitySnapshotV01(db, { viewed_project_id: config.project_id, generated_at: generatedAt }, {
+    const result = await readCodexCurrentContinuitySnapshotV01(db, { generated_at: generatedAt }, {
       read_operator_config: () => config, managed_start_available: () => true,
       read_live_projection: () => { throw new Error("unexpected_live_projection"); },
     });
+    // RC1's fresh-selection profile must observe the default selected-project
+    // owner, never substitute the selection-independent explicit-client seal.
+    const material = result.binding_material as Record<string, unknown>;
+    assert.equal(material.viewed_project_id, null);
+    assert.equal(material.active_project_id, config.project_id);
+    assert.equal(material.selection_revision, result.projection.project.selection_revision);
+    assert.equal(Object.hasOwn(material, "project_work_binding"), false);
+    return result;
   } finally { db.close(); }
 }
 
@@ -207,7 +215,17 @@ export async function testReconstructionConformanceV02(options: {
       args: ["--import", "tsx", "scripts/test-reconstruction-conformance-v02.ts", "--readback", readback], cwd: process.cwd(), env: process.env, timeoutMs: 60_000 });
     assert.equal(canonicalChildAcceptanceFailure(child, { suite: "rc1-selection", timeoutMs: 60_000, requireNaturalExit: true }), null);
     const readBefore = bytes(destinationPath);
-    const rebuilt = buildReconstructionConformanceReportV02(input, await captureReconstructionComparisonV02(baseline, await collect("reconstructed")));
+    const rebuiltDestination = await collect("reconstructed");
+    // The fixture's second import recreates the shared physical project root.
+    // Its sealed selected-project projection is preserved, but the private work
+    // preparation binding observes that physical change. Keep the old baseline
+    // stale refusal, then collect fresh owners for the new observation point.
+    const staleBaseline = buildReconstructionConformanceReportV02(input,
+      await captureReconstructionComparisonV02(baseline, rebuiltDestination));
+    requireCheck(staleBaseline, "baseline_current_at_capture", "mismatch");
+    assert.equal(staleBaseline.preservation.status, "conformant");
+    const rebuilt = buildReconstructionConformanceReportV02(input,
+      await captureReconstructionComparisonV02(await collect("baseline"), rebuiltDestination));
     assert.equal(rebuilt.status, "conformant", JSON.stringify(rebuilt));
     assert.equal(rebuilt.preservation.status, report.preservation.status);
     assert.notEqual(rebuilt.integrity.fingerprint, report.integrity.fingerprint);

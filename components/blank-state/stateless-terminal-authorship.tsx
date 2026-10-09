@@ -1,22 +1,24 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useWorkDraftState, type WorkComposerDraft } from "../workbench/semantic-review/work-composer-draft";
 import type { readTerminalAuthorshipPreparation, previewTerminalAuthorship } from "@/lib/vnext/runtime/stateless-terminal-authorship";
 
 type Preparation = NonNullable<ReturnType<typeof readTerminalAuthorshipPreparation>>;
 type Preview = ReturnType<typeof previewTerminalAuthorship>;
 /** Same authenticated review request owner; no grant or model control here. */
-export function StatelessTerminalAuthorship({ preparation, material, request, saved }: {
+export function StatelessTerminalAuthorship({ preparation, material, request, saved, draft }: {
+  draft?: WorkComposerDraft;
   preparation: Preparation; material: { question: string; files: Array<{ path: string; start_line: number; end_line: number }> };
   request: (body: unknown) => Promise<any>; saved: () => Promise<void>;
 }) {
   const sources = [...preparation.sources];
   if (preparation.current_direction_source && !sources.some(e => e.entry_id === preparation.current_direction_source!.entry_id)) sources.push(preparation.current_direction_source);
-  const [definition, setDefinition] = useState(preparation.definition);
-  const [selected, setSelected] = useState(preparation.sources.filter(e => {
+  const [definition, setDefinition] = useWorkDraftState(draft, "definition", preparation.definition);
+  const [selected, setSelected] = useWorkDraftState(draft, "selected", () => preparation.sources.filter(e => {
     try { return JSON.parse(e.bounded_summary ?? "{}").profile !== "stateless_source_review.v0.1"; } catch { return true; }
   }).map(e => e.entry_id));
   const [comparisonResult, setComparison] = useState<{ value: Preview; identity: string } | null>(null);
-  const [reasons, setReasons] = useState<Record<string, string>>({});
+  const [reasons, setReasons] = useWorkDraftState<Record<string, string>>(draft, "reasons", {});
   const [previewResult, setPreview] = useState<{ value: Preview; request: unknown; identity: string } | null>(null);
   const [message, setMessage] = useState(""); const [busy, setBusy] = useState(false);
   const revision = useRef(0), sequence = useRef(0), mounted = useRef(true);
@@ -80,7 +82,7 @@ export function StatelessTerminalAuthorship({ preparation, material, request, sa
       <p>New work: {preview.value.material.definition.goal}</p><p>Question: {preview.value.material.review.question}</p>
       <ul>{preview.value.material.review.files.map(f => <li key={f.path}>{f.path}, lines {f.start_line}–{f.end_line}</li>)}</ul>
       <p>Selected notes and operational lineage above will be saved. Automation stays unchanged. This creates a new packet with no execution grant; execution needs separate authorization.</p>
-      <details><summary>Review exact bindings</summary><pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{JSON.stringify({ preview: preview.value.preview_binding, predecessor: preview.value.material.predecessor, root: preview.value.material.root_fingerprint, direction: preview.value.material.direction_ref, selection: preview.value.material.selection_revision }, null, 2)}</pre></details>
+      <details><summary>Review exact bindings</summary><pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{JSON.stringify({ preview: preview.value.preview_binding, predecessor: preview.value.material.predecessor, root: preview.value.material.root_fingerprint, direction: preview.value.material.direction_ref, project_work: preview.value.material.project_work_binding }, null, 2)}</pre></details>
       <button disabled={busy} onClick={() => void act(async () => {
         if (preview.identity !== currentIdentity.current) return;
         await request({ action: "author_terminal_work", request: preview.request, expected_preview: preview.value.preview_binding }); setPreview(null); setComparison(null); await saved(); setMessage("New linked work saved with no execution permission. The stopped attempt remains unchanged.");

@@ -12,8 +12,9 @@ import Database from "better-sqlite3";
 import { installZeroNetworkGuard } from "./test-harness-zero-network-guard.mjs";
 import { registerOwnedChild, terminateOwnedProcessTree, trackServerConnections, closeTrackedServer } from "./test-harness-process-lifecycle.mjs";
 import { createStatelessSourceReviewHandler } from "../app/api/vnext/operator/stateless-source-review/route";
-import { issueVNextLocalOperatorBootstrapV01, consumeVNextLocalOperatorBootstrapV01, readVNextLocalOperatorCredentialFromRequestV01,
-  revokeVNextLocalOperatorSessionByCredentialV01, VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01, VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01 } from "../lib/vnext/runtime/local-operator-session";
+import { createVNextLocalOperatorSessionHandlersV01 } from "../app/api/vnext/operator/session/route";
+import { issueVNextLocalOperatorBootstrapV01, readVNextLocalOperatorCredentialFromRequestV01,
+  revokeVNextLocalOperatorSessionByCredentialV01, VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01 } from "../lib/vnext/runtime/local-operator-session";
 import { readProjectAutomationControlV01 } from "../lib/vnext/persistence/project-control-store";
 import { readProjectWorkInitializationV01 } from "../lib/vnext/runtime/project-work-initialization";
 import { readSelectedWorkSources } from "../lib/intake/selected-work-source-comparison";
@@ -42,11 +43,19 @@ async function main() {
   assert.ok(config.database_path.includes("terminal-browser-copy"), "disposable_copy_required");
   const root = path.join(path.dirname(config.database_path), "terminal-browser-owned"); mkdirSync(root);
   const guard = installZeroNetworkGuard({ allowLoopback: true }), db = new Database(config.database_path), clock = { now: () => at };
-  const owned = new Set(); let child: ReturnType<typeof registerOwnedChild> | undefined, c: CDP | undefined, cookie = "", origin = "";
+  const owned = new Set(); let child: ReturnType<typeof registerOwnedChild> | undefined, c: CDP | undefined, origin = "", sessionId: string | undefined;
+  const cookieJar = new Map<string, string>();
+  const cookieHeader = () => [...cookieJar].map(([name, value]) => `${name}=${value}`).join("; ");
+  const rememberCookies = (values: string[]) => { for (const value of values) {
+    const pair = value.split(";")[0]!, split = pair.indexOf("="), name = pair.slice(0, split), content = pair.slice(split + 1);
+    if (content) cookieJar.set(name, content); else cookieJar.delete(name);
+  } };
   let external = 0, failures = 0; const actions: string[] = [], responses: Array<{ status: number; error: string | null }> = [];
   let holdNext = ""; const held: Array<() => void> = []; let submitted: any = null;
-  const route = createStatelessSourceReviewHandler({ clock, environment: { NODE_ENV: "test", AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1", AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: config.workspace_id,
-    AUGNES_VNEXT_OPERATOR_PROJECT_ID: config.project_id, AUGNES_VNEXT_OPERATOR_ID: config.operator_id, AUGNES_DB_PATH: config.database_path, OPENAI_API_KEY: "" } });
+  const environment = { NODE_ENV: "test" as const, AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1", AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: config.workspace_id,
+    AUGNES_VNEXT_OPERATOR_PROJECT_ID: config.project_id, AUGNES_VNEXT_OPERATOR_ID: config.operator_id, AUGNES_DB_PATH: config.database_path, OPENAI_API_KEY: "" };
+  const route = createStatelessSourceReviewHandler({ clock, environment });
+  const sessions = createVNextLocalOperatorSessionHandlersV01({ clock, environment });
   const endpoint = `/api/vnext/operator/stateless-source-review?project_id=${config.project_id}`;
   const counts = () => [db.prepare("SELECT COUNT(*) n FROM autonomy_runs").get(), db.prepare("SELECT COUNT(*) n FROM vnext_core_records WHERE record_kind='capability_grant'").get()];
   const before = counts(); let script = "";
@@ -63,11 +72,14 @@ async function main() {
       if (req.url === "/app.js") { res.setHeader("Content-Type", "application/javascript"); res.end(script); return; }
       if (!req.url?.startsWith("/api/")) { res.setHeader("Content-Type", "text/html"); res.end('<div id="root"></div><script src="/app.js"></script>'); return; }
       const chunks: Buffer[] = []; for await (const chunk of req) chunks.push(Buffer.from(chunk)); const body = Buffer.concat(chunks).toString();
-      const action = body ? JSON.parse(body).action : ""; if (action) actions.push(action);
+      const isSession = new URL(origin + req.url).pathname === "/api/vnext/operator/session";
+      const action = !isSession && body ? JSON.parse(body).action : ""; if (action) actions.push(action);
       if (action === "author_terminal_work") submitted = JSON.parse(body).request;
-      const response = await route(new Request(origin + req.url, { method: req.method, headers: req.headers as Record<string, string>, ...(body ? { body } : {}) }));
-      response.headers.forEach((v, k) => res.setHeader(k, v));
-      if (response.headers.get("set-cookie")) cookie = response.headers.get("set-cookie")!.split(";")[0]!;
+      const handler = isSession ? sessions[req.method === "POST" ? "POST" : "GET"] : route;
+      const response = await handler(new Request(origin + req.url, { method: req.method, headers: req.headers as Record<string, string>, ...(body ? { body } : {}) }));
+      response.headers.forEach((v, k) => { if (k !== "set-cookie") res.setHeader(k, v); });
+      const cookies = response.headers.getSetCookie(); if (cookies.length) res.setHeader("Set-Cookie", cookies);
+      rememberCookies(cookies);
       const text = await response.text(); responses.push({ status: response.status, error: JSON.parse(text).error ?? null });
       if (holdNext && action === holdNext) { holdNext = ""; await new Promise<void>(release => held.push(release)); }
       res.statusCode = response.status; res.end(text);
@@ -77,8 +89,11 @@ async function main() {
     script = (await build({ stdin: { contents: `import React from 'react'; import {createRoot} from 'react-dom/client'; import {StatelessSourceReview} from './components/blank-state/stateless-source-review'; createRoot(document.getElementById('root')).render(React.createElement(StatelessSourceReview,{projectId:${JSON.stringify(config.project_id)}}));`, resolveDir: process.cwd(), loader: "tsx" },
       bundle: true, write: false, platform: "browser", define: { "process.env.NODE_ENV": '"production"' }, plugins: [{ name: "navigation-only", setup(b) { b.onResolve({ filter: /^next\/navigation$/ }, () => ({ path: "navigation", namespace: "test" })); b.onLoad({ filter: /.*/, namespace: "test" }, () => ({ contents: "export const useRouter = () => ({refresh(){}});" })); } }] })).outputFiles[0]!.text;
     await new Promise<void>(ok => server.listen(0, "127.0.0.1", ok)); origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
-    const bootstrap = issueVNextLocalOperatorBootstrapV01(db, { config, clock }), session = consumeVNextLocalOperatorBootstrapV01(db, { config, clock, bootstrap_token: bootstrap.bootstrap_token });
-    cookie = `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${session.cookie_value}`;
+    const bootstrap = issueVNextLocalOperatorBootstrapV01(db, { config, clock });
+    const admitted = await fetch(origin + "/api/vnext/operator/session", { signal: AbortSignal.timeout(10000), method: "POST", headers: { origin, "content-type": "application/json", "Augnes-Project-Id": config.project_id },
+      body: JSON.stringify({ action: "bootstrap", bootstrap_token: bootstrap.bootstrap_token }) });
+    assert.equal(admitted.status, 200); rememberCookies(admitted.headers.getSetCookie());
+    const admission = await admitted.json(); assert.equal(admission.status, "authenticated"); assert.equal(admission.session.project_id, config.project_id); sessionId = admission.session.session_id;
     // The outer macOS loopback-only sandbox owns every child. Chrome cannot
     // install a second renderer sandbox inside it; this is an isolated profile.
     const profile = path.join(root, "chrome"), args = ["--headless=new", "--no-sandbox", "--disable-gpu", "--no-first-run", "--no-default-browser-check", "--disable-background-networking", "--disable-component-update", "--disable-default-apps", "--disable-domain-reliability", "--disable-extensions", "--disable-sync", "--metrics-recording-only", "--no-pings", "--password-store=basic", "--use-mock-keychain", "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1", "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "about:blank"];
@@ -93,7 +108,7 @@ async function main() {
     await c.send("Network.enable"); await c.send("Runtime.enable"); await c.send("Page.enable");
     c.handlers.push(m => { if (m.method === "Runtime.exceptionThrown") failures++; if (m.method === "Fetch.requestPaused") { const local = m.params.request.url.startsWith(origin + "/"); if (!local) external++; void browser.send(local ? "Fetch.continueRequest" : "Fetch.failRequest", { requestId: m.params.requestId, ...(local ? {} : { errorReason: "BlockedByClient" }) }).catch(() => { failures++; }); } });
     await c.send("Fetch.enable", { patterns: [{ urlPattern: "*", requestStage: "Request" }] });
-    await c.send("Network.setCookie", { name: VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01, value: session.cookie_value, url: origin, path: VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01, httpOnly: true, sameSite: "Strict" });
+    for (const [name, value] of cookieJar) await c.send("Network.setCookie", { name, value, url: origin, path: VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01, httpOnly: true, sameSite: "Strict" });
     await c.send("Page.navigate", { url: origin });
     const click = async (text: string) => { await until(() => browser.eval(`[...document.querySelectorAll('button')].some(e=>e.textContent===${JSON.stringify(text)}&&!e.disabled)`), text); await browser.eval(`[...document.querySelectorAll('button')].find(e=>e.textContent===${JSON.stringify(text)}).click()`); };
     const set = (selector: string, value: string) => browser.eval(`(()=>{const e=document.querySelector(${JSON.stringify(selector)}); Object.getOwnPropertyDescriptor(e.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype,'value').set.call(e,${JSON.stringify(value)});e.dispatchEvent(new Event('input',{bubbles:true}));})()`);
@@ -180,8 +195,11 @@ async function main() {
   } finally {
     held.splice(0).forEach(release => release());
     try {
-      if (cookie) { const credential = readVNextLocalOperatorCredentialFromRequestV01(new Request(origin, { headers: { cookie } })); assert.ok(revokeVNextLocalOperatorSessionByCredentialV01(db, { config, credential, clock }).revoked_at);
-        assert.equal((await route(new Request(origin + endpoint, { headers: { host: new URL(origin).host, origin, cookie } }))).status, 401); }
+      if (sessionId) { const headers = { host: new URL(origin).host, origin, cookie: cookieHeader(), "Augnes-Project-Id": config.project_id };
+        const credential = readVNextLocalOperatorCredentialFromRequestV01(new Request(origin, { headers })); assert.ok(revokeVNextLocalOperatorSessionByCredentialV01(db, { config, credential, clock }).revoked_at);
+        assert.equal((await sessions.GET(new Request(origin + "/api/vnext/operator/session", { headers }))).status, 401);
+        assert.equal((await route(new Request(origin + endpoint, { headers }))).status, 401);
+        assert.equal((db.prepare("SELECT COUNT(*) AS count FROM vnext_local_operator_sessions WHERE session_id = ? AND revoked_at IS NULL").get(sessionId) as { count: number }).count, 0); }
     } finally { c?.close(); try { if (child) await terminateOwnedProcessTree(child); } finally { await closeTrackedServer(server); db.close(); guard.restore(); rmSync(root, { recursive: true, force: true }); } }
   }
   console.log(JSON.stringify({ browser: "actual_review_component_and_authenticated_http", actions, provider_calls: 0, grants_created: 0, runs_created: 0, logout_read: 401, cleanup: "complete" }));

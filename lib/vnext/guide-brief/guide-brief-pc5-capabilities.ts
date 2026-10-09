@@ -1,3 +1,4 @@
+import { projectClientHref } from "@/lib/vnext/project-client-href";
 import { buildGuideBriefConversationScopeKeyV01 } from "@/lib/vnext/guide-brief/guide-brief-conversation-plan";
 import { createOpaqueGuideBriefInteractionTargetHandleV01 } from "@/lib/vnext/guide-brief/guide-brief-interaction-plan";
 import { createSharedInspectorHrefV01 } from "@/lib/vnext/shared-project-inspector-href";
@@ -273,16 +274,16 @@ export function buildSelectedWorkGuideBriefCapabilitySetV01(
       effectClass: "navigation",
       routeKey: "selected_work_inspector",
       scopeKey,
-      ownerIdentity: createSharedInspectorHrefV01({
+      ownerIdentity: projectClientHref(createSharedInspectorHrefV01({
         target_kind: "episode_delta_proposal",
         record_id: selectedWorkScope.proposal_id,
         expected_fingerprint: selectedWorkScope.proposal_fingerprint,
-      }),
-      destination: createSharedInspectorHrefV01({
+      }), selectedWorkScope.project_id),
+      destination: projectClientHref(createSharedInspectorHrefV01({
         target_kind: "episode_delta_proposal",
         record_id: selectedWorkScope.proposal_id,
         expected_fingerprint: selectedWorkScope.proposal_fingerprint,
-      }),
+      }), selectedWorkScope.project_id),
       targetScope,
     }),
   );
@@ -349,11 +350,11 @@ export function buildSelectedWorkGuideBriefCapabilitySetV01(
   return {
     context,
     capabilities,
-    proposal_inspector_href: createSharedInspectorHrefV01({
+    proposal_inspector_href: projectClientHref(createSharedInspectorHrefV01({
       target_kind: "episode_delta_proposal",
       record_id: selectedWorkScope.proposal_id,
       expected_fingerprint: selectedWorkScope.proposal_fingerprint,
-    }),
+    }), selectedWorkScope.project_id),
   };
 }
 

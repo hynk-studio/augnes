@@ -9,6 +9,8 @@ import { createProjectExperienceRequestVerdictV1 } from './project-experience-re
 import { sessionRefusalEvidenceOwnerV1 } from './project-experience-host-round-trip-pins-v1.mjs';
 import { CONSUMER_DIAGNOSTIC_BINDING_V1 } from './project-experience-consumer-diagnostics-v1.mjs';
 
+import { loadProjectClientScopeTestRuntime } from './project-client-scope-test-runtime.mjs';
+
 const phase = 'companion_first_work_access', route = '/api/vnext/operator/host-round-trip';
 const url = `http://localhost:3000${route}`;
 // Synthetic protocol schedules exercise the actual private acceptance owner and
@@ -96,7 +98,7 @@ function fixture(options = {}, factory = createProjectExperienceRequestVerdictV1
       read.event('consumer_returned');
     }
   };
-  return { diagnostics, verdict, owner, scenario, observer, portal, start, response, failure, deliver, cleanup, dispose,
+  return { diagnostics, verdict, owner, scenario, observer, portal, window, start, response, failure, deliver, cleanup, dispose,
     get read() { return read; }, get controller() { return controller; },
     finish() { if (!options.unsealed) owner.seal(scenario); owner.close(scenario); },
     classify: entry => verdict.sessionRefusalCancellation?.(entry) ?? { expected: false, reason: verdict.unavailableExecutionAbortReason(entry) },
@@ -233,6 +235,7 @@ const actualCases = [];
           return [event];
         },
         fetchImpl(_path, options) {
+          assert.equal(new Headers(options.headers).get('Augnes-Project-Id'), 'project:refusal-scope');
           options.signal.addEventListener('abort', () => {
             pending.reject(new DOMException('controlled cancellation', 'AbortError'));
             queueMicrotask(() => { failure = f.failure(); });
@@ -255,7 +258,11 @@ const actualCases = [];
         useEffect(callback, deps) { const i = index++; if (changed(slots[i], deps)) effects.push({ i, callback, deps }); },
       };
       const exports = {};
-      vm.runInNewContext(hookCode, { exports, require: name => { assert.equal(name, 'react'); return react; },
+      const scoped = loadProjectClientScopeTestRuntime({ react, fetch: f.window.fetch.bind(f.window), projectId: 'project:refusal-scope' });
+      vm.runInNewContext(hookCode, { exports, require: name => {
+        if (name === '@/components/workbench/semantic-review/project-client-scope') return scoped;
+        assert.equal(name, 'react'); return react;
+      },
         AbortController, Error, window: { setTimeout() { assert.fail('initial read must not poll'); } } });
       const render = () => {
         index = 0; exports.useDelegatedCodexWorkV01(sessionState.status === 'authenticated', f.observer);

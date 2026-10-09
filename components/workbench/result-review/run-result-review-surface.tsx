@@ -1,5 +1,7 @@
+import type { WorkComposerDraft } from "../semantic-review/work-composer-draft";
+import { projectClientHref } from "@/lib/vnext/project-client-href";
 import { WorkExpectationResult } from "../semantic-review/work-expectation";
-import { ResultWorkComposer } from "./result-work-composer";
+import { ResultWorkComposer, type ResultWorkComposerContext } from "./result-work-composer";
 import type { ReactNode } from "react";
 
 import { AIWorkplaneShell } from "@/components/workbench/ai-workplane/ai-workplane-shell";
@@ -21,9 +23,13 @@ export function RunResultReviewSurface({
   guideLoading = false,
   guideRequestCount,
   onExpectationSaved,
+  workComposerContext,
+  expectationReportDraft,
 }: {
   result: ProjectRunResultDetailV01;
-  onExpectationSaved?: () => Promise<void>;
+  onExpectationSaved?: () => Promise<void | boolean>;
+  workComposerContext?: ResultWorkComposerContext;
+  expectationReportDraft?: WorkComposerDraft;
   accessBoundary?: ReactNode;
   guidePacket: ProjectGuideBriefV02 | null;
   guideLoading?: boolean;
@@ -127,14 +133,14 @@ export function RunResultReviewSurface({
             </div>
             <a
               className={styles.button}
-              href={view.primary_action.href ?? "/workbench/semantic-review"}
+              href={projectClientHref(view.primary_action.href ?? "/workbench/semantic-review", result.project_id)}
               data-ai-workplane-primary-action={view.primary_action.kind}
               data-augnes-primary-action={view.primary_action.kind}
               data-result-to-proposal-link={result.proposal.status === "available" ? "true" : undefined}
             >
               {view.primary_action.label}
             </a>
-            {result.summary.execution_status === "completed" ? <ResultWorkComposer key={result.identity.receipt_ref} receiptId={result.identity.receipt_ref} /> : null}
+            {result.summary.execution_status === "completed" && workComposerContext ? <ResultWorkComposer key={`${result.identity.receipt_ref}:${workComposerContext.session.operator_id}`} receiptId={result.identity.receipt_ref} context={workComposerContext} /> : null}
           </section>
 
           <section
@@ -184,11 +190,14 @@ export function RunResultReviewSurface({
 
           {result.expectation ? (
             <WorkExpectationResult
-              key={`${result.project_id}:${result.identity.receipt_ref}`}
+              key={`${result.project_id}:${result.identity.receipt_ref}:${workComposerContext?.session.operator_id ?? ""}`}
+              draft={expectationReportDraft}
+              onAccessRefused={workComposerContext?.onAccessRefused}
               comparison={result.expectation}
               receiptId={result.identity.receipt_ref}
               receiptFingerprint={result.identity.receipt_fingerprint}
               selectionRevision={result.expectation_active_selection_revision ?? null}
+              projectWorkBinding={result.expectation_project_work_binding}
               onSaved={onExpectationSaved}
             />
           ) : null}
@@ -221,7 +230,7 @@ export function RunResultReviewSurface({
               <h2>Exact result sources</h2>
               <a
                 className={styles.linkButton}
-                href={result.summary.inspector_href}
+                href={projectClientHref(result.summary.inspector_href, result.project_id)}
                 data-result-to-shared-inspector="true"
               >
                 View exact details
@@ -295,7 +304,7 @@ function ReviewableProposal({ result }: { result: ProjectRunResultDetailV01 }) {
           <p className={styles.copy}>A source-bound suggested change is available for separate review.</p>
           <a
             className={styles.linkButton}
-            href={proposal.review_href}
+            href={projectClientHref(proposal.review_href, result.project_id)}
             data-result-to-proposal-link="true"
           >
             Open exact suggested-change review

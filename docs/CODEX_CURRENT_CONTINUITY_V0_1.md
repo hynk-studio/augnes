@@ -20,10 +20,10 @@ route and Codex command are thin adapters over that owner; neither reconstructs
 continuity from presentation copy or repository state.
 
 CDX2A was completed by Issue #112 and PR #113 at merge commit
-`d02698eded2c681f1480ad0eee3612ba0f9d4d27`. CDX2B1 does not redefine this
-active-project contract. Its repository-scoped owner first resolves one
-canonical project by physical root, then calls the same projection owner
-through a thin explicit-project adapter.
+`d02698eded2c681f1480ad0eee3612ba0f9d4d27`. The default reader retains its
+current-project contract. CDX2B1 first resolves one canonical project by physical
+root, then calls the same projection owner through an explicit-project adapter
+whose binding is independent of unrelated displayed selection.
 
 ## Public Command
 
@@ -126,11 +126,14 @@ The review state remains relation-specific:
 ## Snapshot Binding
 
 `codex_current_continuity_snapshot.v0.1` is a deterministic SHA-256 binding over
-the minimum exact canonical material for the active workspace/project,
-selection revision, root availability, current packet identity and lineage,
+the minimum exact canonical material for the target workspace/project,
+root availability, current packet identity and lineage,
 managed run, canonical result, current review attention, operator Start
 configuration availability, Start/revision eligibility reason codes, the
-derived next-action kind, and source status. It excludes
+derived next-action kind, and source status. Default current-project reads also
+bind the active selection revision. Explicit project/repository reads instead
+bind the target project, registered and physical root, and direction; unrelated
+selection changes do not invalidate their snapshot. It excludes
 `generated_at` and other per-read values. Identical canonical state produces
 the same binding; a material current-owner change produces a different one.
 
@@ -216,11 +219,12 @@ source authenticity.
 
 An exact current packet with no notes returns `available` and `sources: []`.
 Unavailable/ambiguous work or repository resolution returns `unavailable`,
-not an empty-work claim. A changed exact Resume binding, including Browser
-selection or packet changes, returns `refresh_required` / `snapshot_changed`
-with no replacement sources or bindings. Refresh requires an explicit Resume
-read; there is no automatic retry. A fresh repository-A read still targets A
-when Browser selects B, retaining the existing selection-coupled snapshot.
+not an empty-work claim. A changed exact repository Resume binding, including A's
+packet, sources, observed root or direction, returns `refresh_required` /
+`snapshot_changed` with no replacement sources or bindings. Refresh requires an
+explicit Resume read; there is no automatic retry. Repository-A reads and held
+previews remain bound to A when Browser selects or changes B. The default
+current-project reader still binds the displayed selection.
 No source locators are fetched and no work/session/run/semantic state is written.
 Prepared work and externally performed Codex development remain distinct from
 Augnes-managed execution and canonical results.
@@ -245,7 +249,7 @@ checks as current-source read. Browser cookies and returned references grant
 no access. The tool is not registered on public/default App surfaces.
 
 Historical disclosure is a separate explicit capability, limited to the same
-eligible active, unstarted-work chain that the Browser owner permits. One
+eligible current, unstarted-work chain in the target project that the Browser owner permits. One
 dedicated query-only read transaction covers physical repository resolution,
 Resume binding, revision eligibility, validated chain and canonical recall.
 No cross-project, executed-work succession, arbitrary record or global history
@@ -327,7 +331,7 @@ authentication, relevance, source truth nor permission to execute their text.
 Preview binds normalized references, resolved originals, the current snapshot
 and runtime identity. Save revalidates through the existing atomic owner.
 Immediate-successor replay resolves only the original predecessor's history;
-it creates no duplicate revision. Competing work/selection/execution or runtime
+it creates no duplicate revision. Competing target work/root/direction/execution or runtime
 changes, invalid references and altered previews refuse. Existing rollback,
 authenticated admission and `outcome_unknown` behavior remain unchanged. There
 is no automatic retry, rebase, polling or save-on-search.
@@ -391,7 +395,7 @@ Preview uses a read-only transaction and returns
 Save independently authenticates the current Companion channel. Its seal binds
 the normalized definition, full canonical snapshot, repository and runtime
 identity. A dedicated immediate transaction covers repository resolution,
-current selection/root/history eligibility, Companion admission, the shared
+target-project/root/history eligibility, Companion admission, the shared
 transaction-required initial writer, and post-write lineage reconstruction.
 The Browser wrapper retains its authentication, cookies and replay behavior.
 Companion initial save refuses every stale/duplicate binding, including identical
@@ -488,9 +492,10 @@ registered on public/default Apps.
 Preview owns a dedicated read-only transaction and writes nothing. Save owns a
 dedicated `BEGIN IMMEDIATE` before repository resolution, snapshot validation,
 source normalization and authenticated provenance admission. The existing
-transaction-required revision writer retains all selection, eligibility,
-lineage, source comparison, insertion and post-write validation checks. The
-Browser wrapper keeps its existing credential admission and cookie behavior.
+transaction-required revision writer compares the project-work root/direction
+binding, eligibility, lineage, source comparison, insertion and post-write
+validation. Browser requests use the same binding and retain credential admission
+with independently scoped cookies; legacy unbound requests retain selection CAS.
 No parallel revision mechanism or persistent preview store is introduced.
 
 The keyed preview seal binds the runtime, original Resume binding, normalized
@@ -499,7 +504,7 @@ three revision-specific current-work fields are omitted from its replay
 invariant; other state, including the next action, stays bound. A stale request
 can only acknowledge a validated identical immediate successor through the
 existing exact-replay owner. It cannot create a new revision. A competing
-change, altered content, runtime/selection change, source-binding conflict or
+change, altered content, runtime/root/direction change, source-binding conflict or
 execution/history ineligibility refuses. No refresh-and-save, rebase, polling
 or automatic retry occurs. After save, explicitly Resume again and read sources
 with the new binding.
@@ -551,15 +556,19 @@ project. No result registers, renames, rebinds, selects, writes, starts, or
 duplicates a project.
 
 The v0.1 canonical root binding has no durable registration-time physical
-identity baseline. Same-path directory replacement is therefore not detected
-and is not represented by a `root_identity_changed` outcome. A future claim
-requires a versioned persistence/migration/backup/restore/portability owner.
+identity baseline. A fresh resolution cannot identify a same-path replacement
+that predates its observation and has no `root_identity_changed` outcome.
+Held project-work bindings do detect a replacement between preparation and save.
+Registration-time detection would require a versioned
+persistence/migration/backup/restore/portability owner.
 
-Selecting Browser project B does not redirect a repository-A attachment, but
-the reused CDX2A projection still reports A as inactive. Its selection revision
-and snapshot binding change, current-work freshness remains unchanged, Start
-eligibility closes, and its next action becomes `make_project_active`. CDX2B1
-does not claim selection-independent execution eligibility.
+Selecting Browser project B does not redirect a repository-A attachment. The
+projection still truthfully reports A as inactive and the displayed selection
+revision, but explicit-project snapshot bindings and preparation eligibility use
+A's relevant work/root/direction material. Unrelated selection does not invalidate
+a held preview. This comparison observes physical root identity at read time; it
+does not create a durable registration-time baseline or grant execution authority.
+Existing repository execution admission remains a separate owner.
 
 The local POST route and `augnes_resume_repository` MCP tool are thin adapters.
 The stdio proxy validates the UI runtime instance, runtime generation,

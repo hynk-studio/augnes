@@ -1,5 +1,8 @@
 "use client";
 
+import { useProjectClientFetch } from "./project-client-scope";
+
+import { useWorkDraftState, type WorkComposerDraft } from "./work-composer-draft";
 import { useState } from "react";
 import { FirstWorkComposer } from "./first-work-composer";
 import type { ProjectWorkInitializationV01 } from "@/types/vnext/project-work-initialization";
@@ -9,16 +12,19 @@ import styles from "./semantic-review.module.css";
 type Preview = ReturnType<typeof previewNewProjectWorkV01>;
 const route = "/api/vnext/operator/project-continuity";
 
-export function NewWorkComposer({ initialization, onCancel, onCommitted }: {
+export function NewWorkComposer({ initialization, onCancel, onCommitted, onRefused, draft, disabled = false }: {
+  draft?: WorkComposerDraft; disabled?: boolean;
   initialization: ProjectWorkInitializationV01; onCancel: () => void; onCommitted: () => Promise<void>;
+  onRefused: (status: number, errorCode?: string) => Promise<void>;
 }) {
-  const [preview, setPreview] = useState<Preview | null>(null);
+  const fetch = useProjectClientFetch();
+  const [preview, setPreview] = useWorkDraftState<Preview | null>(draft, "newWorkPreview", null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   async function post(body: unknown, save = false) {
     const uncertain = save
-      ? "The save response could not be confirmed. Reload current work before taking another action; a save may have committed."
-      : "Preview unavailable. Reload current work before preparing again; no save was requested.";
+      ? "The save response could not be confirmed. Your draft is retained. Review current work before taking another action; a save may have committed."
+      : "Preview unavailable. Your draft is retained. Refresh current work before preparing again; no save was requested.";
     let response: Response;
     let result;
     try {
@@ -26,15 +32,20 @@ export function NewWorkComposer({ initialization, onCancel, onCommitted }: {
         headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
       result = await response.json();
     } catch {
+      await onRefused(0);
       throw new Error(uncertain);
     }
+    if (!response.ok) await onRefused(response.status, result?.error_code);
     if (response.status >= 500) throw new Error(uncertain);
-    if (!response.ok) throw new Error(`Preparation refused (${response.status}). Reload current work before preparing again.`);
+    if (!response.ok) throw new Error(`Preparation refused (${response.status}). Your draft is retained. Review refreshed current work before preparing again.`);
     return result;
   }
   return <section data-new-work-composer>
-    {error ? <p role="alert" className={styles.error}>{error}</p> : null}
-    <div hidden={preview !== null}><FirstWorkComposer initialization={initialization} busy={busy} mode="new_task" onCancel={onCancel}
+    {error ? <div role="alert" className={styles.error}><p>{error}</p>
+      <button type="button" disabled={busy} onClick={() => void onRefused(0)}>Refresh current work</button>
+    </div> : null}
+    <div hidden={preview !== null}><FirstWorkComposer draft={draft} initialization={initialization} busy={busy || disabled} mode="new_task" onCancel={onCancel}
+      onAccessRefused={code => { void onRefused(401, code); }} onRefreshCurrentWork={() => onRefused(0)}
       onSave={async (definition, selection, omitted_sources) => {
         setBusy(true); setError(null);
         try {
@@ -42,6 +53,7 @@ export function NewWorkComposer({ initialization, onCancel, onCommitted }: {
           const result = await post({ action: "preview_new_project_work", workspace_id: initialization.workspace_id,
             project_id: initialization.project_id, expected_active_project_id: initialization.project_id,
             expected_active_selection_revision: initialization.active_selection_revision,
+            expected_project_work_binding: initialization.project_work_binding,
             expected_current_packet_id: packet.packet_id, expected_current_packet_fingerprint: packet.packet_fingerprint,
             expected_current_lineage_kind: packet.lineage_kind, ...definition, ...selection, omitted_sources });
           if (result.status !== "new_work_preview") throw new Error("Preview unavailable.");
@@ -66,19 +78,20 @@ export function NewWorkComposer({ initialization, onCancel, onCommitted }: {
         Omitted: {preview.comparison.sources_before.find(entry => entry.source_ref === row.source_binding)?.bounded_summary} — {row.reason}
       </p>)}
       <p>Selection does not verify source claims. Exclusion does not delete or refute them.</p>
-      <button type="button" className={styles.button} disabled={busy} data-new-work-action="save" onClick={async () => {
+      <button type="button" className={styles.button} disabled={busy || disabled} data-new-work-action="save" onClick={async () => {
         setBusy(true); setError(null);
         try {
           const result = await post(preview.request, true);
           if (!["inserted", "exact_replay"].includes(result.status) || result.execution_started !== false || result.run_created !== false) {
-            throw new Error("Save outcome could not be confirmed. Reload current work before taking another action.");
+            await onRefused(0);
+            throw new Error("Save outcome could not be confirmed. Your draft is retained. Review current work before taking another action.");
           }
           await onCommitted();
         } catch (failure) { setError(failure instanceof Error ? failure.message : "Save outcome unknown; reload current work."); }
         finally { setBusy(false); }
       }}>{busy ? "Preparing…" : "Prepare this different task"}</button>
-      <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => setPreview(null)}>Edit preparation</button>
-      <button type="button" className={styles.secondaryButton} disabled={busy} onClick={onCancel}>Cancel</button>
+      <button type="button" className={styles.secondaryButton} disabled={busy || disabled} onClick={() => setPreview(null)}>Edit preparation</button>
+      <button type="button" className={styles.secondaryButton} disabled={busy || disabled} onClick={onCancel}>Cancel</button>
     </div> : null}
   </section>;
 }

@@ -1087,6 +1087,10 @@ const integrationChildren = [
   "continuity-pins",
   "policy-triggered-model-run",
   "project-home",
+  "project-bound-work-writers",
+  "project-client-sessions",
+  "project-transition-cookies",
+  "project-client-runs",
   "project-work-initialization",
   "current-work-read",
   "prospective-preparation-reentry",
@@ -1224,6 +1228,19 @@ for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requ
 const companionOutlookRegistration = readCanonicalChildRegistration(integrationSource, "companion-method-outlook");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"process-owning"', '"mutable-module-state"', '"scripts/test-companion-method-outlook.ts"'])
   requireText(companionOutlookRegistration.block, fragment, "ordinary outlook feedback retains one bounded authenticated consumer owner");
+for (const [id, script] of [
+  ["project-bound-work-writers", "scripts/test-project-bound-work-writers.ts"],
+  ["project-client-sessions", "scripts/test-project-client-sessions.ts"],
+  ["project-transition-cookies", "scripts/test-project-transition-cookies.ts"],
+  ["project-client-runs", "scripts/test-project-client-runs.ts"],
+]) {
+  const child = readCanonicalChildRegistration(integrationSource, id);
+  for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', `"${script}"`])
+    requireText(child.block, fragment, "project clients retain their bounded disposable acceptance owners");
+}
+for (const fragment of ['id: "project-client-browser"', '"scripts/test-project-client-browser.ts"', 'timeoutMs: 60_000', 'requireNaturalExit: true', '"browser-profile-owning"', '"cdp-session-owning"'])
+  requireText(canonicalSuite.slice(canonicalSuite.indexOf("const projectClientBrowserStep ="), canonicalSuite.indexOf("const webPlanningBrowserStep =")), fragment, "same-profile Browser owns bounded processes, profile and CDP resources");
+requireText(canonicalSuite, '"e2e-project-experience": [{ ...projectExperienceStep }, { ...projectClientBrowserStep }, { ...webPlanningBrowserStep }]', "new client Browser runs once beside both existing Browser children");
 const experienceUseRegistration = readCanonicalChildRegistration(integrationSource, "companion-experience-use");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-companion-experience-use.ts"'])
   requireText(experienceUseRegistration.block, fragment, "ordinary experience use owns its authenticated disposable state, listener and natural-exit file consumers");

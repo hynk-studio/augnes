@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { ProjectClientScopeProvider, useProjectClientFetch, useProjectClientHref } from "@/components/workbench/semantic-review/project-client-scope";
 
 import { ProductShell } from "@/components/product-shell";
 import {
@@ -15,6 +16,7 @@ import {
   deriveSafeContextualInspectorRelatedContextV01,
   publicContextualInspectorErrorCodeV01,
 } from "@/lib/vnext/inspector/contextual-inspector-view";
+import { projectClientTargetQuery } from "@/lib/vnext/project-client-href";
 import { parseSharedInspectorTargetV01 } from "@/lib/vnext/shared-project-inspector-href";
 import type { ContextualInspectorRelatedContextV01 } from "@/types/vnext/contextual-inspector";
 import type {
@@ -28,10 +30,19 @@ import { SharedProjectInspectorSurface } from "./shared-project-inspector-surfac
 const SESSION_ROUTE = "/api/vnext/operator/session";
 const INSPECTOR_ROUTE = "/api/vnext/operator/inspector";
 
-export function SharedProjectInspectorLoader() {
+export function SharedProjectInspectorLoader({ projectId: defaultProjectId = null }: { projectId?: string | null }) {
+  const projectId = useSearchParams().get("project_id") ?? defaultProjectId;
+  return <ProjectClientScopeProvider projectId={projectId}>
+    <ScopedProjectInspectorLoader key={projectId ?? "default"} />
+  </ProjectClientScopeProvider>;
+}
+
+function ScopedProjectInspectorLoader() {
+  const fetch = useProjectClientFetch();
   const searchParams = useSearchParams();
-  const query = searchParams.toString();
-  const parsedTarget = useMemo(() => parseTargetV01(searchParams), [searchParams]);
+  const targetParams = useMemo(() => projectClientTargetQuery(new URLSearchParams(searchParams)), [searchParams]);
+  const query = targetParams.toString();
+  const parsedTarget = useMemo(() => parseTargetV01(targetParams), [targetParams]);
   const [session, setSession] = useState<OperatorSessionStateV01>({
     status: "checking",
     session: null,
@@ -80,7 +91,7 @@ export function SharedProjectInspectorLoader() {
         }
       }
     },
-    [parsedTarget.target, query],
+    [parsedTarget.target, query, fetch],
   );
 
   useEffect(() => {
@@ -138,7 +149,7 @@ export function SharedProjectInspectorLoader() {
       active = false;
       controller.abort();
     };
-  }, [loadInspector, parsedTarget.target]);
+  }, [loadInspector, parsedTarget.target, fetch]);
 
   useEffect(() => {
     if (inspectorResponse?.inspector) {
@@ -252,6 +263,7 @@ function ContextualInspectorState({
   errorCode?: string | null;
   children?: React.ReactNode;
 }) {
+  const scopedHref = useProjectClientHref();
   return (
     <ProductShell primaryZone="ai-workplane">
       <main
@@ -262,7 +274,7 @@ function ContextualInspectorState({
         <div className={styles.stateShell}>
           <a
             className={styles.returnLink}
-            href={relatedContext.href}
+            href={scopedHref(relatedContext.href)}
             data-contextual-inspector-return={relatedContext.kind}
           >
             ← {relatedContext.label}

@@ -1,3 +1,4 @@
+import { readProjectWorkBindingV01 } from "./project-work-binding";
 import type Database from "better-sqlite3";
 import { readActiveProjectSelectionV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
 import { expectationSnapshotRefs, insertWorkExpectationRecord, readWorkExpectationComparison, readWorkExpectationRecords } from "@/lib/vnext/persistence/work-expectation-store";
@@ -32,7 +33,8 @@ export function recordWorkExpectationMaterial(db: Database.Database, input: {
   clock?: VNextLocalRuntimeClockV01; secret_source?: VNextLocalOperatorSecretSourceV01;
 }) {
   const request = input.request as Record<string, unknown>;
-  const common = ["action", "expected_active_project_id", "expected_active_selection_revision", "expected_previous_id"];
+  const common = ["action", "expected_active_project_id", "expected_active_selection_revision", "expected_previous_id",
+    ...(request?.expected_project_work_binding !== undefined ? ["expected_project_work_binding"] : [])];
   const forecast = request?.action === "record_work_expectation";
   expectationCheck(forecast || request?.action === "report_work_expectation_outcome", "expectation_action_invalid");
   expectationKeys(request, [...common, ...(forecast ? ["expected_packet_id", "expected_packet_fingerprint", "criterion_id", "predicted_outcome", "reason", "conditions"]
@@ -42,9 +44,15 @@ export function recordWorkExpectationMaterial(db: Database.Database, input: {
   db.exec("BEGIN IMMEDIATE");
   try {
     const admission = admitVNextLocalOperatorMutationInsideTransactionV01(db, input);
-    const selection = readActiveProjectSelectionV01(db, input.config.workspace_id);
-    expectationCheck(selection && selection.project_id === input.config.project_id && selection.project_id === request.expected_active_project_id &&
-      selection.selection_revision === request.expected_active_selection_revision, "expectation_selection_changed");
+    expectationCheck(request.expected_active_project_id === input.config.project_id, "expectation_selection_changed");
+    if (request.expected_project_work_binding !== undefined) {
+      expectationCheck(typeof request.expected_project_work_binding === "string" &&
+        request.expected_project_work_binding === readProjectWorkBindingV01(db, input.config), "expectation_project_binding_changed");
+    } else {
+      const selection = readActiveProjectSelectionV01(db, input.config.workspace_id);
+      expectationCheck(selection && selection.project_id === input.config.project_id &&
+        selection.selection_revision === request.expected_active_selection_revision, "expectation_selection_changed");
+    }
     const records = readWorkExpectationRecords(db, input.config);
     // Prospective authoring reserves one slot for Start's immutable binding.
     expectationCheck(records.length < (forecast ? 255 : 256), "expectation_history_bound_exceeded");

@@ -1,3 +1,4 @@
+import { projectClientHref } from "@/lib/vnext/project-client-href";
 import { createHash } from "node:crypto";
 
 import { isTerminalRunnerStatus } from "@/lib/autonomy/runner-state";
@@ -106,7 +107,7 @@ export function buildUnavailableDelegatedWorkProjectionV01(input: {
     timeline: [],
     compacted_item_count: 0,
     gap_notes: [situation],
-    next_action: nextActionV01("none"),
+    next_action: nextActionV01("none", input.project_id),
     pending_approval: null,
     resume_eligibility: null,
     result: null,
@@ -170,10 +171,10 @@ export function buildDelegatedWorkProjectionV01(
           : [],
       next_action:
         sourceStatus === "unavailable"
-          ? nextActionV01("return_to_blank_state")
+          ? nextActionV01("return_to_blank_state", input.project_id)
           : input.start_eligible
-            ? nextActionV01("start_codex_work")
-            : nextActionV01("none"),
+            ? nextActionV01("start_codex_work", input.project_id)
+            : nextActionV01("none", input.project_id),
       pending_approval: null,
       resume_eligibility: input.resume_eligibility ?? null,
       result: null,
@@ -244,9 +245,9 @@ export function buildDelegatedWorkProjectionV01(
     ? {
         receipt_ref: input.live_run.receipt.receipt_ref,
         outcome: input.live_run.receipt.outcome,
-        review_href: createRunResultReviewHrefV01(
+        review_href: projectClientHref(createRunResultReviewHrefV01(
           input.live_run.receipt.receipt_ref,
-        ),
+        ), input.project_id),
       }
     : null;
 
@@ -308,6 +309,7 @@ export function buildDelegatedWorkProjectionV01(
       stage,
       result?.review_href ?? null,
       input.live_run.mode,
+      input.project_id,
     ),
     pending_approval: pending
       ? {
@@ -328,10 +330,10 @@ export function buildDelegatedWorkProjectionV01(
       : null,
     resume_eligibility: input.resume_eligibility ?? null,
     result,
-    exact_detail_href: createSharedInspectorHrefV01({
+    exact_detail_href: projectClientHref(createSharedInspectorHrefV01({
       target_kind: "automation_run",
       run_id: run.run_id,
-    }),
+    }), input.project_id),
     start_eligible: false,
     start_blocker: "Existing delegated work must settle before another run starts.",
     control_revision: input.live_run.control_revision,
@@ -762,15 +764,17 @@ function nextActionForStageV01(
   stage: DelegatedWorkStageV01,
   resultHref: string | null,
   mode: LiveNativeHostRunProjectionV01["mode"],
+  projectId: string,
 ): DelegatedWorkNextActionV01 {
   switch (stage) {
     case "waiting_for_approval":
-      return nextActionV01("review_requested_access");
+      return nextActionV01("review_requested_access", projectId);
     case "resume_required":
       return nextActionV01(
         mode === "repository_attachment"
           ? "review_resume_status"
           : "resume_codex_work",
+        projectId,
       );
     case "result_ready":
       return {
@@ -782,20 +786,21 @@ function nextActionForStageV01(
     case "preparing":
     case "working":
     case "cancelling":
-      return nextActionV01("view_progress");
+      return nextActionV01("view_progress", projectId);
     case "blocked":
     case "failed":
     case "cancelled":
     case "timed_out":
     case "unavailable":
-      return nextActionV01("return_to_blank_state");
+      return nextActionV01("return_to_blank_state", projectId);
     default:
-      return nextActionV01("none");
+      return nextActionV01("none", projectId);
   }
 }
 
 function nextActionV01(
   kind: DelegatedWorkNextActionV01["kind"],
+  projectId: string,
 ): DelegatedWorkNextActionV01 {
   const values: Record<
     DelegatedWorkNextActionV01["kind"],
@@ -820,7 +825,7 @@ function nextActionV01(
     return_to_blank_state: { label: "Return to Continuities", href: "/" },
     none: { label: null, href: null },
   };
-  return { kind, ...values[kind], executes: false };
+  return { kind, ...values[kind], href: values[kind].href ? projectClientHref(values[kind].href!, projectId) : null, executes: false };
 }
 
 function approvalTitleV01(

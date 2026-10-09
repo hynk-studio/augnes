@@ -39,7 +39,8 @@ export function compareNewProjectWorkV01(prior: TaskContextPacketV01, request: R
   const material = {
     declaration: "different_task" as const,
     workspace_id: request.workspace_id, project_id: request.project_id,
-    expected_active_selection_revision: request.expected_active_selection_revision,
+    ...(request.expected_project_work_binding ? { expected_project_work_binding: request.expected_project_work_binding }
+      : { expected_active_selection_revision: request.expected_active_selection_revision }),
     prior_packet_id: prior.packet_id, prior_packet_fingerprint: prior.integrity.fingerprint,
     root_binding: rootBinding, before: normalizeInitialProjectWorkDefinitionV01(prior.task), after: definition,
     sources_before: readSelectedWorkSources(prior), sources_after: comparison.entries,

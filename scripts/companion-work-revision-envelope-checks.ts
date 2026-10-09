@@ -324,13 +324,15 @@ export async function assertCompanionWorkRevisionEnvelopeV01(temporaryRoot: stri
         expected_project_id: active.project_id, expected_revision: active.selection_revision, now: new Date().toISOString() });
     };
     select(consumerScope.project_id);
-    assert.equal((await call("augnes_define_repository_initial_work", { ...raceArgs, previewBinding: racePreview.preview_binding })).reason, "refresh_required");
+    assert.equal((await call("augnes_resume_repository", { repositoryRoot: raceRoot })).continuity.snapshot.binding, raceArgs.expectedSnapshotBinding);
+    assert.equal((await call("augnes_preview_repository_initial_work", raceArgs)).preview_binding, racePreview.preview_binding);
     select(raceScope.project_id);
-    assert.equal((await call("augnes_define_repository_initial_work", { ...raceArgs, previewBinding: racePreview.preview_binding })).reason, "refresh_required");
+    assert.equal((await call("augnes_resume_repository", { repositoryRoot: raceRoot })).continuity.snapshot.binding, raceArgs.expectedSnapshotBinding);
     raceResume = await call("augnes_resume_repository", { repositoryRoot: raceRoot });
     raceArgs = { ...raceArgs, expectedSnapshotBinding: raceResume.continuity.snapshot.binding };
     racePreview = await call("augnes_preview_repository_initial_work", raceArgs);
     assert.equal(racePreview.status, "previewed");
+    select(consumerScope.project_id);
     const requestsBeforeRace = observations.length;
     const racers = await Promise.all([0, 1].map(() => call("augnes_define_repository_initial_work", { ...raceArgs, previewBinding: racePreview.preview_binding })));
     assert.equal(observations.length, requestsBeforeRace + 2, "one dispatch per contender");
@@ -343,7 +345,7 @@ export async function assertCompanionWorkRevisionEnvelopeV01(temporaryRoot: stri
     assert.equal((db.prepare("SELECT COUNT(*) AS n FROM vnext_local_operator_sessions WHERE project_id = ?").get(raceScope.project_id) as { n: number }).n, 1);
     assert.equal(validateRecoveryCanonicalDatabaseV01(db).status, "valid");
     console.log(JSON.stringify({ concurrent_initial_creation: racers.map(result => ({ status: result.status, reason: result.reason })), unique_genesis: true,
-      changed_runtime_authentication_role_recovery_root_and_selection_refused: true, explicit_resume_reconciled: true }));
+      changed_runtime_authentication_role_recovery_and_root_refused: true, unrelated_selection_independent: true, explicit_resume_reconciled: true }));
     return { databasePath, root, scope, operator_id: COMPANION_WORK_OPERATOR_ID_V01, selected, goal: initial.task.goal };
   } finally {
     try {

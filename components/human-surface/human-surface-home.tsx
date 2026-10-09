@@ -1,3 +1,4 @@
+import { loadProjectGuideBriefV02 } from "@/lib/vnext/guide-brief/project-guide-brief-source";
 import { BlankStatePanel } from "@/components/human-surface/blank-state-panel";
 import { CurrentPerspectiveCard } from "@/components/human-surface/current-perspective-card";
 import { GuideBriefMiniPanel } from "@/components/guide/guide-brief-mini-panel";
@@ -26,6 +27,7 @@ export async function HumanSurfaceHome() {
     Promise.resolve(readAutohuntDailyLauncherRuns({ limit: 10 })),
     Promise.resolve(readAutohuntResultIntakes({ limit: 10 })),
   ]);
+  const { guide: projectGuide } = await loadProjectGuideBriefV02();
   const perspective = currentPerspectiveRead.data;
   const reviewEntries = buildBlankStateReviewEntries({
     currentPerspectiveRead,
@@ -59,7 +61,7 @@ export async function HumanSurfaceHome() {
           />
           <div className="human-surface-right-rail">
             <CurrentPerspectiveCard read={currentPerspectiveRead} />
-            <VNextProjectContinuityCard />
+            <VNextProjectContinuityCard projectId={projectGuide.identity.project_id} />
             <GuideBriefMiniPanel guideBrief={guideBrief} variant="home" />
             <RecentDeltasPreview perspective={perspective} />
             <SurfaceLinkGrid />

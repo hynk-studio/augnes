@@ -1,5 +1,7 @@
 "use client";
 
+import { useProjectClientFetch } from "./project-client-scope";
+
 import type { FormEvent } from "react";
 import { useState } from "react";
 
@@ -38,6 +40,7 @@ export function OperatorSessionPanel({
   onLocked: (errorCode?: string) => void;
   context?: "review" | "exact-details";
 }) {
+  const fetch = useProjectClientFetch();
   const [bootstrapToken, setBootstrapToken] = useState("");
   const [busy, setBusy] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);

@@ -1,3 +1,6 @@
+"use client";
+
+import { useProjectClientHref } from "@/components/workbench/semantic-review/project-client-scope";
 import type { ProjectVerifyReconciliationV01 } from "@/types/vnext/project-verify-reconciliation";
 import type { VNextOperatorPilotProjectContinuityV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
 import type { AIWorkplaneHomeViewV01 } from "@/types/vnext/ai-workplane";
@@ -21,6 +24,7 @@ export function SemanticReviewProposalList({
   view: AIWorkplaneHomeViewV01;
   showCurrentFocus?: boolean;
 }) {
+  const scopedHref = useProjectClientHref();
   return (
     <div
       className={styles.workbenchSequence}
@@ -58,7 +62,7 @@ export function SemanticReviewProposalList({
           <div className={styles.buttonRow}>
             <a
               className={styles.button}
-              href={view.primary_action.href}
+              href={scopedHref(view.primary_action.href)}
               data-ai-workplane-primary-action={view.primary_action.kind}
               data-augnes-primary-action={view.primary_action.kind}
               data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.primaryAction}
@@ -113,7 +117,7 @@ export function SemanticReviewProposalList({
                   <p className={styles.muted}>{item.reason}</p>
                 </div>
                 <div className={styles.buttonRow}>
-                  <a className={styles.linkButton} href={item.href}>
+                  <a className={styles.linkButton} href={scopedHref(item.href)}>
                     Continue review
                   </a>
                 </div>
