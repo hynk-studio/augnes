@@ -131,6 +131,18 @@ trees. On macOS the outer resource owner uses the system short temporary root,
 keeping nested Unix-domain IPC paths within the existing platform limit. No
 writable dependency or build tree is borrowed from another lane.
 
+When the authority phase is selected, the executor copies only its five existing
+migrated historical runs and their two authorization-consumption directories
+from the accepted checkout's archive.
+Copies have their own files and read-only permissions at the existing historical
+reader paths. The original archive is read only; neither active state nor old
+receipts are copied. An existing destination archive, aliases or missing inputs
+refuse preparation. The existing resource owner removes only this invocation's
+copy after child settlement. Receipts bind its source and content fingerprints,
+invocation, unchanged before/after contents and cleanup. Historical assertions
+and input provenance remain unchanged; this is fixture provision, not runtime
+adoption or new historical evidence.
+
 The isolated executor only observes the accepted Companion through its supported
 read-only inspector before and after the run. Its private HOME prevents nested
 build/suite wrappers from discovering or maintaining the installed service. An

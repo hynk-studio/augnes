@@ -93,7 +93,7 @@ export function physicalFingerprint(entry) {
 // Internal npm bin links are legitimate; all their targets stay in this lane.
 export const ISOLATED_MUTABLE_PATHS = Object.freeze([
   "node_modules", ".next", "out", "build", "dist", "data", "outputs", "screenshots",
-  "tsconfig.tsbuildinfo", "next-env.d.ts", ".augnes-local-verification",
+  "tsconfig.tsbuildinfo", "next-env.d.ts", ".augnes-local-verification", ".augnes-history",
   "apps/augnes_apps/node_modules", "apps/augnes_apps/dist", "apps/augnes_apps/build",
   "apps/web_planning/node_modules", "apps/web_planning/.next", "apps/web_planning/dist",
   "apps/web_planning/.wrangler", "apps/augnes_apps/.wrangler",

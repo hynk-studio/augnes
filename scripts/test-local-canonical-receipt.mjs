@@ -207,6 +207,7 @@ baseReceipt.run.id = "fixture-run";
 baseReceipt.run.invocation_id = "f".repeat(32);
 baseReceipt.phases[0].invocation_id = baseReceipt.run.invocation_id;
 baseReceipt.cleanup.isolated_resources = { required: false, prepared: false };
+baseReceipt.historical_inputs = { required: false, prepared: false };
 baseReceipt.cleanup.companion_service.scope = "installed_checkout_lifecycle";
 baseReceipt.phases = policyPhaseIds.map((id) => ({ ...structuredClone(baseReceipt.phases[0]), id }));
 
@@ -505,6 +506,32 @@ isolatedReceipt.cleanup.isolated_resources = {
 };
 const isolatedContext = { ...targetedContext, currentVerificationContext: isolatedReceipt.verification_context };
 assert.equal(inspectReceiptForDecision(finalizeReceipt(isolatedReceipt), isolatedContext).valid_deciding_evidence, true);
+const historicalReceipt = structuredClone(isolatedReceipt);
+historicalReceipt.phases.push({ ...structuredClone(historicalReceipt.phases.at(-1)), id: "authority" });
+historicalReceipt.evidence.planner_targeted_phase_ids.push("authority");
+const historicalContext = { ...isolatedContext, expectedPhaseIds: [...targetedPhaseIds, "authority"], expectedTargetedPhaseIds: [...targetedPhaseIds, "authority"] };
+historicalReceipt.historical_inputs = {
+  required: true, prepared: true, contract: "augnes.local-canonical-historical-inputs.v1",
+  invocation_id: historicalReceipt.run.invocation_id,
+  anchor_fingerprint: historicalReceipt.verification_context.anchor_fingerprint,
+  source_fingerprint: "d".repeat(64), content_fingerprint: "e".repeat(64), file_count: 5, byte_count: 500,
+  unchanged: true, completed: true, failures: [],
+};
+assert.equal(inspectReceiptForDecision(finalizeReceipt(historicalReceipt), historicalContext).valid_deciding_evidence, true);
+for (const mutate of [
+  r => { delete r.historical_inputs; },
+  r => { r.historical_inputs.invocation_id = "9".repeat(32); },
+  r => { r.historical_inputs.anchor_fingerprint = "9".repeat(64); },
+  r => { r.historical_inputs.content_fingerprint = null; },
+  r => { r.historical_inputs.unchanged = false; },
+  r => { r.historical_inputs.completed = false; },
+  r => { r.historical_inputs.failures.push("resource_consumers_unsettled"); },
+]) {
+  const candidate = structuredClone(historicalReceipt); mutate(candidate);
+  const result = inspectReceiptForDecision(finalizeReceipt(candidate), historicalContext);
+  assert.equal(result.valid_deciding_evidence, false);
+  assert(result.issues.includes("receipt_historical_input_provenance_invalid"));
+}
 for (const [label, mutate, issue] of [
   ["copied checkout", (_r, c) => { c.currentVerificationContext.checkout_fingerprint = "9".repeat(64); }, "receipt_stale_verification_context"],
   ["copied host", (_r, c) => { c.currentVerificationContext.anchor_fingerprint = "9".repeat(64); }, "receipt_stale_verification_context"],

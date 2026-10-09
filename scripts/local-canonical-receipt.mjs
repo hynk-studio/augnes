@@ -6,6 +6,7 @@ import { requiresCheckoutVerificationOwnership } from "./local-canonical-checkou
 import { CODEX_REUSE_OWNER_IDS, CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 import { VERIFICATION_CONTEXT_CONTRACT } from "./local-canonical-verification-context.mjs";
 import { VERIFICATION_CAPACITY_CONTRACT, verificationCapacityLimit } from "./local-canonical-capacity.mjs";
+import { HISTORICAL_INPUT_CONTRACT } from "./local-canonical-historical-inputs.mjs";
 
 export const LOCAL_CANONICAL_RECEIPT_SCHEMA =
   "augnes.local-canonical-receipt.v1";
@@ -292,6 +293,17 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     !SHA256_PATTERN.test(isolatedResources?.fingerprint ?? "") ||
     isolatedResources?.policy !== "private_outer_home_temp_cache_database_runtime"
   ))) issues.push("receipt_isolated_resource_provenance_invalid");
+  const historical = receipt?.historical_inputs;
+  const historicalRequired = isolated && receipt?.phases?.some(phase => phase.id === "authority");
+  if (historical?.required !== historicalRequired || (historicalRequired && (historical?.prepared !== true ||
+    historical?.contract !== HISTORICAL_INPUT_CONTRACT || historical?.invocation_id !== receipt?.run?.invocation_id ||
+    historical?.anchor_fingerprint !== receipt?.verification_context?.anchor_fingerprint ||
+    !SHA256_PATTERN.test(historical?.source_fingerprint ?? "") || !SHA256_PATTERN.test(historical?.content_fingerprint ?? "") ||
+    !Number.isSafeInteger(historical?.file_count) || historical.file_count < 1 ||
+    !Number.isSafeInteger(historical?.byte_count) || historical.byte_count < 1 ||
+    historical?.unchanged !== true || historical?.completed !== true ||
+    !Array.isArray(historical?.failures) || historical.failures.length !== 0)))
+    issues.push("receipt_historical_input_provenance_invalid");
   const service = receipt?.cleanup?.companion_service;
   if (service?.scope !== (isolated ? "accepted_checkout_read_only" : "installed_checkout_lifecycle") ||
       (isolated && (service.maintenance_acquired !== false || service.before == null ||

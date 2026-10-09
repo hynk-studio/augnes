@@ -194,6 +194,7 @@
           "scripts/local-canonical-verification-context.mjs",
           "scripts/local-canonical-capacity.mjs",
           "scripts/local-canonical-isolated-resources.mjs",
+          "scripts/local-canonical-historical-inputs.mjs",
           "scripts/test-local-canonical-isolation.mjs",
           "scripts/local-process-ownership.mjs",
           "scripts/local-canonical-receipt.mjs",

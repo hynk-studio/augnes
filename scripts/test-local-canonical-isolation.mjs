@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, linkSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, linkSync, lstatSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
   admitVerificationContext, assertVerificationContext, assertIsolatedMutableResources,
@@ -10,6 +10,8 @@ import { acquireCheckoutVerificationOwnership, releaseCheckoutVerificationOwners
 import { createIsolatedInvocationResources, isolatedInvocationEnvironment, cleanupIsolatedInvocationResources } from "./local-canonical-isolated-resources.mjs";
 import { createCanonicalTestResourceRoot, cleanupCanonicalTestResources } from "./canonical-test-environment.mjs";
 import { runCanonicalChild, canonicalChildAcceptanceFailure } from "./canonical-child-runner.mjs";
+import { HISTORICAL_INPUT_PATHS, prepareHistoricalInputs, finishHistoricalInputs } from "./local-canonical-historical-inputs.mjs";
+import { MIGRATED_HISTORICAL_EVIDENCE_ROOT } from "./canonical-historical-evidence.mjs";
 
 // Contract fixtures with real Git/files/processes/listeners. These do not
 // impersonate an authenticated deciding run or the actual-Mac overlap exercise.
@@ -77,6 +79,44 @@ try {
   const saved = path.join(fixture, "a-saved"); renameSync(a, saved); mkdirSync(a);
   assert.throws(() => assertVerificationContext(contextA, a)); rmSync(a, { recursive: true }); renameSync(saved, a);
   assert.equal(assertVerificationContext(contextA, a), contextA);
+
+  // Existing archived assertions read the same layout, using independent files.
+  const archive = path.join(anchor, MIGRATED_HISTORICAL_EVIDENCE_ROOT);
+  for (const relative of HISTORICAL_INPUT_PATHS) {
+    mkdirSync(path.join(archive, relative), { recursive: true });
+    writeFileSync(path.join(archive, relative, "evidence.json"), "historical fixture");
+  }
+  const ownerA = acquireCheckoutVerificationOwnership({ repositoryRoot: a });
+  const ownerB = acquireCheckoutVerificationOwnership({ repositoryRoot: b });
+  try {
+    const prepare = (root, context, checkoutOwner, invocationId) => prepareHistoricalInputs({ repositoryRoot: root, context, checkoutOwner, invocationId });
+    const historicalA = prepare(a, contextA, ownerA, invocationA), historicalB = prepare(b, contextB, ownerB, invocationB);
+    const file = root => path.join(root, MIGRATED_HISTORICAL_EVIDENCE_ROOT, HISTORICAL_INPUT_PATHS[0], "evidence.json");
+    assert.equal(historicalA.content_fingerprint, historicalB.content_fingerprint);
+    assert.notEqual(lstatSync(file(a)).ino, lstatSync(file(b)).ino);
+    assert.notEqual(lstatSync(file(a)).ino, lstatSync(file(anchor)).ino);
+    assert.equal(lstatSync(file(a)).mode & 0o222, 0);
+    assert.throws(() => prepare(a, contextA, ownerA, invocationA), hasCode("EEXIST"));
+    const unfinished = finishHistoricalInputs(historicalA, { consumersSettled: false });
+    assert.equal(unfinished.completed, false); assert(unfinished.failures.includes("resource_consumers_unsettled"));
+    assert.equal(finishHistoricalInputs(historicalA, { consumersSettled: true }).completed, true);
+    assert.equal(existsSync(path.join(a, ".augnes-history")), false);
+    assert.equal(readFileSync(file(b), "utf8"), "historical fixture");
+    chmodSync(file(b), 0o600); writeFileSync(file(b), "changed copy");
+    const changed = finishHistoricalInputs(historicalB, { consumersSettled: true });
+    assert.equal(changed.unchanged, false); assert.equal(changed.completed, true);
+    assert(changed.failures.includes("historical_input_changed"));
+    assert.equal(readFileSync(file(anchor), "utf8"), "historical fixture");
+    const historicalC = prepare(a, contextA, ownerA, invocationA);
+    writeFileSync(file(anchor), "changed original");
+    assert.equal(finishHistoricalInputs(historicalC, { consumersSettled: true }).unchanged, false);
+    rmSync(file(anchor)); symlinkSync(file(b), file(anchor));
+    assert.throws(() => prepare(a, contextA, ownerA, invocationA), hasCode("historical_input_alias_refused"));
+    rmSync(file(anchor)); writeFileSync(file(anchor), "historical fixture");
+    assert.equal(existsSync(path.join(a, ".augnes-history")), false);
+  } finally {
+    releaseCheckoutVerificationOwnership(ownerA, a); releaseCheckoutVerificationOwnership(ownerB, b);
+  }
 
   assert.equal(verificationCapacityLimit(host), 2);
   assert.equal(verificationCapacityLimit({ ...host, physical_memory_bytes: 16 * 1024 ** 3 }), 1);
@@ -197,7 +237,7 @@ try {
   console.log(JSON.stringify({ test: "local-canonical-isolation", status: "pass", evidence: "contract_fixtures_not_deciding",
     registered_worktree_admission: true, aliases_and_shared_mutable_state_refused: true, bounded_capacity: true,
     interprocess_capacity_contention: true, stale_replaced_unsettled_capacity_refused: true, unaccounted_canonical_owner_refused: true, cancelled_A_leaves_B_working: true, unsettled_resources_refused: true,
-    private_outer_environment: true, actual_nested_tsx_socket: true, owned_processes_and_listeners: 0 }));
+    private_outer_environment: true, private_historical_inputs: true, actual_nested_tsx_socket: true, owned_processes_and_listeners: 0 }));
 } finally {
   for (const controller of controllers) controller.abort();
   await Promise.allSettled(pending);
