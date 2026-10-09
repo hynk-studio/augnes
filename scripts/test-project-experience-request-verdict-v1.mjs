@@ -356,10 +356,11 @@ for (const outcome of ["404 body read", "wrong status", "body read failure", "ne
   } };
   f.state.assert = assert;
   f.state.evaluateJson = expression => vm.runInNewContext(expression, {
+    URL, location: new URL("http://localhost:3000/workbench/semantic-review?project_id=project%3Averdict-scope"),
     fetch: async (pathname, options) => {
       assert.equal(pathname, route);
       assert.equal(options.method, "GET");
-      assert.equal(JSON.stringify(options.headers), JSON.stringify(UNAVAILABLE_EXECUTION_PROBE_HEADERS_V1));
+      assert.equal(JSON.stringify(options.headers), JSON.stringify({ "Augnes-Project-Id": "project:verdict-scope", ...UNAVAILABLE_EXECUTION_PROBE_HEADERS_V1 }));
       f.request({ headers: options.headers }); f.response({ status: outcome === "wrong status" ? 200 : 404 });
       return { status: outcome === "wrong status" ? 200 : 404, json() { bodyStarted(); return body; } };
     },
@@ -386,10 +387,11 @@ for (const outcome of ["404 body read", "wrong status", "body read failure", "ne
 {
   const f = fixture({ armed: false });
   f.state.evaluateJson = expression => vm.runInNewContext(expression, {
+    URL, location: new URL("http://localhost:3000/workbench/semantic-review?project_id=project%3Averdict-scope"),
     fetch: async (_pathname, options) => {
       assert.equal(options.headers?.["x-augnes-e2e-probe"], undefined);
       if (options.method === "POST") assert.equal(options.headers["content-type"], "application/json");
-      else assert.equal(options.headers, undefined);
+      else assert.deepEqual(Object.entries(options.headers), [["Augnes-Project-Id", "project:verdict-scope"]]);
       return { status: 404, json: async () => ({}) };
     },
   });

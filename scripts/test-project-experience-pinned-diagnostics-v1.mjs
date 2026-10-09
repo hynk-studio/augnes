@@ -6,6 +6,7 @@ import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
 import { createProjectExperienceRequestDiagnosticsV1 } from './project-experience-request-diagnostics-v1.mjs';
 import { CONSUMER_DIAGNOSTIC_BINDING_V1 } from './project-experience-consumer-diagnostics-v1.mjs';
+import { loadProjectClientScopeTestRuntime } from './project-client-scope-test-runtime.mjs';
 const require = createRequire(import.meta.url);
 const ts = require('typescript');
 const phase = 'companion_first_work_access';
@@ -74,12 +75,18 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
     const source = readFileSync(new URL('../components/delegated-work/use-delegated-codex-work-v0-1.ts', import.meta.url), 'utf8');
     const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
     const exports = {};
-    vm.runInNewContext(code, { exports, require: name => { assert.equal(name, 'react'); return react; }, fetch,
+    const scoped = loadProjectClientScopeTestRuntime({ react, fetch, projectId: 'project:diagnostic-scope' });
+    vm.runInNewContext(code, { exports, require: name => {
+      if (name === '@/components/workbench/semantic-review/project-client-scope') return scoped;
+      assert.equal(name, 'react'); return react;
+    }, fetch,
       AbortController, window: { setTimeout() { assert.fail('unavailable projection cannot poll'); } } });
     const hook = exports.useDelegatedCodexWorkV01(true, instrumented ? f.observer : null);
     const cleanups = effects.map(effect => effect());
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(jsonCalls, 1, JSON.stringify({ instrumented, states, requests: requests.length }));
+    assert.equal(requests.length, 1);
+    assert.equal(new Headers(requests[0][1].headers).get('Augnes-Project-Id'), 'project:diagnostic-scope');
     if (outcome === 'cleanup-during-body') cleanups.forEach(cleanup => cleanup?.());
     if (outcome === 'body-failed') rejectBody(new Error('synthetic body failure'));
     else resolveBody({ error_code: 'not_found' });
@@ -87,6 +94,7 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
     if (outcome !== 'cleanup-during-body') cleanups.forEach(cleanup => cleanup?.());
     const observed = { states, jsonCalls, requests: requests.map(([path, options]) => ({ path,
       method: options.method, credentials: options.credentials, cache: options.cache, aborted: options.signal.aborted,
+      headers: [...new Headers(options.headers)],
       keys: Object.keys(options) })), count: hook.requestCountRef.current };
     runs.push(JSON.stringify(observed));
     if (instrumented) {
@@ -135,7 +143,19 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
     ['  if (requestVerdicts.sessionRefusalCancellation?.(entry).expected === true) return true;\n', ''],
   ];
   for (const [addition] of prospectiveAdditions) assert.equal(source.split(addition).length, 2, 'exact prospective call site');
-  const withoutProspectiveAdditions = text => prospectiveAdditions.reduce((result, [addition, previous]) => result.replace(addition, previous), text);
+  // #1430 changes only these exact authentication transport selectors. Pin
+  // their counts, then retain the historical digest of every action, assertion,
+  // navigation, and deadline. No broad header or source normalization is used.
+  const projectClientAdaptations = [
+    ['cookie.name.startsWith("augnes_vnext_operator_session_v01")', 'cookie.name === "augnes_vnext_operator_session_v01"', 2],
+    ['cookie.name.startsWith("augnes_vnext_repository_decision_session_v01")', 'cookie.name === "augnes_vnext_repository_decision_session_v01"', 2],
+    ['cookie.name === projectDecisionCookieNameV01(manifest.project_id)', 'cookie.name ===\n            "augnes_vnext_repository_decision_session_v01"', 2],
+    ["cache: 'no-store', headers: { 'Augnes-Project-Id': ${JSON.stringify(projectAlphaId)} }", "cache: 'no-store'", 3],
+    ["'Content-Type': 'application/json', 'Augnes-Project-Id': ${JSON.stringify(projectAlphaId)}", "'Content-Type': 'application/json'", 2],
+  ];
+  for (const [current, , count] of projectClientAdaptations) assert.equal(source.split(current).length - 1, count, 'exact project-client adaptation');
+  const withoutProspectiveAdditions = text => projectClientAdaptations.reduce((result, [current, previous]) => result.replaceAll(current, previous),
+    prospectiveAdditions.reduce((result, [addition, previous]) => result.replace(addition, previous), text));
   const expected = {
     validateSavedProjectDiscoveryV02: 'c9a79ea30f5485ad6322e712d267524a27e2d8a158693c1fbb81793f6897916d',
     // #1384 adds the reader/editor and unsaved-authorization refusal before
