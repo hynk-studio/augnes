@@ -7,6 +7,7 @@ import {
   openVNextLocalOperatorDatabaseV01,
   readBoundedVNextLocalOperatorBodyV01,
   readVNextLocalOperatorCredentialFromRequestV01,
+  readVNextLocalOperatorPilotConfigV01,
   resolveVNextLocalReviewConfigV01,
   serializeVNextLocalOperatorSessionCookieV01,
   type VNextLocalOperatorPilotConfigV01,
@@ -64,10 +65,13 @@ export function createVNextOperatorSemanticTransitionHandlersV01(
         mutating: false,
       });
       const binding = parsePreviewQuery(requestUrl);
-      const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
-      const config = resolveVNextLocalReviewConfigV01({ environment, credential, clock: options.clock });
+      // Invalid host policy must fail before credential resolution can open a
+      // scoped session database. This validates configuration, not authority.
+      readVNextLocalOperatorPilotConfigV01(environment);
       const reviewWindowConfig =
         readVNextOperatorPilotReviewWindowConfigV01(environment);
+      const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
+      const config = resolveVNextLocalReviewConfigV01({ environment, credential, clock: options.clock });
       db = openDatabase(config);
       const result = prepareVNextOperatorPilotSemanticCommitPreviewV01(db, {
         config,
@@ -120,10 +124,11 @@ export function createVNextOperatorSemanticTransitionHandlersV01(
           400,
         );
       }
-      const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
-      const config = resolveVNextLocalReviewConfigV01({ environment, credential, clock: options.clock });
+      readVNextLocalOperatorPilotConfigV01(environment);
       const reviewWindowConfig =
         readVNextOperatorPilotReviewWindowConfigV01(environment);
+      const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
+      const config = resolveVNextLocalReviewConfigV01({ environment, credential, clock: options.clock });
       const parsed = parseActionBody(
         await readBoundedVNextLocalOperatorBodyV01(request),
       );
