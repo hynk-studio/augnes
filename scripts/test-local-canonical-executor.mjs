@@ -875,7 +875,7 @@ const ownedBlockEnd = executorSource.indexOf("\n  const serviceLifecycleRestored
 assert.ok(ownedBlockStart > 0 && ownedBlockEnd > ownedBlockStart);
 const ownedBlock = executorSource.slice(ownedBlockStart, ownedBlockEnd);
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-for (const scenario of ["wrong_npm", "checkout_busy", "acquisition_failure", "owned_failure", "unsettled_failure", "success", "absent_success", "stopped_success", "quick_success", "isolated_success", "isolated_unsettled", "pre_lock_state_race", "maintenance_state_race"]) {
+for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisition_failure", "owned_failure", "unsettled_failure", "success", "absent_success", "stopped_success", "quick_success", "isolated_success", "isolated_unsettled", "pre_lock_state_race", "maintenance_state_race"]) {
   const root = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-canonical-ownership-")));
   let competingOwner = null;
   let privateResource = null;
@@ -922,7 +922,12 @@ for (const scenario of ["wrong_npm", "checkout_busy", "acquisition_failure", "ow
       plan: { selected_plan: quick ? "quick-feedback" : "full-canonical" }, OWNER_TARGETED_PLAN: "owner-targeted",
       preflightIssues, phaseDefinitions: [{ id: "synthetic" }], phaseReceipts: [{ id: "synthetic", status: "not_run" }],
       repositoryRoot: root, runLogRoot, runId: "synthetic", mode: "changed", hostResult: {},
-      process: { platform: "win32", arch: "x64" }, generatedWindowsHelperRoot: windows,
+      process: { platform: scenario === "capacity_busy" ? "darwin" : "win32", arch: "x64" }, generatedWindowsHelperRoot: windows,
+      host: {},
+      acquireVerificationCapacity: () => {
+        assert.equal(calls.checkoutAcquire, 0, "capacity refusal cannot publish a checkout owner that disrupts other lanes");
+        throw Object.assign(new Error(), { code: "verification_capacity_busy" });
+      },
       dependencyMaintenance: null, dependencyMaintenanceRelease: null, serviceLifecycleBefore: null, serviceLifecycleAfter: null,
       console: { log() {}, error() {} }, RECEIPT_RETENTION: 20, LOG_RUN_RETENTION: 5,
       managesGeneratedNextState,
@@ -990,7 +995,7 @@ for (const scenario of ["wrong_npm", "checkout_busy", "acquisition_failure", "ow
       },
     };
     const result = await new AsyncFunction(...Object.keys(context), ownedBlock + "\nreturn { nextState, windowsHelperState, sharedGeneratedStateOwned, cleanupComplete, executionFailure, checkoutOwnership, serviceLifecycleBefore, serviceLifecycleAfter, generatedWindowsHelperPresentAfter }; ")(...Object.values(context));
-    if (["wrong_npm", "checkout_busy", "acquisition_failure"].includes(scenario)) {
+    if (["wrong_npm", "checkout_busy", "capacity_busy", "acquisition_failure"].includes(scenario)) {
       assert.equal(calls.phases, 0); assert.equal(calls.remove, 0); assert.equal(calls.release, 0);
       assert.equal(result.sharedGeneratedStateOwned, false);
       assert.equal(result.nextState.removed_after_execution, false);
@@ -1038,7 +1043,7 @@ for (const scenario of ["wrong_npm", "checkout_busy", "acquisition_failure", "ow
       }
       if (unsettled) assert.equal(result.checkoutOwnership.failure_code, "checkout_owner_consumers_unsettled");
     }
-    const acquired = !["wrong_npm", "checkout_busy"].includes(scenario);
+    const acquired = !["wrong_npm", "checkout_busy", "capacity_busy"].includes(scenario);
     assert.equal(calls.checkoutRelease, acquired ? 1 : 0);
     assert.equal(calls.prune, acquired ? 1 : 0, "a refused/non-owner invocation never prunes artifacts");
     assert.equal(result.checkoutOwnership.released, acquired && !unsettled);

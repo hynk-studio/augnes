@@ -579,6 +579,13 @@ export async function executeLocalCanonicalVerification({
     if (!executionFailure) {
       if (signal?.aborted) throw Object.assign(new Error("verification_cancelled"), { code: "verification_cancelled" });
       assertVerificationContext(verificationContext, repositoryRoot);
+      // Reserve host capacity before publishing a canonical-checkout owner.
+      // A refused contender must not look like an unaccounted legacy owner to
+      // already-running isolated lanes, even for a brief acquisition window.
+      if (capacityOwnership.required) {
+        capacityLease = acquireVerificationCapacity({ context: verificationContext, host, invocationId });
+        Object.assign(capacityOwnership, capacityLease, { acquired: true });
+      }
       if (checkoutOwnership.required) {
         checkoutOwner = acquireCheckoutVerificationOwnership({ repositoryRoot });
         Object.assign(checkoutOwnership, {
@@ -587,10 +594,6 @@ export async function executeLocalCanonicalVerification({
           ownership_id: checkoutOwner.metadata.ownership_id,
           acquired_at: checkoutOwner.metadata.acquired_at,
         });
-      }
-      if (capacityOwnership.required) {
-        capacityLease = acquireVerificationCapacity({ context: verificationContext, host, invocationId });
-        Object.assign(capacityOwnership, capacityLease, { acquired: true });
       }
       if (checkoutContext === "isolated-worktree") {
         isolatedResources = createIsolatedInvocationResources(invocationId);

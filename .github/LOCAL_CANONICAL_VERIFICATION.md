@@ -484,7 +484,8 @@ checkouts may overlap; within each invocation the existing scheduling remains:
   by the current runners.
 
 Full and owner-targeted invocations on the Mac acquire a bounded host-capacity
-slot in addition to their physical-checkout owner. At least 10 logical CPUs and
+slot before publishing their physical-checkout owner, so a refused contender
+cannot briefly disrupt existing lanes as an unaccounted canonical owner. At least 10 logical CPUs and
 24 GiB physical memory admit at most two heavy lanes; smaller supported hosts
 admit one. Current free disk must cover the existing 15 GiB budget per admitted
 lane. The slot uses the same exclusive file, physical identity and process-birth
