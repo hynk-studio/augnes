@@ -1,0 +1,5 @@
+{
+  "a": {"input_rows":5,"unique_attempts":4,"duplicate_deliveries":1,"excluded_failed_attempts":1,"successful_attempts":3,"total_ms":5000,"max_ms":2000},
+  "b": {"input_rows":8,"unique_attempts":6,"duplicate_deliveries":2,"successful_attempts":3,"failed_attempts":3,"total_ms":7500,"successful_ms":4250,"failed_ms":3250,"per_job":[{"job_id":"compile","attempts":2,"total_ms":3500,"failed_ms":1000},{"job_id":"docs","attempts":1,"total_ms":500,"failed_ms":0},{"job_id":"tests","attempts":3,"total_ms":3500,"failed_ms":2250}]},
+  "c": {"input_rows":4,"unique_attempts":3,"duplicate_deliveries":1,"successful_attempts":2,"failed_attempts":1,"total_ms":4000,"successful_ms":2750,"failed_ms":1250,"per_job":[{"job_id":"compile","attempts":2,"total_ms":3500,"failed_ms":1250},{"job_id":"tests","attempts":1,"total_ms":500,"failed_ms":0}]}
+}

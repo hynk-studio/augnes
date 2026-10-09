@@ -255,6 +255,25 @@ review perspective; separate invocation alone does not make it an independent
 blind evaluator. Keep observations, developer reports, interpretations, and
 unobserved properties distinct.
 
+For ordinary different-goal experience use, record the fresh successor goal,
+exact original support, derived applicability and omission reasons before its
+first material processing action. Resolve predecessor-task recall before crossing
+the task-suffix boundary; file hashes without accessible executable bytes are not
+delivery evidence. Check actual imported paths, inputs, outputs and independent
+answers. A changed version/unit requires a qualified revision or alternative,
+while preserving the original observation and callable behavior. Do not equate
+external deliverable success with a managed receipt or prior-work completion.
+
+The [#1427 runnable case](../../scripts/companion-experience-use.md) supplies A/B
+deliverables and a changed-condition C control through authenticated ordinary
+writers. Its source choices and cases are exposed scripted development evidence.
+An adaptive memo retains the same goal, raw sources, callable assets, tools and
+relevant resources and may revise its own method. Blind replay of A's goal-specific
+filter is a harmful-transfer negative control, not a strong baseline. Functional
+composition and exact output correctness do not establish autonomous selection,
+superiority, learning or independent demand; the fixed live-model comparison
+remains NOT_RUN and historical P4.6 findings remain unchanged.
+
 ### Cost and user burden
 
 Distinguish method-development, setup and preparation cost; reusable asset

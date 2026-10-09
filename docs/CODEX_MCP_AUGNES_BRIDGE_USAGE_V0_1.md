@@ -293,6 +293,7 @@ explicit `sources.keep`, reasons in `sources.omitted_sources`, and any newly
 attributed `sources.add`. Preview shows old/new definitions and selection, with
 no completion claim for the prior work. Prepare uses the reviewed preview and
 independent channel authentication; it starts nothing and transfers no authority.
+
 Then Resume and read selected sources using the fresh binding. The Browser's
 **Prepare a different task** action shares the same comparison and atomic writer.
 Use it only when the reviewed installed client/runtime exposes the operation;
@@ -300,6 +301,35 @@ source or candidate availability alone is not installed adoption. Refresh a
 missing/stale installation only through its separately authorized setup owner.
 Full input and recovery boundaries are in the
 [preparation contract](CODEX_CURRENT_CONTINUITY_V0_1.md#explicit-preview-and-save-of-prepared-work).
+
+For **experience use across goals**, first classify the permitted material against
+the new task: unchanged support/callables, conditions to recheck, and goal-specific
+or irrelevant advice to omit. Keep original observations separate from an attributed
+`derived_interpretation` of applicability. Resolve/reselect needed historical notes
+while A is still current, then Resume/read and pass exact current bindings into B's
+`sources.keep`. Lookup is task-suffix scoped; B cannot retrospectively look up A's
+omitted notes, and new-task preparation does not accept `retained_source_refs`.
+Do not reconstruct canonical notes from their sanitized read projection.
+
+Prepare the explicitly different goal with complete criteria/non-goals, exact
+source choices and omission reasons. Read the fresh B goal, support and derived
+guidance before its first material processing action. Deliver executable assets
+as actual consumer-owned files with fixed names, version/content identities, byte
+counts, hashes and all dependencies; verify their bytes and imported paths before
+use. Notes retain attribution and applicability, not fragmented code. Missing
+bytes, unknown versions or changed units require deliberate refusal/revision,
+never hidden fallback. The host's separate authority permits execution, not the
+asset locator or prior task. Retain original methods and failed observations.
+
+The [ordinary experience-use example](../scripts/companion-experience-use.md)
+and [caller seam](../scripts/companion-experience-use.mjs) reuse only the existing
+tools. The runnable disposable consumer completes a success-latency task, carries
+its normalization into a distinct all-attempt capacity audit, and qualifies a
+separate v2 adapter. Results stay `imported_unverified`; interpretations remain
+derived. External output success does not mark the prior ordinary work complete
+or create a RunReceipt. Its scripted source choices are development mechanism
+evidence, not comparative usefulness or learning; exact ledger tasks need no
+retry-inspection outlook.
 
 When Resume reports no work in an already registered and selected local project,
 use `augnes_preview_repository_initial_work` with the exact snapshot binding and

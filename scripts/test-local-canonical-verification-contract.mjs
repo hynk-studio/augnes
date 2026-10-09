@@ -1103,6 +1103,7 @@ const integrationChildren = [
   "stateless-terminal-authorship",
   "project-direction",
   "retry-inspection-outlook",
+  "companion-experience-use",
   "companion-method-outlook",
   "pre-execution-support-material",
   "native-selected-source-budget",
@@ -1223,6 +1224,9 @@ for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requ
 const companionOutlookRegistration = readCanonicalChildRegistration(integrationSource, "companion-method-outlook");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"process-owning"', '"mutable-module-state"', '"scripts/test-companion-method-outlook.ts"'])
   requireText(companionOutlookRegistration.block, fragment, "ordinary outlook feedback retains one bounded authenticated consumer owner");
+const experienceUseRegistration = readCanonicalChildRegistration(integrationSource, "companion-experience-use");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-companion-experience-use.ts"'])
+  requireText(experienceUseRegistration.block, fragment, "ordinary experience use owns its authenticated disposable state, listener and natural-exit file consumers");
 assert.equal(countOccurrences(firstWorkFixture, "await assertRetryInspectionLoopV01();"), 1,
   "the outlook loop runs once without extending the default initialization child");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 60_000', 'requireNaturalExit: true', '"process-owning"', '"--support-material-revision-only"'])

@@ -855,6 +855,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "companion-experience-use",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
+      label: "ordinary different-task experience use, delivered callable execution and version revision",
+      ...rootNode("scripts/test-companion-experience-use.ts"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "companion-method-outlook",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning", "mutable-module-state"],
