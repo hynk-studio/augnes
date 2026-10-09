@@ -47,6 +47,13 @@ const reductionScope = readRepositoryFile(
 const canonicalSuite = readRepositoryFile(
   "scripts/run-canonical-test-suite.mjs",
 );
+const hypothesisCacheRegistration = readCanonicalChildRegistration(canonicalSuite, "hypothesis-cache-study");
+for (const fragment of ['group: "serial"', '"filesystem"', '"immutable-fixture-input"',
+  'timeoutMs: 10_000', 'requireNaturalExit: true', 'command: process.execPath',
+  'args: ["scripts/test-hypothesis-cache-study.mjs"]']) {
+  assert(hypothesisCacheRegistration.block.includes(fragment), `hypothesis cache study registration missing ${fragment}`);
+}
+assert.equal(countOccurrences(canonicalSuite, 'id: "hypothesis-cache-study"'), 1);
 const runtimeOperabilityOwnership = readRepositoryFile(
   "scripts/runtime-operability-ownership.mjs",
 );

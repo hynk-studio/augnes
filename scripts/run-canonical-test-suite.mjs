@@ -176,6 +176,17 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      id: "hypothesis-cache-study",
+      group: "serial",
+      requirements: ["filesystem", "immutable-fixture-input"],
+      label: "hypothesis and adaptive memo cache study outputs, provenance and costs (zero model)",
+      command: process.execPath,
+      args: ["scripts/test-hypothesis-cache-study.mjs"],
+      cwd: repoRoot,
+      timeoutMs: 10_000,
+      requireNaturalExit: true,
+    },
+    {
       label: "public first-read artifact privacy and semantic parity",
       ...rootNode("scripts/test-public-first-read.ts"),
       timeoutMs: 30_000,

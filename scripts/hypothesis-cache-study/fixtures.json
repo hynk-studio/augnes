@@ -1,0 +1,41 @@
+{
+  "version": "hypothesis-cache-study.v1",
+  "origin": "Developer-authored synthetic cases for #1428; all expected answers exposed during development.",
+  "task_a": "Diagnose anomalies and prepare a reusable executable adapter with attributed revisions or retentions.",
+  "task_b": "Deliver all eight new batch results while selecting valid shared-cache reuse or recomputation.",
+  "spec": {
+    "raw": "sum(values) multiplied by the toolchain factor",
+    "factors": {"v1": 1, "v2": 2},
+    "output": "sum returns raw; mean returns raw divided by values.length",
+    "cache": "Caller chooses keys. Reuse returns the stored raw result, without checking applicability. Inspection exposes all entries and full execution/delivery history.",
+    "telemetry": "Delivery is distinct from execution; repeated delivery of an event does not execute a job."
+  },
+  "simulated_costs": {"inspect": 1, "compute": 10, "reuse": 1, "reset": 3, "refuse": 0},
+  "development": {
+    "implementation": {"id": "a-mean", "name": "average", "values": [4, 8], "toolchain": "v1", "output": "mean"},
+    "group_old": {"id": "a-old", "name": "shared", "values": [2, 3], "toolchain": "v1", "output": "sum"},
+    "group_new": {"id": "a-new", "name": "shared", "values": [2, 4], "toolchain": "v1", "output": "sum"},
+    "version_new": {"id": "a-version", "name": "shared", "values": [2, 4], "toolchain": "v2", "output": "sum"},
+    "telemetry": {"id": "a-delivery", "name": "delivery", "values": [3, 5], "toolchain": "v1", "output": "sum"}
+  },
+  "development_reference": {"implementation": 6, "group_old": 5, "group_new": 6, "version_new": 12, "telemetry": 8, "actual_telemetry_executions": 1},
+  "b_seed": [
+    {"id": "seed-old", "name": "shared", "values": [2, 3], "toolchain": "v1", "output": "sum"},
+    {"id": "seed-warm", "name": "warm", "values": [10, 14], "toolchain": "v1", "output": "sum"}
+  ],
+  "b_jobs": [
+    {"id": "b1", "name": "shared", "values": [2, 4], "toolchain": "v2", "output": "sum"},
+    {"id": "b2", "name": "renamed", "values": [2, 4], "toolchain": "v2", "output": "mean"},
+    {"id": "b3", "name": "warm", "values": [10, 14], "toolchain": "v1", "output": "mean"},
+    {"id": "b4", "name": "warm", "values": [10, 14], "toolchain": "v2", "output": "sum"},
+    {"id": "b5", "name": "copy", "values": [10, 14], "toolchain": "v2", "output": "mean"},
+    {"id": "b6", "name": "fresh", "values": [1, 5, 9], "toolchain": "v1", "output": "sum"},
+    {"id": "b7", "name": "again", "values": [1, 5, 9], "toolchain": "v1", "output": "mean"},
+    {"id": "b8", "name": "shared", "values": [2, 3], "toolchain": "v1", "output": "sum"}
+  ],
+  "b_reference": {"b1": 12, "b2": 6, "b3": 12, "b4": 48, "b5": 24, "b6": 15, "b7": 5, "b8": 5},
+  "b_optimal": {"computations": 3, "reuses": 5, "inspections": 8, "simulated_units": 43},
+  "observation_order": ["symptom", "fresh", "grouping", "history", "delivery"],
+  "limits": {"adapter_bytes": 16384, "notes_bytes": 16384, "call_timeout_ms": 500, "calls_per_job": 2},
+  "live_model_comparison": "NOT_RUN"
+}
