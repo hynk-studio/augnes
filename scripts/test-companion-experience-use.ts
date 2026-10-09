@@ -243,11 +243,20 @@ async function main() {
   assert.equal(hash(readFileSync(path.join(a, "normalize-v1.mjs"))), v1.files[0].sha256);
   await execute(a, "success", "v1", "a.json", "success-latency-regression.json");
   assert(readFileSync(path.join(a, "success-latency.json")).equals(readFileSync(path.join(a, "success-latency-regression.json"))));
-  current = (await api.write("revise", current, { sources: { add: [note("fixture:C:result", `C actual externally executed result ${JSON.stringify(cResult)}. Original A output reproduced byte-for-byte with unchanged v1 asset. Retain v1 for v1 and separate v2 adapter for v2; do not claim general transfer advantage or learned success rates.`, "imported_unverified")] } })).current;
+  const qualificationPacket = inspectPreExecutionProjectWorkRevisionChainV01(db, scope).tip_packet;
+  const frozenQualification = canonical(qualificationPacket);
+  const retention = note("fixture:C:retention", `Qualified retention decision, based on C output ${cResult.output_sha256} and the unchanged A regression: retain v1 for v1 and the separate v2 adapter for v2. Method ${JSON.stringify(v2)}. Preserve the all-attempt population and refuse unknown versions/units. No general transfer advantage or learned success rate follows.`);
+  current = (await api.write("revise", current, { sources: {
+    add: [note("fixture:C:result", `C actual externally executed result ${JSON.stringify(cResult)}. Original A output reproduced byte-for-byte with unchanged v1 asset.`, "imported_unverified")],
+    replace: [{ source_binding: find(current, "C method revision supported").source_binding, note: retention }],
+  } })).current;
+  assert.equal(find(current, "C actual externally executed result").trust_class, "imported_unverified");
+  assert.equal(find(current, "Qualified retention decision").trust_class, "derived_interpretation");
   assert.equal(current.sources.sources.length, 8);
   const chain = inspectPreExecutionProjectWorkRevisionChainV01(db, scope);
   assert.equal(canonical(chain.packets.find(p => p.packet_id === aPacket.packet_id)), frozenA);
   assert.equal(canonical(chain.packets.find(p => p.packet_id === bPacket.packet_id)), frozenB);
+  assert.equal(canonical(chain.packets.find(p => p.packet_id === qualificationPacket.packet_id)), frozenQualification);
   assert(chain.packets.every(p => p.capability_grant === null));
   assert.equal(canonical(readActiveProjectSelectionV01(db, workspace.workspace_id)), selection);
   assert.equal((db.prepare("SELECT count(*) n FROM autonomy_runs").get() as { n: number }).n, 0);
