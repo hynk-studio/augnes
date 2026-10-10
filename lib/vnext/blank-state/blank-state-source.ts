@@ -127,7 +127,7 @@ export async function readBlankStateSourceV01(
     ? liveService.readLatestProjectionOnlyV01(operatorConfig)
     : null;
   const resumeEligibility =
-    projection?.project_summary.is_active && operatorConfig &&
+    projection && operatorConfig &&
       liveRun?.mode === "repository_attachment"
       ? await readRepositoryRunResumeEligibilityV01(db, {
           config: operatorConfig,
@@ -138,7 +138,7 @@ export async function readBlankStateSourceV01(
         })
       : null;
   const delegatedWork =
-    projection?.project_summary.is_active && operatorConfig && liveRun
+    projection && operatorConfig && liveRun
       ? readDelegatedWorkProjectionV01(db, {
           config: operatorConfig,
           live_run: liveRun,
@@ -165,7 +165,7 @@ export async function readBlankStateSourceV01(
           project_id: targetProjectId,
         })
       : null,
-    continuity_pins: projection?.project_summary.is_active
+    continuity_pins: projection
       ? readProjectContinuityPinProjectionV01(db, {
           workspace_id: projection.workspace_id,
           project_id: projection.project_id,
@@ -213,8 +213,8 @@ function readMatchingOperatorConfigV01(
 ) {
   try {
     const config = readVNextLocalOperatorPilotConfigV01(process.env);
-    return config.workspace_id === workspaceId && config.project_id === projectId
-      ? config
+    return config.workspace_id === workspaceId
+      ? { ...config, project_id: projectId }
       : null;
   } catch {
     return null;
@@ -225,7 +225,6 @@ function directHostRoundTripAvailableV01(
   projection: ProjectHomeProjectionV01,
 ): boolean {
   if (
-    !projection.project_summary.is_active ||
     projection.project_summary.root_availability !== "available"
   ) {
     return false;

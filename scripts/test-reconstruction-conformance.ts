@@ -23,7 +23,7 @@ import {
   buildReconstructionConformanceReportV01,
   ReconstructionConformanceErrorV01,
 } from "../lib/vnext/reconstruction-conformance";
-import { readCodexProjectContinuityV01 } from "../lib/vnext/codex-current-continuity/codex-current-continuity";
+import { readCodexCurrentContinuityV01 } from "../lib/vnext/codex-current-continuity/codex-current-continuity";
 import {
   exportActivePortableProjectV01,
   importPortableProjectV01,
@@ -1535,7 +1535,7 @@ function insertReviewDecisionV01(
 }
 
 interface CurrentOwnersV01 {
-  continuity: Awaited<ReturnType<typeof readCodexProjectContinuityV01>>;
+  continuity: Awaited<ReturnType<typeof readCodexCurrentContinuityV01>>;
   reconciliation: ProjectVerifyReconciliationV01;
   lineages: ProjectVerifyLineageV01[];
   excluded_incomplete_lineages: ProjectVerifyLineageV01[];
@@ -1566,9 +1566,12 @@ async function readCurrentOwnersV01(
     database_path: databasePath,
   };
   let managedRunProjectionReads = 0;
-  const continuity = await readCodexProjectContinuityV01(
+  // This active-portable-project fixture compares independent selection
+  // observations. Explicit project-client bindings intentionally omit selection.
+  assert.equal(readActiveProjectSelectionV01(db, manifest.workspace_id)?.project_id, manifest.project_id);
+  const continuity = await readCodexCurrentContinuityV01(
     db,
-    { project_id: manifest.project_id, generated_at: OBSERVED_AT },
+    { generated_at: OBSERVED_AT },
     {
       managed_start_available: () => true,
       read_root_availability: async (root) =>

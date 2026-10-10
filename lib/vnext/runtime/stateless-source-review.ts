@@ -17,7 +17,6 @@ import { canonicalizeProtocolValueV01 as canonical, createProtocolSha256V01 as h
 import { statelessTerminalEntries, statelessMandatoryEntries, STATELESS_WORK, STATELESS_LIMITS as LIMITS, STATELESS_SOL_LOW_LIMITS, reviewCheck as check, reviewObject, reviewText, reviewFile, readSourceReview, readStatelessSelectedNotes, reviewRef, type SourceReview, type ReviewObservation, type StatelessGrantRequest, type StatelessGrant } from "../stateless-work";
 import { insertStatelessGrant, readStatelessGrant, buildStatelessModelInvocationGrant } from "../persistence/stateless-work-grant";
 import { readCanonicalProjectWithRootV01 } from "../persistence/project-identity-registry";
-import { readActiveProjectSelectionV01 } from "../persistence/project-lifecycle-registry";
 import { readProjectAutomationControlV01 } from "../persistence/project-control-store";
 import { validateProjectAutomationPolicyV01 } from "../project-controls/project-controls";
 import { readVNextCoreRecordV01 } from "../persistence/durable-semantic-store";
@@ -114,7 +113,7 @@ export function prepareMaterial(db: Database.Database, config: Config, request: 
   review.files = observed.sources.map(({ text: _text, excerpt_digest: _digest, ...f }) => f);
   return { review, observed };
 }
-export function prepareStatelessReplacement(db: Database.Database, input: { config: Config; credential: Credential; disposition: { run_id: string; disposition_fingerprint: string }; request: unknown; expected_active_selection_revision: unknown; now: () => string }) {
+export function prepareStatelessReplacement(db: Database.Database, input: { config: Config; credential: Credential; disposition: { run_id: string; disposition_fingerprint: string }; request: unknown; expected_active_selection_revision?: unknown; expected_project_work_binding?: unknown; now: () => string }) {
   const { review, observed } = prepareMaterial(db, input.config, input.request, input.now());
   const result = prepareLinkedStatelessWork(db, { ...input, review });
   return { ...result, review, selected_notes: readStatelessSelectedNotes(result.packet), preparation_bytes: observed.bytes_read, packet_id: result.packet.packet_id, authorized: false };
@@ -123,7 +122,7 @@ export function prepareStatelessReplacement(db: Database.Database, input: { conf
 /** Ordinary selected-note preparation. No grant, model invocation or action dispatch. */
 export function prepareStatelessReview(db: Database.Database, input: { config: Config; credential: Credential; request: unknown; now: () => string }) {
   const at = input.now(), packet = currentPacket(db, input.config, at), work = readProjectWorkInitializationV01(db, input.config);
-  check(work.current_packet && work.current_work && work.active_selection_revision, "ordinary_work_required");
+  check(work.current_packet && work.current_work && work.project_work_binding, "ordinary_work_required");
   assertPacketDirectionCurrent(db, packet, at);
   const { review, observed } = prepareMaterial(db, input.config, input.request, at);
   const retained = readSelectedWorkSources(packet).filter(s => { try { return JSON.parse(selectedWorkSourceInput(s).text).profile !== STATELESS_WORK; } catch { return true; } });
@@ -132,6 +131,7 @@ export function prepareStatelessReview(db: Database.Database, input: { config: C
   const result = revisePreExecutionProjectWorkV01(db, { config: input.config, credential: input.credential, clock: { now: input.now }, request: {
     action: "revise_pre_execution_project_work", workspace_id: input.config.workspace_id, project_id: input.config.project_id,
     expected_active_project_id: input.config.project_id, expected_active_selection_revision: work.active_selection_revision,
+    expected_project_work_binding: work.project_work_binding,
     expected_current_packet_id: packet.packet_id, expected_current_packet_fingerprint: packet.integrity.fingerprint,
     expected_current_lineage_kind: work.current_packet.lineage_kind, ...work.current_work,
     selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint,
@@ -171,7 +171,7 @@ export async function previewStatelessReview(db: Database.Database, options: Sta
 function assertGrantCurrent(db: Database.Database, config: Config, grant: StatelessGrant, at: string, ownRun?: string) {
   const r = grant.request, packet = currentPacket(db, config, at), root = rootBinding(db, config);
   const control = readProjectAutomationControlV01(db, config);
-  check(r.workspace_id === config.workspace_id && r.project_id === config.project_id && readActiveProjectSelectionV01(db, config.workspace_id)?.project_id === config.project_id &&
+  check(r.workspace_id === config.workspace_id && r.project_id === config.project_id &&
     packet.packet_id === r.packet_id && packet.integrity.fingerprint === r.packet_fingerprint && root.fingerprint === r.root_fingerprint && hostFingerprint() === r.host_fingerprint &&
     control?.enabled && !control.paused && control.revision === r.control_revision && validateProjectAutomationPolicyV01(control.policy, config).valid &&
     Date.parse(at) >= Date.parse(grant.issued_at) && Date.parse(at) < Date.parse(r.expires_at), "grant_source_or_permission_changed");

@@ -1,3 +1,4 @@
+import { projectBoundRequestIdentityV01 } from "./project-work-binding";
 import { readProjectWorkPacketHistoryV01, PROJECT_WORK_HISTORY_READ_BUDGET_V01 } from "./project-work-packet-history";
 import { statelessMandatoryEntries } from "../stateless-work";
 import type Database from "better-sqlite3";
@@ -61,7 +62,7 @@ export function ordinarySuccessorRevisionMaterialV01(packet: TaskContextPacketV0
 export function ordinarySuccessorRevisionIdempotencyKeyV01(packet: TaskContextPacketV01): string {
   return requestDigest(ordinarySuccessorRevisionMaterialV01(packet).request);
 }
-const requestDigest = (request: RevisePreExecutionProjectWorkRequestV01) => digest({ compiler: AUTHORED_SUCCESSOR_REVISION_V01, request });
+const requestDigest = (request: RevisePreExecutionProjectWorkRequestV01) => digest({ compiler: AUTHORED_SUCCESSOR_REVISION_V01, request: projectBoundRequestIdentityV01(request) });
 
 function packetFrom(db: Database.Database, scope: Scope, id: string, fingerprint: string) {
   const row = readVNextCoreRecordV01(db, { ...scope, record_kind: "task_context_packet", record_id: id });
@@ -277,7 +278,7 @@ export function saveOrdinarySuccessorRevisionInsideTransactionV01(db: Database.D
   check(!ordinarySuccessorRevisionExecutionBlockedV01(db, scope, chain), "revision_execution_started");
   const exact = chain.tip_packet.packet_id === request.expected_current_packet_id && chain.tip_packet.integrity.fingerprint === request.expected_current_packet_fingerprint;
   if (!exact) {
-    check(chain.tip_revision && equal(chain.tip_revision.material.request, request), "revision_current_packet_changed");
+    check(chain.tip_revision && equal(projectBoundRequestIdentityV01(chain.tip_revision.material.request), projectBoundRequestIdentityV01(request)), "revision_current_packet_changed");
     return { packet: chain.tip_packet, status: "exact_replay" as const };
   }
   if (request.selected_source_context !== undefined) {

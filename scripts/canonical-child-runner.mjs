@@ -49,7 +49,11 @@ export async function runCanonicalChild({
   log = (line) => console.log(line),
   onSpawn = () => {},
   resourceOwner,
+  signal = undefined,
 }) {
+  if (signal?.aborted) throw Object.assign(new Error("canonical_child_cancelled_before_start"), {
+    code: "canonical_child_cancelled_before_start",
+  });
   const safeSuite = safeIdentifier(suite, "unknown");
   const safeLabel = safeText(label, "unnamed child");
   const startedAt = Date.now();
@@ -75,6 +79,13 @@ export async function runCanonicalChild({
   child.stderr.on("data", (chunk) => stderr.write(chunk));
 
   let timedOut = false;
+  let cancelled = false;
+  let cancel;
+  const cancellation = new Promise(resolve => {
+    cancel = () => resolve({ kind: "cancelled" });
+    signal?.addEventListener("abort", cancel, { once: true });
+    if (signal?.aborted) cancel();
+  });
   let timeout;
   let heartbeat;
   const timeoutOutcome = new Promise((resolve) => {
@@ -103,12 +114,14 @@ export async function runCanonicalChild({
       record.exitPromise.then((value) => ({ kind: "exited", value })),
       record.closePromise.then((value) => ({ kind: "closed", value })),
       timeoutOutcome,
+      cancellation,
     ]);
-    if (outcome.kind === "timeout") {
-      timedOut = true;
-      terminationReason = "bounded_timeout";
+    if (outcome.kind === "timeout" || outcome.kind === "cancelled") {
+      timedOut = outcome.kind === "timeout";
+      cancelled = outcome.kind === "cancelled";
+      terminationReason = cancelled ? "operator_cancelled" : "bounded_timeout";
       log(
-        `[canonical:${safeSuite}] child_cleanup_start label=${JSON.stringify(safeLabel)} elapsed_ms=${Date.now() - startedAt} reason=bounded_timeout exit_observed=${record.exited} stdout_closed=${record.stdoutClosed} stderr_closed=${record.stderrClosed}`,
+        `[canonical:${safeSuite}] child_cleanup_start label=${JSON.stringify(safeLabel)} elapsed_ms=${Date.now() - startedAt} reason=${terminationReason} exit_observed=${record.exited} stdout_closed=${record.stdoutClosed} stderr_closed=${record.stderrClosed}`,
       );
       await terminateOwnedProcessTree(record, { termGraceMs, killGraceMs });
       outcome = { kind: "closed", value: await record.closePromise };
@@ -121,7 +134,7 @@ export async function runCanonicalChild({
         remaining_owned_processes: 0,
       };
       log(
-        `[canonical:${safeSuite}] child_cleanup_result label=${JSON.stringify(safeLabel)} elapsed_ms=${Date.now() - startedAt} reason=bounded_timeout streams_closed=${record.stdoutClosed && record.stderrClosed} remaining_owned_processes=0`,
+        `[canonical:${safeSuite}] child_cleanup_result label=${JSON.stringify(safeLabel)} elapsed_ms=${Date.now() - startedAt} reason=${terminationReason} streams_closed=${record.stdoutClosed && record.stderrClosed} remaining_owned_processes=0`,
       );
     } else if (outcome.kind === "exited") {
       log(
@@ -162,6 +175,7 @@ export async function runCanonicalChild({
   } finally {
     clearTimeout(timeout);
     clearInterval(heartbeat);
+    signal?.removeEventListener("abort", cancel);
     child.stdout.removeAllListeners("data");
     child.stderr.removeAllListeners("data");
   }
@@ -172,6 +186,7 @@ export async function runCanonicalChild({
     exit_code: outcome.value.code,
     signal: outcome.value.signal,
     timed_out: timedOut,
+    cancelled,
     duration_ms: durationMs,
     spawn_error_code: record.spawnErrorCode,
     exit_observed: record.exited,
@@ -362,7 +377,10 @@ export function canonicalChildFailure(result, { suite, timeoutMs }) {
   const safeLabel = safeText(result?.label, "unnamed child");
   let message;
   let code;
-  if (result?.timed_out === true) {
+  if (result?.cancelled === true) {
+    code = "canonical_child_cancelled";
+    message = `canonical child cancelled: suite=${safeSuite} label=${safeLabel}`;
+  } else if (result?.timed_out === true) {
     code = "canonical_child_timeout";
     message = `canonical child timed out: suite=${safeSuite} label=${safeLabel} timeout_ms=${timeoutMs}`;
   } else if (result?.spawn_error_code) {
@@ -389,6 +407,7 @@ export function canonicalChildAcceptanceFailure(
   { suite, timeoutMs, requireNaturalExit = false, requireCompleteCleanup = requireNaturalExit },
 ) {
   if (
+    result?.cancelled === true ||
     result?.timed_out === true ||
     result?.spawn_error_code ||
     result?.exit_code !== 0

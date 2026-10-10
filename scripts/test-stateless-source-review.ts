@@ -87,7 +87,7 @@ function scripted(firstChoice = "read_selected_sources", secondChoice = "use_obs
 }
 async function fixture(name: string, firstChoice = "read_selected_sources", secondChoice = "use_observation", auditSources = false, model = "gpt-4.1-mini", restored?: {
   config: { workspace_id: string; project_id: string; operator_id: string; database_path: string }; projectRoot: string; at: string;
-}) {
+}, sharedDatabasePath?: string) {
   const dir = restored ? path.dirname(restored.config.database_path) : path.join(root, name);
   const projectRoot = restored?.projectRoot ?? path.join(dir, "project");
   if (!restored) { mkdirSync(dir); mkdirSync(projectRoot); writeFileSync(path.join(projectRoot, "entry.ts"), sourceText); }
@@ -99,7 +99,7 @@ async function fixture(name: string, firstChoice = "read_selected_sources", seco
     writeFileSync(path.join(projectRoot, "planner.ts"), readFileSync("lib/vnext/automation/policy-triggered-planner-run.ts"));
     writeFileSync(path.join(projectRoot, "prospective.ts"), readFileSync("lib/vnext/runtime/prospective-reentry.ts"));
   }
-  const databasePath = restored?.config.database_path ?? path.join(dir, "review.db"), db = new Database(databasePath); databases.push(db); db.pragma("foreign_keys=ON"); applyCanonicalDatabaseMigrations(db);
+  const databasePath = restored?.config.database_path ?? sharedDatabasePath ?? path.join(dir, "review.db"), db = new Database(databasePath); databases.push(db); db.pragma("foreign_keys=ON"); applyCanonicalDatabaseMigrations(db);
   let scope: { workspace_id: string; project_id: string };
   if (restored) scope = { workspace_id: restored.config.workspace_id, project_id: restored.config.project_id };
   else {
@@ -109,7 +109,10 @@ async function fixture(name: string, firstChoice = "read_selected_sources", seco
   }
   const config = { ...scope, enabled: true as const, operator_id: restored?.config.operator_id ?? "operator:stateless-test", database_path: databasePath };
   let time = restored ? Date.parse(restored.at) : Date.now() + 10; const now = () => new Date(time).toISOString(), tick = (ms = 10) => { time += ms; };
-  if (!restored) selectActiveProjectV01(db, { ...scope, expected_project_id: null, expected_revision: null, now: now() });
+  if (!restored) {
+    const previous = readActiveProjectSelectionV01(db, scope.workspace_id);
+    selectActiveProjectV01(db, { ...scope, expected_project_id: previous?.project_id ?? null, expected_revision: previous?.selection_revision ?? null, now: now() });
+  }
   const active = readActiveProjectSelectionV01(db, scope.workspace_id)!;
   const bootstrap = issueVNextLocalOperatorBootstrapV01(db, { config, clock: { now } }), session = consumeVNextLocalOperatorBootstrapV01(db, { config, clock: { now }, bootstrap_token: bootstrap.bootstrap_token });
   let cookie = `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${session.cookie_value}`;
@@ -247,6 +250,17 @@ async function recoveryBackup(f: Awaited<ReturnType<typeof fixture>>, name: stri
 }
 const pricing = { input_nano_usd_per_byte: 1000, output_nano_usd_per_token: 1000, maximum_total_nano_usd: 100_000_000, source_version: "scripted-test-price-not-live-authority" };
 const replacementMaterial = { question: "Re-examine this bounded entrypoint while retaining the predecessor's unknown effects", files: [{ path: "entry.ts", start_line: 1, end_line: 2 }] };
+function selectOtherProject(f: Awaited<ReturnType<typeof fixture>>) {
+  const otherRoot = mkdtempSync(path.join(root, "other-project-"));
+  const other = getOrCreateCanonicalProjectForLocalRootV01(f.db, { workspace_id: f.scope.workspace_id,
+    local_root: normalizeLocalProjectRootRefV01(otherRoot, { base_path: root }), display_name: "Unrelated project" });
+  const select = (project_id: string) => {
+    const active = readActiveProjectSelectionV01(f.db, f.scope.workspace_id)!;
+    selectActiveProjectV01(f.db, { workspace_id: f.scope.workspace_id, project_id, now: f.now(), expected_project_id: active.project_id, expected_revision: active.selection_revision });
+  };
+  select(other.project.project_id);
+  return () => select(f.scope.project_id);
+}
 async function directionDispositionContract() {
   for (const mode of ["unchanged", "changed", "unselected"] as const) {
     const f = await fixture(`disposition-direction-${mode}`);
@@ -803,8 +817,7 @@ async function terminalAuthorshipContract() {
     if (!legacy) {
       const selection = readActiveProjectSelectionV01(f.db, f.scope.workspace_id)!;
       selectActiveProjectV01(f.db, { ...f.scope, now: f.now(), expected_project_id: f.scope.project_id, expected_revision: selection.selection_revision });
-      await f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding }, 409);
-      preview = (await f.call({ action: "preview_terminal_work", request })).preparation;
+      assert.equal((await f.call({ action: "preview_terminal_work", request })).preparation.preview_binding, preview.preview_binding, "Selection alone does not invalidate terminal authorship");
       const changed = await f.direction({ action: "decide", expected_ref: direction.record.ref, content: { purpose: "Trace only direct source edges", criteria: [], constraints: [] }, reason: "Current explicit direction changed after preview", status: "active", proposal_ref: null });
       await f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding }, 409);
       assert.equal(canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet", "capability_grant", "run_receipt"], limit: 128 })), originalCore);
@@ -823,7 +836,9 @@ async function terminalAuthorshipContract() {
       request.omitted_sources = changedComparison.unselected_previous.map((e: any) => ({ source_binding: e.source_ref, reason: "Explicitly select current direction and new source question; retain the prior version only as history." }));
       preview = (await f.call({ action: "preview_terminal_work", request })).preparation;
     }
+    const restoreSelection = selectOtherProject(f);
     const submissions = await Promise.all([f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding }, [200, 409]), f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding }, [200, 409])]);
+    restoreSelection();
     assert.equal(submissions.filter(v => v.ok).length, 1, JSON.stringify(submissions));
     const packet = submissions.find(v => v.ok)!.result.packet;
     const duplicate = (await f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding })).result;
@@ -1038,7 +1053,7 @@ async function terminalRouteAuthorshipContract({ model = "gpt-6.1-sol", persiste
       writeFileSync(path.join(f.projectRoot, "entry.ts"), sourceText);
       const selection = readActiveProjectSelectionV01(f.db, f.scope.workspace_id)!;
       selectActiveProjectV01(f.db, { ...f.scope, now: f.now(), expected_project_id: f.scope.project_id, expected_revision: selection.selection_revision });
-      await f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding }, 409);
+      assert.equal((await f.call({ action: "preview_terminal_work", request })).preparation.preview_binding, preview.preview_binding, "Selection alone does not invalidate terminal authorship");
       assert.equal(canonical(records()), beforeRefusals, "Refused authorship leaves no partial packet");
       preview = (await f.call({ action: "preview_terminal_work", request })).preparation;
     }
@@ -1048,7 +1063,9 @@ async function terminalRouteAuthorshipContract({ model = "gpt-6.1-sol", persiste
       const ui = spawnSync(process.execPath, ["--import", "tsx", "scripts/test-stateless-terminal-browser.ts", input], { encoding: "utf8", timeout: 90000, env: { ...process.env, OPENAI_API_KEY: "" } });
       assert.equal(ui.status, 0, ui.stderr || ui.stdout); console.log(ui.stdout.trim());
     }
+    const restoreSelection = selectOtherProject(f);
     const authored = (await f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding })).result;
+    restoreSelection();
     const packet = authored.packet;
     assert.equal(packet.capability_grant, null); assert.equal(packet.expires_at, null);
     assert.notEqual(packet.packet_id, authorization.packet_id);
@@ -1223,6 +1240,7 @@ async function observationCheckpointContract() {
   const processCase = await fixture("checkpoint-process", "read_selected_sources", "use_observation", false, "gpt-6.1-sol");
   await checkpointProcessReplacement(processCase.config, processCase.projectRoot);
   const { f, saved, authorization } = await pause("controller-race");
+  selectOtherProject(f);
   const request = { action: "continue", run_id: saved.run.run_id, checkpoint: saved.observation_checkpoint };
   await f.call({ action: "continue", run_id: saved.run.run_id }, 409);
   await f.call({ ...request, checkpoint: { ...request.checkpoint, revision: request.checkpoint.revision + 1 } }, 409);
@@ -1279,8 +1297,76 @@ async function observationCheckpointContract() {
   assert.deepEqual(suspended.read().run.steps, recovery.saved.run.steps);
 }
 
+async function independentProjectRunsContract() {
+  const a = await fixture("overlap-a");
+  const b = await fixture("overlap-b", "read_selected_sources", "use_observation", false, "gpt-4.1-mini", undefined, a.config.database_path);
+  assert.equal(a.scope.workspace_id, b.scope.workspace_id);
+  assert.notEqual(a.projectRoot, b.projectRoot);
+  assert.equal(readActiveProjectSelectionV01(a.db, a.scope.workspace_id)?.project_id, b.scope.project_id);
+  await a.call({ action: "prepare", material: { question: "Prepare A's source review while B remains selected", files: [{ path: "entry.ts", start_line: 1, end_line: 2 }] } });
+  a.preview = (await a.call({ action: "preview", pricing })).authorization;
+  const authorizedA = a.authorizeOnly(a.preview), authorizedB = b.authorizeOnly();
+  const hostA = a.host(authorizedA.run_id), hostB = b.host(authorizedB.run_id);
+  const progress: string[] = [];
+  const gate = () => {
+    let release!: () => void, entered!: () => void;
+    const waiting = new Promise<void>(resolve => { release = resolve; });
+    const reached = new Promise<void>(resolve => { entered = resolve; });
+    return { release, reached, hold: async () => { entered(); await waiting; } };
+  };
+  const aChoose = gate(), bChoose = gate(), aConclude = gate(), bConclude = gate();
+  a.controls.dispatch = async () => { const choose = a.inputs.at(-1).stage === "choose"; progress.push(choose ? "A1" : "A2"); await (choose ? aChoose : aConclude).hold(); };
+  b.controls.dispatch = async () => { const choose = b.inputs.at(-1).stage === "choose"; progress.push(choose ? "B1" : "B2"); await (choose ? bChoose : bConclude).hold(); };
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("stateless_overlap_deadline")), 15000); });
+  const running: Promise<unknown>[] = [];
+  try {
+    const runA = hostA.run(); running.push(runA);
+    await Promise.race([aChoose.reached, runA.then(() => { throw new Error("A did not reach choose barrier"); }), deadline]);
+    const runB = hostB.run(); running.push(runB);
+    await Promise.race([bChoose.reached, runB.then(() => { throw new Error("B did not reach choose barrier"); }), deadline]);
+    aChoose.release(); await Promise.race([aConclude.reached, runA.then(() => { throw new Error("A did not reach conclude barrier"); }), deadline]);
+    bChoose.release(); await Promise.race([bConclude.reached, runB.then(() => { throw new Error("B did not reach conclude barrier"); }), deadline]);
+    assert.equal(hostA.read().run.steps[1]?.status, "completed");
+    assert.equal(hostB.read().run.steps[1]?.status, "completed");
+    assert.equal((await a.call()).reviews[0].run.run_id, authorizedA.run_id);
+    assert.equal((await b.call()).reviews[0].run.run_id, authorizedB.run_id);
+    await a.call({ action: "cancel", run_id: authorizedA.run_id }); progress.push("cancelA");
+    assert.equal(hostB.read().run.status, "running");
+    aConclude.release(); await runA;
+    assert.equal(hostA.read().run.status, "cancelled");
+    bConclude.release(); await runB; progress.push("B3");
+    assert.equal(hostB.read().run.status, "completed");
+    assert.equal(a.calls, 2); assert.equal(b.calls, 2);
+    assert.equal(a.host(authorizedA.run_id).read().run.status, "cancelled");
+    assert.equal(b.host(authorizedB.run_id).read().receipt?.project_id, b.scope.project_id);
+    assert.deepEqual(progress, ["A1", "B1", "A2", "B2", "cancelA", "B3"]);
+    console.log(JSON.stringify({ stateless_project_independence: "pass", adapter: "scripted_gateway_transport", projects: 2, physical_roots: 2,
+      overlapping_progress: progress.join(" "), authenticated_status_and_cancellation: true, saved_observations: 2, external_requests: requests }));
+  } finally {
+    if (timer) clearTimeout(timer);
+    for (const g of [aChoose, bChoose, aConclude, bConclude]) g.release();
+    await Promise.allSettled(running);
+  }
+  const linked = await fixture("linked-independent"); linked.loseDispatch();
+  const lost = (await linked.call({ action: "authorize_and_run", authorization: linked.preview })).result;
+  const ended = (await linked.call({ action: "end_work", binding: lost.disposition_preparation.binding })).result;
+  const request = { action: "prepare_linked_work", disposition: { run_id: lost.run.run_id, disposition_fingerprint: ended.disposition_preparation.disposition.fingerprint },
+    expected_project_work_binding: ended.disposition_preparation.expected_project_work_binding, material: replacementMaterial };
+  const restore = selectOtherProject(linked);
+  await linked.call({ ...request, expected_project_work_binding: hash("forged-project-binding") }, 409);
+  const saved = (await linked.call(request)).result;
+  assert.equal(saved.authorized, false);
+  assert.equal(readProjectWorkInitializationV01(linked.db, linked.config).current_packet?.packet_id, saved.packet_id);
+  restore();
+  assert.equal((await linked.call(request)).result.packet_id, saved.packet_id);
+  assert.equal(linked.calls, 1);
+  console.log(JSON.stringify({ stateless_linked_work_independence: "pass", original_bound_request_through_ABA: true, exact_replay: true, forged_binding: "refused", new_execution_authority: false }));
+}
+
 async function main() {
   try {
+    if (process.argv[2] === "--project-independence") { await independentProjectRunsContract(); assert.equal(requests, 0); return; }
     if (["--durable-work", "--durable-work-baseline"].includes(process.argv[2]!)) {
       await durableWorkContract((name, restored) => fixture(name, "read_selected_sources", "use_observation", false, "gpt-4.1-mini", restored), root, process.argv[2] === "--durable-work-baseline");
       assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0); return;
@@ -1321,6 +1407,7 @@ async function main() {
       await dispositionContract(); assert.equal(requests, 0);
       console.log(JSON.stringify({ status: "passed", successor_review_reentry: true, fresh_process_and_recovery_warning: true, separate_grant_required: true, external_requests: requests })); return;
     }
+    await independentProjectRunsContract();
     const previewAdapter = scripted();
     const routeIdentity = await preparePlannerModelGatewayRouteV01({ adapter: previewAdapter.adapter });
     assert.deepEqual(Object.keys(routeIdentity!).sort(), ["model_ref", "provider_ref"]);

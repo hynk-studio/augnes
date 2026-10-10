@@ -1,3 +1,4 @@
+import { readProjectWorkBindingV01 } from "./project-work-binding";
 import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import { parseWorkHandoff, readWorkHandoff, handoffCheck } from "../work-handoff";
@@ -180,10 +181,12 @@ export function defineInitialProjectWorkInsideTransactionV01(
       db,
       input.scope.workspace_id,
     );
-    if (
+    if (request.expected_project_work_binding !== undefined &&
+      request.expected_project_work_binding !== readProjectWorkBindingV01(db, input.scope)) refuse("first_work_project_binding_changed", 409);
+    if (request.expected_project_work_binding === undefined && (
       active?.project_id !== request.expected_active_project_id ||
       active.selection_revision !== request.expected_active_selection_revision
-    ) {
+    )) {
       refuse("first_work_active_selection_conflict", 409);
     }
     const registration = readCanonicalProjectWithRootV01(db, input.scope);
@@ -235,6 +238,7 @@ export function defineInitialProjectWorkInsideTransactionV01(
       session_id: sessionAdmission.session.session_id,
       expected_active_selection_revision:
         request.expected_active_selection_revision,
+      ...(request.expected_project_work_binding ? { expected_project_work_binding: request.expected_project_work_binding } : {}),
       definition,
       ...(request.handoff ? { handoff: request.handoff.snapshot } : {}),
       generated_at: sessionAdmission.action_observed_at,
@@ -493,9 +497,7 @@ function readProjectWorkInitializationStrictV01(
       reason: "zero_durable_work_history",
       current_work: null,
       current_packet: null,
-      mutation_eligible:
-        active?.project_id === input.project_id &&
-        isHistoricalProjectSelectionRevision(active.selection_revision),
+      mutation_eligible: revisionEligibility.project_work_binding != null,
     };
   }
   const unresolvedReason: ProjectWorkInitializationV01["reason"] =
@@ -613,7 +615,7 @@ function parseRequestV01(value: unknown): DefineInitialProjectWorkRequestV01 {
   }
   const request = value as Record<string, unknown>;
   const actual = Object.keys(request).sort();
-  const expected = [...REQUEST_KEYS, ...("handoff" in request ? ["handoff"] : [])].sort();
+  const expected = [...REQUEST_KEYS, ...(request.expected_project_work_binding !== undefined ? ["expected_project_work_binding"] : []), ...("handoff" in request ? ["handoff"] : [])].sort();
   if (
     canonicalizeProtocolValueV01(actual) !==
     canonicalizeProtocolValueV01(expected) ||
@@ -623,7 +625,8 @@ function parseRequestV01(value: unknown): DefineInitialProjectWorkRequestV01 {
     typeof request.workspace_id !== "string" ||
     typeof request.project_id !== "string" ||
     typeof request.expected_active_project_id !== "string" ||
-    !isHistoricalProjectSelectionRevision(request.expected_active_selection_revision)
+    (request.expected_project_work_binding !== undefined && !/^sha256:[a-f0-9]{64}$/u.test(String(request.expected_project_work_binding))) ||
+    !(isHistoricalProjectSelectionRevision(request.expected_active_selection_revision) || (request.expected_project_work_binding !== undefined && request.expected_active_selection_revision === null))
   ) {
     refuse("first_work_request_invalid", 400);
   }
@@ -662,6 +665,7 @@ function baseV01(
     initialization_version: PROJECT_WORK_INITIALIZATION_VERSION_V01,
     workspace_id: input.workspace_id,
     project_id: input.project_id,
+    project_work_binding: revisionEligibility?.project_work_binding ?? null,
     active_project_id: activeProjectId,
     active_selection_revision: activeSelectionRevision,
     revision_eligibility:

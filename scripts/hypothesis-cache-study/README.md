@@ -204,10 +204,15 @@ adaptive memo plus code.
 
 ## Repository verification
 
-The focused test is registered once in the existing bounded `unit` suite, with
-a 10-second natural-exit ceiling and filesystem/immutable-fixture requirements;
-the existing static contract checks that registration. No dependency or planner
-policy is relaxed. At the final exact base/head use the actual planner and its
-selected verification on the supported host. An occupied #1427 canonical lane
-leaves that shared step pending/NOT_RUN while the independent implementation and
-Draft PR proceed. Focused worktree checks do not substitute for that evidence.
+The focused test is enabled once through
+[the audited research registration](../canonical-research-tests.v1.json). The
+shared loader adds it to the complete `unit` suite with its 10-second natural-exit
+ceiling, filesystem/immutable-fixture requirements and existing cleanup owner.
+The research-registration regressions and static verification contract protect
+that wiring; this study does not modify the shared runner or integrity checks.
+
+At the final exact base/head, use the actual planner and its selected verification
+in a supported checkout. The audited family retains exact-change validation,
+all three clean dependency installations, typecheck, complete unit and complete
+authority suites. Focused checks and historical development evidence do not
+substitute for the current candidate's deciding receipt.

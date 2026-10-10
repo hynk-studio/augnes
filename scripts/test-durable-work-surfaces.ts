@@ -18,7 +18,7 @@ import { POST as agentRevision } from "../app/api/augnes/repository-work-revisio
 import { POST as agentResume } from "../app/api/augnes/read/codex-repository-continuity/route";
 import { POST as agentSources } from "../app/api/augnes/read/codex-repository-work-sources/route";
 import { CODEX_REPOSITORY_CONTINUITY_ROUTE_MARKER_V01 } from "../types/vnext/codex-repository-continuity";
-import { issueVNextLocalOperatorBootstrapV01, VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01, VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01 } from "../lib/vnext/runtime/local-operator-session";
+import { issueVNextLocalOperatorBootstrapV01, VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01 } from "../lib/vnext/runtime/local-operator-session";
 import { readCurrentProjectWorkPacketLineageV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity";
 import { readProjectAutomationControlV01 } from "../lib/vnext/persistence/project-control-store";
 import { readActiveProjectSelectionV01, selectActiveProjectV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
@@ -52,7 +52,13 @@ async function main() {
   const sessions = createVNextLocalOperatorSessionHandlersV01({ environment, clock });
   const stateless = createStatelessSourceReviewHandler({ environment, clock });
   const post = createVNextOperatorContextUseReviewHandlerV01({ environment, clock }), get = createVNextOperatorProjectContinuityHandlerV01({ environment, clock });
-  let c: CDP | undefined, chrome: ReturnType<typeof registerOwnedChild> | undefined, origin = "", cookie = "", script = "", css = "", errors = 0, external = 0, saves = 0;
+  let c: CDP | undefined, chrome: ReturnType<typeof registerOwnedChild> | undefined, origin = "", script = "", css = "", errors = 0, external = 0, saves = 0;
+  const cookieJar = new Map<string, string>();
+  const cookieHeader = () => [...cookieJar].map(([name, value]) => `${name}=${value}`).join("; ");
+  const rememberCookies = (values: string[]) => { for (const value of values) {
+    const pair = value.split(";")[0]!, split = pair.indexOf("="), name = pair.slice(0, split), content = pair.slice(split + 1);
+    if (content) cookieJar.set(name, content); else cookieJar.delete(name);
+  } };
   const current = () => readCurrentProjectWorkPacketLineageV01(db, config)!.packet;
   const old = current(), nextGoal = cumulative ? `${current().task.goal} / ${mode} continuation` : current().task.goal, rows = db.prepare("SELECT * FROM vnext_core_records ORDER BY rowid").all();
   const authority = () => canonical([readProjectAutomationControlV01(db, config), ...["autonomy_runs", "autonomy_run_steps", "autonomy_run_events"].map(t => db.prepare(`SELECT * FROM ${t} ORDER BY rowid`).all())]);
@@ -68,13 +74,13 @@ async function main() {
       const response = await (req.url === "/api/vnext/operator/session" ? sessions[req.method === "POST" ? "POST" : "GET"] : req.url.startsWith("/api/vnext/operator/stateless-source-review") ? stateless : req.method === "POST" ? post : get)(request);
       response.headers.forEach((v, k) => { if (k !== "set-cookie") res.setHeader(k, v); });
       const cookies = response.headers.getSetCookie(); if (cookies.length) res.setHeader("Set-Cookie", cookies);
-      for (const value of cookies) if (value.startsWith(VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01 + "=")) cookie = value.split(";")[0]!;
+      rememberCookies(cookies);
       res.statusCode = response.status; res.end(await response.text());
     } catch { errors++; res.statusCode = 500; res.end('{"error":"fixture_http_failed"}'); }
   }));
   async function http(endpoint: string, body?: unknown, status = 200) {
-    const response = await fetch(origin + endpoint, { signal: AbortSignal.timeout(10000), method: body ? "POST" : "GET", headers: { origin, cookie, ...(body ? { "content-type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
-    for (const value of response.headers.getSetCookie()) if (value.startsWith(VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01 + "=")) cookie = value.split(";")[0]!;
+    const response = await fetch(origin + endpoint, { signal: AbortSignal.timeout(10000), method: body ? "POST" : "GET", headers: { origin, cookie: cookieHeader(), "Augnes-Project-Id": config.project_id, ...(body ? { "content-type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
+    rememberCookies(response.headers.getSetCookie());
     const data = await response.json(); assert.equal(response.status, status, canonical(data)); return data;
   }
   try {
@@ -117,7 +123,7 @@ async function main() {
       await agent(agentRevision, endpoint, marker, request, 409, { "x-augnes-runtime-generation": "stale-generation" });
       assert(before.equals(db.serialize()));
       // Each changed current state is authored in its own disposable backup.
-      // The agent must reject its old preview without rotating admission state.
+      // Display selection preserves preparation; relevant drift refuses without rotating admission state.
       for (const drift of ["selection", "direction", "source"] as const) {
         const file = path.join(root, `${drift}.db`); await db.backup(file);
         const copy = new Database(file), driftEnv = { ...environment, AUGNES_DB_PATH: file };
@@ -139,13 +145,19 @@ async function main() {
                 expected_current_packet_id: old.packet_id, expected_current_packet_fingerprint: old.integrity.fingerprint, expected_current_lineage_kind: read.work_initialization.current_packet.lineage_kind,
                 ...old.task, selected_source_context: selected, expected_source_comparison: compareSelectedWorkSources(old, selected).fingerprint };
             }
-            const response = await route(new Request(origin + `/api/vnext/operator/${drift === "direction" ? `project-direction?project_id=${config.project_id}` : "project-continuity"}`, { method: "POST", headers: { host: new URL(origin).host, origin, cookie, "content-type": "application/json" }, body: JSON.stringify(body) }));
+            const response = await route(new Request(origin + `/api/vnext/operator/${drift === "direction" ? `project-direction?project_id=${config.project_id}` : "project-continuity"}`, { method: "POST", headers: { host: new URL(origin).host, origin, cookie: cookieHeader(), "Augnes-Project-Id": config.project_id, "content-type": "application/json" }, body: JSON.stringify(body) }));
             assert.ok(response.ok, canonical(await response.json()));
           }
-          const frozen = copy.serialize(); await agent(agentRevision, endpoint, marker, request, 409); assert(frozen.equals(copy.serialize()));
+          const frozen = copy.serialize();
+          if (drift === "selection") {
+            const repeated = await agent(agentRevision, endpoint, marker, input);
+            assert.equal(repeated.preview_binding, preview.preview_binding);
+            assert(frozen.equals(copy.serialize()), "Unrelated display selection leaves the exact repository preview unchanged");
+            assert.equal((await agent(agentRevision, endpoint, marker, request)).status, "saved");
+          } else { await agent(agentRevision, endpoint, marker, request, 409); assert(frozen.equals(copy.serialize())); }
         } finally { copy.close(); process.env.AUGNES_DB_PATH = config.database_path; }
       }
-      console.log(JSON.stringify({ durable_agent_drift: ["selection", "direction", "selected_source"], result: "atomic_refusal" }));
+      console.log(JSON.stringify({ durable_agent_drift: ["direction", "selected_source"], result: "atomic_refusal", selection_independent: true }));
       assert.equal((await agent(agentRevision, endpoint, marker, request)).status, "saved");
       assert.equal((await agent(agentRevision, endpoint, marker, request)).status, "exact_replay");
       await agent(agentRevision, endpoint, marker, { ...request, changes: { goal: "Stale conflicting request" } }, 409);
@@ -153,9 +165,9 @@ async function main() {
     } else {
       const initialization = read.work_initialization;
       const source = mode.startsWith("stateless-") ? `import React from 'react';import{createRoot}from'react-dom/client';import{StatelessSourceReview}from'./components/blank-state/stateless-source-review';createRoot(document.getElementById('root')).render(React.createElement(StatelessSourceReview,{projectId:${JSON.stringify(config.project_id)}}));`
-        : `import React from 'react';import{createRoot}from'react-dom/client';import{FirstWorkComposer}from'./components/workbench/semantic-review/first-work-composer';
-        const w=${JSON.stringify(initialization)};createRoot(document.getElementById('root')).render(React.createElement(FirstWorkComposer,{initialization:w,busy:false,mode:'revision',initialDefinition:w.current_work,onSave:async(definition,selection)=>{
-        const r=await fetch('/api/vnext/operator/project-continuity',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'revise_pre_execution_project_work',workspace_id:w.workspace_id,project_id:w.project_id,expected_active_project_id:w.project_id,expected_active_selection_revision:w.active_selection_revision,expected_current_packet_id:w.current_packet.packet_id,expected_current_packet_fingerprint:w.current_packet.packet_fingerprint,expected_current_lineage_kind:w.current_packet.lineage_kind,...definition,...(selection??{})})});if(!r.ok)throw new Error('save_failed');document.body.dataset.saved='true';}}));`;
+        : `import React from 'react';import{createRoot}from'react-dom/client';import{FirstWorkComposer}from'./components/workbench/semantic-review/first-work-composer';import{ProjectClientScopeProvider}from'./components/workbench/semantic-review/project-client-scope';
+        const w=${JSON.stringify(initialization)};createRoot(document.getElementById('root')).render(React.createElement(ProjectClientScopeProvider,{projectId:w.project_id},React.createElement(FirstWorkComposer,{initialization:w,busy:false,mode:'revision',initialDefinition:w.current_work,onSave:async(definition,selection)=>{
+        const r=await fetch('/api/vnext/operator/project-continuity',{method:'POST',headers:{'content-type':'application/json','Augnes-Project-Id':w.project_id},body:JSON.stringify({action:'revise_pre_execution_project_work',workspace_id:w.workspace_id,project_id:w.project_id,expected_active_project_id:w.project_id,expected_active_selection_revision:w.active_selection_revision,expected_project_work_binding:w.project_work_binding,expected_current_packet_id:w.current_packet.packet_id,expected_current_packet_fingerprint:w.current_packet.packet_fingerprint,expected_current_lineage_kind:w.current_packet.lineage_kind,...definition,...(selection??{})})});if(!r.ok)throw new Error('save_failed');document.body.dataset.saved='true';}})));`;
       const bundled = await build({ stdin: { contents: source, resolveDir: process.cwd(), loader: "tsx" }, outfile: path.join(root, "app.js"), bundle: true, write: false, platform: "browser", define: { "process.env.NODE_ENV": '"production"' },
         plugins: [{ name: "fixture-navigation", setup(b) { b.onResolve({ filter: /^next\/navigation$/ }, () => ({ path: "fixture-navigation", namespace: "fixture" })); b.onLoad({ filter: /.*/, namespace: "fixture" }, () => ({ contents: "export const useRouter=()=>({refresh(){}});", loader: "js" })); } }] });
       script = bundled.outputFiles.find(f => f.path.endsWith(".js"))!.text; css = bundled.outputFiles.find(f => f.path.endsWith(".css"))?.text ?? "";
@@ -167,7 +179,7 @@ async function main() {
       c = new CDP(target.webSocketDebuggerUrl); await c.open(); const browser = c;
       await c.send("Network.enable"); await c.send("Runtime.enable"); await c.send("Page.enable");
       c.handlers.push(m => { if (m.method === "Runtime.exceptionThrown") errors++; if (m.method === "Network.requestWillBeSent" && /^https?:/u.test(m.params.request.url) && !m.params.request.url.startsWith(origin + "/")) external++; });
-      await c.send("Network.setCookie", { name: VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01, value: cookie.slice(cookie.indexOf("=") + 1), url: origin, path: VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01, httpOnly: true, sameSite: "Strict" });
+      for (const [name, value] of cookieJar) await c.send("Network.setCookie", { name, value, url: origin, path: VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01, httpOnly: true, sameSite: "Strict" });
       await c.send("Page.navigate", { url: origin });
       if (mode.startsWith("stateless-")) {
         await until(() => browser.eval("!!document.querySelector('[data-stateless-source-review]')"), "saved_review_reader");
@@ -200,7 +212,7 @@ async function main() {
     if (!cumulative) console.log(JSON.stringify({ durable_surface: mode, fresh_process: process.pid, days_elapsed: mode === "readback" ? 8 : 4, unchanged_task: true, authority_unchanged: true, historical_rows_unchanged: true, provider_calls: 0 }));
   } finally {
     globalThis.Date = NativeDate;
-    try { if (cookie) { await http("/api/vnext/operator/session", { action: "logout" }); await http("/api/vnext/operator/session", undefined, 401); } }
+    try { if (cookieJar.size) { await http("/api/vnext/operator/session", { action: "logout" }); await http("/api/vnext/operator/session", undefined, 401); } }
     finally { c?.close(); if (chrome) await terminateOwnedProcessTree(chrome); await closeTrackedServer(server); db.close(); guard.restore(); rmSync(root, { recursive: true, force: true });
       for (const key of Object.keys(process.env)) if (!(key in envBefore)) delete process.env[key]; Object.assign(process.env, envBefore); assert.equal(owned.size, 0); }
   }

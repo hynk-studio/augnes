@@ -205,6 +205,12 @@ export interface VNextLocalOperatorSessionCredentialV01 {
   session_id: string;
   session_secret: string;
   action_nonce: string;
+  // Public request selector, never authority or serialized credential material.
+  // Authentication must match this to the credential's immutable database scope.
+  requested_project_id?: string;
+  // Retains the selected cookie family across repository-decision rotation.
+  // An unscoped legacy cookie remains compatible until a scoped client uses it.
+  cookie_project_id?: string;
 }
 
 export interface VNextLocalOperatorSessionAuthenticationV01 {
@@ -380,13 +386,17 @@ export function resolveVNextLocalReviewConfigV01(input: {
   environment: NodeJS.ProcessEnv;
   credential?: VNextLocalOperatorSessionCredentialV01;
   bootstrap_token?: string;
+  requested_project_id?: string;
   clock?: VNextLocalRuntimeClockV01;
 }): VNextLocalOperatorPilotConfigV01 {
   assertVNextLocalReviewEnabledV01(input.environment);
-  if (readVNextLocalReviewProfileV01(input.environment) === "legacy_pilot") {
-    return readVNextLocalOperatorPilotConfigV01(input.environment);
-  }
-  const databasePath = normalizeExplicitDatabasePath(input.environment.AUGNES_DB_PATH ?? "");
+  const pilot = readVNextLocalReviewProfileV01(input.environment) === "legacy_pilot"
+    ? readVNextLocalOperatorPilotConfigV01(input.environment) : null;
+  const requestedProject = input.requested_project_id ?? input.credential?.requested_project_id;
+  // Existing unscoped pilot callers retain the configured project. Explicitly
+  // scoped clients may use another issued session in this same enabled pilot.
+  if (pilot && !requestedProject) return pilot;
+  const databasePath = pilot?.database_path ?? normalizeExplicitDatabasePath(input.environment.AUGNES_DB_PATH ?? "");
   if (!databasePath) throw sessionError("operator_pilot_db_path_invalid", 503);
   const bootstrap = input.bootstrap_token === undefined
     ? null : parseBootstrapToken(input.bootstrap_token);
@@ -396,7 +406,9 @@ export function resolveVNextLocalReviewConfigV01(input: {
   try {
     const row = selectSession(db, sessionId);
     if (!row) throw sessionError("operator_session_invalid", 401);
-    if (row.operator_id !== "operator:local-review" || row.session_id.startsWith(RECOVERY_SESSION_ID_PREFIX)) {
+    if ((pilot ? row.operator_id !== pilot.operator_id || row.workspace_id !== pilot.workspace_id : row.operator_id !== "operator:local-review") ||
+      row.session_id.startsWith(RECOVERY_SESSION_ID_PREFIX) ||
+      (requestedProject !== undefined && row.project_id !== requestedProject)) {
       throw sessionError("operator_session_scope_mismatch", 403);
     }
     const config: VNextLocalOperatorPilotConfigV01 = {
@@ -808,19 +820,43 @@ export function isVNextRecoveryRepositoryDecisionCredentialV01(
 export function readVNextLocalOperatorCredentialFromRequestV01(
   request: Request,
 ): VNextLocalOperatorSessionCredentialV01 {
-  return readCredentialCookieV01(
-    request,
-    VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01,
-  );
+  return readProjectCredentialCookieV01(request, VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01);
 }
 
 export function readVNextRepositoryDecisionCredentialFromRequestV01(
   request: Request,
+  projectId?: string,
 ): VNextLocalOperatorSessionCredentialV01 {
-  return readCredentialCookieV01(
-    request,
-    VNEXT_REPOSITORY_DECISION_SESSION_COOKIE_V01,
-  );
+  return readProjectCredentialCookieV01(request, VNEXT_REPOSITORY_DECISION_SESSION_COOKIE_V01, projectId);
+}
+
+export function readVNextLocalOperatorRequestProjectV01(request: Request): string | undefined {
+  const value = request.headers.get("Augnes-Project-Id");
+  if (value === null) return undefined;
+  if (!requiredCanonicalId(value)) {
+    throw sessionError("operator_session_scope_mismatch", 403);
+  }
+  return value;
+}
+
+export function projectScopedOperatorCookieNameV01(name: string, projectId: string | undefined): string {
+  return projectId === undefined ? name : `${name}_${createHash("sha256").update(projectId, "utf8").digest("hex")}`;
+}
+
+function readProjectCredentialCookieV01(request: Request, name: string, targetProjectId?: string): VNextLocalOperatorSessionCredentialV01 {
+  const requestedProjectId = readVNextLocalOperatorRequestProjectV01(request);
+  if (targetProjectId !== undefined && (!requiredCanonicalId(targetProjectId) ||
+    (requestedProjectId !== undefined && requestedProjectId !== targetProjectId))) {
+    throw sessionError("operator_session_scope_mismatch", 403);
+  }
+  const projectId = requestedProjectId ?? targetProjectId;
+  const scopedName = projectScopedOperatorCookieNameV01(name, projectId);
+  // Migrate a still-valid single-project session without requiring another
+  // bootstrap. A malformed/present scoped cookie never falls back to another.
+  const scopedPresent = request.headers.get("cookie")?.split(";").some(part => part.trim().startsWith(`${scopedName}=`));
+  const credential = readCredentialCookieV01(request, scopedPresent ? scopedName : name);
+  return projectId === undefined ? credential : { ...credential, requested_project_id: projectId,
+    ...(scopedPresent ? { cookie_project_id: projectId } : {}) };
 }
 
 function readCredentialCookieV01(
@@ -1262,6 +1298,7 @@ export function listVNextLocalOperatorSessionStatusV01(
 }
 
 export function serializeVNextLocalOperatorSessionCookieV01(input: {
+  request?: Request;
   value: string;
   expires_at: string;
   max_age_seconds: number;
@@ -1269,12 +1306,14 @@ export function serializeVNextLocalOperatorSessionCookieV01(input: {
 }): string {
   return serializeSessionCookieV01({
     ...input,
-    cookie_name: VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01,
+    cookie_name: projectScopedOperatorCookieNameV01(VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01, input.request && readVNextLocalOperatorRequestProjectV01(input.request)),
     path: VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01,
   });
 }
 
 export function serializeVNextRepositoryDecisionSessionCookieV01(input: {
+  request?: Request;
+  project_id?: string;
   value: string;
   expires_at: string;
   max_age_seconds: number;
@@ -1282,7 +1321,7 @@ export function serializeVNextRepositoryDecisionSessionCookieV01(input: {
 }): string {
   return serializeSessionCookieV01({
     ...input,
-    cookie_name: VNEXT_REPOSITORY_DECISION_SESSION_COOKIE_V01,
+    cookie_name: projectScopedOperatorCookieNameV01(VNEXT_REPOSITORY_DECISION_SESSION_COOKIE_V01, input.project_id ?? (input.request && readVNextLocalOperatorRequestProjectV01(input.request))),
     path: VNEXT_REPOSITORY_DECISION_SESSION_COOKIE_PATH_V01,
   });
 }
@@ -1344,21 +1383,23 @@ function serializeSessionCookieV01(input: {
 }
 
 export function serializeVNextLocalOperatorSessionCookieClearV01(input: {
+  request?: Request;
   secure: boolean;
 }): string {
   return serializeSessionCookieClearV01({
     ...input,
-    cookie_name: VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01,
+    cookie_name: projectScopedOperatorCookieNameV01(VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01, input.request && readVNextLocalOperatorRequestProjectV01(input.request)),
     path: VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01,
   });
 }
 
 export function serializeVNextRepositoryDecisionSessionCookieClearV01(input: {
+  request?: Request;
   secure: boolean;
 }): string {
   return serializeSessionCookieClearV01({
     ...input,
-    cookie_name: VNEXT_REPOSITORY_DECISION_SESSION_COOKIE_V01,
+    cookie_name: projectScopedOperatorCookieNameV01(VNEXT_REPOSITORY_DECISION_SESSION_COOKIE_V01, input.request && readVNextLocalOperatorRequestProjectV01(input.request)),
     path: VNEXT_REPOSITORY_DECISION_SESSION_COOKIE_PATH_V01,
   });
 }
@@ -1567,6 +1608,9 @@ function assertSessionCanAuthenticate(
     throw sessionError("operator_session_scope_mismatch", 403);
   }
   assertScope(row, config);
+  if (credential.requested_project_id !== undefined && credential.requested_project_id !== row.project_id) {
+    throw sessionError("operator_session_scope_mismatch", 403);
+  }
   if (row.revoked_at) throw sessionError("operator_session_revoked", 401);
   if (!row.bootstrap_consumed_at || !row.session_token_hash || !row.action_nonce_hash) {
     throw sessionError("operator_session_invalid", 401);
@@ -1599,7 +1643,8 @@ function assertRepositoryDecisionSessionCanAuthenticate(
   if (row.session_id.startsWith(COMPANION_WORK_SESSION_ID_PREFIX)) throw sessionError("operator_session_scope_mismatch", 403);
   if (
     row.workspace_id !== workspaceId ||
-    row.project_id !== projectId
+    row.project_id !== projectId ||
+    (credential.requested_project_id !== undefined && credential.requested_project_id !== row.project_id)
   ) {
     throw sessionError("operator_session_scope_mismatch", 403);
   }

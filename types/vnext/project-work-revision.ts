@@ -64,6 +64,7 @@ export interface ProjectWorkRevisionEligibilityV01 {
   eligibility_version: typeof PROJECT_WORK_REVISION_ELIGIBILITY_VERSION_V01;
   workspace_id: string;
   project_id: string;
+  project_work_binding?: string | null;
   active_project_id: string | null;
   active_selection_revision: ProjectSelectionRevision | null;
   current_packet_id: string | null;
@@ -95,8 +96,9 @@ export interface RevisePreExecutionProjectWorkRequestV01 {
   action: "revise_pre_execution_project_work" | "prepare_new_project_work";
   workspace_id: string;
   project_id: string;
+  expected_project_work_binding?: string;
   expected_active_project_id: string;
-  expected_active_selection_revision: ProjectSelectionRevision;
+  expected_active_selection_revision: ProjectSelectionRevision | null;
   expected_current_packet_id: string;
   expected_current_packet_fingerprint: string;
   expected_current_lineage_kind: PreExecutionProjectWorkLineageKindV01 | "authored_successor_task";

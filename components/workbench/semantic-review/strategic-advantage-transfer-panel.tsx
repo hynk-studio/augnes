@@ -1,4 +1,5 @@
 import type { VNextOperatorStrategicAdvantageTransferReadbackV01 } from "@/lib/vnext/runtime/operator-pilot-strategic-advantage-transfer";
+import { projectClientHref } from "@/lib/vnext/project-client-href";
 import type { EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-proposal";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type { StrategicAdvantageTransferProfileV01 } from "@/types/vnext/strategic-advantage-transfer";
@@ -73,7 +74,7 @@ export function StrategicAdvantageTransferPanel({
         <div className={styles.buttonRow}>
           <a
             className={styles.linkButton}
-            href={inspectorHref}
+            href={projectClientHref(inspectorHref, proposal.project_id)}
             data-strategic-to-shared-inspector="true"
           >
             Inspect exact strategic lineage
@@ -234,7 +235,7 @@ function StrategicSourceAvailability({
         <div className={styles.buttonRow}>
           <a
             className={styles.linkButton}
-            href={readback.existing_proposal.review_href}
+            href={projectClientHref(readback.existing_proposal.review_href, proposal.project_id)}
             data-vnext-strategic-review-link="true"
           >
             Open exact strategic proposal

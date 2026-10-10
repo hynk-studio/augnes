@@ -2,6 +2,10 @@
 
 import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 
+import type { WorkComposerDraft } from "./work-composer-draft";
+import { readWorkExpectationDraft, workExpectationScopeKey } from "./work-expectation-draft";
+import { ProjectClientScopeProvider, useProjectClientFetch, useProjectClientScope } from "./project-client-scope";
+
 import { useRouter } from "next/navigation";
 import {
   useCallback,
@@ -66,7 +70,10 @@ type PrivateSemanticReviewViewV01 =
 interface WorkRevisionEditorBindingV01 {
   workspace_id: string;
   project_id: string;
-  active_selection_revision: ProjectSelectionRevision;
+  active_selection_revision: ProjectSelectionRevision | null;
+  project_work_binding: string;
+  initialization: ProjectWorkInitializationV01;
+  draft: WorkComposerDraft;
   current_packet_id: string;
   current_packet_fingerprint: string;
   current_lineage_kind: "initial_user_defined" | "pre_execution_user_revision" | "pre_execution_new_task" | "authored_successor_task";
@@ -76,7 +83,13 @@ interface WorkRevisionEditorBindingV01 {
   operator_id: string;
 }
 
-export function SemanticReviewSurface({
+export function SemanticReviewSurface(props: { proposalId?: string; guide?: ProjectGuideBriefV02; projectId?: string | null }) {
+  return <ProjectClientScopeProvider projectId={props.projectId ?? null}>
+    <ScopedSemanticReviewSurface key={props.projectId ?? "default"} {...props} />
+  </ProjectClientScopeProvider>;
+}
+
+function ScopedSemanticReviewSurface({
   proposalId,
   guide: initialGuide,
 }: {
@@ -84,7 +97,9 @@ export function SemanticReviewSurface({
   guide?: ProjectGuideBriefV02;
 }) {
   const router = useRouter();
-  const guideState = useProjectGuideBriefV02(initialGuide);
+  const fetch = useProjectClientFetch();
+  const projectId = useProjectClientScope();
+  const guideState = useProjectGuideBriefV02(initialGuide, projectId);
   const privateReadGuard = useRef(new SemanticReviewReadGuardV01());
   const requestDiagnosticIdentity = useRef<object>({});
   const requestDiagnostic = projectExperienceTestObserverV1(requestDiagnosticIdentity.current);
@@ -113,6 +128,9 @@ export function SemanticReviewSurface({
   } | null>(null);
   const [strategicAnalysisBusy, setStrategicAnalysisBusy] = useState(false);
   const [firstWorkBusy, setFirstWorkBusy] = useState(false);
+  const initialEditorCompleted = useRef(false);
+  const [initialEditor, setInitialEditor] = useState<{ initialization: ProjectWorkInitializationV01; operator_id: string; draft: WorkComposerDraft } | null>(null);
+  const expectationDrafts = useRef(new Map<string, WorkComposerDraft>());
   const [newTaskMode, setNewTaskMode] = useState(false);
   const [revisionEditorBinding, setRevisionEditorBinding] =
     useState<WorkRevisionEditorBindingV01 | null>(null);
@@ -196,7 +214,7 @@ export function SemanticReviewSurface({
         setLoadingPrivateView(false);
       }
     }
-  }, [proposalId, updateSessionState]);
+  }, [proposalId, updateSessionState, fetch]);
 
   const checkSession = useCallback(async () => {
     updateSessionState({ status: "checking", session: null, error_code: null });
@@ -240,7 +258,7 @@ export function SemanticReviewSurface({
         error_code: "operator_session_request_failed",
       });
     }
-  }, [loadPrivateView, updateSessionState]);
+  }, [loadPrivateView, updateSessionState, fetch]);
 
   useEffect(() => {
     void checkSession();
@@ -349,7 +367,7 @@ export function SemanticReviewSurface({
           ? "Existing clarified change reused."
           : "A clarified change is ready for separate review. The original suggestion is unchanged.",
       );
-      router.push(semanticReviewProposalHref(body.proposal_id));
+      router.push(semanticReviewProposalHref(body.proposal_id) + (projectId ? `?project_id=${encodeURIComponent(projectId)}` : ""));
       router.refresh();
     } catch {
       setPrivateError("semantic_review_revision_request_failed");
@@ -404,7 +422,7 @@ export function SemanticReviewSurface({
             ? "Existing strategic review reused; no duplicate was created."
             : "Strategic implications are ready as a separate suggested change. The source suggestion is unchanged.",
         );
-        router.push(semanticReviewProposalHref(body.proposal_id));
+        router.push(semanticReviewProposalHref(body.proposal_id) + (projectId ? `?project_id=${encodeURIComponent(projectId)}` : ""));
         router.refresh();
         return;
       }
@@ -484,18 +502,17 @@ export function SemanticReviewSurface({
   async function saveFirstWork(
     definition: ProjectWorkDefinitionV01,
   ): Promise<void> {
-    const initialization =
-      privateView?.kind === "list"
-        ? privateView.value.work_initialization ?? null
-        : null;
+    const initialization = initialEditor?.initialization ?? null;
     if (
       sessionState.status !== "authenticated" ||
       !initialization ||
       preparationInvalidated ||
       initialization.state !== "not_defined" ||
       !initialization.mutation_eligible ||
-      initialization.active_project_id !== initialization.project_id ||
-      initialization.active_selection_revision === null ||
+      !initialization.project_work_binding ||
+      sessionState.session.project_id !== initialization.project_id ||
+      sessionState.session.workspace_id !== initialization.workspace_id ||
+      sessionState.session.operator_id !== initialEditor?.operator_id ||
       operatorMutationInFlight.current
     ) {
       return;
@@ -514,7 +531,8 @@ export function SemanticReviewSurface({
           action: "define_initial_project_work",
           workspace_id: initialization.workspace_id,
           project_id: initialization.project_id,
-          expected_active_project_id: initialization.active_project_id,
+          expected_active_project_id: initialization.project_id,
+          expected_project_work_binding: initialization.project_work_binding,
           expected_active_selection_revision:
             initialization.active_selection_revision,
           expected_initialization_state: "not_defined",
@@ -527,14 +545,17 @@ export function SemanticReviewSurface({
           locked(publicErrorCode(body.error_code));
           return;
         }
-        setPrivateError(firstWorkErrorCopyV01(body.error_code));
-        await loadPrivateView({ announceLoading: false });
+        await loadPrivateView({ announceLoading: false, preserveFeedback: true });
+        setPrivateError(firstWorkErrorCopyV01(body.error_code) + " Your draft is retained below.");
         return;
       }
       if (body.status !== "inserted" && body.status !== "exact_replay") {
-        setPrivateError("First work could not be confirmed. Reload and try again.");
+        await loadPrivateView({ announceLoading: false, preserveFeedback: true });
+        setPrivateError("First work could not be confirmed. Your draft is retained. Review current work before retrying.");
         return;
       }
+      initialEditorCompleted.current = true;
+      setInitialEditor(null);
       setDecisionStatus(
         body.status === "exact_replay"
           ? "First work was already defined. No duplicate was created and no execution started."
@@ -545,7 +566,8 @@ export function SemanticReviewSurface({
       await delegatedState.refresh();
       router.refresh();
     } catch {
-      setPrivateError("First work could not be saved. Nothing was started; try again.");
+      await loadPrivateView({ announceLoading: false, preserveFeedback: true });
+      setPrivateError("The save response could not be confirmed. Your draft is retained. Review current work before retrying; a save may have committed.");
     } finally {
       operatorMutationInFlight.current = false;
       setFirstWorkBusy(false);
@@ -576,7 +598,7 @@ export function SemanticReviewSurface({
         workRevisionEditorBindingKeyV01(currentBinding) ||
       operatorMutationInFlight.current
     ) {
-      if (submittedBinding) setRevisionEditorBinding(null);
+      if (submittedBinding) setPrivateError("Current work changed. Your draft is retained. Review current work before retrying.");
       return;
     }
     operatorMutationInFlight.current = true;
@@ -594,6 +616,7 @@ export function SemanticReviewSurface({
           workspace_id: submittedBinding.workspace_id,
           project_id: submittedBinding.project_id,
           expected_active_project_id: submittedBinding.project_id,
+          expected_project_work_binding: submittedBinding.project_work_binding,
           expected_active_selection_revision:
             submittedBinding.active_selection_revision,
           expected_current_packet_id: submittedBinding.current_packet_id,
@@ -612,12 +635,11 @@ export function SemanticReviewSurface({
         }
         const conflictCopy = workRevisionErrorCopyV01(body.error_code);
         if (workRevisionConflictV01(body.error_code)) {
-          setRevisionEditorBinding(null);
-          await loadPrivateView({ announceLoading: false });
+          await loadPrivateView({ announceLoading: false, preserveFeedback: true });
           await guideState.refresh();
           await delegatedState.refresh();
         }
-        setPrivateError(conflictCopy);
+        setPrivateError(conflictCopy + " Your draft is retained. Review current work before retrying.");
         return;
       }
       if (
@@ -625,8 +647,9 @@ export function SemanticReviewSurface({
         body.execution_started !== false ||
         body.run_created !== false
       ) {
+        await loadPrivateView({ announceLoading: false, preserveFeedback: true });
         setPrivateError(
-          "The revision response could not prove that execution remained stopped. Reload before continuing.",
+          "The revision response could not prove that execution remained stopped. Your draft is retained. Review current work before continuing.",
         );
         return;
       }
@@ -637,8 +660,9 @@ export function SemanticReviewSurface({
       await delegatedState.refresh();
       router.refresh();
     } catch {
+      await loadPrivateView({ announceLoading: false, preserveFeedback: true });
       setPrivateError(
-        "The work definition could not be revised. Nothing was started; review the current work and try again.",
+        "The save response could not be confirmed. Your draft is retained. Review current work before retrying; a save may have committed.",
       );
     } finally {
       operatorMutationInFlight.current = false;
@@ -666,7 +690,6 @@ export function SemanticReviewSurface({
   }
 
   function authenticated(session: OperatorSessionViewV01) {
-    setRevisionEditorBinding(null);
     setPrivateView(null);
     updateSessionState({
       status: "authenticated",
@@ -677,7 +700,6 @@ export function SemanticReviewSurface({
   }
 
   function locked(errorCode?: string) {
-    setRevisionEditorBinding(null);
     setPrivateView(null);
     setDecisionStatus(null);
     updateSessionState({
@@ -745,7 +767,7 @@ export function SemanticReviewSurface({
   useEffect(() => {
     if (proposalId || !authenticatedSession) return;
     if (privateReadGuard.current.observeExecution(delegatedState.projection)) {
-      setRevisionEditorBinding(null);
+      // Keep the editor draft; execution admission only disables saving.
       // One admission refresh per authenticated scope, not one per polling tick.
       // A concurrent stale submission must retain the writer's refusal message.
       void loadPrivateView({ announceLoading: false, preserveFeedback: true });
@@ -854,8 +876,6 @@ export function SemanticReviewSurface({
       sessionState.session.workspace_id ===
         firstWorkInitialization.workspace_id &&
       sessionState.session.project_id === firstWorkInitialization.project_id &&
-      firstWorkInitialization.active_project_id ===
-        firstWorkInitialization.project_id &&
       firstWorkInitialization.revision_eligibility.current_packet_id ===
         firstWorkInitialization.current_packet.packet_id &&
       firstWorkInitialization.revision_eligibility
@@ -884,15 +904,21 @@ export function SemanticReviewSurface({
     : "/";
 
   useEffect(() => {
-    if (!revisionEditorBinding) return;
-    if (
-      !currentRevisionEditorBindingKey ||
-      workRevisionEditorBindingKeyV01(revisionEditorBinding) !==
-        currentRevisionEditorBindingKey
-    ) {
-      setRevisionEditorBinding(null);
+    if (!initialEditorCompleted.current && !initialEditor && authenticatedSession && firstWorkOwnsFocus && firstWorkInitialization) {
+      setInitialEditor({ initialization: firstWorkInitialization, operator_id: authenticatedSession.operator_id, draft: new Map() });
     }
-  }, [currentRevisionEditorBindingKey, revisionEditorBinding]);
+  }, [initialEditor, authenticatedSession, firstWorkOwnsFocus, firstWorkInitialization]);
+  const revisionDraftAuthorized = Boolean(revisionEditorBinding && authenticatedSession &&
+    revisionEditorBinding.workspace_id === authenticatedSession.workspace_id &&
+    revisionEditorBinding.project_id === authenticatedSession.project_id &&
+    revisionEditorBinding.operator_id === authenticatedSession.operator_id);
+  const revisionDraftCurrent = Boolean(revisionEditorBinding && currentRevisionEditorBindingKey === workRevisionEditorBindingKeyV01(revisionEditorBinding));
+  const initialDraftAuthorized = Boolean(initialEditor && authenticatedSession &&
+    initialEditor.initialization.workspace_id === authenticatedSession.workspace_id &&
+    initialEditor.initialization.project_id === authenticatedSession.project_id && initialEditor.operator_id === authenticatedSession.operator_id);
+  const initialDraftCurrent = initialEditor?.initialization.project_work_binding === firstWorkInitialization?.project_work_binding && firstWorkOwnsFocus;
+  const expectationDraft = firstWorkInitialization
+    ? readWorkExpectationDraft(expectationDrafts.current, firstWorkInitialization, authenticatedSession) : undefined;
 
   return (
     <ProductShell
@@ -926,33 +952,61 @@ export function SemanticReviewSurface({
         guideLoading={guideState.status === "loading"}
         guideRequestCount={guideState.requestCountRef.current}
         priorityContent={
-          firstWorkOwnsFocus && firstWorkInitialization ? (
-            <FirstWorkComposer
-              initialization={firstWorkInitialization}
-              busy={firstWorkBusy}
-              onSave={saveFirstWork}
-            />
-          ) : revisionEditorBinding &&
-            currentRevisionEditorBindingKey ===
-              workRevisionEditorBindingKeyV01(revisionEditorBinding) &&
-            firstWorkInitialization?.current_work ? (
-            newTaskMode ? <NewWorkComposer
-              key={workRevisionEditorBindingKeyV01(revisionEditorBinding)}
-              initialization={firstWorkInitialization} onCancel={cancelWorkRevision}
-              onCommitted={async () => {
-                setRevisionEditorBinding(null);
-                setDecisionStatus("Different task prepared. Prior work was not marked complete; nothing has started.");
-                await loadPrivateView({ announceLoading: false });
-                await guideState.refresh(); await delegatedState.refresh(); router.refresh();
-              }} /> : <FirstWorkComposer
-              key={workRevisionEditorBindingKeyV01(revisionEditorBinding)}
-              initialization={firstWorkInitialization}
-              busy={workRevisionBusy}
-              mode="revision"
-              initialDefinition={firstWorkInitialization.current_work}
-              onSave={saveWorkRevision}
-              onCancel={cancelWorkRevision}
-            />
+          initialDraftAuthorized && initialEditor ? (
+            <>
+              {!initialDraftCurrent ? <div role="alert" data-work-draft-conflict>
+                <p>Current work changed. Your first-work draft is retained. Review the saved work before continuing.</p>
+                <p>{firstWorkInitialization?.current_work?.goal}</p>
+                <button type="button" onClick={() => void loadPrivateView({ announceLoading: false, preserveFeedback: true })}>Refresh current work</button>
+                {firstWorkOwnsFocus ? <button type="button" onClick={() => setInitialEditor({ ...initialEditor, initialization: firstWorkInitialization! })}>Use refreshed project binding</button> : null}
+                <button type="button" onClick={() => { initialEditorCompleted.current = true; setInitialEditor(null); }}>Discard draft and view saved work</button>
+              </div> : null}
+              <FirstWorkComposer draft={initialEditor.draft} initialization={initialEditor.initialization}
+                busy={firstWorkBusy || !initialDraftCurrent} onAccessRefused={locked} onRefreshCurrentWork={refreshExactReviewMaterial} onSave={saveFirstWork} />
+            </>
+          ) : revisionDraftAuthorized && revisionEditorBinding ? (
+            <>
+              {!revisionDraftCurrent ? <div role="alert" data-work-draft-conflict>
+                <p>Current work changed. Your text and source selections are retained. Refresh and review the latest saved work before applying your draft.</p>
+                <p data-work-draft-current-goal>{firstWorkInitialization?.current_work?.goal}</p>
+                <ul>{firstWorkInitialization?.selected_source_context?.map(entry => <li key={entry.entry_id}>{entry.bounded_summary}</li>)}</ul>
+                <button type="button" onClick={() => void loadPrivateView({ announceLoading: false, preserveFeedback: true })}>Refresh current work</button>
+                {currentRevisionEditorBinding ? <button type="button" data-work-draft-action="rebase" onClick={() => {
+                  // Refresh is explicit; it never submits or overwrites current work.
+                  revisionEditorBinding.draft.delete("sourceSelection");
+                  revisionEditorBinding.draft.delete("comparison");
+                  revisionEditorBinding.draft.delete("newWorkPreview");
+                  revisionEditorBinding.draft.set("sourcesPending", true);
+                  setRevisionEditorBinding({ ...currentRevisionEditorBinding, draft: revisionEditorBinding.draft });
+                }}>Use current work as the revision base and compare sources again</button> : null}
+                <button type="button" onClick={cancelWorkRevision}>Discard draft and view saved work</button>
+              </div> : null}
+              {newTaskMode ? <NewWorkComposer
+                key={workRevisionEditorBindingKeyV01(revisionEditorBinding)}
+                draft={revisionEditorBinding.draft} disabled={!revisionDraftCurrent}
+                initialization={revisionEditorBinding.initialization} onCancel={cancelWorkRevision}
+                onRefused={async (status, errorCode) => {
+                  if (status === 401 || status === 403) { locked(publicErrorCode(errorCode)); return; }
+                  await loadPrivateView({ announceLoading: false, preserveFeedback: true });
+                  await guideState.refresh();
+                }}
+                onCommitted={async () => {
+                  setRevisionEditorBinding(null);
+                  setDecisionStatus("Different task prepared. Prior work was not marked complete; nothing has started.");
+                  await loadPrivateView({ announceLoading: false });
+                  await guideState.refresh(); await delegatedState.refresh(); router.refresh();
+                }} /> : <FirstWorkComposer
+                key={workRevisionEditorBindingKeyV01(revisionEditorBinding)}
+                draft={revisionEditorBinding.draft}
+                initialization={revisionEditorBinding.initialization}
+                busy={workRevisionBusy || !revisionDraftCurrent}
+                mode="revision"
+                onAccessRefused={locked} onRefreshCurrentWork={refreshExactReviewMaterial}
+                initialDefinition={revisionEditorBinding.initialization.current_work!}
+                onSave={saveWorkRevision}
+                onCancel={cancelWorkRevision}
+              />}
+            </>
           ) : exactReviewAvailable &&
           privateView?.kind === "list" ? (
             <>
@@ -966,11 +1020,11 @@ export function SemanticReviewSurface({
                   onAction={delegatedState.act}
                 />
               ) : null}
-              {!firstWorkBusy && !workRevisionBusy && delegatedState.projection && firstWorkInitialization?.current_packet && firstWorkInitialization.current_work &&
+              {!firstWorkBusy && !workRevisionBusy && expectationDraft && delegatedState.projection && firstWorkInitialization?.current_packet && firstWorkInitialization.current_work &&
                 (["initial_user_defined", "pre_execution_user_revision", "pre_execution_new_task"].includes(firstWorkInitialization.current_packet.lineage_kind) ||
                   firstWorkInitialization.revision_eligibility.current_lineage_kind === "authored_successor_task") ? (
-                <WorkExpectationPreparation key={`${firstWorkInitialization.project_id}:${firstWorkInitialization.active_selection_revision}:${firstWorkInitialization.current_packet.packet_id}:${firstWorkInitialization.current_packet.packet_fingerprint}`}
-                  initialization={firstWorkInitialization} />
+                <WorkExpectationPreparation key={workExpectationScopeKey(authenticatedSession!)} draft={expectationDraft}
+                  initialization={firstWorkInitialization} onAccessRefused={locked} onRefreshCurrentWork={refreshExactReviewMaterial} />
               ) : null}
               {firstWorkInitialization?.current_work ? (
                 <CurrentWorkDefinitionPanel
@@ -1137,11 +1191,7 @@ function workRevisionEditorBindingV01(input: {
     !eligibility.current_lineage_kind ||
     session.workspace_id !== initialization.workspace_id ||
     session.project_id !== initialization.project_id ||
-    initialization.active_project_id !== initialization.project_id ||
-    eligibility.active_project_id !== initialization.project_id ||
-    initialization.active_selection_revision === null ||
-    eligibility.active_selection_revision !==
-      initialization.active_selection_revision ||
+    !initialization.project_work_binding ||
     eligibility.current_packet_id !== packet.packet_id ||
     eligibility.current_packet_fingerprint !== packet.packet_fingerprint ||
     eligibility.current_lineage_kind !== packet.lineage_kind
@@ -1152,6 +1202,9 @@ function workRevisionEditorBindingV01(input: {
     workspace_id: initialization.workspace_id,
     project_id: initialization.project_id,
     active_selection_revision: initialization.active_selection_revision,
+    project_work_binding: initialization.project_work_binding,
+    initialization,
+    draft: new Map(),
     current_packet_id: eligibility.current_packet_id,
     current_packet_fingerprint: eligibility.current_packet_fingerprint,
     current_lineage_kind: eligibility.current_lineage_kind,
@@ -1168,11 +1221,10 @@ function workRevisionEditorBindingKeyV01(
   return JSON.stringify([
     binding.workspace_id,
     binding.project_id,
-    binding.active_selection_revision,
+    binding.project_work_binding,
     binding.current_packet_id,
     binding.current_packet_fingerprint,
     binding.current_lineage_kind,
-    binding.session_id,
     binding.session_workspace_id,
     binding.session_project_id,
     binding.operator_id,
@@ -1393,13 +1445,17 @@ function workRevisionConflictV01(value: unknown): boolean {
     "work_revision_history_changed",
     "work_revision_active_selection_conflict",
     "work_revision_root_unavailable",
+    "work_revision_project_binding_changed",
+    "work_revision_source_comparison_changed",
     "work_revision_not_eligible",
     "work_revision_limit_reached",
   ].includes(String(value));
 }
 
 function workRevisionErrorCopyV01(value: unknown): string {
-  return value === "work_revision_current_packet_changed"
+  return value === "work_revision_project_binding_changed" || value === "work_revision_source_comparison_changed"
+    ? "This project's folder, direction or selected work sources changed before saving."
+    : value === "work_revision_current_packet_changed"
     ? "Another revision was saved first. The current work definition has been reloaded."
     : value === "work_revision_execution_started" ||
         value === "work_revision_history_changed"

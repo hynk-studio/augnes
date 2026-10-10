@@ -152,6 +152,29 @@
           "fixtures/local-canonical-owner-contract/"
         ]
       }
+    },
+    {
+      "id": "hypothesis-cache-study",
+      "phase_ids": [
+        "typecheck",
+        "unit",
+        "authority"
+      ],
+      "deletion_policy": "full",
+      "path_rules": {
+        "literal_exact_paths": [
+          "scripts/canonical-research-tests.v1.json",
+          "scripts/hypothesis-cache-study/README.md",
+          "scripts/hypothesis-cache-study/check.mjs",
+          "scripts/hypothesis-cache-study/environment.mjs",
+          "scripts/hypothesis-cache-study/fixtures.json",
+          "scripts/hypothesis-cache-study/io.mjs",
+          "scripts/hypothesis-cache-study/scripted.mjs",
+          "scripts/hypothesis-cache-study/seed.cjs",
+          "scripts/hypothesis-cache-study/study.mjs",
+          "scripts/test-hypothesis-cache-study.mjs"
+        ]
+      }
     }
   ],
   "browser_targeted": {
@@ -191,6 +214,11 @@
           "scripts/local-canonical-environment.mjs",
           "scripts/local-canonical-integration-base.mjs",
           "scripts/local-canonical-checkout-ownership.mjs",
+          "scripts/local-canonical-verification-context.mjs",
+          "scripts/local-canonical-capacity.mjs",
+          "scripts/local-canonical-isolated-resources.mjs",
+          "scripts/local-canonical-historical-inputs.mjs",
+          "scripts/test-local-canonical-isolation.mjs",
           "scripts/local-process-ownership.mjs",
           "scripts/local-canonical-receipt.mjs",
           "scripts/run-canonical-test-suite.mjs",
@@ -201,7 +229,9 @@
           "scripts/test-local-canonical-receipt.mjs",
           "scripts/test-local-canonical-verification-contract.mjs",
           "scripts/test-harness-process-lifecycle.mjs",
-          "scripts/validate-canonical-docs-change.mjs"
+          "scripts/validate-canonical-docs-change.mjs",
+          "scripts/canonical-research-registration.mjs",
+          "scripts/test-canonical-research-registration.mjs"
         ]
       }
     },

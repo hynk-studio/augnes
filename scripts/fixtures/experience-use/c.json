@@ -1,0 +1,6 @@
+{"schema_version":"build-events.v2","events":[
+  {"event_id":"c-01","job_id":"compile","attempt":1,"outcome":"failed","elapsed_ms":1250},
+  {"event_id":"c-02","job_id":"compile","attempt":2,"outcome":"passed","elapsed_ms":2250},
+  {"event_id":"c-03","job_id":"tests","attempt":1,"outcome":"passed","elapsed_ms":500},
+  {"event_id":"c-02","job_id":"compile","attempt":2,"outcome":"passed","elapsed_ms":2250}
+]}

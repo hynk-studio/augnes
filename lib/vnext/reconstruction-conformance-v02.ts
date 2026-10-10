@@ -110,8 +110,11 @@ async function observe(input: CollectionInput): Promise<ObservationRead> {
     if (!equal(records.sort(byId), [...portable.records].sort(byId))) return incomplete();
     stage = "snapshot_owner";
     let liveReads = 0;
+    // This profile observes fresh workspace selection, so use the default
+    // selected-project reader. Explicit project clients intentionally bind their
+    // own work instead of this incidental selection and are a different owner shape.
     const snapshot = await readCodexCurrentContinuitySnapshotV01(db, {
-      viewed_project_id: scope.project_id, generated_at: env.decision_time_cutoff,
+      generated_at: env.decision_time_cutoff,
     }, {
       read_operator_config: () => input.config,
       managed_start_available: () => true,
@@ -122,7 +125,7 @@ async function observe(input: CollectionInput): Promise<ObservationRead> {
         snapshot.projection.source_status !== "exact" || snapshot.projection.snapshot.status !== "exact" ||
         snapshot.projection.snapshot.binding !== createCodexCurrentContinuitySnapshotBindingV01(material) ||
         material.workspace_id !== scope.workspace_id || material.project_id !== scope.project_id ||
-        material.active_project_id !== selection.project_id || material.viewed_project_id !== scope.project_id ||
+        material.active_project_id !== selection.project_id || material.viewed_project_id !== null ||
         material.selection_revision !== selection.selection_revision ||
         snapshot.projection.project.selection_revision !== selection.selection_revision) return incomplete();
     stage = "verify_owners";

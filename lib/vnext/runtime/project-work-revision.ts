@@ -1,3 +1,4 @@
+import { readProjectWorkBindingV01 } from "./project-work-binding";
 import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import { assertExpectedPacketDirection, ProjectDirectionError } from "../persistence/project-direction-store";
 import { inspectCurrentOrdinarySuccessorRevisionChainV01, assertOrdinarySuccessorRevisionRootV01, ordinarySuccessorRevisionExecutionBlockedV01, saveOrdinarySuccessorRevisionInsideTransactionV01 } from "./authored-successor-revision";
@@ -117,16 +118,8 @@ export function readProjectWorkRevisionEligibilityStrictV01(
       reason: "project_unavailable",
     });
   }
-  if (
-    active?.project_id !== input.project_id ||
-    !isHistoricalProjectSelectionRevision(active.selection_revision)
-  ) {
-    return eligibilityV01(input, {
-      ...activeBinding,
-      status: "blocked_inactive_project",
-      reason: "project_inactive",
-    });
-  }
+  const projectWorkBinding = readProjectWorkBindingV01(db, input);
+  Object.assign(activeBinding, { project_work_binding: projectWorkBinding });
   const rootAvailable =
     dependencies.root_available ?? rootAvailableSynchronouslyV01;
   if (!rootAvailable(registration.root_binding.local_root.normalized_path)) {
@@ -335,10 +328,12 @@ export function revisePreExecutionProjectWorkInsideTransactionV01(
     db,
     input.scope.workspace_id,
   );
-  if (
+  if (request.expected_project_work_binding !== undefined &&
+    request.expected_project_work_binding !== readProjectWorkBindingV01(db, input.scope)) refuse("work_revision_project_binding_changed", 409);
+  if (request.expected_project_work_binding === undefined && (
     active?.project_id !== request.expected_active_project_id ||
     active.selection_revision !== request.expected_active_selection_revision
-  ) {
+  )) {
     refuse("work_revision_active_selection_conflict", 409);
   }
   const registration = readCanonicalProjectWithRootV01(db, input.scope);
@@ -578,12 +573,13 @@ export function parseProjectWorkRevisionRequestV01(value: unknown): RevisePreExe
     ? [] : ["selected_source_context", "expected_source_comparison", ...(request.retained_source_refs !== undefined ? ["retained_source_refs"] : [])];
   if (
     canonicalizeProtocolValueV01(Object.keys(request).sort()) !==
-      canonicalizeProtocolValueV01([...REQUEST_KEYS, ...optionalKeys, ...(request.action === "prepare_new_project_work" ? ["preparation"] : [])].sort()) ||
+      canonicalizeProtocolValueV01([...REQUEST_KEYS, ...optionalKeys, ...(request.expected_project_work_binding !== undefined ? ["expected_project_work_binding"] : []), ...(request.action === "prepare_new_project_work" ? ["preparation"] : [])].sort()) ||
     !["revise_pre_execution_project_work", "prepare_new_project_work"].includes(String(request.action)) ||
     typeof request.workspace_id !== "string" ||
     typeof request.project_id !== "string" ||
     typeof request.expected_active_project_id !== "string" ||
-    !isHistoricalProjectSelectionRevision(request.expected_active_selection_revision) ||
+    (request.expected_project_work_binding !== undefined && !/^sha256:[a-f0-9]{64}$/u.test(String(request.expected_project_work_binding))) ||
+    !(isHistoricalProjectSelectionRevision(request.expected_active_selection_revision) || (request.expected_project_work_binding !== undefined && request.expected_active_selection_revision === null)) ||
     typeof request.expected_current_packet_id !== "string" ||
     typeof request.expected_current_packet_fingerprint !== "string" ||
     !/^sha256:[a-f0-9]{64}$/u.test(
@@ -658,6 +654,7 @@ function eligibilityV01(
     eligibility_version: PROJECT_WORK_REVISION_ELIGIBILITY_VERSION_V01,
     workspace_id: input.workspace_id,
     project_id: input.project_id,
+    project_work_binding: values.project_work_binding ?? null,
     active_project_id: values.active_project_id ?? null,
     active_selection_revision: values.active_selection_revision ?? null,
     current_packet_id: values.current_packet_id ?? null,
@@ -758,7 +755,9 @@ export function previewNewProjectWorkV01(db: Database.Database, scope: { workspa
   const eligibility = readProjectWorkRevisionEligibilityStrictV01(db, scope);
   assertEligibleForMutationV01(eligibility);
   if (fields.workspace_id !== scope.workspace_id || fields.project_id !== scope.project_id ||
-    fields.expected_active_project_id !== scope.project_id || fields.expected_active_selection_revision !== eligibility.active_selection_revision ||
+    fields.expected_active_project_id !== scope.project_id || (fields.expected_project_work_binding !== undefined
+      ? fields.expected_project_work_binding !== eligibility.project_work_binding
+      : fields.expected_active_selection_revision !== eligibility.active_selection_revision) ||
     fields.expected_current_packet_id !== chain.tip_packet.packet_id ||
     fields.expected_current_packet_fingerprint !== chain.tip_packet.integrity.fingerprint ||
     fields.expected_current_lineage_kind !== chain.tip_lineage_kind) refuse("work_revision_current_packet_changed", 409);

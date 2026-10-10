@@ -1,3 +1,4 @@
+import { projectBoundRequestIdentityV01 } from "../runtime/project-work-binding";
 import { inspectRevisableProjectWorkChainV01 } from "@/lib/vnext/runtime/project-work-revision";
 import { compareNewProjectWorkV01, currentPreparationRootBindingV01, NewProjectWorkPreparationErrorV01 } from "@/lib/vnext/runtime/new-project-work-preparation";
 import { createHmac, timingSafeEqual } from "node:crypto";
@@ -119,6 +120,7 @@ export async function reviseCodexRepositoryWorkV01(
     if (!lineage) refuse("current_work_unavailable");
     const request: RevisePreExecutionProjectWorkRequestV01 = {
       action: input.intent === "new_task" ? "prepare_new_project_work" : "revise_pre_execution_project_work", ...scope,
+      expected_project_work_binding: eligibility.project_work_binding!,
       expected_active_project_id: scope.project_id,
       expected_active_selection_revision: eligibility.active_selection_revision!,
       expected_current_packet_id: basis.packet_id,
@@ -209,19 +211,20 @@ export async function initializeCodexRepositoryWorkV01(
     }, dependencies);
     if (continuity.snapshot.status !== "exact" || continuity.snapshot.binding !== input.expected_snapshot_binding) refuse("refresh_required");
     const initialization = readProjectWorkInitializationV01(db, scope);
-    if (!continuity.project.active || continuity.project.root_availability !== "available" ||
+    if (continuity.project.root_availability !== "available" ||
       continuity.current_work.status !== "no_current_work" || initialization.state !== "not_defined" ||
       !initialization.mutation_eligible) refuse("first_work_state_changed");
     const definition = normalizeInitialProjectWorkDefinitionV01({ goal: input.changes.goal,
       success_criteria: input.changes.success_criteria, non_goals: input.changes.non_goals });
     const request = { action: "define_initial_project_work", ...scope,
+      expected_project_work_binding: initialization.project_work_binding!,
       expected_active_project_id: scope.project_id,
       expected_active_selection_revision: initialization.active_selection_revision!,
       expected_initialization_state: "not_defined", ...definition };
     const { key, ...identity } = channel;
     const seal = `sha256:${createHmac("sha256", key).update(canonicalizeProtocolValueV01({
       contract: CODEX_REPOSITORY_INITIAL_WORK_VERSION_V01, identity,
-      snapshot: input.expected_snapshot_binding, request, material,
+      snapshot: input.expected_snapshot_binding, request: projectBoundRequestIdentityV01(request), material,
     })).digest("hex")}`;
     if (input.action === "save" && !sameSeal(seal, input.preview_binding!)) refuse("preview_changed");
     let packetFingerprint: string | null = null;
@@ -268,7 +271,7 @@ function sealPreview(channel: CompanionWorkChannelV01, snapshot: string, request
   }
   const { key, ...identity } = channel;
   return `sha256:${createHmac("sha256", key).update(canonicalizeProtocolValueV01({
-    contract: CODEX_REPOSITORY_WORK_REVISION_VERSION_V01, identity, snapshot, request,
+    contract: CODEX_REPOSITORY_WORK_REVISION_VERSION_V01, identity, snapshot, request: projectBoundRequestIdentityV01(request),
     invariant: { ...invariant, current_work: stableWork },
   })).digest("hex")}`;
 }

@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { RESEARCH_REGISTRATION_PATH, RESEARCH_SOURCE_PATHS, RESEARCH_OWNER_ID,
+  loadResearchTestSteps } from "./canonical-research-registration.mjs";
 import { CODEX_REUSE_OWNER_IDS, CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 import { assertVerificationDocumentation } from "./validate-canonical-docs-change.mjs";
 import { buildPhasePlan, OPERATING_POLICY_PHASE_IDS } from "./run-local-canonical-verification.mjs";
@@ -47,13 +49,6 @@ const reductionScope = readRepositoryFile(
 const canonicalSuite = readRepositoryFile(
   "scripts/run-canonical-test-suite.mjs",
 );
-const hypothesisCacheRegistration = readCanonicalChildRegistration(canonicalSuite, "hypothesis-cache-study");
-for (const fragment of ['group: "serial"', '"filesystem"', '"immutable-fixture-input"',
-  'timeoutMs: 10_000', 'requireNaturalExit: true', 'command: process.execPath',
-  'args: ["scripts/test-hypothesis-cache-study.mjs"]']) {
-  assert(hypothesisCacheRegistration.block.includes(fragment), `hypothesis cache study registration missing ${fragment}`);
-}
-assert.equal(countOccurrences(canonicalSuite, 'id: "hypothesis-cache-study"'), 1);
 const runtimeOperabilityOwnership = readRepositoryFile(
   "scripts/runtime-operability-ownership.mjs",
 );
@@ -104,6 +99,15 @@ const changeOwnerManifestSource = readRepositoryFile(
   "scripts/local-canonical-change-owners.v1.json",
 );
 const changeOwnerManifest = JSON.parse(changeOwnerManifestSource);
+const researchOwner = changeOwnerManifest.targeted_owners.find(owner => owner.id === RESEARCH_OWNER_ID);
+assert.deepEqual(researchOwner.phase_ids, ["typecheck", "unit", "authority"]);
+assert.deepEqual(researchOwner.path_rules.literal_exact_paths, [RESEARCH_REGISTRATION_PATH, ...RESEARCH_SOURCE_PATHS]);
+assert.equal(researchOwner.deletion_policy, "full");
+assert(canonicalSuite.includes("suites.unit.push(...researchSteps)"));
+assert(canonicalSuite.includes("loadResearchTestSteps(repoRoot, existingIds)"));
+// Validate the actual inventory; research files without their test cannot pass
+// by dropping the data entry or editing only a registration source assertion.
+loadResearchTestSteps(repositoryRoot);
 const plannerContract = readRepositoryFile(
   "scripts/test-canonical-change-planner.mjs",
 );
@@ -546,6 +550,15 @@ for (const fragment of [
   `await admitAndResolveVerificationPlan`,
   `integration_base: integrationBase`,
   `checkout_ownership: checkoutOwnership`,
+  `verification_context: verificationContext`,
+  `capacity_ownership: capacityOwnership`,
+  `historical_inputs: {`,
+  `prepareHistoricalInputs({`,
+  `finishHistoricalInputs(historicalInputs`,
+  `createIsolatedInvocationResources`,
+  `cleanupIsolatedInvocationResources`,
+  `assertVerificationCapacity`,
+  `checkout-context`,
   `assertCheckoutVerificationOwnership`,
   `releaseCheckoutVerificationOwnership`,
   `isPostExecutionIdentityValid`,
@@ -619,6 +632,13 @@ for (const fragment of [
   `receipt_current_integration_base_unavailable`,
   `receipt_integration_base_provenance_invalid`,
   `receipt_checkout_ownership_invalid`,
+  `receipt_verification_context_invalid`,
+  `receipt_stale_verification_context`,
+  `receipt_invocation_identity_invalid`,
+  `receipt_capacity_ownership_invalid`,
+  `receipt_isolated_resource_provenance_invalid`,
+  `receipt_historical_input_provenance_invalid`,
+  `receipt_companion_scope_invalid`,
   `receipt_stale_branch_state`,
   `receipt_current_worktree_dirty`,
   `receipt_stale_lockfiles`,
@@ -723,6 +743,7 @@ for (const authorityChild of [
   "scripts/test-dependency-lock-compatibility.mjs",
   "scripts/test-local-canonical-executor.mjs",
   "scripts/test-local-canonical-receipt.mjs",
+  "scripts/test-local-canonical-isolation.mjs",
   "scripts/test-github-main-branch-transport.mjs",
 ]) {
   assert.equal(
@@ -731,6 +752,12 @@ for (const authorityChild of [
     `authority suite must own ${authorityChild} exactly once`,
   );
 }
+
+const isolatedChildStart = canonicalSuite.indexOf('id: "local-canonical-isolation"');
+assert.notEqual(isolatedChildStart, -1);
+const isolatedChild = canonicalSuite.slice(isolatedChildStart, canonicalSuite.indexOf("    },", isolatedChildStart));
+for (const fragment of ['timeoutMs: 30_000', 'requireNaturalExit: true', '"scripts/test-local-canonical-isolation.mjs"'])
+  requireText(isolatedChild, fragment, "isolated verification has a bounded authority child and complete cleanup");
 
 for (const retiredPath of [
   ".github/LOCAL_CANONICAL_PR_EVIDENCE.md",
@@ -901,6 +928,7 @@ assert.deepEqual(
     "temporal-interpretation-preview",
     "codex-managed-runtime-store",
     "local-canonical-owner-contract-fixture",
+    "hypothesis-cache-study",
   ],
 );
 assert.deepEqual(
@@ -1094,6 +1122,10 @@ const integrationChildren = [
   "continuity-pins",
   "policy-triggered-model-run",
   "project-home",
+  "project-bound-work-writers",
+  "project-client-sessions",
+  "project-transition-cookies",
+  "project-client-runs",
   "project-work-initialization",
   "current-work-read",
   "prospective-preparation-reentry",
@@ -1110,6 +1142,7 @@ const integrationChildren = [
   "stateless-terminal-authorship",
   "project-direction",
   "retry-inspection-outlook",
+  "companion-experience-use",
   "companion-method-outlook",
   "pre-execution-support-material",
   "native-selected-source-budget",
@@ -1230,6 +1263,22 @@ for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requ
 const companionOutlookRegistration = readCanonicalChildRegistration(integrationSource, "companion-method-outlook");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"process-owning"', '"mutable-module-state"', '"scripts/test-companion-method-outlook.ts"'])
   requireText(companionOutlookRegistration.block, fragment, "ordinary outlook feedback retains one bounded authenticated consumer owner");
+for (const [id, script] of [
+  ["project-bound-work-writers", "scripts/test-project-bound-work-writers.ts"],
+  ["project-client-sessions", "scripts/test-project-client-sessions.ts"],
+  ["project-transition-cookies", "scripts/test-project-transition-cookies.ts"],
+  ["project-client-runs", "scripts/test-project-client-runs.ts"],
+]) {
+  const child = readCanonicalChildRegistration(integrationSource, id);
+  for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', `"${script}"`])
+    requireText(child.block, fragment, "project clients retain their bounded disposable acceptance owners");
+}
+for (const fragment of ['id: "project-client-browser"', '"scripts/test-project-client-browser.ts"', 'timeoutMs: 60_000', 'requireNaturalExit: true', '"browser-profile-owning"', '"cdp-session-owning"'])
+  requireText(canonicalSuite.slice(canonicalSuite.indexOf("const projectClientBrowserStep ="), canonicalSuite.indexOf("const webPlanningBrowserStep =")), fragment, "same-profile Browser owns bounded processes, profile and CDP resources");
+requireText(canonicalSuite, '"e2e-project-experience": [{ ...projectExperienceStep }, { ...projectClientBrowserStep }, { ...webPlanningBrowserStep }]', "new client Browser runs once beside both existing Browser children");
+const experienceUseRegistration = readCanonicalChildRegistration(integrationSource, "companion-experience-use");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-companion-experience-use.ts"'])
+  requireText(experienceUseRegistration.block, fragment, "ordinary experience use owns its authenticated disposable state, listener and natural-exit file consumers");
 assert.equal(countOccurrences(firstWorkFixture, "await assertRetryInspectionLoopV01();"), 1,
   "the outlook loop runs once without extending the default initialization child");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 60_000', 'requireNaturalExit: true', '"process-owning"', '"--support-material-revision-only"'])
@@ -1843,7 +1892,7 @@ console.log(
       child_heartbeat_required: true,
       process_tree_cleanup_required: true,
       integration_concurrency_bound: 2,
-      browser_lanes_must_run_sequentially_on_shared_host: true,
+      browser_lanes_must_run_sequentially_per_checkout: true,
       integration_children_uniquely_owned: integrationChildren,
       operability_children_declared: operabilityChildren.map(
         ([childId]) => childId,

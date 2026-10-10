@@ -56,6 +56,7 @@ export function BlankStateSurface({
           />
         )}
       >
+        {source.projection ? <p><a data-project-bound-work-link href={`/workbench/semantic-review?project_id=${encodeURIComponent(source.projection.project_summary.project.project_id)}`}>Open protected work for this project</a></p> : null}
         <BlankStateClient
           source={source}
           view={view}

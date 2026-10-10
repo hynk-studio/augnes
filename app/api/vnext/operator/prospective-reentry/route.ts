@@ -65,7 +65,7 @@ export function createProspectiveReentryHandler(options: {
           : host.cancel({ credential, clock: options.clock });
       }
       return NextResponse.json({ ok: true, authorization, state: host?.read() ?? null, host_started: false, model_calls: 0 }, {
-        headers: { ...headers, "Set-Cookie": serializeVNextLocalOperatorSessionCookieV01({ value: admission.cookie_value, expires_at: admission.cookie_expires_at, max_age_seconds: admission.cookie_max_age_seconds, secure: url.protocol === "https:" }) },
+        headers: { ...headers, "Set-Cookie": serializeVNextLocalOperatorSessionCookieV01({ request, value: admission.cookie_value, expires_at: admission.cookie_expires_at, max_age_seconds: admission.cookie_max_age_seconds, secure: url.protocol === "https:" }) },
       });
     } catch (error) {
       return NextResponse.json({ ok: false, error: error instanceof VNextLocalOperatorSessionErrorV01 || error instanceof BoundedAutomationCycleErrorV01 ? error.code : error instanceof Error && /^prospective_[a-z_]+$/u.test(error.message) ? error.message : "prospective_request_refused" }, { status: error instanceof VNextLocalOperatorSessionErrorV01 ? error.status : 409, headers });

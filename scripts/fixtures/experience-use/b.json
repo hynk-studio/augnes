@@ -1,0 +1,10 @@
+{"schema_version":"build-events.v1","events":[
+  {"event_id":"b-01","job_id":"compile","attempt":1,"status":"failed","duration_s":"1.000"},
+  {"event_id":"b-02","job_id":"compile","attempt":2,"status":"ok","duration_s":"2.500"},
+  {"event_id":"b-03","job_id":"docs","attempt":1,"status":"ok","duration_s":"0.500"},
+  {"event_id":"b-04","job_id":"tests","attempt":1,"status":"failed","duration_s":"1.500"},
+  {"event_id":"b-05","job_id":"tests","attempt":2,"status":"failed","duration_s":"0.750"},
+  {"event_id":"b-06","job_id":"tests","attempt":3,"status":"ok","duration_s":"1.250"},
+  {"event_id":"b-02","job_id":"compile","attempt":2,"status":"ok","duration_s":"2.500"},
+  {"event_id":"b-05","job_id":"tests","attempt":2,"status":"failed","duration_s":"0.750"}
+]}

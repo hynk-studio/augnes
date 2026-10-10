@@ -1629,7 +1629,7 @@ async function main() {
     assert.equal(emptyHome.personal_perspective.status, "not_configured");
     assert.equal(emptyHome.personal_perspective.effectively_included, false);
     assert.equal(emptyHome.personal_perspective.task_basis, null);
-    assert.equal(emptyHome.coordination.primary_action?.href, "/workbench/semantic-review");
+    assert.equal(emptyHome.coordination.primary_action?.href, `/workbench/semantic-review?project_id=${encodeURIComponent(emptyHome.project_id)}`);
     assert.equal(
       emptyHome.coordination.primary_action?.entry_state,
       "project_review",
@@ -2157,7 +2157,7 @@ async function main() {
     assert(atRevisit.next_moves.some((move) => move.move_id === "make_active"));
     assert.equal(
       atRevisit.attention.items[0]?.workbench_entry?.href,
-      `/workbench/semantic-review/${revisitProposal.proposal_id.replace(":", "~")}`,
+      `/workbench/semantic-review/${revisitProposal.proposal_id.replace(":", "~")}?project_id=${encodeURIComponent(revisitProposal.project_id)}`,
     );
 
     const afterRevisit = await readProjectHomeProjectionV01(db, {
@@ -2303,17 +2303,29 @@ async function main() {
     assert.equal(runReceipt.project_id, confirmedA.project.project_id);
     assert.equal(beforeAccepted.run_results.current_run, null);
     assert.equal(beforeAccepted.run_results.latest_result_state, "available");
+    // Protected destinations keep the observed project even if another client
+    // changes the workspace selection before the link is opened.
+    for (const href of [beforeAccepted.coordination.inspector_href,
+      beforeAccepted.automation.inspector_href,
+      beforeAccepted.personal_perspective.task_basis?.inspector_href,
+      beforeAccepted.run_results.latest_result?.inspector_href]) {
+      if (!href) continue;
+      const target = new URL(href, "http://127.0.0.1");
+      assert.equal(target.pathname, "/workbench/inspector");
+      assert.deepEqual(target.searchParams.getAll("project_id"), [confirmedA.project.project_id]);
+      assert.ok(target.searchParams.get("target"));
+    }
     assert.equal(
       beforeAccepted.run_results.latest_result?.receipt_ref,
       latestFailedReceipt.receipt_id,
     );
     assert.equal(
       beforeAccepted.run_results.latest_result?.review_href,
-      `/workbench/results/${latestFailedReceipt.receipt_id.replace(":", "~")}`,
+      `/workbench/results/${latestFailedReceipt.receipt_id.replace(":", "~")}?project_id=${encodeURIComponent(confirmedA.project.project_id)}`,
     );
     assert.equal(
       beforeAccepted.run_results.workbench_entry?.href,
-      `/workbench/results/${latestFailedReceipt.receipt_id.replace(":", "~")}`,
+      `/workbench/results/${latestFailedReceipt.receipt_id.replace(":", "~")}?project_id=${encodeURIComponent(confirmedA.project.project_id)}`,
     );
     assert.equal(
       beforeAccepted.run_results.workbench_entry?.server_scope_validation_required,

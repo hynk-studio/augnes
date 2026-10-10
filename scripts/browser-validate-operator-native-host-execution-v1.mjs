@@ -521,7 +521,7 @@ await runOperatorExecutionBrowserChildV1({
         { ...beforeCancel, packets: 2 },
       );
       const selectedReadback = await lifecycle.evaluateJson(`(async () => {
-        const response = await fetch('/api/vnext/operator/semantic-review', { cache: 'no-store' });
+        const response = await fetch('/api/vnext/operator/semantic-review', { cache: 'no-store', headers: { 'Augnes-Project-Id': new URL(location.href).searchParams.get('project_id') } });
         return (await response.json()).work_initialization.selected_source_context;
       })()`);
       assert.equal(selectedReadback.length, 1);
@@ -573,16 +573,11 @@ await runOperatorExecutionBrowserChildV1({
       );
       assert.equal(await lifecycle.authenticate(), true);
       await lifecycle.waitForCondition(
-        `document.querySelector('[data-work-revision-action="open"]') !== null && document.querySelector('[data-work-revision-composer]') === null && !document.body.textContent.includes(${JSON.stringify(sessionSentinel)})`,
-        "revision editor remains closed after reauthentication",
+        `document.querySelector('[data-work-revision-composer]') !== null && document.querySelector('#work-revision-goal')?.value === ${JSON.stringify(sessionSentinel)}`,
+        "original project draft restored after matching reauthentication",
       );
 
       const projectSentinel = "PROJECT-BOUND-UNSAVED-REVISION";
-      await lifecycle.evaluateBoolean(`(() => {
-        const button = document.querySelector('[data-work-revision-action="open"]');
-        if (!button) return false;
-        button.click(); return true;
-      })()`);
       await lifecycle.waitForCondition(
         `document.querySelector('[data-work-revision-composer]') !== null`,
         "project-bound revision editor",
@@ -600,8 +595,8 @@ await runOperatorExecutionBrowserChildV1({
         `(() => { window.dispatchEvent(new Event('focus')); return true; })()`,
       );
       await lifecycle.waitForCondition(
-        `document.querySelector('[data-work-revision-composer]') === null && document.querySelector('[data-work-revision-action="open"]') === null && !document.body.textContent.includes(${JSON.stringify(projectSentinel)})`,
-        "revision editor closed on active project switch",
+        `document.querySelector('[data-work-revision-composer]') !== null && document.querySelector('#work-revision-goal')?.value === ${JSON.stringify(projectSentinel)} && document.querySelector('[data-work-revision-action="save"]')?.disabled === false`,
+        "unchanged A editor survives unrelated project selection",
       );
       await lifecycle.waitForRequestQuiet();
       selectFixtureActiveProject(
@@ -609,15 +604,15 @@ await runOperatorExecutionBrowserChildV1({
         fixture.manifest.workspace_id,
         firstWorkProjectId,
       );
-      await lifecycle.navigate(
-        `${appOrigin}/workbench/semantic-review?active-project-return=1`,
-      );
+      await lifecycle.evaluateBoolean(`(() => { window.dispatchEvent(new Event('focus')); return true; })()`);
+      await lifecycle.waitForCondition(`document.querySelector('#work-revision-goal')?.value === ${JSON.stringify(projectSentinel)}`, "A draft survives A B A");
+      await lifecycle.evaluateBoolean(`(() => { document.querySelector('[data-work-revision-action="cancel"]').click(); return true; })()`);
       await lifecycle.waitForCondition(
         `document.querySelector('[data-work-revision-action="open"]') !== null && document.querySelector('[data-delegated-work-action="start"][data-augnes-primary-action="start-codex-work"]:not(:disabled)') !== null && document.querySelector('[data-work-revision-composer]') === null && !document.body.textContent.includes(${JSON.stringify(projectSentinel)})`,
-        "revision editor requires fresh activation after project return",
+        "explicit cancellation discards preserved draft without changing saved work",
       );
       const staleInitialization = await lifecycle.evaluateJson(`(async () => {
-        const response = await fetch('/api/vnext/operator/semantic-review', { cache: 'no-store' });
+        const response = await fetch('/api/vnext/operator/semantic-review', { cache: 'no-store', headers: { 'Augnes-Project-Id': new URL(location.href).searchParams.get('project_id') } });
         const body = await response.json();
         return body.work_initialization;
       })()`);
@@ -722,11 +717,11 @@ await runOperatorExecutionBrowserChildV1({
       result.work_revision_no_protocol_leakage = true;
       completeDetailedField("work_revision_no_protocol_leakage");
       const exactReplay = await lifecycle.evaluateJson(`(async () => {
-        const read = await fetch('/api/vnext/operator/semantic-review', { cache: 'no-store' });
+        const read = await fetch('/api/vnext/operator/semantic-review', { cache: 'no-store', headers: { 'Augnes-Project-Id': new URL(location.href).searchParams.get('project_id') } });
         const current = (await read.json()).work_initialization;
         const eligibility = current.revision_eligibility;
         const response = await fetch('/api/vnext/operator/project-continuity', {
-          method: 'POST', headers: { 'content-type': 'application/json' },
+          method: 'POST', headers: { 'content-type': 'application/json', 'Augnes-Project-Id': new URL(location.href).searchParams.get('project_id') },
           body: JSON.stringify({
             action: 'revise_pre_execution_project_work',
             workspace_id: eligibility.workspace_id,
@@ -774,7 +769,7 @@ await runOperatorExecutionBrowserChildV1({
         await lifecycle.waitForCondition(`document.querySelector('[data-work-revision-composer]') === null`, "explicit note exclusion saved");
         assert.equal(readFirstWorkState(fixture.writable_database_path, firstWorkProjectId).packets, 3);
         const excludedInitialization = await lifecycle.evaluateJson(`(async () => {
-          const response = await fetch('/api/vnext/operator/semantic-review', { cache: 'no-store' });
+          const response = await fetch('/api/vnext/operator/semantic-review', { cache: 'no-store', headers: { 'Augnes-Project-Id': new URL(location.href).searchParams.get('project_id') } });
           return (await response.json()).work_initialization;
         })()`);
         assert.deepEqual(excludedInitialization.selected_source_context ?? [], []);
@@ -805,7 +800,7 @@ await runOperatorExecutionBrowserChildV1({
         const staleLookup = await lifecycle.evaluateJson(`(async () => {
           const old = ${JSON.stringify(staleInitialization)};
           const response = await fetch('/api/vnext/operator/project-continuity', {
-            method: 'POST', headers: { 'content-type': 'application/json' },
+            method: 'POST', headers: { 'content-type': 'application/json', 'Augnes-Project-Id': new URL(location.href).searchParams.get('project_id') },
             body: JSON.stringify({ action: 'lookup_retained_work_sources', query: 'conversation',
               expected_active_project_id: old.active_project_id, expected_active_selection_revision: old.active_selection_revision,
               expected_current_packet_id: old.current_packet.packet_id, expected_current_packet_fingerprint: old.current_packet.packet_fingerprint })
@@ -823,7 +818,7 @@ await runOperatorExecutionBrowserChildV1({
         await lifecycle.evaluateBoolean(`(() => { document.querySelector('[data-work-revision-composer] form').requestSubmit(); return true; })()`);
         await lifecycle.waitForCondition(`document.querySelector('[data-work-revision-composer]') === null`, "reselected historical note saved by existing writer");
         const recalledReadback = await lifecycle.evaluateJson(`(async () => {
-          const response = await fetch('/api/vnext/operator/semantic-review', { cache: 'no-store' });
+          const response = await fetch('/api/vnext/operator/semantic-review', { cache: 'no-store', headers: { 'Augnes-Project-Id': new URL(location.href).searchParams.get('project_id') } });
           return (await response.json()).work_initialization.selected_source_context;
         })()`);
         assert.deepEqual(recalledReadback, selectedReadback, "Original excerpt identity, provenance, chronology and conditions survive actual reselection");
@@ -859,7 +854,7 @@ await runOperatorExecutionBrowserChildV1({
       // Explicit identity is independent of wording: prepare a different task
       // with the same definition, then the existing revision/Start cases continue.
       const beforeNewPreparation = readFirstWorkState(fixture.writable_database_path, firstWorkProjectId);
-      const newWorkBasis = await lifecycle.evaluateJson(`(async () => (await (await fetch('/api/vnext/operator/project-continuity')).json()).work_initialization)()`);
+      const newWorkBasis = await lifecycle.evaluateJson(`(async () => (await (await fetch('/api/vnext/operator/project-continuity', { headers: { 'Augnes-Project-Id': new URL(location.href).searchParams.get('project_id') } })).json()).work_initialization)()`);
       await clickSelector(lifecycle, '[data-new-work-action="open"]');
       await lifecycle.waitForCondition(`document.querySelector('[data-new-work-composer]') !== null`, "different-task composer");
       await lifecycle.setFormControlValue('#new-work-goal', newWorkBasis.current_work.goal);
@@ -881,7 +876,7 @@ await runOperatorExecutionBrowserChildV1({
       }
       await clickSelector(lifecycle, '[data-new-work-action="save"]');
       await lifecycle.waitForCondition(`document.querySelector('[data-previous-preparation]') !== null && document.querySelector('[data-current-work-definition-phase="pre_execution"]') !== null`, "new task saved without execution");
-      const afterNewPreparation = await lifecycle.evaluateJson(`(async () => (await (await fetch('/api/vnext/operator/project-continuity')).json()).work_initialization)()`);
+      const afterNewPreparation = await lifecycle.evaluateJson(`(async () => (await (await fetch('/api/vnext/operator/project-continuity', { headers: { 'Augnes-Project-Id': new URL(location.href).searchParams.get('project_id') } })).json()).work_initialization)()`);
       assert.equal(afterNewPreparation.state, 'defined_new_task');
       assert.equal(afterNewPreparation.current_packet.lineage_kind, 'pre_execution_new_task');
       assert.notEqual(afterNewPreparation.current_packet.packet_fingerprint, newWorkBasis.current_packet.packet_fingerprint);
@@ -1002,7 +997,7 @@ await runOperatorExecutionBrowserChildV1({
       const staleResponse = await lifecycle.evaluateJson(`(async () => {
         const eligibility = ${JSON.stringify(staleInitialization)}.revision_eligibility;
         const response = await fetch('/api/vnext/operator/project-continuity', {
-          method: 'POST', headers: { 'content-type': 'application/json' },
+          method: 'POST', headers: { 'content-type': 'application/json', 'Augnes-Project-Id': new URL(location.href).searchParams.get('project_id') },
           body: JSON.stringify({
             action: 'revise_pre_execution_project_work',
             workspace_id: eligibility.workspace_id,
@@ -1035,9 +1030,16 @@ await runOperatorExecutionBrowserChildV1({
         })()`,
       );
       await lifecycle.waitForCondition(
-        `Boolean(window.__cux7SourceBindingTab && window.__cux7SourceBindingTab.document.querySelector('[data-work-revision-composer]') === null && window.__cux7SourceBindingTab.document.querySelector('[data-current-work-definition="read-only"]')?.textContent?.includes(${JSON.stringify(revisedWorkGoal)}) === true)`,
-        "another-tab packet refresh closes bound revision editor",
+        `Boolean(window.__cux7SourceBindingTab?.document.querySelector('[data-work-draft-conflict]') && window.__cux7SourceBindingTab.document.querySelector('[data-work-revision-action="save"]')?.disabled === true && window.__cux7SourceBindingTab.document.querySelector('textarea[name="work-revision-goal"]')?.value === ${JSON.stringify(firstRevisionGoal)} && window.__cux7SourceBindingTab.document.querySelector('[data-work-draft-current-goal]')?.textContent?.includes(${JSON.stringify(revisedWorkGoal)}) === true)`,
+        "another-tab packet refresh retains draft and disables stale saving",
       );
+      await lifecycle.evaluateBoolean(`(() => {
+        const tab = window.__cux7SourceBindingTab;
+        const discard = Array.from(tab.document.querySelectorAll('[data-work-draft-conflict] button')).find(button => button.textContent === 'Discard draft and view saved work');
+        discard.click();
+        return true;
+      })()`);
+      await lifecycle.waitForCondition(`window.__cux7SourceBindingTab?.document.querySelector('[data-work-revision-action="open"]') !== null`, "explicitly discarded draft exposes current saved work");
       assert.equal(
         await lifecycle.evaluateBoolean(`(() => {
           const tab = window.__cux7SourceBindingTab;
@@ -1146,7 +1148,7 @@ await runOperatorExecutionBrowserChildV1({
         LIVE_TIMEOUT_MS,
       );
       const liveRouteAfterStart = await lifecycle.evaluateJson(`(async () => {
-        const response = await fetch('/api/vnext/operator/host-round-trip', { cache: 'no-store' });
+        const response = await fetch('/api/vnext/operator/host-round-trip', { cache: 'no-store', headers: { 'Augnes-Project-Id': new URL(location.href).searchParams.get('project_id') } });
         return { status: response.status, body: await response.json() };
       })()`);
       assert.equal(
@@ -1234,8 +1236,8 @@ await runOperatorExecutionBrowserChildV1({
         "exact stale successor response observed after start",
       );
       await lifecycle.waitForCondition(
-        `window.__cux7StaleSubmitTab?.document.querySelector('[data-work-revision-composer]') === null`,
-        "stale revision editor closed after start refusal",
+        `window.__cux7StaleSubmitTab?.document.querySelector('[data-work-draft-conflict]') !== null && window.__cux7StaleSubmitTab?.document.querySelector('[data-work-revision-action="save"]')?.disabled === true`,
+        "stale revision draft retained and saving disabled after start refusal",
       );
       try {
         await lifecycle.waitForCondition(
@@ -1261,10 +1263,9 @@ await runOperatorExecutionBrowserChildV1({
       const staleTabState = await lifecycle.evaluateJson(`(async () => {
         const tab = window.__cux7StaleSubmitTab;
         const response = tab.__cux7RevisionMutationResponse;
-        const definition = tab.document.querySelector('[data-current-work-definition="read-only"]');
         const [reviewResponse, delegatedResponse] = await Promise.all([
-          tab.fetch('/api/vnext/operator/semantic-review', { cache: 'no-store' }),
-          tab.fetch('/api/vnext/operator/host-round-trip', { cache: 'no-store' })
+          tab.fetch('/api/vnext/operator/semantic-review', { cache: 'no-store', headers: { 'Augnes-Project-Id': new URL(tab.location.href).searchParams.get('project_id') } }),
+          tab.fetch('/api/vnext/operator/host-round-trip', { cache: 'no-store', headers: { 'Augnes-Project-Id': new URL(tab.location.href).searchParams.get('project_id') } })
         ]);
         const review = await reviewResponse.json();
         const delegated = await delegatedResponse.json();
@@ -1272,8 +1273,8 @@ await runOperatorExecutionBrowserChildV1({
           status: response?.status ?? null,
           error_code: response?.body?.error_code ?? null,
           composer_present: Boolean(tab.document.querySelector('[data-work-revision-composer]')),
-          definition_phase: definition?.getAttribute('data-current-work-definition-phase') ?? null,
-          revised_goal_visible: definition?.textContent?.includes(${JSON.stringify(revisedWorkGoal)}) === true,
+          draft_save_disabled: tab.document.querySelector('[data-work-revision-action="save"]')?.disabled === true,
+          revised_goal_visible: tab.document.querySelector('[data-work-draft-current-goal]')?.textContent?.includes(${JSON.stringify(revisedWorkGoal)}) === true,
           revision_action_present: Boolean(tab.document.querySelector('[data-work-revision-action="open"]')),
           refusal_copy_visible: tab.document.body.textContent.includes('Work started or blocking work history appeared before this revision was saved.'),
           success_copy_visible: tab.document.body.textContent.includes('Work definition revised. No execution has started.'),
@@ -1285,8 +1286,8 @@ await runOperatorExecutionBrowserChildV1({
       assert.deepEqual(staleTabState, {
         status: 409,
         error_code: "work_revision_execution_started",
-        composer_present: false,
-        definition_phase: "current_context",
+        composer_present: true,
+        draft_save_disabled: true,
         revised_goal_visible: true,
         revision_action_present: false,
         refusal_copy_visible: true,
@@ -1929,7 +1930,7 @@ await runOperatorExecutionBrowserChildV1({
       result.delegated_work_timeline_public_safe = true;
       completeDetailedField("delegated_work_timeline_public_safe");
       await lifecycle.navigate(`${appOrigin}/`);
-      const expectedReviewHref = `/workbench/results/${liveAfter.latest_receipt.receipt_id.replace(":", "~")}`;
+      const expectedReviewHref = `/workbench/results/${liveAfter.latest_receipt.receipt_id.replace(":", "~")}?project_id=${encodeURIComponent(fixture.manifest.project_id)}`;
       await lifecycle.waitForCondition(
         `document.querySelector('[data-latest-run-result="completed"] [data-review-result-link="true"]')?.getAttribute('href') === ${JSON.stringify(expectedReviewHref)} && document.querySelector('[data-current-host-run]') === null && document.querySelector('[data-delegated-work-summary="result_ready"]') !== null`,
         "Project Home latest terminal result",
@@ -1980,7 +1981,7 @@ await runOperatorExecutionBrowserChildV1({
         const sourcePath = await lifecycle.evaluateString("location.pathname");
         const sourceDetail = await lifecycle.evaluateJson(`(async () => {
           const id = decodeURIComponent(location.pathname.split('/').at(-1)).replace('~', ':');
-          const response = await fetch('/api/vnext/operator/semantic-review?proposal_id=' + encodeURIComponent(id), { cache: 'no-store' });
+          const response = await fetch('/api/vnext/operator/semantic-review?proposal_id=' + encodeURIComponent(id), { cache: 'no-store', headers: { 'Augnes-Project-Id': new URL(location.href).searchParams.get('project_id') } });
           return (await response.json()).proposal;
         })()`);
         assert.equal(sourceDetail.proposal.source_assessment.observed.execution.status, "completed");
@@ -1998,7 +1999,7 @@ await runOperatorExecutionBrowserChildV1({
         assert.deepEqual(revisionCounts, { ...before, proposals: before.proposals + 1 });
         const revisedDetail = await lifecycle.evaluateJson(`(async () => {
           const id = decodeURIComponent(location.pathname.split('/').at(-1)).replace('~', ':');
-          const response = await fetch('/api/vnext/operator/semantic-review?proposal_id=' + encodeURIComponent(id), { cache: 'no-store' });
+          const response = await fetch('/api/vnext/operator/semantic-review?proposal_id=' + encodeURIComponent(id), { cache: 'no-store', headers: { 'Augnes-Project-Id': new URL(location.href).searchParams.get('project_id') } });
           return (await response.json()).proposal;
         })()`);
         assert.deepEqual(revisedDetail.proposal.source_assessment, sourceDetail.proposal.source_assessment);
@@ -2038,6 +2039,7 @@ await runOperatorExecutionBrowserChildV1({
         assert.equal(sourceLink.pathname, "/workbench/inspector");
         assert.equal(sourceLink.searchParams.get("record_id"), revisionBinding.source.proposal_id);
         assert.equal(sourceLink.searchParams.get("fingerprint"), revisionBinding.source.proposal_fingerprint);
+        assert.equal(sourceLink.searchParams.get("project_id"), fixture.manifest.project_id);
         assert.equal(screenContrast.action_owner, "decision");
         assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('#selected-work-decision [data-vnext-operator-decision-form]') !== null`), true);
         await lifecycle.setFormControlValue('[data-vnext-candidate-selector]', revisionBinding.source.candidate_id);
@@ -2325,7 +2327,7 @@ await runOperatorExecutionBrowserChildV1({
       await lifecycle.waitForHostCondition(
         async () => {
           const state = await lifecycle.evaluateJson(`(async () => {
-            const response = await fetch('/api/vnext/operator/automation-cycle', { cache: 'no-store' });
+            const response = await fetch('/api/vnext/operator/automation-cycle', { cache: 'no-store', headers: { 'Augnes-Project-Id': ${JSON.stringify(fixture.manifest.automation_project_id)} } });
             return { status: response.status, body: await response.json() };
           })()`);
           return (
@@ -2428,7 +2430,7 @@ await runOperatorExecutionBrowserChildV1({
         await lifecycle.evaluateString(
           `document.querySelector('[data-contextual-inspector-return="delegated_work"]')?.getAttribute('href') ?? ''`,
         ),
-        "/workbench/semantic-review#delegated-work",
+        `/workbench/semantic-review?project_id=${encodeURIComponent(fixture.manifest.automation_project_id)}#delegated-work`,
       );
       assert.deepEqual(
         readDatabaseSnapshot(fixture.writable_database_path),
@@ -2457,13 +2459,16 @@ await runOperatorExecutionBrowserChildV1({
         return link?.getAttribute('href') ?? '';
       })()`);
       assert.match(
-        contextUseFeedbackHref,
+        new URL(contextUseFeedbackHref, appOrigin).pathname,
         /^\/workbench\/semantic-review\/episode-delta-proposal~[a-f0-9]{24}$/u,
       );
       assert.match(
-        boundedReviewProposalHref,
+        new URL(boundedReviewProposalHref, appOrigin).pathname,
         /^\/workbench\/semantic-review\/episode-delta-proposal~[a-f0-9]{24}$/u,
       );
+      for (const href of [contextUseFeedbackHref, boundedReviewProposalHref]) {
+        assert.equal(new URL(href, appOrigin).searchParams.get("project_id"), fixture.manifest.automation_project_id);
+      }
       const boundedResultHref = `/workbench/results/${afterBoundedCycle.latest_receipt.receipt_id.replace(":", "~")}`;
       const beforeBoundedResultRead = readDatabaseSnapshot(
         fixture.writable_database_path,
@@ -2548,8 +2553,11 @@ await runOperatorExecutionBrowserChildV1({
         const detail = document.querySelector('[data-vnext-semantic-review-detail="v0.1"]');
         return detail?.querySelector('[data-proposal-to-shared-inspector="true"]')?.getAttribute('href') ?? '';
       })()`);
+      const proposalInspectorTarget = new URL(proposalInspectorHref, appOrigin);
+      assert.equal(proposalInspectorTarget.searchParams.get("project_id"), fixture.manifest.automation_project_id);
+      proposalInspectorTarget.searchParams.delete("project_id");
       assert.match(
-        proposalInspectorHref,
+        proposalInspectorTarget.pathname + proposalInspectorTarget.search,
         /^\/workbench\/inspector\?target=episode_delta_proposal&record_id=[^&]+&fingerprint=sha256%3A[a-f0-9]{64}$/u,
       );
       await lifecycle.navigate(new URL(proposalInspectorHref, appOrigin).toString());

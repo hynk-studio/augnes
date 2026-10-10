@@ -30,6 +30,28 @@ record. A phase becomes completed only when that pull request merges. This
 lifecycle wording remains truthful before and after merge without treating a
 Draft PR as completed runtime.
 
+## Current: independent project clients and verification environments (#1430)
+
+The first product/client slice under [#1430](https://github.com/hynk-studio/augnes/issues/1430)
+and [#1212](https://github.com/hynk-studio/augnes/issues/1212) merged in
+[#1432](https://github.com/hynk-studio/augnes/pull/1432). It separates displayed
+selection from authenticated preparation, Browser sessions, repository-bound
+Companion writers and supported run observation/control, including project-scoped
+semantic-preview transport. Source integration is separate from installed adoption.
+
+The next infrastructure slice extends the existing Local Canonical executor to
+explicitly admitted, separately owned verification worktrees on the authorized
+Mac. Its Draft PR owns the actual overlap, cancellation, capacity, preservation
+and receipt evidence. The introducing PR still requires its own exact-head
+qualification through the established canonical checkout; proposed-path evidence
+does not waive that gate. The active [verification policy](../../.github/LOCAL_CANONICAL_VERIFICATION.md)
+owns admission and lifecycle requirements.
+
+The Full Canonical queue is not declared solved. Further environment qualification
+and proportionate verification selection remain open under #1430, with current
+planner coverage and fixed timing gates preserved. The separate #1429 research
+implementation and its qualification are not included.
+
 ## Status reconciliation — 2026-10-06
 
 The reviewed integration baseline is main
@@ -192,6 +214,34 @@ Defer unneeded marketplace/SDK work, universal registries/graphs, additional UI
 and host expansion until a concrete consumer justifies them. This priority
 neither cancels authorized work nor makes all P1/P2 work blocked. Dated historical
 scopes, study results and unrelated Current/Next work below retain their bounds.
+
+### Bounded P3/P4/P5 implementation — Different-goal experience use (#1427)
+
+Under [#1426](https://github.com/hynk-studio/augnes/issues/1426), the
+[#1427 assignment](https://github.com/hynk-studio/augnes/issues/1427#issuecomment-6073639283)
+connects existing ordinary source lookup/reselection and explicit new-task
+preparation to an [output-producing consumer](../../scripts/companion-experience-use.md).
+No backend/DTO gap was found: a caller seam and skill/usage guidance carry exact
+support and a separately attributed applicability interpretation into B before
+execution. Resolve A's retained sources before the task boundary; lookup remains
+task-suffix scoped and no new recall authority is introduced.
+
+The exposed synthetic A dashboard generates success-only latency, B uses the
+same delivered normalization bytes for all-attempt capacity accounting, and C
+retains B's goal while qualifying a separate changed-version/unit adapter. Real
+output files, authenticated ordinary writers, fresh readers, independent arithmetic
+and bounded refusal controls establish this constructed connection. Original
+methods, reports and packets remain intact; external success does not mark the
+prior ordinary work complete. This is scripted separate-task execution, not
+autonomous selection, comparative usefulness, empirical learning or Autohunt.
+The strong adaptive-memo reference remains eligible and a live-model comparison
+is NOT_RUN. Existing P4.6 negative findings, #1372 obligations and public releases
+are unchanged. The separately assigned [#1428 study](https://github.com/hynk-studio/augnes/issues/1428)
+has an executable candidate and adaptive-memo comparison in
+[Draft PR #1429](https://github.com/hynk-studio/augnes/pull/1429). Its scripted
+paths tied at 8/8 correct outputs and 43 simulated units; autonomous discovery
+and comparative model usefulness remain NOT_RUN. Its own current-candidate
+qualification is required before integration.
 
 ### Current P3/P4/P5 — Project retry-inspection outlook (#1213)
 

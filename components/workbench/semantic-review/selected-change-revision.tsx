@@ -1,9 +1,11 @@
 import type { SelectedChangeRevisionV01 } from "@/lib/vnext/ai-workplane/selected-change-revision";
+import { projectClientHref } from "@/lib/vnext/project-client-href";
 import type { ReactNode } from "react";
 import type { SemanticReviewCandidateReadV01 } from "./semantic-review-types";
 import styles from "./semantic-review.module.css";
 
-export function SelectedChangeRevision({ comparison, selected }: {
+export function SelectedChangeRevision({ comparison, selected, projectId }: {
+  projectId: string;
   comparison: SelectedChangeRevisionV01;
   selected: SemanticReviewCandidateReadV01;
 }) {
@@ -26,7 +28,7 @@ export function SelectedChangeRevision({ comparison, selected }: {
           The earlier material is a recorded suggestion. Its account of current
           state is not a live state check or a prior user decision.
         </p>
-        <a className={styles.inlineLink} href={comparison.source_href!} data-revision-source="true">
+        <a className={styles.inlineLink} href={projectClientHref(comparison.source_href!, projectId)} data-revision-source="true">
           Earlier source: {comparison.prior.title}
         </a>
         <h4>Recorded reason · {comparison.author_basis?.replaceAll("_", " ")}</h4>
@@ -35,7 +37,7 @@ export function SelectedChangeRevision({ comparison, selected }: {
           <h4>Recorded result report</h4>
           <p className={styles.copy}>{report.summary}</p>
           {report.limitations.length > 0 ? <RecordedItems items={report.limitations.map((text, index) => <li key={index}>Report limitation: {text}</li>)} /> : null}
-          <a className={styles.inlineLink} href={report.href}>Read source result</a>
+          <a className={styles.inlineLink} href={projectClientHref(report.href, projectId)}>Read source result</a>
           <p className={styles.muted}>This report supplies context; it does not establish criterion-specific support or verified success.</p>
         </div>)}
         <h4>Recorded basis retained for review</h4>
@@ -47,7 +49,7 @@ export function SelectedChangeRevision({ comparison, selected }: {
           <li key={`${item.lane}:${item.material_id}`} data-revision-source-lane={item.lane}>
             <span className={styles.timelineBasis}>{item.lane} · {item.trust_class.replaceAll("_", " ")} · {item.role.replaceAll("_", " ")}</span>
             <p className={styles.copy}>{item.summary}</p>
-            {item.source_hrefs.map((href, index) => <a className={styles.inlineLink} key={href} href={href}>Source result{item.source_hrefs.length > 1 ? ` ${index + 1}` : ""}</a>)}
+            {item.source_hrefs.map((href, index) => <a className={styles.inlineLink} key={href} href={projectClientHref(href, projectId)}>Source result{item.source_hrefs.length > 1 ? ` ${index + 1}` : ""}</a>)}
           </li>
         ))} />
         <h4>Conditions and unresolved information</h4>

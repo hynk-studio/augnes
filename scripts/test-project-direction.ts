@@ -43,7 +43,7 @@ async function main() {
     const scope = { workspace_id: workspace.workspace_id, project_id: registration.project.project_id };
     const config = { ...scope, enabled: true as const, operator_id: "operator:local-review", database_path: path.join(root, "direction.db") };
     selectActiveProjectV01(db, { ...scope, expected_project_id: null, expected_revision: null, now: new Date().toISOString() });
-    const active = readActiveProjectSelectionV01(db, scope.workspace_id)!;
+    let active = readActiveProjectSelectionV01(db, scope.workspace_id)!;
     let instant = Date.now() + 5;
     const now = () => new Date(instant).toISOString();
     const tick = () => { instant += 100; };
@@ -209,7 +209,12 @@ async function main() {
     assert.equal(fresh.status, 200); assert.deepEqual((await fresh.json()).state, readProjectDirection(db, { ...scope, project_id: independent.project_id }, now()));
     writeFileSync(path.join(projectRoot, "compatibility.txt"), "ready\n"); writeFileSync(path.join(projectRoot, "recovery.txt"), "ready\n");
     tick();
+    selectActiveProjectV01(db, { ...scope, project_id: independent.project_id, expected_project_id: active.project_id, expected_revision: active.selection_revision, now: now() });
     const prepared = await call(human, humanUrl, { action: "prepare_inspection", expected_ref: firstRef, files: [{ path: "compatibility.txt", contains: "ready" }, { path: "recovery.txt", contains: "ready" }] });
+    const selectedOther = readActiveProjectSelectionV01(db, scope.workspace_id)!;
+    assert.equal(selectedOther.project_id, independent.project_id, "Preparation stays bound to A while unrelated B is displayed");
+    selectActiveProjectV01(db, { ...scope, expected_project_id: selectedOther.project_id, expected_revision: selectedOther.selection_revision, now: now() });
+    active = readActiveProjectSelectionV01(db, scope.workspace_id)!;
     const packet = readVNextCoreRecordV01(db, { ...scope, record_kind: "task_context_packet", record_id: prepared.packet_id })!.payload as TaskContextPacketV01;
     assert.equal(packet.capability_grant, null); assertPacketDirectionCurrent(db, packet, now());
     // A selected counterobservation is retained as attributed support, not silently
@@ -341,8 +346,12 @@ async function main() {
     tick();
     const afterPreview = await call(human, humanUrl, decide(duringRun.record.ref, "Reconsider the successor after another direction change"));
     await assert.rejects(() => defineAuthoredSuccessorTaskV01(db, { config, credential: credential(), clock, request: successorPreview.request }), /project_direction_stale_revision/);
-    const refreshedPreview = previewResultWorkV01(db, { config, binding: result.binding, clock, definition: { goal: "Review the inspected sources under the current direction", success_criteria: ["Keep support separate from authority"], non_goals: ["No publishing"] },
-      selected_sources: { selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint, omitted_sources: [] } });
+    assert.throws(() => previewResultWorkV01(db, { config, binding: result.binding, clock, definition: { goal: "Review", success_criteria: ["Inspect"], non_goals: [] }, selected_sources: { selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint, omitted_sources: [] } }), /preparation_changed/);
+    const refreshedResult = readResultWorkPreparationV01(db, { config, receipt_id: settled.receipt_id!, clock });
+    const refreshedComparison = compareResultWorkSourcesV01(db, { config, binding: refreshedResult.binding, notes: [...readSelectedWorkSources(revision.packet), refreshedResult.result_source!].map(selectedWorkSourceInput), clock });
+    const refreshedPreview = previewResultWorkV01(db, { config, binding: refreshedResult.binding, clock, definition: { goal: "Review the inspected sources under the current direction", success_criteria: ["Keep support separate from authority"], non_goals: ["No publishing"] },
+      selected_sources: { selected_source_context: refreshedComparison.entries, expected_source_comparison: refreshedComparison.fingerprint, omitted_sources: [] } });
+    assert.equal(refreshedComparison.fingerprint, comparison.fingerprint, "Explicit refresh preserves the same selected source content");
     const successor = await defineAuthoredSuccessorTaskV01(db, { config, credential: credential(), clock, request: refreshedPreview.request });
     cookie = `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${successor.session_admission.cookie_value}`;
     assert.throws(() => assertPacketDirectionCurrent(db, successor.packet, now()), /reconsideration_required/,

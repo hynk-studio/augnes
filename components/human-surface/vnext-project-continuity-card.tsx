@@ -1,5 +1,7 @@
 "use client";
 
+import { projectClientHref } from "@/lib/vnext/project-client-href";
+
 import { useEffect, useState } from "react";
 
 import type { VNextOperatorPilotProjectContinuityV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
@@ -22,7 +24,7 @@ type ContinuityReadStateV01 =
   | { status: "error"; error_code: string }
   | { status: "loaded"; value: VNextProjectContinuityResponseV01 };
 
-export function VNextProjectContinuityCard() {
+export function VNextProjectContinuityCard({ projectId }: { projectId: string | null }) {
   const [read, setRead] = useState<ContinuityReadStateV01>({ status: "loading" });
 
   useEffect(() => {
@@ -33,6 +35,7 @@ export function VNextProjectContinuityCard() {
           method: "GET",
           cache: "no-store",
           credentials: "same-origin",
+          headers: projectId ? { "Augnes-Project-Id": projectId } : {},
           signal: controller.signal,
         });
         const body = (await response.json()) as
@@ -80,7 +83,7 @@ export function VNextProjectContinuityCard() {
     }
     void load();
     return () => controller.abort();
-  }, []);
+  }, [projectId]);
 
   if (read.status !== "loaded") {
     return (
@@ -99,7 +102,7 @@ export function VNextProjectContinuityCard() {
                 ? "An authenticated, project-scoped local operator session is required. No private continuity material is rendered."
                 : `Continuity projection unavailable: ${read.error_code}`}
         </p>
-        <a className="human-surface-inline-link" href="/workbench/semantic-review">
+        <a className="human-surface-inline-link" href={projectClientHref("/workbench/semantic-review", projectId)}>
           Open Semantic Workbench
         </a>
       </section>
@@ -198,7 +201,7 @@ export function VNextProjectContinuityCard() {
         not external identity authentication.
       </p>
       <div className="vnext-project-continuity-links">
-        <a className="human-surface-inline-link" href="/workbench/semantic-review">
+        <a className="human-surface-inline-link" href={projectClientHref("/workbench/semantic-review", projectId)}>
           Open Semantic Workbench
         </a>
       </div>

@@ -5,6 +5,10 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
+import {
+  RESEARCH_REGISTRATION_PATH, RESEARCH_SOURCE_PATHS, RESEARCH_OWNER_ID,
+  validateResearchRegistration, assertAdditiveResearchRegistration,
+} from "./canonical-research-registration.mjs";
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -409,6 +413,24 @@ function classifyChangeResponsibility(change, documentContext) {
     );
   }
 
+  if ([RESEARCH_REGISTRATION_PATH, ...RESEARCH_SOURCE_PATHS].includes(relativePath)) {
+    try {
+      if (!["A", "M"].includes(change.status)) throw new Error("research_registration_destructive_change");
+      if (!documentContext.researchRegistrationChecked) {
+        const ids = [documentContext.baseSha, documentContext.headSha].map(revision =>
+          validateResearchRegistration(
+            runGit(documentContext.cwd, ["show", `${revision}:${RESEARCH_REGISTRATION_PATH}`],
+              { encoding: "utf8", maxBuffer: 4096 }).stdout,
+            file => documentContext.treeModes.get(revision).get(file),
+          ));
+        assertAdditiveResearchRegistration(...ids);
+        documentContext.researchRegistrationChecked = true;
+      }
+    } catch {
+      return fullClassification(RESEARCH_OWNER_ID, `unproven_research_registration:${relativePath}`);
+    }
+  }
+
   const targetedOwner = changeOwnerManifest.targeted_owners.find((owner) =>
     changedPaths(change).every((changedPath) =>
       matchesPathRules(changedPath, owner.path_rules)
@@ -482,7 +504,8 @@ const DOCUMENTATION_INFRASTRUCTURE = new Set([
 ]);
 
 function createDocumentationContext({ cwd, baseSha, headSha, changes }) {
-  if (!changes.some((change) => changedPaths(change).some((p) => isDocumentationPath(p) || p === "AGENTS.md"))) {
+  if (!changes.some((change) => changedPaths(change).some((p) => isDocumentationPath(p) || p === "AGENTS.md" ||
+      p === RESEARCH_REGISTRATION_PATH || RESEARCH_SOURCE_PATHS.includes(p)))) {
     return null;
   }
   const delegated = new Set();

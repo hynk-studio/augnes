@@ -51,6 +51,22 @@ uncertainty and judgment; reviewed decisions; and the next meaningful action.
 These responsibilities come from the
 [Product and Continuity Doctrine](docs/vnext/01_AUGNES_VNEXT_MASTERPLAN.md).
 
+## Work in two projects
+
+Open a project's **Open protected work for this project** link to keep its work
+in a dedicated tab. Authenticate each project once with its own local review
+token. Tabs in the same browser profile keep separate project sessions; using B
+does not retarget A or invalidate an unchanged A edit. Opening a project does not
+silently change the workspace's default selection.
+
+If A's saved work or folder changes, saving refuses and retains your draft in
+that tab. Refresh, inspect the current saved work, explicitly choose it as the
+revision base and compare your selected sources again before saving. Reconnect
+an unavailable folder or authenticate the original project again when required.
+Unsaved drafts remain in memory only: keep the tab open until saving or copying
+them. Supported running work remains observable and controllable in its project;
+starting work still requires its existing execution authority.
+
 ## The continuity loop
 
 > Resume current work → act in ChatGPT, Codex, or another native host within

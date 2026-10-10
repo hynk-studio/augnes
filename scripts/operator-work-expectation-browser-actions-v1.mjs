@@ -49,13 +49,29 @@ export async function clickSelector(lifecycle, selector) {
   );
 }
 
-export async function saveBrowserExpectation(lifecycle, prediction, reason) {
+export async function saveBrowserExpectation(lifecycle, prediction, reason, reviewChangedWork = null) {
   await lifecycle.waitForCondition(`document.querySelector('[data-work-expectation="preparation"]') !== null`, 'optional expectation preparation');
   await lifecycle.evaluateBoolean(`(() => { document.querySelector('[data-work-expectation="preparation"]').open = true; return true; })()`);
   await lifecycle.waitForCondition(`document.querySelector('#expectation-reason') !== null`, 'authenticated expectation form');
+  if (reviewChangedWork) {
+    await lifecycle.waitForCondition(`document.querySelector('[data-expectation-draft-conflict]') !== null`, 'changed work requires expectation review');
+    assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-expectation-action="save"]').disabled`), true,
+      'The prior work binding cannot silently authorize this forecast');
+    assert.equal(await lifecycle.evaluateBoolean(`(() => {
+      const text = document.querySelector('[data-expectation-draft-conflict]').textContent;
+      return text.includes(${JSON.stringify(`Original task: ${reviewChangedWork.previousGoal}`)}) &&
+        text.includes(${JSON.stringify(`Current task: ${reviewChangedWork.currentGoal}`)});
+    })()`), true, 'The operator reviews the original and current work before rebinding');
+    await clickSelector(lifecycle, '[data-expectation-action="refresh"]');
+    await lifecycle.waitForCondition(`document.querySelector('[data-expectation-action="review"]')?.disabled === false`, 'current expectation work ready for explicit review');
+    await clickSelector(lifecycle, '[data-expectation-action="review"]');
+    await lifecycle.waitForCondition(`document.querySelector('[data-expectation-draft-conflict]') === null`, 'explicit expectation work review accepted');
+  }
   await lifecycle.setFormControlValue('#expectation-prediction', prediction);
   await lifecycle.setFormControlValue('#expectation-reason', reason);
   await lifecycle.setFormControlValue('#expectation-conditions', 'Only the exact first interactive attempt is observed.');
+  assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-expectation-action="save"]')?.disabled === false`), true,
+    'The reviewed expectation must be eligible before Save is clicked');
   await clickSelector(lifecycle, '[data-expectation-action="save"]');
   await lifecycle.waitForCondition(`document.querySelector('[data-expectation-history="1"]') !== null`, 'prospective expectation saved');
 }

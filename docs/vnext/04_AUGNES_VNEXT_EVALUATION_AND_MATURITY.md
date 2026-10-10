@@ -41,6 +41,45 @@ the whole product mature.
 7. Do not invent measured baselines, pass rates, user comprehension, or
    usefulness from fixtures or self-evaluation.
 
+## Independent project-client acceptance
+
+For #1430, distinguish project data isolation, usable client authorization,
+concurrent execution and isolated verification. Hold an A edit while a second
+tab in the same browser profile authenticates and changes B, interleave A→B→A
+selection, then save unchanged A with explicit work/source readback. Exercise
+initial work, source revision and different-task preview/save through Browser
+and repository-bound Companion consumers. Genuine A packet/source/root changes,
+wrong-project credentials, expired/revoked sessions and conflicting writes must
+still refuse. Inspect preserved text/source choices and explicit conflict
+recovery, plus fresh project-specific work/history reentry.
+
+Use distinct physical roots and controlled barriers to prove overlapping
+supported runs. Observe continued B progress after A cancellation/failure, and
+separately inspect A's scoped status, approval, cancellation and recovery while B
+is used. Report actual modes, lifecycle cleanup and unsupported cases. Disposable
+deterministic adapters establish bounded mechanics; they do not establish live
+provider behavior, measured productivity, installed adoption or parallel deciding
+verification. The PR records the final exact source and planner-selected result.
+
+## Isolated verification acceptance
+
+For #1430's environment slice, separate contract fixtures, focused development
+feedback, actual execution through the proposed isolated path, and the introducing
+PR's established canonical-checkout deciding receipt. Two idle processes or
+stubbed phases do not prove parallel qualification. Record actual overlapping
+dependency/build, runtime or Browser work in separately owned checkouts with
+unchanged phase inventories and deadlines. Show focused development progress
+while another lane verifies, then cancellation/failure of A with continued B
+progress and successful B cleanup.
+
+Observe installed Companion identity and availability and production database
+preservation without adopting a candidate. Retain admission, capacity, aliasing,
+same-checkout, stale/replaced-owner and unsettled-child refusals. Test copied or
+wrong source, base, environment, invocation, checkout and cleanup evidence.
+Report measured resource use, timing failures and unsupported capacity instead
+of weakening gates. A bounded successful overlap is not a general throughput
+claim; proportionate verification selection remains separately evaluated work.
+
 ## Method-improvement evidence
 
 For #1417's bounded first-work ingress, the observed gap is an empty registered
@@ -254,6 +293,25 @@ and other material independence limits. A different model or session can add a
 review perspective; separate invocation alone does not make it an independent
 blind evaluator. Keep observations, developer reports, interpretations, and
 unobserved properties distinct.
+
+For ordinary different-goal experience use, record the fresh successor goal,
+exact original support, derived applicability and omission reasons before its
+first material processing action. Resolve predecessor-task recall before crossing
+the task-suffix boundary; file hashes without accessible executable bytes are not
+delivery evidence. Check actual imported paths, inputs, outputs and independent
+answers. A changed version/unit requires a qualified revision or alternative,
+while preserving the original observation and callable behavior. Do not equate
+external deliverable success with a managed receipt or prior-work completion.
+
+The [#1427 runnable case](../../scripts/companion-experience-use.md) supplies A/B
+deliverables and a changed-condition C control through authenticated ordinary
+writers. Its source choices and cases are exposed scripted development evidence.
+An adaptive memo retains the same goal, raw sources, callable assets, tools and
+relevant resources and may revise its own method. Blind replay of A's goal-specific
+filter is a harmful-transfer negative control, not a strong baseline. Functional
+composition and exact output correctness do not establish autonomous selection,
+superiority, learning or independent demand; the fixed live-model comparison
+remains NOT_RUN and historical P4.6 findings remain unchanged.
 
 ### Cost and user burden
 

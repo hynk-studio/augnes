@@ -803,12 +803,12 @@ export async function createOperatorExecutionBrowserLifecycleV1({
       const replay = await evaluate(`(async () => {
         const replayResponse = await fetch('/api/vnext/operator/session', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Augnes-Project-Id': ${JSON.stringify(config.project_id)} },
           credentials: 'same-origin',
           body: JSON.stringify({ action: 'bootstrap', bootstrap_token: ${JSON.stringify(token)} })
         });
         const sessionResponse = await fetch('/api/vnext/operator/session', {
-          method: 'GET', cache: 'no-store', credentials: 'same-origin'
+          method: 'GET', cache: 'no-store', credentials: 'same-origin', headers: { 'Augnes-Project-Id': ${JSON.stringify(config.project_id)} }
         });
         return {
           replay_status: replayResponse.status,

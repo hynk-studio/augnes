@@ -1,5 +1,7 @@
 "use client";
 
+import { projectRequestHeaders, useProjectClientFetch, useProjectClientScope } from "@/components/workbench/semantic-review/project-client-scope";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { DelegatedWorkProjectionV01 } from "@/types/vnext/delegated-work";
@@ -23,6 +25,8 @@ export type DelegatedWorkActionV01 =
     };
 
 export function useDelegatedCodexWorkV01(enabled: boolean, diagnostic: ProjectExperienceConsumerObserverV1 | null = null) {
+  const fetch = useProjectClientFetch();
+  const projectId = useProjectClientScope();
   const [projection, setProjection] =
     useState<DelegatedWorkProjectionV01 | null>(null);
   const [status, setStatus] = useState<
@@ -46,6 +50,7 @@ export function useDelegatedCodexWorkV01(enabled: boolean, diagnostic: ProjectEx
     let bodyReadPending = false;
     try {
       const response = await (observation?.fetch ?? fetch)(ROUTE, {
+        headers: projectRequestHeaders(projectId),
         method: "GET",
         credentials: "same-origin",
         cache: "no-store",
@@ -96,7 +101,7 @@ export function useDelegatedCodexWorkV01(enabled: boolean, diagnostic: ProjectEx
       if (abortRef.current === abort) abortRef.current = null;
       inFlightRef.current = false;
     }
-  }, [enabled, diagnostic]);
+  }, [enabled, diagnostic, fetch, projectId]);
 
   const act = useCallback(
     async (action: DelegatedWorkActionV01): Promise<boolean> => {
@@ -154,7 +159,7 @@ export function useDelegatedCodexWorkV01(enabled: boolean, diagnostic: ProjectEx
         inFlightRef.current = false;
       }
     },
-    [enabled],
+    [enabled, fetch],
   );
 
   useEffect(() => diagnostic?.mount(), [diagnostic]);

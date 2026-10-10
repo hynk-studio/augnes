@@ -9,6 +9,7 @@ import {
   openVNextLocalOperatorDatabaseV01,
   readBoundedVNextLocalOperatorBodyV01,
   readVNextLocalOperatorCredentialFromRequestV01,
+  readVNextLocalOperatorRequestProjectV01,
   assertVNextLocalReviewEnabledV01,
   readVNextLocalReviewProfileV01,
   resolveVNextLocalReviewConfigV01,
@@ -115,6 +116,7 @@ export function createVNextLocalOperatorSessionHandlersV01(
         const config = resolveVNextLocalReviewConfigV01({
           environment,
           bootstrap_token: body.bootstrap_token,
+          requested_project_id: readVNextLocalOperatorRequestProjectV01(request),
           clock: options.clock,
         });
         db = openDatabase(config);
@@ -136,13 +138,13 @@ export function createVNextLocalOperatorSessionHandlersV01(
           },
           200,
           [
-            serializeVNextLocalOperatorSessionCookieV01({
+            serializeVNextLocalOperatorSessionCookieV01({ request,
               value: admission.cookie_value,
               expires_at: admission.cookie_expires_at,
               max_age_seconds: admission.cookie_max_age_seconds,
               secure: requestUrl.protocol === "https:",
             }),
-            serializeVNextRepositoryDecisionSessionCookieV01({
+            serializeVNextRepositoryDecisionSessionCookieV01({ request,
               value: admission.repository_decision_session.cookie_value,
               expires_at:
                 admission.repository_decision_session.cookie_expires_at,
@@ -178,10 +180,10 @@ export function createVNextLocalOperatorSessionHandlersV01(
           },
           200,
           [
-            serializeVNextLocalOperatorSessionCookieClearV01({
+            serializeVNextLocalOperatorSessionCookieClearV01({ request,
               secure: requestUrl.protocol === "https:",
             }),
-            serializeVNextRepositoryDecisionSessionCookieClearV01({
+            serializeVNextRepositoryDecisionSessionCookieClearV01({ request,
               secure: requestUrl.protocol === "https:",
             }),
           ],

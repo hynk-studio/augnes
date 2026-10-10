@@ -1429,7 +1429,9 @@ async function assertExactOwnerStatesV01(): Promise<void> {
       dependenciesV01({ ...fixture.config, project_id: other.project.project_id }),
     );
     assert.equal(inactive.project.status, "inactive_project");
-    assert.equal(inactive.next_action.kind, "make_project_active");
+    assert.equal(inactive.next_action.kind, "define_work");
+    assert.equal(readActiveProjectSelectionV01(fixture.db, fixture.workspace_id)?.project_id, fixture.project_id);
+    assert.equal(hashV01(fixture.db.serialize()), beforeBytes, "explicit project reads do not select or write");
 
     const missingRoot = await readCodexCurrentContinuityV01(
       fixture.db,

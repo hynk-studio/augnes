@@ -23,7 +23,9 @@ temporary program history belongs to supporting historical records.
 
 - The sole current repository is `hynk-studio/augnes`. The actual Mac
   installed runtime and Local Canonical host remain rooted at
-  `/Users/hynk/code/augnes`.
+  `/Users/hynk/code/augnes`. Verification-only linked worktrees on that Mac require
+  explicit admission under the Local Canonical policy; they do not change
+  installed-production identity or grant adoption authority.
 - Explicitly user-authorized isolated Codex Cloud checkouts of this repository
   may inspect source, implement changes, run focused development tests, and
   create branches, commits, pushes, and Draft pull requests within task scope.

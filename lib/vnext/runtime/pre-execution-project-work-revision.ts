@@ -44,7 +44,7 @@ export const PRE_EXECUTION_PROJECT_WORK_REVISION_REQUEST_NAMESPACE_V01 =
 
 const REVISION_DEFINITION_ID =
   /^work-definition-(?:revision|preparation):(\d+):([a-f0-9]{24})$/u;
-const REVISION_REQUEST_ID = /^work-(?:revision|preparation)-request:(\d+|selection:[a-f0-9]{32}):([a-f0-9]{24})$/u;
+const REVISION_REQUEST_ID = /^work-(?:revision|preparation)-request:(null|\d+|selection:[a-f0-9]{32}):([a-f0-9]{24})$/u;
 const REVISION_PACKET_CONTEXT_BUDGET_V01 = Object.freeze({
   max_selected_entries: 4,
   max_projection_items: 1,
@@ -143,8 +143,8 @@ export function createPreExecutionProjectWorkRevisionMaterialV01(input: {
       workspace_id: input.request.workspace_id,
       project_id: input.request.project_id,
       expected_active_project_id: input.request.expected_active_project_id,
-      expected_active_selection_revision:
-        input.request.expected_active_selection_revision,
+      ...(input.request.expected_project_work_binding ? { expected_project_work_binding: input.request.expected_project_work_binding }
+        : { expected_active_selection_revision: input.request.expected_active_selection_revision }),
       expected_current_packet_id: input.request.expected_current_packet_id,
       expected_current_packet_fingerprint:
         input.request.expected_current_packet_fingerprint,
@@ -249,6 +249,11 @@ export function buildPreExecutionProjectWorkRevisionPacketV01(input: {
   } : null;
   const previewRef: ExternalRefV01 | null = preparation ? {
     ...rootRef!, ref_type: "new_work_reviewed_preview", source_ref: preparation.preview_binding,
+  } : null;
+  const projectBindingRef: ExternalRefV01 | null = input.request.expected_project_work_binding ? {
+    ref_version: "external_ref.v0.1", ref_type: "project_work_binding", external_id: input.request.project_id,
+    trust_class: "direct_local_observation", observed_at: input.generated_at, source_ref: input.request.expected_project_work_binding,
+    compatibility_namespace: "augnes.project-work-binding.v0.1",
   } : null;
   const currentness = {
     status: "fresh" as const,
@@ -393,6 +398,7 @@ export function buildPreExecutionProjectWorkRevisionPacketV01(input: {
           lineage.immediate_prior_packet_ref,
           lineage.origin_first_work_definition_ref,
           ...(rootRef && previewRef ? [rootRef, previewRef] : []),
+          ...(projectBindingRef ? [projectBindingRef] : []),
         ],
         warnings: [],
       },
@@ -410,6 +416,7 @@ export function buildPreExecutionProjectWorkRevisionPacketV01(input: {
           lineage.immediate_prior_packet_ref,
           lineage.origin_first_work_definition_ref,
           ...(rootRef && previewRef ? [rootRef, previewRef] : []),
+          ...(projectBindingRef ? [projectBindingRef] : []),
         ],
         unmapped_fields: [],
         warnings: [
@@ -614,11 +621,11 @@ function inspectRevisionPacketV01(
   const definitionMatch = REVISION_DEFINITION_ID.exec(definitionRef.external_id);
   const requestMatch = REVISION_REQUEST_ID.exec(requestRef.external_id);
   const revisionNumber = definitionMatch ? Number(definitionMatch[1]) : NaN;
-  const activeRevision = requestMatch?.[1]?.startsWith("selection:") ? requestMatch[1] : Number(requestMatch?.[1]);
+  const activeRevision = requestMatch?.[1] === "null" ? null : requestMatch?.[1]?.startsWith("selection:") ? requestMatch[1] : Number(requestMatch?.[1]);
   if (
     !Number.isSafeInteger(revisionNumber) ||
     revisionNumber < 1 ||
-    !isHistoricalProjectSelectionRevision(activeRevision) ||
+    !(isHistoricalProjectSelectionRevision(activeRevision) || activeRevision === null) ||
     definitionMatch?.[2] !== requestMatch?.[2] ||
     definitionRef.trust_class !== "user_declaration" ||
     definitionRef.compatibility_namespace !== compiler ||
@@ -657,12 +664,19 @@ function inspectRevisionPacketV01(
     refuse("work_revision_operator_provenance_invalid", 409);
   }
   validateOperatorTimeV01(session, packet.generated_at);
+  const bindingRefs = packet.compatibility.source_refs.filter(ref => ref.ref_type === "project_work_binding");
+  if (bindingRefs.length > 1 || (bindingRefs[0] && (bindingRefs[0].external_id !== input.project_id ||
+    bindingRefs[0].compatibility_namespace !== "augnes.project-work-binding.v0.1" ||
+    bindingRefs[0].trust_class !== "direct_local_observation" || bindingRefs[0].observed_at !== packet.generated_at ||
+    !/^sha256:[a-f0-9]{64}$/u.test(bindingRefs[0].source_ref ?? "")))) refuse("work_revision_project_binding_invalid", 409);
+  if (activeRevision === null && bindingRefs.length !== 1) refuse("work_revision_project_binding_invalid", 409);
   const request: RevisePreExecutionProjectWorkRequestV01 = {
     action: newTask ? "prepare_new_project_work" : "revise_pre_execution_project_work",
     workspace_id: input.workspace_id,
     project_id: input.project_id,
     expected_active_project_id: input.project_id,
     expected_active_selection_revision: activeRevision,
+    ...(bindingRefs[0] ? { expected_project_work_binding: bindingRefs[0].source_ref! } : {}),
     expected_current_packet_id: priorRecord.packet.packet_id,
     expected_current_packet_fingerprint:
       priorRecord.packet.integrity.fingerprint,

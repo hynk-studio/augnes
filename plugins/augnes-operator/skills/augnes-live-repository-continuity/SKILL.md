@@ -130,6 +130,40 @@ read the new outlook, then act on its current conditions or deliberately decline
 use. One observation does not establish success probabilities or causal benefit.
 No direction authority, managed receipt or execution grant comes from this read.
 
+## Use experience for a different goal
+
+Before the next task's first material action, compare its explicit goal with the
+permitted prior observations and usable assets. Distinguish unchanged support or
+callable code, conditions requiring recheck (version, units, inputs, availability),
+and prior-goal or irrelevant advice that must not govern the new task. Save this
+source-bound applicability judgment as `derived_interpretation`, separately from
+the original `imported_unverified` reports. A useful old report need not make its
+entire procedure appropriate for a new population or output contract.
+
+Resolve needed omitted notes **while still in the prior task**: explicit retained
+lookup, inspect the bounded results/cutoff, then same-task preview/save with the
+exact returned `retained_source_refs`. Resume and read again. Lookup covers only
+the current task suffix; different-task preparation cannot accept those historical
+references or reach back across that boundary. Carry the resulting exact current
+bindings through `sources.keep`, give an omission reason for every excluded note,
+and add the new interpretation through the explicit different-task branch above.
+Never recreate originals from sanitized reader text. Fresh Resume/source readback
+must deliver the new goal and selected support before processing the new inputs.
+
+Keep executable methods as separately delivered usable files, with exact version,
+byte counts, hashes and dependencies. A note or unavailable path is not the asset;
+verify the delivered bytes and actual import/execution location in the consumer's
+independently authorized executor. Refuse missing files or changed conditions,
+rather than falling back to hidden originals. A supported adaptation gets its own
+identity and qualification; retain the original method, refusal and observations.
+Save actual results and the justified retention/revision/non-use decision through
+ordinary revision, then read them back. This creates no managed receipt or prior
+work completion. Do not force deterministic tasks into the optional retry outlook.
+
+The usage guide links a runnable synthetic example and a reusable caller seam.
+Its source decisions are scripted mechanism evidence, not autonomous selection,
+learning or an advantage over a capable source-linked adaptive memo.
+
 ## Managed execution: only when separately requested
 
 8. When later managed work needs a trusted repository attachment, call

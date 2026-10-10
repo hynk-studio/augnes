@@ -8,13 +8,13 @@ import {
   readBoundedVNextLocalOperatorBodyV01,
   readVNextLocalOperatorCredentialFromRequestV01,
   readVNextLocalOperatorPilotConfigV01,
+  resolveVNextLocalReviewConfigV01,
   serializeVNextLocalOperatorSessionCookieV01,
   type VNextLocalOperatorPilotConfigV01,
   type VNextLocalOperatorSecretSourceV01,
 } from "@/lib/vnext/runtime/local-operator-session";
 import type { VNextLocalRuntimeClockV01 } from "@/lib/vnext/runtime/local-runtime-clock";
 import {
-  VNEXT_OPERATOR_PILOT_PREVIEW_COOKIE_V01,
   VNextOperatorPilotTransitionErrorV01,
   applyVNextOperatorPilotReviewedSemanticTransitionV01,
   confirmVNextOperatorPilotSemanticCommitV01,
@@ -64,10 +64,13 @@ export function createVNextOperatorSemanticTransitionHandlersV01(
         mutating: false,
       });
       const binding = parsePreviewQuery(requestUrl);
-      const config = readVNextLocalOperatorPilotConfigV01(environment);
+      // Invalid host policy must fail before credential resolution can open a
+      // scoped session database. This validates configuration, not authority.
+      readVNextLocalOperatorPilotConfigV01(environment);
       const reviewWindowConfig =
         readVNextOperatorPilotReviewWindowConfigV01(environment);
       const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
+      const config = resolveVNextLocalReviewConfigV01({ environment, credential, clock: options.clock });
       db = openDatabase(config);
       const result = prepareVNextOperatorPilotSemanticCommitPreviewV01(db, {
         config,
@@ -92,11 +95,14 @@ export function createVNextOperatorSemanticTransitionHandlersV01(
         200,
         [
           serializeVNextOperatorPilotPreviewBindingCookieV01({
+            project_id: config.project_id,
             value: result.preview_binding_cookie,
             expires_at: expiresAt,
             max_age_ms: result.pilot_policy.preview_max_age_ms,
             secure: requestUrl.protocol === "https:",
           }),
+          // Retire the legacy shared preview; it is never an authority fallback.
+          serializeVNextOperatorPilotPreviewBindingCookieClearV01(requestUrl.protocol === "https:"),
         ],
       );
     } catch (error) {
@@ -120,10 +126,11 @@ export function createVNextOperatorSemanticTransitionHandlersV01(
           400,
         );
       }
-      const config = readVNextLocalOperatorPilotConfigV01(environment);
+      readVNextLocalOperatorPilotConfigV01(environment);
       const reviewWindowConfig =
         readVNextOperatorPilotReviewWindowConfigV01(environment);
       const credential = readVNextLocalOperatorCredentialFromRequestV01(request);
+      const config = resolveVNextLocalReviewConfigV01({ environment, credential, clock: options.clock });
       const parsed = parseActionBody(
         await readBoundedVNextLocalOperatorBodyV01(request),
       );
@@ -133,7 +140,7 @@ export function createVNextOperatorSemanticTransitionHandlersV01(
           config,
           credential,
           preview_binding_cookie:
-            readVNextOperatorPilotPreviewBindingCookieFromRequestV01(request),
+            readVNextOperatorPilotPreviewBindingCookieFromRequestV01(request, config.project_id),
           request: parsed.payload,
           review_window_config: reviewWindowConfig,
           clock: options.clock,
@@ -153,7 +160,7 @@ export function createVNextOperatorSemanticTransitionHandlersV01(
             semantic_authority_granted: false,
           },
           result.status === "inserted" ? 201 : 200,
-          mutationCookies(result.session_admission, requestUrl, true),
+          mutationCookies(result.session_admission, requestUrl, true, request, config.project_id),
         );
       }
       const result = applyVNextOperatorPilotReviewedSemanticTransitionV01(
@@ -184,7 +191,7 @@ export function createVNextOperatorSemanticTransitionHandlersV01(
           semantic_authority_granted: false,
         },
         result.status === "applied" ? 201 : 200,
-        mutationCookies(result.session_admission, requestUrl, false),
+        mutationCookies(result.session_admission, requestUrl, false, request, config.project_id),
       );
     } catch (error) {
       return routeErrorResponse(error);
@@ -253,9 +260,11 @@ function mutationCookies(
   },
   url: URL,
   clearPreview: boolean,
+  request: Request,
+  authenticatedProjectId: string,
 ): string[] {
   const cookies = [
-    serializeVNextLocalOperatorSessionCookieV01({
+    serializeVNextLocalOperatorSessionCookieV01({ request,
       value: admission.cookie_value,
       expires_at: admission.cookie_expires_at,
       max_age_seconds: admission.cookie_max_age_seconds,
@@ -266,7 +275,9 @@ function mutationCookies(
     cookies.push(
       serializeVNextOperatorPilotPreviewBindingCookieClearV01(
         url.protocol === "https:",
+        authenticatedProjectId,
       ),
+      serializeVNextOperatorPilotPreviewBindingCookieClearV01(url.protocol === "https:"),
     );
   }
   return cookies;

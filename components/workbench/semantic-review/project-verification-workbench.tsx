@@ -1,3 +1,4 @@
+import { projectClientHref } from "@/lib/vnext/project-client-href";
 import type { EpisodeDeltaProposalSourceAssessmentV01 } from "@/types/vnext/episode-delta-proposal";
 import type { CriterionAssessmentTrustV01 } from "@/types/vnext/criterion-assessment";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
@@ -145,11 +146,11 @@ export function ProjectVerificationWorkbench({
                 packetRef.source_ref?.startsWith("sha256:") ? (
                   <a
                     className={styles.linkButton}
-                    href={createSharedInspectorHrefV01({
+                    href={projectClientHref(createSharedInspectorHrefV01({
                       target_kind: "task_context_packet",
                       record_id: packetRef.external_id,
                       expected_fingerprint: packetRef.source_ref,
-                    })}
+                    }), reconciliation.project_id)}
                     data-context-to-shared-inspector="true"
                   >
                     Inspect exact selected context
@@ -248,11 +249,11 @@ export function ProjectVerificationWorkbench({
                   <TrustSummary receipt={receipt} />
                   <a
                     className={styles.linkButton}
-                    href={createSharedInspectorHrefV01({
+                    href={projectClientHref(createSharedInspectorHrefV01({
                       target_kind: "run_receipt",
                       record_id: receipt.receipt_id,
                       expected_fingerprint: receipt.integrity.fingerprint,
-                    })}
+                    }), reconciliation.project_id)}
                     data-receipt-to-shared-inspector="true"
                   >
                     Inspect receipt, artifacts, and provenance
@@ -337,7 +338,7 @@ export function ProjectVerificationWorkbench({
                   <TextList title="Uncertainty" items={criterion.uncertainty} />
                   <a
                     className={styles.linkButton}
-                    href={createSharedInspectorHrefV01({
+                    href={projectClientHref(createSharedInspectorHrefV01({
                       target_kind: "criterion",
                       criterion_id: criterion.criterion_id,
                       packet_id: entry.packet_ref.record_id,
@@ -346,7 +347,7 @@ export function ProjectVerificationWorkbench({
                       receipt_fingerprint: entry.receipt_ref.record_fingerprint,
                       assessment_id: entry.assessment_ref.record_id,
                       assessment_fingerprint: entry.assessment_ref.record_fingerprint,
-                    })}
+                    }), reconciliation.project_id)}
                     data-criterion-to-shared-inspector="true"
                   >
                     Inspect exact criterion lineage
@@ -396,8 +397,8 @@ export function ProjectVerificationWorkbench({
           ))}
         </div>
         <EvidenceList reconciliation={reconciliation} />
-        <ClaimFamilyList families={reconciliation.claim_families} />
-        <RelationFamilyList families={reconciliation.relation_families} />
+        <ClaimFamilyList projectId={reconciliation.project_id} families={reconciliation.claim_families} />
+        <RelationFamilyList projectId={reconciliation.project_id} families={reconciliation.relation_families} />
       </section>
       </details>
 
@@ -486,12 +487,12 @@ export function ProjectVerificationWorkbench({
                 </span>
                 <a
                   className={styles.linkButton}
-                  href={createSharedInspectorHrefV01({
+                  href={projectClientHref(createSharedInspectorHrefV01({
                     target_kind: "state_transition_receipt",
                     record_id: entry.source_transition_receipt_ref.record_id,
                     expected_fingerprint:
                       entry.source_transition_receipt_ref.record_fingerprint,
-                  })}
+                  }), reconciliation.project_id)}
                   data-transition-to-shared-inspector="true"
                 >
                   Inspect Transition, later packet, and feedback
@@ -543,11 +544,11 @@ function EvidenceList({
               <TextList title="Uncertainty" items={entry.uncertainty} />
               <a
                 className={styles.linkButton}
-                href={createSharedInspectorHrefV01({
+                href={projectClientHref(createSharedInspectorHrefV01({
                   target_kind: "evidence_record",
                   record_id: entry.evidence_ref.record_id,
                   expected_fingerprint: entry.evidence_ref.record_fingerprint,
-                })}
+                }), reconciliation.project_id)}
                 data-evidence-to-shared-inspector="true"
               >
                 Inspect exact Evidence and relations
@@ -561,9 +562,10 @@ function EvidenceList({
 }
 
 function ClaimFamilyList({
-  families,
+  families, projectId,
 }: {
   families: ProjectVerifyClaimFamilyProjectionV01[];
+  projectId: string;
 }) {
   return (
     <section className={styles.reconciliationGroup} aria-labelledby="claims-title">
@@ -643,13 +645,13 @@ function ClaimFamilyList({
                 ) : null}
                 <a
                   className={styles.linkButton}
-                  href={createSharedInspectorHrefV01({
+                  href={projectClientHref(createSharedInspectorHrefV01({
                     target_kind: "claim_family",
                     family_id: family.claim_family_id,
                     family_origin_fingerprint: family.family_origin_fingerprint,
                     applicability_scope_fingerprint:
                       family.applicability_scope_fingerprint,
-                  })}
+                  }), projectId)}
                   data-claim-family-to-shared-inspector="true"
                 >
                   Inspect immutable Claim revisions
@@ -664,9 +666,10 @@ function ClaimFamilyList({
 }
 
 function RelationFamilyList({
-  families,
+  families, projectId,
 }: {
   families: ProjectVerifyRelationFamilyProjectionV01[];
+  projectId: string;
 }) {
   return (
     <section className={styles.reconciliationGroup} aria-labelledby="relations-title">
@@ -720,13 +723,13 @@ function RelationFamilyList({
                 ) : null}
                 <a
                   className={styles.linkButton}
-                  href={createSharedInspectorHrefV01({
+                  href={projectClientHref(createSharedInspectorHrefV01({
                     target_kind: "relation_family",
                     family_id: family.relation_family_id,
                     family_origin_fingerprint: family.family_origin_fingerprint,
                     applicability_scope_fingerprint:
                       family.applicability_scope_fingerprint,
-                  })}
+                  }), projectId)}
                   data-relation-family-to-shared-inspector="true"
                 >
                   Inspect relation revisions and endpoints

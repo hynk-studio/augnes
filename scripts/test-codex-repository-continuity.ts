@@ -106,7 +106,7 @@ async function main(): Promise<void> {
     contract: "codex_repository_continuity.v0.1",
     physical_root_resolution: true,
     active_selection_independent_target_identity: true,
-    active_selection_coupled_projection: true,
+    active_selection_coupled_projection: false,
     cdx2a_projection_reused: true,
     zero_mutation: true,
     same_path_replacement_baseline: false,
@@ -487,7 +487,7 @@ async function assertCompanionRetainedBoundsV01(): Promise<void> {
       assert(selectionChanged);
       assert.equal(coherent.status, "available", "resolution, binding, eligibility and lookup share the original read snapshot");
       assert.equal(coherent.lookup!.returned_entries, 8);
-      assert.equal((await readCodexRepositoryRetainedSourcesV01(db, { repository_root: root, expected_snapshot_binding: freshBinding, query: "small" })).status, "refresh_required");
+      assert.equal((await readCodexRepositoryRetainedSourcesV01(db, { repository_root: root, expected_snapshot_binding: freshBinding, query: "small" })).status, "available");
     } finally { concurrent.close(); }
     console.log(JSON.stringify({ contract: "codex_repository_retained_sources.v0.1", whole_result_limits_foreign_reference: "pass" }));
   } finally { db.close(); }
@@ -730,7 +730,7 @@ async function assertCompanionWorkRevisionV01(limitOnly = false): Promise<void> 
       action: "revise_pre_execution_project_work", ...scope, expected_active_project_id: scope.project_id,
       expected_active_selection_revision: readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision,
       expected_current_packet_id: prior.packet_id, expected_current_packet_fingerprint: prior.integrity.fingerprint,
-      expected_current_lineage_kind: "pre_execution_user_revision", ...prior.task, goal: identicalPreview.definition.after.goal,
+      expected_current_lineage_kind: "pre_execution_user_revision", expected_project_work_binding: readProjectWorkInitializationV01(db, scope).project_work_binding!, ...prior.task, goal: identicalPreview.definition.after.goal,
       selected_source_context: [...readSelectedWorkSources(prior), originalSources.find((entry) => entry.source_ref === hit.source.source_fingerprint)!],
       retained_source_refs: [hit.source],
       expected_source_comparison: compareSelectedWorkSources(prior, [...readSelectedWorkSources(prior), originalSources.find((entry) => entry.source_ref === hit.source.source_fingerprint)!], [hit.source]).fingerprint,
@@ -739,18 +739,16 @@ async function assertCompanionWorkRevisionV01(limitOnly = false): Promise<void> 
     assert.equal(acknowledge.status, "exact_replay");
     assert.equal(acknowledge.packet_fingerprint, browserIdentical.packet.integrity.fingerprint);
     assert.equal(acknowledge.effects.work_revision_created, false);
-    const pending = await prepare({ goal: "Requires the same selection and zero history", sources: { retained_source_refs: [literal.source] } });
+    const pending = await prepare({ goal: "Requires the same project work and zero execution history", sources: { retained_source_refs: [literal.source] } });
     const pendingPreview = await call(pending);
     const pendingSave = { ...pending, action: "save", preview_binding: pendingPreview.preview_binding };
     const other = registerV01(db, scope.workspace_id, projectRootV01("revision-other"), "Other project", "60000000-0000-4000-8000-000000000002");
     selectV01(db, scope.workspace_id, other.project.project_id, scope.project_id, readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision);
-    const selectionBefore = db.serialize();
-    await assert.rejects(call(pendingSave), /work_revision_not_eligible/u);
-    assert.deepEqual(db.serialize(), selectionBefore);
+    assert.equal((await call(pendingSave)).status, "saved");
     const inactiveLookup = await lookup("condition", await snapshot());
-    assert.equal(inactiveLookup.status, "ineligible"); assert.equal(inactiveLookup.lookup, null);
+    assert.equal(inactiveLookup.status, "available"); assert(inactiveLookup.lookup);
     selectV01(db, scope.workspace_id, scope.project_id, other.project.project_id, readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision);
-    await assert.rejects(call(pendingSave), /refresh_required/u, "selecting back does not restore the old snapshot");
+    assert.equal((await call(pendingSave)).status, "exact_replay", "selection changes do not invalidate exact operation retry");
     const historyPending = await prepare({ goal: "Stop if managed history appears", sources: { retained_source_refs: [literal.source] } });
     const historyPreview = await call(historyPending);
     const historyAt = clock.now();
@@ -898,7 +896,7 @@ async function assertCurrentWorkSourcesV01(): Promise<void> {
     const registeredForeign = registerV01(db, scope.workspace_id, foreign, "Foreign", "40000000-0000-4000-8000-000000000002");
     assert.equal((await read(binding, foreign)).status, "refresh_required");
     selectV01(db, scope.workspace_id, registeredForeign.project.project_id, scope.project_id, request.expected_active_selection_revision);
-    assert.equal((await read(binding)).status, "refresh_required", "Browser selection is in the Resume binding");
+    assert.equal((await read(binding)).status, "available", "Browser selection does not invalidate the repository-bound snapshot");
     const inactiveBinding = await snapshot();
     assert.equal((await read(inactiveBinding)).status, "available", "exact repository sources do not switch to the Browser project");
     // A concurrent normal selection change during physical inspection cannot mix
@@ -918,7 +916,7 @@ async function assertCurrentWorkSourcesV01(): Promise<void> {
       });
       assert.equal(coherent.status, "available");
       assert.deepEqual(coherent.sources, material.sources);
-      assert.equal((await read(inactiveBinding)).status, "refresh_required");
+      assert.equal((await read(inactiveBinding)).status, "available");
     } finally { concurrent.close(); }
 
     Object.assign(process.env, { AUGNES_DB_PATH: db.name, AUGNES_RUNTIME_CHILD_ROLE: "ui", AUGNES_RUNTIME_INSTANCE_ID: "sources-instance", AUGNES_RUNTIME_GENERATION_ID: "sources-generation", AUGNES_RUNTIME_REPOSITORY_FINGERPRINT: "d".repeat(64), AUGNES_COMPANION_PROXY_TOKEN: "sources-test-credential" });
@@ -1254,11 +1252,11 @@ async function assertRepositoryAttachmentUsesExactProjectContinuityV01(): Promis
     assert.equal(afterSelection.continuity?.project.active, false);
     assert.equal(afterSelection.continuity?.project.selection_revision, activeB.selection_revision);
     assert.notEqual(afterSelection.continuity?.project.selection_revision, beforeSelection.continuity?.project.selection_revision);
-    assert.notEqual(afterSelection.continuity?.snapshot.binding, beforeSelection.continuity?.snapshot.binding);
+    assert.equal(afterSelection.continuity?.snapshot.binding, beforeSelection.continuity?.snapshot.binding);
     assert.equal(afterSelection.continuity?.current_work.currentness, "fresh");
-    assert.equal(afterSelection.continuity?.current_work.start_eligible, false);
-    assert.equal(afterSelection.continuity?.current_work.start_blocker, "The project is not active.");
-    assert.equal(afterSelection.continuity?.next_action.kind, "make_project_active");
+    assert.equal(afterSelection.continuity?.current_work.start_eligible, true);
+    assert.equal(afterSelection.continuity?.current_work.start_blocker, null);
+    assert.equal(afterSelection.continuity?.next_action.kind, "start_current_work");
     assert.deepEqual(afterSelection.authority, beforeSelection.authority);
     assert.equal(Object.values(afterSelection.authority).every((value) => value === false), true);
 
@@ -1800,10 +1798,9 @@ async function assertSupportMaterialRevisionV01(): Promise<void> {
       changes: { goal: "Third revision if still eligible" } };
     const pendingPreview = await call(pending), pendingSave = { ...pending, action: "save", preview_binding: pendingPreview.preview_binding };
     selectV01(db, scope.workspace_id, otherScope.project_id, scope.project_id, readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision);
-    const inactive = db.serialize();
-    await assert.rejects(call(pendingSave)); assert.deepEqual(db.serialize(), inactive);
+    assert.equal((await call(pendingSave)).status, "saved");
     selectV01(db, scope.workspace_id, scope.project_id, otherScope.project_id, readActiveProjectSelectionV01(db, scope.workspace_id)!.selection_revision);
-    await assert.rejects(call(pendingSave), /refresh_required/u);
+    assert.equal((await call(pendingSave)).status, "exact_replay");
     const executionPending = { ...pending, expected_snapshot_binding: (await resume()).continuity!.snapshot.binding! };
     const executionPreview = await call(executionPending);
     const at = clock.now();
@@ -1816,9 +1813,9 @@ async function assertSupportMaterialRevisionV01(): Promise<void> {
     const blocked = db.serialize();
     await assert.rejects(call({ ...executionPending, action: "save", preview_binding: executionPreview.preview_binding }));
     assert.deepEqual(db.serialize(), blocked);
-    assert.equal(chain().revision_count, 2, "later execution admission blocks editing without corrupting prior preparation");
+    assert.equal(chain().revision_count, 3, "later execution admission blocks editing without corrupting prior preparation");
     console.log(JSON.stringify({ support_material_revision: "pass", authenticated_writers: ["Companion", "Browser-domain"],
-      revisions: 2, evidence_records: evidence.length, timing: ["before preview", "between preview and save", "between revisions"],
+      revisions: 3, evidence_records: evidence.length, timing: ["before preview", "between preview and save", "between revisions"],
       fresh_process: true, authenticated_companion_route_and_parser: true, immutable_prior_material: true, recovery_and_portability: true, no_implicit_selection: true,
       changed_binding_rejected: true, failed_write_atomic: true, exact_replay: true, execution_admission_blocks: true }));
   } finally { db.close(); }

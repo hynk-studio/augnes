@@ -1,5 +1,9 @@
 "use client";
 
+import { useProjectClientFetch } from "./project-client-scope";
+
+import { useWorkDraftState, type WorkComposerDraft } from "./work-composer-draft";
+
 import { useRef, useState } from "react";
 import { REVIEWED_OUTCOME_SOURCE_V01, SELECTED_WORK_SOURCE_LABELS, type ReviewedOutcomeSourceRefV01, type SelectedWorkSourceInput, type SelectedWorkSourceSelection, type RetainedWorkSourceRef } from "@/types/vnext/project-work-revision";
 import type { ReviewedOutcomeReuseV01 } from "@/lib/vnext/persistence/reviewed-outcome-source";
@@ -16,8 +20,11 @@ const emptyNote = (): SelectedWorkSourceInput => ({ source: "", text: "", observ
 type EditorNote = SelectedWorkSourceInput & { retainedSource?: RetainedWorkSourceRef; reviewedOutcome?: ReviewedOutcomeSourceRefV01; savedSourceId?: string; snapshotGroup?: string };
 const isSnapshot = (entry: TaskContextPacketSelectedEntryV01) => entry.compatibility_source_ref?.compatibility_namespace === REVIEWED_OUTCOME_SOURCE_V01;
 
-export function SelectedWorkSourceEditor({ initialization, busy, onChange, newTask = false, resultBinding, resultSource, reviewedOutcome }: {
+export function SelectedWorkSourceEditor({ composerDraft, onAccessRefused, onRefreshCurrentWork, initialization, busy, onChange, newTask = false, resultBinding, resultSource, reviewedOutcome }: {
   initialization: ProjectWorkInitializationV01;
+  composerDraft?: WorkComposerDraft;
+  onAccessRefused?: (errorCode?: string) => void;
+  onRefreshCurrentWork?: () => Promise<void>;
   busy: boolean;
   newTask?: boolean;
   resultBinding?: ResultWorkBindingV01;
@@ -25,7 +32,8 @@ export function SelectedWorkSourceEditor({ initialization, busy, onChange, newTa
   reviewedOutcome?: ReviewedOutcomeReuseV01;
   onChange: (selection: SelectedWorkSourceSelection | null, pending: boolean) => void;
 }) {
-  const [notes, setNotes] = useState<EditorNote[]>(() => (newTask ? [] : initialization.selected_source_context ?? []).map((entry) => ({
+  const fetch = useProjectClientFetch();
+  const [notes, setNotes] = useWorkDraftState<EditorNote[]>(composerDraft, "notes", () => (newTask ? [] : initialization.selected_source_context ?? []).map((entry) => ({
     source: entry.compatibility_source_ref!.external_id, observed_at: entry.external_ref!.observed_at ?? null,
     provenance: entry.trust_class as SelectedWorkSourceInput["provenance"],
     label: entry.why_included as SelectedWorkSourceInput["label"], text: entry.bounded_summary!,
@@ -33,9 +41,9 @@ export function SelectedWorkSourceEditor({ initialization, busy, onChange, newTa
       retainedSource: { packet_id: initialization.current_packet!.packet_id, packet_fingerprint: initialization.current_packet!.packet_fingerprint,
         entry_id: entry.entry_id, source_fingerprint: entry.source_ref! } } : {}),
   })));
-  const [draft, setDraft] = useState(emptyNote);
-  const [draftTime, setDraftTime] = useState("");
-  const [comparison, setComparison] = useState<Comparison | null>(null);
+  const [draft, setDraft] = useWorkDraftState(composerDraft, "noteDraft", emptyNote);
+  const [draftTime, setDraftTime] = useWorkDraftState(composerDraft, "noteTime", "");
+  const [comparison, setComparison] = useWorkDraftState<Comparison | null>(composerDraft, "comparison", null);
   const [comparing, setComparing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const revision = useRef(0);
@@ -59,17 +67,20 @@ export function SelectedWorkSourceEditor({ initialization, busy, onChange, newTa
         note.reviewedOutcome ? { reviewed_outcome_ref: note.reviewedOutcome } : note.savedSourceId ? { saved_source_id: note.savedSourceId } : note) } : { action: "compare_selected_work_sources",
         expected_current_packet_id: packet.packet_id,
         expected_current_packet_fingerprint: packet.packet_fingerprint,
-        expected_active_project_id: initialization.active_project_id,
+        expected_active_project_id: initialization.project_id,
+        expected_project_work_binding: initialization.project_work_binding,
         expected_active_selection_revision: initialization.active_selection_revision,
         notes: selection.filter((note) => !note.retainedSource),
         retained_source_refs: selection.flatMap((note) => note.retainedSource ? [note.retainedSource] : []) }),
     });
     const body = await response.json() as { status?: string; comparison?: Comparison; error_code?: string };
+    if (response.status === 401 || response.status === 403) onAccessRefused?.(body.error_code);
+    if (response.status === 409) await onRefreshCurrentWork?.();
     if (!response.ok || body.status !== "selected_source_comparison" || !body.comparison) {
       if (body.error_code === "selected_source_context_budget_exceeded" || body.error_code === "task_context_mandatory_selection_budget_exceeded") {
         throw new Error("The complete selection exceeds the eight-note or 32,000-byte context budget. Exclude notes before continuing. Nothing was saved or clipped.");
       }
-      throw new Error("Comparison could not be completed. Check the note size and reload if current work has changed.");
+      throw new Error("Comparison could not be completed. Your draft is retained. Check the note size and review current work before comparing again.");
     }
     return body.comparison;
   }
@@ -123,7 +134,7 @@ export function SelectedWorkSourceEditor({ initialization, busy, onChange, newTa
             observed_at: entry.external_ref?.observed_at ?? null, provenance: entry.trust_class as SelectedWorkSourceInput["provenance"], label: entry.why_included as SelectedWorkSourceInput["label"],
             ...(isSnapshot(entry) ? { savedSourceId: entry.entry_id, snapshotGroup: entry.compatibility_source_ref!.external_id } : {}) }])}>Carry this note{isSnapshot(entry) ? " and its snapshot context" : ""}</button>
       </div>)}
-    </> : <RetainedWorkSourceLookup initialization={initialization} disabled={busy || comparing} remainingSlots={8 - selectedCount}
+    </> : <RetainedWorkSourceLookup onAccessRefused={onAccessRefused} onRefreshCurrentWork={onRefreshCurrentWork} initialization={initialization} disabled={busy || comparing} remainingSlots={8 - selectedCount}
       isSelected={(hit) => notes.some((note) => isSnapshot(hit.entry) ? note.retainedSource?.entry_id === hit.source.entry_id && note.retainedSource?.source_fingerprint === hit.source.source_fingerprint : note.source === hit.entry.compatibility_source_ref!.external_id &&
         note.text === hit.entry.bounded_summary && note.observed_at === (hit.entry.external_ref?.observed_at ?? null) &&
         note.provenance === hit.entry.trust_class && note.label === hit.entry.why_included)}

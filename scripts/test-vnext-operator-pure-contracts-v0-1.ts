@@ -470,7 +470,7 @@ assert.equal(
   true,
 );
 assert.equal(
-  resultReviewSource.includes("href={result.summary.inspector_href}"),
+  resultReviewSource.includes("href={projectClientHref(result.summary.inspector_href, result.project_id)}"),
   true,
 );
 record("ai_workplane_replaces_active_agent_and_semantic_workbench_presentations");
@@ -605,6 +605,8 @@ const sourceConsistentWorkbenchEntries = [
   requiredProjectReviewEntry,
 ];
 for (const entry of sourceConsistentWorkbenchEntries) {
+  const destination = new URL(entry.href, "http://project-client.invalid");
+  assert.equal(destination.searchParams.get("project_id"), entry.project_id);
   if (entry.source.record_kind === "run_receipt") {
     assert(["result_only", "assessment"].includes(entry.entry_state));
   } else if (entry.source.record_kind === "episode_delta_proposal") {

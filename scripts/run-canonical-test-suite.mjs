@@ -4,6 +4,7 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
+import { loadResearchTestSteps } from "./canonical-research-registration.mjs";
 
 import {
   assertCanonicalConcurrentChildLabelsV01,
@@ -117,6 +118,15 @@ const projectExperienceStep = {
   timeoutMs: 360_000,
   requireNaturalExit: true,
 };
+const projectClientBrowserStep = {
+  id: "project-client-browser",
+  group: "project-experience",
+  requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "browser-profile-owning", "cdp-session-owning"],
+  label: "same-profile project clients, held saves and recoverable drafts in Browser",
+  ...rootNode("scripts/test-project-client-browser.ts"),
+  timeoutMs: 60_000,
+  requireNaturalExit: true,
+};
 const webPlanningBrowserStep = {
   id: "web-planning-browser",
   group: "project-experience",
@@ -174,17 +184,6 @@ const suites = {
       label: "conditional procedure recipes, lineage, limits and disposable probes (zero model)",
       ...rootNode("scripts/test-conditional-procedure-learning.ts"),
       timeoutMs: 30_000,
-    },
-    {
-      id: "hypothesis-cache-study",
-      group: "serial",
-      requirements: ["filesystem", "immutable-fixture-input"],
-      label: "hypothesis and adaptive memo cache study outputs, provenance and costs (zero model)",
-      command: process.execPath,
-      args: ["scripts/test-hypothesis-cache-study.mjs"],
-      cwd: repoRoot,
-      timeoutMs: 10_000,
-      requireNaturalExit: true,
     },
     {
       label: "public first-read artifact privacy and semantic parity",
@@ -709,6 +708,42 @@ const suites = {
       ...rootNode("scripts/test-vnext-project-home.ts"),
     },
     {
+      id: "project-bound-work-writers",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem"],
+      label: "project-bound initial, revision, new-work and Companion writers with genuine conflicts",
+      ...rootNode("scripts/test-project-bound-work-writers.ts"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "project-client-sessions",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "mutable-module-state"],
+      label: "same-profile project cookies, interleaved authenticated routes and retained refusal boundaries",
+      ...rootNode("scripts/test-project-client-sessions.ts"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "project-transition-cookies",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "mutable-module-state"],
+      label: "project-scoped semantic previews, reordered cookie responses and retained authority conflicts",
+      ...rootNode("scripts/test-project-transition-cookies.ts"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "project-client-runs",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "deterministic-fake-transport", "mutable-module-state"],
+      label: "overlapping project runs with independent status, approval, cancellation and readback",
+      ...rootNode("scripts/test-project-client-runs.ts"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "project-work-initialization",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem"],
@@ -862,6 +897,15 @@ const suites = {
       requirements: ["database", "migrations", "filesystem", "process-owning"],
       label: "source-bound project outlook, native consumer, result and successor reconsideration",
       ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--retry-inspection-only"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "companion-experience-use",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
+      label: "ordinary different-task experience use, delivered callable execution and version revision",
+      ...rootNode("scripts/test-companion-experience-use.ts"),
       timeoutMs: 30_000,
       requireNaturalExit: true,
     },
@@ -1201,6 +1245,13 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      id: "local-canonical-isolation",
+      label: "isolated verification admission, capacity, cancellation and resource ownership",
+      ...rootNode("scripts/test-local-canonical-isolation.mjs"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       label: "read-only GitHub main-branch source-attestation transport",
       ...rootNode("scripts/test-github-main-branch-transport.mjs"),
       timeoutMs: 30_000,
@@ -1472,7 +1523,7 @@ const suites = {
     { ...continuityStep },
     { ...goldenStep },
   ],
-  "e2e-project-experience": [{ ...projectExperienceStep }, { ...webPlanningBrowserStep }],
+  "e2e-project-experience": [{ ...projectExperienceStep }, { ...projectClientBrowserStep }, { ...webPlanningBrowserStep }],
   "e2e-operator-review-control": [
     { ...operatorReviewControlStep },
     { ...operatorBrowserNavigationDiagnosticsStep },
@@ -1492,6 +1543,21 @@ const suites = {
   "e2e-continuity": [{ ...continuityStep }],
   "e2e-golden": [{ ...goldenStep }],
 };
+
+// Additions cannot override or filter existing children. The reviewed loader
+// owns commands, phase, deadlines and the mandatory source/test inventory.
+const existingIds = Object.values(suites).flat().map(step => step.id).filter(Boolean);
+const researchSteps = loadResearchTestSteps(repoRoot, existingIds);
+suites.unit.push(...researchSteps);
+suites.authority.push({
+  id: "canonical-research-registration",
+  label: "audited research registration and conservative selection contract",
+  command: process.execPath,
+  args: ["scripts/test-canonical-research-registration.mjs"],
+  cwd: repoRoot,
+  timeoutMs: 30_000,
+  requireNaturalExit: true,
+});
 
 const integrationInventory = suites.integration;
 // Reuse the complete registered children, including their timeout and resource

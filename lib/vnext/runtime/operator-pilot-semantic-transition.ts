@@ -50,6 +50,7 @@ import {
 import {
   admitVNextLocalOperatorMutationInsideTransactionV01,
   authenticateVNextLocalOperatorSessionV01,
+  projectScopedOperatorCookieNameV01,
   readVNextLocalOperatorSessionHistoryV01,
   type VNextLocalOperatorPilotConfigV01,
   type VNextLocalOperatorSecretSourceV01,
@@ -537,6 +538,7 @@ export function applyVNextOperatorPilotReviewedSemanticTransitionV01(
 }
 
 export function serializeVNextOperatorPilotPreviewBindingCookieV01(input: {
+  project_id: string;
   value: string;
   expires_at: string;
   max_age_ms?: number;
@@ -558,7 +560,7 @@ export function serializeVNextOperatorPilotPreviewBindingCookieV01(input: {
     throw transitionError("operator_pilot_preview_binding_invalid", 500);
   }
   return [
-    `${VNEXT_OPERATOR_PILOT_PREVIEW_COOKIE_V01}=${input.value}`,
+    `${projectScopedOperatorCookieNameV01(VNEXT_OPERATOR_PILOT_PREVIEW_COOKIE_V01, input.project_id)}=${input.value}`,
     `Path=${VNEXT_OPERATOR_PILOT_PREVIEW_COOKIE_PATH_V01}`,
     "HttpOnly",
     "SameSite=Strict",
@@ -570,9 +572,10 @@ export function serializeVNextOperatorPilotPreviewBindingCookieV01(input: {
 
 export function serializeVNextOperatorPilotPreviewBindingCookieClearV01(
   secure: boolean,
+  projectId?: string,
 ): string {
   return [
-    `${VNEXT_OPERATOR_PILOT_PREVIEW_COOKIE_V01}=`,
+    `${projectScopedOperatorCookieNameV01(VNEXT_OPERATOR_PILOT_PREVIEW_COOKIE_V01, projectId)}=`,
     `Path=${VNEXT_OPERATOR_PILOT_PREVIEW_COOKIE_PATH_V01}`,
     "HttpOnly",
     "SameSite=Strict",
@@ -584,7 +587,12 @@ export function serializeVNextOperatorPilotPreviewBindingCookieClearV01(
 
 export function readVNextOperatorPilotPreviewBindingCookieFromRequestV01(
   request: Request,
+  authenticatedProjectId: string,
 ): string {
+  // The route supplies the server-resolved scope, never an unchecked URL/header.
+  // Legacy unscoped previews require explicit re-review. In particular, neither
+  // an absent nor an invalid scoped binding may fall back to the shared cookie.
+  const cookieName = projectScopedOperatorCookieNameV01(VNEXT_OPERATOR_PILOT_PREVIEW_COOKIE_V01, authenticatedProjectId);
   const header = request.headers.get("cookie");
   if (!header || header.length > MAX_COOKIE_CHARACTERS) {
     throw transitionError("operator_pilot_preview_binding_missing", 409);
@@ -592,8 +600,8 @@ export function readVNextOperatorPilotPreviewBindingCookieFromRequestV01(
   const values = header
     .split(";")
     .map((part) => part.trim())
-    .filter((part) => part.startsWith(`${VNEXT_OPERATOR_PILOT_PREVIEW_COOKIE_V01}=`))
-    .map((part) => part.slice(VNEXT_OPERATOR_PILOT_PREVIEW_COOKIE_V01.length + 1));
+    .filter((part) => part.startsWith(`${cookieName}=`))
+    .map((part) => part.slice(cookieName.length + 1));
   if (values.length !== 1 || !values[0]) {
     throw transitionError("operator_pilot_preview_binding_missing", 409);
   }

@@ -41,7 +41,7 @@ export function ProjectControls({
       const response = await fetch("/api/vnext/project-controls", {
         method: "POST",
         credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Augnes-Project-Id": projection.project_id },
         body: JSON.stringify({
           action,
           project_id: projection.project_id,
@@ -75,7 +75,7 @@ export function ProjectControls({
       const response = await fetch("/api/vnext/operator/automation-cycle", {
         method: "POST",
         credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Augnes-Project-Id": projection.project_id },
         body: JSON.stringify({
           action,
           ...(action === "run_one_bounded_cycle"

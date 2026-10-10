@@ -1,3 +1,6 @@
+"use client";
+
+import { useProjectClientHref } from "@/components/workbench/semantic-review/project-client-scope";
 import type { ReactNode } from "react";
 
 import { ProjectGuideBriefRail } from "@/components/guide/project-guide-brief-rail";
@@ -54,6 +57,7 @@ export function AIWorkplaneShell({
   priorityContent?: ReactNode;
   children: ReactNode;
 }) {
+  const scopedHref = useProjectClientHref();
   const guideFollowsConsequentialWork = [
     "result_ready",
     "change_decision",
@@ -108,11 +112,11 @@ export function AIWorkplaneShell({
         </div>
         <nav className={styles.nav} aria-label="AI Workplane destinations">
           <a href={projectHref}>Continuities</a>
-          <a href="/workbench/semantic-review" aria-current="page">
+          <a href={scopedHref("/workbench/semantic-review")} aria-current="page">
             AI Workplane home
           </a>
           {exactDetailsHref ? (
-            <a href={exactDetailsHref} data-ai-workplane-exact-details="true">
+            <a href={scopedHref(exactDetailsHref)} data-ai-workplane-exact-details="true">
               View exact details
             </a>
           ) : null}

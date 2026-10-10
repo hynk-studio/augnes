@@ -1,5 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useProjectDraftAccess } from "./project-draft-access";
+import type { WorkComposerDraft } from "../workbench/semantic-review/work-composer-draft";
 import { useRouter } from "next/navigation";
 import type { StatelessGrantRequest } from "@/lib/vnext/stateless-work";
 import type { StatelessObservationCheckpoint } from "@/lib/vnext/runtime/stateless-review-ledger";
@@ -13,6 +15,12 @@ import { StatelessReviewFailure } from "./stateless-review-failure";
 type Review = { observation_checkpoint: StatelessObservationCheckpoint | null; terminal_preparation: ReturnType<typeof readTerminalAuthorshipPreparation>; stage: string; next_step: string | null; failures: StatelessFailureReview[]; disposition_preparation: ReturnType<typeof readStatelessDispositionPreparation>; run: { run_id: string; title: string; status: string; stop_reason: string | null;
   steps: Array<{ title: string; status: string; output: { judgment?: { rationale: string }; observation?: { availability: string; bytes_read: number } } }> } };
 export function StatelessSourceReview({ projectId }: { projectId: string }) {
+  return <ScopedStatelessSourceReview key={projectId} projectId={projectId} />;
+}
+function ScopedStatelessSourceReview({ projectId }: { projectId: string }) {
+  const access = useProjectDraftAccess(projectId);
+  const terminalDrafts = useRef(new Map<string, WorkComposerDraft>());
+  function terminalDraft(key: string) { let draft = terminalDrafts.current.get(key); if (!draft) { draft = new Map(); terminalDrafts.current.set(key, draft); } return draft; }
   const router = useRouter();
   const [question, setQuestion] = useState("");
   const [files, setFiles] = useState([{ path: "", start_line: 1, end_line: 1 }, { path: "", start_line: 1, end_line: 1 }]);
@@ -24,8 +32,11 @@ export function StatelessSourceReview({ projectId }: { projectId: string }) {
   const [message, setMessage] = useState(""); const [busy, setBusy] = useState(false);
   const endpoint = `/api/vnext/operator/stateless-source-review?project_id=${encodeURIComponent(projectId)}`;
   async function request(body?: unknown) {
+    await access.verify();
     const response = await fetch(endpoint, { method: body ? "POST" : "GET", credentials: "same-origin", cache: "no-store",
-      ...(body ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}) });
+      headers: { "Augnes-Project-Id": projectId, ...(body ? { "Content-Type": "application/json" } : {}) },
+      ...(body ? { body: JSON.stringify(body) } : {}) });
+    access.check(response);
     const value = await response.json();
     if (!response.ok) throw new Error(response.status === 401 ? "Open protected project review to establish local access."
       : body && typeof body === "object" && "action" in body && ["compare_terminal_sources", "preview_terminal_work", "author_terminal_work"].includes(String(body.action))
@@ -38,6 +49,11 @@ export function StatelessSourceReview({ projectId }: { projectId: string }) {
     setBusy(true); setMessage(""); try { await action(); router.refresh(); } catch (e) { setMessage(e instanceof Error ? e.message : "Review unavailable."); } finally { setBusy(false); }
   }
   const refresh = async () => { const value = await request(); setReviews(value.reviews); setPrepared(value.preparation); setPreview(null); setMessage(value.reviews.length ? "Saved review results loaded." : "No saved source reviews."); };
+  if (access.locked) return <div role="status" data-stateless-review-locked><p>Review access is unavailable. Your question, file choices and linked-work draft are retained for the original project and operator.</p>
+    <a href={`/workbench/semantic-review?project_id=${encodeURIComponent(projectId)}`} target="_blank" rel="noreferrer">Open protected review</a>
+    <button disabled={busy} data-stateless-review-action="restore" onClick={() => void act(async () => { await access.verify(true); setPreview(null); })}>Restore review after authentication</button>
+    {message && <p>{message}</p>}
+  </div>;
   return <details data-stateless-source-review="v0.1"><summary>Review a bounded source question with the configured model</summary>
     <p>Prepare one question for the current work and up to two exact file ranges. After one authorization, the model may request one local read or explain non-use, then reconsider the recorded observation. Its answer remains advice.</p>
     <label>Source-review question<textarea aria-label="Source-review question" value={question} maxLength={800} onChange={e => { setQuestion(e.target.value); setPrepared(null); setPreview(null); }} /></label>
@@ -100,7 +116,7 @@ export function StatelessSourceReview({ projectId }: { projectId: string }) {
       {review.run.steps.map(step => <p key={step.title}>{step.title}: {step.status}{step.output.judgment ? ` — ${step.output.judgment.rationale}` : step.output.observation ? ` — ${step.output.observation.availability}, ${step.output.observation.bytes_read} bytes` : ""}</p>)}
       {review.failures.map((failure, index) => <StatelessReviewFailure key={`${failure.step_id}:${index}`} review={failure} />)}
       {/* Material edits keep the draft; a different historical predecessor starts a new one. */}
-      {review.terminal_preparation && <StatelessTerminalAuthorship key={`${projectId}:${JSON.stringify(review.terminal_preparation.binding)}`} preparation={review.terminal_preparation} material={{ question, files: files.filter(f => f.path) }} request={request} saved={refresh} />}
+      {review.terminal_preparation && <StatelessTerminalAuthorship key={`${projectId}:${JSON.stringify(review.terminal_preparation.binding)}`} draft={terminalDraft(JSON.stringify(review.terminal_preparation.binding))} preparation={review.terminal_preparation} material={{ question, files: files.filter(f => f.path) }} request={request} saved={refresh} />}
       {review.observation_checkpoint && <button disabled={busy} onClick={() => void act(async () => { await request({ action: "continue", run_id: review.run.run_id, checkpoint: review.observation_checkpoint }); await refresh(); })}>Continue from saved observation</button>}
       {review.stage === "ready" && <button disabled={busy} onClick={() => void act(async () => { await request({ action: "continue", run_id: review.run.run_id }); await refresh(); })}>Continue from saved results</button>}
       {review.disposition_preparation && !review.disposition_preparation.disposition && <button disabled={busy} onClick={() => void act(async () => {
@@ -108,10 +124,10 @@ export function StatelessSourceReview({ projectId }: { projectId: string }) {
       })}>End further work; keep outcome unknown</button>}
       {review.disposition_preparation?.disposition && <div>
         <p>To prepare distinct linked work, enter a question and current file ranges above. Existing success criteria and non-goals carry forward. Preparation makes no model request and grants no execution permission.</p>
-        <button disabled={busy || !question || !files[0].path || !review.disposition_preparation?.expected_active_selection_revision} onClick={() => void act(async () => {
+        <button disabled={busy || !question || !files[0].path || !review.disposition_preparation?.expected_project_work_binding} onClick={() => void act(async () => {
           setPrepared(null); setPreview(null);
           const value = await request({ action: "prepare_linked_work", disposition: { run_id: review.run.run_id, disposition_fingerprint: review.disposition_preparation!.disposition!.fingerprint },
-            expected_active_selection_revision: review.disposition_preparation!.expected_active_selection_revision, material: { question, files: files.filter(f => f.path) } });
+            expected_project_work_binding: review.disposition_preparation!.expected_project_work_binding, material: { question, files: files.filter(f => f.path) } });
           setPrepared(value.result); setMessage("Linked new work saved. The earlier outcome remains unknown. Review fresh authorization separately when ready.");
         })}>Prepare linked work from the question above</button>
       </div>}

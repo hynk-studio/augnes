@@ -1,3 +1,4 @@
+import { projectClientHref } from "../project-client-href";
 import type Database from "better-sqlite3";
 import { readAutonomyRunLedgerRecord } from "@/lib/autonomy/runner-ledger";
 import { deriveCriterionIdentityV01 } from "@/lib/vnext/criterion-identity";
@@ -175,7 +176,7 @@ export function readWorkExpectationComparison(db: Database.Database, input: Scop
       ...(typed ? criterion?.uncertainty ?? [] : ["Natural-language criteria require an explicit source-linked operator observation; worker summaries and overall completion are not proof."]),
       ...(!conditionsKnown ? ["Applicability conditions have not been established by an operator report."] : [])],
     report_allowed: exact && completed,
-    packet_href: createSharedInspectorHrefV01({ target_kind: "task_context_packet", record_id: packet.packet_id, expected_fingerprint: packet.integrity.fingerprint }),
-    result_href: createRunResultReviewHrefV01(receipt.receipt_id),
+    packet_href: projectClientHref(createSharedInspectorHrefV01({ target_kind: "task_context_packet", record_id: packet.packet_id, expected_fingerprint: packet.integrity.fingerprint }), packet.project_id),
+    result_href: projectClientHref(createRunResultReviewHrefV01(receipt.receipt_id), receipt.project_id),
   };
 }

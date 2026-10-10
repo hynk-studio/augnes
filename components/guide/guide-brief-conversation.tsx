@@ -1,5 +1,7 @@
 "use client";
 
+import { projectClientHref } from "@/lib/vnext/project-client-href";
+
 import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 
 import {
@@ -444,7 +446,7 @@ export function GuideBriefConversation({
           : "/api/augnes/guide-brief/interpretation",
         {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: { "content-type": "application/json", "Augnes-Project-Id": projectId },
           cache: "no-store",
           signal: controller.signal,
           body: JSON.stringify({
@@ -630,6 +632,7 @@ export function GuideBriefConversation({
       {visibleAnswer ? (
         <ConversationAnswer
           plan={visibleAnswer}
+          projectId={guide.identity.project_id}
           modelAssisted={answerWasModelAssisted}
         />
       ) : null}
@@ -796,9 +799,11 @@ function InteractionOutcome({
 
 function ConversationAnswer({
   plan,
+  projectId,
   modelAssisted,
 }: {
   plan: GuideBriefConversationPlanV01;
+  projectId: string | null;
   modelAssisted: boolean;
 }) {
   const sections: Array<{
@@ -859,7 +864,7 @@ function ConversationAnswer({
           aria-label="Existing related destinations"
         >
           {plan.secondary_destinations.map((destination) => (
-            <a key={destination.href} href={destination.href}>
+            <a key={destination.href} href={projectClientHref(destination.href, projectId)}>
               {destination.label}
             </a>
           ))}

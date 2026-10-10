@@ -197,6 +197,18 @@ const baseReceipt = {
 };
 
 const policyPhaseIds = ["operating-policy-validator", "operating-policy-planner-contract", "operating-policy-executor-contract", "operating-policy-receipt-contract", "operating-policy-verification-contract"];
+baseReceipt.verification_context = {
+  contract: "augnes.local-canonical-verification-context.v1", kind: "canonical",
+  repository_id: "hynk-studio/augnes", admission: "fixed_canonical_root",
+  anchor_fingerprint: "a".repeat(64), checkout_fingerprint: "a".repeat(64), git_common_fingerprint: "b".repeat(64),
+};
+baseReceipt.capacity_ownership = { required: false, acquired: false, released: false, failure_code: null };
+baseReceipt.run.id = "fixture-run";
+baseReceipt.run.invocation_id = "f".repeat(32);
+baseReceipt.phases[0].invocation_id = baseReceipt.run.invocation_id;
+baseReceipt.cleanup.isolated_resources = { required: false, prepared: false };
+baseReceipt.historical_inputs = { required: false, prepared: false };
+baseReceipt.cleanup.companion_service.scope = "installed_checkout_lifecycle";
 baseReceipt.phases = policyPhaseIds.map((id) => ({ ...structuredClone(baseReceipt.phases[0]), id }));
 
 assert.equal(
@@ -217,6 +229,8 @@ assert(
 );
 
 const validContext = {
+  currentVerificationContext: baseReceipt.verification_context,
+  expectedRunId: baseReceipt.run.id,
   currentIntegrationBase: {
     ...structuredClone(baseReceipt.integration_base),
     observation: { ...baseReceipt.integration_base.observation, observed_at: "2026-07-24T00:00:02.000Z" },
@@ -361,6 +375,12 @@ targetedReceipt.checkout_ownership = {
   released_at: baseReceipt.run.finished_at,
   failure_code: null,
 };
+targetedReceipt.capacity_ownership = {
+  contract: "augnes.local-canonical-capacity.v1", required: true,
+  acquired: true, released: true, failure_code: null, limit: 2, slot: 1,
+  invocation_id: targetedReceipt.run.invocation_id, ownership_id: "e".repeat(32),
+  checkout_fingerprint: "e".repeat(64), acquired_at: baseReceipt.run.started_at, released_at: baseReceipt.run.finished_at,
+};
 const targetedPhaseIds = [
   "targeted-change-validator",
   "dependencies-root",
@@ -473,6 +493,69 @@ const targetedContext = {
   expectedTargetedPhaseIds: targetedPhaseIds,
   expectedPhaseIds: targetedPhaseIds,
 };
+const isolatedReceipt = structuredClone(targetedReceipt);
+Object.assign(isolatedReceipt.verification_context, {
+  kind: "isolated-worktree", admission: "registered_worktree_of_authorized_mac", checkout_fingerprint: "c".repeat(64),
+});
+isolatedReceipt.dependencies.download_cache = "invocation_private_cache_not_authoritative";
+isolatedReceipt.cleanup.companion_service.scope = "accepted_checkout_read_only";
+isolatedReceipt.cleanup.isolated_resources = {
+  required: true, prepared: true, completed: true, failure_count: 0, failures: [],
+  fingerprint: "f".repeat(64), invocation_id: isolatedReceipt.run.invocation_id,
+  policy: "private_outer_home_temp_cache_database_runtime",
+};
+const isolatedContext = { ...targetedContext, currentVerificationContext: isolatedReceipt.verification_context };
+assert.equal(inspectReceiptForDecision(finalizeReceipt(isolatedReceipt), isolatedContext).valid_deciding_evidence, true);
+const historicalReceipt = structuredClone(isolatedReceipt);
+historicalReceipt.phases.push({ ...structuredClone(historicalReceipt.phases.at(-1)), id: "authority" });
+historicalReceipt.evidence.planner_targeted_phase_ids.push("authority");
+const historicalContext = { ...isolatedContext, expectedPhaseIds: [...targetedPhaseIds, "authority"], expectedTargetedPhaseIds: [...targetedPhaseIds, "authority"] };
+historicalReceipt.historical_inputs = {
+  required: true, prepared: true, contract: "augnes.local-canonical-historical-inputs.v1",
+  invocation_id: historicalReceipt.run.invocation_id,
+  anchor_fingerprint: historicalReceipt.verification_context.anchor_fingerprint,
+  source_fingerprint: "d".repeat(64), content_fingerprint: "e".repeat(64), file_count: 5, byte_count: 500,
+  unchanged: true, completed: true, failures: [],
+};
+assert.equal(inspectReceiptForDecision(finalizeReceipt(historicalReceipt), historicalContext).valid_deciding_evidence, true);
+for (const mutate of [
+  r => { delete r.historical_inputs; },
+  r => { r.historical_inputs.invocation_id = "9".repeat(32); },
+  r => { r.historical_inputs.anchor_fingerprint = "9".repeat(64); },
+  r => { r.historical_inputs.content_fingerprint = null; },
+  r => { r.historical_inputs.unchanged = false; },
+  r => { r.historical_inputs.completed = false; },
+  r => { r.historical_inputs.failures.push("resource_consumers_unsettled"); },
+]) {
+  const candidate = structuredClone(historicalReceipt); mutate(candidate);
+  const result = inspectReceiptForDecision(finalizeReceipt(candidate), historicalContext);
+  assert.equal(result.valid_deciding_evidence, false);
+  assert(result.issues.includes("receipt_historical_input_provenance_invalid"));
+}
+for (const [label, mutate, issue] of [
+  ["copied checkout", (_r, c) => { c.currentVerificationContext.checkout_fingerprint = "9".repeat(64); }, "receipt_stale_verification_context"],
+  ["copied host", (_r, c) => { c.currentVerificationContext.anchor_fingerprint = "9".repeat(64); }, "receipt_stale_verification_context"],
+  ["copied receipt filename", (_r, c) => { c.expectedRunId = "another-invocation"; }, "receipt_run_identity_invalid"],
+  ["foreign phase invocation", r => { r.phases[0].invocation_id = "9".repeat(32); }, "receipt_invocation_identity_invalid"],
+  ["foreign capacity invocation", r => { r.capacity_ownership.invocation_id = "9".repeat(32); }, "receipt_capacity_ownership_invalid"],
+  ["unacquired capacity", r => { r.capacity_ownership.acquired = false; }, "receipt_capacity_ownership_invalid"],
+  ["unreleased capacity", r => { r.capacity_ownership.released = false; }, "receipt_capacity_ownership_invalid"],
+  ["replaced capacity", r => { r.capacity_ownership.failure_code = "checkout_owner_identity_changed"; }, "receipt_capacity_ownership_invalid"],
+  ["invented capacity", r => { r.capacity_ownership.limit = 3; }, "receipt_capacity_ownership_invalid"],
+  ["invalid capacity timing", r => { r.capacity_ownership.released_at = r.run.started_at; }, "receipt_capacity_ownership_invalid"],
+  ["foreign resources", r => { r.cleanup.isolated_resources.invocation_id = "9".repeat(32); }, "receipt_isolated_resource_provenance_invalid"],
+  ["unsettled resource", r => { r.cleanup.isolated_resources.completed = false; }, "receipt_isolated_resource_provenance_invalid"],
+  ["resource cleanup failure", r => { r.cleanup.isolated_resources.failures.push("resource_consumers_unsettled"); }, "receipt_isolated_resource_provenance_invalid"],
+  ["production maintenance", r => { r.cleanup.companion_service.maintenance_acquired = true; }, "receipt_companion_scope_invalid"],
+  ["changed production", r => { r.cleanup.companion_service.after.status = "installed_stopped"; }, "receipt_companion_scope_invalid"],
+  ["legacy context fallback", r => { delete r.verification_context; }, "receipt_verification_context_invalid"],
+  ["legacy v2", r => { r.receipt_version = 2; }, "receipt_version_mismatch"],
+]) {
+  const candidate = structuredClone(isolatedReceipt), context = structuredClone(isolatedContext);
+  mutate(candidate, context);
+  const result = inspectReceiptForDecision(finalizeReceipt(candidate), context);
+  assert.equal(result.valid_deciding_evidence, false, label); assert(result.issues.includes(issue), `${label}: ${result.issues}`);
+}
 assert.deepEqual(
   inspectReceiptForDecision(finalizedTargetedReceipt, targetedContext),
   {

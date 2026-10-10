@@ -2182,8 +2182,8 @@ async function main() {
     const recoveryCookiesBefore = await cdp.send("Network.getAllCookies");
     assert.equal(
       recoveryCookiesBefore.cookies.some((cookie) =>
-        cookie.name === "augnes_vnext_operator_session_v01" ||
-        cookie.name === "augnes_vnext_repository_decision_session_v01" ||
+        cookie.name.startsWith("augnes_vnext_operator_session_v01") ||
+        cookie.name.startsWith("augnes_vnext_repository_decision_session_v01") ||
         cookie.name.startsWith("augnes_vnext_recovery_decision_")
       ),
       false,
@@ -2602,8 +2602,8 @@ async function main() {
     assert.equal(recoveryScopedCookies.length, 0);
     assert.equal(
       recoveryCookiesAfter.cookies.some((cookie) =>
-        cookie.name === "augnes_vnext_operator_session_v01" ||
-        cookie.name === "augnes_vnext_repository_decision_session_v01"
+        cookie.name.startsWith("augnes_vnext_operator_session_v01") ||
+        cookie.name.startsWith("augnes_vnext_repository_decision_session_v01")
       ),
       false,
     );
@@ -2783,8 +2783,7 @@ async function main() {
     const generalDecisionCookieBeforeRecoveryClear =
       generalDecisionCookiesBeforeRecoveryClear.cookies.find(
         (cookie) =>
-          cookie.name ===
-            "augnes_vnext_repository_decision_session_v01" &&
+          cookie.name === projectDecisionCookieNameV01(manifest.project_id) &&
           cookie.path === "/api/vnext/projects",
       );
     assert(generalDecisionCookieBeforeRecoveryClear);
@@ -2806,8 +2805,7 @@ async function main() {
     const generalDecisionCookieAfterRecoveryClear =
       generalDecisionCookiesAfterRecoveryClear.cookies.find(
         (cookie) =>
-          cookie.name ===
-            "augnes_vnext_repository_decision_session_v01" &&
+          cookie.name === projectDecisionCookieNameV01(manifest.project_id) &&
           cookie.path === "/api/vnext/projects",
       );
     assert(generalDecisionCookieAfterRecoveryClear);
@@ -3592,7 +3590,7 @@ async function proveRepositoryDecisionBrowserConfirmation(
   const browserCookies = await cdp.send("Network.getAllCookies");
   const decisionCookie = browserCookies.cookies.find(
     (cookie) =>
-      cookie.name === "augnes_vnext_repository_decision_session_v01" &&
+      cookie.name === projectDecisionCookieNameV01(projectId) &&
       cookie.path === "/api/vnext/projects" &&
       cookie.httpOnly === true &&
       cookie.sameSite === "Strict",
@@ -4011,12 +4009,16 @@ async function browserFetchJson(pathname, options = {}) {
       };
     }
     const diagnostic = ${options.diagnosticProbe === true} && typeof window !== 'undefined' ? window.__augnesProjectExperienceDiagnosticsV1?.probe() : null;
+    const requestUrl = new URL(${JSON.stringify(pathname)}, location.href);
+    const projectId = requestUrl.searchParams.get('project_id') ?? new URL(location.href).searchParams.get('project_id') ??
+      (location.pathname.match(/^\\/projects\\/([^/]+)/)?.[1] ? decodeURIComponent(location.pathname.match(/^\\/projects\\/([^/]+)/)[1]) : null);
     const response = await (diagnostic?.fetch ?? fetch)(${JSON.stringify(pathname)}, {
       method: ${JSON.stringify(options.method ?? "GET")},
-      headers: body || ${options.headers !== undefined} ? {
+      headers: {
         ...(body ? { 'content-type': 'application/json' } : {}),
+        ...(projectId && requestUrl.pathname.startsWith('/api/vnext/operator/') ? { 'Augnes-Project-Id': projectId } : {}),
         ...${JSON.stringify(options.headers ?? {})}
-      } : undefined,
+      },
       body: body ? JSON.stringify(body) : undefined,
       cache: 'no-store'
     });
@@ -4033,6 +4035,10 @@ async function browserFetchJson(pathname, options = {}) {
     } finally { diagnostic?.event('consumer_returned'); }
   })()${options.diagnosticProbe === true ? '\n//# sourceURL=augnes-project-experience-marked-probe-v1' : ''}`);
   return value;
+}
+
+function projectDecisionCookieNameV01(projectId) {
+  return `augnes_vnext_repository_decision_session_v01_${createHash("sha256").update(projectId, "utf8").digest("hex")}`;
 }
 
 async function submitGuideBriefUtteranceForPausedInterpretation(utterance) {
@@ -4305,7 +4311,7 @@ async function runRealProviderPc6bActionAcceptance(input) {
   const databaseBefore = databaseSnapshot(input.database_path);
   const semanticBefore = semanticAuthorityCounts(input.database_path);
   const material = await evaluateJson(`(async () => {
-    const response = await fetch('/api/vnext/operator/semantic-review?' + new URLSearchParams({ proposal_id: ${JSON.stringify(input.proposal_id)} }), { cache: 'no-store', credentials: 'same-origin' });
+    const response = await fetch('/api/vnext/operator/semantic-review?' + new URLSearchParams({ proposal_id: ${JSON.stringify(input.proposal_id)} }), { cache: 'no-store', credentials: 'same-origin', headers: { 'Augnes-Project-Id': new URL(location.href).searchParams.get('project_id') } });
     const body = await response.json();
     const selector = document.querySelector('[data-vnext-candidate-selector="v0.1"]');
     return {
@@ -4914,9 +4920,9 @@ async function validateProjectDirectionUI(accessDatabasePath, projectAlphaId) {
     // diagnostics, the DOM, an artifact or the test's returned value.
     assert.equal(await evaluateBoolean(`(async () => {
       const url = '/api/vnext/operator/project-direction?project_id=' + ${JSON.stringify(projectAlphaId)};
-      const read = await (await fetch(url, { cache: 'no-store' })).json();
+      const read = await (await fetch(url, { cache: 'no-store', headers: { 'Augnes-Project-Id': ${JSON.stringify(projectAlphaId)} } })).json();
       const content = { purpose: 'Review the proposed source question', criteria: ['Preserve accepted proposal criteria'], constraints: ['Keep the accepted source boundary'] };
-      const issued = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+      const issued = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Augnes-Project-Id': ${JSON.stringify(projectAlphaId)} }, body: JSON.stringify({
         action: 'authorize_agent', role: 'role:proposal-reviewer', allowed_directions: [content], max_mutations: 1, expires_in_minutes: 10, creation_slots: [] }) });
       if (!issued.ok) return false;
       const access = await issued.json();
@@ -4941,7 +4947,7 @@ async function validateProjectDirectionUI(accessDatabasePath, projectAlphaId) {
     await navigate(`${appOrigin}/projects/${encodeURIComponent(projectAlphaId)}`);
     await waitForCondition(`document.querySelector('[data-project-direction]')?.textContent.includes('Revision 4') === true`, "accepted content reconstructed");
     await waitForCondition(`document.querySelector('[data-project-direction-hydrated="true"]') !== null`, "accepted direction editor hydrated");
-    assert.deepEqual(await evaluateJson(`(async () => (await (await fetch('/api/vnext/operator/project-direction?project_id=' + ${JSON.stringify(projectAlphaId)}, { cache: 'no-store' })).json()).state.effective.value.content)()`), {
+    assert.deepEqual(await evaluateJson(`(async () => (await (await fetch('/api/vnext/operator/project-direction?project_id=' + ${JSON.stringify(projectAlphaId)}, { cache: 'no-store', headers: { 'Augnes-Project-Id': ${JSON.stringify(projectAlphaId)} } })).json()).state.effective.value.content)()`), {
       purpose: 'Refine only the accepted purpose', criteria: ['Preserve accepted proposal criteria'], constraints: ['Keep the accepted source boundary'],
     });
     await evaluateBoolean(`(() => { document.querySelectorAll('[data-project-direction] details').forEach(d => d.open = true); return true; })()`);
@@ -4950,8 +4956,8 @@ async function validateProjectDirectionUI(accessDatabasePath, projectAlphaId) {
     // dirty. Refresh must disclose the conflict and retain the original basis.
     assert.equal(await evaluateBoolean(`(async () => {
       const url = '/api/vnext/operator/project-direction?project_id=' + ${JSON.stringify(projectAlphaId)};
-      const value = await (await fetch(url, { cache: 'no-store' })).json();
-      return (await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'decide', expected_ref: value.state.effective.ref,
+      const value = await (await fetch(url, { cache: 'no-store', headers: { 'Augnes-Project-Id': ${JSON.stringify(projectAlphaId)} } })).json();
+      return (await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Augnes-Project-Id': ${JSON.stringify(projectAlphaId)} }, body: JSON.stringify({ action: 'decide', expected_ref: value.state.effective.ref,
         content: { purpose: 'Direction from another authenticated editor', criteria: ['External criterion'], constraints: ['External constraint'] }, reason: 'Observed outside this form', status: 'active', proposal_ref: null }) })).ok;
     })()`), true);
     await clickButtonByText('Refresh direction', '[data-project-direction]');

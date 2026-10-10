@@ -571,6 +571,21 @@ async function assertOutcomeReuseV01(): Promise<void> {
       const credential = credentialFromCookieV01(first.session_admission!.cookie_value);
       const clock = fixedClock("2026-08-01T00:00:20.000Z");
       const frozen = listVNextCoreRecordsV01(fixture.db, { ...fixture, record_kinds: [...VNEXT_CORE_RECORD_KINDS_V01], limit: 100 }).map(row => [row.record_id, canonicalizeProtocolValueV01(row.payload)]);
+      const beforeSelectionPreparation = readResultWorkPreparationV01(fixture.db, { config: fixture.config, receipt_id: first.receipt.receipt_id, clock });
+      const otherRoot = path.join(ROOT, `outcome-other-${disposition}`); mkdirSync(otherRoot);
+      const otherProject = getOrCreateCanonicalProjectForLocalRootV01(fixture.db, { workspace_id: fixture.workspace_id,
+        local_root: normalizeLocalProjectRootRefV01(otherRoot, { base_path: ROOT }), display_name: "Independent result review B" }).project;
+      const selectProject = (project_id: string) => {
+        const current = readActiveProjectSelectionV01(fixture.db, fixture.workspace_id)!;
+        selectActiveProjectV01(fixture.db, { workspace_id: fixture.workspace_id, project_id,
+          expected_project_id: current.project_id, expected_revision: current.selection_revision, now: "2026-08-01T00:00:19.000Z" });
+      };
+      selectProject(otherProject.project_id);
+      const otherFixture = { ...fixture, root: otherRoot, project_id: otherProject.project_id, config: { ...fixture.config, project_id: otherProject.project_id } };
+      defineInitialProjectWorkV01(fixture.db, { config: otherFixture.config, credential: authenticatedSessionV01(otherFixture, "independent-B"),
+        request: requestV01(otherFixture, { goal: "B progresses while A reviews its result", success_criteria: ["Keep A unchanged"], non_goals: [] }), clock: fixedClock("2026-08-01T00:00:19.000Z") });
+      assert.equal(readResultWorkPreparationV01(fixture.db, { config: fixture.config, receipt_id: first.receipt.receipt_id, clock }).binding.expected_project_work_binding,
+        beforeSelectionPreparation.binding.expected_project_work_binding);
       const before = fixture.db.serialize();
       const preparation = readResultWorkPreparationV01(fixture.db, { config: fixture.config, receipt_id: first.receipt.receipt_id, clock });
       if (disposition === "revise") {
@@ -605,7 +620,7 @@ async function assertOutcomeReuseV01(): Promise<void> {
       const preview = previewResultWorkV01(fixture.db, { config: fixture.config, binding: preparation.binding, clock, selected_sources,
         definition: { goal: "Prepare the calibration comparison", success_criteria: ["Read only the selected context and retain its conditions"], non_goals: ["Leave warm behavior untested"] } });
       assert(before.equals(fixture.db.serialize()), "Read, comparison and preview are read-only");
-      console.log(JSON.stringify({ outcome_history_preparation: disposition, retained_runs: retainedRuns, read: "available", preview: "available" }));
+      console.log(JSON.stringify({ independent_result_preparation: true, outcome_history_preparation: disposition, retained_runs: retainedRuns, read: "available", preview: "available" }));
       const unchanged = async (request: unknown, pattern: RegExp) => {
         const bytes = fixture.db.serialize();
         await assert.rejects(defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config, credential, request, clock }), pattern);
@@ -640,13 +655,16 @@ async function assertOutcomeReuseV01(): Promise<void> {
         } finally { replace.run(original.status, original.metadata_json, historicalId); }
       }
       await unchanged({ ...preview.request, expected_latest_receipt_fingerprint: `sha256:${"0".repeat(64)}` }, /predecessor_unsettled_or_mismatched/);
-      await unchanged({ ...preview.request, expected_active_selection_revision: differentSelectionRevision(preparation.binding.expected_active_selection_revision) }, /selection_changed/);
+      await unchanged({ ...preview.request, expected_project_work_binding: `sha256:${"0".repeat(64)}` }, /project_binding_changed/);
       await unchanged({ ...preview.request, selected_sources: { ...selected_sources, omitted_sources: [] } }, /source_omissions_invalid/);
       const foreignEntry = buildSelectedWorkSourceEntry({ ...fixture, project_id: "project:foreign" }, notes[2]);
       await unchanged({ ...preview.request, selected_sources: { ...selected_sources, selected_source_context: [foreignEntry] } }, /selected_source_context_invalid/);
       await unchanged({ ...preview.request, selected_sources: { ...selected_sources, selected_source_context: [] } }, /source_comparison_changed/);
       const oversized = { ...notes[2]!, text: "x".repeat(2001) };
       assert.throws(() => compareResultWorkSourcesV01(fixture.db, { config: fixture.config, binding: preparation.binding, notes: [oversized], clock }), /selected_source_context_invalid/);
+      selectProject(fixture.project_id); selectProject(otherProject.project_id);
+      assert.deepEqual(compareResultWorkSourcesV01(fixture.db, { config: fixture.config, binding: preparation.binding, notes, clock }).entries, comparison.entries);
+      assert.equal(readProjectWorkInitializationV01(fixture.db, otherFixture.config).current_work?.goal, "B progresses while A reviews its result");
       const unaffected = (fixture.db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT IN ('vnext_core_records', 'vnext_local_operator_sessions')").all() as { name: string }[])
         .map(({ name }) => ({ query: `SELECT * FROM "${name.replaceAll('"', '""')}"`, rows: fixture.db.prepare(`SELECT * FROM "${name.replaceAll('"', '""')}"`).all() }));
       const sessionsBefore = fixture.db.prepare("SELECT * FROM vnext_local_operator_sessions ORDER BY session_id").all() as Record<string, unknown>[];
@@ -4445,7 +4463,7 @@ function assertMutationRefusalsAndRollbackV01(): void {
         workspace_id: isolation.workspace_id,
         project_id: other.project.project_id,
       }).mutation_eligible,
-      false,
+      true,
     );
     const current = readActiveProjectSelectionV01(isolation.db, isolation.workspace_id)!;
     selectActiveProjectV01(isolation.db, {
@@ -4907,7 +4925,7 @@ async function assertReviewedOutcomeReuseV01(overBudget = false): Promise<void> 
     const altered = reuse.entries.map(entry => buildReviewedOutcomeSourceEntry(fixture, { ...selectedWorkSourceInput(entry), text: entry.bounded_summary + " ALTERED" }, reuse.binding,
       entry.compatibility_source_ref!.ref_type === "reviewed_outcome_report" ? "report" : "expectation"));
     await reject(fixture.db, withEntries(altered), /reviewed_outcome_selection_changed/);
-    await reject(fixture.db, { ...preview.request, expected_active_selection_revision: differentSelectionRevision(preparation.binding.expected_active_selection_revision) }, /selection_changed/);
+    await reject(fixture.db, { ...preview.request, expected_project_work_binding: `sha256:${"0".repeat(64)}` }, /project_binding_changed/);
     const foreign = reuse.entries.map(entry => buildReviewedOutcomeSourceEntry({ ...fixture, project_id: "project:foreign" }, selectedWorkSourceInput(entry), reuse.binding,
       entry.compatibility_source_ref!.ref_type === "reviewed_outcome_report" ? "report" : "expectation"));
     await reject(fixture.db, { ...preview.request, selected_sources: { ...selected_sources, selected_source_context: foreign } }, /selected_source_context_invalid/);
@@ -6407,6 +6425,20 @@ async function assertNativeSelectedSourceBudgetV01(): Promise<void> {
       else assert.deepEqual(hostedNormalize(fixture,entries),normalizeNativeSelectedWorkSources(fixture,entries));
       const handler=postFactory({clock:fixedClock('2026-08-01T00:00:03.000Z'),environment:{NODE_ENV:'test',AUGNES_DB_PATH:fixture.config.database_path,AUGNES_VNEXT_OPERATOR_PILOT_ENABLED:'1',AUGNES_VNEXT_OPERATOR_WORKSPACE_ID:fixture.workspace_id,AUGNES_VNEXT_OPERATOR_PROJECT_ID:fixture.project_id,AUGNES_VNEXT_OPERATOR_ID:fixture.config.operator_id}});
       const post=(body:unknown,cookie=initial.session_admission.cookie_value)=>handler(new Request('http://127.0.0.1:3000/api/vnext/operator/project-continuity',{method:'POST',headers:{host:'127.0.0.1:3000',origin:'http://127.0.0.1:3000','content-type':'application/json',cookie:`${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${cookie}`},body:JSON.stringify(body)}));
+      if (name === 'exact-ceiling') {
+        const scoped = readProjectWorkInitializationV01(fixture.db, fixture);
+        const comparison = { action: 'compare_selected_work_sources',
+          expected_current_packet_id: initial.packet.packet_id,
+          expected_current_packet_fingerprint: initial.packet.integrity.fingerprint,
+          expected_active_project_id: fixture.project_id,
+          expected_active_selection_revision: scoped.active_selection_revision,
+          expected_project_work_binding: scoped.project_work_binding,
+          notes: [] };
+        assert.equal((await post(comparison)).status, 200, 'Bound pilot comparison does not require retained notes');
+        const forged = await post({ ...comparison, expected_project_work_binding: 'sha256:' + '0'.repeat(64) });
+        assert.equal(forged.status, 409, 'Even a read-only comparison validates a supplied project binding');
+        assert.equal((await forged.json()).error_code, 'retained_source_work_selection_changed_or_unavailable');
+      }
       const before=fixture.db.serialize();
       const {readBoundedVNextLocalOperatorBodyV01: readBody}=await import('@/lib/vnext/runtime/local-operator-session');
       const largeBody=JSON.stringify({text:'x'.repeat(17_000)});

@@ -1,3 +1,4 @@
+import { readProjectWorkBindingV01, projectBoundRequestIdentityV01 } from "./project-work-binding";
 import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import { readProjectWorkPacketHistoryV01 } from "./project-work-packet-history";
@@ -45,7 +46,7 @@ const ACTION = "define_authored_successor_task";
 const MATERIAL = `${AUTHORED_SUCCESSOR_TASK_V01}:source`;
 export type ResultWorkBindingV01 = Pick<DefineAuthoredSuccessorTaskRequestV01,
   "expected_current_packet_id" | "expected_current_packet_fingerprint" | "expected_latest_receipt_id" |
-  "expected_latest_receipt_fingerprint" | "expected_active_selection_revision" | "expected_root_fingerprint">;
+  "expected_latest_receipt_fingerprint" | "expected_active_selection_revision" | "expected_root_fingerprint" | "expected_project_work_binding">;
 
 /** Read the current settled predecessor. This does not make a preparation current. */
 function isSettledInspectionResult(r: ReturnType<typeof readProjectRunResultSourceBindingV01>) {
@@ -63,7 +64,7 @@ export function readResultWorkPreparationV01(db: Database.Database, input: {
   const continuity = projectVNextOperatorPilotContinuityV01(db, input);
   const roots = r.receipt.source_refs.filter(v => v.ref_type === "project_root_scope");
   check(r.packet && r.run && roots.length === 1 && roots[0]!.source_ref &&
-    initialization.active_project_id === input.config.project_id && initialization.active_selection_revision !== null &&
+    initialization.project_work_binding != null &&
     initialization.current_packet?.packet_id === r.packet.packet_id &&
     initialization.current_packet.packet_fingerprint === r.packet.integrity.fingerprint &&
     ["fresh", "expired"].includes(continuity.packet_currentness) && (r.run.status === "completed" || isSettledInspectionResult(r)) && r.receipt.execution.status === "completed" &&
@@ -73,6 +74,7 @@ export function readResultWorkPreparationV01(db: Database.Database, input: {
   const binding: ResultWorkBindingV01 = {
     expected_current_packet_id: r.packet.packet_id, expected_current_packet_fingerprint: r.packet.integrity.fingerprint,
     expected_latest_receipt_id: r.receipt.receipt_id, expected_latest_receipt_fingerprint: r.receipt.integrity.fingerprint,
+    expected_project_work_binding: initialization.project_work_binding!,
     expected_active_selection_revision: initialization.active_selection_revision, expected_root_fingerprint: roots[0]!.source_ref!,
   };
   // The receipt records a report, not verification of the report's prose.
@@ -101,7 +103,7 @@ export function compareResultWorkSourcesV01(db: Database.Database, input: {
   config: VNextLocalOperatorPilotConfigV01; binding: ResultWorkBindingV01; notes: unknown[]; clock?: VNextLocalRuntimeClockV01;
 }) {
   const current = readResultWorkPreparationV01(db, { ...input, receipt_id: input.binding.expected_latest_receipt_id });
-  check(equal(current.binding, input.binding), "preparation_changed");
+  check(equal(projectBoundRequestIdentityV01(current.binding), projectBoundRequestIdentityV01(input.binding)), "preparation_changed");
   const r = readProjectRunResultSourceBindingV01(db, { ...input.config, receipt_id: input.binding.expected_latest_receipt_id });
   return compareSelectedWorkSources(r.packet!, input.notes.flatMap(note => {
     if (note && typeof note === "object" && "saved_source_id" in note) {
@@ -126,7 +128,7 @@ export function previewResultWorkV01(db: Database.Database, input: {
   selected_sources: DefineAuthoredSuccessorTaskRequestV01["selected_sources"]; clock?: VNextLocalRuntimeClockV01;
 }) {
   const before = readResultWorkPreparationV01(db, { ...input, receipt_id: input.binding.expected_latest_receipt_id });
-  check(equal(before.binding, input.binding) && input.selected_sources, "preparation_changed");
+  check(equal(projectBoundRequestIdentityV01(before.binding), projectBoundRequestIdentityV01(input.binding)) && input.selected_sources, "preparation_changed");
   check(input.definition && typeof input.definition === "object" && !Array.isArray(input.definition) &&
     equal(Object.keys(input.definition).sort(), ["goal", "non_goals", "success_criteria"]), "definition_fields");
   const d = normalizeInitialProjectWorkDefinitionV01(input.definition as { goal: unknown; success_criteria: unknown; non_goals: unknown });
@@ -144,7 +146,8 @@ export interface DefineAuthoredSuccessorTaskRequestV01 {
   expected_current_packet_fingerprint: string;
   expected_latest_receipt_id: string;
   expected_latest_receipt_fingerprint: string;
-  expected_active_selection_revision: ProjectSelectionRevision;
+  expected_active_selection_revision: ProjectSelectionRevision | null;
+  expected_project_work_binding?: string;
   expected_root_fingerprint: string;
   expected_direction_ref?: string | null;
   definition: AuthoredSuccessorTaskDefinitionV01;
@@ -176,9 +179,10 @@ function parseRequest(value: unknown): DefineAuthoredSuccessorTaskRequestV01 {
   check(value && typeof value === "object" && !Array.isArray(value), "request_invalid");
   const r = value as DefineAuthoredSuccessorTaskRequestV01;
   check(equal(Object.keys(r).sort(), ["action", "definition", "expected_active_selection_revision", "expected_current_packet_fingerprint",
-    "expected_current_packet_id", "expected_latest_receipt_fingerprint", "expected_latest_receipt_id", "expected_root_fingerprint", ...(r.expected_direction_ref !== undefined ? ["expected_direction_ref"] : []), ...(r.revalidation !== undefined ? ["revalidation"] : []), ...(r.selected_sources !== undefined ? ["selected_sources"] : [])].sort()), "request_fields");
+    "expected_current_packet_id", "expected_latest_receipt_fingerprint", "expected_latest_receipt_id", "expected_root_fingerprint", ...(r.expected_project_work_binding !== undefined ? ["expected_project_work_binding"] : []), ...(r.expected_direction_ref !== undefined ? ["expected_direction_ref"] : []), ...(r.revalidation !== undefined ? ["revalidation"] : []), ...(r.selected_sources !== undefined ? ["selected_sources"] : [])].sort()), "request_fields");
   check(r.expected_direction_ref === undefined || r.expected_direction_ref === null || /^sha256:[a-f0-9]{64}$/u.test(r.expected_direction_ref), "direction_binding_invalid");
-  check(r.action === ACTION && isHistoricalProjectSelectionRevision(r.expected_active_selection_revision) &&
+  check(r.expected_project_work_binding === undefined || (typeof r.expected_project_work_binding === "string" && /^sha256:[a-f0-9]{64}$/u.test(r.expected_project_work_binding)), "project_binding_invalid");
+  check(r.action === ACTION && (isHistoricalProjectSelectionRevision(r.expected_active_selection_revision) || (r.expected_project_work_binding !== undefined && r.expected_active_selection_revision === null)) &&
     /^task-context-packet:[a-f0-9]+$/u.test(r.expected_current_packet_id) && /^run-receipt:[a-f0-9]+$/u.test(r.expected_latest_receipt_id) &&
     [r.expected_current_packet_fingerprint, r.expected_latest_receipt_fingerprint, r.expected_root_fingerprint].every(v => /^sha256:[a-f0-9]{64}$/u.test(v)), "request_binding");
   if (r.revalidation !== undefined) check(r.revalidation &&
@@ -326,7 +330,7 @@ export async function defineAuthoredSuccessorTaskV01(db: Database.Database, inpu
     receipt_id: request.expected_latest_receipt_id }).run, "local_predecessor_required");
   const instructionFiles = structuredClone(input.approved_instruction_files ?? []);
   const root = request.revalidation || request.selected_sources
-    ? await inspectPersistedHostProjectRootV01(db, { config: input.config, evaluated_at: at })
+    ? await inspectPersistedHostProjectRootV01(db, { config: input.config, evaluated_at: at, require_active_project: request.expected_project_work_binding === undefined })
     : (await admitPersistedHostTaskContextPacketV01(db, { config: input.config,
       packet_id: request.expected_current_packet_id, packet_fingerprint: request.expected_current_packet_fingerprint,
       evaluated_at: at, require_active_project: true })).root_scope;
@@ -349,7 +353,8 @@ export async function defineAuthoredSuccessorTaskV01(db: Database.Database, inpu
     const auth = admitVNextLocalOperatorMutationInsideTransactionV01(db, input);
     assertExpectedPacketDirection(db, input.config, expectedDirection, auth.action_observed_at);
     const selection = readActiveProjectSelectionV01(db, input.config.workspace_id);
-    check(selection?.project_id === input.config.project_id && selection.selection_revision === request.expected_active_selection_revision, "selection_changed");
+    if (request.expected_project_work_binding !== undefined) check(request.expected_project_work_binding === readProjectWorkBindingV01(db, input.config), "project_binding_changed");
+    else check(selection?.project_id === input.config.project_id && selection.selection_revision === request.expected_active_selection_revision, "selection_changed");
     if (request.revalidation || request.selected_sources) assertRevalidatedHistoryCurrent(db, input.config, request, auth.action_observed_at);
     else {
       const continuity = projectVNextOperatorPilotContinuityV01(db, { config: input.config, clock: { now: () => auth.action_observed_at } });
@@ -454,7 +459,7 @@ export async function prepareAuthoredSuccessorHandoffV01(db: Database.Database, 
   clock?: VNextLocalRuntimeClockV01;
 }) {
   const admission = await admitPersistedHostTaskContextPacketV01(db, { ...input,
-    evaluated_at: readVNextLocalRuntimeClockNowV01(input.clock, "successor_task_handoff_time"), require_active_project: true });
+    evaluated_at: readVNextLocalRuntimeClockNowV01(input.clock, "successor_task_handoff_time"), require_active_project: false });
   check(!admission.packet.compatibility.source_contracts.includes(AUTHORED_SUCCESSOR_CONTEXT_V01), "scoped_profile_required");
   check(admission.packet_lineage.lineage_kind === "authored_successor_task" ||
     (admission.packet_lineage.lineage_kind === "semantic_transition" && admission.packet.compatibility.source_contracts.includes(AUTHORED_SUCCESSOR_TASK_V01)), "authored_definition_required");
