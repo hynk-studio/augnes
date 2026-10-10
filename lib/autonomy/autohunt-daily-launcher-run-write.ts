@@ -3,11 +3,9 @@ import type { AutonomyDelegationGrantDbLike } from "@/lib/autonomy/read-autonomy
 import {
   buildAutohuntDailyLauncherRunAuthorityBoundary,
   computeAutohuntDailyLauncherRunFingerprint,
-  ensureAutohuntDailyLauncherRunSchema,
   parseAutohuntDailyLauncherRunRow,
 } from "@/lib/autonomy/read-autohunt-daily-launcher-runs";
 import { writeAutohuntResultIntake } from "@/lib/autonomy/autohunt-result-intake-write";
-import { ensureAutohuntResultIntakeSchema } from "@/lib/autonomy/read-autohunt-result-intakes";
 import {
   getAutohuntWorkTargetModeOption,
   isAutohuntWorkTargetMode,
@@ -151,8 +149,6 @@ export function writeAutohuntDailyLauncherRun(
   const shouldClose = !options.db && hasClose(db);
 
   try {
-    ensureAutohuntDailyLauncherRunSchema(db);
-    ensureAutohuntResultIntakeSchema(db);
     const existingRow = db
       .prepare(
         `

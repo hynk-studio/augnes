@@ -18,7 +18,6 @@ import { readSelectedWorkSources } from "@/lib/intake/selected-work-source-compa
 import {
   appendAutonomyRunLedgerEvent,
   buildAutonomyRunEventRecord,
-  ensureAutonomyRunnerLedgerSchemaV01,
   insertAutonomyRunLedgerRecord,
   readAutonomyRunLedgerRecord,
   updateAutonomyRunLedgerFields,
@@ -558,7 +557,6 @@ export async function prepareNativeHostRunClaimInsideTransactionV01(
   admission: PersistedHostPacketAdmissionV01;
 }> {
   if (!db.inTransaction) refuse("direct_host_transaction_required", 500);
-  ensureAutonomyRunnerLedgerSchemaV01(db);
   if (input.mode === "policy_triggered") {
     if (!input.automation_context || input.repository_delegation_context) {
       refuse("direct_host_automation_context_required");
@@ -683,7 +681,6 @@ export async function runDirectNativeHostRoundTripV01(
   },
   dependencies: DirectNativeHostRoundTripDependenciesV01 = {},
 ): Promise<DirectNativeHostRoundTripResultV01> {
-  ensureAutonomyRunnerLedgerSchemaV01(db);
   const now = dependencies.now ?? (() => new Date().toISOString());
   const adapter =
     dependencies.adapter ?? createDeterministicCodexAdapterV01({ now });

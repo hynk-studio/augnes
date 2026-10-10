@@ -1,9 +1,9 @@
-import { dbPath, openDatabase } from "./db-common.mjs";
+import { dbPath, openDatabaseForPreparation } from "./db-common.mjs";
+import { withOwnedDatabase } from "../lib/db/connection-ownership.mjs";
+import { assertPreparedDatabase } from "../lib/db/prepared-database.mjs";
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
 
-const db = openDatabase();
-
-try {
+withOwnedDatabase(openDatabaseForPreparation(), (db) => {
   const {
     result,
     vNextDurableSemanticStoreResult,
@@ -801,6 +801,5 @@ try {
       `Created indexes: ${perspectiveMemoryItemsResult.created_indexes.join(", ")}`,
     );
   }
-} finally {
-  db.close();
-}
+  assertPreparedDatabase(db);
+});

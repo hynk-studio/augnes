@@ -6,7 +6,6 @@ import {
 } from "@/lib/autonomy/read-autohunt-handoff-plan-previews";
 import {
   computeAutohuntHandoffPlanOperatorReviewDecisionFingerprint,
-  ensureAutohuntHandoffPlanOperatorReviewDecisionSchema,
   parseAutohuntHandoffPlanOperatorReviewDecisionRow,
 } from "@/lib/autonomy/read-autohunt-handoff-plan-operator-review-decisions";
 import {
@@ -118,7 +117,6 @@ export function writeAutohuntHandoffPlanOperatorReviewDecision(
   const shouldClose = !options.db && hasClose(db);
 
   try {
-    ensureAutohuntHandoffPlanOperatorReviewDecisionSchema(db);
     const existingRow = db
       .prepare(
         `

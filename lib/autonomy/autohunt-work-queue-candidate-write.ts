@@ -2,7 +2,6 @@ import { openDatabase } from "@/lib/db";
 import {
   buildAutohuntWorkQueueCandidateAuthorityBoundary,
   computeAutohuntWorkQueueCandidateFingerprint,
-  ensureAutohuntWorkQueueCandidateSchema,
   parseAutohuntWorkQueueCandidateRow,
 } from "@/lib/autonomy/read-autohunt-work-queue-candidates";
 import {
@@ -98,7 +97,6 @@ export function writeAutohuntWorkQueueCandidate(
   const shouldClose = !options.db && hasClose(db);
 
   try {
-    ensureAutohuntWorkQueueCandidateSchema(db);
     const existingRow = db
       .prepare(
         `

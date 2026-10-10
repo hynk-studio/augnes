@@ -1,3 +1,4 @@
+import { withOwnedDatabase } from "../lib/db/connection-ownership.mjs";
 import { readFileSync } from "node:fs";
 import { RECOVERY_PRIVATE_MATERIAL_MARKER } from "../lib/db/recovery-private-material-contract.mjs";
 import { encodeValue, initializeDatabase } from "./db-common.mjs";
@@ -84,677 +85,678 @@ const transitions = [
   },
 ];
 
-const db = initializeDatabase();
+withOwnedDatabase(initializeDatabase(), seedDemoDatabase);
 
-const insertAgent = db.prepare(`
-  INSERT INTO agents (id, name, kind, created_at)
-  VALUES (@id, @name, @kind, @createdAt)
-  ON CONFLICT(id) DO UPDATE SET
-    name = excluded.name,
-    kind = excluded.kind
-`);
+function seedDemoDatabase(db) {
+  const insertAgent = db.prepare(`
+    INSERT INTO agents (id, name, kind, created_at)
+    VALUES (@id, @name, @kind, @createdAt)
+    ON CONFLICT(id) DO UPDATE SET
+      name = excluded.name,
+      kind = excluded.kind
+  `);
 
-const insertSession = db.prepare(`
-  INSERT INTO sessions (id, agent_id, scope, title, started_at)
-  VALUES (@id, @agentId, @scope, @title, @startedAt)
-  ON CONFLICT(id) DO UPDATE SET
-    agent_id = excluded.agent_id,
-    scope = excluded.scope,
-    title = excluded.title,
-    started_at = excluded.started_at
-`);
+  const insertSession = db.prepare(`
+    INSERT INTO sessions (id, agent_id, scope, title, started_at)
+    VALUES (@id, @agentId, @scope, @title, @startedAt)
+    ON CONFLICT(id) DO UPDATE SET
+      agent_id = excluded.agent_id,
+      scope = excluded.scope,
+      title = excluded.title,
+      started_at = excluded.started_at
+  `);
 
-const insertMessage = db.prepare(`
-  INSERT INTO messages (id, session_id, agent_id, role, content, created_at)
-  VALUES (@id, @sessionId, @agentId, @role, @content, @createdAt)
-  ON CONFLICT(id) DO UPDATE SET
-    content = excluded.content,
-    created_at = excluded.created_at
-`);
+  const insertMessage = db.prepare(`
+    INSERT INTO messages (id, session_id, agent_id, role, content, created_at)
+    VALUES (@id, @sessionId, @agentId, @role, @content, @createdAt)
+    ON CONFLICT(id) DO UPDATE SET
+      content = excluded.content,
+      created_at = excluded.created_at
+  `);
 
-const insertProposal = db.prepare(`
-  INSERT INTO state_delta_proposals (
-    id,
-    scope,
-    state_key,
-    before_value,
-    after_value,
-    operation,
-    temporal_scope,
-    valid_from,
-    valid_until,
-    stability,
-    change_type,
-    source_agent_id,
-    source_session_id,
-    reason,
-    status,
-    proposed_at,
-    decided_at,
-    prediction_error_score,
-    salience_score,
-    evidence_score,
-    conflict_score,
-    self_impact_score,
-    consolidation_status,
-    reinforcement_count,
-    expires_at,
-    last_evaluated_at,
-    scoring_version,
-    scoring_reason,
-    score_breakdown
-  )
-  VALUES (
-    @proposalId,
-    @scope,
-    @stateKey,
-    @beforeValue,
-    @afterValue,
-    @operation,
-    @temporalScope,
-    @validFrom,
-    @validUntil,
-    @stability,
-    @changeType,
-    @sourceAgentId,
-    @sourceSessionId,
-    @reason,
-    'committed',
-    @committedAt,
-    @committedAt,
-    @predictionErrorScore,
-    @salienceScore,
-    @evidenceScore,
-    @conflictScore,
-    @selfImpactScore,
-    'committed',
-    @reinforcementCount,
-    @expiresAt,
-    @committedAt,
-    @scoringVersion,
-    @scoringReason,
-    @scoreBreakdown
-  )
-  ON CONFLICT(id) DO UPDATE SET
-    scope = excluded.scope,
-    state_key = excluded.state_key,
-    before_value = excluded.before_value,
-    after_value = excluded.after_value,
-    operation = excluded.operation,
-    temporal_scope = excluded.temporal_scope,
-    valid_from = excluded.valid_from,
-    valid_until = excluded.valid_until,
-    stability = excluded.stability,
-    change_type = excluded.change_type,
-    source_agent_id = excluded.source_agent_id,
-    source_session_id = excluded.source_session_id,
-    reason = excluded.reason,
-    status = excluded.status,
-    proposed_at = excluded.proposed_at,
-    decided_at = excluded.decided_at,
-    prediction_error_score = excluded.prediction_error_score,
-    salience_score = excluded.salience_score,
-    evidence_score = excluded.evidence_score,
-    conflict_score = excluded.conflict_score,
-    self_impact_score = excluded.self_impact_score,
-    consolidation_status = excluded.consolidation_status,
-    reinforcement_count = excluded.reinforcement_count,
-    expires_at = excluded.expires_at,
-    last_evaluated_at = excluded.last_evaluated_at,
-    scoring_version = excluded.scoring_version,
-    scoring_reason = excluded.scoring_reason,
-    score_breakdown = excluded.score_breakdown
-`);
-
-const insertTransition = db.prepare(`
-  INSERT INTO state_transitions (
-    id,
-    scope,
-    state_key,
-    before_value,
-    after_value,
-    temporal_scope,
-    valid_from,
-    valid_until,
-    stability,
-    change_type,
-    source_agent_id,
-    source_session_id,
-    source_proposal_id,
-    reason,
-    committed_at
-  )
-  VALUES (
-    @id,
-    @scope,
-    @stateKey,
-    @beforeValue,
-    @afterValue,
-    @temporalScope,
-    @validFrom,
-    @validUntil,
-    @stability,
-    @changeType,
-    @sourceAgentId,
-    @sourceSessionId,
-    @proposalId,
-    @reason,
-    @committedAt
-  )
-  ON CONFLICT(id) DO UPDATE SET
-    scope = excluded.scope,
-    state_key = excluded.state_key,
-    before_value = excluded.before_value,
-    after_value = excluded.after_value,
-    temporal_scope = excluded.temporal_scope,
-    valid_from = excluded.valid_from,
-    valid_until = excluded.valid_until,
-    stability = excluded.stability,
-    change_type = excluded.change_type,
-    source_agent_id = excluded.source_agent_id,
-    source_session_id = excluded.source_session_id,
-    source_proposal_id = excluded.source_proposal_id,
-    reason = excluded.reason,
-    committed_at = excluded.committed_at
-`);
-
-const upsertEntry = db.prepare(`
-  INSERT INTO state_entries (
-    id,
-    scope,
-    state_key,
-    value,
-    temporal_scope,
-    valid_from,
-    valid_until,
-    stability,
-    change_type,
-    source_agent_id,
-    source_session_id,
-    source_transition_id,
-    created_at,
-    updated_at
-  )
-  VALUES (
-    @entryId,
-    @scope,
-    @stateKey,
-    @afterValue,
-    @temporalScope,
-    @validFrom,
-    @validUntil,
-    @stability,
-    @changeType,
-    @sourceAgentId,
-    @sourceSessionId,
-    @id,
-    @committedAt,
-    @committedAt
-  )
-  ON CONFLICT(scope, state_key) DO UPDATE SET
-    value = excluded.value,
-    temporal_scope = excluded.temporal_scope,
-    valid_from = excluded.valid_from,
-    valid_until = excluded.valid_until,
-    stability = excluded.stability,
-    change_type = excluded.change_type,
-    source_agent_id = excluded.source_agent_id,
-    source_session_id = excluded.source_session_id,
-    source_transition_id = excluded.source_transition_id,
-    updated_at = excluded.updated_at
-`);
-
-const upsertTension = db.prepare(`
-  INSERT INTO state_tensions (
-    id,
-    scope,
-    state_key,
-    title,
-    description,
-    status,
-    severity,
-    source_agent_id,
-    source_session_id,
-    created_at
-  )
-  VALUES (
-    @id,
-    @scope,
-    @stateKey,
-    @title,
-    @description,
-    @status,
-    @severity,
-    @sourceAgentId,
-    @sourceSessionId,
-    @createdAt
-  )
-  ON CONFLICT(id) DO UPDATE SET
-    title = excluded.title,
-    description = excluded.description,
-    status = excluded.status,
-    severity = excluded.severity,
-    source_agent_id = excluded.source_agent_id,
-    source_session_id = excluded.source_session_id
-`);
-
-const upsertWorkItem = db.prepare(`
-  INSERT INTO work_items (
-    work_id,
-    scope,
-    title,
-    status,
-    priority,
-    summary,
-    next_action,
-    user_attention_required,
-    related_state_keys,
-    links,
-    created_at,
-    updated_at
-  )
-  VALUES (
-    @workId,
-    @scope,
-    @title,
-    @status,
-    @priority,
-    @summary,
-    @nextAction,
-    @userAttentionRequired,
-    @relatedStateKeys,
-    @links,
-    @createdAt,
-    @updatedAt
-  )
-  ON CONFLICT(scope, work_id) DO UPDATE SET
-    title = excluded.title,
-    status = excluded.status,
-    priority = excluded.priority,
-    summary = excluded.summary,
-    next_action = excluded.next_action,
-    user_attention_required = excluded.user_attention_required,
-    related_state_keys = excluded.related_state_keys,
-    links = excluded.links,
-    updated_at = excluded.updated_at
-`);
-
-const upsertWorkEvent = db.prepare(`
-  INSERT INTO work_events (
-    id,
-    work_id,
-    scope,
-    actor,
-    event_type,
-    summary,
-    result_status,
-    result_kind,
-    related_action_id,
-    related_pr,
-    related_state_keys,
-    created_at
-  )
-  VALUES (
-    @id,
-    @workId,
-    @scope,
-    @actor,
-    @eventType,
-    @summary,
-    @resultStatus,
-    @resultKind,
-    @relatedActionId,
-    @relatedPr,
-    @relatedStateKeys,
-    @createdAt
-  )
-  ON CONFLICT(id) DO UPDATE SET
-    work_id = excluded.work_id,
-    scope = excluded.scope,
-    actor = excluded.actor,
-    event_type = excluded.event_type,
-    summary = excluded.summary,
-    result_status = excluded.result_status,
-    result_kind = excluded.result_kind,
-    related_action_id = excluded.related_action_id,
-    related_pr = excluded.related_pr,
-    related_state_keys = excluded.related_state_keys,
-    created_at = excluded.created_at
-`);
-
-// Demo seed/reset uses deterministic upserts; runtime coordination events stay
-// append-only through appendCoordinationEvent.
-const upsertCoordinationEvent = db.prepare(`
-  INSERT INTO coordination_events (
-    event_id,
-    event_type,
-    scope,
-    work_id,
-    actor,
-    target,
-    source_surface,
-    authority_level,
-    state_keys,
-    causal_parent_id,
-    payload_ref,
-    result_status,
-    created_at
-  )
-  VALUES (
-    @eventId,
-    @eventType,
-    @scope,
-    @workId,
-    @actor,
-    @target,
-    @sourceSurface,
-    @authorityLevel,
-    @stateKeys,
-    @causalParentId,
-    @payloadRef,
-    @resultStatus,
-    @createdAt
-  )
-  ON CONFLICT(event_id) DO UPDATE SET
-    event_type = excluded.event_type,
-    scope = excluded.scope,
-    work_id = excluded.work_id,
-    actor = excluded.actor,
-    target = excluded.target,
-    source_surface = excluded.source_surface,
-    authority_level = excluded.authority_level,
-    state_keys = excluded.state_keys,
-    causal_parent_id = excluded.causal_parent_id,
-    payload_ref = excluded.payload_ref,
-    result_status = excluded.result_status,
-    created_at = excluded.created_at
-`);
-
-const seed = db.transaction(() => {
-  insertAgent.run({
-    id: agentId,
-    name: "Demo Runtime Agent",
-    kind: "seed",
-    createdAt: timestamp,
-  });
-
-  insertSession.run({
-    id: sessionId,
-    agentId,
-    scope,
-    title: "Issue #2 runtime core seed",
-    startedAt: timestamp,
-  });
-
-  insertMessage.run({
-    id: "message:demo-runtime-core",
-    sessionId,
-    agentId,
-    role: "system",
-    content: RECOVERY_PRIVATE_MATERIAL_MARKER,
-    createdAt: timestamp,
-  });
-
-  for (const transition of transitions) {
-    const row = {
-      ...transition,
-      entryId: `entry:${transition.stateKey}`,
+  const insertProposal = db.prepare(`
+    INSERT INTO state_delta_proposals (
+      id,
       scope,
-      beforeValue: encodeValue(transition.beforeValue),
-      afterValue: encodeValue(transition.afterValue),
-      validFrom: timestamp,
-      validUntil: null,
+      state_key,
+      before_value,
+      after_value,
+      operation,
+      temporal_scope,
+      valid_from,
+      valid_until,
+      stability,
+      change_type,
+      source_agent_id,
+      source_session_id,
+      reason,
+      status,
+      proposed_at,
+      decided_at,
+      prediction_error_score,
+      salience_score,
+      evidence_score,
+      conflict_score,
+      self_impact_score,
+      consolidation_status,
+      reinforcement_count,
+      expires_at,
+      last_evaluated_at,
+      scoring_version,
+      scoring_reason,
+      score_breakdown
+    )
+    VALUES (
+      @proposalId,
+      @scope,
+      @stateKey,
+      @beforeValue,
+      @afterValue,
+      @operation,
+      @temporalScope,
+      @validFrom,
+      @validUntil,
+      @stability,
+      @changeType,
+      @sourceAgentId,
+      @sourceSessionId,
+      @reason,
+      'committed',
+      @committedAt,
+      @committedAt,
+      @predictionErrorScore,
+      @salienceScore,
+      @evidenceScore,
+      @conflictScore,
+      @selfImpactScore,
+      'committed',
+      @reinforcementCount,
+      @expiresAt,
+      @committedAt,
+      @scoringVersion,
+      @scoringReason,
+      @scoreBreakdown
+    )
+    ON CONFLICT(id) DO UPDATE SET
+      scope = excluded.scope,
+      state_key = excluded.state_key,
+      before_value = excluded.before_value,
+      after_value = excluded.after_value,
+      operation = excluded.operation,
+      temporal_scope = excluded.temporal_scope,
+      valid_from = excluded.valid_from,
+      valid_until = excluded.valid_until,
+      stability = excluded.stability,
+      change_type = excluded.change_type,
+      source_agent_id = excluded.source_agent_id,
+      source_session_id = excluded.source_session_id,
+      reason = excluded.reason,
+      status = excluded.status,
+      proposed_at = excluded.proposed_at,
+      decided_at = excluded.decided_at,
+      prediction_error_score = excluded.prediction_error_score,
+      salience_score = excluded.salience_score,
+      evidence_score = excluded.evidence_score,
+      conflict_score = excluded.conflict_score,
+      self_impact_score = excluded.self_impact_score,
+      consolidation_status = excluded.consolidation_status,
+      reinforcement_count = excluded.reinforcement_count,
+      expires_at = excluded.expires_at,
+      last_evaluated_at = excluded.last_evaluated_at,
+      scoring_version = excluded.scoring_version,
+      scoring_reason = excluded.scoring_reason,
+      score_breakdown = excluded.score_breakdown
+  `);
+
+  const insertTransition = db.prepare(`
+    INSERT INTO state_transitions (
+      id,
+      scope,
+      state_key,
+      before_value,
+      after_value,
+      temporal_scope,
+      valid_from,
+      valid_until,
+      stability,
+      change_type,
+      source_agent_id,
+      source_session_id,
+      source_proposal_id,
+      reason,
+      committed_at
+    )
+    VALUES (
+      @id,
+      @scope,
+      @stateKey,
+      @beforeValue,
+      @afterValue,
+      @temporalScope,
+      @validFrom,
+      @validUntil,
+      @stability,
+      @changeType,
+      @sourceAgentId,
+      @sourceSessionId,
+      @proposalId,
+      @reason,
+      @committedAt
+    )
+    ON CONFLICT(id) DO UPDATE SET
+      scope = excluded.scope,
+      state_key = excluded.state_key,
+      before_value = excluded.before_value,
+      after_value = excluded.after_value,
+      temporal_scope = excluded.temporal_scope,
+      valid_from = excluded.valid_from,
+      valid_until = excluded.valid_until,
+      stability = excluded.stability,
+      change_type = excluded.change_type,
+      source_agent_id = excluded.source_agent_id,
+      source_session_id = excluded.source_session_id,
+      source_proposal_id = excluded.source_proposal_id,
+      reason = excluded.reason,
+      committed_at = excluded.committed_at
+  `);
+
+  const upsertEntry = db.prepare(`
+    INSERT INTO state_entries (
+      id,
+      scope,
+      state_key,
+      value,
+      temporal_scope,
+      valid_from,
+      valid_until,
+      stability,
+      change_type,
+      source_agent_id,
+      source_session_id,
+      source_transition_id,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      @entryId,
+      @scope,
+      @stateKey,
+      @afterValue,
+      @temporalScope,
+      @validFrom,
+      @validUntil,
+      @stability,
+      @changeType,
+      @sourceAgentId,
+      @sourceSessionId,
+      @id,
+      @committedAt,
+      @committedAt
+    )
+    ON CONFLICT(scope, state_key) DO UPDATE SET
+      value = excluded.value,
+      temporal_scope = excluded.temporal_scope,
+      valid_from = excluded.valid_from,
+      valid_until = excluded.valid_until,
+      stability = excluded.stability,
+      change_type = excluded.change_type,
+      source_agent_id = excluded.source_agent_id,
+      source_session_id = excluded.source_session_id,
+      source_transition_id = excluded.source_transition_id,
+      updated_at = excluded.updated_at
+  `);
+
+  const upsertTension = db.prepare(`
+    INSERT INTO state_tensions (
+      id,
+      scope,
+      state_key,
+      title,
+      description,
+      status,
+      severity,
+      source_agent_id,
+      source_session_id,
+      created_at
+    )
+    VALUES (
+      @id,
+      @scope,
+      @stateKey,
+      @title,
+      @description,
+      @status,
+      @severity,
+      @sourceAgentId,
+      @sourceSessionId,
+      @createdAt
+    )
+    ON CONFLICT(id) DO UPDATE SET
+      title = excluded.title,
+      description = excluded.description,
+      status = excluded.status,
+      severity = excluded.severity,
+      source_agent_id = excluded.source_agent_id,
+      source_session_id = excluded.source_session_id
+  `);
+
+  const upsertWorkItem = db.prepare(`
+    INSERT INTO work_items (
+      work_id,
+      scope,
+      title,
+      status,
+      priority,
+      summary,
+      next_action,
+      user_attention_required,
+      related_state_keys,
+      links,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      @workId,
+      @scope,
+      @title,
+      @status,
+      @priority,
+      @summary,
+      @nextAction,
+      @userAttentionRequired,
+      @relatedStateKeys,
+      @links,
+      @createdAt,
+      @updatedAt
+    )
+    ON CONFLICT(scope, work_id) DO UPDATE SET
+      title = excluded.title,
+      status = excluded.status,
+      priority = excluded.priority,
+      summary = excluded.summary,
+      next_action = excluded.next_action,
+      user_attention_required = excluded.user_attention_required,
+      related_state_keys = excluded.related_state_keys,
+      links = excluded.links,
+      updated_at = excluded.updated_at
+  `);
+
+  const upsertWorkEvent = db.prepare(`
+    INSERT INTO work_events (
+      id,
+      work_id,
+      scope,
+      actor,
+      event_type,
+      summary,
+      result_status,
+      result_kind,
+      related_action_id,
+      related_pr,
+      related_state_keys,
+      created_at
+    )
+    VALUES (
+      @id,
+      @workId,
+      @scope,
+      @actor,
+      @eventType,
+      @summary,
+      @resultStatus,
+      @resultKind,
+      @relatedActionId,
+      @relatedPr,
+      @relatedStateKeys,
+      @createdAt
+    )
+    ON CONFLICT(id) DO UPDATE SET
+      work_id = excluded.work_id,
+      scope = excluded.scope,
+      actor = excluded.actor,
+      event_type = excluded.event_type,
+      summary = excluded.summary,
+      result_status = excluded.result_status,
+      result_kind = excluded.result_kind,
+      related_action_id = excluded.related_action_id,
+      related_pr = excluded.related_pr,
+      related_state_keys = excluded.related_state_keys,
+      created_at = excluded.created_at
+  `);
+
+  // Demo seed/reset uses deterministic upserts; runtime coordination events stay
+  // append-only through appendCoordinationEvent.
+  const upsertCoordinationEvent = db.prepare(`
+    INSERT INTO coordination_events (
+      event_id,
+      event_type,
+      scope,
+      work_id,
+      actor,
+      target,
+      source_surface,
+      authority_level,
+      state_keys,
+      causal_parent_id,
+      payload_ref,
+      result_status,
+      created_at
+    )
+    VALUES (
+      @eventId,
+      @eventType,
+      @scope,
+      @workId,
+      @actor,
+      @target,
+      @sourceSurface,
+      @authorityLevel,
+      @stateKeys,
+      @causalParentId,
+      @payloadRef,
+      @resultStatus,
+      @createdAt
+    )
+    ON CONFLICT(event_id) DO UPDATE SET
+      event_type = excluded.event_type,
+      scope = excluded.scope,
+      work_id = excluded.work_id,
+      actor = excluded.actor,
+      target = excluded.target,
+      source_surface = excluded.source_surface,
+      authority_level = excluded.authority_level,
+      state_keys = excluded.state_keys,
+      causal_parent_id = excluded.causal_parent_id,
+      payload_ref = excluded.payload_ref,
+      result_status = excluded.result_status,
+      created_at = excluded.created_at
+  `);
+
+  const seed = db.transaction(() => {
+    insertAgent.run({
+      id: agentId,
+      name: "Demo Runtime Agent",
+      kind: "seed",
+      createdAt: timestamp,
+    });
+
+    insertSession.run({
+      id: sessionId,
+      agentId,
+      scope,
+      title: "Issue #2 runtime core seed",
+      startedAt: timestamp,
+    });
+
+    insertMessage.run({
+      id: "message:demo-runtime-core",
+      sessionId,
+      agentId,
+      role: "system",
+      content: RECOVERY_PRIVATE_MATERIAL_MARKER,
+      createdAt: timestamp,
+    });
+
+    for (const transition of transitions) {
+      const row = {
+        ...transition,
+        entryId: `entry:${transition.stateKey}`,
+        scope,
+        beforeValue: encodeValue(transition.beforeValue),
+        afterValue: encodeValue(transition.afterValue),
+        validFrom: timestamp,
+        validUntil: null,
+        sourceAgentId: agentId,
+        sourceSessionId: sessionId,
+        committedAt: timestamp,
+        ...buildSeedScoring(transition, timestamp),
+      };
+
+      insertProposal.run(row);
+      insertTransition.run(row);
+      upsertEntry.run(row);
+    }
+
+    upsertTension.run({
+      id: "tension:unsafe-api-key-handling",
+      scope,
+      stateKey: "security.no_api_keys_in_repo",
+      title: "Unsafe API key handling must stay unresolved until secret flow exists",
+      description:
+        "Runtime work must avoid committing local secrets and should defer API key handling until a safe configuration path is implemented.",
+      status: "open",
+      severity: "high",
       sourceAgentId: agentId,
       sourceSessionId: sessionId,
-      committedAt: timestamp,
-      ...buildSeedScoring(transition, timestamp),
-    };
+      createdAt: timestamp,
+    });
 
-    insertProposal.run(row);
-    insertTransition.run(row);
-    upsertEntry.run(row);
-  }
-
-  upsertTension.run({
-    id: "tension:unsafe-api-key-handling",
-    scope,
-    stateKey: "security.no_api_keys_in_repo",
-    title: "Unsafe API key handling must stay unresolved until secret flow exists",
-    description:
-      "Runtime work must avoid committing local secrets and should defer API key handling until a safe configuration path is implemented.",
-    status: "open",
-    severity: "high",
-    sourceAgentId: agentId,
-    sourceSessionId: sessionId,
-    createdAt: timestamp,
+    seedWorkTraceSpine();
   });
 
-  seedWorkTraceSpine();
-});
+  seed();
 
-seed();
-db.close();
+  console.log(`Seeded Augnes demo temporal state for ${scope}`);
 
-console.log(`Seeded Augnes demo temporal state for ${scope}`);
+  function buildSeedScoring(transition, evaluatedAt) {
+    const scoringReason =
+      "Demo seed proposal is already committed with deterministic v0.2 scoring metadata.";
+    const scores = selectSeedScores(transition);
 
-function buildSeedScoring(transition, evaluatedAt) {
-  const scoringReason =
-    "Demo seed proposal is already committed with deterministic v0.2 scoring metadata.";
-  const scores = selectSeedScores(transition);
-
-  return {
-    predictionErrorScore: scores.prediction_error_score,
-    salienceScore: scores.salience_score,
-    evidenceScore: scores.evidence_score,
-    conflictScore: scores.conflict_score,
-    selfImpactScore: scores.self_impact_score,
-    reinforcementCount: 0,
-    expiresAt: null,
-    scoringVersion,
-    scoringReason,
-    scoreBreakdown: encodeValue({
-      version: scoringVersion,
-      evaluated_at: evaluatedAt,
-      seed: true,
-      scores,
-      consolidation_lifecycle: {
+    return {
+      predictionErrorScore: scores.prediction_error_score,
+      salienceScore: scores.salience_score,
+      evidenceScore: scores.evidence_score,
+      conflictScore: scores.conflict_score,
+      selfImpactScore: scores.self_impact_score,
+      reinforcementCount: 0,
+      expiresAt: null,
+      scoringVersion,
+      scoringReason,
+      scoreBreakdown: encodeValue({
+        version: scoringVersion,
         evaluated_at: evaluatedAt,
-        status: "committed",
-        reason: scoringReason,
+        seed: true,
+        scores,
+        consolidation_lifecycle: {
+          evaluated_at: evaluatedAt,
+          status: "committed",
+          reason: scoringReason,
+        },
+      }),
+    };
+  }
+
+  function selectSeedScores(transition) {
+    if (transition.stateKey.startsWith("security.")) {
+      return {
+        prediction_error_score: 0.1,
+        salience_score: 1,
+        evidence_score: 1,
+        conflict_score: 0,
+        self_impact_score: 0.93,
+      };
+    }
+
+    if (transition.stability === "completed") {
+      return {
+        prediction_error_score: 0.45,
+        salience_score: 0.76,
+        evidence_score: 0.8,
+        conflict_score: 0,
+        self_impact_score: 0.72,
+      };
+    }
+
+    if (transition.stability === "deprecated") {
+      return {
+        prediction_error_score: 0.5,
+        salience_score: 0.6,
+        evidence_score: 0.75,
+        conflict_score: 0.2,
+        self_impact_score: 0.55,
+      };
+    }
+
+    if (transition.temporalScope === "future_phase") {
+      return {
+        prediction_error_score: 0.45,
+        salience_score: 0.52,
+        evidence_score: 0.65,
+        conflict_score: 0,
+        self_impact_score: 0.48,
+      };
+    }
+
+    return {
+      prediction_error_score: 0.65,
+      salience_score: 0.78,
+      evidence_score: 0.82,
+      conflict_score: 0,
+      self_impact_score: 0.68,
+    };
+  }
+
+  function loadWorkItemManifest() {
+    const manifest = JSON.parse(readFileSync(workItemManifestUrl, "utf8"));
+    if (!Array.isArray(manifest.work_items)) {
+      throw new Error("DEMO_SEED_WORK_ITEM_MANIFEST_INVALID");
+    }
+    return manifest;
+  }
+
+  function toSeedWorkItem(item) {
+    return {
+      workId: item.work_id,
+      scope: item.scope || scope,
+      title: item.title,
+      status: item.status,
+      priority: item.priority,
+      summary: item.summary,
+      nextAction: item.next_action,
+      userAttentionRequired: item.user_attention_required ? 1 : 0,
+      relatedStateKeys: encodeValue(item.related_state_keys ?? []),
+      links: encodeValue(item.links ?? {}),
+      createdAt: item.created_at,
+      updatedAt: item.updated_at,
+    };
+  }
+
+  function seedWorkTraceSpine() {
+    const workItems = loadWorkItemManifest().work_items.map(toSeedWorkItem);
+
+    for (const item of workItems) {
+      upsertWorkItem.run(item);
+    }
+
+    const events = [
+      {
+        id: "work-event:ag-004-opened",
+        workId: "AG-004",
+        actor: "user",
+        eventType: "decision",
+        summary:
+          "Opened AG-004 to standardize Codex completion recording across action_records and work_events without adding state commit or reject authority.",
+        resultStatus: null,
+        resultKind: "handoff",
+        relatedActionId: null,
+        relatedPr: null,
+        relatedStateKeys: encodeValue(["integration.chatgpt_app"]),
+        createdAt: "2026-05-07T01:00:00.000Z",
       },
-    }),
-  };
-}
+      {
+        id: "work-event:ag-001-planned",
+        workId: "AG-001",
+        actor: "user",
+        eventType: "decision",
+        summary:
+          "Opened AG-001 as a trace-anchor implementation for work registry, work events, work brief, cockpit focus, and bridge tools.",
+        resultStatus: null,
+        resultKind: null,
+        relatedActionId: null,
+        relatedPr: null,
+        relatedStateKeys: encodeValue(["integration.chatgpt_app"]),
+        createdAt: "2026-05-07T00:00:00.000Z",
+      },
+      {
+        id: "work-event:ag-001-handoff",
+        workId: "AG-001",
+        actor: "chatgpt",
+        eventType: "handoff",
+        summary:
+          "Framed work_id as a trace anchor only; committed state remains the durable source of truth and action_records remain execution proof.",
+        resultStatus: null,
+        resultKind: "handoff",
+        relatedActionId: null,
+        relatedPr: null,
+        relatedStateKeys: encodeValue(["product.name", "implementation.stack"]),
+        createdAt: "2026-05-07T00:05:00.000Z",
+      },
+      {
+        id: "work-event:ag-001-pr-38-merged",
+        workId: "AG-001",
+        actor: "codex",
+        eventType: "implementation",
+        summary:
+          "PR #38 merged Work Trace Spine v0 and Work Focus View into main.",
+        resultStatus: "completed",
+        resultKind: "implementation",
+        relatedActionId: null,
+        relatedPr: "https://github.com/Aurna-code/augnes/pull/38",
+        relatedStateKeys: encodeValue([
+          "integration.chatgpt_app",
+          "implementation.stack",
+        ]),
+        createdAt: "2026-05-07T00:20:00.000Z",
+      },
+      {
+        id: "work-event:ag-001-manual-browser-verification",
+        workId: "AG-001",
+        actor: "user",
+        eventType: "verification",
+        summary:
+          "Manual browser verification confirmed Work Focus rendering, AG-001 selection, proof/events visibility, copy buttons, and jq validation for the copied work event template.",
+        resultStatus: "completed",
+        resultKind: "verification",
+        relatedActionId: null,
+        relatedPr: "https://github.com/Aurna-code/augnes/pull/38",
+        relatedStateKeys: encodeValue(["integration.chatgpt_app"]),
+        createdAt: "2026-05-07T00:25:00.000Z",
+      },
+      {
+        id: "work-event:ag-000-completed",
+        workId: "AG-000",
+        actor: "codex",
+        eventType: "verification",
+        summary:
+          "Current Work card seed context is complete and available as project-level status beside AG-001 focus.",
+        resultStatus: "completed",
+        resultKind: "verification",
+        relatedActionId: null,
+        relatedPr: null,
+        relatedStateKeys: encodeValue(["submission.readme_checklist_created"]),
+        createdAt: "2026-05-06T01:00:00.000Z",
+      },
+    ];
 
-function selectSeedScores(transition) {
-  if (transition.stateKey.startsWith("security.")) {
-    return {
-      prediction_error_score: 0.1,
-      salience_score: 1,
-      evidence_score: 1,
-      conflict_score: 0,
-      self_impact_score: 0.93,
-    };
-  }
+    for (const event of events) {
+      upsertWorkEvent.run({ ...event, scope });
+    }
 
-  if (transition.stability === "completed") {
-    return {
-      prediction_error_score: 0.45,
-      salience_score: 0.76,
-      evidence_score: 0.8,
-      conflict_score: 0,
-      self_impact_score: 0.72,
-    };
-  }
-
-  if (transition.stability === "deprecated") {
-    return {
-      prediction_error_score: 0.5,
-      salience_score: 0.6,
-      evidence_score: 0.75,
-      conflict_score: 0.2,
-      self_impact_score: 0.55,
-    };
-  }
-
-  if (transition.temporalScope === "future_phase") {
-    return {
-      prediction_error_score: 0.45,
-      salience_score: 0.52,
-      evidence_score: 0.65,
-      conflict_score: 0,
-      self_impact_score: 0.48,
-    };
-  }
-
-  return {
-    prediction_error_score: 0.65,
-    salience_score: 0.78,
-    evidence_score: 0.82,
-    conflict_score: 0,
-    self_impact_score: 0.68,
-  };
-}
-
-function loadWorkItemManifest() {
-  const manifest = JSON.parse(readFileSync(workItemManifestUrl, "utf8"));
-  if (!Array.isArray(manifest.work_items)) {
-    throw new Error("DEMO_SEED_WORK_ITEM_MANIFEST_INVALID");
-  }
-  return manifest;
-}
-
-function toSeedWorkItem(item) {
-  return {
-    workId: item.work_id,
-    scope: item.scope || scope,
-    title: item.title,
-    status: item.status,
-    priority: item.priority,
-    summary: item.summary,
-    nextAction: item.next_action,
-    userAttentionRequired: item.user_attention_required ? 1 : 0,
-    relatedStateKeys: encodeValue(item.related_state_keys ?? []),
-    links: encodeValue(item.links ?? {}),
-    createdAt: item.created_at,
-    updatedAt: item.updated_at,
-  };
-}
-
-function seedWorkTraceSpine() {
-  const workItems = loadWorkItemManifest().work_items.map(toSeedWorkItem);
-
-  for (const item of workItems) {
-    upsertWorkItem.run(item);
-  }
-
-  const events = [
-    {
-      id: "work-event:ag-004-opened",
-      workId: "AG-004",
+    upsertCoordinationEvent.run({
+      eventId: "event:ag-006-spine-storage-handoff",
+      eventType: "handoff_ready",
+      scope,
+      workId: "AG-006",
       actor: "user",
-      eventType: "decision",
-      summary:
-        "Opened AG-004 to standardize Codex completion recording across action_records and work_events without adding state commit or reject authority.",
+      target: "codex",
+      sourceSurface: "local_runtime",
+      authorityLevel: "handoff_guidance",
+      stateKeys: encodeValue(["coordination.event_spine"]),
+      causalParentId: null,
+      payloadRef: "docs/AUGNES_COORDINATION_SPINE_ROADMAP.md#pr-11-event-spine-schema-and-storage",
       resultStatus: null,
-      resultKind: "handoff",
-      relatedActionId: null,
-      relatedPr: null,
-      relatedStateKeys: encodeValue(["integration.chatgpt_app"]),
-      createdAt: "2026-05-07T01:00:00.000Z",
-    },
-    {
-      id: "work-event:ag-001-planned",
-      workId: "AG-001",
-      actor: "user",
-      eventType: "decision",
-      summary:
-        "Opened AG-001 as a trace-anchor implementation for work registry, work events, work brief, cockpit focus, and bridge tools.",
-      resultStatus: null,
-      resultKind: null,
-      relatedActionId: null,
-      relatedPr: null,
-      relatedStateKeys: encodeValue(["integration.chatgpt_app"]),
-      createdAt: "2026-05-07T00:00:00.000Z",
-    },
-    {
-      id: "work-event:ag-001-handoff",
-      workId: "AG-001",
-      actor: "chatgpt",
-      eventType: "handoff",
-      summary:
-        "Framed work_id as a trace anchor only; committed state remains the durable source of truth and action_records remain execution proof.",
-      resultStatus: null,
-      resultKind: "handoff",
-      relatedActionId: null,
-      relatedPr: null,
-      relatedStateKeys: encodeValue(["product.name", "implementation.stack"]),
-      createdAt: "2026-05-07T00:05:00.000Z",
-    },
-    {
-      id: "work-event:ag-001-pr-38-merged",
-      workId: "AG-001",
-      actor: "codex",
-      eventType: "implementation",
-      summary:
-        "PR #38 merged Work Trace Spine v0 and Work Focus View into main.",
-      resultStatus: "completed",
-      resultKind: "implementation",
-      relatedActionId: null,
-      relatedPr: "https://github.com/Aurna-code/augnes/pull/38",
-      relatedStateKeys: encodeValue([
-        "integration.chatgpt_app",
-        "implementation.stack",
-      ]),
-      createdAt: "2026-05-07T00:20:00.000Z",
-    },
-    {
-      id: "work-event:ag-001-manual-browser-verification",
-      workId: "AG-001",
-      actor: "user",
-      eventType: "verification",
-      summary:
-        "Manual browser verification confirmed Work Focus rendering, AG-001 selection, proof/events visibility, copy buttons, and jq validation for the copied work event template.",
-      resultStatus: "completed",
-      resultKind: "verification",
-      relatedActionId: null,
-      relatedPr: "https://github.com/Aurna-code/augnes/pull/38",
-      relatedStateKeys: encodeValue(["integration.chatgpt_app"]),
-      createdAt: "2026-05-07T00:25:00.000Z",
-    },
-    {
-      id: "work-event:ag-000-completed",
-      workId: "AG-000",
-      actor: "codex",
-      eventType: "verification",
-      summary:
-        "Current Work card seed context is complete and available as project-level status beside AG-001 focus.",
-      resultStatus: "completed",
-      resultKind: "verification",
-      relatedActionId: null,
-      relatedPr: null,
-      relatedStateKeys: encodeValue(["submission.readme_checklist_created"]),
-      createdAt: "2026-05-06T01:00:00.000Z",
-    },
-  ];
-
-  for (const event of events) {
-    upsertWorkEvent.run({ ...event, scope });
+      createdAt: "2026-05-08T00:00:00.000Z",
+    });
   }
-
-  upsertCoordinationEvent.run({
-    eventId: "event:ag-006-spine-storage-handoff",
-    eventType: "handoff_ready",
-    scope,
-    workId: "AG-006",
-    actor: "user",
-    target: "codex",
-    sourceSurface: "local_runtime",
-    authorityLevel: "handoff_guidance",
-    stateKeys: encodeValue(["coordination.event_spine"]),
-    causalParentId: null,
-    payloadRef: "docs/AUGNES_COORDINATION_SPINE_ROADMAP.md#pr-11-event-spine-schema-and-storage",
-    resultStatus: null,
-    createdAt: "2026-05-08T00:00:00.000Z",
-  });
 }

@@ -1,16 +1,13 @@
 import { openDatabase } from "@/lib/db";
 import {
-  ensureResearchCandidateManualGlobalDogfoodNextWorkBiasSchema,
   readResearchCandidateManualGlobalDogfoodNextWorkBias,
   readResearchCandidateManualGlobalDogfoodNextWorkBiasByReceiptId,
 } from "@/lib/research-candidate-review/read-manual-global-dogfood-next-work-bias";
 import {
-  ensureResearchCandidateManualGlobalDogfoodNextWorkSignalSchema,
   readResearchCandidateManualGlobalDogfoodNextWorkSignal,
   readResearchCandidateManualGlobalDogfoodNextWorkSignalByReceiptId,
 } from "@/lib/research-candidate-review/read-manual-global-dogfood-next-work-signal";
 import {
-  ensureResearchCandidateManualGlobalDogfoodPerspectiveRelaySchema,
   getResearchCandidateManualGlobalDogfoodPerspectiveRelayWriteAuthorityBoundary,
   readResearchCandidateManualGlobalDogfoodPerspectiveRelay,
   readResearchCandidateManualGlobalDogfoodPerspectiveRelayByReceiptId,
@@ -89,10 +86,6 @@ export function writeResearchCandidateManualGlobalDogfoodPerspectiveRelay(
   const ownsDb = !options.db;
 
   try {
-    ensureResearchCandidateManualGlobalDogfoodNextWorkSignalSchema(db);
-    ensureResearchCandidateManualGlobalDogfoodNextWorkBiasSchema(db);
-    ensureResearchCandidateManualGlobalDogfoodPerspectiveRelaySchema(db);
-
     const earlySourceFailures = validateSourcesForRequest({ db, request: typedRequest });
     if (earlySourceFailures.length > 0) {
       return refusedResult({
@@ -236,7 +229,6 @@ export function rollbackResearchCandidateManualGlobalDogfoodPerspectiveRelayRece
   const db = options.db ?? (openDatabase() as unknown as RelayDbLike);
   const ownsDb = !options.db;
   try {
-    ensureResearchCandidateManualGlobalDogfoodPerspectiveRelaySchema(db);
     if (refusalReasons.length > 0 || !isRecord(request)) {
       return rollbackRefused(refusalReasons);
     }

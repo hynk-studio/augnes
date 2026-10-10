@@ -2,7 +2,6 @@ import { openDatabase } from "@/lib/db";
 import {
   buildAutonomyDelegationGrantAuthorityBoundary,
   computeAutonomyDelegationGrantFingerprint,
-  ensureAutonomyDelegationGrantSchema,
   parseAutonomyDelegationGrantRow,
   type AutonomyDelegationGrantDbLike,
 } from "@/lib/autonomy/read-autonomy-delegation-grants";
@@ -88,7 +87,6 @@ export function writeAutonomyDelegationGrant(
   const shouldClose = !options.db && hasClose(db);
 
   try {
-    ensureAutonomyDelegationGrantSchema(db);
     const existingRow = db
       .prepare(
         `

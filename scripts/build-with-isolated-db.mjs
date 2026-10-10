@@ -16,6 +16,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
+import { withOwnedDatabase } from "../lib/db/connection-ownership.mjs";
 import {
   registerOwnedChild,
   terminateOwnedProcessTree,
@@ -163,8 +164,7 @@ async function runNodeScript(relativeScriptPath, environment, args = []) {
 }
 
 function seedStaticBakeSentinel(databasePath, sentinel) {
-  const database = new Database(databasePath);
-  try {
+  withOwnedDatabase(new Database(databasePath, { fileMustExist: true }), (database) => {
     database.pragma("foreign_keys = ON");
     database
       .prepare(
@@ -185,15 +185,12 @@ function seedStaticBakeSentinel(databasePath, sentinel) {
         "2000-01-01T00:00:00.000Z",
         "2000-01-01T00:00:00.000Z",
       );
-  } finally {
-    database.close();
-  }
+  });
 }
 
 function createDefaultDatabaseGuardFixture(databasePath) {
   mkdirSync(path.dirname(databasePath), { recursive: true });
-  const database = new Database(databasePath);
-  try {
+  withOwnedDatabase(new Database(databasePath), (database) => {
     database.exec(
       `CREATE TABLE build_default_guard (
         id TEXT PRIMARY KEY,
@@ -202,9 +199,7 @@ function createDefaultDatabaseGuardFixture(databasePath) {
       INSERT INTO build_default_guard (id, value)
       VALUES ('guard-row', 'must-remain-byte-identical');`,
     );
-  } finally {
-    database.close();
-  }
+  });
   return readDefaultDatabaseGuardSnapshot(databasePath);
 }
 
@@ -232,11 +227,10 @@ function assertDefaultDatabaseGuardUnchanged(databasePath, baseline) {
 }
 
 function readDefaultDatabaseGuardSnapshot(databasePath) {
-  const database = new Database(databasePath, {
+  return withOwnedDatabase(new Database(databasePath, {
     readonly: true,
     fileMustExist: true,
-  });
-  try {
+  }), (database) => {
     const schemaObjects = database
       .prepare(
         `SELECT type, name, tbl_name, sql
@@ -257,9 +251,7 @@ function readDefaultDatabaseGuardSnapshot(databasePath) {
         .update(JSON.stringify(rows))
         .digest("hex"),
     };
-  } finally {
-    database.close();
-  }
+  });
 }
 
 function assertStaticBuildDoesNotContainSentinel(sentinel) {

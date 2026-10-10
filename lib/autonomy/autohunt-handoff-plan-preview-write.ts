@@ -3,7 +3,6 @@ import type { AutonomyDelegationGrantDbLike } from "@/lib/autonomy/read-autonomy
 import {
   buildAutohuntHandoffPlanPreviewAuthorityBoundary,
   computeAutohuntHandoffPlanPreviewFingerprint,
-  ensureAutohuntHandoffPlanPreviewSchema,
   parseAutohuntHandoffPlanPreviewRow,
 } from "@/lib/autonomy/read-autohunt-handoff-plan-previews";
 import { computeAutohuntPreflightPacketFingerprint } from "@/lib/autonomy/read-autohunt-preflight-packets";
@@ -129,7 +128,6 @@ export function writeAutohuntHandoffPlanPreview(
   const shouldClose = !options.db && hasClose(db);
 
   try {
-    ensureAutohuntHandoffPlanPreviewSchema(db);
     const existingRow = db
       .prepare(
         `

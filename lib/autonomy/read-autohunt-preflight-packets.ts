@@ -121,7 +121,6 @@ export function readAutohuntPreflightPackets({
   const shouldClose = !providedDb && hasClose(db);
 
   try {
-    ensureAutohuntPreflightPacketSchema(db);
     const safeLimit = Math.max(1, Math.min(200, Math.floor(limit)));
     const rows = readRows(db, {
       scope,

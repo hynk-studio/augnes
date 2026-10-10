@@ -4,6 +4,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
+import { configureOwnedDatabase } from "../lib/db/connection-ownership.mjs";
+import { assertPreparedDatabase, openPreparedDatabase } from "../lib/db/prepared-database.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -15,15 +17,28 @@ export function ensureDataDirectory() {
 }
 
 export function openDatabase() {
-  ensureDataDirectory();
-  const db = new Database(dbPath);
-  db.pragma("foreign_keys = ON");
-  return db;
+  return openPreparedDatabase(dbPath);
 }
 
-export function initializeDatabase(db = openDatabase()) {
-  applyCanonicalDatabaseMigrations(db);
-  return db;
+// Only explicit CLI/fixture preparation owns creation; ordinary access never
+// calls this entry. A supplied handle remains owned by its supplying caller.
+export function openDatabaseForPreparation() {
+  ensureDataDirectory();
+  return configureOwnedDatabase(new Database(dbPath), (db) => {
+    db.pragma("foreign_keys = ON");
+  });
+}
+
+export function initializeDatabase(db) {
+  const prepare = (connection) => {
+    applyCanonicalDatabaseMigrations(connection);
+    assertPreparedDatabase(connection);
+  };
+  if (db) {
+    prepare(db);
+    return db;
+  }
+  return configureOwnedDatabase(openDatabaseForPreparation(), prepare);
 }
 
 export function resetDatabase() {

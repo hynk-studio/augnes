@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
-import { mkdirSync } from "node:fs";
-import { dirname } from "node:path";
+import { openPreparedDatabase } from "../db/prepared-database.mjs";
+import { withOwnedDatabase } from "../db/connection-ownership.mjs";
 
 import { openDatabase } from "../db";
 import {
@@ -219,20 +219,14 @@ export function withAutonomyRunnerLedgerDb<T>(
   callback: (db: AutonomyRunnerLedgerDb) => T,
 ): T {
   if (options.db) {
-    ensureAutonomyRunnerLedgerSchemaV01(options.db);
     return callback(options.db);
   }
 
   const db = options.dbPath
-    ? openStandaloneDatabase(options.dbPath)
+    ? openPreparedDatabase(options.dbPath)
     : openDatabase();
 
-  try {
-    ensureAutonomyRunnerLedgerSchemaV01(db);
-    return callback(db);
-  } finally {
-    db.close();
-  }
+  return withOwnedDatabase(db, callback);
 }
 
 export function insertAutonomyRunLedgerRecord(
@@ -866,13 +860,6 @@ export function buildAutonomyRunEventRecord({
     payload,
     created_at,
   };
-}
-
-function openStandaloneDatabase(dbPath: string) {
-  mkdirSync(dirname(dbPath), { recursive: true });
-  const db = new Database(dbPath, { fileMustExist: false });
-  db.pragma("foreign_keys = ON");
-  return db;
 }
 
 function listStepRecords(

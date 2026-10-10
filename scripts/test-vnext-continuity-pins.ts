@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { assertOrdinaryRequest, databaseSnapshot, testDatabaseAccess } from "./test-database-access";
+import { withOwnedDatabase } from "../lib/db/connection-ownership.mjs";
 import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -112,11 +114,12 @@ async function main(): Promise<void> {
   try {
   mkdirSync(projectARoot);
   mkdirSync(projectBRoot);
+  await testDatabaseAccess();
   testProductShellPinnedLandmarkV01();
   testMigrationParityAndPrePinnedUpgradeV01();
 
+  withOwnedDatabase(new Database(dbPath), applyCanonicalDatabaseMigrations);
   db = openDatabase();
-  applyCanonicalDatabaseMigrations(db);
   const workspace = getOrCreateDefaultWorkspaceIdentityV01(db, {
     create_uuid: () => "10000000-0000-4000-8000-000000000001",
     now: () => NOW,
@@ -267,6 +270,39 @@ async function main(): Promise<void> {
     "fixture must expose a valid owner outside the bounded continuity stream",
   );
   const authorityBefore = authoritySnapshotV01(db, continuityBefore);
+
+  // Fail after the collection revision advances but before its pin is inserted.
+  // The real transaction must roll back both the revision and all durable rows.
+  const beforeFailedWrite = databaseSnapshot(db);
+  const prepareBeforeFault = db.prepare;
+  const writeFault = new Error("injected_pin_insert_failure");
+  let partialWriteObserved = false;
+  db.prepare = function (this: Database.Database, sql: string) {
+    if (sql.includes("INSERT INTO vnext_project_continuity_pins (")) {
+      assert.equal(this.inTransaction, true);
+      const revision = (prepareBeforeFault as (sql: string) => Database.Statement<[], { revision: number }>).call(
+        this, "SELECT revision FROM vnext_project_continuity_pin_collections",
+      ).get();
+      assert.equal(revision?.revision, 1);
+      partialWriteObserved = true;
+      throw writeFault;
+    }
+    return prepareBeforeFault.call(this, sql);
+  } as typeof db.prepare;
+  try {
+    assert.throws(() => mutateProjectContinuityPinsV01(db!, {
+      ...scopeA,
+      mutation: {
+        action: "pin", expected_revision: 0,
+        target: eligibleItem.pinning.target,
+        source_family: eligibleItem.source_family, source_item_id: eligibleItem.item_id,
+        label_snapshot: pinOnlySnapshot, state_snapshot: eligibleItem.meaningful_state,
+      },
+    }), error => error === writeFault);
+  } finally { db.prepare = prepareBeforeFault; }
+  assert.equal(partialWriteObserved, true);
+  assert.equal(db.inTransaction, false);
+  assert.deepEqual(databaseSnapshot(db), beforeFailedWrite);
 
   const first = mutateProjectContinuityPinsV01(
     db,
@@ -731,6 +767,7 @@ async function main(): Promise<void> {
           attention_recommendation_action_authority_unchanged: true,
           api_read_and_idempotent_pin: true,
           api_stale_write_returns_current_revision: true,
+          partial_write_transaction_rollback: true,
           additive_rollback_tables_only: true,
         },
       },
@@ -1229,12 +1266,12 @@ function routeRequestV01(
 async function routeGetV01(
   projectId: string,
 ): Promise<ProjectContinuityPinProjectionV01> {
-  const response = await pinsGET(
+  const response = await assertOrdinaryRequest(dbPath, () => pinsGET(
     routeRequestV01(
       "GET",
       `http://127.0.0.1:3100/api/vnext/continuity-pins?project_id=${encodeURIComponent(projectId)}`,
     ),
-  );
+  ));
   const body = (await response.json()) as {
     ok: boolean;
     collection: ProjectContinuityPinProjectionV01;
