@@ -1,4 +1,6 @@
 {
   "schema": "augnes.canonical-research-tests.v1",
-  "test_ids": []
+  "test_ids": [
+    "hypothesis-cache-study"
+  ]
 }

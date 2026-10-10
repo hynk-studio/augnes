@@ -236,7 +236,12 @@ prior ordinary work complete. This is scripted separate-task execution, not
 autonomous selection, comparative usefulness, empirical learning or Autohunt.
 The strong adaptive-memo reference remains eligible and a live-model comparison
 is NOT_RUN. Existing P4.6 negative findings, #1372 obligations and public releases
-are unchanged. #1428 remains a separate unassigned research specification.
+are unchanged. The separately assigned [#1428 study](https://github.com/hynk-studio/augnes/issues/1428)
+has an executable candidate and adaptive-memo comparison in
+[Draft PR #1429](https://github.com/hynk-studio/augnes/pull/1429). Its scripted
+paths tied at 8/8 correct outputs and 43 simulated units; autonomous discovery
+and comparative model usefulness remain NOT_RUN. Its own current-candidate
+qualification is required before integration.
 
 ### Current P3/P4/P5 — Project retry-inspection outlook (#1213)
 
