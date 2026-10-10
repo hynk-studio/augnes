@@ -7,6 +7,8 @@ import { open as openFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
+import { withOwnedDatabase } from "../lib/db/connection-ownership.mjs";
+import { openPreparedDatabase } from "../lib/db/prepared-database.mjs";
 
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
 import { vNextProjectLifecycleSchemaSqlV01 } from "./db-migrations.mjs";
@@ -101,6 +103,13 @@ mkdirSync(failedAbandonmentFolder);
 const originalEnvironment = { ...process.env };
 const MAX_GIT_METADATA_BYTES = 64 * 1024;
 const MAX_REQUEST_BODY_BYTES = 16 * 1024;
+
+function prepareFixtureDatabase(databasePath: string) {
+  withOwnedDatabase(new Database(databasePath), (database) => {
+    database.pragma("foreign_keys = ON");
+    applyCanonicalDatabaseMigrations(database);
+  });
+}
 
 function sizedText(prefix: string, byteLength: number): string {
   const remaining = byteLength - Buffer.byteLength(prefix);
@@ -736,15 +745,12 @@ try {
 
   process.env.AUGNES_CANONICAL_TEST_MODE = "1";
   process.env.AUGNES_CANONICAL_TEMP_ROOT = root;
-  const open = () => { const db = new Database(dbPath); db.pragma("foreign_keys = ON"); applyCanonicalDatabaseMigrations(db); return db; };
+  prepareFixtureDatabase(dbPath);
+  const open = () => openPreparedDatabase(dbPath);
   process.env.AUGNES_DB_PATH = dbPath;
   const nonExactDbPath = path.join(root, "non-exact-preparation.db");
-  const openNonExact = () => {
-    const database = new Database(nonExactDbPath);
-    database.pragma("foreign_keys = ON");
-    applyCanonicalDatabaseMigrations(database);
-    return database;
-  };
+  prepareFixtureDatabase(nonExactDbPath);
+  const openNonExact = () => openPreparedDatabase(nonExactDbPath);
   async function assertNonExactPreparationRefused(
     errorCode: "physical_identity_unsupported" | "physical_identity_ambiguous" | "physical_identity_unavailable",
     token: string,
@@ -978,6 +984,7 @@ try {
   db.close();
 
   const declaredRouteDbPath = path.join(root, "declared-route.db");
+  prepareFixtureDatabase(declaredRouteDbPath);
   process.env.AUGNES_DB_PATH = declaredRouteDbPath;
   const declaredResponse = await projectRoutePost(routeRequest(JSON.stringify({
     action: "declare_path",
@@ -1076,6 +1083,7 @@ try {
   declaredDbAfterConfirmation.close();
 
   const abandonmentRaceDbPath = path.join(root, "abandonment-race.db");
+  prepareFixtureDatabase(abandonmentRaceDbPath);
   process.env.AUGNES_DB_PATH = abandonmentRaceDbPath;
   const ordinaryCancelResponse = await projectRoutePost(routeRequest(JSON.stringify({
     action: "declare_path",

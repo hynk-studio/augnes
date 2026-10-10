@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -30,7 +31,7 @@ export async function assertWorkReadContract() {
     parentURL: import.meta.url,
     tsconfig: fileURLToPath(new URL("../../../tsconfig.json", import.meta.url)),
   });
-  let disposition: "routes" | "unavailable" | "malformed" = "routes";
+  let disposition: "routes" | "unavailable" | "malformed" | "legacy-empty" = "routes";
   const requests: URL[] = [];
 
   try {
@@ -38,6 +39,7 @@ export async function assertWorkReadContract() {
     await rootImport("../../../scripts/demo-seed.mjs");
     const listRoute = await rootImport("../../../app/api/work/route.ts");
     const briefRoute = await rootImport("../../../app/api/work/[work_id]/brief/route.ts");
+    const legacyFallback = await rootImport("../../../lib/empty-runtime-startup-fallback.ts");
     globalThis.fetch = async (input, init) => {
       const request = new Request(input, init);
       const url = new URL(request.url);
@@ -46,6 +48,12 @@ export async function assertWorkReadContract() {
       requests.push(url);
       if (disposition === "unavailable") throw new Error("Fixture transport unavailable");
       if (disposition === "malformed") return Response.json({ scope: "project:augnes" });
+      if (disposition === "legacy-empty") {
+        const scope = url.searchParams.get("scope");
+        return Response.json({ scope, work_items: [], ...legacyFallback.buildEmptyRuntimeStartupFallbackMetadata({
+          route: "GET /api/work", scope, missingTables: ["work_items"],
+        }) });
+      }
       if (url.pathname === "/api/work") return listRoute.GET(request);
       const match = url.pathname.match(/^\/api\/work\/([^/]+)\/brief$/);
       assert.ok(match, "work reads must use the existing route owner");
@@ -99,9 +107,21 @@ export async function assertWorkReadContract() {
       assert.deepEqual(structured(empty).workItems, []);
       assert.equal(structured(empty).recommended_work_id, null);
 
-      process.env.AUGNES_DB_PATH = join(root, "missing-tables.db");
-      const fallback = await client.callTool({ name: "augnes_list_work_items", arguments: {} });
+      const missingDatabasePath = join(root, "missing.db");
+      process.env.AUGNES_DB_PATH = missingDatabasePath;
+      assert.throws(() => listRoute.GET(new Request("http://127.0.0.1:1/api/work")),
+        (error: unknown) => error instanceof Error && "code" in error && error.code === "database_missing");
+      const missing = await client.callTool({ name: "augnes_list_work_items", arguments: {} });
       process.env.AUGNES_DB_PATH = databasePath;
+      assert.equal(missing.isError, true);
+      assert.equal(structured(missing).workItems, undefined);
+      assert.match(JSON.stringify(missing.content), /work list endpoint is unavailable/);
+      assert.equal(existsSync(missingDatabasePath), false, "ordinary work reads must not create storage");
+
+      // Preserve the existing legacy wire-envelope refusal independently of
+      // current storage admission; a missing store no longer emits that envelope.
+      disposition = "legacy-empty";
+      const fallback = await client.callTool({ name: "augnes_list_work_items", arguments: {} });
       assert.equal(structured(fallback).workItems, undefined,
         "a missing-table runtime fallback must not become a successful empty work list");
       assert.match(JSON.stringify(fallback.content), /unavailable.*missing_optional_runtime_table/);
@@ -110,6 +130,7 @@ export async function assertWorkReadContract() {
         listed: structured(listed), opened: structured(opened),
         empty: structured(empty), failed: structured(fallback),
       });
+      disposition = "routes";
 
       for (const args of [
         { scope: list.scope, workId: "MISSING-WORK-FIXTURE" },
