@@ -4,6 +4,7 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
+import { loadResearchTestSteps } from "./canonical-research-registration.mjs";
 
 import {
   assertCanonicalConcurrentChildLabelsV01,
@@ -1542,6 +1543,21 @@ const suites = {
   "e2e-continuity": [{ ...continuityStep }],
   "e2e-golden": [{ ...goldenStep }],
 };
+
+// Additions cannot override or filter existing children. The reviewed loader
+// owns commands, phase, deadlines and the mandatory source/test inventory.
+const existingIds = Object.values(suites).flat().map(step => step.id).filter(Boolean);
+const researchSteps = loadResearchTestSteps(repoRoot, existingIds);
+suites.unit.push(...researchSteps);
+suites.authority.push({
+  id: "canonical-research-registration",
+  label: "audited research registration and conservative selection contract",
+  command: process.execPath,
+  args: ["scripts/test-canonical-research-registration.mjs"],
+  cwd: repoRoot,
+  timeoutMs: 30_000,
+  requireNaturalExit: true,
+});
 
 const integrationInventory = suites.integration;
 // Reuse the complete registered children, including their timeout and resource

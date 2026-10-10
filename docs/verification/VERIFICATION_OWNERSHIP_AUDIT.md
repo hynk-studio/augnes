@@ -5,6 +5,94 @@ Audit baseline: `22c0433d245da7e9357e7f6a50c7e6e0f31902cb` in
 protocol, research-sequencing, or execution-authority owner. Final exact-head
 execution evidence belongs in the accompanying Draft PR and local receipt.
 
+## Audited independent research registration (#1430)
+
+Intake main: `52f8b278bad5ddd8c261af127dca712cdd8da925`, tree
+`6ddbf3870cb72cda5aec56ba4d92d8422186daea`. #1434 is merged; the installed
+checkout remains on its separately accepted source and is not adopted by this
+work. The representative is #1429 at
+`c2cdf5ffa55a0783b5b686448ac1410a0d0b03f9`, originally based on
+`b9ccdf29442ec12cba01ba93f31c1341c233f18a`. Its nine new research files were
+unmatched; adding its unit child also changed the shared runner and static
+authority contract, correctly triggering integrity self-change protection.
+
+The bounded fix pre-registers those nine literal paths and a fixed child in
+`canonical-research-registration.mjs`. An initially empty data list enables only
+that reviewed ID. The loader, schema, commands, requirements, deadlines and
+phase mapping cannot be supplied by the addition. Both exact trees must have
+valid data; existing entries cannot be removed or replaced on the narrow path.
+A partial family, absent check, duplicate/unknown ID, command/phase field,
+unsafe mode, deletion or unknown helper is refused or remains Full. The original
+#1429 patch remains Full. A separate development replay translates only its
+registration mechanism and preserves all nine research files byte for byte;
+#1429's branch and qualification remain its owner's responsibility.
+
+| Retained surface | Actual consumer or responsibility |
+|---|---|
+| Exact-change validator, repository/base/head, receipt and cleanup contracts | Existing planner/executor admission, integrity and precise evidence remain unchanged. |
+| Three clean installs | Existing lock-bound preparation; no installed-tree reuse or dependency-policy exemption. |
+| Typecheck | Preserve the existing source-owner baseline and detect mixed typed consumers. |
+| Complete unit suite | Contains the actual file-producing research test and existing resource, environment and child-lifecycle checks. No old child is removed. |
+| Complete authority suite | Contains planner, registration, policy, executor, receipt and refusal contracts; the policy guard consumes the real registration inventory. |
+
+Consumer review covered exact names, package strings, dynamic reads, and source
+imports. `study.mjs` enumerates seven contained implementation/fixture files and
+reads only the explicitly supplied study output tree; its `scripted.mjs` dynamic
+import stays in that family. `check.mjs` independently replays arithmetic and
+ledgers. `io.mjs` uses Node crypto, file IO and bounded VM calls; this is trusted
+research code, not a hostile-code sandbox. The test additionally imports the
+unchanged canonical resource owner. The README is explanatory; no product
+instruction delegation or runtime consumer was found. The normal unit and
+static authority registrations are the only external executable consumers in
+#1429. Review future new consumers; absence of a literal match is not universal
+proof of absence.
+
+Omitted production build, integration, operability and all Browser phases own
+application/runtime composition, Core and persistence, schema/migration,
+credential/authority execution, recovery/package and UI behavior. This family
+has no reverse product import, installed-service consumer, dependency change,
+production datastore reader/writer, route or browser use. Distributable packaging
+uses explicit entry graphs/payloads, not a sweep of this research directory.
+Changes to those shared owners, package metadata, the resource helper, loader,
+manifest, executor or any unknown path retain existing broad precedence.
+Complete unit/authority are deliberately conservative retained aggregates; this
+PR does not prove that their individual children are all minimal.
+
+Historical Full observations (performance data, not qualification for this PR):
+
+| Context / run prefix | Total ms | Integration ms | Operability ms | Installs ms | Unit + authority ms |
+|---|---:|---:|---:|---:|---:|
+| Canonical / `2026-10-10T00-29-55-439Z` | 5,950,284 | 2,865,634 | 1,114,852 | 17,926 | 585,436 |
+| Isolated / `2026-10-09T22-46-31-327Z` | 6,050,485 | 2,877,005 | 1,135,485 | 22,438 | 587,866 |
+
+Both logs contain all 56 unit, 32 authority, 67 integration and 11 operability
+child results. Integration already overlaps the operator child (110,208 /
+110,737 ms) with the supporting serial group (2,863,357 / 2,875,035 ms);
+that overlap is not a new saving. Outer phases and operability children remain
+sequential. Each child still prepares and cleans its private environment;
+those internal preparation/cleanup subdurations are not separately measured.
+The three clean installs are about 0.3 minutes, not the primary cost. No complete
+checks were judged redundant from similar preparation names.
+
+The retained historical installs + typecheck + unit + authority sum to
+611,375 / 624,445 ms (10.19 / 10.41 minutes), excluding the new validator,
+registration regression, and outer overhead. These are estimates from phase
+sums, not measured future-path acceptance or matched-condition savings.
+
+Next candidate: profile repeated reconstruction work inside
+`reconstruction-selection-conformance`, the slowest supporting child at
+1,027,153 / 1,035,205 ms (17.1 / 17.3 minutes). Its serial critical-path position
+means a measured reduction there could reduce Full wall time directly; the
+amount remains unmeasured. `reconstruction-conformance` adds about 305.8 seconds,
+project home about 250–252 seconds, and cumulative successor history about 238
+seconds. Operability's package child costs 364,843 / 366,459 ms and reconciliation
+240,823 / 242,256 ms. Their distinct refusal, crash and recovery responsibilities
+remain retained. No reconstruction or persistence optimization is part of this PR.
+
+Rollback: revert this PR or use explicit `verify:local:full`. There is no product
+state migration. Later additions using this registration must restore a reviewed
+unit registration if the loader is reverted; never silently drop their tests.
+
 ## Audited roadmap reference consumer (#1342)
 
 At base `6132a37ceb34799ad65c6233e58ed6405abf2a01`, the unchanged
