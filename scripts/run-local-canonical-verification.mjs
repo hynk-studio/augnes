@@ -27,6 +27,10 @@ import {
 import { runCanonicalChild } from "./canonical-child-runner.mjs";
 import { CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 import { admitIntegrationBase } from "./local-canonical-integration-base.mjs";
+import { admitVerificationContext, assertVerificationContext, verificationAnchorRoot } from "./local-canonical-verification-context.mjs";
+import { acquireVerificationCapacity, assertVerificationCapacity, releaseVerificationCapacity } from "./local-canonical-capacity.mjs";
+import { createIsolatedInvocationResources, isolatedInvocationEnvironment, cleanupIsolatedInvocationResources } from "./local-canonical-isolated-resources.mjs";
+import { prepareHistoricalInputs, finishHistoricalInputs } from "./local-canonical-historical-inputs.mjs";
 import {
   acquireCheckoutVerificationOwnership,
   assertCheckoutVerificationOwnership,
@@ -101,6 +105,11 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/local-canonical-integration-base.mjs",
   "scripts/github-main-branch-transport.mjs",
   "scripts/local-canonical-checkout-ownership.mjs",
+  "scripts/local-canonical-verification-context.mjs",
+  "scripts/local-canonical-capacity.mjs",
+  "scripts/local-canonical-isolated-resources.mjs",
+  "scripts/local-canonical-historical-inputs.mjs",
+  "scripts/canonical-historical-evidence.mjs",
   "scripts/local-process-ownership.mjs",
   "plugins/augnes-operator/mcp/companion-service-core.mjs",
   "scripts/run-local-canonical-verification.mjs",
@@ -386,9 +395,11 @@ export async function runPhasesSequentially({
   execute,
   onStart = () => {},
   onResult = () => {},
+  signal,
 }) {
   const results = [];
   for (const phase of phases) {
+    if (signal?.aborted) break;
     onStart(phase);
     const result = await execute(phase);
     results.push(result);
@@ -416,10 +427,13 @@ export async function executeLocalCanonicalVerification({
   mode,
   baseSha: requestedBaseSha = null,
   headSha: requestedHeadSha = null,
+  checkoutContext = "canonical",
+  signal,
 }) {
   const startedMs = Date.now();
   const startedAt = new Date(startedMs).toISOString();
-  const identityBefore = collectRepositoryIdentity(repositoryRoot);
+  const verificationContext = admitVerificationContext({ repositoryRoot, kind: checkoutContext });
+  const identityBefore = collectRepositoryIdentity(repositoryRoot, { verificationContext });
   const baseSha =
     requestedBaseSha ??
     (mode === "quick"
@@ -442,8 +456,12 @@ export async function executeLocalCanonicalVerification({
   const locks = collectLockFingerprints();
   const executorFingerprint = computeExecutorSourceFingerprint();
   ensureBoundedLocalDirectory(repositoryRoot, artifactRoot);
-  const machineFingerprint = ensureMachineFingerprint(artifactRoot);
+  const machineFingerprint = ensureMachineFingerprint(ensureBoundedLocalDirectory(
+    verificationAnchorRoot(verificationContext),
+    path.join(verificationAnchorRoot(verificationContext), LOCAL_ARTIFACT_DIRECTORY),
+  ));
   const runId = safeRunId(startedAt, mode, headSha);
+  const invocationId = randomBytes(16).toString("hex");
   const runLogRoot = path.join(logRoot, runId);
   const worktreePolicy = evaluateWorktreePolicy({
     mode,
@@ -457,7 +475,7 @@ export async function executeLocalCanonicalVerification({
     browserPhaseIds: plan.planner_browser_phase_ids,
     targetedPhaseIds: plan.planner_targeted_phase_ids,
   });
-  const phaseReceipts = phaseDefinitions.map(notRunPhaseReceipt);
+  const phaseReceipts = phaseDefinitions.map(phase => ({ ...notRunPhaseReceipt(phase), invocation_id: invocationId }));
   let serviceLifecycleBefore = null;
   let serviceLifecycleAfter = null;
   let dependencyMaintenance = null;
@@ -522,7 +540,7 @@ export async function executeLocalCanonicalVerification({
   const generatedNextManaged = managesGeneratedNextState(plan.selected_plan);
   let checkoutOwner = null;
   const checkoutOwnership = {
-    required: requiresCheckoutVerificationOwnership(plan.selected_plan),
+    required: requiresCheckoutVerificationOwnership(plan.selected_plan) || checkoutContext === "isolated-worktree",
     acquired: false,
     released: false,
     checkout_fingerprint: null,
@@ -531,6 +549,16 @@ export async function executeLocalCanonicalVerification({
     released_at: null,
     failure_code: null,
   };
+  let capacityLease = null;
+  const capacityOwnership = {
+    required: process.platform === "darwin" && ["full-canonical", OWNER_TARGETED_PLAN].includes(plan.selected_plan),
+    acquired: false, released: false, failure_code: null,
+  };
+  let isolatedResources = null;
+  let isolatedResourceCleanup = null;
+  const historicalInputsRequired = checkoutContext === "isolated-worktree" && phaseDefinitions.some(phase => phase.id === "authority");
+  let historicalInputs = null;
+  let historicalInputCleanup = null;
   const nextState = {
     present_before: null,
     removed_before_execution: false,
@@ -555,6 +583,15 @@ export async function executeLocalCanonicalVerification({
 
   try {
     if (!executionFailure) {
+      if (signal?.aborted) throw Object.assign(new Error("verification_cancelled"), { code: "verification_cancelled" });
+      assertVerificationContext(verificationContext, repositoryRoot);
+      // Reserve host capacity before publishing a canonical-checkout owner.
+      // A refused contender must not look like an unaccounted legacy owner to
+      // already-running isolated lanes, even for a brief acquisition window.
+      if (capacityOwnership.required) {
+        capacityLease = acquireVerificationCapacity({ context: verificationContext, host, invocationId });
+        Object.assign(capacityOwnership, capacityLease, { acquired: true });
+      }
       if (checkoutOwnership.required) {
         checkoutOwner = acquireCheckoutVerificationOwnership({ repositoryRoot });
         Object.assign(checkoutOwnership, {
@@ -564,7 +601,15 @@ export async function executeLocalCanonicalVerification({
           acquired_at: checkoutOwner.metadata.acquired_at,
         });
       }
-      if (
+      if (checkoutContext === "isolated-worktree") {
+        isolatedResources = createIsolatedInvocationResources(invocationId);
+        if (historicalInputsRequired) historicalInputs = prepareHistoricalInputs({
+          context: verificationContext, repositoryRoot, checkoutOwner, invocationId,
+        });
+        serviceLifecycleBefore = boundedLifecycleState(await inspectCompanionService({
+          repositoryRoot: verificationAnchorRoot(verificationContext),
+        }));
+      } else if (
         plan.selected_plan === "full-canonical" ||
         plan.selected_plan === OWNER_TARGETED_PLAN
       ) {
@@ -610,11 +655,14 @@ export async function executeLocalCanonicalVerification({
       ensureBoundedLocalDirectory(repositoryRoot, runLogRoot);
       const completed = await runPhasesSequentially({
         phases: phaseDefinitions,
+        signal,
         execute: async (phase) => {
           if (checkoutOwnership.required) assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
+          if (capacityLease) assertVerificationCapacity(capacityLease);
+          assertVerificationContext(verificationContext, repositoryRoot);
           checkoutConsumersSettled = false;
           const result = await executePhase({
-            phase, mode, runLogRoot,
+            phase, mode, runLogRoot, isolatedResources, signal, invocationId,
             browserExecutablePath: hostResult.browserExecutablePath,
           });
           checkoutConsumersSettled = result.cleanup?.completed === true &&
@@ -649,9 +697,12 @@ export async function executeLocalCanonicalVerification({
     executionFailure = true;
     cleanupComplete = false;
     cleanupReason = safeErrorCode(error);
+    if (error.isolatedResourceCleanup) isolatedResourceCleanup = error.isolatedResourceCleanup;
+    if (error.historicalInputCleanup) historicalInputCleanup = error.historicalInputCleanup;
     if (checkoutOwnership.required && !checkoutOwnership.acquired) {
       checkoutOwnership.failure_code = cleanupReason;
     }
+    if (capacityOwnership.required && !capacityOwnership.acquired) capacityOwnership.failure_code = cleanupReason;
     console.error(
       `[local-canonical] failure phase=executor code=${cleanupReason}`,
     );
@@ -720,7 +771,7 @@ export async function executeLocalCanonicalVerification({
       }
       if (serviceLifecycleBefore !== null) {
         serviceLifecycleAfter = boundedLifecycleState(
-          await inspectCompanionService({ repositoryRoot }),
+          await inspectCompanionService({ repositoryRoot: verificationAnchorRoot(verificationContext) }),
         );
       }
       if (sharedGeneratedStateOwned) {
@@ -732,10 +783,28 @@ export async function executeLocalCanonicalVerification({
       cleanupComplete = false;
       cleanupReason = safeErrorCode(error);
     } finally {
+      if (historicalInputs) {
+        try {
+          historicalInputCleanup = finishHistoricalInputs(historicalInputs, { consumersSettled: checkoutConsumersSettled });
+          if (!historicalInputCleanup.completed || !historicalInputCleanup.unchanged) {
+            cleanupComplete = false;
+            cleanupReason ??= "historical_inputs_not_preserved";
+          }
+        } catch (error) { cleanupComplete = false; cleanupReason = safeErrorCode(error); }
+      }
+      if (isolatedResources) {
+        try {
+          isolatedResourceCleanup = cleanupIsolatedInvocationResources(isolatedResources, { consumersSettled: checkoutConsumersSettled });
+          if (!isolatedResourceCleanup.completed) {
+            cleanupComplete = false;
+            cleanupReason ??= "isolated_resources_cleanup_incomplete";
+          }
+        } catch (error) { cleanupComplete = false; cleanupReason = safeErrorCode(error); }
+      }
       if (checkoutOwner) {
         try {
           Object.assign(checkoutOwnership, releaseCheckoutVerificationOwnership(checkoutOwner, repositoryRoot, {
-            consumersSettled: checkoutConsumersSettled,
+            consumersSettled: checkoutConsumersSettled && (!historicalInputs || historicalInputCleanup?.completed === true),
           }));
         } catch (error) {
           cleanupComplete = false;
@@ -743,10 +812,23 @@ export async function executeLocalCanonicalVerification({
           checkoutOwnership.failure_code = cleanupReason;
         }
       }
+      if (capacityLease) {
+        try {
+          Object.assign(capacityOwnership, releaseVerificationCapacity(capacityLease, {
+            consumersSettled: checkoutConsumersSettled && (!isolatedResources || isolatedResourceCleanup?.completed === true) &&
+              (!historicalInputs || historicalInputCleanup?.completed === true),
+          }));
+        } catch (error) {
+          cleanupComplete = false; cleanupReason = safeErrorCode(error);
+          capacityOwnership.failure_code = cleanupReason;
+        }
+      }
     }
   }
 
-  const serviceLifecycleRestored = lifecycleStateRestored(
+  const serviceLifecycleRestored = checkoutContext === "isolated-worktree"
+    ? serviceLifecycleBefore !== null && JSON.stringify(serviceLifecycleBefore) === JSON.stringify(serviceLifecycleAfter)
+    : lifecycleStateRestored(
     serviceLifecycleBefore,
     serviceLifecycleAfter,
   );
@@ -768,7 +850,7 @@ export async function executeLocalCanonicalVerification({
 
   let identityAfter;
   try {
-    identityAfter = collectRepositoryIdentity(repositoryRoot);
+    identityAfter = collectRepositoryIdentity(repositoryRoot, { verificationContext });
   } catch (error) {
     identityAfter = {
       ...identityBefore,
@@ -788,7 +870,7 @@ export async function executeLocalCanonicalVerification({
     executionFailure = true;
     preflightIssues.push("post_execution_identity_mismatch");
   }
-  if (!cleanupComplete) executionFailure = true;
+  if (!cleanupComplete || signal?.aborted) executionFailure = true;
 
   const allSelectedPhasesPassed =
     phaseReceipts.length > 0 &&
@@ -822,6 +904,7 @@ export async function executeLocalCanonicalVerification({
     ? null
     : 0;
   const reasonCodes = [
+    ...(signal?.aborted ? ["verification_cancelled"] : []),
     ...preflightIssues,
     ...(cleanupReason ? [cleanupReason] : []),
     ...phaseReceipts
@@ -846,7 +929,9 @@ export async function executeLocalCanonicalVerification({
       worktree_after: identityAfter.worktree_dirty ? "dirty" : "clean",
     },
     integration_base: integrationBase,
+    verification_context: verificationContext,
     checkout_ownership: checkoutOwnership,
+    capacity_ownership: capacityOwnership,
     evidence: {
       mode,
       planner_event: plan.planner_event,
@@ -903,7 +988,7 @@ export async function executeLocalCanonicalVerification({
               : mode === "quick"
                 ? "existing_installed_trees_feedback_only"
                 : "documentation_only_no_dependency_install",
-      download_cache: "npm_cache_reuse_permitted_not_authoritative",
+      download_cache: checkoutContext === "isolated-worktree" ? "invocation_private_cache_not_authoritative" : "npm_cache_reuse_permitted_not_authoritative",
       installed_trees:
         (plan.selected_plan === "full-canonical" ||
           plan.selected_plan === OWNER_TARGETED_PLAN) &&
@@ -931,7 +1016,13 @@ export async function executeLocalCanonicalVerification({
       resource_exclusive_phases: RESOURCE_EXCLUSIVE_PHASE_IDS,
     },
     phases: phaseReceipts,
+    historical_inputs: {
+      required: historicalInputsRequired, prepared: historicalInputs !== null,
+      ...(historicalInputs ?? {}), ...(historicalInputCleanup ?? {}),
+    },
     run: {
+      id: runId,
+      invocation_id: invocationId,
       started_at: startedAt,
       finished_at: finishedAt,
       duration_ms: finishedMs - startedMs,
@@ -939,7 +1030,14 @@ export async function executeLocalCanonicalVerification({
     cleanup: {
       completed: cleanupComplete && remainingOwnedProcesses === 0,
       remaining_owned_processes: remainingOwnedProcesses,
+      isolated_resources: {
+        required: checkoutContext === "isolated-worktree",
+        prepared: isolatedResources !== null,
+        ...(isolatedResources ?? {}),
+        ...(isolatedResourceCleanup ?? {}),
+      },
       companion_service: {
+        scope: checkoutContext === "isolated-worktree" ? "accepted_checkout_read_only" : "installed_checkout_lifecycle",
         before: serviceLifecycleBefore,
         after: serviceLifecycleAfter,
         maintenance_acquired: dependencyMaintenance?.acquired === true,
@@ -1006,16 +1104,17 @@ function lifecycleStateRestored(before, after) {
     before.service_identity === after.service_identity;
 }
 
-export async function validateReceiptAgainstCurrentRepository(relativeReceiptPath) {
+export async function validateReceiptAgainstCurrentRepository(relativeReceiptPath, { checkoutContext = "canonical" } = {}) {
+  const verificationContext = admitVerificationContext({ repositoryRoot, kind: checkoutContext });
   const receiptPath = resolveArtifactPath(relativeReceiptPath);
   const receipt = readReceiptFile(receiptPath);
-  const identity = collectRepositoryIdentity(repositoryRoot);
+  const identity = collectRepositoryIdentity(repositoryRoot, { verificationContext });
   const locks = collectLockFingerprints();
   const executorFingerprint = computeExecutorSourceFingerprint();
   ensureBoundedLocalDirectory(repositoryRoot, artifactRoot);
   const host = collectHostEnvironment(repositoryRoot).public;
   const nodePolicy = evaluateNodePolicy();
-  const machineFingerprint = ensureMachineFingerprint(artifactRoot);
+  const machineFingerprint = ensureMachineFingerprint(path.join(verificationAnchorRoot(verificationContext), LOCAL_ARTIFACT_DIRECTORY));
   let currentIntegrationBase = null;
   if (["changed", "full"].includes(receipt?.evidence?.mode)) {
     try {
@@ -1068,6 +1167,8 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
     }).map((phase) => phase.id);
   }
   return inspectReceiptForDecision(receipt, {
+    currentVerificationContext: verificationContext,
+    expectedRunId: path.basename(receiptPath, ".json"),
     currentIntegrationBase,
     currentCheckoutFingerprint: checkoutVerificationFingerprint(repositoryRoot),
     currentIdentity: identity,
@@ -1467,6 +1568,9 @@ async function executePhase({
   mode,
   runLogRoot,
   browserExecutablePath = null,
+  isolatedResources = null,
+  signal,
+  invocationId,
 }) {
   const startedMs = Date.now();
   const startedAt = new Date(startedMs).toISOString();
@@ -1487,10 +1591,14 @@ async function executePhase({
       args: phase.args,
       cwd: phase.cwdScope === "nested-app" ? nestedAppRoot :
         phase.cwdScope === "web-planning-app" ? webPlanningRoot : repositoryRoot,
-      env: buildLocalPhaseEnvironment(process.env, {
+      env: isolatedResources ? {
+        ...isolatedInvocationEnvironment(isolatedResources),
+        ...(browserExecutablePath ? { AUGNES_BROWSER_EXECUTABLE_PATH: browserExecutablePath } : {}),
+      } : buildLocalPhaseEnvironment(process.env, {
         browserExecutablePath: phase.browser ? browserExecutablePath : null,
       }),
       timeoutMs: phase.timeoutMs,
+      signal,
       stdout: capture.stdout,
       stderr: capture.stderr,
     });
@@ -1498,6 +1606,7 @@ async function executePhase({
     capture.close();
     const finishedMs = Date.now();
     return {
+      invocation_id: invocationId,
       id: phase.id,
       label: phase.label,
       command: phase.display,
@@ -1528,12 +1637,14 @@ async function executePhase({
       result.exit_observed === true &&
       result.streams_closed === true);
   const passed =
+    result.cancelled !== true &&
     result.exit_code === 0 &&
     result.timed_out === false &&
     result.cleanup_completed === true &&
     result.remaining_owned_processes === 0 &&
     lifecyclePassed;
   return {
+    invocation_id: invocationId,
     id: phase.id,
     label: phase.label,
     command: phase.display,
@@ -1550,6 +1661,8 @@ async function executePhase({
     timed_out: result.timed_out,
     failure_code: passed
       ? null
+      : result.cancelled
+        ? "phase_cancelled"
       : result.timed_out
         ? "phase_timed_out"
         : result.exit_code !== 0
@@ -1827,7 +1940,7 @@ function parseCli(argv) {
     options.set(normalized, value);
   }
   const allowed =
-    mode === "validate" ? new Set(["receipt"]) : new Set(["base", "head"]);
+    mode === "validate" ? new Set(["receipt", "checkout-context"]) : new Set(["base", "head", "checkout-context"]);
   for (const key of options.keys()) {
     if (!allowed.has(key)) {
       const error = new Error("unknown local canonical argument");
@@ -1855,6 +1968,7 @@ function parseCli(argv) {
     baseSha: options.get("base") ?? null,
     headSha: options.get("head") ?? null,
     receipt: options.get("receipt") ?? null,
+    checkoutContext: options.get("checkout-context") ?? "canonical",
   };
 }
 
@@ -1865,12 +1979,19 @@ if (
   try {
     const command = parseCli(process.argv.slice(2));
     if (command.mode === "validate") {
-      const result = await validateReceiptAgainstCurrentRepository(command.receipt);
+      const result = await validateReceiptAgainstCurrentRepository(command.receipt, command);
       console.log(JSON.stringify(result));
       process.exitCode = result.valid_deciding_evidence ? 0 : 1;
     } else {
-      const result = await executeLocalCanonicalVerification(command);
-      process.exitCode = result.exitCode;
+      const controller = new AbortController();
+      const cancel = () => controller.abort();
+      process.on("SIGINT", cancel); process.on("SIGTERM", cancel);
+      try {
+        const result = await executeLocalCanonicalVerification({ ...command, signal: controller.signal });
+        process.exitCode = result.exitCode;
+      } finally {
+        process.removeListener("SIGINT", cancel); process.removeListener("SIGTERM", cancel);
+      }
     }
   } catch (error) {
     console.error(

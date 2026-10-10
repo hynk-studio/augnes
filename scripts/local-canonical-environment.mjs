@@ -21,6 +21,7 @@ import {
   CANONICAL_REPOSITORY_ID,
   matchCanonicalRepositoryIdentity,
 } from "./canonical-repository-identity.mjs";
+import { assertVerificationContext } from "./local-canonical-verification-context.mjs";
 
 export const WINDOWS_AUTHORIZED_REPOSITORY_ROOT_ENV =
   "AUGNES_CANONICAL_WINDOWS_REPOSITORY_ROOT";
@@ -81,10 +82,12 @@ export function assertExactSha(value, label) {
   return value;
 }
 
-export function collectRepositoryIdentity(repositoryRoot) {
+export function collectRepositoryIdentity(repositoryRoot, { verificationContext = null } = {}) {
   const resolvedRoot = realpathSync(repositoryRoot);
   const origin = runGit(resolvedRoot, ["remote", "get-url", "origin"]).trim();
-  const authorizedIdentity = assertAuthorizedRepositoryIdentity({
+  const authorizedIdentity = verificationContext
+    ? assertVerificationContext(verificationContext, resolvedRoot)
+    : assertAuthorizedRepositoryIdentity({
     resolvedRoot,
     originUrl: origin,
   });

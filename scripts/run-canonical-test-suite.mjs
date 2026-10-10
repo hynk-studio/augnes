@@ -1244,6 +1244,13 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      id: "local-canonical-isolation",
+      label: "isolated verification admission, capacity, cancellation and resource ownership",
+      ...rootNode("scripts/test-local-canonical-isolation.mjs"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       label: "read-only GitHub main-branch source-attestation transport",
       ...rootNode("scripts/test-github-main-branch-transport.mjs"),
       timeoutMs: 30_000,

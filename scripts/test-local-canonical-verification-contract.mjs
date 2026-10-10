@@ -539,6 +539,15 @@ for (const fragment of [
   `await admitAndResolveVerificationPlan`,
   `integration_base: integrationBase`,
   `checkout_ownership: checkoutOwnership`,
+  `verification_context: verificationContext`,
+  `capacity_ownership: capacityOwnership`,
+  `historical_inputs: {`,
+  `prepareHistoricalInputs({`,
+  `finishHistoricalInputs(historicalInputs`,
+  `createIsolatedInvocationResources`,
+  `cleanupIsolatedInvocationResources`,
+  `assertVerificationCapacity`,
+  `checkout-context`,
   `assertCheckoutVerificationOwnership`,
   `releaseCheckoutVerificationOwnership`,
   `isPostExecutionIdentityValid`,
@@ -612,6 +621,13 @@ for (const fragment of [
   `receipt_current_integration_base_unavailable`,
   `receipt_integration_base_provenance_invalid`,
   `receipt_checkout_ownership_invalid`,
+  `receipt_verification_context_invalid`,
+  `receipt_stale_verification_context`,
+  `receipt_invocation_identity_invalid`,
+  `receipt_capacity_ownership_invalid`,
+  `receipt_isolated_resource_provenance_invalid`,
+  `receipt_historical_input_provenance_invalid`,
+  `receipt_companion_scope_invalid`,
   `receipt_stale_branch_state`,
   `receipt_current_worktree_dirty`,
   `receipt_stale_lockfiles`,
@@ -716,6 +732,7 @@ for (const authorityChild of [
   "scripts/test-dependency-lock-compatibility.mjs",
   "scripts/test-local-canonical-executor.mjs",
   "scripts/test-local-canonical-receipt.mjs",
+  "scripts/test-local-canonical-isolation.mjs",
   "scripts/test-github-main-branch-transport.mjs",
 ]) {
   assert.equal(
@@ -724,6 +741,12 @@ for (const authorityChild of [
     `authority suite must own ${authorityChild} exactly once`,
   );
 }
+
+const isolatedChildStart = canonicalSuite.indexOf('id: "local-canonical-isolation"');
+assert.notEqual(isolatedChildStart, -1);
+const isolatedChild = canonicalSuite.slice(isolatedChildStart, canonicalSuite.indexOf("    },", isolatedChildStart));
+for (const fragment of ['timeoutMs: 30_000', 'requireNaturalExit: true', '"scripts/test-local-canonical-isolation.mjs"'])
+  requireText(isolatedChild, fragment, "isolated verification has a bounded authority child and complete cleanup");
 
 for (const retiredPath of [
   ".github/LOCAL_CANONICAL_PR_EVIDENCE.md",
@@ -1857,7 +1880,7 @@ console.log(
       child_heartbeat_required: true,
       process_tree_cleanup_required: true,
       integration_concurrency_bound: 2,
-      browser_lanes_must_run_sequentially_on_shared_host: true,
+      browser_lanes_must_run_sequentially_per_checkout: true,
       integration_children_uniquely_owned: integrationChildren,
       operability_children_declared: operabilityChildren.map(
         ([childId]) => childId,

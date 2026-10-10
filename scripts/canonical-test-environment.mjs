@@ -1,6 +1,6 @@
 import path from "node:path";
 import { tmpdir } from "node:os";
-import { closeSync, constants, fchmodSync, fstatSync, lstatSync, mkdtempSync, openSync, readdirSync, realpathSync, rmdirSync, unlinkSync } from "node:fs";
+import { closeSync, constants, fchmodSync, fstatSync, lstatSync, mkdirSync, mkdtempSync, openSync, readdirSync, realpathSync, rmdirSync, unlinkSync } from "node:fs";
 
 // Parent-owned test resources, not production snapshot capabilities. Identity
 // is captured before spawning a child; only the process runner marks settlement.
@@ -8,10 +8,26 @@ const resourceOwners = new WeakMap();
 const sameObject = (a, b) => a.dev === b.dev && a.ino === b.ino && a.isDirectory() === b.isDirectory();
 const resourceError = code => Object.assign(new Error(code), { code });
 
-export function createCanonicalTestResourceRoot(prefix) {
+export function createCanonicalTestResourceRoot(prefix, { shortSocketPaths = false } = {}) {
   if (!/^ag-(?:suite|c[0-9]{2}|resource-test)-$/u.test(prefix)) throw resourceError("resource_prefix_invalid");
-  const parent = realpathSync(tmpdir());
+  // Darwin AF_UNIX paths are bounded. An outer invocation adds another level
+  // above child roots, so use the system short temp location when requested.
+  // The new directory still has the same physical owner and cleanup capability.
+  const parent = realpathSync(shortSocketPaths && process.platform === "darwin" ? "/tmp" : tmpdir());
   const root = realpathSync(mkdtempSync(path.join(parent, prefix)));
+  return ownResourceRoot(root, parent);
+}
+
+// Fixed-layout disposable inputs need their existing reader paths. Only a new
+// directory can be owned; an existing archive is never adopted or overwritten.
+export function createCanonicalTestResourceDirectory(root) {
+  const parent = realpathSync(path.dirname(root));
+  if (path.join(parent, path.basename(root)) !== root) throw resourceError("resource_parent_changed");
+  mkdirSync(root, { mode: 0o700 });
+  return ownResourceRoot(root, parent);
+}
+
+function ownResourceRoot(root, parent) {
   const physical = lstatSync(root);
   const owner = Object.freeze({ root, device: String(physical.dev), inode: String(physical.ino) });
   resourceOwners.set(owner, { parent, parentPhysical: lstatSync(parent), physical, state: "prepared" });

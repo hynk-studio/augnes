@@ -46,8 +46,10 @@ implement changes, run focused development tests and static documentation
 checks, and create branches, commits, pushes, and Draft pull requests within
 task scope. These are development feedback, not actual Mac integration evidence
 or a Mac Local Canonical receipt. The actual Mac installed runtime and Local
-Canonical host remain rooted at `/Users/hynk/code/augnes`; the executor's exact
-Mac root, origin, platform, and deciding-evidence gates remain unchanged.
+Canonical host remain rooted at `/Users/hynk/code/augnes`. The default executor
+still requires that fixed checkout. Explicitly admitted linked worktrees on the
+same authorized Mac may use the verification-only entry below. This does not
+change installed-production identity or grant installation/adoption authority.
 
 ## Repository-owned entry points
 
@@ -66,8 +68,8 @@ npm run verify:local:full -- \
   --head <exact-40-character-head-sha>
 ```
 
-The executor first requires the exact authorized local root and exact authorized
-`origin`. It verifies that base and head are lowercase 40-character commit
+The executor first requires the authorized verification context and exact authorized
+`origin`. The default context retains the exact fixed local root. It verifies that base and head are lowercase 40-character commit
 identities available locally. `changed` and `full` additionally require:
 
 - the requested base equals the current `main` observed through the existing
@@ -96,6 +98,66 @@ Admission and later receipt validation are observations at recorded times.
 Validation re-observes current `main` and rechecks ancestry. Neither read reserves
 the base or proves the eventual GitHub merge result: `main` may move after the
 last read, and the later merge-time TOCTOU boundary remains unclosed here.
+
+## Isolated verification on the authorized Mac
+
+Create a task-owned Git worktree registered to `/Users/hynk/code/augnes` from
+the intended candidate, then invoke its own executor from that checkout:
+
+```bash
+npm run verify:local:changed -- --checkout-context isolated-worktree \
+  --base <exact-40-character-base-sha> --head <exact-40-character-head-sha>
+```
+
+The same explicit context option is supported by Quick, Full and receipt
+validation. There is no caller-supplied canonical anchor or arbitrary path
+qualification. Admission resolves the physical checkout, exact origin, common
+Git directory, registered worktree entry and backlink to the authorized Mac
+checkout. Nested roots, path aliases, unregistered clones and non-Mac isolated
+contexts fail closed. Exact clean head, authenticated current base, ancestry,
+Canonical Node, host policy and the unchanged planner remain mandatory for
+qualification. The context is rechecked before each phase and after execution.
+
+Each lane owns its checkout and its three installed dependency trees, generated
+build state, logs and receipts. Before mutation, the executor refuses aliased
+mutable roots, external symbolic links, hard links not fully contained in audited mutable paths, and local
+`.env` overrides (the checked-in `.env.example` remains allowed). Internal npm
+binary symbolic links and fully accounted native-binary hard links within the lane
+are permitted. The outer invocation receives a
+private HOME, temp root, npm download/node-gyp caches, disposable database and
+runtime state through the existing child-resource owner. Child tests retain their
+own nested resources, browser profiles, loopback listeners and verified process
+trees. On macOS the outer resource owner uses the system short temporary root,
+keeping nested Unix-domain IPC paths within the existing platform limit. No
+writable dependency or build tree is borrowed from another lane.
+
+When the authority phase is selected, the executor copies only its five existing
+migrated historical runs and their two authorization-consumption directories
+from the accepted checkout's archive.
+Copies have their own files and read-only permissions at the existing historical
+reader paths. The original archive is read only; neither active state nor old
+receipts are copied. An existing destination archive, aliases or missing inputs
+refuse preparation. The existing resource owner removes only this invocation's
+copy after child settlement. Receipts bind its source and content fingerprints,
+invocation, unchanged before/after contents and cleanup. Historical assertions
+and input provenance remain unchanged; this is fixture provision, not runtime
+adoption or new historical evidence.
+
+The isolated executor only observes the accepted Companion through its supported
+read-only inspector before and after the run. Its private HOME prevents nested
+build/suite wrappers from discovering or maintaining the installed service. An
+isolated lane never pauses, restarts, reconfigures or adopts that service. A
+changed observed service identity/lifecycle refuses successful qualification.
+The default canonical path retains supported maintenance/restoration for actual
+installed-checkout mutation. Cooperating tasks must still coordinate production
+handoffs and other shared mutable targets; this is not hostile same-user sandboxing.
+
+Git objects/worktree registration, the read-only Canonical Node and browser
+executables, operating-system resources and the host capacity directory remain
+shared. Worktree creation, source integration and installed adoption are outside
+the executor. No shared writable npm cache, browser profile, generated tree or
+production database is a phase input. Never remove another task's checkout or
+owner artifact to gain capacity.
 
 ## Node and platform policy
 
@@ -314,7 +376,7 @@ npm run test:operability:package
 
 ## Dependency and generated-state policy
 
-Before Quick, owner-targeted, or Full phases, the executor atomically acquires
+Before Quick, owner-targeted, Full, or any isolated-context phases, the executor atomically acquires
 `.augnes-local-verification/checkout-owner.json` with exclusive creation. This
 checkout owner is independent of Companion installed/live/stopped/absent state.
 It spans dependency use/replacement, generated-state cleanup, and Companion
@@ -322,8 +384,8 @@ restoration. Companion maintenance still owns service pause/restoration and is
 not the checkout exclusion mechanism.
 
 Authoritative generated-state baselines are observed only after checkout
-acquisition and, for owner-targeted/Full, successful Companion maintenance
-admission. The maintenance owner's own `before` observation defines the lifecycle
+acquisition and, for canonical owner-targeted/Full, successful Companion maintenance
+admission. Isolated contexts acquire private outer resources instead. The maintenance owner's own `before` observation defines the lifecycle
 to restore. Root `.next` and generated Windows-helper cleanup use these in-owner
 observations; unobserved/refused baselines remain `null`, not an asserted absence.
 Both generated-state cleanup steps precede service restoration, and final shared
@@ -364,8 +426,9 @@ is not deciding input. Package, build, distribution, dependency, or lockfile
 responsibility remains `full-canonical`; clean targeted preparation does not
 make those responsibilities narrow.
 
-npm download-cache reuse is permitted to avoid unnecessary transfer, but the
-cache and pre-existing installed trees are not deciding authority. Dependency
+Canonical-checkout npm download-cache reuse is permitted to avoid unnecessary transfer;
+isolated invocations use private disposable caches. Neither caches nor pre-existing
+installed trees are deciding authority. Dependency
 preparation failure is a verification failure. Root and nested lockfile SHA-256
 fingerprints are recorded in every receipt.
 
@@ -376,7 +439,7 @@ and removes any pre-existing entry before a deciding phase runs. A symlink,
 non-directory entry, or path outside that boundary fails closed without
 following or modifying the external target. After phases and before Companion
 maintenance release, the executor removes any newly generated `.next` while it
-still owns the checkout and runtime-maintenance boundaries and verifies that the path is absent
+still owns the checkout and applicable runtime-maintenance boundaries and verifies that the path is absent
 at that execution-cleanup boundary. Removal failure or residual state makes the
 run non-deciding and invalidates its receipt. The executor then restores the
 exact prior Companion lifecycle. A previously live or starting exact-checkout
@@ -410,13 +473,14 @@ optionality, and platform metadata—remain exact.
 
 ## Shared-Mac scheduling and resources
 
-The Mac is a shared development and verification host. The executor favors
-deterministic ownership over throughput:
+The Mac is a shared development and verification host. Independent admitted
+checkouts may overlap; within each invocation the existing scheduling remains:
 
 - all outer phases run sequentially;
 - dependency, build, database, package, recovery, supervisor, runtime
-  reconciliation, listener-port, process, and browser ownership never overlaps;
-- core and continuity E2E never run concurrently;
+  reconciliation, listener-port, process, and browser ownership never overlaps
+  on the same mutable target;
+- core and continuity E2E never run concurrently within one invocation;
 - the existing integration runner alone retains its proven maximum-two isolated
   groups, `operator-process` and `supporting-serial`;
 - after an observed child acceptance failure or runner error, integration admits
@@ -432,6 +496,26 @@ deterministic ownership over throughput:
 - existing measured child timeouts, heartbeats, zero-network guards, process
   tree termination, stream closure, and exact cleanup assertions remain owned
   by the current runners.
+
+Full and owner-targeted invocations on the Mac acquire a bounded host-capacity
+slot before publishing their physical-checkout owner, so a refused contender
+cannot briefly disrupt existing lanes as an unaccounted canonical owner. At least 10 logical CPUs and
+24 GiB physical memory admit at most two heavy lanes; smaller supported hosts
+admit one. Current free disk must cover the existing 15 GiB budget per admitted
+lane. The slot uses the same exclusive file, physical identity and process-birth
+owner as checkout exclusion; it is not a queue or a throughput guarantee. Busy
+capacity refuses immediately. Stale, replaced or unsettled owners remain refused
+and retained. A canonical-checkout owner not accounted for by a capacity slot
+(such as an older executor or a runtime handoff) also refuses concurrent admission.
+Quick and static feedback do not consume a heavy slot, but still obey applicable
+checkout ownership. Uncontrolled outside host load can still fail fixed timing
+gates; no deadline or assertion changes are permitted to obtain a parallel pass.
+
+SIGINT/SIGTERM cancellation stops new phase admission and invokes existing bounded
+verified-process-tree settlement for the current phase. A cancelled run stays
+failed. Its cleanup cannot touch another checkout, capacity slot or child resource.
+Unknown settlement retains resource and ownership artifacts and records failed
+cleanup; a successor must not infer release from process age or disappearance.
 
 Browser preferred-port allocation is a bounded loopback probe, not a runtime
 reservation. It keeps at most 20 probes and three distinct role ports within
@@ -494,7 +578,10 @@ writes a failed-attempt receipt.
 The public-safe receipt includes:
 
 - schema and receipt version;
-- receipt version 2 integration-base admission: requested base/tested head,
+- receipt version 3 verification context (canonical or admitted isolated worktree),
+  physical checkout/anchor/common-Git fingerprints, invocation-bound phases,
+  capacity ownership and private-resource cleanup;
+- integration-base admission: requested base/tested head,
   authenticated repository/branch/SHA observation, observation/check times,
   equality/ancestry results, and refusal reason;
 - checkout ownership requirement, acquisition/release results and times, opaque
@@ -505,7 +592,8 @@ The public-safe receipt includes:
   targeted and Browser phase inventories, and deciding/transferability state;
 - macOS version/build, architecture, Node/npm policy and actual versions;
 - a random local pseudonymous machine fingerprint stored independently of
-  hostname, username, serial number, hardware UUID, or account path;
+  hostname, username, serial number, hardware UUID, or account path; isolated
+  contexts use the authorized anchor's machine identity, not a newly invented host;
 - bounded CPU, memory, disk, browser-availability, and sleep-prevention facts;
 - root, Apps and web-planning lockfile SHA-256 fingerprints and dependency policy;
 - executor version, source-file inventory, and source SHA-256 fingerprint;
@@ -533,6 +621,10 @@ npm run verify:local:receipt -- \
   --receipt .augnes-local-verification/receipts/<receipt>.json
 ```
 
+For an isolated receipt, include `--checkout-context isolated-worktree` and run
+validation from its original admitted checkout. Copying a receipt to another lane
+cannot qualify that lane, even when source commits match.
+
 Validation exits nonzero unless the receipt is currently valid deciding
 evidence. It rejects or marks non-deciding a receipt when:
 
@@ -540,10 +632,14 @@ evidence. It rejects or marks non-deciding a receipt when:
 - the fresh authenticated `main` observation is unavailable or differs from the
   recorded base, or current ancestry cannot be established;
 - integration-base provenance is missing, inconsistent, wrongly timed, or
-  tampered; historical version 1 receipts are not upgraded into version 2 evidence;
+  tampered; historical version 1/2 receipts remain historical and are not upgraded
+  into version 3 evidence;
 - required checkout ownership was not acquired/released for the phase lifetime,
   failed, or belongs to another physical checkout;
-- either lockfile fingerprint differs;
+- the admitted context, physical checkout, receipt filename/run identity,
+  invocation, capacity lifetime or isolated-resource cleanup differs or is invalid;
+- isolated evidence acquired production maintenance or observed a changed service;
+- any lockfile fingerprint differs;
 - executor source fingerprint or selected plan differs;
 - content integrity or required fields are invalid;
 - a selected phase is missing, skipped, failed, timed out, non-finite, or has
@@ -566,11 +662,13 @@ plan, every command/result/duration, intermediate failure and correction,
 cleanup, zero remaining owned processes, repository-relative final receipt
 path, fingerprint, and successful receipt validation. It also states:
 
-- the execution occurred once on a shared local Mac;
+- each deciding execution occurred once for its exact target on the shared local Mac;
+- the verification context and any observed concurrent capacity/cleanup limits;
 - no generated receipt or raw log was committed or uploaded;
 - no GitHub Actions or other hosted/self-hosted CI ran;
 - no status check or independent attestation was fabricated;
-- no other repository or project directory was inspected or modified.
+- which task-owned verification checkouts were used and how unrelated work and
+  installed state were preserved.
 
 For exempt prose or static documentation responsibilities, record the exact diff,
 responsibility/consumer findings, applicable focused results, unresolved limits,
