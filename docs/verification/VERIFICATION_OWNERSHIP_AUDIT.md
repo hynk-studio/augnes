@@ -71,6 +71,10 @@ child results. Integration already overlaps the operator child (110,208 /
 that overlap is not a new saving. Outer phases and operability children remain
 sequential. Each child still prepares and cleans its private environment;
 those internal preparation/cleanup subdurations are not separately measured.
+The runner-observed post-exit cleanup tails across unit, authority, integration
+and operability sum to 3,510 / 3,619 ms; this excludes cleanup performed inside
+each test. Unattributed outer time is 5,996 / 13,990 ms. These small measured
+wrapper tails do not explain the long child execution critical path.
 The three clean installs are about 0.3 minutes, not the primary cost. No complete
 checks were judged redundant from similar preparation names.
 
@@ -78,6 +82,67 @@ The retained historical installs + typecheck + unit + authority sum to
 611,375 / 624,445 ms (10.19 / 10.41 minutes), excluding the new validator,
 registration regression, and outer overhead. These are estimates from phase
 sums, not measured future-path acceptance or matched-condition savings.
+
+Actual development evaluation (2026-10-10, one run): policy source/base
+`05f634fe1e28a02cb6802a6c36810af351f662af`, representative head
+`881fc460d083e3ce66c69e493965f2b77e5c897e`, tree
+`edb042aaa68c5bc9a6232c31c795d43e0af03bf6`. All nine #1429 source files
+match the original bytes. The old selector chooses Full for this translated
+registration; the new selector chooses these seven executed phases:
+
+| Executed phase | Measured ms | Result |
+|---|---:|---|
+| Exact-change validator | 1,799 | pass |
+| Root install | 6,196 | pass |
+| Nested app install | 1,474 | pass |
+| Web planning install | 10,053 | pass |
+| Typecheck | 28,025 | pass |
+| Unit | 413,474 | 57/57 children pass |
+| Authority | 173,451 | 33/33 children pass |
+
+Process wall time including setup/checks/cleanup: **637,339 ms (10m37s)**.
+The evaluator's internal total is 637,242 ms, including 753 ms preparation and
+702 ms final cleanup. The real research child took 771 ms. Slowest retained
+children were succession portability (72,658 ms), ACGC semantic closure
+(47,005 ms), continuation admission (43,336 ms), and the planner contract
+(35,067 ms). All individual child durations and results remain in local logs.
+An actual negative control added one to the research raw calculation; the
+selected research check failed on `13 !== 12`, exited 1 in 127 ms, and left zero
+owned processes with complete cleanup. No assertion or timeout was weakened.
+
+This used the existing phase definitions, sequential runner, child acceptance,
+isolated environment, checkout/capacity and historical-input owners. It produced
+a development report, **not a Canonical receipt**: its policy base was not
+current main. The introducing policy PR still selects Full under both old and
+new selectors. Its final exact-head qualification is reported separately in the
+PR, without treating this replay as #1429 acceptance.
+
+Environment: Node 24.18.0/npm 11.16.0, macOS arm64, 10 logical CPUs, 24 GiB.
+127 samples at about five-second intervals observed peak summed process-tree
+RSS 2,695,675,904 bytes and CPU 240.6%; these are sampled, not true peaks.
+Minimum raw free memory was 65,896,448 bytes; other Node process counts ranged
+20–22, including the installed service and Codex tooling. Only one task-owned
+heavy lane ran. Production Companion observations and database/WAL hashes were
+unchanged. Temporary historical inputs and private invocation resources were
+removed, generated `.next` was removed, checkout/capacity owners were released,
+and all selected processes settled. Dependencies and local evidence are retained.
+
+The historical Full and new narrow observations differ in head, context, cold
+worktree state, background activity and selected work. Historical incremental
+cache conditions are unmeasured. Their roughly 89–90 minute elapsed difference
+is a descriptive unpaired comparison, not matched-condition savings or an
+average per-PR forecast. The phase-sum estimates above remain separate.
+
+Before final qualification, recorded development/test/evaluation burden was
+692,301 ms over 15 completed attempts, including four failed setup/development
+attempts: missing script-only planner context, the policy guard's old owner
+inventory, a standalone lifecycle check before dependency installation, and a
+measurement log-name collision. The first two were corrected; the lifecycle
+check later passed in authority. The collision's exited child and exact private
+source copy were checked and its residue removed before the corrected control.
+No failed deciding run was retried. Queue waiting was zero; source inspection,
+Git/tool latency and authoring time were not comprehensively timed. The final
+Full run and final static checks add separate burden recorded in the PR.
 
 Next candidate: profile repeated reconstruction work inside
 `reconstruction-selection-conformance`, the slowest supporting child at
