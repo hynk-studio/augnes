@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { RESEARCH_REGISTRATION_PATH, RESEARCH_SOURCE_PATHS, RESEARCH_OWNER_ID,
+  loadResearchTestSteps } from "./canonical-research-registration.mjs";
 import { CODEX_REUSE_OWNER_IDS, CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 import { assertVerificationDocumentation } from "./validate-canonical-docs-change.mjs";
 import { buildPhasePlan, OPERATING_POLICY_PHASE_IDS } from "./run-local-canonical-verification.mjs";
@@ -97,6 +99,15 @@ const changeOwnerManifestSource = readRepositoryFile(
   "scripts/local-canonical-change-owners.v1.json",
 );
 const changeOwnerManifest = JSON.parse(changeOwnerManifestSource);
+const researchOwner = changeOwnerManifest.targeted_owners.find(owner => owner.id === RESEARCH_OWNER_ID);
+assert.deepEqual(researchOwner.phase_ids, ["typecheck", "unit", "authority"]);
+assert.deepEqual(researchOwner.path_rules.literal_exact_paths, [RESEARCH_REGISTRATION_PATH, ...RESEARCH_SOURCE_PATHS]);
+assert.equal(researchOwner.deletion_policy, "full");
+assert(canonicalSuite.includes("suites.unit.push(...researchSteps)"));
+assert(canonicalSuite.includes("loadResearchTestSteps(repoRoot, existingIds)"));
+// Validate the actual inventory; research files without their test cannot pass
+// by dropping the data entry or editing only a registration source assertion.
+loadResearchTestSteps(repositoryRoot);
 const plannerContract = readRepositoryFile(
   "scripts/test-canonical-change-planner.mjs",
 );
@@ -917,6 +928,7 @@ assert.deepEqual(
     "temporal-interpretation-preview",
     "codex-managed-runtime-store",
     "local-canonical-owner-contract-fixture",
+    "hypothesis-cache-study",
   ],
 );
 assert.deepEqual(

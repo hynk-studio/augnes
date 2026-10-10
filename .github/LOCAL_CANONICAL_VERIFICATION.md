@@ -313,6 +313,31 @@ Browser scripts, shared fixture/lifecycle helpers, or owner manifests. The
 [verification architecture audit](../docs/verification/VERIFICATION_OWNERSHIP_AUDIT.md)
 records consumers, exclusions, comparative plans, and retained responsibilities.
 
+The audited `hypothesis-cache-study` research family has a separate exact-path
+owner. It retains the exact-change validator, all three clean installations,
+typecheck, complete unit and authority suites. Its unit child uses the unchanged
+10-second natural-exit bound and existing resource/cleanup owner. The data file
+`scripts/canonical-research-tests.v1.json` may only enable reviewed test IDs;
+it cannot choose commands, arguments, phases, resource requirements or deadlines.
+The shared loader and owner mapping are verification integrity implementation:
+changing either still requires Full Canonical.
+
+Narrow registration requires valid, canonical data in both exact trees, no
+removed or replaced IDs, no duplicate/unknown IDs, and the complete regular-file
+source/test inventory. Any source in this family requires its registration and
+test even in Full. Deletion, rename, mode changes, unregistered helpers, missing
+or conflicting registration and unknown consumers remain conservative. Existing
+suite children cannot be replaced. This is one source-reviewed family, not a
+research-directory or generic test-addition exemption. Its initial registration
+is empty until that separate implementation enables it. The original #1429
+runner/guard diff still requires Full; this policy does not qualify that PR.
+
+Before this policy is on main, execution of a representative future registration
+is development evaluation only. It must record the actual source/base/head,
+selected and completed checks, failures, elapsed time and cleanup separately
+from the introducing policy PR's required exact-head Full qualification. Never
+substitute a hypothetical integration base or a development report for a receipt.
+
 Deletion is classified by the responsibility being removed. The audited pure-doc
 disposition path above is separate from executable deletion. Only an explicitly
 registered owner whose manifest deletion policy is `targeted` may use the

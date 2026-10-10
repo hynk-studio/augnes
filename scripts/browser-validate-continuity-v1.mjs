@@ -101,6 +101,7 @@ import {
   unexpectedConsoleErrorsForExpectedRefusals,
 } from "./browser-expected-refusal-accounting.mjs";
 import { readContinuityOperationalStatus } from "./continuity-operational-status.mjs";
+import { createContinuityWaitDiagnostic, withContinuityWaitDiagnostic } from "./continuity-wait-diagnostic-v1.mjs";
 import {
   registerOwnedChild,
   settleOwnedProcessAfterExit,
@@ -215,6 +216,7 @@ let serverPublicDiagnosticCapture = null;
 let chromeProcess = null;
 let chromeProcessRecord = null;
 let cdp = null;
+let importedProposalWaitDiagnostic = null;
 let database = null;
 let bootstrapToken = null;
 let currentPhase = "setup";
@@ -339,6 +341,7 @@ const result = {
   supervisor_exit_diagnostic: null,
   e2e_timing_summary: null,
   browser_port_allocation_diagnostic: null,
+  imported_proposal_wait_diagnostic: null,
   failure: null,
 };
 
@@ -2264,11 +2267,34 @@ async function main() {
     assert.equal(serverLog.includes(bootstrapToken), false);
     bootstrapToken = null;
     const importedProposalPath = `/workbench/semantic-review/${manifest.proposal_id.replace(":", "~")}`;
-    await navigate(`${appOrigin}${importedProposalPath}`);
-    await waitForCondition(
-      `document.querySelector('[data-vnext-semantic-review-detail="v0.1"]') !== null && document.querySelector('[data-vnext-transition-status="applied"]') !== null`,
-      "imported applied proposal remains visible after restart",
-    );
+    importedProposalWaitDiagnostic = createContinuityWaitDiagnostic({
+      origin: appOrigin, project: manifest.project_id, proposal: manifest.proposal_id,
+      fingerprint: manifest.proposal_fingerprint, path: importedProposalPath,
+      send: (...args) => cdp.send(...args),
+      emit: (event) => process.stdout.write(`[continuity-wait-diagnostic] ${JSON.stringify(event)}\n`),
+    });
+    try {
+      await withContinuityWaitDiagnostic(importedProposalWaitDiagnostic, async () => {
+        await navigate(`${appOrigin}${importedProposalPath}`);
+        importedProposalWaitDiagnostic.waitStarted();
+        await waitForCondition(
+          `document.querySelector('[data-vnext-semantic-review-detail="v0.1"]') !== null && document.querySelector('[data-vnext-transition-status="applied"]') !== null`,
+          "imported applied proposal remains visible after restart",
+          DEFAULT_TIMEOUT_MS, importedProposalWaitDiagnostic,
+        );
+      }, () => {
+        // Failure-only, later read of this owner's disposable imported fixture.
+        // No authentication or application request; lock waiting is bounded.
+        const db = new Database(importedDatabasePath, { readonly: true, fileMustExist: true, timeout: 100 });
+        try {
+          const row = db.prepare(`SELECT workspace_id, project_id, fingerprint FROM vnext_core_records
+            WHERE record_kind = 'episode_delta_proposal' AND record_id = ?`).get(manifest.proposal_id);
+          return { proposal_present: Boolean(row),
+            project_matches: row ? row.project_id === manifest.project_id && row.workspace_id === manifest.workspace_id : null,
+            fingerprint_matches: row ? row.fingerprint === manifest.proposal_fingerprint : null };
+        } finally { db.close(); }
+      }, (diagnostic) => { result.imported_proposal_wait_diagnostic = diagnostic; });
+    } finally { importedProposalWaitDiagnostic = null; }
     record("mixed_applied_candidate_survives_session_restart");
     record("mixed_prior_session_decision_remains_visible");
     const importedWorkbenchProbe = await evaluateJson(`(async () => {
@@ -3593,6 +3619,7 @@ function attachCdpObservers() {
         ? consoleErrors.length
         : null;
     observeExpectedRefusalCdpEvent(event, { rawConsoleIndex });
+    importedProposalWaitDiagnostic?.observe(event, currentPhase);
     if (event.method === "Fetch.requestPaused") {
       const url = String(event.params?.request?.url ?? "");
       const classification = classifyUrl(url);
@@ -3874,7 +3901,9 @@ async function runPhase(phase, action, options = {}) {
 async function navigate(url) {
   navigationCount += 1;
   const startedAt = Date.now();
-  await cdp.send("Page.navigate", { url });
+  importedProposalWaitDiagnostic?.navigationStarted(url);
+  const navigationResult = await cdp.send("Page.navigate", { url });
+  importedProposalWaitDiagnostic?.navigationResult(navigationResult);
   await waitForCondition(
     `["interactive", "complete"].includes(document.readyState)`,
     `document readiness for ${new URL(url).pathname}`,
@@ -3917,10 +3946,13 @@ async function evaluateJson(expression) {
   return await evaluate(expression);
 }
 
-async function waitForCondition(expression, label, timeoutMs = DEFAULT_TIMEOUT_MS) {
+async function waitForCondition(expression, label, timeoutMs = DEFAULT_TIMEOUT_MS, diagnostic = null) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
-    if (await evaluateBoolean(expression).catch(() => false)) {
+    const accepted = await (diagnostic
+      ? evaluateJson(diagnostic.expression(expression)).then((value) => diagnostic.conditionResult(value))
+      : evaluateBoolean(expression)).catch((error) => { diagnostic?.evaluationError(error); return false; });
+    if (accepted) {
       recordLongWait("wait_for_condition", label, startedAt);
       return;
     }
