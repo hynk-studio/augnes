@@ -149,7 +149,9 @@ remove it reversibly with `npm run augnes:service:stop` or
 unsupported; their source development flow remains foreground-only.
 
 Normal startup prepares the application-owned local database and does not
-reset or seed operator data. `npm run augnes:service:status` returns bounded
+reset or seed operator data. Ordinary reads and writes then connect only to that
+prepared store; missing or incompatible storage is refused without implicit
+creation or repair. See [database lifecycle ownership](docs/DATABASE_ACCESS_LIFECYCLE.md). `npm run augnes:service:status` returns bounded
 lifecycle state without exposing service paths, Node paths, PIDs, ports,
 tokens, manifests, or database paths.
 

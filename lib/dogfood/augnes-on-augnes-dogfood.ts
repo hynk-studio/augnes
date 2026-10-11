@@ -1,5 +1,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import Database from "better-sqlite3";
+import { withOwnedDatabase } from "../db/connection-ownership.mjs";
+import { applyCanonicalDatabaseMigrations } from "../../scripts/canonical-database-migrations.mjs";
 
 import {
   createAutonomyRun,
@@ -167,6 +170,14 @@ export async function runAugnesDogfoodFixture(
   if (!input.dbPath) {
     throw new Error("augnes_dogfood_fixture_requires_explicit_dbPath");
   }
+
+  // This explicit script/fixture entry owns preparation. Runner reads and
+  // writes only acquire an already prepared database, including path overrides.
+  mkdirSync(dirname(input.dbPath), { recursive: true });
+  withOwnedDatabase(new Database(input.dbPath), (db) => {
+    db.pragma("foreign_keys = ON");
+    applyCanonicalDatabaseMigrations(db);
+  });
 
   const fixture = await buildTempRunnerFixture(input);
   const report = buildAugnesDogfoodReport({

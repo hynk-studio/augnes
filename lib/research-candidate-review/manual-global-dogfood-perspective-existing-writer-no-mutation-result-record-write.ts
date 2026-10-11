@@ -1,7 +1,6 @@
 import { openDatabase } from "@/lib/db";
 import {
   computeResultRecordFingerprint,
-  ensureResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordSchema,
   parseResultRecordRow,
   type ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordDbLike,
 } from "@/lib/research-candidate-review/read-manual-global-dogfood-perspective-existing-writer-no-mutation-result-records";
@@ -91,9 +90,6 @@ export function writeResearchCandidateManualGlobalDogfoodPerspectiveExistingWrit
   const shouldClose = !options.db && hasClose(db);
 
   try {
-    ensureResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordSchema(
-      db,
-    );
     const idempotencyKey = computeIdempotencyKey(review);
     const existingRow = db
       .prepare(

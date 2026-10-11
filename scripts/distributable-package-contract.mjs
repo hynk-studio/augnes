@@ -100,6 +100,9 @@ export const DISTRIBUTABLE_REQUIRED_FILES = Object.freeze([
   "bridge/public/console-widget.html",
   "lib/db/proposal-scoring-schema.json",
   "lib/db/recovery-private-material-contract.mjs",
+  "lib/db/canonical-database-contract.mjs",
+  "lib/db/connection-ownership.mjs",
+  "lib/db/structural-schema-contract.mjs",
   "lib/db/schema.sql",
   "node_modules/better-sqlite3/build/Release/better_sqlite3.node",
   "package.json",
@@ -130,6 +133,9 @@ const BRIDGE_RUNTIME_FILES = new Set([
 const DATABASE_RUNTIME_FILES = new Set([
   "lib/db/proposal-scoring-schema.json",
   "lib/db/recovery-private-material-contract.mjs",
+  "lib/db/canonical-database-contract.mjs",
+  "lib/db/connection-ownership.mjs",
+  "lib/db/structural-schema-contract.mjs",
   "lib/db/schema.sql",
 ]);
 const RUNTIME_SCRIPT_SET = new Set(DISTRIBUTABLE_RUNTIME_SCRIPTS);

@@ -131,7 +131,6 @@ export function readAutohuntDailyLauncherRuns({
   const shouldClose = !providedDb && hasClose(db);
 
   try {
-    ensureAutohuntDailyLauncherRunSchema(db);
     const safeLimit = Math.max(1, Math.min(200, Math.floor(limit)));
     const rows = readRows(db, {
       scope,

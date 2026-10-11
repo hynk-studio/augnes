@@ -1,13 +1,11 @@
 import { openDatabase } from "@/lib/db";
 import {
-  ensureResearchCandidateManualGlobalDogfoodPerspectiveAdapterSchema,
   getResearchCandidateManualGlobalDogfoodPerspectiveAdapterWriteAuthorityBoundary,
   readResearchCandidateManualGlobalDogfoodPerspectiveAdapter,
   readResearchCandidateManualGlobalDogfoodPerspectiveAdapterByReceiptId,
   type ResearchCandidateManualGlobalDogfoodPerspectiveAdapterDbLike,
 } from "@/lib/research-candidate-review/read-manual-global-dogfood-perspective-adapter";
 import {
-  ensureResearchCandidateManualGlobalDogfoodPerspectiveStateMutationSchema,
   readResearchCandidateManualGlobalDogfoodPerspectiveStateMutation,
   readResearchCandidateManualGlobalDogfoodPerspectiveStateMutationByReceiptId,
 } from "@/lib/research-candidate-review/read-manual-global-dogfood-perspective-state-mutation";
@@ -99,9 +97,6 @@ export function writeResearchCandidateManualGlobalDogfoodPerspectiveAdapter(
   const ownsDb = !options.db;
 
   try {
-    ensureResearchCandidateManualGlobalDogfoodPerspectiveStateMutationSchema(db);
-    ensureResearchCandidateManualGlobalDogfoodPerspectiveAdapterSchema(db);
-
     const earlySourceFailures = validateSourcesForRequest({ db, request: typedRequest });
     if (earlySourceFailures.length > 0) {
       return refusedResult({
@@ -247,7 +242,6 @@ export function rollbackResearchCandidateManualGlobalDogfoodPerspectiveAdapterRe
     options.db ?? (openDatabase() as unknown as PerspectiveAdapterDbLike);
   const ownsDb = !options.db;
   try {
-    ensureResearchCandidateManualGlobalDogfoodPerspectiveAdapterSchema(db);
     if (!validation.ok) {
       return rollbackRefused({
         refusalReasons: validation.reasons,

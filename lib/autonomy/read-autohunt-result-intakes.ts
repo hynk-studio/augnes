@@ -125,7 +125,6 @@ export function readAutohuntResultIntakes({
   const shouldClose = !providedDb && hasClose(db);
 
   try {
-    ensureAutohuntResultIntakeSchema(db);
     const safeLimit = Math.max(1, Math.min(200, Math.floor(limit)));
     const rows = readRows(db, {
       scope,

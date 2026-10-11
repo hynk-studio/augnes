@@ -107,9 +107,6 @@ export function readResearchCandidateManualGlobalDogfoodPerspectiveExistingWrite
   const shouldClose = !providedDb && hasClose(db);
 
   try {
-    ensureResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordSchema(
-      db,
-    );
     const safeLimit = Math.max(1, Math.min(100, Math.floor(limit)));
     const rows = source_entrypoint_review_fingerprint
       ? (db

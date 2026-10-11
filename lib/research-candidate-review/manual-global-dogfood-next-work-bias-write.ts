@@ -1,13 +1,11 @@
 import { openDatabase } from "@/lib/db";
 import {
-  ensureResearchCandidateManualGlobalDogfoodNextWorkBiasSchema,
   getResearchCandidateManualGlobalDogfoodNextWorkBiasWriteAuthorityBoundary,
   readResearchCandidateManualGlobalDogfoodNextWorkBias,
   readResearchCandidateManualGlobalDogfoodNextWorkBiasByReceiptId,
   type ResearchCandidateManualGlobalDogfoodNextWorkBiasDbLike,
 } from "@/lib/research-candidate-review/read-manual-global-dogfood-next-work-bias";
 import {
-  ensureResearchCandidateManualGlobalDogfoodNextWorkSignalSchema,
   readResearchCandidateManualGlobalDogfoodNextWorkSignal,
   readResearchCandidateManualGlobalDogfoodNextWorkSignalByReceiptId,
 } from "@/lib/research-candidate-review/read-manual-global-dogfood-next-work-signal";
@@ -86,9 +84,6 @@ export function writeResearchCandidateManualGlobalDogfoodNextWorkBias(
   const ownsDb = !options.db;
 
   try {
-    ensureResearchCandidateManualGlobalDogfoodNextWorkSignalSchema(db);
-    ensureResearchCandidateManualGlobalDogfoodNextWorkBiasSchema(db);
-
     const earlySourceFailures = validateSourceNextWorkSignalForRequest({
       db,
       request: typedRequest,
@@ -248,7 +243,6 @@ export function rollbackResearchCandidateManualGlobalDogfoodNextWorkBiasReceipt(
   const db = options.db ?? (openDatabase() as unknown as BiasDbLike);
   const ownsDb = !options.db;
   try {
-    ensureResearchCandidateManualGlobalDogfoodNextWorkBiasSchema(db);
     if (refusalReasons.length > 0 || !isRecord(request)) {
       return rollbackRefused(refusalReasons);
     }

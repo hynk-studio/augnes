@@ -183,6 +183,7 @@ function unsettledOwnerContract(run: any) {
   // successful execution is fabricated or repaired by these interventions.
   const db = new Database(":memory:");
   try {
+    applyCanonicalDatabaseMigrations(db);
     insertAutonomyRunLedgerRecord({ ...run, run_id: "own", status: "running", metadata: {} }, [], [], { db });
     insertAutonomyRunLedgerRecord({ ...run, run_id: "other", status: "completed", metadata: {} }, [], [], { db });
     const check = (metadata: string, expected: boolean) => {

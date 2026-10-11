@@ -31,7 +31,6 @@ import {
   normalizeProjectDisplayNameV01,
 } from "@/lib/vnext/persistence/project-identity-registry";
 import {
-  ensureVNextProjectLifecycleSchemaV01,
   ProjectLifecycleErrorV01,
   listRecentProjectRowsV01,
   readActiveProjectSelectionV01,
@@ -991,7 +990,6 @@ export async function confirmLocalProjectOnboardingV01(db: Database.Database, in
   });
   const now = (options.now ?? (() => new Date().toISOString()))();
   return db.transaction(() => {
-    ensureVNextProjectLifecycleSchemaV01(db);
     const physicalRegistration =
       readCanonicalProjectForPhysicalObservationV01(
           db,

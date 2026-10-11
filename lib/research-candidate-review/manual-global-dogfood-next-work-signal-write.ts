@@ -1,16 +1,13 @@
 import { openDatabase } from "@/lib/db";
 import {
-  ensureResearchCandidateManualGlobalDogfoodLedgerSchema,
   readResearchCandidateManualGlobalDogfoodLedgerByReceiptId,
   type ResearchCandidateManualGlobalDogfoodLedgerDbLike,
 } from "@/lib/research-candidate-review/read-manual-global-dogfood-ledger";
 import {
-  ensureResearchCandidateManualGlobalDogfoodMetricSnapshotSchema,
   readResearchCandidateManualGlobalDogfoodMetricSnapshotByReceiptId,
   type ResearchCandidateManualGlobalDogfoodMetricSnapshotDbLike,
 } from "@/lib/research-candidate-review/read-manual-global-dogfood-metric-snapshot";
 import {
-  ensureResearchCandidateManualGlobalDogfoodNextWorkSignalSchema,
   getResearchCandidateManualGlobalDogfoodNextWorkSignalWriteAuthorityBoundary,
   readResearchCandidateManualGlobalDogfoodNextWorkSignal,
   readResearchCandidateManualGlobalDogfoodNextWorkSignalByReceiptId,
@@ -104,10 +101,6 @@ export function writeResearchCandidateManualGlobalDogfoodNextWorkSignal(
   const ownsDb = !options.db;
 
   try {
-    ensureResearchCandidateManualGlobalDogfoodLedgerSchema(db);
-    ensureResearchCandidateManualGlobalDogfoodMetricSnapshotSchema(db);
-    ensureResearchCandidateManualGlobalDogfoodNextWorkSignalSchema(db);
-
     const sourceLedger = readResearchCandidateManualGlobalDogfoodLedgerByReceiptId(
       contract.source_latest_active_committed_receipt_id!,
       { scope: contract.scope, db },
@@ -310,7 +303,6 @@ export function rollbackResearchCandidateManualGlobalDogfoodNextWorkSignalReceip
   const ownsDb = !options.db;
 
   try {
-    ensureResearchCandidateManualGlobalDogfoodNextWorkSignalSchema(db);
     const existing =
       readResearchCandidateManualGlobalDogfoodNextWorkSignalByReceiptId(
         typedRequest.receipt_id,

@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
+import { withOwnedDatabase } from "../lib/db/connection-ownership.mjs";
 import type { ProjectSelectionRevision } from "../lib/vnext/project-selection";
 import { differentSelectionRevision } from "./test-selection-observation";
 import assert from "node:assert/strict";
@@ -3183,9 +3185,7 @@ function assertReaderExcludesLegacyFallback(
 }
 
 function initializeDatabase() {
-  const database = new Database(databasePath);
-  database.exec(readFileSync(path.join(process.cwd(), "lib", "db", "schema.sql"), "utf8"));
-  database.close();
+  withOwnedDatabase(new Database(databasePath), applyCanonicalDatabaseMigrations);
 }
 
 function registerProjects() {

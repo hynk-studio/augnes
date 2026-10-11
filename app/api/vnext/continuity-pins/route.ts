@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { openDatabase } from "@/lib/db";
+import { withOwnedDatabaseAsync } from "@/lib/db/connection-ownership.mjs";
+import { DatabaseAccessError } from "@/lib/db/prepared-database.mjs";
 import {
   buildBlankStateContinuityV01,
 } from "@/lib/vnext/blank-state/blank-state-continuity";
@@ -37,7 +39,6 @@ const HEADERS = {
   "X-Frame-Options": "DENY",
 };
 export async function GET(request: Request) {
-  let db: ReturnType<typeof openDatabase> | null = null;
   try {
     const url = assertVNextLocalOperatorRequestBoundaryV01(request, {
       mutating: false,
@@ -49,30 +50,28 @@ export async function GET(request: Request) {
       return json({ ok: false, error_code: "continuity_pin_request_invalid" }, 400);
     }
     const projectId = requiredIdV01(url.searchParams.get("project_id"));
-    db = openDatabase();
-    const workspace = readDefaultWorkspaceIdentityV01(db);
-    if (!workspace) {
-      return json(
-        { ok: false, error_code: "continuity_pin_project_not_found" },
-        404,
-      );
-    }
-    return json({
-      ok: true,
-      collection: readProjectContinuityPinProjectionV01(db, {
-        workspace_id: workspace.workspace_id,
-        project_id: projectId,
-      }),
+    return await withOwnedDatabaseAsync(openDatabase(), async (db) => {
+      const workspace = readDefaultWorkspaceIdentityV01(db);
+      if (!workspace) {
+        return json(
+          { ok: false, error_code: "continuity_pin_project_not_found" },
+          404,
+        );
+      }
+      return json({
+        ok: true,
+        collection: readProjectContinuityPinProjectionV01(db, {
+          workspace_id: workspace.workspace_id,
+          project_id: projectId,
+        }),
+      });
     });
   } catch (error) {
     return routeErrorV01(error);
-  } finally {
-    db?.close();
   }
 }
 
 export async function POST(request: Request) {
-  let db: ReturnType<typeof openDatabase> | null = null;
   try {
     const url = assertVNextLocalOperatorRequestBoundaryV01(request, {
       mutating: true,
@@ -82,74 +81,73 @@ export async function POST(request: Request) {
     }
     const body = await readBoundedVNextLocalOperatorBodyV01(request);
     const parsed = parseMutationV01(body);
-    db = openDatabase();
-    const workspace = readDefaultWorkspaceIdentityV01(db);
-    if (!workspace) {
-      return json(
-        { ok: false, error_code: "continuity_pin_project_not_found" },
-        404,
-      );
-    }
-    let mutation: ProjectContinuityPinMutationActionV01;
-    if (parsed.action === "pin") {
-      const source = await readBlankStateSourceV01(db, {
-        route_mode: "canonical",
-        requested_project_id: null,
+    return await withOwnedDatabaseAsync(openDatabase(), async (db) => {
+      const workspace = readDefaultWorkspaceIdentityV01(db);
+      if (!workspace) {
+        return json(
+          { ok: false, error_code: "continuity_pin_project_not_found" },
+          404,
+        );
+      }
+      let mutation: ProjectContinuityPinMutationActionV01;
+      if (parsed.action === "pin") {
+        const source = await readBlankStateSourceV01(db, {
+          route_mode: "canonical",
+          requested_project_id: null,
+        });
+        if (
+          source.projection?.project_id !== parsed.project_id ||
+          !source.projection.project_summary.is_active
+        ) {
+          throw new ProjectContinuityPinStoreErrorV01(
+            "continuity_pin_project_mismatch",
+          );
+        }
+        const composition = buildBlankStateContinuityV01(source);
+        const item = [
+          composition.highlighted_item,
+          ...composition.continuity_items,
+        ].find((candidate) => candidate.item_id === parsed.source_item_id);
+        if (
+          !item ||
+          item.pinning.status !== "eligible" ||
+          !sameContinuityPinTargetV01(item.pinning.target, parsed.target)
+        ) {
+          throw new ProjectContinuityPinStoreErrorV01(
+            "continuity_pin_invalid_target",
+          );
+        }
+        mutation = {
+          action: "pin",
+          expected_revision: parsed.expected_revision,
+          target: item.pinning.target,
+          source_family: item.source_family,
+          source_item_id: item.item_id,
+          label_snapshot: item.work_name,
+          state_snapshot: item.meaningful_state,
+        };
+      } else if (parsed.action === "unpin") {
+        mutation = {
+          action: "unpin",
+          expected_revision: parsed.expected_revision,
+          target: parsed.target,
+        };
+      } else {
+        mutation = {
+          action: "reorder",
+          expected_revision: parsed.expected_revision,
+          target_order: parsed.target_order,
+        };
+      }
+      const result = mutateProjectContinuityPinsV01(db, {
+        workspace_id: workspace.workspace_id,
+        project_id: parsed.project_id,
+        mutation,
       });
-      if (
-        source.projection?.project_id !== parsed.project_id ||
-        !source.projection.project_summary.is_active
-      ) {
-        throw new ProjectContinuityPinStoreErrorV01(
-          "continuity_pin_project_mismatch",
-        );
-      }
-      const composition = buildBlankStateContinuityV01(source);
-      const item = [
-        composition.highlighted_item,
-        ...composition.continuity_items,
-      ].find((candidate) => candidate.item_id === parsed.source_item_id);
-      if (
-        !item ||
-        item.pinning.status !== "eligible" ||
-        !sameContinuityPinTargetV01(item.pinning.target, parsed.target)
-      ) {
-        throw new ProjectContinuityPinStoreErrorV01(
-          "continuity_pin_invalid_target",
-        );
-      }
-      mutation = {
-        action: "pin",
-        expected_revision: parsed.expected_revision,
-        target: item.pinning.target,
-        source_family: item.source_family,
-        source_item_id: item.item_id,
-        label_snapshot: item.work_name,
-        state_snapshot: item.meaningful_state,
-      };
-    } else if (parsed.action === "unpin") {
-      mutation = {
-        action: "unpin",
-        expected_revision: parsed.expected_revision,
-        target: parsed.target,
-      };
-    } else {
-      mutation = {
-        action: "reorder",
-        expected_revision: parsed.expected_revision,
-        target_order: parsed.target_order,
-      };
-    }
-    const result = mutateProjectContinuityPinsV01(db, {
-      workspace_id: workspace.workspace_id,
-      project_id: parsed.project_id,
-      mutation,
+      return json({ ok: true, result });
     });
-    return json({ ok: true, result });
   } catch (error) {
     return routeErrorV01(error);
-  } finally {
-    db?.close();
   }
 }
 
@@ -290,6 +288,9 @@ function invalidV01(): never {
 }
 
 function routeErrorV01(error: unknown) {
+  if (error instanceof DatabaseAccessError) {
+    return json({ ok: false, error_code: error.code, message: error.message }, 503);
+  }
   if (error instanceof VNextLocalOperatorSessionErrorV01) {
     return json({ ok: false, error_code: error.code }, error.status);
   }

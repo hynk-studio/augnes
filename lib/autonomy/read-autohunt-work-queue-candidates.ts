@@ -138,7 +138,6 @@ export function readAutohuntWorkQueueCandidates({
   const shouldClose = !providedDb && hasClose(db);
 
   try {
-    ensureAutohuntWorkQueueCandidateSchema(db);
     const safeLimit = Math.max(1, Math.min(200, Math.floor(limit)));
     const rows = readRows(db, {
       scope,

@@ -22,6 +22,7 @@ import {
 import path from "node:path";
 
 import Database from "better-sqlite3";
+import { withOwnedDatabase, withOwnedDatabaseAsync } from "../lib/db/connection-ownership.mjs";
 
 import {
   inspectRecoveryPrivateMaterialBoundary,
@@ -1780,9 +1781,7 @@ export async function stageRecoveryBackupDatabase({
       if (typeof migrateDatabase !== "function") {
         throw new PublicRecoveryBackupError("restore_database_incompatible");
       }
-      let database;
-      try {
-        database = new Database(targetPath, { fileMustExist: true });
+      withOwnedDatabase(new Database(targetPath, { fileMustExist: true }), (database) => {
         database.pragma("journal_mode = DELETE");
         database.pragma("foreign_keys = ON");
         try {
@@ -1794,9 +1793,7 @@ export async function stageRecoveryBackupDatabase({
             error,
           );
         }
-      } finally {
-        database?.close();
-      }
+      });
       makeDatabaseStandalone(targetPath);
       try {
         inspection = normalizeDatabaseInspection(inspectDatabase(targetPath));
@@ -2642,13 +2639,9 @@ async function snapshotSqliteDatabase({
     if (backupDatabase) {
       await backupDatabase({ sourcePath, targetPath });
     } else {
-      let source;
-      try {
-        source = new Database(sourcePath, { readonly: true, fileMustExist: true });
+      await withOwnedDatabaseAsync(new Database(sourcePath, { readonly: true, fileMustExist: true }), async (source) => {
         await source.backup(targetPath);
-      } finally {
-        source?.close();
-      }
+      });
     }
     const sourceAfter = lstatSync(sourcePath, { bigint: true });
     if (
@@ -2669,9 +2662,7 @@ async function snapshotSqliteDatabase({
 }
 
 function normalizeRecoverySnapshotPrivateMaterial(databasePath) {
-  let database;
-  try {
-    database = new Database(databasePath, { fileMustExist: true });
+  withOwnedDatabase(new Database(databasePath, { fileMustExist: true }), (database) => {
     database.pragma("journal_mode = DELETE");
     database.pragma("secure_delete = ON");
     normalizeRecoveryPrivateMaterial(database);
@@ -2691,17 +2682,13 @@ function normalizeRecoverySnapshotPrivateMaterial(databasePath) {
     // old raw text in freelist or unallocated pages from an earlier migration.
     database.exec("VACUUM");
     database.pragma("journal_mode = DELETE");
-  } finally {
-    database?.close();
-  }
+  });
   removeSqliteSideFiles(databasePath);
   setRestrictedMode(databasePath, 0o600);
 }
 
 function prepareLegacyRecoveryAdoptionSnapshot({ databasePath }) {
-  let database;
-  try {
-    database = new Database(databasePath, { fileMustExist: true });
+  withOwnedDatabase(new Database(databasePath, { fileMustExist: true }), (database) => {
     database.pragma("journal_mode = DELETE");
     database.pragma("foreign_keys = ON");
     database.pragma("secure_delete = ON");
@@ -2712,29 +2699,25 @@ function prepareLegacyRecoveryAdoptionSnapshot({ databasePath }) {
     applyCanonicalDatabaseMigrations(database);
     database.exec("VACUUM");
     database.pragma("journal_mode = DELETE");
-  } finally {
-    database?.close();
-  }
+  });
   removeSqliteSideFiles(databasePath);
   setRestrictedMode(databasePath, 0o600);
 }
 
 function assertRecoveryPrivateMaterialPayload(databasePath, code) {
-  let database;
   try {
-    database = new Database(databasePath, {
+    withOwnedDatabase(new Database(databasePath, {
       readonly: true,
       fileMustExist: true,
+    }), (database) => {
+      assertCanonicalRecoverySqliteImage(database);
+      if (!inspectRecoveryPrivateMaterialBoundary(database).current) {
+        throw new PublicRecoveryBackupError(code);
+      }
     });
-    assertCanonicalRecoverySqliteImage(database);
-    if (!inspectRecoveryPrivateMaterialBoundary(database).current) {
-      throw new PublicRecoveryBackupError(code);
-    }
   } catch (error) {
     if (error instanceof PublicRecoveryBackupError) throw error;
     throw new PublicRecoveryBackupError(code, error);
-  } finally {
-    database?.close();
   }
 }
 
@@ -2744,9 +2727,7 @@ function assertCanonicalRecoverySqliteImage(database) {
   }
   const serialized = Buffer.from(database.serialize());
   assertCanonicalSqliteHeader(serialized);
-  let compact;
-  try {
-    compact = new Database(serialized);
+  withOwnedDatabase(new Database(serialized), (compact) => {
     compact.pragma("secure_delete = ON");
     compact.exec("VACUUM");
     const compactSerialized = Buffer.from(compact.serialize());
@@ -2758,9 +2739,7 @@ function assertCanonicalRecoverySqliteImage(database) {
     ) {
       throw new Error("recovery_sqlite_image_not_canonical");
     }
-  } finally {
-    compact?.close();
-  }
+  });
 }
 
 function assertCanonicalSqliteHeader(image) {
@@ -2782,13 +2761,9 @@ function normalizeCanonicalSqliteHeader(image) {
 }
 
 function makeDatabaseStandalone(databasePath) {
-  let database;
-  try {
-    database = new Database(databasePath, { fileMustExist: true });
+  withOwnedDatabase(new Database(databasePath, { fileMustExist: true }), (database) => {
     database.pragma("journal_mode = DELETE");
-  } finally {
-    database?.close();
-  }
+  });
   removeSqliteSideFiles(databasePath);
 }
 

@@ -1,6 +1,5 @@
 import { openDatabase } from "@/lib/db";
 import {
-  ensureResearchCandidateManualResultRecordWriteSchema,
   getResearchCandidateManualResultWriteAuthorityBoundary,
   readResearchCandidateManualResultRecords,
   readResearchCandidateManualResultRecordsByReceiptId,
@@ -67,7 +66,6 @@ export function writeResearchCandidateManualResultAuthorizedRecords(
   const ownsDb = !options.db;
 
   try {
-    ensureResearchCandidateManualResultRecordWriteSchema(db);
     const createdAt = new Date().toISOString();
     const receipt = buildReceipt({
       request: typedRequest,
@@ -242,7 +240,6 @@ export function rollbackResearchCandidateManualResultWriteReceipt(
   const ownsDb = !options.db;
 
   try {
-    ensureResearchCandidateManualResultRecordWriteSchema(db);
     const existing = readResearchCandidateManualResultRecordsByReceiptId(
       typedRequest.receipt_id,
       { scope: DEFAULT_SCOPE, db },

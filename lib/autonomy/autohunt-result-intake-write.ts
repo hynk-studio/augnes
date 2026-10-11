@@ -3,7 +3,6 @@ import type { AutonomyDelegationGrantDbLike } from "@/lib/autonomy/read-autonomy
 import {
   buildAutohuntResultIntakeAuthorityBoundary,
   computeAutohuntResultIntakeFingerprint,
-  ensureAutohuntResultIntakeSchema,
   parseAutohuntResultIntakeRow,
 } from "@/lib/autonomy/read-autohunt-result-intakes";
 import {
@@ -153,7 +152,6 @@ export function writeAutohuntResultIntake(
   const shouldClose = !options.db && hasClose(db);
 
   try {
-    ensureAutohuntResultIntakeSchema(db);
     const existingRow = db
       .prepare(
         `

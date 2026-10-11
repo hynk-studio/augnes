@@ -7,7 +7,6 @@ import { computeAutohuntWorkQueueCandidateFingerprint } from "@/lib/autonomy/rea
 import {
   buildAutohuntPreflightPacketAuthorityBoundary,
   computeAutohuntPreflightPacketFingerprint,
-  ensureAutohuntPreflightPacketSchema,
   parseAutohuntPreflightPacketRow,
 } from "@/lib/autonomy/read-autohunt-preflight-packets";
 import {
@@ -120,7 +119,6 @@ export function writeAutohuntPreflightPacket(
   const shouldClose = !options.db && hasClose(db);
 
   try {
-    ensureAutohuntPreflightPacketSchema(db);
     const existingRow = db
       .prepare(
         `

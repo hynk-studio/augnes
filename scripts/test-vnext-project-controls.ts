@@ -30,6 +30,7 @@ import {
   type SemanticReviewLoopProjectFixtureV01,
 } from "../fixtures/vnext/protocol/semantic-review-loop-v0-1";
 import { openDatabase } from "../lib/db";
+import { withOwnedDatabase } from "../lib/db/connection-ownership.mjs";
 import {
   buildPersonalPerspectiveShadowProjectionV01,
 } from "../lib/vnext/context-shadow-navigation";
@@ -612,8 +613,8 @@ async function main() {
     mkdirSync(projectCRoot);
     mkdirSync(recoveredARoot);
     migrationParity();
+    withOwnedDatabase(new Database(dbPath), applyCanonicalDatabaseMigrations);
     db = openDatabase();
-    applyCanonicalDatabaseMigrations(db);
     const workspace = getOrCreateDefaultWorkspaceIdentityV01(db, {
       create_uuid: () => "00000000-0000-4000-8000-000000000001",
       now: () => "2026-07-09T20:00:00.000Z",

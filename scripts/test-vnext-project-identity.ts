@@ -828,7 +828,6 @@ async function assertMigrationAndRuntimeLifecycle() {
   const openBaseline = new Database(openPath);
   openBaseline.pragma("foreign_keys = ON");
   applyCanonicalDatabaseMigrations(openBaseline);
-  dropProjectIdentityRegistry(openBaseline);
   openBaseline.close();
 
   process.env.AUGNES_DB_PATH = openPath;

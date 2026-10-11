@@ -2,7 +2,6 @@ import { openDatabase } from "@/lib/db";
 import type { AutonomyDelegationGrantDbLike } from "@/lib/autonomy/read-autonomy-delegation-grants";
 import {
   computeAutohuntSupervisedExecutionContractFingerprint,
-  ensureAutohuntSupervisedExecutionContractSchema,
   parseAutohuntSupervisedExecutionContractRow,
   buildAutohuntSupervisedExecutionContractAuthorityBoundary,
 } from "@/lib/autonomy/read-autohunt-supervised-execution-contracts";
@@ -123,7 +122,6 @@ export function writeAutohuntSupervisedExecutionContract(
   const shouldClose = !options.db && hasClose(db);
 
   try {
-    ensureAutohuntSupervisedExecutionContractSchema(db);
     const existingRow = db
       .prepare(
         `

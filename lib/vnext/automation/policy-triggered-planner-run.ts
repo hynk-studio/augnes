@@ -8,7 +8,6 @@ import {
 } from "@/lib/work";
 import {
   buildAutonomyRunEventRecord,
-  ensureAutonomyRunnerLedgerSchemaV01,
   insertAutonomyRunLedgerRecord,
   readAutonomyRunLedgerRecord,
   updateAutonomyRunLedgerFields,
@@ -163,7 +162,6 @@ export async function runPolicyTriggeredPlannerV01(
   const input = safelyValidateRequest(rawInput);
   const open = dependencies.open_database ?? openDatabase;
   const database = open();
-  ensureAutonomyRunnerLedgerSchemaV01(database);
   const clock = dependencies.now ?? (() => new Date());
   const admissionAt = strictNow(clock);
   let runCreated = false;

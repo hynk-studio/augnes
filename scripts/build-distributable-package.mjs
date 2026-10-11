@@ -21,6 +21,7 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { withOwnedDatabase } from "../lib/db/connection-ownership.mjs";
 
 import {
   DISTRIBUTABLE_DATABASE_MIGRATION_CONTRACT,
@@ -450,6 +451,9 @@ function stageRuntimeSupport(sourceRoot, stagingRoot, sourcePackage) {
     "lib/db/schema.sql",
     "lib/db/proposal-scoring-schema.json",
     "lib/db/recovery-private-material-contract.mjs",
+    "lib/db/canonical-database-contract.mjs",
+    "lib/db/connection-ownership.mjs",
+    "lib/db/structural-schema-contract.mjs",
     "apps/augnes_apps/public/console-widget.html",
   ]) {
     const destination =
@@ -594,13 +598,10 @@ function validateStagedNativeDependency(stagingRoot) {
     const resolvedModule = packageRequire.resolve("better-sqlite3");
     assertInside(physicalStagingRoot, realpathSync(resolvedModule));
     const Database = packageRequire("better-sqlite3");
-    const database = new Database(":memory:");
-    try {
+    withOwnedDatabase(new Database(":memory:"), (database) => {
       const row = database.prepare("SELECT 1 AS ready").get();
       if (row?.ready !== 1) throw new Error("native query failed");
-    } finally {
-      database.close();
-    }
+    });
     const nativeBinding = packagePath(
       stagingRoot,
       "node_modules/better-sqlite3/build/Release/better_sqlite3.node",

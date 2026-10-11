@@ -1,3 +1,6 @@
+import { withOwnedDatabase } from "../lib/db/connection-ownership.mjs";
+import { buildStructuralSchemaContract, structuralSchemaContractSignature } from "../lib/db/structural-schema-contract.mjs";
+export { buildStructuralSchemaContract, structuralSchemaContractSignature } from "../lib/db/structural-schema-contract.mjs";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import {
   chmodSync,
@@ -954,91 +957,84 @@ function readStableLogicalDatabaseIdentity(databasePath) {
 }
 
 function logicalDatabaseIdentity(databasePath) {
-  let database;
   try {
-    database = new Database(databasePath, {
+    return withOwnedDatabase(new Database(databasePath, {
       readonly: true,
       fileMustExist: true,
+    }), (database) => {
+      verifyOpenDatabase(database);
+      database.exec("BEGIN");
+      const privateMaterialIdentityContext =
+        createRecoveryPrivateMaterialIdentityContext(database);
+      const digest = createHash("sha256");
+      updateLogicalDigest(digest, "augnes.logical-database.v2");
+      updateLogicalDigest(digest, database.pragma("user_version", { simple: true }));
+      updateLogicalDigest(
+        digest,
+        database.pragma("application_id", { simple: true }),
+      );
+      const schemaObjects = database
+        .prepare(
+          `SELECT type, name, tbl_name, sql
+           FROM sqlite_schema
+           WHERE name NOT LIKE 'sqlite_%' OR name = 'sqlite_sequence'
+           ORDER BY type, name, tbl_name, sql`,
+        )
+        .all();
+      for (const schemaObject of schemaObjects) {
+        updateLogicalDigest(digest, schemaObject.type);
+        updateLogicalDigest(digest, schemaObject.name);
+        updateLogicalDigest(digest, schemaObject.tbl_name);
+        updateLogicalDigest(digest, schemaObject.sql);
+        if (schemaObject.type !== "table") continue;
+        const columns = database
+          .prepare(
+            `SELECT cid, name, type, "notnull" AS not_null,
+                    dflt_value, pk, hidden
+             FROM pragma_table_xinfo(?)
+             ORDER BY cid`,
+          )
+          .all(schemaObject.name);
+        for (const column of columns) {
+          updateLogicalDigest(digest, JSON.stringify(column));
+        }
+        const selectable = columns.filter((column) => Number(column.hidden) !== 1);
+        if (selectable.length === 0) continue;
+        const columnSql = selectable
+          .map((column) => quoteSqliteIdentifier(column.name))
+          .join(", ");
+        const orderSql = selectable
+          .map((column) => `${quoteSqliteIdentifier(column.name)} COLLATE BINARY`)
+          .join(", ");
+        const statement = database
+          .prepare(
+            `SELECT ${columnSql}
+             FROM ${quoteSqliteIdentifier(schemaObject.name)}
+             ORDER BY ${orderSql}`,
+          )
+          .raw(true)
+          .safeIntegers(true);
+        const columnNames = selectable.map((column) => column.name);
+        for (const row of statement.iterate()) {
+          updateLogicalDigest(digest, "row");
+          const normalizedRow = normalizeRecoveryPrivateMaterialIdentityRow(
+            schemaObject.name,
+            columnNames,
+            row,
+            privateMaterialIdentityContext,
+          );
+          for (const value of normalizedRow) updateLogicalDigest(digest, value);
+        }
+      }
+      database.exec("COMMIT");
+      return `sha256:${digest.digest("hex")}`;
     });
-    verifyOpenDatabase(database);
-    database.exec("BEGIN");
-    const privateMaterialIdentityContext =
-      createRecoveryPrivateMaterialIdentityContext(database);
-    const digest = createHash("sha256");
-    updateLogicalDigest(digest, "augnes.logical-database.v2");
-    updateLogicalDigest(digest, database.pragma("user_version", { simple: true }));
-    updateLogicalDigest(
-      digest,
-      database.pragma("application_id", { simple: true }),
-    );
-    const schemaObjects = database
-      .prepare(
-        `SELECT type, name, tbl_name, sql
-         FROM sqlite_schema
-         WHERE name NOT LIKE 'sqlite_%' OR name = 'sqlite_sequence'
-         ORDER BY type, name, tbl_name, sql`,
-      )
-      .all();
-    for (const schemaObject of schemaObjects) {
-      updateLogicalDigest(digest, schemaObject.type);
-      updateLogicalDigest(digest, schemaObject.name);
-      updateLogicalDigest(digest, schemaObject.tbl_name);
-      updateLogicalDigest(digest, schemaObject.sql);
-      if (schemaObject.type !== "table") continue;
-      const columns = database
-        .prepare(
-          `SELECT cid, name, type, "notnull" AS not_null,
-                  dflt_value, pk, hidden
-           FROM pragma_table_xinfo(?)
-           ORDER BY cid`,
-        )
-        .all(schemaObject.name);
-      for (const column of columns) {
-        updateLogicalDigest(digest, JSON.stringify(column));
-      }
-      const selectable = columns.filter((column) => Number(column.hidden) !== 1);
-      if (selectable.length === 0) continue;
-      const columnSql = selectable
-        .map((column) => quoteSqliteIdentifier(column.name))
-        .join(", ");
-      const orderSql = selectable
-        .map((column) => `${quoteSqliteIdentifier(column.name)} COLLATE BINARY`)
-        .join(", ");
-      const statement = database
-        .prepare(
-          `SELECT ${columnSql}
-           FROM ${quoteSqliteIdentifier(schemaObject.name)}
-           ORDER BY ${orderSql}`,
-        )
-        .raw(true)
-        .safeIntegers(true);
-      const columnNames = selectable.map((column) => column.name);
-      for (const row of statement.iterate()) {
-        updateLogicalDigest(digest, "row");
-        const normalizedRow = normalizeRecoveryPrivateMaterialIdentityRow(
-          schemaObject.name,
-          columnNames,
-          row,
-          privateMaterialIdentityContext,
-        );
-        for (const value of normalizedRow) updateLogicalDigest(digest, value);
-      }
-    }
-    database.exec("COMMIT");
-    return `sha256:${digest.digest("hex")}`;
   } catch (error) {
-    try {
-      if (database?.inTransaction) database.exec("ROLLBACK");
-    } catch {
-      // The original bounded integrity failure remains authoritative.
-    }
     if (error instanceof PublicDatabaseBootstrapError) throw error;
     throw new PublicDatabaseBootstrapError(
       "database_integrity_failed",
       error,
     );
-  } finally {
-    database?.close();
   }
 }
 
@@ -1309,13 +1305,11 @@ export async function restoreRuntimeDatabase({
     // Restoring the same backup must not revive an earlier browser observation.
     // The verified backup stays immutable; only this owned unpublished stage
     // receives fresh selection identities before readers and publication run.
-    let restoredSelections;
-    try {
-      restoredSelections = new Database(stagingPath, { fileMustExist: true });
+    withOwnedDatabase(new Database(stagingPath, { fileMustExist: true }), (restoredSelections) => {
       restoredSelections.pragma("journal_mode = DELETE");
       restoredSelections.pragma("foreign_keys = ON");
       invalidateRestoredProjectSelectionsV02(restoredSelections);
-    } finally { restoredSelections?.close(); }
+    });
     if (requirePackageIdentityGuard) {
       requireRuntimePackageIdentityGuard(stagingPath);
     }
@@ -1489,24 +1483,22 @@ function createCurrentDatabase(
   dependencies,
   { requirePackageIdentityGuard = false } = {},
 ) {
-  let database;
   try {
     createRestrictedEmptyFile(stagingPath);
-    database = new Database(stagingPath);
-    setRestrictiveFileMode(stagingPath);
-    database.pragma("journal_mode = DELETE");
-    database.pragma("foreign_keys = ON");
-    (dependencies.migrateDatabase ?? applyCanonicalDatabaseMigrations)(
-      database,
-    );
-    if (requirePackageIdentityGuard) {
-      requireCanonicalPackageIdentityGuard(database, new Date().toISOString());
-    }
+    withOwnedDatabase(new Database(stagingPath), (database) => {
+      setRestrictiveFileMode(stagingPath);
+      database.pragma("journal_mode = DELETE");
+      database.pragma("foreign_keys = ON");
+      (dependencies.migrateDatabase ?? applyCanonicalDatabaseMigrations)(
+        database,
+      );
+      if (requirePackageIdentityGuard) {
+        requireCanonicalPackageIdentityGuard(database, new Date().toISOString());
+      }
+    });
   } catch (error) {
     if (error instanceof PublicDatabaseBootstrapError) throw error;
     throw new PublicDatabaseBootstrapError("database_migration_failed", error);
-  } finally {
-    database?.close();
   }
   verifyPreparedDatabase(stagingPath, {});
 }
@@ -1534,22 +1526,20 @@ function verifyPreparedDatabase(stagingPath, dependencies) {
 }
 
 export function verifyDatabaseFile(databasePath) {
-  let database;
   try {
-    database = new Database(databasePath, {
+    return withOwnedDatabase(new Database(databasePath, {
       readonly: true,
       fileMustExist: true,
+    }), (database) => {
+      verifyOpenDatabase(database);
+      return {
+        schemaVersion: "current",
+        schemaSignature: structuralSchemaContractSignature(database),
+      };
     });
-    verifyOpenDatabase(database);
-    return {
-      schemaVersion: "current",
-      schemaSignature: structuralSchemaContractSignature(database),
-    };
   } catch (error) {
     if (error instanceof PublicDatabaseBootstrapError) throw error;
     throw new PublicDatabaseBootstrapError("database_integrity_failed", error);
-  } finally {
-    database?.close();
   }
 }
 
@@ -1567,7 +1557,6 @@ export function inspectRecoveryDatabaseFile(
     throw new PublicDatabaseBootstrapError("database_open_failed");
   }
   assertDatabaseFileSafe(databasePath);
-  let source;
   let serialized;
   let sourceSignature;
   let sourceLedger = null;
@@ -1576,108 +1565,105 @@ export function inspectRecoveryDatabaseFile(
   let sourcePrivateMaterialCurrent = false;
   let canonicalRecordCount = 0;
   try {
-    source = new Database(databasePath, {
+    withOwnedDatabase(new Database(databasePath, {
       readonly: true,
       fileMustExist: true,
-    });
-    verifyOpenDatabase(source);
-    sourceSignature = structuralSchemaContractSignature(source);
-    sourceLedger = readCanonicalDatabaseMigrationLedger(source);
-    if (sourceLedger !== null) {
-      try {
-        verifyCanonicalDatabaseMigrationLedger(source);
-        sourceLedgerCurrent = true;
-      } catch {
-        sourceLedgerCurrent = false;
+    }), (source) => {
+      verifyOpenDatabase(source);
+      sourceSignature = structuralSchemaContractSignature(source);
+      sourceLedger = readCanonicalDatabaseMigrationLedger(source);
+      if (sourceLedger !== null) {
+        try {
+          verifyCanonicalDatabaseMigrationLedger(source);
+          sourceLedgerCurrent = true;
+        } catch {
+          sourceLedgerCurrent = false;
+        }
       }
-    }
-    try {
-      verifyCanonicalPackageIdentityGuard(source);
-      sourcePackageIdentityGuardCurrent = true;
-    } catch {
-      sourcePackageIdentityGuardCurrent = false;
-    }
-    sourcePrivateMaterialCurrent =
-      inspectRecoveryPrivateMaterialBoundary(source).current;
-    if (!sourcePrivateMaterialCurrent && !allowLegacyPrivateMaterial) {
-      throw new PublicDatabaseBootstrapError(
-        "database_private_material_unsupported",
-      );
-    }
-    canonicalRecordCount = verifyCanonicalDatabaseInvariants(source, {
-      requireCurrentLedger: false,
+      try {
+        verifyCanonicalPackageIdentityGuard(source);
+        sourcePackageIdentityGuardCurrent = true;
+      } catch {
+        sourcePackageIdentityGuardCurrent = false;
+      }
+      sourcePrivateMaterialCurrent =
+        inspectRecoveryPrivateMaterialBoundary(source).current;
+      if (!sourcePrivateMaterialCurrent && !allowLegacyPrivateMaterial) {
+        throw new PublicDatabaseBootstrapError(
+          "database_private_material_unsupported",
+        );
+      }
+      canonicalRecordCount = verifyCanonicalDatabaseInvariants(source, {
+        requireCurrentLedger: false,
+      });
+      serialized = standaloneSerializedDatabase(source.serialize());
     });
-    serialized = standaloneSerializedDatabase(source.serialize());
   } catch (error) {
     if (error instanceof PublicDatabaseBootstrapError) throw error;
     throw new PublicDatabaseBootstrapError("database_open_failed", error);
-  } finally {
-    source?.close();
   }
 
-  let clone;
   try {
-    clone = new Database(serialized);
-    clone.pragma("foreign_keys = ON");
-    applyCanonicalDatabaseMigrations(clone);
-    if (!inspectRecoveryPrivateMaterialBoundary(clone).current) {
-      throw new PublicDatabaseBootstrapError(
-        "database_private_material_unsupported",
-      );
-    }
-    verifyOpenDatabase(clone);
-    const migratedSignature = structuralSchemaContractSignature(clone);
-    const canonicalSignature = canonicalStructuralSchemaContractSignature();
-    if (
-      sourceSignature === canonicalSignature &&
-      (!sourceLedgerCurrent || !sourcePackageIdentityGuardCurrent)
-    ) {
-      throw new PublicDatabaseBootstrapError("database_schema_unsupported");
-    }
-    if (
-      sourceSignature !== canonicalSignature &&
-      ![
-        ...CANONICAL_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES,
-        ...(allowLegacyRecoveryAdoptionSource
-          ? LEGACY_RECOVERY_ADOPTION_SOURCE_SCHEMA_SIGNATURES
-          : []),
-      ].includes(sourceSignature)
-    ) {
-      throw new PublicDatabaseBootstrapError("database_schema_unsupported");
-    }
-    if (migratedSignature !== canonicalSignature) {
-      throw new PublicDatabaseBootstrapError("database_schema_unsupported");
-    }
-    verifyCanonicalDatabaseMigrationLedger(clone);
-    verifyCanonicalDatabaseInvariants(clone, { requireCurrentLedger: true });
-    const current =
-      sourceSignature === canonicalSignature &&
-      sourceLedgerCurrent &&
-      sourcePackageIdentityGuardCurrent &&
-      sourcePrivateMaterialCurrent;
-    return {
-      schema_contract: CANONICAL_DATABASE_SCHEMA_CONTRACT,
-      schema_signature: sourceSignature,
-      schema_classification: current ? "current" : "old",
-      migration_contract: CANONICAL_DATABASE_MIGRATION_CONTRACT,
-      migration_contract_version: CANONICAL_DATABASE_MIGRATION_CONTRACT_VERSION,
-      migration_ids: sourceLedgerCurrent
-        ? sourceLedger.map((entry) => entry.migration_id)
-        : [],
-      recovery_eligible: true,
-      record_contract: CANONICAL_DATABASE_RECORD_CONTRACT,
-      record_contract_version: CANONICAL_DATABASE_RECORD_CONTRACT_VERSION,
-      reader_contracts: [...DATABASE_READER_CONTRACTS],
-      canonical_record_count: canonicalRecordCount,
-    };
+    return withOwnedDatabase(new Database(serialized), (clone) => {
+      clone.pragma("foreign_keys = ON");
+      applyCanonicalDatabaseMigrations(clone);
+      if (!inspectRecoveryPrivateMaterialBoundary(clone).current) {
+        throw new PublicDatabaseBootstrapError(
+          "database_private_material_unsupported",
+        );
+      }
+      verifyOpenDatabase(clone);
+      const migratedSignature = structuralSchemaContractSignature(clone);
+      const canonicalSignature = canonicalStructuralSchemaContractSignature();
+      if (
+        sourceSignature === canonicalSignature &&
+        (!sourceLedgerCurrent || !sourcePackageIdentityGuardCurrent)
+      ) {
+        throw new PublicDatabaseBootstrapError("database_schema_unsupported");
+      }
+      if (
+        sourceSignature !== canonicalSignature &&
+        ![
+          ...CANONICAL_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES,
+          ...(allowLegacyRecoveryAdoptionSource
+            ? LEGACY_RECOVERY_ADOPTION_SOURCE_SCHEMA_SIGNATURES
+            : []),
+        ].includes(sourceSignature)
+      ) {
+        throw new PublicDatabaseBootstrapError("database_schema_unsupported");
+      }
+      if (migratedSignature !== canonicalSignature) {
+        throw new PublicDatabaseBootstrapError("database_schema_unsupported");
+      }
+      verifyCanonicalDatabaseMigrationLedger(clone);
+      verifyCanonicalDatabaseInvariants(clone, { requireCurrentLedger: true });
+      const current =
+        sourceSignature === canonicalSignature &&
+        sourceLedgerCurrent &&
+        sourcePackageIdentityGuardCurrent &&
+        sourcePrivateMaterialCurrent;
+      return {
+        schema_contract: CANONICAL_DATABASE_SCHEMA_CONTRACT,
+        schema_signature: sourceSignature,
+        schema_classification: current ? "current" : "old",
+        migration_contract: CANONICAL_DATABASE_MIGRATION_CONTRACT,
+        migration_contract_version: CANONICAL_DATABASE_MIGRATION_CONTRACT_VERSION,
+        migration_ids: sourceLedgerCurrent
+          ? sourceLedger.map((entry) => entry.migration_id)
+          : [],
+        recovery_eligible: true,
+        record_contract: CANONICAL_DATABASE_RECORD_CONTRACT,
+        record_contract_version: CANONICAL_DATABASE_RECORD_CONTRACT_VERSION,
+        reader_contracts: [...DATABASE_READER_CONTRACTS],
+        canonical_record_count: canonicalRecordCount,
+      };
+    });
   } catch (error) {
     if (error instanceof PublicDatabaseBootstrapError) throw error;
     throw new PublicDatabaseBootstrapError(
       "database_schema_unsupported",
       error,
     );
-  } finally {
-    clone?.close();
   }
 }
 
@@ -1696,22 +1682,20 @@ export function inspectLegacyRecoveryAdoptionSourceDatabaseFile(databasePath) {
 
 export function inspectRuntimePackageIdentityGuard(databasePath) {
   assertDatabaseFileSafe(databasePath);
-  let database;
   try {
-    database = new Database(databasePath, {
+    return withOwnedDatabase(new Database(databasePath, {
       readonly: true,
       fileMustExist: true,
+    }), (database) => {
+      verifyOpenDatabase(database);
+      return verifyCanonicalPackageIdentityGuard(database);
     });
-    verifyOpenDatabase(database);
-    return verifyCanonicalPackageIdentityGuard(database);
   } catch (error) {
     if (error instanceof PublicDatabaseBootstrapError) throw error;
     throw new PublicDatabaseBootstrapError(
       "database_package_identity_guard_invalid",
       error,
     );
-  } finally {
-    database?.close();
   }
 }
 
@@ -1720,25 +1704,23 @@ export function requireRuntimePackageIdentityGuard(
   updatedAt = new Date().toISOString(),
 ) {
   assertDatabaseFileSafe(databasePath);
-  let database;
   try {
-    database = new Database(databasePath, { fileMustExist: true });
-    database.pragma("journal_mode = DELETE");
-    database.pragma("foreign_keys = ON");
-    const requireIdentity = database.transaction(() =>
-      requireCanonicalPackageIdentityGuard(database, updatedAt),
-    );
-    const guard = requireIdentity();
-    verifyOpenDatabase(database);
-    return guard;
+    return withOwnedDatabase(new Database(databasePath, { fileMustExist: true }), (database) => {
+      database.pragma("journal_mode = DELETE");
+      database.pragma("foreign_keys = ON");
+      const requireIdentity = database.transaction(() =>
+        requireCanonicalPackageIdentityGuard(database, updatedAt),
+      );
+      const guard = requireIdentity();
+      verifyOpenDatabase(database);
+      return guard;
+    });
   } catch (error) {
     if (error instanceof PublicDatabaseBootstrapError) throw error;
     throw new PublicDatabaseBootstrapError(
       "database_package_identity_guard_update_failed",
       error,
     );
-  } finally {
-    database?.close();
   }
 }
 
@@ -1758,50 +1740,48 @@ export function inspectSafetyRecoveryDatabaseFile(databasePath) {
 
 export function inspectKnownPreservedRecoveryDatabaseFile(databasePath) {
   assertDatabaseFileSafe(databasePath);
-  let database;
   try {
-    database = new Database(databasePath, {
+    return withOwnedDatabase(new Database(databasePath, {
       readonly: true,
       fileMustExist: true,
+    }), (database) => {
+      verifyOpenDatabase(database);
+      const schemaSignature = structuralSchemaContractSignature(database);
+      if (
+        schemaSignature !== canonicalStructuralSchemaContractSignature() &&
+        schemaSignature !== canonicalMissingPackageIdentityGuardSignature() &&
+        !CANONICAL_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES.includes(
+          schemaSignature,
+        )
+      ) {
+        throw new PublicDatabaseBootstrapError("database_schema_unsupported");
+      }
+      if (!inspectRecoveryPrivateMaterialBoundary(database).current) {
+        throw new PublicDatabaseBootstrapError(
+          "database_private_material_unsupported",
+        );
+      }
+      const migrationLedger = verifyCanonicalDatabaseMigrationLedger(database);
+      const canonicalRecordCount = verifyCanonicalDatabaseInvariants(database, {
+        requireCurrentLedger: false,
+      });
+      return {
+        schema_contract: CANONICAL_DATABASE_SCHEMA_CONTRACT,
+        schema_signature: schemaSignature,
+        schema_classification: "incompatible",
+        migration_contract: CANONICAL_DATABASE_MIGRATION_CONTRACT,
+        migration_contract_version: CANONICAL_DATABASE_MIGRATION_CONTRACT_VERSION,
+        migration_ids: migrationLedger.map((entry) => entry.migration_id),
+        recovery_eligible: false,
+        record_contract: CANONICAL_DATABASE_RECORD_CONTRACT,
+        record_contract_version: CANONICAL_DATABASE_RECORD_CONTRACT_VERSION,
+        reader_contracts: [...DATABASE_READER_CONTRACTS],
+        canonical_record_count: canonicalRecordCount,
+      };
     });
-    verifyOpenDatabase(database);
-    const schemaSignature = structuralSchemaContractSignature(database);
-    if (
-      schemaSignature !== canonicalStructuralSchemaContractSignature() &&
-      schemaSignature !== canonicalMissingPackageIdentityGuardSignature() &&
-      !CANONICAL_DATABASE_SUPPORTED_SOURCE_SCHEMA_SIGNATURES.includes(
-        schemaSignature,
-      )
-    ) {
-      throw new PublicDatabaseBootstrapError("database_schema_unsupported");
-    }
-    if (!inspectRecoveryPrivateMaterialBoundary(database).current) {
-      throw new PublicDatabaseBootstrapError(
-        "database_private_material_unsupported",
-      );
-    }
-    const migrationLedger = verifyCanonicalDatabaseMigrationLedger(database);
-    const canonicalRecordCount = verifyCanonicalDatabaseInvariants(database, {
-      requireCurrentLedger: false,
-    });
-    return {
-      schema_contract: CANONICAL_DATABASE_SCHEMA_CONTRACT,
-      schema_signature: schemaSignature,
-      schema_classification: "incompatible",
-      migration_contract: CANONICAL_DATABASE_MIGRATION_CONTRACT,
-      migration_contract_version: CANONICAL_DATABASE_MIGRATION_CONTRACT_VERSION,
-      migration_ids: migrationLedger.map((entry) => entry.migration_id),
-      recovery_eligible: false,
-      record_contract: CANONICAL_DATABASE_RECORD_CONTRACT,
-      record_contract_version: CANONICAL_DATABASE_RECORD_CONTRACT_VERSION,
-      reader_contracts: [...DATABASE_READER_CONTRACTS],
-      canonical_record_count: canonicalRecordCount,
-    };
   } catch (error) {
     if (error instanceof PublicDatabaseBootstrapError) throw error;
     throw new PublicDatabaseBootstrapError("database_open_failed", error);
-  } finally {
-    database?.close();
   }
 }
 
@@ -3578,127 +3558,13 @@ async function classifyBootstrapJournalOwner(
   return classification;
 }
 
-export function structuralSchemaContractSignature(database) {
-  return createHash("sha256")
-    .update(JSON.stringify(buildStructuralSchemaContract(database)))
-    .digest("hex");
-}
-
 export function canonicalStructuralSchemaContractSignature() {
   return canonicalSchemaContract().signature;
 }
 
-export function buildStructuralSchemaContract(database) {
-  const objects = database
-    .prepare(
-      `SELECT type, name, tbl_name, sql
-       FROM sqlite_schema
-       WHERE name NOT LIKE 'sqlite_%'
-       ORDER BY type, name, tbl_name`,
-    )
-    .all();
-  const tableLikeNames = objects
-    .filter((object) => object.type === "table" || object.type === "view")
-    .map((object) => object.name)
-    .sort(compareStrings);
-  const indexMetadata = new Map();
-  for (const tableName of tableLikeNames) {
-    for (const index of database
-      .prepare(
-        `SELECT seq, name, "unique" AS is_unique, origin, partial
-         FROM pragma_index_list(?)
-         ORDER BY name`,
-      )
-      .all(tableName)) {
-      indexMetadata.set(index.name, {
-        unique: Number(index.is_unique),
-        origin: normalizeIdentifier(index.origin),
-        partial: Number(index.partial),
-      });
-    }
-  }
-
-  return {
-    objects: objects.map((object) => ({
-      type: normalizeIdentifier(object.type),
-      name: object.name,
-      table: object.tbl_name,
-      definition: normalizeSqlDefinition(object.sql),
-      columns:
-        object.type === "table" || object.type === "view"
-          ? database
-              .prepare(
-                `SELECT cid, name, type, "notnull" AS is_not_null,
-                        dflt_value, pk, hidden
-                 FROM pragma_table_xinfo(?)
-                 ORDER BY cid`,
-              )
-              .all(object.name)
-              .map((column) => ({
-                position: Number(column.cid),
-                name: column.name,
-                declared_type: normalizeDeclaredType(column.type),
-                not_null: Number(column.is_not_null),
-                default_expression: normalizeSqlDefinition(column.dflt_value),
-                primary_key_position: Number(column.pk),
-                hidden: Number(column.hidden),
-              }))
-          : null,
-      foreign_keys:
-        object.type === "table"
-          ? database
-              .prepare(
-                `SELECT id, seq, "table" AS target_table, "from" AS source_column,
-                        "to" AS target_column, on_update, on_delete, match
-                 FROM pragma_foreign_key_list(?)
-                 ORDER BY id, seq`,
-              )
-              .all(object.name)
-              .map((foreignKey) => ({
-                id: Number(foreignKey.id),
-                sequence: Number(foreignKey.seq),
-                target_table: foreignKey.target_table,
-                source_column: foreignKey.source_column,
-                target_column: foreignKey.target_column,
-                on_update: normalizeIdentifier(foreignKey.on_update),
-                on_delete: normalizeIdentifier(foreignKey.on_delete),
-                match: normalizeIdentifier(foreignKey.match),
-              }))
-          : null,
-      index:
-        object.type === "index"
-          ? {
-              ...(indexMetadata.get(object.name) ?? {
-                unique: null,
-                origin: null,
-                partial: null,
-              }),
-              columns: database
-                .prepare(
-                  `SELECT seqno, cid, name, "desc" AS is_descending,
-                          coll, key
-                   FROM pragma_index_xinfo(?)
-                   ORDER BY seqno`,
-                )
-                .all(object.name)
-                .map((column) => ({
-                  sequence: Number(column.seqno),
-                  column_id: Number(column.cid),
-                  name: column.name,
-                  descending: Number(column.is_descending),
-                  collation: normalizeIdentifier(column.coll),
-                  key: Number(column.key),
-                })),
-            }
-          : null,
-    })),
-  };
-}
-
 function canonicalSchemaContract() {
   if (canonicalSchemaContractCache) return canonicalSchemaContractCache;
-  const database = new Database(":memory:");
-  try {
+  return withOwnedDatabase(new Database(":memory:"), (database) => {
     database.pragma("foreign_keys = ON");
     applyCanonicalDatabaseMigrations(database);
     verifyOpenDatabase(database);
@@ -3710,17 +3576,14 @@ function canonicalSchemaContract() {
         .digest("hex"),
     };
     return canonicalSchemaContractCache;
-  } finally {
-    database.close();
-  }
+  });
 }
 
 function canonicalMissingPackageIdentityGuardSignature() {
   if (canonicalMissingPackageIdentityGuardSignatureCache) {
     return canonicalMissingPackageIdentityGuardSignatureCache;
   }
-  const database = new Database(":memory:");
-  try {
+  return withOwnedDatabase(new Database(":memory:"), (database) => {
     database.pragma("foreign_keys = ON");
     applyCanonicalDatabaseMigrations(database);
     database.exec("DROP TABLE augnes_package_identity_guard");
@@ -3728,119 +3591,7 @@ function canonicalMissingPackageIdentityGuardSignature() {
     canonicalMissingPackageIdentityGuardSignatureCache =
       structuralSchemaContractSignature(database);
     return canonicalMissingPackageIdentityGuardSignatureCache;
-  } finally {
-    database.close();
-  }
-}
-
-function normalizeDeclaredType(value) {
-  if (value === null || value === undefined) return null;
-  return String(value).trim().replace(/\s+/g, " ").toUpperCase();
-}
-
-function normalizeIdentifier(value) {
-  if (value === null || value === undefined) return null;
-  return String(value).toLowerCase();
-}
-
-function normalizeSqlDefinition(value) {
-  if (value === null || value === undefined) return null;
-  const input = String(value);
-  const tokens = [];
-  let index = 0;
-  while (index < input.length) {
-    const character = input[index];
-    if (/\s/.test(character)) {
-      index += 1;
-      continue;
-    }
-    if (character === "-" && input[index + 1] === "-") {
-      index += 2;
-      while (index < input.length && input[index] !== "\n") index += 1;
-      continue;
-    }
-    if (character === "/" && input[index + 1] === "*") {
-      index += 2;
-      while (
-        index < input.length &&
-        !(input[index] === "*" && input[index + 1] === "/")
-      ) {
-        index += 1;
-      }
-      index += 2;
-      continue;
-    }
-    if (
-      character === "'" ||
-      character === '"' ||
-      character === "`" ||
-      character === "["
-    ) {
-      const closing = character === "[" ? "]" : character;
-      let token = character;
-      index += 1;
-      while (index < input.length) {
-        token += input[index];
-        if (input[index] === closing) {
-          if (closing !== "]" && input[index + 1] === closing) {
-            token += input[index + 1];
-            index += 2;
-            continue;
-          }
-          index += 1;
-          break;
-        }
-        index += 1;
-      }
-      tokens.push(token);
-      continue;
-    }
-    if (/[A-Za-z_]/.test(character)) {
-      let end = index + 1;
-      while (end < input.length && /[A-Za-z0-9_$]/.test(input[end])) end += 1;
-      tokens.push(input.slice(index, end).toLowerCase());
-      index = end;
-      continue;
-    }
-    if (/[0-9]/.test(character)) {
-      let end = index;
-      if (input.slice(index, index + 2).toLowerCase() === "0x") {
-        end += 2;
-        while (end < input.length && /[0-9A-Fa-f]/.test(input[end])) end += 1;
-      } else {
-        while (end < input.length && /[0-9]/.test(input[end])) end += 1;
-        if (input[end] === ".") {
-          end += 1;
-          while (end < input.length && /[0-9]/.test(input[end])) end += 1;
-        }
-        if (input[end]?.toLowerCase() === "e") {
-          end += 1;
-          if (input[end] === "+" || input[end] === "-") end += 1;
-          while (end < input.length && /[0-9]/.test(input[end])) end += 1;
-        }
-      }
-      tokens.push(input.slice(index, end).toLowerCase());
-      index = end;
-      continue;
-    }
-    const twoCharacterOperator = input.slice(index, index + 2);
-    if (
-      ["<=", ">=", "!=", "<>", "==", "||", "->", "->>"].includes(
-        twoCharacterOperator,
-      )
-    ) {
-      tokens.push(twoCharacterOperator);
-      index += 2;
-      continue;
-    }
-    tokens.push(character);
-    index += 1;
-  }
-  return tokens;
-}
-
-function compareStrings(left, right) {
-  return left < right ? -1 : left > right ? 1 : 0;
+  });
 }
 
 function standaloneSerializedDatabase(serialized) {
@@ -3963,13 +3714,9 @@ function setRestrictiveFileMode(filePath) {
 }
 
 function makeDatabaseStandalone(databasePath) {
-  let database;
-  try {
-    database = new Database(databasePath, { fileMustExist: true });
+  withOwnedDatabase(new Database(databasePath, { fileMustExist: true }), (database) => {
     database.pragma("journal_mode = DELETE");
-  } finally {
-    database?.close();
-  }
+  });
   cleanupSqliteSideFiles(databasePath);
 }
 

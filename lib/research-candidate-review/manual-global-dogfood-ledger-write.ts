@@ -1,6 +1,5 @@
 import { openDatabase } from "@/lib/db";
 import {
-  ensureResearchCandidateManualGlobalDogfoodLedgerSchema,
   getResearchCandidateManualGlobalDogfoodLedgerWriteAuthorityBoundary,
   readResearchCandidateManualGlobalDogfoodLedger,
   readResearchCandidateManualGlobalDogfoodLedgerByReceiptId,
@@ -79,7 +78,6 @@ export function writeResearchCandidateManualGlobalDogfoodLedger(
   const ownsDb = !options.db;
 
   try {
-    ensureResearchCandidateManualGlobalDogfoodLedgerSchema(db);
     const sourceReceipt = readResearchCandidateManualResultRecordsByReceiptId(
       mapping.source_manual_receipt_id!,
       {
@@ -227,7 +225,6 @@ export function rollbackResearchCandidateManualGlobalDogfoodLedgerReceipt(
   const ownsDb = !options.db;
 
   try {
-    ensureResearchCandidateManualGlobalDogfoodLedgerSchema(db);
     const existing = readResearchCandidateManualGlobalDogfoodLedgerByReceiptId(
       typedRequest.receipt_id,
       { db },
