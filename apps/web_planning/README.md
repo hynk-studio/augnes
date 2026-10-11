@@ -218,6 +218,42 @@ remains blocked by the separately owned Companion recovery prerequisite; focused
 checks do not replace it. Review the Draft before any separately authorized
 hosted migration, rollout and actual Windows/Android/browser-agent continuation.
 
+## After an accumulated-history refusal (#1439)
+
+`history_read_budget_exceeded` on Save means the proposed complete revision
+array would exceed its row or canonical-byte budget. The preceding saved work
+remains intact. Read Saved context, complete History and Export independently;
+keep the unsaved draft separately. A successful ticket or Draft capacity check
+does not reserve a revision. A fresh ticket, refreshed credentials, or export
+reconstruction does not free history capacity.
+
+For `file_history_count_exceeded` or `file_history_bytes_exceeded`, earlier
+revisions retain their bodies. Reusing an existing content digest does not consume
+another historical body; deselecting it does not release its historical charge.
+Planning revisions or reuse can still fit while adding a new distinct body cannot.
+Complete Export includes every retained body, and historical Download binds its
+original revision, size and digest. Verify the actual post-refusal export before
+treating it as preservation material.
+
+Reconstruction into an explicitly enabled empty replacement store preserves the
+exported revisions, request identities, predecessor hashes, selected material,
+relations and bodies. It retains the exhausted budget and imported-attestation
+status. It does not restore a referenced work absent from that export, external
+files not retained by this work, access credentials or execution authority.
+
+For file-free work, explicit **Branch** can create a separately owned work from
+the current definition and selected sources, with an exact origin reference. It
+does not copy the original work's full history; retain the original and its export.
+Branching with selected files remains `file_branch_selection_unsupported`. For a
+genuinely independent question, explicitly select the needed original file bytes,
+attribution and unresolved conditions in a new work. Do not drop required files
+to enable branching or call an independent copy transparent continuation. When
+the next operation requires the exhausted history/body budget, retain the material:
+there is currently no preserving capacity-release path for that same work.
+
+These are current support boundaries, not a new runtime contract. Native project
+and direction history use [different owners and recovery limits](../../docs/DATABASE_ACCESS_LIFECYCLE.md#accumulated-native-history-refusal-and-preservation-1439).
+
 ## Draft capacity and deliberate revision
 
 [#1369](https://github.com/hynk-studio/augnes/issues/1369) adds a read-only
