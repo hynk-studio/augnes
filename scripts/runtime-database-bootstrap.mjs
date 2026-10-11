@@ -22,6 +22,7 @@ import path from "node:path";
 
 import Database from "better-sqlite3";
 import { invalidateRestoredProjectSelectionsV02 } from "../lib/vnext/persistence/project-lifecycle-schema.mjs";
+import { invalidateRestoredReviewSubscriptions } from "../lib/vnext/persistence/review-schema.mjs";
 
 import {
   createRecoveryPrivateMaterialIdentityContext,
@@ -1309,6 +1310,7 @@ export async function restoreRuntimeDatabase({
       restoredSelections.pragma("journal_mode = DELETE");
       restoredSelections.pragma("foreign_keys = ON");
       invalidateRestoredProjectSelectionsV02(restoredSelections);
+      invalidateRestoredReviewSubscriptions(restoredSelections);
     });
     if (requirePackageIdentityGuard) {
       requireRuntimePackageIdentityGuard(stagingPath);

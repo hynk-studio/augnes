@@ -2020,6 +2020,9 @@ export function buildSupervisorChildValues({
       AUGNES_MANAGED_CODEX_RUNTIME_ROOT:
         paths.local?.managed_codex_runtime_directory ?? null,
       AUGNES_RECOVERY_MODE: recoveryMode ? "1" : null,
+      AUGNES_REVIEW_CONNECTIONS_FILE: recoveryMode
+        ? null
+        : nonEmptyString(environment.AUGNES_REVIEW_CONNECTIONS_FILE),
       AUGNES_LOCAL_REVIEW_PROFILE:
         !packaged && !recoveryMode && environment.AUGNES_COMPANION_SERVICE === "1" &&
         environment.AUGNES_VNEXT_OPERATOR_PILOT_ENABLED === undefined

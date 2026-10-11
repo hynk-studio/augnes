@@ -593,6 +593,31 @@ These are data-mapping inputs only. They are not packet export/copy surfaces or
 native-host transport paths. The normal R5 path admits the exact persisted
 `TaskContextPacket` server-side.
 
+#### Request-bound external review context (#1433)
+
+A bounded review request links an authenticated originating principal, an
+explicitly permitted reviewer/destination, native project/work material identity,
+and question. The material identity binds one validated TaskContextPacket with
+its project/root/direction binding; display selection and unrelated database
+activity are not its version. The request and attributed response are adapter
+linkage, not another work store or accepted Core records. ChatGPT is one consumer
+adapter; no provider or host becomes a Core authority.
+
+Disclosure and response persistence recheck current access and exact material.
+The initial adapter refuses changed/unavailable material without substitution;
+already saved responses can be shown as historical. Atomic exact retries do not
+duplicate responses, and conflicting replies do not overwrite them. Configured
+capability possession supplies attribution, while model/tier identity remains
+unverified. Response saved, readback served, and deliberate attributed use through
+ordinary source-note revision are separate observations. None grants semantic,
+execution, external-effect, or repository authority. Event acknowledgement is
+only transport receipt, and reply persistence cannot request another review.
+
+The [bounded adapter contract](../../apps/augnes_apps/README.md#opt-in-request-bound-review-1433)
+defines limits, revocation, callback security, lifecycle preparation and current
+live-acceptance gaps. Native work, source provenance and continuation owners
+remain authoritative for their existing records and refusal paths.
+
 #### Initial-work packet and lineage boundary
 
 `project_work_initialization.v0.1` is the shared deterministic, project-scoped,

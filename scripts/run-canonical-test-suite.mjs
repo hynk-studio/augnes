@@ -910,6 +910,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "request-bound-review",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
+      label: "native request-bound review, attributed continuation and disposable MCP Events lifecycle",
+      ...rootNode("scripts/test-request-bound-review.ts"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "companion-method-outlook",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning", "mutable-module-state"],
