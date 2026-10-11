@@ -17,7 +17,7 @@ import { effectiveDirection, directionCurrent, assertPacketDirectionCurrent, Pro
 import { directionSource, selectedDirectionProfile, DIRECTION_SOURCE } from "../project-direction-source";
 import { validateModelInvocationReceiptV02, ModelInvocationReceiptValidationErrorV02 } from "../model-gateway/model-invocation-receipt";
 import { readProjectRunResultSourceBindingV01, ProjectRunResultReadErrorV01 } from "./project-run-result-read-model";
-import { readRun, stateOf } from "./stateless-review-ledger";
+import { readRun, stateOf, readObservationCheckpoint, type StatelessObservationCheckpoint } from "./stateless-review-ledger";
 import { readHistoricalStatelessPacket, readStatelessDisposition, assertHistoricalStatelessSession, assertStatelessUnsettledAdmission } from "./stateless-review-disposition";
 import { rootBinding, prepareMaterial } from "./stateless-source-review";
 import { normalizeInitialProjectWorkDefinitionV01 } from "./initial-project-work-context";
@@ -130,6 +130,18 @@ export type TerminalPreparationResult =
   | { status: "blocked"; reason: BlockedReason; next_action: "read_again" | "review_history" }
   | { status: "failed"; reason: FailedReason; next_action: "read_again"; diagnostic_ref: string };
 
+/** Additive read metadata keeps existing successful checkpoint/receipt values.
+ * A null with `unavailable` is not a validated absence or continuation ticket. */
+export interface TerminalPreparationProjection {
+  terminal_preparation: TerminalPreparationResult;
+  observation_checkpoint: StatelessObservationCheckpoint | null;
+  receipt: ReturnType<typeof readProjectRunResultSourceBindingV01>["receipt"] | null;
+  history_reads: {
+    observation_checkpoint: "available" | "not_applicable" | "unavailable";
+    receipt: "available" | "not_recorded" | "unavailable";
+  };
+}
+
 const blockedReasons = {
   terminal_authorship_history_unavailable: "history_missing", grant_missing: "grant_missing", grant_packet_missing: "packet_missing",
   terminal_authorship_receipt_unavailable: "receipt_unavailable",
@@ -141,6 +153,7 @@ const failedReasons = {
   grant_invalid: "grant_invalid", grant_binding: "grant_invalid", grant_source_conflict: "packet_invalid",
   grant_packet_mismatch: "packet_invalid", disposition_packet_missing: "packet_invalid", disposition_packet_invalid: "packet_invalid",
   terminal_authorship_returned_receipt_required: "receipt_invalid", terminal_authorship_evidence_invalid: "failure_evidence_invalid",
+  terminal_authorship_receipt_binding_invalid: "receipt_invalid",
   terminal_authorship_persistence_evidence_required: "failure_evidence_invalid", terminal_authorship_failure_shape_unsupported: "failure_evidence_invalid",
 } as const satisfies Record<string, FailedReason>;
 function inspectionDiagnostic(error: unknown) {
@@ -157,43 +170,65 @@ function inspectionDiagnostic(error: unknown) {
  * Only a validated completed result establishes inapplicability. A refusal or
  * missing/invalid history never proves that no attempt or obligation exists. */
 export function readTerminalAuthorshipPreparation(db: Database.Database, config: Config, runId: string, at = new Date().toISOString()): TerminalPreparationResult {
-  let phase: "history" | "completed_result" | "sources" | "direction" = "history";
+  return readTerminalPreparationProjection(db, config, runId, at).terminal_preparation;
+}
+
+/** One boundary owns all preparation-related projection reads. The host must
+ * reuse these validated values instead of rereading after classification. */
+export function readTerminalPreparationProjection(db: Database.Database, config: Config, runId: string, at = new Date().toISOString()): TerminalPreparationProjection {
+  let phase: "history" | "checkpoint" | "completed_result" | "sources" | "direction" = "history";
+  let observation_checkpoint: TerminalPreparationProjection["observation_checkpoint"] = null;
+  let receipt: TerminalPreparationProjection["receipt"] = null;
+  const history_reads: TerminalPreparationProjection["history_reads"] = { observation_checkpoint: "unavailable", receipt: "unavailable" };
+  const result = (terminal_preparation: TerminalPreparationResult): TerminalPreparationProjection => ({ terminal_preparation, observation_checkpoint, receipt, history_reads });
   try {
     // Absence is scoped to this project. A foreign run must be indistinguishable
     // from a missing one, including at the unchanged execution-route boundary.
     check(db.prepare("SELECT 1 FROM autonomy_runs WHERE run_id=? AND scope=? AND json_extract(metadata_json,'$.workspace_id')=? AND json_extract(metadata_json,'$.project_id')=?")
       .get(runId, config.project_id, config.workspace_id, config.project_id), "terminal_authorship_history_unavailable");
     const run = readRun(db, config, runId);
+    if (!stateOf(run).pause_after_observation) history_reads.observation_checkpoint = "not_applicable";
+    if (run.metadata.run_receipt_id == null) history_reads.receipt = "not_recorded";
     // Validate original authority even for known unavailable prerequisites.
     const grant = readStatelessGrant(db, { ...config, ...stateOf(run) });
     check(run.autonomy_contract_ref === STATELESS_WORK &&
       run.run_id === `stateless-review:${grant.grant_id.slice("stateless-grant:".length)}` &&
       run.metadata.work_id === normalizeWorkId(runId) && run.metadata.packet_id === grant.request.packet_id &&
       run.metadata.packet_fingerprint === grant.request.packet_fingerprint, "terminal_authorship_shape_unsupported");
+    phase = "checkpoint";
+    observation_checkpoint = stateOf(run).pause_after_observation ? readObservationCheckpoint(run, grant) : null;
+    history_reads.observation_checkpoint = observation_checkpoint ? "available" : "not_applicable";
+    if (run.metadata.run_receipt_id != null) {
+      phase = "completed_result";
+      check(typeof run.metadata.run_receipt_id === "string", "terminal_authorship_receipt_binding_invalid");
+      const binding = readProjectRunResultSourceBindingV01(db, { ...config, receipt_id: run.metadata.run_receipt_id });
+      check(binding.receipt.run_id === runId && binding.packet && binding.packet.packet_id === run.metadata.packet_id &&
+        binding.packet.integrity.fingerprint === run.metadata.packet_fingerprint, "terminal_authorship_receipt_binding_invalid");
+      receipt = binding.receipt;
+      history_reads.receipt = "available";
+    }
     if (run.status === "completed") {
       phase = "completed_result";
       check(run.autonomy_contract_ref === STATELESS_WORK && typeof run.metadata.run_receipt_id === "string" &&
         run.metadata.reconciliation_required === false && run.metadata.stateless_review_disposition === undefined &&
         !stateOf(run).cancelled && run.steps.every(step => step.status === "completed"), "terminal_authorship_completed_history_invalid");
-      const result = readProjectRunResultSourceBindingV01(db, { ...config, receipt_id: run.metadata.run_receipt_id });
-      check(result.receipt.run_id === runId && result.packet && result.packet.packet_id === run.metadata.packet_id &&
-        result.packet.integrity.fingerprint === run.metadata.packet_fingerprint, "terminal_authorship_completed_history_invalid");
-      return { status: "not_applicable", reason: "completed_work", next_action: "none" };
+      return result({ status: "not_applicable", reason: "completed_work", next_action: "none" });
     }
+    phase = "history";
     // An invalid saved disposition is a validation failure, never proof of a
     // supported recovery path. Its existing owner validates historical bindings.
     if (run.metadata.stateless_review_disposition !== undefined) readStatelessDisposition(db, config, run);
     if (run.metadata.reconciliation_required === true || run.metadata.stateless_review_disposition !== undefined)
-      return { status: "blocked", reason: "unresolved_effects", next_action: "review_history" };
+      return result({ status: "blocked", reason: "unresolved_effects", next_action: "review_history" });
     if (["planned", "running", "paused", "cancelled"].includes(run.status))
-      return { status: "blocked", reason: "attempt_not_stopped", next_action: "read_again" };
+      return result({ status: "blocked", reason: "attempt_not_stopped", next_action: "read_again" });
     if (run.status === "stopped" && run.stop_reason === "receipt_persistence_failed_no_retry" &&
       run.metadata.run_receipt_id == null && run.steps.every(step => step.status === "completed")) {
       const failures = readStatelessFailureReviews(run);
       check(!failures.some(item => item.availability === "unavailable" && item.reason === "invalid_record"), "terminal_authorship_evidence_invalid");
       check(failures.some(item => item.availability === "available" && item.evidence.layer === "receipt_persistence" && item.evidence.code === "receipt_persistence_failed"),
         "terminal_authorship_persistence_evidence_unavailable");
-      return { status: "blocked", reason: "work_receipt_unavailable", next_action: "review_history" };
+      return result({ status: "blocked", reason: "work_receipt_unavailable", next_action: "review_history" });
     }
     const failed = run.steps.filter(step => step.status === "failed");
     if (run.status === "stopped" && failed.length === 1 && [1, 3].includes(failed[0]!.step_index) &&
@@ -207,27 +242,30 @@ export function readTerminalAuthorshipPreparation(db: Database.Database, config:
           receipt.run_id === runId && receipt.work_id === run.metadata.work_id && receipt.invocation_id === step.step_id &&
           receipt.status !== "completed", "terminal_authorship_returned_receipt_required");
       }
-      return { status: "blocked", reason: "completed_response_unavailable", next_action: "review_history" };
+      return result({ status: "blocked", reason: "completed_response_unavailable", next_action: "review_history" });
     }
     if (run.status === "stopped" && ["attempt_time_limit_before_dispatch", "model_input_bound_before_dispatch", "next_stage_admission_refused"].includes(run.stop_reason ?? "") &&
       run.steps.every(step => ["planned", "completed"].includes(step.status)))
-      return { status: "blocked", reason: "completed_response_unavailable", next_action: "review_history" };
+      return result({ status: "blocked", reason: "completed_response_unavailable", next_action: "review_history" });
     if (run.status === "stopped" && run.stop_reason === "first_judgment_stopped_work" && run.steps[0]!.status === "completed" &&
       (run.steps[0]!.output.judgment as {tool_name?:unknown} | undefined)?.tool_name === "stop" &&
       run.steps.slice(1).every(step => step.status === "skipped" && step.output.reason === "first_judgment_stopped_work"))
-      return { status: "blocked", reason: "completed_response_unavailable", next_action: "review_history" };
+      return result({ status: "blocked", reason: "completed_response_unavailable", next_action: "review_history" });
     const h = readTerminalAttemptHistory(db, config, runId);
     phase = "sources";
     const sources = readSelectedWorkSources(h.packet);
     phase = "direction";
     const direction = effectiveDirection(db, config, at);
-    return { status: "available", preparation: { binding: h.binding, evidence: h.availability, definition: h.packet.task, sources, warning: WARNING,
-      recovery_suspended: stateOf(h.run).recovery_suspended, current_direction_source: direction ? directionSource(direction) : null } };
+    return result({ status: "available", preparation: { binding: h.binding, evidence: h.availability, definition: h.packet.task, sources, warning: WARNING,
+      recovery_suspended: stateOf(h.run).recovery_suspended, current_direction_source: direction ? directionSource(direction) : null } });
   } catch (error) {
+    // A partially inspected projection cannot offer checkpoint continuation.
+    // Its writer still independently revalidates the original authority.
+    if (observation_checkpoint) { observation_checkpoint = null; history_reads.observation_checkpoint = "unavailable"; }
     if (error instanceof ProjectRunResultReadErrorV01 && error.code === "project_result_receipt_missing")
-      return { status: "blocked", reason: "receipt_unavailable", next_action: "read_again" };
+      return result({ status: "blocked", reason: "receipt_unavailable", next_action: "read_again" });
     if (error instanceof StatelessReviewError && Object.hasOwn(blockedReasons, error.code))
-      return { status: "blocked", reason: blockedReasons[error.code as keyof typeof blockedReasons], next_action: "read_again" };
+      return result({ status: "blocked", reason: blockedReasons[error.code as keyof typeof blockedReasons], next_action: "read_again" });
     const reason: FailedReason = error instanceof StatelessReviewError
       ? Object.hasOwn(failedReasons, error.code) ? failedReasons[error.code as keyof typeof failedReasons] : "history_invalid"
       : error instanceof ModelInvocationReceiptValidationErrorV02 ? "receipt_invalid"
@@ -239,7 +277,7 @@ export function readTerminalAuthorshipPreparation(db: Database.Database, config:
     console.error(JSON.stringify({ event: "terminal_preparation_inspection_failed", diagnostic_ref, phase, reason,
       ...inspectionDiagnostic(error),
       failure_kind: error instanceof StatelessReviewError || error instanceof ModelInvocationReceiptValidationErrorV02 || error instanceof ProjectRunResultReadErrorV01 || error instanceof SelectedWorkSourceError || error instanceof ProjectDirectionError ? "domain_validation" : "unexpected_exception" }));
-    return { status: "failed", reason, next_action: "read_again", diagnostic_ref };
+    return result({ status: "failed", reason, next_action: "read_again", diagnostic_ref });
   }
 }
 

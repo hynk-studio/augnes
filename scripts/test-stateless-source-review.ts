@@ -747,8 +747,8 @@ function controlFor(f: Awaited<ReturnType<typeof fixture>>, enabled: boolean) {
   mutateProjectControlV01(f.db, { ...f.scope, action: enabled ? "enable_automation" : "disable_automation", expected_active_project_id: f.scope.project_id,
     expected_active_selection_revision: active.selection_revision, expected_control_revision: control.revision }, { now: f.now });
 }
-function terminalResultMarkup(result: TerminalPreparationResult) {
-  return renderToStaticMarkup(createElement(StatelessTerminalPreparation, { result, busy:false, draftFor:()=>new Map(), refresh:()=>{throw new Error("render_must_not_refresh");},
+function terminalResultMarkup(result: TerminalPreparationResult, historyReads?: Parameters<typeof StatelessTerminalPreparation>[0]["historyReads"]) {
+  return renderToStaticMarkup(createElement(StatelessTerminalPreparation, { result, historyReads, busy:false, draftFor:()=>new Map(), refresh:()=>{throw new Error("render_must_not_refresh");},
     material:{question:"",files:[]}, request:async()=>{throw new Error("render_must_not_request");}, saved:async()=>{throw new Error("render_must_not_save");} }));
 }
 
@@ -869,6 +869,123 @@ async function terminalPreparationResultContract() {
   console.log(JSON.stringify({typed_terminal_preparation:observed, not_applicable:"validated_completed_work", inspection_mutations:0, provider_retries:0, diagnostics:"correlated_and_safe"}));
 }
 
+/** Projection regressions use normally issued completed and checkpoint-enabled
+ * work together. Only disposable ledger references or individual reads fail. */
+async function terminalProjectionReadContract() {
+  const f = await fixture("typed-projection");
+  const first = (await f.call({action:"authorize_and_run",authorization:f.preview})).result;
+  const nextAuthorization = async (predecessor: any, pause = false) => {
+    await ordinarySuccessor(f, predecessor, f.calls);
+    await f.call({action:"prepare",material:{question:"Inspect the next bounded source question",files:[{path:"entry.ts",start_line:1,end_line:2}]}});
+    return (await f.call({action:"preview",pricing:notePricing,...(pause?{pause_after_observation:true}:{})})).authorization;
+  };
+  const second = (await f.call({action:"authorize_and_run",authorization:await nextAuthorization(first)})).result;
+  const snapshot = () => canonical((f.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all() as Array<{name:string}>).map(({name}) =>
+    [name,f.db.prepare(`SELECT * FROM "${name.replaceAll('"','""')}"`).all().map(row=>canonical(row)).sort()]));
+  const outcomes: Array<{name:string;reader:TerminalPreparationResult;host:any;get:any;status:string;reason:string;diagnostics:any[];reads:number[]}> = [];
+  const inspect = async (name:string, runId:string, status:string, reason:string) => {
+    const before=snapshot(), calls=f.calls, diagnostics:any[]=[], originalError=console.error;
+    const metadata=JSON.parse((f.db.prepare("SELECT metadata_json FROM autonomy_runs WHERE run_id=?").get(runId) as {metadata_json:string}).metadata_json);
+    const kind=name.includes("checkpoint")?"capability_grant":"run_receipt", id=name.includes("checkpoint")?metadata.stateless_review.grant_id:metadata.run_receipt_id;
+    let count=0; const originalPrepare=Database.prototype.prepare;
+    Database.prototype.prepare=function(this:Database.Database,sql:string){
+      const statement=originalPrepare.call(this,sql) as Database.Statement<unknown[]>;
+      if(sql.includes("FROM vnext_core_records")&&sql.includes("record_id = ?")){
+        const get=statement.get.bind(statement);
+        statement.get=((...args:any[])=>{if(args[0]===kind&&args[1]===id)count++;return get(...args);}) as typeof statement.get;
+      }
+      return statement;
+    } as typeof Database.prototype.prepare;
+    console.error=(...args)=>diagnostics.push(JSON.parse(String(args[0])));
+    try {
+      const reader=readTerminalAuthorshipPreparation(f.db,f.config,runId,f.now());
+      const readerReads=count; count=0;
+      let host:any; try { host=f.host(runId).read(); } catch { host={projection_threw:true}; }
+      const hostReads=count; count=0;
+      // Collect both reviewed paths before asserting. The baseline's 409 is
+      // retained as reproduction evidence, never accepted as the fixed result.
+      const get=await f.call(undefined,[200,409]);
+      outcomes.push({name,reader,host,get,status,reason,diagnostics,reads:[readerReads,hostReads,count]});
+      assert.equal(snapshot(),before,"Inspection changes no database table"); assert.equal(f.calls,calls);
+    } finally { console.error=originalError; Database.prototype.prepare=originalPrepare; }
+  };
+  const withMetadata = async (runId:string, key:string, value:string, check:()=>Promise<void>) => {
+    const original=(f.db.prepare("SELECT metadata_json FROM autonomy_runs WHERE run_id=?").get(runId) as {metadata_json:string}).metadata_json;
+    f.db.prepare("UPDATE autonomy_runs SET metadata_json=json_set(metadata_json,?,?) WHERE run_id=?").run(key,value,runId);
+    try { await check(); } finally { f.db.prepare("UPDATE autonomy_runs SET metadata_json=? WHERE run_id=?").run(original,runId); }
+  };
+  const fault = async (kind:string,id:string,check:()=>Promise<void>) => {
+    const originalPrepare=Database.prototype.prepare;
+    Database.prototype.prepare=function(this:Database.Database,sql:string){
+      const statement=originalPrepare.call(this,sql) as Database.Statement<unknown[]>;
+      if(sql.includes("FROM vnext_core_records")&&sql.includes("record_id = ?")){
+        const get=statement.get.bind(statement);
+        statement.get=((...args:any[])=>{if(args[0]===kind&&args[1]===id)throw Object.assign(new Error("private SQL /private/fixture token=must-not-leak"),{code:"SQLITE_BUSY"});return get(...args);}) as typeof statement.get;
+      }
+      return statement;
+    } as typeof Database.prototype.prepare;
+    try { await check(); } finally { Database.prototype.prepare=originalPrepare; }
+  };
+  await withMetadata(second.run.run_id,"$.run_receipt_id","run-receipt:missing",()=>inspect("completed-receipt-missing",second.run.run_id,"blocked","receipt_unavailable"));
+  await withMetadata(second.run.run_id,"$.run_receipt_id",first.receipt.receipt_id,()=>inspect("completed-receipt-mismatched",second.run.run_id,"failed","receipt_invalid"));
+  await fault("run_receipt",second.receipt.receipt_id,()=>inspect("completed-receipt-read-error",second.run.run_id,"failed","inspection_failed"));
+
+  const authorization=await nextAuthorization(second,true);
+  const paused=(await f.call({action:"authorize_and_run",authorization})).result;
+  assert.equal(paused.stage,"observation_saved"); assert.ok(paused.observation_checkpoint);
+  for(const state of ["paused","stopped"]){
+    if(state==="stopped"){
+      f.controls.transform=(output,input)=>{if(input.stage==="conclude")output.recommendations[0].grounded_state_keys=["wrong-anchor"];};
+      const stopped=(await f.call({action:"continue",run_id:paused.run.run_id,checkpoint:paused.observation_checkpoint})).result;
+      assert.equal(stopped.run.status,"stopped"); availablePreparation(stopped.terminal_preparation);
+    }
+    const unavailable = async (name:string,status:string,reason:string) => {
+      await inspect(`${state}-checkpoint-${name}`,paused.run.run_id,status,reason);
+      const before=snapshot(),calls=f.calls;
+      await f.call({action:"continue",run_id:paused.run.run_id,checkpoint:paused.observation_checkpoint},409);
+      assert.equal(snapshot(),before,"A failed checkpoint read cannot admit resumption");assert.equal(f.calls,calls);
+    };
+    await withMetadata(paused.run.run_id,"$.stateless_review.grant_id","stateless-grant:missing",()=>unavailable("grant-missing","blocked","grant_missing"));
+    await withMetadata(paused.run.run_id,"$.stateless_review.grant_fingerprint",hash("wrong-original-grant"),()=>unavailable("grant-invalid","failed","grant_invalid"));
+    await fault("capability_grant",paused.run.metadata.stateless_review.grant_id,()=>unavailable("grant-read-error","failed","inspection_failed"));
+  }
+  console.log(JSON.stringify({terminal_projection_reads:outcomes.map(o=>({case:o.name,reader:o.reader.status,reason:"reason" in o.reader?o.reader.reason:null,
+    host_threw:o.host.projection_threw===true,get_ok:o.get.ok,get_error:o.get.error??null,record_reads:o.reads})),inspection_mutations:0,provider_retries:0}));
+  for(const o of outcomes){
+    assert.equal(o.reader.status,o.status,o.name); assert.equal("reason" in o.reader&&o.reader.reason,o.reason,o.name);
+    assert.equal(o.get.ok,true,o.name+": the actual GET must retain every readable review");
+    assert.equal(o.host.projection_threw,undefined,o.name);
+    assert.equal(o.reads[0],1,"The typed inspection reads the failing record once: "+o.name);
+    // The existing disposition owner independently probes grant history before
+    // preparation. GET also validates current-work lineage and other reviews.
+    // Neither is a second receipt projection after preparation classification.
+    assert.equal(o.reads[1],o.name.includes("checkpoint")?2:1,"No host receipt reread after classification: "+o.name);
+    const affected=o.get.reviews.find((r:any)=>r.run.run_id===o.host.run.run_id);
+    for(const projected of [o.host,affected]){
+      assert.equal(projected.terminal_preparation.status,o.status,o.name);
+      assert.equal(projected.terminal_preparation.reason,o.reason,o.name);
+      assert.notEqual(projected.terminal_preparation.status,"not_applicable");
+      assert.equal(projected.observation_checkpoint,null);
+      assert.equal(projected.receipt,null);
+      if(o.name.includes("checkpoint"))assert.equal(projected.history_reads.observation_checkpoint,"unavailable");
+      if(o.name.includes("receipt"))assert.equal(projected.history_reads.receipt,"unavailable");
+      if(o.status==="failed")assert.ok(o.diagnostics.some(d=>d.diagnostic_ref===projected.terminal_preparation.diagnostic_ref));
+    }
+    const unaffected=o.get.reviews.find((r:any)=>r.run.run_id===first.run.run_id);
+    assert.equal(unaffected.terminal_preparation.status,"not_applicable"); assert.deepEqual(unaffected.receipt,first.receipt);
+    assert.equal(unaffected.history_reads.receipt,"available");
+    assert.doesNotMatch(JSON.stringify([o.get,o.diagnostics]),/private SQL|\/private\/fixture|token=|must-not-leak|stack/);
+    if(o.name.endsWith("read-error"))assert.ok(o.diagnostics.some(d=>d.failure_kind==="unexpected_exception"&&d.error_code==="SQLITE_BUSY"&&d.phase===(o.name.includes("checkpoint")?"history":"completed_result")));
+    const markup=terminalResultMarkup(affected.terminal_preparation,affected.history_reads);
+    assert.match(markup,o.status==="failed"?/eligibility could not be established/:/unavailable/);
+    assert.match(markup,o.name.includes("checkpoint")?/Continuation from a saved observation could not be checked/:/recorded completion receipt could not be read and validated/);
+  }
+  const before=snapshot(),calls=f.calls;
+  const recovered=await f.call();
+  availablePreparation(recovered.reviews.find((r:any)=>r.run.run_id===paused.run.run_id).terminal_preparation);
+  assert.equal(snapshot(),before); assert.equal(f.calls,calls);
+}
+
 async function terminalAuthorshipContract() {
   const legacyHost = await historicalResponseHost(), legacyGrantHost = await historicalResponseHost("d6101051213965a45798c7738852d8af3eddc966"), readbacks: unknown[] = [];
   for (const variant of ["current", "legacy", "legacy-grant"] as const) {
@@ -890,11 +1007,14 @@ async function terminalAuthorshipContract() {
     // The exact pre-note issuer creates its own original request/grant; never
     // strip fields, forge fingerprints or backfill unavailable evidence.
     const grant = variant === "legacy-grant" ? await old.previewStatelessReview(f.db, { config: f.config, now: f.now, adapter: f.adapter }, notePricing)
-      : (await f.call({ action: "preview", pricing: notePricing })).authorization;
+      : (await f.call({ action: "preview", pricing: notePricing, ...(variant === "current" ? { pause_after_observation: true } : {}) })).authorization;
     const auth = f.authorizeOnly(grant, variant === "legacy-grant" ? old.authorizeStatelessReview : authorizeStatelessReview);
     if (variant === "legacy-grant") { assert.equal(auth.grant.request.selected_notes_ref, undefined); assert.equal(auth.grant.request.model_configuration, undefined); }
     const host = legacy ? new old.StatelessSourceReviewHost({ config: f.config, now: f.now, adapter: f.adapter }, auth.run_id) : f.host(auth.run_id);
-    await assert.rejects(() => host.run());
+    if (variant === "current") {
+      const paused = await host.run(); assert.equal(paused.stage, "observation_saved");
+      await f.call({ action: "continue", run_id: auth.run_id, checkpoint: paused.observation_checkpoint });
+    } else await assert.rejects(() => host.run());
     const failed = f.host(auth.run_id).read(), snapshot = canonical(failed.run);
     assert.equal(failed.run.status, "stopped"); assert.equal(failed.run.steps[2]!.status, "failed"); assert.equal(failed.receipt, null);
     readTerminalAttemptHistory(f.db, f.config, auth.run_id);
@@ -1515,7 +1635,7 @@ async function main() {
       assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0); return;
     }
     if (process.argv[2] === "--observation-checkpoint") {
-      await observationCheckpointContract(); assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0);
+      await terminalProjectionReadContract(); await observationCheckpointContract(); assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0);
       console.log(JSON.stringify({ status: "passed", checkpoint: "ordinary_authenticated_http", process_replacement: true, no_replay: true, original_grant_and_deadline: true, stale_and_concurrent_controllers: "refused", cancellation_expiry_unknown_recovery: "refused", provider_egress: 0 })); return;
     }
     if (process.argv[2] === "--sol-low") {
@@ -1530,6 +1650,7 @@ async function main() {
       await persistenceAuthorshipContract(); return;
     }
     if (process.argv[2] === "--terminal-preparation") { await terminalPreparationResultContract(); return; }
+    if (process.argv[2] === "--terminal-projection") { await terminalProjectionReadContract(); assert.equal(requests,0); return; }
     if (["--terminal-authorship", "--terminal-browser"].includes(process.argv[2]!)) {
       await terminalPreparationResultContract(); await terminalAuthorshipContract(); await persistenceAuthorshipContract(); assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0);
       console.log(JSON.stringify({ status: "passed", terminal_authorship: "ordinary_preview_new_packet_fresh_grant", legacy_writer: "65f6efc92d969c47e86152efa9388aba4c169c63", legacy_grant_writer: "d6101051213965a45798c7738852d8af3eddc966", candidate_writes: 0, external_requests: requests })); return;

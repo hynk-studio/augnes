@@ -556,6 +556,15 @@ delay a preview across that change: the mounted draft and omission reasons must
 survive, but stale comparison/preview authority must not. Restored fixtures must
 retain readable suspension guidance and the existing mutation refusals.
 
+Include checkpoint-enabled paused and eligible stopped attempts with missing,
+invalid and faulting original-grant reads. For normally completed work, test
+missing, mismatched and faulting recorded receipts without altering immutable
+Core. The reader, host and authenticated GET must agree while an unaffected
+review remains readable. Assert checkpoint/receipt inspection status, no second
+receipt read after classification, safe diagnostics and explicit read recovery.
+Keep these cases in the existing checkpoint test child and the existing terminal
+Browser draft/recovery owner, with their original resource and timeout bounds.
+
 For #1408's known result-persistence extension, inject only an isolated storage
 fault after a valid scripted response. Verify first and final judgments for mini
 and Sol, the ordinary Browser compare/preview/save path, exact duplicate

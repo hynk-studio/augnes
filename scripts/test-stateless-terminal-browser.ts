@@ -50,7 +50,7 @@ async function main() {
     const pair = value.split(";")[0]!, split = pair.indexOf("="), name = pair.slice(0, split), content = pair.slice(split + 1);
     if (content) cookieJar.set(name, content); else cookieJar.delete(name);
   } };
-  let external = 0, failures = 0; const actions: string[] = [], responses: Array<{ status: number; error: string | null }> = [];
+  let external = 0, failures = 0; const actions: string[] = [], responses: Array<{ status: number; error: string | null }> = [], reviewReads: any[][] = [];
   let holdNext = ""; const held: Array<() => void> = []; let submitted: any = null;
   const environment = { NODE_ENV: "test" as const, AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1", AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: config.workspace_id,
     AUGNES_VNEXT_OPERATOR_PROJECT_ID: config.project_id, AUGNES_VNEXT_OPERATOR_ID: config.operator_id, AUGNES_DB_PATH: config.database_path, OPENAI_API_KEY: "" };
@@ -81,6 +81,7 @@ async function main() {
       const cookies = response.headers.getSetCookie(); if (cookies.length) res.setHeader("Set-Cookie", cookies);
       rememberCookies(cookies);
       const text = await response.text(); responses.push({ status: response.status, error: JSON.parse(text).error ?? null });
+      if (!isSession && !action && JSON.parse(text).reviews) reviewReads.push(JSON.parse(text).reviews);
       if (holdNext && action === holdNext) { holdNext = ""; await new Promise<void>(release => held.push(release)); }
       res.statusCode = response.status; res.end(text);
     } catch { failures++; res.statusCode = 500; res.end("fixture_http_failed"); }
@@ -141,9 +142,10 @@ async function main() {
     // reach the mounted component. No transport response or status is mocked.
     const runId = request.predecessor.run_id;
     const originalMetadata = (db.prepare("SELECT metadata_json FROM autonomy_runs WHERE run_id=?").get(runId) as {metadata_json:string}).metadata_json;
-    const originalOutput = (db.prepare("SELECT output_json FROM autonomy_run_steps WHERE step_id=?").get(request.predecessor.step_id) as {output_json:string}).output_json;
     const restoreMetadata = () => db.prepare("UPDATE autonomy_runs SET metadata_json=? WHERE run_id=?").run(originalMetadata,runId);
-    const restoreOutput = () => db.prepare("UPDATE autonomy_run_steps SET output_json=? WHERE step_id=?").run(originalOutput,request.predecessor.step_id);
+    const unaffectedReviews = reviewReads.at(-1)!.filter(r=>r.run.run_id!==runId);
+    const checkpointEnabled = JSON.parse(originalMetadata).stateless_review.pause_after_observation === true;
+    if (checkpointEnabled) assert.ok(unaffectedReviews.length>0,"An unaffected review shares the real GET and rendered surface");
     const inspectionSnapshot = () => canonical((db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all() as Array<{name:string}>).map(({name}) =>
       [name,db.prepare(`SELECT * FROM "${name.replaceAll('"','""')}"`).all().map(row=>canonical(row)).sort()]));
     const inspectionBefore = inspectionSnapshot(), actionsBefore = actions.length;
@@ -152,11 +154,13 @@ async function main() {
     const retained = async () => {
       assert.equal(await browser.eval(`terminalDraftNode===document.querySelector('[aria-label="New work goal"]')&&terminalDraftNode.value===${JSON.stringify(request.definition.goal)}&&!(${note}).checked`),true,"Explanation changes keep the same mounted draft");
       assert.equal(await browser.eval("!!document.querySelector('[data-terminal-authorship-preview]')"),false);
+      assert.deepEqual(reviewReads.at(-1)!.filter(r=>r.run.run_id!==runId),unaffectedReviews,"One inspection fault does not replace or hide other reviews");
     };
     db.prepare("UPDATE autonomy_runs SET metadata_json=json_set(metadata_json,'$.stateless_review.grant_id',?) WHERE run_id=?").run("stateless-grant:unavailable",runId);
     try {
       const beforeRead=inspectionSnapshot(); await click("Read saved source reviews"); await status("blocked"); await retained();
       assert.equal(await browser.eval("terminalSurface.textContent.includes('original authorization record is unavailable')&&terminalDraftNode.matches(':disabled')"),true);
+      if (checkpointEnabled) assert.equal(await browser.eval("terminalSurface.textContent.includes('Continuation from a saved observation could not be checked')"),true);
       await click("Check linked-work preparation again"); await status("blocked");
       // The status remains blocked during this request. Wait for its completion
       // before restoring the fixture used by the real reader.
@@ -167,20 +171,20 @@ async function main() {
     await compare(); await fillReasons();
     assert.deepEqual(await omissionValues(),reasons,"The recovered draft keeps its explicit omissions");
     holdNext="preview_terminal_work"; await click("Preview linked authorship"); await until(async()=>held.length===1,"status_held_preview");
-    db.prepare("UPDATE autonomy_run_steps SET output_json=? WHERE step_id=?").run(JSON.stringify({...JSON.parse(originalOutput),failure_evidence:{code:"invalid_fixture"}}),request.predecessor.step_id);
+    db.prepare("UPDATE autonomy_runs SET metadata_json=json_set(metadata_json,'$.stateless_review.grant_fingerprint',?) WHERE run_id=?").run("0".repeat(64),runId);
     try {
       const beforeRead=inspectionSnapshot(); await click("Read saved source reviews"); await status("failed"); await retained();
-      assert.equal(await browser.eval("terminalSurface.textContent.includes('eligibility could not be established')&&terminalSurface.textContent.includes('failure evidence is invalid')"),true);
+      assert.equal(await browser.eval("terminalSurface.textContent.includes('eligibility could not be established')&&terminalSurface.textContent.includes('original authorization could not be validated')"),true);
       held.shift()!(); await settled(); await retained();
       assert.equal(inspectionSnapshot(),beforeRead);
-    } finally { restoreOutput(); }
+    } finally { restoreMetadata(); }
     await click("Check linked-work preparation again"); await status("available"); await retained();
     const originalPrepare=Database.prototype.prepare;
     Database.prototype.prepare=function(this:Database.Database,sql:string){
       const statement=originalPrepare.call(this,sql) as Database.Statement<unknown[]>;
       if(sql.includes('FROM vnext_core_records')&&sql.includes('record_id = ?')){
         const get=statement.get.bind(statement);
-        statement.get=((...args:any[])=>{if(args[0]==='capability_grant')throw Object.assign(new Error('private SQL /private/fixture provider-token must-not-leak'),{code:'SQLITE_BUSY'});return get(...args);}) as typeof statement.get;
+        statement.get=((...args:any[])=>{if(args[0]==='capability_grant'&&args[1]===JSON.parse(originalMetadata).stateless_review.grant_id)throw Object.assign(new Error('private SQL /private/fixture provider-token must-not-leak'),{code:'SQLITE_BUSY'});return get(...args);}) as typeof statement.get;
       }
       return statement;
     } as typeof Database.prototype.prepare;

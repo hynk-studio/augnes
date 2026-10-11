@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useWorkDraftState, type WorkComposerDraft } from "../workbench/semantic-review/work-composer-draft";
-import type { TerminalAuthorshipPreparation, TerminalPreparationResult, previewTerminalAuthorship } from "@/lib/vnext/runtime/stateless-terminal-authorship";
+import type { TerminalAuthorshipPreparation, TerminalPreparationResult, TerminalPreparationProjection, previewTerminalAuthorship } from "@/lib/vnext/runtime/stateless-terminal-authorship";
 
 type Preparation = TerminalAuthorshipPreparation;
 type Preview = ReturnType<typeof previewTerminalAuthorship>;
@@ -29,14 +29,17 @@ const reasons: Record<Exclude<TerminalPreparationResult, { status: "available" }
 /** Keep the predecessor's mounted draft through explanatory result changes.
  * Cached material is draft context only: a failed inspection disables every
  * preparation action and invalidates in-flight comparison/preview responses. */
-export function StatelessTerminalPreparation({ result, draftFor, refresh, busy, ...props }: {
+export function StatelessTerminalPreparation({ result, historyReads, draftFor, refresh, busy, ...props }: {
   result: TerminalPreparationResult; draftFor: (key: string) => WorkComposerDraft;
+  historyReads?: TerminalPreparationProjection["history_reads"];
   refresh: () => void; busy: boolean;
 } & Pick<Parameters<typeof StatelessTerminalAuthorship>[0], "material" | "request" | "saved">) {
   const retained = useRef<Preparation | null>(null);
   if (result.status === "available") retained.current = result.preparation;
   const preparation = result.status === "available" ? result.preparation : retained.current;
   return <div data-terminal-preparation-status={result.status}>
+    {historyReads?.observation_checkpoint === "unavailable" && <p>Continuation from a saved observation could not be checked. Read saved reviews again before choosing whether to continue.</p>}
+    {historyReads?.receipt === "unavailable" && <p>The recorded completion receipt could not be read and validated. Its completion evidence remains unavailable.</p>}
     {result.status !== "available" && <div role="status">
       <p>{result.status === "failed" ? "Linked-work eligibility could not be established. " : result.status === "blocked" ? "Linked-work preparation is unavailable. " : ""}{reasons[result.reason]}</p>
       {result.status === "failed" && <p>Diagnostic reference: <code>{result.diagnostic_ref}</code></p>}
