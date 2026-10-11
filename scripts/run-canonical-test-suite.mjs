@@ -269,6 +269,13 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      id: "semantic-state-rules",
+      label: "DB-free semantic rules and frozen persisted-state compatibility",
+      ...rootNode("scripts/test-semantic-state-rules.ts"),
+      timeoutMs: 10_000,
+      requireNaturalExit: true,
+    },
+    {
       label: "operator review-window policy",
       ...rootNode(
         "scripts/validate-vnext-operator-pilot-review-window-config-v0-1.ts",

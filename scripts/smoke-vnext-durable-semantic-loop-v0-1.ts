@@ -14,6 +14,10 @@ import { Socket } from "node:net";
 import { fileURLToPath } from "node:url";
 
 import Database from "better-sqlite3";
+import * as pureSemanticState from "../lib/vnext/semantic-state-rules";
+import * as semanticStore from "../lib/vnext/persistence/durable-semantic-store";
+import { createEpisodeDeltaCandidateFingerprintV01 as pureCandidateFingerprint } from "../lib/vnext/episode-delta-candidate";
+import { createEpisodeDeltaCandidateFingerprintV01 as compatibilityCandidateFingerprint } from "../lib/vnext/review-decision";
 
 import {
   DURABLE_LOCAL_LOOP_APPLIED_AT,
@@ -175,6 +179,24 @@ const DURABLE_LOCAL_LOOP_FOLLOWUP_PROBE_RECORDED_AT =
   "2026-07-10T14:16:00.000Z";
 
 try {
+  for (const name of [
+    "VNEXT_SEMANTIC_STATE_CONTENT_VERSION_V01",
+    "VNEXT_PERSISTED_SEMANTIC_STATE_VERSION_V01",
+    "VNEXT_LOCAL_SEMANTIC_STATE_NAMESPACE_V01",
+    "VNextPersistedSemanticStateValidationErrorV01",
+    "createVNextSemanticTargetIdentityV01",
+    "deriveVNextSemanticTargetKeyV01",
+    "buildVNextPersistedSemanticStateV01",
+    "validateVNextPersistedSemanticStateV01",
+    "rebuildVNextPersistedSemanticStateV01",
+  ] as const) {
+    assert.equal(semanticStore[name], pureSemanticState[name], `${name} compatibility identity`);
+  }
+  assert.equal(compatibilityCandidateFingerprint, pureCandidateFingerprint);
+  assert.throws(() => pureSemanticState.rebuildVNextPersistedSemanticStateV01(null),
+    semanticStore.VNextPersistedSemanticStateValidationErrorV01);
+  assert.throws(() => semanticStore.rebuildVNextPersistedSemanticStateV01(null),
+    pureSemanticState.VNextPersistedSemanticStateValidationErrorV01);
   db = new Database(dbPath);
   db.pragma("foreign_keys = ON");
   db.pragma("journal_mode = WAL");
