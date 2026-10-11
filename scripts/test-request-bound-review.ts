@@ -1,7 +1,7 @@
 // Deterministic native writers, real HTTP routes and MCP handlers. The HTTPS
 // receiver is a disposable protocol fixture, never actual ChatGPT acceptance.
 import assert from "node:assert/strict";
-import { createServer } from "node:http";
+import { createServer, request as httpRequest } from "node:http";
 import https from "node:https";
 import dns from "node:dns";
 import { Writable, Readable } from "node:stream";
@@ -27,6 +27,8 @@ import { readActiveProjectSelectionV01, selectActiveProjectV01 } from "../lib/vn
 import { invalidateRestoredReviewSubscriptions } from "../lib/vnext/persistence/review-schema.mjs";
 import { prepareRuntimeDatabase, restoreRuntimeDatabase, inspectRecoveryDatabaseFile } from "./runtime-database-bootstrap.mjs";
 import { createRecoveryBackup } from "./recovery-backup.mjs";
+import { readProjectWorkInitializationSnapshotV01 } from "../lib/vnext/runtime/project-work-initialization";
+import { reviewedOutcomeSourceRef } from "../lib/intake/selected-work-source-comparison";
 export async function testRequestBoundReview() {
     const started = Date.now(), env = { ...process.env }, root = realpathSync(mkdtempSync(path.join(tmpdir(), "ag-review-"))), dbPath = path.join(root, "fixture.db");
     let phaseStart = started;
@@ -35,7 +37,7 @@ export async function testRequestBoundReview() {
     let db = new Database(dbPath);
     const guard = installZeroNetworkGuard({ allowLoopback: true });
     const token = randomBytes(32).toString("base64url"), instance = "review-fixture", generation = "generation-1", repository = "a".repeat(64);
-    let origin = "", id = 0, dropAck = false, inspectionFailure = false, interruptDelivery = false, callbacks = 0, verifyCalls = 0, callbackStatus = 200, challengeWrong = false, signingWrong = false;
+    let origin = "", id = 0, httpCalls = 0, dropAck = false, inspectionFailure = false, interruptDelivery = false, callbacks = 0, verifyCalls = 0, callbackStatus = 200, challengeWrong = false, signingWrong = false;
     let addresses = [{ address: "8.8.8.8", family: 4 }], duringDNS: (() => Promise<void>) | null = null;
     const received: any[] = [], errors: string[] = [], routes: Record<string, (r: Request) => Promise<Response>> = {
         "/api/augnes/read/codex-repository-continuity": resume, "/api/augnes/read/codex-repository-work-sources": source,
@@ -44,6 +46,7 @@ export async function testRequestBoundReview() {
     const originalPrepare = Database.prototype.prepare;
     const server = trackServerConnections(createServer(async (req, res) => {
         try {
+            httpCalls++;
             const url = new URL(req.url!, origin);
             if (["/healthz", "/api/healthz"].includes(url.pathname)) {
                 res.setHeader("content-type", "application/json");
@@ -128,9 +131,22 @@ export async function testRequestBoundReview() {
     const call = async (name: string, args: object) => { const r = await rpc(name, args); assert(!r.error && !r.result?.isError, JSON.stringify(r)); return r.result.structuredContent; };
     const op = (args: object) => call("augnes_review_repository_work", args);
     const raw = async (input: object, extra: Record<string, string> = {}) => {
-        const response = await fetch(origin + "/api/augnes/review?scope=repository:local", { method: "POST", headers: { "content-type": "application/json", "x-augnes-review": REVIEW_MARKER, "x-augnes-companion-proxy": token,
-                "x-augnes-runtime-instance": instance, "x-augnes-runtime-generation": generation, "x-augnes-runtime-repository": repository, ...extra }, body: JSON.stringify(input) });
-        return { status: response.status, value: await response.json() };
+        // Node fetch normalizes Host; send the actual prohibited header over HTTP
+        // so this assertion reaches the private channel instead of testing fetch.
+        return new Promise<{ status: number; value: any }>((resolve, reject) => {
+            const request = httpRequest(origin + "/api/augnes/review?scope=repository:local", { method: "POST", agent: false,
+                headers: { "content-type": "application/json", "x-augnes-review": REVIEW_MARKER, "x-augnes-companion-proxy": token,
+                    "x-augnes-runtime-instance": instance, "x-augnes-runtime-generation": generation, "x-augnes-runtime-repository": repository, ...extra } }, response => {
+                let body = "";
+                response.setEncoding("utf8");
+                response.on("data", chunk => { body += chunk; });
+                response.on("error", reject);
+                response.on("end", () => { try { resolve({ status: response.statusCode!, value: JSON.parse(body) }); } catch (error) { reject(error); } });
+            });
+            request.setTimeout(5000, () => request.destroy(new Error("fixture_request_timeout")));
+            request.on("error", reject);
+            request.end(JSON.stringify(input));
+        });
     };
     async function writeWork(repositoryRoot: string, changes: object, initial = false) {
         const r = await call("augnes_resume_repository", { repositoryRoot });
@@ -174,6 +190,17 @@ export async function testRequestBoundReview() {
         assert.equal(list.connections[0].connection_ref, a.id);
         const adapter = (c: any) => createRequestBoundReviewAdapter(c.id);
         let reviewer = adapter(a);
+        const catalog: any = await reviewer.handle({ jsonrpc: "2.0", id: ++id, method: "tools/list" });
+        assert.deepEqual(catalog.result.tools.map((t: any) => t.name), ["augnes_list_review_requests", "augnes_read_review_request", "augnes_reply_to_review"]);
+        assert(!/secret|callback|repositoryRoot|sourceAgentId|from_agent/.test(JSON.stringify(catalog.result.tools.map((t: any) => t.inputSchema))));
+        const beforeForbidden = httpCalls;
+        for (const name of ["augnes_resume_repository", "augnes_plan", "augnes_observe", "augnes_record_action_result", "augnes_record_work_event", "augnes_review_repository_work", "augnes_start_repository_delegation", "augnes_save_repository_work_revision"]) {
+            const refused: any = await reviewer.handle({ jsonrpc: "2.0", id: ++id, method: "tools/call", params: { name, arguments: {} } });
+            assert.equal(refused.error.code, -32602);
+        }
+        const passthrough: any = await reviewer.handle({ jsonrpc: "2.0", id: ++id, method: "companion/forward", params: { path: "/api/actions/record" } });
+        assert.equal(passthrough.error.code, -32601);
+        assert.equal(httpCalls, beforeForbidden, "review endpoint must not forward unsupported capabilities");
         const event = async (method: string, params: object, c = a) => adapter(c).handle({ jsonrpc: "2.0", id: ++id, method, params }) as Promise<any>;
         const reviewCall = async (name: string, args: object, c = a) => adapter(c).handle({ jsonrpc: "2.0", id: ++id, method: "tools/call", params: { name, arguments: args } }) as Promise<any>;
         const read = async (ref: string, c = a) => (await reviewCall("augnes_read_review_request", { request_ref: ref }, c)).result.structuredContent;
@@ -204,6 +231,12 @@ export async function testRequestBoundReview() {
             const used = await op({ action: "readback", connection_ref: a.id, request_ref: req.request_ref });
             assert.equal(used.use.status, "attributed_note_in_current_work");
             assert.equal(used.currentness, "historical");
+            const selected = readProjectWorkInitializationSnapshotV01(db, pa.scope).packet!.selected_context;
+            const responseNote = selected.find(s => s.compatibility_source_ref?.external_id === `note_ref:augnes-review:${back.response_ref.slice(7)}`);
+            const useNote = selected.find(s => s.compatibility_source_ref?.external_id === `note_ref:augnes-review-use:${back.response_ref.slice(7)}`);
+            assert.equal(responseNote?.trust_class, "imported_unverified");
+            assert.equal(useNote?.trust_class, "derived_interpretation");
+            assert(selected.every(s => reviewedOutcomeSourceRef(s) === null), "external opinion must not impersonate an operator outcome report");
         }
         phase("setup_and_two_explicit_cycles");
         // B: unrelated selection/update, delayed B/A replies and all three A races.
@@ -259,8 +292,14 @@ export async function testRequestBoundReview() {
         assert.equal((await read(lost.request_ref)).reason, "review_access_refused");
         a.destination = oldDestination;
         saveConfig();
-        for (const headers of [{ "x-augnes-companion-proxy": "forged" }, { origin: "https://example.com" }, { "x-forwarded-for": "8.8.8.8" }] as Record<string, string>[])
-            assert.equal((await raw({ action: "inspect", connection_ref: a.id }, headers)).status, 403);
+        for (const headers of [{ "x-augnes-companion-proxy": "forged" }, { origin: "https://example.com" }, { "x-forwarded-for": "8.8.8.8" },
+            { host: "foreign.example" }, { forwarded: "for=127.0.0.1" }, { "x-original-host": "foreign.example" }, { "sec-fetch-site": "cross-site" }] as Record<string, string>[])
+            assert.equal((await raw({ action: "inspect", connection_ref: a.id }, headers)).status, 403, `private channel refusal: ${Object.keys(headers).join(",")}`);
+        for (const header of ["x-augnes-runtime-instance", "x-augnes-runtime-generation", "x-augnes-runtime-repository"])
+            assert.equal((await raw({ action: "inspect", connection_ref: a.id }, { [header]: "foreign" })).status, 409);
+        process.env.AUGNES_RECOVERY_MODE = "1";
+        assert.equal((await raw({ action: "inspect", connection_ref: a.id })).status, 503);
+        delete process.env.AUGNES_RECOVERY_MODE;
         const { createConnectedProjectReaderV01 } = await import("../plugins/augnes-operator/mcp/connected-project-reader.mjs");
         const readonly = createConnectedProjectReaderV01({ repositoryRoot: pa.root, projectKey: a.project_key });
         const readonlyRefusal: any = await readonly({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "augnes_reply_to_review", arguments: replyArgs(lostRead) } });
@@ -426,6 +465,8 @@ export async function testRequestBoundReview() {
         assert.equal((db.prepare("SELECT count(*) n FROM vnext_review_subscriptions WHERE stopped=0").get() as any).n, 0);
         assert.equal((db.prepare("SELECT count(*) n FROM autonomy_runs").get() as any).n, 0);
         assert.equal((db.prepare("SELECT count(*) n FROM vnext_core_records WHERE record_kind<>'task_context_packet'").get() as any).n, 0);
+        for (const table of ["work_items", "work_events", "mailbox_messages", "action_records"])
+            assert.equal((db.prepare(`SELECT count(*) n FROM ${table}`).get() as any).n, 0, `${table}: native review must not create legacy shadow work or action results`);
         const stored = db.prepare("SELECT callback_envelope FROM vnext_review_subscriptions").all();
         assert(!JSON.stringify(stored).includes(delivery.url));
         assert(!JSON.stringify(stored).includes(signingSecret));

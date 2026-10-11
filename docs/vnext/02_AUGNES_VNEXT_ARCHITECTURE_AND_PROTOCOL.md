@@ -612,6 +612,10 @@ unverified. Response saved, readback served, and deliberate attributed use throu
 ordinary source-note revision are separate observations. None grants semantic,
 execution, external-effect, or repository authority. Event acknowledgement is
 only transport receipt, and reply persistence cannot request another review.
+External review prose enters ordinary selected excerpts as `imported_unverified`,
+with deliberate use recorded as `derived_interpretation`. It is not an operator
+outcome report or RunReceipt and cannot bypass the reviewed-outcome owner's exact
+expectation/attempt/report/receipt/packet/author-session checks.
 
 The [bounded adapter contract](../../apps/augnes_apps/README.md#opt-in-request-bound-review-1433)
 defines limits, revocation, callback security, lifecycle preparation and current

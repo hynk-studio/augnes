@@ -11,6 +11,7 @@ import { FileAugnesCoreAdapter } from "../src/adapters/file-core.js";
 import { HttpAugnesCoreAdapter } from "../src/adapters/http-core.js";
 import { MockAugnesCoreAdapter } from "../src/adapters/mock-core.js";
 import { StateRuntimeHttpAdapter } from "../src/adapters/state-runtime-http.js";
+import { config } from "../src/lib/config.js";
 import type { WorkBrief } from "../src/lib/state-runtime-types.js";
 import { AUGNES_BRIDGE_TOOL_NAMES, AUGNES_WORK_READ_TOOL_NAMES, PUBLIC_TOOL_NAMES, createMcpAppServer } from "../src/server.js";
 import { assertWorkReadWidgetProjection } from "./widget-bridge-fixture.js";
@@ -27,6 +28,7 @@ export async function assertWorkReadContract() {
   const databasePath = join(root, "work.db");
   const previousDatabasePath = process.env.AUGNES_DB_PATH;
   const previousFetch = globalThis.fetch;
+  const previousProfile = config.appProfile;
   const rootImport = (specifier: string) => tsImport(specifier, {
     parentURL: import.meta.url,
     tsconfig: fileURLToPath(new URL("../../../tsconfig.json", import.meta.url)),
@@ -160,37 +162,55 @@ export async function assertWorkReadContract() {
       }
       disposition = "routes";
 
-      // Work backing is independent of the legacy adapter and surface gates.
-      for (const [legacy, options, expected] of [
-        [new FileAugnesCoreAdapter({}), { toolSurface: "work_loop_readonly", enableAgentBridge: true }, AUGNES_WORK_READ_TOOL_NAMES],
-        [new HttpAugnesCoreAdapter({ apiBaseUrl: "http://127.0.0.1:1" }), { toolSurface: "public", enableAgentBridge: true }, [...PUBLIC_TOOL_NAMES, ...AUGNES_BRIDGE_TOOL_NAMES]],
-        [new MockAugnesCoreAdapter(), { toolSurface: "companion_repository_readonly", enableAgentBridge: true }, ["augnes_resume_repository", ...AUGNES_WORK_READ_TOOL_NAMES]],
-      ] as const) {
-        const gatedServer = createMcpAppServer(legacy, runtime, options);
-        const gatedClient = new Client({ name: "work-read-surface", version: "1.0.0" });
-        const [readTransport, toolTransport] = InMemoryTransport.createLinkedPair();
-        try {
-          await gatedServer.connect(toolTransport);
-          await gatedClient.connect(readTransport);
-          assert.deepEqual((await gatedClient.listTools()).tools.map((tool) => tool.name).sort(), [...expected].sort());
-          const result = await gatedClient.callTool({ name: "augnes_list_work_items", arguments: {} });
-          assert.deepEqual(structured(result).workItems, list.workItems);
-          disposition = "unavailable";
-          const unavailable = await gatedClient.callTool({ name: "augnes_list_work_items", arguments: {} });
-          assert.equal(unavailable.isError, true, "legacy mock/file/HTTP must not supply fallback work");
-          disposition = "routes";
-        } finally {
-          await gatedClient.close();
-          await gatedServer.close();
+      // Registration, bridge enablement, presentation and legacy backing are
+      // independent axes. Exercise actual SDK discovery AND rejected dispatch;
+      // a readOnlyHint or health mode is not the capability boundary.
+      for (const profile of ["public", "chrono_lab"] as const) {
+        config.appProfile = profile;
+        for (const enableAgentBridge of [false, true]) {
+          for (const [legacy, toolSurface, enabledNames] of [
+            [new MockAugnesCoreAdapter(), "public", [...PUBLIC_TOOL_NAMES, ...AUGNES_BRIDGE_TOOL_NAMES]],
+            [new FileAugnesCoreAdapter({}), "work_loop_readonly", AUGNES_WORK_READ_TOOL_NAMES],
+            [new HttpAugnesCoreAdapter({ apiBaseUrl: "http://127.0.0.1:1" }), "companion_repository_readonly", ["augnes_resume_repository", ...AUGNES_WORK_READ_TOOL_NAMES]],
+            [new MockAugnesCoreAdapter(), "companion_repository_attachment", [...AUGNES_BRIDGE_TOOL_NAMES.slice(0, 13), ...AUGNES_WORK_READ_TOOL_NAMES]],
+          ] as const) {
+            const options = { toolSurface, enableAgentBridge };
+            const expected = enableAgentBridge ? enabledNames : toolSurface === "public" ? PUBLIC_TOOL_NAMES : AUGNES_WORK_READ_TOOL_NAMES;
+            const gatedServer = createMcpAppServer(legacy, runtime, options);
+            const gatedClient = new Client({ name: "work-read-surface", version: "1.0.0" });
+            const [readTransport, toolTransport] = InMemoryTransport.createLinkedPair();
+            try {
+              await gatedServer.connect(toolTransport);
+              await gatedClient.connect(readTransport);
+              assert.deepEqual((await gatedClient.listTools()).tools.map((tool) => tool.name).sort(), [...expected].sort());
+              const beforeRefusals = requests.length;
+              for (const name of ["augnes_list_review_requests", "augnes_read_review_request", "augnes_reply_to_review", "augnes_review_repository_work"]) {
+                const refused = await gatedClient.callTool({ name, arguments: { request_ref: "forged", answer: "not authorized" } });
+                assert.equal(refused.isError, true, `${profile}/${toolSurface}/${enableAgentBridge} must not expose ${name}`);
+              }
+              assert.equal(requests.length, beforeRefusals, "unknown review tools must refuse before any runtime access");
+              const result = await gatedClient.callTool({ name: "augnes_list_work_items", arguments: {} });
+              assert.deepEqual(structured(result).workItems, list.workItems);
+              assert.equal(structured(result).profile, profile);
+              disposition = "unavailable";
+              const unavailable = await gatedClient.callTool({ name: "augnes_list_work_items", arguments: {} });
+              assert.equal(unavailable.isError, true, "legacy mock/file/HTTP must not supply fallback work");
+              disposition = "routes";
+            } finally {
+              await gatedClient.close();
+              await gatedServer.close();
+            }
+          }
         }
       }
-      console.log("Work-read contract passed: disposable demo writer/routes, MCP list/call, empty/unavailable/404, adapter/surface and widget contrasts; zero external calls.");
+      console.log("Work-read contract passed: disposable demo writer/routes, MCP list/call, empty/unavailable/404, 16 profile/surface/bridge catalogs, review-write refusal and widget contrasts; zero external calls.");
     } finally {
       await client.close();
       await server.close();
     }
   } finally {
     globalThis.fetch = previousFetch;
+    config.appProfile = previousProfile;
     if (previousDatabasePath === undefined) delete process.env.AUGNES_DB_PATH;
     else process.env.AUGNES_DB_PATH = previousDatabasePath;
     await rm(root, { recursive: true, force: true });

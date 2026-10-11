@@ -166,6 +166,23 @@ adds a **scoped reviewer capability**. It exposes only
 and `connected-project-reader.mjs` stay read-only. Never forward the full
 Operator, the Companion HTTP endpoint, or arbitrary RPC to a reviewer.
 
+This endpoint reuses the Operator's stdio framing and verified Companion
+discovery, the private local-channel checks, native project/packet/source readers,
+and ordinary revision preview/save. Tools and event methods share this one
+review capability and request owner. No new SDK, tunnel implementation, general
+HTTP proxy, or second review store is introduced. The additional private
+configuration scopes reply permission and disclosure to one destination; it does
+not replace transport authentication or prove an existing connection is suitable.
+
+The App's presentation profile, legacy backend mode, tool surface and Bridge flag
+remain separate. Even its two Companion surfaces retain legacy WorkBrief reads;
+they are not a single-project reviewer audience. Broad Bridge activation also
+exposes provider-backed planning/observation and trace writers. In particular,
+`augnes_record_action_result` calls `recordExternalAction`, which writes an action
+record **and a legacy state marker**. A work event or mailbox review label lacks
+the authenticated native request/material relation. These writers are not used
+as review replies. Removed handoff/launch tools remain removed.
+
 The originating local agent uses `augnes_review_repository_work`: discover the
 configured connection for its repository, inspect material, request a bounded
 question, list/read back the answer, then deliberately prepare a retain/revise/
@@ -191,6 +208,9 @@ untrusted context. Response persistence, readback served to an origin, and an
 attributed use note in current work are distinct observations. The existing
 writer enforces its source limits and currentness; preparing use does not save
 it, accept semantic state, issue execution permission, or request another review.
+The selected answer uses the existing `imported_unverified` excerpt path, with
+separate `derived_interpretation` reasoning. It does not enter the reviewed-outcome
+path or manufacture an expectation, attempt, outcome report or RunReceipt.
 
 #### Scoped setup and disabled-by-default operation
 
@@ -269,9 +289,13 @@ are local protocol and deterministic source mechanics. Actual ChatGPT event
 receipt/answer, an originating model's subsequent use, a later live request after
 recovery, and a matched manual-handoff burden comparison remain **NOT RUN**.
 Provider cost is unknown; a shorter tool list is not measured burden reduction.
+Any authorized comparison must retain the existing usable App/Bridge work reads
+and trace facilities, plus the native connected reader where available, with the
+same material and tools on both sides. Report initial scoped setup separately
+from recurring human relay; do not substitute a copy-everything baseline.
 Issue #1433 remains open for those live obligations.
 
-`createMcpAppServer` registers both tools against its separate
+`createMcpAppServer` registers the two existing WorkBrief tools against its separate
 `StateRuntimeBridgeAdapter`. The normal `StateRuntimeHttpAdapter` calls
 `GET /api/work?scope=...` and `GET /api/work/:work_id/brief?scope=...`.
 Those routes read through `lib/work.ts` (`listWorkItems` / `buildWorkBrief`),
@@ -685,7 +709,7 @@ Use the brief for plain questions such as:
 
 Answer in plain language first: current status, next step, why, and needs-your-decision or blockers. Raw state keys belong only as secondary grounding under a short `Reference` or `Grounding` note. Do not emit packet-copy material or request result paste.
 
-The app must not add direct commit/reject tools, autonomous Codex execution, hosted auth flows, or new runtime lifecycle semantics. Public default behavior remains the original read-only nine-tool surface unless the bridge flag is enabled.
+The app must not add direct commit/reject tools, autonomous Codex execution, hosted auth flows, or new runtime lifecycle semantics. Public default behavior remains the nine legacy read-only tools plus the two WorkBrief reads. The explicitly enabled Bridge has its own registration gates; presentation profile never grants authority.
 
 See [Using the ChatGPT App as the human-facing Augnes assistant](docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md#using-the-chatgpt-app-as-the-human-facing-augnes-assistant) for the full answer pattern and example.
 
