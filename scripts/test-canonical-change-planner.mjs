@@ -54,6 +54,7 @@ const targetedPhaseIds = (...ownerPhaseIds) => [
 ];
 
 try {
+  runContinuationDocumentationCases();
   // Optional read-only audit: replay the same exact fixture commits through a
   // pre-change planner and its two manifests. This never chooses deciding tests.
   if (process.argv.length > 2) {
@@ -669,6 +670,10 @@ try {
     assert.throws(() => validateChangeOwnerManifest(invalid), /invalid documentation reference consumer contract/u);
   }
   results.push("reference-consumer-registration-is-target-bound");
+  const invalidModificationScope = structuredClone(ownerManifest);
+  invalidModificationScope.documentation_owners.find(owner => owner.id === "continuation-operational-documentation").modification_only = false;
+  assert.throws(() => validateChangeOwnerManifest(invalidModificationScope), /invalid documentation owner contract/u);
+  results.push("continuation-modification-scope-cannot-expand");
 
   runRegisteredReferenceConsumerCases();
   runIncomingReferenceCases();
@@ -984,12 +989,105 @@ function runRegisteredReferenceConsumerCases() {
   results.push("registered-reference-does-not-admit-other-authority-targets");
   const changed = fixture("readme-edit");
   changed.write(readme, incoming + "Changed Web contract.\n");
-  assert.equal(planCanonicalChange({ eventName: "pull_request", ...proposed(changed) }).plan, "full-canonical");
-  results.push("registered-reference-does-not-admit-readme-edits");
+  const changedPlan = planCanonicalChange({ eventName: "pull_request", ...proposed(changed) });
+  assert.equal(changedPlan.plan, "operating-policy-only");
+  assert.deepEqual(changedPlan.owner_ids, ["active-authority-documentation", "continuation-operational-documentation"]);
+  results.push("readme-edit-requires-its-separate-contract-registration");
   const removed = fixture("roadmap-disposition");
   removed.remove(roadmap);
   assert.equal(planCanonicalChange({ eventName: "pull_request", ...proposed(removed) }).plan, "full-canonical");
   results.push("registered-reference-does-not-admit-authority-disposition");
+}
+
+function runContinuationDocumentationCases() {
+  const native = "docs/DATABASE_ACCESS_LIFECYCLE.md";
+  const web = "apps/web_planning/README.md";
+  const roadmap = "docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md";
+  function fixture(name, seed = () => {}) {
+    const repo = createRepository(`continuation-docs-${name}`, false);
+    repo.write(native, "# Database lifecycle\n\n## Preservation\n");
+    repo.write(web, `# Web planning\n\n## History\n\n[Native preservation](../../${native}#preservation)\n`);
+    repo.write("README.md", `# Entry\n\n[Database lifecycle](${native})\n`);
+    repo.write(roadmap, `# Roadmap\n\n[Web contract](../../${web}#history)\n`);
+    seed(repo);
+    commitAll(repo.cwd, "audited contracts and consumers");
+    repo.baseSha = git(repo.cwd, ["rev-parse", "HEAD"]).trim();
+    return repo;
+  }
+  function proposed(repo) {
+    commitAll(repo.cwd, "contract guidance");
+    return { cwd: repo.cwd, baseSha: repo.baseSha,
+      headSha: git(repo.cwd, ["rev-parse", "HEAD"]).trim() };
+  }
+  function edit(repo, file) {
+    repo.write(file, readFileSync(path.join(repo.cwd, file), "utf8") + "\nExisting recovery preserves history.\n");
+  }
+  for (const files of [[native], [web], [native, web]]) {
+    const repo = fixture(files.length === 2 ? "pair" : files[0] === native ? "native" : "web");
+    files.forEach(file => edit(repo, file));
+    const result = validateCanonicalOperatingPolicyChange(proposed(repo));
+    assert.equal(result.plan, "operating-policy-only");
+    assert.equal(result.runtime_verified, false);
+    assert.deepEqual(result.owner_ids, ["continuation-operational-documentation"]);
+    assert(result.incoming_references_checked > 0);
+    results.push(`continuation-contract-static:${files.join(",")}`);
+  }
+  for (const [name, seed] of [
+    ["native-reader", repo => repo.write("scripts/unknown-reader.mjs", `readFileSync("${native}");\n`)],
+    ["web-reader", repo => repo.write("scripts/unknown-reader.mjs", `readFileSync("${web}");\n`)],
+    ["dynamic-web-reader", repo => repo.write("scripts/unknown-reader.mjs", 'readFileSync("apps/web_planning/" + name);\n')],
+    ["packaged-web", repo => repo.write("package.json", JSON.stringify({ files: ["apps/web_planning/**"] }))],
+    ["native-instruction", repo => repo.write("plugins/unknown/SKILL.md", `Use ${native} as instructions.\n`)],
+    ["web-instruction", repo => repo.write("plugins/unknown/SKILL.md", `Use ${web} as instructions.\n`)],
+  ]) {
+    const repo = fixture(name, seed);
+    edit(repo, native); edit(repo, web);
+    assert.equal(planCanonicalChange({ eventName: "pull_request", ...proposed(repo) }).plan, "full-canonical", name);
+    results.push(`continuation-unknown-consumer-refused:${name}`);
+  }
+  for (const file of [native, web]) {
+    for (const operation of ["add", "delete", "rename", "mode", "mixed-code"]) {
+      const repo = fixture(`${path.basename(path.dirname(file))}-${operation}`);
+      if (operation === "add") {
+        repo.remove(file); commitAll(repo.cwd, "contract absent at baseline");
+        repo.baseSha = git(repo.cwd, ["rev-parse", "HEAD"]).trim();
+        repo.write(file, "# New contract is not an in-place clarification\n");
+      }
+      if (operation === "delete") repo.remove(file);
+      if (operation === "rename") repo.rename(file, file + ".moved.md");
+      if (operation === "mode") repo.chmod(file, 0o755);
+      if (operation === "mixed-code") { edit(repo, file); repo.write("lib/unknown.ts", "export const changed = true;\n"); }
+      assert.equal(planCanonicalChange({ eventName: "pull_request", ...proposed(repo) }).plan, "full-canonical", `${file}:${operation}`);
+      results.push(`continuation-unsafe-change-refused:${file}:${operation}`);
+    }
+    const repo = fixture(`${path.basename(path.dirname(file))}-anchor`);
+    repo.write(file, "# Removed required anchor\n");
+    const exact = proposed(repo);
+    repo.write(file, file === native ? "# Database lifecycle\n\n## Preservation\n" : "# Web planning\n\n## History\n");
+    assert.throws(() => validateCanonicalOperatingPolicyChange(exact), /unresolved local Markdown anchor/u);
+    results.push(`continuation-incoming-anchor-uses-exact-tree:${file}`);
+  }
+  for (const file of ["apps/other/README.md", "apps/web_planning/OTHER.md", "apps/web_planning/readme.md", "apps\\web_planning\\README.md", "apps/web_planning/AGENTS.md"]) {
+    const repo = fixture(`unknown-${file.replaceAll("/", "-")}`);
+    // A lowercase write aliases README.md on the Mac's case-insensitive volume.
+    // Remove it from the baseline first so Git observes the actual new path.
+    if (file === "apps/web_planning/readme.md") {
+      repo.remove(web);
+      commitAll(repo.cwd, "no canonical README at case-variant baseline");
+      repo.baseSha = git(repo.cwd, ["rev-parse", "HEAD"]).trim();
+    }
+    repo.write(file, "# Unregistered responsibility\n");
+    assert.equal(planCanonicalChange({ eventName: "pull_request", ...proposed(repo) }).plan, "full-canonical", file);
+    results.push(`continuation-registration-is-literal:${file}`);
+  }
+  for (const file of ["scripts/canonical-change-planner.mjs", "scripts/local-canonical-change-owners.v1.json", "scripts/validate-canonical-docs-change.mjs"]) {
+    const repo = fixture(`self-${path.basename(file)}`);
+    edit(repo, native); edit(repo, web); repo.write(file, "verification machinery change\n");
+    const plan = planCanonicalChange({ eventName: "pull_request", ...proposed(repo) });
+    assert.equal(plan.plan, "full-canonical");
+    assert(plan.full_reasons.includes(`local_canonical_integrity_self_change:${file}`));
+    results.push(`continuation-does-not-exempt-verification-self-change:${file}`);
+  }
 }
 
 function runIncomingReferenceCases() {

@@ -19,11 +19,14 @@ import {
 } from "./augnes-runtime-supervisor-core.mjs";
 import { readBrowserPortAllocationDiagnostic } from "./browser-preferred-ports.mjs";
 import { createOperatorExecutionBrowserLifecycleV1 } from "./operator-execution-browser-lifecycle-v1.mjs";
+import { choosePackagedTestPreferredPort } from "./packaged-test-preferred-port.mjs";
+import { closeTrackedServer } from "./test-harness-process-lifecycle.mjs";
 
 let scenarios = 0;
 if (process.argv[2] === "--initialization-case") {
   await initializationFailureCase(process.argv[3]);
 } else {
+await packagedPreferredPortControls();
 // Exercise the supervisor's real argument parser, stopping before runtime setup.
 // An unknown trailing option is reached only if the preferred port was accepted.
 for (const option of ["--port", "--bridge-port"]) {
@@ -137,6 +140,109 @@ for (const file of [
 }
 await initializationFailureControls();
 console.log(`Browser preferred-port allocation and launch contracts passed (${scenarios} allocator scenarios, 4 serialized initialization controls).`);
+}
+
+async function packagedPreferredPortControls() {
+  let cases = 0;
+  const busy = () => [65_535, { requested: 65_515, listenError: "EADDRINUSE" }];
+  for (const scenario of [
+    { name: "lower-edge", candidates: [1_024], expected: 1_024 },
+    { name: "upper-edge", candidates: [65_515], expected: 65_515 },
+    { name: "first-high", candidates: [65_516, { requested: 65_496, port: 65_496 }], expected: 65_496 },
+    { name: "highest-assignment", candidates: [65_535, { requested: 65_515, port: 65_515 }], expected: 65_515 },
+    { name: "distinct-preference", candidates: [65_535, { requested: 65_515, port: 65_515 }, { requested: 65_514, port: 65_514 }], excludedPort: 65_515, expected: 65_514 },
+    { name: "distinct-lower-edge", candidates: [1_024, { requested: 1_025, port: 1_025 }], excludedPort: 1_024, expected: 1_025 },
+    { name: "distinct-bounded-failure", candidates: Array.from({ length: PORT_SEARCH_SIZE / 2 }, () => [40_010, { requested: 40_009, listenError: "EADDRINUSE" }]).flat(), excludedPort: 40_010, error: /no valid bounded preferred port/u },
+    { name: "low-rejected", candidates: [1_023, 40_010], expected: 40_010 },
+    { name: "occupied-fallback", candidates: [...busy(), 40_011], expected: 40_011 },
+    { name: "bounded-exhaustion", candidates: Array.from({ length: PORT_SEARCH_SIZE / 2 }, busy).flat(), error: /no valid bounded preferred port/u },
+    { name: "no-extra-final-probe", candidates: [...Array(PORT_SEARCH_SIZE - 1).fill(1_023), 65_535], error: /no valid bounded preferred port/u },
+    { name: "bind-denied", candidates: [{ listenError: "EACCES" }], error: /EACCES/u },
+    { name: "fallback-denied", candidates: [65_535, { requested: 65_515, listenError: "EACCES" }], error: /EACCES/u },
+    { name: "binding-mismatch", candidates: [65_535, { requested: 65_515, port: 40_010 }], error: /binding mismatch/u },
+    { name: "invalid-address", candidates: [{ nullAddress: true }], error: /address invalid/u },
+    { name: "create-failure", candidates: [{ createError: true }], error: /create failed/u },
+    { name: "address-failure", candidates: [{ port: 40_012, addressError: true }], error: /address failed/u },
+    { name: "close-failure", candidates: [{ port: 40_013, closeError: true }], error: /close failed/u, cleanupFailure: true },
+    { name: "primary-and-cleanup", candidates: [{ port: 40_014, addressError: true, closeError: true }], error: /probe and cleanup failed/u, cleanupFailure: true, aggregate: true },
+  ]) {
+    const owned = new Set(), probes = [];
+    let cursor = 0;
+    const allocation = mock.method(net, "createServer", () => {
+      assert(cursor < scenario.candidates.length, `${scenario.name}: extra probe`);
+      const value = scenario.candidates[cursor++];
+      const candidate = typeof value === "number" ? { port: value } : value;
+      if (candidate.createError) throw new Error("create failed");
+      const server = new EventEmitter();
+      server.listening = false;
+      server.listen = (options, ready) => {
+        assert.deepEqual(options, { host: "127.0.0.1", port: candidate.requested ?? 0, exclusive: true });
+        queueMicrotask(() => {
+          if (candidate.listenError) server.emit("error", Object.assign(new Error(candidate.listenError), { code: candidate.listenError }));
+          else { server.listening = true; ready(); }
+        });
+      };
+      server.address = () => {
+        if (candidate.addressError) throw new Error("address failed");
+        return candidate.nullAddress ? null : { port: candidate.port };
+      };
+      server.close = done => {
+        server.listening = false;
+        queueMicrotask(() => done(candidate.closeError ? new Error("close failed") : undefined));
+      };
+      probes.push(server);
+      return server;
+    });
+    try {
+      if (scenario.error) {
+        await assert.rejects(() => choosePackagedTestPreferredPort(owned, scenario.excludedPort), error => {
+          assert.match(error.message, scenario.error);
+          if (scenario.aggregate) {
+            assert(error instanceof AggregateError);
+            assert.equal(error.cause.message, "address failed");
+            assert.deepEqual(error.errors.map(item => item.message), ["address failed", "close failed"]);
+          }
+          return true;
+        });
+      } else assert.equal(await choosePackagedTestPreferredPort(owned, scenario.excludedPort), scenario.expected);
+      assert.equal(cursor, scenario.candidates.length);
+      assert.equal(owned.size, scenario.cleanupFailure ? 1 : 0, "cleanup failure retains enclosing ownership");
+      assert(probes.every(server => !server.listening));
+      cases += 1;
+    } finally {
+      allocation.mock.restore();
+      for (const server of owned) { await closeTrackedServer(server); owned.delete(server); }
+    }
+  }
+  // Real loopback settlement, including an address-inspection failure after bind.
+  // No claim that a closed port stays free until a later runtime launch.
+  const createServer = net.createServer.bind(net);
+  for (const failAddress of [false, true]) {
+    const owned = new Set(), probes = [];
+    const allocation = mock.method(net, "createServer", (...args) => {
+      const server = createServer(...args);
+      if (failAddress) server.address = () => { throw new Error("real bound address inspection failed"); };
+      probes.push(server);
+      return server;
+    });
+    try {
+      if (failAddress) await assert.rejects(() => choosePackagedTestPreferredPort(owned), /real bound address inspection failed/u);
+      else { const port = await choosePackagedTestPreferredPort(owned); assert(port >= 1_024 && port <= 65_535 - PORT_SEARCH_SIZE); }
+      assert.equal(owned.size, 0);
+      assert(probes.every(server => !server.listening));
+      cases += 1;
+    } finally {
+      allocation.mock.restore();
+      for (const server of owned) { await closeTrackedServer(server); owned.delete(server); }
+    }
+  }
+  const packagedSource = readFileSync(new URL("./test-distributable-package.mjs", import.meta.url), "utf8");
+  assert.match(packagedSource, /return choosePackagedTestPreferredPort\(ownedServers, excludedPort\);/u);
+  assert.match(packagedSource, /const bridgePort = await availablePreferredPort\(uiPort\);/u);
+  assert.doesNotMatch(packagedSource, /while \(bridgePort === uiPort\)/u);
+  assert.match(packagedSource, /assert\.notEqual\(ready\.ui_port, blockers\.ui\.port\)/u);
+  assert.match(packagedSource, /assert\.notEqual\(ready\.bridge_port, blockers\.bridge\.port\)/u);
+  console.log(JSON.stringify({ test: "packaged-test-preferred-port", cases, status: "pass", live_settlement_controls: 2, original_os_sequence_known: false, reservation_claimed: false }));
 }
 
 async function allocationScenario({
