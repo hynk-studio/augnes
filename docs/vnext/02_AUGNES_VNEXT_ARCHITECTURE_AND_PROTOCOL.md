@@ -1295,6 +1295,40 @@ settings and elapsed expiry do not replace that authority or renew permission;
 exact grant, receipt and cost-authority checks remain required. Supported older
 grants keep their original optional-field omissions and evidence availability.
 
+Terminal preparation inspection returns a discriminated read result through the
+authenticated saved-review route: `available` carries the validated preparation;
+`not_applicable` requires positive validation of completed-result work;
+`blocked` identifies a known prerequisite or unavailable required record; and
+`failed` means eligibility could not be established by reading or validation.
+Missing grants, packets or receipts differ from present-but-mismatched history.
+Neither a caught exception nor missing evidence establishes inapplicability.
+Known validation refusals remain distinct from unexpected exceptions. Failures
+carry an opaque diagnostic reference correlated with a bounded, fixed-shape
+observation in the existing supervisor-owned child stderr stream; exception
+messages, SQL, paths, credentials and stacks are excluded. That stream is a
+local diagnostic aid with bounded retention, not a durable evidence record.
+
+The same inspection owner reads checkpoint authority and the recorded completion
+receipt. The saved-review host reuses those validated values, without an
+independent checkpoint-grant read before classification or a second receipt read
+afterward. The existing disposition owner retains its separate admission reads. Additive
+`history_reads` status distinguishes an available checkpoint/receipt, validated
+checkpoint inapplicability or no recorded receipt, and an unavailable inspection.
+A null field paired with `unavailable` never establishes absence; it supplies no
+checkpoint continuation ticket. A receipt is exposed only after validation of
+its run and packet bindings. A preparation-related read failure stays within its
+review projection, so other readable reviews remain available in the same GET.
+Authentication, base-run project validation and all writers retain their owners.
+
+`available` describes historical inspection, not permission to act. Restored
+preparation retains its recovery-suspended flag and readable evidence while
+comparison, preview, authorship and execution remain refused. Read-again guidance
+only repeats inspection; it never repairs history, retries a provider, renews a
+grant or saves work. A temporary unavailable/failed inspection retains the
+project/predecessor-bound draft, disables its preparation actions and invalidates
+pending comparisons/previews. Recovery requires fresh explicit comparison and
+preview before the separately authorized writer can save.
+
 Authenticated saved review → source comparison → authorship preview → explicit
 writer creates an immutable new work/packet with a null grant. The preview binds
 the entire historical run snapshot, failed step/generation/revision, packet/grant/

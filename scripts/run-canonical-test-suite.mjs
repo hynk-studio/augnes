@@ -874,8 +874,8 @@ const suites = {
     {
       id: "stateless-terminal-authorship",
       group: "supporting-serial",
-      requirements: ["database", "migrations", "filesystem", "process-owning"],
-      label: "terminal returned-response authorship, legacy evidence, fresh grant and recovery refusal",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "browser-profile-owning", "cdp-session-owning", "operator-session-owning"],
+      label: "typed terminal inspection, Browser draft recovery, legacy authorship and recovery refusal",
       ...rootNode("scripts/test-stateless-source-review.ts", "--terminal-authorship"),
       // Keep the original source-review child within its existing minute bound.
       // These ordinary legacy/current histories measured 28.4 s independently.

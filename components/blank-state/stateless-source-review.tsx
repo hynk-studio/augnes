@@ -4,15 +4,14 @@ import { useProjectDraftAccess } from "./project-draft-access";
 import type { WorkComposerDraft } from "../workbench/semantic-review/work-composer-draft";
 import { useRouter } from "next/navigation";
 import type { StatelessGrantRequest } from "@/lib/vnext/stateless-work";
-import type { StatelessObservationCheckpoint } from "@/lib/vnext/runtime/stateless-review-ledger";
 import type { StatelessFailureReview } from "@/lib/vnext/stateless-review-failure";
-import { StatelessTerminalAuthorship } from "./stateless-terminal-authorship";
-import type { readTerminalAuthorshipPreparation } from "@/lib/vnext/runtime/stateless-terminal-authorship";
+import { StatelessTerminalPreparation } from "./stateless-terminal-authorship";
+import type { TerminalPreparationProjection } from "@/lib/vnext/runtime/stateless-terminal-authorship";
 import type { readPreparedStatelessWork } from "@/lib/vnext/runtime/stateless-source-review";
 import type { readStatelessDispositionPreparation } from "@/lib/vnext/runtime/stateless-review-disposition";
 import { StatelessReviewFailure } from "./stateless-review-failure";
 
-type Review = { observation_checkpoint: StatelessObservationCheckpoint | null; terminal_preparation: ReturnType<typeof readTerminalAuthorshipPreparation>; stage: string; next_step: string | null; failures: StatelessFailureReview[]; disposition_preparation: ReturnType<typeof readStatelessDispositionPreparation>; run: { run_id: string; title: string; status: string; stop_reason: string | null;
+type Review = Pick<TerminalPreparationProjection, "observation_checkpoint" | "terminal_preparation" | "history_reads"> & { stage: string; next_step: string | null; failures: StatelessFailureReview[]; disposition_preparation: ReturnType<typeof readStatelessDispositionPreparation>; run: { run_id: string; title: string; status: string; stop_reason: string | null;
   steps: Array<{ title: string; status: string; output: { judgment?: { rationale: string }; observation?: { availability: string; bytes_read: number } } }> } };
 export function StatelessSourceReview({ projectId }: { projectId: string }) {
   return <ScopedStatelessSourceReview key={projectId} projectId={projectId} />;
@@ -116,8 +115,9 @@ function ScopedStatelessSourceReview({ projectId }: { projectId: string }) {
       {review.run.steps.map(step => <p key={step.title}>{step.title}: {step.status}{step.output.judgment ? ` — ${step.output.judgment.rationale}` : step.output.observation ? ` — ${step.output.observation.availability}, ${step.output.observation.bytes_read} bytes` : ""}</p>)}
       {review.failures.map((failure, index) => <StatelessReviewFailure key={`${failure.step_id}:${index}`} review={failure} />)}
       {/* Material edits keep the draft; a different historical predecessor starts a new one. */}
-      {review.terminal_preparation && <StatelessTerminalAuthorship key={`${projectId}:${JSON.stringify(review.terminal_preparation.binding)}`} draft={terminalDraft(JSON.stringify(review.terminal_preparation.binding))} preparation={review.terminal_preparation} material={{ question, files: files.filter(f => f.path) }} request={request} saved={refresh} />}
-      {review.observation_checkpoint && <button disabled={busy} onClick={() => void act(async () => { await request({ action: "continue", run_id: review.run.run_id, checkpoint: review.observation_checkpoint }); await refresh(); })}>Continue from saved observation</button>}
+      <StatelessTerminalPreparation result={review.terminal_preparation} historyReads={review.history_reads} draftFor={terminalDraft} busy={busy}
+        refresh={() => void act(refresh)} material={{ question, files: files.filter(f => f.path) }} request={request} saved={refresh} />
+      {review.history_reads.observation_checkpoint === "available" && review.observation_checkpoint && <button disabled={busy} onClick={() => void act(async () => { await request({ action: "continue", run_id: review.run.run_id, checkpoint: review.observation_checkpoint }); await refresh(); })}>Continue from saved observation</button>}
       {review.stage === "ready" && <button disabled={busy} onClick={() => void act(async () => { await request({ action: "continue", run_id: review.run.run_id }); await refresh(); })}>Continue from saved results</button>}
       {review.disposition_preparation && !review.disposition_preparation.disposition && <button disabled={busy} onClick={() => void act(async () => {
         await request({ action: "end_work", binding: review.disposition_preparation!.binding }); await refresh();

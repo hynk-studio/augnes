@@ -3,8 +3,8 @@ import { durableWorkContract } from "./test-durable-work-resumption";
 import { OPENAI_PLANNER_SOL_LOW, OPENAI_PLANNER_SOL_LOW_REF } from "../lib/vnext/model-gateway/planner-execution-configuration";
 import { STATELESS_LIMITS, STATELESS_SOL_LOW_LIMITS } from "../lib/vnext/stateless-work";
 import { statelessTerminalEntries, statelessMandatoryEntries } from "../lib/vnext/stateless-work";
-import { inspectStatelessTerminalSuccessor, readTerminalAuthorshipPreparation, readTerminalAttemptHistory, assertTerminalHistoryActive, previewTerminalAuthorship } from "../lib/vnext/runtime/stateless-terminal-authorship";
-import { StatelessTerminalAuthorship } from "../components/blank-state/stateless-terminal-authorship";
+import { inspectStatelessTerminalSuccessor, readTerminalAuthorshipPreparation, readTerminalAttemptHistory, assertTerminalHistoryActive, previewTerminalAuthorship, type TerminalPreparationResult } from "../lib/vnext/runtime/stateless-terminal-authorship";
+import { StatelessTerminalAuthorship, StatelessTerminalPreparation } from "../components/blank-state/stateless-terminal-authorship";
 import type { TaskContextPacketV01 } from "../types/vnext/task-context-packet";
 import { pathToFileURL } from "node:url";
 import { readStatelessDispositionPreparation, assertStatelessUnsettledAdmission, statelessUnresolvedEntries } from "../lib/vnext/runtime/stateless-review-disposition";
@@ -51,6 +51,12 @@ import { createRecoveryBackup, RECOVERY_DATABASE_PAYLOAD } from "./recovery-back
 import { inspectRecoveryDatabaseFile } from "./runtime-database-bootstrap.mjs";
 import { validateRecoveryCanonicalDatabaseV01 } from "./recovery-canonical-record-validator";
 import { canonicalizeProtocolValueV01 as canonical, createProtocolSha256V01 as hash } from "../lib/vnext/protocol-primitives";
+
+function availablePreparation(result: TerminalPreparationResult) {
+  assert.equal(result.status, "available", JSON.stringify(result));
+  if (result.status !== "available") throw new Error("expected_available_terminal_preparation");
+  return result.preparation;
+}
 
 const root = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-stateless-review-")));
 let requests = 0;
@@ -635,7 +641,7 @@ async function rejectionEvidenceContract() {
     const calls = ["rationale", "unavailable"].includes(kind) ? 2 : 1;
     assert.equal(f.calls, calls); assert.equal(result.run.status, "stopped"); assert.equal(result.receipt, null);
     assert.equal(result.disposition_preparation, null, "Unknown-outcome disposition cannot be used for a known rejected result");
-    assert.ok(result.terminal_preparation, "Precisely evidenced returned failures expose separate null-grant authorship");
+    availablePreparation(result.terminal_preparation);
     const failed = result.run.steps.find((s: any) => s.status === "failed");
     assert.equal(failed.output.judgment, undefined, "Rejected advice is not the applied step output");
     assert.equal(failed.output.dispatch_outcome, kind === "persistence" ? "returned_unapplied" : "returned_invalid");
@@ -684,7 +690,7 @@ async function rejectionEvidenceContract() {
   assert.equal(f.calls, 2); assert.equal(result.receipt, null); assert.equal(result.run.status, "stopped");
   assert.equal(result.run.steps.every((s: any) => s.status === "completed"), true, "Receipt failure never rolls back stored steps");
   assert.equal(result.failures[0].evidence.layer, "receipt_persistence"); assert.equal(result.failures[0].evidence.code, "receipt_persistence_failed");
-  assert.equal(result.terminal_preparation, null, "Receipt projection repair is outside terminal model-failure authorship");
+  assert.deepEqual(result.terminal_preparation, {status:"blocked",reason:"work_receipt_unavailable",next_action:"review_history"}, "Receipt projection repair is outside terminal model-failure authorship");
   assert.equal(result.failures[0].evidence.public_result.availability, "complete");
   const before = canonical(result.run);
   await f.call({ action: "continue", run_id: result.run.run_id }); assert.equal(f.calls, 2); assert.equal(canonical(f.host(result.run.run_id).read().run), before);
@@ -741,6 +747,245 @@ function controlFor(f: Awaited<ReturnType<typeof fixture>>, enabled: boolean) {
   mutateProjectControlV01(f.db, { ...f.scope, action: enabled ? "enable_automation" : "disable_automation", expected_active_project_id: f.scope.project_id,
     expected_active_selection_revision: active.selection_revision, expected_control_revision: control.revision }, { now: f.now });
 }
+function terminalResultMarkup(result: TerminalPreparationResult, historyReads?: Parameters<typeof StatelessTerminalPreparation>[0]["historyReads"]) {
+  return renderToStaticMarkup(createElement(StatelessTerminalPreparation, { result, historyReads, busy:false, draftFor:()=>new Map(), refresh:()=>{throw new Error("render_must_not_refresh");},
+    material:{question:"",files:[]}, request:async()=>{throw new Error("render_must_not_request");}, saved:async()=>{throw new Error("render_must_not_save");} }));
+}
+
+/** Real reader + authenticated GET; only negative evidence and storage faults
+ * are injected. Positive authority/receipts come from the ordinary issuer. */
+async function terminalPreparationResultContract() {
+  const completed = await fixture("typed-completed");
+  const result = (await completed.call({ action: "authorize_and_run", authorization: completed.preview })).result;
+  const notApplicable = { status: "not_applicable", reason: "completed_work", next_action: "none" };
+  assert.deepEqual(result.terminal_preparation, notApplicable, "Validated completed-result work is affirmatively outside stopped-attempt authorship");
+  assert.deepEqual((await completed.call()).reviews[0].terminal_preparation, notApplicable);
+  assert.match(terminalResultMarkup(result.terminal_preparation), /validated completed result/);
+  assert.doesNotMatch(terminalResultMarkup(result.terminal_preparation), /Author new linked work|Check linked-work preparation again/);
+
+  const f = await fixture("typed-terminal");
+  const auth = f.authorizeOnly();
+  const read = () => readTerminalAuthorshipPreparation(f.db, f.config, auth.run_id, f.now());
+  assert.deepEqual(read(), { status: "blocked", reason: "attempt_not_stopped", next_action: "read_again" });
+  f.controls.transform = output => { output.recommendations[0].grounded_state_keys = ["wrong-anchor"]; };
+  const failed = (await f.call({ action: "continue", run_id: auth.run_id })).result;
+  const original = availablePreparation(failed.terminal_preparation);
+  const snapshot = () => canonical((f.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all() as Array<{name: string}>).map(({name}) =>
+    [name, f.db.prepare(`SELECT * FROM "${name.replaceAll('"', '""')}"`).all().map(row => canonical(row)).sort()]));
+  const before = snapshot(), calls = f.calls;
+  const missingRun = await f.call({action:"continue",run_id:"stateless-review:missing"},409);
+  f.db.prepare("UPDATE autonomy_runs SET scope=? WHERE run_id=?").run("project:other",auth.run_id);
+  try {
+    assert.deepEqual(await f.call({action:"continue",run_id:auth.run_id},409),missingRun,
+      "A foreign run and a nonexistent run retain the same route refusal");
+    assert.deepEqual(read(),{status:"blocked",reason:"history_missing",next_action:"read_again"},
+      "Preparation inspection discloses only this project's available history");
+  } finally { f.db.prepare("UPDATE autonomy_runs SET scope=? WHERE run_id=?").run(f.config.project_id,auth.run_id); }
+  assert.equal(snapshot(),before);
+  const observed: string[] = [];
+  const get = async (status: TerminalPreparationResult["status"], reason?: string) => {
+    const beforeRead = snapshot();
+    const value = await f.call();
+    assert.equal(value.read_only, true);
+    const preparation: TerminalPreparationResult = value.reviews.find((r: any) => r.run.run_id === auth.run_id).terminal_preparation;
+    assert.equal(preparation.status, status, JSON.stringify(preparation));
+    const markup = terminalResultMarkup(preparation);
+    assert.ok(markup.includes(`data-terminal-preparation-status="${status}"`));
+    if (preparation.status === "failed") { assert.match(markup, /eligibility could not be established/); assert.ok(markup.includes(preparation.diagnostic_ref)); }
+    if (preparation.status !== "available" && preparation.next_action === "read_again") assert.match(markup, /Check linked-work preparation again/);
+    if (preparation.status !== "available") assert.doesNotMatch(markup, /Author new linked work/);
+    if (reason) { assert.notEqual(preparation.status, "available"); assert.equal((preparation as Exclude<TerminalPreparationResult, {status:"available"}>).reason, reason); }
+    assert.equal(snapshot(), beforeRead, "Inspection changes no table, including sessions, packets, controls, grants, runs and accepted state");
+    assert.equal(f.calls, calls);
+    observed.push(status + (reason ? ":" + reason : ""));
+    return preparation;
+  };
+  assert.deepEqual(availablePreparation(await get("available")), original);
+  const metadata = (f.db.prepare("SELECT metadata_json FROM autonomy_runs WHERE run_id=?").get(auth.run_id) as {metadata_json:string}).metadata_json;
+  const restoreMetadata = () => f.db.prepare("UPDATE autonomy_runs SET metadata_json=? WHERE run_id=?").run(metadata, auth.run_id);
+  // Leave immutable Core rows intact; point only the disposable negative
+  // ledger fixture at unavailable or mismatched required authority.
+  f.db.prepare("UPDATE autonomy_runs SET metadata_json=json_set(metadata_json,'$.stateless_review.grant_id',?) WHERE run_id=?").run("stateless-grant:missing", auth.run_id);
+  try { await get("blocked", "grant_missing"); } finally { restoreMetadata(); }
+  f.db.prepare("UPDATE autonomy_runs SET metadata_json=json_set(metadata_json,'$.stateless_review.grant_fingerprint',?) WHERE run_id=?").run(hash("wrong-original-grant"), auth.run_id);
+  try { await get("failed", "grant_invalid"); } finally { restoreMetadata(); }
+  f.db.prepare("UPDATE autonomy_runs SET metadata_json=json_set(metadata_json,'$.stateless_review_disposition',json(?)) WHERE run_id=?").run('{"decision":"malformed"}', auth.run_id);
+  try { await get("failed", "history_invalid"); } finally { restoreMetadata(); }
+
+  const oldOutput = failed.run.steps[0].output;
+  for (const [name, output, expected] of [
+    ["missing-receipt", {...oldOutput, failure_receipt: null}, ["blocked", "receipt_unavailable"]],
+    ["invalid-receipt", {...oldOutput, failure_receipt: {private: "must_not_leak"}}, ["failed", "receipt_invalid"]],
+    ["invalid-evidence", {...oldOutput, failure_evidence: {code: "malformed_record"}}, ["failed", "failure_evidence_invalid"]],
+    ["mismatched-generation", {...oldOutput, generation: "mismatched-generation"}, ["failed", "history_invalid"]],
+  ] as const) {
+    updateAutonomyRunStepLedgerFields(original.binding.step_id, {output}, {db:f.db});
+    try { await get(expected[0], expected[1]); } finally { updateAutonomyRunStepLedgerFields(original.binding.step_id, {output:oldOutput}, {db:f.db}); }
+    assert.equal(snapshot(), before, name);
+  }
+  // Missing work context and a present-but-mismatched one are different facts.
+  const prepare = f.db.prepare.bind(f.db);
+  for (const missing of [true, false]) {
+    f.db.prepare = ((sql: string) => {
+      const statement = prepare(sql);
+      if (sql.includes("FROM vnext_core_records") && sql.includes("record_id = ?")) {
+        const originalGet = statement.get.bind(statement);
+        statement.get = ((...args: any[]) => {
+          const row = originalGet(...args) as any;
+          return args[0] === "task_context_packet" && args[1] === original.binding.packet_id
+            ? missing ? undefined : {...row, fingerprint:hash("wrong-packet")} : row;
+        }) as typeof statement.get;
+      }
+      return statement;
+    }) as typeof f.db.prepare;
+    try { const result = read(); assert.equal(result.status, missing ? "blocked" : "failed"); assert.equal("reason" in result && result.reason, missing ? "packet_missing" : "packet_invalid"); }
+    finally { f.db.prepare = prepare; }
+  }
+  const privateFailure = Object.assign(new Error("SELECT secret FROM /private/fixture/token=do-not-expose"), {code:"SQLITE_BUSY"});
+  const originalPrepare = Database.prototype.prepare, originalError = console.error, diagnostics: any[] = [];
+  console.error = (...args) => { diagnostics.push(JSON.parse(String(args[0]))); };
+  Database.prototype.prepare = function (this: Database.Database, sql: string) {
+    const statement = originalPrepare.call(this, sql) as Database.Statement<unknown[]>;
+    if (sql.includes("FROM vnext_core_records") && sql.includes("record_id = ?")) {
+      const originalGet = statement.get.bind(statement);
+      statement.get = ((...args: any[]) => { if (args[0] === "capability_grant") throw privateFailure; return originalGet(...args); }) as typeof statement.get;
+    }
+    return statement;
+  } as typeof Database.prototype.prepare;
+  try {
+    const result = await get("failed", "inspection_failed");
+    assert.ok(result.status === "failed");
+    assert.match(result.diagnostic_ref, /^terminal-preparation:[0-9a-f-]{36}$/);
+    assert.ok(diagnostics.some(event => event.diagnostic_ref === result.diagnostic_ref && event.phase === "history" && event.failure_kind === "unexpected_exception"));
+    assert.doesNotMatch(JSON.stringify([result,diagnostics]), /SELECT|private|token=|do-not-expose|stack/);
+    const diagnosticsBefore = diagnostics.length;
+    await f.call(undefined, 401, {cookie:""});
+    await f.call(undefined, 409, {}, "project:another");
+    assert.equal(diagnostics.length, diagnosticsBefore, "Authentication and project admission precede preparation inspection");
+  } finally { Database.prototype.prepare = originalPrepare; console.error = originalError; }
+  assert.deepEqual(availablePreparation(await get("available")), original, "An explicit GET can recover from a transient read fault without replay or save");
+  assert.equal(snapshot(), before); assert.equal(f.calls, calls);
+  assert.deepEqual(readTerminalAuthorshipPreparation(f.db, f.config, "stateless-review:missing", f.now()), {status:"blocked",reason:"history_missing",next_action:"read_again"});
+  console.log(JSON.stringify({typed_terminal_preparation:observed, not_applicable:"validated_completed_work", inspection_mutations:0, provider_retries:0, diagnostics:"correlated_and_safe"}));
+}
+
+/** Projection regressions use normally issued completed and checkpoint-enabled
+ * work together. Only disposable ledger references or individual reads fail. */
+async function terminalProjectionReadContract() {
+  const f = await fixture("typed-projection");
+  const first = (await f.call({action:"authorize_and_run",authorization:f.preview})).result;
+  const nextAuthorization = async (predecessor: any, pause = false) => {
+    await ordinarySuccessor(f, predecessor, f.calls);
+    await f.call({action:"prepare",material:{question:"Inspect the next bounded source question",files:[{path:"entry.ts",start_line:1,end_line:2}]}});
+    return (await f.call({action:"preview",pricing:notePricing,...(pause?{pause_after_observation:true}:{})})).authorization;
+  };
+  const second = (await f.call({action:"authorize_and_run",authorization:await nextAuthorization(first)})).result;
+  const snapshot = () => canonical((f.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all() as Array<{name:string}>).map(({name}) =>
+    [name,f.db.prepare(`SELECT * FROM "${name.replaceAll('"','""')}"`).all().map(row=>canonical(row)).sort()]));
+  const outcomes: Array<{name:string;reader:TerminalPreparationResult;host:any;get:any;status:string;reason:string;diagnostics:any[];reads:number[]}> = [];
+  const inspect = async (name:string, runId:string, status:string, reason:string) => {
+    const before=snapshot(), calls=f.calls, diagnostics:any[]=[], originalError=console.error;
+    const metadata=JSON.parse((f.db.prepare("SELECT metadata_json FROM autonomy_runs WHERE run_id=?").get(runId) as {metadata_json:string}).metadata_json);
+    const kind=name.includes("checkpoint")?"capability_grant":"run_receipt", id=name.includes("checkpoint")?metadata.stateless_review.grant_id:metadata.run_receipt_id;
+    let count=0; const originalPrepare=Database.prototype.prepare;
+    Database.prototype.prepare=function(this:Database.Database,sql:string){
+      const statement=originalPrepare.call(this,sql) as Database.Statement<unknown[]>;
+      if(sql.includes("FROM vnext_core_records")&&sql.includes("record_id = ?")){
+        const get=statement.get.bind(statement);
+        statement.get=((...args:any[])=>{if(args[0]===kind&&args[1]===id)count++;return get(...args);}) as typeof statement.get;
+      }
+      return statement;
+    } as typeof Database.prototype.prepare;
+    console.error=(...args)=>diagnostics.push(JSON.parse(String(args[0])));
+    try {
+      const reader=readTerminalAuthorshipPreparation(f.db,f.config,runId,f.now());
+      const readerReads=count; count=0;
+      let host:any; try { host=f.host(runId).read(); } catch { host={projection_threw:true}; }
+      const hostReads=count; count=0;
+      // Collect both reviewed paths before asserting. The baseline's 409 is
+      // retained as reproduction evidence, never accepted as the fixed result.
+      const get=await f.call(undefined,[200,409]);
+      outcomes.push({name,reader,host,get,status,reason,diagnostics,reads:[readerReads,hostReads,count]});
+      assert.equal(snapshot(),before,"Inspection changes no database table"); assert.equal(f.calls,calls);
+    } finally { console.error=originalError; Database.prototype.prepare=originalPrepare; }
+  };
+  const withMetadata = async (runId:string, key:string, value:string, check:()=>Promise<void>) => {
+    const original=(f.db.prepare("SELECT metadata_json FROM autonomy_runs WHERE run_id=?").get(runId) as {metadata_json:string}).metadata_json;
+    f.db.prepare("UPDATE autonomy_runs SET metadata_json=json_set(metadata_json,?,?) WHERE run_id=?").run(key,value,runId);
+    try { await check(); } finally { f.db.prepare("UPDATE autonomy_runs SET metadata_json=? WHERE run_id=?").run(original,runId); }
+  };
+  const fault = async (kind:string,id:string,check:()=>Promise<void>) => {
+    const originalPrepare=Database.prototype.prepare;
+    Database.prototype.prepare=function(this:Database.Database,sql:string){
+      const statement=originalPrepare.call(this,sql) as Database.Statement<unknown[]>;
+      if(sql.includes("FROM vnext_core_records")&&sql.includes("record_id = ?")){
+        const get=statement.get.bind(statement);
+        statement.get=((...args:any[])=>{if(args[0]===kind&&args[1]===id)throw Object.assign(new Error("private SQL /private/fixture token=must-not-leak"),{code:"SQLITE_BUSY"});return get(...args);}) as typeof statement.get;
+      }
+      return statement;
+    } as typeof Database.prototype.prepare;
+    try { await check(); } finally { Database.prototype.prepare=originalPrepare; }
+  };
+  await withMetadata(second.run.run_id,"$.run_receipt_id","run-receipt:missing",()=>inspect("completed-receipt-missing",second.run.run_id,"blocked","receipt_unavailable"));
+  await withMetadata(second.run.run_id,"$.run_receipt_id",first.receipt.receipt_id,()=>inspect("completed-receipt-mismatched",second.run.run_id,"failed","receipt_invalid"));
+  await fault("run_receipt",second.receipt.receipt_id,()=>inspect("completed-receipt-read-error",second.run.run_id,"failed","inspection_failed"));
+
+  const authorization=await nextAuthorization(second,true);
+  const paused=(await f.call({action:"authorize_and_run",authorization})).result;
+  assert.equal(paused.stage,"observation_saved"); assert.ok(paused.observation_checkpoint);
+  for(const state of ["paused","stopped"]){
+    if(state==="stopped"){
+      f.controls.transform=(output,input)=>{if(input.stage==="conclude")output.recommendations[0].grounded_state_keys=["wrong-anchor"];};
+      const stopped=(await f.call({action:"continue",run_id:paused.run.run_id,checkpoint:paused.observation_checkpoint})).result;
+      assert.equal(stopped.run.status,"stopped"); availablePreparation(stopped.terminal_preparation);
+    }
+    const unavailable = async (name:string,status:string,reason:string) => {
+      await inspect(`${state}-checkpoint-${name}`,paused.run.run_id,status,reason);
+      const before=snapshot(),calls=f.calls;
+      await f.call({action:"continue",run_id:paused.run.run_id,checkpoint:paused.observation_checkpoint},409);
+      assert.equal(snapshot(),before,"A failed checkpoint read cannot admit resumption");assert.equal(f.calls,calls);
+    };
+    await withMetadata(paused.run.run_id,"$.stateless_review.grant_id","stateless-grant:missing",()=>unavailable("grant-missing","blocked","grant_missing"));
+    await withMetadata(paused.run.run_id,"$.stateless_review.grant_fingerprint",hash("wrong-original-grant"),()=>unavailable("grant-invalid","failed","grant_invalid"));
+    await fault("capability_grant",paused.run.metadata.stateless_review.grant_id,()=>unavailable("grant-read-error","failed","inspection_failed"));
+  }
+  console.log(JSON.stringify({terminal_projection_reads:outcomes.map(o=>({case:o.name,reader:o.reader.status,reason:"reason" in o.reader?o.reader.reason:null,
+    host_threw:o.host.projection_threw===true,get_ok:o.get.ok,get_error:o.get.error??null,record_reads:o.reads})),inspection_mutations:0,provider_retries:0}));
+  for(const o of outcomes){
+    assert.equal(o.reader.status,o.status,o.name); assert.equal("reason" in o.reader&&o.reader.reason,o.reason,o.name);
+    assert.equal(o.get.ok,true,o.name+": the actual GET must retain every readable review");
+    assert.equal(o.host.projection_threw,undefined,o.name);
+    assert.equal(o.reads[0],1,"The typed inspection reads the failing record once: "+o.name);
+    // The existing disposition owner independently probes grant history before
+    // preparation. GET also validates current-work lineage and other reviews.
+    // Neither is a second receipt projection after preparation classification.
+    assert.equal(o.reads[1],o.name.includes("checkpoint")?2:1,"No host receipt reread after classification: "+o.name);
+    const affected=o.get.reviews.find((r:any)=>r.run.run_id===o.host.run.run_id);
+    for(const projected of [o.host,affected]){
+      assert.equal(projected.terminal_preparation.status,o.status,o.name);
+      assert.equal(projected.terminal_preparation.reason,o.reason,o.name);
+      assert.notEqual(projected.terminal_preparation.status,"not_applicable");
+      assert.equal(projected.observation_checkpoint,null);
+      assert.equal(projected.receipt,null);
+      if(o.name.includes("checkpoint"))assert.equal(projected.history_reads.observation_checkpoint,"unavailable");
+      if(o.name.includes("receipt"))assert.equal(projected.history_reads.receipt,"unavailable");
+      if(o.status==="failed")assert.ok(o.diagnostics.some(d=>d.diagnostic_ref===projected.terminal_preparation.diagnostic_ref));
+    }
+    const unaffected=o.get.reviews.find((r:any)=>r.run.run_id===first.run.run_id);
+    assert.equal(unaffected.terminal_preparation.status,"not_applicable"); assert.deepEqual(unaffected.receipt,first.receipt);
+    assert.equal(unaffected.history_reads.receipt,"available");
+    assert.doesNotMatch(JSON.stringify([o.get,o.diagnostics]),/private SQL|\/private\/fixture|token=|must-not-leak|stack/);
+    if(o.name.endsWith("read-error"))assert.ok(o.diagnostics.some(d=>d.failure_kind==="unexpected_exception"&&d.error_code==="SQLITE_BUSY"&&d.phase===(o.name.includes("checkpoint")?"history":"completed_result")));
+    const markup=terminalResultMarkup(affected.terminal_preparation,affected.history_reads);
+    assert.match(markup,o.status==="failed"?/eligibility could not be established/:/unavailable/);
+    assert.match(markup,o.name.includes("checkpoint")?/Continuation from a saved observation could not be checked/:/recorded completion receipt could not be read and validated/);
+  }
+  const before=snapshot(),calls=f.calls;
+  const recovered=await f.call();
+  availablePreparation(recovered.reviews.find((r:any)=>r.run.run_id===paused.run.run_id).terminal_preparation);
+  assert.equal(snapshot(),before); assert.equal(f.calls,calls);
+}
+
 async function terminalAuthorshipContract() {
   const legacyHost = await historicalResponseHost(), legacyGrantHost = await historicalResponseHost("d6101051213965a45798c7738852d8af3eddc966"), readbacks: unknown[] = [];
   for (const variant of ["current", "legacy", "legacy-grant"] as const) {
@@ -752,7 +997,7 @@ async function terminalAuthorshipContract() {
     await f.direction({ action: "prepare_inspection", expected_ref: direction.record.ref, files: [{ path: "entry.ts", contains: "advisory" }] });
     f.preview = (await f.call({ action: "preview", pricing: notePricing })).authorization;
     f.loseDispatch(); const unknown = (await f.call({ action: "authorize_and_run", authorization: f.preview })).result;
-    assert.equal(unknown.terminal_preparation, null);
+    assert.deepEqual(unknown.terminal_preparation, { status: "blocked", reason: "unresolved_effects", next_action: "review_history" });
     const ended = (await f.call({ action: "end_work", binding: unknown.disposition_preparation.binding })).result;
     const unknownSnapshot = canonical(ended.run);
     await f.call({ action: "prepare_linked_work", expected_active_selection_revision: readActiveProjectSelectionV01(f.db, f.scope.workspace_id)!.selection_revision, disposition: { run_id: ended.run.run_id, disposition_fingerprint: ended.disposition_preparation.disposition.fingerprint },
@@ -762,15 +1007,18 @@ async function terminalAuthorshipContract() {
     // The exact pre-note issuer creates its own original request/grant; never
     // strip fields, forge fingerprints or backfill unavailable evidence.
     const grant = variant === "legacy-grant" ? await old.previewStatelessReview(f.db, { config: f.config, now: f.now, adapter: f.adapter }, notePricing)
-      : (await f.call({ action: "preview", pricing: notePricing })).authorization;
+      : (await f.call({ action: "preview", pricing: notePricing, ...(variant === "current" ? { pause_after_observation: true } : {}) })).authorization;
     const auth = f.authorizeOnly(grant, variant === "legacy-grant" ? old.authorizeStatelessReview : authorizeStatelessReview);
     if (variant === "legacy-grant") { assert.equal(auth.grant.request.selected_notes_ref, undefined); assert.equal(auth.grant.request.model_configuration, undefined); }
     const host = legacy ? new old.StatelessSourceReviewHost({ config: f.config, now: f.now, adapter: f.adapter }, auth.run_id) : f.host(auth.run_id);
-    await assert.rejects(() => host.run());
+    if (variant === "current") {
+      const paused = await host.run(); assert.equal(paused.stage, "observation_saved");
+      await f.call({ action: "continue", run_id: auth.run_id, checkpoint: paused.observation_checkpoint });
+    } else await assert.rejects(() => host.run());
     const failed = f.host(auth.run_id).read(), snapshot = canonical(failed.run);
     assert.equal(failed.run.status, "stopped"); assert.equal(failed.run.steps[2]!.status, "failed"); assert.equal(failed.receipt, null);
     readTerminalAttemptHistory(f.db, f.config, auth.run_id);
-    assert.ok(failed.terminal_preparation); assert.equal(failed.terminal_preparation.evidence.layer, legacy ? "unavailable" : "host_validation");
+    assert.equal(availablePreparation(failed.terminal_preparation).evidence.layer, legacy ? "unavailable" : "host_validation");
     assert.equal(failed.run.steps[2]!.output.failure_evidence === undefined, legacy);
     const oldPacket = listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet"], limit: 128 }).find(r => r.record_id === grant.packet_id)!.payload as any;
     const oldGrants = canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["capability_grant"], limit: 128 }));
@@ -779,7 +1027,7 @@ async function terminalAuthorshipContract() {
     const beforeControl = canonical(readProjectAutomationControlV01(f.db, f.scope)), beforeCalls = f.calls;
     // No model route or provider credential is needed for read/compare/preview/save.
     f.controls.transform = () => {};
-    const preparation = (await f.call()).reviews.find((r: any) => r.run.run_id === auth.run_id).terminal_preparation;
+    const preparation = availablePreparation((await f.call()).reviews.find((r: any) => r.run.run_id === auth.run_id).terminal_preparation);
     const request = { predecessor: preparation.binding, definition: { goal: "Inspect a distinct bounded trace", success_criteria: ["Attribute observed edges to source"], non_goals: ["No semantic acceptance or general absence claim"] },
       material: { question: "What direct calls does this selected source establish?", files: [{ path: "entry.ts", start_line: 1, end_line: 2 }] },
       notes: preparation.sources.filter((e: any) => { try { return JSON.parse(e.bounded_summary).profile !== "stateless_source_review.v0.1"; } catch { return true; } }).map((e: any) => ({ saved_source_id: e.entry_id })), omitted_sources: [] as any[] };
@@ -799,7 +1047,7 @@ async function terminalAuthorshipContract() {
     await f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding }, 409);
     rmSync(f.projectRoot, { recursive: true }); renameSync(`${f.projectRoot}-held`, f.projectRoot);
     assert.equal(canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet", "capability_grant", "run_receipt"], limit: 128 })), originalCore);
-    if (!legacy && process.argv[2] === "--terminal-browser") {
+    if (!legacy && ["--terminal-authorship", "--terminal-browser"].includes(process.argv[2]!)) {
       const copy = path.join(root, "terminal-browser-copy.db"); await f.db.backup(copy);
       const input = path.join(root, "terminal-browser-input.json"); writeFileSync(input, JSON.stringify({ config: { ...f.config, database_path: copy }, at: f.now(), request }));
       const ui = spawnSync(process.execPath, ["--import", "tsx", "scripts/test-stateless-terminal-browser.ts", input], { encoding: "utf8", timeout: 90000, env: { ...process.env, OPENAI_API_KEY: "" } });
@@ -812,7 +1060,7 @@ async function terminalAuthorshipContract() {
       updateAutonomyRunStepLedgerFields(failed.run.steps[2]!.step_id, { error_message: "changed historical failure" }, { db: f.db });
       assert.throws(() => previewTerminalAuthorship(f.db, f.config, request, f.now()), /history_changed/);
       updateAutonomyRunStepLedgerFields(failed.run.steps[2]!.step_id, { output: { ...failed.run.steps[2]!.output, failure_evidence: { code: "malformed_record" } } }, { db: f.db });
-      assert.equal(readTerminalAuthorshipPreparation(f.db, f.config, auth.run_id, f.now()), null, "Malformed new evidence cannot borrow legacy omission compatibility");
+      assert.equal(readTerminalAuthorshipPreparation(f.db, f.config, auth.run_id, f.now()).status, "failed", "Malformed new evidence cannot borrow legacy omission compatibility");
     } finally { f.db.exec("ROLLBACK"); }
     assert.equal(canonical(f.host(auth.run_id).read().run), snapshot);
     if (!legacy) {
@@ -822,11 +1070,14 @@ async function terminalAuthorshipContract() {
       const changed = await f.direction({ action: "decide", expected_ref: direction.record.ref, content: { purpose: "Trace only direct source edges", criteria: [], constraints: [] }, reason: "Current explicit direction changed after preview", status: "active", proposal_ref: null });
       await f.call({ action: "author_terminal_work", request, expected_preview: preview.preview_binding }, 409);
       assert.equal(canonical(listVNextCoreRecordsV01(f.db, { ...f.scope, record_kinds: ["task_context_packet", "capability_grant", "run_receipt"], limit: 128 })), originalCore);
-      const updated = (await f.call()).reviews.find((r: any) => r.run.run_id === auth.run_id).terminal_preparation;
+      const updated = availablePreparation((await f.call()).reviews.find((r: any) => r.run.run_id === auth.run_id).terminal_preparation);
       const currentDirection = updated.current_direction_source;
+      assert.ok(currentDirection?.bounded_summary);
+      assert.ok(preparation.current_direction_source);
       assert.equal(JSON.parse(currentDirection.bounded_summary).revision_ref, changed.record.ref);
       // Resolve the precise old direction entry using the existing owner.
-      request.notes = request.notes.filter((n: any) => n.saved_source_id !== preparation.current_direction_source.entry_id);
+      const oldDirectionId = preparation.current_direction_source.entry_id;
+      request.notes = request.notes.filter((n: any) => n.saved_source_id !== oldDirectionId);
       request.notes = request.notes.filter((n: any) => {
         const e = preparation.sources.find((s: any) => s.entry_id === n.saved_source_id);
         try { return JSON.parse(e?.bounded_summary ?? "null")?.profile !== "augnes.prospective-input.v0.1"; } catch { return true; }
@@ -864,7 +1115,7 @@ async function terminalAuthorshipContract() {
       assert.equal(validateRecoveryCanonicalDatabaseV01(recovered).status, "valid");
       assert.ok(inspectStatelessTerminalSuccessor(recovered, { config: { ...f.config, database_path: recovered.name }, packet }).packet);
       assert.throws(() => assertTerminalHistoryActive(recovered, f.scope, packet), /suspended_or_changed/);
-      assert.equal(readTerminalAuthorshipPreparation(recovered, f.config, auth.run_id, f.now())!.recovery_suspended, true);
+      assert.equal(availablePreparation(readTerminalAuthorshipPreparation(recovered, f.config, auth.run_id, f.now())).recovery_suspended, true);
       const config = { ...f.config, database_path: recovered.name }, clock = { now: f.now };
       const bootstrap = issueVNextLocalOperatorBootstrapV01(recovered, { config, clock });
       const session = consumeVNextLocalOperatorBootstrapV01(recovered, { config, clock, bootstrap_token: bootstrap.bootstrap_token });
@@ -873,7 +1124,16 @@ async function terminalAuthorshipContract() {
         AUGNES_VNEXT_OPERATOR_PROJECT_ID: config.project_id, AUGNES_VNEXT_OPERATOR_ID: config.operator_id, AUGNES_DB_PATH: config.database_path, OPENAI_API_KEY: "" } });
       const api = (body?: unknown) => route(new Request(`http://127.0.0.1/api/vnext/operator/stateless-source-review?project_id=${config.project_id}`, { method: body ? "POST" : "GET",
         headers: { host: "127.0.0.1", origin: "http://127.0.0.1", cookie, ...(body ? { "content-type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) }));
-      try { assert.equal((await api()).status, 200); assert.equal((await api({ action: "preview_terminal_work", request })).status, 409); }
+      try {
+        const response = await api(); assert.equal(response.status, 200);
+        const restored = (await response.json()).reviews.find((r:any)=>r.run.run_id===auth.run_id).terminal_preparation;
+        assert.equal(availablePreparation(restored).recovery_suspended, true);
+        const markup = terminalResultMarkup(restored);
+        assert.match(markup, /Restored history is readable. New authorship and execution remain suspended/);
+        assert.match(markup, /<fieldset disabled=""/);
+        assert.equal((await api({ action: "preview_terminal_work", request })).status, 409);
+        assert.equal((await api({ action: "author_terminal_work", request, expected_preview: preview.preview_binding })).status, 409);
+      }
       finally { const credential = readVNextLocalOperatorCredentialFromRequestV01(new Request("http://127.0.0.1", { headers: { cookie } }));
         assert.ok(revokeVNextLocalOperatorSessionByCredentialV01(recovered, { config, credential, clock }).revoked_at); assert.equal((await api()).status, 401); }
     } finally { recovered.close(); }
@@ -917,9 +1177,9 @@ async function readTerminalChild(filename: string) {
         const review = value.reviews.find((r: any) => r.run.run_id === input.run_id), unknown = value.reviews.find((r: any) => r.run.run_id === input.unknown_id);
         assert.equal(canonical(review.run), input.snapshot);
         if (input.unknown_id) assert.equal(canonical(unknown.run), input.unknownSnapshot);
-        const markup = renderToStaticMarkup(createElement(StatelessTerminalAuthorship, { preparation: review.terminal_preparation, material: input.request.material, request: async () => { throw new Error("readback_must_not_mutate"); }, saved: async () => {} }));
+        const markup = renderToStaticMarkup(createElement(StatelessTerminalAuthorship, { preparation: availablePreparation(review.terminal_preparation), material: input.request.material, request: async () => { throw new Error("readback_must_not_mutate"); }, saved: async () => {} }));
         assert.ok(markup.includes("Compare selected context for new work") && markup.includes("The provider response returned.") && markup.includes("Attributed Work review"));
-        assert.ok(markup.includes(review.terminal_preparation.evidence.layer));
+        assert.ok(markup.includes(availablePreparation(review.terminal_preparation).evidence.layer));
         assert.deepEqual(inspectStatelessTerminalSuccessor(db, { config, packet }).packet, packet); validateRecoveryCanonicalDatabaseV01(db);
       } finally {
         if (cookie) { const credential = readVNextLocalOperatorCredentialFromRequestV01(new Request("http://127.0.0.1", { headers: { cookie } })); assert.ok(revokeVNextLocalOperatorSessionByCredentialV01(db, { config, credential, clock }).revoked_at); assert.equal((await request()).status, 401); }
@@ -968,10 +1228,10 @@ async function terminalRouteAuthorshipContract({ model = "gpt-6.1-sol", persiste
     try { readTerminalAttemptHistory(f.db, f.config, saved.run.run_id); }
     catch (error) { historyError = (error as Error).message; }
     console.log(JSON.stringify({ stage, model, response_received: true, failure_layer: saved.failures[0].evidence.layer, saved_review: true,
-      terminal_preparation: !!saved.terminal_preparation, historical_verification_error: historyError, scripted_calls: f.calls, provider_egress: requests }));
+      terminal_preparation: saved.terminal_preparation.status === "available", historical_verification_error: historyError, scripted_calls: f.calls, provider_egress: requests }));
     attempts.push({ f, saved, failed, authorization, unknownId, unknownSnapshot });
   }
-  assert.deepEqual(attempts.map(a => !!a.saved.terminal_preparation), [true, true], "Both eligible returned judgments must expose ordinary terminal authorship");
+  assert.deepEqual(attempts.map(a => a.saved.terminal_preparation.status === "available"), [true, true], "Both eligible returned judgments must expose ordinary terminal authorship");
   const readbacks = [];
   for (const { f, saved, failed, authorization, unknownId, unknownSnapshot } of attempts) {
     const runId = saved.run.run_id, snapshot = canonical(saved.run), beforeCalls = f.calls;
@@ -983,8 +1243,8 @@ async function terminalRouteAuthorshipContract({ model = "gpt-6.1-sol", persiste
     f.modelEnvironment.OPENAI_MODEL = "gpt-4.1-mini"; f.modelEnvironment.OPENAI_API_KEY = "";
     assert.ok(f.now() > authorization.expires_at);
     const beforeControl = canonical(readProjectAutomationControlV01(f.db, f.scope));
-    const preparation = (await f.call()).reviews.find((r: any) => r.run.run_id === runId).terminal_preparation;
-    assert.deepEqual(preparation.binding, saved.terminal_preparation.binding);
+    const preparation = availablePreparation((await f.call()).reviews.find((r: any) => r.run.run_id === runId).terminal_preparation);
+    assert.deepEqual(preparation.binding, availablePreparation(saved.terminal_preparation).binding);
     const request = { predecessor: preparation.binding, definition: { goal: "Inspect the remaining source connection", success_criteria: ["Attribute a direct edge to source"], non_goals: ["No accepted state or execution permission"] },
       material: { question: "What connection does the current selected source establish?", files: [{ path: "entry.ts", start_line: 1, end_line: 2 }] },
       notes: preparation.sources.filter((e: any) => e.bounded_summary.includes("Attributed Work review")).map((e: any) => ({ saved_source_id: e.entry_id })), omitted_sources: [] as any[] };
@@ -1017,7 +1277,7 @@ async function terminalRouteAuthorshipContract({ model = "gpt-6.1-sol", persiste
           updateAutonomyRunStepLedgerFields(failed.step_id, { output }, { db: f.db });
         }
         assert.throws(() => readTerminalAttemptHistory(f.db, f.config, runId), field);
-        assert.equal(readTerminalAuthorshipPreparation(f.db, f.config, runId, f.now()), null, field);
+        assert.equal(readTerminalAuthorshipPreparation(f.db, f.config, runId, f.now()).status, ["missing", "storage-bound"].includes(field) ? "blocked" : "failed", field);
       } finally { f.db.exec("ROLLBACK"); }
     }
     if (persistence && failed.step_index === 1) {
@@ -1043,8 +1303,8 @@ async function terminalRouteAuthorshipContract({ model = "gpt-6.1-sol", persiste
           if (field === "recovery") f.db.prepare("UPDATE autonomy_runs SET metadata_json=json_set(metadata_json,'$.stateless_review.recovery_suspended',json('true')) WHERE run_id=?").run(runId);
           updateAutonomyRunStepLedgerFields(failed.step_id, { output, ...(field === "running" ? { status: "running" } : {}) }, { db: f.db });
           assert.throws(() => previewTerminalAuthorship(f.db, f.config, request, f.now()), field);
-          if (field === "recovery") assert.equal(readTerminalAuthorshipPreparation(f.db, f.config, runId, f.now())!.recovery_suspended, true);
-          else assert.equal(readTerminalAuthorshipPreparation(f.db, f.config, runId, f.now()), null, field);
+          if (field === "recovery") assert.equal(availablePreparation(readTerminalAuthorshipPreparation(f.db, f.config, runId, f.now())).recovery_suspended, true);
+          else assert.equal(readTerminalAuthorshipPreparation(f.db, f.config, runId, f.now()).status, ["missing", "storage-bound"].includes(field) ? "blocked" : "failed", field);
         } finally { f.db.exec("ROLLBACK"); }
       }
       const beforeRefusals = canonical(records());
@@ -1109,14 +1369,14 @@ async function persistenceAuthorshipContract() {
     // through the ordinary issuer instead of reusing that held request cookie.
     f.refreshSession();
     const held = (await f.call()).reviews.find((r: any) => r.run.run_id === auth.run_id);
-    assert.equal(held.run.steps[0].status, "running"); assert.equal(held.terminal_preparation, null);
-    assert.equal((await f.call({ action: "continue", run_id: auth.run_id })).result.terminal_preparation, null);
+    assert.equal(held.run.steps[0].status, "running"); assert.deepEqual(held.terminal_preparation, { status: "blocked", reason: "attempt_not_stopped", next_action: "read_again" });
+    assert.equal((await f.call({ action: "continue", run_id: auth.run_id })).result.terminal_preparation.status, "blocked");
     assert.equal(await f.host(auth.run_id).step(), false, "A second controller cannot claim or publish the running step");
     assert.equal(f.calls, 1, "An outstanding publication cannot gain a second controller");
   } finally { release(); completed = await pending; }
   const failed = completed.result;
   assert.equal(failed.run.stop_reason, "result_persistence_failed_no_retry");
-  assert.ok(failed.terminal_preparation); assert.equal(f.calls, 1);
+  availablePreparation(failed.terminal_preparation); assert.equal(f.calls, 1);
   assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0);
 }
 async function solLowContract() {
@@ -1184,7 +1444,8 @@ async function solLowContract() {
       assert.equal(review.provider_response.incomplete_reason, kind === "unknown-reason" ? "unknown" : f.responseControls.incompleteReason);
       assert.equal(review.provider_response.output_text_present, kind === "output-limit-public");
       assert.equal(review.reported_usage.reasoning_tokens, 3900); assert.equal(failed.output.failure_receipt.usage, null);
-      assert.equal(result.terminal_preparation, null, "Incomplete provider results do not enter host-rejected terminal authorship");
+      assert.deepEqual(result.terminal_preparation, {status:"blocked",reason:"completed_response_unavailable",next_action:"review_history"},
+        "A known incomplete response is an unmet prerequisite, not invalid history or confirmed inapplicability");
     }
     if (kind === "over-budget") { assert.equal(review.evidence.code, "model_gateway_budget_refused"); assert.equal(review.reported_usage.output_tokens, 4097); }
     if (kind === "invalid-usage") { assert.equal(review.provider_response.stage, "response_usage_invalid"); assert.equal(review.reported_usage, null); }
@@ -1201,6 +1462,7 @@ async function solLowContract() {
   const drift = await make("route-drift"); drift.modelEnvironment.OPENAI_MODEL = "gpt-4.1-mini";
   const drifted = (await drift.call({ action: "authorize_and_run", authorization: drift.preview })).result;
   assert.equal(drift.calls, 0); assert.equal(drifted.run.status, "stopped"); assert.equal(drifted.run.steps[0].output.dispatch_outcome, "not_issued");
+  assert.deepEqual(drifted.terminal_preparation, {status:"blocked",reason:"completed_response_unavailable",next_action:"review_history"});
   const timeout = await make("attempt-time"); const timed = timeout.authorizeOnly();
   assert.equal(await timeout.host(timed.run_id).step(), true); timeout.tick(STATELESS_SOL_LOW_LIMITS.host_ms + 1);
   const expired = (await timeout.call({ action: "continue", run_id: timed.run_id })).result;
@@ -1373,7 +1635,7 @@ async function main() {
       assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0); return;
     }
     if (process.argv[2] === "--observation-checkpoint") {
-      await observationCheckpointContract(); assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0);
+      await terminalProjectionReadContract(); await observationCheckpointContract(); assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0);
       console.log(JSON.stringify({ status: "passed", checkpoint: "ordinary_authenticated_http", process_replacement: true, no_replay: true, original_grant_and_deadline: true, stale_and_concurrent_controllers: "refused", cancellation_expiry_unknown_recovery: "refused", provider_egress: 0 })); return;
     }
     if (process.argv[2] === "--sol-low") {
@@ -1387,8 +1649,10 @@ async function main() {
     if (["--persistence-authorship", "--persistence-browser"].includes(process.argv[2]!)) {
       await persistenceAuthorshipContract(); return;
     }
+    if (process.argv[2] === "--terminal-preparation") { await terminalPreparationResultContract(); return; }
+    if (process.argv[2] === "--terminal-projection") { await terminalProjectionReadContract(); assert.equal(requests,0); return; }
     if (["--terminal-authorship", "--terminal-browser"].includes(process.argv[2]!)) {
-      await terminalAuthorshipContract(); await persistenceAuthorshipContract(); assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0);
+      await terminalPreparationResultContract(); await terminalAuthorshipContract(); await persistenceAuthorshipContract(); assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0);
       console.log(JSON.stringify({ status: "passed", terminal_authorship: "ordinary_preview_new_packet_fresh_grant", legacy_writer: "65f6efc92d969c47e86152efa9388aba4c169c63", legacy_grant_writer: "d6101051213965a45798c7738852d8af3eddc966", candidate_writes: 0, external_requests: requests })); return;
     }
     if (process.argv[2] === "--rejection-evidence") {
@@ -1547,6 +1811,7 @@ async function main() {
     const stopped = (await stop.call({ action: "authorize_and_run", authorization: stop.preview })).result;
     assert.equal(stop.calls, 1); assert.equal(stopped.run.status, "stopped");
     assert.deepEqual(stopped.run.steps.map((s: any) => s.status), ["completed", "skipped", "skipped"]);
+    assert.deepEqual(stopped.terminal_preparation, {status:"blocked",reason:"completed_response_unavailable",next_action:"review_history"});
 
     const cancelled = await fixture("cancelled"); const ca = cancelled.authorizeOnly();
     const chost2 = cancelled.host(ca.run_id); await chost2.step(); await chost2.step();
