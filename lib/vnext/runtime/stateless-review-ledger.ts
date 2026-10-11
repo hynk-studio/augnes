@@ -19,8 +19,7 @@ export function stateOf(run: AutonomyRunRecord) {
 }
 export function readRun(db: Database.Database, config: Scope, id: string) {
   const run = readAutonomyRunLedgerRecord(id, { db });
-  check(run, "run_missing");
-  check(run.scope === config.project_id && run.metadata.workspace_id === config.workspace_id && run.metadata.project_id === config.project_id && run.steps.length === 3, "run_scope_invalid");
+  check(run && run.scope === config.project_id && run.metadata.workspace_id === config.workspace_id && run.metadata.project_id === config.project_id && run.steps.length === 3, "run_scope_invalid");
   stateOf(run);
   for (const [index, step] of run.steps.entries()) {
     check(step.run_id === id && step.step_index === index + 1 && step.title === ["choose", "observe", "conclude"][index], "step_identity_invalid");

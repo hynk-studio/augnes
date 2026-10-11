@@ -773,6 +773,15 @@ async function terminalPreparationResultContract() {
   const snapshot = () => canonical((f.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all() as Array<{name: string}>).map(({name}) =>
     [name, f.db.prepare(`SELECT * FROM "${name.replaceAll('"', '""')}"`).all().map(row => canonical(row)).sort()]));
   const before = snapshot(), calls = f.calls;
+  const missingRun = await f.call({action:"continue",run_id:"stateless-review:missing"},409);
+  f.db.prepare("UPDATE autonomy_runs SET scope=? WHERE run_id=?").run("project:other",auth.run_id);
+  try {
+    assert.deepEqual(await f.call({action:"continue",run_id:auth.run_id},409),missingRun,
+      "A foreign run and a nonexistent run retain the same route refusal");
+    assert.deepEqual(read(),{status:"blocked",reason:"history_missing",next_action:"read_again"},
+      "Preparation inspection discloses only this project's available history");
+  } finally { f.db.prepare("UPDATE autonomy_runs SET scope=? WHERE run_id=?").run(f.config.project_id,auth.run_id); }
+  assert.equal(snapshot(),before);
   const observed: string[] = [];
   const get = async (status: TerminalPreparationResult["status"], reason?: string) => {
     const beforeRead = snapshot();

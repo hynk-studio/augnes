@@ -131,7 +131,7 @@ export type TerminalPreparationResult =
   | { status: "failed"; reason: FailedReason; next_action: "read_again"; diagnostic_ref: string };
 
 const blockedReasons = {
-  run_missing: "history_missing", grant_missing: "grant_missing", grant_packet_missing: "packet_missing",
+  terminal_authorship_history_unavailable: "history_missing", grant_missing: "grant_missing", grant_packet_missing: "packet_missing",
   terminal_authorship_receipt_unavailable: "receipt_unavailable",
   terminal_authorship_response_unavailable: "completed_response_unavailable",
   terminal_authorship_persistence_evidence_unavailable: "failure_evidence_unavailable",
@@ -159,6 +159,10 @@ function inspectionDiagnostic(error: unknown) {
 export function readTerminalAuthorshipPreparation(db: Database.Database, config: Config, runId: string, at = new Date().toISOString()): TerminalPreparationResult {
   let phase: "history" | "completed_result" | "sources" | "direction" = "history";
   try {
+    // Absence is scoped to this project. A foreign run must be indistinguishable
+    // from a missing one, including at the unchanged execution-route boundary.
+    check(db.prepare("SELECT 1 FROM autonomy_runs WHERE run_id=? AND scope=? AND json_extract(metadata_json,'$.workspace_id')=? AND json_extract(metadata_json,'$.project_id')=?")
+      .get(runId, config.project_id, config.workspace_id, config.project_id), "terminal_authorship_history_unavailable");
     const run = readRun(db, config, runId);
     // Validate original authority even for known unavailable prerequisites.
     const grant = readStatelessGrant(db, { ...config, ...stateOf(run) });
