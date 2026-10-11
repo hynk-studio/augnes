@@ -265,6 +265,14 @@ Existing explicit-tool clients can still initialize the legacy `2025-06-18`
 stdio session; Events always require the modern envelope. The private JSON route
 remains strict domain-only input and is not a public MCP HTTP endpoint.
 
+The private review HTTP route requires exactly one decoded query key, `scope`,
+whose value is `repository:local`. Both the literal colon and `%3A` spelling are
+valid; Next normalizes the former to the latter before route admission. Duplicate
+keys (even equal values), additional keys, missing/empty/wrong scope and a
+double-encoded colon refuse with the same bounded access error. This does not
+change Host/Origin/forwarding, marker, runtime credential, generation or reviewer
+capability checks.
+
 Signed single-use challenge verification, bounded verification caching, Standard
 Webhooks signatures, a two-minute dual-key rotation window, per-connection DNS
 validation/pinning, TLS hostname verification, no redirects, and public-address
@@ -288,14 +296,18 @@ Official documentation lists Work chats on web, desktop Work with Cloud selected
 and dots, subject to workspace controls. The documented
 [ChatGPT connection](https://developers.openai.com/plugins/deploy/connect-chatgpt)
 and [Secure MCP Tunnel](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels)
-are activation candidates; this source task has **not verified Events forwarding
-through a particular tunnel or support/permission for the intended account**.
-No live connection, subscription, paid inference, provider request, or installation
-is activated. Tool discovery/call success and protocol-version strings prove
-neither transport forwarding nor host support.
+remain subject to separately authorized activation. Synthetic live attempt 5
+observed tunnel association, ChatGPT connection, and discovery of the three
+scoped tools. Its `events/list` reached the adapter but the private Augnes HTTP
+route refused it. Local reproduction on the trial source and then-current main
+isolated Next's query serialization against the raw scope comparison; the parsed
+query correction below is local source evidence. Successful subscription,
+callback verification, event-triggered processing and replies remain unverified.
+This correction activates no live connection, subscription, provider or install.
 
 The registered `request-bound-review` supporting integration child uses real
-native writers, authenticated HTTP routes, fresh processes, and disposable HTTPS
+native writers, an HTTP fixture invoking the authenticated route handlers,
+fresh processes, and disposable HTTPS
 protocol fixtures. It covers two explicit cycles and attributed continuation,
 version/project races, isolation, atomic replay/conflict, lost acknowledgement,
 restart/recovery, filtering, signing, SSRF refusal, expiry and unsubscribe.
@@ -303,6 +315,15 @@ Standards-shaped modern requests also pass through actual SDK stdio serializatio
 and the authenticated route, including required/optional metadata, protocol and
 domain refusals, unchanged authenticated attribution, and no effects after
 failed admission. These are local protocol and deterministic source mechanics.
+The existing `runtime-supervisor-lifecycle` operability child additionally runs
+the review adapter over actual stdio, verified Companion discovery and the
+supervised Next HTTP server. It covers both valid query representations, strict
+query/private-channel/runtime/configuration refusals, modern protocol admission,
+an explicit request/read/reply/fresh-readback/revision cycle, and unanswered work
+after supported stop/start with fresh generation discovery. Rejected operations
+preserve all database rows and schema; a UI/client network guard forbids external
+callbacks or provider requests. This reuses the existing lifecycle owner and
+deadline, rather than treating an imported-handler fixture as Next parity.
 Actual ChatGPT event receipt/answer, an originating model's subsequent use, a later live request after
 recovery, and a matched manual-handoff burden comparison remain **NOT RUN**.
 Provider cost is unknown; a shorter tool list is not measured burden reduction.
