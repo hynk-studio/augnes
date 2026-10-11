@@ -7,6 +7,7 @@ import {
 export * from "../lib/db/canonical-database-contract.mjs";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { reviewSchemaSql } from "../lib/vnext/persistence/review-schema.mjs";
 import { fileURLToPath } from "node:url";
 
 import { normalizeRecoveryPrivateMaterial } from "../lib/db/recovery-private-material-contract.mjs";
@@ -82,6 +83,7 @@ export function applyCanonicalDatabaseMigrations(db) {
     migrateVNextProjectContinuityPinsV01(db);
 
   db.exec(schema);
+  db.exec(reviewSchemaSql);
   const postSchemaResult = migrateStateDeltaProposalScoring(db);
   const mailboxResult = migrateMailboxCoordinationEventTypes(db);
   if (mailboxResult.rebuilt_coordination_events) db.exec(schema);

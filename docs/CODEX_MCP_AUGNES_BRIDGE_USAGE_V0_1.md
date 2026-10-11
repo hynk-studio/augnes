@@ -407,6 +407,36 @@ Start/Resume remain unavailable, and Resume is never automatic.
 
 ## Verification
 
+### Request-bound review continuation
+
+`augnes_review_repository_work` is an optional local Operator path for an
+already authorized native task. With a separately approved review connection,
+call `connections` with `repository_root`, then `inspect` with its returned
+`connection_ref`. Request one bounded question with the returned material
+reference as `expected_material_ref`. `list` and `readback` work from a fresh
+originating process; pagination returns `next_cursor` for the next `cursor`.
+The configured destination, exact reviewed material, answer, limitations and
+currentness remain visible. Unavailable inspection is a failure, not an empty
+request list.
+
+After reading a current answer, `prepare_use` takes `retain`, `revise` or `reject`
+and attributable reasoning. It returns ordinary revision preview arguments for
+an imported-unverified review note and a derived-interpretation use note. The
+agent deliberately previews/saves those notes under existing work authority;
+no fabricated goal change is required. Existing stale-state, lineage, source
+budget, authentication and execution boundaries still apply. A later material
+change makes the review historical, including the revision which records use.
+An observed use note proves an authored continuation, not a model's judgment,
+verified success, accepted semantics, PR approval, or another review request.
+
+The [scoped adapter setup and Events contract](../apps/augnes_apps/README.md#opt-in-request-bound-review-1433)
+owns connection mechanics and live prerequisites. The source implementation is
+disabled without that private configuration and does not alter the installed
+Companion or authorize a new transport. Its standalone focused regression is
+`node --import tsx scripts/test-request-bound-review.ts`; the registered supporting
+integration child supplies the same existing process/database/listener ownership
+and finite cleanup contract.
+
 Focused owners are:
 
 ```bash

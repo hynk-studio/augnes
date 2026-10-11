@@ -1143,6 +1143,7 @@ const integrationChildren = [
   "project-direction",
   "retry-inspection-outlook",
   "companion-experience-use",
+  "request-bound-review",
   "companion-method-outlook",
   "pre-execution-support-material",
   "native-selected-source-budget",
@@ -1279,6 +1280,9 @@ requireText(canonicalSuite, '"e2e-project-experience": [{ ...projectExperienceSt
 const experienceUseRegistration = readCanonicalChildRegistration(integrationSource, "companion-experience-use");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-companion-experience-use.ts"'])
   requireText(experienceUseRegistration.block, fragment, "ordinary experience use owns its authenticated disposable state, listener and natural-exit file consumers");
+const requestReviewRegistration = readCanonicalChildRegistration(integrationSource, "request-bound-review");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-request-bound-review.ts"'])
+  requireText(requestReviewRegistration.block, fragment, "request-bound review retains the supporting lifecycle owners and a finite independent child");
 assert.equal(countOccurrences(firstWorkFixture, "await assertRetryInspectionLoopV01();"), 1,
   "the outlook loop runs once without extending the default initialization child");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 60_000', 'requireNaturalExit: true', '"process-owning"', '"--support-material-revision-only"'])

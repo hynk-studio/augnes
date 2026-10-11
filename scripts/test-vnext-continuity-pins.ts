@@ -1199,6 +1199,9 @@ function testMigrationParityAndPrePinnedUpgradeV01(): void {
           REFERENCES vnext_project_identities(workspace_id, project_id)
           ON UPDATE RESTRICT ON DELETE RESTRICT
       );
+      DROP TABLE vnext_review_deliveries;
+      DROP TABLE vnext_review_subscriptions;
+      DROP TABLE vnext_review_requests;
       DROP INDEX idx_vnext_project_continuity_pins_project_order;
       DROP TABLE vnext_project_continuity_pins;
       DROP TABLE vnext_project_continuity_pin_collections;
@@ -1223,6 +1226,11 @@ function testMigrationParityAndPrePinnedUpgradeV01(): void {
       PRE_PINNED_CUX1_SCHEMA_SIGNATURE,
     );
     applyCanonicalDatabaseMigrations(runtime);
+    assert.equal(
+      structuralSchemaContractSignature(runtime),
+      structuralSchemaContractSignature(direct),
+      "historical upgrade must restore the complete current schema",
+    );
     assert.equal(runtime.pragma("integrity_check", { simple: true }), "ok");
     assert.deepEqual(
       runtime

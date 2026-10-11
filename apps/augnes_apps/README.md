@@ -156,7 +156,163 @@ and cleanup. Local protocol success, an installed catalog, actual ChatGPT
 invocation and successful use of returned material are distinct observations.
 This implementation does not establish the latter two or activate a connection.
 
-`createMcpAppServer` registers both tools against its separate
+### Opt-in request-bound review (#1433)
+
+The separate Node 24 stdio entry point
+[`request-bound-review.mjs`](../../plugins/augnes-operator/mcp/request-bound-review.mjs)
+adds a **scoped reviewer capability**. It exposes only
+`augnes_list_review_requests`, `augnes_read_review_request`, and
+`augnes_reply_to_review`, plus the documented MCP Events methods. The public App
+and `connected-project-reader.mjs` stay read-only. Never forward the full
+Operator, the Companion HTTP endpoint, or arbitrary RPC to a reviewer.
+
+This endpoint reuses the Operator's stdio framing and verified Companion
+discovery, the private local-channel checks, native project/packet/source readers,
+and ordinary revision preview/save. Tools and event methods share this one
+review capability and request owner. No new SDK, tunnel implementation, general
+HTTP proxy, or second review store is introduced. The additional private
+configuration scopes reply permission and disclosure to one destination; it does
+not replace transport authentication or prove an existing connection is suitable.
+
+The App's presentation profile, legacy backend mode, tool surface and Bridge flag
+remain separate. Even its two Companion surfaces retain legacy WorkBrief reads;
+they are not a single-project reviewer audience. Broad Bridge activation also
+exposes provider-backed planning/observation and trace writers. In particular,
+`augnes_record_action_result` calls `recordExternalAction`, which writes an action
+record **and a legacy state marker**. A work event or mailbox review label lacks
+the authenticated native request/material relation. These writers are not used
+as review replies. Removed handoff/launch tools remain removed.
+
+The originating local agent uses `augnes_review_repository_work`: discover the
+configured connection for its repository, inspect material, request a bounded
+question, list/read back the answer, then deliberately prepare a retain/revise/
+reject note through the existing work revision preview/save tools. Each result
+returns the references needed by the next call. Both lists are paginated: pass
+`next_cursor` back as `cursor`. No recurring token or answer copying is required
+by this explicit source path. Its actual human burden is still unmeasured.
+
+The reviewer reads the requested native definition and whole selected notes
+from one validated packet and project binding. A relevant work/root/direction
+change refuses the old read or first reply; it never replaces the material.
+Unrelated project selection/activity does not invalidate the request. Already
+saved answers remain labelled historical after material changes. This adapter
+does not offer historical material replay or create a historical content store.
+An exact duplicate reply returns the saved response reference, including after
+a lost acknowledgement; a conflicting reply refuses atomically.
+
+Answers are bounded to 1,000 characters, limitations to 240, and source references
+to eight packet/selected-source fingerprints. Attribution identifies possession
+of the configured capability and its configured destination/label; it does not
+verify a model, person, or subscription tier. Source text and answers remain
+untrusted context. Response persistence, readback served to an origin, and an
+attributed use note in current work are distinct observations. The existing
+writer enforces its source limits and currentness; preparing use does not save
+it, accept semantic state, issue execution permission, or request another review.
+The selected answer uses the existing `imported_unverified` excerpt path, with
+separate `derived_interpretation` reasoning. It does not enter the reviewed-outcome
+path or manufacture an expectation, attempt, outcome report or RunReceipt.
+
+#### Scoped setup and disabled-by-default operation
+
+Before activation, separately record approval for the exact ChatGPT account,
+workspace and destination; the native project's definition and selected notes;
+reviewer configuration; callback origin; and finite request/usage envelope.
+Existing API credentials or an installed plugin do not supply that approval.
+The implementation task itself grants none of these live permissions.
+
+After that approval, the operator can use
+[`scripts/configure-review-connection.mjs`](../../scripts/configure-review-connection.mjs)
+with two absolute file arguments: a nonsecret setup JSON file and a new private
+output file outside the repository. The setup fields are `repository_root`,
+`project_key` (from ordinary Resume), `destination`, `reviewer_label`, finite
+`expires_at`, and `callback_origins` (exact HTTPS origins). The utility creates
+an exclusive owner-only file containing generated capabilities and an encryption
+key, prints only its connection reference, and activates nothing. Keep that file
+out of prompts, logs, source, and artifacts. It is machine-local credential state,
+not a Core grant or a substitute for disclosure approval.
+
+Set `AUGNES_REVIEW_CONNECTIONS_FILE` for the approved supervised UI and bounded
+reviewer process; set `AUGNES_REVIEW_CONNECTION_ID` only for the latter. The UI
+allowlist forwards the file path explicitly; bridge/recovery roles do not receive
+it. This is an optional runtime configuration change requiring its own authority.
+Every request/disclosure/write/delivery reopens and validates the private file
+and current native project access. Removing/replacing the binding or reaching
+its expiry revokes it. Unsubscription stops that callback delivery; neither
+action claims to cancel a ChatGPT task already running elsewhere.
+
+#### Events contract and evidence limits
+
+The [current official Events contract](https://developers.openai.com/plugins/build/mcp-events)
+documents MCP 2.0 `2026-07-28`, `server/discover`, `events/list`,
+`events/subscribe`, and `events/unsubscribe` on the same authenticated endpoint
+as tools. The adapter implements `review.requested`, optionally filtered by exact
+`work_ref`. Events contain only stable request/material references. Subscription
+identity binds the configured principal, callback URL, name, and canonical
+arguments. Default TTL is 15 minutes, capped at one hour and connection expiry;
+`ttlMs: null` also receives a finite grant. No replay cursor is offered.
+
+The reviewer MCP boundary validates common per-request `params._meta` before
+passing method arguments to the authenticated private route. Modern discovery,
+tools, and Events require `io.modelcontextprotocol/protocolVersion: "2026-07-28"`
+and object-valued `io.modelcontextprotocol/clientCapabilities`. Missing or
+malformed metadata returns `-32602`; unsupported versions return `-32022` with
+the supported version. Valid optional client information, progress/logging and
+extension metadata is accepted as untrusted protocol data and never changes the
+configured principal, project, destination, or tool permissions. Modern results
+include `resultType: "complete"`. See the [MCP basic contract](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2026-07-28/basic/index.mdx)
+and [schema](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2026-07-28/schema.ts).
+Existing explicit-tool clients can still initialize the legacy `2025-06-18`
+stdio session; Events always require the modern envelope. The private JSON route
+remains strict domain-only input and is not a public MCP HTTP endpoint.
+
+Signed single-use challenge verification, bounded verification caching, Standard
+Webhooks signatures, a two-minute dual-key rotation window, per-connection DNS
+validation/pinning, TLS hostname verification, no redirects, and public-address
+checks apply before disclosure. Callback URLs and secrets are encrypted in the
+adapter tables and excluded from tools and routine errors. Delivery has three
+bounded attempts with exponential backoff; `410`/`413` stop that delivery.
+An HTTP `2xx` means receipt only. It does not establish host processing or a reply.
+
+Request linkage, subscriptions, and pending delivery live in three small adapter
+tables prepared only by the existing initialization/migration owner. Ordinary
+requests never prepare schema. Request persistence precedes callback delivery;
+failed acknowledgement is reported with unknown persistence and readback advice.
+Pending delivery is drained on request, adapter startup, or explicit subscription
+refresh, without polling or a scheduler. Finite drains may leave pending work for
+one of those later triggers. Restart retains unanswered requests and subscriptions;
+database restore preserves requests/answers but invalidates callback leases.
+Reply persistence creates no new review event. Backup/restore remains owned by
+the existing lifecycle; the private machine configuration is not exported with it.
+
+Official documentation lists Work chats on web, desktop Work with Cloud selected,
+and dots, subject to workspace controls. The documented
+[ChatGPT connection](https://developers.openai.com/plugins/deploy/connect-chatgpt)
+and [Secure MCP Tunnel](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels)
+are activation candidates; this source task has **not verified Events forwarding
+through a particular tunnel or support/permission for the intended account**.
+No live connection, subscription, paid inference, provider request, or installation
+is activated. Tool discovery/call success and protocol-version strings prove
+neither transport forwarding nor host support.
+
+The registered `request-bound-review` supporting integration child uses real
+native writers, authenticated HTTP routes, fresh processes, and disposable HTTPS
+protocol fixtures. It covers two explicit cycles and attributed continuation,
+version/project races, isolation, atomic replay/conflict, lost acknowledgement,
+restart/recovery, filtering, signing, SSRF refusal, expiry and unsubscribe.
+Standards-shaped modern requests also pass through actual SDK stdio serialization
+and the authenticated route, including required/optional metadata, protocol and
+domain refusals, unchanged authenticated attribution, and no effects after
+failed admission. These are local protocol and deterministic source mechanics.
+Actual ChatGPT event receipt/answer, an originating model's subsequent use, a later live request after
+recovery, and a matched manual-handoff burden comparison remain **NOT RUN**.
+Provider cost is unknown; a shorter tool list is not measured burden reduction.
+Any authorized comparison must retain the existing usable App/Bridge work reads
+and trace facilities, plus the native connected reader where available, with the
+same material and tools on both sides. Report initial scoped setup separately
+from recurring human relay; do not substitute a copy-everything baseline.
+Issue #1433 remains open for those live obligations.
+
+`createMcpAppServer` registers the two existing WorkBrief tools against its separate
 `StateRuntimeBridgeAdapter`. The normal `StateRuntimeHttpAdapter` calls
 `GET /api/work?scope=...` and `GET /api/work/:work_id/brief?scope=...`.
 Those routes read through `lib/work.ts` (`listWorkItems` / `buildWorkBrief`),
@@ -570,7 +726,7 @@ Use the brief for plain questions such as:
 
 Answer in plain language first: current status, next step, why, and needs-your-decision or blockers. Raw state keys belong only as secondary grounding under a short `Reference` or `Grounding` note. Do not emit packet-copy material or request result paste.
 
-The app must not add direct commit/reject tools, autonomous Codex execution, hosted auth flows, or new runtime lifecycle semantics. Public default behavior remains the original read-only nine-tool surface unless the bridge flag is enabled.
+The app must not add direct commit/reject tools, autonomous Codex execution, hosted auth flows, or new runtime lifecycle semantics. Public default behavior remains the nine legacy read-only tools plus the two WorkBrief reads. The explicitly enabled Bridge has its own registration gates; presentation profile never grants authority.
 
 See [Using the ChatGPT App as the human-facing Augnes assistant](docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md#using-the-chatgpt-app-as-the-human-facing-augnes-assistant) for the full answer pattern and example.
 

@@ -2251,7 +2251,7 @@ async function assertConnectedProjectReaderV01({ environment, scenario, reposito
     for (const name of ["augnes_resume_repository", "augnes_list_work_items", "augnes_preview_repository_work_revision",
       "augnes_save_repository_work_revision", "augnes_prepare_repository_new_work", "augnes_prepare_repository_execution",
       "augnes_start_repository_delegation", "augnes_request_repository_delegation", "augnes_revoke_repository_execution_attachment",
-      "augnes_lookup_repository_retained_sources", "apply_transition", "unknown"]) {
+      "augnes_lookup_repository_retained_sources", "augnes_review_repository_work", "augnes_reply_to_review", "apply_transition", "unknown"]) {
       await assert.rejects(callExecution(name, {}), /tool_not_exposed/);
     }
     for (const args of [{ repositoryRoot: repositories.repositoryB }, { projectId: scope.project_id },
@@ -4409,6 +4409,12 @@ function assertRuntimeEnvironmentIsolation() {
   };
 
   const absentProviderEnvironment = { ...ambientEnvironment };
+  const reviewEnvironment = { ...ambientEnvironment, AUGNES_REVIEW_CONNECTIONS_FILE: path.join(tempRoot, "review-capability.json") };
+  const reviewValues = buildSupervisorChildValues({ ...sharedArguments, role: "ui", environment: reviewEnvironment });
+  assert.equal(buildRuntimeChildEnvironment({ role: "ui", values: reviewValues }).AUGNES_REVIEW_CONNECTIONS_FILE, reviewEnvironment.AUGNES_REVIEW_CONNECTIONS_FILE);
+  assert.equal(buildSupervisorChildValues({ ...sharedArguments, role: "ui", environment: reviewEnvironment, recoveryMode: true }).AUGNES_REVIEW_CONNECTIONS_FILE, null);
+  assert.equal(buildSupervisorChildValues({ ...sharedArguments, role: "bridge", environment: reviewEnvironment }).AUGNES_REVIEW_CONNECTIONS_FILE, undefined);
+  assert.equal(buildRuntimeChildEnvironment({ role: "ui", ambientEnvironment: reviewEnvironment }).AUGNES_REVIEW_CONNECTIONS_FILE, undefined);
   const companionEnvironment = { ...ambientEnvironment, AUGNES_COMPANION_SERVICE: "1" };
   delete companionEnvironment.AUGNES_VNEXT_OPERATOR_PILOT_ENABLED;
   const companionValues = buildSupervisorChildValues({ ...sharedArguments, role: "ui", environment: companionEnvironment });

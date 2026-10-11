@@ -52,6 +52,26 @@ and proportionate verification selection remain open under #1430, with current
 planner coverage and fixed timing gates preserved. The separate #1429 research
 implementation and its qualification are not included.
 
+## Current: request-bound review implementation (#1433)
+
+[#1433](https://github.com/hynk-studio/augnes/issues/1433) adds one bounded native
+request/read/reply/readback cycle, explicit attributed continuation through the
+ordinary work writer, and an opt-in ChatGPT MCP Events adapter. The source branch
+`codex/1433-request-bound-chatgpt-review` preserves #1432's project-scoped clients,
+merged #1440's lifecycle-only database preparation, and merged #1441's typed
+inspection failures. The current implementation does not use legacy WorkBrief
+or mailbox labels as native task identity.
+
+Local deterministic integration and callback fixtures are source evidence only.
+Actual ChatGPT event-triggered receipt/response, an originating model's use, a
+later live request after supported recovery, and matched burden observation
+remain NOT RUN. The exact account/workspace/destination, data disclosure,
+reviewer configuration and finite usage envelope need separate activation
+approval; no live transport, provider, installation or subscription is activated
+by this development task. The [adapter documentation](../../apps/augnes_apps/README.md#opt-in-request-bound-review-1433)
+states the mechanism and evidence boundary. P2 #1212, P5 #1215 and the broader
+#1213/#1214/#1209 programs retain their existing scope and unresolved obligations.
+
 ## Status reconciliation — 2026-10-06
 
 The reviewed integration baseline is main
