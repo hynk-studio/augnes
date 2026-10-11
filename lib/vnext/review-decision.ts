@@ -1,3 +1,5 @@
+import { createEpisodeDeltaCandidateFingerprintV01 } from "@/lib/vnext/episode-delta-candidate";
+export { createEpisodeDeltaCandidateFingerprintV01 } from "@/lib/vnext/episode-delta-candidate";
 import {
   canonicalizeProtocolValueV01,
   compareExternalRefsV01,
@@ -322,12 +324,6 @@ export function createReviewDecisionMaterialBoundaryV01(): ReviewDecisionMateria
 
 export function canonicalizeReviewDecisionValueV01(value: unknown): string {
   return canonicalizeProtocolValueV01(value);
-}
-
-export function createEpisodeDeltaCandidateFingerprintV01(
-  candidate: EpisodeDeltaProposalDeltaCandidateV01,
-): string {
-  return createProtocolSha256V01(canonicalizeProtocolValueV01(candidate));
 }
 
 export function deriveReviewDecisionIdV01(decision: ReviewDecisionV01): string {

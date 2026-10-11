@@ -1,0 +1,3005 @@
+{
+  "provenance": {
+    "repository": "hynk-studio/augnes",
+    "baseline_head": "8712203e06c951ce52044d784c75da4d61078fbd",
+    "capture": "Committed disposable ledger payloads read before database close during the unmodified baseline writer and lifecycle suites. Builder inputs use their stored source proposals. Refusals recorded with the unmodified baseline rules, before extraction.",
+    "suites": [
+      "scripts/smoke-vnext-durable-semantic-loop-v0-1.ts",
+      "scripts/test-vnext-project-verify-lifecycle.ts"
+    ],
+    "expected_values": "Frozen characterization oracle; do not regenerate from the extracted implementation."
+  },
+  "cases": [
+    {
+      "id": "generic",
+      "input": {
+        "proposal": {
+          "attestations": [],
+          "authority_summary": {
+            "applies_perspective": false,
+            "authorizes_deployment": false,
+            "authorizes_execution": false,
+            "authorizes_external_actuation": false,
+            "authorizes_external_side_effects": false,
+            "authorizes_github_mutation": false,
+            "authorizes_merge": false,
+            "authorizes_provider_calls": false,
+            "authorizes_publication": false,
+            "authorizes_replay": false,
+            "authorizes_retry": false,
+            "authorizes_scheduling": false,
+            "changed_files_grant_authority": false,
+            "closes_work": false,
+            "confidence_or_agreement_grants_authority": false,
+            "creates_evidence": false,
+            "fingerprint_verification_grants_authority": false,
+            "notes": [
+              "EpisodeDeltaProposal is reviewable candidate material, not canonical project state.",
+              "ReviewDecision and StateTransitionReceipt remain separate contracts.",
+              "Source validation, fingerprints, changed files, passed checks, pull requests, and confidence do not grant semantic authority.",
+              "This synthetic proposal is conformance material, not a user decision or transition authority."
+            ],
+            "passed_checks_grant_authority": false,
+            "performs_durable_transition": false,
+            "promotes_reviewed_memory": false,
+            "proposal_is_accepted_evidence": false,
+            "proposal_is_approval": false,
+            "proposal_is_canonical_project_state": false,
+            "proposal_is_command": false,
+            "proposal_is_proof": false,
+            "proposal_is_review_decision": false,
+            "proposal_is_state_transition_receipt": false,
+            "pull_request_presence_grants_authority": false,
+            "selects_next_context_automatically": false,
+            "source_validation_grants_authority": false,
+            "status_commits_state": false,
+            "writes_database": false
+          },
+          "bounded_summary": "A bounded provider-neutral RunReceipt supports reviewable synthetic protocol candidates.",
+          "compatibility": {
+            "external_refs": [],
+            "source_contracts": [],
+            "unmapped_fields": [],
+            "warnings": []
+          },
+          "conflicts": [],
+          "created_at": "2026-07-10T12:00:00.000Z",
+          "inferences": [],
+          "integrity": {
+            "algorithm": "sha256",
+            "canonicalization": "augnes-json-c14n-v0_1",
+            "fingerprint": "sha256:4e837edfef0d602ecda8de8a5d02a199c3fb184b222857a7285203f6ee7b2d7f",
+            "fingerprint_scope": "proposal_without_integrity_fingerprint"
+          },
+          "limitations": [
+            "This synthetic fixture demonstrates contract behavior only."
+          ],
+          "material_boundary": {
+            "bounded_summaries_only": true,
+            "credential_or_secret_persisted": false,
+            "hidden_reasoning_persisted": false,
+            "max_collection_items": 128,
+            "max_refs_per_collection": 64,
+            "max_summary_characters": 2000,
+            "raw_artifact_content_persisted": false,
+            "raw_prompt_persisted": false,
+            "raw_provider_output_persisted": false,
+            "raw_terminal_output_persisted": false,
+            "raw_transcript_persisted": false
+          },
+          "missing_information": [],
+          "observations": [
+            {
+              "bounded_summary": "A repository-relative protocol contract artifact is present in the bounded run result.",
+              "event_at": "2026-07-10T11:50:00.000Z",
+              "material_id": "material:observation:protocol-file",
+              "material_kind": "repository_artifact_observation",
+              "observed_at": "2026-07-10T11:50:00.000Z",
+              "observer_ref": {
+                "external_id": "generic-cli-worker-fixture",
+                "host": "generic-cli",
+                "observed_at": "2026-07-10T11:50:00.000Z",
+                "ref_type": "worker",
+                "ref_version": "external_ref.v0.1",
+                "trust_class": "direct_local_observation"
+              },
+              "source_refs": [
+                {
+                  "compatibility_namespace": "augnes.vnext.run-receipt.v0.1",
+                  "external_id": "run-receipt:e0d1e5a9fe5d29f2bbe2e032",
+                  "observed_at": "2026-07-10T03:00:00.000Z",
+                  "ref_type": "run_receipt",
+                  "ref_version": "external_ref.v0.1",
+                  "source_ref": "sha256:a2572e4d34c7a0d1448364c6a90894c5de40d16e9354baf60336826ee7127d59",
+                  "trust_class": "direct_local_observation"
+                },
+                {
+                  "external_id": "types/vnext/episode-delta-proposal.ts",
+                  "host": "git",
+                  "observed_at": "2026-07-10T11:50:00.000Z",
+                  "ref_type": "repository_relative_path",
+                  "ref_version": "external_ref.v0.1",
+                  "trust_class": "direct_local_observation"
+                }
+              ],
+              "source_run_receipt_refs": [
+                {
+                  "compatibility_namespace": "augnes.vnext.run-receipt.v0.1",
+                  "external_id": "run-receipt:e0d1e5a9fe5d29f2bbe2e032",
+                  "observed_at": "2026-07-10T03:00:00.000Z",
+                  "ref_type": "run_receipt",
+                  "ref_version": "external_ref.v0.1",
+                  "source_ref": "sha256:a2572e4d34c7a0d1448364c6a90894c5de40d16e9354baf60336826ee7127d59",
+                  "trust_class": "direct_local_observation"
+                }
+              ],
+              "subject_refs": [
+                {
+                  "external_id": "types/vnext/episode-delta-proposal.ts",
+                  "host": "git",
+                  "observed_at": "2026-07-10T11:50:00.000Z",
+                  "ref_type": "repository_relative_path",
+                  "ref_version": "external_ref.v0.1",
+                  "trust_class": "direct_local_observation"
+                }
+              ],
+              "trust_class": "direct_local_observation"
+            }
+          ],
+          "project_id": "project-semantic-review-loop-a",
+          "proposal_id": "episode-delta-proposal:12e6554d46ae9cae71179731",
+          "proposal_version": "episode_delta_proposal.v0.1",
+          "proposed_deltas": [
+            {
+              "basis_material_ids": [
+                "material:observation:protocol-file"
+              ],
+              "candidate_id": "delta:host-attested-result-secondary",
+              "current_state": {
+                "bounded_summary": "The protocol foundation currently includes TaskContextPacket and RunReceipt contracts.",
+                "knowledge_status": "known",
+                "source_material_ids": [
+                  "material:observation:protocol-file"
+                ],
+                "source_refs": [
+                  {
+                    "compatibility_namespace": "augnes.vnext.run-receipt.v0.1",
+                    "external_id": "run-receipt:e0d1e5a9fe5d29f2bbe2e032",
+                    "observed_at": "2026-07-10T03:00:00.000Z",
+                    "ref_type": "run_receipt",
+                    "ref_version": "external_ref.v0.1",
+                    "source_ref": "sha256:a2572e4d34c7a0d1448364c6a90894c5de40d16e9354baf60336826ee7127d59",
+                    "trust_class": "direct_local_observation"
+                  }
+                ]
+              },
+              "delta_type": "code_delta",
+              "limitations": [
+                "The candidate is contract-level fixture material and does not prove integration or use."
+              ],
+              "operation": "add",
+              "proposed_state_summary": "Add a pure EpisodeDeltaProposal contract for reviewable semantic change candidates.",
+              "review_required": true,
+              "source_refs": [
+                {
+                  "compatibility_namespace": "augnes.vnext.run-receipt.v0.1",
+                  "external_id": "run-receipt:e0d1e5a9fe5d29f2bbe2e032",
+                  "observed_at": "2026-07-10T03:00:00.000Z",
+                  "ref_type": "run_receipt",
+                  "ref_version": "external_ref.v0.1",
+                  "source_ref": "sha256:a2572e4d34c7a0d1448364c6a90894c5de40d16e9354baf60336826ee7127d59",
+                  "trust_class": "direct_local_observation"
+                },
+                {
+                  "external_id": "types/vnext/episode-delta-proposal.ts",
+                  "host": "git",
+                  "observed_at": "2026-07-10T11:50:00.000Z",
+                  "ref_type": "repository_relative_path",
+                  "ref_version": "external_ref.v0.1",
+                  "trust_class": "direct_local_observation"
+                }
+              ],
+              "target_refs": [
+                {
+                  "external_id": "target:protocol-foundation:secondary-1",
+                  "observed_at": "2026-07-10T11:50:00.000Z",
+                  "ref_type": "project_semantic_target",
+                  "ref_version": "external_ref.v0.1",
+                  "trust_class": "direct_local_observation"
+                }
+              ],
+              "title": "Review the second bounded coordination candidate",
+              "uncertainties": []
+            },
+            {
+              "basis_material_ids": [
+                "material:observation:protocol-file"
+              ],
+              "candidate_id": "delta:protocol-contract",
+              "current_state": {
+                "bounded_summary": "The protocol foundation currently includes TaskContextPacket and RunReceipt contracts.",
+                "knowledge_status": "known",
+                "source_material_ids": [
+                  "material:observation:protocol-file"
+                ],
+                "source_refs": [
+                  {
+                    "compatibility_namespace": "augnes.vnext.run-receipt.v0.1",
+                    "external_id": "run-receipt:e0d1e5a9fe5d29f2bbe2e032",
+                    "observed_at": "2026-07-10T03:00:00.000Z",
+                    "ref_type": "run_receipt",
+                    "ref_version": "external_ref.v0.1",
+                    "source_ref": "sha256:a2572e4d34c7a0d1448364c6a90894c5de40d16e9354baf60336826ee7127d59",
+                    "trust_class": "direct_local_observation"
+                  }
+                ]
+              },
+              "delta_type": "code_delta",
+              "limitations": [
+                "The candidate is contract-level fixture material and does not prove integration or use."
+              ],
+              "operation": "add",
+              "proposed_state_summary": "Add a pure EpisodeDeltaProposal contract for reviewable semantic change candidates.",
+              "review_required": true,
+              "source_refs": [
+                {
+                  "compatibility_namespace": "augnes.vnext.run-receipt.v0.1",
+                  "external_id": "run-receipt:e0d1e5a9fe5d29f2bbe2e032",
+                  "observed_at": "2026-07-10T03:00:00.000Z",
+                  "ref_type": "run_receipt",
+                  "ref_version": "external_ref.v0.1",
+                  "source_ref": "sha256:a2572e4d34c7a0d1448364c6a90894c5de40d16e9354baf60336826ee7127d59",
+                  "trust_class": "direct_local_observation"
+                },
+                {
+                  "external_id": "types/vnext/episode-delta-proposal.ts",
+                  "host": "git",
+                  "observed_at": "2026-07-10T11:50:00.000Z",
+                  "ref_type": "repository_relative_path",
+                  "ref_version": "external_ref.v0.1",
+                  "trust_class": "direct_local_observation"
+                }
+              ],
+              "target_refs": [
+                {
+                  "external_id": "target:protocol-foundation",
+                  "observed_at": "2026-07-10T11:50:00.000Z",
+                  "ref_type": "project_semantic_target",
+                  "ref_version": "external_ref.v0.1",
+                  "trust_class": "direct_local_observation"
+                }
+              ],
+              "title": "Review the provider-neutral proposal contract candidate",
+              "uncertainties": []
+            }
+          ],
+          "run_receipt_refs": [
+            {
+              "compatibility_namespace": "augnes.vnext.run-receipt.v0.1",
+              "external_id": "run-receipt:e0d1e5a9fe5d29f2bbe2e032",
+              "observed_at": "2026-07-10T03:00:00.000Z",
+              "ref_type": "run_receipt",
+              "ref_version": "external_ref.v0.1",
+              "source_ref": "sha256:a2572e4d34c7a0d1448364c6a90894c5de40d16e9354baf60336826ee7127d59",
+              "trust_class": "direct_local_observation"
+            }
+          ],
+          "source_refs": [
+            {
+              "compatibility_namespace": "augnes.vnext.run-receipt.v0.1",
+              "external_id": "run-receipt:e0d1e5a9fe5d29f2bbe2e032",
+              "observed_at": "2026-07-10T03:00:00.000Z",
+              "ref_type": "run_receipt",
+              "ref_version": "external_ref.v0.1",
+              "source_ref": "sha256:a2572e4d34c7a0d1448364c6a90894c5de40d16e9354baf60336826ee7127d59",
+              "trust_class": "direct_local_observation"
+            },
+            {
+              "compatibility_namespace": "augnes.vnext.task-context-packet.v0.1",
+              "external_id": "task-context-packet:53f496e3feb55c658bb8a5e",
+              "observed_at": "2026-07-10T00:00:00.000Z",
+              "ref_type": "task_context_packet",
+              "ref_version": "external_ref.v0.1",
+              "source_ref": "sha256:80398042586217fc4ac89c738f7f4758ea7629a6a0acc8c2872ee4ef914a4775",
+              "trust_class": "direct_local_observation"
+            },
+            {
+              "external_id": "types/vnext/episode-delta-proposal.ts",
+              "host": "git",
+              "observed_at": "2026-07-10T11:50:00.000Z",
+              "ref_type": "repository_relative_path",
+              "ref_version": "external_ref.v0.1",
+              "trust_class": "direct_local_observation"
+            }
+          ],
+          "source_status": {
+            "as_of": "2026-07-10T11:50:00.000Z",
+            "basis": "The local adapter directly observed the bounded source receipt.",
+            "coverage": "complete",
+            "currentness": "fresh",
+            "review_required": false,
+            "source_refs": [
+              {
+                "compatibility_namespace": "augnes.vnext.run-receipt.v0.1",
+                "external_id": "run-receipt:e0d1e5a9fe5d29f2bbe2e032",
+                "observed_at": "2026-07-10T03:00:00.000Z",
+                "ref_type": "run_receipt",
+                "ref_version": "external_ref.v0.1",
+                "source_ref": "sha256:a2572e4d34c7a0d1448364c6a90894c5de40d16e9354baf60336826ee7127d59",
+                "trust_class": "direct_local_observation"
+              }
+            ]
+          },
+          "status": "pending_review",
+          "task_context_packet_ref": {
+            "compatibility_namespace": "augnes.vnext.task-context-packet.v0.1",
+            "external_id": "task-context-packet:53f496e3feb55c658bb8a5e",
+            "observed_at": "2026-07-10T00:00:00.000Z",
+            "ref_type": "task_context_packet",
+            "ref_version": "external_ref.v0.1",
+            "source_ref": "sha256:80398042586217fc4ac89c738f7f4758ea7629a6a0acc8c2872ee4ef914a4775",
+            "trust_class": "direct_local_observation"
+          },
+          "trust_summary": {
+            "derived_interpretations": 0,
+            "direct_observations": 1,
+            "host_attestations": 0,
+            "imported_unverified_items": 0,
+            "provider_reports": 0,
+            "user_declarations": 0,
+            "verified_external_observations": 0
+          },
+          "uncertainties": [],
+          "workspace_id": "workspace-semantic-review-loop"
+        },
+        "candidate_id": "delta:host-attested-result-secondary",
+        "target_ref": {
+          "external_id": "target:protocol-foundation:secondary-1",
+          "observed_at": "2026-07-10T11:50:00.000Z",
+          "ref_type": "project_semantic_target",
+          "ref_version": "external_ref.v0.1",
+          "trust_class": "direct_local_observation"
+        },
+        "source_decision": {
+          "decision_id": "review-decision:7ef8f86421b32e1830ba2763",
+          "decision_fingerprint": "sha256:34346af643ce7b0bd69ab3677337b1a30947458b2cd3043f67b6305b1b6b595f"
+        },
+        "created_at": "2026-07-10T14:05:00.000Z"
+      },
+      "persisted_state": {
+        "bounded_state_summary": "Add a pure EpisodeDeltaProposal contract for reviewable semantic change candidates.",
+        "created_at": "2026-07-10T14:05:00.000Z",
+        "integrity": {
+          "algorithm": "sha256",
+          "fingerprint": "sha256:312e38bb27f664d7661ae278a29fd075793810c2c9bdb9c4dcdf0549479ad398",
+          "fingerprint_scope": "persisted_semantic_state_without_integrity_fingerprint"
+        },
+        "project_id": "project-semantic-review-loop-a",
+        "semantic_state_record_id": "semantic-state:a89ca20eec3ac26407f01d0c",
+        "semantic_state_version": "persisted_semantic_state_version.v0.1",
+        "source_candidate_fingerprint": "sha256:507e182d6b07f2d26deba43bb7d9239caf5d56737f94de09274f64c876a82be2",
+        "source_candidate_id": "delta:host-attested-result-secondary",
+        "source_decision_fingerprint": "sha256:34346af643ce7b0bd69ab3677337b1a30947458b2cd3043f67b6305b1b6b595f",
+        "source_decision_id": "review-decision:7ef8f86421b32e1830ba2763",
+        "source_proposal_fingerprint": "sha256:4e837edfef0d602ecda8de8a5d02a199c3fb184b222857a7285203f6ee7b2d7f",
+        "source_proposal_id": "episode-delta-proposal:12e6554d46ae9cae71179731",
+        "state_content": {
+          "delta_type": "code_delta",
+          "proposed_state_summary": "Add a pure EpisodeDeltaProposal contract for reviewable semantic change candidates.",
+          "state_content_version": "persisted_semantic_state_content.v0.1",
+          "target_semantic_identity": {
+            "compatibility_namespace": null,
+            "external_id": "target:protocol-foundation:secondary-1",
+            "host": null,
+            "provider": null,
+            "ref_type": "project_semantic_target"
+          }
+        },
+        "state_content_fingerprint": "sha256:c2c005bec4b6a9787c58937aabf26a1ee2b4f545aebbe72a3b8c610c3c829ac5",
+        "state_ref": {
+          "compatibility_namespace": "augnes.vnext.local-semantic-state.v0.1",
+          "external_id": "semantic-state:a89ca20eec3ac26407f01d0c",
+          "observed_at": "2026-07-10T14:05:00.000Z",
+          "ref_type": "accepted_semantic_state",
+          "ref_version": "external_ref.v0.1",
+          "source_ref": "sha256:c2c005bec4b6a9787c58937aabf26a1ee2b4f545aebbe72a3b8c610c3c829ac5",
+          "trust_class": "direct_local_observation"
+        },
+        "target_key": "sha256:c42b69632d996d2bdb7d033397006221403345b78287f5c9a992cd125e2cb983",
+        "target_ref": {
+          "external_id": "target:protocol-foundation:secondary-1",
+          "observed_at": "2026-07-10T11:50:00.000Z",
+          "ref_type": "project_semantic_target",
+          "ref_version": "external_ref.v0.1",
+          "trust_class": "direct_local_observation"
+        },
+        "workspace_id": "workspace-semantic-review-loop"
+      }
+    },
+    {
+      "id": "claim_record",
+      "input": {
+        "proposal": {
+          "attestations": [],
+          "authority_summary": {
+            "applies_perspective": false,
+            "authorizes_deployment": false,
+            "authorizes_execution": false,
+            "authorizes_external_actuation": false,
+            "authorizes_external_side_effects": false,
+            "authorizes_github_mutation": false,
+            "authorizes_merge": false,
+            "authorizes_provider_calls": false,
+            "authorizes_publication": false,
+            "authorizes_replay": false,
+            "authorizes_retry": false,
+            "authorizes_scheduling": false,
+            "changed_files_grant_authority": false,
+            "closes_work": false,
+            "confidence_or_agreement_grants_authority": false,
+            "creates_evidence": false,
+            "fingerprint_verification_grants_authority": false,
+            "notes": [
+              "EpisodeDeltaProposal is reviewable candidate material, not canonical project state.",
+              "Proposal creation performs no review, gate authorization, Transition, semantic-state write, later-context change, provider call, or external action.",
+              "ReviewDecision and StateTransitionReceipt remain separate contracts.",
+              "Source validation, fingerprints, changed files, passed checks, pull requests, and confidence do not grant semantic authority.",
+              "The direct observation covers canonical local bytes only and does not relabel the Claim or relation as observed truth."
+            ],
+            "passed_checks_grant_authority": false,
+            "performs_durable_transition": false,
+            "promotes_reviewed_memory": false,
+            "proposal_is_accepted_evidence": false,
+            "proposal_is_approval": false,
+            "proposal_is_canonical_project_state": false,
+            "proposal_is_command": false,
+            "proposal_is_proof": false,
+            "proposal_is_review_decision": false,
+            "proposal_is_state_transition_receipt": false,
+            "pull_request_presence_grants_authority": false,
+            "selects_next_context_automatically": false,
+            "source_validation_grants_authority": false,
+            "status_commits_state": false,
+            "writes_database": false
+          },
+          "bounded_summary": "Review application of one exact immutable Claim revision 1.",
+          "compatibility": {
+            "external_refs": [],
+            "source_contracts": [
+              "claim_record.v0.1",
+              "project_verify_lifecycle_binding.v0.1",
+              "project_verify_lifecycle_proposal.v0.1"
+            ],
+            "unmapped_fields": [],
+            "warnings": [
+              "No proposition similarity, relation inference, model judgment, Evidence count, or confidence score selected this record or family head."
+            ]
+          },
+          "conflicts": [],
+          "created_at": "2026-07-20T00:00:41.000Z",
+          "inferences": [],
+          "integrity": {
+            "algorithm": "sha256",
+            "canonicalization": "augnes-json-c14n-v0_1",
+            "fingerprint": "sha256:742a89291c75230c1b2719bd7767704bb7f94b62ec9c95cce11cc96e9b436b32",
+            "fingerprint_scope": "proposal_without_integrity_fingerprint"
+          },
+          "limitations": [
+            "The Claim remains an immutable candidate proposition.",
+            "This proposal is a review-required candidate, not a ReviewDecision, gate authorization, applied Transition, truth result, or accepted Evidence."
+          ],
+          "material_boundary": {
+            "bounded_summaries_only": true,
+            "credential_or_secret_persisted": false,
+            "hidden_reasoning_persisted": false,
+            "max_collection_items": 128,
+            "max_refs_per_collection": 64,
+            "max_summary_characters": 2000,
+            "raw_artifact_content_persisted": false,
+            "raw_prompt_persisted": false,
+            "raw_provider_output_persisted": false,
+            "raw_terminal_output_persisted": false,
+            "raw_transcript_persisted": false
+          },
+          "missing_information": [],
+          "observations": [
+            {
+              "bounded_summary": "Core directly read the exact immutable SR-2 record and exact semantic family-head bytes; this observation establishes source identity only, not proposition truth or Evidence acceptance.",
+              "event_at": null,
+              "material_id": "project-verify-lifecycle-observation:70cd03d9d4d133f9b883b9d52b761851",
+              "material_kind": "canonical_project_verify_record_and_head_bytes",
+              "observed_at": "2026-07-20T00:00:41.000Z",
+              "observer_ref": {
+                "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+                "external_id": "project-verify-head:9e4bdb1ba79ee1e8c461f1de96460140",
+                "observed_at": "2026-07-20T00:00:41.000Z",
+                "ref_type": "project_verify_family_head_observation",
+                "ref_version": "external_ref.v0.1",
+                "source_ref": "sha256:9e4bdb1ba79ee1e8c461f1de964601400e64061cb9324c1b557b3fcf8e178ba0",
+                "trust_class": "direct_local_observation"
+              },
+              "source_refs": [
+                {
+                  "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+                  "external_id": "claim:0a4afd3f6b1f1e946e8df40fb16e5a6f248f36646fdb7f15ffaa7a38f3c45e73",
+                  "observed_at": "2026-07-20T00:00:41.000Z",
+                  "ref_type": "claim_record",
+                  "ref_version": "external_ref.v0.1",
+                  "source_ref": "sha256:fff802fc6e814f6ee385dc3328b9d55141ef531f6630e5243f02cacda607e25e",
+                  "trust_class": "direct_local_observation"
+                },
+                {
+                  "external_id": "source:sr3-lifecycle-proof",
+                  "observed_at": "2026-07-20T00:00:00.000Z",
+                  "ref_type": "project_verify_source",
+                  "ref_version": "external_ref.v0.1",
+                  "trust_class": "derived_interpretation"
+                }
+              ],
+              "source_run_receipt_refs": [],
+              "subject_refs": [
+                {
+                  "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+                  "external_id": "claim-family:955ec52a79ce958ea5ab2ccfb725835b9399ed0c694fb3624e00f0bb5ac2b91b",
+                  "ref_type": "claim_family",
+                  "ref_version": "external_ref.v0.1",
+                  "source_ref": "sha256:c5eef6ac0aa58fd1263263e41438a92a92fbecb3e617d2e0b0b6bfff0b099cb3",
+                  "trust_class": "derived_interpretation"
+                },
+                {
+                  "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+                  "external_id": "claim:0a4afd3f6b1f1e946e8df40fb16e5a6f248f36646fdb7f15ffaa7a38f3c45e73",
+                  "observed_at": "2026-07-20T00:00:41.000Z",
+                  "ref_type": "claim_record",
+                  "ref_version": "external_ref.v0.1",
+                  "source_ref": "sha256:fff802fc6e814f6ee385dc3328b9d55141ef531f6630e5243f02cacda607e25e",
+                  "trust_class": "direct_local_observation"
+                }
+              ],
+              "trust_class": "direct_local_observation"
+            }
+          ],
+          "project_id": "project-sr3-project-verify-proof",
+          "project_verify_lifecycle": {
+            "admission_idempotency_key": "sha256:f0f80af1b0851c3a9bbb3ff9670c005c8ae4867e99c52758babceae4dc4f97fe",
+            "authority": {
+              "accepts_evidence": false,
+              "binding_is_applied_transition": false,
+              "binding_is_gate_authorization": false,
+              "binding_is_review_decision": false,
+              "changes_later_context": false,
+              "creates_semantic_state": false,
+              "establishes_truth": false,
+              "selects_applied_current_head": false
+            },
+            "current_head_expectation": {
+              "presence": "absent",
+              "revision": 0,
+              "selected_record_ref": null,
+              "source_transition_receipt_fingerprint": null,
+              "source_transition_receipt_id": null,
+              "state_content_fingerprint": null
+            },
+            "integrity": {
+              "algorithm": "sha256",
+              "canonicalization": "augnes-json-c14n-v0_1",
+              "fingerprint": "sha256:7cddf71287464090ad24632eea99a3bf81303ad2c65bed001c643bb3c67aea7e",
+              "fingerprint_scope": "project_verify_lifecycle_proposal_without_profile_fingerprint"
+            },
+            "lifecycle_binding": {
+              "applicability_scope_fingerprint": "sha256:320e8dfa9ef1c8870d09fa8c8f441721ba3f5fc1d33a90f9bb2fc58aa88dfe13",
+              "authority": {
+                "accepts_evidence": false,
+                "binding_is_applied_transition": false,
+                "binding_is_gate_authorization": false,
+                "binding_is_review_decision": false,
+                "changes_later_context": false,
+                "creates_semantic_state": false,
+                "establishes_truth": false,
+                "selects_applied_current_head": false
+              },
+              "binding_version": "project_verify_lifecycle_binding.v0.1",
+              "decision_candidate": {
+                "candidate_fingerprint": "sha256:926623451abeb2c680844221dc649b655dd8347c7374acfaecced7aee3c01408",
+                "candidate_id": "project-verify-lifecycle-candidate:70e99858f181dfb5bbeeda4bddb36eea"
+              },
+              "entity_kind": "claim_record",
+              "family_id": "claim-family:955ec52a79ce958ea5ab2ccfb725835b9399ed0c694fb3624e00f0bb5ac2b91b",
+              "family_origin_fingerprint": "sha256:c5eef6ac0aa58fd1263263e41438a92a92fbecb3e617d2e0b0b6bfff0b099cb3",
+              "family_target_ref": {
+                "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+                "external_id": "claim-family:955ec52a79ce958ea5ab2ccfb725835b9399ed0c694fb3624e00f0bb5ac2b91b",
+                "ref_type": "claim_family",
+                "ref_version": "external_ref.v0.1",
+                "source_ref": "sha256:c5eef6ac0aa58fd1263263e41438a92a92fbecb3e617d2e0b0b6bfff0b099cb3",
+                "trust_class": "derived_interpretation"
+              },
+              "integrity": {
+                "algorithm": "sha256",
+                "canonicalization": "augnes-json-c14n-v0_1",
+                "fingerprint": "sha256:3425fe9fc140e93ee0eb1f96fe5094ec26af8af56fb5ca5af99463a9c45924aa",
+                "fingerprint_scope": "project_verify_lifecycle_binding_without_integrity_fingerprint"
+              },
+              "operation_target_record_ref": null,
+              "prior_record_ref": null,
+              "project_id": "project-sr3-project-verify-proof",
+              "relation_endpoints": null,
+              "selected_candidate": {
+                "candidate_fingerprint": "sha256:926623451abeb2c680844221dc649b655dd8347c7374acfaecced7aee3c01408",
+                "candidate_id": "project-verify-lifecycle-candidate:70e99858f181dfb5bbeeda4bddb36eea"
+              },
+              "selected_record_operation_intent": "create",
+              "selected_record_ref": {
+                "record_fingerprint": "sha256:fff802fc6e814f6ee385dc3328b9d55141ef531f6630e5243f02cacda607e25e",
+                "record_id": "claim:0a4afd3f6b1f1e946e8df40fb16e5a6f248f36646fdb7f15ffaa7a38f3c45e73",
+                "record_kind": "claim_record"
+              },
+              "selected_record_revision": 1,
+              "workspace_id": "workspace-sr3-project-verify-proof"
+            },
+            "proposal_profile": "project_verify_lifecycle_proposal.v0.1"
+          },
+          "proposal_id": "episode-delta-proposal:c21c11ded74b926f16d2af8a",
+          "proposal_version": "episode_delta_proposal.v0.1",
+          "proposed_deltas": [
+            {
+              "basis_material_ids": [
+                "project-verify-lifecycle-observation:70cd03d9d4d133f9b883b9d52b761851"
+              ],
+              "candidate_id": "project-verify-lifecycle-candidate:70e99858f181dfb5bbeeda4bddb36eea",
+              "current_state": {
+                "bounded_summary": "No applied semantic head exists for this exact family target.",
+                "knowledge_status": "known",
+                "source_material_ids": [
+                  "project-verify-lifecycle-observation:70cd03d9d4d133f9b883b9d52b761851"
+                ],
+                "source_refs": [
+                  {
+                    "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+                    "external_id": "project-verify-head:9e4bdb1ba79ee1e8c461f1de96460140",
+                    "observed_at": "2026-07-20T00:00:41.000Z",
+                    "ref_type": "project_verify_family_head_observation",
+                    "ref_version": "external_ref.v0.1",
+                    "source_ref": "sha256:9e4bdb1ba79ee1e8c461f1de964601400e64061cb9324c1b557b3fcf8e178ba0",
+                    "trust_class": "direct_local_observation"
+                  }
+                ]
+              },
+              "delta_type": "validation_delta",
+              "limitations": [
+                "Only the existing ReviewDecision, semantic gate, and successfully committed Transition may change the applied family head.",
+                "The Claim remains an immutable candidate proposition.",
+                "The selected immutable record remains candidate material and does not establish truth or Evidence acceptance."
+              ],
+              "operation": "add",
+              "proposed_state_summary": "Apply exact Claim record claim:0a4afd3f6b1f1e946e8df40fb16e5a6f248f36646fdb7f15ffaa7a38f3c45e73 revision 1 as the semantic projection for its exact family; proposition truth remains not established.",
+              "review_required": true,
+              "source_refs": [
+                {
+                  "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+                  "external_id": "claim:0a4afd3f6b1f1e946e8df40fb16e5a6f248f36646fdb7f15ffaa7a38f3c45e73",
+                  "observed_at": "2026-07-20T00:00:41.000Z",
+                  "ref_type": "claim_record",
+                  "ref_version": "external_ref.v0.1",
+                  "source_ref": "sha256:fff802fc6e814f6ee385dc3328b9d55141ef531f6630e5243f02cacda607e25e",
+                  "trust_class": "direct_local_observation"
+                },
+                {
+                  "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+                  "external_id": "project-verify-head:9e4bdb1ba79ee1e8c461f1de96460140",
+                  "observed_at": "2026-07-20T00:00:41.000Z",
+                  "ref_type": "project_verify_family_head_observation",
+                  "ref_version": "external_ref.v0.1",
+                  "source_ref": "sha256:9e4bdb1ba79ee1e8c461f1de964601400e64061cb9324c1b557b3fcf8e178ba0",
+                  "trust_class": "direct_local_observation"
+                },
+                {
+                  "external_id": "source:sr3-lifecycle-proof",
+                  "observed_at": "2026-07-20T00:00:00.000Z",
+                  "ref_type": "project_verify_source",
+                  "ref_version": "external_ref.v0.1",
+                  "trust_class": "derived_interpretation"
+                }
+              ],
+              "target_refs": [
+                {
+                  "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+                  "external_id": "claim-family:955ec52a79ce958ea5ab2ccfb725835b9399ed0c694fb3624e00f0bb5ac2b91b",
+                  "ref_type": "claim_family",
+                  "ref_version": "external_ref.v0.1",
+                  "source_ref": "sha256:c5eef6ac0aa58fd1263263e41438a92a92fbecb3e617d2e0b0b6bfff0b099cb3",
+                  "trust_class": "derived_interpretation"
+                }
+              ],
+              "title": "Create Claim revision 1",
+              "uncertainties": [
+                "Claim truth is not established."
+              ]
+            }
+          ],
+          "run_receipt_refs": [],
+          "source_refs": [
+            {
+              "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+              "external_id": "claim:0a4afd3f6b1f1e946e8df40fb16e5a6f248f36646fdb7f15ffaa7a38f3c45e73",
+              "observed_at": "2026-07-20T00:00:41.000Z",
+              "ref_type": "claim_record",
+              "ref_version": "external_ref.v0.1",
+              "source_ref": "sha256:fff802fc6e814f6ee385dc3328b9d55141ef531f6630e5243f02cacda607e25e",
+              "trust_class": "direct_local_observation"
+            },
+            {
+              "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+              "external_id": "project-verify-head:9e4bdb1ba79ee1e8c461f1de96460140",
+              "observed_at": "2026-07-20T00:00:41.000Z",
+              "ref_type": "project_verify_family_head_observation",
+              "ref_version": "external_ref.v0.1",
+              "source_ref": "sha256:9e4bdb1ba79ee1e8c461f1de964601400e64061cb9324c1b557b3fcf8e178ba0",
+              "trust_class": "direct_local_observation"
+            },
+            {
+              "external_id": "source:sr3-lifecycle-proof",
+              "observed_at": "2026-07-20T00:00:00.000Z",
+              "ref_type": "project_verify_source",
+              "ref_version": "external_ref.v0.1",
+              "trust_class": "derived_interpretation"
+            }
+          ],
+          "source_status": {
+            "as_of": "2026-07-20T00:00:41.000Z",
+            "basis": "Complete coverage refers only to exact canonical record and family-head identity bytes; it does not establish semantic truth.",
+            "coverage": "complete",
+            "currentness": "fresh",
+            "review_required": true,
+            "source_refs": [
+              {
+                "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+                "external_id": "claim:0a4afd3f6b1f1e946e8df40fb16e5a6f248f36646fdb7f15ffaa7a38f3c45e73",
+                "observed_at": "2026-07-20T00:00:41.000Z",
+                "ref_type": "claim_record",
+                "ref_version": "external_ref.v0.1",
+                "source_ref": "sha256:fff802fc6e814f6ee385dc3328b9d55141ef531f6630e5243f02cacda607e25e",
+                "trust_class": "direct_local_observation"
+              },
+              {
+                "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+                "external_id": "project-verify-head:9e4bdb1ba79ee1e8c461f1de96460140",
+                "observed_at": "2026-07-20T00:00:41.000Z",
+                "ref_type": "project_verify_family_head_observation",
+                "ref_version": "external_ref.v0.1",
+                "source_ref": "sha256:9e4bdb1ba79ee1e8c461f1de964601400e64061cb9324c1b557b3fcf8e178ba0",
+                "trust_class": "direct_local_observation"
+              }
+            ]
+          },
+          "status": "pending_review",
+          "task_context_packet_ref": null,
+          "trust_summary": {
+            "derived_interpretations": 0,
+            "direct_observations": 1,
+            "host_attestations": 0,
+            "imported_unverified_items": 0,
+            "provider_reports": 0,
+            "user_declarations": 0,
+            "verified_external_observations": 0
+          },
+          "uncertainties": [
+            {
+              "bounded_summary": "Claim truth is not established.",
+              "related_delta_ids": [
+                "project-verify-lifecycle-candidate:70e99858f181dfb5bbeeda4bddb36eea"
+              ],
+              "related_material_ids": [
+                "project-verify-lifecycle-observation:70cd03d9d4d133f9b883b9d52b761851"
+              ],
+              "source_refs": [
+                {
+                  "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+                  "external_id": "claim:0a4afd3f6b1f1e946e8df40fb16e5a6f248f36646fdb7f15ffaa7a38f3c45e73",
+                  "observed_at": "2026-07-20T00:00:41.000Z",
+                  "ref_type": "claim_record",
+                  "ref_version": "external_ref.v0.1",
+                  "source_ref": "sha256:fff802fc6e814f6ee385dc3328b9d55141ef531f6630e5243f02cacda607e25e",
+                  "trust_class": "direct_local_observation"
+                }
+              ],
+              "uncertainty_id": "project-verify-lifecycle-uncertainty:17113d21b0d1d5d1e16ecdb56d3a762d"
+            }
+          ],
+          "workspace_id": "workspace-sr3-project-verify-proof"
+        },
+        "candidate_id": "project-verify-lifecycle-candidate:70e99858f181dfb5bbeeda4bddb36eea",
+        "target_ref": {
+          "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+          "external_id": "claim-family:955ec52a79ce958ea5ab2ccfb725835b9399ed0c694fb3624e00f0bb5ac2b91b",
+          "ref_type": "claim_family",
+          "ref_version": "external_ref.v0.1",
+          "source_ref": "sha256:c5eef6ac0aa58fd1263263e41438a92a92fbecb3e617d2e0b0b6bfff0b099cb3",
+          "trust_class": "derived_interpretation"
+        },
+        "source_decision": {
+          "decision_id": "review-decision:43ff6d4387dbdb286583b864",
+          "decision_fingerprint": "sha256:f623669f98a487d6ed2a51eeccd648df23713061be61ef37068a1d26736b6c43"
+        },
+        "created_at": "2026-07-20T00:10:06.000Z"
+      },
+      "persisted_state": {
+        "bounded_state_summary": "Apply exact Claim record claim:0a4afd3f6b1f1e946e8df40fb16e5a6f248f36646fdb7f15ffaa7a38f3c45e73 revision 1 as the semantic projection for its exact family; proposition truth remains not established.",
+        "created_at": "2026-07-20T00:10:06.000Z",
+        "integrity": {
+          "algorithm": "sha256",
+          "fingerprint": "sha256:b44194456c22f703490ab3898e067d15c8ab4c5a3dfdca572d028439fd4041f6",
+          "fingerprint_scope": "persisted_semantic_state_without_integrity_fingerprint"
+        },
+        "project_id": "project-sr3-project-verify-proof",
+        "semantic_state_record_id": "semantic-state:a5b4741310cf499fb41bcc55",
+        "semantic_state_version": "persisted_semantic_state_version.v0.1",
+        "source_candidate_fingerprint": "sha256:926623451abeb2c680844221dc649b655dd8347c7374acfaecced7aee3c01408",
+        "source_candidate_id": "project-verify-lifecycle-candidate:70e99858f181dfb5bbeeda4bddb36eea",
+        "source_decision_fingerprint": "sha256:f623669f98a487d6ed2a51eeccd648df23713061be61ef37068a1d26736b6c43",
+        "source_decision_id": "review-decision:43ff6d4387dbdb286583b864",
+        "source_proposal_fingerprint": "sha256:742a89291c75230c1b2719bd7767704bb7f94b62ec9c95cce11cc96e9b436b32",
+        "source_proposal_id": "episode-delta-proposal:c21c11ded74b926f16d2af8a",
+        "state_content": {
+          "delta_type": "validation_delta",
+          "project_verify_lifecycle_binding": {
+            "applicability_scope_fingerprint": "sha256:320e8dfa9ef1c8870d09fa8c8f441721ba3f5fc1d33a90f9bb2fc58aa88dfe13",
+            "authority": {
+              "accepts_evidence": false,
+              "binding_is_applied_transition": false,
+              "binding_is_gate_authorization": false,
+              "binding_is_review_decision": false,
+              "changes_later_context": false,
+              "creates_semantic_state": false,
+              "establishes_truth": false,
+              "selects_applied_current_head": false
+            },
+            "binding_version": "project_verify_lifecycle_binding.v0.1",
+            "decision_candidate": {
+              "candidate_fingerprint": "sha256:926623451abeb2c680844221dc649b655dd8347c7374acfaecced7aee3c01408",
+              "candidate_id": "project-verify-lifecycle-candidate:70e99858f181dfb5bbeeda4bddb36eea"
+            },
+            "entity_kind": "claim_record",
+            "family_id": "claim-family:955ec52a79ce958ea5ab2ccfb725835b9399ed0c694fb3624e00f0bb5ac2b91b",
+            "family_origin_fingerprint": "sha256:c5eef6ac0aa58fd1263263e41438a92a92fbecb3e617d2e0b0b6bfff0b099cb3",
+            "family_target_ref": {
+              "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+              "external_id": "claim-family:955ec52a79ce958ea5ab2ccfb725835b9399ed0c694fb3624e00f0bb5ac2b91b",
+              "ref_type": "claim_family",
+              "ref_version": "external_ref.v0.1",
+              "source_ref": "sha256:c5eef6ac0aa58fd1263263e41438a92a92fbecb3e617d2e0b0b6bfff0b099cb3",
+              "trust_class": "derived_interpretation"
+            },
+            "integrity": {
+              "algorithm": "sha256",
+              "canonicalization": "augnes-json-c14n-v0_1",
+              "fingerprint": "sha256:3425fe9fc140e93ee0eb1f96fe5094ec26af8af56fb5ca5af99463a9c45924aa",
+              "fingerprint_scope": "project_verify_lifecycle_binding_without_integrity_fingerprint"
+            },
+            "operation_target_record_ref": null,
+            "prior_record_ref": null,
+            "project_id": "project-sr3-project-verify-proof",
+            "relation_endpoints": null,
+            "selected_candidate": {
+              "candidate_fingerprint": "sha256:926623451abeb2c680844221dc649b655dd8347c7374acfaecced7aee3c01408",
+              "candidate_id": "project-verify-lifecycle-candidate:70e99858f181dfb5bbeeda4bddb36eea"
+            },
+            "selected_record_operation_intent": "create",
+            "selected_record_ref": {
+              "record_fingerprint": "sha256:fff802fc6e814f6ee385dc3328b9d55141ef531f6630e5243f02cacda607e25e",
+              "record_id": "claim:0a4afd3f6b1f1e946e8df40fb16e5a6f248f36646fdb7f15ffaa7a38f3c45e73",
+              "record_kind": "claim_record"
+            },
+            "selected_record_revision": 1,
+            "workspace_id": "workspace-sr3-project-verify-proof"
+          },
+          "proposed_state_summary": "Apply exact Claim record claim:0a4afd3f6b1f1e946e8df40fb16e5a6f248f36646fdb7f15ffaa7a38f3c45e73 revision 1 as the semantic projection for its exact family; proposition truth remains not established.",
+          "state_content_version": "persisted_semantic_state_content.v0.1",
+          "target_semantic_identity": {
+            "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+            "external_id": "claim-family:955ec52a79ce958ea5ab2ccfb725835b9399ed0c694fb3624e00f0bb5ac2b91b",
+            "host": null,
+            "provider": null,
+            "ref_type": "claim_family"
+          }
+        },
+        "state_content_fingerprint": "sha256:39fdff060f573bcf2c05338ae5aa5b69d174006fe1182bde6698020e560e919a",
+        "state_ref": {
+          "compatibility_namespace": "augnes.vnext.local-semantic-state.v0.1",
+          "external_id": "semantic-state:a5b4741310cf499fb41bcc55",
+          "observed_at": "2026-07-20T00:10:06.000Z",
+          "ref_type": "accepted_semantic_state",
+          "ref_version": "external_ref.v0.1",
+          "source_ref": "sha256:39fdff060f573bcf2c05338ae5aa5b69d174006fe1182bde6698020e560e919a",
+          "trust_class": "direct_local_observation"
+        },
+        "target_key": "sha256:962bc354de17d3bc06c9534c4670a3c469da365a62150f3ffee39d8019919d98",
+        "target_ref": {
+          "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+          "external_id": "claim-family:955ec52a79ce958ea5ab2ccfb725835b9399ed0c694fb3624e00f0bb5ac2b91b",
+          "ref_type": "claim_family",
+          "ref_version": "external_ref.v0.1",
+          "source_ref": "sha256:c5eef6ac0aa58fd1263263e41438a92a92fbecb3e617d2e0b0b6bfff0b099cb3",
+          "trust_class": "derived_interpretation"
+        },
+        "workspace_id": "workspace-sr3-project-verify-proof"
+      }
+    },
+    {
+      "id": "claim_evidence_relation",
+      "input": {
+        "proposal": {
+          "attestations": [],
+          "authority_summary": {
+            "applies_perspective": false,
+            "authorizes_deployment": false,
+            "authorizes_execution": false,
+            "authorizes_external_actuation": false,
+            "authorizes_external_side_effects": false,
+            "authorizes_github_mutation": false,
+            "authorizes_merge": false,
+            "authorizes_provider_calls": false,
+            "authorizes_publication": false,
+            "authorizes_replay": false,
+            "authorizes_retry": false,
+            "authorizes_scheduling": false,
+            "changed_files_grant_authority": false,
+            "closes_work": false,
+            "confidence_or_agreement_grants_authority": false,
+            "creates_evidence": false,
+            "fingerprint_verification_grants_authority": false,
+            "notes": [
+              "EpisodeDeltaProposal is reviewable candidate material, not canonical project state.",
+              "Proposal creation performs no review, gate authorization, Transition, semantic-state write, later-context change, provider call, or external action.",
+              "ReviewDecision and StateTransitionReceipt remain separate contracts.",
+              "Source validation, fingerprints, changed files, passed checks, pull requests, and confidence do not grant semantic authority.",
+              "The direct observation covers canonical local bytes only and does not relabel the Claim or relation as observed truth."
+            ],
+            "passed_checks_grant_authority": false,
+            "performs_durable_transition": false,
+            "promotes_reviewed_memory": false,
+            "proposal_is_accepted_evidence": false,
+            "proposal_is_approval": false,
+            "proposal_is_canonical_project_state": false,
+            "proposal_is_command": false,
+            "proposal_is_proof": false,
+            "proposal_is_review_decision": false,
+            "proposal_is_state_transition_receipt": false,
+            "pull_request_presence_grants_authority": false,
+            "selects_next_context_automatically": false,
+            "source_validation_grants_authority": false,
+            "status_commits_state": false,
+            "writes_database": false
+          },
+          "bounded_summary": "Review application of one exact immutable Claim-Evidence relation revision 1.",
+          "compatibility": {
+            "external_refs": [],
+            "source_contracts": [
+              "claim_evidence_relation.v0.1",
+              "project_verify_lifecycle_binding.v0.1",
+              "project_verify_lifecycle_proposal.v0.1"
+            ],
+            "unmapped_fields": [],
+            "warnings": [
+              "No proposition similarity, relation inference, model judgment, Evidence count, or confidence score selected this record or family head."
+            ]
+          },
+          "conflicts": [],
+          "created_at": "2026-07-20T00:00:43.000Z",
+          "inferences": [],
+          "integrity": {
+            "algorithm": "sha256",
+            "canonicalization": "augnes-json-c14n-v0_1",
+            "fingerprint": "sha256:08c1b0f9427dc4718487949f84ee5049590de959860163a0543dede61ae023d1",
+            "fingerprint_scope": "proposal_without_integrity_fingerprint"
+          },
+          "limitations": [
+            "Relation existence does not prove the Claim.",
+            "This proposal is a review-required candidate, not a ReviewDecision, gate authorization, applied Transition, truth result, or accepted Evidence."
+          ],
+          "material_boundary": {
+            "bounded_summaries_only": true,
+            "credential_or_secret_persisted": false,
+            "hidden_reasoning_persisted": false,
+            "max_collection_items": 128,
+            "max_refs_per_collection": 64,
+            "max_summary_characters": 2000,
+            "raw_artifact_content_persisted": false,
+            "raw_prompt_persisted": false,
+            "raw_provider_output_persisted": false,
+            "raw_terminal_output_persisted": false,
+            "raw_transcript_persisted": false
+          },
+          "missing_information": [],
+          "observations": [
+            {
+              "bounded_summary": "Core directly read the exact immutable SR-2 record and exact semantic family-head bytes; this observation establishes source identity only, not proposition truth or Evidence acceptance.",
+              "event_at": null,
+              "material_id": "project-verify-lifecycle-observation:b45b1256928bdc5a9c915b24ee360534",
+              "material_kind": "canonical_project_verify_record_and_head_bytes",
+              "observed_at": "2026-07-20T00:00:43.000Z",
+              "observer_ref": {
+                "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+                "external_id": "project-verify-head:61822586fb2a19940f3205a2c37068eb",
+                "observed_at": "2026-07-20T00:00:43.000Z",
+                "ref_type": "project_verify_family_head_observation",
+                "ref_version": "external_ref.v0.1",
+                "source_ref": "sha256:61822586fb2a19940f3205a2c37068ebbd0aa13cae8c894a8032a7eb31ebdf0d",
+                "trust_class": "direct_local_observation"
+              },
+              "source_refs": [
+                {
+                  "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+                  "external_id": "claim-evidence-relation:3b3380bc74a635dde4fa8a46ddb9917ff38a61a4fa360635a4ac9cc68ec22f29",
+                  "observed_at": "2026-07-20T00:00:43.000Z",
+                  "ref_type": "claim_evidence_relation",
+                  "ref_version": "external_ref.v0.1",
+                  "source_ref": "sha256:183c10c6366eb48570ef1bef0ccb455e7de080a4abc00bb37bfd3bc6dce92054",
+                  "trust_class": "direct_local_observation"
+                },
+                {
+                  "external_id": "source:sr3-lifecycle-proof",
+                  "observed_at": "2026-07-20T00:00:00.000Z",
+                  "ref_type": "project_verify_source",
+                  "ref_version": "external_ref.v0.1",
+                  "trust_class": "derived_interpretation"
+                }
+              ],
+              "source_run_receipt_refs": [],
+              "subject_refs": [
+                {
+                  "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+                  "external_id": "claim-evidence-relation-family:b7b21d032b1ca368a1d94814982935b59acda4c63567780764398666c1d6e0c0",
+                  "ref_type": "claim_evidence_relation_family",
+                  "ref_version": "external_ref.v0.1",
+                  "source_ref": "sha256:58c0b04e59bd14f61256f0e18885b27eba672257c9b42de314197e73a8080355",
+                  "trust_class": "derived_interpretation"
+                },
+                {
+                  "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+                  "external_id": "claim-evidence-relation:3b3380bc74a635dde4fa8a46ddb9917ff38a61a4fa360635a4ac9cc68ec22f29",
+                  "observed_at": "2026-07-20T00:00:43.000Z",
+                  "ref_type": "claim_evidence_relation",
+                  "ref_version": "external_ref.v0.1",
+                  "source_ref": "sha256:183c10c6366eb48570ef1bef0ccb455e7de080a4abc00bb37bfd3bc6dce92054",
+                  "trust_class": "direct_local_observation"
+                }
+              ],
+              "trust_class": "direct_local_observation"
+            }
+          ],
+          "project_id": "project-sr3-project-verify-proof",
+          "project_verify_lifecycle": {
+            "admission_idempotency_key": "sha256:c94eb3dc363d511c6b3a7b8ce2b95190bc6807dc59d6459f882486455e1bed61",
+            "authority": {
+              "accepts_evidence": false,
+              "binding_is_applied_transition": false,
+              "binding_is_gate_authorization": false,
+              "binding_is_review_decision": false,
+              "changes_later_context": false,
+              "creates_semantic_state": false,
+              "establishes_truth": false,
+              "selects_applied_current_head": false
+            },
+            "current_head_expectation": {
+              "presence": "absent",
+              "revision": 0,
+              "selected_record_ref": null,
+              "source_transition_receipt_fingerprint": null,
+              "source_transition_receipt_id": null,
+              "state_content_fingerprint": null
+            },
+            "integrity": {
+              "algorithm": "sha256",
+              "canonicalization": "augnes-json-c14n-v0_1",
+              "fingerprint": "sha256:9ad30e71e2334ad2378a74b561d107a85b1ce769205abf387227c101cc74c48e",
+              "fingerprint_scope": "project_verify_lifecycle_proposal_without_profile_fingerprint"
+            },
+            "lifecycle_binding": {
+              "applicability_scope_fingerprint": "sha256:320e8dfa9ef1c8870d09fa8c8f441721ba3f5fc1d33a90f9bb2fc58aa88dfe13",
+              "authority": {
+                "accepts_evidence": false,
+                "binding_is_applied_transition": false,
+                "binding_is_gate_authorization": false,
+                "binding_is_review_decision": false,
+                "changes_later_context": false,
+                "creates_semantic_state": false,
+                "establishes_truth": false,
+                "selects_applied_current_head": false
+              },
+              "binding_version": "project_verify_lifecycle_binding.v0.1",
+              "decision_candidate": {
+                "candidate_fingerprint": "sha256:c7ac636f4211442b30079d9bef9366c603c125003eb6575c405794b9db1a9a6a",
+                "candidate_id": "project-verify-lifecycle-candidate:bb6d1a00797380fadde8666f1cab694a"
+              },
+              "entity_kind": "claim_evidence_relation",
+              "family_id": "claim-evidence-relation-family:b7b21d032b1ca368a1d94814982935b59acda4c63567780764398666c1d6e0c0",
+              "family_origin_fingerprint": "sha256:58c0b04e59bd14f61256f0e18885b27eba672257c9b42de314197e73a8080355",
+              "family_target_ref": {
+                "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+                "external_id": "claim-evidence-relation-family:b7b21d032b1ca368a1d94814982935b59acda4c63567780764398666c1d6e0c0",
+                "ref_type": "claim_evidence_relation_family",
+                "ref_version": "external_ref.v0.1",
+                "source_ref": "sha256:58c0b04e59bd14f61256f0e18885b27eba672257c9b42de314197e73a8080355",
+                "trust_class": "derived_interpretation"
+              },
+              "integrity": {
+                "algorithm": "sha256",
+                "canonicalization": "augnes-json-c14n-v0_1",
+                "fingerprint": "sha256:5951cdd0bae0be5d34c46740d876d309da6363659172d0cf616bccf46ed94451",
+                "fingerprint_scope": "project_verify_lifecycle_binding_without_integrity_fingerprint"
+              },
+              "operation_target_record_ref": null,
+              "prior_record_ref": null,
+              "project_id": "project-sr3-project-verify-proof",
+              "relation_endpoints": {
+                "claim_ref": {
+                  "record_fingerprint": "sha256:ff79110f57932d714d7e49da794ec0d65968d5bb8b4b82c0234d59485872ea88",
+                  "record_id": "claim:b748b6058d72c36a24e6a868f53a0a70704db2a675478ef835efdbf5644fb27e",
+                  "record_kind": "claim_record"
+                },
+                "evidence_ref": {
+                  "record_fingerprint": "sha256:a5bca281b8efe144bb2bb2cb58b49cdff3240d7b55570f94410030d1bf2eb25a",
+                  "record_id": "evidence:b0d92529d895292bc779a9707ee382b3c0dac07ce18e30aed2248e77e43c7af5",
+                  "record_kind": "evidence_record"
+                }
+              },
+              "selected_candidate": {
+                "candidate_fingerprint": "sha256:c7ac636f4211442b30079d9bef9366c603c125003eb6575c405794b9db1a9a6a",
+                "candidate_id": "project-verify-lifecycle-candidate:bb6d1a00797380fadde8666f1cab694a"
+              },
+              "selected_record_operation_intent": "create",
+              "selected_record_ref": {
+                "record_fingerprint": "sha256:183c10c6366eb48570ef1bef0ccb455e7de080a4abc00bb37bfd3bc6dce92054",
+                "record_id": "claim-evidence-relation:3b3380bc74a635dde4fa8a46ddb9917ff38a61a4fa360635a4ac9cc68ec22f29",
+                "record_kind": "claim_evidence_relation"
+              },
+              "selected_record_revision": 1,
+              "workspace_id": "workspace-sr3-project-verify-proof"
+            },
+            "proposal_profile": "project_verify_lifecycle_proposal.v0.1"
+          },
+          "proposal_id": "episode-delta-proposal:deeb68419eb24b48db4de989",
+          "proposal_version": "episode_delta_proposal.v0.1",
+          "proposed_deltas": [
+            {
+              "basis_material_ids": [
+                "project-verify-lifecycle-observation:b45b1256928bdc5a9c915b24ee360534"
+              ],
+              "candidate_id": "project-verify-lifecycle-candidate:bb6d1a00797380fadde8666f1cab694a",
+              "current_state": {
+                "bounded_summary": "No applied semantic head exists for this exact family target.",
+                "knowledge_status": "known",
+                "source_material_ids": [
+                  "project-verify-lifecycle-observation:b45b1256928bdc5a9c915b24ee360534"
+                ],
+                "source_refs": [
+                  {
+                    "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+                    "external_id": "project-verify-head:61822586fb2a19940f3205a2c37068eb",
+                    "observed_at": "2026-07-20T00:00:43.000Z",
+                    "ref_type": "project_verify_family_head_observation",
+                    "ref_version": "external_ref.v0.1",
+                    "source_ref": "sha256:61822586fb2a19940f3205a2c37068ebbd0aa13cae8c894a8032a7eb31ebdf0d",
+                    "trust_class": "direct_local_observation"
+                  }
+                ]
+              },
+              "delta_type": "validation_delta",
+              "limitations": [
+                "Only the existing ReviewDecision, semantic gate, and successfully committed Transition may change the applied family head.",
+                "Relation existence does not prove the Claim.",
+                "The selected immutable record remains candidate material and does not establish truth or Evidence acceptance."
+              ],
+              "operation": "add",
+              "proposed_state_summary": "Apply exact supports relation record claim-evidence-relation:3b3380bc74a635dde4fa8a46ddb9917ff38a61a4fa360635a4ac9cc68ec22f29 revision 1 as the semantic projection for its exact family; relation existence does not prove the Claim.",
+              "review_required": true,
+              "source_refs": [
+                {
+                  "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+                  "external_id": "claim-evidence-relation:3b3380bc74a635dde4fa8a46ddb9917ff38a61a4fa360635a4ac9cc68ec22f29",
+                  "observed_at": "2026-07-20T00:00:43.000Z",
+                  "ref_type": "claim_evidence_relation",
+                  "ref_version": "external_ref.v0.1",
+                  "source_ref": "sha256:183c10c6366eb48570ef1bef0ccb455e7de080a4abc00bb37bfd3bc6dce92054",
+                  "trust_class": "direct_local_observation"
+                },
+                {
+                  "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+                  "external_id": "project-verify-head:61822586fb2a19940f3205a2c37068eb",
+                  "observed_at": "2026-07-20T00:00:43.000Z",
+                  "ref_type": "project_verify_family_head_observation",
+                  "ref_version": "external_ref.v0.1",
+                  "source_ref": "sha256:61822586fb2a19940f3205a2c37068ebbd0aa13cae8c894a8032a7eb31ebdf0d",
+                  "trust_class": "direct_local_observation"
+                },
+                {
+                  "external_id": "source:sr3-lifecycle-proof",
+                  "observed_at": "2026-07-20T00:00:00.000Z",
+                  "ref_type": "project_verify_source",
+                  "ref_version": "external_ref.v0.1",
+                  "trust_class": "derived_interpretation"
+                }
+              ],
+              "target_refs": [
+                {
+                  "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+                  "external_id": "claim-evidence-relation-family:b7b21d032b1ca368a1d94814982935b59acda4c63567780764398666c1d6e0c0",
+                  "ref_type": "claim_evidence_relation_family",
+                  "ref_version": "external_ref.v0.1",
+                  "source_ref": "sha256:58c0b04e59bd14f61256f0e18885b27eba672257c9b42de314197e73a8080355",
+                  "trust_class": "derived_interpretation"
+                }
+              ],
+              "title": "Create Claim-Evidence relation revision 1",
+              "uncertainties": [
+                "The relation basis remains non-conclusive."
+              ]
+            }
+          ],
+          "run_receipt_refs": [],
+          "source_refs": [
+            {
+              "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+              "external_id": "claim-evidence-relation:3b3380bc74a635dde4fa8a46ddb9917ff38a61a4fa360635a4ac9cc68ec22f29",
+              "observed_at": "2026-07-20T00:00:43.000Z",
+              "ref_type": "claim_evidence_relation",
+              "ref_version": "external_ref.v0.1",
+              "source_ref": "sha256:183c10c6366eb48570ef1bef0ccb455e7de080a4abc00bb37bfd3bc6dce92054",
+              "trust_class": "direct_local_observation"
+            },
+            {
+              "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+              "external_id": "project-verify-head:61822586fb2a19940f3205a2c37068eb",
+              "observed_at": "2026-07-20T00:00:43.000Z",
+              "ref_type": "project_verify_family_head_observation",
+              "ref_version": "external_ref.v0.1",
+              "source_ref": "sha256:61822586fb2a19940f3205a2c37068ebbd0aa13cae8c894a8032a7eb31ebdf0d",
+              "trust_class": "direct_local_observation"
+            },
+            {
+              "external_id": "source:sr3-lifecycle-proof",
+              "observed_at": "2026-07-20T00:00:00.000Z",
+              "ref_type": "project_verify_source",
+              "ref_version": "external_ref.v0.1",
+              "trust_class": "derived_interpretation"
+            }
+          ],
+          "source_status": {
+            "as_of": "2026-07-20T00:00:43.000Z",
+            "basis": "Complete coverage refers only to exact canonical record and family-head identity bytes; it does not establish semantic truth.",
+            "coverage": "complete",
+            "currentness": "fresh",
+            "review_required": true,
+            "source_refs": [
+              {
+                "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+                "external_id": "claim-evidence-relation:3b3380bc74a635dde4fa8a46ddb9917ff38a61a4fa360635a4ac9cc68ec22f29",
+                "observed_at": "2026-07-20T00:00:43.000Z",
+                "ref_type": "claim_evidence_relation",
+                "ref_version": "external_ref.v0.1",
+                "source_ref": "sha256:183c10c6366eb48570ef1bef0ccb455e7de080a4abc00bb37bfd3bc6dce92054",
+                "trust_class": "direct_local_observation"
+              },
+              {
+                "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+                "external_id": "project-verify-head:61822586fb2a19940f3205a2c37068eb",
+                "observed_at": "2026-07-20T00:00:43.000Z",
+                "ref_type": "project_verify_family_head_observation",
+                "ref_version": "external_ref.v0.1",
+                "source_ref": "sha256:61822586fb2a19940f3205a2c37068ebbd0aa13cae8c894a8032a7eb31ebdf0d",
+                "trust_class": "direct_local_observation"
+              }
+            ]
+          },
+          "status": "pending_review",
+          "task_context_packet_ref": null,
+          "trust_summary": {
+            "derived_interpretations": 0,
+            "direct_observations": 1,
+            "host_attestations": 0,
+            "imported_unverified_items": 0,
+            "provider_reports": 0,
+            "user_declarations": 0,
+            "verified_external_observations": 0
+          },
+          "uncertainties": [
+            {
+              "bounded_summary": "The relation basis remains non-conclusive.",
+              "related_delta_ids": [
+                "project-verify-lifecycle-candidate:bb6d1a00797380fadde8666f1cab694a"
+              ],
+              "related_material_ids": [
+                "project-verify-lifecycle-observation:b45b1256928bdc5a9c915b24ee360534"
+              ],
+              "source_refs": [
+                {
+                  "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+                  "external_id": "claim-evidence-relation:3b3380bc74a635dde4fa8a46ddb9917ff38a61a4fa360635a4ac9cc68ec22f29",
+                  "observed_at": "2026-07-20T00:00:43.000Z",
+                  "ref_type": "claim_evidence_relation",
+                  "ref_version": "external_ref.v0.1",
+                  "source_ref": "sha256:183c10c6366eb48570ef1bef0ccb455e7de080a4abc00bb37bfd3bc6dce92054",
+                  "trust_class": "direct_local_observation"
+                }
+              ],
+              "uncertainty_id": "project-verify-lifecycle-uncertainty:4ce846d6d8d2ecdd7cce1a91fdfa0bea"
+            }
+          ],
+          "workspace_id": "workspace-sr3-project-verify-proof"
+        },
+        "candidate_id": "project-verify-lifecycle-candidate:bb6d1a00797380fadde8666f1cab694a",
+        "target_ref": {
+          "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+          "external_id": "claim-evidence-relation-family:b7b21d032b1ca368a1d94814982935b59acda4c63567780764398666c1d6e0c0",
+          "ref_type": "claim_evidence_relation_family",
+          "ref_version": "external_ref.v0.1",
+          "source_ref": "sha256:58c0b04e59bd14f61256f0e18885b27eba672257c9b42de314197e73a8080355",
+          "trust_class": "derived_interpretation"
+        },
+        "source_decision": {
+          "decision_id": "review-decision:4f5d173893a51830891838df",
+          "decision_fingerprint": "sha256:9c1fba7542c8963dc11baa1c3afb8c0ffe992de7582525c53532f51331fa94a6"
+        },
+        "created_at": "2026-07-20T00:50:06.000Z"
+      },
+      "persisted_state": {
+        "bounded_state_summary": "Apply exact supports relation record claim-evidence-relation:3b3380bc74a635dde4fa8a46ddb9917ff38a61a4fa360635a4ac9cc68ec22f29 revision 1 as the semantic projection for its exact family; relation existence does not prove the Claim.",
+        "created_at": "2026-07-20T00:50:06.000Z",
+        "integrity": {
+          "algorithm": "sha256",
+          "fingerprint": "sha256:39fef010d2de2aab7e2649ebd63c5b000a336f82da6648bd7aee5d835a2fde01",
+          "fingerprint_scope": "persisted_semantic_state_without_integrity_fingerprint"
+        },
+        "project_id": "project-sr3-project-verify-proof",
+        "semantic_state_record_id": "semantic-state:5f7446fd8db7713993a0704d",
+        "semantic_state_version": "persisted_semantic_state_version.v0.1",
+        "source_candidate_fingerprint": "sha256:c7ac636f4211442b30079d9bef9366c603c125003eb6575c405794b9db1a9a6a",
+        "source_candidate_id": "project-verify-lifecycle-candidate:bb6d1a00797380fadde8666f1cab694a",
+        "source_decision_fingerprint": "sha256:9c1fba7542c8963dc11baa1c3afb8c0ffe992de7582525c53532f51331fa94a6",
+        "source_decision_id": "review-decision:4f5d173893a51830891838df",
+        "source_proposal_fingerprint": "sha256:08c1b0f9427dc4718487949f84ee5049590de959860163a0543dede61ae023d1",
+        "source_proposal_id": "episode-delta-proposal:deeb68419eb24b48db4de989",
+        "state_content": {
+          "delta_type": "validation_delta",
+          "project_verify_lifecycle_binding": {
+            "applicability_scope_fingerprint": "sha256:320e8dfa9ef1c8870d09fa8c8f441721ba3f5fc1d33a90f9bb2fc58aa88dfe13",
+            "authority": {
+              "accepts_evidence": false,
+              "binding_is_applied_transition": false,
+              "binding_is_gate_authorization": false,
+              "binding_is_review_decision": false,
+              "changes_later_context": false,
+              "creates_semantic_state": false,
+              "establishes_truth": false,
+              "selects_applied_current_head": false
+            },
+            "binding_version": "project_verify_lifecycle_binding.v0.1",
+            "decision_candidate": {
+              "candidate_fingerprint": "sha256:c7ac636f4211442b30079d9bef9366c603c125003eb6575c405794b9db1a9a6a",
+              "candidate_id": "project-verify-lifecycle-candidate:bb6d1a00797380fadde8666f1cab694a"
+            },
+            "entity_kind": "claim_evidence_relation",
+            "family_id": "claim-evidence-relation-family:b7b21d032b1ca368a1d94814982935b59acda4c63567780764398666c1d6e0c0",
+            "family_origin_fingerprint": "sha256:58c0b04e59bd14f61256f0e18885b27eba672257c9b42de314197e73a8080355",
+            "family_target_ref": {
+              "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+              "external_id": "claim-evidence-relation-family:b7b21d032b1ca368a1d94814982935b59acda4c63567780764398666c1d6e0c0",
+              "ref_type": "claim_evidence_relation_family",
+              "ref_version": "external_ref.v0.1",
+              "source_ref": "sha256:58c0b04e59bd14f61256f0e18885b27eba672257c9b42de314197e73a8080355",
+              "trust_class": "derived_interpretation"
+            },
+            "integrity": {
+              "algorithm": "sha256",
+              "canonicalization": "augnes-json-c14n-v0_1",
+              "fingerprint": "sha256:5951cdd0bae0be5d34c46740d876d309da6363659172d0cf616bccf46ed94451",
+              "fingerprint_scope": "project_verify_lifecycle_binding_without_integrity_fingerprint"
+            },
+            "operation_target_record_ref": null,
+            "prior_record_ref": null,
+            "project_id": "project-sr3-project-verify-proof",
+            "relation_endpoints": {
+              "claim_ref": {
+                "record_fingerprint": "sha256:ff79110f57932d714d7e49da794ec0d65968d5bb8b4b82c0234d59485872ea88",
+                "record_id": "claim:b748b6058d72c36a24e6a868f53a0a70704db2a675478ef835efdbf5644fb27e",
+                "record_kind": "claim_record"
+              },
+              "evidence_ref": {
+                "record_fingerprint": "sha256:a5bca281b8efe144bb2bb2cb58b49cdff3240d7b55570f94410030d1bf2eb25a",
+                "record_id": "evidence:b0d92529d895292bc779a9707ee382b3c0dac07ce18e30aed2248e77e43c7af5",
+                "record_kind": "evidence_record"
+              }
+            },
+            "selected_candidate": {
+              "candidate_fingerprint": "sha256:c7ac636f4211442b30079d9bef9366c603c125003eb6575c405794b9db1a9a6a",
+              "candidate_id": "project-verify-lifecycle-candidate:bb6d1a00797380fadde8666f1cab694a"
+            },
+            "selected_record_operation_intent": "create",
+            "selected_record_ref": {
+              "record_fingerprint": "sha256:183c10c6366eb48570ef1bef0ccb455e7de080a4abc00bb37bfd3bc6dce92054",
+              "record_id": "claim-evidence-relation:3b3380bc74a635dde4fa8a46ddb9917ff38a61a4fa360635a4ac9cc68ec22f29",
+              "record_kind": "claim_evidence_relation"
+            },
+            "selected_record_revision": 1,
+            "workspace_id": "workspace-sr3-project-verify-proof"
+          },
+          "proposed_state_summary": "Apply exact supports relation record claim-evidence-relation:3b3380bc74a635dde4fa8a46ddb9917ff38a61a4fa360635a4ac9cc68ec22f29 revision 1 as the semantic projection for its exact family; relation existence does not prove the Claim.",
+          "state_content_version": "persisted_semantic_state_content.v0.1",
+          "target_semantic_identity": {
+            "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+            "external_id": "claim-evidence-relation-family:b7b21d032b1ca368a1d94814982935b59acda4c63567780764398666c1d6e0c0",
+            "host": null,
+            "provider": null,
+            "ref_type": "claim_evidence_relation_family"
+          }
+        },
+        "state_content_fingerprint": "sha256:5e1fd84bd44241f7e7dd15784b76e7d0ab128699909b7f4a2c5a9cbbfe95e3d8",
+        "state_ref": {
+          "compatibility_namespace": "augnes.vnext.local-semantic-state.v0.1",
+          "external_id": "semantic-state:5f7446fd8db7713993a0704d",
+          "observed_at": "2026-07-20T00:50:06.000Z",
+          "ref_type": "accepted_semantic_state",
+          "ref_version": "external_ref.v0.1",
+          "source_ref": "sha256:5e1fd84bd44241f7e7dd15784b76e7d0ab128699909b7f4a2c5a9cbbfe95e3d8",
+          "trust_class": "direct_local_observation"
+        },
+        "target_key": "sha256:5c221e122c401d326a04e72f44a4348aa7ff2858edf29115ba9f1d1f56924903",
+        "target_ref": {
+          "compatibility_namespace": "augnes.vnext.project-verify-lifecycle-family-target.v0.1",
+          "external_id": "claim-evidence-relation-family:b7b21d032b1ca368a1d94814982935b59acda4c63567780764398666c1d6e0c0",
+          "ref_type": "claim_evidence_relation_family",
+          "ref_version": "external_ref.v0.1",
+          "source_ref": "sha256:58c0b04e59bd14f61256f0e18885b27eba672257c9b42de314197e73a8080355",
+          "trust_class": "derived_interpretation"
+        },
+        "workspace_id": "workspace-sr3-project-verify-proof"
+      }
+    }
+  ],
+  "negatives": [
+    {
+      "id": "generic:missing-workspace",
+      "case_id": "generic",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "workspace_id",
+          "remove": true
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_required_field_missing",
+            "path": "$.workspace_id",
+            "message": "$.workspace_id must be a non-empty string."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "$.workspace_id must be a non-empty string.",
+        "code": "semantic_state_required_field_missing",
+        "path": "$.workspace_id"
+      }
+    },
+    {
+      "id": "generic:wrong-workspace",
+      "case_id": "generic",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "workspace_id",
+          "value": "workspace:other"
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_record_id_mismatch",
+            "path": "$.semantic_state_record_id",
+            "message": "Semantic state record ID does not match deterministic source bindings."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "Semantic state record ID does not match deterministic source bindings.",
+        "code": "semantic_state_record_id_mismatch",
+        "path": "$.semantic_state_record_id"
+      }
+    },
+    {
+      "id": "generic:wrong-project",
+      "case_id": "generic",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "project_id",
+          "value": "project:other"
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_record_id_mismatch",
+            "path": "$.semantic_state_record_id",
+            "message": "Semantic state record ID does not match deterministic source bindings."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "Semantic state record ID does not match deterministic source bindings.",
+        "code": "semantic_state_record_id_mismatch",
+        "path": "$.semantic_state_record_id"
+      }
+    },
+    {
+      "id": "generic:missing-content",
+      "case_id": "generic",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "state_content",
+          "value": null
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_content_invalid",
+            "path": "$.state_content",
+            "message": "State content must be an object."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "State content must be an object.",
+        "code": "semantic_state_content_invalid",
+        "path": "$.state_content"
+      }
+    },
+    {
+      "id": "generic:missing-summary",
+      "case_id": "generic",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "state_content.proposed_state_summary",
+          "value": " "
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_required_field_missing",
+            "path": "$.state_content.proposed_state_summary",
+            "message": "$.state_content.proposed_state_summary must be a non-empty string."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "$.state_content.proposed_state_summary must be a non-empty string.",
+        "code": "semantic_state_required_field_missing",
+        "path": "$.state_content.proposed_state_summary"
+      }
+    },
+    {
+      "id": "generic:tampered-content",
+      "case_id": "generic",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "state_content_fingerprint",
+          "value": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_content_fingerprint_mismatch",
+            "path": "$.state_content_fingerprint",
+            "message": "State content fingerprint does not match normalized candidate-derived content."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "State content fingerprint does not match normalized candidate-derived content.",
+        "code": "semantic_state_content_fingerprint_mismatch",
+        "path": "$.state_content_fingerprint"
+      }
+    },
+    {
+      "id": "generic:tampered-integrity",
+      "case_id": "generic",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "integrity.fingerprint",
+          "value": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_integrity_fingerprint_mismatch",
+            "path": "$.integrity.fingerprint",
+            "message": "Semantic state aggregate fingerprint does not match normalized content and lineage."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "Semantic state aggregate fingerprint does not match normalized content and lineage.",
+        "code": "semantic_state_integrity_fingerprint_mismatch",
+        "path": "$.integrity.fingerprint"
+      }
+    },
+    {
+      "id": "generic:tampered-target-key",
+      "case_id": "generic",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "target_key",
+          "value": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_target_key_mismatch",
+            "path": "$.target_key",
+            "message": "Target key does not match the normalized target semantic identity."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "Target key does not match the normalized target semantic identity.",
+        "code": "semantic_state_target_key_mismatch",
+        "path": "$.target_key"
+      }
+    },
+    {
+      "id": "generic:tampered-target",
+      "case_id": "generic",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "target_ref.external_id",
+          "value": "target:other"
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_target_key_mismatch",
+            "path": "$.target_key",
+            "message": "Target key does not match the normalized target semantic identity."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "Target key does not match the normalized target semantic identity.",
+        "code": "semantic_state_target_key_mismatch",
+        "path": "$.target_key"
+      }
+    },
+    {
+      "id": "generic:invalid-date",
+      "case_id": "generic",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "created_at",
+          "value": "yesterday"
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_created_at_invalid",
+            "path": "$.created_at",
+            "message": "Persisted semantic state requires a strict ISO-8601 timestamp."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "Persisted semantic state requires a strict ISO-8601 timestamp.",
+        "code": "semantic_state_created_at_invalid",
+        "path": "$.created_at"
+      }
+    },
+    {
+      "id": "generic:malformed-sha",
+      "case_id": "generic",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "source_proposal_fingerprint",
+          "value": "sha256:BAD"
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_sha256_invalid",
+            "path": "$.source_proposal_fingerprint",
+            "message": "$.source_proposal_fingerprint must be a lowercase SHA-256 fingerprint."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "$.source_proposal_fingerprint must be a lowercase SHA-256 fingerprint.",
+        "code": "semantic_state_sha256_invalid",
+        "path": "$.source_proposal_fingerprint"
+      }
+    },
+    {
+      "id": "generic:unknown-first",
+      "case_id": "generic",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "extra",
+          "value": true
+        },
+        {
+          "path": "workspace_id",
+          "remove": true
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_unknown_field",
+            "path": "$.extra",
+            "message": "Field extra is not part of persisted semantic state v0.1."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "Field extra is not part of persisted semantic state v0.1.",
+        "code": "semantic_state_unknown_field",
+        "path": "$.extra"
+      }
+    },
+    {
+      "id": "generic:scope-before-content",
+      "case_id": "generic",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "workspace_id",
+          "remove": true
+        },
+        {
+          "path": "state_content",
+          "value": null
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_required_field_missing",
+            "path": "$.workspace_id",
+            "message": "$.workspace_id must be a non-empty string."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "$.workspace_id must be a non-empty string.",
+        "code": "semantic_state_required_field_missing",
+        "path": "$.workspace_id"
+      }
+    },
+    {
+      "id": "generic:missing-candidate",
+      "case_id": "generic",
+      "operation": "build",
+      "edits": [
+        {
+          "path": "candidate_id",
+          "value": "candidate:absent"
+        }
+      ],
+      "expected_error": {
+        "name": "Error",
+        "message": "semantic_state_candidate_missing"
+      }
+    },
+    {
+      "id": "generic:outside-target",
+      "case_id": "generic",
+      "operation": "build",
+      "edits": [
+        {
+          "path": "target_ref.external_id",
+          "value": "target:outside"
+        }
+      ],
+      "expected_error": {
+        "name": "Error",
+        "message": "semantic_state_target_outside_candidate"
+      }
+    },
+    {
+      "id": "generic:empty-summary",
+      "case_id": "generic",
+      "operation": "build",
+      "edits": [
+        {
+          "path": "proposal.proposed_deltas.0.proposed_state_summary",
+          "value": " "
+        }
+      ],
+      "expected_error": {
+        "name": "Error",
+        "message": "proposed_state_summary_required"
+      }
+    },
+    {
+      "id": "generic:summary-bound",
+      "case_id": "generic",
+      "operation": "build",
+      "edits": [
+        {
+          "path": "proposal.proposed_deltas.0.proposed_state_summary",
+          "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      ],
+      "expected_error": {
+        "name": "Error",
+        "message": "semantic_state_summary_bound_exceeded"
+      }
+    },
+    {
+      "id": "generic:invalid-decision-fingerprint",
+      "case_id": "generic",
+      "operation": "build",
+      "edits": [
+        {
+          "path": "source_decision.decision_fingerprint",
+          "value": "invalid"
+        }
+      ],
+      "expected_error": {
+        "name": "Error",
+        "message": "source_decision_fingerprint_invalid"
+      }
+    },
+    {
+      "id": "claim_record:missing-workspace",
+      "case_id": "claim_record",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "workspace_id",
+          "remove": true
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_required_field_missing",
+            "path": "$.workspace_id",
+            "message": "$.workspace_id must be a non-empty string."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "$.workspace_id must be a non-empty string.",
+        "code": "semantic_state_required_field_missing",
+        "path": "$.workspace_id"
+      }
+    },
+    {
+      "id": "claim_record:wrong-workspace",
+      "case_id": "claim_record",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "workspace_id",
+          "value": "workspace:other"
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_lifecycle_scope_mismatch",
+            "path": "$.state_content.project_verify_lifecycle_binding",
+            "message": "Lifecycle binding workspace and project must exactly match the persisted semantic-state scope."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "Lifecycle binding workspace and project must exactly match the persisted semantic-state scope.",
+        "code": "semantic_state_lifecycle_scope_mismatch",
+        "path": "$.state_content.project_verify_lifecycle_binding"
+      }
+    },
+    {
+      "id": "claim_record:wrong-project",
+      "case_id": "claim_record",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "project_id",
+          "value": "project:other"
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_lifecycle_scope_mismatch",
+            "path": "$.state_content.project_verify_lifecycle_binding",
+            "message": "Lifecycle binding workspace and project must exactly match the persisted semantic-state scope."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "Lifecycle binding workspace and project must exactly match the persisted semantic-state scope.",
+        "code": "semantic_state_lifecycle_scope_mismatch",
+        "path": "$.state_content.project_verify_lifecycle_binding"
+      }
+    },
+    {
+      "id": "claim_record:missing-content",
+      "case_id": "claim_record",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "state_content",
+          "value": null
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_content_invalid",
+            "path": "$.state_content",
+            "message": "State content must be an object."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "State content must be an object.",
+        "code": "semantic_state_content_invalid",
+        "path": "$.state_content"
+      }
+    },
+    {
+      "id": "claim_record:missing-summary",
+      "case_id": "claim_record",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "state_content.proposed_state_summary",
+          "value": " "
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_required_field_missing",
+            "path": "$.state_content.proposed_state_summary",
+            "message": "$.state_content.proposed_state_summary must be a non-empty string."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "$.state_content.proposed_state_summary must be a non-empty string.",
+        "code": "semantic_state_required_field_missing",
+        "path": "$.state_content.proposed_state_summary"
+      }
+    },
+    {
+      "id": "claim_record:tampered-content",
+      "case_id": "claim_record",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "state_content_fingerprint",
+          "value": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_content_fingerprint_mismatch",
+            "path": "$.state_content_fingerprint",
+            "message": "State content fingerprint does not match normalized candidate-derived content."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "State content fingerprint does not match normalized candidate-derived content.",
+        "code": "semantic_state_content_fingerprint_mismatch",
+        "path": "$.state_content_fingerprint"
+      }
+    },
+    {
+      "id": "claim_record:tampered-integrity",
+      "case_id": "claim_record",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "integrity.fingerprint",
+          "value": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_integrity_fingerprint_mismatch",
+            "path": "$.integrity.fingerprint",
+            "message": "Semantic state aggregate fingerprint does not match normalized content and lineage."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "Semantic state aggregate fingerprint does not match normalized content and lineage.",
+        "code": "semantic_state_integrity_fingerprint_mismatch",
+        "path": "$.integrity.fingerprint"
+      }
+    },
+    {
+      "id": "claim_record:tampered-target-key",
+      "case_id": "claim_record",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "target_key",
+          "value": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_target_key_mismatch",
+            "path": "$.target_key",
+            "message": "Target key does not match the normalized target semantic identity."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "Target key does not match the normalized target semantic identity.",
+        "code": "semantic_state_target_key_mismatch",
+        "path": "$.target_key"
+      }
+    },
+    {
+      "id": "claim_record:tampered-target",
+      "case_id": "claim_record",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "target_ref.external_id",
+          "value": "target:other"
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_target_key_mismatch",
+            "path": "$.target_key",
+            "message": "Target key does not match the normalized target semantic identity."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "Target key does not match the normalized target semantic identity.",
+        "code": "semantic_state_target_key_mismatch",
+        "path": "$.target_key"
+      }
+    },
+    {
+      "id": "claim_record:invalid-date",
+      "case_id": "claim_record",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "created_at",
+          "value": "yesterday"
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_created_at_invalid",
+            "path": "$.created_at",
+            "message": "Persisted semantic state requires a strict ISO-8601 timestamp."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "Persisted semantic state requires a strict ISO-8601 timestamp.",
+        "code": "semantic_state_created_at_invalid",
+        "path": "$.created_at"
+      }
+    },
+    {
+      "id": "claim_record:malformed-sha",
+      "case_id": "claim_record",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "source_proposal_fingerprint",
+          "value": "sha256:BAD"
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_sha256_invalid",
+            "path": "$.source_proposal_fingerprint",
+            "message": "$.source_proposal_fingerprint must be a lowercase SHA-256 fingerprint."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "$.source_proposal_fingerprint must be a lowercase SHA-256 fingerprint.",
+        "code": "semantic_state_sha256_invalid",
+        "path": "$.source_proposal_fingerprint"
+      }
+    },
+    {
+      "id": "claim_record:unknown-first",
+      "case_id": "claim_record",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "extra",
+          "value": true
+        },
+        {
+          "path": "workspace_id",
+          "remove": true
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_unknown_field",
+            "path": "$.extra",
+            "message": "Field extra is not part of persisted semantic state v0.1."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "Field extra is not part of persisted semantic state v0.1.",
+        "code": "semantic_state_unknown_field",
+        "path": "$.extra"
+      }
+    },
+    {
+      "id": "claim_record:scope-before-content",
+      "case_id": "claim_record",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "workspace_id",
+          "remove": true
+        },
+        {
+          "path": "state_content",
+          "value": null
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_required_field_missing",
+            "path": "$.workspace_id",
+            "message": "$.workspace_id must be a non-empty string."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "$.workspace_id must be a non-empty string.",
+        "code": "semantic_state_required_field_missing",
+        "path": "$.workspace_id"
+      }
+    },
+    {
+      "id": "claim_record:missing-lifecycle",
+      "case_id": "claim_record",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "state_content.project_verify_lifecycle_binding",
+          "remove": true
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_lifecycle_target_authority_conflict",
+            "path": "$.state_content.project_verify_lifecycle_binding",
+            "message": "Reserved Project Verify targets require the exact lifecycle binding, and generic targets cannot carry it."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "Reserved Project Verify targets require the exact lifecycle binding, and generic targets cannot carry it.",
+        "code": "semantic_state_lifecycle_target_authority_conflict",
+        "path": "$.state_content.project_verify_lifecycle_binding"
+      }
+    },
+    {
+      "id": "claim_record:wrong-candidate",
+      "case_id": "claim_record",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "source_candidate_id",
+          "value": "candidate:other"
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_lifecycle_candidate_mismatch",
+            "path": "$.state_content.project_verify_lifecycle_binding.selected_candidate",
+            "message": "Lifecycle selected candidate must exactly match the persisted semantic-state source candidate."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "Lifecycle selected candidate must exactly match the persisted semantic-state source candidate.",
+        "code": "semantic_state_lifecycle_candidate_mismatch",
+        "path": "$.state_content.project_verify_lifecycle_binding.selected_candidate"
+      }
+    },
+    {
+      "id": "claim_record:missing-candidate",
+      "case_id": "claim_record",
+      "operation": "build",
+      "edits": [
+        {
+          "path": "candidate_id",
+          "value": "candidate:absent"
+        }
+      ],
+      "expected_error": {
+        "name": "Error",
+        "message": "semantic_state_candidate_missing"
+      }
+    },
+    {
+      "id": "claim_record:outside-target",
+      "case_id": "claim_record",
+      "operation": "build",
+      "edits": [
+        {
+          "path": "target_ref.external_id",
+          "value": "target:outside"
+        }
+      ],
+      "expected_error": {
+        "name": "Error",
+        "message": "semantic_state_target_outside_candidate"
+      }
+    },
+    {
+      "id": "claim_record:empty-summary",
+      "case_id": "claim_record",
+      "operation": "build",
+      "edits": [
+        {
+          "path": "proposal.proposed_deltas.0.proposed_state_summary",
+          "value": " "
+        }
+      ],
+      "expected_error": {
+        "name": "Error",
+        "message": "proposed_state_summary_required"
+      }
+    },
+    {
+      "id": "claim_record:summary-bound",
+      "case_id": "claim_record",
+      "operation": "build",
+      "edits": [
+        {
+          "path": "proposal.proposed_deltas.0.proposed_state_summary",
+          "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      ],
+      "expected_error": {
+        "name": "Error",
+        "message": "semantic_state_summary_bound_exceeded"
+      }
+    },
+    {
+      "id": "claim_record:invalid-decision-fingerprint",
+      "case_id": "claim_record",
+      "operation": "build",
+      "edits": [
+        {
+          "path": "source_decision.decision_fingerprint",
+          "value": "invalid"
+        }
+      ],
+      "expected_error": {
+        "name": "Error",
+        "message": "source_decision_fingerprint_invalid"
+      }
+    },
+    {
+      "id": "claim_record:wrong-proposal-project",
+      "case_id": "claim_record",
+      "operation": "build",
+      "edits": [
+        {
+          "path": "proposal.project_id",
+          "value": "project:other"
+        }
+      ],
+      "expected_error": {
+        "name": "Error",
+        "message": "semantic_state_lifecycle_binding_conflict"
+      }
+    },
+    {
+      "id": "claim_record:wrong-proposal-workspace",
+      "case_id": "claim_record",
+      "operation": "build",
+      "edits": [
+        {
+          "path": "proposal.workspace_id",
+          "value": "workspace:other"
+        }
+      ],
+      "expected_error": {
+        "name": "Error",
+        "message": "semantic_state_lifecycle_binding_conflict"
+      }
+    },
+    {
+      "id": "claim_record:changed-candidate",
+      "case_id": "claim_record",
+      "operation": "build",
+      "edits": [
+        {
+          "path": "proposal.proposed_deltas.0.title",
+          "value": "changed candidate"
+        }
+      ],
+      "expected_error": {
+        "name": "Error",
+        "message": "semantic_state_lifecycle_binding_conflict"
+      }
+    },
+    {
+      "id": "claim_evidence_relation:missing-workspace",
+      "case_id": "claim_evidence_relation",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "workspace_id",
+          "remove": true
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_required_field_missing",
+            "path": "$.workspace_id",
+            "message": "$.workspace_id must be a non-empty string."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "$.workspace_id must be a non-empty string.",
+        "code": "semantic_state_required_field_missing",
+        "path": "$.workspace_id"
+      }
+    },
+    {
+      "id": "claim_evidence_relation:wrong-workspace",
+      "case_id": "claim_evidence_relation",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "workspace_id",
+          "value": "workspace:other"
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_lifecycle_scope_mismatch",
+            "path": "$.state_content.project_verify_lifecycle_binding",
+            "message": "Lifecycle binding workspace and project must exactly match the persisted semantic-state scope."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "Lifecycle binding workspace and project must exactly match the persisted semantic-state scope.",
+        "code": "semantic_state_lifecycle_scope_mismatch",
+        "path": "$.state_content.project_verify_lifecycle_binding"
+      }
+    },
+    {
+      "id": "claim_evidence_relation:wrong-project",
+      "case_id": "claim_evidence_relation",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "project_id",
+          "value": "project:other"
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_lifecycle_scope_mismatch",
+            "path": "$.state_content.project_verify_lifecycle_binding",
+            "message": "Lifecycle binding workspace and project must exactly match the persisted semantic-state scope."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "Lifecycle binding workspace and project must exactly match the persisted semantic-state scope.",
+        "code": "semantic_state_lifecycle_scope_mismatch",
+        "path": "$.state_content.project_verify_lifecycle_binding"
+      }
+    },
+    {
+      "id": "claim_evidence_relation:missing-content",
+      "case_id": "claim_evidence_relation",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "state_content",
+          "value": null
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_content_invalid",
+            "path": "$.state_content",
+            "message": "State content must be an object."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "State content must be an object.",
+        "code": "semantic_state_content_invalid",
+        "path": "$.state_content"
+      }
+    },
+    {
+      "id": "claim_evidence_relation:missing-summary",
+      "case_id": "claim_evidence_relation",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "state_content.proposed_state_summary",
+          "value": " "
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_required_field_missing",
+            "path": "$.state_content.proposed_state_summary",
+            "message": "$.state_content.proposed_state_summary must be a non-empty string."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "$.state_content.proposed_state_summary must be a non-empty string.",
+        "code": "semantic_state_required_field_missing",
+        "path": "$.state_content.proposed_state_summary"
+      }
+    },
+    {
+      "id": "claim_evidence_relation:tampered-content",
+      "case_id": "claim_evidence_relation",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "state_content_fingerprint",
+          "value": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_content_fingerprint_mismatch",
+            "path": "$.state_content_fingerprint",
+            "message": "State content fingerprint does not match normalized candidate-derived content."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "State content fingerprint does not match normalized candidate-derived content.",
+        "code": "semantic_state_content_fingerprint_mismatch",
+        "path": "$.state_content_fingerprint"
+      }
+    },
+    {
+      "id": "claim_evidence_relation:tampered-integrity",
+      "case_id": "claim_evidence_relation",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "integrity.fingerprint",
+          "value": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_integrity_fingerprint_mismatch",
+            "path": "$.integrity.fingerprint",
+            "message": "Semantic state aggregate fingerprint does not match normalized content and lineage."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "Semantic state aggregate fingerprint does not match normalized content and lineage.",
+        "code": "semantic_state_integrity_fingerprint_mismatch",
+        "path": "$.integrity.fingerprint"
+      }
+    },
+    {
+      "id": "claim_evidence_relation:tampered-target-key",
+      "case_id": "claim_evidence_relation",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "target_key",
+          "value": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_target_key_mismatch",
+            "path": "$.target_key",
+            "message": "Target key does not match the normalized target semantic identity."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "Target key does not match the normalized target semantic identity.",
+        "code": "semantic_state_target_key_mismatch",
+        "path": "$.target_key"
+      }
+    },
+    {
+      "id": "claim_evidence_relation:tampered-target",
+      "case_id": "claim_evidence_relation",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "target_ref.external_id",
+          "value": "target:other"
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_target_key_mismatch",
+            "path": "$.target_key",
+            "message": "Target key does not match the normalized target semantic identity."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "Target key does not match the normalized target semantic identity.",
+        "code": "semantic_state_target_key_mismatch",
+        "path": "$.target_key"
+      }
+    },
+    {
+      "id": "claim_evidence_relation:invalid-date",
+      "case_id": "claim_evidence_relation",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "created_at",
+          "value": "yesterday"
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_created_at_invalid",
+            "path": "$.created_at",
+            "message": "Persisted semantic state requires a strict ISO-8601 timestamp."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "Persisted semantic state requires a strict ISO-8601 timestamp.",
+        "code": "semantic_state_created_at_invalid",
+        "path": "$.created_at"
+      }
+    },
+    {
+      "id": "claim_evidence_relation:malformed-sha",
+      "case_id": "claim_evidence_relation",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "source_proposal_fingerprint",
+          "value": "sha256:BAD"
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_sha256_invalid",
+            "path": "$.source_proposal_fingerprint",
+            "message": "$.source_proposal_fingerprint must be a lowercase SHA-256 fingerprint."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "$.source_proposal_fingerprint must be a lowercase SHA-256 fingerprint.",
+        "code": "semantic_state_sha256_invalid",
+        "path": "$.source_proposal_fingerprint"
+      }
+    },
+    {
+      "id": "claim_evidence_relation:unknown-first",
+      "case_id": "claim_evidence_relation",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "extra",
+          "value": true
+        },
+        {
+          "path": "workspace_id",
+          "remove": true
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_unknown_field",
+            "path": "$.extra",
+            "message": "Field extra is not part of persisted semantic state v0.1."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "Field extra is not part of persisted semantic state v0.1.",
+        "code": "semantic_state_unknown_field",
+        "path": "$.extra"
+      }
+    },
+    {
+      "id": "claim_evidence_relation:scope-before-content",
+      "case_id": "claim_evidence_relation",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "workspace_id",
+          "remove": true
+        },
+        {
+          "path": "state_content",
+          "value": null
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_required_field_missing",
+            "path": "$.workspace_id",
+            "message": "$.workspace_id must be a non-empty string."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "$.workspace_id must be a non-empty string.",
+        "code": "semantic_state_required_field_missing",
+        "path": "$.workspace_id"
+      }
+    },
+    {
+      "id": "claim_evidence_relation:missing-lifecycle",
+      "case_id": "claim_evidence_relation",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "state_content.project_verify_lifecycle_binding",
+          "remove": true
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_lifecycle_target_authority_conflict",
+            "path": "$.state_content.project_verify_lifecycle_binding",
+            "message": "Reserved Project Verify targets require the exact lifecycle binding, and generic targets cannot carry it."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "Reserved Project Verify targets require the exact lifecycle binding, and generic targets cannot carry it.",
+        "code": "semantic_state_lifecycle_target_authority_conflict",
+        "path": "$.state_content.project_verify_lifecycle_binding"
+      }
+    },
+    {
+      "id": "claim_evidence_relation:wrong-candidate",
+      "case_id": "claim_evidence_relation",
+      "operation": "rebuild",
+      "edits": [
+        {
+          "path": "source_candidate_id",
+          "value": "candidate:other"
+        }
+      ],
+      "expected_validation": {
+        "status": "invalid",
+        "errors": [
+          {
+            "code": "semantic_state_lifecycle_candidate_mismatch",
+            "path": "$.state_content.project_verify_lifecycle_binding.selected_candidate",
+            "message": "Lifecycle selected candidate must exactly match the persisted semantic-state source candidate."
+          }
+        ],
+        "normalized_state": null
+      },
+      "expected_error": {
+        "name": "VNextPersistedSemanticStateValidationErrorV01",
+        "message": "Lifecycle selected candidate must exactly match the persisted semantic-state source candidate.",
+        "code": "semantic_state_lifecycle_candidate_mismatch",
+        "path": "$.state_content.project_verify_lifecycle_binding.selected_candidate"
+      }
+    },
+    {
+      "id": "claim_evidence_relation:missing-candidate",
+      "case_id": "claim_evidence_relation",
+      "operation": "build",
+      "edits": [
+        {
+          "path": "candidate_id",
+          "value": "candidate:absent"
+        }
+      ],
+      "expected_error": {
+        "name": "Error",
+        "message": "semantic_state_candidate_missing"
+      }
+    },
+    {
+      "id": "claim_evidence_relation:outside-target",
+      "case_id": "claim_evidence_relation",
+      "operation": "build",
+      "edits": [
+        {
+          "path": "target_ref.external_id",
+          "value": "target:outside"
+        }
+      ],
+      "expected_error": {
+        "name": "Error",
+        "message": "semantic_state_target_outside_candidate"
+      }
+    },
+    {
+      "id": "claim_evidence_relation:empty-summary",
+      "case_id": "claim_evidence_relation",
+      "operation": "build",
+      "edits": [
+        {
+          "path": "proposal.proposed_deltas.0.proposed_state_summary",
+          "value": " "
+        }
+      ],
+      "expected_error": {
+        "name": "Error",
+        "message": "proposed_state_summary_required"
+      }
+    },
+    {
+      "id": "claim_evidence_relation:summary-bound",
+      "case_id": "claim_evidence_relation",
+      "operation": "build",
+      "edits": [
+        {
+          "path": "proposal.proposed_deltas.0.proposed_state_summary",
+          "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      ],
+      "expected_error": {
+        "name": "Error",
+        "message": "semantic_state_summary_bound_exceeded"
+      }
+    },
+    {
+      "id": "claim_evidence_relation:invalid-decision-fingerprint",
+      "case_id": "claim_evidence_relation",
+      "operation": "build",
+      "edits": [
+        {
+          "path": "source_decision.decision_fingerprint",
+          "value": "invalid"
+        }
+      ],
+      "expected_error": {
+        "name": "Error",
+        "message": "source_decision_fingerprint_invalid"
+      }
+    },
+    {
+      "id": "claim_evidence_relation:wrong-proposal-project",
+      "case_id": "claim_evidence_relation",
+      "operation": "build",
+      "edits": [
+        {
+          "path": "proposal.project_id",
+          "value": "project:other"
+        }
+      ],
+      "expected_error": {
+        "name": "Error",
+        "message": "semantic_state_lifecycle_binding_conflict"
+      }
+    },
+    {
+      "id": "claim_evidence_relation:wrong-proposal-workspace",
+      "case_id": "claim_evidence_relation",
+      "operation": "build",
+      "edits": [
+        {
+          "path": "proposal.workspace_id",
+          "value": "workspace:other"
+        }
+      ],
+      "expected_error": {
+        "name": "Error",
+        "message": "semantic_state_lifecycle_binding_conflict"
+      }
+    },
+    {
+      "id": "claim_evidence_relation:changed-candidate",
+      "case_id": "claim_evidence_relation",
+      "operation": "build",
+      "edits": [
+        {
+          "path": "proposal.proposed_deltas.0.title",
+          "value": "changed candidate"
+        }
+      ],
+      "expected_error": {
+        "name": "Error",
+        "message": "semantic_state_lifecycle_binding_conflict"
+      }
+    }
+  ]
+}
