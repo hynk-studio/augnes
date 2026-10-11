@@ -24,15 +24,15 @@ import { listVNextCoreRecordsV01 } from "../lib/vnext/persistence/durable-semant
 import type { TaskContextPacketV01 } from "../types/vnext/task-context-packet";
 
 class CDP {
-  ws: WebSocket; next = 0; pending = new Map<number, { ok: (v: any) => void; no: (e: Error) => void; timer: ReturnType<typeof setTimeout> }>();
+  ws: WebSocket; next = 0; pending = new Map<number, { method: string; ok: (v: any) => void; no: (e: Error) => void; timer: ReturnType<typeof setTimeout> }>();
   handlers: Array<(v: any) => void> = [];
   constructor(url: string) { this.ws = new WebSocket(url); }
   async open() {
     await Promise.race([new Promise<void>((ok, no) => { this.ws.addEventListener("open", () => ok(), { once: true }); this.ws.addEventListener("error", () => no(new Error("browser_connection_failed")), { once: true }); }), delay(5000).then(() => { throw new Error("browser_connection_timeout"); })]);
-    this.ws.addEventListener("message", event => { const m = JSON.parse(String(event.data)); if (m.id) { const p = this.pending.get(m.id); if (p) { clearTimeout(p.timer); this.pending.delete(m.id); m.error ? p.no(new Error("browser_protocol_error")) : p.ok(m.result); } } else this.handlers.forEach(f => f(m)); });
+    this.ws.addEventListener("message", event => { const m = JSON.parse(String(event.data)); if (m.id) { const p = this.pending.get(m.id); if (p) { clearTimeout(p.timer); this.pending.delete(m.id); m.error ? p.no(new Error(`browser_protocol_error:${p.method}:${m.error.code}`)) : p.ok(m.result); } } else this.handlers.forEach(f => f(m)); });
   }
   send(method: string, params: object = {}): Promise<any> {
-    return new Promise((ok, no) => { const id = ++this.next, timer = setTimeout(() => { this.pending.delete(id); no(new Error(`browser_timeout:${method}`)); }, 5000); this.pending.set(id, { ok, no, timer }); this.ws.send(JSON.stringify({ id, method, params })); });
+    return new Promise((ok, no) => { const id = ++this.next, timer = setTimeout(() => { this.pending.delete(id); no(new Error(`browser_timeout:${method}`)); }, 5000); this.pending.set(id, { method, ok, no, timer }); this.ws.send(JSON.stringify({ id, method, params })); });
   }
   async eval(expression: string) { const r = await this.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true }); assert.ok(!r.exceptionDetails, "browser_evaluation_failed"); return r.result.value; }
   close() { for (const p of this.pending.values()) { clearTimeout(p.timer); p.no(new Error("browser_closed")); } this.pending.clear(); this.ws.close(); }
@@ -136,6 +136,64 @@ async function main() {
     await load(); await define(); await selectNote(false); await compare(); await fillReasons();
     const reasons = await omissionValues();
     await click("Preview linked authorship"); await previewReady();
+
+    // Change only disposable negative ledger fixtures; real GET/reader results
+    // reach the mounted component. No transport response or status is mocked.
+    const runId = request.predecessor.run_id;
+    const originalMetadata = (db.prepare("SELECT metadata_json FROM autonomy_runs WHERE run_id=?").get(runId) as {metadata_json:string}).metadata_json;
+    const originalOutput = (db.prepare("SELECT output_json FROM autonomy_run_steps WHERE step_id=?").get(request.predecessor.step_id) as {output_json:string}).output_json;
+    const restoreMetadata = () => db.prepare("UPDATE autonomy_runs SET metadata_json=? WHERE run_id=?").run(originalMetadata,runId);
+    const restoreOutput = () => db.prepare("UPDATE autonomy_run_steps SET output_json=? WHERE step_id=?").run(originalOutput,request.predecessor.step_id);
+    const inspectionSnapshot = () => canonical((db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all() as Array<{name:string}>).map(({name}) =>
+      [name,db.prepare(`SELECT * FROM "${name.replaceAll('"','""')}"`).all().map(row=>canonical(row)).sort()]));
+    const inspectionBefore = inspectionSnapshot(), actionsBefore = actions.length;
+    await browser.eval("window.terminalDraftNode=document.querySelector('[aria-label=\"New work goal\"]');window.terminalSurface=terminalDraftNode.closest('[data-terminal-preparation-status]');true");
+    const status = (value:string) => until(()=>browser.eval(`terminalSurface.dataset.terminalPreparationStatus===${JSON.stringify(value)}`), "preparation_"+value);
+    const retained = async () => {
+      assert.equal(await browser.eval(`terminalDraftNode===document.querySelector('[aria-label="New work goal"]')&&terminalDraftNode.value===${JSON.stringify(request.definition.goal)}&&!(${note}).checked`),true,"Explanation changes keep the same mounted draft");
+      assert.equal(await browser.eval("!!document.querySelector('[data-terminal-authorship-preview]')"),false);
+    };
+    db.prepare("UPDATE autonomy_runs SET metadata_json=json_set(metadata_json,'$.stateless_review.grant_id',?) WHERE run_id=?").run("stateless-grant:unavailable",runId);
+    try {
+      const beforeRead=inspectionSnapshot(); await click("Read saved source reviews"); await status("blocked"); await retained();
+      assert.equal(await browser.eval("terminalSurface.textContent.includes('original authorization record is unavailable')&&terminalDraftNode.matches(':disabled')"),true);
+      await click("Check linked-work preparation again"); await status("blocked");
+      // The status remains blocked during this request. Wait for its completion
+      // before restoring the fixture used by the real reader.
+      await until(() => browser.eval("[...document.querySelectorAll('button')].some(e=>e.textContent==='Read saved source reviews'&&!e.disabled)"), "blocked_read_settled");
+      assert.equal(inspectionSnapshot(),beforeRead);
+    } finally { restoreMetadata(); }
+    await click("Check linked-work preparation again"); await status("available"); await retained();
+    await compare(); await fillReasons();
+    assert.deepEqual(await omissionValues(),reasons,"The recovered draft keeps its explicit omissions");
+    holdNext="preview_terminal_work"; await click("Preview linked authorship"); await until(async()=>held.length===1,"status_held_preview");
+    db.prepare("UPDATE autonomy_run_steps SET output_json=? WHERE step_id=?").run(JSON.stringify({...JSON.parse(originalOutput),failure_evidence:{code:"invalid_fixture"}}),request.predecessor.step_id);
+    try {
+      const beforeRead=inspectionSnapshot(); await click("Read saved source reviews"); await status("failed"); await retained();
+      assert.equal(await browser.eval("terminalSurface.textContent.includes('eligibility could not be established')&&terminalSurface.textContent.includes('failure evidence is invalid')"),true);
+      held.shift()!(); await settled(); await retained();
+      assert.equal(inspectionSnapshot(),beforeRead);
+    } finally { restoreOutput(); }
+    await click("Check linked-work preparation again"); await status("available"); await retained();
+    const originalPrepare=Database.prototype.prepare;
+    Database.prototype.prepare=function(this:Database.Database,sql:string){
+      const statement=originalPrepare.call(this,sql) as Database.Statement<unknown[]>;
+      if(sql.includes('FROM vnext_core_records')&&sql.includes('record_id = ?')){
+        const get=statement.get.bind(statement);
+        statement.get=((...args:any[])=>{if(args[0]==='capability_grant')throw Object.assign(new Error('private SQL /private/fixture provider-token must-not-leak'),{code:'SQLITE_BUSY'});return get(...args);}) as typeof statement.get;
+      }
+      return statement;
+    } as typeof Database.prototype.prepare;
+    try {
+      await click("Read saved source reviews"); await status("failed"); await retained();
+      assert.equal(await browser.eval("terminalSurface.textContent.includes('inspection error')&&/terminal-preparation:[0-9a-f-]{36}/.test(terminalSurface.textContent)&&!document.body.textContent.includes('must-not-leak')"),true);
+    } finally { Database.prototype.prepare=originalPrepare; }
+    await click("Check linked-work preparation again"); await status("available"); await retained();
+    assert.equal(inspectionSnapshot(),inspectionBefore);
+    assert.deepEqual(actions.slice(actionsBefore),["compare_terminal_sources","preview_terminal_work"],"Recovery is GET only, never a provider retry or save");
+    observations.typed_refusal_read_recovery_retains_mounted_draft=true;
+    observations.failed_inspection_discards_pending_preview=true;
+    await compare(); await fillReasons(); await click("Preview linked authorship"); await previewReady();
     await set('[aria-label="Source-review question"]', "Inspect only the second source line and attribute its direct observation.");
     await set('[aria-label="Review file 1"]', "editing-path.ts"); await set('[aria-label="Review file 1"]', "entry.ts");
     await set('input[type="number"]', "2");

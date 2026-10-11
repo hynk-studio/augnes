@@ -544,6 +544,18 @@ Use fresh-process authenticated readback and the existing review component; reta
 mini/legacy compatibility, exact replay and tampered-lineage/cost/evidence refusals.
 Successful authorship does not establish successful execution or accepted state.
 
+For terminal-preparation explanations, exercise the actual reader, authenticated
+GET and rendered review surface with validated available history, positively
+inapplicable completed work, missing required records, mismatched history and an
+injected read fault. A failed inspection must not look like confirmed absence.
+Check safe diagnostic correlation without exception contents, project and
+authentication isolation, and unchanged database tables/provider-call counts
+through inspection and explicit read-only retry. In the existing Browser owner,
+change the inspection outcome while retaining the same predecessor draft and
+delay a preview across that change: the mounted draft and omission reasons must
+survive, but stale comparison/preview authority must not. Restored fixtures must
+retain readable suspension guidance and the existing mutation refusals.
+
 For #1408's known result-persistence extension, inject only an isolated storage
 fault after a valid scripted response. Verify first and final judgments for mini
 and Sol, the ordinary Browser compare/preview/save path, exact duplicate

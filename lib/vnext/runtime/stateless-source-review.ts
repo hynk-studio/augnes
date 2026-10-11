@@ -235,7 +235,8 @@ export class StatelessSourceReviewHost {
       const step = run.steps.find(s => s.status === "running");
       const disposition = readStatelessDispositionPreparation(db, this.options.config, run);
       const checkpoint = stateOf(run).pause_after_observation ? readObservationCheckpoint(run, readStatelessGrant(db, { ...this.options.config, ...stateOf(run) })) : null;
-      return { run, observation_checkpoint: checkpoint, terminal_preparation: readTerminalAuthorshipPreparation(db, this.options.config, this.runId, this.now()), failures: readStatelessFailureReviews(run), disposition_preparation: disposition, stage: run.metadata.stateless_review_disposition !== undefined
+      const terminal_preparation = readTerminalAuthorshipPreparation(db, this.options.config, this.runId, this.now());
+      return { run, observation_checkpoint: checkpoint, terminal_preparation, failures: readStatelessFailureReviews(run), disposition_preparation: disposition, stage: run.metadata.stateless_review_disposition !== undefined
         ? disposition?.disposition ? "ended_effects_unknown" : "disposition_invalid"
         : step ? "dispatch_outcome_unknown" : checkpoint ? "observation_saved" : isTerminalRunnerStatus(run.status) ? "finished" : stateOf(run).recovery_suspended ? "recovery_suspended" : "ready",
         next_step: run.steps.find(s => s.status === "planned")?.title ?? null,
