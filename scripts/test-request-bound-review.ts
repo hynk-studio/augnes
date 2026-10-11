@@ -8,6 +8,7 @@ import { Writable, Readable } from "node:stream";
 import { createHmac, randomBytes } from "node:crypto";
 import { mkdtempSync, realpathSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import Database from "better-sqlite3";
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
@@ -39,7 +40,7 @@ export async function testRequestBoundReview() {
     const token = randomBytes(32).toString("base64url"), instance = "review-fixture", generation = "generation-1", repository = "a".repeat(64);
     let origin = "", id = 0, httpCalls = 0, dropAck = false, inspectionFailure = false, interruptDelivery = false, callbacks = 0, verifyCalls = 0, callbackStatus = 200, challengeWrong = false, signingWrong = false;
     let addresses = [{ address: "8.8.8.8", family: 4 }], duringDNS: (() => Promise<void>) | null = null;
-    const received: any[] = [], errors: string[] = [], routes: Record<string, (r: Request) => Promise<Response>> = {
+    const received: any[] = [], errors: string[] = [], eventRoutes: { method: string; status: number; metadata: boolean }[] = [], routes: Record<string, (r: Request) => Promise<Response>> = {
         "/api/augnes/read/codex-repository-continuity": resume, "/api/augnes/read/codex-repository-work-sources": source,
         "/api/augnes/repository-work-revision": writer, "/api/augnes/review": review,
     };
@@ -78,6 +79,10 @@ export async function testRequestBoundReview() {
             }
             finally {
                 Database.prototype.prepare = originalPrepare;
+            }
+            if (url.pathname === "/api/augnes/review" && JSON.parse(body).action === "event") {
+                const input = JSON.parse(body);
+                eventRoutes.push({ method: input.method, status: response.status, metadata: Object.hasOwn(input.params, "_meta") });
             }
             if (dropAck && JSON.parse(body).action === "reply" && response.ok) {
                 dropAck = false;
@@ -148,6 +153,41 @@ export async function testRequestBoundReview() {
             request.end(JSON.stringify(input));
         });
     };
+    const modernMeta = { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} };
+    const modernMessage = (method: string, params: object = {}) => ({ jsonrpc: "2.0", id: ++id, method, params: { ...params, _meta: modernMeta } });
+    // One disposable SDK transport serializes all modern cases unchanged. Its
+    // process remains a descendant of the registered integration child; close
+    // must observe the actual stdio child closing before removing fixture state.
+    const { StdioClientTransport } = createRequire(path.join(process.cwd(), "apps/augnes_apps/package.json"))("@modelcontextprotocol/sdk/client/stdio.js");
+    let protocolTransport: any, protocolConnection: string | undefined, protocolClosed: Promise<void>;
+    async function closeProtocolClient() {
+        if (!protocolTransport) return;
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+            await protocolTransport.close();
+            await Promise.race([protocolClosed, new Promise<void>((_resolve, reject) => { timer = setTimeout(() => reject(new Error("protocol_fixture_close_timeout")), 5000); })]);
+            protocolTransport = undefined;
+        } finally { clearTimeout(timer); }
+    }
+    async function stdioRequests(messages: object[], connectionRef: string) {
+        if (!protocolTransport) {
+            protocolConnection = connectionRef;
+            protocolTransport = new StdioClientTransport({ command: process.execPath, args: ["plugins/augnes-operator/mcp/request-bound-review.mjs"],
+                cwd: process.cwd(), env: { ...process.env, AUGNES_REVIEW_CONNECTION_ID: connectionRef }, stderr: "pipe" });
+            protocolClosed = new Promise<void>(resolve => { protocolTransport.onclose = resolve; });
+            protocolTransport.stderr?.on("data", () => {});
+            await protocolTransport.start();
+        }
+        assert.equal(protocolConnection, connectionRef);
+        const replies: any[] = [];
+        for (const message of messages) replies.push(await new Promise((resolve, reject) => {
+            const timer = setTimeout(() => reject(new Error("protocol_fixture_timeout")), 5000);
+            protocolTransport.onmessage = (response: any) => { clearTimeout(timer); resolve(response); };
+            protocolTransport.onerror = () => { clearTimeout(timer); reject(new Error("protocol_fixture_transport_failed")); };
+            protocolTransport.send(message).catch(() => { clearTimeout(timer); reject(new Error("protocol_fixture_send_failed")); });
+        }));
+        return replies;
+    }
     async function writeWork(repositoryRoot: string, changes: object, initial = false) {
         const r = await call("augnes_resume_repository", { repositoryRoot });
         const args = { repositoryRoot, expectedSnapshotBinding: r.continuity.snapshot.binding, changes };
@@ -190,19 +230,19 @@ export async function testRequestBoundReview() {
         assert.equal(list.connections[0].connection_ref, a.id);
         const adapter = (c: any) => createRequestBoundReviewAdapter(c.id);
         let reviewer = adapter(a);
-        const catalog: any = await reviewer.handle({ jsonrpc: "2.0", id: ++id, method: "tools/list" });
+        const catalog: any = await reviewer.handle(modernMessage("tools/list"));
         assert.deepEqual(catalog.result.tools.map((t: any) => t.name), ["augnes_list_review_requests", "augnes_read_review_request", "augnes_reply_to_review"]);
         assert(!/secret|callback|repositoryRoot|sourceAgentId|from_agent/.test(JSON.stringify(catalog.result.tools.map((t: any) => t.inputSchema))));
         const beforeForbidden = httpCalls;
         for (const name of ["augnes_resume_repository", "augnes_plan", "augnes_observe", "augnes_record_action_result", "augnes_record_work_event", "augnes_review_repository_work", "augnes_start_repository_delegation", "augnes_save_repository_work_revision"]) {
-            const refused: any = await reviewer.handle({ jsonrpc: "2.0", id: ++id, method: "tools/call", params: { name, arguments: {} } });
+            const refused: any = await reviewer.handle(modernMessage("tools/call", { name, arguments: {} }));
             assert.equal(refused.error.code, -32602);
         }
-        const passthrough: any = await reviewer.handle({ jsonrpc: "2.0", id: ++id, method: "companion/forward", params: { path: "/api/actions/record" } });
+        const passthrough: any = await reviewer.handle(modernMessage("companion/forward", { path: "/api/actions/record" }));
         assert.equal(passthrough.error.code, -32601);
         assert.equal(httpCalls, beforeForbidden, "review endpoint must not forward unsupported capabilities");
-        const event = async (method: string, params: object, c = a) => adapter(c).handle({ jsonrpc: "2.0", id: ++id, method, params }) as Promise<any>;
-        const reviewCall = async (name: string, args: object, c = a) => adapter(c).handle({ jsonrpc: "2.0", id: ++id, method: "tools/call", params: { name, arguments: args } }) as Promise<any>;
+        const event = async (method: string, params: object, c = a) => adapter(c).handle(modernMessage(method, params)) as Promise<any>;
+        const reviewCall = async (name: string, args: object, c = a) => adapter(c).handle(modernMessage("tools/call", { name, arguments: args })) as Promise<any>;
         const read = async (ref: string, c = a) => (await reviewCall("augnes_read_review_request", { request_ref: ref }, c)).result.structuredContent;
         const request = async (question: string, c = a) => { const inspected = await op({ action: "inspect", connection_ref: c.id }); return op({ action: "request", connection_ref: c.id, expected_material_ref: inspected.material_ref, question }); };
         const replyArgs = (r: any, answer = "Retain the failure rows: excluding them understates worker cost.") => ({ request_ref: r.request_ref, read_binding: r.read_binding, answer, limitations: "Synthetic local review; no independent model judgment.", source_refs: r.sources.map((s: any) => s.source_binding) });
@@ -333,18 +373,110 @@ export async function testRequestBoundReview() {
         phase("isolation_replay_conflict_and_readback");
         // E: actual adapter catalog/protocol through HTTP, filtered callbacks,
         // verification cache, retries, restart, secret rotation, expiry/unsubscribe.
-        assert.deepEqual((await event("server/discover", {})).result.capabilities, { tools: {}, events: {} });
-        assert.equal((await event("events/list", {})).result.events[0].name, "review.requested");
         const delivery = { mode: "webhook", url: "https://receiver.example.com/callback", secret: signingSecret };
         const subscribe = { name: "review.requested", arguments: {}, delivery, ttlMs: 60000, cursor: null };
+        const protocolReview = await read((await request("protocol admission must not save an answer")).request_ref);
+        const protocolSubscribe = { ...subscribe, delivery: { ...delivery, url: delivery.url + "-protocol" } };
+        const protocolUnsubscribe = { name: subscribe.name, arguments: {}, delivery: { mode: "webhook", url: protocolSubscribe.delivery.url } };
+        const boundaryState = () => ({ callbacks, verifyCalls, rows: ["vnext_review_requests", "vnext_review_subscriptions", "vnext_review_deliveries", "vnext_core_records", "autonomy_runs", "work_items", "work_events", "action_records"]
+            .map(table => db.prepare(`SELECT * FROM ${table} ORDER BY 1`).all()) });
+        const badMetadata = [undefined, null, [], "invalid", {}, { [Object.keys(modernMeta)[0]]: "2026-07-28" },
+            { [Object.keys(modernMeta)[1]]: {} }, { ...modernMeta, "io.modelcontextprotocol/protocolVersion": 1 },
+            ...[null, [], true, { roots: false }, { sampling: { tools: true } }, { elicitation: { form: null } }, { experimental: { x: 1 } }, { extensions: { unprefixed: {} } }]
+                .map(v => ({ ...modernMeta, "io.modelcontextprotocol/clientCapabilities": v })),
+            { ...modernMeta, "io.modelcontextprotocol/clientInfo": { name: "missing version" } },
+            { ...modernMeta, "io.modelcontextprotocol/logLevel": "invalid" }, { ...modernMeta, progressToken: {} },
+            { ...modernMeta, "invalid/key/format": true }, { ...modernMeta, "com.example/large": "x".repeat(64000) }];
+        const methods: [string, object][] = [["server/discover", {}], ["tools/list", {}], ["tools/call", { name: "augnes_reply_to_review", arguments: replyArgs(protocolReview) }],
+            ["events/list", {}], ["events/subscribe", protocolSubscribe], ["events/unsubscribe", protocolUnsubscribe]];
+        const malformed = methods.flatMap(([method, params]) => badMetadata.map(_meta => ({ jsonrpc: "2.0", id: ++id, method, params: { ...params, _meta } })));
+        const unsupported = ["1900-01-01", "2025-06-18", "2026-08-01"].flatMap(version => methods.map(([method, params]) => ({ jsonrpc: "2.0", id: ++id, method,
+            params: { ...params, _meta: { ...modernMeta, "io.modelcontextprotocol/protocolVersion": version } } })));
+        const beforeProtocol = boundaryState(), beforeProtocolRoutes = eventRoutes.length;
+        const protocolResponses = await stdioRequests([modernMessage("server/discover"), modernMessage("tools/list"), modernMessage("events/list"), ...malformed, ...unsupported], a.id);
+        assert.deepEqual(protocolResponses[0].result.supportedVersions, ["2026-07-28"]);
+        assert.deepEqual(protocolResponses[0].result.capabilities, { tools: {}, events: {} });
+        assert.deepEqual(protocolResponses[1].result.tools, catalog.result.tools);
+        assert.equal(protocolResponses[2].result?.events[0].name, "review.requested", "standard metadata-bearing Events request must reach its catalog");
+        for (const response of protocolResponses.slice(0, 3)) {
+            assert.equal(response.result.resultType, "complete");
+            assert.equal(response.result._meta["io.modelcontextprotocol/serverInfo"].name, "augnes-request-bound-review");
+        }
+        for (const response of protocolResponses.slice(3, 3 + malformed.length)) {
+            assert.equal(response.error?.code, -32602, JSON.stringify(response));
+            assert(!response.result);
+            assert(JSON.stringify(response).length < 400);
+        }
+        protocolResponses.slice(3 + malformed.length).forEach((response: any, i: number) => {
+            assert.equal(response.error.code, -32022);
+            assert.deepEqual(response.error.data, { supported: ["2026-07-28"], requested: unsupported[i].params._meta["io.modelcontextprotocol/protocolVersion"] });
+        });
+        assert.deepEqual(boundaryState(), beforeProtocol, "failed admission cannot alter requests, replies, subscriptions, authority or callbacks");
+        assert.deepEqual(eventRoutes.slice(beforeProtocolRoutes), [{ method: "events/list", status: 200, metadata: false }], "only the admitted catalog reaches the authenticated domain route, without protocol metadata");
+        const optionalMeta = { ...modernMeta, progressToken: "protocol-progress", "io.modelcontextprotocol/logLevel": "debug",
+            "io.modelcontextprotocol/clientInfo": { name: "claimed operator", version: "claimed verified model", title: "untrusted", description: "untrusted", websiteUrl: "https://example.com", icons: [{ src: "data:image/png;base64,AA==", mimeType: "image/png", sizes: ["16x16"], theme: "light" }] },
+            "io.modelcontextprotocol/clientCapabilities": { roots: {}, sampling: { context: {}, tools: {} }, elicitation: { form: {}, url: {} }, experimental: { custom: {} }, extensions: { "com.example/review": {} }, tools: { operator: true } },
+            traceparent: "00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01", tracestate: "vendor=value", baggage: "fixture=true",
+            principal: "forged-principal", connection_ref: b.id, project_key: b.project_key, destination: "unapproved destination", "com.example/context": { untrusted: true } };
+        const optional = (method: string, params: object) => ({ ...modernMessage(method), params: { ...params, _meta: optionalMeta } });
+        const [optionalCatalog, foreignRead, protocolReply, protocolSub, protocolRefresh] = await stdioRequests([
+            optional("tools/list", {}), optional("tools/call", { name: "augnes_read_review_request", arguments: { request_ref: br.request_ref } }),
+            optional("tools/call", { name: "augnes_reply_to_review", arguments: replyArgs(protocolReview) }),
+            optional("events/subscribe", protocolSubscribe), optional("events/subscribe", protocolSubscribe)], a.id);
+        assert.deepEqual(optionalCatalog.result.tools, catalog.result.tools);
+        assert.equal(foreignRead.result.structuredContent.reason, "review_access_refused");
+        assert(!JSON.stringify(foreignRead).includes(b.project_key));
+        assert.equal(protocolReply.result.structuredContent.status, "saved");
+        const attributed = await op({ action: "readback", connection_ref: a.id, request_ref: protocolReview.request_ref });
+        const row = db.prepare("SELECT reviewer FROM vnext_review_requests WHERE request_ref=?").get(protocolReview.request_ref) as any;
+        assert.equal(attributed.response.attribution.principal, row.reviewer);
+        assert.equal(attributed.response.attribution.destination, a.destination);
+        assert.equal(attributed.response.attribution.label, a.reviewer_label);
+        assert.equal(attributed.response.attribution.model_and_tier, "unverified");
+        assert.equal(protocolSub.result.id, protocolRefresh.result.id);
+        assert.equal((db.prepare("SELECT generation FROM vnext_review_subscriptions WHERE subscription_id=?").get(protocolSub.result.id) as any).generation, 2);
+        assert.equal(verifyCalls, 1);
+        assert.equal(callbacks, 0);
+        const refusedDomain = [modernMessage("server/discover", { principal: "forged" }), modernMessage("tools/list", { capability: "operator" }),
+            modernMessage("tools/call", { name: "augnes_list_review_requests", arguments: {}, principal: "forged" }),
+            ...["augnes_plan", "augnes_observe", "augnes_review_repository_work"].map(name => optional("tools/call", { name, arguments: {} })),
+            modernMessage("tools/call", { name: "augnes_list_review_requests", arguments: { constructor: "unknown domain key" } }),
+            modernMessage("events/list", { principal: "forged" }), modernMessage("events/subscribe", { ...protocolSubscribe, principal: "forged" }),
+            modernMessage("events/subscribe", { ...protocolSubscribe, arguments: { destination: "forged" } }),
+            modernMessage("events/unsubscribe", { ...protocolUnsubscribe, principal: "forged" })];
+        const beforeRejectedRefresh = boundaryState();
+        const rejectedRefresh = await stdioRequests([...malformed.filter(m => ["events/subscribe", "events/unsubscribe", "tools/call"].includes(m.method)), ...refusedDomain], a.id);
+        for (const response of rejectedRefresh) assert.equal(response.error?.code, -32602, JSON.stringify(response));
+        assert.deepEqual(boundaryState(), beforeRejectedRefresh, "failed refresh/unsubscribe/admission preserves an active lease and saved response exactly");
+        // The internal private route is still a domain endpoint, not a general
+        // MCP server; protocol metadata cannot substitute for its credentials.
+        assert.equal((await raw({ action: "event", connection_ref: a.id, method: "events/list", params: { _meta: optionalMeta } }, { "x-augnes-review-credential": b.secret })).status, 403);
+        assert.equal((await raw({ action: "event", connection_ref: a.id, method: "events/list", params: { _meta: optionalMeta } }, { "x-augnes-review-credential": a.secret })).status, 400);
+        const [legacyInit, legacyCatalog, legacyEvent, modernAfterLegacy, stopped] = await stdioRequests([
+            { jsonrpc: "2.0", id: ++id, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "legacy fixture", version: "1" } } },
+            { jsonrpc: "2.0", id: ++id, method: "tools/list" }, { jsonrpc: "2.0", id: ++id, method: "events/list", params: {} },
+            modernMessage("events/list"), modernMessage("events/unsubscribe", protocolUnsubscribe)], a.id);
+        assert.equal(legacyInit.result.protocolVersion, "2025-06-18");
+        assert.deepEqual(legacyCatalog.result.tools, catalog.result.tools);
+        assert.equal(legacyCatalog.result.resultType, undefined);
+        assert.equal(legacyEvent.error.code, -32602, "legacy initialization cannot admit modern Events without metadata");
+        assert.equal(modernAfterLegacy.result.resultType, "complete");
+        assert.equal(stopped.result.resultType, "complete");
+        assert.equal((db.prepare("SELECT stopped FROM vnext_review_subscriptions WHERE subscription_id=?").get(protocolSub.result.id) as any).stopped, 1);
+        await closeProtocolClient();
+        console.log(JSON.stringify({ test: "modern-events-envelope", status: "pass", malformed_requests: malformed.length, unsupported_versions: unsupported.length,
+            active_lease_refusals: rejectedRefresh.length, stdio: true, authenticated_route: true, common_metadata_forwarded: false, actual_chatgpt: "NOT_RUN" }));
+        assert.deepEqual((await event("server/discover", {})).result.capabilities, { tools: {}, events: {} });
+        assert.equal((await event("events/list", {})).result.events[0].name, "review.requested");
+        const beforeVerify = verifyCalls;
         const sub = await event("events/subscribe", subscribe);
         assert(sub.result.id);
-        assert.equal(verifyCalls, 1);
+        assert.equal(verifyCalls, beforeVerify + 1);
         const verificationExpiry = db.prepare("SELECT verified_until FROM vnext_review_subscriptions WHERE subscription_id=?").get(sub.result.id);
         const refreshed = await event("events/subscribe", subscribe);
         assert(refreshed.result, JSON.stringify(refreshed));
         assert.equal(refreshed.result.id, sub.result.id);
-        assert.equal(verifyCalls, 1);
+        assert.equal(verifyCalls, beforeVerify + 1);
         assert.deepEqual(db.prepare("SELECT verified_until FROM vnext_review_subscriptions WHERE subscription_id=?").get(sub.result.id), verificationExpiry, "refresh cannot extend callback verification without a new challenge");
         const ev = await request("event positive");
         assert.equal(callbacks, 1);
@@ -432,7 +564,7 @@ export async function testRequestBoundReview() {
         const unanswered = await request("unanswered restart");
         reviewer = adapter(a);
         await reviewer.recover();
-        const pendingList: any = await reviewer.handle({ jsonrpc: "2.0", id: ++id, method: "tools/call", params: { name: "augnes_list_review_requests", arguments: {} } });
+        const pendingList: any = await reviewer.handle(modernMessage("tools/call", { name: "augnes_list_review_requests", arguments: {} }));
         assert(pendingList.result.structuredContent.requests.some((r: any) => r.request_ref === unanswered.request_ref && r.response === null));
         assert.equal((await reply(await read(unanswered.request_ref))).status, "saved");
         const unsub = { name: subscribe.name, arguments: {}, delivery: { mode: "webhook", url: delivery.url } };
@@ -493,6 +625,7 @@ export async function testRequestBoundReview() {
             setup_cycles: 1, ordinary_cycles: 2, scripted_human_relay: 0, elapsed_ms: Date.now() - started, phase_ms: phases, callbacks, actual_chatgpt: "NOT_RUN", real_model_use: "NOT_RUN", burden_comparison: "NOT_RUN", provider_cost: "unknown" }));
     }
     finally {
+        await closeProtocolClient();
         Database.prototype.prepare = originalPrepare;
         https.request = oldRequest;
         dns.promises.lookup = oldLookup;

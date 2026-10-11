@@ -251,6 +251,20 @@ identity binds the configured principal, callback URL, name, and canonical
 arguments. Default TTL is 15 minutes, capped at one hour and connection expiry;
 `ttlMs: null` also receives a finite grant. No replay cursor is offered.
 
+The reviewer MCP boundary validates common per-request `params._meta` before
+passing method arguments to the authenticated private route. Modern discovery,
+tools, and Events require `io.modelcontextprotocol/protocolVersion: "2026-07-28"`
+and object-valued `io.modelcontextprotocol/clientCapabilities`. Missing or
+malformed metadata returns `-32602`; unsupported versions return `-32022` with
+the supported version. Valid optional client information, progress/logging and
+extension metadata is accepted as untrusted protocol data and never changes the
+configured principal, project, destination, or tool permissions. Modern results
+include `resultType: "complete"`. See the [MCP basic contract](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2026-07-28/basic/index.mdx)
+and [schema](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2026-07-28/schema.ts).
+Existing explicit-tool clients can still initialize the legacy `2025-06-18`
+stdio session; Events always require the modern envelope. The private JSON route
+remains strict domain-only input and is not a public MCP HTTP endpoint.
+
 Signed single-use challenge verification, bounded verification caching, Standard
 Webhooks signatures, a two-minute dual-key rotation window, per-connection DNS
 validation/pinning, TLS hostname verification, no redirects, and public-address
@@ -284,9 +298,12 @@ The registered `request-bound-review` supporting integration child uses real
 native writers, authenticated HTTP routes, fresh processes, and disposable HTTPS
 protocol fixtures. It covers two explicit cycles and attributed continuation,
 version/project races, isolation, atomic replay/conflict, lost acknowledgement,
-restart/recovery, filtering, signing, SSRF refusal, expiry and unsubscribe. These
-are local protocol and deterministic source mechanics. Actual ChatGPT event
-receipt/answer, an originating model's subsequent use, a later live request after
+restart/recovery, filtering, signing, SSRF refusal, expiry and unsubscribe.
+Standards-shaped modern requests also pass through actual SDK stdio serialization
+and the authenticated route, including required/optional metadata, protocol and
+domain refusals, unchanged authenticated attribution, and no effects after
+failed admission. These are local protocol and deterministic source mechanics.
+Actual ChatGPT event receipt/answer, an originating model's subsequent use, a later live request after
 recovery, and a matched manual-handoff burden comparison remain **NOT RUN**.
 Provider cost is unknown; a shorter tool list is not measured burden reduction.
 Any authorized comparison must retain the existing usable App/Bridge work reads
