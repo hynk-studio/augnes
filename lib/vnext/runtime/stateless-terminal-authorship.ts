@@ -1,22 +1,24 @@
+import { randomUUID } from "node:crypto";
 import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import type Database from "better-sqlite3";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import { normalizeWorkId } from "@/lib/work";
-import { buildSelectedWorkSourceEntry, compareSelectedWorkSources, readSelectedWorkSources, selectedWorkSourceInput, assertReviewedOutcomeSourcesRetained } from "@/lib/intake/selected-work-source-comparison";
+import { buildSelectedWorkSourceEntry, compareSelectedWorkSources, readSelectedWorkSources, selectedWorkSourceInput, assertReviewedOutcomeSourcesRetained, SelectedWorkSourceError } from "@/lib/intake/selected-work-source-comparison";
 import { buildTaskContextPacketV01, validateTaskContextPacketV01 } from "../task-context-packet";
 import { canonicalizeProtocolValueV01 as canonical, createProtocolSha256V01 as hash, parseStrictIsoTimestampV01 } from "../protocol-primitives";
-import { STATELESS_WORK, STATELESS_TERMINAL_WORK, STATELESS_TERMINAL_CONTEXT, statelessTerminalEntries, statelessMandatoryEntries, readSourceReview, reviewCheck as check, reviewObject, reviewText, reviewSha, type SourceReview } from "../stateless-work";
+import { STATELESS_WORK, STATELESS_TERMINAL_WORK, STATELESS_TERMINAL_CONTEXT, statelessTerminalEntries, statelessMandatoryEntries, readSourceReview, reviewCheck as check, reviewObject, reviewText, reviewSha, StatelessReviewError, type SourceReview } from "../stateless-work";
 import { readStatelessFailureReviews } from "../stateless-review-failure";
 import { readStatelessGrant, buildStatelessModelInvocationGrant } from "../persistence/stateless-work-grant";
 import { insertVNextCoreRecordV01 } from "../persistence/durable-semantic-store";
 import { readProjectWorkBindingV01 } from "./project-work-binding";
-import { effectiveDirection, directionCurrent, assertPacketDirectionCurrent } from "../persistence/project-direction-store";
+import { effectiveDirection, directionCurrent, assertPacketDirectionCurrent, ProjectDirectionError } from "../persistence/project-direction-store";
 import { directionSource, selectedDirectionProfile, DIRECTION_SOURCE } from "../project-direction-source";
-import { validateModelInvocationReceiptV02 } from "../model-gateway/model-invocation-receipt";
-import { readRun, stateOf } from "./stateless-review-ledger";
-import { readHistoricalStatelessPacket, assertHistoricalStatelessSession, assertStatelessUnsettledAdmission } from "./stateless-review-disposition";
+import { validateModelInvocationReceiptV02, ModelInvocationReceiptValidationErrorV02 } from "../model-gateway/model-invocation-receipt";
+import { readProjectRunResultSourceBindingV01, ProjectRunResultReadErrorV01 } from "./project-run-result-read-model";
+import { readRun, stateOf, readObservationCheckpoint, type StatelessObservationCheckpoint } from "./stateless-review-ledger";
+import { readHistoricalStatelessPacket, readStatelessDisposition, assertHistoricalStatelessSession, assertStatelessUnsettledAdmission } from "./stateless-review-disposition";
 import { rootBinding, prepareMaterial } from "./stateless-source-review";
 import { normalizeInitialProjectWorkDefinitionV01 } from "./initial-project-work-context";
 import { inspectVNextOperatorPilotPacketLineageV01, readCurrentProjectWorkPacketLineageV01 } from "./operator-pilot-project-continuity";
@@ -57,11 +59,15 @@ export function readTerminalAttemptHistory(db: Database.Database, scope: Scope, 
     step.output.dispatch_outcome === (persistenceFailed ? "returned_unapplied" : "returned_invalid") && step.output.judgment === undefined && step.output.result_fingerprint === undefined,
   "terminal_authorship_step_shape_unsupported");
   const generation = reviewText(step.output.generation, 100), input = reviewSha(step.output.input_fingerprint);
+  check(step.output.failure_receipt != null, "terminal_authorship_receipt_unavailable");
   const receipt = validateModelInvocationReceiptV02(step.output.failure_receipt);
   const modelGrant = buildStatelessModelInvocationGrant(grant, { work_id: String(run.metadata.work_id), run_id: runId, stage: step.title });
   check(receipt.workspace_id === scope.workspace_id && receipt.project_id === scope.project_id && receipt.run_id === runId && receipt.work_id === run.metadata.work_id &&
     receipt.invocation_id === step.step_id && receipt.purpose === "planner_plan" && receipt.invocation_origin === "policy_triggered" &&
-    receipt.status === "completed" && receipt.outcome === "live_success" && receipt.requested_mode === "live" && receipt.execution_mode === "live" &&
+    receipt.requested_mode === "live" && receipt.execution_mode === "live",
+  "terminal_authorship_returned_receipt_required");
+  check(receipt.status === "completed" && receipt.outcome === "live_success", "terminal_authorship_response_unavailable");
+  check(
     receipt.egress_attempted && receipt.egress_status === "occurred" && receipt.failure_code === null && receipt.budget.decision === "within_budget" &&
     receipt.grant_lineage_ref?.external_id === modelGrant.grant_id && receipt.grant_lineage_ref.source_ref === modelGrant.lineage_fingerprint &&
     receipt.automation_control_lineage_ref?.source_ref === `control-revision:${grant.request.control_revision}` &&
@@ -79,6 +85,7 @@ export function readTerminalAttemptHistory(db: Database.Database, scope: Scope, 
   const evidence = failures.find(e => e.step_id === step.step_id);
   check(evidence && !(evidence.availability === "unavailable" && evidence.reason === "invalid_record"), "terminal_authorship_evidence_invalid");
   if (persistenceFailed) {
+    check(evidence.availability === "available", "terminal_authorship_persistence_evidence_unavailable");
     // A persistence error rolls back any open result transaction before the
     // same claim's failure and stopped status commit together. Every
     // controller rechecks terminal status/generation before another publication.
@@ -104,12 +111,174 @@ export function readTerminalAttemptHistory(db: Database.Database, scope: Scope, 
   return { run, packet, binding, availability };
 }
 
-export function readTerminalAuthorshipPreparation(db: Database.Database, config: Config, runId: string, at = new Date().toISOString()) {
+export interface TerminalAuthorshipPreparation {
+  binding: TerminalAttemptBinding;
+  evidence: ReturnType<typeof readTerminalAttemptHistory>["availability"];
+  definition: TaskContextPacketV01["task"];
+  sources: ReturnType<typeof readSelectedWorkSources>;
+  warning: string;
+  recovery_suspended: boolean;
+  current_direction_source: ReturnType<typeof directionSource> | null;
+}
+type BlockedReason = "attempt_not_stopped" | "unresolved_effects" | "completed_response_unavailable" | "work_receipt_present" |
+  "work_receipt_unavailable" | "history_missing" | "grant_missing" | "packet_missing" | "receipt_unavailable" | "failure_evidence_unavailable";
+type FailedReason = "history_invalid" | "grant_invalid" | "packet_invalid" | "receipt_invalid" | "failure_evidence_invalid" |
+  "source_context_invalid" | "inspection_failed";
+export type TerminalPreparationResult =
+  | { status: "available"; preparation: TerminalAuthorshipPreparation }
+  | { status: "not_applicable"; reason: "completed_work"; next_action: "none" }
+  | { status: "blocked"; reason: BlockedReason; next_action: "read_again" | "review_history" }
+  | { status: "failed"; reason: FailedReason; next_action: "read_again"; diagnostic_ref: string };
+
+/** Additive read metadata keeps existing successful checkpoint/receipt values.
+ * A null with `unavailable` is not a validated absence or continuation ticket. */
+export interface TerminalPreparationProjection {
+  terminal_preparation: TerminalPreparationResult;
+  observation_checkpoint: StatelessObservationCheckpoint | null;
+  receipt: ReturnType<typeof readProjectRunResultSourceBindingV01>["receipt"] | null;
+  history_reads: {
+    observation_checkpoint: "available" | "not_applicable" | "unavailable";
+    receipt: "available" | "not_recorded" | "unavailable";
+  };
+}
+
+const blockedReasons = {
+  terminal_authorship_history_unavailable: "history_missing", grant_missing: "grant_missing", grant_packet_missing: "packet_missing",
+  terminal_authorship_receipt_unavailable: "receipt_unavailable",
+  terminal_authorship_response_unavailable: "completed_response_unavailable",
+  terminal_authorship_persistence_evidence_unavailable: "failure_evidence_unavailable",
+  terminal_authorship_receipt_present: "work_receipt_present",
+} as const satisfies Record<string, BlockedReason>;
+const failedReasons = {
+  grant_invalid: "grant_invalid", grant_binding: "grant_invalid", grant_source_conflict: "packet_invalid",
+  grant_packet_mismatch: "packet_invalid", disposition_packet_missing: "packet_invalid", disposition_packet_invalid: "packet_invalid",
+  terminal_authorship_returned_receipt_required: "receipt_invalid", terminal_authorship_evidence_invalid: "failure_evidence_invalid",
+  terminal_authorship_receipt_binding_invalid: "receipt_invalid",
+  terminal_authorship_persistence_evidence_required: "failure_evidence_invalid", terminal_authorship_failure_shape_unsupported: "failure_evidence_invalid",
+} as const satisfies Record<string, FailedReason>;
+function inspectionDiagnostic(error: unknown) {
+  // Inspect only an own data property; never execute exception getters or
+  // serialize the exception. These codes are observations, not recovery advice.
+  let code: unknown;
+  try { code = error && typeof error === "object" ? Object.getOwnPropertyDescriptor(error, "code")?.value : null; } catch { code = null; }
+  const codes = ["SQLITE_BUSY", "SQLITE_LOCKED", "SQLITE_CORRUPT", "SQLITE_IOERR", "SQLITE_ERROR", "EACCES", "EPERM", "ENOENT"];
+  return { error_type: error instanceof TypeError ? "TypeError" : error instanceof SyntaxError ? "SyntaxError" : error instanceof Error ? "Error" : "unknown",
+    error_code: typeof code === "string" && codes.includes(code) ? code : null };
+}
+
+/** Inspection has no writer, route lookup, grant issuance or provider dispatch.
+ * Only a validated completed result establishes inapplicability. A refusal or
+ * missing/invalid history never proves that no attempt or obligation exists. */
+export function readTerminalAuthorshipPreparation(db: Database.Database, config: Config, runId: string, at = new Date().toISOString()): TerminalPreparationResult {
+  return readTerminalPreparationProjection(db, config, runId, at).terminal_preparation;
+}
+
+/** One boundary owns all preparation-related projection reads. The host must
+ * reuse these validated values instead of rereading after classification. */
+export function readTerminalPreparationProjection(db: Database.Database, config: Config, runId: string, at = new Date().toISOString()): TerminalPreparationProjection {
+  let phase: "history" | "checkpoint" | "completed_result" | "sources" | "direction" = "history";
+  let observation_checkpoint: TerminalPreparationProjection["observation_checkpoint"] = null;
+  let receipt: TerminalPreparationProjection["receipt"] = null;
+  const history_reads: TerminalPreparationProjection["history_reads"] = { observation_checkpoint: "unavailable", receipt: "unavailable" };
+  const result = (terminal_preparation: TerminalPreparationResult): TerminalPreparationProjection => ({ terminal_preparation, observation_checkpoint, receipt, history_reads });
   try {
+    // Absence is scoped to this project. A foreign run must be indistinguishable
+    // from a missing one, including at the unchanged execution-route boundary.
+    check(db.prepare("SELECT 1 FROM autonomy_runs WHERE run_id=? AND scope=? AND json_extract(metadata_json,'$.workspace_id')=? AND json_extract(metadata_json,'$.project_id')=?")
+      .get(runId, config.project_id, config.workspace_id, config.project_id), "terminal_authorship_history_unavailable");
+    const run = readRun(db, config, runId);
+    if (!stateOf(run).pause_after_observation) history_reads.observation_checkpoint = "not_applicable";
+    if (run.metadata.run_receipt_id == null) history_reads.receipt = "not_recorded";
+    // Validate original authority even for known unavailable prerequisites.
+    const grant = readStatelessGrant(db, { ...config, ...stateOf(run) });
+    check(run.autonomy_contract_ref === STATELESS_WORK &&
+      run.run_id === `stateless-review:${grant.grant_id.slice("stateless-grant:".length)}` &&
+      run.metadata.work_id === normalizeWorkId(runId) && run.metadata.packet_id === grant.request.packet_id &&
+      run.metadata.packet_fingerprint === grant.request.packet_fingerprint, "terminal_authorship_shape_unsupported");
+    phase = "checkpoint";
+    observation_checkpoint = stateOf(run).pause_after_observation ? readObservationCheckpoint(run, grant) : null;
+    history_reads.observation_checkpoint = observation_checkpoint ? "available" : "not_applicable";
+    if (run.metadata.run_receipt_id != null) {
+      phase = "completed_result";
+      check(typeof run.metadata.run_receipt_id === "string", "terminal_authorship_receipt_binding_invalid");
+      const binding = readProjectRunResultSourceBindingV01(db, { ...config, receipt_id: run.metadata.run_receipt_id });
+      check(binding.receipt.run_id === runId && binding.packet && binding.packet.packet_id === run.metadata.packet_id &&
+        binding.packet.integrity.fingerprint === run.metadata.packet_fingerprint, "terminal_authorship_receipt_binding_invalid");
+      receipt = binding.receipt;
+      history_reads.receipt = "available";
+    }
+    if (run.status === "completed") {
+      phase = "completed_result";
+      check(run.autonomy_contract_ref === STATELESS_WORK && typeof run.metadata.run_receipt_id === "string" &&
+        run.metadata.reconciliation_required === false && run.metadata.stateless_review_disposition === undefined &&
+        !stateOf(run).cancelled && run.steps.every(step => step.status === "completed"), "terminal_authorship_completed_history_invalid");
+      return result({ status: "not_applicable", reason: "completed_work", next_action: "none" });
+    }
+    phase = "history";
+    // An invalid saved disposition is a validation failure, never proof of a
+    // supported recovery path. Its existing owner validates historical bindings.
+    if (run.metadata.stateless_review_disposition !== undefined) readStatelessDisposition(db, config, run);
+    if (run.metadata.reconciliation_required === true || run.metadata.stateless_review_disposition !== undefined)
+      return result({ status: "blocked", reason: "unresolved_effects", next_action: "review_history" });
+    if (["planned", "running", "paused", "cancelled"].includes(run.status))
+      return result({ status: "blocked", reason: "attempt_not_stopped", next_action: "read_again" });
+    if (run.status === "stopped" && run.stop_reason === "receipt_persistence_failed_no_retry" &&
+      run.metadata.run_receipt_id == null && run.steps.every(step => step.status === "completed")) {
+      const failures = readStatelessFailureReviews(run);
+      check(!failures.some(item => item.availability === "unavailable" && item.reason === "invalid_record"), "terminal_authorship_evidence_invalid");
+      check(failures.some(item => item.availability === "available" && item.evidence.layer === "receipt_persistence" && item.evidence.code === "receipt_persistence_failed"),
+        "terminal_authorship_persistence_evidence_unavailable");
+      return result({ status: "blocked", reason: "work_receipt_unavailable", next_action: "review_history" });
+    }
+    const failed = run.steps.filter(step => step.status === "failed");
+    if (run.status === "stopped" && failed.length === 1 && [1, 3].includes(failed[0]!.step_index) &&
+      ["not_issued", "returned_incomplete"].includes(String(failed[0]!.output.dispatch_outcome))) {
+      const step = failed[0]!;
+      const evidence = readStatelessFailureReviews(run).find(item => item.step_id === step.step_id);
+      check(evidence && !(evidence.availability === "unavailable" && evidence.reason === "invalid_record"), "terminal_authorship_evidence_invalid");
+      if (step.output.failure_receipt != null) {
+        const receipt = validateModelInvocationReceiptV02(step.output.failure_receipt);
+        check(receipt.workspace_id === config.workspace_id && receipt.project_id === config.project_id &&
+          receipt.run_id === runId && receipt.work_id === run.metadata.work_id && receipt.invocation_id === step.step_id &&
+          receipt.status !== "completed", "terminal_authorship_returned_receipt_required");
+      }
+      return result({ status: "blocked", reason: "completed_response_unavailable", next_action: "review_history" });
+    }
+    if (run.status === "stopped" && ["attempt_time_limit_before_dispatch", "model_input_bound_before_dispatch", "next_stage_admission_refused"].includes(run.stop_reason ?? "") &&
+      run.steps.every(step => ["planned", "completed"].includes(step.status)))
+      return result({ status: "blocked", reason: "completed_response_unavailable", next_action: "review_history" });
+    if (run.status === "stopped" && run.stop_reason === "first_judgment_stopped_work" && run.steps[0]!.status === "completed" &&
+      (run.steps[0]!.output.judgment as {tool_name?:unknown} | undefined)?.tool_name === "stop" &&
+      run.steps.slice(1).every(step => step.status === "skipped" && step.output.reason === "first_judgment_stopped_work"))
+      return result({ status: "blocked", reason: "completed_response_unavailable", next_action: "review_history" });
     const h = readTerminalAttemptHistory(db, config, runId);
-    return { binding: h.binding, evidence: h.availability, definition: h.packet.task, sources: readSelectedWorkSources(h.packet), warning: WARNING,
-      recovery_suspended: stateOf(h.run).recovery_suspended, current_direction_source: effectiveDirection(db, config, at) ? directionSource(effectiveDirection(db, config, at)!) : null };
-  } catch { return null; }
+    phase = "sources";
+    const sources = readSelectedWorkSources(h.packet);
+    phase = "direction";
+    const direction = effectiveDirection(db, config, at);
+    return result({ status: "available", preparation: { binding: h.binding, evidence: h.availability, definition: h.packet.task, sources, warning: WARNING,
+      recovery_suspended: stateOf(h.run).recovery_suspended, current_direction_source: direction ? directionSource(direction) : null } });
+  } catch (error) {
+    // A partially inspected projection cannot offer checkpoint continuation.
+    // Its writer still independently revalidates the original authority.
+    if (observation_checkpoint) { observation_checkpoint = null; history_reads.observation_checkpoint = "unavailable"; }
+    if (error instanceof ProjectRunResultReadErrorV01 && error.code === "project_result_receipt_missing")
+      return result({ status: "blocked", reason: "receipt_unavailable", next_action: "read_again" });
+    if (error instanceof StatelessReviewError && Object.hasOwn(blockedReasons, error.code))
+      return result({ status: "blocked", reason: blockedReasons[error.code as keyof typeof blockedReasons], next_action: "read_again" });
+    const reason: FailedReason = error instanceof StatelessReviewError
+      ? Object.hasOwn(failedReasons, error.code) ? failedReasons[error.code as keyof typeof failedReasons] : "history_invalid"
+      : error instanceof ModelInvocationReceiptValidationErrorV02 ? "receipt_invalid"
+      : error instanceof ProjectRunResultReadErrorV01 ? "receipt_invalid"
+      : error instanceof SelectedWorkSourceError || error instanceof ProjectDirectionError ? "source_context_invalid" : "inspection_failed";
+    const diagnostic_ref = `terminal-preparation:${randomUUID()}`;
+    // The supervisor already owns bounded child stderr/tails. Send a correlated
+    // fixed-shape observation there, never exception text, SQL, paths or stacks.
+    console.error(JSON.stringify({ event: "terminal_preparation_inspection_failed", diagnostic_ref, phase, reason,
+      ...inspectionDiagnostic(error),
+      failure_kind: error instanceof StatelessReviewError || error instanceof ModelInvocationReceiptValidationErrorV02 || error instanceof ProjectRunResultReadErrorV01 || error instanceof SelectedWorkSourceError || error instanceof ProjectDirectionError ? "domain_validation" : "unexpected_exception" }));
+    return result({ status: "failed", reason, next_action: "read_again", diagnostic_ref });
+  }
 }
 
 interface Request { predecessor: TerminalAttemptBinding; definition: TaskContextPacketV01["task"]; material: unknown; notes: unknown[]; omitted_sources: Array<{ source_binding: string; reason: string }> }

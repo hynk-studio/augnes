@@ -1,5 +1,5 @@
 import { handoffModelContext } from "../work-handoff";
-import { readTerminalAuthorshipPreparation, assertTerminalHistoryActive, isStatelessTerminalSuccessor, readTerminalWorkResumption } from "./stateless-terminal-authorship";
+import { readTerminalPreparationProjection, assertTerminalHistoryActive, isStatelessTerminalSuccessor, readTerminalWorkResumption } from "./stateless-terminal-authorship";
 import { assertStatelessUnsettledAdmission, prepareLinkedStatelessWork, readStatelessDispositionPreparation, statelessUnresolvedEntries, isStatelessReplacement, readReplacementWorkResumption } from "./stateless-review-disposition";
 import { stateOf, readRun, patchRun, readObservationCheckpoint } from "./stateless-review-ledger";
 import { buildStatelessFailureEvidence, readStatelessFailureReviews, StatelessJudgmentRejection, validateStatelessJudgment, type StatelessFailureEvidence, type StatelessFailureLayer, type StatelessFailureCode } from "../stateless-review-failure";
@@ -35,7 +35,6 @@ import { isModelGatewayInvocationErrorV01, type ModelAdapterV01, type ModelInvoc
 import { projectModelInvocationReceiptToRunReceiptEntryV02 } from "../model-gateway/run-receipt-projection";
 import { buildRunReceiptV01 } from "../run-receipt";
 import { admitStructuredRunReceiptV01 } from "../persistence/structured-run-receipt-admission";
-import { readProjectRunResultSourceBindingV01 } from "./project-run-result-read-model";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 import type { AutonomyRunRecord, AutonomyRunStepRecord } from "@/types/autonomy-runner-execution";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
@@ -234,12 +233,13 @@ export class StatelessSourceReviewHost {
       const run = readRun(db, this.options.config, this.runId);
       const step = run.steps.find(s => s.status === "running");
       const disposition = readStatelessDispositionPreparation(db, this.options.config, run);
-      const checkpoint = stateOf(run).pause_after_observation ? readObservationCheckpoint(run, readStatelessGrant(db, { ...this.options.config, ...stateOf(run) })) : null;
-      return { run, observation_checkpoint: checkpoint, terminal_preparation: readTerminalAuthorshipPreparation(db, this.options.config, this.runId, this.now()), failures: readStatelessFailureReviews(run), disposition_preparation: disposition, stage: run.metadata.stateless_review_disposition !== undefined
+      const preparation = readTerminalPreparationProjection(db, this.options.config, this.runId, this.now());
+      const inspectionUnavailable = preparation.history_reads.observation_checkpoint === "unavailable" || preparation.history_reads.receipt === "unavailable" ||
+        preparation.terminal_preparation.status === "failed" || (preparation.terminal_preparation.status === "blocked" && preparation.terminal_preparation.reason !== "attempt_not_stopped");
+      return { run, ...preparation, failures: readStatelessFailureReviews(run), disposition_preparation: disposition, stage: run.metadata.stateless_review_disposition !== undefined
         ? disposition?.disposition ? "ended_effects_unknown" : "disposition_invalid"
-        : step ? "dispatch_outcome_unknown" : checkpoint ? "observation_saved" : isTerminalRunnerStatus(run.status) ? "finished" : stateOf(run).recovery_suspended ? "recovery_suspended" : "ready",
-        next_step: run.steps.find(s => s.status === "planned")?.title ?? null,
-        receipt: typeof run.metadata.run_receipt_id === "string" ? readProjectRunResultSourceBindingV01(db, { ...this.options.config, receipt_id: run.metadata.run_receipt_id }).receipt : null };
+        : step ? "dispatch_outcome_unknown" : preparation.observation_checkpoint ? "observation_saved" : isTerminalRunnerStatus(run.status) ? "finished" : stateOf(run).recovery_suspended ? "recovery_suspended" : inspectionUnavailable ? "inspection_unavailable" : "ready",
+        next_step: run.steps.find(s => s.status === "planned")?.title ?? null };
     } finally { db.close(); }
   }
   cancel(credential: Credential) {

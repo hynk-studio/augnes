@@ -25,7 +25,11 @@ export function createStatelessSourceReviewHandler(options: { environment?: Node
       const hostOptions = { config, now: options.clock?.now ?? (() => new Date().toISOString()), adapter: options.adapter };
       if (request.method === "GET") {
         const rows = db.prepare("SELECT run_id FROM autonomy_runs WHERE scope=? AND json_extract(metadata_json,'$.stateless_review.version')='stateless_source_review.v0.1' ORDER BY created_at DESC LIMIT 20").all(config.project_id) as Array<{ run_id: string }>;
-        return NextResponse.json({ ok: true, read_only: true, preparation: readPreparedStatelessWork(db, config, hostOptions.now()), reviews: rows.map(r => new StatelessSourceReviewHost(hostOptions, r.run_id).read()) }, { headers });
+        const preparation = readPreparedStatelessWork(db, config, hostOptions.now());
+        const reviews = rows.map(r => new StatelessSourceReviewHost(hostOptions, r.run_id).read());
+        // ok describes the authenticated read transport, not preparation
+        // eligibility. Preserve every typed terminal result, including failure.
+        return NextResponse.json({ ok: true, read_only: true, preparation, reviews }, { headers });
       }
       const body = await readBoundedVNextLocalOperatorBodyV01(request);
       let admission; let result: unknown;

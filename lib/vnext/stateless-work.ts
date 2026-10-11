@@ -49,8 +49,12 @@ export interface StatelessGrant {
   workspace_id: string; project_id: string; approved_by: string; issued_at: string;
   request: StatelessGrantRequest;
 }
+/** A domain refusal, distinct from an unexpected storage or programming error. */
+export class StatelessReviewError extends Error {
+  constructor(readonly code: string) { super(`stateless_review_${code}`); this.name = "StatelessReviewError"; }
+}
 export function reviewCheck(value: unknown, code: string): asserts value {
-  if (!value) throw new Error(`stateless_review_${code}`);
+  if (!value) throw new StatelessReviewError(code);
 }
 export function reviewObject(value: unknown, keys: string[]): Record<string, unknown> {
   reviewCheck(value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).sort().join() === [...keys].sort().join(), "shape_invalid");
