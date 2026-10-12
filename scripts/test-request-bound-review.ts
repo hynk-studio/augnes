@@ -34,7 +34,12 @@ export async function testRequestBoundReview() {
     const started = Date.now(), env = { ...process.env }, root = realpathSync(mkdtempSync(path.join(tmpdir(), "ag-review-"))), dbPath = path.join(root, "fixture.db");
     let phaseStart = started;
     const phases: Record<string, number> = {};
-    const phase = (name: string) => { phases[name] = Date.now() - phaseStart; phaseStart = Date.now(); };
+    const phase = (name: string) => {
+        const now = Date.now();
+        phases[name] = now - phaseStart;
+        phaseStart = now;
+        console.log(JSON.stringify({ test: "request-bound-review-phase", completed: name, elapsed_ms: now - started, duration_ms: phases[name] }));
+    };
     let db = new Database(dbPath);
     const guard = installZeroNetworkGuard({ allowLoopback: true });
     const token = randomBytes(32).toString("base64url"), instance = "review-fixture", generation = "generation-1", repository = "a".repeat(64);
@@ -247,9 +252,9 @@ export async function testRequestBoundReview() {
         const request = async (question: string, c = a) => { const inspected = await op({ action: "inspect", connection_ref: c.id }); return op({ action: "request", connection_ref: c.id, expected_material_ref: inspected.material_ref, question }); };
         const replyArgs = (r: any, answer = "Retain the failure rows: excluding them understates worker cost.") => ({ request_ref: r.request_ref, read_binding: r.read_binding, answer, limitations: "Synthetic local review; no independent model judgment.", source_refs: r.sources.map((s: any) => s.source_binding) });
         const reply = async (r: any, c = a, args = replyArgs(r)) => (await reviewCall("augnes_reply_to_review", args, c)).result.structuredContent;
-        // A: same-scope two ordinary cycles; second pass deliberately retains the
-        // useful step. Fresh process readback uses the actual installed-style tool.
-        for (let cycle = 0; cycle < 2; cycle++) {
+        // A: both ordinary cycles keep a genuinely fresh originating process.
+        // The second cycle deliberately retains the useful step on the same scope.
+        async function explicitCycle(cycle: number) {
             const req = await request(`Cycle ${cycle}: should all attempts remain in the total?`), r = await read(req.request_ref);
             assert.equal(r.definition.goal, "A1: compare retry handling");
             assert.equal((await reply(r)).status, "saved");
@@ -278,31 +283,13 @@ export async function testRequestBoundReview() {
             assert.equal(useNote?.trust_class, "derived_interpretation");
             assert(selected.every(s => reviewedOutcomeSourceRef(s) === null), "external opinion must not impersonate an operator outcome report");
         }
-        phase("setup_and_two_explicit_cycles");
-        // B: unrelated selection/update, delayed B/A replies and all three A races.
-        const ar = await request("A before B"), br = await request("B delayed", b);
-        const selection = readActiveProjectSelectionV01(db, workspace.workspace_id);
-        selectActiveProjectV01(db, { ...pb.scope, expected_project_id: selection?.project_id ?? null, expected_revision: selection?.selection_revision ?? null, now: new Date().toISOString() });
-        await writeWork(pb.root, { goal: "B2: unrelated updated work" });
-        assert.equal((await read(ar.request_ref)).status, "available");
-        assert.equal((await read(br.request_ref, b)).status, "changed");
-        const br2 = await request("B2 valid", b), readA = await read(ar.request_ref), readB = await read(br2.request_ref, b);
-        assert.equal((await reply(readB, b)).status, "saved");
-        assert.equal((await reply(readA)).status, "saved");
-        const preRead = await request("race before read");
-        await writeWork(pa.root, { goal: "A2: revised material" });
-        assert.equal((await read(preRead.request_ref)).status, "changed");
-        const preReply = await request("race after read"), readOld = await read(preReply.request_ref);
-        await writeWork(pa.root, { goal: "A3: revised again" });
-        assert.equal((await reply(readOld)).reason, "review_material_changed");
-        const preUse = await request("race after reply"), useRead = await read(preUse.request_ref);
-        assert.equal((await reply(useRead)).status, "saved");
-        const prepared = await op({ action: "prepare_use", connection_ref: a.id, request_ref: preUse.request_ref, choice: "reject", reasoning: "Synthetic reviewer has not established a reason to change." });
-        await writeWork(pa.root, { goal: "A4: changed before use" });
-        assert((await rpc(prepared.revision_tool, prepared.revision_arguments)).result.isError);
-        assert.equal((await raw({ action: "prepare_use", connection_ref: a.id, request_ref: preUse.request_ref, choice: "retain", reasoning: "stale" })).value.reason, "review_material_changed");
-        assert.equal((await op({ action: "readback", connection_ref: a.id, request_ref: preUse.request_ref })).currentness, "historical");
-        phase("version_and_project_races");
+        await explicitCycle(0);
+        phase("setup_and_first_explicit_cycle");
+        // One real continuation supplies attributed sources for every steady-state
+        // protocol/isolation case. Delay the second continuation and version-race
+        // history until those cases finish: revalidating that extra history on
+        // each unrelated read adds cost without establishing another assertion.
+        const foreign = await request("B isolation fixture", b);
         // C/D: no foreign data, exact retry, conflict, concurrent writes and lost ACK.
         const replayReq = await request("atomic reply");
         assert.equal((await request("atomic reply")).request_ref, replayReq.request_ref);
@@ -325,7 +312,8 @@ export async function testRequestBoundReview() {
             assert((await raw(input)).status >= 400);
         assert.equal((await raw({ action: "read", connection_ref: a.id, request_ref: lost.request_ref }, { "x-augnes-review-credential": b.secret })).status, 403);
         const forbiddenSource = await request("forged source"), forbiddenRead = await read(forbiddenSource.request_ref);
-        assert.equal((await reply(forbiddenRead, a, { ...replyArgs(forbiddenRead), source_refs: [br.material_ref] })).reason, "review_source_ref_refused");
+        assert(forbiddenRead.sources.length > 0, "steady-state cases retain real attributed selected sources");
+        assert.equal((await reply(forbiddenRead, a, { ...replyArgs(forbiddenRead), source_refs: [foreign.material_ref] })).reason, "review_source_ref_refused");
         const oldDestination = a.destination;
         a.destination = "unapproved changed destination";
         saveConfig();
@@ -357,25 +345,13 @@ export async function testRequestBoundReview() {
         assert.equal(failedTool.result.structuredContent.reason, "review_material_inspection_failed");
         assert.equal(failedTool.result.isError, true);
         assert.equal(JSON.parse(failedTool.result.content[0].text).reason, "review_material_inspection_failed");
-        let cursor: string | undefined;
-        const seen = new Set<string>();
-        do {
-            const page = await op({ action: "list", connection_ref: a.id, ...(cursor ? { cursor } : {}) });
-            for (const r of page.requests) {
-                assert(!seen.has(r.request_ref));
-                seen.add(r.request_ref);
-            }
-            cursor = page.next_cursor;
-        } while (cursor);
-        assert(seen.has(ar.request_ref));
-        assert(seen.has(lost.request_ref));
-        assert(!seen.has(br.request_ref));
         phase("isolation_replay_conflict_and_readback");
         // E: actual adapter catalog/protocol through HTTP, filtered callbacks,
         // verification cache, retries, restart, secret rotation, expiry/unsubscribe.
         const delivery = { mode: "webhook", url: "https://receiver.example.com/callback", secret: signingSecret };
         const subscribe = { name: "review.requested", arguments: {}, delivery, ttlMs: 60000, cursor: null };
         const protocolReview = await read((await request("protocol admission must not save an answer")).request_ref);
+        assert(protocolReview.sources.length > 0);
         const protocolSubscribe = { ...subscribe, delivery: { ...delivery, url: delivery.url + "-protocol" } };
         const protocolUnsubscribe = { name: subscribe.name, arguments: {}, delivery: { mode: "webhook", url: protocolSubscribe.delivery.url } };
         const boundaryState = () => ({ callbacks, verifyCalls, rows: ["vnext_review_requests", "vnext_review_subscriptions", "vnext_review_deliveries", "vnext_core_records", "autonomy_runs", "work_items", "work_events", "action_records"]
@@ -420,7 +396,7 @@ export async function testRequestBoundReview() {
             principal: "forged-principal", connection_ref: b.id, project_key: b.project_key, destination: "unapproved destination", "com.example/context": { untrusted: true } };
         const optional = (method: string, params: object) => ({ ...modernMessage(method), params: { ...params, _meta: optionalMeta } });
         const [optionalCatalog, foreignRead, protocolReply, protocolSub, protocolRefresh] = await stdioRequests([
-            optional("tools/list", {}), optional("tools/call", { name: "augnes_read_review_request", arguments: { request_ref: br.request_ref } }),
+            optional("tools/list", {}), optional("tools/call", { name: "augnes_read_review_request", arguments: { request_ref: foreign.request_ref } }),
             optional("tools/call", { name: "augnes_reply_to_review", arguments: replyArgs(protocolReview) }),
             optional("events/subscribe", protocolSubscribe), optional("events/subscribe", protocolSubscribe)], a.id);
         assert.deepEqual(optionalCatalog.result.tools, catalog.result.tools);
@@ -591,6 +567,47 @@ export async function testRequestBoundReview() {
         connections.unshift(a);
         saveConfig();
         phase("events_and_adapter_restart");
+        await explicitCycle(1);
+        phase("second_explicit_cycle");
+        // B: unrelated selection/update, delayed B/A replies and all three A races.
+        const ar = await request("A before B"), br = await request("B delayed", b);
+        const selection = readActiveProjectSelectionV01(db, workspace.workspace_id);
+        selectActiveProjectV01(db, { ...pb.scope, expected_project_id: selection?.project_id ?? null, expected_revision: selection?.selection_revision ?? null, now: new Date().toISOString() });
+        await writeWork(pb.root, { goal: "B2: unrelated updated work" });
+        assert.equal((await read(ar.request_ref)).status, "available");
+        assert.equal((await read(br.request_ref, b)).status, "changed");
+        const br2 = await request("B2 valid", b), readA = await read(ar.request_ref), readB = await read(br2.request_ref, b);
+        assert.equal((await reply(readB, b)).status, "saved");
+        assert.equal((await reply(readA)).status, "saved");
+        const preRead = await request("race before read");
+        await writeWork(pa.root, { goal: "A2: revised material" });
+        assert.equal((await read(preRead.request_ref)).status, "changed");
+        const preReply = await request("race after read"), readOld = await read(preReply.request_ref);
+        await writeWork(pa.root, { goal: "A3: revised again" });
+        assert.equal((await reply(readOld)).reason, "review_material_changed");
+        const preUse = await request("race after reply"), useRead = await read(preUse.request_ref);
+        assert.equal((await reply(useRead)).status, "saved");
+        const prepared = await op({ action: "prepare_use", connection_ref: a.id, request_ref: preUse.request_ref, choice: "reject", reasoning: "Synthetic reviewer has not established a reason to change." });
+        await writeWork(pa.root, { goal: "A4: changed before use" });
+        assert((await rpc(prepared.revision_tool, prepared.revision_arguments)).result.isError);
+        assert.equal((await raw({ action: "prepare_use", connection_ref: a.id, request_ref: preUse.request_ref, choice: "retain", reasoning: "stale" })).value.reason, "review_material_changed");
+        assert.equal((await op({ action: "readback", connection_ref: a.id, request_ref: preUse.request_ref })).currentness, "historical");
+        phase("version_and_project_races");
+        let cursor: string | undefined;
+        const seen = new Set<string>();
+        do {
+            const page = await op({ action: "list", connection_ref: a.id, ...(cursor ? { cursor } : {}) });
+            for (const r of page.requests) {
+                assert(!seen.has(r.request_ref));
+                seen.add(r.request_ref);
+            }
+            cursor = page.next_cursor;
+        } while (cursor);
+        assert(seen.has(ar.request_ref));
+        assert(seen.has(lost.request_ref));
+        assert(!seen.has(br.request_ref));
+        assert(!seen.has(foreign.request_ref));
+
         // F: restore invalidates only adapter delivery leases. Core authority counts
         // remain zero; ordinary writer refusal above survives to the tool surface.
         invalidateRestoredReviewSubscriptions(db);
@@ -606,25 +623,28 @@ export async function testRequestBoundReview() {
         // rather than manufacturing an adapter-state database fixture.
         await event("events/subscribe", subscribe);
         const beforeRestore = db.prepare("SELECT request_ref,response_ref FROM vnext_review_requests ORDER BY request_ref").all();
+        phase("scoped_discovery_and_authority");
         db.close();
         const lifecycle = { databasePath: dbPath, backupDirectory: path.join(root, "backups"), repositoryRoot: process.cwd(), instanceId: instance, repositoryFingerprint: repository, databaseOverrideActive: true };
         const backup = await createRecoveryBackup({ databasePath: dbPath, backupDirectory: lifecycle.backupDirectory, applicationScopeFingerprint: repository,
             sourceApplication: { application_version: null, build_identity: null, package_contract: null, package_contract_version: null, runtime_contract: null, runtime_schema_version: null },
             reason: "manual_recovery", inspectDatabase: inspectRecoveryDatabaseFile } as unknown as Parameters<typeof createRecoveryBackup>[0]);
+        phase("database_backup");
         await restoreRuntimeDatabase({ ...lifecycle, selectedBackupId: backup.manifest.backup_id } as unknown as Parameters<typeof restoreRuntimeDatabase>[0]);
+        phase("database_restore");
         await prepareRuntimeDatabase(lifecycle as unknown as Parameters<typeof prepareRuntimeDatabase>[0]);
+        phase("post_restore_preparation");
         db = new Database(dbPath);
         assert.deepEqual(db.prepare("SELECT request_ref,response_ref FROM vnext_review_requests ORDER BY request_ref").all(), beforeRestore);
         assert.equal((db.prepare("SELECT count(*) n FROM vnext_review_subscriptions WHERE stopped=0").get() as any).n, 0);
         const later = await request("later request after supported database recovery");
         assert.equal((await reply(await read(later.request_ref))).status, "saved");
-        phase("authority_and_database_recovery");
+        phase("later_request_after_recovery");
         assert.deepEqual(errors, []);
         assert.equal(guard.attempts.length, 0);
-        console.log(JSON.stringify({ test: "request-bound-review", status: "pass", categories: { A: "PASS", B: "PASS", C: "PASS", D: "PASS", E: "PASS local protocol fixtures", F: "PASS", G: "PASS scripted use; real model/comparison NOT_RUN" },
-            setup_cycles: 1, ordinary_cycles: 2, scripted_human_relay: 0, elapsed_ms: Date.now() - started, phase_ms: phases, callbacks, actual_chatgpt: "NOT_RUN", real_model_use: "NOT_RUN", burden_comparison: "NOT_RUN", provider_cost: "unknown" }));
     }
     finally {
+        console.log(JSON.stringify({ test: "request-bound-review-phase", started: "cleanup", elapsed_ms: Date.now() - started }));
         await closeProtocolClient();
         Database.prototype.prepare = originalPrepare;
         https.request = oldRequest;
@@ -638,7 +658,10 @@ export async function testRequestBoundReview() {
                 delete process.env[key];
         Object.assign(process.env, env);
         rmSync(root, { recursive: true, force: true });
+        phase("cleanup");
     }
+    console.log(JSON.stringify({ test: "request-bound-review", status: "pass", categories: { A: "PASS", B: "PASS", C: "PASS", D: "PASS", E: "PASS local protocol fixtures", F: "PASS", G: "PASS scripted use; real model/comparison NOT_RUN" },
+        setup_cycles: 1, ordinary_cycles: 2, scripted_human_relay: 0, elapsed_ms: Date.now() - started, phase_ms: phases, callbacks, actual_chatgpt: "NOT_RUN", real_model_use: "NOT_RUN", burden_comparison: "NOT_RUN", provider_cost: "unknown" }));
 }
 if (path.basename(process.argv[1] ?? "") === "test-request-bound-review.ts")
     void testRequestBoundReview();

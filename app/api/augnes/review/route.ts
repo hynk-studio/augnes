@@ -15,7 +15,10 @@ export async function POST(request: Request) {
         "x-augnes-runtime-generation": process.env.AUGNES_RUNTIME_GENERATION_ID ?? "",
         "x-augnes-runtime-repository": process.env.AUGNES_RUNTIME_REPOSITORY_FINGERPRINT ?? "" };
     const denied = (reason: string, status: number, extra: object = {}) => NextResponse.json(reviewProjection(status === 503 ? "unavailable" : "refused", { reason, ...extra }), { status, headers });
-    if (new URL(request.url).search !== "?scope=repository:local" || !localClientRequest(request) ||
+    // Next serializes the caller's colon as %3A. Admit the exact decoded scope,
+    // retaining the neighboring private routes' single-key/cardinality check.
+    const query = new URL(request.url).searchParams;
+    if ([...query.keys()].join(",") !== "scope" || query.get("scope") !== "repository:local" || !localClientRequest(request) ||
         request.headers.get("x-augnes-review") !== REVIEW_MARKER || !equal(request.headers.get("x-augnes-companion-proxy"), process.env.AUGNES_COMPANION_PROXY_TOKEN))
         return denied("review_access_refused", 403);
     if (process.env.AUGNES_RECOVERY_MODE === "1" || process.env.AUGNES_RUNTIME_CHILD_ROLE !== "ui" ||

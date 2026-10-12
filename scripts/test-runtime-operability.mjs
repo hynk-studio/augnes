@@ -115,6 +115,7 @@ import {
 import { withSupervisorProcessPreservation } from "./supervisor-process-observation.mjs";
 import { createConnectedProjectReaderV01 } from "../plugins/augnes-operator/mcp/connected-project-reader.mjs";
 import { selectCompanionForReadonlyRouteV01, readRepositoryWorkSourcesV01 } from "../plugins/augnes-operator/mcp/companion-proxy.mjs";
+import { prepareSupervisedReviewHttp, assertSupervisedReviewHttp } from "./test-supervised-review-http";
 
 const repoRoot = process.cwd();
 const runtimeOperabilityOwner = runtimeOperabilityOwnerForSelector(process.argv[2]);
@@ -178,6 +179,7 @@ let repositoryResumeMcpEvidence = null;
 let legacyRootRequestCount = 0;
 let parentSignalCleanupVerified = false;
 let parentSignalCleanupSkipReason = null;
+let supervisedReviewHttp = null;
 
 const ownedProcessCountBefore = observedOwnedPids.size;
 const { value: summary, preservation } = await withSupervisorProcessPreservation({
@@ -385,6 +387,11 @@ async function runRuntimeOperability() {
     windows_resume_zero_effects:
       repositoryResumeMcpEvidence?.windows_resume_zero_effects ?? false,
     official_stdio_mcp_client: runsLifecycleOwner || runsResumeOwner,
+    supervised_review_http: runsLifecycleOwner ? {
+      initial_cycle: supervisedReviewHttp?.initialPassed === true,
+      recovery_cycle: supervisedReviewHttp?.recoveryPassed === true,
+      zero_effect_refusal_cases: supervisedReviewHttp?.refusalCases ?? 0,
+    } : null,
     repository_resume_eligibility_runtime_proof:
       repositoryResumeMcpEvidence?.resume_ready === true,
     repository_resume_selection_independent:
@@ -495,6 +502,7 @@ function printRuntimeOperabilitySummary(summary, preservation) {
         browser_process_required: summary.browser_process_required,
         start_or_execution_created: summary.start_or_execution_created,
         official_stdio_mcp_client: summary.official_stdio_mcp_client,
+        supervised_review_http: summary.supervised_review_http,
         private_companion_bridge_refusals_verified:
           summary.private_companion_bridge_refusals_verified,
         narrow_companion_proxy_credential:
@@ -727,6 +735,10 @@ async function testReadyDuplicateStatusAndStop() {
     AUGNES_VNEXT_REPOSITORY_DELEGATION_TEST_ADAPTER: "1",
   });
 
+  supervisedReviewHttp = prepareSupervisedReviewHttp(repoRoot, temporaryRoot, databasePath);
+  environment.AUGNES_REVIEW_CONNECTIONS_FILE = supervisedReviewHttp.config;
+  environment.AUGNES_CANONICAL_TEST_NODE_IMPORT = supervisedReviewHttp.preload;
+
   const managed = startManagedSupervisor(
     environment,
     scenario,
@@ -767,6 +779,7 @@ async function testReadyDuplicateStatusAndStop() {
     managed,
     registeredRepositories,
   );
+  await assertSupervisedReviewHttp(supervisedReviewHttp, environment, ready);
   await assertLoopbackOnly(ready.ui_port);
   await assertLoopbackOnly(ready.bridge_port);
   const manifest = assertOwnershipFiles(scenario.stateDirectory, ready);
@@ -842,6 +855,22 @@ async function testReadyDuplicateStatusAndStop() {
     databaseBeforeStop.get(databasePath)?.sha256,
     "graceful stop must preserve the disposable database",
   );
+
+  // Reuse this scenario's database, configuration and supported stop/start owner.
+  // Fresh stdio discovery must bind the new generation and recover unanswered work.
+  const restarted = startManagedSupervisor(environment, scenario, "review-restart");
+  const restartedReady = await waitForJsonEvent(restarted,
+    (event) => event.command === "start" && event.result === "ready");
+  assertReadyResult(restartedReady);
+  rememberOwnedPids(restartedReady);
+  selectedPorts.push({ scenario: "review-restart", ui: restartedReady.ui_port, bridge: restartedReady.bridge_port });
+  const restartedTree = processTreePids(restartedReady);
+  for (const pid of restartedTree) observedOwnedPids.add(pid);
+  await assertSupervisedReviewHttp(supervisedReviewHttp, environment, restartedReady, true);
+  assert.equal((await runCli(["stop"], environment, scenario, "review-restart-stop")).code, 0);
+  assert.equal((await waitForManagedExit(restarted, 20_000)).code, 0);
+  await assertStoppedScenario(scenario, restartedReady, restartedTree);
+  assert(supervisedReviewHttp.initialPassed && supervisedReviewHttp.recoveryPassed);
 
   if (uiBlocker.server) await closeServer(uiBlocker.server);
   if (bridgeBlocker.server) await closeServer(bridgeBlocker.server);
