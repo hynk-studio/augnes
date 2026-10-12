@@ -29,6 +29,7 @@ const REVIEWED_FILES = Object.freeze([
   ".codex-plugin/plugin.json",
   ".mcp.json",
   "mcp/companion-proxy.mjs",
+  "mcp/execution-choice.mjs",
   "mcp/companion-service-core.mjs",
   "skills/augnes-autonomy-contract/SKILL.md",
   "skills/augnes-closeout-proof/SKILL.md",

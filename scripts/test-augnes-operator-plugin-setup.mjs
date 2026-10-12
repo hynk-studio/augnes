@@ -53,7 +53,7 @@ try {
   assert.equal(addCalls, 1);
   assert.equal(verified.version, "0.5.0");
   assert.equal(verified.stale_cache_versions, 0);
-  assert.equal(verified.reviewed_files_verified, 11);
+  assert.equal(verified.reviewed_files_verified, 12);
   assert.equal(verified.canonical_developer_identity, true);
   verifyNoPluginLifecycleHooks(sourceRoot);
   verifyNoPluginLifecycleHooks(currentCache);

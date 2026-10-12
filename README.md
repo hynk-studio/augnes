@@ -284,6 +284,18 @@ calls the strict UI/Core route through a private generation-bound channel; no
 fixed `8787` configuration, Browser open page, mock, seed, docs, or legacy brief
 fallback is required.
 
+For an existing ordinary task, ask **“Compare how to do this work, use a
+contribution only if it helps, and revisit the arrangement after the result.”**
+The native `augnes_prepare_repository_execution_choice` entry reads the current
+goal and selected material, prepares a choice for explicit preview/save, and
+supports direct work, a delivered asset, or a configured bounded reviewer. It
+shows the requested contribution and returned result before connection details.
+After actual downstream work, save the result-linked continue/end-role judgment
+and its reconsideration condition. Ending a role does not withdraw access or
+cancel a process. See [the supported sequence and limits](docs/EXECUTION_CHOICE_USAGE.md).
+This source capability needs ordinary plugin/runtime adoption separately;
+reading or preparing a choice neither installs nor activates anything.
+
 `OPENAI_API_KEY` is optional. Supported paths retain deterministic local
 fallbacks without it. A locally installed and authenticated Codex CLI with App
 Server support is required only for live Codex work.

@@ -52,6 +52,46 @@ and proportionate verification selection remain open under #1430, with current
 planner coverage and fixed timing gates preserved. The separate #1429 research
 implementation and its qualification are not included.
 
+## Current: first execution-choice and participation loop (#1443)
+
+The [#1443](https://github.com/hynk-studio/augnes/issues/1443) increment under
+[#1426](https://github.com/hynk-studio/augnes/issues/1426) adds the ordinary native
+execution-choice entry around the integrated #1431 experience/source writers and
+#1442 request-bound review. At implementation intake on main `1c2969ec4ca871fc9cf830a814e43bcd8d68646e`,
+exact material delivery, attributed review use and immutable ordinary source
+revision already worked. There was no dedicated ordinary producer/reader joining
+an arrangement expectation to actual downstream material and the next role
+decision. This is an approved new capability, not a claimed historical runtime
+failure. No role database, universal schema, scheduler or migration was needed.
+
+Implemented source connects comparison and explicit saving, usable bounded
+participation preparation, request/response and real downstream work, then a
+result-linked continue/end-role assessment and fresh reconstruction. Direct
+calculation and delivered-asset use finish without a request. The
+[usage](../EXECUTION_CHOICE_USAGE.md) and registered deterministic
+`scripts/test-execution-choice.ts` exercise the path with exact event-cost outputs,
+changed-basis refusal, unavailable-participant continuation and failed-save
+rollback. Exact candidate qualification belongs to its PR receipt; source
+implementation is not installed adoption or user acceptance.
+
+PR #1450's qualification correction tightens only the disposable native-service
+fixture's readiness and cleanup. After its deliberate child-binding substitution,
+it observes the manager's negative verification and waits for a post-restoration
+live observation of the original manager, supervisor, generation and instance.
+Timeout cannot admit a replacement owner. The periodic `updated_at`-only rewrite
+and production ownership guards remain unchanged. A cleanup refusal retains the
+failure instead of invoking an unguarded bootout. This does not change the
+execution-choice product path or adopt source into the installed Companion.
+
+Current review scope is this first complete loop. Actual model consumption and
+comparative usefulness of this increment remain NOT_RUN. Existing #1433 live
+evidence/obligations belong to that task and are not transferred here. Next/later
+scope retains broader late-result integration, replacement, long-term role
+reconstitution and conditional method transfer. Optional public participation
+is not required; #1447 independently owns public discovery/distribution/re-entry.
+No MASS comparison, workflow search, public solicitation, provider activation
+or reopening of #1436–#1439/#1448 is included.
+
 ## Current: request-bound review implementation (#1433)
 
 [#1433](https://github.com/hynk-studio/augnes/issues/1433) adds one bounded native

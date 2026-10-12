@@ -5,6 +5,7 @@ import { lstatSync, readFileSync, readdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { callReview } from "./review-connection.mjs";
+import { EXECUTION_CHOICE_TOOL, executionChoiceToolDescription, executionChoiceText, prepareExecutionChoice } from "./execution-choice.mjs";
 import { pathToFileURL } from "node:url";
 
 import {
@@ -1498,13 +1499,22 @@ export async function handleMessageV01(message) {
   if (message.method === "notifications/initialized" || message.method === "notifications/cancelled") return null;
   if (message.method === "ping") return { jsonrpc: "2.0", id: message.id, result: {} };
   if (message.method === "tools/list") {
-    return { jsonrpc: "2.0", id: message.id, result: { tools: [...lifecycleToolDescriptionsV01(), toolDescriptionV01(), sourceReadToolDescriptionV01(), methodOutlookToolDescriptionV01(), retainedSourceLookupToolDescriptionV01(), ...initialWorkToolDescriptionsV01(), ...workRevisionToolDescriptionsV01(), ...workRevisionToolDescriptionsV01(true), reviewWorkToolDescriptionV01(), ...repositoryExecutionToolDescriptionsV01()] } };
+    return { jsonrpc: "2.0", id: message.id, result: { tools: [...lifecycleToolDescriptionsV01(), toolDescriptionV01(), sourceReadToolDescriptionV01(), methodOutlookToolDescriptionV01(), retainedSourceLookupToolDescriptionV01(), ...initialWorkToolDescriptionsV01(), ...workRevisionToolDescriptionsV01(), ...workRevisionToolDescriptionsV01(true), executionChoiceToolDescription(), reviewWorkToolDescriptionV01(), ...repositoryExecutionToolDescriptionsV01()] } };
   }
   if (message.method === "tools/call") {
     const args = message.params?.arguments;
     const toolName = message.params?.name;
     if (!args || typeof args !== "object" || Array.isArray(args)) {
       return { jsonrpc: "2.0", id: message.id, error: { code: -32602, message: "invalid_repository_tool_request" } };
+    }
+    if (toolName === EXECUTION_CHOICE_TOOL) {
+      const found = await selectCompanionForReadonlyRouteV01();
+      const result = found.status === "resolved" ? await prepareExecutionChoice(args, {
+        readSources: input => readRepositoryWorkSourcesV01(found.companion, input),
+        review: input => callReview(found.companion, input, undefined),
+      }) : { status: "unavailable", reason: found.status };
+      return { jsonrpc: "2.0", id: message.id, result: { isError: !["available", "prepared"].includes(result.status),
+        structuredContent: result, content: [{ type: "text", text: executionChoiceText(result) }] } };
     }
     if (toolName === "augnes_review_repository_work") {
       const allowed = { connections: ["action", "repository_root"], inspect: ["action", "connection_ref"],

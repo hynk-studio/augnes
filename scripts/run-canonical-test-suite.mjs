@@ -917,6 +917,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "execution-choice",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
+      label: "ordinary execution choice, actual contribution use and result-informed role closure",
+      ...rootNode("scripts/test-execution-choice.ts"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "request-bound-review",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],

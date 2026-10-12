@@ -622,6 +622,58 @@ defines limits, revocation, callback security, lifecycle preparation and current
 live-acceptance gaps. Native work, source provenance and continuation owners
 remain authoritative for their existing records and refusal paths.
 
+#### Execution-choice preparation and result-linked assessment (#1443)
+
+The native preparation entry composes the existing exact work/source reader,
+request-bound review and ordinary source revision writer. Its small
+`augnes.execution-choice.v0.1` profile is a **derived selected-note interpretation**,
+not a Core kind, role registry, direction grant or execution arrangement engine.
+No schema migration or new persistence writer is introduced. Existing packet
+reconstruction, source budgets, authentication, preview/save seals, atomicity,
+replay and recovery continue to own the stored notes. Older readers can retain
+and display the ordinary notes without interpreting this optional profile.
+
+The choice note binds the original packet, definition fingerprint, exact selected
+source bindings and preparation cutoff. It preserves the present arrangement,
+relevant alternatives, recommendation and chosen label separately, expected result,
+qualitative preparation/waiting/execution/coordination/integration/switching burden,
+uncertainty, horizon and reconsideration condition. Unknown burden is explicit
+text, never an implicit numeric zero. An option may name one configured review
+connection; configuration does not prove availability, competence or execution.
+
+Participation preparation checks the retained definition/support and horizon,
+resolves that project's currently permitted connection, and pins the existing
+request to the exact inspected packet. The request question binds the choice and
+the consumer's purpose, checks, dependency order, required excerpt bindings and
+return/recheck conditions. Its actual work definition and complete selected
+excerpts are delivered by the existing review reader. Locators are never fetched;
+binary or larger executable material still needs the existing artifact/delivery
+owners. The bounded text reply is not a universal artifact format. Preparation
+is read-only: request, response, readback and ordinary revision remain separate
+explicit actions with their existing operation-boundary authority checks.
+
+A later assessment note links the choice, subsequent packet, exact selected
+result material, optional original request, disposition and observed review
+status to a continue/end-role decision, next action, reconsideration condition
+and unfinished obligations. A used/partly-used review requires the existing
+attributed-use projection and downstream material beyond the response/use notes
+and original support. These are provenance links, not proof that an authored
+interpretation or output is correct; executable/artifact checks own that evidence.
+The original expectation is never rewritten. Deselecting result material is
+reported as historical-not-selected, not silently reconstructed or declared absent.
+
+One selected choice and at most one linked assessment constitute this bounded
+loop. A next loop uses ordinary explicit source revision/selection, retaining
+earlier packets and worthwhile obligations; ambiguous selections refuse.
+Changed definitions, missing original support or elapsed horizons require
+reconsideration before preparing a request. Existing first-reply/current-material
+and historical-response rules are unchanged. An unavailable reviewer permits an
+explicit deferred/declined arrangement assessment with actual observation material;
+it does not manufacture a result. Request lookup is bounded to 100 rows with an
+explicit incomplete result. Logical role closure never withdraws credentials,
+cancels external work, discharges unknown effects or changes project direction.
+The saturated direction-withdrawal contracts remain independently owned.
+
 #### Initial-work packet and lineage boundary
 
 `project_work_initialization.v0.1` is the shared deterministic, project-scoped,

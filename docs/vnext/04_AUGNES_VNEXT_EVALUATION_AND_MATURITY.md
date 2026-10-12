@@ -313,6 +313,54 @@ composition and exact output correctness do not establish autonomous selection,
 superiority, learning or independent demand; the fixed live-model comparison
 remains NOT_RUN and historical P4.6 findings remain unchanged.
 
+### Execution-choice evidence and conditional reuse
+
+The [#1443 execution-choice exercise](../../scripts/test-execution-choice.ts)
+separates three evidence levels. Authenticated production-shaped native reads,
+previews/saves and request/read/reply/readback establish deterministic path
+correctness. A scripted consumer calculates from delivered synthetic event bytes;
+the originating worker uses its returned population and arithmetic to select and
+check an actual output file, then saves a result-linked end-role judgment. Direct
+and existing-asset paths, changed basis, unavailable participation, atomic failed
+saves and a fresh-process reconstruction discriminate the intended behavior.
+The before/after characterization is the absence/presence of this ordinary
+arrangement-loop entry, not an invented old runtime failure.
+
+The first #1450 candidate `ed67517b00292a85f54aaa6ee1e1564daa003dc5`
+retains its failed Full Canonical result: 8 PASS, 1 FAIL and all seven Browser
+phases NOT_RUN. Its native decommission trace recorded an initial ownership
+refusal and no bootout in that attempt, but not the specific failed predicate;
+receipt validation rejected failed/incomplete, non-deciding evidence. A later
+bounded investigation reproduced a fixture readiness gap: the old wait accepted
+a pre-restoration live snapshot before a pending negative observation. The native
+control observed `starting` with missing runtime ownership, refusal before any
+bootout, then recovery of the same identities and successful timestamp-only
+decommission. This establishes the tested mechanism, not the unrecorded historical
+predicate. The fixture now requires fresh exact readiness and preserves refusal
+on generation/instance substitution before an effect. Original and corrected
+candidate qualification receipts remain separate; focused results do not replace
+one complete planner-selected run of the final candidate.
+
+These developer-exposed cases do not establish independent demand, model judgment,
+general time savings or comparative usefulness. Actual model consumption and a
+fixed comparison for this increment are NOT_RUN. The exercise records measured
+setup, preparation/execution, integration/readback and refusal/preservation phases;
+verification timing is recorded separately. Mixed phases are not presented as
+isolated worker or coordination costs. Unobserved model, token, billing and human
+repair burden remain unknown. A separate process proves fresh reconstruction,
+not an independent agent or blind evaluation. Existing #1433 live evidence retains
+its own attribution and cannot be borrowed as this increment's evidence.
+
+When retaining a method, keep task/goal conditions, model/tool/material
+dependencies, actual observed outcome, uncertainty and reasons to recheck or not
+use it. Execution know-how and handoff/integration rationale may be retained
+separately through existing source owners; they do not require new record kinds.
+Appropriate partial use or non-use is valid. A later authorized comparison must
+retain strong direct/adaptive-memo and relevant native-delegation references,
+equal relevant material/resources, unsuccessful attempts and total burden. Search
+feedback and best-run/judge selection are not deciding later-task evidence. No
+MASS-informed comparison or workflow-search campaign is launched by this PR.
+
 ### Cost and user burden
 
 Distinguish method-development, setup and preparation cost; reusable asset
