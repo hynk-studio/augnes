@@ -334,6 +334,16 @@ export function isDocumentationPath(relativePath) {
   );
 }
 
+// A registration admits only its literal reviewed Markdown path. Keep the
+// ordinary-directory predicate separate: registering a document does not make
+// every outgoing reference from that document an audited consumer edge.
+function isDocumentationCandidate(relativePath) {
+  return isDocumentationPath(relativePath) ||
+    relativePath.endsWith(".md") && changeOwnerManifest.documentation_owners.some(
+      owner => owner.paths.includes(relativePath),
+    );
+}
+
 function readGitChanges({ cwd, baseSha, headSha }) {
   const result = runGit(
     cwd,
@@ -504,7 +514,7 @@ const DOCUMENTATION_INFRASTRUCTURE = new Set([
 ]);
 
 function createDocumentationContext({ cwd, baseSha, headSha, changes }) {
-  if (!changes.some((change) => changedPaths(change).some((p) => isDocumentationPath(p) || p === "AGENTS.md" ||
+  if (!changes.some((change) => changedPaths(change).some((p) => isDocumentationCandidate(p) || p === "AGENTS.md" ||
       p === RESEARCH_REGISTRATION_PATH || RESEARCH_SOURCE_PATHS.includes(p)))) {
     return null;
   }
@@ -541,6 +551,7 @@ function documentationConsumers(relativePath, context) {
     if (![0, 1].includes(result.status)) throw new Error("documentation consumer observation failed");
     for (const entry of result.stdout.split("\0").filter(Boolean)) {
       const file = entry.slice(revision.length + 1);
+      if (file === relativePath) continue;
       const explanatoryMarkdown = context.treeModes.get(revision).get(file) === "100644" && file.endsWith(".md") && (isDocumentationPath(file) || file === "AGENTS.md");
       if (!explanatoryMarkdown && !DOCUMENTATION_INFRASTRUCTURE.has(file)) consumers.add(file);
     }
@@ -556,7 +567,7 @@ function dynamicDocumentationConsumers(relativePath, context) {
   if (!context.dynamicConsumers) {
     context.dynamicConsumers = [];
     for (const revision of [context.baseSha, context.headSha]) {
-      const result = spawnSync("git", ["grep", "-I", "-l", "-z", "-E", "[\"'`]((docs|research)(/|[\"'`]))", revision, "--", ":!*.md"], {
+      const result = spawnSync("git", ["grep", "-I", "-l", "-z", "-E", "[\"'`]((docs|research|apps)(/|[\"'`]))", revision, "--", ":!*.md"], {
         cwd: context.cwd, encoding: "utf8", maxBuffer: MAX_DIFF_BYTES, timeout: 30_000,
       });
       if (result.error) throw result.error;
@@ -571,12 +582,12 @@ function dynamicDocumentationConsumers(relativePath, context) {
           for (const candidate of config.files ?? []) {
             if (typeof candidate !== "string") throw new Error("unknown documentation package consumer");
             const literal = candidate.replace(/^\.\//u, "");
-            if (/^(?:docs|research)(?:\/|$)/u.test(literal)) {
+            if (/^(?:docs|research|apps)(?:\/|$)/u.test(literal)) {
               context.dynamicConsumers.push({ file, prefix: literal.split(/[*?]/u, 1)[0].replace(/\/$/u, "") });
             }
           }
         }
-        for (const match of source.matchAll(/(?:readFile(?:Sync)?|readdir(?:Sync)?|glob(?:Sync)?|copyFile(?:Sync)?)\([\s\S]{0,240}?["'`]((?:docs|research)(?:\/[^"'`]*)?)["'`]/gu)) {
+        for (const match of source.matchAll(/(?:readFile(?:Sync)?|readdir(?:Sync)?|glob(?:Sync)?|copyFile(?:Sync)?)\([\s\S]{0,240}?["'`]((?:docs|research|apps)(?:\/[^"'`]*)?)["'`]/gu)) {
           const literal = match[1];
           if (!path.posix.extname(literal) || literal.includes("${") || /[*?]/u.test(literal)) {
             const prefix = literal.split(/[$*?]/u, 1)[0].replace(/\/$/u, "");
@@ -591,11 +602,14 @@ function dynamicDocumentationConsumers(relativePath, context) {
 
 function classifyDocumentationChange(change, context) {
   const paths = changedPaths(change);
-  if (!context || !paths.every((p) => isDocumentationPath(p) || p === "AGENTS.md")) return null;
+  if (!context || !paths.every((p) => isDocumentationCandidate(p) || p === "AGENTS.md")) return null;
   if (paths.includes("AGENTS.md") && change.status !== "M") {
     return fullClassification("repository-operating-policy", "agents_change_requires_safe_modification:AGENTS.md");
   }
   const owners = paths.map((p) => changeOwnerManifest.documentation_owners.find((owner) => owner.paths.includes(p)));
+  if (change.status !== "M" && owners.some(owner => owner?.modification_only)) {
+    return fullClassification("unproven-documentation-disposition", `documentation_contract_requires_in_place_change:${paths[0]}`);
+  }
   const pathDisposition = ["D", "R"].includes(change.status);
   let removedAnchor = false;
   if (change.status === "M" && change.newPath.endsWith(".md")) {
@@ -773,7 +787,8 @@ export function validateChangeOwnerManifest(manifest) {
     if (!Array.isArray(owner.paths) || !owner.paths.length ||
         !Array.isArray(owner.checks) || owner.checks.some((check) => check !== "verification-policy") ||
         !Array.isArray(owner.consumer_paths) || !["full", "references"].includes(owner.disposition) ||
-        (owner.disposition === "references" && !owner.consumer_scope)) {
+        (owner.disposition === "references" && !owner.consumer_scope) ||
+        (owner.modification_only !== undefined && owner.modification_only !== true)) {
       throw new Error("invalid documentation owner contract");
     }
     const references = owner.reference_consumers ?? [];

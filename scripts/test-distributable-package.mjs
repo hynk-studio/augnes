@@ -66,7 +66,6 @@ import {
   inspectRuntimePackageIdentityGuard,
 } from "./runtime-database-bootstrap.mjs";
 import {
-  PORT_SEARCH_SIZE,
   resolveRuntimePaths,
 } from "./augnes-runtime-supervisor-core.mjs";
 import {
@@ -85,6 +84,7 @@ import {
   waitForOwnedProcessExit,
 } from "./test-harness-process-lifecycle.mjs";
 import { installZeroNetworkGuard } from "./test-harness-zero-network-guard.mjs";
+import { choosePackagedTestPreferredPort } from "./packaged-test-preferred-port.mjs";
 
 const PACKAGE_CONTRACT = "augnes.distributable.v1";
 const RUNTIME_CONTRACT = "augnes-local-runtime-supervisor-v1";
@@ -3180,8 +3180,7 @@ async function testStartupTimeoutRecoverySurface(root, manifest) {
     "old",
   );
   const uiPort = await availablePreferredPort();
-  let bridgePort = await availablePreferredPort();
-  while (bridgePort === uiPort) bridgePort = await availablePreferredPort();
+  const bridgePort = await availablePreferredPort(uiPort);
   observedOwnedPorts.add(uiPort);
   observedOwnedPorts.add(bridgePort);
   const environment = runtimeEnvironment(scenario, {
@@ -4662,19 +4661,8 @@ async function closePortBlocker(blocker) {
   blocker.server = null;
 }
 
-async function availablePreferredPort() {
-  for (let attempt = 0; attempt < PORT_SEARCH_SIZE; attempt += 1) {
-    const server = trackServerConnections(net.createServer());
-    ownedServers.add(server);
-    await listenServer(server, 0);
-    const address = server.address();
-    assert(address && typeof address === "object");
-    const port = address.port;
-    await closeTrackedServer(server, { timeoutMs: 3_000 });
-    ownedServers.delete(server);
-    if (port <= 65_535 - PORT_SEARCH_SIZE) return port;
-  }
-  throw new Error("no valid bounded preferred port was assigned");
+async function availablePreferredPort(excludedPort = null) {
+  return choosePackagedTestPreferredPort(ownedServers, excludedPort);
 }
 
 function listenServer(server, port) {
