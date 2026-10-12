@@ -295,6 +295,7 @@ try {
       "augnes_save_repository_work_revision",
       "augnes_preview_repository_new_work",
       "augnes_prepare_repository_new_work",
+      "augnes_prepare_repository_execution_choice",
       "augnes_review_repository_work",
       "augnes_prepare_repository_execution",
       "augnes_adopt_repository_execution_root",
@@ -327,6 +328,7 @@ try {
     }
     const byName = new Map(tools.tools.map((tool) => [tool.name, tool]));
     assert.equal(byName.get("augnes_review_repository_work")?.annotations?.readOnlyHint, false);
+    assert.equal(byName.get("augnes_prepare_repository_execution_choice")?.annotations?.readOnlyHint, true);
     assert.equal(Object.hasOwn(byName.get("augnes_review_repository_work").inputSchema.properties, "secret"), false);
     assert.equal(byName.get("augnes_read_repository_work_sources")?.annotations?.readOnlyHint, true);
     assert.equal(byName.get("augnes_lookup_repository_retained_sources")?.annotations?.readOnlyHint, true);

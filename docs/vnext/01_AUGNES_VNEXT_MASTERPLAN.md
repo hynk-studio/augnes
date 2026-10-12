@@ -44,6 +44,17 @@ format. Current goals and conditions may justify unchanged reuse, revision,
 composition, a newly generated replacement or non-use; direct work remains valid
 when sufficient. Observed outcomes should inform later configurations and
 genuinely separate tasks, with exact source, conditions and limitations retained.
+The project's execution arrangement is itself a revisable choice: present work,
+available assets, successor continuity and role-scoped participation can be
+combined according to the goal and current conditions. Roles, executor instances,
+concurrency and persistence are independent dimensions. A user need not design
+a team before stating the problem. Preparation must serve the actual next
+consumer with material, checks, dependency order and a usable return path.
+Observed contribution use then informs whether a role continues or ends, retaining
+the original expectation, information cutoff, uncertainty and reconsideration
+condition. Direct work and appropriate non-use of a method are normal outcomes;
+participant count is not a product objective. Later expansion, replacement,
+pause and reconstitution keep the same outcome and total-burden standard.
 This is product direction, not a claim that an autonomous learning platform is
 already implemented. [03](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#next-p4p5--executable-capability-reuse-from-experience-1373)
 owns the next bounded implementation candidate and
