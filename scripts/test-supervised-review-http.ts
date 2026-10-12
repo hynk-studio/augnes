@@ -227,7 +227,7 @@ export async function assertSupervisedReviewHttp(f: Fixture, environment: NodeJS
             const candidate = inspected.candidates[0]; assert.equal(candidate.origin, "https://receiver.example.invalid");
             assert(!JSON.stringify(inspected).includes("private=synthetic")); assert(!JSON.stringify(inspected).includes(receiverSecret));
             const decision = { candidate_ref: candidate.candidate_ref, expected_revision: candidate.revision,
-                expected_policy_revision: inspected.policy_revision, expires_at: new Date(Date.now() + 300000).toISOString() };
+                expected_policy_generation: inspected.policy_generation, expected_policy_revision: inspected.policy_revision, expires_at: new Date(Date.now() + 300000).toISOString() };
             assert.equal(callbackCli("approve", decision).candidates[0].state, "approved");
             assert.deepEqual(receiver(), [], "approval does not activate the refused host request");
             assert.throws(() => callbackCli("approve", decision), "stale CLI decision refuses");
@@ -262,7 +262,7 @@ export async function assertSupervisedReviewHttp(f: Fixture, environment: NodeJS
         await zeroEffect(async () => assert.equal((await review(reviewTools[1], { request_ref: requested.request_ref })).reason, "review_material_changed"));
         if (!recovery) {
             const inspected = callbackCli("inspect");
-            assert.equal(callbackCli("stop", { expected_policy_revision: inspected.policy_revision }).stopped, true);
+            assert.equal(callbackCli("stop", { expected_policy_generation: inspected.policy_generation, expected_policy_revision: inspected.policy_revision }).stopped, true);
             const beforeUnsubscribe = receiver().length;
             const { secret: _secret, ...delivery } = subscription.delivery;
             assert((await rpc(modern("events/unsubscribe", { ...subscription, delivery }))).result);

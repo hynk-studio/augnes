@@ -15,8 +15,8 @@ async function callbackOperator(args) {
     const c = readReviewConnections().find(c => c.id === ref && c.callback_enrollment);
     if (!c) throw new Error();
     const decision = decisionFile ? JSON.parse(readFileSync(decisionFile, "utf8")) : {};
-    const expected = operation === "inspect" ? [] : operation === "stop" ? ["expected_policy_revision"] :
-        ["candidate_ref", "expected_policy_revision", "expected_revision", ...(operation === "approve" ? ["expires_at"] : [])];
+    const expected = operation === "inspect" ? [] : operation === "stop" ? ["expected_policy_generation", "expected_policy_revision"] :
+        ["candidate_ref", "expected_policy_generation", "expected_policy_revision", "expected_revision", ...(operation === "approve" ? ["expires_at"] : [])];
     if (!decision || Array.isArray(decision) || Object.keys(decision).sort().join(",") !== expected.sort().join(",")) throw new Error();
     const found = await discoverVerifiedCompanionV01(process.env);
     if (found.status !== "resolved") {

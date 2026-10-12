@@ -20,7 +20,7 @@ export async function testReviewCallbackEnrollment(f: any) {
     const select = async (origin = "https://receiver.example.com", args = {}) => {
         const view = await inspect(); assert.equal(view.observation, "observed");
         const candidate = view.candidates.find((r: any) => r.origin === origin && JSON.stringify(r.arguments) === JSON.stringify(args)); assert(candidate);
-        return { view, candidate, decision: { candidate_ref: candidate.candidate_ref, expected_revision: candidate.revision, expected_policy_revision: view.policy_revision } };
+        return { view, candidate, decision: { candidate_ref: candidate.candidate_ref, expected_revision: candidate.revision, expected_policy_revision: view.policy_revision, expected_policy_generation: view.policy_generation } };
     };
     const approve = async () => {
         const { decision } = await select();
@@ -37,6 +37,13 @@ export async function testReviewCallbackEnrollment(f: any) {
     assert.equal((f.db.prepare("SELECT count(*) n FROM vnext_review_subscriptions WHERE connection_ref=?").get(c.id) as any).n, 0);
     const first = await select();
     assert.equal(first.candidate.state, "pending");
+    assert.match(first.view.policy_generation, /^[a-f0-9]{32}$/);
+    for (const generation of [undefined, null, "invalid"]) {
+        const view = await inspect();
+        assert.equal((await operator("approve", { ...first.decision, expected_policy_generation: generation,
+            expires_at: new Date(Date.now() + 60000).toISOString() })).reason, "invalid_review_input");
+        assert.deepEqual(await inspect(), view, "missing/malformed generation cannot change permission");
+    }
     await event("events/subscribe", { ...sub, delivery: { ...delivery, url: "https://RECEIVER.example.com:443/changed", secret: `whsec_${Buffer.alloc(32, 2).toString("base64")}` } });
     assert.deepEqual((await select()).candidate, first.candidate, "duplicates/path/key changes cannot extend or replace pending observation");
     assert.deepEqual(f.networkCounts(), before, "pending observation performs no DNS/HTTPS/application delivery");

@@ -292,7 +292,8 @@ not start a service or expose an operator capability to the reviewer.
    scoped destination is also supported. No official hostname list is required.
 
 4. Put the exact returned `candidate_ref`, its `revision` as `expected_revision`,
-   and the inspection's `policy_revision` as `expected_policy_revision` into a
+   the inspection's `policy_revision` as `expected_policy_revision`, and its
+   `policy_generation` as `expected_policy_generation` into a
    nonsecret local decision JSON file (`DECISION_JSON`). Add `expires_at` as a
    concrete ISO timestamp no later than the approved trial/connection deadline
    and no more than one hour from the decision. Then explicitly approve:
@@ -301,7 +302,8 @@ not start a service or expose an operator capability to the reviewer.
    AUGNES_REVIEW_CONNECTIONS_FILE="$REVIEW_CONFIG" node scripts/configure-review-connection.mjs callbacks approve "$CONNECTION_REF" "$DECISION_JSON"
    ```
 
-   A stale/concurrent decision refuses. Inspect again before deciding; never
+   A stale/concurrent decision refuses. Generation is a server-issued identity,
+   not a counter to increment locally. Inspect again before deciding; never
    automatically retry approval with new revisions. Approval changes separate
    egress policy, **not** the connection credential/binding or review history.
    A transport interruption may have saved the decision: inspect before retry.
@@ -318,7 +320,7 @@ not start a service or expose an operator capability to the reviewer.
    and delivery. Same permission/URL/key refresh uses the bounded verification
    cache and requires no repeated operator confirmation.
 
-For `reject` or `revoke`, use the same three exact candidate/revision fields in a
+For `reject` or `revoke`, use the same four exact candidate/revision/generation fields in a
 new decision JSON file, **omit `expires_at`**, and substitute that operation in
 the CLI. Rejected/revoked entries remain refusal tombstones until connection
 expiry, unless the operator explicitly makes a fresh exact approval. Revocation
@@ -326,7 +328,7 @@ fences that permission before new verification, persistence and every delivery;
 it does not cancel a socket already admitted or an external model task.
 
 For connection-wide delivery stop, use a decision JSON containing only
-`expected_policy_revision` from fresh inspection:
+`expected_policy_revision` and `expected_policy_generation` from fresh inspection:
 
 ```sh
 AUGNES_REVIEW_CONNECTIONS_FILE="$REVIEW_CONFIG" node scripts/configure-review-connection.mjs callbacks stop "$CONNECTION_REF" "$DECISION_JSON"
@@ -334,7 +336,9 @@ AUGNES_REVIEW_CONNECTIONS_FILE="$REVIEW_CONFIG" node scripts/configure-review-co
 
 Stop invalidates the policy revision and callback leases. Local inspect/stop
 remain available after connection expiry with the exact private configuration,
-authenticated runtime and project access. Host `events/unsubscribe` remains an
+authenticated runtime and project access. First local inspection establishes a
+bounded policy identity if none exists, including before a candidate arrives;
+it grants no permission or subscription. Host `events/unsubscribe` remains an
 authorized, non-network cleanup operation after destination revocation; it needs
 no new egress approval or challenge. Stop/remove the host task through its
 non-model controls and remove the trial connection/tunnel separately. Local
@@ -345,13 +349,17 @@ and 64 overall are retained. Authenticated ingress prunes expired entries before
 observing a new identity, so expired observations never authorize a later one.
 Approvals last at most one hour, capped by the unchanged connection expiry.
 Rejected decisions cannot be displaced by callback path/key changes. No poller
-or background enrollment job is introduced. Restore invalidates policy revisions
-and all approvals as well as delivery leases, even when the restored backup
-predates a revocation. Inspect, explicitly decide again if still authorized,
+or background enrollment job is introduced. Every supported restore mints a new
+policy generation and invalidates all approvals and delivery leases, even when
+restoring the same backup repeatedly. Snapshot revision numbers can repeat;
+generation-bound decision files and verification tokens cannot be reused across
+that boundary. This applies equally to approve, reject, revoke and stop. The
+explicit lifecycle upgrade from the earlier enrollment schema also invalidates
+old permission; ordinary requests never migrate storage. Inspect, explicitly decide again if still authorized,
 and obtain a fresh host subscription. Requests and attributed replies survive.
 A stopped or restored policy can still observe bounded pending candidates from
 authenticated ingress, including after an old candidate expires. Observation
-does not resume permission: a fresh local decision with the current revisions
+does not resume permission: a fresh local decision with the current generation and revisions
 and a newly verified subscription are required. Remove the connection binding
 to stop that ingress as well as delivery.
 
@@ -460,6 +468,13 @@ event, then completes scoped reply/fresh readback/native revision. CLI stop,
 post-revocation unsubscribe and restart preserve that boundary. These controlled
 network fixtures are not actual ChatGPT enrollment acceptance. This reuses the existing lifecycle owner and
 deadline, rather than treating an imported-handler fixture as Next parity.
+The existing `recovery-backup` owner also runs a supervised Next/stdio and fresh
+CLI regression for consumed and unconsumed decisions, decisions captured between
+three restores of the same backup, and all four mutating operator actions. It
+requires current runtime discovery, unchanged decision files, no refusal effects
+or network activity, intact requests/replies, and a fresh signed subscription
+with a later request/reply. It covers the populated predecessor's explicit
+migration and retains the recovery owner's total 330-second bound.
 Actual ChatGPT **event-triggered** receipt/answer/use, Events recovery and a
 matched manual-handoff burden comparison remain **NOT RUN**. Attempt-6 explicit
 reply/use/restart success remains separate positive evidence. No new live

@@ -1465,7 +1465,7 @@ const suites = {
     {
       id: "recovery-backup",
       shard: "operability-recovery-storage",
-      requirements: ["database", "backup-restore", "process-owning"],
+      requirements: ["database", "backup-restore", "process-owning", "listener-port-owning"],
       label: "versioned recovery backup and atomic restore contract",
       ...rootNode("scripts/test-recovery-backup.mjs"),
       // The complete backup, hard-crash ownership, adoption, and restore matrix

@@ -109,7 +109,12 @@ setup requirement. An explicitly enabled connection records bounded pending
 origin/filter candidates through authenticated Events ingress; exact local CLI
 inspect/approve/reject/revoke/stop decisions remain separate from reviewer tools
 and native review identity. Fresh subscription verifies the approved callback,
-and restore invalidates approvals. Strict preconfigured origins and independent
+and restore invalidates approvals. The #1452 review reproduced a consumed local
+decision becoming admissible after real restore when snapshot revisions repeated.
+Fresh restore generations now bind every local decision and verification token;
+the recovery owner covers consumed, unconsumed and between-restore decisions
+through real supervised HTTP/CLI and repeated atomic restores. Fresh approval
+and signed subscription remain the supported recovery path. Strict preconfigured origins and independent
 explicit reviews remain supported. The [adapter guide](../../apps/augnes_apps/README.md#local-callback-enrollment-and-stop)
 owns the supported setup, diagnostics, finite bounds and recovery sequence.
 

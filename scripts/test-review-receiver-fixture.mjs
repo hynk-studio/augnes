@@ -7,6 +7,7 @@ import { Writable, Readable } from "node:stream";
 import { createHmac } from "node:crypto";
 import { appendFileSync } from "node:fs";
 export const receiverSecret = `whsec_${Buffer.alloc(32, 19).toString("base64")}`;
+export const receiverRecoverySecret = `whsec_${Buffer.alloc(32, 23).toString("base64")}`;
 export function installReviewReceiverFixture(records) {
     const lookup = dns.promises.lookup, request = https.request;
     dns.promises.lookup = async (hostname, options) => {
@@ -27,9 +28,9 @@ export function installReviewReceiverFixture(records) {
         const req = new Writable({ write(chunk, _encoding, done) { body += chunk.toString(); done(); } });
         req.once("finish", () => {
             const h = options.headers, payload = JSON.parse(body);
-            const signed = `v1,${createHmac("sha256", Buffer.from(receiverSecret.slice(6), "base64"))
-                .update(`${h["webhook-id"]}.${h["webhook-timestamp"]}.${body}`).digest("base64")}`;
-            assert(h["webhook-signature"].split(" ").includes(signed));
+            const signatures = [receiverSecret, receiverRecoverySecret].map(secret => `v1,${createHmac("sha256", Buffer.from(secret.slice(6), "base64"))
+                .update(`${h["webhook-id"]}.${h["webhook-timestamp"]}.${body}`).digest("base64")}`);
+            assert(signatures.some(signed => h["webhook-signature"].split(" ").includes(signed)));
             assert(Math.abs(Number(h["webhook-timestamp"]) - Date.now() / 1000) < 60);
             assert(h["X-MCP-Subscription-Id"].startsWith("sub_"));
             const verification = payload.type === "verification";

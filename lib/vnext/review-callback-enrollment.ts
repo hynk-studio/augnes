@@ -4,23 +4,24 @@ import { openDatabase } from "@/lib/db";
 import { canonical, currentReviewConnection, readReviewConnections, readReviewCallback } from "../../plugins/augnes-operator/mcp/review-connection.mjs";
 import { callbackDestination, callbackURL, CallbackError } from "../../plugins/augnes-operator/mcp/review-webhook.mjs";
 import { resolveReviewScope, reviewObject, reviewKeys, reviewProjection, refuseReview, type ReviewConnection } from "./request-bound-review";
+import { newCallbackPolicyGeneration } from "./persistence/review-schema.mjs";
 
 // Egress permission only. These rows neither change the credential-bound
 // connection configuration nor confer native work/semantic/execution authority.
-type Policy = { connection_binding: string; revision: number; stopped: number; last_stage: string | null; observed_at: number | null };
+type Policy = { connection_binding: string; generation: string; revision: number; stopped: number; last_stage: string | null; observed_at: number | null };
 type Candidate = { candidate_ref: string; connection_binding: string; principal: string; project_key: string; policy_revision: number;
     revision: number; origin: string; arguments_json: string; state: string; observed_at: number; expires_at: number; decision_at: number | null };
-export type CallbackApproval = { candidate_ref: string; revision: number; policy_revision: number } | null;
+export type CallbackApproval = { candidate_ref: string; revision: number; policy_revision: number; policy_generation: string } | null;
 const policy = (db: Database.Database, c: ReviewConnection) => db.prepare("SELECT * FROM vnext_review_callback_policies WHERE connection_ref=? AND connection_binding=?").get(c.id, c.binding) as Policy | undefined;
 function fail(reason: string): never { throw new CallbackError(reason, "origin_policy"); }
-const token = (c: Candidate): CallbackApproval => ({ candidate_ref: c.candidate_ref, revision: c.revision, policy_revision: c.policy_revision });
+const token = (c: Candidate, p: Policy): CallbackApproval => ({ candidate_ref: c.candidate_ref, revision: c.revision, policy_revision: c.policy_revision, policy_generation: p.generation });
 
 function ensurePolicy(db: Database.Database, c: ReviewConnection) {
     // Called only after authenticated scope validation. Replacement config keeps
     // its existing full-binding revocation semantics; no old decision migrates.
-    db.prepare(`INSERT INTO vnext_review_callback_policies(connection_ref,connection_binding,revision,stopped) VALUES(?,?,1,0)
-      ON CONFLICT(connection_ref) DO UPDATE SET connection_binding=excluded.connection_binding,revision=revision+1,stopped=0,last_stage=NULL,observed_at=NULL
-      WHERE connection_binding<>excluded.connection_binding`).run(c.id, c.binding);
+    db.prepare(`INSERT INTO vnext_review_callback_policies(connection_ref,connection_binding,revision,stopped,generation) VALUES(?,?,1,0,?)
+      ON CONFLICT(connection_ref) DO UPDATE SET connection_binding=excluded.connection_binding,generation=excluded.generation,revision=revision+1,stopped=0,last_stage=NULL,observed_at=NULL
+      WHERE connection_binding<>excluded.connection_binding`).run(c.id, c.binding, newCallbackPolicyGeneration());
     return policy(db, c)!;
 }
 export function recordCallbackStage(db: Database.Database, c: ReviewConnection, stage: string) {
@@ -71,9 +72,9 @@ export function admitReviewCallback(db: Database.Database, c: ReviewConnection, 
     if (!candidate || candidate.expires_at <= Date.now()) fail("approval_required");
     if (candidate.state === "pending") fail("approval_required");
     if (candidate.state !== "approved") fail("approval_revoked");
-    if (candidate.policy_revision !== p.revision || (options.expected !== undefined && canonical(options.expected) !== canonical(token(candidate))))
+    if (candidate.policy_revision !== p.revision || (options.expected !== undefined && canonical(options.expected) !== canonical(token(candidate, p))))
         fail("approval_changed");
-    return { origin: destination.origin, approval: token(candidate), expires_at: Math.min(candidate.expires_at, Date.parse(c.expires_at)) };
+    return { origin: destination.origin, approval: token(candidate, p), expires_at: Math.min(candidate.expires_at, Date.parse(c.expires_at)) };
 }
 
 function stopSubscriptions(db: Database.Database, c: ReviewConnection) {
@@ -90,7 +91,7 @@ export async function handleCallbackOperator(value: unknown, reviewerSecret: str
     if (reviewerSecret !== null) refuseReview("review_access_refused", 403);
     const input = reviewObject(value);
     reviewKeys(input, ["action", "operation", "connection_ref", "connection_binding", "project_key"],
-        ["candidate_ref", "expected_revision", "expected_policy_revision", "expires_at"]);
+        ["candidate_ref", "expected_revision", "expected_policy_revision", "expected_policy_generation", "expires_at"]);
     const { operation } = input;
     if (!["inspect", "approve", "reject", "revoke", "stop"].includes(operation)) refuseReview("invalid_review_input", 400);
     // Expiry must not prevent inspect/stop. Still require the exact private file,
@@ -102,12 +103,16 @@ export async function handleCallbackOperator(value: unknown, reviewerSecret: str
         await resolveReviewScope(db, c);
         if (operation !== "inspect") {
             if (!Number.isSafeInteger(input.expected_policy_revision)) refuseReview("invalid_review_input", 400);
+            if (typeof input.expected_policy_generation !== "string" || !/^[a-f0-9]{32}$/.test(input.expected_policy_generation))
+                refuseReview("invalid_review_input", 400);
             db.transaction(() => {
                 // Reread private authority after obtaining the write lock.
                 const fresh = (readReviewConnections() as ReviewConnection[]).find(v => v.id === c.id && v.binding === c.binding);
                 if (!fresh) refuseReview("review_access_refused", 403);
+                const observed = policy(db, c);
+                if (!observed || observed.generation !== input.expected_policy_generation || observed.revision !== input.expected_policy_revision)
+                    refuseReview("callback_policy_changed");
                 const p = ensurePolicy(db, c);
-                if (p.revision !== input.expected_policy_revision) refuseReview("callback_policy_changed");
                 if (operation === "stop") {
                     if (input.candidate_ref !== undefined || input.expected_revision !== undefined || input.expires_at !== undefined) refuseReview("invalid_review_input", 400);
                     db.prepare("UPDATE vnext_review_callback_policies SET stopped=1,revision=revision+1,last_stage='operator_stopped',observed_at=? WHERE connection_ref=?").run(Date.now(), c.id);
@@ -144,8 +149,16 @@ export async function handleCallbackOperator(value: unknown, reviewerSecret: str
                     db.prepare("UPDATE vnext_review_deliveries SET status='stopped' WHERE subscription_id=? AND status='pending'").run(sub.subscription_id);
                 }
             }).immediate();
-        } else if (["candidate_ref", "expected_revision", "expected_policy_revision", "expires_at"].some(k => input[k] !== undefined)) refuseReview("invalid_review_input", 400);
-        const p = policy(db, c);
+        } else if (["candidate_ref", "expected_revision", "expected_policy_revision", "expected_policy_generation", "expires_at"].some(k => input[k] !== undefined)) refuseReview("invalid_review_input", 400);
+        // First local inspection establishes a bounded decision identity even
+        // before any candidate exists. A backup without that row cannot revive
+        // a stop/decision file issued after the backup: inspection mints a new
+        // identity, and a mutation without fresh inspection refuses above.
+        const p = policy(db, c) ?? db.transaction(() => {
+            const fresh = (readReviewConnections() as ReviewConnection[]).find(v => v.id === c.id && v.binding === c.binding);
+            if (!fresh) refuseReview("review_access_refused", 403);
+            return ensurePolicy(db, c);
+        }).immediate();
         const rows = db.prepare("SELECT * FROM vnext_review_callback_candidates WHERE connection_ref=? AND connection_binding=? ORDER BY observed_at,candidate_ref LIMIT 8").all(c.id, c.binding) as Candidate[];
         const subscriptions = db.prepare("SELECT subscription_id,arguments_json,callback_envelope,expires_at,verified_until FROM vnext_review_subscriptions WHERE connection_ref=? AND connection_binding=? AND stopped=0 AND expires_at>? LIMIT 16").all(c.id, c.binding, Date.now()) as any[];
         const effective = subscriptions.map(s => {
@@ -161,7 +174,7 @@ export async function handleCallbackOperator(value: unknown, reviewerSecret: str
             return { subscription_ref: s.subscription_id, state, expires_at: new Date(s.expires_at).toISOString(), verified_until: new Date(s.verified_until).toISOString() };
         });
         return reviewProjection("available", { observation: "observed", connection_ref: c.id, connection_binding: c.binding, project_key: c.project_key, principal: c.principal,
-            connection_expires_at: c.expires_at, policy_revision: p?.revision ?? 1, stopped: Boolean(p?.stopped),
+            connection_expires_at: c.expires_at, policy_generation: p?.generation ?? null, policy_revision: p?.revision ?? 1, stopped: Boolean(p?.stopped),
             subscriptions: effective,
             diagnostic: p?.last_stage ? { stage: p.last_stage, observed_at: p.observed_at } : { status: "unavailable", reason: "no_observation" },
             candidates: rows.map(r => ({ candidate_ref: r.candidate_ref, revision: r.revision, policy_revision: r.policy_revision,
