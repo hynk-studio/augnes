@@ -3,7 +3,7 @@ import dns from "node:dns";
 import { BlockList, isIP } from "node:net";
 import { createHmac } from "node:crypto";
 export class CallbackError extends Error {
-    constructor(reason) { super("callback_endpoint_error"); this.reason = reason; }
+    constructor(reason, stage = reason) { super("callback_endpoint_error"); this.reason = reason; this.stage = stage; }
 }
 const blocked = new BlockList();
 for (const [ip, bits] of [["0.0.0.0", 8], ["10.0.0.0", 8], ["100.64.0.0", 10], ["127.0.0.0", 8], ["169.254.0.0", 16],
@@ -18,17 +18,26 @@ export function publicCallbackAddress(address) {
     const family = isIP(address);
     return family === 4 ? !blocked.check(address, "ipv4") : family === 6 && globalV6.check(address, "ipv6") && !blocked.check(address, "ipv6");
 }
-export function callbackURL(raw, approvedOrigins) {
+// Shape inspection has no DNS or socket side effects. Enrollment stores only
+// the canonical origin, never the supplied path, query or signing material.
+export function callbackDestination(raw) {
+    /** @returns {never} */
+    const fail = stage => { throw new CallbackError("destination_refused", stage); };
+    if (typeof raw !== "string" || raw.length > 2048) fail("url_input");
+    let u;
     try {
-        const u = new URL(raw);
-        if (typeof raw !== "string" || raw.length > 2048 || u.protocol !== "https:" || u.username || u.password || u.hash ||
-            isIP(u.hostname.replace(/^\[|\]$/g, "")) || !approvedOrigins.includes(u.origin))
-            throw new Error();
-        return u;
-    }
-    catch {
-        throw new CallbackError("destination_refused");
-    }
+        u = new URL(raw);
+    } catch { throw new CallbackError("destination_refused", "url_parse"); }
+    if (u.protocol !== "https:") fail("url_https");
+    if (u.username || u.password) fail("url_userinfo");
+    if (u.hash) fail("url_fragment");
+    if (isIP(u.hostname.replace(/^\[|\]$/g, ""))) fail("url_literal_address");
+    return u;
+}
+export function callbackURL(raw, approvedOrigins) {
+    const u = callbackDestination(raw);
+    if (!approvedOrigins.includes(u.origin)) throw new CallbackError("destination_refused", "origin_policy");
+    return u;
 }
 export function signingKey(secret) {
     if (typeof secret !== "string" || !/^whsec_[A-Za-z0-9+/]+={0,2}$/.test(secret))
@@ -53,11 +62,11 @@ export async function postReviewWebhook({ url, origins, secret, previousSecret, 
     let timer;
     try {
         const addresses = await Promise.race([
-            dns.promises.lookup(destination.hostname, { all: true, verbatim: true }),
+            dns.promises.lookup(destination.hostname, { all: true, verbatim: true }).catch(() => { throw new CallbackError("transport_failed", "dns_lookup"); }),
             new Promise((_, reject) => { timer = setTimeout(() => reject(new CallbackError("timeout")), 10000); }),
         ]);
         if (!addresses.length || addresses.some(a => !publicCallbackAddress(a.address)))
-            throw new CallbackError("destination_refused");
+            throw new CallbackError("destination_refused", "dns_address");
         if (Date.now() >= deadline)
             throw new CallbackError("timeout");
         await beforeSend();
@@ -75,15 +84,20 @@ export async function postReviewWebhook({ url, origins, secret, previousSecret, 
             }, response => {
                 let bytes = 0;
                 const chunks = [];
-                response.on("data", chunk => { bytes += chunk.length; if (bytes > 16384)
-                    request.destroy(new CallbackError("response_too_large"));
-                else
-                    chunks.push(chunk); });
+                response.on("data", chunk => { bytes += chunk.length; if (bytes > 16384) {
+                    const error = new CallbackError("response_too_large");
+                    // Settle the failure before a queued response end can win
+                    // the race with the request's asynchronous error event.
+                    reject(error);
+                    request.destroy(error);
+                } else chunks.push(chunk); });
                 response.on("error", () => reject(new CallbackError("transport_failed")));
                 response.on("end", () => resolve({ status: response.statusCode, body: Buffer.concat(chunks).toString("utf8") }));
             });
             const abort = setTimeout(() => request.destroy(new CallbackError("timeout")), Math.max(1, deadline - Date.now()));
-            request.on("error", error => reject(error instanceof CallbackError ? error : new CallbackError("transport_failed")));
+            request.on("error", error => reject(error instanceof CallbackError ? error : new CallbackError("transport_failed",
+                ["ERR_TLS_CERT_ALTNAME_INVALID", "UNABLE_TO_VERIFY_LEAF_SIGNATURE", "CERT_HAS_EXPIRED", "DEPTH_ZERO_SELF_SIGNED_CERT", "SELF_SIGNED_CERT_IN_CHAIN"].includes(error.code)
+                    ? "tls_verification" : "https_transport")));
             request.on("close", () => clearTimeout(abort));
             request.end(body);
         });

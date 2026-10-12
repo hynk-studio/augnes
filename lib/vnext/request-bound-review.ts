@@ -32,6 +32,7 @@ export type ReviewConnection = {
     reviewer_label: string;
     expires_at: string;
     callback_origins: string[];
+    callback_enrollment?: true;
 };
 export type ReviewRow = {
     request_ref: string;

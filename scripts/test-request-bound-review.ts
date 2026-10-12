@@ -30,6 +30,9 @@ import { prepareRuntimeDatabase, restoreRuntimeDatabase, inspectRecoveryDatabase
 import { createRecoveryBackup } from "./recovery-backup.mjs";
 import { readProjectWorkInitializationSnapshotV01 } from "../lib/vnext/runtime/project-work-initialization";
 import { reviewedOutcomeSourceRef } from "../lib/intake/selected-work-source-comparison";
+import { testReviewCallbackEnrollment } from "./test-review-callback-enrollment";
+import { assertPreparedDatabase, DatabaseAccessError } from "../lib/db/prepared-database.mjs";
+import { structuralSchemaContractSignature } from "../lib/db/structural-schema-contract.mjs";
 export async function testRequestBoundReview() {
     const started = Date.now(), env = { ...process.env }, root = realpathSync(mkdtempSync(path.join(tmpdir(), "ag-review-"))), dbPath = path.join(root, "fixture.db");
     let phaseStart = started;
@@ -44,7 +47,8 @@ export async function testRequestBoundReview() {
     const guard = installZeroNetworkGuard({ allowLoopback: true });
     const token = randomBytes(32).toString("base64url"), instance = "review-fixture", generation = "generation-1", repository = "a".repeat(64);
     let origin = "", id = 0, httpCalls = 0, dropAck = false, inspectionFailure = false, interruptDelivery = false, callbacks = 0, verifyCalls = 0, callbackStatus = 200, challengeWrong = false, signingWrong = false;
-    let addresses = [{ address: "8.8.8.8", family: 4 }], duringDNS: (() => Promise<void>) | null = null;
+    let addresses = [{ address: "8.8.8.8", family: 4 }], duringDNS: (() => Promise<void>) | null = null, dnsCalls = 0,
+        duringHTTPS: (() => Promise<void>) | null = null, socketError: string | null = null, oversizedResponse = false;
     const received: any[] = [], errors: string[] = [], eventRoutes: { method: string; status: number; metadata: boolean }[] = [], routes: Record<string, (r: Request) => Promise<Response>> = {
         "/api/augnes/read/codex-repository-continuity": resume, "/api/augnes/read/codex-repository-work-sources": source,
         "/api/augnes/repository-work-revision": writer, "/api/augnes/review": review,
@@ -104,9 +108,10 @@ export async function testRequestBoundReview() {
     }));
     const oldRequest = https.request, oldLookup = dns.promises.lookup;
     const signingSecret = `whsec_${randomBytes(32).toString("base64")}`;
+    const signingSecrets = new Set([signingSecret]);
     // Mock only the operating-system network boundary. Production validation,
     // signing, lifecycle and route dispatch run unchanged, with no bypass flag.
-    dns.promises.lookup = (async () => { if (duringDNS) {
+    dns.promises.lookup = (async () => { dnsCalls++; if (duringDNS) {
         const action = duringDNS;
         duringDNS = null;
         await action();
@@ -118,11 +123,12 @@ export async function testRequestBoundReview() {
         options.lookup(url.hostname, { all: true }, (error: any, pinned: any) => { assert.equal(error, null); assert.deepEqual(pinned, [addresses[0]]); assert(publicCallbackAddress(pinned[0].address)); });
         let body = "";
         const request = new Writable({ write(chunk, _encoding, done) { body += chunk.toString(); done(); } });
-        request.once("finish", () => {
+        request.once("finish", async () => {
+            if (socketError) { request.destroy(Object.assign(new Error("protected_fixture_transport_detail"), { code: socketError })); return; }
             const payload = JSON.parse(body), h = options.headers, timestamp = h["webhook-timestamp"];
             assert(Math.abs(Number(timestamp) - Date.now() / 1000) < 300);
-            const expected = `v1,${createHmac("sha256", Buffer.from(signingSecret.slice(6), "base64")).update(`${h["webhook-id"]}.${timestamp}.${body}`).digest("base64")}`;
-            const good = h["webhook-signature"].split(" ").includes(expected) && !signingWrong;
+            const expected = [...signingSecrets].map(key => `v1,${createHmac("sha256", Buffer.from(key.slice(6), "base64")).update(`${h["webhook-id"]}.${timestamp}.${body}`).digest("base64")}`);
+            const good = expected.some(signature => h["webhook-signature"].split(" ").includes(signature)) && !signingWrong;
             if (payload.type === "verification")
                 verifyCalls++;
             else {
@@ -131,7 +137,8 @@ export async function testRequestBoundReview() {
                 received.push({ ...payload, headers: h });
             }
             const status = good ? callbackStatus : 401;
-            const response = Readable.from([Buffer.from(payload.type === "verification" ? JSON.stringify({ challenge: challengeWrong ? "wrong" : payload.challenge }) : "{}")]);
+            if (duringHTTPS) { const action = duringHTTPS; duringHTTPS = null; await action(); }
+            const response = Readable.from([Buffer.from(oversizedResponse ? "x".repeat(17000) : payload.type === "verification" ? JSON.stringify({ challenge: challengeWrong ? "wrong" : payload.challenge }) : "{}")]);
             Object.assign(response, { statusCode: status });
             callback(response);
         });
@@ -203,6 +210,14 @@ export async function testRequestBoundReview() {
         db.pragma("foreign_keys=ON");
         db.pragma("journal_mode=WAL");
         applyCanonicalDatabaseMigrations(db);
+        // Exact prior release is an upgrade input, not ordinary-access-ready.
+        // Only the explicit lifecycle migration owner adds enrollment tables.
+        db.exec("DROP TABLE vnext_review_callback_candidates; DROP TABLE vnext_review_callback_policies");
+        assert.equal(structuralSchemaContractSignature(db), "3006f8bf03754b88c499bd53307dbc9fe8ddf81f519283eb469caad03454834d");
+        assert.throws(() => assertPreparedDatabase(db), e => e instanceof DatabaseAccessError && e.code === "database_unprepared");
+        assert(!db.prepare("SELECT name FROM sqlite_master WHERE name='vnext_review_callback_candidates'").get());
+        applyCanonicalDatabaseMigrations(db);
+        assertPreparedDatabase(db);
         const workspace = getOrCreateDefaultWorkspaceIdentityV01(db);
         const projects = ["A", "B"].map(label => {
             const projectRoot = path.join(root, label);
@@ -493,8 +508,9 @@ export async function testRequestBoundReview() {
         callbackStatus = 200;
         assert.equal((await event("events/subscribe", { ...subscribe, delivery: { ...delivery, secret: "whsec_bad" } })).error.code, -32015);
         const beforeRotate = verifyCalls, newSecret = `whsec_${randomBytes(32).toString("base64")}`;
+        signingSecrets.add(newSecret);
         await event("events/subscribe", { ...subscribe, delivery: { ...delivery, secret: newSecret } });
-        assert.equal(verifyCalls, beforeRotate);
+        assert.equal(verifyCalls, beforeRotate + 1, "replacement key must prove possession; URL-only cache cannot admit it");
         await request("rotation delivery");
         assert.equal(received.at(-1).headers["webhook-signature"].split(" ").length, 2);
         await event("events/subscribe", { ...subscribe, delivery: { ...delivery, secret: newSecret } });
@@ -622,6 +638,11 @@ export async function testRequestBoundReview() {
         // Exercise the supported backup/restore/startup owners with real requests,
         // rather than manufacturing an adapter-state database fixture.
         await event("events/subscribe", subscribe);
+        const enrollment = await testReviewCallbackEnrollment({ db, configPath, raw, signingSecret, signingSecrets,
+            networkCounts: () => ({ dnsCalls, verifyCalls, callbacks }), addresses: (value: typeof addresses) => { addresses = value; },
+            duringDNS: (action: () => Promise<void>) => { duringDNS = action; }, duringHTTPS: (action: () => Promise<void>) => { duringHTTPS = action; },
+            socketError: (code: string | null) => { socketError = code; }, oversizedResponse: (value: boolean) => { oversizedResponse = value; } });
+        phase("callback_enrollment");
         const beforeRestore = db.prepare("SELECT request_ref,response_ref FROM vnext_review_requests ORDER BY request_ref").all();
         phase("scoped_discovery_and_authority");
         db.close();
@@ -630,6 +651,7 @@ export async function testRequestBoundReview() {
             sourceApplication: { application_version: null, build_identity: null, package_contract: null, package_contract_version: null, runtime_contract: null, runtime_schema_version: null },
             reason: "manual_recovery", inspectDatabase: inspectRecoveryDatabaseFile } as unknown as Parameters<typeof createRecoveryBackup>[0]);
         phase("database_backup");
+        await enrollment.revokeAfterBackup();
         await restoreRuntimeDatabase({ ...lifecycle, selectedBackupId: backup.manifest.backup_id } as unknown as Parameters<typeof restoreRuntimeDatabase>[0]);
         phase("database_restore");
         await prepareRuntimeDatabase(lifecycle as unknown as Parameters<typeof prepareRuntimeDatabase>[0]);
@@ -637,6 +659,7 @@ export async function testRequestBoundReview() {
         db = new Database(dbPath);
         assert.deepEqual(db.prepare("SELECT request_ref,response_ref FROM vnext_review_requests ORDER BY request_ref").all(), beforeRestore);
         assert.equal((db.prepare("SELECT count(*) n FROM vnext_review_subscriptions WHERE stopped=0").get() as any).n, 0);
+        await enrollment.assertRestored(db);
         const later = await request("later request after supported database recovery");
         assert.equal((await reply(await read(later.request_ref))).status, "saved");
         phase("later_request_after_recovery");

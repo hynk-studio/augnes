@@ -617,6 +617,19 @@ with deliberate use recorded as `derived_interpretation`. It is not an operator
 outcome report or RunReceipt and cannot bypass the reviewed-outcome owner's exact
 expectation/attempt/report/receipt/packet/author-session checks.
 
+Callback enrollment is an optional adapter egress policy, separate from the
+credential-bound connection and native review linkage. Authenticated scoped
+subscription ingress may record only a bounded pending origin/filter, without
+network activity. An exact local operator decision pins principal, project,
+connection, origin/port, filter, policy revision and finite expiry; neither a
+model argument nor a reviewer tool can grant it. Informed scoped approval is a
+supported basis, without claiming independently verified service ownership.
+Approval does not turn an already refused subscription into success: a fresh
+ordinary protocol request must pass current permission and signed callback
+verification. Recheck before persistence and each delivery. Revocation/restore
+invalidate permission; unsubscribe/local stop require no new egress permission.
+These controls do not guarantee exactly-once inference or cancel external work.
+
 The [bounded adapter contract](../../apps/augnes_apps/README.md#opt-in-request-bound-review-1433)
 defines limits, revocation, callback security, lifecycle preparation and current
 live-acceptance gaps. Native work, source provenance and continuation owners

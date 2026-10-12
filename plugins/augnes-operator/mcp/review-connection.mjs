@@ -1,4 +1,4 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual, createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { constants, openSync, fstatSync, readFileSync, closeSync } from "node:fs";
 import path from "node:path";
 export const REVIEW_MARKER = "request-bound-review-v0.1";
@@ -16,6 +16,20 @@ export function sameSecret(a, b) {
         return false;
     const x = Buffer.from(a), y = Buffer.from(b);
     return x.length === y.length && timingSafeEqual(x, y);
+}
+// Active callback material alone is encrypted; pending enrollment retains only
+// the origin/filter needed for the local decision. A configuration replacement
+// cannot decrypt or inherit the old binding's material.
+export function sealReviewCallback(c, value) {
+    const nonce = randomBytes(12), cipher = createCipheriv("aes-256-gcm", Buffer.from(c.storage_key, "base64url"), nonce);
+    cipher.setAAD(Buffer.from(c.binding));
+    return JSON.stringify([nonce.toString("base64"), Buffer.concat([cipher.update(canonical(value)), cipher.final()]).toString("base64"), cipher.getAuthTag().toString("base64")]);
+}
+export function readReviewCallback(c, value) {
+    const [nonce, content, tag] = JSON.parse(value), cipher = createDecipheriv("aes-256-gcm", Buffer.from(c.storage_key, "base64url"), Buffer.from(nonce, "base64"));
+    cipher.setAAD(Buffer.from(c.binding));
+    cipher.setAuthTag(Buffer.from(tag, "base64"));
+    return JSON.parse(Buffer.concat([cipher.update(Buffer.from(content, "base64")), cipher.final()]).toString());
 }
 // Explicit machine-local configuration is an adapter capability, not a Core
 // grant. Never accept this configuration or a principal from model arguments.
@@ -37,7 +51,8 @@ export function readReviewConnections() {
             throw new Error();
         const seen = new Set(), principals = new Set();
         return value.connections.map(c => {
-            if (Object.keys(c).sort().join(",") !== "callback_origins,destination,expires_at,id,project_key,repository_root,reviewer_label,secret,storage_key" ||
+            if (Object.keys(c).filter(k => k !== "callback_enrollment").sort().join(",") !== "callback_origins,destination,expires_at,id,project_key,repository_root,reviewer_label,secret,storage_key" ||
+                (c.callback_enrollment !== undefined && (c.callback_enrollment !== true || c.callback_origins?.length !== 0)) ||
                 !/^review:[a-f0-9]{32}$/.test(c.id) || seen.has(c.id) || !path.isAbsolute(c.repository_root) ||
                 !/^sha256:[a-f0-9]{64}$/.test(c.project_key) || !/^[A-Za-z0-9_-]{43}$/.test(c.secret) || principals.has(c.secret) ||
                 !/^[A-Za-z0-9_-]{43}$/.test(c.storage_key) ||
