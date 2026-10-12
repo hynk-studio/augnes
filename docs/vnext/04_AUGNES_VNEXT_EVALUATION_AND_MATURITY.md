@@ -326,6 +326,21 @@ saves and a fresh-process reconstruction discriminate the intended behavior.
 The before/after characterization is the absence/presence of this ordinary
 arrangement-loop entry, not an invented old runtime failure.
 
+The first #1450 candidate `ed67517b00292a85f54aaa6ee1e1564daa003dc5`
+retains its failed Full Canonical result: 8 PASS, 1 FAIL and all seven Browser
+phases NOT_RUN. Its native decommission trace recorded an initial ownership
+refusal and no bootout in that attempt, but not the specific failed predicate;
+receipt validation rejected failed/incomplete, non-deciding evidence. A later
+bounded investigation reproduced a fixture readiness gap: the old wait accepted
+a pre-restoration live snapshot before a pending negative observation. The native
+control observed `starting` with missing runtime ownership, refusal before any
+bootout, then recovery of the same identities and successful timestamp-only
+decommission. This establishes the tested mechanism, not the unrecorded historical
+predicate. The fixture now requires fresh exact readiness and preserves refusal
+on generation/instance substitution before an effect. Original and corrected
+candidate qualification receipts remain separate; focused results do not replace
+one complete planner-selected run of the final candidate.
+
 These developer-exposed cases do not establish independent demand, model judgment,
 general time savings or comparative usefulness. Actual model consumption and a
 fixed comparison for this increment are NOT_RUN. The exercise records measured

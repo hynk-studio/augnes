@@ -78,8 +78,10 @@ environment.NEXT_TELEMETRY_DISABLED = "1";
 let uninstalled = false;
 let authorityStateUnchanged = false;
 let projectFilesUnchanged = false;
+let testFailure = null;
 
 try {
+  await assertManagerOwnershipReadiness();
   const install = await runCli(["install"]);
   assert.equal(install.status, 0, installFailureDiagnostic(install));
   assert.equal(JSON.parse(install.stdout).service.status, "live");
@@ -718,22 +720,90 @@ try {
   assert.equal(existsSync(unrelatedLaunchAgent), true);
   assert.deepEqual(readExactTestLaunchdJob(), staleLaunchJobBeforeDrift);
 
+  // A manager verification may still be in flight while the negative fixture
+  // is restored. Observe its real negative result, then require a fresh live
+  // result after restoration; an older live snapshot is not readiness.
+  const unreadyManagerState = await waitForManagerUnready(staleCheckoutManagerState);
+  const unreadyActions = [];
+  await assert.rejects(uninstallCompanionService({
+    ...staleObservationOptions,
+    launchctl: recordingNativeLaunchctl(unreadyActions),
+  }), error => error?.code === "companion_service_stale_checkout_decommission_refused" &&
+    error?.cause?.code === "process_ownership_changed");
+  assert.equal(unreadyActions.some(([command]) => command === "bootout"), false);
+  assert.equal(existsSync(layout.stale_decommission_path), false);
+  assert.deepEqual(readExactTestLaunchdJob(), staleLaunchJobBeforeDrift);
+  assertProcessIdentitiesPresent(staleOwnedProcessIdentities);
   writeFileSync(
     layout.runtime_manifest_path,
     staleRuntimeManifestText,
     { mode: 0o600 },
   );
+  const restoredAfter = Date.now();
   const restoredStaleManagerState = await waitForManagerRuntimeOwnership({
     managerPid: staleCheckoutManagerState.manager_pid,
     supervisorPid: staleCheckoutManagerState.supervisor_pid,
     generationId: staleRuntimeManifest.generation_id,
     instanceId: staleRuntimeManifest.instance_id,
+    managerIdentity: staleCheckoutManagerState.manager_process_identity,
+    supervisorIdentity: staleCheckoutManagerState.supervisor_process_identity,
+    afterUpdatedAt: restoredAfter,
     timeoutMs: 10_000,
   });
   captureRecordedRuntimeProcesses(
     restoredStaleManagerState.runtime_ownership,
     staleRuntimeManifest,
   );
+  console.log(JSON.stringify({ case: "stale-fixture-restoration", prior_status: unreadyManagerState.status,
+    prior_runtime_ownership_present: unreadyManagerState.runtime_ownership !== null,
+    restored_status: restoredStaleManagerState.status,
+    fresh_manager_observation: Date.parse(restoredStaleManagerState.updated_at) > restoredAfter,
+    same_manager_and_supervisor: true, same_generation_and_instance: true,
+    refusal_bootout_count: unreadyActions.filter(([command]) => command === "bootout").length }));
+
+  // Initial admission must not authorize a later replacement generation or
+  // instance. The real owner rechecks before its first lifecycle effect.
+  for (const field of ["generation_id", "instance_id"]) {
+    const actions = [];
+    const substitutedText = `${JSON.stringify({
+      ...staleRuntimeManifest, [field]: `replacement-${staleRuntimeManifest[field]}`,
+    })}\n`;
+    let substitutions = 0;
+    await assert.rejects(uninstallCompanionService({
+      ...staleObservationOptions,
+      launchctl: recordingNativeLaunchctl(actions),
+      testStaleDecommissionStageHook: ({ stage }) => {
+        if (stage !== "before_first_effect_revalidation") return;
+        writeFileSync(layout.runtime_manifest_path, substitutedText, { mode: 0o600 });
+        substitutions += 1;
+      },
+    }), error => error?.code === "companion_service_stale_checkout_decommission_refused" &&
+      error?.cause?.code === "process_ownership_changed");
+    assert.equal(substitutions, 1);
+    assert.equal(actions.some(([command]) => command === "bootout"), false);
+    assert.equal(existsSync(layout.stale_decommission_path), false);
+    assert.equal(existsSync(layout.lifecycle_lock_path), false);
+    assert.equal(readFileSync(layout.configuration_path, "utf8"), staleCheckoutConfigurationText);
+    assert.equal(readFileSync(layout.runtime_manifest_path, "utf8"), substitutedText);
+    assert.deepEqual(readExactTestLaunchdJob(), staleLaunchJobBeforeDrift);
+    assertProcessIdentitiesPresent(staleOwnedProcessIdentities);
+    assert.equal(readFileSync(unrelatedLaunchAgent, "utf8"), "unrelated\n");
+    for (const endpoint of staleOwnedEndpoints) {
+      assert.equal(await exactOwnedEndpointResponds(endpoint), true);
+    }
+    writeFileSync(layout.runtime_manifest_path, staleRuntimeManifestText, { mode: 0o600 });
+    await waitForManagerRuntimeOwnership({
+      managerPid: staleCheckoutManagerState.manager_pid,
+      supervisorPid: staleCheckoutManagerState.supervisor_pid,
+      managerIdentity: staleCheckoutManagerState.manager_process_identity,
+      supervisorIdentity: staleCheckoutManagerState.supervisor_process_identity,
+      generationId: staleRuntimeManifest.generation_id,
+      instanceId: staleRuntimeManifest.instance_id,
+      afterUpdatedAt: Date.now(), timeoutMs: 10_000,
+    });
+    console.log(JSON.stringify({ case: "stale-pre-effect-substitution", field,
+      refused: true, bootout_count: 0, service_and_processes_preserved: true }));
+  }
   assert.deepEqual(
     materialFingerprints(staleRuntimeMaterialPaths),
     staleRuntimeMaterialFingerprints,
@@ -942,21 +1012,27 @@ try {
     ...proxyNetworkEvidence(),
     real_provider_calls: 0,
   }, null, 2));
+} catch (error) {
+  testFailure = error;
+  throw error;
 } finally {
-  if (!uninstalled) {
-    try {
-      await uninstallCompanionService(options);
-    } catch {
-      nativeLaunchctl([
-        "bootout",
-        `gui/${process.getuid()}/${layout.service_label}`,
-      ]);
-      await stopObservedTestProcessGroups();
-      rmSync(layout.launch_agent_path, { force: true });
+  try {
+    if (!uninstalled) {
+      try {
+        await uninstallCompanionService(options);
+      } catch (error) {
+        // A lifecycle refusal is not authority to boot out an unverified job.
+        // Retain its exact test root for diagnosis rather than hide failed cleanup.
+        throw new Error(`native_cleanup_unresolved:${error?.code ?? "unknown"}`, { cause: error });
+      }
     }
+    await stopObservedTestProcessGroups();
+    rmSync(testRoot, { recursive: true, force: true });
+    console.log(JSON.stringify({ case: "native-cleanup", completed: true }));
+  } catch (cleanupError) {
+    throw new AggregateError([testFailure, cleanupError].filter(Boolean),
+      "native service test or cleanup failed; test state retained");
   }
-  await stopObservedTestProcessGroups();
-  rmSync(testRoot, { recursive: true, force: true });
 }
 
 async function runCli(args, entry = serviceEntry, childEnvironment = environment) {
@@ -1608,28 +1684,99 @@ async function waitForManagerRuntimeOwnership({
   generationId,
   instanceId,
   timeoutMs,
+  managerIdentity,
+  supervisorIdentity,
+  afterUpdatedAt,
+  readState = () => JSON.parse(readFileSync(layout.manager_state_path, "utf8")),
 }) {
   const deadline = Date.now() + timeoutMs;
   let state = null;
   while (Date.now() < deadline) {
     try {
-      state = JSON.parse(readFileSync(layout.manager_state_path, "utf8"));
+      state = readState();
     } catch {
       state = null;
     }
     if (
       state?.status === "live" &&
+      Date.parse(state.updated_at) > afterUpdatedAt &&
       state.manager_pid === managerPid &&
       state.supervisor_pid === supervisorPid &&
+      state.manager_process_identity === managerIdentity &&
+      state.supervisor_process_identity === supervisorIdentity &&
       state.runtime_ownership?.generation_id === generationId &&
       state.runtime_ownership?.instance_id === instanceId
     ) return state;
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
-  assert.equal(state?.status, "live");
-  assert.equal(state?.runtime_ownership?.generation_id, generationId);
-  assert.equal(state?.runtime_ownership?.instance_id, instanceId);
-  return state;
+  throw new Error("manager_runtime_ownership_readiness_timeout");
+}
+
+async function assertManagerOwnershipReadiness() {
+  const afterUpdatedAt = Date.now();
+  const live = { status: "live", manager_pid: 100, supervisor_pid: 101,
+    manager_process_identity: "a".repeat(64), supervisor_process_identity: "b".repeat(64),
+    runtime_ownership: { generation_id: "fixture-generation", instance_id: "fixture-instance" },
+    updated_at: new Date(afterUpdatedAt - 1).toISOString() };
+  // A previously live snapshot can precede the pending negative observation of
+  // the deliberately substituted manifest. It is not post-restoration readiness.
+  const observations = [live, { ...live, status: "starting", runtime_ownership: null,
+    updated_at: new Date(afterUpdatedAt + 1).toISOString() },
+  { ...live, updated_at: new Date(afterUpdatedAt + 2).toISOString() }];
+  let reads = 0;
+  const ready = await waitForManagerRuntimeOwnership({
+    managerPid: live.manager_pid, supervisorPid: live.supervisor_pid,
+    managerIdentity: live.manager_process_identity, supervisorIdentity: live.supervisor_process_identity,
+    generationId: live.runtime_ownership.generation_id, instanceId: live.runtime_ownership.instance_id,
+    timeoutMs: 1000, afterUpdatedAt,
+    readState: () => observations[Math.min(reads++, observations.length - 1)],
+  });
+  assert.equal(ready, observations[2], "readiness must await the post-restoration manager observation");
+  assert.equal(reads, 3);
+  const expected = {
+    managerPid: live.manager_pid, supervisorPid: live.supervisor_pid,
+    managerIdentity: live.manager_process_identity, supervisorIdentity: live.supervisor_process_identity,
+    generationId: live.runtime_ownership.generation_id, instanceId: live.runtime_ownership.instance_id,
+    afterUpdatedAt,
+  };
+  assert.equal(await waitForManagerRuntimeOwnership({ ...expected, timeoutMs: 1000,
+    readState: () => observations[2] }), observations[2]);
+  await assert.rejects(waitForManagerRuntimeOwnership({ ...expected, timeoutMs: 1,
+    readState: () => { throw new Error("unreadable fixture observation"); } }),
+  /manager_runtime_ownership_readiness_timeout/u);
+
+  for (const replacement of [
+    null, { ...observations[2], manager_pid: 102 },
+    { ...observations[2], supervisor_pid: 102 },
+    { ...observations[2], manager_process_identity: "c".repeat(64) },
+    { ...observations[2], supervisor_process_identity: "c".repeat(64) },
+    { ...observations[2], runtime_ownership: { ...live.runtime_ownership, generation_id: "replacement" } },
+    { ...observations[2], runtime_ownership: { ...live.runtime_ownership, instance_id: "replacement" } },
+  ]) {
+    await assert.rejects(waitForManagerRuntimeOwnership({
+      managerPid: live.manager_pid, supervisorPid: live.supervisor_pid,
+      managerIdentity: live.manager_process_identity, supervisorIdentity: live.supervisor_process_identity,
+      generationId: live.runtime_ownership.generation_id, instanceId: live.runtime_ownership.instance_id,
+      timeoutMs: 1, afterUpdatedAt, readState: () => replacement,
+    }), /manager_runtime_ownership_readiness_timeout/u);
+  }
+  console.log(JSON.stringify({ case: "manager-readiness-interleaving", stale_live_refused: true,
+    pending_negative_observation_refused: true, fresh_exact_live_accepted: true,
+    fixed_identity_substitutions_refused: true, bounded_timeout: true }));
+}
+
+async function waitForManagerUnready(expected) {
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
+    const state = JSON.parse(readFileSync(layout.manager_state_path, "utf8"));
+    assert.equal(state.manager_pid, expected.manager_pid);
+    assert.equal(state.manager_process_identity, expected.manager_process_identity);
+    assert.equal(state.supervisor_pid, expected.supervisor_pid);
+    assert.equal(state.supervisor_process_identity, expected.supervisor_process_identity);
+    if (state.status === "starting" && state.runtime_ownership === null) return state;
+    await new Promise(resolve => setTimeout(resolve, 25));
+  }
+  throw new Error("manager_negative_observation_timeout");
 }
 
 function assertNoStaleDecommissionResidue() {
