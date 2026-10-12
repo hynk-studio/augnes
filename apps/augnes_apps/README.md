@@ -314,7 +314,13 @@ restart/recovery, filtering, signing, SSRF refusal, expiry and unsubscribe.
 Standards-shaped modern requests also pass through actual SDK stdio serialization
 and the authenticated route, including required/optional metadata, protocol and
 domain refusals, unchanged authenticated attribution, and no effects after
-failed admission. These are local protocol and deterministic source mechanics.
+failed admission. One native continuation supplies attributed selected sources
+before the steady-state cases; the second continuation and version races run
+afterward so unrelated reads need not repeatedly validate their extra history.
+The same child then exercises real backup, restore, preparation, and a later
+request/reply with all accumulated linkage. It retains its 30-second natural-exit
+bound, records completed phases, and reports success only after cleanup. These
+are local protocol and deterministic source mechanics.
 The existing `runtime-supervisor-lifecycle` operability child additionally runs
 the review adapter over actual stdio, verified Companion discovery and the
 supervised Next HTTP server. It covers both valid query representations, strict
