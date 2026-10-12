@@ -125,6 +125,15 @@ does not change browser focus or recents, consume a mutation, renew credentials,
 or grant execution. Continue through the existing permitted operations; expiry
 or revocation requires separately authorized fresh authentication.
 
+In **Project direction → Authorize a bounded agent role**, the issuer can use
+**Revoke role access** even when ordinary direction history is full. Refresh
+direction to see the saved issuer, time and reason. A saved withdrawal prevents
+subsequent use of that credential, including on its existing child projects;
+earlier committed work stays in history. If a response is lost, refresh to inspect
+the actual outcome, reopening protected project review if the session is stale.
+This does not free space for decisions, grants or renewals. See the
+[history and recovery contract](docs/DATABASE_ACCESS_LIFECYCLE.md#accumulated-native-history-refusal-and-preservation-1439).
+
 The source checkout supports maintained even-numbered Node.js 22 and 24 lines
 with npm 10 or 11. Exact Local Canonical verification uses Node.js 24.18.0 and
 npm 11.16.0.

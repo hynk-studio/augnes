@@ -72,6 +72,25 @@ by this development task. The [adapter documentation](../../apps/augnes_apps/REA
 states the mechanism and evidence boundary. P2 #1212, P5 #1215 and the broader
 #1213/#1214/#1209 programs retain their existing scope and unresolved obligations.
 
+## Current: issuer withdrawal at saturated direction history (#1448)
+
+[#1448](https://github.com/hynk-studio/augnes/issues/1448) is the bounded correction
+to #1439's observed revoke refusal, delivered on
+`codex/1448-saturation-safe-revocation`. It keeps ordinary admission at 512 records
+and permits one explicit issuer withdrawal per outstanding grant beyond that
+budget, with complete bounded reads and no schema migration. Ordinary human
+control/readback, current in-transaction bearer checks, duplicate/replay behavior,
+atomicity, existing-history compatibility and credential-suspended recovery are
+part of this same source slice. The Draft PR owns its actual focused and final
+exact-candidate verification outcomes; this paragraph is not a qualification or
+installed-adoption claim.
+
+#1439/#1445 retain the original failed revocation observation, original failed
+qualification, later qualified correction and diagnostic evidence. #1448 neither
+repeats the independent packet/Web/retained-file experiments nor changes those
+limits. #1446 remains independently owned. No installed Companion adoption,
+production migration, provider/paid experiment or external execution is included.
+
 ## Status reconciliation — 2026-10-06
 
 The reviewed integration baseline is main

@@ -6,8 +6,13 @@ import type { PacketDirectionInterpretation } from "../project-direction";
 import { readSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
 import { DIRECTION_SOURCE, directionSource, selectedDirectionProfile } from "../project-direction-source";
 import { readAgendaInput } from "../prospective-agenda";
+import type { DirectionRevocation } from "../project-direction";
 
 export type DirectionScope = { workspace_id: string; project_id: string };
+const ORDINARY_HISTORY_LIMIT = 512;
+// At most 512 grants can have been admitted. Each can add one withdrawal after
+// ordinary admission closes; revocations never free an ordinary slot.
+const COMPLETE_HISTORY_LIMIT = 2 * ORDINARY_HISTORY_LIMIT;
 const nullableRef = (value: unknown) => value === null ? null : directionRef(value);
 function validateParent(value: unknown) {
   if (value === null) return;
@@ -88,18 +93,33 @@ export function readDirectionRecords(db: Database.Database, scope: DirectionScop
   if (!hasStore(db)) return [];
   directionTime(at);
   const observed = db.prepare(`WITH direction_history AS MATERIALIZED (
-    SELECT * FROM vnext_project_direction_records WHERE workspace_id=? AND project_id=? AND recorded_at<=?
-    ORDER BY recorded_at,ordinal LIMIT 513
+    SELECT * FROM vnext_project_direction_records WHERE workspace_id=? AND project_id=?
+    ORDER BY ordinal LIMIT ${COMPLETE_HISTORY_LIMIT + 1}
   ) SELECT 0 AS summary,ordinal,workspace_id,project_id,kind,ref,recorded_at,body_json,NULL AS n FROM direction_history
     UNION ALL SELECT 1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,count(*) FROM direction_history
-    ORDER BY summary DESC,recorded_at,ordinal`).all(scope.workspace_id, scope.project_id, at) as Array<Row & { summary: number; n: number; ordinal: number }>;
+    ORDER BY summary DESC,recorded_at,ordinal`).all(scope.workspace_id, scope.project_id) as Array<Row & { summary: number; n: number; ordinal: number }>;
   const [summary, ...rows] = observed;
   // A lost final decision or revocation is not evidence of current scope or
-  // continued authority. Preserve the existing history bound, detect every row.
+  // continued authority. Validate the complete bounded store before selecting a
+  // historical cutoff; a hidden tail cannot become proof of continued authority.
   directionCheck(summary?.summary === 1 && summary.n === rows.length &&
     rows.every(row => row.summary === 0) && new Set(rows.map(row => row.ordinal)).size === rows.length, "history_incomplete");
-  directionCheck(rows.length <= 512, "history_bound");
-  return rows.map(decode);
+  directionCheck(rows.length <= COMPLETE_HISTORY_LIMIT, "history_bound");
+  const entries = rows.map(row => ({ ordinal: row.ordinal, entry: decode(row) }));
+  const grants = new Map<string, DirectionEntry<DirectionGrant>>(), revoked = new Set<string>();
+  for (const [index, { entry }] of [...entries].sort((a, b) => a.ordinal - b.ordinal).entries()) {
+    const r = entry.value;
+    if (index >= ORDINARY_HISTORY_LIMIT) directionCheck(r.kind === "revocation" && !revoked.has(r.grant_ref), "history_bound");
+    if (r.kind === "grant") grants.set(entry.ref, entry as DirectionEntry<DirectionGrant>);
+    if (r.kind === "revocation") {
+      const grant = grants.get(r.grant_ref);
+      directionCheck(grant && grant.value.at <= r.at && canonical(grant.value.issuer) === canonical(r.principal), "revocation_history_invalid");
+      // Legitimate pre-change duplicate revocations within the first 512 rows
+      // retain their original bytes and meaning, but cannot enable overflow.
+      revoked.add(r.grant_ref);
+    }
+  }
+  return entries.filter(({ entry }) => entry.value.at <= at).map(({ entry }) => entry);
 }
 export function readDirectionRecord(db: Database.Database, scope: DirectionScope, reference: string): DirectionEntry {
   const row = db.prepare("SELECT * FROM vnext_project_direction_records WHERE workspace_id=? AND project_id=? AND ref=?").get(scope.workspace_id, scope.project_id, reference) as Row | undefined;
@@ -110,10 +130,31 @@ export function appendDirectionRecord<T extends DirectionRecord>(db: Database.Da
   directionCheck(db.inTransaction, "transaction_required");
   validateRecord(value);
   const count = db.prepare("SELECT COUNT(*) AS count FROM vnext_project_direction_records WHERE workspace_id=? AND project_id=?").get(value.workspace_id, value.project_id) as { count: number };
-  directionCheck(count.count < 512, "history_bound");
+  directionCheck(count.count < ORDINARY_HISTORY_LIMIT, "history_bound");
+  return insertDirectionRecord(db, value);
+}
+function insertDirectionRecord<T extends DirectionRecord>(db: Database.Database, value: T): DirectionEntry<T> {
   const reference = hash(canonical(value));
   db.prepare("INSERT INTO vnext_project_direction_records(workspace_id,project_id,kind,ref,recorded_at,body_json) VALUES (?,?,?,?,?,?)").run(value.workspace_id,value.project_id,value.kind,reference,value.at,canonical(value));
   return { ref: reference, value };
+}
+/** Only withdrawal can exceed ordinary admission. No grants, renewal or binding
+ * callers use this owner. Issuer checks and complete observation precede dedupe. */
+export function revokeDirectionGrant(db: Database.Database, value: DirectionRevocation): DirectionEntry<DirectionRevocation> {
+  directionCheck(db.inTransaction, "transaction_required");
+  validateRecord(value);
+  const records = readDirectionRecords(db, value, "9999-12-31T23:59:59.999Z");
+  const grant = records.find(r => r.ref === value.grant_ref);
+  directionCheck(grant?.value.kind === "grant" && grant.value.at <= value.at && canonical(grant.value.issuer) === canonical(value.principal), "grant_scope_conflict", 403);
+  const prior = records.find((r): r is DirectionEntry<DirectionRevocation> => r.value.kind === "revocation" && r.value.grant_ref === value.grant_ref);
+  if (prior) { directionCheck(prior.value.at <= value.at, "revocation_time_conflict"); return prior; }
+  // The existing historical contract uses inclusive timestamp cutoffs. Never
+  // backdate withdrawal onto an already committed use (including a clock tie).
+  const lastUse = db.prepare("SELECT MAX(recorded_at) AS at FROM vnext_project_direction_records WHERE workspace_id=? AND kind IN ('decision','proposal','return') AND json_extract(body_json,'$.authority_ref')=?")
+    .get(value.workspace_id, value.grant_ref) as { at: string | null };
+  directionCheck(!lastUse.at || lastUse.at < value.at, "revocation_time_conflict");
+  directionCheck(records.length < COMPLETE_HISTORY_LIMIT, "history_bound");
+  return insertDirectionRecord(db, value);
 }
 export function effectiveDirection(db: Database.Database, scope: DirectionScope, at: string): DirectionEntry<DirectionDecision> | null {
   const history = readDirectionRecords(db, scope, at).filter((r): r is DirectionEntry<DirectionDecision> => r.value.kind === "decision");
@@ -222,7 +263,8 @@ export function readProjectDirection(db: Database.Database, scope: DirectionScop
       const identity = db.prepare("SELECT display_name FROM vnext_project_identities WHERE workspace_id=? AND project_id=?").get(scope.workspace_id, p.project_id) as { display_name: string } | undefined;
       return [{ ...p, display_name: identity?.display_name ?? "Delegated project", direction_ref: direction.ref }];
     });
-    return { record, available: grantAvailable(db, scope, record.ref, at), projects };
+    const revocation = records.find((r): r is DirectionEntry<DirectionRevocation> => r.value.kind === "revocation" && r.value.grant_ref === record.ref) ?? null;
+    return { record, available: grantAvailable(db, scope, record.ref, at), revocation, projects };
   });
   return { effective, history, proposals, grants, ...state, pending_work: pending,
     accepted_goal_relationship: "working_direction_only_review_accepted_goals_separately", execution_authority_granted: false };

@@ -67,15 +67,47 @@ the preceding packets and auxiliary records intact. This does not establish that
 every packet-producing operation has identical admission behavior.
 
 The [direction store](../lib/vnext/persistence/project-direction-store.ts)
-allows 512 immutable records per workspace/project, shared by decisions, grants,
-proposals, returned proposals/results, packet bindings and revocations. A selected
-direction binding consumes a record even without a direction edit. Explicit grant
-renewal needs two records, a new grant and the old grant's revocation, in one
-[transaction](../lib/vnext/runtime/project-direction.ts). One remaining slot is
-insufficient. At 512, `project_direction_history_bound` also refuses revocation;
-it does **not** revoke the credential. Existing expiry, mutation and project-scope
-checks remain independent. Do not interpret a failed revoke as successful loss of
-access or assume another project's available history makes revocation possible.
+retains the 512-record ordinary append limit per workspace/project. Decisions,
+grants, proposals, returned proposals/results, bindings and ordinary renewal
+revocations all count; revocation never frees an ordinary slot. A selected binding
+consumes a record without a direction edit. Renewal still needs two ordinary
+slots in one [transaction](../lib/vnext/runtime/project-direction.ts), so one
+remaining slot is insufficient.
+
+The #1448 correction permits only an issuer's first explicit withdrawal of an
+existing grant beyond this limit. At most 512 grants can occupy the original
+budget, each with at most one additional revocation, so the absolute bound is
+1,024 records. Complete reads observe at most 1,025 rows to detect overflow,
+validate every observed row and its immutable reference, and refuse an ordinary
+record or duplicate revocation after the first 512 insertions. Historical views
+then select their original timestamp cutoff. No tail is ignored. Existing
+per-record size/shape limits remain unchanged; no table, format or schema migration
+is introduced. Legitimate earlier duplicate revocations within the first 512
+records retain their bytes and interpretation. A newly authenticated duplicate
+revoke returns the original attributed revocation without appending; a replayed
+session nonce remains refused.
+
+Use **Revoke role access** and **Refresh direction** to inspect the saved issuer,
+time and reason. Current bearer mutation admission samples trusted time and
+rechecks the grant inside its immediate transaction, after any request-body or
+database-lock wait. Effects committed before revocation remain historical effects.
+The existing inclusive historical cutoff cannot distinguish two events at the
+same timestamp. A revoke at or before the grant's last committed use refuses with
+`project_direction_revocation_time_conflict` without consuming the session nonce;
+refresh and revoke after that recorded time. It does not rewrite or backdate history.
+If revocation commits but response readback fails, the route reports
+`project_direction_revocation_committed_readback_unavailable`, `committed: true`,
+the committed record and the rotated session cookie, without a successful state
+projection. A lost acknowledgement may also lose that cookie: establish a fresh
+ordinary review session and read the outcome before another mutation. Existing
+expiry, sequence/mutation, project/issuer and execution-authority boundaries remain.
+
+Readers predating #1448 retain the same record format and see revocations within
+their existing budget. Once the store exceeds 512, their complete reader refuses
+it and grant availability fails closed; startup/recovery canonical validation also
+refuses it. An older reader cannot silently authorize through an omitted tail.
+Use the compatible source for an extended store; rollback does not remove records
+to make an older reader accept it.
 
 After a refused write, use the ordinary current-work and complete-history readers
 to establish what is still available. A current projection, history read, export
@@ -105,10 +137,16 @@ material when another revision cannot fit. Restore is recovery, not expansion.
 For the separate Web Planning work/history/body limits and supported branching,
 see its [continuation guidance](../apps/web_planning/README.md#after-an-accumulated-history-refusal-1439).
 
-The bounded investigation and next decision belong to
-[#1439](https://github.com/hynk-studio/augnes/issues/1439). Its disposable boundary
-cases do not establish customer frequency or a project lifespan. Recommend a
-bounded follow-up to make issuer revocation usable at exhausted direction history while retaining
-the old records, grant attribution, child scope, replay/sequence rules and recovery
-suspension. That recommendation does not change current admission or authorize a
-general limit increase, retention change or storage redesign.
+The original [#1439](https://github.com/hynk-studio/augnes/issues/1439) observation
+and [#1445](https://github.com/hynk-studio/augnes/pull/1445) diagnosis remain history:
+at 512 records revocation failed and the unexpired bearer still changed its child.
+#1445's original failed qualification, later qualified candidate and diagnostic
+evidence are unchanged. [#1448](https://github.com/hynk-studio/augnes/issues/1448)
+owns this separate correction and its evidence, not a reinterpretation of those
+old results. Neither synthetic boundary tests nor source qualification establish
+customer frequency, installed adoption or general history expansion.
+
+A fresh recovery checkpoint preserves the revocations it contains and removes
+usable credential secrets under the existing suspension contract. An earlier
+checkpoint cannot contain a later withdrawal; restoring it still suspends the old
+bearer. Unresolved reconciliation and unknown external effects remain unresolved.

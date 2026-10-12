@@ -50,7 +50,10 @@ export function ProjectDirection({ projectId, initial }: { projectId: string; in
       ? "Open protected project review to establish local access, then return here."
       : value.error === "project_direction_define_ordinary_work_first" ? "Define the current work before preparing an inspection."
       : value.error === "project_direction_stale_revision" ? "Direction changed while this form was open. Refresh and review the current version."
-      : "The request could not be admitted. Review current direction, project access and automation permission before continuing.");
+      : value.error === "project_direction_revocation_committed_readback_unavailable" ? "Revocation was saved, but current direction could not be loaded. Refresh direction to inspect the saved withdrawal."
+      : value.error === "project_direction_revocation_time_conflict" ? "The last use of this role has the same or a later recorded time. Refresh direction and revoke again after that time."
+      : value.error === "project_direction_history_bound" ? "Ordinary direction history is full. Existing role access can still be revoked; new decisions and authorizations cannot be added."
+      : "The request was not confirmed. Refresh direction to inspect its outcome. If access expired, reopen protected project review before continuing.");
     return value;
   }
   async function act(action: () => Promise<void>) {
@@ -141,7 +144,8 @@ export function ProjectDirection({ projectId, initial }: { projectId: string; in
       })}>Authorize role</button>
       {agentCredential && <button onClick={() => void act(async () => { await navigator.clipboard.writeText(agentCredential); setAgentCredential(null); setMessage("Agent access copied. Keep it out of prompts, logs and project files."); })}>Copy agent access once</button>}
       {state.grants.map(grant => <div key={grant.record.ref}>
-        <p>{grant.record.value.principal.id.replace(/^role:/, "")} · {grant.available ? "Authorized" : "Inactive"} · expires {grant.record.value.expires_at}</p>
+        <p>{grant.record.value.principal.id.replace(/^role:/, "")} · {grant.revocation ? "Revoked" : grant.available ? "Authorized" : "Inactive"} · expires {grant.record.value.expires_at}</p>
+        {grant.revocation && <p>Revoked by {grant.revocation.value.principal.id} at {grant.revocation.value.at}: {grant.revocation.value.reason}</p>}
         {grant.projects.length > 0 && <><p>Renew direction access for: {grant.projects.map(p => p.display_name).join(", ")}. Keep the same allowed directions, at most 8 decisions for one hour, and the current parent direction. Previous access ends.</p>
           <button disabled={busy || !hydrated} onClick={() => void act(async () => {
             const result = await request(route, { action: "renew_agent", grant_ref: grant.record.ref,

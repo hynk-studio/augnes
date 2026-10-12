@@ -20,12 +20,12 @@ export function createAgentProjectDirectionHandler(options: { environment?: Node
       const authorization = request.headers.get("authorization") ?? "";
       if (!authorization.startsWith("Bearer ")) throw new ProjectDirectionError("project_direction_agent_credential_required", 401);
       const token = authorization.slice(7);
-      const at = options.clock?.now() ?? new Date().toISOString();
       if (!env.AUGNES_DB_PATH) throw new ProjectDirectionError("project_direction_runtime_unavailable", 503);
       db = openVNextLocalOperatorDatabaseV01({ database_path: env.AUGNES_DB_PATH });
       if (request.method === "GET") {
         const database = db;
         return database.transaction(() => {
+          const at = options.clock?.now() ?? new Date().toISOString();
           const access = authenticateDirectionAgent(database, token, at);
           if (url.search && [...url.searchParams.keys()].join() !== "project_id") throw new ProjectDirectionError("project_direction_scope_required", 400);
           return NextResponse.json({ ok: true, principal: access.grant.value.principal, sequence: access.sequence,
@@ -37,7 +37,7 @@ export function createAgentProjectDirectionHandler(options: { environment?: Node
       }
       if (request.method !== "POST" || url.search) throw new ProjectDirectionError("project_direction_request_invalid", 400);
       const body = await readBoundedVNextLocalOperatorBodyV01(request);
-      return NextResponse.json({ ok: true, ...mutateAgentDirection(db, { token, request: body, at }) }, { headers });
+      return NextResponse.json({ ok: true, ...mutateAgentDirection(db, { token, request: body, clock: options.clock }) }, { headers });
     } catch (error) {
       return NextResponse.json({ ok: false, error: error instanceof ProjectDirectionError || error instanceof VNextLocalOperatorSessionErrorV01 ? error.code : "project_direction_request_refused" },
         { status: error instanceof ProjectDirectionError || error instanceof VNextLocalOperatorSessionErrorV01 ? error.status : 409, headers });

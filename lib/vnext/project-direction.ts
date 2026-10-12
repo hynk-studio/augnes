@@ -51,7 +51,7 @@ export type DirectionView = {
   effective: DirectionEntry<DirectionDecision> | null;
   history: DirectionEntry<DirectionDecision>[];
   proposals: DirectionEntry<DirectionProposal>[];
-  grants: Array<{ record: DirectionEntry<DirectionGrant>; available: boolean; projects: Array<{ project_id: string; display_name: string; direction_ref: string }> }>;
+  grants: Array<{ record: DirectionEntry<DirectionGrant>; available: boolean; revocation: DirectionEntry<DirectionRevocation> | null; projects: Array<{ project_id: string; display_name: string; direction_ref: string }> }>;
   parent_current: boolean; authority_current: boolean;
   pending_work: Array<{ packet_id: string; direction_ref: string | null; interpretation: PacketDirectionInterpretation["status"]; admitted: boolean; needs_reconsideration: boolean }>;
   accepted_goal_relationship: "working_direction_only_review_accepted_goals_separately";

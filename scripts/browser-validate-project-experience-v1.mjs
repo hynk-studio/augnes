@@ -29,6 +29,7 @@ import { buildHostedResearchProjectionV02 } from "../lib/vnext/adapters/hosted-r
 import { readCanonicalProjectIdentityV01 } from "../lib/vnext/persistence/project-identity-registry.ts";
 import { readActiveProjectSelectionV01 } from "../lib/vnext/persistence/project-lifecycle-registry.ts";
 import { readProjectWorkInitializationV01 } from "../lib/vnext/runtime/project-work-initialization.ts";
+import { appendDirectionRecord, effectiveDirection, validateProjectDirectionHistory } from "../lib/vnext/persistence/project-direction-store.ts";
 import { inspectVNextOperatorPilotPacketLineageV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity.ts";
 import { canonicalizeProtocolValueV01, createProtocolSha256V01 } from "../lib/vnext/protocol-primitives.ts";
 import {
@@ -159,6 +160,7 @@ let chromeProcess = null;
 let chromeProcessRecord = null;
 let cdp = null;
 let currentPhase = "setup";
+let saturatedDirectionRefusalRequestId = null;
 let serverLog = "";
 let lastObserverActivityAt = Date.now();
 let navigationCount = 0;
@@ -4986,10 +4988,77 @@ async function validateProjectDirectionUI(accessDatabasePath, projectAlphaId) {
       assert.equal(await evaluateBoolean(`document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1`), true, `direction overflow at ${width}`);
     }
     assert.equal(await evaluateBoolean(`/sha256:|action_nonce|session_secret|augnes-direction\\./.test(document.querySelector('[data-project-direction]').innerText)`), false);
+    await validateSaturatedDirectionRevocationUI(directionDb, projectAlphaId);
     result.project_direction_ui = true;
     completeDetailedField("project_direction_ui");
     record("human_direction_author_revision_reconstruction_preserves_work");
   } finally { directionDb.close(); }
+}
+
+async function validateSaturatedDirectionRevocationUI(db, projectId) {
+  const scope = db.prepare("SELECT workspace_id,project_id FROM vnext_project_identities WHERE project_id=?").get(projectId);
+  const count = () => db.prepare("SELECT count(*) AS n FROM vnext_project_direction_records WHERE project_id=?").get(projectId).n;
+  let current = effectiveDirection(db, scope, new Date().toISOString());
+  // Only setup acceleration: preserve existing rows and use the validated
+  // immutable writer. Issuance, child mutation and visible revoke use HTTP.
+  db.transaction(() => {
+    while (count() < 511) current = appendDirectionRecord(db, { ...current.value, previous: current.ref, revision: current.value.revision + 1,
+      at: new Date(Date.parse(current.value.at) + 1).toISOString() });
+  })();
+  await delay(Math.max(0, Date.parse(current.value.at) - Date.now() + 1));
+  const childRoot = path.join(tempRoot, "direction-saturation-child"); mkdirSync(childRoot);
+  try {
+    assert.equal(await evaluateBoolean(`(async () => {
+      const url = '/api/vnext/operator/project-direction?project_id=' + ${JSON.stringify(projectId)};
+      const content = { purpose: 'Synthetic saturation child', criteria: [], constraints: [] };
+      const issued = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Augnes-Project-Id': ${JSON.stringify(projectId)} }, body: JSON.stringify({
+        action: 'authorize_agent', role: 'role:saturation-child', allowed_directions: [content], max_mutations: 8, expires_in_minutes: 10,
+        creation_slots: [{ root: ${JSON.stringify(childRoot)}, display_name: 'Saturation child', delegation: { expected_parent_ref: ${JSON.stringify(current.ref)}, why: 'Bounded acceptance', contribution: 'Synthetic child', return_question: 'Can authority be withdrawn?' } }] }) });
+      if (!issued.ok) return false;
+      const access = await issued.json();
+      const call = body => fetch('/api/vnext/agent/project-direction', { method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + access.credential }, body: JSON.stringify(body) });
+      const created = await call({ project_id: null, sequence: 0, operation: { action: 'create_project', slot: 0, content, reason: 'Ordinary authorized creation' } });
+      if (!created.ok) return false;
+      const child = await created.json();
+      const operation = { action: 'decide', expected_ref: child.record.ref, content, reason: 'Previously valid bearer', status: 'active', proposal_ref: null };
+      const changed = await call({ project_id: child.project_id, sequence: 1, operation });
+      if (!changed.ok) return false;
+      const result = await changed.json();
+      globalThis.__augnesSaturation = { call, project_id: child.project_id, operation: { ...operation, expected_ref: result.record.ref }, grant_ref: access.record.ref };
+      return result.sequence === 2 && result.execution_authority_granted === false;
+    })()`), true);
+    assert.equal(count(), 512);
+    const before = db.prepare("SELECT * FROM vnext_project_direction_records ORDER BY ordinal").all();
+    await clickButtonByText('Refresh direction', '[data-project-direction]');
+    await waitForCondition(`document.querySelector('[data-project-direction]')?.textContent.includes('saturation-child') === true`, "saturated issuer role visible");
+    await evaluateBoolean(`(() => { document.querySelectorAll('[data-project-direction] details').forEach(d => d.open = true);
+      const role = Array.from(document.querySelectorAll('[data-project-direction] details > div')).find(d => d.textContent.includes('saturation-child'));
+      const button = Array.from(role?.querySelectorAll('button') ?? []).find(b => b.textContent === 'Revoke role access');
+      if (!button || button.disabled) return false; button.click(); return true; })()`).then(value => assert.equal(value, true));
+    await waitForCondition(`document.querySelector('[data-project-direction]')?.textContent.includes('Agent delegation revoked.') === true`, "ordinary saturated revocation saved");
+    const denialOffset = requests.length;
+    assert.equal(await evaluateBoolean(`(async () => {
+      const saved = globalThis.__augnesSaturation;
+      const denied = await saved.call({ project_id: saved.project_id, sequence: 2, operation: saved.operation });
+      const read = await fetch('/api/vnext/operator/project-direction?project_id=' + ${JSON.stringify(projectId)}, { cache: 'no-store', headers: { 'Augnes-Project-Id': ${JSON.stringify(projectId)} } });
+      const value = await read.json(), grant = value.state.grants.find(g => g.record.ref === saved.grant_ref);
+      return denied.status === 403 && (await denied.json()).error === 'project_direction_agent_grant_unavailable' && read.ok &&
+        grant.available === false && grant.revocation.value.principal.kind === 'human' && grant.revocation.value.reason === 'User ended this delegation';
+    })()`), true);
+    const deniedResponse = await waitForObservedResponse("/api/vnext/agent/project-direction", "POST", denialOffset);
+    assert.equal(deniedResponse.status, 403);
+    saturatedDirectionRefusalRequestId = deniedResponse.request_id;
+    assert.equal(count(), 513); assert.deepEqual(db.prepare("SELECT * FROM vnext_project_direction_records ORDER BY ordinal").all().slice(0, before.length), before);
+    validateProjectDirectionHistory(db);
+    await navigate(`${appOrigin}/projects/${encodeURIComponent(projectId)}`);
+    await waitForCondition(`document.querySelector('[data-project-direction]')?.textContent.includes('Revoked by') === true`, "fresh UI revocation attribution");
+    for (const width of [390, 768, 1440]) {
+      await setViewport(width, 1000);
+      await evaluateBoolean(`(() => { document.querySelectorAll('[data-project-direction] details').forEach(d => d.open = true); return true; })()`);
+      assert.equal(await evaluateBoolean(`document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1`), true, `revocation overflow at ${width}`);
+    }
+    console.log(JSON.stringify({ saturated_direction_ui: "pass", issuer_records: [512, 513], ordinary_revoke_button: true, same_bearer_child_refused: true, fresh_attribution: true, original_rows_unchanged: true }));
+  } finally { await evaluateBoolean(`(() => { delete globalThis.__augnesSaturation; return true; })()`); }
 }
 
 async function validateProjectHomeViewports(state) {
@@ -5619,6 +5688,7 @@ function documentStatusSince(startIndex, pathname) {
 function expectedConsoleError(entry) {
   const expectedStatus = [
     [401, "Unauthorized"],
+    [403, "Forbidden"],
     [404, "Not Found"],
     [405, "Method Not Allowed"],
     [409, "Conflict"],
@@ -5643,6 +5713,8 @@ function expectedConsoleError(entry) {
 function expectedStatusResponseIdentity(response) {
   if (response.phase === "companion_first_work_access") {
     return (response.status === 401 && response.path === "/api/vnext/operator/session") ||
+      (response.status === 403 && response.path === "/api/vnext/agent/project-direction" && response.method === "POST" &&
+        response.request_id === saturatedDirectionRefusalRequestId) ||
       (response.status === 404 && response.path === "/api/vnext/operator/host-round-trip");
   }
   if (
