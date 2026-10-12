@@ -54,7 +54,9 @@ implementation and its qualification are not included.
 
 ## Current: first execution-choice and participation loop (#1443)
 
-The [#1443](https://github.com/hynk-studio/augnes/issues/1443) increment under
+The first [#1443](https://github.com/hynk-studio/augnes/issues/1443) increment
+merged in [#1450](https://github.com/hynk-studio/augnes/pull/1450) on 2026-10-12,
+at `b9d813689d9d371bbc85e02967239c7e0aca9689`. The broader issue remains open. This increment under
 [#1426](https://github.com/hynk-studio/augnes/issues/1426) adds the ordinary native
 execution-choice entry around the integrated #1431 experience/source writers and
 #1442 request-bound review. At implementation intake on main `1c2969ec4ca871fc9cf830a814e43bcd8d68646e`,
@@ -83,7 +85,7 @@ and production ownership guards remain unchanged. A cleanup refusal retains the
 failure instead of invoking an unguarded bootout. This does not change the
 execution-choice product path or adopt source into the installed Companion.
 
-Current review scope is this first complete loop. Actual model consumption and
+The merged scope is this first complete loop. Actual model consumption and
 comparative usefulness of this increment remain NOT_RUN. Existing #1433 live
 evidence/obligations belong to that task and are not transferred here. Next/later
 scope retains broader late-result integration, replacement, long-term role
@@ -228,11 +230,43 @@ authorized consumer execution remain explicit prerequisites.
 The bounded delivery check serves shipped bytes over HTTP and executes the
 downloaded CLI/dependency outside the checkout, comparing fresh stipulated cases
 with renewal counting and refusing inconsistent downloads before execution.
-This qualifies functional delivery, not live public deployment, independent
-demand, learning, superiority or completion of A2/A4. Optional persistence uses
+This original source check qualifies functional delivery. Later anonymous public
+GitHub delivery and project-free calculation were
+[accepted on 2026-10-08 under #1422/#1423](https://github.com/hynk-studio/augnes/issues/1209#issuecomment-6059444075).
+Preserve that acceptance separately from independent demand, learning,
+superiority or completion of A2/A4. Optional persistence uses
 existing ordinary-work readers and preview/save only within an authorized task.
 Public reads create/select no work. Broader integration, A3/A4/A5/A6 and #1372's
 private hosted obligations remain separate; no rollout is authorized here.
+
+### Current P2/P5 — Public asset Skill entry and later use (#1447)
+
+[#1447](https://github.com/hynk-studio/augnes/issues/1447) adds one code-capable
+Codex catalog/Skill entry around the unchanged workflow-cost 1.0.0 publication.
+The [usage and declared consumer case](../PUBLIC_ASSET_SKILL_USAGE.md) connect
+a historical public serial-retry question to complete material, actual exact
+work and a separate planning judgment inherited through ordinary files. The
+original public question and task-owned synthetic successor remain distinct.
+The simple renewal formula is a strong ordinary alternative; there is no new
+solver, MCP server, Core record, installed Companion dependency or private
+connection. All release bytes and hashes remain pinned.
+
+The portable package, task-described Skill, integrity checker and create-only
+bundle builder are source work. Deterministic package/consumer checks belong to
+the existing unit resource owner, with the old HTTP delivery and solver tests
+retained. The task's Draft PR records the actual host/catalog/activation and
+native consumer observations, exact candidate qualification and cleanup.
+A local catalog does not establish a public listing; a Draft branch does not
+establish a stable release. Separate explicit authority is needed for release,
+public-directory submission or changes to an installed user profile. If those
+operational steps remain pending, the overall distribution objective stays open.
+
+Next: review this bounded entry and its actual use/non-use, then choose whether
+to authorize one stable distribution destination. Do not repeat the accepted
+exact-link delivery campaign or open speculative adapters. Comparative benefit,
+organic search, independent field adoption and all-host support remain unclaimed.
+#1433's actual connected review and #1372's private-file obligations remain with
+their existing owners; neither is a prerequisite for these public files.
 
 ### Next P4/P5 — Executable capability reuse from experience (#1373)
 

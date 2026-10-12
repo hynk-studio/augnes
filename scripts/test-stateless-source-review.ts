@@ -34,6 +34,8 @@ import type { ModelAdapterV01 } from "../lib/vnext/model-gateway/contracts";
 import { channel } from "node:diagnostics_channel";
 import Database from "better-sqlite3";
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
+import { assertPreparedDatabase } from "../lib/db/prepared-database.mjs";
+import { withOwnedDatabase } from "../lib/db/connection-ownership.mjs";
 import { getOrCreateDefaultWorkspaceIdentityV01, getOrCreateCanonicalProjectForLocalRootV01, normalizeLocalProjectRootRefV01 } from "../lib/vnext/persistence/project-identity-registry";
 import { readActiveProjectSelectionV01, selectActiveProjectV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import { issueVNextLocalOperatorBootstrapV01, consumeVNextLocalOperatorBootstrapV01, readVNextLocalOperatorCredentialFromRequestV01, revokeVNextLocalOperatorSessionByCredentialV01, VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01 } from "../lib/vnext/runtime/local-operator-session";
@@ -66,6 +68,51 @@ const databases: Database.Database[] = [];
 // Recovery's existing process owner uses an exact loopback ownership probe.
 const zeroNetwork = installZeroNetworkGuard({ allowLoopback: true });
 const sourceText = "export function choose() { return 'advisory'; }\nexport function inspect() { return 'exact source bytes'; }\n";
+let pristineFixtureDatabase: Buffer | undefined;
+let fixturePreparations = 0;
+function prepareFixtureDatabaseFile(databasePath: string) {
+  // Only the empty migrated schema is shared, inside this timed child. Each
+  // case still gets a create-only file, independent connections and ordinary
+  // identity/session/work writers. Never reuse a populated or restored store.
+  if (!pristineFixtureDatabase) {
+    pristineFixtureDatabase = withOwnedDatabase(new Database(":memory:"), db => {
+      db.pragma("foreign_keys=ON");
+      applyCanonicalDatabaseMigrations(db);
+      assertPreparedDatabase(db);
+      fixturePreparations++;
+      return db.serialize();
+    });
+  }
+  writeFileSync(databasePath, pristineFixtureDatabase, { flag: "wx", mode: 0o600 });
+}
+function fixturePreparationContract() {
+  const first = path.join(root, "pristine-first.db"), second = path.join(root, "pristine-second.db"), later = path.join(root, "pristine-later.db");
+  prepareFixtureDatabaseFile(first); prepareFixtureDatabaseFile(second);
+  assert.equal(fixturePreparations, 1, "Migrate the pristine schema once, within the child budget");
+  const pristine = readFileSync(second);
+  const inspect = (file: string, operation: (db: Database.Database) => void) => withOwnedDatabase(new Database(file, { fileMustExist: true }), db => {
+    db.pragma("foreign_keys=ON"); assertPreparedDatabase(db); operation(db);
+  });
+  const emptyAuthority = (db: Database.Database) => {
+    for (const table of ["agents", "vnext_core_records", "autonomy_runs", "vnext_local_operator_sessions"])
+      assert.equal((db.prepare(`SELECT COUNT(*) n FROM ${table}`).get() as { n: number }).n, 0);
+  };
+  inspect(first, db => {
+    emptyAuthority(db);
+    db.prepare("INSERT INTO agents (id,name) VALUES ('fixture:first','first only')").run();
+    assert.throws(db.transaction(() => { db.prepare("INSERT INTO agents (id,name) VALUES ('fixture:rollback','rolled back')").run(); throw new Error("fixture_rollback"); }), /fixture_rollback/);
+    assert.equal(db.prepare("SELECT 1 FROM agents WHERE id='fixture:rollback'").get(), undefined);
+  });
+  const changed = readFileSync(first);
+  assert.throws(() => prepareFixtureDatabaseFile(first), { code: "EEXIST" });
+  assert.deepEqual(readFileSync(first), changed, "Preparation cannot replace an existing case");
+  inspect(second, emptyAuthority);
+  assert.deepEqual(readFileSync(second), pristine, "Another case's committed and rolled-back writes cannot reach this file");
+  prepareFixtureDatabaseFile(later); inspect(later, emptyAuthority);
+  assert.deepEqual(readFileSync(later), pristine, "Later case order cannot inherit earlier state");
+  assert.equal(fixturePreparations, 1);
+  for (const file of [first, second, later]) rmSync(file);
+}
 function scripted(firstChoice = "read_selected_sources", secondChoice = "use_observation", model = "gpt-4.1-mini") {
   const inputs: any[] = [], serializedRequests: string[] = []; let calls = 0;
   const controls = { lose: false, transportError: new Error("simulated_transport_loss_after_dispatch") as unknown, outputTokens: 80, dispatch: async () => {}, transform: (_output: any, _input: any) => {} };
@@ -105,7 +152,11 @@ async function fixture(name: string, firstChoice = "read_selected_sources", seco
     writeFileSync(path.join(projectRoot, "planner.ts"), readFileSync("lib/vnext/automation/policy-triggered-planner-run.ts"));
     writeFileSync(path.join(projectRoot, "prospective.ts"), readFileSync("lib/vnext/runtime/prospective-reentry.ts"));
   }
-  const databasePath = restored?.config.database_path ?? sharedDatabasePath ?? path.join(dir, "review.db"), db = new Database(databasePath); databases.push(db); db.pragma("foreign_keys=ON"); applyCanonicalDatabaseMigrations(db);
+  const databasePath = restored?.config.database_path ?? sharedDatabasePath ?? path.join(dir, "review.db");
+  if (!restored && !sharedDatabasePath) prepareFixtureDatabaseFile(databasePath);
+  const db = new Database(databasePath, { fileMustExist: true }); databases.push(db); db.pragma("foreign_keys=ON");
+  if (restored || sharedDatabasePath) applyCanonicalDatabaseMigrations(db);
+  assertPreparedDatabase(db);
   let scope: { workspace_id: string; project_id: string };
   if (restored) scope = { workspace_id: restored.config.workspace_id, project_id: restored.config.project_id };
   else {
@@ -1652,7 +1703,9 @@ async function main() {
     if (process.argv[2] === "--terminal-preparation") { await terminalPreparationResultContract(); return; }
     if (process.argv[2] === "--terminal-projection") { await terminalProjectionReadContract(); assert.equal(requests,0); return; }
     if (["--terminal-authorship", "--terminal-browser"].includes(process.argv[2]!)) {
+      fixturePreparationContract();
       await terminalPreparationResultContract(); await terminalAuthorshipContract(); await persistenceAuthorshipContract(); assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0);
+      assert.equal(fixturePreparations, 1, "All fresh histories retain separate state without repeating pristine preparation");
       console.log(JSON.stringify({ status: "passed", terminal_authorship: "ordinary_preview_new_packet_fresh_grant", legacy_writer: "65f6efc92d969c47e86152efa9388aba4c169c63", legacy_grant_writer: "d6101051213965a45798c7738852d8af3eddc966", candidate_writes: 0, external_requests: requests })); return;
     }
     if (process.argv[2] === "--rejection-evidence") {
