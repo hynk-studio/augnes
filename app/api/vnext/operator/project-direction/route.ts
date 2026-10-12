@@ -2,7 +2,7 @@ import { runDirectionInspection } from "@/lib/vnext/runtime/project-direction-ex
 import { NextResponse } from "next/server";
 import type Database from "better-sqlite3";
 import { readProjectDirection, ProjectDirectionError } from "@/lib/vnext/persistence/project-direction-store";
-import { mutateHumanDirection } from "@/lib/vnext/runtime/project-direction";
+import { mutateHumanDirection, DirectionRevocationCommittedError } from "@/lib/vnext/runtime/project-direction";
 import { prepareDirectionAgenda } from "@/lib/vnext/runtime/project-direction-preparation";
 import { assertVNextLocalOperatorRequestBoundaryV01, readBoundedVNextLocalOperatorBodyV01, readVNextLocalOperatorCredentialFromRequestV01,
   resolveVNextLocalReviewConfigV01, authenticateVNextLocalOperatorSessionV01, openVNextLocalOperatorDatabaseV01,
@@ -31,6 +31,12 @@ export function createProjectDirectionHandler(options: { environment?: NodeJS.Pr
       return NextResponse.json({ ok: true, ...publicResult }, { headers: { ...headers, "Set-Cookie": serializeVNextLocalOperatorSessionCookieV01({ request,
         value: admission.cookie_value, expires_at: admission.cookie_expires_at, max_age_seconds: admission.cookie_max_age_seconds, secure: url.protocol === "https:" }) } });
     } catch (error) {
+      if (error instanceof DirectionRevocationCommittedError) {
+        const admission = error.session_admission;
+        return NextResponse.json({ ok: false, error: error.code, committed: true, record: error.record }, { status: error.status,
+          headers: { ...headers, "Set-Cookie": serializeVNextLocalOperatorSessionCookieV01({ request, value: admission.cookie_value,
+            expires_at: admission.cookie_expires_at, max_age_seconds: admission.cookie_max_age_seconds, secure: new URL(request.url).protocol === "https:" }) } });
+      }
       const code = error instanceof ProjectDirectionError || error instanceof VNextLocalOperatorSessionErrorV01 ? error.code : "project_direction_request_refused";
       return NextResponse.json({ ok: false, error: code }, { status: error instanceof ProjectDirectionError || error instanceof VNextLocalOperatorSessionErrorV01 ? error.status : 409, headers });
     } finally { db?.close(); }

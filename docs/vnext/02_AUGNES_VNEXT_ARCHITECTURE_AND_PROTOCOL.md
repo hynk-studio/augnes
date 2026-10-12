@@ -1025,7 +1025,29 @@ confirmation. Outside-policy content stays a proposal. Returned child receipts
 must exist in that child's scope; returned proposals are explicitly not findings.
 Neither becomes a parent decision or accepted fact automatically.
 
-The issuer can revoke access or explicitly renew selected existing projects for
+The issuer can revoke access even at ordinary direction-history saturation
+(#1448). The first 512 immutable records retain their shared accounting. Only a
+first explicit issuer revocation of an existing grant can exceed that budget;
+each grant has one such withdrawal, with a finite 1,024-record complete-store bound.
+Every record is observed and validated before a historical timestamp projection;
+ordinary append, grants, renewal and bindings cannot use the exception. Original
+references, hashes, insertion order and attribution remain unchanged. Earlier
+legitimate duplicate revocations within the ordinary bound remain readable; a
+fresh duplicate request returns the original revocation while nonce replay fails.
+The original record format and schema remain in use. A pre-correction complete
+reader refuses an extended store, including authority and recovery admission,
+rather than silently omitting the withdrawal.
+
+Bearer mutations observe trusted current time after acquiring their immediate
+transaction and recheck authority there. Earlier prepared/authenticated requests
+cannot retain a pre-revocation cutoff; already committed effects are not erased.
+Human readback exposes the actual revocation, separate from inactive/expired
+status. A committed withdrawal whose response read fails is explicitly reported
+as committed with unavailable readback, not rolled back; a fresh authorized read
+resolves an uncertain acknowledgement. See the detailed
+[accounting and recovery contract](../DATABASE_ACCESS_LIFECYCLE.md#accumulated-native-history-refusal-and-preservation-1439).
+
+The issuer can also explicitly renew selected existing projects for
 the same logical role. Renewal ends the old capability, retains history, specifies
 current exact child/parent revisions and issues a new bounded credential; the
 agent then decides the reconsidered revision through its own owner. Credentials

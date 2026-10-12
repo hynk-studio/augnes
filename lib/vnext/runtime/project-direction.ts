@@ -3,11 +3,18 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import { realpathSync, statSync } from "node:fs";
 import { canonicalizeProtocolValueV01 as canonical, createProtocolSha256V01 as hash } from "../protocol-primitives";
 import { DIRECTION_VERSION, parseDirectionContent, directionObject, directionRef, directionText, directionInteger, directionArray, type DirectionCreation, type DirectionDecision, type DirectionEntry, type DirectionGrant, type DirectionPrincipal, type DirectionParent } from "../project-direction";
-import { appendDirectionRecord, directionCheck as check, directionCurrent, effectiveDirection, findDirectionGrant, grantAvailable, readDirectionRecord, readDirectionRecords, readProjectDirection, ProjectDirectionError, type DirectionScope } from "../persistence/project-direction-store";
+import { appendDirectionRecord, revokeDirectionGrant, directionCheck as check, directionCurrent, effectiveDirection, findDirectionGrant, grantAvailable, readDirectionRecord, readProjectDirection, ProjectDirectionError, type DirectionScope } from "../persistence/project-direction-store";
 import { getOrCreateCanonicalProjectForLocalRootV01, normalizeLocalProjectRootRefV01, readCanonicalProjectIdentityV01 } from "../persistence/project-identity-registry";
 import { readVNextCoreRecordV01 } from "../persistence/durable-semantic-store";
 import { admitVNextLocalOperatorMutationInsideTransactionV01, type VNextLocalOperatorPilotConfigV01, type VNextLocalOperatorSessionCredentialV01 } from "./local-operator-session";
-import type { VNextLocalRuntimeClockV01 } from "./local-runtime-clock";
+import { readVNextLocalRuntimeClockNowV01, type VNextLocalRuntimeClockV01 } from "./local-runtime-clock";
+import type { DirectionRevocation } from "../project-direction";
+
+export class DirectionRevocationCommittedError extends ProjectDirectionError {
+  constructor(readonly record: DirectionEntry<DirectionRevocation>, readonly session_admission: ReturnType<typeof admitVNextLocalOperatorMutationInsideTransactionV01>) {
+    super("project_direction_revocation_committed_readback_unavailable", 503);
+  }
+}
 
 type DecideRequest = { action: "decide"; expected_ref: string | null; content: DirectionDecision["content"]; reason: string; status: "active" | "paused"; proposal_ref: string | null };
 function parseDecision(value: unknown): DecideRequest {
@@ -128,10 +135,17 @@ export function mutateHumanDirection(db: Database.Database, input: {
       const request = { grant_ref: directionRef(raw.grant_ref), reason: directionText(raw.reason) };
       const grant = findDirectionGrant(db, scope.workspace_id, request.grant_ref);
       check(grant.value.project_id === scope.project_id && canonical(grant.value.issuer) === canonical(actor), "grant_scope_conflict", 403);
-      record = appendDirectionRecord(db, { ...base(scope, at), kind: "revocation", grant_ref: grant.ref, principal: actor, reason: request.reason });
+      // Required history must be readable before a withdrawal is committed.
+      readProjectDirection(db, scope, at);
+      record = revokeDirectionGrant(db, { ...base(scope, at), kind: "revocation", grant_ref: grant.ref, principal: actor, reason: request.reason });
     } else check(false, "request_invalid", 400);
     db.exec("COMMIT");
-    return { record, ...(credential ? { credential } : {}), state: readProjectDirection(db, scope, at), session_admission: admission };
+    try {
+      return { record, ...(credential ? { credential } : {}), state: readProjectDirection(db, scope, at), session_admission: admission };
+    } catch (error) {
+      if (action === "revoke_agent") throw new DirectionRevocationCommittedError(record as DirectionEntry<DirectionRevocation>, admission);
+      throw error;
+    }
   } catch (error) { if (db.inTransaction) db.exec("ROLLBACK"); throw error; }
 }
 
@@ -196,11 +210,14 @@ export function discoverAgentProjects(db: Database.Database, access: DirectionAg
   check(Buffer.byteLength(JSON.stringify(projects), "utf8") <= 256 * 1024, "discovery_incomplete");
   return { projects, complete: true as const, next_cursor: null, remaining_mutations: Math.max(0, grant.value.max_mutations - access.sequence) };
 }
-export function mutateAgentDirection(db: Database.Database, input: { token: string; request: unknown; at: string }) {
+export function mutateAgentDirection(db: Database.Database, input: { token: string; request: unknown; clock?: VNextLocalRuntimeClockV01 }) {
   check(!db.inTransaction, "transaction_conflict");
   db.exec("BEGIN IMMEDIATE");
   try {
-    const access = authenticateDirectionAgent(db, input.token, input.at);
+    // Sample trusted current time only after acquiring the write transaction,
+    // including any lock wait. Request preparation never freezes authority.
+    const at = readVNextLocalRuntimeClockNowV01(input.clock, "project_direction");
+    const access = authenticateDirectionAgent(db, input.token, at);
     const raw = directionObject(input.request, ["sequence", "project_id", "operation"]);
     check(raw.operation && typeof raw.operation === "object" && !Array.isArray(raw.operation), "request_invalid");
     const envelope = { sequence: directionInteger(raw.sequence, 0, 20), project_id: raw.project_id === null ? null : directionText(raw.project_id, 256), operation: raw.operation as Record<string, unknown> };
@@ -226,24 +243,24 @@ export function mutateAgentDirection(db: Database.Database, input: { token: stri
       }), "creation_slot_already_used");
       check(realpathSync(slot.root) === slot.root && rootIdentity(slot.root) === slot.root_identity, "creation_root_changed");
       const result = getOrCreateCanonicalProjectForLocalRootV01(db, { workspace_id: access.grant.value.workspace_id,
-        local_root: normalizeLocalProjectRootRefV01(slot.root, { base_path: slot.root }), display_name: slot.display_name }, { now: () => input.at });
+        local_root: normalizeLocalProjectRootRefV01(slot.root, { base_path: slot.root }), display_name: slot.display_name }, { now: () => at });
       check(result.status === "inserted", "creation_slot_already_used");
       scope = result.project;
       const parent = slot.parent ? { ...slot.parent, delegation_ref: access.grant.ref } : null;
-      record = saveDecision(db, scope, { action: "decide", expected_ref: null, content: op.content, reason: op.reason, status: "active", proposal_ref: null }, actor, input.at, access.grant, parent,
-        { grant_ref: access.grant.ref, slot: op.slot, project_id: scope.project_id, created_at: input.at, root: slot.root, root_identity: slot.root_identity });
+      record = saveDecision(db, scope, { action: "decide", expected_ref: null, content: op.content, reason: op.reason, status: "active", proposal_ref: null }, actor, at, access.grant, parent,
+        { grant_ref: access.grant.ref, slot: op.slot, project_id: scope.project_id, created_at: at, root: slot.root, root_identity: slot.root_identity });
     } else {
       check(envelope.project_id, "project_required");
-      const selected = agentProject(db, access, envelope.project_id, input.at);
+      const selected = agentProject(db, access, envelope.project_id, at);
       scope = selected.scope;
       if (operation.action === "decide") {
         check(selected.owned, "decision_principal_required", 403);
-        record = saveDecision(db, scope, parseDecision(operation), actor, input.at, access.grant, selected.continuation?.parent ? { ...selected.continuation.parent, delegation_ref: access.grant.ref } : null);
+        record = saveDecision(db, scope, parseDecision(operation), actor, at, access.grant, selected.continuation?.parent ? { ...selected.continuation.parent, delegation_ref: access.grant.ref } : null);
       } else if (operation.action === "propose") {
         const raw = directionObject(operation, ["action", "expected_ref", "content", "reason"]);
         const op = { expected_ref: raw.expected_ref === null ? null : directionRef(raw.expected_ref), content: parseDirectionContent(raw.content), reason: directionText(raw.reason) };
         check((selected.current?.ref ?? null) === op.expected_ref, "stale_revision");
-        record = appendDirectionRecord(db, { ...base(scope, input.at), kind: "proposal", principal: actor, authority_ref: access.grant.ref,
+        record = appendDirectionRecord(db, { ...base(scope, at), kind: "proposal", principal: actor, authority_ref: access.grant.ref,
           basis_ref: op.expected_ref, content: op.content, reason: op.reason, child_result: null });
       } else if (operation.action === "return_result" || operation.action === "return_proposal") {
         const raw = directionObject(operation, ["action", "expected_ref", "receipt_id", "receipt_fingerprint", "summary"]);
@@ -254,16 +271,16 @@ export function mutateAgentDirection(db: Database.Database, input: { token: stri
         check(child && selected.owned && child.value.authority_ref === access.grant.ref && child.ref === op.expected_ref && child.value.parent, "delegated_child_required", 403);
         if (op.receipt_id) {
           const receipt = readVNextCoreRecordV01(db, { ...scope, record_kind: "run_receipt", record_id: op.receipt_id });
-          check(receipt?.fingerprint === op.receipt_fingerprint && receipt.created_at <= input.at, "child_result_source_missing");
+          check(receipt?.fingerprint === op.receipt_fingerprint && receipt.created_at <= at, "child_result_source_missing");
         }
         const parentScope = { ...scope, project_id: child.value.parent.project_id };
-        record = appendDirectionRecord(db, { ...base(parentScope, input.at), kind: "return", principal: actor, authority_ref: access.grant.ref,
+        record = appendDirectionRecord(db, { ...base(parentScope, at), kind: "return", principal: actor, authority_ref: access.grant.ref,
           basis_ref: child.value.parent.direction_ref, content: { purpose: op.summary, criteria: [], constraints: [] }, reason: child.value.parent.return_question,
           child_result: { project_id: scope.project_id, direction_ref: child.ref, receipt_id: op.receipt_id, receipt_fingerprint: op.receipt_fingerprint } });
       } else check(false, "request_invalid", 400);
     }
     db.prepare("UPDATE vnext_project_direction_credentials SET sequence=sequence+1 WHERE grant_ref=? AND sequence=?").run(access.grant.ref, access.sequence);
     db.exec("COMMIT");
-    return { record, project_id: scope.project_id, sequence: access.sequence + 1, state: readProjectDirection(db, scope, input.at), execution_authority_granted: false };
+    return { record, project_id: scope.project_id, sequence: access.sequence + 1, state: readProjectDirection(db, scope, at), execution_authority_granted: false };
   } catch (error) { if (db.inTransaction) db.exec("ROLLBACK"); throw error; }
 }

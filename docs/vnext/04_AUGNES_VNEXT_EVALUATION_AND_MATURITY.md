@@ -861,6 +861,23 @@ unchanged.
 
 ### Project direction, authority and ordinary-use evidence (#1382)
 
+The #1448 withdrawal correction must discriminate the original production
+512-record failure from the corrected ordinary sequence: authenticated issuer
+revoke, durable complete readback, then refusal of the same unexpired bearer on
+its existing child. Exercise near-full and legitimately full pre-change histories,
+all outstanding grants in the fixture, unaffected grants/projects, independent
+concurrent sessions and nonce replay. Retain original rows and historical cutoff
+meaning. Refuse malformed/incomplete/ordinary-overflow histories, and prove the
+finite withdrawal bound without enlarging ordinary admission or renewal capacity.
+Hold a prepared bearer request across revocation and require fresh authority inside
+the writer transaction. Compare every relevant table for write/pre-commit faults;
+separately observe post-commit response failure and lost acknowledgement through a
+fresh authorized session. Recovery must preserve contained revocations, suspend
+old bearers even from a pre-revocation checkpoint, and retain constructed unresolved
+obligations. Supported old complete readers must refuse extended history instead
+of granting access. Label setup builders, defensive corruption controls and
+synthetic obligations explicitly; none proves customer frequency or live effects.
+
 Keep normal browser operability, authenticated agent mechanism, actual model
 judgment and comparative usefulness separate. The browser author/revise/reload
 check uses the human session and verifies immutable task/source bytes and mobile

@@ -121,6 +121,9 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
   };
   const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
   const prospectiveAdditions = [
+    // #1448 adds a separately pinned saturation withdrawal journey. Remove
+    // only this one call when checking every earlier action/assertion digest.
+    ['    await validateSaturatedDirectionRevocationUI(directionDb, projectAlphaId);\n', ''],
     // #1399 adds saved-project discovery with its own exact action/assertion
     // pin below. Preserve the digest of every preceding phase unchanged.
     ['    await validateSavedProjectDiscoveryV02({ fixture, manifest, projectAlphaId, projectAlphaDestination });\n', ''],
@@ -157,6 +160,7 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
   const withoutProspectiveAdditions = text => projectClientAdaptations.reduce((result, [current, previous]) => result.replaceAll(current, previous),
     prospectiveAdditions.reduce((result, [addition, previous]) => result.replace(addition, previous), text));
   const expected = {
+    validateSaturatedDirectionRevocationUI: 'b2e54b2f02862e8f3f04693d068fa9972ab1f5ecdc0eac4968fe97649361f019',
     validateSavedProjectDiscoveryV02: 'c9a79ea30f5485ad6322e712d267524a27e2d8a158693c1fbb81793f6897916d',
     // #1384 adds the reader/editor and unsaved-authorization refusal before
     // unchanged responsive checks. Earlier actions/assertions/deadlines remain.
@@ -178,7 +182,7 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
     }
     ts.forEachChild(node, visit);
   }
-  visit(file); assert.equal(found.length, 6);
+  visit(file); assert.equal(found.length, 7);
   assert.equal(hash(phases), '1d76d884d3ee26e92769e3e66a22f25c77a639f8e6d77cab400ea8ed8a91d984');
   assert(source.includes('const DEFAULT_TIMEOUT_MS = 45_000;'));
   assert(source.includes('const REQUEST_QUIET_MS = 500;'));
