@@ -151,6 +151,25 @@ export async function testReviewCallbackEnrollment(f: any) {
             assert.deepEqual(f.networkCounts(), n, "restore does not revive a revoked permission");
             assert.equal((await event("events/unsubscribe", { ...sub, delivery: stopDelivery })).status, 200);
             assert.equal(db.prepare("SELECT count(*) n FROM vnext_review_subscriptions WHERE connection_ref=? AND stopped=0").get(c.id).n, 0);
+            // A stopped restored policy must still allow observation after the
+            // old finite candidate expires. Only a NEW local decision may
+            // resume egress; neither restore nor this ingress grants it.
+            const clock = Date.now;
+            try {
+                Date.now = () => clock() + 660000;
+                const counts = f.networkCounts();
+                assert.equal((await event("events/subscribe")).value.protocol_error.data.reason, "approval_required");
+                assert.deepEqual(f.networkCounts(), counts);
+                const pending = await inspect(); assert.equal(pending.stopped, true);
+                assert(pending.candidates.some((r: any) => r.origin === "https://receiver.example.com" && r.state === "pending"),
+                    "restored stopped policy must permit a fresh bounded observation after candidate expiry");
+                const fresh = await select();
+                assert.notEqual(fresh.candidate.candidate_ref, beforeRestoreDecision.candidate_ref);
+                assert.equal((await operator("approve", { ...fresh.decision, expires_at: new Date(Date.now() + 60000).toISOString() })).status, "available");
+                assert.equal((await event("events/subscribe")).status, 200);
+                assert.equal(f.networkCounts().verifyCalls, counts.verifyCalls + 1);
+                assert.equal((await event("events/unsubscribe", { ...sub, delivery: stopDelivery })).status, 200);
+            } finally { Date.now = clock; }
         },
     };
 }

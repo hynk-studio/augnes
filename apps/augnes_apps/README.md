@@ -349,6 +349,11 @@ or background enrollment job is introduced. Restore invalidates policy revisions
 and all approvals as well as delivery leases, even when the restored backup
 predates a revocation. Inspect, explicitly decide again if still authorized,
 and obtain a fresh host subscription. Requests and attributed replies survive.
+A stopped or restored policy can still observe bounded pending candidates from
+authenticated ingress, including after an old candidate expires. Observation
+does not resume permission: a fresh local decision with the current revisions
+and a newly verified subscription are required. Remove the connection binding
+to stop that ingress as well as delivery.
 
 Explicit request/read/reply/readback remains independent of callback approval.
 An originating agent can find saved replies through ordinary readback/Resume and

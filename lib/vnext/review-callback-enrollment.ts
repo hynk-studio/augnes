@@ -52,7 +52,11 @@ export function admitReviewCallback(db: Database.Database, c: ReviewConnection, 
             // of an old decision. Global and per-connection bounds cap flooding.
             db.prepare("DELETE FROM vnext_review_callback_candidates WHERE expires_at<=?").run(Date.now());
             candidate = lookup();
-            if (!candidate && !p.stopped) {
+            // A stop/restore fences egress, not authenticated observation.
+            // Otherwise expiry could remove the only candidate the operator
+            // can decide on. The stopped check below still refuses subscription
+            // until a fresh current-revision local approval resumes permission.
+            if (!candidate) {
                 const count = db.prepare("SELECT count(*) n FROM vnext_review_callback_candidates WHERE connection_ref=?").get(c.id) as { n: number };
                 const total = db.prepare("SELECT count(*) n FROM vnext_review_callback_candidates").get() as { n: number };
                 if (count.n >= 8 || total.n >= 64) fail("approval_candidate_limit");
