@@ -158,6 +158,51 @@ Rollback: revert this PR or use explicit `verify:local:full`. There is no produc
 state migration. Later additions using this registration must restore a reviewed
 unit registration if the loader is reverted; never silently drop their tests.
 
+## Continuation-document responsibility and packaged-test preparation (#1445)
+
+The original #1439 candidate `02b136a9085a5cf45dfd808fec4a964f52c0c31d`
+only added guidance to `docs/DATABASE_ACCESS_LIFECYCLE.md` and
+`apps/web_planning/README.md`. Its planner conservatively selected Full because
+the former was a delegated but unregistered contract and the latter was outside
+the ordinary documentation roots. Its failed packaged-test run remains failed;
+unexecuted Browser phases remain NOT_RUN. The evidence is retained in #1445.
+
+| Document | Responsibility and inspected consumers |
+|---|---|
+| Database lifecycle | Root README delegates lifecycle ownership. The added history/recovery text explains existing readers, transactions and checkpoint behavior; it adds no writer or grant. No test/runtime reader of these document bytes was found. |
+| Web Planning README | Architecture `02` and roadmap `03` link its host, history, branch and file contracts. Those are operational boundaries requiring meaning review. Vite uses the Worker graph with `publicDir:false`; direct build stages only its bundle/config and SQL migrations. The private package has no published file inventory. |
+
+The source screen was followed through actual build/staging, package, instruction
+and test owners. The native payload validator rejects both `apps/` and `docs/`;
+Next uses its traced application graph. The plugin installer has an explicit
+skill inventory, and hook installation reads the root AGENTS marker. Neither
+document is delegated as agent instructions. README basename matches in the
+manifest refer to root/font/research/publication entries or disposable fixtures,
+not the Web document. Publication generation constructs its own README bytes.
+Existing incoming anchors are retained; changed outgoing and incoming links are
+checked against exact trees. Text search alone is not absence-of-consumer proof.
+
+The registration admits only regular in-place modifications of these two literal
+paths as `operating-policy-only`, with static references and material authority
+review. It does not classify them as ordinary prose, authorize path dispositions,
+or admit other app Markdown. The earlier roadmap-reference registration still
+admits only its reviewed outgoing edge; a Web README edit uses this separate
+contract registration. Unknown executable, instruction, package and dynamic
+directory consumers remain conservative. Mixed behavior and verification
+self-changes still select Full. Evaluating the original two-document diff using
+the corrected planner is diagnostic evidence, not a receipt for that old head.
+
+Full is required for this introducing verification change. Its packaged-test
+preparation now probes a suitable fallback after an unsuitable high OS assignment
+within the unchanged 20-probe budget. A caller requiring distinct preferences
+uses the same bounded owner rather than an outer retry loop. Each returned port
+was actually bound and closed; launch-time collisions remain the unchanged
+supervisor's responsibility. Bind and cleanup failures stay visible and retained
+listeners remain with the enclosing cleanup owner. Focused deterministic and
+real-loopback settlement controls reuse the registered preferred-port test;
+intentional packaged-runtime collision tests remain intact. Constructed high-port
+schedules establish a mechanism, not the unrecorded original OS assignments.
+
 ## Audited roadmap reference consumer (#1342)
 
 At base `6132a37ceb34799ad65c6233e58ed6405abf2a01`, the unchanged

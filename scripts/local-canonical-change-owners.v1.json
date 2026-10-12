@@ -424,6 +424,54 @@
       "consumer_paths": [],
       "disposition": "references",
       "consumer_scope": "Supporting analysis only; Local Canonical policy links it as an audit record, not delegated authority. docs/ is excluded by the distributable payload owner. No retained runtime, data, package, agent-instruction or external compatibility obligation was found in the bounded source/owner review. Disposition still requires exact-tree incoming references and explicit consumer/retention review."
+    },
+    {
+      "id": "continuation-operational-documentation",
+      "modification_only": true,
+      "paths": [
+        "docs/DATABASE_ACCESS_LIFECYCLE.md",
+        "apps/web_planning/README.md"
+      ],
+      "checks": [],
+      "consumer_paths": [
+        ".gitignore",
+        "apps/augnes_apps/AGENTS.md",
+        "lib/state/brief.ts",
+        "publications/workflow-cost-v1/README.md",
+        "publications/workflow-cost-v1/exact_linear.py",
+        "publications/workflow-cost-v1/index.html",
+        "publications/workflow-cost-v1/manifest.json",
+        "scripts/augnes-codex-doctor.mjs",
+        "scripts/build-workflow-cost-publication.mjs",
+        "scripts/canonical-research-registration.mjs",
+        "scripts/companion-work-revision-envelope-checks.ts",
+        "scripts/executable-reuse/README.md",
+        "scripts/executable-reuse/exact_linear.py",
+        "scripts/executable-reuse/test_public_consumer.py",
+        "scripts/test-c8-semantic-visual-contract.mjs",
+        "scripts/test-canonical-research-registration.mjs",
+        "scripts/test-codex-repository-continuity.ts",
+        "scripts/test-distributable-package.mjs",
+        "scripts/test-local-canonical-verification-contract.mjs",
+        "scripts/test-operational-continuation-admission.ts",
+        "scripts/test-repository-execution-attachment.ts",
+        "scripts/test-repository-managed-delegation.ts",
+        "scripts/test-runtime-operability.mjs",
+        "scripts/test-vnext-codex-current-continuity.ts",
+        "scripts/test-workflow-cost-publication.mjs",
+        "scripts/vnext-protocol-conformance.ts"
+      ],
+      "reference_consumers": [
+        {
+          "path": "apps/web_planning/README.md",
+          "targets": [
+            "docs/DATABASE_ACCESS_LIFECYCLE.md"
+          ],
+          "scope": "Regular-file continuation guidance links the native lifecycle owner. This is only the audited native-guide edge; other incoming consumers and authority targets remain screened and reference-validated."
+        }
+      ],
+      "disposition": "full",
+      "consumer_scope": "In-place operational contracts delegated by root README and active architecture/roadmap. Web Vite/Worker input graphs, publicDir=false, explicit output/migration staging, native payload exclusion of apps/ and docs/, and hook/installer inputs were inspected. Listed README basename hits read root/font/research/publication or disposable fixture files, or name unrelated entries; none consumes these document bytes. Static exact-tree incoming/outgoing references and material authority review remain required. This is not a Markdown/app-wide exemption, agent-instruction delegation, packaging admission, or disposition grant. See the #1445 consumer audit."
     }
   ]
 }
