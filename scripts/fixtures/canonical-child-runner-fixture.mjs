@@ -33,6 +33,8 @@ if (mode === "cleanup-timers") {
   if (owner.size !== 0 || server.listening) throw new Error("cleanup_deadline_fixture_unsettled");
   // Natural exit must occur before either successfully cancelled deadline.
 } else if (mode === "hang") {
+  // A functional marker is output, never process settlement or acceptance.
+  console.log(JSON.stringify({ status: "passed" }));
   process.on("SIGTERM", () => {
     writeFileSync(statePath, "sigterm_received\n", { mode: 0o600 });
     process.exit(0);
