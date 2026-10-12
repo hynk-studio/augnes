@@ -142,6 +142,44 @@ claim. Human curation, labels/corrections and hidden assistance must be attribut
 ChatGPT manually supplying each best strategy does not demonstrate autonomous
 task-improvement continuity, nor does replacing the worker with a stronger model.
 
+### Public asset entry and later consumer (#1447)
+
+The [declared public-question case and successor](../PUBLIC_ASSET_SKILL_USAGE.md#candidate-and-intended-observation)
+fix the task, intended consumer, strongest ordinary alternative and next output
+before evaluating the new Skill entry. The real historical question supplies
+stipulated probabilities, not empirical production rates; the chosen small
+instances are exposed development cases. The later planning request is synthetic
+and has a distinct deadline judgment. It is not another independently arriving
+user or a repeat-use benefit study.
+
+The registered `scripts/test-workflow-cost-plugin.mjs` proves complete pinned
+packaging, clean-directory Python use, an independent renewal oracle, material
+refusal and ordinary-file later consumption. It retains the earlier publication
+and solver checks. A native writer/later-worker observation, when available, is
+reported separately with exact exposed catalog/Skill information, host/model
+observability, tools, output and assistance. A fresh process or scripted answer
+cannot substitute for that model observation. Correct non-use of the calculator
+for the later deadline request is `NOT_USED`, not another successful calculation.
+
+Record source completion, public listing, host activation, discovery observation,
+actual use, comparative benefit and repeat use separately. A supplied-candidate
+selection is not brand-free search or a host recommendation. Local catalog
+registration/installation and `skills/list` establish only those host mechanics;
+actual calculation must affect the writer's answer. Later output-reference
+re-entry must preserve original source/version, inputs/status, information basis,
+limits and reconsideration conditions without implying current source freshness.
+An unavailable review source stays unknown. No new permanent-ID/correction service
+or private persistence is necessary.
+
+The ordinary baseline may use the same source, Python, exact arithmetic and
+simple recurrence, including deriving the closed form. No comparative superiority
+is required or inferred. Track one-off packaging/setup separately from recurring
+retrieval, execution, integration and checking; keep unmeasured human repair and
+model/token cost unknown. The task PR retains failures, skipped phases, operational
+gates and one concrete next decision. These observations do not reopen accepted
+#1422/#1423 delivery, transfer #1433/#1372 obligations, turn #1450's synthetic
+result into speedup evidence or complete all P2/P3/P4/P5 work.
+
 ### Task units and relevant task characteristics
 
 Choose the unit that can answer the question before interpreting results:
