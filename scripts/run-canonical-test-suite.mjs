@@ -162,6 +162,12 @@ const goldenStep = {
 const suites = {
   unit: [
     {
+      label: "public retry-work Skill package integrity and source-bound later consumer",
+      ...rootNode("scripts/test-workflow-cost-plugin.mjs"),
+      timeoutMs: 20_000,
+      requireNaturalExit: true,
+    },
+    {
       label: "project-free workflow-cost static delivery and external Python consumer",
       ...rootNode("scripts/test-workflow-cost-publication.mjs"),
       timeoutMs: 30_000,

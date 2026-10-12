@@ -1,0 +1,9 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "augnes-workflow-cost",
+  "version": "0.1.0",
+  "description": "Calculate expected work for small stationary retry processes using a complete, pinned public Python asset. Includes applicability and later-use guidance; no account or server.",
+  "author": { "name": "hynk-studio" },
+  "repository": "https://github.com/hynk-studio/augnes",
+  "homepage": "https://github.com/hynk-studio/augnes/tree/main/publications/workflow-cost-v1"
+}

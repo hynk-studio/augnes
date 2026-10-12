@@ -22,16 +22,26 @@ interface. The product is continuous work, not a collection of surfaces.
 
 [Is optional inspection worth the work?](publications/workflow-cost-v1/README.md)
 is a standalone workflow-cost method for agents with Python 3.9+ and permission
-to execute locally. Read its inputs and limits, download the manifest and both
-Python files, verify their identities, and run in your own harness. No Augnes
+to execute locally. Read its inputs and limits, download the manifest and all
+four listed files, verify their identities, and run in your own harness. No Augnes
 installation, project, Companion, account or private-work upload is needed.
 Reading and leaving with the result is a supported use.
 
 The same directory contains a [no-JavaScript HTML entry](publications/workflow-cost-v1/index.html)
-and every required file for ordinary static hosting. This repository ships the
-publication; a live public deployment is a separate operation. See the
+and every required file for ordinary static hosting. Anonymous GitHub delivery
+and project-free calculation were [accepted under #1422/#1423](https://github.com/hynk-studio/augnes/issues/1209#issuecomment-6059444075);
+the pinned release's earlier development-only paragraph retains its original
+evidence scope. New publication destinations remain separate operations. See the
 [source and publication instructions](scripts/executable-reuse/README.md#public-static-delivery)
 for reproducibility and the bounded consumer check.
+
+Code-capable Codex users can also use the
+[stationary retry-work Skill package](docs/PUBLIC_ASSET_SKILL_USAGE.md).
+It adds a task-described catalog entry, the complete unchanged public material,
+an integrity check and ordinary output references for later tasks. This is a
+source/local-catalog candidate, not a stable release or public-directory listing.
+Host installation is a separate user/admin action; ordinary web/file use above
+requires no plugin. It does not connect the private Augnes Operator or Companion.
 
 ## Why Augnes
 

@@ -1,0 +1,49 @@
+{
+  "schema": "augnes.workflow-cost-download.v1",
+  "release": {
+    "schema": "augnes.workflow-cost-release.v1",
+    "method": "workflow-cost",
+    "version": "1.0.0",
+    "source_revision": "ab4d2bdb86c8284d7d7843f7fafa189c8ca9cca1",
+    "python": ">=3.9, standard library only",
+    "entrypoint": "workflow_cost.py",
+    "members": [
+      {
+        "name": "workflow_cost.py",
+        "source": "scripts/executable-reuse/workflow_cost.py",
+        "bytes": 4973,
+        "sha256": "7a0fabc8a0672f97d4c5a81b5eef9e61f5c7fca6447d50ae1bf09bc2be149c11"
+      },
+      {
+        "name": "exact_linear.py",
+        "source": "scripts/executable-reuse/exact_linear.py",
+        "bytes": 2242,
+        "sha256": "7cdd11476badfed7b206a84ed5195209e38465dd74cc5e265a7d9ced203a804a"
+      }
+    ]
+  },
+  "content_id": "sha256:88706b91f4889b4e62a1a42b217be9c79ad61292bb31197f0677c7a21507b8d2",
+  "files": [
+    {
+      "name": "index.html",
+      "bytes": 8904,
+      "sha256": "bbd9476de071b951e54c6681fc84792f9aa7142f24c81c78e4efd0638e111588"
+    },
+    {
+      "name": "README.md",
+      "bytes": 7809,
+      "sha256": "2ab843f390e51a7dad36d3ec94395eeb06f3074d6520770dfa2b806dbc9b2627"
+    },
+    {
+      "name": "workflow_cost.py",
+      "bytes": 4973,
+      "sha256": "7a0fabc8a0672f97d4c5a81b5eef9e61f5c7fca6447d50ae1bf09bc2be149c11"
+    },
+    {
+      "name": "exact_linear.py",
+      "bytes": 2242,
+      "sha256": "7cdd11476badfed7b206a84ed5195209e38465dd74cc5e265a7d9ced203a804a"
+    }
+  ],
+  "publication_sha256": "342638051cf9de4bc07411ec33567d50524b1fe04fd404bf87f7ad32c7f18a6c"
+}

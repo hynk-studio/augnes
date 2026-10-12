@@ -236,14 +236,24 @@ try {
   }
 
   const directState = path.join(temporaryRoot, "direct-signal.txt");
+  const directOutput = { stdout: "", stderr: "", logs: [] };
   const direct = await runFixture("hang", {
     statePath: directState,
     timeoutMs: 400,
+    capture: directOutput,
   });
+  assert.match(directOutput.stdout, /"status":"passed"/);
   assert.equal(direct.timed_out, true);
+  assert.equal(canonicalChildAcceptanceFailure(direct, {
+    suite: "runner-regression", timeoutMs: 400, requireNaturalExit: true,
+  })?.code, "canonical_child_timeout", "A passed marker and successful timeout cleanup cannot qualify unfinished work");
+  assert.equal(direct.cleanup_completed, true);
+  assert.equal(direct.streams_closed, true);
+  assert.equal(direct.remaining_owned_processes, 0);
   if (process.platform === "win32") {
     assert.equal(existsSync(directState), false);
   } else {
+    assert.equal(direct.exit_code, 0, "Even a zero exit after timeout remains failed");
     assert.equal(readFileSync(directState, "utf8"), "sigterm_received\n");
   }
   observedPids.add(direct.pid);
