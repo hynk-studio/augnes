@@ -51,6 +51,7 @@ import {
   restoreRuntimeDatabase,
   inspectRecoveryDatabaseFile,
 } from "./runtime-database-bootstrap.mjs";
+import { validateRecoveryCanonicalDatabaseV01 } from "./recovery-canonical-record-validator";
 import { createRecoveryBackup } from "./recovery-backup.mjs";
 
 const started = Date.now(),
@@ -77,6 +78,7 @@ const processor = createLocalProcessor({ secret });
 trackServerConnections(processor.server);
 let origin = "",
   id = 0,
+  processorRequests = 0,
   dropReturned = false,
   dropBeforeRequest = false,
   failSql: RegExp | null = null,
@@ -181,6 +183,7 @@ const server = trackServerConnections(
   }),
 );
 processor.server.prependListener("request", (req, res) => {
+  processorRequests++;
   if (dropBeforeRequest && req.method === "POST") {
     dropBeforeRequest = false;
     req.destroy();
@@ -254,20 +257,19 @@ const phase = (label: string) => {
   phases.push({ label, elapsed_ms: Date.now() - started });
   console.log(JSON.stringify(phases.at(-1)));
 };
+function databaseState(database = db) {
+  return database
+    .prepare(
+      "SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+    )
+    .all()
+    .map((r: any) => [
+      r.name,
+      database.prepare(`SELECT * FROM "${r.name}" ORDER BY rowid`).all(),
+    ]);
+}
 function snapshot(database = db) {
-  return hashBytes(
-    canonical(
-      database
-        .prepare(
-          "SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
-        )
-        .all()
-        .map((r: any) => [
-          r.name,
-          database.prepare(`SELECT * FROM "${r.name}" ORDER BY rowid`).all(),
-        ]),
-    ),
-  );
+  return hashBytes(canonical(databaseState(database)));
 }
 async function preserves(
   p: any,
@@ -276,11 +278,17 @@ async function preserves(
   reason: string,
   basis?: string,
 ) {
-  const before = snapshot(),
+  const before = databaseState(),
+    requestsBefore = processorRequests,
     effects = canonical(processor.snapshot());
   const value = await op(p, action, data, basis);
   assert.equal(value.reason, reason, JSON.stringify(value));
-  assert.equal(snapshot(), before);
+  assert.deepEqual(databaseState(), before);
+  assert.equal(
+    processorRequests,
+    requestsBefore,
+    "Refusal must cause no egress",
+  );
   assert.equal(canonical(processor.snapshot()), effects);
   return value;
 }
@@ -1447,6 +1455,344 @@ async function main() {
   );
   validateExternalStore(db);
   phase("storage_failure_atomicity_exact_and_conflicting_replay");
+
+  // An ordinary dependency writer must admit the same record kind as recovery.
+  // Keep corrections readable without treating them as their target's grant.
+  const admissionEntry = ok(await op(b, "read"));
+  const admissionExperience = ok(
+    await op(
+      a,
+      "publish",
+      {
+        ...publication,
+        key: "admission-experience",
+        title: "Admission observation",
+      },
+      ap.material_basis,
+    ),
+  ).record.ref;
+  const admissionCorrection = ok(
+    await op(
+      a,
+      "correct",
+      {
+        key: "admission-correction",
+        target_ref: admissionExperience,
+        topic: "identity",
+        statement:
+          "Association remains uncertain; independently checked arithmetic is usable.",
+        source_refs: [source.source_binding],
+        targets: [scopeKey(b.scope)],
+      },
+      ap.material_basis,
+    ),
+  ).record.ref;
+  const ownExperience = ok(
+    await op(
+      b,
+      "publish",
+      {
+        ...publication,
+        key: "own-admission-experience",
+        title: "B's own observations",
+        source_refs: [admissionEntry.sources[0].source_binding],
+        materials: [],
+        targets: [],
+      },
+      admissionEntry.material_basis,
+    ),
+  ).record.ref;
+  const withheldExperience = ok(
+    await op(
+      a,
+      "publish",
+      {
+        ...publication,
+        key: "withheld-admission-experience",
+        targets: [],
+      },
+      ap.material_basis,
+    ),
+  ).record.ref;
+  const withheldCorrection = ok(
+    await op(
+      a,
+      "correct",
+      {
+        key: "withheld-admission-correction",
+        target_ref: withheldExperience,
+        topic: "identity",
+        statement: "Private association correction",
+        source_refs: [source.source_binding],
+        targets: [],
+      },
+      ap.material_basis,
+    ),
+  ).record.ref;
+  const readablePrivateTargetCorrection = ok(
+    await op(
+      a,
+      "correct",
+      {
+        key: "readable-private-target-correction",
+        target_ref: withheldExperience,
+        topic: "identity",
+        statement: "Disclosure does not share the target",
+        source_refs: [source.source_binding],
+        targets: [scopeKey(b.scope)],
+      },
+      ap.material_basis,
+    ),
+  ).record.ref;
+  const admissionEnvelope = {
+    ...config.envelopes[0],
+    id: "admission-unused-envelope",
+  };
+  config.envelopes.push(admissionEnvelope);
+  configure();
+  const admissionRequest = {
+    key: "admission-reusable-key",
+    purpose: "B's corrected dependency preparation",
+    experience_refs: [admissionCorrection],
+    envelope_id: admissionEnvelope.id,
+    input_ref: admissionEntry.materials.find(
+      (m: any) => m.metadata.name === "events.json",
+    ).ref,
+    terms: {
+      operation: "aggregate",
+      format: "json",
+      population: "all",
+      deadline: admissionEnvelope.expires_at,
+      max_rows: 200,
+    },
+    expectation: "Complete scoped arithmetic",
+    reconsider_when: "Changed support or feedback",
+    owners: { receive: "B", check: "B arithmetic", use: "B report" },
+  };
+  const refusedDependencies = [
+    { refs: [admissionCorrection], reason: "external_invalid_input" },
+    {
+      refs: [admissionExperience, admissionCorrection],
+      reason: "external_invalid_input",
+    },
+    {
+      refs: [ownExperience, admissionExperience, admissionCorrection],
+      reason: "external_invalid_input",
+    },
+    {
+      refs: [readablePrivateTargetCorrection],
+      reason: "external_invalid_input",
+    },
+    { refs: ["sha256:" + "0".repeat(64)], reason: "external_access_refused" },
+    { refs: [withheldExperience], reason: "external_access_refused" },
+    { refs: [withheldCorrection], reason: "external_access_refused" },
+    { refs: [experience], reason: "external_access_refused" }, // withdrawn earlier
+    {
+      refs: [ownExperience, withheldCorrection],
+      reason: "external_access_refused",
+    },
+    {
+      refs: [admissionExperience, admissionExperience],
+      reason: "external_invalid_input",
+    },
+  ];
+  assert.equal(
+    db
+      .prepare("SELECT 1 FROM vnext_external_envelopes WHERE envelope_id=?")
+      .get(admissionEnvelope.id),
+    undefined,
+  );
+  for (const c of refusedDependencies) {
+    await preserves(
+      b,
+      "prepare",
+      { ...admissionRequest, experience_refs: c.refs },
+      c.reason,
+      admissionEntry.material_basis,
+    );
+    assert.equal(
+      db
+        .prepare("SELECT 1 FROM vnext_external_envelopes WHERE envelope_id=?")
+        .get(admissionEnvelope.id),
+      undefined,
+    );
+    validateExternalStore(db);
+    assert.equal(validateRecoveryCanonicalDatabaseV01(db).status, "valid");
+  }
+  ok(await op(b, "read_experience", { ref: readablePrivateTargetCorrection }));
+  await preserves(
+    b,
+    "read_experience",
+    { ref: withheldExperience },
+    "external_access_refused",
+  );
+
+  // A real other-workspace writer produces these refs; no malformed SQL writes.
+  const otherDb = new Database(peerPath),
+    originalProjects = config.projects,
+    originalEnvelopes = config.envelopes;
+  const otherProject = otherDb
+    .prepare("SELECT project_id FROM vnext_project_identities")
+    .get() as any;
+  const otherScope = {
+    workspace_id: peerWorkspace.workspace_id,
+    project_id: otherProject.project_id,
+  };
+  config.projects = [
+    {
+      repository_root: b.root,
+      project_key: scopeKey(otherScope),
+      share_to: [],
+    },
+  ];
+  config.envelopes = [
+    { ...admissionEnvelope, project_keys: [scopeKey(otherScope)] },
+  ];
+  configure();
+  process.env.AUGNES_DB_PATH = peerPath;
+  let otherExperience, otherCorrection;
+  try {
+    await b.api.write("initial", await b.api.read(), {
+      goal: "Other workspace's report",
+      success_criteria: ["Scoped report"],
+      non_goals: ["No external effects"],
+    });
+    await b.api.write("revise", await b.api.read(), {
+      sources: {
+        add: [note("note-ref:other-workspace", "Other workspace observation")],
+      },
+    });
+    const otherEntry = ok(await op(b, "read"));
+    otherExperience = ok(
+      await op(
+        b,
+        "publish",
+        {
+          ...publication,
+          key: "other-workspace",
+          source_refs: [otherEntry.sources[0].source_binding],
+          materials: [],
+          targets: [],
+        },
+        otherEntry.material_basis,
+      ),
+    ).record.ref;
+    otherCorrection = ok(
+      await op(
+        b,
+        "correct",
+        {
+          key: "other-correction",
+          target_ref: otherExperience,
+          topic: "identity",
+          statement: "Other workspace correction",
+          source_refs: [otherEntry.sources[0].source_binding],
+          targets: [],
+        },
+        otherEntry.material_basis,
+      ),
+    ).record.ref;
+    validateExternalStore(otherDb);
+  } finally {
+    process.env.AUGNES_DB_PATH = dbPath;
+    config.projects = originalProjects;
+    config.envelopes = originalEnvelopes;
+    configure();
+    otherDb.close();
+  }
+  for (const r of [otherExperience, otherCorrection])
+    await preserves(
+      b,
+      "prepare",
+      { ...admissionRequest, experience_refs: [r] },
+      "external_access_refused",
+      admissionEntry.material_basis,
+    );
+
+  const validAdmission = {
+    ...admissionRequest,
+    experience_refs: [ownExperience, admissionExperience],
+  };
+  const admission = ok(
+    await op(b, "prepare", validAdmission, admissionEntry.material_basis),
+  );
+  assert.equal(
+    admission.status,
+    "saved",
+    "Refused key and envelope were not consumed",
+  );
+  const admissionState = databaseState();
+  assert.equal(
+    (await op(b, "prepare", validAdmission, admissionEntry.material_basis))
+      .status,
+    "exact_replay",
+  );
+  assert.deepEqual(databaseState(), admissionState);
+  await preserves(
+    b,
+    "prepare",
+    { ...validAdmission, purpose: "Conflicting replay" },
+    "external_replay_conflict",
+    admissionEntry.material_basis,
+  );
+  ok(
+    await op(
+      b,
+      "prepare",
+      { ...validAdmission, key: "empty-experience-list", experience_refs: [] },
+      admissionEntry.material_basis,
+    ),
+  );
+  let admissionView = ok(
+    await op(b, "read", { work_ref: admission.work_ref }),
+  ).work;
+  assert.equal(
+    admissionView.dependencies[1].corrections[0].ref,
+    admissionCorrection,
+  );
+  assert(
+    ok(
+      await op(b, "read_experience", { ref: admissionCorrection }),
+    ).affected_work.some((w: any) => w.ref === admission.work_ref),
+  );
+  ok(
+    await op(
+      b,
+      "reconsider",
+      {
+        key: "admission-reconsider",
+        work_ref: admission.work_ref,
+        expected_head: admissionView.state.head,
+        dependency_binding: admissionView.dependency_binding,
+        decision: "retain",
+        reason:
+          "Independent scoped arithmetic does not require the uncertain operator association.",
+      },
+      admissionEntry.material_basis,
+    ),
+  );
+  admissionView = ok(
+    await op(b, "read", { work_ref: admission.work_ref }),
+  ).work;
+  assert.equal(admissionView.ready, true);
+  const fresh = new Database(dbPath, { readonly: true, fileMustExist: true });
+  try {
+    validateExternalStore(fresh);
+    assert.equal(validateRecoveryCanonicalDatabaseV01(fresh).status, "valid");
+  } finally {
+    fresh.close();
+  }
+  // Historical validation is offline and must not consult today's private config.
+  delete process.env.AUGNES_EXTERNAL_CONFIG_FILE;
+  try {
+    validateExternalStore(db);
+    assert.equal(validateRecoveryCanonicalDatabaseV01(db).status, "valid");
+  } finally {
+    process.env.AUGNES_EXTERNAL_CONFIG_FILE = configPath;
+  }
+  phase(
+    "experience_kind_admission_atomic_privacy_replay_and_fresh_recovery_parity",
+  );
   // Unsupported readers refuse an additive new schema; the old nonempty store
   // remains byte-preserved until the explicit staged lifecycle prepares it.
   await db.backup(path.join(temporary, "migration-source.db"));
@@ -1545,6 +1891,15 @@ async function main() {
     readActiveProjectSelectionV01(db, workspace.workspace_id),
     selection,
   );
+  const restoredAdmission = ok(
+    await op(b, "read", { work_ref: admission.work_ref }),
+  ).work;
+  assert.deepEqual(restoredAdmission.events, admissionView.events);
+  assert.equal(
+    restoredAdmission.dependencies[1].corrections[0].ref,
+    admissionCorrection,
+  );
+  assert.equal(validateRecoveryCanonicalDatabaseV01(db).status, "valid");
   const restoredUnknown = await reread(unknown);
   assert(restoredUnknown.state.unresolved);
   await compareRefusal(

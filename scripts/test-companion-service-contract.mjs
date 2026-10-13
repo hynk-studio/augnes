@@ -5,6 +5,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import { createHash, randomUUID } from "node:crypto";
 import { mock } from "node:test";
+import { assertPublicSafeReceipt } from "./local-canonical-receipt.mjs";
 import {
   chmodSync,
   copyFileSync,
@@ -47,6 +48,7 @@ import {
   createCompanionSupervisorAttemptDiagnostics,
   installCompanionService,
   inspectCompanionService,
+  inspectCompanionPreservation,
   lifecycleAuthority,
   observeCompanionSupervisorAttemptExit,
   publicCompanionServiceProjection,
@@ -76,6 +78,7 @@ const options = {
 };
 
 try {
+  await assertPreservationObservation();
   await assertInstalledAccessDiagnostics();
   await assertSupervisorOutputTransport();
   assert.equal(COMPANION_SERVICE_CONTRACT, "augnes-companion-service.v0.1");
@@ -2876,5 +2879,190 @@ async function assertSupervisorOutputTransport() {
   } finally {
     await cleanupOwnedProcesses(owned);
     assert.equal(owned.size, 0);
+  }
+}
+
+async function assertPreservationObservation() {
+  const fixtureOptions = { ...options, testScope: "preservation-observation" };
+  const fixture = writeInstalledServiceFixture({
+    options: fixtureOptions,
+    node: selectSupportedNode24Binary(),
+    desiredState: "running",
+  });
+  const ownedRuntime = await writeVerifiedRuntimeFixture(fixture);
+  const identity = currentProcessIdentity();
+  let manager = {
+    contract: COMPANION_SERVICE_CONTRACT,
+    schema_version: 1,
+    service_identity: fixture.configuration.service_identity,
+    repository_fingerprint: fixture.configuration.repository_fingerprint,
+    status: "live",
+    reason: "companion_service_live",
+    manager_pid: process.pid,
+    manager_process_identity: identity,
+    supervisor_pid: process.pid,
+    supervisor_process_identity: identity,
+    restart_count: 0,
+    updated_at: new Date().toISOString(),
+    runtime_ownership: {
+      generation_id: "contract-generation",
+      instance_id: "contract-instance",
+      process_groups: ["ui", "bridge"].map((role) => ({
+        role,
+        pid: process.pid,
+        identity,
+        process_group: process.pid,
+        members: [{ pid: process.pid, identity }],
+      })),
+    },
+  };
+  const saveManager = () =>
+    writeJson(fixture.layout.manager_state_path, manager);
+  const config = fixture.configuration;
+  let jobPid = process.pid,
+    launchCalls = [],
+    requests = 0,
+    transform = null,
+    afterFourth = null;
+  const launchctl = (args) => {
+    launchCalls.push(args);
+    assert.equal(args[0], "print");
+    return {
+      status: 0,
+      stdout: `gui/${process.getuid()}/${config.service_label} = {\npath = ${config.launch_agent_path}\nprogram = ${config.node_path}\nworking directory = ${config.repository_root}\npid = ${jobPid}\narguments = {\n${[config.node_path, config.manager_entry_path, "run", "--config", config.configuration_path].join("\n")}\n}\n}`,
+    };
+  };
+  const fetchFixture = globalThis.fetch;
+  globalThis.fetch = async (...args) => {
+    requests++;
+    let response = await fetchFixture(...args);
+    if (transform) response = await transform(response, args);
+    if (requests % 4 === 0 && afterFourth) afterFourth();
+    return response;
+  };
+  const read = () =>
+    inspectCompanionPreservation({ ...fixtureOptions, launchctl });
+  try {
+    saveManager();
+    const stable = await read();
+    assertPublicSafeReceipt(stable);
+    assert.equal(stable.state.status, "live");
+    assert.equal(stable.state.preservation_valid, true, JSON.stringify(stable));
+    assert.equal(requests, 4);
+    assert.equal(launchCalls.length, 3);
+    // An ordinary heartbeat is the same state, not another lifecycle sample.
+    manager.updated_at = new Date(Date.now() + 1000).toISOString();
+    saveManager();
+    assert.deepEqual((await read()).state, stable.state);
+    const runtimePath = fixture.layout.runtime_manifest_path;
+    const originalManifest = readFileSync(runtimePath, "utf8");
+    afterFourth = () =>
+      writeJson(runtimePath, {
+        ...JSON.parse(originalManifest),
+        generation_id: "substituted",
+      });
+    const incoherent = await read();
+    assert.equal(incoherent.state.preservation_valid, false);
+    assert.equal(incoherent.diagnostics.coherent, false);
+    assert.equal(incoherent.diagnostics.samples, 1);
+    afterFourth = null;
+    writeFileSync(runtimePath, originalManifest);
+
+    // A real live-to-starting observation is never accepted as live.
+    manager.status = "starting";
+    manager.reason = "companion_service_runtime_starting";
+    saveManager();
+    transform = async () => {
+      throw new TypeError("owned unavailable runtime");
+    };
+    const starting = await read();
+    assert.equal(starting.state.status, "starting");
+    assert.equal(starting.state.preservation_valid, false);
+    assert.equal(starting.diagnostics.runtime.verified, false);
+    assert.equal(starting.diagnostics.runtime.probe_available.ui_health, false);
+    assert.notDeepEqual(starting.state, stable.state);
+    manager.status = "live";
+    manager.reason = "companion_service_live";
+    saveManager();
+    transform = null;
+    transform = async (response) => {
+      const body = await response.json();
+      return new Response(
+        JSON.stringify({
+          ...body,
+          runtime_generation_id: "wrong",
+          generation_id: "wrong",
+        }),
+        { status: 200 },
+      );
+    };
+    const invalid = await read();
+    assert.equal(invalid.state.preservation_valid, false);
+    assert.equal(invalid.diagnostics.runtime.verified, false);
+    transform = null;
+    manager.manager_process_identity = "0".repeat(64);
+    saveManager();
+    assert.equal((await read()).state.preservation_valid, false);
+    manager.manager_process_identity = identity;
+    saveManager();
+    jobPid = 1;
+    assert.equal((await read()).state.preservation_valid, false);
+    jobPid = process.pid;
+
+    // Complete generation substitution can be coherent within each sample,
+    // but its preservation binding must differ across the deciding run.
+    for (const file of [
+      fixture.layout.runtime_manifest_path,
+      fixture.layout.runtime_token_path,
+      fixture.layout.runtime_access_path,
+    ]) {
+      writeJson(file, {
+        ...JSON.parse(readFileSync(file, "utf8")),
+        generation_id: "replacement-generation",
+      });
+    }
+    manager.runtime_ownership.generation_id = "replacement-generation";
+    saveManager();
+    transform = async (response) => {
+      const body = await response.json();
+      for (const key of ["runtime_generation_id", "generation_id"])
+        if (key in body) body[key] = "replacement-generation";
+      return new Response(JSON.stringify(body), { status: 200 });
+    };
+    const replacement = await read();
+    assert.equal(
+      replacement.state.preservation_valid,
+      true,
+      JSON.stringify(replacement),
+    );
+    assert.notEqual(
+      replacement.state.preservation_binding,
+      stable.state.preservation_binding,
+    );
+    assert(!JSON.stringify(replacement).includes("p".repeat(32)));
+    assert(!JSON.stringify(replacement).includes("o".repeat(32)));
+    assert.equal(
+      requests,
+      32,
+      "Eight observations, each with one four-probe round",
+    );
+    assert(launchCalls.every((args) => args[0] === "print"));
+    console.log(
+      JSON.stringify({
+        test: "companion-preservation-observation",
+        stable: true,
+        incoherent_refused: true,
+        starting_refused: true,
+        invalid_runtime_refused: true,
+        process_identity_refused: true,
+        loaded_job_substitution_refused: true,
+        generation_substitution_detected: true,
+        samples: 8,
+        health_probe_rounds: 8,
+        retries: 0,
+      }),
+    );
+  } finally {
+    await ownedRuntime.close();
   }
 }

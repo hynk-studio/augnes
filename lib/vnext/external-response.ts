@@ -610,7 +610,13 @@ export async function handleExternalOperation(value: unknown) {
         keys(data.owners, ["receive", "check", "use"]);
         Object.values(data.owners).forEach((v) => text(v, 160));
         refs(data.experience_refs);
-        data.experience_refs.forEach((r: string) => shared(db, scope, r));
+        data.experience_refs.forEach((r: string) => {
+          // Access comes first: a private correction must remain indistinguishable
+          // from a private/missing experience. Corrections are read separately;
+          // they do not grant access to, or substitute for, their target.
+          if (shared(db, scope, r).kind !== "experience")
+            fail("external_invalid_input", 400);
+        });
         terms(data.terms);
         const e = envelope(data.envelope_id);
         currentEnvelope(e.id, e.binding, projectKey);

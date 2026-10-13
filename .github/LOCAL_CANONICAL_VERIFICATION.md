@@ -148,6 +148,15 @@ read-only inspector before and after the run. Its private HOME prevents nested
 build/suite wrappers from discovering or maintaining the installed service. An
 isolated lane never pauses, restarts, reconfigures or adopts that service. A
 changed observed service identity/lifecycle refuses successful qualification.
+The isolated inspector brackets one health/ownership probe round with the same
+scoped service materials and loaded-job identity. Only the manager heartbeat
+update timestamp is excluded from coherence comparison. Lifecycle, process,
+runtime generation/instance, ownership and configuration changes remain refusals;
+there is no retry, favorable-sample selection or grace period. A non-secret
+observation diagnostic accompanies each lifecycle projection in the receipt.
+Invalid/unavailable or incoherent evidence cannot establish preservation, even
+when the coarse service fingerprint matches. Original receipts remain immutable;
+new observations and a new candidate's complete run do not repair earlier runs.
 The default canonical path retains supported maintenance/restoration for actual
 installed-checkout mutation. Cooperating tasks must still coordinate production
 handoffs and other shared mutable targets; this is not hostile same-user sandboxing.

@@ -423,6 +423,15 @@ include access withdrawal, stale bindings, bounded amendments, missing/tampered
 material, partial/refused output, unknown effects, concurrent changes and staged
 migration/recovery. A stopped branch is control evidence, not substitute delivery.
 
+Admission/recovery parity includes an ordinary-path reproduction of a readable
+correction incorrectly saved as an experience dependency, followed by independent
+recovery refusal. The correction tests complete state and no-egress preservation,
+unused-key reuse, private-reference indistinguishability, legitimate correction
+use, fresh reads and staged restore. Qualification observations separately test
+coherent service identity/generation, unavailable health and real lifecycle
+changes. A newly reproduced observation defect is not the recovered cause of an
+older failed run; later live readings never repair that run's receipt.
+
 The candidate's private original receipts, validator, synthetic outputs and
 failed development attempts establish its actual verification state. Runtime/call
 counts describe development burden only. A smallest separately authorized model

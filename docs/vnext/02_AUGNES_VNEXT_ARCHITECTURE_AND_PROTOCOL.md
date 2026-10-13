@@ -679,6 +679,12 @@ Work preserves native purpose/basis, uncertain identity associations through
 selected experience, expected result, reconsideration conditions, owners, terms,
 input and exact deadline. Preparation, sent reservation, accepted terms,
 response, independent check, output use and closure retain separate facts.
+`experience_refs` admits only currently accessible experience records, matching
+the retained/recovery contract. A readable correction is a separate attributable
+record, not an experience or permission to read its target. Admission checks
+access before kind in the same atomic preparation; invalid input leaves the
+operation key, work, attempt, material and envelope state unchanged. Offline
+historical validation does not consult today's sharing configuration.
 The local configuration is a private live capability owned by the operator.
 Only its exact loopback destination, incarnation, project keys, permitted hashes,
 operation, expiry and aggregate limits permit egress; every call rechecks them.

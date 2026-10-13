@@ -110,7 +110,7 @@ keys. Preserve them for retry. Stream operations also require the last observed
 | `read_experience` | `{ref}` reads currently permitted experience/correction. Original source/time/conditions and association uncertainty remain visible; `affected_work` lists direct dependent work in this authorized project |
 | `material` | `{ref}` for own declared material; `{ref,experience_ref}` for selected shared material. Success returns metadata and complete base64 bytes; a locator alone is not successful delivery |
 | `withdraw` | `{ref,target_key}` permanently withdraws that share edge; repeat is exact replay. New publication is needed for a later deliberate share |
-| `prepare` | `{key,purpose,experience_refs,envelope_id,input_ref,terms,expectation,reconsider_when,owners}`. Owners separately name `receive`, `check`, `use`. Terms are `{operation:"aggregate",format:"json" or "jsonl",population:"success" or "all",deadline,max_rows}`. Creates an initial attempt, no dispatch |
+| `prepare` | `{key,purpose,experience_refs,envelope_id,input_ref,terms,expectation,reconsider_when,owners}`. Owners separately name `receive`, `check`, `use`. Terms are `{operation:"aggregate",format:"json" or "jsonl",population:"success" or "all",deadline,max_rows}`. `experience_refs` contains experience records only; corrections are read separately. Creates an initial attempt, no dispatch |
 | `act` | `{key,work_ref,expected_head,mode:"send" or "reconcile"}`. Reserves a sent/query record and budget, then makes one actual call. Repeat the exact key/head/mode to read the committed result without repeating the effect |
 | `amend` | `{key,work_ref,expected_head,proposal_ref,input_ref,terms}` after actual format feedback. May only select a proposed supported format and permitted bytes within the original population/deadline/row terms and amendment bound. Prepared amended terms are not counterpart acceptance |
 | `check` | `{key,work_ref,expected_head,response_ref,material_ref,checker,verdict:"pass" or "fail",checks,limitations}`. Read/check actual bytes first. This is attributable consumer evidence, not an automatic correctness oracle |
@@ -135,6 +135,15 @@ read current work and use exact replay/query, rather than guessing absence.
 Complete response bytes and their journal attribution commit together. Failed
 response writes or competing heads leave the original sent record unresolved,
 with no orphaned published material. Late bytes keep their original identity.
+
+A readable correction in `prepare.experience_refs` is invalid input. Missing,
+wrong-workspace, withheld and withdrawn references keep the same access refusal;
+record kind is checked only after access. Refusal commits no work, attempt,
+envelope row/counter or operation key, so a corrected request may use its unused
+key. Empty lists, duplicate refusal and exact/conflicting replay retain their
+existing behavior. Use `read_experience` and explicit `reconsider` for corrections;
+the correction does not share its target. Existing invalid historical state is
+refused by recovery, never silently rewritten by this admission correction.
 
 ## Report example, fresh process and evidence
 

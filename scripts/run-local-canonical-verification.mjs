@@ -73,6 +73,7 @@ import {
   acquireCompanionServiceMaintenance,
   boundedLifecycleState,
   inspectCompanionService,
+  inspectCompanionPreservation,
   releaseCompanionServiceMaintenance,
 } from "../plugins/augnes-operator/mcp/companion-service-core.mjs";
 
@@ -481,6 +482,7 @@ export async function executeLocalCanonicalVerification({
   const phaseReceipts = phaseDefinitions.map(phase => ({ ...notRunPhaseReceipt(phase), invocation_id: invocationId }));
   let serviceLifecycleBefore = null;
   let serviceLifecycleAfter = null;
+  let serviceObservations = { before: null, after: null };
   let dependencyMaintenance = null;
   let dependencyMaintenanceRelease = null;
   const preflightIssues = integrationBase?.status === "refused"
@@ -609,9 +611,14 @@ export async function executeLocalCanonicalVerification({
         if (historicalInputsRequired) historicalInputs = prepareHistoricalInputs({
           context: verificationContext, repositoryRoot, checkoutOwner, invocationId,
         });
-        serviceLifecycleBefore = boundedLifecycleState(await inspectCompanionService({
+        const observed = await inspectCompanionPreservation({
           repositoryRoot: verificationAnchorRoot(verificationContext),
-        }));
+        });
+        serviceLifecycleBefore = observed.state;
+        serviceObservations.before = observed.diagnostics;
+        if (!observed.state.preservation_valid) throw Object.assign(
+          new Error("companion_preservation_observation_invalid"),
+          { code: "companion_preservation_observation_invalid" });
       } else if (
         plan.selected_plan === "full-canonical" ||
         plan.selected_plan === OWNER_TARGETED_PLAN
@@ -773,9 +780,15 @@ export async function executeLocalCanonicalVerification({
         cleanupReason = safeErrorCode(error);
       }
       if (serviceLifecycleBefore !== null) {
-        serviceLifecycleAfter = boundedLifecycleState(
-          await inspectCompanionService({ repositoryRoot: verificationAnchorRoot(verificationContext) }),
-        );
+        if (checkoutContext === "isolated-worktree") {
+          const observed = await inspectCompanionPreservation({ repositoryRoot: verificationAnchorRoot(verificationContext) });
+          serviceLifecycleAfter = observed.state;
+          serviceObservations.after = observed.diagnostics;
+        } else {
+          serviceLifecycleAfter = boundedLifecycleState(
+            await inspectCompanionService({ repositoryRoot: verificationAnchorRoot(verificationContext) }),
+          );
+        }
       }
       if (sharedGeneratedStateOwned) {
         assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
@@ -830,7 +843,7 @@ export async function executeLocalCanonicalVerification({
   }
 
   const serviceLifecycleRestored = checkoutContext === "isolated-worktree"
-    ? serviceLifecycleBefore !== null && JSON.stringify(serviceLifecycleBefore) === JSON.stringify(serviceLifecycleAfter)
+    ? serviceLifecycleBefore?.preservation_valid === true && serviceLifecycleAfter?.preservation_valid === true && JSON.stringify(serviceLifecycleBefore) === JSON.stringify(serviceLifecycleAfter)
     : lifecycleStateRestored(
     serviceLifecycleBefore,
     serviceLifecycleAfter,
@@ -1043,6 +1056,7 @@ export async function executeLocalCanonicalVerification({
         scope: checkoutContext === "isolated-worktree" ? "accepted_checkout_read_only" : "installed_checkout_lifecycle",
         before: serviceLifecycleBefore,
         after: serviceLifecycleAfter,
+        observations: serviceObservations,
         maintenance_acquired: dependencyMaintenance?.acquired === true,
         maintenance_released:
           dependencyMaintenance === null ||

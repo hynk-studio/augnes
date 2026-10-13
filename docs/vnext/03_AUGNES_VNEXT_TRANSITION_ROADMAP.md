@@ -114,6 +114,12 @@ unmerged branch is not this candidate's integration base or runtime evidence.
 04 keeps source correctness separate from model judgment/effect/usefulness.
 Neither a shared store alone nor a safe stop completes the positive delivery path.
 
+The review correction aligns ordinary experience-reference admission with
+recovery, preserving separate correction reading/reconsideration and atomic
+refusal. Qualification also uses a bounded coherent accepted-service observation;
+its original failed receipts retain their original disposition. These corrections
+do not adopt the candidate into the installed Companion or authorize maintenance.
+
 Current operational obligations: candidate-specific Local Canonical qualification
 and review are recorded with the implementation PR; installed migration/adoption,
 actual human/model consumption and hosted acceptance remain NOT_RUN. The next
