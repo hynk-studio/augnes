@@ -1,3 +1,4 @@
+import { validateExternalStore } from '../lib/vnext/persistence/external-response-store.mjs';
 import { isOrdinarySuccessorRevisionV01 } from "../lib/vnext/runtime/authored-successor-revision";
 import { isStatelessTerminalSuccessor, inspectStatelessTerminalSuccessor, terminalAuthorshipKey } from "../lib/vnext/runtime/stateless-terminal-authorship";
 import { isStatelessReplacement, inspectStatelessReplacement, statelessReplacementIdempotencyKey } from "../lib/vnext/runtime/stateless-review-disposition";
@@ -1715,6 +1716,7 @@ export function validateRecoveryCanonicalDatabaseV01(
 ): RecoveryCanonicalRecordValidationResultV01 {
   try {
     validateProjectDirectionHistory(db);
+    validateExternalStore(db);
     const repositoryExecutionTables = [
       "vnext_physical_root_baselines",
       "vnext_repository_execution_attachments",

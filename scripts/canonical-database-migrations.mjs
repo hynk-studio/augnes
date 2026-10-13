@@ -1,3 +1,4 @@
+import { externalSchemaSql } from '../lib/vnext/persistence/external-response-store.mjs';
 import {
   CANONICAL_DATABASE_MIGRATION_CONTRACT,
   CANONICAL_DATABASE_MIGRATION_CONTRACT_VERSION,
@@ -84,6 +85,7 @@ export function applyCanonicalDatabaseMigrations(db) {
 
   db.exec(schema);
   db.exec(reviewSchemaSql);
+  db.transaction(() => db.exec(externalSchemaSql))();
   prepareReviewCallbackGeneration(db);
   const postSchemaResult = migrateStateDeltaProposalScoring(db);
   const mailboxResult = migrateMailboxCoordinationEventTypes(db);

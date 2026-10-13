@@ -1,3 +1,4 @@
+import { suspendExternalEnvelopes } from '../lib/vnext/persistence/external-response-store.mjs';
 import { withOwnedDatabase } from "../lib/db/connection-ownership.mjs";
 import { buildStructuralSchemaContract, structuralSchemaContractSignature } from "../lib/db/structural-schema-contract.mjs";
 export { buildStructuralSchemaContract, structuralSchemaContractSignature } from "../lib/db/structural-schema-contract.mjs";
@@ -1311,6 +1312,7 @@ export async function restoreRuntimeDatabase({
       restoredSelections.pragma("foreign_keys = ON");
       invalidateRestoredProjectSelectionsV02(restoredSelections);
       invalidateRestoredReviewSubscriptions(restoredSelections);
+      suspendExternalEnvelopes(restoredSelections);
     });
     if (requirePackageIdentityGuard) {
       requireRuntimePackageIdentityGuard(stagingPath);

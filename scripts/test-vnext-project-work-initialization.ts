@@ -5796,7 +5796,7 @@ async function assertExpectationSchemaCompatibilityV01(): Promise<void> {
     fixture.db.prepare("INSERT INTO vnext_active_project_selections VALUES (?,?,'active_project_selection.v0.1',1,?)")
       .run(fixture.workspace_id, fixture.project_id, T0);
     // Keep the predecessor exact; review linkage belongs only to later schemas.
-    fixture.db.exec("DROP TABLE vnext_review_callback_candidates; DROP TABLE vnext_review_callback_policies; DROP TABLE vnext_review_deliveries; DROP TABLE vnext_review_subscriptions; DROP TABLE vnext_review_requests");
+    fixture.db.exec("DROP TABLE vnext_external_shares; DROP TABLE vnext_external_records; DROP TABLE vnext_external_materials; DROP TABLE vnext_external_envelopes; DROP TABLE vnext_review_callback_candidates; DROP TABLE vnext_review_callback_policies; DROP TABLE vnext_review_deliveries; DROP TABLE vnext_review_subscriptions; DROP TABLE vnext_review_requests");
     fixture.db.exec("DROP TABLE vnext_project_direction_credentials; DROP TABLE vnext_project_direction_records; DROP TABLE vnext_prospective_reentry");
     fixture.db.exec("COMMIT");
     assert.equal(structuralSchemaContractSignature(fixture.db), "66f470e7a6e5bc2a10d5e2b0437dc95165596ae55f915ecd27ee1666e130f980");

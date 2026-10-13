@@ -499,6 +499,14 @@ Object.assign(isolatedReceipt.verification_context, {
 });
 isolatedReceipt.dependencies.download_cache = "invocation_private_cache_not_authoritative";
 isolatedReceipt.cleanup.companion_service.scope = "accepted_checkout_read_only";
+isolatedReceipt.cleanup.companion_service.observations = {};
+for (const side of ["before", "after"]) {
+  Object.assign(isolatedReceipt.cleanup.companion_service[side], {preservation_valid:true,preservation_binding:"b".repeat(64)});
+  isolatedReceipt.cleanup.companion_service.observations[side] = {
+    contract:"augnes.companion-preservation-observation.v1",samples:1,coherent:true,live_identity_valid:true,
+    before_binding:"b".repeat(64),after_binding:"b".repeat(64),started_at:isolatedReceipt.run.started_at,finished_at:isolatedReceipt.run.started_at,
+  };
+}
 isolatedReceipt.cleanup.isolated_resources = {
   required: true, prepared: true, completed: true, failure_count: 0, failures: [],
   fingerprint: "f".repeat(64), invocation_id: isolatedReceipt.run.invocation_id,
@@ -506,6 +514,19 @@ isolatedReceipt.cleanup.isolated_resources = {
 };
 const isolatedContext = { ...targetedContext, currentVerificationContext: isolatedReceipt.verification_context };
 assert.equal(inspectReceiptForDecision(finalizeReceipt(isolatedReceipt), isolatedContext).valid_deciding_evidence, true);
+for (const change of [
+  service => { service.after.status = "starting"; },
+  service => { service.after.preservation_binding = "c".repeat(64); service.observations.after.before_binding = "c".repeat(64); service.observations.after.after_binding = "c".repeat(64); },
+  service => { service.after.preservation_valid = false; },
+  service => { service.observations.after.coherent = false; },
+  service => { service.observations.after.samples = 2; },
+  service => { delete service.observations; },
+]) {
+  const changed = structuredClone(isolatedReceipt);
+  change(changed.cleanup.companion_service);
+  assert.equal(inspectReceiptForDecision(finalizeReceipt(changed), isolatedContext).valid_deciding_evidence, false);
+}
+
 const historicalReceipt = structuredClone(isolatedReceipt);
 historicalReceipt.phases.push({ ...structuredClone(historicalReceipt.phases.at(-1)), id: "authority" });
 historicalReceipt.evidence.planner_targeted_phase_ids.push("authority");

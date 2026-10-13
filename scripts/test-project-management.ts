@@ -136,7 +136,7 @@ async function testLegacyMigration(source: Database.Database, workspace: string,
     const before = db.prepare("SELECT * FROM vnext_project_identities ORDER BY project_id").all();
     try {
       // The pinned predecessor predates request-bound review adapter state.
-      db.exec("DROP TABLE vnext_review_callback_candidates; DROP TABLE vnext_review_callback_policies; DROP TABLE vnext_review_deliveries; DROP TABLE vnext_review_subscriptions; DROP TABLE vnext_review_requests;");
+      db.exec("DROP TABLE vnext_external_shares; DROP TABLE vnext_external_records; DROP TABLE vnext_external_materials; DROP TABLE vnext_external_envelopes; DROP TABLE vnext_review_callback_candidates; DROP TABLE vnext_review_callback_policies; DROP TABLE vnext_review_deliveries; DROP TABLE vnext_review_subscriptions; DROP TABLE vnext_review_requests;");
       db.exec(`DROP INDEX idx_vnext_project_direction_authority; DROP TRIGGER trg_vnext_project_selection_retain; DROP TABLE vnext_active_project_selections;
 CREATE TABLE IF NOT EXISTS vnext_active_project_selections (
   workspace_id TEXT PRIMARY KEY,

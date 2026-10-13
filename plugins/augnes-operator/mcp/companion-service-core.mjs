@@ -2211,6 +2211,132 @@ export function boundedLifecycleState(observation) {
   };
 }
 
+// One read-only preservation observation. Bracket the ordinary inspector rather
+// than retrying a failed health/lifecycle sample. Only the manager heartbeat's
+// timestamp may differ; identity, generation, ownership and lifecycle may not.
+// Private configuration/access bytes are compared in memory and never projected.
+export async function inspectCompanionPreservation(options) {
+  const startedAt = new Date().toISOString();
+  const layout = resolveCompanionServiceLayout(options);
+  const launchctl = options.launchctl ?? defaultLaunchctl;
+  const capture = () => {
+    const material = Object.fromEntries(
+      [
+        "configuration_path",
+        "desired_state_path",
+        "maintenance_lease_path",
+        "manager_state_path",
+        "manager_lock_path",
+        "runtime_manifest_path",
+        "runtime_token_path",
+        "runtime_access_path",
+        "runtime_lock_path",
+      ].map((key) => [key, readRegularJson(layout[key])]),
+    );
+    const manager = material.manager_state_path.value ?? null;
+    const critical = {
+      ...material,
+      manager_state_path:
+        material.manager_state_path.state === "valid"
+          ? { state: "valid", value: criticalManagerStateProjection(manager) }
+          : material.manager_state_path,
+      launch_agent: readRegularText(layout.launch_agent_path),
+    };
+    let job = null,
+      jobValid = true;
+    try {
+      const config = material.configuration_path.value;
+      if (config)
+        job = readExactStaleDecommissionLaunchJob(layout, config, launchctl);
+    } catch {
+      jobValid = false;
+    }
+    return {
+      material,
+      manager,
+      job,
+      jobValid,
+      fingerprint: sha256(JSON.stringify([critical, job, jobValid])),
+    };
+  };
+  const before = capture();
+  const observation = await inspectCompanionService(options);
+  const after = capture();
+  const coherent =
+    before.fingerprint === after.fingerprint &&
+    before.jobValid &&
+    after.jobValid;
+  const runtime = observation.runtime;
+  const manager = after.manager;
+  const liveIdentity =
+    observation.status !== "live" ||
+    (runtime?.verified === true &&
+      after.job?.pid === manager?.manager_pid &&
+      validLiveManagerState(manager, observation.configuration, runtime) &&
+      manager?.runtime_ownership?.generation_id === runtime.generation_id &&
+      manager?.runtime_ownership?.instance_id === runtime.instance_id &&
+      validManagerRuntimeOwnership(manager?.runtime_ownership));
+  const valid =
+    coherent &&
+    liveIdentity &&
+    ["live", "not_installed", "installed_stopped"].includes(
+      observation.status,
+    ) &&
+    observation.checkout_relation === "exact" &&
+    Object.values(after.material).every((value) =>
+      ["valid", "missing"].includes(value.state),
+    );
+  const projectManager = (value) =>
+    value
+      ? {
+          status: value.status,
+          reason: value.reason,
+          updated_at: value.updated_at,
+          manager_pid: value.manager_pid,
+          manager_process_identity: value.manager_process_identity,
+          supervisor_pid: value.supervisor_pid,
+          supervisor_process_identity: value.supervisor_process_identity,
+          restart_count: value.restart_count,
+          generation_id: value.runtime_ownership?.generation_id ?? null,
+          instance_id: value.runtime_ownership?.instance_id ?? null,
+        }
+      : null;
+  return {
+    state: {
+      ...boundedLifecycleState(observation),
+      preservation_valid: valid,
+      preservation_binding: after.fingerprint,
+    },
+    diagnostics: {
+      contract: "augnes.companion-preservation-observation.v1",
+      started_at: startedAt,
+      finished_at: new Date().toISOString(),
+      samples: 1,
+      coherent,
+      live_identity_valid: liveIdentity,
+      reason: observation.reason,
+      runtime,
+      manager_before: projectManager(before.manager),
+      manager_after: projectManager(after.manager),
+      loaded_job: after.job
+        ? {
+            label: after.job.label,
+            pid: after.job.pid,
+            fingerprint: after.job.fingerprint,
+          }
+        : null,
+      material_states: Object.fromEntries(
+        Object.entries(after.material).map(([key, value]) => [
+          key,
+          value.state,
+        ]),
+      ),
+      before_binding: before.fingerprint,
+      after_binding: after.fingerprint,
+    },
+  };
+}
+
 export function lifecycleAuthority(runtimeLifecycleEffect) {
   return {
     runtime_lifecycle_effect: runtimeLifecycleEffect === true,
@@ -4176,7 +4302,7 @@ async function inspectVerifiedRuntime({ layout, configuration }) {
     !validRuntimeAccess(access.value, manifest.value) ||
     !processAlive(manifest.value.supervisor_pid)
   ) {
-    return { verified: false, supervisor_pid: null };
+    return { verified: false, supervisor_pid: null, reason: "runtime_material_or_supervisor_invalid" };
   }
   const children = new Map(
     manifest.value.children.map((child) => [child.role, child]),
@@ -4187,7 +4313,7 @@ async function inspectVerifiedRuntime({ layout, configuration }) {
       !validRuntimeChild(bridge, manifest.value.bridge_port) ||
       !isPort(ui.ownership_port) ||
       !isPort(bridge.ownership_port)) {
-    return { verified: false, supervisor_pid: manifest.value.supervisor_pid };
+    return { verified: false, supervisor_pid: manifest.value.supervisor_pid, reason: "runtime_child_invalid" };
   }
   const ownershipHeaders = {
     "x-augnes-child-ownership": token.value.child_ownership_token,
@@ -4204,27 +4330,33 @@ async function inspectVerifiedRuntime({ layout, configuration }) {
       { headers: ownershipHeaders },
     ),
   ]);
-  const exact =
-    uiHealth?.ok === true &&
+  const checks = {
+    ui_health:     uiHealth?.ok === true &&
     uiHealth?.service === "augnes-ui" &&
     uiHealth?.status === "ready" &&
     uiHealth?.recovery_mode === false &&
     uiHealth?.runtime_instance_id === manifest.value.instance_id &&
     uiHealth?.runtime_generation_id === manifest.value.generation_id &&
     uiHealth?.runtime_repository_fingerprint ===
-      manifest.value.repository_fingerprint &&
-    bridgeHealth?.ok === true &&
+      manifest.value.repository_fingerprint,
+    bridge_health: bridgeHealth?.ok === true &&
     bridgeHealth?.name === "augnes-console" &&
     bridgeHealth?.mode === "http" &&
     bridgeHealth?.live_core_status === "ready" &&
     bridgeHealth?.runtime_instance_id === manifest.value.instance_id &&
     bridgeHealth?.runtime_generation_id === manifest.value.generation_id &&
     bridgeHealth?.runtime_repository_fingerprint ===
-      manifest.value.repository_fingerprint &&
-    validRuntimeChildOwnership(uiOwnership, ui, manifest.value) &&
-    validRuntimeChildOwnership(bridgeOwnership, bridge, manifest.value);
+      manifest.value.repository_fingerprint,
+    ui_ownership: validRuntimeChildOwnership(uiOwnership, ui, manifest.value),
+    bridge_ownership: validRuntimeChildOwnership(bridgeOwnership, bridge, manifest.value),
+  };
+  const exact = Object.values(checks).every(value => value === true);
   return {
     verified: exact,
+    reason: exact ? "runtime_verified" : "runtime_probe_mismatch_or_unavailable",
+    probe_valid: checks,
+    probe_available: { ui_health: uiHealth !== null, bridge_health: bridgeHealth !== null,
+      ui_ownership: uiOwnership !== null, bridge_ownership: bridgeOwnership !== null },
     supervisor_pid: manifest.value.supervisor_pid,
     generation_id: exact ? manifest.value.generation_id : null,
     instance_id: exact ? manifest.value.instance_id : null,

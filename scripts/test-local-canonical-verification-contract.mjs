@@ -1143,6 +1143,7 @@ const integrationChildren = [
   "project-direction",
   "retry-inspection-outlook",
   "companion-experience-use",
+  "external-response",
   "execution-choice",
   "request-bound-review",
   "companion-method-outlook",
@@ -1281,6 +1282,9 @@ requireText(canonicalSuite, '"e2e-project-experience": [{ ...projectExperienceSt
 const experienceUseRegistration = readCanonicalChildRegistration(integrationSource, "companion-experience-use");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-companion-experience-use.ts"'])
   requireText(experienceUseRegistration.block, fragment, "ordinary experience use owns its authenticated disposable state, listener and natural-exit file consumers");
+const externalResponseRegistration = readCanonicalChildRegistration(integrationSource, "external-response");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 90_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-external-response.ts"'])
+  requireText(externalResponseRegistration.block, fragment, "external response owns disposable stores, loopback service, fresh file consumers and recovery settlement");
 const requestReviewRegistration = readCanonicalChildRegistration(integrationSource, "request-bound-review");
 const executionChoiceRegistration = readCanonicalChildRegistration(integrationSource, "execution-choice");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-execution-choice.ts"'])

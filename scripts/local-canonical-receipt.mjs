@@ -305,6 +305,15 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     !Array.isArray(historical?.failures) || historical.failures.length !== 0)))
     issues.push("receipt_historical_input_provenance_invalid");
   const service = receipt?.cleanup?.companion_service;
+  if (isolated && ["before", "after"].some(side => {
+    const state = service?.[side], observation = service?.observations?.[side];
+    return state?.preservation_valid !== true || !SHA256_PATTERN.test(state?.preservation_binding ?? "") ||
+      observation?.contract !== "augnes.companion-preservation-observation.v1" ||
+      observation?.samples !== 1 || observation?.coherent !== true || observation?.live_identity_valid !== true ||
+      observation?.before_binding !== state.preservation_binding || observation?.after_binding !== state.preservation_binding ||
+      !Number.isFinite(Date.parse(observation?.started_at)) || !Number.isFinite(Date.parse(observation?.finished_at)) ||
+      Date.parse(observation.finished_at) < Date.parse(observation.started_at);
+  })) issues.push("receipt_companion_observation_invalid");
   if (service?.scope !== (isolated ? "accepted_checkout_read_only" : "installed_checkout_lifecycle") ||
       (isolated && (service.maintenance_acquired !== false || service.before == null ||
         canonicalSerialize(service.before) !== canonicalSerialize(service.after))))

@@ -923,6 +923,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "external-response",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
+      label: "scoped experience, real local interaction, checked byte use and fresh reconstruction",
+      ...rootNode("scripts/test-external-response.ts"),
+      timeoutMs: 90_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "execution-choice",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],

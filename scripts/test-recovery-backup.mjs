@@ -663,7 +663,7 @@ function createPinnedMergedR8ALegacyFixture(databasePath, fixtureMarkerId) {
       );
     `);
     database.exec(
-      "DROP TABLE vnext_review_callback_candidates; DROP TABLE vnext_review_callback_policies; DROP TABLE vnext_review_deliveries; DROP TABLE vnext_review_subscriptions; DROP TABLE vnext_review_requests;" +
+      "DROP TABLE vnext_external_shares; DROP TABLE vnext_external_records; DROP TABLE vnext_external_materials; DROP TABLE vnext_external_envelopes; DROP TABLE vnext_review_callback_candidates; DROP TABLE vnext_review_callback_policies; DROP TABLE vnext_review_deliveries; DROP TABLE vnext_review_subscriptions; DROP TABLE vnext_review_requests;" +
       "DROP INDEX idx_vnext_local_operator_sessions_decision_nonce;" +
         "DROP INDEX idx_vnext_local_operator_sessions_decision_token;" +
         "ALTER TABLE vnext_local_operator_sessions DROP COLUMN decision_action_nonce_expires_at;" +

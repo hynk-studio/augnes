@@ -77,6 +77,22 @@ Unsaved drafts remain in memory only: keep the tab open until saving or copying
 them. Supported running work remains observable and controllable in its project;
 starting work still requires its existing execution authority.
 
+## Use selected experience with a local service
+
+The Operator tool `augnes_external_repository_work` connects selected experience
+from one project to another project's permitted local request and actual report.
+Start with `read`, deliberately publish/share current sources and exact material,
+then prepare/send, respond to real format feedback, read/check returned bytes and
+record their use in an output. A fresh process reads the same entry and reconciles
+an unanswered request before continuing. Sharing does not transfer authority;
+late material and relevant corrections require current applicability review.
+
+The [local workflow and setup](docs/EXTERNAL_RESPONSE_LOCAL.md) describe the
+finite operator envelope, every action, the reusable report consumer and the
+controlled two-project example. The supported path is explicit and local. Its
+source/mechanism tests do not establish model use, installed adoption or economic
+benefit; #1433 Events and #1447 public distribution remain separate.
+
 ## The continuity loop
 
 > Resume current work → act in ChatGPT, Codex, or another native host within

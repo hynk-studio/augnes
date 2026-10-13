@@ -643,6 +643,74 @@ defines limits, revocation, callback security, lifecycle preparation and current
 live-acceptance gaps. Native work, source provenance and continuation owners
 remain authoritative for their existing records and refusal paths.
 
+#### Scoped external-response adapter (#1453)
+
+`augnes.external-response.v1` is a bounded adapter contract, not a Core kind,
+`RunReceipt`, accepted semantic state, review decision or execution grant.
+The [ordinary entry and exact action shapes](../EXTERNAL_RESPONSE_LOCAL.md)
+connect native project purpose/source bindings to selected workspace sharing,
+explicit local effects, complete material and attributable continuation.
+
+The additive persistence owner has four tables: immutable
+`vnext_external_records` journals, immutable complete-byte
+`vnext_external_materials`, withdrawable `vnext_external_shares` and aggregate
+`vnext_external_envelopes` consumption/suspension. Every journal and material is
+workspace/project scoped and content addressed over its version, scope and
+original payload. Existing records, hashes and meaning are not rewritten.
+Only explicit lifecycle migration prepares these tables; ordinary opens refuse
+older/unprepared stores. Recovery validates reference order, scope, terms,
+materials, shares, stream/capacity bounds and consumption against retained sends,
+then suspends effects. Serialized binding/counters do not become live authority.
+Project portability refuses when scoped external records/material would be lost;
+full recovery backup is the supported preservation route.
+
+The producer explicitly selects disclosed current sources, material and permitted
+targets. Discovery filters current access before matching or metadata projection.
+Material access requires own scope or a currently readable declared share;
+common workspace ownership is insufficient. Manifests retain name, version,
+size, SHA-256, source, applicability and declared dependencies. Complete BLOB
+bytes and response attribution commit atomically. No filesystem locator,
+private archive or success flag substitutes for a successful bounded byte read.
+Withdrawing access affects future reads and cannot recall already copied bytes.
+Missing declared bytes, unavailable inspection and refused private access remain
+distinct without exposing withheld metadata.
+
+Work preserves native purpose/basis, uncertain identity associations through
+selected experience, expected result, reconsideration conditions, owners, terms,
+input and exact deadline. Preparation, sent reservation, accepted terms,
+response, independent check, output use and closure retain separate facts.
+`experience_refs` admits only currently accessible experience records, matching
+the retained/recovery contract. A readable correction is a separate attributable
+record, not an experience or permission to read its target. Admission checks
+access before kind in the same atomic preparation; invalid input leaves the
+operation key, work, attempt, material and envelope state unchanged. Offline
+historical validation does not consult today's sharing configuration.
+The local configuration is a private live capability owned by the operator.
+Only its exact loopback destination, incarnation, project keys, permitted hashes,
+operation, expiry and aggregate limits permit egress; every call rechecks them.
+Changing an association does not merge identities, inherit grants or reset budget.
+Amendment requires actual proposed format feedback, preserves the original scope
+and deadline, and is not accepted until the counterpart acknowledges exact terms.
+
+A sent reservation commits before egress. A crash, timeout, lost response or
+failed response commit leaves an unresolved obligation. Query the same request
+receipt before repetition; only explicit absence from the same receipt owner
+permits retransmission. No local transaction claims exactly-once external
+execution. Late material retains original identity and requires deliberate
+current applicability review. Local closure retains unfinished reconciliation
+and neither confirms external cancellation nor revokes a credential.
+
+Checks and use are attributed consumer statements. The consumer must actually
+read bytes and independently verify identity, scope, correctness and limitations;
+the use record requires a current passing check and an output material dependency.
+The integrated example separately inspects the resulting report calculation.
+A new correction names one producer-owned experience. Scoped dependency reads
+find direct affected work and accessible corrections; inaccessible dependencies
+produce an honest limitation. Explicit retain/stop reconsideration preserves
+prior judgment. Source links do not entail truth, discover all copied dependents
+or automatically invalidate unrelated work. Pure bounds/hash/state rules remain
+separate from SQL, native project resolution and effect transport.
+
 #### Execution-choice preparation and result-linked assessment (#1443)
 
 The native preparation entry composes the existing exact work/source reader,

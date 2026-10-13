@@ -2023,6 +2023,9 @@ export function buildSupervisorChildValues({
       AUGNES_REVIEW_CONNECTIONS_FILE: recoveryMode
         ? null
         : nonEmptyString(environment.AUGNES_REVIEW_CONNECTIONS_FILE),
+      AUGNES_EXTERNAL_CONFIG_FILE: recoveryMode
+        ? null
+        : nonEmptyString(environment.AUGNES_EXTERNAL_CONFIG_FILE),
       AUGNES_LOCAL_REVIEW_PROFILE:
         !packaged && !recoveryMode && environment.AUGNES_COMPANION_SERVICE === "1" &&
         environment.AUGNES_VNEXT_OPERATOR_PILOT_ENABLED === undefined

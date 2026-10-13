@@ -875,7 +875,7 @@ const ownedBlockEnd = executorSource.indexOf("\n  const serviceLifecycleRestored
 assert.ok(ownedBlockStart > 0 && ownedBlockEnd > ownedBlockStart);
 const ownedBlock = executorSource.slice(ownedBlockStart, ownedBlockEnd);
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisition_failure", "owned_failure", "unsettled_failure", "success", "absent_success", "stopped_success", "quick_success", "isolated_success", "isolated_unsettled", "pre_lock_state_race", "maintenance_state_race"]) {
+for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisition_failure", "owned_failure", "unsettled_failure", "success", "absent_success", "stopped_success", "quick_success", "isolated_success", "isolated_unsettled", "isolated_observation_invalid", "pre_lock_state_race", "maintenance_state_race"]) {
   const root = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-canonical-ownership-")));
   let competingOwner = null;
   let privateResource = null;
@@ -928,7 +928,7 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
         assert.equal(calls.checkoutAcquire, 0, "capacity refusal cannot publish a checkout owner that disrupts other lanes");
         throw Object.assign(new Error(), { code: "verification_capacity_busy" });
       },
-      dependencyMaintenance: null, dependencyMaintenanceRelease: null, serviceLifecycleBefore: null, serviceLifecycleAfter: null,
+      dependencyMaintenance: null, dependencyMaintenanceRelease: null, serviceLifecycleBefore: null, serviceLifecycleAfter: null, serviceObservations: {before:null,after:null},
       console: { log() {}, error() {} }, RECEIPT_RETENTION: 20, LOG_RUN_RETENTION: 5,
       managesGeneratedNextState,
       generatedNextEntryPresent: () => { assertObservationOwned(); return existsSync(next); },
@@ -960,6 +960,7 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
       },
       safeErrorCode: error => error.code ?? "synthetic_failure", boundedLifecycleState: value => value,
       inspectCompanionService: async () => structuredClone(serviceState),
+      inspectCompanionPreservation: async () => ({state:{...structuredClone(serviceState),preservation_valid:scenario !== "isolated_observation_invalid",preservation_binding:"a".repeat(64)},diagnostics:{samples:1}}),
       acquireCompanionServiceMaintenance: async () => {
         assertCheckoutVerificationOwnership(activeOwner, root);
         calls.acquire++;
@@ -995,14 +996,17 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
       },
     };
     const result = await new AsyncFunction(...Object.keys(context), ownedBlock + "\nreturn { nextState, windowsHelperState, sharedGeneratedStateOwned, cleanupComplete, executionFailure, checkoutOwnership, serviceLifecycleBefore, serviceLifecycleAfter, generatedWindowsHelperPresentAfter }; ")(...Object.values(context));
-    if (["wrong_npm", "checkout_busy", "capacity_busy", "acquisition_failure"].includes(scenario)) {
+    if (["wrong_npm", "checkout_busy", "capacity_busy", "acquisition_failure", "isolated_observation_invalid"].includes(scenario)) {
       assert.equal(calls.phases, 0); assert.equal(calls.remove, 0); assert.equal(calls.release, 0);
       assert.equal(result.sharedGeneratedStateOwned, false);
       assert.equal(result.nextState.removed_after_execution, false);
       assert.equal(result.windowsHelperState.removed_after_execution, false);
       assert.equal(result.nextState.present_before, null);
       assert.equal(result.windowsHelperState.present_before, null);
-      assert.equal(result.serviceLifecycleBefore, null);
+      if (scenario === "isolated_observation_invalid") {
+        assert.equal(result.serviceLifecycleBefore.preservation_valid, false);
+        assert.equal(privateResourceCleaned,true);
+      } else assert.equal(result.serviceLifecycleBefore, null);
       assert.equal(calls.logPrepare, 0);
       assert.equal(existsSync(runLogRoot), false, "refused attempts have no phase-log directory");
       assert.equal(readFileSync(path.join(next, "live-build"), "utf8"), "pre-existing build");

@@ -210,14 +210,14 @@ export async function testRequestBoundReview() {
         db.pragma("foreign_keys=ON");
         db.pragma("journal_mode=WAL");
         applyCanonicalDatabaseMigrations(db);
-        db.exec("ALTER TABLE vnext_review_callback_policies DROP COLUMN generation");
+        db.exec("DROP TABLE vnext_external_shares; DROP TABLE vnext_external_records; DROP TABLE vnext_external_materials; DROP TABLE vnext_external_envelopes; ALTER TABLE vnext_review_callback_policies DROP COLUMN generation");
         assert.equal(structuralSchemaContractSignature(db), "579d73c1aa80fec79b567854b2857b7d099b1a2637c5172aa2cfc26a19df72c9");
         assert.throws(() => assertPreparedDatabase(db), e => e instanceof DatabaseAccessError && e.code === "database_unprepared");
         applyCanonicalDatabaseMigrations(db);
         assertPreparedDatabase(db);
         // Exact prior release is an upgrade input, not ordinary-access-ready.
         // Only the explicit lifecycle migration owner adds enrollment tables.
-        db.exec("DROP TABLE vnext_review_callback_candidates; DROP TABLE vnext_review_callback_policies");
+        db.exec("DROP TABLE vnext_external_shares; DROP TABLE vnext_external_records; DROP TABLE vnext_external_materials; DROP TABLE vnext_external_envelopes; DROP TABLE vnext_review_callback_candidates; DROP TABLE vnext_review_callback_policies");
         assert.equal(structuralSchemaContractSignature(db), "3006f8bf03754b88c499bd53307dbc9fe8ddf81f519283eb469caad03454834d");
         assert.throws(() => assertPreparedDatabase(db), e => e instanceof DatabaseAccessError && e.code === "database_unprepared");
         assert(!db.prepare("SELECT name FROM sqlite_master WHERE name='vnext_review_callback_candidates'").get());
