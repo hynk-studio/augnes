@@ -126,16 +126,21 @@ export async function continueExternalReport(repositoryRoot, directory) {
         initial.material_basis,
       ),
     ).material_ref;
-  const unfinished = initial.work_refs.filter(
-    (w) =>
-      w.original_basis === initial.material_basis &&
-      w.purpose === initial.definition.goal,
-  );
+  // A new native basis does not erase an earlier effect. Read the ordinary
+  // work entries before selecting or preparing a request, including entries
+  // whose purpose changed while their acknowledgement was unavailable.
+  const existing = [];
+  for (const w of initial.work_refs)
+    existing.push(ok(await op("read", { work_ref: w.ref })).work);
+  const unresolved = existing.filter((w) => w.state.unresolved);
+  const unfinished = unresolved.length
+    ? unresolved
+    : existing.filter((w) => w.purpose === initial.definition.goal);
   assert(
     unfinished.length <= 1,
     "Ambiguous report work requires an explicit current work choice.",
   );
-  let workRef = unfinished[0]?.ref;
+  let workRef = unfinished[0]?.work_ref;
   if (!workRef) {
     const inputs = initial.materials.filter(
       (m) => m.metadata.name === contract.input_name,

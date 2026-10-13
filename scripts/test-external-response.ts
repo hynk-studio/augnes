@@ -378,6 +378,7 @@ async function main() {
     "partial",
     "private",
     "fault",
+    "changed",
   ].map((label) => {
     const dir = path.join(temporary, label);
     mkdirSync(dir);
@@ -748,6 +749,37 @@ async function main() {
   );
   processor.setConditions({ maxRows: 200 });
   phase("unchanged_action_refusal_partial_and_permitted_direct_fallback");
+  const changed = projects.find((p) => p.label === "changed")!;
+  dropReturned = true;
+  const beforeChange = await consumer(changed, "consumer-before-basis-change");
+  assert.equal(beforeChange.status, "unresolved");
+  await changed.api.write("revise", await changed.api.read(), {
+    goal: "Report capacity under a revised work basis; reconsider pending material first",
+  });
+  const effectsBeforeChangedSuccessor = processor.snapshot().effects;
+  const changedSuccessor = await consumer(
+    changed,
+    "consumer-after-basis-change",
+  );
+  assert.equal(
+    changedSuccessor.status,
+    "reconsider_or_stop",
+    "A successor must reconcile old unresolved work before preparing a new request.",
+  );
+  assert.equal(
+    processor.snapshot().effects,
+    effectsBeforeChangedSuccessor,
+    "Changed basis cannot silently create another service effect.",
+  );
+  const changedView = ok(
+    await op(changed, "read", { work_ref: beforeChange.work_ref }),
+  ).work;
+  assert.equal(changedView.state.unresolved, false);
+  assert.equal(changedView.applicability, "basis_changed");
+  assert.equal(changedView.state.used, null);
+  assert.equal(ok(await op(changed, "read")).work_refs.length, 1);
+  phase("changed_basis_successor_reconciles_before_any_new_request");
+
   const beforeCorrection = canonical(bv.events),
     beforeControl = canonical(cv),
     beforeBudget = db.prepare("SELECT * FROM vnext_external_envelopes").all();

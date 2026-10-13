@@ -162,6 +162,10 @@ evaluator summary or predecessor directory. It reconstructs work, fetches bytes
 from the durable owner, reconciles unknown effects, chooses from actual feedback,
 checks the service arithmetic using an independent integer oracle, computes the
 failed-time fraction from **returned** totals and stores/reads the actual report.
+It inspects existing work before preparing a request. An unresolved effect takes
+priority even when the native purpose or basis has changed; the successor first
+queries its receipt, then stops for deliberate applicability review. Multiple
+unresolved entries require an explicit work choice rather than another effect.
 A fresh process is a reconstruction test, not an independent agent.
 
 Run the registered integration under the repository's admitted development
