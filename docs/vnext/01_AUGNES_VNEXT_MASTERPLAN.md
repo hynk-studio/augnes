@@ -74,6 +74,28 @@ Later outcomes should change only the judgments they bear on, preserving each
 earlier judgment's sources and information cutoff. The first bounded connection
 is owned by [03](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#current-p3p4p5--project-retry-inspection-outlook-1213).
 
+Selected external experience can accumulate under the user's workspace while
+each project retains its own purpose, assessment, permissions and commitments.
+Common ownership does not imply universal source access or automatic identity
+merging. Observation, uncertain endpoint/account/operator association, conditional
+competence, chosen response and attributable result remain distinguishable.
+A permitted response must be able to execute, incorporate actual feedback, deliver
+usable material and support unfinished work after replacement of the executor.
+Prepared records alone do not establish that capability.
+
+Correction preserves earlier observations at their original basis and supports
+selective reconsideration of affected current work. Independent results remain
+usable within their actual scope; new information can justify retaining an action.
+Logical closure does not settle unknown external effects or revoke credentials.
+The [local increment](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#current-p3p4p5--local-external-response-continuity-1453)
+is bounded by [02](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#scoped-external-response-adapter-1453).
+It is consistent with the prospective external-response direction in planning
+PR #1454; it adds executable capability, without making a universal organization
+engine, reputation network or autonomous operation a prerequisite. Capability,
+intervention effect, comparative usefulness and autonomy remain separate claims
+under [04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#local-external-response-evidence-1453).
+Public discovery/distribution under #1447 continues independently.
+
 Web Augnes is a workspace where humans and agents continue long-horizon work,
 explore independent directions, compare evidence and outcomes, and selectively
 incorporate useful changes. Private usefulness must work before public or

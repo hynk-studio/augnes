@@ -332,6 +332,15 @@ or create a RunReceipt. Its scripted source choices are development mechanism
 evidence, not comparative usefulness or learning; exact ledger tasks need no
 retry-inspection outlook.
 
+For selected cross-project experience and a finite local processing request,
+use `augnes_external_repository_work` after operator configuration. Its ordinary
+`read` entry exposes current work, permitted shared experience, complete material
+reads, request/receipt reconciliation, explicit amendments and attributable
+check/use/correction. The [local contract](EXTERNAL_RESPONSE_LOCAL.md) specifies
+every action and the fresh-process report consumer. This additive byte/effect
+owner preserves the narrower execution-choice and review contracts; it does not
+activate Events or inherit predecessor execution authority.
+
 When Resume reports no work in an already registered and selected local project,
 use `augnes_preview_repository_initial_work` with the exact snapshot binding and
 complete definition in `changes`, then `augnes_define_repository_initial_work`

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { EXTERNAL_TOOL, externalToolDescription, callExternal } from './external-response.mjs';
 
 import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, readdirSync } from "node:fs";
@@ -1499,13 +1500,18 @@ export async function handleMessageV01(message) {
   if (message.method === "notifications/initialized" || message.method === "notifications/cancelled") return null;
   if (message.method === "ping") return { jsonrpc: "2.0", id: message.id, result: {} };
   if (message.method === "tools/list") {
-    return { jsonrpc: "2.0", id: message.id, result: { tools: [...lifecycleToolDescriptionsV01(), toolDescriptionV01(), sourceReadToolDescriptionV01(), methodOutlookToolDescriptionV01(), retainedSourceLookupToolDescriptionV01(), ...initialWorkToolDescriptionsV01(), ...workRevisionToolDescriptionsV01(), ...workRevisionToolDescriptionsV01(true), executionChoiceToolDescription(), reviewWorkToolDescriptionV01(), ...repositoryExecutionToolDescriptionsV01()] } };
+    return { jsonrpc: "2.0", id: message.id, result: { tools: [...lifecycleToolDescriptionsV01(), toolDescriptionV01(), sourceReadToolDescriptionV01(), methodOutlookToolDescriptionV01(), retainedSourceLookupToolDescriptionV01(), ...initialWorkToolDescriptionsV01(), ...workRevisionToolDescriptionsV01(), ...workRevisionToolDescriptionsV01(true), executionChoiceToolDescription(), externalToolDescription(), reviewWorkToolDescriptionV01(), ...repositoryExecutionToolDescriptionsV01()] } };
   }
   if (message.method === "tools/call") {
     const args = message.params?.arguments;
     const toolName = message.params?.name;
     if (!args || typeof args !== "object" || Array.isArray(args)) {
       return { jsonrpc: "2.0", id: message.id, error: { code: -32602, message: "invalid_repository_tool_request" } };
+    }
+    if (toolName === EXTERNAL_TOOL) {
+      const found = await selectCompanionForReadonlyRouteV01();
+      const value = found.status === 'resolved' ? await callExternal(found.companion, args) : {status:'unavailable', reason:'external_runtime_unavailable'};
+      return {jsonrpc:'2.0',id:message.id,result:{isError:!['available','saved','exact_replay'].includes(value.status),structuredContent:value,content:[{type:'text',text:JSON.stringify(value)}]}};
     }
     if (toolName === EXECUTION_CHOICE_TOOL) {
       const found = await selectCompanionForReadonlyRouteV01();

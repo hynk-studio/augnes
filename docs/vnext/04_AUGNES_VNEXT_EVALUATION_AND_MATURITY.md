@@ -399,6 +399,39 @@ equal relevant material/resources, unsuccessful attempts and total burden. Searc
 feedback and best-run/judge selection are not deciding later-task evidence. No
 MASS-informed comparison or workflow-search campaign is launched by this PR.
 
+### Local external-response evidence (#1453)
+
+The [registered local consumer](../EXTERNAL_RESPONSE_LOCAL.md#report-example-fresh-process-and-evidence)
+separates these evidence levels:
+
+| Level | Bounded claim |
+|---|---|
+| Source/mechanism correctness | Supported sharing, byte transport, current permission, immutable terms, query-before-repeat, atomic material publication, correction and recovery checks |
+| Controlled counterpart behavior | Actual loopback requests and responses from an owned deterministic processor whose format/availability/row conditions change; no independent agent judgment |
+| Fresh-process reconstruction | New PID, separate writable workspace, ordinary project entry and byte owner; no parent conversation or cached predecessor output |
+| Actual human/model consumption | NOT_RUN in this assignment; scripted decisions are attributed as scripted |
+| Intervention effect and comparative usefulness | NOT_EVALUATED; response order and passing arithmetic do not establish causal influence or superiority |
+| Installed/hosted adoption | NOT_RUN; source qualification does not establish serving state or user acceptance |
+
+The positive branch verifies scope and arithmetic with a separate integer oracle,
+then computes B's report from returned values. A lost acknowledgement is queried
+before continuation, and the service effect count remains unchanged. Relevant
+identity correction leads to an explicit current judgment while independently
+checked material remains usable; irrelevant correction leaves the separate
+control unchanged. Inaccessible corrections remain limitations. Negative cases
+include access withdrawal, stale bindings, bounded amendments, missing/tampered
+material, partial/refused output, unknown effects, concurrent changes and staged
+migration/recovery. A stopped branch is control evidence, not substitute delivery.
+
+The candidate's private original receipts, validator, synthetic outputs and
+failed development attempts establish its actual verification state. Runtime/call
+counts describe development burden only. A smallest separately authorized model
+consumer/successor exercise is specified in the usage document but is not run.
+This preserves planning #1454's separation of capability, effect, usefulness and
+autonomy. Broader/default operation and a comparison with a strong adaptive
+source-linked native workflow require their own justified scope and evaluation.
+No e01 comparison or b02 observation allowance is inherited or reopened.
+
 ### Cost and user burden
 
 Distinguish method-development, setup and preparation cost; reusable asset

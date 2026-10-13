@@ -206,6 +206,7 @@ export function previewActivePortableProjectV01(
 ): PortableProjectPreviewV01 {
   const scope = requireActiveProjectScopeV01(db);
   if (db.prepare("SELECT 1 FROM vnext_core_records WHERE workspace_id=? AND project_id=? AND record_kind='capability_grant' AND json_extract(payload_json,'$.grant_version')='stateless_source_review_grant.v0.1' LIMIT 1").get(scope.workspace_id, scope.project_id)) refuseV01("portable_stateless_review_not_supported_use_recovery_backup", 409);
+  if (db.prepare("SELECT 1 FROM sqlite_schema WHERE name='vnext_external_records'").get() && (db.prepare("SELECT 1 FROM vnext_external_records WHERE workspace_id=? AND project_id=? LIMIT 1").get(scope.workspace_id,scope.project_id) || db.prepare("SELECT 1 FROM vnext_external_materials WHERE workspace_id=? AND project_id=? LIMIT 1").get(scope.workspace_id,scope.project_id))) refuseV01("portable_external_response_not_supported_use_recovery_backup",409);
   if (readDirectionRecords(db, scope).length) refuseV01("portable_project_direction_not_supported_use_recovery_backup", 409);
   const all = readBoundedProjectRecordsV01(db, scope);
   refuseImportedWorkHandoff(all);
@@ -248,6 +249,7 @@ export function exportActivePortableProjectV01(
   }
   const scope = requireActiveProjectScopeV01(db);
   if (db.prepare("SELECT 1 FROM vnext_core_records WHERE workspace_id=? AND project_id=? AND record_kind='capability_grant' AND json_extract(payload_json,'$.grant_version')='stateless_source_review_grant.v0.1' LIMIT 1").get(scope.workspace_id, scope.project_id)) refuseV01("portable_stateless_review_not_supported_use_recovery_backup", 409);
+  if (db.prepare("SELECT 1 FROM sqlite_schema WHERE name='vnext_external_records'").get() && (db.prepare("SELECT 1 FROM vnext_external_records WHERE workspace_id=? AND project_id=? LIMIT 1").get(scope.workspace_id,scope.project_id) || db.prepare("SELECT 1 FROM vnext_external_materials WHERE workspace_id=? AND project_id=? LIMIT 1").get(scope.workspace_id,scope.project_id))) refuseV01("portable_external_response_not_supported_use_recovery_backup",409);
   if (readDirectionRecords(db, scope).length) refuseV01("portable_project_direction_not_supported_use_recovery_backup", 409);
   const workspace = readDefaultWorkspaceIdentityV01(db);
   const project = readCanonicalProjectIdentityV01(db, scope);

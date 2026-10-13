@@ -94,6 +94,37 @@ is not required; #1447 independently owns public discovery/distribution/re-entry
 No MASS comparison, workflow search, public solicitation, provider activation
 or reopening of #1436–#1439/#1448 is included.
 
+## Current P3/P4/P5 — Local external-response continuity (#1453)
+
+The first [#1453](https://github.com/hynk-studio/augnes/issues/1453) source increment
+connects selected cross-project experience, permitted local interaction, actual
+feedback, independently checked material use, fresh-process continuation and
+selective correction. The [ordinary workflow](../EXTERNAL_RESPONSE_LOCAL.md)
+identifies reused owners, new persistence, exact actions and acceptance evidence.
+A release dashboard A shares its successful-build observation with a distinct
+capacity-report project B. B adapts from JSON to JSONL only after actual processor
+feedback, verifies complete returned bytes and uses them in its own report.
+The unchanged-condition control keeps the original action. An interrupted B
+successor queries the same receipt and continues without repeating processing.
+
+This is an additive local capability under the current implementation assignment.
+Planning PR #1454's prospective product/evidence meaning is preserved; its
+unmerged branch is not this candidate's integration base or runtime evidence.
+01 adds the shared product meaning, 02 owns the concrete adapter contract, and
+04 keeps source correctness separate from model judgment/effect/usefulness.
+Neither a shared store alone nor a safe stop completes the positive delivery path.
+
+Current operational obligations: candidate-specific Local Canonical qualification
+and review are recorded with the implementation PR; installed migration/adoption,
+actual human/model consumption and hosted acceptance remain NOT_RUN. The next
+small live-consumer exercise is specified but not dispatched by this change.
+#1453 stays open for review; this increment does not complete all P2/P3/P4/P5 goals.
+#1443/#1450 choice and role assessment, #1427/#1431 ordinary/executable reuse,
+#1433/#1452 live review/Events, #1447/#1451 distribution and #1372 hosted private
+files retain their separate ownership. b02 stays CLOSED/PARTIAL; e01 stays
+CLOSED/NO_OBSERVED_ADVANTAGE with no adopted checking instruction or renewed
+allowance. No release, public contact, paid/provider work or scheduler is added.
+
 ## Current: request-bound review implementation (#1433)
 
 [#1433](https://github.com/hynk-studio/augnes/issues/1433) adds one bounded native
