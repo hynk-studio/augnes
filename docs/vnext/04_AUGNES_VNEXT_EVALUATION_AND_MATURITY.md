@@ -399,6 +399,57 @@ equal relevant material/resources, unsuccessful attempts and total burden. Searc
 feedback and best-run/judge selection are not deciding later-task evidence. No
 MASS-informed comparison or workflow-search campaign is launched by this PR.
 
+### External-response capability, effect, usefulness and autonomy
+
+For [#1453](https://github.com/hynk-studio/augnes/issues/1453), report four
+questions independently rather than making positive net benefit the definition
+of an available capability:
+
+| Axis | Required observation |
+|---|---|
+| Capability | A permitted response actually executes, relevant feedback informs a justified next action, and scoped experience/commitments survive later reconstruction and correction. |
+| Intervention effect | A credible comparison supports attributing a counterpart/environment change to the intervention, rather than mere temporal order or the counterpart's own report. |
+| Comparative usefulness | Quality, tractable task range or another stated user outcome improves against a strong alternative after relevant costs and risks are considered. |
+| Autonomy | The actual human/model/host contributions and further intervention needed within the current delegation are observed. |
+
+Source availability, controlled mechanism execution, actual human/model use and
+independently operated field observations retain their distinct scope. A
+deterministic responsive counterpart can establish bounded path correctness,
+not model judgment, adversary conversion or general effect. User-directed use
+can establish capability without full autonomy. Rejection or negative utility
+does not erase demonstrated control; a prepared proposal, unused button or log
+alone does not establish it. A stopped branch does not satisfy a claimed
+successful result-delivery/use path.
+
+Use a discriminating feedback case where a different action is justified and a
+control where retaining the action is correct; do not require action change for
+every new observation. Exercise current terms, pending/unknown effects, bounded
+amendment/stop, verified downstream use and fresh-executor reconstruction.
+Two projects must have genuinely distinct task needs to establish cross-project
+use; a new process alone establishes only reconstruction. Relevant correction
+must reach dependent current judgments while irrelevant correction avoids
+unnecessary checks and independently valid results remain usable. The
+[2026-10-13 P3/P5 observation](https://github.com/hynk-studio/augnes/issues/1213#issuecomment-6138470184)
+reported an unnecessary probe despite an appropriate applicability judgment;
+it motivates this discrimination, not a new causal or autonomous-recall claim.
+
+Separate security-derived test material, observed behavior change and a
+counterpart's independently checked contribution. Identify the actual observation
+input; nonresponsive payloads and unavailable observations cannot demonstrate
+negotiation or unchanged external state. Capability/competence, contextual risk,
+identity association and current permission are different evidence questions.
+
+Later comparisons use a strong source-linked adaptive memo/native host with
+comparable models, materials, tools/actuators, permissions and aggregate budgets.
+An unequal action set cannot establish the benefit of continuity structure.
+Count preparation/curation, waiting, execution, coordination, verification,
+correction and human repair, including failures; unknown remains unknown.
+Capability admission need not wait for positive usefulness, but further
+investment and broader/default operation still need their own justified decision.
+Current verification policy governs changed-source correctness; its passing
+checks do not substitute for any unobserved behavioral or comparative claim.
+This section defines evidence for planned work, not a newly executed study.
+
 ### Cost and user burden
 
 Distinguish method-development, setup and preparation cost; reusable asset
