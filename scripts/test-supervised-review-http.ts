@@ -12,6 +12,7 @@ import Database from "better-sqlite3";
 import { declareAndInspectLocalProjectV01, confirmLocalProjectOnboardingV01 } from "../lib/vnext/onboarding/local-project-onboarding";
 import { discoverVerifiedCompanionV01 } from "../plugins/augnes-operator/mcp/companion-proxy.mjs";
 import { REVIEW_MARKER } from "../plugins/augnes-operator/mcp/review-connection.mjs";
+import { receiverSecret } from "./test-review-receiver-fixture.mjs";
 
 const modernMeta = { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} };
 const reviewTools = ["augnes_list_review_requests", "augnes_read_review_request", "augnes_reply_to_review"];
@@ -23,12 +24,15 @@ export function prepareSupervisedReviewHttp(root: string, temporaryRoot: string,
     mkdirSync(directory, { mode: 0o700 });
     const networkAttempts = path.join(directory, "network-attempts.jsonl");
     const preload = path.join(directory, "network-preload.mjs");
+    const receiverRecords = path.join(directory, "receiver.jsonl");
     writeFileSync(preload, `import {appendFileSync} from 'node:fs';
 import {installZeroNetworkGuard} from ${JSON.stringify(pathToFileURL(path.join(root, "scripts/test-harness-zero-network-guard.mjs")).href)};
 // The review owner is UI-only. The separate legacy bridge uses tsx Unix IPC.
 if(process.env.AUGNES_RUNTIME_CHILD_ROLE !== 'bridge') installZeroNetworkGuard({allowLoopback:true,onBlockedAttempt:a=>appendFileSync(${JSON.stringify(networkAttempts)},JSON.stringify(a)+'\\n',{mode:0o600})});
+import {installReviewReceiverFixture} from ${JSON.stringify(pathToFileURL(path.join(root, "scripts/test-review-receiver-fixture.mjs")).href)};
+if(process.env.AUGNES_RUNTIME_CHILD_ROLE === 'ui') installReviewReceiverFixture(${JSON.stringify(receiverRecords)});
 `, { mode: 0o600 });
-    return { root, directory, databasePath, networkAttempts, preload, config: path.join(directory, "connections.json"),
+    return { root, directory, databasePath, networkAttempts, preload, receiverRecords, config: path.join(directory, "connections.json"),
         projectRoot: path.join(directory, "synthetic-project"), connection: null as any, pending: null as any,
         priorRuntime: null as any, initialPassed: false, recoveryPassed: false, refusalCases: 0 };
 }
@@ -143,7 +147,7 @@ export async function assertSupervisedReviewHttp(f: Fixture, environment: NodeJS
             const current = await saveWork({ goal: "Preserve all synthetic duplicate CSV rows.", success_criteria: ["Every original row remains available."], non_goals: ["No model, run, provider, semantic acceptance or external effect."] }, true);
             await saveWork({ sources: { add: [{ source: "synthetic local fixture", text: "Rows A:red, A:blue, B:green. Proposed step: retain all rows and flag conflicting IDs.", provenance: "derived_interpretation", observed_at: null, label: "Next check" }] } });
             const setup = path.join(f.directory, "setup.json");
-            writeFileSync(setup, JSON.stringify({ repository_root: f.projectRoot, project_key: current.repository_resolution.project_key, destination: "local synthetic fixture", reviewer_label: "scripted fixture; no model", expires_at: new Date(Date.now() + 600000).toISOString(), callback_origins: [] }), { mode: 0o600 });
+            writeFileSync(setup, JSON.stringify({ repository_root: f.projectRoot, project_key: current.repository_resolution.project_key, destination: "local synthetic fixture", reviewer_label: "scripted fixture; no model", expires_at: new Date(Date.now() + 600000).toISOString(), callback_origins: [], callback_enrollment: true }), { mode: 0o600 });
             execFileSync(process.execPath, [path.join(f.root, "scripts/configure-review-connection.mjs"), setup, f.config], { cwd: f.root, env, stdio: "pipe" });
             f.connection = JSON.parse(readFileSync(f.config, "utf8")).connections[0];
         } else {
@@ -203,7 +207,42 @@ export async function assertSupervisedReviewHttp(f: Fixture, environment: NodeJS
                 assert.equal(r.result.events[0].name, "review.requested");
             });
         }
+        const receiver = () => existsSync(f.receiverRecords) ? readFileSync(f.receiverRecords, "utf8").trim().split("\n").map(line => JSON.parse(line)) : [];
+        const callbackCli = (operation: string, decision?: object) => {
+            const decisionFile = path.join(f.directory, "decision.json");
+            if (decision) writeFileSync(decisionFile, JSON.stringify(decision), { mode: 0o600 });
+            return JSON.parse(execFileSync(process.execPath, [path.join(f.root, "scripts/configure-review-connection.mjs"), "callbacks", operation,
+                f.connection.id, ...(decision ? [decisionFile] : [])], { cwd: f.root, env, encoding: "utf8", stdio: "pipe" }));
+        };
+        const subscription = { name: "review.requested", arguments: {}, delivery: { mode: "webhook", url: "https://receiver.example.invalid/first?private=synthetic", secret: `whsec_${Buffer.alloc(32, 17).toString("base64")}` } };
+        if (!recovery) {
+            const configBefore = readFileSync(f.config, "utf8");
+            const pending = await rpc(modern("events/subscribe", subscription));
+            assert.equal(pending.error.code, -32015); assert.equal(pending.error.data.reason, "approval_required");
+            assert.equal(pending.error.data.stage, "origin_policy"); assert(!JSON.stringify(pending).includes("receiver.example"));
+            assert.deepEqual(receiver(), [], "no DNS/challenge/application before approval");
+            assert.equal((db.prepare("SELECT count(*) n FROM vnext_review_subscriptions").get() as any).n, 0);
+            const inspected = callbackCli("inspect");
+            assert.equal(inspected.observation, "observed"); assert.equal(inspected.candidates.length, 1);
+            const candidate = inspected.candidates[0]; assert.equal(candidate.origin, "https://receiver.example.invalid");
+            assert(!JSON.stringify(inspected).includes("private=synthetic")); assert(!JSON.stringify(inspected).includes(receiverSecret));
+            const decision = { candidate_ref: candidate.candidate_ref, expected_revision: candidate.revision,
+                expected_policy_generation: inspected.policy_generation, expected_policy_revision: inspected.policy_revision, expires_at: new Date(Date.now() + 300000).toISOString() };
+            assert.equal(callbackCli("approve", decision).candidates[0].state, "approved");
+            assert.deepEqual(receiver(), [], "approval does not activate the refused host request");
+            assert.throws(() => callbackCli("approve", decision), "stale CLI decision refuses");
+            // The host can supply fresh path and signing material after the
+            // refusal; only the origin and scope were approved or persisted.
+            subscription.delivery.url = "https://receiver.example.invalid/fresh?private=replacement";
+            subscription.delivery.secret = receiverSecret;
+            const subscribed = await rpc(modern("events/subscribe", subscription)); assert(subscribed.result.id);
+            assert.equal(receiver().filter(r => r.stage === "verification").length, 1);
+            assert((await rpc(modern("events/subscribe", subscription))).result.id === subscribed.result.id);
+            assert.equal(receiver().filter(r => r.stage === "verification").length, 1, "same permission/path/key refresh uses bounded cache");
+            assert.equal(readFileSync(f.config, "utf8"), configBefore, "approval preserves connection and historical review binding");
+        }
         const requested = recovery ? f.pending : await requestReview("Should all synthetic rows remain available?");
+        if (!recovery) assert.deepEqual(receiver().filter(r => r.stage === "event").map(r => r.request_ref), [requested.request_ref]);
         const read = await review(reviewTools[1], { request_ref: requested.request_ref });
         assert.equal(read.status, "available"); assert.equal(read.material_ref, requested.material_ref);
         assert.equal(read.definition.goal, "Preserve all synthetic duplicate CSV rows."); assert(read.sources.some((s: any) => s.excerpt_text.includes("A:red")));
@@ -222,11 +261,18 @@ export async function assertSupervisedReviewHttp(f: Fixture, environment: NodeJS
         assert.equal(used.use.status, "attributed_note_in_current_work"); assert.equal(used.currentness, "historical");
         await zeroEffect(async () => assert.equal((await review(reviewTools[1], { request_ref: requested.request_ref })).reason, "review_material_changed"));
         if (!recovery) {
+            const inspected = callbackCli("inspect");
+            assert.equal(callbackCli("stop", { expected_policy_generation: inspected.policy_generation, expected_policy_revision: inspected.policy_revision }).stopped, true);
+            const beforeUnsubscribe = receiver().length;
+            const { secret: _secret, ...delivery } = subscription.delivery;
+            assert((await rpc(modern("events/unsubscribe", { ...subscription, delivery }))).result);
+            assert.equal(receiver().length, beforeUnsubscribe, "unsubscribe after revocation has no network verification");
             f.pending = await requestReview("Later recovery request: retain all rows?");
             f.priorRuntime = { generation_id: companion.generation_id }; f.initialPassed = true;
         } else f.recoveryPassed = true;
-        assert.equal((db.prepare("SELECT count(*) n FROM vnext_review_subscriptions").get() as any).n, 0);
-        assert.equal((db.prepare("SELECT count(*) n FROM vnext_review_deliveries").get() as any).n, 0);
+        assert.equal((db.prepare("SELECT count(*) n FROM vnext_review_subscriptions WHERE stopped=0").get() as any).n, 0);
+        assert.equal((db.prepare("SELECT count(*) n FROM vnext_review_deliveries WHERE status='pending'").get() as any).n, 0);
+        assert.equal(receiver().filter(r => r.stage === "event").length, 1, "restart/stop/reply do not redeliver");
         assert(!existsSync(f.networkAttempts));
     } finally {
         for (const t of transports) await close(t);

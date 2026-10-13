@@ -4,6 +4,7 @@ import { handleReviewOperation, ReviewError, reviewProjection, reviewObject, rev
 import { deliverReviewEvents, handleReviewEventOperation, recoverReviewEvents } from "@/lib/vnext/review-events";
 import { CallbackError } from "@/plugins/augnes-operator/mcp/review-webhook.mjs";
 import { REVIEW_MARKER } from "@/plugins/augnes-operator/mcp/review-connection.mjs";
+import { handleCallbackOperator } from "@/lib/vnext/review-callback-enrollment";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 /** Private, fixed-purpose channel. The trusted runtime credential authenticates
@@ -62,7 +63,8 @@ export async function POST(request: Request) {
             reviewKeys(input, ["action", "connection_ref"]);
             return NextResponse.json(reviewProjection("available", { delivery: await recoverReviewEvents(input.connection_ref, secret) }), { headers });
         }
-        const result = input.action === "event" ? await handleReviewEventOperation(input, secret) : await handleReviewOperation(input, secret);
+        const result = input.action === "callback_operator" ? await handleCallbackOperator(input, secret) :
+            input.action === "event" ? await handleReviewEventOperation(input, secret) : await handleReviewOperation(input, secret);
         if (input.action === "request" || (input.action === "event" && input.method === "events/subscribe")) {
             // The request/subscription is already durable. A delivery error must not
             // be relabelled as an unsaved request after the commit boundary.
@@ -77,7 +79,8 @@ export async function POST(request: Request) {
     }
     catch (error) {
         if (error instanceof CallbackError)
-            return denied("callback_endpoint_error", 422, { protocol_error: { code: -32015, message: "CallbackEndpointError", data: { reason: error.reason } } });
+            return denied("callback_endpoint_error", 422, { protocol_error: { code: -32015, message: "CallbackEndpointError", data: { reason: error.reason, stage: error.stage,
+                ...(error.reason === "approval_required" ? { next_action: "Ask the local operator to inspect callback enrollment. After approval, make a fresh events/subscribe request; no subscription is active." } : {}) } } });
         if (error instanceof ReviewError)
             return denied(error.code, error.status);
         const code = error instanceof Error ? error.message : "";

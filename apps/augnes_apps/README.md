@@ -189,7 +189,7 @@ question, list/read back the answer, then deliberately prepare a retain/revise/
 reject note through the existing work revision preview/save tools. Each result
 returns the references needed by the next call. Both lists are paginated: pass
 `next_cursor` back as `cursor`. No recurring token or answer copying is required
-by this explicit source path. Its actual human burden is still unmeasured.
+by this explicit source path. Comparative burden reduction remains unverified.
 
 The reviewer reads the requested native definition and whole selected notes
 from one validated packet and project binding. A relevant work/root/direction
@@ -216,7 +216,8 @@ path or manufacture an expectation, attempt, outcome report or RunReceipt.
 
 Before activation, separately record approval for the exact ChatGPT account,
 workspace and destination; the native project's definition and selected notes;
-reviewer configuration; callback origin; and finite request/usage envelope.
+reviewer configuration; and finite request/usage envelope. Callback egress must
+be preconfigured or explicitly decided through the enrollment workflow below.
 Existing API credentials or an installed plugin do not supply that approval.
 The implementation task itself grants none of these live permissions.
 
@@ -225,7 +226,10 @@ After that approval, the operator can use
 with two absolute file arguments: a nonsecret setup JSON file and a new private
 output file outside the repository. The setup fields are `repository_root`,
 `project_key` (from ordinary Resume), `destination`, `reviewer_label`, finite
-`expires_at`, and `callback_origins` (exact HTTPS origins). The utility creates
+`expires_at`, and `callback_origins` (exact HTTPS origins). To enroll a host-supplied origin,
+set `callback_origins: []` and `callback_enrollment: true` at initial setup. The
+flag is optional; existing strict preconfigured-origin configurations are unchanged.
+Enrollment and a nonempty preconfigured list cannot be combined. The utility creates
 an exclusive owner-only file containing generated capabilities and an encryption
 key, prints only its connection reference, and activates nothing. Keep that file
 out of prompts, logs, source, and artifacts. It is machine-local credential state,
@@ -239,6 +243,130 @@ Every request/disclosure/write/delivery reopens and validates the private file
 and current native project access. Removing/replacing the binding or reaching
 its expiry revokes it. Unsubscription stops that callback delivery; neither
 action claims to cancel a ChatGPT task already running elsewhere.
+
+#### Local callback enrollment and stop
+
+When the host supplies a callback only during subscription, do not guess its
+origin from the login site, API endpoint or tunnel. Use the same private setup
+utility and explicitly opt this connection into enrollment. All commands below
+run locally in the intended runtime's supported discovery environment. The CLI
+uses verified Companion discovery and its authenticated private channel; it does
+not start a service or expose an operator capability to the reviewer.
+
+1. Create a **new**, finite connection with the setup fields above, including
+   `"callback_origins": []` and `"callback_enrollment": true`:
+
+   ```sh
+   node scripts/configure-review-connection.mjs "$SETUP_JSON" "$REVIEW_CONFIG"
+   ```
+
+   Both arguments are absolute paths; the output must not already exist. Retain
+   the returned `connection_ref` as `CONNECTION_REF`. Configure the supervised
+   UI/reviewer as described above, only under the separately authorized activation.
+   Keep the same file for the CLI. Never change an existing connection's callback
+   list/flag to approve a candidate: the complete configuration is credential-bound.
+   Such replacement revokes its old bindings. If preserving an older connection,
+   keep that exact entry and its private material through its authorized lifetime.
+
+2. Ask the host to create its normal `review.requested` event task with the
+   intended filter. The first authenticated `events/subscribe` records a pending
+   **origin and filter only**, then returns `-32015 CallbackEndpointError` with
+   `reason: approval_required` and a local-inspection next action. No DNS lookup,
+   challenge, application delivery or active subscription occurs. Do not call
+   this failed setup a successful subscription or assume automatic host retry.
+
+3. Inspect locally:
+
+   ```sh
+   AUGNES_REVIEW_CONNECTIONS_FILE="$REVIEW_CONFIG" node scripts/configure-review-connection.mjs callbacks inspect "$CONNECTION_REF"
+   ```
+
+   The JSON result must have `observation: observed`. Unavailable/refused output
+   is not zero candidates. Inspect the exact canonical origin **including port**,
+   connection/project/principal, event/filter, expiry, candidate revision and
+   policy revision. Output is escaped JSON intended for the operator; keep real
+   origins out of public reports. It omits callback paths, queries and keys.
+   Authenticated submission and a later receiver challenge prove neither corporate
+   ownership nor permission for broader disclosure. An independently documented
+   origin can inform the decision; informed, explicit approval of this exact
+   scoped destination is also supported. No official hostname list is required.
+
+4. Put the exact returned `candidate_ref`, its `revision` as `expected_revision`,
+   the inspection's `policy_revision` as `expected_policy_revision`, and its
+   `policy_generation` as `expected_policy_generation` into a
+   nonsecret local decision JSON file (`DECISION_JSON`). Add `expires_at` as a
+   concrete ISO timestamp no later than the approved trial/connection deadline
+   and no more than one hour from the decision. Then explicitly approve:
+
+   ```sh
+   AUGNES_REVIEW_CONNECTIONS_FILE="$REVIEW_CONFIG" node scripts/configure-review-connection.mjs callbacks approve "$CONNECTION_REF" "$DECISION_JSON"
+   ```
+
+   A stale/concurrent decision refuses. Generation is a server-issued identity,
+   not a counter to increment locally. Inspect again before deciding; never
+   automatically retry approval with new revisions. Approval changes separate
+   egress policy, **not** the connection credential/binding or review history.
+   A transport interruption may have saved the decision: inspect before retry.
+
+5. Request a **fresh ordinary host subscription** through the host's event-task
+   setup/confirmation flow. This may require **another setup model execution**,
+   in addition to the first failed enrollment setup and the eventual event review.
+   Budget and authorize those executions before a later live trial. Do not send
+   the full callback URL or secret through chat, manually manufacture the host's
+   callback, or assume it retains the previous URL/key. A fresh path/key on the
+   approved origin/filter is allowed, but must be verified. A different origin,
+   port or filter requires a new local decision. No deferred success is sent for
+   the earlier failed request. Only a signed, successful challenge admits storage
+   and delivery. Same permission/URL/key refresh uses the bounded verification
+   cache and requires no repeated operator confirmation.
+
+For `reject` or `revoke`, use the same four exact candidate/revision/generation fields in a
+new decision JSON file, **omit `expires_at`**, and substitute that operation in
+the CLI. Rejected/revoked entries remain refusal tombstones until connection
+expiry, unless the operator explicitly makes a fresh exact approval. Revocation
+fences that permission before new verification, persistence and every delivery;
+it does not cancel a socket already admitted or an external model task.
+
+For connection-wide delivery stop, use a decision JSON containing only
+`expected_policy_revision` and `expected_policy_generation` from fresh inspection:
+
+```sh
+AUGNES_REVIEW_CONNECTIONS_FILE="$REVIEW_CONFIG" node scripts/configure-review-connection.mjs callbacks stop "$CONNECTION_REF" "$DECISION_JSON"
+```
+
+Stop invalidates the policy revision and callback leases. Local inspect/stop
+remain available after connection expiry with the exact private configuration,
+authenticated runtime and project access. First local inspection establishes a
+bounded policy identity if none exists, including before a candidate arrives;
+it grants no permission or subscription. Host `events/unsubscribe` remains an
+authorized, non-network cleanup operation after destination revocation; it needs
+no new egress approval or challenge. Stop/remove the host task through its
+non-model controls and remove the trial connection/tunnel separately. Local
+expiry/stop does not prove that external work was cancelled.
+
+Pending candidates expire after at most 15 minutes; at most eight per connection
+and 64 overall are retained. Authenticated ingress prunes expired entries before
+observing a new identity, so expired observations never authorize a later one.
+Approvals last at most one hour, capped by the unchanged connection expiry.
+Rejected decisions cannot be displaced by callback path/key changes. No poller
+or background enrollment job is introduced. Every supported restore mints a new
+policy generation and invalidates all approvals and delivery leases, even when
+restoring the same backup repeatedly. Snapshot revision numbers can repeat;
+generation-bound decision files and verification tokens cannot be reused across
+that boundary. This applies equally to approve, reject, revoke and stop. The
+explicit lifecycle upgrade from the earlier enrollment schema also invalidates
+old permission; ordinary requests never migrate storage. Inspect, explicitly decide again if still authorized,
+and obtain a fresh host subscription. Requests and attributed replies survive.
+A stopped or restored policy can still observe bounded pending candidates from
+authenticated ingress, including after an old candidate expires. Observation
+does not resume permission: a fresh local decision with the current generation and revisions
+and a newly verified subscription are required. Remove the connection binding
+to stop that ingress as well as delivery.
+
+Explicit request/read/reply/readback remains independent of callback approval.
+An originating agent can find saved replies through ordinary readback/Resume and
+deliberately use them through native revision preview/save. There is no automatic
+originating-agent wakeup or claim of autonomous recovery.
 
 #### Events contract and evidence limits
 
@@ -281,8 +409,8 @@ adapter tables and excluded from tools and routine errors. Delivery has three
 bounded attempts with exponential backoff; `410`/`413` stop that delivery.
 An HTTP `2xx` means receipt only. It does not establish host processing or a reply.
 
-Request linkage, subscriptions, and pending delivery live in three small adapter
-tables prepared only by the existing initialization/migration owner. Ordinary
+Request linkage, subscriptions, pending delivery, and bounded enrollment policy/
+candidates live in five small adapter tables prepared only by the existing initialization/migration owner. Ordinary
 requests never prepare schema. Request persistence precedes callback delivery;
 failed acknowledgement is reported with unknown persistence and readback advice.
 Pending delivery is drained on request, adapter startup, or explicit subscription
@@ -301,8 +429,13 @@ observed tunnel association, ChatGPT connection, and discovery of the three
 scoped tools. Its `events/list` reached the adapter but the private Augnes HTTP
 route refused it. Local reproduction on the trial source and then-current main
 isolated Next's query serialization against the raw scope comparison; the parsed
-query correction below is local source evidence. Successful subscription,
-callback verification, event-triggered processing and replies remain unverified.
+query correction below is local source evidence. Later attempt 6 observed two actual explicit reviews, exact replies, fresh
+originating readback and native revise/retain decisions, including one after
+restart. Attempt 9 observed actual host subscription dispatch, refused as
+`destination_refused`; its raw callback was not retained and no historical
+predicate defect is asserted. Callback enrollment addresses setup completeness.
+Successful callback verification and event-triggered processing/replies remain
+unverified.
 This correction activates no live connection, subscription, provider or install.
 
 The registered `request-bound-review` supporting integration child uses real
@@ -327,11 +460,25 @@ supervised Next HTTP server. It covers both valid query representations, strict
 query/private-channel/runtime/configuration refusals, modern protocol admission,
 an explicit request/read/reply/fresh-readback/revision cycle, and unanswered work
 after supported stop/start with fresh generation discovery. Rejected operations
-preserve all database rows and schema; a UI/client network guard forbids external
-callbacks or provider requests. This reuses the existing lifecycle owner and
+preserve all database rows and schema; a UI/client network guard forbids real external callbacks/provider requests.
+The same supervised Next/stdio child now starts from an enrollment-enabled empty
+allowlist, observes pending state, invokes the supported CLI inspect/approve,
+accepts a fresh callback, verifies a signed controlled-receiver challenge and
+event, then completes scoped reply/fresh readback/native revision. CLI stop,
+post-revocation unsubscribe and restart preserve that boundary. These controlled
+network fixtures are not actual ChatGPT enrollment acceptance. This reuses the existing lifecycle owner and
 deadline, rather than treating an imported-handler fixture as Next parity.
-Actual ChatGPT event receipt/answer, an originating model's subsequent use, a later live request after
-recovery, and a matched manual-handoff burden comparison remain **NOT RUN**.
+The existing `recovery-backup` owner also runs a supervised Next/stdio and fresh
+CLI regression for consumed and unconsumed decisions, decisions captured between
+three restores of the same backup, and all four mutating operator actions. It
+requires current runtime discovery, unchanged decision files, no refusal effects
+or network activity, intact requests/replies, and a fresh signed subscription
+with a later request/reply. It covers the populated predecessor's explicit
+migration and retains the recovery owner's total 330-second bound.
+Actual ChatGPT **event-triggered** receipt/answer/use, Events recovery and a
+matched manual-handoff burden comparison remain **NOT RUN**. Attempt-6 explicit
+reply/use/restart success remains separate positive evidence. No new live
+execution is authorized by this increment (recorded counts: reviewer 6, origin 5).
 Provider cost is unknown; a shorter tool list is not measured burden reduction.
 Any authorized comparison must retain the existing usable App/Bridge work reads
 and trace facilities, plus the native connected reader where available, with the

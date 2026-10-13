@@ -43,7 +43,7 @@ import {
   readCanonicalDatabaseMigrationLedger,
   verifyCanonicalDatabaseMigrationLedger,
 } from "./canonical-database-migrations.mjs";
-import { runCanonicalChild } from "./canonical-child-runner.mjs";
+import { runCanonicalChild, canonicalChildAcceptanceFailure } from "./canonical-child-runner.mjs";
 import { buildCanonicalChildEnvironment } from "./canonical-test-environment.mjs";
 import { installZeroNetworkGuard } from "./test-harness-zero-network-guard.mjs";
 import {
@@ -458,6 +458,19 @@ try {
   testOperationalResults();
   await testRecoveryRetention({ currentBackup, manualBackup });
   testBoundedRecoveryInventory();
+  // Restore decision freshness belongs to this existing recovery child. The
+  // repeated real restores and supervised HTTP/CLI checks share its unchanged
+  // 330-second lifetime; neither review nor runtime-lifecycle gets extra time.
+  const callbackRecovery = await runCanonicalChild({
+    suite: "recovery-backup", label: "callback-decision-generations",
+    command: process.execPath, args: ["--import", "tsx", "scripts/test-review-callback-restore.ts"],
+    cwd: repositoryRoot,
+    env: buildCanonicalChildEnvironment({ temporaryRoot, resourceRoot: temporaryRoot }),
+    timeoutMs: 180_000,
+  });
+  assert.equal(canonicalChildAcceptanceFailure(callbackRecovery, {
+    suite: "recovery-backup", timeoutMs: 180_000, requireNaturalExit: true,
+  }), null);
   sourceWriter.pragma("wal_checkpoint(TRUNCATE)");
   sourceWriter.close();
   sourceWriter = null;
@@ -496,6 +509,7 @@ try {
         recomputed_unsanitized_backup_refused: true,
         safety_backup_verified: true,
         atomic_restore_verified: true,
+        callback_decision_generation_restore_verified: true,
         selected_backup_identity_race_refused_before_mutation: true,
         restore_failure_boundaries_verified: [
           "before_replacement",
@@ -649,7 +663,7 @@ function createPinnedMergedR8ALegacyFixture(databasePath, fixtureMarkerId) {
       );
     `);
     database.exec(
-      "DROP TABLE vnext_review_deliveries; DROP TABLE vnext_review_subscriptions; DROP TABLE vnext_review_requests;" +
+      "DROP TABLE vnext_review_callback_candidates; DROP TABLE vnext_review_callback_policies; DROP TABLE vnext_review_deliveries; DROP TABLE vnext_review_subscriptions; DROP TABLE vnext_review_requests;" +
       "DROP INDEX idx_vnext_local_operator_sessions_decision_nonce;" +
         "DROP INDEX idx_vnext_local_operator_sessions_decision_token;" +
         "ALTER TABLE vnext_local_operator_sessions DROP COLUMN decision_action_nonce_expires_at;" +
