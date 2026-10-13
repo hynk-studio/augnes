@@ -94,6 +94,65 @@ is not required; #1447 independently owns public discovery/distribution/re-entry
 No MASS comparison, workflow search, public solicitation, provider activation
 or reopening of #1436–#1439/#1448 is included.
 
+## Next P3/P4/P5 — External experience and adaptive response continuity (#1453)
+
+The 2026-10-13 user-approved planning addition
+[#1453](https://github.com/hynk-studio/augnes/issues/1453) is **Next / scoped /
+unclaimed; implementation and new observations NOT_STARTED**. It extends
+#1443's arrangement loop with project-independent selected external experience,
+feedback-conditioned follow-up and reconstructable commitments. It is an
+approved capability direction, not an asserted historical defect, implementation
+assignment or new platform program. Existing authorized work retains its scope.
+
+Planning inspection used main `c261c042eebf0978dc55a6a7496f8bb26fc92308`.
+#1450 supplies one selected choice/assessment through ordinary notes and a
+configured bounded reviewer; it does not supply general negotiation or shared
+actor memory. Reuse #1379/#1380's bounded outlook/re-entry meaning, #1427/#1431's
+material consumers and #1433's actual request/use path where applicable. Their
+current bounds, first-reply freshness and outstanding evidence remain intact.
+An explicit-call path need not wait for Events acceptance. Runtime reachability,
+source integration and installed/live adoption remain separate.
+
+The first complete local target connects two genuinely distinct project tasks:
+
+1. A observes an external contact/condition through an identified supported
+   input and retains permitted, source-bound experience with uncertain identity.
+2. B reads the relevant shared experience, compares current options and initiates
+   an allowed request or condition change. An actual response informs its next
+   executed action, including a discriminating changed-action case and a control
+   where retention is correct.
+3. B preserves terms, outstanding commitments, material basis and unresolved
+   effects across contacts. Independently checked returned material affects
+   actual downstream work in a positive branch; refusal, partial result,
+   unavailability and bounded fallback retain truthful dispositions.
+4. A fresh executor reconstructs the current relationship and next action.
+   A later correction reaches dependent current judgments while preserving
+   original observations and independent results; irrelevant changes do not
+   force unrelated checks or a blanket halt.
+
+P3 #1213 owns conditional interpretation/correction, P4 #1214 composes #1443's
+response choice, P5 #1215 owns cross-project reference/commitments/succession,
+and P2 #1212 owns consumable entry/material. Use current source owners where
+sufficient; add the minimum project-independent scope/version/lifecycle owner
+only if the actual consumer needs it. Neither free text nor a new store is
+preselected. Concrete new protocol/persistence meaning belongs in 02 with its
+implementation; no Core kind, schema or grant is added by this plan.
+
+Reviewable PRs may separate shared experience/correction, executable follow-up,
+and result use/reconstruction, but these remain one end-to-end target. A
+memory-only prerequisite is not completion. A sound stop demonstrates control,
+not successful delivery. Preserve current authority and cumulative resource
+owners; routine actions within a current delegation need no invented approval
+ceremony. Logical closure does not settle external effects or revoke credentials.
+
+Later scope is one small public evidence/condition exchange with selected
+disclosure, source/derivation, version and correction readback. It reuses #1447;
+that issue's pending operational distribution continues independently and does
+not wait for this loop, a reputation network or a positive utility comparison.
+The [04 evaluation owner](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#external-response-capability-effect-usefulness-and-autonomy)
+separates capability, effect, usefulness and autonomy. No model study, public
+contact, provider activation, scheduler, installed adoption or release is started.
+
 ## Current: request-bound review implementation (#1433)
 
 [#1433](https://github.com/hynk-studio/augnes/issues/1433) adds one bounded native
@@ -246,6 +305,12 @@ private hosted obligations remain separate; no rollout is authorized here.
 
 ### Current P2/P5 — Public asset Skill entry and later use (#1447)
 
+The source increment merged through
+[#1451](https://github.com/hynk-studio/augnes/pull/1451) on 2026-10-13 KST at
+`d98cba23658275048be4c267187bdad8f8eadcfa`. Source/package completion and the
+recorded supplied-candidate use remain distinct from pending public operational
+distribution. #1447 stays open; the new #1453 loop is not its prerequisite.
+
 [#1447](https://github.com/hynk-studio/augnes/issues/1447) adds one code-capable
 Codex catalog/Skill entry around the unchanged workflow-cost 1.0.0 publication.
 The [usage and declared consumer case](../PUBLIC_ASSET_SKILL_USAGE.md) connect
@@ -259,15 +324,15 @@ connection. All release bytes and hashes remain pinned.
 The portable package, task-described Skill, integrity checker and create-only
 bundle builder are source work. Deterministic package/consumer checks belong to
 the existing unit resource owner, with the old HTTP delivery and solver tests
-retained. The task's Draft PR records the actual host/catalog/activation and
+retained. The task's merged PR records the actual host/catalog/activation and
 native consumer observations, exact candidate qualification and cleanup.
-A local catalog does not establish a public listing; a Draft branch does not
+A local catalog does not establish a public listing; a merged source branch does not
 establish a stable release. Separate explicit authority is needed for release,
 public-directory submission or changes to an installed user profile. If those
 operational steps remain pending, the overall distribution objective stays open.
 
-Next: review this bounded entry and its actual use/non-use, then choose whether
-to authorize one stable distribution destination. Do not repeat the accepted
+Next: choose whether to authorize the proposed stable distribution destination,
+preserving the bounded actual use/non-use evidence. Do not repeat the accepted
 exact-link delivery campaign or open speculative adapters. Comparative benefit,
 organic search, independent field adoption and all-host support remain unclaimed.
 #1433's actual connected review and #1372's private-file obligations remain with

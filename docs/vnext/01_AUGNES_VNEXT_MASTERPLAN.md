@@ -74,6 +74,39 @@ Later outcomes should change only the judgments they bear on, preserving each
 earlier judgment's sources and information cutoff. The first bounded connection
 is owned by [03](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#current-p3p4p5--project-retry-inspection-outlook-1213).
 
+External-response capability extends this continuous work: a user should be able
+to observe external conditions and actors, initiate a permitted response, revise
+or retain it after feedback, and reconstruct the relationship and outstanding
+commitments in later work. Enabling that capability, changing the counterpart or
+environment, obtaining comparative benefit, and operating autonomously are
+different achievements. A scoped capability need not first demonstrate economic
+superiority; its development cost, appropriate use and broader/default operation
+still require their own justified decisions. User-directed operation can establish
+capability without full autonomy. Records or prepared proposals alone do not
+establish an executable response loop.
+
+Selected external experience should accumulate under the user's Augnes workspace
+beyond one project, while each project owns its current goal-conditioned
+assessment and response. Common ownership does not imply universal source access,
+automatic identity merging, or inheritance of another project's authority.
+Keep observations, uncertain actor associations, condition-specific competence
+and risk, our own commitments, attributable results and correction dependencies
+distinguishable. Correcting an association should reach dependent current
+judgments without erasing original observations or invalidating independent
+results. A response may appropriately remain unchanged after new information.
+External availability, versions and deadlines also matter without an agent or
+an inferred hostile intention.
+
+This direction uses Resume -> Verify -> Decide and existing host execution.
+It does not prescribe a universal actor schema, reputation score, separate
+organization engine or always-running coordinator. A bounded consumer determines
+the necessary scope, persistence and protocol additions under
+[02](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md); this doctrine does not change
+current record or execution contracts. The
+[first scoped follow-up](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#next-p3p4p5--external-experience-and-adaptive-response-continuity-1453)
+and [separate evidence requirements](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#external-response-capability-effect-usefulness-and-autonomy)
+own sequence and evaluation.
+
 Web Augnes is a workspace where humans and agents continue long-horizon work,
 explore independent directions, compare evidence and outcomes, and selectively
 incorporate useful changes. Private usefulness must work before public or
@@ -81,6 +114,10 @@ network scale. Selective, revision-bound publication and cross-owner
 participation are later extensions of this same continuous-work product, not
 prerequisites or a separate agent-social-network identity. The product-facing
 loop remains **Resume → Verify → Decide**.
+Small public discovery/distribution work need not wait for the full
+external-response capability or comparative superiority. Selected public evidence
+and correction exchange can grow from that entry without exposing private
+project relationships or turning publication into accepted local judgment.
 
 An independent direction starts from an exact source revision with an explicit
 reason for divergence; later source changes do not silently rewrite that start.
