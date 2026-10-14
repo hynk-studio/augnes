@@ -17,13 +17,18 @@
    npm run augnes:service:install
    ```
 
-   After connecting the exact local project in the Browser, work-definition
-   and Browser decision surfaces in a source checkout use the existing local
-   review session owner. From another terminal in this repository, run
-   `npm run augnes -- access`; it restarts the one supervised runtime and
-   prints one expiring token for the visible Browser unlock form. The token is
-   local review access, not execution or semantic authority. Do not place it
-   in project files, prompts, issue comments, or verification evidence.
+   Connect the intended local project in the Browser. If you want to use its
+   protected Browser editors, run `npm run augnes -- access` from another
+   terminal in the service checkout. For an installed healthy Companion with
+   first-work access support, it verifies the existing service and prints one
+   expiring token for that project's Browser unlock form **without stopping or
+   restarting the runtime**. Unavailable access support refuses without repair
+   or a lifecycle change. Only the separate standalone source/pilot path retains
+   the historical stop, issue and project-scoped restart sequence. This token
+   is local project review access, not execution or semantic authority. Do not
+   place it in project files, prompts, issue comments, or verification evidence.
+   Ordinary Operator reads and preparation below do not require this Browser
+   token.
 
 3. From Codex in a registered local repository, ask:
 
@@ -42,17 +47,20 @@ npm run augnes:service:uninstall
 ```
 
 Explicit Stop is durable across login and LaunchAgent reload; only an explicit
-Start or Install returns the exact service to running. Augnes permits one
+Start returns the exact service to running; install/update preserves an existing
+stopped intent. Augnes permits one
 production Companion service per local user session. Installing or starting a
 different checkout refuses without stopping, adopting, rewriting, or removing
 the existing checkout service.
 
-The guarded plugin setup uses the locally verified Codex CLI `0.147.0` plugin
-surface; that build uses `plugin add`, not a nonexistent `plugin install`
-command. It refreshes an already-installed local plugin, requires effective
-version 0.5.0, verifies the cached manifest/proxy/service core/skills as one
+The guarded plugin setup uses the reviewed CLI `plugin marketplace list/add`
+and `plugin add` surface (originally verified with Codex CLI `0.147.0`). The host
+CLI version, Operator package version and Companion protocol/configuration
+versions are separate identities. The checked-in manifest and installer both
+require Operator **0.5.0**. Setup refreshes an already-installed local plugin
+and verifies the cached manifest/proxy/service core/skills as one
 reviewed copy, rejects a retained default `hooks/hooks.json`, and refuses any
-silently retained 0.3.0 cache. The
+silently retained older cache. The
 plugin and checkout service installs are explicit setup actions. No fixed bridge URL or copied
 user-level MCP config is required. The plugin manifest points to `.mcp.json`,
 which starts `mcp/companion-proxy.mjs` as a per-session stdio server. Current
@@ -71,12 +79,55 @@ words in command output. No `Stop` hook is registered, so an automatic
 continuation cannot replace or condense the assistant's final answer.
 
 Plugin version 0.5.0 replaces stale pre-0.5 workflow-skill inventories while
-preserving the same Companion lifecycle and repository-continuity owners. Start a new
-Codex conversation after refreshing the repo-local marketplace and plugin so
+preserving the same Companion lifecycle and repository-continuity owners.
+Equal version labels alone do not prove equal cached bytes or a loaded client's
+tool inventory. A supported runtime schema difference alone is not a defect;
+the existing compatibility checks decide. When adopting a reviewed update,
+use the normal installer and start a new Codex conversation so
 the proxy, skill, and default prompt all come from the same reviewed version;
 the trusted checkout supplies project-local hooks separately. Setup
 verification fails closed if another cached version or a cached default hook config remains
-effective.
+effective. These are explicit setup/update steps, not a remedy to repeat for
+every connection failure. An existing conversation may still hold its old proxy
+and skills after the cache changes. Candidate source tests do not establish
+that a new Codex conversation loaded the candidate.
+
+## Ordinary use and recovery
+
+With the host already authenticated and the service/plugin set up:
+
+1. Ask **“Resume this repository with Augnes and read the saved notes.”** Use
+   the intended registered project folder. Operator resolves the project and
+   obtains its current snapshot through ordinary readers.
+2. Ask for a specific permitted change. Inspect the preview, save within that
+   authorization, then Resume and read the saved definition and selected notes.
+   This does not start another model or managed worker.
+3. Reopen the same project in a new conversation and ask to Resume/read again.
+   Check the project name, saved text and revision. Do not paste old bindings
+   or reconstruct missing work from conversation memory.
+4. On a connection problem, preserve the result and use the supported action
+   below. If a save may have committed, reconnect and Resume/read the saved
+   outcome **before any replacement write**. Preview again only after an
+   explicit decision based on that readback; never silently rebase or retry.
+
+| Observed result | Meaning and one supported next action |
+| --- | --- |
+| Operator tools absent from this client's inventory | The client has no callable Operator entry; this says nothing about model login or Companion health. Check the host's installed/enabled Augnes Operator entry. If setup is missing, use the one-time setup above; after a verified reviewed refresh, open a new conversation. |
+| No verified Companion, generic transport failure, or `companion_unavailable` | The cause is unknown. Read `augnes_companion_lifecycle_status` for the application/service checkout (or `npm run augnes:service:status` there) and follow its one offered action. Do not infer a login failure. |
+| `companion_channel_refused` | The private Augnes channel was refused, independently of host model login. Read the service's lifecycle status; do not substitute a Browser token or copy credentials. |
+| `companion_identity_changed` | The connection's runtime identity changed. Read lifecycle status before an explicit fresh Resume; preserve any pending save for readback. |
+| `companion_service_configuration_version_stale` or an invalid/incompatible response | The loaded reader cannot establish compatibility. Compare current source status with the installed/cache/loaded client before choosing a reviewed update. A stale reader is not proof the service needs reinstallation. |
+| Browser `operator_session_scope_mismatch` or expired/revoked local access | Keep the original project tab and its draft. Unlock that exact project through the normal local review access flow. Another project's token cannot authorize it. |
+| `refresh_required`, `preview_changed`, or a source-currentness conflict | Keep the draft. Resume/read the current saved work and explicitly compare it before preparing another preview. |
+| `save_outcome_unknown` | A write may already have committed. Resume/read to reconcile the actual saved outcome; do not send a replacement save. |
+| Explicit managed-run `codex_not_authenticated` | The managed adapter actually observed missing host authentication. Sign in through the supported Codex host login flow before a separately authorized managed run. This is not a prerequisite for ordinary Operator reads or preparation. |
+
+Browser drafts are retained in their owning tab's memory while access is
+unavailable; keep the tab open or copy the text. Cancelling recovery grants no
+access and saves nothing. The Operator does not own a durable unsaved draft:
+retain the proposed text in the current client. Saved history remains in Augnes.
+Managed execution still requires its separate attachment, Browser confirmation
+and execution grant. Connection recovery creates none of these permissions.
 
 ## What the proxy does
 
@@ -120,10 +171,9 @@ Companion channel to read the current packet's selected notes. Supply
 Browser login/token is required for this read; Browser authentication and
 mutation controls are unchanged. See the
 [source-read contract](../../docs/CODEX_CURRENT_CONTINUITY_V0_1.md#explicit-current-work-source-read).
-After this change is merged, refresh the local plugin normally with
-`npm run augnes:plugin:install` and start a fresh Codex session to load its tool
-inventory. The Companion UI must run the matching merged source through its
-normal lifecycle. Candidate qualification in a disposable runtime does not
+If the loaded client lacks this tool, compare it with the reviewed installed
+package before an explicit update. The Companion UI must support the requested
+contract through its normal lifecycle. Candidate qualification in a disposable runtime does not
 update the installed production plugin/service or establish rollout.
 
 The separately authorized `augnes_preview_repository_work_revision` and
@@ -132,8 +182,7 @@ editing over that authenticated channel. Preview does not write; save invokes
 the existing atomic revision owner with exact snapshot/content binding. No
 Browser token is issued or transferred. See the
 [revision contract](../../docs/CODEX_CURRENT_CONTINUITY_V0_1.md#explicit-preview-and-save-of-prepared-work).
-After merge, the normal installer and exact Companion lifecycle refresh are
-needed to make this candidate capability available in a fresh installed session.
+Only an explicitly adopted reviewed update changes an installed client's tools.
 Testing candidate code never refreshes the production installation implicitly.
 
 The same verified Companion exposes the CDX2B2A tools

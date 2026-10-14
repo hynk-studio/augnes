@@ -302,6 +302,10 @@ try {
   assert.equal(staleStopped.loaded, false);
   assert.equal(staleStopped.runtime.verified, false);
   const staleStoppedProjection = publicCompanionServiceProjection(staleStopped);
+  const incompatibleReader = publicCompanionServiceProjection({ ...staleStopped,
+    reason: "companion_service_configuration_version_stale" });
+  assert.match(incompatibleReader.next_action, /Compare the loaded Operator client.*service status/u);
+  assert.doesNotMatch(incompatibleReader.next_action, /reinstall|restart|log in/iu);
   assert.equal(staleStoppedProjection.status, "service_update_required");
   assert.equal(staleStoppedProjection.reason, "companion_service_configuration_stale");
   assert.equal(staleStoppedProjection.checkout_relation, "exact");

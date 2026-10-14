@@ -16,6 +16,7 @@ import { POST as resumePOST } from "../app/api/augnes/read/codex-repository-cont
 import { POST as sourcesPOST } from "../app/api/augnes/read/codex-repository-work-sources/route";
 import { handleMessageV01 } from "../plugins/augnes-operator/mcp/companion-proxy.mjs";
 import { runFirstWorkExampleChild } from "./companion-first-work-consumer.mjs";
+import { runConnectionRoundtripChild } from "./companion-connection-roundtrip.mjs";
 import { validateRecoveryCanonicalDatabaseV01 } from "./recovery-canonical-record-validator";
 
 /** Real proxy discovery/dispatch, HTTP, authenticated route, writer and parser.
@@ -35,6 +36,7 @@ export async function assertCompanionWorkRevisionEnvelopeV01(temporaryRoot: stri
     "x-augnes-companion-proxy": token, "x-augnes-runtime-instance": identity.instance_id,
     "x-augnes-runtime-generation": identity.generation_id, "x-augnes-runtime-repository": identity.repository_fingerprint };
   let loseInitialResponse = false;
+  let loseRevisionResponse = false;
   const server = createServer(async (incoming, outgoing) => {
     try {
       const url = new URL(incoming.url!, "http://127.0.0.1");
@@ -59,6 +61,10 @@ export async function assertCompanionWorkRevisionEnvelopeV01(temporaryRoot: stri
         bytes: bytes.byteLength, status: response.status, response_bytes: Buffer.byteLength(body) });
       if (loseInitialResponse && route === revisionPOST && JSON.parse(bytes.toString()).intent === "initial_work" && response.status === 200) {
         loseInitialResponse = false; outgoing.destroy(); return;
+      }
+      if (loseRevisionResponse && route === revisionPOST && JSON.parse(bytes.toString()).action === "save" &&
+          !JSON.parse(bytes.toString()).intent && response.status === 200) {
+        loseRevisionResponse = false; outgoing.destroy(); return;
       }
       outgoing.writeHead(response.status, Object.fromEntries(response.headers)); outgoing.end(body);
     } catch { outgoing.writeHead(500); outgoing.end(); }
@@ -346,6 +352,61 @@ export async function assertCompanionWorkRevisionEnvelopeV01(temporaryRoot: stri
     assert.equal(validateRecoveryCanonicalDatabaseV01(db).status, "valid");
     console.log(JSON.stringify({ concurrent_initial_creation: racers.map(result => ({ status: result.status, reason: result.reason })), unique_genesis: true,
       changed_runtime_authentication_role_recovery_and_root_refused: true, unrelated_selection_independent: true, explicit_resume_reconciled: true }));
+    // #1212: ordinary tools in separate protocol processes, not copied context
+    // or direct database writes. Discovery uses the supported runtime-dir hint.
+    const unicodeRoot = path.join(temporaryRoot, "연결-복구-🧭"); mkdirSync(unicodeRoot);
+    const unicodeProject = getOrCreateCanonicalProjectForLocalRootV01(db, { workspace_id: scope.workspace_id,
+      local_root: normalizeLocalProjectRootRefV01(unicodeRoot, { base_path: temporaryRoot }), display_name: "한국어 연결 복구 🧭" }).project;
+    const unicodeScope = { workspace_id: scope.workspace_id, project_id: unicodeProject.project_id };
+    select(unicodeProject.project_id);
+    loseRevisionResponse = true;
+    const writesBefore = observations.filter(row => row.action === "save").length;
+    const writer = await runConnectionRoundtripChild("write", unicodeRoot, runtimeRoot);
+    assert.equal(writer.save.structuredContent.status, "outcome_unknown");
+    assert.match(writer.save.content[0].text, /may have committed[\s\S]*Resume[\s\S]*read/);
+    assert.equal(observations.filter(row => row.action === "save").length, writesBefore + 2, "one initial save and one revision; no replacement write");
+    // Reopen while an unrelated project is selected. The reader receives only
+    // the registered folder, never the prior packet, project ID, text or binding.
+    select(consumerScope.project_id);
+    const freshUnicode = await runConnectionRoundtripChild("read", unicodeRoot, runtimeRoot);
+    assert.equal(freshUnicode.project.status, "resolved_exact");
+    assert.equal(freshUnicode.project.display_name, "한국어 연결 복구 🧭");
+    assert.equal(freshUnicode.continuity.current_work.goal, "한국어 작업 — café / e\u0301 / 🧭");
+    assert.equal(freshUnicode.continuity.managed_execution.stage, "no_run");
+    assert.equal(freshUnicode.sources.structuredContent.status, "available");
+    assert.equal(freshUnicode.sources.structuredContent.sources[0].excerpt_text, "첫 줄: 한글 🧭\n둘째 줄: e\u0301 ≠ é\n탭\t과  두 칸 — 원문 보존.");
+    const unicodeChain = inspectPreExecutionProjectWorkRevisionChainV01(db, unicodeScope);
+    assert.equal(unicodeChain.revision_count, 1);
+    assert.equal(unicodeChain.packets[0].integrity.fingerprint, writer.first_packet);
+    assert.equal(freshUnicode.sources.structuredContent.packet_fingerprint, unicodeChain.tip_packet.integrity.fingerprint);
+    const preserved = db.serialize();
+    const cancelled = await runConnectionRoundtripChild("cancel-preview", unicodeRoot, runtimeRoot);
+    assert.equal(cancelled.cancelled, true); assert.deepEqual(db.serialize(), preserved);
+    // Rotate only the synthetic route-side credential. Discovery remains valid;
+    // the real authenticated reader refuses this now-stale channel.
+    process.env.AUGNES_COMPANION_PROXY_TOKEN = "rotated-disposable-channel";
+    try {
+      const denied = await runConnectionRoundtripChild("read", unicodeRoot, runtimeRoot);
+      assert.equal(denied.refused.isError, true);
+      assert.equal(denied.refused.structuredContent.repository_resolution.message, "companion_channel_refused");
+      assert.match(denied.refused.content[0].text, /Companion channel[\s\S]*lifecycle status/);
+      assert.equal(denied.refused.structuredContent.continuity, null);
+    } finally { process.env.AUGNES_COMPANION_PROXY_TOKEN = token; }
+    assert.deepEqual(db.serialize(), preserved);
+    const recoveredUnicode = await runConnectionRoundtripChild("read", unicodeRoot, runtimeRoot);
+    assert.deepEqual(recoveredUnicode.project, freshUnicode.project);
+    assert.equal(recoveredUnicode.continuity.snapshot.binding, freshUnicode.continuity.snapshot.binding);
+    assert.deepEqual(recoveredUnicode.sources.structuredContent, freshUnicode.sources.structuredContent);
+    assert.deepEqual(db.serialize(), preserved);
+    assert.equal(observations.filter(row => row.action === "save").length, writesBefore + 2);
+    assert.equal((db.prepare("SELECT COUNT(*) AS n FROM autonomy_runs").get() as { n: number }).n, 0);
+    assert.equal(validateRecoveryCanonicalDatabaseV01(db).status, "valid");
+    console.log(JSON.stringify({ ordinary_connection_roundtrip: "pass", protocol_processes: 5,
+      fixture: "synthetic discovery health/manifest and channel; production proxy/HTTP/routes/writers/readers",
+      normal_runtime_directory_discovery: true, korean_unicode_exact: true, revision_count: 1,
+      packet_fingerprint: unicodeChain.tip_packet.integrity.fingerprint, uncertain_save_reconciled_without_replacement: true,
+      channel_refusal_and_explicit_recovery: true, cancelled_preview_no_write: true,
+      unrelated_project_selection_preserved: true, managed_runs: 0, actual_codex_conversation: "NOT_RUN" }));
     return { databasePath, root, scope, operator_id: COMPANION_WORK_OPERATOR_ID_V01, selected, goal: initial.task.goal };
   } finally {
     try {

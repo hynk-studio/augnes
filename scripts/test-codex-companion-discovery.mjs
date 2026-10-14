@@ -201,7 +201,7 @@ const ui = createServer(async (request, response) => {
     response.setHeader("x-augnes-runtime-instance", instance);
     response.setHeader("x-augnes-runtime-generation", sourcesScenario.generation ?? generation);
     response.setHeader("x-augnes-runtime-repository", repository);
-    return response.end(JSON.stringify(sourcesScenario.body));
+    return response.writeHead(sourcesScenario.status ?? 200).end(JSON.stringify(sourcesScenario.body));
   }
   if (url.pathname === "/api/augnes/read/codex-repository-retained-sources" && request.method === "POST") {
     retainedCalls++;
@@ -465,12 +465,38 @@ try {
     } }), /invalid_repository_tool_request/u, "private delivery mode is not a new local Operator argument");
     sourcesScenario = { body: sourceProjection };
     assert.equal((await callSources()).structuredContent.status, "available");
+    for (const [status, code, next] of [
+      [403, "companion_channel_refused", /Companion channel.*lifecycle status/su],
+      [409, "companion_identity_changed", /connection identity.*lifecycle status/su],
+      [503, "companion_unavailable", /cause is unknown.*lifecycle status/su],
+    ]) {
+      sourcesScenario = { status, body: { error: { code, status } } };
+      const refused = await callSources();
+      assert.equal(refused.isError, true);
+      assert.equal(refused.structuredContent.repository_resolution.message, code);
+      assert.match(refused.content[0].text, next);
+      assert.equal(refused.structuredContent.continuity, null);
+    }
+    for (const body of [
+      { error: { code: "private-path-and-token-must-not-escape", status: 403 } },
+      { error: { code: "companion_channel_refused", status: 409 } },
+      { error: { code: "companion_channel_refused", status: 403, private: "must-not-escape" } },
+      { error: { code: ["companion_channel_refused"], status: 403 } },
+    ]) {
+      sourcesScenario = { status: 403, body };
+      const unknown = await callSources();
+      assert.equal(unknown.isError, true);
+      assert.match(unknown.content[0].text, /cause is unknown/u);
+      assert.doesNotMatch(JSON.stringify(unknown), /must-not-escape|log in|sign in/u);
+    }
     sourcesScenario = { body: { ...sourceProjection, snapshot_binding: `sha256:${"b".repeat(64)}` } };
     assert.equal((await callSources()).isError, true, "foreign/replayed snapshot response must refuse");
     sourcesScenario = { body: sourceProjection, generation: "stale-generation" };
     assert.equal((await callSources()).isError, true, "stale runtime response identity must refuse");
     sourcesScenario = { body: { ...sourceProjection, extra_private_field: "not allowed" } };
-    assert.equal((await callSources()).isError, true, "unknown DTO fields must not escape the proxy");
+    const incompatible = await callSources();
+    assert.equal(incompatible.isError, true, "unknown DTO fields must not escape the proxy");
+    assert.match(incompatible.content[0].text, /loaded Operator contract.*Compare the loaded Operator/su);
     sourcesScenario = { body: { ...sourceProjection, status: "refresh_required", reason: "snapshot_changed", snapshot_binding: null, packet_fingerprint: null } };
     assert.equal((await callSources()).structuredContent.status, "refresh_required");
     const retainedProjection = {
@@ -647,7 +673,22 @@ try {
       assert.match(unknown.content[0].text, /may have committed/u);
     }
     workRevisionScenario = { status: 409, body: { error: { code: "refresh_required", status: 409 } } };
-    assert.equal((await save()).structuredContent.reason, "refresh_required");
+    const staleSave = await save();
+    assert.equal(staleSave.structuredContent.reason, "refresh_required");
+    assert.match(staleSave.content[0].text, /Keep the draft.*Resume.*read/su);
+    for (const [status, reason, message] of [
+      [403, "companion_channel_refused", /Companion channel.*lifecycle status/su],
+      [409, "companion_identity_changed", /connection identity.*lifecycle status/su],
+      [503, "companion_unavailable", /cause is unknown.*lifecycle status/su],
+    ]) {
+      workRevisionScenario = { status, body: { error: { code: reason, status } } };
+      const previous = workRevisionCalls;
+      const refused = await save();
+      assert.equal(refused.structuredContent.reason, reason);
+      assert.match(refused.content[0].text, message);
+      assert.doesNotMatch(refused.content[0].text, /log in|sign in|reinstall|restart/iu);
+      assert.equal(workRevisionCalls, previous + 1);
+    }
     workRevisionScenario = { status: 422, body: { error: { code: "retained_source_changed_or_unavailable", status: 422 } } };
     assert.equal((await save()).structuredContent.reason, "retained_source_changed_or_unavailable");
     for (const status of ["previewed", "saved", "exact_replay"]) {
@@ -714,6 +755,7 @@ try {
     plugin_default_prompt_admitted_by_codex: true,
     plugin_default_hooks_absent_and_project_hooks_local: true,
     synthetic_discovery_harness: true,
+    bounded_read_and_save_recovery_guidance: true,
   }, null, 2));
 } finally {
   await Promise.all([close(ui), close(bridge)]);

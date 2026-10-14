@@ -48,6 +48,31 @@ an unmerged candidate into the live cache to make an observation pass.
    GuideBrief, Work Brief, names, branches, GitHub URLs, or active Browser
    selection.
 
+## A refused connection
+
+Keep host model login, Augnes channel/project access and managed execution
+separate. Generic unavailability does not prove an authentication failure.
+Use the visible result's bounded next action. If no verified Companion can be
+selected, read lifecycle status for the application/service checkout; do not
+start, reinstall, reauthenticate or retry merely because a read failed.
+`companion_channel_refused` concerns the private Companion channel, not the
+host login or Browser token. `companion_identity_changed` requires status
+inspection before an explicit fresh Resume. Preserve unknown causes as unknown.
+
+If tools are absent, check the host's installed/enabled Operator entry. Compare
+checked-in, cached and currently loaded client identities when compatibility is
+refused; matching version labels alone do not prove matching code. A loaded
+reader's `companion_service_configuration_version_stale` is not sufficient
+evidence to reinstall a service. After a separately authorized reviewed package
+refresh, a new conversation can load its proxy and skills; do not install a
+candidate or create another login/profile for ordinary work.
+
+For wrong/expired Browser project access, keep the original tab and draft and
+use its normal project unlock flow. Cancelling recovery changes no authority.
+For stale work, retain the proposed text, explicitly Resume/read and compare
+before preparing a new preview. For an uncertain save, reconcile the saved
+outcome first using the readback rule below. No recovery step grants execution.
+
 ## Ordinary work: choose the current task's branch
 
 Within the user's authorized purpose, preview, explicit save and fresh-binding
