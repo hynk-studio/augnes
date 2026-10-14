@@ -41,6 +41,42 @@ assert.equal(ambiguousConnection.result.structuredContent.reason, "companion_amb
 assert.equal(ambiguousConnection.result.structuredContent.sources, undefined);
 assert.equal(connectedDiscoveryCalls, 1);
 
+// Both shared read producers now return confirmed refusal codes. Preserve the
+// connected reader's public outcomes without classifying HTTP status alone.
+const connectedKey = `sha256:${"a".repeat(64)}`;
+for (const stage of ["continuity", "sources"]) {
+  for (const [code, status, reason] of [
+    ["companion_channel_refused", "unauthorized", "companion_authentication_refused"],
+    ["companion_identity_changed", "refresh_required", "companion_identity_changed"],
+    ...["companion_unavailable", "live_companion_read_unavailable", "live_companion_route_status_403",
+      "live_companion_sources_status_409", "private-path-and-token-must-not-escape"].map(code =>
+      [code, "unavailable", "companion_read_unavailable_or_invalid"]),
+  ]) {
+    let reads = 0;
+    const refuse = async () => { reads++; throw new Error(code); };
+    const reader = createConnectedProjectReaderV01({ repositoryRoot: process.cwd(), projectKey: connectedKey }, {
+      discover: async () => ({ status: "resolved", companion: {} }),
+      readContinuity: stage === "continuity" ? refuse : async () => ({
+        repository_resolution: { status: "resolved_exact", project_key: connectedKey },
+        continuity: { project: { project_key: connectedKey, root_availability: "available" },
+          current_work: { status: "current_work", currentness: "fresh" }, source_status: "exact",
+          snapshot: { status: "exact", binding: connectedKey } },
+      }),
+      readSources: refuse,
+    });
+    const response = (await reader({ jsonrpc: "2.0", id: 1, method: "tools/call",
+      params: { name: "augnes_read_connected_project_work", arguments: {} } })).result;
+    assert.equal(response.isError, true);
+    assert.equal(response.structuredContent.status, status);
+    assert.equal(response.structuredContent.reason, reason);
+    assert.equal(reads, 1, "a refusal must not retry either reader");
+    for (const key of ["current_work", "sources", "snapshot", "packet_fingerprint", "project"])
+      assert.equal(Object.hasOwn(response.structuredContent, key), false);
+    assert.equal(Object.values(response.structuredContent.authority).every(value => value === false), true);
+    assert.doesNotMatch(JSON.stringify(response), /private-path-and-token/u);
+  }
+}
+
 const requireMcpSdk = createRequire(path.join(process.cwd(), "apps", "augnes_apps", "package.json"));
 const { Client } = requireMcpSdk("@modelcontextprotocol/sdk/client/index.js");
 const { StdioClientTransport } = requireMcpSdk("@modelcontextprotocol/sdk/client/stdio.js");

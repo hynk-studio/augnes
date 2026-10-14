@@ -154,6 +154,9 @@ provider-login failure or prove that the installed service is stale. The
 existing lifecycle status is the next action for connection failures. A
 configuration-version refusal first requires comparison of current source,
 installed/cache and loaded client state before an update decision.
+The opt-in connected-project reader consumes the same confirmed codes to retain
+its `unauthorized` and `refresh_required` outcomes without inferring either from
+an HTTP status alone. Refusals expose no work material and do not retry.
 
 Work currentness conflicts retain the client's proposed text and require
 explicit Resume/source read before another preview. A lost or invalid save
