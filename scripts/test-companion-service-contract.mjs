@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
-import { spawn, spawnSync } from "node:child_process";
+import childProcess, { spawn, spawnSync } from "node:child_process";
+import { syncBuiltinESMExports } from "node:module";
 import { once } from "node:events";
 import { createHash, randomUUID } from "node:crypto";
 import { mock } from "node:test";
@@ -10,6 +11,7 @@ import {
   chmodSync,
   copyFileSync,
   existsSync,
+  fstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -76,6 +78,23 @@ const options = {
   homeDirectory: home,
   testScope: "contract-primary",
 };
+
+// This older lifecycle matrix repeatedly resolves the same immutable directory
+// fixtures. Reuse only the helper's fixture result, keyed by current descriptor
+// identity/birth. JS path/descriptor checks still execute on every call. The
+// dedicated checkout-identity test exercises the real uncached provider and
+// enrollment/lifecycle boundaries; no production observation cache is installed.
+const durableFixtureResults = new Map();
+const originalSpawnSync = childProcess.spawnSync;
+const fixtureProvider = mock.method(childProcess, "spawnSync", (command, args, options) => {
+  if (command !== "/usr/bin/python3" || args?.at(-1) !== path.join(repositoryRoot, "plugins/augnes-operator/mcp/checkout-identity-darwin.py"))
+    return originalSpawnSync(command, args, options);
+  const stat = fstatSync(options.stdio[3], { bigint: true });
+  const key = [stat.dev, stat.ino, stat.uid, stat.birthtimeNs].join(":");
+  if (!durableFixtureResults.has(key)) durableFixtureResults.set(key, originalSpawnSync(command, args, options));
+  return durableFixtureResults.get(key);
+});
+syncBuiltinESMExports();
 
 try {
   await assertPreservationObservation();
@@ -878,6 +897,8 @@ try {
     real_provider_calls: 0,
   }, null, 2));
 } finally {
+  fixtureProvider.mock.restore();
+  syncBuiltinESMExports();
   rmSync(root, { recursive: true, force: true });
 }
 
@@ -885,7 +906,7 @@ function writeInstalledServiceFixture({ options: fixtureOptions, node, desiredSt
   const layout = resolveCompanionServiceLayout(fixtureOptions);
   const configuration = {
     contract: COMPANION_SERVICE_CONTRACT,
-    schema_version: 1,
+    schema_version: 2,
     manager_version: 1,
     service_label: layout.service_label,
     service_identity: layout.service_identity,
@@ -893,6 +914,7 @@ function writeInstalledServiceFixture({ options: fixtureOptions, node, desiredSt
     repository_fingerprint: layout.repository.repository_fingerprint,
     repository_device: layout.repository.device,
     repository_inode: layout.repository.inode,
+    repository_identity: layout.repository.durable_identity,
     node_path: node.path,
     node_version: node.version,
     manager_entry_path: path.join(
@@ -976,6 +998,7 @@ async function runStaleCheckoutDecommissionContract({
     });
     const configuration = {
       ...fixture.configuration,
+      schema_version: 1,
       ...(changed === "device"
         ? {
             repository_device: differentCanonicalStatIdentity(
@@ -989,6 +1012,7 @@ async function runStaleCheckoutDecommissionContract({
           }),
       ...overrides,
     };
+    delete configuration.repository_identity;
     writeJson(fixture.layout.configuration_path, configuration);
     return { ...fixture, options: fixtureOptions, configuration };
   };
@@ -2119,6 +2143,8 @@ function makeServiceRepositoryFixture({ root: fixtureRoot, name, sourceRepositor
   const sources = [
     "scripts/augnes-companion-service.mjs",
     "plugins/augnes-operator/mcp/companion-service-core.mjs",
+    "plugins/augnes-operator/mcp/checkout-identity.mjs",
+    "plugins/augnes-operator/mcp/checkout-identity-darwin.py",
   ];
   for (const relativePath of sources) {
     const destination = path.join(repository, relativePath);

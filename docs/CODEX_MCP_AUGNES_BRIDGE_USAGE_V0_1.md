@@ -158,7 +158,12 @@ pins one Node 24 binary and survives terminal/Codex exit, login, and unexpected
 supervisor failure. It grants no repository execution, managed Resume,
 provider, semantic, publication, or merge authority. Explicit stop/uninstall
 remain available. Stop persists across a later login or LaunchAgent reload;
-only explicit Start or Install returns that exact service to running. One
+only explicit Start returns that exact service to running; Install/update
+preserves an existing stopped intent. New schema-2 installations use durable
+Darwin volume/object enrollment, separate from current process and source
+bindings. Legacy enrollment is explicit, quiescent and never performed by
+status/discovery. See [Companion checkout identity](COMPANION_CHECKOUT_IDENTITY.md)
+for supported commands and refusal/recovery limits. One
 production Companion service is allowed per local user session, and a
 different checkout refuses without mutating the existing service. Linux and
 Windows service installation are unsupported.

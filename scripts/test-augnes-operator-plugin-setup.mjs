@@ -53,14 +53,16 @@ try {
   assert.equal(addCalls, 1);
   assert.equal(verified.version, "0.5.0");
   assert.equal(verified.stale_cache_versions, 0);
-  assert.equal(verified.reviewed_files_verified, 13);
+  assert.equal(verified.reviewed_files_verified, 15);
   assert.equal(verified.canonical_developer_identity, true);
-  const externalModule = path.join(currentCache, "mcp", "external-response.mjs");
-  const externalBytes = readFileSync(externalModule);
-  writeFileSync(externalModule, "// altered external-response entry\n");
-  assert.throws(() => verifyOperatorPluginCache({ cacheRoot, installedPath: currentCache }),
-    error => error?.code === "operator_plugin_cache_content_mismatch");
-  writeFileSync(externalModule, externalBytes);
+  for (const name of ["external-response.mjs", "checkout-identity.mjs", "checkout-identity-darwin.py"]) {
+    const module = path.join(currentCache, "mcp", name);
+    const bytes = readFileSync(module);
+    writeFileSync(module, "# altered reviewed entry\n");
+    assert.throws(() => verifyOperatorPluginCache({ cacheRoot, installedPath: currentCache }),
+      error => error?.code === "operator_plugin_cache_content_mismatch");
+    writeFileSync(module, bytes);
+  }
   verifyNoPluginLifecycleHooks(sourceRoot);
   verifyNoPluginLifecycleHooks(currentCache);
   verifyProjectHooks();

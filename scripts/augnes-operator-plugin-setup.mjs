@@ -32,6 +32,8 @@ const REVIEWED_FILES = Object.freeze([
   "mcp/execution-choice.mjs",
   "mcp/external-response.mjs",
   "mcp/companion-service-core.mjs",
+  "mcp/checkout-identity.mjs",
+  "mcp/checkout-identity-darwin.py",
   "skills/augnes-autonomy-contract/SKILL.md",
   "skills/augnes-closeout-proof/SKILL.md",
   "skills/augnes-codex-surface-ops/SKILL.md",
