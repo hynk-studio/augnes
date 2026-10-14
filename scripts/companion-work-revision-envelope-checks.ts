@@ -16,12 +16,99 @@ import { POST as resumePOST } from "../app/api/augnes/read/codex-repository-cont
 import { POST as sourcesPOST } from "../app/api/augnes/read/codex-repository-work-sources/route";
 import { handleMessageV01 } from "../plugins/augnes-operator/mcp/companion-proxy.mjs";
 import { runFirstWorkExampleChild } from "./companion-first-work-consumer.mjs";
-import { runConnectionRoundtripChild } from "./companion-connection-roundtrip.mjs";
+import { consume, runConnectionRoundtripChild } from "./companion-connection-roundtrip.mjs";
 import { validateRecoveryCanonicalDatabaseV01 } from "./recovery-canonical-record-validator";
+
+/** Actual consume() control flow with deferred I/O, not an SDK shutdown race. */
+async function assertConnectionReadCleanupOrdering(root: string) {
+  const failures: unknown[] = [];
+  for (const outcome of ["fulfilled", "rejected"] as const) {
+    const events: string[] = [], calls: unknown[] = [], unhandled: unknown[] = [];
+    const sourceRead = Promise.withResolvers<unknown>();
+    const failure = new Error("controlled source-read failure");
+    const project = { project_id: "project:ordering", display_name: "읽기 순서 🧭" };
+    const continuity = { snapshot: { binding: `sha256:${"a".repeat(64)}` } };
+    const sources = { structuredContent: { sources: [{ text: "한글 e\u0301 ≠ é\n탭\t과  두 칸" }] } };
+    let transport: object, readStarted = false, readSettled = false;
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandled);
+    const completed = consume("read", root, {
+      Client: class {
+        async connect(value: object) { assert.equal(value, transport); }
+        async listTools() {
+          return { tools: ["augnes_resume_repository", "augnes_read_repository_work_sources"].map(name => ({ name })) };
+        }
+        callTool(request: { name: string; arguments: unknown }) {
+          calls.push(request);
+          if (request.name === "augnes_resume_repository") {
+            return Promise.resolve({ structuredContent: { repository_resolution: project, continuity } });
+          }
+          assert.equal(request.name, "augnes_read_repository_work_sources");
+          readStarted = true; events.push("read:started");
+          return sourceRead.promise.then(value => {
+            readSettled = true; events.push("read:fulfilled"); return value;
+          }, error => {
+            readSettled = true; events.push("read:rejected"); throw error;
+          });
+        }
+        async close() {
+          events.push("client:close:start"); await Promise.resolve(); events.push("client:close:end");
+        }
+      },
+      StdioClientTransport: class {
+        constructor() { transport = this; }
+        async close() {
+          events.push("transport:close:start"); await Promise.resolve(); events.push("transport:close:end");
+        }
+      },
+    }).then(value => ({ status: "fulfilled" as const, value }), reason => ({ status: "rejected" as const, reason }));
+    const settle = () => outcome === "fulfilled" ? sourceRead.resolve(sources) : sourceRead.reject(failure);
+    let pendingCleanupStarted = false;
+    try {
+      // Drain the connect/catalog/resume microtasks and allow finally to run.
+      // The source read remains explicitly pending; no elapsed-time assumption.
+      await new Promise<void>(resolve => setImmediate(resolve));
+      assert(readStarted, "the actual consume function must start its source read");
+      assert.equal(readSettled, false);
+      pendingCleanupStarted = events.some(event => event.includes(":close:"));
+      assert.deepEqual(events, ["read:started"], "neither resource may close while the source read is pending");
+      settle();
+      const result = await completed;
+      if (outcome === "fulfilled") {
+        assert.equal(result.status, "fulfilled");
+        assert.deepEqual(result.value, { project, continuity, sources });
+        assert.equal(result.value.sources, sources, "preserve the exact source result");
+      } else {
+        assert.equal(result.status, "rejected");
+        assert.equal(result.reason, failure, "preserve the original read failure");
+      }
+      assert.deepEqual(events, ["read:started", `read:${outcome}`, "client:close:start", "client:close:end",
+        "transport:close:start", "transport:close:end"]);
+    } catch (error) { failures.push(error); }
+    finally {
+      // Also drain both cases on the intentionally failing pre-fix run.
+      settle(); await completed;
+      await new Promise<void>(resolve => setImmediate(resolve));
+      process.off("unhandledRejection", onUnhandled);
+    }
+    assert(readSettled, "no synthetic source read may remain pending");
+    assert.deepEqual(unhandled, [], "read rejection must have an observer");
+    assert.deepEqual(calls, [
+      { name: "augnes_resume_repository", arguments: { repositoryRoot: root } },
+      { name: "augnes_read_repository_work_sources", arguments: { repositoryRoot: root, expectedSnapshotBinding: continuity.snapshot.binding } },
+    ], "consume must neither retry nor issue a replacement operation");
+    assert.equal(events.filter(event => event === "client:close:end").length, 1);
+    assert.equal(events.filter(event => event === "transport:close:end").length, 1);
+    console.log(JSON.stringify({ connection_read_cleanup_ordering: outcome, pending_cleanup_started: pendingCleanupStarted,
+      events, read_settled: readSettled, unhandled_rejections: unhandled.length, calls: calls.length }));
+  }
+  assert.equal(failures.length, 0, failures.map(error => String(error)).join("\n"));
+}
 
 /** Real proxy discovery/dispatch, HTTP, authenticated route, writer and parser.
  * Only discovery health and manifest are fixtures; no installed runtime is used. */
 export async function assertCompanionWorkRevisionEnvelopeV01(temporaryRoot: string) {
+  await assertConnectionReadCleanupOrdering(temporaryRoot);
   const root = path.join(temporaryRoot, "envelope-project");
   const runtimeRoot = path.join(temporaryRoot, "envelope-runtime");
   mkdirSync(root); mkdirSync(runtimeRoot);

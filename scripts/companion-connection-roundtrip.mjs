@@ -30,10 +30,15 @@ export async function runConnectionRoundtripChild(mode, root, runtimeRoot) {
   return JSON.parse(output);
 }
 
-async function consume(mode, repositoryRoot) {
+// Constructor injection lets the owning envelope test control read settlement;
+// this function still creates and closes both resources, including in the CLI.
+export async function consume(mode, repositoryRoot, {
+  Client: ClientConstructor = Client,
+  StdioClientTransport: TransportConstructor = StdioClientTransport,
+} = {}) {
   assert(path.isAbsolute(repositoryRoot));
-  const client = new Client({ name: "connection-roundtrip-fixture", version: "0.1.0" });
-  const transport = new StdioClientTransport({ command: process.execPath,
+  const client = new ClientConstructor({ name: "connection-roundtrip-fixture", version: "0.1.0" });
+  const transport = new TransportConstructor({ command: process.execPath,
     args: [path.join(repository, "plugins/augnes-operator/mcp/companion-proxy.mjs")],
     env: process.env, stderr: "pipe" });
   try {
@@ -50,7 +55,7 @@ async function consume(mode, repositoryRoot) {
       continuity: resumed.structuredContent.continuity,
       sources: await call("augnes_read_repository_work_sources", { repositoryRoot,
         expectedSnapshotBinding: resumed.structuredContent.continuity.snapshot.binding }) });
-    if (mode === "read") return read(first);
+    if (mode === "read") return await read(first);
     const before = first.structuredContent.continuity;
     if (mode === "cancel-preview") {
       const preview = await call("augnes_preview_repository_work_revision", { repositoryRoot,
