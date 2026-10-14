@@ -36,6 +36,24 @@ vNext 아키텍처는 다음을 동시에 만족해야 한다.
 
 ---
 
+## Companion lifecycle identity boundary
+
+Companion configuration schema 2 separates durable checkout enrollment from
+current filesystem/mount observations, process/runtime generation, and source
+or execution authority. The Darwin adapter enrolls an exact canonical path with
+a descriptor-observed persistent volume/object identity and birth witness;
+status, discovery and login do not manufacture missing legacy evidence. An
+explicit local, quiescent, material-bound enrollment is the legacy transition.
+Current operation/preservation witnesses remain strict even when a separate
+lifecycle observation recognizes durable continuity. Stopped intent is retained.
+The [implementation and operating contract](../COMPANION_CHECKOUT_IDENTITY.md)
+defines platform support, clone/snapshot limits, diagnostics and recovery.
+Existing Core state, native-host physical-root contracts, historical receipts,
+credentials and execution grants retain their meanings; none are promoted or
+revived by directory continuity.
+
+---
+
 ## 1. Logical Components
 
 ### 1.1 Augnes Core

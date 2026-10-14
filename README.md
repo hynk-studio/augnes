@@ -193,15 +193,22 @@ tokens, manifests, or database paths.
 <details>
 <summary>Companion lifecycle and recovery boundaries</summary>
 
+New installations enroll a descriptor-observed persistent
+Darwin volume/object identity; benign device renumbering between lifecycle
+observations does not require reinstallation. See the [identity and explicit
+legacy enrollment guide](docs/COMPANION_CHECKOUT_IDENTITY.md).
+
 Uninstall also has one destruction-only fail-closed path for an exact stored
-service whose same logical repository root has been physically replaced, as
-shown by device or inode drift. That path authenticates the stored service,
+service with conflicting checkout identity at the same logical repository root.
+Legacy device/inode drift is insufficient continuity evidence, not proof of
+physical replacement. The uninstall path authenticates the stored service,
 LaunchAgent, desired state, maintenance state, and owned processes before
 removal; it never starts or resumes the stale service. A moved root or changed
 logical repository fingerprint remains refused and requires separate operator
 recovery rather than being inferred from remote equality.
 Explicit Stop remains stopped across a later login or LaunchAgent reload; only
-an explicit Start or Install returns that exact service to running. One
+an explicit Start returns that exact service to running. Install/update preserves
+an existing stopped intent. One
 production Companion service may be installed per local user session, so setup
 or Start for another checkout refuses without changing the existing service.
 

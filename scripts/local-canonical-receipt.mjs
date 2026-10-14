@@ -308,7 +308,10 @@ export function inspectReceiptForDecision(receipt, options = {}) {
   if (isolated && ["before", "after"].some(side => {
     const state = service?.[side], observation = service?.observations?.[side];
     return state?.preservation_valid !== true || !SHA256_PATTERN.test(state?.preservation_binding ?? "") ||
-      observation?.contract !== "augnes.companion-preservation-observation.v1" ||
+      !["augnes.companion-preservation-observation.v1", "augnes.companion-preservation-observation.v2"].includes(observation?.contract) ||
+      (observation?.contract === "augnes.companion-preservation-observation.v2" &&
+        (!SHA256_PATTERN.test(observation.repository_binding_before ?? "") || observation.repository_binding_before !== observation.repository_binding_after ||
+          observation.repository_observation_before !== "observed" || observation.repository_observation_after !== "observed")) ||
       observation?.samples !== 1 || observation?.coherent !== true || observation?.live_identity_valid !== true ||
       observation?.before_binding !== state.preservation_binding || observation?.after_binding !== state.preservation_binding ||
       !Number.isFinite(Date.parse(observation?.started_at)) || !Number.isFinite(Date.parse(observation?.finished_at)) ||

@@ -22,6 +22,10 @@ import {
 import os from "node:os";
 import path from "node:path";
 
+import { observeCheckoutIdentity, observeCurrentCheckoutIdentity, currentCheckoutObservationBinding,
+  compareCompanionCheckoutIdentity, checkoutObservationBinding, validDurableCheckoutIdentity } from "./checkout-identity.mjs";
+
+export const COMPANION_SERVICE_CONFIGURATION_SCHEMA_VERSION = 2;
 export const COMPANION_SERVICE_CONTRACT = "augnes-companion-service.v0.1";
 export const COMPANION_SERVICE_DESIRED_STATE_CONTRACT =
   "augnes-companion-service-desired-state.v0.1";
@@ -51,6 +55,8 @@ const SERVICE_LABEL_PREFIX = "com.augnes.companion";
 const SERVICE_SOURCE_FILES = Object.freeze([
   "scripts/augnes-companion-service.mjs",
   "plugins/augnes-operator/mcp/companion-service-core.mjs",
+  "plugins/augnes-operator/mcp/checkout-identity.mjs",
+  "plugins/augnes-operator/mcp/checkout-identity-darwin.py",
 ]);
 const RUNTIME_CONTRACT = "augnes-local-runtime-supervisor-v1";
 const RUNTIME_SCHEMA_VERSION = 2;
@@ -474,6 +480,8 @@ export async function inspectCompanionService({
       startAvailable: false,
       resumeAvailable: false,
       reason: validation.reason,
+      loaded: validation.identity?.legacy_exact === true ? launchctlLoaded(layout, launchctl) : false,
+      runtime: validation.identity?.legacy_exact === true ? await inspectVerifiedRuntime({ layout, configuration }) : null,
     });
   }
 
@@ -740,12 +748,32 @@ export function publicCompanionServiceProjection(observation) {
     start_available: observation?.start_available === true,
     canonical_resume_available: observation?.resume_available === true,
     reason: observation?.reason ?? "companion_service_status_unavailable",
+    checkout_identity: observation?.checkout_identity ?? null,
     next_action: serviceNextAction(status, observation?.reason),
     authority: lifecycleAuthority(false),
   };
 }
 
-export async function installCompanionService({
+export async function installCompanionService(options = {}) {
+  assertSupportedServiceHost(options.platform ?? process.platform);
+  if (options.testRepositoryPhysicalIdentityOverride != null)
+    throw new PublicCompanionServiceError("companion_service_test_physical_identity_override_refused");
+  const layout = resolveCompanionServiceLayout(options);
+  requireDurableCheckoutIdentity(layout);
+  ensureOwnedDirectory(layout.service_directory);
+  const lock = await acquireLifecycleLock(layout, {
+    service_identity: layout.service_identity,
+    repository_fingerprint: layout.repository.repository_fingerprint,
+  }, options.waitMs ?? STOP_WAIT_MS);
+  try {
+    const result = await installCompanionServiceUnlocked({ ...options, operationLayout: layout });
+    assertCurrentCheckoutObservation(layout);
+    return result;
+  }
+  finally { releaseLifecycleLock(layout, lock); removeDirectoryIfEmpty(layout.service_directory); }
+}
+
+async function installCompanionServiceUnlocked({
   repositoryRoot,
   nodePath = process.execPath,
   environment = process.env,
@@ -755,6 +783,8 @@ export async function installCompanionService({
   testRepositoryPhysicalIdentityOverride = null,
   launchctl = defaultLaunchctl,
   waitMs = DEFAULT_LIVE_WAIT_MS,
+  start = true,
+  operationLayout = null,
 } = {}) {
   assertSupportedServiceHost(platform);
   if (testRepositoryPhysicalIdentityOverride !== null) {
@@ -769,6 +799,7 @@ export async function installCompanionService({
     homeDirectory,
     testScope,
   });
+  if (operationLayout) assertCurrentCheckoutObservation(operationLayout);
   if (readRegularJson(layout.stale_decommission_path).state !== "missing") {
     throw new PublicCompanionServiceError(
       "companion_service_stale_decommission_incomplete",
@@ -787,7 +818,7 @@ export async function installCompanionService({
   assertRegularNonSymlink(managerEntryPath, "companion_service_source_invalid");
   const configuration = {
     contract: COMPANION_SERVICE_CONTRACT,
-    schema_version: COMPANION_SERVICE_SCHEMA_VERSION,
+    schema_version: COMPANION_SERVICE_CONFIGURATION_SCHEMA_VERSION,
     manager_version: COMPANION_SERVICE_MANAGER_VERSION,
     service_label: layout.service_label,
     service_identity: layout.service_identity,
@@ -795,6 +826,7 @@ export async function installCompanionService({
     repository_fingerprint: layout.repository.repository_fingerprint,
     repository_device: layout.repository.device,
     repository_inode: layout.repository.inode,
+    repository_identity: requireDurableCheckoutIdentity(layout),
     node_path: node.path,
     node_version: node.version,
     manager_entry_path: managerEntryPath,
@@ -819,6 +851,7 @@ export async function installCompanionService({
   const existingConfiguration = readRegularJson(layout.configuration_path);
   const existingPlist = readRegularText(layout.launch_agent_path);
   const existingDesiredState = readRegularJson(layout.desired_state_path);
+  let desiredIntent = start ? "running" : "stopped";
   if (
     existingConfiguration.state !== "missing" ||
     existingPlist.state !== "missing" ||
@@ -840,11 +873,16 @@ export async function installCompanionService({
     if (!desiredValidation.valid) {
       throw new PublicCompanionServiceError(desiredValidation.reason);
     }
+    // Source update is not permission to undo the user's stopped intent.
+    desiredIntent = desiredValidation.record.desired_state;
     if (
       sameInstalledConfiguration(existingConfiguration.value, configuration) &&
       existingPlist.contents === plist
     ) {
-      return startCompanionService({
+      if (desiredIntent === "stopped") return lifecycleCommandResult("install", await inspectCompanionService({
+        repositoryRoot, environment, platform, homeDirectory, testScope, launchctl,
+      }), false);
+      return startCompanionServiceUnlocked({
         repositoryRoot,
         environment,
         platform,
@@ -854,7 +892,8 @@ export async function installCompanionService({
         waitMs,
       });
     }
-    if (!replaceableInstalledConfiguration(existingConfiguration.value, layout)) {
+    if (existingConfiguration.value.schema_version !== COMPANION_SERVICE_CONFIGURATION_SCHEMA_VERSION ||
+        !replaceableInstalledConfiguration(existingConfiguration.value, layout)) {
       throw new PublicCompanionServiceError(
         "companion_service_installation_conflict",
       );
@@ -868,7 +907,7 @@ export async function installCompanionService({
         "companion_service_update_maintenance_refused",
       );
     }
-    await stopCompanionService({
+    await stopCompanionServiceUnlocked({
       repositoryRoot,
       environment,
       platform,
@@ -899,16 +938,21 @@ export async function installCompanionService({
 
   ensureOwnedDirectory(layout.service_directory);
   ensureLaunchAgentDirectory(path.dirname(layout.launch_agent_path));
+  assertCurrentCheckoutObservation(layout);
   atomicWriteJson(layout.configuration_path, configuration, 0o600);
   let desiredState = null;
   try {
     desiredState = setExactDesiredState({
       layout,
       configuration,
-      desiredState: "running",
+      desiredState: desiredIntent,
       allowMissing: true,
     }).record;
     atomicWriteText(layout.launch_agent_path, plist, 0o600, true);
+    assertCurrentCheckoutObservation(layout);
+    if (desiredIntent === "stopped") return lifecycleCommandResult("install", await inspectCompanionService({
+      repositoryRoot, environment, platform, homeDirectory, testScope, launchctl,
+    }), true);
     const result = launchctl([
       "bootstrap",
       `gui/${currentUid()}`,
@@ -957,7 +1001,9 @@ export async function startCompanionService(options = {}) {
       STOP_WAIT_MS,
   );
   try {
-    return await startCompanionServiceUnlocked(options);
+    const result = await startCompanionServiceUnlocked({ ...options, operationLayout: preliminary.layout });
+    assertCurrentCheckoutObservation(preliminary.layout);
+    return result;
   } finally {
     releaseLifecycleLock(preliminary.layout, lock);
   }
@@ -972,6 +1018,7 @@ async function startCompanionServiceUnlocked({
   testRepositoryPhysicalIdentityOverride = null,
   launchctl = defaultLaunchctl,
   waitMs = DEFAULT_LIVE_WAIT_MS,
+  operationLayout = null,
 } = {}) {
   const before = await inspectCompanionService({
     repositoryRoot,
@@ -983,6 +1030,7 @@ async function startCompanionServiceUnlocked({
     launchctl,
   });
   if (before.layout) assertNoOtherProductionCompanionService(before.layout);
+  if (operationLayout) assertCurrentCheckoutObservation(operationLayout);
   if (before.status === "live") {
     return lifecycleCommandResult("start", before, false);
   }
@@ -1073,7 +1121,9 @@ export async function stopCompanionService(options = {}) {
       STOP_WAIT_MS,
   );
   try {
-    return await stopCompanionServiceUnlocked(options);
+    const result = await stopCompanionServiceUnlocked({ ...options, operationLayout: preliminary.layout });
+    assertCurrentCheckoutObservation(preliminary.layout);
+    return result;
   } finally {
     releaseLifecycleLock(preliminary.layout, lock);
   }
@@ -1088,6 +1138,7 @@ async function stopCompanionServiceUnlocked({
   testRepositoryPhysicalIdentityOverride = null,
   launchctl = defaultLaunchctl,
   waitMs = STOP_WAIT_MS,
+  operationLayout = null,
 } = {}) {
   const before = await inspectCompanionService({
     repositoryRoot,
@@ -1101,6 +1152,7 @@ async function stopCompanionServiceUnlocked({
   if (before.status === "not_installed") {
     return lifecycleCommandResult("stop", before, false);
   }
+  if (operationLayout) assertCurrentCheckoutObservation(operationLayout);
   if (!before.configuration || before.checkout_relation !== "exact") {
     throw new PublicCompanionServiceError("companion_service_stop_refused");
   }
@@ -1276,35 +1328,42 @@ export async function uninstallCompanionService(options = {}) {
   if (!replaceableInstalledConfiguration(before.configuration, before.layout)) {
     throw new PublicCompanionServiceError("companion_service_uninstall_refused");
   }
-  await stopCompanionService(options);
   const layout = before.layout;
-  removeInactiveLifecycleLock(layout, before.configuration);
-  removeOwnedRegularFile(
-    layout.launch_agent_path,
-    buildLaunchAgentPlist(before.configuration),
-  );
-  for (const file of [
-    layout.manager_state_path,
-    layout.manager_lock_path,
-    layout.maintenance_lease_path,
-  ]) {
-    removeServiceOwnedStateFile(file, before.configuration);
+  const lock = await acquireLifecycleLock(layout, before.configuration, options.waitMs ?? STOP_WAIT_MS);
+  try {
+    assertCurrentCheckoutObservation(layout);
+    await stopCompanionServiceUnlocked({ ...options, operationLayout: layout });
+    assertCurrentCheckoutObservation(layout);
+    removeOwnedRegularFile(
+      layout.launch_agent_path,
+      buildLaunchAgentPlist(before.configuration),
+    );
+    for (const file of [
+      layout.manager_state_path,
+      layout.manager_lock_path,
+      layout.maintenance_lease_path,
+    ]) {
+      removeServiceOwnedStateFile(file, before.configuration);
+    }
+    removeServiceOwnedDesiredState(
+      layout.desired_state_path,
+      before.configuration,
+    );
+    removeOwnedRegularJson(layout.configuration_path, before.configuration);
+    removeDirectoryIfEmpty(layout.runtime_directory);
+    assertCurrentCheckoutObservation(layout);
+    return lifecycleCommandResult("uninstall", serviceObservation({
+      layout,
+      status: "not_installed",
+      checkoutRelation: "exact",
+      startAvailable: false,
+      resumeAvailable: false,
+      reason: "companion_service_not_installed",
+    }), true);
+  } finally {
+    releaseLifecycleLock(layout, lock);
+    removeDirectoryIfEmpty(layout.service_directory);
   }
-  removeServiceOwnedDesiredState(
-    layout.desired_state_path,
-    before.configuration,
-  );
-  removeOwnedRegularJson(layout.configuration_path, before.configuration);
-  removeDirectoryIfEmpty(layout.service_directory);
-  removeDirectoryIfEmpty(layout.runtime_directory);
-  return lifecycleCommandResult("uninstall", serviceObservation({
-    layout,
-    status: "not_installed",
-    checkoutRelation: "exact",
-    startAvailable: false,
-    resumeAvailable: false,
-    reason: "companion_service_not_installed",
-  }), true);
 }
 
 async function decommissionStaleCheckoutCompanionService({
@@ -1600,6 +1659,7 @@ export async function acquireCompanionServiceMaintenance({
     acquired_at: new Date(nowMs).toISOString(),
     expires_at: new Date(nowMs + ttlMs).toISOString(),
   };
+  assertCurrentCheckoutObservation(before.layout);
   createExclusiveJson(before.layout.maintenance_lease_path, lease);
   if (lease.pre_maintenance_desired_state === "running" && before.loaded) {
     const maintenance = await waitForMaintenancePause({
@@ -1658,6 +1718,7 @@ export async function releaseCompanionServiceMaintenance({
     testScope,
   });
   const configurationResult = readRegularJson(layout.configuration_path);
+  if (lease.layout) assertCurrentCheckoutObservation(lease.layout);
   if (configurationResult.state !== "valid") {
     throw new PublicCompanionServiceError(
       "companion_service_maintenance_restore_refused",
@@ -2235,6 +2296,7 @@ export async function inspectCompanionPreservation(options) {
     );
     const manager = material.manager_state_path.value ?? null;
     const critical = {
+      repository_observation: observeRepository(layout.repository.realpath),
       ...material,
       manager_state_path:
         material.manager_state_path.state === "valid"
@@ -2256,6 +2318,8 @@ export async function inspectCompanionPreservation(options) {
       manager,
       job,
       jobValid,
+      repositoryBinding: checkoutObservationBinding(critical.repository_observation),
+      repositoryObservation: critical.repository_observation.durable_observation,
       fingerprint: sha256(JSON.stringify([critical, job, jobValid])),
     };
   };
@@ -2265,7 +2329,7 @@ export async function inspectCompanionPreservation(options) {
   const coherent =
     before.fingerprint === after.fingerprint &&
     before.jobValid &&
-    after.jobValid;
+    after.jobValid && before.repositoryObservation === "observed" && after.repositoryObservation === "observed";
   const runtime = observation.runtime;
   const manager = after.manager;
   const liveIdentity =
@@ -2308,7 +2372,7 @@ export async function inspectCompanionPreservation(options) {
       preservation_binding: after.fingerprint,
     },
     diagnostics: {
-      contract: "augnes.companion-preservation-observation.v1",
+      contract: "augnes.companion-preservation-observation.v2",
       started_at: startedAt,
       finished_at: new Date().toISOString(),
       samples: 1,
@@ -2333,6 +2397,10 @@ export async function inspectCompanionPreservation(options) {
       ),
       before_binding: before.fingerprint,
       after_binding: after.fingerprint,
+      repository_binding_before: before.repositoryBinding,
+      repository_binding_after: after.repositoryBinding,
+      repository_observation_before: before.repositoryObservation,
+      repository_observation_after: after.repositoryObservation,
     },
   };
 }
@@ -2450,7 +2518,7 @@ function validateInstalledConfiguration({ configuration, plist, layout }) {
   const exactContract =
     isObject(configuration) &&
     configuration.contract === COMPANION_SERVICE_CONTRACT &&
-    configuration.schema_version === COMPANION_SERVICE_SCHEMA_VERSION &&
+    [1, COMPANION_SERVICE_CONFIGURATION_SCHEMA_VERSION].includes(configuration.schema_version) &&
     configuration.manager_version === COMPANION_SERVICE_MANAGER_VERSION;
   if (!exactContract) {
     return invalidConfiguration(
@@ -2459,19 +2527,16 @@ function validateInstalledConfiguration({ configuration, plist, layout }) {
       "exact",
     );
   }
-  const exactRelation =
-    configuration.repository_root === layout.repository.realpath &&
-    configuration.repository_fingerprint ===
-      layout.repository.repository_fingerprint &&
-    configuration.repository_device === layout.repository.device &&
-    configuration.repository_inode === layout.repository.inode;
-  if (!exactRelation) {
-    return invalidConfiguration(
-      "companion_service_checkout_identity_changed",
-      false,
-      "substituted_or_moved",
-    );
-  }
+  const identity = compareCompanionCheckoutIdentity(configuration, layout.repository);
+  const identityRefusal = () => {
+    const legacyExact = identity.category === "legacy_evidence_insufficient" && identity.legacy_exact;
+    const unavailable = ["unsupported", "unavailable", "incoherent", "durable_evidence_invalid"].includes(identity.category);
+    return { ...invalidConfiguration(
+      legacyExact ? "companion_service_identity_enrollment_required" : unavailable
+        ? `companion_service_identity_${identity.category}` : "companion_service_checkout_identity_changed",
+      legacyExact, legacyExact ? "exact" : unavailable ? "unverifiable" : "substituted_or_moved"), identity };
+  };
+  if (!identity.valid && !identity.legacy_exact) return identityRefusal();
   const exactService =
     configuration.service_label === layout.service_label &&
     configuration.service_identity === layout.service_identity &&
@@ -2503,7 +2568,10 @@ function validateInstalledConfiguration({ configuration, plist, layout }) {
       "exact",
     );
   }
-  return { valid: true, reason: null, updateRequired: false, checkoutRelation: "exact" };
+  if (!identity.valid) {
+    return identityRefusal();
+  }
+  return { valid: true, reason: null, updateRequired: false, checkoutRelation: "exact", identity };
 }
 
 function invalidConfiguration(reason, updateRequired, checkoutRelation) {
@@ -2579,6 +2647,7 @@ function setExactDesiredState({
   desiredState,
   allowMissing = false,
 }) {
+  assertCurrentCheckoutObservation(layout);
   const current = readRegularJson(layout.desired_state_path);
   if (current.state === "missing" && allowMissing) {
     const record = newDesiredStateRecord(configuration, desiredState);
@@ -2751,7 +2820,7 @@ function validForeignProductionConfiguration({
   );
   return (
     configuration.contract === COMPANION_SERVICE_CONTRACT &&
-    configuration.schema_version === COMPANION_SERVICE_SCHEMA_VERSION &&
+    [1, COMPANION_SERVICE_CONFIGURATION_SCHEMA_VERSION].includes(configuration.schema_version) &&
     configuration.manager_version === COMPANION_SERVICE_MANAGER_VERSION &&
     checkoutScope === `checkout-${repositoryFingerprint.slice(0, 16)}` &&
     configuration.service_identity === serviceIdentity &&
@@ -2809,10 +2878,12 @@ function sameInstalledConfiguration(left, right) {
     "test_scope",
     "test_root",
   ];
-  return comparable.every((key) => left?.[key] === right?.[key]);
+  return comparable.filter(key => !["repository_device", "repository_inode"].includes(key)).every((key) => left?.[key] === right?.[key]) &&
+    JSON.stringify(left?.repository_identity) === JSON.stringify(right?.repository_identity);
 }
 
 function installedManagerMaterialStillExact(configuration, layout) {
+  assertCurrentCheckoutObservation(layout);
   const currentConfiguration = readRegularJson(layout.configuration_path);
   const currentPlist = readRegularText(layout.launch_agent_path);
   return (
@@ -2834,8 +2905,9 @@ function replaceableInstalledConfiguration(configuration, layout) {
     configuration.repository_root === layout.repository.realpath &&
     configuration.repository_fingerprint ===
       layout.repository.repository_fingerprint &&
-    configuration.repository_device === layout.repository.device &&
-    configuration.repository_inode === layout.repository.inode &&
+    (configuration.schema_version === 1
+      ? configuration.repository_device === layout.repository.device && configuration.repository_inode === layout.repository.inode
+      : compareCompanionCheckoutIdentity(configuration, layout.repository).valid) &&
     configuration.runtime_state_directory === layout.runtime_directory &&
     configuration.launch_agent_path === layout.launch_agent_path &&
     configuration.test_scope === (layout.test?.scope ?? null) &&
@@ -2847,19 +2919,20 @@ function staleCheckoutDecommissionConfigurationExact(configuration, layout) {
   if (!isObject(configuration) || !layout) return false;
   const keys = Object.keys(configuration).sort();
   if (
-    keys.length !== INSTALLED_CONFIGURATION_KEYS.length ||
-    !INSTALLED_CONFIGURATION_KEYS.every((key) => keys.includes(key))
+    keys.length !== INSTALLED_CONFIGURATION_KEYS.length + (configuration.schema_version === 2 ? 1 : 0) ||
+    !INSTALLED_CONFIGURATION_KEYS.every((key) => keys.includes(key)) ||
+    (configuration.schema_version === 2 && !validDurableCheckoutIdentity(configuration.repository_identity))
   ) return false;
   const sameLogicalCheckout =
     configuration.repository_root === layout.repository.realpath &&
     configuration.repository_fingerprint ===
       layout.repository.repository_fingerprint;
-  const physicalIdentityChanged =
-    configuration.repository_device !== layout.repository.device ||
-    configuration.repository_inode !== layout.repository.inode;
+  const physicalIdentityChanged = configuration.schema_version === 1
+    ? configuration.repository_device !== layout.repository.device || configuration.repository_inode !== layout.repository.inode
+    : compareCompanionCheckoutIdentity(configuration, layout.repository).category === "durable_mismatch";
   const exactService =
     configuration.contract === COMPANION_SERVICE_CONTRACT &&
-    configuration.schema_version === COMPANION_SERVICE_SCHEMA_VERSION &&
+    [1, COMPANION_SERVICE_CONFIGURATION_SCHEMA_VERSION].includes(configuration.schema_version) &&
     configuration.manager_version === COMPANION_SERVICE_MANAGER_VERSION &&
     configuration.service_label === layout.service_label &&
     configuration.service_identity === layout.service_identity &&
@@ -5312,23 +5385,122 @@ function serviceChildEnvironment(configuration, environment) {
   return values;
 }
 
-function observeRepository(repositoryRoot) {
-  if (typeof repositoryRoot !== "string" || !path.isAbsolute(repositoryRoot)) {
-    throw new PublicCompanionServiceError("companion_service_repository_invalid");
-  }
-  const lexical = path.resolve(repositoryRoot);
-  assertRegularDirectory(lexical, "companion_service_repository_invalid");
-  const real = realpathSync(lexical);
-  if (real !== lexical) {
-    throw new PublicCompanionServiceError("companion_service_repository_alias_refused");
-  }
-  const stats = statSync(real, { bigint: true });
-  return {
-    realpath: real,
-    repository_fingerprint: sha256(real),
-    device: String(stats.dev),
-    inode: String(stats.ino),
+// Explicit legacy enrollment is a new local authorization, not an inference
+// about the missing historical volume. It never loads a job or opens storage.
+function identityEnrollmentSnapshot(options) {
+  assertSupportedServiceHost(options.platform ?? process.platform);
+  if (options.testRepositoryPhysicalIdentityOverride != null)
+    throw new PublicCompanionServiceError("companion_service_identity_enrollment_test_override_refused");
+  const layout = resolveCompanionServiceLayout(options);
+  const identity = requireDurableCheckoutIdentity(layout);
+  assertNoOtherProductionCompanionService(layout);
+  assertStaleDecommissionLifecyclePaths(layout);
+  const readMaterial = key => {
+    const snapshot = captureStaleDecommissionMaterialSnapshot(layout[key], staleDecommissionAnchorForFile(layout, layout[key]));
+    return { ...snapshot.material, contents: snapshot.contents };
   };
+  const material = Object.fromEntries(["configuration_path", "desired_state_path", "launch_agent_path"]
+    .map(key => [key, readMaterial(key)]));
+  if (Object.values(material).some(value => value.state !== "valid"))
+    throw new PublicCompanionServiceError("companion_service_identity_enrollment_material_invalid");
+  let configuration;
+  try { configuration = JSON.parse(material.configuration_path.contents); }
+  catch { throw new PublicCompanionServiceError("companion_service_identity_enrollment_material_invalid"); }
+  if (configuration.schema_version !== 1 || Object.keys(configuration).length !== INSTALLED_CONFIGURATION_KEYS.length ||
+      !INSTALLED_CONFIGURATION_KEYS.every(key => Object.hasOwn(configuration, key)) ||
+      !validCanonicalInstalledStatIdentity(configuration.repository_device) || !validCanonicalInstalledStatIdentity(configuration.repository_inode, true))
+    throw new PublicCompanionServiceError("companion_service_identity_enrollment_legacy_required");
+  const enrolled = { ...configuration, schema_version: COMPANION_SERVICE_CONFIGURATION_SCHEMA_VERSION, repository_identity: identity };
+  const validation = validateInstalledConfiguration({ configuration: enrolled, plist: material.launch_agent_path.contents, layout });
+  if (!validation.valid) throw new PublicCompanionServiceError(validation.reason);
+  const desired = readExactDesiredState(layout, configuration);
+  const node = inspectNodeBinary(configuration.node_path);
+  if (!node.valid || node.version !== configuration.node_version ||
+      configuration.manager_entry_path !== path.join(layout.repository.realpath, "scripts", "augnes-companion-service.mjs"))
+    throw new PublicCompanionServiceError("companion_service_identity_enrollment_source_invalid");
+  // No inferred settlement from a missing PID. Require the supported stop owner's
+  // settled material boundary and a successfully observed absent launchd job.
+  const absentJob = (options.launchctl ?? defaultLaunchctl)(["print", `gui/${currentUid()}/${layout.service_label}`]);
+  if (absentJob.status !== 113)
+    throw new PublicCompanionServiceError("companion_service_identity_enrollment_requires_quiescence");
+  for (const key of ["manager_lock_path", "maintenance_lease_path", "runtime_manifest_path", "runtime_lock_path",
+    "runtime_token_path", "runtime_access_path", "runtime_bridge_environment_path", "stale_decommission_path"])
+    if (readRegularText(layout[key]).state !== "missing")
+      throw new PublicCompanionServiceError("companion_service_identity_enrollment_requires_quiescence");
+  const manager = readRegularJson(layout.manager_state_path);
+  if (manager.state !== "missing" && !exactManagerStateExplicitlyStopped({ layout, configuration }))
+    throw new PublicCompanionServiceError("companion_service_identity_enrollment_requires_quiescence");
+  const source = computeServiceSourceFingerprint(layout.repository.realpath);
+  assertCurrentCheckoutObservation(layout);
+  if (Object.entries(material).some(([key, value]) => JSON.stringify(readMaterial(key)) !== JSON.stringify(value)) ||
+      JSON.stringify(readRegularJson(layout.manager_state_path)) !== JSON.stringify(manager))
+    throw new PublicCompanionServiceError("companion_service_identity_enrollment_observation_incoherent");
+  return { layout, configuration, enrolled, desired, source,
+    material_binding: sha256(JSON.stringify([material, manager])), repository_binding: checkoutObservationBinding(layout.repository) };
+}
+
+export function previewCompanionIdentityEnrollment(options = {}) {
+  const value = identityEnrollmentSnapshot(options);
+  return {
+    command: "identity-preview", result: "decision_required",
+    identity: compareCompanionCheckoutIdentity(value.configuration, value.layout.repository),
+    desired_state: value.desired.desired_state,
+    repository_root: value.layout.repository.realpath,
+    durable_identity: value.layout.repository.durable_identity,
+    warning: "New enrollment of the currently observed checkout and source; not proof of legacy continuity. No service start or database preparation.",
+    decision: { contract: "augnes.companion-identity-enrollment.v1", service_identity: value.layout.service_identity,
+      expected_material_binding: value.material_binding, expected_repository_binding: value.repository_binding,
+      expected_source_fingerprint: value.source, expires_at: new Date(Date.now() + 5 * 60_000).toISOString() },
+    authority: lifecycleAuthority(false),
+  };
+}
+
+export async function enrollCompanionIdentity({ decision, ...options } = {}) {
+  const before = identityEnrollmentSnapshot(options);
+  if (options.testIdentityEnrollmentStageHook != null && (!before.layout.test || typeof options.testIdentityEnrollmentStageHook !== "function"))
+    throw new PublicCompanionServiceError("companion_service_identity_enrollment_test_override_refused");
+  const lock = await acquireLifecycleLock(before.layout, before.configuration, options.waitMs ?? STOP_WAIT_MS);
+  try {
+    const current = identityEnrollmentSnapshot(options);
+    const keys = ["contract", "service_identity", "expected_material_binding", "expected_repository_binding", "expected_source_fingerprint", "expires_at"];
+    const expiry = Date.parse(decision?.expires_at);
+    if (!isObject(decision) || Object.keys(decision).length !== keys.length || !keys.every(key => Object.hasOwn(decision, key)) ||
+        decision.contract !== "augnes.companion-identity-enrollment.v1" || decision.service_identity !== current.layout.service_identity ||
+        decision.expected_material_binding !== current.material_binding || decision.expected_repository_binding !== current.repository_binding ||
+        decision.expected_source_fingerprint !== current.source || !Number.isFinite(expiry) || expiry <= Date.now() || expiry > Date.now() + 5 * 60_000)
+      throw new PublicCompanionServiceError("companion_service_identity_enrollment_decision_stale");
+    const configuration = { ...current.enrolled,
+      repository_device: current.layout.repository.device, repository_inode: current.layout.repository.inode,
+      service_source_fingerprint: current.source };
+    options.testIdentityEnrollmentStageHook?.("before_commit");
+    const final = identityEnrollmentSnapshot(options);
+    if (final.material_binding !== current.material_binding || final.repository_binding !== current.repository_binding || final.source !== current.source)
+      throw new PublicCompanionServiceError("companion_service_identity_enrollment_decision_stale");
+    assertCurrentCheckoutObservation(current.layout);
+    // A single atomic configuration commit; desired state and launch definition
+    // are unchanged. A crash before this rename leaves legacy refusal intact.
+    atomicWriteJson(current.layout.configuration_path, configuration, 0o600);
+    const saved = readRegularJson(current.layout.configuration_path);
+    if (saved.state !== "valid" || JSON.stringify(saved.value) !== JSON.stringify(configuration))
+      throw new PublicCompanionServiceError("companion_service_identity_enrollment_readback_failed");
+    return { command: "enroll-identity", result: "enrolled", desired_state: current.desired.desired_state,
+      source_fingerprint: current.source, authority: lifecycleAuthority(false) };
+  } finally { releaseLifecycleLock(before.layout, lock); }
+}
+
+function requireDurableCheckoutIdentity(layout) {
+  if (layout.repository.durable_observation !== "observed" || !validDurableCheckoutIdentity(layout.repository.durable_identity))
+    throw new PublicCompanionServiceError(`companion_service_identity_${layout.repository.durable_observation === "observed" ? "durable_evidence_invalid" : layout.repository.durable_observation}`);
+  return layout.repository.durable_identity;
+}
+
+function assertCurrentCheckoutObservation(layout) {
+  if (currentCheckoutObservationBinding(observeCurrentCheckoutIdentity(layout.repository.realpath)) !== currentCheckoutObservationBinding(layout.repository))
+    throw new PublicCompanionServiceError("companion_service_identity_observation_incoherent");
+}
+
+function observeRepository(repositoryRoot) {
+  return observeCheckoutIdentity(repositoryRoot);
 }
 
 function applyTestRepositoryPhysicalIdentityOverride({
@@ -5357,6 +5529,11 @@ function applyTestRepositoryPhysicalIdentityOverride({
     ...repository,
     device: override.device,
     inode: override.inode,
+    // A simulated object replacement must change the new durable witness too;
+    // a simulated mount/device renumbering alone must not do so.
+    durable_identity: repository.durable_identity && override.inode !== repository.inode
+      ? { ...repository.durable_identity, object_id: sha256(override.inode).slice(0, 16) }
+      : repository.durable_identity,
   };
 }
 
@@ -5445,6 +5622,7 @@ function serviceObservation({
     loaded,
     desired_state: desiredState?.desired_state ?? null,
     desired_state_record: desiredState,
+    checkout_identity: configuration && layout ? compareCompanionCheckoutIdentity(configuration, layout.repository) : null,
   };
 }
 
@@ -5458,6 +5636,8 @@ function lifecycleCommandResult(command, observation, changed) {
 }
 
 function serviceNextAction(status, reason = null) {
+  if (reason === "companion_service_identity_enrollment_required") return "Stop the exact legacy service, inspect identity-preview, then explicitly enroll-identity with its current decision.";
+  if (reason?.startsWith("companion_service_identity_")) return "Inspect the typed checkout identity result; do not enroll automatically or start with unavailable evidence.";
   if (
     status === "recovery_required" &&
     [

@@ -514,6 +514,17 @@ isolatedReceipt.cleanup.isolated_resources = {
 };
 const isolatedContext = { ...targetedContext, currentVerificationContext: isolatedReceipt.verification_context };
 assert.equal(inspectReceiptForDecision(finalizeReceipt(isolatedReceipt), isolatedContext).valid_deciding_evidence, true);
+const durableReceipt = structuredClone(isolatedReceipt);
+for (const side of ["before", "after"]) Object.assign(durableReceipt.cleanup.companion_service.observations[side], {
+  contract: "augnes.companion-preservation-observation.v2", repository_binding_before: "a".repeat(64), repository_binding_after: "a".repeat(64),
+  repository_observation_before: "observed", repository_observation_after: "observed",
+});
+assert.equal(inspectReceiptForDecision(finalizeReceipt(durableReceipt), isolatedContext).valid_deciding_evidence, true);
+for (const missingOrChanged of [undefined, "b".repeat(64)]) {
+  const changed = structuredClone(durableReceipt);
+  changed.cleanup.companion_service.observations.after.repository_binding_after = missingOrChanged;
+  assert.equal(inspectReceiptForDecision(finalizeReceipt(changed), isolatedContext).valid_deciding_evidence, false);
+}
 for (const change of [
   service => { service.after.status = "starting"; },
   service => { service.after.preservation_binding = "c".repeat(64); service.observations.after.before_binding = "c".repeat(64); service.observations.after.after_binding = "c".repeat(64); },

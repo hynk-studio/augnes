@@ -107,6 +107,9 @@ try {
   assert.equal(stoppedStale.loaded, false);
   const update = await runCli(["install"]);
   assert.equal(update.status, 0, update.stderr);
+  assert.equal(JSON.parse(update.stdout).service.status, "installed_stopped");
+  assert.equal(readDesiredState().desired_state, "stopped");
+  await startCompanionService(options);
   live = await waitForStatus("live", 120_000);
   rememberRuntime(live);
   const oldManifestPath = path.join(testRoot, "old-runtime.json");

@@ -434,6 +434,11 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      label: "durable Companion checkout enrollment and Darwin observation",
+      ...rootNode("scripts/test-companion-checkout-identity.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
       id: "augnes-operator-plugin-setup",
       label: "Augnes Operator reviewed plugin install and cache contract",
       ...rootNode("scripts/test-augnes-operator-plugin-setup.mjs"),
