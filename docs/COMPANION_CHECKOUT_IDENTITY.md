@@ -119,9 +119,18 @@ npm run augnes:service:status
 
 The decision expires within five minutes and binds exact configuration/desired
 state/LaunchAgent materials, current repository observation and source. The
-lifecycle lock serializes commit with other operations. A stale/concurrent or
-interrupted precommit leaves legacy refusal intact; no automatic retarget or
-retry occurs. One atomic configuration publication installs schema 2. Readback
+lifecycle lock serializes commit with other operations. After final material,
+source and checkout checks and temporary-file write/flush/close, commit admission
+requires the decision still to be unexpired immediately before the atomic rename.
+Equality with the deadline refuses. The clock check and filesystem rename are
+separate operations; this is not a clock/filesystem atomicity or completion-time
+guarantee. Expiry never extends the decision or triggers a replacement decision.
+A stale/concurrent or interrupted precommit leaves legacy refusal intact; no
+automatic retarget or retry occurs. Refusal removes the owned temporary file and
+releases the exact lifecycle lock. If cleanup fails, the original refusal and
+cleanup causes are retained; CLI output adds `cleanup_failed: true` without raw
+paths or error details. Do not infer settlement from the primary refusal alone.
+One atomic configuration publication installs schema 2. Readback
 is required. A crash after publication may leave a settled configuration with
 an unknown command acknowledgement; inspect it instead of replaying an old
 decision. Desired stopped/running intent, launch definition, database, project

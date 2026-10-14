@@ -89,6 +89,7 @@ export async function runCompanionServiceCli(argv = process.argv.slice(2)) {
       contract: COMPANION_SERVICE_CONTRACT,
       result: "refused",
       reason,
+      ...(error instanceof PublicCompanionServiceError && error.cleanup_failed === true ? { cleanup_failed: true } : {}),
       authority: lifecycleAuthority(false),
     })}\n`);
     return 1;

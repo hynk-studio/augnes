@@ -5460,6 +5460,7 @@ export async function enrollCompanionIdentity({ decision, ...options } = {}) {
   if (options.testIdentityEnrollmentStageHook != null && (!before.layout.test || typeof options.testIdentityEnrollmentStageHook !== "function"))
     throw new PublicCompanionServiceError("companion_service_identity_enrollment_test_override_refused");
   const lock = await acquireLifecycleLock(before.layout, before.configuration, options.waitMs ?? STOP_WAIT_MS);
+  let failure = null;
   try {
     const current = identityEnrollmentSnapshot(options);
     const keys = ["contract", "service_identity", "expected_material_binding", "expected_repository_binding", "expected_source_fingerprint", "expires_at"];
@@ -5479,13 +5480,24 @@ export async function enrollCompanionIdentity({ decision, ...options } = {}) {
     assertCurrentCheckoutObservation(current.layout);
     // A single atomic configuration commit; desired state and launch definition
     // are unchanged. A crash before this rename leaves legacy refusal intact.
-    atomicWriteJson(current.layout.configuration_path, configuration, 0o600);
+    atomicWriteJson(current.layout.configuration_path, configuration, 0o600, () => {
+      // Commit admission follows final identity/material checks and temporary
+      // file preparation. This clock check and rename are not one atomic act.
+      if (expiry <= Date.now())
+        throw new PublicCompanionServiceError("companion_service_identity_enrollment_decision_stale");
+    });
     const saved = readRegularJson(current.layout.configuration_path);
     if (saved.state !== "valid" || JSON.stringify(saved.value) !== JSON.stringify(configuration))
       throw new PublicCompanionServiceError("companion_service_identity_enrollment_readback_failed");
     return { command: "enroll-identity", result: "enrolled", desired_state: current.desired.desired_state,
       source_fingerprint: current.source, authority: lifecycleAuthority(false) };
-  } finally { releaseLifecycleLock(before.layout, lock); }
+  } catch (error) {
+    failure = error;
+    throw error;
+  } finally {
+    try { releaseLifecycleLock(before.layout, lock); }
+    catch (error) { throw serviceCleanupFailure(failure, [error]); }
+  }
 }
 
 function requireDurableCheckoutIdentity(layout) {
@@ -6024,8 +6036,8 @@ function tryCreateExclusiveJson(file, value) {
   }
 }
 
-function atomicWriteJson(file, value, mode = 0o600) {
-  atomicWriteText(file, `${JSON.stringify(value)}\n`, mode);
+function atomicWriteJson(file, value, mode = 0o600, beforePublish = null) {
+  atomicWriteText(file, `${JSON.stringify(value)}\n`, mode, false, beforePublish);
 }
 
 function atomicWriteText(
@@ -6033,6 +6045,7 @@ function atomicWriteText(
   value,
   mode = 0o600,
   preserveParentMode = false,
+  beforePublish = null,
 ) {
   if (preserveParentMode) {
     ensureLaunchAgentDirectory(path.dirname(file));
@@ -6041,22 +6054,42 @@ function atomicWriteText(
   }
   const temporary = `${file}.tmp-${process.pid}-${randomUUID()}`;
   let descriptor = null;
+  let failure = null;
   try {
     descriptor = openSync(temporary, "wx", mode);
     writeFileSync(descriptor, value, "utf8");
     fsyncSync(descriptor);
     closeSync(descriptor);
     descriptor = null;
+    beforePublish?.();
     renameSync(temporary, file);
     chmodSync(file, mode);
+  } catch (error) {
+    failure = error;
+    throw error;
   } finally {
-    if (descriptor !== null) closeSync(descriptor);
+    const cleanupFailures = [];
+    if (descriptor !== null) {
+      try { closeSync(descriptor); }
+      catch (error) { cleanupFailures.push(error); }
+    }
     try {
       unlinkSync(temporary);
     } catch (error) {
-      if (error?.code !== "ENOENT") throw error;
+      if (error?.code !== "ENOENT") cleanupFailures.push(error);
     }
+    if (cleanupFailures.length) throw serviceCleanupFailure(failure, cleanupFailures);
   }
+}
+
+function serviceCleanupFailure(primary, failures) {
+  const reason = primary ?? failures[0];
+  const error = new PublicCompanionServiceError(
+    reason instanceof PublicCompanionServiceError ? reason.code : "companion_service_internal_error",
+    new AggregateError(primary ? [primary, ...failures] : failures, "companion_service_cleanup_failed"),
+  );
+  error.cleanup_failed = true;
+  return error;
 }
 
 function readRegularJson(file) {

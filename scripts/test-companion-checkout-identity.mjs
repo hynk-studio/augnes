@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdtempSync, realpathSync, mkdirSync, readFileSync, writeFileSync, rmSync, renameSync, symlinkSync, existsSync, copyFileSync } from "node:fs";
+import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import childProcess, { spawnSync } from "node:child_process";
@@ -23,11 +24,11 @@ let cases = 0;
 const check = (condition, message) => { assert.ok(condition, message); cases++; };
 const clone = value => structuredClone(value);
 const write = (file, value) => writeFileSync(file, JSON.stringify(value) + "\n", { mode: 0o600 });
-const cli = args => {
-  const run = spawnSync(process.execPath, [path.join(repository, "scripts/augnes-companion-service.mjs"), ...args], {
+const cli = (args, { status = 0, preload = [] } = {}) => {
+  const run = spawnSync(process.execPath, [...preload, path.join(repository, "scripts/augnes-companion-service.mjs"), ...args], {
     env: { ...options.environment, HOME: options.homeDirectory, PATH: "/usr/bin:/bin" }, encoding: "utf8", timeout: 5_000,
   });
-  assert.equal(run.status, 0, run.stderr); return JSON.parse(run.stdout);
+  assert.equal(run.status, status, run.stderr); return JSON.parse(status === 0 ? run.stdout : run.stderr);
 };
 const refused = async (operation, code) => { await assert.rejects(operation, error => error.code === code); cases++; };
 try {
@@ -98,6 +99,83 @@ try {
   // Disposable legacy records reproduce the old installed format, never a
   // production config rewrite. Exercise both exact and ambiguous legacy input.
   const legacy = { ...current, schema_version: 1 }; delete legacy.repository_identity;
+  // Exercise the real enrollment owner, filesystem/provider and lock. Only
+  // the wall clock advances: no sleeps, replacement snapshots or fake stat data.
+  const deadlineResults = [];
+  for (const stage of ["valid", "initial_validation", "final_snapshot", "final_checkout", "temporary_fsync", "final_admission"]) {
+    write(layout.configuration_path, legacy);
+    const beforeBytes = readFileSync(layout.configuration_path);
+    const launchBytes = readFileSync(layout.launch_agent_path);
+    const decision = previewCompanionIdentityEnrollment(options).decision;
+    const expiry = Date.parse(decision.expires_at);
+    let now = stage === "initial_validation" ? expiry : expiry - 1;
+    let preparing = false, directoryCloses = 0, admissionReads = 0;
+    const clock = mock.method(Date, "now", () => {
+      if (preparing && directoryCloses === 3) {
+        admissionReads++;
+        if (stage === "final_admission") now = expiry;
+      }
+      return now;
+    });
+    const close = fs.closeSync;
+    const closeObserver = mock.method(fs, "closeSync", fd => {
+      const stat = fs.fstatSync(fd, { bigint: true });
+      const directory = preparing && stat.isDirectory() && String(stat.dev) === observed.device && String(stat.ino) === observed.inode;
+      close(fd);
+      // Final snapshot's durable observation, its current guard, then the
+      // enrollment owner's final current guard. All descriptors really close.
+      if (directory && ++directoryCloses === 3 && stage === "final_checkout") now = expiry + 1;
+    });
+    const fsync = fs.fsyncSync;
+    const flushObserver = mock.method(fs, "fsyncSync", fd => {
+      fsync(fd);
+      if (preparing && directoryCloses === 3 && stage === "temporary_fsync") now = expiry + 1;
+    });
+    syncBuiltinESMExports();
+    let outcome;
+    try {
+      outcome = (await enrollCompanionIdentity({ ...options, decision,
+        testIdentityEnrollmentStageHook() { preparing = true; },
+        launchctl(args) {
+          const result = launchctl(args);
+          if (preparing && stage === "final_snapshot") now = expiry + 1;
+          return result;
+        },
+      })).result;
+    } catch (error) { outcome = error.code; }
+    finally { clock.mock.restore(); closeObserver.mock.restore(); flushObserver.mock.restore(); syncBuiltinESMExports(); }
+    const expected = stage === "valid" ? "enrolled" : "companion_service_identity_enrollment_decision_stale";
+    const configUnchanged = readFileSync(layout.configuration_path).equals(beforeBytes);
+    const settled = !existsSync(layout.lifecycle_lock_path);
+    const unrelatedUnchanged = readFileSync(layout.desired_state_path).equals(desiredBytes) && readFileSync(layout.launch_agent_path).equals(launchBytes);
+    deadlineResults.push({ stage, outcome, expected, config_unchanged: configUnchanged, lock_settled: settled,
+      unrelated_unchanged: unrelatedUnchanged, directory_closes: directoryCloses, admission_reads: admissionReads });
+    console.log(JSON.stringify({ case: "enrollment-deadline", ...deadlineResults.at(-1) }));
+  }
+  for (const result of deadlineResults) {
+    check(result.outcome === result.expected, `decision freshness at ${result.stage}`);
+    check(result.lock_settled && result.unrelated_unchanged, `cleanup/material preservation at ${result.stage}`);
+    if (result.stage !== "valid") check(result.config_unchanged, `no expired publication at ${result.stage}`);
+    if (result.stage !== "initial_validation") check(result.directory_closes === 3, `observed actual final preparation at ${result.stage}`);
+    if (result.stage === "final_admission") check(result.admission_reads === 1, "exact final freshness read after checkout guard");
+  }
+  for (const change of ["source", "repository"]) {
+    write(layout.configuration_path, legacy);
+    const beforeBytes = readFileSync(layout.configuration_path);
+    const sourcePath = path.join(repository, "scripts/augnes-companion-service.mjs");
+    const sourceBytes = readFileSync(sourcePath);
+    const decision = previewCompanionIdentityEnrollment(options).decision;
+    try {
+      await refused(() => enrollCompanionIdentity({ ...options, decision, testIdentityEnrollmentStageHook() {
+        if (change === "source") fs.appendFileSync(sourcePath, "\n// changed disposable source\n");
+        else { renameSync(repository, repository + "-replaced"); fs.cpSync(repository + "-replaced", repository, { recursive: true }); }
+      } }), "companion_service_identity_enrollment_decision_stale");
+      check(readFileSync(layout.configuration_path).equals(beforeBytes) && !existsSync(layout.lifecycle_lock_path), `final ${change} change refuses before publication and settles lock`);
+    } finally {
+      if (change === "source") writeFileSync(sourcePath, sourceBytes);
+      else if (existsSync(repository + "-replaced")) { rmSync(repository, { recursive: true }); renameSync(repository + "-replaced", repository); }
+    }
+  }
   for (const device of [current.repository_device, drift.repository_device]) {
     write(layout.configuration_path, { ...legacy, repository_device: device });
     const legacyBytes = readFileSync(layout.configuration_path);
@@ -120,12 +198,58 @@ try {
     check((await inspectCompanionService(options)).status === "installed_stopped", "explicit enrollment supports current lifecycle");
     await refused(() => enrollCompanionIdentity({ ...options, decision }), "companion_service_identity_enrollment_legacy_required");
   }
+  // A failed temporary-file cleanup must not replace the expiry refusal or
+  // prevent settlement of the separately owned lifecycle lock.
+  write(layout.configuration_path, legacy);
+  const cleanupDecision = previewCompanionIdentityEnrollment(options).decision;
+  const cleanupBytes = readFileSync(layout.configuration_path);
+  let cleanupNow = Date.parse(cleanupDecision.expires_at) - 1, retainedTemporary, cleanupError;
+  const cleanupClock = mock.method(Date, "now", () => cleanupNow);
+  const unlink = fs.unlinkSync;
+  const unlinkFailure = mock.method(fs, "unlinkSync", file => {
+    if (file.startsWith(layout.configuration_path + ".tmp-")) {
+      retainedTemporary = file;
+      throw Object.assign(new Error("private-test-detail"), { code: "EACCES" });
+    }
+    return unlink(file);
+  });
+  syncBuiltinESMExports();
+  try {
+    await enrollCompanionIdentity({ ...options, decision: cleanupDecision,
+      testIdentityEnrollmentStageHook() { cleanupNow = Date.parse(cleanupDecision.expires_at); } });
+  } catch (error) { cleanupError = error; }
+  finally { cleanupClock.mock.restore(); unlinkFailure.mock.restore(); syncBuiltinESMExports(); }
+  check(cleanupError?.code === "companion_service_identity_enrollment_decision_stale" && cleanupError.cleanup_failed === true, "temporary cleanup failure preserves expiry refusal");
+  check(cleanupError.cause instanceof AggregateError && cleanupError.cause.errors[0].code === cleanupError.code && cleanupError.cause.errors[1].code === "EACCES", "both original refusal and cleanup error retained");
+  check(readFileSync(layout.configuration_path).equals(cleanupBytes) && !existsSync(layout.lifecycle_lock_path), "temporary cleanup failure still settles lifecycle lock without publication");
+  check(retainedTemporary && existsSync(retainedTemporary), "failed temporary cleanup is observable, not claimed complete");
+  unlink(retainedTemporary); // Only this disposable test's captured failed write.
+
   // Running intent remains intent; enrollment doesn't load it or open storage.
   write(layout.configuration_path, legacy);
   write(layout.desired_state_path, { ...JSON.parse(desiredBytes), desired_state: "running" });
   const running = previewCompanionIdentityEnrollment(options);
   const cliPreview = cli(["identity-preview"]);
   const decisionFile = path.join(root, "decision.json"); write(decisionFile, cliPreview.decision);
+  const expiredFile = path.join(root, "expired-decision.json");
+  write(expiredFile, { ...cliPreview.decision, expires_at: "2000-01-01T00:00:00.000Z" });
+  const cliLegacyBytes = readFileSync(layout.configuration_path);
+  check(cli(["enroll-identity", expiredFile], { status: 1 }).reason === "companion_service_identity_enrollment_decision_stale", "protected CLI refuses expired decision");
+  check(readFileSync(layout.configuration_path).equals(cliLegacyBytes) && !existsSync(layout.lifecycle_lock_path), "CLI refusal preserves config and releases owned lock");
+  // An isolated child filesystem fault proves the actual CLI keeps its primary
+  // refusal and signals failed cleanup without exposing the raw error/path.
+  const preload = path.join(root, "release-failure.mjs");
+  writeFileSync(preload, `import fs from 'node:fs'; import {syncBuiltinESMExports} from 'node:module';
+    const unlink = fs.unlinkSync;
+    fs.unlinkSync = file => { if (file === ${JSON.stringify(layout.lifecycle_lock_path)}) throw Object.assign(new Error('private-test-detail'), {code:'EACCES'}); return unlink(file); };
+    syncBuiltinESMExports();`, { mode: 0o600 });
+  const releaseFailure = cli(["enroll-identity", expiredFile], { status: 1, preload: ["--import", preload] });
+  check(releaseFailure.reason === "companion_service_identity_enrollment_decision_stale" && releaseFailure.cleanup_failed === true,
+    "CLI preserves primary refusal and cleanup failure separately");
+  check(!JSON.stringify(releaseFailure).includes("private-test-detail") && existsSync(layout.lifecycle_lock_path), "failed release is neither hidden nor falsely acknowledged");
+  check(readFileSync(layout.configuration_path).equals(cliLegacyBytes), "release failure cannot publish expired enrollment");
+  // The failed child's natural exit is observed by spawnSync. The existing
+  // lifecycle owner settles that dead child's exact lock on the next apply.
   check(cli(["enroll-identity", decisionFile]).result === "enrolled", "fresh CLI consumes protected explicit decision through real entry point");
   check(JSON.parse(readFileSync(layout.desired_state_path)).desired_state === "running", "running intent preserved without starting");
   writeFileSync(layout.desired_state_path, desiredBytes);
@@ -139,6 +263,9 @@ try {
   check(!changed.state.preservation_valid && !changed.diagnostics.coherent, "active-run material change refuses, no rebaseline");
   writeFileSync(layout.configuration_path, configBytes);
   check((await uninstallCompanionService(options)).service.status === "not_installed", "supported stopped uninstall");
+  const absent = await inspectCompanionPreservation(options);
+  check(absent.state.status === "not_installed" && absent.state.preservation_valid && absent.diagnostics.coherent,
+    "supported uninstall yields legitimate coherent absence, not simulated missing records");
   check(!existsSync(path.join(root, "state", "data")), "no database preparation in identity lifecycle");
   check(actions.every(action => action === "print"), "no launch, signalling, DNS, network or model effect");
   console.log(JSON.stringify({ status: "passed", cases, real_darwin_provider: true, deterministic_device_drift: true,
