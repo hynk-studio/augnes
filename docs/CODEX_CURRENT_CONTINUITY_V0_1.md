@@ -143,6 +143,39 @@ identities used to compute it are not exposed by the public projection.
 
 ## Privacy, Bounds, and Authority
 
+### Ordinary connection recovery
+
+The Operator presents existing bounded refusal codes without changing route
+authentication or result authority. Resume/source reads recognize only a
+matching route marker, known code and matching HTTP status for a channel
+refusal, changed runtime identity or unavailable Companion. Unknown/malformed
+failures keep an unknown cause; a failed contract check does not establish a
+provider-login failure or prove that the installed service is stale. The
+existing lifecycle status is the next action for connection failures. A
+configuration-version refusal first requires comparison of current source,
+installed/cache and loaded client state before an update decision.
+The opt-in connected-project reader consumes the same confirmed codes to retain
+its `unauthorized` and `refresh_required` outcomes without inferring either from
+an HTTP status alone. Refusals expose no work material and do not retry.
+
+Work currentness conflicts retain the client's proposed text and require
+explicit Resume/source read before another preview. A lost or invalid save
+response remains `save_outcome_unknown`, including when the writer committed;
+normal readback must reconcile it before any replacement write. No automatic
+retry, rebase, reauthentication, reinstall or execution grant is added. Browser
+project access and in-tab drafts retain their separate session/recovery owners.
+See the [ordinary walkthrough](../plugins/augnes-operator/INSTALL.md#ordinary-use-and-recovery).
+
+The disposable `companion-work-revision-envelope-checks.ts` integration uses
+production HTTP handlers, authentication, writers/readers and the stdio proxy.
+Its `companion-connection-roundtrip.mjs` processes discover through the normal
+runtime-directory hint, save Korean/Unicode work, close, and read using only the
+registered folder. A lost committed-save response, stale channel, explicit
+recovery and cancelled preview preserve the exact saved revision/history. Only
+discovery health/manifest and channel credentials are synthetic. This is
+protocol reconstructability; it does not prove model understanding, a fresh
+Codex conversation's plugin loading, or installed adoption.
+
 ### Explicit current-work source read
 
 Resume remains a compact orientation projection. The separate local Operator

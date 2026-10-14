@@ -51,6 +51,7 @@ async function main(semanticOnly = false) {
   let origin = "", script = "", css = "", errors = 0, external = 0;
   const responseLog: Array<{ route: string; project: string | null; action: string; status: number; error: unknown }> = [];
   let holdA = false, reachedHold = false;
+  let failNextSessionRequest = false, failedSessionRequests = 0;
   const held: { release?: () => void } = {};
   const transitionHeld: { project?: string; action?: string; reached: boolean; release?: () => void } = { reached: false };
   const releaseTransitionResponse = () => {
@@ -81,6 +82,10 @@ async function main(semanticOnly = false) {
         holdA = false; reachedHold = true; await new Promise<void>(resolve => { held.release = resolve; });
       }
       const endpoint = new URL(request.url).pathname;
+      if (failNextSessionRequest && endpoint === "/api/vnext/operator/session" && action === "bootstrap") {
+        failNextSessionRequest = false; failedSessionRequests++;
+        res.writeHead(503); res.end("disposable transport failure"); return;
+      }
       const method = req.method === "POST" ? "POST" : "GET";
       const route = endpoint === "/api/vnext/operator/session" ? sessions[method]
         : endpoint === "/api/vnext/operator/project-continuity" ? continuity[method]
@@ -297,7 +302,20 @@ async function main(semanticOnly = false) {
       const wrongIssue = issueVNextLocalOperatorBootstrapV01(db, { config: b, clock });
       await set(tabA, "#vnext-operator-bootstrap-token", wrongIssue.bootstrap_token); await click(tabA, '[data-augnes-primary-action="unlock"]');
       await until(() => tabA.eval("document.body.textContent.includes('operator_session_scope_mismatch')"), "wrong_project_token_refused");
+      assert.equal(await tabA.eval("document.body.textContent.includes('belongs to another project') && document.body.textContent.includes('Unlock this exact project')"), true);
       assert.equal(await tabA.eval("!!document.querySelector('#work-revision-goal')"), false);
+      const expiredIssue = issueVNextLocalOperatorBootstrapV01(db, { config: a,
+        clock: { now: () => new Date(Date.now() - 86_400_000).toISOString() } });
+      await set(tabA, "#vnext-operator-bootstrap-token", expiredIssue.bootstrap_token); await click(tabA, '[data-augnes-primary-action="unlock"]');
+      await until(() => tabA.eval("document.body.textContent.includes('operator_session_expired')"), "expired_access_refused");
+      assert.equal(await tabA.eval("document.body.textContent.includes('Obtain fresh access for this exact project') && document.body.textContent.includes('Keep this tab open')"), true);
+      assert.equal(await tabA.eval("!!document.querySelector('#work-revision-goal')"), false);
+      failNextSessionRequest = true;
+      await set(tabA, "#vnext-operator-bootstrap-token", "disposable-not-sent-to-session-owner"); await click(tabA, '[data-augnes-primary-action="unlock"]');
+      await until(() => tabA.eval("document.body.textContent.includes('operator_session_request_failed')"), "unknown_access_transport_failure");
+      assert.equal(await tabA.eval("document.body.textContent.includes('cause is unknown') && document.body.textContent.includes('Check Augnes Companion service status')"), true);
+      assert.equal(await tabA.eval("document.querySelector('#vnext-operator-bootstrap-token').value"), "");
+      assert.equal(failedSessionRequests, 1, "connection failure never automatically retries");
       assert.equal(await tabB.eval(`fetch('/api/vnext/operator/session',{headers:{'Augnes-Project-Id':${JSON.stringify(b.project_id)}}}).then(r=>r.status)`), 200);
       await authenticate(tabA, a);
       await until(() => tabA.eval("!!document.querySelector('#work-revision-goal')"), "A_draft_restored");

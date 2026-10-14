@@ -268,7 +268,7 @@ export async function readRepositoryContinuityV01(companion, repositoryRoot) {
     body: JSON.stringify({ repository_root: repositoryRoot }),
     signal: AbortSignal.timeout(10_000),
   });
-  if (!response.ok) throw new Error(`live_companion_route_status_${response.status}`);
+  if (!response.ok) await throwReadonlyConnectionRefusalV01(response, ROUTE_MARKER);
   if (
     response.headers.get("x-augnes-local-readonly") !== ROUTE_MARKER ||
     response.headers.get("x-augnes-runtime-instance") !== companion.instance_id ||
@@ -306,7 +306,7 @@ export async function readRepositoryWorkSourcesV01(companion, args) {
     }),
     signal: AbortSignal.timeout(10_000),
   });
-  if (!response.ok) throw new Error(`live_companion_sources_status_${response.status}`);
+  if (!response.ok) await throwReadonlyConnectionRefusalV01(response, SOURCES_ROUTE_MARKER);
   if (response.headers.get("x-augnes-local-readonly") !== SOURCES_ROUTE_MARKER ||
       response.headers.get("x-augnes-runtime-instance") !== companion.instance_id ||
       response.headers.get("x-augnes-runtime-generation") !== companion.generation_id ||
@@ -1073,6 +1073,58 @@ function stringArrayV01(value) { if (!Array.isArray(value) || value.some((item) 
 function isoTimestampV01(value) { stringV01(value); if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/u.test(value) || Number.isNaN(Date.parse(value))) invalidContractV01(); }
 function invalidContractV01() { throw new Error("live_companion_route_contract_invalid"); }
 
+// Preserve only known route refusals for presentation. HTTP status alone does
+// not identify authentication failure; arbitrary bodies/errors never escape.
+async function throwReadonlyConnectionRefusalV01(response, marker) {
+  if (response.headers.get("x-augnes-local-readonly") === marker) {
+    const text = await response.text();
+    if (Buffer.byteLength(text, "utf8") <= MAX_CONTINUITY_RESPONSE_BYTES) {
+      let value;
+      try { value = JSON.parse(text); } catch { /* unknown response stays unknown */ }
+      const statuses = { companion_channel_refused: 403, companion_identity_changed: 409, companion_unavailable: 503 };
+      if (value?.error && exactKeysV01(value.error, ["code", "status"]) && typeof value.error.code === "string" &&
+          value.error.status === response.status && Object.hasOwn(statuses, value.error.code) &&
+          statuses[value.error.code] === response.status) throw new Error(value.error.code);
+    }
+  }
+  throw new Error("live_companion_read_unavailable");
+}
+
+function connectionGuidanceV01(reason) {
+  const statusAction = "Read Augnes Companion lifecycle status for the application/service checkout and follow its offered action.";
+  if (reason === "Multiple verified live Augnes Companions were found; no runtime was selected.") return {
+    situation: reason, action: "Review the conflicting Companion instances through lifecycle status; no runtime was selected.",
+  };
+  if (reason === "companion_channel_refused") return {
+    situation: "The private Augnes Companion channel was refused; this does not establish a host model login problem.",
+    action: statusAction,
+  };
+  if (["companion_identity_changed", "live_companion_route_identity_invalid", "live_companion_sources_refused"].includes(reason)) return {
+    situation: "The verified connection identity changed or could not be confirmed.", action: statusAction,
+  };
+  if (reason === "live_companion_route_contract_invalid") return {
+    situation: "The response did not match the loaded Operator contract; client compatibility and the cause remain unconfirmed.",
+    action: "Compare the loaded Operator with the reviewed installed package before choosing an explicit client update.",
+  };
+  return { situation: "Exact repository continuity is unavailable; the cause is unknown.", action: statusAction };
+}
+
+function workRefusalTextV01(reason) {
+  let next;
+  if (["companion_channel_refused", "companion_identity_changed", "companion_unavailable"].includes(reason)) {
+    const guidance = connectionGuidanceV01(reason);
+    next = `${guidance.situation} Next: ${guidance.action}`;
+  } else if (["refresh_required", "preview_changed", "source_binding_changed", "retained_source_selection_changed",
+    "work_revision_source_comparison_changed", "new_work_preview_changed", "first_work_state_changed"].includes(reason)) {
+    next = "Keep the draft. Next: explicitly Resume and read the saved work before comparing a new preview.";
+  } else if (["repository_unresolved", "new_work_root_unavailable", "first_work_root_unavailable"].includes(reason)) {
+    next = "Keep the draft. Next: review the intended project's registered folder in Augnes; use Locate folder if it is unavailable.";
+  } else {
+    next = "Keep the draft. Next: inspect the refused input and current saved work before deciding another preview.";
+  }
+  return `Work revision refused (${reason}). ${next} No automatic refresh, rebase or retry was performed.`;
+}
+
 function repositoryToolResultV01(companion, projection) {
   const structuredContent = {
     companion: { status: "live", mode: "http", binding: companion.binding },
@@ -1456,6 +1508,7 @@ function exposeRequiredInputsInDescriptionV01(tool) {
 }
 
 function unavailableToolResultV01(reason) {
+  const guidance = connectionGuidanceV01(reason);
   const structuredContent = {
     companion: { status: "unavailable", mode: "http", binding: null },
     repository_resolution: {
@@ -1465,14 +1518,14 @@ function unavailableToolResultV01(reason) {
       message: reason,
     },
     continuity: null,
-    current_situation: "Exact repository continuity is unavailable because one verified live Augnes Companion could not be selected.",
-    next_meaningful_action: { label: "Start or disambiguate the local Augnes Companion", reason, executes: false },
+    current_situation: guidance.situation,
+    next_meaningful_action: { label: guidance.action, reason, executes: false },
     browser_deep_link: null,
   };
   return {
     isError: true,
     structuredContent,
-    content: [{ type: "text", text: structuredContent.current_situation }],
+    content: [{ type: "text", text: `${structuredContent.current_situation} Next: ${guidance.action}` }],
   };
 }
 
@@ -1597,7 +1650,7 @@ export async function handleMessageV01(message) {
             ? "Preview only; nothing saved. Inspect normalized changes. Save explicitly only within existing user authorization."
             : projection.status === "saved" ? INITIAL_WORK_TOOLS.includes(toolName) ? "First work defined. No execution or semantic action. Explicitly Resume again before adding or reading sources." : projection.preparation ? "Different task prepared. Prior preparation was not completed; no execution or semantic action. Resume again before reading sources." : "Work revision saved. No execution or semantic action. Explicitly Resume again before reading the new selection."
             : projection.status === "exact_replay" ? projection.preparation ? "Existing identical preparation acknowledged; no new preparation. Authentication bookkeeping was recorded." : "Existing identical revision acknowledged; no new revision. Authentication bookkeeping was recorded."
-            : `Work revision refused (${projection.reason}). No automatic refresh, rebase or retry was performed.` }],
+            : workRefusalTextV01(projection.reason) }],
         } };
       }
       if (toolName === SOURCES_TOOL_NAME) {
@@ -1716,9 +1769,12 @@ export async function handleMessageV01(message) {
           content: [{ type: "text", text: projection.ordinary_text ?? "Augnes updated the repository execution attachment metadata." }],
         },
       };
-    } catch {
+    } catch (error) {
       if (WORK_SAVE_TOOLS.includes(toolName)) return { jsonrpc: "2.0", id: message.id, result: unknownWorkSaveResultV01() };
-      return { jsonrpc: "2.0", id: message.id, result: unavailableToolResultV01("The verified Companion became unavailable before the continuity read completed.") };
+      const reason = ["companion_channel_refused", "companion_identity_changed", "companion_unavailable",
+        "live_companion_route_identity_invalid", "live_companion_sources_refused", "live_companion_route_contract_invalid"].includes(error?.message)
+        ? error.message : "The verified Companion became unavailable before the continuity read completed; the cause is unknown.";
+      return { jsonrpc: "2.0", id: message.id, result: unavailableToolResultV01(reason) };
     }
   }
   return { jsonrpc: "2.0", id: message.id ?? null, error: { code: -32601, message: "method_not_found" } };
@@ -1837,7 +1893,7 @@ function lifecycleToolResponseV01({
       content: [{
         type: "text",
         text: isError
-          ? `Augnes Companion lifecycle action was refused: ${reason}.`
+          ? `Augnes Companion lifecycle action was refused: ${reason}. Next: ${service?.next_action ?? "Read service status from the installed application checkout; preserve an unknown cause for review."}`
           : service?.next_action ?? "Companion lifecycle status is available.",
       }],
     },

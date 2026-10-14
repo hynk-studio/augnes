@@ -5648,6 +5648,7 @@ function lifecycleCommandResult(command, observation, changed) {
 }
 
 function serviceNextAction(status, reason = null) {
+  if (reason === "companion_service_configuration_version_stale") return "Compare the loaded Operator client with service status from the installed application checkout before choosing a reviewed update.";
   if (reason === "companion_service_identity_enrollment_required") return "Stop the exact legacy service, inspect identity-preview, then explicitly enroll-identity with its current decision.";
   if (reason?.startsWith("companion_service_identity_")) return "Inspect the typed checkout identity result; do not enroll automatically or start with unavailable evidence.";
   if (

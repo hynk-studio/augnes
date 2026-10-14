@@ -309,13 +309,22 @@ project files.
 For source-blind local Codex resumption, install the repo-local
 `plugins/augnes-operator` plugin once with
 `npm run augnes:plugin:install`. Ask “Resume this
-repository with Augnes.” Plugin version 0.4.0 first checks lifecycle status,
+repository with Augnes.” The reviewed Operator package (currently 0.5.0) first checks lifecycle status,
 starts an already-installed exact service at most once when offered, and only
 then performs one read-only canonical Resume through a verified Companion. It
 never installs the service from MCP. The plugin verifies the supervised bridge and
 calls the strict UI/Core route through a private generation-bound channel; no
 fixed `8787` configuration, Browser open page, mock, seed, docs, or legacy brief
 fallback is required.
+
+Ordinary Operator reading and work preparation use the private Companion
+channel, not the optional Browser review token or a managed Codex run. Ask to
+read the selected notes, preview an authorized change, save it explicitly, then
+Resume and read it back. In a later conversation, ask to Resume the same
+registered project folder and read its saved notes; no prior packet or internal
+identifier needs to be copied. If a save response is lost, read back before
+deciding whether another write is needed. Keep unsaved drafts in the original
+client until saved or copied. See the [ordinary-use and recovery walkthrough](plugins/augnes-operator/INSTALL.md#ordinary-use-and-recovery).
 
 For an existing ordinary task, ask **“Compare how to do this work, use a
 contribution only if it helps, and revisit the arrangement after the result.”**

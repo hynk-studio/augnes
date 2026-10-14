@@ -16,11 +16,99 @@ import { POST as resumePOST } from "../app/api/augnes/read/codex-repository-cont
 import { POST as sourcesPOST } from "../app/api/augnes/read/codex-repository-work-sources/route";
 import { handleMessageV01 } from "../plugins/augnes-operator/mcp/companion-proxy.mjs";
 import { runFirstWorkExampleChild } from "./companion-first-work-consumer.mjs";
+import { consume, runConnectionRoundtripChild } from "./companion-connection-roundtrip.mjs";
 import { validateRecoveryCanonicalDatabaseV01 } from "./recovery-canonical-record-validator";
+
+/** Actual consume() control flow with deferred I/O, not an SDK shutdown race. */
+async function assertConnectionReadCleanupOrdering(root: string) {
+  const failures: unknown[] = [];
+  for (const outcome of ["fulfilled", "rejected"] as const) {
+    const events: string[] = [], calls: unknown[] = [], unhandled: unknown[] = [];
+    const sourceRead = Promise.withResolvers<unknown>();
+    const failure = new Error("controlled source-read failure");
+    const project = { project_id: "project:ordering", display_name: "읽기 순서 🧭" };
+    const continuity = { snapshot: { binding: `sha256:${"a".repeat(64)}` } };
+    const sources = { structuredContent: { sources: [{ text: "한글 e\u0301 ≠ é\n탭\t과  두 칸" }] } };
+    let transport: object, readStarted = false, readSettled = false;
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandled);
+    const completed = consume("read", root, {
+      Client: class {
+        async connect(value: object) { assert.equal(value, transport); }
+        async listTools() {
+          return { tools: ["augnes_resume_repository", "augnes_read_repository_work_sources"].map(name => ({ name })) };
+        }
+        callTool(request: { name: string; arguments: unknown }) {
+          calls.push(request);
+          if (request.name === "augnes_resume_repository") {
+            return Promise.resolve({ structuredContent: { repository_resolution: project, continuity } });
+          }
+          assert.equal(request.name, "augnes_read_repository_work_sources");
+          readStarted = true; events.push("read:started");
+          return sourceRead.promise.then(value => {
+            readSettled = true; events.push("read:fulfilled"); return value;
+          }, error => {
+            readSettled = true; events.push("read:rejected"); throw error;
+          });
+        }
+        async close() {
+          events.push("client:close:start"); await Promise.resolve(); events.push("client:close:end");
+        }
+      },
+      StdioClientTransport: class {
+        constructor() { transport = this; }
+        async close() {
+          events.push("transport:close:start"); await Promise.resolve(); events.push("transport:close:end");
+        }
+      },
+    }).then(value => ({ status: "fulfilled" as const, value }), reason => ({ status: "rejected" as const, reason }));
+    const settle = () => outcome === "fulfilled" ? sourceRead.resolve(sources) : sourceRead.reject(failure);
+    let pendingCleanupStarted = false;
+    try {
+      // Drain the connect/catalog/resume microtasks and allow finally to run.
+      // The source read remains explicitly pending; no elapsed-time assumption.
+      await new Promise<void>(resolve => setImmediate(resolve));
+      assert(readStarted, "the actual consume function must start its source read");
+      assert.equal(readSettled, false);
+      pendingCleanupStarted = events.some(event => event.includes(":close:"));
+      assert.deepEqual(events, ["read:started"], "neither resource may close while the source read is pending");
+      settle();
+      const result = await completed;
+      if (outcome === "fulfilled") {
+        assert.equal(result.status, "fulfilled");
+        assert.deepEqual(result.value, { project, continuity, sources });
+        assert.equal(result.value.sources, sources, "preserve the exact source result");
+      } else {
+        assert.equal(result.status, "rejected");
+        assert.equal(result.reason, failure, "preserve the original read failure");
+      }
+      assert.deepEqual(events, ["read:started", `read:${outcome}`, "client:close:start", "client:close:end",
+        "transport:close:start", "transport:close:end"]);
+    } catch (error) { failures.push(error); }
+    finally {
+      // Also drain both cases on the intentionally failing pre-fix run.
+      settle(); await completed;
+      await new Promise<void>(resolve => setImmediate(resolve));
+      process.off("unhandledRejection", onUnhandled);
+    }
+    assert(readSettled, "no synthetic source read may remain pending");
+    assert.deepEqual(unhandled, [], "read rejection must have an observer");
+    assert.deepEqual(calls, [
+      { name: "augnes_resume_repository", arguments: { repositoryRoot: root } },
+      { name: "augnes_read_repository_work_sources", arguments: { repositoryRoot: root, expectedSnapshotBinding: continuity.snapshot.binding } },
+    ], "consume must neither retry nor issue a replacement operation");
+    assert.equal(events.filter(event => event === "client:close:end").length, 1);
+    assert.equal(events.filter(event => event === "transport:close:end").length, 1);
+    console.log(JSON.stringify({ connection_read_cleanup_ordering: outcome, pending_cleanup_started: pendingCleanupStarted,
+      events, read_settled: readSettled, unhandled_rejections: unhandled.length, calls: calls.length }));
+  }
+  assert.equal(failures.length, 0, failures.map(error => String(error)).join("\n"));
+}
 
 /** Real proxy discovery/dispatch, HTTP, authenticated route, writer and parser.
  * Only discovery health and manifest are fixtures; no installed runtime is used. */
 export async function assertCompanionWorkRevisionEnvelopeV01(temporaryRoot: string) {
+  await assertConnectionReadCleanupOrdering(temporaryRoot);
   const root = path.join(temporaryRoot, "envelope-project");
   const runtimeRoot = path.join(temporaryRoot, "envelope-runtime");
   mkdirSync(root); mkdirSync(runtimeRoot);
@@ -35,6 +123,7 @@ export async function assertCompanionWorkRevisionEnvelopeV01(temporaryRoot: stri
     "x-augnes-companion-proxy": token, "x-augnes-runtime-instance": identity.instance_id,
     "x-augnes-runtime-generation": identity.generation_id, "x-augnes-runtime-repository": identity.repository_fingerprint };
   let loseInitialResponse = false;
+  let loseRevisionResponse = false;
   const server = createServer(async (incoming, outgoing) => {
     try {
       const url = new URL(incoming.url!, "http://127.0.0.1");
@@ -59,6 +148,10 @@ export async function assertCompanionWorkRevisionEnvelopeV01(temporaryRoot: stri
         bytes: bytes.byteLength, status: response.status, response_bytes: Buffer.byteLength(body) });
       if (loseInitialResponse && route === revisionPOST && JSON.parse(bytes.toString()).intent === "initial_work" && response.status === 200) {
         loseInitialResponse = false; outgoing.destroy(); return;
+      }
+      if (loseRevisionResponse && route === revisionPOST && JSON.parse(bytes.toString()).action === "save" &&
+          !JSON.parse(bytes.toString()).intent && response.status === 200) {
+        loseRevisionResponse = false; outgoing.destroy(); return;
       }
       outgoing.writeHead(response.status, Object.fromEntries(response.headers)); outgoing.end(body);
     } catch { outgoing.writeHead(500); outgoing.end(); }
@@ -346,6 +439,61 @@ export async function assertCompanionWorkRevisionEnvelopeV01(temporaryRoot: stri
     assert.equal(validateRecoveryCanonicalDatabaseV01(db).status, "valid");
     console.log(JSON.stringify({ concurrent_initial_creation: racers.map(result => ({ status: result.status, reason: result.reason })), unique_genesis: true,
       changed_runtime_authentication_role_recovery_and_root_refused: true, unrelated_selection_independent: true, explicit_resume_reconciled: true }));
+    // #1212: ordinary tools in separate protocol processes, not copied context
+    // or direct database writes. Discovery uses the supported runtime-dir hint.
+    const unicodeRoot = path.join(temporaryRoot, "연결-복구-🧭"); mkdirSync(unicodeRoot);
+    const unicodeProject = getOrCreateCanonicalProjectForLocalRootV01(db, { workspace_id: scope.workspace_id,
+      local_root: normalizeLocalProjectRootRefV01(unicodeRoot, { base_path: temporaryRoot }), display_name: "한국어 연결 복구 🧭" }).project;
+    const unicodeScope = { workspace_id: scope.workspace_id, project_id: unicodeProject.project_id };
+    select(unicodeProject.project_id);
+    loseRevisionResponse = true;
+    const writesBefore = observations.filter(row => row.action === "save").length;
+    const writer = await runConnectionRoundtripChild("write", unicodeRoot, runtimeRoot);
+    assert.equal(writer.save.structuredContent.status, "outcome_unknown");
+    assert.match(writer.save.content[0].text, /may have committed[\s\S]*Resume[\s\S]*read/);
+    assert.equal(observations.filter(row => row.action === "save").length, writesBefore + 2, "one initial save and one revision; no replacement write");
+    // Reopen while an unrelated project is selected. The reader receives only
+    // the registered folder, never the prior packet, project ID, text or binding.
+    select(consumerScope.project_id);
+    const freshUnicode = await runConnectionRoundtripChild("read", unicodeRoot, runtimeRoot);
+    assert.equal(freshUnicode.project.status, "resolved_exact");
+    assert.equal(freshUnicode.project.display_name, "한국어 연결 복구 🧭");
+    assert.equal(freshUnicode.continuity.current_work.goal, "한국어 작업 — café / e\u0301 / 🧭");
+    assert.equal(freshUnicode.continuity.managed_execution.stage, "no_run");
+    assert.equal(freshUnicode.sources.structuredContent.status, "available");
+    assert.equal(freshUnicode.sources.structuredContent.sources[0].excerpt_text, "첫 줄: 한글 🧭\n둘째 줄: e\u0301 ≠ é\n탭\t과  두 칸 — 원문 보존.");
+    const unicodeChain = inspectPreExecutionProjectWorkRevisionChainV01(db, unicodeScope);
+    assert.equal(unicodeChain.revision_count, 1);
+    assert.equal(unicodeChain.packets[0].integrity.fingerprint, writer.first_packet);
+    assert.equal(freshUnicode.sources.structuredContent.packet_fingerprint, unicodeChain.tip_packet.integrity.fingerprint);
+    const preserved = db.serialize();
+    const cancelled = await runConnectionRoundtripChild("cancel-preview", unicodeRoot, runtimeRoot);
+    assert.equal(cancelled.cancelled, true); assert.deepEqual(db.serialize(), preserved);
+    // Rotate only the synthetic route-side credential. Discovery remains valid;
+    // the real authenticated reader refuses this now-stale channel.
+    process.env.AUGNES_COMPANION_PROXY_TOKEN = "rotated-disposable-channel";
+    try {
+      const denied = await runConnectionRoundtripChild("read", unicodeRoot, runtimeRoot);
+      assert.equal(denied.refused.isError, true);
+      assert.equal(denied.refused.structuredContent.repository_resolution.message, "companion_channel_refused");
+      assert.match(denied.refused.content[0].text, /Companion channel[\s\S]*lifecycle status/);
+      assert.equal(denied.refused.structuredContent.continuity, null);
+    } finally { process.env.AUGNES_COMPANION_PROXY_TOKEN = token; }
+    assert.deepEqual(db.serialize(), preserved);
+    const recoveredUnicode = await runConnectionRoundtripChild("read", unicodeRoot, runtimeRoot);
+    assert.deepEqual(recoveredUnicode.project, freshUnicode.project);
+    assert.equal(recoveredUnicode.continuity.snapshot.binding, freshUnicode.continuity.snapshot.binding);
+    assert.deepEqual(recoveredUnicode.sources.structuredContent, freshUnicode.sources.structuredContent);
+    assert.deepEqual(db.serialize(), preserved);
+    assert.equal(observations.filter(row => row.action === "save").length, writesBefore + 2);
+    assert.equal((db.prepare("SELECT COUNT(*) AS n FROM autonomy_runs").get() as { n: number }).n, 0);
+    assert.equal(validateRecoveryCanonicalDatabaseV01(db).status, "valid");
+    console.log(JSON.stringify({ ordinary_connection_roundtrip: "pass", protocol_processes: 5,
+      fixture: "synthetic discovery health/manifest and channel; production proxy/HTTP/routes/writers/readers",
+      normal_runtime_directory_discovery: true, korean_unicode_exact: true, revision_count: 1,
+      packet_fingerprint: unicodeChain.tip_packet.integrity.fingerprint, uncertain_save_reconciled_without_replacement: true,
+      channel_refusal_and_explicit_recovery: true, cancelled_preview_no_write: true,
+      unrelated_project_selection_preserved: true, managed_runs: 0, actual_codex_conversation: "NOT_RUN" }));
     return { databasePath, root, scope, operator_id: COMPANION_WORK_OPERATOR_ID_V01, selected, goal: initial.task.goal };
   } finally {
     try {

@@ -1389,6 +1389,28 @@ developer-exposed disposable evidence, not ordinary-use usefulness, Autohunt,
 hosted adoption, independent transfer or installed-plugin rollout. Final exact-head
 verification and Draft review remain recorded with the candidate PR.
 
+### Current P2 — Ordinary connection and recovery (#1212)
+
+The candidate corrects installed-service access/restart and Operator version
+guidance, and gives existing proxy/session refusals a bounded explanation and
+supported next action. Host model login, private Companion channel, Browser
+project access and managed execution remain separate. Known channel/currentness
+refusals stay typed; generic unavailability does not become a login diagnosis.
+A configuration-version refusal asks for source/cache/loaded-client comparison
+before an update decision, without unconditional service reinstallation.
+
+The disposable protocol integration saves Korean/Unicode work through the
+authenticated production writers, loses the committed save response, closes the
+client, and reconstructs it in a fresh process through normal discovery and
+readers. It also covers stale-channel refusal, explicit recovery and cancelled
+preview without a replacement write. Existing Browser fixtures verify wrong or
+expired project access, retained drafts and explicit recovery. These establish
+source-path behavior, not actual model understanding, fresh Codex plugin loading
+or installed adoption. The ordinary walkthrough and limits are in
+[Operator installation and use](../../plugins/augnes-operator/INSTALL.md#ordinary-use-and-recovery).
+Exact candidate verification and the one Draft PR remain the review record;
+#1212 remains open and installed rollout requires separate authority.
+
 <a id="current-p2p5--web-augnes-v0-task-b-local-candidate-1345"></a>
 
 ## Completed P2/P5 — Web Augnes v0 hosted slice (#1345)
