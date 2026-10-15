@@ -41,6 +41,26 @@ the whole product mature.
 7. Do not invent measured baselines, pass rates, user comprehension, or
    usefulness from fixtures or self-evaluation.
 
+## Story & Worldbuilding Increment A acceptance (#1455)
+
+Exercise creative and ordinary entry through the same supported surface. Save
+and revise actual original Korean/Unicode paragraphs with the production writer,
+then dispose the runtime and reopen in a fresh browser document. Retain supplied
+fictional fact, announcement, character belief and undecided intention without
+promoting draft prose into canon or empirical Evidence. Verify that presentation
+attachment/detachment preserves identity, access, originals and lineage.
+
+Use the actual readable export and complete recovery producer, consume the
+complete file through supported empty-destination reconstruction, and reopen the
+recovered material through the same user surface after another process restart.
+Test stale/concurrent/wrong-project refusal, retained-draft comparison/recovery,
+missing content and malformed/incompatible/partial-transaction recovery. Direct
+SQL may inject negative faults; it must not manufacture the accepted user path.
+Original source and context-selection budgets remain distinct. Report finite
+limits, failed attempts and owned cleanup. This is deterministic product
+continuity and portable recovery evidence, not LLM understanding, creative
+superiority, installed/hosted adoption or B/C scene acceptance.
+
 ## Independent project-client acceptance
 
 For #1430, distinguish project data isolation, usable client authorization,

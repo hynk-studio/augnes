@@ -1,4 +1,5 @@
 import { CDP } from './web-planning-cdp.mjs';
+import { browserStoryJourney } from './browser-web-planning-story.mjs';
 import { browserFileJourney } from './browser-web-planning-files.mjs';
 import { browserHistoryJourney } from './browser-web-planning-history.mjs';
 import { advancedClock } from './web-planning-history-checks.mjs';
@@ -277,6 +278,13 @@ try {
  assert.equal(await d.eval('window.name'),'true');
  assert.equal(d.logoutObserved,true);assert.equal((await local.mf.dispatchFetch(directOrigin+'/api/works')).status,403);
  checks.push('direct sign-out clears tab before navigating to Access logout; actual missing ctx.access refuses subsequent reads; login redirect/HTML challenge clears and latches private state; provider cookie revocation requires hosted acceptance');
+ for(const c of clients)await navigate(c,'about:blank');await local.close();local=null;
+ let storyDestination=false;const storyPort=await availablePort();
+ const storyOptions=()=>({...directOptions,root:path.join(root,storyDestination?'story-recovered':'story-original'),port:storyPort});
+ local=await startLocal(storyOptions());const storyOrigin=local.origin;const story=await page(debug,storyOrigin);
+ await browserStoryJourney({a:story,debug,origin:storyOrigin,page,click,set,settled,saved,wait,navigate,root,checks,
+   replaceRuntime:async replacement=>{for(const c of clients)await navigate(c,'about:blank');const bindings=local.env;await local.close();local=null;if(replacement)storyDestination=true;local=await startLocal({...storyOptions(),bindings});},
+   countRows:async()=>({revisions:(await local.db.prepare('SELECT count(*) n FROM web_planning_revision').first()).n,files:(await local.db.prepare('SELECT count(*) n FROM web_planning_file').first()).n})});
  assert.deepEqual(interceptionErrors,[]);
  assert.equal(exceptions,0);assert.equal(external,0);assert.equal(unexpectedFailures,0);assert.equal(expectedFailures.size,0);
  console.log(JSON.stringify({web_planning_browser_checks:checks,acknowledgement_checks:acknowledgementChecks,actual_agent_read:false,sites_ingress_verified:false,cloudflare_access_hosted_verified:false,external_requests:external,script_exceptions:exceptions}));
