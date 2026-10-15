@@ -98,6 +98,13 @@ to retain that currentness warning. The old reader was not modified and no accep
 was relaxed to accept data. All corrected checks and final deciding evidence are
 reported separately on the PR; failed logs remain in the task's local evidence.
 
+The first frozen candidate's Full Canonical run stopped at root TypeScript checking:
+new imports had displaced the Web handler's triple-slash asset declaration from
+the file header. Web-only checking included the declaration independently and had
+passed. Restoring the declaration before imports fixes root checking without
+changing runtime behavior. That failed receipt remains attached to its original
+head; qualification of the corrected head is separate.
+
 The two temporary consumer delivery directories were removed after normal CLI exit.
 Normal client session/trust/cache persistence was left intact. Product runtimes,
 Chrome, disposable databases and ports settled under existing lifecycle owners.

@@ -1,7 +1,7 @@
+/// <reference path="./assets.d.ts" />
 import { notebookFrom } from "./scene-contract";
 import { directionComparison, validateDirectionReferences } from "./directions";
 import { DIRECTION_EXPORT, directionExport, validateDirectionExport } from "./direction-recovery";
-/// <reference path="./assets.d.ts" />
 import { prepareSceneContext, prepareSceneDraft, previewSceneReview, saveSceneReview } from "./scenes";
 import { type FileBody, FILE_EXPORT_REQUEST_BYTES, historyFiles, selectedFiles, validateFileExport } from "./files";
 import { authorize, csrfCookie, csrfToken, readTicket, requireCsrf, requireScope, ticket, type Environment, type Principal } from "./access";
