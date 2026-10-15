@@ -1,10 +1,13 @@
+import { notebookFrom } from "./scene-contract";
+import { directionComparison, validateDirectionReferences } from "./directions";
+import { DIRECTION_EXPORT, directionExport, validateDirectionExport } from "./direction-recovery";
 /// <reference path="./assets.d.ts" />
 import { prepareSceneContext, prepareSceneDraft, previewSceneReview, saveSceneReview } from "./scenes";
-import { FILE_EXPORT_REQUEST_BYTES, historyFiles, selectedFiles, validateFileExport } from "./files";
+import { type FileBody, FILE_EXPORT_REQUEST_BYTES, historyFiles, selectedFiles, validateFileExport } from "./files";
 import { authorize, csrfCookie, csrfToken, readTicket, requireCsrf, requireScope, ticket, type Environment, type Principal } from "./access";
 import { assertHistoryBudget, binding, canonical, exact, exportWork, fail, hash, makeRevision, normalizePayload, reference, Refusal, REQUEST_BYTES, requestFingerprint, sameBinding, UUID, validateExport } from "./contract";
 import { inspectDraftCapacity } from "./capacity";
-import { append, completeExport, downloadFile, eraseWork, headBinding, headsCurrent, listWork, readWork, reconstruct, requestRevision } from "./store";
+import { append, completeExport, downloadFile, eraseWork, headBinding, headsCurrent, listWork, readWork, reconstruct, reconstructWorks, requestRevision } from "./store";
 import { page, renderContext, renderComparison, renderPreview, style } from "./page";
 import { compare, editedPayload, previewOperation, referenceAvailability, saveOperation } from "./relations";
 import client from "./client.js.txt?raw";
@@ -58,6 +61,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
         if(match[2]==="export" || match[2]==="reading-export"){
           const value=chain.some(r=>r.files!==undefined)?await completeExport(access,chain):exportWork(chain);
           if(!await headsCurrent(access,reference(chain.at(-1)!),reference(chain.at(-1)!)))fail("refresh_required",409);
+          if(match[2]==="export"&&"files" in value){const book=notebookFrom(chain.at(-1)!,value.files as FileBody[]);if(book.inheritance||book.adoptions?.length)fail("direction_closure_required",409);}
           if(match[2]==="reading-export")return new Response(readableExport(chain,"files" in value?value.files:[]),{headers:{...headers,"Content-Type":"text/html; charset=utf-8","Content-Disposition":"attachment; filename=authored-work.html","Content-Security-Policy":"default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"}});
           return new Response(canonical(value),{headers:{...headers,"Content-Type":"application/json","Content-Disposition":"attachment; filename=planning-work.json"}});
         }
@@ -90,7 +94,12 @@ export async function handle(request:Request,env:Environment,principal:Principal
     if(path==="/api/reconstruct" || path==="/api/reconstruct-files") {
       exact(input,"workspace_id,project_id,export,confirm");
       if(env.RECONSTRUCTION_MODE!=="quiesced-empty-store" || input.confirm!=="reconstruct-empty-store")fail("reconstruction_disabled",403);
+      if(path==="/api/reconstruct-files"&&input.export?.format===DIRECTION_EXPORT){
+        const works=validateDirectionExport(access,input.export);await reconstructWorks(access,works);
+        return json({saved:works[0].chain.at(-1),works:works.map(w=>reference(w.chain.at(-1)!)),authorship:"imported attestation; not independently verified"});
+      }
       const {chain,bodies}=path==="/api/reconstruct-files"?validateFileExport(access,input.export):{chain:validateExport(access,input.export),bodies:[]};
+      for(const r of chain)validateDirectionReferences(notebookFrom(r,bodies),()=>undefined);
       await reconstruct(access,chain,bodies);
       return json({saved:chain.at(-1),authorship:"imported attestation; not independently verified"});
     }
@@ -104,17 +113,26 @@ export async function handle(request:Request,env:Environment,principal:Principal
       exact(input,"workspace_id,project_id,expected,intent");
       return json(action==="scene-context"?await prepareSceneContext(access,id,input.expected,input.intent):await previewSceneReview(access,id,input.expected,input.intent));
     }
-    const relation=path.match(/^\/api\/work\/([a-f0-9-]+)\/(branch-preview|compare|incorporation-preview|relation-save|relation-resolve)$/);
+    const relation=path.match(/^\/api\/work\/([a-f0-9-]+)\/(branch-preview|compare|direction-export|incorporation-preview|relation-save|relation-resolve)$/);
     if(relation && UUID.test(relation[1])) {
       const [,id,action]=relation;
       if(action==="relation-save" || action==="relation-resolve") {
         exact(input,"workspace_id,project_id,ticket,intent");
         return json(await saveOperation(access,id,input.ticket,input.intent,action==="relation-resolve"));
       }
-      if(action==="compare") {
+      if(action==="compare"||action==="direction-export") {
         exact(input,"workspace_id,project_id,expected,source");
         const result=await compare(access,id,input.expected,input.source);
-        return json({...result,html:renderComparison(result.target,result.branch,result.baseline)});
+        const direction=result.branch.files?.length?await directionComparison(access,result.target,result.branch):undefined;
+        if(action==="direction-export"){
+          const chains=await Promise.all([readWork(access,result.target.work_id),readWork(access,result.branch.work_id)]);
+          const works=[];for(const chain of chains)works.push(await completeExport(access,chain));
+          const recovery=directionExport(works);validateDirectionExport(access,recovery);
+          if(!await headsCurrent(access,reference(result.target),reference(result.branch)))fail("refresh_required",409);
+          return json({recovery,reading:works.map(w=>readableExport(w.revisions,w.files))});
+        }
+        if(!await headsCurrent(access,reference(result.target),reference(result.branch)))fail("refresh_required",409);
+        return json({...result,direction,html:renderComparison(result.target,result.branch,result.baseline)});
       }
       exact(input,"workspace_id,project_id,expected,intent");
       const result=await previewOperation(access,id,action==="branch-preview"?"branch":"incorporate",input.expected,input.intent);

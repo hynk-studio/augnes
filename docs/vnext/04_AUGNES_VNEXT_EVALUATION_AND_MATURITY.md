@@ -93,6 +93,28 @@ source selection, author classification/adoption, manual transfer/import, contex
 size and measured/unknown human and host burden. Successful storage, a fresh browser
 or exact text read alone does not establish model understanding or usefulness.
 
+## Alternate continuation acceptance (DT-001 C)
+
+Use actual Web/D1/browser producers to fork a named persisted origin, retain
+inherited attribution, explicitly reinterpret an adopted setting without rewriting
+history, and take only a selected independent change into the current primary.
+Freeze whether the example is a retroactive reinterpretation or a later event.
+Test both current heads, explicit prerequisites, source availability, replay,
+unknown outcomes, delayed/ABA/cancelled responses, finite capacity and atomic
+failure. Recover the full two-scope closure into empty replacement storage and
+reopen both independent successors after process replacement. Retain A/B ordinary
+work, exact originals, old-reader refusal and presentation compatibility coverage.
+
+C permits at most two fresh included-client conversations/four messages, one at
+a time, 600 seconds per turn including cleanup and 1,800 seconds aggregate.
+Deliver each actual product-generated scope context through an existing file or
+browser path, never another consumer's answer or a coordinator summary. Save and
+recover the resulting drafts through the product. Report supplied classification,
+manual transfer, native memory exposure, time, usage and unknown human burden;
+this is assisted ordinary-use development evidence, not blind or comparative
+creative evaluation. Unavailable supported access means only that observation is
+NOT_RUN. No additional launcher, login, API fallback or #1464 allocation is implied.
+
 ## Independent project-client acceptance
 
 For #1430, distinguish project data isolation, usable client authorization,

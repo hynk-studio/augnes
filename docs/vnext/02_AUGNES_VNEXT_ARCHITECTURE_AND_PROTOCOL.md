@@ -134,7 +134,7 @@ author facts, character knowledge/beliefs, public/narrator assertions and author
 intentions from their proposed/adopted/undecided/rejected dispositions. Adopting an
 intention does not assert that its event happened. Fictional event positions and
 reveal order are independent of the envelope's actual revision time. One work is
-one fictional scope; this introduces no alternate-branch or shared-world contract.
+one fictional scope; B introduces no alternate-branch or shared-world contract.
 
 A draft binds persisted source revision/file identities and cannot adopt material.
 A grouped review binds the exact saved scene/proposals, current revision, scope,
@@ -148,6 +148,28 @@ interpret this domain version. Presentation changes neither erase its history no
 expand authority. Generated context is a bounded, rebuildable source-linked view,
 not a replacement master, empirical Evidence, native Core Transition, publication
 or execution grant. Single-owner viewpoint selection is not access isolation.
+
+DT-001 C adds a bounded [primary/alternate contract](../../apps/web_planning/README.md#alternate-continuation--increment-c-1455)
+to the same writers. A v2 scene notebook copies the named origin's scenes as
+immutable inherited context and copies current authored-file bytes into an
+independent work. Historical source/review identities remain in the primary's
+retained chain, with explicit unavailable-source refusal for complete preparation.
+Inherited adoption is not a newly performed alternate review. Local drafts and
+reviews affect only their work. Explicit `revises` links represent retroactive
+reinterpretation at the same fictional event/reveal positions, retaining earlier
+text, actor and decisions; they are not later events or empirical corrections.
+
+A target selection records exact current source and target, configured author,
+reason and per-proposal dispositions. Only explicitly adopted source proposals
+can be adopted by transfer. Required original files and declared proposal links
+must be available; unrepresented natural-language dependence remains unknown.
+Unselected proposals do not revoke prior adoption or transfer source prose.
+The original sealed-request replay/unknown-outcome contract remains authoritative.
+A versioned two-work recovery closure includes both complete histories and bytes;
+all local transitions and cross-work references validate before one empty-store
+transaction. A single-work export cannot claim this closure. Older notebook
+readers refuse v2 semantics; old A/B bytes and hashes are never rewritten. This
+adds no Core Transition, shared-world engine, synchronization or execution grant.
 
 A Blank State projection, AI Workplane projection, timeline, relationship view,
 GuideBrief, Inspector, host-native card, attention queue, evidence pack, run
