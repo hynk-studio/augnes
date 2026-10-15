@@ -381,6 +381,35 @@ and host expansion until a concrete consumer justifies them. This priority
 neither cancels authorized work nor makes all P1/P2 work blocked. Dated historical
 scopes, study results and unrelated Current/Next work below retain their bounds.
 
+### Current independent research — Executable reuse applicability (#1459)
+
+The [#1459 assignment](https://github.com/hynk-studio/augnes/issues/1459) under
+[#1426](https://github.com/hynk-studio/augnes/issues/1426) commissions one contained
+method-development and actual-report increment, alongside the separately owned
+#1455 product work. Product entry/re-entry/recovery and applied-method research
+are parallel responsibilities; #1453's trial readiness is not a prerequisite for
+this filesystem computation. The existing #1428 and #1453 trials, historical
+evidence and budgets remain unchanged; planning Draft #1454 is not adopted here.
+
+The [runnable prototype](../../scripts/reuse-applicability-study/README.md) joins
+executed calibration experience, contrasting-outcome selection, induced/revised
+reuse conditions, broader replay and a separate service-prioritization report.
+The later task actually loads a versioned method and file references, obtains
+missing available provenance, reuses or recomputes results, and writes grouped
+budget judgments with honest incompleteness. Result identity is distinct from
+duplicate delivery and identical content. The strong adaptive memo/code reference
+has the same observations and utilities and may derive its own method.
+
+This is constructed research, not a shipped Web/Core/Companion feature or paper
+reproduction. The source includes deterministic algorithmic development and a
+fixed-allocation entry; actual ordinary-client observations and comparative
+outcomes belong to the consolidated #1459 delivery. Supplied mechanics, induced
+rules, common-checker rescues, source qualification and usefulness remain separate
+under [04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#reuse-applicability-evidence-1459).
+The new files and complete-unit registration require the unchanged planner's
+actual exact-head plan; the old research family's narrow qualification does not
+cover them. No automatic product adoption or next research topic follows.
+
 ### Bounded P3/P4/P5 implementation — Different-goal experience use (#1427)
 
 Under [#1426](https://github.com/hynk-studio/augnes/issues/1426), the
