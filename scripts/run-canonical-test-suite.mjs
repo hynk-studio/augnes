@@ -162,6 +162,14 @@ const goldenStep = {
 const suites = {
   unit: [
     {
+      id: "reuse-applicability-study",
+      label: "experience-induced reuse decisions and actual later file reports",
+      requirements: ["filesystem", "process-owning", "immutable-fixture-input"],
+      ...rootNode("scripts/test-reuse-applicability-study.mjs"),
+      timeoutMs: 10_000,
+      requireNaturalExit: true,
+    },
+    {
       label: "public retry-work Skill package integrity and source-bound later consumer",
       ...rootNode("scripts/test-workflow-cost-plugin.mjs"),
       timeoutMs: 20_000,
