@@ -1,3 +1,4 @@
+import { SCENE_FILE, validateSceneHistory } from "./scene-contract";
 import { Buffer } from "node:buffer";
 import { decodeFile, digestBytes, exportFiles, historyFiles, verifiedBodies, type FileBody, type FileEntry } from "./files";
 import { assertHistoryBudget, canonical, canonicalBytes, fail, headBinding, HISTORY_READ_BYTES, HISTORY_READ_ROWS, type Binding, type Revision, type Scope, type WorkRef, validateChain } from "./contract";
@@ -74,6 +75,7 @@ export async function readWork(s: Store, id: string): Promise<Revision[]> {
   const chain=validateChain(s,id,values);
   const expected=historyFiles(chain);
   if(files.length!==expected.size || new Set(files.map(f=>f.digest)).size!==files.length || files.some(f=>expected.get(f.digest)!==f.file_bytes))fail("file_content_unavailable",503);
+  if(chain.some(r=>r.files?.some(f=>f.name===SCENE_FILE)))validateSceneHistory(chain,await readFileBodies(s,chain));
   return chain;
 }
 const sourceGate = `NOT EXISTS (SELECT 1 FROM web_planning_erased WHERE ${where})
@@ -117,6 +119,7 @@ export async function eraseWork(s: Store, id: string, expected: Binding): Promis
 }
 export async function reconstruct(s: Store, chain: Revision[], bodies:FileBody[]=[]): Promise<void> {
   assertHistoryBudget(chain);
+  validateSceneHistory(chain,bodies);
   // json_each avoids eight parameters and one query per revision. Chunk by
   // actual canonical bytes and rows, keeping every bound string below D1's
   // 2 MB limit. All chunks still commit or roll back in one D1 transaction.

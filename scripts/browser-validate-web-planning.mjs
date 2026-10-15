@@ -1,3 +1,5 @@
+import { browserSceneJourney } from "./browser-web-planning-scenes.mjs";
+import { browserSceneResponseJourney } from './browser-web-planning-scene-responses.mjs';
 import { CDP } from './web-planning-cdp.mjs';
 import { browserStoryJourney } from './browser-web-planning-story.mjs';
 import { browserFileJourney } from './browser-web-planning-files.mjs';
@@ -43,6 +45,9 @@ async function page(debug,origin){const target=await (await fetch(`http://127.0.
  return c;}
 async function intercept(c,p,origin){
  const u=p.request.url;
+ if(p.responseStatusCode!==undefined&&c.sceneResponseBarrier&&u.endsWith(c.sceneResponseBarrier.suffix)){
+   assert.equal(c.sceneResponseBarrier.response,null);c.sceneResponseBarrier.response=p;return;
+ }
  if(c.beforeRequest&&u===origin+c.beforeRequest.path&&p.request.method===c.beforeRequest.method){const before=c.beforeRequest;c.beforeRequest=null;await before.run();}
  if(c.direct&&u===origin+'/cdn-cgi/access/logout'){
    c.logoutObserved=true;
@@ -93,6 +98,19 @@ async function failListAfterReply(c,route,failure){
  await c.send('Fetch.enable',{patterns:[{urlPattern:'*',requestStage:'Request'},{urlPattern:'*/'+route,requestStage:'Response'}]});
 }
 async function requestsOnly(c){await c.send('Fetch.enable',{patterns:[{urlPattern:'*',requestStage:'Request'}]});}
+// Hold the real server response, not a substitute client state machine. Every
+// release is explicit; the assertions do not depend on elapsed network timing.
+async function sceneResponseBarrier(c,suffix,expectedStatus=200){
+ assert(!c.sceneResponseBarrier);const barrier={suffix,response:null};c.sceneResponseBarrier=barrier;
+ await c.send('Fetch.enable',{patterns:[{urlPattern:'*',requestStage:'Request'},{urlPattern:'*'+suffix,requestStage:'Response'}]});
+ return {wait:()=>wait(()=>!!barrier.response,'scene response '+suffix),release:async failure=>{
+   assert(barrier.response);const p=barrier.response;assert.equal(p.responseStatusCode,expectedStatus);c.sceneResponseBarrier=null;
+   if(failure==='disconnect'){expectedFailures.add(p.networkId);await c.send('Fetch.failRequest',{requestId:p.requestId,errorReason:'ConnectionClosed'});}
+   else if(failure==='unavailable')await c.send('Fetch.fulfillRequest',{requestId:p.requestId,responseCode:503,responseHeaders:[{name:'Content-Type',value:'application/json'},{name:'X-Web-Planning-Response',value:'1'}],body:Buffer.from('{"error":"storage_unavailable"}').toString('base64')});
+   else await c.send('Fetch.continueRequest',{requestId:p.requestId});
+   await settled(c);await requestsOnly(c);
+ }};
+}
 async function settled(c){await wait(()=>c.eval('!busy'),'client operation settled');}
 async function readWindow(){
  const background=[];
@@ -284,6 +302,15 @@ try {
  local=await startLocal(storyOptions());const storyOrigin=local.origin;const story=await page(debug,storyOrigin);
  await browserStoryJourney({a:story,debug,origin:storyOrigin,page,click,set,settled,saved,wait,navigate,root,checks,
    replaceRuntime:async replacement=>{for(const c of clients)await navigate(c,'about:blank');const bindings=local.env;await local.close();local=null;if(replacement)storyDestination=true;local=await startLocal({...storyOptions(),bindings});},
+   countRows:async()=>({revisions:(await local.db.prepare('SELECT count(*) n FROM web_planning_revision').first()).n,files:(await local.db.prepare('SELECT count(*) n FROM web_planning_file').first()).n})});
+ for(const c of clients)await navigate(c,'about:blank');await local.close();local=null;
+ let sceneDestination=false;const scenePort=await availablePort();
+ const sceneOptions=()=>({...directOptions,root:path.join(root,sceneDestination?'scenes-recovered':'scenes-original'),port:scenePort});
+ local=await startLocal(sceneOptions());const sceneOrigin=local.origin;const scene=await page(debug,sceneOrigin);
+ await browserSceneResponseJourney({a:scene,debug,origin:sceneOrigin,page,click,set,settled,saved,wait,navigate,root,checks,requests,barrier:sceneResponseBarrier});
+ await browserSceneJourney({a:scene,debug,origin:sceneOrigin,page,click,set,settled,saved,wait,navigate,root,checks,requestsOnly,
+   barrier:sceneResponseBarrier,
+   replaceRuntime:async replacement=>{for(const c of clients)await navigate(c,'about:blank');const bindings=local.env;await local.close();local=null;if(replacement)sceneDestination=true;local=await startLocal({...sceneOptions(),bindings});},
    countRows:async()=>({revisions:(await local.db.prepare('SELECT count(*) n FROM web_planning_revision').first()).n,files:(await local.db.prepare('SELECT count(*) n FROM web_planning_file').first()).n})});
  assert.deepEqual(interceptionErrors,[]);
  assert.equal(exceptions,0);assert.equal(external,0);assert.equal(unexpectedFailures,0);assert.equal(expectedFailures.size,0);

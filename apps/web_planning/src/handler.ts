@@ -1,4 +1,5 @@
 /// <reference path="./assets.d.ts" />
+import { prepareSceneContext, prepareSceneDraft, previewSceneReview, saveSceneReview } from "./scenes";
 import { FILE_EXPORT_REQUEST_BYTES, historyFiles, selectedFiles, validateFileExport } from "./files";
 import { authorize, csrfCookie, csrfToken, readTicket, requireCsrf, requireScope, ticket, type Environment, type Principal } from "./access";
 import { assertHistoryBudget, binding, canonical, exact, exportWork, fail, hash, makeRevision, normalizePayload, reference, Refusal, REQUEST_BYTES, requestFingerprint, sameBinding, UUID, validateExport } from "./contract";
@@ -83,7 +84,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
     if(path==="/api/drafts") {
       const bound="definition" in input;
       exact(input,"workspace_id,project_id"+(bound?",definition,notes"+("material_edits" in input?",material_edits":"")+("files" in input?",files":""):"")); const work_id=crypto.randomUUID();
-      const fingerprint=bound?hash(canonical(selectedFiles(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits),input.files).payload)):undefined;
+      const fingerprint=bound?hash(canonical((await prepareSceneDraft(access,[],selectedFiles(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits),input.files),undefined)).payload)):undefined;
       return json({work_id,ticket:ticket(access,work_id,headBinding(),fingerprint)});
     }
     if(path==="/api/reconstruct" || path==="/api/reconstruct-files") {
@@ -92,6 +93,16 @@ export async function handle(request:Request,env:Environment,principal:Principal
       const {chain,bodies}=path==="/api/reconstruct-files"?validateFileExport(access,input.export):{chain:validateExport(access,input.export),bodies:[]};
       await reconstruct(access,chain,bodies);
       return json({saved:chain.at(-1),authorship:"imported attestation; not independently verified"});
+    }
+    const scene=path.match(/^\/api\/work\/([a-f0-9-]+)\/(scene-context|scene-review-preview|scene-review-save|scene-review-resolve)$/);
+    if(scene && UUID.test(scene[1])) {
+      const [,id,action]=scene;
+      if(action==="scene-review-save" || action==="scene-review-resolve") {
+        exact(input,"workspace_id,project_id,ticket,intent");
+        return json(await saveSceneReview(access,id,input.ticket,input.intent,action==="scene-review-resolve"));
+      }
+      exact(input,"workspace_id,project_id,expected,intent");
+      return json(action==="scene-context"?await prepareSceneContext(access,id,input.expected,input.intent):await previewSceneReview(access,id,input.expected,input.intent));
     }
     const relation=path.match(/^\/api\/work\/([a-f0-9-]+)\/(branch-preview|compare|incorporation-preview|relation-save|relation-resolve)$/);
     if(relation && UUID.test(relation[1])) {
@@ -114,7 +125,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
     const [,id,action]=match;
     if(action==="ticket" || action==="context" || action==="erase") {
       const bound=action==="ticket" && "definition" in input;
-      exact(input,action==="erase"?"workspace_id,project_id,expected,confirm":"workspace_id,project_id,expected"+(bound?",definition,notes"+("material_edits" in input?",material_edits":"")+("files" in input?",files":""):""));
+      exact(input,action==="erase"?"workspace_id,project_id,expected,confirm":"workspace_id,project_id,expected"+(bound?",definition,notes"+("material_edits" in input?",material_edits":"")+("files" in input?",files":"")+("scene" in input?",scene":""):""));
       const expected=binding(input.expected);
       const chain=await readWork(access,id), head=chain.at(-1);
       if(!head)fail("work_not_found",404);
@@ -123,18 +134,18 @@ export async function handle(request:Request,env:Environment,principal:Principal
         if(!await headsCurrent(access,reference(head),reference(head)))fail("refresh_required",409);
         return html(renderContext(head,chain.at(-2),refs.availability,refs.reviewSource));}
       if(action==="ticket") {
-        const prepared=bound?selectedFiles(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits,head),input.files,head):undefined;
+        const prepared=bound?await prepareSceneDraft(access,chain,selectedFiles(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits,head),input.files,head),input.scene):undefined;
         if(prepared)historyFiles([...chain,{files:prepared.payload.files} as typeof head]);
         return json({ticket:ticket(access,id,expected,prepared?hash(canonical(prepared.payload)):undefined)});
       }
       if(input.confirm!=="erase-whole-work")fail("confirmation_required");
       await eraseWork(access,id,expected); return json({erased:true});
     }
-    exact(input,"workspace_id,project_id,ticket,definition,notes"+("material_edits" in input?",material_edits":"")+("files" in input?",files":""));
+    exact(input,"workspace_id,project_id,ticket,definition,notes"+("material_edits" in input?",material_edits":"")+("files" in input?",files":"")+("scene" in input?",scene":""));
     const t=readTicket(access,input.ticket,id,action==="resolve");
     const previous=await readWork(access,id); // Integrity validation, NOT the write gate.
     const base=previous.find(r=>r.revision===t.expected.revision);
-    const {payload,bodies}=selectedFiles(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits,base),input.files,base);
+    const {payload,bodies}=await prepareSceneDraft(access,previous.filter(r=>r.revision<=t.expected.revision),selectedFiles(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits,base),input.files,base),input.scene);
     if(t.payload_fingerprint && hash(canonical(payload))!==t.payload_fingerprint)fail("altered_replay",409);
     const fingerprint=requestFingerprint(access,id,t.expected,t.request_key,payload);
     const previousRequest=await requestRevision(access,t.request_key);

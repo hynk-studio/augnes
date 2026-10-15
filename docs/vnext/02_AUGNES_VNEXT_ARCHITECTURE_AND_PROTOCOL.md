@@ -128,6 +128,27 @@ is introduced. A readable HTML history is a derived escaped reading copy; only
 the existing complete export is a recovery input. Unknown presentation versions
 must remain unavailable without reinterpreting or rewriting original material.
 
+DT-001 B's [scene notebook](../../apps/web_planning/README.md#scene-integrity-capacity-and-compatibility)
+is a scoped fictional-authorship artifact in that same v0.3 envelope. It separates
+author facts, character knowledge/beliefs, public/narrator assertions and author
+intentions from their proposed/adopted/undecided/rejected dispositions. Adopting an
+intention does not assert that its event happened. Fictional event positions and
+reveal order are independent of the envelope's actual revision time. One work is
+one fictional scope; this introduces no alternate-branch or shared-world contract.
+
+A draft binds persisted source revision/file identities and cannot adopt material.
+A grouped review binds the exact saved scene/proposals, current revision, scope,
+authorized author, selected dispositions and reason. Existing sealed previews,
+expected-head SQL append, atomic file writes and original-request resolution own
+admission, concurrency and replay. Generic file replacement cannot bypass this
+writer. Earlier originals, drafts and decisions remain attributed history. Recovery
+validates domain transitions before its existing atomic import; imported attribution
+is still unverified attestation. Older readers retain opaque bytes but cannot
+interpret this domain version. Presentation changes neither erase its history nor
+expand authority. Generated context is a bounded, rebuildable source-linked view,
+not a replacement master, empirical Evidence, native Core Transition, publication
+or execution grant. Single-owner viewpoint selection is not access isolation.
+
 A Blank State projection, AI Workplane projection, timeline, relationship view,
 GuideBrief, Inspector, host-native card, attention queue, evidence pack, run
 trace, or integration-health view is a client or rebuildable projection over
