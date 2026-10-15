@@ -194,6 +194,34 @@ claim. Human curation, labels/corrections and hidden assistance must be attribut
 ChatGPT manually supplying each best strategy does not demonstrate autonomous
 task-improvement continuity, nor does replacing the worker with a stronger model.
 
+### Reuse applicability evidence (#1459)
+
+The [constructed file-backed task](../../scripts/reuse-applicability-study/CONTRACT.md)
+requires three conditions separately: no invalid prior result accepted as current,
+no complete report while required valid work is missing, and correct distinction
+between repeated delivery and distinct equal-content results. Record original
+method choices, common-checker refusals and fallback execution separately; guarded
+output correctness cannot erase an unsafe choice. Exercise legitimate reuse as
+well as necessary recomputation, and retain unknown/incomplete states when the
+specific missing observation or input cannot be obtained.
+
+The equality language, observation representation, transformation, missing-data
+protocol, result accounting and checker are supplied scaffolding. Execution-labelled
+records can induce or revise a program within that language; developer-authored
+correct rules alone establish mechanics. The all-evidence adaptive memo/code
+reference may inspect the same source, use the same learner or author a different
+method. A later consumer must actually invoke its saved artifact and write a
+checked report; serialization or a use flag alone is insufficient.
+
+Fix later inputs/materials, method bytes, checks, changes, equal ceilings and stop
+rules before outcomes. Keep earlier failures and source exposure explicit. Native
+client observation, when authorized and available, remains separate from scripted
+or algorithmic evidence and source qualification. Include acquisition, recurring
+use, verification/recovery and coordinator assistance, with unknown costs labelled
+unknown. A tie or greater candidate overhead warrants simplifying to the ordinary
+reference, not a superiority claim. These requirements implement the existing
+method-improvement guidance for #1459 without creating a universal research gate.
+
 ### Public asset entry and later consumer (#1447)
 
 The [declared public-question case and successor](../PUBLIC_ASSET_SKILL_USAGE.md#candidate-and-intended-observation)
