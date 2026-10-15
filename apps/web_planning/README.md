@@ -25,6 +25,83 @@ were byte-identical before/after. Sign-in and operator repairs, limited security
 observations and lack of general time-saving evidence remain. #1354's separate
 Sites rollout is deferred; its resources and evidence are untouched.
 
+## Story & Worldbuilding — Increment A (#1455)
+
+The existing private Web workspace now offers **Story & Worldbuilding** beside
+**New work**. Original writing opens in the common editor and saves through the
+existing revision-bound file writer. No selected context note is required for
+each save. Ordinary work, its definition, selected notes, attachments and access
+continue to use the same owners. Native and Web stores remain independent.
+
+### Walkthrough
+
+1. In the private workspace, choose **Story & Worldbuilding**, give the work a
+   useful title, and write the manuscript or setting in **Original text**. Keep
+   distinctions such as fictional fact, official announcement, character belief
+   and undecided author intention in the prose. Review the change summary and
+   press **Save**. This is a draft save, not canon adoption or publication.
+2. Revise that text and Save again. Each saved revision keeps its original file
+   bytes. **Presentation → Ordinary work** removes only the presentation file
+   from the next selection; changing it back retains work identity and history.
+3. Leave and reopen the workspace in a fresh session. Select the work by title.
+   A story reopens its exact `manuscript.txt` through authenticated revision-bound
+   reads. **Text file → Open text** also opens saved UTF-8 `.txt`, `.md` and
+   `.markdown` files in ordinary work. **File name → Add writing** adds a new
+   source file. This does not import host conversations or generate summaries.
+4. If another tab saved first, keep the refused draft. **Review latest saved
+   version** shows the latest original text beside the retained draft. Deliberately
+   choose **Use reviewed version as save base**, revise if needed, then Save.
+   No automatic merge or retry occurs. Unknown-save recovery retains the original
+   request; use **Check save outcome** before another write.
+5. Under **History, export and erasure**, download both **Readable history**
+   (`authored-work.html`) and **Complete work** (`planning-work.json`). The former
+   contains every revision and exact UTF-8 source versions, safely escaped;
+   repeated file bytes appear once with links from each revision. The latter
+   contains all original bytes, including binary attachments, for recovery.
+6. Quiesce the original writer. In a separate empty replacement store configured
+   by the existing operator with the same workspace/project/author identity and
+   `RECONSTRUCTION_MODE=quiesced-empty-store`, use **Reconstruct an empty
+   workspace** to choose the complete JSON and import. Reopen the recovered work
+   by title in a fresh session. Foreign identity, malformed/incompatible exports,
+   nonempty stores and transactional failure refuse; no partial recovery is
+   accepted. This is replacement recovery, not cross-project transfer.
+
+For a disposable local walkthrough, use the repository's Canonical Node and
+installed dependencies, then `npm run web:dev`. Open the loopback entry printed
+by the existing runner; it uses a synthetic owner and temporary D1 only. The
+30-minute bounded runner cleans its store on exit: download before stopping.
+A second invocation supplies a separate empty destination with the same fixture
+identity. This development entry is not production authentication or hosted
+acceptance. `npm run web:test` and `npm run web:test:browser` exercise the full
+producer/recovery consumer paths with owned disposable resources.
+
+The first-party v1 presentation is an ordinary file named
+`augnes-story-worldbuilding.v1.json`, role `other`, with exact UTF-8 contents
+`{"format":"augnes_story_worldbuilding.v1","primary_file":"manuscript.txt"}`.
+Its byte-validated reader recognizes only this version. Unknown or malformed
+presentation material is unavailable, never silently upgraded. `manuscript.txt`
+is an ordinary `source` file, not accepted Core state. Detachment retains all
+originals in earlier revisions. Older Web readers can download/recover these
+unchanged v0.3 files but do not supply this authoring presentation.
+
+All existing bounds remain: 262,144 bytes/file, 8 selected files/524,288 bytes,
+16 distinct historical bodies/1,048,576 bytes, and the complete-history operation
+budgets below. The marker uses one selected slot and one historical body. Each
+changed manuscript body uses another history slot; ordinary definition/context
+edits that keep the same bytes do not. Capacity exhaustion retains the draft and
+refuses the whole save; removing a current file does not free historical bodies.
+No silent clipping, selected-note expansion or automatic history deletion occurs.
+UTF-8 decoding is strict; Unicode normalization is not applied. Unchanged imports
+retain their original bytes (including BOM/newlines); edits to a uniformly CRLF
+file retain CRLF. Text is displayed inertly, never rendered as HTML or executed.
+
+The deterministic fixture in `scripts/story-worldbuilding-fixture.mjs` retains
+four distinct narrative statements and Korean/combining Unicode paragraphs.
+Tests distinguish actual producer/readback/recovery from fault-injected negative
+controls. They establish this bounded product path, not LLM understanding,
+creative superiority, unlimited manuscript storage, hosted adoption, B/C scene
+adoption or an automatic Native/Web synchronization path.
+
 ## Cumulative saved history (#1397)
 
 The current local candidate removes the Web revision-32 lifetime constraint.

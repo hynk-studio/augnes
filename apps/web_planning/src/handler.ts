@@ -7,6 +7,7 @@ import { append, completeExport, downloadFile, eraseWork, headBinding, headsCurr
 import { page, renderContext, renderComparison, renderPreview, style } from "./page";
 import { compare, editedPayload, previewOperation, referenceAvailability, saveOperation } from "./relations";
 import client from "./client.js.txt?raw";
+import { readableExport } from "./readable-export";
 const headers={"Cache-Control":"no-store, private","Vary":"Cookie, oai-authenticated-user-email","X-Web-Planning-Response":"1","X-Content-Type-Options":"nosniff",
   "Referrer-Policy":"no-referrer","X-Frame-Options":"DENY","X-Robots-Tag":"noindex, nofollow",
   "Content-Security-Policy":"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"};
@@ -50,12 +51,13 @@ export async function handle(request:Request,env:Environment,principal:Principal
         const name=encodeURIComponent(file.name).replace(/['()*]/g,c=>"%"+c.charCodeAt(0).toString(16).toUpperCase());
         return new Response(bytes,{headers:{...headers,"Content-Type":"application/octet-stream","Content-Disposition":`attachment; filename="artifact.bin"; filename*=UTF-8''${name}`,"X-Content-SHA256":file.digest,"Content-Length":String(file.bytes)}});
       }
-      const match=path.match(/^\/api\/work\/([a-f0-9-]+)(?:\/(history|export))?$/);
+      const match=path.match(/^\/api\/work\/([a-f0-9-]+)(?:\/(history|export|reading-export))?$/);
       if(match && UUID.test(match[1]) && !url.search) {
         const chain=await readWork(access,match[1]); if(!chain.length)fail("work_not_found",404);
-        if(match[2]==="export"){
+        if(match[2]==="export" || match[2]==="reading-export"){
           const value=chain.some(r=>r.files!==undefined)?await completeExport(access,chain):exportWork(chain);
           if(!await headsCurrent(access,reference(chain.at(-1)!),reference(chain.at(-1)!)))fail("refresh_required",409);
+          if(match[2]==="reading-export")return new Response(readableExport(chain,"files" in value?value.files:[]),{headers:{...headers,"Content-Type":"text/html; charset=utf-8","Content-Disposition":"attachment; filename=authored-work.html","Content-Security-Policy":"default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"}});
           return new Response(canonical(value),{headers:{...headers,"Content-Type":"application/json","Content-Disposition":"attachment; filename=planning-work.json"}});
         }
         return json(match[2]==="history"?{revisions:chain}:{saved:chain.at(-1)});

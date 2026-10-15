@@ -355,6 +355,15 @@ observations, forecasts, counterevidence or still-applicable methods.
 Moving a project's local folder does not change its creation attribution or free
 an already consumed delegation slot.
 
+An optional domain presentation may make the user's original writing the primary
+work object in the same project shell. Story & Worldbuilding uses this boundary:
+ordinary draft saves retain original text and revisions; summaries and bounded
+selected context do not replace the manuscript. Applying or leaving a presentation
+preserves identity, history and access. A fictional fact, announcement, character
+belief and undecided author intention can coexist as authored material; saving
+that prose does not adopt canon or verify an empirical claim. The bounded first
+implementation and later scene work are owned by [03](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#current-p2p3p5--story--worldbuilding-increment-a-1455).
+
 ## 7. Product and Core authority boundary
 
 This doctrine defines product meaning and responsibility. The sole authority

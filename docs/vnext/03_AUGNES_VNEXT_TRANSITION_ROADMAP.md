@@ -927,6 +927,29 @@ PR receipt. The retained real candidate, hosted store and provider execution
 remain outside this slice. Later native management and approved installation are
 recorded separately in #1399/#1400 and #1407/#1410.
 
+### Current P2/P3/P5 — Story & Worldbuilding Increment A (#1455)
+
+**Local implementation candidate; review and adoption remain separate.** The
+[Web walkthrough](../../apps/web_planning/README.md#story--worldbuilding--increment-a-1455)
+connects optional creative entry, exact original text editing, ordinary revision
+saves, fresh-process re-entry, readable history and complete-file recovery into
+an empty disposable destination. It reuses the common Web shell and existing
+file/version/reconstruction owners; no native data or store is duplicated.
+
+The presentation is a small versioned ordinary file. Applying or leaving it keeps
+work/project identity, access, authored originals and revision lineage. Original
+material stays separate from bounded selected notes. File and history bounds,
+expected revisions, preview seals, access checks and atomic recovery remain.
+The emperor fixture keeps fictional fact, announcement, character belief and an
+undecided intention as authored prose, without a canon-adoption engine.
+
+The existing D1 and Browser children cover producer/consumer recovery and
+refusals. Final exact-head qualification belongs to the candidate's receipt;
+#1460 evidence does not transfer. Installed Companion, marketplace source,
+#1212's completed library exercise and its synthetic project remain unchanged.
+B/C, shared-world roles, hosting, new model consumers and creative/usefulness
+claims are outside this increment.
+
 ### Current lifecycle slice — Cumulative Web Planning history (#1397)
 
 **Completed local implementation:** #1398 is included in merged #1404 and #1397

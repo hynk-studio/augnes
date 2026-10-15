@@ -120,6 +120,14 @@ fingerprint semantics; it is not a Core record, native work admission, accepted
 state, execution grant or local/cloud synchronization. Its save/reconstruct
 handlers cannot admit material through a native decision or Transition owner.
 
+DT-001 A's optional Story & Worldbuilding presentation remains inside that Web
+file contract. Its small versioned presentation file and original UTF-8 writing
+use the existing scoped file/revision envelope, fingerprints, permissions and
+atomic empty-store reconstruction. No Core record or synchronization authority
+is introduced. A readable HTML history is a derived escaped reading copy; only
+the existing complete export is a recovery input. Unknown presentation versions
+must remain unavailable without reinterpreting or rewriting original material.
+
 A Blank State projection, AI Workplane projection, timeline, relationship view,
 GuideBrief, Inspector, host-native card, attention queue, evidence pack, run
 trace, or integration-health view is a client or rebuildable projection over

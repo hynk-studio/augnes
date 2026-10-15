@@ -4,12 +4,15 @@ const scope={workspace_id:document.querySelector('meta[name=workspace]').content
 const csrf=document.querySelector('meta[name=csrf-token]').content;
 const labels=['Changed assumption / user correction','New candidate','Rejection reason','Deferred item / revisit condition','Open question','Next check','Unclassified / needs review'];
 let selectedFiles=[],fileSelectionVersion=0;
+const storyFile='augnes-story-worldbuilding.v1.json';
+const storyText=JSON.stringify({format:'augnes_story_worldbuilding.v1',primary_file:'manuscript.txt'});
+let authored=null,authoredEpoch=0,authoredUnavailable=false;
 let work=null,saved=null,saveTicket=null,pending=null,reviewed=null,dirty=false,next=null,busy=false,eraseBinding=null;
 let relationPending=null,relationUnknown=false,directionDirty=false,comparison=null,comparisonCurrent=false,branchCursor=null,accessLost=false;
 let capacityEpoch=0,capacityTimer=null,capacityInFlight=false,capacityQueued=false;
 const binding=r=>r?{revision:r.revision,fingerprint:r.fingerprint}:{revision:0,fingerprint:null};
 function status(text){$('status').textContent=text;}
-function deny(){selectedFiles=[];fileSelectionVersion++;capacityEpoch++;clearTimeout(capacityTimer);accessLost=true;work=saved=saveTicket=pending=reviewed=eraseBinding=next=null;dirty=false;relationPending=comparison=branchCursor=null;comparisonCurrent=relationUnknown=false;directionDirty=false;$('private-view').replaceChildren();const p=document.createElement('p');p.id='status';p.setAttribute('role','status');p.textContent='Access is unavailable. Private content has been cleared. Sign in again to reopen.';$('private-view').append(p);}
+function deny(){authored=null;authoredEpoch++;selectedFiles=[];fileSelectionVersion++;capacityEpoch++;clearTimeout(capacityTimer);accessLost=true;work=saved=saveTicket=pending=reviewed=eraseBinding=next=null;dirty=false;relationPending=comparison=branchCursor=null;comparisonCurrent=relationUnknown=false;directionDirty=false;$('private-view').replaceChildren();const p=document.createElement('p');p.id='status';p.setAttribute('role','status');p.textContent='Access is unavailable. Private content has been cleared. Sign in again to reopen.';$('private-view').append(p);}
 async function request(path,body){
   if(accessLost)throw new Error('access_denied');
   const response=await fetch(path,{method:body===undefined?'GET':'POST',credentials:'same-origin',cache:'no-store',redirect:'manual',
@@ -62,7 +65,7 @@ function reviewChanges(){const d=draft();const lines=[];
     if(!lines.length)lines.push('No definition or selection edits. An unchanged save acknowledges the existing revision.');}
   $('change-list').textContent=lines.join(' ');
 }
-function show(r=null){selectedFiles=(r?.files??[]).map(f=>({...f}));fileSelectionVersion++;renderFiles();$('work-files').value='';saved=r;pending=null;reviewed=null;dirty=false;saveTicket=null;
+async function show(r=null){selectedFiles=(r?.files??[]).map(f=>({...f}));fileSelectionVersion++;renderFiles();$('work-files').value='';saved=r;pending=null;reviewed=null;dirty=false;saveTicket=null;
   $('editor').hidden=false;document.querySelector('.intro').hidden=true;
   $('goal').value=r?.definition.goal??'';$('criteria').value=(r?.definition.success_criteria??[]).join('\n');$('non-goals').value=(r?.definition.non_goals??[]).join('\n');
   $('notes').replaceChildren();for(const n of r?.sources??[])noteRow(noteInput(n),n.source_ref);const rows=[...$('notes').children];for(const row of rows){const m=r?.relations?.materials.find(m=>m.source_ref===row._original);row._depIds=(m?.dependencies??[]).map(ref=>rows.find(n=>n._original===ref)?.id??'missing:'+ref);}syncDependencies();resetDirections();
@@ -71,6 +74,7 @@ function show(r=null){selectedFiles=(r?.files??[]).map(f=>({...f}));fileSelectio
   for(const id of ['uncertain','conflict','rebase-draft','erase-confirm'])$(id).hidden=true;
   for(const id of ['context-view','conflict-latest','history-view'])$(id).replaceChildren();
   $('edit-fields').disabled=false;$('save').disabled=false;reviewChanges();queueCapacity();
+  await reopenAuthored(r);
 }
 function mayLeave(){return !pending && !relationPending && (!(dirty||directionDirty) || confirm('Discard the unsaved edits in this tab?'));}
 const number=value=>value.toLocaleString('en-US');
@@ -133,7 +137,7 @@ async function checkCapacity(epoch){
     if(e.message==='refresh_required')$('conflict').hidden=false;}
   finally{capacityInFlight=false;if(capacityQueued&&!accessLost)queueCapacity(0);}
 }
-async function openWork(id){if(!mayLeave()){status(pending?'Resolve the pending save before leaving this work.':'Unsaved edits retained.');return;}const data=await api('/api/work/'+id);work=id;show(data.saved);status('Reopened from the server. Select Saved context for a fresh exact-revision read.');}
+async function openWork(id){if(!mayLeave()){status(pending?'Resolve the pending save before leaving this work.':'Unsaved edits retained.');return;}const data=await api('/api/work/'+id);work=id;await show(data.saved);status('Reopened from the server. Select Saved context for a fresh exact-revision read.');}
 async function list(append=false){const data=await api('/api/works'+(append&&next?'?cursor='+encodeURIComponent(next):''));if(!append)$('work-list').replaceChildren();
   for(const item of data.items){const li=document.createElement('li'),b=document.createElement('button');b.textContent=item.goal;b.onclick=()=>run(()=>openWork(item.work_id));li.append(b);$('work-list').append(li);}
   next=data.next;$('more-work').hidden=!next;$('list-state').textContent=$('work-list').children.length?'Saved on the server':'No saved work yet.';
@@ -147,7 +151,7 @@ async function refreshList(){
     $('refresh-list').hidden=false;
     status(`${saved?`Saved revision ${saved.revision} is retained. `:''}Work list could not be refreshed. Use Refresh work list to retry that read.`);return false;}
 }
-async function acknowledged(r){show(r);status(`Saved revision ${r.revision}. Reopen or read Saved context.`);return refreshList();}
+async function acknowledged(r){await show(r);status(`Saved revision ${r.revision}. Reopen or read Saved context.`);return refreshList();}
 async function dispatch(){
   if(!pending)return;
   queueCapacity();
@@ -165,9 +169,11 @@ async function dispatch(){
 }
 $('work-form').addEventListener('input',changed);
 $('work-form').onsubmit=e=>{e.preventDefault();run(async()=>{if(pending||relationPending)return;
+  if(authoredUnavailable){status('Original writing is unavailable. Refresh the saved version before saving; your draft is retained.');return;}
+  syncAuthored();
   if(!saveTicket){if(saved)saveTicket=(await api('/api/work/'+work+'/ticket',{expected:binding(saved),...draft()})).ticket;else {const d=await api('/api/drafts',draft());work=d.work_id;saveTicket=d.ticket;}}
   pending={ticket:saveTicket,...draft()};await dispatch();});};
-$('new-work').onclick=()=>run(async()=>{if(!mayLeave()){status('Resolve the pending save or retain your unsaved edits.');return;}work=null;show();status('New draft. Nothing is stored until Save.');$('goal').focus();});
+$('new-work').onclick=()=>run(async()=>{if(!mayLeave()){status('Resolve the pending save or retain your unsaved edits.');return;}work=null;await show();status('New draft. Nothing is stored until Save.');$('goal').focus();});
 $('add-note').onclick=()=>{if($('notes').children.length>=8){status('Eight whole notes are already selected. Explicitly remove one before adding another.');return;}noteRow();syncDependencies();changed();$('notes').lastElementChild.querySelector('textarea').focus();};
 $('saved-context').onclick=()=>run(async()=>{ $('context-view').replaceChildren();
   const html=await readPrivate(await request('/api/work/'+work+'/context',{expected:binding(saved)}),'text');
@@ -177,14 +183,14 @@ $('saved-context').onclick=()=>run(async()=>{ $('context-view').replaceChildren(
 $('refresh-work').onclick=()=>run(()=>openWork(work));
 $('resolve-save').onclick=()=>run(async()=>{const r=await api('/api/work/'+work+'/resolve',pending);if(r.outcome==='saved')await acknowledged(r.saved);else status('The original request is not visible yet. Its outcome remains unknown; any explicit retry uses the same request and material.');});
 $('retry-save').onclick=()=>run(dispatch);
-$('review-latest').onclick=()=>run(async()=>{const r=await api('/api/work/'+work);reviewed=r.saved;const html=await readPrivate(await request('/api/work/'+work+'/context',{expected:binding(reviewed)}),'text');$('conflict-latest').innerHTML=html;$('rebase-draft').hidden=false;status('Compare this saved version with your retained draft before choosing a new base.');});
+$('review-latest').onclick=()=>run(async()=>{const r=await api('/api/work/'+work);reviewed=r.saved;const html=await readPrivate(await request('/api/work/'+work+'/context',{expected:binding(reviewed)}),'text');$('conflict-latest').innerHTML=html;await compareAuthored(reviewed);$('rebase-draft').hidden=false;status('Compare this saved version with your retained draft before choosing a new base.');});
 $('rebase-draft').onclick=()=>{if(!reviewed)return;saved=reviewed;reviewed=null;saveTicket=null;pending=null;$('conflict').hidden=true;$('context-view').replaceChildren();changed();status('Reviewed base selected. Your draft remains unsaved; review its changes and press Save deliberately.');};
 $('history').onclick=()=>run(async()=>{const data=await api('/api/work/'+work+'/history');const list=document.createElement('ol');for(const r of data.revisions){const li=document.createElement('li');li.textContent=`Revision ${r.revision} · ${r.recorded_at} · ${r.definition.goal}`;list.append(li);}$('history-view').replaceChildren(list);});
 $('export').onclick=()=>run(async()=>{const response=await request('/api/work/'+work+'/export');const url=URL.createObjectURL(await readPrivate(response,'blob'));const a=document.createElement('a');a.href=url;a.download='planning-work.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);status('Complete revision chain downloaded. Keep exports private.');});
 $('erase').onclick=()=>{if(pending||relationPending){status('Resolve the pending save before erasure.');return;}eraseBinding=binding(saved);$('erase-text').textContent=`Erase revision ${saved.revision} and all earlier revisions and owned file bytes of this work? Download an export first if needed. A changed head will refuse. Independently saved branches and incorporated copies belong to other works and remain there; erase those works separately if intended.`;$('erase-confirm').hidden=false;};
 $('cancel-erase').onclick=()=>{$('erase-confirm').hidden=true;eraseBinding=null;};
-$('confirm-erase').onclick=()=>run(async()=>{await api('/api/work/'+work+'/erase',{expected:eraseBinding,confirm:'erase-whole-work'});dirty=false;work=saved=pending=null;show();$('editor').hidden=true;status('Whole work erased. The content-free ID guard prevents delayed saves from recreating it. Exports and provider backups are outside this deletion.');await list();});
-$('import').onclick=()=>run(async()=>{const file=$('import-file').files[0];if(!file){status('Choose a complete work export.');return;}if(file.size>3000000){status('Export exceeds the bounded reconstruction size.');return;}if(!mayLeave())return;const value=JSON.parse(await file.text());if(value.format!=='web_planning_export.v0.3'&&file.size>1500000){status('Legacy export exceeds 1,500,000 bytes.');return;}const data=await api(value.format==='web_planning_export.v0.3'?'/api/reconstruct-files':'/api/reconstruct',{export:value,confirm:'reconstruct-empty-store'});work=data.saved.work_id;show(data.saved);status('Reconstructed from an attributed export; authorship and source currentness remain unverified.');await list();});
+$('confirm-erase').onclick=()=>run(async()=>{await api('/api/work/'+work+'/erase',{expected:eraseBinding,confirm:'erase-whole-work'});dirty=false;work=saved=pending=null;await show();$('editor').hidden=true;status('Whole work erased. The content-free ID guard prevents delayed saves from recreating it. Exports and provider backups are outside this deletion.');await list();});
+$('import').onclick=()=>run(async()=>{const file=$('import-file').files[0];if(!file){status('Choose a complete work export.');return;}if(file.size>3000000){status('Export exceeds the bounded reconstruction size.');return;}if(!mayLeave())return;const value=JSON.parse(await file.text());if(value.format!=='web_planning_export.v0.3'&&file.size>1500000){status('Legacy export exceeds 1,500,000 bytes.');return;}const data=await api(value.format==='web_planning_export.v0.3'?'/api/reconstruct-files':'/api/reconstruct',{export:value,confirm:'reconstruct-empty-store'});work=data.saved.work_id;await show(data.saved);status('Reconstructed from an attributed export; authorship and source currentness remain unverified.');await list();});
 $('more-work').onclick=()=>run(()=>list(true));
 $('refresh-list').onclick=()=>run(async()=>{if(await refreshList())status('Work list refreshed.');});
 $('check-capacity').onclick=()=>queueCapacity(0);
@@ -228,7 +234,7 @@ $('recompare').onclick=()=>run(async()=>{if(!requireSavedDirection()||!compariso
   $('relation-state').textContent='Currentness is unconfirmed while refreshing. Your comparison draft and earlier bindings are retained.';
   try{const target=await api('/api/work/'+work),source=await api('/api/work/'+sourceId);
     const data=await api('/api/work/'+work+'/compare',{expected:binding(target.saved),source:{work_id:sourceId,...binding(source.saved)}});
-    show(data.target);$('comparison-rationale').value=why;$('comparison-next').value=next;showComparison(data,retained);
+    await show(data.target);$('comparison-rationale').value=why;$('comparison-next').value=next;showComparison(data,retained);
   }catch(e){if(e.message!=='access_denied')$('relation-state').textContent='Currentness is unconfirmed. Your comparison draft and earlier source/target bindings are retained. Explicitly refresh and compare again before requesting a fresh preview; nothing was saved.';throw e;
   }finally{if($('directions'))freezeDirection(false);}});
 async function acknowledgeRelation(data){work=data.saved.work_id;if(await acknowledged(data.saved))status(data.noop?'No change: the existing saved revision was acknowledged.':'Change saved. Read Saved context to resume from the server.');}
@@ -255,9 +261,10 @@ function renderFiles(){
     // A retained descriptor includes its authored role. Reselect bytes to change that attribution.
     select.disabled=file.data===undefined;select.onchange=()=>{file.role=select.value;changed();};label.append(select);
     const remove=document.createElement('button');remove.type='button';remove.textContent=`Remove ${file.name} from next revision`;
-    remove.onclick=()=>{selectedFiles.splice(i,1);fileSelectionVersion++;renderFiles();changed();};
+    remove.onclick=()=>{selectedFiles.splice(i,1);fileSelectionVersion++;if(authored?.name===file.name)clearAuthored();if(file.name===storyFile)applyPresentation('ordinary');renderFiles();changed();};
     row.append(p,label,remove);$('file-selection').append(row);
   });
+  refreshAuthoredChoices();
   const bytes=selectedFiles.reduce((n,f)=>n+fileSize(f),0);
   $('file-capacity').textContent=`${selectedFiles.length} / 8 files; ${bytes.toLocaleString('en-US')} / 524,288 selected bytes. ${bytes>524288?(bytes-524288).toLocaleString('en-US')+' bytes over; revise this selection.':'History capacity and final admission are checked on Save.'}`;
 }
@@ -281,3 +288,57 @@ document.addEventListener('click',event=>{const button=event.target.closest?.('[
     status('Downloaded exact saved bytes: '+button.dataset.fileName+'. Identity verified; content remains untrusted.');
   });
 });
+
+
+// DT-001 A uses the existing scoped revision/file writer. The optional small
+// presentation file is ordinary versioned content, not a second state store.
+function encodedText(text){if(!text.isWellFormed())throw new Error('invalid_authored_unicode');const bytes=new TextEncoder().encode(text);let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));return btoa(binary);}
+function textFile(name){return /\.(txt|md|markdown)$/iu.test(name);}
+function refreshAuthoredChoices(){const select=$('authored-file');if(!select)return;const current=select.value;select.replaceChildren();const blank=document.createElement('option');blank.value='';blank.textContent='Choose a text file';select.append(blank);for(const file of selectedFiles.filter(f=>textFile(f.name))){const o=document.createElement('option');o.value=file.name;o.textContent=file.name;select.append(o);}select.value=authored?.name??current;}
+function clearAuthored(){authoredEpoch++;authored=null;authoredUnavailable=false;$('authored-text').value='';$('authored-text').disabled=true;$('authored-name').disabled=false;$('authored-state').textContent='No text file is open. Saved attachments and earlier versions remain available.';}
+function applyPresentation(value){$('authored-material').open=value==='story';$('presentation').value=value;$('authored-heading').textContent=value==='story'?'Your manuscript and world':'Original writing (optional)';$('presentation-hint').textContent=value==='story'?'Story & Worldbuilding v1. Keep fictional facts, announcements, character beliefs and undecided intentions in your own words. Saving a draft does not adopt canon.':'Optional presentation. Identity, access and history stay with this work.';$('editor-title').textContent=value==='story'?'Continue your story':saved?'Continue your work':'New work';}
+async function fileText(file,r){let bytes;
+  if(file.data!==undefined)bytes=Uint8Array.from(atob(file.data),c=>c.charCodeAt(0));
+  else {const index=r.files.findIndex(f=>f.name===file.name&&f.digest===file.digest);if(index<0)throw new Error('file_not_in_saved_selection');const response=await request(`/api/work/${r.work_id}/files/${r.revision}/${r.fingerprint.slice(7)}/${index}`);bytes=new Uint8Array(await readPrivate(response,'arrayBuffer'));const digest='sha256:'+Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');if(bytes.length!==file.bytes||digest!==file.digest)throw new Error('file_content_integrity');}
+  if(accessLost)throw new Error('access_denied');
+  return new TextDecoder('utf-8',{fatal:true,ignoreBOM:true}).decode(bytes);
+}
+function displayAuthored(file,text){if(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(text))throw new Error('authored_text_unavailable');
+  $('authored-text').value=text;authored={name:file.name,original:{...file},text,display:$('authored-text').value,crlf:text.includes('\r\n')&&!/(?<!\r)\n/u.test(text)};
+  $('authored-material').open=true;$('authored-text').disabled=false;$('authored-name').value=file.name;$('authored-name').disabled=false;authoredUnavailable=false;refreshAuthoredChoices();
+  $('authored-state').textContent=`${file.name} · ${new TextEncoder().encode(text).length.toLocaleString('en-US')} / 262,144 bytes. ${saved?'Read from saved revision '+saved.revision+'.':'Unsaved original writing.'}`;
+}
+async function openAuthored(name){const file=selectedFiles.find(f=>f.name===name);if(!file)throw new Error('authored_source_missing');const epoch=++authoredEpoch,selection=fileSelectionVersion;const r=saved;
+  $('authored-text').disabled=true;$('authored-state').textContent='Reading exact original writing…';
+  try {if(file.data===undefined)await readPrivate(await request('/api/work/'+r.work_id+'/context',{expected:binding(r)}),'text');const text=await fileText(file,r);if(epoch!==authoredEpoch||accessLost)return;if(selection!==fileSelectionVersion)throw new Error('authored_selection_changed');displayAuthored(file,text);}
+  catch(e){if(epoch!==authoredEpoch||accessLost)throw e;authoredUnavailable=true;$('authored-state').textContent='Original writing unavailable. '+(messages[e.message]??'The exact saved source could not be read. Refresh explicitly; no empty or substitute text was loaded.');throw e;}
+}
+async function reopenAuthored(r){clearAuthored();applyPresentation('ordinary');const epoch=authoredEpoch;const marker=selectedFiles.find(f=>f.name===storyFile);
+  try {if(marker){const text=await fileText(marker,r);if(epoch!==authoredEpoch||accessLost)return;if(text!==storyText)throw new Error('story_presentation_incompatible');applyPresentation('story');}
+    const name=marker?'manuscript.txt':selectedFiles.find(f=>textFile(f.name))?.name;
+    if(name)await openAuthored(name);else $('authored-state').textContent='No original writing saved yet. Add writing or select a text file; selected context stays separate.';
+  }catch(e){if(accessLost)throw e;authoredUnavailable=!!marker;$('authored-text').disabled=true;$('authored-state').textContent='Original writing unavailable. '+(e.message==='story_presentation_incompatible'?'This presentation version is unsupported. Keep the complete export and use a compatible reader.':messages[e.message]??'The named saved source is missing or unreadable. No substitute was loaded.');}
+}
+function syncAuthored(){if(!authored||$('authored-text').disabled)return;const value=$('authored-text').value;const text=value===authored.display?authored.text:authored.crlf?value.replace(/\n/g,'\r\n'):value;
+ const index=selectedFiles.findIndex(f=>f.name===authored.name);if(index<0)throw new Error('authored_source_missing');const role=selectedFiles[index].role;
+ const file=value===authored.display&&role===authored.original.role?{...authored.original}:{name:authored.name,role,data:encodedText(text)};
+ selectedFiles[index]=file;fileSelectionVersion++;renderFiles();
+ $('authored-state').textContent=`${authored.name} · ${new TextEncoder().encode(text).length.toLocaleString('en-US')} / 262,144 bytes. ${value===authored.display?'Original bytes retained.':'Unsaved writing; earlier revisions stay unchanged.'}`;
+}
+function addAuthored(name){if(!textFile(name)||!name.trim())throw new Error('authored_name_invalid');if(selectedFiles.some(f=>f.name===name))throw new Error('duplicate_file_name');if(selectedFiles.length>=8)throw new Error('file_count_exceeded');const file={name,role:'source',data:''};selectedFiles.push(file);fileSelectionVersion++;displayAuthored(file,'');renderFiles();changed();$('authored-text').focus();}
+async function choosePresentation(value){if(value==='ordinary'){authoredUnavailable=false;selectedFiles=selectedFiles.filter(f=>f.name!==storyFile);fileSelectionVersion++;applyPresentation(value);renderFiles();changed();return;}
+ const existing=selectedFiles.find(f=>f.name===storyFile);if(existing&&await fileText(existing,saved)!==storyText)throw new Error('story_presentation_incompatible');
+ const manuscript=selectedFiles.find(f=>f.name==='manuscript.txt');const extra=(existing?0:1)+(manuscript?0:1);if(selectedFiles.length+extra>8)throw new Error('file_count_exceeded');
+ if(!existing)selectedFiles.push({name:storyFile,role:'other',data:encodedText(storyText)});
+ if(!manuscript)addAuthored('manuscript.txt');else await openAuthored('manuscript.txt');
+ applyPresentation('story');fileSelectionVersion++;renderFiles();changed();
+}
+$('presentation').onchange=()=>run(async()=>{syncAuthored();try{await choosePresentation($('presentation').value);}catch(e){applyPresentation(selectedFiles.some(f=>f.name===storyFile)?'story':'ordinary');throw e;}});
+$('authored-text').addEventListener('input',()=>{try{syncAuthored();}catch(e){status(messages[e.message]??'Original writing could not be prepared. Your draft is retained.');}});
+$('new-authored').onclick=()=>run(async()=>{syncAuthored();addAuthored($('authored-name').value);});
+$('open-authored').onclick=()=>run(async()=>{syncAuthored();await openAuthored($('authored-file').value);});
+$('new-story').onclick=()=>run(async()=>{if(!mayLeave())return;work=null;await show();$('goal').value='Story & Worldbuilding';$('criteria').value='Preserve original writing and continue it across sessions.';await choosePresentation('story');status('New story draft. Write in your own words, then Save.');});
+$('reading-export').onclick=()=>run(async()=>{const response=await request('/api/work/'+work+'/reading-export');const url=URL.createObjectURL(await readPrivate(response,'blob'));const a=document.createElement('a');a.href=url;a.download='authored-work.html';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);status('Readable history downloaded. Keep the complete work JSON as well for supported recovery.');});
+Object.assign(messages,{story_presentation_incompatible:'The saved Story & Worldbuilding presentation version is unsupported. Preserve its files and use a compatible reader.',authored_source_missing:'The chosen original text file is missing. No blank replacement was created.',authored_name_invalid:'Choose a text file name ending in .txt or .md.',invalid_authored_unicode:'The draft contains malformed Unicode; it was not replaced or saved.',incompatible_format:'The recovery format is incompatible. No replacement was imported; use a compatible reader.',export_integrity:'The recovery file failed its integrity check. No replacement was imported.',duplicate_file_name:'That file name already exists. Open it to revise its original text.'});
+
+async function compareAuthored(revision){if(!authored)return;const file=revision.files?.find(f=>f.name===authored.name);const heading=document.createElement('h3');heading.textContent='Latest saved original writing: '+authored.name;const text=document.createElement('pre');text.className='note-text';text.textContent=file?await fileText(file,revision):'This text file is not selected in the latest saved revision. Your draft remains in the editor.';$('conflict-latest').append(heading,text);}
