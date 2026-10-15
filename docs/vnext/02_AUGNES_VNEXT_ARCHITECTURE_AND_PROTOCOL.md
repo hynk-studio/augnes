@@ -164,6 +164,13 @@ reason and per-proposal dispositions. Only explicitly adopted source proposals
 can be adopted by transfer. Required original files and declared proposal links
 must be available; unrepresented natural-language dependence remains unknown.
 Unselected proposals do not revoke prior adoption or transfer source prose.
+Retaining an exact current target adoption preserves its content, source files,
+original review and scope; it does not reinterpret its superseded basis again.
+Prerequisites still apply, and a superseded unit cannot be reactivated by retention.
+The existing no-change acknowledgement requires the same source version, units,
+dispositions, reason and author; adding a new valid selection appends one decision
+without rewriting the retained unit's earlier attribution or history. Live review
+and reconstruction apply the same distinction between retained and new adoption.
 The original sealed-request replay/unknown-outcome contract remains authoritative.
 A versioned two-work recovery closure includes both complete histories and bytes;
 all local transitions and cross-work references validate before one empty-store

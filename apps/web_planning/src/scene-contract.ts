@@ -34,12 +34,26 @@ export function sceneUnits(book:SceneNotebook):SceneUnit[]{
 }
 export function validateProposalLinks(before:SceneUnit[],candidates:SceneUnit[],choices:string[]){
  const selected=candidates.filter((_,i)=>choices[i]==="adopted"),superseded=new Set(before.filter(u=>u.disposition==="adopted").flatMap(u=>(u.proposal.revises??[]).map(unitKey)));
- const current=before.filter(u=>!superseded.has(unitKey(u.ref))),revising=selected.flatMap(u=>(u.proposal.revises??[]).map(unitKey));
+ const current=before.filter(u=>!superseded.has(unitKey(u.ref))),retained=new Set<string>();
+ for(const u of selected){
+  const key=unitKey(u.ref),old=before.find(v=>unitKey(v.ref)===key);
+  if(old?.disposition!=="adopted")continue;
+  // The prior target selection must have adopted this exact unit, including
+  // content, original review and source files. An ID alone grants nothing, and
+  // selecting an already superseded unit cannot reactivate it.
+  if(!old.review||canonical(old)!==canonical(u)||superseded.has(key))fail("scene_revision_basis",409);
+  retained.add(key);
+ }
+ const introduced=selected.filter(u=>!retained.has(unitKey(u.ref))),revising=introduced.flatMap(u=>(u.proposal.revises??[]).map(unitKey));
  if(new Set(revising).size!==revising.length)fail("scene_revision_basis",409);
- const available=[...current.filter(u=>u.disposition==="adopted"&&!revising.includes(unitKey(u.ref))),...selected];
+ const available=[...current.filter(u=>u.disposition==="adopted"&&!revising.includes(unitKey(u.ref))),...introduced];
  for(const u of selected){
   if([...(u.proposal.requires??[]),...(u.proposal.revises??[])].some(r=>unitKey(r)===unitKey(u.ref)))fail("invalid_proposal_links");
   for(const ref of u.proposal.requires??[])if(!available.some(v=>unitKey(v.ref)===unitKey(ref)))fail("scene_prerequisite_missing",409);
+  // Retention does not perform the original reinterpretation again. Its basis
+  // was checked when first adopted and is now deliberately superseded. Keep
+  // prerequisite checking above for both retained and newly introduced units.
+  if(retained.has(unitKey(u.ref)))continue;
   for(const ref of u.proposal.revises??[]){const old=current.find(v=>unitKey(v.ref)===unitKey(ref));
    if(!old||!old.review||old.disposition==="undecided"||old.proposal.event_time!==u.proposal.event_time||old.proposal.reveal_order!==u.proposal.reveal_order)fail("scene_revision_basis",409);
   }

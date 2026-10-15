@@ -268,6 +268,15 @@ be present or travel with a selected proposal. Natural-language dependencies and
 contradictions are not automatically detected. Leaving a unit undecided does not
 revoke an earlier target adoption. Reviewed scenes still cannot be overwritten.
 
+A fresh review can retain an exact, still-current adoption, including a setting
+revision, without performing its earlier reinterpretation again. Content, original
+review, source files and scope must match; prerequisites still apply. Retaining
+that unit does not prevent adopting a new independent proposal alongside it.
+Repeating the same source version, units, dispositions, reason and author is an
+acknowledgement of the existing revision, with no new notebook or history entry.
+Changed source versions or decisions remain new selections under the existing
+contract. A superseded unit cannot be reactivated by selecting it again.
+
 A branch keeps current original bytes locally, while historical source bytes and
 review bases remain in the named primary chain. Complete preparation refuses if
 that required history is unavailable; it never supplies an invented empty source.

@@ -1,4 +1,5 @@
 import { predecessorCode } from "./web-planning-branch-checks.mjs";
+import { checkRetainedRevisions } from './web-planning-retained-revision-checks.mjs';
 import { digestBytes } from "../apps/web_planning/src/files.ts";
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -68,6 +69,7 @@ export async function checkDirections({start,client,newWork,save,passed}){
  for(const r of [primary,alternate]){assert.deepEqual((await ok(dc.request(`/api/work/${r.work_id}`))).saved,r);assert.deepEqual(await ok(dc.request(route(r,'scene-context'),{expected:headBinding(r),intent:parameters})),await context(r));}
  assert.deepEqual((await ok(dc.request(route(primary,'direction-export'),{expected:headBinding(primary),source:reference(alternate)}))).recovery,bundle.recovery);
  assert.deepEqual(bundle.recovery.works[0].revisions.slice(0,4),originalExport.revisions);
+ await checkRetainedRevisions({start,client,bundle:bundle.recovery,passed});
  await dest.setOptions({script:await predecessorCode('5c5c2cc89e2871b7cd2379927610275cae9cc1c0')});
  for(const r of [primary,alternate]){const oldRead=await dc.request(`/api/work/${r.work_id}`);assert.equal(oldRead.status,422);assert.equal(oldRead.data.error,'invalid_fields');}
  await dest.setOptions({script:dest.code});assert.deepEqual((await ok(dc.request(`/api/work/${primary.work_id}`))).saved,primary);

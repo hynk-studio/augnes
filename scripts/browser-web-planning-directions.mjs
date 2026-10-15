@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { browserRetainedRevisionJourney } from './browser-web-planning-retained-revisions.mjs';
 import {mkdir,readFile,readdir,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {sceneFixture,sceneChoices} from './scene-continuity-fixture.mjs';
@@ -55,4 +56,5 @@ export async function browserDirectionJourney({a,debug,origin,page,click,set,set
  for(const expected of successors){const c=await page(debug,origin);await ready(c);await choose(c,expected.head.definition.goal);assert.equal(await c.eval("$('authored-text').value"),expected.draft);assert.equal(await c.eval('saved.fingerprint'),expected.head.fingerprint);readbacks.push({head:await c.eval('saved'),draft:await c.eval("$('authored-text').value")});}
  console.log(JSON.stringify({alternate_continuation_browser:{origin:originRevision,alternate_initial:altRevision,successors:successors.map(({context,draft,head})=>({context,draft,head})),readbacks,recovery:bundle,provenance:'Real browser controls and D1; deterministic successor drafts, not model use'}}));
  checks.push('C: real branch and inherited attribution; explicit reinterpretation; delayed/ABA/cancel/error/remote-drift preview admission; selected-only adoption with lost reply and exact reconciliation; independent fresh successor contexts/drafts; actual two-scope export, atomic refusal, replacement-store import and fresh reopening');
+ await browserRetainedRevisionJourney({debug,origin,page,click,set,settled,wait,navigate,replaceRuntime,root,checks,readbacks});
 }
