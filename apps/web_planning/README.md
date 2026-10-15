@@ -145,6 +145,13 @@ accepted state, a Transition, publication, execution or synchronization authorit
    file into a separate configured empty replacement store using A's supported
    recovery. Open the recovered work and scenes through the same surface.
 
+Changing preparation inputs, sources or the active scene invalidates pending
+preparation; a late response cannot become the displayed or downloadable context.
+Changing review choices, reason, draft or saved basis similarly discards an
+unsubmitted preview. Prepare or review again explicitly. Once adoption is sent,
+the review controls remain locked and the exact original request is retained for
+**Check review outcome** or the existing explicit same-request retry.
+
 The synthetic emperor fixture starts with A's exact Korean originals and prior
 revision. At the scene boundary the author adopts that the emperor is alive, the
 court's contrary announcement, Harin's belief in it, and Harin's receipt of an

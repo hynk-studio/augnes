@@ -8,13 +8,14 @@ const storyFile='augnes-story-worldbuilding.v1.json';
 const storyText=JSON.stringify({format:'augnes_story_worldbuilding.v1',primary_file:'manuscript.txt'});
 let authored=null,authoredEpoch=0,authoredUnavailable=false;
 let sceneBook=null,activeScene=null,sceneModified=false,sceneContext=null,sceneReviewPending=null,sceneUnknown=false;
+let sceneContextRequest=null,sceneReviewRequest=null;
 const sceneFile="augnes-scenes.v1.json";
 let work=null,saved=null,saveTicket=null,pending=null,reviewed=null,dirty=false,next=null,busy=false,eraseBinding=null;
 let relationPending=null,relationUnknown=false,directionDirty=false,comparison=null,comparisonCurrent=false,branchCursor=null,accessLost=false;
 let capacityEpoch=0,capacityTimer=null,capacityInFlight=false,capacityQueued=false;
 const binding=r=>r?{revision:r.revision,fingerprint:r.fingerprint}:{revision:0,fingerprint:null};
 function status(text){$('status').textContent=text;}
-function deny(){sceneBook=activeScene=sceneContext=sceneReviewPending=null;sceneModified=sceneUnknown=false;authored=null;authoredEpoch++;selectedFiles=[];fileSelectionVersion++;capacityEpoch++;clearTimeout(capacityTimer);accessLost=true;work=saved=saveTicket=pending=reviewed=eraseBinding=next=null;dirty=false;relationPending=comparison=branchCursor=null;comparisonCurrent=relationUnknown=false;directionDirty=false;$('private-view').replaceChildren();const p=document.createElement('p');p.id='status';p.setAttribute('role','status');p.textContent='Access is unavailable. Private content has been cleared. Sign in again to reopen.';$('private-view').append(p);}
+function deny(){sceneContextRequest=sceneReviewRequest=null;sceneBook=activeScene=sceneContext=sceneReviewPending=null;sceneModified=sceneUnknown=false;authored=null;authoredEpoch++;selectedFiles=[];fileSelectionVersion++;capacityEpoch++;clearTimeout(capacityTimer);accessLost=true;work=saved=saveTicket=pending=reviewed=eraseBinding=next=null;dirty=false;relationPending=comparison=branchCursor=null;comparisonCurrent=relationUnknown=false;directionDirty=false;$('private-view').replaceChildren();const p=document.createElement('p');p.id='status';p.setAttribute('role','status');p.textContent='Access is unavailable. Private content has been cleared. Sign in again to reopen.';$('private-view').append(p);}
 async function request(path,body){
   if(accessLost)throw new Error('access_denied');
   const response=await fetch(path,{method:body===undefined?'GET':'POST',credentials:'same-origin',cache:'no-store',redirect:'manual',
@@ -47,6 +48,8 @@ function draft(includeFiles=true){const rows=[...$('notes').children];const note
  return {definition:{goal:$('goal').value,success_criteria:$('criteria').value.split('\n'),non_goals:$('non-goals').value.split('\n')},notes,material_edits,...(includeFiles?{files:selectedFiles.map(f=>({...f})),...(activeScene&&sceneModified?{scene:sceneInput()}:{} )}:{})};}
 
 function changed(event){
+  invalidateSceneReview();
+  if(sceneContextRequest&&!currentSceneContext(sceneContextRequest))invalidateSceneContext();
   // An explicit edit adapts a saved note. Reading/checking the draft is pure.
   for(const row of $('notes').children)if(row._original && [...row.querySelectorAll('[data-field]')].some(e=>(e.dataset.field==='observed_at'?(e.value||null):e.value)!==row._note[e.dataset.field]))row.querySelector('[data-field=provenance]').value='derived_interpretation';
   if(event?.target.matches('[data-field=text]'))syncDependencies();
@@ -67,7 +70,7 @@ function reviewChanges(){const d=draft();const lines=[];
     if(!lines.length)lines.push('No definition or selection edits. An unchanged save acknowledges the existing revision.');}
   $('change-list').textContent=lines.join(' ');
 }
-async function show(r=null){selectedFiles=(r?.files??[]).map(f=>({...f}));fileSelectionVersion++;renderFiles();$('work-files').value='';saved=r;pending=null;reviewed=null;dirty=false;saveTicket=null;
+async function show(r=null){invalidateSceneContext();invalidateSceneReview();selectedFiles=(r?.files??[]).map(f=>({...f}));fileSelectionVersion++;renderFiles();$('work-files').value='';saved=r;pending=null;reviewed=null;dirty=false;saveTicket=null;
   $('editor').hidden=false;document.querySelector('.intro').hidden=true;
   $('goal').value=r?.definition.goal??'';$('criteria').value=(r?.definition.success_criteria??[]).join('\n');$('non-goals').value=(r?.definition.non_goals??[]).join('\n');
   $('notes').replaceChildren();for(const n of r?.sources??[])noteRow(noteInput(n),n.source_ref);const rows=[...$('notes').children];for(const row of rows){const m=r?.relations?.materials.find(m=>m.source_ref===row._original);row._depIds=(m?.dependencies??[]).map(ref=>rows.find(n=>n._original===ref)?.id??'missing:'+ref);}syncDependencies();resetDirections();
@@ -187,7 +190,7 @@ $('refresh-work').onclick=()=>run(()=>openWork(work));
 $('resolve-save').onclick=()=>run(async()=>{const r=await api('/api/work/'+work+'/resolve',pending);if(r.outcome==='saved')await acknowledged(r.saved);else status('The original request is not visible yet. Its outcome remains unknown; any explicit retry uses the same request and material.');});
 $('retry-save').onclick=()=>run(dispatch);
 $('review-latest').onclick=()=>run(async()=>{const r=await api('/api/work/'+work);reviewed=r.saved;const html=await readPrivate(await request('/api/work/'+work+'/context',{expected:binding(reviewed)}),'text');$('conflict-latest').innerHTML=html;await compareAuthored(reviewed);$('rebase-draft').hidden=false;status('Compare this saved version with your retained draft before choosing a new base.');});
-$('rebase-draft').onclick=()=>{if(!reviewed)return;saved=reviewed;if(activeScene){selectedFiles=selectedFiles.filter(f=>f.name!==sceneFile);const f=saved.files?.find(f=>f.name===sceneFile);if(f)selectedFiles.push({...f});sceneModified=true;}reviewed=null;saveTicket=null;pending=null;$('conflict').hidden=true;$('context-view').replaceChildren();changed();status('Reviewed base selected. Your draft remains unsaved; review its changes and press Save deliberately.');};
+$('rebase-draft').onclick=()=>{if(!reviewed)return;if(sceneUnknown){status('Check the pending review outcome before changing its basis.');return;}invalidateSceneContext();invalidateSceneReview();saved=reviewed;if(activeScene){selectedFiles=selectedFiles.filter(f=>f.name!==sceneFile);const f=saved.files?.find(f=>f.name===sceneFile);if(f)selectedFiles.push({...f});sceneModified=true;}reviewed=null;saveTicket=null;pending=null;$('conflict').hidden=true;$('context-view').replaceChildren();changed();status('Reviewed base selected. Your draft remains unsaved; review its changes and press Save deliberately.');};
 $('history').onclick=()=>run(async()=>{const data=await api('/api/work/'+work+'/history');const list=document.createElement('ol');for(const r of data.revisions){const li=document.createElement('li');li.textContent=`Revision ${r.revision} · ${r.recorded_at} · ${r.definition.goal}`;list.append(li);}$('history-view').replaceChildren(list);});
 $('export').onclick=()=>run(async()=>{const response=await request('/api/work/'+work+'/export');const url=URL.createObjectURL(await readPrivate(response,'blob'));const a=document.createElement('a');a.href=url;a.download='planning-work.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);status('Complete revision chain downloaded. Keep exports private.');});
 $('erase').onclick=()=>{if(pending||relationPending||sceneReviewPending){status('Resolve the pending save before erasure.');return;}eraseBinding=binding(saved);$('erase-text').textContent=`Erase revision ${saved.revision} and all earlier revisions and owned file bytes of this work? Download an export first if needed. A changed head will refuse. Independently saved branches and incorporated copies belong to other works and remain there; erase those works separately if intended.`;$('erase-confirm').hidden=false;};
@@ -262,7 +265,7 @@ function renderFiles(){
     const select=document.createElement('select');select.id='file-role-'+i;label.htmlFor=select.id;select.setAttribute('aria-label',label.textContent);
     for(const role of ['report','source','results','other']){const option=document.createElement('option');option.value=role;option.textContent=role;select.append(option);}select.value=file.role;
     // A retained descriptor includes its authored role. Reselect bytes to change that attribution.
-    select.disabled=file.data===undefined;select.onchange=()=>{file.role=select.value;changed();};label.append(select);
+    select.disabled=file.data===undefined;select.onchange=()=>{file.role=select.value;fileSelectionVersion++;changed();};label.append(select);
     const remove=document.createElement('button');remove.type='button';remove.textContent=`Remove ${file.name} from next revision`;
     remove.onclick=()=>{selectedFiles.splice(i,1);fileSelectionVersion++;if(authored?.name===file.name)clearAuthored();if(file.name===storyFile)applyPresentation('ordinary');renderFiles();changed();};
     if(file.name===sceneFile){p.textContent='Scene drafts and review history · '+fileSize(file).toLocaleString('en-US')+' bytes · managed through scene Save and grouped review';remove.disabled=true;select.disabled=true;}
@@ -299,7 +302,7 @@ document.addEventListener('click',event=>{const button=event.target.closest?.('[
 function encodedText(text){if(!text.isWellFormed())throw new Error('invalid_authored_unicode');const bytes=new TextEncoder().encode(text);let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));return btoa(binary);}
 function textFile(name){return /\.(txt|md|markdown)$/iu.test(name);}
 function refreshAuthoredChoices(){const select=$('authored-file');if(!select)return;const current=select.value;select.replaceChildren();const blank=document.createElement('option');blank.value='';blank.textContent='Choose a text file';select.append(blank);for(const file of selectedFiles.filter(f=>textFile(f.name))){const o=document.createElement('option');o.value=file.name;o.textContent=file.name;select.append(o);}select.value=authored?.name??current;}
-function clearAuthored(){activeScene=null;sceneModified=false;authoredEpoch++;authored=null;authoredUnavailable=false;$('authored-text').value='';$('authored-text').disabled=true;$('authored-name').disabled=false;$('authored-state').textContent='No text file is open. Saved attachments and earlier versions remain available.';}
+function clearAuthored(){invalidateSceneContext();invalidateSceneReview();activeScene=null;sceneModified=false;authoredEpoch++;authored=null;authoredUnavailable=false;$('authored-text').value='';$('authored-text').disabled=true;$('authored-name').disabled=false;$('authored-state').textContent='No text file is open. Saved attachments and earlier versions remain available.';}
 function applyPresentation(value){$('authored-material').open=value==='story';$('presentation').value=value;$('authored-heading').textContent=value==='story'?'Your manuscript and world':'Original writing (optional)';$('presentation-hint').textContent=value==='story'?'Story & Worldbuilding v1. Keep fictional facts, announcements, character beliefs and undecided intentions in your own words. Saving a draft does not adopt canon.':'Optional presentation. Identity, access and history stay with this work.';$('editor-title').textContent=value==='story'?'Continue your story':saved?'Continue your work':'New work';}
 async function fileText(file,r){let bytes;
   if(file.data!==undefined)bytes=Uint8Array.from(atob(file.data),c=>c.charCodeAt(0));
@@ -307,7 +310,7 @@ async function fileText(file,r){let bytes;
   if(accessLost)throw new Error('access_denied');
   return new TextDecoder('utf-8',{fatal:true,ignoreBOM:true}).decode(bytes);
 }
-function displayAuthored(file,text){activeScene=null;sceneModified=false;$("scene-review").hidden=true;if(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(text))throw new Error('authored_text_unavailable');
+function displayAuthored(file,text){invalidateSceneContext();invalidateSceneReview();activeScene=null;sceneModified=false;$("scene-review").hidden=true;if(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(text))throw new Error('authored_text_unavailable');
   $('authored-text').value=text;authored={name:file.name,original:{...file},text,display:$('authored-text').value,crlf:text.includes('\r\n')&&!/(?<!\r)\n/u.test(text)};
   $('authored-material').open=true;$('authored-text').disabled=false;$('authored-name').value=file.name;$('authored-name').disabled=false;authoredUnavailable=false;refreshAuthoredChoices();
   $('authored-state').textContent=`${file.name} · ${new TextEncoder().encode(text).length.toLocaleString('en-US')} / 262,144 bytes. ${saved?'Read from saved revision '+saved.revision+'.':'Unsaved original writing.'}`;
@@ -350,6 +353,21 @@ async function compareAuthored(revision){if(activeScene){const f=revision.files?
 // Scene drafts share Original text, the ordinary Save/resolve path, and its
 // retained-draft behavior. Only the separate grouped review can adopt material.
 function sceneParameters(){return {title:$('scene-title').value,viewpoint:$('scene-viewpoint').value,event_time:Number($('scene-event').value),reveal_order:Number($('scene-reveal').value),source_names:[...$('scene-sources').selectedOptions].map(o=>o.value)};}
+// Each object is a local request generation. Snapshot comparison also covers
+// programmatic replacements that do not emit input events. Neither grants write
+// authority; potentially submitted reviews retain their original identity below.
+function sceneContextSnapshot(){return JSON.stringify([work,binding(saved),activeScene?.id,fileSelectionVersion,sceneParameters()]);}
+function sceneReviewIntent(){return {scene_id:activeScene.id,dispositions:[...$('scene-dispositions').querySelectorAll('select')].map(s=>s.value),reason:$('scene-reason').value};}
+function sceneReviewSnapshot(){return activeScene&&authored?.scene?JSON.stringify([work,binding(saved),fileSelectionVersion,dirty,sceneInput(),sceneReviewIntent()]):null;}
+function currentSceneContext(r){return !accessLost&&sceneContextRequest===r&&r?.snapshot===sceneContextSnapshot();}
+function currentSceneReview(r){return !accessLost&&sceneReviewRequest===r&&r?.snapshot===sceneReviewSnapshot();}
+function invalidateSceneContext(message=''){sceneContextRequest=null;sceneContext=null;$('scene-context').textContent=message;$('scene-context-download').hidden=true;}
+function invalidateSceneReview(message=''){
+ if(sceneUnknown)return; // A sent write needs its original resolve/retry request.
+ sceneReviewRequest=null;sceneReviewPending=null;$('scene-review-summary').textContent=message;
+ for(const id of ['scene-review-save','scene-review-cancel','scene-review-uncertain'])$(id).hidden=true;
+ freezeSceneReview();
+}
 function sceneInput(){const value=$('authored-text').value;return {id:activeScene.id,...sceneParameters(),draft:value===authored.display?authored.text:authored.crlf?value.replace(/\n/g,'\r\n'):value,proposals:[...$('scene-proposals').children].map(row=>Object.fromEntries([...row.querySelectorAll('[data-scene-field]')].map(e=>[e.dataset.sceneField,e.type==='number'?Number(e.value):e.value])))};}
 function sceneProposal(p={kind:'fact',subject:'',text:'',event_time:Number($('scene-event').value),reveal_order:Number($('scene-reveal').value)}){
  const row=document.createElement('section');row.className='note';
@@ -363,14 +381,14 @@ function sceneFields(s){for(const [id,key] of [['scene-title','title'],['scene-v
  const names=s.source_files?.map(f=>f.name)??s.source_names;for(const o of $('scene-sources').options)o.selected=names?.includes(o.value)??true;
  $('scene-proposals').replaceChildren();for(const p of s.proposals??[])sceneProposal(p);
 }
-function displayScene(s){activeScene=s;sceneModified=false;sceneContext=null;$('scene-context').textContent='';$('scene-context-download').hidden=true;
+function displayScene(s){invalidateSceneContext();invalidateSceneReview();activeScene=s;sceneModified=false;sceneContext=null;$('scene-context').textContent='';$('scene-context-download').hidden=true;
  $('authored-text').value=s.draft;authored={scene:true,text:s.draft,display:$('authored-text').value,crlf:s.draft.includes('\r\n')&&!/(?<!\r)\n/u.test(s.draft)};authoredUnavailable=false;
  $('authored-material').open=true;$('scene-tools').open=true;$('authored-text').disabled=!!s.review;$('authored-state').textContent=s.title+' · '+(s.review?'Reviewed scene; original draft preserved. Choose Next scene to continue.':'Scene draft. Save does not adopt its proposals.');
  sceneFields(s);$('scene-choice').value=s.id;
  for(const e of $('scene-tools').querySelectorAll('input,textarea,[data-scene-field],#scene-add-proposal'))e.disabled=!!s.review;
  $('scene-review').hidden=false;renderSceneReview(s);
 }
-async function loadScenes(r){sceneBook=null;activeScene=null;sceneModified=false;sceneContext=sceneReviewPending=null;sceneUnknown=false;$('scene-review').hidden=true;$('scene-tools').hidden=!r;
+async function loadScenes(r){invalidateSceneContext();invalidateSceneReview();sceneBook=null;activeScene=null;sceneModified=false;sceneContext=sceneReviewPending=null;sceneUnknown=false;$('scene-review').hidden=true;$('scene-tools').hidden=!r;
  $('scene-context').textContent='';$('scene-context-download').hidden=true;$('scene-choice').replaceChildren();$('scene-sources').replaceChildren();
  for(const f of r?.files??[])if(f.role==='source'&&textFile(f.name)){const o=document.createElement('option');o.value=f.name;o.textContent=f.name;o.selected=true;$('scene-sources').append(o);}
  const file=r?.files?.find(f=>f.name===sceneFile);if(!file){$('scene-state').textContent='Save original sources, then choose Next scene. No lore forms are required for ordinary writing.';return;}
@@ -379,10 +397,16 @@ async function loadScenes(r){sceneBook=null;activeScene=null;sceneModified=false
 function sceneCanStart(){if(!saved||dirty||pending||sceneReviewPending){status('Save or resolve the current draft before preparing another scene. Your writing is retained.');return false;}return true;}
 $('scene-new').onclick=()=>{if(!sceneCanStart())return;const last=sceneBook?.scenes.at(-1);const s={id:crypto.randomUUID(),title:'',viewpoint:last?.viewpoint??'',event_time:(last?.event_time??0)+1,reveal_order:(last?.reveal_order??0)+1,source_names:[...$('scene-sources').options].map(o=>o.value),draft:'',proposals:[],review:null};displayScene(s);$('scene-review').hidden=true;sceneModified=true;changed();$('scene-title').focus();};
 $('scene-open').onclick=()=>{if(!sceneCanStart())return;const s=sceneBook?.scenes.find(s=>s.id===$('scene-choice').value);if(s)displayScene(s);};
-$('scene-tools').addEventListener('input',e=>{if(e.target.id==='scene-choice')return;if(activeScene&&!activeScene.review){sceneModified=true;sceneContext=null;$('scene-context').textContent='Preparation changed. Prepare again before delivering context.';$('scene-context-download').hidden=true;}});
+function sceneEdited(e){if(e.target.id==='scene-choice')return;invalidateSceneContext('Preparation changed. Prepare again before delivering context.');invalidateSceneReview();if(activeScene&&!activeScene.review)sceneModified=true;}
+for(const event of ['input','change'])$('scene-tools').addEventListener(event,sceneEdited);
 $('scene-add-proposal').onclick=()=>{if(!activeScene||activeScene.review)return;if($('scene-proposals').children.length>=16){status('At most 16 consequential proposals per scene; keep ordinary prose in the draft.');return;}sceneProposal();sceneModified=true;changed();};
-$('scene-prepare').onclick=()=>run(async()=>{if(!saved||pending||sceneReviewPending)return;sceneContext=null;$('scene-context').textContent='Reading persisted scene sources…';$('scene-context-download').hidden=true;sceneContext=await api('/api/work/'+work+'/scene-context',{expected:binding(saved),intent:sceneParameters()});$('scene-context').textContent=sceneContext.text;$('scene-context-download').hidden=false;$('scene-state').textContent=`Prepared from saved revision ${sceneContext.basis.revision}. ${sceneContext.bytes} / ${sceneContext.limit} UTF-8 bytes. Unsaved prose and proposals are excluded.`;});
-$('scene-context-download').onclick=()=>{if(!sceneContext)return;const url=URL.createObjectURL(new Blob([sceneContext.text],{type:'text/plain;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='scene-context.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+$('scene-prepare').onclick=()=>run(async()=>{if(!saved||pending||sceneReviewPending)return;
+ invalidateSceneContext('Reading persisted scene sources…');const r=sceneContextRequest={work,snapshot:sceneContextSnapshot()};
+ try{const data=await api('/api/work/'+r.work+'/scene-context',{expected:binding(saved),intent:sceneParameters()});if(!currentSceneContext(r))return;
+  sceneContext=data;$('scene-context').textContent=data.text;$('scene-context-download').hidden=false;$('scene-state').textContent=`Prepared from saved revision ${data.basis.revision}. ${data.bytes} / ${data.limit} UTF-8 bytes. Unsaved prose and proposals are excluded.`;
+ }catch(e){if(e.message==='access_denied')throw e;if(!currentSceneContext(r))return;invalidateSceneContext('Preparation unavailable. Your draft is retained; prepare again explicitly.');throw e;}
+});
+$('scene-context-download').onclick=()=>{if(!sceneContext)return;if(!currentSceneContext(sceneContextRequest)){invalidateSceneContext('Preparation changed. Prepare again before delivering context.');return;}const url=URL.createObjectURL(new Blob([sceneContext.text],{type:'text/plain;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='scene-context.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 function renderSceneReview(s){$('scene-dispositions').replaceChildren();$('scene-reason').value=s.review?.reason??'';$('scene-review-summary').textContent='';
  for(const [i,p] of s.proposals.entries()){const label=document.createElement('label');label.textContent=`${p.kind}${p.subject?' · '+p.subject:''} · event ${p.event_time} / reveal ${p.reveal_order}: ${p.text}`;const select=document.createElement('select');select.id='scene-disposition-'+i;select.className='scene-disposition';select.setAttribute('aria-label','Disposition for '+p.text);
   for(const value of ['undecided','adopted','rejected']){const o=document.createElement('option');o.value=value;o.textContent={undecided:'Leave undecided',adopted:'Adopt in this fictional scope',rejected:'Reject this proposal'}[value];select.append(o);}select.value=s.review?.dispositions[i]??'undecided';select.disabled=!!s.review;label.append(select);$('scene-dispositions').append(label);}
@@ -393,17 +417,23 @@ function freezeSceneReview(){const frozen=!!sceneReviewPending;$('edit-fields').
  for(const e of $('scene-review').querySelectorAll('select,textarea'))e.disabled=sceneUnknown||!!activeScene?.review;
  $('scene-review-preview').disabled=sceneUnknown;$('scene-review-cancel').disabled=sceneUnknown;
 }
-$('scene-review').addEventListener('input',()=>{if(sceneUnknown)return;sceneReviewPending=null;$('scene-review-save').hidden=true;$('scene-review-summary').textContent='Choices changed; review them again.';freezeSceneReview();});
+for(const event of ['input','change'])$('scene-review').addEventListener(event,()=>invalidateSceneReview('Choices changed; review them again.'));
 $('scene-review-preview').onclick=()=>run(async()=>{if(!sceneCanStart()||!activeScene)return;
- const data=await api('/api/work/'+work+'/scene-review-preview',{expected:binding(saved),intent:{scene_id:activeScene.id,dispositions:[...$('scene-dispositions').querySelectorAll('select')].map(s=>s.value),reason:$('scene-reason').value}});
+ invalidateSceneReview();const r=sceneReviewRequest={work,snapshot:sceneReviewSnapshot()};let data;
+ try{data=await api('/api/work/'+r.work+'/scene-review-preview',{expected:binding(saved),intent:sceneReviewIntent()});}
+ catch(e){if(e.message==='access_denied')throw e;if(!currentSceneReview(r))return;invalidateSceneReview('Preview unavailable. Choices and draft retained; review again explicitly.');throw e;}
+ if(!currentSceneReview(r))return;
  sceneReviewPending={ticket:data.ticket,intent:data.intent};sceneUnknown=false;$('scene-review-summary').textContent=`${data.scene.title}\n\n${data.scene.draft}\n\n`+data.scene.proposals.map((p,i)=>`${data.intent.dispositions[i]} · ${p.kind} · event ${p.event_time} / reveal ${p.reveal_order}: ${p.text}`).join('\n\n')+'\n\nReason: '+data.intent.reason;
  $('scene-review-save').hidden=false;$('scene-review-cancel').hidden=false;freezeSceneReview();});
 async function saveSceneReview(resolve=false){if(!sceneReviewPending)return;let result;
- try{result=await api('/api/work/'+work+(resolve?'/scene-review-resolve':'/scene-review-save'),sceneReviewPending);}
- catch(e){if(e.message==='access_denied')throw e;if([409,422,413].includes(e.status)){sceneReviewPending=null;sceneUnknown=false;freezeSceneReview();$('scene-review-save').hidden=true;status('Review refused: '+(messages[e.message]??e.message.replaceAll('_',' '))+'. Choices and saved draft retained. Read the latest version before a new review.');return;}
+ if(!sceneUnknown&&!currentSceneReview(sceneReviewRequest)){invalidateSceneReview('Choices or source basis changed; review them again.');return;}
+ const original=sceneReviewPending,request=sceneReviewRequest;
+ sceneUnknown=true;freezeSceneReview();$('scene-review-save').hidden=true;$('scene-review-cancel').hidden=true;
+ try{result=await api('/api/work/'+request.work+(resolve?'/scene-review-resolve':'/scene-review-save'),original);}
+ catch(e){if(e.message==='access_denied')throw e;if([409,422,413].includes(e.status)){sceneUnknown=false;invalidateSceneReview();status('Review refused: '+(messages[e.message]??e.message.replaceAll('_',' '))+'. Choices and saved draft retained. Read the latest version before a new review.');return;}
   sceneUnknown=true;freezeSceneReview();$('scene-review-uncertain').hidden=false;status('Review outcome unknown. Check the exact original request before writing again.');return;}
- if(result.outcome==='unknown'){status('Review outcome remains unknown. The original request is retained; no new adoption was submitted.');return;}
- sceneReviewPending=null;sceneUnknown=false;await acknowledged(result.saved);status('Scene review saved. Adopted, undecided and rejected material remains separate. Choose Next scene to continue.');}
+ if(result.outcome==='unknown'){$('scene-review-uncertain').hidden=false;status('Review outcome remains unknown. The original request is retained; no new adoption was submitted.');return;}
+ sceneUnknown=false;invalidateSceneReview();await acknowledged(result.saved);status('Scene review saved. Adopted, undecided and rejected material remains separate. Choose Next scene to continue.');}
 $('scene-review-save').onclick=()=>run(()=>saveSceneReview());$('scene-review-retry').onclick=()=>run(()=>saveSceneReview());$('scene-review-resolve').onclick=()=>run(()=>saveSceneReview(true));
-$('scene-review-cancel').onclick=()=>{if(sceneUnknown)return;sceneReviewPending=null;$('scene-review-save').hidden=true;$('scene-review-cancel').hidden=true;freezeSceneReview();};
+$('scene-review-cancel').onclick=()=>invalidateSceneReview('Review cancelled. Choices are retained; review them again before adoption.');
 Object.assign(messages,{scene_draft_unsaved:'Save the scene draft before opening another original; the draft is retained.',scene_context_capacity:'Scene context exceeds 16,384 UTF-8 bytes. Select fewer complete sources or a smaller scene scope; no text was clipped.',scene_notebook_owned:'Scene history is managed by ordinary scene Save and grouped review. It cannot be replaced or removed as an attachment.',scene_sources_changed:'A prepared original source changed. Reopen the retained draft, prepare against the current source, and save before reviewing.',scene_review_locked:'This scene was already reviewed. Its draft and dispositions are retained; continue with a new scene.',scene_source_unavailable:'A selected original is unavailable. Restore a supported source selection before preparing.',scene_notebook_capacity:'This notebook already contains 32 scenes. Export its history and choose the next work scope.',invalid_scene_text:'Scene text is empty, too large, or contains malformed Unicode. Your draft is retained.'});

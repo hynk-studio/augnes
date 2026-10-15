@@ -4,7 +4,7 @@ import path from 'node:path';
 import { digestBytes } from '../apps/web_planning/src/files.ts';
 import { storyOriginal,storyRevised } from './story-worldbuilding-fixture.mjs';
 import { sceneFixture,sceneChoices,sceneReason,deterministicSuccessor } from './scene-continuity-fixture.mjs';
-export async function browserSceneJourney({a,debug,origin,page,click,set,settled,saved,wait,navigate,replaceRuntime,dropReply,requestsOnly,countRows,root,checks}){
+export async function browserSceneJourney({a,debug,origin,page,click,set,settled,saved,wait,navigate,replaceRuntime,barrier,requestsOnly,countRows,root,checks}){
  const ready=async c=>{await navigate(c,origin+'/');await wait(()=>c.eval("!!$('new-story')&&$('list-state').textContent!=='Reading saved work…'"),'scene entry');};
  const choose=async c=>{await c.eval("[...$('work-list').querySelectorAll('button')].find(b=>b.textContent==='봉인과 황제').click()");await settled(c);};
  await ready(a);await click(a,'new-story');await settled(a);await set(a,'goal','봉인과 황제');await set(a,'authored-text',storyOriginal);await click(a,'save');await saved(a,1);await settled(a);
@@ -18,7 +18,11 @@ export async function browserSceneJourney({a,debug,origin,page,click,set,settled
  const rival=await page(debug,origin);await ready(rival);await choose(rival);const retained=sceneFixture.draft+'\n\n다른 탭의 보존할 초안.';await set(rival,'authored-text',retained);
  for(const [i,value] of sceneChoices.entries())await set(a,'scene-disposition-'+i,value);await set(a,'scene-reason',sceneReason);await click(a,'scene-review-preview');await settled(a);
  assert.equal(await a.eval("$('scene-review-save').hidden"),false);const reviewedRequest=await a.eval('sceneReviewPending');
- await dropReply(a,'/scene-review-save');await click(a,'scene-review-save');await settled(a);assert.equal(await a.eval("$('scene-review-uncertain').hidden"),false);
+ const sent=await barrier(a,'/scene-review-save');await click(a,'scene-review-save');await sent.wait();
+ assert.equal(await a.eval('sceneUnknown'),true);assert.deepEqual(await a.eval('sceneReviewPending'),reviewedRequest);
+ assert.equal(await a.eval("$('scene-reason').matches(':disabled')&&$('scene-disposition-0').matches(':disabled')&&$('scene-review-cancel').disabled"),true);
+ await click(a,'scene-review-cancel');assert.deepEqual(await a.eval('sceneReviewPending'),reviewedRequest);
+ await sent.release('disconnect');assert.equal(await a.eval("$('scene-review-uncertain').hidden"),false);assert.deepEqual(await a.eval('sceneReviewPending'),reviewedRequest);
  await requestsOnly(a);await click(a,'scene-review-resolve');await saved(a,4);await settled(a);
  assert.deepEqual(await a.eval('activeScene.review.dispositions'),sceneChoices);assert.equal(await a.eval("$('authored-text').disabled"),true);
  assert.equal((await a.eval(`api('/api/work/'+work+'/scene-review-save',${JSON.stringify(reviewedRequest)})`)).saved.revision,4);
