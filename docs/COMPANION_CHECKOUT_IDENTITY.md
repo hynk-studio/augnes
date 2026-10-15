@@ -166,3 +166,135 @@ their existing short-lived/versioned device/inode rules. Discovery still needs
 generation-bound credentials and verified UI/bridge/process identity; a durable
 directory match cannot make a dead runtime live. No Core migration, background
 re-enrollment, new authority store or automatic source adoption is introduced.
+
+## Retained supervisor identity and explicit ownership retirement
+
+A failed process observation is not exit. The manager retains its original
+child handle, birth witness, attempt diagnostics and runtime ownership evidence
+while an observation is unavailable or conflicting. It publishes
+`recovery_required` with `companion_service_supervisor_ownership_unverifiable`;
+its private manager record distinguishes `unavailable`, `conflicting`, and
+`initial_identity_unavailable` observations. These retained fields are historical
+witnesses, not a current live-ownership grant. Repeated failures neither count as
+exits nor authorize signals, identity replacement or a competing supervisor.
+The same gate precedes desired-state and maintenance handling and protects
+adopted supervisors. An unidentified initial child remains unsettled until its
+original handle/parent relationship can be verified or absence/exit is observed.
+Confirmed absence and an observed child exit remain distinct failure origins.
+Normal observed-exit restart retains the existing backoff. Stop and maintenance
+wait for verification before acting; failed shutdown retains its witness and
+manager lock instead of publishing a false stopped state. Process-group
+settlement requires confirmed absence, including after a signal; unavailable or
+changed observations cannot authorize escalation or cleanup.
+
+The diagnostic field and absence reason are additive private manager-state
+information. The configuration, manager-state and public MCP wire versions are
+unchanged; public live/preservation acceptance is not relaxed. The four-file
+service source fingerprint changes and still requires explicit source adoption.
+An unchanged Operator package label never demonstrates byte parity or adoption.
+Older readers cannot interpret the new retirement record and must not operate
+this installation during an incomplete retirement.
+
+### Recovery of the previously erased relationship
+
+`ownership-recovery-inspect`, `ownership-recovery-prepare` and
+`ownership-recovery-apply` are narrow CLI operations owned by the same lifecycle
+module. They retire the corroborated process family, persist **stopped** intent
+and leave the installation and enrollment in place. They do not adopt a runtime
+as live, start a replacement, update source, open/prepare a database, enroll a
+checkout, repair credentials or qualify a PR. Previously stopped intent remains
+stopped. The previous intent and lost manager record remain in the private
+`ownership-recovery.json` operation record.
+
+The initial entry requires the erased manager relationship: the exact manager
+reports a foreign-runtime conflict with null supervisor and runtime ownership
+fields. Attempt diagnostics lack child identity and may describe a later attempt;
+they are retained as history, not proof of this supervisor's loss or exit. Start
+is unavailable while manager ownership is unverified. Recovery requires all of
+the following current evidence in one coherent observation:
+
+- Durable checkout enrollment, exact configuration/LaunchAgent/desired-state
+  material, actual installed source fingerprint and pinned Node identity.
+- An exact loaded launchd definition and matching manager lock/state/process
+  birth witnesses.
+- The still-live supervisor's birth, exact command and direct parent relationship
+  to that manager; matching runtime manifest, lock, generation and instance.
+- Real UI/bridge health and credential-checked ownership responses, together with
+  their exact process-group births and membership.
+
+Neither parentage, a healthy URL, an old receipt nor a caller-supplied hash
+substitutes for this combination. Missing witnesses refuse with a specific
+`companion_service_recovery_*` reason. No record is rewritten to make inspection
+pass. A foreign/reused process, unavailable observation, changed generation,
+changed source, maintenance/decommission conflict or stale decision refuses.
+This is cooperative same-user lifecycle safety, not protection against forged
+same-user files or atomic OS/filesystem/process observation.
+
+Preparation is read-only and expires after five minutes. Apply acquires the
+existing lifecycle lock, reobserves the exact binding and rechecks at effect
+admission, including before each process-group signal. It records the operation
+before bootout, proves the manager absent and job unloaded, persists stopped
+intent, settles only the recorded groups through the existing process owner,
+then removes only exact residual runtime material through the existing bounded
+cleanup owner. It preserves configuration, enrollment, launch definition,
+database, project data and the recovery record. No replacement is attempted.
+Expiry is an admission check, not a guarantee of completion before the deadline.
+
+After a failed/unknown acknowledgement, use **inspect first**. A settled replay
+returns the independently rechecked settlement without another effect. An
+incomplete operation requires a new explicit preparation bound to the retained
+operation and its currently verified remainder; it does not silently retry,
+retarget or rebaseline. Changed/missing essential evidence keeps it refused.
+Do not delete the record or its locks. New lifecycle code refuses ordinary Start,
+Stop, installation and manager entry while that operation is incomplete. An
+exclusive, coordinated operator window is still required: older installed
+clients do not understand the new record, and a lifecycle lock is not a machine-
+wide prohibition on independently authorized writers.
+
+### Non-circular, post-review operational handoff
+
+Source development does not authorize these commands on production. After review,
+an exact operator decision must authorize the candidate's **separate recovery
+execution**, the installation it targets and a coordinated window with no other
+lifecycle/maintenance writers. The accepted installation stays unchanged while
+the reviewed candidate CLI runs from its separate checkout. Inspect/prepare bind
+both its executing four-file source fingerprint and the installation's current
+fingerprint. Thus recovery does not require installing itself first.
+
+With the reviewed absolute paths, pinned Node and a private evidence directory:
+
+```bash
+umask 077
+"$REVIEWED_NODE" "$REVIEWED_CANDIDATE/scripts/augnes-companion-service.mjs" \
+  ownership-recovery-inspect --repository-root "$INSTALLED_CHECKOUT"
+"$REVIEWED_NODE" "$REVIEWED_CANDIDATE/scripts/augnes-companion-service.mjs" \
+  ownership-recovery-prepare --repository-root "$INSTALLED_CHECKOUT" \
+  > "$PRIVATE_PREVIEW"
+```
+
+Review the target, effect, both source identities and current process/runtime
+witnesses. The preparation's `decision.expected_binding` must equal the reviewed
+inspection's `binding`; a different observation needs separate review, not an
+automatic retry. Extract only the returned `decision` to an absolute user-owned `0600`
+file using the same exclusive-file procedure shown for identity enrollment.
+The decision is not user authority; the separately authorized application is:
+
+```bash
+"$REVIEWED_NODE" "$REVIEWED_CANDIDATE/scripts/augnes-companion-service.mjs" \
+  ownership-recovery-apply --repository-root "$INSTALLED_CHECKOUT" \
+  "$PRIVATE_DECISION"
+"$REVIEWED_NODE" "$REVIEWED_CANDIDATE/scripts/augnes-companion-service.mjs" \
+  ownership-recovery-inspect --repository-root "$INSTALLED_CHECKOUT"
+```
+
+Require `settled`, zero remaining owned processes, absent runtime materials and
+locks, a stopped exact service, and unchanged configuration/enrollment/data
+scope before considering anything else. Retirement is irreversible for that
+process/generation; copying old state back cannot undo it. A later Start creates
+a new generation and needs separate authority. If the installed service is now
+validly stopped, the unchanged final candidate may be admitted to its own
+planner-selected Canonical run without prior candidate installation. Focused
+recovery evidence is not that qualification. Only a subsequent reviewed source-
+adoption decision can advance the installed checkout and refresh its source
+binding through supported installation/update while preserving stopped intent.
+No source adoption, Start, merge or follow-on qualification is automatic.
