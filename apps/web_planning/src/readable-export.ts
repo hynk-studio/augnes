@@ -1,3 +1,4 @@
+import { SCENE_FILE, type SceneNotebook } from "./scene-contract";
 import { type Revision } from "./contract";
 import { decodeFile, verifiedBodies } from "./files";
 import { escape } from "./page";
@@ -13,7 +14,11 @@ export function readableExport(chain: Revision[], bodies: unknown): string {
     try {
       text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(decodeFile(file.data));
       if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(text)) throw new Error("binary");
-      text = `<pre>${escape(text)}</pre>`;
+      if(names.includes(SCENE_FILE)){
+        const book=JSON.parse(text) as SceneNotebook;
+        const scenes=book.scenes.map(s=>`<article><h3>${escape(s.title)}</h3><p>Viewpoint: ${escape(s.viewpoint)} · fictional event ${s.event_time} · reveal ${s.reveal_order}. Original source basis: revision ${s.basis.revision}, <code>${s.basis.fingerprint}</code>.</p><h4>Exact scene draft — prose, not adoption</h4><pre>${escape(s.draft)}</pre><h4>Consequential proposals and dispositions</h4><ul>${s.proposals.map((p,i)=>`<li><strong>${s.review?.dispositions[i]??"undecided"}</strong> · ${p.kind} · ${escape(p.subject)} · fictional event ${p.event_time} / reveal ${p.reveal_order}<pre>${escape(p.text)}</pre></li>`).join("")}</ul>${s.review?`<p>Review reason: ${escape(s.review.reason)}<br>Author attribution: ${s.review.author_ref}<br>Reviewed revision ${s.review.basis.revision}: <code>${s.review.basis.fingerprint}</code></p>`:"<p>Unreviewed draft. No proposals adopted.</p>"}</article>`).join("");
+        text=scenes+`<details><summary>Exact scene notebook bytes as text</summary><pre>${escape(text)}</pre></details>`;
+      }else text = `<pre>${escape(text)}</pre>`;
     } catch {
       text = "<p>Binary or non-UTF-8 material. Exact bytes are included in the separate complete recovery file.</p>";
     }

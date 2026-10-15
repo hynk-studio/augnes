@@ -1,3 +1,4 @@
+import { browserSceneJourney } from "./browser-web-planning-scenes.mjs";
 import { CDP } from './web-planning-cdp.mjs';
 import { browserStoryJourney } from './browser-web-planning-story.mjs';
 import { browserFileJourney } from './browser-web-planning-files.mjs';
@@ -284,6 +285,14 @@ try {
  local=await startLocal(storyOptions());const storyOrigin=local.origin;const story=await page(debug,storyOrigin);
  await browserStoryJourney({a:story,debug,origin:storyOrigin,page,click,set,settled,saved,wait,navigate,root,checks,
    replaceRuntime:async replacement=>{for(const c of clients)await navigate(c,'about:blank');const bindings=local.env;await local.close();local=null;if(replacement)storyDestination=true;local=await startLocal({...storyOptions(),bindings});},
+   countRows:async()=>({revisions:(await local.db.prepare('SELECT count(*) n FROM web_planning_revision').first()).n,files:(await local.db.prepare('SELECT count(*) n FROM web_planning_file').first()).n})});
+ for(const c of clients)await navigate(c,'about:blank');await local.close();local=null;
+ let sceneDestination=false;const scenePort=await availablePort();
+ const sceneOptions=()=>({...directOptions,root:path.join(root,sceneDestination?'scenes-recovered':'scenes-original'),port:scenePort});
+ local=await startLocal(sceneOptions());const sceneOrigin=local.origin;const scene=await page(debug,sceneOrigin);
+ await browserSceneJourney({a:scene,debug,origin:sceneOrigin,page,click,set,settled,saved,wait,navigate,root,checks,requestsOnly,
+   dropReply:async(c,suffix)=>c.send('Fetch.enable',{patterns:[{urlPattern:'*',requestStage:'Request'},{urlPattern:'*'+suffix,requestStage:'Response'}]}),
+   replaceRuntime:async replacement=>{for(const c of clients)await navigate(c,'about:blank');const bindings=local.env;await local.close();local=null;if(replacement)sceneDestination=true;local=await startLocal({...sceneOptions(),bindings});},
    countRows:async()=>({revisions:(await local.db.prepare('SELECT count(*) n FROM web_planning_revision').first()).n,files:(await local.db.prepare('SELECT count(*) n FROM web_planning_file').first()).n})});
  assert.deepEqual(interceptionErrors,[]);
  assert.equal(exceptions,0);assert.equal(external,0);assert.equal(unexpectedFailures,0);assert.equal(expectedFailures.size,0);

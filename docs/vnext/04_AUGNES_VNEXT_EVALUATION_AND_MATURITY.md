@@ -61,6 +61,38 @@ limits, failed attempts and owned cleanup. This is deterministic product
 continuity and portable recovery evidence, not LLM understanding, creative
 superiority, installed/hosted adoption or B/C scene acceptance.
 
+## Story & Worldbuilding Increment B acceptance (#1455)
+
+Extend A's actual producer and recovery consumer through persisted-source scene
+preparation, ordinary draft/revision, proposed changes, grouped selected adoption
+and a fresh successor's new writing. Keep author facts, character knowledge and
+beliefs, public/narrator assertions and undecided/rejected intentions distinct.
+Fictional event/reveal positions must not be confused with actual revision history;
+an earlier preparation excludes later events without forgetting earlier adopted
+facts. A draft save is not adoption. Test stale source/proposal/head, foreign scope,
+unauthorized principal, replay, unknown-save resolution, transactional rollback,
+capacity refusal with retained drafts and malformed/incompatible atomic recovery.
+Recover original text, prior revisions, proposals/dispositions and attribution,
+then reopen through the product after runtime and browser replacement.
+
+The bounded ordinary-use allowance in #1455's B assignment is separate: at most two
+fresh included-client conversations, six task messages total, one active at a time,
+600 seconds per turn including cleanup and 2,400 seconds aggregate active time.
+Deliver the actual product-generated Web context by an existing supported file or
+browser path, preserve its identity and readback, withhold prior chats/evaluator
+answers, and save/read back the resulting new draft through the product. Report
+actual output behavior, assistance, host use and usage; corrections consume the
+same allowance and failures remain. If the supported client/delivery is unavailable,
+complete independent implementation and deterministic verification and report model
+use NOT_RUN with the concrete limitation, without an alternate launcher or API.
+
+This is assisted ordinary-use development evidence, not a blind comparison or
+proof of creative superiority. Evaluate actual use of adopted versus undecided
+material and unearned viewpoint knowledge, not a single expected phrase. Record
+source selection, author classification/adoption, manual transfer/import, context
+size and measured/unknown human and host burden. Successful storage, a fresh browser
+or exact text read alone does not establish model understanding or usefulness.
+
 ## Independent project-client acceptance
 
 For #1430, distinguish project data isolation, usable client authorization,

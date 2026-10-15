@@ -929,7 +929,7 @@ recorded separately in #1399/#1400 and #1407/#1410.
 
 ### Current P2/P3/P5 — Story & Worldbuilding Increment A (#1455)
 
-**Local implementation candidate; review and adoption remain separate.** The
+**Increment A merged through #1461; installed/hosted adoption remains separate.** The
 [Web walkthrough](../../apps/web_planning/README.md#story--worldbuilding--increment-a-1455)
 connects optional creative entry, exact original text editing, ordinary revision
 saves, fresh-process re-entry, readable history and complete-file recovery into
@@ -949,6 +949,25 @@ refusals. Final exact-head qualification belongs to the candidate's receipt;
 #1212's completed library exercise and its synthetic project remain unchanged.
 B/C, shared-world roles, hosting, new model consumers and creative/usefulness
 claims are outside this increment.
+
+### Current DT-001 B — Scene continuity (#1455)
+
+**Local implementation candidate; review and adoption remain separate.** The
+[scene walkthrough](../../apps/web_planning/README.md#scene-walkthrough) extends A's
+Web editor from saved source versions through viewpoint/event/reveal preparation,
+ordinary scene drafts, proposed consequential changes, grouped explicit fictional
+adoption, successor continuation and complete export/reconstruction/reopening.
+One compact versioned notebook uses the existing authenticated revision/file
+writers; ordinary projects and presentation detach/reattach retain their behavior.
+
+Current D1/Browser coverage includes source and proposal binding, stale/foreign/
+unauthorized refusal, replay, lost-response reconciliation, atomic failure, retained
+drafts and finite capacity. Exact final candidate verification belongs to its new
+planner-selected receipt, not #1461's. Any ordinary included-client observation is
+reported separately from deterministic producer/consumer checks and does not
+establish blind comparison, creative superiority or general burden reduction.
+C, alternate directions, shared worlds, Native/Web sync and installation remain
+outside this candidate. #1212's completed library exercise is retained, not rerun.
 
 ### Current lifecycle slice — Cumulative Web Planning history (#1397)
 
