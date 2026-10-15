@@ -89,6 +89,58 @@ try {
   assert.throws(() => initialize(path.join(firstOwner.root, 'bad'), bad.contract, bad.inputs), /invalid_contract/);
   checks.push('goal-independent forecast; finite budget, invalid input and refusal without fabricated completion');
 
+  // Only the reporting limit changes: omitted south exceeds it, retained north
+  // does not. Real file/event results and the total stay fixed in every mutation.
+  const coverage = run('group-coverage', 'later', first.model, reference, x => {
+    x.contract.limits.north = 700; return x;
+  });
+  const partial = run('partial-groups', 'later', first.model, (_model, v) => v.now === 0
+    ? { action: 'robust', work_id: 'dock' } : { action: 'finish' }, x => {
+    x.contract.jobs = x.contract.jobs.slice(0, 2); x.contract.limits = { north: 300, south: 200 }; return x;
+  });
+  const coverageReport = read(path.join(coverage.output, 'report.json'));
+  assert.deepEqual(coverageReport.groups.map(g => [g.group, g.subtotal_cents, g.exceeds_limit]),
+    [['north', 635, false], ['south', 890, true]]);
+  assert.equal(coverageReport.total_cents, 1525);
+  const partialReport = read(path.join(partial.output, 'report.json'));
+  assert.equal(partialReport.complete, false);
+  assert.deepEqual(partialReport.groups.map(g => [g.group, g.missing, g.exceeds_limit]),
+    [['north', [], false], ['south', ['store'], null]]);
+  const groupChecks = [];
+  const groupCheck = (name, target, edit, expected, error = null) => {
+    const file = path.join(target.output, 'report.json'), bytes = readFileSync(file), value = JSON.parse(bytes);
+    const before = JSON.stringify([value.rows, value.total_cents]);
+    edit(value); assert.equal(JSON.stringify([value.rows, value.total_cents]), before);
+    let result;
+    try {
+      writeFileSync(file, JSON.stringify(value));
+      try { result = check(target.state, target.output); }
+      catch (caught) { result = { status: 'THREW', errors: [caught.name] }; }
+    } finally { writeFileSync(file, bytes); }
+    groupChecks.push({ name, expected, error, actual: result.status, errors: result.errors });
+  };
+  groupCheck('correct', coverage, () => {}, 'PASS');
+  groupCheck('reversed', coverage, r => r.groups.reverse(), 'PASS');
+  groupCheck('north/north hides south excess', coverage, r => { r.groups[1] = structuredClone(r.groups[0]); }, 'FAIL', 'invalid_group');
+  groupCheck('south/south omits north', coverage, r => { r.groups[0] = structuredClone(r.groups[1]); }, 'FAIL', 'invalid_group');
+  groupCheck('missing south', coverage, r => r.groups.pop(), 'FAIL', 'groups');
+  groupCheck('unknown group', coverage, r => { r.groups[1] = { group: 'unknown', subtotal_cents: 0, missing: [], exceeds_limit: false }; }, 'FAIL', 'invalid_group');
+  groupCheck('extra duplicate', coverage, r => r.groups.push(structuredClone(r.groups[0])), 'FAIL', 'groups');
+  groupCheck('wrong subtotal', coverage, r => { r.groups[0].subtotal_cents++; }, 'FAIL', 'invalid_group');
+  groupCheck('wrong limit judgment', coverage, r => { r.groups[1].exceeds_limit = false; }, 'FAIL', 'invalid_group');
+  for (const malformed of [null, 3, 'north', [], {}, { group: 3 }])
+    groupCheck(`malformed entry ${JSON.stringify(malformed)}`, coverage, r => { r.groups[0] = malformed; }, 'FAIL', 'invalid_group');
+  for (const malformed of [null, {}, 'north'])
+    groupCheck(`malformed inventory ${JSON.stringify(malformed)}`, coverage, r => { r.groups = malformed; }, 'FAIL', 'groups');
+  groupCheck('valid incomplete with unknown affected limit', partial, () => {}, 'PASS');
+  groupCheck('incomplete limit cannot become false', partial, r => { r.groups[1].exceeds_limit = false; }, 'FAIL', 'invalid_group');
+  console.log(JSON.stringify({ group_coverage: groupChecks }));
+  for (const result of groupChecks) {
+    assert.equal(result.actual, result.expected, result.name);
+    if (result.error) assert(result.errors.includes(result.error), result.name);
+  }
+  checks.push('exact group inventory, order independence, omitted excess, malformed data and incomplete unknown judgment');
+
   const original = readFileSync(path.join(later.output, 'report.json'));
   const report = JSON.parse(original); report.rows[1].result_id = report.rows[0].result_id;
   writeFileSync(path.join(later.output, 'report.json'), JSON.stringify(report));

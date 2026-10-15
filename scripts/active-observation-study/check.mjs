@@ -31,13 +31,18 @@ export function check(root, output) {
   const missing = state.contract.jobs.filter(j => !ids.has(j.id)).map(j => j.id);
   if (JSON.stringify(report.missing) !== JSON.stringify(missing) || report.complete !== (missing.length === 0) ||
       events.length !== ids.size || report.total_cents !== report.rows.reduce((n, r) => n + r.cents, 0)) errors.push('false_completeness');
-  if (report.groups.length !== Object.keys(state.contract.limits).length) errors.push('groups');
-  for (const group of report.groups) {
+  const remainingGroups = new Set(Object.keys(state.contract.limits));
+  if (!Array.isArray(report.groups) || report.groups.length !== remainingGroups.size) errors.push('groups');
+  for (const group of Array.isArray(report.groups) ? report.groups : []) {
+    if (!group || typeof group.group !== 'string' || !remainingGroups.delete(group.group)) {
+      errors.push('invalid_group'); continue;
+    }
     const absent = missing.filter(id => state.jobs[id].group === group.group);
     const sum = report.rows.filter(r => r.group === group.group).reduce((n, r) => n + r.cents, 0);
-    if (!(group.group in state.contract.limits) || group.subtotal_cents !== sum || JSON.stringify(group.missing) !== JSON.stringify(absent) ||
+    if (group.subtotal_cents !== sum || JSON.stringify(group.missing) !== JSON.stringify(absent) ||
         group.exceeds_limit !== (absent.length ? null : sum > state.contract.limits[group.group])) errors.push('invalid_group');
   }
+  if (remainingGroups.size) errors.push('groups');
   if (report.delivery_count !== state.deliveries.length || report.distinct_observations !== new Set(state.deliveries).size) errors.push('delivery_identity');
   return { status: errors.length ? 'FAIL' : 'PASS', errors: [...new Set(errors)], complete: report.complete,
     completed: ids.size, required: state.contract.jobs.length, simulated_cost: state.now,
