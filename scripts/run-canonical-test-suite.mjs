@@ -959,6 +959,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "external-response-selective",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
+      label: "declared upstream correction changes a fresh downstream report while independent support survives",
+      ...rootNode("scripts/test-external-response-selective.ts"),
+      timeoutMs: 90_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "execution-choice",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],

@@ -521,6 +521,21 @@ autonomy. Broader/default operation and a comparison with a strong adaptive
 source-linked native workflow require their own justified scope and evaluation.
 No e01 comparison or b02 observation allowance is inherited or reopened.
 
+The P3.1/P5.2 [selective-report consumer](../EXTERNAL_RESPONSE_LOCAL.md#selective-correction-in-a-later-reporting-task-p31--p52)
+uses one exposed numerical case and a frozen independent arithmetic expectation.
+It inspects actual downstream files: A/B 7,500 → 8,500 ms produces C
+22,500 → 25,500 ms while independent D keeps the reservation fee at 12,000 cents.
+An annotation-only correction must preserve the output hash with no repeated
+aggregate calculation. Fresh processes receive only their ordinary project
+entry; correction references come from declared source material. Original B's
+passing check remains historical, while new applicability and rechecked output
+have their own bindings. Source/version/access/race/rollback controls address
+the consumer boundary; unchanged adapter invariants retain their existing tests.
+This is deterministic development evidence, not autonomous model judgment,
+comparative benefit or a replacement for the prior PARTIAL and
+NO_OBSERVED_ADVANTAGE observations. Setup and repeated-use steps are reported
+separately, without claiming measured burden reduction.
+
 ### Cost and user burden
 
 Distinguish method-development, setup and preparation cost; reusable asset

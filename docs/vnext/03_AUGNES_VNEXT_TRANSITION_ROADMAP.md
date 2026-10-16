@@ -131,6 +131,20 @@ files retain their separate ownership. b02 stays CLOSED/PARTIAL; e01 stays
 CLOSED/NO_OBSERVED_ADVANTAGE with no adopted checking instruction or renewed
 allowance. No release, public contact, paid/provider work or scheduler is added.
 
+## Current P3.1 / P5.2 — Selective reporting consumer
+
+The [ordinary selective-report example](../EXTERNAL_RESPONSE_LOCAL.md#selective-correction-in-a-later-reporting-task-p31--p52)
+uses existing scoped sharing and byte owners for the #1213/#1215 A → B → C
+correction case. It adds a concrete later consumer: rebuild the affected
+intermediate from corrected input, change the actual report, retain the
+independently supported invoice result, and reuse valid output for an
+annotation-only change. The earlier direct-correction and successor evidence
+remains separate. No graph, schema, model allocation or installed adoption is
+introduced. Candidate qualification is DEFERRED behind the existing
+#1466 → #1465 qualification/review/user-merge sequence; focused scripted feedback
+does not replace it. Broader P3.1/P5.2 and the historical PARTIAL/SIMPLIFY findings
+remain open or unchanged according to their original owners.
+
 ## Current: request-bound review implementation (#1433)
 
 [#1433](https://github.com/hynk-studio/augnes/issues/1433) adds one bounded native

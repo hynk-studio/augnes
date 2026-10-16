@@ -758,6 +758,16 @@ prior judgment. Source links do not entail truth, discover all copied dependents
 or automatically invalidate unrelated work. Pure bounds/hash/state rules remain
 separate from SQL, native project resolution and effect transport.
 
+The [selective reporting example](../EXTERNAL_RESPONSE_LOCAL.md#selective-correction-in-a-later-reporting-task-p31--p52)
+interprets one explicit upstream lineage and replacement chain from existing
+experience conditions and complete materials. It obtains each share independently,
+preserves the original check, and records current applicability separately from
+new output bytes. Its bounded content profiles do not add adapter actions or
+persisted Core semantics. Direct `affected_work` remains direct. A dependency
+arrow confers neither logical sufficiency nor access; independent invoice support
+is a consumer-specific premise. Read-time coherence is not an atomic observation
+across projects or permission for an external effect.
+
 #### Execution-choice preparation and result-linked assessment (#1443)
 
 The native preparation entry composes the existing exact work/source reader,
