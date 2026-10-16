@@ -93,6 +93,28 @@ source selection, author classification/adoption, manual transfer/import, contex
 size and measured/unknown human and host burden. Successful storage, a fresh browser
 or exact text read alone does not establish model understanding or usefulness.
 
+## Alternate continuation acceptance (DT-001 C)
+
+Use actual Web/D1/browser producers to fork a named persisted origin, retain
+inherited attribution, explicitly reinterpret an adopted setting without rewriting
+history, and take only a selected independent change into the current primary.
+Freeze whether the example is a retroactive reinterpretation or a later event.
+Test both current heads, explicit prerequisites, source availability, replay,
+unknown outcomes, delayed/ABA/cancelled responses, finite capacity and atomic
+failure. Recover the full two-scope closure into empty replacement storage and
+reopen both independent successors after process replacement. Retain A/B ordinary
+work, exact originals, old-reader refusal and presentation compatibility coverage.
+
+C permits at most two fresh included-client conversations/four messages, one at
+a time, 600 seconds per turn including cleanup and 1,800 seconds aggregate.
+Deliver each actual product-generated scope context through an existing file or
+browser path, never another consumer's answer or a coordinator summary. Save and
+recover the resulting drafts through the product. Report supplied classification,
+manual transfer, native memory exposure, time, usage and unknown human burden;
+this is assisted ordinary-use development evidence, not blind or comparative
+creative evaluation. Unavailable supported access means only that observation is
+NOT_RUN. No additional launcher, login, API fallback or #1464 allocation is implied.
+
 ## Independent project-client acceptance
 
 For #1430, distinguish project data isolation, usable client authorization,
@@ -221,6 +243,36 @@ use, verification/recovery and coordinator assistance, with unknown costs labell
 unknown. A tie or greater candidate overhead warrants simplifying to the ordinary
 reference, not a superiority claim. These requirements implement the existing
 method-improvement guidance for #1459 without creating a universal research gate.
+
+### Active observation and productive-action selection (#1464)
+
+For [#1464's file-processing prototype](../../scripts/active-observation-study/README.md),
+match initial information, usable actions, capable tools/models, output checks
+and resource ceilings between candidate and strong adaptive memo/code. Do not
+force identical acquired histories: selecting an observation or productive step
+is the intervention. Freeze environment/response rules, initial instances,
+exogenous changes, costs, contracts, initial methods, online update rules and
+stops before observation; evolving learned state is permitted by those rules.
+
+Record the pre-action model, selected action, actual outcome, observation
+availability, relevant update or retention, consequential next action and checked
+output. Supplied mechanics, priors, hypothesis forms and deterministic updaters
+are not themselves learned conditions. A productive action can also inform;
+direct work or waiting may avoid a needless probe. Deterministic conditions need
+no invented probability, and imagined results are not evidence. Unknown/pending
+effects require reconciliation; duplicates are not independent observations or
+extra completed work. Later evidence cannot rewrite an earlier knowledge basis.
+
+Define the materially different successor input/output before interpreting the
+result, and check that a fresh consumer actually loads its own retained method
+and produces valid new files. Report original choices before common checks,
+invalid/false-complete/duplicated work, useful and wasted observations, revisions,
+simulated costs, measured client/process time, acquisition/recurring effort and
+unknown human/model costs separately. Keep development exposure and coordinator
+assistance explicit. One constructed comparison supports a bounded retain,
+simplify, revise or stop decision, not general superiority or equivalence.
+Preserve #1459's fixed-history tie/SIMPLIFY and #1447's supplied-entry evidence;
+neither is retrospectively an active-selection test.
 
 ### Public asset entry and later consumer (#1447)
 

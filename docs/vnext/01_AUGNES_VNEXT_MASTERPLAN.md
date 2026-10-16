@@ -365,7 +365,10 @@ that prose does not adopt canon or verify an empirical claim. Scene preparation
 may select persisted material by fictional event time, reveal order and viewpoint.
 A grouped scene-boundary author review may adopt selected consequential changes
 while preserving undecided and rejected material; ordinary draft saving remains
-independent of that review. The bounded first implementation and later scene work are owned by [03](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#current-p2p3p5--story--worldbuilding-increment-a-1455).
+independent of that review. An alternate may inherit attributed context without
+pretending to repeat its reviews. Explicit scoped setting revisions retain prior
+decisions, and selective adoption never silently transfers alternate prose.
+The bounded first implementation and later scene work are owned by [03](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#current-p2p3p5--story--worldbuilding-increment-a-1455).
 
 ## 7. Product and Core authority boundary
 
