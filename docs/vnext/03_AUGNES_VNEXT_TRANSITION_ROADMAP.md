@@ -381,7 +381,13 @@ and host expansion until a concrete consumer justifies them. This priority
 neither cancels authorized work nor makes all P1/P2 work blocked. Dated historical
 scopes, study results and unrelated Current/Next work below retain their bounds.
 
-### Current independent research — Executable reuse applicability (#1459)
+### Completed first research application — Executable reuse applicability (#1459)
+
+The first source increment merged through #1463 at
+`f3dc65a03086920b8280a9cbd0dd2d28ad86076e`. Its submitted bounded comparison
+reported a tie and **SIMPLIFY to ordinary all-evidence memo/code**. Preserve
+its exposure, failures and allocation. This result concerns fixed observations;
+it does not evaluate active observation selection or authorize another run.
 
 The [#1459 assignment](https://github.com/hynk-studio/augnes/issues/1459) under
 [#1426](https://github.com/hynk-studio/augnes/issues/1426) commissions one contained
@@ -409,6 +415,40 @@ under [04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#reuse-applicability-evid
 The new files and complete-unit registration require the unchanged planner's
 actual exact-head plan; the old research family's narrow qualification does not
 cover them. No automatic product adoption or next research topic follows.
+
+### Current contained research — Chosen observations and productive actions (#1464)
+
+The [commissioned #1464 task](https://github.com/hynk-studio/augnes/issues/1464#issuecomment-6190899064)
+implements the post-r1 capability question: permitted history → conditional
+model → chosen observation/productive action → actual result → method revision
+or retention → checked file output → a separate later task. Its
+[runnable prototype](../../scripts/active-observation-study/README.md) distinguishes
+pending processing from unsupported input conditions and carries observed
+compatibility into a new regional batch with different obligations and budget.
+The supplied deterministic mechanisms and the conditions learned from execution
+are attributed separately. Direct work, waiting and unchanged conditions remain
+valid; no probability machinery is needed for the declared deterministic case.
+
+The strong adaptive memo/code comparison may choose its own observations and
+revise its method under the same initial information, tools and bounds.
+Development checks, fixed native use, comparative usefulness and exact-source
+verification remain separate under 04. Actual outcomes and the next decision
+belong to the consolidated #1464 delivery, not the existence of this prototype.
+This is no Web/Core/database/Companion expansion or universal research platform.
+GenEx remains a possible distinct method, not a mandatory paper-order successor.
+#1455/#1462, #1447's RETAIN/no-comparison result, #1454 and historical trials keep
+their owners and allocations. No automatic next allocation or production
+adoption follows.
+
+The 2026-10-15 constructed ordinary-client observation completed four fresh
+conversations: both arms produced checked first-task outputs (3/3) and new
+regional outputs (6/6), at the same simulated costs of 14 and 28. Both revised
+their first-task scheduling from actual feedback; the candidate needed a further
+successor revision, while the reference retained its code. The scoped decision
+is **SIMPLIFY to ordinary adaptive memo/code**. The acquired conditions were
+actually loaded and used; the extra explicit selector showed no advantage in
+this exposed small comparison. Original artifacts, failures, source qualification
+and measured/unknown burden are recorded in the consolidated #1464 delivery.
 
 ### Bounded P3/P4/P5 implementation — Different-goal experience use (#1427)
 

@@ -162,6 +162,14 @@ const goldenStep = {
 const suites = {
   unit: [
     {
+      id: "active-observation-study",
+      label: "chosen file-processing observations and retained conditional method use",
+      requirements: ["filesystem", "process-owning", "immutable-fixture-input"],
+      ...rootNode("scripts/test-active-observation-study.mjs"),
+      timeoutMs: 10_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "reuse-applicability-study",
       label: "experience-induced reuse decisions and actual later file reports",
       requirements: ["filesystem", "process-owning", "immutable-fixture-input"],
