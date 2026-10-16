@@ -1,3 +1,4 @@
+import { checkDirections } from "./web-planning-direction-checks.mjs";
 import { checkSceneContinuity } from "./web-planning-scene-checks.mjs";
 import { checkFiles } from './web-planning-file-checks.mjs';
 import { checkStoryWriting } from './web-planning-story-checks.mjs';
@@ -168,6 +169,7 @@ try {
  await checkFiles({start,client,newWork,save,passed,root,open});
  await checkStoryWriting({start,client,newWork,save,passed});
  await checkSceneContinuity({start,client,newWork,save,passed});
+ await checkDirections({start,client,newWork,save,passed});
  await checkCloudflarePlanning({root,start,client,newWork,save,edit,passed,open});
  await checkCumulativeHistory({root,start,client,newWork,save,edit,passed,open});
  console.log(JSON.stringify({web_planning_d1_checks:checks,storage:'Miniflare/workerd D1',hosted_acceptance:false}));

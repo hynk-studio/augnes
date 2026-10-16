@@ -1021,7 +1021,7 @@ claims are outside this increment.
 
 ### Current DT-001 B — Scene continuity (#1455)
 
-**Local implementation candidate; review and adoption remain separate.** The
+**Increment B merged through #1462; installed/hosted adoption remains separate.** The
 [scene walkthrough](../../apps/web_planning/README.md#scene-walkthrough) extends A's
 Web editor from saved source versions through viewpoint/event/reveal preparation,
 ordinary scene drafts, proposed consequential changes, grouped explicit fictional
@@ -1036,7 +1036,25 @@ planner-selected receipt, not #1461's. Any ordinary included-client observation 
 reported separately from deterministic producer/consumer checks and does not
 establish blind comparison, creative superiority or general burden reduction.
 C, alternate directions, shared worlds, Native/Web sync and installation remain
-outside this candidate. #1212's completed library exercise is retained, not rerun.
+outside B. #1212's completed library exercise is retained, not rerun.
+
+### Current DT-001 C — Alternate continuation (#1455)
+
+**Implementation candidate; Draft review and installed adoption remain separate.**
+The [C walkthrough](../../apps/web_planning/README.md#alternate-continuation--increment-c-1455)
+connects a saved primary to one independent alternate, an explicit setting
+reinterpretation, current comparison, selected-only fictional adoption and fresh
+continuations. The existing file/revision, sealed-preview and atomic append owners
+retain their limits and authorization. A bounded two-work export reconstructs both
+histories together in an empty replacement store before fresh reopening.
+
+D1 and Browser ownership includes delayed/abandoned response admission, exact
+unknown-request resolution, stale source/target refusal, retained drafts, original
+Unicode and inherited review attribution, prerequisites, rollback and recovery.
+The final candidate's own planner/receipt decides qualification. C's two-conversation
+ordinary-use allowance is separate from prior A/B and #1464 evidence. The research
+lane, installed Companion, marketplace worktree and completed #1212 library exercise
+are outside this implementation; no automatic further increment is authorized.
 
 ### Current lifecycle slice — Cumulative Web Planning history (#1397)
 

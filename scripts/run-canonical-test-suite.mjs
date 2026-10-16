@@ -449,6 +449,20 @@ const suites = {
       ...rootNode("scripts/test-companion-service-contract.mjs"),
       timeoutMs: 30_000,
     },
+    ...(process.platform === "darwin" ? [
+      {
+        label: "Companion manager ownership retention and interruption regressions",
+        ...rootNode("scripts/test-companion-manager-recovery.mjs"),
+        timeoutMs: 60_000,
+        requireNaturalExit: true,
+      },
+      {
+        label: "Companion lost-ownership retirement and reconciliation regressions",
+        ...rootNode("scripts/test-companion-ownership-retirement.mjs"),
+        timeoutMs: 60_000,
+        requireNaturalExit: true,
+      },
+    ] : []),
     {
       label: "durable Companion checkout enrollment and Darwin observation",
       ...rootNode("scripts/test-companion-checkout-identity.mjs"),

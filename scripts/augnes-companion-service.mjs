@@ -9,6 +9,9 @@ import {
   installCompanionService,
   previewCompanionIdentityEnrollment,
   enrollCompanionIdentity,
+  inspectCompanionOwnershipRecovery,
+  prepareCompanionOwnershipRecovery,
+  applyCompanionOwnershipRecovery,
   inspectCompanionService,
   lifecycleAuthority,
   publicCompanionServiceProjection,
@@ -52,6 +55,23 @@ export async function runCompanionServiceCli(argv = process.argv.slice(2)) {
         if (rest.length !== 1 || !path.isAbsolute(rest[0]))
           throw new PublicCompanionServiceError("companion_service_identity_decision_file_invalid");
         result = await enrollCompanionIdentity({ ...serviceOptions(), decision: readIdentityDecision(rest[0]) });
+        break;
+      }
+      case "ownership-recovery-inspect":
+      case "ownership-recovery-prepare":
+      case "ownership-recovery-apply": {
+        // Recovery alone can target an unchanged installation from separately
+        // reviewed source. Ordinary lifecycle commands retain their own root.
+        const applying = command === "ownership-recovery-apply";
+        if (rest.length !== (applying ? 3 : 2) || rest[0] !== "--repository-root" || !path.isAbsolute(rest[1]) ||
+            (applying && !path.isAbsolute(rest[2])))
+          throw new PublicCompanionServiceError("companion_service_arguments_refused");
+        const options = { ...serviceOptions(), repositoryRoot: rest[1] };
+        result = applying
+          ? await applyCompanionOwnershipRecovery({ ...options, decision: readIdentityDecision(rest[2]) })
+          : command === "ownership-recovery-prepare"
+            ? await prepareCompanionOwnershipRecovery(options)
+            : await inspectCompanionOwnershipRecovery(options);
         break;
       }
       case "start":
