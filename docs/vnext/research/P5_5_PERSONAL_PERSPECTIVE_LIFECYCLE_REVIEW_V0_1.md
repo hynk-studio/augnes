@@ -29,6 +29,11 @@ Final commit, tree, planner result, deciding execution and receipt validation
 belong to the exact candidate's PR and private consolidated closeout; the
 development results below do not substitute for them.
 
+The authorized [legacy-continuation review below](#legacy-continuation-review)
+subsequently reproduced and corrected a compatibility gap in the submitted
+reason-preservation change. The original investigation and exercise results
+remain historical evidence; they did not cover that upgrade case.
+
 ## Current implementation and evidence map
 
 | Surface | Current owner and observed capability | Limit |
@@ -244,3 +249,84 @@ a new prerequisite and does not consume their unmerged work. #1465's research,
 artifacts, failed history and tie/SIMPLIFY conclusion are untouched. Keep the PR
 Draft, auto-merge disabled, and stop for independent review. No follow-on work or
 monitoring is started.
+
+## Legacy continuation review
+
+The independent review finding against submitted head
+`6f0662b583f7b5bf7f4de5759501125fc18c3ef1` reproduced. The baseline selector at
+`073c6516e4f1694c1236950fa63659031a0e0d08` replaced the caller's reason with a
+generic sharing-permission sentence. Its persisted packet therefore lost the
+task-specific text. The submitted selector correctly preserved the supplied
+text, but the persisted semantic compiler reselected that same candidate while
+continuing an unrelated transition. Exact full-chain comparison then refused
+the implementation-only reason difference:
+`semantic_transition_full_chain_invalid:unrelated_selected_context_changed`.
+
+The private baseline control executes the pinned selector's exact source and
+the pinned compiler with only two import relocations. It persists a valid prior
+packet with complete source, run, proposal, authenticated synthetic Operator
+review/gate, transition and state lineage. A supported SQLite backup provides
+the baseline control. The original database receives the same candidate,
+source/revision, body, scope, eligibility and clock through the submitted
+compiler. Baseline continuation and ordinary lineage/recovery reads pass;
+submitted continuation fails with the exact error above and no durable effects.
+The prior payload, ID and fingerprint remain unchanged.
+
+The correction is confined to
+[the persisted compiler](../../../lib/vnext/runtime/persisted-semantic-context-compiler.ts).
+After current project permission and candidate eligibility checks, it uses the
+packet owner's normalization and budget checks. An unambiguous selected entry
+may retain the historical generic reason only when its entire canonical entry,
+including source/revision, body, currentness, trust and scope lineage, matches
+the prior entry after substituting that one historical reason. Conflicting
+supplied candidates disable that compatibility treatment. Every selected entry
+still reaches the unchanged full-chain validator; no candidates are silently
+dropped to make the relation pass.
+
+Fresh selection and persisted preparation keep the caller's task-specific
+reason and contextual exception. Modern continuation keeps that exact reason;
+an arbitrary change to it still refuses. Legacy continuation preserves the
+historical entry exactly and creates a distinct later packet with its own ID
+and fingerprint. Its current eligibility-selection result can contain the
+caller's reason while its transition-bound packet retains the historical
+generic text. That distinction does not recover, authenticate or retroactively
+insert the lost historical caller text. Canonical equality, fingerprinting,
+full-chain validation and stored records are unchanged.
+
+[Focused continuation checks](../../../scripts/personal-perspective-continuation-checks.ts)
+run inside the existing project-controls test. Their test-only legacy output
+was checked against the pinned implementation, independently of the modern
+selector. The checks cover legacy upgrade, fresh and modern preparation,
+exact replay, changed source/revision/body/currentness/trust, arbitrary modern
+reason changes, missing/extra/conflicting selections, foreign project/workspace,
+unreviewed/contested/retracted/stale/ineligible inputs, withdrawn sharing and
+changed scope revision. Refusals assert no durable effects; successes and
+refusals preserve the entire original prior record and input objects.
+
+Both resulting lineages are reopened through the ordinary scoped product
+reader and recovery validator, from the original disposable database and its
+supported backup. Reads are query-only, preserve historical rows and retain
+foreign-project isolation. In the additional bounded baseline comparison, the
+corrected compiler and baseline compiler produce exactly the same later packet
+from one valid legacy control. This is compatibility evidence, not another
+personalization exercise or a new personal lifecycle contract.
+
+New evidence is separate under the existing private review package's
+`continuation-20261017/` directory. It retains baseline source hashes, the
+original reproduction, the corrected comparison, focused logs, failures and an
+original-evidence manifest. The first reproduction fixture was rejected by
+recovery for missing authenticated Operator provenance; it is retained as a
+fixture failure. A negative trust fixture initially supplied inconsistent
+reference classifications and reached structural validation earlier than its
+expected comparison; correcting that fixture established the intended refusal.
+A test union-type error found by typecheck is also retained in development logs.
+
+The original 12/12 PASS and receipt fingerprint
+`05378a984aa13dfbf71ece66dd5d7c8104ad7c7c8429671ef9bbdbbf80a3875f`
+remain the result for the original exact candidate and coverage. They are not
+relabelled as a failed execution or reused to qualify this correction. The final
+candidate's planner-selected run, separate new receipt validation, exact
+commands, durations and preservation checks belong to its consolidated private
+continuation report and existing Draft PR. The original two-project exercise
+was not rerun. No model/provider calls, personal store, authority expansion,
+production operation or new revision/deletion/propagation semantics were added.

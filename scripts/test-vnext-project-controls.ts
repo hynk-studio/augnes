@@ -94,6 +94,7 @@ import type {
 import type { TaskContextPacketV01 } from "../types/vnext/task-context-packet";
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
 import { vNextProjectControlSchemaSqlV01 } from "./db-migrations.mjs";
+import { runPersonalPerspectiveContinuationChecks } from "./personal-perspective-continuation-checks";
 
 const root = mkdtempSync(path.join(tmpdir(), "augnes-project-controls-"));
 const dbPath = path.join(root, "controls.db");
@@ -608,6 +609,7 @@ function migrationParity() {
 
 async function main() {
   try {
+    console.log(JSON.stringify({ personal_perspective_continuation: await runPersonalPerspectiveContinuationChecks(root) }));
     mkdirSync(projectARoot);
     mkdirSync(projectBRoot);
     mkdirSync(projectCRoot);

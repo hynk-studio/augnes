@@ -35,6 +35,7 @@ import {
 } from "@/lib/vnext/state-transition-eligibility";
 import {
   buildTaskContextPacketV01,
+  selectTaskContextPacketEntriesV01,
   validateTaskContextPacketV01,
 } from "@/lib/vnext/task-context-packet";
 import { validateVNextAutomationWorkSourceV01 } from "@/lib/vnext/persistence/bounded-automation-authority";
@@ -923,7 +924,7 @@ function buildLaterPacket(
       bounded_summary: projection.bounded_state_summary,
     })),
     ...(canonicalPersonalPerspectiveScope
-      ? personalPerspectiveSelection.selected_context
+      ? continuingPersonalPerspectiveEntries(input, personalPerspectiveSelection)
       : []),
   ];
   const retractExclusions: TaskContextPacketExcludedEntryV01[] =
@@ -1031,6 +1032,52 @@ function buildLaterPacket(
         selectedEntrySnapshotKey(entry) === snapshotKey(projection.state_ref, projection.state_fingerprint),
       ),
     ).map((entry) => entry.entry_id),
+  });
+}
+
+function continuingPersonalPerspectiveEntries(
+  input: ResolvedCompileTaskContextPacketInputV01,
+  selection: PersonalPerspectiveContextSelectionV01,
+): TaskContextPacketSelectedEntryV01[] {
+  // Eligibility and current scope have already been checked by the selector.
+  // Use the packet owner's normalization and mandatory budget; keep every
+  // eligible entry so missing, extra or changed material still fails the chain.
+  const entries = selectTaskContextPacketEntriesV01(
+    selection.selected_context,
+    input.prior_packet.constraints.context_budget,
+    selection.selected_context.map((entry) => entry.entry_id),
+  ).selected;
+  const candidates = uniqueProtocolValuesV01([
+    ...(input.personal_perspective_candidates ?? []),
+  ]);
+  return entries.map((entry) => {
+    const prior = input.prior_packet.selected_context.filter(
+      (historical) => historical.entry_id === entry.entry_id &&
+        isPersonalPerspectiveSelectedEntryV01(historical),
+    );
+    if (
+      prior.length !== 1 ||
+      entries.filter((other) => other.entry_id === entry.entry_id).length !== 1 ||
+      candidates.filter((candidate) =>
+        candidate.entry.entry_id.trim() === entry.entry_id,
+      ).length !== 1
+    ) {
+      return entry;
+    }
+    const historical = prior[0]!;
+    // Before reason preservation, this exact sentence replaced the caller's
+    // reason. Only an otherwise identical legacy entry can retain it. The lost
+    // historical caller text is neither recovered nor inserted retroactively.
+    if (
+      historical.why_included !==
+      "Included because this project explicitly permits Personal Perspective and the material passed project scope, review, currentness, trust, and context-selection checks."
+    ) {
+      return entry;
+    }
+    const continuing = { ...entry, why_included: historical.why_included };
+    return canonicalizeProtocolValueV01(continuing) === canonicalizeProtocolValueV01(historical)
+      ? continuing
+      : entry;
   });
 }
 
