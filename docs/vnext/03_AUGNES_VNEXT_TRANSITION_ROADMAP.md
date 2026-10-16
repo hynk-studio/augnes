@@ -418,6 +418,10 @@ cover them. No automatic product adoption or next research topic follows.
 
 ### Current contained research — Chosen observations and productive actions (#1464)
 
+The first bounded source increment merged through [#1465](https://github.com/hynk-studio/augnes/pull/1465)
+on 2026-10-16 at `073c6516e4f1694c1236950fa63659031a0e0d08`.
+The broader issue remains open; its scoped **tie / SIMPLIFY** result below stands.
+
 The [commissioned #1464 task](https://github.com/hynk-studio/augnes/issues/1464#issuecomment-6190899064)
 implements the post-r1 capability question: permitted history → conditional
 model → chosen observation/productive action → actual result → method revision
@@ -449,6 +453,27 @@ is **SIMPLIFY to ordinary adaptive memo/code**. The acquired conditions were
 actually loaded and used; the extra explicit selector showed no advantage in
 this exposed small comparison. Original artifacts, failures, source qualification
 and measured/unknown burden are recorded in the consolidated #1464 delivery.
+
+#### Conditional follow-up — Predictions after execution-context change
+
+The 2026-10-16 review of [Terminal-RSI, section 2.1](https://arxiv.org/abs/2610.22192v1)
+suggests retaining observed experience while revisiting outcome/cost predictions
+when the executor, tool or relevant condition changes. This is an Augnes design
+hypothesis; the paper does not isolate critic inheritance's causal benefit.
+The current [method](../../scripts/active-observation-study/method.mjs) preserves
+conflicting observations and returns unknown for a different tool scope. That
+honest boundary is not a demonstrated defect or evidence of cross-tool learning.
+
+Reconsider this scoped candidate when a concrete later task needs a prediction
+under changed conditions. Inspect existing experience/use owners first and select
+the smallest needed capability; retain ordinary adaptive memo/code if sufficient.
+A justified follow-up would preserve historical observations,
+use permitted new evidence to revise the affected prediction or applicability,
+and carry that revision into actual later work while retaining unaffected uses.
+Apply the [bounded evidence guidance](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#active-observation-and-productive-action-selection-1464).
+This conditional plan starts no experiment and does not reopen #1465's study or
+expand #1468/#1471's retrieval implementation. It requires no new critic, training
+pipeline, global store or calibration service.
 
 ### Bounded P3/P4/P5 implementation — Different-goal experience use (#1427)
 
