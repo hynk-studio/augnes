@@ -301,6 +301,19 @@ output and attributable applicability material without repeating the sum.
 Historical source/check references stay in that output; the new applicability
 material separately records current input and correction references.
 
+Before either calculation or cache lookup, the consumer validates original and
+current event rows against the counterpart's existing `build-events.v1` contract:
+exactly `event_id`, `job_id`, `attempt`, `status` and `duration_s`; nonempty string
+IDs; a positive safe-integer attempt; status `ok` or `failed`; and a string duration
+matching `^\d{1,9}(\.\d{1,3})?$`. Zero duration, leading zeros and nonempty
+whitespace IDs retain their existing meaning. Each row is checked before
+deduplication; canonical exact duplicates are accepted and conflicting duplicates
+are refused. An event-level `annotation` is an unsupported field, unlike the
+explicitly supported top-level annotation. The decimal/BigInt oracle remains an
+independent arithmetic check, not the schema validator. The 64 KiB material and
+existing result bounds still apply. Processor `max_rows`, deadlines and execution
+envelopes are effect terms, not new permissions for C's local computation.
+
 The consumer rechecks the bounded experience observations and native work basis
 before writing. A detected change refuses the stale observation. This is a
 read-time observation, **not an atomic transaction across projects**: a later
@@ -325,6 +338,15 @@ correction locator or expected answer. Actual output files, hashes, original B
 history, replay, write rollback, changed basis, version mismatch, read races and
 withdrawal are inspected. The existing `test-external-response.ts` retains the
 unchanged stale-reconsideration, grant, replay and staged recovery matrix.
+The event-profile regression publishes correctly shared/versioned/hashed
+replacements through the same writers, then snapshots durable state after setup.
+Fresh consumers must refuse malformed rows without material, applicability or
+plan-file writes, including a matching prior invalid cache fixture. Missing IDs,
+zero/fractional/unsafe attempts, unsupported fields/status, invalid row shapes and
+duration types/bounds, and malformed/conflicting duplicates are covered. A valid
+boundary case retains exact duplicates, zero/max-width duration and safe-integer
+attempt semantics without acquiring a processor envelope. Historical delivered
+artifacts remain separate from these newly source-bound executions.
 
 Setup includes source registration, deliberate shares, complete material,
 lineage declaration and the selected report contract. Repeated use includes

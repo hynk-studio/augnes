@@ -15,6 +15,25 @@ const json = (bytes) => JSON.parse(bytes.toString("utf8"));
 const bytes = (value) => Buffer.from(JSON.stringify(value, null, 2) + "\n");
 const binding = (value) => hashBytes(canonical(value));
 
+// Match the counterpart's build-events.v1 row contract, not its effect envelope
+// or max_rows terms. The independent oracle still owns decimal arithmetic.
+function validateEventRows(events) {
+  const rows = new Map();
+  for (const row of events) {
+    try { keys(row, ["event_id", "job_id", "attempt", "status", "duration_s"]); }
+    catch { refuse("selective_event_invalid"); }
+    requireThat(typeof row.event_id === "string" && row.event_id.length > 0 &&
+      typeof row.job_id === "string" && row.job_id.length > 0 &&
+      Number.isSafeInteger(row.attempt) && row.attempt >= 1 &&
+      ["ok", "failed"].includes(row.status) && typeof row.duration_s === "string" &&
+      /^\d{1,9}(\.\d{1,3})?$/.test(row.duration_s), "selective_event_invalid");
+    // Validate every row before deduplication can hide an invalid occurrence.
+    requireThat(!rows.has(row.event_id) || canonical(rows.get(row.event_id)) === canonical(row),
+      "selective_event_invalid");
+    rows.set(row.event_id, row);
+  }
+}
+
 export async function selectiveExternalReport(repositoryRoot, directory) {
   const actions = [], observations = new Map(), previousJudgments = new Map();
   let id = 0, arithmeticChecks = 0;
@@ -134,6 +153,7 @@ export async function selectiveExternalReport(repositoryRoot, directory) {
   for (const input of [originalInput, current]) {
     keys(input.value, ["schema_version", "events"], ["annotation"]);
     requireThat(input.value.schema_version === "build-events.v1" && Array.isArray(input.value.events), "selective_input_invalid");
+    validateEventRows(input.value.events);
   }
   const calculationBinding = binding({ version: PROFILE, contract: selected[0].source_binding,
     intermediate: bReport.ref, independent: invoice.ref, events: current.value.events,

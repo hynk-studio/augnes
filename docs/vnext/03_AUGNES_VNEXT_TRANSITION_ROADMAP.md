@@ -140,9 +140,13 @@ intermediate from corrected input, change the actual report, retain the
 independently supported invoice result, and reuse valid output for an
 annotation-only change. The earlier direct-correction and successor evidence
 remains separate. No graph, schema, model allocation or installed adoption is
-introduced. Candidate qualification is DEFERRED behind the existing
-#1466 → #1465 qualification/review/user-merge sequence; focused scripted feedback
-does not replace it. Broader P3.1/P5.2 and the historical PARTIAL/SIMPLIFY findings
+introduced. The same-PR #1469 event-row validation correction preserves these
+outcomes and checks the supported row contract before calculation or cached reuse.
+#1466 is merged; candidate qualification remains DEFERRED behind #1465's own
+qualification, independent review and user merge. This correction authorizes
+focused feedback only. Later explicit continuation must integrate actual main,
+freeze the candidate and obtain its own deciding qualification and independently
+validated receipt. Broader P3.1/P5.2 and the historical PARTIAL/SIMPLIFY findings
 remain open or unchanged according to their original owners.
 
 ## Current: request-bound review implementation (#1433)
