@@ -5135,6 +5135,31 @@ Research engines may explore, compare, challenge, infer, predict, and propose.
 Their output is not truth, accepted Perspective, user decision, Transition,
 execution authority, or authority expansion.
 
+## Selected-source implementation increment A/B (#1468)
+
+The [commissioned increment](https://github.com/hynk-studio/augnes/issues/1468#issuecomment-6213957209)
+connects an explicitly selected corpus of existing experience/material records
+to bounded retrieval and fresh successors. The [workflow](../SELECTED_SOURCE_RETRIEVAL.md)
+reuses source admission, material storage, explicit sharing, correction and
+recovery owners. It adds read-only corpus inspection/retrieval; current-work
+recall and Resume retain their boundaries.
+
+The registered deterministic integration produces/executes a coding artifact
+and writes a small textual output through the same retrieval implementation.
+It covers corrections, independent material, unrelated additions, non-use,
+restart/backup reconstruction and withdrawn/missing sources. These are mechanism
+and scripted-use observations. Human/model use, comparative usefulness,
+installed adoption and deciding Mac qualification are not established. Equal
+direct-read control outputs do not establish advantage. #1298/#1465 conclusions
+are unchanged.
+
+This increment is Draft review material; #1468 stays open. Later deciding
+qualification requires explicit continuation, then-current main integration and
+its own exact-candidate evidence. The #1465 then #1469 qualification order is
+unchanged. #1470 remains the independently authored planning PR; this additive
+implementation status does not duplicate its prospective plan. AML, new provider
+experiments, service changes and automatic follow-on remain outside this scope.
+
 ## Compatibility and historical work
 
 Current compatibility paths remain until a separately authorized phase proves

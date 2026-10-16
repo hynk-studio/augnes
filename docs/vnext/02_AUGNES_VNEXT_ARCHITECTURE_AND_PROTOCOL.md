@@ -3587,6 +3587,39 @@ source ref
 
 ---
 
+### 13.5 Explicit selected-source corpus projection (#1468)
+
+The [selected-source reader](../../lib/vnext/selected-source-retrieval.mjs)
+interprets an explicitly selected `augnes.selected-source-corpus.v1` JSON
+material through the existing external experience/material owner. It adds no
+table, Core kind, identity, deletion policy or accepted-state semantics. The
+immutable manifest binds its consumer project key and at most 16 exact
+experience references, with supplied source identity, revision, work/session
+grouping, source/event/valid times, meaning, adoption label and original-context
+availability. These remain declarations; unknowns stay explicit. The original
+experience's `created_at` is ingestion time, separate from supplied time.
+
+Selection uses existing explicit `put_material`/`publish` operations and their
+source/project checks. Prior shared experiences additionally require existing
+configured, unwithdrawn shares. Possessing a corpus reference grants no access.
+A changed source set is a new deliberately selected immutable manifest, with
+no implicit latest-corpus subscription. Earlier manifests and outputs remain
+historical. Withdrawal/configuration removal refuses new reads through old
+manifests; already delivered copies cannot be recalled. Missing declared bytes
+refuse without reconstruction. Existing backup/restore retains these materials.
+
+Read-only `inspect_corpus` and `retrieve_sources` operate inside the external
+owner's database snapshot. Each request revalidates access, original bytes and
+every explicit correction through the existing dependency reader. Inaccessible
+correction context refuses the selected corpus. Inspection supplies an exact
+binding required by retrieval; changed basis refuses. This observation does not
+reserve permissions after delivery. Retrieval returns whole groups, never
+splitting conditions/corrections, inferring supersession from time/similarity,
+searching locators, executing source instructions or claiming global absence.
+Current-work recall and Resume remain unchanged. No derived index or new durable
+projection exists. The [usage contract](../SELECTED_SOURCE_RETRIEVAL.md) specifies
+bounds, source owners, workflow and lifecycle limits.
+
 ## 14. Zero-Model Mode
 
 다음 path는 모델 없이 테스트되고 지원되어야 한다.

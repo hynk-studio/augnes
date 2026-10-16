@@ -227,3 +227,11 @@ behavior, not comparative benefit. **Neither invocation is authorized or run by
 this implementation assignment.** b02 remains CLOSED/PARTIAL and e01 remains
 CLOSED/NO_OBSERVED_ADVANTAGE; their allowances and non-adopted instructions are
 not used here.
+
+## Explicit selected-source corpus reader (#1468)
+
+The [selected-source workflow](SELECTED_SOURCE_RETRIEVAL.md) adds read-only
+`inspect_corpus` and `retrieve_sources` operations over existing experience and
+material owners. The caller supplies a deliberately selected corpus and task
+query; current work recall, source access, sharing and correction rules remain
+unchanged. No service envelope is needed for these reads.

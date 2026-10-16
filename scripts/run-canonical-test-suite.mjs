@@ -959,6 +959,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "selected-source-retrieval",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "mutable-module-state"],
+      label: "explicit selected corpus, complete correction context, fresh coding/textual output and access lifecycle",
+      ...rootNode("scripts/test-selected-source-retrieval.ts"),
+      timeoutMs: 90_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "execution-choice",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
