@@ -1590,6 +1590,47 @@ database. No new continuity score, automatic goal editor, standing model judge,
 UI, or runtime mechanism is required. Implementation and sequencing remain
 owned by the roadmap and the existing bounded issues.
 
+### Shared memory retrieval evidence (#1468)
+
+This applies the existing method-improvement and P5.2 criteria to
+[#1468](https://github.com/hynk-studio/augnes/issues/1468). It records prospective
+evaluation for the [shared retrieval candidate](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#next-p3p5--shared-memory-retrieval-for-coding-and-textual-work-1468),
+not a new evaluation program, measured benefit or retroactive gate.
+
+Begin with one existing producer-to-successor path, then a small case from the
+other domain before claiming shared coding/textual capability. Use permitted
+selected material and an ordinary output; endpoint compatibility or a
+benchmark-only implementation does not establish product integration. Reuse
+existing evidence/tests where sufficient. The first slice does not require all
+hosts, a full benchmark suite or a factorial study.
+
+Distinguish source availability and provenance, retrieval coverage/fidelity,
+actual delivery, appropriate use/non-use, downstream outcome and total burden.
+Use a relevant correction and an irrelevant addition to distinguish useful
+updating from indiscriminate recency preference. Include a material applicability
+condition and an unsupported/unknown case; do not manufacture rationale or treat
+later wording as automatic truth. Verify scope isolation, duplicate-write
+behavior, fresh-consumer reconstruction and the existing source lifecycle,
+including deletion/access withdrawal in derived views where applicable.
+
+For a fixed usefulness comparison, predefine the task and source cutoff, method,
+relevant model/tools, budget, scoring, exposure handling and stopping rule. A
+strong source-linked adaptive memo/direct-search baseline receives comparable
+permitted sources, corrections and resources. Include intake/curation, indexing,
+retrieval, worker calls, human repair, storage and latency; unknown costs stay
+unknown. Distinguish a selection-system comparison from representation alone.
+Preserve #1298's original result and other prior ties; new capability does not
+retroactively prove advantage. A sufficient simpler route supports simplification.
+
+Keep native product evidence, local adapter compatibility, official AML result
+and comparative usefulness separate. An AML score reflects its fixed Answer/Eval
+pipeline and evaluation version, not all Augnes semantic/epistemic continuity,
+user authority or real-work benefit. Any adapter should invoke the same shared
+implementation used by the product. Keep benchmark data in its permitted
+isolated evaluation scope and verify then-current rules before an external run.
+Report the connected consumer, limitations and a retain/simplify/change/stop
+decision; no positive score or gain is required to honestly close an observation.
+
 ## Alpha and release evaluation
 
 ### Alpha

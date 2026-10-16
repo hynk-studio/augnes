@@ -2543,6 +2543,75 @@ retrieval, general utility, reduced human burden, reliable causal benefit and
 cross-task transfer remain unestablished. P3/P4 completion records, P2 discovery
 and independent utility, Sites and stopped #1273 are unchanged.
 
+## Next P3/P5 — Shared memory retrieval for coding and textual work (#1468)
+
+[#1468](https://github.com/hynk-studio/augnes/issues/1468) records the
+2026-10-16 user-approved planning scope under P5.2 #1215, P3 #1213 and the
+#1426/#1209 accumulation plan. **Next / scoped / unclaimed; implementation and
+new usefulness evaluation NOT_STARTED.** It is a candidate within existing
+priorities, not a new phase or an added prerequisite for current work.
+
+The target is an ordinary successor using relevant prior observations,
+conditions, corrections and unresolved questions in genuinely separate coding
+and non-coding work, without a person preselecting every answer-bearing note.
+Shared capability should remain useful independently of an external benchmark.
+The source inspection at `dcb324a7d1d43955dbd0039dfe06a9df9ca3eb10` found
+[bounded literal retained-note lookup](../../lib/intake/retained-work-source-recall.ts)
+inside one pre-execution revision chain. That path is not general conversation
+ingestion or autonomous retrieval. Preserve #1298's cue-driven recovery and
+no-observed-advantage result; this candidate does not relabel that evidence.
+
+Reinspect then-current producers/readers before choosing mechanisms. Reuse
+#1431's experience consumer, #1339's report reuse, #1453's scoped sharing and
+correction, and #1455's domain continuity where compatible. Their existence does
+not establish a combined general memory service or installed adoption. P5.5's
+personal lifecycle design remains separate; neither a global store nor a
+completed Personal Vault is a prerequisite for project-scoped retrieval.
+
+The bounded scope is:
+
+- admit explicitly selected/authorized source artifacts or test inputs; preserve
+  available originals or honest source references, revision, scope and relevant
+  session/trajectory grouping. Default transcript capture, native-memory import
+  and hidden-reasoning storage remain excluded;
+- index admitted material without promoting it into accepted facts or decisions.
+  Keep source/event/valid time distinct from ingestion time and missing meaning
+  unknown. Derived indexes/summaries follow their source owner's access,
+  retention, deletion and recovery lifecycle;
+- retrieve source-bound evidence under explicit resource/context bounds,
+  including relevant conditions and corrections. Later timestamps or similar
+  wording alone do not establish supersession. Keep unresolved alternatives and
+  proposed/adopted distinctions; a bounded miss is not global absence;
+- support incremental writes that are searchable after acknowledged completion,
+  idempotent retries and fresh-consumer reconstruction. Share useful primitives
+  while retaining domain-specific grouping and preparation;
+- connect the result to one existing permitted preparation/read/use path and
+  actual output. Choose a new structure only for a demonstrated consumer need;
+  do not prescribe a graph, vector database, universal schema or new chat surface.
+
+Start with a source audit and one end-to-end domain slice; add a small case from
+the other domain to establish reuse of the same implementation. Evaluate under
+[04's shared-memory criteria](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#shared-memory-retrieval-evidence-1468),
+using strong adaptive notes/direct search and total burden. Positive comparative
+benefit is not a prerequisite for an authorized new capability; source
+correctness, actual use and usefulness remain separate claims. Retain, simplify,
+change or stop based on the observed bottleneck rather than expanding scope to
+obtain a favorable result.
+
+An optional [AML Add/Search adapter](https://agentmemoryleaderboard.ai/api-guide)
+may follow once this shared path exists. Keep the external contract in the
+adapter, preserve benchmark isolation and return evidence rather than final
+answers. An evaluation `user_id` is not product person identity or cross-project
+access authority. Official Smoke/Full, public hosting, spending, submission and
+publication require their concrete authorized scope. Both-track completion and
+the Cycle 2 deadline are not product acceptance gates; dataset-specific tuning,
+model training and all-host rollout are outside this first candidate.
+
+This planning addition changes no Core semantics, production data, current
+assignment or historical evidence. Runtime implementation remains a separately
+scoped task, with code/test choices owned by Codex and review owned by the user
+and ChatGPT; registration does not dispatch work or authorize merge.
+
 ## P1/P5 status and next decision
 
 The user-reviewed P5.1 matched F/G pilot is **completed / Narrow — no
