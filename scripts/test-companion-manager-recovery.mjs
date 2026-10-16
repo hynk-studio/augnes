@@ -16,7 +16,11 @@ const { registerOwnedChild, cleanupOwnedProcesses } = await import(pathToFileURL
 const sources = ['scripts/augnes-companion-service.mjs', 'plugins/augnes-operator/mcp/companion-service-core.mjs', 'plugins/augnes-operator/mcp/checkout-identity.mjs', 'plugins/augnes-operator/mcp/checkout-identity-darwin.py'];
 const digest = x => createHash('sha256').update(x).digest('hex');
 let failed = 0;
-for (const scenario of (only ? [only] : ['unavailable-once', 'unavailable-held', 'changed-witness', 'observed-exit', 'permanent-conflict', 'stop-unknown', 'maintenance-unknown', 'shutdown-unknown', 'initial-unavailable', 'adopted-unavailable'])) {
+const stoppedScenarios = [
+    ...['empty', 'retained'].flatMap(entry => ['stale', 'active', 'unavailable', 'foreign', 'conflict', 'malformed', 'unreadable', 'replaced', 'swapped'].map(lease => `stopped-${entry}-${lease}`)),
+    'stopped-transition-stale', 'stopped-shutdown-stale',
+];
+for (const scenario of (only === 'stopped' ? stoppedScenarios : only ? [only] : ['unavailable-once', 'unavailable-held', 'changed-witness', 'observed-exit', 'permanent-conflict', 'stop-unknown', 'maintenance-unknown', 'shutdown-unknown', 'initial-unavailable', 'adopted-unavailable', ...stoppedScenarios])) {
     const record = await exercise(scenario);
     console.log(JSON.stringify(record));
     if (!record.pass)
@@ -67,6 +71,10 @@ async function exercise(scenario) {
         json(layout.desired_state_path, desired);
         fs.mkdirSync(path.dirname(layout.launch_agent_path), { recursive: true, mode: 0o700 });
         fs.writeFileSync(layout.launch_agent_path, core.buildLaunchAgentPlist(configuration), { mode: 0o600 });
+        if (scenario.startsWith('stopped-')) {
+            record = { ...record, ...await exerciseStopped({ scenario, core, layout, configuration, environment, desired, root, owned, patches, json, birth, originalSpawn, originalSpawnSync, fsRename }) };
+            return record;
+        }
         const ui = idle('ui'), bridge = idle('bridge');
         const provisionRuntime = () => {
             const generation = { contract: 'augnes-local-runtime-supervisor-v1', schema_version: 2, generation_version: 1, generation_id: 'fixture-generation-' + spawns, instance_id: 'fixture-instance-' + spawns, repository_fingerprint: configuration.repository_fingerprint };
@@ -287,4 +295,124 @@ async function exercise(scenario) {
         record.fixture_removed = !fs.existsSync(root);
     }
     return record;
+}
+
+async function exerciseStopped({ scenario, core, layout, configuration, environment, desired, root, owned, patches, json, birth, originalSpawn, originalSpawnSync, fsRename }) {
+    const [, entry, leaseKind] = scenario.split('-');
+    const events = [];
+    let spawns = 0, ownerObservations = 0, leaseReads = 0, replaced = false, managerError = null;
+    // A real child birth followed by the owning close event proves absence;
+    // no guessed dead PID, delay, or fixture cleanup substitutes for this barrier.
+    const historical = originalSpawn(process.execPath, ['-e', 'process.stdin.resume()'], {
+        cwd: root, stdio: ['pipe', 'pipe', 'pipe'], detached: true,
+    });
+    const historicalRecord = registerOwnedChild(owned, historical, { label: 'stopped-historical-supervisor' });
+    const historicalIdentity = birth(historical.pid);
+    assert(historicalIdentity);
+    historical.stdin.end();
+    await historicalRecord.closePromise;
+    assert.equal(birth(historical.pid), null);
+    assert.throws(() => process.kill(historical.pid, 0), { code: 'ESRCH' });
+    const retained = entry !== 'empty';
+    const before = {
+        contract: core.COMPANION_SERVICE_CONTRACT, schema_version: 1,
+        service_identity: configuration.service_identity, repository_fingerprint: configuration.repository_fingerprint,
+        status: retained ? 'live' : 'installed_stopped', reason: retained ? 'companion_service_live' : 'companion_service_explicitly_stopped',
+        manager_pid: historical.pid, manager_process_identity: historicalIdentity,
+        supervisor_pid: retained ? historical.pid : null, supervisor_process_identity: retained ? historicalIdentity : null,
+        runtime_ownership: null, restart_count: 0, restart_after: null, updated_at: new Date().toISOString(),
+    };
+    json(layout.manager_state_path, before);
+    json(layout.desired_state_path, { ...desired, desired_state: entry === 'transition' ? 'running' : 'stopped' });
+    let leaseOwner = historical.pid, leaseIdentity = historicalIdentity;
+    if (['active', 'unavailable'].includes(leaseKind)) {
+        const owner = originalSpawn(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
+        registerOwnedChild(owned, owner, { label: 'stopped-maintenance-owner' });
+        leaseOwner = owner.pid;
+        leaseIdentity = birth(owner.pid);
+        assert(leaseIdentity);
+    }
+    const lease = {
+        contract: core.COMPANION_SERVICE_CONTRACT, schema_version: 1,
+        service_identity: configuration.service_identity, repository_fingerprint: configuration.repository_fingerprint,
+        operation_id: 'stopped-maintenance-fixture', owner_pid: leaseOwner, owner_process_identity: leaseIdentity,
+        pre_maintenance_desired_state: 'stopped', acquired_at: new Date().toISOString(), expires_at: new Date(Date.now() + 60_000).toISOString(),
+    };
+    if (leaseKind === 'foreign') lease.repository_fingerprint = 'f'.repeat(64);
+    if (leaseKind === 'conflict') lease.pre_maintenance_desired_state = 'running';
+    json(layout.maintenance_lease_path, lease);
+    if (leaseKind === 'malformed') fs.writeFileSync(layout.maintenance_lease_path, '{invalid-json\n');
+    const originalBytes = fs.readFileSync(layout.maintenance_lease_path, 'utf8');
+    // Same owner/operation, different expiry: an old cleanup decision must not
+    // remove a renewed or replaced record even when the owner fields match.
+    const replacement = leaseKind === 'swapped' ? lease : { ...lease, expires_at: new Date(Date.parse(lease.expires_at) + 60_000).toISOString() };
+    patches.push(mock.method(childProcess, 'spawn', () => { spawns++; throw Error('stopped_manager_must_not_spawn'); }));
+    patches.push(mock.method(childProcess, 'spawnSync', (command, args, opts) => {
+        assert.notEqual(command, '/bin/launchctl', 'manager fixture must not control launchd');
+        if (command === '/bin/ps' && args[1] === 'lstart=' && args.at(-1) === String(leaseOwner)) {
+            ownerObservations++;
+            if (leaseKind === 'unavailable') return { status: null, stdout: '', stderr: '', error: Object.assign(Error('controlled unavailable owner observation'), { code: 'ETIMEDOUT' }) };
+        }
+        return originalSpawnSync(command, args, opts);
+    }));
+    const read = fs.readFileSync;
+    patches.push(mock.method(fs, 'readFileSync', (file, ...args) => {
+        if (file === layout.maintenance_lease_path) {
+            leaseReads++;
+            if (leaseKind === 'unreadable') throw Object.assign(Error('controlled unreadable lease'), { code: 'EACCES' });
+        }
+        const result = read(file, ...args);
+        if (file === layout.maintenance_lease_path && !replaced &&
+            ((leaseKind === 'replaced' && leaseReads === 1) || (leaseKind === 'swapped' && leaseReads === 2))) {
+            replaced = true;
+            const temporary = file + '.replacement';
+            json(temporary, replacement);
+            fsRename(temporary, file);
+        }
+        return result;
+    }));
+    patches.push(mock.method(fs, 'renameSync', (from, to) => {
+        fsRename(from, to);
+        if (to !== layout.manager_state_path) return;
+        const state = JSON.parse(read(to, 'utf8'));
+        events.push({ status: state.status, reason: state.reason, supervisor_pid: state.supervisor_pid, lease_present: fs.existsSync(layout.maintenance_lease_path) });
+        if (state.reason === 'companion_service_manager_started') {
+            if (entry === 'transition') json(layout.desired_state_path, { ...desired, desired_state: 'stopped' });
+            if (entry === 'shutdown') process.emit('SIGTERM');
+        }
+    }));
+    syncBuiltinESMExports();
+    const outcome = { before, historical_process_absent: true, events };
+    try {
+        const exit = await core.runCompanionServiceManager({ configurationPath: layout.configuration_path, launchEnvironment: environment }).catch(error => { managerError = error; return null; });
+        const final = JSON.parse(read(layout.manager_state_path, 'utf8'));
+        const leasePresent = fs.existsSync(layout.maintenance_lease_path);
+        Object.assign(outcome, { exit, final_status: final.status, final_reason: final.reason, owner_observations: ownerObservations, spawns, lease_present: leasePresent, replaced, manager_error: managerError?.code ?? null });
+        assert.equal(spawns, 0);
+        assert.equal(events.some(event => event.reason === 'companion_service_manager_started'), retained);
+        assert.equal(JSON.parse(read(layout.desired_state_path, 'utf8')).desired_state, 'stopped');
+        assert.equal(fs.existsSync(layout.runtime_manifest_path), false);
+        if (leaseKind === 'stale') {
+            assert.equal(managerError, null);
+            assert.equal(exit, entry === 'shutdown' ? 1 : 0);
+            assert.equal(leasePresent, false, 'stopped completion must settle its exact stale lease');
+            assert.equal(final.status, 'installed_stopped');
+            assert.equal(events.at(-1).lease_present, false, 'publish stopped only after cleanup');
+            assert(ownerObservations > 0, 'real lease owner must be observed');
+        } else {
+            assert.equal(leasePresent, true, 'unverified/active/replaced lease must survive');
+            assert.equal(read(layout.maintenance_lease_path, 'utf8'), ['replaced', 'swapped'].includes(leaseKind) ? JSON.stringify(replacement) + '\n' : originalBytes);
+            if (['replaced', 'swapped'].includes(leaseKind)) assert.equal(managerError?.code, 'companion_service_maintenance_changed');
+            else {
+                assert.equal(managerError, null);
+                assert.equal(final.status, leaseKind === 'active' ? 'maintenance' : 'recovery_required');
+            }
+        }
+        assert.equal(fs.existsSync(layout.manager_lock_path), false, 'settled manager releases only its own lock');
+        outcome.pass = true;
+    } catch (error) {
+        outcome.pass = false;
+        outcome.error = error.message;
+    }
+    return outcome;
 }

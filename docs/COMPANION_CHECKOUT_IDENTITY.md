@@ -187,6 +187,13 @@ manager lock instead of publishing a false stopped state. Process-group
 settlement requires confirmed absence, including after a signal; unavailable or
 changed observations cannot authorize escalation or cleanup.
 
+Stopped startup and settled loop/shutdown share the same maintenance cleanup,
+including a retained historical supervisor whose absence is confirmed. Only an
+exact stale lease is removed before stopped completion is published. Active,
+unverifiable, foreign or conflicting records remain; cleanup rechecks the full
+lease and file identity so a renewed or replaced record refuses removal. This
+does not start a supervisor or change stopped intent.
+
 The diagnostic field and absence reason are additive private manager-state
 information. The configuration, manager-state and public MCP wire versions are
 unchanged; public live/preservation acceptance is not relaxed. The four-file

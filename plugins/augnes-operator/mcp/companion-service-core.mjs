@@ -2180,48 +2180,11 @@ export async function runCompanionServiceManager({
       ? { pid: recoverableManagerState.value.supervisor_pid, identity: recoverableManagerState.value.supervisor_process_identity }
       : null;
   if (desiredStateValidation.record.desired_state === "stopped" && !retainedSupervisor) {
-    const maintenance = classifyMaintenanceLease({
-      leasePath: layout.maintenance_lease_path,
-      configuration,
-    });
-    if (
-      maintenance.lease &&
-      maintenance.lease.pre_maintenance_desired_state !== "stopped"
-    ) {
-      writeManagerState(layout, configuration, {
-        status: "recovery_required",
-        reason: "companion_service_maintenance_desired_state_conflict",
-        supervisor_pid: null,
-        restart_count: 0,
-      });
+    try {
+      writeSettledManagerState(layout, configuration, 0);
+    } finally {
       releaseManagerLock(layout, managerLock);
-      return 0;
     }
-    if (maintenance.status === "ambiguous" || maintenance.status === "active") {
-      writeManagerState(layout, configuration, {
-        status: maintenance.status === "active" ? "maintenance" : "recovery_required",
-        reason: maintenance.status === "active"
-          ? "companion_service_maintenance_active"
-          : "companion_service_maintenance_ambiguous",
-        supervisor_pid: null,
-        restart_count: 0,
-      });
-      releaseManagerLock(layout, managerLock);
-      return 0;
-    }
-    if (maintenance.status === "stale") {
-      removeExactMaintenanceLease(
-        layout.maintenance_lease_path,
-        maintenance.lease,
-      );
-    }
-    writeManagerState(layout, configuration, {
-      status: "installed_stopped",
-      reason: "companion_service_explicitly_stopped",
-      supervisor_pid: null,
-      restart_count: 0,
-    });
-    releaseManagerLock(layout, managerLock);
     return 0;
   }
   let shutdown = false;
@@ -2324,12 +2287,8 @@ export async function runCompanionServiceManager({
         adoptedPid = null;
         runtimeOwnership = null;
         lastFailureProvenance = null;
-        writeManagerState(layout, configuration, {
-          status: "installed_stopped",
-          reason: "companion_service_explicitly_stopped",
-          supervisor_pid: null,
-          restart_count: failures,
-        });
+        // The common shutdown owner settles stopped maintenance before it
+        // publishes completion, including a retained but now absent supervisor.
         break;
       }
       const maintenance = classifyMaintenanceLease({
@@ -2609,19 +2568,20 @@ export async function runCompanionServiceManager({
     }
   } finally {
     try {
-      await stopManagedSupervisor({ child, childIdentity, adoptedPid, layout, configuration });
-      writeManagerState(layout, configuration, {
-        status: "installed_stopped",
-        reason: "companion_service_explicitly_stopped",
-        supervisor_pid: null,
-        restart_count: failures,
-      });
-      releaseManagerLock(layout, managerLock);
-    } catch (error) {
-      // Retain the lock and original witness if shutdown could not establish
-      // settlement. A successor must not infer stopped from our disappearance.
-      publishUnverified();
-      throw error;
+      try {
+        await stopManagedSupervisor({ child, childIdentity, adoptedPid, layout, configuration });
+      } catch (error) {
+        // Unsettled process ownership retains both the witness and manager lock.
+        publishUnverified();
+        throw error;
+      }
+      try {
+        writeSettledManagerState(layout, configuration, failures);
+      } finally {
+        // A lease refusal is not unsettled supervisor ownership. Preserve that
+        // record, but release this completed manager's own exclusion lock.
+        releaseManagerLock(layout, managerLock);
+      }
     } finally {
       for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"]) {
         process.removeListener(signal, signalHandlers.get(signal));
@@ -4918,6 +4878,29 @@ async function fetchBoundedJson(url, { headers = undefined } = {}) {
   }
 }
 
+// Both stopped startup and settled loop/shutdown use this maintenance owner.
+// This is called only after the retained supervisor relationship has settled.
+function writeSettledManagerState(layout, configuration, restartCount) {
+  let status = "installed_stopped";
+  let reason = "companion_service_explicitly_stopped";
+  if (readExactDesiredState(layout, configuration).desired_state === "stopped") {
+    const maintenance = classifyMaintenanceLease({ leasePath: layout.maintenance_lease_path, configuration });
+    if (maintenance.lease && maintenance.lease.pre_maintenance_desired_state !== "stopped") {
+      status = "recovery_required";
+      reason = "companion_service_maintenance_desired_state_conflict";
+    } else if (maintenance.status === "active" || maintenance.status === "ambiguous") {
+      status = maintenance.status === "active" ? "maintenance" : "recovery_required";
+      reason = maintenance.status === "active"
+        ? "companion_service_maintenance_active" : "companion_service_maintenance_ambiguous";
+    } else if (maintenance.status === "stale") {
+      removeExactMaintenanceLease(layout.maintenance_lease_path, maintenance.lease);
+    }
+  }
+  writeManagerState(layout, configuration, {
+    status, reason, supervisor_pid: null, restart_count: restartCount,
+  });
+}
+
 function classifyMaintenanceLease({ leasePath, configuration, now = () => Date.now() }) {
   return classifyMaintenanceLeaseResult({
     result: readRegularJson(leasePath),
@@ -6503,13 +6486,16 @@ function readRegularText(file) {
 }
 
 function removeExactMaintenanceLease(file, lease) {
+  const before = lstatSync(file, { bigint: true, throwIfNoEntry: false });
   const current = readRegularJson(file);
+  const after = lstatSync(file, { bigint: true, throwIfNoEntry: false });
   if (
+    !before?.isFile() || !after?.isFile() ||
+    before.dev !== after.dev || before.ino !== after.ino ||
+    before.ctimeNs !== after.ctimeNs || before.mtimeNs !== after.mtimeNs ||
+    before.size !== after.size ||
     current.state !== "valid" ||
-    current.value?.operation_id !== lease.operation_id ||
-    current.value?.owner_pid !== lease.owner_pid ||
-    current.value?.owner_process_identity !== lease.owner_process_identity ||
-    current.value?.service_identity !== lease.service_identity
+    JSON.stringify(current.value) !== JSON.stringify(lease)
   ) {
     throw new PublicCompanionServiceError(
       "companion_service_maintenance_changed",
