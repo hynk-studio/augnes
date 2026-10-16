@@ -323,6 +323,14 @@ try {
   const beforeStaleStoppedReload = JSON.parse(
     readFileSync(layout.manager_state_path, "utf8"),
   );
+  const staleStoppedInspection = await inspectCompanionService(options);
+  console.log(JSON.stringify({
+    case: "stale-stopped-entry", manager: beforeStaleStoppedReload,
+    desired_state: readDesiredState().desired_state,
+    maintenance: staleStoppedInspection.maintenance,
+    supervisor_process_present: beforeStaleStoppedReload.supervisor_pid
+      ? processIdentity(beforeStaleStoppedReload.supervisor_pid) !== null : false,
+  }));
   const staleStoppedReload = spawnSync("/bin/launchctl", [
     "bootstrap",
     `gui/${process.getuid()}`,
@@ -338,6 +346,12 @@ try {
     10_000,
   );
   await waitForManagerProcessGone(staleStoppedManager, 10_000);
+  console.log(JSON.stringify({
+    case: "stale-stopped-completion", manager: staleStoppedManager,
+    manager_lock_present: existsSync(layout.manager_lock_path),
+    lease_present: existsSync(layout.maintenance_lease_path),
+    runtime_present: existsSync(layout.runtime_manifest_path),
+  }));
   assert.equal(existsSync(layout.maintenance_lease_path), false);
   assert.equal(readDesiredState().desired_state, "stopped");
   assert.equal((await inspectCompanionService(options)).status, "installed_stopped");
