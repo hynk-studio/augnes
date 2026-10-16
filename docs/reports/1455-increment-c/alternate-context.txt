@@ -1,0 +1,64 @@
+# Scene preparation: 새벽의 다음 장면
+
+Viewpoint: 하린
+Fictional event position: 3
+Reveal position: 2
+
+Fictional scope: 봉인과 황제 — 대안
+Saved work: 93b9f19a-d9b4-4ce3-bd2c-8df8358add2f
+Revision: 3
+Fingerprint: sha256:a3cdda36d3404fa0f89cdd48704a73eb1c628b11c6719cbd95cade7fc80e9c9b
+
+Authoring context, not empirical Evidence or execution authority. Facts are author knowledge, not automatically character knowledge. Beliefs and public/narrator assertions need not be true. Undecided and rejected changes have not happened by adoption. Draft prose is not canon. Fictional positions are independent of real revision time. Original sources remain the master; this view is bounded and rebuildable.
+
+Setting revisions are explicit retroactive reinterpretations at the same fictional positions, not later events. Superseded entries remain historical and do not supply current knowledge. Inherited reviews retain their original author and scope. Selected transfers adopt only the named proposals, never the source draft. Natural-language dependencies are UNKNOWN unless explicitly linked.
+
+## Applicable consequential material
+
+[adopted; current; inherited; not a new branch review; fact; 작가; event 0; reveal 0] 황제는 살아 있다.
+From scene: 봉인의 밤; original basis revision 2; reviewed at revision 3 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다.
+
+[adopted; current; inherited; not a new branch review; assertion; 궁정; event 0; reveal 0] 궁정은 황제가 죽었다고 발표했다.
+From scene: 봉인의 밤; original basis revision 2; reviewed at revision 3 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다.
+
+[adopted; current; inherited; not a new branch review; belief; 하린; event 0; reveal 0] 하린은 궁정의 부고를 믿는다. 황제를 아직 보지 못했다.
+From scene: 봉인의 밤; original basis revision 2; reviewed at revision 3 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다.
+
+[adopted; superseded; inherited; not a new branch review; knowledge; 하린; event 2; reveal 1] 하린은 봉인된 편지를 받았다. 아직 열지 않았고 내용은 모른다.
+From scene: 봉인의 밤; original basis revision 2; reviewed at revision 3 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다.
+
+[undecided; current; inherited; not a new branch review; intention; 작가; event 10; reveal 10] 황제의 훗날 공개 귀환은 아직 결정하지 않았다.
+From scene: 봉인의 밤; original basis revision 2; reviewed at revision 3 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다.
+
+[rejected; superseded; inherited; not a new branch review; knowledge; 하린; event 2; reveal 1] 지금 편지를 열어 황제의 생존을 즉시 알게 한다.
+From scene: 봉인의 밤; original basis revision 2; reviewed at revision 3 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 합성 창작자의 선택: 부고와 믿음을 구분하고, 봉인된 편지의 수령만 진행한다. 귀환과 폭로는 확정하지 않는다.
+
+[adopted; current; local; knowledge; 하린; event 2; reveal 1] 이 대안에서 하린은 봉인을 열어 황제가 살아 있음을 알았다.
+From scene: 봉인을 연 밤 — 대안; original basis revision 1; reviewed at revision 2 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 합성 작가의 대안: 같은 밤의 선택을 소급 재해석한다. 원래 갈래의 봉인과 거절은 보존한다.
+
+[adopted; current; local; fact; 안뜰; event 1; reveal 1] 안뜰의 종은 새벽마다 한 번 울린다.
+From scene: 봉인을 연 밤 — 대안; original basis revision 1; reviewed at revision 2 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 합성 작가의 대안: 같은 밤의 선택을 소급 재해석한다. 원래 갈래의 봉인과 거절은 보존한다.
+
+[undecided; current; local; intention; 작가; event 10; reveal 10] 황제의 공개 귀환 날짜는 계속 미정이다.
+From scene: 봉인을 연 밤 — 대안; original basis revision 1; reviewed at revision 2 by e89e1ee0-d67c-40a9-bb0c-661a86965452; reason: 합성 작가의 대안: 같은 밤의 선택을 소급 재해석한다. 원래 갈래의 봉인과 거절은 보존한다.
+
+## Previous applicable draft (prose, not canon)
+
+봉인을 연 밤 — 대안
+하린은 봉인을 열었다. 접힌 종이에는 황제가 살아 있다는 전갈이 있었다.
+
+안뜰의 종이 새벽을 알렸다. 공개 귀환의 날은 아직 누구도 정하지 않았다.
+
+## Exact selected originals (authored sources, not automatic adoption)
+
+manuscript.txt · revision 3 · sha256:236ff74c1e5c085a2f58805cf46d2b1d8733d478f6e3ce832d07395eee68bd95
+세계의 사실 — 작가가 정한 설정: 황제는 살아 있다.
+
+공식 발표: 궁정은 “황제가 죽었다”고 알렸다. 발표는 세계의 사실과 같지 않다.
+
+인물의 믿음: 기사 하린은 그 발표를 믿는다. 아직 황제를 보지 못했다.
+
+미정인 작가의 의도: 황제가 나중에 돌아오는 전개를 고려 중이다. 아직 결정하지 않았다. 재등장 시점도 열어 둔다.
+
+원문 표기: café / é ≠ é / 한글 🧭
+문단과 공백을 보존한다. <script>fiction only</script>

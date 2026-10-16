@@ -1,3 +1,4 @@
+import { browserDirectionJourney } from "./browser-web-planning-directions.mjs";
 import assert from 'node:assert/strict';
 import { mkdir,readFile,readdir,writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -56,5 +57,6 @@ export async function browserSceneJourney({a,debug,origin,page,click,set,settled
  await replaceRuntime(false);const recovered=await page(debug,origin);await ready(recovered);await choose(recovered);await saved(recovered,7);await settled(recovered);
  assert.equal(await recovered.eval('work'),id);assert.equal(await recovered.eval("$('authored-text').value"),deterministicSuccessor);assert.deepEqual(await recovered.eval('sceneBook.scenes[0].review.dispositions'),sceneChoices);assert.deepEqual(await recovered.eval("api('/api/work/'+work+'/export')"),exported);
  console.log(JSON.stringify({scene_continuity_browser:{work_id:id,proposals:sceneFixture.proposals,dispositions:sceneChoices,context_sha256:context.fingerprint,successor_draft:deterministicSuccessor,successor_kind:'deterministic fixture; not model use',recovered_draft:await recovered.eval("$('authored-text').value"),revision_lineage:exported.revisions.map(r=>({revision:r.revision,fingerprint:r.fingerprint,predecessor:r.predecessor})),export_sha256:digestBytes(await readFile(path.join(downloads,'planning-work.json')))}}));
+ await browserDirectionJourney({a:recovered,debug,origin,page,click,set,settled,saved,wait,navigate,replaceRuntime,barrier,countRows,root,checks});
  checks.push('scene: original editor Save, persisted preparation and proposed changes, grouped adoption with actual dropped reply/reconciliation/replay; rival retained draft refusal; fresh workerd/browser successor; earlier-time exclusion; oversized draft retained; presentation detach/reattach; actual exported file consumed into separate empty D1 and fresh recovered reopening');
 }
