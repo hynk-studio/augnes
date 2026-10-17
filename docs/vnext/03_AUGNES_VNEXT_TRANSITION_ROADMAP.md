@@ -5219,6 +5219,18 @@ focused observations and other candidates' receipts do not establish them.
 status does not duplicate its prospective plan. AML, new provider experiments,
 service changes and automatic follow-on remain outside this scope.
 
+## Portable Web-to-native source candidate (#1475)
+
+The [explicit local handoff](../WEB_EXPORT_NATIVE_HANDOFF.md) connects actual Web
+complete exports to existing native selected-source materials/experience/corpus.
+It supports selected current-revision UTF-8 text, exact replay and atomic refusal,
+fresh deterministic use and native recovery without changing Web reconstruction
+or native current-work/Resume. This is a focused Draft candidate under #1212 and
+#1215, coordinated by #1426. Deciding qualification is NOT_RUN by the initial
+assignment; later current-main integration and candidate-specific qualification
+require explicit continuation. #1472/#1474 and documentation #1470/#1473 remain
+separate owners. No installed adoption, hosted deployment or automatic next task.
+
 ## Compatibility and historical work
 
 Current compatibility paths remain until a separately authorized phase proves

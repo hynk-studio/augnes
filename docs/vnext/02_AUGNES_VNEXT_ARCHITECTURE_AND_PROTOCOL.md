@@ -3630,6 +3630,21 @@ Current-work recall and Resume remain unchanged. No derived index or new durable
 projection exists. The [usage contract](../SELECTED_SOURCE_RETRIEVAL.md) specifies
 bounds, source owners, workflow and lifecycle limits.
 
+### 13.6 Explicit portable Web source admission (#1475)
+
+The [local handoff](../WEB_EXPORT_NATIVE_HANDOFF.md) directly reuses the Web v0.3
+export validator before admitting explicitly selected current-revision UTF-8
+text into an exact registered/configured native project. One existing external
+transaction stores original-byte materials, an attributed experience and a
+selected-source corpus, including operation replay and whole-group bound checks.
+No Core state, native work, table/index or cross-project share is created.
+Web work/revision/export/file bindings and supplied author/source time remain
+attribution; native ingestion time is separate and meaning/adoption stay unknown.
+Conflicting operation reuse and stale Web/native bindings refuse atomically.
+Later Web changes do not recall already downloaded/imported bytes; this adds no
+mirroring, reverse synchronization or erasure guarantee. Existing native access,
+correction, withdrawal, retrieval and recovery owners retain their meaning.
+
 ## 14. Zero-Model Mode
 
 다음 path는 모델 없이 테스트되고 지원되어야 한다.

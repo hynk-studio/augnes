@@ -25,6 +25,12 @@ extension leaves all their existing meanings intact.
 
 ## Ordinary workflow
 
+Downloaded Web complete exports can enter this same reader through the explicit
+[local Web-to-native handoff](WEB_EXPORT_NATIVE_HANDOFF.md). The operator selects
+current-revision text and an authorized native target; the adapter validates the
+original Web format and atomically creates existing materials, one experience
+and a corpus. It creates no native current work or accepted state.
+
 Use `augnes_external_repository_work` through an already authorized Companion.
 No installation/start command is implied. Configuration may have `envelopes: []`;
 reading requires project/share access, not a processor/model budget.

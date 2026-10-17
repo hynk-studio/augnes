@@ -1146,6 +1146,7 @@ const integrationChildren = [
   "external-response",
   "external-response-selective",
   "selected-source-retrieval",
+  "web-export-native",
   "execution-choice",
   "request-bound-review",
   "companion-method-outlook",
@@ -1294,6 +1295,9 @@ const selectedSourceRegistration = readCanonicalChildRegistration(integrationSou
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 90_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"mutable-module-state"', '...rootNode("scripts/test-selected-source-retrieval.ts")'])
   requireText(selectedSourceRegistration.block, fragment, "selected source retrieval owns disposable stores, complete context, fresh file consumers and natural-exit recovery settlement");
 const requestReviewRegistration = readCanonicalChildRegistration(integrationSource, "request-bound-review");
+const webExportNativeRegistration = readCanonicalChildRegistration(integrationSource, "web-export-native");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 120_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"backup-restore"', '...rootNode("scripts/test-web-export-native.mjs")'])
+  requireText(webExportNativeRegistration.block, fragment, "Web export admission owns D1, native stores, loopback ingress, fresh consumers and supported backup recovery");
 const executionChoiceRegistration = readCanonicalChildRegistration(integrationSource, "execution-choice");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-execution-choice.ts"'])
   requireText(executionChoiceRegistration.block, fragment, "execution choice owns disposable state, exact materials, downstream artifact and fresh-process readback");

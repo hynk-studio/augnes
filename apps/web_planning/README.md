@@ -4,6 +4,11 @@ One configured owner keeps independent planning work, its attributed context and
 explicitly selected small files. Web work neither reads the installed Augnes
 database nor creates native work, results or accepted state.
 
+An explicitly downloaded complete export can be admitted by the separate native
+[local selected-source handoff](../../docs/WEB_EXPORT_NATIVE_HANDOFF.md). It
+requires selected current-revision text and an exact authorized native target;
+Web/native stores and Web reconstruction remain independent.
+
 [#1351](https://github.com/hynk-studio/augnes/issues/1351) completed private
 branching/incorporation through merged #1353; [#1356](https://github.com/hynk-studio/augnes/issues/1356)
 accepted its bounded direct-Cloudflare hosted synthetic journey.
