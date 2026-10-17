@@ -162,6 +162,14 @@ const goldenStep = {
 const suites = {
   unit: [
     {
+      id: "active-observation-study",
+      label: "chosen file-processing observations and retained conditional method use",
+      requirements: ["filesystem", "process-owning", "immutable-fixture-input"],
+      ...rootNode("scripts/test-active-observation-study.mjs"),
+      timeoutMs: 10_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "reuse-applicability-study",
       label: "experience-induced reuse decisions and actual later file reports",
       requirements: ["filesystem", "process-owning", "immutable-fixture-input"],
@@ -955,6 +963,15 @@ const suites = {
       requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
       label: "scoped experience, real local interaction, checked byte use and fresh reconstruction",
       ...rootNode("scripts/test-external-response.ts"),
+      timeoutMs: 90_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "external-response-selective",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
+      label: "declared upstream correction changes a fresh downstream report while independent support survives",
+      ...rootNode("scripts/test-external-response-selective.ts"),
       timeoutMs: 90_000,
       requireNaturalExit: true,
     },

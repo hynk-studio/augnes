@@ -1,0 +1,15 @@
+{
+  "frozen_before_implementation": true,
+  "case": "P3.1/P5.2 A -> checked B -> C; independent reservation D",
+  "input": "scripts/fixtures/experience-use/b.json",
+  "independent_arithmetic": "Deduplicate by event_id; add integer milliseconds: 1000+2500+500+1500+750+1250=7500. Correct b-03 from 500 to 1500 gives 8500. Three batches: 22500 -> 25500. Independent invoice: 4 reservations * 3000 cents = 12000 cents in both outputs.",
+  "original_B_total_ms": 7500,
+  "corrected_B_total_ms": 8500,
+  "C_original_projected_worker_ms": 22500,
+  "C_corrected_projected_worker_ms": 25500,
+  "D_sufficient_for": "reservation_fee_cents only; invoice units and unit cents, same period; no dependence on build durations",
+  "D_reservation_fee_cents": 12000,
+  "metadata_control": "Same corrected events with different annotation: same C output bytes/ref and no B arithmetic/rebuild; new attributable applicability observation only",
+  "negative_controls": ["inaccessible/withdrawn upstream", "replacement version mismatch", "stale reconsideration", "replay", "material transaction rollback"],
+  "evidence": "scripted development; no model or causal benefit claim"
+}

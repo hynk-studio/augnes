@@ -244,6 +244,36 @@ unknown. A tie or greater candidate overhead warrants simplifying to the ordinar
 reference, not a superiority claim. These requirements implement the existing
 method-improvement guidance for #1459 without creating a universal research gate.
 
+### Active observation and productive-action selection (#1464)
+
+For [#1464's file-processing prototype](../../scripts/active-observation-study/README.md),
+match initial information, usable actions, capable tools/models, output checks
+and resource ceilings between candidate and strong adaptive memo/code. Do not
+force identical acquired histories: selecting an observation or productive step
+is the intervention. Freeze environment/response rules, initial instances,
+exogenous changes, costs, contracts, initial methods, online update rules and
+stops before observation; evolving learned state is permitted by those rules.
+
+Record the pre-action model, selected action, actual outcome, observation
+availability, relevant update or retention, consequential next action and checked
+output. Supplied mechanics, priors, hypothesis forms and deterministic updaters
+are not themselves learned conditions. A productive action can also inform;
+direct work or waiting may avoid a needless probe. Deterministic conditions need
+no invented probability, and imagined results are not evidence. Unknown/pending
+effects require reconciliation; duplicates are not independent observations or
+extra completed work. Later evidence cannot rewrite an earlier knowledge basis.
+
+Define the materially different successor input/output before interpreting the
+result, and check that a fresh consumer actually loads its own retained method
+and produces valid new files. Report original choices before common checks,
+invalid/false-complete/duplicated work, useful and wasted observations, revisions,
+simulated costs, measured client/process time, acquisition/recurring effort and
+unknown human/model costs separately. Keep development exposure and coordinator
+assistance explicit. One constructed comparison supports a bounded retain,
+simplify, revise or stop decision, not general superiority or equivalence.
+Preserve #1459's fixed-history tie/SIMPLIFY and #1447's supplied-entry evidence;
+neither is retrospectively an active-selection test.
+
 ### Public asset entry and later consumer (#1447)
 
 The [declared public-question case and successor](../PUBLIC_ASSET_SKILL_USAGE.md#candidate-and-intended-observation)
@@ -542,6 +572,21 @@ This preserves planning #1454's separation of capability, effect, usefulness and
 autonomy. Broader/default operation and a comparison with a strong adaptive
 source-linked native workflow require their own justified scope and evaluation.
 No e01 comparison or b02 observation allowance is inherited or reopened.
+
+The P3.1/P5.2 [selective-report consumer](../EXTERNAL_RESPONSE_LOCAL.md#selective-correction-in-a-later-reporting-task-p31--p52)
+uses one exposed numerical case and a frozen independent arithmetic expectation.
+It inspects actual downstream files: A/B 7,500 → 8,500 ms produces C
+22,500 → 25,500 ms while independent D keeps the reservation fee at 12,000 cents.
+An annotation-only correction must preserve the output hash with no repeated
+aggregate calculation. Fresh processes receive only their ordinary project
+entry; correction references come from declared source material. Original B's
+passing check remains historical, while new applicability and rechecked output
+have their own bindings. Source/version/access/race/rollback controls address
+the consumer boundary; unchanged adapter invariants retain their existing tests.
+This is deterministic development evidence, not autonomous model judgment,
+comparative benefit or a replacement for the prior PARTIAL and
+NO_OBSERVED_ADVANTAGE observations. Setup and repeated-use steps are reported
+separately, without claiming measured burden reduction.
 
 ### Cost and user burden
 
