@@ -1572,7 +1572,7 @@ export function inspectRecoveryDatabaseFile(
     withOwnedDatabase(new Database(databasePath, {
       readonly: true,
       fileMustExist: true,
-    }), (source) => {
+    }), (source) => source.transaction(() => {
       verifyOpenDatabase(source);
       sourceSignature = structuralSchemaContractSignature(source);
       sourceLedger = readCanonicalDatabaseMigrationLedger(source);
@@ -1601,7 +1601,7 @@ export function inspectRecoveryDatabaseFile(
         requireCurrentLedger: false,
       });
       serialized = standaloneSerializedDatabase(source.serialize());
-    });
+    })());
   } catch (error) {
     if (error instanceof PublicDatabaseBootstrapError) throw error;
     throw new PublicDatabaseBootstrapError("database_open_failed", error);
@@ -1640,7 +1640,16 @@ export function inspectRecoveryDatabaseFile(
         throw new PublicDatabaseBootstrapError("database_schema_unsupported");
       }
       verifyCanonicalDatabaseMigrationLedger(clone);
-      verifyCanonicalDatabaseInvariants(clone, { requireCurrentLedger: true });
+      // The source checks and serialization share one read transaction. Only
+      // this owned in-memory clone can change afterwards. Reuse the complete
+      // canonical/ordinary-reader result only when migration left every byte
+      // unchanged (with the same existing standalone SQLite header handling).
+      // No result survives this inspection; restore/publication revalidate.
+      if (serialized.equals(standaloneSerializedDatabase(clone.serialize()))) {
+        verifyCanonicalPackageIdentityGuard(clone);
+      } else {
+        verifyCanonicalDatabaseInvariants(clone, { requireCurrentLedger: true });
+      }
       const current =
         sourceSignature === canonicalSignature &&
         sourceLedgerCurrent &&
