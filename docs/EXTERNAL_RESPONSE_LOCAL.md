@@ -227,3 +227,131 @@ behavior, not comparative benefit. **Neither invocation is authorized or run by
 this implementation assignment.** b02 remains CLOSED/PARTIAL and e01 remains
 CLOSED/NO_OBSERVED_ADVANTAGE; their allowances and non-adopted instructions are
 not used here.
+
+## Selective correction in a later reporting task (P3.1 / P5.2)
+
+[`external-response-selective-report.mjs`](../scripts/external-response-selective-report.mjs)
+is a deterministic ordinary consumer for one declared A → B → C case, with
+independent invoice D. The earlier report consumer stops at a required current
+applicability review; it does not interpret an intermediate report's upstream
+replacement or calculate a later report. Existing `discover`, `read_experience`,
+`material`, `put_material` and `publish` already suffice to carry this bounded
+lineage. This example adds their concrete consumption, without changing adapter
+actions, persistence, direct `affected_work`, Core semantics or grants.
+
+The producer prepares the following **content profiles through ordinary writers**.
+They are selected material, not new protocol record kinds:
+
+1. A publishes complete `build-events.v1` bytes with an explicit version, source,
+   applicability period and initially empty dependencies. B reads those bytes
+   through the share, retains an attributable input copy depending on A's
+   material, and runs the existing report consumer. Its original returned
+   aggregate, passing check and report remain immutable.
+2. B publishes its input, returned aggregate and report together. Its `conditions`
+   JSON is `{version:"worker-report-lineage.v1",period,population:"all",
+   upstream:{experience_ref,material_ref,version,sha256},input_ref,result_ref,
+   report_ref}`. References are exact; B explicitly identifies A instead of
+   relying on a global dependency search. C must independently have access to A.
+3. D publishes independent invoice bytes
+   `{version:"reservation-invoice.v1",period,units,unit_cents}` with no declared
+   dependency, and conditions `{version:"reservation-invoice.v1",material_ref,
+   period}`. In this synthetic case that invoice alone is sufficient for C's
+   reservation fee, not its build estimate or a general business conclusion.
+4. C selects an ordinary note at `note-ref:selective-report-contract`, containing
+   `{version:"selective-worker-report.v1",intermediate_query,independent_query,
+   repetitions,period,output}`. Each query must resolve to one matching profile;
+   the consumer does not guess the latest version. `repetitions` is 1–1000 and
+   `output` is a simple lowercase JSON filename. Source period must match.
+
+Run the consumer from a new writable directory with only the registered project
+root as its argument, using the normal authorized Companion connection:
+
+```bash
+node /path/to/augnes/scripts/external-response-selective-report.mjs /registered/project
+```
+
+This command does not start a Companion. The integration test uses disposable
+authenticated proxy/HTTP routes and an owned loopback processor, leaving the
+installed service alone. C has no effect envelope and makes no processor call.
+The test command below belongs inside an admitted checkout/resource owner:
+
+```bash
+node --import tsx scripts/test-external-response-selective.ts
+```
+
+For a correction, A publishes a new complete material and experience first, then
+uses `correct` on the original experience with a current selected source and
+statement JSON `{version:"worker-input-replacement.v1",previous_material_ref,
+replacement_experience_ref,replacement_material_ref,replacement_version,
+replacement_sha256}`. The replacement manifest depends exactly on its predecessor.
+Publication of a correction grants no access to either source. The fresh C
+process discovers B and D through its selected contract, obtains A from B's
+declaration, reads A's current corrections and follows at most eight explicitly
+linked replacements. Missing, withdrawn, ambiguous, unsupported or
+inspection-limited input stops this consumer as unknown. It never crawls a
+workspace, infers truth from a path, or inherits an execution envelope.
+
+C independently checks original B against A's complete original events with the
+existing decimal BigInt oracle. A relevant change creates a separately attributed
+rechecked intermediate and a new actual JSON report. The report multiplies that
+total by the selected repetitions and separately calculates D's reservation fee.
+Only the optional top-level `annotation` is outside the event calculation;
+unknown fields are refused. Equal event bytes can reuse this profile's earlier
+output and attributable applicability material without repeating the sum.
+Historical source/check references stay in that output; the new applicability
+material separately records current input and correction references.
+
+Before either calculation or cache lookup, the consumer validates original and
+current event rows against the counterpart's existing `build-events.v1` contract:
+exactly `event_id`, `job_id`, `attempt`, `status` and `duration_s`; nonempty string
+IDs; a positive safe-integer attempt; status `ok` or `failed`; and a string duration
+matching `^\d{1,9}(\.\d{1,3})?$`. Zero duration, leading zeros and nonempty
+whitespace IDs retain their existing meaning. Each row is checked before
+deduplication; canonical exact duplicates are accepted and conflicting duplicates
+are refused. An event-level `annotation` is an unsupported field, unlike the
+explicitly supported top-level annotation. The decimal/BigInt oracle remains an
+independent arithmetic check, not the schema validator. The 64 KiB material and
+existing result bounds still apply. Processor `max_rows`, deadlines and execution
+envelopes are effect terms, not new permissions for C's local computation.
+
+The consumer rechecks the bounded experience observations and native work basis
+before writing. A detected change refuses the stale observation. This is a
+read-time observation, **not an atomic transaction across projects**: a later
+correction can require the next invocation to reconsider again. Publication and
+material storage retain their existing individual transactions and exact replay;
+a failure after a successful material write can leave an unadvertised immutable
+material for reconciliation. A cached material name alone is insufficient for
+reuse: the consumer requires the prior attributable applicability publication.
+An explicit correction to that prior judgment requires review before reuse.
+Without that publication, a later explicit invocation independently checks the
+inputs again and can complete the same output; the failed call does not retry.
+These records describe scripted checking and use, not semantic acceptance.
+
+The frozen [arithmetic expectations](../scripts/fixtures/experience-use/selective-expectations.json)
+are evaluator-only and are never supplied to the consumer. Deduplicated A/B
+worker time is 7,500 ms; correcting one event from 500 to 1,500 ms gives 8,500 ms.
+C's three-batch estimate changes from 22,500 to 25,500 ms. D's four reservations
+at 3,000 cents remain 12,000 cents. The metadata-only replacement preserves the
+corrected report's exact bytes and avoids a new aggregate calculation. Each
+consumer is a new process with its own writable directory and receives no
+correction locator or expected answer. Actual output files, hashes, original B
+history, replay, write rollback, changed basis, version mismatch, read races and
+withdrawal are inspected. The existing `test-external-response.ts` retains the
+unchanged stale-reconsideration, grant, replay and staged recovery matrix.
+The event-profile regression publishes correctly shared/versioned/hashed
+replacements through the same writers, then snapshots durable state after setup.
+Fresh consumers must refuse malformed rows without material, applicability or
+plan-file writes, including a matching prior invalid cache fixture. Missing IDs,
+zero/fractional/unsafe attempts, unsupported fields/status, invalid row shapes and
+duration types/bounds, and malformed/conflicting duplicates are covered. A valid
+boundary case retains exact duplicates, zero/max-width duration and safe-integer
+attempt semantics without acquiring a processor envelope. Historical delivered
+artifacts remain separate from these newly source-bound executions.
+
+Setup includes source registration, deliberate shares, complete material,
+lineage declaration and the selected report contract. Repeated use includes
+bounded discovery, complete reads, consistency checks, a prior-output lookup or
+calculation, and attributable publication. These are development/setup and
+repeated-use steps, not measured user savings. This exposed scripted case is
+neither live-model judgment nor a new evaluation campaign; b02 PARTIAL and e01
+NO_OBSERVED_ADVANTAGE retain their original scope.
