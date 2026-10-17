@@ -158,6 +158,70 @@ await run("lost-state-retirement-and-replay", async (f) => {
     assert.equal((await core.inspectCompanionService(f.options)).status, "installed_stopped");
     assert.equal((await core.applyCompanionOwnershipRecovery({ ...f.options, decision: preview.decision })).result, "settled");
     assert.equal(f.effects(), 1);
+
+    // A real, settled retirement remains historical after a mount's device
+    // number changes. Only this observation's device is simulated; the durable
+    // Darwin identity, persisted evidence and installed configuration are real.
+    const recordBytes = fs.readFileSync(f.layout.ownership_recovery_path);
+    const configurationBytes = fs.readFileSync(f.layout.configuration_path);
+    const record = JSON.parse(recordBytes);
+    const renumbered = { ...f.options, testRepositoryPhysicalIdentityOverride: {
+        device: String(BigInt(f.layout.repository.device) + 1n),
+        inode: f.layout.repository.inode,
+    } };
+    const inspectWithoutRewrite = async (options = renumbered) => {
+        const before = fs.readFileSync(f.layout.ownership_recovery_path);
+        const observed = await core.inspectCompanionService(options);
+        assert.deepEqual(fs.readFileSync(f.layout.ownership_recovery_path), before);
+        assert.equal(f.effects(), 1, "inspection never repeats retirement");
+        return observed;
+    };
+    assert.equal((await inspectWithoutRewrite()).status, "installed_stopped",
+        "settled retirement must survive device renumbering with unchanged durable identity");
+    assert.equal((await core.inspectCompanionPreservation(renumbered)).state.preservation_valid, true);
+    assert.deepEqual(fs.readFileSync(f.layout.ownership_recovery_path), recordBytes);
+    const invalid = async () => assert.equal((await inspectWithoutRewrite()).reason, "companion_service_recovery_record_invalid");
+    try {
+        json(f.layout.ownership_recovery_path, { ...record, status: "retiring" });
+        await invalid();
+        assert.equal((await inspectWithoutRewrite(f.options)).reason, "companion_service_recovery_incomplete");
+        fs.writeFileSync(f.layout.ownership_recovery_path, recordBytes);
+        json(f.layout.configuration_path, { ...f.configuration, installed_at: new Date(0).toISOString() });
+        assert.equal((await inspectWithoutRewrite(f.options)).status, "installed_stopped");
+        assert.equal((await inspectWithoutRewrite()).status, "installed_stopped",
+            "a historical record must not invalidate otherwise-valid later configuration");
+        json(f.layout.configuration_path, { ...f.configuration, service_source_fingerprint: "0".repeat(64) });
+        assert.equal((await inspectWithoutRewrite()).status, "service_update_required", "current source validation remains authoritative");
+        json(f.layout.configuration_path, { ...f.configuration, repository_identity: {
+            ...f.configuration.repository_identity, volume_uuid: "11111111-1111-1111-1111-111111111111",
+        } });
+        await invalid();
+        fs.writeFileSync(f.layout.configuration_path, configurationBytes);
+        for (const change of [
+            value => { value.operation_binding = "0".repeat(64); },
+            value => { value.evidence.repository_binding = "0".repeat(64); value.operation_binding = hash(JSON.stringify(value.evidence)); },
+            value => { value.evidence.material.configuration_path.parent.device = "0"; value.operation_binding = hash(JSON.stringify(value.evidence)); },
+            value => { value.service_identity = "0".repeat(64); },
+        ]) {
+            const changed = structuredClone(record); change(changed);
+            json(f.layout.ownership_recovery_path, changed);
+            await invalid();
+        }
+        fs.writeFileSync(f.layout.ownership_recovery_path, recordBytes);
+        assert.equal((await inspectWithoutRewrite({ ...renumbered, testRepositoryPhysicalIdentityOverride: {
+            ...renumbered.testRepositoryPhysicalIdentityOverride, inode: String(BigInt(f.layout.repository.inode) + 1n),
+        } })).reason, "companion_service_recovery_record_invalid", "replacement is not device renumbering");
+        // Recovery effects retain their existing same-operation observation
+        // and refuse even a test override; status compatibility grants no replay.
+        await assert.rejects(core.applyCompanionOwnershipRecovery({ ...renumbered, decision: preview.decision }), /test_override_refused/);
+        assert.equal((await inspectWithoutRewrite()).status, "installed_stopped");
+    } finally {
+        fs.writeFileSync(f.layout.ownership_recovery_path, recordBytes);
+        fs.writeFileSync(f.layout.configuration_path, configurationBytes);
+    }
+    assert.deepEqual(fs.readFileSync(f.layout.ownership_recovery_path), recordBytes);
+    assert.deepEqual(fs.readFileSync(f.layout.configuration_path), configurationBytes);
+    assert.equal(f.effects(), 1);
 });
 await run("lost-state-later-attempt-exit-diagnostic", async (f) => {
     const diagnostic = read(f.layout.manager_state_path).supervisor_failure_provenance;
