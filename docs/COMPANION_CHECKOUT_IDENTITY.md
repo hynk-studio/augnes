@@ -258,6 +258,17 @@ exclusive, coordinated operator window is still required: older installed
 clients do not understand the new record, and a lifecycle lock is not a machine-
 wide prohibition on independently authorized writers.
 
+A settled historical record does not acquire new process or effect authority
+after a reboot. Ordinary lifecycle inspection can accept device renumbering only
+when the original configuration bytes still match the record, current durable
+checkout identity matches that enrollment, and substituting just its enrolled
+device number reconstructs the exact historical repository binding. The record
+is never rewritten. Unreconstructable history, changed configuration or durable
+identity, malformed integrity and unfinished operations still refuse. Active
+recovery preparation, apply and replay retain their existing exact source,
+material, process and current-observation guards; this historical read exception
+does not refresh those witnesses or authorize repair.
+
 ### Non-circular, post-review operational handoff
 
 Source development does not authorize these commands on production. After review,

@@ -169,6 +169,50 @@ await run("lost-state-later-attempt-exit-diagnostic", async (f) => {
     assert.deepEqual(read(f.layout.ownership_recovery_path).evidence.manager.supervisor_failure_provenance, diagnostic);
     assert.equal(f.effects(), 1);
 }, { laterAttemptExit: true });
+await run("settled-history-after-device-renumbering", async (f) => {
+    const preview = await core.prepareCompanionOwnershipRecovery(f.options);
+    await core.applyCompanionOwnershipRecovery({ ...f.options, decision: preview.decision });
+    const recordBytes = fs.readFileSync(f.layout.ownership_recovery_path);
+    const configBytes = fs.readFileSync(f.layout.configuration_path);
+    const desiredBytes = fs.readFileSync(f.layout.desired_state_path);
+    const changedDevice = { ...f.options, testRepositoryPhysicalIdentityOverride: {
+        device: String(BigInt(f.layout.repository.device) + 1n), inode: f.layout.repository.inode,
+    } };
+    assert.equal((await core.inspectCompanionService(changedDevice)).status, "installed_stopped");
+    assert.equal((await core.inspectCompanionPreservation(changedDevice)).state.preservation_valid, true);
+    // The historical exception grants no recovery/effect admission.
+    await assert.rejects(core.prepareCompanionOwnershipRecovery(changedDevice), /test_override_refused/);
+    const refuse = async () => assert.equal((await core.inspectCompanionService(changedDevice)).reason,
+        "companion_service_recovery_record_invalid");
+    const record = read(f.layout.ownership_recovery_path);
+    const changedHistory = { ...record.evidence, repository_binding: "0".repeat(64) };
+    for (const invalid of [
+        { ...record, status: "retiring" },
+        { ...record, operation_binding: "0".repeat(64) },
+        { ...record, evidence: changedHistory, operation_binding: hash(JSON.stringify(changedHistory)) },
+    ]) {
+        json(f.layout.ownership_recovery_path, invalid);
+        await refuse();
+    }
+    fs.writeFileSync(f.layout.ownership_recovery_path, recordBytes);
+    for (const invalid of [
+        { ...f.configuration, installed_at: new Date(0).toISOString() },
+        { ...f.configuration, repository_identity: null },
+    ]) {
+        json(f.layout.configuration_path, invalid);
+        await refuse();
+    }
+    fs.writeFileSync(f.layout.configuration_path, configBytes);
+    assert.equal((await core.inspectCompanionService({ ...changedDevice,
+        testRepositoryPhysicalIdentityOverride: { ...changedDevice.testRepositoryPhysicalIdentityOverride,
+            inode: String(BigInt(f.layout.repository.inode) + 1n) },
+    })).reason, "companion_service_recovery_record_invalid");
+    assert.equal((await core.inspectCompanionService(changedDevice)).status, "installed_stopped");
+    assert(fs.readFileSync(f.layout.ownership_recovery_path).equals(recordBytes));
+    assert(fs.readFileSync(f.layout.configuration_path).equals(configBytes));
+    assert(fs.readFileSync(f.layout.desired_state_path).equals(desiredBytes));
+    assert.equal(f.effects(), 1);
+});
 await run("stale-decision-and-maintenance-refusal", async (f) => {
     const preview = await core.prepareCompanionOwnershipRecovery(f.options);
     await assert.rejects(core.applyCompanionOwnershipRecovery({ ...f.options, decision: { ...preview.decision, expires_at: new Date(0).toISOString() } }), /decision_stale/);

@@ -1819,6 +1819,25 @@ function recoveryMaterial(layout, key) {
   return captureStaleDecommissionMaterialSnapshot(layout[key], staleDecommissionAnchorForFile(layout, layout[key]));
 }
 
+function matchesSettledRecoveryRepository(layout, record) {
+  // A completed record is history, not a renewed process/effect witness. Old
+  // records bind a current-observation hash that includes the mount device.
+  // Accept only an exactly reconstructable enrollment-device observation,
+  // with unchanged configuration bytes and independently valid durable identity.
+  // Unknown historical observations and unfinished operations still fail closed.
+  if (record.status !== "settled") return false;
+  const stored = readRegularText(layout.configuration_path);
+  if (stored.state !== "valid" ||
+      record.evidence.material?.configuration_path?.sha256 !== sha256(stored.contents)) return false;
+  try {
+    const configuration = JSON.parse(stored.contents);
+    return compareCompanionCheckoutIdentity(configuration, layout.repository).valid &&
+      record.evidence.repository_binding === checkoutObservationBinding({
+        ...layout.repository, device: configuration.repository_device,
+      });
+  } catch { return false; }
+}
+
 function readOwnershipRecovery(layout) {
   const value = readRegularJson(layout.ownership_recovery_path);
   if (value.state === "missing") return null;
@@ -1826,7 +1845,8 @@ function readOwnershipRecovery(layout) {
   if (value.state !== "valid" || record?.contract !== OWNERSHIP_RECOVERY_CONTRACT ||
       record.service_identity !== layout.service_identity ||
       !["retiring", "settled"].includes(record.status) || !isObject(record.evidence) ||
-      record.evidence.repository_binding !== checkoutObservationBinding(layout.repository) ||
+      (record.evidence.repository_binding !== checkoutObservationBinding(layout.repository) &&
+       !matchesSettledRecoveryRepository(layout, record)) ||
       !/^[a-f0-9]{64}$/u.test(record.operation_binding ?? "") ||
       record.operation_binding !== sha256(JSON.stringify(record.evidence))) throw recoveryRefused("record_invalid");
   return record;
