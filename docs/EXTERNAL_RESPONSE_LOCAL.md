@@ -355,3 +355,11 @@ calculation, and attributable publication. These are development/setup and
 repeated-use steps, not measured user savings. This exposed scripted case is
 neither live-model judgment nor a new evaluation campaign; b02 PARTIAL and e01
 NO_OBSERVED_ADVANTAGE retain their original scope.
+
+## Explicit selected-source corpus reader (#1468)
+
+The [selected-source workflow](SELECTED_SOURCE_RETRIEVAL.md) adds read-only
+`inspect_corpus` and `retrieve_sources` operations over existing experience and
+material owners. The caller supplies a deliberately selected corpus and task
+query; current work recall, source access, sharing and correction rules remain
+unchanged. No service envelope is needed for these reads.

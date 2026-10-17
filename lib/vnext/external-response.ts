@@ -32,6 +32,7 @@ import {
   currentEnvelope,
   contactProcessor,
 } from "./external-response-transport.mjs";
+import { inspectSelectedCorpus, selectedCorpusInspection, retrieveSelectedSources } from "./selected-source-retrieval.mjs";
 
 type Scope = { workspace_id: string; project_id: string };
 export const externalProjection = (status: string, data: object = {}) => ({
@@ -273,6 +274,8 @@ export async function handleExternalOperation(value: unknown) {
         "discover",
         "read_experience",
         "material",
+        "inspect_corpus",
+        "retrieve_sources",
         "withdraw",
         "act",
         "close",
@@ -492,6 +495,18 @@ export async function handleExternalOperation(value: unknown) {
             availability: "locator_only",
           })),
         });
+      }
+      if (input.action === "inspect_corpus" || input.action === "retrieve_sources") {
+        keys(data, input.action === "inspect_corpus" ? ["corpus_ref"] : ["corpus_ref", "query", "expected_corpus_binding"]);
+        const snapshot = inspectSelectedCorpus({
+          corpus: material(db, scope, data.corpus_ref), projectKey,
+          readExperience: (r: string) => shared(db, scope, r),
+          readMaterial: (r: string, e: string) => material(db, scope, r, e),
+          readDependencies: (r: string) => dependencies(db, scope, [r])[0],
+        });
+        return result("available", input.action === "inspect_corpus"
+          ? selectedCorpusInspection(snapshot)
+          : retrieveSelectedSources(snapshot, data.query, data.expected_corpus_binding));
       }
       if (input.action === "material") {
         keys(data, ["ref"], ["experience_ref"]);

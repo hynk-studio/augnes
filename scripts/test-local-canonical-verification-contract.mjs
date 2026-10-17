@@ -1145,6 +1145,7 @@ const integrationChildren = [
   "companion-experience-use",
   "external-response",
   "external-response-selective",
+  "selected-source-retrieval",
   "execution-choice",
   "request-bound-review",
   "companion-method-outlook",
@@ -1289,6 +1290,9 @@ for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 90_000', 'requ
 const selectiveResponseRegistration = readCanonicalChildRegistration(integrationSource, "external-response-selective");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 90_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '...rootNode("scripts/test-external-response-selective.ts")'])
   requireText(selectiveResponseRegistration.block, fragment, "selective response owns disposable stores, loopback service, fresh correction consumers and natural-exit recovery settlement");
+const selectedSourceRegistration = readCanonicalChildRegistration(integrationSource, "selected-source-retrieval");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 90_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"mutable-module-state"', '...rootNode("scripts/test-selected-source-retrieval.ts")'])
+  requireText(selectedSourceRegistration.block, fragment, "selected source retrieval owns disposable stores, complete context, fresh file consumers and natural-exit recovery settlement");
 const requestReviewRegistration = readCanonicalChildRegistration(integrationSource, "request-bound-review");
 const executionChoiceRegistration = readCanonicalChildRegistration(integrationSource, "execution-choice");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-execution-choice.ts"'])
