@@ -94,6 +94,7 @@ import type {
 import type { TaskContextPacketV01 } from "../types/vnext/task-context-packet";
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
 import { vNextProjectControlSchemaSqlV01 } from "./db-migrations.mjs";
+import { runPersonalPerspectiveContinuationChecks } from "./personal-perspective-continuation-checks";
 
 const root = mkdtempSync(path.join(tmpdir(), "augnes-project-controls-"));
 const dbPath = path.join(root, "controls.db");
@@ -608,6 +609,7 @@ function migrationParity() {
 
 async function main() {
   try {
+    console.log(JSON.stringify({ personal_perspective_continuation: await runPersonalPerspectiveContinuationChecks(root) }));
     mkdirSync(projectARoot);
     mkdirSync(projectBRoot);
     mkdirSync(projectCRoot);
@@ -691,6 +693,8 @@ async function main() {
       projectA.project.project_id,
       "project-a",
     );
+    candidateA.entry.why_included =
+      "The maintenance task compares recurring upkeep; preserve the reviewed exception for short, reversible exploration.";
     const hiddenCandidateA = makeCandidate(
       workspace.workspace_id,
       projectA.project.project_id,
@@ -969,7 +973,11 @@ async function main() {
     assert.equal(eligibleGate.excluded_context.length, 0);
     assert.equal(gate.selected_context.length, 1);
     assert.equal(gate.excluded_context.length, 4);
-    assert(gate.selected_context[0]?.why_included.includes("project explicitly permits"));
+    assert.equal(
+      gate.selected_context[0]?.why_included,
+      candidateA.entry.why_included,
+      "project sharing permission must not replace the caller's task-specific inclusion reason",
+    );
     assert(gate.excluded_context.every((entry) => entry.why_excluded.length > 0));
     const boundedSameProjectExclusions = JSON.stringify(gate.excluded_context);
     for (const ineligibleCandidate of [unreviewed, stale, untrusted, wrongKind]) {
@@ -1126,6 +1134,13 @@ async function main() {
       1,
     );
     assert.equal(compiled.personal_perspective_selection.excluded_count, 0);
+    assert.equal(
+      compiled.later_packet.selected_context.find(
+        (entry) => entry.entry_id === candidateA.entry.entry_id,
+      )?.why_included,
+      candidateA.entry.why_included,
+      "the persisted preparation must retain the task-specific reason and exception",
+    );
     const compiledPacketBeforeShadow = canonicalizeProtocolValueV01(
       compiled.later_packet,
     );

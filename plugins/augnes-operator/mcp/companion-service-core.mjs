@@ -1819,23 +1819,22 @@ function recoveryMaterial(layout, key) {
   return captureStaleDecommissionMaterialSnapshot(layout[key], staleDecommissionAnchorForFile(layout, layout[key]));
 }
 
-function matchesSettledRecoveryRepository(layout, record) {
-  // A completed record is history, not a renewed process/effect witness. Old
-  // records bind a current-observation hash that includes the mount device.
-  // Accept only an exactly reconstructable enrollment-device observation,
-  // with unchanged configuration bytes and independently valid durable identity.
-  // Unknown historical observations and unfinished operations still fail closed.
+function settledRecoveryMatchesRenumberedCheckout(record, layout) {
   if (record.status !== "settled") return false;
-  const stored = readRegularText(layout.configuration_path);
-  if (stored.state !== "valid" ||
-      record.evidence.material?.configuration_path?.sha256 !== sha256(stored.contents)) return false;
-  try {
-    const configuration = JSON.parse(stored.contents);
-    return compareCompanionCheckoutIdentity(configuration, layout.repository).valid &&
-      record.evidence.repository_binding === checkoutObservationBinding({
-        ...layout.repository, device: configuration.repository_device,
-      });
-  } catch { return false; }
+  const witness = record.evidence.material?.configuration_path;
+  const device = witness?.parent?.device;
+  if (witness?.state !== "valid" || !validCanonicalInstalledStatIdentity(device, true)) return false;
+  const configuration = readRegularJson(layout.configuration_path);
+  if (configuration.state !== "valid" || !isObject(configuration.value) ||
+      !compareCompanionCheckoutIdentity(configuration.value, layout.repository).valid) return false;
+  // A settled record is history, not a new recovery grant. Its immutable
+  // observation must still match every current field except device, including
+  // the durable identity also checked against current enrollment above. The
+  // recorded material supplies a candidate device number, not a mount identity:
+  // require the exact original hash, never assume the two paths share a mount.
+  // Do not pin current configuration bytes to a historical operation; normal
+  // configuration/source validation still owns later supported updates.
+  return record.evidence.repository_binding === checkoutObservationBinding({ ...layout.repository, device });
 }
 
 function readOwnershipRecovery(layout) {
@@ -1845,10 +1844,10 @@ function readOwnershipRecovery(layout) {
   if (value.state !== "valid" || record?.contract !== OWNERSHIP_RECOVERY_CONTRACT ||
       record.service_identity !== layout.service_identity ||
       !["retiring", "settled"].includes(record.status) || !isObject(record.evidence) ||
-      (record.evidence.repository_binding !== checkoutObservationBinding(layout.repository) &&
-       !matchesSettledRecoveryRepository(layout, record)) ||
       !/^[a-f0-9]{64}$/u.test(record.operation_binding ?? "") ||
       record.operation_binding !== sha256(JSON.stringify(record.evidence))) throw recoveryRefused("record_invalid");
+  if (record.evidence.repository_binding !== checkoutObservationBinding(layout.repository) &&
+      !settledRecoveryMatchesRenumberedCheckout(record, layout)) throw recoveryRefused("record_invalid");
   return record;
 }
 
