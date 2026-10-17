@@ -1680,6 +1680,23 @@ tiny corpora. Add no index/ranking service without an observed need. Prior
 #1298/#1465 findings and #1470's separate prospective planning remain intact.
 This evidence grants no deciding qualification, adoption or follow-on authority.
 
+### Portable Web-to-native handoff evidence (#1475)
+
+The [registered integration](../../scripts/test-web-export-native.mjs) produces
+real D1-backed Web exports, invokes the local importer, and gives fresh native
+consumers only a permitted corpus/project and ordinary task input. The shared
+reader delivers complete attributed source text. A revised time changes the
+draft, old output remains historical, unselected additions leave dependencies
+unchanged and outside applicability yields unknown. A direct-export control
+produces equal output. Integrity/access/replay/size refusals and a real capacity
+failure preserve all native rows; existing native backup/restore supplies the
+fresh-process recovery check. Web/native bounds and assertions are unchanged.
+This is developer-exposed deterministic portability and quoting, not independent
+model judgment or comparative usefulness. Record setup/recurring calls, bytes,
+storage and latency separately; human curation and model-development burden are
+unmeasured. Retain this small explicit path, favor direct reading for one-off
+exports, and defer broader formats/automation without an observed need.
+
 ## Alpha and release evaluation
 
 ### Alpha

@@ -33,6 +33,7 @@ import {
   contactProcessor,
 } from "./external-response-transport.mjs";
 import { inspectSelectedCorpus, selectedCorpusInspection, retrieveSelectedSources } from "./selected-source-retrieval.mjs";
+import { admitWebExport } from "./web-export-admission";
 
 type Scope = { workspace_id: string; project_id: string };
 export const externalProjection = (status: string, data: object = {}) => ({
@@ -496,14 +497,19 @@ export async function handleExternalOperation(value: unknown) {
           })),
         });
       }
-      if (input.action === "inspect_corpus" || input.action === "retrieve_sources") {
-        keys(data, input.action === "inspect_corpus" ? ["corpus_ref"] : ["corpus_ref", "query", "expected_corpus_binding"]);
-        const snapshot = inspectSelectedCorpus({
-          corpus: material(db, scope, data.corpus_ref), projectKey,
+      const inspectCorpus = (corpusRef: string) => inspectSelectedCorpus({
+          corpus: material(db, scope, corpusRef), projectKey,
           readExperience: (r: string) => shared(db, scope, r),
           readMaterial: (r: string, e: string) => material(db, scope, r, e),
           readDependencies: (r: string) => dependencies(db, scope, [r])[0],
         });
+      if (input.action === "import_web_export") {
+        const admitted = admitWebExport({ db, scope, projectKey, current, data, inspectCorpus });
+        return result(admitted.status, admitted);
+      }
+      if (input.action === "inspect_corpus" || input.action === "retrieve_sources") {
+        keys(data, input.action === "inspect_corpus" ? ["corpus_ref"] : ["corpus_ref", "query", "expected_corpus_binding"]);
+        const snapshot = inspectCorpus(data.corpus_ref);
         return result("available", input.action === "inspect_corpus"
           ? selectedCorpusInspection(snapshot)
           : retrieveSelectedSources(snapshot, data.query, data.expected_corpus_binding));

@@ -985,6 +985,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "web-export-native",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state", "backup-restore"],
+      label: "actual Web export, atomic native admission and fresh selected-source use with recovery",
+      ...rootNode("scripts/test-web-export-native.mjs"),
+      timeoutMs: 120_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "execution-choice",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],

@@ -1,6 +1,7 @@
 import { browserSceneJourney } from "./browser-web-planning-scenes.mjs";
 import { browserSceneResponseJourney } from './browser-web-planning-scene-responses.mjs';
 import { CDP } from './web-planning-cdp.mjs';
+import { observeWebPlanningInterceptions } from './web-planning-interception.mjs';
 import { browserStoryJourney } from './browser-web-planning-story.mjs';
 import { browserFileJourney } from './browser-web-planning-files.mjs';
 import { browserHistoryJourney } from './browser-web-planning-history.mjs';
@@ -24,13 +25,14 @@ const owned=new Set(),clients=[];let processRecord,local;let external=0,exceptio
 const requests=[],responses=[],interceptionErrors=[],acknowledgementChecks=[];
 const requestSources=new WeakMap();
 async function wait(fn,label){const end=Date.now()+15000;while(Date.now()<end){if(await fn())return;await delay(80);}throw new Error('browser_wait:'+label);}
-async function click(c,id){await c.eval(`document.getElementById(${JSON.stringify(id)}).click()`);}
+async function click(c,id){c.interceptions.mark('ui_click',{element_id:id});await c.eval(`document.getElementById(${JSON.stringify(id)}).click()`);}
 async function set(c,id,value){await c.eval(`(()=>{const e=document.getElementById(${JSON.stringify(id)});e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('input',{bubbles:true}));})()`);}
 async function state(c,expression){return c.eval(expression);}
 async function visible(c,id){return c.eval(`!!document.getElementById(${JSON.stringify(id)})&&!document.getElementById(${JSON.stringify(id)}).hidden`);}
 async function saved(c,n){await wait(()=>c.eval(`document.getElementById('saved-label')?.textContent.startsWith('Saved revision ${n} ')`),'saved '+n);}
 async function page(debug,origin){const target=await (await fetch(`http://127.0.0.1:${debug}/json/new?about:blank`,{method:'PUT'})).json();const c=await new CDP(target.webSocketDebuggerUrl).open();clients.push(c);
  c.targetId=target.id;c.origin=origin;
+ c.interceptions=observeWebPlanningInterceptions(c,{targetId:target.id,origin});
  c.direct=origin.startsWith('https://127.0.0.1:');
  if(c.direct)await c.send('Security.setIgnoreCertificateErrors',{ignore:true}); // Owned loopback workerd certificate only; external traffic is refused below.
  await c.send('Network.enable');await c.send('Runtime.enable');await c.send('Page.enable');
@@ -41,7 +43,7 @@ async function page(debug,origin){const target=await (await fetch(`http://127.0.
    if(m.method==='Network.responseReceived'&&m.params.response.url.startsWith(origin+'/api/'))responses.push({path:new URL(m.params.response.url).pathname,status:m.params.response.status});
    if(m.method==='Network.loadingFailed'&&!expectedFailures.delete(m.params.requestId))unexpectedFailures++;});
  await c.send('Fetch.enable',{patterns:[{urlPattern:'*',requestStage:'Request'}]});
- c.handlers.push(m=>{if(m.method==='Fetch.requestPaused')intercept(c,m.params,origin).catch(e=>interceptionErrors.push(e.message));});
+ c.handlers.push(m=>{if(m.method==='Fetch.requestPaused')intercept(c,m.params,origin).catch(e=>interceptionErrors.push(e.interceptionRecord??{message:e.message,stack:e.stack}));});
  return c;}
 async function intercept(c,p,origin){
  const u=p.request.url;
@@ -104,7 +106,7 @@ async function sceneResponseBarrier(c,suffix,expectedStatus=200){
  assert(!c.sceneResponseBarrier);const barrier={suffix,response:null};c.sceneResponseBarrier=barrier;
  await c.send('Fetch.enable',{patterns:[{urlPattern:'*',requestStage:'Request'},{urlPattern:'*'+suffix,requestStage:'Response'}]});
  return {wait:()=>wait(()=>!!barrier.response,'scene response '+suffix),release:async failure=>{
-   assert(barrier.response);const p=barrier.response;assert.equal(p.responseStatusCode,expectedStatus);c.sceneResponseBarrier=null;
+   assert(barrier.response);const p=barrier.response;assert.equal(p.responseStatusCode,expectedStatus);c.interceptions.mark('response_barrier_release',{request_id:p.requestId,suffix,failure:failure??null});c.sceneResponseBarrier=null;
    if(failure==='disconnect'){expectedFailures.add(p.networkId);await c.send('Fetch.failRequest',{requestId:p.requestId,errorReason:'ConnectionClosed'});}
    else if(failure==='unavailable')await c.send('Fetch.fulfillRequest',{requestId:p.requestId,responseCode:503,responseHeaders:[{name:'Content-Type',value:'application/json'},{name:'X-Web-Planning-Response',value:'1'}],body:Buffer.from('{"error":"storage_unavailable"}').toString('base64')});
    else await c.send('Fetch.continueRequest',{requestId:p.requestId});
@@ -161,6 +163,7 @@ async function retainedAcknowledgement(c,n,failure){
  assert.equal(await visible(c,'refresh-list'),false);assert.match(await c.eval("$('status').textContent"),/Work list refreshed/);
  acknowledgementChecks.push({reply:c.acknowledgedReply.path.endsWith('/resolve')?'resolve':'save',failure,revision:n,list_recovery_requests:1,additional_writes:0,stored_revisions:stored});
 }
+async function closeLocalRuntime(){for(const c of clients)c.interceptions.mark('runtime_close_requested',{runtime_origin:local.origin});await local.close();}
 async function navigate(c,url){await c.send('Page.navigate',{url});await wait(()=>c.eval("document.readyState==='complete'"),'page complete');}
 async function login(c,origin){await navigate(c,origin+'/_local/login');await wait(()=>c.eval("!!document.querySelector('form button')"),'login');await c.eval("document.querySelector('form button').click()");await wait(()=>c.eval("document.getElementById('list-state')?.textContent!=='Reading saved work…'&&!!document.getElementById('new-work')"),'workspace');}
 async function reopen(c){await wait(()=>c.eval("document.querySelectorAll('#work-list button').length>0"),'saved list');await c.eval("document.querySelector('#work-list button').click()");await wait(()=>visible(c,'editor'),'editor');}
@@ -213,7 +216,7 @@ try {
  await click(b,'saved-context');await wait(()=>b.eval("document.getElementById('status')?.textContent.includes('Access denied')"),'access loss clears private view');
  assert(!await b.eval("document.body.innerText.includes('Evening noise')"));
  await navigate(a,'about:blank');await navigate(b,'about:blank');
- await local.close();local=null;local=await startLocal(restart);await login(a,origin);await reopen(a);await saved(a,4);
+ await closeLocalRuntime();local=null;local=await startLocal(restart);await login(a,origin);await reopen(a);await saved(a,4);
  assert.equal(await a.eval("document.getElementById('goal').value"),'Survives a lost response and restart');await click(a,'saved-context');await wait(()=>a.eval("document.querySelector('#context-view [data-revision]')?.dataset.revision==='4'"),'reopened context');checks.push('browser storage cleared, workerd restart, server reopen');
  for(const [width,height] of [[390,844],[1200,800]]){await a.send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<500});assert(await a.eval('document.documentElement.scrollWidth<=window.innerWidth'),'responsive overflow');}
  assert(await a.eval("[...document.querySelectorAll('input:not([type=hidden]),textarea,select')].every(e=>!!document.querySelector('label[for=\"'+e.id+'\"]'))"));checks.push('responsive widths and labelled keyboard controls');
@@ -262,12 +265,12 @@ try {
    await requestsOnly(a);await login(a,origin);await reopen(a);await settled(a);
  }
  await browserBranchJourney({a,debug,origin,page,click,set,settled,saved,wait,visible,navigate,login,requestsOnly,requests,responses,revisionCount,readWindow,contextRequest,overlapCapacity,checks,
-   restart:async()=>{const options={root:path.join(root,'runtime'),port:Number(new URL(origin).port),bindings:local.env,code:local.code};await local.close();local=null;local=await startLocal(options);}});
+   restart:async()=>{const options={root:path.join(root,'runtime'),port:Number(new URL(origin).port),bindings:local.env,code:local.code};await closeLocalRuntime();local=null;local=await startLocal(options);}});
  assert.deepEqual(interceptionErrors,[]);
  await click(a,'signout');await wait(()=>a.eval("document.title==='Local synthetic workspace'"),'signout');assert(!await a.eval("document.body.innerText.includes('Evening noise')"));
  // The same complete product journey now enters the compiled direct Worker
  // through workerd's platform Access simulation, without local login cookies.
- for(const c of clients)await navigate(c,'about:blank');await local.close();local=null;
+ for(const c of clients)await navigate(c,'about:blank');await closeLocalRuntime();local=null;
  const artifact=path.join(root,'direct-artifact');await buildCloudflarePlanning(artifact);
  const directOptions={root:path.join(root,'direct-runtime'),direct:true,code:await readFile(path.join(artifact,'worker.js'),'utf8'),
    runtimeConfig:JSON.parse(await readFile(path.join(artifact,'wrangler.json'),'utf8')),migrationsFolder:path.join(artifact,'migrations')};
@@ -275,13 +278,13 @@ try {
  async function accessLogin(c){await local.setOptions({access:accessSimulation});await navigate(c,directOrigin+'/');await wait(()=>c.eval("!!document.getElementById('new-work')&&document.getElementById('list-state')?.textContent!=='Reading saved work…'"),'Access workspace');}
  const d=await page(debug,directOrigin);await accessLogin(d);const directStart=checks.length;
  await browserBranchJourney({a:d,debug,origin:directOrigin,page,click,set,settled,saved,wait,visible,navigate,login:accessLogin,requestsOnly,requests,responses,revisionCount,readWindow,contextRequest,overlapCapacity,checks,
-   restart:async()=>{const bindings=local.env;await local.close();local=null;local=await startLocal({...directOptions,port:Number(new URL(directOrigin).port),bindings});}});
+   restart:async()=>{const bindings=local.env;await closeLocalRuntime();local=null;local=await startLocal({...directOptions,port:Number(new URL(directOrigin).port),bindings});}});
  for(let i=directStart;i<checks.length;i++)checks[i]='direct Access simulation: '+checks[i];
  console.log('web-planning-browser: direct complete branch and comparison-recovery journey');
  await browserCapacityJourney({a:d,click,set,settled,saved,wait,navigate,origin:directOrigin,downloads:path.join(root,'capacity-downloads'),requests,responses,checks});
  await browserFileJourney({a:d,debug,origin:directOrigin,page,click,set,settled,saved,wait,navigate,requestsOnly,root,checks});
  await browserHistoryJourney({a:d,debug,origin:directOrigin,page,click,set,settled,saved,wait,navigate,checks,
-   restart:async()=>{for(const c of clients)await navigate(c,'about:blank');const bindings=local.env;await local.close();local=null;
+   restart:async()=>{for(const c of clients)await navigate(c,'about:blank');const bindings=local.env;await closeLocalRuntime();local=null;
      local=await startLocal({...directOptions,port:Number(new URL(directOrigin).port),bindings,code:advancedClock(directOptions.code)});}});
  for(const boundary of ['redirect','challenge']){
    d.accessBoundary=boundary;await click(d,'saved-context');await settled(d);
@@ -296,24 +299,24 @@ try {
  assert.equal(await d.eval('window.name'),'true');
  assert.equal(d.logoutObserved,true);assert.equal((await local.mf.dispatchFetch(directOrigin+'/api/works')).status,403);
  checks.push('direct sign-out clears tab before navigating to Access logout; actual missing ctx.access refuses subsequent reads; login redirect/HTML challenge clears and latches private state; provider cookie revocation requires hosted acceptance');
- for(const c of clients)await navigate(c,'about:blank');await local.close();local=null;
+ for(const c of clients)await navigate(c,'about:blank');await closeLocalRuntime();local=null;
  let storyDestination=false;const storyPort=await availablePort();
  const storyOptions=()=>({...directOptions,root:path.join(root,storyDestination?'story-recovered':'story-original'),port:storyPort});
  local=await startLocal(storyOptions());const storyOrigin=local.origin;const story=await page(debug,storyOrigin);
  await browserStoryJourney({a:story,debug,origin:storyOrigin,page,click,set,settled,saved,wait,navigate,root,checks,
-   replaceRuntime:async replacement=>{for(const c of clients)await navigate(c,'about:blank');const bindings=local.env;await local.close();local=null;if(replacement)storyDestination=true;local=await startLocal({...storyOptions(),bindings});},
+   replaceRuntime:async replacement=>{for(const c of clients)await navigate(c,'about:blank');const bindings=local.env;await closeLocalRuntime();local=null;if(replacement)storyDestination=true;local=await startLocal({...storyOptions(),bindings});},
    countRows:async()=>({revisions:(await local.db.prepare('SELECT count(*) n FROM web_planning_revision').first()).n,files:(await local.db.prepare('SELECT count(*) n FROM web_planning_file').first()).n})});
- for(const c of clients)await navigate(c,'about:blank');await local.close();local=null;
+ for(const c of clients)await navigate(c,'about:blank');await closeLocalRuntime();local=null;
  let sceneDestination=0;const scenePort=await availablePort();
  const sceneOptions=()=>({...directOptions,root:path.join(root,sceneDestination?'scenes-recovered-'+sceneDestination:'scenes-original'),port:scenePort});
  local=await startLocal(sceneOptions());const sceneOrigin=local.origin;const scene=await page(debug,sceneOrigin);
  await browserSceneResponseJourney({a:scene,debug,origin:sceneOrigin,page,click,set,settled,saved,wait,navigate,root,checks,requests,barrier:sceneResponseBarrier});
  await browserSceneJourney({a:scene,debug,origin:sceneOrigin,page,click,set,settled,saved,wait,navigate,root,checks,requestsOnly,
    barrier:sceneResponseBarrier,
-   replaceRuntime:async replacement=>{for(const c of clients)await navigate(c,'about:blank');const bindings=local.env;await local.close();local=null;if(replacement)sceneDestination++;local=await startLocal({...sceneOptions(),bindings});},
+   replaceRuntime:async replacement=>{for(const c of clients)await navigate(c,'about:blank');const bindings=local.env;await closeLocalRuntime();local=null;if(replacement)sceneDestination++;local=await startLocal({...sceneOptions(),bindings});},
    countRows:async()=>({revisions:(await local.db.prepare('SELECT count(*) n FROM web_planning_revision').first()).n,files:(await local.db.prepare('SELECT count(*) n FROM web_planning_file').first()).n})});
  assert.deepEqual(interceptionErrors,[]);
  assert.equal(exceptions,0);assert.equal(external,0);assert.equal(unexpectedFailures,0);assert.equal(expectedFailures.size,0);
  console.log(JSON.stringify({web_planning_browser_checks:checks,acknowledgement_checks:acknowledgementChecks,actual_agent_read:false,sites_ingress_verified:false,cloudflare_access_hosted_verified:false,external_requests:external,script_exceptions:exceptions}));
-} finally {for(const c of clients)await c.close();if(processRecord)await terminateOwnedProcessTree(processRecord);if(local)await local.close();assert.equal(owned.size,0);console.log('web_planning_browser_cleanup_complete');}
+} finally {for(const c of clients)await c.close();if(processRecord)await terminateOwnedProcessTree(processRecord);if(local)await closeLocalRuntime();assert.equal(owned.size,0);console.log(JSON.stringify({web_planning_interception_diagnostics:clients.map(c=>c.interceptions.summary())}));console.log('web_planning_browser_cleanup_complete');}
 function privateViewCleared(s){return s.work===null&&s.saved===null&&s.pending===null&&s.saveTicket===null&&!s.body.includes('Private material')&&!s.body.includes('Saved revision');}

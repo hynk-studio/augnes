@@ -1,4 +1,5 @@
 import { checkDirections } from "./web-planning-direction-checks.mjs";
+import { checkWebPlanningInterceptionDiagnostics } from './test-web-planning-interception.mjs';
 import { checkSceneContinuity } from "./web-planning-scene-checks.mjs";
 import { checkFiles } from './web-planning-file-checks.mjs';
 import { checkStoryWriting } from './web-planning-story-checks.mjs';
@@ -19,6 +20,7 @@ import { checkCapacity } from './web-planning-capacity-checks.mjs';
 import { checkBranching } from './web-planning-branch-checks.mjs';
 import { checkCloudflarePlanning } from './web-planning-cloudflare-checks.mjs';
 const root=process.env.AUGNES_CANONICAL_TEMP_ROOT;if(!root)throw new Error('owned_test_root_required');
+console.log(JSON.stringify({web_planning_interception_diagnostics_contract:await checkWebPlanningInterceptionDiagnostics()}));
 let local;const open=[];let checks=0;
 function passed(name){checks++;console.log('web-planning: '+name);}
 const scope={workspace_id:fixtureScope.workspace_id,project_id:fixtureScope.project_id};
