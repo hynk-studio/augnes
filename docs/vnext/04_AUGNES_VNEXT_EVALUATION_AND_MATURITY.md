@@ -1657,6 +1657,29 @@ database. No new continuity score, automatic goal editor, standing model judge,
 UI, or runtime mechanism is required. Implementation and sequencing remain
 owned by the roadmap and the existing bounded issues.
 
+### Selected-source A/B implementation evidence (#1468)
+
+The [registered integration](../../scripts/test-selected-source-retrieval.ts)
+uses developer-exposed synthetic sources, expectations frozen outside consumer
+input, and fresh deterministic consumers receiving a permitted project/corpus
+entry and task/query. Coding precedes the small textual contrast. Both use the
+[same retrieval caller](../../scripts/selected-source-use.mjs). Exported evidence
+contains actual delivered groups, generated/executed code, prose, correction
+dependencies, non-use, timings, bytes and cleanup.
+
+Separate retrieval, delivery, actual use and checked outputs from comparative
+benefit and model judgment. The direct-read control receives the same corpus,
+inspects all groups and produces equal outputs. Its additional calls in this
+constructed case do not establish general efficiency. Source selection, typed
+interpretation and consumer construction are authored scaffolding; there is no
+held-out model judgment, live user study, broad natural-language applicability
+or paid evaluation. Retain original development failures and costs separately.
+
+Retain the bounded reader for independent review and favor direct reading for
+tiny corpora. Add no index/ranking service without an observed need. Prior
+#1298/#1465 findings and #1470's separate prospective planning remain intact.
+This evidence grants no deciding qualification, adoption or follow-on authority.
+
 ## Alpha and release evaluation
 
 ### Alpha

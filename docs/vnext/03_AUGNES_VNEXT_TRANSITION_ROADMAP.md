@@ -142,12 +142,11 @@ annotation-only change. The earlier direct-correction and successor evidence
 remains separate. No graph, schema, model allocation or installed adoption is
 introduced. The same-PR #1469 event-row validation correction preserves these
 outcomes and checks the supported row contract before calculation or cached reuse.
-#1466 and #1465 have merged. The explicitly continued #1469 integration preserves
-both incoming increments and the accepted event-row correction. Candidate-specific
-qualification and independent receipt validation are recorded with that PR;
-earlier focused checks and other candidates' receipts do not qualify this head.
-Independent review, user merge and installed adoption remain separate. Broader
-P3.1/P5.2 and the historical PARTIAL/SIMPLIFY findings
+#1466, #1465 and #1469 have merged. The #1469 integration preserved both
+incoming increments and the accepted event-row correction. Its candidate-specific
+qualification, independent receipt validation and user merge are recorded with
+that PR; its receipt does not qualify a later head. Installed adoption remains
+separate. Broader P3.1/P5.2 and the historical PARTIAL/SIMPLIFY findings
 remain open or unchanged according to their original owners.
 
 ## Current: request-bound review implementation (#1433)
@@ -5193,6 +5192,32 @@ transfer, policy, Stage 7, and automatic successor authority remain false.
 Research engines may explore, compare, challenge, infer, predict, and propose.
 Their output is not truth, accepted Perspective, user decision, Transition,
 execution authority, or authority expansion.
+
+## Selected-source implementation increment A/B (#1468)
+
+The [commissioned increment](https://github.com/hynk-studio/augnes/issues/1468#issuecomment-6213957209)
+connects an explicitly selected corpus of existing experience/material records
+to bounded retrieval and fresh successors. The [workflow](../SELECTED_SOURCE_RETRIEVAL.md)
+reuses source admission, material storage, explicit sharing, correction and
+recovery owners. It adds read-only corpus inspection/retrieval; current-work
+recall and Resume retain their boundaries.
+
+The registered deterministic integration produces/executes a coding artifact
+and writes a small textual output through the same retrieval implementation.
+It covers corrections, independent material, unrelated additions, non-use,
+restart/backup reconstruction and withdrawn/missing sources. These are mechanism
+and scripted-use observations. They do not establish human/model use, comparative
+usefulness, installed adoption or deciding Mac qualification. Equal direct-read
+control outputs do not establish advantage. #1298/#1465 conclusions are unchanged.
+
+This increment is Draft review material; #1468 stays open. After the #1465 and
+#1469 user merges, the explicitly continued #1471 integrates current main and
+repairs the independent inventory contract for its registered retrieval child.
+Its own exact-candidate qualification and separate receipt validation are required;
+focused observations and other candidates' receipts do not establish them.
+#1470 remains the independently authored planning PR; this additive implementation
+status does not duplicate its prospective plan. AML, new provider experiments,
+service changes and automatic follow-on remain outside this scope.
 
 ## Compatibility and historical work
 
