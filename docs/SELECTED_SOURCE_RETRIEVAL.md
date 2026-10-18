@@ -1,8 +1,9 @@
 # Explicit selected-source retrieval
 
-This #1468 increment supplies complete selected source context to a new task
-through a shared zero-model reader. It is Draft implementation material;
-installed adoption and deciding Canonical qualification are outside this task.
+The #1468 reader supplies complete selected source context to a new task
+through a shared zero-model path. The #1478 increment adds explicit incremental
+collections and an opt-in lexical question mode. Candidate verification and
+installed adoption remain separate from these source capabilities.
 
 ## Source owners and gap
 
@@ -50,9 +51,10 @@ reading requires project/share access, not a processor/model budget.
    Output may use existing material persistence with exact dependency references
    inside its existing bounds.
 5. Add updates through `correct`. An acknowledged correction is discoverable in
-   a fresh process under the same corpus. Selecting an unrelated new experience
-   or excluding one requires deliberately saving/selecting a new manifest.
-   Old manifests remain historical and subject to current access.
+   a fresh process under the same corpus. Adding a newly admitted experience
+   can instead use the explicit collection below. Excluding a source requires
+   deliberately selecting a new corpus/collection. Old selections remain
+   historical and subject to current access.
 
 Manifest JSON (references below are placeholders):
 
@@ -101,7 +103,7 @@ visible together; consumers must not ignore them after choosing a snippet.
 | Output | 4 whole groups / 131,072 serialized result-array bytes; oversize groups omitted with `truncated: true` |
 | Work | Up to 16 dependency reads over the existing 2,048-record workspace ceiling, plus 32 material reads; no network or indexing |
 
-Matching spans each group's title, conditions, assessment, corrections and
+Default literal matching spans each group's title, conditions, assessment, corrections and
 textual material. Locators are not searched. Ordering is stable exact identity,
 not relevance optimization. Text/plain, text/markdown, text/javascript and
 application/json are searched; binary bytes are delivered if another part
@@ -117,7 +119,130 @@ disposable body-loss fault proves refusal, not a new product deletion policy.
 Binding observations do not reserve permissions after delivery. Current-work
 recall, withheld locators, full report groups and Resume retain their boundaries.
 
-## Focused evidence
+## Incremental collection and ordinary questions (#1478)
+
+The demonstrated workflow is a staff-review workshop notice assembled from whole
+Web-export notes. At intake main `510e6d088830af7ad1fcbc1e0a61bbbb89729c9e`, each
+Web import created a new immutable corpus; a successor could not select one
+collection and discover subsequently selected additions. The eight-word question
+“What should visitors know about the library workshop?” also returned zero groups
+under literal all-term matching, although the source described that workshop.
+This justifies an explicit collection and optional lexical question interpretation,
+without changing any existing corpus, material, scan, output or literal-query limit.
+
+Use the existing importer to admit whole selected files and retain its `corpus_ref`.
+Existing native `put_material`/`publish` corpora are accepted too. Select those
+admitted references through `augnes_external_repository_work` or the same local
+`handleExternalOperation` entry. A local runnable example follows; environment,
+registered target and configured access are the existing external owner's inputs:
+
+```sh
+node --import tsx --input-type=module -e '
+import { handleExternalOperation } from "./lib/vnext/external-response.ts";
+const [root, corpus] = process.argv.slice(1);
+const current = await handleExternalOperation({repository_root: root, action: "read"});
+console.log(JSON.stringify(await handleExternalOperation({repository_root: root,
+  expected_material_ref: current.material_basis, action: "collect_sources", data: {
+    key: "workshop-selection-1", collection_ref: null, expected_head: null,
+    name: "Workshop source folder", corpus_refs: [corpus]
+  }}), null, 2));
+' /absolute/registered/target 'sha256:<admitted-corpus>'
+```
+
+Retain the returned **collection_ref**. For each additional batch:
+
+1. Admit whole selected material with its existing producer; retain its corpus ref.
+2. `inspect_corpus {collection_ref}` returns `collection_name`, the current
+   `collection_head` and binding.
+3. Call `collect_sources` with a new operation `key`, the same collection ref/name,
+   `expected_head: collection_head`, and only the newly selected `corpus_refs`.
+   Supply the current native `expected_material_ref` from `read`.
+4. Retain the acknowledgement. For an uncertain result, deliberately replay the
+   identical request; do not replace its key or predecessor. The acknowledgement
+   identifies that addition's historical head, not an implicitly current head.
+
+One call accepts at most eight existing corpus refs. It merges whole groups into
+a new immutable corpus with deduplication by experience identity. A different
+source declaration for the same experience refuses. The same revision/attribution
+can therefore never be silently rewritten. Exact replay retains identical evidence
+and operation rows; conflicting replay or stale new writes roll back every change.
+Re-selecting an already present source under a new key adds only a bounded history
+entry, not duplicate evidence. The existing 64-event stream and workspace storage
+bounds apply. Exhaustion refuses; there is no eviction, automatic reset or limit lift.
+The collection history and snapshots use existing external records/materials;
+there is no new table, index, background subscription or model dependency.
+
+A successor receives only the authorized project/collection and its task question:
+
+```sh
+node --import tsx --input-type=module -e '
+import { handleExternalOperation } from "./lib/vnext/external-response.ts";
+import { retrieveCollectionForSuccessor, recheckBeforeUse } from "./scripts/selected-source-use.mjs";
+const [root, collection, question] = process.argv.slice(1);
+const op = (action, data) => handleExternalOperation({repository_root:root, action, data});
+const found = await retrieveCollectionForSuccessor(op, collection, question);
+console.log(JSON.stringify(await recheckBeforeUse(op, found, question), null, 2));
+' /absolute/registered/target 'sha256:<collection-ref>' \
+  'What should visitors know about the library workshop?'
+```
+
+Both reader actions accept exactly one of `corpus_ref` or `collection_ref`.
+The latter explicitly selects current collection membership; immutable corpus
+reads remain fixed. Collection head and live correction context participate in
+the binding, so an intervening addition/correction refuses before-use rechecking.
+Every read rechecks original permissions. Share withdrawal and configuration
+removal still refuse, including via old collections. Recovery validates selection
+history against its immutable input corpora and rebuilds the same projection.
+Existing copies are not recalled. New membership grants no sharing or execution.
+
+`retrieve_sources` defaults to the unchanged literal contract. Its optional
+`query_mode: "question"` extracts Unicode letter/number words, removes a fixed
+English function-word list, matches **any** remaining term, and orders by distinct
+term overlap then exact identity. It reports the interpreted `query_terms`.
+The same 160-character/eight-term bounds apply after interpretation; empty or
+oversized term sets refuse. There are no aliases, stemming, embeddings or inferred
+facts. Questions without shared vocabulary can miss; matches can be non-applicable.
+Whole-group, four-result and byte bounds remain in force, with explicit omissions.
+A miss is bounded, and neither ranking nor time establishes truth or supersession.
+
+### Runnable workflow evidence and decision
+
+Run the existing Web producer/import/use/recovery integration:
+
+```sh
+node --import tsx scripts/test-web-export-native.mjs /absolute/new/evidence-directory
+node --import tsx scripts/test-selected-source-retrieval.ts
+```
+
+The first command exports `collection/summary.json`, original Web exports,
+`collection-*/task.json`, `delivered.json`, `draft.txt`, and output/dependency records.
+It exercises actual local Web saves/exports, native admission, a stable collection,
+a relevant later revision, an explicitly selected garden addition, connected
+corrections and a conflicting staff statement. Fresh consumers write a staff-review
+draft quoting originals and corrections, preserve booking context, and leave the
+conflict unresolved. Evaluator checks/answer locators are absent from task input.
+The second integration covers shared-source/correction withdrawal and the private
+HTTP reader using a collection. The existing small limits remain intentional.
+
+The exposed development observation admitted three selected source groups. The
+question delivered two relevant groups, with the garden retrievable for its own
+question. Adding the garden left output bytes and used dependencies identical;
+corrections changed actual output. Recovery retained the output and source bindings.
+The direct read of the same permitted collection produced identical prose. This is
+scripted lexical matching and quote assembly, **not observed model judgment**, a
+held-out test, publishable resolution of conflicting times, or broad language use.
+
+Preparation is three whole-file selections/imports, one collection creation and
+two additions, plus explicitly authored correction statements. No per-question
+manifest or fact mapping is supplied. The report records calls, delivered bytes,
+storage and operation/consumer durations; human preparation time and development
+model tokens are unmeasured. No source repair was needed in the successful path;
+a development fixture initially used an unsupported note label and was corrected.
+Retain the explicit collection capability; prefer direct reading for one-off tiny
+inputs, and stop expansion here. No observed question warrants a second domain,
+new index, capacity campaign, model dependency or AML participation.
+
+## Earlier focused evidence
 
 Under admitted resource owners and the repository toolchain:
 

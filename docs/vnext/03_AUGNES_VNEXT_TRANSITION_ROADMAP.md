@@ -5231,6 +5231,26 @@ assignment; later current-main integration and candidate-specific qualification
 require explicit continuation. #1472/#1474 and documentation #1470/#1473 remain
 separate owners. No installed adoption, hosted deployment or automatic next task.
 
+## Incremental selected sources for successor work (#1478)
+
+This candidate extends the merged #1471 and #1476 source owners from intake main
+`510e6d088830af7ad1fcbc1e0a61bbbb89729c9e`. The selected workflow is a staff-review
+library workshop notice using whole Web-export text. Its demonstrated gaps were
+replacement-manifest preparation for additions and a literal miss for an ordinary
+question. The [supported path](../SELECTED_SOURCE_RETRIEVAL.md#incremental-collection-and-ordinary-questions-1478)
+adds explicit collection selection/additions and optional bounded lexical questions.
+It retains existing corpus/storage/output limits, permissions and zero-model paths.
+
+The existing Web integration now proves actual admission, a stable collection,
+fresh successor output, relevant and unrelated additions, connected corrections,
+unresolved conflict, exact/conflicting replay and supported backup/restore. Shared
+source withdrawal/private HTTP checks remain in the selected-source integration.
+The output is deterministic staff-review quoting, with direct reading producing the
+same prose; no observed model use or general benefit is claimed. This is one focused
+Draft increment. Candidate-specific planner verification remains distinct from these
+development observations. #1470/#1473/#1454 retain their separate planning owners.
+No installed adoption, permission expansion, AML or automatic next campaign follows.
+
 ## Compatibility and historical work
 
 Current compatibility paths remain until a separately authorized phase proves

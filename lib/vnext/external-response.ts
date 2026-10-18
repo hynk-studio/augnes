@@ -34,6 +34,7 @@ import {
 } from "./external-response-transport.mjs";
 import { inspectSelectedCorpus, selectedCorpusInspection, retrieveSelectedSources } from "./selected-source-retrieval.mjs";
 import { admitWebExport } from "./web-export-admission";
+import { collectSelectedSources, inspectSelectedCollection } from "./selected-source-collection.mjs";
 
 type Scope = { workspace_id: string; project_id: string };
 export const externalProjection = (status: string, data: object = {}) => ({
@@ -503,16 +504,27 @@ export async function handleExternalOperation(value: unknown) {
           readMaterial: (r: string, e: string) => material(db, scope, r, e),
           readDependencies: (r: string) => dependencies(db, scope, [r])[0],
         });
+      const collectionOwners = { projectKey, readOwn: own,
+        readRecords: (stream: string) => records(db, scope, stream),
+        readMaterial: (r: string) => material(db, scope, r), inspectCorpus,
+        putMaterial: (metadata: any, base64: string) => putMaterial(db, scope, metadata, base64),
+        append: (value: any, head: any) => append(db, scope, value, head) };
+      if (input.action === "collect_sources") {
+        const collected = collectSelectedSources(data, current, collectionOwners);
+        return result(collected.status, collected);
+      }
       if (input.action === "import_web_export") {
         const admitted = admitWebExport({ db, scope, projectKey, current, data, inspectCorpus });
         return result(admitted.status, admitted);
       }
       if (input.action === "inspect_corpus" || input.action === "retrieve_sources") {
-        keys(data, input.action === "inspect_corpus" ? ["corpus_ref"] : ["corpus_ref", "query", "expected_corpus_binding"]);
-        const snapshot = inspectCorpus(data.corpus_ref);
+        keys(data, input.action === "inspect_corpus" ? [] : ["query", "expected_corpus_binding"],
+          input.action === "inspect_corpus" ? ["corpus_ref", "collection_ref"] : ["corpus_ref", "collection_ref", "query_mode"]);
+        if (Object.hasOwn(data, "corpus_ref") === Object.hasOwn(data, "collection_ref")) fail("external_invalid_input", 400);
+        const snapshot = Object.hasOwn(data, "collection_ref") ? inspectSelectedCollection(data.collection_ref, collectionOwners) : inspectCorpus(data.corpus_ref);
         return result("available", input.action === "inspect_corpus"
           ? selectedCorpusInspection(snapshot)
-          : retrieveSelectedSources(snapshot, data.query, data.expected_corpus_binding));
+          : retrieveSelectedSources(snapshot, data.query, data.expected_corpus_binding, data.query_mode));
       }
       if (input.action === "material") {
         keys(data, ["ref"], ["experience_ref"]);

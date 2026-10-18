@@ -1697,6 +1697,35 @@ storage and latency separately; human curation and model-development burden are
 unmeasured. Retain this small explicit path, favor direct reading for one-off
 exports, and defer broader formats/automation without an observed need.
 
+### Incremental collection and lexical-question evidence (#1478)
+
+The [existing Web integration](../../scripts/test-web-export-native.mjs), extended
+by [collection checks](../../scripts/selected-source-collection-checks.mjs), uses
+one exposed workshop-notice workflow. Whole source files enter through actual local
+Web saves/export and the existing native importer. A stable collection receives a
+later revision and a selected garden note without consumer-specific manifests.
+The ordinary question yields a literal-reader miss but bounded lexical delivery;
+this establishes a narrow capability, not semantic natural-language understanding.
+
+Fresh processes write inspectable staff-review drafts from delivered original
+prose, conditions and connected corrections. Relevant updates change output; the
+garden leaves output/dependencies unchanged; booking context survives. Conflicting
+19:00/20:00 statements remain unresolved, without latest-wins interpretation.
+The same permitted direct-read control produces equal output. Exact replay,
+atomic conflicting replay, stale bindings, access withdrawal, existing bounds and
+supported native recovery are correctness evidence, separate from usefulness.
+
+Reports retain preparation actions, acknowledgement/delivery bytes, source and
+output bindings, operation time and storage. Whole-file selection and two correction
+statements are authored preparation; no answer-field mapping enters the consumer.
+Successful source admission needs zero manual source repairs. Human preparation time
+and development-model token cost remain unmeasured; a corrected fixture-label error
+is development effort, not a product benefit. These are developer-exposed scripted
+observations with zero provider calls, not independent model judgment or a held-out
+campaign. Preserve #1298/#1465 conclusions. Retain the explicit collection path,
+favor direct reading for tiny one-off sources, and stop expansion without a new
+concrete limitation. No second domain, index, capacity or AML campaign is implied.
+
 ## Alpha and release evaluation
 
 ### Alpha
