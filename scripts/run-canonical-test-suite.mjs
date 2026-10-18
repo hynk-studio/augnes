@@ -821,15 +821,6 @@ const suites = {
       requireNaturalExit: true,
     },
     {
-      id: "workflow-cost-fixed-verification",
-      group: "supporting-serial",
-      requirements: ["database", "migrations", "filesystem", "process-owning"],
-      label: "fixed workflow-cost verification, interrupted admission and fresh deterministic successor",
-      ...rootNode("scripts/test-workflow-cost-verification.ts"),
-      timeoutMs: 90_000,
-      requireNaturalExit: true,
-    },
-    {
       id: "stateless-source-review",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning"],

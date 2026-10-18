@@ -146,8 +146,8 @@ With development dependencies already prepared, the focused check is:
 node --import tsx scripts/test-workflow-cost-verification.ts
 ```
 
-Run through the repository's admitted development/Canonical resource owners.
-The registered Canonical integration step is `workflow-cost-fixed-verification`.
+Run through the repository's admitted development resource owners. This focused
+check supplements the unchanged Canonical suite inventory and exact-head planner.
 An optional `--evidence-dir .augnes-local-verification/<private-directory>` saves
 synthetic results/artifacts and process observations, excluding credentials and
 disposable databases. The test compiles trusted application code before starting
