@@ -207,15 +207,17 @@ schedules establish a mechanism, not the unrecorded original OS assignments.
 
 The planner retains full-path and basename screening over both exact Git trees.
 For a regular Markdown consumer, it may discharge only destination occurrences
-in plain inline relative links to a different regular tracked Markdown file.
+in plain inline relative links at text boundaries to a different regular tracked
+Markdown file.
 Initial `./` and `../` segments resolve from the consumer's own directory;
 internal parent traversal, missing targets, case aliases and unsafe modes do not
 establish another target. Labels, front matter and all residual basename mentions
 remain consumer evidence. A harmless link cannot suppress a second occurrence.
 
-This is a bounded disambiguation, not a general Markdown parser. Code, escapes,
-HTML, nested/reference-style links, titles, fragments, queries, encoded paths and
-other unsupported syntax retain conservative screening. The broader existing
+This is a bounded disambiguation, not a general Markdown parser. Code, math,
+escapes, HTML, link-shaped URL substrings, nested/reference-style links, titles,
+fragments, queries, encoded paths and other unsupported syntax retain conservative
+screening. The broader existing
 destination extractor and exact-tree path/anchor validator remain unchanged, as
 do delegated instructions, dynamic/package readers and target-bound registrations.
 
