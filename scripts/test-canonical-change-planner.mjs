@@ -1052,12 +1052,15 @@ function runSameNameMarkdownConsumerCases() {
   addCase("repeated-safe", ({ safe }) => ({ text: `${safe} and ${safe}\n${safe}`, safe: true }));
   addCase("front-matter-safe-body", ({ safe }) => ({ text: `---\nname: example\n---\n${safe}`, safe: true }));
   addCase("context-three-space-paragraph", ({ safe }) => ({ text: "   " + safe, safe: true }));
+  addCase("context-normal-ordered-list", ({ safe }) => ({ text: "1. Read material.\n   " + safe, safe: true }));
+  addCase("context-four-space-list-padding", ({ safe }) => ({ text: "-    " + safe, safe: true }));
   addCase("context-one-space-tab-code", ({ safe }) => ({ text: " \t" + safe }));
   addCase("context-two-space-tab-code", ({ safe }) => ({ text: "  \t" + safe }));
   addCase("context-three-space-tab-code", ({ safe }) => ({ text: "   \t" + safe }));
   addCase("context-bullet-code", ({ safe }) => ({ text: "-     " + safe }));
   addCase("context-ordered-code", ({ safe }) => ({ text: "1.     " + safe }));
   addCase("context-bullet-tab-code", ({ safe }) => ({ text: "-\t\t" + safe }));
+  addCase("context-nested-list-code", ({ safe }) => ({ text: "- -     " + safe }));
   addCase("context-prefix-fence", ({ safe }) => ({ text: "---\n```\n---\n" + safe }));
   addCase("context-prefix-html-open", ({ safe }) => ({ text: "---\n<!--\n---\n" + safe }));
   addCase("context-base-only-list-code", ({ safe, consumer }) => ({ text: "-     " + safe,

@@ -575,8 +575,8 @@ function onlyUnrelatedMarkdownDestinations(file, relativePath, revision, context
   // mention intact. Code, math, escapes, HTML, nested/reference links and other syntax
   // remain conservative; this is deliberately not a general Markdown parser.
   // Screen the whole source: a delimiter prefix does not prove YAML and may hide
-  // an open code/HTML context. Tabs and lists also need unsupported block context.
-  if (/[`\t\\<>~{}$]|^ {4}|^ {0,3}(?:[-+*]|\d+[.)])(?:[ \t]|$)/mu.test(source)) return false;
+  // an open code/HTML context. Tabs and excess list padding may introduce code.
+  if (/[`\t\\<>~{}$]|^ {4}|(?:^| )(?:[-+*]|\d+[.)]) {5}/mu.test(source)) return false;
   const frontMatter = source.match(/^---\r?\n[\s\S]*?\r?\n(?:---|\.\.\.)(?:\r?\n|$)/u)?.[0] ?? "";
   if (/^---\r?\n/u.test(source) && !frontMatter) return false;
   const body = source.slice(frontMatter.length);

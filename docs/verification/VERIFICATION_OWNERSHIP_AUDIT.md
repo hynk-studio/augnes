@@ -224,8 +224,9 @@ do delegated instructions, dynamic/package readers and target-bound registration
 Context screening covers the entire source before separating an initial
 delimiter prefix: arbitrary Markdown does not establish YAML front matter, and
 that prefix may contain an opening code fence or HTML comment. Tabs and list
-constructs remain unsupported, including mixed indentation and code after list
-markers. Ordinary plain-link and simple front-matter cases remain eligible.
+markers with five or more following spaces remain unsupported, including nested
+markers. Ordinary plain links, normal list padding and simple front-matter cases
+remain eligible.
 
 In #1480's recorded comparison, the skill's bundled method link resolves away
 from the Web README. A candidate-planner replay clears that edge but still selects
