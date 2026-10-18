@@ -54,6 +54,7 @@ const targetedPhaseIds = (...ownerPhaseIds) => [
 ];
 
 try {
+  runSameNameMarkdownConsumerCases();
   runContinuationDocumentationCases();
   // Optional read-only audit: replay the same exact fixture commits through a
   // pre-change planner and its two manifests. This never chooses deciding tests.
@@ -997,6 +998,110 @@ function runRegisteredReferenceConsumerCases() {
   removed.remove(roadmap);
   assert.equal(planCanonicalChange({ eventName: "pull_request", ...proposed(removed) }).plan, "full-canonical");
   results.push("registered-reference-does-not-admit-authority-disposition");
+}
+
+function runSameNameMarkdownConsumerCases() {
+  const web = "apps/web_planning/README.md";
+  const skill = "plugins/augnes-workflow-cost/skills/stationary-retry-work/SKILL.md";
+  const bundled = "assets/workflow-cost-v1/README.md";
+  const repo = createRepository("same-name-markdown-unrelated", false);
+  repo.write(web, "# Web planning\n");
+  repo.write(skill, `Read the bundled [method README](${bundled}).\n`);
+  repo.write(path.posix.join(path.posix.dirname(skill), bundled), "# Bundled method\n");
+  commitAll(repo.cwd, "same-name references baseline");
+  const baseSha = git(repo.cwd, ["rev-parse", "HEAD"]).trim();
+  repo.write(web, "# Web planning\n\nClarified existing guidance.\n");
+  commitAll(repo.cwd, "Web guidance only");
+  const headSha = git(repo.cwd, ["rev-parse", "HEAD"]).trim();
+  const plan = planCanonicalChange({ eventName: "pull_request", cwd: repo.cwd, baseSha, headSha });
+  assert.equal(plan.plan, "operating-policy-only", JSON.stringify({
+    case: "same-name-markdown-unrelated", plan: plan.plan, full_reasons: plan.full_reasons,
+  }));
+  assert.equal(validateCanonicalOperatingPolicyChange({ cwd: repo.cwd, baseSha, headSha }).status, "pass");
+  results.push("same-name-markdown-unrelated");
+  const bundledPath = path.posix.join(path.posix.dirname(skill), bundled);
+  repo.write(bundledPath, "# Bundled method\n\nREADME.md is the readable entry.\n\n[Readable Markdown](README.md)\n");
+  commitAll(repo.cwd, "retain another unresolved consumer");
+  const ambiguousBase = git(repo.cwd, ["rev-parse", "HEAD"]).trim();
+  repo.write(web, "# Web planning\n\nAnother guidance clarification.\n");
+  commitAll(repo.cwd, "clarify with residual consumer");
+  const ambiguous = planCanonicalChange({ eventName: "pull_request", cwd: repo.cwd,
+    baseSha: ambiguousBase, headSha: git(repo.cwd, ["rev-parse", "HEAD"]).trim() });
+  assert.deepEqual(ambiguous.full_reasons, [`unproven_documentation_consumer:${web}:${bundledPath}`]);
+  results.push("same-name-markdown-unrelated-skill-does-not-hide-bundled-bare-mention");
+
+  // Use a different instruction owner and nearby targets: the correction is not
+  // an exemption for the demonstrated plugin, SKILL filename, or README path.
+  const consumer = "apps/web_planning/instructions/SKILL.md";
+  const local = "assets/method/README.md";
+  const other = path.posix.join(path.posix.dirname(consumer), local);
+  const safe = `[method](${local})`;
+  const genuine = "[Web contract](../README.md)";
+  const cases = [
+    { name: "generic-relative", text: safe, safe: true },
+    { name: "dot-relative", text: `[method](./${local})`, safe: true },
+    { name: "parent-relative", text: "[method](../instructions/assets/method/README.md)", safe: true },
+    { name: "repeated-safe", text: `${safe} and ${safe}\n${safe}`, safe: true },
+    { name: "front-matter-safe-body", text: `---\nname: example\n---\n${safe}`, safe: true },
+    { name: "genuine-relative", text: genuine },
+    { name: "genuine-full-path", text: `Read ${web}.` },
+    { name: "genuine-full-path-link", text: `[Web](../../../${web})` },
+    { name: "mixed-genuine", text: `${safe} and ${genuine}` },
+    { name: "mixed-bare-same-line", text: `${safe} then read README.md.` },
+    { name: "mixed-bare-next-line", text: `${safe}\nRead README.md.` },
+    { name: "bare-before-safe", text: `Read README.md then ${safe}.` },
+    { name: "label-mention", text: `[README.md](${local})` },
+    { name: "mixed-reference-style", text: `${safe}\n[method][ref]\n\n[ref]: ${local}` },
+    { name: "mixed-url", text: `${safe} and [other](https://example.invalid/README.md)` },
+    { name: "encoded-path", text: "[method](assets/%6dethod/README.md)" },
+    { name: "query", text: `${safe}\n[method](${local}?mode=raw)` },
+    { name: "fragment", text: `${safe}\n[method](${local}#unknown)` },
+    { name: "title-mention", text: `[method](${local} "README.md")` },
+    { name: "escaped-markdown", text: `\\${safe}` },
+    { name: "inline-code", text: "`" + safe + "`" },
+    { name: "fenced-code", text: "~~~markdown\n" + safe + "\n~~~" },
+    { name: "indented-code", text: "    " + safe },
+    { name: "html", text: `<!-- ${safe} -->` },
+    { name: "nested-link", text: `[outer ${safe}](missing)` },
+    { name: "front-matter-mention", text: `---\ndescription: ${safe}\n---\n${safe}` },
+    { name: "untracked-target", text: safe, seed: value => value.remove(other), dirty: value => value.write(other, "# Worktree rescue\n") },
+    { name: "wrong-case-target", text: "[method](assets/METHOD/README.md)" },
+    { name: "escape-root", text: "[method](../../../../README.md)" },
+    { name: "unproven-traversal", text: "[method](missing/../assets/method/README.md)" },
+    { name: "base-only-genuine", text: genuine, mutate: value => value.write(consumer, safe + "\n") },
+    { name: "head-only-genuine", text: safe, mutate: value => value.write(consumer, genuine + "\n") },
+    { name: "base-only-missing-target", text: safe, seed: value => value.remove(other), mutate: value => value.write(other, "# Method\n") },
+    { name: "head-only-missing-target", text: safe, mutate: value => value.remove(other) },
+    { name: "worktree-cannot-rewrite-consumer", text: genuine, dirty: value => value.write(consumer, safe + "\n") },
+  ];
+  if (process.platform !== "win32") cases.push(
+    { name: "executable-consumer", text: safe, seed: value => value.chmod(consumer, 0o755) },
+    { name: "executable-target", text: safe, seed: value => value.chmod(other, 0o755) },
+    { name: "symlink-target", text: safe, seed: value => { value.remove(other); value.symlink("../../../README.md", other); } },
+    { name: "symlink-traversal", text: "[method](alias/../assets/method/README.md)", seed: value => value.symlink("..", "apps/web_planning/instructions/alias") },
+  );
+  const value = createRepository("same-name-generic", false);
+  for (const item of cases) {
+    // Each case still has its own exact base/head. Reuse only the disposable Git
+    // object store to keep the existing planner child's finite deadline intact.
+    rmSync(path.join(value.cwd, path.posix.dirname(consumer)), { recursive: true, force: true });
+    value.write(web, "# Web planning\n");
+    value.write(other, "# Method\n");
+    value.write(consumer, item.text + "\n");
+    item.seed?.(value);
+    commitAll(value.cwd, "consumer baseline");
+    const base = git(value.cwd, ["rev-parse", "HEAD"]).trim();
+    value.write(web, "# Web planning\n\nClarified guidance.\n");
+    item.mutate?.(value);
+    commitAll(value.cwd, "proposed guidance");
+    const head = git(value.cwd, ["rev-parse", "HEAD"]).trim();
+    item.dirty?.(value);
+    const actual = planCanonicalChange({ eventName: "pull_request", cwd: value.cwd, baseSha: base, headSha: head });
+    assert.equal(actual.plan, item.safe ? "operating-policy-only" : "full-canonical", item.name);
+    assert.equal(actual.full_reasons.includes(`unproven_documentation_consumer:${web}:${consumer}`), !item.safe, item.name);
+    if (item.safe) assert.deepEqual(actual.full_reasons, [], item.name);
+    results.push(`same-name-markdown-${item.name}`);
+  }
 }
 
 function runContinuationDocumentationCases() {

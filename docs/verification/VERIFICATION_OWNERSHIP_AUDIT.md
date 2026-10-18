@@ -203,6 +203,29 @@ real-loopback settlement controls reuse the registered preferred-port test;
 intentional packaged-runtime collision tests remain intact. Constructed high-port
 schedules establish a mechanism, not the unrecorded original OS assignments.
 
+## Same-name Markdown consumer screening (#1481)
+
+The planner retains full-path and basename screening over both exact Git trees.
+For a regular Markdown consumer, it may discharge only destination occurrences
+in plain inline relative links to a different regular tracked Markdown file.
+Initial `./` and `../` segments resolve from the consumer's own directory;
+internal parent traversal, missing targets, case aliases and unsafe modes do not
+establish another target. Labels, front matter and all residual basename mentions
+remain consumer evidence. A harmless link cannot suppress a second occurrence.
+
+This is a bounded disambiguation, not a general Markdown parser. Code, escapes,
+HTML, nested/reference-style links, titles, fragments, queries, encoded paths and
+other unsupported syntax retain conservative screening. The broader existing
+destination extractor and exact-tree path/anchor validator remain unchanged, as
+do delegated instructions, dynamic/package readers and target-bound registrations.
+
+In #1480's recorded comparison, the skill's bundled method link resolves away
+from the Web README. A candidate-planner replay clears that edge but still selects
+Full for the bundled README's residual bare `README.md` mention. The original
+classification remains historical evidence; this replay does not replace its
+qualification or establish runtime savings. This planner change itself requires
+Full Canonical under the unchanged integrity self-change rule.
+
 ## Audited roadmap reference consumer (#1342)
 
 At base `6132a37ceb34799ad65c6233e58ed6405abf2a01`, the unchanged
