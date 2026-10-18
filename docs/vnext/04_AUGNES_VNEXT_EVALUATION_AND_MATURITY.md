@@ -274,6 +274,23 @@ simplify, revise or stop decision, not general superiority or equivalence.
 Preserve #1459's fixed-history tie/SIMPLIFY and #1447's supplied-entry evidence;
 neither is retrospectively an active-selection test.
 
+For an authorized later execution-context-change question, retain historical
+observations with their original tool/executor, conditions and judgment-time
+basis; bind revised predictions and applicability to their current basis. Use
+one consequential change and an appropriate unchanged-use contrast within the
+chosen task. A version label alone neither proves semantic incompatibility nor
+licenses transfer. Missing compatibility evidence remains unknown; preserve
+failure/conflict evidence and still-applicable uses. Reassessment may justify
+retention, a useful observation, changed execution or non-use.
+
+Inspect the resulting later output and actual reassessment burden against the
+same capable adaptive memo/code alternative. Separate effects of a stronger
+executor or changed tool from effects of the experience-update procedure. The
+deterministic case needs no invented probabilities; an empirical probability or
+cost-calibration claim needs observations beyond a single successful outcome.
+Preserve #1465's tie/SIMPLIFY and original allocation. These criteria apply only
+to the conditional follow-up in 03, not retrospectively or as a new release gate.
+
 ### Public asset entry and later consumer (#1447)
 
 The [declared public-question case and successor](../PUBLIC_ASSET_SKILL_USAGE.md#candidate-and-intended-observation)
