@@ -221,6 +221,12 @@ screening. The broader existing
 destination extractor and exact-tree path/anchor validator remain unchanged, as
 do delegated instructions, dynamic/package readers and target-bound registrations.
 
+Context screening covers the entire source before separating an initial
+delimiter prefix: arbitrary Markdown does not establish YAML front matter, and
+that prefix may contain an opening code fence or HTML comment. Tabs and list
+constructs remain unsupported, including mixed indentation and code after list
+markers. Ordinary plain-link and simple front-matter cases remain eligible.
+
 In #1480's recorded comparison, the skill's bundled method link resolves away
 from the Web README. A candidate-planner replay clears that edge but still selects
 Full for the bundled README's residual bare `README.md` mention. The original

@@ -574,10 +574,12 @@ function onlyUnrelatedMarkdownDestinations(file, relativePath, revision, context
   // Admit only plain inline links, leaving front matter, labels and every residual
   // mention intact. Code, math, escapes, HTML, nested/reference links and other syntax
   // remain conservative; this is deliberately not a general Markdown parser.
+  // Screen the whole source: a delimiter prefix does not prove YAML and may hide
+  // an open code/HTML context. Tabs and lists also need unsupported block context.
+  if (/[`\t\\<>~{}$]|^ {4}|^ {0,3}(?:[-+*]|\d+[.)])(?:[ \t]|$)/mu.test(source)) return false;
   const frontMatter = source.match(/^---\r?\n[\s\S]*?\r?\n(?:---|\.\.\.)(?:\r?\n|$)/u)?.[0] ?? "";
   if (/^---\r?\n/u.test(source) && !frontMatter) return false;
   const body = source.slice(frontMatter.length);
-  if (/[`\\<>~{}$]|^(?: {4}|\t)/mu.test(body)) return false;
   // A text boundary also excludes link-shaped substrings inside URLs or tokens.
   const links = /(?<!\S)(!?\[[^\[\]\r\n]*\]\()((?:\.\.?\/)*(?:[A-Za-z0-9_-][A-Za-z0-9._-]*\/)*[A-Za-z0-9_-][A-Za-z0-9._-]*\.md)(\))/gu;
   if (/[\[\]]/u.test(body.replace(links, ""))) return false;
