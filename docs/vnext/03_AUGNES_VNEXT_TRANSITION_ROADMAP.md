@@ -1089,14 +1089,14 @@ independent copies and the separate 24-hour authorization seals remain intact.
 
 Real disposable Worker/D1 checks distinguish predecessor-writer history from
 constructed larger prefixes, preserve both migration owners, and exercise
-restart, later edits, incomplete reads, conflicting heads and rollback. Draft
-review, final exact-head Canonical evidence and cleanup are separate from hosted
+restart, later edits, incomplete reads, conflicting heads and rollback. Recorded
+review, exact-candidate Canonical evidence and cleanup remain separate from hosted
 migration, live-client adoption or usefulness. #1372 retains coordinated schema-3
 code/reader adoption, writer quiescence and compatible recovery or roll-forward;
 code-only rollback is insufficient. No live store, retained real candidate,
 provider, installation or deployment was used by this local implementation.
 The predecessor's successful and failed verification records retain their exact
-source identities and do not qualify this candidate.
+source identities and do not qualify later heads or hosted adoption.
 
 ### Current lifecycle slice — Native project management (#1399)
 
@@ -1709,17 +1709,40 @@ rollout, two-revision synthetic recovery and actual private export attachments:
 save; five pre-existing works retained byte-identical exports. Operator repairs,
 security limits and the lack of general usability/time-saving evidence remain.
 
-[#1372](https://github.com/hynk-studio/augnes/issues/1372) is **Current / Draft**:
-explicitly selected small files alongside an exact saved Web revision,
-authenticated byte download from Saved context and portable export/reconstruction.
+[#1372](https://github.com/hynk-studio/augnes/issues/1372) remains **open for
+actual hosted adoption and successor use**. Merged
+[#1377](https://github.com/hynk-studio/augnes/pull/1377) implemented explicitly
+selected small files alongside an exact saved Web revision, authenticated byte
+download from Saved context and portable export/reconstruction.
 The [Web-owned file contract](../../apps/web_planning/README.md#revision-bound-private-files-1372)
-uses bounded D1 bodies, v0.3 envelopes and a new schema compatibility gate.
-Its synthetic same-Mac downloaded-file continuation is engineering feasibility,
-not hosted/non-Mac acceptance or learned capability. Required exact-head
-verification remains a readiness gate; the reported Companion lifecycle blocker
-must be resolved separately without repair by this task. Review and user merge
-precede any separately authorized migration, rollout or actual successor use.
-This lane does not implement or absorb #1375/#1376's executable-method work.
+uses bounded D1 bodies and v0.3 envelopes. #1398's cumulative-history implementation
+was subsequently integrated through #1404: current code requires schema 3 and the
+positive-revision constraint from shipped 0003, not schema 2 alone.
+
+The former Draft/HOLD and Companion prerequisite describe earlier history.
+#1377's reported 2026-10-01 16-phase qualification and receipt validation belong
+to integrated head `51f37663ee711e292875734e7e9acef321fbd4d3`, before merge;
+#1404's later qualification belongs to its own exact candidate. Neither receipt
+transfers to a new head. Same-Mac synthetic downloaded-file continuation remains
+engineering feasibility, not hosted/non-Mac acceptance or learned capability.
+
+The [existing-target transition procedure](../../apps/web_planning/README.md#repeatable-post-merge-deployment)
+now distinguishes coherent schema-1/2 pending migrations, compatible schema 3
+needing no additional migration, and unknown/inconsistent state that must stop.
+It binds later approved code/readers, private target/configuration, the existing
+migration owner, writer quiescence, complete exports and compatible recovery or
+roll-forward. Dated historical observations do not establish the live target's
+schema, traffic, preservation baseline or recovery availability; those current
+inputs remain NOT_OBSERVED in this preparation.
+
+One [later hosted consumer journey](../../apps/web_planning/README.md#later-hosted-successor-acceptance-1372)
+must obtain exact working-file bytes, use them in a real successor task and return
+a new observation/artifact through ordinary Save, recording the actual host and
+manual transfers/repairs. It remains NOT_RUN. Transition, remote migration,
+traffic/configuration/authentication changes and acceptance need separate
+authorization; this documentation grants none. #1375/#1376's executable-method
+work, accepted #1470/#1479 retrieval retain/stop decisions and separately owned
+#1454/#1473 proposals remain unchanged.
 
 <a id="current-p2p5--web-augnes-v0-task-a-1343"></a>
 
