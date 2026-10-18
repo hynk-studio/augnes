@@ -306,7 +306,8 @@ workflow, not unlimited long-form writing.
 
 ## Cumulative saved history (#1397)
 
-The current local candidate removes the Web revision-32 lifetime constraint.
+The local implementation integrated through [#1404](https://github.com/hynk-studio/augnes/pull/1404)
+removes the Web revision-32 lifetime constraint. Hosted adoption remains with #1372.
 The same saved work can continue through ordinary edits and supported
 incorporation. Revision identities are positive safe integers; envelopes,
 request keys, predecessor fingerprints, provenance, judgments and file bodies
@@ -384,12 +385,16 @@ resource exhaustion, later-chunk rollback and erase/copy boundaries. The owned
 Chrome check uses ordinary editor saves, a fresh workerd process and fresh tab,
 and the same private Saved context visible to authorized browser agents. It is
 neither hosted/non-Mac acceptance nor actual live-agent adoption. Exact-head
-Canonical evidence and cleanup belong to the Draft PR; prior failures remain
-historical evidence. The retained real candidate and hosted stores are untouched.
+Canonical evidence and cleanup remain attributed to their original candidates:
+#1398's implementation was integrated through #1404, whose reported final run
+qualified head `820249de35a27df5f25c99bdac9bde5873278724`. Prior failures remain
+historical evidence. None of these results qualifies a later head or observes
+the existing hosted store; see the dated records below.
 
 ## Revision-bound private files (#1372)
 
-Current local implementation / Draft-HOLD: choose files in the ordinary editor, review
+Implemented in merged [#1377](https://github.com/hynk-studio/augnes/pull/1377):
+choose files in the ordinary editor, review
 names, roles and sizes, then Save. Selection alone performs no upload. Saved
 context exposes authenticated **Download** controls with exact revision, byte
 count and SHA-256 identity. The browser checks returned size/hash before creating
@@ -473,15 +478,19 @@ independent authorship. Erasure atomically deletes every owned revision and body
 and leaves the content-free tombstone. Delayed saves cannot resurrect it; private
 exports, independent copies and provider backups remain outside that deletion.
 
-Additive migration `0002_revision_files.sql` creates the file table/quotas and
-replaces only the schema marker with version 2. The shipped 0000/0001 SQL and
-v0.1/v0.2 envelopes, fingerprints and artifact-free exports remain byte-identical.
+Historically, additive migration `0002_revision_files.sql` created the file
+table/quotas and replaced the schema marker with version 2. Current code requires
+schema 3 through the subsequent `0003_cumulative_history.sql`, including its
+`web_planning_revision_positive` constraint; 0002 alone is insufficient.
+The shipped 0000/0001 SQL and v0.1/v0.2 envelopes, fingerprints and artifact-free
+exports remain byte-identical.
 Empty file selection on legacy work does not promote its format; once v0.3 is
 used, later revisions cannot downgrade. Saving v0.3 requires an explicit file
-selection, so old request shapes cannot silently remove files. Old code's
-schema-1 gate refuses the entire migrated store, including lists, saves, exports
-and erasure. New code refuses unmigrated schema 1. A code-only rollback to that
-old reader is therefore incompatible. Quiesce old writers, preserve complete
+selection, so old request shapes cannot silently remove files. The schema-1
+predecessor refuses schema 2/3, and the schema-2 predecessor refuses schema 3,
+including lists, saves, exports and erasure. Current code refuses schema 1/2
+with `incompatible_schema` / HTTP 503. A code-only downgrade cannot recover an
+upgraded database. Quiesce old writers, preserve complete
 exports/provider recovery material and review migration/roll-forward together;
 never erase files or reset the marker to simulate rollback. No live migration
 or deployment is performed by #1372 development.
@@ -494,10 +503,13 @@ is selected and saved as revision 2, then reopened and exported with revision 1
 unchanged. This is same-Mac engineering feasibility with local Access simulation,
 not a non-Mac agent, hosted acceptance, blinded successor or general usefulness
 claim. The checks record editing actions, deliberately refused selection and
-injected response-loss recovery. Required exact-head Canonical qualification
-remains blocked by the separately owned Companion recovery prerequisite; focused
-checks do not replace it. Review the Draft before any separately authorized
-hosted migration, rollout and actual Windows/Android/browser-agent continuation.
+injected response-loss recovery. The earlier Companion prerequisite and
+Draft/HOLD were historical: #1377's integrated candidate
+`51f37663ee711e292875734e7e9acef321fbd4d3` completed its reported 16-phase
+Canonical run and receipt validation on 2026-10-01, before merge. That evidence
+does not transfer to this documentation head or establish schema-3 hosted
+adoption. #1372 remains open for the separately authorized existing-target
+transition and actual hosted successor use described below.
 
 ## After an accumulated-history refusal (#1439)
 
@@ -726,7 +738,7 @@ IDs, secrets, asset router or preview URL. Builds replace this generated folder;
 keep deployment configuration in a separate private operator directory.
 `wrangler.cloudflare.json` is an unbound template, not a usable cloud target.
 
-Direct D1 initialization belongs exclusively to pinned **Wrangler D1 migrations**,
+Direct D1 initialization and upgrades belong to pinned **Wrangler D1 migrations**,
 using the unchanged shipped SQL and its `d1_migrations` ledger. The existing
 Sites path still owns its Drizzle journal. Do not mix those migration ledgers
 on one database. The D1 owner invokes the actual pinned CLI with `--local` in an
@@ -749,25 +761,188 @@ this documentation. #1356 established the existing protected target and #1364 /
 #1371 exercised later-source updates. Resolve the exact private target/configuration
 from those retained records; do not create resources or repeat initial setup.
 
-1. Confirm the approved source/tree, actual active version, existing Worker/D1/
-   Access identities and authenticated work/export baseline. Preserve all existing
-   work and the original failed/limited observations. Current main is not automatic
-   deployment approval.
-2. Build from the approved source with the pinned Mac-side Wrangler 4.126.0 and
-   retained Keychain-backed session (`CLOUDFLARE_AUTH_USE_KEYRING=true`). Retain
-   artifact/input hashes privately. The unbound generated template must never
-   replace the existing private target configuration or secrets.
-3. Review data compatibility before any separately authorized migration. #1372
-   requires new migration 0002 and schema-2 code together, with old writes quiesced;
-   do not replay 0000/0001, mix Drizzle/Wrangler ledgers or use an incompatible
-   code-only rollback. Preserve recovery exports and stop on ambiguous state.
-4. Within separately approved scope, update only that target's reviewed code and
-   any specifically approved migration. Reconcile unknown outcomes by reading
-   actual deployment/traffic and migration state before retrying. Preserve Access,
-   previews, bindings, mapping, secrets and all pre-existing works.
-5. Verify the active source and run the authorized normal-browser acceptance,
-   including actual byte download, complete export and preservation comparisons.
-   Keep private deployment/work identifiers and exports in private review material.
+1. **Bind the later approval.** Record the exact approved commit/tree, locked
+   inputs, direct Worker artifact hash and compatible reader/writer/recovery
+   versions. Current main and a historical receipt are not deployment approval.
+   Readers must support schema 3, retained v0.1/v0.2/v0.3 envelopes and complete
+   histories within current budgets, plus any retained story/scene formats.
+   A binary that merely accepts the schema marker is not sufficient compatibility
+   evidence for those later file semantics. Retain the preceding artifact and
+   its actual compatibility limits privately.
+2. **Bind the existing target and build separately.** Reconcile the retained
+   account, Worker, active deployment/version and traffic, D1 binding/identity,
+   Access application/audience/policy, protected origin and preview restrictions.
+   Retain `OWNER_EMAIL`, `REQUEST_SECRET`, `WORKSPACE_ID`, `PROJECT_ID` and
+   `AUTHOR_REF` through their existing private configuration owner; do not print
+   secrets or replace that configuration with the unbound template. The local
+   `npm run web:build:cloudflare` build needs installed locked dependencies, not
+   a Cloudflare session. Record inputs, artifact and shipped SQL hashes; verify
+   the retained private configuration resolves those exact artifacts. Remote
+   operations separately use the established Wrangler 4.126.0 and CLI-managed
+   Keychain session (`CLOUDFLARE_AUTH_USE_KEYRING=true`). An unavailable session
+   is a separate access input, not a failed local build or authority to log in,
+   refresh credentials, rotate secrets or change configuration during preparation.
+3. **Select the migration path from actual state.** Read the schema, table SQL
+   and established ledger using the bounded observations below. Current
+   `src/access.ts` requires exactly one version-3 row and the revision constraint;
+   schema-2 code plus 0002 is historical. Use the matrix below. Compare the
+   ledger with the approved artifact's unchanged SQL, then review only genuinely
+   pending 0002/0003 in order. Do not replay initialization, rewrite ledger rows,
+   reset markers or mix direct Wrangler and Sites Drizzle histories.
+4. **Quiesce and preserve before incompatible effects.** The existing operator
+   must specify and confirm the separately approved method of stopping all
+   browser/agent writers for the migration and code-switch window, settle
+   in-flight/unknown saves through their existing outcome readers, and preserve
+   unsaved drafts privately. Closing one tab or relying on schema refusal is not
+   evidence of quiescence. With the currently compatible reader, inventory every
+   saved work/current binding and retain validated complete exports and hashes;
+   include required paired story-direction exports. Reuse a retained export only
+   when its exact binding still matches. Record the provider recovery checkpoint,
+   covered database/ledger/mapping/erasure state, retention window and supported
+   restore owner. Missing export access or recovery coverage stops the transition
+   for diagnosis; do not deploy a new reader just to probe an incompatible store.
+5. **Apply the approved pending migrations and code within that window.** For
+   this direct target, the existing pinned CLI's
+   `d1 migrations apply DB --remote --config "$AUGNES_WEB_PRIVATE_CONFIG"`
+   is the mutation owner, only after separate approval and verification that its
+   resolved migration directory/ledger has exactly the reviewed pending set.
+   The variable denotes the retained private configuration, never the generated
+   placeholder. Schema 1 progresses through 0002 then 0003; schema 2 through
+   0003; compatible schema 3 needs no migration. Each migration settles through
+   that owner; do not assume a multi-file upgrade and deployment are one atomic
+   operation. While writers remain quiesced, read back the ledger, sole schema
+   marker and table constraints, then use the existing deployment owner for the
+   exact approved artifact. Preserve Access, traffic restrictions, bindings,
+   mapping, secrets and existing work. Unexpected pending SQL or state stops here.
+6. **Resolve uncertainty before retrying or reopening writes.** Retain the
+   original command/result and timestamp. Read actual deployment/version/traffic
+   and D1 ledger/schema/table state; an interrupted command may have completed.
+   Compare the active artifact and data to the approved target and preservation
+   baseline. If the result is unknown, keep the transition stopped. Do not replay
+   migrations or deploy again to manufacture certainty. With compatible code
+   active, compare all pre-existing complete exports/bindings and verify the
+   private configuration before a separately approved return of writers.
+7. **Recover compatibly if needed.** If schema 3 is intact, use a reviewed
+   schema-3-compatible artifact or roll forward with a reviewed correction.
+   Schema-1/2 code cannot read an upgraded database, even below 33 revisions.
+   If database recovery is required, retain the failed state and use only the
+   separately approved provider recovery owner/checkpoint, then pair the recovered
+   database with compatible code and verify the complete baseline before traffic
+   resumes. Do not assume that an old code deployment also restores data. Never
+   truncate history, delete files or reset the marker to simulate compatibility.
+
+Complete work exports preserve authored history and file bodies; they are not a
+whole-database backup of every work, owner mapping, migration ledger and erased-ID
+guard. The existing `handler.ts` / `store.ts` reconstruction owner requires
+`RECONSTRUCTION_MODE=quiesced-empty-store`, matching scope and an entirely empty
+destination (including no erased IDs/files). It imports one work or the supported
+story pair atomically. It cannot restore multiple independent exports by appending
+them successively to one populated store or recover the target's deletion ledger.
+Use it only for a separately approved replacement recovery within that scope;
+do not clear the existing target, provision a replacement or enable reconstruction
+as part of this preparation. Provider recovery availability remains an input to
+review, not a capability demonstrated by local reconstruction tests.
+
+### Existing-target compatibility matrix
+
+These are source-supported conditional paths, not observations of the live D1.
+"Coherent ledger" means the retained migration owner, ordered applied filenames
+and actual tables/constraints agree with the shipped SQL and retained records.
+The last known deployed source does not determine today's database schema.
+
+| Observed existing state | Later transition to current schema-3 code |
+| --- | --- |
+| Schema 1 with a coherent established ledger | Review genuinely pending shipped `0002_revision_files.sql`, then `0003_cumulative_history.sql`, through that same owner, with writers quiesced and recovery retained. Do not replay 0000/0001. |
+| Schema 2 with a coherent ledger | Review only pending `0003_cumulative_history.sql` through the established owner. Preserve file bodies and all prior history. |
+| Compatible schema 3: one marker row, required positive safe-integer revision constraint, expected tables/quotas and coherent ledger | Do not infer that another migration is necessary. Review code/readers and preservation; leave the migration history intact. |
+| Marker-only schema 3, inconsistent/mixed ledgers, missing/duplicate markers, unexpected tables or unknown state | Preserve evidence and stop for diagnosis. No initialization replay, ledger repair, inferred upgrade or code-only downgrade. |
+
+### Bounded observations and retained evidence
+
+For a later private target observation, use already authorized provider metadata
+reads and explicit SQL `SELECT` through the established query owner. First inspect
+`sqlite_master` for table/index/trigger definitions and ledger presence, then read
+`web_planning_schema` and the existing ledger in order. Compare the actual
+`web_planning_revision` SQL with shipped 0003, not only the marker. For the direct
+owner the ledger is `d1_migrations`; `__drizzle_migrations` belongs to Sites.
+Unexpected coexistence or a missing established ledger stops the transition for
+diagnosis. Preserve scope/mapping comparisons and recovery material privately.
+For example, these are SQL reads for the already authorized direct query owner,
+not commands executed during preparation:
+
+```sql
+SELECT name, type, sql FROM sqlite_master
+WHERE name LIKE 'web_planning_%'
+   OR name IN ('d1_migrations', '__drizzle_migrations') ORDER BY type, name;
+-- Only after the expected tables and direct ledger are confirmed present:
+SELECT version FROM web_planning_schema ORDER BY version;
+SELECT name FROM d1_migrations ORDER BY id;
+```
+
+Timestamp each observation and record its target/source privately. Check for
+unexpected leftover migration tables as part of schema inspection; a valid
+marker alone is not a complete migration observation.
+
+Do **not** use `GET /` as a read-only probe: `authorize` may initialize an empty
+store's owner mapping, and the page can issue a CSRF cookie. Pinned Wrangler
+4.126.0's `d1 migrations list` calls its ledger initialization helper, so do not
+use that command as a guaranteed non-mutating query either. For an already
+mapped store and existing authorized session, `GET /api/works` and the exact
+work/export/file GET routes in `handler.ts` do not initialize mapping; they still
+require the deployed code's schema and access checks. No auth bypass or new
+probe endpoint is implied. If observations require login/session maintenance,
+new access or a configuration/operational change, leave the inputs NOT_OBSERVED
+and obtain that specific authority separately.
+
+The following records were re-read on **2026-10-18 UTC**. Historical reviews are
+attributed reports, not fresh provider queries or re-executed tests:
+
+| Date and source | Established observation and limit |
+| --- | --- |
+| 2026-09-29, [#1356 final review](https://github.com/hynk-studio/augnes/issues/1356#issuecomment-5897395431) | Reported one protected Worker/D1/owner Access target, schema 1 and two migrations applied once; private configuration and complete exports retained. This is the initial deployment record, not today's schema/traffic. |
+| 2026-09-30, [#1371 reviewed disposition](https://github.com/hynk-studio/augnes/issues/1371) | Approved source `7d4320a4c6ebd08f2f8b4e530f5150d972a58ec1`; supplied records showed the same target, accepted-version traffic, unchanged schema/ledger/mapping and byte-identical exports for five pre-existing works. Sign-in repairs and security limits remain; this does not observe later schema-3 adoption. |
+| 2026-10-01, [#1377 integrated candidate](https://github.com/hynk-studio/augnes/pull/1377) | Reported 16/16 Canonical phases and valid receipt for base `704e2865c3fe76b058bcbbcbb2940075c1cd4631`, head `51f37663ee711e292875734e7e9acef321fbd4d3`; merged at `2026-10-01T07:18:19Z`. Same-Mac synthetic downloaded-file continuation was bounded engineering evidence. Earlier HOLD/failures remain historical. |
+| 2026-10-05, [#1404 integration](https://github.com/hynk-studio/augnes/pull/1404); 2026-10-06, [#1372 reconciliation](https://github.com/hynk-studio/augnes/issues/1372) | #1398's schema-3 implementation entered main through #1404; its reported 16/16 result belongs to base `5a47a9f32fde8e9d4cc65831fd9ef848c397b155`, head `820249de35a27df5f25c99bdac9bde5873278724`. Hosted adoption and successor-use obligations remain open in #1372. |
+| 2026-10-18, source inspection at main `51410e43101be300a5ef7f08c873580728695ce4` and authenticated GitHub history | `access.ts` requires schema 3 plus the constraint; shipped 0003 upgrades schema 2; `buildCloudflarePlanning` includes SQL through 0003. Test sources cover direct artifact SQL parity, both migration owners, historical-byte preservation and old/new schema refusal. These are source-established contracts; no build, migration test, browser test or Canonical runtime run was executed by this documentation preparation. |
+
+Current operational inputs remain **NOT_OBSERVED**: live Worker version/traffic
+and artifact linkage; D1 identity, actual schema/constraints/ledger; current Access
+and retained private configuration/session validity; complete current work/export
+baseline; writer inventory/quiescence method; available provider recovery
+checkpoint, coverage and retention. Historical GitHub/retained issue records were
+available; no live target was queried or credential/session maintained here.
+Keep private identifiers, configurations, exports and recovery records outside
+public reports. The later approval must bind these inputs, exact artifacts,
+pending migration set, maintenance window and recovery decision before effects.
+
+### Later hosted successor acceptance (#1372)
+
+**NOT_RUN in this preparation.** After separately approved transition and
+preservation, conduct one bounded real successor task on one authorized supported
+browser/agent host. Record the actual host/environment; neither both physical
+Windows and Android nor a replay of the old #1366 study is required.
+
+1. Through the existing protected hosted surface, reopen the intended saved work
+   with its exact revision/fingerprint, qualifications and file manifest. Retrieve
+   the actual report/source/result bytes through authenticated revision-bound
+   downloads; verify names, sizes and hashes. A Mac path, source checkout or old
+   conversation attachment must not be needed to retrieve the working material.
+2. Have that consumer actually use those delivered files in the named successor
+   task and retain its concrete new observation/output and input bindings. Record
+   what the host could consume and any manual transfer, reattachment, login,
+   context repair or failed operation. Download alone is not consumer use; a
+   manual relay cannot be reported as meeting the no-relay product outcome.
+3. Return the new observation or artifact through ordinary selected context/file
+   Save, resolve uncertain outcomes before retrying, and freshly reopen the new
+   revision and complete export. Verify the prior revision/file bytes remain
+   intact and attribute any unrelated concurrent changes without overwriting them.
+
+Report hosted delivery, actual use, returned result, preservation and operator
+burden separately. One journey does not establish comparative usefulness,
+independence or learning. #1372 stays open until its actual hosted and successor
+outcome is reviewed. This preparation grants no deployment, remote migration,
+traffic/configuration/authentication change, resource creation, provider study,
+installed-runtime adoption, Ready/merge, auto-merge or Augnes Space write.
 
 Local owners test the compiled entry with platform Access simulation. #1356,
 #1364 and #1371's reviewed hosted observations are dated, bounded evidence; they
@@ -856,7 +1031,13 @@ Sites consumes `.openai/drizzle/**` from the build. The same journal and SQL run
 through Drizzle's D1 migrator in the disposable real local D1 tests; snapshot
 regeneration and negative drift controls prevent schema/SQL divergence. Version,
 JSON, revision bounds, scoped foreign keys and both uniqueness constraints are
-also exercised directly in D1. The original two migrations remain unchanged. #1351 used schema 1 with only a JSON-envelope extension. #1372 adds migration 0002 and schema 2 as specified above; local compatibility tests upgrade a nonempty old-writer store without resealing historical bytes. No live hosted migration or native schema change is performed.
+also exercised directly in D1. The original two migrations remain unchanged.
+#1351 used schema 1 with only a JSON-envelope extension; #1372's file implementation
+added 0002/schema 2, and #1397 subsequently added 0003/schema 3. Current code
+requires the latter. The local compatibility test owners cover nonempty
+old-writer upgrades without resealing historical bytes; their presence is not
+a new execution result. No live hosted migration or native schema change is
+performed by this documentation preparation.
 
 The available Sites database tools are read-only, and the current documented
 migration workflow supplies no dynamic, secret-aware seed write. Therefore the
@@ -1057,7 +1238,9 @@ The [reviewed #1345 closeout](../../docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMA
 accepted the bounded hosted v0 slice and supersedes its earlier remaining-hosted
 status. Isolated-session, final logged-out, identity-header/bypass and other
 unperformed checks stay explicitly limited there; Sites identity remains a
-platform trust dependency. The #1351 extension is locally tested only. No new
-hosted deployment, independent model interpretation, separate successor-task
-usefulness or comparative benefit is established. This candidate adds no
+platform trust dependency. #1356 separately accepted #1351's bounded direct-host
+journey as recorded above. That historical acceptance does not establish #1372's
+hosted schema-3 adoption, agent-host file consumption or separate successor-task
+usefulness. No new hosted deployment, independent model interpretation or
+comparative benefit is established by this preparation. It adds no
 WebMCP, new transport, public discovery, inference or automatic execution.
