@@ -3612,10 +3612,11 @@ experience's `created_at` is ingestion time, separate from supplied time.
 Selection uses existing explicit `put_material`/`publish` operations and their
 source/project checks. Prior shared experiences additionally require existing
 configured, unwithdrawn shares. Possessing a corpus reference grants no access.
-A changed source set is a new deliberately selected immutable manifest, with
-no implicit latest-corpus subscription. Earlier manifests and outputs remain
-historical. Withdrawal/configuration removal refuses new reads through old
-manifests; already delivered copies cannot be recalled. Missing declared bytes
+A changed source set is a new deliberately selected immutable manifest. The
+explicit #1478 collection below can retain its selection across additions;
+ordinary corpus references have no implicit latest-corpus subscription. Earlier
+manifests and outputs remain historical. Withdrawal/configuration removal refuses
+new reads through old manifests; already delivered copies cannot be recalled. Missing declared bytes
 refuse without reconstruction. Existing backup/restore retains these materials.
 
 Read-only `inspect_corpus` and `retrieve_sources` operate inside the external
@@ -3626,9 +3627,36 @@ binding required by retrieval; changed basis refuses. This observation does not
 reserve permissions after delivery. Retrieval returns whole groups, never
 splitting conditions/corrections, inferring supersession from time/similarity,
 searching locators, executing source instructions or claiming global absence.
-Current-work recall and Resume remain unchanged. No derived index or new durable
-projection exists. The [usage contract](../SELECTED_SOURCE_RETRIEVAL.md) specifies
+Current-work recall and Resume remain unchanged. Retrieval persists no derived
+search index or cache. The [usage contract](../SELECTED_SOURCE_RETRIEVAL.md) specifies
 bounds, source owners, workflow and lifecycle limits.
+
+#### Explicit incremental selection and lexical questions (#1478)
+
+`collect_sources` records an append-only `source_collection` stream in the existing
+external store. Its first record is the stable, project-local collection reference.
+Each event binds the name, predecessor, added immutable corpus references, resulting
+merged corpus and current native material basis. Existing transactions, operation
+keys and expected-head checks own atomicity, replay and concurrency refusal.
+Identical selected experiences deduplicate; conflicting supplied context refuses.
+Original bytes, attribution, revisions, times and group boundaries remain unchanged.
+The existing eight-input, 64-event, 16-group, material, scan and storage bounds apply.
+Acknowledgement requires current access and individually deliverable whole groups.
+No table, index, share, Core acceptance or execution grant is introduced.
+
+The existing readers accept either an immutable corpus or an explicitly selected
+collection. A collection read resolves its current head and validates source access
+and connected corrections; its binding includes that head. A changed head or source
+context refuses stale use. History is retained and recovery validates each merged
+snapshot from its retained input corpora. Removing a source requires deliberate
+new selection; withdrawal/configuration removal retains existing refusal semantics.
+
+The optional question mode remains a zero-model bounded lexical projection. It
+removes fixed English function words, matches any retained word and orders distinct
+word overlap before stable identity. It exposes query interpretation and the same
+whole-group/output bounds; literal query semantics are unchanged. Neither ranking,
+recency nor similarity declares applicability, supersession or absence beyond the
+selection. Unresolved statements/corrections remain consumer review material.
 
 ### 13.6 Explicit portable Web source admission (#1475)
 

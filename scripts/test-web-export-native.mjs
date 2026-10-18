@@ -16,6 +16,7 @@ import { initializeCodexRepositoryWorkV01, reviseCodexRepositoryWorkV01 } from '
 import { handleExternalOperation } from '../lib/vnext/external-response.ts';
 import { scopeKey, validateExternalStore } from '../lib/vnext/persistence/external-response-store.mjs';
 import { EXTERNAL_VERSION, hashBytes, LIMITS } from '../lib/vnext/external-response-rules.mjs';
+import { exerciseSelectedCollections } from './selected-source-collection-checks.mjs';
 import { createRecoveryBackup } from './recovery-backup.mjs';
 import { prepareRuntimeDatabase, restoreRuntimeDatabase, inspectRecoveryDatabaseFile } from './runtime-database-bootstrap.mjs';
 
@@ -260,7 +261,22 @@ try {
   await refuses('stale_corpus_binding', () => op(target, 'retrieve_sources', { corpus_ref: first.corpus_ref, query: ordinaryTask.query, expected_corpus_binding: currentBinding }), /basis_changed/);
   assert.equal(canonical(db.prepare('SELECT * FROM vnext_core_records ORDER BY record_id').all()), coreBefore);
   await work(target); await refuses('stale_native_target_material_binding', () => op(target, 'import_web_export', nextRequest, basis), /work_basis_changed/);
-  const newBasis = (await op(target, 'read')).material_basis;
+  let newBasis = (await op(target, 'read')).material_basis;
+  const collectionCase = await exerciseSelectedCollections({ target, other, first, next, unrelatedExport, request, op, consume, refuses,
+    basis: newBasis, state, keep, db, configureTarget(enabled) {
+      config.projects = config.projects.filter(p => p.project_key !== scopeKey(target.scope));
+      if (enabled) config.projects.push({ repository_root: target.root, project_key: scopeKey(target.scope), share_to: [] });
+      configure();
+    }, async addCorrectionSource() {
+      const c = await readCodexRepositoryContinuityV01(db, { repository_root: target.root });
+      const input = { repository_root: target.root, action: 'preview', expected_snapshot_binding: c.continuity.snapshot.binding,
+        changes: { sources: { add: [{ source: 'note-ref:workshop-correction', text: 'For the East Library workshop, the organizer corrects the start to 19:00. Seat reservations at the front desk remain applicable. A conflicting staff note lists 20:00 for this workshop. The discrepancy with the organizer remains unresolved; confirm before publishing.', observed_at: null, provenance: 'imported_unverified', label: 'Next check' }] } } };
+      const preview = await reviseCodexRepositoryWorkV01(db, input, channel); assert.equal(preview.status, 'previewed');
+      const saved = await reviseCodexRepositoryWorkV01(db, { ...input, action: 'save', preview_binding: preview.preview_binding }, channel); assert.equal(saved.status, 'saved');
+      return op(target, 'read');
+    } });
+  newBasis = collectionCase.basis;
+  checks.push('stable incremental collection; natural question versus literal miss; exact/conflicting replay; explicit corrections/conflicts; selective output; direct-read equality; atomic bounds/access refusals');
   validateExternalStore(db);
   const retained = state(); db.close();
   const lifecycle = { databasePath: dbPath, backupDirectory: path.join(owner.root, 'backups'), repositoryRoot: root,
@@ -287,6 +303,9 @@ try {
   await prepareRuntimeDatabase(lifecycle); db = new Database(dbPath); assert.equal(state(), retained); validateExternalStore(db);
   const recovered = await consume('recovered-fresh-use', target, next.corpus_ref);
   assert.equal(recovered.output_sha256, nextOutput.output_sha256); assert.deepEqual(recovered.used, nextOutput.used);
+  const recoveredCollection = await consume('collection-recovered', target, null, { ...collectionCase.task, collection: collectionCase.collection });
+  assert.equal(recoveredCollection.output_sha256, collectionCase.corrected.output_sha256);
+  assert.deepEqual(recoveredCollection.used, collectionCase.corrected.used);
   const recoveredReplay = await op(target, 'import_web_export', firstRequest, newBasis).then(() => null, e => e.code);
   assert.equal(recoveredReplay, 'external_replay_conflict', 'a changed native basis cannot rewrite the earlier import');
   const afterFailure = await op(target, 'import_web_export', failureRequest, newBasis); assert.equal(afterFailure.status, 'saved');

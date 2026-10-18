@@ -215,17 +215,29 @@ async function main() {
   assert.throws(() => inspection(8, Buffer.alloc(65536, 'x').toString('base64')), /selected_source_scan_bound/, 'aggregate serialized scan cap');
   checks.push('Resume boundary preserved; query/count/output bounds; malformed scope; miss; full-group omission');
 
+  const selection = await op(successor, 'collect_sources', { key: 'shared-collection', collection_ref: null, expected_head: null,
+    name: 'Explicit shared sources', corpus_refs: [expanded] }, (await op(successor, 'read')).material_basis);
+  const selectedInspection = await op(successor, 'inspect_corpus', { collection_ref: selection.collection_ref });
+  const question = { collection_ref: selection.collection_ref, query: 'What should I know about duration?', query_mode: 'question', expected_corpus_binding: selectedInspection.corpus_binding };
+  const selectedAnswer = await op(successor, 'retrieve_sources', question);
+  assert(selectedAnswer.results.some((g: any) => g.experience.ref === duration.experience_ref && g.corrections.length === 1));
+  assert.equal(selectedAnswer.query_mode, 'question');
+
   // Real private HTTP route contract without starting or adopting a service.
   Object.assign(process.env, { AUGNES_RUNTIME_CHILD_ROLE: 'ui', AUGNES_RUNTIME_INSTANCE_ID: 'fixture', AUGNES_RUNTIME_GENERATION_ID: 'fixture-generation',
     AUGNES_RUNTIME_REPOSITORY_FINGERPRINT: 'e'.repeat(64), AUGNES_COMPANION_PROXY_TOKEN: 'fixture-proxy-token' });
-  const route = (auth: boolean) => externalRoute(new Request('http://127.0.0.1/api/augnes/external-response?scope=repository:local', {
+  const route = (auth: boolean, data: any = { corpus_ref: expanded, query: codingTask.query, expected_corpus_binding: full.corpus_binding }) => externalRoute(new Request('http://127.0.0.1/api/augnes/external-response?scope=repository:local', {
     method: 'POST', headers: { host: '127.0.0.1', 'content-type': 'application/json', 'x-augnes-external': EXTERNAL_MARKER,
       'x-augnes-companion-proxy': auth ? 'fixture-proxy-token' : 'invalid', 'x-augnes-runtime-instance': 'fixture',
       'x-augnes-runtime-generation': 'fixture-generation', 'x-augnes-runtime-repository': 'e'.repeat(64) },
-    body: JSON.stringify({ repository_root: successor.root, action: 'retrieve_sources', data: { corpus_ref: expanded, query: codingTask.query, expected_corpus_binding: full.corpus_binding } }) }));
+    body: JSON.stringify({ repository_root: successor.root, action: 'retrieve_sources', data }) }));
   assert.equal((await route(false)).status, 403); const routed = await route(true); assert.equal(routed.status, 200);
   assert.deepEqual((await routed.json()).results, full.results);
   assert(externalToolDescription().inputSchema.properties.action.enum.includes('retrieve_sources'));
+  assert(externalToolDescription().inputSchema.properties.action.enum.includes('collect_sources'));
+  assert.equal((await route(false, question)).status, 403);
+  const collectionRoute = await route(true, question); assert.equal(collectionRoute.status, 200);
+  assert.deepEqual((await collectionRoute.json()).results, selectedAnswer.results);
   checks.push('private authenticated route delivers identical bytes; unauthenticated route refuses; ordinary tool exposes action');
 
   const backup = path.join(owner.root, 'backup.db'); await db.backup(backup);
@@ -245,8 +257,10 @@ async function main() {
   assert.equal(canonical(db.prepare('SELECT * FROM vnext_external_records ORDER BY ref').all()), baselineRows);
   await op(prior, 'withdraw', { ref: corrections[0], target_key: scopeKey(successor.scope) });
   await refuses(() => query(successor, expanded, codingTask.query), /selected_source_context_unavailable/);
+  await refuses(() => op(successor, 'inspect_corpus', { collection_ref: selection.collection_ref }), /selected_source_context_unavailable/);
   await op(prior, 'withdraw', { ref: duration.experience_ref, target_key: scopeKey(successor.scope) });
   await refuses(() => query(successor, expanded, codingTask.query), /external_access_refused/);
+  await refuses(() => op(successor, 'inspect_corpus', { collection_ref: selection.collection_ref }), /external_access_refused/);
   const excluded = await corpus(successor, [when, booking, noise]);
   assert.equal((await query(successor, excluded, codingTask.query)).returned_groups, 0);
   await refuses(() => query(successor, expanded, codingTask.query), /external_access_refused/); // Explicit reselection cannot bypass withdrawal.
