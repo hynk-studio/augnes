@@ -18,6 +18,7 @@ import { handleMessageV01 } from "../plugins/augnes-operator/mcp/companion-proxy
 import { runFirstWorkExampleChild } from "./companion-first-work-consumer.mjs";
 import { consume, runConnectionRoundtripChild } from "./companion-connection-roundtrip.mjs";
 import { validateRecoveryCanonicalDatabaseV01 } from "./recovery-canonical-record-validator";
+import { assertCompanionDisruptionRecovery } from "./companion-disruption-checks";
 
 /** Actual consume() control flow with deferred I/O, not an SDK shutdown race. */
 async function assertConnectionReadCleanupOrdering(root: string) {
@@ -494,6 +495,9 @@ export async function assertCompanionWorkRevisionEnvelopeV01(temporaryRoot: stri
       packet_fingerprint: unicodeChain.tip_packet.integrity.fingerprint, uncertain_save_reconciled_without_replacement: true,
       channel_refusal_and_explicit_recovery: true, cancelled_preview_no_write: true,
       unrelated_project_selection_preserved: true, managed_runs: 0, actual_codex_conversation: "NOT_RUN" }));
+    await assertCompanionDisruptionRecovery({ db, databasePath, root, runtimeRoot, scope, identity, call,
+      saveCount: () => observations.filter(row => row.action === "save").length,
+      loseNextSaveResponse: () => { loseRevisionResponse = true; } });
     return { databasePath, root, scope, operator_id: COMPANION_WORK_OPERATOR_ID_V01, selected, goal: initial.task.goal };
   } finally {
     try {
