@@ -1657,6 +1657,49 @@ database. No new continuity score, automatic goal editor, standing model judge,
 UI, or runtime mechanism is required. Implementation and sequencing remain
 owned by the roadmap and the existing bounded issues.
 
+### Shared memory retrieval evidence (#1468)
+
+This applies the existing method-improvement and P5.2 criteria to
+[#1468](https://github.com/hynk-studio/augnes/issues/1468) and its
+[current capability and conditional direction](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#shared-source-grounded-retrieval--current-capability-and-conditional-direction-1468).
+The merged #1471/#1476/#1479 increments have the bounded evidence recorded below.
+Their accepted direction is retain/stop, not a new evaluation program or a
+retroactive gate. #1471's coding/textual contrast is completed scripted evidence;
+it does not require #1478 or later work to repeat two-domain qualification.
+
+For a justified later increment, begin with one concrete ordinary workflow from
+producer to successor. Add another domain only if it resolves a demonstrated reuse
+question. Reuse existing evidence/tests where sufficient; no compulsory benchmark,
+usefulness campaign, second-domain gate, capacity study or model dependency follows.
+Endpoint compatibility alone does not establish actual use or product integration.
+
+Distinguish source availability/provenance, retrieval coverage/fidelity, delivered
+input, scripted correctness and use, observed model judgment, task outcomes and
+total user burden. Inspect actual output and appropriate use/non-use. Relevant
+corrections, irrelevant additions, applicability and unknown cases can distinguish
+selective updating from recency preference; retain existing scope, replay,
+reconstruction and source-lifecycle checks where they cover the changed behavior.
+Do not manufacture rationale or infer semantic understanding from lexical matching.
+
+If a fixed usefulness comparison is separately authorized, predefine the task and
+source cutoff, method, relevant model/tools, budget, scoring, exposure handling
+and stopping rule. A
+strong source-linked adaptive memo/direct-search baseline receives comparable
+permitted sources, corrections and resources. Include intake/curation, indexing,
+retrieval, worker calls, human repair, storage and latency where incurred; unknown
+costs stay unknown. Development-exposed questions remain exposed. Distinguish
+selection-system effects from representation alone. Preserve #1298's
+no-observed-advantage, #1465's tie/SIMPLIFY and the later direct-read ties; new
+capability does not retroactively prove advantage. A sufficient simpler route
+supports simplification, and a useful bounded capability need not prove superiority.
+
+AML participation/adapter work remains deferred. Any future native product
+evidence, adapter compatibility, official benchmark result and comparative
+usefulness would remain separate, with then-current external rules checked only
+within a newly authorized scope. Report the connected consumer, limitations and
+retain/simplify/change/stop decision. The current decision is to retain the bounded
+capability and stop expansion without a concrete new limitation.
+
 ### Selected-source A/B implementation evidence (#1468)
 
 The [registered integration](../../scripts/test-selected-source-retrieval.ts)
@@ -1675,10 +1718,11 @@ interpretation and consumer construction are authored scaffolding; there is no
 held-out model judgment, live user study, broad natural-language applicability
 or paid evaluation. Retain original development failures and costs separately.
 
-Retain the bounded reader for independent review and favor direct reading for
-tiny corpora. Add no index/ranking service without an observed need. Prior
-#1298/#1465 findings and #1470's separate prospective planning remain intact.
-This evidence grants no deciding qualification, adoption or follow-on authority.
+Retain the bounded reader and favor direct reading for tiny corpora. Add no
+index/ranking service without an observed need. Prior #1298/#1465 findings remain
+intact. The [roadmap](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#selected-source-implementation-increment-ab-1468)
+records later candidate qualification and source merge separately; the scripted
+evidence itself grants no qualification, adoption or follow-on authority.
 
 ### Portable Web-to-native handoff evidence (#1475)
 

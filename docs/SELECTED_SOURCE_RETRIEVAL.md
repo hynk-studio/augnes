@@ -1,9 +1,13 @@
 # Explicit selected-source retrieval
 
 The #1468 reader supplies complete selected source context to a new task
-through a shared zero-model path. The #1478 increment adds explicit incremental
-collections and an opt-in lexical question mode. Candidate verification and
-installed adoption remain separate from these source capabilities.
+through a shared zero-model path. As of 2026-10-18 KST, #1471's reader/use,
+#1476's explicit Web-export admission and #1479's incremental collections with
+optional lexical questions are merged. The
+[roadmap](vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#shared-source-grounded-retrieval--current-capability-and-conditional-direction-1468)
+records their completed candidate qualification separately from source merge;
+installed adoption and hosted deployment were not performed by those increments.
+Retain this bounded path and stop expansion without a concrete new limitation.
 
 ## Source owners and gap
 
@@ -12,7 +16,7 @@ installed adoption remain separate from these source capabilities.
 | Admission | Existing native work writers and `selected-work-source-comparison.ts`: explicit selected notes and provenance |
 | Persistence | Existing `external-response.ts` `put_material`, `publish`, `correct` and `external-response-store.mjs`: immutable bytes, source links, retries and history |
 | Corpus | An explicitly stored immutable JSON material listing experience references and supplied context; no new table |
-| Reader | New `inspect_corpus`/`retrieve_sources` on the existing private external route/tool, using existing project/share/material/dependency checks |
+| Reader | `inspect_corpus`/`retrieve_sources` on the existing private external route/tool, using existing project/share/material/dependency checks |
 | Consumer | `scripts/selected-source-use.mjs`: shared inspection, retrieval and before-use binding check |
 | Use evidence | Fresh deterministic coding/textual consumers write artifacts; generated coding output actually executes |
 
@@ -268,7 +272,7 @@ Reports record actual setup calls, query/delivery bytes, operation/child latency
 storage and zero provider calls. Selection, typed rules, consumer construction
 and expectations are developer-authored one-off costs; human time and
 development-model token cost are unmeasured. Recurring reads rescan the corpus.
-Retain this small reader for review; favor direct reading for tiny corpora and
+Retain this small reader; favor direct reading for tiny corpora and
 defer indexing/experiments until an observed need. The
 [02 contract](vnext/02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#135-explicit-selected-source-corpus-projection-1468)
 owns meaning; 03/04 retain implementation/evidence status and prior conclusions.

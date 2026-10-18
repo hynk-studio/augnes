@@ -3,9 +3,12 @@
 This explicit local command connects a downloaded Web complete export to the
 existing native material, experience and selected-corpus owners. It is one-way
 source admission, not Web reconstruction into a native project. It neither
-creates native work/Core state nor starts a Companion. Issue
-[#1475](https://github.com/hynk-studio/augnes/issues/1475) commissions the focused
-Draft candidate; deciding qualification and installed adoption remain deferred.
+creates native work/Core state nor starts a Companion. The
+[#1475](https://github.com/hynk-studio/augnes/issues/1475) increment merged through
+[#1476](https://github.com/hynk-studio/augnes/pull/1476) on 2026-10-18 KST after
+candidate-specific qualification. See the [dated record below](#qualification-history-and-current-status).
+Source merge and qualification do not establish installed adoption or hosted
+deployment; neither was performed by this increment.
 
 ## Source owners and gap
 
@@ -35,8 +38,9 @@ mechanism is introduced. Web runtime code never imports the native adapter.
 Use the repository-pinned Node and installed task-owned dependencies. The native
 database and external configuration must already belong to the intended operator;
 follow [external configuration and access](EXTERNAL_RESPONSE_LOCAL.md). No
-processor envelope/model is needed. This assignment exercises disposable stores
-only and does not authorize writing the installed database.
+processor envelope/model is needed. The initial 2026-10-17 development assignment
+exercised disposable stores only. These usage instructions do not authorize
+writing the installed database.
 
 1. Save Web work and download **Complete work** as `planning-work.json`. Keep the
    original export as historical source.
@@ -201,7 +205,33 @@ model/user usefulness, speed superiority, installed acceptance or benchmark
 performance. Retain the small adapter; direct reading remains suitable for small
 one-off exports. Extend formats or automation only for an observed need.
 
-Deciding qualification: **NOT_RUN — explicit initial-assignment boundary**.
-Later explicit continuation must integrate then-current main, rerun affected
-focused checks, freeze a clean candidate, run its own planner-selected deciding
-invocation once and validate that receipt separately.
+## Qualification history and current status
+
+- **2026-10-17, initial assignment:** deciding qualification was
+  **NOT_RUN — explicit initial-assignment boundary**. Later integration and
+  candidate-specific qualification required explicit continuation. This remains
+  the original allocation, not the current status or an instruction to repeat it.
+- **2026-10-17, preservation intake:** the
+  [HOLD](https://github.com/hynk-studio/augnes/pull/1476#issuecomment-6230667898)
+  stopped before deciding execution because the installed recovery record could
+  not establish preservation. Earlier focused evidence remained historical.
+- **2026-10-17 UTC, final qualification:** the
+  [source-bound handoff](https://github.com/hynk-studio/augnes/pull/1476#issuecomment-6235178561)
+  records base `a4b8d8393e99b6b336ed6081faee180d77b33ea3` and head
+  `c0f09ea07c39c8f36a3c11177aa3b7d98d1bc4f2`: a new Full Canonical run passed
+  16/16 phases, followed by separate receipt validation with
+  `valid_deciding_evidence=true`, `status=valid`, `issues=[]`. Earlier candidates,
+  failures and artifacts were retained. The original intermittent
+  `Invalid InterceptionId.` CDP failure remains unexplained; observability
+  hardening and later passes do not establish its permanent absence.
+- **2026-10-18 KST, source merge:** #1476 merged at
+  `8b4dd38b895825885558d454d18323337411c67b`. The qualification above belongs to
+  its exact reviewed candidate; it is not new evidence for another head.
+  Installed adoption and hosted deployment were not performed. The later merged
+  #1478/#1479 [collection workflow](SELECTED_SOURCE_RETRIEVAL.md#incremental-collection-and-ordinary-questions-1478)
+  reuses this admission owner, with its own qualification and retain/stop decision.
+
+No integration or deciding run remains pending merely because the initial
+Draft/NOT_RUN wording survives in historical reports. A future source change
+uses the then-current verification policy and its own authority; this history
+does not start a runtime, installation, deployment or follow-on task.
