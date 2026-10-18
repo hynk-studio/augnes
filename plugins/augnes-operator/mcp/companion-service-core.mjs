@@ -1819,6 +1819,24 @@ function recoveryMaterial(layout, key) {
   return captureStaleDecommissionMaterialSnapshot(layout[key], staleDecommissionAnchorForFile(layout, layout[key]));
 }
 
+function settledRecoveryMatchesRenumberedCheckout(record, layout) {
+  if (record.status !== "settled") return false;
+  const witness = record.evidence.material?.configuration_path;
+  const device = witness?.parent?.device;
+  if (witness?.state !== "valid" || !validCanonicalInstalledStatIdentity(device, true)) return false;
+  const configuration = readRegularJson(layout.configuration_path);
+  if (configuration.state !== "valid" || !isObject(configuration.value) ||
+      !compareCompanionCheckoutIdentity(configuration.value, layout.repository).valid) return false;
+  // A settled record is history, not a new recovery grant. Its immutable
+  // observation must still match every current field except device, including
+  // the durable identity also checked against current enrollment above. The
+  // recorded material supplies a candidate device number, not a mount identity:
+  // require the exact original hash, never assume the two paths share a mount.
+  // Do not pin current configuration bytes to a historical operation; normal
+  // configuration/source validation still owns later supported updates.
+  return record.evidence.repository_binding === checkoutObservationBinding({ ...layout.repository, device });
+}
+
 function readOwnershipRecovery(layout) {
   const value = readRegularJson(layout.ownership_recovery_path);
   if (value.state === "missing") return null;
@@ -1826,9 +1844,10 @@ function readOwnershipRecovery(layout) {
   if (value.state !== "valid" || record?.contract !== OWNERSHIP_RECOVERY_CONTRACT ||
       record.service_identity !== layout.service_identity ||
       !["retiring", "settled"].includes(record.status) || !isObject(record.evidence) ||
-      record.evidence.repository_binding !== checkoutObservationBinding(layout.repository) ||
       !/^[a-f0-9]{64}$/u.test(record.operation_binding ?? "") ||
       record.operation_binding !== sha256(JSON.stringify(record.evidence))) throw recoveryRefused("record_invalid");
+  if (record.evidence.repository_binding !== checkoutObservationBinding(layout.repository) &&
+      !settledRecoveryMatchesRenumberedCheckout(record, layout)) throw recoveryRefused("record_invalid");
   return record;
 }
 

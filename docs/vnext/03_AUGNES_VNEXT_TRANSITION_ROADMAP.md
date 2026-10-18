@@ -131,6 +131,24 @@ files retain their separate ownership. b02 stays CLOSED/PARTIAL; e01 stays
 CLOSED/NO_OBSERVED_ADVANTAGE with no adopted checking instruction or renewed
 allowance. No release, public contact, paid/provider work or scheduler is added.
 
+## Current P3.1 / P5.2 — Selective reporting consumer
+
+The [ordinary selective-report example](../EXTERNAL_RESPONSE_LOCAL.md#selective-correction-in-a-later-reporting-task-p31--p52)
+uses existing scoped sharing and byte owners for the #1213/#1215 A → B → C
+correction case. It adds a concrete later consumer: rebuild the affected
+intermediate from corrected input, change the actual report, retain the
+independently supported invoice result, and reuse valid output for an
+annotation-only change. The earlier direct-correction and successor evidence
+remains separate. No graph, schema, model allocation or installed adoption is
+introduced. The same-PR #1469 event-row validation correction preserves these
+outcomes and checks the supported row contract before calculation or cached reuse.
+#1466, #1465 and #1469 have merged. The #1469 integration preserved both
+incoming increments and the accepted event-row correction. Its candidate-specific
+qualification, independent receipt validation and user merge are recorded with
+that PR; its receipt does not qualify a later head. Installed adoption remains
+separate. Broader P3.1/P5.2 and the historical PARTIAL/SIMPLIFY findings
+remain open or unchanged according to their original owners.
+
 ## Current: request-bound review implementation (#1433)
 
 [#1433](https://github.com/hynk-studio/augnes/issues/1433) adds one bounded native
@@ -381,7 +399,13 @@ and host expansion until a concrete consumer justifies them. This priority
 neither cancels authorized work nor makes all P1/P2 work blocked. Dated historical
 scopes, study results and unrelated Current/Next work below retain their bounds.
 
-### Current independent research — Executable reuse applicability (#1459)
+### Completed first research application — Executable reuse applicability (#1459)
+
+The first source increment merged through #1463 at
+`f3dc65a03086920b8280a9cbd0dd2d28ad86076e`. Its submitted bounded comparison
+reported a tie and **SIMPLIFY to ordinary all-evidence memo/code**. Preserve
+its exposure, failures and allocation. This result concerns fixed observations;
+it does not evaluate active observation selection or authorize another run.
 
 The [#1459 assignment](https://github.com/hynk-studio/augnes/issues/1459) under
 [#1426](https://github.com/hynk-studio/augnes/issues/1426) commissions one contained
@@ -409,6 +433,40 @@ under [04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#reuse-applicability-evid
 The new files and complete-unit registration require the unchanged planner's
 actual exact-head plan; the old research family's narrow qualification does not
 cover them. No automatic product adoption or next research topic follows.
+
+### Current contained research — Chosen observations and productive actions (#1464)
+
+The [commissioned #1464 task](https://github.com/hynk-studio/augnes/issues/1464#issuecomment-6190899064)
+implements the post-r1 capability question: permitted history → conditional
+model → chosen observation/productive action → actual result → method revision
+or retention → checked file output → a separate later task. Its
+[runnable prototype](../../scripts/active-observation-study/README.md) distinguishes
+pending processing from unsupported input conditions and carries observed
+compatibility into a new regional batch with different obligations and budget.
+The supplied deterministic mechanisms and the conditions learned from execution
+are attributed separately. Direct work, waiting and unchanged conditions remain
+valid; no probability machinery is needed for the declared deterministic case.
+
+The strong adaptive memo/code comparison may choose its own observations and
+revise its method under the same initial information, tools and bounds.
+Development checks, fixed native use, comparative usefulness and exact-source
+verification remain separate under 04. Actual outcomes and the next decision
+belong to the consolidated #1464 delivery, not the existence of this prototype.
+This is no Web/Core/database/Companion expansion or universal research platform.
+GenEx remains a possible distinct method, not a mandatory paper-order successor.
+#1455/#1462, #1447's RETAIN/no-comparison result, #1454 and historical trials keep
+their owners and allocations. No automatic next allocation or production
+adoption follows.
+
+The 2026-10-15 constructed ordinary-client observation completed four fresh
+conversations: both arms produced checked first-task outputs (3/3) and new
+regional outputs (6/6), at the same simulated costs of 14 and 28. Both revised
+their first-task scheduling from actual feedback; the candidate needed a further
+successor revision, while the reference retained its code. The scoped decision
+is **SIMPLIFY to ordinary adaptive memo/code**. The acquired conditions were
+actually loaded and used; the extra explicit selector showed no advantage in
+this exposed small comparison. Original artifacts, failures, source qualification
+and measured/unknown burden are recorded in the consolidated #1464 delivery.
 
 ### Bounded P3/P4/P5 implementation — Different-goal experience use (#1427)
 
@@ -981,7 +1039,7 @@ claims are outside this increment.
 
 ### Current DT-001 B — Scene continuity (#1455)
 
-**Local implementation candidate; review and adoption remain separate.** The
+**Increment B merged through #1462; installed/hosted adoption remains separate.** The
 [scene walkthrough](../../apps/web_planning/README.md#scene-walkthrough) extends A's
 Web editor from saved source versions through viewpoint/event/reveal preparation,
 ordinary scene drafts, proposed consequential changes, grouped explicit fictional
@@ -996,7 +1054,25 @@ planner-selected receipt, not #1461's. Any ordinary included-client observation 
 reported separately from deterministic producer/consumer checks and does not
 establish blind comparison, creative superiority or general burden reduction.
 C, alternate directions, shared worlds, Native/Web sync and installation remain
-outside this candidate. #1212's completed library exercise is retained, not rerun.
+outside B. #1212's completed library exercise is retained, not rerun.
+
+### Current DT-001 C — Alternate continuation (#1455)
+
+**Implementation candidate; Draft review and installed adoption remain separate.**
+The [C walkthrough](../../apps/web_planning/README.md#alternate-continuation--increment-c-1455)
+connects a saved primary to one independent alternate, an explicit setting
+reinterpretation, current comparison, selected-only fictional adoption and fresh
+continuations. The existing file/revision, sealed-preview and atomic append owners
+retain their limits and authorization. A bounded two-work export reconstructs both
+histories together in an empty replacement store before fresh reopening.
+
+D1 and Browser ownership includes delayed/abandoned response admission, exact
+unknown-request resolution, stale source/target refusal, retained drafts, original
+Unicode and inherited review attribution, prerequisites, rollback and recovery.
+The final candidate's own planner/receipt decides qualification. C's two-conversation
+ordinary-use allowance is separate from prior A/B and #1464 evidence. The research
+lane, installed Companion, marketplace worktree and completed #1212 library exercise
+are outside this implementation; no automatic further increment is authorized.
 
 ### Current lifecycle slice — Cumulative Web Planning history (#1397)
 
@@ -2543,74 +2619,72 @@ retrieval, general utility, reduced human burden, reliable causal benefit and
 cross-task transfer remain unestablished. P3/P4 completion records, P2 discovery
 and independent utility, Sites and stopped #1273 are unchanged.
 
-## Next P3/P5 — Shared memory retrieval for coding and textual work (#1468)
+<a id="next-p3p5--shared-memory-retrieval-for-coding-and-textual-work-1468"></a>
 
-[#1468](https://github.com/hynk-studio/augnes/issues/1468) records the
-2026-10-16 user-approved planning scope under P5.2 #1215, P3 #1213 and the
-#1426/#1209 accumulation plan. **Next / scoped / unclaimed; implementation and
-new usefulness evaluation NOT_STARTED.** It is a candidate within existing
-priorities, not a new phase or an added prerequisite for current work.
+## Shared source-grounded retrieval — current capability and conditional direction (#1468)
 
-The target is an ordinary successor using relevant prior observations,
-conditions, corrections and unresolved questions in genuinely separate coding
-and non-coding work, without a person preselecting every answer-bearing note.
-Shared capability should remain useful independently of an external benchmark.
-The source inspection at `dcb324a7d1d43955dbd0039dfe06a9df9ca3eb10` found
-[bounded literal retained-note lookup](../../lib/intake/retained-work-source-recall.ts)
-inside one pre-execution revision chain. That path is not general conversation
-ingestion or autonomous retrieval. Preserve #1298's cue-driven recovery and
-no-observed-advantage result; this candidate does not relabel that evidence.
+**2026-10-18 KST: the bounded source capability is merged; retain it and stop
+expansion unless a concrete new limitation justifies further work.**
+[#1468](https://github.com/hynk-studio/augnes/issues/1468) remains the broader
+capability parent under P5.2 #1215, P3 #1213 and #1426/#1209. Its latest scope
+and child [#1478](https://github.com/hynk-studio/augnes/issues/1478), implemented
+by #1479, govern this increment. Neither is a new phase or a prerequisite for
+other work. The 2026-10-16 planning baseline
+`dcb324a7d1d43955dbd0039dfe06a9df9ca3eb10` and its `NOT_STARTED` disposition
+remain dated history, superseded for implementation status by the deliveries below.
 
-Reinspect then-current producers/readers before choosing mechanisms. Reuse
-#1431's experience consumer, #1339's report reuse, #1453's scoped sharing and
-correction, and #1455's domain continuity where compatible. Their existence does
-not establish a combined general memory service or installed adoption. P5.5's
-personal lifecycle design remains separate; neither a global store nor a
-completed Personal Vault is a prerequisite for project-scoped retrieval.
+| Merged capability | Existing owners and limits |
+| --- | --- |
+| [#1471: selected-source inspection/retrieval and bounded successor use](#selected-source-implementation-increment-ab-1468) | Explicit immutable corpora over external experience/material, access, correction and recovery owners; whole source/condition/correction groups and a shared coding/textual caller. |
+| [#1476: explicit Web-export admission](#portable-web-to-native-source-admission-1475) | Existing Web validator and native material/experience/corpus owners; selected current-revision UTF-8 text, one-way admission, exact replay and atomic refusals. |
+| [#1479: incremental collections and optional lexical questions](#incremental-selected-sources-for-successor-work-1478) | Stable project-local collection selection with explicit additions; optional English function-word filtering and word-overlap ranking. Existing literal matching, source/scan/output/storage limits and permissions remain intact. |
 
-The bounded scope is:
+These paths already support acknowledged additions and fresh-process use without
+per-question corpus rebuilding. They do not provide general conversation ingestion,
+semantic language understanding or autonomous source selection. The older
+[retained-note lookup](../../lib/intake/retained-work-source-recall.ts) still stops
+at its eligible current-task chain; the new explicit corpus/collection access does
+not expand Resume. There is no search index, embedding service, model dependency
+or universal memory store. Exact source qualification, source merge, installed
+adoption and hosted deployment are separate observations; see the dated status
+entries below rather than repeating their initial integration instructions.
 
-- admit explicitly selected/authorized source artifacts or test inputs; preserve
-  available originals or honest source references, revision, scope and relevant
-  session/trajectory grouping. Default transcript capture, native-memory import
-  and hidden-reasoning storage remain excluded;
-- index admitted material without promoting it into accepted facts or decisions.
-  Keep source/event/valid time distinct from ingestion time and missing meaning
-  unknown. Derived indexes/summaries follow their source owner's access,
-  retention, deletion and recovery lifecycle;
-- retrieve source-bound evidence under explicit resource/context bounds,
-  including relevant conditions and corrections. Later timestamps or similar
-  wording alone do not establish supersession. Keep unresolved alternatives and
-  proposed/adopted distinctions; a bounded miss is not global absence;
-- support incremental writes that are searchable after acknowledged completion,
-  idempotent retries and fresh-consumer reconstruction. Share useful primitives
-  while retaining domain-specific grouping and preparation;
-- connect the result to one existing permitted preparation/read/use path and
-  actual output. Choose a new structure only for a demonstrated consumer need;
-  do not prescribe a graph, vector database, universal schema or new chat surface.
+The continuing product aim is a successor using relevant prior observations,
+conditions, corrections and unresolved questions in separate coding and textual work without a
+person repeatedly arranging answer-bearing excerpts. Keep original bytes or
+honest source references, revision/scope/grouping and source/event/valid time
+distinct from ingestion time. Missing meaning stays unknown; similarity or
+recency does not establish supersession, adoption or truth. Source selection and
+retrieval grant no cross-project access, semantic acceptance or execution authority.
+Default transcript capture, host-memory import and hidden-reasoning storage stay
+excluded. Any future derived view must follow its source owner's access,
+retention and recovery lifecycle; no such structure is required by this plan.
 
-Start with a source audit and one end-to-end domain slice; add a small case from
-the other domain to establish reuse of the same implementation. Evaluate under
-[04's shared-memory criteria](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#shared-memory-retrieval-evidence-1468),
-using strong adaptive notes/direct search and total burden. Positive comparative
-benefit is not a prerequisite for an authorized new capability; source
-correctness, actual use and usefulness remain separate claims. Retain, simplify,
-change or stop based on the observed bottleneck rather than expanding scope to
-obtain a favorable result.
+The current ordinary workflow is #1478's workshop-notice successor. If a new
+limitation warrants another authorized increment, start from one concrete
+ordinary workflow and inspect its current producer, reader and actual output.
+Reuse #1431/#1339/#1453/#1455 owners where applicable; choose the smallest
+supported change, or retain direct reading/adaptive notes when sufficient.
+Add another domain only to resolve a demonstrated reuse question. A second-domain
+gate, compulsory benchmark, usefulness campaign, capacity study or model dependency
+does not follow from the broader aim. Apply
+[04's evidence distinctions](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#shared-memory-retrieval-evidence-1468)
+to the actual claim and total burden. #1298's no-observed-advantage and #1465's
+tie/SIMPLIFY conclusions remain intact; new capability is not general superiority.
 
-An optional [AML Add/Search adapter](https://agentmemoryleaderboard.ai/api-guide)
-may follow once this shared path exists. Keep the external contract in the
-adapter, preserve benchmark isolation and return evidence rather than final
-answers. An evaluation `user_id` is not product person identity or cross-project
-access authority. Official Smoke/Full, public hosting, spending, submission and
-publication require their concrete authorized scope. Both-track completion and
-the Cycle 2 deadline are not product acceptance gates; dataset-specific tuning,
-model training and all-host rollout are outside this first candidate.
+AML participation and its optional adapter remain **deferred** under the latest
+#1468 decision, outside #1478 and its completion conditions. Reconsider only after
+a separate participation decision and concrete scope; no deadline, official run,
+hosting, spending, submission or publication is implied. Any future adapter
+would reuse product owners and keep evaluation data isolated; an evaluation
+identity would not grant product identity or cross-project access.
 
-This planning addition changes no Core semantics, production data, current
-assignment or historical evidence. Runtime implementation remains a separately
-scoped task, with code/test choices owned by Codex and review owned by the user
-and ChatGPT; registration does not dispatch work or authorize merge.
+[#1454](https://github.com/hynk-studio/augnes/pull/1454) retains its separately
+owned external-response direction; [#1473](https://github.com/hynk-studio/augnes/pull/1473)
+retains conditional prediction/applicability revision after execution-context
+change. This reconciliation neither adopts nor replaces those proposals or P5.5
+personal lifecycle work. Core/persistence contracts, runtime behavior, installed
+production and all existing authority remain unchanged. No next task starts here.
 
 ## P1/P5 status and next decision
 
@@ -5185,6 +5259,90 @@ transfer, policy, Stage 7, and automatic successor authority remain false.
 Research engines may explore, compare, challenge, infer, predict, and propose.
 Their output is not truth, accepted Perspective, user decision, Transition,
 execution authority, or authority expansion.
+
+## Selected-source implementation increment A/B (#1468)
+
+The [commissioned increment](https://github.com/hynk-studio/augnes/issues/1468#issuecomment-6213957209)
+connects an explicitly selected corpus of existing experience/material records
+to bounded retrieval and fresh successors. The [workflow](../SELECTED_SOURCE_RETRIEVAL.md)
+reuses source admission, material storage, explicit sharing, correction and
+recovery owners. It adds read-only corpus inspection/retrieval; current-work
+recall and Resume retain their boundaries.
+
+The registered deterministic integration produces/executes a coding artifact
+and writes a small textual output through the same retrieval implementation.
+It covers corrections, independent material, unrelated additions, non-use,
+restart/backup reconstruction and withdrawn/missing sources. These are mechanism
+and scripted-use observations. They do not establish human/model use, comparative
+usefulness, installed adoption or deciding Mac qualification. Equal direct-read
+control outputs do not establish advantage. #1298/#1465 conclusions are unchanged.
+
+**2026-10-17: source merged through [#1471](https://github.com/hynk-studio/augnes/pull/1471)**
+at `e7590453d4765f7b81a6df8c881dbc81bd9dab9d`. Its original task integrated
+#1469/current main without rewriting history and repaired the retrieval-child
+inventory contract. The
+[qualified candidate handoff](https://github.com/hynk-studio/augnes/pull/1471#issuecomment-6229276238)
+records head `3feab86c1b1133f61abf0ac4c8e001ed277cf4f5`, its own 16/16-phase
+Full Canonical pass and separate valid receipt. These completed steps supersede
+the initial 2026-10-16 Draft/deciding-qualification-NOT_RUN disposition; that
+assignment boundary and its preservation-attribution UNKNOWNs remain history
+in [the original report and erratum](https://github.com/hynk-studio/augnes/issues/1468#issuecomment-6214502026).
+No repeat integration/qualification is implied by that older wording. #1468 stays
+open under the [shared direction above](#shared-source-grounded-retrieval--current-capability-and-conditional-direction-1468).
+Source qualification/merge establishes neither installed adoption nor hosted
+deployment, general usefulness or permission for another experiment.
+
+<a id="portable-web-to-native-source-candidate-1475"></a>
+
+## Portable Web-to-native source admission (#1475)
+
+The [explicit local handoff](../WEB_EXPORT_NATIVE_HANDOFF.md) connects actual Web
+complete exports to existing native selected-source materials/experience/corpus.
+It supports selected current-revision UTF-8 text, exact replay and atomic refusal,
+fresh deterministic use and native recovery without changing Web reconstruction
+or native current-work/Resume. **2026-10-18 KST: source merged through
+[#1476](https://github.com/hynk-studio/augnes/pull/1476)** at
+`8b4dd38b895825885558d454d18323337411c67b`, under #1212/#1215 and #1426.
+The [final qualified handoff](https://github.com/hynk-studio/augnes/pull/1476#issuecomment-6235178561)
+binds head `c0f09ea07c39c8f36a3c11177aa3b7d98d1bc4f2`, a new 16/16-phase
+Full Canonical pass and separate valid receipt. The initial 2026-10-17
+qualification-NOT_RUN limit, later preservation HOLD and intermittent CDP failure
+remain dated history in the [usage/evidence record](../WEB_EXPORT_NATIVE_HANDOFF.md#qualification-history-and-current-status).
+They are not current instructions to repeat completed qualification. Installed
+adoption and hosted deployment were not performed by this increment. #1472/#1474,
+#1473 and #1454 keep their separate ownership; no automatic next task follows.
+
+## Incremental selected sources for successor work (#1478)
+
+**2026-10-18 KST: source merged through [#1479](https://github.com/hynk-studio/augnes/pull/1479)**
+at `27d8d738771ea2de76c51dbc5ed8d618d84c7c0e`. It extends the merged #1471 and
+#1476 source owners from intake main
+`510e6d088830af7ad1fcbc1e0a61bbbb89729c9e`. The selected workflow is a staff-review
+library workshop notice using whole Web-export text. Its demonstrated gaps were
+replacement-manifest preparation for additions and a literal miss for an ordinary
+question. The [supported path](../SELECTED_SOURCE_RETRIEVAL.md#incremental-collection-and-ordinary-questions-1478)
+adds explicit collection selection/additions and optional bounded lexical questions.
+It retains existing corpus/storage/output limits, permissions and zero-model paths.
+
+The existing Web integration now proves actual admission, a stable collection,
+fresh successor output, relevant and unrelated additions, connected corrections,
+unresolved conflict, exact/conflicting replay and supported backup/restore. Shared
+source withdrawal/private HTTP checks remain in the selected-source integration.
+The output is deterministic staff-review quoting, with direct reading producing the
+same prose; no observed model use or general benefit is claimed. The
+[#1479 qualification record](https://github.com/hynk-studio/augnes/pull/1479#verification)
+binds reviewed head `cd9c6c5b15180c264cd34d444473ef8875247094`, its own single
+16/16-phase Full Canonical pass and separate valid receipt. The merge above and
+that reviewed head have the same tree; this does not transfer the receipt to a
+new head or establish installed adoption or hosted deployment. Initial
+registration-era NOT_STARTED/Draft wording is historical, not current status.
+
+The accepted next decision is **retain this bounded capability and stop expansion
+unless a concrete new limitation justifies work**. Prefer direct reading for tiny
+one-off sources. No second-domain gate, capacity/usefulness campaign, model
+dependency or AML participation follows. #1468 remains the broader parent;
+#1473/#1454 retain their separate planning owners. No installed adoption,
+permission expansion, deployment or automatic next task is authorized here.
 
 ## Compatibility and historical work
 

@@ -118,8 +118,12 @@ export async function eraseWork(s: Store, id: string, expected: Binding): Promis
   if (!await erased(s,id)) fail("refresh_required",409);
 }
 export async function reconstruct(s: Store, chain: Revision[], bodies:FileBody[]=[]): Promise<void> {
-  assertHistoryBudget(chain);
-  validateSceneHistory(chain,bodies);
+  return reconstructWorks(s,[{chain,bodies}]);
+}
+export async function reconstructWorks(s:Store,works:{chain:Revision[];bodies:FileBody[]}[]):Promise<void>{
+  if(works.length<1||works.length>2)fail("reconstruction_budget_exceeded");
+  const chain=works.flatMap(w=>w.chain);assertHistoryBudget(chain);
+  for(const w of works)validateSceneHistory(w.chain,w.bodies);
   // json_each avoids eight parameters and one query per revision. Chunk by
   // actual canonical bytes and rows, keeping every bound string below D1's
   // 2 MB limit. All chunks still commit or roll back in one D1 transaction.
@@ -142,10 +146,12 @@ export async function reconstruct(s: Store, chain: Revision[], bodies:FileBody[]
       SELECT json_extract(value,'$.workspace_id'),json_extract(value,'$.project_id'),json_extract(value,'$.work_id'),
         json_extract(value,'$.revision'),json_extract(value,'$.fingerprint'),json_extract(value,'$.request_key'),
         json_extract(value,'$.request_fingerprint'),value FROM json_each(?)`).bind(canonical(rows))),
-    ...fileInsert(s,chain.at(-1)!,bodies),
+    ...works.flatMap(w=>fileInsert(s,w.chain.at(-1)!,w.bodies)),
   ]);
-  if (canonical(await readWork(s,chain[0].work_id)) !== canonical(chain)) fail("reconstruction_readback_unavailable",503);
-  if(chain.some(r=>r.files!==undefined))verifiedBodies(chain,await readFileBodies(s,chain));
+  for(const w of works){
+    if(canonical(await readWork(s,w.chain[0].work_id))!==canonical(w.chain))fail("reconstruction_readback_unavailable",503);
+    if(w.chain.some(r=>r.files!==undefined))verifiedBodies(w.chain,await readFileBodies(s,w.chain));
+  }
 }
 export async function listWork(s: Store, cursor: string): Promise<{ items: Revision[]; next: string | null }> {
   const rows = await s.DB.prepare(`SELECT DISTINCT work_id FROM web_planning_revision

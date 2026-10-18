@@ -93,6 +93,28 @@ source selection, author classification/adoption, manual transfer/import, contex
 size and measured/unknown human and host burden. Successful storage, a fresh browser
 or exact text read alone does not establish model understanding or usefulness.
 
+## Alternate continuation acceptance (DT-001 C)
+
+Use actual Web/D1/browser producers to fork a named persisted origin, retain
+inherited attribution, explicitly reinterpret an adopted setting without rewriting
+history, and take only a selected independent change into the current primary.
+Freeze whether the example is a retroactive reinterpretation or a later event.
+Test both current heads, explicit prerequisites, source availability, replay,
+unknown outcomes, delayed/ABA/cancelled responses, finite capacity and atomic
+failure. Recover the full two-scope closure into empty replacement storage and
+reopen both independent successors after process replacement. Retain A/B ordinary
+work, exact originals, old-reader refusal and presentation compatibility coverage.
+
+C permits at most two fresh included-client conversations/four messages, one at
+a time, 600 seconds per turn including cleanup and 1,800 seconds aggregate.
+Deliver each actual product-generated scope context through an existing file or
+browser path, never another consumer's answer or a coordinator summary. Save and
+recover the resulting drafts through the product. Report supplied classification,
+manual transfer, native memory exposure, time, usage and unknown human burden;
+this is assisted ordinary-use development evidence, not blind or comparative
+creative evaluation. Unavailable supported access means only that observation is
+NOT_RUN. No additional launcher, login, API fallback or #1464 allocation is implied.
+
 ## Independent project-client acceptance
 
 For #1430, distinguish project data isolation, usable client authorization,
@@ -221,6 +243,36 @@ use, verification/recovery and coordinator assistance, with unknown costs labell
 unknown. A tie or greater candidate overhead warrants simplifying to the ordinary
 reference, not a superiority claim. These requirements implement the existing
 method-improvement guidance for #1459 without creating a universal research gate.
+
+### Active observation and productive-action selection (#1464)
+
+For [#1464's file-processing prototype](../../scripts/active-observation-study/README.md),
+match initial information, usable actions, capable tools/models, output checks
+and resource ceilings between candidate and strong adaptive memo/code. Do not
+force identical acquired histories: selecting an observation or productive step
+is the intervention. Freeze environment/response rules, initial instances,
+exogenous changes, costs, contracts, initial methods, online update rules and
+stops before observation; evolving learned state is permitted by those rules.
+
+Record the pre-action model, selected action, actual outcome, observation
+availability, relevant update or retention, consequential next action and checked
+output. Supplied mechanics, priors, hypothesis forms and deterministic updaters
+are not themselves learned conditions. A productive action can also inform;
+direct work or waiting may avoid a needless probe. Deterministic conditions need
+no invented probability, and imagined results are not evidence. Unknown/pending
+effects require reconciliation; duplicates are not independent observations or
+extra completed work. Later evidence cannot rewrite an earlier knowledge basis.
+
+Define the materially different successor input/output before interpreting the
+result, and check that a fresh consumer actually loads its own retained method
+and produces valid new files. Report original choices before common checks,
+invalid/false-complete/duplicated work, useful and wasted observations, revisions,
+simulated costs, measured client/process time, acquisition/recurring effort and
+unknown human/model costs separately. Keep development exposure and coordinator
+assistance explicit. One constructed comparison supports a bounded retain,
+simplify, revise or stop decision, not general superiority or equivalence.
+Preserve #1459's fixed-history tie/SIMPLIFY and #1447's supplied-entry evidence;
+neither is retrospectively an active-selection test.
 
 ### Public asset entry and later consumer (#1447)
 
@@ -520,6 +572,21 @@ This preserves planning #1454's separation of capability, effect, usefulness and
 autonomy. Broader/default operation and a comparison with a strong adaptive
 source-linked native workflow require their own justified scope and evaluation.
 No e01 comparison or b02 observation allowance is inherited or reopened.
+
+The P3.1/P5.2 [selective-report consumer](../EXTERNAL_RESPONSE_LOCAL.md#selective-correction-in-a-later-reporting-task-p31--p52)
+uses one exposed numerical case and a frozen independent arithmetic expectation.
+It inspects actual downstream files: A/B 7,500 → 8,500 ms produces C
+22,500 → 25,500 ms while independent D keeps the reservation fee at 12,000 cents.
+An annotation-only correction must preserve the output hash with no repeated
+aggregate calculation. Fresh processes receive only their ordinary project
+entry; correction references come from declared source material. Original B's
+passing check remains historical, while new applicability and rechecked output
+have their own bindings. Source/version/access/race/rollback controls address
+the consumer boundary; unchanged adapter invariants retain their existing tests.
+This is deterministic development evidence, not autonomous model judgment,
+comparative benefit or a replacement for the prior PARTIAL and
+NO_OBSERVED_ADVANTAGE observations. Setup and repeated-use steps are reported
+separately, without claiming measured burden reduction.
 
 ### Cost and user burden
 
@@ -1593,43 +1660,115 @@ owned by the roadmap and the existing bounded issues.
 ### Shared memory retrieval evidence (#1468)
 
 This applies the existing method-improvement and P5.2 criteria to
-[#1468](https://github.com/hynk-studio/augnes/issues/1468). It records prospective
-evaluation for the [shared retrieval candidate](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#next-p3p5--shared-memory-retrieval-for-coding-and-textual-work-1468),
-not a new evaluation program, measured benefit or retroactive gate.
+[#1468](https://github.com/hynk-studio/augnes/issues/1468) and its
+[current capability and conditional direction](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#shared-source-grounded-retrieval--current-capability-and-conditional-direction-1468).
+The merged #1471/#1476/#1479 increments have the bounded evidence recorded below.
+Their accepted direction is retain/stop, not a new evaluation program or a
+retroactive gate. #1471's coding/textual contrast is completed scripted evidence;
+it does not require #1478 or later work to repeat two-domain qualification.
 
-Begin with one existing producer-to-successor path, then a small case from the
-other domain before claiming shared coding/textual capability. Use permitted
-selected material and an ordinary output; endpoint compatibility or a
-benchmark-only implementation does not establish product integration. Reuse
-existing evidence/tests where sufficient. The first slice does not require all
-hosts, a full benchmark suite or a factorial study.
+For a justified later increment, begin with one concrete ordinary workflow from
+producer to successor. Add another domain only if it resolves a demonstrated reuse
+question. Reuse existing evidence/tests where sufficient; no compulsory benchmark,
+usefulness campaign, second-domain gate, capacity study or model dependency follows.
+Endpoint compatibility alone does not establish actual use or product integration.
 
-Distinguish source availability and provenance, retrieval coverage/fidelity,
-actual delivery, appropriate use/non-use, downstream outcome and total burden.
-Use a relevant correction and an irrelevant addition to distinguish useful
-updating from indiscriminate recency preference. Include a material applicability
-condition and an unsupported/unknown case; do not manufacture rationale or treat
-later wording as automatic truth. Verify scope isolation, duplicate-write
-behavior, fresh-consumer reconstruction and the existing source lifecycle,
-including deletion/access withdrawal in derived views where applicable.
+Distinguish source availability/provenance, retrieval coverage/fidelity, delivered
+input, scripted correctness and use, observed model judgment, task outcomes and
+total user burden. Inspect actual output and appropriate use/non-use. Relevant
+corrections, irrelevant additions, applicability and unknown cases can distinguish
+selective updating from recency preference; retain existing scope, replay,
+reconstruction and source-lifecycle checks where they cover the changed behavior.
+Do not manufacture rationale or infer semantic understanding from lexical matching.
 
-For a fixed usefulness comparison, predefine the task and source cutoff, method,
-relevant model/tools, budget, scoring, exposure handling and stopping rule. A
+If a fixed usefulness comparison is separately authorized, predefine the task and
+source cutoff, method, relevant model/tools, budget, scoring, exposure handling
+and stopping rule. A
 strong source-linked adaptive memo/direct-search baseline receives comparable
 permitted sources, corrections and resources. Include intake/curation, indexing,
-retrieval, worker calls, human repair, storage and latency; unknown costs stay
-unknown. Distinguish a selection-system comparison from representation alone.
-Preserve #1298's original result and other prior ties; new capability does not
-retroactively prove advantage. A sufficient simpler route supports simplification.
+retrieval, worker calls, human repair, storage and latency where incurred; unknown
+costs stay unknown. Development-exposed questions remain exposed. Distinguish
+selection-system effects from representation alone. Preserve #1298's
+no-observed-advantage, #1465's tie/SIMPLIFY and the later direct-read ties; new
+capability does not retroactively prove advantage. A sufficient simpler route
+supports simplification, and a useful bounded capability need not prove superiority.
 
-Keep native product evidence, local adapter compatibility, official AML result
-and comparative usefulness separate. An AML score reflects its fixed Answer/Eval
-pipeline and evaluation version, not all Augnes semantic/epistemic continuity,
-user authority or real-work benefit. Any adapter should invoke the same shared
-implementation used by the product. Keep benchmark data in its permitted
-isolated evaluation scope and verify then-current rules before an external run.
-Report the connected consumer, limitations and a retain/simplify/change/stop
-decision; no positive score or gain is required to honestly close an observation.
+AML participation/adapter work remains deferred. Any future native product
+evidence, adapter compatibility, official benchmark result and comparative
+usefulness would remain separate, with then-current external rules checked only
+within a newly authorized scope. Report the connected consumer, limitations and
+retain/simplify/change/stop decision. The current decision is to retain the bounded
+capability and stop expansion without a concrete new limitation.
+
+### Selected-source A/B implementation evidence (#1468)
+
+The [registered integration](../../scripts/test-selected-source-retrieval.ts)
+uses developer-exposed synthetic sources, expectations frozen outside consumer
+input, and fresh deterministic consumers receiving a permitted project/corpus
+entry and task/query. Coding precedes the small textual contrast. Both use the
+[same retrieval caller](../../scripts/selected-source-use.mjs). Exported evidence
+contains actual delivered groups, generated/executed code, prose, correction
+dependencies, non-use, timings, bytes and cleanup.
+
+Separate retrieval, delivery, actual use and checked outputs from comparative
+benefit and model judgment. The direct-read control receives the same corpus,
+inspects all groups and produces equal outputs. Its additional calls in this
+constructed case do not establish general efficiency. Source selection, typed
+interpretation and consumer construction are authored scaffolding; there is no
+held-out model judgment, live user study, broad natural-language applicability
+or paid evaluation. Retain original development failures and costs separately.
+
+Retain the bounded reader and favor direct reading for tiny corpora. Add no
+index/ranking service without an observed need. Prior #1298/#1465 findings remain
+intact. The [roadmap](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#selected-source-implementation-increment-ab-1468)
+records later candidate qualification and source merge separately; the scripted
+evidence itself grants no qualification, adoption or follow-on authority.
+
+### Portable Web-to-native handoff evidence (#1475)
+
+The [registered integration](../../scripts/test-web-export-native.mjs) produces
+real D1-backed Web exports, invokes the local importer, and gives fresh native
+consumers only a permitted corpus/project and ordinary task input. The shared
+reader delivers complete attributed source text. A revised time changes the
+draft, old output remains historical, unselected additions leave dependencies
+unchanged and outside applicability yields unknown. A direct-export control
+produces equal output. Integrity/access/replay/size refusals and a real capacity
+failure preserve all native rows; existing native backup/restore supplies the
+fresh-process recovery check. Web/native bounds and assertions are unchanged.
+This is developer-exposed deterministic portability and quoting, not independent
+model judgment or comparative usefulness. Record setup/recurring calls, bytes,
+storage and latency separately; human curation and model-development burden are
+unmeasured. Retain this small explicit path, favor direct reading for one-off
+exports, and defer broader formats/automation without an observed need.
+
+### Incremental collection and lexical-question evidence (#1478)
+
+The [existing Web integration](../../scripts/test-web-export-native.mjs), extended
+by [collection checks](../../scripts/selected-source-collection-checks.mjs), uses
+one exposed workshop-notice workflow. Whole source files enter through actual local
+Web saves/export and the existing native importer. A stable collection receives a
+later revision and a selected garden note without consumer-specific manifests.
+The ordinary question yields a literal-reader miss but bounded lexical delivery;
+this establishes a narrow capability, not semantic natural-language understanding.
+
+Fresh processes write inspectable staff-review drafts from delivered original
+prose, conditions and connected corrections. Relevant updates change output; the
+garden leaves output/dependencies unchanged; booking context survives. Conflicting
+19:00/20:00 statements remain unresolved, without latest-wins interpretation.
+The same permitted direct-read control produces equal output. Exact replay,
+atomic conflicting replay, stale bindings, access withdrawal, existing bounds and
+supported native recovery are correctness evidence, separate from usefulness.
+
+Reports retain preparation actions, acknowledgement/delivery bytes, source and
+output bindings, operation time and storage. Whole-file selection and two correction
+statements are authored preparation; no answer-field mapping enters the consumer.
+Successful source admission needs zero manual source repairs. Human preparation time
+and development-model token cost remain unmeasured; a corrected fixture-label error
+is development effort, not a product benefit. These are developer-exposed scripted
+observations with zero provider calls, not independent model judgment or a held-out
+campaign. Preserve #1298/#1465 conclusions. Retain the explicit collection path,
+favor direct reading for tiny one-off sources, and stop expansion without a new
+concrete limitation. No second domain, index, capacity or AML campaign is implied.
 
 ## Alpha and release evaluation
 

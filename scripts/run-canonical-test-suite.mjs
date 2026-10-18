@@ -162,6 +162,14 @@ const goldenStep = {
 const suites = {
   unit: [
     {
+      id: "active-observation-study",
+      label: "chosen file-processing observations and retained conditional method use",
+      requirements: ["filesystem", "process-owning", "immutable-fixture-input"],
+      ...rootNode("scripts/test-active-observation-study.mjs"),
+      timeoutMs: 10_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "reuse-applicability-study",
       label: "experience-induced reuse decisions and actual later file reports",
       requirements: ["filesystem", "process-owning", "immutable-fixture-input"],
@@ -956,6 +964,33 @@ const suites = {
       label: "scoped experience, real local interaction, checked byte use and fresh reconstruction",
       ...rootNode("scripts/test-external-response.ts"),
       timeoutMs: 90_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "external-response-selective",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
+      label: "declared upstream correction changes a fresh downstream report while independent support survives",
+      ...rootNode("scripts/test-external-response-selective.ts"),
+      timeoutMs: 90_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "selected-source-retrieval",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "mutable-module-state"],
+      label: "explicit selected corpus, complete correction context, fresh coding/textual output and access lifecycle",
+      ...rootNode("scripts/test-selected-source-retrieval.ts"),
+      timeoutMs: 90_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "web-export-native",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state", "backup-restore"],
+      label: "actual Web export, atomic native admission and fresh selected-source use with recovery",
+      ...rootNode("scripts/test-web-export-native.mjs"),
+      timeoutMs: 120_000,
       requireNaturalExit: true,
     },
     {

@@ -102,6 +102,7 @@ let suiteError = null;
 let cleanupError = null;
 
 try {
+  testRuntimeChildProcessScope();
   testPurePathResolution();
   testPhysicalPathSafety();
   await testDirectDatabaseBootstrap();
@@ -131,6 +132,7 @@ try {
     path_layout_version: 1,
     pure_platform_paths_verified: ["linux", "darwin", "win32"],
     physical_path_safety_verified: true,
+    runtime_child_process_scope_verified: true,
     default_ui_database_verified: true,
     first_start_database_state: "created",
     current_database_state: "current",
@@ -2991,15 +2993,39 @@ function listRuntimeChildProcesses() {
     timeout: 2_000,
   });
   if (result.status !== 0) return [];
-  return result.stdout
+  return selectRuntimeChildProcesses(result.stdout);
+}
+
+function selectRuntimeChildProcesses(output) {
+  return output
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(
       (line) =>
-        line.includes(path.join("node_modules", "next", "dist", "bin", "next")) ||
-        line.includes(path.join("apps", "augnes_apps", "src", "server.ts")),
+        line.includes(path.join(repositoryRoot, "node_modules", "next", "dist", "bin", "next")) ||
+        line.includes(path.join(repositoryRoot, "apps", "augnes_apps", "src", "server.ts")),
     )
     .sort();
+}
+
+function testRuntimeChildProcessScope() {
+  const next = path.join("node_modules", "next", "dist", "bin", "next");
+  const bridge = path.join("apps", "augnes_apps", "src", "server.ts");
+  const owned = [
+    `101 node ${path.join(repositoryRoot, "scripts", "runtime-child-launcher.mjs")} ${path.join(repositoryRoot, next)} dev`,
+    `102 node ${path.join(repositoryRoot, next)} dev`,
+    `103 node --import tsx ${path.join(repositoryRoot, bridge)}`,
+  ];
+  const foreign = [
+    `201 node ${path.join(temporaryRoot, "other-checkout", next)} dev`,
+    `202 node --import tsx ${path.join(temporaryRoot, "other-checkout", bridge)}`,
+    `203 node ${path.join(repositoryRoot + "-other", next)} dev`,
+  ];
+  assert.deepEqual(selectRuntimeChildProcesses([...owned, ...foreign].join("\n")), owned,
+    "another checkout's changing children are not this checkout's bootstrap effects");
+  assert.deepEqual(selectRuntimeChildProcesses(foreign.join("\n")), []);
+  assert.notDeepEqual(selectRuntimeChildProcesses([...foreign, owned[0]].join("\n")), [],
+    "a new local child must still fail the before/after no-launch assertion");
 }
 
 function lastJsonLine(output) {

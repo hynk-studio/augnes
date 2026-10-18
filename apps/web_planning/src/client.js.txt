@@ -8,14 +8,15 @@ const storyFile='augnes-story-worldbuilding.v1.json';
 const storyText=JSON.stringify({format:'augnes_story_worldbuilding.v1',primary_file:'manuscript.txt'});
 let authored=null,authoredEpoch=0,authoredUnavailable=false;
 let sceneBook=null,activeScene=null,sceneModified=false,sceneContext=null,sceneReviewPending=null,sceneUnknown=false;
-let sceneContextRequest=null,sceneReviewRequest=null;
+let sceneContextRequest=null,sceneReviewRequest=null,sceneInherited=false;
+let directionRequest=null;
 const sceneFile="augnes-scenes.v1.json";
 let work=null,saved=null,saveTicket=null,pending=null,reviewed=null,dirty=false,next=null,busy=false,eraseBinding=null;
 let relationPending=null,relationUnknown=false,directionDirty=false,comparison=null,comparisonCurrent=false,branchCursor=null,accessLost=false;
 let capacityEpoch=0,capacityTimer=null,capacityInFlight=false,capacityQueued=false;
 const binding=r=>r?{revision:r.revision,fingerprint:r.fingerprint}:{revision:0,fingerprint:null};
 function status(text){$('status').textContent=text;}
-function deny(){sceneContextRequest=sceneReviewRequest=null;sceneBook=activeScene=sceneContext=sceneReviewPending=null;sceneModified=sceneUnknown=false;authored=null;authoredEpoch++;selectedFiles=[];fileSelectionVersion++;capacityEpoch++;clearTimeout(capacityTimer);accessLost=true;work=saved=saveTicket=pending=reviewed=eraseBinding=next=null;dirty=false;relationPending=comparison=branchCursor=null;comparisonCurrent=relationUnknown=false;directionDirty=false;$('private-view').replaceChildren();const p=document.createElement('p');p.id='status';p.setAttribute('role','status');p.textContent='Access is unavailable. Private content has been cleared. Sign in again to reopen.';$('private-view').append(p);}
+function deny(){directionRequest=null;sceneContextRequest=sceneReviewRequest=null;sceneBook=activeScene=sceneContext=sceneReviewPending=null;sceneModified=sceneUnknown=false;authored=null;authoredEpoch++;selectedFiles=[];fileSelectionVersion++;capacityEpoch++;clearTimeout(capacityTimer);accessLost=true;work=saved=saveTicket=pending=reviewed=eraseBinding=next=null;dirty=false;relationPending=comparison=branchCursor=null;comparisonCurrent=relationUnknown=false;directionDirty=false;$('private-view').replaceChildren();const p=document.createElement('p');p.id='status';p.setAttribute('role','status');p.textContent='Access is unavailable. Private content has been cleared. Sign in again to reopen.';$('private-view').append(p);}
 async function request(path,body){
   if(accessLost)throw new Error('access_denied');
   const response=await fetch(path,{method:body===undefined?'GET':'POST',credentials:'same-origin',cache:'no-store',redirect:'manual',
@@ -48,6 +49,7 @@ function draft(includeFiles=true){const rows=[...$('notes').children];const note
  return {definition:{goal:$('goal').value,success_criteria:$('criteria').value.split('\n'),non_goals:$('non-goals').value.split('\n')},notes,material_edits,...(includeFiles?{files:selectedFiles.map(f=>({...f})),...(activeScene&&sceneModified?{scene:sceneInput()}:{} )}:{})};}
 
 function changed(event){
+  invalidateDirectionRequest();
   invalidateSceneReview();
   if(sceneContextRequest&&!currentSceneContext(sceneContextRequest))invalidateSceneContext();
   // An explicit edit adapts a saved note. Reading/checking the draft is pure.
@@ -190,13 +192,13 @@ $('refresh-work').onclick=()=>run(()=>openWork(work));
 $('resolve-save').onclick=()=>run(async()=>{const r=await api('/api/work/'+work+'/resolve',pending);if(r.outcome==='saved')await acknowledged(r.saved);else status('The original request is not visible yet. Its outcome remains unknown; any explicit retry uses the same request and material.');});
 $('retry-save').onclick=()=>run(dispatch);
 $('review-latest').onclick=()=>run(async()=>{const r=await api('/api/work/'+work);reviewed=r.saved;const html=await readPrivate(await request('/api/work/'+work+'/context',{expected:binding(reviewed)}),'text');$('conflict-latest').innerHTML=html;await compareAuthored(reviewed);$('rebase-draft').hidden=false;status('Compare this saved version with your retained draft before choosing a new base.');});
-$('rebase-draft').onclick=()=>{if(!reviewed)return;if(sceneUnknown){status('Check the pending review outcome before changing its basis.');return;}invalidateSceneContext();invalidateSceneReview();saved=reviewed;if(activeScene){selectedFiles=selectedFiles.filter(f=>f.name!==sceneFile);const f=saved.files?.find(f=>f.name===sceneFile);if(f)selectedFiles.push({...f});sceneModified=true;}reviewed=null;saveTicket=null;pending=null;$('conflict').hidden=true;$('context-view').replaceChildren();changed();status('Reviewed base selected. Your draft remains unsaved; review its changes and press Save deliberately.');};
+$('rebase-draft').onclick=()=>{if(!reviewed)return;if(sceneUnknown||relationUnknown){status('Check the pending review outcome before changing its basis.');return;}invalidateSceneContext();invalidateSceneReview();saved=reviewed;if(activeScene){selectedFiles=selectedFiles.filter(f=>f.name!==sceneFile);const f=saved.files?.find(f=>f.name===sceneFile);if(f)selectedFiles.push({...f});sceneModified=true;}reviewed=null;saveTicket=null;pending=null;$('conflict').hidden=true;$('context-view').replaceChildren();changed();status('Reviewed base selected. Your draft remains unsaved; review its changes and press Save deliberately.');};
 $('history').onclick=()=>run(async()=>{const data=await api('/api/work/'+work+'/history');const list=document.createElement('ol');for(const r of data.revisions){const li=document.createElement('li');li.textContent=`Revision ${r.revision} · ${r.recorded_at} · ${r.definition.goal}`;list.append(li);}$('history-view').replaceChildren(list);});
 $('export').onclick=()=>run(async()=>{const response=await request('/api/work/'+work+'/export');const url=URL.createObjectURL(await readPrivate(response,'blob'));const a=document.createElement('a');a.href=url;a.download='planning-work.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);status('Complete revision chain downloaded. Keep exports private.');});
 $('erase').onclick=()=>{if(pending||relationPending||sceneReviewPending){status('Resolve the pending save before erasure.');return;}eraseBinding=binding(saved);$('erase-text').textContent=`Erase revision ${saved.revision} and all earlier revisions and owned file bytes of this work? Download an export first if needed. A changed head will refuse. Independently saved branches and incorporated copies belong to other works and remain there; erase those works separately if intended.`;$('erase-confirm').hidden=false;};
 $('cancel-erase').onclick=()=>{$('erase-confirm').hidden=true;eraseBinding=null;};
 $('confirm-erase').onclick=()=>run(async()=>{await api('/api/work/'+work+'/erase',{expected:eraseBinding,confirm:'erase-whole-work'});dirty=false;work=saved=pending=null;await show();$('editor').hidden=true;status('Whole work erased. The content-free ID guard prevents delayed saves from recreating it. Exports and provider backups are outside this deletion.');await list();});
-$('import').onclick=()=>run(async()=>{const file=$('import-file').files[0];if(!file){status('Choose a complete work export.');return;}if(file.size>3000000){status('Export exceeds the bounded reconstruction size.');return;}if(!mayLeave())return;const value=JSON.parse(await file.text());if(value.format!=='web_planning_export.v0.3'&&file.size>1500000){status('Legacy export exceeds 1,500,000 bytes.');return;}const data=await api(value.format==='web_planning_export.v0.3'?'/api/reconstruct-files':'/api/reconstruct',{export:value,confirm:'reconstruct-empty-store'});work=data.saved.work_id;await show(data.saved);status('Reconstructed from an attributed export; authorship and source currentness remain unverified.');await list();});
+$('import').onclick=()=>run(async()=>{const file=$('import-file').files[0];if(!file){status('Choose a complete work export.');return;}if(file.size>3000000){status('Export exceeds the bounded reconstruction size.');return;}if(!mayLeave())return;const value=JSON.parse(await file.text());if(!['web_planning_export.v0.3','web_planning_direction_export.v1'].includes(value.format)&&file.size>1500000){status('Legacy export exceeds 1,500,000 bytes.');return;}const data=await api(['web_planning_export.v0.3','web_planning_direction_export.v1'].includes(value.format)?'/api/reconstruct-files':'/api/reconstruct',{export:value,confirm:'reconstruct-empty-store'});work=data.saved.work_id;await show(data.saved);status('Reconstructed from an attributed export; authorship and source currentness remain unverified.');await list();});
 $('more-work').onclick=()=>run(()=>list(true));
 $('refresh-list').onclick=()=>run(async()=>{if(await refreshList())status('Work list refreshed.');});
 $('check-capacity').onclick=()=>queueCapacity(0);
@@ -205,28 +207,33 @@ window.addEventListener('beforeunload',e=>{if(dirty||pending||directionDirty||re
 window.addEventListener('pagehide',()=>{$('context-view')?.replaceChildren();});
 window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 window.addEventListener('focus',()=>{if($('draft-capacity'))queueCapacity();if($('work-list'))api('/api/works').catch(e=>{if(e.message!=='access_denied')status('Access/currentness could not be checked. Use a fresh server read before reuse.');});});
-function resetDirections(){relationPending=null;relationUnknown=false;directionDirty=false;comparison=null;comparisonCurrent=false;branchCursor=null;
-  for(const id of ['branch-form','comparison','relation-save','relation-uncertain','relation-cancel','more-branches'])$(id).hidden=true;
+function resetDirections(){directionRequest=null;relationPending=null;relationUnknown=false;directionDirty=false;comparison=null;comparisonCurrent=false;branchCursor=null;
+  for(const id of ['direction-export','branch-form','comparison','relation-save','relation-uncertain','relation-cancel','more-branches'])$(id).hidden=true;
   for(const id of ['branch-choices','comparison-summary','material-choices','relation-preview'])$(id).replaceChildren();$('relation-state').textContent='';freezeDirection(false);}
 function freezeDirection(unknown){for(const e of $('directions').querySelectorAll('textarea,select'))e.disabled=unknown;
   for(const id of ['branch-open','branch-preview','choose-branch','more-branches','incorporation-preview','recompare','relation-cancel'])$(id).disabled=unknown;
   $('incorporation-preview').disabled=unknown||!comparisonCurrent;
-  $('edit-fields').disabled=!!relationPending;$('save').disabled=!!relationPending;}
-function requireSavedDirection(){if(!saved||dirty||pending||relationUnknown){status('Save or resolve the current draft before comparing saved work. Your edits are retained.');return false;}return true;}
-function invalidatePreview(){if(relationUnknown)return;relationPending=null;$('relation-save').hidden=true;$('relation-preview').replaceChildren();directionDirty=true;freezeDirection(false);}
-$('directions').addEventListener('input',invalidatePreview);
+  $('edit-fields').disabled=!!relationPending;$('save').disabled=!!relationPending;for(const e of $('scene-review').querySelectorAll('button,select,textarea'))e.disabled=!!relationPending||!!activeScene?.review||sceneInherited;}
+function requireSavedDirection(){if(!saved||dirty||pending||relationUnknown||sceneReviewPending){status('Save or resolve the current draft before comparing saved work. Your edits are retained.');return false;}return true;}
+function invalidateDirectionRequest(){if(!relationUnknown){directionRequest=null;if(relationPending)invalidatePreview();}}
+function directionSnapshot(){return JSON.stringify([work,binding(saved),dirty,fileSelectionVersion,comparison?.branch?.fingerprint,comparisonCurrent,$('branch-reason').value,choices(),$('comparison-rationale').value,$('comparison-next').value]);}
+function beginDirection(cancellable=true){if(relationPending&&!relationUnknown)invalidatePreview();if(cancellable)$('relation-cancel').hidden=false;directionRequest={snapshot:directionSnapshot(),work};return directionRequest;}
+function currentDirection(r){return !accessLost&&directionRequest===r&&r.snapshot===directionSnapshot();}
+function invalidatePreview(){if(relationUnknown)return;directionRequest=null;relationPending=null;$('relation-save').hidden=true;$('relation-preview').replaceChildren();directionDirty=true;freezeDirection(false);}
+for(const event of ['input','change'])$('directions').addEventListener(event,invalidatePreview);
 $('branch-open').onclick=()=>{if(!requireSavedDirection())return;$('branch-form').hidden=false;$('branch-reason').focus();};
 function preparedChange(data){relationPending={work_id:data.work_id,ticket:data.ticket,intent:data.intent};relationUnknown=false;
   $('relation-preview').innerHTML=data.html;$('relation-save').hidden=false;$('relation-cancel').hidden=false;$('relation-uncertain').hidden=true;
   $('relation-state').textContent=data.noop?'This comparison is unchanged. Confirming will acknowledge the same revision.':'Review the exact proposed material before saving. Nothing has been written.';freezeDirection(false);}
-$('branch-preview').onclick=()=>run(async()=>{if(!requireSavedDirection())return;preparedChange(await api('/api/work/'+work+'/branch-preview',{expected:binding(saved),intent:{reason:$('branch-reason').value}}));});
+$('branch-preview').onclick=()=>run(async()=>{if(!requireSavedDirection())return;const r=beginDirection(),data=await api('/api/work/'+r.work+'/branch-preview',{expected:binding(saved),intent:{reason:$('branch-reason').value}});if(await admitDirection(r,data))preparedChange(data);});
 async function branchChoices(append=false){if(!requireSavedDirection())return;const data=await api('/api/works'+(append&&branchCursor?'?cursor='+branchCursor:''));if(!append)$('branch-choices').replaceChildren();
  for(const item of data.items.filter(i=>i.branch_of===work)){const b=document.createElement('button');b.textContent=`Compare: ${item.goal}`;b.onclick=()=>run(()=>readComparison({work_id:item.work_id,...binding(item)}));$('branch-choices').append(b);}
  branchCursor=data.next;$('more-branches').hidden=!branchCursor;if(!$('branch-choices').children.length)$('relation-state').textContent='No branches on this page. Continue another direction or check More branches.';}
 $('choose-branch').onclick=()=>run(()=>branchChoices());$('more-branches').onclick=()=>run(()=>branchChoices(true));
-function choices(){return [...$('material-choices').children].map(row=>({source_ref:row.dataset.ref,disposition:row.querySelector('select').value,rationale:row.querySelector('textarea').value}));}
-async function readComparison(source,retained=[]){if(!requireSavedDirection())return;const data=await api('/api/work/'+work+'/compare',{expected:binding(saved),source});showComparison(data,retained);}
+function choices(){if(comparison?.direction)return [...$('material-choices').querySelectorAll('select')].map(s=>s.value);return [...$('material-choices').children].map(row=>({source_ref:row.dataset.ref,disposition:row.querySelector('select').value,rationale:row.querySelector('textarea').value}));}
+async function readComparison(source,retained=[]){if(!requireSavedDirection())return;const r=beginDirection(),data=await api('/api/work/'+r.work+'/compare',{expected:binding(saved),source});if(await admitDirection(r,data))showComparison(data,retained);}
 function showComparison(data,retained=[]){comparison=data;comparisonCurrent=true;invalidatePreview();$('comparison').hidden=false;$('comparison-summary').innerHTML=data.html;$('material-choices').replaceChildren();
+ if(data.direction){showDirectionComparison(data,retained);return;}
  for(const [i,n] of data.branch.sources.entries()){const row=document.createElement('section');row.className='context-note';row.dataset.ref=n.source_ref;const title=document.createElement('h4');title.textContent=`${i+1}. ${n.why_included}`;
    const text=document.createElement('p');text.className='note-text';text.textContent=n.bounded_summary;const attribution=document.createElement('p');const m=data.branch.relations.materials.find(m=>m.source_ref===n.source_ref);attribution.textContent=`${n.compatibility_source_ref.external_id} · ${n.trust_class} · Observed: ${n.external_ref.observed_at??'Unknown'} · currentness unknown · ${m.kind}. Requires notes ${m.dependencies.map(d=>data.branch.sources.findIndex(s=>s.source_ref===d)+1).join(', ')||'none explicitly linked'}.`;
    const label=document.createElement('label');label.textContent='Disposition';const select=document.createElement('select');select.id='disposition-'+i;label.htmlFor=select.id;for(const value of ['not_selected','incorporated','deferred','declined']){const option=document.createElement('option');option.value=value;option.textContent=value.replaceAll('_',' ');select.append(option);}label.append(select);
@@ -234,17 +241,19 @@ function showComparison(data,retained=[]){comparison=data;comparisonCurrent=true
    row.append(title,text,attribution,label,why);$('material-choices').append(row);}
  const missing=retained.filter(d=>!data.branch.sources.some(s=>s.source_ref===d.source_ref));if(missing.length){const p=document.createElement('p');p.textContent='Previous choices no longer present in this source revision (retained for review): '+JSON.stringify(missing);$('comparison-summary').append(p);}
  $('relation-state').textContent='Compare the current versions, including retained choices, then request a new preview. No selection has been saved.';}
-$('incorporation-preview').onclick=()=>run(async()=>{if(!requireSavedDirection()||!comparison||!comparisonCurrent)return;preparedChange(await api('/api/work/'+work+'/incorporation-preview',{expected:binding(saved),intent:{source:{work_id:comparison.branch.work_id,...binding(comparison.branch)},dispositions:choices(),rationale:$('comparison-rationale').value,next_question:$('comparison-next').value}}));});
-$('recompare').onclick=()=>run(async()=>{if(!requireSavedDirection()||!comparison)return;const retained=choices(),sourceId=comparison.branch.work_id,why=$('comparison-rationale').value,next=$('comparison-next').value;
+$('incorporation-preview').onclick=()=>run(async()=>{if(!requireSavedDirection()||!comparison||!comparisonCurrent)return;const r=beginDirection(),data=await api('/api/work/'+r.work+'/incorporation-preview',{expected:binding(saved),intent:directionIntent()});if(await admitDirection(r,data)){preparedChange(data);if(comparison.direction){const pre=document.createElement('pre');pre.textContent=directionReviewText();$('relation-preview').append(pre);}}});
+$('recompare').onclick=()=>run(async()=>{if(!requireSavedDirection()||!comparison)return;const retained=comparison.direction?comparison.direction.units.map((u,i)=>({ref:u.ref,disposition:choices()[i]})):choices(),sourceId=comparison.branch.work_id,why=$('comparison-rationale').value,next=$('comparison-next').value;
   comparisonCurrent=false;invalidatePreview();$('relation-cancel').hidden=true;freezeDirection(true);$('edit-fields').disabled=true;$('save').disabled=true;
+  const operation=beginDirection(false);
   $('relation-state').textContent='Currentness is unconfirmed while refreshing. Your comparison draft and earlier bindings are retained.';
   try{const target=await api('/api/work/'+work),source=await api('/api/work/'+sourceId);
     const data=await api('/api/work/'+work+'/compare',{expected:binding(target.saved),source:{work_id:sourceId,...binding(source.saved)}});
+    if(!await admitDirection(operation,data))return;
     await show(data.target);$('comparison-rationale').value=why;$('comparison-next').value=next;showComparison(data,retained);
   }catch(e){if(e.message!=='access_denied')$('relation-state').textContent='Currentness is unconfirmed. Your comparison draft and earlier source/target bindings are retained. Explicitly refresh and compare again before requesting a fresh preview; nothing was saved.';throw e;
   }finally{if($('directions'))freezeDirection(false);}});
 async function acknowledgeRelation(data){work=data.saved.work_id;if(await acknowledged(data.saved))status(data.noop?'No change: the existing saved revision was acknowledged.':'Change saved. Read Saved context to resume from the server.');}
-async function dispatchRelation(){if(!relationPending)return;const p=relationPending;relationUnknown=true;freezeDirection(true);$('relation-save').hidden=true;
+async function dispatchRelation(){if(!relationPending)return;if(!relationUnknown&&!currentDirection(directionRequest)){invalidatePreview();status('Choices or saved basis changed. Compare and review again.');return;}const p=relationPending;relationUnknown=true;freezeDirection(true);$('relation-save').hidden=true;
   try {const data=await api('/api/work/'+p.work_id+'/relation-save',{ticket:p.ticket,intent:p.intent});await acknowledgeRelation(data);}
   catch(e){if(e.message==='access_denied')throw e;
     if([409,410,422,413,404].includes(e.status)&&e.message!=='save_ticket_expired'){relationPending=null;relationUnknown=false;$('relation-uncertain').hidden=true;freezeDirection(false);
@@ -368,39 +377,41 @@ function invalidateSceneReview(message=''){
  for(const id of ['scene-review-save','scene-review-cancel','scene-review-uncertain'])$(id).hidden=true;
  freezeSceneReview();
 }
-function sceneInput(){const value=$('authored-text').value;return {id:activeScene.id,...sceneParameters(),draft:value===authored.display?authored.text:authored.crlf?value.replace(/\n/g,'\r\n'):value,proposals:[...$('scene-proposals').children].map(row=>Object.fromEntries([...row.querySelectorAll('[data-scene-field]')].map(e=>[e.dataset.sceneField,e.type==='number'?Number(e.value):e.value])))};}
+function sceneProposalInput(row){const p=Object.fromEntries([...row.querySelectorAll("[data-scene-field]")].map(e=>[e.dataset.sceneField,e.type==="number"?Number(e.value):e.value]));const revises=[...row.querySelectorAll('[data-links=revises] option:checked')].map(o=>JSON.parse(o.value)),requires=[...row.querySelectorAll('[data-links=requires] option:checked')].map(o=>JSON.parse(o.value));if(revises.length||requires.length||row.dataset.extended==='true')Object.assign(p,{revises,requires});return p;}
+function sceneInput(){const value=$('authored-text').value;return {id:activeScene.id,...sceneParameters(),draft:value===authored.display?authored.text:authored.crlf?value.replace(/\n/g,'\r\n'):value,proposals:[...$('scene-proposals').children].map(row=>sceneProposalInput(row))};}
 function sceneProposal(p={kind:'fact',subject:'',text:'',event_time:Number($('scene-event').value),reveal_order:Number($('scene-reveal').value)}){
  const row=document.createElement('section');row.className='note';
  const names={kind:'Meaning',subject:'Character or speaker (if relevant)',text:'Proposed change',event_time:'Fictional event position',reveal_order:'Reveal position'};
  for(const key of Object.keys(names)){const label=document.createElement('label'),e=document.createElement(key==='kind'?'select':key==='text'?'textarea':'input');e.dataset.sceneField=key;e.id=crypto.randomUUID();label.htmlFor=e.id;label.textContent=names[key];
   if(key==='kind')for(const [value,text] of [['fact','Author fact'],['knowledge','Character knowledge / experience'],['belief','Character belief'],['assertion','Public or narrator assertion'],['intention','Author intention']]){const o=document.createElement('option');o.value=value;o.textContent=text;e.append(o);}
   if(key==='event_time'||key==='reveal_order'){e.type='number';e.min='0';e.step='1';}e.value=p[key];row.append(label,e);}
+ appendProposalLinks(row,p);
  const remove=document.createElement('button');remove.type='button';remove.textContent='Remove proposal';remove.onclick=()=>{if(activeScene?.review)return;row.remove();sceneModified=true;changed();};row.append(remove);$('scene-proposals').append(row);
 }
 function sceneFields(s){for(const [id,key] of [['scene-title','title'],['scene-viewpoint','viewpoint'],['scene-event','event_time'],['scene-reveal','reveal_order']])$(id).value=s[key];
  const names=s.source_files?.map(f=>f.name)??s.source_names;for(const o of $('scene-sources').options)o.selected=names?.includes(o.value)??true;
  $('scene-proposals').replaceChildren();for(const p of s.proposals??[])sceneProposal(p);
 }
-function displayScene(s){invalidateSceneContext();invalidateSceneReview();activeScene=s;sceneModified=false;sceneContext=null;$('scene-context').textContent='';$('scene-context-download').hidden=true;
+function displayScene(s){sceneInherited=!!sceneBook?.inheritance?.scenes.some(v=>v.id===s.id)&&!sceneBook.scenes.some(v=>v.id===s.id);invalidateSceneContext();invalidateSceneReview();activeScene=s;sceneModified=false;sceneContext=null;$('scene-context').textContent='';$('scene-context-download').hidden=true;
  $('authored-text').value=s.draft;authored={scene:true,text:s.draft,display:$('authored-text').value,crlf:s.draft.includes('\r\n')&&!/(?<!\r)\n/u.test(s.draft)};authoredUnavailable=false;
- $('authored-material').open=true;$('scene-tools').open=true;$('authored-text').disabled=!!s.review;$('authored-state').textContent=s.title+' · '+(s.review?'Reviewed scene; original draft preserved. Choose Next scene to continue.':'Scene draft. Save does not adopt its proposals.');
+ $('authored-material').open=true;$('scene-tools').open=true;$('authored-text').disabled=sceneInherited||!!s.review;$('authored-state').textContent=s.title+' · '+(s.review?'Reviewed scene; original draft preserved. Choose Next scene to continue.':'Scene draft. Save does not adopt its proposals.');
  sceneFields(s);$('scene-choice').value=s.id;
- for(const e of $('scene-tools').querySelectorAll('input,textarea,[data-scene-field],#scene-add-proposal'))e.disabled=!!s.review;
- $('scene-review').hidden=false;renderSceneReview(s);
+ for(const e of $('scene-tools').querySelectorAll('input,textarea,[data-scene-field],[data-links],#scene-add-proposal'))e.disabled=sceneInherited||!!s.review;
+ $('scene-review').hidden=false;renderSceneReview(s);if(sceneInherited)$('authored-state').textContent='Inherited original scene and review from the named origin. This is not a new branch review. Choose Next scene for local writing.';
 }
-async function loadScenes(r){invalidateSceneContext();invalidateSceneReview();sceneBook=null;activeScene=null;sceneModified=false;sceneContext=sceneReviewPending=null;sceneUnknown=false;$('scene-review').hidden=true;$('scene-tools').hidden=!r;
+async function loadScenes(r){invalidateSceneContext();invalidateSceneReview();sceneBook=null;activeScene=null;sceneInherited=false;sceneModified=false;sceneContext=sceneReviewPending=null;sceneUnknown=false;$('scene-review').hidden=true;$('scene-tools').hidden=!r;
  $('scene-context').textContent='';$('scene-context-download').hidden=true;$('scene-choice').replaceChildren();$('scene-sources').replaceChildren();
  for(const f of r?.files??[])if(f.role==='source'&&textFile(f.name)){const o=document.createElement('option');o.value=f.name;o.textContent=f.name;o.selected=true;$('scene-sources').append(o);}
  const file=r?.files?.find(f=>f.name===sceneFile);if(!file){$('scene-state').textContent='Save original sources, then choose Next scene. No lore forms are required for ordinary writing.';return;}
- sceneBook=JSON.parse(await fileText(file,r));for(const s of sceneBook.scenes){const o=document.createElement('option');o.value=s.id;o.textContent=s.title+(s.review?' · reviewed':' · draft');$('scene-choice').append(o);}displayScene(sceneBook.scenes.at(-1));
+ sceneBook=JSON.parse(await fileText(file,r));for(const s of [...(sceneBook.inheritance?.scenes??[]),...sceneBook.scenes]){const o=document.createElement('option');o.value=s.id;o.textContent=s.title+(sceneBook.inheritance?.scenes.includes(s)?' · inherited':'')+(s.review?' · reviewed':' · draft');$('scene-choice').append(o);}const last=sceneBook.scenes.at(-1)??sceneBook.inheritance?.scenes.at(-1);if(last)displayScene(last);
 }
-function sceneCanStart(){if(!saved||dirty||pending||sceneReviewPending){status('Save or resolve the current draft before preparing another scene. Your writing is retained.');return false;}return true;}
-$('scene-new').onclick=()=>{if(!sceneCanStart())return;const last=sceneBook?.scenes.at(-1);const s={id:crypto.randomUUID(),title:'',viewpoint:last?.viewpoint??'',event_time:(last?.event_time??0)+1,reveal_order:(last?.reveal_order??0)+1,source_names:[...$('scene-sources').options].map(o=>o.value),draft:'',proposals:[],review:null};displayScene(s);$('scene-review').hidden=true;sceneModified=true;changed();$('scene-title').focus();};
-$('scene-open').onclick=()=>{if(!sceneCanStart())return;const s=sceneBook?.scenes.find(s=>s.id===$('scene-choice').value);if(s)displayScene(s);};
-function sceneEdited(e){if(e.target.id==='scene-choice')return;invalidateSceneContext('Preparation changed. Prepare again before delivering context.');invalidateSceneReview();if(activeScene&&!activeScene.review)sceneModified=true;}
+function sceneCanStart(){if(!saved||dirty||pending||sceneReviewPending||relationPending){status('Save or resolve the current draft before preparing another scene. Your writing is retained.');return false;}return true;}
+$('scene-new').onclick=()=>{if(!sceneCanStart())return;const last=sceneBook?.scenes.at(-1)??sceneBook?.inheritance?.scenes.at(-1);const s={id:crypto.randomUUID(),title:'',viewpoint:last?.viewpoint??'',event_time:(last?.event_time??0)+1,reveal_order:(last?.reveal_order??0)+1,source_names:[...$('scene-sources').options].map(o=>o.value),draft:'',proposals:[],review:null};displayScene(s);$('scene-review').hidden=true;sceneModified=true;changed();$('scene-title').focus();};
+$('scene-open').onclick=()=>{if(!sceneCanStart())return;const s=[...(sceneBook?.inheritance?.scenes??[]),...(sceneBook?.scenes??[])].find(s=>s.id===$('scene-choice').value);if(s)displayScene(s);};
+function sceneEdited(e){if(e.target.id==='scene-choice')return;invalidateSceneContext('Preparation changed. Prepare again before delivering context.');invalidateSceneReview();if(activeScene&&!activeScene.review&&!sceneInherited)sceneModified=true;}
 for(const event of ['input','change'])$('scene-tools').addEventListener(event,sceneEdited);
-$('scene-add-proposal').onclick=()=>{if(!activeScene||activeScene.review)return;if($('scene-proposals').children.length>=16){status('At most 16 consequential proposals per scene; keep ordinary prose in the draft.');return;}sceneProposal();sceneModified=true;changed();};
-$('scene-prepare').onclick=()=>run(async()=>{if(!saved||pending||sceneReviewPending)return;
+$('scene-add-proposal').onclick=()=>{if(!activeScene||activeScene.review||sceneInherited)return;if($('scene-proposals').children.length>=16){status('At most 16 consequential proposals per scene; keep ordinary prose in the draft.');return;}sceneProposal();sceneModified=true;changed();};
+$('scene-prepare').onclick=()=>run(async()=>{if(!saved||pending||sceneReviewPending||relationPending)return;
  invalidateSceneContext('Reading persisted scene sources…');const r=sceneContextRequest={work,snapshot:sceneContextSnapshot()};
  try{const data=await api('/api/work/'+r.work+'/scene-context',{expected:binding(saved),intent:sceneParameters()});if(!currentSceneContext(r))return;
   sceneContext=data;$('scene-context').textContent=data.text;$('scene-context-download').hidden=false;$('scene-state').textContent=`Prepared from saved revision ${data.basis.revision}. ${data.bytes} / ${data.limit} UTF-8 bytes. Unsaved prose and proposals are excluded.`;
@@ -409,12 +420,12 @@ $('scene-prepare').onclick=()=>run(async()=>{if(!saved||pending||sceneReviewPend
 $('scene-context-download').onclick=()=>{if(!sceneContext)return;if(!currentSceneContext(sceneContextRequest)){invalidateSceneContext('Preparation changed. Prepare again before delivering context.');return;}const url=URL.createObjectURL(new Blob([sceneContext.text],{type:'text/plain;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='scene-context.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 function renderSceneReview(s){$('scene-dispositions').replaceChildren();$('scene-reason').value=s.review?.reason??'';$('scene-review-summary').textContent='';
  for(const [i,p] of s.proposals.entries()){const label=document.createElement('label');label.textContent=`${p.kind}${p.subject?' · '+p.subject:''} · event ${p.event_time} / reveal ${p.reveal_order}: ${p.text}`;const select=document.createElement('select');select.id='scene-disposition-'+i;select.className='scene-disposition';select.setAttribute('aria-label','Disposition for '+p.text);
-  for(const value of ['undecided','adopted','rejected']){const o=document.createElement('option');o.value=value;o.textContent={undecided:'Leave undecided',adopted:'Adopt in this fictional scope',rejected:'Reject this proposal'}[value];select.append(o);}select.value=s.review?.dispositions[i]??'undecided';select.disabled=!!s.review;label.append(select);$('scene-dispositions').append(label);}
- $('scene-reason').disabled=!!s.review;$('scene-review-preview').hidden=!!s.review;for(const id of ['scene-review-save','scene-review-cancel','scene-review-uncertain'])$(id).hidden=true;
+  for(const value of ['undecided','adopted','rejected']){const o=document.createElement('option');o.value=value;o.textContent={undecided:'Leave undecided',adopted:'Adopt in this fictional scope',rejected:'Reject this proposal'}[value];select.append(o);}select.value=s.review?.dispositions[i]??'undecided';select.disabled=sceneInherited||!!s.review;label.append(select);$('scene-dispositions').append(label);}
+ $('scene-reason').disabled=sceneInherited||!!s.review;$('scene-review-preview').hidden=sceneInherited||!!s.review;for(const id of ['scene-review-save','scene-review-cancel','scene-review-uncertain'])$(id).hidden=true;
  $('scene-review-state').textContent=s.review?`Reviewed by the configured author at saved basis revision ${s.review.basis.revision}. Undecided and rejected material remains distinct.`:'Save the scene draft first, then review consequential changes together. A draft save adopts nothing.';
 }
 function freezeSceneReview(){const frozen=!!sceneReviewPending;$('edit-fields').disabled=frozen;$('save').disabled=frozen;
- for(const e of $('scene-review').querySelectorAll('select,textarea'))e.disabled=sceneUnknown||!!activeScene?.review;
+ for(const e of $('scene-review').querySelectorAll('select,textarea'))e.disabled=sceneUnknown||!!activeScene?.review||sceneInherited;
  $('scene-review-preview').disabled=sceneUnknown;$('scene-review-cancel').disabled=sceneUnknown;
 }
 for(const event of ['input','change'])$('scene-review').addEventListener(event,()=>invalidateSceneReview('Choices changed; review them again.'));
@@ -423,7 +434,7 @@ $('scene-review-preview').onclick=()=>run(async()=>{if(!sceneCanStart()||!active
  try{data=await api('/api/work/'+r.work+'/scene-review-preview',{expected:binding(saved),intent:sceneReviewIntent()});}
  catch(e){if(e.message==='access_denied')throw e;if(!currentSceneReview(r))return;invalidateSceneReview('Preview unavailable. Choices and draft retained; review again explicitly.');throw e;}
  if(!currentSceneReview(r))return;
- sceneReviewPending={ticket:data.ticket,intent:data.intent};sceneUnknown=false;$('scene-review-summary').textContent=`${data.scene.title}\n\n${data.scene.draft}\n\n`+data.scene.proposals.map((p,i)=>`${data.intent.dispositions[i]} · ${p.kind} · event ${p.event_time} / reveal ${p.reveal_order}: ${p.text}`).join('\n\n')+'\n\nReason: '+data.intent.reason;
+ sceneReviewPending={ticket:data.ticket,intent:data.intent};sceneUnknown=false;$('scene-review-summary').textContent=`${data.scene.title}\n\n${data.scene.draft}\n\n`+data.scene.proposals.map((p,i)=>`${data.intent.dispositions[i]} · ${p.kind} · event ${p.event_time} / reveal ${p.reveal_order}: ${p.text}\n${proposalLinksText(p)}`).join('\n\n')+'\n\nReason: '+data.intent.reason;
  $('scene-review-save').hidden=false;$('scene-review-cancel').hidden=false;freezeSceneReview();});
 async function saveSceneReview(resolve=false){if(!sceneReviewPending)return;let result;
  if(!sceneUnknown&&!currentSceneReview(sceneReviewRequest)){invalidateSceneReview('Choices or source basis changed; review them again.');return;}
@@ -437,3 +448,39 @@ async function saveSceneReview(resolve=false){if(!sceneReviewPending)return;let 
 $('scene-review-save').onclick=()=>run(()=>saveSceneReview());$('scene-review-retry').onclick=()=>run(()=>saveSceneReview());$('scene-review-resolve').onclick=()=>run(()=>saveSceneReview(true));
 $('scene-review-cancel').onclick=()=>invalidateSceneReview('Review cancelled. Choices are retained; review them again before adoption.');
 Object.assign(messages,{scene_draft_unsaved:'Save the scene draft before opening another original; the draft is retained.',scene_context_capacity:'Scene context exceeds 16,384 UTF-8 bytes. Select fewer complete sources or a smaller scene scope; no text was clipped.',scene_notebook_owned:'Scene history is managed by ordinary scene Save and grouped review. It cannot be replaced or removed as an attachment.',scene_sources_changed:'A prepared original source changed. Reopen the retained draft, prepare against the current source, and save before reviewing.',scene_review_locked:'This scene was already reviewed. Its draft and dispositions are retained; continue with a new scene.',scene_source_unavailable:'A selected original is unavailable. Restore a supported source selection before preparing.',scene_notebook_capacity:'This notebook already contains 32 scenes. Export its history and choose the next work scope.',invalid_scene_text:'Scene text is empty, too large, or contains malformed Unicode. Your draft is retained.'});
+
+function proposalRefKey(r){return [r.work_id,r.scene_id,r.proposal].join(":");}
+function proposalLinksText(p){const units=availableSceneUnits(),label=ref=>units.find(u=>proposalRefKey(u.ref)===proposalRefKey(ref))?.text??"Unavailable named decision";return [(p.revises?.length?"Retroactive reinterpretation of: "+p.revises.map(label).join("; "):""),(p.requires?.length?"Requires: "+p.requires.map(label).join("; "):"")].filter(Boolean).join("\n");}
+function availableSceneUnits(){
+ const of=(scenes,id)=>scenes.flatMap(s=>s.proposals.map((p,i)=>({ref:{work_id:id,scene_id:s.id,proposal:i},text:s.title+' · '+(s.review?.dispositions[i]??'undecided')+' · '+p.text})));
+ return [...of(sceneBook?.inheritance?.scenes??[],sceneBook?.inheritance?.source.work_id),...of(sceneBook?.scenes??[],work),...(sceneBook?.adoptions??[]).flatMap(a=>a.units.map(u=>({ref:u.ref,text:u.title+' · '+u.proposal.text})))];
+}
+function appendProposalLinks(row,p){
+ row.dataset.extended=String('revises' in p);
+ const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent='Setting revision or required context (optional)';details.append(summary);
+ const hint=document.createElement('p');hint.textContent='Reinterpretation changes this scope at the same fictional event and reveal positions. Earlier text and reviews remain history. Links are author-declared; unstated dependencies remain unknown.';details.append(hint);
+ for(const key of ['revises','requires']){const label=document.createElement('label');label.textContent=key==='revises'?'Retroactively reinterprets earlier decisions (up to 4)':'Requires these consequential changes (up to 4)';const select=document.createElement('select');select.multiple=true;select.dataset.links=key;select.setAttribute('aria-label',label.textContent);
+  for(const u of availableSceneUnits()){if(u.ref.scene_id===activeScene?.id)continue;const o=document.createElement('option');o.value=JSON.stringify(u.ref);o.textContent=u.text;o.selected=(p[key]??[]).some(r=>proposalRefKey(r)===proposalRefKey(u.ref));select.append(o);}label.append(select);details.append(label);
+ }row.append(details);
+}
+function directionIntent(){return {source:{work_id:comparison.branch.work_id,...binding(comparison.branch)},...(comparison.direction?{selection:{dispositions:choices(),reason:$('comparison-rationale').value}}:{dispositions:choices(),rationale:$('comparison-rationale').value,next_question:$('comparison-next').value})};}
+function directionReviewText(){return comparison.direction.units.map((u,i)=>choices()[i]+' · '+u.proposal.kind+' · '+u.proposal.text+'\nRequired links: '+JSON.stringify(u.proposal.requires??[])+'; reinterpretation links: '+JSON.stringify(u.proposal.revises??[])).join('\n\n')+'\n\nReason: '+$('comparison-rationale').value+'\nOnly these fictional choices change the target. Source drafts and manuscripts are not transferred.';}
+function showDirectionComparison(data,retained){
+ const {direction}=data;const pre=document.createElement('pre');pre.textContent='Alternate local drafts (prose is not adopted by transfer):\n\n'+direction.branch_book.scenes.map(s=>s.title+'\n'+s.draft).join('\n\n');$('comparison-summary').append(pre);
+ for(const [i,u] of direction.units.entries()){const row=document.createElement('section');row.className='context-note';const p=document.createElement('p');p.textContent=u.title+' · '+u.disposition+' at source · '+u.proposal.kind+' · event '+u.proposal.event_time+' / reveal '+u.proposal.reveal_order+': '+u.proposal.text;const label=document.createElement('label');label.textContent='Decision in primary scope';const select=document.createElement('select');select.id='direction-disposition-'+i;label.htmlFor=select.id;
+  for(const d of ['undecided','adopted','rejected']){const o=document.createElement('option');o.value=d;o.textContent={undecided:'Leave undecided here',adopted:'Adopt this fictional change here',rejected:'Reject here'}[d];o.disabled=d==='adopted'&&u.disposition!=='adopted';select.append(o);}select.value=retained.find(v=>v.ref&&proposalRefKey(v.ref)===proposalRefKey(u.ref))?.disposition??'undecided';label.append(select);const attribution=document.createElement('p');attribution.textContent='Source review: revision '+u.review.basis.revision+' by '+u.review.author_ref+'. Required originals: '+u.source_files.map(f=>f.name+' · '+f.digest).join('; ');const links=document.createElement('pre');links.textContent='Declared dependencies: '+JSON.stringify(u.proposal.requires??[])+'\nReinterprets: '+JSON.stringify(u.proposal.revises??[]);row.append(p,attribution,links,label);$('material-choices').append(row);
+ }
+ $('direction-export').hidden=false;$('relation-state').textContent='Review the current source and target. Only explicitly selected fictional changes are adopted. Prose stays independent; unstated dependencies are unknown.';
+}
+$('direction-export').onclick=()=>run(async()=>{if(!requireSavedDirection()||relationPending||!comparison?.direction||!comparisonCurrent)return;const r=beginDirection(),data=await api('/api/work/'+work+'/direction-export',{expected:binding(saved),source:{work_id:comparison.branch.work_id,...binding(comparison.branch)}});if(!currentDirection(r))return;
+ for(const [name,value,type] of [['story-directions.json',JSON.stringify(data.recovery),'application/json'],...data.reading.map((v,i)=>['story-direction-'+(i+1)+'.html',v,'text/html'])]){const url=URL.createObjectURL(new Blob([value],{type})),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}status('Both complete histories and two readable copies downloaded. Reconstruct story-directions.json in a separate empty store.');});
+Object.assign(messages,{direction_closure_required:'Use Compare a private branch, then Export both story directions. A one-work file would omit required lineage.',direction_pair_scope:'This flow supports one primary and its direct alternate. Preserve the complete pair; nested branching is unavailable.',direction_source_unavailable:'A required historical direction or its bytes are unavailable. No complete preparation or recovery was claimed.',scene_prerequisite_missing:'This selection needs consequential context or exact original sources missing from the target. Include the required changes or leave it undecided.',scene_revision_basis:'A reinterpretation must name an adopted or rejected earlier decision at the same fictional event and reveal positions.',direction_selection_capacity:'This comparison exceeds 16 consequential changes. No selection was clipped.',source_proposal_not_adopted:'This proposal has not been adopted in the source scope. It cannot be adopted by this transfer.'});
+
+async function admitDirection(r,data){
+ if(!currentDirection(r))return false;
+ const refs=[data.branch??data.source,...(data.target?[data.target]:[])];
+ const observed=await Promise.all(refs.map(v=>api('/api/work/'+v.work_id)));
+ if(!currentDirection(r))return false;
+ if(observed.some((v,i)=>JSON.stringify(binding(v.saved))!==JSON.stringify(binding(refs[i])))){invalidatePreview();comparisonCurrent=false;$('relation-cancel').hidden=true;freezeDirection(false);$('relation-state').textContent='A saved source or target changed while reading. Choices are retained; explicitly refresh and compare again.';return false;}
+ return true;
+}

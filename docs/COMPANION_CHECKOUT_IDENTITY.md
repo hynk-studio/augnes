@@ -258,6 +258,21 @@ exclusive, coordinated operator window is still required: older installed
 clients do not understand the new record, and a lifecycle lock is not a machine-
 wide prohibition on independently authorized writers.
 
+An already **settled** retirement is historical across supported device-number
+changes. If its original observation hash differs, ordinary lifecycle inspection
+requires valid current durable enrollment and an exact reconstruction of the
+historical hash by changing only the current device number to the recorded configuration-parent
+device. This does not assume that two paths share a mount: if that one recorded
+number cannot reproduce the original hash, inspection refuses. Missing or
+invalid enrollment, changed durable identity, malformed evidence and an
+incomplete retirement still refuse. The record and its digest remain unchanged;
+this compatibility check grants no process ownership or recovery replay.
+Current configuration and source checks still apply; historical configuration
+bytes do not freeze later otherwise-valid configuration updates.
+Recovery inspection/application retain their stricter same-operation source,
+material and repository checks. Preservation still brackets the actual current
+observation and refuses device changes during a run.
+
 ### Non-circular, post-review operational handoff
 
 Source development does not authorize these commands on production. After review,

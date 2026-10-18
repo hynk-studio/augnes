@@ -279,6 +279,8 @@ async function main(): Promise<void> {
         status: "available",
       });
 
+      await assertInspectionImageReuseV01(fixtureDatabasePath, root);
+
       const preProbePath = path.join(root, "pre-probe.db");
       await sqliteBackupV01(fixtureDatabasePath, preProbePath);
       const beforeProbe = readLogicalDatabaseSnapshotV01(fixtureDatabasePath);
@@ -574,6 +576,7 @@ async function main(): Promise<void> {
       );
 
       await sqliteBackupV01(fixtureDatabasePath, productReaderMutationPath);
+      assert.equal(inspectRecoveryDatabaseFile(productReaderMutationPath).recovery_eligible, true);
       mutateProductReaderProjectionV01(productReaderMutationPath);
       const readerMutationSnapshot = readLogicalDatabaseSnapshotV01(
         productReaderMutationPath,
@@ -1385,6 +1388,84 @@ function addDisplacedStateMarkerV01(databasePath: string): void {
     db.close();
   }
   chmodSync(databasePath, 0o600);
+}
+
+async function assertInspectionImageReuseV01(databasePath: string, root: string) {
+  const before = readLogicalDatabaseSnapshotV01(databasePath);
+  const first = inspectWithCanonicalPassCountV01(databasePath);
+  assert.equal(first.inspection.schema_classification, "current");
+  assert.deepEqual(first.passes, [{ source: true, transaction: true }],
+    "an unchanged migration image must use one complete canonical/ordinary-reader pass in the captured source transaction");
+  assert.deepEqual(inspectWithCanonicalPassCountV01(databasePath), first,
+    "a new inspection must validate again instead of reusing a path/process result");
+  assert.deepEqual(readLogicalDatabaseSnapshotV01(databasePath), before);
+
+  const predecessorPath = path.join(root, "inspection-generation-predecessor.db");
+  await sqliteBackupV01(databasePath, predecessorPath);
+  const predecessor = new Database(predecessorPath, { fileMustExist: true });
+  try {
+    // The supported pre-generation callback schema used by request-bound review.
+    for (const table of ["vnext_external_shares", "vnext_external_records", "vnext_external_materials", "vnext_external_envelopes"]) {
+      assert.equal((predecessor.prepare(`SELECT count(*) n FROM ${table}`).get() as { n: number }).n, 0);
+      predecessor.exec(`DROP TABLE ${table}`);
+    }
+    predecessor.exec("ALTER TABLE vnext_review_callback_policies DROP COLUMN generation");
+  } finally { predecessor.close(); }
+  const predecessorBefore = readLogicalDatabaseSnapshotV01(predecessorPath);
+  const migrated = inspectWithCanonicalPassCountV01(predecessorPath);
+  assert.equal(migrated.inspection.schema_signature, "579d73c1aa80fec79b567854b2857b7d099b1a2637c5172aa2cfc26a19df72c9");
+  assert.equal(migrated.inspection.schema_classification, "old");
+  assert.deepEqual(migrated.passes, [
+    { source: true, transaction: true }, { source: false, transaction: false },
+  ], "changed migration images must receive a separate complete canonical/ordinary-reader pass");
+  assert.deepEqual(readLogicalDatabaseSnapshotV01(predecessorPath), predecessorBefore,
+    "migration inspection must leave the source schema, records and permission state unchanged");
+
+  const concurrentPath = path.join(root, "inspection-concurrent-writer.db");
+  await sqliteBackupV01(databasePath, concurrentPath);
+  const writer = new Database(concurrentPath, { fileMustExist: true });
+  try {
+    writer.pragma("journal_mode = WAL");
+    let writes = 0;
+    const captured = inspectWithCanonicalPassCountV01(concurrentPath, () => {
+      writes++;
+      mutateProductReaderProjectionV01(concurrentPath);
+    });
+    assert.equal(writes, 1);
+    assert.deepEqual(captured, first,
+      "a concurrent WAL writer cannot change the source image between canonical validation and serialization");
+    const changed = readLogicalDatabaseSnapshotV01(concurrentPath);
+    assert.notDeepEqual(changed, before);
+    assert.throws(() => inspectRecoveryDatabaseFile(concurrentPath),
+      (error: unknown) => error instanceof Error && "code" in error && error.code === "database_reader_incompatible",
+      "the next inspection must reject the changed image, not reuse the earlier permission/reader result");
+    assert.deepEqual(readLogicalDatabaseSnapshotV01(concurrentPath), changed);
+  } finally {
+    try {
+      writer.pragma("wal_checkpoint(TRUNCATE)");
+      writer.pragma("journal_mode = DELETE");
+    } finally { writer.close(); }
+  }
+  console.log(JSON.stringify({ recovery_inspection_image_reuse: {
+    current_passes: first.passes.length, repeated_inspection_passes: first.passes.length,
+    migrated_passes: migrated.passes.length, source_unchanged: true, concurrent_snapshot_and_later_refusal: true,
+  } }));
+}
+
+function inspectWithCanonicalPassCountV01(databasePath: string, duringSourceRead?: () => void) {
+  const prepare = Database.prototype.prepare;
+  const passes: Array<{ source: boolean; transaction: boolean }> = [];
+  try {
+    Database.prototype.prepare = function (this: Database.Database, sql: string) {
+      if (sql.replace(/\s+/gu, " ").trim() ===
+        "SELECT record_kind, record_id, workspace_id, project_id, fingerprint, idempotency_key, payload_json, created_at FROM vnext_core_records ORDER BY record_kind, record_id") {
+        passes.push({ source: this.name === databasePath, transaction: this.inTransaction });
+        if (this.name === databasePath) duringSourceRead?.();
+      }
+      return prepare.call(this, sql);
+    } as typeof prepare;
+    return { inspection: inspectRecoveryDatabaseFile(databasePath), passes };
+  } finally { Database.prototype.prepare = prepare; }
 }
 
 function readLogicalDatabaseSnapshotV01(databasePath: string) {

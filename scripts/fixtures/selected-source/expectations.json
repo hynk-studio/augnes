@@ -1,0 +1,8 @@
+{
+  "evidence": "Developer-exposed deterministic acceptance; frozen before consumer execution, not supplied to consumers",
+  "coding_before": { "status": "completed", "attempts": 2, "total_ms": 5000 },
+  "coding_after": { "status": "completed", "attempts": 2, "total_ms": 5 },
+  "textual_before": "Reserve a seat at the front desk.\nThe East Library workshop begins at 18:00.\n",
+  "textual_after": "Reserve a seat at the front desk.\nThe East Library workshop begins at 19:00.\n",
+  "outside_applicability": "unknown"
+}

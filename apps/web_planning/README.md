@@ -4,6 +4,11 @@ One configured owner keeps independent planning work, its attributed context and
 explicitly selected small files. Web work neither reads the installed Augnes
 database nor creates native work, results or accepted state.
 
+An explicitly downloaded complete export can be admitted by the separate native
+[local selected-source handoff](../../docs/WEB_EXPORT_NATIVE_HANDOFF.md). It
+requires selected current-revision text and an exact authorized native target;
+Web/native stores and Web reconstruction remain independent.
+
 [#1351](https://github.com/hynk-studio/augnes/issues/1351) completed private
 branching/incorporation through merged #1353; [#1356](https://github.com/hynk-studio/augnes/issues/1356)
 accepted its bounded direct-Cloudflare hosted synthetic journey.
@@ -190,8 +195,8 @@ returns that exact revision. A lost response retains the original request; use
 **Check review outcome** (or the ordinary **Check save outcome**) before an explicit
 same-request retry. Unknown is not proof of failure. Refused drafts and choices
 stay in the tab; latest-version comparison never silently overwrites them. Already
-reviewed scenes cannot be revised by this increment; alternate directions and
-broad setting revisions belong to separately authorized C.
+reviewed scenes cannot be overwritten. C below adds an explicit attributed
+reinterpretation path while retaining these earlier scenes and reviews.
 
 Recovery validates every introduced notebook body, source/review binding and
 allowed historical transition before the existing empty-store transaction.
@@ -209,6 +214,95 @@ are assistance; correctness of stored structure alone does not establish creativ
 quality, model understanding, lower burden or superiority to a maintained Story
 Bible. The candidate report separately records any bounded included-client use,
 actual context delivery and saved output, intervention and unknown burden.
+
+## Alternate continuation — Increment C (#1455)
+
+This bounded flow supports a primary containing saved scenes and one direct
+alternate in the same owner/project. Ordinary work and file-free planning branches
+retain their existing behavior. Other file-bearing branches, nested story forks,
+shared worlds and automatic semantic merging remain unavailable.
+
+1. Open the saved primary, inspect its original sources and reviewed scene, then
+   choose **Continue another direction**. Give a reason, **Review starting material**,
+   and **Save reviewed change**. The displayed saved revision is the fixed origin.
+   Current file bytes are copied. Inherited scenes/reviews are read-only context,
+   attributed to their original scope; creating the branch does not review them again.
+2. In the alternate choose **Next scene** and write in the existing editor. Under a
+   consequential proposal, open **Setting revision or required context**. Select
+   the earlier decisions to reinterpret. For a retroactive reinterpretation use
+   the same fictional event/reveal positions as those decisions. Save the draft,
+   then use the existing grouped review with a reason and explicit dispositions.
+   Prior prose and rejection/adoption remain historical. Normal Save adopts nothing.
+3. Reopen the primary and choose **Compare a private branch**. The current heads,
+   named origin, alternate local prose and reviewed proposals are shown. Select
+   **Adopt this fictional change here**, **Leave undecided here** or **Reject here**
+   per proposal, explain the selection, preview and save. Only adopted proposals
+   from the source are eligible for target adoption. Alternate prose/manuscripts
+   are not transferred. Existing target prose, selected notes and unrelated edits stay.
+4. If either saved work changed, use **Refresh versions and compare again** and
+   explicitly review again. Local edits, edit-then-revert, cancellation and work
+   replacement discard unsubmitted results. Admission rereads both current heads
+   after asynchronous comparison/preview; SQL checks both again at save. A sent
+   request with an unknown result remains locked to its exact original identity:
+   **Check change outcome** or an explicit **Retry same change** resolves it.
+5. Reopen each scope freshly, choose **Next scene**, and prepare its persisted
+   context. Superseded settings are labelled historical; current scoped knowledge,
+   undecided intentions and rejected changes remain distinct. The previous draft
+   and exact selected originals remain accessible. Save the resulting prose normally.
+6. From a current primary comparison choose **Export both story directions**.
+   Keep `story-directions.json` and both readable HTML copies. In an explicitly
+   configured quiesced empty replacement store, use the existing reconstruction
+   file picker. Reopen both works after restarting the disposable runtime/browser.
+
+The synthetic example reinterprets the unopened letter at event 2 / reveal 1 in
+an alternate, allowing Harin to open it and learn the emperor survived. The primary
+keeps the unopened letter and its original rejection. A separate dawn-bell setting
+is selected into primary; alternate revelation and prose are left unadopted there.
+This is a retroactive author choice, not a later event silently inserted into history.
+
+### Direction integrity, bounds and recovery
+
+`augnes_scene_notebook.v2` uses the existing reserved notebook file and v0.3
+revision envelope. It adds immutable inherited scenes, bounded `revises`/`requires`
+proposal links (up to four each), and append-only target selections containing the
+exact source units, dispositions, target basis, actor and reason. The source's
+original review and the target's selection have distinct recorded attribution.
+Reinterpretation links require earlier adopted/rejected decisions at matching
+positions. Declared prerequisites and exact required original files must already
+be present or travel with a selected proposal. Natural-language dependencies and
+contradictions are not automatically detected. Leaving a unit undecided does not
+revoke an earlier target adoption. Reviewed scenes still cannot be overwritten.
+
+A fresh review can retain an exact, still-current adoption, including a setting
+revision, without performing its earlier reinterpretation again. Content, original
+review, source files and scope must match; prerequisites still apply. Retaining
+that unit does not prevent adopting a new independent proposal alongside it.
+Repeating the same source version, units, dispositions, reason and author is an
+acknowledgement of the existing revision, with no new notebook or history entry.
+Changed source versions or decisions remain new selections under the existing
+contract. A superseded unit cannot be reactivated by selecting it again.
+
+A branch keeps current original bytes locally, while historical source bytes and
+review bases remain in the named primary chain. Complete preparation refuses if
+that required history is unavailable; it never supplies an invented empty source.
+Readable copies label inherited attribution and target decisions. The versioned
+`web_planning_direction_export.v1` recovery file includes **both** full histories
+and file bodies. The existing `/api/reconstruct-files` route validates all hashes,
+domain transitions and required cross-work references before one atomic D1 batch.
+A malformed second scope rolls back the first as well. Single-work recovery refuses
+missing direction closure. Old A/B exports remain supported; B readers explicitly
+refuse v2 notebook interpretation. No old row/hash is migrated or rewritten, and
+no new database schema, authorization profile or Native state is introduced.
+
+All existing byte, history, query and request limits remain. A notebook admits at
+most 32 local scenes plus selection records, with at most 16 consequential units
+per comparison. The entire two-work recovery request must fit the existing
+3,000,000-byte route and combined 1,024-row / 1,400,000-byte history envelope budget.
+Each work retains the same 8 selected files, 16 historical bodies and byte bounds.
+A normal draft/review creates one compact notebook version; capacity can be reached
+well before the scene-count bound. Refusal preserves saved state and the current
+draft, never clips history or raises limits. This supports the measured small
+workflow, not unlimited long-form writing.
 
 ## Cumulative saved history (#1397)
 
@@ -316,9 +410,11 @@ tab can lose unsaved bytes; access loss clears them. There is no browser backup.
 
 Keep necessary qualifications, dependencies and source attribution in selected
 context. This slice does not infer file-to-note dependencies. Branch creation or
-incorporation with files selected on either participating work refuses with
-`file_branch_selection_unsupported`; comparison itself remains read-only.
-No files are implicitly copied or dropped. For a genuinely independent task,
+generic note incorporation with files selected on either participating work refuses
+with `file_branch_selection_unsupported`. The explicit C scene-direction flow above
+is the bounded exception: it copies selected original bytes and attributed scene
+context, then transfers only explicitly reviewed fictional proposals. Comparison
+itself remains read-only. No required files are silently dropped. For a genuinely independent task,
 explicitly download and select its needed bytes with their attribution and
 conditions; this is a separately owned copy, not a provenance-certified branch.
 Do not remove required files merely to enable branching. File-free behavior
@@ -331,7 +427,7 @@ continues unchanged, including independent copies after source erasure.
 | Work history | 16 distinct content digests; sum of their sizes ≤ 1,048,576 bytes, shared only within this work |
 | Name / role | 160 UTF-8 name bytes; Unicode preserved, no path separators, controls, bidi overrides or malformed Unicode; report/source/results/other |
 | Ordinary JSON request | Existing 1,500,000-byte streaming cap, including base64 uploads; old routes are not enlarged |
-| File-export reconstruction | Only `POST /api/reconstruct-files`: 3,000,000-byte streaming cap for v0.3 complete exports |
+| File-export reconstruction | Only `POST /api/reconstruct-files`: 3,000,000-byte streaming cap for v0.3 work exports or the bounded C pair |
 | Planning material | Existing note, definition, relation and list-page limits remain; complete-history operation budgets are specified above |
 
 The 69,216-byte representative bundle motivates small bounded outputs: the
@@ -429,8 +525,9 @@ files not retained by this work, access credentials or execution authority.
 For file-free work, explicit **Branch** can create a separately owned work from
 the current definition and selected sources, with an exact origin reference. It
 does not copy the original work's full history; retain the original and its export.
-Branching with selected files remains `file_branch_selection_unsupported`. For a
-genuinely independent question, explicitly select the needed original file bytes,
+Generic branching with selected files remains `file_branch_selection_unsupported`;
+the explicit C scene-direction contract above is the bounded exception. For an
+independent question, explicitly select the needed original file bytes,
 attribution and unresolved conditions in a new work. Do not drop required files
 to enable branching or call an independent copy transparent continuation. When
 the next operation requires the exhausted history/body budget, retain the material:

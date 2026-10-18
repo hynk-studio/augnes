@@ -134,7 +134,7 @@ author facts, character knowledge/beliefs, public/narrator assertions and author
 intentions from their proposed/adopted/undecided/rejected dispositions. Adopting an
 intention does not assert that its event happened. Fictional event positions and
 reveal order are independent of the envelope's actual revision time. One work is
-one fictional scope; this introduces no alternate-branch or shared-world contract.
+one fictional scope; B introduces no alternate-branch or shared-world contract.
 
 A draft binds persisted source revision/file identities and cannot adopt material.
 A grouped review binds the exact saved scene/proposals, current revision, scope,
@@ -148,6 +148,35 @@ interpret this domain version. Presentation changes neither erase its history no
 expand authority. Generated context is a bounded, rebuildable source-linked view,
 not a replacement master, empirical Evidence, native Core Transition, publication
 or execution grant. Single-owner viewpoint selection is not access isolation.
+
+DT-001 C adds a bounded [primary/alternate contract](../../apps/web_planning/README.md#alternate-continuation--increment-c-1455)
+to the same writers. A v2 scene notebook copies the named origin's scenes as
+immutable inherited context and copies current authored-file bytes into an
+independent work. Historical source/review identities remain in the primary's
+retained chain, with explicit unavailable-source refusal for complete preparation.
+Inherited adoption is not a newly performed alternate review. Local drafts and
+reviews affect only their work. Explicit `revises` links represent retroactive
+reinterpretation at the same fictional event/reveal positions, retaining earlier
+text, actor and decisions; they are not later events or empirical corrections.
+
+A target selection records exact current source and target, configured author,
+reason and per-proposal dispositions. Only explicitly adopted source proposals
+can be adopted by transfer. Required original files and declared proposal links
+must be available; unrepresented natural-language dependence remains unknown.
+Unselected proposals do not revoke prior adoption or transfer source prose.
+Retaining an exact current target adoption preserves its content, source files,
+original review and scope; it does not reinterpret its superseded basis again.
+Prerequisites still apply, and a superseded unit cannot be reactivated by retention.
+The existing no-change acknowledgement requires the same source version, units,
+dispositions, reason and author; adding a new valid selection appends one decision
+without rewriting the retained unit's earlier attribution or history. Live review
+and reconstruction apply the same distinction between retained and new adoption.
+The original sealed-request replay/unknown-outcome contract remains authoritative.
+A versioned two-work recovery closure includes both complete histories and bytes;
+all local transitions and cross-work references validate before one empty-store
+transaction. A single-work export cannot claim this closure. Older notebook
+readers refuse v2 semantics; old A/B bytes and hashes are never rewritten. This
+adds no Core Transition, shared-world engine, synchronization or execution grant.
 
 A Blank State projection, AI Workplane projection, timeline, relationship view,
 GuideBrief, Inspector, host-native card, attention queue, evidence pack, run
@@ -757,6 +786,16 @@ produce an honest limitation. Explicit retain/stop reconsideration preserves
 prior judgment. Source links do not entail truth, discover all copied dependents
 or automatically invalidate unrelated work. Pure bounds/hash/state rules remain
 separate from SQL, native project resolution and effect transport.
+
+The [selective reporting example](../EXTERNAL_RESPONSE_LOCAL.md#selective-correction-in-a-later-reporting-task-p31--p52)
+interprets one explicit upstream lineage and replacement chain from existing
+experience conditions and complete materials. It obtains each share independently,
+preserves the original check, and records current applicability separately from
+new output bytes. Its bounded content profiles do not add adapter actions or
+persisted Core semantics. Direct `affected_work` remains direct. A dependency
+arrow confers neither logical sufficiency nor access; independent invoice support
+is a consumer-specific premise. Read-time coherence is not an atomic observation
+across projects or permission for an external effect.
 
 #### Execution-choice preparation and result-linked assessment (#1443)
 
@@ -3557,6 +3596,82 @@ source ref
 원본 삭제나 접근 상실은 tombstone과 projection invalidation event를 발생시켜야 한다.
 
 ---
+
+### 13.5 Explicit selected-source corpus projection (#1468)
+
+The [selected-source reader](../../lib/vnext/selected-source-retrieval.mjs)
+interprets an explicitly selected `augnes.selected-source-corpus.v1` JSON
+material through the existing external experience/material owner. It adds no
+table, Core kind, identity, deletion policy or accepted-state semantics. The
+immutable manifest binds its consumer project key and at most 16 exact
+experience references, with supplied source identity, revision, work/session
+grouping, source/event/valid times, meaning, adoption label and original-context
+availability. These remain declarations; unknowns stay explicit. The original
+experience's `created_at` is ingestion time, separate from supplied time.
+
+Selection uses existing explicit `put_material`/`publish` operations and their
+source/project checks. Prior shared experiences additionally require existing
+configured, unwithdrawn shares. Possessing a corpus reference grants no access.
+A changed source set is a new deliberately selected immutable manifest. The
+explicit #1478 collection below can retain its selection across additions;
+ordinary corpus references have no implicit latest-corpus subscription. Earlier
+manifests and outputs remain historical. Withdrawal/configuration removal refuses
+new reads through old manifests; already delivered copies cannot be recalled. Missing declared bytes
+refuse without reconstruction. Existing backup/restore retains these materials.
+
+Read-only `inspect_corpus` and `retrieve_sources` operate inside the external
+owner's database snapshot. Each request revalidates access, original bytes and
+every explicit correction through the existing dependency reader. Inaccessible
+correction context refuses the selected corpus. Inspection supplies an exact
+binding required by retrieval; changed basis refuses. This observation does not
+reserve permissions after delivery. Retrieval returns whole groups, never
+splitting conditions/corrections, inferring supersession from time/similarity,
+searching locators, executing source instructions or claiming global absence.
+Current-work recall and Resume remain unchanged. Retrieval persists no derived
+search index or cache. The [usage contract](../SELECTED_SOURCE_RETRIEVAL.md) specifies
+bounds, source owners, workflow and lifecycle limits.
+
+#### Explicit incremental selection and lexical questions (#1478)
+
+`collect_sources` records an append-only `source_collection` stream in the existing
+external store. Its first record is the stable, project-local collection reference.
+Each event binds the name, predecessor, added immutable corpus references, resulting
+merged corpus and current native material basis. Existing transactions, operation
+keys and expected-head checks own atomicity, replay and concurrency refusal.
+Identical selected experiences deduplicate; conflicting supplied context refuses.
+Original bytes, attribution, revisions, times and group boundaries remain unchanged.
+The existing eight-input, 64-event, 16-group, material, scan and storage bounds apply.
+Acknowledgement requires current access and individually deliverable whole groups.
+No table, index, share, Core acceptance or execution grant is introduced.
+
+The existing readers accept either an immutable corpus or an explicitly selected
+collection. A collection read resolves its current head and validates source access
+and connected corrections; its binding includes that head. A changed head or source
+context refuses stale use. History is retained and recovery validates each merged
+snapshot from its retained input corpora. Removing a source requires deliberate
+new selection; withdrawal/configuration removal retains existing refusal semantics.
+
+The optional question mode remains a zero-model bounded lexical projection. It
+removes fixed English function words, matches any retained word and orders distinct
+word overlap before stable identity. It exposes query interpretation and the same
+whole-group/output bounds; literal query semantics are unchanged. Neither ranking,
+recency nor similarity declares applicability, supersession or absence beyond the
+selection. Unresolved statements/corrections remain consumer review material.
+
+### 13.6 Explicit portable Web source admission (#1475)
+
+The [local handoff](../WEB_EXPORT_NATIVE_HANDOFF.md) directly reuses the Web v0.3
+export validator before admitting explicitly selected current-revision UTF-8
+text into an exact registered/configured native project. One existing external
+transaction stores original-byte materials, an attributed experience and a
+selected-source corpus, including operation replay and whole-group bound checks.
+No Core state, native work, table/index or cross-project share is created.
+Web work/revision/export/file bindings and supplied author/source time remain
+attribution; native ingestion time is separate and meaning/adoption stay unknown.
+Conflicting operation reuse and stale Web/native bindings refuse atomically.
+Later Web changes do not recall already downloaded/imported bytes; this adds no
+mirroring, reverse synchronization or erasure guarantee. Existing native access,
+correction, withdrawal, retrieval and recovery owners retain their meaning.
 
 ## 14. Zero-Model Mode
 
