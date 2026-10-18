@@ -1030,79 +1030,98 @@ function runSameNameMarkdownConsumerCases() {
   assert.deepEqual(ambiguous.full_reasons, [`unproven_documentation_consumer:${web}:${bundledPath}`]);
   results.push("same-name-markdown-unrelated-skill-does-not-hide-bundled-bare-mention");
 
-  // Use a different instruction owner and nearby targets: the correction is not
-  // an exemption for the demonstrated plugin, SKILL filename, or README path.
-  const consumer = "apps/web_planning/instructions/SKILL.md";
-  const local = "assets/method/README.md";
-  const other = path.posix.join(path.posix.dirname(consumer), local);
-  const safe = `[method](${local})`;
-  const genuine = "[Web contract](../README.md)";
-  const cases = [
-    { name: "generic-relative", text: safe, safe: true },
-    { name: "dot-relative", text: `[method](./${local})`, safe: true },
-    { name: "parent-relative", text: "[method](../instructions/assets/method/README.md)", safe: true },
-    { name: "repeated-safe", text: `${safe} and ${safe}\n${safe}`, safe: true },
-    { name: "front-matter-safe-body", text: `---\nname: example\n---\n${safe}`, safe: true },
-    { name: "genuine-relative", text: genuine },
-    { name: "genuine-full-path", text: `Read ${web}.` },
-    { name: "genuine-full-path-link", text: `[Web](../../../${web})` },
-    { name: "mixed-genuine", text: `${safe} and ${genuine}` },
-    { name: "mixed-bare-same-line", text: `${safe} then read README.md.` },
-    { name: "mixed-bare-next-line", text: `${safe}\nRead README.md.` },
-    { name: "bare-before-safe", text: `Read README.md then ${safe}.` },
-    { name: "label-mention", text: `[README.md](${local})` },
-    { name: "mixed-reference-style", text: `${safe}\n[method][ref]\n\n[ref]: ${local}` },
-    { name: "mixed-url", text: `${safe} and [other](https://example.invalid/README.md)` },
-    { name: "encoded-path", text: "[method](assets/%6dethod/README.md)" },
-    { name: "query", text: `${safe}\n[method](${local}?mode=raw)` },
-    { name: "fragment", text: `${safe}\n[method](${local}#unknown)` },
-    { name: "title-mention", text: `[method](${local} "README.md")` },
-    { name: "escaped-markdown", text: `\\${safe}` },
-    { name: "inline-code", text: "`" + safe + "`" },
-    { name: "inline-math", text: "$" + safe + "$" },
-    { name: "math-with-spaces", text: "$ " + safe + " $" },
-    { name: "link-shaped-url", text: "https://example.invalid/" + safe },
-    { name: "fenced-code", text: "~~~markdown\n" + safe + "\n~~~" },
-    { name: "indented-code", text: "    " + safe },
-    { name: "html", text: `<!-- ${safe} -->` },
-    { name: "nested-link", text: `[outer ${safe}](missing)` },
-    { name: "front-matter-mention", text: `---\ndescription: ${safe}\n---\n${safe}` },
-    { name: "untracked-target", text: safe, seed: value => value.remove(other), dirty: value => value.write(other, "# Worktree rescue\n") },
-    { name: "wrong-case-target", text: "[method](assets/METHOD/README.md)" },
-    { name: "escape-root", text: "[method](../../../../README.md)" },
-    { name: "unproven-traversal", text: "[method](missing/../assets/method/README.md)" },
-    { name: "base-only-genuine", text: genuine, mutate: value => value.write(consumer, safe + "\n") },
-    { name: "head-only-genuine", text: safe, mutate: value => value.write(consumer, genuine + "\n") },
-    { name: "base-only-missing-target", text: safe, seed: value => value.remove(other), mutate: value => value.write(other, "# Method\n") },
-    { name: "head-only-missing-target", text: safe, mutate: value => value.remove(other) },
-    { name: "worktree-cannot-rewrite-consumer", text: genuine, dirty: value => value.write(consumer, safe + "\n") },
-  ];
-  if (process.platform !== "win32") cases.push(
-    { name: "executable-consumer", text: safe, seed: value => value.chmod(consumer, 0o755) },
-    { name: "executable-target", text: safe, seed: value => value.chmod(other, 0o755) },
-    { name: "symlink-target", text: safe, seed: value => { value.remove(other); value.symlink("../../../README.md", other); } },
-    { name: "symlink-traversal", text: "[method](alias/../assets/method/README.md)", seed: value => value.symlink("..", "apps/web_planning/instructions/alias") },
-  );
+  // Distinct basenames let one exact-tree comparison assert every edge without
+  // repeating repository setup and planning for each syntax variant. Keep the
+  // real README/skill comparison above separate, including its whole-plan result.
+  const cases = [];
+  function addCase(name, describe) {
+    const filename = `${name}.md`;
+    const web = `docs/same-name/${filename}`;
+    const directory = `docs/same-name/${name}`;
+    const consumer = `${directory}/AGENTS.md`;
+    const local = `assets/method/${filename}`;
+    const other = `${directory}/${local}`;
+    const safe = `[method](${local})`;
+    const genuine = `[required](../${filename})`;
+    cases.push({ name, web, consumer, other,
+      ...describe({ name, filename, web, directory, consumer, local, other, safe, genuine }) });
+  }
+  addCase("generic-relative", ({ safe }) => ({ text: safe, safe: true }));
+  addCase("dot-relative", ({ local }) => ({ text: `[method](./${local})`, safe: true }));
+  addCase("parent-relative", ({ name, local }) => ({ text: `[method](../${name}/${local})`, safe: true }));
+  addCase("repeated-safe", ({ safe }) => ({ text: `${safe} and ${safe}\n${safe}`, safe: true }));
+  addCase("front-matter-safe-body", ({ safe }) => ({ text: `---\nname: example\n---\n${safe}`, safe: true }));
+  addCase("genuine-relative", ({ genuine }) => ({ text: genuine }));
+  addCase("genuine-full-path", ({ web }) => ({ text: `Read ${web}.` }));
+  addCase("genuine-full-path-link", ({ web }) => ({ text: `[Web](../../../${web})` }));
+  addCase("mixed-genuine", ({ safe, genuine }) => ({ text: `${safe} and ${genuine}` }));
+  addCase("mixed-bare-same-line", ({ safe, filename }) => ({ text: `${safe} then read ${filename}.` }));
+  addCase("mixed-bare-next-line", ({ safe, filename }) => ({ text: `${safe}\nRead ${filename}.` }));
+  addCase("bare-before-safe", ({ safe, filename }) => ({ text: `Read ${filename} then ${safe}.` }));
+  addCase("label-mention", ({ filename, local }) => ({ text: `[${filename}](${local})` }));
+  addCase("mixed-reference-style", ({ safe, local }) => ({ text: `${safe}\n[method][ref]\n\n[ref]: ${local}` }));
+  addCase("mixed-url", ({ safe, filename }) => ({ text: `${safe} and [other](https://example.invalid/${filename})` }));
+  addCase("encoded-path", ({ filename }) => ({ text: `[method](assets/%6dethod/${filename})` }));
+  addCase("query", ({ safe, local }) => ({ text: `${safe}\n[method](${local}?mode=raw)` }));
+  addCase("fragment", ({ safe, local }) => ({ text: `${safe}\n[method](${local}#unknown)` }));
+  addCase("title-mention", ({ local, filename }) => ({ text: `[method](${local} "${filename}")` }));
+  addCase("escaped-markdown", ({ safe }) => ({ text: `\\${safe}` }));
+  addCase("inline-code", ({ safe }) => ({ text: "`" + safe + "`" }));
+  addCase("inline-math", ({ safe }) => ({ text: "$" + safe + "$" }));
+  addCase("math-with-spaces", ({ safe }) => ({ text: "$ " + safe + " $" }));
+  addCase("link-shaped-url", ({ safe }) => ({ text: "https://example.invalid/" + safe }));
+  addCase("fenced-code", ({ safe }) => ({ text: "~~~markdown\n" + safe + "\n~~~" }));
+  addCase("indented-code", ({ safe }) => ({ text: "    " + safe }));
+  addCase("html", ({ safe }) => ({ text: `<!-- ${safe} -->` }));
+  addCase("nested-link", ({ safe }) => ({ text: `[outer ${safe}](missing)` }));
+  addCase("front-matter-mention", ({ safe }) => ({ text: `---\ndescription: ${safe}\n---\n${safe}` }));
+  addCase("untracked-target", ({ safe, other }) => ({ text: safe,
+    seed: value => value.remove(other), dirty: value => value.write(other, "# Worktree rescue\n") }));
+  addCase("wrong-case-target", ({ filename }) => ({ text: `[method](assets/METHOD/${filename})` }));
+  addCase("escape-root", ({ filename }) => ({ text: `[method](../../../../${filename})` }));
+  addCase("unproven-traversal", ({ local }) => ({ text: `[method](missing/../${local})` }));
+  addCase("base-only-genuine", ({ safe, genuine, consumer }) => ({ text: genuine,
+    mutate: value => value.write(consumer, safe + "\n") }));
+  addCase("head-only-genuine", ({ safe, genuine, consumer }) => ({ text: safe,
+    mutate: value => value.write(consumer, genuine + "\n") }));
+  addCase("base-only-missing-target", ({ safe, other }) => ({ text: safe,
+    seed: value => value.remove(other), mutate: value => value.write(other, "# Method\n") }));
+  addCase("head-only-missing-target", ({ safe, other }) => ({ text: safe,
+    mutate: value => value.remove(other) }));
+  addCase("worktree-cannot-rewrite-consumer", ({ safe, genuine, consumer }) => ({ text: genuine,
+    dirty: value => value.write(consumer, safe + "\n") }));
+  if (process.platform !== "win32") {
+    addCase("executable-consumer", ({ safe, consumer }) => ({ text: safe,
+      seed: value => value.chmod(consumer, 0o755) }));
+    addCase("executable-target", ({ safe, other }) => ({ text: safe,
+      seed: value => value.chmod(other, 0o755) }));
+    addCase("symlink-target", ({ safe, other, filename }) => ({ text: safe,
+      seed: value => { value.remove(other); value.symlink(`../../../${filename}`, other); } }));
+    addCase("symlink-traversal", ({ local, directory }) => ({ text: `[method](alias/../${local})`,
+      seed: value => value.symlink("..", `${directory}/alias`) }));
+  }
   const value = createRepository("same-name-generic", false);
   for (const item of cases) {
-    // Each case still has its own exact base/head. Reuse only the disposable Git
-    // object store to keep the existing planner child's finite deadline intact.
-    rmSync(path.join(value.cwd, path.posix.dirname(consumer)), { recursive: true, force: true });
-    value.write(web, "# Web planning\n");
-    value.write(other, "# Method\n");
-    value.write(consumer, item.text + "\n");
+    value.write(item.web, "# Document\n");
+    value.write(item.other, "# Method\n");
+    value.write(item.consumer, item.text + "\n");
     item.seed?.(value);
-    commitAll(value.cwd, "consumer baseline");
-    const base = git(value.cwd, ["rev-parse", "HEAD"]).trim();
-    value.write(web, "# Web planning\n\nClarified guidance.\n");
+  }
+  commitAll(value.cwd, "consumer baselines");
+  const base = git(value.cwd, ["rev-parse", "HEAD"]).trim();
+  for (const item of cases) {
+    value.write(item.web, "# Document\n\nClarified guidance.\n");
     item.mutate?.(value);
-    commitAll(value.cwd, "proposed guidance");
-    const head = git(value.cwd, ["rev-parse", "HEAD"]).trim();
-    item.dirty?.(value);
-    const actual = planCanonicalChange({ eventName: "pull_request", cwd: value.cwd, baseSha: base, headSha: head });
-    assert.equal(actual.plan, item.safe ? "operating-policy-only" : "full-canonical", item.name);
-    assert.equal(actual.full_reasons.includes(`unproven_documentation_consumer:${web}:${consumer}`), !item.safe, item.name);
-    if (item.safe) assert.deepEqual(actual.full_reasons, [], item.name);
+  }
+  commitAll(value.cwd, "proposed guidance");
+  const head = git(value.cwd, ["rev-parse", "HEAD"]).trim();
+  for (const item of cases) item.dirty?.(value);
+  const actual = planCanonicalChange({ eventName: "pull_request", cwd: value.cwd, baseSha: base, headSha: head });
+  assert.equal(actual.plan, "full-canonical", "mixed safe and unresolved references remain Full");
+  for (const item of cases) {
+    assert.equal(actual.full_reasons.includes(`unproven_documentation_consumer:${item.web}:${item.consumer}`), !item.safe, item.name);
+    assert.equal(actual.documentation_responsibilities.some(entry =>
+      entry.paths.includes(item.web) && entry.responsibility === "ordinary"), !!item.safe, item.name);
     results.push(`same-name-markdown-${item.name}`);
   }
 }
