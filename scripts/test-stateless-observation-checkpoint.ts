@@ -2,21 +2,22 @@
 import assert from "node:assert/strict";
 import { createServer, request as httpRequest } from "node:http";
 import { spawn } from "node:child_process";
-import { readFileSync, writeFileSync, existsSync, rmSync, appendFileSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, appendFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
-import { setTimeout as delay } from "node:timers/promises";
 import Database from "better-sqlite3";
 import { createStatelessSourceReviewHandler } from "../app/api/vnext/operator/stateless-source-review/route";
 import { createVNextLocalOperatorSessionHandlersV01 } from "../app/api/vnext/operator/session/route";
 import { issueVNextLocalOperatorBootstrapV01, VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01, type VNextLocalOperatorPilotConfigV01 } from "../lib/vnext/runtime/local-operator-session";
 import { createOpenAIResponsesAdapterV01 } from "../lib/vnext/model-gateway/openai/responses-adapter";
 import { installZeroNetworkGuard } from "./test-harness-zero-network-guard.mjs";
-import { registerOwnedChild, terminateOwnedProcessTree, trackServerConnections, closeTrackedServer } from "./test-harness-process-lifecycle.mjs";
+import { registerOwnedChild, terminateOwnedProcessTree, waitForOwnedProcessExit, trackServerConnections, closeTrackedServer } from "./test-harness-process-lifecycle.mjs";
+import { CHECKPOINT_STARTUP_TIMEOUT_MS, checkpointReadinessContract, publishCheckpointReady, waitForCheckpointReady } from "./test-stateless-checkpoint-readiness.mjs";
 
-type Input = { config: VNextLocalOperatorPilotConfigV01; ready: string; calls: string };
+type Input = { config: VNextLocalOperatorPilotConfigV01; ready: string; calls: string; nonce: string };
 async function serve(filename: string) {
   assert.equal(process.env.OPENAI_API_KEY, "");
-  const { config, ready, calls } = JSON.parse(readFileSync(filename, "utf8")) as Input;
+  const { config, ready, calls, nonce } = JSON.parse(readFileSync(filename, "utf8")) as Input;
   const guard = installZeroNetworkGuard({ allowLoopback: true });
   const environment = { NODE_ENV: "test" as const, OPENAI_API_KEY: "", AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1", AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: config.workspace_id,
     AUGNES_VNEXT_OPERATOR_PROJECT_ID: config.project_id, AUGNES_VNEXT_OPERATOR_ID: config.operator_id, AUGNES_DB_PATH: config.database_path };
@@ -43,16 +44,47 @@ async function serve(filename: string) {
       res.writeHead(response.status); res.end(await response.text());
     } catch { res.writeHead(500); res.end(JSON.stringify({ error: "checkpoint_fixture_http_failed" })); }
   }));
-  let closing = false;
-  const close = async () => { if (closing) return; closing = true; await closeTrackedServer(server); assert.equal(guard.attempts.length, 0); guard.restore(); process.exit(0); };
-  process.on("SIGTERM", () => { void close(); }); process.on("SIGINT", () => { void close(); });
-  await new Promise<void>(ok => server.listen(0, "127.0.0.1", ok)); origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
-  writeFileSync(ready, JSON.stringify({ origin, pid: process.pid }));
+  let closing: Promise<void> | undefined;
+  const stop = () => { void close().catch(error => { console.error(error); process.exitCode = 1; }); };
+  const close = () => closing ??= (async () => {
+    try { await closeTrackedServer(server); assert.equal(guard.attempts.length, 0); }
+    finally { guard.restore(); process.off("SIGTERM", stop); process.off("SIGINT", stop); }
+  })();
+  process.on("SIGTERM", stop); process.on("SIGINT", stop);
+  try {
+    await new Promise<void>((ok, no) => {
+      server.once("error", no);
+      server.listen(0, "127.0.0.1", () => { server.off("error", no); ok(); });
+    });
+    origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+    publishCheckpointReady(ready, { origin, pid: process.pid, nonce });
+  } catch (error) {
+    try { await close(); } catch (cleanupError) { throw new AggregateError([error, cleanupError], "checkpoint_startup_and_cleanup_failed"); }
+    throw error;
+  }
 }
 
 export async function checkpointProcessReplacement(config: VNextLocalOperatorPilotConfigV01, projectRoot: string) {
   const dir = path.dirname(config.database_path), calls = path.join(dir, "checkpoint-calls.jsonl"), owned = new Set();
   let active: ReturnType<typeof registerOwnedChild> | undefined, cookie = "", origin = "";
+  await checkpointReadinessContract(dir);
+  // Exercise publication failure after the real HTTP server has started. It
+  // must close naturally with diagnostics, without needing the parent's timeout.
+  const blockedReady = path.join(dir, "checkpoint-blocked-ready"), failedInput = path.join(dir, "checkpoint-failed-runtime.json");
+  mkdirSync(blockedReady);
+  try {
+    writeFileSync(failedInput, JSON.stringify({ config, ready: blockedReady, calls, nonce: randomUUID() }));
+    active = registerOwnedChild(owned, spawn(process.execPath, ["--import", "tsx", "scripts/test-stateless-observation-checkpoint.ts", "--serve", failedInput], { cwd: process.cwd(), env: { ...process.env, OPENAI_API_KEY: "" }, detached: true, stdio: ["ignore", "ignore", "pipe"] }), { label: "checkpoint-publication-failure" });
+    let stderr = ""; active.child.stderr?.on("data", (chunk: Buffer) => { stderr = (stderr + chunk).slice(-2000); });
+    await waitForOwnedProcessExit(active, CHECKPOINT_STARTUP_TIMEOUT_MS);
+    assert.deepEqual(active.exitResult, { code: 1, signal: null }); assert.equal(active.closed, true);
+    assert.match(stderr, /checkpoint_ready_already_exists/); assert.equal(owned.size, 0); assert.equal(existsSync(calls), false);
+    console.log(JSON.stringify({ checkpoint_publication_failure: "natural_exit_1_after_server_cleanup", startup_bound_ms: CHECKPOINT_STARTUP_TIMEOUT_MS, provider_calls: 0 }));
+  } finally {
+    if (active) await terminateOwnedProcessTree(active); active = undefined;
+    rmSync(blockedReady, { recursive: true, force: true }); rmSync(failedInput, { force: true });
+    assert.equal(owned.size, 0);
+  }
   const endpoint = `/api/vnext/operator/stateless-source-review?project_id=${config.project_id}`;
   async function call(route: string, body?: unknown, expected = 200) {
     const response = await new Promise<{ status: number; data: any; cookies: string[] }>((ok, no) => {
@@ -69,12 +101,11 @@ export async function checkpointProcessReplacement(config: VNextLocalOperatorPil
     return result.data;
   }
   async function start(index: number) {
-    const ready = path.join(dir, `checkpoint-ready-${index}.json`), input = path.join(dir, `checkpoint-runtime-${index}.json`);
-    writeFileSync(input, JSON.stringify({ config, ready, calls }));
+    const ready = path.join(dir, `checkpoint-ready-${index}.json`), input = path.join(dir, `checkpoint-runtime-${index}.json`), nonce = randomUUID();
+    assert.equal(existsSync(ready), false);
+    writeFileSync(input, JSON.stringify({ config, ready, calls, nonce }));
     active = registerOwnedChild(owned, spawn(process.execPath, ["--import", "tsx", "scripts/test-stateless-observation-checkpoint.ts", "--serve", input], { cwd: process.cwd(), env: { ...process.env, OPENAI_API_KEY: "" }, detached: true, stdio: ["ignore", "ignore", "pipe"] }), { label: "checkpoint-scripted-http-runtime" });
-    let error = ""; active.child.stderr?.on("data", (b: Buffer) => { error = (error + b).slice(-2000); });
-    const until = Date.now() + 10000; while (!existsSync(ready) && Date.now() < until && !active.exited) await delay(25);
-    assert.ok(existsSync(ready), error || "checkpoint_runtime_unavailable"); const state = JSON.parse(readFileSync(ready, "utf8")); origin = state.origin; cookie = "";
+    const state = await waitForCheckpointReady(active, { ready, nonce }); origin = state.origin; cookie = "";
     const db = new Database(config.database_path); let token = "";
     try { token = issueVNextLocalOperatorBootstrapV01(db, { config }).bootstrap_token; } finally { db.close(); }
     try { await request("/api/vnext/operator/session", { action: "bootstrap", bootstrap_token: token }); } finally { token = ""; }

@@ -203,6 +203,67 @@ real-loopback settlement controls reuse the registered preferred-port test;
 intentional packaged-runtime collision tests remain intact. Constructed high-port
 schedules establish a mechanism, not the unrecorded original OS assignments.
 
+## Same-name Markdown consumer screening (#1481)
+
+The planner retains full-path and basename screening over both exact Git trees.
+For a regular Markdown consumer, it may discharge only destination occurrences
+in plain inline relative links at text boundaries to a different regular tracked
+Markdown file.
+Initial `./` and `../` segments resolve from the consumer's own directory;
+internal parent traversal, missing targets, case aliases and unsafe modes do not
+establish another target. Labels, front matter and all residual basename mentions
+remain consumer evidence. A harmless link cannot suppress a second occurrence.
+
+This is a bounded disambiguation, not a general Markdown parser. Code, math,
+escapes, HTML, link-shaped URL substrings, nested/reference-style links, titles,
+fragments, queries, encoded paths and other unsupported syntax retain conservative
+screening. The broader existing
+destination extractor and exact-tree path/anchor validator remain unchanged, as
+do delegated instructions, dynamic/package readers and target-bound registrations.
+
+Context screening covers the entire source before separating an initial
+delimiter prefix: arbitrary Markdown does not establish YAML front matter, and
+that prefix may contain an opening code fence or HTML comment. Tabs and list
+markers with five or more following spaces remain unsupported, including nested
+markers. Ordinary plain links, normal list padding and simple front-matter cases
+remain eligible.
+
+In #1480's recorded comparison, the skill's bundled method link resolves away
+from the Web README. A candidate-planner replay clears that edge but still selects
+Full for the bundled README's residual bare `README.md` mention. The original
+classification remains historical evidence; this replay does not replace its
+qualification or establish runtime savings. This planner change itself requires
+Full Canonical under the unchanged integrity self-change rule.
+
+### Checkpoint fixture readiness continuation (#1481 / #1482)
+
+The `c53c2de2` Full run failed at the first startup-ready JSON parse, before
+checkpoint work assertions. The fixture was byte-identical to its base. Its
+writer opened the final path directly; the reader treated existence as complete
+publication. Controlled schedules demonstrate an empty final file during a held
+write and after interrupted publication. The original file bytes were not
+retained, so the historical cause remains unknown; these controls are not a
+reconstruction or a retry of that failed deciding candidate.
+
+The fixture's private readiness helper now writes a create-only staging file,
+closes it, then renames it within the same directory. The reader inspects only
+the final file and parses it once, requiring the expected child PID, fresh
+attempt nonce and exact loopback origin. A malformed completed notification is
+a terminal failure. Startup exit, spawn failure, incomplete publication and
+timeout retain bounded settlement and local stderr/publication diagnostics.
+Failed server startup closes its tracked server and restores its network guard;
+it does not leave a live server behind an exit code.
+
+The existing `--observation-checkpoint` test owner runs deterministic publication,
+attribution and terminal-failure controls, plus a real-server publication-failure
+control and the original authenticated two-process checkpoint acceptance. The
+10-second startup bound, 60-second child bound, natural-exit requirement, phase
+inventory and shared lifecycle/cleanup owners are unchanged. This fixture repair
+changes no product checkpoint, persistence, authentication or Core semantics.
+The accepted Markdown correction and its 240 planner cases remain intact. A new
+candidate still requires its own Full Canonical and separate receipt validation;
+earlier receipts, including the failed `c53c2de2` receipt, do not transfer.
+
 ## Audited roadmap reference consumer (#1342)
 
 At base `6132a37ceb34799ad65c6233e58ed6405abf2a01`, the unchanged

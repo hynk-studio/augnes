@@ -553,12 +553,44 @@ function documentationConsumers(relativePath, context) {
       const file = entry.slice(revision.length + 1);
       if (file === relativePath) continue;
       const explanatoryMarkdown = context.treeModes.get(revision).get(file) === "100644" && file.endsWith(".md") && (isDocumentationPath(file) || file === "AGENTS.md");
-      if (!explanatoryMarkdown && !DOCUMENTATION_INFRASTRUCTURE.has(file)) consumers.add(file);
+      if (!explanatoryMarkdown && !DOCUMENTATION_INFRASTRUCTURE.has(file) &&
+          !onlyUnrelatedMarkdownDestinations(file, relativePath, revision, context)) consumers.add(file);
     }
   }
   const result = [...consumers].sort();
   context.consumers.set(relativePath, result);
   return result;
+}
+
+function onlyUnrelatedMarkdownDestinations(file, relativePath, revision, context) {
+  const modes = context.treeModes.get(revision);
+  if (modes.get(file) !== "100644" || !file.endsWith(".md")) return false;
+  const source = runGit(context.cwd, ["show", `${revision}:${file}`],
+    { encoding: "utf8", maxBuffer: MAX_DIFF_BYTES }).stdout;
+  // Keep literal repository-path screening, even inside an otherwise local link.
+  if (relativePath.includes("/") && source.includes(relativePath)) return false;
+
+  // The validator's broader destination extractor is not occurrence/context proof.
+  // Admit only plain inline links, leaving front matter, labels and every residual
+  // mention intact. Code, math, escapes, HTML, nested/reference links and other syntax
+  // remain conservative; this is deliberately not a general Markdown parser.
+  // Screen the whole source: a delimiter prefix does not prove YAML and may hide
+  // an open code/HTML context. Tabs and excess list padding may introduce code.
+  if (/[`\t\\<>~{}$]|^ {4}|(?:^| )(?:[-+*]|\d+[.)]) {5}/mu.test(source)) return false;
+  const frontMatter = source.match(/^---\r?\n[\s\S]*?\r?\n(?:---|\.\.\.)(?:\r?\n|$)/u)?.[0] ?? "";
+  if (/^---\r?\n/u.test(source) && !frontMatter) return false;
+  const body = source.slice(frontMatter.length);
+  // A text boundary also excludes link-shaped substrings inside URLs or tokens.
+  const links = /(?<!\S)(!?\[[^\[\]\r\n]*\]\()((?:\.\.?\/)*(?:[A-Za-z0-9_-][A-Za-z0-9._-]*\/)*[A-Za-z0-9_-][A-Za-z0-9._-]*\.md)(\))/gu;
+  if (/[\[\]]/u.test(body.replace(links, ""))) return false;
+  const remaining = frontMatter + body.replace(links, (match, opening, destination, closing) => {
+    // Parent segments are permitted only at the start. Never normalize through
+    // an unproven directory or symlink (e.g. alias/../other/README.md).
+    const target = path.posix.normalize(path.posix.join(path.posix.dirname(file), destination));
+    if (target.startsWith("../") || target === relativePath || modes.get(target) !== "100644") return match;
+    return opening + closing;
+  });
+  return !remaining.includes(path.posix.basename(relativePath));
 }
 
 // This catches literal-prefix/directory consumers in addition to exact names.
