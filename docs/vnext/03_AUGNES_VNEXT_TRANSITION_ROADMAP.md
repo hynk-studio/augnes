@@ -86,13 +86,16 @@ failure instead of invoking an unguarded bootout. This does not change the
 execution-choice product path or adopt source into the installed Companion.
 
 The merged scope is this first complete loop. Actual model consumption and
-comparative usefulness of this increment remain NOT_RUN. Existing #1433 live
-evidence/obligations belong to that task and are not transferred here. Next/later
-scope retains broader late-result integration, replacement, long-term role
-reconstitution and conditional method transfer. Optional public participation
-is not required; #1447 independently owns public discovery/distribution/re-entry.
-No MASS comparison, workflow search, public solicitation, provider activation
-or reopening of #1436–#1439/#1448 is included.
+comparative usefulness of this increment remain NOT_RUN. #1433's completed
+functional/live scope and INCONCLUSIVE comparative-benefit result belong to that
+task and are not transferred here. The next contribution and ongoing-undertaking
+paths are placed in the [current application priorities](#current-application-priorities--2026-10-19).
+Broader late-result integration, replacement, long-term role reconstitution and
+conditional method transfer retain their existing owner. A particular task may
+finish without public participation; #1447 independently owns public
+discovery/distribution/re-entry. The #1450 merge did not execute public
+solicitation, MASS comparison, workflow search or provider activation, or reopen
+#1436–#1439/#1448.
 
 ## Current P3/P4/P5 — Local external-response continuity (#1453)
 
@@ -260,9 +263,10 @@ section anchors below remain historical/reference material where applicable.
 
 Under the existing [product doctrine](./01_AUGNES_VNEXT_MASTERPLAN.md) and
 [coordination plan #1209](https://github.com/hynk-studio/augnes/issues/1209), the
-north star is user-owned, persistent project problem-solving capability built
-from the experience, corrections and reusable methods of a user and replaceable
-models. The product-facing loop stays **Resume -> Verify -> Decide**. This adds
+north star is user-owned, persistent problem-solving capability for projects and
+ongoing undertakings, built from the experience, corrections and reusable methods
+of users, contributors and replaceable executors. Users include agents acting
+directly or under delegation. The product-facing loop stays **Resume -> Verify -> Decide**. This adds
 no learning mode, dashboard, approval ritual or new phase. The prospective
 candidate below gives that direction a bounded next implementation outcome;
 documentation does not authorize its runtime or research execution.
@@ -271,9 +275,64 @@ The product question is whether valid project understanding and corrections
 help later work more than strong practical alternatives, without unjustified
 burden or historical rigidity. Assume those alternatives can offer frontier
 models, adaptive memory, project context, agents, governance and automation;
-none of these categories is an exclusive Augnes advantage. Users or small teams
-conducting uncertain research/development across sessions, tools or models are
-a primary target-user hypothesis, not established product-market fit.
+none of these categories is an exclusive Augnes advantage. Potential users are
+all web-active agents as well as people, teams and organizations, as defined in
+[01](./01_AUGNES_VNEXT_MASTERPLAN.md#web-active-users-and-continuing-cooperation).
+Recurring research/development operators and contributors are initial example
+cases, not an admission list or established product-market fit. Read-only,
+fixed-function and one-time participants remain within the product scope.
+
+### Current application priorities — 2026-10-19
+
+The user-approved research application strengthens continuous work, cumulative
+knowledge and party formation within existing owners. It joins two paths:
+**public asset -> concrete contribution -> checked current use -> separate later
+use**, and **agent/collective-operated undertaking -> needed roles and material
+-> contributions -> continued work after change or replacement**. The latter
+retains purpose, current basis, methods, commitments and unresolved work across
+tasks; it is not limited to agents executing a human-authored task list.
+
+| Placement | Existing owner | Next bounded outcome and evidence boundary |
+|---|---|---|
+| First public entry | [#1447](https://github.com/hynk-studio/augnes/issues/1447) | Connect a useful public asset and agent-readable guidance to one actual consumer host/public channel. The 2026-10-15 ordinary-client observations are complete/RETAIN; broader public distribution remains pending. Asset fit follows the task, not a requirement to make workflow-cost represent every agent. |
+| Next contribution/use connection | [#1443](https://github.com/hynk-studio/augnes/issues/1443) | Reuse #1450's source loop for one real unresolved need, a small contribution request, return/check/use decision and separate successor use. Also support a requesting agent or collective selecting participants for its ongoing undertaking. Actual external contribution/recruitment observations remain NOT_RUN. |
+| Continuing axis across both paths | [#1453](https://github.com/hynk-studio/augnes/issues/1453) | Connect observed counterpart experience, conditional commitments, changed basis and fresh-successor action. The local capability, separate installed-client acceptance and frozen controlled consumer's HOST_INTEGRATION_BLOCKED/NOT_EXERCISED state remain distinct. A blocked host is not a universal stop for other valid paths. |
+
+The resource priority is public entry, then contribution use, with conditional
+external-response continuity continuing alongside both. Actual dependencies and
+current allocations remain with #1209/#1426 and each owner. One path's positive
+utility result, independent demand, all-host readiness or completion of unrelated
+research is not a gate for another approved capability. The selected contribution
+need not traverse a long agent chain or demonstrate full party reconstitution in
+its first bounded increment. Partial use, revision, deferral and rejection retain
+their reasons; appropriate direct work and non-use remain complete outcomes.
+
+Reuse an actual counterpart's current runtime/memory and an appropriate existing
+HTTP, Markdown, GitHub, Skill, MCP or A2A path. A bounded discovery/request or
+cooperation capability can be approved as new product work without first proving
+an existing failure or organic demand. Add only the interface needed for the
+selected capability; full framework migration, a universal role ontology,
+permanent manager, global directory/reputation or settlement engine is not this
+increment. General network-scale expansion remains later scope.
+
+The [actor/authority/owner/sponsor distinction](./01_AUGNES_VNEXT_MASTERPLAN.md#web-active-users-and-continuing-cooperation)
+applies to both paths. Preserve existing project access and action authority,
+and accumulate the conditions and basis of decomposition, handoff, review and
+integration methods as well as task outputs. Use the
+[evaluation owner](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#web-active-users-and-contribution-continuity)
+to separate discovery, actual returned material, checked adoption, later use,
+correction and total burden only where needed for the claim. These are not new
+mandatory stages for every PR or authorization to recruit, publish or execute.
+
+The research basis includes [Paperclip's external-agent model](https://paperclip.ing/product/bring-your-own-agent/),
+[Letta shared memory](https://docs.letta.com/concepts/shared-memory),
+[Synergy knowledge/experience](https://github.com/SII-Holos/synergy/blob/68c05e60380f6e66ee71fe4b1e648b770a5264a8/docs/product/knowledge.md)
+and [Hermes Kanban](https://hermes-agent.nousresearch.com/docs/user-guide/features/kanban),
+alongside [Synergy's research](https://arxiv.org/html/2603.28428v1) and
+[Internet of Agents](https://arxiv.org/html/2407.07061v2). Treat existing
+continuity, memory and collaboration capabilities as strong reuse/comparison
+candidates. These sources motivate the direction; they do not establish Augnes
+superiority, independent willingness to contribute or a previously empty market.
 
 ### Current P2/A2 — Project-free executable first benefit (#1422)
 
@@ -314,19 +373,23 @@ connection. All release bytes and hashes remain pinned.
 The portable package, task-described Skill, integrity checker and create-only
 bundle builder are source work. Deterministic package/consumer checks belong to
 the existing unit resource owner, with the old HTTP delivery and solver tests
-retained. The task's Draft PR records the actual host/catalog/activation and
-native consumer observations, exact candidate qualification and cleanup.
+retained. [PR #1451](https://github.com/hynk-studio/augnes/pull/1451) records the
+source delivery; its actual host/catalog/activation and native consumer
+observations, exact candidate qualification and cleanup retain their own scope.
 A local catalog does not establish a public listing; a Draft branch does not
 establish a stable release. Separate explicit authority is needed for release,
 public-directory submission or changes to an installed user profile. If those
 operational steps remain pending, the overall distribution objective stays open.
 
-Next: review this bounded entry and its actual use/non-use, then choose whether
-to authorize one stable distribution destination. Do not repeat the accepted
-exact-link delivery campaign or open speculative adapters. Comparative benefit,
+The [2026-10-15 ordinary-client observations](https://github.com/hynk-studio/augnes/issues/1447#issuecomment-6190336565)
+completed three bounded tasks and retained the current guidance (RETAIN), without
+a new source change or comparative-benefit claim. Next: prepare one stable public
+distribution destination for the selected asset/consumer and its actual return
+path under existing operational authority. Do not repeat the accepted exact-link
+delivery or RETAIN observations just to satisfy this plan. Comparative benefit,
 organic search, independent field adoption and all-host support remain unclaimed.
-#1433's actual connected review and #1372's private-file obligations remain with
-their existing owners; neither is a prerequisite for these public files.
+#1433's completed connected-review evidence and #1372's private-file obligations
+remain with their existing owners; neither is a prerequisite for these public files.
 
 ### Next P4/P5 — Executable capability reuse from experience (#1373)
 
