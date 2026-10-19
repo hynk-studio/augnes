@@ -488,11 +488,19 @@ function estimateTaskContextPacketTokensV01(packet: TaskContextPacketV01) {
   );
 }
 
+/** Expected compiler admission failure; unrelated RangeErrors remain unexpected. */
+export class TaskContextPacketBudgetErrorV01 extends RangeError {
+  constructor(readonly budget: "max_characters" | "max_estimated_tokens", message: string) {
+    super(message);
+    this.name = "TaskContextPacketBudgetErrorV01";
+  }
+}
+
 function assertTaskContextPacketBuildBudgetV01(packet: TaskContextPacketV01) {
   const budget = packet.constraints.context_budget;
   const characters = canonicalizeTaskContextValueV01(packet).length;
   if (budget.max_characters !== null && characters > budget.max_characters) {
-    throw new RangeError(
+    throw new TaskContextPacketBudgetErrorV01("max_characters",
       `TaskContextPacket exceeds max_characters (${characters} > ${budget.max_characters}).`,
     );
   }
@@ -501,7 +509,7 @@ function assertTaskContextPacketBuildBudgetV01(packet: TaskContextPacketV01) {
     budget.estimated_tokens !== null &&
     budget.estimated_tokens > budget.max_estimated_tokens
   ) {
-    throw new RangeError(
+    throw new TaskContextPacketBudgetErrorV01("max_estimated_tokens",
       `TaskContextPacket exceeds max_estimated_tokens (${budget.estimated_tokens} > ${budget.max_estimated_tokens}).`,
     );
   }
