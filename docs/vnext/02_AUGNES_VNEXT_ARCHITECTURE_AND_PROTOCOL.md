@@ -693,6 +693,24 @@ with deliberate use recorded as `derived_interpretation`. It is not an operator
 outcome report or RunReceipt and cannot bypass the reviewed-outcome owner's exact
 expectation/attempt/report/receipt/packet/author-session checks.
 
+The explicit `historical_v1` receipt mode (#1486) extends this default without
+rebasing a response. A previously issued original read binding, current scoped
+access, unchanged project/root/direction and a validated original packet in the
+same eligible unstarted ordinary-task segment are required. Existing historical
+packet/source owners reconstruct the complete original disclosure, including
+sources no longer selected. Missing, corrupt, ambiguous or over-budget proof,
+new-task boundaries, started/managed and semantic work refuse. No retained-material
+schema or second store is introduced; legacy rows are usable only with this proof.
+
+Historical receipt and current applicability are separate. An authorized origin
+reassessment exposes both bases and factual source changes, then binds the exact
+response to a fresh current snapshot. Explicit use/partial-use/revise/defer/reject
+reasoning prepares the existing imported response and derived interpretation
+notes; it saves nothing. Ordinary preview and explicit save own current edits,
+budgets and atomic stale refusal. The original answer, source basis and previous
+packets survive selective use and non-use. No automatic semantic classification,
+execution authority or accepted Core state follows from the preparation.
+
 Callback enrollment is an optional adapter egress policy, separate from the
 credential-bound connection and native review linkage. Authenticated scoped
 subscription ingress may record only a bounded pending origin/filter, without
@@ -841,8 +859,9 @@ One selected choice and at most one linked assessment constitute this bounded
 loop. A next loop uses ordinary explicit source revision/selection, retaining
 earlier packets and worthwhile obligations; ambiguous selections refuse.
 Changed definitions, missing original support or elapsed horizons require
-reconsideration before preparing a request. Existing first-reply/current-material
-and historical-response rules are unchanged. An unavailable reviewer permits an
+reconsideration before preparing a request. Default first-reply/current-material
+rules remain unchanged; the explicit historical receipt/reassessment above is a
+separate bounded path. An unavailable reviewer permits an
 explicit deferred/declined arrangement assessment with actual observation material;
 it does not manufacture a result. Request lookup is bounded to 100 rows with an
 explicit incomplete result. Logical role closure never withdraws credentials,

@@ -152,6 +152,22 @@ that PR; its receipt does not qualify a later head. Installed adoption remains
 separate. Broader P3.1/P5.2 and the historical PARTIAL/SIMPLIFY findings
 remain open or unchanged according to their original owners.
 
+## Current source increment: late review and selective current use (#1486)
+
+[#1486](https://github.com/hynk-studio/augnes/issues/1486) extends #1443's
+contributions-across-changing-states follow-on with explicit historical receipt
+and current reassessment. Existing default reply/use behavior remains current-only.
+Validated retained packets prove what the reviewer actually read within the same
+eligible unstarted ordinary task; authorized current selection uses the ordinary
+preview/save writer. No schema migration, automatic merge or execution authority
+is added. [Usage and deterministic B/C exercise](../EXECUTION_CHOICE_USAGE.md#explicit-late-review-and-current-reassessment-1486)
+connect a checked current artifact to fresh persisted and restored continuation.
+Exact-source qualification is recorded on its Draft PR; installed adoption,
+external participation, human/model semantic consumption and comparative usefulness
+are separate and not established by this increment. Broader #1443/P5 stay open;
+#1433's completion and INCONCLUSIVE comparison remain unchanged. #1483/#1484's
+separate verifier and resources are not implementation dependencies.
+
 ## Current: request-bound review implementation (#1433)
 
 [#1433](https://github.com/hynk-studio/augnes/issues/1433) adds one bounded native

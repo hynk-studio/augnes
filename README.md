@@ -343,6 +343,12 @@ cancel a process. See [the supported sequence and limits](docs/EXECUTION_CHOICE_
 This source capability needs ordinary plugin/runtime adoption separately;
 reading or preparing a choice neither installs nor activates anything.
 
+For a reviewer who already read an earlier revision of the same unstarted task,
+the [explicit late-review path](docs/EXECUTION_CHOICE_USAGE.md#explicit-late-review-and-current-reassessment-1486)
+retains the original answer and basis. Inspect it against fresh current work,
+record selective use or non-use, then preview and explicitly save current edits.
+Receipt alone never applies historical material; default reply/use stays current-only.
+
 `OPENAI_API_KEY` is optional. Supported paths retain deterministic local
 fallbacks without it. A locally installed and authenticated Codex CLI with App
 Server support is required only for live Codex work.
