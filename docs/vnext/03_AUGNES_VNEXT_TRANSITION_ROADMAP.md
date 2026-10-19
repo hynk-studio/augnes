@@ -323,6 +323,16 @@ need not traverse a long agent chain or demonstrate full party reconstitution in
 its first bounded increment. Partial use, revision, deferral and rejection retain
 their reasons; appropriate direct work and non-use remain complete outcomes.
 
+Keep the two paths' completion claims distinct. Contribution continuity (W1)
+includes a useful question or reframing as well as an answer, selective use or
+non-use, and return of the permitted use/result to the contributor. Independent
+undertaking and collaboration operation (W2) separately needs an actor to
+start work within its own or delegated scope, integrate contributions and carry
+the work through an authorized handoff. A recipient's adoption decision is
+separate from a contributor's decision to start its own task. W1 does not by
+itself complete W2; intentional collaboration need not await P5.4's research on
+emergent roles. These labels add no phase, common gate or new identity model.
+
 Reuse an actual counterpart's current runtime/memory and an appropriate existing
 HTTP, Markdown, GitHub, Skill, MCP or A2A path. A bounded discovery/request or
 cooperation capability can be approved as new product work without first proving
@@ -349,6 +359,52 @@ alongside [Synergy's research](https://arxiv.org/html/2603.28428v1) and
 continuity, memory and collaboration capabilities as strong reuse/comparison
 candidates. These sources motivate the direction; they do not establish Augnes
 superiority, independent willingness to contribute or a previously empty market.
+
+### Next P3/P4 — Current-understanding-guided work and result-informed re-entry
+
+The reviewed v1.1 local candidate (L1) narrows existing
+[#1213](https://github.com/hynk-studio/augnes/issues/1213) interpretation/inquiry and
+[#1214](https://github.com/hynk-studio/augnes/issues/1214) execution/method ownership
+to one ordinary work path: **current material -> meaningful question and action
+selection -> permitted actual work -> result-informed update -> fresh re-entry**.
+Status: **Next / scoped; implementation assignment and new observations
+NOT_STARTED**. [#1215](https://github.com/hynk-studio/augnes/issues/1215) owns the
+relevant succession evidence. Select one coherent implementation task when
+assigned, without creating a parallel roadmap or five separate phase issues.
+
+The implementation must connect four responsibilities through existing owners:
+
+1. **Trigger and compose.** A normal user-started task, material update or result
+   return brings relevant current sources, goals, conditions and unresolved
+   questions into consideration without requiring repeated meta-instructions to
+   reconsider them. Read-only Resume/GET stays read-only; updates use an explicit
+   supported product path.
+2. **Propose and select.** The existing host/model procedure may perform the
+   qualitative judgment. Preserve scoped interpretation, alternatives,
+   uncertainty and reasons for selection/non-use through existing records where
+   sufficient. Bounded agenda/outlook calculations are optional methods; novel
+   questions need not fit their supplied flags. A new supervisor/model service
+   is not required.
+3. **Act and return.** Connect the selected question to an authorized existing
+   execution path and its actual output/check. Read the returned material and
+   retain the limits of what it establishes; a plan or receipt alone is not the
+   completed result.
+4. **Update and re-enter.** Use the eligible existing work/source/successor
+   writers to link the result, revised or retained judgment and unresolved work.
+   A fresh executor must find and use that saved material through normal entry
+   for an actual follow-up, rather than receive a manually reconstructed answer.
+
+Choose an actual task with usable existing assets and a real next consumer.
+Inspect the #1431 executable assets, #1453 return/correction path and existing
+selective-report consumer as relevant; no particular fixture or CSV product is
+required. Existing persistence and bounded calculation evidence is reused, not
+reclassified as general semantic understanding. Apply the
+[scoped evidence criteria](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#current-understanding-guided-work-evidence).
+The separate experience contribution (L2) remains with the existing
+[executable-reuse direction](#next-p4p5--executable-capability-reuse-from-experience-1373)
+and P4.6; L1 completion alone does not establish it. #1373 remains historical
+planning alignment. L1/L2 and the later cross-project candidate do not gate
+#1447/#1443/#1453, reopen completed work or allocate a new study.
 
 ### Current P2/A2 — Project-free executable first benefit (#1422)
 
@@ -5257,6 +5313,12 @@ policy and current verification owners. It is not continuation of C9.
 The following remain product directions unless current runtime evidence proves
 a bounded part is implemented:
 
+- cross-project operational judgment (G1): within permitted project, method and
+  resource scopes, form one common preparation or reuse proposal and observe
+  its actual use by one task. Reuse #1213/#1214 and existing sharing boundaries;
+  keep each project's goals, judgments and authority independent. This is not
+  P5.5 personal identity, automatic project merging or a prerequisite global
+  store/world model;
 - attention maturity beyond PC1's bounded current-project Blank State slice,
   including any global or cross-project queue;
 - timeline maturity beyond PC2's bounded selected proposal/candidate detail
