@@ -135,6 +135,11 @@ Supported operation and detailed managed-run/platform qualifications are in
 
 ## Quickstart
 
+For explicit local verification of a selected workflow-cost 1.0.0 JSON report
+against an independently selected numeric basis, use the documented
+[fixed workflow-cost operator handler](docs/WORKFLOW_COST_FIXED_VERIFICATION_V1.md).
+It persists source-bound results without Codex, model or provider execution.
+
 In local project settings, **Find saved projects** includes registered projects
 missing from recents and projects created by an authorized agent. **Load more
 saved projects** continues the list; refresh includes newly registered projects.
