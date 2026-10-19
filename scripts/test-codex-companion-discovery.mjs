@@ -152,12 +152,15 @@ let executionScenario = null;
 let uiHealthAvailable = true;
 let uiHealthCalls = 0;
 let sourcesScenario = null;
+const sourceRequests = [];
+let transportCalls = 0;
 let retainedScenario = null;
 let retainedCalls = 0;
 let workRevisionScenario = null;
 let workRevisionCalls = 0;
 
 const ui = createServer(async (request, response) => {
+  transportCalls++;
   const url = new URL(request.url ?? "/", "http://127.0.0.1");
   response.setHeader("content-type", "application/json");
   response.setHeader("cache-control", "no-store");
@@ -230,6 +233,8 @@ const ui = createServer(async (request, response) => {
   }
   if (url.pathname === "/api/augnes/read/codex-repository-work-sources" && request.method === "POST") {
     assert(sourcesScenario);
+    let body = ""; for await (const chunk of request) body += chunk;
+    sourceRequests.push(JSON.parse(body));
     assert.equal(request.headers.cookie, undefined, "source read must not carry Browser credentials");
     assert.equal(request.headers["x-augnes-companion-proxy"], proxyToken);
     assert.equal(request.headers["x-augnes-runtime-generation"], generation);
@@ -257,6 +262,7 @@ const ui = createServer(async (request, response) => {
 });
 
 const bridge = createServer((request, response) => {
+  transportCalls++;
   const url = new URL(request.url ?? "/", "http://127.0.0.1");
   response.setHeader("content-type", "application/json");
   if (url.pathname === "/healthz") {
@@ -370,6 +376,11 @@ try {
     assert.equal(byName.get("augnes_prepare_repository_execution_choice")?.annotations?.readOnlyHint, true);
     assert.equal(Object.hasOwn(byName.get("augnes_review_repository_work").inputSchema.properties, "secret"), false);
     assert.equal(byName.get("augnes_read_repository_work_sources")?.annotations?.readOnlyHint, true);
+    assert.deepEqual(byName.get("augnes_read_repository_work_sources").inputSchema.properties.includeWorkDefinition,
+      { type: "boolean", const: true });
+    assert.deepEqual(byName.get("augnes_read_repository_work_sources").inputSchema.required,
+      ["repositoryRoot", "expectedSnapshotBinding"]);
+    assert.equal(Object.hasOwn(byName.get("augnes_read_repository_method_outlook").inputSchema.properties, "includeWorkDefinition"), false);
     assert.equal(byName.get("augnes_lookup_repository_retained_sources")?.annotations?.readOnlyHint, true);
     assert.equal(byName.get("augnes_preview_repository_work_revision")?.annotations?.readOnlyHint, true);
     assert.equal(byName.get("augnes_preview_repository_initial_work")?.annotations?.readOnlyHint, true);
@@ -479,13 +490,15 @@ try {
     assert.deepEqual(parseRepositoryWorkSourcesResponseV01(definitionProjection, true), definitionProjection);
     assert.throws(() => parseRepositoryWorkSourcesResponseV01(definitionProjection), /contract_invalid/u);
     assert.throws(() => parseRepositoryWorkSourcesResponseV01(sourceProjection, true), /contract_invalid/u);
-    for (const work_definition of [null,
+    const invalidDefinitions = [null,
       { ...definitionProjection.work_definition, private_field: "must not escape" },
       { ...definitionProjection.work_definition, goal: "x".repeat(2001) },
       { ...definitionProjection.work_definition, success_criteria: Array(13).fill("item") },
       { ...definitionProjection.work_definition, non_goals: ["x".repeat(501)] },
       { goal: "가".repeat(2000), success_criteria: Array(4).fill("나".repeat(500)), non_goals: [] },
-    ]) assert.throws(() => parseRepositoryWorkSourcesResponseV01({ ...definitionProjection, work_definition }, true), /contract_invalid/u);
+    ];
+    for (const work_definition of invalidDefinitions)
+      assert.throws(() => parseRepositoryWorkSourcesResponseV01({ ...definitionProjection, work_definition }, true), /contract_invalid/u);
     const definitionRefusal = { ...definitionProjection, status: "unavailable", reason: "work_definition_out_of_bounds",
       snapshot_binding: null, packet_fingerprint: null, work_definition: null };
     assert.deepEqual(parseRepositoryWorkSourcesResponseV01(definitionRefusal, true), definitionRefusal);
@@ -495,12 +508,50 @@ try {
       { ...sourceProjection, status: "unavailable" },
       { ...sourceProjection, authority: { ...sourceProjection.authority, writes_database: true } },
     ]) assert.throws(() => parseRepositoryWorkSourcesResponseV01(mutation), /contract_invalid/u);
-    const callSources = () => client.callTool({ name: "augnes_read_repository_work_sources", arguments: { repositoryRoot: process.cwd(), expectedSnapshotBinding: sourceBinding } });
-    await assert.rejects(client.callTool({ name: "augnes_read_repository_work_sources", arguments: {
-      repositoryRoot: process.cwd(), expectedSnapshotBinding: sourceBinding, includeWorkDefinition: true,
-    } }), /invalid_repository_tool_request/u, "private delivery mode is not a new local Operator argument");
+    const sourceArgs = { repositoryRoot: process.cwd(), expectedSnapshotBinding: sourceBinding };
+    const callSources = (includeWorkDefinition = false) => client.callTool({ name: "augnes_read_repository_work_sources",
+      arguments: { ...sourceArgs, ...(includeWorkDefinition ? { includeWorkDefinition: true } : {}) } });
+    const beforeInvalid = transportCalls;
+    for (const name of ["augnes_read_repository_work_sources", "augnes_read_repository_method_outlook"]) {
+      for (const extra of [
+        ...[false, "true", null, 1, {}, []].map(includeWorkDefinition => ({ includeWorkDefinition })),
+        { include_work_definition: true }, { project_id: "foreign" }, { unknown: true },
+        { includeWorkDefinition: true, foreign: "must not forward" },
+        ...(name === "augnes_read_repository_method_outlook" ? [{ includeWorkDefinition: true }] : []),
+      ]) await assert.rejects(client.callTool({ name, arguments: { ...sourceArgs, ...extra } }), /invalid_repository_tool_request/u);
+    }
+    assert.equal(transportCalls, beforeInvalid, "invalid arguments must refuse before discovery or transport");
     sourcesScenario = { body: sourceProjection };
-    assert.equal((await callSources()).structuredContent.status, "available");
+    const defaultRead = (await callSources()).structuredContent;
+    const { companion: defaultCompanion, ...defaultProjection } = defaultRead;
+    assert.equal(defaultCompanion.status, "live");
+    assert.deepEqual(defaultProjection, sourceProjection, "omission preserves the exact source-only DTO");
+    assert.deepEqual(sourceRequests.at(-1), { repository_root: process.cwd(), expected_snapshot_binding: sourceBinding });
+    sourcesScenario = { body: definitionProjection };
+    const { companion: fullCompanion, ...fullProjection } = (await callSources(true)).structuredContent;
+    assert.equal(fullCompanion.status, "live");
+    assert.deepEqual(fullProjection, definitionProjection);
+    assert.deepEqual(sourceRequests.at(-1), { repository_root: process.cwd(), expected_snapshot_binding: sourceBinding, include_work_definition: true });
+    for (const [full, body, generation] of [
+      [false, definitionProjection], [true, sourceProjection],
+      [true, { ...definitionProjection, extra: "private-response-canary" }],
+      [true, { ...definitionProjection, work_definition: { ...definitionProjection.work_definition, extra: "private-response-canary" } }],
+      [true, { ...definitionProjection, snapshot_binding: `sha256:${"b".repeat(64)}` }],
+      [true, definitionProjection, "stale-generation"],
+      [true, { ...definitionRefusal, work_definition: definitionProjection.work_definition }],
+      ...invalidDefinitions.map(work_definition => [true, { ...definitionProjection, work_definition }]),
+    ]) {
+      sourcesScenario = { body, generation };
+      const refused = await callSources(full);
+      assert.equal(refused.isError, true);
+      assert.equal(refused.structuredContent.continuity, null);
+      assert.doesNotMatch(JSON.stringify(refused), /private-response-canary|Keep A|success_criteria|packet_fingerprint/u);
+    }
+    for (const body of [definitionRefusal, { ...definitionRefusal, status: "refresh_required", reason: "snapshot_changed" }]) {
+      sourcesScenario = { body };
+      const { companion, ...refused } = (await callSources(true)).structuredContent;
+      assert.deepEqual(refused, body, "refusal must not downgrade, reconstruct or replace full context");
+    }
     for (const [status, code, next] of [
       [403, "companion_channel_refused", /Companion channel.*lifecycle status/su],
       [409, "companion_identity_changed", /connection identity.*lifecycle status/su],

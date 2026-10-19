@@ -181,7 +181,11 @@ Codex conversation's plugin loading, or installed adoption.
 Resume remains a compact orientation projection. The separate local Operator
 tool `augnes_read_repository_work_sources` accepts `repositoryRoot` and
 `expectedSnapshotBinding`, using the exact `continuity.snapshot.binding`
-returned by repository Resume. It does not accept project/packet IDs, database
+returned by repository Resume. Optional `includeWorkDefinition: true` requests
+the complete persisted work definition alongside the selected sources. Omission
+preserves the source-only request and DTO; false, null, strings and foreign keys
+refuse before transport. The method-outlook tool does not accept this option.
+The source tool does not accept project/packet IDs, database
 paths, or Browser credentials. Reading notes is explicit, never an automatic
 Resume expansion, history search, or context injection.
 
@@ -224,9 +228,13 @@ request envelopes. Retained lookup uses a separate 1,056,000-byte cumulative
 scan ceiling aligned with admitted native snapshots and the unchanged
 20,000-byte result ceiling; its work eligibility and task scope remain bounded.
 
-The opt-in connected-project reader requests `include_work_definition: true`
-on that same private route. Only this exact additional input is admitted; the
-default request and local Operator tool arguments remain unchanged. This mode
+The ordinary source tool forwards explicit `includeWorkDefinition: true` as
+`include_work_definition: true` on that same private route. The configured
+connected-project reader and execution-choice `action: read` already use this
+complete-definition mode. Direct source reading needs neither optional
+execution-arrangement interpretation nor review-connection processing. This is
+an explicit local disclosure extension to the already authorized caller, not
+new project, source, remote App, execution or semantic authority. This mode
 returns the closed `codex_repository_work_definition_sources.v0.1` projection
 with `work_definition` containing only goal, success criteria and non-goals from
 the validated persisted task already reconstructed in the read transaction.
