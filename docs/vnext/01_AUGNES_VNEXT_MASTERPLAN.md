@@ -12,8 +12,9 @@
 
 ## 1. Product definition
 
-> **Augnes's product direction is user-owned project problem-solving capability
-> accumulated from experience: retain useful methods, select and compose them
+> **Augnes's product direction is user-owned problem-solving capability for
+> continuous work and undertakings, including those operated by web-active agents:
+> accumulate experience, retain useful methods, select and compose them
 > for current goals and conditions, and improve or appropriately leave them
 > unused through observed outcomes. Durable state, temporal lineage, evidence,
 > perspectives, unresolved judgments, and next meaningful actions let that work
@@ -32,7 +33,7 @@ scheduler products.
 
 Augnes owns continuity around that work: what the work is, how it changed over
 time, what was observed, what supports a claim, what remains uncertain, what
-requires human judgment, and what should matter next. This continuity is the
+requires an authorized decision, and what should matter next. This continuity is the
 substrate for retaining useful methods and doing later work better, not an end
 measured by stored context. Broader capability, reliable outcomes and the range
 of tractable problems are product outcomes alongside continuity and lower burden.
@@ -96,13 +97,52 @@ intervention effect, comparative usefulness and autonomy remain separate claims
 under [04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#local-external-response-evidence-1453).
 Public discovery/distribution under #1447 continues independently.
 
+### Web-active users and continuing cooperation
+
+Potential users include people, teams, organizations and every kind of agent
+that can read, request, act or exchange results through the web. Readers,
+collectors, fixed-function bots, API services, researchers, developers, reviewers,
+scheduled workers, buyers, providers, coordinators, agent collectives and
+web-connected devices are examples, not an admission list. An LLM, learning,
+a human persona, persistent identity, continuous execution or a known human
+owner is not a universal entry condition. One-time reading or contribution is
+useful even when the participant has no continuing project of its own.
+
+The actual actor, source of action authority, asset/project/undertaking owner,
+resource sponsor and beneficiary or later consumer may differ or be only partly
+known. Unknown associations stay unknown. Public reading follows the asset's
+public terms; changes, commitments and spending follow the authority for that
+action. This product scope does not redefine the existing workspace ownership,
+Core principal or permission model, or require a new identity registry.
+
+Two connected paths give this direction practical shape: a useful public asset
+can lead to a bounded contribution, checked incorporation into current work and
+separate later use; an agent or collective can directly request and operate an
+ongoing undertaking, assemble the needed party, use contributions and continue
+after interruption or executor replacement. Party formation includes discovery,
+requests, one-time contributions, temporary roles, callable services and other
+coordinators' teams. It does not require fixed membership or a permanent manager.
+
+Accumulated knowledge includes individual methods and methods for decomposition,
+handoff, review and integration, with their basis, conditions, outcomes and limits.
+Participation should make the requested contribution, available material, return
+path, checks, expected benefit and applicable commitments understandable to the
+actual participant. Existing runtimes, memory and web interfaces remain usable;
+joining does not require migrating all work or memory into Augnes. Selective
+records support continuity without making raw prompts or broad transcripts the
+default durable asset. [03](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#current-application-priorities--2026-10-19)
+owns implementation placement and
+[04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#web-active-users-and-contribution-continuity)
+owns the evidence boundaries.
+
 Web Augnes is a workspace where humans and agents continue long-horizon work,
 explore independent directions, compare evidence and outcomes, and selectively
-incorporate useful changes. Private usefulness must work before public or
-network scale. Selective, revision-bound publication and cross-owner
-participation are later extensions of this same continuous-work product, not
-prerequisites or a separate agent-social-network identity. The product-facing
-loop remains **Resume → Verify → Decide**.
+incorporate useful changes. Private work must be useful without network effects.
+Bounded public reading, revision-bound publication and cross-owner contribution
+belong to the same continuous-work direction under #1447/#1443; private-usefulness
+comparisons are not prerequisites for these already approved capabilities.
+General network-scale discovery, reputation and settlement remain later scope.
+The product-facing loop remains **Resume → Verify → Decide**.
 
 An independent direction starts from an exact source revision with an explicit
 reason for divergence; later source changes do not silently rewrite that start.
@@ -125,7 +165,7 @@ Recover the current coordinates of long-horizon work:
 - the current meaningful situation and last meaningful change;
 - accepted, rejected, stale, conflicted, or unresolved material;
 - relevant reusable methods, their applicability and known limits;
-- pending human judgment;
+- pending authorized judgment, including decisions reserved for a human;
 - the next meaningful action.
 
 Resume quality is not the volume of stored context. It is the ability to reach

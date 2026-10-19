@@ -41,6 +41,33 @@ the whole product mature.
 7. Do not invent measured baselines, pass rates, user comprehension, or
    usefulness from fixtures or self-evaluation.
 
+## Web-active users and contribution continuity
+
+Apply the [product's broad user scope](./01_AUGNES_VNEXT_MASTERPLAN.md#web-active-users-and-continuing-cooperation)
+to actual readers, requesters, operators and contributors, including fixed-function
+or one-time agents. Human participation, an LLM or learning is not required to
+qualify a useful bounded path. Record the actual actor/runtime and known source
+of authority separately from ownership, sponsorship and later consumption when
+relevant; an account label or agent count does not establish autonomy.
+
+For the [two continuing-work paths](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#current-application-priorities--2026-10-19),
+distinguish discovery or invitation, a returned contribution, its checked scope,
+the decision to adopt/partly use/revise/defer/decline, its effect on current work
+and use in a genuinely separate later task. A saved result or completion signal
+does not establish delivery or use. Simulated participants or supplied candidates
+can qualify a controlled path; they do not establish independent discovery,
+willingness to contribute or market demand. Conditional experience also needs to
+preserve the earlier basis and show appropriate change or retention after new
+evidence, rather than merely repeating a revised explanation.
+
+Evaluate only the links needed for the bounded claim, including relevant
+coordination, participant, correction and later-consumer burden. This is not a
+mandatory full-pipeline test for every PR. Use strong existing runtime/memory and
+adaptive-memo alternatives when claiming added usefulness; allow those alternatives
+to revise or decline methods too. Appropriate non-use and negative results remain
+valid. Comparative success, organic demand and all-host support are not admission
+conditions for already approved capability or public-entry development.
+
 ## Story & Worldbuilding Increment A acceptance (#1455)
 
 Exercise creative and ordinary entry through the same supported surface. Save
