@@ -22,7 +22,7 @@ import { equalSuccessorV01 as equal, normalizeAuthoredSuccessorTaskV01,
   readAuthoredSuccessorDefinitionV01, requireSuccessorV01 as check, successorDigestV01 as digest,
   type AuthoredSuccessorTaskDefinitionV01 } from "@/lib/vnext/authored-successor-task";
 import { canonicalizeProtocolValueV01, parseStrictIsoTimestampV01 } from "@/lib/vnext/protocol-primitives";
-import { buildTaskContextPacketV01, validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
+import { buildTaskContextPacketV01, validateTaskContextPacketV01, TaskContextPacketBudgetErrorV01 } from "@/lib/vnext/task-context-packet";
 import { insertVNextCoreRecordV01 } from "@/lib/vnext/persistence/durable-semantic-store";
 import { readCanonicalProjectWithRootV01 } from "@/lib/vnext/persistence/project-identity-registry";
 import { readActiveProjectSelectionV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
@@ -31,7 +31,7 @@ import { admitVNextLocalOperatorMutationInsideTransactionV01, readVNextLocalOper
   type VNextLocalOperatorSecretSourceV01 } from "./local-operator-session";
 import { readVNextLocalRuntimeClockNowV01, type VNextLocalRuntimeClockV01 } from "./local-runtime-clock";
 import { readProjectRunResultSourceBindingV01 } from "./project-run-result-read-model";
-import { admitPersistedHostTaskContextPacketV01, inspectPersistedHostProjectRootV01 } from "./direct-native-host-round-trip";
+import { admitPersistedHostTaskContextPacketV01, inspectPersistedHostProjectRootV01, buildPersistedHostProjectRootScopeRefV01 } from "./direct-native-host-round-trip";
 import { inspectVNextOperatorPilotPacketLineageV01, projectVNextOperatorPilotContinuityV01 } from "./operator-pilot-project-continuity";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
@@ -124,7 +124,7 @@ export function compareResultWorkSourcesV01(db: Database.Database, input: {
 }
 
 export function previewResultWorkV01(db: Database.Database, input: {
-  config: VNextLocalOperatorPilotConfigV01; binding: ResultWorkBindingV01; definition: unknown;
+  config: VNextLocalOperatorPilotConfigV01; session_id: string; binding: ResultWorkBindingV01; definition: unknown;
   selected_sources: DefineAuthoredSuccessorTaskRequestV01["selected_sources"]; clock?: VNextLocalRuntimeClockV01;
 }) {
   const before = readResultWorkPreparationV01(db, { ...input, receipt_id: input.binding.expected_latest_receipt_id });
@@ -135,7 +135,23 @@ export function previewResultWorkV01(db: Database.Database, input: {
   const request = parseRequest({ action: ACTION, ...input.binding, expected_direction_ref: effectiveDirection(db, input.config, readVNextLocalRuntimeClockNowV01(input.clock, "successor_direction_preview"))?.ref ?? null, selected_sources: input.selected_sources,
     definition: { objective: d.goal, checks: d.success_criteria.map((criterion, index) => ({ check_id: `criterion_${index + 1}`, criterion })),
       stop_conditions: d.non_goals, materials: [], approved_instruction_hashes: [] } });
-  source(db, input.config, request, { latest: true });
+  const predecessor = source(db, input.config, request, { latest: true });
+  const at = readVNextLocalRuntimeClockNowV01(input.clock, "successor_packet_preview");
+  const rootRef = buildPersistedHostProjectRootScopeRefV01({ project_id: input.config.project_id,
+    root_fingerprint: request.expected_root_fingerprint, evaluated_at: at });
+  const physicalRootFingerprint = predecessor.run?.metadata.root_physical_identity_fingerprint;
+  check(typeof physicalRootFingerprint === "string" && /^sha256:[a-f0-9]{64}$/u.test(physicalRootFingerprint), "local_predecessor_binding");
+  // Compile the whole prospective packet, including repeated request material
+  // and inherited lineage. Note-array admission alone cannot establish this.
+  // Use the current root owner's canonical representation, including its
+  // compatibility namespace even when the historical receipt omitted it.
+  // Preview uses the settled root binding and current authenticated session;
+  // save still re-inspects the physical root and all live state in its transaction.
+  const built = build({ prior: predecessor.packet, receipt: predecessor.receipt, operator_id: input.config.operator_id, at,
+    material: { request, work_lifetime: DURABLE_AUTHORED_WORK_V01, source_root_ref: rootRef,
+      physical_root_fingerprint: physicalRootFingerprint, session_id: input.session_id } });
+  check(validateTaskContextPacketV01(built.packet, { evaluated_at: at }).status === "valid", "packet_invalid");
+  materialFrom(built.packet);
   return { request, before: before.initialization.current_work, after: d,
     sources_before: before.initialization.selected_source_context ?? [], sources_after: request.selected_sources!.selected_source_context,
     omitted_sources: request.selected_sources!.omitted_sources, writes: 0 as const };
@@ -248,7 +264,14 @@ function assertRevalidatedHistoryCurrent(db: Database.Database, config: VNextLoc
     ["fresh", "expired"].includes(continuity.packet_currentness), "current_packet_changed");
   return lineage;
 }
-function build(input: { prior: TaskContextPacketV01; receipt: ReturnType<typeof source>["receipt"];
+function build(input: Parameters<typeof buildUnchecked>[0]) {
+  try { return buildUnchecked(input); }
+  catch (error) {
+    if (error instanceof TaskContextPacketBudgetErrorV01) check(false, `packet_${error.budget}_exceeded`);
+    throw error;
+  }
+}
+function buildUnchecked(input: { prior: TaskContextPacketV01; receipt: ReturnType<typeof source>["receipt"];
   material: SourceMaterial; operator_id: string; at: string; outlook_version?: RetryInspectionOutlookVersion | null }) {
   const { prior, receipt, material, at } = input, definition = material.request.definition;
   const selected = material.request.selected_sources

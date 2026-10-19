@@ -214,7 +214,7 @@ async function fixture(name: string, firstChoice = "read_selected_sources", seco
     if (response.headers.get("set-cookie")) cookie = response.headers.get("set-cookie")!.split(";")[0]!;
     return value;
   };
-  return { db, scope, config, projectRoot, now, tick, adapter, inputs, serializedRequests: script.serializedRequests, call, preview, credential, direction, continuity, preparationBytes: prepared?.result.preparation_bytes ?? 0, controls: script.controls, responseControls: script.responseControls, modelEnvironment: script.environment,
+  return { db, scope, config, projectRoot, now, tick, adapter, inputs, serializedRequests: script.serializedRequests, call, preview, credential, direction, continuity, get cookie() { return cookie; }, preparationBytes: prepared?.result.preparation_bytes ?? 0, controls: script.controls, responseControls: script.responseControls, modelEnvironment: script.environment,
     host: (id: string, customAdapter = adapter) => new StatelessSourceReviewHost({ config, now, adapter: customAdapter }, id),
     get calls() { return script.calls; }, loseDispatch(error?: unknown) { script.controls.lose = true; if (error !== undefined) script.controls.transportError = error; },
     refreshSession() { const b = issueVNextLocalOperatorBootstrapV01(db, { config, clock: { now } }); const s = consumeVNextLocalOperatorBootstrapV01(db, { config, clock: { now }, bootstrap_token: b.bootstrap_token }); cookie = `${VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01}=${s.cookie_value}`; },
@@ -255,6 +255,97 @@ function unsettledOwnerContract(run: any) {
     assert.equal(hasUnsettledAutonomyRunLedgerRecords({ db, scope: "another-project" }), false);
   } finally { db.close(); }
 }
+
+async function statelessSuccessorPacketAdmissionContract() {
+  const { createServer, request: send } = await import("node:http");
+  const { trackServerConnections, closeTrackedServer } = await import("./test-harness-process-lifecycle.mjs");
+  const { createVNextOperatorProjectContinuityHandlerV01: getFactory } = await import("../app/api/vnext/operator/project-continuity/route");
+  const f = await fixture("successor-http-admission");
+  const settled = (await f.call({ action: "authorize_and_run", authorization: f.preview })).result;
+  assert.equal(settled.run.status, "completed"); assert.equal(f.calls, 2);
+  const predecessor = readProjectRunResultSourceBindingV01(f.db, { ...f.scope, receipt_id: settled.receipt.receipt_id });
+  assert.equal(predecessor.receipt.source_refs.find(r => r.ref_type === "project_root_scope")!.compatibility_namespace, undefined);
+  const environment = { NODE_ENV: "test" as const, AUGNES_DB_PATH: f.config.database_path,
+    AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1", AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: f.scope.workspace_id,
+    AUGNES_VNEXT_OPERATOR_PROJECT_ID: f.scope.project_id, AUGNES_VNEXT_OPERATOR_ID: f.config.operator_id };
+  const get = getFactory({ environment, clock: { now: f.now } }), post = createVNextOperatorContextUseReviewHandlerV01({ environment, clock: { now: f.now } });
+  let origin = "", cookie = f.cookie;
+  const server = trackServerConnections(createServer(async (req, res) => {
+    try {
+      f.tick(); const chunks: Buffer[] = []; let bytes = 0;
+      for await (const chunk of req) { bytes += chunk.length; assert(bytes <= 64_000); chunks.push(Buffer.from(chunk)); }
+      const request = new Request(origin + req.url, { method: req.method, headers: req.headers as Record<string, string>,
+        ...(req.method === "POST" ? { body: Buffer.concat(chunks).toString() } : {}) });
+      const response = await (req.method === "POST" ? post : get)(request);
+      response.headers.forEach((v, k) => { if (k !== "set-cookie") res.setHeader(k, v); });
+      if (response.headers.getSetCookie().length) res.setHeader("Set-Cookie", response.headers.getSetCookie());
+      res.statusCode = response.status; res.end(await response.text());
+    } catch { res.statusCode = 500; res.end('{"error_code":"fixture_http_failed"}'); }
+  }));
+  try {
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    origin = "http://127.0.0.1:" + (server.address() as { port: number }).port;
+    const http = (body?: unknown, status = 200, suppliedCookie = cookie, suppliedOrigin = origin): Promise<any> => new Promise((resolve, reject) => {
+      const request = send(origin + "/api/vnext/operator/project-continuity", { method: body ? "POST" : "GET",
+        headers: { cookie: suppliedCookie, origin: suppliedOrigin, "content-type": "application/json" } }, response => {
+        const chunks: Buffer[] = []; response.on("data", chunk => chunks.push(Buffer.from(chunk)));
+        response.on("error", reject); response.on("end", () => {
+          try {
+            const value = JSON.parse(Buffer.concat(chunks).toString());
+            assert.equal(response.statusCode, status, canonical(value));
+            const rotation = response.headers["set-cookie"]?.[0]; if (rotation) cookie = rotation.split(";")[0]!;
+            resolve(value);
+          } catch (error) { reject(error); }
+        });
+      });
+      request.setTimeout(10_000, () => request.destroy(new Error("fixture_http_timeout"))); request.on("error", reject);
+      request.end(body ? JSON.stringify(body) : undefined);
+    });
+    const before = await http(), databaseBefore = f.db.serialize();
+    const prep = await http({ action: "read_result_work_preparation", receipt_id: settled.receipt.receipt_id });
+    const comparison = (await http({ action: "compare_result_work_sources", binding: prep.binding,
+      notes: Array.from({ length: 8 }, (_, i) => ({ source: "stateless-boundary-note-" + i, text: i + ":" + "n".repeat(745),
+        observed_at: null, provenance: "user_declaration", label: "Open question" })) })).comparison;
+    const selected_sources = { selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint,
+      omitted_sources: comparison.unselected_previous.map((row: any) => ({ source_binding: row.source_ref, reason: "The predecessor source-review question remains in immutable history; this new task retains its result lineage." })) };
+    // Fixed boundary: the prior preview omitted the namespace and accepted
+    // 75,980 characters; the writer's canonical root required 76,179.
+    const definition = { goal: "g".repeat(900), success_criteria: Array.from({ length: 10 }, (_, i) => i + ":" + "c".repeat(208)),
+      non_goals: ["Keep originals, rollback, rejection/correction history and unresolved applicability.", "No execution authority."] };
+    const previewBody = { action: "preview_result_work", binding: prep.binding, definition, selected_sources };
+    const request = { action: "define_authored_successor_task", ...prep.binding, expected_direction_ref: null, selected_sources,
+      definition: { objective: definition.goal, checks: definition.success_criteria.map((criterion, i) => ({ check_id: "criterion_" + (i + 1), criterion })),
+        stop_conditions: definition.non_goals, materials: [], approved_instruction_hashes: [] } };
+    const refused = await http(previewBody, 409);
+    assert.equal(refused.error_code, "successor_task_packet_max_characters_exceeded");
+    const refusedSave = await http({ action: "prepare_result_work", request }, 409);
+    assert.equal(refusedSave.error_code, refused.error_code);
+    assert(databaseBefore.equals(f.db.serialize()), "Refused preview/save leave predecessor, ledger, authority and session unchanged");
+    assert.deepEqual((await http()).work_initialization, before.work_initialization);
+    const admissible = { goal: "Review all eight observations conditionally.", success_criteria: ["Preserve their source attribution and unresolved applicability."], non_goals: definition.non_goals };
+    const preview = await http({ ...previewBody, definition: admissible });
+    assert.equal(preview.writes, 0); assert(databaseBefore.equals(f.db.serialize()), "Preview is read-only");
+    for (const [field, code] of [["expected_root_fingerprint", "successor_task_root_changed"], ["expected_project_work_binding", "successor_task_project_binding_changed"]] as const) {
+      const refusedBinding = await http({ action: "prepare_result_work", request: { ...preview.request, [field]: "sha256:" + "0".repeat(64) } }, 409);
+      assert.equal(refusedBinding.error_code, code); assert(databaseBefore.equals(f.db.serialize()));
+    }
+    await http({ action: "prepare_result_work", request: preview.request }, 401, "");
+    await http({ action: "prepare_result_work", request: preview.request }, 403, cookie, "http://untrusted.invalid");
+    assert(databaseBefore.equals(f.db.serialize()));
+    const saved = await http({ action: "prepare_result_work", request: preview.request }, 201), fresh = await http();
+    assert.equal(saved.execution_authority_granted, false); assert.equal(saved.run_created, false); assert.equal(saved.semantic_state_changed, false);
+    assert.equal(fresh.work_initialization.current_packet.packet_id, saved.packet_id);
+    assert.deepEqual(fresh.work_initialization.current_work, admissible);
+    assert.deepEqual(fresh.work_initialization.selected_source_context, comparison.entries);
+    assert.deepEqual(readProjectRunResultSourceBindingV01(f.db, { ...f.scope, receipt_id: settled.receipt.receipt_id }).packet, predecessor.packet);
+    const afterSave = f.db.serialize(); await http({ action: "prepare_result_work", request: preview.request }, 409);
+    assert(afterSave.equals(f.db.serialize()), "Stale save is atomic");
+    assert.equal(f.calls, 2, "Successor preparation cannot invoke the fixture adapter");
+    console.log(JSON.stringify({ stateless_successor_packet_admission: "passed", http: true, read_only_preview: true,
+      precise_refusal: refused.error_code, admissible_save_and_exact_readback: true, unchanged_predecessor: true, real_model_calls: 0 }));
+  } finally { await closeTrackedServer(server); }
+}
+
 async function ordinarySuccessor(f: Awaited<ReturnType<typeof fixture>>, result: any, expectedCalls = 2, workReview = false) {
   const prep = await f.continuity({ action: "read_result_work_preparation", receipt_id: result.receipt.receipt_id });
   assert.equal(result.run.metadata.reconciliation_required, false);
@@ -1680,6 +1771,7 @@ async function independentProjectRunsContract() {
 
 async function main() {
   try {
+    if (process.argv[2] === "--successor-packet-admission") { await statelessSuccessorPacketAdmissionContract(); assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0); return; }
     if (process.argv[2] === "--project-independence") { await independentProjectRunsContract(); assert.equal(requests, 0); return; }
     if (["--durable-work", "--durable-work-baseline"].includes(process.argv[2]!)) {
       await durableWorkContract((name, restored) => fixture(name, "read_selected_sources", "use_observation", false, "gpt-4.1-mini", restored), root, process.argv[2] === "--durable-work-baseline");
@@ -1761,6 +1853,7 @@ async function main() {
     assert.equal(normal.calls, 2);
     unsettledOwnerContract(result.run);
     await ordinarySuccessor(normal, result);
+    await statelessSuccessorPacketAdmissionContract();
     for (const [name, metadata] of [["unreconciled", '{"reconciliation_required":true}'], ["malformed", '{']] as const) {
       const blocked = await fixture(`other-${name}`); const authorization = blocked.authorizeOnly();
       // Negative admission fault: never clear this other run to obtain success.

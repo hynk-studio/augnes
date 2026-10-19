@@ -342,15 +342,15 @@ async function main() {
     tick();
     const result = readResultWorkPreparationV01(db, { config, receipt_id: settled.receipt_id!, clock });
     const comparison = compareResultWorkSourcesV01(db, { config, binding: result.binding, notes: [...readSelectedWorkSources(revision.packet), result.result_source!].map(selectedWorkSourceInput), clock });
-    const successorPreview = previewResultWorkV01(db, { config, binding: result.binding, clock, definition: { goal: "Review the inspected sources under the current direction", success_criteria: ["Keep support separate from authority"], non_goals: ["No publishing"] },
+    const successorPreview = previewResultWorkV01(db, { config, session_id: credential().session_id, binding: result.binding, clock, definition: { goal: "Review the inspected sources under the current direction", success_criteria: ["Keep support separate from authority"], non_goals: ["No publishing"] },
       selected_sources: { selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint, omitted_sources: [] } });
     tick();
     const afterPreview = await call(human, humanUrl, decide(duringRun.record.ref, "Reconsider the successor after another direction change"));
     await assert.rejects(() => defineAuthoredSuccessorTaskV01(db, { config, credential: credential(), clock, request: successorPreview.request }), /project_direction_stale_revision/);
-    assert.throws(() => previewResultWorkV01(db, { config, binding: result.binding, clock, definition: { goal: "Review", success_criteria: ["Inspect"], non_goals: [] }, selected_sources: { selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint, omitted_sources: [] } }), /preparation_changed/);
+    assert.throws(() => previewResultWorkV01(db, { config, session_id: credential().session_id, binding: result.binding, clock, definition: { goal: "Review", success_criteria: ["Inspect"], non_goals: [] }, selected_sources: { selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint, omitted_sources: [] } }), /preparation_changed/);
     const refreshedResult = readResultWorkPreparationV01(db, { config, receipt_id: settled.receipt_id!, clock });
     const refreshedComparison = compareResultWorkSourcesV01(db, { config, binding: refreshedResult.binding, notes: [...readSelectedWorkSources(revision.packet), refreshedResult.result_source!].map(selectedWorkSourceInput), clock });
-    const refreshedPreview = previewResultWorkV01(db, { config, binding: refreshedResult.binding, clock, definition: { goal: "Review the inspected sources under the current direction", success_criteria: ["Keep support separate from authority"], non_goals: ["No publishing"] },
+    const refreshedPreview = previewResultWorkV01(db, { config, session_id: credential().session_id, binding: refreshedResult.binding, clock, definition: { goal: "Review the inspected sources under the current direction", success_criteria: ["Keep support separate from authority"], non_goals: ["No publishing"] },
       selected_sources: { selected_source_context: refreshedComparison.entries, expected_source_comparison: refreshedComparison.fingerprint, omitted_sources: [] } });
     assert.equal(refreshedComparison.fingerprint, comparison.fingerprint, "Explicit refresh preserves the same selected source content");
     const successor = await defineAuthoredSuccessorTaskV01(db, { config, credential: credential(), clock, request: refreshedPreview.request });

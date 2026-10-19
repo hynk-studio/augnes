@@ -79,7 +79,7 @@ async function successor(note: string) {
   const comparison = compareResultWorkSourcesV01(db, { config, binding: before.binding,
     notes: [...readSelectedWorkSources(current).map(e => ({ saved_source_id: e.entry_id })),
       { source: `synthetic-correction-${mode}`, observed_at: null, provenance: "user_declaration", label: "Changed assumption / user correction", text: note }] });
-  const preview = previewResultWorkV01(db, { config, binding: before.binding, definition: {
+  const preview = previewResultWorkV01(db, { config, session_id: credential().session_id, binding: before.binding, definition: {
     goal: current.task.goal, success_criteria: current.task.success_criteria, non_goals: current.task.non_goals },
     selected_sources: { selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint, omitted_sources: [] } });
   const saved = await defineAuthoredSuccessorTaskV01(db, { config, credential: credential(), request: preview.request });
