@@ -207,6 +207,41 @@ assert.equal(safeSupervisor.last_supervisor_result_code, null);
 assert.equal(safeSupervisor.supervisor_exit_code, null);
 for (const marker of sensitive) assert.equal(JSON.stringify(safeSupervisor).includes(marker), false);
 
+// Public supervisor observations must survive the bounded snapshot projection.
+// Root HTTP readiness does not upgrade an observed starting/preparing state.
+// A later genuine child failure must remain failed without rewriting that state.
+const lifecyclePublic = createBrowserSupervisorPublicDiagnosticCapture();
+const appendLifecycle = value => lifecyclePublic.append(`${JSON.stringify({
+  contract: "augnes-local-runtime-supervisor-v1", command: "start", ...value,
+})}\n`);
+appendLifecycle({ result: "starting", database_state: "preparing" });
+const lifecycleSnapshot = setup();
+const readLifecycle = () => lifecyclePublic.diagnostic({ supervisorExitCode: 1 });
+const initialLifecycle = lifecycleSnapshot.capture({ ...failure,
+  readSupervisor: () => lifecyclePublic.diagnostic(),
+}).primary.supervisor_at_failure;
+assert.equal(initialLifecycle.last_supervisor_result_code, "starting");
+assert.equal(initialLifecycle.database_state, "preparing");
+assert.equal(initialLifecycle.unclassifiable_fields, false);
+appendLifecycle({ result: "ready", database_state: "current" });
+appendLifecycle({ result: "failed", reason: "required_child_exited", database_state: "current", child_signal: "SIGKILL" });
+lifecycleSnapshot.shutdown(1, readLifecycle);
+const settledLifecycle = roundTrip(lifecycleSnapshot);
+assert.deepEqual(settledLifecycle.primary.supervisor_at_failure, initialLifecycle);
+assert.equal(settledLifecycle.subsequent.supervisor_shutdown.last_supervisor_result_code, "failed");
+assert.equal(settledLifecycle.subsequent.supervisor_shutdown.last_public_reason_code, "required_child_exited");
+assert.equal(settledLifecycle.subsequent.supervisor_shutdown.supervisor_exit_code, 1);
+assert.equal(settledLifecycle.subsequent.supervisor_shutdown.unclassifiable_fields, false);
+for (const reason of ["required_child_exited_during_startup", "ui_startup_child_exit", "bridge_startup_child_exit", "startup_failed"]) {
+  const observed = setup().capture({ ...failure, readSupervisor: () => ({
+    last_supervisor_result_code: "failed", last_public_reason_code: reason,
+    supervisor_exit_code: 1,
+  }) }).primary.supervisor_at_failure;
+  assert.equal(observed.last_public_reason_code, reason);
+  assert.equal(observed.last_supervisor_result_code, "failed");
+  assert.equal(observed.unclassifiable_fields, false);
+}
+
 // Synthetic readiness observations classify existing probe outcomes without
 // launching a runtime or claiming to reproduce the historical startup failure.
 let clock = 100;
