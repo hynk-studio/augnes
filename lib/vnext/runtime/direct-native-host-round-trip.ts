@@ -12,6 +12,7 @@ import { lstat } from "node:fs/promises";
 
 import type Database from "better-sqlite3";
 import { readAgendaInput, judgeAgenda, SELECTED_SOURCE_INSPECTION, PROSPECTIVE_PREPARATION_PACKET } from "../prospective-agenda";
+import { WORKFLOW_COST_ADAPTER, WORKFLOW_COST_PROFILE, WORKFLOW_COST_CHECKS } from "../workflow-cost-verifier";
 import { readReentry } from "../persistence/prospective-reentry-store";
 import { readSelectedWorkSources } from "@/lib/intake/selected-work-source-comparison";
 
@@ -1155,6 +1156,7 @@ export async function runDirectNativeHostRoundTripV01(
       required_check_ids: requiredCheckIdsForResultV01(
         hostResult,
         admitted.packet.constraints.required_checks,
+        adapter,
       ),
     });
     hostResult = normalized.result;
@@ -1187,6 +1189,7 @@ export async function runDirectNativeHostRoundTripV01(
       required_check_ids: requiredCheckIdsForResultV01(
         hostResult,
         admitted.packet.constraints.required_checks,
+        adapter,
       ),
     });
     hostResult = normalized.result;
@@ -2508,6 +2511,7 @@ function buildDirectHostRunReceipt(input: {
   const requiredCheckIds = requiredCheckIdsForResultV01(
     result,
     admission.packet.constraints.required_checks,
+    input.adapter,
   );
   const verification = verificationForResult(
     result,
@@ -3647,13 +3651,18 @@ function protocolExternalRefMetadataV01(value: unknown): ExternalRefV01 | null {
 function requiredCheckIdsForResultV01(
   result: NativeHostResultV01,
   packetRequiredCheckIds: string[],
+  adapter: NativeHostAdapterV01,
 ): string[] {
   const deliveryCheckId =
     result.adapter_extension.adapter_kind === "codex_app_server" ||
     result.adapter_extension.bounded_metadata.packet_delivery_initiated === true
       ? "validated_packet_delivery"
       : "deterministic_packet_delivery";
-  return [...new Set([deliveryCheckId, ...packetRequiredCheckIds])].sort();
+  // This fixed profile owns its obligations before candidate data is read.
+  // Missing checks are synthesized as skipped by the existing normalizer.
+  const fixed = adapter.adapter_version === WORKFLOW_COST_ADAPTER && adapter.capability_version === WORKFLOW_COST_PROFILE
+    ? WORKFLOW_COST_CHECKS : [];
+  return [...new Set([deliveryCheckId, ...packetRequiredCheckIds, ...fixed])].sort();
 }
 
 function verificationForResult(
