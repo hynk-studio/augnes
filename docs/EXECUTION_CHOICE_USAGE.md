@@ -68,7 +68,7 @@ source owner; no automatic history sweep or role reconstitution is added.
 Original definition/support changes or an elapsed horizon prevent a fresh request
 from being prepared under the old judgment. Retain its original basis, inspect the
 change and explicitly prepare the next arrangement. Existing review requests keep
-their exact identity: a first reply on changed material refuses, already saved
+their exact identity: a default first reply on changed material refuses, already saved
 work remains historical, and `prepare_use` does not auto-merge it into newer work.
 
 If the selected participant disappears before a request, direct work remains
@@ -84,6 +84,67 @@ readback before deciding another action. Source notes are derived/imported
 material, not accepted semantic state, repository approval or independent outcome
 verification. No child project, project-direction grant or permanent coordinator
 is needed for a bounded contribution role.
+
+## Explicit late review and current reassessment (#1486)
+
+When B and C have both read the same ordinary work, B's incorporated result may
+advance it before C answers. C can explicitly pass `receipt_mode: historical_v1`
+to `augnes_reply_to_review`, with its original `request_ref`, `read_binding`,
+answer, limitations and original source bindings. The default remains current-only.
+The existing validated packet history must prove the exact original definition
+and disclosed source bytes. Current connection/authentication/expiry and unchanged
+project, registered/physical root and effective direction are required. The
+original packet must belong to the current task's eligible unstarted ordinary
+revision segment. New tasks, started/managed or semantic work, corrupt, missing,
+ambiguous or over-budget history remain unavailable. A first read after the
+material changed still refuses. No new snapshot storage or migration is used.
+
+A saved late answer is historical, unverified review material. Receipt does not
+apply it. After an uncertain reply outcome, use the existing list/readback before
+deciding another delivery; exact duplicate replies replay and conflicts refuse.
+
+The authorized origin uses `augnes_review_repository_work`:
+
+1. `readback` the exact answer, then `reassess` with `connection_ref` and
+   `request_ref`. Inspect the complete original answer and original/current
+   definitions and sources, exact intervening packet references, and the source
+   additions/removals. These are factual changes, not a semantic compatibility
+   judgment. Source locators retain the ordinary disclosure rules.
+2. `prepare_reassessed_use` with the returned `expected_response_ref` (the
+   `response_ref`), `expected_reassessment_binding` (the `reassessment_binding`),
+   `choice` (`use`, `partial_use`, `revise`, `defer`, or `reject`) and bounded
+   `reasoning`. Explain applicable parts, superseded/conflicting parts, relevant
+   intervening results and unresolved obligations. Preparation persists nothing.
+3. Combine the returned ordinary `revision_arguments` with deliberate current
+   edits or result notes. Inspect `augnes_preview_repository_work_revision`, then
+   explicitly use `augnes_save_repository_work_revision` with the same arguments
+   and returned `previewBinding`. Both the full attributed answer and the authored
+   use/non-use reasoning are retained. B's existing sources remain selected unless
+   the origin explicitly changes them. Prior packets preserve earlier selections.
+
+Changes between reassessment, preparation, preview and save refuse atomically.
+Keep the draft, read fresh material and deliberately reassess; do not automatically
+resend or silently replace the basis. The existing eight-note, 2,000-character
+per-note and aggregate budgets still apply. Preparation cannot guarantee capacity
+for the origin's further edits; the ordinary preview/save owns that check.
+
+`node --import tsx scripts/test-late-review.ts` exercises real private HTTP routes,
+native tools and reviewer adapters with a new synthetic water-delivery case.
+B replaces a 20 L vehicle with a stipulated 30 L vehicle. C's original response
+correctly includes 3 L reserve in the 27 L load, but suggests two trips based on
+the old capacity. Explicit partial use yields a checked one-trip current plan,
+retains both responses and rejects the old trip count. Road access remains an
+unfinished check; no dispatch is authorized. After the producer exits, another
+process reads normal authorized persisted material and computes the follow-up;
+the supported disposable backup/restore repeats that read in a fresh process.
+
+This is exposed deterministic mechanism evidence. Actual external participation,
+human/model semantic consumption and comparative usefulness are `NOT_RUN`. The
+trace counts actual requests and elapsed process time, including deliberate fault
+injection and checks. Manual retained-note/current-review use would still require
+original-material retention, current inspection, selection, preview/save and
+follow-up checking. No timed manual comparison, human effort, token/billing cost
+or speedup is claimed. Exact-candidate qualification belongs to the PR receipt.
 
 ## Concrete exercised consumer and evidence
 

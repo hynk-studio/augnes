@@ -1003,6 +1003,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "late-review",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state", "backup-restore"],
+      label: "late original-basis review, selective current use and fresh restored continuation",
+      ...rootNode("scripts/test-late-review.ts"),
+      timeoutMs: 90_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "request-bound-review",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],

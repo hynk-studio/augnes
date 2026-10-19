@@ -512,6 +512,20 @@ remains NOT_RUN and historical P4.6 findings remain unchanged.
 
 ### Execution-choice evidence and conditional reuse
 
+The [#1486 late-review exercise](../../scripts/test-late-review.ts) separates
+historical receipt from deliberate current selection. Both scripted reviewers
+read the same original material; after B's saved revision, C's first answer keeps
+its original basis. The current consumer uses the valid reserve calculation and
+rejects the superseded trip suggestion in a checked artifact, while retaining B,
+C's complete answer and an unresolved road-access obligation. Separate processes
+after producer exit read only authorized persisted material, including after
+supported disposable recovery. Refusal, replay, storage/lost-ack readback and
+stale preparation/preview/save checks concern mechanism correctness. These exposed
+developer-authored cases are not independent participation, human/model semantic
+consumption or comparative usefulness; all remain NOT_RUN. Request counts and
+process timings include the test interventions, not isolated human effort or a
+manual-baseline speedup. Qualification remains exact-candidate evidence.
+
 The [#1443 execution-choice exercise](../../scripts/test-execution-choice.ts)
 separates three evidence levels. Authenticated production-shaped native reads,
 previews/saves and request/read/reply/readback establish deterministic path
