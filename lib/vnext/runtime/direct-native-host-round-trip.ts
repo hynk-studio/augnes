@@ -462,6 +462,14 @@ export async function admitPersistedHostTaskContextPacketV01(
   };
 }
 
+/** Canonical root-reference representation; construction alone grants no authority. */
+export function buildPersistedHostProjectRootScopeRefV01(input: {
+  project_id: string; evaluated_at: string; root_fingerprint: string;
+}): ExternalRefV01 {
+  return localRef("project_root_scope", input.project_id, input.evaluated_at,
+    input.root_fingerprint, PERSISTED_HOST_PACKET_ADMISSION_VERSION_V01);
+}
+
 /** Current registered/physical root inspection only. This does not admit a
  * packet or grant execution; authorship revalidation uses the same root owner. */
 export async function inspectPersistedHostProjectRootV01(db: Database.Database, input: {
@@ -506,13 +514,8 @@ export async function inspectPersistedHostProjectRootV01(db: Database.Database, 
       .map((binding) => binding.external_ref)
       .find((ref) => ref.ref_type === "repository_remote") ??
     inspection.repository_ref;
-  const rootScopeRef = localRef(
-    "project_root_scope",
-    input.config.project_id,
-    input.evaluated_at,
-    rootFingerprint,
-    PERSISTED_HOST_PACKET_ADMISSION_VERSION_V01,
-  );
+  const rootScopeRef = buildPersistedHostProjectRootScopeRefV01({ project_id: input.config.project_id,
+    evaluated_at: input.evaluated_at, root_fingerprint: rootFingerprint });
   return {
     canonical_root: registration.root_binding.local_root.normalized_path,
     path_flavor: registration.root_binding.local_root.path_flavor,

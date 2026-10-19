@@ -31,7 +31,7 @@ import { admitVNextLocalOperatorMutationInsideTransactionV01, readVNextLocalOper
   type VNextLocalOperatorSecretSourceV01 } from "./local-operator-session";
 import { readVNextLocalRuntimeClockNowV01, type VNextLocalRuntimeClockV01 } from "./local-runtime-clock";
 import { readProjectRunResultSourceBindingV01 } from "./project-run-result-read-model";
-import { admitPersistedHostTaskContextPacketV01, inspectPersistedHostProjectRootV01 } from "./direct-native-host-round-trip";
+import { admitPersistedHostTaskContextPacketV01, inspectPersistedHostProjectRootV01, buildPersistedHostProjectRootScopeRefV01 } from "./direct-native-host-round-trip";
 import { inspectVNextOperatorPilotPacketLineageV01, projectVNextOperatorPilotContinuityV01 } from "./operator-pilot-project-continuity";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
@@ -137,15 +137,18 @@ export function previewResultWorkV01(db: Database.Database, input: {
       stop_conditions: d.non_goals, materials: [], approved_instruction_hashes: [] } });
   const predecessor = source(db, input.config, request, { latest: true });
   const at = readVNextLocalRuntimeClockNowV01(input.clock, "successor_packet_preview");
-  const rootRef = predecessor.receipt.source_refs.find(r => r.ref_type === "project_root_scope")!;
+  const rootRef = buildPersistedHostProjectRootScopeRefV01({ project_id: input.config.project_id,
+    root_fingerprint: request.expected_root_fingerprint, evaluated_at: at });
   const physicalRootFingerprint = predecessor.run?.metadata.root_physical_identity_fingerprint;
   check(typeof physicalRootFingerprint === "string" && /^sha256:[a-f0-9]{64}$/u.test(physicalRootFingerprint), "local_predecessor_binding");
   // Compile the whole prospective packet, including repeated request material
   // and inherited lineage. Note-array admission alone cannot establish this.
-  // Preview uses the settled root observation and current authenticated session;
+  // Use the current root owner's canonical representation, including its
+  // compatibility namespace even when the historical receipt omitted it.
+  // Preview uses the settled root binding and current authenticated session;
   // save still re-inspects the physical root and all live state in its transaction.
   const built = build({ prior: predecessor.packet, receipt: predecessor.receipt, operator_id: input.config.operator_id, at,
-    material: { request, work_lifetime: DURABLE_AUTHORED_WORK_V01, source_root_ref: { ...rootRef, observed_at: at },
+    material: { request, work_lifetime: DURABLE_AUTHORED_WORK_V01, source_root_ref: rootRef,
       physical_root_fingerprint: physicalRootFingerprint, session_id: input.session_id } });
   check(validateTaskContextPacketV01(built.packet, { evaluated_at: at }).status === "valid", "packet_invalid");
   materialFrom(built.packet);
