@@ -246,7 +246,7 @@ export function createVNextOperatorContextUseReviewHandlerV01(
             if (!Array.isArray(body.notes) || body.notes.length > 8) throw new AuthoredSuccessorTaskErrorV01("successor_task_source_selection_invalid");
             return { status: "selected_source_comparison", comparison: compareResultWorkSourcesV01(db!, { ...shared, binding, notes: body.notes }) };
           }
-          return { status: "result_work_preview", ...previewResultWorkV01(db!, { ...shared, binding,
+          return { status: "result_work_preview", ...previewResultWorkV01(db!, { ...shared, session_id: credential.session_id, binding,
             definition: body.definition, selected_sources: body.selected_sources as DefineAuthoredSuccessorTaskRequestV01["selected_sources"] }) };
         })();
         return jsonResponse({ ok: true, ...result, projection_is_read_only: true });

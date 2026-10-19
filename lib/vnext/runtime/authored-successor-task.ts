@@ -22,7 +22,7 @@ import { equalSuccessorV01 as equal, normalizeAuthoredSuccessorTaskV01,
   readAuthoredSuccessorDefinitionV01, requireSuccessorV01 as check, successorDigestV01 as digest,
   type AuthoredSuccessorTaskDefinitionV01 } from "@/lib/vnext/authored-successor-task";
 import { canonicalizeProtocolValueV01, parseStrictIsoTimestampV01 } from "@/lib/vnext/protocol-primitives";
-import { buildTaskContextPacketV01, validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
+import { buildTaskContextPacketV01, validateTaskContextPacketV01, TaskContextPacketBudgetErrorV01 } from "@/lib/vnext/task-context-packet";
 import { insertVNextCoreRecordV01 } from "@/lib/vnext/persistence/durable-semantic-store";
 import { readCanonicalProjectWithRootV01 } from "@/lib/vnext/persistence/project-identity-registry";
 import { readActiveProjectSelectionV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
@@ -124,7 +124,7 @@ export function compareResultWorkSourcesV01(db: Database.Database, input: {
 }
 
 export function previewResultWorkV01(db: Database.Database, input: {
-  config: VNextLocalOperatorPilotConfigV01; binding: ResultWorkBindingV01; definition: unknown;
+  config: VNextLocalOperatorPilotConfigV01; session_id: string; binding: ResultWorkBindingV01; definition: unknown;
   selected_sources: DefineAuthoredSuccessorTaskRequestV01["selected_sources"]; clock?: VNextLocalRuntimeClockV01;
 }) {
   const before = readResultWorkPreparationV01(db, { ...input, receipt_id: input.binding.expected_latest_receipt_id });
@@ -135,7 +135,20 @@ export function previewResultWorkV01(db: Database.Database, input: {
   const request = parseRequest({ action: ACTION, ...input.binding, expected_direction_ref: effectiveDirection(db, input.config, readVNextLocalRuntimeClockNowV01(input.clock, "successor_direction_preview"))?.ref ?? null, selected_sources: input.selected_sources,
     definition: { objective: d.goal, checks: d.success_criteria.map((criterion, index) => ({ check_id: `criterion_${index + 1}`, criterion })),
       stop_conditions: d.non_goals, materials: [], approved_instruction_hashes: [] } });
-  source(db, input.config, request, { latest: true });
+  const predecessor = source(db, input.config, request, { latest: true });
+  const at = readVNextLocalRuntimeClockNowV01(input.clock, "successor_packet_preview");
+  const rootRef = predecessor.receipt.source_refs.find(r => r.ref_type === "project_root_scope")!;
+  const physicalRootFingerprint = predecessor.run?.metadata.root_physical_identity_fingerprint;
+  check(typeof physicalRootFingerprint === "string" && /^sha256:[a-f0-9]{64}$/u.test(physicalRootFingerprint), "local_predecessor_binding");
+  // Compile the whole prospective packet, including repeated request material
+  // and inherited lineage. Note-array admission alone cannot establish this.
+  // Preview uses the settled root observation and current authenticated session;
+  // save still re-inspects the physical root and all live state in its transaction.
+  const built = build({ prior: predecessor.packet, receipt: predecessor.receipt, operator_id: input.config.operator_id, at,
+    material: { request, work_lifetime: DURABLE_AUTHORED_WORK_V01, source_root_ref: { ...rootRef, observed_at: at },
+      physical_root_fingerprint: physicalRootFingerprint, session_id: input.session_id } });
+  check(validateTaskContextPacketV01(built.packet, { evaluated_at: at }).status === "valid", "packet_invalid");
+  materialFrom(built.packet);
   return { request, before: before.initialization.current_work, after: d,
     sources_before: before.initialization.selected_source_context ?? [], sources_after: request.selected_sources!.selected_source_context,
     omitted_sources: request.selected_sources!.omitted_sources, writes: 0 as const };
@@ -248,7 +261,14 @@ function assertRevalidatedHistoryCurrent(db: Database.Database, config: VNextLoc
     ["fresh", "expired"].includes(continuity.packet_currentness), "current_packet_changed");
   return lineage;
 }
-function build(input: { prior: TaskContextPacketV01; receipt: ReturnType<typeof source>["receipt"];
+function build(input: Parameters<typeof buildUnchecked>[0]) {
+  try { return buildUnchecked(input); }
+  catch (error) {
+    if (error instanceof TaskContextPacketBudgetErrorV01) check(false, `packet_${error.budget}_exceeded`);
+    throw error;
+  }
+}
+function buildUnchecked(input: { prior: TaskContextPacketV01; receipt: ReturnType<typeof source>["receipt"];
   material: SourceMaterial; operator_id: string; at: string; outlook_version?: RetryInspectionOutlookVersion | null }) {
   const { prior, receipt, material, at } = input, definition = material.request.definition;
   const selected = material.request.selected_sources
