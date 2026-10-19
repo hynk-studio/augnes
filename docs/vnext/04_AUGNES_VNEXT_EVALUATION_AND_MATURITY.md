@@ -243,6 +243,30 @@ claim. Human curation, labels/corrections and hidden assistance must be attribut
 ChatGPT manually supplying each best strategy does not demonstrate autonomous
 task-improvement continuity, nor does replacing the worker with a stronger model.
 
+### Current-understanding-guided work evidence
+
+For the [L1 candidate](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#next-p3p4--current-understanding-guided-work-and-result-informed-re-entry),
+identify the human, model or code that actually interprets current sources and
+selects the question/action. Distinguish that judgment from a decisive answer
+flag supplied by the case author, deterministic reference checks and checker
+rescue. Human execution approval is not itself interpretation assistance.
+Use relevant and irrelevant changes only as needed to distinguish appropriate
+revision from justified retention. Follow the actual action/output, independent
+task-appropriate check, returned result and saved ordinary fresh-successor use;
+storage, explanation or technical revision rebinding alone does not establish
+semantic appropriateness. Attribute any manually supplied interpretation or
+reconstructed handoff. Reuse existing evidence where it answers the question.
+
+Keep functional correctness, semantic appropriateness, experience contribution
+and comparative usefulness separate. If claiming that prior experience causes
+better later work (L2), hold current inputs comparable and distinguish relevant
+experience from absent/irrelevant experience, or use an equivalently
+discriminating design. That attribution question differs from Augnes's added
+usefulness against an equally informed capable adaptive memo/code alternative
+under the [strong-comparison rules](#strong-comparisons-and-independence).
+Appropriate retention/non-use can succeed. Neither comparison is a mandatory
+campaign or new gate for every L1 implementation PR.
+
 ### Reuse applicability evidence (#1459)
 
 The [constructed file-backed task](../../scripts/reuse-applicability-study/CONTRACT.md)
