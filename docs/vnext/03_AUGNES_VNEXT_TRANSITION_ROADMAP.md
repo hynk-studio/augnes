@@ -394,6 +394,23 @@ The implementation must connect four responsibilities through existing owners:
    A fresh executor must find and use that saved material through normal entry
    for an actual follow-up, rather than receive a manually reconstructed answer.
 
+One implementation option for composition and selection is **problem-conditioned
+joint reading**: use the current question, project Perspective, goals and
+unresolved issues to interpret permitted sources, corrections and experience
+together. Identify which methods and conditions still apply, what changed or
+conflicts, and what should be checked, retained or revised next, with exact
+source/revision references alongside the synthesis. This derived reading informs
+the continuing Perspective; it does not replace it. The existing host/model
+procedure may perform this within its ordinary judgment step. Direct reading
+may suffice; a separate reader or additional model call is not required.
+
+[MEMORILLA v1, section 2](https://arxiv.org/abs/2610.21375v1) motivates this
+option as an untested Augnes hypothesis. A textual implementation does not
+reproduce its learned soft-token method or inherit its measured gains. Assess
+the option within the first assigned task using the existing L1/L2 evidence
+criteria below; this adds no evaluation allocation, neural dependency or
+expansion of the retained #1468/#1478 retrieval scope.
+
 Choose an actual task with usable existing assets and a real next consumer.
 Inspect the #1431 executable assets, #1453 return/correction path and existing
 selective-report consumer as relevant; no particular fixture or CSV product is
