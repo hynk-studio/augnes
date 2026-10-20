@@ -75,6 +75,12 @@ supporting research direction only: listing a preferred evidence sequence does
 not make any slice Current or Next, authorize Stage 7, or create memory, policy,
 actor, promotion, runtime, or product authority.
 
+The [REA-derived function-transfer review](./research/REA_FUNCTION_TRANSFER_REVIEW_20261020.md)
+retains two unexecuted options for the existing executable-reuse and evaluation
+owners: purpose-conditioned transfer and outcome-informed method/checker reuse.
+It is supporting research, not an implementation assignment, added evaluation
+gate, tool dependency, or competing roadmap.
+
 ### Operator and developer manuals
 
 Runbooks, setup guides, package manuals, skills, and verification manuals govern
