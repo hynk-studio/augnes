@@ -1,13 +1,73 @@
 # Public retry-work Skill entry (#1447)
 
-This entry is for a code-capable Codex consumer with Python 3.9+, standard-library
-file access and permission to execute local code. It adds a task-described Skill
-and portable plugin around the existing public workflow-cost 1.0.0 files. It
-does not add a server, private connection, project or solver. Ordinary
-[public web/file use](../publications/workflow-cost-v1/README.md) stays available.
-ChatGPT reading access alone does not establish a Python execution environment.
+The published **Augnes workflow-cost Skill/plugin 0.1.0 Pre-release**
+packages the unchanged **workflow-cost method 1.0.0** for code-capable Codex
+consumers. Python 3.9+ file use needs no Augnes account, project, Companion,
+MCP server or private upload. Skill loading is optional and requires explicit
+user/admin installation. Reading in ChatGPT alone does not provide code execution.
+This is a component preview, not a full Augnes application release.
 
-## Candidate and intended observation
+## Download and verify
+
+- [Public component Pre-release](https://github.com/hynk-studio/augnes/releases/tag/augnes-workflow-cost-v0.1.0) (tag `augnes-workflow-cost-v0.1.0`).
+- [Packaged ZIP](https://github.com/hynk-studio/augnes/releases/download/augnes-workflow-cost-v0.1.0/augnes-workflow-cost-0.1.0.zip) — **38,254 bytes**, SHA-256 `082789624f70a1feaca11c4e4fa852f8d6a505caf45d3e2e572df5f40fa8c59d`.
+- Fixed source commit: `d51b73b447780c1c1d3f795515dfbd5f9d24468d`.
+- Package 0.1.0 and immutable calculation method 1.0.0 are separate versions.
+- Use the explicit ZIP, not GitHub's automatic repository source archive.
+
+In a fresh directory with `curl`, `shasum` and `unzip` available:
+
+```sh
+curl --fail --location --output augnes-workflow-cost-0.1.0.zip \
+  https://github.com/hynk-studio/augnes/releases/download/augnes-workflow-cost-v0.1.0/augnes-workflow-cost-0.1.0.zip
+printf '%s  %s\n' \
+  082789624f70a1feaca11c4e4fa852f8d6a505caf45d3e2e572df5f40fa8c59d \
+  augnes-workflow-cost-0.1.0.zip | shasum -a 256 -c -
+mkdir workflow-cost-bundle
+unzip augnes-workflow-cost-0.1.0.zip -d workflow-cost-bundle
+cd workflow-cost-bundle/plugins/augnes-workflow-cost/skills/stationary-retry-work
+python3 -E -s -S -B scripts/verify_material.py assets/workflow-cost-v1
+```
+
+Stop on any failed checksum, inventory or bundled-material check. Never
+substitute unrelated local checkout or installed files for missing members.
+Hashes establish integrity against a known published identity, not execution
+safety or publisher authentication. The archive holds exactly nine public
+plugin files and a minimal local catalog, without private Operator files,
+credentials, transcripts or generated receipts.
+
+## Optional Codex Skill loading
+
+Inspect `codex plugin --help` on the actual host first. The observed isolated
+loading profile was **macOS 26.6.2 arm64 / Codex CLI 0.153.4**; other host
+versions and ordinary user-profile adoption were not verified. Point to the
+extracted **bundle root**, not to the nested Skill folder:
+
+```sh
+codex plugin marketplace add /absolute/path/to/workflow-cost-bundle
+codex plugin list --marketplace augnes-public-assets --available --json
+codex plugin add augnes-workflow-cost@augnes-public-assets --json
+```
+
+The namespaced Skill is `augnes-workflow-cost:stationary-retry-work`. These
+commands modify the selected Codex profile. For a temporary test, set
+`CODEX_HOME` only in each command's child environment to a fresh task-owned
+directory, without copying authentication or keys. Clean a temporary profile
+through the supported removal commands:
+
+```sh
+codex plugin remove augnes-workflow-cost@augnes-public-assets --json
+codex plugin marketplace remove augnes-public-assets
+```
+
+If the host does not support plugin loading, ordinary verified Python files
+remain usable by a separately authorized code-capable consumer. Read the
+bundled `references/usage.md` and method README; keep the five immutable
+material files together. A simple direct recurrence may be preferable.
+Public delivery, plugin availability, installation, actual model choice/use,
+later reuse and comparative benefit are separate observations.
+
+## Historical development observation (not a consumer prerequisite)
 
 Recorded before evaluating this entry: use the historical public question
 [How long does it take](https://math.stackexchange.com/questions/692846/how-long-does-it-take)
@@ -34,70 +94,44 @@ plugins do not provide this code-capable task entry with complete executable
 material. The old exact-link HTTP delivery is already accepted under
 [#1422/#1423](https://github.com/hynk-studio/augnes/issues/1209#issuecomment-6059444075).
 
-A later, distinct task will review a proposed planning promise for **nine jobs
-within ten minutes with at least 95% completion probability**, inheriting only
-the first output and its referenced local material. This is a task-owned
-synthetic planning request, not the original public user's demand. It needs a
-deadline judgment, whereas the first task asks for expected work. Observe
-whether the worker preserves the original basis, recognizes changed needs and
-uses a suitable alternative or declines the package. Also exercise a missing
-dependency and invalid input. Do not convert appropriate non-use into successful
-calculator consumption.
+The separate synthetic successor considered a **nine jobs within ten minutes
+with at least 95% completion probability** promise using the first output and
+its local references. A deadline probability cannot be inferred from an
+expected-work result; the recorded successor appropriately rejected the
+unjustified promise. See [#1451](https://github.com/hynk-studio/augnes/pull/1451)
+and [#1447](https://github.com/hynk-studio/augnes/issues/1447). This was
+developer-supplied context, not the original public user's demand, organic
+discovery, a matched comparison or measured savings.
 
-The bounded native writer/later-worker passes are development observations with
-supplied catalog candidates and known case genealogy. No search-rank test,
-independent-user, host-recommendation, superiority or measured savings claim is
-planned. Keep failed attempts. One writer and one later worker are sufficient;
-do not rerun an unchanged case to get a preferable result.
+The recorded native writer/later-worker observations used supplied catalog
+candidates and known case genealogy. They did not test organic search rank,
+independent users, host recommendations, superiority or measured savings.
+Keep historical failures and non-use separate; do not rerun unchanged cases to
+obtain preferred outcomes.
 
-## Package and activate
+## Maintainer source-bundle construction
 
-The portable [plugin manifest](../plugins/augnes-workflow-cost/plugin.json)
-discovers `skills/stationary-retry-work/SKILL.md` from its root `skills/` folder.
-The repository catalog lists it as available, not automatically installed. The
-new entry is separate from both the public/default App and private native
-Operator/reviewer scopes. It has no MCP, hook, auth, runtime or private-write
-component.
-
-Maintainers build a complete, create-only bundle outside the checkout:
+The public ZIP above is the recommended distribution. This **maintainer-only**
+source path uses the [plugin manifest](../plugins/augnes-workflow-cost/plugin.json)
+and the local catalog; no source checkout is needed to consume the release.
+The builder creates a checked **directory** bundle, not a ZIP:
 
 ```sh
 node scripts/build-workflow-cost-plugin.mjs --check
 node scripts/build-workflow-cost-plugin.mjs --bundle /absolute/new/bundle
 ```
 
-The bundle contains only this plugin and a minimal `augnes-public-assets` local
-catalog. It includes all five immutable publication files plus the Skill,
-supporting usage, integrity checker and plugin manifest. Copies are checked
-byte-for-byte against the authoritative publication; `--sync-material` refreshes
-only those copies and refuses source drift. Never edit or rehash the pinned
-release to make a changed implementation look like 1.0.0.
-
-On a host whose `codex plugin ... --help` supports these commands, an authorized
-user/admin can register a received bundle and install the one plugin:
-
-```sh
-codex plugin marketplace add /absolute/path/to/bundle
-codex plugin list --marketplace augnes-public-assets --available --json
-codex plugin add augnes-workflow-cost@augnes-public-assets --json
-```
-
-Installation changes that host's configured plugin profile. For an isolated
-development check, use the same commands with `CODEX_HOME` set only in each
-child process environment to a **new task-owned directory**. Do not copy auth
-files or read keys. A no-inference catalog/skill-list check needs no new account
-or provider calls. Remove the plugin/catalog with the supported remove commands
-and clean that directory after preserving the observation. Do not change the
-user's installed profile or restart a shared desktop application for this test.
+The directory includes the unchanged five publication files, Skill, usage,
+integrity checker, plugin manifest and minimal `augnes-public-assets` catalog.
+Do not rehash, rewrite, re-version or silently update the pinned method to
+reflect later documentation. Source copying must remain byte-exact and
+refuse drift.
 
 The [official plugin guide](https://developers.openai.com/plugins/build/plugins)
 and [Skill guide](https://developers.openai.com/plugins/build/skills) describe
-portable manifests, local catalogs and Skill discovery. Check the actual host:
-availability differs by surface. A host without the needed activation mechanism
-leaves activation pending; the complete bundle and independent Python checks
-can still finish. No full repository clone is necessary for the bundle consumer.
-No release/tag, deployed endpoint, universal directory submission or new service
-terms are implied by this source change. A Draft branch is not a stable release.
+host activation conventions. This GitHub **component Pre-release** is not a
+stable Augnes application distribution, a general plugin-directory submission
+or proof of ordinary-profile adoption.
 
 ## Who does what, and what it proves
 
