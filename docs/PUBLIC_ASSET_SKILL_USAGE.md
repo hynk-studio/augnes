@@ -69,6 +69,8 @@ later reuse and comparative benefit are separate observations.
 
 ## Historical development observation (not a consumer prerequisite)
 
+### Candidate and intended observation
+
 Recorded before evaluating this entry: use the historical public question
 [How long does it take](https://math.stackexchange.com/questions/692846/how-long-does-it-take)
 (user1769184, 2014-02-27). Its stipulated serial process spends one minute per
@@ -109,7 +111,9 @@ independent users, host recommendations, superiority or measured savings.
 Keep historical failures and non-use separate; do not rerun unchanged cases to
 obtain preferred outcomes.
 
-## Maintainer source-bundle construction
+## Package and activate
+
+### Maintainer source-bundle construction
 
 The public ZIP above is the recommended distribution. This **maintainer-only**
 source path uses the [plugin manifest](../plugins/augnes-workflow-cost/plugin.json)
