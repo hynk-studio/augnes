@@ -18,7 +18,7 @@ import { VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01 } from "./persist
 import type Database from "better-sqlite3";
 import { VNEXT_OPERATOR_PILOT_LATER_PACKET_TTL_MS_V01 } from "./operator-pilot-semantic-transition";
 import { hasUnsettledAutonomyRunLedgerRecords, listAutonomyRunLedgerRecords } from "@/lib/autonomy/runner-ledger";
-import { equalSuccessorV01 as equal, normalizeAuthoredSuccessorTaskV01,
+import { AuthoredSuccessorTaskErrorV01, equalSuccessorV01 as equal, normalizeAuthoredSuccessorTaskV01,
   readAuthoredSuccessorDefinitionV01, requireSuccessorV01 as check, successorDigestV01 as digest,
   type AuthoredSuccessorTaskDefinitionV01 } from "@/lib/vnext/authored-successor-task";
 import { canonicalizeProtocolValueV01, parseStrictIsoTimestampV01 } from "@/lib/vnext/protocol-primitives";
@@ -267,7 +267,8 @@ function assertRevalidatedHistoryCurrent(db: Database.Database, config: VNextLoc
 function build(input: Parameters<typeof buildUnchecked>[0]) {
   try { return buildUnchecked(input); }
   catch (error) {
-    if (error instanceof TaskContextPacketBudgetErrorV01) check(false, `packet_${error.budget}_exceeded`);
+    if (error instanceof TaskContextPacketBudgetErrorV01) throw new AuthoredSuccessorTaskErrorV01(
+      `successor_task_packet_${error.budget}_exceeded`, error.diagnostic);
     throw error;
   }
 }
