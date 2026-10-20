@@ -18,6 +18,7 @@ import { defineInitialProjectWorkV01 } from "../lib/vnext/runtime/project-work-i
 import { runDirectNativeHostRoundTripV01 } from "../lib/vnext/runtime/direct-native-host-round-trip";
 import { createDeterministicCodexAdapterV01 } from "../lib/vnext/native-host/deterministic-codex-adapter";
 import { createVNextOperatorContextUseReviewHandlerV01, createVNextOperatorProjectContinuityHandlerV01 } from "../app/api/vnext/operator/project-continuity/route";
+import { normalizeInitialProjectWorkDefinitionV01 } from "../lib/intake/work-definition";
 
 const [mode, root] = process.argv.slice(2);
 assert(["produce", "consume"].includes(mode!) && root && process.argv.length === 4);
@@ -84,7 +85,7 @@ async function main() {
     } catch { res.statusCode = 500; res.end('{"error_code":"fixture_http_failed"}'); }
   }));
   await new Promise<void>(resolve => server!.listen(0, "127.0.0.1", resolve));
-  origin = "http://127.0.0.1:" + (server.address() as { port: number }).port;
+  origin = "http://127.0.0.1:" + (server!.address() as { port: number }).port;
   const http = async (label: string, body?: unknown, expectedStatus = 200, route = "/api/vnext/operator/project-continuity") => {
     const response = await fetch(origin + route, { method: body ? "POST" : "GET", headers: { cookie, origin, "content-type": "application/json" },
       ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(10_000) });
@@ -109,8 +110,13 @@ async function main() {
         "Catalogue preparation remains conditional. 한국어 labels and astral 😀 names require exact content comparison; quoted paths such as \"stage\\\\catalogue\" are data. ".repeat(4) }));
     const comparison = (await http("comparison", { action: "compare_result_work_sources", binding: prep.binding, notes })).comparison;
     const selected_sources = { selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint, omitted_sources: [] };
+    // Include the full plan's four cross-cutting review instructions explicitly
+    // in this verbose draft. They remain in the unchanged artifact after repair.
+    const explanatoryChecks = ["Review the original inventory.", "Document the applicable branch.",
+      "Preserve the exact evidence and the reason for any deferred action.", "A generated checklist does not complete its checks."];
     const long = { goal: "Prepare the offline photo catalogue migration plan. ".repeat(17),
-      success_criteria: plan.obligations.map((item: { action: string }) => item.action + " Document every conditional branch before any future authorized conversion. ".repeat(5)),
+      success_criteria: [...plan.obligations.map((item: { action: string }) => item.action), ...explanatoryChecks]
+        .map((action: string) => action + " Document every conditional branch before any future authorized conversion. ".repeat(5)),
       non_goals: ["No conversion, publication, execution authority or semantic acceptance.", "No removal of originals, validation, rollback, rejection/correction history or unresolved conditions."] };
     const rejectedDraft = { action: "preview_result_work", binding: prep.binding, definition: long, selected_sources, include_packet_budget_diagnostics: true };
     record("rejected-draft.json", rejectedDraft); const draftBytes = readFileSync(path.join(root!, "rejected-draft.json"));
@@ -131,13 +137,17 @@ async function main() {
     // notes and the complete artifact; no truncation, automatic retry or deletion.
     const compact = { goal: "Prepare a conditional offline photo-catalogue migration checklist using complete-plan.md; do not execute it.",
       success_criteria: plan.obligations.map((item: { action: string }) => item.action), non_goals: long.non_goals };
-    record("representation-change.json", { author: "deterministic fixture coordinator", changes: "Replace repeated goal/check explanations with explicit obligation statements; full original plan and all eight notes retained.",
-      deselected_sources: [], complete_artifact: artifact, rejected_draft_sha256: hash(draftBytes), revised_definition: compact });
+    const expectedDefinition = normalizeInitialProjectWorkDefinitionV01(compact);
+    record("representation-change.json", { author: "deterministic fixture coordinator", changes: "Replace repeated goal/check explanations with eight explicit obligation statements; cross-cutting review instructions remain in the full original plan and all eight notes are retained.",
+      artifact_retained_review_instructions: explanatoryChecks,
+      deselected_sources: [], complete_artifact: artifact, rejected_draft_sha256: hash(draftBytes),
+      revised_definition: compact, expected_persisted_definition: expectedDefinition });
     const preview = await http("repaired-preview", { ...rejectedDraft, definition: compact });
+    assert.deepEqual(preview.after, expectedDefinition);
     assert.equal(preview.writes, 0); assert(databaseBefore.equals(db!.serialize()));
     const saved = await http("explicit-save", { action: "prepare_result_work", request: preview.request, include_packet_budget_diagnostics: true }, 201);
     const fresh = await http("saved-readback");
-    assert.deepEqual(fresh.work_initialization.current_work, compact);
+    assert.deepEqual(fresh.work_initialization.current_work, expectedDefinition);
     assert.deepEqual(fresh.work_initialization.selected_source_context, comparison.entries);
     assert.equal(fresh.work_initialization.current_packet.packet_id, saved.packet_id);
     assert.equal(fresh.work_initialization.current_packet.packet_fingerprint, saved.packet_fingerprint);

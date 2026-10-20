@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync, mkdirSync, readdirSync, copyFileSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, copyFileSync, existsSync } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -66,13 +66,69 @@ export function assertCompilerBudgetDiagnostics() {
     });
   }
   const unexpected = new RangeError("unrelated compiler input failure");
-  assert.throws(() => buildTaskContextPacketV01({ ...input, get task() { throw unexpected; } }), error => error === unexpected);
+  assert.throws(() => buildTaskContextPacketV01({ ...input, get task(): never { throw unexpected; } }), error => error === unexpected);
   console.log(JSON.stringify({ compiler_budget_diagnostics: "passed", canonical_utf16_units: units,
     canonical_utf8_bytes: Buffer.byteLength(text), code_points: [...text].length, estimated_tokens: estimate,
     boundaries: "exact cap accepted; +2 UTF-16 units / +1 estimated token refused", null_cap_not_zero: true }));
 }
 
+type RepairFailure = { stage: "execution" | "publication" | "settlement" | "cleanup"; error: unknown };
+
+/** Local fixture finalization: publication failure never skips either owner. */
+function finishRepair(owner: ReturnType<typeof createCanonicalTestResourceRoot>, settled: boolean,
+  publish: () => void, failures: RepairFailure[]) {
+  try { publish(); } catch (error) { failures.push({ stage: "publication", error }); }
+  try {
+    if (settled) settleCanonicalTestResourceUse(owner, { exit_observed: true, streams_closed: true,
+      cleanup_completed: true, remaining_owned_processes: 0 });
+  } catch (error) { failures.push({ stage: "settlement", error }); }
+  try {
+    // An unsettled or ambiguous owner remains subject to the stock refusal.
+    const cleanup = cleanupCanonicalTestResources([owner]);
+    console.log(JSON.stringify({ successor_budget_repair_cleanup: cleanup }));
+    assert(cleanup.every((x: { completed: boolean }) => x.completed));
+  } catch (error) { failures.push({ stage: "cleanup", error }); }
+  if (failures.length) throw new AggregateError(failures.map(({ stage, error }) =>
+    new Error(`successor_budget_repair_${stage}_failed`, { cause: error })),
+  "successor_budget_repair_failed", { cause: failures[0]!.error });
+}
+
+async function assertEvidenceWriteFailureCleanup() {
+  const owner = createCanonicalTestResourceRoot("ag-suite-", { shortSocketPaths: true });
+  beginCanonicalTestResourceUse(owner);
+  let settled = true;
+  const failures: RepairFailure[] = [];
+  const primary = new Error("synthetic execution failure retained alongside publication failure");
+  let observed: unknown;
+  try {
+    writeFileSync(path.join(owner.root, "not-a-directory"), "synthetic fixture");
+    settled = false;
+    const result = await runCanonicalChild({ suite: "successor-budget-repair", label: "publication-failure-control",
+      command: process.execPath, args: ["-e", "process.stdout.write('synthetic child completed\\n')"],
+      cwd: process.cwd(), env: buildCanonicalChildEnvironment({ temporaryRoot: owner.root }),
+      timeoutMs: 5_000, resourceOwner: undefined });
+    settled = result.exit_observed && result.streams_closed && result.cleanup_completed && result.remaining_owned_processes === 0;
+    assert.equal(canonicalChildAcceptanceFailure(result, { suite: "successor-budget-repair", timeoutMs: 5_000, requireNaturalExit: true }), null);
+    failures.push({ stage: "execution", error: primary });
+  } catch (error) { failures.push({ stage: "execution", error }); }
+  finally {
+    try {
+      finishRepair(owner, settled, () => writeFileSync(path.join(owner.root, "not-a-directory", "evidence.json"), "{}"), failures);
+    } catch (error) { observed = error; }
+  }
+  assert(observed instanceof AggregateError);
+  assert.equal(observed.cause, primary);
+  assert.deepEqual(failures.map(f => f.stage), ["execution", "publication"]);
+  assert.equal((failures[1]!.error as NodeJS.ErrnoException).code, "ENOTDIR");
+  assert.equal(observed.errors[0].cause, primary);
+  assert.equal(observed.errors[1].cause, failures[1]!.error);
+  assert.equal(existsSync(owner.root), false);
+  console.log(JSON.stringify({ evidence_write_failure_control: "passed", publication_error: "ENOTDIR",
+    primary_error_retained: true, child_settled: settled, owned_root_removed: true }));
+}
+
 export async function assertExplicitArtifactPreservingRepair() {
+  await assertEvidenceWriteFailureCleanup();
   const repo = process.cwd(), owner = createCanonicalTestResourceRoot("ag-suite-", { shortSocketPaths: true });
   beginCanonicalTestResourceUse(owner);
   const hash = (b: Buffer | string) => createHash("sha256").update(b).digest("hex");
@@ -96,6 +152,7 @@ export async function assertExplicitArtifactPreservingRepair() {
       "Review the original inventory and document the applicable branch. Preserve the exact evidence and the reason for any deferred action; a generated checklist does not complete its checks. 한국어 / ASCII / 😀 / \"quoted\\\\name\".\n".repeat(5)).join("\n");
   let settled = true, completed = false;
   const children: unknown[] = [];
+  const failures: RepairFailure[] = [];
   try {
     mkdirSync(path.join(owner.root, "project"));
     mkdirSync(path.join(owner.root, "home"));
@@ -107,12 +164,13 @@ export async function assertExplicitArtifactPreservingRepair() {
         b.onLoad({ filter: /\.(?:mjs|ts)$/ }, async args => ({ contents: readFileSync(args.path, "utf8")
           .replaceAll("import.meta.url", JSON.stringify(pathToFileURL(args.path).href)), loader: args.path.endsWith(".ts") ? "ts" : "js" }));
       } }] });
-    const env: NodeJS.ProcessEnv = { ...buildCanonicalChildEnvironment({ temporaryRoot: owner.root }), NODE_PATH: path.join(repo, "node_modules") };
+    const env: NodeJS.ProcessEnv = { ...buildCanonicalChildEnvironment({ temporaryRoot: owner.root }),
+      NODE_ENV: "test", NODE_PATH: path.join(repo, "node_modules") };
     delete env.OPENAI_API_KEY;
     for (const mode of ["produce", "consume"]) {
       settled = false;
       const result = await runCanonicalChild({ suite: "successor-budget-repair", label: mode, command: process.execPath,
-        args: [bundle, mode, owner.root], cwd: repo, env, timeoutMs: 30_000 });
+        args: [bundle, mode, owner.root], cwd: repo, env, timeoutMs: 30_000, resourceOwner: undefined });
       children.push(result);
       settled = result.exit_observed && result.streams_closed && result.cleanup_completed && result.remaining_owned_processes === 0;
       assert.equal(canonicalChildAcceptanceFailure(result, { suite: "successor-budget-repair", timeoutMs: 30_000, requireNaturalExit: true }), null);
@@ -137,22 +195,21 @@ export async function assertExplicitArtifactPreservingRepair() {
       actual_file_bytes: Buffer.byteLength(full), full_plan_sha256: hash(full), packet_budget: producer.packet_budget,
       retained_notes: producer.retained_notes, producer_settled_before_fresh_consumer: true,
       consumption: "scripted", representation_author: "fixture coordinator", model_use: "NOT_RUN", comparative_usefulness: "NOT_RUN" }));
-  } finally {
-    const index = process.argv.indexOf("--evidence-dir");
-    if (index >= 0) {
-      const destination = path.resolve(process.argv[index + 1]!);
-      assert(destination.startsWith(path.join(repo, ".augnes-local-verification") + path.sep));
-      mkdirSync(destination, { recursive: true });
-      // Explicit synthetic evidence allowlist. Never copy session, access config,
-      // database, compiled bundle, provider payload or broad process transcript.
-      for (const name of readdirSync(owner.root).filter(n => /^(?:produce-|consume-|producer-result|consumer-output|obligation-map|representation-change|rejected-draft|next-work-checklist).*\.(?:json|md)$/u.test(n)))
-        copyFileSync(path.join(owner.root, name), path.join(destination, name));
-      copyFileSync(path.join(owner.root, "project", "complete-plan.md"), path.join(destination, "complete-plan.md"));
-      writeFileSync(path.join(destination, "process-results.json"), JSON.stringify({ completed, children }, null, 2) + "\n");
-    }
-    if (settled) settleCanonicalTestResourceUse(owner, { exit_observed: true, streams_closed: true, cleanup_completed: true, remaining_owned_processes: 0 });
-    const cleanup = cleanupCanonicalTestResources([owner]);
-    console.log(JSON.stringify({ successor_budget_repair_cleanup: cleanup }));
-    assert(cleanup.every((x: { completed: boolean }) => x.completed));
+  } catch (error) { failures.push({ stage: "execution", error }); }
+  finally {
+    finishRepair(owner, settled, () => {
+      const index = process.argv.indexOf("--evidence-dir");
+      if (index >= 0) {
+        const destination = path.resolve(process.argv[index + 1]!);
+        assert(destination.startsWith(path.join(repo, ".augnes-local-verification") + path.sep));
+        mkdirSync(destination, { recursive: true });
+        // Explicit synthetic evidence allowlist. Never copy session, access config,
+        // database, compiled bundle, provider payload or broad process transcript.
+        for (const name of readdirSync(owner.root).filter(n => /^(?:produce-|consume-|producer-result|consumer-output|obligation-map|representation-change|rejected-draft|next-work-checklist).*\.(?:json|md)$/u.test(n)))
+          copyFileSync(path.join(owner.root, name), path.join(destination, name));
+        copyFileSync(path.join(owner.root, "project", "complete-plan.md"), path.join(destination, "complete-plan.md"));
+        writeFileSync(path.join(destination, "process-results.json"), JSON.stringify({ completed, children }, null, 2) + "\n");
+      }
+    }, failures);
   }
 }
