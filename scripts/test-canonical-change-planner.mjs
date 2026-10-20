@@ -3,8 +3,11 @@
 import assert from "node:assert/strict";
 import {
   chmodSync,
+  cpSync,
+  lstatSync,
   mkdtempSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -37,6 +40,7 @@ import { buildPhasePlan } from "./run-local-canonical-verification.mjs";
 const temporaryRoot = mkdtempSync(path.join(tmpdir(), "ag-planner-"));
 const results = [];
 const comparisons = [];
+const repositorySeeds = new Map();
 const projectExperienceVerificationPaths = [
   "scripts/browser-validate-project-experience-v1.mjs",
   "scripts/project-experience-browser-fixture-v1.ts",
@@ -680,6 +684,7 @@ try {
   runIncomingReferenceCases();
   runDocumentationValidatorCases();
   runMarkdownAnchorBoundaryCases();
+  runRepositoryIsolationCase();
 
   console.log(
     JSON.stringify(
@@ -768,7 +773,31 @@ function runPlanCase(name, expectedPlan, mutate, expected = {}) {
 }
 
 function createRepository(name, seedProjectVerification = true) {
+  const seed = repositorySeed(seedProjectVerification);
   const cwd = path.join(temporaryRoot, name);
+  // Copy all Git storage as ordinary files: each case owns its index, refs,
+  // configuration and objects, including subsequent real Git mutations.
+  cpSync(seed.cwd, cwd, { recursive: true, force: false, errorOnExist: true });
+  return {
+    cwd,
+    baseSha: seed.baseSha,
+    write: (relativePath, content) => write(cwd, relativePath, content),
+    remove: (relativePath) => unlinkSync(path.join(cwd, relativePath)),
+    rename: (from, to) => {
+      mkdirSync(path.dirname(path.join(cwd, to)), { recursive: true });
+      git(cwd, ["mv", from, to]);
+    },
+    chmod: (relativePath, mode) => chmodSync(path.join(cwd, relativePath), mode),
+    symlink: (target, relativePath) => {
+      mkdirSync(path.dirname(path.join(cwd, relativePath)), { recursive: true });
+      symlinkSync(target, path.join(cwd, relativePath));
+    },
+  };
+}
+
+function repositorySeed(seedProjectVerification) {
+  if (repositorySeeds.has(seedProjectVerification)) return repositorySeeds.get(seedProjectVerification);
+  const cwd = path.join(temporaryRoot, "repository-seeds", String(seedProjectVerification));
   mkdirSync(cwd, { recursive: true });
   git(cwd, ["init", "--quiet"]);
   git(cwd, ["config", "user.email", "local-canonical@example.invalid"]);
@@ -798,21 +827,81 @@ function createRepository(name, seedProjectVerification = true) {
   }
   commitAll(cwd, "base");
   const baseSha = git(cwd, ["rev-parse", "HEAD"]).trim();
-  return {
-    cwd,
-    baseSha,
-    write: (relativePath, content) => write(cwd, relativePath, content),
-    remove: (relativePath) => unlinkSync(path.join(cwd, relativePath)),
-    rename: (from, to) => {
-      mkdirSync(path.dirname(path.join(cwd, to)), { recursive: true });
-      git(cwd, ["mv", from, to]);
-    },
-    chmod: (relativePath, mode) => chmodSync(path.join(cwd, relativePath), mode),
-    symlink: (target, relativePath) => {
-      mkdirSync(path.dirname(path.join(cwd, relativePath)), { recursive: true });
-      symlinkSync(target, path.join(cwd, relativePath));
-    },
+  const seed = { cwd, baseSha };
+  repositorySeeds.set(seedProjectVerification, seed);
+  return seed;
+}
+
+function runRepositoryIsolationCase() {
+  const left = createRepository("fixture-isolation-left");
+  const right = createRepository("fixture-isolation-right");
+  const withVerification = repositorySeed(true);
+  const withoutVerification = repositorySeed(false);
+  const baselinePaths = (seed) => git(seed.cwd, ["ls-tree", "-r", "--name-only", seed.baseSha]).trim().split("\n");
+  const extraPaths = [
+    ...projectExperienceVerificationPaths,
+    "scripts/test-codex-augnes-user-hook-migration.mjs",
+  ].sort();
+  assert.deepEqual(baselinePaths(withVerification),
+    [...baselinePaths(withoutVerification), ...extraPaths].sort());
+  for (const relativePath of extraPaths) {
+    assert.equal(readFileSync(path.join(withVerification.cwd, relativePath), "utf8"), "export const baseline = true;\n");
+  }
+
+  const fileIdentities = new Set();
+  const snapshot = (cwd, checkStorage = false) => {
+    const entries = [];
+    const visit = (relativePath) => {
+      const target = path.join(cwd, relativePath);
+      const stat = lstatSync(target);
+      assert.ok(stat.isDirectory() || stat.isFile(), `real fixture storage: ${target}`);
+      if (stat.isFile() && checkStorage) {
+        assert.equal(stat.nlink, 1, `no hard links: ${target}`);
+        const identity = `${stat.dev}:${stat.ino}`;
+        assert.ok(!fileIdentities.has(identity), `independent files: ${target}`);
+        fileIdentities.add(identity);
+      }
+      entries.push({
+        path: relativePath, mode: stat.mode,
+        bytes: stat.isFile() ? readFileSync(target).toString("base64") : null,
+      });
+      if (stat.isDirectory()) {
+        for (const name of readdirSync(target).sort()) visit(path.join(relativePath, name));
+      }
+    };
+    visit("");
+    assert.ok(lstatSync(path.join(cwd, ".git")).isDirectory());
+    assert.ok(!entries.some(entry => entry.path === path.join(".git", "objects", "info", "alternates")));
+    return entries;
   };
+  const leftBefore = snapshot(left.cwd, true);
+  const rightBefore = snapshot(right.cwd, true);
+  const seedBefore = snapshot(withVerification.cwd, true);
+  const otherSeedBefore = snapshot(withoutVerification.cwd, true);
+  assert.deepEqual(leftBefore, seedBefore, "copied baseline bytes and modes");
+  assert.deepEqual(rightBefore, seedBefore, "second copied baseline bytes and modes");
+  assert.equal(git(left.cwd, ["rev-parse", "HEAD"]).trim(), withVerification.baseSha);
+  assert.equal(right.baseSha, withVerification.baseSha);
+
+  git(left.cwd, ["config", "--local", "fixture.isolation", "left"]);
+  git(left.cwd, ["checkout", "--quiet", "-b", "fixture-isolation"]);
+  left.write("README.md", "# Changed in left only\n");
+  left.write("isolation.txt", "Independent object and working tree\n");
+  commitAll(left.cwd, "isolation mutation");
+  assert.notEqual(git(left.cwd, ["rev-parse", "HEAD"]).trim(), left.baseSha);
+  left.write("README.md", "# Staged after the independent commit\n");
+  git(left.cwd, ["add", "README.md"]);
+  const leftAfter = snapshot(left.cwd);
+  for (const relativePath of ["README.md", ".git/config", ".git/index", ".git/HEAD"]) {
+    const key = relativePath.split("/").join(path.sep);
+    assert.notDeepEqual(leftAfter.find(entry => entry.path === key),
+      leftBefore.find(entry => entry.path === key), `mutation reached ${relativePath}`);
+  }
+  assert.ok(leftAfter.some(entry => entry.path === path.join(".git", "refs", "heads", "fixture-isolation")));
+  assert.deepEqual(snapshot(right.cwd), rightBefore, "other case unchanged");
+  assert.deepEqual(snapshot(withVerification.cwd), seedBefore, "full seed unchanged");
+  assert.deepEqual(snapshot(withoutVerification.cwd), otherSeedBefore, "minimal seed unchanged");
+  results.push("repository-seed-flavors-and-copy-isolation");
 }
 
 function runDocumentationValidatorCases() {
