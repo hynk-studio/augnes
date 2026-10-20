@@ -7,18 +7,31 @@ unresolved judgments, and next meaningful actions of long-horizon work, and
 projects the same product meaning into the host-native interfaces where the
 user is already working.
 
+Its broader aim is continuous, user-owned problem solving: later work should
+be able to reuse, combine, revise or decline methods in light of checked
+outcomes and changed conditions. This is a product direction, **not** a claim
+that autonomous method learning has already shipped.
+
 The product invariant is the continuity of meaning, not the replication of one
 interface. The product is continuous work, not a collection of surfaces.
 
 **Resume / Verify / Decide.**
 
-[Try a method without setup](#try-a-method-without-setup) ·
+[Try a method without installing Augnes](#try-a-method-without-setup) ·
 [Why Augnes](#why-augnes) · [What works today](#what-works-today) · [Quickstart](#quickstart) ·
 [Product direction](#product-direction) ·
 [Authority](#repository-authority) ·
 [Verification](#canonical-verification)
 
 ## Try a method without setup
+
+**Without installing Augnes does not mean zero prerequisites.** This small,
+optional workflow-cost calculator estimates **expected total work** for repeated
+attempts from supplied success probabilities and attempt, mandatory verification,
+repair and optional inspection costs. You still need to download and verify the
+files and have Python 3.9+ with permission to run them, or separately install
+the Codex Skill on a supported host. The calculator does **not** learn rates,
+guarantee deadlines or replace Augnes's local work-continuity runtime.
 
 **Public component preview:** [Augnes workflow-cost Skill/plugin 0.1.0](https://github.com/hynk-studio/augnes/releases/tag/augnes-workflow-cost-v0.1.0) is now available as a **Pre-release**. [Download the complete ZIP](https://github.com/hynk-studio/augnes/releases/download/augnes-workflow-cost-v0.1.0/augnes-workflow-cost-0.1.0.zip) · [Verify and load the Skill](docs/PUBLIC_ASSET_SKILL_USAGE.md). This is not a general Augnes application release, a universal plugin-directory listing or a stable cross-host compatibility claim.
 
