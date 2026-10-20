@@ -145,10 +145,13 @@ or proof of ordinary-profile adoption.
 | Actual use | Worker incorporates a real calculation into its answer; invoking a tool alone is insufficient. |
 | Later use | Another task reads ordinary output/files, rechecks applicability and makes its own useful judgment. |
 
-Source completion, public listing, connection, discovery, actual use, comparative
-benefit and repeat use have separate states. The source PR may finish with an
-explicit operational gate, but #1447's full public-distribution objective then
-remains open. The exact package identity, observed host/version, activation,
-outputs, exposure, failed/NOT_RUN steps and next action belong in that PR and
-the issue progress record. Raw logs, model transcripts and local verification
-receipts remain local unless separately authorized for publication.
+Source completion, published public download, catalog listing, connection,
+discovery, actual use, comparative benefit and repeat use remain distinct.
+The scoped public component **Pre-release distribution was accepted on
+2026-10-20**; see [#1447's final independent review](https://github.com/hynk-studio/augnes/issues/1447#issuecomment-6284432330).
+Broader #1447 work on discoverability, independently initiated use and later
+agent re-entry remains open; public release alone does not prove those outcomes.
+Preserve exact package identity, host/version, exposure, outputs, non-use and
+unobserved benefits with their original evidence. Generated raw logs, model
+transcripts and local verification receipts remain local unless publication
+is separately authorized.
