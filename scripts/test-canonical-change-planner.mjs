@@ -686,6 +686,7 @@ try {
   runDocumentationValidatorCases();
   runMarkdownAnchorBoundaryCases();
   runCanonicalRevisionReaderCases();
+  runCanonicalRevisionPathEncodingCases();
   runRepositoryIsolationCase();
 
   console.log(
@@ -1005,6 +1006,64 @@ function runCanonicalRevisionReaderCases() {
   assert.throws(() => planCanonicalChange({ ...request, eventName: "pull_request" }), /git cat-file failed/u);
   assert.throws(() => validateCanonicalDocumentationChange(request), /git cat-file failed/u);
   results.push("revision-reader-public-calls-readmit-and-validator-replans");
+}
+
+function runCanonicalRevisionPathEncodingCases() {
+  const repository = createRepository("revision-reader-path-encoding", false);
+  const files = ["docs/replacement-\uFFFD.md", "docs/雪.md"];
+  for (const file of files) repository.write(file, "# Unicode\n\nBefore.\n");
+  commitAll(repository.cwd, "valid Unicode paths");
+  const before = git(repository.cwd, ["rev-parse", "HEAD"]).trim();
+  for (const file of files) repository.write(file, "# Unicode\n\nAfter.\n");
+  commitAll(repository.cwd, "valid Unicode changes");
+  const after = git(repository.cwd, ["rev-parse", "HEAD"]).trim();
+  const reader = createCanonicalRevisionReader(repository.cwd);
+  for (const revision of [before, after]) {
+    for (const file of files) {
+      assert.equal(reader.read(revision, file), git(repository.cwd, ["show", `${revision}:${file}`]));
+      assert.equal(reader.tree(revision).get(file).mode, "100644");
+    }
+  }
+  const valid = { cwd: repository.cwd, baseSha: before, headSha: after };
+  const plan = planCanonicalChange({ ...valid, eventName: "pull_request" });
+  assert.equal(plan.plan, "documentation-only");
+  assert.deepEqual([...plan.changed_paths].sort(), [...files].sort());
+  assert.equal(validateCanonicalDocumentationChange(valid).status, "pass");
+  results.push("revision-reader-valid-replacement-character-and-Unicode-public-operations");
+
+  if (process.platform !== "win32") {
+    // Write an actual Git index entry with raw filename bytes. This avoids
+    // depending on whether the host filesystem accepts that filename.
+    const rawPath = Buffer.from("646f63732f61ff2e6d64", "hex");
+    const replacement = "docs/a\uFFFD.md";
+    assert.notDeepEqual(rawPath, Buffer.from(replacement));
+    const oid = git(repository.cwd, ["rev-parse", `${after}:${files[0]}`]).trim();
+    const indexed = spawnSync("git", ["update-index", "-z", "--index-info"], {
+      cwd: repository.cwd, timeout: 30_000, maxBuffer: 8 * 1024 * 1024,
+      input: Buffer.concat([Buffer.from(`100644 ${oid}\t`), rawPath, Buffer.from([0])]),
+    });
+    assert.ifError(indexed.error);
+    assert.equal(indexed.status, 0, indexed.stderr.toString());
+    git(repository.cwd, ["commit", "--quiet", "-m", "raw non-UTF-8 Git path"]);
+    const invalid = git(repository.cwd, ["rev-parse", "HEAD"]).trim();
+    const listing = spawnSync("git", ["ls-tree", "-r", "-z", invalid], {
+      cwd: repository.cwd, timeout: 30_000, maxBuffer: 8 * 1024 * 1024,
+    });
+    assert.ifError(listing.error);
+    assert.equal(listing.status, 0, listing.stderr.toString());
+    assert(listing.stdout.includes(Buffer.concat([Buffer.from("\t"), rawPath, Buffer.from([0])])));
+    assert.throws(() => git(repository.cwd, ["show", `${invalid}:${replacement}`]), /git show .* failed/u);
+    const refusal = /non-UTF-8 path bytes/u;
+    assert.throws(() => reader.read(invalid, replacement), refusal);
+    assert.throws(() => reader.tree(invalid), refusal, "no partially decoded tree was cached");
+    assert.equal(reader.read(after, files[0]), "# Unicode\n\nAfter.\n");
+    for (const [baseSha, headSha, label] of [[after, invalid, "head"], [invalid, after, "base"]]) {
+      const request = { cwd: repository.cwd, baseSha, headSha };
+      assert.throws(() => planCanonicalChange({ ...request, eventName: "pull_request" }), refusal);
+      assert.throws(() => validateCanonicalDocumentationChange(request), refusal);
+      results.push(`revision-reader-invalid-UTF-8-${label}-public-operations-refuse`);
+    }
+  }
 }
 
 function runDocumentationValidatorCases() {

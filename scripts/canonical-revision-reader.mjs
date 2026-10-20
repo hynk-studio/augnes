@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { isUtf8 } from "node:buffer";
 import { createHash } from "node:crypto";
 import path from "node:path";
 
@@ -28,6 +29,10 @@ export function createCanonicalRevisionReader(cwd) {
     // -l supplies object sizes so batches can be bounded before reading content.
     const output = git(root, ["ls-tree", "-r", "-t", "-l", "-z", "--full-tree", revision]);
     const entries = new Map();
+    // A decoded lookup key must retain the literal Git path's byte identity.
+    // Reject invalid encodings before publishing any entries; a genuine UTF-8
+    // U+FFFD filename remains valid and distinct from replacement decoding.
+    if (!isUtf8(output)) throw new Error("canonical revision tree contains non-UTF-8 path bytes");
     if (output.length && output.at(-1) !== 0) throw new Error("malformed canonical revision tree");
     for (const row of output.toString("utf8").split("\0").filter(Boolean)) {
       const match = row.match(/^(\d{6}) (blob|tree|commit) ([0-9a-f]{40}) +(-|0|[1-9]\d*)\t([\s\S]+)$/u);
