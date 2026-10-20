@@ -1,47 +1,45 @@
 # Augnes
 
-*Continuous perspective for long-horizon, AI-assisted work.*
+*Long-horizon work continuity for people and AI agents.*
 
 Augnes maintains the state, temporal lineage, evidence, perspectives,
 unresolved judgments, and next meaningful actions of long-horizon work, and
 projects the same product meaning into the host-native interfaces where the
 user is already working.
 
+Its broader aim is continuous, user-owned problem solving: later work should
+be able to reuse, combine, revise or decline methods in light of checked
+outcomes and changed conditions. This is a product direction, **not** a claim
+that autonomous method learning has already shipped.
+
 The product invariant is the continuity of meaning, not the replication of one
 interface. The product is continuous work, not a collection of surfaces.
 
 **Resume / Verify / Decide.**
 
-[Why Augnes](#why-augnes) · [What works today](#what-works-today) ·
-[Try a method without setup](#try-a-method-without-setup) · [Quickstart](#quickstart) ·
+[Try a method without installing Augnes](#try-a-method-without-setup) ·
+[Why Augnes](#why-augnes) · [What works today](#what-works-today) · [Quickstart](#quickstart) ·
 [Product direction](#product-direction) ·
 [Authority](#repository-authority) ·
 [Verification](#canonical-verification)
 
 ## Try a method without setup
 
-[Is optional inspection worth the work?](publications/workflow-cost-v1/README.md)
-is a standalone workflow-cost method for agents with Python 3.9+ and permission
-to execute locally. Read its inputs and limits, download the manifest and all
-four listed files, verify their identities, and run in your own harness. No Augnes
-installation, project, Companion, account or private-work upload is needed.
-Reading and leaving with the result is a supported use.
+**Without installing Augnes does not mean zero prerequisites.** This small,
+optional workflow-cost calculator estimates **expected total work** for repeated
+attempts from supplied success probabilities and attempt, mandatory verification,
+repair and optional inspection costs. You still need to download and verify the
+files and have Python 3.9+ with permission to run them, or separately install
+the Codex Skill on a supported host. The calculator does **not** learn rates,
+guarantee deadlines or replace Augnes's local work-continuity runtime.
 
-The same directory contains a [no-JavaScript HTML entry](publications/workflow-cost-v1/index.html)
-and every required file for ordinary static hosting. Anonymous GitHub delivery
-and project-free calculation were [accepted under #1422/#1423](https://github.com/hynk-studio/augnes/issues/1209#issuecomment-6059444075);
-the pinned release's earlier development-only paragraph retains its original
-evidence scope. New publication destinations remain separate operations. See the
-[source and publication instructions](scripts/executable-reuse/README.md#public-static-delivery)
-for reproducibility and the bounded consumer check.
+**Public component preview:** [Augnes workflow-cost Skill/plugin 0.1.0](https://github.com/hynk-studio/augnes/releases/tag/augnes-workflow-cost-v0.1.0) is now available as a **Pre-release**. [Download the complete ZIP](https://github.com/hynk-studio/augnes/releases/download/augnes-workflow-cost-v0.1.0/augnes-workflow-cost-0.1.0.zip) · [Verify and load the Skill](docs/PUBLIC_ASSET_SKILL_USAGE.md). This is not a general Augnes application release, a universal plugin-directory listing or a stable cross-host compatibility claim.
 
-Code-capable Codex users can also use the
-[stationary retry-work Skill package](docs/PUBLIC_ASSET_SKILL_USAGE.md).
-It adds a task-described catalog entry, the complete unchanged public material,
-an integrity check and ordinary output references for later tasks. This is a
-source/local-catalog candidate, not a stable release or public-directory listing.
-Host installation is a separate user/admin action; ordinary web/file use above
-requires no plugin. It does not connect the private Augnes Operator or Companion.
+It packages the unchanged **workflow-cost method 1.0.0** and a local Codex catalog. The ZIP is **38,254 bytes**, SHA-256 `082789624f70a1feaca11c4e4fa852f8d6a505caf45d3e2e572df5f40fa8c59d`. Check the archive and enclosed material before execution. The isolated loading observation covers **macOS 26.6.2 arm64 / Codex CLI 0.153.4** only. Installing a Skill requires an explicit user/admin choice of profile; it does not install the private Augnes Operator or Companion.
+
+**No plugin required:** [Is optional inspection worth the work?](publications/workflow-cost-v1/README.md) is also a standalone Python 3.9+ method for agents permitted to execute code. Download its manifest and all four listed files, verify their identities, and run in your own harness. A [no-JavaScript HTML entry](publications/workflow-cost-v1/index.html) is available as static source material; that does not establish a separately hosted service. For simple tasks, direct calculation or non-use may be appropriate.
+
+**Using Augnes itself:** The local-first project/work continuity runtime, installed Companion, and repository Operator are separate from this public calculator component. See the [supported local Quickstart](#quickstart) and its platform and authority limits.
 
 ## Why Augnes
 
