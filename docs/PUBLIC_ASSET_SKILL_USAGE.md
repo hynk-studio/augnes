@@ -36,6 +36,33 @@ safety or publisher authentication. The archive holds exactly nine public
 plugin files and a minimal local catalog, without private Operator files,
 credentials, transcripts or generated receipts.
 
+### First calculation with Python (no plugin installation)
+
+After the successful bundled-material check above, your shell is in
+`workflow-cost-bundle/plugins/augnes-workflow-cost/skills/stationary-retry-work`.
+Run the verified calculator from its **own material directory**, where
+`workflow_cost.py` and the required `exact_linear.py` are together:
+
+```sh
+cd assets/workflow-cost-v1
+python3 -E -s -S -B workflow_cost.py \
+  --attempt 10 --verification 2 --repair 4 \
+  --direct-success 2/5 --inspection 1 --inspected-success 4/5
+```
+
+The example JSON reports `workflows.direct.expected_work` as `"36"`,
+`workflows.inspected.expected_work` as `"69/4"`,
+`inspection_minus_direct` as `"-75/4"`, and
+`comparison` as `"inspection_reduces_work"`. These are **exact calculations
+under constructed assumptions**, not measured productivity gains. All costs
+must use one additive unit; the success probabilities are stipulated, optional
+inspection happens **before every inspected attempt including retries**, and
+mandatory verification remains part of both workflows. This expectation is
+not a deadline guarantee. Python's isolation flags do not sandbox execution.
+
+The standalone [method README](../publications/workflow-cost-v1/README.md)
+explains the numerical limits and when a direct recurrence or non-use is better.
+
 ## Optional Codex Skill loading
 
 Inspect `codex plugin --help` on the actual host first. The observed isolated
@@ -71,30 +98,26 @@ later reuse and comparative benefit are separate observations.
 
 ### Candidate and intended observation
 
-Recorded before evaluating this entry: use the historical public question
+The original developer-authored case used the historical public question
 [How long does it take](https://math.stackexchange.com/questions/692846/how-long-does-it-take)
-(user1769184, 2014-02-27). Its stipulated serial process spends one minute per
-job, succeeds with probability 0.98, and restarts the whole sequence after a
-failure. Produce an exact expected-work answer for two and eight consecutive
-successes, with source and assumptions a later worker can use. These are small
-instances of the question, selected by the developer; the public question is
-real, but this is not a newly arriving customer or an observed production rate.
-Do not post an answer to that site as part of this exercise.
+(user1769184, 2014-02-27). That question stipulated one minute per job,
+0.98 success probability and a full sequence restart after failure. The
+bounded exercise requested exact expected work for two and eight consecutive
+successes, with reusable source and assumptions. Those sizes were selected by
+the developer, not a newly arriving customer; the probability was stipulated,
+not observed, and posting to the external site was outside the exercise.
 
-The optional-inspection CLI does **not** directly model a sequence restarting
-after a partial success. The existing 1–8-state `expected_work` callable does,
-with progress as the finite state and fixed costs/probabilities on every visit.
-No empirical inspection benefit or Canonical failure rate is inferred. Additional
-verification work absent from the question remains unpriced; this mathematical
-answer does not authorize omitting a required check in real work.
+The optional-inspection CLI could not directly represent a sequence restarting
+after partial progress; the already supplied 1–8-state `expected_work`
+callable represented progress as finite states with fixed visit costs and
+transition probabilities. The exercise did not establish inspection benefit,
+Canonical failure rates or permission to skip unpriced mandatory checks.
 
-The strongest ordinary alternative is a direct renewal recurrence/closed form,
-with the same public question, Python and exact fractions available. It can
-answer this simple question without downloading a package. The expected gap is
-not missing mathematics: the public App and existing private Operator/continuity
-plugins do not provide this code-capable task entry with complete executable
-material. The old exact-link HTTP delivery is already accepted under
-[#1422/#1423](https://github.com/hynk-studio/augnes/issues/1209#issuecomment-6059444075).
+A direct recurrence or closed form was a strong ordinary alternative using
+the same information and Python. The purpose of the package trial was a
+code-capable, inspectable task entry with complete material, **not** a claim
+of new mathematics or superior work. Earlier exact-link delivery had its
+separate [#1422/#1423 acceptance](https://github.com/hynk-studio/augnes/issues/1209#issuecomment-6059444075).
 
 The separate synthetic successor considered a **nine jobs within ten minutes
 with at least 95% completion probability** promise using the first output and
@@ -108,8 +131,8 @@ discovery, a matched comparison or measured savings.
 The recorded native writer/later-worker observations used supplied catalog
 candidates and known case genealogy. They did not test organic search rank,
 independent users, host recommendations, superiority or measured savings.
-Keep historical failures and non-use separate; do not rerun unchanged cases to
-obtain preferred outcomes.
+The original failures, non-use outcomes and one-run limitations remain
+historical evidence; no repeated case is required of a new consumer.
 
 ## Package and activate
 
