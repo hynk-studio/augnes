@@ -62,9 +62,14 @@ function readNotes(sources) {
           source.trust_class !== "derived_interpretation" || source.source_locator !== PREFIX + digest(value).slice(7) ||
           source.observed_at !== value.cutoff || !Number.isFinite(Date.parse(value.cutoff))) throw new Error();
       if (value.kind === "choice") {
-        keys(value, ["profile", "kind", "cutoff", "basis", "judgment"]); judgment(value.judgment);
+        keys(value, ["profile", "kind", "cutoff", "basis", "judgment"], ["previous"]); judgment(value.judgment);
         keys(value.basis, ["packet", "definition", "sources"]);
         if (!ref(value.basis.packet) || !ref(value.basis.definition) || !Array.isArray(value.basis.sources) || value.basis.sources.length > 8 || new Set(value.basis.sources).size !== value.basis.sources.length || value.basis.sources.some(r => !ref(r))) throw new Error();
+        if (value.previous !== undefined) {
+          keys(value.previous, ["choice_note", "assessment_note", "reason"]);
+          if (!ref(value.previous.choice_note) || !ref(value.previous.assessment_note) || value.previous.choice_note === value.previous.assessment_note) throw new Error();
+          text(value.previous.reason);
+        }
       } else {
         keys(value, ["profile", "kind", "cutoff", "choice_ref", "basis_packet", "assessment", "review_status"]);
         assessment(value.assessment);
@@ -97,14 +102,58 @@ async function requestsForChoice(review, connection, choiceRef) {
   return { status: "lookup_limit", requests, reason: "execution_choice_review_lookup_limit" };
 }
 
+// Exactly two authored note locators, resolved by the existing eligible-history
+// owner. No search expansion, recursive chain, new store or inferred latest pair.
+async function retainedPair(previous, args, current, lookupRetained) {
+  if (!lookupRetained) fail("execution_choice_previous_unavailable");
+  const hits = [];
+  for (const fingerprint of [previous.choice_note, previous.assessment_note]) {
+    const locator = PREFIX + fingerprint.slice(7);
+    const result = await lookupRetained({ repositoryRoot: args.repositoryRoot, expectedSnapshotBinding: args.expectedSnapshotBinding, query: locator });
+    if (result.status !== "available" || result.packet_fingerprint !== current.packet_fingerprint || result.lookup.truncated)
+      fail("execution_choice_previous_unavailable");
+    const matching = result.lookup.results.filter(hit => hit.note.source_locator === locator);
+    if (matching.length !== 1) fail("execution_choice_previous_ambiguous");
+    hits.push(matching[0]);
+  }
+  const pair = readNotes(hits.map(hit => hit.note));
+  if (!pair.choice || !pair.followup || pair.choice.source.source_binding !== hits[0].note.source_binding ||
+      pair.followup.source.source_binding !== hits[1].note.source_binding || pair.choice.value.previous)
+    fail("execution_choice_previous_ambiguous");
+  return { ...pair, hits };
+}
+
+async function assessedBasis(pair, current, review, contribution) {
+  const { choice, followup } = pair;
+  const selected = choice.value.judgment.alternatives.find(o => o.arrangement === choice.value.judgment.chosen);
+  const requestRef = followup.value.assessment.request_ref;
+  if (!selected.review_connection || !requestRef || followup.value.review_status !== "returned")
+    fail("execution_choice_assessed_contribution_required");
+  const requests = contribution ?? await requestsForChoice(review, selected.review_connection, choice.source.source_binding);
+  if (requests.status !== "available" || !requests.requests.some(r => r.request_ref === requestRef && r.response_ref))
+    fail("execution_choice_previous_request_unavailable");
+  // Reuse #1488's authenticated original-basis/current reassessment: it owns
+  // same project, registered/physical root, effective direction and task segment.
+  const reassessment = await review({ action: "reassess", connection_ref: selected.review_connection, request_ref: requestRef });
+  if (reassessment.status !== "available" || reassessment.current.packet_ref !== current.packet_fingerprint ||
+      reassessment.current.snapshot_binding !== current.snapshot_binding ||
+      digest(reassessment.current.definition) !== digest(current.work_definition) ||
+      choice.value.basis.definition !== digest(current.work_definition) ||
+      !reassessment.original.sources.some(s => s.source_binding === choice.source.source_binding && s.excerpt_text === choice.source.excerpt_text))
+    fail("execution_choice_previous_basis_changed");
+  return { contribution: requests, reassessment };
+}
+
 /** readSources and review are the authenticated production transports, not a
  * model, file fetcher or execution callback. Every branch is preparation only. */
-export async function prepareExecutionChoice(args, { readSources, review }) {
+export async function prepareExecutionChoice(args, { readSources, review, lookupRetained = undefined }) {
   try {
-    keys(args, ["action", "repositoryRoot", "expectedSnapshotBinding"], ["judgment", "participation", "assessment"]);
-    if (typeof args.repositoryRoot !== "string" || !path.isAbsolute(args.repositoryRoot) || !ref(args.expectedSnapshotBinding) || !["read", "choose", "participate", "assess"].includes(args.action)) fail("invalid_execution_choice_input");
-    const payload = { choose: "judgment", participate: "participation", assess: "assessment" }[args.action];
+    keys(args, ["action", "repositoryRoot", "expectedSnapshotBinding"], ["judgment", "participation", "assessment", "reason"]);
+    if (typeof args.repositoryRoot !== "string" || !path.isAbsolute(args.repositoryRoot) || !ref(args.expectedSnapshotBinding) || !["read", "choose", "reconsider", "participate", "assess"].includes(args.action)) fail("invalid_execution_choice_input");
+    const payload = { choose: "judgment", reconsider: "judgment", participate: "participation", assess: "assessment" }[args.action];
     if (Object.keys(args).some(k => ["judgment", "participation", "assessment"].includes(k) && k !== payload) || (payload && !Object.hasOwn(args, payload))) fail("invalid_execution_choice_input");
+    if (args.action === "reconsider") text(args.reason);
+    else if (Object.hasOwn(args, "reason")) fail("invalid_execution_choice_input");
     const current = await readSources({ repositoryRoot: args.repositoryRoot, expectedSnapshotBinding: args.expectedSnapshotBinding, includeWorkDefinition: true });
     if (current.status !== "available") return response(current.status, { reason: current.reason, next_action: "Read current work again; no replacement basis or save was prepared." });
     const sources = current.sources;
@@ -118,6 +167,19 @@ export async function prepareExecutionChoice(args, { readSources, review }) {
     const contribution = selected?.review_connection
       ? await requestsForChoice(review, selected.review_connection, choice.source.source_binding)
       : { status: "not_requested", requests: [] };
+    let previous = null;
+    if (choice?.value.previous) {
+      const pair = await retainedPair(choice.value.previous, args, current, lookupRetained);
+      if (Date.parse(pair.followup.value.cutoff) > Date.parse(choice.value.cutoff) ||
+          Date.parse(pair.choice.value.cutoff) > Date.parse(pair.followup.value.cutoff))
+        fail("execution_choice_previous_ambiguous");
+      const basis = await assessedBasis(pair, current, review);
+      previous = { choice: pair.hits[0], assessment: pair.hits[1], reason: choice.value.previous.reason,
+        unfinished: pair.followup.value.assessment.unfinished, ...basis,
+        result_material: { source_refs: pair.followup.value.assessment.result_refs,
+          status: pair.followup.value.assessment.result_refs.every(r => sources.some(s => s.source_binding === r)) ? "selected" : "historical_not_selected" },
+        meaning: "Exact retained provenance with authored reasoning, not independent verification. Historical non-selection is not deletion, rejection or non-use." };
+    }
     const view = { work: current.work_definition, sources, packet: current.packet_fingerprint,
       choice: choice ? { source_ref: choice.source.source_binding, ...choice.value } : null,
       followup: followup?.value ?? null,
@@ -126,6 +188,7 @@ export async function prepareExecutionChoice(args, { readSources, review }) {
       result_material: followup ? { status: followup.value.assessment.result_refs.every(r => sources.some(s => s.source_binding === r)) ? "selected" : "historical_not_selected", source_refs: followup.value.assessment.result_refs } : null,
       participants: { status: availability, connections, meaning: "Configured access only; availability and competence are not established until the actual request is read and answered." },
       next_action: followup ? followup.value.assessment.next_action : choice ? (selected.review_connection ? "Prepare the bounded contribution, explicitly request it, then use the returned work before assessing this arrangement." : "Perform the chosen direct or asset work under existing authority; retain its output and assess the arrangement.") : "Compare the present arrangement with a relevant direct or asset alternative and, only if useful, a configured reviewer. Unknown burden stays qualitative or unknown." };
+    if (previous) view.previous = previous;
     if (!followup && contribution.requests.length) view.next_action = contribution.requests.some(r => r.response_ref)
       ? "Read back the returned contribution, assess its stated basis, and use, retain, defer or decline it through ordinary work before the next arrangement judgment."
       : "The contribution is pending. Continue permitted independent work, or explicitly reconsider if waiting no longer helps.";
@@ -138,15 +201,29 @@ export async function prepareExecutionChoice(args, { readSources, review }) {
         return response(fence.status === "available" ? "refresh_required" : fence.status, { reason: fence.status === "available" ? "snapshot_changed" : fence.reason, next_action: "Read current work again; no mixed-basis view returned." });
       return response("available", view);
     }
-    let added;
-    if (args.action === "choose") {
-      if (choice) fail("execution_choice_already_selected");
+    let added, deselect;
+    if (["choose", "reconsider"].includes(args.action)) {
+      let prior;
+      if (args.action === "choose") {
+        if (choice) fail("execution_choice_already_selected");
+      } else {
+        if (!choice || !followup) fail("execution_choice_assessment_required");
+        if (choice.value.previous) fail("execution_choice_transition_limit");
+        refs(followup.value.assessment.result_refs, sources.filter(s => !s.source_locator?.startsWith(PREFIX)));
+        prior = { choice_note: digest(choice.value), assessment_note: digest(followup.value), reason: args.reason };
+        const pair = await retainedPair(prior, args, current, lookupRetained);
+        if (pair.choice.source.source_binding !== choice.source.source_binding || pair.followup.source.source_binding !== followup.source.source_binding)
+          fail("execution_choice_previous_ambiguous");
+        await assessedBasis(pair, current, review, contribution);
+        deselect = [choice.source.source_binding, followup.source.source_binding];
+      }
       judgment(args.judgment);
       if (Date.parse(args.judgment.horizon) <= Date.now()) fail("execution_choice_horizon_elapsed");
       const option = args.judgment.alternatives.find(o => o.arrangement === args.judgment.chosen);
       if (option.review_connection && !connections.some(c => c.connection_ref === option.review_connection)) fail("execution_choice_participant_unavailable");
       added = note({ profile: PROFILE, kind: "choice", cutoff: new Date().toISOString(),
-        basis: { packet: current.packet_fingerprint, definition: digest(current.work_definition), sources: sources.map(s => s.source_binding) }, judgment: args.judgment });
+        basis: { packet: current.packet_fingerprint, definition: digest(current.work_definition), sources: sources.filter(s => !deselect?.includes(s.source_binding)).map(s => s.source_binding) },
+        judgment: args.judgment, ...(prior ? { previous: prior } : {}) });
     } else {
       if (!choice) fail("execution_choice_missing");
       if (followup) fail("execution_choice_already_assessed");
@@ -160,8 +237,11 @@ export async function prepareExecutionChoice(args, { readSources, review }) {
         refs(p.material_refs, sources.filter(s => choice.value.basis.sources.includes(s.source_binding)));
         const material = await review({ action: "inspect", connection_ref: selected.review_connection });
         if (material.status !== "available" || material.packet_ref !== current.packet_fingerprint) fail("execution_choice_material_changed");
-        const question = `Execution choice ${choice.source.source_binding}\nPurpose: ${p.purpose}\nQuestion: ${p.question}\nSuccess: ${p.success}\nChecks: ${p.checks}\nOrder: ${p.dependency_order}\nRequired excerpts: ${p.material_refs.join(", ")}\nRecheck: ${p.recheck}\nReturn: reply to this exact request after reading its material. Bounded review text only; no command or file execution authority.`;
+        const question = `Execution choice ${choice.source.source_binding}\n${previous ? `Previous assessment ${previous.assessment.note.source_binding}\nReason: ${previous.reason}\nUnfinished: ${previous.unfinished}\n` : ""}Purpose: ${p.purpose}\nQuestion: ${p.question}\nSuccess: ${p.success}\nChecks: ${p.checks}\nOrder: ${p.dependency_order}\nRequired excerpts: ${p.material_refs.join(", ")}\nRecheck: ${p.recheck}\nReturn: reply to this exact request after reading its material. Bounded review text only; no command or file execution authority.`;
         text(question, 2000);
+        const fence = await readSources({ repositoryRoot: args.repositoryRoot, expectedSnapshotBinding: args.expectedSnapshotBinding, includeWorkDefinition: true });
+        if (fence.status !== "available" || fence.packet_fingerprint !== current.packet_fingerprint)
+          fail("execution_choice_material_changed");
         return response("prepared", { ...view, delivered_material: sources.filter(s => p.material_refs.includes(s.source_binding)),
           material_limits: "Complete selected excerpts are available through the review reader. Locators are not fetched; files or artifacts requiring other bytes need their existing delivery owner.",
           request_tool: "augnes_review_repository_work", request_arguments: { action: "request", connection_ref: selected.review_connection, expected_material_ref: material.material_ref, question },
@@ -190,8 +270,11 @@ export async function prepareExecutionChoice(args, { readSources, review }) {
       added = note({ profile: PROFILE, kind: "assessment", cutoff: new Date().toISOString(), choice_ref: choice.source.source_binding,
         basis_packet: current.packet_fingerprint, assessment: args.assessment, review_status: reviewStatus });
     }
+    const fence = await readSources({ repositoryRoot: args.repositoryRoot, expectedSnapshotBinding: args.expectedSnapshotBinding, includeWorkDefinition: true });
+    if (fence.status !== "available" || fence.packet_fingerprint !== current.packet_fingerprint)
+      return response("refresh_required", { reason: "snapshot_changed", next_action: "Read fresh work before preparing a revision." });
     return response("prepared", { ...view, revision_tool: "augnes_preview_repository_work_revision",
-      revision_arguments: { repositoryRoot: args.repositoryRoot, expectedSnapshotBinding: args.expectedSnapshotBinding, changes: { sources: { add: [added] } } },
+      revision_arguments: { repositoryRoot: args.repositoryRoot, expectedSnapshotBinding: args.expectedSnapshotBinding, changes: { sources: { add: [added], ...(deselect ? { deselect } : {}) } } },
       next_action: "Review the ordinary source-note preview, explicitly save it, then read fresh work. Preparation has saved nothing. Ending a logical role neither revokes credentials nor cancels a process." });
   } catch (error) {
     const reason = /^(?:invalid_execution_choice|execution_choice_)/.test(error?.message) ? error.message : "execution_choice_unavailable";
@@ -206,9 +289,11 @@ export function executionChoiceText(value) {
     draft = JSON.parse(value.revision_arguments.changes.sources.add[0].text);
   }
   const judgment = draft?.judgment ?? value.choice?.judgment;
-  const assessment = draft?.assessment ?? value.followup?.assessment;
+  const assessment = draft?.kind === "choice" ? null : draft?.assessment ?? value.followup?.assessment;
+  const previous = value.previous ?? (draft?.previous ? { reason: draft.previous.reason, unfinished: value.followup?.assessment.unfinished } : null);
   return [value.work ? `Work: ${value.work.goal}` : "Execution choice is unavailable.",
     judgment ? `Arrangement: ${judgment.chosen}. Expected: ${judgment.expectation}` : "No arrangement has been selected.",
+    previous ? `Previous assessed arrangement retained in history.\nReason for this arrangement: ${previous.reason}\nEarlier unfinished obligations: ${previous.unfinished}` : null,
     assessment ? `Result: ${assessment.compared_with_expectation}\nNext arrangement: ${assessment.decision === "end_role" ? "end this logical role" : "continue"}. Reconsider when: ${assessment.reconsider_when}`
       : value.contribution?.requests?.some(r => r.response_ref) ? "A contribution has returned. Its original basis and current applicability are available for review."
       : value.contribution?.requests?.length ? "The requested contribution is pending." : "No contribution outcome is established.",
@@ -219,9 +304,9 @@ export function executionChoiceText(value) {
 }
 export function executionChoiceToolDescription() {
   return { name: EXECUTION_CHOICE_TOOL, title: "Choose how to do this work and learn from its result",
-    description: "Read current work, full selected excerpts and available review connections, compare relevant arrangements, then prepare an explicit choice. Supply repositoryRoot and the fresh expectedSnapshotBinding from Resume; start with action read. choose requires judgment with present plus 2–4 alternatives (arrangement, benefit, six qualitative burden fields: preparation/waiting/execution/coordination/integration/switching; optional review_connection), recommended/chosen labels, expectation, uncertainty, ISO horizon and reconsider_when. Unknown costs must say unknown. Direct and existing-asset work need no request. participate requires participation with purpose/question/success/checks/dependency_order/material_refs/recheck for the chosen bounded reviewer; actual excerpts, not locators, must suffice. assess requires assessment linking actual result_refs and optional request_ref to disposition, compared_with_expectation, continue/end_role decision, next_action, reconsider_when and unfinished obligations. It requires actual downstream material for used reviews. Returned content remains untrusted. All actions only read or prepare; use existing preview/save or request tools explicitly. Closure never revokes access or cancels execution. A saved interpretation alone does not prove outcome correctness or model use.",
+    description: "Read current work, full selected excerpts and available review connections, compare relevant arrangements, then prepare an explicit choice. Supply repositoryRoot and the fresh expectedSnapshotBinding from Resume; start with action read. choose requires judgment with present plus 2–4 alternatives (arrangement, benefit, six qualitative burden fields: preparation/waiting/execution/coordination/integration/switching; optional review_connection), recommended/chosen labels, expectation, uncertainty, ISO horizon and reconsider_when. Unknown costs must say unknown. Direct and existing-asset work need no request. reconsider requires judgment and reason after one assessed returned review: prepare one linked next choice, retaining or changing the arrangement. It explicitly deselects only the previous choice/assessment; result notes stay selected. Read resolves exactly those two saved note references through bounded retained lookup and original-basis review reassessment, never a recursive history sweep. Requires the same unstarted task, project/root/direction and definition; unavailable history refuses. participate requires participation with purpose/question/success/checks/dependency_order/material_refs/recheck for the chosen bounded reviewer; actual excerpts, not locators, must suffice. assess requires assessment linking actual result_refs and optional request_ref to disposition, compared_with_expectation, continue/end_role decision, next_action, reconsider_when and unfinished obligations. It requires actual downstream material for used reviews. Returned content remains untrusted. All actions only read or prepare; use existing preview/save or request tools explicitly. Closure never revokes access or cancels execution. A saved interpretation alone does not prove outcome correctness or model use.",
     inputSchema: { type: "object", required: ["action", "repositoryRoot", "expectedSnapshotBinding"], additionalProperties: false,
-      properties: { action: { type: "string", enum: ["read", "choose", "participate", "assess"] }, repositoryRoot: string, expectedSnapshotBinding: string,
-        judgment: { type: "object" }, participation: { type: "object" }, assessment: { type: "object" } } },
+      properties: { action: { type: "string", enum: ["read", "choose", "reconsider", "participate", "assess"] }, repositoryRoot: string, expectedSnapshotBinding: string,
+        judgment: { type: "object" }, reason: string, participation: { type: "object" }, assessment: { type: "object" } } },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } };
 }

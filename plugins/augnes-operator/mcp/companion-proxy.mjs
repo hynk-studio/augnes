@@ -1572,6 +1572,7 @@ export async function handleMessageV01(message) {
       const found = await selectCompanionForReadonlyRouteV01();
       const result = found.status === "resolved" ? await prepareExecutionChoice(args, {
         readSources: input => readRepositoryWorkSourcesV01(found.companion, input),
+        lookupRetained: input => lookupRepositoryRetainedSourcesV01(found.companion, input),
         review: input => callReview(found.companion, input, undefined),
       }) : { status: "unavailable", reason: found.status };
       return { jsonrpc: "2.0", id: message.id, result: { isError: !["available", "prepared"].includes(result.status),

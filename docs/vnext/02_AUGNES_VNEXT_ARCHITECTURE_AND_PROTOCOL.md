@@ -858,6 +858,32 @@ reported as historical-not-selected, not silently reconstructed or declared abse
 One selected choice and at most one linked assessment constitute this bounded
 loop. A next loop uses ordinary explicit source revision/selection, retaining
 earlier packets and worthwhile obligations; ambiguous selections refuse.
+For #1498, optional `reconsider` preparation supports one result-informed next
+choice after an assessed returned review. It requires selected prior choice,
+assessment and result references, unchanged definition, and the original
+review owner's eligible unstarted task segment and project/registered-root/
+physical-root/effective-direction checks. The optional `previous` member in a
+choice stores two exact note-content fingerprints and authored transition reason.
+It is not a new Core relationship or independent proof of an interpretation.
+Existing single-choice notes remain valid.
+
+Preparation resolves the two exact notes through bounded retained-source lookup
+and the request through original-basis/current reassessment. It prepares ordinary
+deselection of only that prior pair plus addition of the next choice; all other
+selected material stays selected. Explicit preview/save owns the mutation.
+Reading the new choice resolves its two saved predecessors and shows their
+selection status, original assessment, unfinished obligations and request/response
+separately from the current arrangement. No recursive lookup, history sweep,
+limit increase or implicit reselection occurs. Missing, malformed, ambiguous,
+stale or unavailable linkage refuses without manufacturing a replacement basis.
+The linked choice cannot prepare a second linked transition in this increment.
+
+Retaining the suitable arrangement, direct work and an existing asset remain
+valid next choices. A replacement request carries the predecessor assessment,
+authored reason and prior unfinished obligations plus explicitly selected usable
+material. A late original participant response retains its old request/choice
+and cannot satisfy the replacement request. New checked work and explicit
+assessment are required to settle an obligation; the transition itself does not.
 Changed definitions, missing original support or elapsed horizons require
 reconsideration before preparing a request. Default first-reply/current-material
 rules remain unchanged; the explicit historical receipt/reassessment above is a
