@@ -76,6 +76,17 @@ changed-basis refusal, unavailable-participant continuation and failed-save
 rollback. Exact candidate qualification belongs to its PR receipt; source
 implementation is not installed adoption or user acceptance.
 
+The #1498 increment prepares one result-informed next arrangement in the same
+eligible unstarted task. Existing deselection/retained lookup/manual linkage can
+already complete the case; the adapter now prepares the exact predecessor link
+and reads its original assessment/unfinished obligations alongside the new choice.
+Ordinary explicit preview/save owns changes, and #1488 owns original-basis review
+reassessment. A standalone two-process packing exercise checks both contributions,
+selective output use and actual fresh label production. Existing adapter tests
+cover invalid linkage and races. This is synthetic engineering evidence, not
+actual external participation, comparative benefit, adoption or full W1/W2.
+Current exact-head qualification and independent review belong to the PR return.
+
 PR #1450's qualification correction tightens only the disposable native-service
 fixture's readiness and cleanup. After its deliberate child-binding substitution,
 it observes the manager's negative verification and waits for a post-restoration
