@@ -36,6 +36,7 @@ import {
   validateCanonicalOwnerTargetedChange,
 } from "./validate-canonical-docs-change.mjs";
 import { buildPhasePlan } from "./run-local-canonical-verification.mjs";
+import { createCanonicalRevisionReader, parseCanonicalBlobBatch } from "./canonical-revision-reader.mjs";
 
 const temporaryRoot = mkdtempSync(path.join(tmpdir(), "ag-planner-"));
 const results = [];
@@ -684,6 +685,7 @@ try {
   runIncomingReferenceCases();
   runDocumentationValidatorCases();
   runMarkdownAnchorBoundaryCases();
+  runCanonicalRevisionReaderCases();
   runRepositoryIsolationCase();
 
   console.log(
@@ -902,6 +904,107 @@ function runRepositoryIsolationCase() {
   assert.deepEqual(snapshot(withVerification.cwd), seedBefore, "full seed unchanged");
   assert.deepEqual(snapshot(withoutVerification.cwd), otherSeedBefore, "minimal seed unchanged");
   results.push("repository-seed-flavors-and-copy-isolation");
+}
+
+function runCanonicalRevisionReaderCases() {
+  const repository = createRepository("exact-revision-reader", false);
+  const literal = process.platform === "win32" ? "docs/literal[1].md" : "docs/literal[1]*?.md";
+  const unusual = process.platform === "win32" ? "docs/line name.md" : "docs/line\nname.md";
+  repository.write(literal, "# Literal\n\nBefore.\n");
+  repository.write(unusual, "# Newline path\n");
+  repository.write("docs/empty.md", "");
+  repository.write("docs/binary.bin", Buffer.from([0, 255, 10, 1]));
+  repository.write("docs/executable.md", "# Executable\n");
+  repository.chmod("docs/executable.md", 0o755);
+  repository.write("docs/directory.md/child.txt", "directory child\n");
+  if (process.platform !== "win32") repository.symlink("existing.md", "docs/link.md");
+  commitAll(repository.cwd, "reader old revision");
+  const before = git(repository.cwd, ["rev-parse", "HEAD"]).trim();
+  repository.write(literal, "# Literal\n\nAfter.\n");
+  repository.remove("docs/empty.md");
+  commitAll(repository.cwd, "reader new revision");
+  const after = git(repository.cwd, ["rev-parse", "HEAD"]).trim();
+  const reader = createCanonicalRevisionReader(repository.cwd);
+  const files = [literal, unusual, "docs/binary.bin", "docs/executable.md", "docs/directory.md",
+    ...(process.platform === "win32" ? [] : ["docs/link.md"])];
+  reader.prefetch([before, after].flatMap(revision => files.map(file => ({ revision, file }))));
+  for (const revision of [before, after]) {
+    for (const file of files) {
+      assert.equal(reader.read(revision, file), git(repository.cwd, ["show", `${revision}:${file}`]),
+        `exact bytes/presentation: ${revision}:${file}`);
+      const actual = reader.tree(revision).get(file);
+      const expected = git(repository.cwd, ["--literal-pathspecs", "ls-tree", "-l", "-z", revision, "--", file]);
+      assert.equal(expected.slice(0, 6), actual.mode);
+      assert.ok(expected.includes(` ${actual.type} ${actual.oid} `));
+      assert.ok(expected.endsWith(`\t${file}\0`));
+    }
+  }
+  assert.equal(reader.read(before, "docs/empty.md"), "");
+  assert.throws(() => reader.read(after, "docs/empty.md"), /git show failed/u);
+  assert.equal(reader.tree(after).has("docs/literal1x.md"), false, "no pathspec expansion");
+  assert.throws(() => reader.tree("HEAD"), /exact SHA/u);
+  assert.throws(() => reader.tree("f".repeat(40)), /git ls-tree failed/u);
+  const other = createRepository("exact-revision-other-repository", false);
+  assert.throws(() => createCanonicalRevisionReader(other.cwd).read(after, literal), /git ls-tree failed/u);
+  results.push("revision-reader-real-git-bytes-modes-literal-paths-both-revisions-and-repositories");
+
+  const objects = [reader.tree(before).get(literal), reader.tree(after).get(literal)];
+  const raw = spawnSync("git", ["cat-file", "--batch"], {
+    cwd: repository.cwd, input: objects.map(entry => entry.oid + "\n").join(""),
+    timeout: 30_000, maxBuffer: 8 * 1024 * 1024,
+  });
+  assert.equal(raw.status, 0, raw.stderr.toString());
+  assert.ifError(raw.error);
+  assert.deepEqual(parseCanonicalBlobBatch(raw.stdout, objects).map(bytes => bytes.toString()),
+    objects.map(entry => git(repository.cwd, ["show", entry.oid])));
+  const corrupt = Buffer.from(raw.stdout);
+  corrupt[corrupt.indexOf(10) + 1] ^= 1;
+  for (const [output, requested] of [
+    [raw.stdout, [...objects].reverse()],
+    [raw.stdout, [{ ...objects[0], type: "tree" }, objects[1]]],
+    [raw.stdout, [{ ...objects[0], size: objects[0].size + 1 }, objects[1]]],
+    [raw.stdout, [{ ...objects[0], size: 8 * 1024 * 1024 + 1 }, objects[1]]],
+    [raw.stdout, [objects[0], objects[0]]],
+    [raw.stdout.subarray(0, 20), objects],
+    [raw.stdout.subarray(0, raw.stdout.length - 2), objects],
+    [Buffer.concat([raw.stdout, Buffer.from("\n")]), objects],
+    [Buffer.from(`${objects[0].oid} missing\n`), objects],
+    [corrupt, objects],
+  ]) assert.throws(() => parseCanonicalBlobBatch(output, requested), /canonical blob batch/u);
+  results.push("revision-reader-real-batch-identity-content-framing-and-bound-refusals");
+
+  // Cross both batching limits with real objects. Oversize content stays a
+  // bounded read refusal; prefetch does not hide it or return a partial value.
+  const many = Array.from({ length: 129 }, (_, i) => `bounded/file-${i}.txt`);
+  for (const [i, file] of many.entries()) repository.write(file, `distinct object ${i}\n`);
+  repository.write("bounded/large-a.txt", "a".repeat(4 * 1024 * 1024 + 1));
+  repository.write("bounded/large-b.txt", "b".repeat(4 * 1024 * 1024 + 1));
+  repository.write("bounded/oversize.txt", "x".repeat(8 * 1024 * 1024 + 1));
+  commitAll(repository.cwd, "reader batch bounds");
+  const bounded = git(repository.cwd, ["rev-parse", "HEAD"]).trim();
+  const boundedReader = createCanonicalRevisionReader(repository.cwd);
+  boundedReader.prefetch([...many, "bounded/large-a.txt", "bounded/large-b.txt", "bounded/oversize.txt"]
+    .map(file => ({ revision: bounded, file })));
+  for (const [i, file] of many.entries()) assert.equal(boundedReader.read(bounded, file), `distinct object ${i}\n`);
+  for (const letter of ["a", "b"]) {
+    assert.equal(boundedReader.read(bounded, `bounded/large-${letter}.txt`), letter.repeat(4 * 1024 * 1024 + 1));
+  }
+  assert.throws(() => boundedReader.read(bounded, "bounded/oversize.txt"), /bounded input size/u);
+  assert.throws(() => boundedReader.read(bounded, many[0], 1), /bounded input size/u);
+  results.push("revision-reader-real-git-batch-count-byte-and-per-read-bounds");
+
+  const admission = createRepository("revision-reader-public-admission", false);
+  admission.write("docs/existing.md", "# Existing\n\n[Directory](.)\n[Self](#existing)\n");
+  commitAll(admission.cwd, "valid documentation admission");
+  const headSha = git(admission.cwd, ["rev-parse", "HEAD"]).trim();
+  const request = { cwd: admission.cwd, baseSha: admission.baseSha, headSha };
+  assert.equal(planCanonicalChange({ ...request, eventName: "pull_request" }).plan, "documentation-only");
+  assert.equal(validateCanonicalDocumentationChange(request).status, "pass");
+  // A prior success in this process must not supply a later public admission.
+  unlinkSync(path.join(admission.cwd, ".git", "objects", headSha.slice(0, 2), headSha.slice(2)));
+  assert.throws(() => planCanonicalChange({ ...request, eventName: "pull_request" }), /git cat-file failed/u);
+  assert.throws(() => validateCanonicalDocumentationChange(request), /git cat-file failed/u);
+  results.push("revision-reader-public-calls-readmit-and-validator-replans");
 }
 
 function runDocumentationValidatorCases() {
