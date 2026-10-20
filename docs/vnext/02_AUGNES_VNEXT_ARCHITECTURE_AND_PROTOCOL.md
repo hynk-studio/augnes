@@ -2047,6 +2047,57 @@ its exact scoped adapter and inventory; it cannot fall through to whole-root
 execution. Older readers refuse the new request/definition. No Core kind, store,
 migration, model call, remote transport or automatic selection is added.
 
+##### HTTP packet-budget diagnostics and explicit repair
+
+`POST /api/vnext/operator/project-continuity` keeps its existing strict request
+and response shapes by default. An authenticated caller may add the outer field
+`"include_packet_budget_diagnostics": true` to `preview_result_work` or
+`prepare_result_work`. This field is not part of the inner authored request,
+saved definition, packet, fingerprint or receipt. Other values or actions refuse
+as invalid fields; successful responses are unchanged.
+
+For an applicable compiler budget refusal, the existing HTTP 409 and
+`successor_task_packet_max_characters_exceeded` or
+`successor_task_packet_max_estimated_tokens_exceeded` code remain. The opt-in
+response additionally contains `packet_budget` with `budget`, `unit`, `observed`,
+`limit` and `overage` (`observed - limit`). `max_characters` measures UTF-16 code
+units of the compiler's canonical serialized complete packet, not visible
+characters or UTF-8 bytes. `max_estimated_tokens` reports the compiler's existing
+estimate, not a provider tokenizer count. It uses the canonical packet before
+the final packet ID/fingerprint, with the estimate field null, divided by four
+UTF-16 code units and rounded up. Character admission is checked first; a
+reported failure does not establish that another constraint passed. A null input
+cap is not zero: the builder retains its existing default-cap normalization.
+Diagnostics report only the applicable measured failure. No rejected packet or source text is
+returned. Authentication, authority, binding, stale-state and invalid-input
+refusals expose no budget diagnostic; unexpected exceptions remain sanitized.
+
+Preview compiles the complete prospective packet with the same canonical root
+representation as save and performs no write. Save still rechecks current state,
+authority, physical root and the complete ledger in its atomic transaction.
+Preview cannot promise acceptance after a state change.
+
+After refusal, retain the original draft and full plan file unchanged. An author
+may explicitly propose a different representation: a compact goal, required
+checks and non-goals; retained validation, rollback, correction history and
+unresolved conditions; and an attributed selected note containing a scoped file
+reference and digest for the complete plan. Record what changed and any deliberate
+deselection. The overage is not an instruction to delete that many visible
+characters: repeated and escaped material affects complete-packet size. Nothing
+automatically truncates, summarizes, deselects, retries, saves or executes.
+
+Use the ordinary `read_result_work_preparation` → `compare_result_work_sources`
+→ `preview_result_work` → explicit `prepare_result_work` sequence for the new
+candidate. Freshly GET project continuity and compare the exact saved definition,
+selected sources, packet identity and artifact reference. A subsequent consumer
+must actually read the referenced file and check its digest before claiming full
+artifact use; a locator alone proves neither retrieval nor preservation. File
+availability and interpretation remain separate obligations. This workflow adds
+no artifact store, portable storage guarantee, execution authority or semantic
+acceptance. The deterministic catalogue fixture demonstrates coordinator-authored
+representation and scripted consumption only, not model understanding or general
+lossless summarization.
+
 #### Explicit reuse of a saved outcome review
 
 The additive `augnes.reviewed-outcome-source.v0.1` provenance profile projects

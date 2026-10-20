@@ -3,6 +3,7 @@ import { AUTHORED_SUCCESSOR_TASK_V01, AUTHORED_SUCCESSOR_CONTEXT_V01 } from "@/t
 import { canonicalizeProtocolValueV01, createProtocolSha256V01 } from "./protocol-primitives";
 import { normalizeInitialProjectWorkDefinitionV01 } from "./runtime/initial-project-work-context";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
+import type { TaskContextPacketBudgetDiagnosticV01 } from "./task-context-packet";
 
 /** Local task-authoring profile, not a semantic Transition or execution grant. */
 export { AUTHORED_SUCCESSOR_TASK_V01 } from "@/types/vnext/project-work-initialization";
@@ -14,7 +15,9 @@ export interface AuthoredSuccessorTaskDefinitionV01 {
   materials: { relative_path: string; sha256: string; role: "task_data" | "historical_material" }[];
 }
 export class AuthoredSuccessorTaskErrorV01 extends Error {
-  constructor(readonly code: string) { super(code); this.name = "AuthoredSuccessorTaskErrorV01"; }
+  constructor(readonly code: string, readonly packet_budget?: Readonly<TaskContextPacketBudgetDiagnosticV01>) {
+    super(code); this.name = "AuthoredSuccessorTaskErrorV01";
+  }
 }
 export function requireSuccessorV01(value: unknown, reason: string): asserts value {
   if (!value) throw new AuthoredSuccessorTaskErrorV01(`successor_task_${reason}`);

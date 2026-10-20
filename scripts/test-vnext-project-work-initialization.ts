@@ -1,3 +1,4 @@
+import { assertCompilerBudgetDiagnostics, assertExplicitArtifactPreservingRepair } from "./successor-budget-diagnostics-checks";
 import { differentSelectionRevision } from "./test-selection-observation";
 import { readVNextCoreRecordV01 } from "../lib/vnext/persistence/durable-semantic-store";
 import { installZeroNetworkGuard } from "./test-harness-zero-network-guard.mjs";
@@ -6392,6 +6393,7 @@ async function assertNewWorkAdmissionV01(): Promise<void> {
 }
 
 async function assertSuccessorPacketAdmissionV01(): Promise<void> {
+  assertCompilerBudgetDiagnostics();
   const { createServer } = await import("node:http");
   const { trackServerConnections, closeTrackedServer } = await import("./test-harness-process-lifecycle.mjs");
   const { createVNextOperatorProjectContinuityHandlerV01: getFactory,
@@ -6452,6 +6454,33 @@ async function assertSuccessorPacketAdmissionV01(): Promise<void> {
     assert.equal(refused.error_code, "successor_task_packet_max_characters_exceeded");
     const refusedSave = await http({ action: "prepare_result_work", request }, 409);
     assert.equal(refusedSave.error_code, refused.error_code);
+    assert.deepEqual(Object.keys(refused).sort(), ["error_code", "execution_authority_granted", "ok", "semantic_authority_granted", "status"]);
+    const diagnostic = await http({ ...previewBody, include_packet_budget_diagnostics: true }, 409);
+    const diagnosticSave = await http({ action: "prepare_result_work", request, include_packet_budget_diagnostics: true }, 409);
+    assert.deepEqual(diagnostic, { ...refused, packet_budget: diagnosticSave.packet_budget });
+    assert.deepEqual(diagnostic.packet_budget, { budget: "max_characters", unit: "utf16_code_units",
+      observed: diagnostic.packet_budget.observed, limit: 76_000, overage: diagnostic.packet_budget.observed - 76_000 });
+    assert(diagnostic.packet_budget.overage > 0);
+    for (const optIn of [false, null, "true", {}, 1]) {
+      const invalid = await http({ ...previewBody, include_packet_budget_diagnostics: optIn }, 409);
+      assert.equal(invalid.error_code, "successor_task_request_fields"); assert.equal(invalid.packet_budget, undefined);
+    }
+    const wrongAction = await http({ action: "read_result_work_preparation", receipt_id: settled.receipt.receipt_id, include_packet_budget_diagnostics: true }, 409);
+    assert.equal(wrongAction.error_code, "successor_task_request_fields");
+    for (const body of [
+      { ...previewBody, include_packet_budget_diagnostics: true, unknown_field: true },
+      { action: "prepare_result_work", request: { ...request, include_packet_budget_diagnostics: true } },
+    ]) {
+      const invalid = await http(body, 409);
+      assert.equal(invalid.error_code, "successor_task_request_fields");
+      assert.equal(invalid.packet_budget, undefined);
+    }
+    for (const response of [
+      await http({ ...previewBody, include_packet_budget_diagnostics: true }, 401, ""),
+      await http({ ...previewBody, include_packet_budget_diagnostics: true }, 403, cookie, "http://untrusted.invalid"),
+      await http({ ...previewBody, include_packet_budget_diagnostics: true, binding: { ...prep.binding, expected_project_work_binding: "sha256:" + "0".repeat(64) } }, 409),
+      await http({ ...previewBody, include_packet_budget_diagnostics: true, definition: { ...large, unexpected: true } }, 409),
+    ]) { assert.equal(response.packet_budget, undefined); assert(!JSON.stringify(response).includes(large.goal)); }
     assert(databaseBefore.equals(fixture.db.serialize()), "Refused preview/save preserve packet, ledger and session bytes");
     assert.deepEqual((await http()).work_initialization, before.work_initialization);
 
@@ -6461,11 +6490,15 @@ async function assertSuccessorPacketAdmissionV01(): Promise<void> {
       non_goals: ["Keep immutable originals and rollback.", "No execution authority."] };
     const preview = await http({ ...previewBody, definition });
     assert.equal(preview.writes, 0);
+    assert.deepEqual(await http({ ...previewBody, definition, include_packet_budget_diagnostics: true }), preview);
+    assert.equal(preview.request.include_packet_budget_diagnostics, undefined);
     assert(databaseBefore.equals(fixture.db.serialize()), "Successful preview is read-only");
     for (const [field, code] of [["expected_root_fingerprint", "successor_task_root_changed"],
       ["expected_project_work_binding", "successor_task_project_binding_changed"]] as const) {
       const result = await http({ action: "prepare_result_work", request: { ...preview.request, [field]: "sha256:" + "0".repeat(64) } }, 409);
       assert.equal(result.error_code, code);
+      const optIn = await http({ action: "prepare_result_work", request: { ...request, [field]: "sha256:" + "0".repeat(64) }, include_packet_budget_diagnostics: true }, 409);
+      assert.equal(optIn.error_code, code); assert.equal(optIn.packet_budget, undefined);
       assert(databaseBefore.equals(fixture.db.serialize()), "State refusal preserves predecessor and session");
     }
     await http({ action: "prepare_result_work", request: preview.request }, 401, "");
@@ -6478,15 +6511,17 @@ async function assertSuccessorPacketAdmissionV01(): Promise<void> {
     assert.deepEqual(fresh.work_initialization.selected_source_context, comparison.entries);
     assert.deepEqual(readVNextCoreRecordV01(fixture.db, { ...fixture, record_kind: "task_context_packet", record_id: initial.packet.packet_id })?.payload, initial.packet);
     const afterSave = fixture.db.serialize();
-    await http({ action: "prepare_result_work", request: preview.request }, 409);
+    const stale = await http({ action: "prepare_result_work", request: preview.request, include_packet_budget_diagnostics: true }, 409);
+    assert.equal(stale.packet_budget, undefined);
     assert(afterSave.equals(fixture.db.serialize()), "A successful preview cannot bypass a subsequent current-state change");
     assert.equal(countProjectPacketsV01(fixture), 2);
     console.log(JSON.stringify({ successor_packet_admission: "passed", transport: "loopback HTTP to actual route handlers",
-      preview_and_save_refusal: refused.error_code, fresh_saved_definition_and_eight_sources: true, atomic_refusals: true, model_calls: 0 }));
+      preview_and_save_refusal: refused.error_code, packet_budget: diagnostic.packet_budget, fresh_saved_definition_and_eight_sources: true, atomic_refusals: true, model_calls: 0 }));
   } finally {
     if (server) await closeTrackedServer(server);
     fixture.db.close(); guard.restore(); assert.equal(guard.attempts.length, 0);
   }
+  await assertExplicitArtifactPreservingRepair();
 }
 
 async function assertNativeSelectedSourceBudgetV01(): Promise<void> {
