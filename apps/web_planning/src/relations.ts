@@ -1,6 +1,6 @@
 import { directionSelection, fileBranch, fileIncorporation } from "./directions";
 import type { FileBody } from "./files";
-import { assertHistoryBudget, binding, boundedText, canonical, dispositions, exact, fail, hash, headBinding, inspectRelations, makeRevision, normalizePayload, reference, RELATION_BYTES, requestFingerprint, sameBinding, selectedWorkSourceInput, UUID, validateRelations, workRef, type Material, type Payload, type Relations, type Revision, type Scope, type WorkRef } from "./contract";
+import { assertHistoryBudget, binding, boundedText, canonical, dispositions, exact, fail, FINGERPRINT, hash, headBinding, inspectRelations, makeRevision, normalizePayload, reference, RELATION_BYTES, requestFingerprint, sameBinding, selectedWorkSourceInput, UUID, validateRelations, workRef, type Material, type Payload, type Relations, type Revision, type Scope, type WorkRef } from "./contract";
 import { seal, unseal, type Access } from "./access";
 import { append, headsCurrent, readWork, requestRevision, type Store } from "./store";
 
@@ -62,10 +62,14 @@ export async function compare(s:Store,id:string,expected:unknown,source:unknown)
   return {target,branch,baseline};
 }
 function branchIntent(input:any) { exact(input,"reason"); return {reason:boundedText(input.reason,true)}; }
+function targetSelection(value:unknown):string[] {
+  if(!Array.isArray(value) || value.length>8 || value.some(ref=>typeof ref!=="string" || !FINGERPRINT.test(ref)) || new Set(value).size!==value.length)fail("invalid_target_selection");
+  return [...value].sort();
+}
 function incorporationIntent(input:any) {
   if("selection" in input){exact(input,"source,selection");return {source:sourceRef(input.source),selection:directionSelection(input.selection)};}
-  exact(input,"source,dispositions,rationale,next_question");
-  return {source:sourceRef(input.source),dispositions:dispositions(input.dispositions),rationale:boundedText(input.rationale,true),next_question:boundedText(input.next_question)};
+  exact(input,"source,dispositions,rationale,next_question"+("target_selection" in input?",target_selection":""));
+  return {source:sourceRef(input.source),dispositions:dispositions(input.dispositions),rationale:boundedText(input.rationale,true),next_question:boundedText(input.next_question),...("target_selection" in input?{target_selection:targetSelection(input.target_selection)}:{})};
 }
 function branchPayload(source:Revision,reason:string):Payload {
   return {definition:source.definition,sources:source.sources,relations:{
@@ -76,8 +80,14 @@ function incorporationPayload(target:Revision,source:Revision,intent:ReturnType<
   if(target.files?.length || source.files?.length || "selection" in intent)fail("file_branch_selection_unsupported");
   if(canonical(intent.dispositions.map(d=>d.source_ref).sort())!==canonical(source.sources.map(s=>s.source_ref).sort()))fail("incomplete_dispositions");
   const selected=intent.dispositions.filter(d=>d.disposition==="incorporated").map(d=>d.source_ref);
-  const entries=new Map(target.sources.map(s=>[s.source_ref,s]));
-  const materials=new Map(relationsOf(target).materials.map(m=>[m.source_ref,m]));
+  const currentRefs=target.sources.map(s=>s.source_ref!);
+  // Omission keeps the legacy intent and its sealed fingerprint unchanged.
+  // Explicit choices are checked against this exact, current target, not the branch.
+  const retained=new Set(intent.target_selection??currentRefs);
+  if([...retained].some(ref=>!currentRefs.includes(ref)))fail("invalid_target_selection");
+  if(selected.some(ref=>currentRefs.includes(ref) && !retained.has(ref)))fail("target_selection_conflict");
+  const entries=new Map(target.sources.filter(s=>retained.has(s.source_ref!)).map(s=>[s.source_ref,s]));
+  const materials=new Map(relationsOf(target).materials.filter(m=>retained.has(m.source_ref)).map(m=>[m.source_ref,m]));
   for(const ref of selected) {
     entries.set(ref,source.sources.find(s=>s.source_ref===ref)!);
     const m=relationsOf(source).materials.find(m=>m.source_ref===ref)!;
@@ -88,7 +98,7 @@ function incorporationPayload(target:Revision,source:Revision,intent:ReturnType<
   validateRelations(relations,payload,target.work_id); // all represented dependencies must remain selected
   // Repeating the same comparison choices is not another judgment or revision.
   const prior=target.relations?.review;
-  if(prior && canonical({...prior,target:relations.review!.target})===canonical(relations.review))relations.review=prior;
+  if(prior && canonical(payload.sources)===canonical(target.sources) && canonical(relations.materials)===canonical(relationsOf(target).materials) && canonical({...prior,target:relations.review!.target})===canonical(relations.review))relations.review=prior;
   return {...payload,relations,...(target.files!==undefined?{files:target.files}:{})};
 }
 async function incorporation(a:Access,target:Revision,source:Revision,intent:ReturnType<typeof incorporationIntent>){
