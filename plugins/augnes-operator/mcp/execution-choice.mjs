@@ -203,12 +203,16 @@ export async function prepareExecutionChoice(args, { readSources, review, lookup
     }
     let added, deselect;
     if (["choose", "reconsider"].includes(args.action)) {
+      const cutoff = new Date().toISOString();
       let prior;
       if (args.action === "choose") {
         if (choice) fail("execution_choice_already_selected");
       } else {
         if (!choice || !followup) fail("execution_choice_assessment_required");
         if (choice.value.previous) fail("execution_choice_transition_limit");
+        if (Date.parse(choice.value.cutoff) > Date.parse(followup.value.cutoff) ||
+            Date.parse(followup.value.cutoff) > Date.parse(cutoff))
+          fail("execution_choice_previous_ambiguous");
         refs(followup.value.assessment.result_refs, sources.filter(s => !s.source_locator?.startsWith(PREFIX)));
         prior = { choice_note: digest(choice.value), assessment_note: digest(followup.value), reason: args.reason };
         const pair = await retainedPair(prior, args, current, lookupRetained);
@@ -221,7 +225,7 @@ export async function prepareExecutionChoice(args, { readSources, review, lookup
       if (Date.parse(args.judgment.horizon) <= Date.now()) fail("execution_choice_horizon_elapsed");
       const option = args.judgment.alternatives.find(o => o.arrangement === args.judgment.chosen);
       if (option.review_connection && !connections.some(c => c.connection_ref === option.review_connection)) fail("execution_choice_participant_unavailable");
-      added = note({ profile: PROFILE, kind: "choice", cutoff: new Date().toISOString(),
+      added = note({ profile: PROFILE, kind: "choice", cutoff,
         basis: { packet: current.packet_fingerprint, definition: digest(current.work_definition), sources: sources.filter(s => !deselect?.includes(s.source_binding)).map(s => s.source_binding) },
         judgment: args.judgment, ...(prior ? { previous: prior } : {}) });
     } else {

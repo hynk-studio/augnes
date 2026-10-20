@@ -56,6 +56,7 @@ async function produce() {
     aUse.revision_arguments.changes.sources.add.push(note("note-ref:packing-output",partial));
     await savePrepared(aUse);
     let current=await readCurrent();
+    const originalPartial=structuredClone(find(current,"note-ref:packing-output"));
     await savePrepared(await choice("assess",{assessment:{disposition:"partly_used",result_refs:[find(current,"note-ref:packing-output").source_binding],request_ref:ar.request_ref,compared_with_expectation:"Count checked; packing interpretation still unresolved",decision:"continue",next_action:"Retain valid count; determine separate-batch trays",reconsider_when:"Available reviewer can settle the packing rule",unfinished:"Resolve separate-batch tray count; physical stock unknown"}}));
     const assessed = await choice("read");
     const oldAssessment = assessed.sources.find((s:any)=>s.source_locator?.startsWith("note-ref:execution-choice:") && JSON.parse(s.excerpt_text).kind==="assessment");
@@ -135,6 +136,12 @@ async function produce() {
     const oldC=await lookup(originalChoice.source_locator),oldA=await lookup(oldAssessment.source_locator);
     assert.equal(oldC.lookup.results.find((x:any)=>x.note.source_binding===originalChoice.source_binding).note.excerpt_text,originalChoice.excerpt_text);
     assert.equal(oldA.lookup.results.find((x:any)=>x.note.source_binding===oldAssessment.source_binding).note.excerpt_text,oldAssessment.excerpt_text);
+    const oldOutput=await lookup(originalPartial.source_locator);
+    const retainedPartial=oldOutput.lookup.results.find((x:any)=>x.note.source_binding===originalPartial.source_binding);
+    assert.equal(retainedPartial.selection,"historical_not_selected");
+    assert.deepEqual(retainedPartial.note,originalPartial);
+    assert(Buffer.from(retainedPartial.note.excerpt_text,"utf8").equals(Buffer.from(originalPartial.excerpt_text,"utf8")));
+    save("post-final-partial-output",{original:originalPartial,retained_lookup:oldOutput,complete_note_equal:true,excerpt_bytes_equal:true});
     assert(configBytes.equals(readFileSync(configPath)),"logical replacement/closure cannot revoke credentials");
     save("producer-results",{checks,final_view:await choice("read"),original_choice:oldC,original_assessment:oldA,credential_bytes_preserved:true,elapsed_ms:Date.now()-started});
 }

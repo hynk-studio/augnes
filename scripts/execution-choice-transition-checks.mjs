@@ -45,8 +45,26 @@ export async function checkExecutionChoiceTransition({ root, snapshot, view, rea
   function projectedNote(note) {
     return {source_binding:digest(note),source_locator:note.source,excerpt_text:note.text,trust_class:note.provenance,observed_at:note.observed_at};
   }
-  const next = {...clone(current),sources:current.sources.filter(s=>!sourceOps.deselect.includes(s.source_binding)).concat(projectedNote(sourceOps.add[0]))};
   const readArgs={action:"read",repositoryRoot:root,expectedSnapshotBinding:snapshot};
+  for (const [label, cutoff] of [
+    ["future assessment cutoff", new Date(Date.now()+60_000).toISOString()],
+    ["assessment cutoff before choice", new Date(Date.parse(view.choice.cutoff)-1).toISOString()],
+  ]) {
+    const unordered=clone(current);
+    const entry=unordered.sources.find(s=>s.source_locator?.startsWith(prefix)&&JSON.parse(s.excerpt_text).kind==="assessment");
+    const value=JSON.parse(entry.excerpt_text); value.cutoff=cutoff;
+    Object.assign(entry,projectedNote({source:prefix+digest(value).slice(7),text:canonical(value),provenance:"derived_interpretation",observed_at:cutoff}));
+    const overrides={readSources:async()=>clone(unordered),lookupRetained:async a=>({
+      status:"available",packet_fingerprint:unordered.packet_fingerprint,lookup:{truncated:false,
+        results:unordered.sources.filter(s=>s.source_locator===a.query).map(note=>({note,selection:"currently_selected",source:{source_fingerprint:note.source_binding}}))},
+    })};
+    const before=canonical(unordered);
+    const legacyRead=await prepareExecutionChoice(readArgs,{...deps,...overrides});
+    assert.equal(legacyRead.status,"available",JSON.stringify(legacyRead));
+    await refused(label,args,overrides,"execution_choice_previous_ambiguous");
+    assert.equal(canonical(unordered),before);
+  }
+  const next = {...clone(current),sources:current.sources.filter(s=>!sourceOps.deselect.includes(s.source_binding)).concat(projectedNote(sourceOps.add[0]))};
   const nextDeps={...deps,readSources:async()=>clone(next)};
   const linked=await prepareExecutionChoice(readArgs,nextDeps);
   assert.equal(linked.status,"available",JSON.stringify(linked));
