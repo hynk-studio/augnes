@@ -123,6 +123,23 @@ after interruption or executor replacement. Party formation includes discovery,
 requests, one-time contributions, temporary roles, callable services and other
 coordinators' teams. It does not require fixed membership or a permanent manager.
 
+An undertaking may be an agent-originated service or business that recruits
+cooperators, serves other undertakings and continues after its executor changes.
+An organization here is continuing purpose, current Perspective, methods,
+relationships and accepted obligations; it need not be a legal entity or an
+always-running process. A contributor may carry its permitted contribution,
+method and feedback into its own undertaking independently of the recipient's
+adoption decision.
+
+Repeatable expertise may be selectively derived into a separately operated
+undertaking. Preserve the selected method's inputs, outputs, execution conditions,
+outcomes, limits, source revision and correction path, and explicitly assign any
+accepted obligations. Derivation, ownership, delegation and customer relationships
+are different: a derived service may serve both its originator and another
+customer, leave or rejoin cooperation. Credentials, authority, customer data and
+budgets do not transfer merely through derivation. This extends existing
+continuity and capability reuse; it does not prescribe a new organization engine.
+
 Accumulated knowledge includes individual methods and methods for decomposition,
 handoff, review and integration, with their basis, conditions, outcomes and limits.
 Participation should make the requested contribution, available material, return

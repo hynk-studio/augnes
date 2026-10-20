@@ -310,7 +310,7 @@ tasks; it is not limited to agents executing a human-authored task list.
 
 | Placement | Existing owner | Next bounded outcome and evidence boundary |
 |---|---|---|
-| First public entry | [#1447](https://github.com/hynk-studio/augnes/issues/1447) | Connect a useful public asset and agent-readable guidance to one actual consumer host/public channel. The 2026-10-15 ordinary-client observations are complete/RETAIN; broader public distribution remains pending. Asset fit follows the task, not a requirement to make workflow-cost represent every agent. |
+| First public entry | [#1447](https://github.com/hynk-studio/augnes/issues/1447) | The 2026-10-15 ordinary-client observations are complete/RETAIN; the 2026-10-20 component pre-release distribution is ACCEPT / COMPLETE. Next connect an actual task, participation material and return route through a supported public channel. Independent discovery/adoption remains unestablished. Asset fit follows the task, not a requirement to make workflow-cost represent every agent. |
 | Next contribution/use connection | [#1443](https://github.com/hynk-studio/augnes/issues/1443) | Reuse #1450's source loop for one real unresolved need, a small contribution request, return/check/use decision and separate successor use. Also support a requesting agent or collective selecting participants for its ongoing undertaking. Actual external contribution/recruitment observations remain NOT_RUN. |
 | Continuing axis across both paths | [#1453](https://github.com/hynk-studio/augnes/issues/1453) | Connect observed counterpart experience, conditional commitments, changed basis and fresh-successor action. The local capability, separate installed-client acceptance and frozen controlled consumer's HOST_INTEGRATION_BLOCKED/NOT_EXERCISED state remain distinct. A blocked host is not a universal stop for other valid paths. |
 
@@ -349,6 +349,61 @@ integration methods as well as task outputs. Use the
 to separate discovery, actual returned material, checked adoption, later use,
 correction and total burden only where needed for the claim. These are not new
 mandatory stages for every PR or authorization to recruit, publish or execute.
+
+#### Contribution and undertaking follow-through — 2026-10-20
+
+The next planning increments make the existing paths actionable. Placement below
+is prospective; it does not report new implementation, external participation or
+reassign current work. #1426 coordinates allocation; #1496 and #1498/#1499 retain
+their own scope and qualification state. Independent public preparation need not
+wait for those PRs; an implementation that actually consumes them must resolve
+that specific dependency. Preserve the existing L1 current-understanding and
+result-informed choice owner rather than opening a parallel selection engine.
+
+| Placement | Existing owner / surface | Bounded work and completion |
+|---|---|---|
+| Next: participation preparation | #1447 / public entry and supported host guidance | Prepare one concrete task, a useful example, permitted input, expected return, checking/use responsibility and participant benefit. Human and agent guidance describe the same current request and return route. |
+| Next: Web friction | [#1502](https://github.com/hynk-studio/augnes/issues/1502), [#1503](https://github.com/hynk-studio/augnes/issues/1503), then the separate [#1501](https://github.com/hynk-studio/augnes/issues/1501) / Web entry and incorporation | Clarify required criteria and disposition text; then let the owner review and retain/deselect existing current judgments during correction incorporation, with preview, fresh readback and preserved history. Existing acceptance and verification owners remain in force. |
+| Next: complete W1 | #1443 / P2 #1212, contribution and selective use | Connect one source-bound request or useful unsolicited contribution to checked current use/non-use and permitted feedback to its contributor. Selective public reading and bounded cross-owner submission need an explicit supported boundary. |
+| Following W1: independent W2 operation | #1443 / #1453 / P5 #1215 | Let an actor start its own or delegated undertaking, request and use a contribution, and continue through an authorized successor with goals, current judgments and unresolved obligations intact. Direct W2 entry remains valid; prior W1 participation is not required. |
+| Later bounded derivation (working label W3) | #1443 / #1453 / existing P4/P5 capability reuse | Select a reusable method and its conditions into a separately operated undertaking; use it for a distinct consumer/task and continue after executor replacement. A later increment may add one level of subdelegation. This is no new phase or prerequisite for W1/W2. |
+
+Use public software installation/version-change verification as the first proposed
+task family: one exact version, one environment and one user journey, with actual
+inputs, expected results and a named next consumer. Start with an Augnes outsider
+journey and a separate public project's real need; select that project when
+commissioning the task. Return reproducible steps, logs, checked result/failure,
+unknown scope and useful next-version checks. This is not broad QA or security
+certification, and the existing synthetic #1501–#1503 observations are not external
+demand. Keep the independently useful workflow-cost component available.
+
+The first candidate channels are a relevant real GitHub task/result touchpoint
+and the currently supported Codex host/Skill or direct-URL path. Use the selected
+host's actual support. The participation material should make the current need,
+source revision, contribution/return conditions, checking and use responsibility,
+allowed attribution/feedback and reusable benefit clear. Reading, one contribution,
+exit and permitted export remain useful outcomes. Optional continuation can carry
+selected material into the contributor's own work; a universal catalog, MCP/A2A
+integration, marketplace, reputation or settlement service is not a first step.
+
+Current [Web access](../../apps/web_planning/src/access.ts) admits one configured
+owner, and [private branching/incorporation](../../apps/web_planning/src/relations.ts)
+does not establish cross-owner participation. For W1 inspect selected public
+revision access and request-bound submission; for W2 inspect independent ownership
+and workspace isolation, including an agent-usable supported operation path to
+the same work. Compare separate owner deployments and tenant isolation when
+selecting the smallest implementation; this plan chooses no new schema or auth
+topology. Existing GitHub/HTTP exchange may suffice for a first bridge, but report
+manual relay as such and never substitute shared owner credentials for access.
+
+The [product owner](./01_AUGNES_VNEXT_MASTERPLAN.md#web-active-users-and-continuing-cooperation)
+defines selective derivation and relationship boundaries; the
+[evaluation owner](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#web-active-users-and-contribution-continuity)
+separates demonstrated paths from acquisition and repeat use. Update 02 only with
+a selected concrete contract change and its implementation; update supported-use
+README/host guidance when that path actually changes. These increments belong in
+their existing issues and reviewable PRs, without a separate master plan or
+automatic outreach, trial allocation, deployment or release.
 
 The research basis includes [Paperclip's external-agent model](https://paperclip.ing/product/bring-your-own-agent/),
 [Letta shared memory](https://docs.letta.com/concepts/shared-memory),
@@ -448,17 +503,21 @@ the existing unit resource owner, with the old HTTP delivery and solver tests
 retained. [PR #1451](https://github.com/hynk-studio/augnes/pull/1451) records the
 source delivery; its actual host/catalog/activation and native consumer
 observations, exact candidate qualification and cleanup retain their own scope.
-A local catalog does not establish a public listing; a Draft branch does not
-establish a stable release. Separate explicit authority is needed for release,
-public-directory submission or changes to an installed user profile. If those
-operational steps remain pending, the overall distribution objective stays open.
+A local catalog does not establish a public listing; source delivery and public
+distribution retain separate evidence. The [2026-10-20 final acceptance](https://github.com/hynk-studio/augnes/issues/1447#issuecomment-6284432330)
+completes the authorized [workflow-cost component pre-release](https://github.com/hynk-studio/augnes/releases/tag/augnes-workflow-cost-v0.1.0),
+including its recorded anonymous download and task-isolated supported Skill
+loading. It is not the general Augnes application latest release or a new
+model-use observation. Broader discovery/adoption remains open under #1447;
+further directory submission, outreach or ordinary-profile installation requires
+its own applicable authority.
 
 The [2026-10-15 ordinary-client observations](https://github.com/hynk-studio/augnes/issues/1447#issuecomment-6190336565)
 completed three bounded tasks and retained the current guidance (RETAIN), without
-a new source change or comparative-benefit claim. Next: prepare one stable public
-distribution destination for the selected asset/consumer and its actual return
-path under existing operational authority. Do not repeat the accepted exact-link
-delivery or RETAIN observations just to satisfy this plan. Comparative benefit,
+a new source change or comparative-benefit claim. Next: prepare the concrete
+participation and return path above, reusing the accepted distribution. Do not
+repeat the completed publication, exact-link delivery or RETAIN observations
+just to satisfy this plan. Comparative benefit,
 organic search, independent field adoption and all-host support remain unclaimed.
 #1433's completed connected-review evidence and #1372's private-file obligations
 remain with their existing owners; neither is a prerequisite for these public files.

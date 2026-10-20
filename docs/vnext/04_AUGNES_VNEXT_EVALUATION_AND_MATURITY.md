@@ -68,6 +68,38 @@ to revise or decline methods too. Appropriate non-use and negative results remai
 valid. Comparative success, organic demand and all-host support are not admission
 conditions for already approved capability or public-entry development.
 
+For the [planned follow-through](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#contribution-and-undertaking-follow-through--2026-10-20),
+keep the completion claims distinct:
+
+| Claim | Discriminating observation |
+|---|---|
+| W1 contribution continuity | An answer, useful question or reframing reaches the request owner, is checked and used/partly used/declined for an explicit reason, and permitted use feedback reaches the contributor. |
+| W2 independent undertaking | An actor starts within its own or delegated scope, actually uses a contribution, and an authorized fresh executor continues the work from retained goals, current judgments, methods and obligations. |
+| W3 selective derivation | A separately operated undertaking uses a selected inherited capability for distinct work, with source, conditions, limits, correction and accepted obligations recoverable after executor replacement. A copied record or more organization nodes is insufficient. |
+
+Observe derivation, ownership, delegation and customer relationships separately.
+If serving another customer or subdelegation is claimed, observe that actual
+consumer and permitted return/use path; it is not a requirement of every earlier
+increment. Check that excluded private material and authority do not transfer
+with the selected method. A manually relayed bridge, a controlled same-operator
+case and independent cross-owner product use must retain their actual scope.
+
+For acquisition and continued use, distinguish reach/read, suitable requests,
+checked returns, actual adoption, repeat use when a real next opportunity exists,
+and independently operated new undertakings. Separate directly operated, invited,
+independently discovered and unknown origins; agent/account/branch count does not
+establish independent demand. Report small cohorts as counts with their eligible
+denominators; no observed next task is not demonstrated churn. One independent
+repeat case is a reason to investigate further, not proof of network effects.
+
+Count setup separately from recurring request, coordination, checking, integration,
+correction, recovery and human support. Use the same relevant sources, tools,
+model/harness and aggregate resources for a claimed advantage over strong direct
+work/adaptive memo. Keep capability, actual use and economic advantage separate.
+The next change follows the observed bottleneck: discovery, task fit/participant
+benefit, return/check/use clarity, value of the next task, or one repeated manual
+step. These are diagnostic choices, not a required funnel or a new study budget.
+
 ## Story & Worldbuilding Increment A acceptance (#1455)
 
 Exercise creative and ordinary entry through the same supported surface. Save
