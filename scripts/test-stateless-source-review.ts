@@ -320,11 +320,23 @@ async function statelessSuccessorPacketAdmissionContract() {
     assert.equal(refused.error_code, "successor_task_packet_max_characters_exceeded");
     const refusedSave = await http({ action: "prepare_result_work", request }, 409);
     assert.equal(refusedSave.error_code, refused.error_code);
+    assert.equal(refused.packet_budget, undefined);
+    const diagnostic = await http({ ...previewBody, include_packet_budget_diagnostics: true }, 409);
+    const diagnosticSave = await http({ action: "prepare_result_work", request, include_packet_budget_diagnostics: true }, 409);
+    assert.deepEqual(diagnostic.packet_budget, diagnosticSave.packet_budget);
+    assert.deepEqual(diagnostic.packet_budget, { budget: "max_characters", unit: "utf16_code_units", observed: 76_179, limit: 76_000, overage: 179 });
+    assert.deepEqual(diagnostic, { ...refused, packet_budget: diagnostic.packet_budget });
+    for (const response of [
+      await http({ ...previewBody, include_packet_budget_diagnostics: true }, 401, ""),
+      await http({ ...previewBody, include_packet_budget_diagnostics: true }, 403, cookie, "http://untrusted.invalid"),
+      await http({ ...previewBody, include_packet_budget_diagnostics: true, binding: { ...prep.binding, expected_project_work_binding: "sha256:" + "0".repeat(64) } }, 409),
+    ]) assert.equal(response.packet_budget, undefined);
     assert(databaseBefore.equals(f.db.serialize()), "Refused preview/save leave predecessor, ledger, authority and session unchanged");
     assert.deepEqual((await http()).work_initialization, before.work_initialization);
     const admissible = { goal: "Review all eight observations conditionally.", success_criteria: ["Preserve their source attribution and unresolved applicability."], non_goals: definition.non_goals };
     const preview = await http({ ...previewBody, definition: admissible });
-    assert.equal(preview.writes, 0); assert(databaseBefore.equals(f.db.serialize()), "Preview is read-only");
+    assert.equal(preview.writes, 0); assert.equal(preview.request.include_packet_budget_diagnostics, undefined);
+    assert(databaseBefore.equals(f.db.serialize()), "Preview is read-only");
     for (const [field, code] of [["expected_root_fingerprint", "successor_task_root_changed"], ["expected_project_work_binding", "successor_task_project_binding_changed"]] as const) {
       const refusedBinding = await http({ action: "prepare_result_work", request: { ...preview.request, [field]: "sha256:" + "0".repeat(64) } }, 409);
       assert.equal(refusedBinding.error_code, code); assert(databaseBefore.equals(f.db.serialize()));
@@ -332,7 +344,7 @@ async function statelessSuccessorPacketAdmissionContract() {
     await http({ action: "prepare_result_work", request: preview.request }, 401, "");
     await http({ action: "prepare_result_work", request: preview.request }, 403, cookie, "http://untrusted.invalid");
     assert(databaseBefore.equals(f.db.serialize()));
-    const saved = await http({ action: "prepare_result_work", request: preview.request }, 201), fresh = await http();
+    const saved = await http({ action: "prepare_result_work", request: preview.request, include_packet_budget_diagnostics: true }, 201), fresh = await http();
     assert.equal(saved.execution_authority_granted, false); assert.equal(saved.run_created, false); assert.equal(saved.semantic_state_changed, false);
     assert.equal(fresh.work_initialization.current_packet.packet_id, saved.packet_id);
     assert.deepEqual(fresh.work_initialization.current_work, admissible);
@@ -342,7 +354,7 @@ async function statelessSuccessorPacketAdmissionContract() {
     assert(afterSave.equals(f.db.serialize()), "Stale save is atomic");
     assert.equal(f.calls, 2, "Successor preparation cannot invoke the fixture adapter");
     console.log(JSON.stringify({ stateless_successor_packet_admission: "passed", http: true, read_only_preview: true,
-      precise_refusal: refused.error_code, admissible_save_and_exact_readback: true, unchanged_predecessor: true, real_model_calls: 0 }));
+      precise_refusal: refused.error_code, packet_budget: diagnostic.packet_budget, admissible_save_and_exact_readback: true, unchanged_predecessor: true, real_model_calls: 0 }));
   } finally { await closeTrackedServer(server); }
 }
 
