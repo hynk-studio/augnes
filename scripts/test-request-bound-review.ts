@@ -29,7 +29,7 @@ import { invalidateRestoredReviewSubscriptions } from "../lib/vnext/persistence/
 import { prepareRuntimeDatabase, restoreRuntimeDatabase, inspectRecoveryDatabaseFile } from "./runtime-database-bootstrap.mjs";
 import { createRecoveryBackup } from "./recovery-backup.mjs";
 import { readProjectWorkInitializationSnapshotV01 } from "../lib/vnext/runtime/project-work-initialization";
-import { reviewedOutcomeSourceRef } from "../lib/intake/selected-work-source-comparison";
+import { readSelectedWorkSources, reviewedOutcomeSourceRef } from "../lib/intake/selected-work-source-comparison";
 import { testReviewCallbackEnrollment } from "./test-review-callback-enrollment";
 import { assertPreparedDatabase, DatabaseAccessError } from "../lib/db/prepared-database.mjs";
 import { structuralSchemaContractSignature } from "../lib/db/structural-schema-contract.mjs";
@@ -47,9 +47,10 @@ export async function testRequestBoundReview() {
     const guard = installZeroNetworkGuard({ allowLoopback: true });
     const token = randomBytes(32).toString("base64url"), instance = "review-fixture", generation = "generation-1", repository = "a".repeat(64);
     let origin = "", id = 0, httpCalls = 0, dropAck = false, inspectionFailure = false, interruptDelivery = false, callbacks = 0, verifyCalls = 0, callbackStatus = 200, challengeWrong = false, signingWrong = false;
+    let corruptMaterialRead = false, duringStatusLookup: (() => void) | null = null;
     let addresses = [{ address: "8.8.8.8", family: 4 }], duringDNS: (() => Promise<void>) | null = null, dnsCalls = 0,
         duringHTTPS: (() => Promise<void>) | null = null, socketError: string | null = null, oversizedResponse = false;
-    const received: any[] = [], errors: string[] = [], eventRoutes: { method: string; status: number; metadata: boolean }[] = [], routes: Record<string, (r: Request) => Promise<Response>> = {
+    const reviewActions: string[] = [], received: any[] = [], errors: string[] = [], eventRoutes: { method: string; status: number; metadata: boolean }[] = [], routes: Record<string, (r: Request) => Promise<Response>> = {
         "/api/augnes/read/codex-repository-continuity": resume, "/api/augnes/read/codex-repository-work-sources": source,
         "/api/augnes/repository-work-revision": writer, "/api/augnes/review": review,
     };
@@ -72,7 +73,8 @@ export async function testRequestBoundReview() {
             for await (const chunk of req)
                 chunks.push(Buffer.from(chunk));
             const body = Buffer.concat(chunks).toString();
-            if ((inspectionFailure || interruptDelivery) && url.pathname === "/api/augnes/review")
+            if (url.pathname === "/api/augnes/review") reviewActions.push(JSON.parse(body).action);
+            if ((inspectionFailure || interruptDelivery || corruptMaterialRead || duringStatusLookup) && url.pathname === "/api/augnes/review")
                 Database.prototype.prepare = function (this: Database.Database, sql: string) {
                     if (inspectionFailure && /FROM vnext_core_records/u.test(sql))
                         throw new Error("injected_private_inspection_failure");
@@ -80,7 +82,22 @@ export async function testRequestBoundReview() {
                         interruptDelivery = false;
                         throw new Error("injected_interruption_after_commit");
                     }
-                    return originalPrepare.call(this, sql);
+                    const statement = originalPrepare.call(this, sql);
+                    if ((corruptMaterialRead && /FROM vnext_core_records/u.test(sql)) || (duringStatusLookup && /SELECT \* FROM vnext_review_requests WHERE request_ref/u.test(sql)))
+                        return new Proxy(statement, { get(target, property) {
+                            const value = Reflect.get(target, property);
+                            if (!["get", "all"].includes(String(property))) return typeof value === "function" ? value.bind(target) : value;
+                            return (...args: any[]) => {
+                                const result = value.apply(target, args);
+                                if (duringStatusLookup && /FROM vnext_review_requests/u.test(sql)) { const action = duringStatusLookup; duringStatusLookup = null; action(); }
+                                if (corruptMaterialRead && /FROM vnext_core_records/u.test(sql)) {
+                                    const corrupt = (r: any) => r?.payload_json ? { ...r, payload_json: "{}" } : r;
+                                    return Array.isArray(result) ? result.map(corrupt) : corrupt(result);
+                                }
+                                return result;
+                            };
+                        } });
+                    return statement;
                 } as typeof originalPrepare;
             let response;
             try {
@@ -256,7 +273,8 @@ export async function testRequestBoundReview() {
         const adapter = (c: any) => createRequestBoundReviewAdapter(c.id);
         let reviewer = adapter(a);
         const catalog: any = await reviewer.handle(modernMessage("tools/list"));
-        assert.deepEqual(catalog.result.tools.map((t: any) => t.name), ["augnes_list_review_requests", "augnes_read_review_request", "augnes_reply_to_review"]);
+        assert.deepEqual(catalog.result.tools.map((t: any) => t.name), ["augnes_list_review_requests", "augnes_read_review_request", "augnes_reply_to_review", "augnes_get_review_status"]);
+        assert.equal(catalog.result.tools[3].annotations.readOnlyHint, true);
         assert(!/secret|callback|repositoryRoot|sourceAgentId|from_agent/.test(JSON.stringify(catalog.result.tools.map((t: any) => t.inputSchema))));
         const beforeForbidden = httpCalls;
         for (const name of ["augnes_resume_repository", "augnes_plan", "augnes_observe", "augnes_record_action_result", "augnes_record_work_event", "augnes_review_repository_work", "augnes_start_repository_delegation", "augnes_save_repository_work_revision"]) {
@@ -272,12 +290,68 @@ export async function testRequestBoundReview() {
         const request = async (question: string, c = a) => { const inspected = await op({ action: "inspect", connection_ref: c.id }); return op({ action: "request", connection_ref: c.id, expected_material_ref: inspected.material_ref, question }); };
         const replyArgs = (r: any, answer = "Retain the failure rows: excluding them understates worker cost.") => ({ request_ref: r.request_ref, read_binding: r.read_binding, answer, limitations: "Synthetic local review; no independent model judgment.", source_refs: r.sources.map((s: any) => s.source_binding) });
         const reply = async (r: any, c = a, args = replyArgs(r)) => (await reviewCall("augnes_reply_to_review", args, c)).result.structuredContent;
+        const status = async (ref: unknown, c = a) => (await reviewCall("augnes_get_review_status", { request_ref: ref }, c)).result.structuredContent;
+        // Hash all application rows/schema, including exact packet/response bytes,
+        // read witnesses, selection, delivery, credentials and authority state.
+        const applicationState = () => digest({ config: readFileSync(configPath, "utf8"), callbacks, verifyCalls,
+            tables: db.prepare("SELECT name,sql FROM sqlite_master WHERE type='table' ORDER BY name").all().map((t: any) => [t.name, t.sql,
+                db.prepare(`SELECT * FROM "${t.name.replaceAll('"', '""')}"`).all().map(row => JSON.stringify(row)).sort()]) });
+        let preservedStatusReads = 0, statusTarget: any, pendingTarget: any;
+        async function statusOnly(action: () => Promise<void>) {
+            const before = applicationState();
+            await action();
+            assert.equal(applicationState(), before, "successful and refused status inspection must preserve all application state");
+            preservedStatusReads++;
+        }
+        function statusItem(projection: any) {
+            const { projection_version, status, source_material_authority, authority, ...item } = projection;
+            assert.equal(status, "available");
+            assert.equal(source_material_authority, "untrusted_review_context");
+            assert.deepEqual(authority, { semantic: false, execution: false, external_effect: false, approval: false });
+            return item;
+        }
+        async function matchesList(ref: string, projection: any) {
+            let cursor: string | undefined, item: any;
+            do {
+                const page = (await reviewCall("augnes_list_review_requests", cursor ? { cursor } : {})).result.structuredContent;
+                item = page.requests.find((r: any) => r.request_ref === ref);
+                cursor = page.next_cursor;
+            } while (!item && cursor);
+            assert(item);
+            assert.deepEqual(statusItem(projection), item, "direct status is exactly the reviewer list item plus its standard envelope");
+            assert(!("read_binding" in item) && !("definition" in item) && !("sources" in item));
+        }
         // A: both ordinary cycles keep a genuinely fresh originating process.
         // The second cycle deliberately retains the useful step on the same scope.
         async function explicitCycle(cycle: number) {
-            const req = await request(`Cycle ${cycle}: should all attempts remain in the total?`), r = await read(req.request_ref);
+            const req = await request(`Cycle ${cycle}: should all attempts remain in the total?`);
+            if (cycle === 0) {
+                statusTarget = req;
+                await statusOnly(async () => {
+                    const pending = await status(req.request_ref);
+                    assert.equal(pending.response, null); assert.equal(pending.currentness, "current");
+                    assert.match(pending.next_action, /augnes_read_review_request/);
+                    await matchesList(req.request_ref, pending);
+                    for (const receipt_mode of [undefined, "historical_v1"]) {
+                        const refused = await reviewCall("augnes_reply_to_review", { request_ref: req.request_ref, read_binding: "sha256:" + "f".repeat(64),
+                            answer: "Status is not a material read.", limitations: "synthetic", source_refs: [], ...(receipt_mode ? { receipt_mode } : {}) });
+                        assert.equal(refused.result.structuredContent.reason, "review_read_binding_refused");
+                    }
+                    assert.match((await op({ action: "list", connection_ref: a.id })).requests[0].next_action, /list\/readback/);
+                });
+            }
+            const r = await read(req.request_ref);
             assert.equal(r.definition.goal, "A1: compare retry handling");
-            assert.equal((await reply(r)).status, "saved");
+            assert.equal((await reply(r, a, replyArgs(r, cycle === 0 ? "Retain the failure rows: excluding them understates worker cost. Retry every failed attempt immediately." : undefined))).status, "saved");
+            if (cycle === 0) await statusOnly(async () => {
+                const answered = await status(req.request_ref);
+                assert.equal(answered.readback, "not_served"); assert.equal(answered.currentness, "current");
+                assert.match(answered.next_action, /No resubmission/);
+                assert.doesNotMatch(answered.next_action, /prepare|ordinary work revision/);
+                await matchesList(req.request_ref, answered);
+                assert.match((await op({ action: "list", connection_ref: a.id })).requests[0].next_action, /prepare retain, revise or reject/);
+                assert.deepEqual(await status(req.request_ref), answered);
+            });
             let stdout = "", stderr = "";
             const child = await runCanonicalChild({ suite: "request-bound-review", label: `fresh-origin-${cycle}`, command: process.execPath, cwd: process.cwd(),
                 args: ["--input-type=module", "-e", `import {handleMessageV01} from './plugins/augnes-operator/mcp/companion-proxy.mjs'; console.log(JSON.stringify(await handleMessageV01(JSON.parse(process.argv[1]))));`,
@@ -288,7 +362,10 @@ export async function testRequestBoundReview() {
             const back = JSON.parse(stdout).result.structuredContent;
             assert(back.response.answer.includes("failure rows"));
             assert.equal(back.use.status, "not_observed_in_current_work");
-            const use = await op({ action: "prepare_use", connection_ref: a.id, request_ref: req.request_ref, choice: "retain", reasoning: "The response confirms that all-attempt cost needs failed attempts. Retain the existing population and record this basis." });
+            assert.equal(back.readback, "served_to_origin");
+            const use = await op({ action: "prepare_use", connection_ref: a.id, request_ref: req.request_ref, choice: cycle === 0 ? "revise" : "retain",
+                reasoning: cycle === 0 ? "Partly use the answer: retain failure rows in all-attempt cost. Do not use the immediate-retry suggestion: reruns would change the observed population and have no execution authority. Retry policy remains unresolved." : "The response confirms that all-attempt cost needs failed attempts. Retain the existing population and record this basis." });
+            if (cycle === 0) for (let n = 0; n < 5; n++) pendingTarget = await op({ action: "request", connection_ref: a.id, expected_material_ref: req.material_ref, question: `Other bounded request ${n}` });
             if (cycle === 0)
                 await writeWork(pb.root, { goal: "B1: unrelated change between A preparation and continuation" });
             const preview = await call(use.revision_tool, use.revision_arguments);
@@ -296,6 +373,31 @@ export async function testRequestBoundReview() {
             const used = await op({ action: "readback", connection_ref: a.id, request_ref: req.request_ref });
             assert.equal(used.use.status, "attributed_note_in_current_work");
             assert.equal(used.currentness, "historical");
+            if (cycle === 0) {
+                // New supported stdio process; exact known target is beyond page 1.
+                const first = (await reviewCall("augnes_list_review_requests", {})).result.structuredContent;
+                assert(first.next_cursor && !first.requests.some((r: any) => r.request_ref === req.request_ref));
+                await stdioRequests([modernMessage("server/discover")], a.id);
+                await statusOnly(async () => {
+                    const actionStart = reviewActions.length;
+                    const [fresh] = await stdioRequests([modernMessage("tools/call", { name: "augnes_get_review_status", arguments: { request_ref: req.request_ref } })], a.id);
+                    assert.deepEqual(reviewActions.slice(actionStart), ["status"], "exact lookup must not enumerate list pages or read material");
+                    const observed = fresh.result.structuredContent;
+                    assert.equal(observed.currentness, "historical"); assert.equal(observed.readback, "served_to_origin");
+                    assert.equal(observed.response.answer, back.response.answer); assert.match(observed.use.reasoning, /Do not use the immediate-retry/);
+                    await matchesList(req.request_ref, observed);
+                    assert.deepEqual(await status(req.request_ref), observed);
+                    assert.match(used.next_action, /explicitly reassess/);
+                    const pending = await status(pendingTarget.request_ref);
+                    assert.equal(pending.response, null); assert.equal(pending.currentness, "historical");
+                    assert.match(pending.next_action, /valid prior material read and explicit historical_v1/);
+                    await matchesList(pendingTarget.request_ref, pending);
+                    assert.equal((await reviewCall("augnes_reply_to_review", { request_ref: pendingTarget.request_ref, read_binding: "sha256:" + "f".repeat(64), answer: "Cannot reply from status.", limitations: "synthetic", source_refs: [], receipt_mode: "historical_v1" })).result.structuredContent.reason, "review_read_binding_refused");
+                    assert.equal((await read(req.request_ref)).reason, "review_material_changed");
+                    console.log(JSON.stringify({ test: "contributor-status", stage: "fresh-reviewer-after-save", direct_route_actions: ["status"], beyond_first_page: true, answered: observed, pending }));
+                });
+                await closeProtocolClient();
+            }
             const selected = readProjectWorkInitializationSnapshotV01(db, pa.scope).packet!.selected_context;
             const responseNote = selected.find(s => s.compatibility_source_ref?.external_id === `note_ref:augnes-review:${back.response_ref.slice(7)}`);
             const useNote = selected.find(s => s.compatibility_source_ref?.external_id === `note_ref:augnes-review-use:${back.response_ref.slice(7)}`);
@@ -310,6 +412,30 @@ export async function testRequestBoundReview() {
         // history until those cases finish: revalidating that extra history on
         // each unrelated read adds cost without establishing another assertion.
         const foreign = await request("B isolation fixture", b);
+        await statusOnly(async () => {
+            for (const ref of [foreign.request_ref, "sha256:" + "f".repeat(64), "malformed", null, 7])
+                assert.equal((await status(ref)).reason, "review_access_refused");
+            assert.equal((await status(statusTarget.request_ref, b)).reason, "review_access_refused");
+            for (const args of [{}, { request_ref: statusTarget.request_ref, cursor: "forged" }, { request_ref: statusTarget.request_ref, connection_ref: b.id }, { request_ref: statusTarget.request_ref, read_binding: "forged" }])
+                assert.equal((await reviewCall("augnes_get_review_status", args)).error.code, -32602);
+            const input = { action: "status", connection_ref: a.id, request_ref: statusTarget.request_ref };
+            assert.equal((await raw({ ...input, extra: true }, { "x-augnes-review-credential": a.secret })).status, 400);
+            assert.equal((await raw(input, { "x-augnes-review-credential": b.secret })).status, 403);
+            assert.equal((await raw(input)).value.reason, "review_capability_refused");
+            assert.equal((await raw({ ...input, action: "readback" }, { "x-augnes-review-credential": a.secret })).value.reason, "review_capability_refused");
+        });
+        const originalConfig = { ...a };
+        for (const changes of [{ expires_at: new Date(0).toISOString() }, { project_key: b.project_key }, { repository_root: pb.root },
+            { reviewer_label: "rebound reviewer" }, { secret: randomBytes(32).toString("base64url") }]) {
+            try {
+                Object.assign(a, changes); saveConfig();
+                await statusOnly(async () => {
+                    const refused = await raw({ action: "status", connection_ref: a.id, request_ref: statusTarget.request_ref }, { "x-augnes-review-credential": originalConfig.secret });
+                    assert.equal(refused.status, 403); assert.equal(refused.value.reason, "review_access_refused");
+                    assert(!("response" in refused.value));
+                });
+            } finally { Object.assign(a, originalConfig); saveConfig(); }
+        }
         // C/D: no foreign data, exact retry, conflict, concurrent writes and lost ACK.
         const replayReq = await request("atomic reply");
         assert.equal((await request("atomic reply")).request_ref, replayReq.request_ref);
@@ -352,6 +478,7 @@ export async function testRequestBoundReview() {
         const readonly = createConnectedProjectReaderV01({ repositoryRoot: pa.root, projectKey: a.project_key });
         const readonlyRefusal: any = await readonly({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "augnes_reply_to_review", arguments: replyArgs(lostRead) } });
         assert.equal(readonlyRefusal.error.message, "tool_not_exposed");
+        assert.equal((await readonly({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "augnes_get_review_status", arguments: { request_ref: statusTarget.request_ref } } }) as any).error.message, "tool_not_exposed");
         const beforeFailure = db.prepare("SELECT count(*) n FROM vnext_review_requests").get();
         inspectionFailure = true;
         const failed = await raw({ action: "inspect", connection_ref: a.id });
@@ -365,6 +492,32 @@ export async function testRequestBoundReview() {
         assert.equal(failedTool.result.structuredContent.reason, "review_material_inspection_failed");
         assert.equal(failedTool.result.isError, true);
         assert.equal(JSON.parse(failedTool.result.content[0].text).reason, "review_material_inspection_failed");
+        await statusOnly(async () => {
+            inspectionFailure = true;
+            try {
+                const refused = await status(statusTarget.request_ref);
+                assert.equal(refused.status, "unavailable"); assert.equal(refused.reason, "review_material_inspection_failed");
+                assert(!("response" in refused) && !("use" in refused) && !("requests" in refused));
+            } finally { inspectionFailure = false; }
+        });
+        await statusOnly(async () => {
+            try {
+                corruptMaterialRead = true;
+                const refused = await status(statusTarget.request_ref);
+                const inspection = (await raw({ action: "inspect", connection_ref: a.id })).value;
+                assert(["unavailable", "refused"].includes(refused.status));
+                assert.equal(refused.status, inspection.status); assert.equal(refused.reason, inspection.reason);
+                assert(!("response" in refused));
+            } finally { corruptMaterialRead = false; }
+        });
+        await statusOnly(async () => {
+            try {
+                duringStatusLookup = () => { a.reviewer_label = "Rebound after exact row lookup"; saveConfig(); };
+                const refused = await status(statusTarget.request_ref);
+                assert.equal(refused.reason, "review_access_refused");
+                assert(!("response" in refused), "final currentReviewConnection recheck must discard an otherwise complete projection");
+            } finally { duringStatusLookup = null; Object.assign(a, originalConfig); saveConfig(); }
+        });
         phase("isolation_replay_conflict_and_readback");
         // E: actual adapter catalog/protocol through HTTP, filtered callbacks,
         // verification cache, retries, restart, secret rotation, expiry/unsubscribe.
@@ -546,7 +699,7 @@ export async function testRequestBoundReview() {
             env: { ...process.env, AUGNES_REVIEW_CONNECTION_ID: a.id }, timeoutMs: 10000, heartbeatMs: 0, log: () => { }, resourceOwner: undefined,
             stdout: { write(x: string | Uint8Array) { recoveryOutput += x; return true; } } as typeof process.stdout });
         assert.equal(canonicalChildAcceptanceFailure(recovery, { suite: "request-bound-review", timeoutMs: 10000, requireNaturalExit: true }), null);
-        assert.deepEqual(JSON.parse(recoveryOutput), { tools: ["augnes_list_review_requests", "augnes_read_review_request", "augnes_reply_to_review"], read: "available" });
+        assert.deepEqual(JSON.parse(recoveryOutput), { tools: ["augnes_list_review_requests", "augnes_read_review_request", "augnes_reply_to_review", "augnes_get_review_status"], read: "available" });
         assert.equal(received.filter(e => e.data.request_ref === interrupted.request_ref).length, 1);
         assert.equal(received.filter(e => e.data.request_ref === delayed.request_ref).length, 1);
         for (const ref of [delayed.request_ref, interrupted.request_ref]) {
@@ -628,6 +781,28 @@ export async function testRequestBoundReview() {
         assert(seen.has(lost.request_ref));
         assert(!seen.has(br.request_ref));
         assert(!seen.has(foreign.request_ref));
+        // Ordinary deselection changes only current observation; immutable prior
+        // packets and the original response remain available byte-for-byte.
+        const priorPackets = db.prepare("SELECT * FROM vnext_core_records ORDER BY record_id").all();
+        const priorRequests = db.prepare("SELECT * FROM vnext_review_requests ORDER BY request_ref").all();
+        const notes = readSelectedWorkSources(readProjectWorkInitializationSnapshotV01(db, pa.scope).packet!);
+        const targetResponse = (await status(statusTarget.request_ref)).response_ref;
+        const selectedUse = notes.find(s => s.compatibility_source_ref?.external_id === `note_ref:augnes-review-use:${targetResponse.slice(7)}`)!;
+        assert(selectedUse);
+        await writeWork(pa.root, { sources: { deselect: [selectedUse.source_ref] } });
+        assert.deepEqual(db.prepare("SELECT * FROM vnext_review_requests ORDER BY request_ref").all(), priorRequests);
+        for (const row of priorPackets as any[]) assert.deepEqual(db.prepare("SELECT * FROM vnext_core_records WHERE record_id=?").get(row.record_id), row);
+        await statusOnly(async () => {
+            const deselected = await status(statusTarget.request_ref);
+            assert.deepEqual(deselected.use, { status: "not_observed_in_current_work" });
+            assert.equal(deselected.response_ref, targetResponse); assert.equal(deselected.readback, "served_to_origin");
+            assert.match(deselected.next_action, /No resubmission/);
+            await matchesList(statusTarget.request_ref, deselected);
+            assert.equal((await read(statusTarget.request_ref)).reason, "review_material_changed");
+            console.log(JSON.stringify({ test: "contributor-status", stage: "after-deselection", projection: deselected, prior_packets_preserved: priorPackets.length }));
+        });
+        console.log(JSON.stringify({ test: "contributor-status-preservation", status: "pass", preserved_groups: preservedStatusReads,
+            all_application_tables: true, credentials: true, current_selection_is_not_history: true }));
 
         // F: restore invalidates only adapter delivery leases. Core authority counts
         // remain zero; ordinary writer refusal above survives to the tool surface.
