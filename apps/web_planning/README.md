@@ -550,6 +550,15 @@ and direction history use [different owners and recovery limits](../../docs/DATA
 
 ## Draft capacity and deliberate revision
 
+**Success criteria** requires 1–12 distinct, nonblank entries; **Non-goals** is
+optional (0–12). Both fields explain the 500-codepoint per-entry limit and the
+existing trim, blank-line removal, deduplication and sorting on Save. Empty
+criteria retain native browser validation. A server-refused criteria definition
+also shows an associated field error and focuses that field after a deliberate
+Save; raw draft input and selected context remain intact. Editing criteria or
+loading another work clears the prior field error. Background capacity checks
+do not move focus. Correction still saves through the existing server authority.
+
 [#1369](https://github.com/hynk-studio/augnes/issues/1369) adds a read-only
 **Draft capacity** check to the ordinary editor. Edits invalidate old feedback
 immediately. Checks wait 500 ms after input, allow one request in flight, and

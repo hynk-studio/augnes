@@ -49,6 +49,7 @@ function draft(includeFiles=true){const rows=[...$('notes').children];const note
  return {definition:{goal:$('goal').value,success_criteria:$('criteria').value.split('\n'),non_goals:$('non-goals').value.split('\n')},notes,material_edits,...(includeFiles?{files:selectedFiles.map(f=>({...f})),...(activeScene&&sceneModified?{scene:sceneInput()}:{} )}:{})};}
 
 function changed(event){
+  if(event?.target.id==='criteria')criteriaError();
   invalidateDirectionRequest();
   invalidateSceneReview();
   if(sceneContextRequest&&!currentSceneContext(sceneContextRequest))invalidateSceneContext();
@@ -60,6 +61,12 @@ function changed(event){
 }
 // Compare authored meaning only; keep raw input intact for the server's validation.
 function definitionComparison(value){return typeof value==='string'?value.trim():[...new Set(value.map(v=>v.trim()).filter(Boolean))].sort();}
+function criteriaError(message=''){$('criteria-error').textContent=message;$('criteria-error').hidden=!message;
+  if(message)$('criteria').setAttribute('aria-invalid','true');else $('criteria').removeAttribute('aria-invalid');}
+function criteriaRefused(error,value){
+  if(error.message!=='first_work_success_criteria_invalid'||accessLost||$('criteria').value!==value)return;
+  criteriaError(capacityReason({code:error.message}));$('criteria').focus();
+}
 function reviewChanges(){const d=draft();const lines=[];
   if(!saved)lines.push('New work will be created only when you press Save.');
   else {for(const [k,label] of [['goal','Goal'],['success_criteria','Success criteria'],['non_goals','Non-goals']])
@@ -75,6 +82,7 @@ function reviewChanges(){const d=draft();const lines=[];
 async function show(r=null){invalidateSceneContext();invalidateSceneReview();selectedFiles=(r?.files??[]).map(f=>({...f}));fileSelectionVersion++;renderFiles();$('work-files').value='';saved=r;pending=null;reviewed=null;dirty=false;saveTicket=null;
   $('editor').hidden=false;document.querySelector('.intro').hidden=true;
   $('goal').value=r?.definition.goal??'';$('criteria').value=(r?.definition.success_criteria??[]).join('\n');$('non-goals').value=(r?.definition.non_goals??[]).join('\n');
+  criteriaError();
   $('notes').replaceChildren();for(const n of r?.sources??[])noteRow(noteInput(n),n.source_ref);const rows=[...$('notes').children];for(const row of rows){const m=r?.relations?.materials.find(m=>m.source_ref===row._original);row._depIds=(m?.dependencies??[]).map(ref=>rows.find(n=>n._original===ref)?.id??'missing:'+ref);}syncDependencies();resetDirections();
   $('editor-title').textContent=r?'Continue your work':'New work';$('saved-label').textContent=r?`Saved revision ${r.revision} · ${r.recorded_at}`:'Unsaved draft';
   for(const id of ['saved-context','refresh-work','history-tools','directions'])$(id).hidden=!r;
@@ -93,7 +101,7 @@ function capacityReason(issue){const reasons={
   selected_source_context_budget_exceeded:'Selected context exceeds its stored-byte budget, including attribution and provenance. Review per-note costs and revise the current selection.',
   selected_source_context_invalid:'Check the note text (required, at most 2,000 characters), attribution (required, at most 256 UTF-16 units), note type, provenance and observation time.',
   first_work_goal_invalid:'Provide a goal of at most 2,000 characters.',
-  first_work_success_criteria_invalid:'Provide 1–12 distinct criteria, at most 500 characters each.',
+  first_work_success_criteria_invalid:'Enter 1–12 distinct, nonblank success criteria, at most 500 characters (Unicode codepoints) per entry.',
   first_work_non_goals_invalid:'Use at most 12 distinct non-goals, at most 500 characters each.',
   first_work_definition_too_large:'The work definition exceeds its separate stored-byte budget.',
   relation_budget_exceeded:'Source relationships exceed their separate stored-byte budget. Review required context and retained comparison material; shortening note text does not reduce this quantity.',
@@ -162,6 +170,7 @@ async function refreshList(){
 async function acknowledged(r){await show(r);status(`Saved revision ${r.revision}. Reopen or read Saved context.`);return refreshList();}
 async function dispatch(){
   if(!pending)return;
+  const criteria=pending.definition.success_criteria.join('\n');
   queueCapacity();
   $('edit-fields').disabled=true;$('save').disabled=true;
   let data;
@@ -169,18 +178,23 @@ async function dispatch(){
   catch(e){if(e.message==='access_denied')throw e;
     if(e.status===409 && e.message!=='save_ticket_expired') {pending=null;saveTicket=null;$('edit-fields').disabled=false;$('save').disabled=false;$('uncertain').hidden=true;
       $('conflict').hidden=false;status('Save refused. Your draft remains intact. Review the latest saved version.');}
-    else if(e.status===422||e.status===413){pending=null;saveTicket=null;$('edit-fields').disabled=false;$('save').disabled=false;status('Save refused: '+(messages[e.message]??e.message.replaceAll('_',' '))+'. No clipping or partial save was performed.');}
+    else if(e.status===422||e.status===413){pending=null;saveTicket=null;$('edit-fields').disabled=false;$('save').disabled=false;criteriaRefused(e,criteria);status('Save refused: '+(messages[e.message]??e.message.replaceAll('_',' '))+'. No clipping or partial save was performed.');}
     else if(e.status===410){pending=null;$('uncertain').hidden=true;$('context-view').replaceChildren();status(messages.work_erased);}
     else{$('uncertain').hidden=false;status('Save outcome unknown. Keep this tab open and check the original request.');}
     queueCapacity();return;}
   await acknowledged(data.saved);
 }
 $('work-form').addEventListener('input',changed);
+$('criteria').addEventListener('invalid',()=>criteriaError('Add at least one nonblank success criterion.'));
+messages.first_work_success_criteria_invalid='Check Success criteria. '+capacityReason({code:'first_work_success_criteria_invalid'});
 $('work-form').onsubmit=e=>{e.preventDefault();run(async()=>{if(pending||relationPending||sceneReviewPending)return;
   if(authoredUnavailable){status('Original writing is unavailable. Refresh the saved version before saving; your draft is retained.');return;}
   syncAuthored();
+  const criteria=$('criteria').value;
+  try{
   if(!saveTicket){if(saved)saveTicket=(await api('/api/work/'+work+'/ticket',{expected:binding(saved),...draft()})).ticket;else {const d=await api('/api/drafts',draft());work=d.work_id;saveTicket=d.ticket;}}
-  pending={ticket:saveTicket,...draft()};await dispatch();});};
+  pending={ticket:saveTicket,...draft()};await dispatch();
+  }catch(e){criteriaRefused(e,criteria);throw e;}});};
 $('new-work').onclick=()=>run(async()=>{if(!mayLeave()){status('Resolve the pending save or retain your unsaved edits.');return;}work=null;await show();status('New draft. Nothing is stored until Save.');$('goal').focus();});
 $('add-note').onclick=()=>{if($('notes').children.length>=8){status('Eight whole notes are already selected. Explicitly remove one before adding another.');return;}noteRow();syncDependencies();changed();$('notes').lastElementChild.querySelector('textarea').focus();};
 $('saved-context').onclick=()=>run(async()=>{ $('context-view').replaceChildren();
