@@ -415,6 +415,15 @@ async function main(): Promise<void> {
       assertFreshSelectionRestoreV02(selectedSnapshot, restoredSnapshot);
       assert.throws(() => assertFreshSelectionRestoreV02(selectedSnapshot, selectedSnapshot),
         /restore must invalidate the old selection observation/u);
+      const staleOrganization = structuredClone(restoredSnapshot);
+      staleOrganization.tables.find(table => table.table_name === "vnext_project_organization")!.rows[0]!.organization_revision =
+        selectedSnapshot.tables.find(table => table.table_name === "vnext_project_organization")!.rows[0]!.organization_revision;
+      assert.throws(() => assertFreshSelectionRestoreV02(selectedSnapshot, staleOrganization),
+        /restore must invalidate the old organization observation/u);
+      const changedOrganization = structuredClone(restoredSnapshot);
+      changedOrganization.tables.find(table => table.table_name === "vnext_project_organization")!.rows[0]!.organization_state = "archived";
+      assert.throws(() => assertFreshSelectionRestoreV02(selectedSnapshot, changedOrganization),
+        /restore must preserve every other field/u);
       const changedHistory = structuredClone(restoredSnapshot);
       changedHistory.tables.find(table => table.table_name === "vnext_core_records")!.rows[0]!.payload_json = "{}";
       assert.throws(() => assertFreshSelectionRestoreV02(selectedSnapshot, changedHistory),
@@ -1405,6 +1414,7 @@ async function assertInspectionImageReuseV01(databasePath: string, root: string)
   const predecessor = new Database(predecessorPath, { fileMustExist: true });
   try {
     // The supported pre-generation callback schema used by request-bound review.
+    predecessor.exec("DROP TRIGGER trg_vnext_project_organization_initialize; DROP TABLE vnext_project_organization");
     for (const table of ["vnext_external_shares", "vnext_external_records", "vnext_external_materials", "vnext_external_envelopes"]) {
       assert.equal((predecessor.prepare(`SELECT count(*) n FROM ${table}`).get() as { n: number }).n, 0);
       predecessor.exec(`DROP TABLE ${table}`);
@@ -1540,6 +1550,17 @@ function assertFreshSelectionRestoreV02(
   assert.notEqual(freshRevision, selected.rows[0]!.selection_revision,
     "restore must invalidate the old selection observation");
   selected.rows[0]!.selection_revision = freshRevision;
+  const organization = expected.tables.find(table => table.table_name === "vnext_project_organization");
+  const restoredOrganization = after.tables.find(table => table.table_name === "vnext_project_organization");
+  assert(organization && restoredOrganization);
+  assert.equal(organization.rows.length, 1, "semantic fixture must retain one project organization");
+  assert.equal(restoredOrganization.rows.length, 1);
+  const freshOrganizationRevision = restoredOrganization.rows[0]!.organization_revision;
+  assert.equal(typeof freshOrganizationRevision, "string");
+  assert.match(freshOrganizationRevision as string, /^organization:[0-9a-f]{32}$/u);
+  assert.notEqual(freshOrganizationRevision, organization.rows[0]!.organization_revision,
+    "restore must invalidate the old organization observation");
+  organization.rows[0]!.organization_revision = freshOrganizationRevision;
   assert.deepEqual(after, expected,
     "restore must preserve every other field, historical row, ledger, replay record and schema object");
 }

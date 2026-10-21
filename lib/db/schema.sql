@@ -4628,30 +4628,3 @@ CREATE TABLE IF NOT EXISTS vnext_project_direction_credentials (
   sequence INTEGER NOT NULL DEFAULT 0 CHECK (sequence >= 0),
   suspended INTEGER NOT NULL DEFAULT 0 CHECK (suspended IN (0,1))
 );
-
-
-  CREATE TABLE IF NOT EXISTS vnext_project_organization (
-    workspace_id TEXT NOT NULL,
-    project_id TEXT NOT NULL,
-    organization_state TEXT NOT NULL CHECK (organization_state IN ('working', 'archived')),
-    organization_revision TEXT NOT NULL CHECK (
-      length(organization_revision) = 45 AND substr(organization_revision, 1, 13) = 'organization:'
-      AND substr(organization_revision, 14) NOT GLOB '*[^0-9a-f]*'
-    ),
-    change_sequence INTEGER NOT NULL CHECK (change_sequence > 0 AND change_sequence <= 9007199254740991),
-    PRIMARY KEY (workspace_id, project_id),
-    UNIQUE (workspace_id, change_sequence),
-    FOREIGN KEY (workspace_id, project_id)
-      REFERENCES vnext_project_identities(workspace_id, project_id)
-      ON UPDATE RESTRICT ON DELETE RESTRICT
-  );
-  CREATE TRIGGER IF NOT EXISTS trg_vnext_project_organization_initialize
-    AFTER INSERT ON vnext_project_identities
-    BEGIN
-      INSERT INTO vnext_project_organization
-      VALUES (NEW.workspace_id, NEW.project_id, 'working', 'organization:' || lower(hex(randomblob(16))),
-        (SELECT coalesce(max(change_sequence), 0) + 1 FROM vnext_project_organization WHERE workspace_id = NEW.workspace_id));
-    END;
-  CREATE TRIGGER IF NOT EXISTS trg_vnext_project_organization_retain
-    BEFORE DELETE ON vnext_project_organization
-    BEGIN SELECT RAISE(ABORT, 'project_organization_delete_refused'); END;
