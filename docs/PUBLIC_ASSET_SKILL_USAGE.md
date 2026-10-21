@@ -60,19 +60,8 @@ inspection happens **before every inspected attempt including retries**, and
 mandatory verification remains part of both workflows. This expectation is
 not a deadline guarantee. Python's isolation flags do not sandbox execution.
 
-If you save the JSON output, write it **outside** `assets/workflow-cost-v1`
-(and outside any five-file working copy). Re-run the bundled material check
-afterward; an output file inside that directory correctly fails its exact
-inventory check. Compare total expected work: a higher inspected success
-probability can still cost more when inspection is paid on every retry.
-
 The standalone [method README](../publications/workflow-cost-v1/README.md)
 explains the numerical limits and when a direct recurrence or non-use is better.
-
-For one attributable verification contribution, use the
-[#1509 participation request](./WORKFLOW_COST_PARTICIPATION.md). It fixes a fresh
-case, return contents, origin checking/use responsibility and manual feedback
-route; no plugin installation or independent model participant is required.
 
 ## Optional Codex Skill loading
 
