@@ -172,8 +172,10 @@ ambiguous or over-budget history remain unavailable. A first read after the
 material changed still refuses. No new snapshot storage or migration is used.
 
 A saved late answer is historical, unverified review material. Receipt does not
-apply it. After an uncertain reply outcome, use the existing list/readback before
-deciding another delivery; exact duplicate replies replay and conflicts refuse.
+apply it. After an uncertain reply outcome, the contributor can use
+`augnes_get_review_status` with its exact `request_ref`, or the paginated reviewer
+list, before deciding another delivery. The origin uses list/readback. Exact
+duplicate replies replay and conflicts refuse.
 
 The authorized origin uses `augnes_review_repository_work`:
 
@@ -217,6 +219,39 @@ injection and checks. Manual retained-note/current-review use would still requir
 original-material retention, current inspection, selection, preview/save and
 follow-up checking. No timed manual comparison, human effort, token/billing cost
 or speedup is claimed. Exact-candidate qualification belongs to the PR receipt.
+
+## Contributor status after the origin advances (#1506)
+
+In the scoped reviewer adapter, call `augnes_get_review_status` with only your
+known `request_ref`. It directly returns the request's saved answer, attribution,
+currentness, origin-readback marker and already-permitted current-use reasoning.
+The same item remains available through the paginated reviewer list. Status can
+be read by a fresh reviewer process even when an ordinary origin save has made
+the original exact-material read refuse `review_material_changed`.
+
+For an unanswered current request, read its exact material before deciding
+whether to reply. For an unanswered historical request, a late reply still needs
+a valid prior material read and the existing explicit `historical_v1` proof.
+Status inspection creates no read witness or first-reply permission. For an
+answered request, inspect the saved response and any authored use explanation;
+no new request or resubmission follows automatically. Only the origin can prepare
+use/reassessment and explicitly preview/save its work.
+
+A useful contribution can be partly used: for example, retain failed attempts
+in a cost population while declining advice to rerun them because reruns would
+change that population and lack execution authority. The explanation is the
+origin's authored interpretation, not independently verified success or model
+judgment. If the response or use note is later deselected, status reports
+`not_observed_in_current_work`; that does not erase prior packets or establish
+permanent rejection or no prior use. Contributor inspection does not mark an
+answer `served_to_origin`; genuine origin readback remains a separate action.
+
+The existing request-bound-review and supervised runtime checks exercise this
+sequence through HTTP and reviewer MCP, including a fresh process, a target
+beyond page one, exact list parity, refusal and all-application-state preservation.
+Synthetic deterministic reconstruction establishes supported behavior; external
+participation, model understanding and comparative benefit remain unestablished.
+See the [exact status/disclosure contract](../apps/augnes_apps/README.md#opt-in-request-bound-review-1433).
 
 ## Concrete exercised consumer and evidence
 

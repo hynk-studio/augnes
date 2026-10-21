@@ -347,6 +347,11 @@ retains the original answer and basis. Inspect it against fresh current work,
 record selective use or non-use, then preview and explicitly save current edits.
 Receipt alone never applies historical material; default reply/use stays current-only.
 
+A configured contributor can [inspect its exact review's status](docs/EXECUTION_CHOICE_USAGE.md#contributor-status-after-the-origin-advances-1506)
+with `augnes_get_review_status`, including after the origin advances. The saved
+response and authored current-use reasoning match its existing reviewer list;
+inspection grants no material-read witness, origin revision or execution authority.
+
 `OPENAI_API_KEY` is optional. Supported paths retain deterministic local
 fallbacks without it. A locally installed and authenticated Codex CLI with App
 Server support is required only for live Codex work.

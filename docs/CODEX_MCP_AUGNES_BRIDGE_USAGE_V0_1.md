@@ -450,6 +450,15 @@ The configured destination, exact reviewed material, answer, limitations and
 currentness remain visible. Unavailable inspection is a failure, not an empty
 request list.
 
+The separately scoped reviewer uses `augnes_get_review_status` with its exact
+`request_ref` to inspect the same request/response/current-use item available in
+its paginated list, including after an ordinary origin save. Pending/current,
+pending/historical and answered guidance reflects contributor capabilities.
+This read-only lookup creates no material-read binding, origin-readback marker,
+use note or reply authority. Only the origin prepares and saves use; current
+non-observation does not establish no historical use. See the
+[contributor sequence](EXECUTION_CHOICE_USAGE.md#contributor-status-after-the-origin-advances-1506).
+
 After reading a current answer, `prepare_use` takes `retain`, `revise` or `reject`
 and attributable reasoning. It returns ordinary revision preview arguments for
 an imported-unverified review note and a derived-interpretation use note. The

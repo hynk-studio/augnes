@@ -161,8 +161,8 @@ This implementation does not establish the latter two or activate a connection.
 The separate Node 24 stdio entry point
 [`request-bound-review.mjs`](../../plugins/augnes-operator/mcp/request-bound-review.mjs)
 adds a **scoped reviewer capability**. It exposes only
-`augnes_list_review_requests`, `augnes_read_review_request`, and
-`augnes_reply_to_review`, plus the documented MCP Events methods. The public App
+`augnes_list_review_requests`, `augnes_read_review_request`,
+`augnes_reply_to_review`, and `augnes_get_review_status`, plus the documented MCP Events methods. The public App
 and `connected-project-reader.mjs` stay read-only. Never forward the full
 Operator, the Companion HTTP endpoint, or arbitrary RPC to a reviewer.
 
@@ -190,6 +190,31 @@ reject note through the existing work revision preview/save tools. Each result
 returns the references needed by the next call. Both lists are paginated: pass
 `next_cursor` back as `cursor`. No recurring token or answer copying is required
 by this explicit source path. Comparative burden reduction remains unverified.
+
+A contributor with a known `request_ref` can call `augnes_get_review_status`
+directly, including after the originating work advances or when the request is
+beyond the first list page. This exact scoped lookup never enumerates pages.
+Its `available` envelope contains precisely the same request/response/current-use
+item as the reviewer's list, plus the standard projection version, status,
+untrusted-context marker and false authority flags. Both contributor projections
+give role-specific guidance: pending/current requests require an exact material
+read before reply; pending/historical requests require an already valid original
+read and explicit late-receipt admission; answered requests invite inspection,
+without resubmission or origin-only revision actions. Origin list/readback retains
+its own assessment, reassessment and ordinary revision guidance.
+
+Status reads validate coherent current material, registered and physical project
+roots, exact request scope and current connection again before returning. Missing,
+corrupt, over-budget or incoherent material retains the existing refusal; there is
+no row-only fallback. Status neither returns nor creates `read_binding`, enables a
+first reply (including `historical_v1`), marks an answer served to the origin, nor
+writes work, selections, requests, responses or delivery state. Origin `readback`
+alone owns its served marker. Existing `use.reasoning` is untrusted authored
+interpretation, not verified success, approval or demonstrated model judgment.
+After response/use-note deselection, `not_observed_in_current_work` describes the
+current selection only; it establishes neither no prior use nor permanent
+rejection or deleted history. No current definition, source bodies/locators,
+unrelated results/assessments, other connection or broader history is disclosed.
 
 The reviewer reads the requested native definition and whole selected notes
 from one validated packet and project binding. A relevant work/root/direction
