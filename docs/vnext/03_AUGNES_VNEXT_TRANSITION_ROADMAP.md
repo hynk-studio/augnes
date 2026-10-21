@@ -1282,6 +1282,10 @@ backup/recovery preserves classification and history while refreshing observatio
 Deterministic cases exercise inactive-project independence, stale/concurrent
 changes, complete scoped pages, uncertain readback, missing roots, portable replay,
 failed-stage rollback and repeated restore with fresh-process same-work reads.
+Archived root recovery and repeat registration also retain atomic selection
+freshness, with late-change refusal and unchanged-selection success controls.
+Migration refusal is injected after schema creation and project backfill to
+check rollback of those partial writes.
 The existing project-experience Browser owner exercises the actual controls,
 restart, deliberate return and a lost acknowledgement. Final exact-head
 qualification and independent review belong to the single Draft PR return.

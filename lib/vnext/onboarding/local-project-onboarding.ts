@@ -32,6 +32,7 @@ import {
 } from "@/lib/vnext/persistence/project-identity-registry";
 import {
   ProjectLifecycleErrorV01,
+  assertProjectSelectionV01,
   readProjectOrganizationV01,
   readProjectOrganizationListRevisionV01,
   listRecentProjectRowsV01,
@@ -992,6 +993,11 @@ export async function confirmLocalProjectOnboardingV01(db: Database.Database, in
   });
   const now = (options.now ?? (() => new Date().toISOString()))();
   return db.transaction(() => {
+    assertProjectSelectionV01(db, {
+      workspace_id: workspace.workspace_id,
+      expected_project_id: record.expected_active_project_id,
+      expected_revision: record.expected_active_revision,
+    });
     const physicalRegistration =
       readCanonicalProjectForPhysicalObservationV01(
           db,
@@ -1242,6 +1248,11 @@ export async function rebindLocalProjectRootFromSelectionV01(db: Database.Databa
     authorize_decision_inside_transaction:
       options.authorize_decision_inside_transaction,
     after_rebind_inside_transaction: () => {
+      assertProjectSelectionV01(db, {
+        workspace_id: workspace.workspace_id,
+        expected_project_id: record.expected_active_project_id,
+        expected_revision: record.expected_active_revision,
+      });
       if (readProjectOrganizationV01(db, { workspace_id: workspace.workspace_id, project_id: input.project_id }).state === "working") {
         touchRecentProjectV01(db, { workspace_id: workspace.workspace_id, project_id: input.project_id, now });
         selectActiveProjectV01(db, {

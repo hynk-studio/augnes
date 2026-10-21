@@ -375,7 +375,11 @@ names that project. Unarchive changes organization alone; opening is a separate
 deliberate action. Ordinary open refuses an archived target. Exact-project reads,
 root recovery and existing capability-scoped reads/writes keep their original
 authority. Repeated registration and root reconnection retain archive state and
-do not select an archived target. UI exact reads label it archived; capability
+do not select an archived target. Their committing transactions still compare
+the prepared expected selection project and revision for every organization
+state; only recency/selection writes depend on working state. A late selection
+change rolls back root, baseline, decision/session and repository-association
+effects. UI exact reads label it archived; capability
 discovery includes organization without treating archive as absence, paused
 direction, completed work or stopped execution. No agent organization mutation
 right is added. Identity, root, files, Core/source history, grants, credentials,

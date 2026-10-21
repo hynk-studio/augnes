@@ -19,6 +19,7 @@ import { defineInitialProjectWorkV01, readProjectWorkInitializationSnapshotV01 }
 import { issueVNextLocalOperatorBootstrapV01, consumeVNextLocalOperatorBootstrapV01, readVNextLocalOperatorCredentialFromRequestV01, VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01 } from "../lib/vnext/runtime/local-operator-session";
 import { declareAndInspectLocalProjectV01, confirmLocalProjectOnboardingV01, listRegisteredProjectsV02, declareAndInspectLocalProjectRecoveryV01, openRecoveredLocalProjectFromSelectionV01 } from "../lib/vnext/onboarding/local-project-onboarding";
 import { GET, POST } from "../app/api/vnext/projects/route";
+import { testProjectArchiveConfirmations } from "./test-project-archive-confirmations";
 
 async function request(body?: unknown, query = "?view=registered", status = 200) {
   const response = await (body ? POST : GET)(new Request("http://127.0.0.1/api/vnext/projects" + (body ? "" : query), {
@@ -41,6 +42,7 @@ const digest = (file: string) => createHash("sha256").update(readFileSync(file))
 const valueDigest = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 
 export async function testProjectArchive() {
+  await testProjectArchiveConfirmations();
   const root = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-archive-"))), previous = process.env.AUGNES_DB_PATH;
   const databasePath = path.join(root, "work.db"), backupDirectory = path.join(root, "backups"), repositoryRoot = process.cwd();
   const fingerprint = createHash("sha256").update(repositoryRoot).digest("hex");
@@ -170,8 +172,23 @@ async function testOrganizationMigration(source: Database.Database, root: string
     assert.equal(structuralSchemaContractSignature(old),"fd83e333e228cd9be4eee70ed575ec4079a80ea4781348026987cc5343ae7b41");
     const before=old.serialize();assert.throws(()=>openPreparedDatabase(file),/preparation/);assert(before.equals(old.serialize()),"read must not migrate");
     const failed=new Database(old.serialize());
-    try {const exec=failed.exec.bind(failed);failed.exec=(sql:string)=>{if(sql.includes("INSERT INTO vnext_project_organization"))throw new Error("injected migration refusal");return exec(sql);};
-      assert.throws(()=>migrateProjectOrganizationV01(failed),/injected migration refusal/);assert.equal(structuralSchemaContractSignature(failed),structuralSchemaContractSignature(old));
+    try {
+      const exec=failed.exec.bind(failed), beforeFailure=failed.serialize();
+      let backfilled=0;
+      failed.exec=(sql:string)=>{
+        const result=exec(sql);
+        if(/^\s*INSERT INTO vnext_project_organization\s+SELECT\b/u.test(sql)) {
+          assert(failed.inTransaction);
+          backfilled=(failed.prepare("SELECT count(*) AS count FROM vnext_project_organization").get() as {count:number}).count;
+          assert(backfilled>0, "schema and backfill must execute before the injected failure");
+          throw new Error("injected post-backfill migration refusal");
+        }
+        return result;
+      };
+      assert.throws(()=>migrateProjectOrganizationV01(failed),/injected post-backfill migration refusal/);
+      assert(backfilled>0);assert.equal(structuralSchemaContractSignature(failed),structuralSchemaContractSignature(old));
+      assert(beforeFailure.equals(failed.serialize()), "partial schema/backfill writes roll back to the exact prior image");
+      console.log(JSON.stringify({archive_migration_rollback:"pass",injection:"after_schema_and_backfill",backfilled_projects:backfilled,prior_image_unchanged:true}));
     }finally{failed.close();}
   }finally{old.close();}
   const result=await prepareRuntimeDatabase({databasePath:file,backupDirectory:path.join(root,"migration-backups"),repositoryRoot:process.cwd(),instanceId:"archive-upgrade",databaseOverrideActive:true} as unknown as Parameters<typeof prepareRuntimeDatabase>[0]);

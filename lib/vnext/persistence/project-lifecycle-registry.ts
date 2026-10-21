@@ -77,7 +77,7 @@ export function selectActiveProjectV01(db: Database.Database, input: {
 }): ActiveProjectSelectionV01 {
   return db.transaction(() => {
     requireProject(db, input.workspace_id, input.project_id);
-    assertSelection(db, input);
+    assertProjectSelectionV01(db, input);
     db.prepare(`INSERT INTO vnext_active_project_selections (
       workspace_id, project_id, active_project_selection_version, selection_revision, selected_at
     ) VALUES (?, ?, ?, ?, ?)
@@ -89,7 +89,8 @@ export function selectActiveProjectV01(db: Database.Database, input: {
   }).immediate();
 }
 
-function assertSelection(db: Database.Database, input: {
+/** Nonmutating freshness check; the caller holds the dependent write transaction. */
+export function assertProjectSelectionV01(db: Database.Database, input: {
   workspace_id: string; expected_project_id: string | null; expected_revision: ProjectSelectionRevision | null;
 }) {
   const current = readProjectSelectionStateV02(db, input.workspace_id);
@@ -104,7 +105,7 @@ export function removeRecentProjectV01(db: Database.Database, input: {
   expected_project_id: string | null; expected_revision: ProjectSelectionRevision | null;
 }): boolean {
   return db.transaction(() => {
-    assertSelection(db, input);
+    assertProjectSelectionV01(db, input);
     const removed = db.prepare(`DELETE FROM vnext_recent_projects WHERE workspace_id = ? AND project_id = ?`)
       .run(input.workspace_id, input.project_id).changes === 1;
     db.prepare(`UPDATE vnext_active_project_selections SET project_id = NULL, selection_revision = ?, selected_at = ?
@@ -149,7 +150,7 @@ export function changeProjectOrganizationV01(db: Database.Database, input: {
 }) {
   return db.transaction(() => {
     requireProject(db, input.workspace_id, input.project_id);
-    assertSelection(db, input);
+    assertProjectSelectionV01(db, input);
     const before = readProjectOrganizationV01(db, input);
     if (before.revision !== input.expected_organization_revision) throw new ProjectLifecycleErrorV01("project_organization_conflict");
     if (before.state !== input.state) {
