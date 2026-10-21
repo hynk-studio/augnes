@@ -1140,21 +1140,38 @@ comparison does not classify all differences as branch contributions or infer
 semantic novelty. Parentless reconstructed branches remain readable; comparison
 back to an unavailable parent is refused rather than inventing a baseline.
 
-Choose `incorporated`, `not_selected`, `deferred`, or `declined` per whole unit.
-Deferred/declined choices require a rationale. The reviewed target keeps its
-own definition and unrelated selected material. Explicit dependency links are
+Review **Current notes in this work** alongside the proposed branch material.
+Every current target note starts checked. Deliberately uncheck an obsolete
+current instruction, or keep both old and new notes. Then choose `incorporated`,
+`not_selected`, `deferred`, or `declined` for each whole branch unit.
+Deferred/declined choices require a rationale. An incorporated item with no
+optional rationale says only that none was supplied; non-selection still does
+not mean rejection or refutation. Authored rationales are displayed unchanged
+and escaped. The reviewed target keeps its own definition. Earlier source
+bodies, revisions and attribution remain in history when a note is deselected.
+Review the complete proposed selection, then **Save reviewed change** once.
+**Saved context** reads that confirmed selection freshly from the server.
+
+A note may appear in both works. Deselecting it in the target while choosing
+`incorporated` in the branch visibly refuses with `target_selection_conflict`;
+keep it in the target or change its branch disposition before previewing again.
+No displayed deselection is silently reversed. Explicit dependency links are
 entered with **Required context** in the note editor. Linked conditions must
 already be selected in the target or travel with the selected material; an
 incomplete or over-budget selection refuses in full. The validator cannot
 discover every unstated natural-language dependency. New or edited notes have
 their own attribution; editing an existing note in the UI produces a linked
 `derived_interpretation`, not unchanged inherited evidence.
+Historical adaptation/provenance links do not themselves require their original
+note to remain currently selected. Explicit **Required context** links do: both
+retained target notes and selected additions are checked against the complete
+proposed selection. Missing required context refuses without a partial save.
 
 `src/relations.ts` resolves originals, normalizes choices and builds the bounded
 host metadata; `handler.ts` retains the existing authorization/CSRF gates;
 `store.ts` persists through the same conditional revision INSERT. The signed
 preview binds the source, target, normalized material, dispositions/rationale,
-request identity and 24-hour expiry. A single SQL statement checks both heads
+explicit target choices, request identity and 24-hour expiry. A single SQL statement checks both heads
 and erasure guards at admission; there are no separately committed relation or
 provenance rows. Two competing target writes cannot both advance the same head.
 Exact replay acknowledges the original result; altered requests refuse. An
@@ -1165,12 +1182,29 @@ versions and compare again**, retaining prior choices for review, followed by a
 new preview. No automatic retry, rebase or latest-version substitution occurs.
 
 If that refresh fails, the tab retains each whole-unit disposition and rationale,
-the overall rationale and unresolved question, the earlier source/target
-bindings, and the unsaved-work warning. Currentness remains unconfirmed and the
+each current target note's retain/deselect choice, the overall rationale and
+unresolved question, the earlier source/target bindings, and the unsaved-work
+warning. Currentness remains unconfirmed and the
 old preview is invalidated. A complete explicit comparison must succeed before
 a fresh preview: only exact source bindings retain their choices; removed or
 changed units are shown for review. HTTP 401/403 instead clears private content
 and draft state. These drafts are held only in the current tab's memory.
+New target notes encountered during refresh start retained; a choice is carried
+forward only for its exact source reference. Target-choice edits invalidate the
+preview and its request snapshot. An unknown save locks those controls and
+reconciles the exact original request, including its target selection.
+
+The file-free incorporation intent accepts optional `target_selection`, an array
+of up to eight unique source references from the exact reviewed target. Omission
+retains every target note and preserves legacy intent/seal behavior. Malformed,
+duplicate or foreign references refuse with `invalid_target_selection`.
+The server validates choices on preview and save, within the existing exact
+source/target binding. The saved `sources`/material selection and comparison's
+target revision record the result through unchanged v0.2/v0.3 envelopes,
+fingerprint algorithms and export/reconstruction consumers. No new schema,
+store or automatic semantic supersession is introduced. Older servers reject
+the new request field; refresh the client with its compatible server rather
+than silently falling back to an intent that could retain deselected material.
 
 The normal UI's ordinary save ticket also binds normalized material, refusing
 an altered retry even when nothing was written. An unchanged v0.2 save using
