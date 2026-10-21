@@ -1003,6 +1003,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "manual-contribution",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
+      label: "manual selected request, preserved original, checked card, saved feedback and fresh read",
+      ...rootNode("scripts/test-manual-contribution.ts"),
+      timeoutMs: 150_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "late-review",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state", "backup-restore"],

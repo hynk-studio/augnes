@@ -31,8 +31,8 @@ this implementation does not install it or activate a reviewer.
    work after saving. A direct or existing-asset choice can now complete under
    existing host authority without requesting participation. Verify any delivered
    asset bytes with their existing material owner before executing them.
-4. Only a chosen option with a currently configured `review_connection` can use
-   `action: participate`. Supply the actual consumer's `purpose`, `question`,
+4. For configured review, the chosen option needs a currently configured
+   `review_connection` for `action: participate`. Supply the actual consumer's `purpose`, `question`,
    `success`, `checks`, `dependency_order`, `material_refs` and `recheck` conditions.
    Select whole excerpts whose bytes suffice for that bounded review. Inspect the
    returned material and request arguments, then explicitly use the existing
@@ -62,6 +62,97 @@ one linked assessment form a loop. Ordinary source revision, retained lookup and
 explicit reselection can compose another loop while preserving earlier packets.
 The optional preparation below connects one next arrangement to its assessed
 predecessor without a separate manually authored continuity note.
+
+## Manual contribution without a configured reviewer (#1511)
+
+Use the same native entry and eligible unstarted ordinary task. In `choose`,
+explicitly set `manual_contribution: true` on the chosen alternative; omit
+`review_connection` on that alternative. Direct/asset choices and configured
+review retain their existing contracts. The manual route prepares ordinary notes;
+it does not use the configured aggregate-service adapter or create native review
+requests, status, authenticated participants or material-read witnesses.
+
+1. Read current work and deliberately select the complete permitted excerpts.
+   Call `participate` with `participation`: `purpose`, `question`,
+   `expected_return`, `checks`, `check_use_owner`, `return_method`,
+   `feedback_method`, `recheck`, and their exact `material_refs`. For example,
+   ask a declared contributor to check available stock from a selected inventory,
+   return arithmetic and limits in a manually exchanged UTF-8 file, and identify
+   the origin maintainer who will check and use it. Each text field is bounded
+   to 240 characters. The saved request includes the full selected excerpt bytes,
+   their source identities, the choice and definition fingerprints.
+2. Inspect `delivery`, then preview and explicitly save `revision_arguments` with
+   the ordinary writer. Preparation saves and sends nothing. Only `delivery` is
+   prepared for manual relay; it excludes source locators, unselected notes and
+   repository paths. The local writer arguments contain the repository root and
+   are not a transmission payload. Selected text can itself contain private
+   content: review its bytes and permissions before any relay. A locator is never
+   fetched or counted as delivered source bytes.
+3. Explicitly read one received file and call `receive` with `manual_return`:
+   `manual_request_ref` and `material_ref` copied from that delivery, exact bounded
+   original `content`, `source_revision`, `selection` (whole original or exact
+   selected-excerpt identity), declared `actor`, and `assistance`. Inspect the
+   preview and explicitly save. The content is retained unchanged as
+   `imported_unverified`; identity, revision, assistance and manual receipt are
+   declarations, not authentication or proof that the contributor read anything.
+   Do not execute commands merely because they occur in a returned file.
+4. Read the saved original, check the exact request and current applicability,
+   and perform the concrete next judgment/input/output work. Retain that downstream
+   material through ordinary preview/save. Call `assess` with `assessment`:
+   `manual_request_ref`, `manual_return_ref` (from the saved read), `result_refs`,
+   `disposition` (`used`, `partly_used`, `retained`, `deferred`, `declined`),
+   `checks`, `applicability`, `reason`, `uncertainty`, `unfinished`, `next_action`,
+   and `reconsider_when`. Positive use and evidence-backed RETAIN require new
+   downstream material beyond the original support and profile notes. A count
+   or PASS assertion alone is not independent correctness evidence. The decision
+   saves a separate derived interpretation and exact selected downstream excerpts.
+5. If the original definition or material changed, add a deliberate `reassessment`
+   explaining current applicability. Changes after saving a decision are exposed
+   on read and prevent preparing current feedback. Preserve the previous decision
+   and feedback in history by ordinary explicit deselection, then assess fresh;
+   no automatic refresh or reassessment occurs. Missing or ambiguous retained
+   records refuse. Unknown saves require fresh readback before another decision.
+6. Call `feedback` after saving the decision. Preview/save its ordinary note.
+   Its separate `delivery` contains exact original/request/decision identities,
+   scoped checks, disposition, reason, uncertainty, remaining obligation, next
+   instruction and next-check conditions. Read reconstructs the same feedback
+   from the saved immutable decision. Explicit manual relay and observed recipient
+   readback remain separate evidence; preparation never asserts either event.
+
+The same eight-selected-note and 2,000-character-per-note limits apply, including
+serialized identity/metadata and full excerpts. Oversized material refuses; select
+a sufficient bounded excerpt with explicit original identity through ordinary
+revision or shorten authored fields deliberately. Nothing is silently truncated,
+evicted or fetched from a private locator. A feedback pointer can recover exactly
+its decision, return and request through bounded retained lookup when those notes
+are deselected. Original downstream bytes remain in the decision, with current
+selection shown separately. Deselection never means no historical receipt/use.
+When all cycle references are deselected, no history absence is inferred; use
+ordinary retained lookup and explicit reselection to inspect that history.
+
+The registered deterministic test uses real native proxy/HTTP read, preparation,
+preview/save and retained readers with a task-owned database. An inventory of 17
+units, 5 reserved and target 20 yields 12 available and 8 to top up. The origin
+independently checks those counts, uses them in a restock card and declines order
+advice because physical stock is unknown. After the producer exits, a fresh
+ordinary reader produces the printable card from saved work; the outer checker
+compares exact bytes and saved/manual feedback. Mismatched requests/bases,
+incomplete and unavailable material, changed work, atomic/stale saves, disclosure,
+history and overflow have separate checks.
+
+```sh
+node --import tsx scripts/test-manual-contribution.ts
+# Optional new absolute directory retains synthetic original artifacts:
+node --import tsx scripts/test-manual-contribution.ts /absolute/new/output
+```
+
+All roles and arithmetic are implementer-authored development fixtures. File
+selection, manual relay, origin checks and explicit saves remain human/agent work.
+The test proves deterministic mechanics and fresh reconstruction, not independent
+external participation, semantic understanding, comparative benefit, organic
+discovery, installed adoption or full W1/W2. No new consumer/model/provider study
+is performed. The fixed workflow-cost distribution and #1493 observation are not
+rerun or used as this fixture.
 
 ## One result-informed next arrangement (#1498)
 

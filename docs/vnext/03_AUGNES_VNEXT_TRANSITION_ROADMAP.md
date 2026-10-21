@@ -87,6 +87,21 @@ cover invalid linkage and races. This is synthetic engineering evidence, not
 actual external participation, comparative benefit, adoption or full W1/W2.
 Current exact-head qualification and independent review belong to the PR return.
 
+The #1511 source increment adds an explicit manual-contribution alternative to
+the same ordinary entry without a configured reviewer. It composes existing
+imported/derived notes, preview/save and retained readers into selected request
+preparation, preserved original text, a separate checked use/RETAIN decision,
+permitted feedback and fresh re-entry. The bounded manual profile keeps original
+bytes and exact identities without creating native review status or transport.
+The registered `scripts/test-manual-contribution.ts` exercises real production
+routes, a checked restock card, manual file artifacts and a separate fresh reader,
+including changed-basis, disclosure, history, atomic/stale-save and overflow controls.
+Configured review, direct/asset work and the #1453 adapter remain separate. This is
+implemented deterministic mechanism evidence; exact-candidate qualification belongs
+to its PR return. Independent external participation, semantic understanding,
+comparative benefit, installed adoption and full W1/W2 remain unestablished. #1493
+and its observation allocation are separate; this increment adds no model study.
+
 PR #1450's qualification correction tightens only the disposable native-service
 fixture's readiness and cleanup. After its deliberate child-binding substitution,
 it observes the manager's negative verification and waits for a post-restoration

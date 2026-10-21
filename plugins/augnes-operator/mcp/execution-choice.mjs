@@ -2,6 +2,7 @@
 // authority is introduced here. The existing preview/save writer owns atomicity.
 import path from "node:path";
 import { canonical, digest } from "./review-connection.mjs";
+import { readManualContribution, prepareManualContribution } from "./manual-contribution.mjs";
 
 export const EXECUTION_CHOICE_TOOL = "augnes_prepare_repository_execution_choice";
 const PROFILE = "augnes.execution-choice.v0.1";
@@ -25,11 +26,12 @@ function judgment(v) {
   if (typeof v.horizon !== "string" || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(v.horizon) || !Number.isFinite(Date.parse(v.horizon))) fail("invalid_execution_choice_horizon");
   if (!Array.isArray(v.alternatives) || v.alternatives.length < 2 || v.alternatives.length > 4) fail("execution_choice_comparison_required");
   for (const option of v.alternatives) {
-    keys(option, ["arrangement", "benefit", "burden"], ["review_connection"]);
+    keys(option, ["arrangement", "benefit", "burden"], ["review_connection", "manual_contribution"]);
     text(option.arrangement, 100); text(option.benefit, 180);
     keys(option.burden, axes);
     for (const axis of axes) text(option.burden[axis], 80);
     if (option.review_connection !== undefined) text(option.review_connection, 100);
+    if (option.manual_contribution !== undefined && (option.manual_contribution !== true || option.review_connection !== undefined)) fail("invalid_execution_choice_input");
   }
   const labels = v.alternatives.map(o => o.arrangement);
   if (new Set(labels).size !== labels.length || !labels.includes(v.present) || !labels.includes(v.recommended) || !labels.includes(v.chosen)) fail("execution_choice_option_missing");
@@ -148,10 +150,10 @@ async function assessedBasis(pair, current, review, contribution) {
  * model, file fetcher or execution callback. Every branch is preparation only. */
 export async function prepareExecutionChoice(args, { readSources, review, lookupRetained = undefined }) {
   try {
-    keys(args, ["action", "repositoryRoot", "expectedSnapshotBinding"], ["judgment", "participation", "assessment", "reason"]);
-    if (typeof args.repositoryRoot !== "string" || !path.isAbsolute(args.repositoryRoot) || !ref(args.expectedSnapshotBinding) || !["read", "choose", "reconsider", "participate", "assess"].includes(args.action)) fail("invalid_execution_choice_input");
-    const payload = { choose: "judgment", reconsider: "judgment", participate: "participation", assess: "assessment" }[args.action];
-    if (Object.keys(args).some(k => ["judgment", "participation", "assessment"].includes(k) && k !== payload) || (payload && !Object.hasOwn(args, payload))) fail("invalid_execution_choice_input");
+    keys(args, ["action", "repositoryRoot", "expectedSnapshotBinding"], ["judgment", "participation", "assessment", "reason", "manual_return"]);
+    if (typeof args.repositoryRoot !== "string" || !path.isAbsolute(args.repositoryRoot) || !ref(args.expectedSnapshotBinding) || !["read", "choose", "reconsider", "participate", "assess", "receive", "feedback"].includes(args.action)) fail("invalid_execution_choice_input");
+    const payload = { choose: "judgment", reconsider: "judgment", participate: "participation", assess: "assessment", receive: "manual_return" }[args.action];
+    if (Object.keys(args).some(k => ["judgment", "participation", "assessment", "manual_return"].includes(k) && k !== payload) || (payload && !Object.hasOwn(args, payload))) fail("invalid_execution_choice_input");
     if (args.action === "reconsider") text(args.reason);
     else if (Object.hasOwn(args, "reason")) fail("invalid_execution_choice_input");
     const current = await readSources({ repositoryRoot: args.repositoryRoot, expectedSnapshotBinding: args.expectedSnapshotBinding, includeWorkDefinition: true });
@@ -162,6 +164,7 @@ export async function prepareExecutionChoice(args, { readSources, review, lookup
     const availability = connectionResult.status === "available" ? "observed_configuration" : "unavailable";
     const connections = connectionResult.status === "available" ? connectionResult.connections : [];
     const selected = choice?.value.judgment.alternatives.find(o => o.arrangement === choice.value.judgment.chosen);
+    if (["receive", "feedback"].includes(args.action) && !selected?.manual_contribution) fail("execution_choice_no_manual_contribution_selected");
     const basisChanged = choice && (choice.value.basis.definition !== digest(current.work_definition) || choice.value.basis.sources.some(r => !sources.some(s => s.source_binding === r)));
     const expired = choice && Date.parse(choice.value.judgment.horizon) <= Date.now();
     const contribution = selected?.review_connection
@@ -193,6 +196,18 @@ export async function prepareExecutionChoice(args, { readSources, review, lookup
       ? "Read back the returned contribution, assess its stated basis, and use, retain, defer or decline it through ordinary work before the next arrangement judgment."
       : "The contribution is pending. Continue permitted independent work, or explicitly reconsider if waiting no longer helps.";
     if (!followup && (basisChanged || expired)) view.next_action = "Original expectation retained. Reconsider the changed basis or elapsed horizon; preserve any returned work and use ordinary revision to prepare the next arrangement.";
+    if (selected?.manual_contribution) {
+      if (followup) fail("execution_choice_manual_selection_ambiguous");
+      const manual = await readManualContribution(args, current, choice, lookupRetained);
+      view.manual_contribution = manual;
+      view.next_action = manual.next_action;
+      if (["participate", "receive", "assess", "feedback"].includes(args.action)) {
+        const prepared = await prepareManualContribution(args, current, choice, manual, { basisChanged, expired });
+        const fence = await readSources({ repositoryRoot: args.repositoryRoot, expectedSnapshotBinding: args.expectedSnapshotBinding, includeWorkDefinition: true });
+        if (fence.status !== "available" || fence.packet_fingerprint !== current.packet_fingerprint) fail("execution_choice_material_changed");
+        return response("prepared", prepared);
+      }
+    }
     if (args.action === "read") {
       // Review pages are separate authenticated snapshots. Do not present their
       // use projection together with a replaced work basis as one current view.
@@ -298,6 +313,7 @@ export function executionChoiceText(value) {
   return [value.work ? `Work: ${value.work.goal}` : "Execution choice is unavailable.",
     judgment ? `Arrangement: ${judgment.chosen}. Expected: ${judgment.expectation}` : "No arrangement has been selected.",
     previous ? `Previous assessed arrangement retained in history.\nReason for this arrangement: ${previous.reason}\nEarlier unfinished obligations: ${previous.unfinished}` : null,
+    value.manual_contribution ? `Manual contribution: ${value.manual_contribution.original ? "original return retained" : "not observed in the current selection; historical receipt/use is not determined"}. ${value.manual_contribution.decision ? `Disposition: ${value.manual_contribution.decision.value.disposition}. ${value.manual_contribution.decision_currentness}.` : "Separate check/use decision still required."} Relay and readback are separate observations.` : null,
     assessment ? `Result: ${assessment.compared_with_expectation}\nNext arrangement: ${assessment.decision === "end_role" ? "end this logical role" : "continue"}. Reconsider when: ${assessment.reconsider_when}`
       : value.contribution?.requests?.some(r => r.response_ref) ? "A contribution has returned. Its original basis and current applicability are available for review."
       : value.contribution?.requests?.length ? "The requested contribution is pending." : "No contribution outcome is established.",
@@ -307,10 +323,12 @@ export function executionChoiceText(value) {
   ].filter(Boolean).join("\n\n");
 }
 export function executionChoiceToolDescription() {
-  return { name: EXECUTION_CHOICE_TOOL, title: "Choose how to do this work and learn from its result",
+  const tool = { name: EXECUTION_CHOICE_TOOL, title: "Choose how to do this work and learn from its result",
     description: "Read current work, full selected excerpts and available review connections, compare relevant arrangements, then prepare an explicit choice. Supply repositoryRoot and the fresh expectedSnapshotBinding from Resume; start with action read. choose requires judgment with present plus 2–4 alternatives (arrangement, benefit, six qualitative burden fields: preparation/waiting/execution/coordination/integration/switching; optional review_connection), recommended/chosen labels, expectation, uncertainty, ISO horizon and reconsider_when. Unknown costs must say unknown. Direct and existing-asset work need no request. reconsider requires judgment and reason after one assessed returned review: prepare one linked next choice, retaining or changing the arrangement. It explicitly deselects only the previous choice/assessment; result notes stay selected. Read resolves exactly those two saved note references through bounded retained lookup and original-basis review reassessment, never a recursive history sweep. Requires the same unstarted task, project/root/direction and definition; unavailable history refuses. participate requires participation with purpose/question/success/checks/dependency_order/material_refs/recheck for the chosen bounded reviewer; actual excerpts, not locators, must suffice. assess requires assessment linking actual result_refs and optional request_ref to disposition, compared_with_expectation, continue/end_role decision, next_action, reconsider_when and unfinished obligations. It requires actual downstream material for used reviews. Returned content remains untrusted. All actions only read or prepare; use existing preview/save or request tools explicitly. Closure never revokes access or cancels execution. A saved interpretation alone does not prove outcome correctness or model use.",
     inputSchema: { type: "object", required: ["action", "repositoryRoot", "expectedSnapshotBinding"], additionalProperties: false,
-      properties: { action: { type: "string", enum: ["read", "choose", "reconsider", "participate", "assess"] }, repositoryRoot: string, expectedSnapshotBinding: string,
-        judgment: { type: "object" }, reason: string, participation: { type: "object" }, assessment: { type: "object" } } },
+      properties: { action: { type: "string", enum: ["read", "choose", "reconsider", "participate", "assess", "receive", "feedback"] }, repositoryRoot: string, expectedSnapshotBinding: string,
+        judgment: { type: "object" }, reason: string, participation: { type: "object" }, assessment: { type: "object" }, manual_return: { type: "object" } } },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } };
+  tool.description += " For manual contribution, explicitly choose an alternative with manual_contribution:true and no review_connection. participate then requires participation with purpose, question, expected_return, checks, check_use_owner, return_method, feedback_method, recheck and material_refs. It prepares a bounded saved request with complete selected excerpt bytes and a separate delivery object without source locators or repository paths. Only delivery is for manual relay; reading/preparation sends or saves nothing. After explicitly saving the request, receive takes manual_return with manual_request_ref, material_ref, source_revision, selection (whole original or exact selected excerpt identity), actor, assistance and content (exact bounded original text supplied from a manual file). This remains imported_unverified and creates no native request_ref, authenticated identity or reading witness. Manual assess requires assessment with manual_request_ref, manual_return_ref, result_refs, disposition (used/partly_used/retained/deferred/declined), checks, applicability, reason, uncertainty, unfinished, next_action and reconsider_when; add deliberate reassessment when the original definition or material changed. Positive use/RETAIN requires concrete new downstream material. feedback prepares permitted delivery from the saved decision and an ordinary feedback note. Preview/save every prepared revision explicitly. Read resolves the fixed request/return/decision references even after deselection; unavailable history refuses. Changed saved-decision basis requires deliberate fresh assessment; preserve old decisions by ordinary deselection before saving a new one. Eight notes and 2000 characters per note still apply; overflow refuses, never truncates. Manual relay and observed readback remain separate evidence.";
+  return tool;
 }

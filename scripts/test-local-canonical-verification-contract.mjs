@@ -1148,6 +1148,7 @@ const integrationChildren = [
   "selected-source-retrieval",
   "web-export-native",
   "execution-choice",
+  "manual-contribution",
   "late-review",
   "request-bound-review",
   "companion-method-outlook",

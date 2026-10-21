@@ -30,6 +30,7 @@ const REVIEWED_FILES = Object.freeze([
   ".mcp.json",
   "mcp/companion-proxy.mjs",
   "mcp/execution-choice.mjs",
+  "mcp/manual-contribution.mjs",
   "mcp/external-response.mjs",
   "mcp/companion-service-core.mjs",
   "mcp/checkout-identity.mjs",
