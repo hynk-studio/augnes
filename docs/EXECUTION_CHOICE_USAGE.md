@@ -109,7 +109,9 @@ requests, status, authenticated participants or material-read witnesses.
 5. If the original task, definition or material changed, add a deliberate `reassessment`
    explaining current applicability. An explicit different task remains different
    even with identical wording and sources. The opt-in ordinary reader supplies
-   an opaque validated task origin that stays stable across same-task revisions;
+   an opaque validated task origin that stays stable across same-task revisions,
+   including ordinary source/profile saves on an unexecuted authored successor.
+   Creating that successor still establishes a different task from its predecessor;
    requests and decisions retain it. Legacy notes without it stay readable with
    unknown task identity and cannot establish a current decision. Changes after
    saving a decision are exposed on read and prevent preparing current feedback.
@@ -153,6 +155,8 @@ history and overflow have separate checks.
 node --import tsx scripts/test-manual-contribution.ts
 # Optional new absolute directory retains synthetic original artifacts:
 node --import tsx scripts/test-manual-contribution.ts /absolute/new/output
+# Eligible authored successor, including its assessment's own save and fresh read:
+node --import tsx scripts/test-manual-contribution-successor.ts
 ```
 
 All roles and arithmetic are implementer-authored development fixtures. File

@@ -852,7 +852,10 @@ Positive use/partial use/RETAIN requires selected downstream material beyond the
 original support and profile notes; its bytes/identity are retained in the decision.
 This linkage is not an independent correctness oracle. Requests and decisions bind
 the ordinary reader's validated task-origin fingerprint, stable through same-task
-revisions but different for an explicit new task even with identical text/material.
+revisions, including ordinary authored-successor source/profile revisions, but
+different for an explicit new task even with identical text/material. The original
+authored successor remains distinct from its predecessor; only validated same-task
+revision edges are traversed.
 Missing legacy or unrecoverable task identity stays unknown: history is readable,
 but cannot establish current applicability or permit current feedback. Changed
 original work needs explicit fresh reassessment; changed decision task/support prevents current feedback

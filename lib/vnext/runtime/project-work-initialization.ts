@@ -1,4 +1,5 @@
 import { readProjectWorkBindingV01 } from "./project-work-binding";
+import { isOrdinarySuccessorRevisionV01 } from "./authored-successor-revision";
 import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import { parseWorkHandoff, readWorkHandoff, handoffCheck } from "../work-handoff";
@@ -444,16 +445,18 @@ function readProjectWorkInitializationStrictV01(
             : "current_operational_continuation_packet";
     const selectedSources = readSelectedWorkSources(current.packet);
     const byPacket = new Map(inspected.map(entry => [`${entry.packet.packet_id}|${entry.packet.integrity.fingerprint}`, entry]));
-    let taskOrigin = current;
-    // All entries were validated above. Follow exact edges, never timestamps.
-    while (taskOrigin.lineage_kind === "pre_execution_user_revision" && taskOrigin.prior_packet) {
-      const prior = byPacket.get(`${taskOrigin.prior_packet.packet_id}|${taskOrigin.prior_packet.packet_fingerprint}`);
-      if (!prior) break;
-      taskOrigin = prior;
+    let taskOrigin: typeof current | undefined = current;
+    // The lineage owners validated these exact same-task revision edges above,
+    // including successor origin bindings. Stop at the original successor:
+    // its own predecessor is a different task, not an ordinary revision.
+    while (taskOrigin && (taskOrigin.lineage_kind === "pre_execution_user_revision" ||
+      isOrdinarySuccessorRevisionV01(taskOrigin.packet))) {
+      taskOrigin = taskOrigin.prior_packet
+        ? byPacket.get(`${taskOrigin.prior_packet.packet_id}|${taskOrigin.prior_packet.packet_fingerprint}`) : undefined;
     }
-    const previous = taskOrigin.lineage_kind === "pre_execution_new_task" && taskOrigin.prior_packet
+    const previous = taskOrigin?.lineage_kind === "pre_execution_new_task" && taskOrigin.prior_packet
       ? byPacket.get(`${taskOrigin.prior_packet.packet_id}|${taskOrigin.prior_packet.packet_fingerprint}`) : null;
-    retainPacket(current.packet, ["initial_user_defined", "pre_execution_new_task", "authored_successor_task"].includes(taskOrigin.lineage_kind)
+    retainPacket(current.packet, taskOrigin && ["initial_user_defined", "pre_execution_new_task", "authored_successor_task"].includes(taskOrigin.lineage_kind)
       ? taskOrigin.packet.integrity.fingerprint : null);
     return {
       ...baseV01(

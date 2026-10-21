@@ -99,6 +99,11 @@ including changed-basis, disclosure, history, atomic/stale-save and overflow con
 The correction binds manual currentness to the validated task origin: identical
 definition/material carried through the ordinary new-task writer requires deliberate
 reassessment, while same-task revisions and historical lookup remain supported.
+The shared origin reader also follows validated ordinary authored-successor revision
+edges, stopping at the original successor rather than its different-task predecessor.
+`scripts/test-manual-contribution-successor.ts` exercises supported successor creation,
+ordinary source/profile saves, a separate checked assessment remaining current after
+its own save, saved feedback and fresh-process reconstruction of retained originals.
 Legacy task identity stays unknown. Actual public MCP text is checked for all four
 preparation stages and saved authored disposition, alongside structured content.
 Configured review, direct/asset work and the #1453 adapter remain separate. This is

@@ -89,6 +89,7 @@ import {
 import {
   defineInitialProjectWorkV01,
   readProjectWorkInitializationV01,
+  readProjectWorkInitializationSnapshotV01,
 } from "../lib/vnext/runtime/project-work-initialization";
 import {
   readProjectWorkRevisionEligibilityV01,
@@ -291,6 +292,9 @@ async function assertUnexecutedSuccessorRevisionV01(): Promise<void> {
     }
     fixture.db.close(); fixture.db = new Database(fixture.config.database_path);
     const current = readProjectWorkInitializationV01(fixture.db, fixture);
+    const taskOrigin = () => readProjectWorkInitializationSnapshotV01(fixture.db, fixture).task_origin_fingerprint;
+    assert.equal(taskOrigin(), saved.packet.integrity.fingerprint);
+    assert.notEqual(taskOrigin(), initial.packet.integrity.fingerprint, "Original authored successor is a genuine task boundary");
     const eligibility = readProjectWorkRevisionEligibilityV01(fixture.db, fixture);
     const readOnly = new Database(fixture.config.database_path, { readonly: true });
     try {
@@ -377,6 +381,7 @@ async function assertUnexecutedSuccessorRevisionV01(): Promise<void> {
     const b1 = revisePreExecutionProjectWorkV01(fixture.db, { config: fixture.config,
       credential: credentialFromCookieV01(saved.session_admission.cookie_value), request: b1Request, clock: fixedClock("2026-08-01T00:00:21.000Z") });
     assert.equal(b1.status, "inserted");
+    assert.equal(taskOrigin(), saved.packet.integrity.fingerprint, "Definition revision retains successor origin");
     const afterWinner = fixture.db.serialize();
     const competingConnection = new Database(fixture.config.database_path);
     try {
@@ -402,6 +407,7 @@ async function assertUnexecutedSuccessorRevisionV01(): Promise<void> {
       request: { ...revisionRequestV01(fixture, b1.packet, "authored_successor_task", b1.packet.task), selected_source_context: nextSources.entries, expected_source_comparison: nextSources.fingerprint },
       clock: fixedClock("2026-08-01T00:00:23.000Z") });
     assert.equal(b2.status, "inserted"); assert.equal(b2.revision_eligibility.revision_count, 2);
+    assert.equal(taskOrigin(), saved.packet.integrity.fingerprint, "Source revision retains successor origin");
     assert.deepEqual(b2.packet.task, b1.packet.task);
     for (const table of unaffected) assert.deepEqual(fixture.db.prepare(table.query).all(), table.rows, "Revisions create no execution/grant or unrelated state change");
     const sessionsAfter = fixture.db.prepare("SELECT * FROM vnext_local_operator_sessions ORDER BY session_id").all() as Record<string, unknown>[];
@@ -443,6 +449,7 @@ async function assertUnexecutedSuccessorRevisionV01(): Promise<void> {
     assert.equal(resume.snapshot.status, "exact");
     const reader = await readCodexRepositoryWorkSourcesV01(fixture.db, { repository_root: fixture.root, expected_snapshot_binding: resume.snapshot.binding!, include_work_definition: true }, dependencies);
     assert.equal(reader.status, "available"); assert.equal(reader.sources.length, 2);
+    assert.equal("task_identity" in reader && reader.task_identity, saved.packet.integrity.fingerprint, "Fresh connection reconstructs the successor origin");
     const companionDb = new Database(fixture.db.serialize());
     try {
       const channel = { key: "disposable-successor-channel", instance_id: "fixture-instance", generation_id: "fixture-generation", repository_fingerprint: "f".repeat(64) };
@@ -452,10 +459,22 @@ async function assertUnexecutedSuccessorRevisionV01(): Promise<void> {
       assert.equal(previewed.status, "previewed"); assert(beforePreview.equals(companionDb.serialize()));
       const companionSaved = await reviseCodexRepositoryWorkV01(companionDb, { ...input, action: "save", preview_binding: previewed.preview_binding }, channel, dependencies);
       assert.equal(companionSaved.status, "saved");
+      assert.equal(readProjectWorkInitializationSnapshotV01(companionDb, fixture).task_origin_fingerprint, saved.packet.integrity.fingerprint);
       assert.equal(readProjectWorkInitializationV01(companionDb, fixture).current_work?.goal, input.changes.goal);
       assert.deepEqual(readProjectWorkInitializationV01(companionDb, fixture).selected_source_context, nextSources.entries);
       assert.equal((await reviseCodexRepositoryWorkV01(companionDb, { ...input, action: "save", preview_binding: previewed.preview_binding }, channel, dependencies)).status, "exact_replay");
     } finally { companionDb.close(); }
+    const missingOrigin = new Database(fixture.db.serialize());
+    try {
+      // Deliberate corruption in a disposable copy only. Restore the exact
+      // immutable trigger before asking production readers to reconstruct it.
+      const trigger = missingOrigin.prepare("SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'trg_vnext_core_records_immutable_delete'").get() as { sql: string };
+      missingOrigin.exec("DROP TRIGGER trg_vnext_core_records_immutable_delete");
+      missingOrigin.prepare("DELETE FROM vnext_core_records WHERE record_kind = 'task_context_packet' AND record_id = ?").run(saved.packet.packet_id);
+      missingOrigin.exec(trigger.sql);
+      assert.equal(readProjectWorkInitializationSnapshotV01(missingOrigin, fixture).task_origin_fingerprint, null,
+        "Missing successor origin is unavailable, never the current revision's identity");
+    } finally { missingOrigin.close(); }
     const latePreview = revisionRequestV01(fixture, b2.packet, "authored_successor_task", { ...b2.packet.task, goal: "Revision previewed before Start" });
     const exported = exportActivePortableProjectV01(fixture.db, { include_personal_perspective: false, exported_at: "2026-08-01T00:00:24.000Z" });
     parseAndValidatePortableProjectV01(exported.bytes);
@@ -503,6 +522,8 @@ async function assertUnexecutedSuccessorRevisionV01(): Promise<void> {
     const c = await defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config,
       credential: credentialFromCookieV01(executed.session_admission!.cookie_value), request: laterPreview.request, clock: fixedClock("2026-08-01T00:00:40.000Z") });
     assert.equal(readProjectWorkInitializationV01(fixture.db, fixture).current_packet?.packet_id, c.packet.packet_id);
+    assert.equal(taskOrigin(), c.packet.integrity.fingerprint);
+    assert.notEqual(taskOrigin(), saved.packet.integrity.fingerprint, "A further authored successor does not inherit its predecessor's task origin");
     assert.equal(validateRecoveryCanonicalDatabaseV01(fixture.db).status, "valid");
     assert(!original.equals(fixture.db.serialize()));
     console.log(JSON.stringify({ successor_revision: "A -> B -> B1 -> B2 -> real consumer -> completed B2 -> ordinary successor eligible", fresh_reader: reader.status, model_calls: 0 }));

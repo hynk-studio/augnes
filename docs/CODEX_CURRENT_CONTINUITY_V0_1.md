@@ -239,7 +239,9 @@ returns the closed `codex_repository_work_definition_sources.v0.1` projection
 with `work_definition` containing only goal, success criteria and non-goals from
 the validated persisted task already reconstructed in the read transaction.
 Its optional `task_identity` is the opaque fingerprint of the validated task origin,
-following exact ordinary revision links in that same read. It stays stable across
+following exact ordinary revision links in that same read, including the validated
+authored-successor revision profile. Its original successor boundary is preserved;
+the predecessor of that original packet is not a same-task revision. It stays stable across
 same-task revisions and changes at an explicit different-task boundary even if the
 definition and selected bytes are identical. Unsupported or unrecoverable origin
 is `null`; older projections may omit it. Neither missing identity nor identical

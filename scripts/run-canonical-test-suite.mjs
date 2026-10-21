@@ -1012,6 +1012,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "manual-contribution-successor",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
+      label: "authored-successor stable task origin, manual use/feedback and fresh historical read",
+      ...rootNode("scripts/test-manual-contribution-successor.ts"),
+      timeoutMs: 90_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "late-review",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state", "backup-restore"],
