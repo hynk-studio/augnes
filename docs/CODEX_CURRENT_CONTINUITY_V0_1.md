@@ -238,6 +238,14 @@ new project, source, remote App, execution or semantic authority. This mode
 returns the closed `codex_repository_work_definition_sources.v0.1` projection
 with `work_definition` containing only goal, success criteria and non-goals from
 the validated persisted task already reconstructed in the read transaction.
+Its optional `task_identity` is the opaque fingerprint of the validated task origin,
+following exact ordinary revision links in that same read. It stays stable across
+same-task revisions and changes at an explicit different-task boundary even if the
+definition and selected bytes are identical. Unsupported or unrecoverable origin
+is `null`; older projections may omit it. Neither missing identity nor identical
+definition text permits inferring the same task. The default source-only DTO is
+unchanged. Manual-contribution request/decision currentness uses this identity;
+it adds no persisted Core field, authentication or execution authority.
 It does not reread history, expose a packet, or copy Resume's display-normalized
 text. Stored internal whitespace and distinct entries remain intact, including
 their stored order. The existing complete-definition limits apply (2,000 goal

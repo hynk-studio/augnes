@@ -96,6 +96,11 @@ bytes and exact identities without creating native review status or transport.
 The registered `scripts/test-manual-contribution.ts` exercises real production
 routes, a checked restock card, manual file artifacts and a separate fresh reader,
 including changed-basis, disclosure, history, atomic/stale-save and overflow controls.
+The correction binds manual currentness to the validated task origin: identical
+definition/material carried through the ordinary new-task writer requires deliberate
+reassessment, while same-task revisions and historical lookup remain supported.
+Legacy task identity stays unknown. Actual public MCP text is checked for all four
+preparation stages and saved authored disposition, alongside structured content.
 Configured review, direct/asset work and the #1453 adapter remain separate. This is
 implemented deterministic mechanism evidence; exact-candidate qualification belongs
 to its PR return. Independent external participation, semantic understanding,

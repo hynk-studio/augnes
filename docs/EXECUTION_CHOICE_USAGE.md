@@ -106,9 +106,14 @@ requests, status, authenticated participants or material-read witnesses.
    downstream material beyond the original support and profile notes. A count
    or PASS assertion alone is not independent correctness evidence. The decision
    saves a separate derived interpretation and exact selected downstream excerpts.
-5. If the original definition or material changed, add a deliberate `reassessment`
-   explaining current applicability. Changes after saving a decision are exposed
-   on read and prevent preparing current feedback. Preserve the previous decision
+5. If the original task, definition or material changed, add a deliberate `reassessment`
+   explaining current applicability. An explicit different task remains different
+   even with identical wording and sources. The opt-in ordinary reader supplies
+   an opaque validated task origin that stays stable across same-task revisions;
+   requests and decisions retain it. Legacy notes without it stay readable with
+   unknown task identity and cannot establish a current decision. Changes after
+   saving a decision are exposed on read and prevent preparing current feedback.
+   Preserve the previous decision
    and feedback in history by ordinary explicit deselection, then assess fresh;
    no automatic refresh or reassessment occurs. Missing or ambiguous retained
    records refuse. Unknown saves require fresh readback before another decision.
@@ -118,6 +123,10 @@ requests, status, authenticated participants or material-read witnesses.
    instruction and next-check conditions. Read reconstructs the same feedback
    from the saved immutable decision. Explicit manual relay and observed recipient
    readback remain separate evidence; preparation never asserts either event.
+
+Public MCP text and structured content identify the actual work, selected
+arrangement and prepared stage. A saved manual disposition is an authored judgment,
+with its reason, currentness and remaining action; it is not semantic acceptance.
 
 The same eight-selected-note and 2,000-character-per-note limits apply, including
 serialized identity/metadata and full excerpts. Oversized material refuses; select

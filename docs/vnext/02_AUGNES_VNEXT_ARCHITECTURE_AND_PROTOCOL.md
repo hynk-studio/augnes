@@ -850,11 +850,17 @@ The manual decision is a separate `derived_interpretation` with scoped checks,
 applicability, reason, uncertainty, remaining obligations, next action and conditions.
 Positive use/partial use/RETAIN requires selected downstream material beyond the
 original support and profile notes; its bytes/identity are retained in the decision.
-This linkage is not an independent correctness oracle. Changed original work needs
-explicit fresh reassessment; changed decision support prevents current feedback
+This linkage is not an independent correctness oracle. Requests and decisions bind
+the ordinary reader's validated task-origin fingerprint, stable through same-task
+revisions but different for an explicit new task even with identical text/material.
+Missing legacy or unrecoverable task identity stays unknown: history is readable,
+but cannot establish current applicability or permit current feedback. Changed
+original work needs explicit fresh reassessment; changed decision task/support prevents current feedback
 preparation. Feedback resolves its exact immutable decision/return/request through
 the existing bounded eligible-history reader, including after deselection. Current
 selection, prepared feedback, actual manual relay and observed readback stay distinct.
+Successful manual preparation retains the work/arrangement view and identifies its
+stage in public text and structured content; saved dispositions remain authored judgments.
 Unavailable/ambiguous history refuses; deselection is never proof of no prior use.
 All notes retain existing 2,000-character/eight-note bounds, preview/save atomicity
 and replay ownership; overflow refuses without truncation or eviction. The configured

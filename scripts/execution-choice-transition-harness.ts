@@ -59,7 +59,8 @@ const server = trackServerConnections(createServer(async (req, res) => {
 const modern = { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} };
 async function raw(name: string, args: object) {
     const r: any = await handleMessageV01({ jsonrpc: "2.0", id: ++id, method: "tools/call", params: { name, arguments: args } });
-    trace.push({ name, arguments: args, result: r.result?.structuredContent ?? r.error }); return r;
+    trace.push({ name, arguments: args, result: r.result?.structuredContent ?? r.error,
+        ...(name === EXECUTION_CHOICE_TOOL ? { content: r.result?.content } : {}) }); return r;
 }
 async function call(name: string, args: object) {
     const r = await raw(name, args); assert(!r.error && !r.result?.isError, JSON.stringify(r)); return r.result.structuredContent;

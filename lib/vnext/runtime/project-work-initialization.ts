@@ -97,13 +97,14 @@ export function readProjectWorkInitializationSnapshotV01(
   db: Database.Database,
   input: { workspace_id: string; project_id: string },
   dependencies: ProjectWorkInitializationDependenciesV01 = {},
-): { projection: ProjectWorkInitializationV01; packet: TaskContextPacketV01 | null } {
+): { projection: ProjectWorkInitializationV01; packet: TaskContextPacketV01 | null; task_origin_fingerprint: string | null } {
   let packet: TaskContextPacketV01 | null = null;
+  let taskOriginFingerprint: string | null = null;
   try {
-    const projection = readProjectWorkInitializationStrictV01(db, input, dependencies, value => { packet = value; });
-    return { projection, packet };
+    const projection = readProjectWorkInitializationStrictV01(db, input, dependencies, (value, origin) => { packet = value; taskOriginFingerprint = origin; });
+    return { projection, packet, task_origin_fingerprint: taskOriginFingerprint };
   } catch {
-    return { projection: unavailableV01(db, input, "source_unavailable"), packet: null };
+    return { projection: unavailableV01(db, input, "source_unavailable"), packet: null, task_origin_fingerprint: null };
   }
 }
 
@@ -292,7 +293,7 @@ function readProjectWorkInitializationStrictV01(
   db: Database.Database,
   input: { workspace_id: string; project_id: string },
   dependencies: ProjectWorkInitializationDependenciesV01,
-  retainPacket: (packet: TaskContextPacketV01) => void = () => {},
+  retainPacket: (packet: TaskContextPacketV01, taskOriginFingerprint: string | null) => void = () => {},
 ): ProjectWorkInitializationV01 {
   assertVNextDurableSemanticStoreSchemaV01(db);
   const registration = readCanonicalProjectWithRootV01(db, input);
@@ -452,7 +453,8 @@ function readProjectWorkInitializationStrictV01(
     }
     const previous = taskOrigin.lineage_kind === "pre_execution_new_task" && taskOrigin.prior_packet
       ? byPacket.get(`${taskOrigin.prior_packet.packet_id}|${taskOrigin.prior_packet.packet_fingerprint}`) : null;
-    retainPacket(current.packet);
+    retainPacket(current.packet, ["initial_user_defined", "pre_execution_new_task", "authored_successor_task"].includes(taskOrigin.lineage_kind)
+      ? taskOrigin.packet.integrity.fingerprint : null);
     return {
       ...baseV01(
         input,

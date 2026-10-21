@@ -37,8 +37,9 @@ function validate(value) {
   if (value?.profile !== PROFILE) fail("saved_material_unavailable");
   const common = ["profile", "kind"];
   if (value.kind === "request") {
-    keys(value, [...common, "choice", "definition", "material", ...requestFields]);
+    keys(value, [...common, "choice", "definition", "material", ...requestFields], ["task"]);
     if (!ref(value.choice) || !ref(value.definition)) fail("invalid_input");
+    if (value.task !== undefined && !ref(value.task)) fail("invalid_input");
     materials(value.material); requestFields.forEach(k => text(value[k]));
   } else if (value.kind === "return") {
     keys(value, [...common, "request", "material", ...returnFields]);
@@ -47,7 +48,8 @@ function validate(value) {
   } else if (value.kind === "decision") {
     keys(value, [...common, "request", "original", "basis", "results", ...decisionFields], ["reassessment"]);
     if (!ref(value.request) || !ref(value.original)) fail("invalid_input");
-    keys(value.basis, ["definition", "sources"]);
+    keys(value.basis, ["definition", "sources"], ["task"]);
+    if (value.basis.task !== undefined && !ref(value.basis.task)) fail("invalid_input");
     if (!ref(value.basis.definition) || !Array.isArray(value.basis.sources) || value.basis.sources.length > 8 || value.basis.sources.some(r => !ref(r))) fail("invalid_input");
     if (!["used", "partly_used", "retained", "deferred", "declined"].includes(value.disposition)) fail("invalid_input");
     decisionFields.forEach(k => text(value[k])); materials(value.results);
@@ -74,9 +76,18 @@ function parse(source, selection = "currently_selected") {
   } catch { fail("saved_material_unavailable"); }
   return { ref: digest(value), source_ref: source.source_binding, selection, value };
 }
-const basis = current => ({ definition: digest(current.work_definition), sources: current.sources.filter(s => !profileSource(s)).map(s => s.source_binding) });
-const sameBasis = (saved, current) => saved.definition === digest(current.work_definition) &&
-  canonical([...saved.sources].sort()) === canonical(basis(current).sources.sort());
+// Packet/snapshot identity changes on every save. The ordinary reader instead
+// supplies the validated origin of this task's revision segment. Legacy notes
+// without that binding remain history; identical wording is no substitute.
+const taskRelation = (saved, current) => !ref(saved) || !ref(current.task_identity) ? "unknown" : saved === current.task_identity ? "same_task" : "different_task";
+const sourceBasis = current => current.sources.filter(s => !profileSource(s)).map(s => s.source_binding);
+function taskIdentity(current) {
+  if (!ref(current.task_identity)) fail("task_identity_unavailable");
+  return current.task_identity;
+}
+const basis = current => ({ task: taskIdentity(current), definition: digest(current.work_definition), sources: sourceBasis(current) });
+const sameBasis = (saved, current) => taskRelation(saved.task, current) === "same_task" && saved.definition === digest(current.work_definition) &&
+  canonical([...saved.sources].sort()) === canonical(sourceBasis(current).sort());
 function feedbackDelivery(request, original, decision) {
   const d = decision.value;
   return { manual_request_ref: request.ref, manual_return_ref: original.ref, decision_ref: decision.ref,
@@ -135,15 +146,18 @@ export async function readManualContribution(args, current, choice, lookupRetain
   if (request && request.value.choice !== digest(choice.value)) fail("identity_mismatch");
   if (original && original.value.material !== digest(request.value.material)) fail("basis_mismatch");
   if (decision && decision.value.request !== request.ref) fail("identity_mismatch");
-  const requestCurrent = !request || (request.value.definition === digest(current.work_definition) &&
+  const requestTask = request ? taskRelation(request.value.task, current) : null;
+  const decisionTask = decision ? taskRelation(decision.value.basis.task, current) : null;
+  const requestCurrent = !request || (requestTask === "same_task" && request.value.definition === digest(current.work_definition) &&
     request.value.material.every(s => current.sources.some(c => c.source_binding === s.source_ref && c.excerpt_text === s.text && c.trust_class === s.trust)));
   const decisionCurrent = !decision || sameBasis(decision.value.basis, current);
   return { request, original, decision, feedback: feedback ? { ...feedback, delivery: feedbackDelivery(request, original, decision) } : null,
-    applicability: !requestCurrent ? "request_basis_changed" : "original_material_selected",
-    decision_currentness: !decision ? "not_assessed" : decisionCurrent ? "saved_basis_retained" : "reassessment_required",
+    task_identity: current.task_identity ?? null, request_task: requestTask, decision_task: decisionTask,
+    applicability: requestTask === "unknown" ? "request_task_unknown" : requestTask === "different_task" ? "request_task_changed" : !requestCurrent ? "request_basis_changed" : "original_material_selected",
+    decision_currentness: !decision ? "not_assessed" : decisionTask === "unknown" ? "task_identity_unknown" : decisionCurrent ? "saved_basis_retained" : "reassessment_required",
     downstream: decision?.value.results.map(s => ({ ...s, selection: current.sources.some(c => c.source_binding === s.source_ref) ? "currently_selected" : "historical_not_selected" })) ?? [],
     delivery: "Manual declarations only; no authenticated delivery, participant identity, material-read witness or native review status. Non-selection never establishes no historical receipt or use.",
-    next_action: decision && !decisionCurrent ? "Saved decision support changed. Preserve the original and prior decision; inspect fresh work and deliberately reassess before preparing current feedback." : decision ? decision.value.next_action : original ? "Check the original against the exact request and current applicability; save a separate decision and concrete downstream material." : request ? "Explicitly relay only the delivery object and supply the original bounded file return; preparation is not delivery." : "Prepare selected permitted material for the explicit manual contribution route." };
+    next_action: decision && !decisionCurrent ? "Saved decision task or support changed, or its task identity is unknown. Preserve the original and prior decision; inspect fresh work and deliberately reassess before preparing current feedback." : decision ? decision.value.next_action : original ? "Check the original against the exact request and current applicability; save a separate decision and concrete downstream material." : request ? "Explicitly relay only the delivery object and supply the original bounded file return; preparation is not delivery." : "Prepare selected permitted material for the explicit manual contribution route." };
 }
 
 export async function prepareManualContribution(args, current, choice, state, { basisChanged, expired }) {
@@ -153,7 +167,7 @@ export async function prepareManualContribution(args, current, choice, state, { 
     if (basisChanged || expired) fail("reconsideration_required");
     const p = args.participation;
     keys(p, [...requestFields, "material_refs"]); requestFields.forEach(k => text(p[k]));
-    value = { profile: PROFILE, kind: "request", choice: digest(choice.value), definition: digest(current.work_definition),
+    value = { profile: PROFILE, kind: "request", choice: digest(choice.value), task: taskIdentity(current), definition: digest(current.work_definition),
       material: select(p.material_refs, current.sources.filter(s => choice.value.basis.sources.includes(s.source_binding) && !profileSource(s))),
       ...Object.fromEntries(requestFields.map(k => [k, p[k]])) };
     delivery = { manual_request_ref: digest(value), material_ref: digest(value.material), request: value,
@@ -171,7 +185,7 @@ export async function prepareManualContribution(args, current, choice, state, { 
     const a = args.assessment;
     keys(a, ["manual_request_ref", "manual_return_ref", "result_refs", ...decisionFields], ["reassessment"]);
     if (a.manual_request_ref !== state.request.ref || a.manual_return_ref !== state.original.ref) fail("request_mismatch");
-    if (state.applicability === "request_basis_changed" && a.reassessment === undefined) fail("reassessment_required");
+    if (state.applicability !== "original_material_selected" && a.reassessment === undefined) fail("reassessment_required");
     const results = select(a.result_refs, current.sources.filter(s => !profileSource(s)));
     if (["used", "partly_used", "retained"].includes(a.disposition) &&
         !results.some(s => !choice.value.basis.sources.includes(s.source_ref))) fail("downstream_work_required");
@@ -186,7 +200,7 @@ export async function prepareManualContribution(args, current, choice, state, { 
     delivery = feedbackDelivery(state.request, state.original, state.decision);
   } else fail("invalid_input");
   const added = note(value);
-  return { status: "prepared", ...(delivery ? { delivery } : {}), manual_ref: digest(value),
+  return { status: "prepared", prepared_stage: args.action, ...(delivery ? { delivery } : {}), manual_ref: digest(value),
     revision_tool: "augnes_preview_repository_work_revision",
     revision_arguments: { repositoryRoot: args.repositoryRoot, expectedSnapshotBinding: args.expectedSnapshotBinding, changes: { sources: { add: [added] } } },
     next_action: "Inspect the ordinary preview, explicitly save with its binding, and read fresh work. Only the delivery object is prepared for manual relay. Nothing has been saved or sent." };

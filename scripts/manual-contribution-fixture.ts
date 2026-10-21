@@ -102,7 +102,7 @@ async function produce() {
   const changedSource=(await readCurrent()).sources.find((s:any)=>s.excerpt_text===JSON.stringify({...inventory,reserved:6}));
   await saveChanges({sources:{replace:[{source_binding:changedSource.source_binding,note:note("/private/origin/inventory.json",inputSource.excerpt_text)}]}});
   assert.equal((await choice("read")).manual_contribution.decision_currentness,"saved_basis_retained");
-  // Adapter seams cover corrupted/unavailable retained evidence and concurrent reads.
+  // An unavailable retained-lookup seam refuses rather than inventing absence.
   const snapshot=(await call("augnes_resume_repository",{repositoryRoot:root})).continuity.snapshot.binding;
   const actual=await call("augnes_read_repository_work_sources",{repositoryRoot:root,expectedSnapshotBinding:snapshot,includeWorkDefinition:true});
   const args={action:"read",repositoryRoot:root,expectedSnapshotBinding:snapshot};
