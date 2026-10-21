@@ -139,6 +139,9 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
               return refused;
             }`, "            if (mode === 'session_refused') return Response.json({ error_code: 'operator_session_cookie_invalid' }, { status: 401 });"],
     [`            if (refusalScenario) {
+              // The locked UI can settle before CDP delivers the canceled
+              // request's terminal event. Drain observations before sealing.
+              await waitForRequestQuiet();
               assert(beforeReadBoundaries.equals(noteDatabase.serialize()), 'session refusal changes no stored state');
               assert.deepEqual(effects(), effectsBefore);
               requestVerdicts.completeSessionRefusalScenario(refusalScenario);

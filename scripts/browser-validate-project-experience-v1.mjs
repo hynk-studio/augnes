@@ -1976,6 +1976,9 @@ async function main() {
             assert.equal(await evaluateBoolean(`document.querySelector('[data-current-work-sources], [data-work-revision-composer]') === null && !document.body.textContent.includes(${JSON.stringify(suppliedSource)}) && !document.body.textContent.includes(${JSON.stringify(correction)}) && !document.body.textContent.includes('No source notes are selected in this current work.')`), true,
               `${mode} hides note content without manufacturing an empty current selection`);
             if (refusalScenario) {
+              // The locked UI can settle before CDP delivers the canceled
+              // request's terminal event. Drain observations before sealing.
+              await waitForRequestQuiet();
               assert(beforeReadBoundaries.equals(noteDatabase.serialize()), 'session refusal changes no stored state');
               assert.deepEqual(effects(), effectsBefore);
               requestVerdicts.completeSessionRefusalScenario(refusalScenario);
