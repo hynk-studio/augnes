@@ -488,6 +488,12 @@ try {
       work_definition: { goal: "Keep A  B\nwith\ttabs", success_criteria: ["A  B", "A B"], non_goals: ["No A  B", "No A B"] },
     };
     assert.deepEqual(parseRepositoryWorkSourcesResponseV01(definitionProjection, true), definitionProjection);
+    for (const task_identity of [null, sourceBinding]) {
+      const identified = { ...definitionProjection, task_identity };
+      assert.deepEqual(parseRepositoryWorkSourcesResponseV01(identified, true), identified);
+    }
+    assert.throws(() => parseRepositoryWorkSourcesResponseV01({ ...definitionProjection, task_identity: "/private/task" }, true), /contract_invalid/u);
+    assert.throws(() => parseRepositoryWorkSourcesResponseV01({ ...sourceProjection, task_identity: sourceBinding }), /contract_invalid/u);
     assert.throws(() => parseRepositoryWorkSourcesResponseV01(definitionProjection), /contract_invalid/u);
     assert.throws(() => parseRepositoryWorkSourcesResponseV01(sourceProjection, true), /contract_invalid/u);
     const invalidDefinitions = [null,
@@ -502,6 +508,7 @@ try {
     const definitionRefusal = { ...definitionProjection, status: "unavailable", reason: "work_definition_out_of_bounds",
       snapshot_binding: null, packet_fingerprint: null, work_definition: null };
     assert.deepEqual(parseRepositoryWorkSourcesResponseV01(definitionRefusal, true), definitionRefusal);
+    assert.throws(() => parseRepositoryWorkSourcesResponseV01({ ...definitionRefusal, task_identity: sourceBinding }, true), /contract_invalid/u);
     assert.throws(() => parseRepositoryWorkSourcesResponseV01({ ...definitionRefusal, work_definition: definitionProjection.work_definition }, true), /contract_invalid/u);
     for (const mutation of [
       { ...sourceProjection, extra_private_field: "not allowed" },

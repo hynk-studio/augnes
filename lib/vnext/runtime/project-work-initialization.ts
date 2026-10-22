@@ -1,4 +1,5 @@
 import { readProjectWorkBindingV01 } from "./project-work-binding";
+import { isOrdinarySuccessorRevisionV01 } from "./authored-successor-revision";
 import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import { parseWorkHandoff, readWorkHandoff, handoffCheck } from "../work-handoff";
@@ -97,13 +98,14 @@ export function readProjectWorkInitializationSnapshotV01(
   db: Database.Database,
   input: { workspace_id: string; project_id: string },
   dependencies: ProjectWorkInitializationDependenciesV01 = {},
-): { projection: ProjectWorkInitializationV01; packet: TaskContextPacketV01 | null } {
+): { projection: ProjectWorkInitializationV01; packet: TaskContextPacketV01 | null; task_origin_fingerprint: string | null } {
   let packet: TaskContextPacketV01 | null = null;
+  let taskOriginFingerprint: string | null = null;
   try {
-    const projection = readProjectWorkInitializationStrictV01(db, input, dependencies, value => { packet = value; });
-    return { projection, packet };
+    const projection = readProjectWorkInitializationStrictV01(db, input, dependencies, (value, origin) => { packet = value; taskOriginFingerprint = origin; });
+    return { projection, packet, task_origin_fingerprint: taskOriginFingerprint };
   } catch {
-    return { projection: unavailableV01(db, input, "source_unavailable"), packet: null };
+    return { projection: unavailableV01(db, input, "source_unavailable"), packet: null, task_origin_fingerprint: null };
   }
 }
 
@@ -292,7 +294,7 @@ function readProjectWorkInitializationStrictV01(
   db: Database.Database,
   input: { workspace_id: string; project_id: string },
   dependencies: ProjectWorkInitializationDependenciesV01,
-  retainPacket: (packet: TaskContextPacketV01) => void = () => {},
+  retainPacket: (packet: TaskContextPacketV01, taskOriginFingerprint: string | null) => void = () => {},
 ): ProjectWorkInitializationV01 {
   assertVNextDurableSemanticStoreSchemaV01(db);
   const registration = readCanonicalProjectWithRootV01(db, input);
@@ -443,16 +445,19 @@ function readProjectWorkInitializationStrictV01(
             : "current_operational_continuation_packet";
     const selectedSources = readSelectedWorkSources(current.packet);
     const byPacket = new Map(inspected.map(entry => [`${entry.packet.packet_id}|${entry.packet.integrity.fingerprint}`, entry]));
-    let taskOrigin = current;
-    // All entries were validated above. Follow exact edges, never timestamps.
-    while (taskOrigin.lineage_kind === "pre_execution_user_revision" && taskOrigin.prior_packet) {
-      const prior = byPacket.get(`${taskOrigin.prior_packet.packet_id}|${taskOrigin.prior_packet.packet_fingerprint}`);
-      if (!prior) break;
-      taskOrigin = prior;
+    let taskOrigin: typeof current | undefined = current;
+    // The lineage owners validated these exact same-task revision edges above,
+    // including successor origin bindings. Stop at the original successor:
+    // its own predecessor is a different task, not an ordinary revision.
+    while (taskOrigin && (taskOrigin.lineage_kind === "pre_execution_user_revision" ||
+      isOrdinarySuccessorRevisionV01(taskOrigin.packet))) {
+      taskOrigin = taskOrigin.prior_packet
+        ? byPacket.get(`${taskOrigin.prior_packet.packet_id}|${taskOrigin.prior_packet.packet_fingerprint}`) : undefined;
     }
-    const previous = taskOrigin.lineage_kind === "pre_execution_new_task" && taskOrigin.prior_packet
+    const previous = taskOrigin?.lineage_kind === "pre_execution_new_task" && taskOrigin.prior_packet
       ? byPacket.get(`${taskOrigin.prior_packet.packet_id}|${taskOrigin.prior_packet.packet_fingerprint}`) : null;
-    retainPacket(current.packet);
+    retainPacket(current.packet, taskOrigin && ["initial_user_defined", "pre_execution_new_task", "authored_successor_task"].includes(taskOrigin.lineage_kind)
+      ? taskOrigin.packet.integrity.fingerprint : null);
     return {
       ...baseV01(
         input,

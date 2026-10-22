@@ -43,9 +43,9 @@ export async function readCodexRepositoryWorkSourcesV01(
     throw new Error("expected_snapshot_binding_invalid");
   }
   if (db.inTransaction) throw new Error("work_sources_dedicated_read_required");
-  const project = (value: CodexRepositoryWorkSourcesV01, definition: ProjectWorkDefinitionV01 | null = null): CodexRepositoryWorkSourcesReadV01 =>
+  const project = (value: CodexRepositoryWorkSourcesV01, definition: ProjectWorkDefinitionV01 | null = null, taskIdentity: string | null = null): CodexRepositoryWorkSourcesReadV01 =>
     input.include_work_definition === true
-      ? { ...value, projection_version: CODEX_REPOSITORY_WORK_DEFINITION_SOURCES_VERSION_V01, work_definition: definition }
+      ? { ...value, projection_version: CODEX_REPOSITORY_WORK_DEFINITION_SOURCES_VERSION_V01, work_definition: definition, task_identity: taskIdentity }
       : value;
   db.exec("BEGIN");
   try {
@@ -62,7 +62,7 @@ export async function readCodexRepositoryWorkSourcesV01(
       authority: CODEX_CURRENT_CONTINUITY_AUTHORITY_V01,
     };
     if (resolution.status !== "resolved_exact") return project(result);
-    const { projection: continuity, work_initialization: work } = await readCodexCurrentContinuitySnapshotV01(db, {
+    const { projection: continuity, work_initialization: work, task_origin_fingerprint: taskIdentity } = await readCodexCurrentContinuitySnapshotV01(db, {
       viewed_project_id: resolution.project_id!,
     }, dependencies);
     result.reason = "current_work_unavailable";
@@ -85,7 +85,7 @@ export async function readCodexRepositoryWorkSourcesV01(
     const definition = input.include_work_definition === true ? boundedWorkDefinitionV01(work.current_work) : null;
     if (input.include_work_definition === true && !definition) {
       return { ...result, projection_version: CODEX_REPOSITORY_WORK_DEFINITION_SOURCES_VERSION_V01,
-        reason: "work_definition_out_of_bounds", work_definition: null };
+        reason: "work_definition_out_of_bounds", work_definition: null, task_identity: null };
     }
     // The snapshot owner already reconstructed and validated this exact work,
     // including source scope, lineage, bindings and whole-note limits. Repeating
@@ -99,7 +99,7 @@ export async function readCodexRepositoryWorkSourcesV01(
       snapshot_binding: continuity.snapshot.binding,
       packet_fingerprint: work.current_packet.packet_fingerprint,
       sources,
-    }, definition);
+    }, definition, taskIdentity);
   } finally {
     db.exec("ROLLBACK");
   }
