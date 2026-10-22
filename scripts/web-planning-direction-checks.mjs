@@ -20,6 +20,9 @@ export async function checkDirections({start,client,newWork,save,passed}){
  const branch=await ok(c.request(route(primary,'branch-preview'),{expected:headBinding(primary),intent:{reason:alternateReason}})),branchRequest={ticket:branch.ticket,intent:branch.intent};
  assert.equal((await c.request(`/api/work/${branch.work_id}/relation-save`,{...branchRequest,project_id:randomUUID()})).status,403);
  let alternate=(await ok(c.request(`/api/work/${branch.work_id}/relation-save`,branchRequest))).saved;
+ const generic={source:reference(alternate),dispositions:[],target_selection:[],file_selection:{target:primary.files,source:alternate.files},rationale:'Attempt generic notebook replacement',next_question:''};
+ assert.equal((await c.request(route(primary,'incorporation-preview'),{expected:headBinding(primary),intent:generic})).data.error,'scene_review_required');
+ assert.deepEqual(await ok(c.request(route(primary,'export'))),originalExport);
  assert.equal((await ok(c.request(route(alternate,'relation-save'),branchRequest))).saved.fingerprint,alternate.fingerprint);
  const book=async r=>{const i=r.files.findIndex(f=>f.name===SCENE_FILE);return JSON.parse((await ok(c.request(`/api/work/${r.work_id}/files/${r.revision}/${r.fingerprint.slice(7)}/${i}`))));};
  assert.deepEqual((await book(alternate)).inheritance.scenes[0].review.dispositions,sceneChoices);

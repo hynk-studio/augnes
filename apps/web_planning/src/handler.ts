@@ -1,6 +1,7 @@
 /// <reference path="./assets.d.ts" />
 import { notebookFrom } from "./scene-contract";
 import { directionComparison, validateDirectionReferences } from "./directions";
+import { hasSceneFile } from "./file-relations";
 import { DIRECTION_EXPORT, directionExport, validateDirectionExport } from "./direction-recovery";
 import { prepareSceneContext, prepareSceneDraft, previewSceneReview, saveSceneReview } from "./scenes";
 import { type FileBody, FILE_EXPORT_REQUEST_BYTES, historyFiles, selectedFiles, validateFileExport } from "./files";
@@ -123,7 +124,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
       if(action==="compare"||action==="direction-export") {
         exact(input,"workspace_id,project_id,expected,source");
         const result=await compare(access,id,input.expected,input.source);
-        const direction=result.branch.files?.length?await directionComparison(access,result.target,result.branch):undefined;
+        const direction=hasSceneFile(result.branch)?await directionComparison(access,result.target,result.branch):undefined;
         if(action==="direction-export"){
           const chains=await Promise.all([readWork(access,result.target.work_id),readWork(access,result.branch.work_id)]);
           const works=[];for(const chain of chains)works.push(await completeExport(access,chain));
@@ -136,7 +137,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
       }
       exact(input,"workspace_id,project_id,expected,intent");
       const result=await previewOperation(access,id,action==="branch-preview"?"branch":"incorporate",input.expected,input.intent);
-      return json({...result,html:renderPreview(result.payload)});
+      return json({...result,html:renderPreview(result.payload,result.target??undefined)});
     }
     const match=path.match(/^\/api\/work\/([a-f0-9-]+)\/(ticket|save|resolve|context|erase)$/);
     if(!match || !UUID.test(match[1]))fail("not_found",404);
