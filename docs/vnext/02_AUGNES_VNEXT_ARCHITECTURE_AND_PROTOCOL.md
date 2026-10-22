@@ -884,7 +884,42 @@ uncertainty, horizon and reconsideration condition. Unknown burden is explicit
 text, never an implicit numeric zero. An option may name one configured review
 connection; configuration does not prove availability, competence or execution.
 
-Participation preparation checks the retained definition/support and horizon,
+An alternative may instead explicitly select `manual_contribution: true`, mutually
+exclusive with `review_connection`. The optional `augnes.manual-contribution.v0.1`
+ordinary-note profile joins one request, original return, separate decision and
+feedback under that choice. It introduces no Core kind, writer, transport or
+authenticated participant. The request retains complete deliberately selected
+excerpt bytes, source/choice/definition identities and authored purpose,
+question, expected return, check/use owner, manual methods and next conditions.
+Only the separate delivery projection is for manual relay; locators, hidden notes
+and repository paths are excluded. Selected text still requires disclosure review.
+The original bounded text and declared revision/excerpt/actor/assistance remain
+`imported_unverified`; they never become native review replies or read witnesses.
+
+The manual decision is a separate `derived_interpretation` with scoped checks,
+applicability, reason, uncertainty, remaining obligations, next action and conditions.
+Positive use/partial use/RETAIN requires selected downstream material beyond the
+original support and profile notes; its bytes/identity are retained in the decision.
+This linkage is not an independent correctness oracle. Requests and decisions bind
+the ordinary reader's validated task-origin fingerprint, stable through same-task
+revisions, including ordinary authored-successor source/profile revisions, but
+different for an explicit new task even with identical text/material. The original
+authored successor remains distinct from its predecessor; only validated same-task
+revision edges are traversed.
+Missing legacy or unrecoverable task identity stays unknown: history is readable,
+but cannot establish current applicability or permit current feedback. Changed
+original work needs explicit fresh reassessment; changed decision task/support prevents current feedback
+preparation. Feedback resolves its exact immutable decision/return/request through
+the existing bounded eligible-history reader, including after deselection. Current
+selection, prepared feedback, actual manual relay and observed readback stay distinct.
+Successful manual preparation retains the work/arrangement view and identifies its
+stage in public text and structured content; saved dispositions remain authored judgments.
+Unavailable/ambiguous history refuses; deselection is never proof of no prior use.
+All notes retain existing 2,000-character/eight-note bounds, preview/save atomicity
+and replay ownership; overflow refuses without truncation or eviction. The configured
+review and #1453 aggregate-service domains retain their original semantics.
+
+Configured-review participation preparation checks the retained definition/support and horizon,
 resolves that project's currently permitted connection, and pins the existing
 request to the exact inspected packet. The request question binds the choice and
 the consumer's purpose, checks, dependency order, required excerpt bindings and

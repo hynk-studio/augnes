@@ -954,6 +954,7 @@ async function assertCurrentWorkSourcesV01(): Promise<void> {
     const legacySources = await response.json();
     assert.deepEqual(legacySources.sources, material.sources);
     assert.equal(Object.hasOwn(legacySources, "work_definition"), false);
+    assert.equal(Object.hasOwn(legacySources, "task_identity"), false);
     const definitionRequest = { repository_root: root, expected_snapshot_binding: currentBinding, include_work_definition: true };
     const definitionResponse = await callRoute({}, definitionRequest);
     assert.equal(definitionResponse.status, 200);
@@ -965,6 +966,7 @@ async function assertCurrentWorkSourcesV01(): Promise<void> {
     assert.deepEqual(definitionMaterial.sources, legacySources.sources);
     assert.equal(definitionMaterial.snapshot_binding, legacySources.snapshot_binding);
     assert.equal(definitionMaterial.packet_fingerprint, legacySources.packet_fingerprint);
+    assert.equal(definitionMaterial.task_identity, initial.packet.integrity.fingerprint, "same-task revisions preserve the exact initial task origin");
     await assertOrdinarySourceDispatchV01(root, currentBinding, initialBinding, legacySources, definitionMaterial, proxyToken);
     for (const bad of [
       { ...definitionRequest, include_work_definition: false }, { ...definitionRequest, include_work_definition: "true" },

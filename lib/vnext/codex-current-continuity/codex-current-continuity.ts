@@ -219,7 +219,7 @@ export async function readCodexCurrentContinuitySnapshotV01(
     project_id: targetProjectId,
   }));
 
-  const { projection: workInitialization, packet: validatedPacket } = readProjectWorkInitializationSnapshotV01(db, scope, {
+  const { projection: workInitialization, packet: validatedPacket, task_origin_fingerprint: taskOriginFingerprint } = readProjectWorkInitializationSnapshotV01(db, scope, {
     root_available: () => rootAvailability === "available",
   });
   const configuredOperator = readMatchingOperatorConfigV01(
@@ -371,7 +371,7 @@ export async function readCodexCurrentContinuitySnapshotV01(
         next_action_kind: nextAction.kind,
         source_status: projection.source_status,
       };
-  return finalizeV01(projection, bindingMaterial, workInitialization, validatedPacket);
+  return finalizeV01(projection, bindingMaterial, workInitialization, validatedPacket, taskOriginFingerprint);
 }
 
 function openCurrentContinuityDatabaseV01(): Database.Database {
@@ -1292,6 +1292,8 @@ interface CodexCurrentContinuitySnapshotReadV01 {
   /** Private validated material from the same read; not part of either seal or DTO. */
   work_initialization: ProjectWorkInitializationV01 | null;
   validated_packet: TaskContextPacketV01 | null;
+  /** Same validated task across ordinary revisions; never inferred from definition text. */
+  task_origin_fingerprint: string | null;
 }
 
 function finalizeV01(
@@ -1299,6 +1301,7 @@ function finalizeV01(
   bindingMaterial: unknown | null,
   workInitialization: ProjectWorkInitializationV01 | null = null,
   validatedPacket: TaskContextPacketV01 | null = null,
+  taskOriginFingerprint: string | null = null,
 ): CodexCurrentContinuitySnapshotReadV01 {
   const withBinding: CodexCurrentContinuityV01 = bindingMaterial === null
     ? { ...projection, snapshot: unavailableSnapshotV01() }
@@ -1317,6 +1320,7 @@ function finalizeV01(
     binding_material: bindingMaterial,
     work_initialization: bindingMaterial === null ? null : workInitialization,
     validated_packet: bindingMaterial === null ? null : validatedPacket,
+    task_origin_fingerprint: bindingMaterial === null ? null : taskOriginFingerprint,
   };
 }
 
