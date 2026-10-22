@@ -1267,6 +1267,31 @@ broader product gaps with #1212. Retained-candidate use, provider execution and
 general usefulness remain outside this slice; later native acceptance is bounded
 to the approved store and clients, not every consumer.
 
+### Current lifecycle increment — Reversible native project archive (#1512)
+
+The source increment adds **Working projects / Archived projects** to the existing
+native saved-project management surface, with explicit archive, unarchive and
+same-project return. The ordinary view excludes archived projects; complete
+all-registered and capability-scoped discovery retain them with organization state.
+Archive preserves work/history/obligations and changes no direction, execution,
+access, accounting or accepted goal. Recents removal remains a separate feature.
+
+The existing lifecycle owner stores organization and a fresh project observation.
+Explicit forward migration gives every old project a working default; staged
+backup/recovery preserves classification and history while refreshing observations.
+Deterministic cases exercise inactive-project independence, stale/concurrent
+changes, complete scoped pages, uncertain readback, missing roots, portable replay,
+failed-stage rollback and repeated restore with fresh-process same-work reads.
+Archived root recovery and repeat registration also retain atomic selection
+freshness, with late-change refusal and unchanged-selection success controls.
+Migration refusal is injected after schema creation and project backfill to
+check rollback of those partial writes.
+The existing project-experience Browser owner exercises the actual controls,
+restart, deliberate return and a lost acknowledgement. Final exact-head
+qualification and independent review belong to the single Draft PR return.
+This implements local organization, not deletion, paused execution, installed or
+hosted adoption, measured user benefit, or completion of broader #1212/#1215.
+
 ### Current RC1 follow-up — Selection reconstruction conformance (#1401)
 
 **Completed prospective disposable-conformance scope:** #1402 is included in
