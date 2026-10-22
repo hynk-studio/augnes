@@ -405,7 +405,8 @@ export function parseRepositoryMethodOutlookResponseV01(value) {
 
 /** Closed metadata projection; excerpt text remains literal untrusted content. */
 export function parseRepositoryWorkSourcesResponseV01(value, includeWorkDefinition = false) {
-  exactObjectV01(value, ["projection_version", "status", "reason", "repository_resolution", "snapshot_binding", "packet_fingerprint", "sources", "source_material_authority", "authority", ...(includeWorkDefinition ? ["work_definition"] : [])], "work sources");
+  exactObjectV01(value, ["projection_version", "status", "reason", "repository_resolution", "snapshot_binding", "packet_fingerprint", "sources", "source_material_authority", "authority", ...(includeWorkDefinition ? ["work_definition", ...(value && Object.hasOwn(value, "task_identity") ? ["task_identity"] : [])] : [])], "work sources");
+  if (includeWorkDefinition && value.task_identity !== undefined && value.task_identity !== null) fingerprintV01(value.task_identity);
   if (value.projection_version !== (includeWorkDefinition ? "codex_repository_work_definition_sources.v0.1" : "codex_repository_work_sources.v0.1") ||
       !["available", "refresh_required", "unavailable"].includes(value.status) ||
       !["resolved_exact", "project_not_registered", "project_ambiguous", "root_unavailable", "repository_input_invalid"].includes(value.repository_resolution) ||
@@ -418,7 +419,7 @@ export function parseRepositoryWorkSourcesResponseV01(value, includeWorkDefiniti
     if (includeWorkDefinition) workDefinitionV01(value.work_definition);
   } else {
     if (value.snapshot_binding !== null || value.packet_fingerprint !== null || value.sources.length !== 0) invalidContractV01();
-    if (includeWorkDefinition && value.work_definition !== null) invalidContractV01();
+    if (includeWorkDefinition && (value.work_definition !== null || value.task_identity != null)) invalidContractV01();
     if (value.status === "refresh_required") {
       if (value.reason !== "snapshot_changed" || value.repository_resolution !== "resolved_exact") invalidContractV01();
     } else if (value.reason !== (value.repository_resolution === "resolved_exact" ? "current_work_unavailable" : "repository_unresolved") &&

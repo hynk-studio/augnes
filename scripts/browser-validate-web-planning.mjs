@@ -4,6 +4,7 @@ import { CDP } from './web-planning-cdp.mjs';
 import { observeWebPlanningInterceptions } from './web-planning-interception.mjs';
 import { browserStoryJourney } from './browser-web-planning-story.mjs';
 import { browserFileJourney } from './browser-web-planning-files.mjs';
+import { browserOrdinaryFileJourney } from './browser-web-planning-ordinary-files.mjs';
 import { browserHistoryJourney } from './browser-web-planning-history.mjs';
 import { advancedClock } from './web-planning-history-checks.mjs';
 import assert from 'node:assert/strict';
@@ -314,6 +315,13 @@ try {
  await browserSceneJourney({a:scene,debug,origin:sceneOrigin,page,click,set,settled,saved,wait,navigate,root,checks,requestsOnly,
    barrier:sceneResponseBarrier,
    replaceRuntime:async replacement=>{for(const c of clients)await navigate(c,'about:blank');const bindings=local.env;await closeLocalRuntime();local=null;if(replacement)sceneDestination++;local=await startLocal({...sceneOptions(),bindings});},
+   countRows:async()=>({revisions:(await local.db.prepare('SELECT count(*) n FROM web_planning_revision').first()).n,files:(await local.db.prepare('SELECT count(*) n FROM web_planning_file').first()).n})});
+ for(const c of clients)await navigate(c,'about:blank');await closeLocalRuntime();local=null;
+ let ordinaryDestination=0;const ordinaryPort=await availablePort();
+ const ordinaryOptions=()=>({...directOptions,root:path.join(root,'ordinary-files-'+ordinaryDestination),port:ordinaryPort});
+ local=await startLocal(ordinaryOptions());const ordinaryOrigin=local.origin,ordinary=await page(debug,ordinaryOrigin);
+ await browserOrdinaryFileJourney({a:ordinary,debug,origin:ordinaryOrigin,page,click,set,settled,saved,wait,navigate,root,checks,requests,requestsOnly,barrier:sceneResponseBarrier,
+   replaceRuntime:async replacement=>{for(const c of clients)await navigate(c,'about:blank');const bindings=local.env;await closeLocalRuntime();local=null;if(replacement)ordinaryDestination++;local=await startLocal({...ordinaryOptions(),bindings});},
    countRows:async()=>({revisions:(await local.db.prepare('SELECT count(*) n FROM web_planning_revision').first()).n,files:(await local.db.prepare('SELECT count(*) n FROM web_planning_file').first()).n})});
  assert.deepEqual(interceptionErrors,[]);
  assert.equal(exceptions,0);assert.equal(external,0);assert.equal(unexpectedFailures,0);assert.equal(expectedFailures.size,0);
