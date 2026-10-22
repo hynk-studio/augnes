@@ -91,6 +91,32 @@ controlled two-project example. The supported path is explicit and local. Its
 source/mechanism tests do not establish model use, installed adoption or economic
 benefit; #1433 Events and #1447 public distribution remain separate.
 
+## Preview an operating profile
+
+From a source checkout with the repository's supported Node runtime, supply a
+local `OperatingProfile.v0.1` JSON file to the read-only preview:
+
+```text
+node scripts/operating-profile.mjs examples/operating-profiles/defensive-observe-recommend.json
+node scripts/operating-profile.mjs examples/operating-profiles/defensive-observe-recommend.json --format json
+node scripts/operating-profile.mjs examples/operating-profiles/direct-work.json
+```
+
+The text entry opens with the purpose, next observations, supplied/missing input,
+executor/principal and permission gaps, return/check/use responsibilities and
+arrangement alternatives. Both formats preserve the complete same input and
+review. Copy either example to author a profile; identifiers only connect items
+inside that document. The direct-work example uses one executor without a team.
+
+All observations, bindings and explanations are authored declarations. The entry
+does not inspect source locators, determine current applicability, grant access,
+save application state or start work. The defensive example is synthetic
+Observe/Recommend; Defend and Incident Command are unavailable. Do not supply
+secrets. Use one UTF-8 regular file of at most 64 KiB; symlinks are refused and
+`O_NOFOLLOW` support is required. Linux/macOS is the source target; Windows and
+installed-host adoption are not claimed by this entry. The provisional contract
+and limits are in [02](docs/vnext/02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#read-only-operating-profile-input-and-preview-1518).
+
 ## The continuity loop
 
 > Resume current work → act in ChatGPT, Codex, or another native host within

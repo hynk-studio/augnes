@@ -865,6 +865,97 @@ arrow confers neither logical sufficiency nor access; independent invoice suppor
 is a consumer-specific premise. Read-time coherence is not an atomic observation
 across projects or permission for an external effect.
 
+#### Read-only operating-profile input and preview (#1518)
+
+`OperatingProfile.v0.1` is a provisional local JSON input contract. The supported
+source entry is `node scripts/operating-profile.mjs <profile.json>` with optional
+`--format text|json` (text by default). It validates one explicitly selected
+regular file and emits `OperatingProfilePreview.v0.1`; it adds no Core kind,
+store, source reader, role registry or execution owner. The synthetic
+`examples/operating-profiles/defensive-observe-recommend.json` and
+`direct-work.json` are complete authoring examples, not deployment presets.
+
+The input has these required, closed fields; unknown fields are refused:
+
+| Field | Declared meaning |
+| --- | --- |
+| `version`, `name`, `mode` | Exact version, display name, and `observe_recommend` only. |
+| `work` | Existing goal/success-criteria/non-goals shape and bounds, retaining authored list order; no work admission or persistence normalization. |
+| `scope` | Environment, selected target descriptions and authored applicability conditions. No condition is inferred true. |
+| `accountability`, `roles` | Nullable owner/sponsor role references; role responsibilities, nullable executor/principal labels and counterpart assumptions. These are separate concepts, not authenticated bindings. |
+| `inputs` | Local ID, purpose, required flag, declared availability, source identity/revision/observation and event times, supplied content and limitations. Locators remain opaque strings. |
+| `explanations` | Authored alternatives, local input references and uncertainties. No inference or probability assignment occurs. |
+| `steps` | Observe/recommend purpose, contribution role, required input IDs, prerequisite step IDs, return description and nullable check/use roles. |
+| `arrangements`, `separation` | Direct, existing-asset, delegated or non-use alternatives with assumptions; explicitly required principal separation and its reason. No alternative is selected. |
+| `requested_permissions` | Inert permission descriptions linked to local step IDs. No permission availability, grant or lease is established. |
+| `budget`, `reconsider_when`, `revision_basis` | Finite declared step/observation/round/minute ceilings, reasons to reconsider, and nullable prior input fingerprint plus revision reason. No execution counter or policy activation. |
+
+IDs are unique within their local collection and references must resolve inside
+this document. They are never project, grant, receipt or retained-evidence IDs.
+The preview reuses the current canonical JSON/digest primitives; its fingerprint
+covers the entire validated input, including version, conditions and revision
+basis. Object keys are sorted, while array order and exact string values remain
+meaningful. This binding proves neither authorship, freshness nor operational
+trust. JSON formatting and object-key order do not change it. Existing project
+work, selected-source/material/correction, execution-choice, external-response
+and save/authority owners retain their meanings and behavior; this entry does
+not invoke them or manufacture a current authenticated packet.
+
+All availability states are **supplied declarations**: `observed` (including
+successful empty content), `checked_absent`, `channel_unavailable`, `conflicting`
+or `not_supplied`. `checked_absent`, `channel_unavailable` and `not_supplied`
+carry null content; conflicting input carries an authored account
+of the disagreement. Source identity, revision and canonical UTC ISO timestamps
+may independently be null. The preview retains these fields, lists null
+provenance fields, distinguishes declared absence/conflict from unavailable or
+unsupplied input, and leaves actual availability, requirement satisfaction and
+current applicability `not_checked`. A successful negative observation can
+answer a task; absence is not automatically a missing or inadequate observation.
+Null provenance does not imply every timestamp is required for every input.
+
+Executor and principal labels are nullable and unverified. Same declared
+principal strings do not satisfy a separation requirement; a null principal
+remains unresolved. Different strings yield `declared_distinct_unverified`,
+never established independence. Owner/sponsor references do not create authority.
+One executor may fill compatible contribution/check/use responsibilities; the
+direct-work example claims no independent checking. Requested permissions remain
+`not_granted_or_checked`, and `execution_ready` is always false.
+
+Prerequisite steps must be acyclic, with no unknown or duplicate references.
+Bounded investigation is represented separately by `max_rounds` and explicit
+reconsideration conditions; it is not an executable edge back into the graph.
+The preview executes no investigation or recovery loop. Budgets permit at most
+128 steps, 128 observations, 8 rounds and 1,440 minutes, and must at least cover
+the declared single-round steps/observations. Later execution and recovery would
+need their own supported current owners and limits. Defend/Incident Command,
+command/import/include fields and fabricated authority fields are refused.
+Instruction-like text in ordinary content remains data.
+
+The byte boundary is 65,536 input bytes and 196,608 output bytes. Parsing allows
+depth 12 from the root, 4,096 values, at most 32 members/items per object/array and
+4,096 Unicode characters per string; narrower field/work limits are enforced by
+the contract implementation. Duplicate keys (including escaped aliases), invalid
+Unicode/UTF-8, noncanonical integer numeric lexemes, unsafe integers, unsupported
+versions/modes and unsupported fields refuse explicitly. Numeric fields are
+integer budgets; fraction/exponent and negative-zero spellings are rejected
+before numeric conversion can round them. Nothing is silently truncated or
+filled with an invented default. Invalid input yields exit 2 and a bounded JSON
+reason on stderr, with no preview on stdout. Successful text starts with a
+decision-oriented overview and then includes every field of the same machine
+projection; rendered authored strings stay quoted.
+
+File reading requires `O_NOFOLLOW`, refuses a final-component symlink and
+non-regular file, bounds the read, and checks the opened file's identity/size/
+timestamps before and after. This is a local Linux/macOS source entry, not an
+arbitrary-host or hostile-filesystem isolation guarantee; Windows support is not
+claimed. Only stdout/stderr are written. No provider/model, remote include,
+reference fetch, dynamic payload loading, application write, worker, grant,
+schedule or accepted-state effect occurs. Do not put secrets in a profile.
+Focused fresh-process/instrumented checks concern this exercised parser/CLI
+boundary, not live security, model understanding, semantic succession, usefulness,
+installed adoption or exact-source Mac Canonical qualification. Status and
+evaluation remain owned by 03/04.
+
 #### Execution-choice preparation and result-linked assessment (#1443)
 
 The native preparation entry composes the existing exact work/source reader,
