@@ -473,14 +473,16 @@ if a later authorized task claims benefit; it does not reopen completed studies.
 
 The user approved the ordered follow-through below. [#1518](https://github.com/hynk-studio/augnes/issues/1518)
 scopes the first read-only validation/preview implementation under #1443/#1453;
-#1426 coordinates allocation. At registration the source work is unclaimed and
-NOT_STARTED, and new verification/consumer observation is NOT_RUN. Planning
-registration is not dispatch. Reconcile actual implementation with its eventual PR.
+#1426 coordinates allocation. Registration recorded unclaimed/NOT_STARTED source
+work. [Draft PR #1520](https://github.com/hynk-studio/augnes/pull/1520) now contains
+the source implementation and passing focused checks. Final Mac Local Canonical
+qualification remains NOT_RUN/HOLD; source delivery is not installed adoption or
+model-use evidence. The PR owns the exact revision and verification results.
 
 | Sequence | Bounded result and placement |
 |---|---|
 | First: existing planning owner | Integrate this direction and the pending cooperation supplement into #1504's existing 01/03/04 changes. Retain prior public-entry and W1/W2/W3 meaning; do not add a separate report or master plan. |
-| Next implementation: #1518 | Validate a bounded versioned operating-profile input, then produce a usable deterministic read-only preview with purpose, roles, supplied/missing material, dependencies, requested permissions and return/check/use responsibility. Include one synthetic Defensive Operations Observe/Recommend example and a direct-work control. |
+| Current implementation: #1518 / Draft #1520 | Validate a bounded versioned operating-profile input, then produce a usable deterministic read-only preview with purpose, roles, supplied/missing material, dependencies, requested permissions and return/check/use responsibility. Include one synthetic Defensive Operations Observe/Recommend example and a direct-work control. |
 | Following: organizational continuity | Use existing work/contribution/experience owners to carry judgments, counterevidence, rejected explanations and unfinished obligations through role/executor replacement into actual next work. Distinguish a new process from actual model/host succession. |
 | Following: defensive reference replay | Exercise selected late/conflicting evidence, inert adversarial input and relevant replacement cases with Observe/Recommend only. Reuse a small representative case rather than requiring a large new benchmark. |
 | Later operational read-only pilot | Bind explicitly selected development assets and observation sources to Observe/Recommend, making freshness, missing coverage and human responsibility visible. No production defensive effect follows from this plan. |
