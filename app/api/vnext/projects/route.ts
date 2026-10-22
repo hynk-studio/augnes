@@ -34,8 +34,8 @@ import {
   LocalProjectPathDeclarationErrorV01,
   parseLocalProjectPathDeclarationV01,
 } from "@/lib/vnext/onboarding/local-project-path-declaration";
-import { ProjectLifecycleErrorV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
-import { ProjectIdentityRegistryErrorV01 } from "@/lib/vnext/persistence/project-identity-registry";
+import { ProjectLifecycleErrorV01, changeProjectOrganizationV01 } from "@/lib/vnext/persistence/project-lifecycle-registry";
+import { ProjectIdentityRegistryErrorV01, readDefaultWorkspaceIdentityV01 } from "@/lib/vnext/persistence/project-identity-registry";
 import {
   VNextLocalOperatorSessionErrorV01,
   abandonVNextRecoveryRepositoryDecisionSessionV01,
@@ -70,8 +70,10 @@ export async function GET(request: Request) {
     const url = assertVNextLocalOperatorRequestBoundaryV01(request, { mutating: false });
     db = openDatabase();
     if (url.searchParams.get("view") === "registered") {
-      if ([...url.searchParams.keys()].some(k=>!["view","cursor"].includes(k)) || url.searchParams.getAll("view").length!==1 || url.searchParams.getAll("cursor").length>1) throw new ProjectOnboardingErrorV01("selection_invalid",400);
-      return json({ok:true,...await listRegisteredProjectsV02(db,url.searchParams.get("cursor"))});
+      if ([...url.searchParams.keys()].some(k=>!["view","cursor","organization"].includes(k)) || url.searchParams.getAll("view").length!==1 || url.searchParams.getAll("cursor").length>1 || url.searchParams.getAll("organization").length>1) throw new ProjectOnboardingErrorV01("selection_invalid",400);
+      const scope = url.searchParams.get("organization") ?? "all";
+      if (scope !== "all" && scope !== "working" && scope !== "archived") throw new ProjectOnboardingErrorV01("selection_invalid",400);
+      return json({ok:true,...await listRegisteredProjectsV02(db,url.searchParams.get("cursor"),scope)});
     }
     if ([...url.searchParams.keys()].some(k=>k!=="project_id") || url.searchParams.getAll("project_id").length>1) throw new ProjectOnboardingErrorV01("selection_invalid",400);
     const projectId = url.searchParams.get("project_id");
@@ -280,6 +282,18 @@ export async function POST(request: Request) {
           }),
         );
       return json({ ok: true, result });
+    }
+    if (body.action === "archive" || body.action === "unarchive") {
+      const workspace = readDefaultWorkspaceIdentityV01(db);
+      if (!workspace) throw new ProjectOnboardingErrorV01("project_scope_conflict",404);
+      return json({ ok: true, result: changeProjectOrganizationV01(db, {
+        workspace_id: workspace.workspace_id,
+        project_id: requiredString(body.project_id),
+        state: body.action === "archive" ? "archived" : "working",
+        expected_organization_revision: requiredString(body.expected_organization_revision),
+        expected_project_id: requiredNullableString(body, "expected_project_id"),
+        expected_revision: requiredNullableRevision(body, "expected_revision"),
+      }) });
     }
     if (body.action === "rename") {
       return json({ ok: true, result: renameActiveProjectDisplayNameV01(db, {
@@ -765,7 +779,7 @@ function assertBrowserUserConfirmationV01(request: Request): void {
 function routeError(error: unknown, setCookie?: string) {
   if (error instanceof ProjectOnboardingErrorV01) return json({ ok: false, error_code: error.code }, error.status, setCookie);
   if (error instanceof LocalProjectPathDeclarationErrorV01) return json({ ok: false, error_code: error.code }, error.status, setCookie);
-  if (error instanceof ProjectLifecycleErrorV01) return json({ ok: false, error_code: error.code }, error.code === "active_selection_conflict" ? 409 : 404, setCookie);
+  if (error instanceof ProjectLifecycleErrorV01) return json({ ok: false, error_code: error.code }, ["active_selection_conflict", "project_organization_conflict", "project_archived"].includes(error.code) ? 409 : 404, setCookie);
   if (error instanceof ProjectIdentityRegistryErrorV01) {
     const status = error.code.includes("conflict")
       ? 409

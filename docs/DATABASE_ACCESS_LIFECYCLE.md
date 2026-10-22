@@ -52,6 +52,32 @@ the supported supervisor/launcher. This change does not alter tables, record
 formats, Core meaning, fingerprints, scoring, project isolation or authority.
 Source qualification and installed-runtime adoption remain separate.
 
+## Durable local project organization (#1512)
+
+The project lifecycle migration adds `vnext_project_organization` beside recents
+and selection, with one row per canonical project and a trigger for future
+identities. The admitted exact predecessor receives working classifications
+regardless of recency or folder availability. The shared migration orchestrator,
+structural signature/parity check and staged bootstrap remain the only preparation
+owners. Ordinary readers refuse unprepared stores and do not fill missing rows.
+
+Archive/unarchive rotates a project's organization observation on change. The
+ordered change sequence supports bounded list invalidation without changing
+workspace selection when another project is current. State is local organization,
+not a Core decision or a history budget. Neither operation edits project data,
+changes authority or resolves outstanding effects.
+
+Native backup retains these rows. Restore refreshes their live revisions in the
+unpublished stage, preserving classifications and change order. Selection
+invalidation, credential suspension, canonical reader validation, atomic
+publication and rollback keep their existing owners. Repeated restore cannot
+revive a held organization request, even if the caller refreshes selection alone.
+The original backup is unchanged; failure before publication preserves live state.
+Old binaries require a compatible recovery image, not deletion of organization
+metadata to downgrade an existing store. Portable v0.1 excludes local organization:
+new import starts working, exact replay preserves the destination state, and no
+existing export refusal is relaxed.
+
 ## Accumulated native history: refusal and preservation (#1439)
 
 These are separate operation budgets, not a single database capacity. The

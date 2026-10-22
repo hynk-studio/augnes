@@ -1032,6 +1032,7 @@ export function BlankStateClient({
               data-augnes-visual-priority={SEMANTIC_VISUAL_PRIORITY.situation}
             >
               <h1 id="blank-state-title">Continuities</h1>
+              {source.project_organization?.state === "archived" ? <p role="status">Archived project. Saved work remains available. <a href="/#project-settings" data-project-archive-management="true">Open saved project management</a> and choose Archived projects to unarchive it.</p> : null}
               <p className="continuities-tagline">
                 Work and perspective you carry forward.
               </p>

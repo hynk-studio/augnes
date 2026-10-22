@@ -192,6 +192,49 @@ for (const kind of ['refusal_delivered','effect_active','signal_aborted','read_a
   mutate: e => [{...e,...(e.kind===kind ? {auth:'unavailable'} : {})}],
 });
 
+// Execute the Browser owner's actual completion block with a terminal CDP
+// event delivered after the locked UI has settled. Sealing at the UI assertion
+// alone must not outrun that event; the strict private verdict stays unchanged.
+const completionCases = [];
+{
+  const ts = createRequire(import.meta.url)('typescript');
+  const source = readFileSync(new URL('./browser-validate-project-experience-v1.mjs', import.meta.url), 'utf8');
+  const file = ts.createSourceFile('browser.mjs', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const blocks = [];
+  function visit(node) {
+    if (ts.isIfStatement(node) && node.expression.getText(file) === 'refusalScenario' &&
+      node.thenStatement.getText(file).includes('completeSessionRefusalScenario')) blocks.push(node.thenStatement.getText(file));
+    ts.forEachChild(node, visit);
+  }
+  visit(file); assert.equal(blocks.length, 1);
+  for (const quietFails of [false, true]) {
+    const f = fixture(), quiet = Promise.withResolvers();
+    f.start(); f.response(); f.deliver(); f.cleanup();
+    let seals = 0;
+    const unchanged = Buffer.from('unchanged disposable database');
+    const context = { refusalScenario: f.scenario, waitForRequestQuiet: () => quiet.promise,
+      assert, beforeReadBoundaries: unchanged, noteDatabase: { serialize: () => unchanged },
+      effects: () => ({}), effectsBefore: {}, requestVerdicts: {
+        completeSessionRefusalScenario(handle) { seals += 1; f.verdict.completeSessionRefusalScenario(handle); },
+      } };
+    const completion = vm.runInNewContext(`(async () => ${blocks[0]})()`, context);
+    const failure = f.failure();
+    if (quietFails) {
+      const rejection = assert.rejects(completion, /controlled quiet failure/);
+      quiet.reject(new Error('controlled quiet failure'));
+      await rejection; assert.equal(seals, 0, 'failed observation settlement never seals a success');
+    } else {
+      quiet.resolve(); await completion;
+      assert.equal(seals, 1);
+      const outcome = f.classify(failure);
+      console.log(JSON.stringify({ session_refusal_completion: 'delayed_terminal_event', outcome }));
+      assert.equal(outcome.expected, true, 'the actual Browser completion waits for the delayed terminal observation before sealing');
+    }
+    f.owner.close(f.scenario);
+    completionCases.push({ quietFails });
+  }
+}
+
 // The held owner has no cancellation branch. The exact same new proof schedule
 // remains an unmarked-probe refusal under that previous acceptance contract.
 if (process.argv.includes('--held-owner')) {
@@ -312,4 +355,4 @@ const actualCases = [];
   }
 }
 console.log(JSON.stringify({test:'project-experience-session-refusal-v1',status:'pass',prospective_acceptance_expansion:true,
-  negative_cases:rejects.length,body_unknown_preserved:true,synthetic_contract_schedule:true,controlled_actual_hook:true,actual_hook_guard_cases:actualCases.length,browser_execution:false}));
+  negative_cases:rejects.length,body_unknown_preserved:true,synthetic_contract_schedule:true,controlled_actual_hook:true,actual_hook_guard_cases:actualCases.length,browser_completion_cases:completionCases.length,browser_execution:false}));

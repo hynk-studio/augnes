@@ -358,7 +358,57 @@ explicit continuation over the captured identity range. A mandatory SQL summary
 and lookahead distinguish completion from partial observation. Changed selection,
 missing results or changed returned identity/root refuse the page; refresh starts
 a new observation. Missing roots remain discoverable and cannot be rebound by a
-read or ordinary open. No archive state or project-erasure operation is added.
+read or ordinary open. The #1399 slice did not add archive or erasure.
+
+The #1512 increment adds reversible local organization through the same native
+management boundary. One lifecycle row per canonical project holds
+`working | archived`, an opaque per-project `organization:` revision and a
+workspace-local change sequence. It is neither a second registry nor semantic
+history. Archive/unarchive compares exact project, organization revision and
+current selection atomically. Every state change rotates the project revision;
+archive → unarchive → archive cannot revive an earlier action. An inactive
+project's organization changes without rotating selection, so a separately bound
+current client keeps its unrelated authorized operations.
+
+Archive removes that project's recent shortcut and clears selection only if it
+names that project. Unarchive changes organization alone; opening is a separate
+deliberate action. Ordinary open refuses an archived target. Exact-project reads,
+root recovery and existing capability-scoped reads/writes keep their original
+authority. Repeated registration and root reconnection retain archive state and
+do not select an archived target. Their committing transactions still compare
+the prepared expected selection project and revision for every organization
+state; only recency/selection writes depend on working state. A late selection
+change rolls back root, baseline, decision/session and repository-association
+effects. UI exact reads label it archived; capability
+discovery includes organization without treating archive as absence, paused
+direction, completed work or stopped execution. No agent organization mutation
+right is added. Identity, root, files, Core/source history, grants, credentials,
+creation accounting and unresolved obligations are unchanged.
+
+`GET /api/vnext/projects?view=registered` retains its complete **all-registered**
+scope. Explicit `organization=working|archived` selects a scoped list; responses
+name `organization_scope`. All scopes retain the 20-entry/1-MiB bound, summary
+and lookahead. A cursor binds scope, identity range, selection and the latest
+organization change sequence/revision. Changing organization during traversal
+or asynchronous root observation refuses the page; it never silently omits a
+changed archive while claiming completion. Missing identity companions or
+incomplete rows also refuse. Filesystem availability is an observation, not a
+root-binding decision. On an uncertain mutation response, the Browser reads the
+exact project, reports the saved state without attributing an unconfirmed write,
+and requires refreshed management controls before another action.
+
+The existing explicit migration/bootstrap owner seeds every predecessor project
+as working, including nonrecent and missing-root projects. New identities receive
+the same default. Reads neither migrate nor repair a missing lifecycle row.
+Supported native recovery retains classification and immutable history, then
+refreshes every organization revision in the unpublished stage along with
+selection observations. Repeated restore cannot revive held management requests;
+stage failure preserves the prior live image and checkpoint bytes. Credential
+suspension, unknown-effect refusal and rollback remain recovery-owned. Older
+binaries refuse the new structural schema. Portable v0.1 retains its export
+eligibility and excludes local organization: fresh import starts working; exact
+replay does not overwrite a destination classification or select an archived
+project. Full native backup remains the supported classification-preserving path.
 
 `active_project_selection.v0.2` retains a row when selection becomes empty and
 uses an opaque `selection:` revision. Every select or active clear replaces that
