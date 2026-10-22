@@ -97,6 +97,19 @@ try {
  await local.close();open.splice(open.indexOf(local),1);local=await startLocal(snapshots);open.push(local);c=await client(local);
  assert.deepEqual((await c.request('/api/work/'+head.work_id)).data.saved,head);
  passed('fresh client and restarted workerd reopen persisted D1 without browser state');
+ const criteriaRows=(await local.db.prepare('SELECT COUNT(*) n FROM web_planning_revision').first()).n;
+ for(const success_criteria of [[],[' \t '],Array.from({length:13},(_,i)=>'criterion '+i),['😀'.repeat(501)]]){
+   const invalid=await newWork(c,{...baseDefinition,success_criteria,non_goals:[]},notes);
+   const refused=await save(c,invalid);assert.equal(refused.status,422);assert.equal(refused.data.error,'first_work_success_criteria_invalid');
+   assert.equal((await c.request('/api/work/'+invalid.id)).status,404);
+ }
+ assert.equal((await local.db.prepare('SELECT COUNT(*) n FROM web_planning_revision').first()).n,criteriaRows);
+ const criterion='😀'.repeat(500),other='a'.repeat(500);
+ const perEntry=await newWork(c,{...baseDefinition,success_criteria:[' '+criterion+' ',other,criterion,''],non_goals:[]},notes);
+ const criteriaSaved=(await save(c,perEntry)).data.saved;assert(criteriaSaved);
+ assert.deepEqual(criteriaSaved.definition.success_criteria,[other,criterion]);assert.deepEqual(criteriaSaved.definition.non_goals,[]);
+ assert.deepEqual((await c.request('/api/work/'+perEntry.id)).data.saved,criteriaSaved);
+ passed('criteria: server minimum/count/codepoint refusals write no rows; per-entry bounds, trimming, deduplication and optional non-goals survive fresh read');
  const bad={goal:'😀'.repeat(2001),success_criteria:['a'],non_goals:[]};const boundary=await newWork(c,bad,[]);assert.equal((await save(c,boundary)).status,422);
  const good=await newWork(c,{...bad,goal:'😀'.repeat(2000)},[]);assert.equal((await save(c,good)).status,200);
  const bytes=await newWork(c,{goal:'😀'.repeat(2000),success_criteria:['😀'.repeat(500),'한'.repeat(500),'a'.repeat(500)],non_goals:['z'.repeat(500)]},[]);assert.equal((await save(c,bytes)).status,422);

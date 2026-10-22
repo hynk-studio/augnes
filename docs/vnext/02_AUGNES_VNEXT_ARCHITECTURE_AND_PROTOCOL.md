@@ -358,7 +358,57 @@ explicit continuation over the captured identity range. A mandatory SQL summary
 and lookahead distinguish completion from partial observation. Changed selection,
 missing results or changed returned identity/root refuse the page; refresh starts
 a new observation. Missing roots remain discoverable and cannot be rebound by a
-read or ordinary open. No archive state or project-erasure operation is added.
+read or ordinary open. The #1399 slice did not add archive or erasure.
+
+The #1512 increment adds reversible local organization through the same native
+management boundary. One lifecycle row per canonical project holds
+`working | archived`, an opaque per-project `organization:` revision and a
+workspace-local change sequence. It is neither a second registry nor semantic
+history. Archive/unarchive compares exact project, organization revision and
+current selection atomically. Every state change rotates the project revision;
+archive → unarchive → archive cannot revive an earlier action. An inactive
+project's organization changes without rotating selection, so a separately bound
+current client keeps its unrelated authorized operations.
+
+Archive removes that project's recent shortcut and clears selection only if it
+names that project. Unarchive changes organization alone; opening is a separate
+deliberate action. Ordinary open refuses an archived target. Exact-project reads,
+root recovery and existing capability-scoped reads/writes keep their original
+authority. Repeated registration and root reconnection retain archive state and
+do not select an archived target. Their committing transactions still compare
+the prepared expected selection project and revision for every organization
+state; only recency/selection writes depend on working state. A late selection
+change rolls back root, baseline, decision/session and repository-association
+effects. UI exact reads label it archived; capability
+discovery includes organization without treating archive as absence, paused
+direction, completed work or stopped execution. No agent organization mutation
+right is added. Identity, root, files, Core/source history, grants, credentials,
+creation accounting and unresolved obligations are unchanged.
+
+`GET /api/vnext/projects?view=registered` retains its complete **all-registered**
+scope. Explicit `organization=working|archived` selects a scoped list; responses
+name `organization_scope`. All scopes retain the 20-entry/1-MiB bound, summary
+and lookahead. A cursor binds scope, identity range, selection and the latest
+organization change sequence/revision. Changing organization during traversal
+or asynchronous root observation refuses the page; it never silently omits a
+changed archive while claiming completion. Missing identity companions or
+incomplete rows also refuse. Filesystem availability is an observation, not a
+root-binding decision. On an uncertain mutation response, the Browser reads the
+exact project, reports the saved state without attributing an unconfirmed write,
+and requires refreshed management controls before another action.
+
+The existing explicit migration/bootstrap owner seeds every predecessor project
+as working, including nonrecent and missing-root projects. New identities receive
+the same default. Reads neither migrate nor repair a missing lifecycle row.
+Supported native recovery retains classification and immutable history, then
+refreshes every organization revision in the unpublished stage along with
+selection observations. Repeated restore cannot revive held management requests;
+stage failure preserves the prior live image and checkpoint bytes. Credential
+suspension, unknown-effect refusal and rollback remain recovery-owned. Older
+binaries refuse the new structural schema. Portable v0.1 retains its export
+eligibility and excludes local organization: fresh import starts working; exact
+replay does not overwrite a destination classification or select an archived
+project. Full native backup remains the supported classification-preserving path.
 
 `active_project_selection.v0.2` retains a row when selection becomes empty and
 uses an opaque `selection:` revision. Every select or active clear replaces that
@@ -858,6 +908,32 @@ reported as historical-not-selected, not silently reconstructed or declared abse
 One selected choice and at most one linked assessment constitute this bounded
 loop. A next loop uses ordinary explicit source revision/selection, retaining
 earlier packets and worthwhile obligations; ambiguous selections refuse.
+For #1498, optional `reconsider` preparation supports one result-informed next
+choice after an assessed returned review. It requires selected prior choice,
+assessment and result references, unchanged definition, and the original
+review owner's eligible unstarted task segment and project/registered-root/
+physical-root/effective-direction checks. The optional `previous` member in a
+choice stores two exact note-content fingerprints and authored transition reason.
+It is not a new Core relationship or independent proof of an interpretation.
+Existing single-choice notes remain valid.
+
+Preparation resolves the two exact notes through bounded retained-source lookup
+and the request through original-basis/current reassessment. It prepares ordinary
+deselection of only that prior pair plus addition of the next choice; all other
+selected material stays selected. Explicit preview/save owns the mutation.
+Reading the new choice resolves its two saved predecessors and shows their
+selection status, original assessment, unfinished obligations and request/response
+separately from the current arrangement. No recursive lookup, history sweep,
+limit increase or implicit reselection occurs. Missing, malformed, ambiguous,
+stale or unavailable linkage refuses without manufacturing a replacement basis.
+The linked choice cannot prepare a second linked transition in this increment.
+
+Retaining the suitable arrangement, direct work and an existing asset remain
+valid next choices. A replacement request carries the predecessor assessment,
+authored reason and prior unfinished obligations plus explicitly selected usable
+material. A late original participant response retains its old request/choice
+and cannot satisfy the replacement request. New checked work and explicit
+assessment are required to settle an obligation; the transition itself does not.
 Changed definitions, missing original support or elapsed horizons require
 reconsideration before preparing a request. Default first-reply/current-material
 rules remain unchanged; the explicit historical receipt/reassessment above is a
@@ -2020,6 +2096,57 @@ approved-instruction hashes. The older authored read-only profile still requires
 its exact scoped adapter and inventory; it cannot fall through to whole-root
 execution. Older readers refuse the new request/definition. No Core kind, store,
 migration, model call, remote transport or automatic selection is added.
+
+##### HTTP packet-budget diagnostics and explicit repair
+
+`POST /api/vnext/operator/project-continuity` keeps its existing strict request
+and response shapes by default. An authenticated caller may add the outer field
+`"include_packet_budget_diagnostics": true` to `preview_result_work` or
+`prepare_result_work`. This field is not part of the inner authored request,
+saved definition, packet, fingerprint or receipt. Other values or actions refuse
+as invalid fields; successful responses are unchanged.
+
+For an applicable compiler budget refusal, the existing HTTP 409 and
+`successor_task_packet_max_characters_exceeded` or
+`successor_task_packet_max_estimated_tokens_exceeded` code remain. The opt-in
+response additionally contains `packet_budget` with `budget`, `unit`, `observed`,
+`limit` and `overage` (`observed - limit`). `max_characters` measures UTF-16 code
+units of the compiler's canonical serialized complete packet, not visible
+characters or UTF-8 bytes. `max_estimated_tokens` reports the compiler's existing
+estimate, not a provider tokenizer count. It uses the canonical packet before
+the final packet ID/fingerprint, with the estimate field null, divided by four
+UTF-16 code units and rounded up. Character admission is checked first; a
+reported failure does not establish that another constraint passed. A null input
+cap is not zero: the builder retains its existing default-cap normalization.
+Diagnostics report only the applicable measured failure. No rejected packet or source text is
+returned. Authentication, authority, binding, stale-state and invalid-input
+refusals expose no budget diagnostic; unexpected exceptions remain sanitized.
+
+Preview compiles the complete prospective packet with the same canonical root
+representation as save and performs no write. Save still rechecks current state,
+authority, physical root and the complete ledger in its atomic transaction.
+Preview cannot promise acceptance after a state change.
+
+After refusal, retain the original draft and full plan file unchanged. An author
+may explicitly propose a different representation: a compact goal, required
+checks and non-goals; retained validation, rollback, correction history and
+unresolved conditions; and an attributed selected note containing a scoped file
+reference and digest for the complete plan. Record what changed and any deliberate
+deselection. The overage is not an instruction to delete that many visible
+characters: repeated and escaped material affects complete-packet size. Nothing
+automatically truncates, summarizes, deselects, retries, saves or executes.
+
+Use the ordinary `read_result_work_preparation` → `compare_result_work_sources`
+→ `preview_result_work` → explicit `prepare_result_work` sequence for the new
+candidate. Freshly GET project continuity and compare the exact saved definition,
+selected sources, packet identity and artifact reference. A subsequent consumer
+must actually read the referenced file and check its digest before claiming full
+artifact use; a locator alone proves neither retrieval nor preservation. File
+availability and interpretation remain separate obligations. This workflow adds
+no artifact store, portable storage guarantee, execution authority or semantic
+acceptance. The deterministic catalogue fixture demonstrates coordinator-authored
+representation and scripted consumption only, not model understanding or general
+lossless summarization.
 
 #### Explicit reuse of a saved outcome review
 

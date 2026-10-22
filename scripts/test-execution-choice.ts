@@ -21,6 +21,7 @@ import { EXECUTION_CHOICE_TOOL, prepareExecutionChoice } from "../plugins/augnes
 import { REVIEW_MARKER, digest, callReview } from "../plugins/augnes-operator/mcp/review-connection.mjs";
 import { getOrCreateDefaultWorkspaceIdentityV01, getOrCreateCanonicalProjectForLocalRootV01, normalizeLocalProjectRootRefV01 } from "../lib/vnext/persistence/project-identity-registry";
 import { readActiveProjectSelectionV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
+import { checkExecutionChoiceTransition } from "./execution-choice-transition-checks.mjs";
 
 const started = Date.now(), directory = realpathSync(mkdtempSync(path.join(tmpdir(), "ag-choice-")));
 const exportDirectory = process.argv[2];
@@ -247,6 +248,9 @@ async function main() {
   assert.equal(closed.contribution.requests[0].currentness, "historical", "later work must not relabel the original returned basis");
   assert.equal((await call("augnes_review_repository_work", { action: "connections", repository_root: participant.root })).connections.length, 1, "role closure is not credential withdrawal");
   assert.equal((await choice(participant.root, "assess", { assessment }, true)).reason, "execution_choice_already_assessed");
+  const transitionCurrent = await participant.api.read();
+  const transitionReassessment = await call("augnes_review_repository_work", {action:"reassess",connection_ref:connection.id,request_ref:request.request_ref});
+  trace.push({transition_controls:await checkExecutionChoiceTransition({root:participant.root,snapshot:transitionCurrent.binding,view:closed,reassessment:transitionReassessment,connection:connection.id})});
   const fresh = await child("fresh-origin-process", ["--input-type=module", "-e", `import {handleMessageV01} from './plugins/augnes-operator/mcp/companion-proxy.mjs'; const root=process.argv[1]; const call=async(name,args)=>(await handleMessageV01({jsonrpc:'2.0',id:1,method:'tools/call',params:{name,arguments:args}})).result.structuredContent; const r=await call('augnes_resume_repository',{repositoryRoot:root}); const v=await call('${EXECUTION_CHOICE_TOOL}',{action:'read',repositoryRoot:root,expectedSnapshotBinding:r.continuity.snapshot.binding}); console.log(JSON.stringify(v));`, participant.root], process.cwd(), { ...process.env });
   assert.deepEqual(fresh.choice, closed.choice); assert.deepEqual(fresh.followup, closed.followup);
   phase("actual_integration_closure_and_fresh_readback");

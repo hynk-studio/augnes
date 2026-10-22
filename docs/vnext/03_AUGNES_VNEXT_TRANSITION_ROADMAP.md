@@ -76,6 +76,17 @@ changed-basis refusal, unavailable-participant continuation and failed-save
 rollback. Exact candidate qualification belongs to its PR receipt; source
 implementation is not installed adoption or user acceptance.
 
+The #1498 increment prepares one result-informed next arrangement in the same
+eligible unstarted task. Existing deselection/retained lookup/manual linkage can
+already complete the case; the adapter now prepares the exact predecessor link
+and reads its original assessment/unfinished obligations alongside the new choice.
+Ordinary explicit preview/save owns changes, and #1488 owns original-basis review
+reassessment. A standalone two-process packing exercise checks both contributions,
+selective output use and actual fresh label production. Existing adapter tests
+cover invalid linkage and races. This is synthetic engineering evidence, not
+actual external participation, comparative benefit, adoption or full W1/W2.
+Current exact-head qualification and independent review belong to the PR return.
+
 PR #1450's qualification correction tightens only the disposable native-service
 fixture's readiness and cleanup. After its deliberate child-binding substitution,
 it observes the manager's negative verification and waits for a post-restoration
@@ -404,6 +415,108 @@ a selected concrete contract change and its implementation; update supported-use
 README/host guidance when that path actually changes. These increments belong in
 their existing issues and reviewable PRs, without a separate master plan or
 automatic outreach, trial allocation, deployment or release.
+
+Under #1443/#1453, connect selected counterpart experience to the same current-work,
+execution-choice and contribution readers. Reuse #1453's scoped conditions,
+associations, assessments, materials and corrections; neither its bounded aggregate
+adapter nor review text becomes a universal service contract. For W1, make the
+current purpose, supplied/missing input, offered scope and return/use feedback
+understandable to both parties. For W2, carry an attributable conditional judgment
+into an actual assignment, request, review or handoff and a separate successor's
+appropriate change or retention. Model/harness/environment changes reconsider only
+relevant expectations; W3 distinguishes inherited evidence from direct performance.
+Prefer task fit and complementary evidence over a general model ranking.
+
+For a real counterpart that supports it, consider [A2A 1.0.0](https://a2a-protocol.org/v1.0.0/specification/)
+(sections 4.1, 4.4 and 4.6): AgentCard/AgentSkill for declared interfaces and skills,
+Task/Message/Artifact for the supported exchange, and negotiated versioned
+extensions only for a demonstrated missing field. AgentProvider describes a service
+provider, not necessarily its underlying LLM. External task/context identifiers and
+card claims do not become Augnes project identity, competence or authority. Keep
+source, version and observation time when importing relevant declarations. This is
+an interoperability reference, not a mandatory A2A rollout or an implemented mapping.
+Existing GitHub/HTTP, Markdown or supported host paths remain valid.
+
+Start with selected notes and existing material/experience records. Only if a real
+consumer cannot recover the needed relationship from them, add a small versioned
+Augnes-derived view linking task, counterpart conditions, source evidence, expected
+contribution, observed result and reconsideration reason. It is not a new Core
+kind or global profile store. Share only the permitted task-relevant projection;
+private assessments, other customers' data and negotiation limits are not public
+card defaults. Unsupported optional enrichment retains the ordinary path, without
+silently interpreting unknown fields. Define any actual adapter/contract change
+with its implementation in 02. No new registry, rating engine, model call, public
+endpoint or experiment is commissioned by this documentation supplement.
+
+#### Reusable interfaces from observed work
+
+The [current-work source reader](../CODEX_CURRENT_CONTINUITY_V0_1.md#explicit-current-work-source-read)
+already provides selected source text and an explicit complete-work-definition
+mode; [selected-source retrieval](#shared-source-grounded-retrieval--current-capability-and-conditional-direction-1468)
+also has a completed bounded implementation. For the next selected task, first
+observe an actual supported consumer reading and using these outputs. Fix only
+demonstrated observation or action friction through those existing owners; another
+summary, reader or schema is not the default next step. Preserve original material, source bindings,
+missing/unknown scope and the ordinary direct-work path.
+
+[Evolving Agent Interfaces](https://arxiv.org/abs/2610.28601v1) motivates a small
+reusable implementation with discoverable usage conditions, input/output meaning,
+source revision and execution environment, observed outcomes and outcome checks.
+Retain these together through existing P4/P5 capability and material/experience
+owners, with counterexamples and a correction path. Prefer ordinary code and notes
+when sufficient. Population search, crossover and a global tool registry remain
+deferred; this transfer guidance adds no runtime framework or evaluation gate.
+Use [04's comparison boundaries](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#web-active-users-and-contribution-continuity)
+if a later authorized task claims benefit; it does not reopen completed studies.
+
+#### Strategic operating profiles and defensive reference application — 2026-10-22
+
+The user approved the ordered follow-through below. [#1518](https://github.com/hynk-studio/augnes/issues/1518)
+scopes the first read-only validation/preview implementation under #1443/#1453;
+#1426 coordinates allocation. At registration the source work is unclaimed and
+NOT_STARTED, and new verification/consumer observation is NOT_RUN. Planning
+registration is not dispatch. Reconcile actual implementation with its eventual PR.
+
+| Sequence | Bounded result and placement |
+|---|---|
+| First: existing planning owner | Integrate this direction and the pending cooperation supplement into #1504's existing 01/03/04 changes. Retain prior public-entry and W1/W2/W3 meaning; do not add a separate report or master plan. |
+| Next implementation: #1518 | Validate a bounded versioned operating-profile input, then produce a usable deterministic read-only preview with purpose, roles, supplied/missing material, dependencies, requested permissions and return/check/use responsibility. Include one synthetic Defensive Operations Observe/Recommend example and a direct-work control. |
+| Following: organizational continuity | Use existing work/contribution/experience owners to carry judgments, counterevidence, rejected explanations and unfinished obligations through role/executor replacement into actual next work. Distinguish a new process from actual model/host succession. |
+| Following: defensive reference replay | Exercise selected late/conflicting evidence, inert adversarial input and relevant replacement cases with Observe/Recommend only. Reuse a small representative case rather than requiring a large new benchmark. |
+| Later operational read-only pilot | Bind explicitly selected development assets and observation sources to Observe/Recommend, making freshness, missing coverage and human responsibility visible. No production defensive effect follows from this plan. |
+| Later bounded effects and recovery | Through separately supported action owners and authorization, admit limited nonproduction actions, observed postconditions, interruption reconciliation and recovery. Incident Command is a separate later scope, not an enabled default. |
+| Later reviewed learning and generality | Propose source-bound lessons, replay relevant cases/counterexamples, review and version a limited change. Validate one non-security application before calling the profile contract general or stable. |
+
+`OperatingProfile.v0.1` is a provisional configuration contract, not a new Core
+record or prescribed file layout. Codex inspects current owners and chooses the
+smallest sufficient representation, implementation and tests. Keep validation then
+preview in a coherent consumer slice, using separate PRs only where dependencies
+justify them. Do not stop at an unused schema or make unrelated qualification,
+all-host support or positive comparative benefit a prerequisite to development.
+
+The initial example declares an unusual CI credential event, a legitimate
+explanation, a compromise hypothesis and a missing discriminating observation.
+It demonstrates faithful configuration/unknown handling, not autonomous incident
+inference. Parsing/preview performs no project, grant, lease, assignment, schedule,
+run or accepted-state mutation, model call, external lookup or command execution.
+Missing capabilities remain unresolved; a valid preview is not deployment readiness.
+Actual permissions are freshly resolved only at a later authorized action boundary.
+
+O0–O5 may describe responsibility, handoff, shared understanding, bounded delegation,
+verified recovery and reviewed learning. They are capability checks, not a second
+product state machine, six approval ceremonies or completion claims. Roles,
+executors and authority principals remain distinct; differently named roles do
+not prove independent approval/checking. Later action designs must distinguish
+reversible effects, compensating recovery and irreversible changes; a replacement
+credential is not restoration of a revoked credential. Existing invocation grants
+are not assumed to cover arbitrary external defensive actions.
+
+Preserve #1443/#1453 and P3/P4/P5 ownership, existing negative/partial evidence and
+separate live-consumer limits. This direction does not restart frozen studies,
+mutate installed runtime, activate Defend, recruit publicly, or change merge and
+publication authority. Put selected concrete contracts in 02 with implementation,
+update supported entry guidance only for working paths, and keep corresponding
+evidence distinctions in 04.
 
 The research basis includes [Paperclip's external-agent model](https://paperclip.ing/product/bring-your-own-agent/),
 [Letta shared memory](https://docs.letta.com/concepts/shared-memory),
@@ -1314,6 +1427,31 @@ PR. Prior receipts remain historical. Hosted consumers remain with #1372 and
 broader product gaps with #1212. Retained-candidate use, provider execution and
 general usefulness remain outside this slice; later native acceptance is bounded
 to the approved store and clients, not every consumer.
+
+### Current lifecycle increment — Reversible native project archive (#1512)
+
+The source increment adds **Working projects / Archived projects** to the existing
+native saved-project management surface, with explicit archive, unarchive and
+same-project return. The ordinary view excludes archived projects; complete
+all-registered and capability-scoped discovery retain them with organization state.
+Archive preserves work/history/obligations and changes no direction, execution,
+access, accounting or accepted goal. Recents removal remains a separate feature.
+
+The existing lifecycle owner stores organization and a fresh project observation.
+Explicit forward migration gives every old project a working default; staged
+backup/recovery preserves classification and history while refreshing observations.
+Deterministic cases exercise inactive-project independence, stale/concurrent
+changes, complete scoped pages, uncertain readback, missing roots, portable replay,
+failed-stage rollback and repeated restore with fresh-process same-work reads.
+Archived root recovery and repeat registration also retain atomic selection
+freshness, with late-change refusal and unchanged-selection success controls.
+Migration refusal is injected after schema creation and project backfill to
+check rollback of those partial writes.
+The existing project-experience Browser owner exercises the actual controls,
+restart, deliberate return and a lost acknowledgement. Final exact-head
+qualification and independent review belong to the single Draft PR return.
+This implements local organization, not deletion, paused execution, installed or
+hosted adoption, measured user benefit, or completion of broader #1212/#1215.
 
 ### Current RC1 follow-up — Selection reconstruction conformance (#1401)
 

@@ -51,6 +51,67 @@ export async function checkBranching({start,client,newWork,save,edit,passed,open
  const compared=await operation(target.work_id,'compare',{expected:headBinding(target),source:reference(b)});assert.equal(compared.status,200);assert.equal(compared.data.baseline.revision,1);assert.equal(compared.data.target.revision,2);assert.equal(compared.data.branch.revision,2);assert.match(compared.data.html,/Both works may have changed/);
  function intent(source,selected=[condition,observation],recDisposition='declined') {return {source:reference(source),dispositions:source.sources.map(s=>({source_ref:s.source_ref,disposition:selected.includes(s.source_ref)?'incorporated':s.source_ref===recommendation?recDisposition:'not_selected',rationale:s.source_ref===recommendation?'Do not choose the room for every event: weekend conditions remain unknown.':''})),rationale:'Keep the qualified reading; decline the broader recommendation.',next_question:'Measure weekend noise before choosing a room.'};}
  async function inc(t,source=b,selection=intent(source)){return operation(t.work_id,'incorporation-preview',{expected:headBinding(t),intent:selection});}
+ // Correction review uses the ordinary writer and exact source/target heads.
+ // Historical adaptation ancestry is not a required current selection.
+ const eventA={source:'Synthetic event organizer',text:'Event at 14:00 in room A; provisional capacity 20. Admission is free.',observed_at:'2026-10-20T09:00:00.000Z',provenance:'user_declaration',label:'New candidate'};
+ const actionA={...eventA,source:'Synthetic owner judgment',text:'Check room A wheelchair access and hold publication until confirmed.',provenance:'derived_interpretation',label:'Next check'};
+ const eventB={...eventA,text:'Correction: 15:30 in room B, capacity 12. Admission remains free; accessibility is unknown.',label:'Changed assumption / user correction'};
+ const actionB={...actionA,text:'Check room B wheelchair access. Accessibility remains unresolved; hold publication until confirmed.'};
+ const roomWork=await newWork(c,{goal:'Review the room correction',success_criteria:['Preserve uncertainty and publication hold'],non_goals:['No publication']},[eventA,actionA]);
+ const roomOriginal=(await save(c,roomWork)).data.saved;
+ const roomStart=(await commit(await branch(roomOriginal,'Explore corrected room information'))).data.saved;
+ const roomEdit=await edit(c,roomStart,'Corrected room B direction');
+ roomEdit.input.notes=[eventA,eventB,actionB];
+ const oldAction=roomStart.sources.find(s=>s.bounded_summary===actionA.text).source_ref;
+ roomEdit.input.material_edits=[{dependencies:[],adapts:null},{dependencies:[],adapts:null},{dependencies:[1],adapts:oldAction}];
+ const roomSource=(await save(c,roomEdit)).data.saved;
+ const historical=roomOriginal.sources.find(s=>s.bounded_summary===eventA.text).source_ref;
+ const corrected=roomSource.sources.find(s=>s.bounded_summary===eventB.text).source_ref;
+ const adapted=roomSource.sources.find(s=>s.bounded_summary===actionB.text).source_ref;
+ const roomIntent={source:reference(roomSource),dispositions:roomSource.sources.map(s=>({source_ref:s.source_ref,disposition:s.source_ref===historical?'not_selected':'incorporated',rationale:''})),rationale:'Use corrected information and review the current instruction explicitly.',next_question:'Wheelchair accessibility remains unknown; hold publication.'};
+ const retain=(await inc(roomOriginal,roomSource,roomIntent)).data;
+ assert(retain.payload.sources.some(s=>s.source_ref===oldAction),'legacy/default intent retains the current instruction');
+ assert(retain.payload.sources.some(s=>s.source_ref===adapted));
+ console.log(JSON.stringify({room_correction_default:{old_current_selected:true,corrected_selected:true,incorporated_has_unselected_fallback:retain.html.includes('<strong>incorporated</strong>: No rationale supplied; unselected')}}));
+ const selection={...roomIntent,target_selection:[historical]};
+ const preview=await inc(roomOriginal,roomSource,selection);
+ assert.equal(preview.status,200,JSON.stringify(preview.data));
+ assert(!preview.data.payload.sources.some(s=>s.source_ref===oldAction));
+ assert.match(preview.data.html,/<strong>incorporated<\/strong>: No rationale supplied\./);
+ assert(!preview.data.html.includes('<strong>incorporated</strong>: No rationale supplied; unselected'));
+ assert.match(preview.data.html,/<strong>not selected<\/strong>: No rationale supplied; unselected does not mean refuted or rejected\./);
+ const roomBefore=(await c.request('/api/work/'+roomOriginal.work_id+'/export')).data;
+ for(const target_selection of [null,{},[historical,historical],['invalid'],['sha256:'+'0'.repeat(64)],[corrected]]) {
+   assert.equal((await inc(roomOriginal,roomSource,{...selection,target_selection})).data.error,'invalid_target_selection');
+ }
+ assert.equal((await inc(roomOriginal,roomSource,{...selection,target_selection:[],dispositions:roomIntent.dispositions.map(d=>({...d,disposition:'incorporated'}))})).data.error,'target_selection_conflict');
+ assert.equal((await inc(roomOriginal,roomSource,{...selection,dispositions:roomIntent.dispositions.map(d=>d.source_ref===corrected?{...d,disposition:'not_selected'}:d)})).data.error,'required_material_missing');
+ for(const disposition of ['deferred','declined'])assert.equal((await inc(roomOriginal,roomSource,{...selection,dispositions:roomIntent.dispositions.map(d=>d.source_ref===historical?{...d,disposition}:d)})).data.error,'invalid_relation_text');
+ const authored=await inc(roomOriginal,roomSource,{...selection,dispositions:roomIntent.dispositions.map(d=>({...d,rationale:'Authored <reason> & "qualification"'}))});
+ assert.match(authored.data.html,/Authored &lt;reason&gt; &amp; &quot;qualification&quot;/);assert(!authored.data.html.includes('<reason>'));
+ assert.equal((await commit({...preview.data,intent:{...selection,target_selection:[]}})).data.error,'altered_replay');
+ assert.deepEqual((await c.request('/api/work/'+roomOriginal.work_id+'/export')).data,roomBefore,'all refusals leave durable history unchanged');
+ let roomResult=(await commit(preview.data)).data.saved;assert.equal(roomResult.revision,2);
+ assert.deepEqual((await resolve(preview.data)).data.saved,roomResult);assert.deepEqual((await commit(preview.data)).data.saved,roomResult);
+ const freshRoom=await client(local);assert.deepEqual((await freshRoom.request('/api/work/'+roomResult.work_id)).data.saved,roomResult);
+ const roomContext=(await freshRoom.request('/api/work/'+roomResult.work_id+'/context',{expected:headBinding(roomResult)})).data;
+ assert(roomContext.includes(actionB.text));assert(roomContext.includes(eventA.text));assert(!roomContext.includes(actionA.text));
+ assert.match(roomContext,/<strong>incorporated<\/strong>: No rationale supplied\./);assert.match(roomContext,/unselected does not mean refuted or rejected/);
+ const roomExport=(await freshRoom.request('/api/work/'+roomResult.work_id+'/export')).data;
+ assert.deepEqual(roomExport.revisions[0],roomOriginal);assert.deepEqual(await read(roomSource.work_id),roomSource);
+ assert.deepEqual(roomSource.relations.materials.find(m=>m.source_ref===adapted).from,{...reference(roomStart),source_ref:oldAction});
+ assert.deepEqual(roomResult.relations.materials.find(m=>m.source_ref===adapted).dependencies,[corrected]);
+ const repeated=(await inc(roomResult,roomSource,{...selection,target_selection:roomResult.sources.map(s=>s.source_ref)})).data;
+ assert.equal(repeated.noop,true);assert.equal((await commit(repeated)).data.noop,true);assert.equal((await resolve(repeated)).data.noop,true);
+ const removeRequired=await inc(roomResult,roomSource,{...roomIntent,dispositions:roomIntent.dispositions.map(d=>({...d,disposition:'not_selected'})),target_selection:[historical,adapted]});
+ assert.equal(removeRequired.data.error,'required_material_missing','retained target dependencies remain required');
+ const changedSelection=(await inc(roomResult,roomSource,{...selection,target_selection:[corrected,adapted]})).data;
+ assert.equal(changedSelection.noop,false);assert.deepEqual(changedSelection.payload.relations.review.target,reference(roomResult),'a new selection records the actual reviewed target even when branch dispositions are unchanged');
+ roomResult=(await commit(changedSelection)).data.saved;
+ const staleRoom=(await inc(roomResult,roomSource,{...selection,target_selection:[corrected,adapted],rationale:'Fresh review before drift'})).data;
+ roomResult=(await save(c,await edit(c,roomResult,'Changed target after review'))).data.saved;
+ assert.equal((await commit(staleRoom)).data.error,'refresh_required');assert.equal((await read(roomResult.work_id)).fingerprint,roomResult.fingerprint);
+ passed('room correction: explicit retention/deselection, exact intent binding, shared-reference conflict, required context, preserved histories/adaptation and fresh server read; disposition-specific escaped copy');
  assert.equal((await inc(target,b,intent(b,[observation]))).data.error,'required_material_missing');
  const ip=(await inc(target)).data;assert.match(ip.html,/Tuesday evenings/);assert.equal((await resolve(ip)).data.outcome,'unknown');
  r=await commit(ip);assert.equal(r.status,200,JSON.stringify(r.data));target=r.data.saved;assert.equal(target.revision,3);

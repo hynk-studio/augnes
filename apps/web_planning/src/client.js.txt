@@ -49,6 +49,7 @@ function draft(includeFiles=true){const rows=[...$('notes').children];const note
  return {definition:{goal:$('goal').value,success_criteria:$('criteria').value.split('\n'),non_goals:$('non-goals').value.split('\n')},notes,material_edits,...(includeFiles?{files:selectedFiles.map(f=>({...f})),...(activeScene&&sceneModified?{scene:sceneInput()}:{} )}:{})};}
 
 function changed(event){
+  if(event?.target.id==='criteria')criteriaError();
   invalidateDirectionRequest();
   invalidateSceneReview();
   if(sceneContextRequest&&!currentSceneContext(sceneContextRequest))invalidateSceneContext();
@@ -60,6 +61,12 @@ function changed(event){
 }
 // Compare authored meaning only; keep raw input intact for the server's validation.
 function definitionComparison(value){return typeof value==='string'?value.trim():[...new Set(value.map(v=>v.trim()).filter(Boolean))].sort();}
+function criteriaError(message=''){$('criteria-error').textContent=message;$('criteria-error').hidden=!message;
+  if(message)$('criteria').setAttribute('aria-invalid','true');else $('criteria').removeAttribute('aria-invalid');}
+function criteriaRefused(error,value){
+  if(error.message!=='first_work_success_criteria_invalid'||accessLost||$('criteria').value!==value)return;
+  criteriaError(capacityReason({code:error.message}));$('criteria').focus();
+}
 function reviewChanges(){const d=draft();const lines=[];
   if(!saved)lines.push('New work will be created only when you press Save.');
   else {for(const [k,label] of [['goal','Goal'],['success_criteria','Success criteria'],['non_goals','Non-goals']])
@@ -75,6 +82,7 @@ function reviewChanges(){const d=draft();const lines=[];
 async function show(r=null){invalidateSceneContext();invalidateSceneReview();selectedFiles=(r?.files??[]).map(f=>({...f}));fileSelectionVersion++;renderFiles();$('work-files').value='';saved=r;pending=null;reviewed=null;dirty=false;saveTicket=null;
   $('editor').hidden=false;document.querySelector('.intro').hidden=true;
   $('goal').value=r?.definition.goal??'';$('criteria').value=(r?.definition.success_criteria??[]).join('\n');$('non-goals').value=(r?.definition.non_goals??[]).join('\n');
+  criteriaError();
   $('notes').replaceChildren();for(const n of r?.sources??[])noteRow(noteInput(n),n.source_ref);const rows=[...$('notes').children];for(const row of rows){const m=r?.relations?.materials.find(m=>m.source_ref===row._original);row._depIds=(m?.dependencies??[]).map(ref=>rows.find(n=>n._original===ref)?.id??'missing:'+ref);}syncDependencies();resetDirections();
   $('editor-title').textContent=r?'Continue your work':'New work';$('saved-label').textContent=r?`Saved revision ${r.revision} · ${r.recorded_at}`:'Unsaved draft';
   for(const id of ['saved-context','refresh-work','history-tools','directions'])$(id).hidden=!r;
@@ -93,7 +101,7 @@ function capacityReason(issue){const reasons={
   selected_source_context_budget_exceeded:'Selected context exceeds its stored-byte budget, including attribution and provenance. Review per-note costs and revise the current selection.',
   selected_source_context_invalid:'Check the note text (required, at most 2,000 characters), attribution (required, at most 256 UTF-16 units), note type, provenance and observation time.',
   first_work_goal_invalid:'Provide a goal of at most 2,000 characters.',
-  first_work_success_criteria_invalid:'Provide 1–12 distinct criteria, at most 500 characters each.',
+  first_work_success_criteria_invalid:'Enter 1–12 distinct, nonblank success criteria, at most 500 characters (Unicode codepoints) per entry.',
   first_work_non_goals_invalid:'Use at most 12 distinct non-goals, at most 500 characters each.',
   first_work_definition_too_large:'The work definition exceeds its separate stored-byte budget.',
   relation_budget_exceeded:'Source relationships exceed their separate stored-byte budget. Review required context and retained comparison material; shortening note text does not reduce this quantity.',
@@ -162,6 +170,7 @@ async function refreshList(){
 async function acknowledged(r){await show(r);status(`Saved revision ${r.revision}. Reopen or read Saved context.`);return refreshList();}
 async function dispatch(){
   if(!pending)return;
+  const criteria=pending.definition.success_criteria.join('\n');
   queueCapacity();
   $('edit-fields').disabled=true;$('save').disabled=true;
   let data;
@@ -169,18 +178,23 @@ async function dispatch(){
   catch(e){if(e.message==='access_denied')throw e;
     if(e.status===409 && e.message!=='save_ticket_expired') {pending=null;saveTicket=null;$('edit-fields').disabled=false;$('save').disabled=false;$('uncertain').hidden=true;
       $('conflict').hidden=false;status('Save refused. Your draft remains intact. Review the latest saved version.');}
-    else if(e.status===422||e.status===413){pending=null;saveTicket=null;$('edit-fields').disabled=false;$('save').disabled=false;status('Save refused: '+(messages[e.message]??e.message.replaceAll('_',' '))+'. No clipping or partial save was performed.');}
+    else if(e.status===422||e.status===413){pending=null;saveTicket=null;$('edit-fields').disabled=false;$('save').disabled=false;criteriaRefused(e,criteria);status('Save refused: '+(messages[e.message]??e.message.replaceAll('_',' '))+'. No clipping or partial save was performed.');}
     else if(e.status===410){pending=null;$('uncertain').hidden=true;$('context-view').replaceChildren();status(messages.work_erased);}
     else{$('uncertain').hidden=false;status('Save outcome unknown. Keep this tab open and check the original request.');}
     queueCapacity();return;}
   await acknowledged(data.saved);
 }
 $('work-form').addEventListener('input',changed);
+$('criteria').addEventListener('invalid',()=>criteriaError('Add at least one nonblank success criterion.'));
+messages.first_work_success_criteria_invalid='Check Success criteria. '+capacityReason({code:'first_work_success_criteria_invalid'});
 $('work-form').onsubmit=e=>{e.preventDefault();run(async()=>{if(pending||relationPending||sceneReviewPending)return;
   if(authoredUnavailable){status('Original writing is unavailable. Refresh the saved version before saving; your draft is retained.');return;}
   syncAuthored();
+  const criteria=$('criteria').value;
+  try{
   if(!saveTicket){if(saved)saveTicket=(await api('/api/work/'+work+'/ticket',{expected:binding(saved),...draft()})).ticket;else {const d=await api('/api/drafts',draft());work=d.work_id;saveTicket=d.ticket;}}
-  pending={ticket:saveTicket,...draft()};await dispatch();});};
+  pending={ticket:saveTicket,...draft()};await dispatch();
+  }catch(e){criteriaRefused(e,criteria);throw e;}});};
 $('new-work').onclick=()=>run(async()=>{if(!mayLeave()){status('Resolve the pending save or retain your unsaved edits.');return;}work=null;await show();status('New draft. Nothing is stored until Save.');$('goal').focus();});
 $('add-note').onclick=()=>{if($('notes').children.length>=8){status('Eight whole notes are already selected. Explicitly remove one before adding another.');return;}noteRow();syncDependencies();changed();$('notes').lastElementChild.querySelector('textarea').focus();};
 $('saved-context').onclick=()=>run(async()=>{ $('context-view').replaceChildren();
@@ -208,15 +222,15 @@ window.addEventListener('pagehide',()=>{$('context-view')?.replaceChildren();});
 window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 window.addEventListener('focus',()=>{if($('draft-capacity'))queueCapacity();if($('work-list'))api('/api/works').catch(e=>{if(e.message!=='access_denied')status('Access/currentness could not be checked. Use a fresh server read before reuse.');});});
 function resetDirections(){directionRequest=null;relationPending=null;relationUnknown=false;directionDirty=false;comparison=null;comparisonCurrent=false;branchCursor=null;
-  for(const id of ['direction-export','branch-form','comparison','relation-save','relation-uncertain','relation-cancel','more-branches'])$(id).hidden=true;
-  for(const id of ['branch-choices','comparison-summary','material-choices','relation-preview'])$(id).replaceChildren();$('relation-state').textContent='';freezeDirection(false);}
-function freezeDirection(unknown){for(const e of $('directions').querySelectorAll('textarea,select'))e.disabled=unknown;
+  for(const id of ['direction-export','target-review','branch-form','comparison','relation-save','relation-uncertain','relation-cancel','more-branches'])$(id).hidden=true;
+  for(const id of ['branch-choices','comparison-summary','target-choices','material-choices','relation-preview'])$(id).replaceChildren();$('relation-state').textContent='';freezeDirection(false);}
+function freezeDirection(unknown){for(const e of $('directions').querySelectorAll('textarea,select,input'))e.disabled=unknown;
   for(const id of ['branch-open','branch-preview','choose-branch','more-branches','incorporation-preview','recompare','relation-cancel'])$(id).disabled=unknown;
   $('incorporation-preview').disabled=unknown||!comparisonCurrent;
   $('edit-fields').disabled=!!relationPending;$('save').disabled=!!relationPending;for(const e of $('scene-review').querySelectorAll('button,select,textarea'))e.disabled=!!relationPending||!!activeScene?.review||sceneInherited;}
 function requireSavedDirection(){if(!saved||dirty||pending||relationUnknown||sceneReviewPending){status('Save or resolve the current draft before comparing saved work. Your edits are retained.');return false;}return true;}
 function invalidateDirectionRequest(){if(!relationUnknown){directionRequest=null;if(relationPending)invalidatePreview();}}
-function directionSnapshot(){return JSON.stringify([work,binding(saved),dirty,fileSelectionVersion,comparison?.branch?.fingerprint,comparisonCurrent,$('branch-reason').value,choices(),$('comparison-rationale').value,$('comparison-next').value]);}
+function directionSnapshot(){return JSON.stringify([work,binding(saved),dirty,fileSelectionVersion,comparison?.branch?.fingerprint,comparisonCurrent,$('branch-reason').value,choices(),targetChoices(),$('comparison-rationale').value,$('comparison-next').value]);}
 function beginDirection(cancellable=true){if(relationPending&&!relationUnknown)invalidatePreview();if(cancellable)$('relation-cancel').hidden=false;directionRequest={snapshot:directionSnapshot(),work};return directionRequest;}
 function currentDirection(r){return !accessLost&&directionRequest===r&&r.snapshot===directionSnapshot();}
 function invalidatePreview(){if(relationUnknown)return;directionRequest=null;relationPending=null;$('relation-save').hidden=true;$('relation-preview').replaceChildren();directionDirty=true;freezeDirection(false);}
@@ -230,26 +244,33 @@ async function branchChoices(append=false){if(!requireSavedDirection())return;co
  for(const item of data.items.filter(i=>i.branch_of===work)){const b=document.createElement('button');b.textContent=`Compare: ${item.goal}`;b.onclick=()=>run(()=>readComparison({work_id:item.work_id,...binding(item)}));$('branch-choices').append(b);}
  branchCursor=data.next;$('more-branches').hidden=!branchCursor;if(!$('branch-choices').children.length)$('relation-state').textContent='No branches on this page. Continue another direction or check More branches.';}
 $('choose-branch').onclick=()=>run(()=>branchChoices());$('more-branches').onclick=()=>run(()=>branchChoices(true));
+function targetChoices(){return [...$('target-choices').querySelectorAll('input')].map(input=>({source_ref:input.dataset.ref,retained:input.checked}));}
 function choices(){if(comparison?.direction)return [...$('material-choices').querySelectorAll('select')].map(s=>s.value);return [...$('material-choices').children].map(row=>({source_ref:row.dataset.ref,disposition:row.querySelector('select').value,rationale:row.querySelector('textarea').value}));}
 async function readComparison(source,retained=[]){if(!requireSavedDirection())return;const r=beginDirection(),data=await api('/api/work/'+r.work+'/compare',{expected:binding(saved),source});if(await admitDirection(r,data))showComparison(data,retained);}
-function showComparison(data,retained=[]){comparison=data;comparisonCurrent=true;invalidatePreview();$('comparison').hidden=false;$('comparison-summary').innerHTML=data.html;$('material-choices').replaceChildren();
+function showComparison(data,retained=[],retainedTarget=[]){comparison=data;comparisonCurrent=true;invalidatePreview();$('comparison').hidden=false;$('comparison-summary').innerHTML=data.html;$('material-choices').replaceChildren();$('target-choices').replaceChildren();$('target-review').hidden=!!data.direction;
  if(data.direction){showDirectionComparison(data,retained);return;}
+ for(const [i,n] of data.target.sources.entries()){const row=document.createElement('section');row.className='context-note';const text=document.createElement('p');text.className='note-text';text.textContent=n.bounded_summary;
+   const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.id='retain-target-'+i;input.dataset.ref=n.source_ref;input.checked=retainedTarget.find(c=>c.source_ref===n.source_ref)?.retained??true;label.htmlFor=input.id;label.append(input,document.createTextNode(' Keep this note in the proposed current selection'));
+   const attribution=document.createElement('p');attribution.textContent=n.compatibility_source_ref.external_id+' · '+n.trust_class+' · Observed: '+(n.external_ref.observed_at??'Unknown')+'. Currentness unknown.';
+   row.append(text,attribution,label);$('target-choices').append(row);}
+ const removedTarget=retainedTarget.filter(c=>!data.target.sources.some(s=>s.source_ref===c.source_ref));if(removedTarget.length){const p=document.createElement('p');p.textContent='Earlier target choices no longer present in this version (retained for review): '+JSON.stringify(removedTarget);$('comparison-summary').append(p);}
  for(const [i,n] of data.branch.sources.entries()){const row=document.createElement('section');row.className='context-note';row.dataset.ref=n.source_ref;const title=document.createElement('h4');title.textContent=`${i+1}. ${n.why_included}`;
    const text=document.createElement('p');text.className='note-text';text.textContent=n.bounded_summary;const attribution=document.createElement('p');const m=data.branch.relations.materials.find(m=>m.source_ref===n.source_ref);attribution.textContent=`${n.compatibility_source_ref.external_id} · ${n.trust_class} · Observed: ${n.external_ref.observed_at??'Unknown'} · currentness unknown · ${m.kind}. Requires notes ${m.dependencies.map(d=>data.branch.sources.findIndex(s=>s.source_ref===d)+1).join(', ')||'none explicitly linked'}.`;
    const label=document.createElement('label');label.textContent='Disposition';const select=document.createElement('select');select.id='disposition-'+i;label.htmlFor=select.id;for(const value of ['not_selected','incorporated','deferred','declined']){const option=document.createElement('option');option.value=value;option.textContent=value.replaceAll('_',' ');select.append(option);}label.append(select);
    const why=document.createElement('label');why.textContent='Rationale (required for deferred or declined)';const rationale=document.createElement('textarea');rationale.id='disposition-rationale-'+i;why.htmlFor=rationale.id;rationale.rows=2;rationale.maxLength=500;why.append(rationale);const old=retained.find(d=>d.source_ref===n.source_ref);if(old){select.value=old.disposition;rationale.value=old.rationale;}
+   if(data.target.sources.some(s=>s.source_ref===n.source_ref)){const shared=document.createElement('p');shared.textContent='This same note is currently selected in the target. To deselect it, uncheck it above and leave this branch item unincorporated. Conflicting choices refuse the preview.';row.append(shared);}
    row.append(title,text,attribution,label,why);$('material-choices').append(row);}
  const missing=retained.filter(d=>!data.branch.sources.some(s=>s.source_ref===d.source_ref));if(missing.length){const p=document.createElement('p');p.textContent='Previous choices no longer present in this source revision (retained for review): '+JSON.stringify(missing);$('comparison-summary').append(p);}
  $('relation-state').textContent='Compare the current versions, including retained choices, then request a new preview. No selection has been saved.';}
 $('incorporation-preview').onclick=()=>run(async()=>{if(!requireSavedDirection()||!comparison||!comparisonCurrent)return;const r=beginDirection(),data=await api('/api/work/'+r.work+'/incorporation-preview',{expected:binding(saved),intent:directionIntent()});if(await admitDirection(r,data)){preparedChange(data);if(comparison.direction){const pre=document.createElement('pre');pre.textContent=directionReviewText();$('relation-preview').append(pre);}}});
-$('recompare').onclick=()=>run(async()=>{if(!requireSavedDirection()||!comparison)return;const retained=comparison.direction?comparison.direction.units.map((u,i)=>({ref:u.ref,disposition:choices()[i]})):choices(),sourceId=comparison.branch.work_id,why=$('comparison-rationale').value,next=$('comparison-next').value;
+$('recompare').onclick=()=>run(async()=>{if(!requireSavedDirection()||!comparison)return;const retained=comparison.direction?comparison.direction.units.map((u,i)=>({ref:u.ref,disposition:choices()[i]})):choices(),retainedTarget=targetChoices(),sourceId=comparison.branch.work_id,why=$('comparison-rationale').value,next=$('comparison-next').value;
   comparisonCurrent=false;invalidatePreview();$('relation-cancel').hidden=true;freezeDirection(true);$('edit-fields').disabled=true;$('save').disabled=true;
   const operation=beginDirection(false);
   $('relation-state').textContent='Currentness is unconfirmed while refreshing. Your comparison draft and earlier bindings are retained.';
   try{const target=await api('/api/work/'+work),source=await api('/api/work/'+sourceId);
     const data=await api('/api/work/'+work+'/compare',{expected:binding(target.saved),source:{work_id:sourceId,...binding(source.saved)}});
     if(!await admitDirection(operation,data))return;
-    await show(data.target);$('comparison-rationale').value=why;$('comparison-next').value=next;showComparison(data,retained);
+    await show(data.target);$('comparison-rationale').value=why;$('comparison-next').value=next;showComparison(data,retained,retainedTarget);
   }catch(e){if(e.message!=='access_denied')$('relation-state').textContent='Currentness is unconfirmed. Your comparison draft and earlier source/target bindings are retained. Explicitly refresh and compare again before requesting a fresh preview; nothing was saved.';throw e;
   }finally{if($('directions'))freezeDirection(false);}});
 async function acknowledgeRelation(data){work=data.saved.work_id;if(await acknowledged(data.saved))status(data.noop?'No change: the existing saved revision was acknowledged.':'Change saved. Read Saved context to resume from the server.');}
@@ -463,7 +484,7 @@ function appendProposalLinks(row,p){
   for(const u of availableSceneUnits()){if(u.ref.scene_id===activeScene?.id)continue;const o=document.createElement('option');o.value=JSON.stringify(u.ref);o.textContent=u.text;o.selected=(p[key]??[]).some(r=>proposalRefKey(r)===proposalRefKey(u.ref));select.append(o);}label.append(select);details.append(label);
  }row.append(details);
 }
-function directionIntent(){return {source:{work_id:comparison.branch.work_id,...binding(comparison.branch)},...(comparison.direction?{selection:{dispositions:choices(),reason:$('comparison-rationale').value}}:{dispositions:choices(),rationale:$('comparison-rationale').value,next_question:$('comparison-next').value})};}
+function directionIntent(){return {source:{work_id:comparison.branch.work_id,...binding(comparison.branch)},...(comparison.direction?{selection:{dispositions:choices(),reason:$('comparison-rationale').value}}:{dispositions:choices(),target_selection:targetChoices().filter(c=>c.retained).map(c=>c.source_ref),rationale:$('comparison-rationale').value,next_question:$('comparison-next').value})};}
 function directionReviewText(){return comparison.direction.units.map((u,i)=>choices()[i]+' · '+u.proposal.kind+' · '+u.proposal.text+'\nRequired links: '+JSON.stringify(u.proposal.requires??[])+'; reinterpretation links: '+JSON.stringify(u.proposal.revises??[])).join('\n\n')+'\n\nReason: '+$('comparison-rationale').value+'\nOnly these fictional choices change the target. Source drafts and manuscripts are not transferred.';}
 function showDirectionComparison(data,retained){
  const {direction}=data;const pre=document.createElement('pre');pre.textContent='Alternate local drafts (prose is not adopted by transfer):\n\n'+direction.branch_book.scenes.map(s=>s.title+'\n'+s.draft).join('\n\n');$('comparison-summary').append(pre);
@@ -484,3 +505,5 @@ async function admitDirection(r,data){
  if(observed.some((v,i)=>JSON.stringify(binding(v.saved))!==JSON.stringify(binding(refs[i])))){invalidatePreview();comparisonCurrent=false;$('relation-cancel').hidden=true;freezeDirection(false);$('relation-state').textContent='A saved source or target changed while reading. Choices are retained; explicitly refresh and compare again.';return false;}
  return true;
 }
+
+Object.assign(messages,{invalid_target_selection:'A current-note choice does not match the reviewed target. Refresh versions and review the complete selection again.',target_selection_conflict:'The same note is deselected from the target and incorporated from the branch. Keep it in the target or change its branch disposition before reviewing again.'});

@@ -58,10 +58,82 @@ this implementation does not install it or activate a reviewer.
 Each profile note remains within the existing 2,000-character, eight-selected-note
 budget. A budget refusal requires a deliberate shorter assessment or ordinary
 source-selection review; nothing is silently truncated or dropped. One choice and
-one linked assessment form the first loop. To begin another, explicitly select
-the next ordinary context while retaining worthwhile results and obligations in
-existing history. Prior notes can be read/reselected through the existing retained
-source owner; no automatic history sweep or role reconstitution is added.
+one linked assessment form a loop. Ordinary source revision, retained lookup and
+explicit reselection can compose another loop while preserving earlier packets.
+The optional preparation below connects one next arrangement to its assessed
+predecessor without a separate manually authored continuity note.
+
+## One result-informed next arrangement (#1498)
+
+After assessing a returned review, use `action: reconsider` with a fresh
+`expectedSnapshotBinding`, a new `judgment` in the same format as `choose`, and
+a bounded `reason` explaining why the result/current conditions justify retaining
+or changing the arrangement. Keeping the same reviewer, doing the work directly
+or using an existing asset remain valid choices. Recruitment is optional.
+
+The prior choice and assessment must still be selected, their result references
+must be selected, and their original request/response must remain available under
+the existing review configuration. This increment requires an unchanged definition
+in one eligible unstarted ordinary task segment and the same project, registered
+and physical root, and effective direction. It reuses the late-review owner's
+original-basis/current reassessment to check these boundaries. A missing,
+ambiguous, out-of-budget or unavailable history refuses; it is not absence.
+
+The returned ordinary revision **deselects only the old choice and assessment**
+and adds the next choice with exact content-addressed predecessor-note references
+and the authored reason. Review the preview and explicitly save it. Other notes,
+including checked results and attributed contributions, remain selected. No prior
+packet or note is rewritten. A subsequent `read` resolves exactly those two
+references through bounded retained lookup and shows their original text, request,
+response, current attributed-use reasoning, earlier unfinished obligations and
+selection status separately from the current choice. These are provenance links
+and authored judgments, not independent verification of a claimed result.
+
+Participation preparation carries the prior assessment reference, reason and
+unfinished obligations into the new request. Deliberately select sufficient
+current result/input excerpts in `material_refs`; a historical reference alone
+does not deliver missing bytes. The replacement still reads and answers its own
+request. An earlier participant's late reply uses the existing explicit
+`historical_v1` receipt/current reassessment path and cannot answer or assess the
+replacement request. Prior unfinished text remains an earlier assessment; only
+actual subsequent evidence and a new explicit assessment can settle it.
+
+This is one linked transition, not recursive reconstitution: a second
+`reconsider` on a linked choice refuses. Ordinary revision/retained-material
+composition remains available. Logical replacement never revokes a credential,
+cancels a process, changes project direction or settles unknown external effects.
+Reads/preparation write nothing; existing preview/save owns atomic failure,
+staleness and replay. Existing single-choice records remain supported.
+
+The disposable packing exercise first demonstrates the existing composition:
+explicit deselection, two retained lookups, manual linkage/reason/unfinished
+authorship and ordinary save can complete the same task. Its manual link consumes
+one selected-note slot, so that case explicitly deselects an earlier use note
+(still retained in history). The improvement prepares and validates the link
+within the choice note and exposes it in the ordinary reader. No timed human
+comparison or reduced total-cost claim is made.
+
+Two synthetic configured reviewers produce a checked partial count, then a
+separate-batch tray allocation. The origin retains the first count, uses the
+replacement's checked allocation and rejects its unsupported dispatch suggestion.
+After the producer exits, a separate consumer program reads persisted material
+through normal entry and creates actual printable-label records, preserving the
+unknown physical-stock obligation. The consumer imports no producer code,
+expected answer or artifact; the outer test independently checks its output.
+
+```sh
+node --import tsx scripts/test-execution-choice-transition.ts
+# Optional new absolute artifact directory; append "existing" for manual composition:
+node --import tsx scripts/test-execution-choice-transition.ts /absolute/new/output existing
+```
+
+The existing `test-execution-choice.ts` also runs malformed/ambiguous linkage,
+missing result, unavailable basis and read-race controls at the adapter seam.
+The two-process exercise runs separately with the existing bounded process/resource
+owners; it does not change the Canonical suite's deadlines or inventory.
+Evidence is synthetic engineering use. Actual external participation, human/model
+semantic use, comparative benefit, installed adoption and broader W1/W2 completion
+remain unestablished.
 
 ## Changed conditions and failure meaning
 
@@ -100,8 +172,10 @@ ambiguous or over-budget history remain unavailable. A first read after the
 material changed still refuses. No new snapshot storage or migration is used.
 
 A saved late answer is historical, unverified review material. Receipt does not
-apply it. After an uncertain reply outcome, use the existing list/readback before
-deciding another delivery; exact duplicate replies replay and conflicts refuse.
+apply it. After an uncertain reply outcome, the contributor can use
+`augnes_get_review_status` with its exact `request_ref`, or the paginated reviewer
+list, before deciding another delivery. The origin uses list/readback. Exact
+duplicate replies replay and conflicts refuse.
 
 The authorized origin uses `augnes_review_repository_work`:
 
@@ -145,6 +219,39 @@ injection and checks. Manual retained-note/current-review use would still requir
 original-material retention, current inspection, selection, preview/save and
 follow-up checking. No timed manual comparison, human effort, token/billing cost
 or speedup is claimed. Exact-candidate qualification belongs to the PR receipt.
+
+## Contributor status after the origin advances (#1506)
+
+In the scoped reviewer adapter, call `augnes_get_review_status` with only your
+known `request_ref`. It directly returns the request's saved answer, attribution,
+currentness, origin-readback marker and already-permitted current-use reasoning.
+The same item remains available through the paginated reviewer list. Status can
+be read by a fresh reviewer process even when an ordinary origin save has made
+the original exact-material read refuse `review_material_changed`.
+
+For an unanswered current request, read its exact material before deciding
+whether to reply. For an unanswered historical request, a late reply still needs
+a valid prior material read and the existing explicit `historical_v1` proof.
+Status inspection creates no read witness or first-reply permission. For an
+answered request, inspect the saved response and any authored use explanation;
+no new request or resubmission follows automatically. Only the origin can prepare
+use/reassessment and explicitly preview/save its work.
+
+A useful contribution can be partly used: for example, retain failed attempts
+in a cost population while declining advice to rerun them because reruns would
+change that population and lack execution authority. The explanation is the
+origin's authored interpretation, not independently verified success or model
+judgment. If the response or use note is later deselected, status reports
+`not_observed_in_current_work`; that does not erase prior packets or establish
+permanent rejection or no prior use. Contributor inspection does not mark an
+answer `served_to_origin`; genuine origin readback remains a separate action.
+
+The existing request-bound-review and supervised runtime checks exercise this
+sequence through HTTP and reviewer MCP, including a fresh process, a target
+beyond page one, exact list parity, refusal and all-application-state preservation.
+Synthetic deterministic reconstruction establishes supported behavior; external
+participation, model understanding and comparative benefit remain unestablished.
+See the [exact status/disclosure contract](../apps/augnes_apps/README.md#opt-in-request-bound-review-1433).
 
 ## Concrete exercised consumer and evidence
 

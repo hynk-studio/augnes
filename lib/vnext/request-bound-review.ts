@@ -210,22 +210,34 @@ async function reassessReview(db: Database.Database, scope: { workspace_id: stri
             current_sources_added: current.sources.filter(s => !basis.original.sources.some(o => o.source_binding === s.source_binding)).map(s => s.source_binding) },
     };
 }
-function projectRow(row: ReviewRow, material: ReturnType<typeof readReviewMaterial>) {
+function projectRow(row: ReviewRow, material: ReturnType<typeof readReviewMaterial>, role: "origin" | "reviewer") {
     const response = row.response_json ? JSON.parse(row.response_json) : null;
     const sources = material.packet.selected_context.map(selectedWorkSourceInput);
     const useSource = `note_ref:augnes-review-use:${row.response_ref?.slice(7)}`;
     const note = response ? responseNote(row) : null;
     const retained = note && sources.some(s => canonical(s) === canonical(note));
     const use = retained ? sources.find(s => s.source === useSource && s.provenance === "derived_interpretation") : null;
+    const current = material.material_ref === row.material_ref;
+    const next_action = role === "reviewer"
+        ? response
+            ? "Inspect the saved answer, currentness and any authored current-use reasoning. No resubmission or new review is requested; use decisions belong to the origin."
+            : current
+                ? "Read this exact request with augnes_read_review_request before deciding whether to reply. Status inspection supplies no read_binding or reply authority."
+                : "Review pending on historical material; exact-material read cannot return replacement material. A late reply requires a valid prior material read and explicit historical_v1 admission. Status inspection supplies no read_binding or reply authority."
+        : response
+            ? current
+                ? "Read back and assess this answer; deliberately prepare retain, revise or reject through ordinary work revision."
+                : "Read back this historical answer; explicitly reassess its original basis against current work before preparing use through ordinary work revision."
+            : "Review pending; discover its saved response through list/readback.";
     return {
         request_ref: row.request_ref, question: row.question, material_ref: row.material_ref, packet_ref: row.packet_ref,
         created_at: row.created_at, requester: row.requester, reviewer: row.reviewer, destination: row.destination,
-        currentness: material.material_ref === row.material_ref ? "current" : "historical",
+        currentness: current ? "current" : "historical",
         response, response_ref: row.response_ref, response_saved_at: row.response_saved_at,
         readback: row.readback_served_at ? "served_to_origin" : "not_served",
         use: use ? { status: "attributed_note_in_current_work", reasoning: use.text, packet_ref: material.packet_ref,
             meaning: "Explicit authored use; not independent evidence of model judgment or semantic acceptance." } : { status: "not_observed_in_current_work" },
-        next_action: response ? "Assess this answer and currentness; deliberately prepare retain, revise or reject through ordinary work revision." : "Review pending; discover or read this exact request.",
+        next_action,
     };
 }
 export async function handleReviewOperation(inputValue: unknown, reviewerSecret: string | null) {
@@ -260,13 +272,13 @@ export async function handleReviewOperation(inputValue: unknown, reviewerSecret:
         // SQLite writer. Otherwise a second request's busy wait blocks the first
         // request's event loop. Recheck the registered and physical roots inside
         // the transaction; material and replay checks have no asynchronous gap.
-        db.exec(["prepare_use", "reassess", "prepare_reassessed_use"].includes(input.action) ? "BEGIN" : "BEGIN IMMEDIATE");
+        db.exec(["status", "prepare_use", "reassess", "prepare_reassessed_use"].includes(input.action) ? "BEGIN" : "BEGIN IMMEDIATE");
         const registration = readCanonicalProjectWithRootV01(db, scope);
         if (!registration || canonical(inspectNativeHostPhysicalRootIdentitySynchronouslyV01(c.repository_root)) !==
             canonical(inspectNativeHostPhysicalRootIdentitySynchronouslyV01(registration.root_binding.local_root.normalized_path)))
             refuseReview("review_access_refused", 403);
         const common = ["action", "connection_ref"];
-        const allowed = reviewer ? ["list", "read", "reply"] : ["inspect", "request", "list", "readback", "prepare_use", "reassess", "prepare_reassessed_use"];
+        const allowed = reviewer ? ["list", "read", "reply", "status"] : ["inspect", "request", "list", "readback", "prepare_use", "reassess", "prepare_reassessed_use"];
         if (!allowed.includes(input.action))
             refuseReview("review_capability_refused", 403);
         if (input.action === "inspect")
@@ -316,13 +328,19 @@ export async function handleReviewOperation(inputValue: unknown, reviewerSecret:
         AND (? IS NULL OR (created_at,request_ref)<(?,?)) ORDER BY created_at DESC,request_ref DESC LIMIT 6`)
                 .all(scope.workspace_id, scope.project_id, c.id, c.binding, cursor?.request_ref ?? null, cursor?.created_at ?? null, cursor?.request_ref ?? null) as ReviewRow[];
             rows.forEach(row => validateReviewRow(row, c));
-            result = reviewProjection("available", { requests: rows.slice(0, 5).map(r => projectRow(r, material)),
+            result = reviewProjection("available", { requests: rows.slice(0, 5).map(r => projectRow(r, material, reviewer ? "reviewer" : "origin")),
                 next_cursor: rows.length > 5 ? rows[4].request_ref : null });
         }
         else {
             const row = scopedReview(db, c, scope, input.request_ref);
             const current = row.material_ref === material.material_ref;
-            if (input.action === "read") {
+            if (input.action === "status") {
+                // Exact lookup shares the list projection and coherent material
+                // validation, without issuing a material-read witness or marking
+                // this contributor's inspection as an origin readback.
+                result = reviewProjection("available", projectRow(row, material, "reviewer"));
+            }
+            else if (input.action === "read") {
                 if (!current)
                     result = reviewProjection("changed", { reason: "review_material_changed", request_ref: row.request_ref, material_ref: row.material_ref, next_action: "Request an explicit updated review; no replacement material returned." });
                 else {
@@ -364,11 +382,11 @@ export async function handleReviewOperation(inputValue: unknown, reviewerSecret:
                     row.readback_served_at = row.readback_served_at ?? new Date().toISOString();
                     db.prepare("UPDATE vnext_review_requests SET readback_served_at=? WHERE request_ref=?").run(row.readback_served_at, row.request_ref);
                 }
-                result = reviewProjection("available", projectRow(row, material));
+                result = reviewProjection("available", projectRow(row, material, "origin"));
             }
             else if (input.action === "reassess" || input.action === "prepare_reassessed_use") {
                 const assessment = await reassessReview(db, scope, row, c, material);
-                result = reviewProjection("available", { ...projectRow(row, material), ...assessment,
+                result = reviewProjection("available", { ...projectRow(row, material, "origin"), ...assessment,
                     applicability: "unassessed", next_action: "Inspect the original answer, both bases and intervening changes. Explicitly prepare use, partial_use, revise, defer or reject with reasons. Nothing has been applied." });
                 if (input.action === "prepare_reassessed_use") {
                     if (input.expected_response_ref !== row.response_ref || input.expected_reassessment_binding !== assessment.reassessment_binding)

@@ -497,6 +497,11 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      label: "native Browser requested viewport and document fit contract",
+      ...rootNode("scripts/test-operator-native-viewport-fit.mjs"),
+      timeoutMs: 10_000,
+    },
+    {
       label: "historical R8A fixture build configuration contract",
       ...rootNode("scripts/test-merged-r8a-fixture-build-config.mjs"),
       timeoutMs: 30_000,

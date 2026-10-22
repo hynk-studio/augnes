@@ -140,6 +140,39 @@ customer, leave or rejoin cooperation. Credentials, authority, customer data and
 budgets do not transfer merely through derivation. This extends existing
 continuity and capability reuse; it does not prescribe a new organization engine.
 
+Cooperation knowledge belongs in current Perspective: which counterpart's
+information or capability helps this task, under which conditions, and how to
+work together. Distinguish the continuing role or undertaking from its current
+executor and known model, harness, tools and environment; model disclosure is
+optional. Declared ability, observed contribution, checked outcome and current
+applicability remain different. Relevant evidence holders and missing inputs
+matter as well as expertise; access or delivery does not establish reading or use.
+
+Use this knowledge to choose or retain a counterpart, division of work, request,
+review or handoff, and revise that judgment from results. Correct our own request
+or coordination method when warranted, rather than attributing every failure to
+the other executor. Changed conditions prompt relevant reconsideration, not a
+blanket reset. Inherited methods and shared source evidence are not the derived
+organization's own track record or independent corroboration. Public descriptions,
+shared work expectations and private assessments have different disclosure scopes;
+participants can retain different judgments while agreeing on the current work.
+
+An optional strategic operating profile can package purpose, applicable conditions,
+contribution roles, evidence needs, return/check/use responsibilities, requested
+permissions and reconsideration criteria into a reusable starting configuration.
+It helps compose existing work capabilities; it is not another organization engine,
+Core truth source or obligation to design a team before starting. Direct work,
+existing assets, a single executor and deliberate non-use remain valid choices.
+Logical roles do not establish separate principals or independent verification.
+
+Importing, selecting, validating or previewing a profile grants no authority,
+creates no accepted Perspective and starts no work. Actual participation, permitted
+action and outcome use retain their current owners. Defensive Operations is the
+first proposed reference application, not a shipped security service or a replacement
+for observation and enforcement tools. Its sequence and evidence belong to 03/04;
+configuration reuse alone establishes neither effective defense nor organizational
+learning across model replacement.
+
 Accumulated knowledge includes individual methods and methods for decomposition,
 handoff, review and integration, with their basis, conditions, outcomes and limits.
 Participation should make the requested contribution, available material, return

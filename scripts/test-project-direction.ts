@@ -8,7 +8,7 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
 import { getOrCreateDefaultWorkspaceIdentityV01, getOrCreateCanonicalProjectForLocalRootV01, normalizeLocalProjectRootRefV01, rebindCanonicalProjectLocalRootV01 } from "../lib/vnext/persistence/project-identity-registry";
-import { readActiveProjectSelectionV01, selectActiveProjectV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
+import { readActiveProjectSelectionV01, selectActiveProjectV01, readProjectOrganizationV01, changeProjectOrganizationV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import { issueVNextLocalOperatorBootstrapV01, consumeVNextLocalOperatorBootstrapV01, readVNextLocalOperatorCredentialFromRequestV01, VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01 } from "../lib/vnext/runtime/local-operator-session";
 import { defineInitialProjectWorkV01 } from "../lib/vnext/runtime/project-work-initialization";
 import { revisePreExecutionProjectWorkV01 } from "../lib/vnext/runtime/project-work-revision";
@@ -142,11 +142,21 @@ async function main() {
       } finally { corrupt.close(); }
     }
     tick();
+    const beforeArchiveSelection=readActiveProjectSelectionV01(db,scope.workspace_id)!;
+    const archiveScope={...scope,project_id:independent.project_id};
+    const beforeArchiveDirection=readProjectDirection(db,archiveScope,now());
+    const organizationRequest={...archiveScope,expected_project_id:beforeArchiveSelection.project_id,expected_revision:beforeArchiveSelection.selection_revision};
+    changeProjectOrganizationV01(db,{...organizationRequest,state:"archived",expected_organization_revision:readProjectOrganizationV01(db,archiveScope).revision});
+    assert.deepEqual(readProjectDirection(db,archiveScope,now()),beforeArchiveDirection);
+    assert.deepEqual(readActiveProjectSelectionV01(db,scope.workspace_id),beforeArchiveSelection);
+    assert.equal((await discover()).discovery.projects.find((p:any)=>p.project.project_id===independent.project_id).organization.state,"archived");
     const concurrentDecision = { project_id: independent.project_id, sequence, operation: { ...decide(independent.record.ref, allowed[1]!.purpose), status: "paused" } };
     const concurrentResponses = await Promise.all([0, 1].map(() => agent(new Request(agentUrl, { method: "POST", headers: {
       host: "127.0.0.1", origin: "http://127.0.0.1", "content-type": "application/json", authorization: `Bearer ${token}` }, body: JSON.stringify(concurrentDecision) }))));
     assert.deepEqual(concurrentResponses.map(r => r.status).sort(), [200, 409], "Exactly one concurrent direction mutation consumes the sequence and prior revision");
     sequence = (await concurrentResponses.find(r => r.status === 200)!.json()).sequence;
+    assert.equal(readProjectOrganizationV01(db,archiveScope).state,"archived","authorized exact-project direction still works while archived");
+    changeProjectOrganizationV01(db,{...organizationRequest,state:"working",expected_organization_revision:readProjectOrganizationV01(db,archiveScope).revision});
     await agentCall(independent.project_id, decide(independent.record.ref, allowed[1]!.purpose), 409, sequence - 1);
     tick();
     const independentCurrent = effectiveDirection(db, { ...scope, project_id: independent.project_id }, now())!;

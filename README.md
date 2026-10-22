@@ -138,18 +138,35 @@ against an independently selected numeric basis, use the documented
 [fixed workflow-cost operator handler](docs/WORKFLOW_COST_FIXED_VERIFICATION_V1.md).
 It persists source-bound results without Codex, model or provider execution.
 
-In local project settings, **Find saved projects** includes registered projects
-missing from recents and projects created by an authorized agent. **Load more
-saved projects** continues the list; refresh includes newly registered projects.
+In local project settings, **Find saved projects** shows **Working projects**,
+including projects missing from recents and projects created by an authorized
+agent. **Load more saved projects** continues the list; refresh includes later changes.
 Opening uses the same project identity and saved name. **Remove from recents**
 removes a shortcut and preserves project data and files; find it again here.
 Unavailable folders use the existing **Locate folder** review and recovery flow.
 This is local organization, separate from Web Planning's explicit erasure.
 
+Use **Archive project** and confirm the named project to set it aside. It leaves
+the working list and recents; if it was current, the displayed selection clears.
+Another current project stays selected. **Archived projects** finds it again,
+including when its folder is missing. **Unarchive project** returns it to the
+working list; then use **Make current and open** or the existing **Locate folder**
+flow to return to the same saved work. Reading an old project link does not
+unarchive it. An unconfirmed action reads saved state; refresh management before
+another action instead of repeating the old request.
+
+Archive retains identity, root binding, files, work, history and unfinished
+obligations. It does not pause direction, stop workers, revoke access, complete
+work or free history capacity. Classification survives restart and supported
+native backup/restore; backups still do not copy project files. Portable v0.1
+does not transfer this local organization choice: a fresh import starts working,
+and exact replay preserves the destination's existing choice. Existing export
+eligibility is unchanged.
+
 Authenticated local project-direction clients can read
 `GET /api/vnext/agent/project-direction` without a project ID to rediscover only
 projects readable under that capability. The complete bounded response includes
-current direction, permission, sequence and remaining mutation budget. Reading
+current direction, local organization, permission, sequence and remaining mutation budget. Reading
 does not change browser focus or recents, consume a mutation, renew credentials,
 or grant execution. Continue through the existing permitted operations; expiry
 or revocation requires separately authorized fresh authentication.
@@ -346,6 +363,11 @@ the [explicit late-review path](docs/EXECUTION_CHOICE_USAGE.md#explicit-late-rev
 retains the original answer and basis. Inspect it against fresh current work,
 record selective use or non-use, then preview and explicitly save current edits.
 Receipt alone never applies historical material; default reply/use stays current-only.
+
+A configured contributor can [inspect its exact review's status](docs/EXECUTION_CHOICE_USAGE.md#contributor-status-after-the-origin-advances-1506)
+with `augnes_get_review_status`, including after the origin advances. The saved
+response and authored current-use reasoning match its existing reviewer list;
+inspection grants no material-read witness, origin revision or execution authority.
 
 `OPENAI_API_KEY` is optional. Supported paths retain deterministic local
 fallbacks without it. A locally installed and authenticated Codex CLI with App

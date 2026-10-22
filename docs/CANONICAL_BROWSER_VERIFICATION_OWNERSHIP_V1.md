@@ -185,6 +185,34 @@ Historical verification results and timing causes are not revised by this split.
 
 ## Resource and lifecycle contract
 
+### Native-host requested viewport fit
+
+Native-host revision/editor, retained-source, new-task preparation, result
+comparison/preparation and saved-successor checks use one synchronous geometry
+sample through `scripts/operator-native-viewport-fit.mjs`. Requested inner width
+and height, device scale factor 1 and unzoomed visual scale establish the CSS
+viewport before fit is claimed. Document client dimensions may exclude
+scrollbars; visual dimensions are floating CSS pixels and must round to those
+integer client dimensions. Host outer-window and screen dimensions are not CSS
+viewport identity. Missing, invalid or contradictory required dimensions fail.
+
+The document must fit its client width and requested width with the existing
+one-CSS-pixel allowance. Failures distinguish measurement validity, requested
+viewport mismatch and document overflow, retaining the first immutable sample
+in a closed numeric diagnostic. No fit polling, frame retry or implicit viewport
+correction occurs. In particular, requested/client 390 with inner/scroll 739
+cannot pass even though the former innerWidth-only predicate returns true.
+Numeric controls preserve that exact regression. Real Browser controls in the
+native child prove fitting content, wrong-but-fitting actual viewport refusal,
+persistent overflow refusal and preservation of the first failure after a
+separate restored-fitting control. They leave no DOM or persisted work changes.
+
+Selected-source comparison text may contain long source/revision identifiers.
+The editor's selected-source panel permits wrapping within those identifiers;
+it preserves the complete text and prevents intrinsic grid sizing from widening
+the document. The saved-successor Browser flow checks unchanged complete source
+text at 390/768/1440 before its normal explicit save and fresh read.
+
 Every Browser child independently owns:
 
 - an immutable fixture copy and writable database;
