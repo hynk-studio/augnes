@@ -167,6 +167,77 @@ discovery, installed adoption or full W1/W2. No new consumer/model/provider stud
 is performed. The fixed workflow-cost distribution and #1493 observation are not
 rerun or used as this fixture.
 
+## Select an OperatingProfile step for a manual request (#1523)
+
+After choosing the manual alternative, optionally add this member to the ordinary
+`participation` object:
+
+```json
+{"operating_profile":{"json":"<complete original JSON text>","step_id":"inspect"}}
+```
+
+Use the exact raw JSON text, not an object parsed by a caller that would discard
+duplicate keys or ambiguous numeric spellings. The existing validator checks the
+whole profile and the selected step. Actual current work and the deliberately
+selected `material_refs` still own the request's task and material basis. Profile
+input IDs and source claims remain separate declarations; a profile goal does
+not replace current work. An unavailable or missing input may be precisely what
+the selected step requests. Roles, executor/principal labels, declared budgets
+and requested permissions do not establish capability, identity or authority.
+
+This consumer supports a complete **canonical profile of at most 2,000 Unicode
+characters**, after the standalone parser's unchanged 65,536-byte raw input
+check. Canonicalization sorts object keys and removes JSON formatting; it retains
+every field, string and array entry. Large standalone profiles therefore may be
+valid but unsupported here. No content is shortened, split, replaced with a
+digest or fetched from a locator. Request, original return and decision envelopes
+must each fit their own ordinary note budget as well.
+
+Inspect the complete `delivery.operating_profile`, selected step and permitted
+material. Profile fields can themselves contain source claims or private text;
+review all those bytes before relay. The returned `revision_arguments` adds both
+the request and the complete imported/unverified profile in one ordinary
+preview/save transaction, reusing an already selected exact canonical profile
+when available. There must be room within eight selected notes. A refusal never
+evicts an unrelated note. Explicitly save, receive the original, produce checked
+downstream material, assess, and prepare/save feedback using the same manual
+sequence above. Preparation does not save, send, run or grant anything.
+
+For capacity, ordinary explicit deselection can retain completed request/return
+or profile notes in history. Keep an exact request/return/decision/feedback link
+selected so the normal reader can recover the chain. In a fresh process, Resume
+and call execution-choice `read`: `manual_contribution.operating_profile`
+contains the **entire exact profile**, selected step, fingerprint, source binding
+and current/historical selection, alongside the original request/return,
+decision, downstream bytes and unfinished obligations. It performs one exact
+bounded retained lookup for that profile when needed. Missing or ambiguous
+history refuses; there is no implicit latest-file substitution or broader search.
+Changed profile/step selection requires a new explicit request and preview, with
+prior notes preserved. Changed work/task/material/decision basis keeps the
+existing deliberate reassessment and stale-save rules.
+
+The compact [manifest example](../examples/operating-profiles/manual-manifest.json)
+retains legitimate-automation and credential-misuse explanations while requesting
+the missing manifest. The controlled test uses its returned job/command to make a
+checked recommendation, declines disabling advice, and leaves actor identity and
+approval unresolved. A separate process reconstructs the complete original
+profile from ordinary history and creates an actual next-check checklist. The
+test also exercises the full 2,000-character profile and eight-note boundaries,
+atomic rollback, changed-profile preview refusal, stale material/decision saves,
+an identical-text different task, and deliberate deferral. It establishes
+mechanical persistence and use, not real external participation or model insight.
+
+```sh
+node scripts/test-operating-profile-contribution-input.mjs
+node --import tsx scripts/test-operating-profile-contribution.ts
+# Optional new absolute directory retains synthetic originals and fresh output:
+node --import tsx scripts/test-operating-profile-contribution.ts /absolute/new/output
+```
+
+Direct work, existing assets, non-use, configured review and manual requests
+without a profile keep their existing paths. Same-task ordinary re-entry is the
+continuation boundary; cross-project WorkHandoff eligibility is unchanged.
+
 ## One result-informed next arrangement (#1498)
 
 After assessing a returned review, use `action: reconsider` with a fresh

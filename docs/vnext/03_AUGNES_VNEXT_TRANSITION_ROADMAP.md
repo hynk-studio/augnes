@@ -112,6 +112,24 @@ to its PR return. Independent external participation, semantic understanding,
 comparative benefit, installed adoption and full W1/W2 remain unestablished. #1493
 and its observation allocation are separate; this increment adds no model study.
 
+The #1523 source increment optionally binds one validated OperatingProfile step
+to that same manual request. It reuses full selected-source reading, the ordinary
+request/return/decision/feedback notes, atomic preview/save and exact retained
+lookup. The complete canonical profile must fit one 2,000-character note; the
+standalone 65,536-byte domain is deliberately larger. Capacity refusal preserves
+all existing notes. No profile store, capability grant or execution owner is added.
+The registered `scripts/test-operating-profile-contribution.ts` exercises a
+2,000-character profile, a selected missing-manifest request, original return,
+checked recommendation that declines action advice, separate decision/feedback,
+and a fresh process producing an identity-check checklist from persisted sources.
+Original profile context and both explanations remain available after deliberate
+deselection. Malformed input, changed profile/material/task/decision basis,
+atomic save, disclosure and capacity boundaries have focused checks. These are
+controlled synthetic mechanism observations, not independent participation,
+live defense, model understanding or comparative usefulness. Exact-candidate
+qualification and independent review belong to the PR return; installed adoption,
+#1453's frozen study and historical preservation dispositions remain separate.
+
 PR #1450's qualification correction tightens only the disposable native-service
 fixture's readiness and cleanup. After its deliberate child-binding substitution,
 it observes the manager's negative verification and waits for a post-restoration
