@@ -1798,7 +1798,7 @@ async function main() {
   await db.backup(path.join(temporary, "migration-source.db"));
   let older = new Database(path.join(temporary, "migration-source.db"));
   older.exec(
-    "DROP TABLE vnext_external_shares;DROP TABLE vnext_external_records;DROP TABLE vnext_external_materials;DROP TABLE vnext_external_envelopes;",
+    "DROP TRIGGER trg_vnext_project_organization_initialize; DROP TABLE vnext_project_organization; DROP TABLE vnext_external_shares;DROP TABLE vnext_external_records;DROP TABLE vnext_external_materials;DROP TABLE vnext_external_envelopes;",
   );
   assert.equal(
     structuralSchemaContractSignature(older),

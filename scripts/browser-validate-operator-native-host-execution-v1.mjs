@@ -23,6 +23,7 @@ import { runOperatorExecutionBrowserChildV1 } from "./operator-execution-browser
 import { admitPersistedHostTaskContextPacketV01 } from "../lib/vnext/runtime/direct-native-host-round-trip.ts";
 import { projectVNextOperatorPilotContinuityV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity.ts";
 import { readProjectWorkInitializationV01 } from "../lib/vnext/runtime/project-work-initialization.ts";
+import { assertNativeViewportFit as assertMeasuredNativeViewportFit } from "./operator-native-viewport-fit.mjs";
 
 const require = createRequire(import.meta.url);
 const Database = require("better-sqlite3");
@@ -33,6 +34,70 @@ assert(
   "unsupported operator native-host execution scope",
 );
 const LIVE_TIMEOUT_MS = 90_000;
+
+async function assertNativeViewportFit(lifecycle, requested, label) {
+  try {
+    return await assertMeasuredNativeViewportFit(lifecycle, requested, label);
+  } catch (error) {
+    if (!label.startsWith("control-")) {
+      // Secondary geometry cannot replace the already retained first verdict.
+      // No text, attributes, source locators or page contents are emitted.
+      const overflow = await lifecycle.evaluateJson(`(() => {
+        const boundary=document.documentElement.clientWidth;
+        const elements=[...document.body.querySelectorAll('*')];
+        if(elements.length>5000)return {error:'element_inventory_bound',element_count:elements.length};
+        const rows=[];
+        for(let index=0;index<elements.length;index++){
+          const el=elements[index], r=el.getBoundingClientRect();
+          if(!r.width || (r.left>=-1&&r.right<=boundary+1))continue;
+          const s=getComputedStyle(el);
+          rows.push({index,tag:el.tagName,classes:String(el.className).slice(0,256),parent_index:elements.indexOf(el.parentElement),left:r.left,right:r.right,width:r.width,scroll_width:el.scrollWidth,client_width:el.clientWidth,display:s.display,position:s.position,min_width:s.minWidth,width_style:s.width,max_width:s.maxWidth,overflow_x:s.overflowX,white_space:s.whiteSpace,overflow_wrap:s.overflowWrap,grid_columns:s.gridTemplateColumns,box_sizing:s.boxSizing});
+        }
+        return {boundary,element_count:elements.length,overflow_count:rows.length,selected:rows.slice(0,40),omitted:Math.max(0,rows.length-40)};
+      })()`).catch(() => ({ error: "secondary_geometry_unavailable" }));
+      console.log(JSON.stringify({ native_viewport_overflow: { checkpoint: label, geometry: overflow } }));
+    }
+    throw error;
+  }
+}
+
+async function assertNativeViewportControls(lifecycle) {
+  const actualRequest = { width: 1440, height: 1000, mobile: false, deviceScaleFactor: 1 };
+  await lifecycle.cdp().send("Emulation.setDeviceMetricsOverride", actualRequest);
+  await assertNativeViewportFit(lifecycle, actualRequest, "control-fitting");
+  const reject = async (request, checkpoint, expected) => {
+    let failure;
+    await assert.rejects(assertNativeViewportFit(lifecycle, request, checkpoint), error => {
+      failure = error;
+      return error.evidence?.status === expected;
+    });
+    return failure;
+  };
+  const wrongViewport = await reject({ ...actualRequest, width: 768, height: 1024 },
+    "control-wrong-viewport", "viewport_mismatch");
+  assert.equal(wrongViewport.evidence.original_predicate, true,
+    "The old predicate accepts fitting content at the wrong actual viewport");
+  assert.equal(await lifecycle.evaluateBoolean(`(() => {
+    if(document.querySelector('#native-viewport-overflow-control')) return false;
+    const box=document.createElement('div');box.id='native-viewport-overflow-control';
+    box.style.cssText='position:absolute;left:0;top:0;width:1680px;height:1px;pointer-events:none';
+    document.body.appendChild(box);return true;
+  })()`), true);
+  let firstOverflow;
+  try {
+    firstOverflow = await reject(actualRequest, "control-persistent-overflow-first", "document_overflow");
+    await reject(actualRequest, "control-persistent-overflow-second", "document_overflow");
+  } finally {
+    await lifecycle.evaluateBoolean(`(() => { document.querySelector('#native-viewport-overflow-control')?.remove();return true; })()`);
+  }
+  await assertNativeViewportFit(lifecycle, actualRequest, "control-restored-fitting");
+  assert.equal(firstOverflow.evidence.status, "document_overflow");
+  assert(firstOverflow.evidence.actual.scroll_width > actualRequest.width + 1);
+  assert.equal(wrongViewport.evidence.status, "viewport_mismatch");
+  console.log(JSON.stringify({ native_viewport_browser_controls: "pass",
+    wrong_viewport_old_predicate: true, wrong_viewport_rejected: true,
+    persistent_overflow_rejected_twice: true, first_failure_retained_after_fit: true }));
+}
 
 await runOperatorExecutionBrowserChildV1({
   child_id: CHILD_ID,
@@ -156,6 +221,9 @@ await runOperatorExecutionBrowserChildV1({
       });
       result.first_work_setup_state = true;
       completeDetailedField("first_work_setup_state");
+      await assertNativeViewportControls(lifecycle);
+      assert.deepEqual(readFirstWorkState(fixture.writable_database_path, firstWorkProjectId), setupState,
+        "Viewport controls create no work or execution records");
       await lifecycle.waitForCondition(
         `document.activeElement?.id === 'first-work-goal'`,
         "first-work goal focus",
@@ -630,6 +698,7 @@ await runOperatorExecutionBrowserChildV1({
           deviceScaleFactor: 1,
           mobile: width < 600,
         });
+        await assertNativeViewportFit(lifecycle, { width, height, mobile: width < 600, deviceScaleFactor: 1 }, "revision-summary");
         const summaryMetrics = await lifecycle.evaluateJson(`(() => {
           const revise = document.querySelector('[data-work-revision-action="open"]');
           const start = document.querySelector('[data-delegated-work-action="start"]');
@@ -666,6 +735,7 @@ await runOperatorExecutionBrowserChildV1({
         `document.activeElement?.id === 'work-revision-goal' && document.querySelector('[data-delegated-work-action="start"]') === null`,
         "revision editor focus",
       );
+      await lifecycle.evaluateBoolean(`(() => { document.querySelector('[data-selected-work-sources]').open = true; return true; })()`);
       for (const [width, height] of revisionViewports) {
         await lifecycle.cdp().send("Emulation.setDeviceMetricsOverride", {
           width,
@@ -673,21 +743,19 @@ await runOperatorExecutionBrowserChildV1({
           deviceScaleFactor: 1,
           mobile: width < 600,
         });
+        await assertNativeViewportFit(lifecycle, { width, height, mobile: width < 600, deviceScaleFactor: 1 }, "revision-editor");
         const editorMetrics = await lifecycle.evaluateJson(`(() => {
-          document.querySelector('[data-selected-work-sources]').open = true;
           const save = document.querySelector('[data-work-revision-action="save"]');
           const cancel = document.querySelector('[data-work-revision-action="cancel"]');
           const primary = [...document.querySelectorAll('[data-augnes-primary-action]')]
             .filter((entry) => entry.getBoundingClientRect().width > 0);
           return {
-            no_overflow: document.documentElement.scrollWidth <= window.innerWidth + 1,
             save_height: save?.getBoundingClientRect().height ?? 0,
             cancel_height: cancel?.getBoundingClientRect().height ?? 0,
             primary_count: primary.length,
             keyboard_order: Boolean(save && cancel && (save.compareDocumentPosition(cancel) & Node.DOCUMENT_POSITION_FOLLOWING))
           };
         })()`);
-        assert.equal(editorMetrics.no_overflow, true);
         assert.equal(editorMetrics.save_height >= 44, true);
         assert.equal(editorMetrics.cancel_height >= 44, true);
         assert.equal(editorMetrics.primary_count, 1);
@@ -795,7 +863,8 @@ await runOperatorExecutionBrowserChildV1({
         assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-selected-source-action="exclude"]') === null`), true);
         for (const [width, height] of revisionViewports) {
           await lifecycle.cdp().send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: width < 600 });
-          assert.equal(await lifecycle.evaluateBoolean(`document.documentElement.scrollWidth <= window.innerWidth + 1 && document.querySelector('[data-retained-source-results]')?.textContent.includes(${JSON.stringify(selectedCorrection)}) === true`), true);
+          await assertNativeViewportFit(lifecycle, { width, height, mobile: width < 600, deviceScaleFactor: 1 }, "retained-source-editor");
+          assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-retained-source-results]')?.textContent.includes(${JSON.stringify(selectedCorrection)}) === true`), true);
         }
         const staleLookup = await lifecycle.evaluateJson(`(async () => {
           const old = ${JSON.stringify(staleInitialization)};
@@ -872,7 +941,8 @@ await runOperatorExecutionBrowserChildV1({
       assert.deepEqual(readFirstWorkState(fixture.writable_database_path, firstWorkProjectId), beforeNewPreparation, "preview changes no preparation");
       for (const [width, height] of [[390, 844], [768, 1024], [1440, 1000]]) {
         await lifecycle.cdp().send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: width < 600 });
-        assert.equal(await lifecycle.evaluateBoolean(`document.documentElement.scrollWidth <= window.innerWidth + 1 && document.querySelector('[data-new-work-preview]').textContent.includes('not marked complete')`), true);
+        await assertNativeViewportFit(lifecycle, { width, height, mobile: width < 600, deviceScaleFactor: 1 }, "new-task-preparation");
+        assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-new-work-preview]').textContent.includes('not marked complete')`), true);
       }
       await clickSelector(lifecycle, '[data-new-work-action="save"]');
       await lifecycle.waitForCondition(`document.querySelector('[data-previous-preparation]') !== null && document.querySelector('[data-current-work-definition-phase="pre_execution"]') !== null`, "new task saved without execution");
@@ -2048,7 +2118,8 @@ await runOperatorExecutionBrowserChildV1({
         await lifecycle.waitForCondition(`document.querySelector('[data-revision-after]')?.textContent === ${JSON.stringify(postResultCorrection)}`, "exact revised selection restores comparison");
         for (const [width, height] of [[390, 844], [768, 1024], [1440, 1000]]) {
           await lifecycle.cdp().send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
-          assert.equal(await lifecycle.evaluateBoolean(`document.documentElement.scrollWidth <= innerWidth + 1 && document.querySelector('[data-revision-after]').scrollWidth <= document.querySelector('[data-revision-after]').clientWidth + 1`), true, `revision comparison fits ${width}px`);
+          await assertNativeViewportFit(lifecycle, { width, height, mobile: false, deviceScaleFactor: 1 }, "revision-comparison");
+          assert.equal(await lifecycle.evaluateBoolean(`document.querySelector('[data-revision-after]').scrollWidth <= document.querySelector('[data-revision-after]').clientWidth + 1`), true, `revision comparison fits ${width}px`);
         }
         assert(beforeSelection.equals(db.serialize()), "Reading and selecting the comparison create no decision, Transition or other record");
         const eligibleForm = '[data-vnext-candidate-accept-eligible="true"] [data-vnext-operator-decision-form]';
@@ -2154,7 +2225,7 @@ await runOperatorExecutionBrowserChildV1({
         await lifecycle.waitForCondition(`document.querySelector('[data-result-work-preview]')?.textContent.includes(${JSON.stringify(nextJudgment)})`, "revised preview retains the correction");
         for (const [width, height] of [[390, 844], [768, 1024], [1440, 1000]]) {
           await lifecycle.cdp().send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: width < 600 });
-          assert.equal(await lifecycle.evaluateBoolean(`document.documentElement.scrollWidth <= window.innerWidth + 1`), true, `result preparation fits ${width}px`);
+          await assertNativeViewportFit(lifecycle, { width, height, mobile: width < 600, deviceScaleFactor: 1 }, "result-preparation");
         }
         assert.deepEqual(readFirstWorkState(fixture.writable_database_path, projectId), beforeNextWork);
         await clickSelector(lifecycle, '[data-result-work-action="save"]');
@@ -2198,9 +2269,13 @@ await runOperatorExecutionBrowserChildV1({
         await clickSelector(lifecycle, '[data-selected-source-action="add"]');
         await clickSelector(lifecycle, '[data-selected-source-action="compare"]');
         await lifecycle.waitForCondition(`document.querySelector('[data-selected-work-sources] [role="status"]')?.textContent.includes('3 selected')`, "saved B source revision compared");
+        const savedSourceText = await lifecycle.evaluateString(`document.querySelector('[data-selected-work-sources]').textContent`);
+        assert(savedSourceText.includes(savedCorrection), "The complete selected correction remains visible");
         for (const [width, height] of [[390, 844], [768, 1024], [1440, 1000]]) {
           await lifecycle.cdp().send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: width < 600 });
-          assert.equal(await lifecycle.evaluateBoolean(`document.documentElement.scrollWidth <= window.innerWidth + 1`), true, `saved successor editor fits ${width}px`);
+          await assertNativeViewportFit(lifecycle, { width, height, mobile: width < 600, deviceScaleFactor: 1 }, "saved-successor-editor");
+          assert.equal(await lifecycle.evaluateString(`document.querySelector('[data-selected-work-sources]').textContent`), savedSourceText,
+            "Responsive source rendering wraps the complete content without dropping text");
         }
         assert.deepEqual(historyRows(), savedBRows, "Editing and comparison do not append history");
         await clickSelector(lifecycle, '[data-augnes-primary-action="save-work-revision"]');

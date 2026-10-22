@@ -67,6 +67,7 @@ export interface LocalProjectInspectionV01 {
 }
 
 export interface RecentProjectEntryV01 {
+  organization: ProjectOrganizationV01;
   recent_project_entry_version: typeof RECENT_PROJECT_ENTRY_VERSION_V01;
   project: ProjectIdentityV01;
   local_root: LocalProjectRootRefV01;
@@ -81,10 +82,17 @@ export interface RecentProjectEntryV01 {
   repository_execution_decision: RepositoryExecutionDecisionRequestProjectionV01 | null;
 }
 
+export interface ProjectOrganizationV01 {
+  state: "working" | "archived";
+  revision: string;
+}
+export type ProjectOrganizationScopeV01 = "all" | "working" | "archived";
+
 export type ProjectManagementEntryV02 = Omit<RecentProjectEntryV01,
   "recent_project_entry_version" | "created_at" | "last_opened_at">;
 export type RegisteredProjectEntryV02 = ProjectManagementEntryV02 & { in_recents: boolean };
 export interface RegisteredProjectPageV02 {
+  organization_scope: ProjectOrganizationScopeV01;
   projects: RegisteredProjectEntryV02[];
   next_cursor: string | null;
   complete: boolean;
@@ -150,6 +158,8 @@ export type ProjectOnboardingErrorCodeV01 =
   | "project_scope_conflict"
   | "project_external_ref_conflict"
   | "active_selection_conflict"
+  | "project_organization_conflict"
+  | "project_archived"
   | "project_discovery_incomplete"
   | "project_discovery_changed"
   | "project_not_recent"

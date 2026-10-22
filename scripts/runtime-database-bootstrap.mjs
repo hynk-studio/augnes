@@ -22,7 +22,7 @@ import {
 import path from "node:path";
 
 import Database from "better-sqlite3";
-import { invalidateRestoredProjectSelectionsV02 } from "../lib/vnext/persistence/project-lifecycle-schema.mjs";
+import { invalidateRestoredProjectSelectionsV02, invalidateRestoredProjectOrganizationV01 } from "../lib/vnext/persistence/project-lifecycle-schema.mjs";
 import { invalidateRestoredReviewSubscriptions } from "../lib/vnext/persistence/review-schema.mjs";
 
 import {
@@ -1311,6 +1311,7 @@ export async function restoreRuntimeDatabase({
       restoredSelections.pragma("journal_mode = DELETE");
       restoredSelections.pragma("foreign_keys = ON");
       invalidateRestoredProjectSelectionsV02(restoredSelections);
+      invalidateRestoredProjectOrganizationV01(restoredSelections);
       invalidateRestoredReviewSubscriptions(restoredSelections);
       suspendExternalEnvelopes(restoredSelections);
     });
@@ -1927,6 +1928,10 @@ function verifyProjectRegistryBindings(database) {
   ) {
     return;
   }
+  const missingOrganization = databaseTableExists(database, "vnext_project_organization") ? database.prepare(`SELECT count(*) AS count FROM vnext_project_identities p
+    LEFT JOIN vnext_project_organization o USING(workspace_id, project_id)
+    WHERE o.project_id IS NULL`).get().count : 0;
+  if (missingOrganization !== 0) throw new PublicDatabaseBootstrapError("database_reader_incompatible");
   const missingActiveProject = database
     .prepare(
       `SELECT COUNT(*) AS count
