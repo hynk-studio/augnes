@@ -119,7 +119,7 @@ export function SelectedWorkSourceEditor({ composerDraft, onAccessRefused, onRef
     } finally { setComparing(false); }
   }
 
-  return <details className={styles.panel} data-selected-work-sources>
+  return <details className={`${styles.panel} ${styles.selectedWorkSources}`} data-selected-work-sources>
     <summary>Selected source notes for this work</summary>
     <p className={styles.copy}>Keep a selected conversation excerpt, result or history note with its source and conditions. Comparing saves nothing. {resultBinding ? "Review the previous judgment, what you retain or change and why, applicability conditions, and any unresolved question or revisit condition. Preparation carries only your selected notes." : "Save revision includes these notes as context for preparing the next work. You can save notes without changing the work definition or setting up execution."}</p>
     <p className={styles.muted}>Up to eight notes; 2,000 characters per note. Notes and source details must fit the combined context budget. Oversized selections are refused, never silently clipped. Include the source revision and meaningful chronology. Original source availability is not verified.</p>
