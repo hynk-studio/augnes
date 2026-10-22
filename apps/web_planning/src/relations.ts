@@ -74,9 +74,10 @@ function incorporationIntent(input:any) {
   return {source:sourceRef(input.source),dispositions:dispositions(input.dispositions),rationale:boundedText(input.rationale,true),next_question:boundedText(input.next_question),...("target_selection" in input?{target_selection:targetSelection(input.target_selection)}:{}),...("file_selection" in input?{file_selection:fileSelection(input.file_selection)}:{})};
 }
 function branchPayload(source:Revision,reason:string):Payload {
-  return {definition:source.definition,sources:source.sources,relations:{
+  const fileCopy=source.relations?.file_materials===undefined?{}:{file_materials:(source.files??[]).map(file=>({file,kind:"inherited" as const,from:reference(source)}))};
+  return {definition:source.definition,sources:source.sources,...(source.relations?.file_materials!==undefined?{files:source.files??[]}:{}),relations:{
     origin:{source:reference(source),reason,selection:source.sources.map(s=>s.source_ref!),starting_review:source.relations?.review??source.relations?.origin?.starting_review??null},
-    materials:relationsOf(source).materials.map(m=>({...m,kind:"inherited",from:{...reference(source),source_ref:m.source_ref}})),review:null}};
+    materials:relationsOf(source).materials.map(m=>({...m,kind:"inherited",from:{...reference(source),source_ref:m.source_ref}})),review:null,...fileCopy}};
 }
 function incorporationPayload(target:Revision,source:Revision,intent:ReturnType<typeof incorporationIntent>):Payload {
   if("selection" in intent)fail("file_branch_selection_unsupported");
