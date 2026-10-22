@@ -38,7 +38,8 @@ export async function ordinaryFileIncorporation(s:Store,target:Revision,source:R
   const bodies:FileBody[]=available.filter(b=>incoming.some(f=>f.digest===b.digest));
   const relations={...payload.relations!,file_materials:materials,review:{...payload.relations!.review!,file_selection:selection}};
   const prior=target.relations?.review;
-  if(prior&&canonical(files)===canonical(target.files??[])&&canonical(materials)===canonical(fileMaterials(target))&&
+  if(prior&&canonical(payload.sources)===canonical(target.sources)&&canonical(relations.materials)===canonical(target.relations!.materials)&&
+    canonical(files)===canonical(target.files??[])&&canonical(materials)===canonical(fileMaterials(target))&&
     canonical({...prior,target:relations.review.target})===canonical(relations.review))relations.review=prior as ComparisonReview & {file_selection:FileSelection};
   return {payload:{...payload,files,relations},bodies};
 }

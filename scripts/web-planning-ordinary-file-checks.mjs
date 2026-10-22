@@ -71,6 +71,43 @@ export async function checkOrdinaryFiles({start,client,newWork,save,passed,open}
  const same=await ok(preview(target,alternate,intent(target,alternate)));target=(await ok(commit(same))).saved;
  const noUse=await ok(preview(target,alternate,intent(target,alternate)));assert.equal(noUse.noop,true);assert.equal((await ok(commit(noUse))).saved.fingerprint,target.fingerprint);
  passed('ordinary files: complete identities, zero-note branch, independent selected bodies, explicit collision/replacement, retained history and notes, foreign/altered refusal, atomic rollback and exact lost-ack/no-op recovery');
+ // A changed note selection is a new judgment even when every file choice stays the same.
+ const mixedOriginal=await create([upload('context.txt','Exact file stays retained.\n')],[{...explanation,text:'Optional note A.'}]);
+ const mixedBranch=(await ok(commit(await branch(mixedOriginal)))).saved;
+ const retainedReview=await ok(preview(mixedOriginal,mixedBranch));assert.equal(retainedReview.noop,false);
+ const mixedReviewed=(await ok(commit(retainedReview))).saved;assert.equal(mixedReviewed.revision,2);
+ assert.deepEqual(mixedReviewed.relations.review.target,reference(mixedOriginal));
+ const changedNotes=await ok(preview(mixedReviewed,mixedBranch,{...intent(mixedReviewed,mixedBranch),target_selection:[]}));
+ assert.equal(changedNotes.noop,false);assert.deepEqual(changedNotes.payload.sources,[]);assert.deepEqual(changedNotes.payload.relations.materials,[]);
+ assert.deepEqual(changedNotes.payload.files,mixedReviewed.files);assert.deepEqual(changedNotes.payload.relations.file_materials,mixedReviewed.relations.file_materials);
+ assert.deepEqual(changedNotes.payload.relations.review.target,reference(mixedReviewed),'note deselection must record the immediately reviewed target, not reuse the earlier file comparison');
+ const targetText=r=>`Target before incorporation: Work ${r.work_id} · revision ${r.revision} · ${r.fingerprint}`;
+ assert(changedNotes.html.includes(targetText(mixedReviewed)));assert(!changedNotes.html.includes(targetText(mixedOriginal)));
+ assert.equal((await ok(resolve(changedNotes))).outcome,'unknown');
+ const mixedResult=(await ok(commit(changedNotes))).saved;assert.equal(mixedResult.revision,3);
+ assert.deepEqual(mixedResult.sources,[]);assert.deepEqual(mixedResult.files,mixedReviewed.files);
+ assert.deepEqual(mixedResult.relations.review.target,reference(mixedReviewed));
+ assert.equal((await ok(resolve(changedNotes))).saved.fingerprint,mixedResult.fingerprint);
+ assert.equal((await ok(commit(changedNotes))).saved.fingerprint,mixedResult.fingerprint);
+ await reopen();assert.deepEqual(await read(mixedResult),mixedResult);
+ const mixedExport=await exportOf(mixedResult),mixedReading=await ok(c.request(route(mixedResult,'reading-export')));
+ assert.deepEqual(mixedExport.revisions,[mixedOriginal,mixedReviewed,mixedResult]);
+ assert.deepEqual(mixedExport.revisions[2].relations.review.target,reference(mixedReviewed));validateFileExport(fixtureScope,mixedExport);
+ const resultReading=mixedReading.split('<h2>Revision 3 ·')[1];assert(resultReading.includes(targetText(mixedReviewed)));assert(!resultReading.includes(targetText(mixedOriginal)));
+ const unchangedRows=await rows(),unchanged=await ok(preview(mixedResult,mixedBranch));
+ assert.equal(unchanged.noop,true);assert.deepEqual(unchanged.payload.relations.review,mixedResult.relations.review);
+ for(const response of [await ok(resolve(unchanged)),await ok(commit(unchanged)),await ok(resolve(unchanged))]){
+   assert.equal(response.noop,true);assert.equal(response.saved.fingerprint,mixedResult.fingerprint);
+ }
+ assert.deepEqual(await exportOf(mixedResult),mixedExport);assert.deepEqual(await rows(),unchangedRows);
+ const requiredWork=await newWork(c,mixedOriginal.definition,[{...explanation,text:'Required condition.'},{...explanation,text:'Reading with required context.'}]);
+ requiredWork.input.files=[upload('context.txt','Exact file stays retained.\n')];requiredWork.input.material_edits=[{dependencies:[],adapts:null},{dependencies:[0],adapts:null}];
+ const required=(await ok(save(c,requiredWork))).saved,requiredBranch=(await ok(commit(await branch(required)))).saved;
+ const requiredBefore=await exportOf(required),requiredRows=await rows();
+ assert.equal((await preview(required,requiredBranch,{...intent(required,requiredBranch),target_selection:[required.sources.find(s=>s.bounded_summary==='Reading with required context.').source_ref]})).data.error,'required_material_missing');
+ assert.deepEqual(await exportOf(required),requiredBefore);assert.deepEqual(await rows(),requiredRows);
+ console.log(JSON.stringify({ordinary_file_note_review_evidence:{original:mixedExport,alternate:await exportOf(mixedBranch),preview_html:changedNotes.html,reading_html:mixedReading,reviewed_target:reference(mixedReviewed),saved:reference(mixedResult),changed_noop:changedNotes.noop,repeated_noop:unchanged.noop,required_context_refusal:'required_material_missing'}}));
+ passed('ordinary files: changed optional target notes record the immediate review target in preview, save, fresh process, export and readable history; exact replay and genuine no-op outcome resolution preserve rows; required context still refuses');
  // Both reviewed heads are gated at actual SQL admission, after all async reads.
  for(const side of ['source','target'])for(const mutation of ['write','erase']){
    let t=await create([upload('keep.txt','keep')]),b=(await ok(commit(await branch(t)))).saved;
