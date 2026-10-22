@@ -1,4 +1,6 @@
 import { directionSelection, fileBranch, fileIncorporation } from "./directions";
+import { hasSceneFile, ordinaryFileBranch, ordinaryFileIncorporation } from "./file-relations";
+import { fileSelection } from "./contract";
 import type { FileBody } from "./files";
 import { assertHistoryBudget, binding, boundedText, canonical, dispositions, exact, fail, FINGERPRINT, hash, headBinding, inspectRelations, makeRevision, normalizePayload, reference, RELATION_BYTES, requestFingerprint, sameBinding, selectedWorkSourceInput, UUID, validateRelations, workRef, type Material, type Payload, type Relations, type Revision, type Scope, type WorkRef } from "./contract";
 import { seal, unseal, type Access } from "./access";
@@ -39,7 +41,7 @@ export function inspectEditedPayload(scope:Scope,payload:Payload,notes:any[],edi
     materials.set(ref,material);
   });
   const result={...payload,relations:{...prior,materials:payload.sources.map(s=>materials.get(s.source_ref!)!)}};
-  const inspected=inspectRelations(result.relations,result,previous?.work_id??"new");
+  const inspected=inspectRelations(result.relations,{...result,files:previous?.files},previous?.work_id??"new");
   return {payload:result,relationBytes:inspected.bytes};
 }
 async function current(s:Store,ref:WorkRef):Promise<Revision[]> {
@@ -68,16 +70,17 @@ function targetSelection(value:unknown):string[] {
 }
 function incorporationIntent(input:any) {
   if("selection" in input){exact(input,"source,selection");return {source:sourceRef(input.source),selection:directionSelection(input.selection)};}
-  exact(input,"source,dispositions,rationale,next_question"+("target_selection" in input?",target_selection":""));
-  return {source:sourceRef(input.source),dispositions:dispositions(input.dispositions),rationale:boundedText(input.rationale,true),next_question:boundedText(input.next_question),...("target_selection" in input?{target_selection:targetSelection(input.target_selection)}:{})};
+  exact(input,"source,dispositions,rationale,next_question"+("target_selection" in input?",target_selection":"")+("file_selection" in input?",file_selection":""));
+  return {source:sourceRef(input.source),dispositions:dispositions(input.dispositions),rationale:boundedText(input.rationale,true),next_question:boundedText(input.next_question),...("target_selection" in input?{target_selection:targetSelection(input.target_selection)}:{}),...("file_selection" in input?{file_selection:fileSelection(input.file_selection)}:{})};
 }
 function branchPayload(source:Revision,reason:string):Payload {
-  return {definition:source.definition,sources:source.sources,relations:{
+  const fileCopy=source.relations?.file_materials===undefined?{}:{file_materials:(source.files??[]).map(file=>({file,kind:"inherited" as const,from:reference(source)}))};
+  return {definition:source.definition,sources:source.sources,...(source.relations?.file_materials!==undefined?{files:source.files??[]}:{}),relations:{
     origin:{source:reference(source),reason,selection:source.sources.map(s=>s.source_ref!),starting_review:source.relations?.review??source.relations?.origin?.starting_review??null},
-    materials:relationsOf(source).materials.map(m=>({...m,kind:"inherited",from:{...reference(source),source_ref:m.source_ref}})),review:null}};
+    materials:relationsOf(source).materials.map(m=>({...m,kind:"inherited",from:{...reference(source),source_ref:m.source_ref}})),review:null,...fileCopy}};
 }
 function incorporationPayload(target:Revision,source:Revision,intent:ReturnType<typeof incorporationIntent>):Payload {
-  if(target.files?.length || source.files?.length || "selection" in intent)fail("file_branch_selection_unsupported");
+  if("selection" in intent)fail("file_branch_selection_unsupported");
   if(canonical(intent.dispositions.map(d=>d.source_ref).sort())!==canonical(source.sources.map(s=>s.source_ref).sort()))fail("incomplete_dispositions");
   const selected=intent.dispositions.filter(d=>d.disposition==="incorporated").map(d=>d.source_ref);
   const currentRefs=target.sources.map(s=>s.source_ref!);
@@ -95,7 +98,7 @@ function incorporationPayload(target:Revision,source:Revision,intent:ReturnType<
   }
   const payload=normalizePayload(target,target.definition,[...entries.values()].map(selectedWorkSourceInput));
   const relations:Relations={...relationsOf(target),materials:payload.sources.map(s=>materials.get(s.source_ref!)!),review:{source:reference(source),target:reference(target),dispositions:intent.dispositions,rationale:intent.rationale,next_question:intent.next_question}};
-  validateRelations(relations,payload,target.work_id); // all represented dependencies must remain selected
+  validateRelations(relations,{...payload,files:target.files},target.work_id); // all represented dependencies must remain selected
   // Repeating the same comparison choices is not another judgment or revision.
   const prior=target.relations?.review;
   if(prior && canonical(payload.sources)===canonical(target.sources) && canonical(relations.materials)===canonical(relationsOf(target).materials) && canonical({...prior,target:relations.review!.target})===canonical(relations.review))relations.review=prior;
@@ -103,7 +106,15 @@ function incorporationPayload(target:Revision,source:Revision,intent:ReturnType<
 }
 async function incorporation(a:Access,target:Revision,source:Revision,intent:ReturnType<typeof incorporationIntent>){
  if("selection" in intent)return fileIncorporation(a,target,source,intent.selection);
- return {payload:incorporationPayload(target,source,intent),bodies:[] as FileBody[]};
+ const payload=incorporationPayload(target,source,intent);
+ if(target.files?.length||source.files?.length||target.relations?.file_materials!==undefined||source.relations?.file_materials!==undefined||intent.file_selection)
+   return ordinaryFileIncorporation(a,target,source,payload,intent.file_selection);
+ return {payload,bodies:[] as FileBody[]};
+}
+async function branchFiles(a:Access,source:Revision,id:string,payload:Payload){
+ if(hasSceneFile(source))return fileBranch(a,source,id,payload);
+ if(source.files?.length||source.relations?.file_materials!==undefined)return ordinaryFileBranch(a,source,payload);
+ return {payload,bodies:[] as FileBody[]};
 }
 interface OperationTicket {
   kind:"branch"|"incorporate"; workspace_id:string; project_id:string; author_ref:string;
@@ -125,11 +136,12 @@ export async function previewOperation(a:Access,id:string,kind:"branch"|"incorpo
     const b=binding(expected);if(!b.fingerprint)fail("invalid_binding");
     source=(await current(a,{work_id:id,revision:b.revision,fingerprint:b.fingerprint})).at(-1)!;
     work_id=crypto.randomUUID();payload=branchPayload(source,(intent as ReturnType<typeof branchIntent>).reason);
-    if(source.files?.length)payload=(await fileBranch(a,source,work_id,payload)).payload;
+    payload=(await branchFiles(a,source,work_id,payload)).payload;
   } else {
     const result=await compare(a,id,expected,(intent as ReturnType<typeof incorporationIntent>).source);
     source=result.branch;target=result.target;payload=(await incorporation(a,target,source,intent as ReturnType<typeof incorporationIntent>)).payload;
   }
+  if(payload.relations)validateRelations(payload.relations,payload,work_id);
   const t:OperationTicket={kind,workspace_id:a.workspace_id,project_id:a.project_id,author_ref:a.author_ref,work_id,request_key:crypto.randomUUID(),expected:headBinding(target),source:reference(source),intent_fingerprint:hash(canonical(intent)),request_fingerprint:"",expires:Date.now()+86_400_000};
   t.request_fingerprint=requestFingerprint(a,work_id,t.expected,t.request_key,payload);
   if(!await headsCurrent(a,reference(target??source),reference(source)))fail("refresh_required",409);
@@ -165,7 +177,7 @@ export async function saveOperation(a:Access,id:string,value:unknown,input:unkno
   if(t.kind==="branch") {
     const source=(await current(a,t.source)).at(-1)!;
     payload=branchPayload(source,(intent as ReturnType<typeof branchIntent>).reason);
-    if(source.files?.length)({payload,bodies}=await fileBranch(a,source,id,payload));
+    ({payload,bodies}=await branchFiles(a,source,id,payload));
   } else {
     const {target,branch}=await compare(a,id,t.expected,t.source);
     ({payload,bodies}=await incorporation(a,target,branch,intent as ReturnType<typeof incorporationIntent>));

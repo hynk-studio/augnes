@@ -1,4 +1,4 @@
-import { FILE_FORMAT, FILE_COMPATIBILITY, fileManifest, historyFiles, type FileEntry } from "./files";
+import { FILE_FORMAT, FILE_COMPATIBILITY, FILE_RELATION_FORMAT, FILE_RELATION_COMPATIBILITY, fileManifest, historyFiles, type FileEntry } from "./files";
 import { normalizeInitialProjectWorkDefinitionV01 } from "../../../lib/intake/work-definition";
 import { buildSelectedWorkSourceEntry, normalizeSelectedWorkSources, selectedWorkSourceInput } from "../../../lib/intake/selected-work-source-comparison";
 import { canonicalizeProtocolValueV01 as canonical, createProtocolSha256V01 as hash, parseStrictIsoTimestampV01 } from "../../../lib/vnext/protocol-primitives";
@@ -33,15 +33,18 @@ export interface Material {
   from: MaterialRef | null; dependencies: string[];
 }
 export interface Disposition { source_ref: string; disposition: "incorporated" | "not_selected" | "deferred" | "declined"; rationale: string }
-export interface ComparisonReview { source: WorkRef; target: WorkRef; dispositions: Disposition[]; rationale: string; next_question: string }
+export interface FileSelection { target:FileEntry[]; source:FileEntry[] }
+export interface FileMaterial { file:FileEntry; kind:"authored"|"inherited"|"incorporated"; from:WorkRef|null }
+export interface ComparisonReview { source: WorkRef; target: WorkRef; dispositions: Disposition[]; rationale: string; next_question: string; file_selection?:FileSelection }
 export interface Relations {
   origin: { source: WorkRef; reason: string; selection: string[]; starting_review: ComparisonReview | null } | null;
   materials: Material[];
   review: ComparisonReview | null;
+  file_materials?: FileMaterial[];
 }
 export interface Payload { definition: ProjectWorkDefinitionV01; sources: TaskContextPacketSelectedEntryV01[]; relations?: Relations; files?: FileEntry[] }
 export interface Revision extends Scope, Payload {
-  format: typeof FORMAT | typeof RELATION_FORMAT | typeof FILE_FORMAT; schema: 1; compatibility: typeof COMPATIBILITY | typeof RELATION_COMPATIBILITY | typeof FILE_COMPATIBILITY;
+  format: typeof FORMAT | typeof RELATION_FORMAT | typeof FILE_FORMAT | typeof FILE_RELATION_FORMAT; schema: 1; compatibility: typeof COMPATIBILITY | typeof RELATION_COMPATIBILITY | typeof FILE_COMPATIBILITY | typeof FILE_RELATION_COMPATIBILITY;
   work_id: string; revision: number; predecessor: string | null;
   recorded_at: string; request_key: string; request_fingerprint: string; fingerprint: string;
 }
@@ -96,12 +99,13 @@ export function validateRelations(value: unknown, payload: Payload, id: string):
   return result.relations;
 }
 export function inspectRelations(value: unknown, payload: Payload, id: string) {
-  exact(value,"origin,materials,review");
+  const related=!!value&&typeof value==="object"&&"file_materials" in value;
+  exact(value,"origin,materials,review"+(related?",file_materials":""));
   const refs=payload.sources.map(s=>s.source_ref);
   if (value.origin !== null) {
     exact(value.origin,"source,reason,selection,starting_review"); workRef(value.origin.source);
     if (value.origin.source.work_id===id || boundedText(value.origin.reason,true)!==value.origin.reason || !Array.isArray(value.origin.selection) || value.origin.selection.length>8 || value.origin.selection.some((s:unknown)=>typeof s!=="string" || !FINGERPRINT.test(s)) || new Set(value.origin.selection).size!==value.origin.selection.length) fail("invalid_branch_origin");
-    if(value.origin.starting_review!==null) validateReview(value.origin.starting_review);
+    if(value.origin.starting_review!==null){validateReview(value.origin.starting_review);if(!related&&value.origin.starting_review.file_selection!==undefined)fail("incompatible_format",409);}
   }
   if (!Array.isArray(value.materials) || value.materials.length!==refs.length) fail("invalid_materials");
   const seen=new Set();
@@ -117,12 +121,29 @@ export function inspectRelations(value: unknown, payload: Payload, id: string) {
   if (value.review!==null) {
     validateReview(value.review);
     if (value.review.source.work_id===id || value.review.target.work_id!==id) fail("invalid_review");
+    if(!related&&value.review.file_selection!==undefined)fail("incompatible_format",409);
+  }
+  if(related){
+    if(!Array.isArray(value.file_materials)||value.file_materials.length!==(payload.files??[]).length)fail("invalid_file_materials");
+    for(const [i,m] of value.file_materials.entries()){
+      exact(m,"file,kind,from");fileManifest([m.file]);
+      if(canonical(m.file)!==canonical(payload.files![i])||!["authored","inherited","incorporated"].includes(m.kind))fail("invalid_file_materials");
+      if(m.kind==="authored"?m.from!==null:m.from===null)fail("invalid_file_origin");
+      if(m.from!==null)workRef(m.from);
+    }
   }
   return {relations:value as unknown as Relations,bytes:new TextEncoder().encode(canonical(value)).byteLength};
 }
 function validateReview(value:unknown) {
-  exact(value,"source,target,dispositions,rationale,next_question");workRef(value.source);workRef(value.target);
+  const filed=!!value&&typeof value==="object"&&"file_selection" in value;
+  exact(value,"source,target,dispositions,rationale,next_question"+(filed?",file_selection":""));workRef(value.source);workRef(value.target);
+  if(filed&&canonical(fileSelection(value.file_selection))!==canonical(value.file_selection))fail("invalid_file_selection");
   if(canonical(dispositions(value.dispositions))!==canonical(value.dispositions) || boundedText(value.rationale,true)!==value.rationale || boundedText(value.next_question)!==value.next_question)fail("invalid_review");
+}
+export function fileSelection(value:unknown):FileSelection {
+  exact(value,"target,source");
+  const ordered=(files:unknown)=>[...fileManifest(files)].sort((a,b)=>canonical(a)<canonical(b)?-1:canonical(a)>canonical(b)?1:0);
+  return {target:ordered(value.target),source:ordered(value.source)};
 }
 function scopeMaterial(s: Scope): Scope { return {workspace_id:s.workspace_id,project_id:s.project_id,author_ref:s.author_ref}; }
 export function requestFingerprint(scope: Scope, work_id: string, expected: Binding, request_key: string, payload: Payload): string {
@@ -133,7 +154,9 @@ export function makeRevision(scope: Scope, work_id: string, expected: Binding, r
   if (!Number.isSafeInteger(expected.revision + 1)) fail("revision_identity_exhausted");
   if (payload.files!==undefined) fileManifest(payload.files);
   if (payload.relations) validateRelations(payload.relations,payload,work_id);
-  const material = { ...scopeMaterial(scope), format: payload.files!==undefined ? FILE_FORMAT : payload.relations ? RELATION_FORMAT : FORMAT, schema: 1, compatibility: payload.files!==undefined ? FILE_COMPATIBILITY : payload.relations ? RELATION_COMPATIBILITY : COMPATIBILITY,
+  const related=payload.relations?.file_materials!==undefined;
+  if(related&&payload.files===undefined)fail("explicit_file_selection_required");
+  const material = { ...scopeMaterial(scope), format: related ? FILE_RELATION_FORMAT : payload.files!==undefined ? FILE_FORMAT : payload.relations ? RELATION_FORMAT : FORMAT, schema: 1, compatibility: related ? FILE_RELATION_COMPATIBILITY : payload.files!==undefined ? FILE_COMPATIBILITY : payload.relations ? RELATION_COMPATIBILITY : COMPATIBILITY,
     work_id, revision: expected.revision + 1, predecessor: expected.fingerprint, ...payload,
     recorded_at, request_key, request_fingerprint: requestFingerprint(scope, work_id, expected, request_key, payload) };
   return { ...material, fingerprint: hash(canonical(material)) } as Revision;
@@ -147,19 +170,21 @@ export function validateChain(scope: Scope, work_id: string, values: unknown[]):
   assertHistoryBudget(values);
   const revisions: Revision[] = []; const keys = new Set();
   for (const value of values) {
-    const filed=(value as Revision)?.format===FILE_FORMAT;
+    const fileRelated=(value as Revision)?.format===FILE_RELATION_FORMAT;
+    const filed=(value as Revision)?.format===FILE_FORMAT||fileRelated;
     const relational=(value as Revision)?.format===RELATION_FORMAT || (filed && "relations" in (value as Revision));
     if ((value as Revision)?.format!==FORMAT && !relational && !filed) fail("incompatible_format",409);
     exact(value, "workspace_id,project_id,author_ref,format,schema,compatibility,work_id,revision,predecessor,definition,sources,recorded_at,request_key,request_fingerprint,fingerprint"+(relational?",relations":"")+(filed?",files":""));
-    if (value.schema !== 1 || value.compatibility !== (filed?FILE_COMPATIBILITY:relational?RELATION_COMPATIBILITY:COMPATIBILITY)) fail("incompatible_format", 409);
+    if (value.schema !== 1 || value.compatibility !== (fileRelated?FILE_RELATION_COMPATIBILITY:filed?FILE_COMPATIBILITY:relational?RELATION_COMPATIBILITY:COMPATIBILITY) || fileRelated!==(value.relations?.file_materials!==undefined)) fail("incompatible_format", 409);
     if (value.workspace_id !== scope.workspace_id || value.project_id !== scope.project_id || value.author_ref !== scope.author_ref || value.work_id !== work_id ||
       !UUID.test(value.request_key) || keys.has(value.request_key) || parseStrictIsoTimestampV01(value.recorded_at) === null ||
       new Date(value.recorded_at).toISOString() !== value.recorded_at || !Array.isArray(value.sources)) fail("invalid_history", 503);
     const payload = normalizePayload(scope, value.definition, value.sources.map(selectedWorkSourceInput));
-    if (relational) payload.relations=validateRelations(value.relations,payload,work_id);
     if (filed) payload.files=fileManifest(value.files);
+    if (relational) payload.relations=validateRelations(value.relations,payload,work_id);
     const prior=revisions.at(-1);
     if (prior?.files!==undefined && !filed) fail("file_format_downgrade",409);
+    if (prior?.relations?.file_materials!==undefined && !fileRelated) fail("file_format_downgrade",409);
     if (prior?.relations && (!payload.relations || canonical(prior.relations.origin)!==canonical(payload.relations.origin))) fail("branch_origin_changed",409);
     if (!prior?.relations && prior && payload.relations?.origin) fail("branch_origin_changed",409);
     const rebuilt = makeRevision(scope, work_id, headBinding(revisions.at(-1)), value.request_key, payload, value.recorded_at);

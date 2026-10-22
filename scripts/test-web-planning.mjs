@@ -2,6 +2,7 @@ import { checkDirections } from "./web-planning-direction-checks.mjs";
 import { checkWebPlanningInterceptionDiagnostics } from './test-web-planning-interception.mjs';
 import { checkSceneContinuity } from "./web-planning-scene-checks.mjs";
 import { checkFiles } from './web-planning-file-checks.mjs';
+import { checkOrdinaryFiles } from './web-planning-ordinary-file-checks.mjs';
 import { checkStoryWriting } from './web-planning-story-checks.mjs';
 import { checkCumulativeHistory } from './web-planning-history-checks.mjs';
 import assert from 'node:assert/strict';
@@ -182,6 +183,7 @@ try {
  await checkCapacity({c,scope:fixtureScope,passed});
  await checkBranching({start,client,newWork,save,edit,passed,open});
  await checkFiles({start,client,newWork,save,passed,root,open});
+ await checkOrdinaryFiles({start,client,newWork,save,passed,open});
  await checkStoryWriting({start,client,newWork,save,passed});
  await checkSceneContinuity({start,client,newWork,save,passed});
  await checkDirections({start,client,newWork,save,passed});
