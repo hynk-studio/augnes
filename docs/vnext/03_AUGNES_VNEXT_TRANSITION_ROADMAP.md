@@ -639,6 +639,35 @@ actually loaded and used; the extra explicit selector showed no advantage in
 this exposed small comparison. Original artifacts, failures, source qualification
 and measured/unknown burden are recorded in the consolidated #1464 delivery.
 
+**Current follow-through — research-informed method formation (2026-10-23).**
+The [later commissioned explanation-forming increment](https://github.com/hynk-studio/augnes/issues/1464)
+asks an actual consumer to construct explanations and discriminating predictions,
+revise or retain them from execution, and guide a separate successor task.
+Its implementation and new consumer observations remain **NOT_STARTED**; the
+completed prototype and scoped SIMPLIFY finding above remain unchanged.
+[ScholarEvolve v1](https://arxiv.org/abs/2609.40169v1), especially sections 3.2.4–3.4,
+motivates using external research to form a missing explanation or executable
+method within that increment. This is an Augnes application hypothesis, not
+an inherited benchmark result or a reproduction commitment.
+
+A concrete capability opportunity or anticipated task-condition change may
+justify this exploration before an observed failure. Start with current source
+and ordinary notes/code; use research when it can change a useful method or
+discriminating observation. Retain the source mechanism, assumptions and version
+separately from local adaptations, the pre-action prediction and actual result.
+Carry the usable method and its supported or unresolved conditions into B;
+qualify outcomes to the implementation and relevant conditions rather than label
+an entire paper successful or failed. Apply [04's attribution guidance](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#research-informed-method-formation).
+
+First complete and interpret the commissioned explanation increment. Its later
+software-investigation application remains separately sequenced in #1464.
+This refinement preserves the current A → B scope and resource bounds, historical
+allocations and other priorities; it adds no study allocation or planning-PR
+prerequisite. Literature retrieval and research-guided method generation are
+optional means, not new completion gates or mandatory per-paper implementations.
+This adds no Core schema or population/crossover platform. Automate a recurring
+research step only when a concrete consumer or repeated burden warrants it.
+
 ### Bounded P3/P4/P5 implementation — Different-goal experience use (#1427)
 
 Under [#1426](https://github.com/hynk-studio/augnes/issues/1426), the
