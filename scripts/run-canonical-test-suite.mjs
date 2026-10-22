@@ -162,6 +162,14 @@ const goldenStep = {
 const suites = {
   unit: [
     {
+      id: "operating-profile",
+      label: "bounded operating-profile validation and actual read-only CLI preview",
+      requirements: ["filesystem", "process-owning", "immutable-fixture-input"],
+      ...rootNode("scripts/test-operating-profile.mjs"),
+      timeoutMs: 20_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "active-observation-study",
       label: "chosen file-processing observations and retained conditional method use",
       requirements: ["filesystem", "process-owning", "immutable-fixture-input"],
