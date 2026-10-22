@@ -93,7 +93,11 @@ export async function checkOrdinaryFiles({start,client,newWork,save,passed,open}
  const mixedExport=await exportOf(mixedResult),mixedReading=await ok(c.request(route(mixedResult,'reading-export')));
  assert.deepEqual(mixedExport.revisions,[mixedOriginal,mixedReviewed,mixedResult]);
  assert.deepEqual(mixedExport.revisions[2].relations.review.target,reference(mixedReviewed));validateFileExport(fixtureScope,mixedExport);
- const resultReading=mixedReading.split('<h2>Revision 3 ·')[1];assert(resultReading.includes(targetText(mixedReviewed)));assert(!resultReading.includes(targetText(mixedOriginal)));
+ const resultReading=mixedReading.split('<h2>Revision 3 ·')[1],recorded=resultReading.match(/<summary>Recorded source relationships<\/summary><pre>(.*?)<\/pre>/s);
+ assert(recorded);const entities={quot:'"','#39':"'",lt:'<',gt:'>',amp:'&'};
+ assert.deepEqual(JSON.parse(recorded[1].replace(/&(quot|#39|lt|gt|amp);/g,(_,name)=>entities[name])),mixedResult.relations);
+ const mixedDownload=await ok(c.request(route(mixedResult,`files/${mixedResult.revision}/${mixedResult.fingerprint.slice(7)}/0`)));
+ assert.equal(digestBytes(Buffer.from(mixedDownload)),mixedResult.files[0].digest);assert.equal(Buffer.byteLength(mixedDownload),mixedResult.files[0].bytes);
  const unchangedRows=await rows(),unchanged=await ok(preview(mixedResult,mixedBranch));
  assert.equal(unchanged.noop,true);assert.deepEqual(unchanged.payload.relations.review,mixedResult.relations.review);
  for(const response of [await ok(resolve(unchanged)),await ok(commit(unchanged)),await ok(resolve(unchanged))]){
@@ -106,7 +110,7 @@ export async function checkOrdinaryFiles({start,client,newWork,save,passed,open}
  const requiredBefore=await exportOf(required),requiredRows=await rows();
  assert.equal((await preview(required,requiredBranch,{...intent(required,requiredBranch),target_selection:[required.sources.find(s=>s.bounded_summary==='Reading with required context.').source_ref]})).data.error,'required_material_missing');
  assert.deepEqual(await exportOf(required),requiredBefore);assert.deepEqual(await rows(),requiredRows);
- console.log(JSON.stringify({ordinary_file_note_review_evidence:{original:mixedExport,alternate:await exportOf(mixedBranch),preview_html:changedNotes.html,reading_html:mixedReading,reviewed_target:reference(mixedReviewed),saved:reference(mixedResult),changed_noop:changedNotes.noop,repeated_noop:unchanged.noop,required_context_refusal:'required_material_missing'}}));
+ console.log(JSON.stringify({ordinary_file_note_review_evidence:{original:mixedExport,alternate:await exportOf(mixedBranch),preview_html:changedNotes.html,reading_html:mixedReading,download_text:mixedDownload,reviewed_target:reference(mixedReviewed),saved:reference(mixedResult),changed_noop:changedNotes.noop,repeated_noop:unchanged.noop,required_context_refusal:'required_material_missing'}}));
  passed('ordinary files: changed optional target notes record the immediate review target in preview, save, fresh process, export and readable history; exact replay and genuine no-op outcome resolution preserve rows; required context still refuses');
  // Both reviewed heads are gated at actual SQL admission, after all async reads.
  for(const side of ['source','target'])for(const mutation of ['write','erase']){
