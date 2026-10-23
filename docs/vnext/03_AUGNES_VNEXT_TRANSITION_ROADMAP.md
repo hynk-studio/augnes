@@ -696,9 +696,15 @@ trees can share listing bytes and require different inventories. Independent
 literal-fact checks retain failures, valid/irrelevant cases, uncertainty,
 wrong-output refusal, whole-A transfer and fresh bounded replay controls.
 Development controls are not consumer learning. The two-message observation
-allocation is separate from all completed #1464 allocations. At source preparation,
-consumers remain NOT_RUN; freeze, actual asset use, output checks, replay,
-preservation and qualification belong to the consolidated result. Comparative
+allocation is separate from all completed #1464 allocations. The frozen A
+dispatch was rejected because its supplied agent name contained an uppercase
+character. That initiated failure consumes A's slot; no replacement was made.
+No consumer work or A assets were observed, so A/B outcomes and consumer replay
+remain NOT_RUN. The case's deterministic controls and developer replay pass;
+they are not a substitute for those observations. Preserve the refusal and
+CHANGE invocation preflight before any separately authorized later observation.
+Frozen originals, preservation and exact-source qualification belong to the
+consolidated result. Comparative
 usefulness is NOT_EVALUATED; product integration is NOT_ESTABLISHED. No second
 arm, new Core/learning engine, #1527 launch or #1523 ownership change is implied.
 
