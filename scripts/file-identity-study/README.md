@@ -18,6 +18,7 @@ From the repository root, with an initially absent absolute destination:
 
 ```sh
 python3 -B scripts/file-identity-study/test_case.py
+python3 -B scripts/file-identity-study/test_request_preflight.py
 python3 -B scripts/file-identity-study/case.py controls /ABSENT/development
 python3 -B scripts/file-identity-study/case.py build /ABSENT/judging
 ```
@@ -44,6 +45,23 @@ input tampering, duplicate keys and alias refusal. An output PASS alone does not
 prove callable-method derivation or successor use: inspect actual delivered code,
 dependencies and invocation, and retain independent replay separately.
 
+Replay acceptance uses the existing `canonicalChildAcceptanceFailure` with
+`requireCompleteCleanup: true`. The adapter retains the complete owner result
+and an explicit accepted/rejected disposition and reason. Python runs semantic
+checking only after accepted execution and complete settlement. A correct output
+written before cancellation or timeout remains evidence, never successful replay.
+Known execution rejection and unknown settlement are separate: private resources
+are removed only after observed exit, closed streams, complete cleanup and zero
+owned processes. Owner/transport exceptions retain private resources and report
+settlement unestablished. The shared helper and its deadlines are unchanged.
+
+The focused suite includes actual graceful-exit-zero cancellation and timeout
+controls through the adapter (the timeout retains its 60-second deadline), plus
+ordinary success and nonzero exit. Spawn-failure/incomplete-settlement records
+are explicitly component controls. Set `AUGNES_FILE_IDENTITY_TEST_EVIDENCE` to an
+empty task-owned directory to retain test inputs, outputs and complete results.
+Unsettled live test resources are retained instead of deleted.
+
 ## Consumer tasks and export
 
 A inventories available raw trees and reports uncertainty for insufficient
@@ -68,6 +86,36 @@ including settlement, one active at a time; an unrelated route control is at mos
 one/120 seconds only for concrete uncertainty. Failed initiated dispatches count;
 no replacements, follow-up hints or quality retries. No historical slots transfer.
 Source preparation/tests themselves are not model launches or consumer samples.
+
+### Offline full-request preflight
+
+`request_preflight.py` captures the exposed five-field host schema and this
+case's stricter prospective profile: explicit `task_name`, exact `message`,
+`fork_turns=none`, model and reasoning effort. It validates types, options,
+lowercase name syntax and exact UTF-8 prompt bytes before any reservation.
+The new request freeze binds the serialized complete request, prompt, observed
+schema and validator hashes. It is separate from every historical study freeze.
+
+```sh
+python3 -B scripts/file-identity-study/request_preflight.py freeze REQUEST.json PROMPT.txt /ABSENT/request-bundle
+python3 -B scripts/file-identity-study/request_preflight.py verify /request-bundle EXPECTED_FREEZE_SHA256
+```
+
+Keep the returned freeze hash outside the bundle as the expected identity.
+`validated_handoff` verifies that identity before calling a supplied reservation
+callback, rechecks after reservation, and passes the same validated request
+object to the supplied dispatch callback. It does not rebuild fields or import a
+model client. Tests use inert callbacks only; a change after reservation stops
+dispatch and the caller must retain the reservation. Missing/malformed fields,
+unsupported options, aliases, duplicate fields and post-hash changes fail closed.
+This code creates no allocation or execution authority. Recheck the exposed
+schema and actual allowed prompt/access before any separately authorized future
+use. Local schema PASS is not backend compatibility or readiness.
+
+The original uppercase dispatch and omitted-name freeze are immutable historical
+failures. The correction validates a complete reconstruction from the preserved
+fields/prompt and a lowercase fixture without launching either. Research and
+consumer replay remain NOT_RUN; no unused allocation is transferred.
 
 After A is terminal and owned children settled, preserve its whole directory.
 Mechanically transfer all its files, including failures and first outputs. The

@@ -221,15 +221,24 @@ def replay(package, consumer, output):
         run = json.loads(child.stdout)
         record = {"argv": argv, "cwd": str(consumer), "returncode": run["result"]["exit_code"],
                   "stdout": run["stdout"], "stderr": run["stderr"], "owner": run,
-                  "private_root": private}
+                  "acceptance": run["acceptance"], "private_root": private}
     except Exception as error:
         raise RuntimeError("replay owner unknown; private resources retained at " + private) from error
     result = run["result"]
-    settled = result["cleanup_completed"] and result["remaining_owned_processes"] == 0
+    # Settlement is independent of execution acceptance: a rejected interrupted
+    # child may be fully settled. Unknown settlement retains its private root.
+    settled = (result.get("exit_observed") is True and result.get("streams_closed") is True
+               and result.get("cleanup_completed") is True and result.get("remaining_owned_processes") == 0)
+    record["settlement"] = "complete" if settled else "unknown"
     if settled:
-        shutil.rmtree(private)
+        try:
+            shutil.rmtree(private)
+        except OSError as error:
+            # Retain the full execution record if independent resource cleanup
+            # fails; do not replace known execution facts with an exception.
+            record["private_cleanup_error"] = {"type": type(error).__name__, "message": str(error)}
     record["private_cleanup"] = settled and not Path(private).exists()
-    if result["exit_code"] != 0 or not result["cleanup_completed"] or result["remaining_owned_processes"] != 0:
+    if run["acceptance"] != {"status": "accepted", "reason": None} or not record["private_cleanup"]:
         return {**record, "check": "NOT_RUN"}
     return {**record, "check": check(package, consumer, "B", output / "reconciliation.json")}
 

@@ -703,6 +703,17 @@ No consumer work or A assets were observed, so A/B outcomes and consumer replay
 remain NOT_RUN. The case's deterministic controls and developer replay pass;
 they are not a substitute for those observations. Preserve the refusal and
 CHANGE invocation preflight before any separately authorized later observation.
+The bounded review correction now uses the unchanged Canonical acceptance
+helper with complete cleanup required: graceful exit zero after timeout or
+cancellation is rejected before semantic replay checking. Raw owner flags and
+outputs remain evidence; known execution rejection and unknown settlement are
+separate. A prospective recorder copy receives the same correction while its
+original frozen bytes stay unchanged. Offline full-request preflight binds all
+five explicit fields, exact prompt bytes, schema and validator hashes before
+reservation; inert controls are not a dispatch or backend-readiness proof.
+The corrected head requires its own current-policy qualification; the original
+head's receipt does not transfer. The review's cloud lifecycle attempt stays
+UNKNOWN, distinct from the new local developer controls and Mac qualification.
 Frozen originals, preservation and exact-source qualification belong to the
 consolidated result. Comparative
 usefulness is NOT_EVALUATED; product integration is NOT_ESTABLISHED. No second

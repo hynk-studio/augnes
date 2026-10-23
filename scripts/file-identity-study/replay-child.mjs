@@ -1,6 +1,6 @@
 // Deterministic replay only. Existing bounded process-tree/stream settlement.
 import { Writable } from 'node:stream';
-import { runCanonicalChild } from '../canonical-child-runner.mjs';
+import { canonicalChildAcceptanceFailure, runCanonicalChild } from '../canonical-child-runner.mjs';
 
 const [raw, cwd] = process.argv.slice(2);
 const argv = JSON.parse(raw);
@@ -29,5 +29,9 @@ const result = await runCanonicalChild({
   onSpawn: pid => events.push({ child_pid: pid, at: new Date().toISOString() }),
   log: message => events.push({ message, at: new Date().toISOString() }),
 });
-console.log(JSON.stringify({ result, stdout: out.text(), stderr: err.text(),
+const failure = canonicalChildAcceptanceFailure(result, {
+  suite: 'file-identity-replay', timeoutMs: 60000, requireCompleteCleanup: true,
+});
+const acceptance = { status: failure ? 'rejected' : 'accepted', reason: failure?.code ?? null };
+console.log(JSON.stringify({ result, acceptance, stdout: out.text(), stderr: err.text(),
   truncated: out.truncated() || err.truncated(), events }));
