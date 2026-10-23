@@ -1,0 +1,12 @@
+{
+  "name": "augnes-software-compatibility-case",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "controls": "node controls.mjs"
+  },
+  "dependencies": {
+    "typescript": "6.0.3"
+  }
+}
