@@ -663,6 +663,28 @@ comparison at that refusal and retain the runnable assets for independent review
 This does not revise the completed #1465 tie/SIMPLIFY or #1493's PARTIAL/ENDED
 disposition and unused historical slot. #1523 remains independently owned.
 
+The later, separately authorized `1464-meter-fresh-host-20261023-20261023T042232Z`
+trial is independently **ACCEPTED / ENDED / SIMPLIFY**: four distinct fresh
+consumers produced checked A/B outputs, both retained B methods replayed, and
+no supported benefit justified the extra mandatory binding structure. Ordinary
+adaptive notes/files/code with concise explanations where useful remain the
+default. Its separate allocation is closed. The earlier failed launch,
+FAILED/HOLD preservation interval and UNKNOWN writer/cause remain historical;
+unused slots do not transfer. #1525 is merged; source qualification and normal
+product integration remain distinct from this bounded consumer finding.
+
+The separately commissioned [historical software-compatibility case](../../scripts/software-compatibility-case/README.md)
+is **preparation only**. Exact six-module snapshots A `a30f64a6` and B `347bec0c`
+execute through a pinned snapshot-local loader. Neutral new A/B tasks distinguish
+fact-preserving public status preparation from a new release/status batch audit
+with exact authored-description retention. Independent same-input cross-version
+controls, artifact-checker rejection foils, export/whole-A transfer checks and a
+fresh contained developer-method replay are development evidence. They do not
+establish consumer investigation, learning, successor asset use, comparative
+advantage or normal product integration. No model consumers or route-control
+budget is commissioned. Retain the discriminating regression case and end the
+comparative branch absent a concrete useful intervention beyond ordinary memo/code.
+
 ### Bounded P3/P4/P5 implementation — Different-goal experience use (#1427)
 
 Under [#1426](https://github.com/hynk-studio/augnes/issues/1426), the
