@@ -549,6 +549,20 @@ outcome-driven updating as separate contributions. All three need not be new
 mechanisms or prerequisites for the first useful increment; no new selector,
 registry or universal module format is presumed.
 
+**Research reference — Harness² (2026-10-19; unexecuted Augnes hypothesis).**
+[Harness²](https://github.com/google-research/harness2/tree/1cfe254e8d25b15f37048c3730134686abe60335)
+motivates a narrow question: does linking exact before/after method assets and
+their observed results to a separate current-use assessment improve actual
+successor work beyond current Augnes and an equally informed adaptive memo/code?
+This is a proposed Augnes comparison, not a benefit established by the external
+result. Inspect the existing material/experience/correction paths and
+selective-report consumer first; current material may already suffice without
+an additional profile. The 04
+[comparison](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#strong-comparisons-and-independence)
+and [burden](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#cost-and-user-burden)
+rules apply. This reference adds no allocation, owner or dependency for current work
+and does not reopen recorded RETAIN/SIMPLIFY outcomes.
+
 Prioritize concrete capability learning/reuse and product defects or delivery
 gaps that obstruct actual work. [#1372](https://github.com/hynk-studio/augnes/issues/1372)
 remains separately authorized private file-backed Web continuation work after
