@@ -685,6 +685,23 @@ advantage or normal product integration. No model consumers or route-control
 budget is commissioned. Retain the discriminating regression case and end the
 comparative branch absent a concrete useful intervention beyond ordinary memo/code.
 
+### Current contained research — Exact file identity and successor reconciliation (#1526)
+
+The separately commissioned [#1526](https://github.com/hynk-studio/augnes/issues/1526)
+uses [one ordinary adaptive memo/code A → fresh B case](../../scripts/file-identity-study/README.md).
+A inventories raw trees and handles genuinely insufficient archived material;
+B reconciles different before/after trees into exact path/content records.
+The limited prior script works in its stated domain, while actual admissible
+trees can share listing bytes and require different inventories. Independent
+literal-fact checks retain failures, valid/irrelevant cases, uncertainty,
+wrong-output refusal, whole-A transfer and fresh bounded replay controls.
+Development controls are not consumer learning. The two-message observation
+allocation is separate from all completed #1464 allocations. At source preparation,
+consumers remain NOT_RUN; freeze, actual asset use, output checks, replay,
+preservation and qualification belong to the consolidated result. Comparative
+usefulness is NOT_EVALUATED; product integration is NOT_ESTABLISHED. No second
+arm, new Core/learning engine, #1527 launch or #1523 ownership change is implied.
+
 ### Bounded P3/P4/P5 implementation — Different-goal experience use (#1427)
 
 Under [#1426](https://github.com/hynk-studio/augnes/issues/1426), the
