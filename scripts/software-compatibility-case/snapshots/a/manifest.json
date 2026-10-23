@@ -1,0 +1,43 @@
+{
+  "commit": "a30f64a6711a8b821396b8f23ab4b755e74a7974",
+  "source_date": "2026-09-11T16:54:07+09:00",
+  "tree": "2705ec4beb485e1db8e494c54973ab93637a2ea0",
+  "files": {
+    "lib/vnext/repository-relative-path.ts": {
+      "file": "lib/vnext/repository-relative-path.ts.txt",
+      "bytes": 1752,
+      "sha256": "d8f21cf0f6fe1e92f3fc0c970fe339a3a9e247c5b3bfc8d9847936fbf634786d",
+      "git_blob": "c7d4a9605c68feb854a67ff1716f22b37ac027a7"
+    },
+    "lib/vnext/native-host/native-host-contract.ts": {
+      "file": "lib/vnext/native-host/native-host-contract.ts.txt",
+      "bytes": 6530,
+      "sha256": "16b667654b134f59c1c421051cb40a70463648033c05148cd8b68c2a5b913c01",
+      "git_blob": "74488e865c47ca490e62b1d03f3cdeb668261371"
+    },
+    "lib/vnext/protocol-primitives.ts": {
+      "file": "lib/vnext/protocol-primitives.ts.txt",
+      "bytes": 14516,
+      "sha256": "e22fea3672539ace45813a0555562e03547942722edef5ab6dc4374d889cd4eb",
+      "git_blob": "afaa0b446aab31eb381566f06a7aa9ca388590a6"
+    },
+    "lib/vnext/strict-iso-timestamp.ts": {
+      "file": "lib/vnext/strict-iso-timestamp.ts.txt",
+      "bytes": 1509,
+      "sha256": "8d06cab423882d382ef8a66d1add1694eb8f04f692166bed709254dedd8c1b6e",
+      "git_blob": "25c9492cd98508b440013e21bd19e0c562e7a3b8"
+    },
+    "types/vnext/external-ref.ts": {
+      "file": "types/vnext/external-ref.ts.txt",
+      "bytes": 801,
+      "sha256": "7570d636c04f2900792c87d31479aae8b35b872b4524c6ae5858801a47af0aea",
+      "git_blob": "2d5e852af1e91dfde9b31aabcdbf89873c4fc34b"
+    },
+    "types/vnext/native-host-adapter.ts": {
+      "file": "types/vnext/native-host-adapter.ts.txt",
+      "bytes": 13310,
+      "sha256": "4d97bc6495b664ade6d9335f9cd59435b175981f9972145820e0c9e23d52a8b5",
+      "git_blob": "3b66399f6a97b4ec0738d285a5177ab7991e3433"
+    }
+  }
+}
