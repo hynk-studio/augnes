@@ -639,6 +639,30 @@ actually loaded and used; the extra explicit selector showed no advantage in
 this exposed small comparison. Original artifacts, failures, source qualification
 and measured/unknown burden are recorded in the consolidated #1464 delivery.
 
+The separately commissioned 2026-10-23 Experience-revised increment adds a
+[contained meter CLI case and independent checker](../../scripts/work-explanation-study/README.md).
+Ordinary files and consumer-authored code require no new product contract.
+A produces a signed-energy statement after an input-contract change; fresh B
+must use its own retained assets for a mixed-unit, multi-period portfolio and
+per-site import-limit report. Actual predecessor executions preserve the
+constructed supplied advice's basis. Four focused development checks pass,
+including exact units/format, historical cleanup versus current insufficiency,
+and checker rejection controls; these are exposed mechanism evidence.
+
+The inputs, prompts, procedure, checks and original four-message ceiling were
+frozen before the first native launch. That launch failed before task work:
+the existing CLI's ChatGPT route returned HTTP 400 for the configured
+`gpt-6.1-sol`. It consumed one message and 3.204 seconds including complete
+owned settlement; three messages remain unused. All four consumer task outcomes
+are **NOT_RUN**, comparative usefulness is **INCONCLUSIVE**, and normal product
+integration is unestablished. Protected global configuration also changed during
+the launch interval; writer/cause remain **UNKNOWN** and Mac qualification is
+**HOLD**. No retry, alternative launcher, configuration restoration, Companion
+lifecycle action or historical-study restart was performed. **STOP** this bounded
+comparison at that refusal and retain the runnable assets for independent review.
+This does not revise the completed #1465 tie/SIMPLIFY or #1493's PARTIAL/ENDED
+disposition and unused historical slot. #1523 remains independently owned.
+
 ### Bounded P3/P4/P5 implementation — Different-goal experience use (#1427)
 
 Under [#1426](https://github.com/hynk-studio/augnes/issues/1426), the
