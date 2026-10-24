@@ -70,7 +70,9 @@ export function observeInputFile(file, { metadataOnly = false, preferences = fal
 
 export function classifyInputChange(before, after, { classification, excludePreferences = false } = {}) {
   if (!INPUT_CLASSES.includes(classification)) return "unknown_relevance";
-  if (JSON.stringify(before) === JSON.stringify(after)) return "unchanged";
+  // Saved receipts sort object keys. Compare the same canonical value both
+  // in-process and after a supported persisted-state read.
+  if (digest(before) === digest(after)) return "unchanged";
   if (before.present !== after.present) return classification === "safety" ? "safety_violation" : "input_invalidation";
   if (before.present === false) return "unchanged";
   for (const key of ["mode", "uid", "gid", "links", "device"])

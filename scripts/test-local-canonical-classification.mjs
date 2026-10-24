@@ -8,7 +8,7 @@ import { beginAttempt, finishAttempt, inspectAttemptRecords, readRecoveryProof }
 import { acquireCheckoutVerificationOwnership, releaseCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
 import { runPhasesSequentially, enforceArtifactRetention, FULL_PHASE_IDS, buildPhasePlan } from "./run-local-canonical-verification.mjs";
 import { pinVerificationEvidence } from "./local-canonical-evidence-retention.mjs";
-import { finalizeReceipt, inspectReceiptForDecision, verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
+import { canonicalSerialize, finalizeReceipt, inspectReceiptForDecision, verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
 import { createPrivateReviewExport, inspectPrivateReviewExport } from "./local-canonical-review-export.mjs";
 import { beginBrowserUse, validBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { baseReceipt, validContext } from "./fixtures/local-canonical-receipt-v3.mjs";
@@ -98,6 +98,10 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
   chmodSync(config, 0o600); write(config, changed);
   frozen.check(); assert.deepEqual(frozen.snapshot().first_fault, firstFault);
   const highPrecision = structuredClone(observeInputFile(config));
+  const persistedObservation = path.join(root, "persisted-input-observation.json");
+  write(persistedObservation, canonicalSerialize(highPrecision));
+  assert.equal(classifyInputChange(JSON.parse(readFileSync(persistedObservation, "utf8")), observeInputFile(config), { classification: "execution" }), "unchanged",
+    "stock readers must compare persisted canonical observations independently of JSON property order");
   const otherPrecision = structuredClone(highPrecision); otherPrecision.metadata.mtime_ns = String(BigInt(highPrecision.metadata.mtime_ns) + 1n);
   assert.equal(classifyInputChange(highPrecision, otherPrecision, { classification: "execution" }), "input_invalidation");
   note("metadata-only ambient replacement allowed; permissions and nanosecond input changes refuse; first fault persists");
