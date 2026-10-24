@@ -22,6 +22,7 @@ export function createPrivateReviewExport(receipt) {
       events: receipt.inputs.events.map(e => ({ resource: e.resource, disposition: e.disposition, observed_at: e.observed_at, identity: e.identity })),
       first_fault: receipt.inputs.first_fault, limitations: receipt.inputs.limitations } : null,
     attempt: receipt.attempt ? { ...pick(receipt.attempt, ["contract", "family_id", "attempt_id", "number", "head", "tree", "contract_fingerprint", "prior_attempt_id", "prior_receipt_fingerprint", "budget"]),
+      source_correction: receipt.attempt.source_correction ? pick(receipt.attempt.source_correction, ["schema", "defect", "prior_family_id", "prior_attempt_id", "prior_receipt_fingerprint", "head", "tree", "source_module", "fixture_sha256"]) : null,
       repair: receipt.attempt.recovery ? pick(receipt.attempt.recovery, ["cause", "observed_code", "remedy", "evidence_sha256", "scope"]) : null } : null,
     phases: receipt.phases.map(p => ({ id: p.id, command: p.command, status: p.status, duration_ms: p.duration_ms,
       exit_status: p.exit_status, timed_out: p.timed_out, failure_code: p.failure_code,

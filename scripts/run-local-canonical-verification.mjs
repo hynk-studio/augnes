@@ -17,7 +17,7 @@ import {
 import path from "node:path";
 import os from "node:os";
 import { freezeInputContract, monitorInputContract, digest, deriveOperationalDisposition, observeInputFile, classifyInputChange } from "./local-canonical-inputs.mjs";
-import { beginAttempt, finishAttempt, readRecoveryProof, inspectAttemptRecords } from "./local-canonical-attempts.mjs";
+import { beginAttempt, finishAttempt, readRecoveryProof, readSourceCorrectionProof, inspectAttemptRecords } from "./local-canonical-attempts.mjs";
 import { pinVerificationEvidence, readPinnedEvidence } from "./local-canonical-evidence-retention.mjs";
 import { BROWSER_IDENTITY_PREFIX, validBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { fileURLToPath } from "node:url";
@@ -449,6 +449,7 @@ export async function executeLocalCanonicalVerification({
   checkoutContext = "canonical",
   signal: externalSignal,
   recoveryProofPath = null,
+  sourceCorrectionProofPath = null,
 }) {
   const controller = new AbortController();
   const forwardCancellation = () => controller.abort({ disposition: "user_cancellation" });
@@ -706,7 +707,8 @@ export async function executeLocalCanonicalVerification({
             attempt = beginAttempt({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, checkoutOwner,
               branch: identityBefore.branch, head: headSha, tree: inputs.snapshot().binding.tree, runId,
               contractFingerprint: inputs.snapshot().fingerprint,
-              recoveryProof: recoveryProofPath ? readRecoveryProof(resolveArtifactPath(recoveryProofPath)) : null });
+              recoveryProof: recoveryProofPath ? readRecoveryProof(resolveArtifactPath(recoveryProofPath)) : null,
+              sourceCorrection: sourceCorrectionProofPath ? readSourceCorrectionProof(resolveArtifactPath(sourceCorrectionProofPath), repositoryRoot) : null });
             pinVerificationEvidence({ root: repositoryRoot, checkoutOwner, runId, reason: "attempt_family" });
           }
           checkoutConsumersSettled = false;
@@ -1305,7 +1307,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
   }
   return inspectReceiptForDecision(receipt, {
     currentInputStateValid: receipt.receipt_version === 4 ? currentInputEvidenceValid(receipt, verificationContext, validationHost.browserExecutablePath) : null,
-    currentAttemptRecordsValid: receipt.receipt_version === 4 ? inspectAttemptRecords({ anchorRoot: verificationAnchorRoot(verificationContext), receipt }) : null,
+    currentAttemptRecordsValid: receipt.receipt_version === 4 ? inspectAttemptRecords({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, receipt }) : null,
     currentVerificationContext: verificationContext,
     expectedRunId: path.basename(receiptPath, ".json"),
     currentIntegrationBase,
@@ -2111,7 +2113,7 @@ function parseCli(argv) {
     options.set(normalized, value);
   }
   const allowed =
-    mode === "validate" ? new Set(["receipt", "checkout-context"]) : new Set(["base", "head", "checkout-context", "recovery-proof"]);
+    mode === "validate" ? new Set(["receipt", "checkout-context"]) : new Set(["base", "head", "checkout-context", "recovery-proof", "source-correction-proof"]);
   for (const key of options.keys()) {
     if (!allowed.has(key)) {
       const error = new Error("unknown local canonical argument");
@@ -2141,6 +2143,7 @@ function parseCli(argv) {
     receipt: options.get("receipt") ?? null,
     checkoutContext: options.get("checkout-context") ?? "canonical",
     recoveryProofPath: options.get("recovery-proof") ?? null,
+    sourceCorrectionProofPath: options.get("source-correction-proof") ?? null,
   };
 }
 

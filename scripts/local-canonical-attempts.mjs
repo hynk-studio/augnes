@@ -1,7 +1,9 @@
 import { mkdirSync, lstatSync, readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { digest } from "./local-canonical-inputs.mjs";
 import { assertCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
+import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 
 export const ATTEMPT_CONTRACT = "augnes.local-canonical-attempt-family.v1";
 const fail = code => Object.assign(new Error(code), { code });
@@ -24,14 +26,15 @@ function append(root, name, value) { writeFileSync(path.join(root, name), `${JSO
 
 // Family lives at the physical anchor, keyed by repository and branch (not
 // commit, wrapper process or checkout). There is no CLI family-id reset knob.
-export function beginAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, head, tree, runId, contractFingerprint, recoveryProof = null }) {
+export function beginAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, head, tree, runId, contractFingerprint, recoveryProof = null, sourceCorrection = null }) {
   assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
   if (!branch || !/^[0-9a-f]{40}$/u.test(head) || !/^[0-9a-f]{40}$/u.test(tree) || !sha(contractFingerprint)) throw fail("attempt_identity_invalid");
-  const familyId = digest([ATTEMPT_CONTRACT, "hynk-studio/augnes", branch]);
+  const familyId = candidateFamilyId(branch, sourceCorrection);
   const artifact = directory(anchorRoot, ".augnes-local-verification");
+  if (sourceCorrection) admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof: sourceCorrection, reserve: true });
   const root = directory(directory(artifact, "families"), familyId);
   const entries = readdirSync(root);
-  if (entries.some(name => !/^(attempt|completion)-[12]\.json$/u.test(name))) throw fail("attempt_unknown_record");
+  if (entries.some(name => !/^(attempt|completion)-[12]\.json$/u.test(name) && name !== "correction-successor.json")) throw fail("attempt_unknown_record");
   const previous = entries.includes("attempt-1.json") ? read(path.join(root, "attempt-1.json")) : null;
   let number = 1, prior = null;
   if (previous) {
@@ -45,7 +48,7 @@ export function beginAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch
   const record = { contract: ATTEMPT_CONTRACT, family_id: familyId, attempt_id: runId, number, branch,
     head, tree, contract_fingerprint: contractFingerprint, started_at: new Date().toISOString(),
     prior_attempt_id: prior?.attempt_id ?? null, prior_receipt_fingerprint: prior?.receipt_fingerprint ?? null,
-    recovery: number === 2 ? recoveryProof : null, budget: { initial: 1, recovery: 1 } };
+    recovery: number === 2 ? recoveryProof : null, source_correction: sourceCorrection, budget: { initial: 1, recovery: 1 } };
   append(root, `attempt-${number}.json`, record);
   const capability = Object.freeze({ ...record });
   capabilities.set(capability, { root, repositoryRoot, checkoutOwner, record });
@@ -95,10 +98,12 @@ export function readRecoveryProof(file) {
   return proof;
 }
 
-export function inspectAttemptRecords({ anchorRoot, receipt }) {
+export function inspectAttemptRecords({ anchorRoot, repositoryRoot = anchorRoot, receipt }) {
   try {
     const attempt = receipt.attempt;
-    const familyId = digest([ATTEMPT_CONTRACT, "hynk-studio/augnes", receipt.repository.branch]);
+    const familyId = candidateFamilyId(receipt.repository.branch, attempt.source_correction);
+    if (attempt.source_correction) admitSourceCorrection({ anchorRoot, repositoryRoot, branch: receipt.repository.branch,
+      head: attempt.head, tree: attempt.tree, proof: attempt.source_correction, reserve: false });
     if (attempt.family_id !== familyId || ![1, 2].includes(attempt.number)) return false;
     const root = path.join(anchorRoot, ".augnes-local-verification", "families", familyId);
     if (realpathSync(root) !== root || !lstatSync(root).isDirectory()) return false;
@@ -115,6 +120,67 @@ export function inspectAttemptRecords({ anchorRoot, receipt }) {
   } catch { return false; }
 }
 
-// A deliberate source correction needs a separately reviewed new family
-// disposition; cosmetic commits, renaming a wrapper or repeat CLI calls never
-// silently reset this branch's budget. This increment exposes no reset command.
+function candidateFamilyId(branch, correction) {
+  return digest([ATTEMPT_CONTRACT, "hynk-studio/augnes", branch,
+    ...(correction ? ["verified_source_correction", correction.prior_attempt_id, correction.head, correction.tree] : [])]);
+}
+
+// A real source correction is a new candidate, never an infrastructure retry.
+// It requires the same finite regression to fail on the old module and pass on
+// the corrected module. Proof artifacts and Git objects remain independently
+// inspectable. This is local evidence, not independent attestation.
+export function readSourceCorrectionProof(file, repositoryRoot) {
+  const relative = path.relative(repositoryRoot, file).split(path.sep).join("/");
+  if (!/^\.augnes-local-verification\/[a-zA-Z0-9_./-]+\.json$/u.test(relative) || relative.split("/").includes("..") || realpathSync(file) !== file)
+    throw fail("source_correction_unsafe_path");
+  const proof = read(file);
+  if (proof.schema !== "augnes.local-canonical-source-correction.v1" ||
+      !/^scripts\/[a-z0-9_/-]+\.mjs$/u.test(proof.source_module ?? "") ||
+      !/^[a-z][a-z0-9_-]{0,79}$/u.test(proof.defect ?? "") || !sha(proof.fixture_sha256) ||
+      !sha(proof.prior_family_id) || ![1, 2].includes(proof.prior_number) || !sha(proof.prior_receipt_fingerprint)) throw fail("source_correction_proof_invalid");
+  if (!/^[a-z0-9_-]+\.mjs$/u.test(proof.fixture_artifact ?? "") || !sha(proof.environment_fingerprint)) throw fail("source_correction_fixture_missing");
+  const fixture = path.join(path.dirname(file), proof.fixture_artifact), fixtureStat = lstatSync(fixture);
+  if (!fixtureStat.isFile() || fixtureStat.isSymbolicLink() || fixtureStat.nlink !== 1 || fixtureStat.size > 64 * 1024 ||
+      digest(readFileSync(fixture)) !== proof.fixture_sha256) throw fail("source_correction_fixture_changed");
+  for (const [key, expectedExit] of [["before", 1], ["after", 0]]) {
+    const witness = proof[key];
+    if (!witness || !/^[a-z0-9_-]+\.json$/u.test(witness.artifact ?? "") || !sha(witness.sha256)) throw fail("source_correction_witness_missing");
+    const location = path.join(path.dirname(file), witness.artifact), record = read(location);
+    if (digest(readFileSync(location)) !== witness.sha256 || record.fixture_sha256 !== proof.fixture_sha256 || record.environment_fingerprint !== proof.environment_fingerprint ||
+        record.source_sha256 !== witness.source_sha256 || !sha(witness.source_sha256) || record.result?.exit_code !== expectedExit ||
+        record.result?.cancelled !== false || record.result?.timed_out !== false || record.result?.cleanup_completed !== true ||
+        record.result?.exit_observed !== true || record.result?.streams_closed !== true || record.result?.remaining_owned_processes !== 0 ||
+        record.result?.termination_reason !== "natural_exit" || record.node_version !== CANONICAL_NODE_VERSION ||
+        !Number.isFinite(Date.parse(record.finished_at)) || Date.parse(record.finished_at) > Date.now()) throw fail("source_correction_witness_invalid");
+    if (key === "after" && Date.parse(record.finished_at) <= Date.parse(read(path.join(path.dirname(file), proof.before.artifact)).finished_at)) throw fail("source_correction_witness_order_invalid");
+  }
+  if (proof.before.source_sha256 === proof.after.source_sha256) throw fail("source_correction_no_functional_delta");
+  return { ...proof, local_relative_path: relative.split(path.sep).join("/") };
+}
+
+function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof, reserve }) {
+  const reread = readSourceCorrectionProof(path.join(repositoryRoot, proof.local_relative_path ?? ""), repositoryRoot);
+  if (digest(reread) !== digest(proof) || proof.branch !== branch || proof.head !== head || proof.tree !== tree ||
+      !/^[0-9a-f]{40}$/u.test(head) || !/^[0-9a-f]{40}$/u.test(tree)) throw fail("source_correction_identity_invalid");
+  const priorRoot = path.join(anchorRoot, ".augnes-local-verification", "families", proof.prior_family_id);
+  if (realpathSync(priorRoot) !== priorRoot) throw fail("source_correction_unsafe_predecessor");
+  const prior = read(path.join(priorRoot, `attempt-${proof.prior_number}.json`));
+  const completion = read(path.join(priorRoot, `completion-${proof.prior_number}.json`));
+  if (prior.branch !== branch || prior.attempt_id !== proof.prior_attempt_id || prior.head === head || prior.tree === tree ||
+      completion.attempt_id !== prior.attempt_id || completion.receipt_fingerprint !== proof.prior_receipt_fingerprint ||
+      completion.cleanup_complete !== true || !["product_failure", "user_cancellation"].includes(completion.disposition)) throw fail("source_correction_predecessor_invalid");
+  const beforeWitness = read(path.join(path.dirname(path.join(repositoryRoot, proof.local_relative_path)), proof.before.artifact));
+  if (Date.parse(beforeWitness.finished_at) <= Date.parse(completion.finished_at)) throw fail("source_correction_witness_predates_settlement");
+  const git = args => execFileSync("git", args, { cwd: repositoryRoot, timeout: 10000, maxBuffer: 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] });
+  git(["merge-base", "--is-ancestor", prior.head, head]);
+  if (git(["rev-parse", `${head}^{tree}`]).toString().trim() !== tree ||
+      digest(git(["show", `${prior.head}:${proof.source_module}`])) !== proof.before.source_sha256 ||
+      digest(git(["show", `${head}:${proof.source_module}`])) !== proof.after.source_sha256) throw fail("source_correction_source_mismatch");
+  const successor = { family_id: candidateFamilyId(branch, proof), head, tree, proof_fingerprint: digest(proof) };
+  const reservation = path.join(priorRoot, "correction-successor.json");
+  if (reserve) {
+    try { append(priorRoot, "correction-successor.json", successor); }
+    catch (error) { if (error.code !== "EEXIST") throw error; }
+  }
+  if (digest(read(reservation)) !== digest(successor)) throw fail("source_correction_successor_already_bound");
+}

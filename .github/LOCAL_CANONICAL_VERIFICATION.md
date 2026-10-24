@@ -703,7 +703,7 @@ unchanged exact-head/current-main/context gates still apply to deciding use.
 
 ### Attempt families and bounded operational recovery
 
-A deciding invocation belongs to an append-only family at the authorized anchor,
+A task starts an append-only family at the authorized anchor,
 keyed by repository and branch, not by wrapper PID, checkout or commit. It
 consumes one initial complete invocation only after admission. A pre-admission
 refusal records no executed coverage. A started but unsettled attempt blocks
@@ -718,8 +718,19 @@ identities. It does not automatically classify network/assertion failures or
 timeouts as infrastructure. Use `--recovery-proof` with a repository-relative
 local repair record only after that evidence exists; there is no automatic retry.
 Product/unknown/safety failures, cosmetic commits, wrapper restart and a third
-attempt refuse. A real subsequent source correction needs an explicit new-family
-disposition; there is no automatic family-reset command in this increment.
+attempt refuse. A real subsequent source correction uses an explicit
+`--source-correction-proof` record, not an infrastructure recovery or family reset.
+This bounded increment supports a changed `scripts/*.mjs` module with the same
+retained deterministic regression failing on the prior Git object and passing on
+the corrected one, under the same environment and Canonical Node. Both observed
+children must exit naturally with complete cleanup after the predecessor settles.
+The owner verifies original witness/fixture hashes, Git content, ancestry and
+exact new head/tree, then appends one immutable successor binding to the prior
+family. A cosmetic fork cannot claim another successor, and each new candidate
+retains its own one-initial/one-infrastructure-recovery limit. Unchanged source,
+missing or changed proof, safety/unknown/timeout predecessor and unproved
+correction refuse. These local records are evidence for independent review,
+not a claim that a source delta is meaningful merely because its hash changed.
 
 Phase retries, partial-run stitching and favorable-sample selection remain
 forbidden. Existing child/phase bounds and two-lane integration concurrency are

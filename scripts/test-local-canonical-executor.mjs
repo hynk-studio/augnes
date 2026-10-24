@@ -912,7 +912,7 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
     }
     const context = {
       checkoutContext: isolated ? "isolated-worktree" : "canonical", verificationContext: {}, signal: { aborted: false },
-      controller: new AbortController(), recoveryProofPath: null, headSha: "a".repeat(40), executorFingerprint: "b".repeat(64), identityBefore: { branch: "fixture" },
+      controller: new AbortController(), recoveryProofPath: null, sourceCorrectionProofPath: null, headSha: "a".repeat(40), executorFingerprint: "b".repeat(64), identityBefore: { branch: "fixture" },
       prepareInvocationInputs: () => ({ snapshot: () => ({ binding: { tree: "c".repeat(40) }, fingerprint: "d".repeat(64) }) }),
       monitorInputContract: () => ({ check: () => null, stop() {}, fault: () => null }),
       beginAttempt: () => ({}), pinVerificationEvidence() {}, assertFrozenSource() {},

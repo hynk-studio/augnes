@@ -35,6 +35,8 @@ scripts and descendant launchers remain inputs even with a private HOME.
 - `local-canonical-attempts.mjs` owns an append-only attempt family: one initial invocation and
   one explicit recovery only with substantiated infrastructure cause and verified
   remedy. Family identity survives wrapper restart and cosmetic commits.
+  A genuine source correction uses explicit retained fail/pass proof and one
+  immutable successor binding; it does not recast the predecessor as infrastructure.
 - `local-canonical-evidence-retention.mjs` protects active and explicitly pinned
   evidence. Unsafe aliases and ambiguous ownership refuse cleanup.
 - `test-local-canonical-classification.mjs` exercises real classification,

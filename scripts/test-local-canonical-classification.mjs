@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { chmodSync, existsSync, linkSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
 import { createCanonicalTestResourceRoot, cleanupCanonicalTestResources, buildCanonicalChildEnvironment, beginCanonicalTestResourceUse, settleCanonicalTestResourceUse } from "./canonical-test-environment.mjs";
 import { runCanonicalChild as executeChild } from "./canonical-child-runner.mjs";
 import { freezeInputContract, classifyInputChange, observeInputFile, monitorInputContract, digest, deriveOperationalDisposition } from "./local-canonical-inputs.mjs";
-import { beginAttempt, finishAttempt, inspectAttemptRecords, readRecoveryProof } from "./local-canonical-attempts.mjs";
+import { beginAttempt, finishAttempt, inspectAttemptRecords, readRecoveryProof, readSourceCorrectionProof } from "./local-canonical-attempts.mjs";
 import { acquireCheckoutVerificationOwnership, releaseCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
 import { runPhasesSequentially, enforceArtifactRetention, FULL_PHASE_IDS, buildPhasePlan } from "./run-local-canonical-verification.mjs";
 import { pinVerificationEvidence } from "./local-canonical-evidence-retention.mjs";
@@ -175,6 +177,54 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
       assert.throws(() => beginAttempt({ ...req, recoveryProof: { ...proof, prior_attempt_id: outcome } }));
     }
     note("real missing-executable failure and repaired probe permit one linked recovery; product/unknown/safety/cosmetic/third attempts refused");
+    const git = (...args) => execFileSync("git", args, { cwd: checkout, env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+    git("init", "-b", "codex/source-correction"); mkdirSync(path.join(checkout, "scripts"));
+    const moduleFile = path.join(checkout, "scripts", "target.mjs"); write(moduleFile, "export const value = 1;\n");
+    git("add", "scripts/target.mjs"); git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-m", "original source");
+    const originalHead = git("rev-parse", "HEAD"), originalTree = git("rev-parse", "HEAD^{tree}");
+    const original = beginAttempt({ ...request, branch: "codex/source-correction", head: originalHead, tree: originalTree, runId: "source-original" });
+    finishAttempt(original, { receiptFingerprint: "7".repeat(64), disposition: "product_failure", cleanupComplete: true });
+    const blockedPredecessors = [];
+    for (const disposition of ["unclassified_timeout", "unknown_relevance", "safety_violation"]) {
+      const prior = beginAttempt({ ...request, branch: `codex/source-${disposition}`, head: originalHead, tree: originalTree, runId: `source-${disposition}` });
+      finishAttempt(prior, { receiptFingerprint: "7".repeat(64), disposition, cleanupComplete: true }); blockedPredecessors.push(prior);
+    }
+    const correctionRoot = path.join(checkout, ".augnes-local-verification", "correction"); mkdirSync(correctionRoot);
+    const fixtureFile = path.join(correctionRoot, "regression.mjs");
+    write(fixtureFile, "import assert from 'node:assert/strict'; const m=await import(process.argv[2]); assert.equal(m.value,2);\n");
+    const witnesses = {};
+    for (const [kind, value] of [["before", 1], ["after", 2]]) {
+      if (value === 2) { write(moduleFile, "export const value = 2;\n"); git("add", "scripts/target.mjs"); git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-m", "correct value"); }
+      const result = await runCanonicalChild({ suite: "classification", label: `source-${kind}`, command: process.execPath, args: [fixtureFile, pathToFileURL(moduleFile).href], cwd: checkout, env, timeoutMs: 2000, stdout: quiet, stderr: quiet, log() {} });
+      assert.equal(result.exit_code, kind === "before" ? 1 : 0);
+      const record = { fixture_sha256: digest(readFileSync(fixtureFile)), environment_fingerprint: digest(env), source_sha256: digest(readFileSync(moduleFile)), result, node_version: process.versions.node, finished_at: new Date().toISOString() };
+      const artifact = `${kind}.json`; write(path.join(correctionRoot, artifact), JSON.stringify(record));
+      witnesses[kind] = { artifact, sha256: digest(readFileSync(path.join(correctionRoot, artifact))), source_sha256: record.source_sha256 };
+    }
+    const correctedHead = git("rev-parse", "HEAD"), correctedTree = git("rev-parse", "HEAD^{tree}");
+    const correctionFile = path.join(correctionRoot, "proof.json");
+    const correctionProof = { schema: "augnes.local-canonical-source-correction.v1", branch: "codex/source-correction", defect: "wrong_exported_value", prior_family_id: original.family_id,
+      prior_number: 1, prior_attempt_id: original.attempt_id, prior_receipt_fingerprint: "7".repeat(64), head: correctedHead, tree: correctedTree, source_module: "scripts/target.mjs",
+      fixture_artifact: "regression.mjs", fixture_sha256: digest(readFileSync(fixtureFile)), environment_fingerprint: digest(env), ...witnesses };
+    write(correctionFile, JSON.stringify(correctionProof));
+    for (const prior of blockedPredecessors) {
+      write(correctionFile, JSON.stringify({ ...correctionProof, branch: prior.branch, prior_family_id: prior.family_id, prior_attempt_id: prior.attempt_id }));
+      assert.throws(() => beginAttempt({ ...request, branch: prior.branch, head: correctedHead, tree: correctedTree, runId: "forbidden-source-successor", sourceCorrection: readSourceCorrectionProof(correctionFile, checkout) }), error => error.code === "source_correction_predecessor_invalid");
+    }
+    write(correctionFile, JSON.stringify(correctionProof));
+    const admittedProof = readSourceCorrectionProof(correctionFile, checkout);
+    const successor = beginAttempt({ ...request, branch: correctionProof.branch, head: correctedHead, tree: correctedTree, runId: "corrected-source", sourceCorrection: admittedProof });
+    assert.equal(successor.number, 1); assert.equal(successor.source_correction.prior_attempt_id, original.attempt_id);
+    finishAttempt(successor, { receiptFingerprint: "8".repeat(64), disposition: "completed_success", cleanupComplete: true });
+    const successorReceipt = { ...linked, attempt: successor, repository: { branch: correctionProof.branch }, run: { id: successor.attempt_id }, integrity: { content_fingerprint: "8".repeat(64) } };
+    assert(inspectAttemptRecords({ anchorRoot: root, repositoryRoot: checkout, receipt: successorReceipt }));
+    assert.throws(() => beginAttempt({ ...request, branch: correctionProof.branch, head: correctedHead, tree: correctedTree, runId: "source-repeat", sourceCorrection: admittedProof }));
+    git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "--allow-empty", "-m", "cosmetic wrapper commit");
+    write(correctionFile, JSON.stringify({ ...correctionProof, head: git("rev-parse", "HEAD") }));
+    assert.throws(() => beginAttempt({ ...request, branch: correctionProof.branch, head: git("rev-parse", "HEAD"), tree: correctedTree, runId: "cosmetic-successor", sourceCorrection: readSourceCorrectionProof(correctionFile, checkout) }));
+    write(correctionFile, JSON.stringify(correctionProof)); write(path.join(correctionRoot, "before.json"), "{}");
+    assert.throws(() => readSourceCorrectionProof(correctionFile, checkout));
+    note("real Git source correction requires identical fail/pass regression, preserves predecessor and refuses repeat/cosmetic forks or changed proof");
     const logs = path.join(checkout, ".augnes-local-verification", "logs"), receipts = path.join(checkout, ".augnes-local-verification", "receipts");
     mkdirSync(logs); mkdirSync(receipts);
     for (const id of ["pinned-old", "active-run", "disposable-old", "newer"]) {
