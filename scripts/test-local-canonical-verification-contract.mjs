@@ -1149,6 +1149,7 @@ const integrationChildren = [
   "web-export-native",
   "execution-choice",
   "manual-contribution",
+  "operating-profile-contribution",
   "manual-contribution-successor",
   "late-review",
   "request-bound-review",
@@ -1237,6 +1238,9 @@ const selectionReconstruction = readCanonicalChildRegistration(integrationSource
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 1_200_000', 'requireNaturalExit: true', '"--selection-profile"', '"process-owning"'])
   requireText(selectionReconstruction.block, fragment, "prospective RC1 has one bounded observation and recovery owner");
 const webPlanningRegistration = readCanonicalChildRegistration(integrationSource, "web-planning-d1");
+const profileContributionRegistration = readCanonicalChildRegistration(integrationSource, "operating-profile-contribution");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 150_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-operating-profile-contribution.ts"'])
+  requireText(profileContributionRegistration.block, fragment, "profile contribution retains one bounded persistence and process owner");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 120_000', 'requireNaturalExit: true', '"scripts/test-web-planning.mjs"', '"backup-restore"'])
   requireText(webPlanningRegistration.block, fragment, "web planning D1 retains one bounded storage and recovery owner");
 for (const id of ["project-work-initialization", "project-work-expectation", "project-work-scoped-host"]) {
