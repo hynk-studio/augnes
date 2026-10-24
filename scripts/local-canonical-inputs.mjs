@@ -125,7 +125,7 @@ export function freezeInputContract({ resources, pathKind, binding, read = obser
   const frozen = JSON.parse(JSON.stringify(declared));
   const fingerprint = digest(frozen);
   const events = [], secondary = [];
-  let firstFault = null, checks = 0;
+  let firstFault = null, checks = 0, observationOverflow = false;
   const check = ({ force = false } = {}) => {
     checks++;
     for (const resource of selected) {
@@ -146,25 +146,32 @@ export function freezeInputContract({ resources, pathKind, binding, read = obser
       const event = { resource: resource.id, classification: resource.classification, disposition,
         observed_at: new Date().toISOString(), monotonic_ns: String(process.hrtime.bigint()), identity: key, after };
       // A bounded observer cannot silently drop a relevant event.
-      if (events.length >= 64) disposition = "observer_failure";
+      if (events.length >= 64) { disposition = "observer_failure"; observationOverflow = true; }
       else events.push(event);
       if (!nonFaultInputChange(disposition)) {
         const fault = { resource: resource.id, disposition, observed_at: event.observed_at, monotonic_ns: event.monotonic_ns };
-        if (!firstFault) firstFault = fault; else if (secondary.length < 16) secondary.push(fault);
+        if (!firstFault) firstFault = fault; else if (secondary.length < 16) secondary.push(fault); else observationOverflow = true;
       }
     }
     return firstFault;
   };
+  const reportObserverFault = (resource, disposition = "safety_violation") => {
+    if (!["safety_violation", "input_invalidation", "observer_failure"].includes(disposition) || !/^[a-z][a-z0-9_-]{0,79}$/u.test(resource)) throw fail("safety_event_invalid");
+    const identity = digest([resource, disposition, null]);
+    if (events.some(e => e.identity === identity)) return;
+    const event = { resource, classification: disposition === "input_invalidation" ? "execution" : "safety", disposition,
+      observed_at: new Date().toISOString(), monotonic_ns: String(process.hrtime.bigint()), after: null, identity };
+    if (events.length < 64) events.push(event); else observationOverflow = true;
+    const fault = { resource, disposition, observed_at: event.observed_at, monotonic_ns: event.monotonic_ns };
+    if (!firstFault) firstFault = fault;
+    else if (secondary.length < 16) secondary.push(fault); else observationOverflow = true;
+  };
   const reportSafetyEvent = reason => {
     if (!["unauthorized_task_write", "foreign_resource_interference", "installed_service_change", "credential_exposure", "ownership_change"].includes(reason)) throw fail("safety_event_invalid");
-    const event = { resource: reason, classification: "safety", disposition: "safety_violation",
-      observed_at: new Date().toISOString(), monotonic_ns: String(process.hrtime.bigint()), after: null };
-    event.identity = digest(event);
-    if (events.length < 64) events.push(event);
-    firstFault ??= { resource: reason, disposition: "safety_violation", observed_at: event.observed_at, monotonic_ns: event.monotonic_ns };
+    reportObserverFault(reason);
   };
-  return Object.freeze({ check, reportSafetyEvent, snapshot: () => ({ ...frozen, fingerprint, checks, events: structuredClone(events),
-    first_fault: firstFault, secondary_faults: structuredClone(secondary),
+  return Object.freeze({ check, reportSafetyEvent, reportObserverFault, snapshot: () => ({ ...frozen, fingerprint, checks, events: structuredClone(events),
+    first_fault: firstFault, secondary_faults: structuredClone(secondary), observation_overflow: observationOverflow,
     limitations: ["bounded polling cannot exclude transient changes between observations", "metadata timestamps are not observed write times", "cooperative ownership is not hostile-user isolation"] }) });
 }
 
@@ -176,7 +183,8 @@ export function monitorInputContract(contract, controller, { intervalMs = 1000, 
     if (stopped) return null;
     latchedFault ??= contract.snapshot().first_fault;
     try { assertOwner(); } catch (error) { ownerFault ??= { disposition: error?.code === "source_input_changed" ? "input_invalidation" : "safety_violation", resource: error?.code === "source_input_changed" ? "source" : "ownership", observed_at: new Date().toISOString(), monotonic_ns: String(process.hrtime.bigint()) }; }
-    latchedFault ??= ownerFault;
+    if (ownerFault) contract.reportObserverFault(ownerFault.resource, ownerFault.disposition);
+    latchedFault ??= contract.snapshot().first_fault;
     const observed = contract.check();
     latchedFault ??= observed;
     const fault = latchedFault;

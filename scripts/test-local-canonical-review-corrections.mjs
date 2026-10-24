@@ -165,12 +165,13 @@ async function successionControls() {
     const request = { anchorRoot: root, repositoryRoot: checkout, checkoutOwner, branch: "codex/fixture", head: oldHead, tree: oldTree, runId: "original", contractFingerprint: "a".repeat(64) };
     const priors = {};
     for (const disposition of ["completed_success", "safety_violation", "unknown_relevance", "unclassified_timeout", "unsettled"]) {
-      const a = beginAttempt({ ...request, branch: `codex/${disposition}`, runId: disposition });
+      const anchorRoot = path.join(root, `independent-${disposition}`); mkdirSync(anchorRoot);
+      const a = beginAttempt({ ...request, anchorRoot, branch: `codex/${disposition}`, runId: disposition });
       const original = finalizeReceipt({ repository: { head_sha: oldHead, tree_sha: oldTree, base_sha: "0".repeat(40) }, run: { id: disposition },
         inputs: { first_fault: disposition === "safety_violation" ? { disposition, resource: "browser-executable" } : null }, outcome: { disposition }, cleanup: { completed: true } });
       write(path.join(receiptDir, `${disposition}.json`), original);
       if (disposition !== "unsettled") finishAttempt(a, { receiptFingerprint: original.integrity.content_fingerprint, disposition, cleanupComplete: true });
-      priors[disposition] = { a, original };
+      priors[disposition] = { a, original, anchorRoot };
     }
     const fixture = path.join(artifacts, "regression.mjs"); write(fixture, "import assert from 'node:assert/strict';const m=await import(process.argv[2]);assert.equal(m.value,2);\n");
     write(moduleFile, "export const value=1; // cosmetic change only\n");
@@ -201,7 +202,7 @@ async function successionControls() {
         environment_fingerprint: digest(env), ...witnesses, review: { artifact: "review.json", sha256: digest(readFileSync(path.join(artifacts, "review.json"))) }, ...extra };
       const file = path.join(artifacts, "proof.json"); write(file, proof); return readSourceCorrectionProof(file, checkout);
     };
-    const successor = (key, proof, extra = {}) => beginAttempt({ ...request, branch: priors[key].a.branch, head: proof.head, tree: proof.tree, runId: `successor-${key}`, sourceCorrection: proof, ...extra });
+    const successor = (key, proof, extra = {}) => beginAttempt({ ...request, anchorRoot: priors[key].anchorRoot, branch: priors[key].a.branch, head: proof.head, tree: proof.tree, runId: `successor-${key}`, sourceCorrection: proof, ...extra });
     assert.throws(() => makeProof("completed_success", "source_revision", cosmeticHead, cosmeticTree, {
       after: { artifact: "cosmetic.json", sha256: digest(readFileSync(path.join(artifacts, "cosmetic.json"))), source_sha256: cosmeticRecord.source_sha256 }
     }), /source_correction_witness_invalid/);
@@ -210,7 +211,7 @@ async function successionControls() {
     assert.throws(() => successor("completed_success", makeProof("completed_success", "source_revision", oldHead, oldTree)));
     // An adversarial record for a newer attempt must block selecting the older
     // completion even when that older completion would otherwise qualify.
-    const newer = path.join(root, ".augnes-local-verification", "families", priors.completed_success.a.family_id, "attempt-2.json");
+    const newer = path.join(priors.completed_success.anchorRoot, ".augnes-local-verification", "families", priors.completed_success.a.family_id, "attempt-2.json");
     write(newer, { attempt_id: "unsettled-newer-attempt" });
     assert.throws(() => successor("completed_success", makeProof("completed_success", "source_revision")), /source_correction_predecessor_invalid/);
     rmSync(newer);
@@ -219,19 +220,20 @@ async function successionControls() {
       assert.equal(a.number, 1); assert.equal(a.source_correction.prior_attempt_id, priors[key].a.attempt_id);
       finishAttempt(a, { receiptFingerprint: "b".repeat(64), disposition: "completed_success", cleanupComplete: true });
       const linked = { attempt: a, repository: { branch: a.branch }, run: { id: a.attempt_id }, integrity: { content_fingerprint: "b".repeat(64) }, outcome: { disposition: "completed_success" }, cleanup: { completed: true } };
-      assert(inspectAttemptRecords({ anchorRoot: root, repositoryRoot: checkout, receipt: linked }));
+      assert(inspectAttemptRecords({ anchorRoot: priors[key].anchorRoot, repositoryRoot: checkout, receipt: linked }));
       assert.throws(() => successor(key, proof), "wrapper restart cannot reset a successful candidate");
-      assert.throws(() => beginAttempt({ ...request, branch: priors[key].a.branch, runId: "superseded-retry" }), /attempt_candidate_superseded/);
-      write(path.join(artifacts, "review.json"), {}); assert(!inspectAttemptRecords({ anchorRoot: root, repositoryRoot: checkout, receipt: linked }));
+      assert.throws(() => beginAttempt({ ...request, anchorRoot: priors[key].anchorRoot, branch: priors[key].a.branch, runId: "superseded-retry" }), /attempt_candidate_superseded/);
+      write(path.join(artifacts, "review.json"), {}); assert(!inspectAttemptRecords({ anchorRoot: priors[key].anchorRoot, repositoryRoot: checkout, receipt: linked }));
     }
     // A pure accepted-main merge has its own exact two-parent/tree proof. It
     // does not relabel the predecessor, claim a defect fixed or need a fake fail.
     git("checkout", "-b", "main", oldHead); write(path.join(checkout, "scripts", "incoming.mjs"), "export const accepted=true;\n"); const main = commit("accepted main change");
     git("checkout", "-b", "integrate", oldHead); git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "merge", "--no-ff", "--no-edit", main);
     const mergeHead = git("rev-parse", "HEAD"), mergeTree = git("rev-parse", "HEAD^{tree}");
-    const a = beginAttempt({ ...request, branch: "codex/integration", runId: "integration-original" });
+    const integrationAnchor = path.join(root, "independent-integration"); mkdirSync(integrationAnchor);
+    const a = beginAttempt({ ...request, anchorRoot: integrationAnchor, branch: "codex/integration", runId: "integration-original" });
     const original = finalizeReceipt({ ...priors.completed_success.original, run: { id: a.attempt_id } }); write(path.join(receiptDir, "integration.json"), original);
-    finishAttempt(a, { receiptFingerprint: original.integrity.content_fingerprint, disposition: "completed_success", cleanupComplete: true }); priors.integration = { a, original };
+    finishAttempt(a, { receiptFingerprint: original.integrity.content_fingerprint, disposition: "completed_success", cleanupComplete: true }); priors.integration = { a, original, anchorRoot: integrationAnchor };
     await new Promise(resolve => setTimeout(resolve, 2));
     const proof = makeProof("integration", "accepted_main_integration", mergeHead, mergeTree, { accepted_main: main });
     assert.throws(() => successor("integration", proof, { acceptedMain: oldHead }));

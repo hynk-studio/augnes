@@ -2,10 +2,12 @@ import { mkdirSync, lstatSync, readFileSync, readdirSync, realpathSync, writeFil
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { digest } from "./local-canonical-inputs.mjs";
-import { assertCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
+import { acquireCheckoutVerificationOwnership, releaseCheckoutVerificationOwnership, assertCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
 import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 
-export const ATTEMPT_CONTRACT = "augnes.local-canonical-attempt-family.v1";
+export const LEGACY_ATTEMPT_CONTRACT = "augnes.local-canonical-attempt-family.v1";
+export const ATTEMPT_CONTRACT = "augnes.local-canonical-attempt-family.v2";
+import { inspectInputRequalification } from "./local-canonical-input-requalification.mjs";
 const fail = code => Object.assign(new Error(code), { code });
 const sha = value => /^[0-9a-f]{64}$/u.test(value ?? "");
 const capabilities = new WeakMap();
@@ -24,36 +26,126 @@ function read(file, maximum = 64 * 1024) {
 }
 function append(root, name, value) { writeFileSync(path.join(root, name), `${JSON.stringify(value)}\n`, { flag: "wx", mode: 0o600 }); }
 
-// Family lives at the physical anchor, keyed by repository and branch (not
-// commit, wrapper process or checkout). There is no CLI family-id reset knob.
-export function beginAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, head, tree, runId, contractFingerprint, recoveryProof = null, sourceCorrection = null, acceptedMain = null }) {
-  assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
-  if (!branch || !/^[0-9a-f]{40}$/u.test(head) || !/^[0-9a-f]{40}$/u.test(tree) || !sha(contractFingerprint)) throw fail("attempt_identity_invalid");
-  const familyId = candidateFamilyId(branch, sourceCorrection);
-  const artifact = directory(anchorRoot, ".augnes-local-verification");
-  if (sourceCorrection) admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof: sourceCorrection, acceptedMain, reserve: true });
-  const root = directory(directory(artifact, "families"), familyId);
+// The digest domain is permanently v1. Record evolution is not a new budget.
+// One short anchor-owned admission mutex serializes discovery and claims across
+// checkouts/branches. The immutable predecessor claim is the continuation spend.
+function familyRoot(anchorRoot, familyId) {
+  if (!sha(familyId)) throw fail("attempt_identity_invalid");
+  const root = path.join(anchorRoot, ".augnes-local-verification", "families", familyId);
+  const s = lstatSync(root, { throwIfNoEntry: false });
+  if (!s) return null;
+  if (!s.isDirectory() || s.isSymbolicLink() || realpathSync(root) !== root || (s.mode & 0o022)) throw fail("attempt_unsafe_directory");
+  return root;
+}
+function entriesAt(root) {
+  if (!root) return [];
   const entries = readdirSync(root);
-  if (entries.some(name => !/^(attempt|completion)-[12]\.json$/u.test(name) && name !== "correction-successor.json")) throw fail("attempt_unknown_record");
+  if (entries.some(name => !/^(attempt|completion)-[12]\.json$/u.test(name) && !/^(?:correction-successor|continuation-claim-[12])\.json$/u.test(name))) throw fail("attempt_unknown_record");
+  return entries;
+}
+export function inspectInputContinuationAvailability({ anchorRoot, familyId }) {
+  const root = familyRoot(anchorRoot, familyId), entries = entriesAt(root);
+  if (!root || !entries.includes("attempt-1.json") || !entries.includes("completion-1.json")) throw fail("attempt_budget_or_unsettled");
+  if (entries.includes("correction-successor.json") || entries.includes("attempt-2.json") || entries.some(n => n.startsWith("continuation-claim-")))
+    throw fail("attempt_budget_or_superseded");
+  const prior = read(path.join(root, "attempt-1.json")), completion = read(path.join(root, "completion-1.json"));
+  if (prior.number !== 1 || prior.family_id !== familyId || ![LEGACY_ATTEMPT_CONTRACT, ATTEMPT_CONTRACT].includes(prior.contract) ||
+      completion.attempt_id !== prior.attempt_id || completion.cleanup_complete !== true || completion.disposition !== "input_invalidation")
+    throw fail("attempt_recovery_not_supported");
+  return { remaining_continuations: 1, legacy_digest_domain: LEGACY_ATTEMPT_CONTRACT, predecessor_attempt_id: prior.attempt_id };
+}
+function rejectAliasedInitial({ anchorRoot, familyId, head, tree, repositoryRoot, acceptedMain }) {
+  const base = path.join(anchorRoot, ".augnes-local-verification", "families");
+  if (!lstatSync(base, { throwIfNoEntry: false })) return;
+  if (realpathSync(base) !== base || !lstatSync(base).isDirectory()) throw fail("attempt_unsafe_directory");
+  const families = readdirSync(base);
+  if (families.length > 4096) throw fail("attempt_discovery_bound_exceeded");
+  const ancestor = (a, b) => {
+    try { execFileSync("git", ["--no-replace-objects", "merge-base", "--is-ancestor", a, b], { cwd: repositoryRoot, timeout: 10000, stdio: ["ignore", "pipe", "pipe"] }); return true; }
+    catch (e) { if (e.status === 1) return false; throw fail("attempt_source_discovery_unknown"); }
+  };
+  for (const id of families) {
+    const root = familyRoot(anchorRoot, id);
+    for (const name of entriesAt(root).filter(n => /^attempt-[12]\.json$/u.test(n))) {
+      const prior = read(path.join(root, name));
+      if (![LEGACY_ATTEMPT_CONTRACT, ATTEMPT_CONTRACT].includes(prior.contract) || !sha(prior.family_id)) throw fail("attempt_legacy_record_invalid");
+      if (id === familyId) continue;
+      if (prior.head === head || prior.tree === tree || (acceptedMain && !ancestor(prior.head, acceptedMain) && ancestor(prior.head, head)))
+        throw fail("attempt_existing_candidate_requires_lineage");
+    }
+  }
+}
+
+// No directories, owners, reservation files or Git objects are created here.
+export function validateAttemptAdmission(request) {
+  const { anchorRoot, repositoryRoot, checkoutOwner = null, branch, head, tree, recoveryProof = null,
+    sourceCorrection = null, inputRequalification = null, acceptedMain = null, inputs = null } = request;
+  if (!branch || !/^[0-9a-f]{40}$/u.test(head) || !/^[0-9a-f]{40}$/u.test(tree) ||
+      (inputRequalification && (recoveryProof || sourceCorrection))) throw fail("attempt_identity_invalid");
+  const familyId = inputRequalification?.prior.family_id ?? candidateFamilyId(branch, sourceCorrection);
+  const root = familyRoot(anchorRoot, familyId), entries = entriesAt(root);
   const previous = entries.includes("attempt-1.json") ? read(path.join(root, "attempt-1.json")) : null;
-  let number = 1, prior = null;
+  let number = 1, prior = null, claimRoot = null, sourceAdmission = null;
+  if (sourceCorrection) {
+    const inspected = admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof: sourceCorrection, acceptedMain, reserve: previous ? false : null });
+    if (!previous) { sourceAdmission = inspected; claimRoot = inspected.priorRoot; }
+  }
   if (previous) {
     if (entries.includes("correction-successor.json")) throw fail("attempt_candidate_superseded");
-    if (entries.includes("attempt-2.json") || !entries.includes("completion-1.json")) throw fail("attempt_budget_or_unsettled");
+    if (entries.includes("continuation-claim-1.json") || entries.includes("attempt-2.json") || !entries.includes("completion-1.json")) throw fail("attempt_budget_or_unsettled");
     prior = read(path.join(root, "completion-1.json"));
-    if (prior.attempt_id !== previous.attempt_id || prior.disposition !== "infrastructure_interruption" || prior.cleanup_complete !== true ||
-        previous.head !== head || previous.tree !== tree || !sha(prior.receipt_fingerprint) ||
-        !validRecoveryProof(recoveryProof, prior)) throw fail("attempt_recovery_not_supported");
-    number = 2;
-  } else if (recoveryProof || entries.length) throw fail("attempt_missing_predecessor");
-  const record = { contract: ATTEMPT_CONTRACT, family_id: familyId, attempt_id: runId, number, branch,
-    head, tree, contract_fingerprint: contractFingerprint, started_at: new Date().toISOString(),
-    prior_attempt_id: prior?.attempt_id ?? null, prior_receipt_fingerprint: prior?.receipt_fingerprint ?? null,
-    recovery: number === 2 ? recoveryProof : null, source_correction: sourceCorrection, budget: { initial: 1, recovery: 1 } };
-  append(root, `attempt-${number}.json`, record);
-  const capability = Object.freeze({ ...record });
-  capabilities.set(capability, { root, repositoryRoot, checkoutOwner, record });
-  return capability;
+    if (prior.attempt_id !== previous.attempt_id || prior.cleanup_complete !== true || !sha(prior.receipt_fingerprint)) throw fail("attempt_recovery_not_supported");
+    if (inputRequalification) {
+      inspectInputRequalification({ anchorRoot, repositoryRoot, branch, head, tree, proof: inputRequalification, acceptedMain, inputs, checkoutOwner });
+    } else if (prior.disposition !== "infrastructure_interruption" || previous.head !== head || previous.tree !== tree || !validRecoveryProof(recoveryProof, prior)) {
+      throw fail("attempt_recovery_not_supported");
+    }
+    number = 2; claimRoot = root;
+  } else {
+    if (recoveryProof || inputRequalification || entries.length) throw fail("attempt_missing_predecessor");
+    if (!sourceCorrection) rejectAliasedInitial({ anchorRoot, repositoryRoot, familyId, head, tree, acceptedMain });
+  }
+  if (claimRoot && entriesAt(claimRoot).includes(`continuation-claim-${sourceAdmission ? sourceCorrection.prior_number : 1}.json`)) throw fail("attempt_continuation_already_claimed");
+  return { familyId, number, prior, claimRoot, sourceAdmission };
+}
+
+export function beginAttempt(request) {
+  const { anchorRoot, repositoryRoot, checkoutOwner, branch, head, tree, runId, contractFingerprint,
+    recoveryProof = null, sourceCorrection = null, inputRequalification = null } = request;
+  assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
+  if (!sha(contractFingerprint) || !/^[A-Za-z0-9_-]{1,160}$/u.test(runId ?? "")) throw fail("attempt_identity_invalid");
+  if (inputRequalification && (!request.inputs || contractFingerprint !== request.inputs.fingerprint ||
+      contractFingerprint !== digest({ contract: request.inputs.contract, path_kind: request.inputs.path_kind, binding: request.inputs.binding, resources: request.inputs.resources })))
+    throw fail("input_requalification_freeze_mismatch");
+  validateAttemptAdmission(request);
+  const artifact = directory(anchorRoot, ".augnes-local-verification");
+  const mutexRoot = directory(artifact, "attempt-admission");
+  const mutex = acquireCheckoutVerificationOwnership({ repositoryRoot: mutexRoot });
+  try {
+    assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
+    const { familyId, number, prior, claimRoot, sourceAdmission } = validateAttemptAdmission(request);
+    const root = directory(directory(artifact, "families"), familyId);
+    const claim = claimRoot ? { contract: "augnes.local-canonical-continuation-claim.v1",
+      kind: inputRequalification ? "input_requalification" : recoveryProof ? "infrastructure_recovery" : "source_successor",
+      prior_number: sourceAdmission ? sourceCorrection.prior_number : 1,
+      prior_family_id: inputRequalification?.prior.family_id ?? (sourceAdmission ? sourceCorrection.prior_family_id : familyId),
+      prior_attempt_id: inputRequalification?.prior.attempt_id ?? (sourceAdmission ? sourceCorrection.prior_attempt_id : prior.attempt_id),
+      family_id: familyId, attempt_id: runId, number, head, tree, contract_fingerprint: contractFingerprint,
+      proof_fingerprint: digest(inputRequalification ?? recoveryProof ?? sourceCorrection) } : null;
+    const record = { contract: ATTEMPT_CONTRACT, family_id: familyId, attempt_id: runId, number, branch,
+      head, tree, contract_fingerprint: contractFingerprint, started_at: new Date().toISOString(),
+      prior_attempt_id: prior?.attempt_id ?? null, prior_receipt_fingerprint: prior?.receipt_fingerprint ?? null,
+      recovery: recoveryProof, source_correction: sourceCorrection, input_requalification: inputRequalification,
+      continuation_claim: claim, budget: { initial: 1, recovery: 1 } };
+    // The exclusive claim is the actual admission point. A crash after this
+    // point consumes/blocks the continuation even if no child ever finishes.
+    if (claim) append(claimRoot, `continuation-claim-${claim.prior_number}.json`, claim);
+    if (sourceAdmission) append(claimRoot, "correction-successor.json", sourceAdmission.successor);
+    append(root, `attempt-${number}.json`, record);
+    const capability = Object.freeze({ ...record });
+    capabilities.set(capability, { root, repositoryRoot, checkoutOwner, record });
+    return capability;
+  } finally { releaseCheckoutVerificationOwnership(mutex, mutexRoot); }
 }
 
 export function validRecoveryProof(proof, prior) {
@@ -76,7 +168,7 @@ export function finishAttempt(capability, { receiptFingerprint, disposition, cle
   if (realpathSync(state.root) !== state.root || !lstatSync(state.root).isDirectory()) throw fail("attempt_unsafe_directory");
   const original = read(path.join(state.root, `attempt-${state.record.number}.json`));
   if (JSON.stringify(original) !== JSON.stringify(state.record)) throw fail("attempt_record_changed");
-  append(state.root, `completion-${state.record.number}.json`, { contract: ATTEMPT_CONTRACT,
+  append(state.root, `completion-${state.record.number}.json`, { contract: state.record.contract,
     attempt_id: state.record.attempt_id, receipt_fingerprint: receiptFingerprint, disposition,
     cleanup_complete: cleanupComplete, infrastructure_code: infrastructureCode, finished_at: new Date().toISOString() });
   capabilities.delete(capability);
@@ -102,10 +194,12 @@ export function readRecoveryProof(file) {
 export function inspectAttemptRecords({ anchorRoot, repositoryRoot = anchorRoot, receipt }) {
   try {
     const attempt = receipt.attempt;
-    const familyId = candidateFamilyId(receipt.repository.branch, attempt.source_correction);
+    const familyId = attempt.input_requalification?.prior.family_id ?? candidateFamilyId(receipt.repository.branch, attempt.source_correction);
     if (attempt.source_correction) admitSourceCorrection({ anchorRoot, repositoryRoot, branch: receipt.repository.branch,
       head: attempt.head, tree: attempt.tree, proof: attempt.source_correction, acceptedMain: receipt.repository.base_sha, reserve: false });
-    if (attempt.family_id !== familyId || ![1, 2].includes(attempt.number)) return false;
+    if (attempt.family_id !== familyId || ![1, 2].includes(attempt.number) || ![LEGACY_ATTEMPT_CONTRACT, ATTEMPT_CONTRACT].includes(attempt.contract)) return false;
+    if (attempt.input_requalification) inspectInputRequalification({ anchorRoot, repositoryRoot, branch: receipt.repository.branch,
+      head: attempt.head, tree: attempt.tree, proof: attempt.input_requalification, acceptedMain: receipt.repository.base_sha, inputs: receipt.inputs });
     const root = path.join(anchorRoot, ".augnes-local-verification", "families", familyId);
     if (realpathSync(root) !== root || !lstatSync(root).isDirectory()) return false;
     const original = read(path.join(root, `attempt-${attempt.number}.json`));
@@ -115,14 +209,29 @@ export function inspectAttemptRecords({ anchorRoot, repositoryRoot = anchorRoot,
         completion.disposition !== receipt.outcome.disposition || completion.cleanup_complete !== receipt.cleanup.completed) return false;
     if (attempt.number === 2) {
       const prior = read(path.join(root, "completion-1.json"));
-      if (prior.disposition !== "infrastructure_interruption" || !validRecoveryProof(attempt.recovery, prior)) return false;
+      if (prior.attempt_id !== attempt.prior_attempt_id || prior.receipt_fingerprint !== attempt.prior_receipt_fingerprint || prior.cleanup_complete !== true ||
+          (attempt.input_requalification ? prior.disposition !== "input_invalidation" :
+        (prior.disposition !== "infrastructure_interruption" || !validRecoveryProof(attempt.recovery, prior)))) return false;
+    }
+    if (attempt.contract === ATTEMPT_CONTRACT && (attempt.number === 2 || attempt.source_correction)) {
+      const claim = attempt.continuation_claim;
+      const sourceSuccessor = attempt.number === 1 && attempt.source_correction;
+      const priorFamily = sourceSuccessor ? attempt.source_correction.prior_family_id : familyId;
+      const priorNumber = sourceSuccessor ? attempt.source_correction.prior_number : 1;
+      const priorId = sourceSuccessor ? attempt.source_correction.prior_attempt_id : attempt.prior_attempt_id;
+      if (!claim || claim.contract !== "augnes.local-canonical-continuation-claim.v1" || claim.prior_family_id !== priorFamily || claim.prior_number !== priorNumber ||
+          claim.prior_attempt_id !== priorId || claim.kind !== (sourceSuccessor ? "source_successor" : attempt.input_requalification ? "input_requalification" : "infrastructure_recovery") ||
+          claim.family_id !== familyId || claim.attempt_id !== attempt.attempt_id || claim.head !== attempt.head || claim.tree !== attempt.tree ||
+          claim.number !== attempt.number || claim.contract_fingerprint !== attempt.contract_fingerprint ||
+          claim.proof_fingerprint !== digest(attempt.input_requalification ?? attempt.recovery ?? attempt.source_correction) ||
+          digest(read(path.join(familyRoot(anchorRoot, claim.prior_family_id), `continuation-claim-${claim.prior_number}.json`))) !== digest(claim)) return false;
     }
     return true;
   } catch { return false; }
 }
 
 function candidateFamilyId(branch, correction) {
-  return digest([ATTEMPT_CONTRACT, "hynk-studio/augnes", branch,
+  return digest([LEGACY_ATTEMPT_CONTRACT, "hynk-studio/augnes", branch,
     ...(correction ? ["verified_source_correction", correction.prior_attempt_id, correction.head, correction.tree] : [])]);
 }
 
@@ -214,9 +323,10 @@ function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree,
   }
   const successor = { family_id: candidateFamilyId(branch, proof), head, tree, proof_fingerprint: digest(proof) };
   const reservation = path.join(priorRoot, "correction-successor.json");
-  if (reserve) {
-    try { append(priorRoot, "correction-successor.json", successor); }
-    catch (error) { if (error.code !== "EEXIST") throw error; }
+  if (reserve === null) {
+    if (lstatSync(reservation, { throwIfNoEntry: false }) || lstatSync(path.join(priorRoot, `continuation-claim-${proof.prior_number}.json`), { throwIfNoEntry: false }))
+      throw fail("source_correction_successor_already_bound");
+    return { priorRoot, successor };
   }
   if (digest(read(reservation)) !== digest(successor)) throw fail("source_correction_successor_already_bound");
 }

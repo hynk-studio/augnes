@@ -172,7 +172,8 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
     write(probePath, "{}"); assert.throws(() => readRecoveryProof(proofPath));
     assert.throws(() => beginAttempt({ ...request, runId: "third", recoveryProof: proof }));
     for (const outcome of ["product_failure", "unclassified_timeout", "safety_violation"]) {
-      const req = { ...request, branch: `codex/${outcome}`, runId: outcome };
+      const anchorRoot = path.join(root, `independent-${outcome}`); mkdirSync(anchorRoot);
+      const req = { ...request, anchorRoot, branch: `codex/${outcome}`, runId: outcome };
       const a = beginAttempt(req); finishAttempt(a, { receiptFingerprint: "4".repeat(64), disposition: outcome, cleanupComplete: true });
       assert.throws(() => beginAttempt({ ...req, recoveryProof: { ...proof, prior_attempt_id: outcome } }));
     }
@@ -186,8 +187,9 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
     finishAttempt(original, { receiptFingerprint: "7".repeat(64), disposition: "product_failure", cleanupComplete: true });
     const blockedPredecessors = [];
     for (const disposition of ["unclassified_timeout", "unknown_relevance", "safety_violation"]) {
-      const prior = beginAttempt({ ...request, branch: `codex/source-${disposition}`, head: originalHead, tree: originalTree, runId: `source-${disposition}` });
-      finishAttempt(prior, { receiptFingerprint: "7".repeat(64), disposition, cleanupComplete: true }); blockedPredecessors.push(prior);
+      const anchorRoot = path.join(root, `independent-source-${disposition}`); mkdirSync(anchorRoot);
+      const prior = beginAttempt({ ...request, anchorRoot, branch: `codex/source-${disposition}`, head: originalHead, tree: originalTree, runId: `source-${disposition}` });
+      finishAttempt(prior, { receiptFingerprint: "7".repeat(64), disposition, cleanupComplete: true }); blockedPredecessors.push({ prior, anchorRoot });
     }
     const correctionRoot = path.join(checkout, ".augnes-local-verification", "correction"); mkdirSync(correctionRoot);
     const fixtureFile = path.join(correctionRoot, "regression.mjs");
@@ -207,9 +209,9 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
       prior_number: 1, prior_attempt_id: original.attempt_id, prior_receipt_fingerprint: "7".repeat(64), head: correctedHead, tree: correctedTree, source_module: "scripts/target.mjs",
       fixture_artifact: "regression.mjs", fixture_sha256: digest(readFileSync(fixtureFile)), environment_fingerprint: digest(env), ...witnesses };
     write(correctionFile, JSON.stringify(correctionProof));
-    for (const prior of blockedPredecessors) {
+    for (const { prior, anchorRoot } of blockedPredecessors) {
       write(correctionFile, JSON.stringify({ ...correctionProof, branch: prior.branch, prior_family_id: prior.family_id, prior_attempt_id: prior.attempt_id }));
-      assert.throws(() => beginAttempt({ ...request, branch: prior.branch, head: correctedHead, tree: correctedTree, runId: "forbidden-source-successor", sourceCorrection: readSourceCorrectionProof(correctionFile, checkout) }), error => error.code === "source_correction_predecessor_invalid");
+      assert.throws(() => beginAttempt({ ...request, anchorRoot, branch: prior.branch, head: correctedHead, tree: correctedTree, runId: "forbidden-source-successor", sourceCorrection: readSourceCorrectionProof(correctionFile, checkout) }), error => error.code === "source_correction_predecessor_invalid");
     }
     write(correctionFile, JSON.stringify(correctionProof));
     const admittedProof = readSourceCorrectionProof(correctionFile, checkout);
