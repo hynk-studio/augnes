@@ -165,6 +165,7 @@
     "web:dev": "node scripts/run-web-planning.mjs dev",
     "web:test": "node scripts/run-web-planning.mjs test",
     "web:test:browser": "node scripts/run-web-planning.mjs browser",
-    "web:typecheck": "tsc -p apps/web_planning/tsconfig.json --noEmit"
+    "web:typecheck": "tsc -p apps/web_planning/tsconfig.json --noEmit",
+    "verify:local:export": "node scripts/export-local-canonical-review.mjs"
   }
 }

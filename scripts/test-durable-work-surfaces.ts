@@ -1,9 +1,10 @@
 // Fresh process, real component, HTTP writers and authenticated local agent route.
 // All identity/channel credentials below belong only to the disposable fixture.
+import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
-import { readFileSync, mkdirSync, rmSync } from "node:fs";
+import { readFileSync, mkdirSync, rmSync, existsSync } from "node:fs";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { build } from "esbuild";
@@ -52,6 +53,7 @@ async function main() {
   const sessions = createVNextLocalOperatorSessionHandlersV01({ environment, clock });
   const stateless = createStatelessSourceReviewHandler({ environment, clock });
   const post = createVNextOperatorContextUseReviewHandlerV01({ environment, clock }), get = createVNextOperatorProjectContinuityHandlerV01({ environment, clock });
+  let browserUse: ReturnType<typeof beginBrowserUse> | undefined;
   let c: CDP | undefined, chrome: ReturnType<typeof registerOwnedChild> | undefined, origin = "", script = "", css = "", errors = 0, external = 0, saves = 0;
   const cookieJar = new Map<string, string>();
   const cookieHeader = () => [...cookieJar].map(([name, value]) => `${name}=${value}`).join("; ");
@@ -173,10 +175,15 @@ async function main() {
       script = bundled.outputFiles.find(f => f.path.endsWith(".js"))!.text; css = bundled.outputFiles.find(f => f.path.endsWith(".css"))?.text ?? "";
       const profile = path.join(root, "chrome"), args = ["--headless=new", "--no-sandbox", "--disable-gpu", "--no-first-run", "--no-default-browser-check", "--disable-background-networking", "--disable-component-update", "--disable-default-apps", "--disable-domain-reliability", "--disable-extensions", "--disable-sync", "--metrics-recording-only", "--no-pings", "--password-store=basic", "--use-mock-keychain", "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1", "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "about:blank"];
       const sandbox = '(version 1) (allow default) (deny network*) (allow network-inbound (local ip "localhost:*")) (allow network-outbound (remote ip "localhost:*")) (allow network-bind (local ip "localhost:*")) (allow network* (local unix-socket))';
-      chrome = registerOwnedChild(owned, spawn("/usr/bin/sandbox-exec", ["-p", sandbox, "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", ...args], { detached: true, stdio: "ignore", env: { ...process.env, OPENAI_API_KEY: "" } }), { label: "durable-work-browser" });
+      const executable = process.env.AUGNES_BROWSER_EXECUTABLE_PATH ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+      assert.ok(existsSync(executable), "durable_browser_executable_missing");
+      browserUse = beginBrowserUse(executable, { consumer: cumulative ? "cumulative-work-surface" : "durable-work-surface" });
+      chrome = registerOwnedChild(owned, spawn("/usr/bin/sandbox-exec", ["-p", sandbox, executable, ...args], { detached: true, stdio: "ignore", env: { ...process.env, OPENAI_API_KEY: "" } }), { label: "durable-work-browser" });
       let port = ""; await until(async () => { try { port = readFileSync(path.join(profile, "DevToolsActivePort"), "utf8").split("\n")[0]!; return !!port; } catch { return false; } }, "chrome");
       const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: "PUT" })).json() as any;
-      c = new CDP(target.webSocketDebuggerUrl); await c.open(); const browser = c;
+      c = new CDP(target.webSocketDebuggerUrl); await c.open();
+      browserUse.version((await (await fetch(`http://127.0.0.1:${port}/json/version`)).json() as { Browser: string }).Browser);
+      browserUse.version((await c.send("Browser.getVersion")).product, "cdp"); const browser = c;
       await c.send("Network.enable"); await c.send("Runtime.enable"); await c.send("Page.enable");
       c.handlers.push(m => { if (m.method === "Runtime.exceptionThrown") errors++; if (m.method === "Network.requestWillBeSent" && /^https?:/u.test(m.params.request.url) && !m.params.request.url.startsWith(origin + "/")) external++; });
       for (const [name, value] of cookieJar) await c.send("Network.setCookie", { name, value, url: origin, path: VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_PATH_V01, httpOnly: true, sameSite: "Strict" });
@@ -213,7 +220,7 @@ async function main() {
   } finally {
     globalThis.Date = NativeDate;
     try { if (cookieJar.size) { await http("/api/vnext/operator/session", { action: "logout" }); await http("/api/vnext/operator/session", undefined, 401); } }
-    finally { c?.close(); if (chrome) await terminateOwnedProcessTree(chrome); await closeTrackedServer(server); db.close(); guard.restore(); rmSync(root, { recursive: true, force: true });
+    finally { c?.close(); if (chrome) await terminateOwnedProcessTree(chrome); browserUse?.finish(); await closeTrackedServer(server); db.close(); guard.restore(); rmSync(root, { recursive: true, force: true });
       for (const key of Object.keys(process.env)) if (!(key in envBefore)) delete process.env[key]; Object.assign(process.env, envBefore); assert.equal(owned.size, 0); }
   }
 }

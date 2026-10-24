@@ -1,3 +1,4 @@
+import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { browserSceneJourney } from "./browser-web-planning-scenes.mjs";
 import { browserSceneResponseJourney } from './browser-web-planning-scene-responses.mjs';
 import { CDP } from './web-planning-cdp.mjs';
@@ -168,14 +169,18 @@ async function closeLocalRuntime(){for(const c of clients)c.interceptions.mark('
 async function navigate(c,url){await c.send('Page.navigate',{url});await wait(()=>c.eval("document.readyState==='complete'"),'page complete');}
 async function login(c,origin){await navigate(c,origin+'/_local/login');await wait(()=>c.eval("!!document.querySelector('form button')"),'login');await c.eval("document.querySelector('form button').click()");await wait(()=>c.eval("document.getElementById('list-state')?.textContent!=='Reading saved work…'&&!!document.getElementById('new-work')"),'workspace');}
 async function reopen(c){await wait(()=>c.eval("document.querySelectorAll('#work-list button').length>0"),'saved list');await c.eval("document.querySelector('#work-list button').click()");await wait(()=>visible(c,'editor'),'editor');}
-let checks=[];
+let checks=[], browserUse;
 try {
  testReadOnlyRequestWindow();
  local=await startLocal({root:path.join(root,'runtime')});const origin=local.origin;
  const debug=await availablePort();const profile=path.join(root,'chrome-profile'),downloads=path.join(root,'downloads');await mkdir(downloads);
+ browserUse=beginBrowserUse(chrome,{consumer:"web-planning"});
  const child=spawn(chrome,['--headless=new','--disable-gpu','--no-first-run','--no-default-browser-check','--disable-background-networking','--disable-component-update','--disable-default-apps','--disable-domain-reliability','--disable-extensions','--disable-sync','--metrics-recording-only','--no-pings','--password-store=basic','--use-mock-keychain','--remote-debugging-address=127.0.0.1',`--remote-debugging-port=${debug}`,`--user-data-dir=${profile}`,'about:blank'],{stdio:'ignore',detached:true});processRecord=registerOwnedChild(owned,child,{label:'web-planning-browser'});
  await wait(async()=>{try{return (await fetch(`http://127.0.0.1:${debug}/json/version`)).ok;}catch{return false;}},'chrome');
- const a=await page(debug,origin);await login(a,origin);
+ const a=await page(debug,origin);
+ browserUse.version((await (await fetch(`http://127.0.0.1:${debug}/json/version`)).json()).Browser);
+ browserUse.version((await a.send("Browser.getVersion")).product,"cdp");
+ await login(a,origin);
  await a.send('Page.bringToFront');await a.eval("document.getElementById('new-work').focus()");await a.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13,text:'\r'});await a.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
  await wait(()=>a.eval("document.activeElement.id==='goal'"),'keyboard new work');
  await set(a,'goal','Choose a quiet reading room');await set(a,'criteria','Preserve one owner\nReopen the plan');await set(a,'non-goals','No file uploads');
@@ -326,5 +331,5 @@ try {
  assert.deepEqual(interceptionErrors,[]);
  assert.equal(exceptions,0);assert.equal(external,0);assert.equal(unexpectedFailures,0);assert.equal(expectedFailures.size,0);
  console.log(JSON.stringify({web_planning_browser_checks:checks,acknowledgement_checks:acknowledgementChecks,actual_agent_read:false,sites_ingress_verified:false,cloudflare_access_hosted_verified:false,external_requests:external,script_exceptions:exceptions}));
-} finally {for(const c of clients)await c.close();if(processRecord)await terminateOwnedProcessTree(processRecord);if(local)await closeLocalRuntime();assert.equal(owned.size,0);console.log(JSON.stringify({web_planning_interception_diagnostics:clients.map(c=>c.interceptions.summary())}));console.log('web_planning_browser_cleanup_complete');}
+} finally {for(const c of clients)await c.close();if(processRecord)await terminateOwnedProcessTree(processRecord);browserUse?.finish();if(local)await closeLocalRuntime();assert.equal(owned.size,0);console.log(JSON.stringify({web_planning_interception_diagnostics:clients.map(c=>c.interceptions.summary())}));console.log('web_planning_browser_cleanup_complete');}
 function privateViewCleared(s){return s.work===null&&s.saved===null&&s.pending===null&&s.saveTicket===null&&!s.body.includes('Private material')&&!s.body.includes('Saved revision');}
