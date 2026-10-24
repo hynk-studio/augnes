@@ -208,6 +208,12 @@ async function successionControls() {
     for (const key of ["unknown_relevance", "unclassified_timeout", "unsettled"]) assert.throws(() => successor(key, makeProof(key, "source_revision")));
     assert.throws(() => successor("safety_violation", makeProof("safety_violation", "source_revision")));
     assert.throws(() => successor("completed_success", makeProof("completed_success", "source_revision", oldHead, oldTree)));
+    // An adversarial record for a newer attempt must block selecting the older
+    // completion even when that older completion would otherwise qualify.
+    const newer = path.join(root, ".augnes-local-verification", "families", priors.completed_success.a.family_id, "attempt-2.json");
+    write(newer, { attempt_id: "unsettled-newer-attempt" });
+    assert.throws(() => successor("completed_success", makeProof("completed_success", "source_revision")), /source_correction_predecessor_invalid/);
+    rmSync(newer);
     for (const [key, kind] of [["completed_success", "source_revision"], ["safety_violation", "verifier_correction"]]) {
       const proof = makeProof(key, kind), a = successor(key, proof);
       assert.equal(a.number, 1); assert.equal(a.source_correction.prior_attempt_id, priors[key].a.attempt_id);
@@ -215,6 +221,7 @@ async function successionControls() {
       const linked = { attempt: a, repository: { branch: a.branch }, run: { id: a.attempt_id }, integrity: { content_fingerprint: "b".repeat(64) }, outcome: { disposition: "completed_success" }, cleanup: { completed: true } };
       assert(inspectAttemptRecords({ anchorRoot: root, repositoryRoot: checkout, receipt: linked }));
       assert.throws(() => successor(key, proof), "wrapper restart cannot reset a successful candidate");
+      assert.throws(() => beginAttempt({ ...request, branch: priors[key].a.branch, runId: "superseded-retry" }), /attempt_candidate_superseded/);
       write(path.join(artifacts, "review.json"), {}); assert(!inspectAttemptRecords({ anchorRoot: root, repositoryRoot: checkout, receipt: linked }));
     }
     // A pure accepted-main merge has its own exact two-parent/tree proof. It
