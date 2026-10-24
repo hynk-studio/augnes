@@ -1046,6 +1046,21 @@ the original under the existing history owner and is reported on read. Profile
 notes cannot count as downstream result material. Direct/asset/non-use and
 non-profile manual/configured-review workflows remain available unchanged.
 
+The #1532 same-project continuation composes these owners without a new contract.
+An eligible origin explicitly resolves and reselects the linked choice, complete
+profile, request, return, decision and selected feedback before the existing
+different-task writer keeps those exact source entries. `keep` preserves their
+bytes and provenance; no imported judgment is promoted to local authorship.
+Explicit omissions and the new purpose/inputs belong to that writer's ordinary
+preview/save. The recipient cannot retrieve origin-only deselected dependencies:
+retained lookup is scoped to its own task segment. Copied historical decisions
+retain the origin task binding and cannot count as current. A separate recipient
+assessment requires explicit reassessment and current downstream material; prior
+obligations remain historical unless deliberately adopted. Ordinary revision
+preserves recipient task identity, while all eight-note, per-note and aggregate
+limits remain intact. This composition does not use or broaden receipt-backed
+WorkHandoff eligibility, authenticate an actor or grant execution authority.
+
 Configured-review participation preparation checks the retained definition/support and horizon,
 resolves that project's currently permitted connection, and pins the existing
 request to the exact inspected packet. The request question binds the choice and

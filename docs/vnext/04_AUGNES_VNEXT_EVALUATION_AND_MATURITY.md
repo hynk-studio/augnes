@@ -596,6 +596,29 @@ equal relevant material/resources, unsuccessful attempts and total burden. Searc
 feedback and best-run/judge selection are not deciding later-task evidence. No
 MASS-informed comparison or workflow-search campaign is launched by this PR.
 
+For #1532, `scripts/test-profile-task-continuation.ts` adds an exposed controlled
+different-task outcome to the profile/manual-contribution path. The origin has
+already saved its checked partial use and feedback before transfer. Six exact
+historical notes are deliberately selected through origin-scoped retained reads
+and carried by the normal different-task writer. The recipient's purpose and
+new identity/change records differ; its process computes a reconciliation report
+from those inputs and the old manifest, then saves its own decision. Fixed
+independent expectations check each event and the 280 = 200 + 50 + 30 byte
+accounting. A separate process reopens the identical report and both historical
+and current task bindings through ordinary persisted readers. Prior disabling
+advice is declined; remaining approval/identity uncertainty is not discharged.
+
+This is a composition of existing writers, not evidence of a newly implemented
+transfer primitive. Exact dependency/source preservation, scoped lookup, capacity,
+stale inputs, atomic creation and explicit correction/reselection are mechanical
+checks. Unchanged lower-level boundaries retain their existing tests. A fresh
+process is not an independent participant, and supplied identity records are not
+authenticated identities. Actual model understanding and independent participation
+remain NOT_RUN; comparative usefulness is NOT_EVALUATED and full W2 is
+NOT_ESTABLISHED. #1526/#1527 allocations and observations are not transferred.
+The next decision is whether to retain this small documented composition and
+regression, not automatically launch a participant or usefulness study.
+
 ### Local external-response evidence (#1453)
 
 The [registered local consumer](../EXTERNAL_RESPONSE_LOCAL.md#report-example-fresh-process-and-evidence)

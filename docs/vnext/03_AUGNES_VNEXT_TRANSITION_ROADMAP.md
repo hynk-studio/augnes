@@ -130,6 +130,23 @@ live defense, model understanding or comparative usefulness. Exact-candidate
 qualification and independent review belong to the PR return; installed adoption,
 #1453's frozen study and historical preservation dispositions remain separate.
 
+The [#1532 bounded W2 continuation](../EXECUTION_CHOICE_USAGE.md#continue-a-checked-contribution-in-a-different-task-1532)
+uses those existing production writers for a genuinely separate same-project task.
+Current-source inspection found no missing storage or transfer primitive: explicit
+origin dependency reselection followed by new-work `keep` already preserves the
+complete cycle. The registered end-to-end case now transfers an already checked
+contribution, creates a new purpose/task and current inputs, computes an event
+reconciliation report, saves a separate partial-use judgment and reopens it in a
+fresh process. The original disabling advice remains declined, valid comparison
+retained, and only the selected event-reconciliation obligation is adopted.
+Historical judgments and unused origin material remain distinct. This adds a
+usable documented composition and substantive controlled result, not a new
+registry, ordinary-note wrapper or widened receipt-backed WorkHandoff. Exact
+qualification and independent review belong to this increment's PR return.
+Actual model understanding, independent participation, comparative usefulness,
+cross-project portability, independent undertaking ownership and full W2 remain
+unestablished. #1527's research and allocation retain their separate owner.
+
 PR #1450's qualification correction tightens only the disposable native-service
 fixture's readiness and cleanup. After its deliberate child-binding substitution,
 it observes the manager's negative verification and waits for a post-restoration

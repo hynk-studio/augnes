@@ -5,6 +5,7 @@ import {
   type ChildProcessWithoutNullStreams,
 } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
+import { assertCodexSyntheticAppServerPrefixV01 } from "./codex-synthetic-app-server-fixture.mjs";
 import {
   constants as fsConstants,
   closeSync,
@@ -493,7 +494,7 @@ export function bindCodexBrokerPrivateLaunchCapabilityV01(
     input.command,
     input.projection.codex_executable_fingerprint,
   );
-  const prefix = exactTestPrefixArgsV01(input.test_prefix_args);
+  const prefix = exactTestPrefixArgsV01(input.test_prefix_args, command);
   const root = exactPrivateDirectoryV01(input.state_paths.root);
   const stateIdentities = {
     HOME: exactLaunchStateDirectoryV01(root, input.state_paths.HOME),
@@ -2502,6 +2503,8 @@ function assertExactSpawnBindingV01(
     );
   }
   assertPrivateLaunchIdentitiesV01(input);
+  // Revalidate the fixed fixture bytes immediately before the private spawn.
+  exactTestPrefixArgsV01(input.args.slice(0, -CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01.length - 2), input.command);
 }
 
 function exactDerivedAppServerArgsV01(args: string[]): boolean {
@@ -2532,20 +2535,15 @@ function exactLaunchExecutableV01(value: string, fingerprint: string): string {
   }
 }
 
-function exactTestPrefixArgsV01(values: string[]): string[] {
+function exactTestPrefixArgsV01(values: string[], command: string): string[] {
   if (values.length === 0) return [];
-  if (
-    process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE !== "1" ||
-    values.length !== 1 ||
-    !path.isAbsolute(values[0]!) ||
-    realpathSync(values[0]!) !== values[0] ||
-    lstatSync(values[0]!).isSymbolicLink() ||
-    !lstatSync(values[0]!).isFile() ||
-    path.basename(values[0]!) !== "fake-codex-app-server.mjs"
-  )
+  try {
+    assertCodexSyntheticAppServerPrefixV01(command, values, "isolated_auth");
+  } catch {
     throw new CodexCredentialBrokerErrorV01(
       "codex_auth_broker_test_prefix_refused",
     );
+  }
   return [...values];
 }
 

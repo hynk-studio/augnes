@@ -10,7 +10,9 @@ import {
   codexRollingFingerprintV01, prepareCodexCandidateCanaryV01, disposeCodexCandidateCanaryV01,
   emulateCodexCandidateCanaryForTestV01, type CodexRollingReceiptV01,
   consumeCodexCandidateCanaryV01, codexCandidateNativeAuthProfileFingerprintV01, claimCodexCandidateOrdinaryBrokerContextV01,
+  codexCandidateCanaryLaunchContainsSecretForTestV01,
 } from "../lib/vnext/native-host/codex-rolling-stable-candidate";
+import { testCodexSyntheticFixtureIdentityV01 } from "./test-codex-synthetic-fixture";
 import { codexCandidateOrdinaryBrokerProfileFingerprintV01, provisionCodexCandidateOrdinaryAuthV01, containsCodexCredentialSecretShapeV01 } from "../lib/vnext/native-host/codex-credential-broker";
 import { assertCurrentCodexQualifiedRuntimeSelectionV01, CODEX_QUALIFIED_RUNTIME_REGISTRY_FINGERPRINT_V01, selectPinnedCodexQualifiedRuntimeV01 } from "../lib/vnext/native-host/codex-qualified-runtime-registry";
 import { createRecordedCodexAppServerAdapterV01 } from "./codex-app-server-observation-recorder";
@@ -38,6 +40,7 @@ export async function testCodexCandidateCanaryBindingV01(root: string, initial: 
       writeFileSync(path.join(sourceHome, name, `synthetic-${i}`), "synthetic private state\n");
   }
   process.env.AUGNES_CODEX_ORDINARY_CANDIDATE_TEST_MODE = "1";
+  testCodexSyntheticFixtureIdentityV01(root);
   const receipt = structuredClone(initial);
   receipt.registry_fingerprint = CODEX_QUALIFIED_RUNTIME_REGISTRY_FINGERPRINT_V01;
   receipt.attempts = [{ ...receipt.attempts[0]!, state: "compatible_exact", observed_cli_version: receipt.candidate.version,
@@ -158,7 +161,17 @@ export async function testCodexCandidateCanaryBindingV01(root: string, initial: 
     assert.deepEqual(launch.args.slice(1), [...CANDIDATE_CONFIG_OVERRIDE_ARGS_V01, "app-server", "--stdio"]);
     assert.throws(() => claimCodexCandidateOrdinaryBrokerContextV01(projected.binding), /broker_admission_refused/);
     assert.throws(() => consumeCodexCandidateCanaryV01(projected.binding), /consumed/);
-    assert.equal(containsCodexCredentialSecretShapeV01(JSON.stringify(launch)), false);
+    assert.equal(codexCandidateCanaryLaunchContainsSecretForTestV01(launch), false);
+    for (const token of ["sk-synthetic-fixture-secret", "before-sk-synthetic-after", "before-xoxb-synthetic-after"]) {
+      assert.equal(containsCodexCredentialSecretShapeV01(token), true);
+      assert.equal(codexCandidateCanaryLaunchContainsSecretForTestV01({ ...launch, version: token }), true);
+      assert.equal(codexCandidateCanaryLaunchContainsSecretForTestV01({ ...launch, environment: { ...launch.environment, LANG: token } }), true);
+      assert.throws(() => codexCandidateCanaryLaunchContainsSecretForTestV01({ ...launch, args: [...launch.args, token] }), /fixture_launch_invalid/);
+    }
+    assert.throws(() => codexCandidateCanaryLaunchContainsSecretForTestV01({ ...launch, args: [...launch.args, "innocent-extra"] }), /fixture_launch_invalid/);
+    assert.throws(() => codexCandidateCanaryLaunchContainsSecretForTestV01({ ...launch, command: "/arbitrary/node" }), /fixture_launch_invalid/);
+    assert.throws(() => codexCandidateCanaryLaunchContainsSecretForTestV01({ ...launch, args: ["/arbitrary/fake-codex-app-server.mjs", ...launch.args.slice(1)] }), /fixture_launch_invalid/);
+    assert.equal(containsCodexCredentialSecretShapeV01("/ordinary/task-directory/file"), true, "generic embedded-shape rejection is unchanged");
     assert.equal(JSON.stringify(launch).includes(sourceHome), false);
     // AuthManager may replace/refresh its private file; no writeback or inode
     // retention requirement prevents removal of refreshed private credentials.
