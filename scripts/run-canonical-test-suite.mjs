@@ -1425,6 +1425,13 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "local-canonical-input-requalification",
+      label: "prospective input requalification, shared quota and reviewed adoption",
+      ...rootNode("scripts/test-local-canonical-input-requalification.mjs"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       label: "read-only GitHub main-branch source-attestation transport",
       ...rootNode("scripts/test-github-main-branch-transport.mjs"),
       timeoutMs: 30_000,

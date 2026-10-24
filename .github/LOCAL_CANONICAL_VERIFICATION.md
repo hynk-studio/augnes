@@ -714,8 +714,10 @@ consumes one initial complete invocation only after admission. A pre-admission
 refusal records no executed coverage. A started but unsettled attempt blocks
 further admission. Original attempt and completion records are never overwritten.
 
-At most one explicit recovery invocation is available for the same frozen
-head/tree, only after a substantiated infrastructure cause is corrected and a
+At most one continuation total is available for a logical candidate/input incident.
+It may be substantiated infrastructure recovery or prospective input
+requalification below, never one of each. Infrastructure recovery retains the
+same frozen head/tree and is available only after a substantiated infrastructure cause is corrected and a
 task-owned focused probe demonstrates the remedy. This increment admits the
 directly observed child-spawn failure class (`ENOENT`, `EAGAIN`, `EMFILE`,
 `ENFILE`, `ENOSPC`), with immutable prior receipt linkage, cause, remedy and proof
@@ -745,10 +747,92 @@ Unchanged head/tree, cosmetic source, changed or missing proof, unsettled owner,
 unknown/timeout predecessor, older-attempt selection and multiple successors
 refuse. A superseded candidate cannot consume its old recovery slot. Each
 admitted candidate still has one initial and at most one substantiated
-infrastructure recovery. These records bind reviewable source/evidence and scope;
+continuation shared between infrastructure recovery and input requalification.
+Genuine source corrections retain their separate candidate semantics, but cannot
+double-spend a claimed predecessor. These records bind reviewable source/evidence and scope;
 they neither authenticate an independent reviewer nor grant execution authority.
 Independent review and behavior-based adversarial controls remain required;
 changed hashes or the candidate's ability to admit itself are insufficient.
+
+### Prospective input requalification v1
+
+`--input-requalification-proof .augnes-local-verification/requalification/proof.json`
+selects `augnes.local-canonical-input-requalification.v1`. It is a fresh complete
+invocation against an explicitly authorized current input basis, never a repair
+claim, non-consumption claim, in-run baseline replacement or old-result upgrade.
+The strict Git-config monitor remains active throughout both invocations.
+
+Initially the original must be a completely settled v4 receipt with input
+contract v2, attempt 1, and a first `git-config` execution `input_invalidation`.
+The reader checks original receipt/attempt/completion integrity, exact Git source
+and executor fingerprint, original freeze and first-fault linkage, every phase,
+event and secondary fault, log inventory and complete retained log bytes, and
+checkout/capacity/child/isolated-resource/Companion settlement. An independent
+assertion exit, safety or observer event, timeout, unknown relevance, overflow,
+truncated evidence or active/unsettled original owner refuses. The derived
+`safety: blocked` dimension and guard-caused `phase_cancelled` do not themselves
+mean an independent safety violation. All observed selected-suite child results
+must be naturally successful. Only a guard-cancelled outer phase may lack final
+result rows for up to the existing two concurrent children, with complete outer
+owned-process settlement. An explicit retained history review covers the whole
+relevant history; a favorable top-level outcome cannot override a failed child.
+
+Complete local before/observed-after/current byte artifacts must match every
+Git-config observation digest. The initial supported delta is an exact append
+of bounded branch tracking sections with matching `remote = origin` and
+`merge = refs/heads/<same branch>`, preserving all preceding bytes. Include,
+credential, command, origin, permission/link or unknown changes refuse. This is
+an eligibility comparison after settlement, not a `branch.*` monitor exemption.
+The current observation, exact target head/tree/base, one complete invocation and
+unresolved-risk disposition must bind an explicit task-authority reference.
+Historical writer `UNKNOWN` stays `UNKNOWN`; no local proof authenticates an
+independent reviewer or creates that authority.
+
+Evidence intake is read-only before mutable preparation. The ordinary current
+source, clean worktree, authenticated-main, toolchain, input-safety and actual
+checkout/capacity gates still apply. Main is authenticated again before spending
+an input continuation. The new freeze binds the complete proof hash as well as
+the existing source/executor/phase/environment identities, and monitors every
+retained proof, linked review/snapshot/log and original receipt/family artifact. Admission rechecks
+all proof bytes and the actual freeze. A drift after admission cancels normally,
+even before the first child starts, and consumes the slot. Restoring earlier
+bytes cannot restore the allowance.
+
+Attempt records v2 permanently retain the v1 family digest domain. Discovery
+also refuses another branch/checkout for the same source/tree or an unaccepted
+source descendant lacking its explicit lineage. A short anchor admission mutex
+serializes read-only reinspection and one exclusive immutable
+`continuation-claim-<predecessor-number>.json` across infrastructure, input and
+source-successor routes. The claim is the admission point; a crash before an
+attempt/completion append remains spent or blocked. Legacy attempt-2 and
+successor markers remain barriers, with all v1 originals unchanged. Input
+adoption stays attempt 2 in the predecessor family. No third invocation,
+older-predecessor selection, proof hash, record-version change, wrapper restart,
+branch rename or checkout relocation resets that family.
+
+Two source modes are supported. `unchanged_source` requires the exact original
+head/tree/base. `accepted_main_adoption` requires freshly authenticated main,
+exact ordered parents `(predecessor, accepted main)`, target tree, merge base,
+complete tree-entry inventory, binary delta and changed-path inventory. Every
+one-sided/identical entry must match. Every divergent overlap needs an explicit
+source review and a retained naturally successful bounded preservation child
+bound to the target tree/delta/paths and Canonical Node. The initial overlap
+class is additive text: both parents preserve the base and their complete lines remain in order, with
+unchanged file modes and no target content beyond their combined additions. Lost original task assets, omitted resolutions, unrelated
+candidate edits, wrong ancestry/tree/base and source movement refuse. This route
+is distinct from PASS-only `accepted_main_integration`; no defect/repair witness
+is invented for a reviewed integration. Stock rechecks existing Git objects and
+review/claim links read-only, without running a merge or changing machine-ID
+metadata. Its new receipt must pass its own complete selected workload.
+
+The [input-contract procedure](../docs/LOCAL_CANONICAL_INPUT_CONTRACT.md#prospective-input-requalification-and-1533-adoption)
+describes local artifacts and the retained #1533 example. Infrastructure #1535
+qualifies through its own ordinary initial invocation and the frozen accepted
+workload, including all 16 Full phases, seven dedicated Browser phases, accepted
+child registrations, existing assertions, deadlines and concurrency. Disposable
+controls demonstrate continuation. Actual #1533 admission/reservation/Full stay
+NOT_RUN until independent infrastructure review and user acceptance/merge, with
+a separately concrete target and invocation authority.
 
 Phase retries, partial-run stitching and favorable-sample selection remain
 forbidden. Existing child/phase bounds and two-lane integration concurrency are

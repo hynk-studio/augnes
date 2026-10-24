@@ -290,10 +290,10 @@ export function ensureBoundedLocalDirectory(repositoryRoot, candidate) {
   return realpathSync(absoluteCandidate);
 }
 
-export function ensureMachineFingerprint(artifactRoot) {
-  chmodSync(artifactRoot, 0o700);
+export function ensureMachineFingerprint(artifactRoot, { readOnly = false } = {}) {
+  if (!readOnly) chmodSync(artifactRoot, 0o700);
   const identityPath = path.join(artifactRoot, "machine-id");
-  if (!existsSync(identityPath)) {
+  if (!readOnly && !existsSync(identityPath)) {
     try {
       const descriptor = openSync(identityPath, "wx", 0o600);
       writeFileSync(descriptor, randomBytes(32).toString("hex"), {
@@ -310,7 +310,7 @@ export function ensureMachineFingerprint(artifactRoot) {
     error.code = "unsafe_local_machine_identity";
     throw error;
   }
-  chmodSync(identityPath, 0o600);
+  if (!readOnly) chmodSync(identityPath, 0o600);
   const localMaterial = readFileSync(identityPath, "utf8").trim();
   if (!/^[0-9a-f]{64}$/u.test(localMaterial)) {
     const error = new Error("local canonical machine identity is malformed");

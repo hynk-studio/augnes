@@ -759,6 +759,15 @@ const isolatedChild = canonicalSuite.slice(isolatedChildStart, canonicalSuite.in
 for (const fragment of ['timeoutMs: 30_000', 'requireNaturalExit: true', '"scripts/test-local-canonical-isolation.mjs"'])
   requireText(isolatedChild, fragment, "isolated verification has a bounded authority child and complete cleanup");
 
+// The prospective route adds one bounded authority child. Existing Full,
+// Browser, integration registration and historical deadline assertions remain.
+const inputRequalificationChild = readCanonicalChildRegistration(canonicalSuite, "local-canonical-input-requalification");
+for (const fragment of ['timeoutMs: 30_000', 'requireNaturalExit: true', '"scripts/test-local-canonical-input-requalification.mjs"'])
+  requireText(inputRequalificationChild.block, fragment, "input requalification requires bounded integrated authority controls");
+assert.equal(countOccurrences(canonicalSuite, "scripts/test-local-canonical-input-requalification.mjs"), 1);
+requireText(localPolicy, "one continuation total", "input and infrastructure routes share the existing allowance");
+requireText(localPolicy, "Actual #1533 admission/reservation/Full stay", "infrastructure qualification cannot consume the real retained candidate");
+
 for (const retiredPath of [
   ".github/LOCAL_CANONICAL_PR_EVIDENCE.md",
   "scripts/local-canonical-pr-evidence.mjs",
