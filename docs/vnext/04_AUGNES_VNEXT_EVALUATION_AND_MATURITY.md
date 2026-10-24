@@ -68,6 +68,107 @@ to revise or decline methods too. Appropriate non-use and negative results remai
 valid. Comparative success, organic demand and all-host support are not admission
 conditions for already approved capability or public-entry development.
 
+For the [planned follow-through](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#contribution-and-undertaking-follow-through--2026-10-20),
+keep the completion claims distinct:
+
+| Claim | Discriminating observation |
+|---|---|
+| W1 contribution continuity | An answer, useful question or reframing reaches the request owner, is checked and used/partly used/declined for an explicit reason, and permitted use feedback reaches the contributor. |
+| W2 independent undertaking | An actor starts within its own or delegated scope, actually uses a contribution, and an authorized fresh executor continues the work from retained goals, current judgments, methods and obligations. |
+| W3 selective derivation | A separately operated undertaking uses a selected inherited capability for distinct work, with source, conditions, limits, correction and accepted obligations recoverable after executor replacement. A copied record or more organization nodes is insufficient. |
+
+Observe derivation, ownership, delegation and customer relationships separately.
+If serving another customer or subdelegation is claimed, observe that actual
+consumer and permitted return/use path; it is not a requirement of every earlier
+increment. Check that excluded private material and authority do not transfer
+with the selected method. A manually relayed bridge, a controlled same-operator
+case and independent cross-owner product use must retain their actual scope.
+
+For acquisition and continued use, distinguish reach/read, suitable requests,
+checked returns, actual adoption, repeat use when a real next opportunity exists,
+and independently operated new undertakings. Separate directly operated, invited,
+independently discovered and unknown origins; agent/account/branch count does not
+establish independent demand. Report small cohorts as counts with their eligible
+denominators; no observed next task is not demonstrated churn. One independent
+repeat case is a reason to investigate further, not proof of network effects.
+
+Count setup separately from recurring request, coordination, checking, integration,
+correction, recovery and human support. Use the same relevant sources, tools,
+model/harness and aggregate resources for a claimed advantage over strong direct
+work/adaptive memo. Keep capability, actual use and economic advantage separate.
+The next change follows the observed bottleneck: discovery, task fit/participant
+benefit, return/check/use clarity, value of the next task, or one repeated manual
+step. These are diagnostic choices, not a required funnel or a new study budget.
+
+For cooperation knowledge, establish what the successor actually read and how it
+changed or appropriately retained selection, information requests, division of
+work, review or handoff. A stored profile or accurate summary alone is not that
+connection. For a benefit claim, give a strong direct/adaptive-memo alternative the
+same relevant history, current evidence, tools and aggregate resources; separate
+better presentation from result-informed continuing coordination. Use only the
+comparisons needed for the next decision, and retain the simpler approach on a tie.
+
+Choose relevant changed/unchanged-condition, executor-replacement, corrected-request
+or inherited-evidence cases for the claimed scope. When model branding may explain
+selection, an identity-masked comparison can diagnose it. Keep missing opportunity,
+unavailability, environmental/request defects and reasoning failure distinct;
+unknown causes stay unknown. Adoption is not correctness, and an inherited or
+copied observation is not an independent success. Report outcome quality and total
+burden against the undertaking's actual goals and agreements; universal agreement,
+zero concession, more agents or a benchmark rank is not the success rule. These
+checks do not reopen frozen studies or add gates to unrelated approved work.
+
+For reusable interfaces, exact bindings and readback establish which material was
+returned, not whether a model used it appropriately. A benefit comparison gives the
+strong current model and harness the same relevant history, retained assets,
+evidence, tools, permissions, coding ability and aggregate resource budget. Its native/adaptive-memo alternative
+may create, revise and reuse code too. Count preparation, candidate selection,
+verification, repair and continuing maintenance as well as actual execution.
+Preserve the starting interface's successes, shared successes, newly failing cases
+and new successes with their eligible denominators; a net score or fewer calls
+alone can hide lost coverage. Separate exposed selection cases from fresh cases,
+and do not infer a code regression from one stochastic outcome. These are scoped
+reading lessons from [Evolving Agent Interfaces, Table 4 and Appendix B.2](https://arxiv.org/abs/2610.28601v1),
+not an Augnes benefit result or a new benchmark commission. The existing
+[P4.6 no-added-value result](../verification/P4_6_CONDITIONAL_PROCEDURE_LEARNING.md),
+[#1459](https://github.com/hynk-studio/augnes/issues/1459) and
+[#1464](https://github.com/hynk-studio/augnes/issues/1464) tie/SIMPLIFY outcomes remain
+intact; no-change or a simpler ordinary path remains a valid decision.
+
+### Strategic operating-profile evidence
+
+For #1518, observe the actual supported validation/preview entry and its consumer,
+not just a type declaration. Check deterministic normalized output and meaningful
+revision differences, bounded malformed/unsupported input refusal, direct-work
+compatibility, unresolved capabilities and faithful supplied/unknown evidence.
+Adversarial text stays data. Verify absence of application writes, grants, worker
+launches and external calls within the exercised boundary; do not claim live-world
+injection resistance from an inert parsing fixture.
+
+Later organizational evidence must show an authorized successor using preserved
+goals, original judgment basis, counterevidence and unfinished obligations in real
+next work. A fresh deterministic process is not a model-change study; a copied
+summary is not demonstrated semantic continuity. Principle-level assertions and
+mechanical receipts remain distinct from appropriate interpretation and outcomes.
+
+Defensive replay and live operation have separate evidence. For actual effects,
+check permitted target/scope, postconditions, side effects, unknown-result
+reconciliation and observed recovery, including compensating rather than identical
+restoration where applicable. Distinct role labels do not prove separate principals
+or independent checking. Zero unauthorized or unreceipted effects is an acceptance
+requirement for the exercised cases, not an estimated zero real-world failure rate.
+Every new policy/lesson version needs its original basis and review; retained
+lessons count as improvement only when later applicable work uses them appropriately.
+
+For added usefulness, retain strong same-history direct work/adaptive memo and
+relevant native delegation with equal permitted evidence, tools and aggregate
+resources. Count template preparation, observation, selection, coordination,
+verification, recovery, human repair and continuing maintenance. Measure outcome
+quality, tractable work and burden, not profile/agent/event count. Do not borrow an
+advantage from extra computation or withheld baseline evidence. Capability, actual
+semantic use, comparative advantage, installed adoption and operational security
+remain separate claims; appropriate non-use or simplification is a valid result.
+
 ## Story & Worldbuilding Increment A acceptance (#1455)
 
 Exercise creative and ordinary entry through the same supported surface. Save
