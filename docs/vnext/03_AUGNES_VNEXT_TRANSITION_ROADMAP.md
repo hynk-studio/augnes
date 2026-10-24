@@ -685,6 +685,31 @@ advantage or normal product integration. No model consumers or route-control
 budget is commissioned. Retain the discriminating regression case and end the
 comparative branch absent a concrete useful intervention beyond ordinary memo/code.
 
+### Current contained research — Partial methods and new source-impact procedures (#1527)
+
+The separately commissioned [#1527](https://github.com/hynk-studio/augnes/issues/1527)
+adds [a contained ordinary-code case](../../scripts/change-impact-study/README.md).
+Supplied callables compare files, inspect one module's syntax and render tables;
+none supplies the complete requested impact report. A can author the missing
+connections and B can use, adapt or decline the actual settled assets to select
+economical regression checks for different source changes. Literal relationship
+facts independently check changed symbols, version-specific source witnesses,
+unresolved calls and minimum coverage; controls retain valid/comment-only cases,
+wrong-output rejection and whole-directory transfer. Existing bounded process,
+request preflight and replay facilities are reused without expanding descriptive
+composition records or read-only conditional-procedure worker contracts.
+
+Source preparation and controls are development evidence. Actual component
+selection/bindings, connector authorship, execution, successor use and unchanged
+replay require their own original artifacts in the private commissioned return;
+correct output alone establishes none of the other claims. Comparative usefulness
+is NOT_EVALUATED and normal product integration NOT_ESTABLISHED. The fresh
+two-consumer allocation is separate from #1526 and completed historical studies;
+#1523/#1524 ownership and operating-profile implementation remain separate.
+No universal graph, Core schema, scheduler, default activation or automatic next
+experiment is introduced. Source qualification and independent review remain
+separate from the observation.
+
 ### Current contained research — Exact file identity and successor reconciliation (#1526)
 
 The separately commissioned [#1526](https://github.com/hynk-studio/augnes/issues/1526)
