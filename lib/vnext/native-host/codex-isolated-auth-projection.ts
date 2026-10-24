@@ -11,6 +11,7 @@ import {
   rmSync,
 } from "node:fs";
 import path from "node:path";
+import { assertCodexSyntheticAppServerPrefixV01 } from "./codex-synthetic-app-server-fixture.mjs";
 
 import {
   CODEX_APP_SERVER_USER_AGENT_CONTRACT_FINGERPRINT_0_152_1_V01,
@@ -1133,7 +1134,7 @@ export class CodexIsolatedAuthenticatedExecutionOwnerV01 {
       input.command,
       input.projection.codex_executable_fingerprint,
     );
-    const prefix = validatePrefixArgsV01(input.prefix_args ?? []);
+    const prefix = validatePrefixArgsV01(input.prefix_args ?? [], this.#command.path);
     if (
       launchShapeFingerprintV01(
         input.projection.codex_executable_fingerprint,
@@ -2697,21 +2698,15 @@ function validateTestEnvironmentV01(
     );
   return { ...source };
 }
-function validatePrefixArgsV01(values: string[]): string[] {
-  if (
-    (process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE !== "1" &&
-      values.length) ||
-    values.length > 8 ||
-    values.some(
-      (value) =>
-        !value ||
-        /[\0\r\n]/u.test(value) ||
-        containsCodexCredentialSecretShapeV01(value),
-    )
-  )
+function validatePrefixArgsV01(values: string[], command: string): string[] {
+  if (values.length === 0) return [];
+  try {
+    assertCodexSyntheticAppServerPrefixV01(command, values, "isolated_auth");
+  } catch {
     throw new CodexIsolatedAuthProjectionErrorV01(
       "codex_isolated_auth_prefix_args_invalid",
     );
+  }
   return [...values];
 }
 function validateProvisionInputV01(
