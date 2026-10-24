@@ -1042,6 +1042,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "profile-task-continuation",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
+      label: "checked profile contribution into a distinct task, new reconciliation and persisted re-entry",
+      ...rootNode("scripts/test-profile-task-continuation.ts"),
+      timeoutMs: 150_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "manual-contribution-successor",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],

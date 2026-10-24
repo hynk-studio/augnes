@@ -1165,6 +1165,7 @@ const integrationChildren = [
   "execution-choice",
   "manual-contribution",
   "operating-profile-contribution",
+  "profile-task-continuation",
   "manual-contribution-successor",
   "late-review",
   "request-bound-review",
@@ -1256,6 +1257,9 @@ const webPlanningRegistration = readCanonicalChildRegistration(integrationSource
 const profileContributionRegistration = readCanonicalChildRegistration(integrationSource, "operating-profile-contribution");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 150_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-operating-profile-contribution.ts"'])
   requireText(profileContributionRegistration.block, fragment, "profile contribution retains one bounded persistence and process owner");
+const profileContinuationRegistration = readCanonicalChildRegistration(integrationSource, "profile-task-continuation");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 150_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-profile-task-continuation.ts"'])
+  requireText(profileContinuationRegistration.block, fragment, "cross-task continuation retains bounded ordinary writers and process ownership");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 120_000', 'requireNaturalExit: true', '"scripts/test-web-planning.mjs"', '"backup-restore"'])
   requireText(webPlanningRegistration.block, fragment, "web planning D1 retains one bounded storage and recovery owner");
 for (const id of ["project-work-initialization", "project-work-expectation", "project-work-scoped-host"]) {
