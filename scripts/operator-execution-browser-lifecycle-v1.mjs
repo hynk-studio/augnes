@@ -211,7 +211,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     const executable = candidates.find((candidate) => existsSync(candidate));
     assert(executable, "operator_browser_chrome_missing");
     const finish = timing.start("chrome_startup", "Chrome and CDP startup");
-    browserUse = beginBrowserUse(executable);
+    browserUse = beginBrowserUse(executable, { consumer: child_id });
     chromeProcess = spawn(
       executable,
       [
@@ -265,6 +265,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     assert(webSocketUrl, "operator_browser_cdp_endpoint_missing");
     const browserClient = new CdpClient(webSocketUrl);
     await browserClient.open();
+    browserUse.version((await browserClient.send("Browser.getVersion")).product, "cdp");
     const targets = await browserClient.send("Target.getTargets");
     const page = targets.targetInfos.find((entry) => entry.type === "page");
     assert(page, "operator_browser_page_target_missing");

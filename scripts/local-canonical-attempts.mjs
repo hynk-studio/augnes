@@ -17,27 +17,28 @@ function directory(parent, name) {
   if (!s.isDirectory() || s.isSymbolicLink() || realpathSync(target) !== target || (s.mode & 0o022)) throw fail("attempt_unsafe_directory");
   return target;
 }
-function read(file) {
+function read(file, maximum = 64 * 1024) {
   const s = lstatSync(file);
-  if (!s.isFile() || s.isSymbolicLink() || s.nlink !== 1 || s.size > 64 * 1024) throw fail("attempt_unsafe_record");
+  if (!s.isFile() || s.isSymbolicLink() || s.nlink !== 1 || s.size > maximum) throw fail("attempt_unsafe_record");
   return JSON.parse(readFileSync(file, "utf8"));
 }
 function append(root, name, value) { writeFileSync(path.join(root, name), `${JSON.stringify(value)}\n`, { flag: "wx", mode: 0o600 }); }
 
 // Family lives at the physical anchor, keyed by repository and branch (not
 // commit, wrapper process or checkout). There is no CLI family-id reset knob.
-export function beginAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, head, tree, runId, contractFingerprint, recoveryProof = null, sourceCorrection = null }) {
+export function beginAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, head, tree, runId, contractFingerprint, recoveryProof = null, sourceCorrection = null, acceptedMain = null }) {
   assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
   if (!branch || !/^[0-9a-f]{40}$/u.test(head) || !/^[0-9a-f]{40}$/u.test(tree) || !sha(contractFingerprint)) throw fail("attempt_identity_invalid");
   const familyId = candidateFamilyId(branch, sourceCorrection);
   const artifact = directory(anchorRoot, ".augnes-local-verification");
-  if (sourceCorrection) admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof: sourceCorrection, reserve: true });
+  if (sourceCorrection) admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof: sourceCorrection, acceptedMain, reserve: true });
   const root = directory(directory(artifact, "families"), familyId);
   const entries = readdirSync(root);
   if (entries.some(name => !/^(attempt|completion)-[12]\.json$/u.test(name) && name !== "correction-successor.json")) throw fail("attempt_unknown_record");
   const previous = entries.includes("attempt-1.json") ? read(path.join(root, "attempt-1.json")) : null;
   let number = 1, prior = null;
   if (previous) {
+    if (entries.includes("correction-successor.json")) throw fail("attempt_candidate_superseded");
     if (entries.includes("attempt-2.json") || !entries.includes("completion-1.json")) throw fail("attempt_budget_or_unsettled");
     prior = read(path.join(root, "completion-1.json"));
     if (prior.attempt_id !== previous.attempt_id || prior.disposition !== "infrastructure_interruption" || prior.cleanup_complete !== true ||
@@ -103,7 +104,7 @@ export function inspectAttemptRecords({ anchorRoot, repositoryRoot = anchorRoot,
     const attempt = receipt.attempt;
     const familyId = candidateFamilyId(receipt.repository.branch, attempt.source_correction);
     if (attempt.source_correction) admitSourceCorrection({ anchorRoot, repositoryRoot, branch: receipt.repository.branch,
-      head: attempt.head, tree: attempt.tree, proof: attempt.source_correction, reserve: false });
+      head: attempt.head, tree: attempt.tree, proof: attempt.source_correction, acceptedMain: receipt.repository.base_sha, reserve: false });
     if (attempt.family_id !== familyId || ![1, 2].includes(attempt.number)) return false;
     const root = path.join(anchorRoot, ".augnes-local-verification", "families", familyId);
     if (realpathSync(root) !== root || !lstatSync(root).isDirectory()) return false;
@@ -134,8 +135,11 @@ export function readSourceCorrectionProof(file, repositoryRoot) {
   if (!/^\.augnes-local-verification\/[a-zA-Z0-9_./-]+\.json$/u.test(relative) || relative.split("/").includes("..") || realpathSync(file) !== file)
     throw fail("source_correction_unsafe_path");
   const proof = read(file);
-  if (proof.schema !== "augnes.local-canonical-source-correction.v1" ||
-      !/^scripts\/[a-z0-9_/-]+\.mjs$/u.test(proof.source_module ?? "") ||
+  const version2 = proof.schema === "augnes.local-canonical-source-correction.v2";
+  if (version2) readCandidateReview(file, proof);
+  if (version2 && proof.kind === "accepted_main_integration") return { ...proof, local_relative_path: relative };
+  if ((!version2 && proof.schema !== "augnes.local-canonical-source-correction.v1") ||
+      !(version2 ? /^(?:scripts|app|lib|plugins|apps|src)\/[a-zA-Z0-9_./-]+\.(?:mjs|cjs|js|ts|tsx)$/u : /^scripts\/[a-z0-9_/-]+\.mjs$/u).test(proof.source_module ?? "") || (proof.source_module ?? "").split("/").includes("..") ||
       !/^[a-z][a-z0-9_-]{0,79}$/u.test(proof.defect ?? "") || !sha(proof.fixture_sha256) ||
       !sha(proof.prior_family_id) || ![1, 2].includes(proof.prior_number) || !sha(proof.prior_receipt_fingerprint)) throw fail("source_correction_proof_invalid");
   if (!/^[a-z0-9_-]+\.mjs$/u.test(proof.fixture_artifact ?? "") || !sha(proof.environment_fingerprint)) throw fail("source_correction_fixture_missing");
@@ -158,7 +162,7 @@ export function readSourceCorrectionProof(file, repositoryRoot) {
   return { ...proof, local_relative_path: relative.split(path.sep).join("/") };
 }
 
-function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof, reserve }) {
+function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof, acceptedMain, reserve }) {
   const reread = readSourceCorrectionProof(path.join(repositoryRoot, proof.local_relative_path ?? ""), repositoryRoot);
   if (digest(reread) !== digest(proof) || proof.branch !== branch || proof.head !== head || proof.tree !== tree ||
       !/^[0-9a-f]{40}$/u.test(head) || !/^[0-9a-f]{40}$/u.test(tree)) throw fail("source_correction_identity_invalid");
@@ -168,14 +172,46 @@ function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree,
   const completion = read(path.join(priorRoot, `completion-${proof.prior_number}.json`));
   if (prior.branch !== branch || prior.attempt_id !== proof.prior_attempt_id || prior.head === head || prior.tree === tree ||
       completion.attempt_id !== prior.attempt_id || completion.receipt_fingerprint !== proof.prior_receipt_fingerprint ||
-      completion.cleanup_complete !== true || !["product_failure", "user_cancellation"].includes(completion.disposition)) throw fail("source_correction_predecessor_invalid");
-  const beforeWitness = read(path.join(path.dirname(path.join(repositoryRoot, proof.local_relative_path)), proof.before.artifact));
-  if (Date.parse(beforeWitness.finished_at) <= Date.parse(completion.finished_at)) throw fail("source_correction_witness_predates_settlement");
-  const git = args => execFileSync("git", args, { cwd: repositoryRoot, timeout: 10000, maxBuffer: 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] });
+      completion.cleanup_complete !== true ||
+      readdirSync(priorRoot).includes(`attempt-${proof.prior_number + 1}.json`) ||
+      !(proof.schema === "augnes.local-canonical-source-correction.v2" ?
+        (proof.kind === "verifier_correction" ? ["safety_violation", "input_invalidation"] : proof.kind === "accepted_main_integration" ? ["completed_success"] : ["completed_success", "product_failure", "user_cancellation"]) :
+        ["product_failure", "user_cancellation"]).includes(completion.disposition)) throw fail("source_correction_predecessor_invalid");
+  const git = args => execFileSync("git", args, { cwd: repositoryRoot, timeout: 10000, maxBuffer: 16 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] });
   git(["merge-base", "--is-ancestor", prior.head, head]);
-  if (git(["rev-parse", `${head}^{tree}`]).toString().trim() !== tree ||
-      digest(git(["show", `${prior.head}:${proof.source_module}`])) !== proof.before.source_sha256 ||
-      digest(git(["show", `${head}:${proof.source_module}`])) !== proof.after.source_sha256) throw fail("source_correction_source_mismatch");
+  if (git(["rev-parse", `${head}^{tree}`]).toString().trim() !== tree) throw fail("source_correction_source_mismatch");
+  if (proof.schema === "augnes.local-canonical-source-correction.v2") {
+    const proofFile = path.join(repositoryRoot, proof.local_relative_path);
+    const review = readCandidateReview(proofFile, proof);
+    const originalFile = path.join(repositoryRoot, proof.prior_receipt_path);
+    if (realpathSync(originalFile) !== originalFile) throw fail("candidate_prior_receipt_unsafe");
+    const original = read(originalFile, 512 * 1024), originalValue = { ...original }; delete originalValue.integrity;
+    if (digest(originalValue) !== proof.prior_receipt_fingerprint || original.integrity?.content_fingerprint !== proof.prior_receipt_fingerprint ||
+        original.run?.id !== prior.attempt_id || original.repository?.head_sha !== prior.head || original.repository?.tree_sha !== prior.tree ||
+        original.outcome?.disposition !== completion.disposition || original.cleanup?.completed !== true ||
+        review.predecessor_head !== prior.head || review.predecessor_tree !== prior.tree ||
+        Date.parse(review.reviewed_at) <= Date.parse(completion.finished_at) ||
+        review.delta_sha256 !== digest(git(["diff", "--binary", "--no-ext-diff", "--no-textconv", prior.head, head, "--"])) ||
+        digest(review.changed_paths) !== digest(git(["diff", "--name-only", prior.head, head, "--"]).toString().trim().split("\n").sort()))
+      throw fail("candidate_review_binding_invalid");
+    if (proof.kind === "verifier_correction" && (!VERIFIER_MODULES.includes(proof.source_module) ||
+        original.inputs?.first_fault?.disposition !== completion.disposition || review.addresses_disposition !== completion.disposition ||
+        review.prior_fault_fingerprint !== digest(original.inputs.first_fault) || review.addresses_resource !== original.inputs.first_fault.resource))
+      throw fail("candidate_guard_correction_unproven");
+    if (proof.kind === "accepted_main_integration") {
+      if (!/^[0-9a-f]{40}$/u.test(acceptedMain ?? "") || proof.accepted_main !== acceptedMain || original.repository.base_sha === acceptedMain ||
+          git(["show", "-s", "--format=%P", head]).toString().trim() !== `${prior.head} ${acceptedMain}` ||
+          !matchesReadOnlyMergeTree(git, prior.head, acceptedMain, head))
+        throw fail("candidate_integration_unproven");
+      git(["merge-base", "--is-ancestor", acceptedMain, head]);
+    }
+  }
+  if (!(proof.schema === "augnes.local-canonical-source-correction.v2" && proof.kind === "accepted_main_integration")) {
+    const beforeWitness = read(path.join(path.dirname(path.join(repositoryRoot, proof.local_relative_path)), proof.before.artifact));
+    if (Date.parse(beforeWitness.finished_at) <= Date.parse(completion.finished_at)) throw fail("source_correction_witness_predates_settlement");
+    if (digest(git(["show", `${prior.head}:${proof.source_module}`])) !== proof.before.source_sha256 ||
+        digest(git(["show", `${head}:${proof.source_module}`])) !== proof.after.source_sha256) throw fail("source_correction_source_mismatch");
+  }
   const successor = { family_id: candidateFamilyId(branch, proof), head, tree, proof_fingerprint: digest(proof) };
   const reservation = path.join(priorRoot, "correction-successor.json");
   if (reserve) {
@@ -183,4 +219,47 @@ function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree,
     catch (error) { if (error.code !== "EEXIST") throw error; }
   }
   if (digest(read(reservation)) !== digest(successor)) throw fail("source_correction_successor_already_bound");
+}
+
+const VERIFIER_MODULES = Object.freeze([
+  "scripts/local-canonical-inputs.mjs", "scripts/local-canonical-browser-identity.mjs",
+  "scripts/local-canonical-attempts.mjs", "scripts/local-canonical-receipt.mjs",
+  "scripts/run-local-canonical-verification.mjs",
+]);
+
+// A retained source-review record is an auditable scope/input binding, not a
+// signature, semantic proof, independent attestation or grant of authority.
+// All actual permission still comes from the task. No hash-only reset exists.
+function readCandidateReview(file, proof) {
+  if (!["source_revision", "verifier_correction", "accepted_main_integration"].includes(proof.kind) ||
+      !sha(proof.prior_family_id) || ![1, 2].includes(proof.prior_number) || !sha(proof.prior_receipt_fingerprint) ||
+      !/^\.augnes-local-verification\/receipts\/[A-Za-z0-9_-]+\.json$/u.test(proof.prior_receipt_path ?? "") ||
+      !/^[a-z0-9_-]+\.json$/u.test(proof.review?.artifact ?? "") || !sha(proof.review?.sha256)) throw fail("candidate_review_missing");
+  const location = path.join(path.dirname(file), proof.review.artifact), review = read(location);
+  if (digest(readFileSync(location)) !== proof.review.sha256 || review.schema !== "augnes.local-canonical-candidate-review.v1" ||
+      review.head !== proof.head || review.tree !== proof.tree || review.kind !== proof.kind ||
+      review.source_review !== "complete" || !sha(review.delta_sha256) ||
+      !Array.isArray(review.changed_paths) || review.changed_paths.length === 0 || review.changed_paths.length > 200 ||
+      !review.changed_paths.every(p => typeof p === "string" && /^[A-Za-z0-9_./-]+$/u.test(p) && !p.split("/").includes("..")) ||
+      typeof review.authority_reference !== "string" || !/^https:\/\/github\.com\/hynk-studio\/augnes\/(?:issues|pull)\/[0-9]+(?:#[A-Za-z0-9_-]+)?$/u.test(review.authority_reference) ||
+      !Number.isFinite(Date.parse(review.reviewed_at)) || Date.parse(review.reviewed_at) > Date.now()) throw fail("candidate_review_invalid");
+  return review;
+}
+
+// Stock validation must not run a merge command or write Git objects. Resolve a
+// bounded non-overlapping (or identical-overlap) merge from existing tree entries.
+// Other conflict/resolution cases require an explicit behavioral correction proof.
+function matchesReadOnlyMergeTree(git, predecessor, main, head) {
+  const base = git(["merge-base", predecessor, main]).toString().trim();
+  const entries = ref => new Map(git(["ls-tree", "-rz", "--full-tree", ref]).toString().split("\0").filter(Boolean).map(row => {
+    const split = row.indexOf("\t"); return [row.slice(split + 1), row.slice(0, split)];
+  }));
+  const ancestor = entries(base), prior = entries(predecessor), accepted = entries(main), actual = entries(head), expected = new Map();
+  for (const name of new Set([...ancestor.keys(), ...prior.keys(), ...accepted.keys()])) {
+    const b = ancestor.get(name), p = prior.get(name), m = accepted.get(name);
+    if (p !== b && m !== b && p !== m) return false;
+    const value = p === b ? m : p;
+    if (value !== undefined) expected.set(name, value);
+  }
+  return actual.size === expected.size && [...expected].every(([name, value]) => actual.get(name) === value);
 }

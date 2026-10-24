@@ -3242,7 +3242,7 @@ function startRuntime(databasePath, manifest, projectId) {
 }
 
 function startChrome(executable) {
-  browserUse = beginBrowserUse(executable);
+  browserUse = beginBrowserUse(executable, { consumer: "project-experience" });
   const finishChromeStartup = timing.start(
     "chrome_startup",
     "Chrome and CDP startup",
@@ -3300,6 +3300,7 @@ async function openCdpPage() {
   assert(webSocketUrl, "chrome_debug_endpoint_unavailable");
   const browserClient = new CdpClient(webSocketUrl);
   await browserClient.open();
+  browserUse.version((await browserClient.send("Browser.getVersion")).product, "cdp");
   const targets = await browserClient.send("Target.getTargets");
   const pageTarget = targets.targetInfos.find(
     (target) => target.type === "page",

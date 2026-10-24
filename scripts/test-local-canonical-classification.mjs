@@ -288,15 +288,15 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
   assert.throws(() => observeInputFile(browserFile), "mutable/config observations must still reject a shared inode");
   const executableContract = freezeInputContract({ pathKind: "isolated-model-free-v1", resources: [{ id: "browser-executable", file: browserFile, classification: "execution", readOnlyExecutable: true }], binding: {} });
   assert.equal(executableContract.check(), null);
-  const browserUse = beginBrowserUse(browserFile); browserUse.version("Fixture/1.0");
+  const browserUse = beginBrowserUse(browserFile, { consumer: "fixture", emit() {} }); browserUse.version("Fixture/1.0"); browserUse.version("Fixture/1.0", "cdp");
   assert(validBrowserUse(browserUse.finish()));
-  const changedBrowser = beginBrowserUse(browserFile); changedBrowser.version("Fixture/1.0"); write(browserAlias, "mutated executable");
+  const changedBrowser = beginBrowserUse(browserFile, { consumer: "fixture", emit() {} }); changedBrowser.version("Fixture/1.0"); changedBrowser.version("Fixture/1.0", "cdp"); write(browserAlias, "mutated executable");
   assert(!validBrowserUse(changedBrowser.finish()));
   assert.equal(executableContract.check().disposition, "input_invalidation");
   const relinked = freezeInputContract({ pathKind: "isolated-model-free-v1", resources: [{ id: "browser-executable", file: browserFile, classification: "execution", readOnlyExecutable: true }], binding: {} });
-  rmSync(browserAlias); assert.equal(relinked.check().disposition, "safety_violation");
+  rmSync(browserAlias); assert.equal(relinked.check(), null); assert.equal(relinked.snapshot().events[0].disposition, "incidental_executable_metadata");
   assert.equal(buildPhasePlan({ mode: "full", selectedPlan: "full-canonical" }).length, FULL_PHASE_IDS.length);
-  note("read-only shared Browser inode binds link count and bytes; alias mutation/relink refuses; Full phase inventory unchanged");
+  note("read-only shared Browser observes alias metadata and binds bytes; alias mutation refuses; Full phase inventory unchanged");
 } finally {
   if (!childInFlight) settleCanonicalTestResourceUse(owner, { exit_observed: true, streams_closed: true, cleanup_completed: true, remaining_owned_processes: 0 });
   const [cleanup] = cleanupCanonicalTestResources([owner]);

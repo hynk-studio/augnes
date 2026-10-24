@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { constants, closeSync, fstatSync, lstatSync, openSync, readFileSync, realpathSync } from "node:fs";
 
-export const INPUT_CONTRACT = "augnes.local-canonical-inputs.v1";
+export const INPUT_CONTRACT = "augnes.local-canonical-inputs.v2";
 export const INPUT_CLASSES = Object.freeze(["execution", "safety", "ambient", "unknown"]);
 export const EXCLUDED_PREFERENCES = Object.freeze(["model", "model_reasoning_effort", "service_tier"]);
 const sorted = value => Array.isArray(value) ? value.map(sorted) : value && typeof value === "object"
@@ -46,15 +47,18 @@ export function observeInputFile(file, { metadataOnly = false, preferences = fal
   try { stat = lstatSync(file, { bigint: true }); }
   catch (error) { if (error.code === "ENOENT") return { present: false }; throw error; }
   // Existing shared executables are read/execute inputs, never cleanup targets.
-  // Bind their complete identity and link count rather than requiring a private
+  // Retain their complete observation; the role-aware comparator separately
+  // classifies incidental link/ctime changes rather than requiring a private
   // inode. Configurations and mutable resources retain single-link refusal.
-  const allowedLinks = s => s.nlink === 1n || (readOnlyExecutable && s.nlink > 0n && (s.mode & 0o111n) !== 0n);
+  const sharedPosix = ["darwin", "linux"].includes(process.platform);
+  const allowedLinks = s => readOnlyExecutable && sharedPosix ? s.nlink > 0n && (s.mode & 0o111n) !== 0n : s.nlink === 1n;
   if (!stat.isFile() || stat.isSymbolicLink() || !allowedLinks(stat) || realpathSync(file) !== file)
     throw fail("input_unsafe_file");
   if (preferences && stat.size > 1024n * 1024n) throw fail("input_comparison_bound_exceeded");
+  const securityBefore = readOnlyExecutable ? executablePermissions(file) : null;
   const metadata = s => ({ mode: String(s.mode), uid: String(s.uid), gid: String(s.gid), links: String(s.nlink),
     device: String(s.dev), inode: String(s.ino), bytes: String(s.size), mtime_ns: String(s.mtimeNs), ctime_ns: String(s.ctimeNs) });
-  if (metadataOnly) return { present: true, metadata: metadata(stat), observation: "metadata_only" };
+  if (metadataOnly) return { present: true, metadata: metadata(stat), ...(readOnlyExecutable ? { permission_identity: securityBefore, executable_identity_policy: sharedPosix ? "shared-posix-v1" : "strict-metadata-v1" } : {}), observation: "metadata_only" };
   const fd = openSync(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
   try {
     const before = fstatSync(fd, { bigint: true });
@@ -63,20 +67,41 @@ export function observeInputFile(file, { metadataOnly = false, preferences = fal
     const after = fstatSync(fd, { bigint: true }), named = lstatSync(file, { bigint: true });
     if (JSON.stringify(metadata(before)) !== JSON.stringify(metadata(after)) || named.ino !== after.ino || named.dev !== after.dev)
       throw fail("input_observation_race");
+    const securityAfter = readOnlyExecutable ? executablePermissions(file) : null;
+    if (digest(securityBefore) !== digest(securityAfter)) throw fail("input_observation_race");
     return { present: true, metadata: metadata(after), sha256: digest(bytes),
+      ...(readOnlyExecutable ? { permission_identity: securityAfter, executable_identity_policy: sharedPosix ? "shared-posix-v1" : "strict-metadata-v1" } : {}),
       ...(preferences ? preferenceProjection(bytes) : {}) };
   } finally { closeSync(fd); }
 }
 
-export function classifyInputChange(before, after, { classification, excludePreferences = false } = {}) {
-  if (!INPUT_CLASSES.includes(classification)) return "unknown_relevance";
+export const nonFaultInputChange = disposition => ["unchanged", "ambient_observation", "incidental_executable_metadata"].includes(disposition);
+
+export function classifyInputChange(before, after, { classification, excludePreferences = false, readOnlyExecutable = false } = {}) {
+  if (!INPUT_CLASSES.includes(classification) || !before || !after || typeof before !== "object" || typeof after !== "object" || Array.isArray(before) || Array.isArray(after)) return "unknown_relevance";
+  const usableExecutable = value => value.present === true && /^[0-9a-f]{64}$/u.test(value.sha256 ?? "") &&
+    ["mode", "uid", "gid", "device", "inode", "bytes", "mtime_ns", "ctime_ns", "links"].every(key => /^\d{1,40}$/u.test(value.metadata?.[key] ?? "")) &&
+    /^[0-9a-f]{64}$/u.test(value.permission_identity ?? "") && ["shared-posix-v1", "strict-metadata-v1"].includes(value.executable_identity_policy) && BigInt(value.metadata.links) > 0n && (BigInt(value.metadata.mode) & 0o170000n) === 0o100000n && (value.executable_identity_policy === "strict-metadata-v1" || (BigInt(value.metadata.mode) & 0o111n) !== 0n);
+  if (readOnlyExecutable && before.present === true && after.present === true &&
+      (classification !== "execution" || !usableExecutable(before) || !usableExecutable(after))) return "unknown_relevance";
   // Saved receipts sort object keys. Compare the same canonical value both
   // in-process and after a supported persisted-state read.
   if (digest(before) === digest(after)) return "unchanged";
   if (before.present !== after.present) return classification === "safety" ? "safety_violation" : "input_invalidation";
   if (before.present === false) return "unchanged";
-  for (const key of ["mode", "uid", "gid", "links", "device"])
+  for (const key of ["mode", "uid", "gid", "device", ...(readOnlyExecutable ? ["inode"] : ["links"])])
     if (before.metadata?.[key] !== after.metadata?.[key]) return "safety_violation";
+  if (readOnlyExecutable && (before.permission_identity !== after.permission_identity || before.executable_identity_policy !== after.executable_identity_policy)) return "safety_violation";
+  if (readOnlyExecutable && before.executable_identity_policy === "strict-metadata-v1")
+    return before.metadata.links !== after.metadata.links ? "safety_violation" : "input_invalidation";
+  if (readOnlyExecutable && classification === "execution") {
+    // An existing shared executable is never a write/cleanup target. An alias
+    // count or ctime observation does not change the consumed bytes or authority.
+    // Compare a complete observation, not a metadata hint; retain both originals.
+    const consumed = value => ({ ...value, metadata: Object.fromEntries(Object.entries(value.metadata).filter(([key]) => !["links", "ctime_ns"].includes(key))) });
+    if (digest(consumed(before)) === digest(consumed(after))) return "incidental_executable_metadata";
+    return "input_invalidation";
+  }
   if (classification === "ambient" && excludePreferences && before.remainder_sha256 &&
       before.remainder_sha256 === after.remainder_sha256) return "ambient_observation";
   if (classification === "ambient" || classification === "unknown") return "unknown_relevance";
@@ -90,6 +115,7 @@ export function freezeInputContract({ resources, pathKind, binding, read = obser
     throw fail("input_inventory_invalid");
   const selected = resources.map(resource => {
     if (!/^[a-z][a-z0-9_-]{0,79}$/u.test(resource.id) || !INPUT_CLASSES.includes(resource.classification)) throw fail("input_inventory_invalid");
+    if (resource.readOnlyExecutable && (resource.classification !== "execution" || resource.metadataOnly || resource.excludePreferences)) throw fail("input_executable_role_invalid");
     if (resource.excludePreferences && (pathKind !== "isolated-model-free-v1" || resource.classification !== "ambient")) throw fail("input_exclusion_unproven");
     return { ...resource, before: read(resource.file, { metadataOnly: resource.metadataOnly, preferences: resource.excludePreferences, readOnlyExecutable: resource.readOnlyExecutable }) };
   });
@@ -110,7 +136,7 @@ export function freezeInputContract({ resources, pathKind, binding, read = obser
         // reread each time. This is an observation optimization, not exclusion.
         const hint = !force && Number(resource.before.metadata?.bytes) > 1024 * 1024
           ? read(resource.file, { metadataOnly: true, readOnlyExecutable: resource.readOnlyExecutable }) : null;
-        after = hint && JSON.stringify(hint.metadata) === JSON.stringify(resource.before.metadata)
+        after = hint && hint.permission_identity === resource.before.permission_identity && JSON.stringify(hint.metadata) === JSON.stringify(resource.before.metadata)
           ? resource.before : read(resource.file, { metadataOnly: resource.metadataOnly, preferences: resource.excludePreferences, readOnlyExecutable: resource.readOnlyExecutable });
         disposition = classifyInputChange(resource.before, after, resource);
       } catch { disposition = "observer_failure"; after = null; }
@@ -122,7 +148,7 @@ export function freezeInputContract({ resources, pathKind, binding, read = obser
       // A bounded observer cannot silently drop a relevant event.
       if (events.length >= 64) disposition = "observer_failure";
       else events.push(event);
-      if (disposition !== "ambient_observation") {
+      if (!nonFaultInputChange(disposition)) {
         const fault = { resource: resource.id, disposition, observed_at: event.observed_at, monotonic_ns: event.monotonic_ns };
         if (!firstFault) firstFault = fault; else if (secondary.length < 16) secondary.push(fault);
       }
@@ -176,4 +202,28 @@ export function deriveOperationalDisposition({ phases = [], admitted = true, fau
   if (phases.some(p => ["ENOENT", "EAGAIN", "EMFILE", "ENFILE", "ENOSPC"].includes(p.spawn_error_code))) return "infrastructure_interruption";
   if (phases.some(p => p.status === "failure")) return "product_failure";
   return phases.length > 0 && phases.every(p => p.status === "pass") && cleanup ? "completed_success" : "coverage_incomplete";
+}
+
+// A role exemption cannot hide ACL or file-flag changes behind stable Unix mode
+// bits. These fixed read-only OS tools return only a fingerprint to callers.
+// No ACL, principal name, attribute contents or complete command output persists.
+function executablePermissions(file) {
+  const run = (tool, args) => execFileSync(tool, args, { timeout: 2000, maxBuffer: 64 * 1024, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: { PATH: "/usr/bin:/bin", LC_ALL: "C" } });
+  if (process.platform === "darwin") {
+    const lines = run("/bin/ls", ["-lde", file]).trimEnd().split("\n");
+    if (!/^-[rwxstST-]{9}[+@ ]/u.test(lines[0] ?? "") || lines.slice(1).some(line => !/^ [0-9]+: /u.test(line))) throw fail("input_executable_permissions_unknown");
+    const flags = run("/usr/bin/stat", ["-f", "%f", file]).trim();
+    if (!/^\d+$/u.test(flags)) throw fail("input_executable_permissions_unknown");
+    return digest({ contract: "posix-executable-permissions.v1", acl: lines.slice(1), flags, extended_attributes_sha256: digest(run("/usr/bin/xattr", ["-lx", file])) });
+  }
+  if (process.platform === "linux") {
+    // Portable focused controls may prove an ordinary mode-only file. A '+'
+    // ACL or security-context marker is unknown here, not silently excluded.
+    const value = run("/bin/ls", ["-ld", "--", file]);
+    if (!/^-[rwxstST-]{9} /u.test(value)) throw fail("input_executable_permissions_unknown");
+    return digest({ contract: "posix-executable-permissions.v1", acl: [], flags: "linux-mode-only" });
+  }
+  // Other admitted platforms retain the older complete metadata equality rule;
+  // this increment grants them no incidental-metadata exemption.
+  return digest("strict-metadata-v1");
 }

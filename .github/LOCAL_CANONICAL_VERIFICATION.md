@@ -639,8 +639,9 @@ The public-safe receipt includes:
 - versioned execution-input classification, source tree and selected-input
   bindings, bounded observations, first fault and separate outcome dimensions;
 - append-only attempt lineage and any substantiated infrastructure repair;
-- actual Browser executable identity at launch/settlement and CDP-reported
-  version for each executed Browser phase; availability is not use evidence;
+- actual Browser executable identity at launch/settlement and agreeing owned
+  HTTP/CDP runtime version for every actual consumer, including integration and
+  nested navigation controls; exact counts are frozen and availability is not use evidence;
 - every selected phase, public command, start/finish timestamps, finite
   duration, exit status, timeout state, cleanup state, and remaining owned
   process count;
@@ -662,7 +663,7 @@ trust or third-party attestation.
 
 The [consumer map](../docs/LOCAL_CANONICAL_INPUT_CONTRACT.md) identifies the
 controller, authenticated transport, dependency, suite, native-fixture and
-Browser boundaries. The executor freezes `augnes.local-canonical-inputs.v1`
+Browser boundaries. The executor freezes `augnes.local-canonical-inputs.v2`
 before the first phase. Its fingerprint binds declared source/tree, executor,
 selected environment and phase inventory. Isolated children still use the
 existing strict environment filter and private HOME/temp/cache/database/runtime.
@@ -682,9 +683,13 @@ and a narrow non-secret projection, never complete configuration or credential
 contents. Auth locations are observed through metadata only. Excluded-file
 content-equivalent replacement may be recorded without cancellation; changed
 type, permissions, ownership, unsafe aliases or relevant input identity refuse.
-An existing read-only Browser executable may have shared hard links: its real
-path, link count, metadata and bytes are bound, and any change refuses. It is
-never a write or cleanup target. This does not relax the single-link requirement
+An existing read-only Browser executable may have shared hard links. Its
+resolved location, device/inode, mode, owner/group, ACL/file-flag fingerprint, size, mtime and content remain
+bound. Complete observations differing only in link count/ctime are recorded as
+incidental executable metadata; a changed metadata hint forces a content read.
+Missing/incoherent evidence, unsafe resolution, content or consumed/safety
+identity changes still refuse. The observer, Browser-use reader and stock reader
+share this role rule. It is never a write or cleanup target. This does not relax the single-link requirement
 for configuration, mutable resources, evidence or cleanup paths.
 Integer nanosecond metadata stays exact. Observation intervals are not exact
 write times, writer attribution is separate, and polling cannot prove absence
@@ -718,19 +723,32 @@ identities. It does not automatically classify network/assertion failures or
 timeouts as infrastructure. Use `--recovery-proof` with a repository-relative
 local repair record only after that evidence exists; there is no automatic retry.
 Product/unknown/safety failures, cosmetic commits, wrapper restart and a third
-attempt refuse. A real subsequent source correction uses an explicit
-`--source-correction-proof` record, not an infrastructure recovery or family reset.
-This bounded increment supports a changed `scripts/*.mjs` module with the same
-retained deterministic regression failing on the prior Git object and passing on
-the corrected one, under the same environment and Canonical Node. Both observed
-children must exit naturally with complete cleanup after the predecessor settles.
-The owner verifies original witness/fixture hashes, Git content, ancestry and
-exact new head/tree, then appends one immutable successor binding to the prior
-family. A cosmetic fork cannot claim another successor, and each new candidate
-retains its own one-initial/one-infrastructure-recovery limit. Unchanged source,
-missing or changed proof, safety/unknown/timeout predecessor and unproved
-correction refuse. These local records are evidence for independent review,
-not a claim that a source delta is meaningful merely because its hash changed.
+same-candidate attempt refuse. A genuinely changed reviewed candidate uses an
+explicit `--source-correction-proof` record, not an infrastructure recovery or
+branch-family reset. Legacy source-correction v1 records retain their original
+interpretation. Candidate succession v2 additionally retains the original
+receipt, exact source-review delta/path inventory and one immutable successor
+reservation on the latest settled predecessor.
+
+A meaningful revision after PASS or an ordinary product/cancelled result requires
+the same retained deterministic regression failing on the prior Git source and
+passing on the corrected source, under the same environment and Canonical Node.
+Both observed children must exit naturally with complete cleanup after the
+predecessor settles. A proved verifier correction after a safety/input stop also
+requires the prior original fault, matching disposition and an allowlisted
+verification owner; it does not relabel that stop as infrastructure. A necessary
+accepted-main integration after PASS instead binds the freshly admitted main,
+exact two parents and the read-only recomputed non-overlapping tree-entry union. An unrelated merge
+is not a claimed repair, and overlapping/resolved source requires correction proof.
+
+Unchanged head/tree, cosmetic source, changed or missing proof, unsettled owner,
+unknown/timeout predecessor, older-attempt selection and multiple successors
+refuse. A superseded candidate cannot consume its old recovery slot. Each
+admitted candidate still has one initial and at most one substantiated
+infrastructure recovery. These records bind reviewable source/evidence and scope;
+they neither authenticate an independent reviewer nor grant execution authority.
+Independent review and behavior-based adversarial controls remain required;
+changed hashes or the candidate's ability to admit itself are insufficient.
 
 Phase retries, partial-run stitching and favorable-sample selection remain
 forbidden. Existing child/phase bounds and two-lane integration concurrency are

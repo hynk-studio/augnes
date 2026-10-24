@@ -16,10 +16,10 @@ import {
 } from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { freezeInputContract, monitorInputContract, digest, deriveOperationalDisposition, observeInputFile, classifyInputChange } from "./local-canonical-inputs.mjs";
+import { freezeInputContract, monitorInputContract, digest, deriveOperationalDisposition, observeInputFile, classifyInputChange, nonFaultInputChange } from "./local-canonical-inputs.mjs";
 import { beginAttempt, finishAttempt, readRecoveryProof, readSourceCorrectionProof, inspectAttemptRecords } from "./local-canonical-attempts.mjs";
 import { pinVerificationEvidence, readPinnedEvidence } from "./local-canonical-evidence-retention.mjs";
-import { BROWSER_IDENTITY_PREFIX, validBrowserUse } from "./local-canonical-browser-identity.mjs";
+import { BROWSER_IDENTITY_PREFIX, validPhaseBrowserUse, browserConsumersForPhase, MAX_BROWSER_USE_RECORDS, parseBrowserUseLine } from "./local-canonical-browser-identity.mjs";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -120,6 +120,12 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/browser-validate-project-experience-v1.mjs",
   "scripts/browser-validate-continuity-v1.mjs",
   "scripts/operator-execution-browser-lifecycle-v1.mjs",
+  "scripts/test-durable-work-surfaces.ts",
+  "scripts/test-durable-work-resumption.ts",
+  "scripts/test-cumulative-work-history.ts",
+  "scripts/test-project-client-browser.ts",
+  "scripts/browser-validate-web-planning.mjs",
+  "scripts/test-operator-browser-navigation-diagnostics-v1.mjs",
   "scripts/local-canonical-integration-base.mjs",
   "scripts/github-main-branch-transport.mjs",
   "scripts/local-canonical-checkout-ownership.mjs",
@@ -694,6 +700,7 @@ export async function executeLocalCanonicalVerification({
       };
       inputMonitor = monitorInputContract(inputs, controller, { assertOwner: assertOwnedInputs });
       if (inputMonitor.check()) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
+      let actualBrowserVersion = null;
       const completed = await runPhasesSequentially({
         phases: phaseDefinitions,
         signal,
@@ -706,7 +713,7 @@ export async function executeLocalCanonicalVerification({
           if (!attempt && mode !== "quick" && plan.selected_plan !== "documentation-only" && phaseDefinitions.length > 0 && checkoutOwner) {
             attempt = beginAttempt({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, checkoutOwner,
               branch: identityBefore.branch, head: headSha, tree: inputs.snapshot().binding.tree, runId,
-              contractFingerprint: inputs.snapshot().fingerprint,
+              contractFingerprint: inputs.snapshot().fingerprint, acceptedMain: baseSha,
               recoveryProof: recoveryProofPath ? readRecoveryProof(resolveArtifactPath(recoveryProofPath)) : null,
               sourceCorrection: sourceCorrectionProofPath ? readSourceCorrectionProof(resolveArtifactPath(sourceCorrectionProofPath), repositoryRoot) : null });
             pinVerificationEvidence({ root: repositoryRoot, checkoutOwner, runId, reason: "attempt_family" });
@@ -715,7 +722,9 @@ export async function executeLocalCanonicalVerification({
           const result = await executePhase({
             phase, mode, runLogRoot, isolatedResources, signal, invocationId,
             browserExecutablePath: hostResult.browserExecutablePath,
+            expectedBrowser: { ...inputs.snapshot().resources.find(r => r.id === "browser-executable"), actual_version: actualBrowserVersion },
           });
+          actualBrowserVersion ??= result.browser_use?.[0]?.actual_version ?? null;
           checkoutConsumersSettled = result.cleanup?.completed === true &&
             result.cleanup?.remaining_owned_processes === 0;
           return result;
@@ -1191,7 +1200,9 @@ function invocationInputResources({ verificationContext, browserExecutablePath }
     ...[".npmrc", "apps/augnes_apps/.npmrc", "apps/web_planning/.npmrc", "AGENTS.md", ".github/LOCAL_CANONICAL_VERIFICATION.md"].map((file, i) => ({ id: `declared-config-${i}`, file: path.join(repositoryRoot, file), classification: "execution" })),
     { id: "npm-prefix-config", file: path.join(path.dirname(path.dirname(process.execPath)), "etc", "npmrc"), classification: "execution" },
     ...["package-lock.json", "apps/augnes_apps/package-lock.json", "apps/web_planning/package-lock.json", ...EXECUTOR_SOURCE_FILES].map((file, i) => ({ id: `source-${i}`, file: path.join(repositoryRoot, file), classification: "execution" })),
-    ...(browserExecutablePath ? [{ id: "browser-executable", file: browserExecutablePath, classification: "execution", readOnlyExecutable: true }] : []),
+    ...(browserExecutablePath ? [{ id: "executable-permissions-reader", file: "/bin/ls", classification: "execution" },
+      ...(process.platform === "darwin" ? [{ id: "executable-flags-reader", file: "/usr/bin/stat", classification: "execution" }, { id: "executable-attributes-reader", file: "/usr/bin/xattr", classification: "execution" }] : []),
+      { id: "browser-executable", file: browserExecutablePath, classification: "execution", readOnlyExecutable: true }] : []),
   ];
 }
 
@@ -1205,7 +1216,7 @@ function currentInputEvidenceValid(receipt, verificationContext, browserExecutab
       if (!prior || prior.location_fingerprint !== digest(resource.file) || prior.classification !== resource.classification ||
           prior.excludePreferences !== resource.excludePreferences || prior.metadataOnly !== resource.metadataOnly || prior.readOnlyExecutable !== resource.readOnlyExecutable) return false;
       const current = observeInputFile(resource.file, { metadataOnly: resource.metadataOnly, preferences: resource.excludePreferences, readOnlyExecutable: resource.readOnlyExecutable });
-      return ["unchanged", "ambient_observation"].includes(classifyInputChange(prior.before, current, resource));
+      return nonFaultInputChange(classifyInputChange(prior.before, current, resource));
     });
   } catch { return false; }
 }
@@ -1699,16 +1710,18 @@ function phaseDefinition({
     cwdScope,
     exclusive: RESOURCE_EXCLUSIVE_PHASE_IDS.includes(id),
     browser,
+    browser_consumers: browserConsumersForPhase(id),
     base_sha: baseSha,
     head_sha: headSha,
   };
 }
 
-async function executePhase({
+export async function executePhase({
   phase,
   mode,
   runLogRoot,
   browserExecutablePath = null,
+  expectedBrowser = null,
   isolatedResources = null,
   signal,
   invocationId,
@@ -1726,8 +1739,8 @@ async function executePhase({
   const environment = phaseEnvironment({ phase, isolatedResources, browserExecutablePath });
   const environmentFingerprint = digest(environment);
   const capture = createBoundedCapture(logPath, record => {
-    // Nine entries preserve an overflow refusal without unbounded capture.
-    if (phase.browser && browserUse.length < 9) browserUse.push(record);
+    // One overflow entry preserves refusal without unbounded capture.
+    if (browserUse.length <= MAX_BROWSER_USE_RECORDS) browserUse.push(record);
   });
   let result;
   try {
@@ -1775,7 +1788,7 @@ async function executePhase({
   capture.close();
   const finishedMs = Date.now();
   const lifecyclePassed =
-    (phase.browser !== true && !CODEX_REUSE_PHASE_IDS.includes(phase.id)) ||
+    (Object.keys(browserConsumersForPhase(phase.id)).length === 0 && phase.browser !== true && !CODEX_REUSE_PHASE_IDS.includes(phase.id)) ||
     (result.termination_reason === "natural_exit" &&
       result.exit_observed === true &&
       result.streams_closed === true);
@@ -1785,8 +1798,7 @@ async function executePhase({
     result.timed_out === false &&
     result.cleanup_completed === true &&
     result.remaining_owned_processes === 0 &&
-    lifecyclePassed && (!phase.browser || (browserUse.length > 0 && browserUse.length <= 8 &&
-      browserUse.every(record => validBrowserUse(record, digest(browserExecutablePath)))));
+    lifecyclePassed && validPhaseBrowserUse(phase, browserUse, expectedBrowser);
   return {
     environment_fingerprint: environmentFingerprint,
     invocation_id: invocationId,
@@ -1812,10 +1824,10 @@ async function executePhase({
         ? "phase_cancelled"
       : result.timed_out
         ? "phase_timed_out"
-        : phase.browser && (browserUse.length === 0 || browserUse.some(record => !validBrowserUse(record, digest(browserExecutablePath))))
-          ? "browser_identity_invalid"
         : result.exit_code !== 0
           ? "phase_failed"
+        : !validPhaseBrowserUse(phase, browserUse, expectedBrowser)
+          ? "browser_identity_invalid"
           : "phase_cleanup_incomplete",
     cleanup: {
       completed: result.cleanup_completed,
@@ -1834,7 +1846,7 @@ function phaseEnvironment({ phase, isolatedResources, browserExecutablePath }) {
     ...isolatedInvocationEnvironment(isolatedResources),
     ...(browserExecutablePath ? { AUGNES_BROWSER_EXECUTABLE_PATH: browserExecutablePath } : {}),
   } : buildLocalPhaseEnvironment(process.env, {
-    browserExecutablePath: phase.browser ? browserExecutablePath : null,
+    browserExecutablePath,
   });
 }
 
@@ -1886,8 +1898,7 @@ function createBoundedCapture(logPath, onBrowserUse = () => {}) {
     for (let newline; (newline = pendingLine.indexOf("\n")) >= 0;) {
       const line = pendingLine.slice(0, newline); pendingLine = pendingLine.slice(newline + 1);
       if (line.startsWith(BROWSER_IDENTITY_PREFIX)) {
-        try { onBrowserUse(JSON.parse(line.slice(BROWSER_IDENTITY_PREFIX.length))); }
-        catch { onBrowserUse({ invalid: true }); }
+        onBrowserUse(parseBrowserUseLine(line));
       }
     }
     if (pendingLine.length > 65536) pendingLine = "";

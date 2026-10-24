@@ -7,9 +7,9 @@ import { CODEX_REUSE_OWNER_IDS, CODEX_REUSE_PHASE_IDS } from "./codex-reuse-veri
 import { VERIFICATION_CONTEXT_CONTRACT } from "./local-canonical-verification-context.mjs";
 import { VERIFICATION_CAPACITY_CONTRACT, verificationCapacityLimit } from "./local-canonical-capacity.mjs";
 import { HISTORICAL_INPUT_CONTRACT } from "./local-canonical-historical-inputs.mjs";
-import { INPUT_CONTRACT, digest, deriveOperationalDisposition } from "./local-canonical-inputs.mjs";
+import { INPUT_CONTRACT, digest, deriveOperationalDisposition, nonFaultInputChange, classifyInputChange } from "./local-canonical-inputs.mjs";
 import { ATTEMPT_CONTRACT } from "./local-canonical-attempts.mjs";
-import { validBrowserUse } from "./local-canonical-browser-identity.mjs";
+import { validPhaseBrowserUse } from "./local-canonical-browser-identity.mjs";
 
 export const LOCAL_CANONICAL_RECEIPT_SCHEMA =
   "augnes.local-canonical-receipt.v1";
@@ -639,7 +639,14 @@ function inspectClassifiedEvidence(receipt, issues) {
       input.binding?.executor_fingerprint !== receipt.executor.source_fingerprint || (!Number.isSafeInteger(input.checks) || input.checks < 1) ||
       !["isolated-model-free-v1", "canonical-conservative-v1"].includes(input.path_kind) ||
       (input.path_kind === "isolated-model-free-v1" && receipt.verification_context.kind !== "isolated-worktree")) issues.push("receipt_input_binding_invalid");
-  if (input.first_fault || input.events.some(e => e.disposition !== "ambient_observation")) issues.push("receipt_input_observation_blocked");
+  if (input.first_fault || input.events.some(e => !nonFaultInputChange(e.disposition))) issues.push("receipt_input_observation_blocked");
+  for (const event of input.events) {
+    const resource = input.resources.find(r => r.id === event.resource);
+    if (!resource || !event.after || event.classification !== resource.classification ||
+        classifyInputChange(resource.before, event.after, resource) !== event.disposition ||
+        event.identity !== digest([event.resource, event.disposition, event.after])) issues.push("receipt_input_event_invalid");
+  }
+  if (input.resources.some(r => r.readOnlyExecutable && (r.classification !== "execution" || r.metadataOnly || r.excludePreferences))) issues.push("receipt_input_role_invalid");
   const environments = input.binding?.phase_environment_fingerprints;
   if (!Array.isArray(environments) || !environments.every(e => e && typeof e === "object") || environments.length !== receipt.phases.length ||
       new Set(environments.map(e => e.id)).size !== environments.length || receipt.phases.some(p => !environments.some(e =>
@@ -654,9 +661,17 @@ function inspectClassifiedEvidence(receipt, issues) {
       attempt.contract_fingerprint !== input.fingerprint || attempt.budget?.initial !== 1 || attempt.budget?.recovery !== 1 ||
       (attempt.number === 1 && (attempt.prior_attempt_id !== null || attempt.recovery !== null)) ||
       (attempt.number === 2 && (!SHA256_PATTERN.test(attempt.prior_receipt_fingerprint ?? "") || !attempt.recovery)))) issues.push("receipt_attempt_lineage_invalid");
-  for (const phase of receipt.phases) if (phase.browser && (phase.status !== "pass" || !Array.isArray(phase.browser_use) ||
-      phase.browser_use.length < 1 || phase.browser_use.length > 8 || phase.browser_use.some(r => !validBrowserUse(r,
-        input.resources.find(r => r.id === "browser-executable")?.location_fingerprint ?? "missing")))) issues.push(`receipt_browser_identity_invalid:${safeIdentifier(phase.id)}`);
+  const expectedBrowser = input.resources.find(r => r.id === "browser-executable");
+  let actualVersion = null;
+  for (const phase of receipt.phases) {
+    if (phase.status === "not_run") {
+      if (phase.browser_use?.length) issues.push(`receipt_browser_identity_invalid:${safeIdentifier(phase.id)}`);
+      continue;
+    }
+    if (!validPhaseBrowserUse(phase, phase.browser_use ?? [], expectedBrowser ? { ...expectedBrowser, actual_version: actualVersion } : null))
+      issues.push(`receipt_browser_identity_invalid:${safeIdentifier(phase.id)}`);
+    actualVersion ??= phase.browser_use?.[0]?.actual_version ?? null;
+  }
   const disposition = deriveOperationalDisposition({ phases: receipt.phases, admitted: true,
     fault: input.first_fault, cleanup: receipt.cleanup.completed });
   if (receipt.outcome?.disposition !== disposition || disposition !== "completed_success" ||

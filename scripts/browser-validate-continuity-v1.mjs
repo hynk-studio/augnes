@@ -3439,7 +3439,7 @@ function startDevServer(environment) {
 }
 
 function startChrome(executable) {
-  browserUse = beginBrowserUse(executable);
+  browserUse = beginBrowserUse(executable, { consumer: "continuity" });
   chromeProcess = spawn(
     executable,
     [
@@ -3582,6 +3582,7 @@ async function openCdpPage() {
   browserUse.version(versionResponse.Browser);
   const client = new CdpClient(target.webSocketDebuggerUrl);
   await client.open();
+  browserUse.version((await client.send("Browser.getVersion")).product, "cdp");
   return client;
 }
 

@@ -13,7 +13,7 @@ obligations; it does not grant execution, provider, lifecycle or merge authority
 | Isolated phase | `local-canonical-isolated-resources.mjs` and `canonical-test-environment.mjs` select private HOME, temp, npm cache, database/runtime and filtered environment | Bind selected environment and physical isolation; positive/negative disposable controls prove actual consumption, not HOME assignment alone |
 | Suite child/native fixture | `run-canonical-test-suite.mjs`, `canonical-child-runner.mjs`, `test-harness-process-lifecycle.mjs` | Retain bounded process ownership/settlement, two integration lanes, original assertions and deadlines; native/model tests use existing disposable fake adapters |
 | Dependency preparation | Root/nested/Web `npm ci`, lockfiles and package lifecycle scripts | Existing clean-install authority retained; private npm configuration/cache; package and lock changes are source inputs, installed trees are not reusable proof |
-| Browser | Project-experience and continuity launchers; shared operator lifecycle including golden path | Record executable identity at actual launch and after use, plus CDP-reported version; require evidence for every selected Browser phase |
+| Browser | Project-experience, continuity, project-client and Web-planning launchers; shared operator lifecycle including golden and four navigation controls; integration durable/cumulative surfaces | Reuse process owners; record selected executable at actual launch/settlement and agreeing HTTP/CDP runtime versions. Freeze exact consumer counts for every consuming phase, including integration; forward nested evidence and refuse missing records |
 | Installed Companion | Supported preservation observer and existing context owner | Coherent before/after identity, no lifecycle in isolated context; observation/ownership failure remains blocking |
 | Shared Codex preferences | No selected isolated controller/phase launches the developer Codex client or uses its model selection | Only narrowly recognized top-level model/effort/tier values may be excluded on this audited path; remainder and metadata safety checks remain conservative |
 | Hooks and authority | Git reads do not dispatch checkout/commit hooks; canonical suites use private fake clients and runtime roots | No live client/model launch from this contract; source changes introducing a consumer require renewed classification and tests |
@@ -35,11 +35,16 @@ scripts and descendant launchers remain inputs even with a private HOME.
 - `local-canonical-attempts.mjs` owns an append-only attempt family: one initial invocation and
   one explicit recovery only with substantiated infrastructure cause and verified
   remedy. Family identity survives wrapper restart and cosmetic commits.
-  A genuine source correction uses explicit retained fail/pass proof and one
-  immutable successor binding; it does not recast the predecessor as infrastructure.
+  A genuinely revised candidate uses one immutable predecessor/successor binding,
+  retained exact-delta source review and original receipt. Meaningful revision after
+  PASS uses identical fail/pass regression evidence. A verifier correction after a
+  safety stop additionally binds the original fault and an allowlisted verifier
+  owner. A necessary accepted-main integration binds the freshly admitted main,
+  exact two parents and independently recomputed tree-entry union. None recasts old
+  outcomes as infrastructure, resets an unchanged target or grants permission.
 - `local-canonical-evidence-retention.mjs` protects active and explicitly pinned
   evidence. Unsafe aliases and ambiguous ownership refuse cleanup.
-- `test-local-canonical-classification.mjs` exercises real classification,
+- `test-local-canonical-classification.mjs` and `test-local-canonical-review-corrections.mjs` exercise real classification,
   sequencing, child lifecycle and receipt validation. Keep accepted Full phase
   inventory and every existing child bound, including 30 seconds for the
   settled-expired-successor child. Register new controls in authority coverage.
@@ -64,3 +69,46 @@ The accepted-base phase inventory is retained separately before implementation.
 The redesign's own Full uses the accepted workload, adversarial controls and
 separate stock validation; a green self-test is not independent attestation.
 Historical #1430/#1524/#1529 failures and exceptions are not promoted or retried.
+
+## Shared executable role and actual consumers
+
+Input contract v2 retains link count and ctime as observations for a declared
+read-only shared executable. Its consumed identity still binds content SHA-256,
+size, mtime, device/inode and resolved location; its safety identity binds mode,
+owner/group, ACL/file-flag fingerprint and executable regular-file resolution. Only an otherwise identical,
+complete observation may classify changed link count/ctime as
+`incidental_executable_metadata`. It records the event without cancelling.
+Missing hashes, replacement, byte changes (including writes through an alias),
+unsafe paths and changed permissions/ownership refuse. Metadata changes trigger
+a fresh hash and closeout always rehashes. Mutable resources, configuration,
+evidence and cleanup retain their single-link protections. No task writes the
+installed Browser. This prospective rule does not explain the historical
+585-to-586 observation or identify its writer.
+
+Browser-use v2 binds each launch's consumer, selected file and actual runtime
+version from both the owned HTTP endpoint and CDP. The frozen Mac workload has
+five integration launches (three durable, two cumulative), four project-experience
+launches (one main, two project-client, one Web), five review-control launches
+(including the four deliberate navigation-failure controls), and one in each
+remaining named Browser phase. Counts are checked by executor and stock reader;
+wrong executable, differing version, missing/extra records, content mutation or
+unsettled cleanup cannot pass. NOT_RUN records never claim Browser use. The
+separate development-only web-planning-continuation harness is not in this
+selected Full inventory and supplies no qualification evidence here.
+
+Candidate succession v2 remains local cooperative evidence, not a general
+approval or scheduling system. A source review binds its authority reference,
+exact predecessor/current trees, complete delta and changed-path inventory.
+The same deterministic regression must fail before and pass after a source
+revision; empty/comment-only changes cannot satisfy behavior-based controls.
+A pure accepted-main merge is checked against the stock authenticated base and
+the read-only recomputed non-overlapping tree-entry union; overlapping or resolved source requires a substantive
+source-correction proof instead. Unsettled, unknown or timeout predecessors do
+not acquire a successor through this bounded path. Every family retains one
+initial invocation and at most one proved infrastructure recovery. Changed proof,
+older attempt selection, wrapper restart, superseded candidate recovery and a
+second successor refuse. Legacy v1 records keep their original interpretation.
+Source review and fixtures remain inspectable; a local claim is not independent
+attestation or permission to run outside the commissioned scope.
+
+The Mac executable permission projection uses fixed read-only `/bin/ls -lde`, `/usr/bin/stat -f %f` and `/usr/bin/xattr -lx` readers; their identities are declared inputs. ACL entries, file flags and extended attributes are hashed in memory, never copied to evidence. Linux disposable controls admit mode-only files and conservatively refuse an ACL/security-context marker they cannot resolve. Other admitted hosts retain complete metadata equality and receive no new incidental-metadata exemption. Polling remains bounded and cannot prove absence of transient changes between observations; every observed native permission/flag/attribute difference remains a hard fault.

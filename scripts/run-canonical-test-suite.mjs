@@ -1401,6 +1401,13 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "local-canonical-review-corrections",
+      label: "shared executable roles, actual Browser consumers and reviewed candidate succession",
+      ...rootNode("scripts/test-local-canonical-review-corrections.mjs"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       label: "read-only GitHub main-branch source-attestation transport",
       ...rootNode("scripts/test-github-main-branch-transport.mjs"),
       timeoutMs: 30_000,
