@@ -685,6 +685,40 @@ advantage or normal product integration. No model consumers or route-control
 budget is commissioned. Retain the discriminating regression case and end the
 comparative branch absent a concrete useful intervention beyond ordinary memo/code.
 
+### Current contained research — Exact file identity and successor reconciliation (#1526)
+
+The separately commissioned [#1526](https://github.com/hynk-studio/augnes/issues/1526)
+uses [one ordinary adaptive memo/code A → fresh B case](../../scripts/file-identity-study/README.md).
+A inventories raw trees and handles genuinely insufficient archived material;
+B reconciles different before/after trees into exact path/content records.
+The limited prior script works in its stated domain, while actual admissible
+trees can share listing bytes and require different inventories. Independent
+literal-fact checks retain failures, valid/irrelevant cases, uncertainty,
+wrong-output refusal, whole-A transfer and fresh bounded replay controls.
+Development controls are not consumer learning. The two-message observation
+allocation is separate from all completed #1464 allocations. The frozen A
+dispatch was rejected because its supplied agent name contained an uppercase
+character. That initiated failure consumes A's slot; no replacement was made.
+No consumer work or A assets were observed, so A/B outcomes and consumer replay
+remain NOT_RUN. The case's deterministic controls and developer replay pass;
+they are not a substitute for those observations. Preserve the refusal and
+CHANGE invocation preflight before any separately authorized later observation.
+The bounded review correction now uses the unchanged Canonical acceptance
+helper with complete cleanup required: graceful exit zero after timeout or
+cancellation is rejected before semantic replay checking. Raw owner flags and
+outputs remain evidence; known execution rejection and unknown settlement are
+separate. A prospective recorder copy receives the same correction while its
+original frozen bytes stay unchanged. Offline full-request preflight binds all
+five explicit fields, exact prompt bytes, schema and validator hashes before
+reservation; inert controls are not a dispatch or backend-readiness proof.
+The corrected head requires its own current-policy qualification; the original
+head's receipt does not transfer. The review's cloud lifecycle attempt stays
+UNKNOWN, distinct from the new local developer controls and Mac qualification.
+Frozen originals, preservation and exact-source qualification belong to the
+consolidated result. Comparative
+usefulness is NOT_EVALUATED; product integration is NOT_ESTABLISHED. No second
+arm, new Core/learning engine, #1527 launch or #1523 ownership change is implied.
+
 ### Bounded P3/P4/P5 implementation — Different-goal experience use (#1427)
 
 Under [#1426](https://github.com/hynk-studio/augnes/issues/1426), the
