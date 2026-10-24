@@ -874,6 +874,8 @@ regular file and emits `OperatingProfilePreview.v0.1`; it adds no Core kind,
 store, source reader, role registry or execution owner. The synthetic
 `examples/operating-profiles/defensive-observe-recommend.json` and
 `direct-work.json` are complete authoring examples, not deployment presets.
+The source module re-exports the same pure validator shipped inside the Operator
+plugin, so standalone and installed-plugin consumers share one implementation.
 
 The input has these required, closed fields; unknown fields are refused:
 
@@ -1009,6 +1011,40 @@ Unavailable/ambiguous history refuses; deselection is never proof of no prior us
 All notes retain existing 2,000-character/eight-note bounds, preview/save atomicity
 and replay ownership; overflow refuses without truncation or eviction. The configured
 review and #1453 aggregate-service domains retain their original semantics.
+
+For #1523, manual `participation` may explicitly include
+`operating_profile: {json, step_id}`. The raw JSON string uses the standalone
+duplicate-key, integer-lexeme, Unicode and structural validator before any
+canonicalization. Exactly one existing step is selected. The **complete validated
+profile**, canonicalized with unchanged array order and exact strings, must fit
+one ordinary 2,000-character note. This is a smaller consumer domain than the
+standalone 65,536-byte input allowance. Over-budget profiles refuse; no digest,
+external locator, truncated input, shared-limit increase or unrelated-note
+eviction substitutes for the original context. Request-envelope and aggregate
+eight-note/native-byte limits still apply independently.
+
+Preparation adds the request and full imported/unverified profile to the same
+ordinary preview/save revision, or reuses an already selected exact canonical
+profile note. The request binds its whole-profile semantic fingerprint and step
+ID alongside the existing actual task, definition, choice and permitted material.
+The profile's goal never replaces actual work. Local input IDs, evidence claims,
+roles, principals and requested permissions remain declarations. Missing input
+can be the object of a request; preparation does not assert prerequisite
+satisfaction, independent checking, available capability or granted authority.
+
+Manual delivery includes the entire profile and selected step, including authored
+source claims and conditions, separately from the actual permitted excerpts.
+All this text requires disclosure review. Nothing resolves or executes its
+instruction-like text, paths or URLs. The exact request/return/decision linkage
+continues to own later use. The ordinary reader recovers that pinned full profile
+from current selection or one exact eligible retained-note lookup; unavailable,
+ambiguous, malformed or fingerprint-mismatched originals refuse. No latest-file
+selection, recursive lookup or cross-task history expansion is added. A later
+profile/step revision needs a new explicit request selection and preview; it
+cannot rewrite the earlier request or return. Deliberate deselection retains
+the original under the existing history owner and is reported on read. Profile
+notes cannot count as downstream result material. Direct/asset/non-use and
+non-profile manual/configured-review workflows remain available unchanged.
 
 Configured-review participation preparation checks the retained definition/support and horizon,
 resolves that project's currently permitted connection, and pins the existing

@@ -10,7 +10,7 @@ import { installZeroNetworkGuard } from '../test-harness-zero-network-guard.mjs'
 const violations = [], selectedReads = [];
 const reportAudit = fs.writeSync.bind(fs);
 const moduleFiles = new Set(['../operating-profile.mjs', '../../lib/vnext/operating-profile.mjs',
-  '../../lib/vnext/external-response-rules.mjs'].map(file => fileURLToPath(new URL(file, import.meta.url))));
+  '../../plugins/augnes-operator/mcp/operating-profile.mjs', '../../plugins/augnes-operator/mcp/review-connection.mjs'].map(file => fileURLToPath(new URL(file, import.meta.url))));
 const block = method => {
   violations.push(method);
   throw new Error(`profile_test_effect_forbidden:${method}`);

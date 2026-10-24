@@ -162,6 +162,14 @@ const goldenStep = {
 const suites = {
   unit: [
     {
+      id: "operating-profile-contribution-input",
+      label: "complete bounded profile input, selected step and manual use refusals",
+      requirements: ["immutable-fixture-input"],
+      ...rootNode("scripts/test-operating-profile-contribution-input.mjs"),
+      timeoutMs: 10_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "operating-profile",
       label: "bounded operating-profile validation and actual read-only CLI preview",
       requirements: ["filesystem", "process-owning", "immutable-fixture-input"],
@@ -1021,6 +1029,15 @@ const suites = {
       requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
       label: "manual selected request, preserved original, checked card, saved feedback and fresh read",
       ...rootNode("scripts/test-manual-contribution.ts"),
+      timeoutMs: 150_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "operating-profile-contribution",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
+      label: "profile step, manual return, checked recommendation and fresh persisted follow-up",
+      ...rootNode("scripts/test-operating-profile-contribution.ts"),
       timeoutMs: 150_000,
       requireNaturalExit: true,
     },
