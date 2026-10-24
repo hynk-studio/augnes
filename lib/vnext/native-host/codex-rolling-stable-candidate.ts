@@ -6,14 +6,14 @@ import os from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
 
 import { CODEX_APP_SERVER_ADAPTER_VERSION_V01, probeCodexCredentialFreeExactProfileV01, boundedCodexChildEnvironmentV01 } from "./codex-app-server-adapter";
 import { prepareCodexNativeCanaryLaunchV01, assertCodexScopedRuntimeArtifactV01, type ScopedCodexLaunchV01 } from "./codex-scoped-task";
 import { observeReviewedCandidateCodexAppServerUserAgentV01 } from "./codex-app-server-user-agent";
 import { extractDiscoveredCodexCandidateArchiveV01 } from "./codex-managed-runtime-store";
 import { CANDIDATE_CONFIG_OVERRIDE_ARGS_V01, observeCandidateConfigPolicyV01 } from "./codex-ordinary-runtime-candidate";
-import { codexCandidateOrdinaryBrokerProfileFingerprintV01, provisionCodexCandidateOrdinaryAuthV01 } from "./codex-credential-broker";
+import { codexCandidateOrdinaryBrokerProfileFingerprintV01, provisionCodexCandidateOrdinaryAuthV01, containsCodexCredentialSecretShapeV01 } from "./codex-credential-broker";
+import { assertCodexSyntheticAppServerPrefixV01, resolveCodexSyntheticAppServerFixtureV01 } from "./codex-synthetic-app-server-fixture.mjs";
 import {
   CODEX_QUALIFIED_RUNTIME_REGISTRY_FINGERPRINT_V01,
   CODEX_QUALIFIED_RUNTIME_REGISTRY_V01,
@@ -749,6 +749,7 @@ export function consumeCodexCandidateCanaryV01(binding: CodexCandidateCanaryBind
       CODEX_HOME: path.join(state.root, "codex-home"),
     };
     const prefix = state.fixture_file ? [state.fixture_file.path] : [];
+    if (state.fixture_file) assertCodexSyntheticAppServerPrefixV01(state.command, prefix, "ordinary_candidate");
     if (state.fixture_file && canaryHashV01(state.fixture_file.path) !== state.fixture_file.hash)
       throw new Error("codex_candidate_canary_fixture_changed");
     if (state.fixture) {
@@ -797,8 +798,21 @@ export function emulateCodexCandidateCanaryForTestV01(binding: CodexCandidateCan
     throw new Error("codex_candidate_canary_test_controls_refused");
   const state = canaryStateV01(binding);
   state.fixture = scenario;
-  state.command = realpathSync.native(process.execPath);
+  const fixed = resolveCodexSyntheticAppServerFixtureV01("ordinary_candidate");
+  state.command = fixed.command;
   state.executable_hash = canaryHashV01(state.command);
-  const fixture = realpathSync.native(fileURLToPath(new URL("../../../scripts/fixtures/fake-codex-app-server.mjs", import.meta.url)));
+  const fixture = fixed.prefix_args[0];
   state.fixture_file = { path: fixture, hash: canaryHashV01(fixture) };
+}
+
+/** Scan every serialized launch field, treating only the independently proven
+ * fixed fixture argument as a symbolic source identity. This is not a path
+ * exemption in the generic credential detector and grants no launch authority. */
+export function codexCandidateCanaryLaunchContainsSecretForTestV01(launch: ReturnType<typeof consumeCodexCandidateCanaryV01>): boolean {
+  assertCodexSyntheticAppServerPrefixV01(launch.command, launch.args.slice(0, 1), "ordinary_candidate");
+  const tail = [...CANDIDATE_CONFIG_OVERRIDE_ARGS_V01, "app-server", "--stdio"];
+  if (launch.synthetic !== true || launch.native_auth !== undefined || launch.args.length !== tail.length + 1 ||
+      !tail.every((arg, index) => launch.args[index + 1] === arg))
+    throw new Error("codex_synthetic_fixture_launch_invalid");
+  return containsCodexCredentialSecretShapeV01(JSON.stringify({ ...launch, args: ["fixed-synthetic-app-server", ...tail] }));
 }

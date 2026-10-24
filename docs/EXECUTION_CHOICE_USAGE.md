@@ -235,8 +235,95 @@ node --import tsx scripts/test-operating-profile-contribution.ts /absolute/new/o
 ```
 
 Direct work, existing assets, non-use, configured review and manual requests
-without a profile keep their existing paths. Same-task ordinary re-entry is the
-continuation boundary; cross-project WorkHandoff eligibility is unchanged.
+without a profile keep their existing paths. The original #1523 exercise proves
+same-task re-entry. The distinct-task composition below adds a different outcome
+using the existing writers; cross-project WorkHandoff eligibility is unchanged.
+
+## Continue a checked contribution in a different task (#1532)
+
+For an eligible unexecuted ordinary task in the same project, the existing
+source-revision and new-work tools can already carry the exact selected cycle.
+No additional transfer store, protocol or runtime wrapper is needed. The missing
+demonstration was an already checked profile contribution informing an actual
+different purpose and new artifact, followed by saved re-entry.
+
+1. Resume and read the origin's execution choice. Deliberately select the one
+   request, original return, decision and feedback to reuse. While still in the
+   origin, resolve their exact content-addressed note locators and pinned full
+   OperatingProfile with `augnes_lookup_repository_retained_sources`. Inspect
+   each complete result, including its original source binding and selection.
+   Use only those explicit references; a no-match or truncated lookup cannot
+   establish a complete dependency set.
+2. Preview/save an ordinary source revision with the exact `retained_source_refs`
+   for any deselected dependencies. Keep the linked execution-choice note too.
+   Review capacity explicitly: the six notes are choice, profile, request,
+   original, decision and feedback. Original requested excerpts and checked
+   result excerpts are already embedded unchanged in request and decision.
+   If needed, explicitly deselect those duplicate selected excerpts while
+   retaining unrelated origin notes. Preserve every old packet. If a necessary
+   dependency is unavailable or the complete selection exceeds current bounds,
+   stop this transfer and explicitly correct or reselect while access exists.
+3. Call `augnes_preview_repository_new_work` with the fresh Resume binding, a
+   genuinely different `goal`, `success_criteria`, `non_goals`, and `sources`:
+   `keep` the exact six source bindings, `add` the new task's permitted input
+   and a bounded lineage/omissions note, and provide `omitted_sources` with a
+   reason for each selected origin source not carried forward. The lineage note
+   records origin purpose/task/packet, exact historical decision/feedback refs,
+   omissions and unavailable dependencies. Review the preview, then explicitly
+   call `augnes_prepare_repository_new_work` with its `previewBinding`.
+   `keep` preserves source bytes, revision and trust; do not re-author an old
+   judgment as current or relabel imported material to satisfy a parser.
+4. A fresh process Resumes the recipient and reads ordinary work sources plus
+   execution choice. The recipient has its own task identity and purpose.
+   Its inherited decision remains `different_task` / `reassessment_required`.
+   The new-task writer does not finish the origin or adopt its obligations.
+   Retained lookup now covers only the recipient's task segment. It cannot
+   fetch an origin-only deselected note; importing a bare pointer is insufficient.
+5. Evaluate the exact prior material against the new inputs. Keep valid findings,
+   reconsider affected conclusions, and state which unfinished obligation this
+   task adopts. Save the actual new report through ordinary preview/save.
+   Explicitly deselect the historical decision/feedback to retain them in the
+   recipient's history before preparing a separate `assess` with `reassessment`.
+   Name the prior decision in the retained lineage, and preserve non-use reasons.
+   Save and read back the new decision and feedback. Historical judgments remain
+   available through their exact retained locators; they are not overwritten.
+6. Reopen through Resume and the same ordinary readers. Recover the stable
+   recipient task, full profile/step, original return, exact historical judgment,
+   current input/report, new use decision and remaining work. Changed current
+   input requires another deliberate assessment, not a silently refreshed label.
+
+Eight selected notes, 2,000 Unicode characters per note and the native aggregate
+byte budget still apply. The demonstrated recipient first selects all six
+historical notes plus lineage and new input (eight). It then explicitly retains
+completed historical dependencies in its **own** history to make room for the
+report and current decision. A decision also embeds selected downstream bytes:
+the case keeps its complete report selected and names it by fingerprint in a
+separate complete calculation note. That bounded calculation is the decision's
+explicit result material, not a truncation of the original contribution.
+
+```sh
+node --import tsx scripts/test-profile-task-continuation.ts
+# New absolute output directory preserves the synthetic originals and reports:
+node --import tsx scripts/test-profile-task-continuation.ts /absolute/new/output
+```
+
+The exposed controlled case starts with the #1523 manifest comparison, declined
+disabling advice and unresolved identity/approval. A separate reconciliation task
+receives four new events and identity/change records. Its new report accounts for
+280 bytes: 200 reconciled within the supplied approval window, 50 with approval
+unresolved and 30 with actor identity unresolved. Supplied identity records remain
+unverified declarations. No disabling or remediation obligation is adopted.
+Independent fixed expectations check every output row and total; another process
+reopens the byte-identical saved report. The receiver never reads producer private
+artifacts or a stored answer. Supported revision/reselection, dependency faults,
+capacity, project/task scope, stale basis and atomic save controls remain separate.
+
+This establishes controlled same-project cross-task continuation and fresh-process
+reconstruction. Actual model understanding and independent participation are
+NOT_RUN; comparative usefulness is NOT_EVALUATED and full W2 is NOT_ESTABLISHED.
+It adds no model trial, receipt, capability grant or installed adoption. The
+completed-stateless-observation and receipt-lineage requirements of WorkHandoff
+v0.1 remain unchanged; that contract is not an ordinary-note transfer route.
 
 ## One result-informed next arrangement (#1498)
 
