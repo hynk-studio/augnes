@@ -1,6 +1,7 @@
 // One disposable workspace, one ordinary browser profile, two independently
 // authenticated tabs. Production components and route handlers own all writes.
 import assert from "node:assert/strict";
+import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { checkAncillaryWorkDraftRecovery } from "./ancillary-work-draft-browser-checks";
 import { checkResultWorkDraftRecovery } from "./result-work-draft-browser-checks";
 import { checkWorkExpectationDraftRecovery } from "./work-expectation-draft-browser-checks";
@@ -44,6 +45,7 @@ class CDP {
 async function until(fn: () => Promise<unknown>, label: string) { const end = performance.now() + 15000; while (performance.now() < end) { if (await fn()) return; await delay(50); } throw new Error(`browser_wait:${label}`); }
 
 async function main(semanticOnly = false) {
+  let browserUse: ReturnType<typeof beginBrowserUse> | undefined;
   const root = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-project-client-browser-")));
   const databasePath = path.join(root, "workspace.db"), db = new Database(databasePath);
   const owned = new Set(), guard = installZeroNetworkGuard({ allowLoopback: true }), priorDbPath = process.env.AUGNES_DB_PATH;
@@ -133,6 +135,7 @@ async function main(semanticOnly = false) {
       "/usr/bin/chromium", "/usr/bin/chromium-browser"].find(candidate => candidate && existsSync(candidate));
     assert.ok(executable, "project_client_browser_executable_missing");
     const sandbox = '(version 1) (allow default) (deny network*) (allow network-inbound (local ip "localhost:*")) (allow network-outbound (remote ip "localhost:*")) (allow network-bind (local ip "localhost:*")) (allow network* (local unix-socket))';
+    browserUse = beginBrowserUse(executable, { consumer: "project-client" });
     chrome = registerOwnedChild(owned, spawn(process.platform === "darwin" ? "/usr/bin/sandbox-exec" : executable,
       process.platform === "darwin" ? ["-p", sandbox, executable, ...args] : args,
       { detached: true, stdio: "ignore", env: { ...process.env, OPENAI_API_KEY: "" } }), { label: "project-client-browser" });
@@ -140,6 +143,8 @@ async function main(semanticOnly = false) {
     const newTab = async (config: VNextLocalOperatorPilotConfigV01) => {
       const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: "PUT" })).json() as any;
       const tab = new CDP(target.webSocketDebuggerUrl); await tab.open(); tabs.push(tab);
+      browserUse!.version((await (await fetch(`http://127.0.0.1:${port}/json/version`)).json() as { Browser: string }).Browser);
+      browserUse!.version((await tab.send("Browser.getVersion")).product, "cdp");
       await tab.send("Network.enable"); await tab.send("Runtime.enable"); await tab.send("Page.enable");
       tab.handlers.push(event => { if (event.method === "Runtime.exceptionThrown") errors++; if (event.method === "Fetch.requestPaused") {
         const local = event.params.request.url.startsWith(origin + "/"); if (!local) external++;
@@ -347,7 +352,7 @@ async function main(semanticOnly = false) {
     throw error;
   } finally {
     held.release?.(); transitionHeld.release?.(); for (const tab of tabs) tab.close();
-    if (chrome) await terminateOwnedProcessTree(chrome);
+    if (chrome) await terminateOwnedProcessTree(chrome); browserUse?.finish();
     await closeTrackedServer(server); db.close(); guard.restore();
     if (priorDbPath === undefined) delete process.env.AUGNES_DB_PATH; else process.env.AUGNES_DB_PATH = priorDbPath;
     rmSync(root, { recursive: true, force: true }); assert.equal(owned.size, 0);

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -157,6 +158,7 @@ let serverProcessRecord = null;
 let serverClosePromise = null;
 let serverPublicDiagnosticCapture = null;
 let chromeProcess = null;
+let browserUse = null;
 let chromeProcessRecord = null;
 let cdp = null;
 let currentPhase = "setup";
@@ -3240,6 +3242,7 @@ function startRuntime(databasePath, manifest, projectId) {
 }
 
 function startChrome(executable) {
+  browserUse = beginBrowserUse(executable, { consumer: "project-experience" });
   const finishChromeStartup = timing.start(
     "chrome_startup",
     "Chrome and CDP startup",
@@ -3285,6 +3288,7 @@ async function openCdpPage() {
       const response = await fetch(versionUrl);
       if (response.ok) {
         const body = await response.json();
+        browserUse.version(body.Browser);
         webSocketUrl = body.webSocketDebuggerUrl;
         if (webSocketUrl) break;
       }
@@ -3296,6 +3300,7 @@ async function openCdpPage() {
   assert(webSocketUrl, "chrome_debug_endpoint_unavailable");
   const browserClient = new CdpClient(webSocketUrl);
   await browserClient.open();
+  browserUse.version((await browserClient.send("Browser.getVersion")).product, "cdp");
   const targets = await browserClient.send("Target.getTargets");
   const pageTarget = targets.targetInfos.find(
     (target) => target.type === "page",
@@ -5988,6 +5993,7 @@ async function cleanup() {
   await terminateProcess(chromeProcess, chromeProcessRecord, 2_000);
   chromeProcess = null;
   chromeProcessRecord = null;
+  browserUse?.finish();
   timing.duration(
     "chrome_cdp_shutdown",
     "Chrome and CDP shutdown",

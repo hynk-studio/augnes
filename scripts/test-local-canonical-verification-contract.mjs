@@ -1620,7 +1620,7 @@ for (const fragment of [
   `"build:native:windows-identity"`,
   `generatedWindowsHelperRoot`,
   `generated_windows_helper`,
-  `browserExecutablePath: phase.browser ? browserExecutablePath : null`,
+  `buildLocalPhaseEnvironment(process.env, {\n    browserExecutablePath,`,
   `environment.AUGNES_BROWSER_EXECUTABLE_PATH = browserExecutablePath`,
 ]) {
   requireText(

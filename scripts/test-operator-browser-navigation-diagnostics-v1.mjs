@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { BROWSER_IDENTITY_PREFIX, parseBrowserUseLine } from "./local-canonical-browser-identity.mjs";
 
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -320,6 +321,10 @@ async function runScenario(scenario) {
   });
   assert.equal(stdout.overflowed(), false, `${scenario}:stdout_overflow`);
   assert.equal(stderr.overflowed(), false, `${scenario}:stderr_overflow`);
+  for (const line of stdout.value().split("\n")) {
+    const use = parseBrowserUseLine(line);
+    if (use) process.stdout.write(`${BROWSER_IDENTITY_PREFIX}${JSON.stringify(use)}\n`);
+  }
   const result = parseFinalResult(stdout.value());
   // Emit only existing sanitized diagnostic fields before assertions. A later
   // assertion failure must not discard this child's failure-time snapshot.
