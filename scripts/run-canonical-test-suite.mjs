@@ -1394,6 +1394,13 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "local-canonical-classification",
+      label: "classified verification inputs, operational recovery and private evidence controls",
+      ...rootNode("scripts/test-local-canonical-classification.mjs"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       label: "read-only GitHub main-branch source-attestation transport",
       ...rootNode("scripts/test-github-main-branch-transport.mjs"),
       timeoutMs: 30_000,

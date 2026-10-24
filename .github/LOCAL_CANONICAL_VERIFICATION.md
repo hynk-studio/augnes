@@ -596,8 +596,13 @@ Detailed phase logs remain local under:
 .augnes-local-verification/logs/
 ```
 
-Both locations are gitignored. Phase logs are limited to 2 MiB each; at most
-five log-run directories and twenty receipt files are retained. The harness
+Both locations are gitignored. Phase logs are limited to 2 MiB each; ordinarily
+five log-run directories and twenty receipt files are retained. Active runs and
+explicitly pinned review evidence are exceptions to these ordinary bounds and
+are never evicted to make room. Every deciding attempt family pins its original
+run. Pinning is checkout-owned and records only a run identifier and reason;
+unsafe pin files or aliases refuse pruning. Pins are not an archival service or
+permission to remove historical evidence. The harness
 creates only real directories inside the authorized repository and refuses
 symlink redirection. Generated receipts and logs are not committed because
 they are execution artifacts, may become stale, and are not source authority.
@@ -612,7 +617,7 @@ writes a failed-attempt receipt.
 The public-safe receipt includes:
 
 - schema and receipt version;
-- receipt version 3 verification context (canonical or admitted isolated worktree),
+- receipt version 4 verification context (canonical or admitted isolated worktree),
   physical checkout/anchor/common-Git fingerprints, invocation-bound phases,
   capacity ownership and private-resource cleanup;
 - integration-base admission: requested base/tested head,
@@ -631,6 +636,11 @@ The public-safe receipt includes:
 - bounded CPU, memory, disk, browser-availability, and sleep-prevention facts;
 - root, Apps and web-planning lockfile SHA-256 fingerprints and dependency policy;
 - executor version, source-file inventory, and source SHA-256 fingerprint;
+- versioned execution-input classification, source tree and selected-input
+  bindings, bounded observations, first fault and separate outcome dimensions;
+- append-only attempt lineage and any substantiated infrastructure repair;
+- actual Browser executable identity at launch/settlement and CDP-reported
+  version for each executed Browser phase; availability is not use evidence;
 - every selected phase, public command, start/finish timestamps, finite
   duration, exit status, timeout state, cleanup state, and remaining owned
   process count;
@@ -647,6 +657,101 @@ claimed local provenance. It is not a signature and provides no independent
 trust or third-party attestation.
 
 ## Validation and staleness
+
+### Classified inputs and outcome dimensions (receipt version 4)
+
+The [consumer map](../docs/LOCAL_CANONICAL_INPUT_CONTRACT.md) identifies the
+controller, authenticated transport, dependency, suite, native-fixture and
+Browser boundaries. The executor freezes `augnes.local-canonical-inputs.v1`
+before the first phase. Its fingerprint binds declared source/tree, executor,
+selected environment and phase inventory. Isolated children still use the
+existing strict environment filter and private HOME/temp/cache/database/runtime.
+Neither private HOME nor a configuration key's name alone establishes exclusion.
+
+Execution inputs, safety resources, proven non-consumed ambient context and
+unknown relevance have different dispositions. On the audited isolated
+model-free path, only unambiguous leading top-level `model`,
+`model_reasoning_effort` and `service_tier` scalar values can be excluded.
+Every other configuration byte is covered by a remainder fingerprint; unknown
+syntax or mixed trust/permission/other changes do not become an exemption.
+The canonical path remains conservative. No rule authorizes writing preferences,
+copying credentials, launching a model or changing installed services.
+
+Configuration contents are compared in memory. Receipts contain safe identities
+and a narrow non-secret projection, never complete configuration or credential
+contents. Auth locations are observed through metadata only. Excluded-file
+content-equivalent replacement may be recorded without cancellation; changed
+type, permissions, ownership, unsafe aliases or relevant input identity refuse.
+An existing read-only Browser executable may have shared hard links: its real
+path, link count, metadata and bytes are bound, and any change refuses. It is
+never a write or cleanup target. This does not relax the single-link requirement
+for configuration, mutable resources, evidence or cleanup paths.
+Integer nanosecond metadata stays exact. Observation intervals are not exact
+write times, writer attribution is separate, and polling cannot prove absence
+of transient writes between observations. Large executables use exact metadata
+as a polling hint and are rehashed at closeout. This is cooperative same-user
+resource protection, not a hostile-user sandbox.
+
+The first relevant fault latches. The executor aborts through its existing
+controller and owned-child settlement path, never by a foreign PID. Observer
+failure, source/input invalidation, safety faults, cancellation, missing coverage
+and incomplete cleanup cannot yield PASS. Raw phase statuses remain intact.
+Receipt inspection reports execution/coverage, historical integrity, evidence
+validity, safety and current merge applicability separately. Later main movement
+blocks current applicability without rewriting the historical receipt. The
+unchanged exact-head/current-main/context gates still apply to deciding use.
+
+### Attempt families and bounded operational recovery
+
+A deciding invocation belongs to an append-only family at the authorized anchor,
+keyed by repository and branch, not by wrapper PID, checkout or commit. It
+consumes one initial complete invocation only after admission. A pre-admission
+refusal records no executed coverage. A started but unsettled attempt blocks
+further admission. Original attempt and completion records are never overwritten.
+
+At most one explicit recovery invocation is available for the same frozen
+head/tree, only after a substantiated infrastructure cause is corrected and a
+task-owned focused probe demonstrates the remedy. This increment admits the
+directly observed child-spawn failure class (`ENOENT`, `EAGAIN`, `EMFILE`,
+`ENFILE`, `ENOSPC`), with immutable prior receipt linkage, cause, remedy and proof
+identities. It does not automatically classify network/assertion failures or
+timeouts as infrastructure. Use `--recovery-proof` with a repository-relative
+local repair record only after that evidence exists; there is no automatic retry.
+Product/unknown/safety failures, cosmetic commits, wrapper restart and a third
+attempt refuse. A real subsequent source correction needs an explicit new-family
+disposition; there is no automatic family-reset command in this increment.
+
+Phase retries, partial-run stitching and favorable-sample selection remain
+forbidden. Existing child/phase bounds and two-lane integration concurrency are
+unchanged. Bounds limit hangs and settlement within supported CPU/memory/disk
+conditions; a timeout is not automatically a performance regression or an
+infrastructure diagnosis. In particular the historical settled-expired-successor
+child remains one complete scenario under its existing 30,000 ms bound.
+
+### Private review export
+
+The sanitized `augnes.local-canonical-private-review.v1` derivative links the
+original local receipt fingerprint, schema/policy, source and input identities,
+actual toolchain/Browser observations, phases, attempt lineage, cleanup and
+limitations. It excludes configuration projections, environment values and raw
+logs. Its own fingerprint detects modification, not authorship. Off-host
+structural review is not local qualification or independent attestation. The
+original context-bound stock validator remains required; legacy receipt bytes
+and dispositions are preserved.
+
+Create that private derivative with `npm run verify:local:export -- --receipt
+.augnes-local-verification/receipts/<receipt>.json`. It writes a new file in
+`.augnes-local-verification/review/` without overwriting an existing export or
+making a deciding claim. The stock local validator also checks the immutable
+attempt/completion records and current declared inputs; an export cannot replace
+those records or be copied back as an original receipt.
+
+For verifier-integrity changes, freeze the accepted-base Full phase inventory
+and acceptance conditions, run the integrated disposable adversarial controls,
+and compare old/new behavior before freezing the candidate. Those controls do
+not replace the accepted Full workload or independent source/evidence review.
+The candidate cannot exempt its own tests. Existing historical failures,
+cancellations and preservation exceptions are never promoted by this contract.
 
 Validate a receipt against the current repository:
 
@@ -667,7 +772,8 @@ evidence. It rejects or marks non-deciding a receipt when:
   recorded base, or current ancestry cannot be established;
 - integration-base provenance is missing, inconsistent, wrongly timed, or
   tampered; historical version 1/2 receipts remain historical and are not upgraded
-  into version 3 evidence;
+  into newer evidence; version 3 keeps its original interpretation and is never
+  rewritten or promoted into version 4;
 - required checkout ownership was not acquired/released for the phase lifetime,
   failed, or belongs to another physical checkout;
 - the admitted context, physical checkout, receipt filename/run identity,

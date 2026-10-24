@@ -1,12 +1,12 @@
 # Local Canonical execution-input contract
 
-This is the design/source map for #1530. The Local Canonical policy owns
+This is the implemented design/source map for #1530. The Local Canonical policy owns
 admission and acceptance. This document records the consumers and regression
 obligations; it does not grant execution, provider, lifecycle or merge authority.
 
 ## Scope and consumer map
 
-| Boundary | Existing owner and actual consumption | Planned evidence/control |
+| Boundary | Existing owner and actual consumption | Evidence/control |
 | --- | --- | --- |
 | Parent/controller | `run-local-canonical-verification.mjs`, `local-canonical-environment.mjs`, Git identity/planner reads, Node/npm selected through PATH | Exact tree, source/lock/executor identities, selected plan, Node/npm and environment bindings; changes invalidate inputs |
 | Authenticated base read | `github-main-branch-transport.mjs` invokes `gh api` GET using parent transport credentials | Preserve authenticated read and current-main gate; transport failure is admission refusal, credentials are neither exported nor forwarded to phases |
@@ -26,18 +26,18 @@ scripts and descendant launchers remain inputs even with a private HOME.
 
 ## Implementation mapping
 
-- Extend the executor with a frozen, versioned input classification, a latched
+- The executor uses a frozen, versioned input classification, a latched
   observer and its existing AbortSignal/owned-child cleanup path. Preserve raw
   cancellation/timeout/failure and never admit another phase after a fault.
-- Extend the receipt owner with separate execution, validity, safety and current
+- The receipt owner supplies separate execution, validity, safety and current
   applicability decisions, strict final conjunction, Browser provenance and a
   sanitized derived review export. Preserve legacy receipt interpretation.
-- Add a checkout-owned, append-only attempt family: one initial invocation and
+- `local-canonical-attempts.mjs` owns an append-only attempt family: one initial invocation and
   one explicit recovery only with substantiated infrastructure cause and verified
   remedy. Family identity survives wrapper restart and cosmetic commits.
-- Extend existing bounded retention to protect active and explicitly pinned
+- `local-canonical-evidence-retention.mjs` protects active and explicitly pinned
   evidence. Unsafe aliases and ambiguous ownership refuse cleanup.
-- Add one integrated disposable regression suite through real classification,
+- `test-local-canonical-classification.mjs` exercises real classification,
   sequencing, child lifecycle and receipt validation. Keep accepted Full phase
   inventory and every existing child bound, including 30 seconds for the
   settled-expired-successor child. Register new controls in authority coverage.
