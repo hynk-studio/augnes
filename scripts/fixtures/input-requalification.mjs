@@ -56,7 +56,7 @@ export const resourceList = (f, proof = null) => [
   ...(proof ? inputRequalificationResources({ repositoryRoot: f.checkout, anchorRoot: f.anchor, proof }) : []),
 ];
 export const request = (f, extra = {}) => ({ anchorRoot: f.anchor, repositoryRoot: f.checkout, branch: f.branch, head: f.head, tree: f.tree, acceptedMain: f.base, ...extra });
-export async function runInvocation(f, { proof = null, mutate = false, beforeChildren = null, afterChildren = null, legacyShape = false, spawnFailure = false, nestedFailure = false } = {}) {
+export async function runInvocation(f, { proof = null, mutate = false, beforeChildren = null, afterChildren = null, legacyShape = false, spawnFailure = false, nestedFailure = false, settledPrefix = null } = {}) {
   const started = new Date().toISOString(), startedMs = Date.now(), runId = `fixture-${randomBytes(6).toString("hex")}-${++f.sequence}`, invocationId = randomBytes(16).toString("hex");
   const verification = context(f), base = await admitIntegrationBase({ repositoryRoot: f.checkout, baseSha: f.base, headSha: f.head, transport: transport(f) });
   assert.equal(base.status, "admitted");
@@ -69,8 +69,18 @@ export async function runInvocation(f, { proof = null, mutate = false, beforeChi
   const logRoot = path.join(sourceRoot, ".augnes-local-verification/logs", runId); mkdirSync(logRoot, { recursive: true, mode: 0o700 });
   const sourceFiles = ["scripts/value.mjs"], fingerprint = computeExecutorSourceFingerprint(f.checkout, sourceFiles);
   const mutationMarker = path.join(f.parent, `mutation-ready-${runId}`);
+  const mutationIndex = settledPrefix ? 1 : 0;
+  const descendant = `const {spawn}=require('node:child_process'); const c=spawn(process.execPath,['-e',"setInterval(()=>{},1000)"],{stdio:['ignore','inherit','inherit']}); c.unref(); setTimeout(()=>process.exit(0),40);`;
+  const prefixCode = settledPrefix === "phase" ? descendant : `
+    (async()=>{
+      const {runCanonicalChild,canonicalChildAcceptanceFailure}=await import(${JSON.stringify(pathToFileURL(path.join(sourceRoot, "scripts/canonical-child-runner.mjs")).href)});
+      const r=await runCanonicalChild({suite:${JSON.stringify(policyPhaseIds[0])},label:'settled-prefix-child',command:process.execPath,args:['-e',${JSON.stringify(descendant)}],cwd:process.cwd(),env:process.env,timeoutMs:1500,termGraceMs:100,killGraceMs:100});
+      const error=canonicalChildAcceptanceFailure(r,{suite:${JSON.stringify(policyPhaseIds[0])},timeoutMs:1500,requireNaturalExit:${settledPrefix === "strict-child"},requireCompleteCleanup:true});
+      if(error) throw error;
+      console.log(JSON.stringify({suite:${JSON.stringify(policyPhaseIds[0])},status:'pass',results:[{label:r.label,status:r.exit_code,timed_out:r.timed_out,exit_observed:r.exit_observed,streams_closed:r.streams_closed,cleanup_completed:r.cleanup_completed,remaining_owned_processes:r.remaining_owned_processes,termination_reason:r.termination_reason}]}));
+    })().catch(e=>{console.error(e.code);process.exitCode=1});`;
   const phases = policyPhaseIds.map((id, n) => ({ id, label: `disposable-${n}`, command: spawnFailure && n === 0 ? path.join(f.parent, "absent-owned-executable") : process.execPath,
-    args: ["-e", mutate && n === 0 ? `const fs=require('fs'); process.on('SIGTERM',()=>process.exit(0)); (async()=>{${nestedFailure ? `const {runCanonicalChild}=await import(${JSON.stringify(pathToFileURL(path.join(sourceRoot, "scripts/canonical-child-runner.mjs")).href)}); await runCanonicalChild({suite:${JSON.stringify(id)},label:'independent-product-failure',command:process.execPath,args:['-e','process.exit(1)'],cwd:process.cwd(),env:process.env,timeoutMs:500});` : ""} fs.writeFileSync(${JSON.stringify(mutationMarker)},'ready\\n'); setInterval(()=>{},1000);})();` : "process.stdout.write('disposable phase passed\\n')"],
+    args: ["-e", settledPrefix && n === 0 ? prefixCode : mutate && n === mutationIndex ? `const fs=require('fs'); process.on('SIGTERM',()=>process.exit(0)); (async()=>{${nestedFailure ? `const {runCanonicalChild}=await import(${JSON.stringify(pathToFileURL(path.join(sourceRoot, "scripts/canonical-child-runner.mjs")).href)}); await runCanonicalChild({suite:${JSON.stringify(id)},label:'independent-product-failure',command:process.execPath,args:['-e','process.exit(1)'],cwd:process.cwd(),env:process.env,timeoutMs:500});` : ""} fs.writeFileSync(${JSON.stringify(mutationMarker)},'ready\\n'); setInterval(()=>{},1000);})();` : "process.stdout.write('disposable phase passed\\n')"],
     display: `node disposable-phase-${n}`, cwdScope: "root", exclusive: false, browser: false, timeoutMs: 2000, base_sha: f.base, head_sha: f.head }));
   const frozen = freezeInputContract({ resources: resourceList(f, proof), pathKind: "isolated-model-free-v1", binding: { head: f.head, tree: f.tree, executor_fingerprint: fingerprint,
     ...(proof ? { input_requalification: digest(proof) } : {}), phase_environment_fingerprints: phases.map(p => ({ id: p.id, fingerprint: digest(environment) })) } });
@@ -97,7 +107,7 @@ export async function runInvocation(f, { proof = null, mutate = false, beforeChi
       // writes and observes synchronously on one event loop, avoiding a fixture
       // read/write race being misrepresented as an ordinary input invalidation.
       let mutationTimer;
-      if (mutate && phase.id === phases[0].id) mutationTimer = setInterval(() => {
+      if (mutate && phase.id === phases[mutationIndex].id) mutationTimer = setInterval(() => {
         if (!existsSync(mutationMarker)) return;
         clearInterval(mutationTimer);
         appendFileSync(f.config, tracking(`observed-${f.sequence}`)); monitor.check();
@@ -137,7 +147,7 @@ export async function runInvocation(f, { proof = null, mutate = false, beforeChi
   const passed = disposition === "completed_success";
   receipt.evidence.deciding = passed; receipt.evidence.transferable = passed;
   receipt.outcome = { disposition, first_fault: input.first_fault, validity: passed ? "valid_within_observed_scope" : "invalidated", safety: passed ? "preserved_within_observed_scope" : "blocked" };
-  receipt.final = { ...receipt.final, result: passed ? "pass" : "failure", exit_status: passed ? 0 : 1, reason_codes: passed ? [] : [results[0]?.failure_code ?? "verification_cancelled", "selected_phases_incomplete"] };
+  receipt.final = { ...receipt.final, result: passed ? "pass" : "failure", exit_status: passed ? 0 : 1, reason_codes: passed ? [] : [results.find(p => p.status === "failure")?.failure_code ?? "verification_cancelled", "selected_phases_incomplete"] };
   const sealed = finalizeReceipt(receipt), relative = `.augnes-local-verification/receipts/${runId}.json`;
   write(path.join(f.checkout, relative), sealed);
   if (legacyShape) writeFileSync(path.join(f.anchor, ".augnes-local-verification/families", attempt.family_id, "completion-1.json"), `${JSON.stringify({

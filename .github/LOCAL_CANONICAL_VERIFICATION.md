@@ -701,6 +701,11 @@ The first relevant fault latches. The executor aborts through its existing
 controller and owned-child settlement path, never by a foreign PID. Observer
 failure, source/input invalidation, safety faults, cancellation, missing coverage
 and incomplete cleanup cannot yield PASS. Raw phase statuses remain intact.
+Optional bounded observer operation/error codes add diagnostic evidence only;
+they do not establish a historical cause, alter the original disposition or
+admit an `unknown_relevance` predecessor. The
+[observer requalification proposal](../docs/LOCAL_CANONICAL_OBSERVER_REQUALIFICATION_PROPOSAL.md)
+is explicitly unimplemented and grants no deciding admission or reservation.
 Receipt inspection reports execution/coverage, historical integrity, evidence
 validity, safety and current merge applicability separately. Later main movement
 blocks current applicability without rewriting the historical receipt. The

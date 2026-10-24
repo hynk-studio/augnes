@@ -1,5 +1,5 @@
 import { canonicalSerialize, assertPublicSafeReceipt, verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
-import { digest } from "./local-canonical-inputs.mjs";
+import { digest, boundedObservationDiagnostic } from "./local-canonical-inputs.mjs";
 
 export const REVIEW_EXPORT_SCHEMA = "augnes.local-canonical-private-review.v1";
 const pick = (value, names) => Object.fromEntries(names.filter(name => value?.[name] !== undefined).map(name => [name, value[name]]));
@@ -19,7 +19,8 @@ export function createPrivateReviewExport(receipt) {
     inputs: receipt.inputs ? { contract: receipt.inputs.contract, fingerprint: receipt.inputs.fingerprint,
       path_kind: receipt.inputs.path_kind, binding: pick(receipt.inputs.binding, ["head", "tree", "executor_fingerprint", "input_requalification", "phase_inventory", "phase_environment_fingerprints", "environment_keys", "authenticated_transport", "provider_policy"]),
       resources: receipt.inputs.resources.map(r => ({ id: r.id, classification: r.classification, excludePreferences: r.excludePreferences === true })),
-      events: receipt.inputs.events.map(e => ({ resource: e.resource, disposition: e.disposition, observed_at: e.observed_at, identity: e.identity })),
+      events: receipt.inputs.events.map(e => ({ resource: e.resource, disposition: e.disposition, observed_at: e.observed_at, identity: e.identity,
+        ...(e.disposition === "observer_failure" && e.diagnostic ? { diagnostic: boundedObservationDiagnostic(e.diagnostic) } : {}) })),
       first_fault: receipt.inputs.first_fault, secondary_faults: receipt.inputs.secondary_faults, observation_overflow: receipt.inputs.observation_overflow, limitations: receipt.inputs.limitations } : null,
     attempt: receipt.attempt ? { ...pick(receipt.attempt, ["contract", "family_id", "attempt_id", "number", "head", "tree", "contract_fingerprint", "prior_attempt_id", "prior_receipt_fingerprint", "budget"]),
       source_correction: receipt.attempt.source_correction ? pick(receipt.attempt.source_correction, ["schema", "kind", "defect", "prior_family_id", "prior_attempt_id", "prior_receipt_fingerprint", "head", "tree", "source_module", "fixture_sha256", "accepted_main", "review"]) : null,

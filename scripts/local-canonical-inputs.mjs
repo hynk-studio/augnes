@@ -9,6 +9,21 @@ const sorted = value => Array.isArray(value) ? value.map(sorted) : value && type
   ? Object.fromEntries(Object.keys(value).sort().map(key => [key, sorted(value[key])])) : value;
 export const digest = value => createHash("sha256").update(typeof value === "string" || Buffer.isBuffer(value) ? value : JSON.stringify(sorted(value))).digest("hex");
 const fail = code => Object.assign(new Error(code), { code });
+const OBSERVATION_OPERATIONS = new Set(["snapshot", "path_stat", "path_resolution", "file_open", "descriptor_stat", "file_read", "descriptor_close", "identity_check", "permission_snapshot", "permission_acl", "permission_flags", "permission_attributes", "preference_projection"]);
+const OBSERVATION_CODES = new Set(["EACCES", "EPERM", "ENOENT", "ENOTDIR", "ELOOP", "EIO", "EBADF", "EMFILE", "ENFILE", "ENOMEM", "ENOBUFS", "ETIMEDOUT", "EINTR", "EINVAL", "ESTALE", "input_unsafe_file", "input_comparison_bound_exceeded", "input_observation_race", "input_executable_permissions_unknown", "input_invalid_utf8"]);
+// Diagnostic codes explain a failed operation prospectively. Never retain the
+// exception message, path, arguments, stack, stdout/stderr or arbitrary code.
+export function boundedObservationDiagnostic(value) {
+  return { contract: "augnes.input-observation-diagnostic.v1", operation: OBSERVATION_OPERATIONS.has(value?.operation) ? value.operation : "unknown",
+    code: OBSERVATION_CODES.has(value?.code) ? value.code : "unknown" };
+}
+function observationStep(operation, action) {
+  try { return action(); }
+  catch (error) {
+    const diagnostic = boundedObservationDiagnostic(error?.observation_diagnostic ?? { operation, code: error?.code });
+    throw Object.assign(new Error(diagnostic.code), { code: diagnostic.code, observation_diagnostic: diagnostic });
+  }
+}
 
 // No TOML value or complete source is retained. Only unambiguous one-line,
 // unescaped top-level declarations in the leading scalar block can be masked.
@@ -43,36 +58,39 @@ export function preferenceProjection(bytes) {
 }
 
 export function observeInputFile(file, { metadataOnly = false, preferences = false, readOnlyExecutable = false } = {}) {
-  let stat;
-  try { stat = lstatSync(file, { bigint: true }); }
-  catch (error) { if (error.code === "ENOENT") return { present: false }; throw error; }
-  // Existing shared executables are read/execute inputs, never cleanup targets.
-  // Retain their complete observation; the role-aware comparator separately
-  // classifies incidental link/ctime changes rather than requiring a private
-  // inode. Configurations and mutable resources retain single-link refusal.
-  const sharedPosix = ["darwin", "linux"].includes(process.platform);
-  const allowedLinks = s => readOnlyExecutable && sharedPosix ? s.nlink > 0n && (s.mode & 0o111n) !== 0n : s.nlink === 1n;
-  if (!stat.isFile() || stat.isSymbolicLink() || !allowedLinks(stat) || realpathSync(file) !== file)
-    throw fail("input_unsafe_file");
-  if (preferences && stat.size > 1024n * 1024n) throw fail("input_comparison_bound_exceeded");
-  const securityBefore = readOnlyExecutable ? executablePermissions(file) : null;
-  const metadata = s => ({ mode: String(s.mode), uid: String(s.uid), gid: String(s.gid), links: String(s.nlink),
-    device: String(s.dev), inode: String(s.ino), bytes: String(s.size), mtime_ns: String(s.mtimeNs), ctime_ns: String(s.ctimeNs) });
-  if (metadataOnly) return { present: true, metadata: metadata(stat), ...(readOnlyExecutable ? { permission_identity: securityBefore, executable_identity_policy: sharedPosix ? "shared-posix-v1" : "strict-metadata-v1" } : {}), observation: "metadata_only" };
-  const fd = openSync(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
-  try {
-    const before = fstatSync(fd, { bigint: true });
-    if (before.ino !== stat.ino || before.dev !== stat.dev || before.nlink !== stat.nlink || !allowedLinks(before)) throw fail("input_observation_race");
-    const bytes = readFileSync(fd);
-    const after = fstatSync(fd, { bigint: true }), named = lstatSync(file, { bigint: true });
-    if (JSON.stringify(metadata(before)) !== JSON.stringify(metadata(after)) || named.ino !== after.ino || named.dev !== after.dev)
-      throw fail("input_observation_race");
-    const securityAfter = readOnlyExecutable ? executablePermissions(file) : null;
-    if (digest(securityBefore) !== digest(securityAfter)) throw fail("input_observation_race");
-    return { present: true, metadata: metadata(after), sha256: digest(bytes),
-      ...(readOnlyExecutable ? { permission_identity: securityAfter, executable_identity_policy: sharedPosix ? "shared-posix-v1" : "strict-metadata-v1" } : {}),
-      ...(preferences ? preferenceProjection(bytes) : {}) };
-  } finally { closeSync(fd); }
+  return observationStep("snapshot", () => {
+    let stat;
+    try { stat = observationStep("path_stat", () => lstatSync(file, { bigint: true })); }
+    catch (error) { if (error.code === "ENOENT") return { present: false }; throw error; }
+    // Existing shared executables are read/execute inputs, never cleanup targets.
+    // Retain their complete observation; the role-aware comparator separately
+    // classifies incidental link/ctime changes rather than requiring a private
+    // inode. Configurations and mutable resources retain single-link refusal.
+    const sharedPosix = ["darwin", "linux"].includes(process.platform);
+    const allowedLinks = s => readOnlyExecutable && sharedPosix ? s.nlink > 0n && (s.mode & 0o111n) !== 0n : s.nlink === 1n;
+    if (!stat.isFile() || stat.isSymbolicLink() || !allowedLinks(stat) || observationStep("path_resolution", () => realpathSync(file)) !== file)
+      throw fail("input_unsafe_file");
+    if (preferences && stat.size > 1024n * 1024n) throw fail("input_comparison_bound_exceeded");
+    const securityBefore = readOnlyExecutable ? observationStep("permission_snapshot", () => executablePermissions(file)) : null;
+    const metadata = s => ({ mode: String(s.mode), uid: String(s.uid), gid: String(s.gid), links: String(s.nlink),
+      device: String(s.dev), inode: String(s.ino), bytes: String(s.size), mtime_ns: String(s.mtimeNs), ctime_ns: String(s.ctimeNs) });
+    if (metadataOnly) return { present: true, metadata: metadata(stat), ...(readOnlyExecutable ? { permission_identity: securityBefore, executable_identity_policy: sharedPosix ? "shared-posix-v1" : "strict-metadata-v1" } : {}), observation: "metadata_only" };
+    const fd = observationStep("file_open", () => openSync(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0)));
+    try {
+      const before = observationStep("descriptor_stat", () => fstatSync(fd, { bigint: true }));
+      observationStep("identity_check", () => { if (before.ino !== stat.ino || before.dev !== stat.dev || before.nlink !== stat.nlink || !allowedLinks(before)) throw fail("input_observation_race"); });
+      const bytes = observationStep("file_read", () => readFileSync(fd));
+      const after = observationStep("descriptor_stat", () => fstatSync(fd, { bigint: true })), named = observationStep("path_stat", () => lstatSync(file, { bigint: true }));
+      observationStep("identity_check", () => {
+        if (JSON.stringify(metadata(before)) !== JSON.stringify(metadata(after)) || named.ino !== after.ino || named.dev !== after.dev) throw fail("input_observation_race");
+      });
+      const securityAfter = readOnlyExecutable ? observationStep("permission_snapshot", () => executablePermissions(file)) : null;
+      observationStep("identity_check", () => { if (digest(securityBefore) !== digest(securityAfter)) throw fail("input_observation_race"); });
+      return { present: true, metadata: metadata(after), sha256: digest(bytes),
+        ...(readOnlyExecutable ? { permission_identity: securityAfter, executable_identity_policy: sharedPosix ? "shared-posix-v1" : "strict-metadata-v1" } : {}),
+        ...(preferences ? observationStep("preference_projection", () => preferenceProjection(bytes)) : {}) };
+    } finally { observationStep("descriptor_close", () => closeSync(fd)); }
+  });
 }
 
 export const nonFaultInputChange = disposition => ["unchanged", "ambient_observation", "incidental_executable_metadata"].includes(disposition);
@@ -129,7 +147,7 @@ export function freezeInputContract({ resources, pathKind, binding, read = obser
   const check = ({ force = false } = {}) => {
     checks++;
     for (const resource of selected) {
-      let after, disposition;
+      let after, disposition, diagnostic;
       try {
         // Large immutable executables use exact metadata as a polling hint;
         // the final check always rehashes. Small configuration/input files are
@@ -139,12 +157,16 @@ export function freezeInputContract({ resources, pathKind, binding, read = obser
         after = hint && hint.permission_identity === resource.before.permission_identity && JSON.stringify(hint.metadata) === JSON.stringify(resource.before.metadata)
           ? resource.before : read(resource.file, { metadataOnly: resource.metadataOnly, preferences: resource.excludePreferences, readOnlyExecutable: resource.readOnlyExecutable });
         disposition = classifyInputChange(resource.before, after, resource);
-      } catch { disposition = "observer_failure"; after = null; }
+      } catch (error) {
+        disposition = "observer_failure"; after = null;
+        diagnostic = boundedObservationDiagnostic(error?.observation_diagnostic);
+      }
       if (disposition === "unchanged") continue;
       const key = digest([resource.id, disposition, after]);
       if (events.some(event => event.identity === key)) continue;
       const event = { resource: resource.id, classification: resource.classification, disposition,
-        observed_at: new Date().toISOString(), monotonic_ns: String(process.hrtime.bigint()), identity: key, after };
+        observed_at: new Date().toISOString(), monotonic_ns: String(process.hrtime.bigint()), identity: key, after,
+        ...(diagnostic ? { diagnostic } : {}) };
       // A bounded observer cannot silently drop a relevant event.
       if (events.length >= 64) { disposition = "observer_failure"; observationOverflow = true; }
       else events.push(event);
@@ -216,7 +238,8 @@ export function deriveOperationalDisposition({ phases = [], admitted = true, fau
 // bits. These fixed read-only OS tools return only a fingerprint to callers.
 // No ACL, principal name, attribute contents or complete command output persists.
 function executablePermissions(file) {
-  const run = (tool, args) => execFileSync(tool, args, { timeout: 2000, maxBuffer: 64 * 1024, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: { PATH: "/usr/bin:/bin", LC_ALL: "C" } });
+  const run = (tool, args) => observationStep(tool === "/bin/ls" ? "permission_acl" : tool === "/usr/bin/stat" ? "permission_flags" : "permission_attributes",
+    () => execFileSync(tool, args, { timeout: 2000, maxBuffer: 64 * 1024, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: { PATH: "/usr/bin:/bin", LC_ALL: "C" } }));
   if (process.platform === "darwin") {
     const lines = run("/bin/ls", ["-lde", file]).trimEnd().split("\n");
     if (!/^-[rwxstST-]{9}[+@ ]/u.test(lines[0] ?? "") || lines.slice(1).some(line => !/^ [0-9]+: /u.test(line))) throw fail("input_executable_permissions_unknown");

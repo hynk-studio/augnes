@@ -129,6 +129,38 @@ permission/flag/attribute difference remains a hard fault.
 
 ## Prospective input requalification and #1533 adoption
 
+Complete before/after Git interpretation, with includes disabled, must preserve
+every original key/value record in order (including repeated, bare and empty
+values) and add exactly the supported tracking pairs. A byte prefix, a suffix
+parse or a final newline alone does not establish this. EOF comments and escaped
+newlines can change an earlier record. NUL, malformed and unsupported changes
+remain refused; command/include/credential changes are not tracking additions.
+
+Settlement follows the existing owners. Browser/reuse phases and explicitly
+natural-exit children retain their stronger condition. An ordinary passing
+phase may have fully settled descendant cleanup, with observed exit 0, closed
+streams and zero remaining owned processes. For a child result with descendant
+cleanup, the complete successful suite return must confirm owner acceptance and
+the same lifecycle fields. Current returns also record `require_natural_exit`;
+legacy successful returns retain the original owner's acceptance decision.
+A raw exit record in a cancelled/partial suite does not establish a missing
+owner acceptance decision and remains blocking. Incomplete cleanup, independent
+failure and contradictory owner results remain blocking.
+
+Observer exceptions now retain an optional
+`augnes.input-observation-diagnostic.v1` operation/code pair from fixed
+allowlists. Unknown codes map to `unknown`; messages, paths, commands, output,
+stacks and arbitrary exception properties are discarded. This additive
+diagnostic does not change the v2 frozen input identity, event deduplication,
+first-fault latch, cancellation, stock refusal or history eligibility. It records
+the first bounded diagnostic for a repeated failed observation identity.
+Historical events without it remain unchanged and their exception/cause cannot
+be reconstructed from adjacent successful observations.
+
+The retained #1536 `unknown_relevance` attempt is ineligible under all current
+routes. [Its qualification-path proposal](LOCAL_CANONICAL_OBSERVER_REQUALIFICATION_PROPOSAL.md)
+is review material, not an implemented route or invocation authority.
+
 The versioned route is intentionally narrow. An original git-config invalidation
 may continue once after complete settlement, full relevant history review and
 explicit prospective authority for a safe accounted current input. It does not

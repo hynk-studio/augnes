@@ -1432,6 +1432,27 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "local-canonical-input-review-regressions",
+      label: "complete Git parsing and owner-specific settled input predecessors",
+      ...rootNode("scripts/test-local-canonical-input-review-regressions.mjs"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "local-canonical-settlement-continuation",
+      label: "accepted descendant prefix, complete continuation and fresh stock",
+      ...rootNode("scripts/test-local-canonical-settlement-continuation.mjs"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "local-canonical-observer-diagnostics",
+      label: "bounded observer diagnostics preserve fail-closed cancellation",
+      ...rootNode("scripts/test-local-canonical-observer-diagnostics.mjs"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       label: "read-only GitHub main-branch source-attestation transport",
       ...rootNode("scripts/test-github-main-branch-transport.mjs"),
       timeoutMs: 30_000,
@@ -1870,6 +1891,7 @@ try {
         group: step.group,
         shard: step.shard,
         requirements: step.requirements,
+        requireNaturalExit: step.requireNaturalExit,
       },
     ]),
   );
@@ -1947,6 +1969,7 @@ try {
       group: result.group ?? metadata.group,
       shard: metadata.shard,
       requirements: metadata.requirements,
+      require_natural_exit: metadata.requireNaturalExit,
       status: result.exit_code ?? 1,
       signal: result.signal,
       timed_out: result.timed_out,

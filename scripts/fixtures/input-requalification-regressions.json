@@ -1,0 +1,28 @@
+{
+  "schema": "augnes.input-requalification-review-regressions.v1",
+  "tracking": "[branch \"topic\"]\n\tremote = origin\n\tmerge = refs/heads/topic\n",
+  "cases": [
+    {"id":"ordinary-newline","before":"[core]\n\tsshCommand = echo safe\n","accept":true},
+    {"id":"empty-config","before":"","accept":true},
+    {"id":"crlf","before":"[core]\r\n\tbare = true\r\n","accept":true},
+    {"id":"comment-with-newline","before":"[core]\n\tbare\n# end\n","accept":true},
+    {"id":"repeated-values-preserved","before":"[remote \"origin\"]\n\tfetch = first\n\tfetch = second\n[core]\n\tbare\n\tempty =\n","accept":true},
+    {"id":"quoted-comment-preserved","before":"[core]\n\tsshCommand = \"echo # safe\"\n","accept":true},
+    {"id":"completed-continuation","before":"[core]\n\tsshCommand = echo \\\n safe\n","accept":true},
+    {"id":"no-final-newline-command","before":"[core]\n\tsshCommand = echo safe","accept":false},
+    {"id":"eof-hash-comment-existing-branch","before":"[branch \"existing\"]\n\tremote = origin\n\tmerge = refs/heads/existing\n# end","accept":false},
+    {"id":"eof-semicolon-comment","before":"[core]\n\tbare = true\n; end","accept":false},
+    {"id":"backslash-newline","before":"[core]\n\tsshCommand = echo safe\\\n","accept":false},
+    {"id":"backslash-crlf","before":"[core]\r\n\tsshCommand = echo safe\\\r\n","accept":false},
+    {"id":"unknown-escape","before":"[core]\n\tvalue = \\q\n","accept":false},
+    {"id":"unterminated-quote","before":"[core]\n\tvalue = \"unterminated\n","accept":false},
+    {"id":"nul-input","before":"[core]\n\tvalue = safe\u0000hidden\n","accept":false},
+    {"id":"existing-branch-normalized-key","before":"[Branch \"topic\"]\n\tREMOTE = elsewhere\n","accept":false},
+    {"id":"include-addition","before":"[core]\n\tbare = true\n","suffix":"[include]\n\tpath = /unreviewed\n","accept":false},
+    {"id":"command-addition","before":"[core]\n\tbare = true\n","suffix":"[core]\n\tsshCommand = unreviewed\n","accept":false},
+    {"id":"credential-addition","before":"[core]\n\tbare = true\n","suffix":"[credential]\n\thelper = unreviewed\n","accept":false},
+    {"id":"remote-change","before":"[remote \"origin\"]\n\turl = https://github.com/hynk-studio/augnes.git\n","suffix":"[remote \"origin\"]\n\turl = https://example.invalid\n","accept":false},
+    {"id":"unsupported-tail","before":"[core]\n\tbare = true\n","suffix":"# unaccounted\n","accept":false},
+    {"id":"two-new-branches","before":"[core]\n\tbare = true\n","suffix":"[branch \"one\"]\n\tremote = origin\n\tmerge = refs/heads/one\n[branch \"two\"]\n\tremote = origin\n\tmerge = refs/heads/two\n","accept":true}
+  ]
+}

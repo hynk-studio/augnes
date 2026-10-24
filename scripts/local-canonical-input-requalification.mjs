@@ -5,6 +5,9 @@ import { createHash } from "node:crypto";
 import { digest, observeInputFile, classifyInputChange, nonFaultInputChange } from "./local-canonical-inputs.mjs";
 import { admitIntegrationBase } from "./local-canonical-integration-base.mjs";
 import { checkoutVerificationFingerprint, assertCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
+import { browserConsumersForPhase } from "./local-canonical-browser-identity.mjs";
+import { CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
+import { canonicalChildAcceptanceFailure } from "./canonical-child-runner.mjs";
 
 export const INPUT_REQUALIFICATION_CONTRACT = "augnes.local-canonical-input-requalification.v1";
 const fail = code => { throw Object.assign(new Error(code), { code }); };
@@ -14,6 +17,10 @@ const reference = v => typeof v === "string" && /^https:\/\/github\.com\/hynk-st
 const safePath = v => typeof v === "string" && /^[A-Za-z0-9_./-]+$/u.test(v) && !v.startsWith("/") && !v.split("/").some(x => !x || x === "." || x === "..");
 const same = (a, b) => digest(a) === digest(b);
 const time = v => Number.isFinite(Date.parse(v));
+// Match the executor/stock owners: Browser and reuse require natural exit;
+// other owners can accept a successful exit followed by settled descendants.
+const naturalExitRequired = p => p.browser === true || CODEX_REUSE_PHASE_IDS.includes(p.id) || Object.keys(browserConsumersForPhase(p.id)).length > 0;
+const successfulTermination = reason => ["natural_exit", "exited_with_owned_descendant_cleanup", "closed_with_owned_descendant_cleanup"].includes(reason);
 const gitAt = root => args => execFileSync("git", ["--no-replace-objects", ...args], {
   cwd: root, timeout: 10000, maxBuffer: 16 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"],
 });
@@ -174,7 +181,8 @@ export function inspectInputPredecessor({ anchorRoot, repositoryRoot, receiptPat
         p.cleanup.exit_observed !== true || p.cleanup.streams_closed !== true || !time(p.started_at) || !time(p.finished_at))
       fail("input_requalification_mixed_history");
     if (p.status === "pass") {
-      if (p.exit_status !== 0 || p.failure_code !== null || p.cleanup.termination_reason !== "natural_exit" || Date.parse(p.finished_at) > Date.parse(f.observed_at))
+      if (p.exit_status !== 0 || p.failure_code !== null || !successfulTermination(p.cleanup.termination_reason) ||
+          (naturalExitRequired(p) && p.cleanup.termination_reason !== "natural_exit") || Date.parse(p.finished_at) > Date.parse(f.observed_at))
         fail("input_requalification_mixed_history");
     } else {
       if (p.status !== "failure" || p.failure_code !== "phase_cancelled" || ![null, 0].includes(p.exit_status) ||
@@ -208,24 +216,49 @@ export function inspectInputPredecessor({ anchorRoot, repositoryRoot, receiptPat
 // branch tracking pairs, not arbitrary config syntax or command/include changes.
 export function validateBranchTrackingAddition(before, after) {
   const text = before.toString("utf8"), next = after.toString("utf8");
-  if (!Buffer.from(text).equals(before) || !Buffer.from(next).equals(after) || !after.subarray(0, before.length).equals(before) || after.length <= before.length)
+  if (!Buffer.from(text).equals(before) || !Buffer.from(next).equals(after) || before.includes(0) || after.includes(0) ||
+      !after.subarray(0, before.length).equals(before) || after.length <= before.length)
     fail("input_requalification_change_unsupported");
   const suffix = next.slice(text.length);
-  let existingKeys;
+  let parsedBefore, parsedAfter;
   try {
     // Read only the supplied bytes, without includes or global configuration.
-    // Values remain in memory; only normalized keys participate in the check.
-    existingKeys = execFileSync("git", ["config", "--no-includes", "--file", "-", "--null", "--list"], {
-      input: before, timeout: 5000, maxBuffer: 2 * 1024 * 1024, stdio: ["pipe", "pipe", "pipe"],
-    }).toString().split("\0").filter(Boolean).map(row => row.split("\n", 1)[0]);
+    // Compare the complete interpretations, including repeated records, bare
+    // versus empty values and continuation/comment boundaries. Values never
+    // leave this function. Parsing the suffix alone cannot establish addition.
+    const parse = input => execFileSync("git", ["config", "--no-includes", "--file", "-", "--null", "--list"], {
+      input, timeout: 5000, maxBuffer: 2 * 1024 * 1024, stdio: ["pipe", "pipe", "pipe"],
+    });
+    parsedBefore = parse(before); parsedAfter = parse(after);
   } catch { fail("input_requalification_change_unsupported"); }
+  const existingKeys = parsedBefore.toString("utf8").split("\0").filter(Boolean).map(row => row.split("\n", 1)[0]);
   const pattern = /\[branch "([A-Za-z0-9_./-]+)"\]\r?\n[\t ]+remote = origin\r?\n[\t ]+merge = refs\/heads\/([A-Za-z0-9_./-]+)\r?\n/gu;
   const matches = [...suffix.matchAll(pattern)];
   if (!matches.length || matches.length > 16 || matches.map(m => m[0]).join("") !== suffix ||
       matches.some(m => m[1] !== m[2] || m[1].includes("..") || m[1].startsWith("-") || m[1].endsWith(".") ||
         m[1].split("/").some(part => !part || part.startsWith(".") || part.endsWith(".lock")) || existingKeys.some(key => key.startsWith(`branch.${m[1]}.`))) ||
       new Set(matches.map(m => m[1])).size !== matches.length) fail("input_requalification_change_unsupported");
+  const addedRecords = Buffer.from(matches.map(m => `branch.${m[1]}.remote\norigin\0branch.${m[1]}.merge\nrefs/heads/${m[1]}\0`).join(""));
+  if (!parsedAfter.equals(Buffer.concat([parsedBefore, addedRecords]))) fail("input_requalification_change_unsupported");
   return matches.map(m => ({ branch_fingerprint: digest(m[1]), remote: "origin", merge_matches_branch: true }));
+}
+
+function completedSuiteResult(bytes, phase) {
+  if (phase.status !== "pass") return null;
+  // Legacy logs lack per-child policy flags. Their complete successful suite
+  // return is the existing owner's acceptance decision (including explicit
+  // natural-exit requirements), not merely a raw child exit observation.
+  // A cancelled/partial suite provides no such decision: fail closed there.
+  const lines = bytes.toString("utf8").split("\n");
+  for (let n = lines.length - 1; n >= 0; n--) {
+    if (!lines[n].startsWith("{")) continue;
+    try {
+      const summary = JSON.parse(lines.slice(n).join("\n"));
+      return summary.suite === phase.id && summary.status === "pass" && Array.isArray(summary.results) &&
+        new Set(summary.results.map(r => r.label)).size === summary.results.length ? summary : null;
+    } catch { /* This may be an earlier resource record, not the final return. */ }
+  }
+  return null;
 }
 
 function inspectHistory(file, proof, original) {
@@ -249,6 +282,7 @@ function inspectHistory(file, proof, original) {
     // Suite-owned result rows are actual acceptance evidence. Deliberate nested
     // negative controls have their own suite namespace, not this selected one.
     const rows = bytes.toString("utf8").split("\n").filter(l => l.startsWith(`[canonical:${phase.id}] `));
+    const summary = completedSuiteResult(bytes, phase);
     const starts = new Set(), results = new Set();
     for (const row of rows) {
       if (row.includes(" child_start ") || row.includes(" child_result ")) {
@@ -263,11 +297,24 @@ function inspectHistory(file, proof, original) {
         if (group.failed_count !== 0 || group.started_count !== group.settled_count || group.started_count !== group.completed_count ||
             !Array.isArray(group.children) || group.children.some(c => c.started && c.outcome !== "passed")) fail("input_requalification_independent_child_failure");
       }
-      if (row.includes(" child_result ") && !["exit_code=0 ", "timed_out=false ", "exit_observed=true ", "streams_closed=true ", "cleanup_completed=true ", "remaining_owned_processes=0 ", "termination_reason=natural_exit"].every(s => row.includes(s)))
-        fail("input_requalification_independent_child_failure");
+      if (row.includes(" child_result ")) {
+        const parsed = / child_result label=("(?:[^"\\]|\\.)*") duration_ms=([0-9]+) exit_code=(0) signal=null timed_out=false exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=([a-z_]+)$/u.exec(row);
+        if (!parsed) fail("input_requalification_independent_child_failure");
+        const result = { label: JSON.parse(parsed[1]), duration_ms: Number(parsed[2]), exit_code: 0, timed_out: false,
+          exit_observed: true, streams_closed: true, cleanup_completed: true, remaining_owned_processes: 0, termination_reason: parsed[4] };
+        const accepted = summary?.results.find(r => r.label === result.label);
+        const ownerAccepted = accepted?.status === 0 && [undefined, false, true].includes(accepted.require_natural_exit) &&
+          ["timed_out", "exit_observed", "streams_closed", "cleanup_completed", "remaining_owned_processes", "termination_reason"].every(key => accepted[key] === result[key]);
+        if ((phase.status === "pass" && !ownerAccepted) || !successfulTermination(result.termination_reason) || canonicalChildAcceptanceFailure(result, {
+          suite: phase.id, requireCompleteCleanup: true,
+          requireNaturalExit: naturalExitRequired(phase) || !ownerAccepted || accepted.require_natural_exit === true,
+        })) fail("input_requalification_independent_child_failure");
+      }
       if (row.includes(" group_failure ") || row.includes(" reason=bounded_timeout") || row.includes(" remaining_owned_processes=unknown"))
         fail("input_requalification_independent_child_failure");
     }
+    if (summary && (summary.results.length !== results.size || summary.results.some(r => !results.has(JSON.stringify(r.label)))))
+      fail("input_requalification_history_incomplete");
     // A guard-cancelled outer process may stop before its final child-result
     // record. The settled outer owner accounts for at most the existing two
     // concurrent children; a passing phase may not omit any started result.
