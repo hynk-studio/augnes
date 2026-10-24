@@ -1200,8 +1200,8 @@ function invocationInputResources({ verificationContext, browserExecutablePath }
     ...[".npmrc", "apps/augnes_apps/.npmrc", "apps/web_planning/.npmrc", "AGENTS.md", ".github/LOCAL_CANONICAL_VERIFICATION.md"].map((file, i) => ({ id: `declared-config-${i}`, file: path.join(repositoryRoot, file), classification: "execution" })),
     { id: "npm-prefix-config", file: path.join(path.dirname(path.dirname(process.execPath)), "etc", "npmrc"), classification: "execution" },
     ...["package-lock.json", "apps/augnes_apps/package-lock.json", "apps/web_planning/package-lock.json", ...EXECUTOR_SOURCE_FILES].map((file, i) => ({ id: `source-${i}`, file: path.join(repositoryRoot, file), classification: "execution" })),
-    ...(browserExecutablePath ? [{ id: "executable-permissions-reader", file: "/bin/ls", classification: "execution" },
-      ...(process.platform === "darwin" ? [{ id: "executable-flags-reader", file: "/usr/bin/stat", classification: "execution" }, { id: "executable-attributes-reader", file: "/usr/bin/xattr", classification: "execution" }] : []),
+    ...(browserExecutablePath ? [{ id: "executable-permissions-reader", file: "/bin/ls", classification: "execution", readOnlyExecutable: true },
+      ...(process.platform === "darwin" ? [{ id: "executable-flags-reader", file: "/usr/bin/stat", classification: "execution", readOnlyExecutable: true }, { id: "executable-attributes-reader", file: "/usr/bin/xattr", classification: "execution", readOnlyExecutable: true }] : []),
       { id: "browser-executable", file: browserExecutablePath, classification: "execution", readOnlyExecutable: true }] : []),
   ];
 }

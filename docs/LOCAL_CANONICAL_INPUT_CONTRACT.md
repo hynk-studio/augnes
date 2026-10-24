@@ -111,4 +111,13 @@ second successor refuse. Legacy v1 records keep their original interpretation.
 Source review and fixtures remain inspectable; a local claim is not independent
 attestation or permission to run outside the commissioned scope.
 
-The Mac executable permission projection uses fixed read-only `/bin/ls -lde`, `/usr/bin/stat -f %f` and `/usr/bin/xattr -lx` readers; their identities are declared inputs. ACL entries, file flags and extended attributes are hashed in memory, never copied to evidence. Linux disposable controls admit mode-only files and conservatively refuse an ACL/security-context marker they cannot resolve. Other admitted hosts retain complete metadata equality and receive no new incidental-metadata exemption. Polling remains bounded and cannot prove absence of transient changes between observations; every observed native permission/flag/attribute difference remains a hard fault.
+The Mac executable permission projection uses fixed read-only `/bin/ls -lde`,
+`/usr/bin/stat -f %f` and `/usr/bin/xattr -lx` readers. These OS tools are also
+declared read-only shared executable inputs, with the same complete identity
+and safety checks. ACL entries, file flags and extended attributes are hashed
+in memory, never copied to evidence. Linux disposable controls admit mode-only
+files and conservatively refuse an ACL/security-context marker they cannot
+resolve. Other admitted hosts retain complete metadata equality and receive no
+new incidental-metadata exemption. Polling remains bounded and cannot prove
+absence of transient changes between observations; every observed native
+permission/flag/attribute difference remains a hard fault.
