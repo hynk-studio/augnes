@@ -860,6 +860,15 @@ evaluation note under its existing owner. Do not require private reasoning
 traces, hidden chain-of-thought, secrets, raw provider payloads, or broad
 conversation histories.
 
+For task-level comparisons that report averages or success rates, preserve the
+declared task population and make the denominators explicit: assigned, started,
+required output delivered, scored, and unscored with reasons. Keep quality
+conditional on scored outcomes separate from completion or delivery over assigned
+tasks; selection, execution or grading failures must not silently remove tasks
+from the reported population. Apply the declared outcome rules to known failures
+and keep genuinely unobserved quality unknown, rather than automatically treating
+every unscored item as either success or zero.
+
 ChatGPT interprets that evidence and recommends a concrete next decision with
 its basis: modify, gather one specific missing observation, retain/no-change,
 simplify, narrow applicability, defer, or stop. Codex supplies source diagnosis
