@@ -315,17 +315,16 @@ export function selectedToolInvocation(command, args, { liveTransport = false } 
   if (!context) return { command, args };
   const state = owners.get(context);
   const tool = Object.keys(state.tools).find(name => command === name || command === state.tools[name]);
+  const fixed = !tool && command === "sw_vers" ? "/usr/bin/sw_vers" : null;
+  if (!tool && !fixed) fail("selected_tool_unclassified");
   if (tool === "node") assertSelectedNodeArguments(state, args);
-  assertSelectedExecution(context);
-  const executable = state.tools[tool];
-  if (!executable) {
-    const fixed = { sw_vers: "/usr/bin/sw_vers" }[command];
-    if (!fixed) fail("selected_tool_unclassified");
-    return { command: fixed, args, env: state.environment };
-  }
   if (liveTransport && tool !== "gh") fail("selected_live_transport_unclassified");
   if (tool === "gh" && !liveTransport) fail("selected_live_transport_required");
   if (tool === "npm" && !NPM_ARGUMENT_SETS.some(allowed => JSON.stringify(allowed) === JSON.stringify(args))) fail("selected_npm_arguments_unclassified");
+  // Refused requests cannot dispatch. Every accepted command still rechecks the
+  // complete current selection immediately before returning its invocation.
+  assertSelectedExecution(context);
+  const executable = state.tools[tool] ?? fixed;
   return { command: tool === "npm" ? state.tools.node : tool === "python3" ? path.join(state.directory, "bin", "python3") : executable,
     args: tool === "npm" ? [executable, ...args] : args,
     env: liveTransport ? { ...state.liveEnvironment, GH_PROMPT_DISABLED:"1" } : state.environment };

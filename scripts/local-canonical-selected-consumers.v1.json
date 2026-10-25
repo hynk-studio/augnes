@@ -4,7 +4,7 @@
     "."
   ],
   "file_count": 3011,
-  "inventory_fingerprint": "e2905a90db921e2f88027f2576f07c6d53acc62cda89918f8795ead9d13dc451",
+  "inventory_fingerprint": "7f424e2d718d8997bfcbc48be29e5d3f046e39570787b5cb3a61028b5161181f",
   "reviewed_owners": {
     "controller": [
       "scripts/run-local-canonical-verification.mjs",

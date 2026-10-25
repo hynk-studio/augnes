@@ -107,11 +107,17 @@ try {
     const controller = new AbortController();
     const contract = freezeInputContract({resources:[privateConfig],pathKind:"canonical-conservative-v1",binding:{fixture:true}});
     const monitor = monitorInputContract(contract,controller,{intervalMs:10});
-    chmodSync(privateConfig.file,0o600); writeFileSync(privateConfig.file,"fund=false\n");
-    monitor.check(); monitor.stop(); assert.equal(controller.signal.aborted,true);
-    assert.equal(contract.snapshot().first_fault.disposition,"safety_violation");
+    await withSelectedExecution(selection, () => {
+      chmodSync(privateConfig.file,0o600); writeFileSync(privateConfig.file,"fund=false\n");
+      monitor.check(); monitor.stop(); assert.equal(controller.signal.aborted,true);
+      assert.equal(contract.snapshot().first_fault.disposition,"safety_violation");
+      assert.throws(()=>selectedToolInvocation("/usr/bin/env",[]),/selected_tool_unclassified/u);
+      assert.throws(()=>selectedToolInvocation("npm",["--userc=/fixture/unselected","--version"]),/selected_npm_arguments_unclassified/u);
+      assert.throws(()=>selectedToolInvocation("node",["--version"]),/selected_execution_input_changed/u);
+      assert.throws(()=>selectedToolInvocation("npm",["--version"]),/selected_execution_input_changed/u);
+    });
     assert.throws(()=>api.isolatedInvocationEnvironment(resources),/selected_execution_input_changed/u);
-    results.push("consumed private input mutation latches and selected reader refuses");
+    results.push("consumed private input mutation latches; refused requests cannot dispatch and accepted requests still recheck selection");
     const cleanup = api.cleanupIsolatedInvocationResources(resources,{consumersSettled:true}); resources=null;
     assert.equal(cleanup.completed,true);
     assert.equal(existsSync(privateConfig.file),false);
