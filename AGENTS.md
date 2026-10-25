@@ -181,10 +181,11 @@ research form for ordinary fixes or documentation or universal search counts.
 - Do not retry a failed exact-head deciding run merely to obtain a pass. A
   source change creates a new verification target; when deciding execution is
   applicable, it requires a new deciding run. The Local Canonical policy permits
-  at most one linked recovery invocation for a frozen candidate only after a
-  substantiated infrastructure cause has been corrected and verified. Product
-  failures, unknown timeouts, safety violations and cosmetic commits do not
-  reset or acquire that allowance.
+  at most one linked continuation for a logical candidate/input incident,
+  shared between substantiated infrastructure recovery and explicitly authorized
+  prospective input requalification under that policy. Accepted-main adoption
+  carries the same allowance. Product failures, unknown timeouts, independent
+  safety violations and cosmetic commits do not reset or acquire it.
 
 ## Pull requests
 

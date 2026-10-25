@@ -8,7 +8,7 @@ import { VERIFICATION_CONTEXT_CONTRACT } from "./local-canonical-verification-co
 import { VERIFICATION_CAPACITY_CONTRACT, verificationCapacityLimit } from "./local-canonical-capacity.mjs";
 import { HISTORICAL_INPUT_CONTRACT } from "./local-canonical-historical-inputs.mjs";
 import { INPUT_CONTRACT, digest, deriveOperationalDisposition, nonFaultInputChange, classifyInputChange } from "./local-canonical-inputs.mjs";
-import { ATTEMPT_CONTRACT } from "./local-canonical-attempts.mjs";
+import { ATTEMPT_CONTRACT, LEGACY_ATTEMPT_CONTRACT } from "./local-canonical-attempts.mjs";
 import { validPhaseBrowserUse } from "./local-canonical-browser-identity.mjs";
 
 export const LOCAL_CANONICAL_RECEIPT_SCHEMA =
@@ -639,7 +639,7 @@ function inspectClassifiedEvidence(receipt, issues) {
       input.binding?.executor_fingerprint !== receipt.executor.source_fingerprint || (!Number.isSafeInteger(input.checks) || input.checks < 1) ||
       !["isolated-model-free-v1", "canonical-conservative-v1"].includes(input.path_kind) ||
       (input.path_kind === "isolated-model-free-v1" && receipt.verification_context.kind !== "isolated-worktree")) issues.push("receipt_input_binding_invalid");
-  if (input.first_fault || input.events.some(e => !nonFaultInputChange(e.disposition))) issues.push("receipt_input_observation_blocked");
+  if (input.observation_overflow === true || input.first_fault || input.events.some(e => !nonFaultInputChange(e.disposition))) issues.push("receipt_input_observation_blocked");
   for (const event of input.events) {
     const resource = input.resources.find(r => r.id === event.resource);
     if (!resource || !event.after || event.classification !== resource.classification ||
@@ -656,11 +656,22 @@ function inspectClassifiedEvidence(receipt, issues) {
   if (new Set(input.resources.map(r => r.id)).size !== input.resources.length ||
       ["codex-preferences", "user-instructions", "auth-location", "git-config", "node-executable"].some(id => !input.resources.some(r => r.id === id))) issues.push("receipt_input_inventory_invalid");
   const attempt = receipt.attempt;
-  if (receipt.evidence.mode !== "quick" && (attempt?.contract !== ATTEMPT_CONTRACT || ![1, 2].includes(attempt.number) ||
+  if (receipt.evidence.mode !== "quick" && (![ATTEMPT_CONTRACT, LEGACY_ATTEMPT_CONTRACT].includes(attempt?.contract) || ![1, 2].includes(attempt.number) ||
       attempt.attempt_id !== receipt.run.id || attempt.head !== receipt.repository.head_sha || attempt.tree !== receipt.repository.tree_sha ||
       attempt.contract_fingerprint !== input.fingerprint || attempt.budget?.initial !== 1 || attempt.budget?.recovery !== 1 ||
       (attempt.number === 1 && (attempt.prior_attempt_id !== null || attempt.recovery !== null)) ||
-      (attempt.number === 2 && (!SHA256_PATTERN.test(attempt.prior_receipt_fingerprint ?? "") || !attempt.recovery)))) issues.push("receipt_attempt_lineage_invalid");
+      (attempt.number === 2 && (!SHA256_PATTERN.test(attempt.prior_receipt_fingerprint ?? "") || (!attempt.recovery && !attempt.input_requalification && !attempt.observer_continuation))))) issues.push("receipt_attempt_lineage_invalid");
+  if (attempt?.input_requalification && (attempt.contract !== ATTEMPT_CONTRACT || attempt.number !== 2 || attempt.recovery || attempt.source_correction ||
+      attempt.observer_continuation ||
+      attempt.input_requalification.schema !== "augnes.local-canonical-input-requalification.v1" ||
+      attempt.continuation_claim?.kind !== "input_requalification" || attempt.continuation_claim.prior_family_id !== attempt.family_id ||
+      attempt.continuation_claim.prior_attempt_id !== attempt.prior_attempt_id ||
+      input.binding.input_requalification !== digest(attempt.input_requalification))) issues.push("receipt_input_requalification_link_invalid");
+  if (attempt?.observer_continuation && (attempt.contract !== ATTEMPT_CONTRACT || attempt.number !== 2 || attempt.recovery || attempt.source_correction || attempt.input_requalification ||
+      attempt.observer_continuation.schema !== "augnes.local-canonical-reviewed-observer-continuation.v1" ||
+      attempt.continuation_claim?.kind !== "observer_continuation" || attempt.continuation_claim.prior_family_id !== attempt.family_id ||
+      attempt.continuation_claim.prior_attempt_id !== attempt.prior_attempt_id ||
+      input.binding.observer_continuation !== digest(attempt.observer_continuation))) issues.push("receipt_observer_continuation_link_invalid");
   const expectedBrowser = input.resources.find(r => r.id === "browser-executable");
   let actualVersion = null;
   for (const phase of receipt.phases) {

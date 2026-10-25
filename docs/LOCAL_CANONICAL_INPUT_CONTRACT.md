@@ -33,8 +33,9 @@ scripts and descendant launchers remain inputs even with a private HOME.
   applicability decisions, strict final conjunction, Browser provenance and a
   sanitized derived review export. Preserve legacy receipt interpretation.
 - `local-canonical-attempts.mjs` owns an append-only attempt family: one initial invocation and
-  one explicit recovery only with substantiated infrastructure cause and verified
-  remedy. Family identity survives wrapper restart and cosmetic commits.
+  at most one continuation shared between substantiated infrastructure recovery
+  and prospective input requalification or the pinned reviewed observer route.
+  Family identity survives wrapper restart and cosmetic commits.
   A genuinely revised candidate uses one immutable predecessor/successor binding,
   retained exact-delta source review and original receipt. Meaningful revision after
   PASS uses identical fail/pass regression evidence. A verifier correction after a
@@ -44,7 +45,17 @@ scripts and descendant launchers remain inputs even with a private HOME.
   outcomes as infrastructure, resets an unchanged target or grants permission.
 - `local-canonical-evidence-retention.mjs` protects active and explicitly pinned
   evidence. Unsafe aliases and ambiguous ownership refuse cleanup.
-- `test-local-canonical-classification.mjs` and `test-local-canonical-review-corrections.mjs` exercise real classification,
+- `local-canonical-input-requalification.mjs` owns bounded predecessor/history,
+  complete current-input and reviewed adoption inspection. The attempt owner
+  supplies the shared atomic claim; the executor supplies normal admission,
+  renewed main, freeze/monitor and child ownership. Stock rechecks those bindings.
+- `local-canonical-observer-continuation.mjs` adds the exact-family prospective
+  observer route, full source-chain/history review, immutable predecessor pins,
+  current input basis and authenticated external review/user-grant bindings.
+  It uses the same atomic claim and ordinary executor/stock conjunction. See
+  [the implemented contract and procedure](LOCAL_CANONICAL_OBSERVER_REQUALIFICATION_PROPOSAL.md).
+- `test-local-canonical-classification.mjs`, `test-local-canonical-review-corrections.mjs`
+  and `test-local-canonical-input-requalification.mjs` exercise real classification,
   sequencing, child lifecycle and receipt validation. Keep accepted Full phase
   inventory and every existing child bound, including 30 seconds for the
   settled-expired-successor child. Register new controls in authority coverage.
@@ -105,7 +116,7 @@ A pure accepted-main merge is checked against the stock authenticated base and
 the read-only recomputed non-overlapping tree-entry union; overlapping or resolved source requires a substantive
 source-correction proof instead. Unsettled, unknown or timeout predecessors do
 not acquire a successor through this bounded path. Every family retains one
-initial invocation and at most one proved infrastructure recovery. Changed proof,
+initial invocation and at most one continuation shared with input requalification. Changed proof,
 older attempt selection, wrapper restart, superseded candidate recovery and a
 second successor refuse. Legacy v1 records keep their original interpretation.
 Source review and fixtures remain inspectable; a local claim is not independent
@@ -121,3 +132,181 @@ resolve. Other admitted hosts retain complete metadata equality and receive no
 new incidental-metadata exemption. Polling remains bounded and cannot prove
 absence of transient changes between observations; every observed native
 permission/flag/attribute difference remains a hard fault.
+
+## Prospective input requalification and #1533 adoption
+
+Complete before/after Git interpretation, with includes disabled, must preserve
+every original key/value record in order (including repeated, bare and empty
+values) and add exactly the supported tracking pairs. A byte prefix, a suffix
+parse or a final newline alone does not establish this. EOF comments and escaped
+newlines can change an earlier record. NUL, malformed and unsupported changes
+remain refused; command/include/credential changes are not tracking additions.
+
+Settlement follows the existing owners. Browser/reuse phases and explicitly
+natural-exit children retain their stronger condition. An ordinary passing
+phase may have fully settled descendant cleanup, with observed exit 0, closed
+streams and zero remaining owned processes. For a child result with descendant
+cleanup, the complete successful suite return must confirm owner acceptance and
+the same lifecycle fields. Current returns also record `require_natural_exit`;
+legacy successful returns retain the original owner's acceptance decision.
+A raw exit record in a cancelled/partial suite does not establish a missing
+owner acceptance decision and remains blocking. Incomplete cleanup, independent
+failure and contradictory owner results remain blocking.
+
+Observer exceptions now retain an optional
+`augnes.input-observation-diagnostic.v1` operation/code pair from fixed
+allowlists. Unknown codes map to `unknown`; messages, paths, commands, output,
+stacks and arbitrary exception properties are discarded. This additive
+diagnostic does not change the v2 frozen input identity, event deduplication,
+first-fault latch, cancellation, stock refusal or history eligibility. It records
+the first bounded diagnostic for a repeated failed observation identity.
+Historical events without it remain unchanged and their exception/cause cannot
+be reconstructed from adjacent successful observations.
+
+The retained #1536 `unknown_relevance` attempt remains excluded from the general
+input/recovery/source routes. Its separately pinned
+[reviewed observer continuation](LOCAL_CANONICAL_OBSERVER_REQUALIFICATION_PROPOSAL.md)
+requires independent final-source review and later exact user authority; local
+proofs and earlier grants cannot authorize changed bindings.
+
+The versioned route is intentionally narrow. An original git-config invalidation
+may continue once after complete settlement, full relevant history review and
+explicit prospective authority for a safe accounted current input. It does not
+repeat #1533's completed whole-workload non-consumption audit, identify its
+historical writer, require an original PASS, or fabricate a verifier defect.
+The input guard, 16 Full phases, seven dedicated Browser phases, all accepted
+children, historical 30-second bound and existing concurrency remain intact.
+
+The local proof (`augnes.local-canonical-input-requalification.v1`) contains:
+
+- `kind`: `unchanged_source` or `accepted_main_adoption`; exact `branch`, `head`,
+  `tree`, `accepted_main`.
+- `prior`: retained `family_id`, `number: 1`, `attempt_id`, original
+  repository-relative `receipt_path`, `receipt_fingerprint`, `input_fingerprint`
+  and `fault_fingerprint`, plus exact-byte `receipt_bytes_sha256`,
+  `attempt_record_sha256` and `completion_record_sha256`.
+- `history_review` and `source_review`: adjacent `{artifact, sha256}` JSON
+  descriptors. History v1 binds the receipt/input/fault/events/secondary/phases,
+  complete untruncated log paths/byte counts/SHA-256s, review reference/time and
+  empty unresolved/independent-failure lists. These lists cannot override an
+  observed failure. Source v1 binds the predecessor, target and main identities,
+  source review reference/time and every reviewed overlap.
+- `input`: `resource: git-config`, `change_kind: additive_branch_tracking`, exact
+  `current_observation`, its `current_observation_fingerprint`, and ordered unique
+  complete byte `snapshots` as `{artifact, sha256, bytes}`. Artifacts are local,
+  regular single-link owner-controlled `.json`/`.bin` files beside the proof.
+- `authority`: existing task `reference`, decision
+  `authorize_prospective_input_requalification`, scope `one_complete_invocation`,
+  exact `head`, `tree`, `base`, `current_input_fingerprint`, `historical_writer:
+  UNKNOWN`, empty `unresolved_risks`, and `issued_at` after original settlement.
+
+`digest` in `scripts/local-canonical-inputs.mjs` defines sorted-key JSON hashes
+and exact byte hashes. Use `observeInputFile` for observations and
+`inputAdoptionInventory` for the read-only merge-base/full-entry inventory,
+changed paths and binary-delta digest. Adoption source review additionally binds
+literal Git tree paths, including existing Next `[id]` route segments. Brackets
+are source-name data, never glob expressions. Local proof/log paths keep their
+separate stricter validation. Unsupported tree-name syntax still refuses.
+The source review binds
+`merge_base`, `inventory_fingerprint`, `delta_sha256`, `changed_paths`, all
+predecessor-added/changed `task_assets`, and `overlaps`. Each overlap names the
+exact full entry (`path/base/predecessor/main/target/divergent`), kind
+`reviewed_additive_overlap`, review reference and adjacent preservation witness.
+The witness schema `augnes.local-canonical-integration-preservation.v1` binds
+`head/tree/delta_sha256/paths/node_version/finished_at` and the real bounded child
+`result`. It must demonstrate natural exit 0, no cancellation/timeout, closed
+streams, observed exit, complete cleanup and zero remaining owned processes.
+A local review or authority field is a binding to an existing decision, not a
+signature, independent attestation or permission generator.
+
+### Read-only retained predecessor example
+
+From the reviewed infrastructure source, the following only reads #1533's
+registered original checkout, receipt, Git objects and anchor family:
+
+```sh
+node scripts/inspect-local-canonical-input-predecessor.mjs \
+  --checkout /Users/hynk/code/augnes-1527-method-composition \
+  --receipt .augnes-local-verification/receipts/2026-10-24T10-29-34-934Z-changed-506d6d098c9c-41c3e9de7f6bfc9c.json
+```
+
+The retained v1 family is
+`ec8ce827525cc6a4b0e2cecee952f26bcf9b3df33a4eaaa4891a7b2e01dc4e0b`;
+original head `506d6d098c9c8a3ddf91e4e0d99281fbfe9ba8c5`, tree
+`99f4c51e0b7915794fa92f29ffe343d4282817ec`, and original base
+`9244241b2ac39d6cf0f1b8f0a74b99a307deb2cf`. This example expects attempt 1,
+`input_invalidation`, seven passing phases, cancelled integration and eight
+NOT_RUN phases. Its remaining allowance is an observed local fact, never a
+reservation. The command explicitly reports `invocation_eligible: false` and
+lists the remaining review, input, source, authority and capacity requirements.
+Any later record or changed source/evidence must be inspected afresh.
+
+### Later adoption procedure (not executed by #1535)
+
+1. After independent review and user acceptance/merge of this infrastructure,
+   obtain a separately concrete #1533 target and one-invocation authority. Refresh
+   authenticated main, exact retained predecessor and actual owners/capacity.
+   Coordinate every worktree/fetch/branch/publication mutation before any other
+   owner's deciding freeze. Do not infer free local leases from remote status.
+2. Preserve the registered predecessor checkout and every original receipt,
+   input freeze, fault, attempt/completion and raw log byte. If a different target
+   checkout is needed, copy the required original receipt/logs byte-for-byte into
+   the same repository-relative artifact paths; retain SHA-256 readback. Keep
+   the original physical checkout registered for ownership inspection.
+3. Create an exact ordered two-parent integration of the retained predecessor
+   and freshly authenticated accepted main. Enumerate the entire entry/delta/path
+   inventory. Preserve the #1527 research sources/observations, and review both
+   branches' additions in `run-canonical-test-suite.mjs` and
+   `test-local-canonical-verification-contract.mjs`. Review each divergent overlap
+   and run focused bounded preservation controls. Do not add unrelated edits or
+   claim this integration repaired a fictitious verifier defect.
+4. Retain complete Git-config before/observed-after/current bytes with hashes
+   matching every original/current observation. A reconstructed historical byte
+   file must be labelled as reconstructed and match the original retained digest;
+   it is not a newly observed historical writer. Do not restore shared config.
+   Review every byte, phase, event, secondary fault and complete raw phase log.
+   Unknown relevant remainder or unresolved current safety/authority risk blocks.
+5. Bind the explicit current-input authority and actual source/history reviews
+   in the local proof above. Use the ordinary read-only intake before requesting
+   an admission; no local file grants authority. Record the exact current Node,
+   clean target, main, planner-selected coverage and frozen proof identity.
+6. With that separate invocation authority, run the normal executor once using
+   exact `--base` and `--head`, `--checkout-context isolated-worktree`, and
+   `--input-requalification-proof`. The executor admits attempt 2 in the original
+   family, re-authenticates main, freezes current inputs, claims the shared slot
+   and executes the whole selected workload. Any new admitted drift spends it.
+7. After complete cleanup, run the ordinary separate `node scripts/run-local-canonical-verification.mjs validate` command
+   with its repository-relative receipt path and isolated context. Retain both
+   receipts independently; export only permitted derivatives with byte/hash
+   readback. A failed or stale new result leaves the original unchanged. Do not
+   retry, mark Ready, merge or broaden authority from a receipt.
+
+The infrastructure candidate has used its ordinary initial invocation; that
+observer-failed result stays non-deciding. The reviewed observer continuation
+implementation requires final independent review and subsequent explicit
+one-invocation user authority; implementation/control work allocates no run. Its
+integrated suite uses disposable Git histories and real admission/monitor/phase
+executor/owned-child/stock readers, including fresh-process inspection, legacy
+records, reviewed overlaps, source/input/recovery competition and quota refusal.
+The v1 compatibility fixture constructs the old writer shape once before its
+real workload; it never migrates a real original. Fixed fixture host metadata
+and a disposable main transport are test context, not Mac qualification or
+independent review. Failed development controls remain in private evidence with
+the actual source or fixture correction identified.
+
+The observer controls use a copied module graph with only six immutable
+predecessor identity literals instrumented and an authenticated-response double.
+Production pins refuse the disposable family; no shipped configuration selects
+the fixture identities or authority. They use real admission, input monitor,
+phase/child cleanup and receipt/stock readers with a five-phase disposable plan.
+Fresh-process fixture stock is not production CLI validation or Full16/Browser7
+qualification. Fifteen separately registered authority children retain 30-second
+bounds and natural exit. Five added sequential-integration controls cover ordered
+source-review v2 history, both retained and later descriptors/witnesses, complete
+execution and restarted stock, adversarial intake, atomic contention and either
+witness drifting after freeze. Source-review v1 keeps its single-integration
+meaning; v2 accounts for every actual merge in first-parent order, advances main
+ancestry and binds terminal main. All descriptors and witnesses are monitored. At most two competing children run at once. The
+existing input/source/recovery controls retain admissible cross-route races;
+observer races also prove that incompatible legacy route claims cannot relabel
+this unknown predecessor or recover a spent allowance.
