@@ -31,8 +31,8 @@ this implementation does not install it or activate a reviewer.
    work after saving. A direct or existing-asset choice can now complete under
    existing host authority without requesting participation. Verify any delivered
    asset bytes with their existing material owner before executing them.
-4. Only a chosen option with a currently configured `review_connection` can use
-   `action: participate`. Supply the actual consumer's `purpose`, `question`,
+4. For configured review, the chosen option needs a currently configured
+   `review_connection` for `action: participate`. Supply the actual consumer's `purpose`, `question`,
    `success`, `checks`, `dependency_order`, `material_refs` and `recheck` conditions.
    Select whole excerpts whose bytes suffice for that bounded review. Inspect the
    returned material and request arguments, then explicitly use the existing
@@ -58,10 +58,344 @@ this implementation does not install it or activate a reviewer.
 Each profile note remains within the existing 2,000-character, eight-selected-note
 budget. A budget refusal requires a deliberate shorter assessment or ordinary
 source-selection review; nothing is silently truncated or dropped. One choice and
-one linked assessment form the first loop. To begin another, explicitly select
-the next ordinary context while retaining worthwhile results and obligations in
-existing history. Prior notes can be read/reselected through the existing retained
-source owner; no automatic history sweep or role reconstitution is added.
+one linked assessment form a loop. Ordinary source revision, retained lookup and
+explicit reselection can compose another loop while preserving earlier packets.
+The optional preparation below connects one next arrangement to its assessed
+predecessor without a separate manually authored continuity note.
+
+## Manual contribution without a configured reviewer (#1511)
+
+Use the same native entry and eligible unstarted ordinary task. In `choose`,
+explicitly set `manual_contribution: true` on the chosen alternative; omit
+`review_connection` on that alternative. Direct/asset choices and configured
+review retain their existing contracts. The manual route prepares ordinary notes;
+it does not use the configured aggregate-service adapter or create native review
+requests, status, authenticated participants or material-read witnesses.
+
+1. Read current work and deliberately select the complete permitted excerpts.
+   Call `participate` with `participation`: `purpose`, `question`,
+   `expected_return`, `checks`, `check_use_owner`, `return_method`,
+   `feedback_method`, `recheck`, and their exact `material_refs`. For example,
+   ask a declared contributor to check available stock from a selected inventory,
+   return arithmetic and limits in a manually exchanged UTF-8 file, and identify
+   the origin maintainer who will check and use it. Each text field is bounded
+   to 240 characters. The saved request includes the full selected excerpt bytes,
+   their source identities, the choice and definition fingerprints.
+2. Inspect `delivery`, then preview and explicitly save `revision_arguments` with
+   the ordinary writer. Preparation saves and sends nothing. Only `delivery` is
+   prepared for manual relay; it excludes source locators, unselected notes and
+   repository paths. The local writer arguments contain the repository root and
+   are not a transmission payload. Selected text can itself contain private
+   content: review its bytes and permissions before any relay. A locator is never
+   fetched or counted as delivered source bytes.
+3. Explicitly read one received file and call `receive` with `manual_return`:
+   `manual_request_ref` and `material_ref` copied from that delivery, exact bounded
+   original `content`, `source_revision`, `selection` (whole original or exact
+   selected-excerpt identity), declared `actor`, and `assistance`. Inspect the
+   preview and explicitly save. The content is retained unchanged as
+   `imported_unverified`; identity, revision, assistance and manual receipt are
+   declarations, not authentication or proof that the contributor read anything.
+   Do not execute commands merely because they occur in a returned file.
+4. Read the saved original, check the exact request and current applicability,
+   and perform the concrete next judgment/input/output work. Retain that downstream
+   material through ordinary preview/save. Call `assess` with `assessment`:
+   `manual_request_ref`, `manual_return_ref` (from the saved read), `result_refs`,
+   `disposition` (`used`, `partly_used`, `retained`, `deferred`, `declined`),
+   `checks`, `applicability`, `reason`, `uncertainty`, `unfinished`, `next_action`,
+   and `reconsider_when`. Positive use and evidence-backed RETAIN require new
+   downstream material beyond the original support and profile notes. A count
+   or PASS assertion alone is not independent correctness evidence. The decision
+   saves a separate derived interpretation and exact selected downstream excerpts.
+5. If the original task, definition or material changed, add a deliberate `reassessment`
+   explaining current applicability. An explicit different task remains different
+   even with identical wording and sources. The opt-in ordinary reader supplies
+   an opaque validated task origin that stays stable across same-task revisions,
+   including ordinary source/profile saves on an unexecuted authored successor.
+   Creating that successor still establishes a different task from its predecessor;
+   requests and decisions retain it. Legacy notes without it stay readable with
+   unknown task identity and cannot establish a current decision. Changes after
+   saving a decision are exposed on read and prevent preparing current feedback.
+   Preserve the previous decision
+   and feedback in history by ordinary explicit deselection, then assess fresh;
+   no automatic refresh or reassessment occurs. Missing or ambiguous retained
+   records refuse. Unknown saves require fresh readback before another decision.
+6. Call `feedback` after saving the decision. Preview/save its ordinary note.
+   Its separate `delivery` contains exact original/request/decision identities,
+   scoped checks, disposition, reason, uncertainty, remaining obligation, next
+   instruction and next-check conditions. Read reconstructs the same feedback
+   from the saved immutable decision. Explicit manual relay and observed recipient
+   readback remain separate evidence; preparation never asserts either event.
+
+Public MCP text and structured content identify the actual work, selected
+arrangement and prepared stage. A saved manual disposition is an authored judgment,
+with its reason, currentness and remaining action; it is not semantic acceptance.
+
+The same eight-selected-note and 2,000-character-per-note limits apply, including
+serialized identity/metadata and full excerpts. Oversized material refuses; select
+a sufficient bounded excerpt with explicit original identity through ordinary
+revision or shorten authored fields deliberately. Nothing is silently truncated,
+evicted or fetched from a private locator. A feedback pointer can recover exactly
+its decision, return and request through bounded retained lookup when those notes
+are deselected. Original downstream bytes remain in the decision, with current
+selection shown separately. Deselection never means no historical receipt/use.
+When all cycle references are deselected, no history absence is inferred; use
+ordinary retained lookup and explicit reselection to inspect that history.
+
+The registered deterministic test uses real native proxy/HTTP read, preparation,
+preview/save and retained readers with a task-owned database. An inventory of 17
+units, 5 reserved and target 20 yields 12 available and 8 to top up. The origin
+independently checks those counts, uses them in a restock card and declines order
+advice because physical stock is unknown. After the producer exits, a fresh
+ordinary reader produces the printable card from saved work; the outer checker
+compares exact bytes and saved/manual feedback. Mismatched requests/bases,
+incomplete and unavailable material, changed work, atomic/stale saves, disclosure,
+history and overflow have separate checks.
+
+```sh
+node --import tsx scripts/test-manual-contribution.ts
+# Optional new absolute directory retains synthetic original artifacts:
+node --import tsx scripts/test-manual-contribution.ts /absolute/new/output
+# Eligible authored successor, including its assessment's own save and fresh read:
+node --import tsx scripts/test-manual-contribution-successor.ts
+```
+
+All roles and arithmetic are implementer-authored development fixtures. File
+selection, manual relay, origin checks and explicit saves remain human/agent work.
+The test proves deterministic mechanics and fresh reconstruction, not independent
+external participation, semantic understanding, comparative benefit, organic
+discovery, installed adoption or full W1/W2. No new consumer/model/provider study
+is performed. The fixed workflow-cost distribution and #1493 observation are not
+rerun or used as this fixture.
+
+## Select an OperatingProfile step for a manual request (#1523)
+
+After choosing the manual alternative, optionally add this member to the ordinary
+`participation` object:
+
+```json
+{"operating_profile":{"json":"<complete original JSON text>","step_id":"inspect"}}
+```
+
+Use the exact raw JSON text, not an object parsed by a caller that would discard
+duplicate keys or ambiguous numeric spellings. The existing validator checks the
+whole profile and the selected step. Actual current work and the deliberately
+selected `material_refs` still own the request's task and material basis. Profile
+input IDs and source claims remain separate declarations; a profile goal does
+not replace current work. An unavailable or missing input may be precisely what
+the selected step requests. Roles, executor/principal labels, declared budgets
+and requested permissions do not establish capability, identity or authority.
+
+This consumer supports a complete **canonical profile of at most 2,000 Unicode
+characters**, after the standalone parser's unchanged 65,536-byte raw input
+check. Canonicalization sorts object keys and removes JSON formatting; it retains
+every field, string and array entry. Large standalone profiles therefore may be
+valid but unsupported here. No content is shortened, split, replaced with a
+digest or fetched from a locator. Request, original return and decision envelopes
+must each fit their own ordinary note budget as well.
+
+Inspect the complete `delivery.operating_profile`, selected step and permitted
+material. Profile fields can themselves contain source claims or private text;
+review all those bytes before relay. The returned `revision_arguments` adds both
+the request and the complete imported/unverified profile in one ordinary
+preview/save transaction, reusing an already selected exact canonical profile
+when available. There must be room within eight selected notes. A refusal never
+evicts an unrelated note. Explicitly save, receive the original, produce checked
+downstream material, assess, and prepare/save feedback using the same manual
+sequence above. Preparation does not save, send, run or grant anything.
+
+For capacity, ordinary explicit deselection can retain completed request/return
+or profile notes in history. Keep an exact request/return/decision/feedback link
+selected so the normal reader can recover the chain. In a fresh process, Resume
+and call execution-choice `read`: `manual_contribution.operating_profile`
+contains the **entire exact profile**, selected step, fingerprint, source binding
+and current/historical selection, alongside the original request/return,
+decision, downstream bytes and unfinished obligations. It performs one exact
+bounded retained lookup for that profile when needed. Missing or ambiguous
+history refuses; there is no implicit latest-file substitution or broader search.
+Changed profile/step selection requires a new explicit request and preview, with
+prior notes preserved. Changed work/task/material/decision basis keeps the
+existing deliberate reassessment and stale-save rules.
+
+The compact [manifest example](../examples/operating-profiles/manual-manifest.json)
+retains legitimate-automation and credential-misuse explanations while requesting
+the missing manifest. The controlled test uses its returned job/command to make a
+checked recommendation, declines disabling advice, and leaves actor identity and
+approval unresolved. A separate process reconstructs the complete original
+profile from ordinary history and creates an actual next-check checklist. The
+test also exercises the full 2,000-character profile and eight-note boundaries,
+atomic rollback, changed-profile preview refusal, stale material/decision saves,
+an identical-text different task, and deliberate deferral. It establishes
+mechanical persistence and use, not real external participation or model insight.
+
+```sh
+node scripts/test-operating-profile-contribution-input.mjs
+node --import tsx scripts/test-operating-profile-contribution.ts
+# Optional new absolute directory retains synthetic originals and fresh output:
+node --import tsx scripts/test-operating-profile-contribution.ts /absolute/new/output
+```
+
+Direct work, existing assets, non-use, configured review and manual requests
+without a profile keep their existing paths. The original #1523 exercise proves
+same-task re-entry. The distinct-task composition below adds a different outcome
+using the existing writers; cross-project WorkHandoff eligibility is unchanged.
+
+## Continue a checked contribution in a different task (#1532)
+
+For an eligible unexecuted ordinary task in the same project, the existing
+source-revision and new-work tools can already carry the exact selected cycle.
+No additional transfer store, protocol or runtime wrapper is needed. The missing
+demonstration was an already checked profile contribution informing an actual
+different purpose and new artifact, followed by saved re-entry.
+
+1. Resume and read the origin's execution choice. Deliberately select the one
+   request, original return, decision and feedback to reuse. While still in the
+   origin, resolve their exact content-addressed note locators and pinned full
+   OperatingProfile with `augnes_lookup_repository_retained_sources`. Inspect
+   each complete result, including its original source binding and selection.
+   Use only those explicit references; a no-match or truncated lookup cannot
+   establish a complete dependency set.
+2. Preview/save an ordinary source revision with the exact `retained_source_refs`
+   for any deselected dependencies. Keep the linked execution-choice note too.
+   Review capacity explicitly: the six notes are choice, profile, request,
+   original, decision and feedback. Original requested excerpts and checked
+   result excerpts are already embedded unchanged in request and decision.
+   If needed, explicitly deselect those duplicate selected excerpts while
+   retaining unrelated origin notes. Preserve every old packet. If a necessary
+   dependency is unavailable or the complete selection exceeds current bounds,
+   stop this transfer and explicitly correct or reselect while access exists.
+3. Call `augnes_preview_repository_new_work` with the fresh Resume binding, a
+   genuinely different `goal`, `success_criteria`, `non_goals`, and `sources`:
+   `keep` the exact six source bindings, `add` the new task's permitted input
+   and a bounded lineage/omissions note, and provide `omitted_sources` with a
+   reason for each selected origin source not carried forward. The lineage note
+   records origin purpose/task/packet, exact historical decision/feedback refs,
+   omissions and unavailable dependencies. Review the preview, then explicitly
+   call `augnes_prepare_repository_new_work` with its `previewBinding`.
+   `keep` preserves source bytes, revision and trust; do not re-author an old
+   judgment as current or relabel imported material to satisfy a parser.
+4. A fresh process Resumes the recipient and reads ordinary work sources plus
+   execution choice. The recipient has its own task identity and purpose.
+   Its inherited decision remains `different_task` / `reassessment_required`.
+   The new-task writer does not finish the origin or adopt its obligations.
+   Retained lookup now covers only the recipient's task segment. It cannot
+   fetch an origin-only deselected note; importing a bare pointer is insufficient.
+5. Evaluate the exact prior material against the new inputs. Keep valid findings,
+   reconsider affected conclusions, and state which unfinished obligation this
+   task adopts. Save the actual new report through ordinary preview/save.
+   Explicitly deselect the historical decision/feedback to retain them in the
+   recipient's history before preparing a separate `assess` with `reassessment`.
+   Name the prior decision in the retained lineage, and preserve non-use reasons.
+   Save and read back the new decision and feedback. Historical judgments remain
+   available through their exact retained locators; they are not overwritten.
+6. Reopen through Resume and the same ordinary readers. Recover the stable
+   recipient task, full profile/step, original return, exact historical judgment,
+   current input/report, new use decision and remaining work. Changed current
+   input requires another deliberate assessment, not a silently refreshed label.
+
+Eight selected notes, 2,000 Unicode characters per note and the native aggregate
+byte budget still apply. The demonstrated recipient first selects all six
+historical notes plus lineage and new input (eight). It then explicitly retains
+completed historical dependencies in its **own** history to make room for the
+report and current decision. A decision also embeds selected downstream bytes:
+the case keeps its complete report selected and names it by fingerprint in a
+separate complete calculation note. That bounded calculation is the decision's
+explicit result material, not a truncation of the original contribution.
+
+```sh
+node --import tsx scripts/test-profile-task-continuation.ts
+# New absolute output directory preserves the synthetic originals and reports:
+node --import tsx scripts/test-profile-task-continuation.ts /absolute/new/output
+```
+
+The exposed controlled case starts with the #1523 manifest comparison, declined
+disabling advice and unresolved identity/approval. A separate reconciliation task
+receives four new events and identity/change records. Its new report accounts for
+280 bytes: 200 reconciled within the supplied approval window, 50 with approval
+unresolved and 30 with actor identity unresolved. Supplied identity records remain
+unverified declarations. No disabling or remediation obligation is adopted.
+Independent fixed expectations check every output row and total; another process
+reopens the byte-identical saved report. The receiver never reads producer private
+artifacts or a stored answer. Supported revision/reselection, dependency faults,
+capacity, project/task scope, stale basis and atomic save controls remain separate.
+
+This establishes controlled same-project cross-task continuation and fresh-process
+reconstruction. Actual model understanding and independent participation are
+NOT_RUN; comparative usefulness is NOT_EVALUATED and full W2 is NOT_ESTABLISHED.
+It adds no model trial, receipt, capability grant or installed adoption. The
+completed-stateless-observation and receipt-lineage requirements of WorkHandoff
+v0.1 remain unchanged; that contract is not an ordinary-note transfer route.
+
+## One result-informed next arrangement (#1498)
+
+After assessing a returned review, use `action: reconsider` with a fresh
+`expectedSnapshotBinding`, a new `judgment` in the same format as `choose`, and
+a bounded `reason` explaining why the result/current conditions justify retaining
+or changing the arrangement. Keeping the same reviewer, doing the work directly
+or using an existing asset remain valid choices. Recruitment is optional.
+
+The prior choice and assessment must still be selected, their result references
+must be selected, and their original request/response must remain available under
+the existing review configuration. This increment requires an unchanged definition
+in one eligible unstarted ordinary task segment and the same project, registered
+and physical root, and effective direction. It reuses the late-review owner's
+original-basis/current reassessment to check these boundaries. A missing,
+ambiguous, out-of-budget or unavailable history refuses; it is not absence.
+
+The returned ordinary revision **deselects only the old choice and assessment**
+and adds the next choice with exact content-addressed predecessor-note references
+and the authored reason. Review the preview and explicitly save it. Other notes,
+including checked results and attributed contributions, remain selected. No prior
+packet or note is rewritten. A subsequent `read` resolves exactly those two
+references through bounded retained lookup and shows their original text, request,
+response, current attributed-use reasoning, earlier unfinished obligations and
+selection status separately from the current choice. These are provenance links
+and authored judgments, not independent verification of a claimed result.
+
+Participation preparation carries the prior assessment reference, reason and
+unfinished obligations into the new request. Deliberately select sufficient
+current result/input excerpts in `material_refs`; a historical reference alone
+does not deliver missing bytes. The replacement still reads and answers its own
+request. An earlier participant's late reply uses the existing explicit
+`historical_v1` receipt/current reassessment path and cannot answer or assess the
+replacement request. Prior unfinished text remains an earlier assessment; only
+actual subsequent evidence and a new explicit assessment can settle it.
+
+This is one linked transition, not recursive reconstitution: a second
+`reconsider` on a linked choice refuses. Ordinary revision/retained-material
+composition remains available. Logical replacement never revokes a credential,
+cancels a process, changes project direction or settles unknown external effects.
+Reads/preparation write nothing; existing preview/save owns atomic failure,
+staleness and replay. Existing single-choice records remain supported.
+
+The disposable packing exercise first demonstrates the existing composition:
+explicit deselection, two retained lookups, manual linkage/reason/unfinished
+authorship and ordinary save can complete the same task. Its manual link consumes
+one selected-note slot, so that case explicitly deselects an earlier use note
+(still retained in history). The improvement prepares and validates the link
+within the choice note and exposes it in the ordinary reader. No timed human
+comparison or reduced total-cost claim is made.
+
+Two synthetic configured reviewers produce a checked partial count, then a
+separate-batch tray allocation. The origin retains the first count, uses the
+replacement's checked allocation and rejects its unsupported dispatch suggestion.
+After the producer exits, a separate consumer program reads persisted material
+through normal entry and creates actual printable-label records, preserving the
+unknown physical-stock obligation. The consumer imports no producer code,
+expected answer or artifact; the outer test independently checks its output.
+
+```sh
+node --import tsx scripts/test-execution-choice-transition.ts
+# Optional new absolute artifact directory; append "existing" for manual composition:
+node --import tsx scripts/test-execution-choice-transition.ts /absolute/new/output existing
+```
+
+The existing `test-execution-choice.ts` also runs malformed/ambiguous linkage,
+missing result, unavailable basis and read-race controls at the adapter seam.
+The two-process exercise runs separately with the existing bounded process/resource
+owners; it does not change the Canonical suite's deadlines or inventory.
+Evidence is synthetic engineering use. Actual external participation, human/model
+semantic use, comparative benefit, installed adoption and broader W1/W2 completion
+remain unestablished.
 
 ## Changed conditions and failure meaning
 
@@ -100,8 +434,10 @@ ambiguous or over-budget history remain unavailable. A first read after the
 material changed still refuses. No new snapshot storage or migration is used.
 
 A saved late answer is historical, unverified review material. Receipt does not
-apply it. After an uncertain reply outcome, use the existing list/readback before
-deciding another delivery; exact duplicate replies replay and conflicts refuse.
+apply it. After an uncertain reply outcome, the contributor can use
+`augnes_get_review_status` with its exact `request_ref`, or the paginated reviewer
+list, before deciding another delivery. The origin uses list/readback. Exact
+duplicate replies replay and conflicts refuse.
 
 The authorized origin uses `augnes_review_repository_work`:
 
@@ -145,6 +481,39 @@ injection and checks. Manual retained-note/current-review use would still requir
 original-material retention, current inspection, selection, preview/save and
 follow-up checking. No timed manual comparison, human effort, token/billing cost
 or speedup is claimed. Exact-candidate qualification belongs to the PR receipt.
+
+## Contributor status after the origin advances (#1506)
+
+In the scoped reviewer adapter, call `augnes_get_review_status` with only your
+known `request_ref`. It directly returns the request's saved answer, attribution,
+currentness, origin-readback marker and already-permitted current-use reasoning.
+The same item remains available through the paginated reviewer list. Status can
+be read by a fresh reviewer process even when an ordinary origin save has made
+the original exact-material read refuse `review_material_changed`.
+
+For an unanswered current request, read its exact material before deciding
+whether to reply. For an unanswered historical request, a late reply still needs
+a valid prior material read and the existing explicit `historical_v1` proof.
+Status inspection creates no read witness or first-reply permission. For an
+answered request, inspect the saved response and any authored use explanation;
+no new request or resubmission follows automatically. Only the origin can prepare
+use/reassessment and explicitly preview/save its work.
+
+A useful contribution can be partly used: for example, retain failed attempts
+in a cost population while declining advice to rerun them because reruns would
+change that population and lack execution authority. The explanation is the
+origin's authored interpretation, not independently verified success or model
+judgment. If the response or use note is later deselected, status reports
+`not_observed_in_current_work`; that does not erase prior packets or establish
+permanent rejection or no prior use. Contributor inspection does not mark an
+answer `served_to_origin`; genuine origin readback remains a separate action.
+
+The existing request-bound-review and supervised runtime checks exercise this
+sequence through HTTP and reviewer MCP, including a fresh process, a target
+beyond page one, exact list parity, refusal and all-application-state preservation.
+Synthetic deterministic reconstruction establishes supported behavior; external
+participation, model understanding and comparative benefit remain unestablished.
+See the [exact status/disclosure contract](../apps/augnes_apps/README.md#opt-in-request-bound-review-1433).
 
 ## Concrete exercised consumer and evidence
 

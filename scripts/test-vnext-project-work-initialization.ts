@@ -1,3 +1,4 @@
+import { assertCompilerBudgetDiagnostics, assertExplicitArtifactPreservingRepair } from "./successor-budget-diagnostics-checks";
 import { differentSelectionRevision } from "./test-selection-observation";
 import { readVNextCoreRecordV01 } from "../lib/vnext/persistence/durable-semantic-store";
 import { installZeroNetworkGuard } from "./test-harness-zero-network-guard.mjs";
@@ -88,6 +89,7 @@ import {
 import {
   defineInitialProjectWorkV01,
   readProjectWorkInitializationV01,
+  readProjectWorkInitializationSnapshotV01,
 } from "../lib/vnext/runtime/project-work-initialization";
 import {
   readProjectWorkRevisionEligibilityV01,
@@ -159,6 +161,7 @@ async function main(): Promise<void> {
     }
     if (process.argv.includes("--retry-inspection-only")) { await assertRetryInspectionLoopV01(); return; }
     if (process.argv.includes("--selected-source-budget-only")) { await assertNativeSelectedSourceBudgetV01(); return; }
+    if (process.argv.includes("--successor-packet-admission-only")) { await assertSuccessorPacketAdmissionV01(); return; }
     if (process.argv.includes("--retained-source-capacity-only")) { await assertRetainedSourceScanBudgetV01(); return; }
     if (process.argv.includes("--reviewed-outcome-reuse-only")) { await assertReviewedOutcomeReuseV01(); await assertReviewedOutcomeReuseV01(true); return; }
     if (process.argv.includes("--successor-expectation-only")) { await assertSuccessorExpectationV01(); return; }
@@ -218,6 +221,7 @@ async function main(): Promise<void> {
     assertInitialWorkPortabilityV01();
     assertRevisionPortabilityAndRecoveryV01();
     await assertSelectedSourceNextWorkV01();
+    await assertSuccessorPacketAdmissionV01();
     await assertWebMcpCurrentReadV01();
     await assertRetainedSourceRecallV01();
     await assertSeparateNativeHostStartV01();
@@ -276,7 +280,7 @@ async function assertUnexecutedSuccessorRevisionV01(): Promise<void> {
       { source: "Disposable observation", text: "Cold observation retained; warm conditions remain untested.", observed_at: null, provenance: "imported_unverified", label: "Open question" },
       { source: "Disposable historical question", text: "OMITTED_B_NOTE: an unrelated question that will be deselected.", observed_at: null, provenance: "derived_interpretation", label: "Open question" },
     ], clock });
-    const preview = previewResultWorkV01(fixture.db, { config: fixture.config, binding: preparation.binding, clock,
+    const preview = previewResultWorkV01(fixture.db, { config: fixture.config, session_id: credentialFromCookieV01(first.session_admission!.cookie_value).session_id, binding: preparation.binding, clock,
       definition: { goal: "Review the cold observation", success_criteria: ["Preserve the condition boundary"], non_goals: ["No warm-condition conclusion"] },
       selected_sources: { selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint, omitted_sources: [] },
     });
@@ -288,6 +292,9 @@ async function assertUnexecutedSuccessorRevisionV01(): Promise<void> {
     }
     fixture.db.close(); fixture.db = new Database(fixture.config.database_path);
     const current = readProjectWorkInitializationV01(fixture.db, fixture);
+    const taskOrigin = () => readProjectWorkInitializationSnapshotV01(fixture.db, fixture).task_origin_fingerprint;
+    assert.equal(taskOrigin(), saved.packet.integrity.fingerprint);
+    assert.notEqual(taskOrigin(), initial.packet.integrity.fingerprint, "Original authored successor is a genuine task boundary");
     const eligibility = readProjectWorkRevisionEligibilityV01(fixture.db, fixture);
     const readOnly = new Database(fixture.config.database_path, { readonly: true });
     try {
@@ -374,6 +381,7 @@ async function assertUnexecutedSuccessorRevisionV01(): Promise<void> {
     const b1 = revisePreExecutionProjectWorkV01(fixture.db, { config: fixture.config,
       credential: credentialFromCookieV01(saved.session_admission.cookie_value), request: b1Request, clock: fixedClock("2026-08-01T00:00:21.000Z") });
     assert.equal(b1.status, "inserted");
+    assert.equal(taskOrigin(), saved.packet.integrity.fingerprint, "Definition revision retains successor origin");
     const afterWinner = fixture.db.serialize();
     const competingConnection = new Database(fixture.config.database_path);
     try {
@@ -399,6 +407,7 @@ async function assertUnexecutedSuccessorRevisionV01(): Promise<void> {
       request: { ...revisionRequestV01(fixture, b1.packet, "authored_successor_task", b1.packet.task), selected_source_context: nextSources.entries, expected_source_comparison: nextSources.fingerprint },
       clock: fixedClock("2026-08-01T00:00:23.000Z") });
     assert.equal(b2.status, "inserted"); assert.equal(b2.revision_eligibility.revision_count, 2);
+    assert.equal(taskOrigin(), saved.packet.integrity.fingerprint, "Source revision retains successor origin");
     assert.deepEqual(b2.packet.task, b1.packet.task);
     for (const table of unaffected) assert.deepEqual(fixture.db.prepare(table.query).all(), table.rows, "Revisions create no execution/grant or unrelated state change");
     const sessionsAfter = fixture.db.prepare("SELECT * FROM vnext_local_operator_sessions ORDER BY session_id").all() as Record<string, unknown>[];
@@ -440,6 +449,7 @@ async function assertUnexecutedSuccessorRevisionV01(): Promise<void> {
     assert.equal(resume.snapshot.status, "exact");
     const reader = await readCodexRepositoryWorkSourcesV01(fixture.db, { repository_root: fixture.root, expected_snapshot_binding: resume.snapshot.binding!, include_work_definition: true }, dependencies);
     assert.equal(reader.status, "available"); assert.equal(reader.sources.length, 2);
+    assert.equal("task_identity" in reader && reader.task_identity, saved.packet.integrity.fingerprint, "Fresh connection reconstructs the successor origin");
     const companionDb = new Database(fixture.db.serialize());
     try {
       const channel = { key: "disposable-successor-channel", instance_id: "fixture-instance", generation_id: "fixture-generation", repository_fingerprint: "f".repeat(64) };
@@ -449,10 +459,22 @@ async function assertUnexecutedSuccessorRevisionV01(): Promise<void> {
       assert.equal(previewed.status, "previewed"); assert(beforePreview.equals(companionDb.serialize()));
       const companionSaved = await reviseCodexRepositoryWorkV01(companionDb, { ...input, action: "save", preview_binding: previewed.preview_binding }, channel, dependencies);
       assert.equal(companionSaved.status, "saved");
+      assert.equal(readProjectWorkInitializationSnapshotV01(companionDb, fixture).task_origin_fingerprint, saved.packet.integrity.fingerprint);
       assert.equal(readProjectWorkInitializationV01(companionDb, fixture).current_work?.goal, input.changes.goal);
       assert.deepEqual(readProjectWorkInitializationV01(companionDb, fixture).selected_source_context, nextSources.entries);
       assert.equal((await reviseCodexRepositoryWorkV01(companionDb, { ...input, action: "save", preview_binding: previewed.preview_binding }, channel, dependencies)).status, "exact_replay");
     } finally { companionDb.close(); }
+    const missingOrigin = new Database(fixture.db.serialize());
+    try {
+      // Deliberate corruption in a disposable copy only. Restore the exact
+      // immutable trigger before asking production readers to reconstruct it.
+      const trigger = missingOrigin.prepare("SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'trg_vnext_core_records_immutable_delete'").get() as { sql: string };
+      missingOrigin.exec("DROP TRIGGER trg_vnext_core_records_immutable_delete");
+      missingOrigin.prepare("DELETE FROM vnext_core_records WHERE record_kind = 'task_context_packet' AND record_id = ?").run(saved.packet.packet_id);
+      missingOrigin.exec(trigger.sql);
+      assert.equal(readProjectWorkInitializationSnapshotV01(missingOrigin, fixture).task_origin_fingerprint, null,
+        "Missing successor origin is unavailable, never the current revision's identity");
+    } finally { missingOrigin.close(); }
     const latePreview = revisionRequestV01(fixture, b2.packet, "authored_successor_task", { ...b2.packet.task, goal: "Revision previewed before Start" });
     const exported = exportActivePortableProjectV01(fixture.db, { include_personal_perspective: false, exported_at: "2026-08-01T00:00:24.000Z" });
     parseAndValidatePortableProjectV01(exported.bytes);
@@ -493,13 +515,15 @@ async function assertUnexecutedSuccessorRevisionV01(): Promise<void> {
       clock: fixedClock("2026-08-01T00:00:40.000Z") }), /execution_started/);
     assert(postExecution.equals(fixture.db.serialize()));
     const laterComparison = compareResultWorkSourcesV01(fixture.db, { config: fixture.config, binding: later.binding, notes: [], clock: fixedClock("2026-08-01T00:00:40.000Z") });
-    const laterPreview = previewResultWorkV01(fixture.db, { config: fixture.config, binding: later.binding, clock: fixedClock("2026-08-01T00:00:40.000Z"),
+    const laterPreview = previewResultWorkV01(fixture.db, { config: fixture.config, session_id: credentialFromCookieV01(executed.session_admission!.cookie_value).session_id, binding: later.binding, clock: fixedClock("2026-08-01T00:00:40.000Z"),
       definition: { goal: "Review B2's bounded result", success_criteria: ["Keep uncertainty explicit"], non_goals: ["No unsupported warm conclusion"] },
       selected_sources: { selected_source_context: [], expected_source_comparison: laterComparison.fingerprint,
         omitted_sources: laterComparison.unselected_previous.map(e => ({ source_binding: e.source_ref!, reason: "Not needed for the next bounded review" })) } });
     const c = await defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config,
       credential: credentialFromCookieV01(executed.session_admission!.cookie_value), request: laterPreview.request, clock: fixedClock("2026-08-01T00:00:40.000Z") });
     assert.equal(readProjectWorkInitializationV01(fixture.db, fixture).current_packet?.packet_id, c.packet.packet_id);
+    assert.equal(taskOrigin(), c.packet.integrity.fingerprint);
+    assert.notEqual(taskOrigin(), saved.packet.integrity.fingerprint, "A further authored successor does not inherit its predecessor's task origin");
     assert.equal(validateRecoveryCanonicalDatabaseV01(fixture.db).status, "valid");
     assert(!original.equals(fixture.db.serialize()));
     console.log(JSON.stringify({ successor_revision: "A -> B -> B1 -> B2 -> real consumer -> completed B2 -> ordinary successor eligible", fresh_reader: reader.status, model_calls: 0 }));
@@ -617,7 +641,7 @@ async function assertOutcomeReuseV01(): Promise<void> {
       const comparison = compareResultWorkSourcesV01(fixture.db, { config: fixture.config, binding: preparation.binding, notes, clock });
       const selected_sources = { selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint,
         omitted_sources: comparison.unselected_previous.map(entry => ({ source_binding: entry.source_ref!, reason: "Outside the next calibration task." })) };
-      const preview = previewResultWorkV01(fixture.db, { config: fixture.config, binding: preparation.binding, clock, selected_sources,
+      const preview = previewResultWorkV01(fixture.db, { config: fixture.config, session_id: credential.session_id, binding: preparation.binding, clock, selected_sources,
         definition: { goal: "Prepare the calibration comparison", success_criteria: ["Read only the selected context and retain its conditions"], non_goals: ["Leave warm behavior untested"] } });
       assert(before.equals(fixture.db.serialize()), "Read, comparison and preview are read-only");
       console.log(JSON.stringify({ independent_result_preparation: true, outcome_history_preparation: disposition, retained_runs: retainedRuns, read: "available", preview: "available" }));
@@ -4889,7 +4913,7 @@ async function assertReviewedOutcomeReuseV01(overBudget = false): Promise<void> 
     assert.deepEqual(readWorkExpectationRecords(fixture.db, fixture).filter(r => r.kind === "outcome_report"), [r1, r2]);
     const definition = { goal: "Use the selected historical observation", success_criteria: ["Keep warm behavior unresolved"], non_goals: ["Do not turn the cold failure into a global prohibition"] };
     const empty = compareResultWorkSourcesV01(fixture.db, { config: fixture.config, binding: preparation.binding, notes: [], clock });
-    const emptyPreview = previewResultWorkV01(fixture.db, { config: fixture.config, binding: preparation.binding, clock, definition,
+    const emptyPreview = previewResultWorkV01(fixture.db, { config: fixture.config, session_id: credential.session_id, binding: preparation.binding, clock, definition,
       selected_sources: { selected_source_context: empty.entries, expected_source_comparison: empty.fingerprint, omitted_sources: [] } });
     if (overBudget) {
       const saved = await defineAuthoredSuccessorTaskV01(fixture.db, { config: fixture.config, credential, request: emptyPreview.request, clock });
@@ -4907,7 +4931,7 @@ async function assertReviewedOutcomeReuseV01(overBudget = false): Promise<void> 
     const comparison = compareResultWorkSourcesV01(fixture.db, { config: fixture.config, binding: preparation.binding,
       notes: [{ reviewed_outcome_ref: reuse.binding }], clock });
     const selected_sources = { selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint, omitted_sources: [] };
-    const preview = previewResultWorkV01(fixture.db, { config: fixture.config, binding: preparation.binding, definition, selected_sources, clock });
+    const preview = previewResultWorkV01(fixture.db, { config: fixture.config, session_id: credential.session_id, binding: preparation.binding, definition, selected_sources, clock });
     assert(beforePreview.equals(fixture.db.serialize()), "Report projection, comparison and preview have no writes");
     assert.deepEqual(comparison.entries, reuse.entries);
     const reject = async (db: Database.Database, request: unknown, pattern: RegExp) => {
@@ -5248,7 +5272,7 @@ async function assertSuccessorExpectationV01(finalRevisionOnly = false): Promise
     const comparison = compareResultWorkSourcesV01(fixture.db, { config: fixture.config, binding: preparation.binding, notes: [
       { source: "Disposable observation", text: "Cold observation retained; warm conditions remain untested.", observed_at: null, provenance: "imported_unverified", label: "Open question" },
     ], clock });
-    const preview = previewResultWorkV01(fixture.db, { config: fixture.config, binding: preparation.binding, clock,
+    const preview = previewResultWorkV01(fixture.db, { config: fixture.config, session_id: credentialFromCookieV01(first.session_admission!.cookie_value).session_id, binding: preparation.binding, clock,
       definition: { goal: "Review the cold observation", success_criteria: ["Preserve the condition boundary"], non_goals: ["No warm-condition conclusion"] },
       selected_sources: { selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint, omitted_sources: [] },
     });
@@ -5429,7 +5453,7 @@ async function assertSuccessorExpectationV01(finalRevisionOnly = false): Promise
     const laterClock = fixedClock("2026-08-01T00:00:50.000Z");
     const next = readResultWorkPreparationV01(fixture.db, { config: fixture.config, receipt_id: result.receipt.receipt_id, clock: laterClock });
     const nextSources = compareResultWorkSourcesV01(fixture.db, { config: fixture.config, binding: next.binding, notes: [], clock: laterClock });
-    const nextPreview = previewResultWorkV01(fixture.db, { config: fixture.config, binding: next.binding, clock: laterClock,
+    const nextPreview = previewResultWorkV01(fixture.db, { config: fixture.config, session_id: credential.session_id, binding: next.binding, clock: laterClock,
       definition: { goal: "Pursue a separate warm observation", success_criteria: ["Keep the warm observation attributed"], non_goals: ["Do not generalize"] },
       selected_sources: { selected_source_context: nextSources.entries, expected_source_comparison: nextSources.fingerprint,
         omitted_sources: nextSources.unselected_previous.map(e => ({ source_binding: e.source_ref!, reason: "Not selected for the later fixture task" })) },
@@ -5796,7 +5820,7 @@ async function assertExpectationSchemaCompatibilityV01(): Promise<void> {
     fixture.db.prepare("INSERT INTO vnext_active_project_selections VALUES (?,?,'active_project_selection.v0.1',1,?)")
       .run(fixture.workspace_id, fixture.project_id, T0);
     // Keep the predecessor exact; review linkage belongs only to later schemas.
-    fixture.db.exec("DROP TABLE vnext_external_shares; DROP TABLE vnext_external_records; DROP TABLE vnext_external_materials; DROP TABLE vnext_external_envelopes; DROP TABLE vnext_review_callback_candidates; DROP TABLE vnext_review_callback_policies; DROP TABLE vnext_review_deliveries; DROP TABLE vnext_review_subscriptions; DROP TABLE vnext_review_requests");
+    fixture.db.exec("DROP TRIGGER trg_vnext_project_organization_initialize; DROP TABLE vnext_project_organization; DROP TABLE vnext_external_shares; DROP TABLE vnext_external_records; DROP TABLE vnext_external_materials; DROP TABLE vnext_external_envelopes; DROP TABLE vnext_review_callback_candidates; DROP TABLE vnext_review_callback_policies; DROP TABLE vnext_review_deliveries; DROP TABLE vnext_review_subscriptions; DROP TABLE vnext_review_requests");
     fixture.db.exec("DROP TABLE vnext_project_direction_credentials; DROP TABLE vnext_project_direction_records; DROP TABLE vnext_prospective_reentry");
     fixture.db.exec("COMMIT");
     assert.equal(structuralSchemaContractSignature(fixture.db), "66f470e7a6e5bc2a10d5e2b0437dc95165596ae55f915ecd27ee1666e130f980");
@@ -6177,7 +6201,7 @@ async function assertRetryInspectionLoopV01(): Promise<void> {
     const selected = [note(direction), note(workflow), note(updatedInspection), observation];
     const comparison = compareResultWorkSourcesV01(fixture.db, { config: fixture.config, binding: preparation.binding,
       notes: selected.map(selectedWorkSourceInput), clock });
-    const preview = previewResultWorkV01(fixture.db, { config: fixture.config, binding: preparation.binding, clock,
+    const preview = previewResultWorkV01(fixture.db, { config: fixture.config, session_id: credential.session_id, binding: preparation.binding, clock,
       definition: { goal: "Determine whether stable inspection conditions can be established", success_criteria: ["Keep the failed applicability assumption and original observation distinct"], non_goals: ["Do not infer a learned success rate"] },
       selected_sources: { selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint,
         omitted_sources: readSelectedWorkSources(packet).filter(entry => !selected.some(next => next.entry_id === entry.entry_id)).map(entry => ({ source_binding: entry.source_ref!, reason: "Revise the estimate using the actual inspection observation; original remains historical." })) } });
@@ -6387,6 +6411,138 @@ async function assertNewWorkAdmissionV01(): Promise<void> {
     assert.equal(validateRecoveryCanonicalDatabaseV01(fixture.db).status, "valid");
     console.log(JSON.stringify({ new_work_normal_execution_admission_and_start_after_preview: "pass", model_calls: 0 }));
   } finally { fixture.db.close(); }
+}
+
+async function assertSuccessorPacketAdmissionV01(): Promise<void> {
+  assertCompilerBudgetDiagnostics();
+  const { createServer } = await import("node:http");
+  const { trackServerConnections, closeTrackedServer } = await import("./test-harness-process-lifecycle.mjs");
+  const { createVNextOperatorProjectContinuityHandlerV01: getFactory,
+    createVNextOperatorContextUseReviewHandlerV01: postFactory } = await import("../app/api/vnext/operator/project-continuity/route");
+  const fixture = createFixtureV01("successor-packet-admission", false, true, true);
+  const guard = installZeroNetworkGuard({ allowLoopback: true });
+  let server: ReturnType<typeof createServer> | undefined;
+  try {
+    const initial = defineInitialProjectWorkV01(fixture.db, { config: fixture.config,
+      credential: authenticatedSessionV01(fixture, "author"), request: requestV01(fixture), clock: fixedClock(T2) });
+    const settled = await runDirectNativeHostRoundTripV01(fixture.db, { config: fixture.config, mode: "interactive",
+      operator_mutation: { credential: credentialFromCookieV01(initial.session_admission.cookie_value), clock: fixedClock("2026-08-01T00:00:04.000Z") } },
+    { adapter: createDeterministicCodexAdapterV01({ now: timestampSequenceV01("2026-08-01T00:00:05.000Z") }), now: timestampSequenceV01("2026-08-01T00:00:04.000Z") });
+    let cookie = VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01 + "=" + settled.session_admission!.cookie_value;
+    const clock = fixedClock("2026-08-01T00:00:20.000Z");
+    const environment = { NODE_ENV: "test" as const, AUGNES_DB_PATH: fixture.config.database_path,
+      AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1", AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: fixture.workspace_id,
+      AUGNES_VNEXT_OPERATOR_PROJECT_ID: fixture.project_id, AUGNES_VNEXT_OPERATOR_ID: fixture.config.operator_id };
+    const get = getFactory({ environment, clock }), post = postFactory({ environment, clock });
+    let origin = "";
+    server = trackServerConnections(createServer(async (req, res) => {
+      try {
+        const chunks: Buffer[] = []; let bytes = 0;
+        for await (const chunk of req) { bytes += chunk.length; assert(bytes <= 64_000); chunks.push(Buffer.from(chunk)); }
+        const request = new Request(origin + req.url, { method: req.method, headers: req.headers as Record<string, string>,
+          ...(req.method === "POST" ? { body: Buffer.concat(chunks).toString() } : {}) });
+        const response = await (req.method === "POST" ? post : get)(request);
+        response.headers.forEach((v, k) => { if (k !== "set-cookie") res.setHeader(k, v); });
+        if (response.headers.getSetCookie().length) res.setHeader("Set-Cookie", response.headers.getSetCookie());
+        res.statusCode = response.status; res.end(await response.text());
+      } catch { res.statusCode = 500; res.end('{"error_code":"fixture_http_failed"}'); }
+    }));
+    await new Promise<void>(resolve => server!.listen(0, "127.0.0.1", resolve));
+    origin = "http://127.0.0.1:" + (server!.address() as { port: number }).port;
+    const http = async (body?: unknown, status = 200, suppliedCookie = cookie, suppliedOrigin = origin) => {
+      const response = await fetch(origin + "/api/vnext/operator/project-continuity", { method: body ? "POST" : "GET",
+        headers: { cookie: suppliedCookie, origin: suppliedOrigin, "content-type": "application/json" },
+        ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(10_000) });
+      const value = await response.json(); assert.equal(response.status, status, JSON.stringify(value));
+      const rotation = response.headers.getSetCookie()[0]; if (rotation) cookie = rotation.split(";")[0]!;
+      return value;
+    };
+    const before = await http(), databaseBefore = fixture.db.serialize();
+    const prep = await http({ action: "read_result_work_preparation", receipt_id: settled.receipt.receipt_id });
+    const comparison = (await http({ action: "compare_result_work_sources", binding: prep.binding,
+      notes: Array.from({ length: 8 }, (_, i) => ({ source: "synthetic-note-" + i, text: i + ":" + "n".repeat(998),
+        observed_at: null, provenance: "user_declaration", label: "Open question" })) })).comparison;
+    assert.equal(comparison.entries.length, 8);
+    assert(Buffer.byteLength(JSON.stringify(comparison.entries)) < 32_000);
+    const selected_sources = { selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint, omitted_sources: [] };
+    const large = { goal: "g".repeat(900), success_criteria: Array.from({ length: 10 }, (_, i) => i + ":" + "c".repeat(488)),
+      non_goals: ["Keep immutable originals and rollback.", "No execution authority."] };
+    const previewBody = { action: "preview_result_work", binding: prep.binding, definition: large, selected_sources };
+    const request = { action: "define_authored_successor_task", ...prep.binding, expected_direction_ref: null, selected_sources,
+      definition: { objective: large.goal, checks: large.success_criteria.map((criterion, i) => ({ check_id: "criterion_" + (i + 1), criterion })),
+        stop_conditions: large.non_goals, materials: [], approved_instruction_hashes: [] } };
+    const refused = await http(previewBody, 409);
+    assert.equal(refused.error_code, "successor_task_packet_max_characters_exceeded");
+    const refusedSave = await http({ action: "prepare_result_work", request }, 409);
+    assert.equal(refusedSave.error_code, refused.error_code);
+    assert.deepEqual(Object.keys(refused).sort(), ["error_code", "execution_authority_granted", "ok", "semantic_authority_granted", "status"]);
+    const diagnostic = await http({ ...previewBody, include_packet_budget_diagnostics: true }, 409);
+    const diagnosticSave = await http({ action: "prepare_result_work", request, include_packet_budget_diagnostics: true }, 409);
+    assert.deepEqual(diagnostic, { ...refused, packet_budget: diagnosticSave.packet_budget });
+    assert.deepEqual(diagnostic.packet_budget, { budget: "max_characters", unit: "utf16_code_units",
+      observed: diagnostic.packet_budget.observed, limit: 76_000, overage: diagnostic.packet_budget.observed - 76_000 });
+    assert(diagnostic.packet_budget.overage > 0);
+    for (const optIn of [false, null, "true", {}, 1]) {
+      const invalid = await http({ ...previewBody, include_packet_budget_diagnostics: optIn }, 409);
+      assert.equal(invalid.error_code, "successor_task_request_fields"); assert.equal(invalid.packet_budget, undefined);
+    }
+    const wrongAction = await http({ action: "read_result_work_preparation", receipt_id: settled.receipt.receipt_id, include_packet_budget_diagnostics: true }, 409);
+    assert.equal(wrongAction.error_code, "successor_task_request_fields");
+    for (const body of [
+      { ...previewBody, include_packet_budget_diagnostics: true, unknown_field: true },
+      { action: "prepare_result_work", request: { ...request, include_packet_budget_diagnostics: true } },
+    ]) {
+      const invalid = await http(body, 409);
+      assert.equal(invalid.error_code, "successor_task_request_fields");
+      assert.equal(invalid.packet_budget, undefined);
+    }
+    for (const response of [
+      await http({ ...previewBody, include_packet_budget_diagnostics: true }, 401, ""),
+      await http({ ...previewBody, include_packet_budget_diagnostics: true }, 403, cookie, "http://untrusted.invalid"),
+      await http({ ...previewBody, include_packet_budget_diagnostics: true, binding: { ...prep.binding, expected_project_work_binding: "sha256:" + "0".repeat(64) } }, 409),
+      await http({ ...previewBody, include_packet_budget_diagnostics: true, definition: { ...large, unexpected: true } }, 409),
+    ]) { assert.equal(response.packet_budget, undefined); assert(!JSON.stringify(response).includes(large.goal)); }
+    assert(databaseBefore.equals(fixture.db.serialize()), "Refused preview/save preserve packet, ledger and session bytes");
+    assert.deepEqual((await http()).work_initialization, before.work_initialization);
+
+    // A separate admissible definition retains every synthetic source verbatim.
+    // This does not truncate or rewrite the preserved S case.
+    const definition = { goal: "Review the eight selected observations conditionally.", success_criteria: ["Retain the source and unresolved condition of every note."],
+      non_goals: ["Keep immutable originals and rollback.", "No execution authority."] };
+    const preview = await http({ ...previewBody, definition });
+    assert.equal(preview.writes, 0);
+    assert.deepEqual(await http({ ...previewBody, definition, include_packet_budget_diagnostics: true }), preview);
+    assert.equal(preview.request.include_packet_budget_diagnostics, undefined);
+    assert(databaseBefore.equals(fixture.db.serialize()), "Successful preview is read-only");
+    for (const [field, code] of [["expected_root_fingerprint", "successor_task_root_changed"],
+      ["expected_project_work_binding", "successor_task_project_binding_changed"]] as const) {
+      const result = await http({ action: "prepare_result_work", request: { ...preview.request, [field]: "sha256:" + "0".repeat(64) } }, 409);
+      assert.equal(result.error_code, code);
+      const optIn = await http({ action: "prepare_result_work", request: { ...request, [field]: "sha256:" + "0".repeat(64) }, include_packet_budget_diagnostics: true }, 409);
+      assert.equal(optIn.error_code, code); assert.equal(optIn.packet_budget, undefined);
+      assert(databaseBefore.equals(fixture.db.serialize()), "State refusal preserves predecessor and session");
+    }
+    await http({ action: "prepare_result_work", request: preview.request }, 401, "");
+    await http({ action: "prepare_result_work", request: preview.request }, 403, cookie, "http://untrusted.invalid");
+    assert(databaseBefore.equals(fixture.db.serialize()), "Authority refusal has no partial successor");
+    const saved = await http({ action: "prepare_result_work", request: preview.request }, 201);
+    const fresh = await http();
+    assert.equal(fresh.work_initialization.current_packet.packet_id, saved.packet_id);
+    assert.deepEqual(fresh.work_initialization.current_work, normalizeInitialProjectWorkDefinitionV01(definition));
+    assert.deepEqual(fresh.work_initialization.selected_source_context, comparison.entries);
+    assert.deepEqual(readVNextCoreRecordV01(fixture.db, { ...fixture, record_kind: "task_context_packet", record_id: initial.packet.packet_id })?.payload, initial.packet);
+    const afterSave = fixture.db.serialize();
+    const stale = await http({ action: "prepare_result_work", request: preview.request, include_packet_budget_diagnostics: true }, 409);
+    assert.equal(stale.packet_budget, undefined);
+    assert(afterSave.equals(fixture.db.serialize()), "A successful preview cannot bypass a subsequent current-state change");
+    assert.equal(countProjectPacketsV01(fixture), 2);
+    console.log(JSON.stringify({ successor_packet_admission: "passed", transport: "loopback HTTP to actual route handlers",
+      preview_and_save_refusal: refused.error_code, packet_budget: diagnostic.packet_budget, fresh_saved_definition_and_eight_sources: true, atomic_refusals: true, model_calls: 0 }));
+  } finally {
+    if (server) await closeTrackedServer(server);
+    fixture.db.close(); guard.restore(); assert.equal(guard.attempts.length, 0);
+  }
+  await assertExplicitArtifactPreservingRepair();
 }
 
 async function assertNativeSelectedSourceBudgetV01(): Promise<void> {

@@ -1,3 +1,4 @@
+import { testProjectArchive } from "./test-project-archive";
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -7,7 +8,7 @@ import { applyCanonicalDatabaseMigrations } from "./canonical-database-migration
 import { inspectRuntimeDatabase, prepareRuntimeDatabase, structuralSchemaContractSignature } from "./runtime-database-bootstrap.mjs";
 import { migrateProjectSelectionV02 } from "../lib/vnext/persistence/project-lifecycle-schema.mjs";
 import { getOrCreateDefaultWorkspaceIdentityV01, getOrCreateCanonicalProjectForLocalRootV01, normalizeLocalProjectRootRefV01 } from "../lib/vnext/persistence/project-identity-registry";
-import { readProjectSelectionStateV02, selectActiveProjectV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
+import { readProjectSelectionStateV02, selectActiveProjectV01, readProjectOrganizationV01, changeProjectOrganizationV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import { declareAndInspectLocalProjectV01, confirmLocalProjectOnboardingV01, listRegisteredProjectsV02 } from "../lib/vnext/onboarding/local-project-onboarding";
 import { GET, POST } from "../app/api/vnext/projects/route";
 import { readBlankStateSourceV01 } from "../lib/vnext/blank-state/blank-state-source";
@@ -117,6 +118,30 @@ export async function testProjectManagement() {
     await assert.rejects(listRegisteredProjectsV02(db, later.next_cursor), /project_discovery_incomplete/);
     db.prepare = prepare;
 
+    const heldPage = await listRegisteredProjectsV02(db, null);
+    const organizationSelection = observation();
+    for (const project of projects.slice(1,23)) {
+      await call({action:"archive",project_id:project.project.project_id,...observation(),expected_organization_revision:readProjectOrganizationV01(db,project.project).revision});
+    }
+    assert.deepEqual(observation(),organizationSelection,"inactive organization never rotates selection");
+    await call(undefined,`?view=registered&cursor=${heldPage.next_cursor}`,409);
+    const archivedPage=await call(undefined,"?view=registered&organization=archived");
+    assert.equal(archivedPage.projects.length,20);assert.equal(archivedPage.complete,false);
+    const archivedLast=await call(undefined,`?view=registered&organization=archived&cursor=${archivedPage.next_cursor}`);
+    assert.equal(archivedLast.projects.length,2);assert.equal(archivedLast.complete,true);
+    await call(undefined,`?view=registered&organization=working&cursor=${archivedPage.next_cursor}`,400);
+    assert.equal((await call(undefined,"?view=registered&organization=working")).projects.length,3);
+    assert.equal((await call(undefined,"?view=registered")).projects.length,20,"all-registered compatibility retains archived rows");
+    for (const project of projects.slice(1,23)) {
+      await call({action:"unarchive",project_id:project.project.project_id,...observation(),expected_organization_revision:readProjectOrganizationV01(db,project.project).revision});
+    }
+    // A change while filesystem observations are pending cannot be reported as
+    // a complete observation of the old organization list.
+    let scheduled=false;
+    db.prepare=((sql:string)=>{const statement=prepare(sql);if(!scheduled&&sql.includes("SELECT organization_state AS state")){
+      const get=statement.get.bind(statement);statement.get=(...args:unknown[])=>{const value=get(...args);if(!scheduled){scheduled=true;queueMicrotask(()=>changeProjectOrganizationV01(db,{...projects[24]!.project,...observation(),state:"archived",expected_organization_revision:readProjectOrganizationV01(db,projects[24]!.project).revision}));}return value;};
+    }return statement;}) as typeof db.prepare;
+    await assert.rejects(listRegisteredProjectsV02(db,null),/project_discovery_changed/);db.prepare=prepare;
     const expected = { count: 25, project_id: a, oldA, selection: observation() };
     const input = path.join(root, "readback.json"); writeFileSync(input, JSON.stringify(expected));
     const result = await runCanonicalChild({ resourceOwner: undefined, suite: "project-management", label: "fresh process rediscovery and stale refusal", command: process.execPath,
@@ -124,6 +149,7 @@ export async function testProjectManagement() {
     assert.equal(canonicalChildAcceptanceFailure(result, { suite: "project-management", timeoutMs: 30_000, requireNaturalExit: true }), null);
     await testLegacyMigration(db, workspace.workspace_id, a, root);
     await testProjectSelectionRecovery();
+    await testProjectArchive();
     console.log(JSON.stringify({ project_management: "pass", registered:25, pages:[20,5], stale_cycles:["A-B-A","A-none-A","none-A-none"], concurrent_winners:1, lost_first_and_later_pages:"refused", fresh_process:true, provider_calls:0 }));
   } finally { db.close(); if (previous === undefined) delete process.env.AUGNES_DB_PATH; else process.env.AUGNES_DB_PATH = previous; rmSync(root, { recursive:true, force:true }); }
 }
@@ -136,7 +162,7 @@ async function testLegacyMigration(source: Database.Database, workspace: string,
     const before = db.prepare("SELECT * FROM vnext_project_identities ORDER BY project_id").all();
     try {
       // The pinned predecessor predates request-bound review adapter state.
-      db.exec("DROP TABLE vnext_external_shares; DROP TABLE vnext_external_records; DROP TABLE vnext_external_materials; DROP TABLE vnext_external_envelopes; DROP TABLE vnext_review_callback_candidates; DROP TABLE vnext_review_callback_policies; DROP TABLE vnext_review_deliveries; DROP TABLE vnext_review_subscriptions; DROP TABLE vnext_review_requests;");
+      db.exec("DROP TRIGGER trg_vnext_project_organization_initialize; DROP TABLE vnext_project_organization; DROP TABLE vnext_external_shares; DROP TABLE vnext_external_records; DROP TABLE vnext_external_materials; DROP TABLE vnext_external_envelopes; DROP TABLE vnext_review_callback_candidates; DROP TABLE vnext_review_callback_policies; DROP TABLE vnext_review_deliveries; DROP TABLE vnext_review_subscriptions; DROP TABLE vnext_review_requests;");
       db.exec(`DROP INDEX idx_vnext_project_direction_authority; DROP TRIGGER trg_vnext_project_selection_retain; DROP TABLE vnext_active_project_selections;
 CREATE TABLE IF NOT EXISTS vnext_active_project_selections (
   workspace_id TEXT PRIMARY KEY,

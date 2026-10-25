@@ -1,47 +1,45 @@
 # Augnes
 
-*Continuous perspective for long-horizon, AI-assisted work.*
+*Long-horizon work continuity for people and AI agents.*
 
 Augnes maintains the state, temporal lineage, evidence, perspectives,
 unresolved judgments, and next meaningful actions of long-horizon work, and
 projects the same product meaning into the host-native interfaces where the
 user is already working.
 
+Its broader aim is continuous, user-owned problem solving: later work should
+be able to reuse, combine, revise or decline methods in light of checked
+outcomes and changed conditions. This is a product direction, **not** a claim
+that autonomous method learning has already shipped.
+
 The product invariant is the continuity of meaning, not the replication of one
 interface. The product is continuous work, not a collection of surfaces.
 
 **Resume / Verify / Decide.**
 
-[Why Augnes](#why-augnes) · [What works today](#what-works-today) ·
-[Try a method without setup](#try-a-method-without-setup) · [Quickstart](#quickstart) ·
+[Try a method without installing Augnes](#try-a-method-without-setup) ·
+[Why Augnes](#why-augnes) · [What works today](#what-works-today) · [Quickstart](#quickstart) ·
 [Product direction](#product-direction) ·
 [Authority](#repository-authority) ·
 [Verification](#canonical-verification)
 
 ## Try a method without setup
 
-[Is optional inspection worth the work?](publications/workflow-cost-v1/README.md)
-is a standalone workflow-cost method for agents with Python 3.9+ and permission
-to execute locally. Read its inputs and limits, download the manifest and all
-four listed files, verify their identities, and run in your own harness. No Augnes
-installation, project, Companion, account or private-work upload is needed.
-Reading and leaving with the result is a supported use.
+**Without installing Augnes does not mean zero prerequisites.** This small,
+optional workflow-cost calculator estimates **expected total work** for repeated
+attempts from supplied success probabilities and attempt, mandatory verification,
+repair and optional inspection costs. You still need to download and verify the
+files and have Python 3.9+ with permission to run them, or separately install
+the Codex Skill on a supported host. The calculator does **not** learn rates,
+guarantee deadlines or replace Augnes's local work-continuity runtime.
 
-The same directory contains a [no-JavaScript HTML entry](publications/workflow-cost-v1/index.html)
-and every required file for ordinary static hosting. Anonymous GitHub delivery
-and project-free calculation were [accepted under #1422/#1423](https://github.com/hynk-studio/augnes/issues/1209#issuecomment-6059444075);
-the pinned release's earlier development-only paragraph retains its original
-evidence scope. New publication destinations remain separate operations. See the
-[source and publication instructions](scripts/executable-reuse/README.md#public-static-delivery)
-for reproducibility and the bounded consumer check.
+**Public component preview:** [Augnes workflow-cost Skill/plugin 0.1.0](https://github.com/hynk-studio/augnes/releases/tag/augnes-workflow-cost-v0.1.0) is now available as a **Pre-release**. [Download the complete ZIP](https://github.com/hynk-studio/augnes/releases/download/augnes-workflow-cost-v0.1.0/augnes-workflow-cost-0.1.0.zip) · [Verify and load the Skill](docs/PUBLIC_ASSET_SKILL_USAGE.md). This is not a general Augnes application release, a universal plugin-directory listing or a stable cross-host compatibility claim.
 
-Code-capable Codex users can also use the
-[stationary retry-work Skill package](docs/PUBLIC_ASSET_SKILL_USAGE.md).
-It adds a task-described catalog entry, the complete unchanged public material,
-an integrity check and ordinary output references for later tasks. This is a
-source/local-catalog candidate, not a stable release or public-directory listing.
-Host installation is a separate user/admin action; ordinary web/file use above
-requires no plugin. It does not connect the private Augnes Operator or Companion.
+It packages the unchanged **workflow-cost method 1.0.0** and a local Codex catalog. The ZIP is **38,254 bytes**, SHA-256 `082789624f70a1feaca11c4e4fa852f8d6a505caf45d3e2e572df5f40fa8c59d`. Check the archive and enclosed material before execution. The isolated loading observation covers **macOS 26.6.2 arm64 / Codex CLI 0.153.4** only. Installing a Skill requires an explicit user/admin choice of profile; it does not install the private Augnes Operator or Companion.
+
+**No plugin required:** [Is optional inspection worth the work?](publications/workflow-cost-v1/README.md) is also a standalone Python 3.9+ method for agents permitted to execute code. Download its manifest and all four listed files, verify their identities, and run in your own harness. A [no-JavaScript HTML entry](publications/workflow-cost-v1/index.html) is available as static source material; that does not establish a separately hosted service. For simple tasks, direct calculation or non-use may be appropriate.
+
+**Using Augnes itself:** The local-first project/work continuity runtime, installed Companion, and repository Operator are separate from this public calculator component. See the [supported local Quickstart](#quickstart) and its platform and authority limits.
 
 ## Why Augnes
 
@@ -93,6 +91,32 @@ controlled two-project example. The supported path is explicit and local. Its
 source/mechanism tests do not establish model use, installed adoption or economic
 benefit; #1433 Events and #1447 public distribution remain separate.
 
+## Preview an operating profile
+
+From a source checkout with the repository's supported Node runtime, supply a
+local `OperatingProfile.v0.1` JSON file to the read-only preview:
+
+```text
+node scripts/operating-profile.mjs examples/operating-profiles/defensive-observe-recommend.json
+node scripts/operating-profile.mjs examples/operating-profiles/defensive-observe-recommend.json --format json
+node scripts/operating-profile.mjs examples/operating-profiles/direct-work.json
+```
+
+The text entry opens with the purpose, next observations, supplied/missing input,
+executor/principal and permission gaps, return/check/use responsibilities and
+arrangement alternatives. Both formats preserve the complete same input and
+review. Copy either example to author a profile; identifiers only connect items
+inside that document. The direct-work example uses one executor without a team.
+
+All observations, bindings and explanations are authored declarations. The entry
+does not inspect source locators, determine current applicability, grant access,
+save application state or start work. The defensive example is synthetic
+Observe/Recommend; Defend and Incident Command are unavailable. Do not supply
+secrets. Use one UTF-8 regular file of at most 64 KiB; symlinks are refused and
+`O_NOFOLLOW` support is required. Linux/macOS is the source target; Windows and
+installed-host adoption are not claimed by this entry. The provisional contract
+and limits are in [02](docs/vnext/02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#read-only-operating-profile-input-and-preview-1518).
+
 ## The continuity loop
 
 > Resume current work → act in ChatGPT, Codex, or another native host within
@@ -140,18 +164,35 @@ against an independently selected numeric basis, use the documented
 [fixed workflow-cost operator handler](docs/WORKFLOW_COST_FIXED_VERIFICATION_V1.md).
 It persists source-bound results without Codex, model or provider execution.
 
-In local project settings, **Find saved projects** includes registered projects
-missing from recents and projects created by an authorized agent. **Load more
-saved projects** continues the list; refresh includes newly registered projects.
+In local project settings, **Find saved projects** shows **Working projects**,
+including projects missing from recents and projects created by an authorized
+agent. **Load more saved projects** continues the list; refresh includes later changes.
 Opening uses the same project identity and saved name. **Remove from recents**
 removes a shortcut and preserves project data and files; find it again here.
 Unavailable folders use the existing **Locate folder** review and recovery flow.
 This is local organization, separate from Web Planning's explicit erasure.
 
+Use **Archive project** and confirm the named project to set it aside. It leaves
+the working list and recents; if it was current, the displayed selection clears.
+Another current project stays selected. **Archived projects** finds it again,
+including when its folder is missing. **Unarchive project** returns it to the
+working list; then use **Make current and open** or the existing **Locate folder**
+flow to return to the same saved work. Reading an old project link does not
+unarchive it. An unconfirmed action reads saved state; refresh management before
+another action instead of repeating the old request.
+
+Archive retains identity, root binding, files, work, history and unfinished
+obligations. It does not pause direction, stop workers, revoke access, complete
+work or free history capacity. Classification survives restart and supported
+native backup/restore; backups still do not copy project files. Portable v0.1
+does not transfer this local organization choice: a fresh import starts working,
+and exact replay preserves the destination's existing choice. Existing export
+eligibility is unchanged.
+
 Authenticated local project-direction clients can read
 `GET /api/vnext/agent/project-direction` without a project ID to rediscover only
 projects readable under that capability. The complete bounded response includes
-current direction, permission, sequence and remaining mutation budget. Reading
+current direction, local organization, permission, sequence and remaining mutation budget. Reading
 does not change browser focus or recents, consume a mutation, renew credentials,
 or grant execution. Continue through the existing permitted operations; expiry
 or revocation requires separately authorized fresh authentication.
@@ -348,6 +389,11 @@ the [explicit late-review path](docs/EXECUTION_CHOICE_USAGE.md#explicit-late-rev
 retains the original answer and basis. Inspect it against fresh current work,
 record selective use or non-use, then preview and explicitly save current edits.
 Receipt alone never applies historical material; default reply/use stays current-only.
+
+A configured contributor can [inspect its exact review's status](docs/EXECUTION_CHOICE_USAGE.md#contributor-status-after-the-origin-advances-1506)
+with `augnes_get_review_status`, including after the origin advances. The saved
+response and authored current-use reasoning match its existing reviewer list;
+inspection grants no material-read witness, origin revision or execution authority.
 
 `OPENAI_API_KEY` is optional. Supported paths retain deterministic local
 fallbacks without it. A locally installed and authenticated Codex CLI with App

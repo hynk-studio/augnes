@@ -6,6 +6,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 import { collectMarkdownAnchors, extractMarkdownDestinations, planCanonicalChange } from "./canonical-change-planner.mjs";
+import { createCanonicalRevisionReader } from "./canonical-revision-reader.mjs";
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -107,13 +108,15 @@ function validateCanonicalMarkdownChange({
   let relativeLinksChecked = 0;
   let localAnchorsChecked = 0;
   let incomingReferencesChecked = 0;
-  const files = listRevisionMarkdown(cwd, headSha);
-  const cache = new Map();
-  const read = (revision, file) => {
-    const key = `${revision}:${file}`;
-    if (!cache.has(key)) cache.set(key, readRevisionFile(cwd, revision, file));
-    return cache.get(key);
-  };
+  // A fresh scope after independent planner admission; no planner cache or
+  // trust crosses this public operation boundary.
+  const reader = createCanonicalRevisionReader(cwd);
+  const files = listRevisionMarkdown(reader, headSha);
+  reader.prefetch([
+    ...files.map(file => ({ revision: headSha, file })),
+    ...markdownPaths.map(file => ({ revision: baseSha, file })),
+  ]);
+  const read = reader.read;
   for (const markdownPath of files) {
     const changed = markdownPaths.includes(markdownPath);
     const markdown = read(headSha, markdownPath);
@@ -138,7 +141,7 @@ function validateCanonicalMarkdownChange({
       if (!reference || (!changed && !affected.has(reference.targetPath))) continue;
       if (!changed) incomingReferencesChecked += 1;
       try {
-        const checked = validateDestination({ cwd, headSha, markdownPath, destination, read });
+        const checked = validateDestination({ reader, headSha, markdownPath, destination, read });
         relativeLinksChecked += checked.relativeLink ? 1 : 0;
         localAnchorsChecked += checked.localAnchor ? 1 : 0;
         if (reference.revision) historical.push({ source: markdownPath, destination, status: "checked_at_pinned_commit" });
@@ -152,7 +155,7 @@ function validateCanonicalMarkdownChange({
         let existingFailure = false;
         try {
           if (extractMarkdownDestinations(read(baseSha, markdownPath)).includes(destination)) {
-            try { validateDestination({ cwd, headSha: baseSha, markdownPath, destination, read }); }
+            try { validateDestination({ reader, headSha: baseSha, markdownPath, destination, read }); }
             catch (previousError) {
               if (previousError.code !== "broken_documentation_reference") throw previousError;
               existingFailure = true;
@@ -217,12 +220,12 @@ function resolveDestination(markdownPath, destination) {
   return { targetPath, decodedPath, decodedAnchor, revision };
 }
 
-function validateDestination({ cwd, headSha, markdownPath, destination, read = (revision, file) => readRevisionFile(cwd, revision, file) }) {
+function validateDestination({ reader, headSha, markdownPath, destination, read }) {
   const reference = resolveDestination(markdownPath, destination);
   if (!reference) return { relativeLink: false, localAnchor: false };
   const { targetPath, decodedPath, decodedAnchor } = reference;
   const revision = reference.revision ?? headSha;
-  if (decodedPath) assertRevisionPathExists(cwd, revision, targetPath, markdownPath, destination);
+  if (decodedPath) assertRevisionPathExists(reader, revision, targetPath, markdownPath, destination);
   if (decodedAnchor && targetPath.endsWith(".md")) {
     if (!collectMarkdownAnchors(read(revision, targetPath)).has(decodedAnchor.toLowerCase())) {
       throw brokenReference(`unresolved local Markdown anchor in ${markdownPath}: ${destination}`);
@@ -235,13 +238,10 @@ function revisionAvailable(cwd, revision) {
   return spawnSync("git", ["cat-file", "-e", `${revision}^{commit}`], { cwd, stdio: "ignore", timeout: 30_000 }).status === 0;
 }
 
-function listRevisionMarkdown(cwd, revision) {
-  return runGit(cwd, ["ls-tree", "-r", "-z", revision]).stdout.split("\0").filter(Boolean).flatMap((entry) => {
-    const separator = entry.indexOf("\t");
-    const metadata = entry.slice(0, separator);
-    const file = entry.slice(separator + 1);
-    return /^100(?:644|755) blob /u.test(metadata) && file?.endsWith(".md") ? [file] : [];
-  });
+function listRevisionMarkdown(reader, revision) {
+  return [...reader.tree(revision)].filter(([file, entry]) =>
+    ["100644", "100755"].includes(entry.mode) && entry.type === "blob" && file.endsWith(".md"))
+    .map(([file]) => file);
 }
 
 // These are existing executable interfaces and required delegations, not prose
@@ -289,15 +289,14 @@ function normalizeTargetPath(markdownPath, destinationPath) {
 }
 
 function assertRevisionPathExists(
-  cwd,
+  reader,
   revision,
   targetPath,
   markdownPath,
   destination,
 ) {
   if (targetPath === ".") return;
-  const result = runGit(cwd, ["ls-tree", "-z", revision, "--", targetPath]);
-  const found = result.stdout.split("\0").some((entry) => entry.slice(entry.indexOf("\t") + 1) === targetPath);
+  const found = reader.tree(revision).has(targetPath);
   if (!found) throw brokenReference(`unresolved relative Markdown link in ${markdownPath}: ${destination}`);
 
 }
@@ -306,10 +305,6 @@ function brokenReference(message) {
   const error = new Error(message);
   error.code = "broken_documentation_reference";
   return error;
-}
-
-function readRevisionFile(cwd, revision, relativePath) {
-  return runGit(cwd, ["show", `${revision}:${relativePath}`]).stdout;
 }
 
 function runGit(cwd, args) {

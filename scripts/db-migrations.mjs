@@ -1,4 +1,4 @@
-import { migrateProjectSelectionV02, projectSelectionSchemaSqlV02 } from "../lib/vnext/persistence/project-lifecycle-schema.mjs";
+import { migrateProjectSelectionV02, projectSelectionSchemaSqlV02, migrateProjectOrganizationV01, projectOrganizationSchemaSqlV01 } from "../lib/vnext/persistence/project-lifecycle-schema.mjs";
 import proposalScoringSchema from "../lib/db/proposal-scoring-schema.json" with { type: "json" };
 
 export const proposalScoringColumns = proposalScoringSchema.columns;
@@ -4966,17 +4966,19 @@ export const vNextProjectLifecycleSchemaSqlV01 = `
   CREATE INDEX IF NOT EXISTS idx_vnext_recent_projects_workspace_opened
     ON vnext_recent_projects(workspace_id, last_opened_at DESC, project_id);
   ${projectSelectionSchemaSqlV02}
+  ${projectOrganizationSchemaSqlV01}
 `;
 
 export function migrateVNextProjectLifecycleV01(db) {
-  const names = ["vnext_recent_projects", "vnext_active_project_selections", "idx_vnext_recent_projects_workspace_opened"];
-  const before = new Set(db.prepare(`SELECT type || ':' || name AS key FROM sqlite_master WHERE name IN (?, ?, ?)`)
+  const names = ["vnext_recent_projects", "vnext_active_project_selections", "vnext_project_organization", "idx_vnext_recent_projects_workspace_opened"];
+  const before = new Set(db.prepare(`SELECT type || ':' || name AS key FROM sqlite_master WHERE name IN (?, ?, ?, ?)`)
     .all(...names).map((row) => row.key));
   migrateProjectSelectionV02(db);
+  migrateProjectOrganizationV01(db);
   db.exec(vNextProjectLifecycleSchemaSqlV01);
   return {
-    created_tables: names.slice(0, 2).filter((name) => !before.has(`table:${name}`)),
-    created_indexes: names.slice(2).filter((name) => !before.has(`index:${name}`)),
+    created_tables: names.slice(0, 3).filter((name) => !before.has(`table:${name}`)),
+    created_indexes: names.slice(3).filter((name) => !before.has(`index:${name}`)),
   };
 }
 

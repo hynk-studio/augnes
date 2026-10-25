@@ -219,8 +219,8 @@ actual context delivery and saved output, intervention and unknown burden.
 
 This bounded flow supports a primary containing saved scenes and one direct
 alternate in the same owner/project. Ordinary work and file-free planning branches
-retain their existing behavior. Other file-bearing branches, nested story forks,
-shared worlds and automatic semantic merging remain unavailable.
+retain their existing behavior; ordinary files use the separate whole-file selection
+path below. Nested story forks, shared worlds and automatic semantic merging remain unavailable.
 
 1. Open the saved primary, inspect its original sources and reviewed scene, then
    choose **Continue another direction**. Give a reason, **Review starting material**,
@@ -414,16 +414,76 @@ payload in this tab, with explicit outcome read or identical retry. Closing the
 tab can lose unsaved bytes; access loss clears them. There is no browser backup.
 
 Keep necessary qualifications, dependencies and source attribution in selected
-context. This slice does not infer file-to-note dependencies. Branch creation or
-generic note incorporation with files selected on either participating work refuses
-with `file_branch_selection_unsupported`. The explicit C scene-direction flow above
-is the bounded exception: it copies selected original bytes and attributed scene
-context, then transfers only explicitly reviewed fictional proposals. Comparison
-itself remains read-only. No required files are silently dropped. For a genuinely independent task,
-explicitly download and select its needed bytes with their attribution and
-conditions; this is a separately owned copy, not a provenance-certified branch.
-Do not remove required files merely to enable branching. File-free behavior
-continues unchanged, including independent copies after source erasure.
+context. File handling does not infer file-to-note dependencies. Ordinary files
+now support the direct branch and selective incorporation path below. The C
+scene-direction flow continues to own reserved notebook inheritance and fictional
+adoption; generic file choices cannot bypass it. File-free behavior is unchanged.
+
+### Ordinary file branches and deliberate replacement (#1517)
+
+1. Save an ordinary work with its selected notes and files. No note is required
+   merely to carry a file. Choose **Continue another direction**, give the reason,
+   **Review starting material**, and **Save reviewed change**. The independent
+   alternate owns exact copies of the current selection, with the original work,
+   revision, fingerprint and full file identities. It does not copy the original's
+   full history, access credentials or execution authority. This path supports a
+   direct alternate, not nested file branches.
+2. Edit the alternative with the normal file picker or **Text file → Open text**,
+   and Save. Return to the original and **Compare a private branch**. Target notes
+   and files are kept by default. Explicitly retain or deselect each, and choose
+   the branch notes and whole files to use. Partial use and non-use are valid.
+3. For a same-name file with different content or role, deliberately uncheck the
+   target version and select the branch version. Keeping both conflicting versions
+   refuses the preview with a correction message. Equal bytes under different names
+   or roles remain distinct selections; storage deduplicates only their bodies.
+4. **Review selective incorporation** shows the complete result, file identities,
+   copy attribution, additions and deselections before one **Save reviewed change**.
+   Earlier bytes and revisions stay in each owning work. Whole-file transfer does
+   not merge file meaning or infer dependencies on notes. Represented required-note
+   context and existing disposition qualifications still apply.
+5. Changed choices invalidate the preview. Either saved head changing or being
+   erased refuses the actual Save. A correctable refusal retains the choices for
+   explicit correction and a fresh preview. For an unknown response, **Check change
+   outcome** resolves the original exact request; **Retry same change** preserves
+   its identity. Access loss continues to clear private tab state.
+6. Reopen **Saved context** and download the exact files. **Complete work** and
+   **Readable history** retain all this work's revisions and bytes. Reconstruct the
+   complete JSON through the existing file picker in an explicitly configured,
+   empty disposable replacement store. Original and alternate are independently
+   complete exports. A missing origin is labelled unavailable, never reconstructed
+   as a hidden snapshot or treated as permission to read another work.
+
+Ordinary file-copy attribution uses `web_planning_revision.v0.4` and
+`web_planning_export.v0.4`, compatibility `web-planning/4`. The closed `relations`
+adds ordered `file_materials` (full descriptor, authored/inherited/incorporated,
+and exact source revision or null for authored material). A comparison review
+adds `file_selection` with the exact retained target and selected source entries.
+These fields participate in the existing relation-byte budget and request/revision
+fingerprints. Normal edits retain attribution for unchanged identities and mark
+new identities authored. Once introduced, this envelope cannot downgrade, even
+when the current file selection becomes empty.
+
+There is **no schema migration**: existing schema-3 revision envelopes and scoped
+file BLOBs are sufficient. Legacy v0.1/v0.2/v0.3 rows, exports and fingerprints
+remain unchanged. Old binaries explicitly refuse v0.4 work and recovery; code
+rollback does not make newer work readable by an older writer. Preserve complete
+exports and use a compatible reader/writer to roll forward. No marker reset,
+production migration, deployment or installed adoption is part of this change.
+
+The existing authenticated, signed-preview and atomic append owners bind both
+reviewed heads through Save. Actual source and retained-target bytes are verified
+before file-copy admission. Invalid choices, unavailable/corrupt bytes and any
+existing file/history/request budget refuse without partial revisions or orphaned
+bodies. Already saved copies survive origin erasure; erasing an owning work removes
+all of its own revisions and bodies. Branching never compacts the original history.
+
+The registered Web focused and Browser owners exercise the pinned-main intentional
+refusal, normal zero-note/file and note/file flows, explicit same-name replacement,
+full identity and budget controls, post-read head/erasure races, exact request
+resolution, legacy code upgrade/refusal/roll-forward, actual downloads and independent
+empty-store recovery. These are synthetic local correctness checks, not hosted
+authentication, independent consumer use, semantic understanding or comparative
+usefulness evidence.
 
 | Quantity | Limit and accounting |
 | --- | --- |
@@ -432,7 +492,7 @@ continues unchanged, including independent copies after source erasure.
 | Work history | 16 distinct content digests; sum of their sizes ≤ 1,048,576 bytes, shared only within this work |
 | Name / role | 160 UTF-8 name bytes; Unicode preserved, no path separators, controls, bidi overrides or malformed Unicode; report/source/results/other |
 | Ordinary JSON request | Existing 1,500,000-byte streaming cap, including base64 uploads; old routes are not enlarged |
-| File-export reconstruction | Only `POST /api/reconstruct-files`: 3,000,000-byte streaming cap for v0.3 work exports or the bounded C pair |
+| File-export reconstruction | Only `POST /api/reconstruct-files`: 3,000,000-byte streaming cap for v0.3/v0.4 work exports or the bounded C pair |
 | Planning material | Existing note, definition, relation and list-page limits remain; complete-history operation budgets are specified above |
 
 The 69,216-byte representative bundle motivates small bounded outputs: the
@@ -534,21 +594,27 @@ relations and bodies. It retains the exhausted budget and imported-attestation
 status. It does not restore a referenced work absent from that export, external
 files not retained by this work, access credentials or execution authority.
 
-For file-free work, explicit **Branch** can create a separately owned work from
-the current definition and selected sources, with an exact origin reference. It
-does not copy the original work's full history; retain the original and its export.
-Generic branching with selected files remains `file_branch_selection_unsupported`;
-the explicit C scene-direction contract above is the bounded exception. For an
-independent question, explicitly select the needed original file bytes,
-attribution and unresolved conditions in a new work. Do not drop required files
-to enable branching or call an independent copy transparent continuation. When
-the next operation requires the exhausted history/body budget, retain the material:
-there is currently no preserving capacity-release path for that same work.
+For ordinary work, explicit **Continue another direction** can create a separately
+owned direct alternate from the current definition and selected notes/files, with
+exact attribution. It does not copy or compact the original work's full history;
+retain the original and its export. The scene-direction contract separately owns
+creative inheritance and adoption. Do not drop required material merely to fit.
+When an operation requires an exhausted history/body budget, retain the material:
+there is no preserving capacity-release path for that same owning work.
 
 These are current support boundaries, not a new runtime contract. Native project
 and direction history use [different owners and recovery limits](../../docs/DATABASE_ACCESS_LIFECYCLE.md#accumulated-native-history-refusal-and-preservation-1439).
 
 ## Draft capacity and deliberate revision
+
+**Success criteria** requires 1–12 distinct, nonblank entries; **Non-goals** is
+optional (0–12). Both fields explain the 500-codepoint per-entry limit and the
+existing trim, blank-line removal, deduplication and sorting on Save. Empty
+criteria retain native browser validation. A server-refused criteria definition
+also shows an associated field error and focuses that field after a deliberate
+Save; raw draft input and selected context remain intact. Editing criteria or
+loading another work clears the prior field error. Background capacity checks
+do not move focus. Correction still saves through the existing server authority.
 
 [#1369](https://github.com/hynk-studio/augnes/issues/1369) adds a read-only
 **Draft capacity** check to the ordinary editor. Edits invalidate old feedback
@@ -1061,7 +1127,7 @@ no Site, D1, R2, version, configuration, secret or audience.
 
 ## Data and access contract
 
-`src/contract.ts` and `src/files.ts` own the v0.1/v0.2/v0.3 Web host envelopes;
+`src/contract.ts` and `src/files.ts` own the v0.1/v0.2/v0.3/v0.4 Web host envelopes;
 it does not add a Core record type. The extracted definition normalizer remains
 re-exported by its old native module. Selected entries and canonical fingerprints
 reuse existing code; frozen vectors from merged `d7c8c326` and the local Worker
@@ -1125,7 +1191,8 @@ recovery operation, never automatic synchronization or a second live writer.
 
 ## Private branches and selective incorporation
 
-For file-free selections (see #1372's explicit file-bearing refusal above), the normal work-detail flow is **Continue another direction → Review starting
+For file-free selections and ordinary files (see the whole-file selection contract
+above), the normal work-detail flow is **Continue another direction → Review starting
 material → Save reviewed change**. The server resolves the complete saved
 source definition and selection at the displayed exact revision. The first
 branch deliberately inherits all of them, its last bounded planning judgment
@@ -1140,21 +1207,38 @@ comparison does not classify all differences as branch contributions or infer
 semantic novelty. Parentless reconstructed branches remain readable; comparison
 back to an unavailable parent is refused rather than inventing a baseline.
 
-Choose `incorporated`, `not_selected`, `deferred`, or `declined` per whole unit.
-Deferred/declined choices require a rationale. The reviewed target keeps its
-own definition and unrelated selected material. Explicit dependency links are
+Review **Current notes in this work** alongside the proposed branch material.
+Every current target note starts checked. Deliberately uncheck an obsolete
+current instruction, or keep both old and new notes. Then choose `incorporated`,
+`not_selected`, `deferred`, or `declined` for each whole branch unit.
+Deferred/declined choices require a rationale. An incorporated item with no
+optional rationale says only that none was supplied; non-selection still does
+not mean rejection or refutation. Authored rationales are displayed unchanged
+and escaped. The reviewed target keeps its own definition. Earlier source
+bodies, revisions and attribution remain in history when a note is deselected.
+Review the complete proposed selection, then **Save reviewed change** once.
+**Saved context** reads that confirmed selection freshly from the server.
+
+A note may appear in both works. Deselecting it in the target while choosing
+`incorporated` in the branch visibly refuses with `target_selection_conflict`;
+keep it in the target or change its branch disposition before previewing again.
+No displayed deselection is silently reversed. Explicit dependency links are
 entered with **Required context** in the note editor. Linked conditions must
 already be selected in the target or travel with the selected material; an
 incomplete or over-budget selection refuses in full. The validator cannot
 discover every unstated natural-language dependency. New or edited notes have
 their own attribution; editing an existing note in the UI produces a linked
 `derived_interpretation`, not unchanged inherited evidence.
+Historical adaptation/provenance links do not themselves require their original
+note to remain currently selected. Explicit **Required context** links do: both
+retained target notes and selected additions are checked against the complete
+proposed selection. Missing required context refuses without a partial save.
 
 `src/relations.ts` resolves originals, normalizes choices and builds the bounded
 host metadata; `handler.ts` retains the existing authorization/CSRF gates;
 `store.ts` persists through the same conditional revision INSERT. The signed
 preview binds the source, target, normalized material, dispositions/rationale,
-request identity and 24-hour expiry. A single SQL statement checks both heads
+explicit target choices, request identity and 24-hour expiry. A single SQL statement checks both heads
 and erasure guards at admission; there are no separately committed relation or
 provenance rows. Two competing target writes cannot both advance the same head.
 Exact replay acknowledges the original result; altered requests refuse. An
@@ -1165,12 +1249,29 @@ versions and compare again**, retaining prior choices for review, followed by a
 new preview. No automatic retry, rebase or latest-version substitution occurs.
 
 If that refresh fails, the tab retains each whole-unit disposition and rationale,
-the overall rationale and unresolved question, the earlier source/target
-bindings, and the unsaved-work warning. Currentness remains unconfirmed and the
+each current target note's retain/deselect choice, the overall rationale and
+unresolved question, the earlier source/target bindings, and the unsaved-work
+warning. Currentness remains unconfirmed and the
 old preview is invalidated. A complete explicit comparison must succeed before
 a fresh preview: only exact source bindings retain their choices; removed or
 changed units are shown for review. HTTP 401/403 instead clears private content
 and draft state. These drafts are held only in the current tab's memory.
+New target notes encountered during refresh start retained; a choice is carried
+forward only for its exact source reference. Target-choice edits invalidate the
+preview and its request snapshot. An unknown save locks those controls and
+reconciles the exact original request, including its target selection.
+
+The file-free incorporation intent accepts optional `target_selection`, an array
+of up to eight unique source references from the exact reviewed target. Omission
+retains every target note and preserves legacy intent/seal behavior. Malformed,
+duplicate or foreign references refuse with `invalid_target_selection`.
+The server validates choices on preview and save, within the existing exact
+source/target binding. The saved `sources`/material selection and comparison's
+target revision record the result through unchanged v0.2/v0.3 envelopes,
+fingerprint algorithms and export/reconstruction consumers. No new schema,
+store or automatic semantic supersession is introduced. Older servers reject
+the new request field; refresh the client with its compatible server rather
+than silently falling back to an intent that could retain deselected material.
 
 The normal UI's ordinary save ticket also binds normalized material, refusing
 an altered retry even when nothing was written. An unchanged v0.2 save using

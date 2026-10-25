@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -214,6 +215,7 @@ let serverProcessRecord = null;
 let serverClosePromise = null;
 let serverPublicDiagnosticCapture = null;
 let chromeProcess = null;
+let browserUse = null;
 let chromeProcessRecord = null;
 let cdp = null;
 let importedProposalWaitDiagnostic = null;
@@ -3437,6 +3439,7 @@ function startDevServer(environment) {
 }
 
 function startChrome(executable) {
+  browserUse = beginBrowserUse(executable, { consumer: "continuity" });
   chromeProcess = spawn(
     executable,
     [
@@ -3575,8 +3578,11 @@ async function openCdpPage() {
   assert.equal(response.ok, true);
   const target = await response.json();
   assert(target.webSocketDebuggerUrl);
+  const versionResponse = await (await fetch(`http://127.0.0.1:${debugPort}/json/version`)).json();
+  browserUse.version(versionResponse.Browser);
   const client = new CdpClient(target.webSocketDebuggerUrl);
   await client.open();
+  browserUse.version((await client.send("Browser.getVersion")).product, "cdp");
   return client;
 }
 
@@ -4426,6 +4432,7 @@ async function cleanup() {
   await terminateProcess(serverProcess, 15_000);
   chromeProcess = null;
   chromeProcessRecord = null;
+  browserUse?.finish();
   serverProcess = null;
   serverProcessRecord = null;
   serverClosePromise = null;

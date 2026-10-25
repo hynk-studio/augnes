@@ -68,6 +68,74 @@ to revise or decline methods too. Appropriate non-use and negative results remai
 valid. Comparative success, organic demand and all-host support are not admission
 conditions for already approved capability or public-entry development.
 
+## Economic activity and participation evidence
+
+Apply these criteria to the claims made by the
+[economic undertaking application](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#economic-undertaking-application--2026-10-25),
+not as a new universal gate for projects or already approved cooperation work.
+Keep the supported mechanism, actual use, economic outcome, comparative benefit
+and degree of autonomy separate. A prepared opportunity, simulator balance,
+accepted PR or saved receipt does not by itself establish paying demand.
+
+| Claim | Required discriminating evidence |
+|---|---|
+| One useful economic activity | Traceable need/beneficiary, actual delivered material and independent acceptance or use, costs and unresolved obligations. A revenue claim additionally needs actual payment evidence; unpaid useful work retains its narrower meaning. |
+| Experience improves later work | A genuinely separate task with current inputs, actual conditional reuse/revision/non-use, checked result and a strong matched adaptive alternative. Preserve the old information cutoff and judgment. |
+| Participation expands capability | A useful result newly attainable, improved or less burdensome because of the contribution, after discovery/checking/integration costs; participant count alone is insufficient. |
+| Economic terms attract participants | Distinguish discovery from invitation, proposal from useful return, and first contribution from repeat participation. Record exposure, proposed/actual terms, acquisition cost and who initiated execution. Directly assigned workers do not establish independent entry. |
+| Sustained operation | Later work remains possible while delivery, correction, support and payment obligations from earlier work remain visible and appropriately discharged or carried forward. A session ending does not close unknown effects. |
+
+Define the evaluation boundary, horizon and attribution before computing economic
+results. Report received cash and actual spending separately from incurred costs,
+committed resources, unpaid amounts and unresolved effects. Include execution,
+infrastructure, external services, failed attempts, verification, repair,
+coordination, acquisition and human intervention. Record human time; if assigning
+a monetary rate, disclose it and retain the unpriced time and relevant sensitivity.
+Unknown costs are not zero. Avoid counting the same cost in multiple categories.
+Eliminate internal transfers within the chosen common-owner evaluation boundary;
+funding injections, self-trading, internal points and estimated asset prices are
+not external revenue. State whether displayed amounts are real or simulated.
+
+Maintain a separate account of demonstrated reusable capability: a method,
+artifact, conditional counterpart experience or cooperation arrangement must be
+used in later work with a checked effect before being credited as improvement.
+Do not add a speculative capability valuation to observed cash profit. Research
+and public goods can have sponsor-defined non-cash success criteria without
+being misreported as sales. Reinvestment proposals consider resources already
+committed to outstanding obligations and do not create spending authority.
+
+For comparative usefulness, provide strong alternatives with the same model,
+initial information, tools, service/participant access and resource boundaries,
+including adaptive memory/notes/code and ordinary cost tracking. Permit them to
+change methods, select participants, work directly or decline a task. Attribute
+extra context, compute, supervision and preparation instead of silently giving
+only the Augnes condition those advantages. Distinguish experience effects from
+participant-selection or larger-budget effects. Freeze the claim, case split,
+measurement horizon and allocation before fixed evaluation; development remains
+separate under the existing method-improvement policy.
+
+Use a changed requirement, counterparty condition or executor where needed to
+test the retained claim. Check that original observations survive, current
+applicability is reconsidered and responsibility for later work is explicit.
+Required unresolved-effect lineage and reconciliation must survive even when
+optional task material is not reused. Check that an actual fresh consumer can
+continue from saved state. Where market selection
+is claimed, vary proposal arrival/presentation while retaining comparable terms,
+or inspect whether additional exploration improves outcomes after its cost.
+Competence evidence stays conditional on task, environment, method/version,
+checks, information cutoff and uncertainty; a global score or selected successes
+do not establish general reliability.
+
+A first A-to-B case establishes at most its bounded observed path. Broader
+economic advantage and network effects need appropriate repeated cases and
+uncertainty reporting. Simulation can isolate mechanisms; independent real
+demand and use address a different question. Readiness failure, model/method
+failure, insufficient observation and observed lack of benefit retain distinct
+dispositions. Return RETAIN, CHANGE, SIMPLIFY or STOP with the behavior and total
+burden supporting it. Preserve #1464's scoped no-advantage/SIMPLIFY findings and
+the separate #1537 allocation; neither is a transferable economic result or a
+reason to require additional structure without observed need.
+
 ## Story & Worldbuilding Increment A acceptance (#1455)
 
 Exercise creative and ordinary entry through the same supported surface. Save
@@ -257,6 +325,22 @@ storage, explanation or technical revision rebinding alone does not establish
 semantic appropriateness. Attribute any manually supplied interpretation or
 reconstructed handoff. Reuse existing evidence where it answers the question.
 
+For the project memory guide, follow the ordinary host/model instruction entry
+through actual source reading and use in a real follow-up. Attribute case-specific
+source/answer hints, curation and reminders; distinguish storage/reference fidelity,
+non-model reader reconstruction and actual model selection/use. Within the assigned
+task and resource scope, inspect whether relevant corrections revise the affected
+judgment while irrelevant additions leave supported judgments intact, using extra
+changes only when needed to resolve that question. Check exact supporting revisions,
+guide freshness, historical versus current meaning, before-use conditions and the
+remaining question or recheck trigger. Unknown or unavailable support stays explicit.
+
+Include guide construction and maintenance, model context/call cost and user
+intervention in total burden. Existing behavior may satisfy the outcome with
+clarified guidance or no implementation change; use the observation to retain,
+revise or stop the increment. The guide's presence or a retrieval hit alone does
+not establish appropriate recall, and this criterion allocates no separate study.
+
 Keep functional correctness, semantic appropriateness, experience contribution
 and comparative usefulness separate. If claiming that prior experience causes
 better later work (L2), hold current inputs comparable and distinguish relevant
@@ -266,6 +350,72 @@ usefulness against an equally informed capable adaptive memo/code alternative
 under the [strong-comparison rules](#strong-comparisons-and-independence).
 Appropriate retention/non-use can succeed. Neither comparison is a mandatory
 campaign or new gate for every L1 implementation PR.
+
+### Question-specific model evidence
+
+For the [selective application direction](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#selective-model-application-across-local-and-web-work),
+evaluate the question or decision improved, not the presence of a world-model
+label. Distinguish deterministic correctness, uncertainty about the current case,
+and variation across future cases. Qualitative hypotheses, constraints and
+conditional scenarios are valid starting points when numerical inputs are not
+supported. A complete long-term model is not an entry condition for improving
+one test's diagnostic value or a later method choice.
+
+When probabilities are justified, a minimal explanatory update is
+`P(H | D, o, q, c) ∝ P(o | H, D, q, c) P(H | D, q, c)`:
+`H` is the hypothesis or model, `D` the evidence already available, `q` the chosen
+observation/action, `c` the applicable conditions and `o` the new observation.
+State how priors and likelihoods were obtained and test material sensitivity;
+an unsupported number is not improved evidence. Normalize competing hypotheses
+as alternatives only when the represented cases are mutually exclusive and
+exhaustive; overlapping causes require joint combinations or separate claims.
+Conditioning on earlier evidence matters: copied reports or the same observation
+passed through several models are not independent likelihood factors. Preserve
+source lineage and account for how actions and visible outcomes were selected.
+Allow model revision when all current explanations predict poorly, rather than
+treating the highest relative weight as an adequate explanation.
+
+Predict observable outcomes under the stated conditions before seeing them, and
+retain the original forecast and information cutoff. Separate conditional
+prediction from a causal claim about changing an action; the latter needs an
+appropriate intervention or identification argument. Changes of version, host
+or task can invalidate exchangeability, so a pooled success rate is not a default
+transfer model. No observation by the horizon may be pending or censored rather
+than a negative outcome; define which event the claim actually concerns.
+
+Choose optional observations by whether their possible results could improve the
+authorized inquiry or next action enough to justify their full burden. A
+one-step expected-value-of-information calculation is useful only with supported
+outcome probabilities, action values and comparable cost units. Otherwise retain
+scenario/range sensitivity or qualitative ordering. Complementary checks and
+longer-horizon inquiry can have value that a one-step calculation misses. This
+selection never removes mandatory correctness, authority or verification checks.
+
+Use the existing [strong-comparison rules](#strong-comparisons-and-independence):
+an adaptive memo/code baseline may already form explanations, make predictions
+and select tests. Separate any claimed gain from statistical reasoning, persisted
+conditions, selection or extra context/compute. Before fixed evaluation, identify
+the outcome, observation horizon and treatment of missing results. Include
+relevant and irrelevant changes, conflicting/duplicated evidence or authority
+cues only where they discriminate the claim; no universal test matrix is required.
+Distinguish prestige alone from relevant provenance and demonstrated source
+reliability. An unsupported user objection should not cause revision merely
+because it was raised, and justified increased uncertainty is not a failure.
+
+Assess forecast quality where an outcome is observable and the forecast is
+numerical, using proper scoring and calibration across suitable repeated cases;
+one case cannot establish calibration. Also assess the actual interpretation,
+wrong actions, missed conditions, unnecessary checks, correction/rework, fresh
+successor behavior and total burden. For selected tasks, tools or counterparties,
+raw success rates do not establish comparative competence. A valid comparison
+must address selection and outcome visibility; an untried alternative is not an
+observed failure. Return RETAIN, CHANGE, SIMPLIFY or STOP for the claimed scope.
+Do not require a numerical score, serialized model or new record for ordinary work.
+
+These are Augnes evaluation proposals. [Bayesian workflow](https://arxiv.org/abs/2011.01808)
+supports iterative model checking and revision; [Selecting Computations](https://proceedings.mlr.press/r10/hay12a.html)
+studies the value of computation; [proper scoring rules](https://sites.stat.washington.edu/people/raftery/Research/PDF/Gneiting2007jasa.pdf)
+support probabilistic forecast evaluation. None establishes Augnes usefulness.
 
 ### Reuse applicability evidence (#1459)
 
@@ -595,6 +745,29 @@ retain strong direct/adaptive-memo and relevant native-delegation references,
 equal relevant material/resources, unsuccessful attempts and total burden. Search
 feedback and best-run/judge selection are not deciding later-task evidence. No
 MASS-informed comparison or workflow-search campaign is launched by this PR.
+
+For #1532, `scripts/test-profile-task-continuation.ts` adds an exposed controlled
+different-task outcome to the profile/manual-contribution path. The origin has
+already saved its checked partial use and feedback before transfer. Six exact
+historical notes are deliberately selected through origin-scoped retained reads
+and carried by the normal different-task writer. The recipient's purpose and
+new identity/change records differ; its process computes a reconciliation report
+from those inputs and the old manifest, then saves its own decision. Fixed
+independent expectations check each event and the 280 = 200 + 50 + 30 byte
+accounting. A separate process reopens the identical report and both historical
+and current task bindings through ordinary persisted readers. Prior disabling
+advice is declined; remaining approval/identity uncertainty is not discharged.
+
+This is a composition of existing writers, not evidence of a newly implemented
+transfer primitive. Exact dependency/source preservation, scoped lookup, capacity,
+stale inputs, atomic creation and explicit correction/reselection are mechanical
+checks. Unchanged lower-level boundaries retain their existing tests. A fresh
+process is not an independent participant, and supplied identity records are not
+authenticated identities. Actual model understanding and independent participation
+remain NOT_RUN; comparative usefulness is NOT_EVALUATED and full W2 is
+NOT_ESTABLISHED. #1526/#1527 allocations and observations are not transferred.
+The next decision is whether to retain this small documented composition and
+regression, not automatically launch a participant or usefulness study.
 
 ### Local external-response evidence (#1453)
 

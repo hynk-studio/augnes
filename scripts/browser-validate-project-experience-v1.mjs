@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -157,6 +158,7 @@ let serverProcessRecord = null;
 let serverClosePromise = null;
 let serverPublicDiagnosticCapture = null;
 let chromeProcess = null;
+let browserUse = null;
 let chromeProcessRecord = null;
 let cdp = null;
 let currentPhase = "setup";
@@ -1976,6 +1978,9 @@ async function main() {
             assert.equal(await evaluateBoolean(`document.querySelector('[data-current-work-sources], [data-work-revision-composer]') === null && !document.body.textContent.includes(${JSON.stringify(suppliedSource)}) && !document.body.textContent.includes(${JSON.stringify(correction)}) && !document.body.textContent.includes('No source notes are selected in this current work.')`), true,
               `${mode} hides note content without manufacturing an empty current selection`);
             if (refusalScenario) {
+              // The locked UI can settle before CDP delivers the canceled
+              // request's terminal event. Drain observations before sealing.
+              await waitForRequestQuiet();
               assert(beforeReadBoundaries.equals(noteDatabase.serialize()), 'session refusal changes no stored state');
               assert.deepEqual(effects(), effectsBefore);
               requestVerdicts.completeSessionRefusalScenario(refusalScenario);
@@ -2718,6 +2723,7 @@ async function main() {
     result.folder_onboarding_stale_active_conflict = true;
     completeDetailedField("folder_onboarding_stale_active_conflict");
     await validateSavedProjectDiscoveryV02({ fixture, manifest, projectAlphaId, projectAlphaDestination });
+    await validateProjectArchiveV01({fixture,manifest,projectAlphaId,projectBetaId,projectAlphaDestination,projectBetaDestination});
     result.folder_onboarding_restart_reopen = true;
     completeDetailedField("folder_onboarding_restart_reopen");
 
@@ -3236,6 +3242,7 @@ function startRuntime(databasePath, manifest, projectId) {
 }
 
 function startChrome(executable) {
+  browserUse = beginBrowserUse(executable, { consumer: "project-experience" });
   const finishChromeStartup = timing.start(
     "chrome_startup",
     "Chrome and CDP startup",
@@ -3281,6 +3288,7 @@ async function openCdpPage() {
       const response = await fetch(versionUrl);
       if (response.ok) {
         const body = await response.json();
+        browserUse.version(body.Browser);
         webSocketUrl = body.webSocketDebuggerUrl;
         if (webSocketUrl) break;
       }
@@ -3292,6 +3300,7 @@ async function openCdpPage() {
   assert(webSocketUrl, "chrome_debug_endpoint_unavailable");
   const browserClient = new CdpClient(webSocketUrl);
   await browserClient.open();
+  browserUse.version((await browserClient.send("Browser.getVersion")).product, "cdp");
   const targets = await browserClient.send("Target.getTargets");
   const pageTarget = targets.targetInfos.find(
     (target) => target.type === "page",
@@ -3540,6 +3549,79 @@ async function validateSavedProjectDiscoveryV02({ fixture, manifest, projectAlph
   await clickButtonByText('Make current and open',`[data-saved-project="${projectAlphaId}"]`);
   await waitForCondition(`location.pathname === ${JSON.stringify(projectAlphaDestination)}`,"return to original identity");
   console.log(JSON.stringify({human_opens_agent_created_project:'pass',agent_creation_human_focus_recents_unchanged:true,agent_client:'deterministic_authenticated_transport',provider_calls:0}));
+}
+
+async function validateProjectArchiveV01({fixture,manifest,projectAlphaId,projectBetaId,projectAlphaDestination,projectBetaDestination}) {
+  const retained = () => {
+    const db=new Database(fixture.writable_database_path,{readonly:true,fileMustExist:true});
+    try {return ["vnext_core_records","vnext_project_identities","vnext_project_root_bindings","vnext_project_direction_records","autonomy_runs"].map(table=>db.prepare(`SELECT * FROM ${table} WHERE ${table === "autonomy_runs" ? "scope" : "project_id"}=? ORDER BY rowid`).all(projectAlphaId));}
+    finally {db.close();}
+  };
+  const before=retained();assert(before[0].length>0,"archive journey has actual saved work/history");
+  const files=()=>Object.fromEntries([".git/config",...readdirSync(onboardingFolder,{withFileTypes:true}).filter(entry=>entry.isFile()).map(entry=>entry.name)].map(name=>[name,createHash("sha256").update(readFileSync(path.join(onboardingFolder,name))).digest("hex")]));
+  const filesBefore=files();
+  const row=`[data-saved-project="${projectAlphaId}"]`;
+  const view=async(label)=>{
+    await waitForCondition(`Array.from(document.querySelectorAll('#registered-projects > div > button')).some(button => button.textContent === ${JSON.stringify(label)} && !button.disabled)`,"organization view control ready");
+    await clickButtonByText(label,'#registered-projects');
+  };
+  const manage=async(destination=projectAlphaDestination)=>{
+    await navigate(`${appOrigin}${destination}#project-settings`);
+    await waitForCondition(`document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null`,"archive management hydrated");
+    await view('Working projects');
+    await waitForCondition(`document.querySelector('#registered-projects')?.textContent.includes('All projects in this list have been read.') === true`,"working list complete");
+  };
+  const archive=async()=>{
+    await clickButtonByText('Archive project',row);
+    await waitForCondition(`document.querySelector('dialog[open]')?.textContent.includes('unfinished obligations are retained') === true`,"archive effect confirmation");
+    await clickButtonByText('Archive project','dialog[open]');
+  };
+  const archived=async()=>{
+    await view('Archived projects');
+    await waitForCondition(`document.querySelector(${JSON.stringify(row)})?.dataset.projectOrganization === 'archived'`,"archived project found");
+  };
+  const restoreAndOpen=async()=>{
+    await clickButtonByText('Unarchive project',row);await clickButtonByText('Unarchive project','dialog[open]');
+    await waitForCondition(`document.querySelector('dialog[open]') === null && document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null`,"unarchive management refresh");
+    await view('Working projects');
+    await waitForCondition(`document.querySelector(${JSON.stringify(row)}) !== null`,"unarchived working project");
+    await clickButtonByText('Make current and open',row);
+    await waitForCondition(`location.pathname === ${JSON.stringify(projectAlphaDestination)} && document.querySelector('[data-blank-state-active="true"]') !== null`,"deliberate same project return");
+    assert.deepEqual(retained(),before);assert.deepEqual(files(),filesBefore);
+  };
+  await manage();
+  await clickButtonByText('Archive project',row);await clickButtonByText('Cancel','dialog[open]');
+  assert.equal((await browserFetchJson('/api/vnext/projects?project_id='+encodeURIComponent(projectAlphaId))).body.project.organization.state,'working');
+  await archive();
+  await waitForCondition(`document.querySelector('dialog[open]') === null && document.body.textContent.includes('Archived project. Saved work remains available.')`,"selected archive clears selection and retains viewed work");
+  assert.equal((await browserFetchJson('/api/vnext/projects?project_id='+encodeURIComponent(projectAlphaId))).body.project.selection_state.project_id,null);
+  assert(!(await readRecentProjectsInBrowser()).recent_projects.some(entry=>entry.project.project_id===projectAlphaId));
+  await clickSelector('[data-project-archive-management="true"]');
+  await waitForCondition(`location.pathname === '/' && document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null`,"archived page links to ordinary management");
+  await view('Working projects');
+  await waitForCondition(`document.querySelector('#registered-projects')?.textContent.includes('All projects in this list have been read.') === true && document.querySelector(${JSON.stringify(row)}) === null`,"archived project excluded from working list");
+  assert.deepEqual(retained(),before);
+  await restartRuntime(fixture.writable_database_path,manifest,projectAlphaId);
+  await manage('/');await archived();
+  for(const width of [390,768,1280]) {await cdp.send('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width===390});assert(await evaluateBoolean('document.documentElement.scrollWidth <= window.innerWidth'),`archive viewport ${width}`);}
+  await cdp.send('Emulation.clearDeviceMetricsOverride');
+  await restoreAndOpen();
+  await manage();
+  await clickButtonByText('Make current and open',`[data-saved-project="${projectBetaId}"]`);
+  await waitForCondition(`location.pathname === ${JSON.stringify(projectBetaDestination)} && document.querySelector('[data-blank-state-active="true"]') !== null`,"independent B current");
+  await manage(projectBetaDestination);
+  const bBefore=(await browserFetchJson('/api/vnext/projects?project_id='+encodeURIComponent(projectBetaId))).body.project.selection_state;
+  // Drop only this committed archive acknowledgement. The UI must read saved
+  // state instead of claiming failure or repeating a stale request.
+  await evaluateBoolean(`(() => {const original=window.fetch;window.fetch=async(...args)=>{const response=await original(...args);if(args[0]==='/api/vnext/projects' && args[1]?.body && JSON.parse(args[1].body).action==='archive'){window.fetch=original;throw new Error('fixture lost acknowledgement');}return response;};return true;})()`);
+  await archive();
+  await waitForCondition(`document.querySelector('dialog[open] [role="alert"]')?.textContent.includes('A fresh read shows this project is archived.') === true`,"uncertain acknowledgement reconciled through fresh state");
+  const bAfter=(await browserFetchJson('/api/vnext/projects?project_id='+encodeURIComponent(projectBetaId))).body.project.selection_state;
+  assert.deepEqual(bAfter,bBefore,"inactive A does not change B selection or observation");
+  await clickButtonByText('Refresh project management','dialog[open]');
+  await waitForCondition(`document.querySelector('dialog[open]') === null && document.querySelector('[data-blank-state-project-management-hydrated="true"]') !== null`,"reconciled management refresh");
+  await archived();await restoreAndOpen();
+  console.log(JSON.stringify({native_project_archive_browser:'pass',actual_controls:true,selected_archive:true,working_exclusion:true,archived_discovery:true,fresh_process:true,deliberate_same_work_return:true,retained_identity_root_history_files:true,inactive_A_preserves_B:true,lost_acknowledgement_fresh_read:true,viewports:[390,768,1280],provider_calls:0}));
 }
 
 async function authenticateCurrentPage(databasePath, manifest, projectId) {
@@ -5911,6 +5993,7 @@ async function cleanup() {
   await terminateProcess(chromeProcess, chromeProcessRecord, 2_000);
   chromeProcess = null;
   chromeProcessRecord = null;
+  browserUse?.finish();
   timing.duration(
     "chrome_cdp_shutdown",
     "Chrome and CDP shutdown",

@@ -5,6 +5,9 @@ import { canonical, exact, fail, FINGERPRINT, hash, type Payload, type Revision,
 export const FILE_FORMAT = "web_planning_revision.v0.3";
 export const FILE_EXPORT_FORMAT = "web_planning_export.v0.3";
 export const FILE_COMPATIBILITY = "web-planning/3";
+export const FILE_RELATION_FORMAT = "web_planning_revision.v0.4";
+export const FILE_RELATION_EXPORT_FORMAT = "web_planning_export.v0.4";
+export const FILE_RELATION_COMPATIBILITY = "web-planning/4";
 export const FILE_LIMIT = 262_144;
 export const FILE_COUNT = 8;
 export const SELECTION_BYTES = 524_288;
@@ -58,7 +61,10 @@ export function selectedFiles(payload:Payload,input:unknown,previous?:Revision):
   });
   const manifest=fileManifest(files);
   // Empty file selection on a legacy work does not change its format or fingerprint.
-  return {payload:manifest.length || previous?.files!==undefined?{...payload,files:manifest}:payload,bodies:[...bodies.values()]};
+  const result=manifest.length || previous?.files!==undefined?{...payload,files:manifest}:payload;
+  if(previous?.relations?.file_materials!==undefined && result.relations)result.relations={...result.relations,file_materials:manifest.map(file=>
+    previous.relations!.file_materials!.find(m=>canonical(m.file)===canonical(file))??{file,kind:"authored",from:null})};
+  return {payload:result,bodies:[...bodies.values()]};
 }
 export function historyFiles(chain:Revision[]):Map<string,number> {
   const result=new Map<string,number>();
@@ -84,12 +90,14 @@ export function verifiedBodies(chain:Revision[],value:unknown):FileBody[] {
   return [...value].sort((a,b)=>a.digest<b.digest?-1:a.digest>b.digest?1:0);
 }
 export function exportFiles(chain:Revision[],bodies:FileBody[]) {
-  const content={format:FILE_EXPORT_FORMAT,schema:1,compatibility:FILE_COMPATIBILITY,revisions:chain,files:verifiedBodies(chain,bodies)};
+  const related=chain.some(r=>r.format===FILE_RELATION_FORMAT);
+  const content={format:related?FILE_RELATION_EXPORT_FORMAT:FILE_EXPORT_FORMAT,schema:1,compatibility:related?FILE_RELATION_COMPATIBILITY:FILE_COMPATIBILITY,revisions:chain,files:verifiedBodies(chain,bodies)};
   return {...content,fingerprint:hash(canonical(content))};
 }
 export function validateFileExport(scope:Scope,value:unknown) {
   exact(value,"format,schema,compatibility,revisions,files,fingerprint");
-  if(value.format!==FILE_EXPORT_FORMAT||value.schema!==1||value.compatibility!==FILE_COMPATIBILITY)fail("incompatible_format",409);
+  const related=value.format===FILE_RELATION_EXPORT_FORMAT;
+  if((!related&&value.format!==FILE_EXPORT_FORMAT)||value.schema!==1||value.compatibility!==(related?FILE_RELATION_COMPATIBILITY:FILE_COMPATIBILITY))fail("incompatible_format",409);
   if(!Array.isArray(value.revisions)||!value.revisions.length)fail("invalid_export");
   const {fingerprint,...content}=value;
   if(hash(canonical(content))!==fingerprint)fail("export_integrity",409);

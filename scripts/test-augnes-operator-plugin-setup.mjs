@@ -13,6 +13,7 @@ import {
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import {
   REVIEWED_OPERATOR_PLUGIN_VERSION,
@@ -53,9 +54,9 @@ try {
   assert.equal(addCalls, 1);
   assert.equal(verified.version, "0.5.0");
   assert.equal(verified.stale_cache_versions, 0);
-  assert.equal(verified.reviewed_files_verified, 15);
+  assert.equal(verified.reviewed_files_verified, 17);
   assert.equal(verified.canonical_developer_identity, true);
-  for (const name of ["external-response.mjs", "checkout-identity.mjs", "checkout-identity-darwin.py"]) {
+  for (const name of ["manual-contribution.mjs", "operating-profile.mjs", "external-response.mjs", "checkout-identity.mjs", "checkout-identity-darwin.py"]) {
     const module = path.join(currentCache, "mcp", name);
     const bytes = readFileSync(module);
     writeFileSync(module, "# altered reviewed entry\n");
@@ -63,6 +64,9 @@ try {
       error => error?.code === "operator_plugin_cache_content_mismatch");
     writeFileSync(module, bytes);
   }
+  // A real cache copy must import without repository-relative dependencies.
+  const copied = await import(pathToFileURL(path.join(currentCache, "mcp/manual-contribution.mjs")).href);
+  assert.equal(typeof copied.prepareManualContribution, "function");
   verifyNoPluginLifecycleHooks(sourceRoot);
   verifyNoPluginLifecycleHooks(currentCache);
   verifyProjectHooks();

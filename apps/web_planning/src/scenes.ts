@@ -17,7 +17,7 @@ export async function notebook(a:Access,chain:Revision[]):Promise<SceneNotebook>
 export function replaceNotebook(payload:Payload,book:SceneNotebook) {
   // The existing file admission owns all byte/selection/history bounds.
   const encoded={name:SCENE_FILE,role:"other",data:Buffer.from(canonical(book)).toString("base64")};
-  return selectedFiles(payload,[...(payload.files??[]).filter(f=>f.name!==SCENE_FILE),encoded],{files:payload.files} as Revision);
+  return selectedFiles(payload,[...(payload.files??[]).filter(f=>f.name!==SCENE_FILE),encoded],{files:payload.files,relations:payload.relations} as Revision);
 }
 export async function prepareSceneDraft(a:Access,chain:Revision[],prepared:{payload:Payload;bodies:FileBody[]},input:unknown) {
   const r=chain.at(-1),old=r?.files?.find(f=>f.name===SCENE_FILE),next=prepared.payload.files?.find(f=>f.name===SCENE_FILE);

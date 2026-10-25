@@ -76,6 +76,77 @@ changed-basis refusal, unavailable-participant continuation and failed-save
 rollback. Exact candidate qualification belongs to its PR receipt; source
 implementation is not installed adoption or user acceptance.
 
+The #1498 increment prepares one result-informed next arrangement in the same
+eligible unstarted task. Existing deselection/retained lookup/manual linkage can
+already complete the case; the adapter now prepares the exact predecessor link
+and reads its original assessment/unfinished obligations alongside the new choice.
+Ordinary explicit preview/save owns changes, and #1488 owns original-basis review
+reassessment. A standalone two-process packing exercise checks both contributions,
+selective output use and actual fresh label production. Existing adapter tests
+cover invalid linkage and races. This is synthetic engineering evidence, not
+actual external participation, comparative benefit, adoption or full W1/W2.
+Current exact-head qualification and independent review belong to the PR return.
+
+The #1511 source increment adds an explicit manual-contribution alternative to
+the same ordinary entry without a configured reviewer. It composes existing
+imported/derived notes, preview/save and retained readers into selected request
+preparation, preserved original text, a separate checked use/RETAIN decision,
+permitted feedback and fresh re-entry. The bounded manual profile keeps original
+bytes and exact identities without creating native review status or transport.
+The registered `scripts/test-manual-contribution.ts` exercises real production
+routes, a checked restock card, manual file artifacts and a separate fresh reader,
+including changed-basis, disclosure, history, atomic/stale-save and overflow controls.
+The correction binds manual currentness to the validated task origin: identical
+definition/material carried through the ordinary new-task writer requires deliberate
+reassessment, while same-task revisions and historical lookup remain supported.
+The shared origin reader also follows validated ordinary authored-successor revision
+edges, stopping at the original successor rather than its different-task predecessor.
+`scripts/test-manual-contribution-successor.ts` exercises supported successor creation,
+ordinary source/profile saves, a separate checked assessment remaining current after
+its own save, saved feedback and fresh-process reconstruction of retained originals.
+Legacy task identity stays unknown. Actual public MCP text is checked for all four
+preparation stages and saved authored disposition, alongside structured content.
+Configured review, direct/asset work and the #1453 adapter remain separate. This is
+implemented deterministic mechanism evidence; exact-candidate qualification belongs
+to its PR return. Independent external participation, semantic understanding,
+comparative benefit, installed adoption and full W1/W2 remain unestablished. #1493
+and its observation allocation are separate; this increment adds no model study.
+
+The #1523 source increment optionally binds one validated OperatingProfile step
+to that same manual request. It reuses full selected-source reading, the ordinary
+request/return/decision/feedback notes, atomic preview/save and exact retained
+lookup. The complete canonical profile must fit one 2,000-character note; the
+standalone 65,536-byte domain is deliberately larger. Capacity refusal preserves
+all existing notes. No profile store, capability grant or execution owner is added.
+The registered `scripts/test-operating-profile-contribution.ts` exercises a
+2,000-character profile, a selected missing-manifest request, original return,
+checked recommendation that declines action advice, separate decision/feedback,
+and a fresh process producing an identity-check checklist from persisted sources.
+Original profile context and both explanations remain available after deliberate
+deselection. Malformed input, changed profile/material/task/decision basis,
+atomic save, disclosure and capacity boundaries have focused checks. These are
+controlled synthetic mechanism observations, not independent participation,
+live defense, model understanding or comparative usefulness. Exact-candidate
+qualification and independent review belong to the PR return; installed adoption,
+#1453's frozen study and historical preservation dispositions remain separate.
+
+The [#1532 bounded W2 continuation](../EXECUTION_CHOICE_USAGE.md#continue-a-checked-contribution-in-a-different-task-1532)
+uses those existing production writers for a genuinely separate same-project task.
+Current-source inspection found no missing storage or transfer primitive: explicit
+origin dependency reselection followed by new-work `keep` already preserves the
+complete cycle. The registered end-to-end case now transfers an already checked
+contribution, creates a new purpose/task and current inputs, computes an event
+reconciliation report, saves a separate partial-use judgment and reopens it in a
+fresh process. The original disabling advice remains declined, valid comparison
+retained, and only the selected event-reconciliation obligation is adopted.
+Historical judgments and unused origin material remain distinct. This adds a
+usable documented composition and substantive controlled result, not a new
+registry, ordinary-note wrapper or widened receipt-backed WorkHandoff. Exact
+qualification and independent review belong to this increment's PR return.
+Actual model understanding, independent participation, comparative usefulness,
+cross-project portability, independent undertaking ownership and full W2 remain
+unestablished. #1527's research and allocation retain their separate owner.
+
 PR #1450's qualification correction tightens only the disposable native-service
 fixture's readiness and cleanup. After its deliberate child-binding substitution,
 it observes the manager's negative verification and waits for a post-restoration
@@ -298,6 +369,60 @@ Recurring research/development operators and contributors are initial example
 cases, not an admission list or established product-market fit. Read-only,
 fixed-function and one-time participants remain within the product scope.
 
+### Selective model application across local and web work
+
+Apply the [small-model direction](./01_AUGNES_VNEXT_MASTERPLAN.md#5-long-horizon-research-substrate)
+where uncertainty changes an inquiry, interpretation or action. This is a
+cross-cutting development approach within existing P3/P4/P5 ownership, not a new
+phase or a requirement that every activity use probabilities. A deterministic
+check or ordinary adaptive memo/code may already suffice. The current host can
+reason about alternatives and conditional predictions through existing source,
+execution-choice and assessment paths; an automated statistical updater or
+cross-domain model store is not established by those paths.
+
+| Activity and existing responsibility | Useful bounded model or distinction | Observation that could change the next step |
+|---|---|---|
+| Request interpretation, research and P3 inquiry (#1213) | Competing meanings or explanations, relevant base rates, source dependence and missing evidence. Separate desired outcomes from empirical claims. | A discriminating source, counterexample or clarification changes the supported interpretation, including justified uncertainty. |
+| Local development, web/API diagnosis and checking (#1214) | Preconditions and competing causes of failure; distinguish transport, authentication, input contract, environment and task behavior. | A scoped probe rules out a cause or changes the next repair/check. Startup or HTTP success alone does not establish task success. Mandatory verification remains with its existing owner. |
+| Context selection, method reuse and composition (#1468 / #1373 / #1527) | Whether relevant material is available, selected and applicable; each method's input/output conditions and dependencies. | Relevant versus irrelevant changes lead to appropriate reuse, adaptation, replacement or non-use and a checked whole result. |
+| Tool, host, participant and arrangement choice (#1443 / #1453) | Task-conditional success, time, burden and correction/support experience; identity association remains a separate claim. | Actual returned work, checking and integration revise the choice under the current environment and available resources. |
+| Public discovery, contribution and continuing undertakings (#1447 / #1538) | Exposure, access, execution, useful return, acceptance, later use and payment are distinct events; demand and proposed terms remain hypotheses. | Observed entry, checked delivery and separate later use inform the next offer, contribution or commitment. Nonresponse may be failed delivery, no exposure, delay or refusal. |
+| Defensive operations (#1439) | Asset/exposure-specific explanations, normal alternatives and observation gaps. | Evidence discriminates a real issue from a normal control and supports an authorized response; an anomaly score alone does not establish a threat. |
+| Temporal continuity and succession (#1213 / #1215) | Conditional futures, dependencies, information cutoffs and changed applicability. | A new result or relevant condition changes only affected judgments and the fresh successor's meaningful action. |
+| Research, resource allocation and attention (#1426 and existing grant owners) | Which inquiry, delivery, improvement or notification merits permitted resources, accounting for outstanding commitments and interruption cost. | A discriminating result, available capacity or consequential change alters the next allocation; expected benefit does not expand authority. |
+| Personal and creative work (existing Perspective scopes / #1455) | Uncertain interpretations or process predictions, separated from user values, authored canon and character beliefs. | New evidence or an explicit author/user decision changes the appropriate interpretation or work; empirical updating does not choose the user's values or adopt canon. |
+
+Start at an actual decision with a plausible benefit: choosing a discriminating
+diagnostic check, carrying a method into changed conditions, or assessing a
+contribution and its remaining obligations. These are candidate applications,
+not a universal sequence or three new study allocations. Keep epistemic inquiry
+alongside practical work so authority cues, duplicated sources and unsupported
+objections can be tested without reducing every question to immediate utility.
+The [ordinary execution-choice path](../EXECUTION_CHOICE_USAGE.md#ordinary-sequence)
+already carries expectation, uncertainty, reconsideration and later assessment.
+For example, an API diagnosis can state which response would distinguish
+transport, authentication, input-contract or task failure before choosing a
+permitted probe. After the actual response, revise the next check or repair;
+retain ambiguity when that probe did not discriminate the cause. A short
+conditional statement can suffice, without a new record or numerical probability.
+
+Select the smallest representation and supported producer/consumer path during
+current-source diagnosis. A one-task model can remain temporary. Persist only
+the reusable conditions, evidence basis, expectation and observed revision needed
+for later work, within existing budgets and source-selection rules. Transfer
+across local/web hosts rechecks relevant runtime/version, permissions, resources,
+network and observability; shared evidence is not independent confirmation.
+Define any newly needed Core contract in 02 with a concrete implementation,
+rather than adding a speculative schema here.
+
+Evaluate the incremental contribution under [04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#question-specific-model-evidence).
+Preserve #1464's completed SIMPLIFY result and ordinary adaptive memo/code default.
+#1538's separately commissioned simulation can later supply observations within
+its actual scope; this guidance does not change its frozen assignment or turn
+simulated demand, participation or payment into real evidence. Existing trials,
+budgets and dispositions remain with their owners. Systematic comparative benefit
+and an automated modeling subsystem remain unestablished.
+
 ### Current application priorities — 2026-10-19
 
 The user-approved research application strengthens continuous work, cumulative
@@ -310,7 +435,7 @@ tasks; it is not limited to agents executing a human-authored task list.
 
 | Placement | Existing owner | Next bounded outcome and evidence boundary |
 |---|---|---|
-| First public entry | [#1447](https://github.com/hynk-studio/augnes/issues/1447) | Connect a useful public asset and agent-readable guidance to one actual consumer host/public channel. The 2026-10-15 ordinary-client observations are complete/RETAIN; broader public distribution remains pending. Asset fit follows the task, not a requirement to make workflow-cost represent every agent. |
+| First public entry | [#1447](https://github.com/hynk-studio/augnes/issues/1447) | The 2026-10-15 ordinary-client observations are complete/RETAIN and the 2026-10-20 component pre-release distribution is complete. Next connect task-grounded entry to an actual need and contribution return; broader independent discovery and participation remain unestablished. Asset fit follows the task, not a requirement to make workflow-cost represent every agent. |
 | Next contribution/use connection | [#1443](https://github.com/hynk-studio/augnes/issues/1443) | Reuse #1450's source loop for one real unresolved need, a small contribution request, return/check/use decision and separate successor use. Also support a requesting agent or collective selecting participants for its ongoing undertaking. Actual external contribution/recruitment observations remain NOT_RUN. |
 | Continuing axis across both paths | [#1453](https://github.com/hynk-studio/augnes/issues/1453) | Connect observed counterpart experience, conditional commitments, changed basis and fresh-successor action. The local capability, separate installed-client acceptance and frozen controlled consumer's HOST_INTEGRATION_BLOCKED/NOT_EXERCISED state remain distinct. A blocked host is not a universal stop for other valid paths. |
 
@@ -360,6 +485,196 @@ continuity, memory and collaboration capabilities as strong reuse/comparison
 candidates. These sources motivate the direction; they do not establish Augnes
 superiority, independent willingness to contribute or a previously empty market.
 
+### Economic undertaking application — 2026-10-25
+
+The user-approved [economic undertaking direction](./01_AUGNES_VNEXT_MASTERPLAN.md#economic-undertakings-and-cumulative-capability)
+connects opportunity discovery, contribution choice, checked delivery, economic
+obligations and later experience use. [Economic Loop 0, #1538](https://github.com/hynk-studio/augnes/issues/1538)
+owns the bounded application preparation under #1443, coordinated by #1426.
+Its 2026-10-25 model-free developer preparation used accepted main `a4071d0d`
+without a product patch. The [subsequent independent review](https://github.com/hynk-studio/augnes/issues/1538#issuecomment-6393904485)
+records **preparation ACCEPT / existing product paths RETAIN**. The Python-upgrade
+case includes original and distinct successor artifacts through production-source
+paths in a test runtime; installed adoption and model-worker use are not established.
+Target Python 3.13 integration and `cgi` migration remain open responsibilities.
+Customer acceptance, payment, independent participation, comparative benefit and
+sustained operation remain unestablished. Preserve the prepared case rather than
+recommissioning it.
+The direction adds no global phase or prerequisite for approved W1/W2 work.
+
+| Existing owner | Responsibility in this application |
+|---|---|
+| [#1447](https://github.com/hynk-studio/augnes/issues/1447) | Task-grounded discovery and a usable opportunity/return entry; reuse the completed component distribution without republishing it as a new outcome. |
+| [#1443](https://github.com/hynk-studio/augnes/issues/1443), with bounded application #1538 | Compare direct/asset/contribution arrangements, prepare intelligible terms, check actual returned material and make a separate current-use decision. |
+| [#1453](https://github.com/hynk-studio/augnes/issues/1453) | Conditional counterpart experience, feedback, correction, unresolved external effects and obligations after executor replacement. |
+| [#1213](https://github.com/hynk-studio/augnes/issues/1213), [#1214](https://github.com/hynk-studio/augnes/issues/1214), [#1215](https://github.com/hynk-studio/augnes/issues/1215) | Current understanding and inquiry, method/action selection, and faithful successor use within their existing scope. |
+
+At intake, #1534 is merged on main `c1c0e0d30e6d854d436fe3e775125fc99fd8e07f`.
+The [#1532 ordinary composition](../EXECUTION_CHOICE_USAGE.md#continue-a-checked-contribution-in-a-different-task-1532)
+already connects checked contributions to a distinct same-project task through
+existing writers. Inspect and reuse it before proposing another storage or
+transfer mechanism. [#1537](https://github.com/hynk-studio/augnes/issues/1537)
+owns a separate commissioned model-use observation. Its accepted 2026-10-25
+bounded return remains **STOP / product RETAIN / A/B NOT_RUN / 0 of 2 worker
+dispatches**. Do not repeat unchanged readiness work, alter its frozen case,
+allocation or route conditions, or repurpose it as an economic comparison.
+Future evidence may inform the application only within its actual scope.
+
+The retained preparation scope is one coherent, executable case; the reported
+completion above does not reopen these steps:
+
+1. Identify one candidate recurring need from permitted real work or accessible
+   public evidence. Retain the source/time, beneficiary, current alternative and
+   acceptance condition. Software-upgrade impact checking/repair is an example,
+   not a mandatory vertical or established market. If demand remains hypothetical,
+   label it and complete independent case/checker preparation without inventing
+   a customer, purchase commitment or contact authority.
+2. Prepare the contribution's inputs, requested return, check/use owner, cost
+   responsibility, proposed compensation/payment timing, use terms, return path
+   and reconsideration conditions as needed for that case. Unknown values remain
+   unknown. Use the actual counterpart's existing HTTP, Markdown, GitHub, MCP or
+   A2A path rather than requiring a new marketplace or all protocol adapters.
+3. Connect first-task output and checking to the existing project/work/source
+   path, then to a genuinely separate task with new purpose or inputs. Select a
+   relevant changed condition or executor replacement; preserve the earlier
+   judgment and explicitly reconsider methods, relationships and obligations.
+   A fresh reader must recover the actual saved result and remaining work.
+4. Keep completion report, acceptance, use, payment and remaining obligations
+   distinct. Account for task, verification, repair, failure, coordination and
+   human burden alongside cash and committed resources. Ordinary notes/files
+   are sufficient where they serve the consumer; add only an observed missing
+   capability, with focused checks and a Draft PR if source changes are needed.
+5. Return the prepared materials, usable route, actual checks and limitations,
+   and the exact remaining customer/resource/authority conditions for a live
+   application. A sufficient existing path can justify a no-code result. Synthetic
+   replay is mechanism evidence, not independent demand or economic success.
+
+Further development can proceed independently of #1537 or a blocked historical
+host; do not borrow their resources or reopen their studies. No new model/provider
+allocation, public solicitation, purchase, contract, loan or automatic
+reinvestment is commissioned by this planning change. Existing exact authority
+continues within its own scope; undefined actions or amounts are not inferred.
+Keep #1453's frozen disposition and #1464's SIMPLIFY/adaptive-memo default intact.
+Actual application, matched usefulness and participation effects use the
+[economic evidence criteria](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#economic-activity-and-participation-evidence)
+at the scope needed for each claim, without making all three mandatory for
+every capability increment.
+
+Later resource allocation, repeated external participation and cooperation
+between undertakings remain distinct expansion decisions. Demand, actual use,
+total burden, outstanding obligations and retained capability should inform
+whether to expand, simplify or stop. Revenue is not a universal admission
+criterion for research, public goods or private work.
+
+Research inputs: [Magentic Marketplace](https://arxiv.org/html/2510.25779v1)
+provides market-selection and proposal-order cases, while leaving repeated
+history-based adaptation as follow-up;
+[The Collaboration Gap](https://arxiv.org/abs/2511.02687v2) separates individual
+and cooperative competence; [CoffeeBench](https://arxiv.org/html/2606.16613v1)
+provides time-dependent trading/obligation cases within a simplified economy;
+[RLI](https://labs.scale.com/leaderboard/rli) supplies a deliverable-acceptance
+reference, not customer acquisition or repeat-business proof. Existing
+[A2A](https://a2a-protocol.org/latest/specification/),
+[AP2](https://ap2-protocol.org/) and
+[x402](https://github.com/x402-foundation/x402/blob/main/specs/x402-specification-v2.md)
+can supply communication, delegated authorization and payment adapters where
+needed; they do not establish undertaking-level judgment, total-budget control
+or checked fulfillment. These are research/architecture inputs, not adopted
+dependencies, current compatibility promises or evidence of Augnes advantage.
+
+#### Development and operation sequence — 2026-10-25
+
+Realize the undertaking through the existing
+[L1 current-understanding-guided work path](#next-p3p4--current-understanding-guided-work-and-result-informed-re-entry).
+The first development outcome is a complete supported flow from a broad goal to
+actual work, checked output, a saved current judgment and useful follow-up after
+executor replacement. Project direction carries the continuing purpose; finite
+tasks carry their own inputs, output and unfinished responsibilities. The next
+executor reads this state through normal entry instead of reconstructing it from
+the previous conversation. #1213/#1214/#1215 retain L1 ownership; #1443/#1453
+supply execution-choice, contribution and result/obligation continuity.
+
+Use #1538's accepted preparation as an available application input, with its
+bounded test-runtime scope and remaining duties intact. It is neither an instruction
+to rerun that commission nor a prerequisite for unrelated L1 source work. The Python case's
+remaining target-environment integration and migration illustrate a complete
+delivery: inspect the actual dependency and failing journey, run the relevant
+check in an authorized environment, perform the justified repair, and return
+the usable change, reproducible check and remaining support work. A later
+changed requirement should reach that same path with the prior method and its
+conditions available. The specific case and implementation files are selected
+from current source when the implementation is assigned.
+
+Connect existing responsibilities as follows:
+
+| Existing responsibility | Connection to implement in the first flow |
+|---|---|
+| Project direction and current-work/source readers | Compose the current purpose, requested outcome, selected material, applicable methods and unfinished work at ordinary task entry. Expose unavailable material explicitly and preserve the original basis of historical judgments. |
+| Execution-choice preparation and the host's ordinary judgment | Select direct work, an existing asset, inquiry, contribution or waiting from the current need and available resources. Preparation returns a proposal; the supported explicit writer saves the attributed choice before its authorized use. |
+| Existing host execution and contribution return | Carry the selected action through the actual host tools or permitted request/return path, inspect its output and perform the relevant check. A prepared choice's `next_action` is guidance, not an execution callback. |
+| Result assessment and eligible work/successor writers | Save the actual output, checked interpretation, method applicability and remaining action; then let a fresh executor perform that action through normal entry. Use ordinary new-work composition only for eligible unexecuted work and the existing managed-result/successor owner for executed work. |
+
+Keep qualitative interpretation and selection in the existing host/model
+procedure where sufficient. Programmatic owners enforce current source bindings,
+eligibility, grants, resource admission, duplicate handling and durable result
+recovery. A bounded source-inspection agenda does not supply general business
+judgment. Read-only Resume/GET remains read-only; an authorized action invokes
+the supported writers explicitly. Routine substeps continue within the assigned
+goal and authority without repeated user instructions to analyze, execute, save
+and continue. Material changes of purpose, resources or external commitments
+return to their applicable decision owner.
+
+Extend the operating flow in this order, with each increment delivering usable
+work rather than an unused schema or another preparation-only milestone:
+
+1. **Close execution and return.** Complete the first supported host path above,
+   including interruption and fresh-executor follow-up. Preserve actual output
+   and unresolved effects so a lost response is reconciled before a possibly
+   duplicate action. Retain all required unresolved-effect lineage when optional
+   source material is not selected.
+2. **Connect changed inputs and returned results.** Bring a new request, changed
+   selected source, failure or contribution return into the same path. Reconsider
+   the affected judgment or method while retaining unrelated useful work. First
+   support explicit task/result entry; a later supported event or scheduled entry
+   uses existing trigger/grant owners and the same admission and recovery rules.
+   It does not require an always-running business supervisor.
+3. **Turn repeated work into usable methods.** Keep a working checker, script,
+   procedure or service with its input/output meaning, source/version, applicable
+   conditions and outcome check. Make it available to the next task's selection
+   and actual execution; revise, replace or decline it when current inputs warrant.
+   #1431 and the existing executable-reuse/P4.6 owners carry this increment; L1
+   completion alone does not complete L2. Case-specific assets stay with the case;
+   a recurring cross-case defect or capability need can justify a product change.
+4. **Connect outside requests and useful contributions.** Under #1447/#1443/#1453,
+   describe the supported service's inputs, output, checking, correction/support
+   responsibility and terms, and route an admitted request into the same work
+   flow. Initial intake or delivery can be explicitly human-mediated. Automate
+   repeated transport steps and add a machine-readable interface for an actual
+   counterpart when needed. Request outside capability for a concrete gap, check
+   the return and use it in current work; retain conditional experience for later
+   choice. Existing distribution, adapters and tools remain usable.
+
+Resource allocation is a later scoped extension of this flow. Admission must
+consider ongoing delivery/support duties and committed capacity before accepting
+new work; reserve the permitted amount once, reconcile actual use, and release
+only the unused portion known to be free. An unknown external effect remains an
+open obligation. Confirmed settlement can update available resources under the
+owner's allocation policy; expected revenue is not spendable cash or new authority.
+Perspective then informs whether permitted resources serve delivery, method
+improvement or exploration. Reuse existing grant/accounting owners and ordinary
+records where sufficient; define a missing concrete contract in 02 with its
+implementation rather than presupposing a universal ledger or payment service.
+
+Develop these capabilities through complete assignments: current-source
+diagnosis, the smallest sufficient implementation, relevant checks, cleanup and
+one consolidated result with a Draft PR when code changes. ChatGPT and the user
+retain goal/scope and result-review ownership; Codex chooses the implementation
+and tests. Existing preparation or a sufficient native path is reused. One
+continuing undertaking supplies concrete work for development; broader entry,
+noncommercial work and other already approved capabilities remain independent.
+This sequence updates the development plan; it launches no worker, provider use,
+customer contact, transaction or deployment and allocates no new study.
+
 ### Next P3/P4 — Current-understanding-guided work and result-informed re-entry
 
 The reviewed v1.1 local candidate (L1) narrows existing
@@ -371,6 +686,9 @@ Status: **Next / scoped; implementation assignment and new observations
 NOT_STARTED**. [#1215](https://github.com/hynk-studio/augnes/issues/1215) owns the
 relevant succession evidence. Select one coherent implementation task when
 assigned, without creating a parallel roadmap or five separate phase issues.
+The [undertaking development sequence](#development-and-operation-sequence--2026-10-25)
+applies this candidate to a complete operating flow; it does not mark L1
+implemented or replace the existing execution and successor contracts.
 
 The implementation must connect four responsibilities through existing owners:
 
@@ -393,6 +711,41 @@ The implementation must connect four responsibilities through existing owners:
    writers to link the result, revised or retained judgment and unresolved work.
    A fresh executor must find and use that saved material through normal entry
    for an actual follow-up, rather than receive a manually reconstructed answer.
+
+For this increment, make a compact **project memory guide** available through
+the existing project/task context and work/source paths. This is a derived
+orientation for the model, with exact references and explicit uncertainty.
+Inspect the actual consumer first: existing projections, selected notes and
+host/model instructions may already satisfy some or all of these responsibilities.
+
+- **Orient by the current question.** Connect the project's goal, live questions
+  and current judgments to the relevant source revisions, counterevidence and
+  usable methods, with reasons for relevance and unresolved gaps. Preserve the
+  distinction between accepted Perspective, observations and derived interpretation.
+- **Make reading and reconsideration actionable.** At ordinary task entry,
+  material update or result return, host/model guidance identifies the permitted
+  current material to read first, when supporting or historical lookup is needed,
+  and the conditions requiring a before-use recheck. The model judges relevance
+  and conditional use within supported access; unavailable material or a bounded
+  no-match remains distinct from global absence.
+- **Connect judgments across time.** Link the earlier observation or expectation,
+  its information cutoff and conditions, the returned result, and the resulting
+  current judgment. Retain why it was revised, retained or left unused, unresolved
+  questions and the next reconsideration trigger. Distinguish source/event time
+  from judgment/revision time where available; unknowns remain explicit. Preserve
+  original observations, predictions and unaffected judgments. Rebuild the guide
+  or mark affected material stale when its supporting revisions or conditions change.
+
+Use existing context, source, expectation and outlook mechanisms where sufficient;
+the guide may be composed on demand. Deliver the instruction-to-read/use/update
+connection in the chosen ordinary work path, without requiring a separate stored
+artifact, new Core type, product page or model call. Read-only entry retains its
+existing boundary. This is a bounded L1 outcome for the assigned task; it neither
+asserts a storage defect nor marks the outcome implemented. Broader cross-project
+memory organization and a unified temporal model remain later work; permitted
+shared experience may already be used through existing scoped paths. Personal
+Perspective remains a separate opt-in candidate. Retain the #1468/#1478 retrieval
+scope and use the existing L1 evidence allocation below.
 
 One implementation option for composition and selection is **problem-conditioned
 joint reading**: use the current question, project Perspective, goals and
@@ -472,11 +825,15 @@ operational steps remain pending, the overall distribution objective stays open.
 
 The [2026-10-15 ordinary-client observations](https://github.com/hynk-studio/augnes/issues/1447#issuecomment-6190336565)
 completed three bounded tasks and retained the current guidance (RETAIN), without
-a new source change or comparative-benefit claim. Next: prepare one stable public
-distribution destination for the selected asset/consumer and its actual return
-path under existing operational authority. Do not repeat the accepted exact-link
-delivery or RETAIN observations just to satisfy this plan. Comparative benefit,
-organic search, independent field adoption and all-host support remain unclaimed.
+a new source change or comparative-benefit claim. #1447 subsequently records the
+user-authorized 2026-10-20 component pre-release distribution as ACCEPT/COMPLETE:
+the [workflow-cost Skill 0.1.0 release](https://github.com/hynk-studio/augnes/releases/tag/augnes-workflow-cost-v0.1.0)
+is a bounded public component, not a general application release or universal
+directory listing. Next: connect an appropriate asset/entry to a concrete need,
+usable contribution return and checked later use under existing owners. Do not
+repeat the completed distribution, exact-link delivery or RETAIN observations
+just to satisfy this plan. Comparative benefit, organic search, independent
+field adoption and all-host support remain unclaimed.
 #1433's completed connected-review evidence and #1372's private-file obligations
 remain with their existing owners; neither is a prerequisite for these public files.
 
@@ -619,6 +976,86 @@ is **SIMPLIFY to ordinary adaptive memo/code**. The acquired conditions were
 actually loaded and used; the extra explicit selector showed no advantage in
 this exposed small comparison. Original artifacts, failures, source qualification
 and measured/unknown burden are recorded in the consolidated #1464 delivery.
+
+The separately commissioned 2026-10-23 Experience-revised increment adds a
+[contained meter CLI case and independent checker](../../scripts/work-explanation-study/README.md).
+Ordinary files and consumer-authored code require no new product contract.
+A produces a signed-energy statement after an input-contract change; fresh B
+must use its own retained assets for a mixed-unit, multi-period portfolio and
+per-site import-limit report. Actual predecessor executions preserve the
+constructed supplied advice's basis. Four focused development checks pass,
+including exact units/format, historical cleanup versus current insufficiency,
+and checker rejection controls; these are exposed mechanism evidence.
+
+The inputs, prompts, procedure, checks and original four-message ceiling were
+frozen before the first native launch. That launch failed before task work:
+the existing CLI's ChatGPT route returned HTTP 400 for the configured
+`gpt-6.1-sol`. It consumed one message and 3.204 seconds including complete
+owned settlement; three messages remain unused. All four consumer task outcomes
+are **NOT_RUN**, comparative usefulness is **INCONCLUSIVE**, and normal product
+integration is unestablished. Protected global configuration also changed during
+the launch interval; writer/cause remain **UNKNOWN** and Mac qualification is
+**HOLD**. No retry, alternative launcher, configuration restoration, Companion
+lifecycle action or historical-study restart was performed. **STOP** this bounded
+comparison at that refusal and retain the runnable assets for independent review.
+This does not revise the completed #1465 tie/SIMPLIFY or #1493's PARTIAL/ENDED
+disposition and unused historical slot. #1523 remains independently owned.
+
+The later, separately authorized `1464-meter-fresh-host-20261023-20261023T042232Z`
+trial is independently **ACCEPTED / ENDED / SIMPLIFY**: four distinct fresh
+consumers produced checked A/B outputs, both retained B methods replayed, and
+no supported benefit justified the extra mandatory binding structure. Ordinary
+adaptive notes/files/code with concise explanations where useful remain the
+default. Its separate allocation is closed. The earlier failed launch,
+FAILED/HOLD preservation interval and UNKNOWN writer/cause remain historical;
+unused slots do not transfer. #1525 is merged; source qualification and normal
+product integration remain distinct from this bounded consumer finding.
+
+The separately commissioned [historical software-compatibility case](../../scripts/software-compatibility-case/README.md)
+is **preparation only**. Exact six-module snapshots A `a30f64a6` and B `347bec0c`
+execute through a pinned snapshot-local loader. Neutral new A/B tasks distinguish
+fact-preserving public status preparation from a new release/status batch audit
+with exact authored-description retention. Independent same-input cross-version
+controls, artifact-checker rejection foils, export/whole-A transfer checks and a
+fresh contained developer-method replay are development evidence. They do not
+establish consumer investigation, learning, successor asset use, comparative
+advantage or normal product integration. No model consumers or route-control
+budget is commissioned. Retain the discriminating regression case and end the
+comparative branch absent a concrete useful intervention beyond ordinary memo/code.
+
+### Current contained research — Exact file identity and successor reconciliation (#1526)
+
+The separately commissioned [#1526](https://github.com/hynk-studio/augnes/issues/1526)
+uses [one ordinary adaptive memo/code A → fresh B case](../../scripts/file-identity-study/README.md).
+A inventories raw trees and handles genuinely insufficient archived material;
+B reconciles different before/after trees into exact path/content records.
+The limited prior script works in its stated domain, while actual admissible
+trees can share listing bytes and require different inventories. Independent
+literal-fact checks retain failures, valid/irrelevant cases, uncertainty,
+wrong-output refusal, whole-A transfer and fresh bounded replay controls.
+Development controls are not consumer learning. The two-message observation
+allocation is separate from all completed #1464 allocations. The frozen A
+dispatch was rejected because its supplied agent name contained an uppercase
+character. That initiated failure consumes A's slot; no replacement was made.
+No consumer work or A assets were observed, so A/B outcomes and consumer replay
+remain NOT_RUN. The case's deterministic controls and developer replay pass;
+they are not a substitute for those observations. Preserve the refusal and
+CHANGE invocation preflight before any separately authorized later observation.
+The bounded review correction now uses the unchanged Canonical acceptance
+helper with complete cleanup required: graceful exit zero after timeout or
+cancellation is rejected before semantic replay checking. Raw owner flags and
+outputs remain evidence; known execution rejection and unknown settlement are
+separate. A prospective recorder copy receives the same correction while its
+original frozen bytes stay unchanged. Offline full-request preflight binds all
+five explicit fields, exact prompt bytes, schema and validator hashes before
+reservation; inert controls are not a dispatch or backend-readiness proof.
+The corrected head requires its own current-policy qualification; the original
+head's receipt does not transfer. The review's cloud lifecycle attempt stays
+UNKNOWN, distinct from the new local developer controls and Mac qualification.
+Frozen originals, preservation and exact-source qualification belong to the
+consolidated result. Comparative
+usefulness is NOT_EVALUATED; product integration is NOT_ESTABLISHED. No second
+arm, new Core/learning engine, #1527 launch or #1523 ownership change is implied.
 
 ### Bounded P3/P4/P5 implementation — Different-goal experience use (#1427)
 
@@ -1272,6 +1709,31 @@ PR. Prior receipts remain historical. Hosted consumers remain with #1372 and
 broader product gaps with #1212. Retained-candidate use, provider execution and
 general usefulness remain outside this slice; later native acceptance is bounded
 to the approved store and clients, not every consumer.
+
+### Current lifecycle increment — Reversible native project archive (#1512)
+
+The source increment adds **Working projects / Archived projects** to the existing
+native saved-project management surface, with explicit archive, unarchive and
+same-project return. The ordinary view excludes archived projects; complete
+all-registered and capability-scoped discovery retain them with organization state.
+Archive preserves work/history/obligations and changes no direction, execution,
+access, accounting or accepted goal. Recents removal remains a separate feature.
+
+The existing lifecycle owner stores organization and a fresh project observation.
+Explicit forward migration gives every old project a working default; staged
+backup/recovery preserves classification and history while refreshing observations.
+Deterministic cases exercise inactive-project independence, stale/concurrent
+changes, complete scoped pages, uncertain readback, missing roots, portable replay,
+failed-stage rollback and repeated restore with fresh-process same-work reads.
+Archived root recovery and repeat registration also retain atomic selection
+freshness, with late-change refusal and unchanged-selection success controls.
+Migration refusal is injected after schema creation and project backfill to
+check rollback of those partial writes.
+The existing project-experience Browser owner exercises the actual controls,
+restart, deliberate return and a lost acknowledgement. Final exact-head
+qualification and independent review belong to the single Draft PR return.
+This implements local organization, not deletion, paused execution, installed or
+hosted adoption, measured user benefit, or completion of broader #1212/#1215.
 
 ### Current RC1 follow-up — Selection reconstruction conformance (#1401)
 

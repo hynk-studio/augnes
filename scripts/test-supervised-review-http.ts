@@ -15,7 +15,7 @@ import { REVIEW_MARKER } from "../plugins/augnes-operator/mcp/review-connection.
 import { receiverSecret } from "./test-review-receiver-fixture.mjs";
 
 const modernMeta = { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} };
-const reviewTools = ["augnes_list_review_requests", "augnes_read_review_request", "augnes_reply_to_review"];
+const reviewTools = ["augnes_list_review_requests", "augnes_read_review_request", "augnes_reply_to_review", "augnes_get_review_status"];
 const fingerprint = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 
 type Fixture = ReturnType<typeof prepareSupervisedReviewHttp>;
@@ -126,7 +126,8 @@ export async function assertSupervisedReviewHttp(f: Fixture, environment: NodeJS
     const state = () => fingerprint(db.prepare("SELECT name,sql FROM sqlite_master WHERE type='table' ORDER BY name").all().map((t: any) => [t.name, t.sql,
         db.prepare(`SELECT * FROM "${t.name.replaceAll('"', '""')}"`).all().map(row => JSON.stringify(row)).sort()]));
     const zeroEffect = async (action: () => Promise<void>) => {
-        const before = state(); await action(); assert.equal(state(), before, "refusal must preserve review, subscription, delivery, Core and run rows/schema");
+        const before = state(), config = readFileSync(f.config, "utf8"); await action(); assert.equal(state(), before, "read/refusal must preserve review, subscription, delivery, Core and run rows/schema");
+        assert.equal(readFileSync(f.config, "utf8"), config);
         assert(!existsSync(f.networkAttempts), "no callback/provider/network attempt: " + (existsSync(f.networkAttempts) ? readFileSync(f.networkAttempts, "utf8") : "")); f.refusalCases++;
     };
     const saveConfig = (connections = [f.connection]) => writeFileSync(f.config, JSON.stringify({ version: REVIEW_MARKER, connections }), { mode: 0o600 });
@@ -243,6 +244,13 @@ export async function assertSupervisedReviewHttp(f: Fixture, environment: NodeJS
         }
         const requested = recovery ? f.pending : await requestReview("Should all synthetic rows remain available?");
         if (!recovery) assert.deepEqual(receiver().filter(r => r.stage === "event").map(r => r.request_ref), [requested.request_ref]);
+        await zeroEffect(async () => {
+            const pending = await review(reviewTools[3], { request_ref: requested.request_ref });
+            assert.equal(pending.status, "available"); assert.equal(pending.response, null); assert.equal(pending.currentness, "current");
+            assert(!("read_binding" in pending)); assert.match(pending.next_action, /augnes_read_review_request/);
+            for (const receipt_mode of [undefined, "historical_v1"])
+                assert.equal((await review(reviewTools[2], { request_ref: requested.request_ref, read_binding: "sha256:" + "f".repeat(64), answer: "Not a material read.", limitations: "synthetic", source_refs: [], ...(receipt_mode ? { receipt_mode } : {}) })).reason, "review_read_binding_refused");
+        });
         const read = await review(reviewTools[1], { request_ref: requested.request_ref });
         assert.equal(read.status, "available"); assert.equal(read.material_ref, requested.material_ref);
         assert.equal(read.definition.goal, "Preserve all synthetic duplicate CSV rows."); assert(read.sources.some((s: any) => s.excerpt_text.includes("A:red")));
@@ -250,11 +258,18 @@ export async function assertSupervisedReviewHttp(f: Fixture, environment: NodeJS
         assert.equal((await review(reviewTools[2], reply)).status, "saved");
         assert.equal((await review(reviewTools[2], reply)).status, "exact_replay");
         await zeroEffect(async () => assert.equal((await review(reviewTools[2], { ...reply, answer: "Conflicting answer" })).reason, "review_reply_conflict"));
+        await zeroEffect(async () => {
+            const answered = await review(reviewTools[3], { request_ref: requested.request_ref });
+            assert.equal(answered.readback, "not_served"); assert.equal(answered.response.answer, reply.answer);
+            assert.match(answered.next_action, /No resubmission/); assert(!("read_binding" in answered));
+            assert.deepEqual(await review(reviewTools[3], { request_ref: requested.request_ref }), answered);
+        });
         await freshOrigin();
         const back = await op({ action: "readback", connection_ref: f.connection.id, request_ref: requested.request_ref });
         assert.equal(back.response.answer, reply.answer); assert.equal(back.currentness, "current"); assert.equal(back.use.status, "not_observed_in_current_work");
         assert.equal(back.response.attribution.model_and_tier, "unverified");
-        const use = await op({ action: "prepare_use", connection_ref: f.connection.id, request_ref: requested.request_ref, choice: "retain", reasoning: "The synthetic response supports preserving each row. Retain the proposed step and record the review as unverified context." });
+        assert.equal(back.readback, "served_to_origin"); assert.match(back.next_action, /prepare retain, revise or reject/);
+        const use = await op({ action: "prepare_use", connection_ref: f.connection.id, request_ref: requested.request_ref, choice: "revise", reasoning: "Partly use the response: retain every original row and its position. Defer the conflicting-ID flag because no conflict encoding has been agreed. No overwrite or execution is authorized." });
         const preview = await call(use.revision_tool, use.revision_arguments);
         assert.equal((await call("augnes_save_repository_work_revision", { ...use.revision_arguments, previewBinding: preview.preview_binding })).status, "saved");
         const used = await op({ action: "readback", connection_ref: f.connection.id, request_ref: requested.request_ref });
@@ -267,6 +282,43 @@ export async function assertSupervisedReviewHttp(f: Fixture, environment: NodeJS
             const { secret: _secret, ...delivery } = subscription.delivery;
             assert((await rpc(modern("events/unsubscribe", { ...subscription, delivery }))).result);
             assert.equal(receiver().length, beforeUnsubscribe, "unsubscribe after revocation has no network verification");
+            for (let n = 0; n < 5; n++) await requestReview(`Unanswered status pagination control ${n}`);
+            const page = await review(reviewTools[0], {});
+            assert(page.next_cursor && !page.requests.some((r: any) => r.request_ref === requested.request_ref));
+            await close(reviewer);
+            reviewer = await transport("request-bound-review.mjs", { AUGNES_REVIEW_CONNECTION_ID: f.connection.id });
+            await reviewer.start();
+            await rpc(modern("server/discover"));
+            let observed: any;
+            await zeroEffect(async () => {
+                observed = await review(reviewTools[3], { request_ref: requested.request_ref });
+                assert.equal(observed.status, "available"); assert.equal(observed.currentness, "historical");
+                assert.equal(observed.readback, "served_to_origin"); assert.equal(observed.response.answer, reply.answer);
+                assert.match(observed.use.reasoning, /Defer the conflicting-ID flag/);
+                const { projection_version, status, source_material_authority, authority, ...item } = observed;
+                const nextPage = await review(reviewTools[0], { cursor: page.next_cursor });
+                assert.deepEqual(item, nextPage.requests.find((r: any) => r.request_ref === requested.request_ref));
+                assert(!("read_binding" in item) && !("definition" in item) && !("sources" in item));
+            });
+            const packets = db.prepare("SELECT * FROM vnext_core_records ORDER BY record_id").all();
+            const requests = db.prepare("SELECT * FROM vnext_review_requests ORDER BY request_ref").all();
+            const resumed = await call("augnes_resume_repository", { repositoryRoot: f.projectRoot });
+            const sources = await call("augnes_read_repository_work_sources", { repositoryRoot: f.projectRoot, expectedSnapshotBinding: resumed.continuity.snapshot.binding });
+            const useNotes = sources.sources.filter((s: any) => s.trust_class === "derived_interpretation" && s.excerpt_text === observed.use.reasoning);
+            assert.equal(useNotes.length, 1, "select the exact returned authored note without relying on a withheld locator");
+            const useNote = useNotes[0];
+            assert(useNote);
+            await saveWork({ sources: { deselect: [useNote.source_binding] } });
+            assert.deepEqual(db.prepare("SELECT * FROM vnext_review_requests ORDER BY request_ref").all(), requests);
+            for (const row of packets as any[]) assert.deepEqual(db.prepare("SELECT * FROM vnext_core_records WHERE record_id=?").get(row.record_id), row);
+            await zeroEffect(async () => {
+                const deselected = await review(reviewTools[3], { request_ref: requested.request_ref });
+                assert.deepEqual(deselected.use, { status: "not_observed_in_current_work" });
+                assert.deepEqual(deselected.response, observed.response);
+                assert.equal((await review(reviewTools[1], { request_ref: requested.request_ref })).reason, "review_material_changed");
+                console.log(JSON.stringify({ test: "supervised-contributor-status", status: "pass", actual_next_http: true, fresh_reviewer: true,
+                    beyond_first_page: true, selected: observed, deselected, prior_packets_preserved: packets.length }));
+            });
             f.pending = await requestReview("Later recovery request: retain all rows?");
             f.priorRuntime = { generation_id: companion.generation_id }; f.initialPassed = true;
         } else f.recoveryPassed = true;

@@ -8,7 +8,7 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
 import { getOrCreateDefaultWorkspaceIdentityV01, getOrCreateCanonicalProjectForLocalRootV01, normalizeLocalProjectRootRefV01, rebindCanonicalProjectLocalRootV01 } from "../lib/vnext/persistence/project-identity-registry";
-import { readActiveProjectSelectionV01, selectActiveProjectV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
+import { readActiveProjectSelectionV01, selectActiveProjectV01, readProjectOrganizationV01, changeProjectOrganizationV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import { issueVNextLocalOperatorBootstrapV01, consumeVNextLocalOperatorBootstrapV01, readVNextLocalOperatorCredentialFromRequestV01, VNEXT_LOCAL_OPERATOR_SESSION_COOKIE_V01 } from "../lib/vnext/runtime/local-operator-session";
 import { defineInitialProjectWorkV01 } from "../lib/vnext/runtime/project-work-initialization";
 import { revisePreExecutionProjectWorkV01 } from "../lib/vnext/runtime/project-work-revision";
@@ -142,11 +142,21 @@ async function main() {
       } finally { corrupt.close(); }
     }
     tick();
+    const beforeArchiveSelection=readActiveProjectSelectionV01(db,scope.workspace_id)!;
+    const archiveScope={...scope,project_id:independent.project_id};
+    const beforeArchiveDirection=readProjectDirection(db,archiveScope,now());
+    const organizationRequest={...archiveScope,expected_project_id:beforeArchiveSelection.project_id,expected_revision:beforeArchiveSelection.selection_revision};
+    changeProjectOrganizationV01(db,{...organizationRequest,state:"archived",expected_organization_revision:readProjectOrganizationV01(db,archiveScope).revision});
+    assert.deepEqual(readProjectDirection(db,archiveScope,now()),beforeArchiveDirection);
+    assert.deepEqual(readActiveProjectSelectionV01(db,scope.workspace_id),beforeArchiveSelection);
+    assert.equal((await discover()).discovery.projects.find((p:any)=>p.project.project_id===independent.project_id).organization.state,"archived");
     const concurrentDecision = { project_id: independent.project_id, sequence, operation: { ...decide(independent.record.ref, allowed[1]!.purpose), status: "paused" } };
     const concurrentResponses = await Promise.all([0, 1].map(() => agent(new Request(agentUrl, { method: "POST", headers: {
       host: "127.0.0.1", origin: "http://127.0.0.1", "content-type": "application/json", authorization: `Bearer ${token}` }, body: JSON.stringify(concurrentDecision) }))));
     assert.deepEqual(concurrentResponses.map(r => r.status).sort(), [200, 409], "Exactly one concurrent direction mutation consumes the sequence and prior revision");
     sequence = (await concurrentResponses.find(r => r.status === 200)!.json()).sequence;
+    assert.equal(readProjectOrganizationV01(db,archiveScope).state,"archived","authorized exact-project direction still works while archived");
+    changeProjectOrganizationV01(db,{...organizationRequest,state:"working",expected_organization_revision:readProjectOrganizationV01(db,archiveScope).revision});
     await agentCall(independent.project_id, decide(independent.record.ref, allowed[1]!.purpose), 409, sequence - 1);
     tick();
     const independentCurrent = effectiveDirection(db, { ...scope, project_id: independent.project_id }, now())!;
@@ -342,15 +352,15 @@ async function main() {
     tick();
     const result = readResultWorkPreparationV01(db, { config, receipt_id: settled.receipt_id!, clock });
     const comparison = compareResultWorkSourcesV01(db, { config, binding: result.binding, notes: [...readSelectedWorkSources(revision.packet), result.result_source!].map(selectedWorkSourceInput), clock });
-    const successorPreview = previewResultWorkV01(db, { config, binding: result.binding, clock, definition: { goal: "Review the inspected sources under the current direction", success_criteria: ["Keep support separate from authority"], non_goals: ["No publishing"] },
+    const successorPreview = previewResultWorkV01(db, { config, session_id: credential().session_id, binding: result.binding, clock, definition: { goal: "Review the inspected sources under the current direction", success_criteria: ["Keep support separate from authority"], non_goals: ["No publishing"] },
       selected_sources: { selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint, omitted_sources: [] } });
     tick();
     const afterPreview = await call(human, humanUrl, decide(duringRun.record.ref, "Reconsider the successor after another direction change"));
     await assert.rejects(() => defineAuthoredSuccessorTaskV01(db, { config, credential: credential(), clock, request: successorPreview.request }), /project_direction_stale_revision/);
-    assert.throws(() => previewResultWorkV01(db, { config, binding: result.binding, clock, definition: { goal: "Review", success_criteria: ["Inspect"], non_goals: [] }, selected_sources: { selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint, omitted_sources: [] } }), /preparation_changed/);
+    assert.throws(() => previewResultWorkV01(db, { config, session_id: credential().session_id, binding: result.binding, clock, definition: { goal: "Review", success_criteria: ["Inspect"], non_goals: [] }, selected_sources: { selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint, omitted_sources: [] } }), /preparation_changed/);
     const refreshedResult = readResultWorkPreparationV01(db, { config, receipt_id: settled.receipt_id!, clock });
     const refreshedComparison = compareResultWorkSourcesV01(db, { config, binding: refreshedResult.binding, notes: [...readSelectedWorkSources(revision.packet), refreshedResult.result_source!].map(selectedWorkSourceInput), clock });
-    const refreshedPreview = previewResultWorkV01(db, { config, binding: refreshedResult.binding, clock, definition: { goal: "Review the inspected sources under the current direction", success_criteria: ["Keep support separate from authority"], non_goals: ["No publishing"] },
+    const refreshedPreview = previewResultWorkV01(db, { config, session_id: credential().session_id, binding: refreshedResult.binding, clock, definition: { goal: "Review the inspected sources under the current direction", success_criteria: ["Keep support separate from authority"], non_goals: ["No publishing"] },
       selected_sources: { selected_source_context: refreshedComparison.entries, expected_source_comparison: refreshedComparison.fingerprint, omitted_sources: [] } });
     assert.equal(refreshedComparison.fingerprint, comparison.fingerprint, "Explicit refresh preserves the same selected source content");
     const successor = await defineAuthoredSuccessorTaskV01(db, { config, credential: credential(), clock, request: refreshedPreview.request });

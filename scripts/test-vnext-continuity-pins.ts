@@ -1199,7 +1199,7 @@ function testMigrationParityAndPrePinnedUpgradeV01(): void {
           REFERENCES vnext_project_identities(workspace_id, project_id)
           ON UPDATE RESTRICT ON DELETE RESTRICT
       );
-      DROP TABLE vnext_external_shares; DROP TABLE vnext_external_records; DROP TABLE vnext_external_materials; DROP TABLE vnext_external_envelopes; DROP TABLE vnext_review_callback_candidates; DROP TABLE vnext_review_callback_policies; DROP TABLE vnext_review_deliveries;
+      DROP TRIGGER trg_vnext_project_organization_initialize; DROP TABLE vnext_project_organization; DROP TABLE vnext_external_shares; DROP TABLE vnext_external_records; DROP TABLE vnext_external_materials; DROP TABLE vnext_external_envelopes; DROP TABLE vnext_review_callback_candidates; DROP TABLE vnext_review_callback_policies; DROP TABLE vnext_review_deliveries;
       DROP TABLE vnext_review_subscriptions;
       DROP TABLE vnext_review_requests;
       DROP INDEX idx_vnext_project_continuity_pins_project_order;

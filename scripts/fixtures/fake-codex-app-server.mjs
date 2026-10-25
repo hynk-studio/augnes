@@ -127,6 +127,13 @@ if (candidateCanaryScenario && !nativeCandidateScenario) {
 }
 
 if (isolatedAuthScenario) {
+  // Symbolize only the independently proven fixed fixture locator. The source
+  // owner also checks the executable, test mode, bytes and complete argument
+  // sequence before every remaining argv value reaches the credential scan.
+  const { codexSyntheticIsolatedAppServerArgvForScanV01 } = await import(
+    "../../lib/vnext/native-host/codex-synthetic-app-server-fixture.mjs"
+  );
+  const scannedArgv = codexSyntheticIsolatedAppServerArgvForScanV01(process.argv[0], process.argv.slice(1));
   const authSnapshotPath = path.join(process.env.CODEX_HOME ?? "", "auth.json");
   let authSnapshotKind = null;
   if (existsSync(authSnapshotPath)) {
@@ -195,7 +202,7 @@ if (isolatedAuthScenario) {
         shared_tmp_canary_visible: existsSync(
           path.join(process.env.TMPDIR ?? "", "foreign-temp-canary"),
         ),
-        material_in_argv: process.argv.some((value) =>
+        material_in_argv: scannedArgv.some((value) =>
           /(?:sk-(?:proj-)?|xoxb-|AKIA[A-Z0-9]|BEGIN PRIVATE KEY)/u.test(value),
         ),
         file_store_policy_present: process.argv.includes(

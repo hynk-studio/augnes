@@ -488,22 +488,38 @@ function estimateTaskContextPacketTokensV01(packet: TaskContextPacketV01) {
   );
 }
 
+/** Ephemeral compiler measurement, never part of a packet or its fingerprint. */
+export interface TaskContextPacketBudgetDiagnosticV01 {
+  budget: "max_characters" | "max_estimated_tokens";
+  unit: "utf16_code_units" | "estimated_tokens";
+  observed: number;
+  limit: number;
+  overage: number;
+}
+
+/** Expected compiler admission failure; unrelated RangeErrors remain unexpected. */
+export class TaskContextPacketBudgetErrorV01 extends RangeError {
+  readonly diagnostic: Readonly<TaskContextPacketBudgetDiagnosticV01>;
+  constructor(readonly budget: "max_characters" | "max_estimated_tokens", observed: number, limit: number) {
+    super(`TaskContextPacket exceeds ${budget} (${observed} > ${limit}).`);
+    this.name = "TaskContextPacketBudgetErrorV01";
+    this.diagnostic = Object.freeze({ budget, unit: budget === "max_characters" ? "utf16_code_units" : "estimated_tokens",
+      observed, limit, overage: observed - limit });
+  }
+}
+
 function assertTaskContextPacketBuildBudgetV01(packet: TaskContextPacketV01) {
   const budget = packet.constraints.context_budget;
   const characters = canonicalizeTaskContextValueV01(packet).length;
   if (budget.max_characters !== null && characters > budget.max_characters) {
-    throw new RangeError(
-      `TaskContextPacket exceeds max_characters (${characters} > ${budget.max_characters}).`,
-    );
+    throw new TaskContextPacketBudgetErrorV01("max_characters", characters, budget.max_characters);
   }
   if (
     budget.max_estimated_tokens !== null &&
     budget.estimated_tokens !== null &&
     budget.estimated_tokens > budget.max_estimated_tokens
   ) {
-    throw new RangeError(
-      `TaskContextPacket exceeds max_estimated_tokens (${budget.estimated_tokens} > ${budget.max_estimated_tokens}).`,
-    );
+    throw new TaskContextPacketBudgetErrorV01("max_estimated_tokens", budget.estimated_tokens, budget.max_estimated_tokens);
   }
 }
 

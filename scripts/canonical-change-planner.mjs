@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
+import { createCanonicalRevisionReader } from "./canonical-revision-reader.mjs";
 import {
   RESEARCH_REGISTRATION_PATH, RESEARCH_SOURCE_PATHS, RESEARCH_OWNER_ID,
   validateResearchRegistration, assertAdditiveResearchRegistration,
@@ -85,7 +86,8 @@ export function planCanonicalChange({
     throw new Error("canonical planner base and head must differ");
   }
 
-  const changes = readGitChanges({ cwd, baseSha, headSha });
+  const reader = createCanonicalRevisionReader(cwd);
+  const changes = readGitChanges({ cwd, baseSha, headSha, reader });
   if (changes.length === 0) {
     throw new Error("canonical planner found no pull-request changes");
   }
@@ -107,7 +109,7 @@ export function planCanonicalChange({
     });
   }
 
-  const documentContext = createDocumentationContext({ cwd, baseSha, headSha, changes });
+  const documentContext = createDocumentationContext({ cwd, baseSha, headSha, changes, reader });
   const classifications = changes.map((change) => classifyChangeResponsibility(change, documentContext));
   const fullReasons = classifications
     .filter((classification) => classification.kind === "full")
@@ -344,7 +346,7 @@ function isDocumentationCandidate(relativePath) {
     );
 }
 
-function readGitChanges({ cwd, baseSha, headSha }) {
+function readGitChanges({ cwd, baseSha, headSha, reader }) {
   const result = runGit(
     cwd,
     [
@@ -360,8 +362,8 @@ function readGitChanges({ cwd, baseSha, headSha }) {
   const records = parseNameStatus(result.stdout);
   return records.map((record) => ({
     ...record,
-    oldMode: record.oldPath ? readGitMode(cwd, baseSha, record.oldPath) : null,
-    newMode: record.newPath ? readGitMode(cwd, headSha, record.newPath) : null,
+    oldMode: record.oldPath ? readGitMode(reader, baseSha, record.oldPath) : null,
+    newMode: record.newPath ? readGitMode(reader, headSha, record.newPath) : null,
   }));
 }
 
@@ -429,8 +431,7 @@ function classifyChangeResponsibility(change, documentContext) {
       if (!documentContext.researchRegistrationChecked) {
         const ids = [documentContext.baseSha, documentContext.headSha].map(revision =>
           validateResearchRegistration(
-            runGit(documentContext.cwd, ["show", `${revision}:${RESEARCH_REGISTRATION_PATH}`],
-              { encoding: "utf8", maxBuffer: 4096 }).stdout,
+            documentContext.reader.read(revision, RESEARCH_REGISTRATION_PATH, 4096),
             file => documentContext.treeModes.get(revision).get(file),
           ));
         assertAdditiveResearchRegistration(...ids);
@@ -513,20 +514,30 @@ const DOCUMENTATION_INFRASTRUCTURE = new Set([
   "scripts/test-local-canonical-executor.mjs", "scripts/test-local-canonical-receipt.mjs",
 ]);
 
-function createDocumentationContext({ cwd, baseSha, headSha, changes }) {
+function createDocumentationContext({ cwd, baseSha, headSha, changes, reader }) {
   if (!changes.some((change) => changedPaths(change).some((p) => isDocumentationCandidate(p) || p === "AGENTS.md" ||
       p === RESEARCH_REGISTRATION_PATH || RESEARCH_SOURCE_PATHS.includes(p)))) {
     return null;
   }
   const delegated = new Set();
   const treeModes = new Map();
+  const authorityPaths = changeOwnerManifest.documentation_owners
+    .filter(item => item.disposition === "full").flatMap(owner => owner.paths);
+  reader.prefetch([baseSha, headSha].flatMap(revision => [
+    ...authorityPaths,
+    ...changes.filter(change => change.status === "M" && change.oldMode === "100644" &&
+      change.newMode === "100644" && change.newPath.endsWith(".md") &&
+      (isDocumentationCandidate(change.newPath) || change.newPath === "AGENTS.md"))
+      .map(change => revision === baseSha ? change.oldPath : change.newPath),
+  ].map(file => ({ revision, file }))));
   for (const revision of [baseSha, headSha]) {
-    const files = new Map(runGit(cwd, ["ls-tree", "-r", "-z", revision], { encoding: "utf8", maxBuffer: MAX_DIFF_BYTES }).stdout.split("\0").filter(Boolean).map((entry) => [entry.slice(entry.indexOf("\t") + 1), entry.slice(0, 6)]));
+    const files = new Map([...reader.tree(revision)]
+      .filter(([, entry]) => entry.type !== "tree").map(([file, entry]) => [file, entry.mode]));
     treeModes.set(revision, files);
     for (const owner of changeOwnerManifest.documentation_owners.filter((item) => item.disposition === "full")) {
       for (const file of owner.paths) {
         if (!files.has(file)) continue;
-        const source = runGit(cwd, ["show", `${revision}:${file}`], { encoding: "utf8", maxBuffer: MAX_DIFF_BYTES }).stdout;
+        const source = reader.read(revision, file);
         for (const destination of extractMarkdownDestinations(source)) {
           const target = destination.split("#", 1)[0];
           if (!target || /^(?:[a-z]+:|\/)/iu.test(target)) continue;
@@ -536,7 +547,7 @@ function createDocumentationContext({ cwd, baseSha, headSha, changes }) {
       }
     }
   }
-  return { cwd, baseSha, headSha, delegated, treeModes, consumers: new Map() };
+  return { cwd, baseSha, headSha, delegated, treeModes, reader, consumers: new Map() };
 }
 
 function documentationConsumers(relativePath, context) {
@@ -549,8 +560,12 @@ function documentationConsumers(relativePath, context) {
     });
     if (result.error) throw result.error;
     if (![0, 1].includes(result.status)) throw new Error("documentation consumer observation failed");
-    for (const entry of result.stdout.split("\0").filter(Boolean)) {
-      const file = entry.slice(revision.length + 1);
+    const files = result.stdout.split("\0").filter(Boolean).map(entry => entry.slice(revision.length + 1));
+    context.reader.prefetch(files.filter(file => file !== relativePath &&
+      context.treeModes.get(revision).get(file) === "100644" && file.endsWith(".md") &&
+      !isDocumentationPath(file) && file !== "AGENTS.md" && !DOCUMENTATION_INFRASTRUCTURE.has(file))
+      .map(file => ({ revision, file })));
+    for (const file of files) {
       if (file === relativePath) continue;
       const explanatoryMarkdown = context.treeModes.get(revision).get(file) === "100644" && file.endsWith(".md") && (isDocumentationPath(file) || file === "AGENTS.md");
       if (!explanatoryMarkdown && !DOCUMENTATION_INFRASTRUCTURE.has(file) &&
@@ -565,8 +580,7 @@ function documentationConsumers(relativePath, context) {
 function onlyUnrelatedMarkdownDestinations(file, relativePath, revision, context) {
   const modes = context.treeModes.get(revision);
   if (modes.get(file) !== "100644" || !file.endsWith(".md")) return false;
-  const source = runGit(context.cwd, ["show", `${revision}:${file}`],
-    { encoding: "utf8", maxBuffer: MAX_DIFF_BYTES }).stdout;
+  const source = context.reader.read(revision, file);
   // Keep literal repository-path screening, even inside an otherwise local link.
   if (relativePath.includes("/") && source.includes(relativePath)) return false;
 
@@ -604,10 +618,11 @@ function dynamicDocumentationConsumers(relativePath, context) {
       });
       if (result.error) throw result.error;
       if (![0, 1].includes(result.status)) throw new Error("dynamic documentation consumer observation failed");
-      for (const entry of result.stdout.split("\0").filter(Boolean)) {
-        const file = entry.slice(revision.length + 1);
-        if (DOCUMENTATION_INFRASTRUCTURE.has(file)) continue;
-        const source = runGit(context.cwd, ["show", `${revision}:${file}`], { encoding: "utf8", maxBuffer: MAX_DIFF_BYTES }).stdout;
+      const files = result.stdout.split("\0").filter(Boolean)
+        .map(entry => entry.slice(revision.length + 1)).filter(file => !DOCUMENTATION_INFRASTRUCTURE.has(file));
+      context.reader.prefetch(files.map(file => ({ revision, file })));
+      for (const file of files) {
+        const source = context.reader.read(revision, file);
         if (path.posix.basename(file) === "package.json") {
           let config;
           try { config = JSON.parse(source); } catch { throw new Error("unreadable documentation package consumer"); }
@@ -645,8 +660,8 @@ function classifyDocumentationChange(change, context) {
   const pathDisposition = ["D", "R"].includes(change.status);
   let removedAnchor = false;
   if (change.status === "M" && change.newPath.endsWith(".md")) {
-    const previous = collectMarkdownAnchors(runGit(context.cwd, ["show", `${context.baseSha}:${change.oldPath}`], { encoding: "utf8", maxBuffer: MAX_DIFF_BYTES }).stdout);
-    const proposed = collectMarkdownAnchors(runGit(context.cwd, ["show", `${context.headSha}:${change.newPath}`], { encoding: "utf8", maxBuffer: MAX_DIFF_BYTES }).stdout);
+    const previous = collectMarkdownAnchors(context.reader.read(context.baseSha, change.oldPath));
+    const proposed = collectMarkdownAnchors(context.reader.read(context.headSha, change.newPath));
     removedAnchor = [...previous].some((anchor) => !proposed.has(anchor));
   }
   const isDisposition = pathDisposition || removedAnchor;
@@ -961,18 +976,13 @@ function validatePathRules(rules, ownerId) {
   }
 }
 
-function readGitMode(cwd, revision, relativePath) {
-  const result = runGit(cwd, ["ls-tree", "-z", revision, "--", relativePath], {
-    encoding: "buffer",
-    maxBuffer: 64 * 1024,
-  });
-  if (result.stdout.length === 0) return null;
-  const entry = result.stdout.toString("utf8");
-  const match = entry.match(/^(\d{6})\s+(?:blob|tree)\s+[0-9a-f]+\t/u);
-  if (!match) {
+function readGitMode(reader, revision, relativePath) {
+  const entry = reader.tree(revision).get(relativePath);
+  if (!entry) return null;
+  if (!["blob", "tree"].includes(entry.type)) {
     throw new Error(`malformed git tree entry for ${relativePath}`);
   }
-  return match[1];
+  return entry.mode;
 }
 
 function assertExactCommit(cwd, label, sha) {

@@ -20,6 +20,9 @@ export async function checkDirections({start,client,newWork,save,passed}){
  const branch=await ok(c.request(route(primary,'branch-preview'),{expected:headBinding(primary),intent:{reason:alternateReason}})),branchRequest={ticket:branch.ticket,intent:branch.intent};
  assert.equal((await c.request(`/api/work/${branch.work_id}/relation-save`,{...branchRequest,project_id:randomUUID()})).status,403);
  let alternate=(await ok(c.request(`/api/work/${branch.work_id}/relation-save`,branchRequest))).saved;
+ const generic={source:reference(alternate),dispositions:[],target_selection:[],file_selection:{target:primary.files,source:alternate.files},rationale:'Attempt generic notebook replacement',next_question:''};
+ assert.equal((await c.request(route(primary,'incorporation-preview'),{expected:headBinding(primary),intent:generic})).data.error,'scene_review_required');
+ assert.deepEqual(await ok(c.request(route(primary,'export'))),originalExport);
  assert.equal((await ok(c.request(route(alternate,'relation-save'),branchRequest))).saved.fingerprint,alternate.fingerprint);
  const book=async r=>{const i=r.files.findIndex(f=>f.name===SCENE_FILE);return JSON.parse((await ok(c.request(`/api/work/${r.work_id}/files/${r.revision}/${r.fingerprint.slice(7)}/${i}`))));};
  assert.deepEqual((await book(alternate)).inheritance.scenes[0].review.dispositions,sceneChoices);
@@ -84,4 +87,24 @@ export async function checkDirections({start,client,newWork,save,passed}){
  assert(capacity);assert.equal((await ok(c.request(`/api/work/${alternate.work_id}`))).saved.fingerprint,alternate.fingerprint);
  await ok(c.request(route(alternate,'erase'),{expected:headBinding(alternate),confirm:'erase-whole-work'}));assert.notEqual((await c.request(route(primary,'scene-context'),{expected:headBinding(primary),intent:parameters})).status,200);
  passed('directions: missing explicitly linked prerequisite refuses, and missing external source cannot masquerade as complete context');
+ // An ordinary file comparison can precede the existing creative workflow.
+ // Keep its v0.4 review meaning and copied-file attribution through the C branch.
+ const mixed=await newWork(c,{goal:'Ordinary files before creative work',success_criteria:['Preserve the reviewed file choices'],non_goals:[]},[]);
+ mixed.input.files=[storyMarker,storyUpload(storyOriginal)];let upgraded=(await save(c,mixed)).data.saved;
+ const ordinaryBranch=await ok(c.request(route(upgraded,'branch-preview'),{expected:headBinding(upgraded),intent:{reason:'Review these ordinary files first'}}));
+ const ordinaryAlternate=(await ok(c.request(`/api/work/${ordinaryBranch.work_id}/relation-save`,{ticket:ordinaryBranch.ticket,intent:ordinaryBranch.intent}))).saved;
+ const comparison=await ok(c.request(route(upgraded,'incorporation-preview'),{expected:headBinding(upgraded),intent:{source:reference(ordinaryAlternate),dispositions:[],target_selection:[],file_selection:{target:upgraded.files,source:[]},rationale:'Keep the original whole files',next_question:''}}));
+ upgraded=(await ok(c.request(route(upgraded,'relation-save'),{ticket:comparison.ticket,intent:comparison.intent}))).saved;
+ assert(upgraded.relations.review.file_selection);assert(upgraded.relations.file_materials);assert.equal(upgraded.relations.origin,null);
+ const mixedScene={id:randomUUID(),...sceneFixture};upgraded=await ordinary(upgraded,{scene:mixedScene});upgraded=await review(upgraded,mixedScene,sceneChoices,sceneReason);
+ const upgradedExport=await ok(c.request(route(upgraded,'export')));
+ const creativePreview=await ok(c.request(route(upgraded,'branch-preview'),{expected:headBinding(upgraded),intent:{reason:alternateReason}}));
+ const creative=(await ok(c.request(`/api/work/${creativePreview.work_id}/relation-save`,{ticket:creativePreview.ticket,intent:creativePreview.intent}))).saved;
+ assert.equal(creative.format,upgraded.format);assert.deepEqual(creative.relations.origin.starting_review,upgraded.relations.review);
+ assert.deepEqual(creative.relations.file_materials.filter(m=>m.file.name!==SCENE_FILE),upgraded.files.filter(f=>f.name!==SCENE_FILE).map(file=>({file,kind:'inherited',from:reference(upgraded)})));
+ assert.equal(creative.relations.file_materials.find(m=>m.file.name===SCENE_FILE).kind,'authored');
+ assert.deepEqual((await book(creative)).inheritance.scenes[0].review.dispositions,sceneChoices);
+ await ok(c.request(route(upgraded,'compare'),{expected:headBinding(upgraded),source:reference(creative)}));
+ assert.deepEqual(await ok(c.request(route(upgraded,'export'))),upgradedExport);
+ passed('directions: ordinary v0.4 file review remains compatible with later creative branch, inherited files and reserved notebook validation');
 }

@@ -1,0 +1,162 @@
+{
+  "kind": "PREPARATION_ONLY_NOT_LIVE_FREEZE",
+  "authored_at": "2026-10-23T07:02:10.639Z",
+  "consumers": "NOT_RUN; no allocation",
+  "route_controls": "NOT_RUN; no allocation",
+  "source": "snapshots/manifest.json",
+  "dependency": "package-lock.json",
+  "invocation": "README.md",
+  "acceptance": "acceptance.md",
+  "access": {
+    "a": "12-file export",
+    "b": "whole settled A excluding node_modules/ and .runtime/, plus nine B additions",
+    "isolation": "declared protocol separation on shared-user host"
+  },
+  "exposure": "Coordinator and two read-only engineering reviewers exposed to evaluator/source material; developer controls are not consumers.",
+  "files": {
+    ".gitignore": {
+      "bytes": 14,
+      "sha256": "4d56952b0fb13bf8f9b6c13a6d4c34a075bac3af447636a1df4335d7576e2f97"
+    },
+    "README.md": {
+      "bytes": 7466,
+      "sha256": "10dab5aa301db5fefce0bbea0fce8da02a6f9c6f0152d1a3a9b8fa198a55fa58"
+    },
+    "acceptance.md": {
+      "bytes": 2250,
+      "sha256": "c3b3ae059730498fe224476374d1402851380488f1351214fa132cc2e6450d59"
+    },
+    "check.mjs": {
+      "bytes": 2928,
+      "sha256": "d9485504be5725879237d53714e0f62ae266c835a64c21c0af261a7e20f8bf86"
+    },
+    "controls.mjs": {
+      "bytes": 7354,
+      "sha256": "3019a0b7d77a50023c7fb52dd7249fbf29aed776da2327e1b40fb3e9c48d2d27"
+    },
+    "developer-audit.mjs": {
+      "bytes": 771,
+      "sha256": "d54bf5f9bd3a411b2f31bca49dedcfe1f0e06885aa16deaf79b929451039063f"
+    },
+    "evaluator/a-control.json": {
+      "bytes": 2527,
+      "sha256": "d070809c17a1d4845c0aa31d9f628cb024eb919c34525a9cbce41c3d95755b73"
+    },
+    "evaluator/b-control.json": {
+      "bytes": 13983,
+      "sha256": "1f2b4834081294521f696514f4b04cdaac6e3c9214e2ffc84264c2e33b35c5db"
+    },
+    "evaluator/b-oracle.json": {
+      "bytes": 12929,
+      "sha256": "ac119f0e386accc75ba4fe30999a55fe283451cec6dd41c466f1a76eafd1f349"
+    },
+    "evaluator/expected.json": {
+      "bytes": 35891,
+      "sha256": "1d5447b14284a83e8a8c8f332b437df652daff8331c3980e496740f88724cca5"
+    },
+    "evaluator/operations.json": {
+      "bytes": 62346,
+      "sha256": "e159cfec24e72a8fa0087b10344d3942c7a9771b09542aa3527923f44ddcc4db"
+    },
+    "inventory.mjs": {
+      "bytes": 1405,
+      "sha256": "d4d3c69735bcd8c3054380c3e076b6ba3bebdebd2cbb7f0a9d70349860aacb57"
+    },
+    "materials/a/BRIEF.md": {
+      "bytes": 2136,
+      "sha256": "8f7270719d16d916e8e193a92843b286a41e925d67529af958d46bdad1425c4e"
+    },
+    "materials/a/facts.json": {
+      "bytes": 3707,
+      "sha256": "0a8313641ccd5ad3864412bfd7ad3baeecd8136c2be31fe85b31bfd862c930fe"
+    },
+    "materials/b/BRIEF.md": {
+      "bytes": 2300,
+      "sha256": "f8b9decd912c6e20236dea8d7968957be7df21296c7a74108f9ac432b97397bc"
+    },
+    "materials/b/batch.json": {
+      "bytes": 56780,
+      "sha256": "f58629014b2eddccc25be25d3b87dbed7be710cd87b7d95488bf616096b580a5"
+    },
+    "package-lock.json": {
+      "bytes": 729,
+      "sha256": "2e323796333a8ddafc4ff505eaa033c661b483cb82ab90b644a5f1b0fde556fb"
+    },
+    "package.json": {
+      "bytes": 219,
+      "sha256": "1574db6ddad087f89792354ac7b70cc7dc54679adfb66625957b434808239ec8"
+    },
+    "prepare-manifest.mjs": {
+      "bytes": 1121,
+      "sha256": "4e19c51f28ef21e8ee77fbe567a73367fbf5fb4980261fdaa5ce50beaae62ffc"
+    },
+    "runner.mjs": {
+      "bytes": 5163,
+      "sha256": "9f942493053ae49bfedd5aa79e6f1c7eb944812a1c6de06c73cbc832b60bf467"
+    },
+    "snapshots/a/lib/vnext/native-host/native-host-contract.ts.txt": {
+      "bytes": 6530,
+      "sha256": "16b667654b134f59c1c421051cb40a70463648033c05148cd8b68c2a5b913c01"
+    },
+    "snapshots/a/lib/vnext/protocol-primitives.ts.txt": {
+      "bytes": 14516,
+      "sha256": "e22fea3672539ace45813a0555562e03547942722edef5ab6dc4374d889cd4eb"
+    },
+    "snapshots/a/lib/vnext/repository-relative-path.ts.txt": {
+      "bytes": 1752,
+      "sha256": "d8f21cf0f6fe1e92f3fc0c970fe339a3a9e247c5b3bfc8d9847936fbf634786d"
+    },
+    "snapshots/a/lib/vnext/strict-iso-timestamp.ts.txt": {
+      "bytes": 1509,
+      "sha256": "8d06cab423882d382ef8a66d1add1694eb8f04f692166bed709254dedd8c1b6e"
+    },
+    "snapshots/a/manifest.json": {
+      "bytes": 1823,
+      "sha256": "79ada648ab74b53141ec0412b8816217043137bd1c3a9a09eb98ccb5b6fb970b"
+    },
+    "snapshots/a/types/vnext/external-ref.ts.txt": {
+      "bytes": 801,
+      "sha256": "7570d636c04f2900792c87d31479aae8b35b872b4524c6ae5858801a47af0aea"
+    },
+    "snapshots/a/types/vnext/native-host-adapter.ts.txt": {
+      "bytes": 13310,
+      "sha256": "4d97bc6495b664ade6d9335f9cd59435b175981f9972145820e0c9e23d52a8b5"
+    },
+    "snapshots/b/lib/vnext/native-host/native-host-contract.ts.txt": {
+      "bytes": 7765,
+      "sha256": "111555d9193e722466e2461853ae8da98ab1c4018b1f17724eaa8d428a2b7fd8"
+    },
+    "snapshots/b/lib/vnext/protocol-primitives.ts.txt": {
+      "bytes": 14516,
+      "sha256": "e22fea3672539ace45813a0555562e03547942722edef5ab6dc4374d889cd4eb"
+    },
+    "snapshots/b/lib/vnext/repository-relative-path.ts.txt": {
+      "bytes": 2836,
+      "sha256": "989d5e71dfd7b114bb028fffc71d980acb47e5947ce71d6341ccba04abd38e0a"
+    },
+    "snapshots/b/lib/vnext/strict-iso-timestamp.ts.txt": {
+      "bytes": 1509,
+      "sha256": "8d06cab423882d382ef8a66d1add1694eb8f04f692166bed709254dedd8c1b6e"
+    },
+    "snapshots/b/manifest.json": {
+      "bytes": 1823,
+      "sha256": "78b70bc38c89435509fb37ad4d15b4b46c0f741ce0337af966df5298633f0c3c"
+    },
+    "snapshots/b/types/vnext/external-ref.ts.txt": {
+      "bytes": 801,
+      "sha256": "7570d636c04f2900792c87d31479aae8b35b872b4524c6ae5858801a47af0aea"
+    },
+    "snapshots/b/types/vnext/native-host-adapter.ts.txt": {
+      "bytes": 13310,
+      "sha256": "4d97bc6495b664ade6d9335f9cd59435b175981f9972145820e0c9e23d52a8b5"
+    },
+    "snapshots/manifest.json": {
+      "bytes": 3833,
+      "sha256": "900654ebce8f83721bf2f009598166bffae66f2cae3a0e44d83bae4ed86fea4e"
+    },
+    "transfer.mjs": {
+      "bytes": 3175,
+      "sha256": "b6bbf026d420f9fa24c88a453baacd9f5c470653aa4cabeaa8ea3e2be8c6b399"
+    }
+  }
+}

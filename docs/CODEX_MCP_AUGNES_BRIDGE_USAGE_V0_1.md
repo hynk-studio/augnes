@@ -260,6 +260,11 @@ it is development mechanism evidence, not independent usefulness or learning.
 For an explicit request to read the current task's saved notes, call
 `augnes_read_repository_work_sources` with the same `repositoryRoot` and the
 exact Resume `continuity.snapshot.binding` as `expectedSnapshotBinding`.
+When the authorized work needs its complete goal, success criteria and non-goals,
+also pass `includeWorkDefinition: true`. Omission retains the source-only read.
+This direct option uses the same snapshot as the selected notes, without
+execution-choice or review-connection processing. Those existing complete-context
+alternatives remain available; the method-outlook tool rejects this option.
 This local Companion read needs no Browser login or token transfer. It returns
 literal selected excerpts and their bounded provenance, permitted locators,
 review labels and unknown/known source times. It does not return full project
@@ -270,6 +275,18 @@ See the [source-read contract](CODEX_CURRENT_CONTINUITY_V0_1.md#explicit-current
 for empty/unavailable distinctions and the locator projection difference from
 the authenticated Browser. Legacy `augnes_get_work_brief` and page-bound
 WebMCP retain their separate contracts.
+
+For normal authorized work, use the complete conditions and relevant sources to
+make a source-grounded judgment, perform the permitted task, and inspect its
+actual output and independent check. Through unchanged ordinary revision
+preview/save, attribute the observed result separately from a justified
+retention, revision or non-use judgment. Preserve still-valid obligations and
+unresolved conditions. Resume and explicitly read back the saved state; a fresh
+successor retrieves it through normal entry before its useful follow-up. A
+refused full read supplies no replacement definition, notes or bindings: do not
+fall back to Resume summaries or a source-only read. This workflow requires
+neither notes on every Resume nor another model call; it creates no execution
+grant, managed receipt, semantic acceptance or general learning claim.
 
 When the user explicitly authorizes finding omitted historical notes, use
 `augnes_lookup_repository_retained_sources` with the same root, exact Resume
@@ -432,6 +449,15 @@ originating process; pagination returns `next_cursor` for the next `cursor`.
 The configured destination, exact reviewed material, answer, limitations and
 currentness remain visible. Unavailable inspection is a failure, not an empty
 request list.
+
+The separately scoped reviewer uses `augnes_get_review_status` with its exact
+`request_ref` to inspect the same request/response/current-use item available in
+its paginated list, including after an ordinary origin save. Pending/current,
+pending/historical and answered guidance reflects contributor capabilities.
+This read-only lookup creates no material-read binding, origin-readback marker,
+use note or reply authority. Only the origin prepares and saves use; current
+non-observation does not establish no historical use. See the
+[contributor sequence](EXECUTION_CHOICE_USAGE.md#contributor-status-after-the-origin-advances-1506).
 
 After reading a current answer, `prepare_use` takes `retain`, `revise` or `reject`
 and attributable reasoning. It returns ordinary revision preview arguments for

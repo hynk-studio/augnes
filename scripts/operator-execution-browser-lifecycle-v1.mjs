@@ -1,3 +1,4 @@
+import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import {
@@ -195,6 +196,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     runtimeProcess.once("spawn", finish);
   };
 
+  let browserUse = null;
   const startChrome = () => {
     const candidates = [
       process.env.AUGNES_BROWSER_EXECUTABLE_PATH,
@@ -209,6 +211,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     const executable = candidates.find((candidate) => existsSync(candidate));
     assert(executable, "operator_browser_chrome_missing");
     const finish = timing.start("chrome_startup", "Chrome and CDP startup");
+    browserUse = beginBrowserUse(executable, { consumer: child_id });
     chromeProcess = spawn(
       executable,
       [
@@ -249,7 +252,9 @@ export async function createOperatorExecutionBrowserLifecycleV1({
           `http://127.0.0.1:${debugPort}/json/version`,
         );
         if (response.ok) {
-          webSocketUrl = (await response.json()).webSocketDebuggerUrl;
+          const versionResponse = await response.json();
+          browserUse.version(versionResponse.Browser);
+          webSocketUrl = versionResponse.webSocketDebuggerUrl;
           if (webSocketUrl) break;
         }
       } catch {
@@ -260,6 +265,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     assert(webSocketUrl, "operator_browser_cdp_endpoint_missing");
     const browserClient = new CdpClient(webSocketUrl);
     await browserClient.open();
+    browserUse.version((await browserClient.send("Browser.getVersion")).product, "cdp");
     const targets = await browserClient.send("Target.getTargets");
     const page = targets.targetInfos.find((entry) => entry.type === "page");
     assert(page, "operator_browser_page_target_missing");
@@ -991,6 +997,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     );
     chromeProcess = null;
     chromeRecord = null;
+    browserUse?.finish();
     timing.duration(
       "chrome_cdp_shutdown",
       "Chrome and CDP shutdown",
