@@ -825,6 +825,36 @@ added revision benefit in its one three-task sequence. Preserve those findings,
 exposure limits and frozen dispositions; do not restart it or inherit unused
 budgets.
 
+**Prospective research refinement (2026-10-23): condition discovery and retention.**
+[Are Self-Evolving Agents Continual Learners? (v1)](https://arxiv.org/html/2610.25858v1)
+studies changes to harnesses around a fixed model. It motivates checking adaptation
+and retention together; it establishes neither an inevitable trade-off nor an
+Augnes defect. P4.6 local revision, [#1459's induced guards](#completed-first-research-application--executable-reuse-applicability-1459),
+[#1464's acquired conditions](#current-contained-research--chosen-observations-and-productive-actions-1464)
+and P5.2 correction uptake already provide bounded parts of this path.
+
+Within #1373/P4/P5, the next eligible comparison should ask whether experience
+reveals the conditions that change the appropriate action when superficially
+similar situations recur, while still-valid methods remain usable:
+
+1. Inspect existing producers, consumers and evidence; select a small later task
+   or scoped capability opportunity that distinguishes an unresolved discovery,
+   retention or transfer question. Declare constructed cases and prior exposure.
+2. Start with existing ordinary memo/code and retained sources. Where warranted,
+   try the smallest change connecting contrasting outcomes to a candidate
+   applicability condition, a discriminating observation and a local method
+   revision or justified retention. An unknown condition may warrant a bounded
+   check or non-use; it is not evidence that the condition fails.
+3. Observe actual successor actions and outputs under changed and returning
+   conditions, adding a genuinely separate transfer task only for a transfer
+   claim. Use [04's distinctions](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#learning-and-retention-across-recurring-conditions-p4p5)
+   to decide retain, simplify, revise or stop.
+
+This refinement is **Research / unexecuted**. It preserves P4.6/#1459/#1464's
+scoped findings and current priorities; renaming those studies does not justify
+repeating them. It adds no implementation, provider allocation, Core schema,
+memory engine or product default, and transfers no historical study budget.
+
 [#1366's computation artifacts](https://github.com/hynk-studio/augnes/issues/1366)
 are one grounded source-inspection/reuse candidate, not a required module or an
 established transfer result. That completed numerical case is not rerun by this

@@ -1710,6 +1710,42 @@ No composite score, independent-blind evaluation, general transfer, production
 activation or broader maturity promotion follows. Sequence status remains
 owned by the roadmap.
 
+### Learning and retention across recurring conditions (P4/P5)
+
+For the [#1373 research refinement](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#next-p4p5--executable-capability-reuse-from-experience-1373),
+distinguish discovering an applicability condition, using it and revising it from
+correct storage/delivery. Induction within a supplied feature language can be
+learning; identify that scaffolding separately. Supplying the correct guard or
+task-group label and observing its use does not demonstrate condition discovery.
+
+One discriminating sequence is A → B → A′, with C added when testing transfer:
+learn from A; adapt to a superficially similar B with a different material
+condition; evaluate a held-out A′ under the still-valid A conditions **before
+answer feedback or relearning**; use C for a genuinely separate task with the
+same relevant structure and different surface details. These are contrasts,
+not a fixed task count or mandatory campaign. Include ordinary valid reuse,
+irrelevant-change and unavailable-condition cases as needed; neither blanket
+deferral nor frozen methods should win by construction.
+
+Separate correction of an earlier error, changed environment and changed goal.
+A frozen-regime retention check must not reward obsolete answers after a real
+change. Report adaptation, retained competence and transfer through actual
+actions/outputs, including wrong initial reuse, unnecessary refusal/rechecking
+and common-checker rescue separately. Shared-endpoint gain/loss correlations
+alone do not establish a causal or unavoidable trade-off.
+
+Use the [strong-comparison rules](#strong-comparisons-and-independence): capable
+ordinary memo/code may invent the same representations and methods with equal
+evidence, tools and relevant total budget. Compare a proposed change with current
+Augnes when attributing its incremental contribution; choose only the comparisons
+needed for the claim. Hold history equal for an update-mechanism comparison;
+for [active observation](#active-observation-and-productive-action-selection-1464),
+match initial opportunities while allowing chosen histories to differ. Count
+acquisition, revision, validation and human repair under [total burden](#cost-and-user-burden).
+Better capability or equal quality at lower burden can justify use. Preserve
+historical ties/SIMPLIFY and exposure limits; this adds no execution allocation
+or completion gate to existing work.
+
 ### Goal-directed recombination and candidate paths (P4/P5)
 
 For the [2026-09-30 research direction](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#research--goal-directed-recombination-and-candidate-paths-1214)
