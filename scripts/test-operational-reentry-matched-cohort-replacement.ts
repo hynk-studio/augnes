@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { differentSelectionRevision } from "./test-selection-observation";
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
+import { ownedExecFileSync as execFileSync, ownedSpawnSync as spawnSync } from "./test-harness-process-lifecycle.mjs";
 import {
   existsSync,
   mkdirSync,

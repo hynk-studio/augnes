@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
-import { constants, closeSync, fstatSync, lstatSync, openSync, readFileSync, realpathSync } from "node:fs";
+import { runOwnedSyncChild } from "./test-harness-process-lifecycle.mjs";
+import { constants, closeSync, fstatSync, lstatSync, openSync, opendirSync, readFileSync, readlinkSync, realpathSync } from "node:fs";
+import path from "node:path";
+import { observeNativeConfigurationInput, NATIVE_CONFIGURATION_CONTRACT } from "../lib/vnext/native-host/codex-configuration-sources.mjs";
 
 export const INPUT_CONTRACT = "augnes.local-canonical-inputs.v2";
 export const INPUT_CLASSES = Object.freeze(["execution", "safety", "ambient", "unknown"]);
@@ -9,6 +11,85 @@ const sorted = value => Array.isArray(value) ? value.map(sorted) : value && type
   ? Object.fromEntries(Object.keys(value).sort().map(key => [key, sorted(value[key])])) : value;
 export const digest = value => createHash("sha256").update(typeof value === "string" || Buffer.isBuffer(value) ? value : JSON.stringify(sorted(value))).digest("hex");
 const fail = code => Object.assign(new Error(code), { code });
+const TREE_MAX_ENTRIES = 10_000;
+const TREE_MAX_BYTES = 100 * 1024 * 1024;
+const TREE_IDENTITY_POLICY = "read-only-tool-tree-v1";
+const inputMetadata = s => ({ mode: String(s.mode), uid: String(s.uid), gid: String(s.gid), links: String(s.nlink),
+  device: String(s.dev), inode: String(s.ino), bytes: String(s.size), mtime_ns: String(s.mtimeNs), ctime_ns: String(s.ctimeNs) });
+const executablePermissionCache = new Map();
+
+function treeNames(directory) {
+  const names = [], reader = opendirSync(directory, { encoding: "buffer" });
+  try {
+    let entry;
+    while ((entry = reader.readSync()) !== null) {
+      const raw = Buffer.isBuffer(entry.name) ? entry.name : Buffer.from(entry.name);
+      if (!Buffer.from(raw.toString("utf8")).equals(raw)) throw fail("input_tree_name_ambiguous");
+      names.push(raw);
+      if (names.length > TREE_MAX_ENTRIES) throw fail("input_tree_bound_exceeded");
+    }
+  } finally { reader.closeSync(); }
+  return names.sort(Buffer.compare).map(name => name.toString("utf8"));
+}
+
+function observeInputTree(root) {
+  let initial;
+  try { initial = lstatSync(root, { bigint: true }); }
+  catch (error) { if (error.code === "ENOENT") throw fail("input_tree_missing"); throw error; }
+  if (!path.isAbsolute(root) || !initial.isDirectory() || initial.isSymbolicLink() || realpathSync(root) !== root)
+    throw fail("input_tree_unsafe");
+  const records = [], content = [], metadata = [], safety = [];
+  let bytes = 0, files = 0;
+  const inside = location => location === root || location.startsWith(root + path.sep);
+  const visit = (file, relative, depth) => {
+    if (records.length >= TREE_MAX_ENTRIES || depth > 64) throw fail("input_tree_bound_exceeded");
+    const before = lstatSync(file, { bigint: true });
+    if (depth === 0 && digest(inputMetadata(before)) !== digest(inputMetadata(initial))) throw fail("input_observation_race");
+    const type = before.isSymbolicLink() ? "symlink" : before.isDirectory() ? "directory" : before.isFile() ? "file" : null;
+    if (!type || (type !== "directory" && before.nlink !== 1n) || before.dev !== initial.dev ||
+        (type !== "symlink" && realpathSync(file) !== file)) throw fail("input_tree_unsafe");
+    const observed = { file, before: inputMetadata(before), type, names: null, target: null, resolved: null };
+    records.push(observed);
+    const identity = digest(relative), info = inputMetadata(before);
+    metadata.push({ identity, type, metadata: info });
+    safety.push({ identity, type, metadata: Object.fromEntries(Object.entries(info)
+      .filter(([key]) => ["mode", "uid", "gid", "links", "device", "inode"].includes(key))) });
+    if (type === "directory") {
+      observed.names = treeNames(file);
+      content.push({ identity, type });
+      for (const name of observed.names) visit(path.join(file, name), relative ? `${relative}/${name}` : name, depth + 1);
+    } else if (type === "file") {
+      bytes += Number(before.size); files++;
+      if (!Number.isSafeInteger(bytes) || bytes > TREE_MAX_BYTES) throw fail("input_tree_bound_exceeded");
+      const value = observeInputFile(file);
+      if (digest(value.metadata) !== digest(info)) throw fail("input_observation_race");
+      content.push({ identity, type, sha256: value.sha256 });
+    } else {
+      const target = readlinkSync(file, { encoding: "buffer" });
+      if (!Buffer.from(target.toString("utf8")).equals(target)) throw fail("input_tree_name_ambiguous");
+      const lexical = path.resolve(path.dirname(file), target.toString("utf8"));
+      const resolved = realpathSync(file);
+      if (!inside(lexical) || !inside(resolved)) throw fail("input_tree_link_escape");
+      observed.target = digest(target); observed.resolved = resolved;
+      content.push({ identity, type, target_sha256: observed.target, resolved_identity: digest(path.relative(root, resolved)) });
+    }
+  };
+  visit(root, "", 0);
+  // Recheck the whole observed closure after hashing. File replacement, directory
+  // membership changes, and link retargeting cannot hide behind an earlier read.
+  for (const record of records) {
+    const after = lstatSync(record.file, { bigint: true });
+    if (digest(inputMetadata(after)) !== digest(record.before)) throw fail("input_observation_race");
+    if (record.type === "symlink") {
+      if (digest(readlinkSync(record.file, { encoding: "buffer" })) !== record.target || realpathSync(record.file) !== record.resolved)
+        throw fail("input_observation_race");
+    } else if (realpathSync(record.file) !== record.file ||
+        (record.type === "directory" && digest(treeNames(record.file)) !== digest(record.names))) throw fail("input_observation_race");
+  }
+  return { present: true, metadata: inputMetadata(initial), tree_identity_policy: TREE_IDENTITY_POLICY,
+    sha256: digest(content), tree_metadata_sha256: digest(metadata), tree_safety_sha256: digest(safety),
+    entry_count: records.length, file_count: files, total_file_bytes: bytes };
+}
 
 // No TOML value or complete source is retained. Only unambiguous one-line,
 // unescaped top-level declarations in the leading scalar block can be masked.
@@ -42,7 +123,17 @@ export function preferenceProjection(bytes) {
   return { projection, remainder_sha256: digest(remainder.join("")) };
 }
 
-export function observeInputFile(file, { metadataOnly = false, preferences = false, readOnlyExecutable = false } = {}) {
+export function observeInputFile(file, { metadataOnly = false, preferences = false, readOnlyExecutable = false, readOnlyTree = false, nativeConfiguration = false, force = false } = {}) {
+  if (nativeConfiguration) {
+    if (metadataOnly || preferences || readOnlyExecutable || readOnlyTree) throw fail("input_native_configuration_role_invalid");
+    return observeNativeConfigurationInput(file);
+  }
+  if (readOnlyTree) {
+    if (metadataOnly || preferences || readOnlyExecutable || typeof force !== "boolean") throw fail("input_tree_role_invalid");
+    // Deliberately rehash every observation, including forced closeout. No
+    // executor-local content cache is needed by a fresh stock reader.
+    return observeInputTree(file);
+  }
   let stat;
   try { stat = lstatSync(file, { bigint: true }); }
   catch (error) { if (error.code === "ENOENT") return { present: false }; throw error; }
@@ -55,19 +146,18 @@ export function observeInputFile(file, { metadataOnly = false, preferences = fal
   if (!stat.isFile() || stat.isSymbolicLink() || !allowedLinks(stat) || realpathSync(file) !== file)
     throw fail("input_unsafe_file");
   if (preferences && stat.size > 1024n * 1024n) throw fail("input_comparison_bound_exceeded");
-  const securityBefore = readOnlyExecutable ? executablePermissions(file) : null;
-  const metadata = s => ({ mode: String(s.mode), uid: String(s.uid), gid: String(s.gid), links: String(s.nlink),
-    device: String(s.dev), inode: String(s.ino), bytes: String(s.size), mtime_ns: String(s.mtimeNs), ctime_ns: String(s.ctimeNs) });
+  const metadata = inputMetadata;
+  const securityBefore = readOnlyExecutable ? executablePermissions(file, metadata(stat), force) : null;
   if (metadataOnly) return { present: true, metadata: metadata(stat), ...(readOnlyExecutable ? { permission_identity: securityBefore, executable_identity_policy: sharedPosix ? "shared-posix-v1" : "strict-metadata-v1" } : {}), observation: "metadata_only" };
   const fd = openSync(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
   try {
     const before = fstatSync(fd, { bigint: true });
-    if (before.ino !== stat.ino || before.dev !== stat.dev || before.nlink !== stat.nlink || !allowedLinks(before)) throw fail("input_observation_race");
+    if (digest(metadata(before)) !== digest(metadata(stat)) || !allowedLinks(before)) throw fail("input_observation_race");
     const bytes = readFileSync(fd);
     const after = fstatSync(fd, { bigint: true }), named = lstatSync(file, { bigint: true });
-    if (JSON.stringify(metadata(before)) !== JSON.stringify(metadata(after)) || named.ino !== after.ino || named.dev !== after.dev)
+    if (JSON.stringify(metadata(before)) !== JSON.stringify(metadata(after)) || digest(metadata(named)) !== digest(metadata(after)))
       throw fail("input_observation_race");
-    const securityAfter = readOnlyExecutable ? executablePermissions(file) : null;
+    const securityAfter = readOnlyExecutable ? executablePermissions(file, metadata(after), force) : null;
     if (digest(securityBefore) !== digest(securityAfter)) throw fail("input_observation_race");
     return { present: true, metadata: metadata(after), sha256: digest(bytes),
       ...(readOnlyExecutable ? { permission_identity: securityAfter, executable_identity_policy: sharedPosix ? "shared-posix-v1" : "strict-metadata-v1" } : {}),
@@ -77,11 +167,31 @@ export function observeInputFile(file, { metadataOnly = false, preferences = fal
 
 export const nonFaultInputChange = disposition => ["unchanged", "ambient_observation", "incidental_executable_metadata"].includes(disposition);
 
-export function classifyInputChange(before, after, { classification, excludePreferences = false, readOnlyExecutable = false } = {}) {
+export function classifyInputChange(before, after, { classification, excludePreferences = false, metadataOnly = false, readOnlyExecutable = false, readOnlyTree = false, nativeConfiguration = false } = {}) {
   if (!INPUT_CLASSES.includes(classification) || !before || !after || typeof before !== "object" || typeof after !== "object" || Array.isArray(before) || Array.isArray(after)) return "unknown_relevance";
+  if (nativeConfiguration) {
+    const valid = value => typeof value.present === "boolean" && value.source_path_policy === NATIVE_CONFIGURATION_CONTRACT &&
+      /^[a-f0-9]{64}$/u.test(value.path_chain_sha256 ?? "") && (!value.present ||
+        (/^[a-f0-9]{64}$/u.test(value.sha256 ?? "") && ["mode", "uid", "gid", "links", "device", "inode", "bytes", "mtime_ns", "ctime_ns"]
+          .every(key => /^\d{1,40}$/u.test(value.metadata?.[key] ?? ""))));
+    if (classification !== "safety" || excludePreferences || metadataOnly || readOnlyExecutable || readOnlyTree || !valid(before) || !valid(after)) return "unknown_relevance";
+    return digest(before) === digest(after) ? "unchanged" : "safety_violation";
+  }
   const usableExecutable = value => value.present === true && /^[0-9a-f]{64}$/u.test(value.sha256 ?? "") &&
     ["mode", "uid", "gid", "device", "inode", "bytes", "mtime_ns", "ctime_ns", "links"].every(key => /^\d{1,40}$/u.test(value.metadata?.[key] ?? "")) &&
     /^[0-9a-f]{64}$/u.test(value.permission_identity ?? "") && ["shared-posix-v1", "strict-metadata-v1"].includes(value.executable_identity_policy) && BigInt(value.metadata.links) > 0n && (BigInt(value.metadata.mode) & 0o170000n) === 0o100000n && (value.executable_identity_policy === "strict-metadata-v1" || (BigInt(value.metadata.mode) & 0o111n) !== 0n);
+  if (readOnlyTree) {
+    const usableTree = value => value.present === true && value.tree_identity_policy === TREE_IDENTITY_POLICY &&
+      ["sha256", "tree_metadata_sha256", "tree_safety_sha256"].every(key => /^[0-9a-f]{64}$/u.test(value[key] ?? "")) &&
+      ["mode", "uid", "gid", "device", "inode", "bytes", "mtime_ns", "ctime_ns", "links"].every(key => /^\d{1,40}$/u.test(value.metadata?.[key] ?? "")) &&
+      (BigInt(value.metadata.mode) & 0o170000n) === 0o040000n &&
+      Number.isSafeInteger(value.entry_count) && value.entry_count >= 1 && value.entry_count <= TREE_MAX_ENTRIES &&
+      Number.isSafeInteger(value.file_count) && value.file_count >= 0 && value.file_count < value.entry_count &&
+      Number.isSafeInteger(value.total_file_bytes) && value.total_file_bytes >= 0 && value.total_file_bytes <= TREE_MAX_BYTES;
+    if (classification !== "execution" || excludePreferences || readOnlyExecutable || !usableTree(before) || !usableTree(after)) return "unknown_relevance";
+    if (digest(before) === digest(after)) return "unchanged";
+    return before.tree_safety_sha256 !== after.tree_safety_sha256 ? "safety_violation" : "input_invalidation";
+  }
   if (readOnlyExecutable && before.present === true && after.present === true &&
       (classification !== "execution" || !usableExecutable(before) || !usableExecutable(after))) return "unknown_relevance";
   // Saved receipts sort object keys. Compare the same canonical value both
@@ -116,8 +226,10 @@ export function freezeInputContract({ resources, pathKind, binding, read = obser
   const selected = resources.map(resource => {
     if (!/^[a-z][a-z0-9_-]{0,79}$/u.test(resource.id) || !INPUT_CLASSES.includes(resource.classification)) throw fail("input_inventory_invalid");
     if (resource.readOnlyExecutable && (resource.classification !== "execution" || resource.metadataOnly || resource.excludePreferences)) throw fail("input_executable_role_invalid");
+    if (resource.readOnlyTree && (resource.classification !== "execution" || resource.metadataOnly || resource.excludePreferences || resource.readOnlyExecutable)) throw fail("input_tree_role_invalid");
     if (resource.excludePreferences && (pathKind !== "isolated-model-free-v1" || resource.classification !== "ambient")) throw fail("input_exclusion_unproven");
-    return { ...resource, before: read(resource.file, { metadataOnly: resource.metadataOnly, preferences: resource.excludePreferences, readOnlyExecutable: resource.readOnlyExecutable }) };
+    if (resource.nativeConfiguration && (resource.classification !== "safety" || resource.metadataOnly || resource.excludePreferences || resource.readOnlyExecutable || resource.readOnlyTree)) throw fail("input_native_configuration_role_invalid");
+    return { ...resource, before: read(resource.file, { metadataOnly: resource.metadataOnly, preferences: resource.excludePreferences, readOnlyExecutable: resource.readOnlyExecutable, readOnlyTree: resource.readOnlyTree, nativeConfiguration: resource.nativeConfiguration, force: true }) };
   });
   const declared = { contract: INPUT_CONTRACT, path_kind: pathKind, binding,
     resources: selected.map(({ file, ...r }) => ({ ...r, location_fingerprint: digest(file) })) };
@@ -134,10 +246,10 @@ export function freezeInputContract({ resources, pathKind, binding, read = obser
         // Large immutable executables use exact metadata as a polling hint;
         // the final check always rehashes. Small configuration/input files are
         // reread each time. This is an observation optimization, not exclusion.
-        const hint = !force && Number(resource.before.metadata?.bytes) > 1024 * 1024
+        const hint = !resource.readOnlyTree && !force && Number(resource.before.metadata?.bytes) > 1024 * 1024
           ? read(resource.file, { metadataOnly: true, readOnlyExecutable: resource.readOnlyExecutable }) : null;
         after = hint && hint.permission_identity === resource.before.permission_identity && JSON.stringify(hint.metadata) === JSON.stringify(resource.before.metadata)
-          ? resource.before : read(resource.file, { metadataOnly: resource.metadataOnly, preferences: resource.excludePreferences, readOnlyExecutable: resource.readOnlyExecutable });
+          ? resource.before : read(resource.file, { metadataOnly: resource.metadataOnly, preferences: resource.excludePreferences, readOnlyExecutable: resource.readOnlyExecutable, readOnlyTree: resource.readOnlyTree, nativeConfiguration: resource.nativeConfiguration, force });
         disposition = classifyInputChange(resource.before, after, resource);
       } catch { disposition = "observer_failure"; after = null; }
       if (disposition === "unchanged") continue;
@@ -207,8 +319,27 @@ export function deriveOperationalDisposition({ phases = [], admitted = true, fau
 // A role exemption cannot hide ACL or file-flag changes behind stable Unix mode
 // bits. These fixed read-only OS tools return only a fingerprint to callers.
 // No ACL, principal name, attribute contents or complete command output persists.
-function executablePermissions(file) {
-  const run = (tool, args) => execFileSync(tool, args, { timeout: 2000, maxBuffer: 64 * 1024, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: { PATH: "/usr/bin:/bin", LC_ALL: "C" } });
+function executablePermissions(file, metadata, force) {
+  const key = digest([file, metadata]), cached = executablePermissionCache.get(file);
+  if (!force && cached?.key === key) return cached.value;
+  const value = readExecutablePermissions(file);
+  if (digest(inputMetadata(lstatSync(file, { bigint: true }))) !== digest(metadata) || realpathSync(file) !== file)
+    throw fail("input_observation_race");
+  // A bounded metadata hint avoids spawning permission readers each second.
+  // Any physical metadata change misses the cache; forced closeout re-probes.
+  if (executablePermissionCache.size >= 128 && !executablePermissionCache.has(file))
+    executablePermissionCache.delete(executablePermissionCache.keys().next().value);
+  executablePermissionCache.set(file, { key, value });
+  return value;
+}
+
+function readExecutablePermissions(file) {
+  const run = (tool, args) => {
+    const result = runOwnedSyncChild(tool, args, { timeout: 2000, maxBuffer: 64 * 1024, encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"], env: { PATH: "/usr/bin:/bin", LC_ALL: "C" } });
+    if (result.error || result.status !== 0 || result.signal) throw fail("input_executable_permissions_unknown");
+    return result.stdout;
+  };
   if (process.platform === "darwin") {
     const lines = run("/bin/ls", ["-lde", file]).trimEnd().split("\n");
     if (!/^-[rwxstST-]{9}[+@ ]/u.test(lines[0] ?? "") || lines.slice(1).some(line => !/^ [0-9]+: /u.test(line))) throw fail("input_executable_permissions_unknown");

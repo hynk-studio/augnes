@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
-import childProcess, { spawn, spawnSync } from "node:child_process";
-import { syncBuiltinESMExports } from "node:module";
+import { spawn } from "node:child_process";
+import { ownedSpawnSync as spawnSync, runOwnedSyncChild } from "./test-harness-process-lifecycle.mjs";
 import { once } from "node:events";
 import { createHash, randomUUID } from "node:crypto";
 import { mock } from "node:test";
@@ -61,6 +61,7 @@ import {
   startCompanionService,
   stopCompanionService,
   uninstallCompanionService,
+  withCompanionProcessProbe,
 } from "../plugins/augnes-operator/mcp/companion-service-core.mjs";
 
 const repositoryRoot = process.cwd();
@@ -85,17 +86,16 @@ const options = {
 // dedicated checkout-identity test exercises the real uncached provider and
 // enrollment/lifecycle boundaries; no production observation cache is installed.
 const durableFixtureResults = new Map();
-const originalSpawnSync = childProcess.spawnSync;
-const fixtureProvider = mock.method(childProcess, "spawnSync", (command, args, options) => {
+const fixtureProvider = (command, args, options) => {
   if (command !== "/usr/bin/python3" || args?.at(-1) !== path.join(repositoryRoot, "plugins/augnes-operator/mcp/checkout-identity-darwin.py"))
-    return originalSpawnSync(command, args, options);
+    return runOwnedSyncChild(command, args, options);
   const stat = fstatSync(options.stdio[3], { bigint: true });
   const key = [stat.dev, stat.ino, stat.uid, stat.birthtimeNs].join(":");
-  if (!durableFixtureResults.has(key)) durableFixtureResults.set(key, originalSpawnSync(command, args, options));
+  if (!durableFixtureResults.has(key)) durableFixtureResults.set(key, runOwnedSyncChild(command, args, options));
   return durableFixtureResults.get(key);
-});
-syncBuiltinESMExports();
+};
 
+await withCompanionProcessProbe(fixtureProvider, async () => {
 try {
   await assertPreservationObservation();
   await assertInstalledAccessDiagnostics();
@@ -901,10 +901,9 @@ try {
     real_provider_calls: 0,
   }, null, 2));
 } finally {
-  fixtureProvider.mock.restore();
-  syncBuiltinESMExports();
   rmSync(root, { recursive: true, force: true });
 }
+});
 
 function writeInstalledServiceFixture({ options: fixtureOptions, node, desiredState }) {
   const layout = resolveCompanionServiceLayout(fixtureOptions);

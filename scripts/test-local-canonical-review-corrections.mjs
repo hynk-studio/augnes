@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { chmodSync, existsSync, linkSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { execFileSync } from "node:child_process";
+import { ownedExecFileSync as execFileSync } from "./test-harness-process-lifecycle.mjs";
 import { randomUUID } from "node:crypto";
 import { observeInputFile, classifyInputChange, freezeInputContract, monitorInputContract, digest } from "./local-canonical-inputs.mjs";
 import { beginBrowserUse, validBrowserUse, browserConsumersForPhase, BROWSER_IDENTITY_PREFIX } from "./local-canonical-browser-identity.mjs";

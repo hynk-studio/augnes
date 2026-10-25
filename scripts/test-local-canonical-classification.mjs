@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { chmodSync, existsSync, linkSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
+import { ownedExecFileSync as execFileSync } from "./test-harness-process-lifecycle.mjs";
 import { pathToFileURL } from "node:url";
 import { createCanonicalTestResourceRoot, cleanupCanonicalTestResources, buildCanonicalChildEnvironment, beginCanonicalTestResourceUse, settleCanonicalTestResourceUse } from "./canonical-test-environment.mjs";
 import { runCanonicalChild as executeChild } from "./canonical-child-runner.mjs";
@@ -12,6 +12,7 @@ import { runPhasesSequentially, enforceArtifactRetention, FULL_PHASE_IDS, buildP
 import { pinVerificationEvidence } from "./local-canonical-evidence-retention.mjs";
 import { canonicalSerialize, finalizeReceipt, inspectReceiptForDecision, verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
 import { createPrivateReviewExport, inspectPrivateReviewExport } from "./local-canonical-review-export.mjs";
+import { inheritSelectedExecutionEnvironment } from "./local-canonical-selected-execution.mjs";
 import { beginBrowserUse, validBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { baseReceipt, validContext } from "./fixtures/local-canonical-receipt-v3.mjs";
 
@@ -35,7 +36,8 @@ const note = name => findings.push(name);
 const write = (file, value) => writeFileSync(file, value, { mode: 0o600 });
 const resource = (classification = "ambient") => ({ id: "codex-preferences", file: config, classification, excludePreferences: classification === "ambient" });
 const contract = (classification = "ambient", extra = {}) => freezeInputContract({ resources: [resource(classification)], pathKind: classification === "ambient" ? "isolated-model-free-v1" : "consuming-fixture", binding: { fixture: "sentinel-consumer" }, ...extra });
-const env = buildCanonicalChildEnvironment({ temporaryRoot: root, ambientEnvironment: { PATH: process.env.PATH, CODEX_HOME: root, OPENAI_API_KEY: "sentinel-not-a-credential", AUGNES_GUIDEBRIEF_REAL_PROVIDER_ACCEPTANCE: "1" } });
+const env = buildCanonicalChildEnvironment({ temporaryRoot: root, ambientEnvironment: inheritSelectedExecutionEnvironment(process.env,
+  { PATH: process.env.PATH, CODEX_HOME: root, OPENAI_API_KEY: "sentinel-not-a-credential", AUGNES_GUIDEBRIEF_REAL_PROVIDER_ACCEPTANCE: "1" }) });
 mkdirSync(env.HOME, { recursive: true });
 mkdirSync(path.join(env.HOME, ".codex"));
 write(path.join(env.HOME, ".codex", "config.toml"), 'model = "private-sentinel"\n');
@@ -257,6 +259,27 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
   validContext.currentInputStateValid = true;
   const passing = finalizeReceipt(receipt);
   assert.deepEqual(inspectReceiptForDecision(passing, validContext).issues, []);
+  // The actual receipt reader validates native safety observations as well as
+  // their declaration hash. Rehashing an invalid role cannot make it valid.
+  for (const nativeFile of [config, path.join(root, "absent-native-config.toml")]) {
+    const native = structuredClone(receipt);
+    native.inputs.resources.push({ id: "fixture-native-configuration", location_fingerprint: digest(nativeFile),
+      classification: "safety", nativeConfiguration: true, before: observeInputFile(nativeFile, { nativeConfiguration: true }) });
+    const rebind = value => {
+      const { contract, path_kind, binding, resources } = value.inputs;
+      value.inputs.fingerprint = digest({ contract, path_kind, binding, resources });
+      value.attempt.contract_fingerprint = value.inputs.fingerprint;
+      return finalizeReceipt(value);
+    };
+    assert.deepEqual(inspectReceiptForDecision(rebind(native), validContext).issues, []);
+    for (const mutate of [r => { r.nativeConfiguration = "true"; }, r => { r.nativeConfiguration = false; },
+      r => { r.classification = "execution"; }, r => { r.excludePreferences = true; },
+      r => { r.metadataOnly = true; }, r => { r.readOnlyTree = true; }, r => { delete r.before.path_chain_sha256; }]) {
+      const invalid = structuredClone(native); mutate(invalid.inputs.resources.at(-1));
+      assert(inspectReceiptForDecision(rebind(invalid), validContext).issues.includes("receipt_input_role_invalid"));
+    }
+  }
+  note("native configuration absent/present observations and rehashed invalid safety roles checked by actual receipt reader");
   assert(!inspectReceiptForDecision(passing, { ...validContext, currentAttemptRecordsValid: false }).valid_deciding_evidence);
   for (const mutate of [r => { r.inputs.resources = [null]; }, r => { r.inputs.events = [null]; }, r => { r.phases = [null]; },
     r => { r.inputs.binding.phase_environment_fingerprints = [null]; }]) {

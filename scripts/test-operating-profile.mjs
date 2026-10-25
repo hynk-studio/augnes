@@ -8,6 +8,7 @@ import { canonical } from '../lib/vnext/external-response-rules.mjs';
 import { createCanonicalTestResourceRoot, createCanonicalTestResourceDirectory,
   buildCanonicalChildEnvironment, cleanupCanonicalTestResources } from './canonical-test-environment.mjs';
 import { runCanonicalChild } from './canonical-child-runner.mjs';
+import { inheritSelectedExecutionEnvironment } from './local-canonical-selected-execution.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url)), started = performance.now();
 const defensiveText = readFileSync(path.join(root, 'examples/operating-profiles/defensive-observe-recommend.json'), 'utf8');
@@ -31,7 +32,8 @@ async function cli(label, body, options = {}) {
   if (options.directory) selected = child.root;
   const before = readdirSync(child.root).sort();
   const environment = buildCanonicalChildEnvironment({ temporaryRoot: child.root, resourceRoot: child.root,
-    ambientEnvironment: { PATH: process.env.PATH, HOME: child.root, OPENAI_API_KEY: 'must-not-inherit', AUGNES_DB_PATH: 'must-not-inherit' } });
+    ambientEnvironment: inheritSelectedExecutionEnvironment(process.env,
+      { PATH: process.env.PATH, HOME: child.root, OPENAI_API_KEY: 'must-not-inherit', AUGNES_DB_PATH: 'must-not-inherit' }) });
   assert.equal(environment.OPENAI_API_KEY, undefined);
   assert.equal(environment.AUGNES_DB_PATH, path.join(child.root, 'canonical.db'));
   let stdout = '', stderr = '';

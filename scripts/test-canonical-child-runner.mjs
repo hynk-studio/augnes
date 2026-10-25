@@ -20,6 +20,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import "./test-canonical-child-groups.mjs";
+import "./test-canonical-child-lifecycle.mjs";
 
 import {
   assertCanonicalConcurrentChildLabelsV01,

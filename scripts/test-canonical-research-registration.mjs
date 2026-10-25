@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { chmodSync, mkdirSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { ownedSpawnSync as spawnSync } from "./test-harness-process-lifecycle.mjs";
 import {
   RESEARCH_REGISTRATION_PATH, RESEARCH_SOURCE_PATHS, RESEARCH_OWNER_ID,
   parseResearchRegistration, validateResearchRegistration, assertAdditiveResearchRegistration,

@@ -76,7 +76,8 @@ const source = readFileSync(
   new URL("./github-main-branch-transport.mjs", import.meta.url),
   "utf8",
 );
-assert.match(source, /spawnSync\("gh", args/u);
+assert.match(source, /selectedToolInvocation\("gh", args, \{ liveTransport: true \}\)/u);
+assert.match(source, /runOwnedSyncChild\(selected\.command, selected\.args/u);
 assert.match(source, /shell: false/u);
 assert.match(source, /result\.status === 4/u);
 assert.match(source, /github_authentication_unavailable/u);

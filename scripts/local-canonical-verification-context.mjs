@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, readdirSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { selectedGitResult } from "./local-canonical-selected-git.mjs";
 import {
   CANONICAL_DARWIN_REPOSITORY_ROOT, CANONICAL_ORIGIN_URL,
   CANONICAL_REPOSITORY_ID, matchCanonicalRepositoryIdentity,
@@ -138,7 +139,7 @@ export function assertIsolatedMutableResources(root) {
 }
 
 function git(root, args) {
-  const result = spawnSync("git", ["--no-replace-objects", "-C", root, ...args], {
+  const result = selectedGitResult(root, ["--no-replace-objects", ...args], {
     encoding: "utf8", timeout: 30_000, maxBuffer: 1024 * 1024,
     stdio: ["ignore", "pipe", "pipe"],
   });

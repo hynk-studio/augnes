@@ -1,4 +1,5 @@
 import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
+import { inheritSelectedExecutionEnvironment } from "./local-canonical-selected-execution.mjs";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import {
@@ -1242,11 +1243,11 @@ class CdpClient {
 }
 
 function minimalProcessEnvironment() {
-  return Object.fromEntries(
+  return inheritSelectedExecutionEnvironment(process.env, Object.fromEntries(
     ["PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "SHELL", "TERM"]
       .filter((key) => typeof process.env[key] === "string")
       .map((key) => [key, process.env[key]]),
-  );
+  ));
 }
 
 async function waitForHttp(url, observe = () => {}) {

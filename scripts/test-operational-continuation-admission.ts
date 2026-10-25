@@ -2,7 +2,7 @@
 import { differentSelectionRevision } from "./test-selection-observation";
 
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { ownedExecFileSync as execFileSync } from "./test-harness-process-lifecycle.mjs";
 import {
   mkdtempSync,
   mkdirSync,

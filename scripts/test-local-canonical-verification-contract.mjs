@@ -6,7 +6,7 @@ import { RESEARCH_REGISTRATION_PATH, RESEARCH_SOURCE_PATHS, RESEARCH_OWNER_ID,
 import { CODEX_REUSE_OWNER_IDS, CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 import { assertVerificationDocumentation } from "./validate-canonical-docs-change.mjs";
 import { buildPhasePlan, OPERATING_POLICY_PHASE_IDS } from "./run-local-canonical-verification.mjs";
-import { spawnSync } from "node:child_process";
+import { ownedSpawnSync as spawnSync } from "./test-harness-process-lifecycle.mjs";
 import {
   existsSync,
   readFileSync,
@@ -744,6 +744,14 @@ for (const authorityChild of [
   "scripts/test-local-canonical-executor.mjs",
   "scripts/test-local-canonical-receipt.mjs",
   "scripts/test-local-canonical-isolation.mjs",
+  "scripts/test-local-canonical-selected-git.mjs",
+  "scripts/test-local-canonical-selected-consumers.mjs",
+  "scripts/test-local-canonical-selected-execution.mjs",
+  "scripts/test-local-canonical-selected-evidence.mjs",
+  "scripts/test-local-canonical-input-tree.mjs",
+  "scripts/test-canonical-child-lifecycle.mjs",
+  "scripts/test-local-canonical-selected-registration.mjs",
+  "scripts/test-local-canonical-selected-pipeline.mjs",
   "scripts/test-github-main-branch-transport.mjs",
 ]) {
   assert.equal(
@@ -783,7 +791,8 @@ for (const source of [readme, localPolicy, localExecutor, canonicalSuite]) {
 for (const fragment of [
   `AUTHORIZED_GITHUB_REPOSITORY`,
   `"hynk-studio/augnes"`,
-  `spawnSync("gh", args`,
+  `selectedToolInvocation("gh", args, { liveTransport: true })`,
+  `runOwnedSyncChild(selected.command, selected.args`,
   `shell: false`,
   `GITHUB_TRANSPORT_TIMEOUT_MS = 30_000`,
   `GITHUB_TRANSPORT_MAX_BYTES = 2 * 1024 * 1024`,

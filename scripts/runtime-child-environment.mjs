@@ -1,6 +1,7 @@
 import {
   CANONICAL_AMBIENT_ENVIRONMENT_ALLOWLIST,
 } from "./canonical-test-environment.mjs";
+import { inheritSelectedExecutionEnvironment, isSelectedExecutionEnvironmentKey } from "./local-canonical-selected-execution.mjs";
 
 const ROLE_VALUE_KEYS = Object.freeze({
   recovery: new Set([]),
@@ -120,7 +121,7 @@ export function buildRuntimeChildEnvironment({
     environment[key] = value;
   }
 
-  return environment;
+  return inheritSelectedExecutionEnvironment(ambientEnvironment, environment);
 }
 
 export function findForbiddenRuntimeChildEnvironmentKeys({
@@ -137,7 +138,7 @@ export function findForbiddenRuntimeChildEnvironmentKeys({
     ...CANONICAL_AMBIENT_ENVIRONMENT_ALLOWLIST,
     ...Object.keys(authoredValues).filter((key) => allowedValueKeys.has(key)),
   ]);
-  return Object.keys(childEnvironment).filter((key) => !allowed.has(key)).sort();
+  return Object.keys(childEnvironment).filter((key) => !allowed.has(key) && !isSelectedExecutionEnvironmentKey(key)).sort();
 }
 
 function copyNonEmptyString(target, source, key) {

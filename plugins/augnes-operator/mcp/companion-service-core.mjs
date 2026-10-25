@@ -1,3 +1,5 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+import { withCheckoutIdentityProbe } from "./checkout-identity.mjs";
 import { createHash, randomUUID } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import {
@@ -1889,7 +1891,7 @@ function recoveryJob(layout, configuration, launchctl) {
 function recoveryProcessRelationship(pid, parent, command) {
   const before = readProcessBirthIdentity(pid);
   if (before.state !== "present") throw recoveryRefused("process_witness_unavailable");
-  const result = spawnSync("/bin/ps", ["-o", "ppid=", "-o", "command=", "-p", String(pid)],
+  const result = companionProbe("/bin/ps", ["-o", "ppid=", "-o", "command=", "-p", String(pid)],
     { encoding: "utf8", timeout: 1_500, env: { PATH: "/usr/bin:/bin" } });
   const match = result.status === 0 ? result.stdout.trim().match(/^(\d+)\s+(.+)$/u) : null;
   if (!match || Number(match[1]) !== parent || match[2] !== command ||
@@ -4536,7 +4538,7 @@ function unlinkBoundedOwnedFile(
         ))
     ) throw staleCheckoutDecommissionRefused();
     assertTrustedStaleDecommissionUnlinkHelper();
-    const result = spawnSync(
+    const result = companionProbe(
       "/usr/bin/python3",
       [
         "-I",
@@ -4618,7 +4620,7 @@ function createExclusiveStaleDecommissionMaterial(
     ) throw staleCheckoutDecommissionRefused();
     assertTrustedStaleDecommissionUnlinkHelper();
     const temporary = `.stale-decommission-${randomUUID()}.tmp`;
-    const result = spawnSync(
+    const result = companionProbe(
       "/usr/bin/python3",
       [
         "-I",
@@ -5959,7 +5961,7 @@ function inspectNodeBinary(nodePath) {
     if (!stats.isFile() || stats.isSymbolicLink() || (stats.mode & 0o111) === 0) {
       return { valid: false, path: null, version: null };
     }
-    const result = spawnSync(resolved, ["--version"], {
+    const result = companionProbe(resolved, ["--version"], {
       encoding: "utf8",
       timeout: 2_000,
       env: {},
@@ -6098,7 +6100,7 @@ async function waitForLaunchctlUnloaded(layout, launchctl, waitMs) {
 }
 
 function defaultLaunchctl(args) {
-  return spawnSync("/bin/launchctl", args, {
+  return companionProbe("/bin/launchctl", args, {
     encoding: "utf8",
     timeout: 10_000,
     env: {
@@ -6135,7 +6137,7 @@ function currentUid() {
 
 function readProcessBirthIdentity(pid) {
   if (!Number.isInteger(pid) || pid <= 0) return { state: "missing" };
-  const result = spawnSync(
+  const result = companionProbe(
     "/bin/ps",
     ["-o", "lstart=", "-o", "command=", "-p", String(pid)],
     {
@@ -6185,7 +6187,7 @@ function processIsDescendantOf(candidatePid, ancestorPid) {
   while (current > 1 && !seen.has(current)) {
     if (current === ancestorPid) return true;
     seen.add(current);
-    const result = spawnSync("/bin/ps", ["-o", "ppid=", "-p", String(current)], {
+    const result = companionProbe("/bin/ps", ["-o", "ppid=", "-p", String(current)], {
       encoding: "utf8",
       timeout: 1_500,
       env: { PATH: "/usr/bin:/bin" },
@@ -6214,7 +6216,7 @@ function captureExactProcessGroup(pid, identity) {
       "companion_service_process_ownership_unverifiable",
     );
   }
-  const groupResult = spawnSync(
+  const groupResult = companionProbe(
     "/bin/ps",
     ["-o", "pgid=", "-p", String(pid)],
     {
@@ -6243,7 +6245,7 @@ function captureExactProcessGroup(pid, identity) {
 }
 
 function captureProcessGroupMembers(processGroup) {
-  const result = spawnSync("/bin/ps", ["-axo", "pid=,pgid="], {
+  const result = companionProbe("/bin/ps", ["-axo", "pid=,pgid="], {
     encoding: "utf8",
     timeout: 1_500,
     env: { PATH: "/usr/bin:/bin" },
@@ -6339,7 +6341,7 @@ function exactProcessGroupMembersStillPresent(group) {
     if (observation.state === "missing") return false;
     if (observation.state !== "present" || observation.identity !== member.identity)
       throw new PublicCompanionServiceError("companion_service_process_ownership_unverifiable");
-    const result = spawnSync(
+    const result = companionProbe(
       "/bin/ps",
       ["-o", "pgid=", "-p", String(member.pid)],
       {
@@ -6721,3 +6723,11 @@ function isObject(value) {
 function delay(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
+
+// Source-scoped read-only verification can account for probe processes without
+// changing installed-service defaults or exposing a remote execution option.
+const selectedProbe = new AsyncLocalStorage();
+export function withCompanionProcessProbe(runner, callback) {
+  return selectedProbe.run(runner,()=>withCheckoutIdentityProbe(runner,callback));
+}
+function companionProbe(...args) { return (selectedProbe.getStore() ?? spawnSync)(...args); }

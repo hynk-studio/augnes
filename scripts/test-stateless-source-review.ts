@@ -17,7 +17,7 @@ import { installZeroNetworkGuard } from "./test-harness-zero-network-guard.mjs";
 import { mkdtempSync, mkdirSync, realpathSync, writeFileSync, readFileSync, rmSync, renameSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { ownedSpawnSync as spawnSync } from "./test-harness-process-lifecycle.mjs";
 import { randomUUID } from "node:crypto";
 import { hasUnsettledAutonomyRunLedgerRecords, insertAutonomyRunLedgerRecord, updateAutonomyRunStepLedgerFields } from "../lib/autonomy/runner-ledger";
 import { createVNextOperatorContextUseReviewHandlerV01 } from "../app/api/vnext/operator/project-continuity/route";

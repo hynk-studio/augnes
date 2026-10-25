@@ -1,3 +1,5 @@
+import { selectedToolInvocation } from "./local-canonical-selected-execution.mjs";
+import { runOwnedSyncChild } from "./test-harness-process-lifecycle.mjs";
 import { createHash, randomBytes } from "node:crypto";
 import {
   chmodSync,
@@ -14,6 +16,7 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { selectedGitResult } from "./local-canonical-selected-git.mjs";
 
 import {
   CANONICAL_DARWIN_REPOSITORY_ROOT,
@@ -333,7 +336,7 @@ function runGitResult(
   args,
   { acceptedStatuses = new Set([0]) } = {},
 ) {
-  const result = spawnSync("git", args, {
+  const result = selectedGitResult(repositoryRoot, args, {
     cwd: repositoryRoot,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
@@ -368,7 +371,9 @@ function selectBrowserExecutable() {
 }
 
 function runVersionCommand(command, args) {
-  const result = spawnSync(command, args, {
+  const selected = selectedToolInvocation(command, args);
+  const result = runOwnedSyncChild(selected.command, selected.args, {
+    ...(selected.env ? { env: selected.env } : {}),
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
     timeout: 10_000,

@@ -1,9 +1,10 @@
 // Exact historical product owners run in a disposable process. Only the old
-// test harness entry point/root are adapted; no product source or record is patched.
+// test harness entry point/root and child accounting are adapted; no product source or record is patched.
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { ownedExecFileSync as execFileSync } from "./test-harness-process-lifecycle.mjs";
 import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { runCanonicalChild, canonicalChildAcceptanceFailure } from "./canonical-child-runner.mjs";
 
 export const DURABLE_WORK_PREDECESSOR = "d9b6b56f0de6dcb0a36ac591b13a3672f99fa71a";
@@ -17,6 +18,10 @@ export async function historicalDurableWorkFixtures(root: string) {
   symlinkSync(path.join(repository, "node_modules"), path.join(source, "node_modules"), "junction");
   const harness = path.join(source, "scripts/test-stateless-source-review.ts");
   let text = readFileSync(harness, "utf8");
+  const synchronousImport = 'import { spawnSync } from "node:child_process";';
+  assert.equal(text.split(synchronousImport).length, 2);
+  const lifecycleAdapter = pathToFileURL(path.join(repository, "scripts/test-harness-process-lifecycle.mjs")).href;
+  text = text.replace(synchronousImport, `import { ownedSpawnSync as spawnSync } from ${JSON.stringify(lifecycleAdapter)};`);
   const rootDeclaration = 'const root = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-stateless-review-")));';
   assert.equal(text.split(rootDeclaration).length, 2);
   text = text.replace(rootDeclaration, 'const root = realpathSync(process.env.AUGNES_TEST_HISTORICAL_FIXTURE_ROOT!);');

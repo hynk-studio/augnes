@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
+import { ownedSpawnSync as spawnSync, runOwnedSyncChild } from "./test-harness-process-lifecycle.mjs";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import {
@@ -32,6 +33,7 @@ import {
   startCompanionService,
   stopCompanionService,
   uninstallCompanionService,
+  withCompanionProcessProbe,
 } from "../plugins/augnes-operator/mcp/companion-service-core.mjs";
 import { discoverVerifiedCompanionV01 } from
   "../plugins/augnes-operator/mcp/companion-proxy.mjs";
@@ -45,6 +47,7 @@ if (process.platform !== "darwin") {
   process.exit(0);
 }
 
+await withCompanionProcessProbe(runOwnedSyncChild, async () => {
 const repositoryRoot = process.cwd();
 const testRoot = mkdtempSync(path.join(os.tmpdir(), "augnes-clh1-native-"));
 const testScope = `clh1-native-${process.pid}`;
@@ -1866,3 +1869,4 @@ async function waitForOwnedEndpointsGone(endpoints, timeoutMs) {
     "owned service endpoint identities must be unavailable after uninstall",
   );
 }
+});

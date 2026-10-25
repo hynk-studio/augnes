@@ -3,6 +3,7 @@ import { BROWSER_IDENTITY_PREFIX, parseBrowserUseLine } from "./local-canonical-
 
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { inheritSelectedExecutionEnvironment } from "./local-canonical-selected-execution.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -10,10 +11,12 @@ import {
   cleanupOwnedProcesses,
   registerOwnedChild,
   waitForOwnedProcessExit,
+  runOwnedSyncChild,
 } from "./test-harness-process-lifecycle.mjs";
 import {
   acquireCompanionServiceMaintenance,
   releaseCompanionServiceMaintenance,
+  withCompanionProcessProbe,
 } from "../plugins/augnes-operator/mcp/companion-service-core.mjs";
 import {
   correlateOperatorDocumentResponseV1,
@@ -44,6 +47,7 @@ let summary = null;
 assertExactDocumentCorrelation();
 assertStrictDocumentStatusValidation();
 
+await withCompanionProcessProbe(runOwnedSyncChild, async () => {
 try {
   serviceMaintenance = await acquireCompanionServiceMaintenance({
     repositoryRoot: repoRoot,
@@ -237,6 +241,7 @@ process.stdout.write(
     },
   })}\n`,
 );
+});
 
 function assertExactDocumentCorrelation() {
   const expected = {
@@ -441,5 +446,5 @@ function focusedEnvironment() {
   environment.PATH = [path.dirname(process.execPath), environment.PATH]
     .filter(Boolean)
     .join(path.delimiter);
-  return environment;
+  return inheritSelectedExecutionEnvironment(process.env, environment);
 }

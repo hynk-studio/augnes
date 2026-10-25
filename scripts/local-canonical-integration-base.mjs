@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { selectedGitResult } from "./local-canonical-selected-git.mjs";
 
 import { CANONICAL_REPOSITORY_ID } from "./canonical-repository-identity.mjs";
 import { createGitHubMainBranchTransport } from "./github-main-branch-transport.mjs";
@@ -69,7 +70,7 @@ export async function admitIntegrationBase({
 export function isIntegrationBaseAncestor({ repositoryRoot, baseSha, headSha }) {
   assertExactSha(baseSha, "base");
   assertExactSha(headSha, "head");
-  const result = spawnSync("git", ["--no-replace-objects", "merge-base", "--is-ancestor", baseSha, headSha], {
+  const result = selectedGitResult(repositoryRoot, ["--no-replace-objects", "merge-base", "--is-ancestor", baseSha, headSha], {
     cwd: repositoryRoot,
     encoding: "utf8",
     timeout: 30_000,
