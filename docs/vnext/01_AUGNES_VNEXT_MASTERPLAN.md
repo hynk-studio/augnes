@@ -37,6 +37,9 @@ requires an authorized decision, and what should matter next. This continuity is
 substrate for retaining useful methods and doing later work better, not an end
 measured by stored context. Broader capability, reliable outcomes and the range
 of tractable problems are product outcomes alongside continuity and lower burden.
+Research, exploration, creative work, business, public goods and personal projects
+are all valid purposes. Participants retain their own aims; a useful method,
+contribution or sponsor does not acquire control of the undertaking by helping it.
 
 Reusable capability may take the form of executable code, tools, computational
 models, conditional methods or task-appropriate combinations. A minimal shared
@@ -74,6 +77,15 @@ observed performance and limitations inform feasibility separately from permissi
 Later outcomes should change only the judgments they bear on, preserving each
 earlier judgment's sources and information cutoff. The first bounded connection
 is owned by [03](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#current-p3p4p5--project-retry-inspection-outlook-1213).
+
+A concrete entry is improving an existing artifact for a changed requirement:
+the participant states the current aim, the executor finds relevant originals,
+previous attempts and outstanding commitments, and actual work produces a usable
+result. When continuation is needed, a later executor consumes that basis. The
+product should absorb repeated explanation, material relaying, reconstruction of
+earlier judgments, unsuitable method reuse and lost obligations. This example
+does not restrict new exploration: an open question, permitted scope and a useful
+reconsideration point can guide inquiry without a predetermined final artifact.
 
 Selected external experience can accumulate under the user's workspace while
 each project retains its own purpose, assessment, permissions and commitments.
@@ -115,13 +127,20 @@ public terms; changes, commitments and spending follow the authority for that
 action. This product scope does not redefine the existing workspace ownership,
 Core principal or permission model, or require a new identity registry.
 
-Two connected paths give this direction practical shape: a useful public asset
-can lead to a bounded contribution, checked incorporation into current work and
-separate later use; an agent or collective can directly request and operate an
-ongoing undertaking, assemble the needed party, use contributions and continue
-after interruption or executor replacement. Party formation includes discovery,
+Three optional ways of using Augnes give this direction practical shape:
+
+| Use | Immediate value | Connection needed |
+|---|---|---|
+| Use experience once | A method, case or executable asset for the current question, with its conditions and limits | Only the public or otherwise permitted material needed for that use; no project registration or wholesale memory transfer |
+| Continue an undertaking | Purpose, reasons, results, open questions and commitments that remain usable across work | Relevant project state and current roles and authority |
+| Cooperate across projects | Another participant's review, production, material or service and its later use | Actually accepted terms, a usable return path, and attributed input, result and adoption relationships |
+
+These are choices, not successive admission levels. A participant can finish with
+one public method or sufficient ordinary files, notes and code. A continuing
+undertaking may assemble the needed party, use contributions and continue after
+interruption or executor replacement. Party formation includes discovery,
 requests, one-time contributions, temporary roles, callable services and other
-coordinators' teams. It does not require fixed membership or a permanent manager.
+coordinators' teams; it does not require fixed membership or a permanent manager.
 
 Accumulated knowledge includes individual methods and methods for decomposition,
 handoff, review and integration, with their basis, conditions, outcomes and limits.
@@ -144,6 +163,15 @@ comparisons are not prerequisites for these already approved capabilities.
 General network-scale discovery, reputation and settlement remain later scope.
 The product-facing loop remains **Resume → Verify → Decide**.
 
+Public entry must offer useful work before requiring registration, a continuing
+identity or contribution to an Augnes-selected task. An asset should make its
+applicable problem, input and output examples, limits, version, use terms and
+executable path understandable. Participants should know their resource burden,
+sharing choices, result-use terms and exit or export limits before committing.
+A first reviewer or consumer is an opportunity only when an actual counterpart
+is willing to participate; publication alone promises no audience, customer,
+reviewer, payment or independently discovered demand.
+
 An independent direction starts from an exact source revision with an explicit
 reason for divergence; later source changes do not silently rewrite that start.
 Comparison should let a recipient incorporate a qualified observation while
@@ -155,6 +183,72 @@ owns their sequence and implemented scope, and
 [04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#method-improvement-evidence)
 owns the comparison with strong alternatives and total-burden evaluation.
 
+### Autonomous direction and replaceable roles
+
+The real initiator, current direction decision owner, continuing supervisory role,
+executor, authority issuer, resource provider, checker and adopting consumer may
+be different. One participant can hold compatible roles; separating their
+responsibilities does not require additional agents. Actual initiation is history,
+while current decision and execution rights can change through their supported
+owners. An agent creating work at a person's request does not become its initiator
+or acquire that person's direction rights. Unknown historical attribution stays
+unknown. A legitimately agent-initiated undertaking can have its own direction
+within the applicable delegation.
+
+Within valid purpose, action authority and resource limits, the responsible role
+chooses questions, methods, experiment order and cooperation without repeated
+human ratification. Material changes use the applicable direction or authority
+owner; an already delegated action does not need a second permission ritual.
+Project creation, reputation, funding or reward does not enlarge those rights.
+Origin, direction delegation, funding, material sharing and result adoption are
+different relationships, not one parent-child tree or common control over all
+cooperating projects.
+
+A continuing supervisory role need not be an always-running process. Ordinary
+work entry, changed material, a returned result or an authorized execution
+opportunity can resume its judgment. The product must identify which executor
+currently acts for that role and make replacement and unfinished responsibilities
+intelligible. The bounded direction and renewal contracts remain owned by
+[02](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#effective-project-direction-and-bounded-decision-roles-1382);
+longer-lived or parallel supervision is not inferred from this responsibility.
+
+### Participant-provided resources and operating costs
+
+The initial funding premise is one actual supporting user, not an assumed pool
+of free compute. Participants or their sponsors provide their model, API,
+computing and activity resources. Execution may stay in the provider's environment
+while permitted state, results and usage evidence connect to Augnes. Participation
+does not require pooling account secrets, routing every call through Augnes or
+charging all participants' work to the workspace user's account.
+
+Resource commitments must be understandable by provider, kind and unit, permitted
+purpose, duration, limit, outstanding allocation and known usage. An offer is not
+confirmed capacity; a recorded budget is not proof of an enforced spending limit.
+Provider-reported, observed and actually enforced bounds must remain distinguishable
+under [02's coverage contract](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#34-authority-coverage).
+Different providers or kinds of compute are not interchangeable balances. Parentage,
+extra projects and more executors do not multiply the available resource allowance.
+Unknown expenditure remains unknown rather than becoming zero or free capacity.
+
+Public hosting, storage, communication and maintenance have their own disclosed
+operating limits. Personalized interpretation and experience extraction or
+checking normally use the caller's or project's resources; an explicit funded
+allowance can provide them instead. Shortage calls for a smaller scope, a pause or
+an authorized search for a provider, never an automatic subsidy from the user's
+personal budget. Seeking support, making a commitment and actually spending each
+follow the relevant existing authority.
+
+Shared allocation becomes useful when real providers accept reservations and
+participants have recurring competing needs. Product expectations include
+provider conditions, protection of existing valid commitments, no double
+allocation, honest unresolved usage and understandable cancellation and settlement.
+Allocation should support a coherent piece of work and its result, not manufacture
+many tiny tasks. Research, creation and public-good value cannot be reduced to
+revenue, agent count or one reputation score. The protocol owner must define any
+new reservation or settlement contract; existing declared profiles or local
+direction grants do not implement this general resource service. Current gaps and
+their sequence belong in [03](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md).
+
 ### Economic undertakings and cumulative capability
 
 A strategic application of continuous work is sustained economic activity:
@@ -163,7 +257,7 @@ deliver independently checked value, and use the resulting experience and
 available resources to choose later work. Economic activity supplies potential
 participation incentives and an external test of usefulness. It does not replace
 user-owned semantic and epistemic continuity or require every project to earn
-revenue. Research, public goods, exploration and private work remain valid.
+revenue. Research, creation, public goods, exploration and private work remain valid.
 
 The continuing unit is an undertaking spanning tasks and replaceable executors.
 Its purpose and beneficiaries, current understanding, available and committed
@@ -192,6 +286,17 @@ their effectiveness is a hypothesis, not inferred from an invitation or agent
 count. Existing runtimes remain usable without wholesale memory migration.
 Conditional competence and relationship evidence are more useful than an
 unsupported universal reputation score.
+
+Before a contribution, the parties should understand who may use, modify and
+share the result, required attribution, what each provider actually promises,
+acceptance and cancellation terms, and any remaining support obligations. Cost
+recovery, earlier commitments, any residual-revenue share and the bearer of a
+shortfall are project-specific agreements. Anticipated revenue is not currently
+available funding. Providing knowledge does not automatically buy ownership or
+a perpetual revenue share in the recipient's project. A return to Augnes can be
+agreed service-cost recovery or a permitted shared method or case; there is no
+universal ecosystem percentage. Tokens for activity, a common treasury and
+automatic settlement are not prerequisites for useful participation.
 
 Organization is itself a revisable method. Direct work, a callable service,
 temporary contribution, continuing team or shared maintained asset may fit
@@ -227,6 +332,7 @@ Recover the current coordinates of long-horizon work:
 - the current meaningful situation and last meaningful change;
 - accepted, rejected, stale, conflicted, or unresolved material;
 - relevant reusable methods, their applicability and known limits;
+- current acting role, unfinished cooperation and outstanding resource commitments;
 - pending authorized judgment, including decisions reserved for a human;
 - the next meaningful action.
 
@@ -340,6 +446,35 @@ disagreement, current meaning, and the next judgment understandable. Branch
 comparison belongs in that work context, with material differences first and
 exact provenance progressively disclosed through Inspector when needed.
 
+### Reusable experience: conditional methods
+
+Accumulated experience should help a current question, not create a duty to
+summarize every activity. Keep an original case connected to any method extracted
+from it: the situation, attempt, observations, results and limits support the
+method's applicable conditions, inputs, resources, executable procedure and
+non-use conditions. One successful case can suggest reuse without establishing
+a generally best method. Select and maintain material when its likely value to
+another decision justifies the extraction, reading and checking burden.
+
+Later use should preserve the consumed version and explain application,
+adaptation or appropriate non-use through the actual result. A counterexample
+may narrow applicability or end a current recommendation without rewriting the
+original observation and decision. Shared material should identify a maintenance
+responsibility and the scope last checked; an unmaintained method must not appear
+to be a verified current recommendation. Independent support is not created by
+multiple agents repeating one source.
+
+Shared methods, private project memory, accepted Project Perspective and a
+current task's derived interpretation retain their distinct meanings under
+[02](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#122-perspective-scope-distinctions).
+Saving or using a working interpretation does not automatically adopt it as the
+project's understanding or update optional Personal Perspective. Public or
+permitted sharing is required for both source material and derived methods;
+summarization does not make private input public. Shared instructions or code
+remain material to assess and use within current authority, not new grants.
+Relevant unavailable sources and access limits must be visible without claiming
+that inaccessible material does not exist.
+
 ### Relationship exploration: bounded connection view
 
 Relationship exploration explains how relevant work, evidence, claims,
@@ -450,6 +585,16 @@ judgment without turning the human surface into branch or protocol management.
 Users should obtain the benefit of reusable methods without managing a capability
 registry, schema or internal orchestration.
 
+A plain-language goal and current request should be enough to enter the supported
+flow. Read permitted current material, perform the needed work, interpret its
+actual result and connect consequential changes through the existing writers.
+Comparison forms, internal IDs and role configuration are not universal entry
+requirements. A one-time use need not create saved work or a successor just to
+complete a process. Continuing work should use its saved basis through ordinary
+entry rather than require a person to reconstruct and relay it each time.
+Explicit saves inside an existing valid delegation are technical actions, not
+automatic demands for another human approval.
+
 Project direction is an optional short outcome or open question in the existing
 project surface. Criteria, authority, delegation and history remain disclosed on
 demand. Working direction guides selection; accepted goals and current task
@@ -462,15 +607,13 @@ review shows purpose, criteria and constraints together. Acceptance loads that
 complete content into the editor; refreshed state discloses conflicting unsaved
 edits rather than silently rebasing them.
 
-For the human's own work, the human retains the north star. A separately authorized
-agent-directed project has a provider-neutral logical decision role that can make
-within-scope decisions without per-step ratification. Creation attribution,
-direction decision rights, a parent delegation and execution/resource permission
-are independent. Replacement executors reconstruct the same history through current
-bounded authorization. A child returns attributed material; it does not rewrite its
-parent's purpose or inherit credentials. Parentage is not a prerequisite for method
-reuse. Changing preference changes relevance and selection, not the validity of
-observations, forecasts, counterevidence or still-applicable methods.
+The [direction and role distinctions](#autonomous-direction-and-replaceable-roles)
+must remain understandable without exposing a governance console. For the human's
+own work, the human retains the north star. A child returns attributed material;
+it does not rewrite its parent's purpose or inherit credentials. Parentage is not
+a prerequisite for method reuse. Changing preference changes relevance and
+selection, not the validity of observations, forecasts, counterevidence or
+still-applicable methods.
 Moving a project's local folder does not change its creation attribution or free
 an already consumed delegation slot.
 
@@ -531,6 +674,30 @@ lineage, reviewed decisions, selected reusable context and methods. Reuse preser
 project/scope isolation and exact lineage; it does not import another project's
 authority or execution rights. Provider memory, model sessions, and host UI may
 assist but do not silently replace reviewed project state or human judgment.
+
+Succession must expose current purpose, reasons, uncertainty, latest material,
+unfinished questions and promises, outstanding external work, resource commitments
+and expired or withdrawn authority. A returning former executor or delayed result
+does not automatically become the current acting role. Existing version, request,
+authority and reconciliation owners govern stale writes and uncertain effects;
+the product must not suggest a fresh attempt merely because an earlier response
+was lost. Retaining a result and authorizing a new action from it remain distinct.
+
+Withdrawal of support limits use of that provider's resources without changing
+the undertaking's purpose, initiation history or result rights. Expired action
+authority prevents new action under that grant; cancellation of already external
+work is limited by actual coverage and unresolved effects remain visible. Other
+independently permitted work can continue. A question reserved for an unavailable
+decision owner waits for that decision rather than letting an executor expand
+its own scope.
+
+Moving results, preserving history and establishing live execution authority are
+different responsibilities. Offer actual artifact bytes, permitted use and source
+attribution, and state what the supported export, backup and restore paths retain
+or refuse. A partial history must not be presented as complete succession.
+Exporting material does not implicitly transfer credentials or grants. The
+specific direction-state portability and restored-authorization boundaries remain
+owned by [02](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md#effective-project-direction-and-bounded-decision-roles-1382).
 
 External systems retain their own source of truth:
 

@@ -31,7 +31,8 @@ the whole product mature.
    protocol stages or records are visible.
 3. Preserve verified fact, bounded inference, uncertainty, candidate, user
    decision, and authorized change as distinct states.
-4. Evaluate later outcomes before claiming research usefulness.
+4. Match usefulness evidence to the claimed task; later-task claims require
+   actual later outcomes.
 5. Treat metrics as guardrails and diagnostic evidence, not objectives.
 6. Give no product credit for memory volume or more notes, tools, artifacts,
    agents, sessions, activity, cards, panels, schemas, records, engines, models,
@@ -40,6 +41,42 @@ the whole product mature.
    likewise not success metrics by themselves.
 7. Do not invent measured baselines, pass rates, user comprehension, or
    usefulness from fixtures or self-evaluation.
+
+Choose the evaluation question that the work and next investment decision need.
+The autonomous-project and public-cooperation direction has six distinct claims:
+
+| Question | Relevant evidence | Separate conclusion |
+|---|---|---|
+| Functional correctness | Actual material, supported writes/reads, permitted actions and resource use, preservation and recovery for the claimed path. | Semantic understanding, usefulness and demand. |
+| Continuity of judgment and obligations | A successor acts on the earlier reasons, uncertainty and outstanding commitments, retaining or revising them appropriately when conditions change. | Identical model internals or continuity in every environment. |
+| Value of collaboration experience | Prior methods, code or failure conditions appropriately inform application, adaptation or non-use and contribute to the actual result. | The incremental value of Augnes's organization and connection of that experience. |
+| Incremental value of the Augnes path | Better outcomes or less necessary human repair than a capable ordinary files/notes/code path, with the additional relevant burden justified. | General speed, cost or capability superiority. |
+| External application and demand | A separate participant uses, adopts or returns to the result for its own purpose under recorded resource and assistance conditions. | Organic discovery, repeat demand or willingness to pay from one invited use. |
+| Economics and sustainability | Actual costs, fulfilled exchanges and remaining delivery/support obligations can be accounted for and sustained. | Promised sponsorship or simulated revenue as currently available resources. |
+
+These are interpretation dimensions, not mandatory sequential gates. A one-time
+public method use is evaluated against that use's purpose; do not manufacture a
+project registration, save, successor or comparison to qualify it. For a claimed
+continuing-project connection, follow one coherent task from current question and
+permitted resources through actual output, selective experience use and needed
+fresh continuation. Report the observed help, added burden, failures and unknowns.
+That bounded functional completion does not require comparative advantage or
+external demand. Later-task evidence is necessary for a later-task claim, not for
+every functional result. A document revision or renamed milestone does not reopen
+accepted work or require it to be repeated.
+
+Evaluate research and creative work against their stated purpose. Narrowing a
+question or refuting a hypothesis can be a valid research outcome. Technical
+completion, the creator's intent, audience response and economic outcome remain
+separate creative-work judgments; revenue is not a universal success criterion.
+
+Keep reported, observed, checked, adopted, actually used and paid or otherwise
+fulfilled exchanges distinct, with the source, version, conditions and relevant time
+cutoff. These are evidence descriptions, not new Core states or a compulsory
+promotion ladder. Multiple agents repeating one source are not independent
+confirmation. A checked contribution does not imply its adoption or authorize
+the receiving project to execute it. Recovered material establishes only the
+observed recovery scope, not uninspected history or renewed authority.
 
 ## Web-active users and contribution continuity
 
@@ -80,7 +117,7 @@ accepted PR or saved receipt does not by itself establish paying demand.
 | Claim | Required discriminating evidence |
 |---|---|
 | One useful economic activity | Traceable need/beneficiary, actual delivered material and independent acceptance or use, costs and unresolved obligations. A revenue claim additionally needs actual payment evidence; unpaid useful work retains its narrower meaning. |
-| Experience improves later work | A genuinely separate task with current inputs, actual conditional reuse/revision/non-use, checked result and a strong matched adaptive alternative. Preserve the old information cutoff and judgment. |
+| Experience improves later work | A genuinely separate task with current inputs, actual conditional reuse/revision/non-use and checked result. An attribution claim needs a discriminating experience contrast; an Augnes-advantage claim needs the strong matched adaptive alternative. Preserve the old information cutoff and judgment. |
 | Participation expands capability | A useful result newly attainable, improved or less burdensome because of the contribution, after discovery/checking/integration costs; participant count alone is insufficient. |
 | Economic terms attract participants | Distinguish discovery from invitation, proposal from useful return, and first contribution from repeat participation. Record exposure, proposed/actual terms, acquisition cost and who initiated execution. Directly assigned workers do not establish independent entry. |
 | Sustained operation | Later work remains possible while delivery, correction, support and payment obligations from earlier work remain visible and appropriately discharged or carried forward. A session ending does not close unknown effects. |
@@ -95,6 +132,19 @@ Unknown costs are not zero. Avoid counting the same cost in multiple categories.
 Eliminate internal transfers within the chosen common-owner evaluation boundary;
 funding injections, self-trading, internal points and estimated asset prices are
 not external revenue. State whether displayed amounts are real or simulated.
+
+For a claimed participant-funded or shared-resource path, distinguish declared
+offers, provider-confirmed availability, accepted reservations, unsettled usage
+and confirmed consumption without double counting the same execution or a parent
+and child's budget. Report provider-specific units and conditions, metering source
+and what the provider host actually enforces. A recorded ceiling cannot establish
+blocked external expenditure. Where the claimed path owns allocation, inspect
+duplicate/concurrent reservations, cancellation before versus after start, delayed
+usage, withdrawal and outstanding responsibility. Unconfirmed use is not zero;
+unconfirmed termination does not prove remote work stopped. No user-budget top-up,
+new direction authority or completed obligation follows from a sponsorship record.
+These checks qualify the affected claim, not every participant's ordinary use of
+its own already authorized environment, and do not assert an implemented allocator.
 
 Maintain a separate account of demonstrated reusable capability: a method,
 artifact, conditional counterpart experience or cooperation arrangement must be
@@ -135,6 +185,35 @@ dispositions. Return RETAIN, CHANGE, SIMPLIFY or STOP with the behavior and tota
 burden supporting it. Preserve #1464's scoped no-advantage/SIMPLIFY findings and
 the separate #1537 allocation; neither is a transferable economic result or a
 reason to require additional structure without observed need.
+
+### Bounded observations and interpretation — 2026-10-26
+
+The following accepted evidence constrains interpretation; implementation sequence
+remains in [03](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md). None is a new observation
+or a reason to rerun a completed allocation.
+
+| Evidence | Supported bounded result | Limits preserved |
+|---|---|---|
+| [#1526 ordinary-code observation](https://github.com/hynk-studio/augnes/issues/1526) | ACCEPT/RETAIN and closed for its first capability observation: A retained a useful raw-file inspection in code; fresh B adapted that source for a different task and executed it, followed by unchanged-B-method fresh-process replay. | Comparative usefulness NOT_EVALUATED; normal product integration NOT_ESTABLISHED. No general learning, long-term retention or superiority claim. |
+| [#1532 / merged #1534](https://github.com/hynk-studio/augnes/issues/1532#issuecomment-6391065885) | Accepted controlled same-project, distinct-task continuation through selected historical contribution, a separate current judgment/output and ordinary fresh re-entry. | Scripted evidence does not establish actual model understanding, independent participation, comparative usefulness or full W2. Original failed qualification and later accepted qualification remain distinct. |
+| [#1538 maintenance comparison](https://github.com/hynk-studio/augnes/issues/1538#issuecomment-6396556178) | Both Augnes and capable adaptive files/code completed the checked A-to-fresh-B outputs and actual simulated use. ACCEPT the bounded comparison, SIMPLIFY for this small case and RETAIN demonstrated Augnes capability. | No general equivalence, causal speed or monetary advantage; recorded spans include waiting and coordination and full provider/human costs remain unknown. Ordinary files are sufficient for comparable work unless a concrete additional need is observed. |
+| [#1538 organizer/relief review](https://github.com/hynk-studio/augnes/issues/1538#issuecomment-6400954569) | Independent review completed with ACCEPT of the bounded operational handoff and RETAIN of the package/existing paths. App/state correctness, first-organizer completion with two infrastructure assistance exchanges, and relief completion without recorded external technical help and with two self-corrections are separate results. | Synthetic continuation, not demonstrated human usability, independent demand, economic success, comparative benefit, production readiness or full W2; managed state remains no_run/no_result. |
+
+The organizer review supersedes only the earlier review-pending status in the
+[owner return](https://github.com/hynk-studio/augnes/issues/1538#issuecomment-6399662012)
+and the design document's drafting-time snapshot. Six freeze-bound transport
+originals were absent: independently recoverable frozen coverage is **47/53**.
+The supported state/use result is accepted with that delivery limit. Missing
+guidance bytes cannot establish that those guides omitted a rule or caused the
+recorded help; reconstruction or replay cannot restore their historical provenance.
+Ordinary recovery returned six artifacts/194 members/13 notes and two operational
+task identities, but not the initial packaging-task identity present in separate
+archived readbacks. Do not promote this to complete-history recovery. The narrow
+future guidance/provenance recommendation and exact-original supplement remain
+separate from the accepted completion; they justify no new product/schema/budget
+change or experiment. Preserve the original assistance, failures, uncertainty and
+earlier ACCEPT/RETAIN/SIMPLIFY outcomes, including the separately recovered exact
+historical `run.mjs` supplement without rewriting its earlier missing-file finding.
 
 ## Story & Worldbuilding Increment A acceptance (#1455)
 
@@ -350,6 +429,14 @@ usefulness against an equally informed capable adaptive memo/code alternative
 under the [strong-comparison rules](#strong-comparisons-and-independence).
 Appropriate retention/non-use can succeed. Neither comparison is a mandatory
 campaign or new gate for every L1 implementation PR.
+
+When only the Augnes condition receives a useful prior asset, any observed
+difference concerns the whole path including that information advantage; it
+cannot be attributed to storage, retrieval or succession alone. Equal available
+experience helps distinguish the connection method's contribution, while an
+experience-presence/absence contrast asks a different question. Choose the
+contrast needed for the claim, not an automatic factorial design. Report
+remaining exposure, selection and causal limits even when both paths complete.
 
 ### Question-specific model evidence
 
@@ -766,8 +853,10 @@ process is not an independent participant, and supplied identity records are not
 authenticated identities. Actual model understanding and independent participation
 remain NOT_RUN; comparative usefulness is NOT_EVALUATED and full W2 is
 NOT_ESTABLISHED. #1526/#1527 allocations and observations are not transferred.
-The next decision is whether to retain this small documented composition and
-regression, not automatically launch a participant or usefulness study.
+The [later accepted closure and user merge of #1534](https://github.com/hynk-studio/augnes/issues/1532#issuecomment-6391065885)
+retained this small documented composition and regression. Earlier review-pending
+language and failed qualification remain historical; acceptance did not launch
+a participant or usefulness study or close the broader #1532 issue.
 
 ### Local external-response evidence (#1453)
 
@@ -842,6 +931,21 @@ an expensive worker effectively re-solves each task. Amortizing expensive
 development or experience processing into reusable support for later tasks,
 including weaker workers, is a hypothesis to test with observed reuse and total
 burden, not an achieved saving by assumption.
+
+Report new asset construction separately from this task's use of an existing
+asset. Any realized amortized result uses actual observed reuse and its stated
+accounting boundary; hypothetical future reuse can support a labelled scenario,
+not reduce the reported cost of completed work. Include public hosting/storage,
+personalized Perspective preparation, experience extraction/validation and their
+actual payer when they contribute to the claim. Moving a cost to a participant,
+sponsor or shared operating budget is not eliminating it.
+
+Retain observed time, usage and assistance counts when full token, monetary or
+human-effort telemetry is unavailable. Waiting-inclusive conversation spans are
+not inference time, and conversations are not provider-call counts. Incomplete
+cost evidence can still support the bounded functional or continuity result;
+it cannot establish total-cost advantage. Preserve task completion with that
+specific limitation rather than demand an unrelated rerun to fill telemetry.
 
 Human framing, value judgments, criticism, prioritization and authorized
 decisions are legitimate contributions. Separate them from repetitive repair:
