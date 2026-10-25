@@ -873,8 +873,15 @@ unaccounted children and incomplete cleanup refuse.
 
 An exact first-parent source chain binds every correction and post-integration
 delta from the retained original through the reviewed correction floor to the
-final candidate. Exactly one ordered two-parent accepted-main integration is
-required, with the complete entry inventory and each reviewed additive overlap.
+final candidate. Source-review v1 retains exactly one two-parent integration.
+Source-review v2 binds a nonempty ordered `integrations` descriptor list, exactly
+one descriptor per two-parent commit in that complete chain. Each integration
+rechecks its actual parents, full entry inventory and every reviewed additive
+overlap. Accepted main must advance from the original base through each second
+parent; the terminal second parent must equal freshly authenticated current
+main. Omitted, duplicate, reordered, rollback or unrelated integrations refuse.
+Every integration descriptor and applicable preservation witness is frozen,
+including retained witnesses from earlier integrations.
 Both shared registrations, all task assets and the accepted workload survive.
 The final source/contract requires its own external independent review. The
 accepted earlier proposal does not review new route code by inheritance.
@@ -898,10 +905,11 @@ loss or cancellation spends it even with zero phases. At most invocation 2 is
 possible. Stock rechecks source/proof/main/authority read-only after cleanup.
 It must also satisfy the ordinary full receipt and Browser coverage rules.
 
-The current assignment authorizes implementation and disposable controls only.
-Real admission/reservation/Full/deciding stock are NOT_RUN. Final exact
-implementation review and a subsequent explicit one-invocation user grant are
-required before execution. #1536 remains Draft/HOLD with auto-merge disabled;
+A prior exact grant does not cover changed source, base, owner hashes or input
+bindings. After a sequential-integration correction, real admission/reservation/
+Full/deciding stock remain NOT_RUN until renewed independent review of the final
+exact implementation and a later exact one-invocation user grant. Do not probe
+a known refusal or edit an old grant into a new target. #1536 remains Draft/HOLD with auto-merge disabled;
 related issues remain OPEN. The #1533 adoption gate above is unchanged.
 
 ### Private review export

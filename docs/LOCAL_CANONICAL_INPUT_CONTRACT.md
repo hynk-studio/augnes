@@ -163,9 +163,11 @@ the first bounded diagnostic for a repeated failed observation identity.
 Historical events without it remain unchanged and their exception/cause cannot
 be reconstructed from adjacent successful observations.
 
-The retained #1536 `unknown_relevance` attempt is ineligible under all current
-routes. [Its qualification-path proposal](LOCAL_CANONICAL_OBSERVER_REQUALIFICATION_PROPOSAL.md)
-is review material, not an implemented route or invocation authority.
+The retained #1536 `unknown_relevance` attempt remains excluded from the general
+input/recovery/source routes. Its separately pinned
+[reviewed observer continuation](LOCAL_CANONICAL_OBSERVER_REQUALIFICATION_PROPOSAL.md)
+requires independent final-source review and later exact user authority; local
+proofs and earlier grants cannot authorize changed bindings.
 
 The versioned route is intentionally narrow. An original git-config invalidation
 may continue once after complete settlement, full relevant history review and
@@ -298,8 +300,13 @@ Production pins refuse the disposable family; no shipped configuration selects
 the fixture identities or authority. They use real admission, input monitor,
 phase/child cleanup and receipt/stock readers with a five-phase disposable plan.
 Fresh-process fixture stock is not production CLI validation or Full16/Browser7
-qualification. Ten separately registered authority children retain 30-second
-bounds and natural exit. At most two competing children run at once. The
+qualification. Fifteen separately registered authority children retain 30-second
+bounds and natural exit. Five added sequential-integration controls cover ordered
+source-review v2 history, both retained and later descriptors/witnesses, complete
+execution and restarted stock, adversarial intake, atomic contention and either
+witness drifting after freeze. Source-review v1 keeps its single-integration
+meaning; v2 accounts for every actual merge in first-parent order, advances main
+ancestry and binds terminal main. All descriptors and witnesses are monitored. At most two competing children run at once. The
 existing input/source/recovery controls retain admissible cross-route races;
 observer races also prove that incompatible legacy route claims cannot relabel
 this unknown predecessor or recover a spent allowance.

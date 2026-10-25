@@ -116,19 +116,38 @@ export function observerSourceChain(repositoryRoot, originalHead, head) {
   if (cursor !== originalHead || !reverse.length) fail("observer_source_ancestry_invalid");
   return reverse.reverse();
 }
+// v1 keeps its single-merge meaning. v2 explicitly lists every merge in the
+// complete first-parent chain; the same descriptors are inspected and frozen.
+function integrationDescriptors(source) {
+  let descriptors;
+  if (source.schema === "augnes.local-canonical-observer-source-review.v1" && !Object.hasOwn(source, "integrations")) descriptors = [source.integration];
+  else if (source.schema === "augnes.local-canonical-observer-source-review.v2" && !Object.hasOwn(source, "integration")) descriptors = source.integrations;
+  if (!Array.isArray(descriptors) || !descriptors.length || descriptors.length > 64 ||
+      descriptors.some(d => !d || typeof d.artifact !== "string" || !hash(d.sha256)) ||
+      new Set(descriptors.map(d => d.artifact)).size !== descriptors.length) fail("observer_source_integration_invalid");
+  return descriptors;
+}
 function inspectSource(file, proof, original, completion, repositoryRoot) {
   const source = JSON.parse(linked(file, proof.source_review)), git = gitAt(repositoryRoot);
+  const descriptors = integrationDescriptors(source);
   const chain = observerSourceChain(repositoryRoot, original.attempt.head, proof.head);
-  if (source.schema !== "augnes.local-canonical-observer-source-review.v1" || !same(source.chain, chain) ||
+  if (!same(source.chain, chain) ||
       !chain.some(c => c.head === OBSERVER_PREDECESSOR.reviewed_corrections_head) ||
       chain.at(-1).head === OBSERVER_PREDECESSOR.reviewed_corrections_head || chain.at(-1).tree !== proof.tree ||
       chain.some(c => c.changes.some(e => e.before && !e.after))) fail("observer_source_review_invalid");
   const integrations = chain.filter(c => c.parents.length === 2);
-  if (integrations.length !== 1 || integrations[0].parents[1] !== proof.accepted_main) fail("observer_source_integration_invalid");
-  const merge = integrations[0];
-  const mergeProof = { ...proof, head: merge.head, tree: merge.tree, kind: "accepted_main_adoption", source_review: source.integration };
-  inspectRequalificationSource(file, mergeProof, { ...original, attempt: { ...original.attempt, head: merge.parents[0],
-    tree: git(["rev-parse", `${merge.parents[0]}^{tree}`]).toString().trim() } }, completion);
+  if (integrations.length !== descriptors.length || integrations.at(-1)?.parents[1] !== proof.accepted_main) fail("observer_source_integration_invalid");
+  let previousMain = original.repository.base_sha;
+  for (const [n, merge] of integrations.entries()) {
+    const main = merge.parents[1];
+    if (main === previousMain) fail("observer_source_main_lineage_invalid");
+    try { git(["merge-base", "--is-ancestor", previousMain, main]); } catch { fail("observer_source_main_lineage_invalid"); }
+    const mergeProof = { ...proof, head: merge.head, tree: merge.tree, accepted_main: main,
+      kind: "accepted_main_adoption", source_review: descriptors[n] };
+    inspectRequalificationSource(file, mergeProof, { ...original, attempt: { ...original.attempt, head: merge.parents[0],
+      tree: git(["rev-parse", `${merge.parents[0]}^{tree}`]).toString().trim() } }, completion);
+    previousMain = main;
+  }
   const inventory = inputAdoptionInventory(repositoryRoot, original.attempt.head, original.repository.base_sha, proof.head);
   const assets = inventory.entries.filter(e => e.predecessor !== e.base && e.predecessor !== null).map(e => ({ path: e.path, entry: e.predecessor }));
   if (!same(source.task_assets, assets) || inventory.entries.some(e => e.predecessor !== e.base && e.predecessor !== null && !e.target)) fail("observer_task_assets_lost");
@@ -165,8 +184,13 @@ export function observerContinuationResources({ repositoryRoot, anchorRoot, proo
   const file = local(repositoryRoot, proof.local_relative_path);
   if (!same(readObserverContinuationProof(file, repositoryRoot), proof)) fail("observer_proof_changed");
   const source = JSON.parse(linked(file, proof.source_review)), history = JSON.parse(linked(file, proof.history_review));
-  const integration = JSON.parse(linked(file, source.integration));
-  const descriptors = [proof.history_review, proof.source_review, source.integration, ...integration.overlaps.map(o => o.preservation)];
+  const integrations = integrationDescriptors(source);
+  const descriptors = [proof.history_review, proof.source_review, ...integrations];
+  for (const descriptor of integrations) {
+    const integration = JSON.parse(linked(file, descriptor));
+    if (!Array.isArray(integration.overlaps)) fail("observer_source_integration_invalid");
+    descriptors.push(...integration.overlaps.map(o => o.preservation));
+  }
   const files = [file, local(repositoryRoot, proof.prior.receipt_path), ...descriptors.map(d => { linked(file, d); return path.join(path.dirname(file), d.artifact); }),
     ...history.logs.map(l => local(repositoryRoot, l.path)), ...["attempt", "completion"].map(k => path.join(anchorRoot, ".augnes-local-verification/families", proof.prior.family_id, `${k}-1.json`))];
   return [...new Set(files)].sort().map((file, n) => { readRequalificationArtifact(file, 2 * 1024 * 1024); return { id: `observer-evidence-${n}`, file, classification: "execution" }; });

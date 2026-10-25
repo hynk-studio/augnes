@@ -124,8 +124,9 @@ material input, ownership and observer protections remain required.
 
 The production helper pins the original family, receipt content fingerprint,
 receipt byte SHA-256, head and tree above, and the accepted correction floor
-`a4b0302ad3717db861b0d609116fed5a2a96acf3`. Only a final descendant with exactly
-one accepted-main integration in its first-parent chain can qualify. There is no
+`a4b0302ad3717db861b0d609116fed5a2a96acf3`. Only a final descendant with the complete ordered accepted-main integration
+history in its first-parent chain can qualify. Source-review v1 retains its
+single-integration shape; v2 explicitly supports sequential integrations. There is no
 runtime pin override or general unknown-relevance opt-in.
 
 The proof lives under `.augnes-local-verification/observer/`. All linked files
@@ -145,10 +146,21 @@ The JSON proof contains:
   `settlement_owner: "cancelled_phase"` and the outer cleanup fingerprint. This
   accounts for cancellation through the completed owner; it invents no child
   PASS. Passing selected children require complete existing owner decisions.
-- `source_review: {artifact, sha256}`: schema
-  `augnes.local-canonical-observer-source-review.v1`, `chain` exactly returned by
-  `observerSourceChain(root, originalHead, finalHead)`, original `task_assets`,
-  and an `integration` descriptor. Every chain entry includes head/tree/ordered
+- `source_review: {artifact, sha256}`: `chain` exactly returned by
+  `observerSourceChain(root, originalHead, finalHead)` and original `task_assets`.
+  Schema `augnes.local-canonical-observer-source-review.v1` has one `integration`
+  descriptor and excludes `integrations`. Schema
+  `augnes.local-canonical-observer-source-review.v2` has a nonempty ordered
+  `integrations` list and excludes `integration`. Its descriptors name every
+  two-parent chain entry exactly once (within the existing 64-entry chain bound).
+  Each actual first parent and second parent is revalidated. Each second parent
+  must strictly descend from the previous accepted main, beginning with the
+  original base; the terminal one equals freshly authenticated current main.
+  Earlier integration descriptors and preservation witnesses remain intact and
+  monitored alongside every later integration's evidence. A changed schema,
+  proof, source or main cannot grant another continuation or inherit review.
+  Both schemas require the same renewed exact external review and later user
+  authority when any binding changes. Every chain entry includes head/tree/ordered
   parents, complete tree inventory fingerprint, binary delta hash, changed
   paths and before/after entries. The integration uses the existing input-source
   review and preservation-witness schemas, with both divergent registration
@@ -211,7 +223,7 @@ double provide no execution authority.
 ## Remaining independent-review gate and execution sequence
 
 1. Review the final clean candidate and full source chain, including the P2 fixes,
-   literal-path fix, bounded diagnostics, exact main integration and both shared
+   literal-path fix, bounded diagnostics, every ordered main integration and both shared
    registration resolutions, plus every new route/control/doc change. Review the
    original complete history and explicit historical UNKNOWN. Freshly authenticate
    main and actual local ownership/capacity; bind the exact final head/tree/base

@@ -5,7 +5,7 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 import { runCanonicalChild } from "./canonical-child-runner.mjs";
 import { createCanonicalTestResourceRoot, beginCanonicalTestResourceUse, settleCanonicalTestResourceUse, cleanupCanonicalTestResources, buildCanonicalChildEnvironment } from "./canonical-test-environment.mjs";
 import { acquireCheckoutVerificationOwnership, releaseCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
-import { freezeInputContract, digest } from "./local-canonical-inputs.mjs";
+import { freezeInputContract, digest, observeInputFile, classifyInputChange } from "./local-canonical-inputs.mjs";
 import { readObserverContinuationProof, inspectObserverContinuation } from "./local-canonical-observer-continuation.mjs";
 import { beginAttempt, validateAttemptAdmission, readSourceCorrectionProof } from "./local-canonical-attempts.mjs";
 import { inspectSettledInputPredecessor, inspectRequalificationHistory, readInputRequalificationProof } from "./local-canonical-input-requalification.mjs";
@@ -41,7 +41,8 @@ if (["stock", "compete"].includes(process.argv[2])) {
     }
   } finally { restore(); }
 } else {
-  const mode = process.argv[2] ?? "admission", owner = createCanonicalTestResourceRoot("ag-resource-test-"); beginCanonicalTestResourceUse(owner);
+  const requestedMode = process.argv[2] ?? "admission", sequential = requestedMode.startsWith("sequential");
+  const mode = requestedMode === "sequential-race" ? "race" : requestedMode, owner = createCanonicalTestResourceRoot("ag-resource-test-"); beginCanonicalTestResourceUse(owner);
   const findings = [], pending = new Set(); let restore = () => {}, inFlight = 0;
   const child = options => {
     inFlight++;
@@ -61,7 +62,7 @@ if (["stock", "compete"].includes(process.argv[2])) {
     assert(first.receipt.phases.slice(2).every(p => p.status === "not_run"));
     const family = path.join(f.anchor, ".augnes-local-verification/families", first.attempt.family_id), receiptPath = path.join(f.checkout, first.relative);
     const retained = [receiptPath, path.join(family, "attempt-1.json"), path.join(family, "completion-1.json")].map(file => ({ file, bytes: fs.readFileSync(file) }));
-    const sources = buildSourceHistory(f), owners = copyInstrumentedOwners(f, first, sources.reviewed);
+    const sources = buildSourceHistory(f, { sequential }), owners = copyInstrumentedOwners(f, first, sources.reviewed);
     const { proof, observer, fixture } = await prepareObserverProof(f, first, sources, owners, child);
     const attempts = await import(pathToFileURL(path.join(owners, "scripts/local-canonical-attempts.mjs")));
     restore = installRemoteDouble(f);
@@ -96,9 +97,99 @@ if (["stock", "compete"].includes(process.argv[2])) {
     const freshStock = async (relative, expected) => {
       const state = path.join(f.parent, "state.json"); write(state, f); let output = "";
       const result = await child({ label: "fresh-stock", args: [path.join(owners, "scripts/test-local-canonical-observer-continuation.mjs"), "stock", state, relative], stdout: { write(b) { output += b; } } });
-      assert.equal(result.exit_code, expected ? 0 : 1, output); assert.equal(JSON.parse(output).valid_deciding_evidence, expected);
+      assert.equal(result.exit_code, expected ? 0 : 1, output); assert.equal(JSON.parse(output).valid_deciding_evidence, expected); return JSON.parse(output);
     };
-    if (mode === "admission") {
+    if (mode === "sequential-source") {
+      for (const [label, edit] of [
+        ["omitted", s => s.integrations.pop()], ["empty", s => s.integrations = []],
+        ["duplicate", s => s.integrations.push(s.integrations[0])], ["reordered", s => s.integrations.reverse()],
+        ["v1 relabel", s => { s.schema = "augnes.local-canonical-observer-source-review.v1"; s.integration = s.integrations[0]; delete s.integrations; }],
+        ["ambiguous schemas", s => s.integration = s.integrations[0]],
+      ]) {
+        changeArtifact("source.json", edit, /(?:observer_source_integration_invalid|input_requalification_source_review_invalid)/u);
+        note(`${label} integration descriptors refuse`);
+      }
+      for (const name of ["integration.json", "integration-2.json"]) {
+        const file = path.join(path.dirname(proofFile(f)), name), saved = fs.readFileSync(file);
+        for (const [label, edit] of [
+          ["wrong parent", i => i.predecessor_head = first.attempt.head],
+          ["wrong main", i => i.accepted_main = first.receipt.repository.base_sha],
+          ["lost assets", i => i.task_assets.pop()], ["unreviewed overlap", i => i.overlaps.pop()],
+          ["wrong delta", i => i.delta_sha256 = "a".repeat(64)],
+        ]) {
+          const data = JSON.parse(saved); edit(data); write(file, data);
+          try { changeArtifact("source.json", s => s.integrations.find(d => d.artifact === name).sha256 = digest(fs.readFileSync(file)), /input_requalification_(?:source_review_invalid|adoption_inventory_invalid|overlap_unreviewed)/u); }
+          finally { write(file, saved); }
+          note(`${name}: ${label} refuses with refreshed descriptor hashes`);
+        }
+      }
+      // Wrong current main cannot be hidden behind a valid terminal descriptor.
+      const base = f.base; f.base = sources.integrations[0].base;
+      try { changeProof(p => p.accepted_main = f.base, /observer_source_integration_invalid/u); } finally { f.base = base; }
+      const originalTarget = { head: f.head, tree: f.tree, base: f.base };
+      const sourcePath = path.join(path.dirname(proofFile(f)), "source.json"), sourceBytes = fs.readFileSync(sourcePath), proofBytes = fs.readFileSync(proofFile(f));
+      for (const wrongMain of [sources.integrations[0].base, first.attempt.head]) {
+        // Real two-parent objects with duplicate/backward or unrelated main;
+        // refreshed chain and target hashes cannot excuse ancestry movement.
+        f.base = wrongMain;
+        f.head = git(f.checkout, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit-tree", f.tree,
+          "-p", sources.integrations[1].corrected, "-p", wrongMain, "-m", "invalid sequential main lineage");
+        git(f.checkout, "reset", "--hard", f.head);
+        try {
+          const source = JSON.parse(sourceBytes); source.chain = observer.observerSourceChain(f.checkout, first.attempt.head, f.head); write(sourcePath, source);
+          changeProof(p => { p.head = f.head; p.accepted_main = f.base; p.source_review.sha256 = digest(fs.readFileSync(sourcePath)); }, /observer_source_main_lineage_invalid/u);
+        } finally {
+          Object.assign(f, originalTarget); git(f.checkout, "reset", "--hard", f.head); write(sourcePath, sourceBytes); write(proofFile(f), proofBytes);
+        }
+      }
+      note("actual duplicate/backward and unrelated accepted-main parents refuse with recomputed complete chains");
+      for (const name of ["integration.json", "integration-2.json", "preservation.json", "preservation-2.json"]) {
+        const file = path.join(path.dirname(proofFile(f)), name), saved = fs.readFileSync(file);
+        fs.rmSync(file); try { assert.throws(admission); } finally { write(file, saved); }
+        write(file, Buffer.concat([saved, Buffer.from("\n")])); try { assert.throws(admission, /input_requalification_evidence_changed/u); } finally { write(file, saved); }
+        note(`${name}: missing or tampered evidence refuses`);
+      }
+      assert.equal(fs.existsSync(path.join(family, "continuation-claim-1.json")), false);
+      note("all rejected sequential intakes leave the shared allowance unconsumed");
+    } else if (mode === "sequential") {
+      const resources = observer.observerContinuationResources({ repositoryRoot: f.checkout, anchorRoot: f.anchor, proof });
+      for (const name of ["integration.json", "integration-2.json", "preservation.json", "preservation-2.json"])
+        assert(resources.some(r => r.file === path.join(path.dirname(proofFile(f)), name)));
+      const second = await fixture.runInvocation(f, { proof }); assert(second.receipt.phases.every(p => p.status === "pass"));
+      await freshStock(second.relative, true);
+      const beforeStock = inventory(); assert.equal((await fixture.stock(f, second.relative)).valid_deciding_evidence, true); assert.deepEqual(inventory(), beforeStock);
+      const remotePath = remoteFile(f), savedRemote = fs.readFileSync(remotePath), records = read(remotePath);
+      records["repos/hynk-studio/augnes/branches/main"].commit.sha = sources.integrations[0].base; write(remotePath, records);
+      try { await freshStock(second.relative, false); } finally { write(remotePath, savedRemote); }
+      await freshStock(second.relative, true);
+      for (const name of ["integration.json", "integration-2.json", "preservation.json", "preservation-2.json"]) {
+        const file = path.join(path.dirname(proofFile(f)), name), held = `${file}.held`, inode = fs.statSync(file).ino;
+        fs.renameSync(file, held);
+        try { assert.equal((await freshStock(second.relative, false)).reason, "ENOENT"); } finally { fs.renameSync(held, file); }
+        assert.equal(fs.statSync(file).ino, inode);
+        // Even an inode-preserving rename changes execution-input metadata.
+        // Restoring bytes/path is not restoration of the complete frozen input.
+        const resource = resources.find(r => r.file === file), frozen = second.receipt.inputs.resources.find(r => r.id === resource.id);
+        assert.equal(classifyInputChange(frozen.before, observeInputFile(file), resource), "input_invalidation");
+      }
+      await freshStock(second.relative, false);
+      assert.equal((await fixture.stock(f, first.relative)).valid_deciding_evidence, false);
+      assert.throws(admission, /attempt_budget_or_unsettled/u);
+      note("two ordered reviewed integrations execute all five phases; restarted fixture stock freezes and rechecks both descriptors and witnesses and current main");
+      note("restored witnesses cannot replay the spent legacy shared allowance; original remains non-deciding");
+    } else if (mode.startsWith("sequential-freeze")) {
+      const name = mode.endsWith("first") ? "preservation.json" : "preservation-2.json";
+      const file = path.join(path.dirname(proofFile(f)), name), saved = fs.readFileSync(file);
+      const second = await fixture.runInvocation(f, { proof, beforeChildren: ({ monitor }) => {
+        fs.appendFileSync(file, "\n"); monitor.check();
+      } });
+      assert(second.receipt.phases.every(p => p.status === "not_run"));
+      assert.equal(second.receipt.outcome.disposition, "input_invalidation");
+      write(file, saved);
+      assert.throws(admission, /attempt_budget_or_unsettled/u);
+      await freshStock(second.relative, false);
+      note(`${name}: post-freeze tampering cancels before any phase, cleans every owner and permanently spends invocation 2`);
+    } else if (mode === "admission") {
       for (const [label, edit, expected] of [
         ["version", p => p.schema += ".new", /observer_predecessor_not_supported/u],
         ["family", p => p.prior.family_id = "a".repeat(64), /observer_predecessor_not_supported/u],
@@ -260,7 +351,7 @@ if (["stock", "compete"].includes(process.argv[2])) {
     } else throw new Error("unknown observer control mode");
     for (const x of retained) assert.deepEqual(fs.readFileSync(x.file), x.bytes);
     note("original receipt, input/fault history and legacy attempt/completion bytes remain immutable");
-    console.log(JSON.stringify({ schema: "augnes.observer-continuation-controls.v1", mode, findings, instrumentation: read(path.join(f.parent, "instrumentation.json")), historical_cause: "UNKNOWN", qualification: "NOT_RUN", fixture_stock_not_production_cli: true }));
+    console.log(JSON.stringify({ schema: "augnes.observer-continuation-controls.v1", mode: requestedMode, findings, instrumentation: read(path.join(f.parent, "instrumentation.json")), historical_cause: "UNKNOWN", qualification: "NOT_RUN", fixture_stock_not_production_cli: true }));
   } finally {
     await Promise.allSettled([...pending]); restore();
     if (inFlight === 0) settleCanonicalTestResourceUse(owner, { exit_observed: true, streams_closed: true, cleanup_completed: true, remaining_owned_processes: 0 });

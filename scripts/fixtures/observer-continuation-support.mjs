@@ -68,7 +68,7 @@ export function copyInstrumentedOwners(f, first, reviewedHead) {
   return destination;
 }
 
-export function buildSourceHistory(f) {
+export function buildSourceHistory(f, { sequential = false } = {}) {
   const originals = new Map();
   for (const file of OBSERVER_OWNER_FILES) {
     const bytes = fs.readFileSync(path.join(sourceRoot, file)); originals.set(file, bytes); write(path.join(f.checkout, file), bytes);
@@ -87,7 +87,20 @@ export function buildSourceHistory(f) {
   const reviewed = commit(f.checkout, "accepted correction floor");
   write(path.join(f.checkout, "observer-route.txt"), "new route requires its own review\n");
   f.head = commit(f.checkout, "new route implementation"); f.tree = git(f.checkout, "rev-parse", "HEAD^{tree}");
-  return { integration, corrected, reviewed, shared };
+  const integrations = [{ integration, corrected, base: f.base, shared }];
+  if (sequential) {
+    fs.appendFileSync(path.join(f.checkout, "accepted-main-asset.txt"), "retained later correction\n");
+    const laterCorrection = commit(f.checkout, "later reviewed correction");
+    fs.appendFileSync(path.join(f.anchor, "accepted-main-asset.txt"), "accepted later main addition\n");
+    write(path.join(f.anchor, "later-main-document.txt"), "accepted main document\n");
+    f.base = commit(f.anchor, "later accepted main");
+    try { git(f.checkout, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "merge", "--no-ff", "--no-commit", f.base); } catch { /* Reviewed additive overlap. */ }
+    write(path.join(f.checkout, "accepted-main-asset.txt"), "accepted main asset\nretained later correction\naccepted later main addition\n");
+    f.head = commit(f.checkout, "second exact main integration"); f.tree = git(f.checkout, "rev-parse", "HEAD^{tree}");
+    assert.equal(git(f.checkout, "show", "-s", "--format=%P", f.head), `${laterCorrection} ${f.base}`);
+    integrations.push({ integration: f.head, corrected: laterCorrection, base: f.base, shared: ["accepted-main-asset.txt"] });
+  }
+  return { integration, corrected, reviewed, shared, integrations, sequential };
 }
 
 export async function prepareObserverProof(f, first, sources, owners, child) {
@@ -111,18 +124,24 @@ export async function prepareObserverProof(f, first, sources, owners, child) {
     receipt_fingerprint: original.integrity.content_fingerprint, input_fingerprint: original.inputs.fingerprint, first_fault_fingerprint: digest(original.inputs.first_fault),
     events_fingerprint: digest(original.inputs.events), secondary_faults_fingerprint: digest(original.inputs.secondary_faults), phases_fingerprint: digest(original.phases),
     independent_failures: [], unresolved: [], safety_review: "complete", logs: original.phases.filter(p => p.status !== "not_run").map(p => ({ phase: p.id, path: p.log.relative_path, bytes: p.log.bytes, sha256: digest(fs.readFileSync(path.join(f.checkout, p.log.relative_path))) })) };
-  const inv = inputAdoptionInventory(f.checkout, sources.corrected, f.base, sources.integration), mergeTree = git(f.checkout, "rev-parse", `${sources.integration}^{tree}`);
-  const result = await child({ label: "integration-preservation", args: ["-e", `const fs=require('fs'),assert=require('assert'); for(const file of ${JSON.stringify(sources.shared)}) {const b=fs.readFileSync(file,'utf8');assert(b.includes('retained fixture correction'));assert(b.includes('accepted fixture main addition'));} assert(fs.readFileSync('task-assets.txt','utf8').includes('retained task assets'));`], cwd: f.checkout });
-  assert.equal(result.exit_code, 0);
-  const witness = artifact("preservation.json", { schema: "augnes.local-canonical-integration-preservation.v1", head: sources.integration, tree: mergeTree,
-    delta_sha256: inv.delta_sha256, paths: sources.shared, node_version: "24.18.0", finished_at: new Date().toISOString(), result });
-  const integration = artifact("integration.json", { schema: "augnes.local-canonical-input-source-review.v1", kind: "accepted_main_adoption", head: sources.integration, tree: mergeTree,
-    predecessor_head: sources.corrected, predecessor_tree: git(f.checkout, "rev-parse", `${sources.corrected}^{tree}`), accepted_main: f.base, source_review: "complete", review_reference: reference, reviewed_at,
-    merge_base: inv.merge_base, inventory_fingerprint: inv.fingerprint, delta_sha256: inv.delta_sha256, changed_paths: inv.changed_paths,
-    task_assets: inv.entries.filter(e => e.predecessor !== e.base && e.predecessor !== null).map(e => ({ path: e.path, entry: e.predecessor })),
-    overlaps: inv.entries.filter(e => e.divergent).map(e => ({ path: e.path, entries: e, review_reference: reference, kind: "reviewed_additive_overlap", preservation: witness })) });
+  const integrations = [];
+  for (const [n, spec] of sources.integrations.entries()) {
+    const inv = inputAdoptionInventory(f.checkout, spec.corrected, spec.base, spec.integration), mergeTree = git(f.checkout, "rev-parse", `${spec.integration}^{tree}`);
+    const markers = n === 0 ? ['retained fixture correction', 'accepted fixture main addition'] : ['retained later correction', 'accepted later main addition'];
+    const result = await child({ label: `integration-preservation-${n + 1}`, args: ["-e", `const cp=require('child_process'),assert=require('assert'); for(const file of ${JSON.stringify(spec.shared)}) {const b=cp.execFileSync('git',['show',${JSON.stringify(spec.integration)}+':'+file],{encoding:'utf8'});for(const marker of ${JSON.stringify(markers)}) assert(b.includes(marker));} assert(cp.execFileSync('git',['show',${JSON.stringify(spec.integration)}+':task-assets.txt'],{encoding:'utf8'}).includes('retained task assets'));`], cwd: f.checkout });
+    assert.equal(result.exit_code, 0);
+    const suffix = n === 0 ? "" : `-${n + 1}`;
+    const witness = artifact(`preservation${suffix}.json`, { schema: "augnes.local-canonical-integration-preservation.v1", head: spec.integration, tree: mergeTree,
+      delta_sha256: inv.delta_sha256, paths: spec.shared, node_version: "24.18.0", finished_at: new Date().toISOString(), result });
+    integrations.push(artifact(`integration${suffix}.json`, { schema: "augnes.local-canonical-input-source-review.v1", kind: "accepted_main_adoption", head: spec.integration, tree: mergeTree,
+      predecessor_head: spec.corrected, predecessor_tree: git(f.checkout, "rev-parse", `${spec.corrected}^{tree}`), accepted_main: spec.base, source_review: "complete", review_reference: reference, reviewed_at,
+      merge_base: inv.merge_base, inventory_fingerprint: inv.fingerprint, delta_sha256: inv.delta_sha256, changed_paths: inv.changed_paths,
+      task_assets: inv.entries.filter(e => e.predecessor !== e.base && e.predecessor !== null).map(e => ({ path: e.path, entry: e.predecessor })),
+      overlaps: inv.entries.filter(e => e.divergent).map(e => ({ path: e.path, entries: e, review_reference: reference, kind: "reviewed_additive_overlap", preservation: witness })) }));
+  }
   const assets = inputAdoptionInventory(f.checkout, first.attempt.head, original.repository.base_sha, f.head);
-  const source = artifact("source.json", { schema: "augnes.local-canonical-observer-source-review.v1", chain: observer.observerSourceChain(f.checkout, first.attempt.head, f.head), integration,
+  const source = artifact("source.json", { schema: `augnes.local-canonical-observer-source-review.v${sources.sequential ? 2 : 1}`, chain: observer.observerSourceChain(f.checkout, first.attempt.head, f.head),
+    ...(sources.sequential ? { integrations } : { integration: integrations[0] }),
     task_assets: assets.entries.filter(e => e.predecessor !== e.base && e.predecessor !== null).map(e => ({ path: e.path, entry: e.predecessor })) });
   const family = path.join(f.anchor, ".augnes-local-verification/families", first.attempt.family_id);
   const p = { schema: observer.OBSERVER_CONTINUATION_CONTRACT, branch: f.branch, head: f.head, tree: f.tree, accepted_main: f.base,

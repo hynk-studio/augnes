@@ -771,12 +771,12 @@ for (const id of ["local-canonical-input-review-regressions", "local-canonical-s
     requireText(child.block, fragment, "review corrections retain bounded natural-exit authority controls");
   assert.equal(countOccurrences(canonicalSuite, `scripts/test-${id}.mjs`), 1);
 }
-for (const mode of ["admission", "history", "race", "race-input", "race-recovery", "race-source", "drift", "ownership", "cancel", "reinspection"]) {
+for (const mode of ["admission", "history", "race", "race-input", "race-recovery", "race-source", "drift", "ownership", "cancel", "reinspection", "sequential", "sequential-source", "sequential-race", "sequential-freeze-first", "sequential-freeze-last"]) {
   const child = readCanonicalChildRegistration(canonicalSuite, `local-canonical-observer-continuation-${mode}`);
   for (const fragment of ['timeoutMs: 30_000', 'requireNaturalExit: true', '"scripts/test-local-canonical-observer-continuation.mjs"', `"${mode}"`])
     requireText(child.block, fragment, "reviewed observer continuation retains bounded real-child authority controls");
 }
-assert.equal(countOccurrences(canonicalSuite, 'scripts/test-local-canonical-observer-continuation.mjs'), 10);
+assert.equal(countOccurrences(canonicalSuite, 'scripts/test-local-canonical-observer-continuation.mjs'), 15);
 requireText(localPolicy, "augnes.local-canonical-reviewed-observer-continuation.v1", "observer authority remains a distinct prospective contract");
 requireText(localExecutor, '"observer-continuation-proof"', "observer continuation has an explicit CLI route");
 requireText(localPolicy, "one continuation total", "input and infrastructure routes share the existing allowance");
