@@ -203,8 +203,9 @@ participants. Private usefulness need not await network effects.
 
 Reported completion, checked acceptance, actual use and payment remain distinct.
 Cash and obligations, total work burden, and capability demonstrated in later
-use have different meanings. A successor inherits only explicitly accepted
-obligations, while replacement does not erase the original undertaking's duties.
+use have different meanings. Responsibility for new work is deliberately adopted.
+Replacing an executor or starting later work does not erase the undertaking's
+existing duties or waive required unresolved-effect lineage and reconciliation.
 Further allocation considers resources already committed to ongoing work.
 Activity continues within existing authority; material changes of purpose,
 scope or exposure use the applicable decision owner rather than adding a human

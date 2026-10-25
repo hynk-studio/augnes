@@ -116,8 +116,10 @@ separate under the existing method-improvement policy.
 
 Use a changed requirement, counterparty condition or executor where needed to
 test the retained claim. Check that original observations survive, current
-applicability is reconsidered, relevant obligations are explicitly adopted and
-an actual fresh consumer can continue from saved state. Where market selection
+applicability is reconsidered and responsibility for later work is explicit.
+Required unresolved-effect lineage and reconciliation must survive even when
+optional task material is not reused. Check that an actual fresh consumer can
+continue from saved state. Where market selection
 is claimed, vary proposal arrival/presentation while retaining comparable terms,
 or inspect whether additional exploration improves outcomes after its cost.
 Competence evidence stays conditional on task, environment, method/version,
