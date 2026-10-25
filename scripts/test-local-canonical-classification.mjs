@@ -259,6 +259,27 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
   validContext.currentInputStateValid = true;
   const passing = finalizeReceipt(receipt);
   assert.deepEqual(inspectReceiptForDecision(passing, validContext).issues, []);
+  // The actual receipt reader validates native safety observations as well as
+  // their declaration hash. Rehashing an invalid role cannot make it valid.
+  for (const nativeFile of [config, path.join(root, "absent-native-config.toml")]) {
+    const native = structuredClone(receipt);
+    native.inputs.resources.push({ id: "fixture-native-configuration", location_fingerprint: digest(nativeFile),
+      classification: "safety", nativeConfiguration: true, before: observeInputFile(nativeFile, { nativeConfiguration: true }) });
+    const rebind = value => {
+      const { contract, path_kind, binding, resources } = value.inputs;
+      value.inputs.fingerprint = digest({ contract, path_kind, binding, resources });
+      value.attempt.contract_fingerprint = value.inputs.fingerprint;
+      return finalizeReceipt(value);
+    };
+    assert.deepEqual(inspectReceiptForDecision(rebind(native), validContext).issues, []);
+    for (const mutate of [r => { r.nativeConfiguration = "true"; }, r => { r.nativeConfiguration = false; },
+      r => { r.classification = "execution"; }, r => { r.excludePreferences = true; },
+      r => { r.metadataOnly = true; }, r => { r.readOnlyTree = true; }, r => { delete r.before.path_chain_sha256; }]) {
+      const invalid = structuredClone(native); mutate(invalid.inputs.resources.at(-1));
+      assert(inspectReceiptForDecision(rebind(invalid), validContext).issues.includes("receipt_input_role_invalid"));
+    }
+  }
+  note("native configuration absent/present observations and rehashed invalid safety roles checked by actual receipt reader");
   assert(!inspectReceiptForDecision(passing, { ...validContext, currentAttemptRecordsValid: false }).valid_deciding_evidence);
   for (const mutate of [r => { r.inputs.resources = [null]; }, r => { r.inputs.events = [null]; }, r => { r.phases = [null]; },
     r => { r.inputs.binding.phase_environment_fingerprints = [null]; }]) {

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { runOwnedSyncChild } from "./test-harness-process-lifecycle.mjs";
 import { constants, closeSync, fstatSync, lstatSync, openSync, opendirSync, readFileSync, readlinkSync, realpathSync } from "node:fs";
 import path from "node:path";
+import { observeNativeConfigurationInput, NATIVE_CONFIGURATION_CONTRACT } from "../lib/vnext/native-host/codex-configuration-sources.mjs";
 
 export const INPUT_CONTRACT = "augnes.local-canonical-inputs.v2";
 export const INPUT_CLASSES = Object.freeze(["execution", "safety", "ambient", "unknown"]);
@@ -122,7 +123,11 @@ export function preferenceProjection(bytes) {
   return { projection, remainder_sha256: digest(remainder.join("")) };
 }
 
-export function observeInputFile(file, { metadataOnly = false, preferences = false, readOnlyExecutable = false, readOnlyTree = false, force = false } = {}) {
+export function observeInputFile(file, { metadataOnly = false, preferences = false, readOnlyExecutable = false, readOnlyTree = false, nativeConfiguration = false, force = false } = {}) {
+  if (nativeConfiguration) {
+    if (metadataOnly || preferences || readOnlyExecutable || readOnlyTree) throw fail("input_native_configuration_role_invalid");
+    return observeNativeConfigurationInput(file);
+  }
   if (readOnlyTree) {
     if (metadataOnly || preferences || readOnlyExecutable || typeof force !== "boolean") throw fail("input_tree_role_invalid");
     // Deliberately rehash every observation, including forced closeout. No
@@ -162,8 +167,16 @@ export function observeInputFile(file, { metadataOnly = false, preferences = fal
 
 export const nonFaultInputChange = disposition => ["unchanged", "ambient_observation", "incidental_executable_metadata"].includes(disposition);
 
-export function classifyInputChange(before, after, { classification, excludePreferences = false, readOnlyExecutable = false, readOnlyTree = false } = {}) {
+export function classifyInputChange(before, after, { classification, excludePreferences = false, metadataOnly = false, readOnlyExecutable = false, readOnlyTree = false, nativeConfiguration = false } = {}) {
   if (!INPUT_CLASSES.includes(classification) || !before || !after || typeof before !== "object" || typeof after !== "object" || Array.isArray(before) || Array.isArray(after)) return "unknown_relevance";
+  if (nativeConfiguration) {
+    const valid = value => typeof value.present === "boolean" && value.source_path_policy === NATIVE_CONFIGURATION_CONTRACT &&
+      /^[a-f0-9]{64}$/u.test(value.path_chain_sha256 ?? "") && (!value.present ||
+        (/^[a-f0-9]{64}$/u.test(value.sha256 ?? "") && ["mode", "uid", "gid", "links", "device", "inode", "bytes", "mtime_ns", "ctime_ns"]
+          .every(key => /^\d{1,40}$/u.test(value.metadata?.[key] ?? ""))));
+    if (classification !== "safety" || excludePreferences || metadataOnly || readOnlyExecutable || readOnlyTree || !valid(before) || !valid(after)) return "unknown_relevance";
+    return digest(before) === digest(after) ? "unchanged" : "safety_violation";
+  }
   const usableExecutable = value => value.present === true && /^[0-9a-f]{64}$/u.test(value.sha256 ?? "") &&
     ["mode", "uid", "gid", "device", "inode", "bytes", "mtime_ns", "ctime_ns", "links"].every(key => /^\d{1,40}$/u.test(value.metadata?.[key] ?? "")) &&
     /^[0-9a-f]{64}$/u.test(value.permission_identity ?? "") && ["shared-posix-v1", "strict-metadata-v1"].includes(value.executable_identity_policy) && BigInt(value.metadata.links) > 0n && (BigInt(value.metadata.mode) & 0o170000n) === 0o100000n && (value.executable_identity_policy === "strict-metadata-v1" || (BigInt(value.metadata.mode) & 0o111n) !== 0n);
@@ -215,7 +228,8 @@ export function freezeInputContract({ resources, pathKind, binding, read = obser
     if (resource.readOnlyExecutable && (resource.classification !== "execution" || resource.metadataOnly || resource.excludePreferences)) throw fail("input_executable_role_invalid");
     if (resource.readOnlyTree && (resource.classification !== "execution" || resource.metadataOnly || resource.excludePreferences || resource.readOnlyExecutable)) throw fail("input_tree_role_invalid");
     if (resource.excludePreferences && (pathKind !== "isolated-model-free-v1" || resource.classification !== "ambient")) throw fail("input_exclusion_unproven");
-    return { ...resource, before: read(resource.file, { metadataOnly: resource.metadataOnly, preferences: resource.excludePreferences, readOnlyExecutable: resource.readOnlyExecutable, readOnlyTree: resource.readOnlyTree, force: true }) };
+    if (resource.nativeConfiguration && (resource.classification !== "safety" || resource.metadataOnly || resource.excludePreferences || resource.readOnlyExecutable || resource.readOnlyTree)) throw fail("input_native_configuration_role_invalid");
+    return { ...resource, before: read(resource.file, { metadataOnly: resource.metadataOnly, preferences: resource.excludePreferences, readOnlyExecutable: resource.readOnlyExecutable, readOnlyTree: resource.readOnlyTree, nativeConfiguration: resource.nativeConfiguration, force: true }) };
   });
   const declared = { contract: INPUT_CONTRACT, path_kind: pathKind, binding,
     resources: selected.map(({ file, ...r }) => ({ ...r, location_fingerprint: digest(file) })) };
@@ -235,7 +249,7 @@ export function freezeInputContract({ resources, pathKind, binding, read = obser
         const hint = !resource.readOnlyTree && !force && Number(resource.before.metadata?.bytes) > 1024 * 1024
           ? read(resource.file, { metadataOnly: true, readOnlyExecutable: resource.readOnlyExecutable }) : null;
         after = hint && hint.permission_identity === resource.before.permission_identity && JSON.stringify(hint.metadata) === JSON.stringify(resource.before.metadata)
-          ? resource.before : read(resource.file, { metadataOnly: resource.metadataOnly, preferences: resource.excludePreferences, readOnlyExecutable: resource.readOnlyExecutable, readOnlyTree: resource.readOnlyTree, force });
+          ? resource.before : read(resource.file, { metadataOnly: resource.metadataOnly, preferences: resource.excludePreferences, readOnlyExecutable: resource.readOnlyExecutable, readOnlyTree: resource.readOnlyTree, nativeConfiguration: resource.nativeConfiguration, force });
         disposition = classifyInputChange(resource.before, after, resource);
       } catch { disposition = "observer_failure"; after = null; }
       if (disposition === "unchanged") continue;

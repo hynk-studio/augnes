@@ -74,6 +74,13 @@ The real origin, physical registration, source identity and config safety remain
 live checks. This permits a non-consumed ordinary Git preference to vary only
 when the selected read view and all live authority checks still agree.
 
+Selected source reads and disposable Git operations use the current consumers'
+command-specific option forms. Unknown options, abbreviations and external
+file-bearing operands refuse before native dispatch, including attached and
+separate grep pattern-file, diff order-file and ls-files exclude-file forms.
+Authored pattern/message text and paths after `--` retain their distinct meanings;
+this bounded selector is not a general Git argument parser.
+
 Authenticated GitHub transport remains live: the selected `gh` receives only its
 explicit transport environment, including required credentials and proxy inputs.
 Host credentials are not copied into generated configs or retained evidence.
@@ -82,6 +89,25 @@ an unclassified certificate directory refuses. Current-main authentication,
 installed Companion preservation, managed policy, instruction/auth safety and
 checkout/capacity ownership remain independent blocking boundaries. A frozen
 execution config cannot authorize a changed origin or hide revoked authority.
+
+The native scope owner shares its configuration-path enumerator with the
+selector. It includes both original source and snapshot ancestry, system Codex
+configuration, managed policy and instruction sources. On the selected path,
+every external source must be declared before the native reader hashes or parses
+it. The ordinary controls' private temporary roots are identity-bound mutable
+fixtures; their external ancestors and system sources remain live safety inputs.
+A new path outside this set refuses. Nested selection retains the parent's
+external inventory and cannot convert those files into mutable fixtures.
+
+External native inputs bind absence or presence, regular-file content and
+metadata, and the identity of existing ancestors, including fixed platform
+aliases. Unsafe configuration aliases and ambiguous observations refuse.
+Directory content timestamps are not authority identity. The outer monitor and
+fresh current-state reader use the same observation role after a scoped launch's
+own assertion and after fixture cleanup. Retained manifests contain only source
+identities and hash/safety observations for these live files, never their TOML
+contents or credentials. Historical integrity remains distinct from current
+applicability; the native per-launch assertion is retained.
 
 The optional `readOnlyTree` execution role inventories the npm installation's
 complete physical package directory, including internal symlink target identities.
@@ -119,6 +145,14 @@ ambiguous process observation or incomplete cleanup cannot pass. Post-spawn
 callback failure still enters the existing bounded settlement path. Deliberate
 negative fixtures preserve their own UNKNOWN evidence while the actual harness
 child must settle in the enclosing inventory.
+
+Settlement is checked from the original selected ledger on every controller
+exit, including failed acquisition and preservation before input freeze. An
+attempted cleanup is not settlement. UNKNOWN, missing or unreadable terminal
+evidence and lost ownership latch preservation of private evidence and owner
+state. Post-execution observations and historical-input cleanup are included
+before final lifecycle retention and private disposal; a later successful
+observation never rewrites an original UNKNOWN event.
 
 The inventory covers existing `registerOwnedChild` consumers, the outer phase
 callback and selected synchronous Git/tool-version/transport, permission-reader

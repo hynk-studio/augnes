@@ -274,6 +274,7 @@ export function selectedGitResult(root, args, options = {}) {
       fail("selected_git_escape_refused");
     if (call.args.some(arg => path.isAbsolute(arg) || /^(?:\.\.\/|--(?:no-index|open-files-in-pager|recurse-submodules|recursive)(?:=|$))/u.test(arg)))
       fail("selected_git_escape_refused");
+    assertReadArguments(call, () => false);
   }
   if (command === "symbolic-ref" && !["symbolic-ref\0HEAD", "symbolic-ref\0--quiet\0--short\0HEAD", "symbolic-ref\0--short\0HEAD"].includes(call.args.join("\0"))) fail("selected_git_operation_unclassified");
   if (command === "rev-parse" && call.args.some(arg => /^(?:--resolve-git-dir|--git-path|--sq-quote)/u.test(arg))) fail("selected_git_operation_unclassified");
@@ -290,10 +291,19 @@ function assertFixtureArguments(call, fixturePath) {
   const refuse = () => fail("selected_git_fixture_escape_refused");
   if (["commit", "tag", "merge"].includes(command) && args.some(arg => /^-[Ssu](?:.|$)/u.test(arg) || /^(?:--sign|--local-user|--strategy)(?:=|$)/u.test(arg))) refuse();
   if (!["init", "clone", "worktree", "config", "remote", "fetch", "push", "add", "commit", "mv", "rm",
-    "reset", "clean", "tag", "merge", "update-ref", "update-index", "symbolic-ref", "checkout", "switch",
+    "reset", "clean", "tag", "merge", "update-ref", "update-index", "symbolic-ref", "checkout", "switch", "mktree", "commit-tree",
     "rev-parse", "status", "cat-file", "ls-tree", "diff", "grep", "merge-base", "show", "log", "ls-files", "check-ignore"].includes(command))
     fail("selected_git_fixture_operation_unclassified");
-  for (let i = 0; i < args.length; i++) {
+  const closedOptions = READ_OPTIONS[command] ?? FIXTURE_OPTIONS[command];
+  if (closedOptions) assertBoundedOptions(call, closedOptions, fixturePath);
+  // The executor's existing disposable admission fixture authors only tree and
+  // commit objects. No flags/files/helpers or source-repository writes are added.
+  else if (command === "mktree") { if (args.length) refuse(); }
+  else if (command === "commit-tree") {
+    if (![3, 5].includes(args.length) || !SHA.test(args[0]) || args[1] !== "-m" ||
+        (args.length === 5 && (args[3] !== "-p" || !SHA.test(args[4])))) refuse();
+  }
+  else for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if (/^--(?:git-dir|work-tree|namespace|exec-path|config-env|upload-pack|receive-pack|recurse-submodules|exec|filters|textconv|ext-diff|config|gpg-sign|open-files-in-pager|repo|repository|edit|edit-description)(?:=|$)/u.test(arg)) refuse();
     if (["--file", "-F", "--output", "-o", "--template", "--separate-git-dir", "--pathspec-from-file"].includes(arg)) {
@@ -342,6 +352,66 @@ function assertFixtureArguments(call, fixturePath) {
     else refuse();
   }
   return repositories;
+}
+
+// These are the current source-reader and disposable-fixture option forms, not
+// a general Git parser. In particular no consumer selects grep pattern files,
+// diff order files, ls-files exclude files, message/template files, or option
+// abbreviations. A denylist cannot distinguish their attached short operands.
+const READ_OPTIONS = {
+  "rev-parse": ["--verify", "--is-inside-work-tree", "--show-toplevel", "--git-common-dir", "--git-dir", "--absolute-git-dir"],
+  status: ["--porcelain", "--porcelain=v1", "--porcelain=v2", "--short", "--branch", "-z", "--untracked-files=all", "--untracked-files=no", "--untracked-files=normal", "--ignore-submodules=none"],
+  "cat-file": ["-e", "-p", "-s", "-t", "--batch"],
+  "ls-tree": ["-r", "-t", "-l", "-z", "-rz", "--full-tree", "--name-only"],
+  diff: ["--binary", "--check", "--name-only", "--name-status", "--find-renames=50%", "--no-ext-diff", "--no-textconv", "--submodule=short", "--cached", "--stat", "-z"],
+  grep: ["-I", "-l", "-z", "-F", "-E"],
+  "merge-base": ["--is-ancestor"],
+  show: ["-s", "--no-ext-diff", "--no-textconv"],
+  log: ["-1", "--oneline", "--no-ext-diff", "--no-textconv"],
+  "ls-files": ["--cached", "--stage", "-s", "-z", "--error-unmatch", "--others", "--exclude-standard"],
+  "check-ignore": ["--quiet"],
+  "symbolic-ref": ["--quiet", "--short"],
+};
+const FIXTURE_OPTIONS = {
+  add: ["-A", "--all", "-f", "--force"], commit: ["--quiet", "-q", "--allow-empty", "--amend", "--no-edit", "--no-gpg-sign"],
+  mv: [], rm: ["-r", "-f", "--force", "--cached"], reset: ["--hard", "--soft", "--mixed", "--quiet", "-q"],
+  clean: ["-f", "-d", "-x", "-X", "-fd", "-fdx", "-q", "--quiet"], tag: ["-d", "--delete", "-a", "--annotate"],
+  merge: ["--ff-only", "--no-ff", "--no-edit", "--quiet", "-q"], "update-ref": ["-d", "--no-deref"],
+  "update-index": ["--index-info", "-z", "--add", "--remove"], checkout: ["--quiet", "-q", "--detach", "--force", "-f"],
+  switch: ["--quiet", "-q", "--detach", "--force", "-f"], fetch: ["--quiet", "-q"], push: ["--quiet", "-q"],
+};
+function assertReadArguments(call, fixturePath) {
+  assertBoundedOptions(call, READ_OPTIONS[call.args[0]], fixturePath);
+}
+function assertBoundedOptions(call, flags, fixturePath) {
+  const [command, ...args] = call.args;
+  const refuse = () => fail("selected_git_file_operand_unclassified");
+  let paths = false, grepPattern = false;
+  const operand = value => {
+    if (path.isAbsolute(value) || value.split("/").includes("..")) {
+      if (!fixturePath(value)) refuse();
+    }
+  };
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (paths) { operand(arg); continue; }
+    if (arg === "--") { paths = true; continue; }
+    if (flags.includes(arg)) continue;
+    // These values are authored text/ref names, never files. Consume them as
+    // values even if they resemble options, preserving -e/-m literal behavior.
+    const textFlags = command === "grep" ? ["-e"] : ["commit", "tag", "merge"].includes(command) ? ["-m"] :
+      command === "checkout" ? ["-b", "-B"] : command === "switch" ? ["-c", "-C"] : [];
+    const textFlag = textFlags.find(flag => arg === flag || arg.startsWith(flag) && arg.length > flag.length);
+    if (textFlag) {
+      if (arg === textFlag && args[++i] === undefined) refuse();
+      if (command === "grep") grepPattern = true;
+      continue;
+    }
+    if (["show", "log"].includes(command) && arg.startsWith("--format=")) continue;
+    if (arg.startsWith("-")) refuse();
+    if (command === "grep" && !grepPattern) { grepPattern = true; continue; }
+    operand(arg);
+  }
 }
 
 function assertFixtureStorage(root, fixturePath, { optional = false } = {}) {

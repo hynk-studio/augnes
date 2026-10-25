@@ -3,6 +3,9 @@ import { runOwnedSyncChild } from "./test-harness-process-lifecycle.mjs";
 import { chmodSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import * as selectedGitModule from "./local-canonical-selected-git.mjs";
+import * as lifecycleModule from "./test-harness-process-lifecycle.mjs";
+import { selectedGitFileOperandControl } from "./fixtures/local-canonical-selected-git-file-operands.mjs";
 import { createCanonicalTestResourceRoot, cleanupCanonicalTestResources } from "./canonical-test-environment.mjs";
 import { initializeSelectedGit, withSelectedGit, selectedGitResult, selectedGitOutput, selectedGitEnvironment,
   selectedGitResources, selectedGitRetainedInputs, selectedGitEvidence, assertSelectedGit,
@@ -84,6 +87,27 @@ try {
     assert.equal(selectedGitResult(fixture, ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "--allow-empty", "--quiet", "-m", "fixture"], { encoding: "utf8", timeout: 5000 }).status, 0);
     assert.equal(selectedGitResult(fixture,["remote","add","origin","https://github.com/fixture/selected.git"]).status,0);
     assert.equal(selectedGitResult(fixture,["remote","remove","origin"]).status,0);
+    // Native config stops option parsing at its key. A post-key -f/--fil token
+    // is a literal value; before the key it would select an external file.
+    const externalConfig = path.join(home, "explicit-config"), externalBytes = "[user]\nemail=external@example.invalid\n";
+    writeFileSync(externalConfig, externalBytes);
+    for (const value of [`-f${externalConfig}`, `--fil=${externalConfig}`]) {
+      assert.equal(selectedGitResult(fixture, ["config", "user.email", value]).status, 0);
+      assert.equal(selectedGitResult(fixture, ["config", "--get", "user.email"], { encoding: "utf8" }).stdout, `${value}\n`);
+      assert.equal(readFileSync(externalConfig, "utf8"), externalBytes);
+      assert.throws(() => selectedGitResult(fixture, ["config", value, "user.email"]), /selected_git_fixture_escape_refused/u);
+    }
+    assert.equal(selectedGitResult(fixture, ["config", "user.email", "fixture@example.invalid"]).status, 0);
+    const emptyTree = selectedGitResult(fixture, ["mktree"], { input: "", encoding: "utf8", timeout: 5000 }).stdout.trim();
+    const objectCommit = selectedGitResult(fixture, ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+      "commit-tree", emptyTree, "-m", "admission fixture"], { encoding: "utf8", timeout: 5000 }).stdout.trim();
+    assert.match(objectCommit, /^[0-9a-f]{40}$/u);
+    const parented = selectedGitResult(fixture, ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+      "commit-tree", emptyTree, "-m", "child", "-p", objectCommit], { encoding: "utf8", timeout: 5000 }).stdout.trim();
+    assert.match(parented, /^[0-9a-f]{40}$/u);
+    for (const args of [["mktree", "--missing"], ["commit-tree", emptyTree, "-F", "/unowned-message"],
+      ["commit-tree", emptyTree, "-m", "message", "-p", "/unowned-parent"]])
+      assert.throws(() => selectedGitResult(fixture, args), /selected_git_fixture_escape_refused/u);
     for (const args of [["init", "/unowned-selected-git-fixture"], ["clone", fixture, "/unowned-selected-git-fixture"],
       ["worktree", "add", "/unowned-selected-git-fixture", "HEAD"], ["fetch", "https://github.com/fixture/unselected.git"],
       ["config", "include.path", "/unowned-selected-git-fixture"]])
@@ -123,6 +147,11 @@ try {
   const restored = loadSelectedGit(laterManifest, laterEnvironment[SELECTED_GIT_MANIFEST_HASH_ENV]);
   run(["config", "remote.origin.url", "https://github.com/fixture/changed.git"]);
   assert.throws(() => assertSelectedGit(restored), /selected_git_live_authority_changed/u);
+  const operandControl = await selectedGitFileOperandControl({ git: selectedGitModule, lifecycle: lifecycleModule });
+  assert.equal(operandControl.failure, null);
+  assert.deepEqual(operandControl.violations, []);
+  assert.equal(operandControl.lifecycle.complete, true);
+  assert(operandControl.cleanup.every(row => row.completed));
   console.log("selected Git production-reader controls passed; disposable identities remain ineligible for qualification");
 } finally {
   const [cleanup] = cleanupCanonicalTestResources([owner]);

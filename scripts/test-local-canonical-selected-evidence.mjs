@@ -213,3 +213,6 @@ try {
   if (checkoutOwner) releaseCheckoutVerificationOwnership(checkoutOwner, root, { consumersSettled });
   const [cleanup] = cleanupCanonicalTestResources([fixtureOwner]); assert.equal(cleanup.completed, true, JSON.stringify(cleanup));
 }
+
+// F3 stays inside this existing thirty-second authority owner.
+await import("./test-local-canonical-native-configuration.mjs");

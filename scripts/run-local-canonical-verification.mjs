@@ -117,6 +117,7 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/local-canonical-inputs.mjs",
   "scripts/local-canonical-selected-git.mjs",
   "scripts/local-canonical-selected-execution.mjs",
+  "lib/vnext/native-host/codex-configuration-sources.mjs",
   "scripts/local-canonical-selected-shell.mjs",
   "scripts/local-canonical-selected-consumers.mjs",
   "scripts/local-canonical-selected-consumers.v1.json",
@@ -466,11 +467,17 @@ export async function executeLocalCanonicalVerification(options) {
   const selection = isolatedInvocationSelection(resources);
   const bootstrap = { invocationId, resources, selection, consumersSettled: true, cleaned: false, cleanupAttempted: false };
   try { return await withSelectedExecution(selection, () => executeLocalCanonicalVerificationInner({ ...options, bootstrap })); }
-  finally { if (!bootstrap.cleanupAttempted) {
-    try { bootstrap.consumersSettled &&= selectedExecutionLifecycle(selection).complete; }
+  finally { if (!bootstrap.cleaned) {
+    // An attempted cleanup is not settlement. Before acquisition or after an
+    // inner refusal, the original private ledger still governs preservation.
+    try { bootstrap.consumersSettled = selectedExecutionLifecycle(selection).complete && bootstrap.consumersSettled; }
     catch { bootstrap.consumersSettled=false; }
-    const cleanup = cleanupIsolatedInvocationResources(resources, { consumersSettled: bootstrap.consumersSettled });
-    if (!cleanup.completed) throw Object.assign(new Error("bootstrap_cleanup_incomplete"), { code: "bootstrap_cleanup_incomplete" });
+    if (!bootstrap.cleanupAttempted) {
+      bootstrap.cleanupAttempted = true;
+      const cleanup = cleanupIsolatedInvocationResources(resources, { consumersSettled: bootstrap.consumersSettled });
+      bootstrap.cleaned = cleanup.completed;
+      if (!cleanup.completed) throw Object.assign(new Error("bootstrap_cleanup_incomplete"), { code: "bootstrap_cleanup_incomplete" });
+    }
   } }
 }
 
@@ -646,6 +653,23 @@ async function executeLocalCanonicalVerificationInner({
   let generatedNextPresentAfterExecutionCleanup = nextState.present_before;
   let generatedNextPresentAfter = nextState.present_before;
   let generatedWindowsHelperPresentAfter = null;
+  const checkSelectedControllerSettlement = () => {
+    if (!selection) return;
+    try {
+      // Bootstrap/controller helpers can start before input freeze and before
+      // checkout acquisition. Never infer their settlement from phase state.
+      if (!selectedExecutionLifecycle(selection).complete) throw Object.assign(
+        new Error("selected_controller_children_unsettled"), { code: "selected_controller_children_unsettled" });
+      if (checkoutOwner) assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
+      if (capacityLease) assertVerificationCapacity(capacityLease, verificationContext);
+    } catch (error) {
+      checkoutConsumersSettled = false;
+      executionFailure = true;
+      cleanupComplete = false;
+      cleanupReason ??= safeErrorCode(error);
+    }
+    if (bootstrap) bootstrap.consumersSettled = checkoutConsumersSettled;
+  };
 
   try {
     if (!executionFailure) {
@@ -803,6 +827,7 @@ async function executeLocalCanonicalVerificationInner({
     );
   } finally {
     console.log("[local-canonical] cleanup_start");
+    checkSelectedControllerSettlement();
     try {
       if (sharedGeneratedStateOwned && checkoutConsumersSettled && generatedNextManaged && generatedNextEntryPresent()) {
         try {
@@ -851,7 +876,7 @@ async function executeLocalCanonicalVerificationInner({
       try {
         // A refused contender cannot prune the active owner's logs. Static
         // feedback leaves pruning to the next checkout-owned invocation.
-        if (checkoutOwner) {
+        if (checkoutOwner && (!selection || checkoutConsumersSettled)) {
           assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
           enforceArtifactRetention({
             checkoutOwner,
@@ -884,6 +909,23 @@ async function executeLocalCanonicalVerificationInner({
       cleanupComplete = false;
       cleanupReason = safeErrorCode(error);
     } finally {
+      try { inputMonitor?.stop(); }
+      catch (error) {
+        executionFailure = true; cleanupComplete = false; checkoutConsumersSettled = false;
+        cleanupReason ??= safeErrorCode(error);
+      }
+      if (inputMonitor?.fault()) executionFailure = true;
+      try {
+        identityAfter = collectRepositoryIdentity(repositoryRoot, { verificationContext });
+        if (selection && inputs && checkoutOwner) retainedSelectedInputs = retainSelectedInputEvidence({
+          root: repositoryRoot, checkoutOwner, runId, binding: selectedEvidenceBinding(inputs.snapshot()),
+          resources: selectedExecutionRetainedResources(selection),
+        });
+      } catch (error) { executionFailure = true; cleanupComplete = false; checkoutConsumersSettled = false; if (bootstrap) bootstrap.consumersSettled = false; cleanupReason = safeErrorCode(error); }
+      // Post-execution observations, source reads and monitor closeout may
+      // themselves add a child or lose ownership. Read the original ledger
+      // again before disposing any private input or releasing either owner.
+      checkSelectedControllerSettlement();
       if (historicalInputs) {
         try {
           historicalInputCleanup = finishHistoricalInputs(historicalInputs, { consumersSettled: checkoutConsumersSettled });
@@ -893,20 +935,19 @@ async function executeLocalCanonicalVerificationInner({
           }
         } catch (error) { cleanupComplete = false; cleanupReason = safeErrorCode(error); }
       }
-      inputMonitor?.stop();
-      if (inputMonitor?.fault()) executionFailure = true;
+      checkSelectedControllerSettlement();
       try {
-        identityAfter = collectRepositoryIdentity(repositoryRoot, { verificationContext });
-        if (selection && inputs && checkoutOwner) retainedSelectedInputs = retainSelectedInputEvidence({
+        // Historical cleanup can observe the context through owned Git helpers.
+        // Retain the complete final inventory only after those helpers settle.
+        if (selection && inputs && checkoutOwner) retainedChildren = retainOwnedChildLifecycleEvidence({
           root: repositoryRoot, checkoutOwner, runId, binding: selectedEvidenceBinding(inputs.snapshot()),
-          resources: selectedExecutionRetainedResources(selection),
+          ...selectedExecutionLedger(selection),
         });
-        if (selection && inputs && checkoutOwner) {
-          retainedChildren = retainOwnedChildLifecycleEvidence({ root: repositoryRoot, checkoutOwner, runId,
-            binding: selectedEvidenceBinding(inputs.snapshot()), ...selectedExecutionLedger(selection) });
-          if (!selectedExecutionLifecycle(selection).complete) { checkoutConsumersSettled = false; executionFailure = true; cleanupComplete = false; if (bootstrap) bootstrap.consumersSettled = false; }
-        }
-      } catch (error) { executionFailure = true; cleanupComplete = false; checkoutConsumersSettled = false; if (bootstrap) bootstrap.consumersSettled = false; cleanupReason = safeErrorCode(error); }
+      } catch (error) {
+        executionFailure = true; cleanupComplete = false; checkoutConsumersSettled = false;
+        if (bootstrap) bootstrap.consumersSettled = false;
+        cleanupReason ??= safeErrorCode(error);
+      }
       if (isolatedResources) {
         try {
           if (bootstrap) { bootstrap.cleanupAttempted = true; bootstrap.consumersSettled = checkoutConsumersSettled; }
@@ -1258,8 +1299,9 @@ function invocationInputResources({ verificationContext, browserExecutablePath, 
   ];
   if (!selection) return resources;
   return [...resources.filter(r => !["git-user-config", "git-config", "npm-prefix-config", "npm-executable", "git-executable", "gh-executable"].includes(r.id)),
-    ...selectedExecutionResources(selection).map(({id,file,classification,readOnlyExecutable,readOnlyTree,metadataOnly}) => ({id,file,classification,
-      ...(readOnlyExecutable ? {readOnlyExecutable} : {}),...(readOnlyTree ? {readOnlyTree} : {}),...(metadataOnly ? {metadataOnly} : {})}))];
+    ...selectedExecutionResources(selection).map(({id,file,classification,readOnlyExecutable,readOnlyTree,metadataOnly,nativeConfiguration}) => ({id,file,classification,
+      ...(readOnlyExecutable ? {readOnlyExecutable} : {}),...(readOnlyTree ? {readOnlyTree} : {}),...(metadataOnly ? {metadataOnly} : {}),
+      ...(nativeConfiguration ? {nativeConfiguration} : {})}))];
 }
 
 export function currentInputEvidenceValid(receipt, verificationContext, browserExecutablePath, selection = null) {
@@ -1307,9 +1349,9 @@ export function collectCurrentInputEvidence(receipt, verificationContext, browse
       }
       let disposition = "inventory_changed";
       if (prior && prior.location_fingerprint === digest(resource.file) && prior.classification === resource.classification &&
-          prior.excludePreferences === resource.excludePreferences && prior.metadataOnly === resource.metadataOnly && prior.readOnlyExecutable === resource.readOnlyExecutable && prior.readOnlyTree === resource.readOnlyTree) {
+          prior.excludePreferences === resource.excludePreferences && prior.metadataOnly === resource.metadataOnly && prior.readOnlyExecutable === resource.readOnlyExecutable && prior.readOnlyTree === resource.readOnlyTree && prior.nativeConfiguration === resource.nativeConfiguration) {
         const current = observeInputFile(resource.file, { metadataOnly: resource.metadataOnly, preferences: resource.excludePreferences,
-          readOnlyExecutable: resource.readOnlyExecutable,readOnlyTree:resource.readOnlyTree });
+          readOnlyExecutable: resource.readOnlyExecutable,readOnlyTree:resource.readOnlyTree,nativeConfiguration:resource.nativeConfiguration });
         disposition=classifyInputChange(prior.before,current,resource);
       }
       if (!nonFaultInputChange(disposition)) {

@@ -715,6 +715,8 @@ function inspectClassifiedEvidence(receipt, issues) {
   }
   if (input.resources.some(r => r.readOnlyExecutable && (r.classification !== "execution" || r.metadataOnly || r.excludePreferences))) issues.push("receipt_input_role_invalid");
   if (input.resources.some(r => r.readOnlyTree && (r.classification !== "execution" || r.metadataOnly || r.excludePreferences || r.readOnlyExecutable))) issues.push("receipt_input_role_invalid");
+  if (input.resources.some(r => Object.hasOwn(r, "nativeConfiguration") && (r.nativeConfiguration !== true || r.classification !== "safety" || r.metadataOnly || r.excludePreferences || r.readOnlyExecutable || r.readOnlyTree ||
+      classifyInputChange(r.before, r.before, r) !== "unchanged"))) issues.push("receipt_input_role_invalid");
   const environments = input.binding?.phase_environment_fingerprints;
   if (!Array.isArray(environments) || !environments.every(e => e && typeof e === "object") || environments.length !== receipt.phases.length ||
       new Set(environments.map(e => e.id)).size !== environments.length || receipt.phases.some(p => !environments.some(e =>

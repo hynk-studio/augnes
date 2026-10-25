@@ -1,4 +1,6 @@
 import { readBoundedLocalSourceBytes } from "./bounded-source-read";
+import { codexConfigurationFiles, codexManagedConfigurationFiles, codexInstructionFiles,
+  assertSelectedNativeConfigurationSources } from "./codex-configuration-sources.mjs";
 import { AUTHORED_SUCCESSOR_TASK_V01, assertAuthoredSuccessorInventoryV01 } from "@/lib/vnext/authored-successor-task";
 import { createHash } from "node:crypto";
 import { chmodSync, existsSync, lstatSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
@@ -270,14 +272,6 @@ const DISABLED_FEATURES = [
   "tool_call_mcp_elicitation", "unavailable_dummy_tools",
 ] as const;
 
-function configFiles(codexHome: string, root: string): string[] {
-  const files = new Set(["/etc/codex/config.toml", path.join(codexHome, "config.toml")]);
-  for (let current = root; ; current = path.dirname(current)) {
-    files.add(path.join(current, ".codex", "config.toml"));
-    if (current === path.dirname(current)) break;
-  }
-  return [...files].sort();
-}
 function readConfig(filename: string): Record<string, unknown> {
   if (!existsSync(filename)) return {};
   try { return record(parse(fileBytes(filename).toString("utf8"))); }
@@ -421,15 +415,18 @@ function prepareRestrictedCodexLaunchV01(m: Pick<StageMaterial, "root" | "files"
     ...(nativeCanary ? ["shell_tool", "unified_exec"] : []),
   ];
   const codexHome = path.resolve(environment.CODEX_HOME ?? path.join(environment.HOME ?? os.homedir(), ".codex"));
-  const paths = [...new Set([...configFiles(codexHome, m.root), ...configFiles(codexHome, m.source_root ?? m.root)])].sort();
+  const home = path.resolve(environment.HOME ?? os.homedir());
+  const paths = codexConfigurationFiles(codexHome, [m.root, m.source_root ?? m.root]);
+  const managedPaths = codexManagedConfigurationFiles(home, codexHome);
+  const instructionPaths = codexInstructionFiles(codexHome);
+  const assertSelectedSources = () => assertSelectedNativeConfigurationSources([...paths, ...managedPaths, ...instructionPaths], process.env);
+  assertSelectedSources();
   const servers = new Set<string>();
   const nativeAuthInputs = new Map<string, unknown>();
   const sourceHashes = new Map<string, string | null>();
   // These managed sources can override session controls. This bounded opt-in
   // refuses their presence; it never disables or rewrites managed policy.
-  for (const p of ["/etc/codex/requirements.toml", "/etc/codex/managed_config.toml",
-    path.join(codexHome, "managed_config.toml"), "/Library/Managed Preferences/com.openai.codex.plist",
-    path.join(environment.HOME ?? os.homedir(), "Library/Managed Preferences/com.openai.codex.plist")]) {
+  for (const p of managedPaths) {
     if (existsSync(p)) refuse("managed_configuration_requires_review");
     sourceHashes.set(p, null);
   }
@@ -458,8 +455,7 @@ function prepareRestrictedCodexLaunchV01(m: Pick<StageMaterial, "root" | "files"
     Object.keys(optionalRecord(c.mcp_servers)).forEach(name => servers.add(name));
   }
   if (servers.size > 32) refuse("configuration_bound_exceeded");
-  for (const name of ["AGENTS.md", "AGENTS.override.md"]) {
-    const p = path.join(codexHome, name);
+  for (const p of instructionPaths) {
     const hash = existsSync(p) ? digest(fileBytes(p)) : null;
     sourceHashes.set(p, hash);
     if (hash && !m.approved_instruction_files.some(f => f.path === p && f.sha256 === hash)) refuse("unapproved_instructions");
@@ -494,6 +490,7 @@ function prepareRestrictedCodexLaunchV01(m: Pick<StageMaterial, "root" | "files"
   };
   const args = ["--strict-config", ...Object.entries(settings).flatMap(([key, value]) => ["-c", `${key}=${inline(value)}`])];
   const assertSources = () => {
+    assertSelectedSources();
     for (const [p, hash] of sourceHashes) if ((existsSync(p) ? digest(fileBytes(p)) : null) !== hash) refuse("configuration_changed");
   };
   const assertConfiguration = (response: unknown) => {

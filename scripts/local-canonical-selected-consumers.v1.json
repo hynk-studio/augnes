@@ -3,6 +3,8 @@
   "source_roots": [
     "."
   ],
+  "file_count": 3011,
+  "inventory_fingerprint": "abb01157e2b746ff5e70760a8c80e94a07c1c2fb76d7c6ce0df9a1361637a19a",
   "reviewed_owners": {
     "controller": [
       "scripts/run-local-canonical-verification.mjs",
@@ -42,7 +44,8 @@
       "scripts/github-main-branch-transport.mjs",
       "plugins/augnes-operator/mcp/companion-service-core.mjs",
       "plugins/augnes-operator/mcp/checkout-identity.mjs",
-      "lib/vnext/native-host/codex-scoped-task.ts"
+      "lib/vnext/native-host/codex-scoped-task.ts",
+      "lib/vnext/native-host/codex-configuration-sources.mjs"
     ],
     "evidence_and_cleanup": [
       "scripts/local-canonical-inputs.mjs",
@@ -50,7 +53,5 @@
       "scripts/local-canonical-receipt.mjs",
       "scripts/test-harness-process-lifecycle.mjs"
     ]
-  },
-  "inventory_fingerprint": "f5753ca06218de06875d6b18497f78d5a535d8bdac85eaa946de9fbbc07a0bfb",
-  "file_count": 3006
+  }
 }

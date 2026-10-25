@@ -6,6 +6,8 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { codexConfigurationSourceFiles, observeNativeConfigurationInput, nativeConfigurationFixtureRoot,
+  assertNativeConfigurationSelection, selectedNativeFixtureRoots, NATIVE_CONFIGURATION_CONTRACT, NATIVE_FIXTURE_ROOTS_ENV } from "../lib/vnext/native-host/codex-configuration-sources.mjs";
 import { digest, observeInputFile } from "./local-canonical-inputs.mjs";
 import { auditSelectedConsumers, SELECTED_CONSUMER_MANIFEST } from "./local-canonical-selected-consumers.mjs";
 import { initializeSelectedGit, withSelectedGit, selectedGitResources, selectedGitEvidence,
@@ -29,7 +31,7 @@ const LIVE_TRANSPORT_KEYS = ["HOME", "USERPROFILE", "PATH", "TMPDIR", "TMP", "TE
 function liveTransportEnvironment() {
   return Object.fromEntries(LIVE_TRANSPORT_KEYS.filter(k => process.env[k] !== undefined).map(k => [k,process.env[k]]));
 }
-const SELECTED_KEYS = [SELECTED_EXECUTION_ENV, `${SELECTED_EXECUTION_ENV}_SHA256`,
+const SELECTED_KEYS = [SELECTED_EXECUTION_ENV, `${SELECTED_EXECUTION_ENV}_SHA256`, NATIVE_FIXTURE_ROOTS_ENV,
   "AUGNES_CANONICAL_SELECTED_GIT_MANIFEST", "AUGNES_CANONICAL_SELECTED_GIT_SHA256",
   "GIT_CONFIG_NOSYSTEM", "GIT_CONFIG_SYSTEM", "GIT_CONFIG_GLOBAL", "GIT_TERMINAL_PROMPT",
   "npm_config_userconfig", "npm_config_globalconfig", "npm_config_script_shell",
@@ -49,6 +51,28 @@ export function resolveSelectedTool(name, environment = process.env) {
   fail("selected_tool_unavailable");
 }
 
+// The ordinary native controls use owned temporary source/snapshot roots. Only
+// their external ancestors and fixed system sources are frozen here. A native
+// call naming another external source refuses before reading it.
+export function selectNativeConfigurationInputs({ privateRoot, environment, inherited = null, inheritedEnvironment = process.env }) {
+  if (inherited) assertNativeConfigurationSelection(inherited.native_configuration);
+  const roots = inherited ? selectedNativeFixtureRoots(inheritedEnvironment, inherited.native_configuration) : [];
+  const own = nativeConfigurationFixtureRoot(privateRoot);
+  const fixtureRoots = [...roots.filter(r => r.root !== own.root), own];
+  const inside = file => fixtureRoots.some(r => file === r.root || file.startsWith(r.root + path.sep));
+  const home = path.resolve(environment.HOME ?? path.join(privateRoot, "home"));
+  const codexHome = path.resolve(environment.CODEX_HOME ?? path.join(home, ".codex"));
+  const files = codexConfigurationSourceFiles({ home, codexHome, roots: [privateRoot] }).filter(file => !inside(file));
+  const prior = inherited?.native_configuration.external_sources ?? [];
+  if (prior.some(r => inside(r.file)) || (inherited && files.some(file => !prior.some(r => r.file === file))))
+    fail("native_configuration_parent_inventory_changed");
+  const selection = { schema: NATIVE_CONFIGURATION_CONTRACT, fixture_roots: fixtureRoots,
+    external_sources: (inherited ? prior : files.map(file => ({ id: `native-config-${digest(file).slice(0, 24)}`, file,
+      classification: "safety", nativeConfiguration: true, before: observeNativeConfigurationInput(file) }))) };
+  assertNativeConfigurationSelection(selection);
+  return selection;
+}
+
 // This is an execution-input selector for the audited model-free path, not an
 // OS sandbox. Native tools and installed Companion observation remain explicit
 // live boundaries. No account configuration or credentials are copied here.
@@ -63,6 +87,7 @@ export function initializeSelectedExecution({ repositoryRoot, temporaryRoot, env
   const ledgerFile = path.join(directory, "owned-children.jsonl");
   const ledger = initializeOwnedChildLifecycleFile(ledgerFile);
   const inherited = readInheritedSelection(process.env);
+  const nativeConfiguration = selectNativeConfigurationInputs({ privateRoot, environment, inherited });
   const ledgerAncestors = inherited ? inheritedOwnedChildLifecycleAncestors(inherited.environment) : [];
   ledger.environment[OWNED_CHILD_ANCESTORS_ENV] = JSON.stringify(ledgerAncestors);
   const ledgerSelection = {file:ledgerFile,identity:ledger.identity,ancestors:ledgerAncestors};
@@ -121,8 +146,12 @@ export function initializeSelectedExecution({ repositoryRoot, temporaryRoot, env
     npm_config_script_shell: path.join(bin,"sh"), npm_config_cache: path.join(privateRoot, "npm-cache"),
     npm_config_devdir: path.join(privateRoot, "node-gyp"), AUGNES_CANONICAL_CHILD_LEDGER: "1",
   };
+  // A new immutable manifest owns this selection's complete inherited roots;
+  // an older marker must not retain its parent's manifest fingerprint.
+  delete selectedEnvironment[NATIVE_FIXTURE_ROOTS_ENV];
   const files = withOwnedSyncLifecycle(ledgerSelection,()=>generated.map(r => ({ id: r.id, file: r.file, before: observeInputFile(r.file) })));
   const manifest = { schema: SELECTED_EXECUTION_CONTRACT, contract: SELECTED_EXECUTION_CONTRACT, repository_root: root, private_root: privateRoot,
+    native_configuration: nativeConfiguration,
     tools, npm_root: npmRoot, consumer_map: consumerMap, files, environment: Object.fromEntries(["PATH", ...SELECTED_KEYS]
       .filter(key => selectedEnvironment[key] !== undefined).map(key => [key, selectedEnvironment[key]])),
     git: selectedGitEvidence(git) };
@@ -131,7 +160,7 @@ export function initializeSelectedExecution({ repositoryRoot, temporaryRoot, env
   selectedEnvironment[`${SELECTED_EXECUTION_ENV}_SHA256`] = digest(readFileSync(file));
   const context = Object.freeze({ contract: SELECTED_EXECUTION_CONTRACT, fingerprint: selectedEnvironment[`${SELECTED_EXECUTION_ENV}_SHA256`] });
   owners.set(context, { ledger, ledgerFile, ledgerSelection, root, privateRoot, directory, tools, npmRoot, toolInputs, initialTools,
-    liveResources, initialLive, liveEnvironment, consumerMap, files, generated, git, manifest, file, environment: selectedEnvironment });
+    liveResources, initialLive, liveEnvironment, nativeConfiguration, consumerMap, files, generated, git, manifest, file, environment: selectedEnvironment });
   return context;
 }
 
@@ -148,6 +177,7 @@ export function selectedExecutionEnvironment(context) {
 export function selectedExecutionResources(context) {
   const state = owners.get(context); if (!state) fail("selected_execution_not_owned");
   return [...state.generated, ...selectedGitResources(state.git), ...state.toolInputs, ...state.liveResources,
+    ...state.nativeConfiguration.external_sources.map(({ before, ...resource }) => resource),
     {id:"selected-consumer-map",file:path.join(implementationRoot,SELECTED_CONSUMER_MANIFEST),classification:"execution"}];
 }
 
@@ -166,6 +196,8 @@ export function selectedExecutionRetainedResources(context) {
   const manifest = state.generated.find(r => r.id === "selected-execution-manifest");
   return [...ordinary, ...git, { ...manifest, source_generated: true, expected_sha256: digest(readFileSync(manifest.file)),
     logical_content: { schema: SELECTED_EXECUTION_CONTRACT, tool_inputs: state.tools,
+      native_configuration: { schema: NATIVE_CONFIGURATION_CONTRACT, external_sources: state.nativeConfiguration.external_sources.map(({ file, ...source }) =>
+        ({ ...source, location_fingerprint: digest(file) })) },
       files: [...ordinary, ...git].map(r => ({ id: r.id, kind: r.kind, logical_sha256: digest(r.logical_content ?? { actual_execution_sha256: r.expected_sha256 }) })) } }];
 }
 
@@ -192,6 +224,7 @@ export function assertSelectedExecution(context) {
 }
 function assertSelectedExecutionState(context,state) {
   if (digest(readFileSync(state.file)) !== context.fingerprint) fail("selected_execution_manifest_changed");
+  assertNativeConfigurationSelection(state.nativeConfiguration);
   for (const r of state.files) if (digest(observeInputFile(r.file)) !== digest(r.before)) fail("selected_execution_input_changed");
   assertSelectedGit(state.git);
   if (auditSelectedConsumers().fingerprint !== state.consumerMap.fingerprint) fail("selected_consumer_inventory_changed");
@@ -210,6 +243,7 @@ function readInheritedSelection(environment) {
   const manifest = JSON.parse(readFileSync(file, "utf8"));
   if (manifest.contract !== SELECTED_EXECUTION_CONTRACT || !Array.isArray(manifest.files) || manifest.files.length > 32) fail("selected_execution_manifest_invalid");
   for (const r of manifest.files) if (digest(observeInputFile(r.file)) !== digest(r.before)) fail("selected_execution_input_changed");
+  assertNativeConfigurationSelection(manifest.native_configuration);
   return manifest;
 }
 
@@ -224,6 +258,14 @@ export function inheritSelectedExecutionEnvironment(ambient, child) {
   }
   child[SELECTED_EXECUTION_ENV] = ambient[SELECTED_EXECUTION_ENV];
   child[`${SELECTED_EXECUTION_ENV}_SHA256`] = ambient[`${SELECTED_EXECUTION_ENV}_SHA256`];
+  const roots = selectedNativeFixtureRoots(ambient, manifest.native_configuration);
+  if (child.AUGNES_CANONICAL_TEMP_ROOT) {
+    const own = nativeConfigurationFixtureRoot(child.AUGNES_CANONICAL_TEMP_ROOT);
+    if (manifest.native_configuration.external_sources.some(r => r.file === own.root || r.file.startsWith(own.root + path.sep)))
+      fail("native_configuration_parent_inventory_changed");
+    child[NATIVE_FIXTURE_ROOTS_ENV] = JSON.stringify({ selection_fingerprint: child[`${SELECTED_EXECUTION_ENV}_SHA256`],
+      roots: [...roots.filter(r => r.root !== own.root), own] });
+  } else child[NATIVE_FIXTURE_ROOTS_ENV] = JSON.stringify({ selection_fingerprint: child[`${SELECTED_EXECUTION_ENV}_SHA256`], roots });
   return child;
 }
 export function isSelectedExecutionEnvironmentKey(key) { return SELECTED_KEYS.includes(key); }

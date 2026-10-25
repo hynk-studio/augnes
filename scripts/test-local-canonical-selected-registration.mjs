@@ -41,6 +41,11 @@ for (const file of ["scripts/local-canonical-selected-git.mjs", "scripts/local-c
   "scripts/local-canonical-selected-consumers.mjs", "scripts/local-canonical-selected-consumers.v1.json",
   "scripts/local-canonical-inputs.mjs", "scripts/local-canonical-evidence-retention.mjs",
   "scripts/test-local-canonical-bootstrap-lifecycle.mjs", "scripts/test-owned-sync-child-lifecycle.mjs",
+  "scripts/test-local-canonical-controller-settlement.mjs",
+  "scripts/fixtures/local-canonical-selected-git-file-operands.mjs",
+  "lib/vnext/native-host/codex-configuration-sources.mjs",
+  "scripts/test-local-canonical-native-configuration.mjs",
+  "scripts/fixtures/local-canonical-native-configuration-reader.mjs",
   "scripts/fixtures/local-canonical-selected-evidence-reader.mjs", "scripts/fixtures/local-canonical-selected-pipeline-reader.mjs"])
   assert(integrity.path_rules.exact_paths.includes(file), `${file} must escalate through the integrity owner`);
 

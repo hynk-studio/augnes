@@ -1115,6 +1115,8 @@ for (const forbiddenPath of [
   assert.equal(existsSync(path.join(repositoryRoot, forbiddenPath)), false);
 }
 
+await import("./test-local-canonical-controller-settlement.mjs");
+
 console.log(
   JSON.stringify(
     {
