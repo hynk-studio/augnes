@@ -660,12 +660,18 @@ function inspectClassifiedEvidence(receipt, issues) {
       attempt.attempt_id !== receipt.run.id || attempt.head !== receipt.repository.head_sha || attempt.tree !== receipt.repository.tree_sha ||
       attempt.contract_fingerprint !== input.fingerprint || attempt.budget?.initial !== 1 || attempt.budget?.recovery !== 1 ||
       (attempt.number === 1 && (attempt.prior_attempt_id !== null || attempt.recovery !== null)) ||
-      (attempt.number === 2 && (!SHA256_PATTERN.test(attempt.prior_receipt_fingerprint ?? "") || (!attempt.recovery && !attempt.input_requalification))))) issues.push("receipt_attempt_lineage_invalid");
+      (attempt.number === 2 && (!SHA256_PATTERN.test(attempt.prior_receipt_fingerprint ?? "") || (!attempt.recovery && !attempt.input_requalification && !attempt.observer_continuation))))) issues.push("receipt_attempt_lineage_invalid");
   if (attempt?.input_requalification && (attempt.contract !== ATTEMPT_CONTRACT || attempt.number !== 2 || attempt.recovery || attempt.source_correction ||
+      attempt.observer_continuation ||
       attempt.input_requalification.schema !== "augnes.local-canonical-input-requalification.v1" ||
       attempt.continuation_claim?.kind !== "input_requalification" || attempt.continuation_claim.prior_family_id !== attempt.family_id ||
       attempt.continuation_claim.prior_attempt_id !== attempt.prior_attempt_id ||
       input.binding.input_requalification !== digest(attempt.input_requalification))) issues.push("receipt_input_requalification_link_invalid");
+  if (attempt?.observer_continuation && (attempt.contract !== ATTEMPT_CONTRACT || attempt.number !== 2 || attempt.recovery || attempt.source_correction || attempt.input_requalification ||
+      attempt.observer_continuation.schema !== "augnes.local-canonical-reviewed-observer-continuation.v1" ||
+      attempt.continuation_claim?.kind !== "observer_continuation" || attempt.continuation_claim.prior_family_id !== attempt.family_id ||
+      attempt.continuation_claim.prior_attempt_id !== attempt.prior_attempt_id ||
+      input.binding.observer_continuation !== digest(attempt.observer_continuation))) issues.push("receipt_observer_continuation_link_invalid");
   const expectedBrowser = input.resources.find(r => r.id === "browser-executable");
   let actualVersion = null;
   for (const phase of receipt.phases) {

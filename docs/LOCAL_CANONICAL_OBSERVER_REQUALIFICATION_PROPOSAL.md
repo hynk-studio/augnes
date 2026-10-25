@@ -1,9 +1,12 @@
-# #1535 / #1536 observer-failed infrastructure qualification proposal
+# #1535 / #1536 reviewed observer continuation v1
 
-Status: **PROPOSED, NOT IMPLEMENTED, NOT AUTHORIZED TO RUN**. This document
-changes no admission predicate. Qualification remains HOLD. It allocates no
-continuation claim, reservation, Full or stock deciding validation. It is part
-of the same Draft PR's correction return for independent review.
+Status: **IMPLEMENTED FOR INDEPENDENT REVIEW; NOT AUTHORIZED TO RUN**.
+Review [5640827124](https://github.com/hynk-studio/augnes/pull/1536#pullrequestreview-5640827124)
+accepted the prior corrections and this proposal for implementation. That design
+gate is satisfied. It did not review the new implementation or allocate an
+invocation. Qualification remains HOLD. The user authorized implementation and
+disposable controls in the existing Draft PR only. This contract does not start
+admission, reservation, Full or deciding stock.
 
 ## Concrete predecessor and current gate
 
@@ -37,10 +40,10 @@ it and requires its own causal proof. `accepted_main_integration` is PASS-only.
 None is an honest qualification path for this original. Fixing P2 defects,
 adding diagnostics or integrating main does not change that result.
 
-## Proposed prospective route
+## Implemented prospective route
 
-If independently accepted, introduce a separately versioned
-`augnes.local-canonical-reviewed-observer-continuation.v1` contract in the
+The separately versioned
+`augnes.local-canonical-reviewed-observer-continuation.v1` contract is implemented in the
 existing admission/executor/stock owners. This is a new authority decision to
 perform one complete prospective invocation, not recovery of the historical
 read or retrospective validation of its output.
@@ -53,7 +56,7 @@ review and user authority to explicitly accept that bounded historical
 uncertainty; a local proof's favorable label cannot do so. General unknown
 relevance, mutable-input observer failures and other families stay excluded.
 
-Admission must require all of the following, without mutating intake state:
+Admission requires all of the following, without mutating intake state:
 
 1. Authenticate the original source, receipt integrity and bytes, frozen input
    contract, attempt/completion records, latest-family selection, full phase
@@ -103,7 +106,7 @@ Admission must require all of the following, without mutating intake state:
    Both readers must recheck source/proof/authority/current-main bindings
    read-only. Original failure remains non-deciding even if the new run passes.
 
-## Required controls before enabling the proposal
+## Required integrated controls
 
 Use disposable repositories and real bounded children to prove supported
 settled observer history, independent authority and source bindings, complete
@@ -117,23 +120,142 @@ Preserve all original failure controls; no expectation change supplies causal
 prior-fail/corrected-pass evidence. Existing Git-config, executable-permission,
 material input, ownership and observer protections remain required.
 
-## Remaining independent-review gate and sequence
+## Exact implementation and external authority bindings
 
-The correction return supplies an exact candidate and focused evidence only.
-Independent review must first accept or reject this prospective contract and
-its historical-uncertainty boundary. If accepted, implementation of the route
-and its disposable controls remains a separately explicit next scope in this
-same task/PR; it must itself receive source/contract review. The reviewer and
-user must then identify the exact approved admission and stock executables and
-the final clean candidate with fresh main and authority bindings **before** any
-deciding admission. Candidate code cannot declare itself reviewed or exempt
-itself from qualification. A source change after that review requires renewed
-bindings; a route rejection leaves HOLD without trying another family.
+The production helper pins the original family, receipt content fingerprint,
+receipt byte SHA-256, head and tree above, and the accepted correction floor
+`a4b0302ad3717db861b0d609116fed5a2a96acf3`. Only a final descendant with exactly
+one accepted-main integration in its first-parent chain can qualify. There is no
+runtime pin override or general unknown-relevance opt-in.
 
-Only the subsequently explicit one-invocation authorization may permit that
-deciding run. This correction commission and independent REQUEST CHANGES
-allocate none. All paths remain blocked now. Actual #1533 admission,
-reservation and Full stay NOT_RUN; its accepted capability and completed
-Git-config audit remain separate. Related issues stay OPEN and #1536 stays
-Draft with auto-merge disabled. No Ready, merge, installation or rollout follows
-from this proposal or a local proof.
+The proof lives under `.augnes-local-verification/observer/`. All linked files
+are bounded regular non-writable-by-others files without symlinks/hardlinks.
+The JSON proof contains:
+
+- `schema`, exact final `branch`, `head`, `tree`, `accepted_main`.
+- `prior`: fixed `family_id`, `number: 1`, actual `attempt_id`, original relative
+  `receipt_path`, `receipt_fingerprint`, `receipt_bytes_sha256`,
+  `input_fingerprint`, `fault_fingerprint`, `attempt_record_sha256` and
+  `completion_record_sha256`.
+- `history_review: {artifact, sha256}`: the full existing history review schema,
+  original receipt/input/fault/events/secondary/phase fingerprints, every complete
+  phase log path/size/hash, empty independent-failure/unresolved lists, complete
+  safety review, `historical_cause: "UNKNOWN"`, and exact `cancelled_children`.
+  Each cancelled child names its phase, label, observed PID and bound,
+  `settlement_owner: "cancelled_phase"` and the outer cleanup fingerprint. This
+  accounts for cancellation through the completed owner; it invents no child
+  PASS. Passing selected children require complete existing owner decisions.
+- `source_review: {artifact, sha256}`: schema
+  `augnes.local-canonical-observer-source-review.v1`, `chain` exactly returned by
+  `observerSourceChain(root, originalHead, finalHead)`, original `task_assets`,
+  and an `integration` descriptor. Every chain entry includes head/tree/ordered
+  parents, complete tree inventory fingerprint, binary delta hash, changed
+  paths and before/after entries. The integration uses the existing input-source
+  review and preservation-witness schemas, with both divergent registration
+  overlaps reviewed. No deleted entries or missing task assets are accepted.
+- `input_basis` from `observerInputBasis(invocationInputResources(...))`: the
+  complete ordinary resource inventory and its fingerprint, without file paths,
+  raw configuration, credentials or environment values. Roles, location hashes,
+  content and safety identity must match current observations. Only the normal
+  monitor's non-fault metadata changes remain permitted. Unknown current roles,
+  unsafe executable identity or failed reads refuse.
+- `owner_hashes` from `observerOwnerHashes(root, finalHead)`: exact Git-blob
+  SHA-256s for the fixed admission/executor/stock/child/ownership/source/policy
+  owner inventory exported as `OBSERVER_OWNER_FILES`. The whole final Git tree
+  and normal executor closure are also independently bound and checked.
+- `external.review` and `external.authorization`: separate positive GitHub record
+  IDs and SHA-256 of each exact UTF-8 remote body. These are references to actual
+  external authority, never local approval decisions.
+
+`observerAuthorityBinding(proof)` is the exact shared object for both external
+records: contract version, final head/tree/base/branch, complete `prior`, linked
+history/source descriptors, current input-basis fingerprint, owner hashes,
+`historical_cause: "UNKNOWN"`, `scope: "one_complete_invocation"`, `invocation: 2`.
+Do not include remote body hashes inside this object; that would create a
+circular hash dependency. Proof bytes are separately frozen and claimed.
+
+The independent final-source review must be a submitted PR #1536 review at the
+final commit, state COMMENTED or APPROVED, with one envelope:
+
+```text
+BEGIN_AUGNES_OBSERVER_REVIEW
+{"schema":"augnes.local-canonical-observer-review.v1","decision":"accept_final_source_and_contract","binding":<exact binding object>}
+END_AUGNES_OBSERVER_REVIEW
+```
+
+A distinct later user authorization must be an issue #1535 comment with one
+separate envelope:
+
+```text
+BEGIN_AUGNES_OBSERVER_AUTHORIZATION
+{"schema":"augnes.local-canonical-observer-authorization.v1","decision":"authorize_one_prospective_invocation","binding":<same exact binding object>,"review":{"id":<review ID>,"body_sha256":"<exact review-body SHA-256>"}}
+END_AUGNES_OBSERVER_AUTHORIZATION
+```
+
+The initial adapter uses authenticated read-only `gh api` GETs to the fixed
+`hynk-studio/augnes` main, review and comment endpoints. It requires the actual
+owner account `hynk-studio`, User type, OWNER association, exact record URLs,
+body hashes, final review commit and time ordering after original settlement.
+It re-fetches all records at intake, actual admission and separate stock; a
+missing, dismissed, changed, replayed, out-of-order or wrong-source record fails
+closed. Each helper call is bounded; it never writes a remote record.
+
+This authenticates account records, not a human identity or the independence of
+the reasoning behind a review. The real independent review and explicit user
+permission remain separate operator obligations. The implementing agent must
+not author its own review/grant to pass the gate. A user may explicitly authorize
+relay of an already-made decision; the relay is not itself that decision.
+The implementation commission, accepted design, local files and test response
+double provide no execution authority.
+
+## Remaining independent-review gate and execution sequence
+
+1. Review the final clean candidate and full source chain, including the P2 fixes,
+   literal-path fix, bounded diagnostics, exact main integration and both shared
+   registration resolutions, plus every new route/control/doc change. Review the
+   original complete history and explicit historical UNKNOWN. Freshly authenticate
+   main and actual local ownership/capacity; bind the exact final head/tree/base
+   and proposed admission/execution/stock owner hashes. No candidate self-review
+   or inherited approval of new code is accepted.
+2. Produce the local source/history descriptors and current ordinary input basis
+   under that reviewed source. They are review material only. The consolidated
+   private return supplies exact inventories and proposed bindings; real external
+   review/grant IDs are intentionally unallocated during implementation.
+3. After final independent acceptance, obtain explicit user authority for exactly
+   invocation 2 with the binding above. Record the real external decisions using
+   the envelopes and verify their remote bytes. If source, main, material input,
+   evidence or owner hashes move, refresh the affected review/authority bindings
+   before admission. Never restore shared config or infer historical causality.
+4. Only with that separate authority, use the final reviewed Node 24.18.0/npm
+   11.16.0 executor with `changed --base <exact-main> --head <exact-final-head>
+   --checkout-context isolated-worktree --observer-continuation-proof
+   .augnes-local-verification/observer/proof.json`. The ordinary planner must
+   select Full. Read-only intake creates no claim; actual admission freezes all
+   ordinary and proof resources and atomically consumes the existing family slot.
+5. Run the complete accepted Full16/Browser7 with all assertions, bounds and
+   concurrency unchanged, then complete cleanup. New drift, observer failure,
+   ownership loss, cancellation or a crash after the claim spends invocation 2,
+   including when no phase completed. Restored inputs, changed wrappers/proofs,
+   checkout/branch/contract changes or source adoption cannot create invocation 3.
+6. In a separate process run the exact reviewed owner:
+   `node scripts/run-local-canonical-verification.mjs validate --receipt
+   <new-relative-receipt> --checkout-context isolated-worktree`. Stock rechecks
+   source/main/proofs/remote authority and ordinary receipt conditions read-only.
+   It does not execute phases or create authority. Preserve the original failed
+   receipt and rejected stock as immutable, non-deciding history.
+
+The integrated controls use real bounded children with disposable Git histories.
+Only copied predecessor identity literals and remote-response fixtures differ;
+production acceptance functions, monitor, executor, child and stock readers are
+exercised. The shipped reader explicitly refuses those synthetic identities.
+A five-phase fixture success is not production CLI stock or Full16/Browser7.
+Owner-reported local logs and cleanup are distinct from remote reconstruction of
+permitted evidence hashes. All failed development controls and corrections stay
+in private evidence; no fixture expectation change establishes a causal repair.
+
+**Current status: final implementation review pending; real admission,
+reservation, Full and deciding stock NOT_RUN.** Actual #1533 admission,
+reservation and Full also stay NOT_RUN; its accepted capability, completed audit
+and separate adoption procedure are unchanged. Related issues stay OPEN and
+#1536 stays Draft with auto-merge disabled. No Ready, merge, installation,
+rollout or research/model execution follows from this contract or a local proof.

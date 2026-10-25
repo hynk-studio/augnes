@@ -34,7 +34,8 @@ scripts and descendant launchers remain inputs even with a private HOME.
   sanitized derived review export. Preserve legacy receipt interpretation.
 - `local-canonical-attempts.mjs` owns an append-only attempt family: one initial invocation and
   at most one continuation shared between substantiated infrastructure recovery
-  and prospective input requalification. Family identity survives wrapper restart and cosmetic commits.
+  and prospective input requalification or the pinned reviewed observer route.
+  Family identity survives wrapper restart and cosmetic commits.
   A genuinely revised candidate uses one immutable predecessor/successor binding,
   retained exact-delta source review and original receipt. Meaningful revision after
   PASS uses identical fail/pass regression evidence. A verifier correction after a
@@ -48,6 +49,11 @@ scripts and descendant launchers remain inputs even with a private HOME.
   complete current-input and reviewed adoption inspection. The attempt owner
   supplies the shared atomic claim; the executor supplies normal admission,
   renewed main, freeze/monitor and child ownership. Stock rechecks those bindings.
+- `local-canonical-observer-continuation.mjs` adds the exact-family prospective
+  observer route, full source-chain/history review, immutable predecessor pins,
+  current input basis and authenticated external review/user-grant bindings.
+  It uses the same atomic claim and ordinary executor/stock conjunction. See
+  [the implemented contract and procedure](LOCAL_CANONICAL_OBSERVER_REQUALIFICATION_PROPOSAL.md).
 - `test-local-canonical-classification.mjs`, `test-local-canonical-review-corrections.mjs`
   and `test-local-canonical-input-requalification.mjs` exercise real classification,
   sequencing, child lifecycle and receipt validation. Keep accepted Full phase
@@ -273,7 +279,10 @@ Any later record or changed source/evidence must be inspected afresh.
    readback. A failed or stale new result leaves the original unchanged. Do not
    retry, mark Ready, merge or broaden authority from a receipt.
 
-The infrastructure candidate itself uses its ordinary initial invocation. Its
+The infrastructure candidate has used its ordinary initial invocation; that
+observer-failed result stays non-deciding. The reviewed observer continuation
+implementation requires final independent review and subsequent explicit
+one-invocation user authority; implementation/control work allocates no run. Its
 integrated suite uses disposable Git histories and real admission/monitor/phase
 executor/owned-child/stock readers, including fresh-process inspection, legacy
 records, reviewed overlaps, source/input/recovery competition and quota refusal.
@@ -282,3 +291,15 @@ real workload; it never migrates a real original. Fixed fixture host metadata
 and a disposable main transport are test context, not Mac qualification or
 independent review. Failed development controls remain in private evidence with
 the actual source or fixture correction identified.
+
+The observer controls use a copied module graph with only six immutable
+predecessor identity literals instrumented and an authenticated-response double.
+Production pins refuse the disposable family; no shipped configuration selects
+the fixture identities or authority. They use real admission, input monitor,
+phase/child cleanup and receipt/stock readers with a five-phase disposable plan.
+Fresh-process fixture stock is not production CLI validation or Full16/Browser7
+qualification. Ten separately registered authority children retain 30-second
+bounds and natural exit. At most two competing children run at once. The
+existing input/source/recovery controls retain admissible cross-route races;
+observer races also prove that incompatible legacy route claims cannot relabel
+this unknown predecessor or recover a spent allowance.

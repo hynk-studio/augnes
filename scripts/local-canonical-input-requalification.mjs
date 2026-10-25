@@ -37,19 +37,21 @@ export function readRequalificationArtifact(file, maximum = 512 * 1024) {
   return readFileSync(file);
 }
 const json = file => JSON.parse(readRequalificationArtifact(file));
-function local(root, relative) {
+export function localRequalificationArtifact(root, relative) {
   if (!safePath(relative) || !relative.startsWith(".augnes-local-verification/")) fail("input_requalification_unsafe_path");
   const file = path.join(root, relative);
   if (realpathSync(file) !== file) fail("input_requalification_unsafe_path");
   return file;
 }
-function linked(file, descriptor, maximum) {
+const local = localRequalificationArtifact;
+export function linkedRequalificationArtifact(file, descriptor, maximum) {
   if (!descriptor || !/^[a-z0-9_-]+\.(?:json|bin)$/u.test(descriptor.artifact ?? "") || !hash(descriptor.sha256))
     fail("input_requalification_evidence_missing");
   const bytes = readRequalificationArtifact(path.join(path.dirname(file), descriptor.artifact), maximum);
   if (digest(bytes) !== descriptor.sha256) fail("input_requalification_evidence_changed");
   return bytes;
 }
+const linked = linkedRequalificationArtifact;
 
 export function readInputRequalificationProof(file, repositoryRoot) {
   const relative = path.relative(repositoryRoot, file).split(path.sep).join("/");
@@ -91,6 +93,16 @@ function originalContract(receipt) {
 }
 
 export function inspectInputPredecessor({ anchorRoot, repositoryRoot, receiptPath, checkoutOwner = null }) {
+  return inspectSettledInputPredecessor({ anchorRoot, repositoryRoot, receiptPath, checkoutOwner });
+}
+
+// Shared read-only history inspection is not route admission. The observer
+// owner separately enforces its immutable single-family production identity.
+export function inspectSettledInputPredecessor({ anchorRoot, repositoryRoot, receiptPath, checkoutOwner = null }, kind = "git-config") {
+  if (!["git-config", "browser-observer"].includes(kind)) fail("input_requalification_original_invalid");
+  const observer = kind === "browser-observer", resourceId = observer ? "browser-executable" : "git-config";
+  const faultDisposition = observer ? "observer_failure" : "input_invalidation";
+  const disposition = observer ? "unknown_relevance" : "input_invalidation";
   const receiptFile = local(repositoryRoot, receiptPath), originalBytes = readRequalificationArtifact(receiptFile);
   const original = JSON.parse(originalBytes), value = { ...original }; delete value.integrity;
   const a = original.attempt, i = original.inputs, f = i?.first_fault;
@@ -111,8 +123,8 @@ export function inspectInputPredecessor({ anchorRoot, repositoryRoot, receiptPat
       i.fingerprint !== digest(originalContract(original)) || a.contract_fingerprint !== i.fingerprint ||
       i.binding?.head !== a.head || i.binding?.tree !== a.tree || i.binding?.executor_fingerprint !== original.executor?.source_fingerprint ||
       !Number.isSafeInteger(i.checks) || i.checks < 1 || i.events.length >= 64 || i.secondary_faults.length >= 16 || i.observation_overflow === true ||
-      f?.resource !== "git-config" || f.disposition !== "input_invalidation" || !same(f, original.outcome?.first_fault) ||
-      original.outcome?.disposition !== "input_invalidation" || original.outcome?.safety !== "blocked" ||
+      f?.resource !== resourceId || f.disposition !== faultDisposition || !same(f, original.outcome?.first_fault) ||
+      original.outcome?.disposition !== disposition || original.outcome?.safety !== "blocked" ||
       !time(f.observed_at) || Date.parse(f.observed_at) < Date.parse(a.started_at) || Date.parse(f.observed_at) > Date.parse(original.run.finished_at))
     fail("input_requalification_original_invalid");
   const family = path.join(anchorRoot, ".augnes-local-verification", "families", a.family_id);
@@ -120,30 +132,32 @@ export function inspectInputPredecessor({ anchorRoot, repositoryRoot, receiptPat
   const attemptBytes = readRequalificationArtifact(path.join(family, "attempt-1.json")), completionBytes = readRequalificationArtifact(path.join(family, "completion-1.json"));
   const retained = JSON.parse(attemptBytes), completion = JSON.parse(completionBytes);
   if (!same(retained, a) || completion.contract !== a.contract || completion.attempt_id !== a.attempt_id || completion.receipt_fingerprint !== original.integrity.content_fingerprint ||
-      completion.disposition !== "input_invalidation" || completion.cleanup_complete !== true ||
+      completion.disposition !== disposition || completion.cleanup_complete !== true ||
       !time(completion.finished_at) || Date.parse(completion.finished_at) < Date.parse(original.run.finished_at))
     fail("input_requalification_settlement_invalid");
-  const resource = i.resources.find(r => r.id === "git-config");
-  if (!resource || resource.classification !== "execution" || resource.metadataOnly || resource.excludePreferences || resource.readOnlyExecutable ||
-      resource.location_fingerprint !== digest(path.join(anchorRoot, ".git", "config")) || !hash(resource.before?.sha256))
+  const resource = i.resources.find(r => r.id === resourceId);
+  if (!resource || resource.classification !== "execution" || resource.metadataOnly || resource.excludePreferences ||
+      (observer ? resource.readOnlyExecutable !== true || !hash(resource.location_fingerprint) || classifyInputChange(resource.before, resource.before, resource) !== "unchanged" :
+        resource.readOnlyExecutable || resource.location_fingerprint !== digest(path.join(anchorRoot, ".git", "config"))) || !hash(resource.before?.sha256))
     fail("input_requalification_resource_invalid");
   const faults = [];
   let previousMonotonic = -1n;
   for (const event of i.events) {
     const r = i.resources.find(x => x.id === event.resource);
-    if (!r || !event.after || event.classification !== r.classification ||
+    const observationFailure = observer && event.resource === resourceId && event.disposition === "observer_failure" && event.after === null;
+    if (!r || (!event.after && !observationFailure) || event.classification !== r.classification ||
         event.identity !== digest([event.resource, event.disposition, event.after]) ||
-        classifyInputChange(r.before, event.after, r) !== event.disposition || !time(event.observed_at) ||
+        (!observationFailure && classifyInputChange(r.before, event.after, r) !== event.disposition) || !time(event.observed_at) ||
         Date.parse(event.observed_at) < Date.parse(original.run.started_at) || Date.parse(event.observed_at) > Date.parse(original.run.finished_at) ||
         !/^[0-9]{1,40}$/u.test(event.monotonic_ns ?? "") || BigInt(event.monotonic_ns) <= previousMonotonic)
       fail("input_requalification_history_unknown");
     previousMonotonic = BigInt(event.monotonic_ns);
     if (!nonFaultInputChange(event.disposition)) {
-      if (event.resource !== "git-config" || event.disposition !== "input_invalidation") fail("input_requalification_mixed_history");
+      if (event.resource !== resourceId || event.disposition !== faultDisposition) fail("input_requalification_mixed_history");
       faults.push(event);
     }
   }
-  if (!faults.length || faults[0].after.sha256 === resource.before.sha256 || !same(f, Object.fromEntries(["resource", "disposition", "observed_at", "monotonic_ns"].map(k => [k, faults[0][k]]))) ||
+  if (!faults.length || (observer ? faults.length !== 1 || i.secondary_faults.length !== 0 : faults[0].after.sha256 === resource.before.sha256) || !same(f, Object.fromEntries(["resource", "disposition", "observed_at", "monotonic_ns"].map(k => [k, faults[0][k]]))) ||
       i.secondary_faults.some(s => !faults.some(e => ["resource", "disposition", "observed_at", "monotonic_ns"].every(k => s[k] === e[k]))))
     fail("input_requalification_fault_link_invalid");
   const cleanup = original.cleanup;
@@ -264,7 +278,7 @@ function completedSuiteResult(bytes, phase) {
   return null;
 }
 
-function inspectHistory(file, proof, original) {
+export function inspectRequalificationHistory(file, proof, original) {
   const review = JSON.parse(linked(file, proof.history_review));
   const expected = { receipt_fingerprint: proof.prior.receipt_fingerprint, input_fingerprint: proof.prior.input_fingerprint,
     first_fault_fingerprint: proof.prior.fault_fingerprint, events_fingerprint: digest(original.inputs.events),
@@ -325,6 +339,7 @@ function inspectHistory(file, proof, original) {
   }
   return review;
 }
+const inspectHistory = inspectRequalificationHistory;
 
 export function inputAdoptionInventory(repositoryRoot, predecessor, main, head) {
   if (![predecessor, main, head].every(sha)) fail("input_requalification_source_invalid");
@@ -351,7 +366,7 @@ function isLineSubsequence(before, after) {
   for (const line of current.split("\n")) if (line === lines[i]) i++;
   return i === lines.length;
 }
-function inspectSource(file, proof, original, completion) {
+export function inspectRequalificationSource(file, proof, original, completion) {
   const review = JSON.parse(linked(file, proof.source_review));
   const git = gitAt(path.resolve(file.slice(0, -proof.local_relative_path.length)));
   if (review.schema !== "augnes.local-canonical-input-source-review.v1" || review.kind !== proof.kind || review.head !== proof.head || review.tree !== proof.tree ||
@@ -413,6 +428,7 @@ function inspectSource(file, proof, original, completion) {
   }
   return review;
 }
+const inspectSource = inspectRequalificationSource;
 
 export function inspectInputRequalification({ anchorRoot, repositoryRoot, branch, head, tree, acceptedMain, proof, inputs = null, checkoutOwner = null }) {
   const file = local(repositoryRoot, proof.local_relative_path), reread = readInputRequalificationProof(file, repositoryRoot);

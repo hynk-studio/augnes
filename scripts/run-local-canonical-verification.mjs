@@ -18,6 +18,7 @@ import path from "node:path";
 import os from "node:os";
 import { freezeInputContract, monitorInputContract, digest, deriveOperationalDisposition, observeInputFile, classifyInputChange, nonFaultInputChange } from "./local-canonical-inputs.mjs";
 import { readInputRequalificationProof, renewInputRequalificationBase, inputRequalificationResources } from "./local-canonical-input-requalification.mjs";
+import { readObserverContinuationProof, observerContinuationResources } from "./local-canonical-observer-continuation.mjs";
 import { beginAttempt, finishAttempt, readRecoveryProof, readSourceCorrectionProof, inspectAttemptRecords, validateAttemptAdmission } from "./local-canonical-attempts.mjs";
 import { pinVerificationEvidence, readPinnedEvidence } from "./local-canonical-evidence-retention.mjs";
 import { BROWSER_IDENTITY_PREFIX, validPhaseBrowserUse, browserConsumersForPhase, MAX_BROWSER_USE_RECORDS, parseBrowserUseLine } from "./local-canonical-browser-identity.mjs";
@@ -115,6 +116,7 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/local-canonical-inputs.mjs",
   "scripts/local-canonical-attempts.mjs",
   "scripts/local-canonical-input-requalification.mjs",
+  "scripts/local-canonical-observer-continuation.mjs",
   "scripts/local-canonical-evidence-retention.mjs",
   "scripts/local-canonical-review-export.mjs",
   "scripts/export-local-canonical-review.mjs",
@@ -460,6 +462,7 @@ export async function executeLocalCanonicalVerification({
   recoveryProofPath = null,
   sourceCorrectionProofPath = null,
   inputRequalificationProofPath = null,
+  observerContinuationProofPath = null,
 }) {
   const controller = new AbortController();
   const forwardCancellation = () => controller.abort({ disposition: "user_cancellation" });
@@ -550,17 +553,20 @@ export async function executeLocalCanonicalVerification({
     preflightIssues.push("canonical_browser_unavailable");
   }
 
-  let recoveryProof = null, sourceCorrection = null, inputRequalification = null;
+  let recoveryProof = null, sourceCorrection = null, inputRequalification = null, observerContinuation = null;
   if (preflightIssues.length === 0 && mode !== "quick" && plan.selected_plan !== "documentation-only") {
     try {
       recoveryProof = recoveryProofPath ? readRecoveryProof(resolveArtifactPath(recoveryProofPath)) : null;
       sourceCorrection = sourceCorrectionProofPath ? readSourceCorrectionProof(resolveArtifactPath(sourceCorrectionProofPath), repositoryRoot) : null;
       inputRequalification = inputRequalificationProofPath ? readInputRequalificationProof(resolveArtifactPath(inputRequalificationProofPath), repositoryRoot) : null;
+      observerContinuation = observerContinuationProofPath ? readObserverContinuationProof(resolveArtifactPath(observerContinuationProofPath), repositoryRoot) : null;
+      if (observerContinuation && plan.selected_plan !== "full-canonical") throw Object.assign(new Error("observer_requires_full_plan"), { code: "observer_requires_full_plan" });
       validateAttemptAdmission({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot,
         branch: identityBefore.branch, head: headSha, tree: runGit(repositoryRoot, ["rev-parse", `${headSha}^{tree}`]).trim(),
-        acceptedMain: baseSha, recoveryProof, sourceCorrection, inputRequalification });
+        acceptedMain: baseSha, recoveryProof, sourceCorrection, inputRequalification, observerContinuation,
+        currentResources: invocationInputResources({ verificationContext, browserExecutablePath: hostResult.browserExecutablePath }) });
     } catch (error) { preflightIssues.push(safeErrorCode(error)); }
-  } else if (recoveryProofPath || sourceCorrectionProofPath || inputRequalificationProofPath) {
+  } else if (recoveryProofPath || sourceCorrectionProofPath || inputRequalificationProofPath || observerContinuationProofPath) {
     preflightIssues.push("attempt_route_requires_deciding_plan");
   }
   // Intake above is read-only. Only now create local refusal/receipt artifacts.
@@ -710,7 +716,7 @@ export async function executeLocalCanonicalVerification({
       }
       // Refused checkout contenders need a receipt, but have no phase logs.
       ensureBoundedLocalDirectory(repositoryRoot, runLogRoot);
-      inputs = prepareInvocationInputs({ verificationContext, isolatedResources, browserExecutablePath: hostResult.browserExecutablePath, headSha, executorFingerprint, phaseDefinitions, inputRequalification });
+      inputs = prepareInvocationInputs({ verificationContext, isolatedResources, browserExecutablePath: hostResult.browserExecutablePath, headSha, executorFingerprint, phaseDefinitions, inputRequalification, observerContinuation });
       const assertOwnedInputs = () => {
         if (checkoutOwner) assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
         if (capacityLease) assertVerificationCapacity(capacityLease, verificationContext);
@@ -742,7 +748,8 @@ export async function executeLocalCanonicalVerification({
             attempt = beginAttempt({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, checkoutOwner,
               branch: identityBefore.branch, head: headSha, tree: inputs.snapshot().binding.tree, runId,
               contractFingerprint: inputs.snapshot().fingerprint, acceptedMain: baseSha,
-              recoveryProof, sourceCorrection, inputRequalification, inputs: inputs.snapshot() });
+              recoveryProof, sourceCorrection, inputRequalification, observerContinuation, inputs: inputs.snapshot(),
+              currentResources: invocationInputResources({ verificationContext, browserExecutablePath: hostResult.browserExecutablePath }) });
             pinVerificationEvidence({ root: repositoryRoot, checkoutOwner, runId, reason: "attempt_family" });
           }
           // A drift while the claim was being inspected still consumes that
@@ -1204,19 +1211,21 @@ export async function executeLocalCanonicalVerification({
   };
 }
 
-export function prepareInvocationInputs({ verificationContext, isolatedResources, browserExecutablePath, headSha, executorFingerprint, phaseDefinitions, inputRequalification = null }) {
+export function prepareInvocationInputs({ verificationContext, isolatedResources, browserExecutablePath, headSha, executorFingerprint, phaseDefinitions, inputRequalification = null, observerContinuation = null }) {
   const environments = phaseDefinitions.map(phase => ({ id: phase.id, values: phaseEnvironment({ phase, isolatedResources, browserExecutablePath }) }));
   const resources = [...invocationInputResources({ verificationContext, browserExecutablePath }),
-    ...(inputRequalification ? inputRequalificationResources({ repositoryRoot, anchorRoot: verificationAnchorRoot(verificationContext), proof: inputRequalification }) : [])];
+    ...(inputRequalification ? inputRequalificationResources({ repositoryRoot, anchorRoot: verificationAnchorRoot(verificationContext), proof: inputRequalification }) : []),
+    ...(observerContinuation ? observerContinuationResources({ repositoryRoot, anchorRoot: verificationAnchorRoot(verificationContext), proof: observerContinuation }) : [])];
   return freezeInputContract({ resources, pathKind: isolatedResources ? "isolated-model-free-v1" : "canonical-conservative-v1",
-    binding: { ...(inputRequalification ? { input_requalification: digest(inputRequalification) } : {}), head: headSha, tree: runGit(repositoryRoot, ["rev-parse", `${headSha}^{tree}`]).trim(),
+    binding: { ...(inputRequalification ? { input_requalification: digest(inputRequalification) } : {}),
+      ...(observerContinuation ? { observer_continuation: digest(observerContinuation) } : {}), head: headSha, tree: runGit(repositoryRoot, ["rev-parse", `${headSha}^{tree}`]).trim(),
       executor_fingerprint: executorFingerprint, phase_inventory: digest(phaseDefinitions),
       phase_environment_fingerprints: environments.map(e => ({ id: e.id, fingerprint: digest(e.values) })),
       environment_keys: [...new Set(environments.flatMap(e => Object.keys(e.values)))].sort(), authenticated_transport: "github_authenticated_main_branch_get",
       provider_policy: "no_live_model_calls;private_fixture_adapters_only" } });
 }
 
-function invocationInputResources({ verificationContext, browserExecutablePath }) {
+export function invocationInputResources({ verificationContext, browserExecutablePath }) {
   const isolated = verificationContext.kind === "isolated-worktree";
   const userHome = os.userInfo().homedir;
   return [
@@ -1240,7 +1249,8 @@ function invocationInputResources({ verificationContext, browserExecutablePath }
 function currentInputEvidenceValid(receipt, verificationContext, browserExecutablePath) {
   try {
     const resources = [...invocationInputResources({ verificationContext, browserExecutablePath }),
-      ...(receipt.attempt?.input_requalification ? inputRequalificationResources({ repositoryRoot, anchorRoot: verificationAnchorRoot(verificationContext), proof: receipt.attempt.input_requalification }) : [])];
+      ...(receipt.attempt?.input_requalification ? inputRequalificationResources({ repositoryRoot, anchorRoot: verificationAnchorRoot(verificationContext), proof: receipt.attempt.input_requalification }) : []),
+      ...(receipt.attempt?.observer_continuation ? observerContinuationResources({ repositoryRoot, anchorRoot: verificationAnchorRoot(verificationContext), proof: receipt.attempt.observer_continuation }) : [])];
     const declared = receipt.inputs?.resources;
     if (!Array.isArray(declared) || resources.length !== declared.length) return false;
     return resources.every(resource => {
@@ -1349,7 +1359,8 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
   }
   return inspectReceiptForDecision(receipt, {
     currentInputStateValid: receipt.receipt_version === 4 ? currentInputEvidenceValid(receipt, verificationContext, validationHost.browserExecutablePath) : null,
-    currentAttemptRecordsValid: receipt.receipt_version === 4 ? inspectAttemptRecords({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, receipt }) : null,
+    currentAttemptRecordsValid: receipt.receipt_version === 4 ? inspectAttemptRecords({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, receipt,
+      currentResources: invocationInputResources({ verificationContext, browserExecutablePath: validationHost.browserExecutablePath }) }) : null,
     currentVerificationContext: verificationContext,
     expectedRunId: path.basename(receiptPath, ".json"),
     currentIntegrationBase,
@@ -2155,7 +2166,7 @@ function parseCli(argv) {
     options.set(normalized, value);
   }
   const allowed =
-    mode === "validate" ? new Set(["receipt", "checkout-context"]) : new Set(["base", "head", "checkout-context", "recovery-proof", "source-correction-proof", "input-requalification-proof"]);
+    mode === "validate" ? new Set(["receipt", "checkout-context"]) : new Set(["base", "head", "checkout-context", "recovery-proof", "source-correction-proof", "input-requalification-proof", "observer-continuation-proof"]);
   for (const key of options.keys()) {
     if (!allowed.has(key)) {
       const error = new Error("unknown local canonical argument");
@@ -2187,6 +2198,7 @@ function parseCli(argv) {
     recoveryProofPath: options.get("recovery-proof") ?? null,
     sourceCorrectionProofPath: options.get("source-correction-proof") ?? null,
     inputRequalificationProofPath: options.get("input-requalification-proof") ?? null,
+    observerContinuationProofPath: options.get("observer-continuation-proof") ?? null,
   };
 }
 
