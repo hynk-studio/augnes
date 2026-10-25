@@ -335,6 +335,72 @@ under the [strong-comparison rules](#strong-comparisons-and-independence).
 Appropriate retention/non-use can succeed. Neither comparison is a mandatory
 campaign or new gate for every L1 implementation PR.
 
+### Question-specific model evidence
+
+For the [selective application direction](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#selective-model-application-across-local-and-web-work),
+evaluate the question or decision improved, not the presence of a world-model
+label. Distinguish deterministic correctness, uncertainty about the current case,
+and variation across future cases. Qualitative hypotheses, constraints and
+conditional scenarios are valid starting points when numerical inputs are not
+supported. A complete long-term model is not an entry condition for improving
+one test's diagnostic value or a later method choice.
+
+When probabilities are justified, a minimal explanatory update is
+`P(H | D, o, q, c) ∝ P(o | H, D, q, c) P(H | D, q, c)`:
+`H` is the hypothesis or model, `D` the evidence already available, `q` the chosen
+observation/action, `c` the applicable conditions and `o` the new observation.
+State how priors and likelihoods were obtained and test material sensitivity;
+an unsupported number is not improved evidence. Normalize competing hypotheses
+as alternatives only when the represented cases are mutually exclusive and
+exhaustive; overlapping causes require joint combinations or separate claims.
+Conditioning on earlier evidence matters: copied reports or the same observation
+passed through several models are not independent likelihood factors. Preserve
+source lineage and account for how actions and visible outcomes were selected.
+Allow model revision when all current explanations predict poorly, rather than
+treating the highest relative weight as an adequate explanation.
+
+Predict observable outcomes under the stated conditions before seeing them, and
+retain the original forecast and information cutoff. Separate conditional
+prediction from a causal claim about changing an action; the latter needs an
+appropriate intervention or identification argument. Changes of version, host
+or task can invalidate exchangeability, so a pooled success rate is not a default
+transfer model. No observation by the horizon may be pending or censored rather
+than a negative outcome; define which event the claim actually concerns.
+
+Choose optional observations by whether their possible results could improve the
+authorized inquiry or next action enough to justify their full burden. A
+one-step expected-value-of-information calculation is useful only with supported
+outcome probabilities, action values and comparable cost units. Otherwise retain
+scenario/range sensitivity or qualitative ordering. Complementary checks and
+longer-horizon inquiry can have value that a one-step calculation misses. This
+selection never removes mandatory correctness, authority or verification checks.
+
+Use the existing [strong-comparison rules](#strong-comparisons-and-independence):
+an adaptive memo/code baseline may already form explanations, make predictions
+and select tests. Separate any claimed gain from statistical reasoning, persisted
+conditions, selection or extra context/compute. Before fixed evaluation, identify
+the outcome, observation horizon and treatment of missing results. Include
+relevant and irrelevant changes, conflicting/duplicated evidence or authority
+cues only where they discriminate the claim; no universal test matrix is required.
+Distinguish prestige alone from relevant provenance and demonstrated source
+reliability. An unsupported user objection should not cause revision merely
+because it was raised, and justified increased uncertainty is not a failure.
+
+Assess forecast quality where an outcome is observable and the forecast is
+numerical, using proper scoring and calibration across suitable repeated cases;
+one case cannot establish calibration. Also assess the actual interpretation,
+wrong actions, missed conditions, unnecessary checks, correction/rework, fresh
+successor behavior and total burden. For selected tasks, tools or counterparties,
+raw success rates do not establish comparative competence. A valid comparison
+must address selection and outcome visibility; an untried alternative is not an
+observed failure. Return RETAIN, CHANGE, SIMPLIFY or STOP for the claimed scope.
+Do not require a numerical score, serialized model or new record for ordinary work.
+
+These are Augnes evaluation proposals. [Bayesian workflow](https://arxiv.org/abs/2011.01808)
+supports iterative model checking and revision; [Selecting Computations](https://proceedings.mlr.press/r10/hay12a.html)
+studies the value of computation; [proper scoring rules](https://sites.stat.washington.edu/people/raftery/Research/PDF/Gneiting2007jasa.pdf)
+support probabilistic forecast evaluation. None establishes Augnes usefulness.
+
 ### Reuse applicability evidence (#1459)
 
 The [constructed file-backed task](../../scripts/reuse-applicability-study/CONTRACT.md)

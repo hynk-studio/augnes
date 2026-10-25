@@ -404,6 +404,23 @@ Research engines may explore, compare, challenge, infer, predict, and propose.
 Research output is not truth, accepted Perspective, user decision, Transition,
 execution authority, or authority expansion.
 
+Working understanding can use small, revisable models of a particular question,
+method or environment, including a single diagnostic attempt. A complete temporal
+or global world model is not a prerequisite. Retain the conditions, evidence and
+uncertainty needed to explain or anticipate an outcome and choose a useful next
+observation or action. Understanding and inquiry can themselves be authorized
+goals; their value is not limited to immediate delivery or revenue.
+
+Use the least elaborate representation sufficient for that question: exact rules,
+competing explanations, conditional scenarios, ranges or justified probability
+models. Unknown does not mean an invented probability, and greater confidence is
+not necessarily progress. Local and web work share these principles while keeping
+their actual access, environment, observation and effect boundaries. A model earns
+continued use through better understanding or work at an acceptable total burden,
+not through its formalism or persistence. The [application scope in 03](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#selective-model-application-across-local-and-web-work)
+and [evidence criteria in 04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#question-specific-model-evidence)
+develop this direction without adding a mandatory modeling step or product surface.
+
 Formal structure, model agreement, graph density, a persistent artifact, or a
 runtime implementation does not change this boundary. Insufficient support
 remains uncertainty. Research value must eventually be demonstrated by later

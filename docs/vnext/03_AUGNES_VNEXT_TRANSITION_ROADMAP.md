@@ -369,6 +369,60 @@ Recurring research/development operators and contributors are initial example
 cases, not an admission list or established product-market fit. Read-only,
 fixed-function and one-time participants remain within the product scope.
 
+### Selective model application across local and web work
+
+Apply the [small-model direction](./01_AUGNES_VNEXT_MASTERPLAN.md#5-long-horizon-research-substrate)
+where uncertainty changes an inquiry, interpretation or action. This is a
+cross-cutting development approach within existing P3/P4/P5 ownership, not a new
+phase or a requirement that every activity use probabilities. A deterministic
+check or ordinary adaptive memo/code may already suffice. The current host can
+reason about alternatives and conditional predictions through existing source,
+execution-choice and assessment paths; an automated statistical updater or
+cross-domain model store is not established by those paths.
+
+| Activity and existing responsibility | Useful bounded model or distinction | Observation that could change the next step |
+|---|---|---|
+| Request interpretation, research and P3 inquiry (#1213) | Competing meanings or explanations, relevant base rates, source dependence and missing evidence. Separate desired outcomes from empirical claims. | A discriminating source, counterexample or clarification changes the supported interpretation, including justified uncertainty. |
+| Local development, web/API diagnosis and checking (#1214) | Preconditions and competing causes of failure; distinguish transport, authentication, input contract, environment and task behavior. | A scoped probe rules out a cause or changes the next repair/check. Startup or HTTP success alone does not establish task success. Mandatory verification remains with its existing owner. |
+| Context selection, method reuse and composition (#1468 / #1373 / #1527) | Whether relevant material is available, selected and applicable; each method's input/output conditions and dependencies. | Relevant versus irrelevant changes lead to appropriate reuse, adaptation, replacement or non-use and a checked whole result. |
+| Tool, host, participant and arrangement choice (#1443 / #1453) | Task-conditional success, time, burden and correction/support experience; identity association remains a separate claim. | Actual returned work, checking and integration revise the choice under the current environment and available resources. |
+| Public discovery, contribution and continuing undertakings (#1447 / #1538) | Exposure, access, execution, useful return, acceptance, later use and payment are distinct events; demand and proposed terms remain hypotheses. | Observed entry, checked delivery and separate later use inform the next offer, contribution or commitment. Nonresponse may be failed delivery, no exposure, delay or refusal. |
+| Defensive operations (#1439) | Asset/exposure-specific explanations, normal alternatives and observation gaps. | Evidence discriminates a real issue from a normal control and supports an authorized response; an anomaly score alone does not establish a threat. |
+| Temporal continuity and succession (#1213 / #1215) | Conditional futures, dependencies, information cutoffs and changed applicability. | A new result or relevant condition changes only affected judgments and the fresh successor's meaningful action. |
+| Research, resource allocation and attention (#1426 and existing grant owners) | Which inquiry, delivery, improvement or notification merits permitted resources, accounting for outstanding commitments and interruption cost. | A discriminating result, available capacity or consequential change alters the next allocation; expected benefit does not expand authority. |
+| Personal and creative work (existing Perspective scopes / #1455) | Uncertain interpretations or process predictions, separated from user values, authored canon and character beliefs. | New evidence or an explicit author/user decision changes the appropriate interpretation or work; empirical updating does not choose the user's values or adopt canon. |
+
+Start at an actual decision with a plausible benefit: choosing a discriminating
+diagnostic check, carrying a method into changed conditions, or assessing a
+contribution and its remaining obligations. These are candidate applications,
+not a universal sequence or three new study allocations. Keep epistemic inquiry
+alongside practical work so authority cues, duplicated sources and unsupported
+objections can be tested without reducing every question to immediate utility.
+The [ordinary execution-choice path](../EXECUTION_CHOICE_USAGE.md#ordinary-sequence)
+already carries expectation, uncertainty, reconsideration and later assessment.
+For example, an API diagnosis can state which response would distinguish
+transport, authentication, input-contract or task failure before choosing a
+permitted probe. After the actual response, revise the next check or repair;
+retain ambiguity when that probe did not discriminate the cause. A short
+conditional statement can suffice, without a new record or numerical probability.
+
+Select the smallest representation and supported producer/consumer path during
+current-source diagnosis. A one-task model can remain temporary. Persist only
+the reusable conditions, evidence basis, expectation and observed revision needed
+for later work, within existing budgets and source-selection rules. Transfer
+across local/web hosts rechecks relevant runtime/version, permissions, resources,
+network and observability; shared evidence is not independent confirmation.
+Define any newly needed Core contract in 02 with a concrete implementation,
+rather than adding a speculative schema here.
+
+Evaluate the incremental contribution under [04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#question-specific-model-evidence).
+Preserve #1464's completed SIMPLIFY result and ordinary adaptive memo/code default.
+#1538's separately commissioned simulation can later supply observations within
+its actual scope; this guidance does not change its frozen assignment or turn
+simulated demand, participation or payment into real evidence. Existing trials,
+budgets and dispositions remain with their owners. Systematic comparative benefit
+and an automated modeling subsystem remain unestablished.
+
 ### Current application priorities — 2026-10-19
 
 The user-approved research application strengthens continuous work, cumulative
