@@ -23,6 +23,10 @@ try {
   fs.mkdirSync(root); fs.mkdirSync(path.join(root, "lib")); fs.mkdirSync(path.join(root, "bin"));
   const moduleFile = path.join(root, "lib", "private-name-sentinel.mjs");
   fs.writeFileSync(moduleFile, "export const value = 1;\n");
+  // A selected parent's /private/tmp root can inherit wheel, which this user
+  // cannot restore after chgrp. Bind only this new fixture to our primary group
+  // before its baseline; the real alternate-group assertion below stays intact.
+  if (process.getgid && fs.statSync(moduleFile).gid !== process.getgid()) fs.chownSync(moduleFile, -1, process.getgid());
   fs.writeFileSync(path.join(root, "package.json"), '{"name":"disposable-tool"}\n');
   fs.writeFileSync(outside, "outside-content-sentinel");
   fs.symlinkSync("../lib/private-name-sentinel.mjs", path.join(root, "bin", "tool"));
