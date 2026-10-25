@@ -437,14 +437,15 @@ The user-approved [economic undertaking direction](./01_AUGNES_VNEXT_MASTERPLAN.
 connects opportunity discovery, contribution choice, checked delivery, economic
 obligations and later experience use. [Economic Loop 0, #1538](https://github.com/hynk-studio/augnes/issues/1538)
 owns the bounded application preparation under #1443, coordinated by #1426.
-Its 2026-10-25 return reports **model-free developer preparation COMPLETE / RETAIN;
-independent review pending**, using accepted main `a4071d0d` without a product
-patch. The Python-upgrade case includes original and distinct successor artifacts
-through existing production paths. This roadmap records the owner's reported
-status, not independent acceptance of the private return. Target Python 3.13
-integration and `cgi` migration remain open responsibilities. Customer acceptance,
-payment, independent participation, comparative benefit and sustained operation
-remain unestablished. Preserve the prepared case rather than recommissioning it.
+Its 2026-10-25 model-free developer preparation used accepted main `a4071d0d`
+without a product patch. The [subsequent independent review](https://github.com/hynk-studio/augnes/issues/1538#issuecomment-6393904485)
+records **preparation ACCEPT / existing product paths RETAIN**. The Python-upgrade
+case includes original and distinct successor artifacts through production-source
+paths in a test runtime; installed adoption and model-worker use are not established.
+Target Python 3.13 integration and `cgi` migration remain open responsibilities.
+Customer acceptance, payment, independent participation, comparative benefit and
+sustained operation remain unestablished. Preserve the prepared case rather than
+recommissioning it.
 The direction adds no global phase or prerequisite for approved W1/W2 work.
 
 | Existing owner | Responsibility in this application |
@@ -539,9 +540,9 @@ executor reads this state through normal entry instead of reconstructing it from
 the previous conversation. #1213/#1214/#1215 retain L1 ownership; #1443/#1453
 supply execution-choice, contribution and result/obligation continuity.
 
-Use #1538's retained preparation as an available application input, with its
-pending review and limits intact. It is neither an instruction to rerun that
-commission nor a prerequisite for unrelated L1 source work. The Python case's
+Use #1538's accepted preparation as an available application input, with its
+bounded test-runtime scope and remaining duties intact. It is neither an instruction
+to rerun that commission nor a prerequisite for unrelated L1 source work. The Python case's
 remaining target-environment integration and migration illustrate a complete
 delivery: inspect the actual dependency and failing journey, run the relevant
 check in an authorized environment, perform the justified repair, and return
