@@ -155,6 +155,68 @@ owns their sequence and implemented scope, and
 [04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#method-improvement-evidence)
 owns the comparison with strong alternatives and total-burden evaluation.
 
+### Economic undertakings and cumulative capability
+
+A strategic application of continuous work is sustained economic activity:
+discover useful opportunities, organize human/agent/machine contributions,
+deliver independently checked value, and use the resulting experience and
+available resources to choose later work. Economic activity supplies potential
+participation incentives and an external test of usefulness. It does not replace
+user-owned semantic and epistemic continuity or require every project to earn
+revenue. Research, public goods, exploration and private work remain valid.
+
+The continuing unit is an undertaking spanning tasks and replaceable executors.
+Its purpose and beneficiaries, current understanding, available and committed
+resources, conditional methods/relationships, outstanding obligations and next
+decision must remain intelligible after interruption or replacement. This is a
+product responsibility around existing projects and work, not a new Core kind,
+legal-personhood assertion or identity registry. Actor, authority, owner,
+sponsor and beneficiary keep their existing distinctions.
+
+Three feedback relationships should connect: delivery and settlement inform
+whether an activity can continue; checked outcomes revise or retain methods and
+counterpart judgments; available resources and unfinished obligations inform
+later allocation. A project's Perspective connects observed demand and costs,
+uncertain assumptions, conditional futures and useful next observations to that
+choice. Historical success is applicable only within its supported conditions;
+new information may justify reuse, revision, direct work, waiting or stopping.
+Methods for decomposition, delegation, checking, integration and cooperation are
+reusable experience alongside methods for producing the output itself.
+
+Participation should expose a comprehensible opportunity: required inputs,
+expected return, acceptance/check owner, cost and benefit terms, permitted use,
+return path and relevant expiry or reconsideration conditions. Unknown or proposed
+terms stay distinguishable from accepted commitments. Money, useful material,
+checked feedback and future cooperation can motivate different participants;
+their effectiveness is a hypothesis, not inferred from an invitation or agent
+count. Existing runtimes remain usable without wholesale memory migration.
+Conditional competence and relationship evidence are more useful than an
+unsupported universal reputation score.
+
+Organization is itself a revisable method. Direct work, a callable service,
+temporary contribution, continuing team or shared maintained asset may fit
+different needs. Longer-term cooperation can connect independently owned
+undertakings while retaining local purpose, private material and separate
+adoption decisions. Only deliberately shared terms, outputs and evidence cross
+the relevant boundary; cooperation does not create a common authority over all
+participants. Private usefulness need not await network effects.
+
+Reported completion, checked acceptance, actual use and payment remain distinct.
+Cash and obligations, total work burden, and capability demonstrated in later
+use have different meanings. Responsibility for new work is deliberately adopted.
+Replacing an executor or starting later work does not erase the undertaking's
+existing duties or waive required unresolved-effect lineage and reconciliation.
+Further allocation considers resources already committed to ongoing work.
+Activity continues within existing authority; material changes of purpose,
+scope or exposure use the applicable decision owner rather than adding a human
+approval ritual to every step.
+
+[03](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#economic-undertaking-application--2026-10-25)
+places the first bounded application under existing owners;
+[04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#economic-activity-and-participation-evidence)
+separates capability, economic outcome, experience benefit and participation
+effects. Their existence is not evidence of autonomous business competence.
+
 ## 2. Product compass: Resume / Verify / Decide
 
 ### Resume
