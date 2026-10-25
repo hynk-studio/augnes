@@ -3,8 +3,8 @@
   "source_roots": [
     "."
   ],
-  "file_count": 3011,
-  "inventory_fingerprint": "7f424e2d718d8997bfcbc48be29e5d3f046e39570787b5cb3a61028b5161181f",
+  "file_count": 3012,
+  "inventory_fingerprint": "c8c86d6dd7d2ab00f57ce1e02d45ec1e0afea6b747033ed97a6f7b46b98f2f0b",
   "reviewed_owners": {
     "controller": [
       "scripts/run-local-canonical-verification.mjs",

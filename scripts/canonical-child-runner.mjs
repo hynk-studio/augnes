@@ -48,8 +48,9 @@ export async function runCanonicalChild({
   stderr = process.stderr,
   log = (line) => console.log(line),
   onSpawn = () => {},
-  onLifecycle,
-  resourceOwner,
+  // Typed undefined defaults keep omission and real observers/owners supported.
+  onLifecycle = /** @type {((event: import("./test-harness-process-lifecycle.mjs").OwnedChildLifecycleEvent) => void) | undefined} */ (undefined),
+  resourceOwner = /** @type {ReturnType<typeof import("./canonical-test-environment.mjs").createCanonicalTestResourceRoot> | undefined} */ (undefined),
   signal = undefined,
 }) {
   if (signal?.aborted) throw Object.assign(new Error("canonical_child_cancelled_before_start"), {

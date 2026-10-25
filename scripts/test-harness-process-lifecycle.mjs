@@ -140,12 +140,138 @@ function syncArguments(args, options) {
 // Source-owned adapters preserve ordinary native calls outside a selection.
 // Selected calls retain their arguments, streams and input while using the
 // existing bounded child owner; no process-wide patch or preload is involved.
+/**
+ * @typedef {{schema: "augnes.owned-child-lifecycle.v1", child_id: string, observed_at: string}} OwnedChildLifecycleIdentity
+ * @typedef {OwnedChildLifecycleIdentity & {event: "started", label_fingerprint: string}} OwnedChildLifecycleStart
+ * @typedef {OwnedChildLifecycleIdentity & {event: "settled" | "unknown", exit_observed: boolean, streams_closed: boolean, exit_code: number | null, signal: NodeJS.Signals | null, remaining_owned_processes: number | null, reason?: string}} OwnedChildLifecycleTerminal
+ * @typedef {OwnedChildLifecycleStart | OwnedChildLifecycleTerminal} OwnedChildLifecycleEvent
+ */
+
+/**
+ * Native results are unchanged outside a selection, so lifecycle metadata is
+ * optional. UNKNOWN/failed-dispatch paths throw; they are not result variants.
+ * @template {string | import("node:buffer").NonSharedBuffer} T
+ * @typedef {import("node:child_process").SpawnSyncReturns<T> & {owned_child_lifecycle_start?: OwnedChildLifecycleStart, owned_child_lifecycle?: OwnedChildLifecycleTerminal}} OwnedSyncResult
+ */
+
+/**
+ * @overload
+ * @param {string} command
+ * @returns {OwnedSyncResult<import("node:buffer").NonSharedBuffer>}
+ */
+/**
+ * @overload
+ * @param {string} command
+ * @param {import("node:child_process").SpawnSyncOptionsWithStringEncoding} options
+ * @returns {OwnedSyncResult<string>}
+ */
+/**
+ * @overload
+ * @param {string} command
+ * @param {import("node:child_process").SpawnSyncOptionsWithBufferEncoding} options
+ * @returns {OwnedSyncResult<import("node:buffer").NonSharedBuffer>}
+ */
+/**
+ * @overload
+ * @param {string} command
+ * @param {import("node:child_process").SpawnSyncOptions} [options]
+ * @returns {OwnedSyncResult<string | import("node:buffer").NonSharedBuffer>}
+ */
+/**
+ * @overload
+ * @param {string} command
+ * @param {readonly string[]} args
+ * @returns {OwnedSyncResult<import("node:buffer").NonSharedBuffer>}
+ */
+/**
+ * @overload
+ * @param {string} command
+ * @param {readonly string[]} args
+ * @param {import("node:child_process").SpawnSyncOptionsWithStringEncoding} options
+ * @returns {OwnedSyncResult<string>}
+ */
+/**
+ * @overload
+ * @param {string} command
+ * @param {readonly string[]} args
+ * @param {import("node:child_process").SpawnSyncOptionsWithBufferEncoding} options
+ * @returns {OwnedSyncResult<import("node:buffer").NonSharedBuffer>}
+ */
+/**
+ * @overload
+ * @param {string} command
+ * @param {readonly string[]} [args]
+ * @param {import("node:child_process").SpawnSyncOptions} [options]
+ * @returns {OwnedSyncResult<string | import("node:buffer").NonSharedBuffer>}
+ */
+/**
+ * @param {string} command
+ * @param {readonly string[] | import("node:child_process").SpawnSyncOptions} [args]
+ * @param {import("node:child_process").SpawnSyncOptions} [options]
+ * @returns {OwnedSyncResult<string | import("node:buffer").NonSharedBuffer>}
+ */
 export function ownedSpawnSync(command, args, options) {
   if (!selectedSyncLifecycle()) return spawnSync(command, args, options);
   const call = syncArguments(args, options);
   return runOwnedSyncChild(command, call.args, call.options);
 }
 
+/**
+ * @overload
+ * @param {string} command
+ * @returns {import("node:buffer").NonSharedBuffer}
+ */
+/**
+ * @overload
+ * @param {string} command
+ * @param {import("node:child_process").ExecFileSyncOptionsWithStringEncoding} options
+ * @returns {string}
+ */
+/**
+ * @overload
+ * @param {string} command
+ * @param {import("node:child_process").ExecFileSyncOptionsWithBufferEncoding} options
+ * @returns {import("node:buffer").NonSharedBuffer}
+ */
+/**
+ * @overload
+ * @param {string} command
+ * @param {import("node:child_process").ExecFileSyncOptions} [options]
+ * @returns {string | import("node:buffer").NonSharedBuffer}
+ */
+/**
+ * @overload
+ * @param {string} command
+ * @param {readonly string[]} args
+ * @returns {import("node:buffer").NonSharedBuffer}
+ */
+/**
+ * @overload
+ * @param {string} command
+ * @param {readonly string[]} args
+ * @param {import("node:child_process").ExecFileSyncOptionsWithStringEncoding} options
+ * @returns {string}
+ */
+/**
+ * @overload
+ * @param {string} command
+ * @param {readonly string[]} args
+ * @param {import("node:child_process").ExecFileSyncOptionsWithBufferEncoding} options
+ * @returns {import("node:buffer").NonSharedBuffer}
+ */
+/**
+ * @overload
+ * @param {string} command
+ * @param {readonly string[]} [args]
+ * @param {import("node:child_process").ExecFileSyncOptions} [options]
+ * @returns {string | import("node:buffer").NonSharedBuffer}
+ */
+/**
+ * @param {string} command
+ * @param {readonly string[] | import("node:child_process").ExecFileSyncOptions} [args]
+ * @param {import("node:child_process").ExecFileSyncOptions} [options]
+ * @returns {string | import("node:buffer").NonSharedBuffer}
+ */
 export function ownedExecFileSync(command, args, options) {
   if (!selectedSyncLifecycle()) return execFileSync(command, args, options);
   const call = syncArguments(args, options);
@@ -173,6 +299,39 @@ export function ownedExecFileSync(command, args, options) {
 // result preserves the original execution status, including a settled timeout.
 // Fixed /bin/ps is the bounded observation primitive and is not recursively
 // dispatched through this runner. No remaining process receives a signal here.
+/**
+ * @overload
+ * @param {string} command
+ * @param {readonly string[]} args
+ * @returns {OwnedSyncResult<import("node:buffer").NonSharedBuffer>}
+ */
+/**
+ * @overload
+ * @param {string} command
+ * @param {readonly string[]} args
+ * @param {import("node:child_process").SpawnSyncOptionsWithStringEncoding} options
+ * @returns {OwnedSyncResult<string>}
+ */
+/**
+ * @overload
+ * @param {string} command
+ * @param {readonly string[]} args
+ * @param {import("node:child_process").SpawnSyncOptionsWithBufferEncoding} options
+ * @returns {OwnedSyncResult<import("node:buffer").NonSharedBuffer>}
+ */
+/**
+ * @overload
+ * @param {string} command
+ * @param {readonly string[]} args
+ * @param {import("node:child_process").SpawnSyncOptions} [options]
+ * @returns {OwnedSyncResult<string | import("node:buffer").NonSharedBuffer>}
+ */
+/**
+ * @param {string} command
+ * @param {readonly string[]} args
+ * @param {import("node:child_process").SpawnSyncOptions} [options]
+ * @returns {OwnedSyncResult<string | import("node:buffer").NonSharedBuffer>}
+ */
 export function runOwnedSyncChild(command, args, options = {}) {
   const selection = selectedSyncLifecycle();
   if (!selection) return spawnSync(command, args, options);

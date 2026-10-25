@@ -71,20 +71,27 @@ if (process.argv[2] === "--ledger-probe") {
       console.log(JSON.stringify({ expected_observer_failure: fault, fixture_ledger: fixtureEvidence,
         outer_child_settled: result.owned_child_lifecycle?.event === "settled" }));
     }
-    for (const kind of ["spawn-callback", "output-callback", "post-spawn-log", "post-result-log"]) {
+    for (const kind of ["spawn-callback", "output-callback", "post-spawn-log", "post-result-log", "lifecycle-start", "lifecycle-terminal"]) {
       const owner = createCanonicalTestResourceRoot("ag-resource-test-"); roots.push(owner);
       const collector = createOwnedChildLifecycleCollector();
       let pid;
       await assert.rejects(runCanonicalChild({ suite: "lifecycle-controls", label: kind,
-        command: process.execPath, args: ["-e", kind === "post-result-log" ? "console.log('ready')" : "console.log('ready');setInterval(()=>{},1000)"], cwd: here,
+        command: process.execPath, args: ["-e", kind === "post-result-log" || kind.startsWith("lifecycle-") ? "console.log('ready')" : "console.log('ready');setInterval(()=>{},1000)"], cwd: here,
         env: buildCanonicalChildEnvironment({ temporaryRoot: owner.root }), resourceOwner: owner,
         timeoutMs: 2000, heartbeatMs: 0, termGraceMs: 300, killGraceMs: 300,
         stdout: { write() { if (kind === "output-callback") throw new Error("fixture-output-failure"); } }, stderr: quiet,
-        onLifecycle: collector.record,
+        onLifecycle(event) {
+          collector.record(event);
+          if ((kind === "lifecycle-start" && event.event === "started") ||
+              (kind === "lifecycle-terminal" && event.event === "settled"))
+            throw new Error("fixture-lifecycle-observer-failure");
+        },
         onSpawn(value) { pid = value; if (kind === "spawn-callback") throw new Error("fixture-spawn-failure"); },
         log(line) { if ((kind === "post-spawn-log" && line.includes("child_spawn")) ||
           (kind === "post-result-log" && line.includes("child_result"))) throw new Error("fixture-log-failure"); },
-      }), error => /^fixture-(?:spawn|output|log)-failure$/u.test(error.message));
+      }), error => kind.startsWith("lifecycle-")
+        ? error.code === "owned_process_evidence_failed" && error.owned_child_lifecycle?.event === "settled"
+        : /^fixture-(?:spawn|output|log)-failure$/u.test(error.message));
       assert(pid > 0); assert.throws(() => process.kill(pid, 0), error => error.code === "ESRCH");
       const inventory = collector.snapshot();
       assert.equal(inventory.started_count, 1); assert.equal(inventory.settled_count, 1); assert.equal(inventory.complete, true);
@@ -170,6 +177,7 @@ if (process.argv[2] === "--ledger-probe") {
     assert.equal(createOwnedChildLifecycleCollector().snapshot().complete, false);
     console.log(JSON.stringify({ controls: ["ps-error-unknown", "ps-empty-unknown", "ps-malformed-unknown", "ps-incomplete-unknown", "ps-duplicate-unknown",
       "spawn-callback-settled", "output-callback-settled", "post-spawn-log-settled", "post-result-log-settled",
+      "lifecycle-start-observer-failure-settled", "lifecycle-terminal-observer-failure-settled",
       "closed-record-retained-until-settlement", "nested-selected-event-channel", "stdout-independent-owned-ledger",
       "ledger-mode-and-replacement-refused", "complete-start-inventory",
       "missing-duplicate-conflicting-extra-events-refused", "bounded-overflow-refused"], status: "pass" }));
