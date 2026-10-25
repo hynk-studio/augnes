@@ -214,6 +214,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      label: "partial source methods, independent impact witnesses and successor test selection (zero model)",
+      requirements: ["filesystem", "immutable-fixture-input"],
+      command: "python3",
+      args: ["-E", "-s", "-B", "scripts/change-impact-study/test_case.py"],
+      cwd: repoRoot,
+      timeoutMs: 10_000,
+      requireNaturalExit: true,
+    },
+    {
       label: "web planning Worker strict type compatibility",
       ...rootNode("node_modules/typescript/bin/tsc", "-p", "apps/web_planning/tsconfig.json", "--noEmit"),
       timeoutMs: 30_000,
