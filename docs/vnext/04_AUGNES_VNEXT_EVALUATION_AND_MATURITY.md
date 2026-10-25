@@ -68,6 +68,72 @@ to revise or decline methods too. Appropriate non-use and negative results remai
 valid. Comparative success, organic demand and all-host support are not admission
 conditions for already approved capability or public-entry development.
 
+## Economic activity and participation evidence
+
+Apply these criteria to the claims made by the
+[economic undertaking application](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#economic-undertaking-application--2026-10-25),
+not as a new universal gate for projects or already approved cooperation work.
+Keep the supported mechanism, actual use, economic outcome, comparative benefit
+and degree of autonomy separate. A prepared opportunity, simulator balance,
+accepted PR or saved receipt does not by itself establish paying demand.
+
+| Claim | Required discriminating evidence |
+|---|---|
+| One useful economic activity | Traceable need/beneficiary, actual delivered material and independent acceptance or use, costs and unresolved obligations. A revenue claim additionally needs actual payment evidence; unpaid useful work retains its narrower meaning. |
+| Experience improves later work | A genuinely separate task with current inputs, actual conditional reuse/revision/non-use, checked result and a strong matched adaptive alternative. Preserve the old information cutoff and judgment. |
+| Participation expands capability | A useful result newly attainable, improved or less burdensome because of the contribution, after discovery/checking/integration costs; participant count alone is insufficient. |
+| Economic terms attract participants | Distinguish discovery from invitation, proposal from useful return, and first contribution from repeat participation. Record exposure, proposed/actual terms, acquisition cost and who initiated execution. Directly assigned workers do not establish independent entry. |
+| Sustained operation | Later work remains possible while delivery, correction, support and payment obligations from earlier work remain visible and appropriately discharged or carried forward. A session ending does not close unknown effects. |
+
+Define the evaluation boundary, horizon and attribution before computing economic
+results. Report received cash and actual spending separately from incurred costs,
+committed resources, unpaid amounts and unresolved effects. Include execution,
+infrastructure, external services, failed attempts, verification, repair,
+coordination, acquisition and human intervention. Record human time; if assigning
+a monetary rate, disclose it and retain the unpriced time and relevant sensitivity.
+Unknown costs are not zero. Avoid counting the same cost in multiple categories.
+Eliminate internal transfers within the chosen common-owner evaluation boundary;
+funding injections, self-trading, internal points and estimated asset prices are
+not external revenue. State whether displayed amounts are real or simulated.
+
+Maintain a separate account of demonstrated reusable capability: a method,
+artifact, conditional counterpart experience or cooperation arrangement must be
+used in later work with a checked effect before being credited as improvement.
+Do not add a speculative capability valuation to observed cash profit. Research
+and public goods can have sponsor-defined non-cash success criteria without
+being misreported as sales. Reinvestment proposals consider resources already
+committed to outstanding obligations and do not create spending authority.
+
+For comparative usefulness, provide strong alternatives with the same model,
+initial information, tools, service/participant access and resource boundaries,
+including adaptive memory/notes/code and ordinary cost tracking. Permit them to
+change methods, select participants, work directly or decline a task. Attribute
+extra context, compute, supervision and preparation instead of silently giving
+only the Augnes condition those advantages. Distinguish experience effects from
+participant-selection or larger-budget effects. Freeze the claim, case split,
+measurement horizon and allocation before fixed evaluation; development remains
+separate under the existing method-improvement policy.
+
+Use a changed requirement, counterparty condition or executor where needed to
+test the retained claim. Check that original observations survive, current
+applicability is reconsidered, relevant obligations are explicitly adopted and
+an actual fresh consumer can continue from saved state. Where market selection
+is claimed, vary proposal arrival/presentation while retaining comparable terms,
+or inspect whether additional exploration improves outcomes after its cost.
+Competence evidence stays conditional on task, environment, method/version,
+checks, information cutoff and uncertainty; a global score or selected successes
+do not establish general reliability.
+
+A first A-to-B case establishes at most its bounded observed path. Broader
+economic advantage and network effects need appropriate repeated cases and
+uncertainty reporting. Simulation can isolate mechanisms; independent real
+demand and use address a different question. Readiness failure, model/method
+failure, insufficient observation and observed lack of benefit retain distinct
+dispositions. Return RETAIN, CHANGE, SIMPLIFY or STOP with the behavior and total
+burden supporting it. Preserve #1464's scoped no-advantage/SIMPLIFY findings and
+the separate #1537 allocation; neither is a transferable economic result or a
+reason to require additional structure without observed need.
+
 ## Story & Worldbuilding Increment A acceptance (#1455)
 
 Exercise creative and ordinary entry through the same supported surface. Save

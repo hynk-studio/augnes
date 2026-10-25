@@ -381,7 +381,7 @@ tasks; it is not limited to agents executing a human-authored task list.
 
 | Placement | Existing owner | Next bounded outcome and evidence boundary |
 |---|---|---|
-| First public entry | [#1447](https://github.com/hynk-studio/augnes/issues/1447) | Connect a useful public asset and agent-readable guidance to one actual consumer host/public channel. The 2026-10-15 ordinary-client observations are complete/RETAIN; broader public distribution remains pending. Asset fit follows the task, not a requirement to make workflow-cost represent every agent. |
+| First public entry | [#1447](https://github.com/hynk-studio/augnes/issues/1447) | The 2026-10-15 ordinary-client observations are complete/RETAIN and the 2026-10-20 component pre-release distribution is complete. Next connect task-grounded entry to an actual need and contribution return; broader independent discovery and participation remain unestablished. Asset fit follows the task, not a requirement to make workflow-cost represent every agent. |
 | Next contribution/use connection | [#1443](https://github.com/hynk-studio/augnes/issues/1443) | Reuse #1450's source loop for one real unresolved need, a small contribution request, return/check/use decision and separate successor use. Also support a requesting agent or collective selecting participants for its ongoing undertaking. Actual external contribution/recruitment observations remain NOT_RUN. |
 | Continuing axis across both paths | [#1453](https://github.com/hynk-studio/augnes/issues/1453) | Connect observed counterpart experience, conditional commitments, changed basis and fresh-successor action. The local capability, separate installed-client acceptance and frozen controlled consumer's HOST_INTEGRATION_BLOCKED/NOT_EXERCISED state remain distinct. A blocked host is not a universal stop for other valid paths. |
 
@@ -430,6 +430,93 @@ alongside [Synergy's research](https://arxiv.org/html/2603.28428v1) and
 continuity, memory and collaboration capabilities as strong reuse/comparison
 candidates. These sources motivate the direction; they do not establish Augnes
 superiority, independent willingness to contribute or a previously empty market.
+
+### Economic undertaking application — 2026-10-25
+
+The user-approved [economic undertaking direction](./01_AUGNES_VNEXT_MASTERPLAN.md#economic-undertakings-and-cumulative-capability)
+connects opportunity discovery, contribution choice, checked delivery, economic
+obligations and later experience use. [Economic Loop 0, #1538](https://github.com/hynk-studio/augnes/issues/1538)
+owns the next bounded application preparation under #1443, coordinated by #1426.
+This is an adopted direction and scoped work specification, not completed
+implementation, independent demand, external participation, revenue or comparative
+benefit. It adds no global phase or prerequisite for approved W1/W2 work.
+
+| Existing owner | Responsibility in this application |
+|---|---|
+| [#1447](https://github.com/hynk-studio/augnes/issues/1447) | Task-grounded discovery and a usable opportunity/return entry; reuse the completed component distribution without republishing it as a new outcome. |
+| [#1443](https://github.com/hynk-studio/augnes/issues/1443), with bounded application #1538 | Compare direct/asset/contribution arrangements, prepare intelligible terms, check actual returned material and make a separate current-use decision. |
+| [#1453](https://github.com/hynk-studio/augnes/issues/1453) | Conditional counterpart experience, feedback, correction, unresolved external effects and obligations after executor replacement. |
+| [#1213](https://github.com/hynk-studio/augnes/issues/1213), [#1214](https://github.com/hynk-studio/augnes/issues/1214), [#1215](https://github.com/hynk-studio/augnes/issues/1215) | Current understanding and inquiry, method/action selection, and faithful successor use within their existing scope. |
+
+At intake, #1534 is merged on main `c1c0e0d30e6d854d436fe3e775125fc99fd8e07f`.
+The [#1532 ordinary composition](../EXECUTION_CHOICE_USAGE.md#continue-a-checked-contribution-in-a-different-task-1532)
+already connects checked contributions to a distinct same-project task through
+existing writers. Inspect and reuse it before proposing another storage or
+transfer mechanism. [#1537](https://github.com/hynk-studio/augnes/issues/1537)
+owns a separate commissioned model-use observation. Do not alter its frozen
+case, allocation or route conditions, or repurpose it as an economic comparison.
+Its eventual evidence may inform the application only within its actual scope.
+
+The first preparation should produce one coherent, executable case:
+
+1. Identify one candidate recurring need from permitted real work or accessible
+   public evidence. Retain the source/time, beneficiary, current alternative and
+   acceptance condition. Software-upgrade impact checking/repair is an example,
+   not a mandatory vertical or established market. If demand remains hypothetical,
+   label it and complete independent case/checker preparation without inventing
+   a customer, purchase commitment or contact authority.
+2. Prepare the contribution's inputs, requested return, check/use owner, cost
+   responsibility, proposed compensation/payment timing, use terms, return path
+   and reconsideration conditions as needed for that case. Unknown values remain
+   unknown. Use the actual counterpart's existing HTTP, Markdown, GitHub, MCP or
+   A2A path rather than requiring a new marketplace or all protocol adapters.
+3. Connect first-task output and checking to the existing project/work/source
+   path, then to a genuinely separate task with new purpose or inputs. Select a
+   relevant changed condition or executor replacement; preserve the earlier
+   judgment and explicitly reconsider methods, relationships and obligations.
+   A fresh reader must recover the actual saved result and remaining work.
+4. Keep completion report, acceptance, use, payment and remaining obligations
+   distinct. Account for task, verification, repair, failure, coordination and
+   human burden alongside cash and committed resources. Ordinary notes/files
+   are sufficient where they serve the consumer; add only an observed missing
+   capability, with focused checks and a Draft PR if source changes are needed.
+5. Return the prepared materials, usable route, actual checks and limitations,
+   and the exact remaining customer/resource/authority conditions for a live
+   application. A sufficient existing path can justify a no-code result. Synthetic
+   replay is mechanism evidence, not independent demand or economic success.
+
+Preparation can proceed independently of #1537 or a blocked historical host;
+do not borrow their resources or reopen their studies. No new model/provider
+allocation, public solicitation, purchase, contract, loan or automatic
+reinvestment is commissioned by this planning change. Existing exact authority
+continues within its own scope; undefined actions or amounts are not inferred.
+Keep #1453's frozen disposition and #1464's SIMPLIFY/adaptive-memo default intact.
+Actual application, matched usefulness and participation effects use the
+[economic evidence criteria](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#economic-activity-and-participation-evidence)
+at the scope needed for each claim, without making all three mandatory for
+every capability increment.
+
+Later resource allocation, repeated external participation and cooperation
+between undertakings remain distinct expansion decisions. Demand, actual use,
+total burden, outstanding obligations and retained capability should inform
+whether to expand, simplify or stop. Revenue is not a universal admission
+criterion for research, public goods or private work.
+
+Research inputs: [Magentic Marketplace](https://arxiv.org/html/2510.25779v1)
+provides market-selection and proposal-order cases, while leaving repeated
+history-based adaptation as follow-up;
+[The Collaboration Gap](https://arxiv.org/abs/2511.02687v2) separates individual
+and cooperative competence; [CoffeeBench](https://arxiv.org/html/2606.16613v1)
+provides time-dependent trading/obligation cases within a simplified economy;
+[RLI](https://labs.scale.com/leaderboard/rli) supplies a deliverable-acceptance
+reference, not customer acquisition or repeat-business proof. Existing
+[A2A](https://a2a-protocol.org/latest/specification/),
+[AP2](https://ap2-protocol.org/) and
+[x402](https://github.com/x402-foundation/x402/blob/main/specs/x402-specification-v2.md)
+can supply communication, delegated authorization and payment adapters where
+needed; they do not establish undertaking-level judgment, total-budget control
+or checked fulfillment. These are research/architecture inputs, not adopted
+dependencies, current compatibility promises or evidence of Augnes advantage.
 
 ### Next P3/P4 — Current-understanding-guided work and result-informed re-entry
 
@@ -526,11 +613,15 @@ operational steps remain pending, the overall distribution objective stays open.
 
 The [2026-10-15 ordinary-client observations](https://github.com/hynk-studio/augnes/issues/1447#issuecomment-6190336565)
 completed three bounded tasks and retained the current guidance (RETAIN), without
-a new source change or comparative-benefit claim. Next: prepare one stable public
-distribution destination for the selected asset/consumer and its actual return
-path under existing operational authority. Do not repeat the accepted exact-link
-delivery or RETAIN observations just to satisfy this plan. Comparative benefit,
-organic search, independent field adoption and all-host support remain unclaimed.
+a new source change or comparative-benefit claim. #1447 subsequently records the
+user-authorized 2026-10-20 component pre-release distribution as ACCEPT/COMPLETE:
+the [workflow-cost Skill 0.1.0 release](https://github.com/hynk-studio/augnes/releases/tag/augnes-workflow-cost-v0.1.0)
+is a bounded public component, not a general application release or universal
+directory listing. Next: connect an appropriate asset/entry to a concrete need,
+usable contribution return and checked later use under existing owners. Do not
+repeat the completed distribution, exact-link delivery or RETAIN observations
+just to satisfy this plan. Comparative benefit, organic search, independent
+field adoption and all-host support remain unclaimed.
 #1433's completed connected-review evidence and #1372's private-file obligations
 remain with their existing owners; neither is a prerequisite for these public files.
 
