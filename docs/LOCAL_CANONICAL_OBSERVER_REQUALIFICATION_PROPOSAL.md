@@ -70,6 +70,10 @@ Admission must require all of the following, without mutating intake state:
    assets, and every divergent overlap's actual resolution. Reject unrelated
    candidate edits, omitted paths, changed parents/tree/base or lost assets.
    The current #1534 additions in both shared registration files must survive.
+   If the corrected target follows the integration commit, separately bind and
+   review every subsequent parent/tree/delta/path set. The corrective return's
+   literal-route inventory fix is such a post-integration source correction;
+   it is not a new main integration or a repair witness for the observer fault.
 3. Renew authenticated current main, clean origin/root/head/branch identity,
    canonical Node/npm, planner-selected complete phase inventory, actual
    ownership/capacity, and all normal input/permission/link/Companion checks.

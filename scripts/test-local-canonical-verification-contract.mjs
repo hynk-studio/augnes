@@ -765,7 +765,7 @@ const inputRequalificationChild = readCanonicalChildRegistration(canonicalSuite,
 for (const fragment of ['timeoutMs: 30_000', 'requireNaturalExit: true', '"scripts/test-local-canonical-input-requalification.mjs"'])
   requireText(inputRequalificationChild.block, fragment, "input requalification requires bounded integrated authority controls");
 assert.equal(countOccurrences(canonicalSuite, "scripts/test-local-canonical-input-requalification.mjs"), 1);
-for (const id of ["local-canonical-input-review-regressions", "local-canonical-settlement-continuation", "local-canonical-observer-diagnostics"]) {
+for (const id of ["local-canonical-input-review-regressions", "local-canonical-settlement-continuation", "local-canonical-source-path-inventory", "local-canonical-observer-diagnostics"]) {
   const child = readCanonicalChildRegistration(canonicalSuite, id);
   for (const fragment of ['timeoutMs: 30_000', 'requireNaturalExit: true', `"scripts/test-${id}.mjs"`])
     requireText(child.block, fragment, "review corrections retain bounded natural-exit authority controls");

@@ -1455,6 +1455,13 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "local-canonical-source-path-inventory",
+      label: "literal repository route paths remain in complete adoption inventory",
+      ...rootNode("scripts/test-local-canonical-source-path-inventory.mjs"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "local-canonical-observer-diagnostics",
       label: "bounded observer diagnostics preserve fail-closed cancellation",
       ...rootNode("scripts/test-local-canonical-observer-diagnostics.mjs"),

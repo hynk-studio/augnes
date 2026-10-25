@@ -15,6 +15,9 @@ const hash = v => /^[0-9a-f]{64}$/u.test(v ?? "");
 const sha = v => /^[0-9a-f]{40}$/u.test(v ?? "");
 const reference = v => typeof v === "string" && /^https:\/\/github\.com\/hynk-studio\/augnes\/(?:issues|pull)\/[0-9]+(?:#[A-Za-z0-9_-]+)?$/u.test(v);
 const safePath = v => typeof v === "string" && /^[A-Za-z0-9_./-]+$/u.test(v) && !v.startsWith("/") && !v.split("/").some(x => !x || x === "." || x === "..");
+// Git tree names are literal data, never shell patterns or local proof paths.
+// Existing Next route segments contain brackets. Keep evidence paths stricter.
+const safeTreePath = v => typeof v === "string" && /^[A-Za-z0-9_./\[\]-]+$/u.test(v) && !v.startsWith("/") && !v.split("/").some(x => !x || x === "." || x === "..");
 const same = (a, b) => digest(a) === digest(b);
 const time = v => Number.isFinite(Date.parse(v));
 // Match the executor/stock owners: Browser and reuse require natural exit;
@@ -332,7 +335,7 @@ export function inputAdoptionInventory(repositoryRoot, predecessor, main, head) 
   }));
   const maps = [base, predecessor, main, head].map(entries);
   const inventory = [...new Set(maps.flatMap(m => [...m.keys()]))].sort().map(name => {
-    if (!safePath(name)) fail("input_requalification_source_path_unsupported");
+    if (!safeTreePath(name)) fail("input_requalification_source_path_unsupported");
     const [b, p, m, t] = maps.map(map => map.get(name) ?? null);
     return { path: name, base: b, predecessor: p, main: m, target: t, divergent: p !== b && m !== b && p !== m };
   });

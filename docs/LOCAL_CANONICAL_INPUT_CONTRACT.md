@@ -196,6 +196,10 @@ The local proof (`augnes.local-canonical-input-requalification.v1`) contains:
 and exact byte hashes. Use `observeInputFile` for observations and
 `inputAdoptionInventory` for the read-only merge-base/full-entry inventory,
 changed paths and binary-delta digest. Adoption source review additionally binds
+literal Git tree paths, including existing Next `[id]` route segments. Brackets
+are source-name data, never glob expressions. Local proof/log paths keep their
+separate stricter validation. Unsupported tree-name syntax still refuses.
+The source review binds
 `merge_base`, `inventory_fingerprint`, `delta_sha256`, `changed_paths`, all
 predecessor-added/changed `task_assets`, and `overlaps`. Each overlap names the
 exact full entry (`path/base/predecessor/main/target/divergent`), kind
