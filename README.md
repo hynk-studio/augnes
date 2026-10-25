@@ -461,24 +461,6 @@ the [judge guide](docs/submission/openai-build-week/JUDGE_GUIDE.md).
 Augnes preserves continuous work across Browser, ChatGPT Apps, Codex, and
 future hosts without forcing those hosts to look alike.
 
-The autonomous-project and public-collaboration direction supports research,
-exploration, creation, business, public-interest work and personal projects.
-Participants can use a public method once, continue their own project, or
-collaborate across projects, choosing the connection their task needs. The first
-integration target is an ordinary request that develops an existing artifact for
-changed requirements and carries the resulting judgment and remaining work to
-a successor when continuity is needed.
-
-Participants or sponsors supply execution resources under their own terms and
-authority. Shared resource allocation and broader economic coordination remain
-planned capabilities; existing direction grants and declared operating budgets
-do not implement provider spending controls. The
-[development sequence](docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md)
-separates current mechanisms from the next coherent workflow and later shared
-infrastructure. The [evaluation criteria](docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md)
-separate working functionality, meaningful continuation, experience utility,
-additional workflow benefit, external demand and economics.
-
 - **Blank State** focuses human attention and resumption.
 - **AI Workplane** coordinates delegation, progress, verification,
   reconciliation, review preparation, bounded automation, later context, and
