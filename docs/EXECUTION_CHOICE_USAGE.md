@@ -63,31 +63,6 @@ explicit reselection can compose another loop while preserving earlier packets.
 The optional preparation below connects one next arrangement to its assessed
 predecessor without a separate manually authored continuity note.
 
-## Using conditional expectations in an ordinary task
-
-For an uncertain choice, use the existing `expectation`, `uncertainty`,
-`reconsider_when` and later `compared_with_expectation` fields to retain the
-specific question, relevant conditions, evidence basis and predicted observation.
-These are authored judgments, not an automatic probability engine. A short
-conditional statement is sufficient; do not invent a probability or copy a full
-research template into the bounded note. Relevant original material remains
-available through the existing selected-source and retained-read paths.
-
-For example, an API task may fail because of transport, authentication, an input
-contract or task behavior. Select a permitted probe whose possible results would
-change the next step, accounting for its cost and effects. State what it can
-distinguish before running it. A successful connection does not test authorization
-or the complete task, and even an authentication response may be ambiguous.
-Assess the actual response and choose the next useful check or repair while
-preserving the original expectation and required checks. For a later host/version,
-reconsider the affected conditions rather than treating that earlier success as
-a current end-to-end test. If an exact known rule already settles the choice,
-apply it without an additional model.
-
-This uses the ordinary read/choose/save/work/assess path above and its existing
-eligibility, note limits and authority. [The evaluation criteria](vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#question-specific-model-evidence)
-separate diagnostic improvement from a claim of comparative usefulness.
-
 ## Manual contribution without a configured reviewer (#1511)
 
 Use the same native entry and eligible unstarted ordinary task. In `choose`,

@@ -398,8 +398,13 @@ contribution and its remaining obligations. These are candidate applications,
 not a universal sequence or three new study allocations. Keep epistemic inquiry
 alongside practical work so authority cues, duplicated sources and unsupported
 objections can be tested without reducing every question to immediate utility.
-The [ordinary execution-choice example](../EXECUTION_CHOICE_USAGE.md#using-conditional-expectations-in-an-ordinary-task)
-shows how to start without new records or a numerical probability requirement.
+The [ordinary execution-choice path](../EXECUTION_CHOICE_USAGE.md#ordinary-sequence)
+already carries expectation, uncertainty, reconsideration and later assessment.
+For example, an API diagnosis can state which response would distinguish
+transport, authentication, input-contract or task failure before choosing a
+permitted probe. After the actual response, revise the next check or repair;
+retain ambiguity when that probe did not discriminate the cause. A short
+conditional statement can suffice, without a new record or numerical probability.
 
 Select the smallest representation and supported producer/consumer path during
 current-source diagnosis. A one-task model can remain temporary. Persist only
