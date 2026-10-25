@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { selectedGitResult } from "./local-canonical-selected-git.mjs";
 import { isUtf8 } from "node:buffer";
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -149,7 +150,7 @@ export function parseCanonicalBlobBatch(output, objects) {
 }
 
 function git(cwd, args, options = {}) {
-  const result = spawnSync("git", args, {
+  const result = selectedGitResult(cwd, args, {
     cwd, stdio: ["pipe", "pipe", "pipe"], timeout: 30_000,
     maxBuffer: MAX_BYTES, ...options,
   });

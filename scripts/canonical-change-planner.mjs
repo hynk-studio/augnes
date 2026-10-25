@@ -2,6 +2,7 @@
 
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { selectedGitResult } from "./local-canonical-selected-git.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
@@ -554,7 +555,7 @@ function documentationConsumers(relativePath, context) {
   if (context.consumers.has(relativePath)) return context.consumers.get(relativePath);
   const consumers = new Set();
   for (const revision of [context.baseSha, context.headSha]) {
-    const result = spawnSync("git", ["grep", "-I", "-l", "-z", "-F", "-e", relativePath, "-e", path.posix.basename(relativePath),
+    const result = selectedGitResult(context.cwd, ["grep", "-I", "-l", "-z", "-F", "-e", relativePath, "-e", path.posix.basename(relativePath),
       revision, "--"], {
       cwd: context.cwd, encoding: "utf8", maxBuffer: MAX_DIFF_BYTES, timeout: 30_000,
     });
@@ -613,7 +614,7 @@ function dynamicDocumentationConsumers(relativePath, context) {
   if (!context.dynamicConsumers) {
     context.dynamicConsumers = [];
     for (const revision of [context.baseSha, context.headSha]) {
-      const result = spawnSync("git", ["grep", "-I", "-l", "-z", "-E", "[\"'`]((docs|research|apps)(/|[\"'`]))", revision, "--", ":!*.md"], {
+      const result = selectedGitResult(context.cwd, ["grep", "-I", "-l", "-z", "-E", "[\"'`]((docs|research|apps)(/|[\"'`]))", revision, "--", ":!*.md"], {
         cwd: context.cwd, encoding: "utf8", maxBuffer: MAX_DIFF_BYTES, timeout: 30_000,
       });
       if (result.error) throw result.error;
@@ -996,7 +997,7 @@ function assertExactCommit(cwd, label, sha) {
 }
 
 function runGit(cwd, args, options) {
-  const result = spawnSync("git", args, {
+  const result = selectedGitResult(cwd, args, {
     cwd,
     stdio: ["ignore", "pipe", "pipe"],
     timeout: 30_000,

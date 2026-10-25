@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createServer, request as httpRequest } from "node:http";
 import path from "node:path";
+import { registerOwnedChild, terminateOwnedProcessTree } from "./test-harness-process-lifecycle.mjs";
 
 const repoRoot = process.cwd();
 const appsRoot = path.join(repoRoot, "apps", "augnes_apps");
@@ -25,6 +26,8 @@ const ui = createServer((_request, response) => {
 });
 
 let bridge = null;
+let bridgeRecord = null;
+const ownedProcesses = new Set();
 try {
   const uiPort = await listenV01(ui);
   const bridgePort = await reservePortV01();
@@ -45,7 +48,9 @@ try {
       AUGNES_COMPANION_PROXY_TOKEN: proxyToken,
     },
     stdio: ["ignore", "pipe", "pipe"],
+    detached: process.platform !== "win32",
   });
+  bridgeRecord = registerOwnedChild(ownedProcesses, bridge, { label: "companion-privacy-bridge" });
   await waitForListeningV01(bridge, bridgePort);
   const initialize = JSON.stringify({
     jsonrpc: "2.0",
@@ -99,8 +104,8 @@ try {
     valid_stdio_proxy_covered_by: "test:codex-companion-discovery",
   }, null, 2));
 } finally {
-  await stopChildV01(bridge);
-  await new Promise((resolve) => ui.close(() => resolve()));
+  try { await stopChildV01(bridgeRecord); }
+  finally { await new Promise((resolve) => ui.close(() => resolve())); }
 }
 
 async function listenV01(server) {
@@ -162,8 +167,7 @@ function waitForListeningV01(child, port) {
   });
 }
 
-async function stopChildV01(child) {
-  if (!child || child.exitCode !== null) return;
-  child.kill("SIGTERM");
-  await new Promise((resolve) => child.once("exit", resolve));
+async function stopChildV01(record) {
+  if (!record) return;
+  await terminateOwnedProcessTree(record, { termGraceMs: 5_000, killGraceMs: 5_000 });
 }

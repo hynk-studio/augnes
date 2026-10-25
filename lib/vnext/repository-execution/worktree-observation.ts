@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { lstat, readFile, readlink, realpath } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 import {
@@ -32,6 +33,18 @@ export interface ProtectedUntrackedPathsV01 {
 
 const SYSTEM_GIT_PROCESS_V01: WorktreeObservationProcessV01 = {
   async run(root, args) {
+    if (process.env.AUGNES_CANONICAL_SELECTED_INPUTS) {
+      // Verification runs load the exact source adapter natively. Including its
+      // process owners in the application bundle changes their source identity.
+      const selectedModule = pathToFileURL(path.resolve(path.dirname(fileURLToPath(import.meta.url)),
+        "../../../scripts/local-canonical-selected-git.mjs")).href;
+      const { selectedGitExecFile }: typeof import("../../../scripts/local-canonical-selected-git.mjs") =
+        await import(/* webpackIgnore: true */ /* turbopackIgnore: true */ selectedModule);
+      const result = await selectedGitExecFile(root, [...args], {
+        env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" }, timeout: 5_000, maxBuffer: MAX_GIT_OUTPUT_BYTES,
+      });
+      return result.stdout;
+    }
     const result = await execFileAsync("git", ["--no-optional-locks", "-C", root, ...args], {
       encoding: "utf8",
       env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" },

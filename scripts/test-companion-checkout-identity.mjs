@@ -5,16 +5,20 @@ import { mkdtempSync, realpathSync, mkdirSync, readFileSync, writeFileSync, rmSy
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import childProcess, { spawnSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
+import childProcess from "node:child_process";
+import { ownedSpawnSync as spawnSync, runOwnedSyncChild } from "./test-harness-process-lifecycle.mjs";
 import { syncBuiltinESMExports } from "node:module";
 import { mock } from "node:test";
-import { observeCheckoutIdentity, compareCompanionCheckoutIdentity, checkoutObservationBinding } from "../plugins/augnes-operator/mcp/checkout-identity.mjs";
+import { inheritSelectedExecutionEnvironment } from "./local-canonical-selected-execution.mjs";
+import { observeCheckoutIdentity, compareCompanionCheckoutIdentity, checkoutObservationBinding, withCheckoutIdentityProbe } from "../plugins/augnes-operator/mcp/checkout-identity.mjs";
 import { installCompanionService, inspectCompanionService, inspectCompanionPreservation, previewCompanionIdentityEnrollment,
   enrollCompanionIdentity, stopCompanionService, startCompanionService, uninstallCompanionService, resolveCompanionServiceLayout,
-  computeServiceSourceFingerprint } from "../plugins/augnes-operator/mcp/companion-service-core.mjs";
+  computeServiceSourceFingerprint, withCompanionProcessProbe } from "../plugins/augnes-operator/mcp/companion-service-core.mjs";
 
 const root = realpathSync(mkdtempSync(path.join(os.tmpdir(), "augnes-checkout-identity-")));
 const repository = path.join(root, "checkout");
+const scopedCli = path.join(root, "scoped-cli.mjs");
 const actions = [];
 const launchctl = args => { actions.push(args[0]); assert.equal(args[0], "print", "no service effects in stopped fixture"); return { status: 113 }; };
 const options = { repositoryRoot: repository, homeDirectory: path.join(root, "home"),
@@ -25,16 +29,22 @@ const check = (condition, message) => { assert.ok(condition, message); cases++; 
 const clone = value => structuredClone(value);
 const write = (file, value) => writeFileSync(file, JSON.stringify(value) + "\n", { mode: 0o600 });
 const cli = (args, { status = 0, preload = [] } = {}) => {
-  const run = spawnSync(process.execPath, [...preload, path.join(repository, "scripts/augnes-companion-service.mjs"), ...args], {
-    env: { ...options.environment, HOME: options.homeDirectory, PATH: "/usr/bin:/bin" }, encoding: "utf8", timeout: 5_000,
+  const run = spawnSync(process.execPath, [...preload, scopedCli, ...args], {
+    env: inheritSelectedExecutionEnvironment(process.env, { ...options.environment, HOME: options.homeDirectory, PATH: "/usr/bin:/bin" }), encoding: "utf8", timeout: 5_000,
   });
   assert.equal(run.status, status, run.stderr); return JSON.parse(status === 0 ? run.stdout : run.stderr);
 };
 const refused = async (operation, code) => { await assert.rejects(operation, error => error.code === code); cases++; };
+await withCompanionProcessProbe(runOwnedSyncChild, async () => {
 try {
   for (const file of ["scripts/augnes-companion-service.mjs", "plugins/augnes-operator/mcp/companion-service-core.mjs", "plugins/augnes-operator/mcp/checkout-identity.mjs", "plugins/augnes-operator/mcp/checkout-identity-darwin.py"]) {
     mkdirSync(path.dirname(path.join(repository, file)), { recursive: true }); copyFileSync(file, path.join(repository, file));
   }
+  const entry = path.join(repository, "scripts/augnes-companion-service.mjs");
+  writeFileSync(scopedCli, `import {runOwnedSyncChild} from ${JSON.stringify(new URL("./test-harness-process-lifecycle.mjs", import.meta.url).href)};
+    import {withCompanionProcessProbe} from ${JSON.stringify(pathToFileURL(path.join(repository, "plugins/augnes-operator/mcp/companion-service-core.mjs")).href)};
+    process.argv[1]=${JSON.stringify(entry)};
+    await withCompanionProcessProbe(runOwnedSyncChild,()=>import(${JSON.stringify(pathToFileURL(entry).href)}));\n`, { mode: 0o600 });
   const observed = observeCheckoutIdentity(repository);
   check(observed.durable_observation === "observed", "real Darwin provider must be available, not mocked or skipped");
   check(JSON.stringify(observeCheckoutIdentity(repository)) === JSON.stringify(observed), "real descriptor round trip");
@@ -69,10 +79,8 @@ try {
   try { assert.throws(() => observeCheckoutIdentity(repository), error => error.code === "companion_service_identity_observation_incoherent"); cases++; }
   finally { race.mock.restore(); syncBuiltinESMExports(); if (swapped) { rmSync(repository, { recursive: true }); renameSync(repository + "-raced", repository); } }
   for (const state of ["unsupported", "unavailable", "incoherent"]) {
-    const failure = mock.method(childProcess, "spawnSync", () => ({ status: 1, stdout: JSON.stringify({ state }) }));
-    syncBuiltinESMExports();
-    try { check(observeCheckoutIdentity(repository).durable_observation === state, "actual resolver preserves missing provider observation"); }
-    finally { failure.mock.restore(); syncBuiltinESMExports(); }
+    withCheckoutIdentityProbe(() => ({ status: 1, stdout: JSON.stringify({ state }) }), () =>
+      check(observeCheckoutIdentity(repository).durable_observation === state, "actual resolver preserves missing provider observation"));
   }
   renameSync(repository, repository + "-original"); mkdirSync(repository);
   check(!compareCompanionCheckoutIdentity(configuration, observeCheckoutIdentity(repository)).valid, "real replaced directory refuses");
@@ -273,3 +281,4 @@ try {
     provider_identity_fingerprint: createHash("sha256").update(JSON.stringify(observed.durable_identity)).digest("hex"),
     source_fingerprint: computeServiceSourceFingerprint(process.cwd()) }));
 } finally { rmSync(root, { recursive: true, force: true }); }
+});

@@ -1,10 +1,14 @@
 import { createHash } from "node:crypto";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { spawnSync } from "node:child_process";
 import { closeSync, constants, fstatSync, lstatSync, openSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const CHECKOUT_IDENTITY_CONTRACT = "augnes.darwin-checkout-identity.v1";
+const selectedProbe = new AsyncLocalStorage();
+export function withCheckoutIdentityProbe(runner, callback) { return selectedProbe.run(runner, callback); }
+const checkoutProbe = (...args) => (selectedProbe.getStore() ?? spawnSync)(...args);
 const helper = fileURLToPath(new URL("./checkout-identity-darwin.py", import.meta.url));
 const fail = code => { throw Object.assign(new Error(code), { code }); };
 const hash = value => createHash("sha256").update(value).digest("hex");
@@ -54,7 +58,7 @@ function observe(repositoryRoot, readDurable) {
         const source = lstatSync(helper);
         if (!interpreter.isFile() || interpreter.isSymbolicLink() || interpreter.uid !== 0 || (interpreter.mode & 0o022) ||
             !source.isFile() || source.isSymbolicLink()) throw new Error();
-        const result = spawnSync("/usr/bin/python3", ["-I", "-S", helper], {
+        const result = checkoutProbe("/usr/bin/python3", ["-I", "-S", helper], {
           env: { PATH: "/usr/bin:/bin" }, encoding: "utf8", timeout: 2_000,
           maxBuffer: 2_048, stdio: ["ignore", "pipe", "ignore", fd],
         });

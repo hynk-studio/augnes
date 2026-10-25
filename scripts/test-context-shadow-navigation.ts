@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { ownedSpawnSync as spawnSync } from "./test-harness-process-lifecycle.mjs";
 import { readFileSync } from "node:fs";
 
 import { contextUseAttributionSourceFixture } from "@/fixtures/vnext/protocol/context-use-attribution-projection-v0-1";

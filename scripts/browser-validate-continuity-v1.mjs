@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
+import { inheritSelectedExecutionEnvironment } from "./local-canonical-selected-execution.mjs";
+import { runCanonicalChild } from "./canonical-child-runner.mjs";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -3381,11 +3383,11 @@ function isolatedRuntimeEnvironment({ databasePath, manifest }) {
 }
 
 function minimalProcessEnvironment() {
-  return Object.fromEntries(
+  return inheritSelectedExecutionEnvironment(process.env, Object.fromEntries(
     ["PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "SHELL", "TERM"]
       .filter((key) => typeof process.env[key] === "string")
       .map((key) => [key, process.env[key]]),
-  );
+  ));
 }
 
 function startDevServer(environment) {
@@ -4396,29 +4398,18 @@ async function waitForHttp(url, timeoutMs) {
 }
 
 async function runCapture(command, args, { cwd, env, timeoutMs }) {
-  return await new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd, env, stdio: ["ignore", "pipe", "pipe"] });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (chunk) => {
-      stdout = `${stdout}${chunk.toString("utf8")}`.slice(-512 * 1024);
-    });
-    child.stderr.on("data", (chunk) => {
-      stderr = `${stderr}${chunk.toString("utf8")}`.slice(-128 * 1024);
-    });
-    const timeout = setTimeout(() => {
-      child.kill("SIGTERM");
-      reject(new Error(`${command} timed out.`));
-    }, timeoutMs);
-    child.on("error", (error) => {
-      clearTimeout(timeout);
-      reject(error);
-    });
-    child.on("close", (code) => {
-      clearTimeout(timeout);
-      resolve({ code, stdout, stderr });
-    });
+  let stdout = "", stderr = "";
+  const result = await runCanonicalChild({
+    suite: "continuity-fixture", label: "compiled packet fixture", command, args, cwd, env, timeoutMs,
+    stdout: { write: chunk => { stdout = `${stdout}${chunk.toString("utf8")}`.slice(-512 * 1024); } },
+    stderr: { write: chunk => { stderr = `${stderr}${chunk.toString("utf8")}`.slice(-128 * 1024); } },
+    log() {},
   });
+  if (result.timed_out) throw new Error(`${command} timed out.`);
+  if (result.spawn_error_code) throw Object.assign(new Error(`${command} failed to spawn.`), { code: result.spawn_error_code });
+  if (!result.exit_observed || !result.streams_closed || !result.cleanup_completed || result.remaining_owned_processes !== 0)
+    throw new Error("continuity_fixture_child_cleanup_incomplete");
+  return { code: result.exit_code, stdout, stderr };
 }
 
 async function cleanup() {

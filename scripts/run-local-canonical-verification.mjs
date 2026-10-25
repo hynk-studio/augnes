@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { appendOwnedChildLifecycleEvent } from "./test-harness-process-lifecycle.mjs";
+import { withSelectedExecution, selectedExecutionResources, selectedExecutionRetainedResources, selectedExecutionLifecycle, selectedExecutionLedger, selectedExecutionEvidence, assertSelectedExecution, selectedToolInvocation } from "./local-canonical-selected-execution.mjs";
 
 import { createHash, randomBytes } from "node:crypto";
 import {
@@ -18,9 +20,10 @@ import path from "node:path";
 import os from "node:os";
 import { freezeInputContract, monitorInputContract, digest, deriveOperationalDisposition, observeInputFile, classifyInputChange, nonFaultInputChange } from "./local-canonical-inputs.mjs";
 import { beginAttempt, finishAttempt, readRecoveryProof, readSourceCorrectionProof, inspectAttemptRecords } from "./local-canonical-attempts.mjs";
-import { pinVerificationEvidence, readPinnedEvidence } from "./local-canonical-evidence-retention.mjs";
+import { pinVerificationEvidence, readPinnedEvidence, retainSelectedInputEvidence, collectSelectedStockEvidence, retainOwnedChildLifecycleEvidence } from "./local-canonical-evidence-retention.mjs";
 import { BROWSER_IDENTITY_PREFIX, validPhaseBrowserUse, browserConsumersForPhase, MAX_BROWSER_USE_RECORDS, parseBrowserUseLine } from "./local-canonical-browser-identity.mjs";
 import { fileURLToPath } from "node:url";
+import { CANONICAL_DARWIN_REPOSITORY_ROOT } from "./canonical-repository-identity.mjs";
 
 import {
   OWNER_TARGETED_PLAN,
@@ -34,7 +37,7 @@ import { CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs"
 import { admitIntegrationBase } from "./local-canonical-integration-base.mjs";
 import { admitVerificationContext, assertVerificationContext, verificationAnchorRoot } from "./local-canonical-verification-context.mjs";
 import { acquireVerificationCapacity, assertVerificationCapacity, releaseVerificationCapacity } from "./local-canonical-capacity.mjs";
-import { createIsolatedInvocationResources, isolatedInvocationEnvironment, cleanupIsolatedInvocationResources } from "./local-canonical-isolated-resources.mjs";
+import { createIsolatedInvocationResources, isolatedInvocationEnvironment, cleanupIsolatedInvocationResources, isolatedInvocationSelection } from "./local-canonical-isolated-resources.mjs";
 import { prepareHistoricalInputs, finishHistoricalInputs } from "./local-canonical-historical-inputs.mjs";
 import {
   acquireCheckoutVerificationOwnership,
@@ -112,6 +115,12 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/local-canonical-change-owners.v1.json",
   "scripts/local-canonical-receipt.mjs",
   "scripts/local-canonical-inputs.mjs",
+  "scripts/local-canonical-selected-git.mjs",
+  "scripts/local-canonical-selected-execution.mjs",
+  "scripts/local-canonical-selected-shell.mjs",
+  "scripts/local-canonical-selected-consumers.mjs",
+  "scripts/local-canonical-selected-consumers.v1.json",
+  "scripts/runtime-child-environment.mjs",
   "scripts/local-canonical-attempts.mjs",
   "scripts/local-canonical-evidence-retention.mjs",
   "scripts/local-canonical-review-export.mjs",
@@ -448,7 +457,25 @@ export function computeExecutorSourceFingerprint(
   return hash.digest("hex");
 }
 
-export async function executeLocalCanonicalVerification({
+export async function executeLocalCanonicalVerification(options) {
+  if (options.checkoutContext !== "isolated-worktree") return executeLocalCanonicalVerificationInner(options);
+  if (process.env.npm_lifecycle_event || process.env.npm_execpath)
+    throw Object.assign(new Error("selected_bootstrap_requires_direct_node"), {code:"selected_bootstrap_requires_direct_node"});
+  const invocationId = randomBytes(16).toString("hex");
+  const resources = createIsolatedInvocationResources(invocationId, { repositoryRoot });
+  const selection = isolatedInvocationSelection(resources);
+  const bootstrap = { invocationId, resources, selection, consumersSettled: true, cleaned: false, cleanupAttempted: false };
+  try { return await withSelectedExecution(selection, () => executeLocalCanonicalVerificationInner({ ...options, bootstrap })); }
+  finally { if (!bootstrap.cleanupAttempted) {
+    try { bootstrap.consumersSettled &&= selectedExecutionLifecycle(selection).complete; }
+    catch { bootstrap.consumersSettled=false; }
+    const cleanup = cleanupIsolatedInvocationResources(resources, { consumersSettled: bootstrap.consumersSettled });
+    if (!cleanup.completed) throw Object.assign(new Error("bootstrap_cleanup_incomplete"), { code: "bootstrap_cleanup_incomplete" });
+  } }
+}
+
+async function executeLocalCanonicalVerificationInner({
+  bootstrap = null,
   mode,
   baseSha: requestedBaseSha = null,
   headSha: requestedHeadSha = null,
@@ -493,7 +520,8 @@ export async function executeLocalCanonicalVerification({
     path.join(verificationAnchorRoot(verificationContext), LOCAL_ARTIFACT_DIRECTORY),
   ));
   const runId = safeRunId(startedAt, mode, headSha);
-  const invocationId = randomBytes(16).toString("hex");
+  const invocationId = bootstrap?.invocationId ?? randomBytes(16).toString("hex");
+  const sourceTree = runGit(repositoryRoot, ["rev-parse", `${headSha}^{tree}`]).trim();
   const runLogRoot = path.join(logRoot, runId);
   const worktreePolicy = evaluateWorktreePolicy({
     mode,
@@ -588,7 +616,11 @@ export async function executeLocalCanonicalVerification({
     required: process.platform === "darwin" && ["full-canonical", OWNER_TARGETED_PLAN].includes(plan.selected_plan),
     acquired: false, released: false, failure_code: null,
   };
-  let isolatedResources = null;
+  let isolatedResources = bootstrap?.resources ?? null;
+  const selection = bootstrap?.selection ?? null;
+  let retainedSelectedInputs = null;
+  let retainedChildren = null;
+  let identityAfter = null;
   let isolatedResourceCleanup = null;
   const historicalInputsRequired = checkoutContext === "isolated-worktree" && phaseDefinitions.some(phase => phase.id === "authority");
   let historicalInputs = null;
@@ -636,7 +668,7 @@ export async function executeLocalCanonicalVerification({
         });
       }
       if (checkoutContext === "isolated-worktree") {
-        isolatedResources = createIsolatedInvocationResources(invocationId);
+        isolatedResources ??= createIsolatedInvocationResources(invocationId);
         if (historicalInputsRequired) historicalInputs = prepareHistoricalInputs({
           context: verificationContext, repositoryRoot, checkoutOwner, invocationId,
         });
@@ -694,6 +726,7 @@ export async function executeLocalCanonicalVerification({
       ensureBoundedLocalDirectory(repositoryRoot, runLogRoot);
       inputs = prepareInvocationInputs({ verificationContext, isolatedResources, browserExecutablePath: hostResult.browserExecutablePath, headSha, executorFingerprint, phaseDefinitions });
       const assertOwnedInputs = () => {
+        if (selection) assertSelectedExecution(selection);
         if (checkoutOwner) assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
         if (capacityLease) assertVerificationCapacity(capacityLease, verificationContext);
         if (mode !== "quick") assertFrozenSource(identityBefore, verificationContext);
@@ -719,6 +752,7 @@ export async function executeLocalCanonicalVerification({
             pinVerificationEvidence({ root: repositoryRoot, checkoutOwner, runId, reason: "attempt_family" });
           }
           checkoutConsumersSettled = false;
+          if (bootstrap) bootstrap.consumersSettled = false;
           const result = await executePhase({
             phase, mode, runLogRoot, isolatedResources, signal, invocationId,
             browserExecutablePath: hostResult.browserExecutablePath,
@@ -727,6 +761,7 @@ export async function executeLocalCanonicalVerification({
           actualBrowserVersion ??= result.browser_use?.[0]?.actual_version ?? null;
           checkoutConsumersSettled = result.cleanup?.completed === true &&
             result.cleanup?.remaining_owned_processes === 0;
+          if (bootstrap) bootstrap.consumersSettled = checkoutConsumersSettled;
           return result;
         },
         onStart: (phase) => {
@@ -858,17 +893,31 @@ export async function executeLocalCanonicalVerification({
           }
         } catch (error) { cleanupComplete = false; cleanupReason = safeErrorCode(error); }
       }
+      inputMonitor?.stop();
+      if (inputMonitor?.fault()) executionFailure = true;
+      try {
+        identityAfter = collectRepositoryIdentity(repositoryRoot, { verificationContext });
+        if (selection && inputs && checkoutOwner) retainedSelectedInputs = retainSelectedInputEvidence({
+          root: repositoryRoot, checkoutOwner, runId, binding: selectedEvidenceBinding(inputs.snapshot()),
+          resources: selectedExecutionRetainedResources(selection),
+        });
+        if (selection && inputs && checkoutOwner) {
+          retainedChildren = retainOwnedChildLifecycleEvidence({ root: repositoryRoot, checkoutOwner, runId,
+            binding: selectedEvidenceBinding(inputs.snapshot()), ...selectedExecutionLedger(selection) });
+          if (!selectedExecutionLifecycle(selection).complete) { checkoutConsumersSettled = false; executionFailure = true; cleanupComplete = false; if (bootstrap) bootstrap.consumersSettled = false; }
+        }
+      } catch (error) { executionFailure = true; cleanupComplete = false; checkoutConsumersSettled = false; if (bootstrap) bootstrap.consumersSettled = false; cleanupReason = safeErrorCode(error); }
       if (isolatedResources) {
         try {
+          if (bootstrap) { bootstrap.cleanupAttempted = true; bootstrap.consumersSettled = checkoutConsumersSettled; }
           isolatedResourceCleanup = cleanupIsolatedInvocationResources(isolatedResources, { consumersSettled: checkoutConsumersSettled });
+          if (bootstrap) bootstrap.cleaned = isolatedResourceCleanup.completed;
           if (!isolatedResourceCleanup.completed) {
             cleanupComplete = false;
             cleanupReason ??= "isolated_resources_cleanup_incomplete";
           }
         } catch (error) { cleanupComplete = false; cleanupReason = safeErrorCode(error); }
       }
-      inputMonitor?.stop();
-      if (inputMonitor?.fault()) executionFailure = true;
       if (checkoutOwner) {
         try {
           Object.assign(checkoutOwnership, releaseCheckoutVerificationOwnership(checkoutOwner, repositoryRoot, {
@@ -917,9 +966,8 @@ export async function executeLocalCanonicalVerification({
     `[local-canonical] cleanup_result completed=${cleanupComplete} remaining_owned_processes=${cleanupRemaining} generated_next_present_after_execution_cleanup=${generatedNextPresentAfterExecutionCleanup} generated_next_present_after_service_restore=${generatedNextPresentAfter} generated_windows_helper_present=${generatedWindowsHelperPresentAfter}`,
   );
 
-  let identityAfter;
   try {
-    identityAfter = collectRepositoryIdentity(repositoryRoot, { verificationContext });
+    identityAfter ??= collectRepositoryIdentity(repositoryRoot, { verificationContext });
   } catch (error) {
     identityAfter = {
       ...identityBefore,
@@ -994,13 +1042,14 @@ export async function executeLocalCanonicalVerification({
       origin: identityBefore.origin,
       base_sha: baseSha,
       head_sha: headSha,
-      tree_sha: runGit(repositoryRoot, ["rev-parse", `${headSha}^{tree}`]).trim(),
+      tree_sha: sourceTree,
       branch: identityBefore.branch,
       detached: identityBefore.detached,
       worktree_before: identityBefore.worktree_dirty ? "dirty" : "clean",
       worktree_after: identityAfter.worktree_dirty ? "dirty" : "clean",
     },
     inputs: inputs?.snapshot() ?? null,
+    ...(selection ? { selected_inputs: retainedSelectedInputs, owned_children: retainedChildren } : {}),
     attempt: attempt ? { ...attempt } : null,
     outcome: { disposition, first_fault: inputMonitor?.fault() ?? null, execution: allSelectedPhasesPassed ? "complete_pass" : "incomplete_or_failed",
       validity: inputs && !inputMonitor?.fault() && cleanupComplete ? "valid_within_observed_scope" : "invalid_or_unknown",
@@ -1176,19 +1225,21 @@ export async function executeLocalCanonicalVerification({
 
 export function prepareInvocationInputs({ verificationContext, isolatedResources, browserExecutablePath, headSha, executorFingerprint, phaseDefinitions }) {
   const environments = phaseDefinitions.map(phase => ({ id: phase.id, values: phaseEnvironment({ phase, isolatedResources, browserExecutablePath }) }));
-  const resources = invocationInputResources({ verificationContext, browserExecutablePath });
+  const selection = isolatedResources ? isolatedInvocationSelection(isolatedResources) : null;
+  const resources = invocationInputResources({ verificationContext, browserExecutablePath, selection });
   return freezeInputContract({ resources, pathKind: isolatedResources ? "isolated-model-free-v1" : "canonical-conservative-v1",
     binding: { head: headSha, tree: runGit(repositoryRoot, ["rev-parse", `${headSha}^{tree}`]).trim(),
       executor_fingerprint: executorFingerprint, phase_inventory: digest(phaseDefinitions),
       phase_environment_fingerprints: environments.map(e => ({ id: e.id, fingerprint: digest(e.values) })),
       environment_keys: [...new Set(environments.flatMap(e => Object.keys(e.values)))].sort(), authenticated_transport: "github_authenticated_main_branch_get",
-      provider_policy: "no_live_model_calls;private_fixture_adapters_only" } });
+      provider_policy: "no_live_model_calls;private_fixture_adapters_only",
+      ...(selection ? { selected_execution: selectedExecutionEvidence(selection) } : {}) } });
 }
 
-function invocationInputResources({ verificationContext, browserExecutablePath }) {
+function invocationInputResources({ verificationContext, browserExecutablePath, selection = null }) {
   const isolated = verificationContext.kind === "isolated-worktree";
   const userHome = os.userInfo().homedir;
-  return [
+  const resources = [
     { id: "codex-preferences", file: path.join(userHome, ".codex", "config.toml"), classification: isolated ? "ambient" : "unknown", excludePreferences: isolated },
     { id: "user-instructions", file: path.join(userHome, ".codex", "AGENTS.md"), classification: "safety" },
     { id: "auth-location", file: path.join(userHome, ".codex", "auth.json"), classification: "safety", metadataOnly: true },
@@ -1203,22 +1254,80 @@ function invocationInputResources({ verificationContext, browserExecutablePath }
     ...(browserExecutablePath ? [{ id: "executable-permissions-reader", file: "/bin/ls", classification: "execution", readOnlyExecutable: true },
       ...(process.platform === "darwin" ? [{ id: "executable-flags-reader", file: "/usr/bin/stat", classification: "execution", readOnlyExecutable: true }, { id: "executable-attributes-reader", file: "/usr/bin/xattr", classification: "execution", readOnlyExecutable: true }] : []),
       { id: "browser-executable", file: browserExecutablePath, classification: "execution", readOnlyExecutable: true }] : []),
+    ...["/etc/codex/requirements.toml", "/etc/codex/managed_config.toml", "/Library/Managed Preferences/com.openai.codex.plist"].map((file,i) => ({ id: `managed-codex-authority-${i}`, file, classification: "safety" })),
   ];
+  if (!selection) return resources;
+  return [...resources.filter(r => !["git-user-config", "git-config", "npm-prefix-config", "npm-executable", "git-executable", "gh-executable"].includes(r.id)),
+    ...selectedExecutionResources(selection).map(({id,file,classification,readOnlyExecutable,readOnlyTree,metadataOnly}) => ({id,file,classification,
+      ...(readOnlyExecutable ? {readOnlyExecutable} : {}),...(readOnlyTree ? {readOnlyTree} : {}),...(metadataOnly ? {metadataOnly} : {})}))];
 }
 
-function currentInputEvidenceValid(receipt, verificationContext, browserExecutablePath) {
+export function currentInputEvidenceValid(receipt, verificationContext, browserExecutablePath, selection = null) {
+  return collectCurrentInputEvidence(receipt, verificationContext, browserExecutablePath, selection).currentInputStateValid;
+}
+
+export function collectCurrentInputEvidence(receipt, verificationContext, browserExecutablePath, selection = null, currentBinding = null) {
+  const result = {currentInputStateValid:true,currentSafetyStateValid:true,reason_codes:[]};
+  const selected = Boolean(receipt.inputs?.binding?.selected_execution);
+  // Original retained bytes are independently readable even if current source,
+  // inventory, selection construction, or authority observation now refuses.
+  if (selected) Object.assign(result, collectSelectedStockEvidence({ root: repositoryRoot, receipt,
+    expectedBinding: currentBinding, currentResources: [] }));
   try {
-    const resources = invocationInputResources({ verificationContext, browserExecutablePath });
+    if (selected && !currentBinding) {
+      if (!selection) throw Object.assign(new Error("current_selected_context_missing"),{code:"current_selected_context_missing"});
+      const head = runGit(repositoryRoot,["rev-parse","HEAD"]).trim();
+      const plan = resolveVerificationPlan({mode:receipt.evidence.mode,baseSha:receipt.repository.base_sha,headSha:head});
+      const definitions = buildPhasePlan({mode:receipt.evidence.mode,selectedPlan:plan.selected_plan,baseSha:receipt.repository.base_sha,headSha:head,
+        browserPhaseIds:plan.planner_browser_phase_ids ?? [...PERMANENT_BROWSER_PHASE_IDS],targetedPhaseIds:plan.planner_targeted_phase_ids ?? []});
+      currentBinding = {head,tree:runGit(repositoryRoot,["rev-parse",`${head}^{tree}`]).trim(),executor_fingerprint:computeExecutorSourceFingerprint(),
+        plan_fingerprint:digest(definitions),consumer_map_fingerprint:selectedExecutionEvidence(selection).consumer_map_fingerprint};
+    }
+    const resources = invocationInputResources({ verificationContext, browserExecutablePath, selection });
     const declared = receipt.inputs?.resources;
-    if (!Array.isArray(declared) || resources.length !== declared.length) return false;
-    return resources.every(resource => {
+    if (!Array.isArray(declared)) throw Object.assign(new Error("current_input_inventory_changed"),{code:"current_input_inventory_changed"});
+    const retained = selected ? collectSelectedStockEvidence({
+      root: repositoryRoot, receipt, expectedBinding: currentBinding,
+      currentResources: selection ? selectedExecutionRetainedResources(selection) : [],
+    }) : null;
+    if (retained) Object.assign(result,retained);
+    if (resources.length !== declared.length || declared.some(prior => !resources.some(resource => resource.id === prior.id))) {
+      result.currentInputStateValid=false;result.reason_codes.push("current_input_inventory_changed");
+      if (declared.some(prior => prior.classification === "safety" && !resources.some(resource => resource.id === prior.id))) result.currentSafetyStateValid=false;
+    }
+    const historicalPrivate = new Map((receipt.selected_inputs?.resources ?? []).map(r => [r.id,r]));
+    for (const resource of resources) {
       const prior = declared.find(r => r.id === resource.id);
-      if (!prior || prior.location_fingerprint !== digest(resource.file) || prior.classification !== resource.classification ||
-          prior.excludePreferences !== resource.excludePreferences || prior.metadataOnly !== resource.metadataOnly || prior.readOnlyExecutable !== resource.readOnlyExecutable) return false;
-      const current = observeInputFile(resource.file, { metadataOnly: resource.metadataOnly, preferences: resource.excludePreferences, readOnlyExecutable: resource.readOnlyExecutable });
-      return nonFaultInputChange(classifyInputChange(prior.before, current, resource));
-    });
-  } catch { return false; }
+      if (retained && historicalPrivate.has(resource.id)) {
+        const evidence = historicalPrivate.get(resource.id);
+        if (prior?.classification !== "execution" || prior.before?.sha256 !== evidence.actual_execution_sha256) {
+          result.currentInputStateValid=false;result.reason_codes.push(`${resource.id}:historical_binding_mismatch`);
+        }
+        continue;
+      }
+      let disposition = "inventory_changed";
+      if (prior && prior.location_fingerprint === digest(resource.file) && prior.classification === resource.classification &&
+          prior.excludePreferences === resource.excludePreferences && prior.metadataOnly === resource.metadataOnly && prior.readOnlyExecutable === resource.readOnlyExecutable && prior.readOnlyTree === resource.readOnlyTree) {
+        const current = observeInputFile(resource.file, { metadataOnly: resource.metadataOnly, preferences: resource.excludePreferences,
+          readOnlyExecutable: resource.readOnlyExecutable,readOnlyTree:resource.readOnlyTree });
+        disposition=classifyInputChange(prior.before,current,resource);
+      }
+      if (!nonFaultInputChange(disposition)) {
+        result.currentInputStateValid=false;
+        if (resource.classification === "safety" || disposition === "safety_violation") result.currentSafetyStateValid=false;
+        result.reason_codes.push(`${resource.id}:${disposition}`);
+      }
+    }
+  } catch (error) {
+    result.currentInputStateValid=false;result.currentSafetyStateValid=null;
+    result.reason_codes.push(/^[a-z_]{1,100}$/u.test(error?.code ?? "")?error.code:"current_input_observer_failed");
+  }
+  return result;
+}
+
+function selectedEvidenceBinding(inputs) {
+  return { head: inputs.binding.head, tree: inputs.binding.tree, executor_fingerprint: inputs.binding.executor_fingerprint,
+    plan_fingerprint: inputs.binding.phase_inventory, consumer_map_fingerprint: inputs.binding.selected_execution.consumer_map_fingerprint };
 }
 
 function resolveExecutionTool(name) {
@@ -1254,6 +1363,52 @@ function lifecycleStateRestored(before, after) {
 }
 
 export async function validateReceiptAgainstCurrentRepository(relativeReceiptPath, { checkoutContext = "canonical" } = {}) {
+  const receiptPath = resolveArtifactPath(relativeReceiptPath), receipt = readReceiptFile(receiptPath);
+  if (!receipt.inputs?.binding?.selected_execution) return validateReceiptAgainstCurrentRepositoryInner(relativeReceiptPath, { checkoutContext });
+  const failed = (error, stage) => inspectSelectedStockRefusal({ root: repositoryRoot,
+    anchorRoot: receipt.verification_context?.kind === "isolated-worktree" ? CANONICAL_DARWIN_REPOSITORY_ROOT : repositoryRoot,
+    receipt, expectedRunId: path.basename(receiptPath,".json"), error, stage });
+  let resources = null, selection = null, result, stage = "selected_bootstrap";
+  try {
+    if (process.env.npm_lifecycle_event || process.env.npm_execpath)
+      throw Object.assign(new Error("selected_bootstrap_requires_direct_node"), {code:"selected_bootstrap_requires_direct_node"});
+    resources = createIsolatedInvocationResources(randomBytes(16).toString("hex"), { repositoryRoot });
+    selection = isolatedInvocationSelection(resources);
+    result = await withSelectedExecution(selection, () => {
+      stage="selected_current_observation";
+      return validateReceiptAgainstCurrentRepositoryInner(relativeReceiptPath, { checkoutContext, selection });
+    });
+  } catch (error) { result = failed(error,stage); }
+  finally {
+    if (resources) {
+      let consumersSettled=false;
+      try {consumersSettled=selectedExecutionLifecycle(selection).complete;}catch{}
+      try {
+        const cleanup = cleanupIsolatedInvocationResources(resources, { consumersSettled });
+        if (!cleanup.completed) result=failed(Object.assign(new Error("stock_selected_inputs_cleanup_incomplete"),
+          {code:"stock_selected_inputs_cleanup_incomplete",isolatedResourceCleanup:cleanup}),"selected_cleanup");
+      } catch(error) { result=failed(error,"selected_cleanup"); }
+    }
+  }
+  return result;
+}
+
+// Original retained files remain inspectable when current selection cannot be
+// constructed. This reader never admits a checkout, allocates an attempt, or
+// falls back to ambient Git. A source-correction record needs selected Git for
+// its full proof, so its recorded-context check remains explicitly unverified.
+export function inspectSelectedStockRefusal({ root, anchorRoot = root, receipt, expectedRunId = null, error, stage = "selected_bootstrap" }) {
+  const observed = collectSelectedStockEvidence({ root, receipt, expectedBinding:null, currentResources:[] });
+  const unavailable = { contract:"augnes.local-canonical-current-observation-unavailable.v1", stage,
+    reason_code:/^[a-z][a-z0-9_]{0,99}$/u.test(error?.code ?? "") ? error.code : "selected_current_observation_failed" };
+  const result = inspectReceiptForDecision(receipt, { ...observed, expectedRunId,
+    currentAttemptRecordsValid: receipt.attempt?.source_correction ? null : inspectAttemptRecords({anchorRoot,repositoryRoot:root,receipt}),
+    currentInputStateValid:false,currentSafetyStateValid:stage === "selected_cleanup" || error?.isolatedResourceCleanup?.completed === false ? false : null,
+    currentObservationUnavailable:unavailable });
+  return {...result,current_observation:{status:"unavailable",...unavailable}};
+}
+
+async function validateReceiptAgainstCurrentRepositoryInner(relativeReceiptPath, { checkoutContext = "canonical", selection = null } = {}) {
   const verificationContext = admitVerificationContext({ repositoryRoot, kind: checkoutContext });
   const receiptPath = resolveArtifactPath(relativeReceiptPath);
   const receipt = readReceiptFile(receiptPath);
@@ -1316,8 +1471,15 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
       targetedPhaseIds: expectedTargetedPhaseIds,
     }).map((phase) => phase.id);
   }
+  const currentBinding = selection && expectedSelectedPlan ? {
+    head:identity.head_sha,tree:runGit(repositoryRoot,["rev-parse",`${identity.head_sha}^{tree}`]).trim(),executor_fingerprint:executorFingerprint,
+    plan_fingerprint:digest(buildPhasePlan({mode:receipt.evidence.mode,selectedPlan:expectedSelectedPlan,baseSha:receipt.repository.base_sha,
+      headSha:identity.head_sha,browserPhaseIds:expectedBrowserPhaseIds,targetedPhaseIds:expectedTargetedPhaseIds})),
+    consumer_map_fingerprint:selectedExecutionEvidence(selection).consumer_map_fingerprint,
+  } : null;
+  const currentInputs = receipt.receipt_version === 4 ? collectCurrentInputEvidence(receipt,verificationContext,validationHost.browserExecutablePath,selection,currentBinding) : {currentInputStateValid:null};
   return inspectReceiptForDecision(receipt, {
-    currentInputStateValid: receipt.receipt_version === 4 ? currentInputEvidenceValid(receipt, verificationContext, validationHost.browserExecutablePath) : null,
+    ...currentInputs,
     currentAttemptRecordsValid: receipt.receipt_version === 4 ? inspectAttemptRecords({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, receipt }) : null,
     currentVerificationContext: verificationContext,
     expectedRunId: path.basename(receiptPath, ".json"),
@@ -1738,6 +1900,9 @@ export async function executePhase({
   const browserUse = [];
   const environment = phaseEnvironment({ phase, isolatedResources, browserExecutablePath });
   const environmentFingerprint = digest(environment);
+  const selectedCommand = selectedToolInvocation(phase.command, phase.args);
+  const selectedContext = isolatedResources ? isolatedInvocationSelection(isolatedResources) : null;
+  const selectedLedger = selectedContext ? selectedExecutionLedger(selectedContext) : null;
   const capture = createBoundedCapture(logPath, record => {
     // One overflow entry preserves refusal without unbounded capture.
     if (browserUse.length <= MAX_BROWSER_USE_RECORDS) browserUse.push(record);
@@ -1747,13 +1912,16 @@ export async function executePhase({
     result = await runCanonicalChild({
       suite: `local-${mode}`,
       label: phase.label,
-      command: phase.command,
-      args: phase.args,
+      command: selectedCommand.command,
+      args: selectedCommand.args,
       cwd: phase.cwdScope === "nested-app" ? nestedAppRoot :
         phase.cwdScope === "web-planning-app" ? webPlanningRoot : repositoryRoot,
       env: environment,
       timeoutMs: phase.timeoutMs,
       signal,
+      ...(selectedLedger && process.env.AUGNES_CANONICAL_CHILD_LEDGER_PATH !== selectedLedger.file ? {
+        onLifecycle: event => appendOwnedChildLifecycleEvent(selectedLedger.file, selectedLedger.identity, event),
+      } : {}),
       stdout: capture.stdout,
       stderr: capture.stderr,
     });

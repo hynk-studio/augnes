@@ -2,7 +2,8 @@
 
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
+import { ownedSpawnSync as spawnSync } from "./test-harness-process-lifecycle.mjs";
 import {
   existsSync,
   lstatSync,

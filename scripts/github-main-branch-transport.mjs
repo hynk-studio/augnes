@@ -1,4 +1,6 @@
 import { spawnSync } from "node:child_process";
+import { selectedToolInvocation } from "./local-canonical-selected-execution.mjs";
+import { runOwnedSyncChild } from "./test-harness-process-lifecycle.mjs";
 
 export const AUTHORIZED_GITHUB_REPOSITORY =
   "hynk-studio/augnes";
@@ -38,7 +40,9 @@ function runGhApi({ operation, args }) {
       "GitHub source-attestation request is invalid",
     );
   }
-  const result = spawnSync("gh", args, {
+  const selected = selectedToolInvocation("gh", args, { liveTransport: true });
+  const result = runOwnedSyncChild(selected.command, selected.args, {
+    ...(selected.env ? {env:selected.env} : {}),
     cwd: process.cwd(),
     encoding: "utf8",
     timeout: GITHUB_TRANSPORT_TIMEOUT_MS,

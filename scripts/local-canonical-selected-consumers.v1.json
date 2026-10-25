@@ -1,0 +1,56 @@
+{
+  "schema": "augnes.local-canonical-selected-consumers.v1",
+  "source_roots": [
+    "."
+  ],
+  "reviewed_owners": {
+    "controller": [
+      "scripts/run-local-canonical-verification.mjs",
+      "scripts/local-canonical-environment.mjs",
+      "scripts/local-canonical-selected-execution.mjs",
+      "scripts/local-canonical-selected-git.mjs",
+      "scripts/local-canonical-selected-consumers.mjs"
+    ],
+    "source_reads": [
+      "scripts/canonical-change-planner.mjs",
+      "scripts/canonical-revision-reader.mjs",
+      "scripts/local-canonical-verification-context.mjs",
+      "scripts/local-canonical-integration-base.mjs",
+      "scripts/local-canonical-attempts.mjs",
+      "scripts/validate-canonical-docs-change.mjs",
+      "lib/vnext/repository-execution/worktree-observation.ts"
+    ],
+    "dependency_and_descendants": [
+      "scripts/local-canonical-isolated-resources.mjs",
+      "scripts/local-canonical-selected-shell.mjs",
+      "scripts/local-canonical-selected-python.mjs",
+      "scripts/canonical-test-environment.mjs",
+      "scripts/canonical-child-runner.mjs",
+      "scripts/run-canonical-test-suite.mjs",
+      "scripts/runtime-child-environment.mjs",
+      "scripts/build-with-isolated-db.mjs",
+      "scripts/augnes-runtime-supervisor-core.mjs"
+    ],
+    "browser": [
+      "scripts/local-canonical-browser-identity.mjs",
+      "scripts/browser-validate-project-experience-v1.mjs",
+      "scripts/browser-validate-continuity-v1.mjs",
+      "scripts/browser-validate-web-planning.mjs",
+      "scripts/operator-execution-browser-lifecycle-v1.mjs"
+    ],
+    "live_authority": [
+      "scripts/github-main-branch-transport.mjs",
+      "plugins/augnes-operator/mcp/companion-service-core.mjs",
+      "plugins/augnes-operator/mcp/checkout-identity.mjs",
+      "lib/vnext/native-host/codex-scoped-task.ts"
+    ],
+    "evidence_and_cleanup": [
+      "scripts/local-canonical-inputs.mjs",
+      "scripts/local-canonical-evidence-retention.mjs",
+      "scripts/local-canonical-receipt.mjs",
+      "scripts/test-harness-process-lifecycle.mjs"
+    ]
+  },
+  "inventory_fingerprint": "f5753ca06218de06875d6b18497f78d5a535d8bdac85eaa946de9fbbc07a0bfb",
+  "file_count": 3006
+}

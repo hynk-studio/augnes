@@ -6,7 +6,7 @@ import { buildEvidenceRecordV01, buildClaimRecordV01, createClaimApplicabilitySc
 import { admitEvidenceRecordV01, readEvidenceRecordV01, admitClaimRecordV01 } from "../lib/vnext/persistence/project-verify-material-store";
 import { exportActivePortableProjectV01, importPortableProjectV01 } from "../lib/vnext/portability/portable-project";
 import { readProjectWorkRevisionEligibilityV01 } from "../lib/vnext/runtime/project-work-revision";
-import { spawnSync } from "node:child_process";
+import { ownedSpawnSync as spawnSync } from "./test-harness-process-lifecycle.mjs";
 import { admitPersistedHostTaskContextPacketV01 } from "../lib/vnext/runtime/direct-native-host-round-trip";
 import { previewNewProjectWorkV01 } from "../lib/vnext/runtime/project-work-revision";
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";

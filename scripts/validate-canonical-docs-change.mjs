@@ -3,6 +3,7 @@
 import path from "node:path";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { selectedGitResult } from "./local-canonical-selected-git.mjs";
 import { fileURLToPath } from "node:url";
 
 import { collectMarkdownAnchors, extractMarkdownDestinations, planCanonicalChange } from "./canonical-change-planner.mjs";
@@ -235,7 +236,7 @@ function validateDestination({ reader, headSha, markdownPath, destination, read 
 }
 
 function revisionAvailable(cwd, revision) {
-  return spawnSync("git", ["cat-file", "-e", `${revision}^{commit}`], { cwd, stdio: "ignore", timeout: 30_000 }).status === 0;
+  return selectedGitResult(cwd, ["cat-file", "-e", `${revision}^{commit}`], { cwd, stdio: "ignore", timeout: 30_000 }).status === 0;
 }
 
 function listRevisionMarkdown(reader, revision) {
@@ -308,7 +309,7 @@ function brokenReference(message) {
 }
 
 function runGit(cwd, args) {
-  const result = spawnSync("git", args, {
+  const result = selectedGitResult(cwd, args, {
     cwd,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],

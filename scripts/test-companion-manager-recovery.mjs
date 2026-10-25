@@ -12,7 +12,7 @@ import { pathToFileURL } from 'node:url';
 const sourceRoot = process.cwd();
 const [only] = process.argv.slice(2);
 const mode = 'candidate';
-const { registerOwnedChild, cleanupOwnedProcesses } = await import(pathToFileURL(path.join(sourceRoot, 'scripts/test-harness-process-lifecycle.mjs')));
+const { registerOwnedChild, cleanupOwnedProcesses, runOwnedSyncChild } = await import(pathToFileURL(path.join(sourceRoot, 'scripts/test-harness-process-lifecycle.mjs')));
 const sources = ['scripts/augnes-companion-service.mjs', 'plugins/augnes-operator/mcp/companion-service-core.mjs', 'plugins/augnes-operator/mcp/checkout-identity.mjs', 'plugins/augnes-operator/mcp/checkout-identity-darwin.py'];
 const digest = x => createHash('sha256').update(x).digest('hex');
 let failed = 0;
@@ -31,7 +31,8 @@ async function exercise(scenario) {
     const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'manager-identity-')));
     const repositoryRoot = path.join(root, 'source'), home = path.join(root, 'home');
     const owned = new Set(), events = [], signals = [], launchCommands = [];
-    const originalSpawn = childProcess.spawn, originalSpawnSync = childProcess.spawnSync, originalFetch = globalThis.fetch, fsRename = fs.renameSync;
+    const originalSpawn = childProcess.spawn, originalFetch = globalThis.fetch, fsRename = fs.renameSync;
+    let probe = runOwnedSyncChild;
     let supervisor = null, manifest = null, layout = null, configuration = null, desired = null, managerPromise = null;
     let armed = false, injected = 0, unverifiedStates = 0, foreignStates = 0, spawns = 0, complete = false, managerError = null;
     let resolveBarrier;
@@ -41,7 +42,7 @@ async function exercise(scenario) {
     const patches = [];
     const json = (file, value) => { fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 }); fs.writeFileSync(file, JSON.stringify(value) + '\n', { mode: 0o600 }); };
     const readManager = () => JSON.parse(fs.readFileSync(layout.manager_state_path, 'utf8'));
-    const birth = pid => { const r = originalSpawnSync('/bin/ps', ['-o', 'lstart=', '-o', 'command=', '-p', String(pid)], { encoding: 'utf8', timeout: 1500, env: { PATH: '/usr/bin:/bin' } }); return r.status === 0 ? digest(process.platform + ':' + pid + ':' + r.stdout.trim()) : null; };
+    const birth = pid => { const r = runOwnedSyncChild('/bin/ps', ['-o', 'lstart=', '-o', 'command=', '-p', String(pid)], { encoding: 'utf8', timeout: 1500, env: { PATH: '/usr/bin:/bin' } }); return r.status === 0 ? digest(process.platform + ':' + pid + ':' + r.stdout.trim()) : null; };
     const idle = role => {
         const child = originalSpawn(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { cwd: root, env: { PATH: path.dirname(process.execPath) }, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
         registerOwnedChild(owned, child, { label: 'manager-fixture-' + role });
@@ -62,6 +63,7 @@ async function exercise(scenario) {
             fs.writeFileSync(dest, fs.readFileSync(path.join(sourceRoot, rel)));
         }
         const core = await import(pathToFileURL(path.join(repositoryRoot, sources[1])));
+        await core.withCompanionProcessProbe((...args) => probe(...args), async () => {
         const environment = { HOME: home, PATH: path.dirname(process.execPath), AUGNES_COMPANION_SERVICE_TEST_MODE: '1', AUGNES_COMPANION_SERVICE_TEST_ROOT: root, AUGNES_COMPANION_SERVICE_TEST_SCOPE: 'identity-regression' };
         const options = { repositoryRoot, homeDirectory: home, environment, testScope: 'identity-regression' };
         layout = core.resolveCompanionServiceLayout(options);
@@ -72,7 +74,7 @@ async function exercise(scenario) {
         fs.mkdirSync(path.dirname(layout.launch_agent_path), { recursive: true, mode: 0o700 });
         fs.writeFileSync(layout.launch_agent_path, core.buildLaunchAgentPlist(configuration), { mode: 0o600 });
         if (scenario.startsWith('stopped-')) {
-            record = { ...record, ...await exerciseStopped({ scenario, core, layout, configuration, environment, desired, root, owned, patches, json, birth, originalSpawn, originalSpawnSync, fsRename }) };
+            record = { ...record, ...await exerciseStopped({ scenario, core, layout, configuration, environment, desired, root, owned, patches, json, birth, originalSpawn, setProbe: runner => { probe = runner; }, fsRename }) };
             return record;
         }
         const ui = idle('ui'), bridge = idle('bridge');
@@ -117,7 +119,7 @@ async function exercise(scenario) {
             }
             return supervisor;
         }));
-        patches.push(mock.method(childProcess, 'spawnSync', (command, args, opts) => {
+        probe = (command, args, opts) => {
             if (command === '/bin/launchctl')
                 throw Error('real_launchctl_forbidden');
             if (command === '/bin/ps' && args[0] === '-o' && args[1] === 'lstart=' && args.at(-1) === String(supervisor?.pid) && armed && pendingFaults > 0) {
@@ -127,16 +129,16 @@ async function exercise(scenario) {
                 if (scenario !== 'initial-unavailable')
                     armed = false;
                 if (['changed-witness', 'permanent-conflict'].includes(scenario)) {
-                    const result = originalSpawnSync(command, args, opts);
+                    const result = runOwnedSyncChild(command, args, opts);
                     return { ...result, stdout: result.stdout + ' changed-command-witness' };
                 }
                 return { pid: 0, status: null, signal: null, stdout: '', stderr: '', error: Object.assign(new Error('controlled probe unavailable'), { code: 'ETIMEDOUT' }) };
             }
-            const result = originalSpawnSync(command, args, opts);
+            const result = runOwnedSyncChild(command, args, opts);
             if (command === '/bin/ps' && args[1] === 'lstart=' && args.at(-1) === String(supervisor?.pid))
                 lastSupervisorObservation = result.status === 0 ? 'present' : 'unverified';
             return result;
-        }));
+        };
         const originalProcessKill = process.kill.bind(process);
         patches.push(mock.method(process, 'kill', (pid, signal) => {
             if (signal !== 0 && Math.abs(pid) === supervisor?.pid) {
@@ -259,6 +261,7 @@ async function exercise(scenario) {
             if (!['stop-unknown', 'maintenance-unknown'].includes(scenario)) assert.equal(signals.length, 0);
         }
         record.pass = true;
+        });
     }
     catch (e) {
         record = { ...record, pass: false, error: e.message };
@@ -297,7 +300,7 @@ async function exercise(scenario) {
     return record;
 }
 
-async function exerciseStopped({ scenario, core, layout, configuration, environment, desired, root, owned, patches, json, birth, originalSpawn, originalSpawnSync, fsRename }) {
+async function exerciseStopped({ scenario, core, layout, configuration, environment, desired, root, owned, patches, json, birth, originalSpawn, setProbe, fsRename }) {
     const [, entry, leaseKind] = scenario.split('-');
     const events = [];
     let spawns = 0, ownerObservations = 0, leaseReads = 0, replaced = false, managerError = null;
@@ -347,14 +350,14 @@ async function exerciseStopped({ scenario, core, layout, configuration, environm
     // remove a renewed or replaced record even when the owner fields match.
     const replacement = leaseKind === 'swapped' ? lease : { ...lease, expires_at: new Date(Date.parse(lease.expires_at) + 60_000).toISOString() };
     patches.push(mock.method(childProcess, 'spawn', () => { spawns++; throw Error('stopped_manager_must_not_spawn'); }));
-    patches.push(mock.method(childProcess, 'spawnSync', (command, args, opts) => {
+    setProbe((command, args, opts) => {
         assert.notEqual(command, '/bin/launchctl', 'manager fixture must not control launchd');
         if (command === '/bin/ps' && args[1] === 'lstart=' && args.at(-1) === String(leaseOwner)) {
             ownerObservations++;
             if (leaseKind === 'unavailable') return { status: null, stdout: '', stderr: '', error: Object.assign(Error('controlled unavailable owner observation'), { code: 'ETIMEDOUT' }) };
         }
-        return originalSpawnSync(command, args, opts);
-    }));
+        return runOwnedSyncChild(command, args, opts);
+    });
     const read = fs.readFileSync;
     patches.push(mock.method(fs, 'readFileSync', (file, ...args) => {
         if (file === layout.maintenance_lease_path) {

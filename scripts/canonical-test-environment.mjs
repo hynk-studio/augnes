@@ -1,3 +1,4 @@
+import { inheritSelectedExecutionEnvironment, isSelectedExecutionEnvironmentKey } from "./local-canonical-selected-execution.mjs";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { closeSync, constants, fchmodSync, fstatSync, lstatSync, mkdirSync, mkdtempSync, openSync, readdirSync, realpathSync, rmdirSync, unlinkSync } from "node:fs";
@@ -251,7 +252,7 @@ export function buildCanonicalChildEnvironment({
     environment[key] = value;
   }
 
-  return environment;
+  return inheritSelectedExecutionEnvironment(ambientEnvironment, environment);
 }
 
 export function findForbiddenAmbientKeysForwarded({
@@ -272,6 +273,7 @@ export function findForbiddenAmbientKeysForwarded({
         !allowedAmbientKeys.has(key) &&
         !CANONICAL_CHILD_OWNED_ENVIRONMENT_KEYS.has(key) &&
         !explicitStepKeys.has(key) &&
+        !isSelectedExecutionEnvironmentKey(key) &&
         Object.hasOwn(ambientEnvironment, key),
     )
     .sort();

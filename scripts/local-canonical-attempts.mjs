@@ -1,6 +1,6 @@
 import { mkdirSync, lstatSync, readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
+import { selectedGitOutput } from "./local-canonical-selected-git.mjs";
 import { digest } from "./local-canonical-inputs.mjs";
 import { assertCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
 import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
@@ -177,7 +177,7 @@ function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree,
       !(proof.schema === "augnes.local-canonical-source-correction.v2" ?
         (proof.kind === "verifier_correction" ? ["safety_violation", "input_invalidation"] : proof.kind === "accepted_main_integration" ? ["completed_success"] : ["completed_success", "product_failure", "user_cancellation"]) :
         ["product_failure", "user_cancellation"]).includes(completion.disposition)) throw fail("source_correction_predecessor_invalid");
-  const git = args => execFileSync("git", args, { cwd: repositoryRoot, timeout: 10000, maxBuffer: 16 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] });
+  const git = args => selectedGitOutput(repositoryRoot, args, { cwd: repositoryRoot, timeout: 10000, maxBuffer: 16 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] });
   git(["merge-base", "--is-ancestor", prior.head, head]);
   if (git(["rev-parse", `${head}^{tree}`]).toString().trim() !== tree) throw fail("source_correction_source_mismatch");
   if (proof.schema === "augnes.local-canonical-source-correction.v2") {

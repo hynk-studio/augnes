@@ -102,15 +102,24 @@ last read, and the later merge-time TOCTOU boundary remains unclosed here.
 ## Isolated verification on the authorized Mac
 
 Create a task-owned Git worktree registered to `/Users/hynk/code/augnes` from
-the intended candidate, then invoke its own executor from that checkout:
+the intended candidate, then invoke its own executor directly with the exact
+Canonical Node executable from that checkout:
 
 ```bash
-npm run verify:local:changed -- --checkout-context isolated-worktree \
+node scripts/run-local-canonical-verification.mjs changed \
+  --checkout-context isolated-worktree \
   --base <exact-40-character-base-sha> --head <exact-40-character-head-sha>
 ```
 
 The same explicit context option is supported by Quick, Full and receipt
-validation. There is no caller-supplied canonical anchor or arbitrary path
+validation. For this selected isolated path, use the direct Node entry with
+`quick`, `full` or `validate` as appropriate; an inherited npm lifecycle refuses.
+The ordinary npm aliases above retain their canonical-checkout behavior. The
+initial shell, Node bootstrap and operating-system loader precede the selector;
+detected Node preload/loader overrides refuse, but earlier execution cannot be
+undone. No bootstrap or platform sandbox is claimed.
+
+There is no caller-supplied canonical anchor or arbitrary path
 qualification. Admission resolves the physical checkout, exact origin, common
 Git directory, registered worktree entry and backlink to the authorized Mac
 checkout. Nested roots, path aliases, unregistered clones and non-Mac isolated
@@ -130,6 +139,38 @@ own nested resources, browser profiles, loopback listeners and verified process
 trees. On macOS the outer resource owner uses the system short temporary root,
 keeping nested Unix-domain IPC paths within the existing platform limit. No
 writable dependency or build tree is borrowed from another lane.
+
+The isolated controller initializes a source-selected execution context before
+repository identity, planner and tool reads. Exact resolved tools, generated
+dispatchers, empty user/global npm config, the package shell and the source Git
+read view are bound through the existing child environment owners. Descendants
+reconstruct selected keys from the validated manifest. npm uses selected Node
+and the selected CLI with a closed source-owned argument set. Python starts with
+`-E -s -S`; its source-owned dispatcher keeps `sys.executable` recursion on the
+same selected launcher, including node-gyp discovery. Unsupported Python shapes
+or script roots refuse. The exact nested `npm run typegen` is selected, and Browser
+minimal environments forward the validated capability and ledger. At the actual
+npm lifecycle shell, selected dispatchers and checkout-
+contained package `.bin` directories precede the selected npm node-gyp helper and
+fixed system directories; outside ancestor bins and shell/Node startup overrides
+are excluded. The shell retains existing asynchronous child ownership. Selected
+Node headers and fixed native-helper executables are declared inputs. The bounded
+read-only npm package-tree inventory binds regular-file
+contents and metadata plus internal symlink targets; unsafe aliases, outside
+targets, missing entries, races or exceeded bounds refuse. Its limits are
+10,000 entries, 100 MiB and depth 64, with a full rehash at every observation.
+
+The source Git view freezes generated config, source HEAD/refs and index while
+retaining the admitted shared object source. Account config is not copied. Live
+origin, registration, source identity and config safety remain checked; includes,
+external helpers and unsupported layouts refuse. The authenticated `gh` read
+keeps a separate explicit live transport environment and never forwards its
+credentials to phases. Managed authority, auth-location safety and installed
+Companion preservation remain blocking live inputs. Fixed system helpers and
+native/OS libraries remain platform dependencies. The
+[source-consumer map](../docs/LOCAL_CANONICAL_INPUT_CONTRACT.md) and its checked-in
+inventory bind the reviewed workload; an unknown command or changed inventory
+refuses without automatically refreshing the map.
 
 When the authority phase is selected, the executor copies only its five existing
 migrated historical runs and their two authorization-consumption directories
@@ -614,6 +655,40 @@ counts toward the five-directory bound; only the remaining slots use newest-firs
 retention. Refused checkout acquisition creates no phase-log directory and still
 writes a failed-attempt receipt.
 
+For source-selected execution, the final forced input observation and evidence
+retention precede private-resource cleanup. The checkout owner exclusively
+creates mode-0400 copies of permitted non-secret generated inputs with original
+execution-byte hashes, logical source recipes, physical identities and exact
+source/executor/plan/consumer bindings. These local artifacts remain under the
+protected run log directory. Receipt descriptors omit their private paths and
+contents. A fresh reader must verify the retained complete inventory; missing
+files cannot be substituted with newly generated equivalents.
+
+The existing owned-child lifecycle also retains an append-only start and
+settled-or-UNKNOWN inventory independently of the 2 MiB phase-log cap. It is
+bounded to 64 MiB and 131,072 registrations to include repeated bounded source/tool
+observations; saturation refuses without truncation. The receipt carries hashes and counts,
+and cold stock reads the retained file. Missing terminals, duplicate/conflicting
+events, unreadable or ambiguous process snapshots and incomplete settlement
+refuse. Callback failures after spawn still require bounded settlement. Explicit
+negative fixtures retain their own UNKNOWN evidence and do not excuse an
+unsettled enclosing child. This records registered children; source audit must
+still account for unregistered launchers and the asynchronous spawn-to-registration
+interval. Audited suite and historical-fixture synchronous calls explicitly use
+the existing lifecycle owner's adapters; there is no global Node interception.
+Selected synchronous Git, version, transport, permission-reader and
+supported ownership/Companion-observation calls register before
+dispatch with their bounded timeout and a detached POSIX group. Original timeout
+and failure results remain failures even when settlement completes. A remaining
+group or ambiguous observation records UNKNOWN without signaling unverified
+processes. After synchronous direct-child exit, signal zero probes only its
+detached group: `ESRCH` proves the group absent; success requires the existing
+bounded `/bin/ps` snapshot, while `EPERM` or other probe errors refuse as UNKNOWN.
+Asynchronous ownership and cleanup are unchanged. Fixed bounded `/bin/ps`
+inspection (including checkout birth/ownership observation) is the executable-bound
+snapshot primitive, not a
+recursively registered child; process-group escape remains a source-audit limit.
+
 The public-safe receipt includes:
 
 - schema and receipt version;
@@ -638,6 +713,8 @@ The public-safe receipt includes:
 - executor version, source-file inventory, and source SHA-256 fingerprint;
 - versioned execution-input classification, source tree and selected-input
   bindings, bounded observations, first fault and separate outcome dimensions;
+- when source-selected execution is present, retained generated-input descriptors
+  and the complete registered-child lifecycle evidence binding;
 - append-only attempt lineage and any substantiated infrastructure repair;
 - actual Browser executable identity at launch/settlement and agreeing owned
   HTTP/CDP runtime version for every actual consumer, including integration and
@@ -668,6 +745,13 @@ before the first phase. Its fingerprint binds declared source/tree, executor,
 selected environment and phase inventory. Isolated children still use the
 existing strict environment filter and private HOME/temp/cache/database/runtime.
 Neither private HOME nor a configuration key's name alone establishes exclusion.
+The optional selected-execution binding requires its retained source-derived
+input evidence and owned-child inventory. Fresh stock rebuilds current logical
+selection and re-observes live authorities while independently reading the
+historical retained bytes. Runtime cleanup is therefore distinct from evidence
+validity. Missing or tampered retention, current authority changes and unknown
+consumer coverage block acceptance. Legacy receipts without this binding keep
+their prior interpretation; no old receipt gains these guarantees retroactively.
 
 Execution inputs, safety resources, proven non-consumed ambient context and
 unknown relevance have different dispositions. On the audited isolated
@@ -691,6 +775,14 @@ Missing/incoherent evidence, unsafe resolution, content or consumed/safety
 identity changes still refuse. The observer, Browser-use reader and stock reader
 share this role rule. It is never a write or cleanup target. This does not relax the single-link requirement
 for configuration, mutable resources, evidence or cleanup paths.
+Permission readers are ledgered synchronous children. Their bounded memory cache
+reuses a fingerprint only when physical path, device/inode, mode, owner/group,
+link count, size and exact mtime/ctime match; metadata changes re-probe, and forced
+closeout probes before and after the content read. This is a polling optimization
+with the same transient/hostile-metadata-restoration limit, not a safety exemption.
+The optional `readOnlyTree` role is an execution input with complete content and
+metadata comparison; it has no incidental-executable or ambient exclusion.
+Unflagged v2 resources retain their existing rules.
 Integer nanosecond metadata stays exact. Observation intervals are not exact
 write times, writer attribution is separate, and polling cannot prove absence
 of transient writes between observations. Large executables use exact metadata
@@ -782,6 +874,16 @@ not replace the accepted Full workload or independent source/evidence review.
 The candidate cannot exempt its own tests. Existing historical failures,
 cancellations and preservation exceptions are never promoted by this contract.
 
+The #1530 source-selected-input implementation is scoped here to source review
+and disposable development controls. Production admission/reservation, deciding
+Full execution and production stock qualification are NOT_RUN in that slice.
+The accepted Full workload, seven Browser phases, all child/phase deadlines and
+two integration lanes remain unchanged. The held #1536 observer family stays
+exhausted. A later lawful qualification requires separately authorized execution
+in a coordinated bounded current-main window; source correction, new wrappers or
+green controls neither reserve that window nor grant another attempt or merge
+authority.
+
 Validate a receipt against the current repository:
 
 ```bash
@@ -790,7 +892,7 @@ npm run verify:local:receipt -- \
 ```
 
 For an isolated receipt, include `--checkout-context isolated-worktree` and run
-validation from its original admitted checkout. Copying a receipt to another lane
+the direct Node `validate` entry from its original admitted checkout. Copying a receipt to another lane
 cannot qualify that lane, even when source commits match.
 
 Validation exits nonzero unless the receipt is currently valid deciding

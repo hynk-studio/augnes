@@ -17,7 +17,7 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
-import { spawnSync } from "node:child_process";
+import { selectedGitResult } from "./local-canonical-selected-git.mjs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
@@ -950,8 +950,8 @@ function runCanonicalRevisionReaderCases() {
   results.push("revision-reader-real-git-bytes-modes-literal-paths-both-revisions-and-repositories");
 
   const objects = [reader.tree(before).get(literal), reader.tree(after).get(literal)];
-  const raw = spawnSync("git", ["cat-file", "--batch"], {
-    cwd: repository.cwd, input: objects.map(entry => entry.oid + "\n").join(""),
+  const raw = selectedGitResult(repository.cwd, ["cat-file", "--batch"], {
+    input: objects.map(entry => entry.oid + "\n").join(""),
     timeout: 30_000, maxBuffer: 8 * 1024 * 1024,
   });
   assert.equal(raw.status, 0, raw.stderr.toString());
@@ -1038,16 +1038,16 @@ function runCanonicalRevisionPathEncodingCases() {
     const replacement = "docs/a\uFFFD.md";
     assert.notDeepEqual(rawPath, Buffer.from(replacement));
     const oid = git(repository.cwd, ["rev-parse", `${after}:${files[0]}`]).trim();
-    const indexed = spawnSync("git", ["update-index", "-z", "--index-info"], {
-      cwd: repository.cwd, timeout: 30_000, maxBuffer: 8 * 1024 * 1024,
+    const indexed = selectedGitResult(repository.cwd, ["update-index", "-z", "--index-info"], {
+      timeout: 30_000, maxBuffer: 8 * 1024 * 1024,
       input: Buffer.concat([Buffer.from(`100644 ${oid}\t`), rawPath, Buffer.from([0])]),
     });
     assert.ifError(indexed.error);
     assert.equal(indexed.status, 0, indexed.stderr.toString());
     git(repository.cwd, ["commit", "--quiet", "-m", "raw non-UTF-8 Git path"]);
     const invalid = git(repository.cwd, ["rev-parse", "HEAD"]).trim();
-    const listing = spawnSync("git", ["ls-tree", "-r", "-z", invalid], {
-      cwd: repository.cwd, timeout: 30_000, maxBuffer: 8 * 1024 * 1024,
+    const listing = selectedGitResult(repository.cwd, ["ls-tree", "-r", "-z", invalid], {
+      timeout: 30_000, maxBuffer: 8 * 1024 * 1024,
     });
     assert.ifError(listing.error);
     assert.equal(listing.status, 0, listing.stderr.toString());
@@ -1640,8 +1640,7 @@ function commitAll(cwd, message) {
 }
 
 function git(cwd, args) {
-  const result = spawnSync("git", args, {
-    cwd,
+  const result = selectedGitResult(cwd, args, {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
   });

@@ -99,6 +99,14 @@ def consume(entry_url):
     executable = downloads / release["entrypoint"]
     dependency = downloads / "exact_linear.py"
     environment = {key: os.environ[key] for key in ("PATH", "HOME", "TMPDIR", "LANG") if key in os.environ}
+    # Keep only the parent's nonsecret selected execution capability. The
+    # private interpreter dispatcher verifies it before a downloaded consumer
+    # starts; ordinary external use retains the original minimal environment.
+    for key in ("AUGNES_CANONICAL_SELECTED_INPUTS", "AUGNES_CANONICAL_SELECTED_INPUTS_SHA256",
+                "AUGNES_CANONICAL_CHILD_LEDGER_PATH", "AUGNES_CANONICAL_CHILD_LEDGER_IDENTITY",
+                "AUGNES_CANONICAL_CHILD_LEDGER_ANCESTORS", "AUGNES_CANONICAL_TEMP_ROOT"):
+        if key in os.environ:
+            environment[key] = os.environ[key]
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
 
     def run(arguments, verbose=False):

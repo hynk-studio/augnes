@@ -133,6 +133,10 @@ export function assertPublicSafeReceipt(receipt) {
 export function inspectReceiptForDecision(receipt, options = {}) {
   const {
     currentInputStateValid = null,
+    currentRetainedInputEvidence = null,
+    currentRetainedChildEvidence = null,
+    currentSafetyStateValid = null,
+    currentObservationUnavailable = null,
     currentAttemptRecordsValid = null,
     currentIdentity = null,
     currentLocks = null,
@@ -608,8 +612,24 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     inspectClassifiedEvidence(receipt, issues);
     if (currentAttemptRecordsValid !== true) issues.push("receipt_attempt_records_unverified");
     if (currentInputStateValid !== true) issues.push("receipt_current_inputs_unverified");
+    if (receipt.inputs?.binding?.selected_execution) {
+      if (!validRetainedObservation(currentRetainedInputEvidence)) issues.push("receipt_retained_input_evidence_invalid");
+      if (!validRetainedObservation(currentRetainedChildEvidence)) issues.push("receipt_retained_child_evidence_invalid");
+      if (currentSafetyStateValid !== true) issues.push(currentSafetyStateValid === false ? "receipt_current_safety_changed" : "receipt_current_safety_unverified");
+    }
   }
-  const applicabilityCodes = new Set(["receipt_stale_integration_base", "receipt_current_integration_base_unavailable", "receipt_current_integration_base_invalid", "receipt_stale_head", "receipt_current_worktree_dirty", "receipt_stale_branch_state", "receipt_current_inputs_unverified"]);
+  const applicabilityCodes = new Set(["receipt_stale_integration_base", "receipt_current_integration_base_unavailable", "receipt_current_integration_base_invalid", "receipt_stale_head", "receipt_current_worktree_dirty", "receipt_stale_branch_state", "receipt_current_inputs_unverified", "receipt_current_safety_changed", "receipt_current_safety_unverified"]);
+  const selectedEvidence = Boolean(receipt?.receipt_version === 4 && receipt.inputs?.binding?.selected_execution);
+  const currentUnavailable = selectedEvidence && currentObservationUnavailable?.contract === "augnes.local-canonical-current-observation-unavailable.v1" &&
+    ["selected_bootstrap", "selected_current_observation", "selected_cleanup"].includes(currentObservationUnavailable.stage) &&
+    /^[a-z][a-z0-9_]{0,99}$/u.test(currentObservationUnavailable.reason_code ?? "");
+  if (currentUnavailable) issues.push("receipt_current_observation_unavailable");
+  if (selectedEvidence) for (const code of ["receipt_stale_origin", "receipt_stale_lockfiles", "receipt_stale_executor", "receipt_stale_plan",
+    "receipt_stale_owners", "receipt_stale_targeted_phases", "receipt_stale_environment", "receipt_phase_inventory_mismatch",
+    "receipt_stale_verification_context", "receipt_stale_checkout_identity", "receipt_current_observation_unavailable"]) applicabilityCodes.add(code);
+  const recordedContextUnverified = currentUnavailable && currentAttemptRecordsValid === null;
+  const historicalIssues = issues.filter(code => !applicabilityCodes.has(code) && !(recordedContextUnverified && code === "receipt_attempt_records_unverified"));
+  const currentSafety = selectedEvidence && currentSafetyStateValid !== true ? currentSafetyStateValid === false ? "blocked_current_state" : "unknown_current_state" : null;
   return {
     valid_deciding_evidence: issues.length === 0,
     status: issues.length === 0 ? "valid" : "non_deciding_or_stale",
@@ -617,13 +637,60 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     dimensions: {
       execution: phases.every(p => p?.status === "pass" && p?.exit_status === 0 && !p?.timed_out) && phases.length > 0 ? "complete_pass" : "incomplete_or_failed",
       historical_integrity: verifyReceiptIntegrity(receipt) ? "intact" : "invalid",
-      evidence_validity: issues.filter(code => !applicabilityCodes.has(code)).length === 0 ? "valid_in_recorded_context" : "invalid_or_incomplete",
-      safety: receipt?.receipt_version === 4 ? receipt?.outcome?.safety ?? "unknown" : "legacy_recorded_scope",
+      evidence_validity: historicalIssues.length ? "invalid_or_incomplete" : recordedContextUnverified ? "unverified_recorded_context" : "valid_in_recorded_context",
+      safety: currentSafety ?? (selectedEvidence && !validRetainedObservation(currentRetainedChildEvidence) ? "unknown_recorded_scope" :
+        receipt?.receipt_version === 4 ? receipt?.outcome?.safety ?? "unknown" : "legacy_recorded_scope"),
       current_merge_applicability: issues.some(code => applicabilityCodes.has(code)) ? "blocked" : "matches_observed_context",
     },
     content_fingerprint:
       receipt?.integrity?.content_fingerprint ?? null,
   };
+}
+
+function validRetainedObservation(observation) {
+  return observation?.valid === true && Array.isArray(observation.reason_codes) && observation.reason_codes.length === 0;
+}
+
+function validRetainedIdentity(value, { directory = false } = {}) {
+  const keys = ["dev", "ino", "uid", "gid", "mode", "nlink", "size", "mtimeNs", "ctimeNs"];
+  return value && Object.keys(value).sort().join() === [...keys].sort().join() &&
+    keys.every(key => typeof value[key] === "string" && /^\d+$/u.test(value[key])) &&
+    Number(value.mode) === (directory ? 0o40700 : 0o100400) &&
+    (directory || value.nlink === "1");
+}
+
+function selectedBinding(receipt) {
+  return { head: receipt.repository?.head_sha, tree: receipt.repository?.tree_sha,
+    executor_fingerprint: receipt.executor?.source_fingerprint, plan_fingerprint: receipt.inputs?.binding?.phase_inventory,
+    consumer_map_fingerprint: receipt.inputs?.binding?.selected_execution?.consumer_map_fingerprint };
+}
+
+function validSelectedDescriptor(receipt) {
+  const selected = receipt.selected_inputs, expected = selectedBinding(receipt);
+  if (![expected.executor_fingerprint, expected.plan_fingerprint, expected.consumer_map_fingerprint].every(value => SHA256_PATTERN.test(value ?? "")) ||
+      receipt.inputs?.binding?.selected_execution?.contract !== "augnes.local-canonical-selected-execution.v1" ||
+      selected?.contract !== "augnes.local-canonical-selected-input-evidence.v1" || selected.run_id !== receipt.run?.id ||
+      canonicalSerialize(selected.binding) !== canonicalSerialize(expected) || selected.binding_fingerprint !== digest(expected) ||
+      !SHA256_PATTERN.test(selected.manifest_sha256 ?? "") || !validRetainedIdentity(selected.manifest_identity) ||
+      !validRetainedIdentity(selected.directory_identity, { directory: true }) || !Array.isArray(selected.resources) ||
+      !selected.resources.length || selected.resources.length > 32 || selected.resources_fingerprint !== digest(selected.resources) ||
+      new Set(selected.resources.map(resource => resource?.id)).size !== selected.resources.length) return false;
+  return selected.resources.every(resource => resource && /^[A-Za-z0-9_-]{1,160}$/u.test(resource.id ?? "") &&
+    ["generated-git-config", "empty-config", "empty-npm-config", "source-git-head", "source-git-ref", "source-git-packed-refs", "source-git-index", "selected-execution-manifest", "generated-wrapper-recipe", "generated-execution-wrapper"].includes(resource.kind) &&
+    SHA256_PATTERN.test(resource.actual_execution_sha256 ?? "") && resource.sha256 === resource.actual_execution_sha256 &&
+    SHA256_PATTERN.test(resource.logical_sha256 ?? "") && Number.isSafeInteger(resource.size) && resource.size >= 0 && resource.size <= 2 * 1024 * 1024 &&
+    receipt.inputs.resources.some(input => input.id === resource.id && input.classification === "execution" && input.before?.sha256 === resource.actual_execution_sha256));
+}
+
+function validChildDescriptor(receipt) {
+  const child = receipt.owned_children, expected = selectedBinding(receipt);
+  return child?.contract === "augnes.local-canonical-retained-child-lifecycle.v1" && child.run_id === receipt.run?.id &&
+    canonicalSerialize(child.binding) === canonicalSerialize(expected) && child.binding_fingerprint === digest(expected) &&
+    SHA256_PATTERN.test(child.content_sha256 ?? "") && SHA256_PATTERN.test(child.original_identity_fingerprint ?? "") &&
+    SHA256_PATTERN.test(child.inventory_fingerprint ?? "") && validRetainedIdentity(child.retained_identity) &&
+    validRetainedIdentity(child.directory_identity, { directory: true }) && Number.isSafeInteger(child.bytes) && child.bytes > 0 && child.bytes <= 64 * 1024 * 1024 &&
+    Number.isSafeInteger(child.started_count) && child.started_count > 0 && child.started_count <= 131072 &&
+    child.settled_count === child.started_count && child.unknown_count === 0 && child.complete === true;
 }
 
 function inspectClassifiedEvidence(receipt, issues) {
@@ -647,6 +714,7 @@ function inspectClassifiedEvidence(receipt, issues) {
         event.identity !== digest([event.resource, event.disposition, event.after])) issues.push("receipt_input_event_invalid");
   }
   if (input.resources.some(r => r.readOnlyExecutable && (r.classification !== "execution" || r.metadataOnly || r.excludePreferences))) issues.push("receipt_input_role_invalid");
+  if (input.resources.some(r => r.readOnlyTree && (r.classification !== "execution" || r.metadataOnly || r.excludePreferences || r.readOnlyExecutable))) issues.push("receipt_input_role_invalid");
   const environments = input.binding?.phase_environment_fingerprints;
   if (!Array.isArray(environments) || !environments.every(e => e && typeof e === "object") || environments.length !== receipt.phases.length ||
       new Set(environments.map(e => e.id)).size !== environments.length || receipt.phases.some(p => !environments.some(e =>
@@ -654,7 +722,11 @@ function inspectClassifiedEvidence(receipt, issues) {
     issues.push("receipt_phase_environment_binding_invalid");
   if (input.resources.some(r => r.excludePreferences && (input.path_kind !== "isolated-model-free-v1" || r.classification !== "ambient"))) issues.push("receipt_input_exclusion_invalid");
   if (new Set(input.resources.map(r => r.id)).size !== input.resources.length ||
-      ["codex-preferences", "user-instructions", "auth-location", "git-config", "node-executable"].some(id => !input.resources.some(r => r.id === id))) issues.push("receipt_input_inventory_invalid");
+      ["codex-preferences", "user-instructions", "auth-location", ...(input.binding?.selected_execution ? [] : ["git-config"]), "node-executable"].some(id => !input.resources.some(r => r.id === id))) issues.push("receipt_input_inventory_invalid");
+  if (input.binding?.selected_execution) {
+    if (input.path_kind !== "isolated-model-free-v1" || !validSelectedDescriptor(receipt)) issues.push("receipt_selected_input_evidence_invalid");
+    if (!validChildDescriptor(receipt)) issues.push("receipt_owned_child_evidence_invalid");
+  }
   const attempt = receipt.attempt;
   if (receipt.evidence.mode !== "quick" && (attempt?.contract !== ATTEMPT_CONTRACT || ![1, 2].includes(attempt.number) ||
       attempt.attempt_id !== receipt.run.id || attempt.head !== receipt.repository.head_sha || attempt.tree !== receipt.repository.tree_sha ||

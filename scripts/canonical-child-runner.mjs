@@ -48,6 +48,7 @@ export async function runCanonicalChild({
   stderr = process.stderr,
   log = (line) => console.log(line),
   onSpawn = () => {},
+  onLifecycle,
   resourceOwner,
   signal = undefined,
 }) {
@@ -70,13 +71,17 @@ export async function runCanonicalChild({
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true,
   });
-  const record = registerOwnedChild(owner, child, { label: safeLabel });
-  onSpawn(record.pid);
-  log(
-    `[canonical:${safeSuite}] child_spawn label=${JSON.stringify(safeLabel)} pid=${record.pid ?? "unavailable"} wait=process_exit`,
-  );
-  child.stdout.on("data", (chunk) => stdout.write(chunk));
-  child.stderr.on("data", (chunk) => stderr.write(chunk));
+  const record = registerOwnedChild(owner, child, { label: safeLabel, onLifecycle });
+  let observerFailure;
+  let failObserver;
+  const observerOutcome = new Promise(resolve => {
+    failObserver = error => { observerFailure ??= error; resolve({ kind: "observer_failed" }); };
+  });
+  const observe = callback => {
+    try { callback(); } catch (error) { failObserver(error); }
+  };
+  child.stdout.on("data", (chunk) => observe(() => stdout.write(chunk)));
+  child.stderr.on("data", (chunk) => observe(() => stderr.write(chunk)));
 
   let timedOut = false;
   let cancelled = false;
@@ -93,9 +98,9 @@ export async function runCanonicalChild({
   });
   if (heartbeatMs > 0) {
     heartbeat = setInterval(() => {
-      log(
+      observe(() => log(
         `[canonical:${safeSuite}] child_active label=${JSON.stringify(safeLabel)} elapsed_ms=${Date.now() - startedAt} timeout_ms=${timeoutMs} exit_observed=${record.exited} stdout_closed=${record.stdoutClosed} stderr_closed=${record.stderrClosed} wait=${record.exited ? "stream_close_or_cleanup" : "process_exit"}`,
-      );
+      ));
     }, heartbeatMs);
   }
 
@@ -110,12 +115,19 @@ export async function runCanonicalChild({
   };
   let terminationReason = "natural_exit";
   try {
+    // Every callback after registration is inside the settlement boundary.
+    onSpawn(record.pid);
+    log(
+      `[canonical:${safeSuite}] child_spawn label=${JSON.stringify(safeLabel)} pid=${record.pid ?? "unavailable"} wait=process_exit`,
+    );
     outcome = await Promise.race([
       record.exitPromise.then((value) => ({ kind: "exited", value })),
       record.closePromise.then((value) => ({ kind: "closed", value })),
       timeoutOutcome,
       cancellation,
+      observerOutcome,
     ]);
+    if (outcome.kind === "observer_failed") throw observerFailure;
     if (outcome.kind === "timeout" || outcome.kind === "cancelled") {
       timedOut = outcome.kind === "timeout";
       cancelled = outcome.kind === "cancelled";
@@ -172,6 +184,20 @@ export async function runCanonicalChild({
         `[canonical:${safeSuite}] child_cleanup_result label=${JSON.stringify(safeLabel)} elapsed_ms=${Date.now() - startedAt} reason=post_close_settlement term_sent=${cleanupResult.term_sent} kill_sent=${cleanupResult.kill_sent} streams_closed=${cleanupResult.stdout_closed && cleanupResult.stderr_closed} remaining_owned_processes=${cleanupResult.remaining_owned_processes}`,
       );
     }
+  } catch (error) {
+    // Preserve the original failure; callback failure does not abandon a child.
+    // An already UNKNOWN settlement is retained without a hidden cleanup retry.
+    if (!record.lifecycleTerminal) {
+      try { await terminateOwnedProcessTree(record, { termGraceMs, killGraceMs }); }
+      catch (cleanupError) { error.cleanup_failure_code = safeIdentifier(cleanupError?.code, "owned_process_cleanup_unknown"); }
+    }
+    error.owned_child_lifecycle = record.lifecycleTerminal;
+    error.owned_child_lifecycle_start = record.lifecycleStart;
+    if (resourceOwner && record.lifecycleTerminal?.event === "settled")
+      settleCanonicalTestResourceUse(resourceOwner, {
+        exit_observed: true, streams_closed: true, cleanup_completed: true, remaining_owned_processes: 0,
+      });
+    throw error;
   } finally {
     clearTimeout(timeout);
     clearInterval(heartbeat);
@@ -195,12 +221,21 @@ export async function runCanonicalChild({
     cleanup_completed: record.closed,
     remaining_owned_processes: cleanupResult.remaining_owned_processes,
     termination_reason: terminationReason,
+    owned_child_lifecycle: record.lifecycleTerminal,
+    owned_child_lifecycle_start: record.lifecycleStart,
   };
-  log(
-    `[canonical:${safeSuite}] child_result label=${JSON.stringify(safeLabel)} duration_ms=${durationMs} exit_code=${result.exit_code ?? "null"} signal=${result.signal ?? "null"} timed_out=${timedOut} exit_observed=${result.exit_observed} streams_closed=${result.streams_closed} cleanup_completed=${result.cleanup_completed} remaining_owned_processes=${result.remaining_owned_processes ?? "unknown"} termination_reason=${result.termination_reason}`,
-  );
   if (resourceOwner && result.exit_observed && result.streams_closed && result.cleanup_completed && result.remaining_owned_processes === 0)
     settleCanonicalTestResourceUse(resourceOwner, result);
+  try {
+    if (observerFailure) throw observerFailure;
+    log(
+      `[canonical:${safeSuite}] child_result label=${JSON.stringify(safeLabel)} duration_ms=${durationMs} exit_code=${result.exit_code ?? "null"} signal=${result.signal ?? "null"} timed_out=${timedOut} exit_observed=${result.exit_observed} streams_closed=${result.streams_closed} cleanup_completed=${result.cleanup_completed} remaining_owned_processes=${result.remaining_owned_processes ?? "unknown"} termination_reason=${result.termination_reason}`,
+    );
+  } catch (error) {
+    error.owned_child_lifecycle = record.lifecycleTerminal;
+    error.owned_child_lifecycle_start = record.lifecycleStart;
+    throw error;
+  }
   return result;
 }
 

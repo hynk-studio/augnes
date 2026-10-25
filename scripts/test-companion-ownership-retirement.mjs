@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
-import childProcess, { spawn, spawnSync } from "node:child_process";
-import { syncBuiltinESMExports } from "node:module";
-import { mock } from "node:test";
+import { spawn } from "node:child_process";
+import { ownedSpawnSync as spawnSync, runOwnedSyncChild } from "./test-harness-process-lifecycle.mjs";
 import { createHash, randomUUID } from "node:crypto";
 import { once } from "node:events";
 import fs from "node:fs";
@@ -11,6 +10,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import * as core from "../plugins/augnes-operator/mcp/companion-service-core.mjs";
 import { registerOwnedChild, cleanupOwnedProcesses } from "./test-harness-process-lifecycle.mjs";
+import { inheritSelectedExecutionEnvironment } from "./local-canonical-selected-execution.mjs";
 const hash = value => createHash("sha256").update(value).digest("hex");
 const json = (file, value) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, JSON.stringify(value) + "\n", { mode: 0o600 }); };
 const read = file => JSON.parse(fs.readFileSync(file, "utf8"));
@@ -39,6 +39,7 @@ process.send({port:health.address().port,ownership_port:ownership.address().port
 // The live supervisor predates that entry and has no retained manager reference.
 const managerSource = `
 import {spawn} from 'node:child_process';
+import {runOwnedSyncChild} from ${JSON.stringify(new URL("./test-harness-process-lifecycle.mjs", import.meta.url).href)};
 import fs from 'node:fs';
 import {mock} from 'node:test';
 import {syncBuiltinESMExports} from 'node:module';
@@ -51,7 +52,7 @@ const rename=fs.renameSync;let announced=false;
 mock.method(fs,'renameSync',(a,b)=>{rename(a,b);if(b===state&&!announced&&JSON.parse(fs.readFileSync(b)).reason==='companion_service_foreign_runtime_conflict'){announced=true;process.send({conflict:true});}});
 syncBuiltinESMExports();
 const core=await import(pathToFileURL(root+'/plugins/augnes-operator/mcp/companion-service-core.mjs'));
-process.exitCode=await core.runCompanionServiceManager({configurationPath:config});
+process.exitCode=await core.withCompanionProcessProbe(runOwnedSyncChild,()=>core.runCompanionServiceManager({configurationPath:config}));
 process.disconnect();
 `;
 async function fixture({ laterAttemptExit = false } = {}) {
@@ -67,7 +68,7 @@ async function fixture({ laterAttemptExit = false } = {}) {
     fs.writeFileSync(path.join(repositoryRoot, "scripts/augnes-runtime-supervisor.mjs"), "setInterval(()=>{},1000);\n");
     fs.writeFileSync(path.join(root, "child.mjs"), childSource);
     fs.writeFileSync(path.join(root, "manager.mjs"), managerSource);
-    const environment = { HOME: home, PATH: path.dirname(process.execPath), AUGNES_COMPANION_SERVICE_TEST_MODE: "1", AUGNES_COMPANION_SERVICE_TEST_ROOT: root, AUGNES_COMPANION_SERVICE_TEST_SCOPE: "ownership-retirement" };
+    const environment = inheritSelectedExecutionEnvironment(process.env, { HOME: home, PATH: path.dirname(process.execPath), AUGNES_COMPANION_SERVICE_TEST_MODE: "1", AUGNES_COMPANION_SERVICE_TEST_ROOT: root, AUGNES_COMPANION_SERVICE_TEST_SCOPE: "ownership-retirement" });
     const options = { repositoryRoot, homeDirectory: home, environment, testScope: "ownership-retirement" };
     const layout = core.resolveCompanionServiceLayout(options);
     const configuration = { contract: core.COMPANION_SERVICE_CONTRACT, schema_version: 2, manager_version: 1, service_label: layout.service_label, service_identity: layout.service_identity, repository_root: repositoryRoot, repository_fingerprint: layout.repository.repository_fingerprint, repository_device: layout.repository.device, repository_inode: layout.repository.inode, repository_identity: layout.repository.durable_identity, node_path: process.execPath, node_version: process.version, manager_entry_path: path.join(repositoryRoot, sources[0]), service_source_fingerprint: core.computeServiceSourceFingerprint(repositoryRoot), runtime_state_directory: layout.runtime_directory, runtime_home_directory: home, database_path: path.join(root, "data/augnes.db"), configuration_path: layout.configuration_path, launch_agent_path: layout.launch_agent_path, installed_at: new Date().toISOString(), test_scope: "ownership-retirement", test_root: root };
@@ -132,13 +133,13 @@ async function fixture({ laterAttemptExit = false } = {}) {
             assert(!fs.existsSync(root));
         } };
 }
-async function run(name, action, options) { const f = await fixture(options); try {
+async function run(name, action, options) { return core.withCompanionProcessProbe(runOwnedSyncChild, async () => { const f = await fixture(options); try {
     await action(f);
     console.log(JSON.stringify({ scenario: name, pass: true, effects: f.effects() }));
 }
 finally {
     await f.cleanup();
-} }
+} }); }
 await run("lost-state-retirement-and-replay", async (f) => {
     const status = await core.inspectCompanionService(f.options);
     assert.equal(status.status, "recovery_required");
@@ -330,44 +331,23 @@ await run("unknown-bootout-reconciled-before-resume", async (f) => {
     assert.equal(f.effects(), 1);
 });
 await run("unavailable-and-reused-process-witness-refusal", async (f) => {
-    const original = childProcess.spawnSync;
     for (const mode of ["unavailable", "conflicting"]) {
-        const patch = mock.method(childProcess, "spawnSync", (command, args, options) => {
+        const faultProbe = (command, args, options) => {
             if (command === "/bin/ps" && args[1] === "lstart=" && args.at(-1) === String(f.supervisor.pid)) {
                 if (mode === "unavailable")
                     return { status: 1, stdout: "" };
-                const value = original(command, args, options);
+                const value = runOwnedSyncChild(command, args, options);
                 return { ...value, stdout: value.stdout + " changed identity" };
             }
-            return original(command, args, options);
-        });
-        syncBuiltinESMExports();
-        try {
+            return runOwnedSyncChild(command, args, options);
+        };
             if (mode === "unavailable")
-                await assert.rejects(core.prepareCompanionOwnershipRecovery(f.options), /process_witness_unavailable/);
+                await core.withCompanionProcessProbe(faultProbe, () => assert.rejects(core.prepareCompanionOwnershipRecovery(f.options), /process_witness_unavailable/));
             else {
                 // A changed identity after preparation cannot retire a PID-reused process.
-                patch.mock.restore();
-                syncBuiltinESMExports();
                 const prepared = await core.prepareCompanionOwnershipRecovery(f.options);
-                const conflict = mock.method(childProcess, "spawnSync", (command, args, options) => {
-                    const value = original(command, args, options);
-                    return command === "/bin/ps" && args[1] === "lstart=" && args.at(-1) === String(f.supervisor.pid) ? { ...value, stdout: value.stdout + " changed identity" } : value;
-                });
-                syncBuiltinESMExports();
-                try {
-                    await assert.rejects(core.applyCompanionOwnershipRecovery({ ...f.options, decision: prepared.decision }));
-                }
-                finally {
-                    conflict.mock.restore();
-                    syncBuiltinESMExports();
-                }
+                await core.withCompanionProcessProbe(faultProbe, () => assert.rejects(core.applyCompanionOwnershipRecovery({ ...f.options, decision: prepared.decision })));
             }
-        }
-        finally {
-            patch.mock.restore();
-            syncBuiltinESMExports();
-        }
         assert.equal(f.effects(), 0);
         assert(!fs.existsSync(f.layout.ownership_recovery_path));
     }

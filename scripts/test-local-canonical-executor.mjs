@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { ownedSpawnSync as spawnSync } from "./test-harness-process-lifecycle.mjs";
 import {
   existsSync,
   mkdirSync,
@@ -911,6 +911,7 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
       assert.deepEqual(preflightIssues, ["canonical_npm_mismatch"]);
     }
     const context = {
+      bootstrap:null, collectRepositoryIdentity:()=>({branch:"fixture"}),
       checkoutContext: isolated ? "isolated-worktree" : "canonical", verificationContext: {}, signal: { aborted: false },
       controller: new AbortController(), recoveryProofPath: null, sourceCorrectionProofPath: null, baseSha: "0".repeat(40), headSha: "a".repeat(40), executorFingerprint: "b".repeat(64), identityBefore: { branch: "fixture" },
       prepareInvocationInputs: () => ({ snapshot: () => ({ resources: [], binding: { tree: "c".repeat(40) }, fingerprint: "d".repeat(64) }) }),
