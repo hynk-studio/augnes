@@ -325,6 +325,22 @@ storage, explanation or technical revision rebinding alone does not establish
 semantic appropriateness. Attribute any manually supplied interpretation or
 reconstructed handoff. Reuse existing evidence where it answers the question.
 
+For the project memory guide, follow the ordinary host/model instruction entry
+through actual source reading and use in a real follow-up. Attribute case-specific
+source/answer hints, curation and reminders; distinguish storage/reference fidelity,
+non-model reader reconstruction and actual model selection/use. Within the assigned
+task and resource scope, inspect whether relevant corrections revise the affected
+judgment while irrelevant additions leave supported judgments intact, using extra
+changes only when needed to resolve that question. Check exact supporting revisions,
+guide freshness, historical versus current meaning, before-use conditions and the
+remaining question or recheck trigger. Unknown or unavailable support stays explicit.
+
+Include guide construction and maintenance, model context/call cost and user
+intervention in total burden. Existing behavior may satisfy the outcome with
+clarified guidance or no implementation change; use the observation to retain,
+revise or stop the increment. The guide's presence or a retrieval hit alone does
+not establish appropriate recall, and this criterion allocates no separate study.
+
 Keep functional correctness, semantic appropriateness, experience contribution
 and comparative usefulness separate. If claiming that prior experience causes
 better later work (L2), hold current inputs comparable and distinguish relevant

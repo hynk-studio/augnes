@@ -712,6 +712,58 @@ The implementation must connect four responsibilities through existing owners:
    A fresh executor must find and use that saved material through normal entry
    for an actual follow-up, rather than receive a manually reconstructed answer.
 
+For this increment, make a compact **project memory guide** available through
+the existing project/task context and work/source paths. This is a derived
+orientation for the model, with exact references and explicit uncertainty.
+Inspect the actual consumer first: existing projections, selected notes and
+host/model instructions may already satisfy some or all of these responsibilities.
+
+- **Orient by the current question.** Connect the project's goal, live questions
+  and current judgments to the relevant source revisions, counterevidence and
+  usable methods, with reasons for relevance and unresolved gaps. Preserve the
+  distinction between accepted Perspective, observations and derived interpretation.
+- **Make reading and reconsideration actionable.** At ordinary task entry,
+  material update or result return, host/model guidance identifies the permitted
+  current material to read first, when supporting or historical lookup is needed,
+  and the conditions requiring a before-use recheck. The model judges relevance
+  and conditional use within supported access; unavailable material or a bounded
+  no-match remains distinct from global absence.
+- **Connect judgments across time.** Link the earlier observation or expectation,
+  its information cutoff and conditions, the returned result, and the resulting
+  current judgment. Retain why it was revised, retained or left unused, unresolved
+  questions and the next reconsideration trigger. Distinguish source/event time
+  from judgment/revision time where available; unknowns remain explicit. Preserve
+  original observations, predictions and unaffected judgments. Rebuild the guide
+  or mark affected material stale when its supporting revisions or conditions change.
+
+Use existing context, source, expectation and outlook mechanisms where sufficient;
+the guide may be composed on demand. Deliver the instruction-to-read/use/update
+connection in the chosen ordinary work path, without requiring a separate stored
+artifact, new Core type, product page or model call. Read-only entry retains its
+existing boundary. This is a bounded L1 outcome for the assigned task; it neither
+asserts a storage defect nor marks the outcome implemented. Broader cross-project
+memory organization and a unified temporal model remain later work; permitted
+shared experience may already be used through existing scoped paths. Personal
+Perspective remains a separate opt-in candidate. Retain the #1468/#1478 retrieval
+scope and use the existing L1 evidence allocation below.
+
+One implementation option for composition and selection is **problem-conditioned
+joint reading**: use the current question, project Perspective, goals and
+unresolved issues to interpret permitted sources, corrections and experience
+together. Identify which methods and conditions still apply, what changed or
+conflicts, and what should be checked, retained or revised next, with exact
+source/revision references alongside the synthesis. This derived reading informs
+the continuing Perspective; it does not replace it. The existing host/model
+procedure may perform this within its ordinary judgment step. Direct reading
+may suffice; a separate reader or additional model call is not required.
+
+[MEMORILLA v1, section 2](https://arxiv.org/abs/2610.21375v1) motivates this
+option as an untested Augnes hypothesis. A textual implementation does not
+reproduce its learned soft-token method or inherit its measured gains. Assess
+the option within the first assigned task using the existing L1/L2 evidence
+criteria below; this adds no evaluation allocation, neural dependency or
+expansion of the retained #1468/#1478 retrieval scope.
+
 Choose an actual task with usable existing assets and a real next consumer.
 Inspect the #1431 executable assets, #1453 return/correction path and existing
 selective-report consumer as relevant; no particular fixture or CSV product is
