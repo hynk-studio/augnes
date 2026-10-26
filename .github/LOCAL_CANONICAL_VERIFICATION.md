@@ -422,6 +422,13 @@ npm run test:operability:package
 
 ## Dependency and generated-state policy
 
+The Next configuration explicitly disables `experimental.agentUpgrade`. Next
+16.4 otherwise starts an advisory request during development startup even with
+telemetry disabled. Managed source runtime startup retains its zero-network
+behavior; dependency maintenance and agent invocation remain separately
+authorized actions. Recovery and package checks keep their network guards and
+zero-attempt assertions intact.
+
 Package builds set `AUGNES_PACKAGE_BUILD=1` for the Next build only. The serialized
 standalone config disables `experimental.isrFlushToDisk`, preserving Next's
 bounded memory cache without promoting route seeds into the immutable package

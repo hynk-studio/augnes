@@ -9,6 +9,11 @@ import { isSupportedNodeVersion } from "../plugins/augnes-operator/mcp/node-runt
 const root = process.cwd();
 assert(isSupportedNodeVersion(process.versions.node));
 const requireRoot = createRequire(path.join(root, "package.json"));
+const { default: loadNextConfig } = requireRoot("next/dist/server/config");
+const { PHASE_DEVELOPMENT_SERVER } = requireRoot("next/constants");
+const nextConfig = await loadNextConfig(PHASE_DEVELOPMENT_SERVER, root);
+assert.equal(nextConfig.experimental.agentUpgrade, false,
+  "source runtime startup must not opt into Next advisory fetch or upgrade automation");
 const inventory = [];
 const seenNative = new Set();
 for (const prefix of ["", "apps/augnes_apps", "apps/web_planning"]) {
