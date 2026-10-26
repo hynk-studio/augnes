@@ -422,6 +422,13 @@ npm run test:operability:package
 
 ## Dependency and generated-state policy
 
+Package builds set `AUGNES_PACKAGE_BUILD=1` for the Next build only. The serialized
+standalone config disables `experimental.isrFlushToDisk`, preserving Next's
+bounded memory cache without promoting route seeds into the immutable package
+inventory. Ordinary source builds retain their default cache behavior. Package
+Start/recovery/Stop and handoff checks still require the complete file inventory;
+runtime-generated route-cache files are not excluded from integrity validation.
+
 ### Historical package dependency preparation
 
 Before a package handoff or a Full containing operability, run

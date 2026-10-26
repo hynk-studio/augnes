@@ -228,6 +228,7 @@ async function runProductionBuild(sourceRoot, environment) {
     {
       ...environment,
       NEXT_TELEMETRY_DISABLED: "1",
+      AUGNES_PACKAGE_BUILD: "1",
     },
     "package_ui_build_failed",
   );
