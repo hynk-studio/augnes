@@ -435,7 +435,17 @@ HOME and children are disposable. Only the exact historical native install
 scripts are admitted through a temporary npm configuration; historical source
 and locks are never edited.
 
-The provision manifest binds the original commit/tree, four source hashes,
+Full also includes the distinct durable-work predecessor `d9b6b56`. Prepare its
+exact root graph with `npm run prepare:historical-work-dependencies` under the
+same Canonical Node/npm. Its two original source hashes and original tree are
+fixed separately in `.augnes-local-verification/fixtures/durable-work-dependencies/`.
+This is neither the R8A graph nor a current dependency superset. The historical
+producer uses an independently copied, exact-lock view, with its own source and
+installed-material checks before and after execution. Its provision manifest is
+also an executor/stock execution input. Both preparation commands refuse an
+existing destination; neither historical lock or product source is rewritten.
+
+The R8A provision manifest binds the original commit/tree, four source hashes,
 actual Node/npm/platform/ABI and complete installed-file identities. The
 executor and separate stock reader bind this manifest as an execution input.
 The package scenario revalidates source bytes, installed resolution, native

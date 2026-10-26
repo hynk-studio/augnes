@@ -201,7 +201,15 @@ export function snapshotMergedR8ACurrentInputs(currentRoot) {
 // Used by the separately owned, network-enabled preparation command. The
 // package scenario itself remains offline and validates this material again.
 export function mergedR8AInstalledIdentity(root) {
-  return PREFIXES.map(prefix => {
+  return installedIdentity(root, PREFIXES);
+}
+
+export function historicalRootInstalledIdentity(root) {
+  return installedIdentity(root, [""]);
+}
+
+function installedIdentity(root, prefixes) {
+  return prefixes.map(prefix => {
     const projectRoot = path.join(realpathSync(root), prefix);
     const lock = readJson(path.join(projectRoot, "package-lock.json"));
     const installed = inspectInstalled(projectRoot, lock);
@@ -213,12 +221,23 @@ export function mergedR8AInstalledIdentity(root) {
 /** Only the existing archived #1118 fixture calls this owner. No installs,
  * environment changes, source-lock writes or current-tree mutations occur. */
 export function materializeMergedR8ADependencies({ historicalRoot, currentRoot, dependencyRoot = currentRoot }) {
+  return materializeDependencies({ historicalRoot, currentRoot, dependencyRoot, prefixes: PREFIXES });
+}
+
+// The durable-work predecessor has its own exact root graph. It cannot take
+// the current-view exception or borrow the older R8A graph.
+export function materializeExactHistoricalRootDependencies({ historicalRoot, currentRoot, dependencyRoot }) {
+  assert(dependencyRoot && realpathSync(dependencyRoot) !== realpathSync(currentRoot), "exact historical provision required");
+  return materializeDependencies({ historicalRoot, currentRoot, dependencyRoot, prefixes: [""] });
+}
+
+function materializeDependencies({ historicalRoot, currentRoot, dependencyRoot, prefixes }) {
   historicalRoot = realpathSync(historicalRoot);
   currentRoot = realpathSync(currentRoot);
   dependencyRoot = realpathSync(dependencyRoot);
   assert(historicalRoot !== dependencyRoot && !inside(dependencyRoot, historicalRoot) && !inside(historicalRoot, dependencyRoot), "dependency copies must be disjoint");
   assert(historicalRoot !== currentRoot && !inside(currentRoot, historicalRoot) && !inside(historicalRoot, currentRoot), "historical source must be isolated");
-  const inputs = PREFIXES.map(prefix => {
+  const inputs = prefixes.map(prefix => {
     const oldFile = path.join(historicalRoot, prefix, "package-lock.json");
     const newFile = path.join(dependencyRoot, prefix, "package-lock.json");
     regular(oldFile);

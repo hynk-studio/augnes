@@ -36,6 +36,7 @@ import { admitVerificationContext, assertVerificationContext, verificationAnchor
 import { acquireVerificationCapacity, assertVerificationCapacity, releaseVerificationCapacity } from "./local-canonical-capacity.mjs";
 import { createIsolatedInvocationResources, isolatedInvocationEnvironment, cleanupIsolatedInvocationResources } from "./local-canonical-isolated-resources.mjs";
 import { R8A_PROVISION_MANIFEST } from "./merged-r8a-dependency-provision.mjs";
+import { DURABLE_PROVISION_MANIFEST } from "./durable-work-dependency-provision.mjs";
 import { prepareHistoricalInputs, finishHistoricalInputs } from "./local-canonical-historical-inputs.mjs";
 import {
   acquireCheckoutVerificationOwnership,
@@ -1202,6 +1203,7 @@ function invocationInputResources({ verificationContext, browserExecutablePath }
     ...[".npmrc", "apps/augnes_apps/.npmrc", "apps/web_planning/.npmrc", "AGENTS.md", ".github/LOCAL_CANONICAL_VERIFICATION.md"].map((file, i) => ({ id: `declared-config-${i}`, file: path.join(repositoryRoot, file), classification: "execution" })),
     { id: "npm-prefix-config", file: path.join(path.dirname(path.dirname(process.execPath)), "etc", "npmrc"), classification: "execution" },
     { id: "historical-r8a-provision", file: path.join(repositoryRoot, R8A_PROVISION_MANIFEST), classification: "execution" },
+    { id: "historical-durable-provision", file: path.join(repositoryRoot, DURABLE_PROVISION_MANIFEST), classification: "execution" },
     ...["package-lock.json", "apps/augnes_apps/package-lock.json", "apps/web_planning/package-lock.json", ...EXECUTOR_SOURCE_FILES].map((file, i) => ({ id: `source-${i}`, file: path.join(repositoryRoot, file), classification: "execution" })),
     ...(browserExecutablePath ? [{ id: "executable-permissions-reader", file: "/bin/ls", classification: "execution", readOnlyExecutable: true },
       ...(process.platform === "darwin" ? [{ id: "executable-flags-reader", file: "/usr/bin/stat", classification: "execution", readOnlyExecutable: true }, { id: "executable-attributes-reader", file: "/usr/bin/xattr", classification: "execution", readOnlyExecutable: true }] : []),

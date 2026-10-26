@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
-import { materializeMergedR8ADependencies, planMergedR8ADependencyView, R8A_CURRENT_ONLY_PARSER, snapshotMergedR8ACurrentInputs } from "./merged-r8a-fixture-dependencies.mjs";
+import { materializeMergedR8ADependencies, materializeExactHistoricalRootDependencies, planMergedR8ADependencyView, R8A_CURRENT_ONLY_PARSER, snapshotMergedR8ACurrentInputs } from "./merged-r8a-fixture-dependencies.mjs";
 
 import {
   ROOT_DEPENDENCY_BEARING_FIELDS,
@@ -13,6 +13,7 @@ import {
 } from "./dependency-lock-compatibility.mjs";
 import { assertR8AProvisionRecord, R8A_DEPENDENCY_SOURCES } from "./merged-r8a-dependency-provision.mjs";
 import { MERGED_R8A_COMMIT, MERGED_R8A_TREE } from "./merged-r8a-fixture-build-config.mjs";
+import { assertDurableProvisionRecord, DURABLE_DEPENDENCY_SOURCES, DURABLE_WORK_PREDECESSOR, DURABLE_WORK_TREE } from "./durable-work-dependency-provision.mjs";
 
 const provision = { schema: "augnes.merged-r8a-dependencies.v1", commit: MERGED_R8A_COMMIT,
   tree: MERGED_R8A_TREE, platform: process.platform, arch: process.arch,
@@ -21,6 +22,12 @@ const provision = { schema: "augnes.merged-r8a-dependencies.v1", commit: MERGED_
 assertR8AProvisionRecord(provision, provision.installed);
 for (const [key, value] of Object.entries({ tree: "0".repeat(40), node: "v24.22.1", abi: "0", npm: "11.19.1", sources: {}, installed: [] }))
   assert.throws(() => assertR8AProvisionRecord({ ...provision, [key]: value }, provision.installed));
+const durableProvision = { ...provision, schema: "augnes.durable-work-dependencies.v1",
+  commit: DURABLE_WORK_PREDECESSOR, tree: DURABLE_WORK_TREE, sources: DURABLE_DEPENDENCY_SOURCES };
+assertDurableProvisionRecord(durableProvision, durableProvision.installed);
+for (const [key, value] of Object.entries({ commit: MERGED_R8A_COMMIT, tree: MERGED_R8A_TREE,
+  node: "v24.22.1", abi: "0", npm: "11.19.1", sources: R8A_DEPENDENCY_SOURCES, installed: [] }))
+  assert.throws(() => assertDurableProvisionRecord({ ...durableProvision, [key]: value }, durableProvision.installed));
 
 const rootLock = createLock("augnes");
 
@@ -236,6 +243,18 @@ function testHistoricalMaterialization() {
   }
   function mutate(file, update) { const value = JSON.parse(readFileSync(file)); update(value); json(file, value); }
   try {
+    const durable = fixture(false), durablePrepared = fixture(false).currentRoot;
+    assert.throws(() => materializeExactHistoricalRootDependencies({ ...durable,
+      dependencyRoot: durable.currentRoot }), /exact historical provision required/u);
+    const durableView = materializeExactHistoricalRootDependencies({ ...durable, dependencyRoot: durablePrepared });
+    assert.equal(durableView.evidence.length, 1);
+    assert.equal(durableView.evidence[0].dependency_source, "exact_historical_install");
+    assert(!existsSync(path.join(durable.historicalRoot, "apps/augnes_apps/node_modules")));
+    durableView.assertUnchanged(); durableView.assertHistoricalViewUnchanged();
+    const durableMismatch = fixture(false), durableMismatchPrepared = fixture(false).currentRoot;
+    mutate(path.join(durableMismatchPrepared, "package-lock.json"), l => { l.version = "9.0.0"; });
+    assert.throws(() => materializeExactHistoricalRootDependencies({ ...durableMismatch,
+      dependencyRoot: durableMismatchPrepared }), /prepared historical lock bytes differ/u);
     // A changed current graph cannot be reused. A separately installed exact
     // historical graph can supply the fixture, without either source being relabelled.
     const changed = fixture(false), prepared = fixture(false).currentRoot;
