@@ -445,9 +445,9 @@ the merged #1118 root and Apps dependencies from four byte-pinned Git source
 files. It retains an isolated historical artifact in
 `.augnes-local-verification/fixtures/merged-r8a-dependencies/`; an existing
 destination refuses instead of being overwritten. npm download/node-gyp caches,
-HOME and children are disposable. Only the exact historical native install
-scripts are admitted through a temporary npm configuration; historical source
-and locks are never edited.
+HOME and children are disposable. A temporary npm configuration records exact
+approvals for the historical install-script packages; historical source and
+locks are never edited.
 
 Full also includes the distinct durable-work predecessor `d9b6b56`. Prepare its
 exact root graph with `npm run prepare:historical-work-dependencies` under the
@@ -464,8 +464,9 @@ actual Node/npm/platform/ABI and complete installed-file identities. The
 executor and separate stock reader bind this manifest as an execution input.
 The package scenario revalidates source bytes, installed resolution, native
 platform material, bins and file identities before copying disjoint historical
-dependencies and after the genuine old-to-current handoff. No current package
-is relabelled as historical. The original strict normalizer and single-leaf
+dependencies and again after the historical package build. The later genuine
+old-to-current handoff separately validates the produced package and runtime.
+No current package is relabelled as historical. The original strict normalizer and single-leaf
 reuse rule remain unchanged; arbitrary supersets still refuse.
 
 Package building and handoff retain their zero-network guards and existing
@@ -474,10 +475,11 @@ is retained with the task's review checkout and original receipt while stock
 validation needs it; it is not committed, uploaded or adopted. Remove it only
 after its consumers settle and the corresponding review retention is released.
 
-Current graphs explicitly allow only their resolved native install-script
-packages in `allowScripts`, so npm 11.16.0 can prepare SQLite, esbuild and
-workerd without a blanket script exemption. The Apps graph's versions remain
-unchanged; its native install policy follows the same rule.
+Current graphs record exact approvals for their currently resolved install-script
+packages in `allowScripts`, including SQLite, esbuild and workerd. npm 11.16.0
+does not default-deny unlisted scripts unless `strict-allow-scripts` is enabled;
+this maintenance does not enable it. The Apps graph's versions remain unchanged;
+its explicit approvals follow the same rule.
 
 Before Quick, owner-targeted, Full, or any isolated-context phases, the executor atomically acquires
 `.augnes-local-verification/checkout-owner.json` with exclusive creation. This
@@ -798,6 +800,12 @@ branch-family reset. Legacy source-correction v1 records retain their original
 interpretation. Candidate succession v2 additionally retains the original
 receipt, exact source-review delta/path inventory and one immutable successor
 reservation on the latest settled predecessor.
+
+The v2 source-module paths additionally admit exactly the repository-relative
+root `next.config.ts`; v1 retains its existing scripts-only interpretation.
+Other root files, alternate configuration names and manifests/locks gain no
+exemption. This does not extend the verifier-correction module allowlist or
+change any regression, source-review, predecessor or successor requirement.
 
 A meaningful revision after PASS or an ordinary product/cancelled result requires
 the same retained deterministic regression failing on the prior Git source and

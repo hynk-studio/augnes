@@ -145,6 +145,7 @@ try {
   findings.push("real phase executor and stock reader require all integration Browser uses, exact executable/version and settled exit; timeout exit0 and invented NOT_RUN records refuse");
 
   await successionControls();
+  await rootConfigControls();
 } finally {
   if (!inFlight) settleCanonicalTestResourceUse(owner, { exit_observed: true, streams_closed: true, cleanup_completed: true, remaining_owned_processes: 0 });
   assert(cleanupCanonicalTestResources([owner]).every(x => x.completed));
@@ -239,5 +240,165 @@ async function successionControls() {
     finishAttempt(merged, { receiptFingerprint: "c".repeat(64), disposition: "completed_success", cleanupComplete: true });
     assert.throws(() => successor("integration", proof, { acceptedMain: main }));
     findings.push("meaningful revision after PASS, proved verifier correction after safety stop and exact accepted-main merge have immutable successors; unknown/timeout/unsettled/cosmetic/restart/wrong-main/changed-proof controls refuse");
+  } finally { releaseCheckoutVerificationOwnership(checkoutOwner, checkout); }
+}
+
+// Exercise the narrow root-path admission through the same reader, disposable
+// append-only families and cold reconstruction used by production stock. These
+// owned adversarial records are not real qualification history or run authority.
+async function rootConfigControls() {
+  const checkout = path.join(root, "root-config"); mkdirSync(checkout);
+  const checkoutOwner = acquireCheckoutVerificationOwnership({ repositoryRoot: checkout });
+  const git = (...args) => execFileSync("git", args, { cwd: checkout, env, stdio: ["ignore", "pipe", "pipe"] });
+  const commit = label => {
+    git("add", "next.config.ts", "scripts");
+    git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-m", label);
+    return git("rev-parse", "HEAD").toString().trim();
+  };
+  const parse = file => JSON.parse(readFileSync(file, "utf8"));
+  const checks = [];
+  try {
+    git("init", "-b", "codex/root-config");
+    mkdirSync(path.join(checkout, "scripts"));
+    const readerFile = path.join(checkout, "scripts", "reader.mjs"); write(readerFile, "export const acceptsRoot=false;\n");
+    const moduleFile = path.join(checkout, "next.config.ts");
+    write(moduleFile, "export default { experimental: { agentUpgrade: 'security' } };\n");
+    const oldHead = commit("original root configuration"), oldTree = git("rev-parse", "HEAD^{tree}").toString().trim();
+    const artifacts = path.join(checkout, ".augnes-local-verification", "root-correction"); mkdirSync(artifacts);
+    const receiptDir = path.join(checkout, ".augnes-local-verification", "receipts"); mkdirSync(receiptDir);
+    const request = { anchorRoot: checkout, repositoryRoot: checkout, checkoutOwner, head: oldHead, tree: oldTree, contractFingerprint: digest("disposable input contract") };
+    const priors = {};
+    for (const disposition of ["product_failure", "user_cancellation", "completed_success", "safety_violation", "input_invalidation", "infrastructure_interruption", "unknown_relevance", "unclassified_timeout", "unsettled", "cleanup_incomplete"]) {
+      const a = beginAttempt({ ...request, branch: `codex/root-${disposition}`, runId: `root-${disposition}` });
+      const outcome = disposition === "cleanup_incomplete" ? "product_failure" : disposition;
+      const original = finalizeReceipt({ repository: { head_sha: oldHead, tree_sha: oldTree }, run: { id: a.attempt_id },
+        inputs: { first_fault: { disposition: outcome, resource: "root-config" } }, outcome: { disposition: outcome }, cleanup: { completed: disposition !== "cleanup_incomplete" } });
+      write(path.join(receiptDir, `${disposition}.json`), original);
+      if (disposition !== "unsettled") finishAttempt(a, { receiptFingerprint: original.integrity.content_fingerprint, disposition: outcome, cleanupComplete: original.cleanup.completed });
+      priors[disposition] = { a, original };
+    }
+    const fixture = path.join(artifacts, "regression.mjs");
+    write(fixture, "import assert from 'node:assert/strict'; const {default:config}=await import(process.argv[2]); assert.equal(config.experimental.agentUpgrade,false);\n");
+    const witnesses = {};
+    for (const key of ["before", "after"]) {
+      if (key === "after") {
+        write(moduleFile, "export default { experimental: { agentUpgrade: false } };\n");
+        write(readerFile, "export const acceptsRoot=true;\n"); commit("disable advisory assessment and admit root config");
+      }
+      const result = await child([fixture, pathToFileURL(moduleFile).href]);
+      assert.equal(result.exit_code, key === "before" ? 1 : 0);
+      const record = { fixture_sha256: digest(readFileSync(fixture)), environment_fingerprint: digest(env), source_sha256: digest(readFileSync(moduleFile)),
+        result, node_version: process.versions.node, finished_at: new Date().toISOString() };
+      const file = path.join(artifacts, `${key}.json`); write(file, record);
+      witnesses[key] = { artifact: `${key}.json`, sha256: digest(readFileSync(file)), source_sha256: record.source_sha256 };
+    }
+    const head = git("rev-parse", "HEAD").toString().trim(), tree = git("rev-parse", "HEAD^{tree}").toString().trim();
+    const proofFile = path.join(artifacts, "proof.json"), reviewFile = path.join(artifacts, "review.json");
+    const makeProof = (key = "product_failure", kind = "source_revision") => {
+      const { a, original } = priors[key];
+      const review = { schema: "augnes.local-canonical-candidate-review.v1", kind, head, tree, predecessor_head: oldHead, predecessor_tree: oldTree,
+        source_review: "complete", authority_reference: "https://github.com/hynk-studio/augnes/issues/1545", reviewed_at: new Date().toISOString(),
+        addresses_disposition: key, addresses_resource: "root-config", prior_fault_fingerprint: digest(original.inputs.first_fault),
+        delta_sha256: digest(git("diff", "--binary", "--no-ext-diff", "--no-textconv", oldHead, head, "--")),
+        changed_paths: git("diff", "--name-only", oldHead, head, "--").toString().trim().split("\n").sort() };
+      write(reviewFile, review);
+      const proof = { schema: "augnes.local-canonical-source-correction.v2", kind, branch: a.branch, head, tree,
+        prior_family_id: a.family_id, prior_number: 1, prior_attempt_id: a.attempt_id, prior_receipt_fingerprint: original.integrity.content_fingerprint,
+        prior_receipt_path: `.augnes-local-verification/receipts/${key}.json`, source_module: "next.config.ts", defect: "advisory_assessment",
+        fixture_artifact: "regression.mjs", fixture_sha256: digest(readFileSync(fixture)), environment_fingerprint: digest(env), ...structuredClone(witnesses),
+        review: { artifact: "review.json", sha256: digest(readFileSync(reviewFile)) } };
+      write(proofFile, proof); return proof;
+    };
+    const readProof = () => readSourceCorrectionProof(proofFile, checkout);
+    const successor = proof => beginAttempt({ ...request, branch: proof.branch, head: proof.head, tree: proof.tree, runId: `successor-${proof.branch.split("/").at(-1)}`, sourceCorrection: proof });
+    const family = key => path.join(checkout, ".augnes-local-verification", "families", priors[key].a.family_id);
+    const originalFiles = [proofFile, reviewFile, fixture, ...["before.json", "after.json"].map(name => path.join(artifacts, name)),
+      ...Object.keys(priors).flatMap(key => [path.join(receiptDir, `${key}.json`), path.join(family(key), "attempt-1.json"),
+        ...(key === "unsettled" ? [] : [path.join(family(key), "completion-1.json")])])];
+    const saved = () => new Map(originalFiles.map(file => [file, readFileSync(file)]));
+    const restore = bytes => { for (const [file, data] of bytes) { rmSync(file, { force: true }); writeFileSync(file, data, { mode: 0o600 }); } };
+    const changeReview = (proof, mutate) => { const review = parse(reviewFile); mutate(review); write(reviewFile, review); proof.review.sha256 = digest(readFileSync(reviewFile)); };
+    const changeWitness = (proof, key, mutate) => { const file = path.join(artifacts, proof[key].artifact), witness = parse(file); mutate(witness); write(file, witness); proof[key].sha256 = digest(readFileSync(file)); };
+    const refused = (label, mutate, error, admission = false) => {
+      const proof = makeProof(), bytes = saved();
+      try {
+        mutate(proof); write(proofFile, proof);
+        assert.throws(() => admission ? successor(readProof()) : readProof(), error, label);
+        assert(!existsSync(path.join(family("product_failure"), "correction-successor.json")), label);
+        checks.push(label);
+      } finally { restore(bytes); }
+    };
+    makeProof(); assert.equal(readProof().source_module, "next.config.ts");
+    // Existing directory paths keep their reader interpretation; no generic
+    // root-file or configuration suffix rule is added.
+    for (const source_module of ["scripts/target.mjs", "app/Page.tsx", "lib/value.ts", "plugins/entry.cjs", "apps/client.js", "src/value.ts"]) {
+      const proof = makeProof(); proof.source_module = source_module; write(proofFile, proof); assert.equal(readProof().source_module, source_module);
+    }
+    refused("v1 root config", p => p.schema = "augnes.local-canonical-source-correction.v1", /source_correction_proof_invalid/);
+    for (const name of ["next.config.js", "next.config.mjs", "next.config.ts.bak", "Next.config.ts", "other.config.ts", "index.ts", "package.json", "package-lock.json", "tsconfig.json", "./next.config.ts", "/next.config.ts", "../next.config.ts", "scripts/../next.config.ts", "next.config.ts/", "next.config.ts\n"]) {
+      refused(`path ${JSON.stringify(name)}`, p => p.source_module = name, /source_correction_proof_invalid/);
+    }
+    for (const name of ["regression.mjs", "before.json", "after.json", "review.json"]) {
+      refused(`missing ${name}`, () => rmSync(path.join(artifacts, name)), { code: "ENOENT" });
+      refused(`tampered ${name}`, () => writeFileSync(path.join(artifacts, name), "\n", { flag: "a" }), /source_correction_fixture_changed|source_correction_witness_invalid|candidate_review_invalid/);
+    }
+    refused("fixture symlink", () => { rmSync(fixture); symlinkSync(moduleFile, fixture); }, /source_correction_fixture_changed/);
+    refused("witness hardlink", () => { const file = path.join(artifacts, "after.json"); rmSync(file); linkSync(path.join(artifacts, "before.json"), file); }, /attempt_unsafe_record/);
+    refused("different environment", p => changeWitness(p, "after", w => w.environment_fingerprint = digest("different environment")), /source_correction_witness_invalid/);
+    refused("different fixture", p => changeWitness(p, "after", w => w.fixture_sha256 = digest("different regression")), /source_correction_witness_invalid/);
+    for (const [key, value] of [["timed_out", true], ["cancelled", true], ["cleanup_completed", false], ["remaining_owned_processes", 1], ["exit_observed", false], ["streams_closed", false], ["termination_reason", "signal"]]) {
+      refused(`witness ${key}`, p => changeWitness(p, "after", w => w.result[key] = value), /source_correction_witness_invalid/);
+    }
+    refused("noncanonical Node", p => changeWitness(p, "after", w => w.node_version = `v${process.versions.node}`), /source_correction_witness_invalid/);
+    refused("witness order", p => changeWitness(p, "after", w => w.finished_at = parse(path.join(artifacts, "before.json")).finished_at), /source_correction_witness_order_invalid/);
+    refused("predates settlement", p => changeWitness(p, "before", w => w.finished_at = "2000-01-01T00:00:00.000Z"), /source_correction_witness_predates_settlement/, true);
+    refused("wrong Git source", p => { p.after.source_sha256 = digest("unrelated source"); changeWitness(p, "after", w => w.source_sha256 = p.after.source_sha256); }, /source_correction_source_mismatch/, true);
+    refused("wrong tree", p => { p.tree = "0".repeat(40); changeReview(p, r => r.tree = p.tree); }, /source_correction_source_mismatch/, true);
+    refused("unchanged predecessor head", p => { p.head = oldHead; changeReview(p, r => r.head = oldHead); }, /source_correction_predecessor_invalid/, true);
+    refused("wrong branch", p => p.branch = "codex/unrelated", /source_correction_predecessor_invalid/, true);
+    refused("wrong receipt", p => p.prior_receipt_fingerprint = digest("wrong receipt"), /source_correction_predecessor_invalid/, true);
+    for (const [label, mutate] of [
+      ["wrong delta", r => r.delta_sha256 = digest("partial delta")],
+      ["incomplete paths", r => r.changed_paths = ["next.config.ts"]],
+      ["wrong predecessor source", r => r.predecessor_head = "0".repeat(40)],
+      ["review before settlement", r => r.reviewed_at = "2000-01-01T00:00:00.000Z"],
+    ]) refused(label, p => changeReview(p, mutate), /candidate_review_binding_invalid/, true);
+    refused("tampered original receipt", () => { const file = path.join(receiptDir, "product_failure.json"), r = parse(file); r.outcome.disposition = "completed_success"; write(file, r); }, /candidate_review_binding_invalid/, true);
+    for (const key of ["safety_violation", "input_invalidation", "infrastructure_interruption", "unknown_relevance", "unclassified_timeout", "unsettled", "cleanup_incomplete"]) {
+      makeProof(key); assert.throws(() => successor(readProof()), key === "unsettled" ? { code: "ENOENT" } : /source_correction_predecessor_invalid/, key);
+      assert(!existsSync(path.join(family(key), "correction-successor.json"))); checks.push(`predecessor ${key}`);
+    }
+    for (const key of ["safety_violation", "input_invalidation"]) {
+      makeProof(key, "verifier_correction"); assert.throws(() => successor(readProof()), /candidate_guard_correction_unproven/);
+      checks.push(`root verifier_correction ${key}`);
+    }
+    makeProof("product_failure", "accepted_main_integration"); assert.throws(() => successor(readProof()), /source_correction_predecessor_invalid/);
+    checks.push("product failure is not accepted-main-only succession");
+    const newer = path.join(family("product_failure"), "attempt-2.json"); write(newer, { attempt_id: "unsettled newer attempt" });
+    makeProof(); assert.throws(() => successor(readProof()), /source_correction_predecessor_invalid/); rmSync(newer); checks.push("older attempt selection");
+
+    for (const key of ["product_failure", "user_cancellation", "completed_success"]) {
+      makeProof(key); const proof = readProof(), attempt = successor(proof);
+      assert.equal(attempt.number, 1); assert.equal(attempt.source_correction.prior_attempt_id, priors[key].a.attempt_id);
+      finishAttempt(attempt, { receiptFingerprint: digest(key), disposition: "completed_success", cleanupComplete: true });
+      const linked = { attempt, repository: { branch: attempt.branch }, run: { id: attempt.attempt_id }, integrity: { content_fingerprint: digest(key) }, outcome: { disposition: "completed_success" }, cleanup: { completed: true } };
+      const stock = () => inspectAttemptRecords({ anchorRoot: checkout, repositoryRoot: checkout, receipt: linked });
+      assert(stock(), key); checks.push(`reader admission stock ${key}`);
+      const reservation = path.join(family(key), "correction-successor.json"), originalReservation = readFileSync(reservation);
+      assert.throws(() => successor(proof), /attempt_recovery_not_supported/);
+      assert.throws(() => beginAttempt({ ...request, branch: proof.branch, runId: "superseded-recovery", recoveryProof: { schema: "augnes.local-canonical-infrastructure-repair.v1" } }), /attempt_candidate_superseded/);
+      const alternate = { ...proof, defect: "different_successor" }; write(proofFile, alternate);
+      assert.throws(() => successor(readProof()), /source_correction_successor_already_bound/); write(proofFile, proof);
+      assert.deepEqual(readFileSync(reservation), originalReservation); checks.push(`immutable successor ${key}`);
+      for (const file of [proofFile, reviewFile, fixture, path.join(artifacts, "before.json"), path.join(artifacts, "after.json"),
+        path.join(receiptDir, `${key}.json`), path.join(family(key), "completion-1.json"), reservation]) {
+        const bytes = readFileSync(file);
+        try { rmSync(file); assert(!stock(), `missing stock ${path.basename(file)}`); write(file, "{}"); assert(!stock(), `tampered stock ${path.basename(file)}`); }
+        finally { writeFileSync(file, bytes, { mode: 0o600 }); }
+        assert(stock(), `restored disposable ${path.basename(file)}`);
+      }
+      checks.push(`cold stock missing/tampered artifacts ${key}`);
+    }
+    findings.push({ root_config_controls: checks });
   } finally { releaseCheckoutVerificationOwnership(checkoutOwner, checkout); }
 }
