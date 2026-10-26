@@ -802,10 +802,13 @@ receipt, exact source-review delta/path inventory and one immutable successor
 reservation on the latest settled predecessor.
 
 The v2 source-module paths additionally admit exactly the repository-relative
-root `next.config.ts`; v1 retains its existing scripts-only interpretation.
-Other root files, alternate configuration names and manifests/locks gain no
-exemption. This does not extend the verifier-correction module allowlist or
-change any regression, source-review, predecessor or successor requirement.
+`next.config.ts` and `components/blank-state/blank-state-client.tsx`; v1 retains
+its existing scripts-only interpretation. Other root files, alternate
+configuration names, manifests/locks and other `components/` paths gain no
+exemption, including `components/project-settings-link.tsx`. The exact component
+path supports the demonstrated Current project return correction; it does not
+extend the verifier-correction module allowlist or change any regression,
+source-review, predecessor or successor requirement.
 
 A meaningful revision after PASS or an ordinary product/cancelled result requires
 the same retained deterministic regression failing on the prior Git source and

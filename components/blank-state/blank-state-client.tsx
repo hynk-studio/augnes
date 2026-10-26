@@ -201,7 +201,7 @@ export function BlankStateClient({
   useEffect(() => setHydrated(true), []);
   useEffect(() => setRecent(source.recent_projects), [source.recent_projects]);
   useEffect(() => {
-    const openAndFocusProjectSettings = () => {
+    const openAndFocusProjectSettings = (preferSummary = false) => {
       const settings = projectSettingsRef.current;
       const identity = projectIdentityRef.current;
       if (!settings && !identity) return;
@@ -212,26 +212,29 @@ export function BlankStateClient({
           'input[name="current-project-display-name"]',
         );
         const summary = settings?.querySelector<HTMLElement>(":scope > summary");
-        (settings && !wasOpen ? summary : identityInput ?? summary ?? identity)
+        (settings && (preferSummary || !wasOpen) ? summary : identityInput ?? summary ?? identity)
           ?.focus();
       });
     };
     const openFromHash = () => {
       if (window.location.hash === "#project-settings") {
-        openAndFocusProjectSettings();
+        // Hash entry must be idempotent when mount effects are replayed.
+        // Only an explicit repeat activation advances focus to the name field.
+        openAndFocusProjectSettings(true);
       }
     };
+    const activateProjectSettings = () => openAndFocusProjectSettings();
     openFromHash();
     window.addEventListener("hashchange", openFromHash);
     window.addEventListener(
       PROJECT_SETTINGS_ACTIVATION_EVENT,
-      openAndFocusProjectSettings,
+      activateProjectSettings,
     );
     return () => {
       window.removeEventListener("hashchange", openFromHash);
       window.removeEventListener(
         PROJECT_SETTINGS_ACTIVATION_EVENT,
-        openAndFocusProjectSettings,
+        activateProjectSettings,
       );
     };
   }, []);

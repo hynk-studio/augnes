@@ -145,7 +145,20 @@ try {
   findings.push("real phase executor and stock reader require all integration Browser uses, exact executable/version and settled exit; timeout exit0 and invented NOT_RUN records refuse");
 
   await successionControls();
-  await rootConfigControls();
+  await exactPathControls({
+    name: "root-config", sourceModule: "next.config.ts", defect: "advisory_assessment",
+    beforeSource: "export default { experimental: { agentUpgrade: 'security' } };\n",
+    afterSource: "export default { experimental: { agentUpgrade: false } };\n",
+    regression: "import assert from 'node:assert/strict'; const {default:config}=await import(process.argv[2]); assert.equal(config.experimental.agentUpgrade,false);\n",
+  });
+  await exactPathControls({
+    name: "blank-state-return", sourceModule: "components/blank-state/blank-state-client.tsx", defect: "replayed_initial_activation",
+    beforeSource: "export function initialTarget(replayed) { return replayed ? 'identity-input' : 'summary'; }\n",
+    afterSource: "export function initialTarget() { return 'summary'; }\n",
+    // This disposable module uses the exact admitted TSX path and ordinary JS
+    // syntax. Loading its bytes as JS tests behavior without a JSX toolchain.
+    regression: "import assert from 'node:assert/strict'; import {readFileSync} from 'node:fs'; const {initialTarget}=await import('data:text/javascript,'+encodeURIComponent(readFileSync(new URL(process.argv[2]),'utf8'))); assert.equal(initialTarget(true),'summary');\n",
+  });
 } finally {
   if (!inFlight) settleCanonicalTestResourceUse(owner, { exit_observed: true, streams_closed: true, cleanup_completed: true, remaining_owned_processes: 0 });
   assert(cleanupCanonicalTestResources([owner]).every(x => x.completed));
@@ -243,47 +256,47 @@ async function successionControls() {
   } finally { releaseCheckoutVerificationOwnership(checkoutOwner, checkout); }
 }
 
-// Exercise the narrow root-path admission through the same reader, disposable
+// Exercise each narrow exact-path admission through the same reader, disposable
 // append-only families and cold reconstruction used by production stock. These
 // owned adversarial records are not real qualification history or run authority.
-async function rootConfigControls() {
-  const checkout = path.join(root, "root-config"); mkdirSync(checkout);
+async function exactPathControls({ name, sourceModule, defect, beforeSource, afterSource, regression }) {
+  const checkout = path.join(root, name); mkdirSync(checkout);
   const checkoutOwner = acquireCheckoutVerificationOwnership({ repositoryRoot: checkout });
   const git = (...args) => execFileSync("git", args, { cwd: checkout, env, stdio: ["ignore", "pipe", "pipe"] });
   const commit = label => {
-    git("add", "next.config.ts", "scripts");
+    git("add", sourceModule, "scripts");
     git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-m", label);
     return git("rev-parse", "HEAD").toString().trim();
   };
   const parse = file => JSON.parse(readFileSync(file, "utf8"));
   const checks = [];
   try {
-    git("init", "-b", "codex/root-config");
+    git("init", "-b", `codex/${name}`);
     mkdirSync(path.join(checkout, "scripts"));
-    const readerFile = path.join(checkout, "scripts", "reader.mjs"); write(readerFile, "export const acceptsRoot=false;\n");
-    const moduleFile = path.join(checkout, "next.config.ts");
-    write(moduleFile, "export default { experimental: { agentUpgrade: 'security' } };\n");
-    const oldHead = commit("original root configuration"), oldTree = git("rev-parse", "HEAD^{tree}").toString().trim();
-    const artifacts = path.join(checkout, ".augnes-local-verification", "root-correction"); mkdirSync(artifacts);
+    const readerFile = path.join(checkout, "scripts", "reader.mjs"); write(readerFile, "export const acceptsExactPath=false;\n");
+    const moduleFile = path.join(checkout, sourceModule); mkdirSync(path.dirname(moduleFile), { recursive: true });
+    write(moduleFile, beforeSource);
+    const oldHead = commit("original exact-path source"), oldTree = git("rev-parse", "HEAD^{tree}").toString().trim();
+    const artifacts = path.join(checkout, ".augnes-local-verification", "exact-path-correction"); mkdirSync(artifacts);
     const receiptDir = path.join(checkout, ".augnes-local-verification", "receipts"); mkdirSync(receiptDir);
     const request = { anchorRoot: checkout, repositoryRoot: checkout, checkoutOwner, head: oldHead, tree: oldTree, contractFingerprint: digest("disposable input contract") };
     const priors = {};
     for (const disposition of ["product_failure", "user_cancellation", "completed_success", "safety_violation", "input_invalidation", "infrastructure_interruption", "unknown_relevance", "unclassified_timeout", "unsettled", "cleanup_incomplete"]) {
-      const a = beginAttempt({ ...request, branch: `codex/root-${disposition}`, runId: `root-${disposition}` });
+      const a = beginAttempt({ ...request, branch: `codex/${name}-${disposition}`, runId: `${name}-${disposition}` });
       const outcome = disposition === "cleanup_incomplete" ? "product_failure" : disposition;
       const original = finalizeReceipt({ repository: { head_sha: oldHead, tree_sha: oldTree }, run: { id: a.attempt_id },
-        inputs: { first_fault: { disposition: outcome, resource: "root-config" } }, outcome: { disposition: outcome }, cleanup: { completed: disposition !== "cleanup_incomplete" } });
+        inputs: { first_fault: { disposition: outcome, resource: name } }, outcome: { disposition: outcome }, cleanup: { completed: disposition !== "cleanup_incomplete" } });
       write(path.join(receiptDir, `${disposition}.json`), original);
       if (disposition !== "unsettled") finishAttempt(a, { receiptFingerprint: original.integrity.content_fingerprint, disposition: outcome, cleanupComplete: original.cleanup.completed });
       priors[disposition] = { a, original };
     }
     const fixture = path.join(artifacts, "regression.mjs");
-    write(fixture, "import assert from 'node:assert/strict'; const {default:config}=await import(process.argv[2]); assert.equal(config.experimental.agentUpgrade,false);\n");
+    write(fixture, regression);
     const witnesses = {};
     for (const key of ["before", "after"]) {
       if (key === "after") {
-        write(moduleFile, "export default { experimental: { agentUpgrade: false } };\n");
-        write(readerFile, "export const acceptsRoot=true;\n"); commit("disable advisory assessment and admit root config");
+        write(moduleFile, afterSource);
+        write(readerFile, "export const acceptsExactPath=true;\n"); commit("correct behavior and admit exact path");
       }
       const result = await child([fixture, pathToFileURL(moduleFile).href]);
       assert.equal(result.exit_code, key === "before" ? 1 : 0);
@@ -298,13 +311,13 @@ async function rootConfigControls() {
       const { a, original } = priors[key];
       const review = { schema: "augnes.local-canonical-candidate-review.v1", kind, head, tree, predecessor_head: oldHead, predecessor_tree: oldTree,
         source_review: "complete", authority_reference: "https://github.com/hynk-studio/augnes/issues/1545", reviewed_at: new Date().toISOString(),
-        addresses_disposition: key, addresses_resource: "root-config", prior_fault_fingerprint: digest(original.inputs.first_fault),
+        addresses_disposition: key, addresses_resource: name, prior_fault_fingerprint: digest(original.inputs.first_fault),
         delta_sha256: digest(git("diff", "--binary", "--no-ext-diff", "--no-textconv", oldHead, head, "--")),
         changed_paths: git("diff", "--name-only", oldHead, head, "--").toString().trim().split("\n").sort() };
       write(reviewFile, review);
       const proof = { schema: "augnes.local-canonical-source-correction.v2", kind, branch: a.branch, head, tree,
         prior_family_id: a.family_id, prior_number: 1, prior_attempt_id: a.attempt_id, prior_receipt_fingerprint: original.integrity.content_fingerprint,
-        prior_receipt_path: `.augnes-local-verification/receipts/${key}.json`, source_module: "next.config.ts", defect: "advisory_assessment",
+        prior_receipt_path: `.augnes-local-verification/receipts/${key}.json`, source_module: sourceModule, defect,
         fixture_artifact: "regression.mjs", fixture_sha256: digest(readFileSync(fixture)), environment_fingerprint: digest(env), ...structuredClone(witnesses),
         review: { artifact: "review.json", sha256: digest(readFileSync(reviewFile)) } };
       write(proofFile, proof); return proof;
@@ -328,14 +341,16 @@ async function rootConfigControls() {
         checks.push(label);
       } finally { restore(bytes); }
     };
-    makeProof(); assert.equal(readProof().source_module, "next.config.ts");
+    makeProof(); assert.equal(readProof().source_module, sourceModule);
     // Existing directory paths keep their reader interpretation; no generic
-    // root-file or configuration suffix rule is added.
+    // root-file, configuration suffix or components-prefix rule is added.
     for (const source_module of ["scripts/target.mjs", "app/Page.tsx", "lib/value.ts", "plugins/entry.cjs", "apps/client.js", "src/value.ts"]) {
       const proof = makeProof(); proof.source_module = source_module; write(proofFile, proof); assert.equal(readProof().source_module, source_module);
     }
-    refused("v1 root config", p => p.schema = "augnes.local-canonical-source-correction.v1", /source_correction_proof_invalid/);
-    for (const name of ["next.config.js", "next.config.mjs", "next.config.ts.bak", "Next.config.ts", "other.config.ts", "index.ts", "package.json", "package-lock.json", "tsconfig.json", "./next.config.ts", "/next.config.ts", "../next.config.ts", "scripts/../next.config.ts", "next.config.ts/", "next.config.ts\n"]) {
+    refused("v1 exact path", p => p.schema = "augnes.local-canonical-source-correction.v1", /source_correction_proof_invalid/);
+    for (const name of ["next.config.js", "next.config.mjs", "next.config.ts.bak", "Next.config.ts", "other.config.ts", "index.ts", "package.json", "package-lock.json", "tsconfig.json", "./next.config.ts", "/next.config.ts", "../next.config.ts", "scripts/../next.config.ts", "next.config.ts/", "next.config.ts\n",
+      "components/project-settings-link.tsx", "components/other.tsx", "components/blank-state/other.tsx", "components/blank-state/Blank-state-client.tsx", "components/blank-state/blank-state-client.ts", "components/blank-state/blank-state-client.tsx.bak",
+      "./components/blank-state/blank-state-client.tsx", "/components/blank-state/blank-state-client.tsx", "../components/blank-state/blank-state-client.tsx", "components/blank-state/../blank-state/blank-state-client.tsx", "components//blank-state/blank-state-client.tsx", "components/blank-state/blank-state-client.tsx/", "components/blank-state/blank-state-client.tsx\n"]) {
       refused(`path ${JSON.stringify(name)}`, p => p.source_module = name, /source_correction_proof_invalid/);
     }
     for (const name of ["regression.mjs", "before.json", "after.json", "review.json"]) {
@@ -359,7 +374,7 @@ async function rootConfigControls() {
     refused("wrong receipt", p => p.prior_receipt_fingerprint = digest("wrong receipt"), /source_correction_predecessor_invalid/, true);
     for (const [label, mutate] of [
       ["wrong delta", r => r.delta_sha256 = digest("partial delta")],
-      ["incomplete paths", r => r.changed_paths = ["next.config.ts"]],
+      ["incomplete paths", r => r.changed_paths = [sourceModule]],
       ["wrong predecessor source", r => r.predecessor_head = "0".repeat(40)],
       ["review before settlement", r => r.reviewed_at = "2000-01-01T00:00:00.000Z"],
     ]) refused(label, p => changeReview(p, mutate), /candidate_review_binding_invalid/, true);
@@ -370,7 +385,7 @@ async function rootConfigControls() {
     }
     for (const key of ["safety_violation", "input_invalidation"]) {
       makeProof(key, "verifier_correction"); assert.throws(() => successor(readProof()), /candidate_guard_correction_unproven/);
-      checks.push(`root verifier_correction ${key}`);
+      checks.push(`exact path verifier_correction ${key}`);
     }
     makeProof("product_failure", "accepted_main_integration"); assert.throws(() => successor(readProof()), /source_correction_predecessor_invalid/);
     checks.push("product failure is not accepted-main-only succession");
@@ -391,7 +406,7 @@ async function rootConfigControls() {
       assert.throws(() => successor(readProof()), /source_correction_successor_already_bound/); write(proofFile, proof);
       assert.deepEqual(readFileSync(reservation), originalReservation); checks.push(`immutable successor ${key}`);
       for (const file of [proofFile, reviewFile, fixture, path.join(artifacts, "before.json"), path.join(artifacts, "after.json"),
-        path.join(receiptDir, `${key}.json`), path.join(family(key), "completion-1.json"), reservation]) {
+        path.join(receiptDir, `${key}.json`), path.join(family(key), "attempt-1.json"), path.join(family(key), "completion-1.json"), reservation]) {
         const bytes = readFileSync(file);
         try { rmSync(file); assert(!stock(), `missing stock ${path.basename(file)}`); write(file, "{}"); assert(!stock(), `tampered stock ${path.basename(file)}`); }
         finally { writeFileSync(file, bytes, { mode: 0o600 }); }
@@ -399,6 +414,6 @@ async function rootConfigControls() {
       }
       checks.push(`cold stock missing/tampered artifacts ${key}`);
     }
-    findings.push({ root_config_controls: checks });
+    findings.push({ exact_path: sourceModule, [`${name.replaceAll("-", "_")}_controls`]: checks });
   } finally { releaseCheckoutVerificationOwnership(checkoutOwner, checkout); }
 }
