@@ -86,7 +86,7 @@ path-only fallback. Exact deciding source proof used Windows 10 Pro 22H2 build
 Windows 11 Home 25H2 build 26200.8875 at pre-integration checkpoint
 `567c9bbbad5d35e6803ad740adfac1b881983912`, with Visual
 Studio Build Tools 2022 17.14.37, MSVC 19.44.35228, Windows SDK 10.0.26100.0,
-Node 24.18.0, and npm 11.16.0. Restart, case and dot-segment normalization,
+Node 24.22.1, and npm 11.16.0. Restart, case and dot-segment normalization,
 Unicode, long paths, junction aliases, reparse-loop refusal, replacement,
 delete/recreate, rename, rebind, attachment, source-runtime MCP, and recovery
 boundaries passed. Directory-symlink privilege and a second local fixed NTFS

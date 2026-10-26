@@ -206,8 +206,9 @@ the actual outcome, reopening protected project review if the session is stale.
 This does not free space for decisions, grants or renewals. See the
 [history and recovery contract](docs/DATABASE_ACCESS_LIFECYCLE.md#accumulated-native-history-refusal-and-preservation-1439).
 
-The source checkout supports maintained even-numbered Node.js 22 and 24 lines
-with npm 10 or 11. Exact Local Canonical verification uses Node.js 24.18.0 and
+The source checkout supports patched Node.js `^22.23.4 || ^24.22.1`
+with npm 10 or 11. Node 22 is a source compatibility line; Companion requires
+Node 24.22.1 or later within Node 24. Exact Local Canonical verification uses Node.js 24.22.1 and
 npm 11.16.0.
 
 On a supported macOS development host, install the exact checkout-bound local
@@ -220,7 +221,7 @@ npm run augnes:service:install
 ```
 
 This explicit action installs a user-session LaunchAgent for this physical
-checkout, selects and pins one Node 24 binary, and starts the existing
+checkout, selects and pins one patched Node 24 binary, and starts the existing
 supervised UI/Core and bridge. It stores no secret in the service definition,
 survives the installing terminal, starts at login, and recovers unexpected
 runtime failure. It grants no repository execution, managed-run Resume,

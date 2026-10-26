@@ -21,6 +21,7 @@ import {
   CANONICAL_REPOSITORY_ID,
   matchCanonicalRepositoryIdentity,
 } from "./canonical-repository-identity.mjs";
+import { isSupportedNodeVersion, SUPPORTED_NODE_RANGE } from "../plugins/augnes-operator/mcp/node-runtime-policy.mjs";
 import { assertVerificationContext } from "./local-canonical-verification-context.mjs";
 
 export const WINDOWS_AUTHORIZED_REPOSITORY_ROOT_ENV =
@@ -30,8 +31,8 @@ export const AUTHORIZED_REPOSITORY_ROOT = process.platform === "win32"
   : CANONICAL_DARWIN_REPOSITORY_ROOT;
 export const AUTHORIZED_REPOSITORY_ID = CANONICAL_REPOSITORY_ID;
 export const AUTHORIZED_ORIGIN_URL = CANONICAL_ORIGIN_URL;
-export const CANONICAL_NODE_VERSION = "24.18.0";
-export const CANONICAL_NODE_COMPATIBILITY = "^22.0.0 || ^24.0.0";
+export const CANONICAL_NODE_VERSION = "24.22.1";
+export const CANONICAL_NODE_COMPATIBILITY = SUPPORTED_NODE_RANGE;
 export const LOCAL_ARTIFACT_DIRECTORY = ".augnes-local-verification";
 export const QUICK_MINIMUM_DISK_BYTES = 1024 ** 3;
 export const FULL_MINIMUM_DISK_BYTES = 15 * 1024 ** 3;
@@ -186,10 +187,9 @@ export function collectDiskObservation(repositoryRoot) {
 }
 
 export function evaluateNodePolicy(version = process.versions.node) {
-  const parsed = parseNodeVersion(version);
   const canonicalMatch = version === CANONICAL_NODE_VERSION;
   const compatibilityMatch =
-    parsed !== null && (parsed.major === 22 || parsed.major === 24);
+    isSupportedNodeVersion(version);
   return {
     canonical_version: CANONICAL_NODE_VERSION,
     compatibility_range: CANONICAL_NODE_COMPATIBILITY,
@@ -389,16 +389,6 @@ function windowsNpmCliPath() {
     "bin",
     "npm-cli.js",
   );
-}
-
-function parseNodeVersion(version) {
-  const match = String(version).match(/^(\d+)\.(\d+)\.(\d+)$/u);
-  if (!match) return null;
-  return {
-    major: Number(match[1]),
-    minor: Number(match[2]),
-    patch: Number(match[3]),
-  };
 }
 
 function safeLabel(value) {

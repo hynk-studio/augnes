@@ -148,6 +148,9 @@ read-only inspector before and after the run. Its private HOME prevents nested
 build/suite wrappers from discovering or maintaining the installed service. An
 isolated lane never pauses, restarts, reconfigures or adopts that service. A
 changed observed service identity/lifecycle refuses successful qualification.
+The inspector is loaded from the admitted accepted checkout, whose identity is
+bracketed by that observation. Candidate-only source files and runtime floors
+therefore do not require an installed adoption merely to inspect preservation.
 The isolated inspector brackets one health/ownership probe round with the same
 scoped service materials and loaded-job identity. Only the manager heartbeat
 update timestamp is excluded from coherence comparison. Lifecycle, process,
@@ -170,13 +173,13 @@ owner artifact to gain capacity.
 
 ## Node and platform policy
 
-Exact deciding evidence uses Node.js 24.18.0 on macOS arm64. `.node-version`
+Exact deciding evidence uses Node.js 24.22.1 on macOS arm64. `.node-version`
 is the single repository version marker. The supported source-compatibility
-range is the maintained even LTS lines `^22.0.0 || ^24.0.0`, with npm 10 or
+range is the maintained even LTS lines `^22.23.4 || ^24.22.1`, with npm 10 or
 11. Compatibility does not equal Canonical identity:
 
-- Node 24.18.0 may produce deciding evidence when all other gates pass.
-- Node 22 may be used for compatibility checks but is not the exact Canonical
+- Node 24.22.1 may produce deciding evidence when all other gates pass.
+- Node 22.23.4 or later within Node 22 may be used for compatibility checks but is not the exact Canonical
   runtime.
 - Node 25 and other versions produce an explicit mismatch. Quick mode may still
   run as non-deciding feedback; changed and full fail before long phases.
@@ -185,6 +188,15 @@ The policy does not install a version manager, switch the system runtime,
 invoke Homebrew, or modify global settings. Linux and Windows remain separate
 compatibility surfaces rather than substitutes for the current local Canonical
 host.
+
+The compatibility evaluator enforces each line's security floor; it does not
+accept every release in those majors. Companion selects only Node 24.22.1 or
+later within Node 24 and retains its exact resolved path and v-prefixed version
+binding. Node's bundled Undici is separate from npm-installed dependencies:
+the minimum Node 24 bundles 7.30.1, while the minimum Node 22 bundles 6.29.1.
+The deciding npm baseline remains exactly 11.16.0 and is checked independently
+of Node. Task-owned binaries may be selected through PATH; global replacement
+and installed Companion adoption require separate authority.
 
 ## Mode selection
 
@@ -409,6 +421,39 @@ npm run test:operability:package
 ```
 
 ## Dependency and generated-state policy
+
+### Historical package dependency preparation
+
+Before a package handoff or a Full containing operability, run
+`npm run prepare:historical-package-dependencies` in the task-owned checkout
+under the exact Canonical Node/npm. This separate, bounded preparation installs
+the merged #1118 root and Apps dependencies from four byte-pinned Git source
+files. It retains an isolated historical artifact in
+`.augnes-local-verification/fixtures/merged-r8a-dependencies/`; an existing
+destination refuses instead of being overwritten. npm download/node-gyp caches,
+HOME and children are disposable. Only the exact historical native install
+scripts are admitted through a temporary npm configuration; historical source
+and locks are never edited.
+
+The provision manifest binds the original commit/tree, four source hashes,
+actual Node/npm/platform/ABI and complete installed-file identities. The
+executor and separate stock reader bind this manifest as an execution input.
+The package scenario revalidates source bytes, installed resolution, native
+platform material, bins and file identities before copying disjoint historical
+dependencies and after the genuine old-to-current handoff. No current package
+is relabelled as historical. The original strict normalizer and single-leaf
+reuse rule remain unchanged; arbitrary supersets still refuse.
+
+Package building and handoff retain their zero-network guards and existing
+timeouts/assertions. Preparation is not handoff evidence. The generated artifact
+is retained with the task's review checkout and original receipt while stock
+validation needs it; it is not committed, uploaded or adopted. Remove it only
+after its consumers settle and the corresponding review retention is released.
+
+Current graphs explicitly allow only their resolved native install-script
+packages in `allowScripts`, so npm 11.16.0 can prepare SQLite, esbuild and
+workerd without a blanket script exemption. The Apps graph's versions remain
+unchanged; its native install policy follows the same rule.
 
 Before Quick, owner-targeted, Full, or any isolated-context phases, the executor atomically acquires
 `.augnes-local-verification/checkout-owner.json` with exclusive creation. This

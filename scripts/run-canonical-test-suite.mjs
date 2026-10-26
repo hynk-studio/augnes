@@ -523,6 +523,11 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      label: "patched dependency resolution and native runtime consumers",
+      ...rootNode("scripts/test-security-runtime-dependencies.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
       label: "browser E2E timing and lifecycle contracts",
       ...rootNode("scripts/test-browser-e2e-timing.mjs"),
     },

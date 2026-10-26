@@ -207,6 +207,17 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
       prior_number: 1, prior_attempt_id: original.attempt_id, prior_receipt_fingerprint: "7".repeat(64), head: correctedHead, tree: correctedTree, source_module: "scripts/target.mjs",
       fixture_artifact: "regression.mjs", fixture_sha256: digest(readFileSync(fixtureFile)), environment_fingerprint: digest(env), ...witnesses };
     write(correctionFile, JSON.stringify(correctionProof));
+    const afterFile = path.join(correctionRoot, correctionProof.after.artifact);
+    const originalAfter = readFileSync(afterFile);
+    for (const node_version of [`v${process.versions.node}`, "24.18.0", "22.23.4"]) {
+      write(afterFile, JSON.stringify({ ...JSON.parse(originalAfter), node_version }));
+      write(correctionFile, JSON.stringify({ ...correctionProof,
+        after: { ...correctionProof.after, sha256: digest(readFileSync(afterFile)) } }));
+      assert.throws(() => readSourceCorrectionProof(correctionFile, checkout), error => error.code === "source_correction_witness_invalid");
+    }
+    write(afterFile, originalAfter); write(correctionFile, JSON.stringify(correctionProof));
+    readSourceCorrectionProof(correctionFile, checkout);
+    note("actual witness reader accepts bare Canonical Node and refuses v-prefix, stale baseline and compatibility-only Node");
     for (const prior of blockedPredecessors) {
       write(correctionFile, JSON.stringify({ ...correctionProof, branch: prior.branch, prior_family_id: prior.family_id, prior_attempt_id: prior.attempt_id }));
       assert.throws(() => beginAttempt({ ...request, branch: prior.branch, head: correctedHead, tree: correctedTree, runId: "forbidden-source-successor", sourceCorrection: readSourceCorrectionProof(correctionFile, checkout) }), error => error.code === "source_correction_predecessor_invalid");

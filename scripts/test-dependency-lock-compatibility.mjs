@@ -11,6 +11,16 @@ import {
   ROOT_DEPENDENCY_BEARING_FIELDS,
   normalizedDependencyLock,
 } from "./dependency-lock-compatibility.mjs";
+import { assertR8AProvisionRecord, R8A_DEPENDENCY_SOURCES } from "./merged-r8a-dependency-provision.mjs";
+import { MERGED_R8A_COMMIT, MERGED_R8A_TREE } from "./merged-r8a-fixture-build-config.mjs";
+
+const provision = { schema: "augnes.merged-r8a-dependencies.v1", commit: MERGED_R8A_COMMIT,
+  tree: MERGED_R8A_TREE, platform: process.platform, arch: process.arch,
+  node: process.versions.node, abi: process.versions.modules, npm: "11.16.0",
+  sources: R8A_DEPENDENCY_SOURCES, installed: [{ prefix: "", packages: 1, sha256: "a".repeat(64) }] };
+assertR8AProvisionRecord(provision, provision.installed);
+for (const [key, value] of Object.entries({ tree: "0".repeat(40), node: "v24.22.1", abi: "0", npm: "11.19.1", sources: {}, installed: [] }))
+  assert.throws(() => assertR8AProvisionRecord({ ...provision, [key]: value }, provision.installed));
 
 const rootLock = createLock("augnes");
 
@@ -226,6 +236,19 @@ function testHistoricalMaterialization() {
   }
   function mutate(file, update) { const value = JSON.parse(readFileSync(file)); update(value); json(file, value); }
   try {
+    // A changed current graph cannot be reused. A separately installed exact
+    // historical graph can supply the fixture, without either source being relabelled.
+    const changed = fixture(false), prepared = fixture(false).currentRoot;
+    mutate(path.join(changed.currentRoot, "package-lock.json"), l => { l.packages["node_modules/leaf"].version = "2.0.0"; });
+    assert.throws(() => materializeMergedR8ADependencies(changed));
+    const exact = materializeMergedR8ADependencies({ ...changed, dependencyRoot: prepared });
+    assert(exact.evidence.every(e => e.dependency_source === "exact_historical_install" && e.excluded.length === 0));
+    exact.assertUnchanged(); exact.assertHistoricalViewUnchanged();
+    writeFileSync(path.join(prepared, "node_modules/leaf/index.js"), "changed prepared input\n");
+    assert.throws(exact.assertUnchanged);
+    const mismatched = fixture(false), mismatchedPrepared = fixture(false).currentRoot;
+    mutate(path.join(mismatchedPrepared, "package-lock.json"), l => { l.version = "9.0.0"; });
+    assert.throws(() => materializeMergedR8ADependencies({ ...mismatched, dependencyRoot: mismatchedPrepared }), /prepared historical lock bytes differ/u);
     for (const additive of [false, true]) {
       const input = fixture(additive);
       const historical = JSON.parse(readFileSync(path.join(input.historicalRoot, "package-lock.json")));

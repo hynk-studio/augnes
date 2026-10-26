@@ -32,9 +32,10 @@ import {
 import { runCanonicalChild } from "./canonical-child-runner.mjs";
 import { CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 import { admitIntegrationBase } from "./local-canonical-integration-base.mjs";
-import { admitVerificationContext, assertVerificationContext, verificationAnchorRoot } from "./local-canonical-verification-context.mjs";
+import { admitVerificationContext, assertVerificationContext, verificationAnchorRoot, inspectVerificationCompanionPreservation } from "./local-canonical-verification-context.mjs";
 import { acquireVerificationCapacity, assertVerificationCapacity, releaseVerificationCapacity } from "./local-canonical-capacity.mjs";
 import { createIsolatedInvocationResources, isolatedInvocationEnvironment, cleanupIsolatedInvocationResources } from "./local-canonical-isolated-resources.mjs";
+import { R8A_PROVISION_MANIFEST } from "./merged-r8a-dependency-provision.mjs";
 import { prepareHistoricalInputs, finishHistoricalInputs } from "./local-canonical-historical-inputs.mjs";
 import {
   acquireCheckoutVerificationOwnership,
@@ -78,7 +79,6 @@ import {
   acquireCompanionServiceMaintenance,
   boundedLifecycleState,
   inspectCompanionService,
-  inspectCompanionPreservation,
   releaseCompanionServiceMaintenance,
 } from "../plugins/augnes-operator/mcp/companion-service-core.mjs";
 
@@ -109,6 +109,10 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/canonical-test-environment.mjs",
   "scripts/canonical-repository-identity.mjs",
   "scripts/local-canonical-environment.mjs",
+  "scripts/merged-r8a-dependency-provision.mjs",
+  "scripts/merged-r8a-fixture-dependencies.mjs",
+  "scripts/prepare-merged-r8a-dependencies.mjs",
+  "plugins/augnes-operator/mcp/node-runtime-policy.mjs",
   "scripts/local-canonical-change-owners.v1.json",
   "scripts/local-canonical-receipt.mjs",
   "scripts/local-canonical-inputs.mjs",
@@ -640,9 +644,7 @@ export async function executeLocalCanonicalVerification({
         if (historicalInputsRequired) historicalInputs = prepareHistoricalInputs({
           context: verificationContext, repositoryRoot, checkoutOwner, invocationId,
         });
-        const observed = await inspectCompanionPreservation({
-          repositoryRoot: verificationAnchorRoot(verificationContext),
-        });
+        const observed = await inspectVerificationCompanionPreservation(verificationContext);
         serviceLifecycleBefore = observed.state;
         serviceObservations.before = observed.diagnostics;
         if (!observed.state.preservation_valid) throw Object.assign(
@@ -831,7 +833,7 @@ export async function executeLocalCanonicalVerification({
       }
       if (serviceLifecycleBefore !== null) {
         if (checkoutContext === "isolated-worktree") {
-          const observed = await inspectCompanionPreservation({ repositoryRoot: verificationAnchorRoot(verificationContext) });
+          const observed = await inspectVerificationCompanionPreservation(verificationContext);
           serviceLifecycleAfter = observed.state;
           serviceObservations.after = observed.diagnostics;
         } else {
@@ -1199,6 +1201,7 @@ function invocationInputResources({ verificationContext, browserExecutablePath }
     ...["npm", "git", "gh"].map(name => ({ id: `${name}-executable`, file: resolveExecutionTool(name), classification: "execution" })),
     ...[".npmrc", "apps/augnes_apps/.npmrc", "apps/web_planning/.npmrc", "AGENTS.md", ".github/LOCAL_CANONICAL_VERIFICATION.md"].map((file, i) => ({ id: `declared-config-${i}`, file: path.join(repositoryRoot, file), classification: "execution" })),
     { id: "npm-prefix-config", file: path.join(path.dirname(path.dirname(process.execPath)), "etc", "npmrc"), classification: "execution" },
+    { id: "historical-r8a-provision", file: path.join(repositoryRoot, R8A_PROVISION_MANIFEST), classification: "execution" },
     ...["package-lock.json", "apps/augnes_apps/package-lock.json", "apps/web_planning/package-lock.json", ...EXECUTOR_SOURCE_FILES].map((file, i) => ({ id: `source-${i}`, file: path.join(repositoryRoot, file), classification: "execution" })),
     ...(browserExecutablePath ? [{ id: "executable-permissions-reader", file: "/bin/ls", classification: "execution", readOnlyExecutable: true },
       ...(process.platform === "darwin" ? [{ id: "executable-flags-reader", file: "/usr/bin/stat", classification: "execution", readOnlyExecutable: true }, { id: "executable-attributes-reader", file: "/usr/bin/xattr", classification: "execution", readOnlyExecutable: true }] : []),

@@ -717,7 +717,14 @@ npm run web:test:browser
 ```
 
 The Sites build dependencies require Node 22.13+ or 24; deciding verification
-still requires the repository's exact Node 24.18.0/npm 11.16.0 toolchain.
+still requires the repository's exact Node 24.22.1/npm 11.16.0 toolchain.
+
+The web source compatibility range is `^22.23.4 || ^24.22.1`. Its three
+Miniflare paths use scoped overrides for sharp 0.35.5 and Undici 7.30.1.
+The inspected stable parent releases still pin affected Undici, so this keeps
+the existing Vite/Miniflare/Wrangler/workerd versions instead of introducing
+unrelated parent or major changes. Verify all nested paths after installation;
+Node's bundled HTTP client is a separate runtime dependency.
 
 `web:dev` prints a loopback `/_local/login` URL. Enter the **synthetic workspace**,
 create work, add attributed notes, Save, and reopen **Saved context**. From a

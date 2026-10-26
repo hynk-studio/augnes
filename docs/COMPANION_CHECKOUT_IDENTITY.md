@@ -5,6 +5,13 @@ filesystem mount changes. It is not a durable process, a source approval, or an
 execution grant. This contract belongs to `companion-service-core.mjs` and its
 Darwin `checkout-identity.mjs` / `checkout-identity-darwin.py` provider.
 
+Companion selects only patched Node 24 (minimum 24.22.1). The shared version
+policy keeps the v-prefixed service identity separate from bare Canonical
+versions. Older enrollment records remain readable for diagnosis and retirement;
+an executable below the floor cannot install, start or recover the service.
+Changing a version floor does not rewrite enrollment, adopt a new binary or
+approve changed source. Exact path/version drift checks remain in force.
+
 ## Four separate lifetimes
 
 | Witness | Lifetime and purpose |

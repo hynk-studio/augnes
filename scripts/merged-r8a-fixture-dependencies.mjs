@@ -198,23 +198,38 @@ export function snapshotMergedR8ACurrentInputs(currentRoot) {
   };
 }
 
+// Used by the separately owned, network-enabled preparation command. The
+// package scenario itself remains offline and validates this material again.
+export function mergedR8AInstalledIdentity(root) {
+  return PREFIXES.map(prefix => {
+    const projectRoot = path.join(realpathSync(root), prefix);
+    const lock = readJson(path.join(projectRoot, "package-lock.json"));
+    const installed = inspectInstalled(projectRoot, lock);
+    return { prefix, packages: installed.installed.length,
+      sha256: stableHash([...installed.snapshot].map(([p, { inode, ...v }]) => [p, v])) };
+  });
+}
+
 /** Only the existing archived #1118 fixture calls this owner. No installs,
  * environment changes, source-lock writes or current-tree mutations occur. */
-export function materializeMergedR8ADependencies({ historicalRoot, currentRoot }) {
+export function materializeMergedR8ADependencies({ historicalRoot, currentRoot, dependencyRoot = currentRoot }) {
   historicalRoot = realpathSync(historicalRoot);
   currentRoot = realpathSync(currentRoot);
-  assert(historicalRoot !== currentRoot && !inside(currentRoot, historicalRoot) && !inside(historicalRoot, currentRoot), "dependency copies must be disjoint");
+  dependencyRoot = realpathSync(dependencyRoot);
+  assert(historicalRoot !== dependencyRoot && !inside(dependencyRoot, historicalRoot) && !inside(historicalRoot, dependencyRoot), "dependency copies must be disjoint");
+  assert(historicalRoot !== currentRoot && !inside(currentRoot, historicalRoot) && !inside(historicalRoot, currentRoot), "historical source must be isolated");
   const inputs = PREFIXES.map(prefix => {
     const oldFile = path.join(historicalRoot, prefix, "package-lock.json");
-    const newFile = path.join(currentRoot, prefix, "package-lock.json");
+    const newFile = path.join(dependencyRoot, prefix, "package-lock.json");
     regular(oldFile);
     regular(newFile);
     const historical = readJson(oldFile), current = readJson(newFile);
     const excluded = planMergedR8ADependencyView(historical, current, prefix !== "");
-    const source = path.join(currentRoot, prefix, "node_modules");
+    if (dependencyRoot !== currentRoot) assert.equal(hash(readFileSync(oldFile)), hash(readFileSync(newFile)), "prepared historical lock bytes differ");
+    const source = path.join(dependencyRoot, prefix, "node_modules");
     const destination = path.join(historicalRoot, prefix, "node_modules");
     assert(!existsSync(destination), "historical dependencies already materialized");
-    const installed = inspectInstalled(path.join(currentRoot, prefix), current);
+    const installed = inspectInstalled(path.join(dependencyRoot, prefix), current);
     return { prefix, oldFile, newFile, historical, current, excluded, source, destination, installed,
       oldHash: hash(readFileSync(oldFile)), newHash: hash(readFileSync(newFile)) };
   });
@@ -225,7 +240,7 @@ export function materializeMergedR8ADependencies({ historicalRoot, currentRoot }
     cpSync(source, destination, { recursive: true, force: false, errorOnExist: true,
       preserveTimestamps: true, verbatimSymlinks: true,
       filter: file => file !== path.join(source, ".package-lock.json") &&
-        !excluded.some(p => file === path.join(currentRoot, input.prefix, p)) });
+        !excluded.some(p => file === path.join(dependencyRoot, input.prefix, p)) });
     const historicalHidden = { ...installed.hidden, name: historical.name, version: historical.version,
       packages: Object.fromEntries(installed.installed.filter(p => !excluded.includes(p)).map(p => [p, historical.packages[p]])) };
     writeFileSync(path.join(destination, ".package-lock.json"), `${JSON.stringify(historicalHidden, null, 2)}\n`, { flag: "wx", mode: 0o644 });
@@ -245,8 +260,9 @@ export function materializeMergedR8ADependencies({ historicalRoot, currentRoot }
       assert.deepEqual(copied, sourceEntry, "copied installed bytes/mode/link changed");
     }
     evidence.push({ prefix: input.prefix, excluded, historical_lock_sha256: input.oldHash,
-      current_lock_sha256: input.newHash, historical_installed_packages: actual.installed.length,
-      current_installed_packages: installed.installed.length, copied_entries: actual.snapshot.size,
+      dependency_source: dependencyRoot === currentRoot ? "approved_current_view" : "exact_historical_install",
+      source_lock_sha256: input.newHash, historical_installed_packages: actual.installed.length,
+      source_installed_packages: installed.installed.length, copied_entries: actual.snapshot.size,
       historical_dependency_view_sha256: stableHash([...actual.snapshot].map(([p, { inode, ...v }]) => [p, v])),
       hidden_lock_historical_only: true, resolution_and_bins_verified: true, all_copied_inodes_disjoint: true });
   }

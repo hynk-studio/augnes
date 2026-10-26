@@ -32,7 +32,7 @@ const cli = (args, { status = 0, preload = [] } = {}) => {
 };
 const refused = async (operation, code) => { await assert.rejects(operation, error => error.code === code); cases++; };
 try {
-  for (const file of ["scripts/augnes-companion-service.mjs", "plugins/augnes-operator/mcp/companion-service-core.mjs", "plugins/augnes-operator/mcp/checkout-identity.mjs", "plugins/augnes-operator/mcp/checkout-identity-darwin.py"]) {
+  for (const file of ["scripts/augnes-companion-service.mjs", "plugins/augnes-operator/mcp/companion-service-core.mjs", "plugins/augnes-operator/mcp/checkout-identity.mjs", "plugins/augnes-operator/mcp/checkout-identity-darwin.py", "plugins/augnes-operator/mcp/node-runtime-policy.mjs"]) {
     mkdirSync(path.dirname(path.join(repository, file)), { recursive: true }); copyFileSync(file, path.join(repository, file));
   }
   const observed = observeCheckoutIdentity(repository);
