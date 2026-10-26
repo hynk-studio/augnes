@@ -492,15 +492,11 @@ to separate discovery, actual returned material, checked adoption, later use,
 correction and total burden only where needed for the claim. These are not new
 mandatory stages for every PR or authorization to recruit, publish or execute.
 
-The research basis includes [Paperclip's external-agent model](https://paperclip.ing/product/bring-your-own-agent/),
-[Letta shared memory](https://docs.letta.com/concepts/shared-memory),
-[Synergy knowledge/experience](https://github.com/SII-Holos/synergy/blob/68c05e60380f6e66ee71fe4b1e648b770a5264a8/docs/product/knowledge.md)
-and [Hermes Kanban](https://hermes-agent.nousresearch.com/docs/user-guide/features/kanban),
-alongside [Synergy's research](https://arxiv.org/html/2603.28428v1) and
-[Internet of Agents](https://arxiv.org/html/2407.07061v2). Treat existing
-continuity, memory and collaboration capabilities as strong reuse/comparison
-candidates. These sources motivate the direction; they do not establish Augnes
-superiority, independent willingness to contribute or a previously empty market.
+Capability extensions must serve Augnes's existing product principles and a
+concrete user or work outcome. Reuse current capabilities where sufficient,
+preserve project and authority boundaries, and evaluate added capability and
+total burden through the existing owners. An external design does not by itself
+create a product requirement, implementation assignment or adoption decision.
 
 ### Economic undertaking application — 2026-10-25
 
@@ -614,14 +610,12 @@ history-based adaptation as follow-up;
 and cooperative competence; [CoffeeBench](https://arxiv.org/html/2606.16613v1)
 provides time-dependent trading/obligation cases within a simplified economy;
 [RLI](https://labs.scale.com/leaderboard/rli) supplies a deliverable-acceptance
-reference, not customer acquisition or repeat-business proof. Existing
-[A2A](https://a2a-protocol.org/latest/specification/),
-[AP2](https://ap2-protocol.org/) and
-[x402](https://github.com/x402-foundation/x402/blob/main/specs/x402-specification-v2.md)
-can supply communication, delegated authorization and payment adapters where
-needed; they do not establish undertaking-level judgment, total-budget control
-or checked fulfillment. These are research/architecture inputs, not adopted
-dependencies, current compatibility promises or evidence of Augnes advantage.
+reference, not customer acquisition or repeat-business proof. When a concrete
+undertaking needs communication, delegated authorization or payment
+acknowledgment, define the smallest interface from its actual counterpart and
+Augnes's existing authority and obligation owners. Undertaking-level judgment,
+total-budget control and checked fulfillment remain separate responsibilities.
+The cited evaluation inputs do not establish product adoption or Augnes advantage.
 
 #### Development and operation sequence — 2026-10-25
 
