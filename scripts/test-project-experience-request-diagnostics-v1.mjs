@@ -229,6 +229,7 @@ function ownerObserver(diagnostic) {
   let listener;
   const state = {
     requestDiagnostics: diagnostic,
+    guideLifecycle: { connection: () => null, observe() {}, bindFailure() {} },
     requestVerdicts: createProjectExperienceRequestVerdictV1(),
     cdp: { on: callback => { listener = callback; }, send: (...args) => { state.sent.push(args); return Promise.resolve({}); } },
     sent: [], requests: [], responses: [], failedRequests: [], externalRequests: [],

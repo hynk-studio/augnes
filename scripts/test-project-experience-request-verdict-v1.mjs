@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import "./test-project-experience-session-refusal-v1.mjs";
+import "./test-project-experience-guide-lifecycle-v1.mjs";
 import {
   createProjectExperienceRequestVerdictV1,
   UNAVAILABLE_EXECUTION_PROBE_HEADERS_V1,
@@ -26,6 +27,7 @@ function fixture({ armed = true } = {}) {
     requestVerdicts: createProjectExperienceRequestVerdictV1(),
     UNAVAILABLE_EXECUTION_PROBE_HEADERS_V1,
     requestDiagnostics: { connection: () => null, observe() {} },
+    guideLifecycle: { connection: () => null, observe() {}, bindFailure() {} },
     cdp: { on: listener => listeners.push(listener) },
     requests: [], responses: [], failedRequests: [], externalRequests: [],
     currentPhase: phase, lastObserverActivityAt: 0, Date, URL,

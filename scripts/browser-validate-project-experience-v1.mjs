@@ -41,6 +41,7 @@ import { chooseBrowserPorts, readBrowserPortAllocationDiagnostic } from "./brows
 import { createBrowserE2ETimingRecorder } from "./browser-e2e-timing.mjs";
 import { createProjectExperienceRequestDiagnosticsV1 } from "./project-experience-request-diagnostics-v1.mjs";
 import { CONSUMER_DIAGNOSTIC_BINDING_V1 } from "./project-experience-consumer-diagnostics-v1.mjs";
+import { createGuideLifecycleV1, GUIDE_LIFECYCLE_BINDING_V1 } from "./project-experience-guide-lifecycle-v1.mjs";
 import {
   createProjectExperienceRequestVerdictV1,
   UNAVAILABLE_EXECUTION_PROBE_HEADERS_V1,
@@ -186,7 +187,8 @@ const productShellResponsiveResults = [];
 const ownedBrowserProcesses = new Set();
 const timing = createBrowserE2ETimingRecorder({ scope: VALIDATION_SCOPE });
 const requestDiagnostics = createProjectExperienceRequestDiagnosticsV1();
-const requestVerdicts = createProjectExperienceRequestVerdictV1({ cancellationEvidence: requestDiagnostics.cancellationEvidence });
+const guideLifecycle = createGuideLifecycleV1();
+const requestVerdicts = createProjectExperienceRequestVerdictV1({ cancellationEvidence: requestDiagnostics.cancellationEvidence, guideEvidence: guideLifecycle.evidence });
 const detailedFieldContract = loadProjectExperienceResultContractV1();
 const detailedFieldCompletionOwner =
   createDetailedFieldCompletionOwnerV1(detailedFieldContract);
@@ -520,6 +522,7 @@ function emitRequestDiagnostics(checkpoint) {
   try {
     const snapshot = requestDiagnostics.snapshot(checkpoint) ?? "report_unavailable";
     process.stdout.write(`${JSON.stringify({ project_experience_request_diagnostic: snapshot })}\n`);
+    process.stdout.write(`${JSON.stringify({ project_experience_guide_lifecycle: guideLifecycle.snapshot() })}\n`);
   } catch {
     // Reporting cannot replace the original verdict or throw over its failure.
     try { process.stderr.write('{"project_experience_request_diagnostic":"report_unavailable"}\n'); } catch { /* Existing lifecycle still owns settlement. */ }
@@ -3364,13 +3367,19 @@ async function openCdpPage() {
     await cdp.send("Runtime.addBinding", { name: CONSUMER_DIAGNOSTIC_BINDING_V1 });
     await cdp.send("Page.addScriptToEvaluateOnNewDocument", { source: requestDiagnostics.browserSource() });
   } catch { requestDiagnostics.installationFailed(); }
+  try {
+    await cdp.send("Runtime.addBinding", { name: GUIDE_LIFECYCLE_BINDING_V1 });
+    await cdp.send("Page.addScriptToEvaluateOnNewDocument", { source: guideLifecycle.browserSource() });
+  } catch { guideLifecycle.installationFailed(); }
 }
 
 function attachCdpObservers() {
   const diagnosticConnection = requestDiagnostics.connection();
   const verdictConnection = requestVerdicts.connection(requestDiagnostics.verdictConnection?.(diagnosticConnection));
+  const guideConnection = guideLifecycle.connection(requestDiagnostics.verdictConnection?.(diagnosticConnection));
   cdp.on((payload) => {
     requestDiagnostics.observe(diagnosticConnection, payload);
+    guideLifecycle.observe(guideConnection, payload, currentPhase);
     const params = payload.params ?? {};
     if (payload.method === "Network.requestWillBeSent") {
       lastObserverActivityAt = Date.now();
@@ -3440,6 +3449,7 @@ function attachCdpObservers() {
       };
       requestVerdicts.observe(verdictConnection, payload, failure);
       requestDiagnostics.bindVerdictFailure?.(diagnosticConnection, payload, failure);
+      guideLifecycle.bindFailure(guideConnection, payload, failure);
       failedRequests.push(failure);
     }
   });
@@ -5840,6 +5850,7 @@ function expectedStatusResponseIdentity(response) {
 }
 
 function expectedFailedRequest(entry) {
+  if (requestVerdicts.guideEffectReplayCancellation?.(entry).expected === true) return true;
   if (requestVerdicts.expectedUnavailableExecutionAbort(entry)) return true;
   if (requestVerdicts.sessionRefusalCancellation?.(entry).expected === true) return true;
   if (
@@ -5893,6 +5904,7 @@ function expectedFailedRequest(entry) {
 }
 
 function failedRequestAssertionEntry(entry) {
+  if (entry.path === "/api/augnes/read/guide-brief") return { ...entry, guide_cancellation: requestVerdicts.guideEffectReplayCancellation(entry) };
   if (entry.path !== "/api/vnext/operator/host-round-trip") return entry;
   return {
     phase: entry.phase,

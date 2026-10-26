@@ -1,6 +1,7 @@
 // Private Browser-owner verdict state. Public diagnostic snapshots are never an
 // input. The prospective cancellation branch reads authentic private pin facts.
 import { sessionRefusalEvidenceOwnerV1 } from './project-experience-host-round-trip-pins-v1.mjs';
+import { guideLifecycleEvidenceOwnerV1 } from './project-experience-guide-lifecycle-v1.mjs';
 const PROBE_PHASE = "companion_first_work_access";
 const PROBE_PATH = "/api/vnext/operator/host-round-trip";
 const PROBE_HEADER = "x-augnes-e2e-probe";
@@ -9,11 +10,12 @@ export const UNAVAILABLE_EXECUTION_PROBE_HEADERS_V1 = Object.freeze({
   [PROBE_HEADER]: PROBE_VALUE,
 });
 
-export function createProjectExperienceRequestVerdictV1({ cancellationEvidence } = {}) {
+export function createProjectExperienceRequestVerdictV1({ cancellationEvidence, guideEvidence } = {}) {
   const connections = new WeakMap();
   const failures = new WeakMap();
   let probe = null;
   const cancellationOwner = sessionRefusalEvidenceOwnerV1(cancellationEvidence);
+  const guideOwner = guideLifecycleEvidenceOwnerV1(guideEvidence);
 
   const rejected = reason => ({ expected: false, reason });
   function classifyFailure(entry) {
@@ -138,7 +140,98 @@ export function createProjectExperienceRequestVerdictV1({ cancellationEvidence }
       body_settlement: bodyFailed.length ? 'failed' : 'unknown', completed_read: false };
   }
 
+  function classifyGuideReplay(entry) {
+    const evidence = failures.get(entry), facts = guideOwner?.facts(entry);
+    if (!evidence || !facts) return rejected('guide_evidence_missing');
+    const { context, responseBeforeFailure, canceled } = evidence;
+    const { request: pin, generation: first, counts, uniqueRequest } = facts;
+    const phase = 'project_shell_and_locked_entry', path = '/api/augnes/read/guide-brief';
+    if (entry.phase !== phase || context.request.phase !== phase || pin.phase !== phase ||
+      entry.path !== path || context.request.path !== path || pin.path !== path ||
+      context.request.method !== 'GET' || pin.method !== 'GET' || context.request.external !== false ||
+      !pin.local || !pin.explicitProject || !pin.hook) return rejected('guide_scope_mismatch');
+    if (context.ambiguous || pin.invalid || first.doc.invalid || !uniqueRequest ||
+      Object.values(counts).some(n => n !== 0) || !pin.frameId || !pin.loaderId ||
+      first.doc.frame !== pin.frameId || first.doc.loader !== pin.loaderId) return rejected('guide_correlation_incomplete');
+    if (pin.protocolIdentity.connection !== context.correlationConnection ||
+      pin.protocolIdentity.session !== context.protocolSession || pin.protocolIdentity.request !== context.protocolRequest) {
+      return rejected('guide_request_identity_mismatch');
+    }
+    if (entry.error_text !== 'net::ERR_ABORTED' || canceled !== true || pin.failure?.error !== 'net::ERR_ABORTED' ||
+      pin.failure.canceled !== true || pin.failure.phase !== phase || responseBeforeFailure !== null ||
+      context.response !== null || pin.response !== null || pin.finished !== null) return rejected('guide_failure_mismatch');
+    const one = (events, kind, predicate = () => true) => {
+      const matches = events.filter(e => e.event === kind && predicate(e));
+      return matches.length === 1 ? matches[0] : null;
+    };
+    const ordered = list => list.every((n, i) => Number.isInteger(n) && (i === 0 || list[i - 1] < n));
+    const a = first.created, events = first.events, consumer = first.consumer;
+    if (a.cause !== 'initial_effect' || a.effect !== 1 || !/^project-/.test(a.context) ||
+      events.some(e => e.consumer !== a.consumer || e.effect !== a.effect || e.context !== a.context || e.controller !== a.controller)) {
+      return rejected('guide_generation_mismatch');
+    }
+    const setup = one(consumer, 'effect_setup', e => e.effect === 1);
+    const cleanup = one(consumer, 'effect_cleanup', e => e.effect === 1 && e.target === a.read);
+    const nextSetup = one(consumer, 'effect_setup', e => e.effect === 2 && e.context === a.context);
+    const fetch = one(events, 'fetch_started', e => e.same_signal === true && e.request_valid === true);
+    const abort = one(events, 'abort_requested', e => e.cause === 'cleanup' && e.already_aborted === false);
+    const signal = one(events, 'signal_aborted');
+    const returnedAbort = one(events, 'abort_returned', e => e.sequence > (signal?.sequence ?? Infinity) && e.sequence < (nextSetup?.sequence ?? 0) && e.aborted === true);
+    const settled = one(events, 'read_aborted'), returned = one(events, 'returned');
+    if ([setup, cleanup, nextSetup, fetch, abort, signal, returnedAbort, settled, returned].some(e => !e) ||
+      !ordered([setup.sequence, a.sequence, fetch.sequence, pin.sequence, cleanup.sequence, abort.sequence, signal.sequence, returnedAbort.sequence, nextSetup.sequence]) ||
+      !ordered([signal.sequence, settled.sequence, returned.sequence]) || pin.failure.sequence <= returnedAbort.sequence) {
+      return rejected('guide_cleanup_chain_incomplete');
+    }
+    if (events.some(e => ['headers', 'body_started', 'body_completed', 'parsed', 'application_requested', 'committed', 'read_failed', 'stale_blocked'].includes(e.event))) {
+      return rejected('guide_aborted_read_not_empty');
+    }
+    // Strict effect replay invokes the same read again. Its redundant abort of
+    // the already-aborted controller must also be observed, not assumed harmless.
+    const repeatedAbort = one(events, 'abort_requested', e => e.cause === 'supersede' && e.already_aborted === true);
+    const repeatedReturn = one(events, 'abort_returned', e => e.sequence > (repeatedAbort?.sequence ?? Infinity) && e.aborted === true);
+    if (!repeatedAbort || !repeatedReturn || events.filter(e => e.event === 'abort_requested').length !== 2 ||
+      events.filter(e => e.event === 'abort_returned').length !== 2 ||
+      !ordered([nextSetup.sequence, repeatedAbort.sequence, repeatedReturn.sequence])) return rejected('guide_replay_abort_mismatch');
+    const replacements = facts.candidates.filter(x => x.generation.doc === first.doc &&
+      x.generation.created.consumer === a.consumer && x.generation.created.effect === 2);
+    if (replacements.length !== 1) return rejected('guide_replacement_ambiguous');
+    const { request: replacement, generation: second } = replacements[0], b = second.created, reads = second.events;
+    if (['read_created', 'fetch_started', 'headers', 'body_started', 'body_completed', 'parsed', 'application_requested', 'returned', 'committed']
+      .some(kind => reads.filter(e => e.event === kind).length !== 1) ||
+      ['read_created', 'fetch_started', 'signal_aborted', 'read_aborted', 'returned']
+        .some(kind => events.filter(e => e.event === kind).length !== 1)) return rejected('guide_duplicate_event');
+    if (b.cause !== 'initial_effect' || b.context !== a.context || b.read === a.read || b.controller === a.controller ||
+      reads.some(e => e.consumer !== b.consumer || e.effect !== b.effect || e.context !== b.context || e.controller !== b.controller) ||
+      replacement.invalid || !replacement.hook || !replacement.explicitProject || !replacement.local || replacement.method !== 'GET' ||
+      replacement.phase !== phase || replacement.connection !== pin.connection || replacement.session !== pin.session ||
+      replacement.frameId !== pin.frameId || replacement.loaderId !== pin.loaderId || replacement.failure ||
+      replacement.response?.status !== 200 || !replacement.finished) return rejected('guide_replacement_mismatch');
+    const secondFetch = one(reads, 'fetch_started', e => e.same_signal === true && e.request_valid === true);
+    const headers = one(reads, 'headers', e => e.value === 200), bodyStarted = one(reads, 'body_started');
+    const body = one(reads, 'body_completed'), parsed = one(reads, 'parsed', e => e.value === true);
+    const apply = one(reads, 'application_requested', e => e.current === true && e.aborted === false && e.project_matches === true);
+    const complete = one(reads, 'returned');
+    const commit = one(reads, 'committed', e => e.current === true && e.same_controller === true && e.aborted === false && e.context_current === true);
+    if ([secondFetch, headers, bodyStarted, body, parsed, apply, complete, commit].some(e => !e) ||
+      !ordered([repeatedReturn.sequence, b.sequence, secondFetch.sequence, replacement.sequence]) ||
+      !ordered([replacement.sequence, replacement.response.sequence, replacement.finished.sequence]) ||
+      !ordered([secondFetch.sequence, headers.sequence, bodyStarted.sequence, body.sequence, parsed.sequence, apply.sequence, complete.sequence, commit.sequence]) ||
+      replacement.finished.sequence >= commit.sequence || pin.failure.sequence >= commit.sequence || returned.sequence >= commit.sequence) {
+      return rejected('guide_replacement_not_consumed');
+    }
+    if (reads.some(e => e.sequence <= commit.sequence && ['abort_requested', 'signal_aborted', 'read_aborted', 'read_failed', 'stale_blocked'].includes(e.event)) ||
+      consumer.some(e => e.sequence > nextSetup.sequence && e.sequence <= commit.sequence && ['effect_setup', 'effect_cleanup'].includes(e.event)) ||
+      facts.events.some(e => e.connectionNumber === pin.connectionNumber && e.session === pin.session &&
+        e.sequence > pin.sequence && e.sequence <= commit.sequence &&
+        (e.kind === 'navigation' || (e.kind === 'context_destroyed' && (e.context === null || e.context === first.doc.context))))) {
+      return rejected('guide_current_consumer_changed');
+    }
+    return { expected: true, reason: 'expected_guide_effect_replay_cancellation', replacement_completed_and_adopted: true };
+  }
+
   return Object.freeze({
+    guideEffectReplayCancellation(entry) { return classifyGuideReplay(entry); },
     armSessionRefusalScenario() { return cancellationOwner?.arm() ?? null; },
     completeSessionRefusalScenario(handle) { cancellationOwner?.seal(handle); },
     closeSessionRefusalScenario(handle) { cancellationOwner?.close(handle); },

@@ -34,3 +34,30 @@ export function projectExperienceTestObserverV1(instance: object): ProjectExperi
     return portal?.consumer(instance) ?? null;
   } catch { return null; }
 }
+
+export interface ProjectExperienceGuideReadObserverV1 {
+  fetch: typeof fetch;
+  event(kind: string, value?: boolean | number): void;
+  apply(value: object): void;
+}
+
+export interface ProjectExperienceGuideObserverV1 {
+  setup(projectId: string | null | undefined): void;
+  initial(active: boolean): void;
+  abort(controller: AbortController | null, cause: "cleanup" | "supersede"): void;
+  abortReturned(controller: AbortController | null): void;
+  read(controller: AbortController, projectId: string | null | undefined): ProjectExperienceGuideReadObserverV1 | null;
+  commit(guide: object | null, controller: AbortController | null, projectId: string | null | undefined): void;
+}
+
+export function projectExperienceGuideObserverV1(instance: object): ProjectExperienceGuideObserverV1 | null {
+  if (process.env.NODE_ENV !== "development" || typeof window === "undefined") return null;
+  try {
+    const testWindow = window as unknown as {
+      __augnesGuideLifecycleEventV1?: unknown;
+      __augnesGuideLifecycleV1?: { consumer(instance: object): ProjectExperienceGuideObserverV1 | null };
+    };
+    if (typeof testWindow.__augnesGuideLifecycleEventV1 !== "function") return null;
+    return testWindow.__augnesGuideLifecycleV1?.consumer(instance) ?? null;
+  } catch { return null; }
+}

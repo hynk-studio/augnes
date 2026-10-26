@@ -22,6 +22,24 @@ child copies them into its own writable database and reads them through the
 production application. It does not borrow a live operator or continuity
 runtime.
 
+The locked-entry GuideBrief request guard admits one observed cancellation
+shape: the initial effect's cleanup aborts its exact request, then effect replay
+in the same consumer, document, frame, project context and protocol connection
+starts a distinct replacement. Private request/controller/signal bindings must
+prove the first read returned aborted without a response or application, and
+the replacement completed, parsed successfully and committed to the current
+consumer. Missing, copied, altered, ambiguous or lossy evidence refuses; so do
+independent network failures, unconsumed replacements and stale writes.
+Ordinary unmounts, explicit refresh and other cancellation shapes gain no new
+exception. Public diagnostic snapshots are not verdict inputs.
+
+This observation is installed only by the disposable development Browser.
+It preserves request arguments, the original fetch Promise, cancellation and
+scheduling. The strict return-focus predicate, 45-second condition deadline,
+phase/child bounds, Browser inventory, global network/privacy/integrity guards
+and cleanup owners remain unchanged. Focused diagnostics and controls do not
+qualify a Browser phase or rewrite historical failed results.
+
 ### Operator and execution
 
 `npm run test:e2e:operator-execution` is a focused developer convenience that
