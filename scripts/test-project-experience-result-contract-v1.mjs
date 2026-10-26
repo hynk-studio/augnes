@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import "./test-project-experience-hydration-boundary-v1.mjs";
 import "./test-project-experience-request-diagnostics-v1.mjs";
 import "./test-project-experience-request-verdict-v1.mjs";
-import "./test-project-settings-return-focus.mjs";
+import { assertProjectSettingsReturnFocus } from "./test-project-settings-return-focus.mjs";
 
 import {
   assertProjectExperienceDetailedValuesV1,
@@ -13,6 +13,8 @@ import {
   createDetailedFieldCompletionOwnerV1,
   loadProjectExperienceResultContractV1,
 } from "./project-experience-result-contract-v1.mjs";
+
+assertProjectSettingsReturnFocus();
 
 const contract = loadProjectExperienceResultContractV1();
 assert.equal(contract.field_ids.length, 70);

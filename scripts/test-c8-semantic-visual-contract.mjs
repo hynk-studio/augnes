@@ -157,10 +157,12 @@ assert.match(
   /window\.dispatchEvent\(new Event\(PROJECT_SETTINGS_ACTIVATION_EVENT\)\)/u,
 );
 assert.doesNotMatch(projectSettingsLink, /preventDefault/u);
-assert.match(
-  blankState,
-  /window\.addEventListener\([\s\S]*PROJECT_SETTINGS_ACTIVATION_EVENT[\s\S]*openAndFocusProjectSettings/u,
+// Execute the actual effect and link contract; callback spelling/order is not
+// the wiring contract. A failed imported control must stop this owner too.
+const { assertProjectSettingsReturnFocus } = await import(
+  "./test-project-settings-return-focus.mjs"
 );
+assertProjectSettingsReturnFocus();
 assert.match(blankState, /ownerId=\{/u);
 assert.match(blankState, /\? "project-settings"/u);
 assert.match(blankState, /aria-label="Open GuideBrief"/u);
