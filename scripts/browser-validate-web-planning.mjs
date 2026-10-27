@@ -1,3 +1,4 @@
+import { selectBrowserPath } from "./local-canonical-browser-input.mjs";
 import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { browserSceneJourney } from "./browser-web-planning-scenes.mjs";
 import { browserSceneResponseJourney } from './browser-web-planning-scene-responses.mjs';
@@ -21,7 +22,7 @@ import { browserCapacityJourney } from './browser-web-planning-capacity.mjs';
 import { browserBranchJourney } from './browser-web-planning-branches.mjs';
 import { assertReadOnlyRequestWindow, testReadOnlyRequestWindow } from './browser-web-planning-requests.mjs';
 const root=process.env.AUGNES_CANONICAL_TEMP_ROOT;if(!root)throw new Error('owned_browser_root_required');
-const chrome=[process.env.AUGNES_BROWSER_EXECUTABLE_PATH,'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome','/usr/bin/chromium','/usr/bin/google-chrome'].find(p=>p&&existsSync(p));
+const chrome=selectBrowserPath([process.env.AUGNES_BROWSER_EXECUTABLE_PATH,'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome','/usr/bin/chromium','/usr/bin/google-chrome']);
 assert(chrome,'real_browser_unavailable');
 const owned=new Set(),clients=[];let processRecord,local;let external=0,exceptions=0,saveRequests=0,lostResponse=false,unexpectedFailures=0;const expectedFailures=new Set();
 const requests=[],responses=[],interceptionErrors=[],acknowledgementChecks=[];

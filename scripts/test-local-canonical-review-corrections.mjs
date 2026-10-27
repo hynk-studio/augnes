@@ -71,7 +71,7 @@ try {
   write(executable, "fixture executable\n"); chmodSync(executable, 0o700);
   const before = observeInputFile(executable, { readOnlyExecutable: true });
   const active = freezeInputContract({ resources: [{ id: "browser-executable", file: executable, ...role }], pathKind: "isolated-model-free-v1", binding: {} });
-  const use = beginBrowserUse(executable, { consumer: "durable-work-surface", emit() {} });
+  const use = beginBrowserUse(executable, { consumer: "durable-work-surface", repositoryRoot: root, env: {}, emit() {} });
   use.version("Fixture/1.0"); use.version("Fixture/1.0", "cdp");
   linkSync(executable, alias);
   assert.equal(active.check(), null);
@@ -226,7 +226,7 @@ async function successionControls() {
     // completion even when that older completion would otherwise qualify.
     const newer = path.join(root, ".augnes-local-verification", "families", priors.completed_success.a.family_id, "attempt-2.json");
     write(newer, { attempt_id: "unsettled-newer-attempt" });
-    assert.throws(() => successor("completed_success", makeProof("completed_success", "source_revision")), /source_correction_predecessor_invalid/);
+    assert.throws(() => successor("completed_success", makeProof("completed_success", "source_revision")), /attempt_lineage_identity_invalid/);
     rmSync(newer);
     for (const [key, kind] of [["completed_success", "source_revision"], ["safety_violation", "verifier_correction"]]) {
       const proof = makeProof(key, kind), a = successor(key, proof);
@@ -390,7 +390,7 @@ async function exactPathControls({ name, sourceModule, defect, beforeSource, aft
     makeProof("product_failure", "accepted_main_integration"); assert.throws(() => successor(readProof()), /source_correction_predecessor_invalid/);
     checks.push("product failure is not accepted-main-only succession");
     const newer = path.join(family("product_failure"), "attempt-2.json"); write(newer, { attempt_id: "unsettled newer attempt" });
-    makeProof(); assert.throws(() => successor(readProof()), /source_correction_predecessor_invalid/); rmSync(newer); checks.push("older attempt selection");
+    makeProof(); assert.throws(() => successor(readProof()), /attempt_lineage_identity_invalid/); rmSync(newer); checks.push("older attempt selection");
 
     for (const key of ["product_failure", "user_cancellation", "completed_success"]) {
       makeProof(key); const proof = readProof(), attempt = successor(proof);
@@ -400,10 +400,10 @@ async function exactPathControls({ name, sourceModule, defect, beforeSource, aft
       const stock = () => inspectAttemptRecords({ anchorRoot: checkout, repositoryRoot: checkout, receipt: linked });
       assert(stock(), key); checks.push(`reader admission stock ${key}`);
       const reservation = path.join(family(key), "correction-successor.json"), originalReservation = readFileSync(reservation);
-      assert.throws(() => successor(proof), /attempt_recovery_not_supported/);
+      assert.throws(() => successor(proof), /attempt_latest_tip_required/);
       assert.throws(() => beginAttempt({ ...request, branch: proof.branch, runId: "superseded-recovery", recoveryProof: { schema: "augnes.local-canonical-infrastructure-repair.v1" } }), /attempt_candidate_superseded/);
       const alternate = { ...proof, defect: "different_successor" }; write(proofFile, alternate);
-      assert.throws(() => successor(readProof()), /source_correction_successor_already_bound/); write(proofFile, proof);
+      assert.throws(() => successor(readProof()), /attempt_latest_tip_required/); write(proofFile, proof);
       assert.deepEqual(readFileSync(reservation), originalReservation); checks.push(`immutable successor ${key}`);
       for (const file of [proofFile, reviewFile, fixture, path.join(artifacts, "before.json"), path.join(artifacts, "after.json"),
         path.join(receiptDir, `${key}.json`), path.join(family(key), "attempt-1.json"), path.join(family(key), "completion-1.json"), reservation]) {

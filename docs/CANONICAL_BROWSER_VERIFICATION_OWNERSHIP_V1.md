@@ -376,3 +376,18 @@ This architecture does not change product, API, Core, protocol, schema,
 authority, native-host, provider, or UI behavior. It does not create hosted
 evidence, publish Local Canonical artifacts, dispatch workflows, or grant merge
 authority.
+
+## Strict Browser input compatibility
+
+The explicitly versioned task-owned Browser lane uses the shared selector in
+`local-canonical-browser-input.mjs` at all selected launch sites. It retains
+this document's phase ownership and the 19 actual launch records (integration
+5, project 4, review 5, and one each for native, expectation, multi-candidate,
+continuity and golden). The v3 use record adds the full-bundle input fingerprint
+and matching CLI/HTTP/CDP versions. The controller monitors that bundle before
+unit/integration through settlement; monitoring is not delayed to Browser7.
+Strict selection cannot fall back after missing or invalid binding. Legacy
+selection is unchanged outside that lane. See the Local Canonical policy's
+Browser-input replacement section for its separate review/grant and read-only
+stock requirements. No change to the C8 30-second child or 3,600-second unit
+phase limit is authorized by this input contract.

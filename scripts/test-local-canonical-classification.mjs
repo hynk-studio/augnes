@@ -299,9 +299,9 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
   assert.throws(() => observeInputFile(browserFile), "mutable/config observations must still reject a shared inode");
   const executableContract = freezeInputContract({ pathKind: "isolated-model-free-v1", resources: [{ id: "browser-executable", file: browserFile, classification: "execution", readOnlyExecutable: true }], binding: {} });
   assert.equal(executableContract.check(), null);
-  const browserUse = beginBrowserUse(browserFile, { consumer: "fixture", emit() {} }); browserUse.version("Fixture/1.0"); browserUse.version("Fixture/1.0", "cdp");
+  const browserUse = beginBrowserUse(browserFile, { consumer: "fixture", repositoryRoot: root, env: {}, emit() {} }); browserUse.version("Fixture/1.0"); browserUse.version("Fixture/1.0", "cdp");
   assert(validBrowserUse(browserUse.finish()));
-  const changedBrowser = beginBrowserUse(browserFile, { consumer: "fixture", emit() {} }); changedBrowser.version("Fixture/1.0"); changedBrowser.version("Fixture/1.0", "cdp"); write(browserAlias, "mutated executable");
+  const changedBrowser = beginBrowserUse(browserFile, { consumer: "fixture", repositoryRoot: root, env: {}, emit() {} }); changedBrowser.version("Fixture/1.0"); changedBrowser.version("Fixture/1.0", "cdp"); write(browserAlias, "mutated executable");
   assert(!validBrowserUse(changedBrowser.finish()));
   assert.equal(executableContract.check().disposition, "input_invalidation");
   const relinked = freezeInputContract({ pathKind: "isolated-model-free-v1", resources: [{ id: "browser-executable", file: browserFile, classification: "execution", readOnlyExecutable: true }], binding: {} });

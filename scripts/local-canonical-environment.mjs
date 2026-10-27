@@ -2,11 +2,14 @@ import { createHash, randomBytes } from "node:crypto";
 import {
   chmodSync,
   closeSync,
+  constants,
   existsSync,
+  fstatSync,
   lstatSync,
   mkdirSync,
   openSync,
   readFileSync,
+  readSync,
   realpathSync,
   statfsSync,
   writeFileSync,
@@ -14,6 +17,7 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { selectedBrowserInput } from "./local-canonical-browser-input.mjs";
 
 import {
   CANONICAL_DARWIN_REPOSITORY_ROOT,
@@ -131,9 +135,9 @@ export function assertCommitExists(repositoryRoot, sha, label) {
   }
 }
 
-export function collectHostEnvironment(repositoryRoot) {
+export function collectHostEnvironment(repositoryRoot, { browserInput = null } = {}) {
   const disk = collectDiskObservation(repositoryRoot);
-  const browser = selectBrowserExecutable();
+  const browser = browserInput ? { path: browserInput.executable, name: path.basename(browserInput.executable), source: "task_owned_bundle_v1" } : selectBrowserExecutable(repositoryRoot);
   const nodeExecutableVersion = runVersionCommand("node", ["--version"]).replace(
     /^v/u,
     "",
@@ -324,6 +328,26 @@ export function ensureMachineFingerprint(artifactRoot) {
     .slice(0, 32);
 }
 
+// Stock in the explicitly versioned Browser lane must not create an identity
+// or even chmod an existing one. Unsafe/missing state is evidence, not repair.
+export function readMachineFingerprint(artifactRoot) {
+  const refuse = () => Object.assign(new Error("stock_machine_identity_unsafe"), { code: "stock_machine_identity_unsafe" });
+  const root = lstatSync(artifactRoot);
+  if (!root.isDirectory() || root.isSymbolicLink() || realpathSync(artifactRoot) !== artifactRoot || (root.mode & 0o077)) throw refuse();
+  const file = path.join(artifactRoot, "machine-id"), before = lstatSync(file, { bigint: true });
+  if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1n || (before.mode & 0o777n) !== 0o600n || before.size > 65n || before.uid !== BigInt(root.uid)) throw refuse();
+  const descriptor = openSync(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+  try {
+    const same = s => ["dev", "ino", "mode", "uid", "gid", "nlink", "size", "mtimeNs", "ctimeNs"].every(k => s[k] === before[k]);
+    if (!same(fstatSync(descriptor, { bigint: true }))) throw refuse();
+    const buffer = Buffer.alloc(66); let length = 0, count;
+    while (length < buffer.length && (count = readSync(descriptor, buffer, length, buffer.length - length, null)) > 0) length += count;
+    const material = buffer.subarray(0, length).toString("utf8").trim();
+    if (length > 65 || !/^[0-9a-f]{64}$/u.test(material) || !same(fstatSync(descriptor, { bigint: true })) || !same(lstatSync(file, { bigint: true }))) throw refuse();
+    return createHash("sha256").update("augnes-local-canonical-machine-v1\0").update(material).digest("hex").slice(0, 32);
+  } finally { closeSync(descriptor); }
+}
+
 export function runGit(repositoryRoot, args) {
   return runGitResult(repositoryRoot, args).stdout;
 }
@@ -352,7 +376,9 @@ function runGitResult(
   };
 }
 
-function selectBrowserExecutable() {
+function selectBrowserExecutable(repositoryRoot) {
+  const binding = selectedBrowserInput({ repositoryRoot });
+  if (binding) return { path: binding.executable, name: path.basename(binding.executable), source: "task_owned_bundle_v1" };
   const configured = process.env.AUGNES_BROWSER_EXECUTABLE_PATH?.trim();
   if (configured && path.isAbsolute(configured) && existsSync(configured)) {
     return {

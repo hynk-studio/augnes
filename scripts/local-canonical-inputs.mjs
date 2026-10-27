@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { constants, closeSync, fstatSync, lstatSync, openSync, readFileSync, realpathSync } from "node:fs";
+import { createBrowserBundleObserver, compareBrowserBundle } from "./local-canonical-browser-bundle.mjs";
 
 export const INPUT_CONTRACT = "augnes.local-canonical-inputs.v2";
 export const INPUT_CLASSES = Object.freeze(["execution", "safety", "ambient", "unknown"]);
@@ -77,7 +78,8 @@ export function observeInputFile(file, { metadataOnly = false, preferences = fal
 
 export const nonFaultInputChange = disposition => ["unchanged", "ambient_observation", "incidental_executable_metadata"].includes(disposition);
 
-export function classifyInputChange(before, after, { classification, excludePreferences = false, readOnlyExecutable = false } = {}) {
+export function classifyInputChange(before, after, { classification, excludePreferences = false, readOnlyExecutable = false, browserBundle = false } = {}) {
+  if (browserBundle) return classification === "execution" && !excludePreferences && !readOnlyExecutable ? compareBrowserBundle(before, after) : "unknown_relevance";
   if (!INPUT_CLASSES.includes(classification) || !before || !after || typeof before !== "object" || typeof after !== "object" || Array.isArray(before) || Array.isArray(after)) return "unknown_relevance";
   const usableExecutable = value => value.present === true && /^[0-9a-f]{64}$/u.test(value.sha256 ?? "") &&
     ["mode", "uid", "gid", "device", "inode", "bytes", "mtime_ns", "ctime_ns", "links"].every(key => /^\d{1,40}$/u.test(value.metadata?.[key] ?? "")) &&
@@ -110,14 +112,24 @@ export function classifyInputChange(before, after, { classification, excludePref
   return classification === "safety" ? "safety_violation" : "input_invalidation";
 }
 
-export function freezeInputContract({ resources, pathKind, binding, read = observeInputFile }) {
+export function createInputReader() {
+  const bundles = new Map();
+  return (file, options = {}) => {
+    if (!options.browserBundle) return observeInputFile(file, options);
+    if (!bundles.has(file)) bundles.set(file, createBrowserBundleObserver(file));
+    return bundles.get(file)({ force: options.force === true }).observation;
+  };
+}
+
+export function freezeInputContract({ resources, pathKind, binding, read = createInputReader() }) {
   if (!Array.isArray(resources) || resources.length === 0 || !resources.every(r => r && typeof r === "object") || new Set(resources.map(r => r.id)).size !== resources.length)
     throw fail("input_inventory_invalid");
   const selected = resources.map(resource => {
     if (!/^[a-z][a-z0-9_-]{0,79}$/u.test(resource.id) || !INPUT_CLASSES.includes(resource.classification)) throw fail("input_inventory_invalid");
     if (resource.readOnlyExecutable && (resource.classification !== "execution" || resource.metadataOnly || resource.excludePreferences)) throw fail("input_executable_role_invalid");
     if (resource.excludePreferences && (pathKind !== "isolated-model-free-v1" || resource.classification !== "ambient")) throw fail("input_exclusion_unproven");
-    return { ...resource, before: read(resource.file, { metadataOnly: resource.metadataOnly, preferences: resource.excludePreferences, readOnlyExecutable: resource.readOnlyExecutable }) };
+    if (resource.browserBundle && (resource.classification !== "execution" || resource.metadataOnly || resource.excludePreferences || resource.readOnlyExecutable)) throw fail("input_bundle_role_invalid");
+    return { ...resource, before: read(resource.file, { metadataOnly: resource.metadataOnly, preferences: resource.excludePreferences, readOnlyExecutable: resource.readOnlyExecutable, browserBundle: resource.browserBundle, force: true }) };
   });
   const declared = { contract: INPUT_CONTRACT, path_kind: pathKind, binding,
     resources: selected.map(({ file, ...r }) => ({ ...r, location_fingerprint: digest(file) })) };
@@ -137,7 +149,7 @@ export function freezeInputContract({ resources, pathKind, binding, read = obser
         const hint = !force && Number(resource.before.metadata?.bytes) > 1024 * 1024
           ? read(resource.file, { metadataOnly: true, readOnlyExecutable: resource.readOnlyExecutable }) : null;
         after = hint && hint.permission_identity === resource.before.permission_identity && JSON.stringify(hint.metadata) === JSON.stringify(resource.before.metadata)
-          ? resource.before : read(resource.file, { metadataOnly: resource.metadataOnly, preferences: resource.excludePreferences, readOnlyExecutable: resource.readOnlyExecutable });
+          ? resource.before : read(resource.file, { metadataOnly: resource.metadataOnly, preferences: resource.excludePreferences, readOnlyExecutable: resource.readOnlyExecutable, browserBundle: resource.browserBundle, force });
         disposition = classifyInputChange(resource.before, after, resource);
       } catch { disposition = "observer_failure"; after = null; }
       if (disposition === "unchanged") continue;

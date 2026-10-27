@@ -121,3 +121,30 @@ resolve. Other admitted hosts retain complete metadata equality and receive no
 new incidental-metadata exemption. Polling remains bounded and cannot prove
 absence of transient changes between observations; every observed native
 permission/flag/attribute difference remains a hard fault.
+
+## Strict task-owned Browser input and replacement route
+
+The version 5 lane is implemented by `local-canonical-browser-input.mjs`,
+`local-canonical-browser-bundle.mjs` and
+`local-canonical-browser-replacement.mjs`, composed with the existing executor,
+input monitor, attempt ledger, Browser-use recorder and stock reader. The policy
+above this source map owns admission; implementation does not authorize a run.
+
+| Consumer | Strict behavior | Retained compatibility |
+| --- | --- | --- |
+| Controller/environment | Exact local binding and replacement proof; no default selection | Legacy explicit/candidate selection outside the versioned lane |
+| Isolated phase and nested suite | Contract/path/fingerprint passed through the bounded environment; active checkout sentinel catches stripping | Existing HOME/temp/DB and process owners |
+| Project, continuity, operator lifecycle, project-client, Web-planning, durable/cumulative | Shared selector plus actual-launch assertion; whole bundle and CLI/HTTP/CDP identity at launch/settlement | All 19 records; no product harness replacement; strict lane retains OS sandbox |
+| Input monitor | Enumerated metadata/security each poll, conservative hash cache, forced final read | Starts before unit/integration; original AbortSignal and stop rules |
+| Attempt ledger | One cross-kind immutable edge, latest tip, initial1/recovery0 for replacement | Historical source/recovery records readable; no renewed allowance |
+| Stock and private export | Version 5 / export v2, authenticated review and grant re-read, exact live input reconstruction | Legacy receipts v3/v4 and export v1 stay readable |
+
+`test-local-canonical-browser-input.mjs` and
+`test-local-canonical-browser-replacement.mjs` add bounded unit controls using
+real readers and temporary repositories/anchors. They cover missing/stripped
+selection, link/content/permission/root races, all-fault eligibility, exact
+review/grant/source/environment/workload, replay, concurrent claims, crash-window
+refusal and fresh-process read-only reconstruction. Synthetic fixtures and
+about:blank identity probes do not count as product Browser coverage or Full.
+The reference inventory includes the app root itself; counts differ by one from
+historical inventories which enumerated only descendants.

@@ -1,3 +1,4 @@
+import { selectBrowserPath } from "./local-canonical-browser-input.mjs";
 #!/usr/bin/env node
 import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
 import assert from "node:assert/strict";
@@ -633,7 +634,7 @@ async function main() {
     { encoding: "utf8", flag: "wx", mode: 0o600 },
   );
 
-  const chromeExecutable = chromeCandidates.find((candidate) => existsSync(candidate));
+  const chromeExecutable = selectBrowserPath(chromeCandidates);
   assert(chromeExecutable, "No usable local Chrome/Chromium executable was found.");
   startDevServer(runtimeEnvironment);
   const finishChromeTiming = timing.start("chrome_startup", "Chrome and CDP readiness");

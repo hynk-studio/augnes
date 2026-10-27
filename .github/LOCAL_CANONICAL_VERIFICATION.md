@@ -837,6 +837,95 @@ conditions; a timeout is not automatically a performance regression or an
 infrastructure diagnosis. In particular the historical settled-expired-successor
 child remains one complete scenario under its existing 30,000 ms bound.
 
+### Browser input replacement (receipt version 5)
+
+`augnes.local-canonical-browser-replacement.v1` is a separate, narrowly
+versioned route for a settled selected-Browser replacement safety stop. It is
+neither infrastructure recovery nor a source correction. It preserves the
+original disposition, every phase failure and NOT_RUN. Implementation of this
+route is not an execution grant. A new proof requires independent review of
+its exact verifier source, complete predecessor-to-final Git delta, current
+base/head/tree, replacement artifact and execution inputs, followed by a
+separate one-use execution authorization.
+
+The production reader examines every retained input event and secondary fault,
+reconstructs their classifications and checks the original receipt, latest
+settled attempt/completion, unchanged permission boundary, complete cleanup and
+phase stop. Only a replaced selected Browser executable with changed inode and
+bytes qualifies. Other safety faults, credentials/ownership changes, unknown
+relevance, independent product failures, truncated fault inventories and missing
+records refuse. No earlier predecessor or old successful phase can substitute.
+
+Use `--browser-replacement-proof <repository-relative-proof.json>` with Full
+and the admitted isolated-worktree context. The proof binds the current executor,
+complete workload, environment/common-input fingerprints, original diagnostic
+material and exact task-owned Browser input. The existing source-correction
+option and recovery option are mutually exclusive with this route. Its budget
+is **initial=1, recovery=0**. Full16, Browser7 and all 19 actual Browser-use
+records remain required. Unit remains bounded at 3,600 seconds and C8 at 30
+seconds. No phase stitching, harness replacement or retry allowance is added.
+
+All successor kinds use the predecessor's existing exclusive
+`correction-successor.json` namespace. A Browser edge has the explicit
+`augnes.local-canonical-successor.v2` kind; historical unversioned source edges
+retain their interpretation. New admissions reconstruct the branch's complete
+forward lineage from its original family. Duplicate/concurrent claims, cycles,
+unknown records, partial claims after a crash and superseded recovery refuse.
+An input successor cannot renew its budget by a recursive replacement, renamed
+artifact/grant, or a source-correction detour. Partial records remain evidence;
+there is no automatic repair, deletion or family reset.
+
+The Browser binding selects a complete physical mac-arm64 Chrome for Testing
+app beneath the task checkout's ignored verification directory. It includes a
+fixed official origin/version, locally computed archive/metadata digests,
+retained codesign/spctl exit statuses and an immutable reference inventory.
+Local hashes are not publisher attestation. A negative signature/Gatekeeper
+assessment remains negative: a successful launch cannot change that fact.
+Production acceptance must explicitly accept that exact artifact for trusted
+local fixtures. There is no general unsigned-artifact exemption, re-signing,
+quarantine removal, security bypass, personal profile or untrusted browsing.
+
+The authenticated GitHub GET transport reads the exact PR #1546 review and
+#1545 grant comment plus their repository-author permission. Each separately
+attributable record contains a single `augnes-browser-input-authorization` JSON
+block matching `browserReplacementAuthorityBinding(proof)`, its role, review
+id and explicit decision. The independent review decision is
+`accept_exact_source_and_artifact_for_trusted_local_fixtures`; the later grant
+is `authorize_one_full_and_separate_stock`. Exact record hashes, source commit,
+repository, author, timestamps and admin/maintain permission are rechecked.
+Missing/dismissed/changed/unauthorized records refuse; an implementation-owner
+Boolean, arbitrary URL or design approval cannot grant execution. This verifies
+attribution to repository records, not the identity or independence of the
+human/model behind an account. The user's actual authorization still governs.
+
+Strict selection travels through the controller, isolated and nested children
+and each launch owner. An active checkout-owned sentinel makes stripping all
+binding environment keys a refusal, not legacy fallback. The sentinel and input
+monitor remain active from before unit/integration through settlement. Every
+launch and settlement observes the actual bundle and CLI/HTTP/CDP versions.
+Missing or alternate selections and invalid versions refuse. Outside this
+explicit lane, historical Browser and receipt interpretations remain intact.
+
+The bundle observer re-enumerates directories/files and relative internal links,
+checks physical identities, ownership/mode, ACLs/flags/extended attributes and
+bounded race-safe file reads. Escaping/cyclic/dangling links, hardlinks,
+additions/deletions, root replacement and read-window changes refuse. A complete
+metadata/security agreement may reuse content hashes during polling; initial,
+launch, settlement and fresh-process stock observations rehash bytes. Limits
+are 4,096 entries, 1 GiB, 8 MiB security output and 15 seconds per observation;
+these limits do not extend any phase or child deadline. Monitoring remains
+bounded cooperative observation, not whole-host/OS-library attestation, hostile
+same-user isolation or proof that no transient mutation occurred between polls.
+
+Version 5 receipts bind the selection, bundle observation, guard settlement and
+new attempt/authority records; private export version 2 retains their bounded
+identities. Fresh-process stock reconstructs them read-only from the original
+admitted checkout, re-fetches the exact authority records and rehashes current
+bundle bytes. Stock never reserves, repairs or rewrites an attempt, successor,
+selection or machine identity. Unknown versions, incomplete records and downgrade
+into legacy interpretation refuse. Failed usable receipts still require the
+separate stock process after settlement. Development controls are not that run.
+
 ### Private review export
 
 The sanitized `augnes.local-canonical-private-review.v1` derivative links the

@@ -1439,6 +1439,20 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "local-canonical-browser-input",
+      label: "strict Browser bundle selection, observation and nested input refusal",
+      ...rootNode("scripts/test-local-canonical-browser-input.mjs"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "local-canonical-browser-replacement",
+      label: "Browser replacement evidence, exclusive succession and read-only reconstruction",
+      ...rootNode("scripts/test-local-canonical-browser-replacement.mjs"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       label: "read-only GitHub main-branch source-attestation transport",
       ...rootNode("scripts/test-github-main-branch-transport.mjs"),
       timeoutMs: 30_000,

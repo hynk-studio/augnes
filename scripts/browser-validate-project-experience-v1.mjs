@@ -1,3 +1,4 @@
+import { selectBrowserPath } from "./local-canonical-browser-input.mjs";
 #!/usr/bin/env node
 
 import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
@@ -637,9 +638,7 @@ async function main() {
   result.browser_port_allocation_diagnostic = readBrowserPortAllocationDiagnostic(allocation);
   ({ app: appPort, bridge: bridgePort, debug: debugPort } = allocation);
   appOrigin = `http://127.0.0.1:${appPort}`;
-  const chromeExecutable = chromeCandidates.find((candidate) =>
-    existsSync(candidate),
-  );
+  const chromeExecutable = selectBrowserPath(chromeCandidates);
   assert(chromeExecutable, "chrome_executable_missing");
   startRuntime(fixture.writable_database_path, manifest, manifest.project_id);
   startChrome(chromeExecutable);

@@ -1,3 +1,4 @@
+import { selectBrowserPath } from "./local-canonical-browser-input.mjs";
 import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -208,7 +209,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
       "/usr/bin/chromium",
       "/usr/bin/chromium-browser",
     ].filter(Boolean);
-    const executable = candidates.find((candidate) => existsSync(candidate));
+    const executable = selectBrowserPath(candidates);
     assert(executable, "operator_browser_chrome_missing");
     const finish = timing.start("chrome_startup", "Chrome and CDP startup");
     browserUse = beginBrowserUse(executable, { consumer: child_id });
