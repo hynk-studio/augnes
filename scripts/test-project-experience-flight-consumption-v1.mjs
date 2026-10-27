@@ -13,11 +13,13 @@ const decoder = require('next/dist/compiled/react-server-dom-webpack/cjs/react-s
 const owner = readFileSync(new URL('./browser-validate-project-experience-v1.mjs', import.meta.url), 'utf8');
 const guard = owner.slice(owner.indexOf('function expectedFailedRequest('), owner.indexOf('function failedRequestAssertionEntry('));
 const tick = () => new Promise(resolve => setImmediate(resolve));
-const operatorScope = process.argv[2] === '--operator-scope';
-const phase = operatorScope ? 'project_controls_and_automation' : 'companion_first_work_access', origin = 'http://localhost:3000', route = '/projects/project%3Acontrolled';
+const semanticReviewScope = process.argv[2] === '--operator-semantic-review';
+const operatorScope = process.argv[2] === '--operator-scope' || semanticReviewScope;
+const phase = semanticReviewScope ? 'work_expectation_recording' : operatorScope ? 'project_controls_and_automation' : 'companion_first_work_access';
+const origin = 'http://localhost:3000', route = semanticReviewScope ? '/workbench/semantic-review' : '/projects/project%3Acontrolled';
 
 async function fixture(options = {}, factory = createProjectExperienceRequestVerdictV1) {
-  const verdict = factory(operatorScope ? {rscReplayPhases:[phase]} : undefined), connection = verdict.connection({}), packets = [], protocol = [], requests = [];
+  const verdict = factory(operatorScope ? {rscReplayPhases:[phase],operatorSemanticReviewFlight:semanticReviewScope&&!options.scopeDisabled} : undefined), connection = verdict.connection({}), packets = [], protocol = [], requests = [];
   let failure, controller, actualResponse, originalFetchPromise, rootReader, originalReadPromise, identityChecked = false;
   let decoded, decodeError, ordinal = 0;
   const saved = [];
@@ -122,6 +124,7 @@ try {
       const result=await fixture(input);assert.equal(result.classification?.expected,false,JSON.stringify({input,classification:result.classification}));
       assert.equal(result.expected,false,JSON.stringify({input,classification:result.classification}));
     }
+    if(semanticReviewScope)assert.equal((await fixture({scopeDisabled:true})).expected,false,'the existing default scope must not admit the operator workbench route');
     const truncated=await fixture({truncated:true});
     assert.equal(truncated.expected,true,'EOF alone is only the transport-consumption fact');
     assert.match(truncated.decodeError,/Connection closed/);
@@ -138,7 +141,7 @@ try {
     listener({method:'Network.loadingFinished',params:{requestId:'same'}});
     listener({method:'Network.loadingFailed',params:{requestId:'same',errorText:'net::ERR_ABORTED'}});
     assert.deepEqual(forwarded,['Network.loadingFinished','Network.loadingFailed']);
-    console.log(JSON.stringify({status:'pass',operator_scope:operatorScope,actual_installed_react_decoder:true,native_stream_positive:1,
+    console.log(JSON.stringify({status:'pass',operator_scope:operatorScope,semantic_review_scope:semanticReviewScope,actual_installed_react_decoder:true,native_stream_positive:1,
       refusal_controls:negatives.length,semantic_truncation_rejected_by_decoder:true,native_identity_parity:true,
       actual_owner_finished_failure_forwarding:true,
       obsolete_incomplete_stream_not_exempt:true,whole_owner_verification:'required_separately'}));

@@ -81,6 +81,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
   const requestVerdicts = createProjectExperienceRequestVerdictV1({
     guideEvidence: guideLifecycle.evidence, inspectorEvidence: inspectorLifecycle.evidence,
     guideReplayPhases: phases, inspectorReplayPhases: phases, rscReplayPhases: phases,
+    operatorSemanticReviewFlight: true,
   });
   const requests = [];
   const responses = [];
