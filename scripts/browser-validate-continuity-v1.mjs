@@ -226,6 +226,7 @@ let currentPhase = "setup";
 let lastObserverActivityAt = Date.now();
 let serverLog = "";
 const interceptedRecoveryResponses = [];
+let interceptedRecoveryReload = null;
 const requests = [];
 const responses = [];
 const requestMethods = new Map();
@@ -2457,33 +2458,53 @@ async function main() {
       preserveRetainedRequest = false,
     }) => {
       assert.deepEqual(interceptedRecoveryResponses, []);
-      interceptedRecoveryResponses.push({
-        method: "GET",
-        status: 200,
-        body,
-      });
       if (!preserveRetainedRequest) await evaluateJson(`(() => {
         localStorage.removeItem('augnes.recovery.request.v1');
         const operation = ${JSON.stringify(body.operation ?? null)};
         if (operation) localStorage.setItem('augnes.recovery.request.v1', JSON.stringify({action: operation.action ?? 'verify_backup', request_id: operation.request_id}));
         return true;
       })()`);
-      const requestStart = requests.length;
-      await navigate(`${appOrigin}/recovery`);
-      await waitForCondition(expectedSelector, label);
       await waitForRequestQuiet();
+      const requestStart = requests.length;
+      const reload = { body, reads: [] };
+      assert.equal(interceptedRecoveryReload, null);
+      interceptedRecoveryReload = reload;
+      try {
+        await navigate(`${appOrigin}/recovery`);
+        await waitForCondition(expectedSelector, label);
+        await waitForRequestQuiet();
+        assertRecoveryReloadReadsV1({
+          reads: reload.reads,
+          requests: requests.slice(requestStart).filter(entry => entry.path === "/api/recovery"),
+          responses,
+          failures: failedRequests,
+        });
+        console.log(JSON.stringify({ recovery_status_reload: { label, reads: reload.reads } }));
+      } catch (error) {
+        const recoveryRequests = requests.slice(requestStart).filter(entry => entry.path === "/api/recovery");
+        console.log(JSON.stringify({ recovery_status_wait_failure: {
+          label,
+          pending_interceptions: interceptedRecoveryResponses.length,
+          request_count: recoveryRequests.length,
+          omitted_requests: Math.max(0, recoveryRequests.length - 16),
+          requests: recoveryRequests.slice(0, 16),
+          intercepted_reads: reload.reads,
+          observation: await evaluateJson(`(() => ({
+            mode: document.querySelector('[data-recovery-mode]')?.getAttribute('data-recovery-mode') ?? null,
+            safety: document.querySelector('[data-recovery-safety-state]')?.getAttribute('data-recovery-safety-state') ?? null,
+            action: document.querySelector('[data-recovery-primary-action]')?.getAttribute('data-recovery-primary-action') ?? null,
+            heading: document.querySelector('[data-recovery-safety-state] h2')?.textContent?.trim() ?? null,
+            confirmation: document.querySelector('[data-recovery-action-confirmation]')?.getAttribute('data-recovery-action-confirmation') ?? null
+          }))()`).catch(() => null),
+        }}));
+        throw error;
+      } finally {
+        interceptedRecoveryReload = null;
+      }
       assert.deepEqual(
         interceptedRecoveryResponses,
         [],
         `${label} interception must be consumed exactly once`,
-      );
-      assert.equal(
-        requests.slice(requestStart).filter(
-          (entry) =>
-            entry.path === "/api/recovery" && entry.method === "GET",
-        ).length,
-        1,
-        `${label} must perform one status read`,
       );
     };
 
@@ -3637,6 +3658,28 @@ function attachCdpObservers() {
           errorReason: "BlockedByClient",
         }).catch(() => undefined);
       } else if (
+        interceptedRecoveryReload && classification.path === "/api/recovery" &&
+        event.params?.request?.method === "GET"
+      ) {
+        // One mount read, with at most the native development effect replay.
+        // Both see the same scenario; a disposed read must not consume the
+        // only fixture and let the current read fall through to real status.
+        const reload = interceptedRecoveryReload;
+        const read = { request_id: event.params.networkId ?? null, fulfilled: false, finished: false };
+        reload.reads.push(read);
+        if (reload.reads.length > 2) {
+          void cdp.send("Fetch.failRequest", { requestId: event.params.requestId, errorReason: "BlockedByClient" }).catch(() => undefined);
+          return;
+        }
+        void cdp.send("Fetch.fulfillRequest", {
+          requestId: event.params.requestId, responseCode: 200,
+          responseHeaders: [
+            { name: "Content-Type", value: "application/json; charset=utf-8" },
+            { name: "Cache-Control", value: "no-store, max-age=0" },
+          ],
+          body: Buffer.from(JSON.stringify(reload.body), "utf8").toString("base64"),
+        }).then(() => { read.fulfilled = true; }).catch(() => undefined);
+      } else if (
         interceptedRecoveryResponses.length > 0 &&
         classification.path === "/api/recovery" &&
         String(event.params?.request?.method ?? "GET").toUpperCase() ===
@@ -3699,12 +3742,16 @@ function attachCdpObservers() {
       requestMethods.delete(String(event.params?.requestId ?? ""));
       if (String(event.params?.type ?? "") === "WebSocket") return;
       failedRequests.push({
+        request_id: String(event.params?.requestId ?? ""),
+        canceled: event.params?.canceled === true,
         phase: currentPhase,
         error_text: String(event.params?.errorText ?? "request_failed"),
       });
       return;
     }
     if (event.method === "Network.loadingFinished") {
+      const read = interceptedRecoveryReload?.reads.find(entry => entry.request_id === event.params?.requestId);
+      if (read) read.finished = true;
       requestMethods.delete(String(event.params?.requestId ?? ""));
       return;
     }
@@ -3951,6 +3998,31 @@ async function evaluateString(expression) {
 
 async function evaluateJson(expression) {
   return await evaluate(expression);
+}
+
+function assertRecoveryReloadReadsV1({ reads, requests, responses, failures }) {
+  assert(reads.length >= 1 && reads.length <= 2, "bounded recovery mount reads");
+  assert.equal(requests.length, reads.length, "every recovery request belongs to this read fixture; no mutation");
+  assert.equal(new Set(reads.map(read => read.request_id)).size, reads.length, "distinct recovery requests");
+  for (const read of reads) {
+    assert.equal(typeof read.request_id, "string");
+    assert(read.request_id.length > 0);
+    const request = requests.find(entry => entry.request_id === read.request_id);
+    assert(request && request.method === "GET" && request.path === "/api/recovery");
+  }
+  const current = reads.at(-1);
+  assert(current.fulfilled && current.finished, "current recovery body must finish");
+  assert.equal(failures.some(entry => entry.request_id === current.request_id), false, "current failure is never exempt");
+  const response = responses.filter(entry => entry.request_id === current.request_id);
+  assert.equal(response.length, 1);
+  assert.equal(response[0].status, 200);
+  if (reads.length === 2) {
+    const obsolete = reads[0];
+    const failure = failures.filter(entry => entry.request_id === obsolete.request_id);
+    assert.equal(failure.length, 1);
+    assert(failure[0].canceled && failure[0].error_text === "net::ERR_ABORTED" && !obsolete.finished,
+      "only the canceled initial mount may precede the completed current read");
+  }
 }
 
 async function waitForCondition(expression, label, timeoutMs = DEFAULT_TIMEOUT_MS, diagnostic = null) {
