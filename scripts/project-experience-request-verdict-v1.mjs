@@ -1,7 +1,7 @@
 // Private Browser-owner verdict state. Public diagnostic snapshots are never an
 // input. The prospective cancellation branch reads authentic private pin facts.
 import { sessionRefusalEvidenceOwnerV1 } from './project-experience-host-round-trip-pins-v1.mjs';
-import { guideLifecycleEvidenceOwnerV1 } from './project-experience-guide-lifecycle-v1.mjs';
+import { guideLifecycleEvidenceOwnerV1, GUIDE_REPLAY_PHASES_V1 } from './project-experience-guide-lifecycle-v1.mjs';
 const PROBE_PHASE = "companion_first_work_access";
 const PROBE_PATH = "/api/vnext/operator/host-round-trip";
 const PROBE_HEADER = "x-augnes-e2e-probe";
@@ -145,8 +145,8 @@ export function createProjectExperienceRequestVerdictV1({ cancellationEvidence, 
     if (!evidence || !facts) return rejected('guide_evidence_missing');
     const { context, responseBeforeFailure, canceled } = evidence;
     const { request: pin, generation: first, counts, uniqueRequest } = facts;
-    const phase = 'project_shell_and_locked_entry', path = '/api/augnes/read/guide-brief';
-    if (entry.phase !== phase || context.request.phase !== phase || pin.phase !== phase ||
+    const phase = context.request.phase, path = '/api/augnes/read/guide-brief';
+    if (!GUIDE_REPLAY_PHASES_V1.includes(phase) || entry.phase !== phase || pin.phase !== phase ||
       entry.path !== path || context.request.path !== path || pin.path !== path ||
       context.request.method !== 'GET' || pin.method !== 'GET' || context.request.external !== false ||
       !pin.local || !pin.explicitProject || !pin.hook) return rejected('guide_scope_mismatch');
@@ -231,6 +231,11 @@ export function createProjectExperienceRequestVerdictV1({ cancellationEvidence, 
   }
 
   return Object.freeze({
+    failureDetails(entry) {
+      const e = failures.get(entry); if (!e) return { evidence: 'missing' };
+      return { method: e.context.request.method, type: e.context.type, status: e.responseBeforeFailure?.status ?? null,
+        canceled: e.canceled === true, rsc: e.context.rsc, hmr: e.context.hmr, response_mime: e.context.responseMime, initiator: e.context.initiator };
+    },
     guideEffectReplayCancellation(entry) { return classifyGuideReplay(entry); },
     armSessionRefusalScenario() { return cancellationOwner?.arm() ?? null; },
     completeSessionRefusalScenario(handle) { cancellationOwner?.seal(handle); },
@@ -262,6 +267,11 @@ export function createProjectExperienceRequestVerdictV1({ cancellationEvidence, 
         if (context) context.ambiguous = true;
         context = {
           request: entry,
+          type: ['Document', 'Fetch', 'XHR'].includes(params.type) ? params.type : 'other',
+          rsc: Object.entries(params.request?.headers ?? {}).some(([k,v]) => k.toLowerCase() === 'rsc' && v === '1'),
+          hmr: Object.keys(params.request?.headers ?? {}).some(k => k.toLowerCase() === 'next-hmr-refresh'),
+          initiator: ['shared-project-inspector-loader.tsx', 'use-project-guide-brief-v0-2.ts', 'fetch-server-response.js', 'cache.js']
+            .find(name => JSON.stringify(params.initiator?.stack ?? {}).includes(name)) ?? 'other',
           response: null,
           failed: false,
           ambiguous: reused || params.redirectResponse != null,
@@ -291,6 +301,7 @@ export function createProjectExperienceRequestVerdictV1({ cancellationEvidence, 
         }
         entry.method = context.request.method;
         context.response = entry;
+        context.responseMime = ["text/x-component", "application/json", "text/html"].includes(params.response?.mimeType) ? params.response.mimeType : "other";
       } else if (payload.method === "Network.loadingFailed") {
         if (!context) {
           requests.set(key, null);

@@ -61,6 +61,7 @@ import {
 } from "./project-experience-browser-fixture-v1.ts";
 import {
   assertProjectExperienceFinalSuccessV1,
+  projectExperienceGlobalFailureV1,
   createDetailedFieldCompletionOwnerV1,
   loadProjectExperienceResultContractV1,
 } from "./project-experience-result-contract-v1.mjs";
@@ -413,6 +414,7 @@ class CdpClient {
   }
 }
 
+let currentGlobalAssertion = null;
 let functionalExecutionSucceeded = false;
 try {
   await main();
@@ -3049,30 +3051,45 @@ async function main() {
     console.log(JSON.stringify({
       project_experience_unavailable_execution_verdict: unavailableExecutionVerdictSummary(),
     }));
+    currentGlobalAssertion = "page_errors";
     assert.deepEqual(pageErrors, []);
+    currentGlobalAssertion = "management_hydration_warning_count";
     assert.equal(
       managementSafetyHydrationRegressionWarnings.length,
       MANAGEMENT_SAFETY_HYDRATION_REGRESSION_WARNING_REQUIRED_COUNT_V1,
     );
+    currentGlobalAssertion = "unexpected_console_errors";
     assert.deepEqual(unexpectedConsoleErrors, []);
+    currentGlobalAssertion = "unexpected_failed_requests";
+    if (unexpectedFailedRequests.length) console.log(JSON.stringify({ project_experience_failed_request_counts:
+      unexpectedFailedRequests.slice(0, 32).map(entry => ({ phase: entry.phase,
+        route: entry.path?.startsWith('/projects/') ? '/projects/:project' : entry.path,
+        error: entry.error_text, ...requestVerdicts.failureDetails(entry),
+        guide: entry.path === '/api/augnes/read/guide-brief' ? requestVerdicts.guideEffectReplayCancellation(entry) : undefined })) }));
     assert.deepEqual(unexpectedFailedRequests.map(failedRequestAssertionEntry), []);
+    currentGlobalAssertion = "external_requests";
     assert.deepEqual(externalRequests, []);
+    currentGlobalAssertion = "onboarding_path_privacy";
     assert.equal(
       serverLog.includes(onboardingFolder),
       false,
       "the declared local path must not enter ordinary runtime logs",
     );
+    currentGlobalAssertion = "recovery_path_privacy";
     assert.equal(
       serverLog.includes(onboardingFolderB) ||
         serverLog.includes(onboardingFolderBRecovered),
       false,
       "recovery paths must not enter ordinary runtime logs",
     );
+    currentGlobalAssertion = "detailed_field_completion";
     detailedFieldCompletionOwner.assertExact();
+    currentGlobalAssertion = "semantic_markers";
     assert.deepEqual(
       new Set(semanticMarkers),
       new Set(detailedFieldContract.marker_ids),
     );
+    currentGlobalAssertion = "unexpected_execution_requests";
     assert.equal(
       requests.some((entry) => {
         const requestPath = entry.path ?? "";
@@ -3090,10 +3107,12 @@ async function main() {
       fileMustExist: true,
     });
     try {
+      currentGlobalAssertion = "database_integrity";
       assert.equal(database.pragma("integrity_check", { simple: true }), "ok");
     } finally {
       database.close();
     }
+    currentGlobalAssertion = "semantic_authority";
     assert.deepEqual(
       semanticAuthorityCounts(fixture.writable_database_path),
       semanticAuthorityBaseline,
@@ -3109,6 +3128,7 @@ async function main() {
         serverLog,
       );
     if (REAL_PROVIDER_ACCEPTANCE) {
+      currentGlobalAssertion = "real_provider_acceptance";
       assert.deepEqual(result.guide_brief_real_provider_acceptance, {
         deterministic_question_loopback_calls: 0,
         deterministic_question_provider_calls: 0,
@@ -3183,6 +3203,10 @@ async function runPhase(phase, action, options = {}) {
       `[browser-e2e] phase_result scope=${VALIDATION_SCOPE} phase=${phase} status=pass duration_ms=${Date.now() - phaseStartedAt}\n`,
     );
   } catch (error) {
+    if (phase === "project_experience_global_boundaries") {
+      process.stdout.write(`${JSON.stringify({ project_experience_first_global_failure:
+        projectExperienceGlobalFailureV1(currentGlobalAssertion, error) })}\n`);
+    }
     timing.duration("phase", phase, Date.now() - phaseStartedAt, "fail");
     process.stdout.write(
       `[browser-e2e] phase_result scope=${VALIDATION_SCOPE} phase=${phase} status=failed reason=${safeLifecycleErrorCode(error)}\n`,

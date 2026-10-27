@@ -96,6 +96,13 @@ export function readBrowserReplacementProof(relative, repositoryRoot) {
   return { ...proof, local_relative_path: relative };
 }
 
+// The existing source_revision proof may retain a consumed strict input. This
+// is not another replacement and has no recovery or legacy-selection route.
+export function isStrictBrowserSourceRevision(proof) {
+  return proof?.schema === "augnes.local-canonical-source-correction.v2" && proof.kind === "source_revision" &&
+    proof.input_replacement_consumed === true && typeof proof.browser_input_path === "string";
+}
+
 export function browserReplacementAuthorityBinding(proof) {
   const copy = structuredClone(proof); delete copy.authorization; delete copy.local_relative_path;
   return { contract: BROWSER_AUTHORIZATION_CONTRACT, binding_sha256: digest(copy), head: proof.head, tree: proof.tree, base: proof.base,
@@ -136,8 +143,13 @@ export function assertBrowserReplacementAuthorization(proof, capability) {
 
 export function validateBrowserReplacementLive({ proof, repositoryRoot, branch, head, tree, base, executorFingerprint, environmentFingerprint, workloadFingerprint, commonInputsSha256, browserInput }) {
   const reread = readBrowserReplacementProof(proof.local_relative_path, repositoryRoot);
-  if (digest(reread) !== digest(proof) || proof.branch !== branch || proof.head !== head || proof.tree !== tree || proof.base !== base || proof.executor_fingerprint !== executorFingerprint ||
+  if (digest(reread) !== digest(proof)) throw fail("browser_replacement_live_binding_invalid");
+  validateStrictBrowserLive({ proof, branch, head, tree, base, executorFingerprint, environmentFingerprint, workloadFingerprint, commonInputsSha256, browserInput });
+  return reread;
+}
+
+export function validateStrictBrowserLive({ proof, branch, head, tree, base, executorFingerprint, environmentFingerprint, workloadFingerprint, commonInputsSha256, browserInput }) {
+  if (proof.branch !== branch || proof.head !== head || proof.tree !== tree || proof.base !== base || proof.executor_fingerprint !== executorFingerprint ||
       proof.environment_fingerprint !== environmentFingerprint || proof.workload_fingerprint !== workloadFingerprint || proof.common_inputs_sha256 !== commonInputsSha256 || digest(browserInput.publicBinding) !== proof.browser_input_sha256) throw fail("browser_replacement_live_binding_invalid");
   assertBrowserBundle(browserInput);
-  return reread;
 }

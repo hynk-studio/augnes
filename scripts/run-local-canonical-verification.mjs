@@ -18,7 +18,7 @@ import path from "node:path";
 import os from "node:os";
 import { freezeInputContract, monitorInputContract, digest, deriveOperationalDisposition, createInputReader, classifyInputChange, nonFaultInputChange } from "./local-canonical-inputs.mjs";
 import { readBrowserInputBinding, browserInputEnvironment, selectedBrowserInput, acquireBrowserInputGuard, releaseBrowserInputGuard, assertBrowserInputGuard } from "./local-canonical-browser-input.mjs";
-import { readBrowserReplacementProof, authorizeBrowserReplacement, BROWSER_REPLACEMENT_PHASES } from "./local-canonical-browser-replacement.mjs";
+import { readBrowserReplacementProof, authorizeBrowserReplacement, BROWSER_REPLACEMENT_PHASES, isStrictBrowserSourceRevision } from "./local-canonical-browser-replacement.mjs";
 import { beginAttempt, finishAttempt, readRecoveryProof, readSourceCorrectionProof, inspectAttemptRecords } from "./local-canonical-attempts.mjs";
 import { pinVerificationEvidence, readPinnedEvidence } from "./local-canonical-evidence-retention.mjs";
 import { BROWSER_IDENTITY_PREFIX, validPhaseBrowserUse, browserConsumersForPhase, MAX_BROWSER_USE_RECORDS, parseBrowserUseLine } from "./local-canonical-browser-identity.mjs";
@@ -495,8 +495,10 @@ export async function executeLocalCanonicalVerification({
   });
 
   const browserReplacement = browserReplacementProofPath ? readBrowserReplacementProof(browserReplacementProofPath, repositoryRoot) : null;
-  const browserInput = browserReplacement ? readBrowserInputBinding(browserReplacement.browser_input_path, repositoryRoot) : selectedBrowserInput({ repositoryRoot });
-  if ((browserInput && !browserReplacement) || (browserReplacement && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || sourceCorrectionProofPath))) throw Object.assign(new Error("browser_replacement_route_required"), { code: "browser_replacement_route_required" });
+  const sourceCorrection = sourceCorrectionProofPath ? readSourceCorrectionProof(resolveArtifactPath(sourceCorrectionProofPath), repositoryRoot) : null;
+  const strictProof = browserReplacement ?? (isStrictBrowserSourceRevision(sourceCorrection) ? sourceCorrection : null);
+  const browserInput = strictProof ? readBrowserInputBinding(strictProof.browser_input_path, repositoryRoot) : selectedBrowserInput({ repositoryRoot });
+  if ((browserInput && !strictProof) || (strictProof && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath)) || (browserReplacement && sourceCorrection)) throw Object.assign(new Error("browser_replacement_route_required"), { code: "browser_replacement_route_required" });
   const hostResult = collectHostEnvironment(repositoryRoot, { browserInput });
   const host = hostResult.public;
   const nodePolicy = evaluateNodePolicy();
@@ -726,13 +728,13 @@ export async function executeLocalCanonicalVerification({
           if (inputMonitor.check() || signal.aborted) throw Object.assign(new Error("input_invalidation"), { code: "input_invalidation" });
           if (mode !== "quick") assertFrozenSource(identityBefore, verificationContext);
           if (!attempt && mode !== "quick" && plan.selected_plan !== "documentation-only" && phaseDefinitions.length > 0 && checkoutOwner) {
-            const browserAuthorization = browserReplacement ? await authorizeBrowserReplacement(browserReplacement) : null;
-            if (browserReplacement && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("browser_replacement_workload_invalid"), { code: "browser_replacement_workload_invalid" });
+            const browserAuthorization = strictProof ? await authorizeBrowserReplacement(strictProof) : null;
+            if (strictProof && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("browser_replacement_workload_invalid"), { code: "browser_replacement_workload_invalid" });
             attempt = beginAttempt({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, checkoutOwner,
               branch: identityBefore.branch, head: headSha, tree: inputs.snapshot().binding.tree, runId,
               contractFingerprint: inputs.snapshot().fingerprint, acceptedMain: baseSha,
               recoveryProof: recoveryProofPath ? readRecoveryProof(resolveArtifactPath(recoveryProofPath)) : null,
-              sourceCorrection: sourceCorrectionProofPath ? readSourceCorrectionProof(resolveArtifactPath(sourceCorrectionProofPath), repositoryRoot) : null,
+              sourceCorrection,
               browserReplacement, browserAuthorization,
               browserLive: browserInput ? browserReplacementLiveBinding({ browserInput, host, machineFingerprint, nodePolicy, executorFingerprint, phaseDefinitions, inputs: inputs.snapshot() }) : null });
             pinVerificationEvidence({ root: repositoryRoot, checkoutOwner, runId, reason: "attempt_family" });
@@ -1294,7 +1296,7 @@ function lifecycleStateRestored(before, after) {
 export function readStockBrowserInput(receipt, root = repositoryRoot) {
   if (![3, 4, 5].includes(receipt?.receipt_version)) throw Object.assign(new Error("stock_receipt_version_unsupported"), { code: "stock_receipt_version_unsupported" });
   if (receipt.receipt_version === 5) return readBrowserInputBinding(receipt.browser_input?.local_relative_path, root);
-  if (receipt.browser_input || receipt.browser_guard || receipt.attempt?.browser_replacement || receipt.inputs?.binding?.browser_input ||
+  if (receipt.browser_input || receipt.browser_guard || receipt.attempt?.browser_replacement || receipt.attempt?.source_correction?.browser_input_path || receipt.inputs?.binding?.browser_input ||
       (Array.isArray(receipt.inputs?.resources) && receipt.inputs.resources.some(r => r?.browserBundle))) throw Object.assign(new Error("stock_browser_input_downgrade"), { code: "stock_browser_input_downgrade" });
   return null;
 }
@@ -1368,7 +1370,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
   let browserAuthorization = null, browserLive = null;
   if (browserInput) {
     try {
-      browserAuthorization = await authorizeBrowserReplacement(receipt.attempt?.browser_replacement);
+      browserAuthorization = await authorizeBrowserReplacement(receipt.attempt?.browser_replacement ?? receipt.attempt?.source_correction);
       const phases = buildPhasePlan({ mode: "full", selectedPlan: "full-canonical", baseSha: receipt.repository.base_sha, headSha: receipt.repository.head_sha, browserPhaseIds: expectedBrowserPhaseIds, targetedPhaseIds: [] });
       browserLive = browserReplacementLiveBinding({ browserInput, host, nodePolicy, machineFingerprint, executorFingerprint, phaseDefinitions: phases, inputs: receipt.inputs });
     } catch { /* reported as unverified, never repaired */ }

@@ -29,7 +29,8 @@ const live = (proof, checkout) => ({ browserInput: readBrowserInputBinding(proof
   environmentFingerprint: proof.environment_fingerprint, workloadFingerprint: proof.workload_fingerprint, commonInputsSha256: proof.common_inputs_sha256 });
 
 if (["--stock", "--claim"].includes(process.argv[2])) {
-  const packet = read(process.argv[3]), proof = readBrowserReplacementProof(packet.relative, packet.checkout);
+  const packet = read(process.argv[3]), proof = packet.kind === "strict-source"
+    ? readSourceCorrectionProof(path.join(packet.checkout, packet.relative), packet.checkout) : readBrowserReplacementProof(packet.relative, packet.checkout);
   const authorization = await authorizeBrowserReplacement(proof, { transport: transport(packet.authority) });
   if (process.argv[2] === "--stock") {
     const receipt = read(packet.receipt);
@@ -216,6 +217,75 @@ if (["--stock", "--claim"].includes(process.argv[2])) {
     assert.throws(() => reconstructAttemptTip({ anchorRoot: c.anchor, branch: c.branch }));
     writeFileSync(nextAttemptPath, nextAttemptBytes, { mode: 0o600 });
     checks.push("unknown edge/attempt versions, stripped edge version, extra fields and cyclic lineage refuse without repair");
+
+    // A genuine source revision succeeds a settled strict product failure.
+    // Reuse the actual proof, authority, exclusive ledger, receipt and stock
+    // readers in a disposable repository; never allocate a production family.
+    const folder = path.join(c.checkout, ".augnes-local-verification/browser"), module = "scripts/local-canonical-inputs.mjs";
+    const regression = path.join(folder, "source-regression.mjs");
+    fixtureWrite(regression, "import assert from 'node:assert/strict';import fs from 'node:fs';assert.match(fs.readFileSync(process.argv[2],'utf8'),/version=3/);\n");
+    const witnesses = {};
+    for (const [kind, expected] of [["before", 1], ["after", 0]]) {
+      if (kind === "after") { fixtureWrite(path.join(c.checkout, module), "export const version=3;\n"); c.git("add", module); c.git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-m", "correct actual fixture behavior"); }
+      const bytes = readFileSync(path.join(c.checkout, module)), run = await child([regression, path.join(c.checkout, module)], c.checkout);
+      assert.equal(run.result.exit_code, expected, run.text);
+      const record = { fixture_sha256: digest(readFileSync(regression)), source_sha256: digest(bytes), environment_fingerprint: c.live.environmentFingerprint,
+        node_version: process.versions.node, result: run.result, finished_at: new Date().toISOString() };
+      const artifact = `source-${kind}.json`; fixtureWrite(path.join(folder, artifact), record);
+      witnesses[kind] = { artifact, sha256: digest(readFileSync(path.join(folder, artifact))), source_sha256: record.source_sha256 };
+    }
+    const head = c.git("rev-parse", "HEAD").toString().trim(), tree = c.git("rev-parse", "HEAD^{tree}").toString().trim();
+    const delta = digest(c.git("diff", "--binary", "--no-ext-diff", "--no-textconv", c.head, head, "--"));
+    const review = { schema: "augnes.local-canonical-candidate-review.v1", kind: "source_revision", head, tree, predecessor_head: c.head, predecessor_tree: c.tree,
+      source_review: "complete", authority_reference: "https://github.com/hynk-studio/augnes/pull/1546", reviewed_at: new Date().toISOString(), delta_sha256: delta, changed_paths: [module] };
+    fixtureWrite(path.join(folder, "source-review.json"), review);
+    const strictProofRecord = { schema: "augnes.local-canonical-source-correction.v2", kind: "source_revision", branch: c.branch, head, tree, base: c.base,
+      prior_family_id: attempt.family_id, prior_number: 1, prior_attempt_id: attempt.attempt_id, prior_receipt_fingerprint: receipt.integrity.content_fingerprint,
+      prior_receipt_path: ".augnes-local-verification/receipts/replacement.json", defect: "fixture_behavior", source_module: module,
+      fixture_artifact: "source-regression.mjs", fixture_sha256: digest(readFileSync(regression)), environment_fingerprint: c.live.environmentFingerprint, ...witnesses,
+      review: { artifact: "source-review.json", sha256: digest(readFileSync(path.join(folder, "source-review.json"))) },
+      input_replacement_consumed: true, browser_input_path: c.proof.browser_input_path, browser_input_sha256: c.proof.browser_input_sha256,
+      budget: { initial: 1, recovery: 0 }, delta_sha256: delta, changed_paths: [module], executor_fingerprint: c.live.executorFingerprint,
+      workload_fingerprint: c.live.workloadFingerprint, common_inputs_sha256: c.live.commonInputsSha256 };
+    const authority = fixtureAuthority(strictProofRecord, { reviewId: 103, grantId: 204 });
+    const relative = ".augnes-local-verification/browser/strict-source.json", file = path.join(c.checkout, relative);
+    fixtureWrite(file, strictProofRecord);
+    const readSource = () => readSourceCorrectionProof(file, c.checkout);
+    const sourceAuth = await authorizeBrowserReplacement(readSource(), { transport: transport(authority) });
+    const sourceBegin = (proof = readSource(), extra = {}) => beginAttempt({ anchorRoot: c.anchor, repositoryRoot: c.checkout, checkoutOwner: c.checkoutOwner,
+      branch: c.branch, head, tree, acceptedMain: c.base, runId: "strict-source", contractFingerprint: "4".repeat(64), sourceCorrection: proof,
+      browserAuthorization: sourceAuth, browserLive: live(proof, c.checkout), ...extra });
+    assert.throws(() => sourceBegin(readSource(), { browserAuthorization: auth }), /capability/);
+    await assert.rejects(() => authorizeBrowserReplacement(readSource(), { transport: transport(c.authority) }));
+    for (const mutate of [p => delete p.input_replacement_consumed, p => p.browser_input_sha256 = "0".repeat(64), p => p.budget.recovery = 1,
+      p => p.kind = "verifier_correction", p => p.delta_sha256 = "0".repeat(64), p => p.prior_family_id = c.prior.family_id]) {
+      const bad = structuredClone(strictProofRecord); mutate(bad); fixtureWrite(file, bad); assert.throws(() => sourceBegin()); fixtureWrite(file, strictProofRecord);
+    }
+    for (const field of ["environmentFingerprint", "executorFingerprint", "workloadFingerprint", "commonInputsSha256"])
+      assert.throws(() => sourceBegin(readSource(), { browserLive: { ...live(readSource(), c.checkout), [field]: "0".repeat(64) } }), /live_binding/);
+    const strict = sourceBegin();
+    assert.deepEqual(strict.budget, { initial: 1, recovery: 0 }); assert.equal(strict.input_replacement_consumed, true);
+    const strictReceipt = finalizeReceipt({ ...receipt, repository: { ...receipt.repository, head_sha: head, tree_sha: tree }, attempt: strict,
+      run: { ...receipt.run, id: strict.attempt_id }, browser_guard: { acquired: true, released: true, run_id: strict.attempt_id } });
+    finishAttempt(strict, { receiptFingerprint: strictReceipt.integrity.content_fingerprint, disposition: "product_failure", cleanupComplete: true });
+    assert(reconstructAttemptTip({ anchorRoot: c.anchor, branch: c.branch }).input_replacement_consumed);
+    assert(inspectAttemptRecords({ anchorRoot: c.anchor, repositoryRoot: c.checkout, receipt: strictReceipt, browserAuthorization: sourceAuth, browserLive: live(readSource(), c.checkout) }));
+    assert.throws(() => sourceBegin(), /latest_tip/);
+    assert.throws(() => begin(c, auth), /latest_tip/);
+    assert.throws(() => sourceBegin(readSource(), { recoveryProof: {} }), /mixed/);
+    const strictRecord = path.join(c.anchor, ".augnes-local-verification/families", strict.family_id, "attempt-1.json"), strictBytes = readFileSync(strictRecord);
+    for (const change of [{ input_replacement_consumed: false }, { budget: { initial: 1, recovery: 1 } },
+      { source_correction: { ...strict.source_correction, browser_input_sha256: "0".repeat(64) } }]) {
+      fixtureWrite(strictRecord, { ...strict, ...change }); assert.throws(() => reconstructAttemptTip({ anchorRoot: c.anchor, branch: c.branch }));
+      assert(!inspectAttemptRecords({ anchorRoot: c.anchor, repositoryRoot: c.checkout, receipt: strictReceipt, browserAuthorization: sourceAuth, browserLive: live(readSource(), c.checkout) }));
+    }
+    writeFileSync(strictRecord, strictBytes, { mode: 0o600 });
+    const strictReceiptPath = path.join(c.checkout, ".augnes-local-verification/receipts/strict-source.json"); fixtureWrite(strictReceiptPath, strictReceipt);
+    const strictPacketPath = path.join(root, "strict-source-stock.json"); fixtureWrite(strictPacketPath, { ...packet, kind: "strict-source", relative, authority, receipt: strictReceiptPath });
+    const strictBefore = digest(treeBytes(c.anchor)), freshSource = await child([self, "--stock", strictPacketPath], c.checkout);
+    assert.equal(freshSource.result.exit_code, 0, freshSource.text); assert.equal(digest(treeBytes(c.anchor)), strictBefore);
+    assert.throws(() => readStockBrowserInput({ ...strictReceipt, receipt_version: 4 }, c.checkout));
+    checks.push("strict source_revision after latest settled product_failure: new exact authority, same Browser, regression/delta, carried replacement state, initial1/recovery0, one successor and fresh read-only reconstruction; downgrade/replay/old authority/input changes refuse");
 
     const crash = make("crash"), crashRoot = path.join(crash.anchor, ".augnes-local-verification/families", crash.prior.family_id);
     fixtureWrite(path.join(crashRoot, "correction-successor.json"), { contract: "augnes.local-canonical-successor.v2", kind: "browser_input_replacement", family_id: "f".repeat(64), head: crash.head, tree: crash.tree, proof_fingerprint: digest(crash.proof) });

@@ -11,7 +11,7 @@ import { INPUT_CONTRACT, digest, deriveOperationalDisposition, nonFaultInputChan
 import { ATTEMPT_CONTRACT } from "./local-canonical-attempts.mjs";
 import { validPhaseBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { BROWSER_INPUT_CONTRACT } from "./local-canonical-browser-input.mjs";
-import { BROWSER_REPLACEMENT_CONTRACT, BROWSER_REPLACEMENT_PHASES } from "./local-canonical-browser-replacement.mjs";
+import { BROWSER_REPLACEMENT_CONTRACT, BROWSER_REPLACEMENT_PHASES, isStrictBrowserSourceRevision } from "./local-canonical-browser-replacement.mjs";
 import { validBrowserBundle } from "./local-canonical-browser-bundle.mjs";
 
 export const LOCAL_CANONICAL_RECEIPT_SCHEMA =
@@ -614,14 +614,16 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     if (currentInputStateValid !== true) issues.push("receipt_current_inputs_unverified");
   }
   if (receipt?.receipt_version === 5) {
-    const b = receipt.browser_input, replacement = receipt.attempt?.browser_replacement;
+    const b = receipt.browser_input, replacement = receipt.attempt?.browser_replacement, correction = receipt.attempt?.source_correction;
+    const strictSource = isStrictBrowserSourceRevision(correction) && receipt.attempt?.input_replacement_consumed === true;
+    const proof = replacement ?? correction;
     if (b?.contract !== BROWSER_INPUT_CONTRACT || !validBrowserBundle(b?.bundle) || !SHA256_PATTERN.test(b?.fingerprint ?? "") ||
-        digest(b) !== digest(receipt.inputs?.binding?.browser_input) || replacement?.contract !== BROWSER_REPLACEMENT_CONTRACT ||
-        digest(b) !== replacement?.browser_input_sha256 || receipt.attempt?.source_correction || receipt.attempt?.recovery || receipt.attempt?.number !== 1 ||
+        digest(b) !== digest(receipt.inputs?.binding?.browser_input) || (replacement ? replacement.contract !== BROWSER_REPLACEMENT_CONTRACT || !!correction : !strictSource) ||
+        digest(b) !== proof?.browser_input_sha256 || receipt.attempt?.recovery || receipt.attempt?.number !== 1 ||
         receipt.browser_guard?.acquired !== true || receipt.browser_guard?.released !== true || receipt.browser_guard?.run_id !== receipt.run?.id ||
         digest(receipt.phases?.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES) || receipt.evidence?.mode !== "full" ||
         currentBrowserInputValid !== true || !receipt.inputs?.resources?.some(r => r?.id === "browser-bundle" && r.browserBundle === true && digest(r.before) === digest(b.bundle))) issues.push("receipt_browser_input_invalid");
-  } else if (receipt?.browser_input || receipt?.browser_guard || receipt?.attempt?.browser_replacement || receipt?.inputs?.binding?.browser_input || (Array.isArray(receipt?.inputs?.resources) && receipt.inputs.resources.some(r => r?.browserBundle))) issues.push("receipt_browser_input_downgrade");
+  } else if (receipt?.browser_input || receipt?.browser_guard || receipt?.attempt?.browser_replacement || receipt?.attempt?.source_correction?.browser_input_path || receipt?.inputs?.binding?.browser_input || (Array.isArray(receipt?.inputs?.resources) && receipt.inputs.resources.some(r => r?.browserBundle))) issues.push("receipt_browser_input_downgrade");
   const applicabilityCodes = new Set(["receipt_stale_integration_base", "receipt_current_integration_base_unavailable", "receipt_current_integration_base_invalid", "receipt_stale_head", "receipt_current_worktree_dirty", "receipt_stale_branch_state", "receipt_current_inputs_unverified"]);
   return {
     valid_deciding_evidence: issues.length === 0,

@@ -5,7 +5,8 @@ export const GUIDE_LIFECYCLE_BINDING_V1 = '__augnesGuideLifecycleEventV1';
 const owners = new WeakMap();
 export const guideLifecycleEvidenceOwnerV1 = capability => owners.get(capability) ?? null;
 const ROUTE = '/api/augnes/read/guide-brief';
-const PHASE = 'project_shell_and_locked_entry';
+export const GUIDE_REPLAY_PHASES_V1 = Object.freeze(['project_shell_and_locked_entry', 'responsive_first_work_presentation',
+  'project_home_lifecycle_presentation', 'rendered_state_responsive_matrix']);
 const KINDS = new Set(['effect_setup', 'effect_cleanup', 'refresh_entered', 'read_created',
   'fetch_started', 'abort_requested', 'signal_aborted', 'abort_returned', 'headers',
   'body_started', 'body_completed', 'parsed', 'application_requested', 'committed',
@@ -78,7 +79,7 @@ export function createGuideLifecycleV1() {
       // Retain this owner's causal window, not an all-phase event ring. Events
       // for an already observed request/document remain eligible after the
       // phase boundary, so a late failure or stale write cannot disappear.
-      const active = phase === PHASE;
+      const active = GUIDE_REPLAY_PHASES_V1.includes(phase);
       if (payload.method === 'Runtime.executionContextCreated') {
         if (!active) return;
         if (c.contexts.size >= 128) { counts.overflow++; return; }
@@ -166,7 +167,7 @@ export function createGuideLifecycleV1() {
       if (r?.failure) failures.set(entry, { request: r, signature: signature(entry) });
     }); },
     snapshot() { return structuredClone({ schema: 'augnes.guide-lifecycle-observation.v1', authority: 'diagnostic_only_no_verdict',
-      scope: 'locked-entry causal window plus later events for retained requests/documents',
+      scope: 'four existing Guide replay phases plus later events for retained requests/documents',
       counts, complete: Object.values(counts).every(x => x === 0), events: events.map(e => ({ ...e, session: alias('session', key(e.connectionNumber, e.session)) })) }); },
   });
 }

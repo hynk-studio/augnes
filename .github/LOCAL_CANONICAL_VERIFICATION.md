@@ -872,8 +872,17 @@ retain their interpretation. New admissions reconstruct the branch's complete
 forward lineage from its original family. Duplicate/concurrent claims, cycles,
 unknown records, partial claims after a crash and superseded recovery refuse.
 An input successor cannot renew its budget by a recursive replacement, renamed
-artifact/grant, or a source-correction detour. Partial records remain evidence;
-there is no automatic repair, deletion or family reset.
+artifact/grant, unchanged source or a source-correction detour. A meaningful
+`source_revision` may follow the latest settled strict `product_failure` through
+the existing v2 source-correction proof. It retains that exact accepted Browser
+binding, the consumed replacement state and **initial=1, recovery=0**. The complete
+delta, same before/after regression, original receipt and settled cleanup remain
+required. Fresh independent review of the exact new source and a later execution
+grant must bind the existing strict-input authority record; the consumed review
+and grant cannot be reused. Current source, environment, workload and inputs are
+rechecked through the controller and separate stock reader. This path neither
+replaces the Browser again nor falls back to legacy selection. Partial records
+remain evidence; there is no automatic repair, deletion or family reset.
 
 The Browser binding selects a complete physical mac-arm64 Chrome for Testing
 app beneath the task checkout's ignored verification directory. It includes a

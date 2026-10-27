@@ -75,10 +75,10 @@ export function fixtureCandidate({ checkout, anchor, checkoutOwner, branch = "co
     live: { browserInput: binding, executorFingerprint: proof.executor_fingerprint, environmentFingerprint: proof.environment_fingerprint, workloadFingerprint: proof.workload_fingerprint, commonInputsSha256: proof.common_inputs_sha256 } };
 }
 
-export function fixtureAuthority(proof) {
+export function fixtureAuthority(proof, { reviewId = 101, grantId = 202 } = {}) {
   // Fake authenticated responses exist only behind the transport's existing
   // runner injection; production CLI has no flag/file/env authority substitute.
-  const now = new Date().toISOString(), reviewId = 101, grantId = 202;
+  const now = new Date().toISOString();
   const body = role => "```augnes-browser-input-authorization\n" + JSON.stringify({ ...browserReplacementAuthorityBinding(proof), role, review_id: reviewId, decision: role === "independent_review" ? "accept_exact_source_and_artifact_for_trusted_local_fixtures" : "authorize_one_full_and_separate_stock" }) + "\n```";
   const review = { id: reviewId, user: { login: "fixture-owner", id: 7, type: "User" }, author_association: "OWNER", body: body("independent_review"), submitted_at: now, state: "COMMENTED", commit_id: proof.head, pull_request_url: "https://api.github.com/repos/hynk-studio/augnes/pulls/1546" };
   const grant = { id: grantId, user: { ...review.user }, author_association: "OWNER", body: body("execution_grant"), updated_at: now, issue_url: "https://api.github.com/repos/hynk-studio/augnes/issues/1545" };

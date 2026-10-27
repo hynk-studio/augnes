@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import vm from 'node:vm';
-import { createGuideLifecycleV1, GUIDE_LIFECYCLE_BINDING_V1 } from './project-experience-guide-lifecycle-v1.mjs';
+import { createGuideLifecycleV1, GUIDE_LIFECYCLE_BINDING_V1, GUIDE_REPLAY_PHASES_V1 } from './project-experience-guide-lifecycle-v1.mjs';
 import { createProjectExperienceRequestVerdictV1 } from './project-experience-request-verdict-v1.mjs';
 const ts = createRequire(import.meta.url)('typescript');
 const phase = 'project_shell_and_locked_entry', route = '/api/augnes/read/guide-brief';
@@ -126,7 +126,7 @@ async function fixture(options = {}, factory = createProjectExperienceRequestVer
   }
   if (options.unrelatedLater) for (let i = 0; i < 1000; i++) lifecycle.observe(lc, {
     method: 'Network.requestWillBeSent', sessionId: 'controlled-session', params: { requestId: `later-${i}`,
-      request: { url: origin + route, method: 'GET' } } }, 'responsive_first_work_presentation');
+      request: { url: origin + route, method: 'GET' } } }, 'retired_route_safety');
   const context = vm.createContext({ requestVerdicts: verdict });
   vm.runInContext(guardSource, context);
   return { expected: entry => context.expectedFailedRequest(entry), verdict, failure, lifecycle, entries, requests,
@@ -139,12 +139,18 @@ async function fixture(options = {}, factory = createProjectExperienceRequestVer
 const args = process.argv.slice(2);
 const witnessMode = args[0] === '--verdict-source';
 if (witnessMode) {
-  assert.equal(args.length, 2);
+  assert([2, 3].includes(args.length));
+  const witnessPhase = args[2] ?? phase;
+  assert(GUIDE_REPLAY_PHASES_V1.includes(witnessPhase));
   const factory = (await import(pathToFileURL(args[1]).href)).createProjectExperienceRequestVerdictV1;
-  const f = await fixture({}, factory);
+  const f = await fixture({ phase: witnessPhase }, factory);
   assert.equal(f.expected(f.failure), true, JSON.stringify(f.reason()));
-  console.log(JSON.stringify({ status: 'pass', actual_hook_and_guard: true, same_fixture_replay: true }));
+  console.log(JSON.stringify({ status: 'pass', phase: witnessPhase, actual_hook_and_guard: true, same_fixture_replay: true }));
 } else {
+  for (const phase of GUIDE_REPLAY_PHASES_V1) {
+    const replay = await fixture({ phase }); assert.equal(replay.expected(replay.failure), true, phase);
+    const adverse = await fixture({ phase, bodyFailed: true }); assert.equal(adverse.expected(adverse.failure), false, phase);
+  }
   const good = await fixture();
   assert.equal(good.expected(good.failure), true, JSON.stringify(good.reason()));
   assert.equal(good.expected({ ...good.failure }), false, 'copied public failure');
@@ -206,6 +212,7 @@ if (witnessMode) {
   const url = route + '?scope=project%3Aaugnes&project_id=' + encodeURIComponent(project);
   assert.equal(read.fetch(url, options), promise); assert.equal(calls, 1); assert.equal(requestArgs[1], options); assert.equal(receiver, undefined);
   assert.equal(controller.signal.aborted, false); assert(connection);
-  console.log(JSON.stringify({ test: 'project-experience-guide-lifecycle-v1', status: 'pass', adversarial_controls: negative.length + 3,
+  console.log(JSON.stringify({ test: 'project-experience-guide-lifecycle-v1', status: 'pass', adversarial_controls: negative.length + 3 + GUIDE_REPLAY_PHASES_V1.length,
+    replay_phases: GUIDE_REPLAY_PHASES_V1,
     actual_hook_guard: true, observer_parity: true, exact_fetch_promise: true, production_attempt: false }));
 }

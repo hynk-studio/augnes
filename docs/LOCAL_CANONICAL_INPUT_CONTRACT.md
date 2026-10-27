@@ -132,11 +132,11 @@ above this source map owns admission; implementation does not authorize a run.
 
 | Consumer | Strict behavior | Retained compatibility |
 | --- | --- | --- |
-| Controller/environment | Exact local binding and replacement proof; no default selection | Legacy explicit/candidate selection outside the versioned lane |
+| Controller/environment | Exact local binding and replacement proof, or reviewed v2 source_revision retaining the consumed binding; no default selection | Legacy explicit/candidate selection outside the versioned lane |
 | Isolated phase and nested suite | Contract/path/fingerprint passed through the bounded environment; active checkout sentinel catches stripping | Existing HOME/temp/DB and process owners |
 | Project, continuity, operator lifecycle, project-client, Web-planning, durable/cumulative | Shared selector plus actual-launch assertion; whole bundle and CLI/HTTP/CDP identity at launch/settlement | All 19 records; seven Darwin wrapped launches retain the exact outer network policy plus `--no-sandbox`; twelve direct launches retain their existing sandbox behavior |
 | Input monitor | Enumerated metadata/security each poll, conservative hash cache, forced final read | Starts before unit/integration; original AbortSignal and stop rules |
-| Attempt ledger | One cross-kind immutable edge, latest tip, initial1/recovery0 for replacement | Historical source/recovery records readable; no renewed allowance |
+| Attempt ledger | One cross-kind immutable edge, latest settled tip, initial1/recovery0 for replacement and strict source_revision; consumed state carried forward | Historical source/recovery records readable; no renewed old allowance |
 | Stock and private export | Version 5 / export v2, authenticated review and grant re-read, exact live input reconstruction | Legacy receipts v3/v4 and export v1 stay readable |
 
 `test-local-canonical-browser-input.mjs` and
@@ -148,6 +148,16 @@ refusal and fresh-process read-only reconstruction. Synthetic fixtures and
 about:blank identity probes do not count as product Browser coverage or Full.
 The reference inventory includes the app root itself; counts differ by one from
 historical inventories which enumerated only descendants.
+
+The existing v2 source-correction proof can follow a settled version 5 product
+failure with the same accepted Browser input. Its original receipt, complete
+delta, deterministic before/after regression and new exact-source review remain
+required. The existing authenticated authority binding also covers the new
+source, environment and workload; consumed authority cannot be renewed. Attempt,
+receipt and export readers preserve the consumed replacement state and reject
+recovery, input changes, legacy downgrade and recursive replacement. Disposable
+controls reconstruct both failed strict receipts and their exclusive lineage in
+a separate read-only process; they do not create a production successor.
 
 The durable/cumulative caller retains its historical nullish default: only an
 absent explicit Browser path selects the shared default outside the strict lane.
