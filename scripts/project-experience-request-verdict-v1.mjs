@@ -15,7 +15,7 @@ export const UNAVAILABLE_EXECUTION_PROBE_HEADERS_V1 = Object.freeze({
 
 export function createProjectExperienceRequestVerdictV1({ cancellationEvidence, guideEvidence, inspectorEvidence,
   guideReplayPhases = GUIDE_REPLAY_PHASES_V1, inspectorReplayPhases = INSPECTOR_REPLAY_PHASES_V1,
-  rscReplayPhases = ['companion_first_work_access', 'project_home_lifecycle_presentation'], operatorSemanticReviewFlight = false } = {}) {
+  rscReplayPhases = ['companion_first_work_access', 'project_home_lifecycle_presentation'], operatorNavigationFlight = false } = {}) {
   const guidePhases = Object.freeze([...guideReplayPhases]), inspectorPhases = Object.freeze([...inspectorReplayPhases]);
   const connections = new WeakMap();
   const failures = new WeakMap();
@@ -23,7 +23,7 @@ export function createProjectExperienceRequestVerdictV1({ cancellationEvidence, 
   const cancellationOwner = sessionRefusalEvidenceOwnerV1(cancellationEvidence);
   const guideOwner = guideLifecycleEvidenceOwnerV1(guideEvidence);
   const inspectorOwner = inspectorLifecycleEvidenceOwnerV1(inspectorEvidence);
-  const flight = createConsumedFlightObservationV1(rscReplayPhases, operatorSemanticReviewFlight === true);
+  const flight = createConsumedFlightObservationV1(rscReplayPhases, operatorNavigationFlight === true);
 
   const rejected = reason => ({ expected: false, reason });
   function classifyFailure(entry) {
@@ -455,7 +455,7 @@ function requestKey(sessionId, requestId) {
 // CDP reports ERR_ABORTED. Existing UI, page-error and console assertions still
 // decide whether the decoded current result is usable. No public snapshot can
 // supply these facts, and an obsolete stream without EOF does not qualify here.
-function createConsumedFlightObservationV1(observedPhases, observeSemanticReview) {
+function createConsumedFlightObservationV1(observedPhases, observeOperatorNavigation) {
   const channel = randomBytes(16).toString('hex'), connections = new WeakMap(), failures = new WeakMap();
   const documents = new Map(), counts = { invalid: 0, overflow: 0, installation: 0 };
   const phases = new Set(observedPhases);
@@ -470,7 +470,7 @@ function createConsumedFlightObservationV1(observedPhases, observeSemanticReview
     }
   }
   return {
-    browserSource: () => `(${installConsumedFlightObservationV1.toString()})(${JSON.stringify(channel)},${JSON.stringify(RSC_CONSUMPTION_BINDING_V1)},${JSON.stringify(observeSemanticReview)});`,
+    browserSource: () => `(${installConsumedFlightObservationV1.toString()})(${JSON.stringify(channel)},${JSON.stringify(RSC_CONSUMPTION_BINDING_V1)},${JSON.stringify(observeOperatorNavigation)});`,
     installationFailed() { counts.installation++; },
     connection(token) { connections.set(token, { number: ++connectionCount, contexts: new Map(), frames: new Map(), requests: new Map() }); },
     lifecycle(token, payload, phase) { protect(() => {
@@ -541,7 +541,7 @@ function createConsumedFlightObservationV1(observedPhases, observeSemanticReview
         const url = new URL(p.request.url), headers = new Headers(p.request.headers);
         if (pins.length !== 1 || pins[0].length !== 2 || r.request || c.requests.has(request) || p.redirectResponse ||
           !['localhost','127.0.0.1','[::1]'].includes(url.hostname) ||
-          (!/^\/projects\/[^/]+$/.test(url.pathname) && !(observeSemanticReview && url.pathname === '/workbench/semantic-review')) ||
+          (!/^\/projects\/[^/]+$/.test(url.pathname) && !(observeOperatorNavigation && ['/', '/workbench/semantic-review'].includes(url.pathname))) ||
           url.username || url.password || !url.searchParams.has('_rsc') || p.type !== 'Fetch' || p.request.method !== 'GET' ||
           headers.get('rsc') !== '1' || ['next-hmr-refresh','next-router-prefetch','next-router-segment-prefetch'].some(k => headers.has(k)) ||
           !frames.some(f => /\/next\/dist\/client\/components\/router-reducer\/fetch-server-response\.js(?:\?|$)/.test(f.url)) ||
@@ -574,7 +574,7 @@ function createConsumedFlightObservationV1(observedPhases, observeSemanticReview
   };
 }
 
-function installConsumedFlightObservationV1(channel, binding, observeSemanticReview) {
+function installConsumedFlightObservationV1(channel, binding, observeOperatorNavigation) {
   if (typeof window[binding] !== 'function' || !['localhost','127.0.0.1','[::1]'].includes(location.hostname)) return;
   const document = crypto.randomUUID(), streams = new WeakMap(), readers = new WeakMap(), responses = new WeakMap();
   let ordinal = 0, readCount = 0;
@@ -589,7 +589,7 @@ function installConsumedFlightObservationV1(channel, binding, observeSemanticRev
     safe(() => {
       const [input, init] = args, url = new URL(typeof input === 'string' ? input : input.url ?? input, location.href);
       if (url.origin !== location.origin || !url.searchParams.has('_rsc') ||
-        (!/^\/projects\/[^/]+$/.test(url.pathname) && !(observeSemanticReview && url.pathname === '/workbench/semantic-review'))) return;
+        (!/^\/projects\/[^/]+$/.test(url.pathname) && !(observeOperatorNavigation && ['/', '/workbench/semantic-review'].includes(url.pathname)))) return;
       const headers = new Headers(init?.headers ?? input?.headers), read = ++readCount;
       const valid = read <= 64 && (init?.method ?? 'GET') === 'GET' && init?.signal == null && input?.signal == null &&
         headers.get('rsc') === '1' && !['next-hmr-refresh','next-router-prefetch','next-router-segment-prefetch'].some(k => headers.has(k));

@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import vm from "node:vm";
+import { createRequire } from "node:module";
 import "./test-operator-browser-failure-snapshot-v1.mjs";
 import "./test-operator-session-request-boundary-v1.mjs";
 
@@ -16,6 +19,28 @@ import {
   createOperatorSemanticMarkerOwnerV1,
   loadOperatorExecutionOwnerContractV1,
 } from "./operator-execution-result-contract-v1.mjs";
+
+// The actual owner configuration must not bypass lifecycle refusal for a
+// still-required Fetch merely because its route and error string match.
+function assertNoUnprovenRequestFallback() {
+  const ts=createRequire(import.meta.url)('typescript');
+  const parse=file=>{const text=fs.readFileSync(file,'utf8');return ts.createSourceFile(file,text,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);};
+  const shared=parse('scripts/operator-execution-browser-child-v1.mjs');
+  const fn=shared.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='runOperatorExecutionBrowserChildV1');
+  const fallback=fn.parameters[0].name.elements.find(n=>n.name.getText(shared)==='request_failure_allowlist').initializer.getText(shared);
+  const cases=[['operator-review-control','result_review_and_inspector','/workbench/inspector'],['operator-native-host-execution','first_work_definition_and_start','/workbench/semantic-review']];
+  const outcomes=cases.map(([owner,phase,path])=>{
+    const source=parse(`scripts/browser-validate-${owner}-v1.mjs`),calls=[];
+    const visit=n=>{if(ts.isCallExpression(n)&&n.expression.getText(source)==='runOperatorExecutionBrowserChildV1')calls.push(n);ts.forEachChild(n,visit);};visit(source);assert.equal(calls.length,1);
+    const config=calls[0].arguments[0];assert(ts.isObjectLiteralExpression(config));
+    const override=config.properties.find(n=>n.name?.getText(source)==='request_failure_allowlist');
+    const predicate=vm.runInNewContext('('+(override?override.initializer.getText(source):fallback)+')');
+    return {owner,override:!!override,unproven_current_fetch_allowed:predicate({phase,path,error_text:'net::ERR_ABORTED',request_type:'Fetch',method:'GET',response_status:200})};
+  });
+  console.log(JSON.stringify({actual_owner_configuration_and_shared_default:true,outcomes}));
+  for(const row of outcomes)assert.equal(row.unproven_current_fetch_allowed,false,`${row.owner}: route/error alone must not allow an unproven required Fetch`);
+}
+assertNoUnprovenRequestFallback();
 
 const requestFailureEvidence = createOperatorRequestFailureEvidenceV1({
   request_id: "321.45",

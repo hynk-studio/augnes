@@ -144,9 +144,6 @@ await runOperatorExecutionBrowserChildV1({
       entry.response_status === 404 &&
       entry.text ===
         "Failed to load resource: the server responded with a status of 404 (Not Found)"),
-  request_failure_allowlist: (entry) =>
-    entry.error_text === "net::ERR_ABORTED" &&
-    entry.phase === "first_work_definition_and_start" && entry.path === "/workbench/semantic-review",
   execute: async ({
     fixture,
     lifecycle,
