@@ -28,7 +28,6 @@ await runOperatorExecutionBrowserChildV1({
       entry.text === "Failed to load resource: the server responded with a status of 422 (Unprocessable Entity)" && ++capacityConsoleDeliveries === 1)
   ),
   console_allowlist_finalize: () => { assert.notEqual(expectedCapacityRefusal, null); assert.equal(capacityConsoleDeliveries, 1); },
-  request_failure_allowlist: entry => entry.phase === "work_expectation_recording" && entry.error_text === "net::ERR_ABORTED" && entry.method === "GET" && entry.path === "/api/augnes/read/guide-brief" && entry.request_type === "Fetch" && entry.response_status === null,
   execute: async ({ fixture, lifecycle, result, detailed_field_owner: completeDetailedField }) => {
     const appOrigin = lifecycle.app_origin;
     const initial = readExpectationState(fixture.writable_database_path, fixture.manifest.expectation_project_id);

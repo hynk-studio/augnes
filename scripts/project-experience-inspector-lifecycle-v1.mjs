@@ -9,10 +9,11 @@ const key = (...values) => JSON.stringify(values);
 const signature = value => JSON.stringify(value);
 const route = '/api/vnext/operator/session';
 const kinds = new Set(['setup', 'fetch_started', 'headers', 'body_started', 'body_completed', 'stale_blocked',
-  'session_applied', 'inspector_body', 'inspector_applied', 'inspector_failed', 'read_aborted', 'read_failed',
+  'session_applied', 'inspector_body', 'inspector_applied', 'inspector_refusal_applied', 'inspector_failed', 'read_aborted', 'read_failed',
   'returned', 'cleanup', 'abort_requested', 'signal_aborted', 'abort_returned', 'committed']);
 
-export function createInspectorLifecycleV1() {
+export function createInspectorLifecycleV1({ phases = INSPECTOR_REPLAY_PHASES_V1 } = {}) {
+  const observedPhases = Object.freeze([...phases]);
   const channel = randomBytes(16).toString('hex'), evidence = Object.freeze({});
   const connections = new Map(), documents = new Map(), failures = new WeakMap(), events = [];
   const counts = { invalid: 0, overflow: 0, installation: 0 };
@@ -49,7 +50,7 @@ export function createInspectorLifecycleV1() {
     observe(token, payload, phase) { guard(() => {
       const c = connections.get(token); if (!c) { counts.invalid++; return; }
       const p = payload.params ?? {}, session = payload.sessionId ?? null;
-      const active = INSPECTOR_REPLAY_PHASES_V1.includes(phase);
+      const active = observedPhases.includes(phase);
       if (payload.method === 'Page.frameNavigated') {
         if (active || c.frames.has(key(session, p.frame.id))) c.frames.set(key(session, p.frame.id), p.frame.loaderId);
       } else if (payload.method === 'Runtime.executionContextCreated') {
@@ -63,9 +64,10 @@ export function createInspectorLifecycleV1() {
         if (!active && !documents.has(id)) return;
         if (v.channel !== channel || !ctx?.default || !ctx.frame || !/^[a-f0-9-]{36}$/.test(v.document) ||
           !kinds.has(v.kind) || !['ordinal','consumer','effect','read','target'].every(k => Number.isInteger(v[k]) && v[k] > 0 && v[k] <= 512) ||
-          Object.keys(v).some(k => !['channel','document','ordinal','consumer','effect','read','target','kind','value','current','aborted','project_matches','inspector_current','session_state'].includes(k)) ||
+          Object.keys(v).some(k => !['channel','document','ordinal','consumer','effect','read','target','kind','value','current','aborted','project_matches','inspector_current','session_state','refusal'].includes(k)) ||
           ['current','aborted','project_matches','inspector_current'].some(k => v[k] !== undefined && typeof v[k] !== 'boolean') ||
           (v.value !== undefined && v.value !== null && typeof v.value !== 'boolean' && !(Number.isInteger(v.value) && v.value >= 100 && v.value <= 599)) ||
+          (v.refusal !== undefined && !['missing','conflict','other'].includes(v.refusal)) ||
           (v.session_state !== undefined && !['checking','locked','disabled','authenticated','invalid'].includes(v.session_state))) { counts.invalid++; return; }
         let doc = documents.get(id);
         if (!doc) {
@@ -117,7 +119,7 @@ export function createInspectorLifecycleV1() {
       if (r?.failed) failures.set(entry, { request: r, signature: signature(entry) });
     }); },
     snapshot() { return structuredClone({ schema: 'augnes.inspector-lifecycle-observation.v1', authority: 'diagnostic_only_no_verdict',
-      counts, complete: Object.values(counts).every(n => n === 0), events }); },
+      scope: { phases: observedPhases, later_events_for_retained_requests: true }, counts, complete: Object.values(counts).every(n => n === 0), events }); },
   });
 }
 
@@ -152,16 +154,24 @@ function installInspectorObserver(channel, binding) {
             applySession(value) { safe(() => { record.session = value; applied.set(value, record); emit('session_applied', {
               current: current === record, aborted: controller.signal.aborted, session_state: value.status,
               project_matches: value.status !== 'authenticated' || (project === null || value.session?.project_id === project) }); }); },
+            applyInspectorRefusal(code) { safe(() => {
+              record.refusalCode = code;
+              record.refusal = code === 'shared_inspector_target_missing' ? 'missing'
+                : code === 'shared_inspector_target_fingerprint_conflict' ? 'conflict' : 'other';
+              emit('inspector_refusal_applied', { current: current === record, aborted: controller.signal.aborted, refusal: record.refusal });
+            }); },
             applyInspector(value) { safe(() => { inspected.set(value, record); emit('inspector_applied', {
               current: current === record, aborted: controller.signal.aborted,
               project_matches: typeof record.session?.session?.project_id === 'string' &&
                 value.inspector?.project_id === record.session.session.project_id }); }); },
           });
         }); },
-        commit(session, inspector) { safe(() => {
+        commit(session, inspector, errorCode) { safe(() => {
           const r = applied.get(session); if (!r) return;
           send({ ...r.fields, kind: 'committed', current: current === r, aborted: r.controller.signal.aborted,
-            session_state: session.status, inspector_current: session.status !== 'authenticated' || inspected.get(inspector) === r });
+            session_state: session.status, ...(r.refusal && errorCode === r.refusalCode ? {refusal:r.refusal} : {}),
+            inspector_current: session.status !== 'authenticated' || inspected.get(inspector) === r ||
+              (inspector === null && !!r.refusal && errorCode === r.refusalCode) });
         }); },
       });
       consumers.set(instance, observer); return observer;

@@ -13,14 +13,17 @@ export const UNAVAILABLE_EXECUTION_PROBE_HEADERS_V1 = Object.freeze({
   [PROBE_HEADER]: PROBE_VALUE,
 });
 
-export function createProjectExperienceRequestVerdictV1({ cancellationEvidence, guideEvidence, inspectorEvidence } = {}) {
+export function createProjectExperienceRequestVerdictV1({ cancellationEvidence, guideEvidence, inspectorEvidence,
+  guideReplayPhases = GUIDE_REPLAY_PHASES_V1, inspectorReplayPhases = INSPECTOR_REPLAY_PHASES_V1,
+  rscReplayPhases = ['companion_first_work_access', 'project_home_lifecycle_presentation'] } = {}) {
+  const guidePhases = Object.freeze([...guideReplayPhases]), inspectorPhases = Object.freeze([...inspectorReplayPhases]);
   const connections = new WeakMap();
   const failures = new WeakMap();
   let probe = null;
   const cancellationOwner = sessionRefusalEvidenceOwnerV1(cancellationEvidence);
   const guideOwner = guideLifecycleEvidenceOwnerV1(guideEvidence);
   const inspectorOwner = inspectorLifecycleEvidenceOwnerV1(inspectorEvidence);
-  const flight = createConsumedFlightObservationV1();
+  const flight = createConsumedFlightObservationV1(rscReplayPhases);
 
   const rejected = reason => ({ expected: false, reason });
   function classifyFailure(entry) {
@@ -151,7 +154,7 @@ export function createProjectExperienceRequestVerdictV1({ cancellationEvidence, 
     const { context, responseBeforeFailure, canceled } = evidence;
     const { request: pin, generation: first, counts, uniqueRequest } = facts;
     const phase = context.request.phase, path = '/api/augnes/read/guide-brief';
-    if (!GUIDE_REPLAY_PHASES_V1.includes(phase) || entry.phase !== phase || pin.phase !== phase ||
+    if (!guidePhases.includes(phase) || entry.phase !== phase || pin.phase !== phase ||
       entry.path !== path || context.request.path !== path || pin.path !== path ||
       context.request.method !== 'GET' || pin.method !== 'GET' || context.request.external !== false ||
       !pin.local || !pin.explicitProject || !pin.hook) return rejected('guide_scope_mismatch');
@@ -199,7 +202,8 @@ export function createProjectExperienceRequestVerdictV1({ cancellationEvidence, 
       events.filter(e => e.event === 'abort_returned').length !== 2 ||
       !ordered([nextSetup.sequence, repeatedAbort.sequence, repeatedReturn.sequence])) return rejected('guide_replay_abort_mismatch');
     const replacements = facts.candidates.filter(x => x.generation.doc === first.doc &&
-      x.generation.created.consumer === a.consumer && x.generation.created.effect === 2);
+      x.generation.created.consumer === a.consumer && x.generation.created.effect === 2 &&
+      x.generation.created.cause === 'initial_effect');
     if (replacements.length !== 1) return rejected('guide_replacement_ambiguous');
     const { request: replacement, generation: second } = replacements[0], b = second.created, reads = second.events;
     if (['read_created', 'fetch_started', 'headers', 'body_started', 'body_completed', 'parsed', 'application_requested', 'returned', 'committed']
@@ -225,6 +229,12 @@ export function createProjectExperienceRequestVerdictV1({ cancellationEvidence, 
       replacement.finished.sequence >= commit.sequence || pin.failure.sequence >= commit.sequence || returned.sequence >= commit.sequence) {
       return rejected('guide_replacement_not_consumed');
     }
+    // Later explicit refreshes are separate reads, not competing initial
+    // replacements. They cannot start before this replacement was committed.
+    if (facts.candidates.some(x => x.generation.doc === first.doc &&
+      x.generation.created.consumer === a.consumer && x.generation.created.effect === 2 &&
+      x.request !== replacement && (x.generation.created.cause !== 'explicit_refresh' ||
+        x.generation.created.sequence <= commit.sequence))) return rejected('guide_intervening_refresh');
     if (reads.some(e => e.sequence <= commit.sequence && ['abort_requested', 'signal_aborted', 'read_aborted', 'read_failed', 'stale_blocked'].includes(e.event)) ||
       consumer.some(e => e.sequence > nextSetup.sequence && e.sequence <= commit.sequence && ['effect_setup', 'effect_cleanup'].includes(e.event)) ||
       facts.events.some(e => e.connectionNumber === pin.connectionNumber && e.session === pin.session &&
@@ -244,7 +254,7 @@ export function createProjectExperienceRequestVerdictV1({ cancellationEvidence, 
       event.read === generation.setup.read && event.consumer === generation.setup.consumer &&
       event.effect === generation.setup.effect && event.target === generation.setup.target);
     const phase = context.request.phase;
-    if (!INSPECTOR_REPLAY_PHASES_V1.includes(phase) || entry.phase !== phase || pin.phase !== phase ||
+    if (!inspectorPhases.includes(phase) || entry.phase !== phase || pin.phase !== phase ||
       context.request.path !== '/api/vnext/operator/session' || entry.path !== context.request.path ||
       context.request.method !== 'GET' || pin.method !== 'GET' || context.request.external !== false ||
       !pin.local || !pin.loaderCallsite) return rejected('inspector_scope_mismatch');
@@ -267,7 +277,7 @@ export function createProjectExperienceRequestVerdictV1({ cancellationEvidence, 
       !ordered([a.setup.sequence, a.fetch_started.sequence, pin.start, a.cleanup.sequence, a.abort_requested.sequence,
         a.signal_aborted.sequence, a.abort_returned.sequence, a.read_aborted.sequence, a.returned.sequence]) ||
       pin.failed.sequence <= a.abort_returned.sequence || first.events.some(e =>
-        ['headers','body_started','body_completed','read_failed','session_applied','inspector_applied','committed'].includes(e.kind))) {
+        ['headers','body_started','body_completed','read_failed','session_applied','inspector_applied','inspector_refusal_applied','committed'].includes(e.kind))) {
       return rejected('inspector_cleanup_not_demonstrated');
     }
     const replacements = candidates.filter(x => x.generation?.doc === first.doc &&
@@ -291,17 +301,26 @@ export function createProjectExperienceRequestVerdictV1({ cancellationEvidence, 
     }
     const commits = second.events.filter(e => e.kind === 'committed' && e.session_state === state &&
       e.current === true && e.aborted === false && e.inspector_current === true && e.sequence > b.returned.sequence);
-    if (!commits.length || second.events.some(e => ['session_applied','inspector_applied','committed'].includes(e.kind) &&
+    if (!commits.length || second.events.some(e => ['session_applied','inspector_applied','inspector_refusal_applied','committed'].includes(e.kind) &&
       (e.current !== true || e.aborted !== false))) return rejected('inspector_current_state_not_committed');
     if (state === 'authenticated') {
       const body = one(second.events, 'inspector_body'), applied = one(second.events, 'inspector_applied');
-      if (!body || !applied || body.value !== 200 || applied.project_matches !== true ||
-        !ordered([b.session_applied.sequence, body.sequence, applied.sequence, b.returned.sequence])) {
+      const refused = one(second.events, 'inspector_refusal_applied');
+      const available = body?.value === 200 && applied?.project_matches === true && !refused;
+      // These are the existing missing/conflict UI outcomes. A body/network
+      // failure or arbitrary HTTP error never establishes a completed outcome.
+      const refusal = !applied && refused &&
+        ((body?.value === 404 && refused.refusal === 'missing') ||
+         (body?.value === 409 && refused.refusal === 'conflict')) &&
+        commits.some(e => e.refusal === refused.refusal && e.sequence > refused.sequence);
+      const adopted = available ? applied : refusal ? refused : null;
+      if (!body || !adopted || !ordered([b.session_applied.sequence, body.sequence, adopted.sequence, b.returned.sequence])) {
         return rejected('inspector_current_result_missing');
       }
     }
     return { expected: true, reason: 'expected_inspector_initial_effect_replay', current_state: state,
-      obsolete_body: 'not_read', replacement_body: 'completed', current_inspector: state === 'authenticated' };
+      obsolete_body: 'not_read', replacement_body: 'completed', current_inspector: state === 'authenticated' && one(second.events, 'inspector_applied') !== null,
+      current_inspector_refusal: one(second.events, 'inspector_refusal_applied')?.refusal ?? null };
   }
 
   return Object.freeze({
@@ -436,10 +455,10 @@ function requestKey(sessionId, requestId) {
 // CDP reports ERR_ABORTED. Existing UI, page-error and console assertions still
 // decide whether the decoded current result is usable. No public snapshot can
 // supply these facts, and an obsolete stream without EOF does not qualify here.
-function createConsumedFlightObservationV1() {
+function createConsumedFlightObservationV1(observedPhases) {
   const channel = randomBytes(16).toString('hex'), connections = new WeakMap(), failures = new WeakMap();
   const documents = new Map(), counts = { invalid: 0, overflow: 0, installation: 0 };
-  const phases = new Set(['companion_first_work_access', 'project_home_lifecycle_presentation']);
+  const phases = new Set(observedPhases);
   const kinds = new Set(['fetch', 'headers', 'reader', 'read', 'chunk', 'eof', 'cancel', 'rejected', 'unsupported']);
   const key = (...x) => JSON.stringify(x);
   let sequence = 0, connectionCount = 0;

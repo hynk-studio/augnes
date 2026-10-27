@@ -1,4 +1,4 @@
-// Diagnostic seam for the disposable project-experience Browser only. No observer
+// Diagnostic seam for the disposable model-free Browser owners only. No observer
 // is installed by the application. Production builds cannot use the portal;
 // development also requires the disposable Browser's CDP binding and portal.
 export interface ProjectExperienceReadObserverV1 {
@@ -67,13 +67,14 @@ export interface ProjectExperienceInspectorReadObserverV1 {
   event(kind: string, value?: boolean | number): void;
   applySession(value: object): void;
   applyInspector(value: object): void;
+  applyInspectorRefusal(errorCode: string): void;
   cleanup(active: boolean): void;
 }
 
 export interface ProjectExperienceInspectorObserverV1 {
   effect(controller: AbortController, projectId: string | null, query: string,
     fetch: typeof globalThis.fetch): ProjectExperienceInspectorReadObserverV1 | null;
-  commit(session: object, inspector: object | null): void;
+  commit(session: object, inspector: object | null, errorCode: string | null): void;
 }
 
 export function projectExperienceInspectorObserverV1(instance: object): ProjectExperienceInspectorObserverV1 | null {

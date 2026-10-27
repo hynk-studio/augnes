@@ -146,19 +146,7 @@ await runOperatorExecutionBrowserChildV1({
         "Failed to load resource: the server responded with a status of 404 (Not Found)"),
   request_failure_allowlist: (entry) =>
     entry.error_text === "net::ERR_ABORTED" &&
-    ((entry.phase === "first_work_definition_and_start" &&
-      entry.path === "/workbench/semantic-review") ||
-      ([
-        "first_work_definition_and_start",
-        "live_native_host_approval_lifecycle",
-        // Review navigation replaces the GuideBrief read and its owner
-        // aborts the prior read; only this exact read cancellation is expected.
-        "executed_reviewed_follow_up",
-      ].includes(entry.phase) &&
-        entry.method === "GET" &&
-        entry.path === "/api/augnes/read/guide-brief" &&
-        entry.request_type === "Fetch" &&
-        entry.response_status === null)),
+    entry.phase === "first_work_definition_and_start" && entry.path === "/workbench/semantic-review",
   execute: async ({
     fixture,
     lifecycle,

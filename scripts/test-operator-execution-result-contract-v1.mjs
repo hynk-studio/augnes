@@ -2,9 +2,12 @@
 
 import assert from "node:assert/strict";
 import "./test-operator-browser-failure-snapshot-v1.mjs";
+import "./test-operator-session-request-boundary-v1.mjs";
 
 import {
   assertOperatorRequestFailureEvidenceV1,
+  boundedOperatorRequestFailuresV1,
+  operatorRequestInitiatorConsumersV1,
   assertOperatorExecutionDetailedValuesV1,
   assertOperatorExecutionFinalSuccessV1,
   createOperatorRequestFailureEvidenceV1,
@@ -78,6 +81,20 @@ for (const privateMaterial of [
   assert.equal(serializedRequestFailureEvidence.includes(privateMaterial), false);
 }
 
+const consumer = "components/workbench/inspector/shared-project-inspector-loader.tsx";
+assert.deepEqual(operatorRequestInitiatorConsumersV1({ stack: { callFrames: [
+  { url: "webpack-internal:///(app-pages-browser)/" + consumer + "?secret=not-retained" },
+  { url: "https://example.invalid/private-unrelated-consumer" },
+] } }), [consumer]);
+const thirteen = Array.from({ length: 13 }, (_, i) => ({ ...requestFailureEvidence, request_id: `321.${i}` }));
+const complete = boundedOperatorRequestFailuresV1(thirteen);
+assert.equal(complete.complete, true); assert.equal(complete.omitted, 0);
+assert.deepEqual(complete.records.map(r => r.request_id), thirteen.map(r => r.request_id));
+const overflow = boundedOperatorRequestFailuresV1(Array.from({ length: 129 }, () => requestFailureEvidence));
+assert.equal(overflow.complete, false); assert.equal(overflow.captured, 128); assert.equal(overflow.omitted, 1);
+assert.equal(overflow.serialized_bytes <= overflow.byte_limit, true);
+assert.throws(() => boundedOperatorRequestFailuresV1([{ ...requestFailureEvidence, headers: "must-not-serialize" }]));
+
 const owner = loadOperatorExecutionOwnerContractV1();
 for (const contract of owner.children) {
   const fieldOwner = createOperatorDetailedFieldCompletionOwnerV1(contract);
@@ -105,6 +122,10 @@ for (const contract of owner.children) {
     ["runtime not shut down", (candidate) => (candidate.runtime_shutdown_complete = false)],
     ["Chrome not shut down", (candidate) => (candidate.chrome_cdp_shutdown_complete = false)],
     ["external request", (candidate) => (candidate.unexpected_external_request_count = 1)],
+    ["required request failure", (candidate) => (candidate.unexpected_request_failure_count = 1)],
+    ["console failure", (candidate) => (candidate.unexpected_console_failure_count = 1)],
+    ["page failure", (candidate) => (candidate.unexpected_page_failure_count = 1)],
+    ["refusal accounting failure", (candidate) => (candidate.unexpected_refusal_accounting_failure_count = 1)],
     ["unowned effect", (candidate) => (candidate.unowned_effect_count = 1)],
     [
       "fixture timing missing",
@@ -166,7 +187,7 @@ process.stdout.write(
     detailed_fields: owner.field_ids.length,
     semantic_markers: owner.marker_ids.length,
     request_failure_evidence_contracts: 1,
-    staged_finalization_negatives: owner.children.length * 11,
+    staged_finalization_negatives: owner.children.length * 15,
   })}\n`,
 );
 

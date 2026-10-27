@@ -7,6 +7,9 @@ import { randomUUID } from 'node:crypto';
 import vm from 'node:vm';
 import { createInspectorLifecycleV1, INSPECTOR_LIFECYCLE_BINDING_V1, INSPECTOR_REPLAY_PHASES_V1 } from './project-experience-inspector-lifecycle-v1.mjs';
 import { createProjectExperienceRequestVerdictV1 } from './project-experience-request-verdict-v1.mjs';
+import { OPERATOR_REQUEST_LIFECYCLE_PHASES_V1, classifyOperatorLifecycleRequestFailureV1 } from './operator-execution-result-contract-v1.mjs';
+const operatorScope = process.argv[2] === '--operator-scope';
+const replayPhases = operatorScope ? OPERATOR_REQUEST_LIFECYCLE_PHASES_V1 : INSPECTOR_REPLAY_PHASES_V1;
 const ts = createRequire(import.meta.url)('typescript');
 const transpile = source => ts.transpileModule(source, { compilerOptions: {
   module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
@@ -22,9 +25,9 @@ const sessionBody = project_id => ({ status: 'authenticated', session: { project
 const inspectorBody = (project_id = project) => ({ status: 'inspector_read', project_activity: 'active', inspector: { marker: 'current', project_id } });
 
 async function fixture(options = {}, factory = createProjectExperienceRequestVerdictV1) {
-  const phase = options.phase ?? INSPECTOR_REPLAY_PHASES_V1[0];
-  const lifecycle = createInspectorLifecycleV1(), identity = {}, lc = lifecycle.connection(identity);
-  const verdict = factory({ inspectorEvidence: options.forged ? {} : lifecycle.evidence });
+  const phase = options.phase ?? replayPhases[0];
+  const lifecycle = createInspectorLifecycleV1({ phases: replayPhases }), identity = {}, lc = lifecycle.connection(identity);
+  const verdict = factory({ inspectorEvidence: options.forged ? {} : lifecycle.evidence, inspectorReplayPhases: replayPhases });
   const vc = verdict.connection(options.wrongConnection ? {} : identity);
   const requests = [], writes = [], packets = [];
   let ordinal = 0, failure, params = new URLSearchParams('target=project_coordination');
@@ -101,7 +104,7 @@ async function fixture(options = {}, factory = createProjectExperienceRequestVer
   const setup = () => effects.forEach(e => { if (e.changed) { e.cleanup?.(); e.cleanup=e.fn(); e.changed=false; } });
   const respond = (request,status,body,bodyFailure=false) => {
     emit('Network.responseReceived', { requestId:request.id,frameId:'frame',loaderId:'loader',response:{url:new URL(request.url,origin).href,status} }, { phase,path:new URL(request.url,origin).pathname,status });
-    request.resolve({status,ok:status>=200&&status<300,json:async()=>{if(bodyFailure)throw Error('controlled body failure');return body;}});
+    request.resolve({status,ok:status>=200&&status<300,json:async()=>{if(bodyFailure)throw bodyFailure === 'abort' ? new DOMException('current body failed without owner abort','AbortError') : Error('controlled body failure');return body;}});
     emit('Network.loadingFinished',{requestId:request.id});
   };
   render(); setup();
@@ -123,7 +126,8 @@ async function fixture(options = {}, factory = createProjectExperienceRequestVer
     if (requests[2]) {
       if (options.lateInspectorBody || options.lateInspectorError) {
         requests[2].resolve({status:200,ok:true,json:()=>new Promise((resolve,reject)=>{resolveOldInspector=resolve;rejectOldInspector=reject;})});
-      } else if (options.inspectorFailure) respond(requests[2],200,{},true);
+      } else if (options.inspectorRefusal) respond(requests[2],options.inspectorRefusal,{error_code:options.wrongRefusalCode?'arbitrary_error':options.inspectorRefusal===404?'shared_inspector_target_missing':'shared_inspector_target_fingerprint_conflict'});
+      else if (options.inspectorFailure) respond(requests[2],200,{},options.inspectorFailure);
       else respond(requests[2],200,inspectorBody(options.wrongInspectorProject?'project:other':project));
       await tick();
     }
@@ -145,11 +149,18 @@ async function fixture(options = {}, factory = createProjectExperienceRequestVer
   if (resolveObsolete) {resolveObsolete(sessionBody('project:obsolete'));await tick();render();setup();}
   if (options.installationLoss) lifecycle.installationFailed();
   const guard = vm.createContext({ requestVerdicts:verdict }); vm.runInContext(guardSource,guard);
+  if (operatorScope) guard.expectedFailedRequest = entry => classifyOperatorLifecycleRequestFailureV1(entry, verdict).expected;
   return { expected:()=>guard.expectedFailedRequest(failure), verdict, failure, states,writes,requests,packets,
     snapshot:lifecycle.snapshot(), lateWrites:writes.slice(beforeLate), reason:()=>verdict.inspectorEffectReplayCancellation?.(failure) ?? {expected:false,reason:'retained_classifier_refuses'} };
 }
 
-if (process.argv[2] === '--component-source' || process.argv[2] === '--stale-inspector-regression') {
+if (process.argv[2] === '--current-abort-regression') {
+  const session = await fixture({ bodyFailure: 'abort' });
+  assert.equal(session.states[0].error_code, 'operator_session_request_failed', 'required current session AbortError is a real body failure');
+  const inspector = await fixture({ authenticated:true, inspectorFailure:'abort' });
+  assert.equal(inspector.states[2], 'shared_inspector_request_failed', 'required current Inspector AbortError is a real body failure');
+  console.log(JSON.stringify({status:'pass',actual_component:true,current_body_abort_without_owner_abort:2}));
+} else if (process.argv[2] === '--component-source' || process.argv[2] === '--stale-inspector-regression') {
   if(process.argv[2]==='--component-source')assert.equal(process.argv.length,4);
   for(const options of [{lateInspectorBody:true},{lateInspectorError:true}]) {
     const f=await fixture({authenticated:true,...options});
@@ -165,9 +176,18 @@ if (process.argv[2] === '--component-source' || process.argv[2] === '--stale-ins
   assert.equal(f.expected(),true,JSON.stringify(f.reason()));
   console.log(JSON.stringify({status:'pass',actual_component_and_guard:true,obsolete_body_not_read:true,current_state:f.states[0].status}));
 } else {
-  for(const phase of INSPECTOR_REPLAY_PHASES_V1) {
+  for(const phase of replayPhases) {
     const f=await fixture({phase,authenticated:phase==='rendered_state_responsive_matrix'});
     assert.equal(f.expected(),true,JSON.stringify(f.reason()));
+  }
+  for (const status of [404,409]) {
+    const f=await fixture({authenticated:true,inspectorRefusal:status});
+    assert.equal(f.expected(),true,JSON.stringify(f.reason()));
+    assert.equal(f.reason().current_inspector,false);
+    assert.equal(f.reason().current_inspector_refusal,status===404?'missing':'conflict');
+    const absent=await fixture({authenticated:true,inspectorRefusal:status,observerAbsent:true});
+    assert.equal(JSON.stringify(f.writes),JSON.stringify(absent.writes),'refusal observer preserves actual component state');
+    assert.equal(f.states[2],status===404?'shared_inspector_target_missing':'shared_inspector_target_fingerprint_conflict');
   }
   const good=await fixture(), authenticated=await fixture({authenticated:true});
   assert.equal(authenticated.states[1].inspector.marker,'current');
@@ -190,10 +210,12 @@ if (process.argv[2] === '--component-source' || process.argv[2] === '--stale-ins
     ['wrong frame',{wrongFrame:true}],['wrong callsite',{wrongCallsite:true}],['unrelated phase',{phase:'retired_route_safety'}],
     ['not canceled',{canceled:false}],['real network error',{networkError:'net::ERR_CONNECTION_RESET'}],
     ['unmount only',{unmountOnly:true}],['first independent error',{firstRealFailure:true}],
-    ['replacement network error',{replacementNetworkFailure:true}],['replacement body error',{bodyFailure:true}],
+    ['replacement network error',{replacementNetworkFailure:true}],['replacement body error',{bodyFailure:true}],['current body AbortError',{bodyFailure:'abort'}],
     ['replacement HTTP error',{httpFailure:true}],['wrong project',{authenticated:true,wrongProject:true}],
     ['wrong Inspector project',{authenticated:true,wrongInspectorProject:true}],
-    ['Inspector body error',{authenticated:true,inspectorFailure:true}],['missing commit',{noCommit:true}],
+    ['Inspector body error',{authenticated:true,inspectorFailure:true}],['current Inspector AbortError',{authenticated:true,inspectorFailure:'abort'}],['missing commit',{noCommit:true}],['unreviewed refusal',{authenticated:true,inspectorRefusal:500}],
+    ['wrong refusal code',{authenticated:true,inspectorRefusal:404,wrongRefusalCode:true}],
+    ['refusal not committed',{authenticated:true,inspectorRefusal:409,noCommit:true}],
     ['observer installation failure',{installationLoss:true}],
     ...['cleanup','abort_requested','signal_aborted','abort_returned','read_aborted','body_completed','session_applied','committed'].map(k=>['missing '+k,{mutate:drop(k)}]),
     ['stale application',{mutate:v=>[{...v,...(v.kind==='session_applied'?{current:false}:{})}]}],
@@ -207,7 +229,7 @@ if (process.argv[2] === '--component-source' || process.argv[2] === '--stale-ins
     if(options.bodyFailure||options.replacementNetworkFailure) assert.equal(f.states[0].error_code,'operator_session_request_failed');
     if(options.inspectorFailure) assert.equal(f.states[2],'shared_inspector_request_failed');
   }
-  console.log(JSON.stringify({status:'pass',actual_component_and_guard:true,positive:2,adverse:negative.length,
+  console.log(JSON.stringify({status:'pass',actual_component_and_guard:true,positive_replay_phases:replayPhases.length,operator_scope:operatorScope,adverse:negative.length,
     observer_parity:true,late_obsolete_body_blocked:true,late_inspector_body_and_error_discarded:true,
     wrong_project_controls:'classifier_refusal_only_server_scope_and_component_key_unchanged',real_body_failure_retained:true}));
 }

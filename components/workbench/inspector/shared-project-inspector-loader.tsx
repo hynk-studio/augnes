@@ -89,13 +89,16 @@ function ScopedProjectInspectorLoader() {
           (body.project_activity !== "active" &&
             body.project_activity !== "inactive_read_only")
         ) {
-          setErrorCode(publicContextualInspectorErrorCodeV01(body.error_code));
+          const code = publicContextualInspectorErrorCodeV01(body.error_code);
+          observation?.applyInspectorRefusal(code);
+          setErrorCode(code);
           return;
         }
         observation?.applyInspector(body);
         setInspectorResponse(body);
       } catch (error) {
-        if (!signal?.aborted && !(error instanceof DOMException && error.name === "AbortError")) {
+        // A named AbortError is still a real failure when this owner did not abort.
+        if (!signal?.aborted) {
           observation?.event("inspector_failed");
           setErrorCode("shared_inspector_request_failed");
         }
@@ -151,10 +154,9 @@ function ScopedProjectInspectorLoader() {
         });
         await loadInspector(controller.signal, observation);
       } catch (error) {
-        observation?.event(error instanceof DOMException && error.name === "AbortError" ? "read_aborted" : "read_failed");
+        observation?.event(controller.signal.aborted && error instanceof DOMException && error.name === "AbortError" ? "read_aborted" : "read_failed");
         if (
-          active &&
-          !(error instanceof DOMException && error.name === "AbortError")
+          active && !controller.signal.aborted
         ) {
           applySession({
             status: "locked",
@@ -172,7 +174,7 @@ function ScopedProjectInspectorLoader() {
     };
   }, [loadInspector, parsedTarget.target, fetch]);
 
-  useEffect(() => { diagnostic?.commit(session, inspectorResponse); }, [diagnostic, session, inspectorResponse]);
+  useEffect(() => { diagnostic?.commit(session, inspectorResponse, errorCode); }, [diagnostic, session, inspectorResponse, errorCode]);
 
   useEffect(() => {
     if (inspectorResponse?.inspector) {

@@ -21,12 +21,16 @@ import { createBrowserSupervisorPublicDiagnosticCapture } from "./browser-superv
 import { createOperatorBrowserFailureSnapshotV1 } from "./operator-browser-failure-snapshot-v1.mjs";
 import { chooseBrowserPorts, readBrowserPortAllocationDiagnostic } from "./browser-preferred-ports.mjs";
 import { createBrowserE2ETimingRecorder } from "./browser-e2e-timing.mjs";
-import { createOperatorRequestFailureEvidenceV1 } from "./operator-execution-result-contract-v1.mjs";
+import { createOperatorRequestFailureEvidenceV1, operatorRequestInitiatorConsumersV1, OPERATOR_REQUEST_LIFECYCLE_PHASES_V1, classifyOperatorLifecycleRequestFailureV1 } from "./operator-execution-result-contract-v1.mjs";
 import {
   registerOwnedChild,
   settleOwnedProcessAfterExit,
   terminateOwnedProcessTree,
 } from "./test-harness-process-lifecycle.mjs";
+
+import { createGuideLifecycleV1, GUIDE_LIFECYCLE_BINDING_V1 } from "./project-experience-guide-lifecycle-v1.mjs";
+import { createInspectorLifecycleV1, INSPECTOR_LIFECYCLE_BINDING_V1 } from "./project-experience-inspector-lifecycle-v1.mjs";
+import { createProjectExperienceRequestVerdictV1, RSC_CONSUMPTION_BINDING_V1 } from "./project-experience-request-verdict-v1.mjs";
 
 const DEFAULT_TIMEOUT_MS = 45_000;
 const DOCUMENT_RESPONSE_TIMEOUT_MS = 5_000;
@@ -68,6 +72,16 @@ export async function createOperatorExecutionBrowserLifecycleV1({
   const { app: appPort, bridge: bridgePort, debug: debugPort } = allocation;
   const appOrigin = `http://127.0.0.1:${appPort}`;
   const timing = createBrowserE2ETimingRecorder({ scope: child_id });
+  // Reuse the existing exact consumer/effect/request observations. These are
+  // passive and private to this disposable Browser; route/error text alone
+  // cannot establish disposal or successful replacement adoption.
+  const phases = OPERATOR_REQUEST_LIFECYCLE_PHASES_V1;
+  const guideLifecycle = createGuideLifecycleV1({ phases });
+  const inspectorLifecycle = createInspectorLifecycleV1({ phases });
+  const requestVerdicts = createProjectExperienceRequestVerdictV1({
+    guideEvidence: guideLifecycle.evidence, inspectorEvidence: inspectorLifecycle.evidence,
+    guideReplayPhases: phases, inspectorReplayPhases: phases, rscReplayPhases: phases,
+  });
   const requests = [];
   const responses = [];
   const consoleErrors = [];
@@ -291,10 +305,30 @@ export async function createOperatorExecutionBrowserLifecycleV1({
         ],
       }),
     ]);
+    for (const [observer, name] of [
+      [guideLifecycle, GUIDE_LIFECYCLE_BINDING_V1],
+      [inspectorLifecycle, INSPECTOR_LIFECYCLE_BINDING_V1],
+    ]) {
+      try {
+        await cdp.send("Runtime.addBinding", { name });
+        await cdp.send("Page.addScriptToEvaluateOnNewDocument", { source: observer.browserSource() });
+      } catch { observer.installationFailed(); }
+    }
+    try {
+      await cdp.send("Runtime.addBinding", { name: RSC_CONSUMPTION_BINDING_V1 });
+      await cdp.send("Page.addScriptToEvaluateOnNewDocument", { source: requestVerdicts.rscBrowserSource() });
+    } catch { requestVerdicts.rscInstallationFailed(); }
   };
 
   const attachObservers = () => {
+    const identity = Object.freeze({});
+    const guideConnection = guideLifecycle.connection(identity);
+    const inspectorConnection = inspectorLifecycle.connection(identity);
+    const verdictConnection = requestVerdicts.connection(identity);
     cdp.on((payload) => {
+      requestVerdicts.observeRscLifecycle(verdictConnection, payload, currentPhase);
+      guideLifecycle.observe(guideConnection, payload, currentPhase);
+      inspectorLifecycle.observe(inspectorConnection, payload, currentPhase);
       const params = payload.params ?? {};
       if (payload.method === "Network.requestWillBeSent") {
         lastObserverActivityAt = Date.now();
@@ -313,15 +347,17 @@ export async function createOperatorExecutionBrowserLifecycleV1({
           external: classified.external,
           method: params.request?.method ?? null,
           post_data: params.request?.postData ?? null,
+          initiator_consumers: operatorRequestInitiatorConsumersV1(params.initiator),
           type: params.type ?? null,
         };
+        requestVerdicts.observe(verdictConnection, payload, entry);
         requests.push(entry);
         if (classified.external) externalRequests.push(entry);
       } else if (payload.method === "Network.responseReceived") {
         lastObserverActivityAt = Date.now();
         const classified = classifyUrl(params.response?.url);
         const request = requestForId(params.requestId);
-        responses.push({
+        const responseEntry = {
           request_id: params.requestId,
           frame_id: params.frameId ?? request?.frame_id ?? null,
           loader_id: params.loaderId ?? request?.loader_id ?? null,
@@ -333,9 +369,12 @@ export async function createOperatorExecutionBrowserLifecycleV1({
           status: params.response?.status ?? null,
           type: params.type ?? null,
           body_classification: null,
-        });
+        };
+        requestVerdicts.observe(verdictConnection, payload, responseEntry);
+        responses.push(responseEntry);
       } else if (payload.method === "Network.loadingFinished") {
         inFlightDocumentRequestIds.delete(params.requestId);
+        requestVerdicts.observe(verdictConnection, payload, { phase: requestForId(params.requestId)?.phase ?? currentPhase });
         const response = responseForId(params.requestId);
         if (response?.path === "/api/vnext/operator/inspector") {
           void cdp
@@ -417,8 +456,12 @@ export async function createOperatorExecutionBrowserLifecycleV1({
           delivery_sequence: failedRequestDeliverySequence,
           delivery_cardinality: deliveryCardinality,
           request_type: request?.type ?? response?.type ?? null,
+          initiator_consumers: request?.initiator_consumers ?? [],
           private_roots: [temp_root, process_temp_root, appRepo],
         });
+        requestVerdicts.observe(verdictConnection, payload, failure);
+        guideLifecycle.bindFailure(guideConnection, payload, failure);
+        inspectorLifecycle.bindFailure(inspectorConnection, payload, failure);
         deliveries.push(failure);
         failedRequestDeliveriesById.set(requestId, deliveries);
         failedRequests.push(failure);
@@ -1021,6 +1064,7 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     console_warnings: consoleWarnings,
     page_errors: pageErrors,
     failed_requests: failedRequests,
+    request_lifecycle: { guide: guideLifecycle.snapshot(), inspector: inspectorLifecycle.snapshot(), flight: requestVerdicts.rscConsumptionSnapshot() },
     external_requests: externalRequests,
     timing_summary: timing.summary(),
     owned_process_residue_count: ownedProcesses.size,
@@ -1111,6 +1155,9 @@ export async function createOperatorExecutionBrowserLifecycleV1({
     terminateRuntime,
     cleanup,
     evidence,
+    requestFailureVerdict(entry) {
+      return classifyOperatorLifecycleRequestFailureV1(entry, requestVerdicts);
+    },
     recordFixtureConstruction,
     recordGlobalCleanup,
     runtimeEnvironment,

@@ -7,8 +7,11 @@ import { randomUUID } from 'node:crypto';
 import vm from 'node:vm';
 import { createGuideLifecycleV1, GUIDE_LIFECYCLE_BINDING_V1, GUIDE_REPLAY_PHASES_V1 } from './project-experience-guide-lifecycle-v1.mjs';
 import { createProjectExperienceRequestVerdictV1 } from './project-experience-request-verdict-v1.mjs';
+import { OPERATOR_REQUEST_LIFECYCLE_PHASES_V1, classifyOperatorLifecycleRequestFailureV1 } from './operator-execution-result-contract-v1.mjs';
+const operatorScope = process.argv[2] === '--operator-scope';
+const replayPhases = operatorScope ? OPERATOR_REQUEST_LIFECYCLE_PHASES_V1 : GUIDE_REPLAY_PHASES_V1;
 const ts = createRequire(import.meta.url)('typescript');
-const phase = 'project_shell_and_locked_entry', route = '/api/augnes/read/guide-brief';
+const phase = replayPhases[0], route = '/api/augnes/read/guide-brief';
 const origin = 'http://localhost:3000', project = 'project:controlled-guide';
 const source = readFileSync(new URL('./browser-validate-project-experience-v1.mjs', import.meta.url), 'utf8');
 const guardSource = source.slice(source.indexOf('function expectedFailedRequest('), source.indexOf('function failedRequestAssertionEntry('));
@@ -22,8 +25,8 @@ const guide = () => ({ guide_version: 'guide_brief.v0.2', identity: { project_id
   authority: { can_write_db: false, can_transition: false, can_approve: false } });
 
 async function fixture(options = {}, factory = createProjectExperienceRequestVerdictV1) {
-  const lifecycle = createGuideLifecycleV1(), identity = {}, lc = lifecycle.connection(identity);
-  const verdict = factory({ guideEvidence: options.forged ? {} : lifecycle.evidence });
+  const lifecycle = createGuideLifecycleV1({ phases: replayPhases }), identity = {}, lc = lifecycle.connection(identity);
+  const verdict = factory({ guideEvidence: options.forged ? {} : lifecycle.evidence, guideReplayPhases: replayPhases });
   const vc = verdict.connection(options.wrongConnection ? {} : identity);
   const requests = [], entries = [], writes = [], packets = [];
   let ordinal = 0, failure, propsProject = project;
@@ -115,6 +118,7 @@ async function fixture(options = {}, factory = createProjectExperienceRequestVer
   if (options.navigationBeforeCommit) emit('Page.frameNavigated', { frame: { id: 'controlled-frame', loaderId: 'changed-loader' } });
   if (options.contextChange) propsProject = 'other-project';
   if (!options.unconsumed) { hook = render(); setup(); }
+  if (options.laterRefresh) { void hook.refresh(); await tick(); }
   if (options.modifiedFailure) failure.error_text = 'changed';
   if (options.installationLoss) lifecycle.installationFailed();
   if (options.overflow) for (let i = 0; i < 4097; i++) emit('Runtime.executionContextDestroyed', { executionContextId: 99 });
@@ -129,6 +133,7 @@ async function fixture(options = {}, factory = createProjectExperienceRequestVer
       request: { url: origin + route, method: 'GET' } } }, 'retired_route_safety');
   const context = vm.createContext({ requestVerdicts: verdict });
   vm.runInContext(guardSource, context);
+  if (operatorScope) context.expectedFailedRequest = entry => classifyOperatorLifecycleRequestFailureV1(entry, verdict).expected;
   return { expected: entry => context.expectedFailedRequest(entry), verdict, failure, lifecycle, entries, requests,
     writes, packets, states, snapshot: lifecycle.snapshot(), reason: () => verdict.guideEffectReplayCancellation?.(failure) ?? { expected: false, reason: 'original_guard_refuses' } };
 }
@@ -147,10 +152,12 @@ if (witnessMode) {
   assert.equal(f.expected(f.failure), true, JSON.stringify(f.reason()));
   console.log(JSON.stringify({ status: 'pass', phase: witnessPhase, actual_hook_and_guard: true, same_fixture_replay: true }));
 } else {
-  for (const phase of GUIDE_REPLAY_PHASES_V1) {
+  for (const phase of replayPhases) {
     const replay = await fixture({ phase }); assert.equal(replay.expected(replay.failure), true, phase);
     const adverse = await fixture({ phase, bodyFailed: true }); assert.equal(adverse.expected(adverse.failure), false, phase);
   }
+  assert.equal((await fixture({laterRefresh:true})).reason().expected,true,
+    "a later explicit refresh cannot erase the completed initial replacement");
   const good = await fixture();
   assert.equal(good.expected(good.failure), true, JSON.stringify(good.reason()));
   assert.equal(good.expected({ ...good.failure }), false, 'copied public failure');
@@ -197,7 +204,7 @@ if (witnessMode) {
   }
   const historical = await fixture({ phase: 'companion_first_work_access' });
   assert.equal(historical.reason().expected, false, 'new branch grants no other phase');
-  assert.equal(historical.expected(historical.failure), true, 'separate pre-existing phase policy remains unchanged');
+  assert.equal(historical.expected(historical.failure), !operatorScope, 'separate pre-existing phase policy remains unchanged');
   const later = await fixture({ unrelatedLater: true });
   assert.equal(later.expected(later.failure), true, 'unrelated later traffic cannot evict the causal window');
   // Native wrapper contract: no extra Promise, header, body read, abort call or
@@ -212,7 +219,7 @@ if (witnessMode) {
   const url = route + '?scope=project%3Aaugnes&project_id=' + encodeURIComponent(project);
   assert.equal(read.fetch(url, options), promise); assert.equal(calls, 1); assert.equal(requestArgs[1], options); assert.equal(receiver, undefined);
   assert.equal(controller.signal.aborted, false); assert(connection);
-  console.log(JSON.stringify({ test: 'project-experience-guide-lifecycle-v1', status: 'pass', adversarial_controls: negative.length + 3 + GUIDE_REPLAY_PHASES_V1.length,
-    replay_phases: GUIDE_REPLAY_PHASES_V1,
+  console.log(JSON.stringify({ test: 'project-experience-guide-lifecycle-v1', status: 'pass', adversarial_controls: negative.length + 3 + replayPhases.length,
+    replay_phases: replayPhases, operator_scope: operatorScope,
     actual_hook_guard: true, observer_parity: true, exact_fetch_promise: true, production_attempt: false }));
 }
