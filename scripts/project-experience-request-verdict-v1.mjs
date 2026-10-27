@@ -2,6 +2,9 @@
 // input. The prospective cancellation branch reads authentic private pin facts.
 import { sessionRefusalEvidenceOwnerV1 } from './project-experience-host-round-trip-pins-v1.mjs';
 import { guideLifecycleEvidenceOwnerV1, GUIDE_REPLAY_PHASES_V1 } from './project-experience-guide-lifecycle-v1.mjs';
+import { inspectorLifecycleEvidenceOwnerV1, INSPECTOR_REPLAY_PHASES_V1 } from './project-experience-inspector-lifecycle-v1.mjs';
+import { randomBytes } from 'node:crypto';
+export const RSC_CONSUMPTION_BINDING_V1 = '__augnesConsumedFlightV1';
 const PROBE_PHASE = "companion_first_work_access";
 const PROBE_PATH = "/api/vnext/operator/host-round-trip";
 const PROBE_HEADER = "x-augnes-e2e-probe";
@@ -10,12 +13,14 @@ export const UNAVAILABLE_EXECUTION_PROBE_HEADERS_V1 = Object.freeze({
   [PROBE_HEADER]: PROBE_VALUE,
 });
 
-export function createProjectExperienceRequestVerdictV1({ cancellationEvidence, guideEvidence } = {}) {
+export function createProjectExperienceRequestVerdictV1({ cancellationEvidence, guideEvidence, inspectorEvidence } = {}) {
   const connections = new WeakMap();
   const failures = new WeakMap();
   let probe = null;
   const cancellationOwner = sessionRefusalEvidenceOwnerV1(cancellationEvidence);
   const guideOwner = guideLifecycleEvidenceOwnerV1(guideEvidence);
+  const inspectorOwner = inspectorLifecycleEvidenceOwnerV1(inspectorEvidence);
+  const flight = createConsumedFlightObservationV1();
 
   const rejected = reason => ({ expected: false, reason });
   function classifyFailure(entry) {
@@ -230,13 +235,96 @@ export function createProjectExperienceRequestVerdictV1({ cancellationEvidence, 
     return { expected: true, reason: 'expected_guide_effect_replay_cancellation', replacement_completed_and_adopted: true };
   }
 
+  function classifyInspectorReplay(entry) {
+    const evidence = failures.get(entry), facts = inspectorOwner?.facts(entry);
+    if (!evidence || !facts?.generation) return rejected('inspector_evidence_missing');
+    const { context, responseBeforeFailure, canceled } = evidence;
+    const { request: pin, generation: first, counts, candidates } = facts;
+    const consistentGeneration = generation => generation.events.every(event =>
+      event.read === generation.setup.read && event.consumer === generation.setup.consumer &&
+      event.effect === generation.setup.effect && event.target === generation.setup.target);
+    const phase = context.request.phase;
+    if (!INSPECTOR_REPLAY_PHASES_V1.includes(phase) || entry.phase !== phase || pin.phase !== phase ||
+      context.request.path !== '/api/vnext/operator/session' || entry.path !== context.request.path ||
+      context.request.method !== 'GET' || pin.method !== 'GET' || context.request.external !== false ||
+      !pin.local || !pin.loaderCallsite) return rejected('inspector_scope_mismatch');
+    if (context.ambiguous || pin.invalid || first.doc.invalid || !consistentGeneration(first) || Object.values(counts).some(n => n !== 0) ||
+      !pin.frame || !pin.loader || pin.frame !== first.doc.frame || pin.loader !== first.doc.loader ||
+      pin.identity !== context.correlationConnection || pin.session !== context.protocolSession || pin.requestId !== context.protocolRequest ||
+      candidates.filter(x => x.request.connection === pin.connection && x.request.session === pin.session &&
+        JSON.stringify(x.request.pin) === JSON.stringify(pin.pin)).length !== 1) return rejected('inspector_correlation_incomplete');
+    // The demonstrated replay cancels its initial request before any response.
+    // A later cleanup cannot reinterpret a header/body failure as this case.
+    if (responseBeforeFailure !== null || pin.response || pin.finished || !pin.failed ||
+      pin.failed.error !== 'net::ERR_ABORTED' || entry.error_text !== 'net::ERR_ABORTED' || canceled !== true ||
+      !pin.failed.canceled || pin.failed.phase !== phase) return rejected('inspector_failure_mismatch');
+    const one = (events, kind) => { const matches = events.filter(e => e.kind === kind); return matches.length === 1 ? matches[0] : null; };
+    const ordered = values => values.every((v, i) => Number.isInteger(v) && (i === 0 || values[i - 1] < v));
+    const required = ['setup','fetch_started','cleanup','abort_requested','signal_aborted','abort_returned','read_aborted','returned'];
+    const a = Object.fromEntries(required.map(k => [k, one(first.events, k)]));
+    if (Object.values(a).some(e => !e) || a.fetch_started.value !== true || a.cleanup.value !== false ||
+      a.abort_requested.aborted !== false || a.abort_returned.value !== true || first.setup.effect !== 1 ||
+      !ordered([a.setup.sequence, a.fetch_started.sequence, pin.start, a.cleanup.sequence, a.abort_requested.sequence,
+        a.signal_aborted.sequence, a.abort_returned.sequence, a.read_aborted.sequence, a.returned.sequence]) ||
+      pin.failed.sequence <= a.abort_returned.sequence || first.events.some(e =>
+        ['headers','body_started','body_completed','read_failed','session_applied','inspector_applied','committed'].includes(e.kind))) {
+      return rejected('inspector_cleanup_not_demonstrated');
+    }
+    const replacements = candidates.filter(x => x.generation?.doc === first.doc &&
+      x.generation.setup.consumer === first.setup.consumer && x.generation.setup.effect === first.setup.effect + 1 &&
+      x.generation.setup.target === first.setup.target);
+    if (replacements.length !== 1) return rejected('inspector_replacement_not_unique');
+    const { request: rp, generation: second } = replacements[0];
+    const b = Object.fromEntries(['setup','fetch_started','headers','body_started','body_completed','session_applied','returned'].map(k => [k, one(second.events, k)]));
+    if (Object.values(b).some(e => !e) || !consistentGeneration(second) || rp.invalid || rp.failed || !rp.finished || !rp.response ||
+      rp.phase !== phase || rp.connection !== pin.connection || rp.session !== pin.session || rp.frame !== pin.frame || rp.loader !== pin.loader ||
+      !rp.local || !rp.loaderCallsite || rp.method !== 'GET' || b.fetch_started.value !== true ||
+      b.headers.value !== rp.response.status || b.session_applied.current !== true || b.session_applied.aborted !== false ||
+      b.session_applied.project_matches !== true || second.events.some(e => ['read_failed','read_aborted','inspector_failed','stale_blocked'].includes(e.kind)) ||
+      !ordered([a.abort_returned.sequence, b.setup.sequence, b.fetch_started.sequence, rp.start, rp.response.sequence,
+        b.headers.sequence, b.body_started.sequence, b.body_completed.sequence, b.session_applied.sequence, b.returned.sequence])) {
+      return rejected('inspector_replacement_incomplete');
+    }
+    const state = b.session_applied.session_state;
+    if (!((state === 'locked' && [401,403].includes(rp.response.status)) || (state === 'authenticated' && rp.response.status === 200))) {
+      return rejected('inspector_replacement_state_invalid');
+    }
+    const commits = second.events.filter(e => e.kind === 'committed' && e.session_state === state &&
+      e.current === true && e.aborted === false && e.inspector_current === true && e.sequence > b.returned.sequence);
+    if (!commits.length || second.events.some(e => ['session_applied','inspector_applied','committed'].includes(e.kind) &&
+      (e.current !== true || e.aborted !== false))) return rejected('inspector_current_state_not_committed');
+    if (state === 'authenticated') {
+      const body = one(second.events, 'inspector_body'), applied = one(second.events, 'inspector_applied');
+      if (!body || !applied || body.value !== 200 || applied.project_matches !== true ||
+        !ordered([b.session_applied.sequence, body.sequence, applied.sequence, b.returned.sequence])) {
+        return rejected('inspector_current_result_missing');
+      }
+    }
+    return { expected: true, reason: 'expected_inspector_initial_effect_replay', current_state: state,
+      obsolete_body: 'not_read', replacement_body: 'completed', current_inspector: state === 'authenticated' };
+  }
+
   return Object.freeze({
+    rscBrowserSource: () => flight.browserSource(),
+    rscInstallationFailed: () => flight.installationFailed(),
+    observeRscLifecycle: (connection, payload, phase) => flight.lifecycle(connection, payload, phase),
+    rscConsumptionSnapshot: () => flight.snapshot(),
+    normallyConsumedFlight(entry) {
+      const e = failures.get(entry);
+      if (!e || e.context.ambiguous || e.context.request.external !== false || e.context.request.method !== 'GET' ||
+        e.context.type !== 'Fetch' || !e.context.rsc || e.context.hmr || e.context.responseMime !== 'text/x-component' ||
+        e.responseBeforeFailure?.status !== 200 || e.canceled !== true || entry.error_text !== 'net::ERR_ABORTED') {
+        return rejected('flight_transport_mismatch');
+      }
+      return flight.verdict(entry);
+    },
     failureDetails(entry) {
       const e = failures.get(entry); if (!e) return { evidence: 'missing' };
       return { method: e.context.request.method, type: e.context.type, status: e.responseBeforeFailure?.status ?? null,
         canceled: e.canceled === true, rsc: e.context.rsc, hmr: e.context.hmr, response_mime: e.context.responseMime, initiator: e.context.initiator };
     },
     guideEffectReplayCancellation(entry) { return classifyGuideReplay(entry); },
+    inspectorEffectReplayCancellation(entry) { return classifyInspectorReplay(entry); },
     armSessionRefusalScenario() { return cancellationOwner?.arm() ?? null; },
     completeSessionRefusalScenario(handle) { cancellationOwner?.seal(handle); },
     closeSessionRefusalScenario(handle) { cancellationOwner?.close(handle); },
@@ -244,6 +332,7 @@ export function createProjectExperienceRequestVerdictV1({ cancellationEvidence, 
     connection(correlationConnection = null) {
       const connection = Object.freeze({});
       connections.set(connection, { requests: new Map(), correlationConnection });
+      flight.connection(connection);
       return connection;
     },
     armUnavailableExecutionProbe() {
@@ -316,6 +405,7 @@ export function createProjectExperienceRequestVerdictV1({ cancellationEvidence, 
         });
         context.failed = true;
       }
+      flight.protocol(connection, payload, entry);
     },
     expectedUnavailableExecutionAbort(entry) {
       return classifyFailure(entry).expected;
@@ -339,4 +429,178 @@ function requestKey(sessionId, requestId) {
   if (sessionId != null && (typeof sessionId !== "string" || sessionId.length === 0)) return null;
   // Raw protocol identity stays in ephemeral map keys, never in verdict output.
   return JSON.stringify([sessionId ?? null, requestId]);
+}
+
+// This is deliberately a response-consumption exception, not a cancellation
+// exception. The pinned React Flight decoder can reach native stream EOF while
+// CDP reports ERR_ABORTED. Existing UI, page-error and console assertions still
+// decide whether the decoded current result is usable. No public snapshot can
+// supply these facts, and an obsolete stream without EOF does not qualify here.
+function createConsumedFlightObservationV1() {
+  const channel = randomBytes(16).toString('hex'), connections = new WeakMap(), failures = new WeakMap();
+  const documents = new Map(), counts = { invalid: 0, overflow: 0, installation: 0 };
+  const phases = new Set(['companion_first_work_access', 'project_home_lifecycle_presentation']);
+  const kinds = new Set(['fetch', 'headers', 'reader', 'read', 'chunk', 'eof', 'cancel', 'rejected', 'unsupported']);
+  const key = (...x) => JSON.stringify(x);
+  let sequence = 0, connectionCount = 0;
+  const protect = fn => { try { fn(); } catch { counts.invalid++; } };
+  function retire(c, session, predicate) {
+    for (const doc of documents.values()) if (doc.connection === c.number && doc.session === session && predicate(doc)) {
+      doc.retired = true;
+      for (const r of doc.reads.values()) if (!r.eof) r.invalid = true;
+    }
+  }
+  return {
+    browserSource: () => `(${installConsumedFlightObservationV1.toString()})(${JSON.stringify(channel)},${JSON.stringify(RSC_CONSUMPTION_BINDING_V1)});`,
+    installationFailed() { counts.installation++; },
+    connection(token) { connections.set(token, { number: ++connectionCount, contexts: new Map(), frames: new Map(), requests: new Map() }); },
+    lifecycle(token, payload, phase) { protect(() => {
+      const c = connections.get(token); if (!c) return;
+      const p = payload.params ?? {}, session = payload.sessionId ?? null;
+      if (payload.method === 'Page.frameNavigated') {
+        retire(c, session, d => d.frame === p.frame.id && d.loader !== p.frame.loaderId);
+        c.frames.set(key(session, p.frame.id), p.frame.loaderId);
+      } else if (payload.method === 'Runtime.executionContextCreated') {
+        if (c.contexts.size >= 256) { counts.overflow++; return; }
+        c.contexts.set(key(session, p.context.id), p.context.auxData);
+      } else if (payload.method === 'Runtime.executionContextDestroyed') {
+        retire(c, session, d => d.context === p.executionContextId);
+        c.contexts.delete(key(session, p.executionContextId));
+      } else if (payload.method === 'Runtime.executionContextsCleared') {
+        retire(c, session, () => true); c.contexts.clear();
+      } else if (payload.method === 'Runtime.bindingCalled' && p.name === RSC_CONSUMPTION_BINDING_V1) {
+        const v = JSON.parse(p.payload), ctx = c.contexts.get(key(session, p.executionContextId));
+        const id = key(c.number, session, v.document);
+        if (!phases.has(phase) && !documents.has(id)) return;
+        if (v.channel !== channel || !ctx?.isDefault || !ctx.frameId || !/^[a-f0-9-]{36}$/.test(v.document) ||
+          !kinds.has(v.kind) || !Number.isInteger(v.ordinal) || v.ordinal < 1 || v.ordinal > 4096 ||
+          !Number.isInteger(v.read) || v.read < 1 || v.read > 64 ||
+          Object.keys(v).some(k => !['channel','document','ordinal','read','kind','valid','bytes'].includes(k)) ||
+          (v.valid !== undefined && typeof v.valid !== 'boolean') ||
+          (v.bytes !== undefined && (!Number.isInteger(v.bytes) || v.bytes < 1 || v.bytes > 16 * 1024 * 1024))) { counts.invalid++; return; }
+        let doc = documents.get(id);
+        if (!doc) {
+          if (documents.size >= 32) { counts.overflow++; return; }
+          doc = { connection: c.number, session, context: p.executionContextId, frame: ctx.frameId,
+            loader: c.frames.get(key(session, ctx.frameId)), ordinal: 0, reads: new Map(), retired: false };
+          documents.set(id, doc);
+        }
+        if (doc.retired || !doc.loader || doc.context !== p.executionContextId || doc.frame !== ctx.frameId || v.ordinal !== doc.ordinal + 1) { counts.invalid++; return; }
+        doc.ordinal = v.ordinal;
+        let r = doc.reads.get(v.read);
+        if (v.kind === 'fetch') {
+          if (r) { r.invalid = true; return; }
+          r = { doc, phase, started: ++sequence, invalid: v.valid !== true, request: null, headers: null,
+            reader: null, pending: false, chunks: 0, bytes: 0, eof: null };
+          doc.reads.set(v.read, r); return;
+        }
+        if (!r || r.eof) { counts.invalid++; return; }
+        const seq = ++sequence;
+        if (v.kind === 'headers') { if (r.headers || v.valid !== true || !r.request) r.invalid = true; r.headers = seq; }
+        else if (v.kind === 'reader') { if (r.reader || !r.headers || v.valid !== true) r.invalid = true; r.reader = seq; }
+        else if (v.kind === 'read') { if (!r.reader || r.pending) r.invalid = true; r.pending = true; }
+        else if (v.kind === 'chunk') {
+          if (!r.pending || !v.bytes) r.invalid = true;
+          r.pending = false; r.chunks++; r.bytes += v.bytes ?? 0;
+          if (r.bytes > 16 * 1024 * 1024) r.invalid = true;
+        } else if (v.kind === 'eof') { if (!r.pending || !r.chunks) r.invalid = true; r.pending = false; r.eof = seq; }
+        else r.invalid = true;
+      }
+    }); },
+    protocol(token, payload, entry) { protect(() => {
+      const c = connections.get(token); if (!c) return;
+      const p = payload.params ?? {}, session = payload.sessionId ?? null, request = key(session, p.requestId);
+      if (payload.method === 'Network.requestWillBeSent') {
+        if (!phases.has(entry.phase)) return;
+        const frames = []; let stack = p.initiator?.stack;
+        for (let depth = 0; stack && depth < 16; depth++, stack = stack.parent) frames.push(...(stack.callFrames ?? []));
+        const prefix = `augnes-consumed-flight/${channel}/`;
+        const pins = frames.filter(f => f.url?.startsWith(prefix)).map(f => f.url.slice(prefix.length).split('/'));
+        if (!pins.length) return;
+        const doc = documents.get(key(c.number, session, pins[0][0])), r = doc?.reads.get(Number(pins[0][1]));
+        if (!r) { counts.invalid++; return; }
+        const url = new URL(p.request.url), headers = new Headers(p.request.headers);
+        if (pins.length !== 1 || pins[0].length !== 2 || r.request || c.requests.has(request) || p.redirectResponse ||
+          !['localhost','127.0.0.1','[::1]'].includes(url.hostname) || !/^\/projects\/[^/]+$/.test(url.pathname) ||
+          url.username || url.password || !url.searchParams.has('_rsc') || p.type !== 'Fetch' || p.request.method !== 'GET' ||
+          headers.get('rsc') !== '1' || ['next-hmr-refresh','next-router-prefetch','next-router-segment-prefetch'].some(k => headers.has(k)) ||
+          !frames.some(f => /\/next\/dist\/client\/components\/router-reducer\/fetch-server-response\.js(?:\?|$)/.test(f.url)) ||
+          p.frameId !== doc.frame || p.loaderId !== doc.loader || doc.retired || r.phase !== entry.phase) r.invalid = true;
+        r.request = request; r.path = entry.path; c.requests.set(request, r);
+      } else {
+        const r = c.requests.get(request); if (!r) return;
+        if ((p.frameId && p.frameId !== r.doc.frame) || (p.loaderId && p.loaderId !== r.doc.loader)) r.invalid = true;
+        if (payload.method === 'Network.responseReceived') {
+          if (r.response || r.failure || r.finished || p.response.status !== 200 || p.response.mimeType !== 'text/x-component' || entry.path !== r.path) r.invalid = true;
+          r.response = ++sequence;
+        } else if (payload.method === 'Network.loadingFinished') { if (r.failure || r.finished) r.invalid = true; r.finished = ++sequence; }
+        else if (payload.method === 'Network.loadingFailed') {
+          if (r.failure || r.finished || !r.response || entry.phase !== r.phase) r.invalid = true;
+          r.failure = ++sequence; failures.set(entry, { r, signature: JSON.stringify(entry) });
+        }
+      }
+    }); },
+    verdict(entry) {
+      const x = failures.get(entry), r = x?.r;
+      if (!r || x.signature !== JSON.stringify(entry) || Object.values(counts).some(n => n !== 0) ||
+        r.invalid || !r.headers || !r.reader || !r.chunks || !r.eof || r.pending || r.finished || !r.response || !r.failure) {
+        return { expected: false, reason: 'flight_consumption_not_demonstrated' };
+      }
+      return { expected: true, reason: 'expected_normally_consumed_flight_transport_abort', native_stream_eof: true, bytes: r.bytes };
+    },
+    snapshot() { return { schema: 'augnes.consumed-flight-observation.v1', authority: 'diagnostic_only_no_verdict', counts: { ...counts },
+      reads: [...documents.values()].flatMap(d => [...d.reads.values()].map(r => ({ phase: r.phase, chunks: r.chunks, bytes: r.bytes,
+        native_stream_eof: !!r.eof, transport_failed: !!r.failure, invalid: r.invalid }))) }; },
+  };
+}
+
+function installConsumedFlightObservationV1(channel, binding) {
+  if (typeof window[binding] !== 'function' || !['localhost','127.0.0.1','[::1]'].includes(location.hostname)) return;
+  const document = crypto.randomUUID(), streams = new WeakMap(), readers = new WeakMap(), responses = new WeakMap();
+  let ordinal = 0, readCount = 0;
+  const safe = fn => { try { return fn(); } catch { return undefined; } };
+  const emit = (read, kind, extra = {}) => safe(() => window[binding](JSON.stringify({ channel, document, ordinal: ++ordinal, read, kind, ...extra })));
+  // Observe side branches and return every original promise/value unchanged.
+  // This neither drains a second reader nor closes an obsolete stream.
+  const observe = (promise, success, failure) => { void promise.then(v => safe(() => success(v)), e => safe(() => failure(e))); return promise; };
+  const nativeFetch = window.fetch;
+  window.fetch = function(...args) {
+    let r;
+    safe(() => {
+      const [input, init] = args, url = new URL(typeof input === 'string' ? input : input.url ?? input, location.href);
+      if (url.origin !== location.origin || !/^\/projects\/[^/]+$/.test(url.pathname) || !url.searchParams.has('_rsc')) return;
+      const headers = new Headers(init?.headers ?? input?.headers), read = ++readCount;
+      const valid = read <= 64 && (init?.method ?? 'GET') === 'GET' && init?.signal == null && input?.signal == null &&
+        headers.get('rsc') === '1' && !['next-hmr-refresh','next-router-prefetch','next-router-segment-prefetch'].some(k => headers.has(k));
+      r = { read }; emit(read, 'fetch', { valid });
+    });
+    if (!r) return Reflect.apply(nativeFetch, this, args);
+    const invoke = Function('run', `return function(...args) { return run(this, args); };\n//# sourceURL=augnes-consumed-flight/${channel}/${document}/${r.read}`)(
+      (receiver, values) => Reflect.apply(nativeFetch, receiver, values));
+    const promise = Reflect.apply(invoke, this, args);
+    return observe(promise, response => {
+      responses.set(response, r); if (response.body) streams.set(response.body, r);
+      emit(r.read, 'headers', { valid: response.status === 200 && response.headers.get('content-type')?.startsWith('text/x-component') === true && !!response.body });
+    }, () => emit(r.read, 'rejected'));
+  };
+  const getReader = ReadableStream.prototype.getReader;
+  ReadableStream.prototype.getReader = function(...args) {
+    const r = streams.get(this), reader = Reflect.apply(getReader, this, args);
+    if (r) { readers.set(reader, r); emit(r.read, 'reader', { valid: args[0]?.mode === undefined &&
+      /startReadingFromStream[^\n]*react-server-dom-webpack-client\.browser\.development\.js/.test(String(new Error().stack)) }); }
+    return reader;
+  };
+  const read = ReadableStreamDefaultReader.prototype.read;
+  ReadableStreamDefaultReader.prototype.read = function(...args) {
+    const r = readers.get(this); if (r) emit(r.read, 'read');
+    const promise = Reflect.apply(read, this, args); if (!r) return promise;
+    return observe(promise, value => emit(r.read, value.done ? 'eof' : 'chunk', value.done ? {} : { bytes: value.value.byteLength }), () => emit(r.read, 'rejected'));
+  };
+  for (const [proto, name, map] of [[ReadableStream.prototype, 'cancel', streams], [ReadableStreamDefaultReader.prototype, 'cancel', readers],
+    [ReadableStreamDefaultReader.prototype, 'releaseLock', readers], [ReadableStream.prototype, 'tee', streams], [Response.prototype, 'clone', responses]]) {
+    const original = proto[name]; proto[name] = function(...args) {
+      const r = map.get(this); if (r) emit(r.read, name === 'cancel' ? 'cancel' : 'unsupported');
+      return Reflect.apply(original, this, args);
+    };
+  }
 }

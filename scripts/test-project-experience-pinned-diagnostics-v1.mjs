@@ -133,6 +133,8 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
     // #1545 admits only privately bound, completed effect-replay replacement.
     // Its behavioral and adversarial controls are integrated separately.
     ['  if (requestVerdicts.guideEffectReplayCancellation?.(entry).expected === true) return true;\n', ''],
+    ['  if (requestVerdicts.inspectorEffectReplayCancellation?.(entry).expected === true) return true;\n', ''],
+    ['  if (requestVerdicts.normallyConsumedFlight?.(entry).expected === true) return true;\n', ''],
     // #1512 pins its archive journey separately and preserves all prior digests.
     ['    await validateProjectArchiveV01({fixture,manifest,projectAlphaId,projectBetaId,projectAlphaDestination,projectBetaDestination});\n', ''],
     // #1448 adds a separately pinned saturation withdrawal journey. Remove

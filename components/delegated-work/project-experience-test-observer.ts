@@ -61,3 +61,29 @@ export function projectExperienceGuideObserverV1(instance: object): ProjectExper
     return testWindow.__augnesGuideLifecycleV1?.consumer(instance) ?? null;
   } catch { return null; }
 }
+
+export interface ProjectExperienceInspectorReadObserverV1 {
+  fetch: typeof fetch;
+  event(kind: string, value?: boolean | number): void;
+  applySession(value: object): void;
+  applyInspector(value: object): void;
+  cleanup(active: boolean): void;
+}
+
+export interface ProjectExperienceInspectorObserverV1 {
+  effect(controller: AbortController, projectId: string | null, query: string,
+    fetch: typeof globalThis.fetch): ProjectExperienceInspectorReadObserverV1 | null;
+  commit(session: object, inspector: object | null): void;
+}
+
+export function projectExperienceInspectorObserverV1(instance: object): ProjectExperienceInspectorObserverV1 | null {
+  if (process.env.NODE_ENV !== "development" || typeof window === "undefined") return null;
+  try {
+    const testWindow = window as unknown as {
+      __augnesInspectorLifecycleEventV1?: unknown;
+      __augnesInspectorLifecycleV1?: { consumer(instance: object): ProjectExperienceInspectorObserverV1 | null };
+    };
+    if (typeof testWindow.__augnesInspectorLifecycleEventV1 !== "function") return null;
+    return testWindow.__augnesInspectorLifecycleV1?.consumer(instance) ?? null;
+  } catch { return null; }
+}

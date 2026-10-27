@@ -42,9 +42,11 @@ import { chooseBrowserPorts, readBrowserPortAllocationDiagnostic } from "./brows
 import { createBrowserE2ETimingRecorder } from "./browser-e2e-timing.mjs";
 import { createProjectExperienceRequestDiagnosticsV1 } from "./project-experience-request-diagnostics-v1.mjs";
 import { CONSUMER_DIAGNOSTIC_BINDING_V1 } from "./project-experience-consumer-diagnostics-v1.mjs";
+import { createInspectorLifecycleV1, INSPECTOR_LIFECYCLE_BINDING_V1 } from "./project-experience-inspector-lifecycle-v1.mjs";
 import { createGuideLifecycleV1, GUIDE_LIFECYCLE_BINDING_V1 } from "./project-experience-guide-lifecycle-v1.mjs";
 import {
   createProjectExperienceRequestVerdictV1,
+  RSC_CONSUMPTION_BINDING_V1,
   UNAVAILABLE_EXECUTION_PROBE_HEADERS_V1,
 } from "./project-experience-request-verdict-v1.mjs";
 import {
@@ -190,7 +192,8 @@ const ownedBrowserProcesses = new Set();
 const timing = createBrowserE2ETimingRecorder({ scope: VALIDATION_SCOPE });
 const requestDiagnostics = createProjectExperienceRequestDiagnosticsV1();
 const guideLifecycle = createGuideLifecycleV1();
-const requestVerdicts = createProjectExperienceRequestVerdictV1({ cancellationEvidence: requestDiagnostics.cancellationEvidence, guideEvidence: guideLifecycle.evidence });
+const inspectorLifecycle = createInspectorLifecycleV1();
+const requestVerdicts = createProjectExperienceRequestVerdictV1({ cancellationEvidence: requestDiagnostics.cancellationEvidence, guideEvidence: guideLifecycle.evidence, inspectorEvidence: inspectorLifecycle.evidence });
 const detailedFieldContract = loadProjectExperienceResultContractV1();
 const detailedFieldCompletionOwner =
   createDetailedFieldCompletionOwnerV1(detailedFieldContract);
@@ -526,6 +529,8 @@ function emitRequestDiagnostics(checkpoint) {
     const snapshot = requestDiagnostics.snapshot(checkpoint) ?? "report_unavailable";
     process.stdout.write(`${JSON.stringify({ project_experience_request_diagnostic: snapshot })}\n`);
     process.stdout.write(`${JSON.stringify({ project_experience_guide_lifecycle: guideLifecycle.snapshot() })}\n`);
+    process.stdout.write(`${JSON.stringify({ project_experience_inspector_lifecycle: inspectorLifecycle.snapshot() })}\n`);
+    process.stdout.write(`${JSON.stringify({ project_experience_flight_consumption: requestVerdicts.rscConsumptionSnapshot() })}\n`);
   } catch {
     // Reporting cannot replace the original verdict or throw over its failure.
     try { process.stderr.write('{"project_experience_request_diagnostic":"report_unavailable"}\n'); } catch { /* Existing lifecycle still owns settlement. */ }
@@ -3394,13 +3399,24 @@ async function openCdpPage() {
     await cdp.send("Runtime.addBinding", { name: GUIDE_LIFECYCLE_BINDING_V1 });
     await cdp.send("Page.addScriptToEvaluateOnNewDocument", { source: guideLifecycle.browserSource() });
   } catch { guideLifecycle.installationFailed(); }
+  try {
+    await cdp.send("Runtime.addBinding", { name: INSPECTOR_LIFECYCLE_BINDING_V1 });
+    await cdp.send("Page.addScriptToEvaluateOnNewDocument", { source: inspectorLifecycle.browserSource() });
+  } catch { inspectorLifecycle.installationFailed(); }
+  try {
+    await cdp.send("Runtime.addBinding", { name: RSC_CONSUMPTION_BINDING_V1 });
+    await cdp.send("Page.addScriptToEvaluateOnNewDocument", { source: requestVerdicts.rscBrowserSource() });
+  } catch { requestVerdicts.rscInstallationFailed(); }
 }
 
 function attachCdpObservers() {
   const diagnosticConnection = requestDiagnostics.connection();
   const verdictConnection = requestVerdicts.connection(requestDiagnostics.verdictConnection?.(diagnosticConnection));
   const guideConnection = guideLifecycle.connection(requestDiagnostics.verdictConnection?.(diagnosticConnection));
+  const inspectorConnection = inspectorLifecycle.connection(requestDiagnostics.verdictConnection?.(diagnosticConnection));
   cdp.on((payload) => {
+    requestVerdicts.observeRscLifecycle?.(verdictConnection, payload, currentPhase);
+    inspectorLifecycle.observe(inspectorConnection, payload, currentPhase);
     requestDiagnostics.observe(diagnosticConnection, payload);
     guideLifecycle.observe(guideConnection, payload, currentPhase);
     const params = payload.params ?? {};
@@ -3447,6 +3463,8 @@ function attachCdpObservers() {
       };
       requestVerdicts.observe(verdictConnection, payload, response);
       responses.push(response);
+    } else if (payload.method === "Network.loadingFinished") {
+      requestVerdicts.observe(verdictConnection, payload, { phase: currentPhase });
     } else if (payload.method === "Runtime.consoleAPICalled") {
       lastObserverActivityAt = Date.now();
       if (params.type === "error") {
@@ -3473,6 +3491,7 @@ function attachCdpObservers() {
       requestVerdicts.observe(verdictConnection, payload, failure);
       requestDiagnostics.bindVerdictFailure?.(diagnosticConnection, payload, failure);
       guideLifecycle.bindFailure(guideConnection, payload, failure);
+      inspectorLifecycle.bindFailure(inspectorConnection, payload, failure);
       failedRequests.push(failure);
     }
   });
@@ -5873,7 +5892,9 @@ function expectedStatusResponseIdentity(response) {
 }
 
 function expectedFailedRequest(entry) {
+  if (requestVerdicts.normallyConsumedFlight?.(entry).expected === true) return true;
   if (requestVerdicts.guideEffectReplayCancellation?.(entry).expected === true) return true;
+  if (requestVerdicts.inspectorEffectReplayCancellation?.(entry).expected === true) return true;
   if (requestVerdicts.expectedUnavailableExecutionAbort(entry)) return true;
   if (requestVerdicts.sessionRefusalCancellation?.(entry).expected === true) return true;
   if (
