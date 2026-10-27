@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import { chmodSync, existsSync, linkSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { Script } from "node:vm";
+import { transformSync } from "esbuild";
+import { runCanonicalChild } from "./canonical-child-runner.mjs";
 import { createCanonicalTestResourceRoot, cleanupCanonicalTestResources, buildCanonicalChildEnvironment } from "./canonical-test-environment.mjs";
 import { createBrowserBundleObserver, compareBrowserBundle } from "./local-canonical-browser-bundle.mjs";
-import { browserInputEnvironment, selectedBrowserInput, selectBrowserPath, assertSelectedBrowser, acquireBrowserInputGuard, releaseBrowserInputGuard, assertBrowserInputGuard, readBrowserInputBinding, strictBrowserArguments } from "./local-canonical-browser-input.mjs";
+import { browserInputEnvironment, selectedBrowserInput, selectBrowserPath, assertSelectedBrowser, acquireBrowserInputGuard, releaseBrowserInputGuard, assertBrowserInputGuard, readBrowserInputBinding, strictBrowserArguments, strictNetworkSandboxLaunch } from "./local-canonical-browser-input.mjs";
 import { acquireCheckoutVerificationOwnership, releaseCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
 import { beginBrowserUse, validBrowserUse, browserConsumersForPhase } from "./local-canonical-browser-identity.mjs";
 import { freezeInputContract, monitorInputContract, digest } from "./local-canonical-inputs.mjs";
@@ -22,9 +24,37 @@ const cumulativeSource = readFileSync(new URL("./test-cumulative-work-history.ts
 const cumulativeLaunch = cumulativeSource.match(/const child = registerOwnedChild\(owned, spawn\(process\.execPath, \["--import", "tsx", "scripts\/test-durable-work-surfaces\.ts", input\],[\s\S]*?\{ label: "cumulative-work-surface" \}\);/gu);
 assert.equal(cumulativeLaunch?.length, 1, "The actual cumulative child launch must be covered");
 const cumulativeChild = new Script(cumulativeLaunch[0], { filename: "test-cumulative-work-history.ts:durable-child" });
+const projectClientSource = readFileSync(new URL("./test-project-client-browser.ts", import.meta.url), "utf8");
+const wrappedLaunches = [durableSource, projectClientSource].map((source, index) => {
+  transformSync(source, { loader: "ts" }); // Complete TS files, including their entry points.
+  const label = index === 0 ? "durable-work-browser" : "project-client-browser";
+  const blocks = source.match(new RegExp(`const profile = path.join\\(root, "chrome"\\), args = \\[[\\s\\S]*?\\{ label: "${label}" \\}\\);`, "gu"));
+  assert.equal(blocks?.length, 1, `Cover the complete actual ${label} launch construction`);
+  return blocks[0];
+});
+
+// Real entry processes must execute and propagate a pre-Browser refusal. The
+// project-client owner also exercises its own fixture/server/DB cleanup here.
+for (const name of ["test-durable-work-surfaces.ts", "test-project-client-browser.ts"]) {
+  const entryOwner = createCanonicalTestResourceRoot("ag-resource-test-", { shortSocketPaths: true });
+  let output = "";
+  try {
+    const env = buildCanonicalChildEnvironment({ temporaryRoot: entryOwner.root });
+    env.AUGNES_BROWSER_INPUT_CONTRACT = "incomplete-selection-control";
+    const result = await runCanonicalChild({ suite: "browser-input-controls", label: name,
+      command: process.execPath, args: ["--import", "tsx", `scripts/${name}`], cwd: process.cwd(), env,
+      timeoutMs: 10_000, resourceOwner: entryOwner,
+      stdout: { write: b => { output += b; } }, stderr: { write: b => { output += b; } }, log() {},
+    });
+    assert.equal(result.exit_code, 1); assert.equal(result.timed_out, false);
+    assert.equal(result.cleanup_completed, true); assert.equal(result.remaining_owned_processes, 0);
+    assert.match(output, name.includes("durable") ? /ERR_INVALID_ARG_TYPE/u : /browser_input_binding_missing/u);
+    if (name.includes("project-client")) assert.match(output, /"project_client_browser_cleanup":"complete"/u);
+  } finally { assert(cleanupCanonicalTestResources([entryOwner]).every(r => r.completed)); }
+}
 
 const owner = createCanonicalTestResourceRoot("ag-resource-test-");
-const root = owner.root, results = [];
+const root = owner.root, results = ["complete TS parsing and two actual entry-process refusals propagate; project-client fixture cleanup completes without a Browser launch"];
 let checkoutOwner, guard;
 try {
   checkoutOwner = acquireCheckoutVerificationOwnership({ repositoryRoot: root });
@@ -80,6 +110,59 @@ try {
   results.push("actual durable/cumulative caller: strict binding preserved through isolated/nested composition; stripped/all-stripped/invalid selections refuse");
   assert.deepEqual(strictBrowserArguments(["--headless=new", "--no-sandbox"], { repositoryRoot: root, env }), ["--headless=new"]);
   results.push("strict controller/child selection, stripped keys/all keys, wrong version/path/hash/alternate and sandbox-disable removal");
+  // Execute both actual constructions, including the spawn boundary. The only
+  // substitute is spawn itself: these controls must never launch a real Browser.
+  const launchBody = new Script(`(${strictNetworkSandboxLaunch.toString()})(...input)`);
+  const runLaunch = (source, { platform = "darwin", inputEnv = env, cumulative = false,
+    spawnError = false } = {}) => {
+    let spawned = 0, launch;
+    const context = { root, path, assert, existsSync, cumulative, owned: new Set(),
+      process: { platform, env: inputEnv },
+      selectBrowserPath: candidates => selectBrowserPath(candidates, { repositoryRoot: root, env: inputEnv }),
+      beginBrowserUse: executable => assertSelectedBrowser(executable, { repositoryRoot: root, env: inputEnv }),
+      strictNetworkSandboxLaunch: (...input) => launchBody.runInNewContext({ input,
+        process: { platform }, selectedBrowserInput: () => selectedBrowserInput({ repositoryRoot: root, env: inputEnv }),
+        fail: code => Object.assign(new Error(code), { code }),
+      }, { timeout: 1000 }),
+      spawn(command, args, options) {
+        spawned++; launch = { command, args: Array.from(args), options };
+        if (spawnError) throw new Error("ENOENT: missing sandbox-exec");
+        return launch;
+      },
+      registerOwnedChild: (_owner, child) => child,
+    };
+    try { new Script(source).runInNewContext(context, { timeout: 1000 }); }
+    catch (error) { error.spawned = spawned; throw error; }
+    assert.equal(spawned, 1); return launch;
+  };
+  const refusal = error => /browser_input_|executable_missing/u.test(error.message) && error.spawned === 0;
+  for (const source of wrappedLaunches) {
+    for (const cumulative of [false, true]) {
+      const launch = runLaunch(source, { cumulative });
+      assert.equal(launch.command, "/usr/bin/sandbox-exec");
+      assert.equal(launch.args[0], "-p"); assert.match(launch.args[1], /\(deny network\*\)/u);
+      assert.equal(launch.args[2], binding.executable);
+      assert.equal(launch.args.filter(a => a === "--no-sandbox").length, 1);
+      assert.equal(launch.options.env.OPENAI_API_KEY, "");
+      for (const key of Object.keys(env)) assert.equal(launch.options.env[key], env[key]);
+    }
+    for (const broken of [source.replaceAll('"/usr/bin/sandbox-exec"', "executable"),
+      source.replace("(deny network*)", "(allow network*)"),
+      source.replace('["-p", sandbox, executable, ...args]', '[executable, ...args]'),
+      source.replace('"--no-sandbox", ', ""),
+      source.replaceAll('"durable-work-surface"', '"unknown"').replaceAll('"project-client"', '"unknown"')]) {
+      assert.notEqual(broken, source); assert.throws(() => runLaunch(broken), refusal);
+    }
+    assert.throws(() => runLaunch(source, { platform: "linux" }), refusal);
+    for (const inputEnv of [{}, { ...env, AUGNES_BROWSER_EXECUTABLE_PATH: "" },
+      { ...env, AUGNES_BROWSER_EXECUTABLE_PATH: missing }, { ...env, AUGNES_BROWSER_EXECUTABLE_PATH: explicit }]) {
+      assert.throws(() => runLaunch(source, { inputEnv }), refusal);
+    }
+    assert.throws(() => runLaunch(source, { spawnError: true }),
+      error => /ENOENT/u.test(error.message) && error.spawned === 1,
+      "Missing outer executable must propagate; no unwrapped retry");
+  }
+  results.push("both real wrapped launch constructions retain strict inputs and exactly one no-sandbox; direct/missing/altered wrapper, wrong profile/owner/platform/selection refuse before spawn; spawn failure has no fallback");
   const use = beginBrowserUse(binding.executable, { consumer: "durable-work-surface", repositoryRoot: root, env, emit() {} });
   use.version("Chrome/156.0.8078.47"); use.version("Chrome/156.0.8078.47", "cdp");
   const record = use.finish(), expected = { before: record.before, location_fingerprint: record.location_fingerprint, browser_input: binding.publicBinding };
@@ -91,6 +174,8 @@ try {
   results.push("v3 launch/settlement record, CLI/HTTP/CDP agreement, downgrade and bundle drift refusal, 19-record workload unchanged");
   releaseBrowserInputGuard(guard, { settled: true }); guard = null;
   assert.equal(selectBrowserPath([binding.executable], { repositoryRoot: root, env: {} }), binding.executable);
+  const legacyLaunch = runLaunch(wrappedLaunches[1], { platform: "linux", inputEnv: { AUGNES_BROWSER_EXECUTABLE_PATH: explicit } });
+  assert.equal(legacyLaunch.command, explicit); assert(legacyLaunch.args.includes("--no-sandbox"));
   results.push("legacy selection outside strict lane retained");
 
   const data = path.join(binding.root, "Contents/Frameworks/Versions/A/Resources/data"), link = path.join(binding.root, "Contents/Frameworks/Versions/Current");

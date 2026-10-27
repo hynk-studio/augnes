@@ -906,6 +906,26 @@ launch and settlement observes the actual bundle and CLI/HTTP/CDP versions.
 Missing or alternate selections and invalid versions refuse. Outside this
 explicit lane, historical Browser and receipt interpretations remain intact.
 
+For exactly the existing Darwin durable/cumulative five and project-client two
+launches, the strict lane preserves the accepted-base outer network sandbox plus
+`--no-sandbox`. The shared input helper validates the actual spawn tuple: the
+fixed `/usr/bin/sandbox-exec`, exact existing loopback/Unix network profile,
+selected executable and one retained argument for those owners. Missing or
+altered protection, direct launch, unknown owner and non-Darwin strict use
+refuse; spawn failure has no unwrapped fallback. The other twelve direct
+launches retain their existing Chromium sandbox behavior.
+
+These seven launches use reviewed deterministic local fixtures, disposable
+profiles/databases and permitted local endpoints. The outer allow-default
+network policy does not provide Chromium's additional filesystem/IPC
+compartmentalization, equivalent dual-sandbox protection, or confinement of
+all local services. This is a bounded baseline compatibility choice, not a
+general sandbox opt-out or host-security change. Existing network/privacy and
+functional assertions remain. Cleanup follows each existing process owner,
+including supported normal SIGTERM; a diagnostic `Browser.close` response is
+not a universal success condition. Crashes, timeouts, escalation and residue
+retain their existing failure classification.
+
 The bundle observer re-enumerates directories/files and relative internal links,
 checks physical identities, ownership/mode, ACLs/flags/extended attributes and
 bounded race-safe file reads. Escaping/cyclic/dangling links, hardlinks,

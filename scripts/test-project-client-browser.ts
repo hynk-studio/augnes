@@ -1,4 +1,4 @@
-import { selectBrowserPath, strictBrowserArguments } from "./local-canonical-browser-input.mjs";
+import { selectBrowserPath, strictNetworkSandboxLaunch } from "./local-canonical-browser-input.mjs";
 // One disposable workspace, one ordinary browser profile, two independently
 // authenticated tabs. Production components and route handlers own all writes.
 import assert from "node:assert/strict";
@@ -129,7 +129,7 @@ async function main(semanticOnly = false) {
       plugins: [{ name: "fixture-navigation", setup(builder) { builder.onResolve({ filter: /^next\/navigation$/ }, () => ({ path: "fixture-navigation", namespace: "fixture" })); builder.onLoad({ filter: /.*/, namespace: "fixture" }, () => ({ contents: "export const useRouter=()=>({refresh(){}});export const useSearchParams=()=>new URLSearchParams(location.search);", loader: "js" })); } }] });
     script = bundled.outputFiles.find(file => file.path.endsWith(".js"))!.text; css = bundled.outputFiles.find(file => file.path.endsWith(".css"))?.text ?? "";
     await new Promise<void>(ok => server.listen(0, "127.0.0.1", ok)); origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
-    const profile = path.join(root, "chrome"), args = strictBrowserArguments(["--headless=new", "--no-sandbox", "--disable-gpu", "--no-first-run", "--no-default-browser-check", "--disable-background-networking", "--disable-component-update", "--disable-default-apps", "--disable-domain-reliability", "--disable-extensions", "--disable-sync", "--metrics-recording-only", "--no-pings", "--password-store=basic", "--use-mock-keychain", "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1", "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "about:blank"]);
+    const profile = path.join(root, "chrome"), args = ["--headless=new", "--no-sandbox", "--disable-gpu", "--no-first-run", "--no-default-browser-check", "--disable-background-networking", "--disable-component-update", "--disable-default-apps", "--disable-domain-reliability", "--disable-extensions", "--disable-sync", "--metrics-recording-only", "--no-pings", "--password-store=basic", "--use-mock-keychain", "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1", "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "about:blank"];
     const executable = selectBrowserPath([process.env.AUGNES_BROWSER_EXECUTABLE_PATH,
       "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/Applications/Chromium.app/Contents/MacOS/Chromium",
       "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge", "/usr/bin/google-chrome", "/usr/bin/google-chrome-stable",
@@ -137,8 +137,8 @@ async function main(semanticOnly = false) {
     assert.ok(executable, "project_client_browser_executable_missing");
     const sandbox = '(version 1) (allow default) (deny network*) (allow network-inbound (local ip "localhost:*")) (allow network-outbound (remote ip "localhost:*")) (allow network-bind (local ip "localhost:*")) (allow network* (local unix-socket))';
     browserUse = beginBrowserUse(executable, { consumer: "project-client" });
-    chrome = registerOwnedChild(owned, spawn(process.platform === "darwin" ? "/usr/bin/sandbox-exec" : executable,
-      process.platform === "darwin" ? ["-p", sandbox, executable, ...args] : args,
+    chrome = registerOwnedChild(owned, spawn(...strictNetworkSandboxLaunch(process.platform === "darwin" ? "/usr/bin/sandbox-exec" : executable,
+      process.platform === "darwin" ? ["-p", sandbox, executable, ...args] : args, "project-client"),
       { detached: true, stdio: "ignore", env: { ...process.env, OPENAI_API_KEY: "" } }), { label: "project-client-browser" });
     let port = ""; await until(async () => { try { port = readFileSync(path.join(profile, "DevToolsActivePort"), "utf8").split("\n")[0]!; return !!port; } catch { return false; } }, "chrome");
     const newTab = async (config: VNextLocalOperatorPilotConfigV01) => {

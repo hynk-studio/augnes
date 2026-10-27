@@ -134,7 +134,7 @@ above this source map owns admission; implementation does not authorize a run.
 | --- | --- | --- |
 | Controller/environment | Exact local binding and replacement proof; no default selection | Legacy explicit/candidate selection outside the versioned lane |
 | Isolated phase and nested suite | Contract/path/fingerprint passed through the bounded environment; active checkout sentinel catches stripping | Existing HOME/temp/DB and process owners |
-| Project, continuity, operator lifecycle, project-client, Web-planning, durable/cumulative | Shared selector plus actual-launch assertion; whole bundle and CLI/HTTP/CDP identity at launch/settlement | All 19 records; no product harness replacement; strict lane retains OS sandbox |
+| Project, continuity, operator lifecycle, project-client, Web-planning, durable/cumulative | Shared selector plus actual-launch assertion; whole bundle and CLI/HTTP/CDP identity at launch/settlement | All 19 records; seven Darwin wrapped launches retain the exact outer network policy plus `--no-sandbox`; twelve direct launches retain their existing sandbox behavior |
 | Input monitor | Enumerated metadata/security each poll, conservative hash cache, forced final read | Starts before unit/integration; original AbortSignal and stop rules |
 | Attempt ledger | One cross-kind immutable edge, latest tip, initial1/recovery0 for replacement | Historical source/recovery records readable; no renewed allowance |
 | Stock and private export | Version 5 / export v2, authenticated review and grant re-read, exact live input reconstruction | Legacy receipts v3/v4 and export v1 stay readable |
@@ -163,3 +163,11 @@ control must propagate the syntax child failure. This exact verifier test path
 is included in the replacement delta allowlist; neighboring or arbitrary test
 paths receive no exemption. Syntax checks do not launch product workloads or
 establish Browser lifecycle, artifact trust or qualification.
+
+The two wrapped launch constructions pass their complete spawn tuple through
+`strictNetworkSandboxLaunch`; caller labels alone do not retain the argument.
+Controls parse both complete TS entry files, execute pre-Browser entry refusals,
+and exercise the actual construction with positive and altered/missing-wrapper,
+profile, owner, platform and selection controls. No failure retries unwrapped.
+This preserves the trusted-local baseline, without additional Chromium
+filesystem/IPC isolation; the Local Canonical policy owns that tradeoff.

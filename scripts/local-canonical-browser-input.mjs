@@ -97,6 +97,24 @@ export function strictBrowserArguments(args, options) {
   return selectedBrowserInput(options) ? args.filter(arg => arg !== "--no-sandbox") : args;
 }
 
+// Only the two existing trusted-local fixture owners retain the accepted-base
+// Darwin outer network sandbox + --no-sandbox combination. Validate the actual
+// spawn tuple, not a caller Boolean; a missing/altered wrapper must refuse.
+// This network policy does not replace Chromium filesystem/IPC isolation.
+/** @returns {[string, string[]]} */
+export function strictNetworkSandboxLaunch(command, args, consumer, options) {
+  const binding = selectedBrowserInput(options);
+  if (binding && (process.platform !== "darwin"
+      || !["durable-work-surface", "cumulative-work-surface", "project-client"].includes(consumer)
+      || command !== "/usr/bin/sandbox-exec" || args[0] !== "-p"
+      || args[1] !== '(version 1) (allow default) (deny network*) (allow network-inbound (local ip "localhost:*")) (allow network-outbound (remote ip "localhost:*")) (allow network-bind (local ip "localhost:*")) (allow network* (local unix-socket))'
+      || args[2] !== binding.executable
+      || args.slice(3).filter(arg => arg === "--no-sandbox").length !== 1)) {
+    throw fail("browser_input_wrapped_launch_refused");
+  }
+  return [command, args];
+}
+
 export function assertBrowserBundle(binding, { force = true } = {}) {
   const result = binding.observe({ force });
   if (compareBrowserBundle(binding.publicBinding.bundle, result.observation) !== "unchanged") throw fail("browser_input_bundle_changed");

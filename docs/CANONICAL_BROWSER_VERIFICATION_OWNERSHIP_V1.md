@@ -398,3 +398,14 @@ selection is unchanged outside that lane. See the Local Canonical policy's
 Browser-input replacement section for its separate review/grant and read-only
 stock requirements. No change to the C8 30-second child or 3,600-second unit
 phase limit is authorized by this input contract.
+
+The existing Darwin durable/cumulative five and project-client two launches use
+the exact outer loopback/Unix network sandbox together with `--no-sandbox`.
+Strict input validation binds that actual spawn construction and refuses lost
+or altered protection. The other twelve direct launches keep their prior
+sandbox behavior. The seven wrapped launches are limited to reviewed local
+fixtures and disposable profiles/DBs; their network policy is not equivalent
+to Chromium filesystem/IPC compartmentalization. Existing assertions and owned
+process teardown, including normal supported SIGTERM, remain authoritative.
+A diagnostic `Browser.close` acknowledgement is separate from useful page work,
+component health and cleanup; it is not an added universal acceptance gate.
