@@ -6,7 +6,7 @@ import { transformSync } from "esbuild";
 import { runCanonicalChild } from "./canonical-child-runner.mjs";
 import { createCanonicalTestResourceRoot, cleanupCanonicalTestResources, buildCanonicalChildEnvironment } from "./canonical-test-environment.mjs";
 import { createBrowserBundleObserver, compareBrowserBundle } from "./local-canonical-browser-bundle.mjs";
-import { browserInputEnvironment, selectedBrowserInput, selectBrowserPath, assertSelectedBrowser, acquireBrowserInputGuard, releaseBrowserInputGuard, assertBrowserInputGuard, readBrowserInputBinding, strictBrowserArguments, strictNetworkSandboxLaunch } from "./local-canonical-browser-input.mjs";
+import { BROWSER_INPUT_ENV_KEYS, browserInputEnvironment, selectedBrowserInput, selectBrowserPath, assertSelectedBrowser, acquireBrowserInputGuard, releaseBrowserInputGuard, assertBrowserInputGuard, readBrowserInputBinding, strictBrowserArguments, strictNetworkSandboxLaunch } from "./local-canonical-browser-input.mjs";
 import { acquireCheckoutVerificationOwnership, releaseCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
 import { beginBrowserUse, validBrowserUse, browserConsumersForPhase } from "./local-canonical-browser-identity.mjs";
 import { freezeInputContract, monitorInputContract, digest } from "./local-canonical-inputs.mjs";
@@ -24,6 +24,10 @@ const cumulativeSource = readFileSync(new URL("./test-cumulative-work-history.ts
 const cumulativeLaunch = cumulativeSource.match(/const child = registerOwnedChild\(owned, spawn\(process\.execPath, \["--import", "tsx", "scripts\/test-durable-work-surfaces\.ts", input\],[\s\S]*?\{ label: "cumulative-work-surface" \}\);/gu);
 assert.equal(cumulativeLaunch?.length, 1, "The actual cumulative child launch must be covered");
 const cumulativeChild = new Script(cumulativeLaunch[0], { filename: "test-cumulative-work-history.ts:durable-child" });
+const navigationSource = readFileSync(new URL("./test-operator-browser-navigation-diagnostics-v1.mjs", import.meta.url), "utf8");
+const navigationComposition = navigationSource.match(/function focusedEnvironment\(\) \{[\s\S]*?\n\}/gu);
+assert.equal(navigationComposition?.length, 1, "Cover the actual navigation child environment");
+const navigationEnvironment = new Script(`(${navigationComposition[0]})()`, { filename: "operator-navigation:focusedEnvironment" });
 const projectClientSource = readFileSync(new URL("./test-project-client-browser.ts", import.meta.url), "utf8");
 const wrappedLaunches = [durableSource, projectClientSource].map((source, index) => {
   transformSync(source, { loader: "ts" }); // Complete TS files, including their entry points.
@@ -96,6 +100,18 @@ try {
   for (const key of Object.keys(env)) assert.equal(child[key], env[key]);
   assert.equal(select(child).publicBinding.fingerprint, binding.publicBinding.fingerprint);
   assert.equal(durableSelect(child), binding.executable);
+  const navigationEnv = input => navigationEnvironment.runInNewContext({ path, BROWSER_INPUT_ENV_KEYS,
+    process: { execPath: process.execPath, env: input } }, { timeout: 1000 });
+  const navigationChild = navigationEnv({ ...child, OPENAI_API_KEY: "synthetic-secret", GITHUB_TOKEN: "synthetic-secret" });
+  for (const key of Object.keys(env)) assert.equal(navigationChild[key], env[key]);
+  assert.equal(navigationChild.OPENAI_API_KEY, undefined); assert.equal(navigationChild.GITHUB_TOKEN, undefined);
+  assert.equal(select(navigationChild).publicBinding.fingerprint, binding.publicBinding.fingerprint);
+  for (const key of Object.keys(env)) {
+    const stripped = { ...child }; delete stripped[key]; assert.throws(() => select(navigationEnv(stripped)));
+  }
+  assert.throws(() => select(navigationEnv({})), /browser_input_binding_missing/);
+  assert.throws(() => select(navigationEnv({ ...child, AUGNES_BROWSER_INPUT_FINGERPRINT: "f".repeat(64) })), /browser_input_selection_mismatch/);
+  results.push("actual navigation child environment retains exact binding and executable, excludes credentials; missing/all-stripped/invalid binding still refuses");
   let nested;
   cumulativeChild.runInNewContext({ process: { execPath: process.execPath, env: child }, input: path.join(root, "synthetic-cumulative-input.json"), owned: new Set(),
     spawn(command, args, options) {
