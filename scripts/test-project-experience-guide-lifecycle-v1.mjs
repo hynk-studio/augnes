@@ -8,7 +8,8 @@ import vm from 'node:vm';
 import { createGuideLifecycleV1, GUIDE_LIFECYCLE_BINDING_V1, GUIDE_REPLAY_PHASES_V1 } from './project-experience-guide-lifecycle-v1.mjs';
 import { createProjectExperienceRequestVerdictV1 } from './project-experience-request-verdict-v1.mjs';
 import { OPERATOR_REQUEST_LIFECYCLE_PHASES_V1, classifyOperatorLifecycleRequestFailureV1 } from './operator-execution-result-contract-v1.mjs';
-const operatorScope = process.argv[2] === '--operator-scope';
+export async function runGuideLifecycleRegressionV1(args = process.argv.slice(2)) {
+const operatorScope = args[0] === '--operator-scope';
 const replayPhases = operatorScope ? OPERATOR_REQUEST_LIFECYCLE_PHASES_V1 : GUIDE_REPLAY_PHASES_V1;
 const ts = createRequire(import.meta.url)('typescript');
 const phase = replayPhases[0], route = '/api/augnes/read/guide-brief';
@@ -141,7 +142,6 @@ async function fixture(options = {}, factory = createProjectExperienceRequestVer
 // The same finite regression can run against the retained original verdict
 // module. A failed assertion is the original guard's rejection of this completed
 // owned replay, not a fabricated failure, syntax error or production attempt.
-const args = process.argv.slice(2);
 const witnessMode = args[0] === '--verdict-source';
 if (witnessMode) {
   assert([2, 3].includes(args.length));
@@ -223,3 +223,7 @@ if (witnessMode) {
     replay_phases: replayPhases, operator_scope: operatorScope,
     actual_hook_guard: true, observer_parity: true, exact_fetch_promise: true, production_attempt: false }));
 }
+
+}
+
+await runGuideLifecycleRegressionV1();

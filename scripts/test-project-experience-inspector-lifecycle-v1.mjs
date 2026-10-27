@@ -8,12 +8,13 @@ import vm from 'node:vm';
 import { createInspectorLifecycleV1, INSPECTOR_LIFECYCLE_BINDING_V1, INSPECTOR_REPLAY_PHASES_V1 } from './project-experience-inspector-lifecycle-v1.mjs';
 import { createProjectExperienceRequestVerdictV1 } from './project-experience-request-verdict-v1.mjs';
 import { OPERATOR_REQUEST_LIFECYCLE_PHASES_V1, classifyOperatorLifecycleRequestFailureV1 } from './operator-execution-result-contract-v1.mjs';
-const operatorScope = process.argv[2] === '--operator-scope';
+export async function runInspectorLifecycleRegressionV1(args = process.argv.slice(2)) {
+const operatorScope = args[0] === '--operator-scope';
 const replayPhases = operatorScope ? OPERATOR_REQUEST_LIFECYCLE_PHASES_V1 : INSPECTOR_REPLAY_PHASES_V1;
 const ts = createRequire(import.meta.url)('typescript');
 const transpile = source => ts.transpileModule(source, { compilerOptions: {
   module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
-const componentCode = transpile(readFileSync(process.argv[2] === '--component-source' ? process.argv[3] :
+const componentCode = transpile(readFileSync(args[0] === '--component-source' ? args[1] :
   new URL('../components/workbench/inspector/shared-project-inspector-loader.tsx', import.meta.url), 'utf8') + '\nexport { ScopedProjectInspectorLoader };');
 const portalCode = transpile(readFileSync(new URL('../components/delegated-work/project-experience-test-observer.ts', import.meta.url), 'utf8'));
 const targetCode = transpile(readFileSync(new URL('../lib/vnext/shared-project-inspector-href.ts', import.meta.url), 'utf8'));
@@ -154,14 +155,14 @@ async function fixture(options = {}, factory = createProjectExperienceRequestVer
     snapshot:lifecycle.snapshot(), lateWrites:writes.slice(beforeLate), reason:()=>verdict.inspectorEffectReplayCancellation?.(failure) ?? {expected:false,reason:'retained_classifier_refuses'} };
 }
 
-if (process.argv[2] === '--current-abort-regression') {
+if (args[0] === '--current-abort-regression') {
   const session = await fixture({ bodyFailure: 'abort' });
   assert.equal(session.states[0].error_code, 'operator_session_request_failed', 'required current session AbortError is a real body failure');
   const inspector = await fixture({ authenticated:true, inspectorFailure:'abort' });
   assert.equal(inspector.states[2], 'shared_inspector_request_failed', 'required current Inspector AbortError is a real body failure');
   console.log(JSON.stringify({status:'pass',actual_component:true,current_body_abort_without_owner_abort:2}));
-} else if (process.argv[2] === '--component-source' || process.argv[2] === '--stale-inspector-regression') {
-  if(process.argv[2]==='--component-source')assert.equal(process.argv.length,4);
+} else if (args[0] === '--component-source' || args[0] === '--stale-inspector-regression') {
+  if(args[0]==='--component-source')assert.equal(args.length,2);
   for(const options of [{lateInspectorBody:true},{lateInspectorError:true}]) {
     const f=await fixture({authenticated:true,...options});
     assert.equal(f.states[1].inspector.marker,'current','obsolete Inspector body must not replace current result');
@@ -169,9 +170,9 @@ if (process.argv[2] === '--current-abort-regression') {
     assert.equal(f.requests[2].args.signal.aborted,true,'actual cleanup aborted obsolete Inspector signal');
   }
   console.log(JSON.stringify({status:'pass',actual_component:true,late_inspector_body_and_error_discarded:true}));
-} else if (process.argv[2] === '--verdict-source') {
-  assert.equal(process.argv.length,4);
-  const factory=(await import(pathToFileURL(process.argv[3]).href)).createProjectExperienceRequestVerdictV1;
+} else if (args[0] === '--verdict-source') {
+  assert.equal(args.length,2);
+  const factory=(await import(pathToFileURL(args[1]).href)).createProjectExperienceRequestVerdictV1;
   const f=await fixture({},factory);
   assert.equal(f.expected(),true,JSON.stringify(f.reason()));
   console.log(JSON.stringify({status:'pass',actual_component_and_guard:true,obsolete_body_not_read:true,current_state:f.states[0].status}));
@@ -233,3 +234,7 @@ if (process.argv[2] === '--current-abort-regression') {
     observer_parity:true,late_obsolete_body_blocked:true,late_inspector_body_and_error_discarded:true,
     wrong_project_controls:'classifier_refusal_only_server_scope_and_component_key_unchanged',real_body_failure_retained:true}));
 }
+
+}
+
+await runInspectorLifecycleRegressionV1();

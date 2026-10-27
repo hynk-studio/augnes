@@ -455,6 +455,13 @@ function requestKey(sessionId, requestId) {
 // CDP reports ERR_ABORTED. Existing UI, page-error and console assertions still
 // decide whether the decoded current result is usable. No public snapshot can
 // supply these facts, and an obsolete stream without EOF does not qualify here.
+function isConsumedFlightRouteV1(pathname, observeOperatorNavigation) {
+  // Match the existing project page and, only for the operator workload, the
+  // semantic-review index and its validated [proposal_id] route family.
+  return /^\/projects\/[^/]+$/.test(pathname) || (observeOperatorNavigation &&
+    (pathname === '/' || /^\/workbench\/semantic-review(?:\/episode-delta-proposal~[a-f0-9]{24})?$/.test(pathname)));
+}
+
 function createConsumedFlightObservationV1(observedPhases, observeOperatorNavigation) {
   const channel = randomBytes(16).toString('hex'), connections = new WeakMap(), failures = new WeakMap();
   const documents = new Map(), counts = { invalid: 0, overflow: 0, installation: 0 };
@@ -470,7 +477,7 @@ function createConsumedFlightObservationV1(observedPhases, observeOperatorNaviga
     }
   }
   return {
-    browserSource: () => `(${installConsumedFlightObservationV1.toString()})(${JSON.stringify(channel)},${JSON.stringify(RSC_CONSUMPTION_BINDING_V1)},${JSON.stringify(observeOperatorNavigation)});`,
+    browserSource: () => `(${installConsumedFlightObservationV1.toString()})(${JSON.stringify(channel)},${JSON.stringify(RSC_CONSUMPTION_BINDING_V1)},${JSON.stringify(observeOperatorNavigation)},${isConsumedFlightRouteV1.toString()});`,
     installationFailed() { counts.installation++; },
     connection(token) { connections.set(token, { number: ++connectionCount, contexts: new Map(), frames: new Map(), requests: new Map() }); },
     lifecycle(token, payload, phase) { protect(() => {
@@ -541,7 +548,7 @@ function createConsumedFlightObservationV1(observedPhases, observeOperatorNaviga
         const url = new URL(p.request.url), headers = new Headers(p.request.headers);
         if (pins.length !== 1 || pins[0].length !== 2 || r.request || c.requests.has(request) || p.redirectResponse ||
           !['localhost','127.0.0.1','[::1]'].includes(url.hostname) ||
-          (!/^\/projects\/[^/]+$/.test(url.pathname) && !(observeOperatorNavigation && ['/', '/workbench/semantic-review'].includes(url.pathname))) ||
+          !isConsumedFlightRouteV1(url.pathname, observeOperatorNavigation) ||
           url.username || url.password || !url.searchParams.has('_rsc') || p.type !== 'Fetch' || p.request.method !== 'GET' ||
           headers.get('rsc') !== '1' || ['next-hmr-refresh','next-router-prefetch','next-router-segment-prefetch'].some(k => headers.has(k)) ||
           !frames.some(f => /\/next\/dist\/client\/components\/router-reducer\/fetch-server-response\.js(?:\?|$)/.test(f.url)) ||
@@ -574,7 +581,7 @@ function createConsumedFlightObservationV1(observedPhases, observeOperatorNaviga
   };
 }
 
-function installConsumedFlightObservationV1(channel, binding, observeOperatorNavigation) {
+function installConsumedFlightObservationV1(channel, binding, observeOperatorNavigation, isObservedRoute) {
   if (typeof window[binding] !== 'function' || !['localhost','127.0.0.1','[::1]'].includes(location.hostname)) return;
   const document = crypto.randomUUID(), streams = new WeakMap(), readers = new WeakMap(), responses = new WeakMap();
   let ordinal = 0, readCount = 0;
@@ -589,7 +596,7 @@ function installConsumedFlightObservationV1(channel, binding, observeOperatorNav
     safe(() => {
       const [input, init] = args, url = new URL(typeof input === 'string' ? input : input.url ?? input, location.href);
       if (url.origin !== location.origin || !url.searchParams.has('_rsc') ||
-        (!/^\/projects\/[^/]+$/.test(url.pathname) && !(observeOperatorNavigation && ['/', '/workbench/semantic-review'].includes(url.pathname)))) return;
+        !isObservedRoute(url.pathname, observeOperatorNavigation)) return;
       const headers = new Headers(init?.headers ?? input?.headers), read = ++readCount;
       const valid = read <= 64 && (init?.method ?? 'GET') === 'GET' && init?.signal == null && input?.signal == null &&
         headers.get('rsc') === '1' && !['next-hmr-refresh','next-router-prefetch','next-router-segment-prefetch'].some(k => headers.has(k));

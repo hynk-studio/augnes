@@ -7,19 +7,23 @@ import { randomUUID } from 'node:crypto';
 import vm from 'node:vm';
 import { createProjectExperienceRequestVerdictV1, RSC_CONSUMPTION_BINDING_V1 } from './project-experience-request-verdict-v1.mjs';
 
+export async function runFlightConsumptionRegressionV1(args = process.argv.slice(2)) {
 const require = createRequire(import.meta.url), previousWebpack = globalThis.__webpack_require__;
 globalThis.__webpack_require__ = Object.assign(() => { throw Error('This plain Flight fixture has no client module references'); }, { u: id => id });
 const decoder = require('next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js');
 const owner = readFileSync(new URL('./browser-validate-project-experience-v1.mjs', import.meta.url), 'utf8');
 const guard = owner.slice(owner.indexOf('function expectedFailedRequest('), owner.indexOf('function failedRequestAssertionEntry('));
 const tick = () => new Promise(resolve => setImmediate(resolve));
-const semanticReviewScope = process.argv[2] === '--operator-semantic-review';
-const rootScope = process.argv[2] === '--operator-root-flight';
-const operatorScope = process.argv[2] === '--operator-scope' || semanticReviewScope || rootScope;
-const phase = rootScope ? 'executed_reviewed_follow_up' : semanticReviewScope ? 'work_expectation_recording' : operatorScope ? 'project_controls_and_automation' : 'companion_first_work_access';
-const origin = 'http://localhost:3000', route = rootScope ? '/' : semanticReviewScope ? '/workbench/semantic-review' : '/projects/project%3Acontrolled';
+const detailScope = args[0] === '--operator-detail-flight';
+const semanticReviewScope = args[0] === '--operator-semantic-review' || detailScope;
+const rootScope = args[0] === '--operator-root-flight';
+const operatorScope = args[0] === '--operator-scope' || semanticReviewScope || rootScope;
+const phase = detailScope ? 'review_decision_and_transition' : rootScope ? 'executed_reviewed_follow_up' : semanticReviewScope ? 'work_expectation_recording' : operatorScope ? 'project_controls_and_automation' : 'companion_first_work_access';
+const detailRoute = '/workbench/semantic-review/episode-delta-proposal~' + randomUUID().replaceAll('-', '').slice(0, 24);
+const origin = 'http://localhost:3000', defaultRoute = detailScope ? detailRoute : rootScope ? '/' : semanticReviewScope ? '/workbench/semantic-review' : '/projects/project%3Acontrolled';
 
 async function fixture(options = {}, factory = createProjectExperienceRequestVerdictV1) {
+  const route = options.route ?? defaultRoute;
   const verdict = factory(operatorScope ? {rscReplayPhases:[phase],operatorNavigationFlight:(semanticReviewScope||rootScope)&&!options.scopeDisabled} : undefined), connection = verdict.connection({}), packets = [], protocol = [], requests = [];
   let failure, controller, actualResponse, originalFetchPromise, rootReader, originalReadPromise, identityChecked = false;
   let decoded, decodeError, ordinal = 0;
@@ -46,9 +50,9 @@ async function fixture(options = {}, factory = createProjectExperienceRequestVer
     fetch(url, init) {
       const pins = [...String(new Error().stack).matchAll(/augnes-consumed-flight\/[a-f0-9]+\/[a-f0-9-]+\/\d+/g)].map(m=>({url:m[0]}));
       const frames = options.noPin ? [] : options.duplicatePin ? [...pins,...pins] : pins;
-      frames.push({url:'webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/router-reducer/fetch-server-response.js'});
+      if (!options.noNextSource) frames.push({url:'webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/router-reducer/fetch-server-response.js'});
       emit('Network.requestWillBeSent',{requestId:'rsc',frameId:'frame',loaderId:options.wrongLoader?'other':'loader',type:'Fetch',
-        request:{url,method:init.method??'GET',headers:init.headers},initiator:{stack:{callFrames:frames}},redirectResponse:options.redirect?{}:undefined},
+        request:{url:options.protocolRoute ? origin+options.protocolRoute+'?_rsc=fixture' : url,method:init.method??'GET',headers:init.headers},initiator:{stack:{callFrames:frames}},redirectResponse:options.redirect?{}:undefined},
         {phase,path:route,method:init.method??'GET',external:false});
       const stream = new ReadableStream({ start(c) {controller=c;} });
       actualResponse = new Response(stream,{status:options.httpError?503:200,headers:{'content-type':'text/x-component'}});
@@ -82,7 +86,7 @@ async function fixture(options = {}, factory = createProjectExperienceRequestVer
       if (options.cancel) await rootReader.cancel();
       else if (options.reject) controller.error(new Error('Controlled still-required body failure'));
       else {
-        controller.enqueue(new TextEncoder().encode(options.truncated ? '0:{"result":' : '0:{"result":"current","project":"controlled"}\n'));
+        if (!options.empty) controller.enqueue(new TextEncoder().encode(options.truncated ? '0:{"result":' : '0:{"result":"current","project":"controlled"}\n'));
         if (!options.incomplete) controller.close();
       }
       await tick(); await tick();
@@ -108,7 +112,6 @@ async function fixture(options = {}, factory = createProjectExperienceRequestVer
 }
 
 try {
-  const args=process.argv.slice(2);
   if(args[0]==='--verdict-source') {
     assert.equal(args.length,2); const imported=await import(pathToFileURL(args[1]).href);
     const observed=await fixture({},imported.createProjectExperienceRequestVerdictV1);
@@ -120,12 +123,30 @@ try {
     const negatives=[{omit:'eof'},{omit:'chunk'},{omit:'reader'},{omit:'headers'}, {duplicate:'eof'},{duplicate:'reader'},
       {reject:true},{cancel:true},{incomplete:true},{contextLost:true},{wrongContext:true},{wrongLoader:true},
       {wrongChannel:true},{noPin:true},{duplicatePin:true},{redirect:true},{copied:true},{tampered:true},{installation:true},{finished:true},
-      {httpError:true},{hmr:true},{prefetch:true},{signal:true},{method:'POST'},{error:'net::ERR_CONNECTION_RESET'}];
+      {httpError:true},{hmr:true},{prefetch:true},{signal:true},{method:'POST'},{error:'net::ERR_CONNECTION_RESET'},
+      {noNextSource:true},{empty:true},{protocolRoute:'/workbench/semantic-review/not-a-proposal'}];
     for(const input of negatives) {
       const result=await fixture(input);assert.equal(result.classification?.expected,false,JSON.stringify({input,classification:result.classification}));
       assert.equal(result.expected,false,JSON.stringify({input,classification:result.classification}));
     }
     if(semanticReviewScope||rootScope)assert.equal((await fixture({scopeDisabled:true})).expected,false,'the existing default scope must not admit the operator navigation route');
+    const routeControls = [];
+    if (detailScope) {
+      // Current app route: index plus the validated [proposal_id] segment.
+      // A fresh identity proves this is route-family coverage, not one failed ID.
+      const another = '/workbench/semantic-review/episode-delta-proposal~' + randomUUID().replaceAll('-', '').slice(0, 24);
+      assert.equal((await fixture({route:another})).combinedBoundary,true);
+      for (const route of ['/workbench/semantic-review-extra', '/workbench/semantic-review/not-a-proposal',
+        detailRoute+'0', detailRoute+'/nested', detailRoute.replace('episode-delta-proposal~','other~')]) {
+        const excluded = await fixture({route});
+        assert.equal(excluded.packets.some(p=>p.kind==='fetch'),false,'browser installation eligibility: '+route);
+        assert.equal(excluded.expected,false);
+        const correlated = await fixture({protocolRoute:route});
+        assert(correlated.packets.some(p=>p.kind==='fetch'),'browser-side observation remains installed');
+        assert.equal(correlated.expected,false,'protocol correlation eligibility: '+route);
+        routeControls.push(route);
+      }
+    }
     const truncated=await fixture({truncated:true});
     assert.equal(truncated.expected,true,'EOF alone is only the transport-consumption fact');
     assert.match(truncated.decodeError,/Connection closed/);
@@ -142,7 +163,7 @@ try {
     listener({method:'Network.loadingFinished',params:{requestId:'same'}});
     listener({method:'Network.loadingFailed',params:{requestId:'same',errorText:'net::ERR_ABORTED'}});
     assert.deepEqual(forwarded,['Network.loadingFinished','Network.loadingFailed']);
-    console.log(JSON.stringify({status:'pass',operator_scope:operatorScope,semantic_review_scope:semanticReviewScope,root_scope:rootScope,actual_installed_react_decoder:true,native_stream_positive:1,
+    console.log(JSON.stringify({status:'pass',operator_scope:operatorScope,semantic_review_scope:semanticReviewScope,root_scope:rootScope,detail_scope:detailScope,route_family_refusals:routeControls.length,actual_installed_react_decoder:true,native_stream_positive:1,
       refusal_controls:negatives.length,semantic_truncation_rejected_by_decoder:true,native_identity_parity:true,
       actual_owner_finished_failure_forwarding:true,
       obsolete_incomplete_stream_not_exempt:true,whole_owner_verification:'required_separately'}));
@@ -150,3 +171,7 @@ try {
 } finally {
   if(previousWebpack===undefined)delete globalThis.__webpack_require__;else globalThis.__webpack_require__=previousWebpack;
 }
+
+}
+
+await runFlightConsumptionRegressionV1();

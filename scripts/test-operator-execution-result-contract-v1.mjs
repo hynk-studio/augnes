@@ -6,6 +6,9 @@ import vm from "node:vm";
 import { createRequire } from "node:module";
 import "./test-operator-browser-failure-snapshot-v1.mjs";
 import "./test-operator-session-request-boundary-v1.mjs";
+import { runGuideLifecycleRegressionV1 } from "./test-project-experience-guide-lifecycle-v1.mjs";
+import { runInspectorLifecycleRegressionV1 } from "./test-project-experience-inspector-lifecycle-v1.mjs";
+import { runFlightConsumptionRegressionV1 } from "./test-project-experience-flight-consumption-v1.mjs";
 
 import {
   assertOperatorRequestFailureEvidenceV1,
@@ -382,3 +385,13 @@ function validResult(contract, fieldOwner, markerOwner) {
   }
   return result;
 }
+
+// The ordinary operator contract entry owns these operator-specific scopes.
+// Imports above also retain each existing default project-experience regression.
+await runGuideLifecycleRegressionV1(['--operator-scope']);
+await runInspectorLifecycleRegressionV1(['--operator-scope']);
+for (const scope of ['--operator-scope', '--operator-semantic-review', '--operator-root-flight', '--operator-detail-flight']) {
+  await runFlightConsumptionRegressionV1([scope]);
+}
+console.log(JSON.stringify({ test: 'operator-request-scopes-routine-integration', status: 'pass',
+  guide_operator: true, inspector_operator: true, flight_scopes: ['project', 'semantic-review-index', 'root', 'semantic-review-detail'] }));
