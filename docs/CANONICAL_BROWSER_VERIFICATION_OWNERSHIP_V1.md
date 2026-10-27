@@ -294,6 +294,13 @@ markers. The manifest contract rejects duplicate ownership, missing command or
 suite bindings, missing resource/lifecycle declarations, and incomplete
 operator child unions. Source-code parsing is not part of permanent ownership.
 
+The existing Browser-owner unit child separately syntax-checks complete launch
+entry points with bounded Node children, without importing or executing them.
+Its malformed complete-file negative control uses the same failure-propagating
+child check. This catches invalid headers before long Browser verification;
+it does not infer semantic ownership from source strings or replace runtime
+completion, selection, lifecycle or qualification evidence.
+
 ## Changed-file selection
 
 The Browser manifest remains the semantic owner map; the Local Canonical change

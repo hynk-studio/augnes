@@ -112,8 +112,28 @@ try {
   // Real owned-child cancellation still latches an alias content mutation.
   linkSync(executable, alias);
   const controller = new AbortController(), monitor = monitorInputContract(active, controller, { intervalMs: 10 });
-  const mutation = await child(["-e", `require('fs').writeFileSync(${JSON.stringify(alias)},'different executable');process.on('SIGTERM',()=>process.exit(0));setInterval(()=>{},1000);`], { signal: controller.signal });
-  monitor.stop(); assert(mutation.cancelled); assert.equal(active.snapshot().first_fault.disposition, "input_invalidation");
+  let mutation, readyOutput = "", aliasWritten = false, mutationError = null;
+  try {
+    mutation = await child(["-e", "process.on('SIGTERM',()=>process.exit(0));setInterval(()=>{},1000);process.stdout.write('alias-control-ready\\n');"], {
+      signal: controller.signal, stdout: { write(chunk) {
+        try {
+          readyOutput += chunk.toString(); assert(readyOutput.length <= 1024);
+          if (readyOutput === "alias-control-ready\n" && !aliasWritten) {
+            // Keep monitoring active, but finish the fixture write in this
+            // callback before observing it. A concurrent writer can correctly
+            // cause observer_failure instead of the stable-byte classification
+            // this particular control is meant to require.
+            write(alias, "different executable"); aliasWritten = true; monitor.check();
+          }
+        } catch (error) { mutationError = error; controller.abort(error); }
+      } },
+    });
+  } finally { monitor.stop(); }
+  if (mutationError) throw mutationError;
+  assert.equal(readyOutput, "alias-control-ready\n"); assert(aliasWritten);
+  assert(mutation.cancelled); assert.equal(active.snapshot().first_fault.disposition, "input_invalidation");
+  assert.equal(active.check({ force: true }).disposition, "input_invalidation");
+  assert(active.snapshot().events.some(event => event.disposition === "input_invalidation" && event.after?.sha256 === digest("different executable")));
   chmodSync(executable, 0o600); assert.throws(() => observeInputFile(executable, { readOnlyExecutable: true }));
   const replacement = path.join(root, "replacement"); write(replacement, "fixture executable\n"); chmodSync(replacement, 0o700); renameSync(replacement, executable);
   assert.equal(classifyInputChange(before, observeInputFile(executable, { readOnlyExecutable: true }), role), "safety_violation");

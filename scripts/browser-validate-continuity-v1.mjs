@@ -1,5 +1,5 @@
-import { selectBrowserPath } from "./local-canonical-browser-input.mjs";
 #!/usr/bin/env node
+import { selectBrowserPath } from "./local-canonical-browser-input.mjs";
 import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";

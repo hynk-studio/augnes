@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { chmodSync, existsSync, linkSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { Script } from "node:vm";
 import { createCanonicalTestResourceRoot, cleanupCanonicalTestResources, buildCanonicalChildEnvironment } from "./canonical-test-environment.mjs";
 import { createBrowserBundleObserver, compareBrowserBundle } from "./local-canonical-browser-bundle.mjs";
 import { browserInputEnvironment, selectedBrowserInput, selectBrowserPath, assertSelectedBrowser, acquireBrowserInputGuard, releaseBrowserInputGuard, assertBrowserInputGuard, readBrowserInputBinding, strictBrowserArguments } from "./local-canonical-browser-input.mjs";
@@ -9,6 +10,19 @@ import { beginBrowserUse, validBrowserUse, browserConsumersForPhase } from "./lo
 import { freezeInputContract, monitorInputContract, digest } from "./local-canonical-inputs.mjs";
 import { fixtureBrowser, fixtureWrite, refreshFixtureBinding } from "./fixtures/browser-input-contract.mjs";
 
+// Execute the actual caller's selection and refusal statements without loading
+// its product/DB/Browser workload. Only the historical shared-default location
+// is redirected to an owned fixture; candidate composition is left unchanged.
+const legacyDefault = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const durableSource = readFileSync(new URL("./test-durable-work-surfaces.ts", import.meta.url), "utf8");
+const durableSelection = durableSource.match(/const executable = selectBrowserPath\([\s\S]*?\);\n\s*assert\.ok\(executable && existsSync\(executable\), "durable_browser_executable_missing"\);/gu);
+assert.equal(durableSelection?.length, 1, "The actual durable selection/refusal composition must be covered");
+const durableSelector = new Script(`(() => { ${durableSelection[0]} return executable; })()`, { filename: "test-durable-work-surfaces.ts:browser-selection" });
+const cumulativeSource = readFileSync(new URL("./test-cumulative-work-history.ts", import.meta.url), "utf8");
+const cumulativeLaunch = cumulativeSource.match(/const child = registerOwnedChild\(owned, spawn\(process\.execPath, \["--import", "tsx", "scripts\/test-durable-work-surfaces\.ts", input\],[\s\S]*?\{ label: "cumulative-work-surface" \}\);/gu);
+assert.equal(cumulativeLaunch?.length, 1, "The actual cumulative child launch must be covered");
+const cumulativeChild = new Script(cumulativeLaunch[0], { filename: "test-cumulative-work-history.ts:durable-child" });
+
 const owner = createCanonicalTestResourceRoot("ag-resource-test-");
 const root = owner.root, results = [];
 let checkoutOwner, guard;
@@ -16,6 +30,22 @@ try {
   checkoutOwner = acquireCheckoutVerificationOwnership({ repositoryRoot: root });
   let binding = fixtureBrowser(root), env = browserInputEnvironment(binding);
   const select = input => selectedBrowserInput({ repositoryRoot: root, env: input });
+  const fixtureDefault = path.join(root, "legacy-default-browser"), explicit = path.join(root, "legacy-explicit-browser"), missing = path.join(root, "missing-browser");
+  fixtureWrite(fixtureDefault, "default fixture"); fixtureWrite(explicit, "explicit fixture");
+  const durableSelect = input => durableSelector.runInNewContext({ process: { env: input }, assert, existsSync,
+    selectBrowserPath(candidates) {
+      return selectBrowserPath(Array.from(candidates, candidate => candidate === legacyDefault ? fixtureDefault : candidate), { repositoryRoot: root, env: input });
+    },
+  }, { timeout: 1000 });
+  assert.equal(durableSelect({}), fixtureDefault);
+  assert.equal(durableSelect({ AUGNES_BROWSER_EXECUTABLE_PATH: explicit }), explicit);
+  for (const value of ["", missing]) assert.throws(() => durableSelect({ AUGNES_BROWSER_EXECUTABLE_PATH: value }), /durable_browser_executable_missing/);
+  unlinkSync(fixtureDefault); assert.throws(() => durableSelect({}), /durable_browser_executable_missing/);
+  fixtureWrite(fixtureDefault, "default fixture");
+  assert.equal(selectBrowserPath([missing, fixtureDefault], { repositoryRoot: root, env: {} }), fixtureDefault,
+    "Other legacy candidate-list owners retain intentional fallback");
+  results.push("actual durable caller: absent uses default; empty/missing explicit and absent default refuse; valid explicit retained; unrelated legacy fallback retained");
+  assert.equal(durableSelect(env), binding.executable);
   assert.equal(selectBrowserPath(["/missing"], { repositoryRoot: root, env }), binding.executable);
   for (const key of ["AUGNES_BROWSER_INPUT_CONTRACT", "AUGNES_BROWSER_INPUT_BINDING", "AUGNES_BROWSER_INPUT_FINGERPRINT", "AUGNES_BROWSER_EXECUTABLE_PATH"]) {
     const copy = { ...env }; delete copy[key]; assert.throws(() => select(copy));
@@ -24,10 +54,30 @@ try {
     { AUGNES_BROWSER_INPUT_BINDING: "../outside" }, { AUGNES_BROWSER_EXECUTABLE_PATH: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" }, { AUGNES_BROWSER_INPUT_FINGERPRINT: "f".repeat(64) }]) assert.throws(() => select({ ...env, ...extra }));
   guard = acquireBrowserInputGuard({ repositoryRoot: root, checkoutOwner, binding, runId: "fixture" });
   assert.throws(() => select({}), /browser_input_binding_missing/);
+  assert.throws(() => durableSelect({}), /browser_input_binding_missing/);
+  for (const key of [...Object.keys(env)]) {
+    const stripped = { ...env }; delete stripped[key]; assert.throws(() => durableSelect(stripped));
+  }
+  for (const extra of [{ AUGNES_BROWSER_EXECUTABLE_PATH: "" }, { AUGNES_BROWSER_EXECUTABLE_PATH: missing },
+    { AUGNES_BROWSER_EXECUTABLE_PATH: explicit }, { AUGNES_BROWSER_INPUT_CONTRACT: "future" },
+    { AUGNES_BROWSER_INPUT_BINDING: "../outside" }, { AUGNES_BROWSER_INPUT_FINGERPRINT: "f".repeat(64) }]) assert.throws(() => durableSelect({ ...env, ...extra }));
   assert.throws(() => assertSelectedBrowser("/other", { repositoryRoot: root, env }), /alternate/);
   const child = buildCanonicalChildEnvironment({ temporaryRoot: root, ambientEnvironment: { PATH: process.env.PATH, ...env } });
   for (const key of Object.keys(env)) assert.equal(child[key], env[key]);
   assert.equal(select(child).publicBinding.fingerprint, binding.publicBinding.fingerprint);
+  assert.equal(durableSelect(child), binding.executable);
+  let nested;
+  cumulativeChild.runInNewContext({ process: { execPath: process.execPath, env: child }, input: path.join(root, "synthetic-cumulative-input.json"), owned: new Set(),
+    spawn(command, args, options) {
+      assert.equal(command, process.execPath); assert.equal(args[2], "scripts/test-durable-work-surfaces.ts");
+      nested = options.env; return { synthetic: true };
+    }, registerOwnedChild(_owner, spawned, options) { assert.equal(options.label, "cumulative-work-surface"); return spawned; },
+  }, { timeout: 1000 });
+  for (const key of Object.keys(env)) assert.equal(nested[key], env[key]);
+  assert.equal(nested.OPENAI_API_KEY, ""); assert.equal(durableSelect(nested), binding.executable);
+  for (const key of Object.keys(env)) delete nested[key];
+  assert.throws(() => durableSelect(nested), /browser_input_binding_missing/);
+  results.push("actual durable/cumulative caller: strict binding preserved through isolated/nested composition; stripped/all-stripped/invalid selections refuse");
   assert.deepEqual(strictBrowserArguments(["--headless=new", "--no-sandbox"], { repositoryRoot: root, env }), ["--headless=new"]);
   results.push("strict controller/child selection, stripped keys/all keys, wrong version/path/hash/alternate and sandbox-disable removal");
   const use = beginBrowserUse(binding.executable, { consumer: "durable-work-surface", repositoryRoot: root, env, emit() {} });

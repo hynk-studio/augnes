@@ -140,7 +140,7 @@ above this source map owns admission; implementation does not authorize a run.
 | Stock and private export | Version 5 / export v2, authenticated review and grant re-read, exact live input reconstruction | Legacy receipts v3/v4 and export v1 stay readable |
 
 `test-local-canonical-browser-input.mjs` and
-`test-local-canonical-browser-replacement.mjs` add bounded unit controls using
+`test-local-canonical-browser-replacement.mjs` add bounded focused controls using
 real readers and temporary repositories/anchors. They cover missing/stripped
 selection, link/content/permission/root races, all-fault eligibility, exact
 review/grant/source/environment/workload, replay, concurrent claims, crash-window
@@ -148,3 +148,18 @@ refusal and fresh-process read-only reconstruction. Synthetic fixtures and
 about:blank identity probes do not count as product Browser coverage or Full.
 The reference inventory includes the app root itself; counts differ by one from
 historical inventories which enumerated only descendants.
+
+The durable/cumulative caller retains its historical nullish default: only an
+absent explicit Browser path selects the shared default outside the strict lane.
+An empty or missing explicit path refuses. Other legacy candidate-list owners
+retain their existing fallback behavior. Focused controls execute the actual
+durable selection/refusal and cumulative nested-environment composition against
+disposable inputs; the strict binding and stripping refusals remain unchanged.
+
+The existing `test-browser-verification-owners.mjs` unit child performs bounded
+Node syntax-only checks on complete Browser entry points and shared selection
+owners before product Browser phases. A complete malformed-file negative
+control must propagate the syntax child failure. This exact verifier test path
+is included in the replacement delta allowlist; neighboring or arbitrary test
+paths receive no exemption. Syntax checks do not launch product workloads or
+establish Browser lifecycle, artifact trust or qualification.

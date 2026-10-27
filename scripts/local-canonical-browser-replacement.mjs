@@ -18,7 +18,8 @@ const VERIFIER_DELTA_PATHS = new Set([
     "github-main-branch-transport", "canonical-test-environment", "run-local-canonical-verification", "run-canonical-test-suite",
     "browser-validate-project-experience-v1", "browser-validate-continuity-v1", "browser-validate-web-planning", "operator-execution-browser-lifecycle-v1",
     "test-local-canonical-browser-input", "test-local-canonical-browser-replacement", "test-local-canonical-classification", "test-local-canonical-review-corrections",
-    "test-local-canonical-executor", "test-local-canonical-receipt", "test-local-canonical-verification-contract", "test-github-main-branch-transport"].map(name => `scripts/${name}.mjs`),
+    "test-local-canonical-executor", "test-local-canonical-receipt", "test-local-canonical-verification-contract", "test-github-main-branch-transport",
+    "test-browser-verification-owners"].map(name => `scripts/${name}.mjs`),
   "scripts/test-project-client-browser.ts", "scripts/test-durable-work-surfaces.ts", "scripts/fixtures/browser-input-contract.mjs",
 ]);
 export const BROWSER_REPLACEMENT_PHASES = Object.freeze(["dependencies-root", "dependencies-nested", "dependencies-web-planning", "typecheck", "build", "unit", "authority", "integration", "operability", "e2e-project-experience", "e2e-operator-review-control", "e2e-operator-native-host-execution", "e2e-operator-work-expectation", "e2e-operator-multi-candidate", "e2e-continuity", "e2e-golden"]);

@@ -103,6 +103,19 @@ if (["--stock", "--claim"].includes(process.argv[2])) {
   };
   try {
     const c = make("positive");
+    // This exact existing Browser owner supplies complete-file syntax and
+    // failure-propagation controls; it is not a general test-path exemption.
+    fixtureWrite(path.join(c.checkout, "scripts/test-browser-verification-owners.mjs"), "export const syntaxControl = true;\n");
+    c.git("add", "scripts/test-browser-verification-owners.mjs");
+    c.git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-m", "Browser syntax owner");
+    c.head = c.git("rev-parse", "HEAD").toString().trim();
+    c.tree = c.git("rev-parse", "HEAD^{tree}").toString().trim();
+    Object.assign(c.proof, { head: c.head, tree: c.tree,
+      delta_sha256: digest(c.git("diff", "--binary", "--no-ext-diff", "--no-textconv", c.base, c.head, "--")),
+      changed_paths: c.git("diff", "--name-only", c.base, c.head, "--").toString().trim().split("\n").sort() });
+    c.authority = fixtureAuthority(c.proof); saveProof(c);
+    assert.equal(readBrowserReplacementProof(c.relative, c.checkout).changed_paths.includes("scripts/test-browser-verification-owners.mjs"), true);
+    checks.push("exact Browser syntax-owner delta accepted through real reader and later disposable admission");
     const originalReceipt = structuredClone(c.receipt);
     for (const [name, mutate] of [
       ["secondary credential fault", r => r.inputs.secondary_faults.push({ resource: "credential_exposure", disposition: "safety_violation" })],
@@ -119,15 +132,16 @@ if (["--stock", "--claim"].includes(process.argv[2])) {
     validateBrowserReplacementPredecessor(originalReceipt);
     let auth = await authorize(c);
     assert.throws(() => assertBrowserReplacementAuthorization(c.proof, { observations: auth.observations }));
-    for (const [name, mutate] of [
+    for (const [name, mutate, expectedCode] of [
       ["missing authority", p => delete p.authorization], ["unknown contract", p => p.contract = "future"], ["wrong head", p => p.head = "0".repeat(40)],
       ["wrong tree", p => p.tree = "0".repeat(40)], ["wrong delta", p => p.delta_sha256 = "0".repeat(64)],
       ["product delta", p => p.changed_paths = ["package.json"]], ["unsafe delta", p => p.changed_paths = ["../outside"]],
+      ["unregistered neighboring test delta", p => p.changed_paths = ["scripts/test-browser-verification-owners-extra.mjs"], "browser_replacement_product_delta_refused"],
       ["missing evidence", p => p.evidence = []], ["tampered evidence", p => p.evidence[0].sha256 = "0".repeat(64)],
       ["wrong artifact", p => p.browser_input_sha256 = "0".repeat(64)], ["recovery budget", p => p.budget.recovery = 1],
     ]) {
       const original = structuredClone(c.proof); mutate(c.proof); saveProof(c);
-      await assert.rejects(async () => { const p = readBrowserReplacementProof(c.relative, c.checkout); const a = await authorizeBrowserReplacement(p, { transport: transport(c.authority) }); begin(c, a); }, undefined, name);
+      await assert.rejects(async () => { const p = readBrowserReplacementProof(c.relative, c.checkout); const a = await authorizeBrowserReplacement(p, { transport: transport(c.authority) }); begin(c, a); }, expectedCode ? { code: expectedCode } : undefined, name);
       c.proof = original; saveProof(c); checks.push(name + " refused");
     }
     for (const mutate of [r => r.review.user.type = "Bot", r => r.review.commit_id = "0".repeat(40), r => r.grant.issue_url += "0", r => r.review.body += "tampered", r => r.review.state = "DISMISSED"]) {
