@@ -8,7 +8,7 @@ independently authored repair, or official SWE-Sweep evaluation. All methods,
 fixtures and foils shipped here are exposed developer material. No model
 consumer, fresh-successor use or comparative advantage is established.
 
-With Node 24.18.0, from this directory:
+With the exact Node version in the repository's `.node-version`, from this directory:
 
 ```sh
 npm ci --ignore-scripts --no-audit --no-fund

@@ -2,19 +2,23 @@
 // test harness entry point/root are adapted; no product source or record is patched.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { runCanonicalChild, canonicalChildAcceptanceFailure } from "./canonical-child-runner.mjs";
+import { DURABLE_WORK_PREDECESSOR, DURABLE_WORK_TREE, readPreparedDurableDependencies } from "./durable-work-dependency-provision.mjs";
+import { materializeExactHistoricalRootDependencies } from "./merged-r8a-fixture-dependencies.mjs";
 
-export const DURABLE_WORK_PREDECESSOR = "d9b6b56f0de6dcb0a36ac591b13a3672f99fa71a";
+export { DURABLE_WORK_PREDECESSOR };
 export async function historicalDurableWorkFixtures(root: string) {
   const repository = process.cwd(), source = path.join(root, "historical-source"), data = path.join(root, "historical-projects");
   mkdirSync(source); mkdirSync(data);
   const git = (args: string[]) => execFileSync("git", args, { cwd: repository, timeout: 10_000, maxBuffer: 96 * 1024 * 1024 });
-  assert.equal(git(["rev-parse", `${DURABLE_WORK_PREDECESSOR}:package-lock.json`]).toString(), git(["rev-parse", "HEAD:package-lock.json"]).toString(), "Historical fixture requires the same verified dependencies");
-  const archive = git(["archive", "--format=tar", DURABLE_WORK_PREDECESSOR, "lib", "types", "app", "components", "scripts", "fixtures", "package.json", "tsconfig.json"]);
+  const provision = readPreparedDurableDependencies(repository);
+  assert.equal(git(["rev-parse", `${DURABLE_WORK_PREDECESSOR}^{tree}`]).toString().trim(), DURABLE_WORK_TREE);
+  const archive = git(["archive", "--format=tar", DURABLE_WORK_PREDECESSOR, "lib", "types", "app", "components", "scripts", "fixtures", "package.json", "package-lock.json", "tsconfig.json"]);
   execFileSync("tar", ["-xf", "-", "-C", source], { input: archive, timeout: 10_000, maxBuffer: 1024 * 1024 });
-  symlinkSync(path.join(repository, "node_modules"), path.join(source, "node_modules"), "junction");
+  const dependencies = materializeExactHistoricalRootDependencies({ historicalRoot: source,
+    currentRoot: repository, dependencyRoot: provision.root });
   const harness = path.join(source, "scripts/test-stateless-source-review.ts");
   let text = readFileSync(harness, "utf8");
   const rootDeclaration = 'const root = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-stateless-review-")));';
@@ -28,9 +32,11 @@ export async function historicalDurableWorkFixtures(root: string) {
   writeFileSync(producer, readFileSync(path.join(repository, "scripts/historical-durable-work-producer.ts")));
   const output = path.join(root, "historical-work.json");
   const result = await runCanonicalChild({ suite: "durable-work-history", label: "pinned predecessor authentic authoring", command: process.execPath,
-    args: ["--import", "tsx", producer, harness, output], cwd: repository, timeoutMs: 45_000, resourceOwner: undefined,
+    args: ["--import", "tsx", producer, harness, output], cwd: source, timeoutMs: 45_000, resourceOwner: undefined,
     env: { ...process.env, OPENAI_API_KEY: "", TSX_TSCONFIG_PATH: path.join(source, "tsconfig.json"), AUGNES_TEST_HISTORICAL_FIXTURE_ROOT: data } });
   assert.equal(canonicalChildAcceptanceFailure(result, { suite: "durable-work-history", timeoutMs: 45_000, requireNaturalExit: true }), null);
+  dependencies.assertUnchanged(); dependencies.assertHistoricalViewUnchanged();
+  assert.equal(readPreparedDurableDependencies(repository).fingerprint, provision.fingerprint);
   const bytes = readFileSync(output); assert(bytes.length <= 1024 * 1024);
   const fixtures = JSON.parse(bytes.toString());
   for (const fixture of Object.values(fixtures) as any[]) {

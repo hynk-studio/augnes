@@ -51,6 +51,7 @@ import {
   formatDistributablePlatformLabel,
   validateDistributableManifest,
 } from "./distributable-package-contract.mjs";
+import { readPreparedR8ADependencies } from "./merged-r8a-dependency-provision.mjs";
 import { materializeMergedR8ADependencies, snapshotMergedR8ACurrentInputs } from "./merged-r8a-fixture-dependencies.mjs";
 import {
   MERGED_R8A_BUILD_ID,
@@ -182,6 +183,7 @@ let packageManifest = null;
 let mergedR8ABuildIdentity = null;
 let mergedR8AFixtureBuildConfiguration = null;
 let mergedR8ADependencyMaterialization = null;
+let mergedR8AProvision = null;
 let currentRuntimeParserVerified = false;
 let assertCurrentDependencyInputsUnchanged = null;
 let fakePackageManagerSentinel = null;
@@ -207,6 +209,7 @@ if (
 }
 
 try {
+  mergedR8AProvision = readPreparedR8ADependencies(repositoryRoot);
   assertCurrentDependencyInputsUnchanged = snapshotMergedR8ACurrentInputs(repositoryRoot);
   assertContractRejectsForbiddenPayloads();
   const packageStartedAt = Date.now();
@@ -2005,7 +2008,11 @@ async function buildMergedR8APackage() {
       .version,
     MERGED_R8A_APPLICATION_VERSION,
   );
-  const dependencyMaterialization = materializeMergedR8ADependencies({ historicalRoot: sourceRoot, currentRoot: repositoryRoot });
+  const provision = readPreparedR8ADependencies(repositoryRoot);
+  assert.equal(provision.fingerprint, mergedR8AProvision.fingerprint, "historical provision changed before handoff");
+  const dependencyMaterialization = materializeMergedR8ADependencies({
+    historicalRoot: sourceRoot, currentRoot: repositoryRoot, dependencyRoot: provision.root,
+  });
   mergedR8ADependencyMaterialization = dependencyMaterialization.evidence;
   const dependencySnapshot = packageDependencySnapshot(sourceRoot);
 
@@ -2041,6 +2048,7 @@ async function buildMergedR8APackage() {
   assert.deepEqual(packageDependencySnapshot(sourceRoot), dependencySnapshot);
   dependencyMaterialization.assertUnchanged();
   dependencyMaterialization.assertHistoricalViewUnchanged();
+  assert.equal(readPreparedR8ADependencies(repositoryRoot).fingerprint, provision.fingerprint);
   assert.deepEqual(
     listBuildTemporaryEntries(temporaryRoot),
     [],

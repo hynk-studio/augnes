@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { BROWSER_IDENTITY_PREFIX, parseBrowserUseLine } from "./local-canonical-browser-identity.mjs";
+import { BROWSER_INPUT_ENV_KEYS } from "./local-canonical-browser-input.mjs";
 
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -434,6 +435,7 @@ function focusedEnvironment() {
       "SHELL",
       "TERM",
       "AUGNES_BROWSER_EXECUTABLE_PATH",
+      ...BROWSER_INPUT_ENV_KEYS,
     ]
       .filter((key) => typeof process.env[key] === "string")
       .map((key) => [key, process.env[key]]),

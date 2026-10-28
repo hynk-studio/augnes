@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { isSupportedNodeVersion } from "../plugins/augnes-operator/mcp/node-runtime-policy.mjs";
 import { createHash } from "node:crypto";
 import {
   chmodSync,
@@ -203,6 +204,7 @@ function validatePlatformAndRuntime(manifest, platform, runtime) {
   }
   try {
     if (
+      !isSupportedNodeVersion(runtime?.nodeVersion) ||
       compareVersions(runtime?.nodeVersion, manifest.runtime.node_minimum) < 0
     ) {
       throw new PublicDistributablePackageError(

@@ -20,6 +20,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import "./test-canonical-child-groups.mjs";
+import { assertCanonicalSuiteFailureOutput } from "./test-canonical-suite-failure-output.mjs";
 
 import {
   assertCanonicalConcurrentChildLabelsV01,
@@ -58,6 +59,7 @@ const summaries = [];
 const groupResourceOwners = [];
 
 try {
+  await assertCanonicalSuiteFailureOutput();
   await assertParentResourceCleanup();
   const maximumSafeLabel = "a".repeat(160);
   assert.equal(

@@ -5,13 +5,31 @@ import assert from "node:assert/strict";
 import "./test-project-experience-hydration-boundary-v1.mjs";
 import "./test-project-experience-request-diagnostics-v1.mjs";
 import "./test-project-experience-request-verdict-v1.mjs";
+import { assertProjectSettingsReturnFocus } from "./test-project-settings-return-focus.mjs";
 
 import {
   assertProjectExperienceDetailedValuesV1,
   assertProjectExperienceFinalSuccessV1,
   createDetailedFieldCompletionOwnerV1,
   loadProjectExperienceResultContractV1,
+  projectExperienceGlobalFailureV1,
 } from "./project-experience-result-contract-v1.mjs";
+
+assertProjectSettingsReturnFocus();
+
+const privateValue = "private-request-path-and-credential-sentinel";
+const compactFailure = projectExperienceGlobalFailureV1("unexpected_failed_requests", {
+  code: "ERR_ASSERTION", actual: [{ path: privateValue }], expected: [],
+});
+assert.deepEqual(compactFailure, {
+  assertion: "unexpected_failed_requests", code: "ERR_ASSERTION",
+  actual: { type: "array", count: 1 }, expected: { type: "array", count: 0 },
+});
+assert.equal(JSON.stringify(compactFailure).includes(privateValue), false);
+assert.deepEqual(projectExperienceGlobalFailureV1("management_hydration_warning_count", {
+  code: "ERR_ASSERTION", actual: 0, expected: 1,
+}).actual, { type: "number", value: 0 });
+assert.equal(projectExperienceGlobalFailureV1(privateValue, {}).assertion, "unidentified_global_assertion");
 
 const contract = loadProjectExperienceResultContractV1();
 assert.equal(contract.field_ids.length, 70);

@@ -154,7 +154,7 @@ npm run augnes:service:install
 ```
 
 The user LaunchAgent is an explicit, checkout-bound macOS installation. It
-pins one Node 24 binary and survives terminal/Codex exit, login, and unexpected
+pins one Node 24 binary at version 24.22.1 or later within that major and survives terminal/Codex exit, login, and unexpected
 supervisor failure. It grants no repository execution, managed Resume,
 provider, semantic, publication, or merge authority. Explicit stop/uninstall
 remain available. Stop persists across a later login or LaunchAgent reload;

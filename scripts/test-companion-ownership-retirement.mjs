@@ -15,7 +15,7 @@ const hash = value => createHash("sha256").update(value).digest("hex");
 const json = (file, value) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, JSON.stringify(value) + "\n", { mode: 0o600 }); };
 const read = file => JSON.parse(fs.readFileSync(file, "utf8"));
 const birth = pid => { const p = spawnSync("/bin/ps", ["-o", "lstart=", "-o", "command=", "-p", String(pid)], { encoding: "utf8", timeout: 1500 }); return p.status === 0 ? hash(`${process.platform}:${pid}:${p.stdout.trim()}`) : null; };
-const sources = ["scripts/augnes-companion-service.mjs", "plugins/augnes-operator/mcp/companion-service-core.mjs", "plugins/augnes-operator/mcp/checkout-identity.mjs", "plugins/augnes-operator/mcp/checkout-identity-darwin.py"];
+const sources = ["scripts/augnes-companion-service.mjs", "plugins/augnes-operator/mcp/companion-service-core.mjs", "plugins/augnes-operator/mcp/checkout-identity.mjs", "plugins/augnes-operator/mcp/checkout-identity-darwin.py", "plugins/augnes-operator/mcp/node-runtime-policy.mjs"];
 // Real private loopback listeners enforce the generation's child credential.
 const childSource = `
 import http from 'node:http';

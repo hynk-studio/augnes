@@ -121,6 +121,20 @@ for (const outcome of ['complete', 'body-failed', 'cleanup-during-body']) {
   };
   const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
   const prospectiveAdditions = [
+    ["    if (unexpectedFailedRequests.length) console.log(JSON.stringify({ project_experience_failed_request_counts:\n      unexpectedFailedRequests.slice(0, 32).map(entry => ({ phase: entry.phase,\n        route: entry.path?.startsWith('/projects/') ? '/projects/:project' : entry.path,\n        error: entry.error_text, ...requestVerdicts.failureDetails(entry),\n        guide: entry.path === '/api/augnes/read/guide-brief' ? requestVerdicts.guideEffectReplayCancellation(entry) : undefined })) }));\n", ''],
+    // #1545 records the failing assertion before bulky diagnostics. Strip only
+    // these exact observational statements; all prior assertions remain pinned.
+    ...["page_errors", "management_hydration_warning_count", "unexpected_console_errors",
+      "unexpected_failed_requests", "external_requests", "onboarding_path_privacy",
+      "recovery_path_privacy", "detailed_field_completion", "semantic_markers",
+      "unexpected_execution_requests", "database_integrity", "semantic_authority",
+      "real_provider_acceptance"].map(id => [`currentGlobalAssertion = "${id}";`, '']),
+    ["    if (phase === \"project_experience_global_boundaries\") {\n      process.stdout.write(`${JSON.stringify({ project_experience_first_global_failure:\n        projectExperienceGlobalFailureV1(currentGlobalAssertion, error) })}\\n`);\n    }\n", ''],
+    // #1545 admits only privately bound, completed effect-replay replacement.
+    // Its behavioral and adversarial controls are integrated separately.
+    ['  if (requestVerdicts.guideEffectReplayCancellation?.(entry).expected === true) return true;\n', ''],
+    ['  if (requestVerdicts.inspectorEffectReplayCancellation?.(entry).expected === true) return true;\n', ''],
+    ['  if (requestVerdicts.normallyConsumedFlight?.(entry).expected === true) return true;\n', ''],
     // #1512 pins its archive journey separately and preserves all prior digests.
     ['    await validateProjectArchiveV01({fixture,manifest,projectAlphaId,projectBetaId,projectAlphaDestination,projectBetaDestination});\n', ''],
     // #1448 adds a separately pinned saturation withdrawal journey. Remove

@@ -403,8 +403,8 @@ for (const retiredCommand of [
     `retired PR-comment publication command must remain absent: ${retiredCommand}`,
   );
 }
-assert.equal(nodeVersionMarker, "24.18.0");
-assert.equal(packageJson.engines.node, "^22.0.0 || ^24.0.0");
+assert.equal(nodeVersionMarker, "24.22.1");
+assert.equal(packageJson.engines.node, "^22.23.4 || ^24.22.1");
 assert.equal(packageJson.engines.npm, ">=10 <12");
 assert.match(gitignore, /^\/next-env\.d\.ts$/mu);
 assert.equal(
@@ -454,8 +454,8 @@ for (const fragment of [
   `AUTHORIZED_REPOSITORY_ID =`,
   `AUTHORIZED_ORIGIN_URL =`,
   `matchCanonicalRepositoryIdentity`,
-  `CANONICAL_NODE_VERSION = "24.18.0"`,
-  `CANONICAL_NODE_COMPATIBILITY = "^22.0.0 || ^24.0.0"`,
+  `CANONICAL_NODE_VERSION = "24.22.1"`,
+  `CANONICAL_NODE_COMPATIBILITY = SUPPORTED_NODE_RANGE`,
   `missing_\${safeLabel(label)}_commit`,
   `ensureBoundedLocalDirectory`,
   `unsafe_local_artifact_directory`,
@@ -800,9 +800,6 @@ for (const fragment of [
   );
 }
 for (const forbiddenTransportFragment of [
-  "/pulls",
-  "/issues",
-  "/comments",
   "--input",
   `"POST"`,
   `"PATCH"`,
@@ -814,6 +811,9 @@ for (const forbiddenTransportFragment of [
     `read-only GitHub transport must not contain ${forbiddenTransportFragment}`,
   );
 }
+const mainOnlyTransport = githubMainBranchTransport.slice(githubMainBranchTransport.indexOf("export function createGitHubMainBranchTransport"), githubMainBranchTransport.indexOf("export function createGitHubBrowserAuthorizationTransport"));
+assert.doesNotMatch(mainOnlyTransport, /pulls|issues|comments/iu);
+for (const route of ["pulls/1546/reviews/", "issues/comments/", "collaborators/"]) requireText(githubMainBranchTransport, route, "bounded Browser authority GET route missing");
 assert.doesNotMatch(
   githubMainBranchTransport,
   /GITHUB_TOKEN|GH_TOKEN|auth status|credential/iu,

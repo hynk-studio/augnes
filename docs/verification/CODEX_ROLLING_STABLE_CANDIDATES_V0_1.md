@@ -8,7 +8,7 @@ checked-in qualified-runtime registry and production selection.
 ## Run boundary
 
 Use the canonical clean checkout on a task branch, with local `main` equal to
-the authorized exact base, on macOS arm64 with repository-pinned Node 24.18.0:
+the authorized exact base, on macOS arm64 with repository-pinned Node 24.22.1:
 
 ```sh
 node --import tsx scripts/run-codex-rolling-stable-candidate.ts \

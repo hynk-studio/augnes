@@ -1,13 +1,19 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
 
 import { loadOperatorExecutionOwnerContractV1 } from "./operator-execution-result-contract-v1.mjs";
 import { loadProjectExperienceResultContractV1 } from "./project-experience-result-contract-v1.mjs";
+import { runCanonicalChild } from "./canonical-child-runner.mjs";
+import {
+  buildCanonicalChildEnvironment,
+  cleanupCanonicalTestResources,
+  createCanonicalTestResourceRoot,
+} from "./canonical-test-environment.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const manifest = JSON.parse(
@@ -22,6 +28,37 @@ const canonicalSuiteSource = readFileSync(
   path.join(root, "scripts/run-canonical-test-suite.mjs"),
   "utf8",
 );
+
+// Parse the complete executable files, without loading imports or starting a
+// Browser. Source-string contracts alone cannot detect an invalid entry point.
+const syntaxSources = [...new Set([
+  ...executableSources(manifest),
+  "scripts/operator-execution-browser-lifecycle-v1.mjs",
+  "scripts/local-canonical-browser-input.mjs",
+  "scripts/local-canonical-browser-identity.mjs",
+])];
+for (const source of syntaxSources) await assertBrowserSourceParses(source);
+const syntaxFixtureOwner = createCanonicalTestResourceRoot("ag-resource-test-");
+try {
+  const malformedPath = path.join(syntaxFixtureOwner.root, "misplaced-hashbang.mjs");
+  const newline = projectExperienceSource.indexOf("\n");
+  assert.equal(projectExperienceSource.slice(0, newline), "#!/usr/bin/env node");
+  // Keep the complete file; putting its original hashbang after an import must
+  // fail the same child/result check used above for real launch owners.
+  writeFileSync(malformedPath,
+    `import "node:assert/strict";\n${projectExperienceSource}`,
+    { flag: "wx" });
+  await assert.rejects(
+    () => assertBrowserSourceParses(malformedPath),
+    error => error.code === "browser_owner_syntax_failed"
+      && error.result.exit_code === 1
+      && error.result.timed_out === false
+      && /SyntaxError/u.test(error.output),
+    "a malformed complete entry point must propagate the syntax child failure",
+  );
+} finally {
+  assert.equal(cleanupCanonicalTestResources([syntaxFixtureOwner]).every(result => result.completed), true);
+}
 
 const deterministicCompletionExpression = projectExperienceSource.match(
   /await waitForCondition\(\s*`([^`]+)`,\s*"deterministic GuideBrief utterance result",\s*\);/u,
@@ -198,7 +235,45 @@ process.stdout.write(`${JSON.stringify({
   operator_fields: operator.field_ids.length,
   continuity_fields: 29,
   deterministic_completion_states: 4,
+  syntax_checked_sources: syntaxSources.length,
+  misplaced_hashbang_refused: true,
 })}\n`);
+
+function executableSources(value) {
+  if (!value || typeof value !== "object") return [];
+  return Object.entries(value).flatMap(([key, child]) => key === "executable_source"
+    ? [child] : executableSources(child));
+}
+
+async function assertBrowserSourceParses(source) {
+  const owner = createCanonicalTestResourceRoot("ag-resource-test-");
+  let output = "", overflow = false, result;
+  const sink = { write(chunk) {
+    if (output.length + chunk.length > 128 * 1024) overflow = true;
+    else output += chunk.toString();
+  } };
+  try {
+    result = await runCanonicalChild({
+      suite: "browser-owner-syntax", label: path.basename(source),
+      command: process.execPath, args: ["--check", path.resolve(root, source)],
+      cwd: root, env: buildCanonicalChildEnvironment({ temporaryRoot: owner.root }),
+      resourceOwner: owner, timeoutMs: 10_000, stdout: sink, stderr: sink,
+    });
+    assert.equal(overflow, false, "browser_owner_syntax_output_bound");
+    assert.equal(result.exit_observed, true);
+    assert.equal(result.streams_closed, true);
+    assert.equal(result.cleanup_completed, true);
+    assert.equal(result.remaining_owned_processes, 0);
+    if (result.exit_code !== 0 || result.timed_out || result.cancelled
+        || result.termination_reason !== "natural_exit") {
+      throw Object.assign(new Error(`browser_owner_syntax_failed:${source}\n${output}`), {
+        code: "browser_owner_syntax_failed", result, output,
+      });
+    }
+  } finally {
+    assert.equal(cleanupCanonicalTestResources([owner]).every(entry => entry.completed), true);
+  }
+}
 
 function sourceBlock(source, startMarker, endMarker) {
   const start = source.indexOf(startMarker);

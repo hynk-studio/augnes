@@ -128,14 +128,6 @@ await runOperatorExecutionBrowserChildV1({
         .sort(([left], [right]) => left.localeCompare(right)),
     );
   },
-  request_failure_allowlist: (entry) =>
-    entry.error_text === "net::ERR_ABORTED" &&
-    ((entry.phase === "strategic_analysis_and_proposal_review" &&
-      entry.path === "/api/augnes/read/guide-brief") ||
-      (entry.phase === "result_review_and_inspector" &&
-        entry.path === "/workbench/inspector") ||
-      (entry.phase === "review_decision_and_transition" &&
-        entry.path === "/api/augnes/read/guide-brief")),
   execute: async ({
     fixture,
     lifecycle,

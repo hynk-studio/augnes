@@ -1,7 +1,11 @@
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { observeInputFile, digest, classifyInputChange, nonFaultInputChange } from "./local-canonical-inputs.mjs";
+import { assertSelectedBrowser, assertBrowserBundle } from "./local-canonical-browser-input.mjs";
+import { compareBrowserBundle } from "./local-canonical-browser-bundle.mjs";
 
 export const BROWSER_IDENTITY_CONTRACT = "augnes.local-canonical-browser-use.v2";
+export const STRICT_BROWSER_IDENTITY_CONTRACT = "augnes.local-canonical-browser-use.v3";
 export const BROWSER_IDENTITY_PREFIX = "[local-canonical-browser-use] ";
 const role = Object.freeze({ classification: "execution", readOnlyExecutable: true });
 const versionPattern = /^[A-Za-z][A-Za-z0-9 ._/-]{1,127}$/u;
@@ -24,7 +28,15 @@ export const MAX_BROWSER_USE_RECORDS = 8;
 
 // Called at the actual launch site. The existing process owner still launches,
 // supervises and settles the child. No availability probe invents use evidence.
-export function beginBrowserUse(executable, { consumer = "unspecified", emit = record => process.stdout.write(`${BROWSER_IDENTITY_PREFIX}${JSON.stringify(record)}\n`) } = {}) {
+export function beginBrowserUse(executable, { consumer = "unspecified", emit = record => process.stdout.write(`${BROWSER_IDENTITY_PREFIX}${JSON.stringify(record)}\n`), repositoryRoot, env } = {}) {
+  const binding = assertSelectedBrowser(executable, { repositoryRoot, env });
+  const bundleBefore = binding ? assertBrowserBundle(binding).observation : null;
+  let cliVersion = null;
+  if (binding) {
+    const cli = spawnSync(executable, ["--version"], { timeout: 5000, maxBuffer: 4096, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: env ?? process.env });
+    cliVersion = cli.stdout?.trim();
+    if (cli.error || cli.status !== 0 || cliVersion !== `Google Chrome for Testing ${binding.publicBinding.version}`) throw new Error("browser_input_cli_version_invalid");
+  }
   const before = observeInputFile(executable, { readOnlyExecutable: true });
   if (!before.present) throw new Error("browser_identity_missing");
   if (!/^[a-z][a-z0-9-]{0,79}$/u.test(consumer)) throw new Error("browser_consumer_invalid");
@@ -39,11 +51,14 @@ export function beginBrowserUse(executable, { consumer = "unspecified", emit = r
       if (completed) return;
       completed = true;
       let after;
+      let bundleAfter = null;
+      if (binding) try { bundleAfter = assertBrowserBundle(binding).observation; } catch { bundleAfter = { observation: "failed" }; }
       try { after = observeInputFile(executable, { readOnlyExecutable: true }); } catch { after = { observation: "failed" }; }
       const disposition = after.present === true ? classifyInputChange(before, after, role) : "observer_failure";
-      const record = { contract: BROWSER_IDENTITY_CONTRACT, consumer, executable_name: path.basename(executable),
+      const record = { contract: binding ? STRICT_BROWSER_IDENTITY_CONTRACT : BROWSER_IDENTITY_CONTRACT, consumer, executable_name: path.basename(executable),
         location_fingerprint: digest(executable), before, after, actual_version: versions.http,
-        runtime_versions: { ...versions }, disposition, unchanged: nonFaultInputChange(disposition) };
+        runtime_versions: { ...versions }, disposition, unchanged: nonFaultInputChange(disposition),
+        ...(binding ? { browser_input_fingerprint: binding.publicBinding.fingerprint, cli_version: cliVersion, bundle_before: bundleBefore, bundle_after: bundleAfter } : {}) };
       emit(record);
       // Never interrupt remaining Browser/runtime cleanup with an evidence error.
       return record;
@@ -52,13 +67,20 @@ export function beginBrowserUse(executable, { consumer = "unspecified", emit = r
 }
 
 export function validBrowserUse(record, expected = null) {
-  if (record?.contract !== BROWSER_IDENTITY_CONTRACT || record.unchanged !== true ||
+  const strict = record?.contract === STRICT_BROWSER_IDENTITY_CONTRACT;
+  if ((record?.contract !== BROWSER_IDENTITY_CONTRACT && !strict) || record.unchanged !== true ||
       !/^[a-z][a-z0-9-]{0,79}$/u.test(record.consumer ?? "") || record.consumer === "unspecified" ||
       record.before?.present !== true || record.after?.present !== true ||
       !/^[0-9a-f]{64}$/u.test(record.before.sha256 ?? "") ||
       !versionPattern.test(record.actual_version ?? "") ||
       record.runtime_versions?.http !== record.actual_version || record.runtime_versions?.cdp !== record.actual_version ||
       !/^[0-9a-f]{64}$/u.test(record.location_fingerprint ?? "")) return false;
+  if (!!expected?.browser_input !== strict && expected) return false;
+  if (strict && (compareBrowserBundle(record.bundle_before, record.bundle_after) !== "unchanged" ||
+      !/^[0-9a-f]{64}$/u.test(record.browser_input_fingerprint ?? "") ||
+      !/^Google Chrome for Testing \d+\.\d+\.\d+\.\d+$/u.test(record.cli_version ?? "") ||
+      record.actual_version !== `Chrome/${record.cli_version.slice("Google Chrome for Testing ".length)}` ||
+      (expected?.browser_input && (expected.browser_input.fingerprint !== record.browser_input_fingerprint || compareBrowserBundle(expected.browser_input.bundle, record.bundle_before) !== "unchanged")))) return false;
   const disposition = classifyInputChange(record.before, record.after, role);
   return nonFaultInputChange(disposition) && disposition === record.disposition &&
     (!expected || (expected.before?.present === true && record.location_fingerprint === expected.location_fingerprint &&

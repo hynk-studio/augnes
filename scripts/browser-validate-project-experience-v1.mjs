@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { selectBrowserPath } from "./local-canonical-browser-input.mjs";
 import { beginBrowserUse } from "./local-canonical-browser-identity.mjs";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -41,8 +42,11 @@ import { chooseBrowserPorts, readBrowserPortAllocationDiagnostic } from "./brows
 import { createBrowserE2ETimingRecorder } from "./browser-e2e-timing.mjs";
 import { createProjectExperienceRequestDiagnosticsV1 } from "./project-experience-request-diagnostics-v1.mjs";
 import { CONSUMER_DIAGNOSTIC_BINDING_V1 } from "./project-experience-consumer-diagnostics-v1.mjs";
+import { createInspectorLifecycleV1, INSPECTOR_LIFECYCLE_BINDING_V1 } from "./project-experience-inspector-lifecycle-v1.mjs";
+import { createGuideLifecycleV1, GUIDE_LIFECYCLE_BINDING_V1 } from "./project-experience-guide-lifecycle-v1.mjs";
 import {
   createProjectExperienceRequestVerdictV1,
+  RSC_CONSUMPTION_BINDING_V1,
   UNAVAILABLE_EXECUTION_PROBE_HEADERS_V1,
 } from "./project-experience-request-verdict-v1.mjs";
 import {
@@ -59,6 +63,7 @@ import {
 } from "./project-experience-browser-fixture-v1.ts";
 import {
   assertProjectExperienceFinalSuccessV1,
+  projectExperienceGlobalFailureV1,
   createDetailedFieldCompletionOwnerV1,
   loadProjectExperienceResultContractV1,
 } from "./project-experience-result-contract-v1.mjs";
@@ -186,7 +191,9 @@ const productShellResponsiveResults = [];
 const ownedBrowserProcesses = new Set();
 const timing = createBrowserE2ETimingRecorder({ scope: VALIDATION_SCOPE });
 const requestDiagnostics = createProjectExperienceRequestDiagnosticsV1();
-const requestVerdicts = createProjectExperienceRequestVerdictV1({ cancellationEvidence: requestDiagnostics.cancellationEvidence });
+const guideLifecycle = createGuideLifecycleV1();
+const inspectorLifecycle = createInspectorLifecycleV1();
+const requestVerdicts = createProjectExperienceRequestVerdictV1({ cancellationEvidence: requestDiagnostics.cancellationEvidence, guideEvidence: guideLifecycle.evidence, inspectorEvidence: inspectorLifecycle.evidence });
 const detailedFieldContract = loadProjectExperienceResultContractV1();
 const detailedFieldCompletionOwner =
   createDetailedFieldCompletionOwnerV1(detailedFieldContract);
@@ -410,6 +417,7 @@ class CdpClient {
   }
 }
 
+let currentGlobalAssertion = null;
 let functionalExecutionSucceeded = false;
 try {
   await main();
@@ -520,6 +528,9 @@ function emitRequestDiagnostics(checkpoint) {
   try {
     const snapshot = requestDiagnostics.snapshot(checkpoint) ?? "report_unavailable";
     process.stdout.write(`${JSON.stringify({ project_experience_request_diagnostic: snapshot })}\n`);
+    process.stdout.write(`${JSON.stringify({ project_experience_guide_lifecycle: guideLifecycle.snapshot() })}\n`);
+    process.stdout.write(`${JSON.stringify({ project_experience_inspector_lifecycle: inspectorLifecycle.snapshot() })}\n`);
+    process.stdout.write(`${JSON.stringify({ project_experience_flight_consumption: requestVerdicts.rscConsumptionSnapshot() })}\n`);
   } catch {
     // Reporting cannot replace the original verdict or throw over its failure.
     try { process.stderr.write('{"project_experience_request_diagnostic":"report_unavailable"}\n'); } catch { /* Existing lifecycle still owns settlement. */ }
@@ -634,9 +645,7 @@ async function main() {
   result.browser_port_allocation_diagnostic = readBrowserPortAllocationDiagnostic(allocation);
   ({ app: appPort, bridge: bridgePort, debug: debugPort } = allocation);
   appOrigin = `http://127.0.0.1:${appPort}`;
-  const chromeExecutable = chromeCandidates.find((candidate) =>
-    existsSync(candidate),
-  );
+  const chromeExecutable = selectBrowserPath(chromeCandidates);
   assert(chromeExecutable, "chrome_executable_missing");
   startRuntime(fixture.writable_database_path, manifest, manifest.project_id);
   startChrome(chromeExecutable);
@@ -3047,30 +3056,45 @@ async function main() {
     console.log(JSON.stringify({
       project_experience_unavailable_execution_verdict: unavailableExecutionVerdictSummary(),
     }));
+    currentGlobalAssertion = "page_errors";
     assert.deepEqual(pageErrors, []);
+    currentGlobalAssertion = "management_hydration_warning_count";
     assert.equal(
       managementSafetyHydrationRegressionWarnings.length,
       MANAGEMENT_SAFETY_HYDRATION_REGRESSION_WARNING_REQUIRED_COUNT_V1,
     );
+    currentGlobalAssertion = "unexpected_console_errors";
     assert.deepEqual(unexpectedConsoleErrors, []);
+    currentGlobalAssertion = "unexpected_failed_requests";
+    if (unexpectedFailedRequests.length) console.log(JSON.stringify({ project_experience_failed_request_counts:
+      unexpectedFailedRequests.slice(0, 32).map(entry => ({ phase: entry.phase,
+        route: entry.path?.startsWith('/projects/') ? '/projects/:project' : entry.path,
+        error: entry.error_text, ...requestVerdicts.failureDetails(entry),
+        guide: entry.path === '/api/augnes/read/guide-brief' ? requestVerdicts.guideEffectReplayCancellation(entry) : undefined })) }));
     assert.deepEqual(unexpectedFailedRequests.map(failedRequestAssertionEntry), []);
+    currentGlobalAssertion = "external_requests";
     assert.deepEqual(externalRequests, []);
+    currentGlobalAssertion = "onboarding_path_privacy";
     assert.equal(
       serverLog.includes(onboardingFolder),
       false,
       "the declared local path must not enter ordinary runtime logs",
     );
+    currentGlobalAssertion = "recovery_path_privacy";
     assert.equal(
       serverLog.includes(onboardingFolderB) ||
         serverLog.includes(onboardingFolderBRecovered),
       false,
       "recovery paths must not enter ordinary runtime logs",
     );
+    currentGlobalAssertion = "detailed_field_completion";
     detailedFieldCompletionOwner.assertExact();
+    currentGlobalAssertion = "semantic_markers";
     assert.deepEqual(
       new Set(semanticMarkers),
       new Set(detailedFieldContract.marker_ids),
     );
+    currentGlobalAssertion = "unexpected_execution_requests";
     assert.equal(
       requests.some((entry) => {
         const requestPath = entry.path ?? "";
@@ -3088,10 +3112,12 @@ async function main() {
       fileMustExist: true,
     });
     try {
+      currentGlobalAssertion = "database_integrity";
       assert.equal(database.pragma("integrity_check", { simple: true }), "ok");
     } finally {
       database.close();
     }
+    currentGlobalAssertion = "semantic_authority";
     assert.deepEqual(
       semanticAuthorityCounts(fixture.writable_database_path),
       semanticAuthorityBaseline,
@@ -3107,6 +3133,7 @@ async function main() {
         serverLog,
       );
     if (REAL_PROVIDER_ACCEPTANCE) {
+      currentGlobalAssertion = "real_provider_acceptance";
       assert.deepEqual(result.guide_brief_real_provider_acceptance, {
         deterministic_question_loopback_calls: 0,
         deterministic_question_provider_calls: 0,
@@ -3181,6 +3208,10 @@ async function runPhase(phase, action, options = {}) {
       `[browser-e2e] phase_result scope=${VALIDATION_SCOPE} phase=${phase} status=pass duration_ms=${Date.now() - phaseStartedAt}\n`,
     );
   } catch (error) {
+    if (phase === "project_experience_global_boundaries") {
+      process.stdout.write(`${JSON.stringify({ project_experience_first_global_failure:
+        projectExperienceGlobalFailureV1(currentGlobalAssertion, error) })}\n`);
+    }
     timing.duration("phase", phase, Date.now() - phaseStartedAt, "fail");
     process.stdout.write(
       `[browser-e2e] phase_result scope=${VALIDATION_SCOPE} phase=${phase} status=failed reason=${safeLifecycleErrorCode(error)}\n`,
@@ -3364,13 +3395,30 @@ async function openCdpPage() {
     await cdp.send("Runtime.addBinding", { name: CONSUMER_DIAGNOSTIC_BINDING_V1 });
     await cdp.send("Page.addScriptToEvaluateOnNewDocument", { source: requestDiagnostics.browserSource() });
   } catch { requestDiagnostics.installationFailed(); }
+  try {
+    await cdp.send("Runtime.addBinding", { name: GUIDE_LIFECYCLE_BINDING_V1 });
+    await cdp.send("Page.addScriptToEvaluateOnNewDocument", { source: guideLifecycle.browserSource() });
+  } catch { guideLifecycle.installationFailed(); }
+  try {
+    await cdp.send("Runtime.addBinding", { name: INSPECTOR_LIFECYCLE_BINDING_V1 });
+    await cdp.send("Page.addScriptToEvaluateOnNewDocument", { source: inspectorLifecycle.browserSource() });
+  } catch { inspectorLifecycle.installationFailed(); }
+  try {
+    await cdp.send("Runtime.addBinding", { name: RSC_CONSUMPTION_BINDING_V1 });
+    await cdp.send("Page.addScriptToEvaluateOnNewDocument", { source: requestVerdicts.rscBrowserSource() });
+  } catch { requestVerdicts.rscInstallationFailed(); }
 }
 
 function attachCdpObservers() {
   const diagnosticConnection = requestDiagnostics.connection();
   const verdictConnection = requestVerdicts.connection(requestDiagnostics.verdictConnection?.(diagnosticConnection));
+  const guideConnection = guideLifecycle.connection(requestDiagnostics.verdictConnection?.(diagnosticConnection));
+  const inspectorConnection = inspectorLifecycle.connection(requestDiagnostics.verdictConnection?.(diagnosticConnection));
   cdp.on((payload) => {
+    requestVerdicts.observeRscLifecycle?.(verdictConnection, payload, currentPhase);
+    inspectorLifecycle.observe(inspectorConnection, payload, currentPhase);
     requestDiagnostics.observe(diagnosticConnection, payload);
+    guideLifecycle.observe(guideConnection, payload, currentPhase);
     const params = payload.params ?? {};
     if (payload.method === "Network.requestWillBeSent") {
       lastObserverActivityAt = Date.now();
@@ -3415,6 +3463,8 @@ function attachCdpObservers() {
       };
       requestVerdicts.observe(verdictConnection, payload, response);
       responses.push(response);
+    } else if (payload.method === "Network.loadingFinished") {
+      requestVerdicts.observe(verdictConnection, payload, { phase: currentPhase });
     } else if (payload.method === "Runtime.consoleAPICalled") {
       lastObserverActivityAt = Date.now();
       if (params.type === "error") {
@@ -3440,6 +3490,8 @@ function attachCdpObservers() {
       };
       requestVerdicts.observe(verdictConnection, payload, failure);
       requestDiagnostics.bindVerdictFailure?.(diagnosticConnection, payload, failure);
+      guideLifecycle.bindFailure(guideConnection, payload, failure);
+      inspectorLifecycle.bindFailure(inspectorConnection, payload, failure);
       failedRequests.push(failure);
     }
   });
@@ -5840,6 +5892,9 @@ function expectedStatusResponseIdentity(response) {
 }
 
 function expectedFailedRequest(entry) {
+  if (requestVerdicts.normallyConsumedFlight?.(entry).expected === true) return true;
+  if (requestVerdicts.guideEffectReplayCancellation?.(entry).expected === true) return true;
+  if (requestVerdicts.inspectorEffectReplayCancellation?.(entry).expected === true) return true;
   if (requestVerdicts.expectedUnavailableExecutionAbort(entry)) return true;
   if (requestVerdicts.sessionRefusalCancellation?.(entry).expected === true) return true;
   if (
@@ -5893,6 +5948,7 @@ function expectedFailedRequest(entry) {
 }
 
 function failedRequestAssertionEntry(entry) {
+  if (entry.path === "/api/augnes/read/guide-brief") return { ...entry, guide_cancellation: requestVerdicts.guideEffectReplayCancellation(entry) };
   if (entry.path !== "/api/vnext/operator/host-round-trip") return entry;
   return {
     phase: entry.phase,

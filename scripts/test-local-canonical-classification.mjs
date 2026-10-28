@@ -5,10 +5,11 @@ import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { createCanonicalTestResourceRoot, cleanupCanonicalTestResources, buildCanonicalChildEnvironment, beginCanonicalTestResourceUse, settleCanonicalTestResourceUse } from "./canonical-test-environment.mjs";
 import { runCanonicalChild as executeChild } from "./canonical-child-runner.mjs";
-import { freezeInputContract, classifyInputChange, observeInputFile, monitorInputContract, digest, deriveOperationalDisposition } from "./local-canonical-inputs.mjs";
+import { INPUT_CONTRACT, LEGACY_INPUT_CONTRACT, freezeInputContract, classifyInputChange, observeInputFile, monitorInputContract, digest, deriveOperationalDisposition, commonInputResources, inputReadOptions } from "./local-canonical-inputs.mjs";
 import { beginAttempt, finishAttempt, inspectAttemptRecords, readRecoveryProof, readSourceCorrectionProof } from "./local-canonical-attempts.mjs";
 import { acquireCheckoutVerificationOwnership, releaseCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
-import { runPhasesSequentially, enforceArtifactRetention, FULL_PHASE_IDS, buildPhasePlan } from "./run-local-canonical-verification.mjs";
+import { runPhasesSequentially, enforceArtifactRetention, FULL_PHASE_IDS, buildPhasePlan, browserReplacementLiveBinding, phaseEnvironment, prepareInvocationInputs } from "./run-local-canonical-verification.mjs";
+import { createIsolatedInvocationResources, cleanupIsolatedInvocationResources } from "./local-canonical-isolated-resources.mjs";
 import { pinVerificationEvidence } from "./local-canonical-evidence-retention.mjs";
 import { canonicalSerialize, finalizeReceipt, inspectReceiptForDecision, verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
 import { createPrivateReviewExport, inspectPrivateReviewExport } from "./local-canonical-review-export.mjs";
@@ -34,17 +35,18 @@ const quiet = { write() {} };
 const note = name => findings.push(name);
 const write = (file, value) => writeFileSync(file, value, { mode: 0o600 });
 const resource = (classification = "ambient") => ({ id: "codex-preferences", file: config, classification, excludePreferences: classification === "ambient" });
-const contract = (classification = "ambient", extra = {}) => freezeInputContract({ resources: [resource(classification)], pathKind: classification === "ambient" ? "isolated-model-free-v1" : "consuming-fixture", binding: { fixture: "sentinel-consumer" }, ...extra });
+const contract = (classification = "ambient", extra = {}) => freezeInputContract({ contract: LEGACY_INPUT_CONTRACT, resources: [resource(classification)], pathKind: classification === "ambient" ? "isolated-model-free-v1" : "consuming-fixture", binding: { fixture: "sentinel-consumer" }, ...extra });
 const env = buildCanonicalChildEnvironment({ temporaryRoot: root, ambientEnvironment: { PATH: process.env.PATH, CODEX_HOME: root, OPENAI_API_KEY: "sentinel-not-a-credential", AUGNES_GUIDEBRIEF_REAL_PROVIDER_ACCEPTANCE: "1" } });
 mkdirSync(env.HOME, { recursive: true });
 mkdirSync(path.join(env.HOME, ".codex"));
 write(path.join(env.HOME, ".codex", "config.toml"), 'model = "private-sentinel"\n');
 assert(!Object.hasOwn(env, "CODEX_HOME") && !Object.hasOwn(env, "OPENAI_API_KEY") && !Object.hasOwn(env, "AUGNES_GUIDEBRIEF_REAL_PROVIDER_ACCEPTANCE"));
 
-async function observedChild({ consumes = false, mutation = changed, observerFailure = false, timeout = false } = {}) {
+async function observedChild({ consumes = false, mutation = changed, observerFailure = false, timeout = false, inputContract = LEGACY_INPUT_CONTRACT } = {}) {
   write(config, initial);
   let refuseRead = false;
-  const frozen = contract(consumes ? "execution" : "ambient", observerFailure ? { read: (...args) => { if (refuseRead) throw new Error("fixture observer unavailable"); return observeInputFile(...args); } } : {});
+  const frozen = contract(consumes ? "execution" : "ambient", { contract: inputContract,
+    ...(observerFailure ? { read: (...args) => { if (refuseRead) throw new Error("fixture observer unavailable"); return observeInputFile(...args); } } : {}) });
   const controller = new AbortController();
   const monitor = monitorInputContract(frozen, controller, { intervalMs: 10 });
   let timer;
@@ -64,6 +66,94 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
   assert(result.cleanup_completed && result.remaining_owned_processes === 0 && result.streams_closed);
   return { result, evidence: frozen.snapshot(), output: output.join("") };
 }
+
+  // The actual refusal included a changed remainder, not just a model switch.
+  // These are synthetic changes in our owned fixture, never edits of host policy.
+  const remainder = initial.replace("untrusted", "trusted") + 'unrecognized = "different"\n';
+  const currentContract = () => contract("ambient", { contract: INPUT_CONTRACT });
+  const live = inputs => browserReplacementLiveBinding({ inputs, browserInput: null, host: {}, nodePolicy: {},
+    machineFingerprint: "fixture", executorFingerprint: "fixture", phaseDefinitions: [] });
+  for (const change of [initial, changed, remainder]) {
+    write(config, initial);
+    const frozen = currentContract(), before = frozen.snapshot(), prepared = live(before);
+    write(config, change);
+    assert.equal(frozen.check({ force: true }), null);
+    const current = currentContract().snapshot();
+    assert.equal(live(current).commonInputsSha256, prepared.commonInputsSha256);
+    const r = before.resources[0];
+    assert(["unchanged", "ambient_observation"].includes(classifyInputChange(r.before, current.resources[0].before, r, before)));
+    // A fresh process exercises the same binding and comparator used by stock.
+    const packet = path.join(root, "effective-input.json"); write(packet, JSON.stringify({ before, current }));
+    const fresh = await runCanonicalChild({ suite: "classification", label: "fresh-effective-input", command: process.execPath,
+      args: ["--input-type=module", "-e", `
+        import assert from 'node:assert/strict'; import {readFileSync} from 'node:fs';
+        import {classifyInputChange, commonInputResources, digest} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/local-canonical-inputs.mjs")).href)};
+        import {browserReplacementLiveBinding} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/run-local-canonical-verification.mjs")).href)};
+        const {before,current}=JSON.parse(readFileSync(${JSON.stringify(packet)}));
+        const binding=inputs=>browserReplacementLiveBinding({inputs,host:{},nodePolicy:{},phaseDefinitions:[]}).commonInputsSha256;
+        assert.equal(binding(before),binding(current));
+        assert.equal(digest(commonInputResources(before)),digest(commonInputResources(current)));
+        const r=before.resources[0]; assert(['unchanged','ambient_observation'].includes(classifyInputChange(r.before,current.resources[0].before,r,before)));
+      `], cwd: root, env, timeoutMs: 5000, stdout: quiet, stderr: quiet, log() {} });
+    assert.equal(fresh.exit_code, 0); assert(fresh.cleanup_completed);
+    // v2 uses the complete original binding and conservative remainder rule.
+    const legacyBefore = { ...before, contract: LEGACY_INPUT_CONTRACT }, legacyCurrent = { ...current, contract: LEGACY_INPUT_CONTRACT };
+    assert.equal(live(legacyBefore).commonInputsSha256, digest(legacyBefore.resources));
+    if (change !== initial) assert.notEqual(live(legacyBefore).commonInputsSha256, live(legacyCurrent).commonInputsSha256);
+  }
+  const remainderChild = await observedChild({ mutation: remainder, inputContract: INPUT_CONTRACT });
+  assert.equal(remainderChild.result.cancelled, false); assert.match(remainderChild.output, /private-sentinel/);
+  assert.equal(remainderChild.evidence.first_fault, null);
+  const consumingRemainder = await observedChild({ consumes: true, mutation: remainder, inputContract: INPUT_CONTRACT });
+  assert(consumingRemainder.result.cancelled); assert.equal(consumingRemainder.evidence.first_fault.disposition, "input_invalidation");
+  write(config, initial); const v3 = currentContract(), before = v3.snapshot();
+  write(config, remainder); const after = observeInputFile(config, inputReadOptions(resource(), before));
+  for (const policy of [{ ...before, contract: LEGACY_INPUT_CONTRACT }, { ...before, path_kind: "consuming-fixture" }, { ...before, contract: "unknown" }])
+    assert.equal(classifyInputChange(before.resources[0].before, after, resource(), policy), "unknown_relevance");
+  for (const r of [{ ...resource(), classification: "unknown" }, { ...resource(), id: "unreviewed-config" }])
+    assert.equal(classifyInputChange(before.resources[0].before, after, r, before), "unknown_relevance");
+  for (const key of ["mode", "uid", "gid", "device"]) {
+    const unsafe = structuredClone(after); unsafe.metadata[key] = String(BigInt(unsafe.metadata[key]) + 1n);
+    assert.equal(classifyInputChange(after, unsafe, resource(), before), "safety_violation");
+  }
+  const permission = { ...after, permission_identity: "0".repeat(64) };
+  assert.equal(classifyInputChange(after, permission, resource(), before), "safety_violation");
+  for (const bad of [{ ...after, permission_identity: null }, { ...after, sha256: null }, { ...after, metadata: { ...after.metadata, links: "2" } }])
+    assert.equal(classifyInputChange(after, bad, resource(), before), "unknown_relevance");
+  assert.equal(classifyInputChange(after, { present: false }, resource(), before), "input_invalidation");
+  const replacementV3 = path.join(root, "replacement-v3"); write(replacementV3, remainder); renameSync(replacementV3, config);
+  assert.equal(v3.check(), null); assert.equal(live(currentContract().snapshot()).commonInputsSha256, live(before).commonInputsSha256);
+  chmodSync(config, 0o644); assert.equal(v3.check().disposition, "safety_violation"); chmodSync(config, 0o600);
+  assert.notEqual(live(currentContract().snapshot()).commonInputsSha256, live({ ...before, resources: [{ ...before.resources[0], before: permission }] }).commonInputsSha256);
+  note("v3 preparation/admission projection, monitor and fresh reconstruction agree for preferences, metadata replacement and non-preference remainder; consuming/unknown/safety and legacy v2 remain refusing");
+
+  // Use the real phase environment and nested suite filter. The descendant uses
+  // the native consumer's CODEX_HOME-or-homedir selection, with a deliberately
+  // consuming control showing that private HOME alone is not sufficient.
+  const isolated = createIsolatedInvocationResources("classification-descendant");
+  try {
+    const outer = phaseEnvironment({ phase: {}, isolatedResources: isolated });
+    for (const key of ["CODEX_HOME", "OPENAI_API_KEY", "GH_TOKEN", "GITHUB_TOKEN", "NODE_OPTIONS", "AUGNES_GUIDEBRIEF_REAL_PROVIDER_ACCEPTANCE"])
+      assert(!Object.hasOwn(outer, key), key);
+    const nested = buildCanonicalChildEnvironment({ temporaryRoot: root, ambientEnvironment: { ...outer, CODEX_HOME: root, OPENAI_API_KEY: "synthetic-only" } });
+    assert(!Object.hasOwn(nested, "CODEX_HOME") && !Object.hasOwn(nested, "OPENAI_API_KEY"));
+    const descendant = `const fs=require('node:fs'),path=require('node:path'),os=require('node:os');const selected=path.join(process.env.CODEX_HOME||path.join(os.homedir(),'.codex'),'config.toml');process.stdout.write(fs.readFileSync(selected,'utf8'));`;
+    const launch = async explicit => {
+      let output = "";
+      const result = await runCanonicalChild({ suite: "classification", label: "nested-selection", command: process.execPath,
+        args: ["-e", `const {execFileSync}=require('node:child_process');process.stdout.write(execFileSync(process.execPath,['-e',${JSON.stringify(descendant)}],{env:process.env,timeout:2000}));`],
+        cwd: root, env: explicit ? { ...nested, CODEX_HOME: root } : nested, timeoutMs: 5000,
+        stdout: { write: b => output += b }, stderr: quiet, log() {} });
+      assert.equal(result.exit_code, 0); assert(result.cleanup_completed); return output;
+    };
+    write(path.join(root, "config.toml"), initial);
+    assert.equal(await launch(false), 'model = "private-sentinel"\n'); assert.equal(await launch(true), initial);
+    write(path.join(root, "config.toml"), remainder);
+    assert.equal(await launch(false), 'model = "private-sentinel"\n'); assert.equal(await launch(true), remainder);
+    assert.throws(() => prepareInvocationInputs({ verificationContext: { kind: "isolated-worktree" }, isolatedResources: null }), /isolation_context/);
+    assert.throws(() => prepareInvocationInputs({ verificationContext: { kind: "canonical" }, isolatedResources: isolated }), /isolation_context/);
+  } finally { assert(cleanupIsolatedInvocationResources(isolated, { consumersSettled: true }).completed); }
+  note("actual phase and suite environments plus launched descendant selection exclude shared configuration; explicit consuming path observes it; context mismatch refuses");
 
   const ambient = await observedChild();
   assert.equal(ambient.result.exit_code, 0); assert.equal(ambient.result.cancelled, false);
@@ -207,6 +297,17 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
       prior_number: 1, prior_attempt_id: original.attempt_id, prior_receipt_fingerprint: "7".repeat(64), head: correctedHead, tree: correctedTree, source_module: "scripts/target.mjs",
       fixture_artifact: "regression.mjs", fixture_sha256: digest(readFileSync(fixtureFile)), environment_fingerprint: digest(env), ...witnesses };
     write(correctionFile, JSON.stringify(correctionProof));
+    const afterFile = path.join(correctionRoot, correctionProof.after.artifact);
+    const originalAfter = readFileSync(afterFile);
+    for (const node_version of [`v${process.versions.node}`, "24.18.0", "22.23.4"]) {
+      write(afterFile, JSON.stringify({ ...JSON.parse(originalAfter), node_version }));
+      write(correctionFile, JSON.stringify({ ...correctionProof,
+        after: { ...correctionProof.after, sha256: digest(readFileSync(afterFile)) } }));
+      assert.throws(() => readSourceCorrectionProof(correctionFile, checkout), error => error.code === "source_correction_witness_invalid");
+    }
+    write(afterFile, originalAfter); write(correctionFile, JSON.stringify(correctionProof));
+    readSourceCorrectionProof(correctionFile, checkout);
+    note("actual witness reader accepts bare Canonical Node and refuses v-prefix, stale baseline and compatibility-only Node");
     for (const prior of blockedPredecessors) {
       write(correctionFile, JSON.stringify({ ...correctionProof, branch: prior.branch, prior_family_id: prior.family_id, prior_attempt_id: prior.attempt_id }));
       assert.throws(() => beginAttempt({ ...request, branch: prior.branch, head: correctedHead, tree: correctedTree, runId: "forbidden-source-successor", sourceCorrection: readSourceCorrectionProof(correctionFile, checkout) }), error => error.code === "source_correction_predecessor_invalid");
@@ -257,6 +358,24 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
   validContext.currentInputStateValid = true;
   const passing = finalizeReceipt(receipt);
   assert.deepEqual(inspectReceiptForDecision(passing, validContext).issues, []);
+  // Receipt/event reconstruction must select v3 deliberately; relabelling the
+  // same new event as legacy cannot acquire the non-consumption interpretation.
+  const classified = structuredClone(receipt), observed = remainderChild.evidence;
+  classified.verification_context.kind = "isolated-worktree";
+  classified.inputs = { ...observed, binding: receipt.inputs.binding,
+    resources: receipt.inputs.resources.map(r => r.id === "codex-preferences" ? observed.resources[0] : r) };
+  const bindDeclaration = value => {
+    const { contract, path_kind, binding, resources } = value.inputs;
+    value.inputs.fingerprint = digest({ contract, path_kind, binding, resources });
+    value.attempt.contract_fingerprint = value.inputs.fingerprint;
+    return finalizeReceipt(value);
+  };
+  const inputIssues = value => inspectReceiptForDecision(bindDeclaration(value), validContext).issues.filter(i => i.startsWith("receipt_input_"));
+  assert.deepEqual(inputIssues(classified), []);
+  const oldInterpretation = structuredClone(classified); oldInterpretation.inputs.contract = LEGACY_INPUT_CONTRACT;
+  assert(inputIssues(oldInterpretation).includes("receipt_input_event_invalid"));
+  const missingSecurity = structuredClone(classified); delete missingSecurity.inputs.resources[0].before.permission_identity;
+  assert(inputIssues(missingSecurity).includes("receipt_input_role_invalid"));
   assert(!inspectReceiptForDecision(passing, { ...validContext, currentAttemptRecordsValid: false }).valid_deciding_evidence);
   for (const mutate of [r => { r.inputs.resources = [null]; }, r => { r.inputs.events = [null]; }, r => { r.phases = [null]; },
     r => { r.inputs.binding.phase_environment_fingerprints = [null]; }]) {
@@ -288,13 +407,18 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
   assert.throws(() => observeInputFile(browserFile), "mutable/config observations must still reject a shared inode");
   const executableContract = freezeInputContract({ pathKind: "isolated-model-free-v1", resources: [{ id: "browser-executable", file: browserFile, classification: "execution", readOnlyExecutable: true }], binding: {} });
   assert.equal(executableContract.check(), null);
-  const browserUse = beginBrowserUse(browserFile, { consumer: "fixture", emit() {} }); browserUse.version("Fixture/1.0"); browserUse.version("Fixture/1.0", "cdp");
+  const browserUse = beginBrowserUse(browserFile, { consumer: "fixture", repositoryRoot: root, env: {}, emit() {} }); browserUse.version("Fixture/1.0"); browserUse.version("Fixture/1.0", "cdp");
   assert(validBrowserUse(browserUse.finish()));
-  const changedBrowser = beginBrowserUse(browserFile, { consumer: "fixture", emit() {} }); changedBrowser.version("Fixture/1.0"); changedBrowser.version("Fixture/1.0", "cdp"); write(browserAlias, "mutated executable");
+  const changedBrowser = beginBrowserUse(browserFile, { consumer: "fixture", repositoryRoot: root, env: {}, emit() {} }); changedBrowser.version("Fixture/1.0"); changedBrowser.version("Fixture/1.0", "cdp"); write(browserAlias, "mutated executable");
   assert(!validBrowserUse(changedBrowser.finish()));
   assert.equal(executableContract.check().disposition, "input_invalidation");
   const relinked = freezeInputContract({ pathKind: "isolated-model-free-v1", resources: [{ id: "browser-executable", file: browserFile, classification: "execution", readOnlyExecutable: true }], binding: {} });
   rmSync(browserAlias); assert.equal(relinked.check(), null); assert.equal(relinked.snapshot().events[0].disposition, "incidental_executable_metadata");
+  const readerBefore = { ...relinked.snapshot(), resources: relinked.snapshot().resources.map(r => ({ ...r, id: "executable-permissions-reader" })) };
+  const readerAfter = { ...readerBefore, resources: readerBefore.resources.map(r => ({ ...r, before: observeInputFile(browserFile, { readOnlyExecutable: true }) })) };
+  assert.equal(digest(commonInputResources(readerBefore)), digest(commonInputResources(readerAfter)));
+  write(browserFile, "changed reader bytes"); readerAfter.resources[0].before = observeInputFile(browserFile, { readOnlyExecutable: true });
+  assert.notEqual(digest(commonInputResources(readerBefore)), digest(commonInputResources(readerAfter)));
   assert.equal(buildPhasePlan({ mode: "full", selectedPlan: "full-canonical" }).length, FULL_PHASE_IDS.length);
   note("read-only shared Browser observes alias metadata and binds bytes; alias mutation refuses; Full phase inventory unchanged");
 } finally {

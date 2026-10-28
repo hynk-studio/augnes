@@ -780,10 +780,16 @@ assert.deepEqual(
   ],
 );
 
-assert.equal(CANONICAL_NODE_VERSION, "24.18.0");
-assert.equal(CANONICAL_NODE_COMPATIBILITY, "^22.0.0 || ^24.0.0");
+assert.equal(CANONICAL_NODE_VERSION, "24.22.1");
+assert.equal(CANONICAL_NODE_COMPATIBILITY, "^22.23.4 || ^24.22.1");
 assert.equal(evaluateNodePolicy(CANONICAL_NODE_VERSION).canonical_match, true);
-assert.equal(evaluateNodePolicy("22.23.1").compatibility_match, true);
+for (const version of ["22.23.4", "22.24.0", "24.22.1", "24.23.0"]) {
+  assert.equal(evaluateNodePolicy(version).compatibility_match, true, version);
+  assert.equal(evaluateNodePolicy(version).canonical_match, version === CANONICAL_NODE_VERSION);
+}
+for (const version of ["22.23.3", "24.22.0", "24.18.0", "20.99.0", "23.0.0", "26.0.0", "v24.22.1", "24.22.1-rc.1", "024.22.1", "24.22.1\n"]) {
+  assert.equal(evaluateNodePolicy(version).compatibility_match, false, version);
+}
 assert.equal(evaluateNodePolicy("25.9.0").canonical_match, false);
 assert.equal(evaluateNodePolicy("25.9.0").compatibility_match, false);
 
@@ -906,13 +912,15 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
     const preflightIssues = [];
     if (scenario === "wrong_npm") {
       try {
-        assertDecidingEnvironment({ host: { operating_system: "macOS", architecture: "arm64", node_version: "24.18.0", path_node_version: "24.18.0", npm_version: "11.12.1" }, nodePolicy: evaluateNodePolicy("24.18.0"), diskMinimumBytes: 0 });
+        assertDecidingEnvironment({ host: { operating_system: "macOS", architecture: "arm64", node_version: "24.22.1", path_node_version: "24.22.1", npm_version: "11.12.1" }, nodePolicy: evaluateNodePolicy("24.22.1"), diskMinimumBytes: 0 });
       } catch (error) { preflightIssues.push(error.code); }
       assert.deepEqual(preflightIssues, ["canonical_npm_mismatch"]);
     }
     const context = {
       checkoutContext: isolated ? "isolated-worktree" : "canonical", verificationContext: {}, signal: { aborted: false },
       controller: new AbortController(), recoveryProofPath: null, sourceCorrectionProofPath: null, baseSha: "0".repeat(40), headSha: "a".repeat(40), executorFingerprint: "b".repeat(64), identityBefore: { branch: "fixture" },
+      browserInput: null, browserReplacement: null, strictProof: null, sourceCorrection: null,
+      selectedBrowserInput: () => null,
       prepareInvocationInputs: () => ({ snapshot: () => ({ resources: [], binding: { tree: "c".repeat(40) }, fingerprint: "d".repeat(64) }) }),
       monitorInputContract: () => ({ check: () => null, stop() {}, fault: () => null }),
       beginAttempt: () => ({}), pinVerificationEvidence() {}, assertFrozenSource() {},
@@ -964,7 +972,7 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
       },
       safeErrorCode: error => error.code ?? "synthetic_failure", boundedLifecycleState: value => value,
       inspectCompanionService: async () => structuredClone(serviceState),
-      inspectCompanionPreservation: async () => ({state:{...structuredClone(serviceState),preservation_valid:scenario !== "isolated_observation_invalid",preservation_binding:"a".repeat(64)},diagnostics:{samples:1}}),
+      inspectVerificationCompanionPreservation: async () => ({state:{...structuredClone(serviceState),preservation_valid:scenario !== "isolated_observation_invalid",preservation_binding:"a".repeat(64)},diagnostics:{samples:1}}),
       acquireCompanionServiceMaintenance: async () => {
         assertCheckoutVerificationOwnership(activeOwner, root);
         calls.acquire++;

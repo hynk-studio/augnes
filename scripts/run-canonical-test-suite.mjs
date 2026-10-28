@@ -523,6 +523,11 @@ const suites = {
       timeoutMs: 30_000,
     },
     {
+      label: "patched dependency resolution and native runtime consumers",
+      ...rootNode("scripts/test-security-runtime-dependencies.mjs"),
+      timeoutMs: 30_000,
+    },
+    {
       label: "browser E2E timing and lifecycle contracts",
       ...rootNode("scripts/test-browser-e2e-timing.mjs"),
     },
@@ -1434,6 +1439,20 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "local-canonical-browser-input",
+      label: "strict Browser bundle selection, observation and nested input refusal",
+      ...rootNode("scripts/test-local-canonical-browser-input.mjs"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "local-canonical-browser-replacement",
+      label: "Browser replacement evidence, exclusive succession and read-only reconstruction",
+      ...rootNode("scripts/test-local-canonical-browser-replacement.mjs"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       label: "read-only GitHub main-branch source-attestation transport",
       ...rootNode("scripts/test-github-main-branch-transport.mjs"),
       timeoutMs: 30_000,
@@ -2020,6 +2039,11 @@ try {
   console.log(JSON.stringify({ suite: suiteName, resource_cleanup: resourceCleanup }));
   for (const result of resourceCleanup) if (!result.completed)
     failures.push(new Error(`canonical resource cleanup refused: ${result.root}: ${result.failures.join(",")}`));
-  if (failures.length) throw new AggregateError(failures, "canonical suite execution or cleanup failed");
+  if (failures.length) {
+    // A top-level throw can terminate with forwarded pipe writes still queued.
+    // Preserve failure status while natural shutdown drains child/cleanup output.
+    console.error(new AggregateError(failures, "canonical suite execution or cleanup failed"));
+    process.exitCode = 1;
+  }
 }
-console.log(JSON.stringify(summary, null, 2));
+if (summary && !process.exitCode) console.log(JSON.stringify(summary, null, 2));

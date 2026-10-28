@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { isSupportedNodeVersion } from "../plugins/augnes-operator/mcp/node-runtime-policy.mjs";
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import {
@@ -227,6 +228,7 @@ async function runProductionBuild(sourceRoot, environment) {
     {
       ...environment,
       NEXT_TELEMETRY_DISABLED: "1",
+      AUGNES_PACKAGE_BUILD: "1",
     },
     "package_ui_build_failed",
   );
@@ -987,6 +989,7 @@ function assertRuntimeContractMatchesSource(sourceRoot) {
 function assertBuildRuntime() {
   if (
     !DISTRIBUTABLE_SUPPORTED_OPERATING_SYSTEMS.includes(process.platform) ||
+    !isSupportedNodeVersion(process.versions.node) ||
     compareVersions(process.versions.node, DISTRIBUTABLE_NODE_MINIMUM) < 0 ||
     !/^\d+$/.test(process.versions.modules ?? "") ||
     !/^\d+$/.test(process.versions.napi ?? "")

@@ -216,7 +216,8 @@ function ScopedSemanticReviewSurface({
     }
   }, [proposalId, updateSessionState, fetch]);
 
-  const checkSession = useCallback(async () => {
+  const checkSession = useCallback(async (isCurrent: () => boolean) => {
+    if (!isCurrent()) return;
     updateSessionState({ status: "checking", session: null, error_code: null });
     setPrivateView(null);
     setPrivateError(null);
@@ -227,6 +228,7 @@ function ScopedSemanticReviewSurface({
         credentials: "same-origin",
       });
       const body = (await response.json()) as SessionCheckResponseV01;
+      if (!isCurrent()) return;
       if (response.status === 404) {
         updateSessionState({
           status: "disabled",
@@ -252,6 +254,7 @@ function ScopedSemanticReviewSurface({
       });
       await loadPrivateView();
     } catch {
+      if (!isCurrent()) return;
       updateSessionState({
         status: "locked",
         session: null,
@@ -261,7 +264,11 @@ function ScopedSemanticReviewSurface({
   }, [loadPrivateView, updateSessionState, fetch]);
 
   useEffect(() => {
-    void checkSession();
+    let active = true;
+    // Let a synchronously disposed/replayed effect retire before issuing its
+    // read. A later disposal also prevents its body/error from adopting state.
+    queueMicrotask(() => { if (active) void checkSession(() => active); });
+    return () => { active = false; };
   }, [checkSession]);
 
   async function recordDecision(request: SemanticReviewDecisionRequestV01) {

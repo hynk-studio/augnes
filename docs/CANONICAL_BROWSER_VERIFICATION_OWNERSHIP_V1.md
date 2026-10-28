@@ -22,6 +22,24 @@ child copies them into its own writable database and reads them through the
 production application. It does not borrow a live operator or continuity
 runtime.
 
+The locked-entry GuideBrief request guard admits one observed cancellation
+shape: the initial effect's cleanup aborts its exact request, then effect replay
+in the same consumer, document, frame, project context and protocol connection
+starts a distinct replacement. Private request/controller/signal bindings must
+prove the first read returned aborted without a response or application, and
+the replacement completed, parsed successfully and committed to the current
+consumer. Missing, copied, altered, ambiguous or lossy evidence refuses; so do
+independent network failures, unconsumed replacements and stale writes.
+Ordinary unmounts, explicit refresh and other cancellation shapes gain no new
+exception. Public diagnostic snapshots are not verdict inputs.
+
+This observation is installed only by the disposable development Browser.
+It preserves request arguments, the original fetch Promise, cancellation and
+scheduling. The strict return-focus predicate, 45-second condition deadline,
+phase/child bounds, Browser inventory, global network/privacy/integrity guards
+and cleanup owners remain unchanged. Focused diagnostics and controls do not
+qualify a Browser phase or rewrite historical failed results.
+
 ### Operator and execution
 
 `npm run test:e2e:operator-execution` is a focused developer convenience that
@@ -276,6 +294,13 @@ markers. The manifest contract rejects duplicate ownership, missing command or
 suite bindings, missing resource/lifecycle declarations, and incomplete
 operator child unions. Source-code parsing is not part of permanent ownership.
 
+The existing Browser-owner unit child separately syntax-checks complete launch
+entry points with bounded Node children, without importing or executing them.
+Its malformed complete-file negative control uses the same failure-propagating
+child check. This catches invalid headers before long Browser verification;
+it does not infer semantic ownership from source strings or replace runtime
+completion, selection, lifecycle or qualification evidence.
+
 ## Changed-file selection
 
 The Browser manifest remains the semantic owner map; the Local Canonical change
@@ -358,3 +383,29 @@ This architecture does not change product, API, Core, protocol, schema,
 authority, native-host, provider, or UI behavior. It does not create hosted
 evidence, publish Local Canonical artifacts, dispatch workflows, or grant merge
 authority.
+
+## Strict Browser input compatibility
+
+The explicitly versioned task-owned Browser lane uses the shared selector in
+`local-canonical-browser-input.mjs` at all selected launch sites. It retains
+this document's phase ownership and the 19 actual launch records (integration
+5, project 4, review 5, and one each for native, expectation, multi-candidate,
+continuity and golden). The v3 use record adds the full-bundle input fingerprint
+and matching CLI/HTTP/CDP versions. The controller monitors that bundle before
+unit/integration through settlement; monitoring is not delayed to Browser7.
+Strict selection cannot fall back after missing or invalid binding. Legacy
+selection is unchanged outside that lane. See the Local Canonical policy's
+Browser-input replacement section for its separate review/grant and read-only
+stock requirements. No change to the C8 30-second child or 3,600-second unit
+phase limit is authorized by this input contract.
+
+The existing Darwin durable/cumulative five and project-client two launches use
+the exact outer loopback/Unix network sandbox together with `--no-sandbox`.
+Strict input validation binds that actual spawn construction and refuses lost
+or altered protection. The other twelve direct launches keep their prior
+sandbox behavior. The seven wrapped launches are limited to reviewed local
+fixtures and disposable profiles/DBs; their network policy is not equivalent
+to Chromium filesystem/IPC compartmentalization. Existing assertions and owned
+process teardown, including normal supported SIGTERM, remain authoritative.
+A diagnostic `Browser.close` acknowledgement is separate from useful page work,
+component health and cleanup; it is not an added universal acceptance gate.

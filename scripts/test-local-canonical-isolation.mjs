@@ -4,6 +4,7 @@ import { chmodSync, existsSync, linkSync, lstatSync, mkdirSync, readFileSync, re
 import path from "node:path";
 import {
   admitVerificationContext, assertVerificationContext, assertIsolatedMutableResources,
+  inspectVerificationCompanionPreservation,
 } from "./local-canonical-verification-context.mjs";
 import { acquireVerificationCapacity, assertVerificationCapacity, releaseVerificationCapacity, verificationCapacityLimit } from "./local-canonical-capacity.mjs";
 import { acquireCheckoutVerificationOwnership, releaseCheckoutVerificationOwnership, CHECKOUT_OWNER_FILE } from "./local-canonical-checkout-ownership.mjs";
@@ -44,12 +45,25 @@ try {
     writeFileSync(path.join(anchor, relative, ".keep"), "fixture");
   }
   writeFileSync(path.join(anchor, ".gitignore"), ".augnes-local-verification/\nnode_modules/\n.next/\n");
+  const inspectorRelative = "plugins/augnes-operator/mcp/companion-service-core.mjs";
+  const inspectorSource = "export async function inspectCompanionPreservation({repositoryRoot}) { return {acceptedRoot:repositoryRoot, policy:'accepted-source'}; }\n";
+  mkdirSync(path.dirname(path.join(anchor, inspectorRelative)), {recursive:true});
+  writeFileSync(path.join(anchor, inspectorRelative), inspectorSource);
   git(anchor, "add", "."); git(anchor, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-m", "fixture");
   git(anchor, "worktree", "add", "--detach", a, "HEAD"); git(anchor, "worktree", "add", "--detach", b, "HEAD");
   const contextA = admit(a), contextB = admit(b);
   assert.notEqual(contextA.checkout_fingerprint, contextB.checkout_fingerprint);
   assert.equal(contextA.anchor_fingerprint, contextB.anchor_fingerprint);
   assert.equal(assertVerificationContext(contextA, a), contextA);
+  // Candidate-only policy/source additions must not be applied to an installed
+  // accepted checkout. Calling the candidate inspector would throw here.
+  writeFileSync(path.join(a, inspectorRelative), "throw new Error('candidate_inspector_must_not_observe_accepted_service');\n");
+  assert.deepEqual(await inspectVerificationCompanionPreservation(contextA), {acceptedRoot:anchor,policy:'accepted-source'});
+  await assert.rejects(inspectVerificationCompanionPreservation({...contextA}), hasCode("verification_context_not_owned"));
+  rmSync(path.join(anchor, inspectorRelative));
+  symlinkSync(path.join(a, inspectorRelative), path.join(anchor, inspectorRelative));
+  await assert.rejects(inspectVerificationCompanionPreservation(contextA), hasCode("companion_preservation_source_invalid"));
+  rmSync(path.join(anchor, inspectorRelative)); writeFileSync(path.join(anchor, inspectorRelative), inspectorSource);
   assert.throws(() => assertVerificationContext({ ...contextA }, a), hasCode("verification_context_not_owned"));
   assert.throws(() => assertVerificationContext(contextA, b), hasCode("verification_context_not_owned"));
   assert.throws(() => admit(a, { platform: "linux" }), hasCode("isolated_verification_host_unsupported"));

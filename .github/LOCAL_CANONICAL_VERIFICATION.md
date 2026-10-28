@@ -148,6 +148,9 @@ read-only inspector before and after the run. Its private HOME prevents nested
 build/suite wrappers from discovering or maintaining the installed service. An
 isolated lane never pauses, restarts, reconfigures or adopts that service. A
 changed observed service identity/lifecycle refuses successful qualification.
+The inspector is loaded from the admitted accepted checkout, whose identity is
+bracketed by that observation. Candidate-only source files and runtime floors
+therefore do not require an installed adoption merely to inspect preservation.
 The isolated inspector brackets one health/ownership probe round with the same
 scoped service materials and loaded-job identity. Only the manager heartbeat
 update timestamp is excluded from coherence comparison. Lifecycle, process,
@@ -170,13 +173,13 @@ owner artifact to gain capacity.
 
 ## Node and platform policy
 
-Exact deciding evidence uses Node.js 24.18.0 on macOS arm64. `.node-version`
+Exact deciding evidence uses Node.js 24.22.1 on macOS arm64. `.node-version`
 is the single repository version marker. The supported source-compatibility
-range is the maintained even LTS lines `^22.0.0 || ^24.0.0`, with npm 10 or
+range is the maintained even LTS lines `^22.23.4 || ^24.22.1`, with npm 10 or
 11. Compatibility does not equal Canonical identity:
 
-- Node 24.18.0 may produce deciding evidence when all other gates pass.
-- Node 22 may be used for compatibility checks but is not the exact Canonical
+- Node 24.22.1 may produce deciding evidence when all other gates pass.
+- Node 22.23.4 or later within Node 22 may be used for compatibility checks but is not the exact Canonical
   runtime.
 - Node 25 and other versions produce an explicit mismatch. Quick mode may still
   run as non-deciding feedback; changed and full fail before long phases.
@@ -185,6 +188,15 @@ The policy does not install a version manager, switch the system runtime,
 invoke Homebrew, or modify global settings. Linux and Windows remain separate
 compatibility surfaces rather than substitutes for the current local Canonical
 host.
+
+The compatibility evaluator enforces each line's security floor; it does not
+accept every release in those majors. Companion selects only Node 24.22.1 or
+later within Node 24 and retains its exact resolved path and v-prefixed version
+binding. Node's bundled Undici is separate from npm-installed dependencies:
+the minimum Node 24 bundles 7.30.1, while the minimum Node 22 bundles 6.29.1.
+The deciding npm baseline remains exactly 11.16.0 and is checked independently
+of Node. Task-owned binaries may be selected through PATH; global replacement
+and installed Companion adoption require separate authority.
 
 ## Mode selection
 
@@ -409,6 +421,65 @@ npm run test:operability:package
 ```
 
 ## Dependency and generated-state policy
+
+The Next configuration explicitly disables `experimental.agentUpgrade`. Next
+16.4 otherwise starts an advisory request during development startup even with
+telemetry disabled. Managed source runtime startup retains its zero-network
+behavior; dependency maintenance and agent invocation remain separately
+authorized actions. Recovery and package checks keep their network guards and
+zero-attempt assertions intact.
+
+Package builds set `AUGNES_PACKAGE_BUILD=1` for the Next build only. The serialized
+standalone config disables `experimental.isrFlushToDisk`, preserving Next's
+bounded memory cache without promoting route seeds into the immutable package
+inventory. Ordinary source builds retain their default cache behavior. Package
+Start/recovery/Stop and handoff checks still require the complete file inventory;
+runtime-generated route-cache files are not excluded from integrity validation.
+
+### Historical package dependency preparation
+
+Before a package handoff or a Full containing operability, run
+`npm run prepare:historical-package-dependencies` in the task-owned checkout
+under the exact Canonical Node/npm. This separate, bounded preparation installs
+the merged #1118 root and Apps dependencies from four byte-pinned Git source
+files. It retains an isolated historical artifact in
+`.augnes-local-verification/fixtures/merged-r8a-dependencies/`; an existing
+destination refuses instead of being overwritten. npm download/node-gyp caches,
+HOME and children are disposable. A temporary npm configuration records exact
+approvals for the historical install-script packages; historical source and
+locks are never edited.
+
+Full also includes the distinct durable-work predecessor `d9b6b56`. Prepare its
+exact root graph with `npm run prepare:historical-work-dependencies` under the
+same Canonical Node/npm. Its two original source hashes and original tree are
+fixed separately in `.augnes-local-verification/fixtures/durable-work-dependencies/`.
+This is neither the R8A graph nor a current dependency superset. The historical
+producer uses an independently copied, exact-lock view, with its own source and
+installed-material checks before and after execution. Its provision manifest is
+also an executor/stock execution input. Both preparation commands refuse an
+existing destination; neither historical lock or product source is rewritten.
+
+The R8A provision manifest binds the original commit/tree, four source hashes,
+actual Node/npm/platform/ABI and complete installed-file identities. The
+executor and separate stock reader bind this manifest as an execution input.
+The package scenario revalidates source bytes, installed resolution, native
+platform material, bins and file identities before copying disjoint historical
+dependencies and again after the historical package build. The later genuine
+old-to-current handoff separately validates the produced package and runtime.
+No current package is relabelled as historical. The original strict normalizer and single-leaf
+reuse rule remain unchanged; arbitrary supersets still refuse.
+
+Package building and handoff retain their zero-network guards and existing
+timeouts/assertions. Preparation is not handoff evidence. The generated artifact
+is retained with the task's review checkout and original receipt while stock
+validation needs it; it is not committed, uploaded or adopted. Remove it only
+after its consumers settle and the corresponding review retention is released.
+
+Current graphs record exact approvals for their currently resolved install-script
+packages in `allowScripts`, including SQLite, esbuild and workerd. npm 11.16.0
+does not default-deny unlisted scripts unless `strict-allow-scripts` is enabled;
+this maintenance does not enable it. The Apps graph's versions remain unchanged;
+its explicit approvals follow the same rule.
 
 Before Quick, owner-targeted, Full, or any isolated-context phases, the executor atomically acquires
 `.augnes-local-verification/checkout-owner.json` with exclusive creation. This
@@ -663,7 +734,7 @@ trust or third-party attestation.
 
 The [consumer map](../docs/LOCAL_CANONICAL_INPUT_CONTRACT.md) identifies the
 controller, authenticated transport, dependency, suite, native-fixture and
-Browser boundaries. The executor freezes `augnes.local-canonical-inputs.v2`
+Browser boundaries. The executor freezes `augnes.local-canonical-inputs.v3`
 before the first phase. Its fingerprint binds declared source/tree, executor,
 selected environment and phase inventory. Isolated children still use the
 existing strict environment filter and private HOME/temp/cache/database/runtime.
@@ -671,15 +742,30 @@ Neither private HOME nor a configuration key's name alone establishes exclusion.
 
 Execution inputs, safety resources, proven non-consumed ambient context and
 unknown relevance have different dispositions. On the audited isolated
-model-free path, only unambiguous leading top-level `model`,
-`model_reasoning_effort` and `service_tier` scalar values can be excluded.
-Every other configuration byte is covered by a remainder fingerprint; unknown
-syntax or mixed trust/permission/other changes do not become an exemption.
-The canonical path remains conservative. No rule authorizes writing preferences,
+model-free path, the shared developer `~/.codex/config.toml` is observed but
+not consumed by the selected controller, phases or descendants. Version 3
+therefore binds its location, presence, regular-file/single-link resolution,
+device, mode, owner/group and ACL/file-flag/extended-attribute identity; its
+content hash, size, inode and timestamps remain diagnostic observations. This
+includes non-preference remainder changes: no lost historical edit or writer
+is inferred. Preparation/admission, monitoring and stock reconstruction use the
+same effective identity, including the existing incidental executable metadata
+rule. The complete raw observations remain separately bound in each receipt.
+No other ambient or unknown resource receives this exclusion. Consuming and
+unknown paths remain conservative; task-owned configuration, instructions,
+credentials, transport, source, tools, workload, Browser and Companion protections
+remain binding. Source changes introducing a consumer require renewed review
+of the consumer map and its controls. No rule authorizes writing preferences,
 copying credentials, launching a model or changing installed services.
 
-Configuration contents are compared in memory. Receipts contain safe identities
-and a narrow non-secret projection, never complete configuration or credential
+Version 2 material retains its original raw preparation/admission hash and
+preference-only comparison (leading `model`, `model_reasoning_effort` and
+`service_tier` values; remainder changes refuse). Version 3 never reinterprets
+an old refusal, receipt, proof or consumed allowance as successful. The version
+is an interpretation discriminator, not an input-ignore option or new proof kind.
+
+Configuration contents are hashed in memory. Receipts contain safe identities
+(and the historical version 2 preference projection), never complete configuration or credential
 contents. Auth locations are observed through metadata only. Excluded-file
 content-equivalent replacement may be recorded without cancellation; changed
 type, permissions, ownership, unsafe aliases or relevant input identity refuse.
@@ -730,6 +816,15 @@ interpretation. Candidate succession v2 additionally retains the original
 receipt, exact source-review delta/path inventory and one immutable successor
 reservation on the latest settled predecessor.
 
+The v2 source-module paths additionally admit exactly the repository-relative
+`next.config.ts` and `components/blank-state/blank-state-client.tsx`; v1 retains
+its existing scripts-only interpretation. Other root files, alternate
+configuration names, manifests/locks and other `components/` paths gain no
+exemption, including `components/project-settings-link.tsx`. The exact component
+path supports the demonstrated Current project return correction; it does not
+extend the verifier-correction module allowlist or change any regression,
+source-review, predecessor or successor requirement.
+
 A meaningful revision after PASS or an ordinary product/cancelled result requires
 the same retained deterministic regression failing on the prior Git source and
 passing on the corrected source, under the same environment and Canonical Node.
@@ -756,6 +851,124 @@ unchanged. Bounds limit hangs and settlement within supported CPU/memory/disk
 conditions; a timeout is not automatically a performance regression or an
 infrastructure diagnosis. In particular the historical settled-expired-successor
 child remains one complete scenario under its existing 30,000 ms bound.
+
+### Browser input replacement (receipt version 5)
+
+`augnes.local-canonical-browser-replacement.v1` is a separate, narrowly
+versioned route for a settled selected-Browser replacement safety stop. It is
+neither infrastructure recovery nor a source correction. It preserves the
+original disposition, every phase failure and NOT_RUN. Implementation of this
+route is not an execution grant. A new proof requires independent review of
+its exact verifier source, complete predecessor-to-final Git delta, current
+base/head/tree, replacement artifact and execution inputs, followed by a
+separate one-use execution authorization.
+
+The production reader examines every retained input event and secondary fault,
+reconstructs their classifications and checks the original receipt, latest
+settled attempt/completion, unchanged permission boundary, complete cleanup and
+phase stop. Only a replaced selected Browser executable with changed inode and
+bytes qualifies. Other safety faults, credentials/ownership changes, unknown
+relevance, independent product failures, truncated fault inventories and missing
+records refuse. No earlier predecessor or old successful phase can substitute.
+
+Use `--browser-replacement-proof <repository-relative-proof.json>` with Full
+and the admitted isolated-worktree context. The proof binds the current executor,
+complete workload, environment/common-input fingerprints, original diagnostic
+material and exact task-owned Browser input. The existing source-correction
+option and recovery option are mutually exclusive with this route. Its budget
+is **initial=1, recovery=0**. Full16, Browser7 and all 19 actual Browser-use
+records remain required. Unit remains bounded at 3,600 seconds and C8 at 30
+seconds. No phase stitching, harness replacement or retry allowance is added.
+
+All successor kinds use the predecessor's existing exclusive
+`correction-successor.json` namespace. A Browser edge has the explicit
+`augnes.local-canonical-successor.v2` kind; historical unversioned source edges
+retain their interpretation. New admissions reconstruct the branch's complete
+forward lineage from its original family. Duplicate/concurrent claims, cycles,
+unknown records, partial claims after a crash and superseded recovery refuse.
+An input successor cannot renew its budget by a recursive replacement, renamed
+artifact/grant, unchanged source or a source-correction detour. A meaningful
+`source_revision` may follow the latest settled strict `product_failure` through
+the existing v2 source-correction proof. It retains that exact accepted Browser
+binding, the consumed replacement state and **initial=1, recovery=0**. The complete
+delta, same before/after regression, original receipt and settled cleanup remain
+required. Fresh independent review of the exact new source and a later execution
+grant must bind the existing strict-input authority record; the consumed review
+and grant cannot be reused. Current source, environment, workload and inputs are
+rechecked through the controller and separate stock reader. This path neither
+replaces the Browser again nor falls back to legacy selection. Partial records
+remain evidence; there is no automatic repair, deletion or family reset.
+
+The Browser binding selects a complete physical mac-arm64 Chrome for Testing
+app beneath the task checkout's ignored verification directory. It includes a
+fixed official origin/version, locally computed archive/metadata digests,
+retained codesign/spctl exit statuses and an immutable reference inventory.
+Local hashes are not publisher attestation. A negative signature/Gatekeeper
+assessment remains negative: a successful launch cannot change that fact.
+Production acceptance must explicitly accept that exact artifact for trusted
+local fixtures. There is no general unsigned-artifact exemption, re-signing,
+quarantine removal, security bypass, personal profile or untrusted browsing.
+
+The authenticated GitHub GET transport reads the exact PR #1546 review and
+#1545 grant comment plus their repository-author permission. Each separately
+attributable record contains a single `augnes-browser-input-authorization` JSON
+block matching `browserReplacementAuthorityBinding(proof)`, its role, review
+id and explicit decision. The independent review decision is
+`accept_exact_source_and_artifact_for_trusted_local_fixtures`; the later grant
+is `authorize_one_full_and_separate_stock`. Exact record hashes, source commit,
+repository, author, timestamps and admin/maintain permission are rechecked.
+Missing/dismissed/changed/unauthorized records refuse; an implementation-owner
+Boolean, arbitrary URL or design approval cannot grant execution. This verifies
+attribution to repository records, not the identity or independence of the
+human/model behind an account. The user's actual authorization still governs.
+
+Strict selection travels through the controller, isolated and nested children
+and each launch owner. An active checkout-owned sentinel makes stripping all
+binding environment keys a refusal, not legacy fallback. The sentinel and input
+monitor remain active from before unit/integration through settlement. Every
+launch and settlement observes the actual bundle and CLI/HTTP/CDP versions.
+Missing or alternate selections and invalid versions refuse. Outside this
+explicit lane, historical Browser and receipt interpretations remain intact.
+
+For exactly the existing Darwin durable/cumulative five and project-client two
+launches, the strict lane preserves the accepted-base outer network sandbox plus
+`--no-sandbox`. The shared input helper validates the actual spawn tuple: the
+fixed `/usr/bin/sandbox-exec`, exact existing loopback/Unix network profile,
+selected executable and one retained argument for those owners. Missing or
+altered protection, direct launch, unknown owner and non-Darwin strict use
+refuse; spawn failure has no unwrapped fallback. The other twelve direct
+launches retain their existing Chromium sandbox behavior.
+
+These seven launches use reviewed deterministic local fixtures, disposable
+profiles/databases and permitted local endpoints. The outer allow-default
+network policy does not provide Chromium's additional filesystem/IPC
+compartmentalization, equivalent dual-sandbox protection, or confinement of
+all local services. This is a bounded baseline compatibility choice, not a
+general sandbox opt-out or host-security change. Existing network/privacy and
+functional assertions remain. Cleanup follows each existing process owner,
+including supported normal SIGTERM; a diagnostic `Browser.close` response is
+not a universal success condition. Crashes, timeouts, escalation and residue
+retain their existing failure classification.
+
+The bundle observer re-enumerates directories/files and relative internal links,
+checks physical identities, ownership/mode, ACLs/flags/extended attributes and
+bounded race-safe file reads. Escaping/cyclic/dangling links, hardlinks,
+additions/deletions, root replacement and read-window changes refuse. A complete
+metadata/security agreement may reuse content hashes during polling; initial,
+launch, settlement and fresh-process stock observations rehash bytes. Limits
+are 4,096 entries, 1 GiB, 8 MiB security output and 15 seconds per observation;
+these limits do not extend any phase or child deadline. Monitoring remains
+bounded cooperative observation, not whole-host/OS-library attestation, hostile
+same-user isolation or proof that no transient mutation occurred between polls.
+
+Version 5 receipts bind the selection, bundle observation, guard settlement and
+new attempt/authority records; private export version 2 retains their bounded
+identities. Fresh-process stock reconstructs them read-only from the original
+admitted checkout, re-fetches the exact authority records and rehashes current
+bundle bytes. Stock never reserves, repairs or rewrites an attempt, successor,
+selection or machine identity. Unknown versions, incomplete records and downgrade
+into legacy interpretation refuse. Failed usable receipts still require the
+separate stock process after settlement. Development controls are not that run.
 
 ### Private review export
 

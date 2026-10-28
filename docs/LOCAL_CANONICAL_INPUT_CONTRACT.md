@@ -15,7 +15,7 @@ obligations; it does not grant execution, provider, lifecycle or merge authority
 | Dependency preparation | Root/nested/Web `npm ci`, lockfiles and package lifecycle scripts | Existing clean-install authority retained; private npm configuration/cache; package and lock changes are source inputs, installed trees are not reusable proof |
 | Browser | Project-experience, continuity, project-client and Web-planning launchers; shared operator lifecycle including golden and four navigation controls; integration durable/cumulative surfaces | Reuse process owners; record selected executable at actual launch/settlement and agreeing HTTP/CDP runtime versions. Freeze exact consumer counts for every consuming phase, including integration; forward nested evidence and refuse missing records |
 | Installed Companion | Supported preservation observer and existing context owner | Coherent before/after identity, no lifecycle in isolated context; observation/ownership failure remains blocking |
-| Shared Codex preferences | No selected isolated controller/phase launches the developer Codex client or uses its model selection | Only narrowly recognized top-level model/effort/tier values may be excluded on this audited path; remainder and metadata safety checks remain conservative |
+| Shared Codex configuration | No selected isolated controller/phase launches the developer Codex client or consumes its shared configuration; native fixture consumers select private configuration and temporary source roots | v3 treats content and replacement metadata as observations only for this fixed resource/path; presence, resolution, single link, mode, ownership, device, ACL/flags/attributes remain bound. v2 retains preference-only exclusion and its original raw binding |
 | Hooks and authority | Git reads do not dispatch checkout/commit hooks; canonical suites use private fake clients and runtime roots | No live client/model launch from this contract; source changes introducing a consumer require renewed classification and tests |
 
 The orchestration conversation's running model is outside the deterministic
@@ -23,6 +23,49 @@ qualification process. Its effective settings and historical configuration
 writers are not established by this contract. A consuming path cannot claim the
 isolated path's exclusion. Inherited PATH, explicit paths, transport, package
 scripts and descendant launchers remain inputs even with a private HOME.
+
+### Effective input equivalence (v3)
+
+The parent uses Git, Node/npm, the planner, the authenticated `gh` transport and
+the supported Companion preservation inspector. Its only shared Codex-config
+read is the input observer. Git reads do not launch Codex or dispatch commit/
+checkout hooks. `phaseEnvironment` takes the owned isolated-resource capability;
+`prepareInvocationInputs` refuses a context/resource mismatch. The outer owner
+uses `buildCanonicalChildEnvironment`, and `run-canonical-test-suite` applies
+that same filter again for every child. Neither layer forwards `CODEX_HOME`,
+provider credentials, `NODE_OPTIONS`, or live-provider opt-ins. Explicit tool
+paths and the existing private npm cache/configuration behavior remain unchanged.
+
+The native consumers need more than HOME reasoning: `codex-credential-broker`
+selects CODEX_HOME or homedir, while `codex-scoped-task` also inspects source-root
+ancestors and managed policy. Their selected model-free tests use synthetic
+Codex homes and temporary stage/source roots (`test-codex-candidate-canary-binding`,
+`test-codex-app-server-sandbox-projection`, `test-codex-scoped-code-mode`). They
+retain fake-adapter or fixed-loopback native fixtures and existing managed-policy
+refusals. Browser owners retain their canonical no-provider fixture route.
+No exemption is granted to managed policy, a new explicit shared path, a live
+client, or a different/unknown consumer. The host agent's own permission policy
+is outside these disposable controls and is never edited by them.
+
+`effectiveInputObservation` is the single projection used by comparison and
+`commonInputResources`; `browserReplacementLiveBinding` uses it for preparation
+and admission, and stock reconstructs the same versioned rule. Only the fixed
+v3 isolated `codex-preferences` resource receives non-consumption treatment.
+Full raw observations still enter declaration fingerprints and events. Missing
+security metadata refuses, even with equal content. The existing shared
+read-only executable projection removes only link-count/ctime observations.
+Other resources retain their complete effective inputs. Old v2 common hashes
+and remainder refusals remain byte-for-byte interpretable under their old rule.
+
+The routine classification controls compare unchanged, preference, replacement
+metadata and non-preference remainder observations across preparation, monitoring
+and a fresh reconstruction process. Actual phase/suite environment construction
+and a launched descendant select private inputs; an explicit consuming control
+observes the same shared sentinel and refuses change. Unknown paths, permission/
+ownership/attribute changes, missing observations and unsafe aliases refuse.
+The existing replacement controls exercise actual admission with the new common
+hash and prove a relevant mismatch creates neither attempt nor successor. These
+are disposable source controls, not production Full, Browser or model evidence.
 
 ## Implementation mapping
 
@@ -121,3 +164,63 @@ resolve. Other admitted hosts retain complete metadata equality and receive no
 new incidental-metadata exemption. Polling remains bounded and cannot prove
 absence of transient changes between observations; every observed native
 permission/flag/attribute difference remains a hard fault.
+
+## Strict task-owned Browser input and replacement route
+
+The version 5 lane is implemented by `local-canonical-browser-input.mjs`,
+`local-canonical-browser-bundle.mjs` and
+`local-canonical-browser-replacement.mjs`, composed with the existing executor,
+input monitor, attempt ledger, Browser-use recorder and stock reader. The policy
+above this source map owns admission; implementation does not authorize a run.
+
+| Consumer | Strict behavior | Retained compatibility |
+| --- | --- | --- |
+| Controller/environment | Exact local binding and replacement proof, or reviewed v2 source_revision retaining the consumed binding; no default selection | Legacy explicit/candidate selection outside the versioned lane |
+| Isolated phase and nested suite | Contract/path/fingerprint passed through the bounded environment; active checkout sentinel catches stripping | Existing HOME/temp/DB and process owners |
+| Project, continuity, operator lifecycle, project-client, Web-planning, durable/cumulative | Shared selector plus actual-launch assertion; whole bundle and CLI/HTTP/CDP identity at launch/settlement | All 19 records; seven Darwin wrapped launches retain the exact outer network policy plus `--no-sandbox`; twelve direct launches retain their existing sandbox behavior |
+| Input monitor | Enumerated metadata/security each poll, conservative hash cache, forced final read | Starts before unit/integration; original AbortSignal and stop rules |
+| Attempt ledger | One cross-kind immutable edge, latest settled tip, initial1/recovery0 for replacement and strict source_revision; consumed state carried forward | Historical source/recovery records readable; no renewed old allowance |
+| Stock and private export | Version 5 / export v2, authenticated review and grant re-read, exact live input reconstruction | Legacy receipts v3/v4 and export v1 stay readable |
+
+`test-local-canonical-browser-input.mjs` and
+`test-local-canonical-browser-replacement.mjs` add bounded focused controls using
+real readers and temporary repositories/anchors. They cover missing/stripped
+selection, link/content/permission/root races, all-fault eligibility, exact
+review/grant/source/environment/workload, replay, concurrent claims, crash-window
+refusal and fresh-process read-only reconstruction. Synthetic fixtures and
+about:blank identity probes do not count as product Browser coverage or Full.
+The reference inventory includes the app root itself; counts differ by one from
+historical inventories which enumerated only descendants.
+
+The existing v2 source-correction proof can follow a settled version 5 product
+failure with the same accepted Browser input. Its original receipt, complete
+delta, deterministic before/after regression and new exact-source review remain
+required. The existing authenticated authority binding also covers the new
+source, environment and workload; consumed authority cannot be renewed. Attempt,
+receipt and export readers preserve the consumed replacement state and reject
+recovery, input changes, legacy downgrade and recursive replacement. Disposable
+controls reconstruct both failed strict receipts and their exclusive lineage in
+a separate read-only process; they do not create a production successor.
+
+The durable/cumulative caller retains its historical nullish default: only an
+absent explicit Browser path selects the shared default outside the strict lane.
+An empty or missing explicit path refuses. Other legacy candidate-list owners
+retain their existing fallback behavior. Focused controls execute the actual
+durable selection/refusal and cumulative nested-environment composition against
+disposable inputs; the strict binding and stripping refusals remain unchanged.
+
+The existing `test-browser-verification-owners.mjs` unit child performs bounded
+Node syntax-only checks on complete Browser entry points and shared selection
+owners before product Browser phases. A complete malformed-file negative
+control must propagate the syntax child failure. This exact verifier test path
+is included in the replacement delta allowlist; neighboring or arbitrary test
+paths receive no exemption. Syntax checks do not launch product workloads or
+establish Browser lifecycle, artifact trust or qualification.
+
+The two wrapped launch constructions pass their complete spawn tuple through
+`strictNetworkSandboxLaunch`; caller labels alone do not retain the argument.
+Controls parse both complete TS entry files, execute pre-Browser entry refusals,
+and exercise the actual construction with positive and altered/missing-wrapper,
+profile, owner, platform and selection controls. No failure retries unwrapped.
+This preserves the trusted-local baseline, without additional Chromium
+filesystem/IPC isolation; the Local Canonical policy owns that tradeoff.

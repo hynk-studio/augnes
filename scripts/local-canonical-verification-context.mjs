@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, readdirSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
 import {
   CANONICAL_DARWIN_REPOSITORY_ROOT, CANONICAL_ORIGIN_URL,
   CANONICAL_REPOSITORY_ID, matchCanonicalRepositoryIdentity,
@@ -79,6 +80,23 @@ export function verificationAnchorRoot(context) {
   const options = contexts.get(context);
   if (!options) fail("verification_context_not_owned");
   return context.kind === "canonical" ? options.root : options.canonicalRoot;
+}
+
+// Observe the accepted checkout with its own supported inspector. A candidate
+// may add source files or raise runtime floors without adopting that candidate
+// into the installed service. The inspector still binds the accepted checkout,
+// configuration, executable and lifecycle before/after every observation.
+export async function inspectVerificationCompanionPreservation(context) {
+  const options = contexts.get(context);
+  if (!options) fail("verification_context_not_owned");
+  assertVerificationContext(context, options.root);
+  const repositoryRoot = verificationAnchorRoot(context);
+  const source = path.join(repositoryRoot, "plugins/augnes-operator/mcp/companion-service-core.mjs");
+  const stat = lstatSync(source);
+  if (!stat.isFile() || stat.isSymbolicLink() || realpathSync(source) !== source)
+    fail("companion_preservation_source_invalid");
+  const { inspectCompanionPreservation } = await import(pathToFileURL(source).href);
+  return inspectCompanionPreservation({ repositoryRoot });
 }
 
 export function physicalFingerprint(entry) {

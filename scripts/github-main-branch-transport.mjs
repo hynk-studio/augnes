@@ -27,9 +27,21 @@ export function createGitHubMainBranchTransport({ runner = runGhApi } = {}) {
   });
 }
 
+// The same authenticated, bounded, GET-only transport is used for this single
+// repository's Browser replacement review/grant. No caller-supplied URL, shell,
+// bearer value or local approval flag is accepted.
+export function createGitHubBrowserAuthorizationTransport({ runner = runGhApi } = {}) {
+  const get = endpoint => invoke(runner, { operation: "fetch_browser_authority", args: ["api", `repos/${AUTHORIZED_GITHUB_REPOSITORY}/${endpoint}`, "--hostname", "github.com", "--method", "GET", "--header", "Cache-Control: no-cache"] });
+  return Object.freeze({
+    review(id) { if (!Number.isSafeInteger(id) || id <= 0) throw transportError("github_review_id_invalid", "Invalid review identity"); return get(`pulls/1546/reviews/${id}`); },
+    grant(id) { if (!Number.isSafeInteger(id) || id <= 0) throw transportError("github_grant_id_invalid", "Invalid grant identity"); return get(`issues/comments/${id}`); },
+    permission(login) { if (!/^[A-Za-z0-9-]{1,39}$/u.test(login ?? "")) throw transportError("github_author_invalid", "Invalid author identity"); return get(`collaborators/${login}/permission`); },
+  });
+}
+
 function runGhApi({ operation, args }) {
   if (
-    operation !== "fetch_branch_head" ||
+    !["fetch_branch_head", "fetch_browser_authority"].includes(operation) ||
     !Array.isArray(args) ||
     args.some((arg) => typeof arg !== "string")
   ) {

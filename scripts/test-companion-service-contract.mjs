@@ -231,6 +231,18 @@ try {
   }
   const node = selectSupportedNode24Binary({ candidates: [process.execPath] });
   assert.match(node.version, /^v24\./u);
+  // Inspect real disposable executable files through the production selector.
+  // Below-floor candidates must be skipped without weakening path/version binding.
+  for (const version of ["v24.22.0", "v24.18.0", "v22.23.4", "v26.0.0", "v24.22.1-rc.1"]) {
+    const candidate = path.join(root, `node-${version}`);
+    writeFileSync(candidate, `#!/bin/sh\nprintf '%s\\n' '${version}'\n`, { mode: 0o700 });
+    assert.equal(selectSupportedNode24Binary({ candidates: [candidate], environment: {} }).path, node.path);
+    await assert.rejects(installCompanionService({ ...options, nodePath: candidate }),
+      error => error?.code === "companion_service_node24_required");
+  }
+  const floorCandidate = path.join(root, "node-security-floor");
+  writeFileSync(floorCandidate, "#!/bin/sh\nprintf '%s\\n' 'v24.22.1'\n", { mode: 0o700 });
+  assert.equal(selectSupportedNode24Binary({ candidates: [floorCandidate], environment: {} }).path, floorCandidate);
 
   let loaded = false;
   const launchAgentDirectory = path.join(home, "Library", "LaunchAgents");
@@ -2149,6 +2161,7 @@ function makeServiceRepositoryFixture({ root: fixtureRoot, name, sourceRepositor
     "plugins/augnes-operator/mcp/companion-service-core.mjs",
     "plugins/augnes-operator/mcp/checkout-identity.mjs",
     "plugins/augnes-operator/mcp/checkout-identity-darwin.py",
+    "plugins/augnes-operator/mcp/node-runtime-policy.mjs",
   ];
   for (const relativePath of sources) {
     const destination = path.join(repository, relativePath);

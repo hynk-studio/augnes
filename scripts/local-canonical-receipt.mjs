@@ -7,9 +7,12 @@ import { CODEX_REUSE_OWNER_IDS, CODEX_REUSE_PHASE_IDS } from "./codex-reuse-veri
 import { VERIFICATION_CONTEXT_CONTRACT } from "./local-canonical-verification-context.mjs";
 import { VERIFICATION_CAPACITY_CONTRACT, verificationCapacityLimit } from "./local-canonical-capacity.mjs";
 import { HISTORICAL_INPUT_CONTRACT } from "./local-canonical-historical-inputs.mjs";
-import { INPUT_CONTRACT, digest, deriveOperationalDisposition, nonFaultInputChange, classifyInputChange } from "./local-canonical-inputs.mjs";
+import { supportedInputContract, digest, deriveOperationalDisposition, nonFaultInputChange, classifyInputChange, effectiveInputObservation } from "./local-canonical-inputs.mjs";
 import { ATTEMPT_CONTRACT } from "./local-canonical-attempts.mjs";
 import { validPhaseBrowserUse } from "./local-canonical-browser-identity.mjs";
+import { BROWSER_INPUT_CONTRACT } from "./local-canonical-browser-input.mjs";
+import { BROWSER_REPLACEMENT_CONTRACT, BROWSER_REPLACEMENT_PHASES, isStrictBrowserSourceRevision } from "./local-canonical-browser-replacement.mjs";
+import { validBrowserBundle } from "./local-canonical-browser-bundle.mjs";
 
 export const LOCAL_CANONICAL_RECEIPT_SCHEMA =
   "augnes.local-canonical-receipt.v1";
@@ -133,6 +136,7 @@ export function assertPublicSafeReceipt(receipt) {
 export function inspectReceiptForDecision(receipt, options = {}) {
   const {
     currentInputStateValid = null,
+    currentBrowserInputValid = null,
     currentAttemptRecordsValid = null,
     currentIdentity = null,
     currentLocks = null,
@@ -156,7 +160,7 @@ export function inspectReceiptForDecision(receipt, options = {}) {
   if (receipt?.schema !== LOCAL_CANONICAL_RECEIPT_SCHEMA) {
     issues.push("receipt_schema_mismatch");
   }
-  if (![3, LOCAL_CANONICAL_RECEIPT_VERSION].includes(receipt?.receipt_version)) {
+  if (![3, 4, 5].includes(receipt?.receipt_version)) {
     issues.push("receipt_version_mismatch");
   }
   if (!verifyReceiptIntegrity(receipt)) {
@@ -256,7 +260,7 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     }
   }
   const ownership = receipt?.checkout_ownership;
-  const ownershipRequired = requiresCheckoutVerificationOwnership(selectedPlan) || isolated || (receipt?.receipt_version === 4 && mode !== "quick" && receipt?.phases?.length > 0);
+  const ownershipRequired = requiresCheckoutVerificationOwnership(selectedPlan) || isolated || ([4, 5].includes(receipt?.receipt_version) && mode !== "quick" && receipt?.phases?.length > 0);
   if (ownership?.required !== ownershipRequired || (ownershipRequired && (
     ownership?.acquired !== true || ownership?.released !== true || ownership?.failure_code !== null ||
     !SHA256_PATTERN.test(ownership?.checkout_fingerprint ?? "") ||
@@ -604,11 +608,22 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     }
   }
 
-  if (receipt?.receipt_version === 4) {
+  if ([4, 5].includes(receipt?.receipt_version)) {
     inspectClassifiedEvidence(receipt, issues);
     if (currentAttemptRecordsValid !== true) issues.push("receipt_attempt_records_unverified");
     if (currentInputStateValid !== true) issues.push("receipt_current_inputs_unverified");
   }
+  if (receipt?.receipt_version === 5) {
+    const b = receipt.browser_input, replacement = receipt.attempt?.browser_replacement, correction = receipt.attempt?.source_correction;
+    const strictSource = isStrictBrowserSourceRevision(correction) && receipt.attempt?.input_replacement_consumed === true;
+    const proof = replacement ?? correction;
+    if (b?.contract !== BROWSER_INPUT_CONTRACT || !validBrowserBundle(b?.bundle) || !SHA256_PATTERN.test(b?.fingerprint ?? "") ||
+        digest(b) !== digest(receipt.inputs?.binding?.browser_input) || (replacement ? replacement.contract !== BROWSER_REPLACEMENT_CONTRACT || !!correction : !strictSource) ||
+        digest(b) !== proof?.browser_input_sha256 || receipt.attempt?.recovery || receipt.attempt?.number !== 1 ||
+        receipt.browser_guard?.acquired !== true || receipt.browser_guard?.released !== true || receipt.browser_guard?.run_id !== receipt.run?.id ||
+        digest(receipt.phases?.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES) || receipt.evidence?.mode !== "full" ||
+        currentBrowserInputValid !== true || !receipt.inputs?.resources?.some(r => r?.id === "browser-bundle" && r.browserBundle === true && digest(r.before) === digest(b.bundle))) issues.push("receipt_browser_input_invalid");
+  } else if (receipt?.browser_input || receipt?.browser_guard || receipt?.attempt?.browser_replacement || receipt?.attempt?.source_correction?.browser_input_path || receipt?.inputs?.binding?.browser_input || (Array.isArray(receipt?.inputs?.resources) && receipt.inputs.resources.some(r => r?.browserBundle))) issues.push("receipt_browser_input_downgrade");
   const applicabilityCodes = new Set(["receipt_stale_integration_base", "receipt_current_integration_base_unavailable", "receipt_current_integration_base_invalid", "receipt_stale_head", "receipt_current_worktree_dirty", "receipt_stale_branch_state", "receipt_current_inputs_unverified"]);
   return {
     valid_deciding_evidence: issues.length === 0,
@@ -618,7 +633,7 @@ export function inspectReceiptForDecision(receipt, options = {}) {
       execution: phases.every(p => p?.status === "pass" && p?.exit_status === 0 && !p?.timed_out) && phases.length > 0 ? "complete_pass" : "incomplete_or_failed",
       historical_integrity: verifyReceiptIntegrity(receipt) ? "intact" : "invalid",
       evidence_validity: issues.filter(code => !applicabilityCodes.has(code)).length === 0 ? "valid_in_recorded_context" : "invalid_or_incomplete",
-      safety: receipt?.receipt_version === 4 ? receipt?.outcome?.safety ?? "unknown" : "legacy_recorded_scope",
+      safety: [4, 5].includes(receipt?.receipt_version) ? receipt?.outcome?.safety ?? "unknown" : "legacy_recorded_scope",
       current_merge_applicability: issues.some(code => applicabilityCodes.has(code)) ? "blocked" : "matches_observed_context",
     },
     content_fingerprint:
@@ -628,7 +643,7 @@ export function inspectReceiptForDecision(receipt, options = {}) {
 
 function inspectClassifiedEvidence(receipt, issues) {
   const input = receipt.inputs;
-  if (!input || input.contract !== INPUT_CONTRACT || !Array.isArray(input.resources) || !Array.isArray(input.events) ||
+  if (!input || !supportedInputContract(input.contract) || !Array.isArray(input.resources) || !Array.isArray(input.events) ||
       !input.resources.every(r => r && typeof r === "object") || !input.events.every(e => e && typeof e === "object") ||
       !Array.isArray(receipt.phases) || !receipt.phases.every(p => p && typeof p === "object")) {
     issues.push("receipt_input_contract_missing"); return;
@@ -643,10 +658,12 @@ function inspectClassifiedEvidence(receipt, issues) {
   for (const event of input.events) {
     const resource = input.resources.find(r => r.id === event.resource);
     if (!resource || !event.after || event.classification !== resource.classification ||
-        classifyInputChange(resource.before, event.after, resource) !== event.disposition ||
+        classifyInputChange(resource.before, event.after, resource, input) !== event.disposition ||
         event.identity !== digest([event.resource, event.disposition, event.after])) issues.push("receipt_input_event_invalid");
   }
   if (input.resources.some(r => r.readOnlyExecutable && (r.classification !== "execution" || r.metadataOnly || r.excludePreferences))) issues.push("receipt_input_role_invalid");
+  try { for (const resource of input.resources) effectiveInputObservation(resource.before, resource, input); }
+  catch { issues.push("receipt_input_role_invalid"); }
   const environments = input.binding?.phase_environment_fingerprints;
   if (!Array.isArray(environments) || !environments.every(e => e && typeof e === "object") || environments.length !== receipt.phases.length ||
       new Set(environments.map(e => e.id)).size !== environments.length || receipt.phases.some(p => !environments.some(e =>
@@ -658,7 +675,7 @@ function inspectClassifiedEvidence(receipt, issues) {
   const attempt = receipt.attempt;
   if (receipt.evidence.mode !== "quick" && (attempt?.contract !== ATTEMPT_CONTRACT || ![1, 2].includes(attempt.number) ||
       attempt.attempt_id !== receipt.run.id || attempt.head !== receipt.repository.head_sha || attempt.tree !== receipt.repository.tree_sha ||
-      attempt.contract_fingerprint !== input.fingerprint || attempt.budget?.initial !== 1 || attempt.budget?.recovery !== 1 ||
+      attempt.contract_fingerprint !== input.fingerprint || attempt.budget?.initial !== 1 || attempt.budget?.recovery !== (receipt.receipt_version === 5 ? 0 : 1) ||
       (attempt.number === 1 && (attempt.prior_attempt_id !== null || attempt.recovery !== null)) ||
       (attempt.number === 2 && (!SHA256_PATTERN.test(attempt.prior_receipt_fingerprint ?? "") || !attempt.recovery)))) issues.push("receipt_attempt_lineage_invalid");
   const expectedBrowser = input.resources.find(r => r.id === "browser-executable");
@@ -668,7 +685,7 @@ function inspectClassifiedEvidence(receipt, issues) {
       if (phase.browser_use?.length) issues.push(`receipt_browser_identity_invalid:${safeIdentifier(phase.id)}`);
       continue;
     }
-    if (!validPhaseBrowserUse(phase, phase.browser_use ?? [], expectedBrowser ? { ...expectedBrowser, actual_version: actualVersion } : null))
+    if (!validPhaseBrowserUse(phase, phase.browser_use ?? [], expectedBrowser ? { ...expectedBrowser, actual_version: actualVersion, ...(receipt.receipt_version === 5 ? { browser_input: receipt.browser_input } : {}) } : null))
       issues.push(`receipt_browser_identity_invalid:${safeIdentifier(phase.id)}`);
     actualVersion ??= phase.browser_use?.[0]?.actual_version ?? null;
   }

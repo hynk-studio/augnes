@@ -34,6 +34,7 @@ const REVIEWED_FILES = Object.freeze([
   "mcp/operating-profile.mjs",
   "mcp/external-response.mjs",
   "mcp/companion-service-core.mjs",
+  "mcp/node-runtime-policy.mjs",
   "mcp/checkout-identity.mjs",
   "mcp/checkout-identity-darwin.py",
   "skills/augnes-autonomy-contract/SKILL.md",

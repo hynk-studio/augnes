@@ -4,6 +4,8 @@ import { execFileSync } from "node:child_process";
 import { digest } from "./local-canonical-inputs.mjs";
 import { assertCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
 import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
+import { readBrowserInputBinding } from "./local-canonical-browser-input.mjs";
+import { BROWSER_REPLACEMENT_CONTRACT, assertBrowserReplacementAuthorization, validateBrowserReplacementLive, validateStrictBrowserLive, isStrictBrowserSourceRevision } from "./local-canonical-browser-replacement.mjs";
 
 export const ATTEMPT_CONTRACT = "augnes.local-canonical-attempt-family.v1";
 const fail = code => Object.assign(new Error(code), { code });
@@ -26,18 +28,43 @@ function append(root, name, value) { writeFileSync(path.join(root, name), `${JSO
 
 // Family lives at the physical anchor, keyed by repository and branch (not
 // commit, wrapper process or checkout). There is no CLI family-id reset knob.
-export function beginAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, head, tree, runId, contractFingerprint, recoveryProof = null, sourceCorrection = null, acceptedMain = null }) {
+export function beginAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, head, tree, runId, contractFingerprint, recoveryProof = null, sourceCorrection = null, browserReplacement = null, browserAuthorization = null, browserLive = null, acceptedMain = null }) {
   assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
   if (!branch || !/^[0-9a-f]{40}$/u.test(head) || !/^[0-9a-f]{40}$/u.test(tree) || !sha(contractFingerprint)) throw fail("attempt_identity_invalid");
-  const familyId = candidateFamilyId(branch, sourceCorrection);
+  if ([recoveryProof, sourceCorrection, browserReplacement].filter(Boolean).length > 1) throw fail("attempt_mixed_successor_kind");
+  const strictSource = isStrictBrowserSourceRevision(sourceCorrection);
+  const familyId = candidateFamilyId(branch, sourceCorrection, browserReplacement);
   const artifact = directory(anchorRoot, ".augnes-local-verification");
-  if (sourceCorrection) admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof: sourceCorrection, acceptedMain, reserve: true });
+  if (sourceCorrection && read(path.join(anchorRoot, ".augnes-local-verification", "families", sourceCorrection.prior_family_id, `attempt-${sourceCorrection.prior_number}.json`)).branch !== branch) throw fail("source_correction_predecessor_invalid");
+  if (sourceCorrection || browserReplacement) {
+    const tip = reconstructAttemptTip({ anchorRoot, branch });
+    const proof = sourceCorrection ?? browserReplacement;
+    if (tip.family_id !== proof.prior_family_id || tip.number !== proof.prior_number || tip.attempt_id !== proof.prior_attempt_id ||
+        (browserReplacement ? tip.input_replacement_consumed : tip.input_replacement_consumed !== strictSource)) throw fail("attempt_latest_tip_required");
+  }
+  if (sourceCorrection) admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof: sourceCorrection, acceptedMain, browserAuthorization, browserLive, reserve: true });
+  if (browserReplacement) {
+    assertBrowserReplacementAuthorization(browserReplacement, browserAuthorization);
+    validateBrowserReplacementLive({ ...browserLive, proof: browserReplacement, repositoryRoot, branch, head, tree, base: acceptedMain });
+    const priorRoot = path.join(anchorRoot, ".augnes-local-verification", "families", browserReplacement.prior_family_id);
+    const prior = read(path.join(priorRoot, `attempt-${browserReplacement.prior_number}.json`));
+    const completion = read(path.join(priorRoot, `completion-${browserReplacement.prior_number}.json`));
+    if (completion.contract !== ATTEMPT_CONTRACT || !Number.isFinite(Date.parse(completion.finished_at)) ||
+        prior.attempt_id !== browserReplacement.prior_attempt_id || completion.attempt_id !== prior.attempt_id || completion.receipt_fingerprint !== browserReplacement.prior_receipt_fingerprint ||
+        completion.disposition !== "safety_violation" || completion.cleanup_complete !== true ||
+        Date.parse(browserAuthorization.observations.review.timestamp) <= Date.parse(completion.finished_at)) throw fail("browser_replacement_predecessor_unsettled");
+    // One namespace for all kinds. Even an identical claim cannot be replayed
+    // after a crash; only inspection may read an existing immutable edge.
+    append(priorRoot, "correction-successor.json", browserSuccessor(branch, browserReplacement));
+  }
   const root = directory(directory(artifact, "families"), familyId);
   const entries = readdirSync(root);
   if (entries.some(name => !/^(attempt|completion)-[12]\.json$/u.test(name) && name !== "correction-successor.json")) throw fail("attempt_unknown_record");
   const previous = entries.includes("attempt-1.json") ? read(path.join(root, "attempt-1.json")) : null;
   let number = 1, prior = null;
   if (previous) {
+    const tip = reconstructAttemptTip({ anchorRoot, branch });
+    if (tip.family_id !== familyId || tip.input_replacement_consumed) throw fail("attempt_candidate_superseded");
     if (entries.includes("correction-successor.json")) throw fail("attempt_candidate_superseded");
     if (entries.includes("attempt-2.json") || !entries.includes("completion-1.json")) throw fail("attempt_budget_or_unsettled");
     prior = read(path.join(root, "completion-1.json"));
@@ -49,7 +76,10 @@ export function beginAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch
   const record = { contract: ATTEMPT_CONTRACT, family_id: familyId, attempt_id: runId, number, branch,
     head, tree, contract_fingerprint: contractFingerprint, started_at: new Date().toISOString(),
     prior_attempt_id: prior?.attempt_id ?? null, prior_receipt_fingerprint: prior?.receipt_fingerprint ?? null,
-    recovery: number === 2 ? recoveryProof : null, source_correction: sourceCorrection, budget: { initial: 1, recovery: 1 } };
+    recovery: number === 2 ? recoveryProof : null, source_correction: sourceCorrection,
+    ...(browserReplacement ? { browser_replacement: browserReplacement, browser_authority: browserAuthorization.observations } : {}),
+    ...(strictSource ? { input_replacement_consumed: true, browser_authority: browserAuthorization.observations } : {}),
+    budget: { initial: 1, recovery: browserReplacement || strictSource ? 0 : 1 } };
   append(root, `attempt-${number}.json`, record);
   const capability = Object.freeze({ ...record });
   capabilities.set(capability, { root, repositoryRoot, checkoutOwner, record });
@@ -99,18 +129,40 @@ export function readRecoveryProof(file) {
   return proof;
 }
 
-export function inspectAttemptRecords({ anchorRoot, repositoryRoot = anchorRoot, receipt }) {
+export function inspectAttemptRecords({ anchorRoot, repositoryRoot = anchorRoot, receipt, browserAuthorization = null, browserLive = null }) {
   try {
     const attempt = receipt.attempt;
-    const familyId = candidateFamilyId(receipt.repository.branch, attempt.source_correction);
+    const familyId = candidateFamilyId(receipt.repository.branch, attempt.source_correction, attempt.browser_replacement);
+    if (attempt.browser_replacement) {
+      if (receipt.receipt_version !== 5 || attempt.number !== 1 || attempt.source_correction || attempt.recovery || attempt.budget.recovery !== 0) return false;
+      assertBrowserReplacementAuthorization(attempt.browser_replacement, browserAuthorization);
+      if (digest(attempt.browser_authority) !== digest(browserAuthorization.observations)) return false;
+      validateBrowserReplacementLive({ ...browserLive, proof: attempt.browser_replacement, repositoryRoot, branch: receipt.repository.branch,
+        head: attempt.head, tree: attempt.tree, base: receipt.repository.base_sha });
+      const proof = attempt.browser_replacement;
+      const priorRoot = path.join(anchorRoot, ".augnes-local-verification", "families", proof.prior_family_id);
+      const completion = read(path.join(priorRoot, `completion-${proof.prior_number}.json`));
+      if (completion.attempt_id !== proof.prior_attempt_id || completion.receipt_fingerprint !== proof.prior_receipt_fingerprint || completion.cleanup_complete !== true || completion.disposition !== "safety_violation" ||
+          digest(read(path.join(priorRoot, "correction-successor.json"))) !== digest(browserSuccessor(receipt.repository.branch, proof))) return false;
+      const tip = reconstructAttemptTip({ anchorRoot, branch: receipt.repository.branch });
+      if (tip.family_id !== familyId || tip.attempt_id !== attempt.attempt_id) return false;
+    }
     if (attempt.source_correction) admitSourceCorrection({ anchorRoot, repositoryRoot, branch: receipt.repository.branch,
-      head: attempt.head, tree: attempt.tree, proof: attempt.source_correction, acceptedMain: receipt.repository.base_sha, reserve: false });
+      head: attempt.head, tree: attempt.tree, proof: attempt.source_correction, acceptedMain: receipt.repository.base_sha, browserAuthorization, browserLive, reserve: false });
+    if (isStrictBrowserSourceRevision(attempt.source_correction)) {
+      if (receipt.receipt_version !== 5 || attempt.browser_replacement || attempt.recovery || attempt.number !== 1 ||
+          attempt.budget?.initial !== 1 || attempt.budget?.recovery !== 0 || attempt.input_replacement_consumed !== true ||
+          digest(attempt.browser_authority) !== digest(browserAuthorization?.observations)) return false;
+      const tip = reconstructAttemptTip({ anchorRoot, branch: receipt.repository.branch });
+      if (tip.family_id !== familyId || tip.attempt_id !== attempt.attempt_id || !tip.input_replacement_consumed) return false;
+    }
     if (attempt.family_id !== familyId || ![1, 2].includes(attempt.number)) return false;
     const root = path.join(anchorRoot, ".augnes-local-verification", "families", familyId);
     if (realpathSync(root) !== root || !lstatSync(root).isDirectory()) return false;
     const original = read(path.join(root, `attempt-${attempt.number}.json`));
     const completion = read(path.join(root, `completion-${attempt.number}.json`));
-    if (digest(original) !== digest(attempt) || completion.attempt_id !== receipt.run.id ||
+    if (original.contract !== ATTEMPT_CONTRACT || completion.contract !== ATTEMPT_CONTRACT || !Number.isFinite(Date.parse(completion.finished_at)) ||
+        digest(original) !== digest(attempt) || completion.attempt_id !== receipt.run.id ||
         completion.receipt_fingerprint !== receipt.integrity.content_fingerprint ||
         completion.disposition !== receipt.outcome.disposition || completion.cleanup_complete !== receipt.cleanup.completed) return false;
     if (attempt.number === 2) {
@@ -121,9 +173,58 @@ export function inspectAttemptRecords({ anchorRoot, repositoryRoot = anchorRoot,
   } catch { return false; }
 }
 
-function candidateFamilyId(branch, correction) {
+function candidateFamilyId(branch, correction, replacement) {
   return digest([ATTEMPT_CONTRACT, "hynk-studio/augnes", branch,
+    ...(replacement ? [BROWSER_REPLACEMENT_CONTRACT, replacement.prior_family_id, replacement.prior_attempt_id] : []),
     ...(correction ? ["verified_source_correction", correction.prior_attempt_id, correction.head, correction.tree] : [])]);
+}
+
+const browserSuccessor = (branch, proof) => ({ contract: "augnes.local-canonical-successor.v2", kind: "browser_input_replacement",
+  family_id: candidateFamilyId(branch, null, proof), head: proof.head, tree: proof.tree, proof_fingerprint: digest(proof) });
+
+export function reconstructAttemptTip({ anchorRoot, branch }) {
+  let familyId = candidateFamilyId(branch), inputReplacementConsumed = false, retainedInput = null;
+  const seen = new Set();
+  for (let depth = 0; depth < 128; depth++) {
+    if (seen.has(familyId)) throw fail("attempt_lineage_cycle");
+    seen.add(familyId);
+    const root = path.join(anchorRoot, ".augnes-local-verification", "families", familyId);
+    if (realpathSync(root) !== root) throw fail("attempt_unsafe_directory");
+    const entries = readdirSync(root);
+    if (entries.some(name => !/^(attempt|completion)-[12]\.json$/u.test(name) && name !== "correction-successor.json")) throw fail("attempt_unknown_record");
+    const number = entries.includes("attempt-2.json") ? 2 : 1;
+    const attempt = read(path.join(root, `attempt-${number}.json`));
+    if (attempt.contract !== ATTEMPT_CONTRACT || attempt.branch !== branch || attempt.family_id !== familyId || attempt.number !== number ||
+        (attempt.source_correction && !["augnes.local-canonical-source-correction.v1", "augnes.local-canonical-source-correction.v2"].includes(attempt.source_correction.schema)) ||
+        (attempt.browser_replacement && (attempt.browser_replacement.contract !== BROWSER_REPLACEMENT_CONTRACT || attempt.browser_replacement.kind !== "browser_input_replacement" ||
+          attempt.source_correction || attempt.recovery || number !== 1 || attempt.budget?.initial !== 1 || attempt.budget?.recovery !== 0))) throw fail("attempt_lineage_identity_invalid");
+    if (inputReplacementConsumed) {
+      if (attempt.browser_replacement || !isStrictBrowserSourceRevision(attempt.source_correction) ||
+          attempt.input_replacement_consumed !== true || attempt.source_correction.browser_input_sha256 !== retainedInput ||
+          attempt.recovery || number !== 1 || attempt.budget?.initial !== 1 || attempt.budget?.recovery !== 0)
+        throw fail("attempt_strict_input_lineage_invalid");
+    } else if (attempt.input_replacement_consumed !== undefined || isStrictBrowserSourceRevision(attempt.source_correction)) {
+      throw fail("attempt_strict_input_lineage_invalid");
+    }
+    if (attempt.browser_replacement) { inputReplacementConsumed = true; retainedInput = attempt.browser_replacement.browser_input_sha256; }
+    const edgeFile = path.join(root, "correction-successor.json");
+    if (!entries.includes("correction-successor.json")) return { family_id: familyId, number, attempt_id: attempt.attempt_id, input_replacement_consumed: inputReplacementConsumed };
+    const completion = read(path.join(root, `completion-${number}.json`)), edge = read(edgeFile);
+    const edgeKeys = edge.contract === undefined ? ["family_id", "head", "tree", "proof_fingerprint"] : ["contract", "kind", "family_id", "head", "tree", "proof_fingerprint"];
+    if (completion.contract !== ATTEMPT_CONTRACT || completion.attempt_id !== attempt.attempt_id || completion.cleanup_complete !== true || !sha(completion.receipt_fingerprint) || !sha(edge.family_id) || !sha(edge.proof_fingerprint) ||
+        digest(Object.keys(edge).sort()) !== digest(edgeKeys.sort()) ||
+        (edge.contract !== undefined && (edge.contract !== "augnes.local-canonical-successor.v2" || edge.kind !== "browser_input_replacement"))) throw fail("attempt_lineage_edge_invalid");
+    const next = read(path.join(anchorRoot, ".augnes-local-verification", "families", edge.family_id, "attempt-1.json"));
+    const proof = next.browser_replacement ?? next.source_correction;
+    if (!proof || proof.prior_family_id !== familyId || proof.prior_number !== number || proof.prior_attempt_id !== attempt.attempt_id || proof.prior_receipt_fingerprint !== completion.receipt_fingerprint ||
+        digest(proof) !== edge.proof_fingerprint || next.head !== edge.head || next.tree !== edge.tree ||
+        candidateFamilyId(branch, next.source_correction, next.browser_replacement) !== edge.family_id ||
+        (edge.kind === "browser_input_replacement") !== !!next.browser_replacement) throw fail("attempt_lineage_edge_invalid");
+    if (inputReplacementConsumed && (completion.disposition !== "product_failure" || next.head === attempt.head || next.tree === attempt.tree))
+      throw fail("attempt_strict_source_predecessor_invalid");
+    familyId = edge.family_id;
+  }
+  throw fail("attempt_lineage_bound");
 }
 
 // A real source correction is a new candidate, never an infrastructure retry.
@@ -136,10 +237,18 @@ export function readSourceCorrectionProof(file, repositoryRoot) {
     throw fail("source_correction_unsafe_path");
   const proof = read(file);
   const version2 = proof.schema === "augnes.local-canonical-source-correction.v2";
-  if (version2) readCandidateReview(file, proof);
+  const review = version2 ? readCandidateReview(file, proof) : null;
+  if (["browser_input_path", "browser_input_sha256", "input_replacement_consumed"].some(k => Object.hasOwn(proof, k))) {
+    if (!isStrictBrowserSourceRevision(proof) || proof.budget?.initial !== 1 || proof.budget?.recovery !== 0 ||
+        !/^[0-9a-f]{40}$/u.test(proof.base ?? "") ||
+        !["browser_input_sha256", "executor_fingerprint", "environment_fingerprint", "workload_fingerprint", "common_inputs_sha256", "delta_sha256"].every(k => sha(proof[k])) ||
+        proof.delta_sha256 !== review.delta_sha256 || digest(proof.changed_paths) !== digest(review.changed_paths) ||
+        digest(readBrowserInputBinding(proof.browser_input_path, repositoryRoot).publicBinding) !== proof.browser_input_sha256)
+      throw fail("source_correction_strict_input_invalid");
+  }
   if (version2 && proof.kind === "accepted_main_integration") return { ...proof, local_relative_path: relative };
   if ((!version2 && proof.schema !== "augnes.local-canonical-source-correction.v1") ||
-      !(version2 ? /^(?:scripts|app|lib|plugins|apps|src)\/[a-zA-Z0-9_./-]+\.(?:mjs|cjs|js|ts|tsx)$/u : /^scripts\/[a-z0-9_/-]+\.mjs$/u).test(proof.source_module ?? "") || (proof.source_module ?? "").split("/").includes("..") ||
+      !(version2 ? /^(?:next\.config\.ts|components\/blank-state\/blank-state-client\.tsx|(?:scripts|app|lib|plugins|apps|src)\/[a-zA-Z0-9_./-]+\.(?:mjs|cjs|js|ts|tsx))$/u : /^scripts\/[a-z0-9_/-]+\.mjs$/u).test(proof.source_module ?? "") || (proof.source_module ?? "").split("/").includes("..") ||
       !/^[a-z][a-z0-9_-]{0,79}$/u.test(proof.defect ?? "") || !sha(proof.fixture_sha256) ||
       !sha(proof.prior_family_id) || ![1, 2].includes(proof.prior_number) || !sha(proof.prior_receipt_fingerprint)) throw fail("source_correction_proof_invalid");
   if (!/^[a-z0-9_-]+\.mjs$/u.test(proof.fixture_artifact ?? "") || !sha(proof.environment_fingerprint)) throw fail("source_correction_fixture_missing");
@@ -162,7 +271,7 @@ export function readSourceCorrectionProof(file, repositoryRoot) {
   return { ...proof, local_relative_path: relative.split(path.sep).join("/") };
 }
 
-function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof, acceptedMain, reserve }) {
+function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof, acceptedMain, browserAuthorization, browserLive, reserve }) {
   const reread = readSourceCorrectionProof(path.join(repositoryRoot, proof.local_relative_path ?? ""), repositoryRoot);
   if (digest(reread) !== digest(proof) || proof.branch !== branch || proof.head !== head || proof.tree !== tree ||
       !/^[0-9a-f]{40}$/u.test(head) || !/^[0-9a-f]{40}$/u.test(tree)) throw fail("source_correction_identity_invalid");
@@ -194,6 +303,19 @@ function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree,
         review.delta_sha256 !== digest(git(["diff", "--binary", "--no-ext-diff", "--no-textconv", prior.head, head, "--"])) ||
         digest(review.changed_paths) !== digest(git(["diff", "--name-only", prior.head, head, "--"]).toString().trim().split("\n").sort()))
       throw fail("candidate_review_binding_invalid");
+    const strict = isStrictBrowserSourceRevision(proof);
+    if ((original.receipt_version === 5 || prior.browser_replacement || isStrictBrowserSourceRevision(prior.source_correction)) !== strict)
+      throw fail("source_correction_strict_input_required");
+    if (strict) {
+      if (original.receipt_version !== 5 || completion.disposition !== "product_failure" || prior.budget?.recovery !== 0 ||
+          digest(original.browser_input) !== proof.browser_input_sha256 || digest(original.inputs?.binding?.browser_input) !== proof.browser_input_sha256 ||
+          original.attempt?.family_id !== proof.prior_family_id || original.attempt?.number !== proof.prior_number ||
+          proof.authorization?.review_id === prior.browser_authority?.review?.id || proof.authorization?.grant_comment_id === prior.browser_authority?.grant?.id)
+        throw fail("source_correction_strict_predecessor_invalid");
+      assertBrowserReplacementAuthorization(proof, browserAuthorization);
+      if (Date.parse(browserAuthorization.observations.review.timestamp) <= Date.parse(completion.finished_at)) throw fail("source_correction_review_predates_settlement");
+      validateStrictBrowserLive({ ...browserLive, proof, branch, head, tree, base: acceptedMain });
+    }
     if (proof.kind === "verifier_correction" && (!VERIFIER_MODULES.includes(proof.source_module) ||
         original.inputs?.first_fault?.disposition !== completion.disposition || review.addresses_disposition !== completion.disposition ||
         review.prior_fault_fingerprint !== digest(original.inputs.first_fault) || review.addresses_resource !== original.inputs.first_fault.resource))
@@ -215,8 +337,7 @@ function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree,
   const successor = { family_id: candidateFamilyId(branch, proof), head, tree, proof_fingerprint: digest(proof) };
   const reservation = path.join(priorRoot, "correction-successor.json");
   if (reserve) {
-    try { append(priorRoot, "correction-successor.json", successor); }
-    catch (error) { if (error.code !== "EEXIST") throw error; }
+    append(priorRoot, "correction-successor.json", successor);
   }
   if (digest(read(reservation)) !== digest(successor)) throw fail("source_correction_successor_already_bound");
 }
