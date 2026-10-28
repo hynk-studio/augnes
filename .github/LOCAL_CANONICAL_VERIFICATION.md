@@ -734,7 +734,7 @@ trust or third-party attestation.
 
 The [consumer map](../docs/LOCAL_CANONICAL_INPUT_CONTRACT.md) identifies the
 controller, authenticated transport, dependency, suite, native-fixture and
-Browser boundaries. The executor freezes `augnes.local-canonical-inputs.v2`
+Browser boundaries. The executor freezes `augnes.local-canonical-inputs.v3`
 before the first phase. Its fingerprint binds declared source/tree, executor,
 selected environment and phase inventory. Isolated children still use the
 existing strict environment filter and private HOME/temp/cache/database/runtime.
@@ -742,15 +742,30 @@ Neither private HOME nor a configuration key's name alone establishes exclusion.
 
 Execution inputs, safety resources, proven non-consumed ambient context and
 unknown relevance have different dispositions. On the audited isolated
-model-free path, only unambiguous leading top-level `model`,
-`model_reasoning_effort` and `service_tier` scalar values can be excluded.
-Every other configuration byte is covered by a remainder fingerprint; unknown
-syntax or mixed trust/permission/other changes do not become an exemption.
-The canonical path remains conservative. No rule authorizes writing preferences,
+model-free path, the shared developer `~/.codex/config.toml` is observed but
+not consumed by the selected controller, phases or descendants. Version 3
+therefore binds its location, presence, regular-file/single-link resolution,
+device, mode, owner/group and ACL/file-flag/extended-attribute identity; its
+content hash, size, inode and timestamps remain diagnostic observations. This
+includes non-preference remainder changes: no lost historical edit or writer
+is inferred. Preparation/admission, monitoring and stock reconstruction use the
+same effective identity, including the existing incidental executable metadata
+rule. The complete raw observations remain separately bound in each receipt.
+No other ambient or unknown resource receives this exclusion. Consuming and
+unknown paths remain conservative; task-owned configuration, instructions,
+credentials, transport, source, tools, workload, Browser and Companion protections
+remain binding. Source changes introducing a consumer require renewed review
+of the consumer map and its controls. No rule authorizes writing preferences,
 copying credentials, launching a model or changing installed services.
 
-Configuration contents are compared in memory. Receipts contain safe identities
-and a narrow non-secret projection, never complete configuration or credential
+Version 2 material retains its original raw preparation/admission hash and
+preference-only comparison (leading `model`, `model_reasoning_effort` and
+`service_tier` values; remainder changes refuse). Version 3 never reinterprets
+an old refusal, receipt, proof or consumed allowance as successful. The version
+is an interpretation discriminator, not an input-ignore option or new proof kind.
+
+Configuration contents are hashed in memory. Receipts contain safe identities
+(and the historical version 2 preference projection), never complete configuration or credential
 contents. Auth locations are observed through metadata only. Excluded-file
 content-equivalent replacement may be recorded without cancellation; changed
 type, permissions, ownership, unsafe aliases or relevant input identity refuse.

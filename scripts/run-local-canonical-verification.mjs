@@ -16,7 +16,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { freezeInputContract, monitorInputContract, digest, deriveOperationalDisposition, createInputReader, classifyInputChange, nonFaultInputChange } from "./local-canonical-inputs.mjs";
+import { freezeInputContract, monitorInputContract, digest, deriveOperationalDisposition, createInputReader, classifyInputChange, nonFaultInputChange, inputReadOptions, commonInputResources, supportedInputContract } from "./local-canonical-inputs.mjs";
 import { readBrowserInputBinding, browserInputEnvironment, selectedBrowserInput, acquireBrowserInputGuard, releaseBrowserInputGuard, assertBrowserInputGuard } from "./local-canonical-browser-input.mjs";
 import { readBrowserReplacementProof, authorizeBrowserReplacement, BROWSER_REPLACEMENT_PHASES, isStrictBrowserSourceRevision } from "./local-canonical-browser-replacement.mjs";
 import { beginAttempt, finishAttempt, readRecoveryProof, readSourceCorrectionProof, inspectAttemptRecords } from "./local-canonical-attempts.mjs";
@@ -1201,6 +1201,8 @@ export async function executeLocalCanonicalVerification({
 }
 
 export function prepareInvocationInputs({ verificationContext, isolatedResources, browserExecutablePath, browserInput = null, headSha, executorFingerprint, phaseDefinitions }) {
+  if ((verificationContext.kind === "isolated-worktree") !== Boolean(isolatedResources))
+    throw Object.assign(new Error("input_isolation_context_mismatch"), { code: "input_isolation_context_mismatch" });
   const environments = phaseDefinitions.map(phase => ({ id: phase.id, values: phaseEnvironment({ phase, isolatedResources, browserExecutablePath, browserInput }) }));
   const resources = invocationInputResources({ verificationContext, browserExecutablePath, browserInput });
   return freezeInputContract({ resources, pathKind: isolatedResources ? "isolated-model-free-v1" : "canonical-conservative-v1",
@@ -1241,13 +1243,13 @@ function currentInputEvidenceValid(receipt, verificationContext, browserExecutab
     const resources = invocationInputResources({ verificationContext, browserExecutablePath, browserInput });
     const readInput = createInputReader();
     const declared = receipt.inputs?.resources;
-    if (!Array.isArray(declared) || resources.length !== declared.length) return false;
+    if (!supportedInputContract(receipt.inputs?.contract) || !Array.isArray(declared) || resources.length !== declared.length) return false;
     return resources.every(resource => {
       const prior = declared.find(r => r.id === resource.id);
       if (!prior || prior.location_fingerprint !== digest(resource.file) || prior.classification !== resource.classification ||
           prior.excludePreferences !== resource.excludePreferences || prior.metadataOnly !== resource.metadataOnly || prior.readOnlyExecutable !== resource.readOnlyExecutable || prior.browserBundle !== resource.browserBundle) return false;
-      const current = readInput(resource.file, { metadataOnly: resource.metadataOnly, preferences: resource.excludePreferences, readOnlyExecutable: resource.readOnlyExecutable, browserBundle: resource.browserBundle, force: true });
-      return nonFaultInputChange(classifyInputChange(prior.before, current, resource));
+      const current = readInput(resource.file, { ...inputReadOptions(resource, receipt.inputs), force: true });
+      return nonFaultInputChange(classifyInputChange(prior.before, current, resource, receipt.inputs));
     });
   } catch { return false; }
 }
@@ -1269,7 +1271,7 @@ export function browserReplacementLiveBinding({ browserInput, host, machineFinge
       operating_system_version: host.operating_system_version, operating_system_build: host.operating_system_build,
       architecture: host.architecture, node: nodePolicy.actual_version, path_node: host.path_node_version, npm: host.npm_version,
       tool_inputs: inputs.resources.filter(r => ["node-executable", "npm-executable", "git-executable", "gh-executable"].includes(r.id)) }),
-    workloadFingerprint: digest(phaseDefinitions), commonInputsSha256: digest(inputs.resources.filter(r => !r.id.startsWith("browser-"))) };
+    workloadFingerprint: digest(phaseDefinitions), commonInputsSha256: digest(commonInputResources(inputs)) };
 }
 
 function assertFrozenSource(identityBefore, verificationContext) {
@@ -1902,7 +1904,7 @@ export async function executePhase({
   };
 }
 
-function phaseEnvironment({ phase, isolatedResources, browserExecutablePath, browserInput = null }) {
+export function phaseEnvironment({ phase, isolatedResources, browserExecutablePath, browserInput = null }) {
   const environment = isolatedResources ? {
     ...isolatedInvocationEnvironment(isolatedResources),
     ...(browserExecutablePath ? { AUGNES_BROWSER_EXECUTABLE_PATH: browserExecutablePath } : {}),

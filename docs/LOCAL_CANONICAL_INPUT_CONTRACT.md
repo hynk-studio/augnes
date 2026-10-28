@@ -15,7 +15,7 @@ obligations; it does not grant execution, provider, lifecycle or merge authority
 | Dependency preparation | Root/nested/Web `npm ci`, lockfiles and package lifecycle scripts | Existing clean-install authority retained; private npm configuration/cache; package and lock changes are source inputs, installed trees are not reusable proof |
 | Browser | Project-experience, continuity, project-client and Web-planning launchers; shared operator lifecycle including golden and four navigation controls; integration durable/cumulative surfaces | Reuse process owners; record selected executable at actual launch/settlement and agreeing HTTP/CDP runtime versions. Freeze exact consumer counts for every consuming phase, including integration; forward nested evidence and refuse missing records |
 | Installed Companion | Supported preservation observer and existing context owner | Coherent before/after identity, no lifecycle in isolated context; observation/ownership failure remains blocking |
-| Shared Codex preferences | No selected isolated controller/phase launches the developer Codex client or uses its model selection | Only narrowly recognized top-level model/effort/tier values may be excluded on this audited path; remainder and metadata safety checks remain conservative |
+| Shared Codex configuration | No selected isolated controller/phase launches the developer Codex client or consumes its shared configuration; native fixture consumers select private configuration and temporary source roots | v3 treats content and replacement metadata as observations only for this fixed resource/path; presence, resolution, single link, mode, ownership, device, ACL/flags/attributes remain bound. v2 retains preference-only exclusion and its original raw binding |
 | Hooks and authority | Git reads do not dispatch checkout/commit hooks; canonical suites use private fake clients and runtime roots | No live client/model launch from this contract; source changes introducing a consumer require renewed classification and tests |
 
 The orchestration conversation's running model is outside the deterministic
@@ -23,6 +23,49 @@ qualification process. Its effective settings and historical configuration
 writers are not established by this contract. A consuming path cannot claim the
 isolated path's exclusion. Inherited PATH, explicit paths, transport, package
 scripts and descendant launchers remain inputs even with a private HOME.
+
+### Effective input equivalence (v3)
+
+The parent uses Git, Node/npm, the planner, the authenticated `gh` transport and
+the supported Companion preservation inspector. Its only shared Codex-config
+read is the input observer. Git reads do not launch Codex or dispatch commit/
+checkout hooks. `phaseEnvironment` takes the owned isolated-resource capability;
+`prepareInvocationInputs` refuses a context/resource mismatch. The outer owner
+uses `buildCanonicalChildEnvironment`, and `run-canonical-test-suite` applies
+that same filter again for every child. Neither layer forwards `CODEX_HOME`,
+provider credentials, `NODE_OPTIONS`, or live-provider opt-ins. Explicit tool
+paths and the existing private npm cache/configuration behavior remain unchanged.
+
+The native consumers need more than HOME reasoning: `codex-credential-broker`
+selects CODEX_HOME or homedir, while `codex-scoped-task` also inspects source-root
+ancestors and managed policy. Their selected model-free tests use synthetic
+Codex homes and temporary stage/source roots (`test-codex-candidate-canary-binding`,
+`test-codex-app-server-sandbox-projection`, `test-codex-scoped-code-mode`). They
+retain fake-adapter or fixed-loopback native fixtures and existing managed-policy
+refusals. Browser owners retain their canonical no-provider fixture route.
+No exemption is granted to managed policy, a new explicit shared path, a live
+client, or a different/unknown consumer. The host agent's own permission policy
+is outside these disposable controls and is never edited by them.
+
+`effectiveInputObservation` is the single projection used by comparison and
+`commonInputResources`; `browserReplacementLiveBinding` uses it for preparation
+and admission, and stock reconstructs the same versioned rule. Only the fixed
+v3 isolated `codex-preferences` resource receives non-consumption treatment.
+Full raw observations still enter declaration fingerprints and events. Missing
+security metadata refuses, even with equal content. The existing shared
+read-only executable projection removes only link-count/ctime observations.
+Other resources retain their complete effective inputs. Old v2 common hashes
+and remainder refusals remain byte-for-byte interpretable under their old rule.
+
+The routine classification controls compare unchanged, preference, replacement
+metadata and non-preference remainder observations across preparation, monitoring
+and a fresh reconstruction process. Actual phase/suite environment construction
+and a launched descendant select private inputs; an explicit consuming control
+observes the same shared sentinel and refuses change. Unknown paths, permission/
+ownership/attribute changes, missing observations and unsafe aliases refuse.
+The existing replacement controls exercise actual admission with the new common
+hash and prove a relevant mismatch creates neither attempt nor successor. These
+are disposable source controls, not production Full, Browser or model evidence.
 
 ## Implementation mapping
 

@@ -8,13 +8,13 @@ import { createCanonicalTestResourceRoot, cleanupCanonicalTestResources, buildCa
 import { acquireCheckoutVerificationOwnership, releaseCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
 import { runCanonicalChild } from "./canonical-child-runner.mjs";
 import { createGitHubBrowserAuthorizationTransport } from "./github-main-branch-transport.mjs";
-import { readBrowserReplacementProof, validateBrowserReplacementPredecessor, authorizeBrowserReplacement, assertBrowserReplacementAuthorization } from "./local-canonical-browser-replacement.mjs";
+import { readBrowserReplacementProof, validateBrowserReplacementPredecessor, authorizeBrowserReplacement, assertBrowserReplacementAuthorization, validateStrictBrowserLive } from "./local-canonical-browser-replacement.mjs";
 import { readBrowserInputBinding } from "./local-canonical-browser-input.mjs";
 import { beginAttempt, finishAttempt, inspectAttemptRecords, reconstructAttemptTip, readSourceCorrectionProof } from "./local-canonical-attempts.mjs";
-import { digest } from "./local-canonical-inputs.mjs";
+import { digest, freezeInputContract } from "./local-canonical-inputs.mjs";
 import { finalizeReceipt, inspectReceiptForDecision } from "./local-canonical-receipt.mjs";
 import { createPrivateReviewExport, inspectPrivateReviewExport } from "./local-canonical-review-export.mjs";
-import { readStockBrowserInput } from "./run-local-canonical-verification.mjs";
+import { readStockBrowserInput, browserReplacementLiveBinding } from "./run-local-canonical-verification.mjs";
 import { ensureMachineFingerprint, readMachineFingerprint } from "./local-canonical-environment.mjs";
 const read = file => JSON.parse(readFileSync(file, "utf8"));
 const self = fileURLToPath(import.meta.url);
@@ -103,6 +103,31 @@ if (["--stock", "--claim"].includes(process.argv[2])) {
     const location = path.join(folder, "source-proof.json"); fixtureWrite(location, proof); return readSourceCorrectionProof(location, c.checkout);
   };
   try {
+    const effective = make("effective-input"), shared = path.join(effective.checkout, ".augnes-local-verification/shared-config");
+    const initial = 'model="fixture-a"\n[projects.fixture]\ntrust_level="untrusted"\n';
+    fixtureWrite(shared, initial);
+    const freeze = () => freezeInputContract({ pathKind: "isolated-model-free-v1", binding: {},
+      resources: [{ id: "codex-preferences", file: shared, classification: "ambient", excludePreferences: true }] });
+    const binding = inputs => browserReplacementLiveBinding({ inputs, host: {}, nodePolicy: {}, phaseDefinitions: [] }).commonInputsSha256;
+    const frozen = freeze(), prepared = binding(frozen.snapshot());
+    effective.proof.common_inputs_sha256 = prepared;
+    effective.authority = fixtureAuthority(effective.proof); saveProof(effective);
+    const effectiveAuth = await authorize(effective);
+    const liveNow = () => ({ ...effective.live, commonInputsSha256: binding(freeze().snapshot()) });
+    const originalFamilies = digest(treeBytes(effective.anchor));
+    for (const change of [initial, initial.replace('fixture-a', 'fixture-b'), initial.replace('untrusted', 'trusted') + 'unrecognized="changed"\n']) {
+      fixtureWrite(shared, change);
+      assert.equal(frozen.check({ force: true }), null);
+      validateStrictBrowserLive({ proof: effective.proof, branch: effective.branch, head: effective.head, tree: effective.tree, base: effective.base, ...liveNow() });
+      assert.equal(digest(treeBytes(effective.anchor)), originalFamilies);
+    }
+    chmodSync(shared, 0o644);
+    assert.equal(frozen.check().disposition, "safety_violation");
+    assert.throws(() => begin(effective, effectiveAuth, { browserLive: liveNow() }), /live_binding/);
+    assert.equal(digest(treeBytes(effective.anchor)), originalFamilies, "refusal must not write an attempt or successor");
+    chmodSync(shared, 0o600);
+    checks.push("actual common-input preparation/admission accepts non-consuming preference and remainder variation; safety refusal creates no attempt or successor");
+
     const c = make("positive");
     // This exact existing Browser owner supplies complete-file syntax and
     // failure-propagation controls; it is not a general test-path exemption.

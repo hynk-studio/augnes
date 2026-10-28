@@ -3,7 +3,9 @@ import { execFileSync } from "node:child_process";
 import { constants, closeSync, fstatSync, lstatSync, openSync, readFileSync, realpathSync } from "node:fs";
 import { createBrowserBundleObserver, compareBrowserBundle } from "./local-canonical-browser-bundle.mjs";
 
-export const INPUT_CONTRACT = "augnes.local-canonical-inputs.v2";
+export const INPUT_CONTRACT = "augnes.local-canonical-inputs.v3";
+export const LEGACY_INPUT_CONTRACT = "augnes.local-canonical-inputs.v2";
+export const supportedInputContract = value => [LEGACY_INPUT_CONTRACT, INPUT_CONTRACT].includes(value);
 export const INPUT_CLASSES = Object.freeze(["execution", "safety", "ambient", "unknown"]);
 export const EXCLUDED_PREFERENCES = Object.freeze(["model", "model_reasoning_effort", "service_tier"]);
 const sorted = value => Array.isArray(value) ? value.map(sorted) : value && typeof value === "object"
@@ -43,7 +45,7 @@ export function preferenceProjection(bytes) {
   return { projection, remainder_sha256: digest(remainder.join("")) };
 }
 
-export function observeInputFile(file, { metadataOnly = false, preferences = false, readOnlyExecutable = false } = {}) {
+export function observeInputFile(file, { metadataOnly = false, preferences = false, readOnlyExecutable = false, protectedConfiguration = false } = {}) {
   let stat;
   try { stat = lstatSync(file, { bigint: true }); }
   catch (error) { if (error.code === "ENOENT") return { present: false }; throw error; }
@@ -55,8 +57,8 @@ export function observeInputFile(file, { metadataOnly = false, preferences = fal
   const allowedLinks = s => readOnlyExecutable && sharedPosix ? s.nlink > 0n && (s.mode & 0o111n) !== 0n : s.nlink === 1n;
   if (!stat.isFile() || stat.isSymbolicLink() || !allowedLinks(stat) || realpathSync(file) !== file)
     throw fail("input_unsafe_file");
-  if (preferences && stat.size > 1024n * 1024n) throw fail("input_comparison_bound_exceeded");
-  const securityBefore = readOnlyExecutable ? executablePermissions(file) : null;
+  if ((preferences || protectedConfiguration) && stat.size > 1024n * 1024n) throw fail("input_comparison_bound_exceeded");
+  const securityBefore = readOnlyExecutable || protectedConfiguration ? executablePermissions(file) : null;
   const metadata = s => ({ mode: String(s.mode), uid: String(s.uid), gid: String(s.gid), links: String(s.nlink),
     device: String(s.dev), inode: String(s.ino), bytes: String(s.size), mtime_ns: String(s.mtimeNs), ctime_ns: String(s.ctimeNs) });
   if (metadataOnly) return { present: true, metadata: metadata(stat), ...(readOnlyExecutable ? { permission_identity: securityBefore, executable_identity_policy: sharedPosix ? "shared-posix-v1" : "strict-metadata-v1" } : {}), observation: "metadata_only" };
@@ -68,9 +70,10 @@ export function observeInputFile(file, { metadataOnly = false, preferences = fal
     const after = fstatSync(fd, { bigint: true }), named = lstatSync(file, { bigint: true });
     if (JSON.stringify(metadata(before)) !== JSON.stringify(metadata(after)) || named.ino !== after.ino || named.dev !== after.dev)
       throw fail("input_observation_race");
-    const securityAfter = readOnlyExecutable ? executablePermissions(file) : null;
+    const securityAfter = readOnlyExecutable || protectedConfiguration ? executablePermissions(file) : null;
     if (digest(securityBefore) !== digest(securityAfter)) throw fail("input_observation_race");
     return { present: true, metadata: metadata(after), sha256: digest(bytes),
+      ...(protectedConfiguration ? { permission_identity: securityAfter } : {}),
       ...(readOnlyExecutable ? { permission_identity: securityAfter, executable_identity_policy: sharedPosix ? "shared-posix-v1" : "strict-metadata-v1" } : {}),
       ...(preferences ? preferenceProjection(bytes) : {}) };
   } finally { closeSync(fd); }
@@ -78,12 +81,66 @@ export function observeInputFile(file, { metadataOnly = false, preferences = fal
 
 export const nonFaultInputChange = disposition => ["unchanged", "ambient_observation", "incidental_executable_metadata"].includes(disposition);
 
-export function classifyInputChange(before, after, { classification, excludePreferences = false, readOnlyExecutable = false, browserBundle = false } = {}) {
+// This is a fixed consumer classification, not a caller-supplied ignore list.
+// Only the current isolated model-free inventory has demonstrated non-consumption
+// of this one shared configuration. Legacy observations retain their old rule.
+function unconsumedCodexConfiguration(resource, input) {
+  return input?.contract === INPUT_CONTRACT && input.path_kind === "isolated-model-free-v1" &&
+    resource.id === "codex-preferences" && resource.classification === "ambient" && resource.excludePreferences === true &&
+    !resource.metadataOnly && !resource.readOnlyExecutable && !resource.browserBundle;
+}
+
+export function inputReadOptions(resource, input) {
+  const protectedConfiguration = unconsumedCodexConfiguration(resource, input);
+  return { metadataOnly: resource.metadataOnly, preferences: resource.excludePreferences && !protectedConfiguration,
+    readOnlyExecutable: resource.readOnlyExecutable, browserBundle: resource.browserBundle, protectedConfiguration };
+}
+
+// Preparation/admission and comparison use the same effective identity. Raw
+// observations remain in the frozen declaration/events, never in this projection.
+export function effectiveInputObservation(value, resource, input) {
+  if (input?.contract === INPUT_CONTRACT && resource.excludePreferences && !unconsumedCodexConfiguration(resource, input))
+    throw fail("input_exclusion_unproven");
+  if (unconsumedCodexConfiguration(resource, input)) {
+    if (value?.present === false && Object.keys(value).length === 1) return value;
+    if (value?.present !== true || !/^[0-9a-f]{64}$/u.test(value.sha256 ?? "") ||
+        !/^[0-9a-f]{64}$/u.test(value.permission_identity ?? "") ||
+        !["mode", "uid", "gid", "device", "inode", "bytes", "mtime_ns", "ctime_ns", "links"].every(k => /^\d{1,40}$/u.test(value.metadata?.[k] ?? "")) ||
+        value.metadata.links !== "1" || (BigInt(value.metadata.mode) & 0o170000n) !== 0o100000n)
+      throw fail("input_configuration_observation_incomplete");
+    return { present: true, permission_identity: value.permission_identity,
+      metadata: Object.fromEntries(["mode", "uid", "gid", "device", "links"].map(k => [k, value.metadata[k]])) };
+  }
+  if (input?.contract === INPUT_CONTRACT && resource.readOnlyExecutable && value?.executable_identity_policy === "shared-posix-v1") {
+    if (!usableExecutable(value)) throw fail("input_executable_observation_incomplete");
+    return { ...value, metadata: Object.fromEntries(Object.entries(value.metadata).filter(([key]) => !["links", "ctime_ns"].includes(key))) };
+  }
+  return value;
+}
+
+export function commonInputResources(input) {
+  if (!supportedInputContract(input?.contract)) throw fail("input_contract_unknown");
+  return input.resources.filter(r => !r.id.startsWith("browser-")).map(r =>
+    ({ ...r, before: effectiveInputObservation(r.before, r, input) }));
+}
+
+const usableExecutable = value => value.present === true && /^[0-9a-f]{64}$/u.test(value.sha256 ?? "") &&
+  ["mode", "uid", "gid", "device", "inode", "bytes", "mtime_ns", "ctime_ns", "links"].every(key => /^\d{1,40}$/u.test(value.metadata?.[key] ?? "")) &&
+  /^[0-9a-f]{64}$/u.test(value.permission_identity ?? "") && ["shared-posix-v1", "strict-metadata-v1"].includes(value.executable_identity_policy) && BigInt(value.metadata.links) > 0n && (BigInt(value.metadata.mode) & 0o170000n) === 0o100000n && (value.executable_identity_policy === "strict-metadata-v1" || (BigInt(value.metadata.mode) & 0o111n) !== 0n);
+
+export function classifyInputChange(before, after, resource = {}, input = null) {
+  const { classification, excludePreferences = false, readOnlyExecutable = false, browserBundle = false } = resource;
+  if (input && !supportedInputContract(input.contract)) return "unknown_relevance";
+  if (unconsumedCodexConfiguration(resource, input)) {
+    let prior, current;
+    try { prior = effectiveInputObservation(before, resource, input); current = effectiveInputObservation(after, resource, input); }
+    catch { return "unknown_relevance"; }
+    if (before.present !== after.present) return "input_invalidation";
+    if (digest(prior) !== digest(current)) return "safety_violation";
+    return digest(before) === digest(after) ? "unchanged" : "ambient_observation";
+  }
   if (browserBundle) return classification === "execution" && !excludePreferences && !readOnlyExecutable ? compareBrowserBundle(before, after) : "unknown_relevance";
   if (!INPUT_CLASSES.includes(classification) || !before || !after || typeof before !== "object" || typeof after !== "object" || Array.isArray(before) || Array.isArray(after)) return "unknown_relevance";
-  const usableExecutable = value => value.present === true && /^[0-9a-f]{64}$/u.test(value.sha256 ?? "") &&
-    ["mode", "uid", "gid", "device", "inode", "bytes", "mtime_ns", "ctime_ns", "links"].every(key => /^\d{1,40}$/u.test(value.metadata?.[key] ?? "")) &&
-    /^[0-9a-f]{64}$/u.test(value.permission_identity ?? "") && ["shared-posix-v1", "strict-metadata-v1"].includes(value.executable_identity_policy) && BigInt(value.metadata.links) > 0n && (BigInt(value.metadata.mode) & 0o170000n) === 0o100000n && (value.executable_identity_policy === "strict-metadata-v1" || (BigInt(value.metadata.mode) & 0o111n) !== 0n);
   if (readOnlyExecutable && before.present === true && after.present === true &&
       (classification !== "execution" || !usableExecutable(before) || !usableExecutable(after))) return "unknown_relevance";
   // Saved receipts sort object keys. Compare the same canonical value both
@@ -100,11 +157,12 @@ export function classifyInputChange(before, after, { classification, excludePref
     // An existing shared executable is never a write/cleanup target. An alias
     // count or ctime observation does not change the consumed bytes or authority.
     // Compare a complete observation, not a metadata hint; retain both originals.
-    const consumed = value => ({ ...value, metadata: Object.fromEntries(Object.entries(value.metadata).filter(([key]) => !["links", "ctime_ns"].includes(key))) });
+    const consumed = value => input?.contract === INPUT_CONTRACT ? effectiveInputObservation(value, resource, input)
+      : ({ ...value, metadata: Object.fromEntries(Object.entries(value.metadata).filter(([key]) => !["links", "ctime_ns"].includes(key))) });
     if (digest(consumed(before)) === digest(consumed(after))) return "incidental_executable_metadata";
     return "input_invalidation";
   }
-  if (classification === "ambient" && excludePreferences && before.remainder_sha256 &&
+  if (input?.contract !== INPUT_CONTRACT && classification === "ambient" && excludePreferences && before.remainder_sha256 &&
       before.remainder_sha256 === after.remainder_sha256) return "ambient_observation";
   if (classification === "ambient" || classification === "unknown") return "unknown_relevance";
   // Content-equivalent inode/mtime replacement is only excluded above, never
@@ -121,17 +179,22 @@ export function createInputReader() {
   };
 }
 
-export function freezeInputContract({ resources, pathKind, binding, read = createInputReader() }) {
+export function freezeInputContract({ resources, pathKind, binding, read = createInputReader(), contract = INPUT_CONTRACT }) {
+  if (!supportedInputContract(contract)) throw fail("input_contract_unknown");
+  const policy = { contract, path_kind: pathKind };
   if (!Array.isArray(resources) || resources.length === 0 || !resources.every(r => r && typeof r === "object") || new Set(resources.map(r => r.id)).size !== resources.length)
     throw fail("input_inventory_invalid");
   const selected = resources.map(resource => {
     if (!/^[a-z][a-z0-9_-]{0,79}$/u.test(resource.id) || !INPUT_CLASSES.includes(resource.classification)) throw fail("input_inventory_invalid");
     if (resource.readOnlyExecutable && (resource.classification !== "execution" || resource.metadataOnly || resource.excludePreferences)) throw fail("input_executable_role_invalid");
     if (resource.excludePreferences && (pathKind !== "isolated-model-free-v1" || resource.classification !== "ambient")) throw fail("input_exclusion_unproven");
+    if (contract === INPUT_CONTRACT && resource.excludePreferences && !unconsumedCodexConfiguration(resource, policy)) throw fail("input_exclusion_unproven");
     if (resource.browserBundle && (resource.classification !== "execution" || resource.metadataOnly || resource.excludePreferences || resource.readOnlyExecutable)) throw fail("input_bundle_role_invalid");
-    return { ...resource, before: read(resource.file, { metadataOnly: resource.metadataOnly, preferences: resource.excludePreferences, readOnlyExecutable: resource.readOnlyExecutable, browserBundle: resource.browserBundle, force: true }) };
+    const before = read(resource.file, { ...inputReadOptions(resource, policy), force: true });
+    effectiveInputObservation(before, resource, policy);
+    return { ...resource, before };
   });
-  const declared = { contract: INPUT_CONTRACT, path_kind: pathKind, binding,
+  const declared = { contract, path_kind: pathKind, binding,
     resources: selected.map(({ file, ...r }) => ({ ...r, location_fingerprint: digest(file) })) };
   // File locations stay in this closure. They never enter receipts or exports.
   const frozen = JSON.parse(JSON.stringify(declared));
@@ -149,8 +212,8 @@ export function freezeInputContract({ resources, pathKind, binding, read = creat
         const hint = !force && Number(resource.before.metadata?.bytes) > 1024 * 1024
           ? read(resource.file, { metadataOnly: true, readOnlyExecutable: resource.readOnlyExecutable }) : null;
         after = hint && hint.permission_identity === resource.before.permission_identity && JSON.stringify(hint.metadata) === JSON.stringify(resource.before.metadata)
-          ? resource.before : read(resource.file, { metadataOnly: resource.metadataOnly, preferences: resource.excludePreferences, readOnlyExecutable: resource.readOnlyExecutable, browserBundle: resource.browserBundle, force });
-        disposition = classifyInputChange(resource.before, after, resource);
+          ? resource.before : read(resource.file, { ...inputReadOptions(resource, policy), force });
+        disposition = classifyInputChange(resource.before, after, resource, policy);
       } catch { disposition = "observer_failure"; after = null; }
       if (disposition === "unchanged") continue;
       const key = digest([resource.id, disposition, after]);

@@ -7,7 +7,7 @@ import { CODEX_REUSE_OWNER_IDS, CODEX_REUSE_PHASE_IDS } from "./codex-reuse-veri
 import { VERIFICATION_CONTEXT_CONTRACT } from "./local-canonical-verification-context.mjs";
 import { VERIFICATION_CAPACITY_CONTRACT, verificationCapacityLimit } from "./local-canonical-capacity.mjs";
 import { HISTORICAL_INPUT_CONTRACT } from "./local-canonical-historical-inputs.mjs";
-import { INPUT_CONTRACT, digest, deriveOperationalDisposition, nonFaultInputChange, classifyInputChange } from "./local-canonical-inputs.mjs";
+import { supportedInputContract, digest, deriveOperationalDisposition, nonFaultInputChange, classifyInputChange, effectiveInputObservation } from "./local-canonical-inputs.mjs";
 import { ATTEMPT_CONTRACT } from "./local-canonical-attempts.mjs";
 import { validPhaseBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { BROWSER_INPUT_CONTRACT } from "./local-canonical-browser-input.mjs";
@@ -643,7 +643,7 @@ export function inspectReceiptForDecision(receipt, options = {}) {
 
 function inspectClassifiedEvidence(receipt, issues) {
   const input = receipt.inputs;
-  if (!input || input.contract !== INPUT_CONTRACT || !Array.isArray(input.resources) || !Array.isArray(input.events) ||
+  if (!input || !supportedInputContract(input.contract) || !Array.isArray(input.resources) || !Array.isArray(input.events) ||
       !input.resources.every(r => r && typeof r === "object") || !input.events.every(e => e && typeof e === "object") ||
       !Array.isArray(receipt.phases) || !receipt.phases.every(p => p && typeof p === "object")) {
     issues.push("receipt_input_contract_missing"); return;
@@ -658,10 +658,12 @@ function inspectClassifiedEvidence(receipt, issues) {
   for (const event of input.events) {
     const resource = input.resources.find(r => r.id === event.resource);
     if (!resource || !event.after || event.classification !== resource.classification ||
-        classifyInputChange(resource.before, event.after, resource) !== event.disposition ||
+        classifyInputChange(resource.before, event.after, resource, input) !== event.disposition ||
         event.identity !== digest([event.resource, event.disposition, event.after])) issues.push("receipt_input_event_invalid");
   }
   if (input.resources.some(r => r.readOnlyExecutable && (r.classification !== "execution" || r.metadataOnly || r.excludePreferences))) issues.push("receipt_input_role_invalid");
+  try { for (const resource of input.resources) effectiveInputObservation(resource.before, resource, input); }
+  catch { issues.push("receipt_input_role_invalid"); }
   const environments = input.binding?.phase_environment_fingerprints;
   if (!Array.isArray(environments) || !environments.every(e => e && typeof e === "object") || environments.length !== receipt.phases.length ||
       new Set(environments.map(e => e.id)).size !== environments.length || receipt.phases.some(p => !environments.some(e =>

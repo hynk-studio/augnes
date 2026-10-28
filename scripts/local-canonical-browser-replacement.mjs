@@ -1,7 +1,7 @@
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { digest, classifyInputChange, nonFaultInputChange } from "./local-canonical-inputs.mjs";
+import { digest, classifyInputChange, nonFaultInputChange, supportedInputContract } from "./local-canonical-inputs.mjs";
 import { browserInputLocalPath, readBrowserInputJson, readBrowserInputBinding, assertBrowserBundle } from "./local-canonical-browser-input.mjs";
 import { createGitHubBrowserAuthorizationTransport } from "./github-main-branch-transport.mjs";
 
@@ -37,13 +37,13 @@ export function validateBrowserReplacementPredecessor(receipt) {
       !Array.isArray(input?.resources) || !Array.isArray(input.events) || input.events.length === 0 || input.events.length >= 64 || !Array.isArray(input.secondary_faults) || input.secondary_faults.length >= 16 ||
       first?.resource !== "browser-executable" || first.disposition !== "safety_violation") throw fail("browser_replacement_predecessor_ineligible");
   const declaration = { contract: input.contract, path_kind: input.path_kind, binding: input.binding, resources: input.resources };
-  if (input.contract !== "augnes.local-canonical-inputs.v2" || digest(declaration) !== input.fingerprint || new Set(input.resources.map(r => r.id)).size !== input.resources.length ||
+  if (!supportedInputContract(input.contract) || digest(declaration) !== input.fingerprint || new Set(input.resources.map(r => r.id)).size !== input.resources.length ||
       !["codex-preferences", "user-instructions", "auth-location", "github-auth-location", "git-config", "node-executable", "browser-executable"].every(id => input.resources.some(r => r.id === id))) throw fail("browser_replacement_original_incomplete");
   const faults = [];
   for (const event of input.events) {
     const resource = input.resources.find(r => r.id === event.resource);
     if (!resource || !event.after || event.identity !== digest([event.resource, event.disposition, event.after]) ||
-        event.classification !== resource.classification || classifyInputChange(resource.before, event.after, resource) !== event.disposition) throw fail("browser_replacement_event_invalid");
+        event.classification !== resource.classification || classifyInputChange(resource.before, event.after, resource, input) !== event.disposition) throw fail("browser_replacement_event_invalid");
     if (!nonFaultInputChange(event.disposition)) {
       if (event.resource !== "browser-executable" || !["safety_violation", "input_invalidation"].includes(event.disposition) || resource.readOnlyExecutable !== true ||
           resource.before?.present !== true || event.after?.present !== true || !sha(event.after.sha256) ||
