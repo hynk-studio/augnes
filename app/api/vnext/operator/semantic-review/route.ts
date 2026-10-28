@@ -39,7 +39,7 @@ import {
   requestVNextOperatorStrategicAdvantageTransferV01,
   type VNextOperatorStrategicAdvantageTransferDependenciesV01,
 } from "@/lib/vnext/runtime/operator-pilot-strategic-advantage-transfer";
-import { readDefaultModelGatewayLocalCapabilityV01 } from "@/lib/vnext/model-gateway/model-gateway";
+import { readDefaultModelGatewayLocalCapabilityV01 } from "@/lib/vnext/model-gateway/local-capability";
 import { createCanonicalTestStrategicTransportDependenciesV01 } from "@/lib/vnext/model-gateway/canonical-test-strategic-transport";
 import {
   ProjectVerifyReconciliationReadErrorV01,
