@@ -14,11 +14,25 @@ import { runCanonicalChild } from "./canonical-child-runner.mjs";
 import { executePhase } from "./run-local-canonical-verification.mjs";
 import { finalizeReceipt, inspectReceiptForDecision } from "./local-canonical-receipt.mjs";
 import { baseReceipt, validContext } from "./fixtures/local-canonical-receipt-v3.mjs";
+import { observerControls } from "./fixtures/local-canonical-observer-controls.mjs";
 
 const self = fileURLToPath(import.meta.url), repository = path.dirname(path.dirname(self));
 const quiet = { write() {} }, write = (p, v) => writeFileSync(p, typeof v === "string" ? v : JSON.stringify(v), { mode: 0o600 });
 const role = { classification: "execution", readOnlyExecutable: true };
 const settled = r => r.cleanup_completed && r.exit_observed && r.streams_closed && r.remaining_owned_processes === 0;
+
+if (process.argv[2] === "--observer-controls") {
+  const owner = createCanonicalTestResourceRoot("ag-resource-test-");
+  beginCanonicalTestResourceUse(owner);
+  let controls;
+  try { controls = await observerControls(owner.root, process.argv[3] ?? pathToFileURL(path.join(repository, "scripts/local-canonical-inputs.mjs")).href); }
+  finally {
+    settleCanonicalTestResourceUse(owner, { exit_observed: true, streams_closed: true, cleanup_completed: true, remaining_owned_processes: 0 });
+    assert(cleanupCanonicalTestResources([owner])[0].completed);
+  }
+  console.log(JSON.stringify({ controls, cleanup_complete: true }));
+  process.exit(controls.every(c => c.pass) ? 0 : 1);
+}
 
 // The outer real child owner quarantines deliberately synthetic Browser records
 // from Canonical's actual-use stream. This probes the production phase executor.
@@ -67,6 +81,10 @@ async function child(args, options = {}) {
   inFlight = !settled(result); assert(!inFlight, JSON.stringify(result)); return result;
 }
 try {
+  let observerOutput = "";
+  const observer = await child([self, "--observer-controls"], { stdout: { write: b => { observerOutput = (observerOutput + b).slice(-16000); } } });
+  assert.equal(observer.exit_code, 0, lastChildDiagnostic + observerOutput);
+  findings.push("deterministic observation windows retain permitted aliases and sanitized failures; content, identity, ownership and native permissions remain protected");
   const executable = path.join(root, "read-only-browser"), alias = path.join(root, "alias");
   write(executable, "fixture executable\n"); chmodSync(executable, 0o700);
   const before = observeInputFile(executable, { readOnlyExecutable: true });

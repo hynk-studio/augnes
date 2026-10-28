@@ -165,6 +165,41 @@ new incidental-metadata exemption. Polling remains bounded and cannot prove
 absence of transient changes between observations; every observed native
 permission/flag/attribute difference remains a hard fault.
 
+### Read-window coherence and bounded failure diagnostics
+
+The shared-executable reader applies the same fixed role to observations inside
+one read window. Every initial, descriptor and named-file sample must agree on
+type, device/inode, mode, owner/group, size and mtime. Native permission identities
+must agree before and after each complete read. A link-count/ctime difference
+inside that window requires exactly one additional complete read of the same
+identity: both byte sequences, their lengths and every consumed/safety sample
+must agree. No failed read is retried, no later sample replaces an earlier one,
+and a second-window failure refuses. Configuration and mutable resources retain
+complete metadata equality and single-link checks. This is not a blanket ctime
+exclusion or proof that the historical #1548 exception was a metadata race.
+
+Caught input-monitor failures now carry the optional
+`augnes.input-observation-failure.v1` diagnostic: only `contract`, a fixed `stage`
+and an allowlisted `code`. Filesystem stages distinguish initial/named/descriptor
+stat, resolution, open, read, consistency and close; permission readers distinguish
+ACL, flags and attributes. An unknown external code becomes `unclassified_error`;
+a helper's nonzero status becomes `helper_exit_nonzero`. No exception message,
+stack, path, command output, credential or environment value enters this record.
+The first failure remains latched; event identities bind diagnostic differences.
+Receipt validation checks the exact diagnostic shape and event/fault linkage.
+The private export retains these bounded fields and rejects malformed diagnostics.
+An explained observer failure still blocks acceptance and remains
+`unknown_relevance`; diagnostics do not confer recovery or succession eligibility.
+
+Diagnostic-free events and original receipts retain their existing identity and
+interpretation. Missing historical error information is never filled in. The
+existing classification and review-corrections owners cover deterministic
+within-read alias changes, content/replacement/permission/ownership adversity,
+filesystem/helper failures, cancellation, first-fault latching, strict diagnostic
+validation, private export and legacy compatibility. The fixture can import the
+retained earlier input module for identical before/after controls. These focused
+checks do not execute a deciding Full or authorize a new attempt.
+
 ## Strict task-owned Browser input and replacement route
 
 The version 5 lane is implemented by `local-canonical-browser-input.mjs`,

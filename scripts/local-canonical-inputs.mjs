@@ -13,6 +13,51 @@ const sorted = value => Array.isArray(value) ? value.map(sorted) : value && type
 export const digest = value => createHash("sha256").update(typeof value === "string" || Buffer.isBuffer(value) ? value : JSON.stringify(sorted(value))).digest("hex");
 const fail = code => Object.assign(new Error(code), { code });
 
+const FAILURE_DIAGNOSTIC = "augnes.input-observation-failure.v1";
+const failureStages = new Set(["reader", "classification", "initial_stat", "path_resolution", "file_type", "open", "descriptor_stat", "read", "named_stat", "metadata_consistency", "permission_consistency", "close", "preference_projection", "permission_acl", "permission_flags", "permission_attributes"]);
+const failureCodes = new Set(["EACCES", "EPERM", "ENOENT", "EIO", "ELOOP", "ENOTDIR", "EMFILE", "ENFILE", "EBADF", "EINVAL", "ESTALE", "EINTR", "ETIMEDOUT", "ENOBUFS", "ENOMEM", "EISDIR", "input_unsafe_file", "input_observation_race", "input_comparison_bound_exceeded", "input_invalid_utf8", "input_executable_permissions_unknown", "helper_exit_nonzero", "unclassified_error"]);
+const taggedFailures = new WeakMap();
+const ownValue = (value, key) => { try { return Object.getOwnPropertyDescriptor(value, key)?.value; } catch { return undefined; } };
+export const validObservationDiagnostic = value => value && typeof value === "object" && !Array.isArray(value) &&
+  Object.keys(value).length === 3 && value.contract === FAILURE_DIAGNOSTIC && failureStages.has(value.stage) && failureCodes.has(value.code);
+function observationFailure(error, stage) {
+  if (taggedFailures.has(error)) return taggedFailures.get(error);
+  const code = ownValue(error, "code"), status = ownValue(error, "status");
+  return { contract: FAILURE_DIAGNOSTIC, stage, code: failureCodes.has(code) ? code :
+    stage.startsWith("permission_") && Number.isInteger(status) && status > 0 ? "helper_exit_nonzero" : "unclassified_error" };
+}
+function atStage(stage, action) {
+  try { return action(); }
+  catch (caught) {
+    const diagnostic = observationFailure(caught, stage);
+    // Direct reader callers also receive only a bounded error, without the
+    // native helper's message, command, output, path or cause object.
+    const error = fail(diagnostic.code);
+    taggedFailures.set(error, diagnostic);
+    throw error;
+  }
+}
+export const inputEventIdentity = event => digest([event.resource, event.disposition, event.after,
+  ...(event.diagnostic === undefined ? [] : [event.diagnostic])]);
+
+// Optional diagnostics are additive. An old diagnostic-free failure is never
+// reconstructed or reinterpreted. Unknown/extra fields cannot become an export.
+export function validInputFailureDiagnostics(input, { exported = false } = {}) {
+  if (!input) return true;
+  const events = input.events ?? [], secondary = input.secondary_faults ?? [];
+  if (!Array.isArray(events) || !Array.isArray(secondary) || secondary.some(f => !f || typeof f !== "object" || Array.isArray(f))) return false;
+  const faults = [input.first_fault, ...secondary].filter(Boolean);
+  const valid = item => item && typeof item === "object" && !Array.isArray(item) &&
+    (item.diagnostic === undefined || (item.disposition === "observer_failure" && validObservationDiagnostic(item.diagnostic)));
+  if (!events.every(e => valid(e) && (e.diagnostic === undefined || exported || e.after === null)) || !faults.every(valid)) return false;
+  return faults.every(fault => {
+    const event = events.find(e => e.resource === fault.resource && e.observed_at === fault.observed_at && e.disposition === fault.disposition &&
+      (exported || e.monotonic_ns === fault.monotonic_ns));
+    return fault.diagnostic === undefined && event?.diagnostic === undefined ||
+      !!event && digest(fault.diagnostic ?? null) === digest(event.diagnostic ?? null);
+  });
+}
+
 // No TOML value or complete source is retained. Only unambiguous one-line,
 // unescaped top-level declarations in the leading scalar block can be masked.
 // Unsupported syntax closes that block. Every other byte remains in the digest,
@@ -47,7 +92,7 @@ export function preferenceProjection(bytes) {
 
 export function observeInputFile(file, { metadataOnly = false, preferences = false, readOnlyExecutable = false, protectedConfiguration = false } = {}) {
   let stat;
-  try { stat = lstatSync(file, { bigint: true }); }
+  try { stat = atStage("initial_stat", () => lstatSync(file, { bigint: true })); }
   catch (error) { if (error.code === "ENOENT") return { present: false }; throw error; }
   // Existing shared executables are read/execute inputs, never cleanup targets.
   // Retain their complete observation; the role-aware comparator separately
@@ -55,28 +100,55 @@ export function observeInputFile(file, { metadataOnly = false, preferences = fal
   // inode. Configurations and mutable resources retain single-link refusal.
   const sharedPosix = ["darwin", "linux"].includes(process.platform);
   const allowedLinks = s => readOnlyExecutable && sharedPosix ? s.nlink > 0n && (s.mode & 0o111n) !== 0n : s.nlink === 1n;
-  if (!stat.isFile() || stat.isSymbolicLink() || !allowedLinks(stat) || realpathSync(file) !== file)
-    throw fail("input_unsafe_file");
-  if ((preferences || protectedConfiguration) && stat.size > 1024n * 1024n) throw fail("input_comparison_bound_exceeded");
+  const checkFile = s => atStage("file_type", () => {
+    if (!s.isFile() || s.isSymbolicLink() || !allowedLinks(s)) throw fail("input_unsafe_file");
+    if ((preferences || protectedConfiguration) && s.size > 1024n * 1024n) throw fail("input_comparison_bound_exceeded");
+  });
+  checkFile(stat);
+  atStage("path_resolution", () => { if (realpathSync(file) !== file) throw fail("input_unsafe_file"); });
   const securityBefore = readOnlyExecutable || protectedConfiguration ? executablePermissions(file) : null;
   const metadata = s => ({ mode: String(s.mode), uid: String(s.uid), gid: String(s.gid), links: String(s.nlink),
     device: String(s.dev), inode: String(s.ino), bytes: String(s.size), mtime_ns: String(s.mtimeNs), ctime_ns: String(s.ctimeNs) });
   if (metadataOnly) return { present: true, metadata: metadata(stat), ...(readOnlyExecutable ? { permission_identity: securityBefore, executable_identity_policy: sharedPosix ? "shared-posix-v1" : "strict-metadata-v1" } : {}), observation: "metadata_only" };
-  const fd = openSync(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
-  try {
-    const before = fstatSync(fd, { bigint: true });
-    if (before.ino !== stat.ino || before.dev !== stat.dev || before.nlink !== stat.nlink || !allowedLinks(before)) throw fail("input_observation_race");
-    const bytes = readFileSync(fd);
-    const after = fstatSync(fd, { bigint: true }), named = lstatSync(file, { bigint: true });
-    if (JSON.stringify(metadata(before)) !== JSON.stringify(metadata(after)) || named.ino !== after.ino || named.dev !== after.dev)
-      throw fail("input_observation_race");
-    const securityAfter = readOnlyExecutable || protectedConfiguration ? executablePermissions(file) : null;
-    if (digest(securityBefore) !== digest(securityAfter)) throw fail("input_observation_race");
-    return { present: true, metadata: metadata(after), sha256: digest(bytes),
-      ...(protectedConfiguration ? { permission_identity: securityAfter } : {}),
-      ...(readOnlyExecutable ? { permission_identity: securityAfter, executable_identity_policy: sharedPosix ? "shared-posix-v1" : "strict-metadata-v1" } : {}),
-      ...(preferences ? preferenceProjection(bytes) : {}) };
-  } finally { closeSync(fd); }
+  const shared = readOnlyExecutable && sharedPosix;
+  const consumedMetadata = s => Object.fromEntries(Object.entries(metadata(s)).filter(([key]) => !shared || !["links", "ctime_ns"].includes(key)));
+  const samples = [stat];
+  const checkSample = s => {
+    checkFile(s);
+    atStage("metadata_consistency", () => { if (digest(consumedMetadata(stat)) !== digest(consumedMetadata(s))) throw fail("input_observation_race"); });
+    samples.push(s);
+  };
+  const readWindow = () => {
+    const fd = atStage("open", () => openSync(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0)));
+    let primary;
+    try {
+      checkSample(atStage("descriptor_stat", () => fstatSync(fd, { bigint: true })));
+      const bytes = atStage("read", () => readFileSync(fd));
+      atStage("metadata_consistency", () => { if (BigInt(bytes.length) !== stat.size) throw fail("input_observation_race"); });
+      checkSample(atStage("descriptor_stat", () => fstatSync(fd, { bigint: true })));
+      checkSample(atStage("named_stat", () => lstatSync(file, { bigint: true })));
+      const security = readOnlyExecutable || protectedConfiguration ? executablePermissions(file) : null;
+      atStage("permission_consistency", () => { if (securityBefore !== security) throw fail("input_observation_race"); });
+      // Include changes while the native permission helpers were running.
+      checkSample(atStage("named_stat", () => lstatSync(file, { bigint: true })));
+      return bytes;
+    } catch (error) { primary = error; throw error; }
+    finally {
+      try { atStage("close", () => closeSync(fd)); } catch (error) { if (!primary) throw error; }
+    }
+  };
+  const bytes = readWindow();
+  if (shared && samples.some(s => digest(metadata(s)) !== digest(metadata(stat)))) {
+    // One fixed corroborating read, never a retry of a failed observation or a
+    // choice of a favorable sample. BOTH byte sequences and ALL content,
+    // identity and permission samples must agree. ctime alone is insufficient.
+    const corroborating = readWindow();
+    atStage("metadata_consistency", () => { if (!bytes.equals(corroborating)) throw fail("input_observation_race"); });
+  }
+  return { present: true, metadata: metadata(samples.at(-1)), sha256: digest(bytes),
+    ...(protectedConfiguration ? { permission_identity: securityBefore } : {}),
+    ...(readOnlyExecutable ? { permission_identity: securityBefore, executable_identity_policy: sharedPosix ? "shared-posix-v1" : "strict-metadata-v1" } : {}),
+    ...(preferences ? atStage("preference_projection", () => preferenceProjection(bytes)) : {}) };
 }
 
 export const nonFaultInputChange = disposition => ["unchanged", "ambient_observation", "incidental_executable_metadata"].includes(disposition);
@@ -204,7 +276,7 @@ export function freezeInputContract({ resources, pathKind, binding, read = creat
   const check = ({ force = false } = {}) => {
     checks++;
     for (const resource of selected) {
-      let after, disposition;
+      let after, disposition, diagnostic, stage = "reader";
       try {
         // Large immutable executables use exact metadata as a polling hint;
         // the final check always rehashes. Small configuration/input files are
@@ -213,18 +285,21 @@ export function freezeInputContract({ resources, pathKind, binding, read = creat
           ? read(resource.file, { metadataOnly: true, readOnlyExecutable: resource.readOnlyExecutable }) : null;
         after = hint && hint.permission_identity === resource.before.permission_identity && JSON.stringify(hint.metadata) === JSON.stringify(resource.before.metadata)
           ? resource.before : read(resource.file, { ...inputReadOptions(resource, policy), force });
+        stage = "classification";
         disposition = classifyInputChange(resource.before, after, resource, policy);
-      } catch { disposition = "observer_failure"; after = null; }
+      } catch (error) { disposition = "observer_failure"; after = null; diagnostic = observationFailure(error, stage); }
       if (disposition === "unchanged") continue;
-      const key = digest([resource.id, disposition, after]);
+      const key = inputEventIdentity({ resource: resource.id, disposition, after, diagnostic });
       if (events.some(event => event.identity === key)) continue;
       const event = { resource: resource.id, classification: resource.classification, disposition,
-        observed_at: new Date().toISOString(), monotonic_ns: String(process.hrtime.bigint()), identity: key, after };
+        observed_at: new Date().toISOString(), monotonic_ns: String(process.hrtime.bigint()), identity: key, after,
+        ...(diagnostic ? { diagnostic } : {}) };
       // A bounded observer cannot silently drop a relevant event.
       if (events.length >= 64) disposition = "observer_failure";
       else events.push(event);
       if (!nonFaultInputChange(disposition)) {
-        const fault = { resource: resource.id, disposition, observed_at: event.observed_at, monotonic_ns: event.monotonic_ns };
+        const fault = { resource: resource.id, disposition, observed_at: event.observed_at, monotonic_ns: event.monotonic_ns,
+          ...(diagnostic ? { diagnostic } : {}) };
         if (!firstFault) firstFault = fault; else if (secondary.length < 16) secondary.push(fault);
       }
     }
@@ -239,7 +314,7 @@ export function freezeInputContract({ resources, pathKind, binding, read = creat
     firstFault ??= { resource: reason, disposition: "safety_violation", observed_at: event.observed_at, monotonic_ns: event.monotonic_ns };
   };
   return Object.freeze({ check, reportSafetyEvent, snapshot: () => ({ ...frozen, fingerprint, checks, events: structuredClone(events),
-    first_fault: firstFault, secondary_faults: structuredClone(secondary),
+    first_fault: structuredClone(firstFault), secondary_faults: structuredClone(secondary),
     limitations: ["bounded polling cannot exclude transient changes between observations", "metadata timestamps are not observed write times", "cooperative ownership is not hostile-user isolation"] }) });
 }
 
@@ -283,19 +358,19 @@ export function deriveOperationalDisposition({ phases = [], admitted = true, fau
 // bits. These fixed read-only OS tools return only a fingerprint to callers.
 // No ACL, principal name, attribute contents or complete command output persists.
 function executablePermissions(file) {
-  const run = (tool, args) => execFileSync(tool, args, { timeout: 2000, maxBuffer: 64 * 1024, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: { PATH: "/usr/bin:/bin", LC_ALL: "C" } });
+  const run = (stage, tool, args) => atStage(stage, () => execFileSync(tool, args, { timeout: 2000, maxBuffer: 64 * 1024, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: { PATH: "/usr/bin:/bin", LC_ALL: "C" } }));
   if (process.platform === "darwin") {
-    const lines = run("/bin/ls", ["-lde", file]).trimEnd().split("\n");
-    if (!/^-[rwxstST-]{9}[+@ ]/u.test(lines[0] ?? "") || lines.slice(1).some(line => !/^ [0-9]+: /u.test(line))) throw fail("input_executable_permissions_unknown");
-    const flags = run("/usr/bin/stat", ["-f", "%f", file]).trim();
-    if (!/^\d+$/u.test(flags)) throw fail("input_executable_permissions_unknown");
-    return digest({ contract: "posix-executable-permissions.v1", acl: lines.slice(1), flags, extended_attributes_sha256: digest(run("/usr/bin/xattr", ["-lx", file])) });
+    const lines = run("permission_acl", "/bin/ls", ["-lde", file]).trimEnd().split("\n");
+    atStage("permission_acl", () => { if (!/^-[rwxstST-]{9}[+@ ]/u.test(lines[0] ?? "") || lines.slice(1).some(line => !/^ [0-9]+: /u.test(line))) throw fail("input_executable_permissions_unknown"); });
+    const flags = run("permission_flags", "/usr/bin/stat", ["-f", "%f", file]).trim();
+    atStage("permission_flags", () => { if (!/^\d+$/u.test(flags)) throw fail("input_executable_permissions_unknown"); });
+    return digest({ contract: "posix-executable-permissions.v1", acl: lines.slice(1), flags, extended_attributes_sha256: digest(run("permission_attributes", "/usr/bin/xattr", ["-lx", file])) });
   }
   if (process.platform === "linux") {
     // Portable focused controls may prove an ordinary mode-only file. A '+'
     // ACL or security-context marker is unknown here, not silently excluded.
-    const value = run("/bin/ls", ["-ld", "--", file]);
-    if (!/^-[rwxstST-]{9} /u.test(value)) throw fail("input_executable_permissions_unknown");
+    const value = run("permission_acl", "/bin/ls", ["-ld", "--", file]);
+    atStage("permission_acl", () => { if (!/^-[rwxstST-]{9} /u.test(value)) throw fail("input_executable_permissions_unknown"); });
     return digest({ contract: "posix-executable-permissions.v1", acl: [], flags: "linux-mode-only" });
   }
   // Other admitted platforms retain the older complete metadata equality rule;

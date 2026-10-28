@@ -7,7 +7,7 @@ import { CODEX_REUSE_OWNER_IDS, CODEX_REUSE_PHASE_IDS } from "./codex-reuse-veri
 import { VERIFICATION_CONTEXT_CONTRACT } from "./local-canonical-verification-context.mjs";
 import { VERIFICATION_CAPACITY_CONTRACT, verificationCapacityLimit } from "./local-canonical-capacity.mjs";
 import { HISTORICAL_INPUT_CONTRACT } from "./local-canonical-historical-inputs.mjs";
-import { supportedInputContract, digest, deriveOperationalDisposition, nonFaultInputChange, classifyInputChange, effectiveInputObservation } from "./local-canonical-inputs.mjs";
+import { supportedInputContract, digest, deriveOperationalDisposition, nonFaultInputChange, classifyInputChange, effectiveInputObservation, inputEventIdentity, validObservationDiagnostic, validInputFailureDiagnostics } from "./local-canonical-inputs.mjs";
 import { ATTEMPT_CONTRACT } from "./local-canonical-attempts.mjs";
 import { validPhaseBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { BROWSER_INPUT_CONTRACT } from "./local-canonical-browser-input.mjs";
@@ -655,11 +655,15 @@ function inspectClassifiedEvidence(receipt, issues) {
       !["isolated-model-free-v1", "canonical-conservative-v1"].includes(input.path_kind) ||
       (input.path_kind === "isolated-model-free-v1" && receipt.verification_context.kind !== "isolated-worktree")) issues.push("receipt_input_binding_invalid");
   if (input.first_fault || input.events.some(e => !nonFaultInputChange(e.disposition))) issues.push("receipt_input_observation_blocked");
+  if (!validInputFailureDiagnostics(input) ||
+      ((input.first_fault?.diagnostic !== undefined || receipt.outcome?.first_fault?.diagnostic !== undefined) &&
+       digest(input.first_fault ?? null) !== digest(receipt.outcome?.first_fault ?? null))) issues.push("receipt_input_diagnostic_invalid");
   for (const event of input.events) {
     const resource = input.resources.find(r => r.id === event.resource);
-    if (!resource || !event.after || event.classification !== resource.classification ||
-        classifyInputChange(resource.before, event.after, resource, input) !== event.disposition ||
-        event.identity !== digest([event.resource, event.disposition, event.after])) issues.push("receipt_input_event_invalid");
+    const observedFailure = event.disposition === "observer_failure" && event.after === null && validObservationDiagnostic(event.diagnostic);
+    if (!resource || event.classification !== resource.classification ||
+        (!observedFailure && (!event.after || event.diagnostic !== undefined || classifyInputChange(resource.before, event.after, resource, input) !== event.disposition)) ||
+        event.identity !== inputEventIdentity(event)) issues.push("receipt_input_event_invalid");
   }
   if (input.resources.some(r => r.readOnlyExecutable && (r.classification !== "execution" || r.metadataOnly || r.excludePreferences))) issues.push("receipt_input_role_invalid");
   try { for (const resource of input.resources) effectiveInputObservation(resource.before, resource, input); }
