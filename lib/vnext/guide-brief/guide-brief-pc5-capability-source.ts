@@ -30,7 +30,7 @@ import { projectVNextOperatorPilotContinuityV01 } from "@/lib/vnext/runtime/oper
 import {
   resolveVNextOperatorStrategicCostAvailabilityV01,
 } from "@/lib/vnext/runtime/operator-pilot-strategic-advantage-transfer";
-import { readDefaultModelGatewayLocalCapabilityV01 } from "@/lib/vnext/model-gateway/model-gateway";
+import { readDefaultModelGatewayLocalCapabilityV01 } from "@/lib/vnext/model-gateway/local-capability";
 import { readProjectVerifyReconciliationV01 } from "@/lib/vnext/runtime/project-verify-reconciliation";
 import { readProjectVerifyLineageV01 } from "@/lib/vnext/runtime/project-verify-lineage";
 import type { SelectedWorkRelationshipQuestionKeyV01 } from "@/types/vnext/selected-work-relationships";
