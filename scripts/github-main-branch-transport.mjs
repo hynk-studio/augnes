@@ -39,6 +39,18 @@ export function createGitHubBrowserAuthorizationTransport({ runner = runGhApi } 
   });
 }
 
+// Same bounded GET-only authenticated transport, with an exact case PR binding.
+export function createGitHubObserverAuthorizationTransport(pullRequest, { runner = runGhApi } = {}) {
+  if (!Number.isSafeInteger(pullRequest) || pullRequest <= 0) throw transportError("github_pull_request_invalid", "Invalid pull request identity");
+  const get = endpoint => invoke(runner, { operation: "fetch_browser_authority", args: ["api", `repos/${AUTHORIZED_GITHUB_REPOSITORY}/${endpoint}`, "--hostname", "github.com", "--method", "GET", "--header", "Cache-Control: no-cache"] });
+  const id = value => { if (!Number.isSafeInteger(value) || value <= 0) throw transportError("github_authority_id_invalid", "Invalid authority identity"); return value; };
+  return Object.freeze({
+    review(value) { return get(`pulls/${pullRequest}/reviews/${id(value)}`); },
+    grant(value) { return get(`issues/comments/${id(value)}`); },
+    permission(login) { if (!/^[A-Za-z0-9-]{1,39}$/u.test(login ?? "")) throw transportError("github_author_invalid", "Invalid author identity"); return get(`collaborators/${login}/permission`); },
+  });
+}
+
 function runGhApi({ operation, args }) {
   if (
     !["fetch_branch_head", "fetch_browser_authority"].includes(operation) ||

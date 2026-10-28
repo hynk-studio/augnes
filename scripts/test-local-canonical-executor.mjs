@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { isObserverRepair } from "./local-canonical-observer-succession.mjs";
 import { spawnSync } from "node:child_process";
 import {
   existsSync,
@@ -919,6 +920,7 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
     const context = {
       checkoutContext: isolated ? "isolated-worktree" : "canonical", verificationContext: {}, signal: { aborted: false },
       controller: new AbortController(), recoveryProofPath: null, sourceCorrectionProofPath: null, baseSha: "0".repeat(40), headSha: "a".repeat(40), executorFingerprint: "b".repeat(64), identityBefore: { branch: "fixture" },
+      isObserverRepair,
       browserInput: null, browserReplacement: null, strictProof: null, sourceCorrection: null,
       selectedBrowserInput: () => null,
       prepareInvocationInputs: () => ({ snapshot: () => ({ resources: [], binding: { tree: "c".repeat(40) }, fingerprint: "d".repeat(64) }) }),

@@ -81,6 +81,10 @@ async function child(args, options = {}) {
   inFlight = !settled(result); assert(!inFlight, JSON.stringify(result)); return result;
 }
 try {
+  let successionOutput = "";
+  const succession = await child([path.join(repository, "scripts/fixtures/local-canonical-observer-succession.mjs"), "--run-observer-fixtures"], { timeoutMs: 6000, stdout: { write: b => { successionOutput = (successionOutput + b).slice(-16000); } } });
+  assert.equal(succession.exit_code, 0, lastChildDiagnostic + successionOutput);
+  findings.push("observer-repair succession: bounded original/source/authority refusals, exclusive lineage and fresh stock reconstruction");
   let observerOutput = "";
   const observer = await child([self, "--observer-controls"], { stdout: { write: b => { observerOutput = (observerOutput + b).slice(-16000); } } });
   assert.equal(observer.exit_code, 0, lastChildDiagnostic + observerOutput);
