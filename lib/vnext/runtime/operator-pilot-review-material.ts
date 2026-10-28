@@ -45,7 +45,7 @@ import {
   type VNextOperatorStrategicCostAvailabilityV01,
   type VNextOperatorStrategicAdvantageTransferReadbackV01,
 } from "@/lib/vnext/runtime/operator-pilot-strategic-advantage-transfer";
-import { readDefaultModelGatewayLocalCapabilityV01 } from "@/lib/vnext/model-gateway/model-gateway";
+import type { readDefaultModelGatewayLocalCapabilityV01 } from "@/lib/vnext/model-gateway/local-capability";
 import { validateEpisodeDeltaProposalV01 } from "@/lib/vnext/episode-delta-proposal";
 import {
   loadValidatedVNextSemanticTransitionRelationV01,

@@ -1,8 +1,11 @@
 import { isHistoricalProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import type { ProjectSelectionRevision } from "@/lib/vnext/project-selection";
 import type Database from "better-sqlite3";
-import { OPENAI_PLANNER_SOL_LOW, isOpenAIPlannerSolLowRoute } from "./planner-execution-configuration";
-import type { PlannerModelExecutionConfigurationV01 } from "./contracts";
+export { readPlannerModelGatewayExecutionConfigurationV01 } from "./planner-execution-configuration";
+export {
+  readDefaultModelGatewayLocalCapabilityV01,
+  type ModelGatewayLocalCapabilityDiagnosticV01,
+} from "./local-capability";
 
 import { openDatabase, type StateEntry } from "@/lib/db";
 import { normalizeModelTransportFailureObservationV01 } from "@/lib/vnext/model-gateway/transport-failure-observation";
@@ -29,7 +32,6 @@ import {
   projectOpenAIResponsesOperationalReentryMatchedCohortRequestV03,
   projectOpenAIResponsesOperationalReentryMatchedCohortRequestV04,
   projectOpenAIResponsesOperationalReentryStaleResetCrossCaseRequestV01,
-  readOpenAILocalCapabilityDiagnosticV01,
 } from "@/lib/vnext/model-gateway/openai/responses-adapter";
 import { validateModelInvocationReceiptV02 } from "@/lib/vnext/model-gateway/model-invocation-receipt";
 import {
@@ -322,20 +324,6 @@ export const DETERMINISTIC_OPERATIONAL_REENTRY_MATCHED_COHORT_IMPLEMENTATION_ID_
 export const DETERMINISTIC_OPERATIONAL_REENTRY_MATCHED_COHORT_IMPLEMENTATION_VERSION_V01 =
   "deterministic_operational_reentry_matched_cohort_unavailable.v0.1" as const;
 
-export interface ModelGatewayLocalCapabilityDiagnosticV01 {
-  status:
-    | "available"
-    | "action_required"
-    | "misconfigured"
-    | "unavailable";
-  summary: string;
-  verification: "trusted_local_status";
-}
-
-export function readDefaultModelGatewayLocalCapabilityV01(): ModelGatewayLocalCapabilityDiagnosticV01 {
-  return readOpenAILocalCapabilityDiagnosticV01();
-}
-
 const MAX_TIMEOUT_MS = 60_000;
 const MAX_PROVENANCE_REFS = 16;
 const MAX_OUTPUT_TOKENS = 4_096;
@@ -503,19 +491,6 @@ export function readModelGatewayInteractiveAdmissionForRootV01(
   } finally {
     db.close();
   }
-}
-
-/** Non-invocable configuration read for preview and historical grant validation.
- * New authority must refuse a known route missing its current configuration
- * binding; old unbound references remain readable with their historical scope. */
-export function readPlannerModelGatewayExecutionConfigurationV01(
-  model: ModelAdapterSessionV01["model_ref"],
-  options: { require_current_binding?: boolean } = {},
-): PlannerModelExecutionConfigurationV01 | null {
-  if (model.external_id !== OPENAI_PLANNER_SOL_LOW.model) return null;
-  if (isOpenAIPlannerSolLowRoute(model)) return structuredClone(OPENAI_PLANNER_SOL_LOW);
-  if (options.require_current_binding) throw gatewayFailure("model_gateway_provider_response_invalid");
-  return null;
 }
 
 /** Read only the configured Planner route for a finite authorization preview.

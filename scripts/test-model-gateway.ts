@@ -5,6 +5,8 @@ import type { ProjectSelectionRevision } from "../lib/vnext/project-selection";
 import { differentSelectionRevision } from "./test-selection-observation";
 import assert from "node:assert/strict";
 import { channel } from "node:diagnostics_channel";
+import { Writable } from "node:stream";
+import { canonicalChildAcceptanceFailure, runCanonicalChild } from "./canonical-child-runner.mjs";
 import {
   mkdtempSync,
   mkdirSync,
@@ -133,6 +135,49 @@ const onUndiciRequest = () => {
   undiciRequests += 1;
 };
 
+async function assertLocalCapabilityIsolation() {
+  const results: Array<Record<string, unknown>> = [];
+  for (const entry of ["local_capability", "project_home", "pc5_capability", "review_material", "semantic_review"]) {
+    const environment = { ...process.env, AUGNES_DB_PATH: path.join(root, "capability-unopened.db") };
+    for (const key of ["OPENAI_API_KEY", "OPENAI_MODEL", "ANTHROPIC_API_KEY", "AZURE_OPENAI_API_KEY", "GOOGLE_API_KEY",
+      "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "all_proxy", "no_proxy"]) {
+      delete environment[key as keyof typeof environment];
+    }
+    const captured = { stdout: "", stderr: "", bytes: 0 };
+    const sink = (name: "stdout" | "stderr") => new Writable({
+      write(chunk: Buffer, _encoding, done) {
+        captured.bytes += chunk.length;
+        if (captured.bytes <= 65_536) captured[name] += chunk.toString("utf8");
+        done();
+      },
+    });
+    const stdout = sink("stdout"), stderr = sink("stderr");
+    const timeoutMs = 20_000;
+    const result = await runCanonicalChild({
+      suite: "model-capability-isolation", label: entry, command: process.execPath,
+      args: ["--import", "tsx", "scripts/fixtures/model-capability-isolation-child.cjs", entry],
+      cwd: process.cwd(), env: environment, timeoutMs, heartbeatMs: 0,
+      resourceOwner: undefined,
+      // The JS runner only calls write(); its defaults infer the narrower TTY types.
+      stdout: stdout as typeof process.stdout,
+      stderr: stderr as typeof process.stderr,
+      log: () => {},
+    });
+    stdout.end();
+    stderr.end();
+    const failure = canonicalChildAcceptanceFailure(result, {
+      suite: "model-capability-isolation", timeoutMs, requireNaturalExit: true,
+    });
+    assert.equal(failure, null, `${failure?.message ?? ""}\n${captured.stderr}`);
+    assert(captured.bytes <= 65_536, "bounded capability child output required");
+    const summary = JSON.parse(captured.stdout) as Record<string, unknown>;
+    assert.equal(summary.entry, entry);
+    assert.equal(summary.status, "pass");
+    results.push(summary);
+  }
+  return results;
+}
+
 void main().catch((error) => {
   console.error("model_gateway_test_failed");
   if (isModelGatewayInvocationErrorV01(error)) console.error(error.code);
@@ -148,6 +193,7 @@ async function main() {
   undiciChannel.subscribe(onUndiciRequest);
 
   try {
+    const localCapabilityIsolation = await assertLocalCapabilityIsolation();
     const fixture = registerProjects();
     const metrics = {
       live_transport_calls: 0,
@@ -992,6 +1038,7 @@ async function main() {
         {
           test: "model_gateway",
           status: "pass",
+          local_capability_isolation: localCapabilityIsolation,
           real_provider_calls: 0,
           production_entry_paths: [
             "POST /api/observe",

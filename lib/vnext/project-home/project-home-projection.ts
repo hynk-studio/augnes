@@ -46,7 +46,7 @@ import {
   parseStrictIsoTimestampV01,
 } from "@/lib/vnext/protocol-primitives";
 import { validateEpisodeDeltaProposalV01 } from "@/lib/vnext/episode-delta-proposal";
-import { readDefaultModelGatewayLocalCapabilityV01 } from "@/lib/vnext/model-gateway/model-gateway";
+import { readDefaultModelGatewayLocalCapabilityV01 } from "@/lib/vnext/model-gateway/local-capability";
 import {
   createEpisodeDeltaCandidateFingerprintV01,
   validateReviewDecisionAgainstEpisodeDeltaProposalV01,

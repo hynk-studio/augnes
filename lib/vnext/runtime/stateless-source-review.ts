@@ -27,7 +27,7 @@ import { readProjectWorkInitializationV01 } from "./project-work-initialization"
 import { inspectVNextOperatorPilotPacketLineageV01, projectVNextOperatorPilotContinuityV01 } from "./operator-pilot-project-continuity";
 import { revisePreExecutionProjectWorkV01 } from "./project-work-revision";
 import { openVNextLocalOperatorDatabaseV01, admitVNextLocalOperatorMutationInsideTransactionV01, type VNextLocalOperatorPilotConfigV01 as Config, type VNextLocalOperatorSessionCredentialV01 as Credential } from "./local-operator-session";
-import { invokePlannerModelGatewayV01, preparePlannerModelGatewayRouteV01, readPlannerModelGatewayExecutionConfigurationV01 } from "../model-gateway/model-gateway";
+import { readPlannerModelGatewayExecutionConfigurationV01 } from "../model-gateway/planner-execution-configuration";
 import { buildPlannerModelInvocationEnvelopeV01 } from "@/lib/planner/planner";
 import { authorizeModelInvocationCapabilityGrantV01 } from "../automation/model-invocation-capability-grant";
 import { buildModelGatewayCostAuthorityV01, buildModelGatewayCostBudgetV01, assertModelGatewayCostBudgetCurrentV01 } from "../model-gateway/cost-authority";
@@ -151,6 +151,7 @@ export async function previewStatelessReview(db: Database.Database, options: Sta
   check(control?.enabled && !control.paused && validateProjectAutomationPolicyV01(control.policy, config).valid && packet.capability_grant === null, "permission_required");
   assertStatelessUnsettledAdmission(db, config, packet);
   assertTerminalHistoryActive(db, config, packet);
+  const { preparePlannerModelGatewayRouteV01 } = await import("../model-gateway/model-gateway");
   const session = await preparePlannerModelGatewayRouteV01({ adapter: options.adapter });
   check(session, "model_configuration_unavailable"); // preparation has no provider egress
   const modelConfiguration = readPlannerModelGatewayExecutionConfigurationV01(session.model_ref, { require_current_binding: true });
@@ -347,6 +348,7 @@ export class StatelessSourceReviewHost {
           } finally { guard.close(); }
         };
         phase = "gateway";
+        const { invokePlannerModelGatewayV01 } = await import("../model-gateway/model-gateway");
         const result = await invokePlannerModelGatewayV01(buildPlannerModelInvocationEnvelopeV01({ invocation_id: invocationId, workspace_id: grant.workspace_id, project_id: grant.project_id,
           message: canonical(input), brief: emptyBrief(grant.project_id, this.now()), execution_mode: "live", policy: { invocation_origin: "policy_triggered", automation_control_revision: grant.request.control_revision,
             work_id: String(run.metadata.work_id), run_id: run.run_id, grant_id: modelGrant.grant_id, grant_fingerprint: modelGrant.lineage_fingerprint }, budget, timeout_ms: limits.invocation_ms, cancellation_signal: signal,
