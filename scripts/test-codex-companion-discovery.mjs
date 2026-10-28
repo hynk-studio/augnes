@@ -449,7 +449,15 @@ try {
       arguments: { repositoryRoot: process.cwd() },
     });
     assert.notEqual(lifecycleStatus.isError, true);
-    assert.equal(lifecycleStatus.structuredContent?.service?.status, "not_installed");
+    // The service fixture is empty, but only a non-root macOS host supports
+    // installation. Other hosts must preserve the unsupported refusal.
+    const serviceHostSupported = process.platform === "darwin" &&
+      (typeof process.getuid !== "function" || process.getuid() !== 0);
+    assert.equal(lifecycleStatus.structuredContent?.service?.status,
+      serviceHostSupported ? "not_installed" : "unsupported");
+    assert.equal(lifecycleStatus.structuredContent?.service?.platform_support,
+      serviceHostSupported ? "supported" : "unsupported");
+    assert.equal(lifecycleStatus.structuredContent?.service?.start_available, false);
     assert.equal(
       lifecycleStatus.structuredContent?.service?.canonical_resume_available,
       false,
@@ -470,7 +478,9 @@ try {
     assert.equal(lifecycleStart.isError, true);
     assert.equal(
       lifecycleStart.structuredContent?.reason,
-      "companion_service_setup_required",
+      serviceHostSupported
+        ? "companion_service_setup_required"
+        : "companion_service_platform_unsupported",
     );
     assert.equal(lifecycleStart.structuredContent?.authority?.runtime_lifecycle_effect, false);
     assert.equal(executionCalls, executionCallsBeforeLifecycleStart);
