@@ -6,8 +6,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
 import { openDatabase } from "../lib/db";
-import { DatabaseAccessError, PREPARED_DATABASE_SCHEMA_SIGNATURE } from "../lib/db/prepared-database.mjs";
+import { assertPreparedDatabase, DatabaseAccessError, PREPARED_DATABASE_SCHEMA_SIGNATURE } from "../lib/db/prepared-database.mjs";
 import { configureOwnedDatabase, withOwnedDatabase } from "../lib/db/connection-ownership.mjs";
+import { structuralSchemaContractSignature } from "../lib/db/structural-schema-contract.mjs";
 import { GET } from "../app/api/vnext/continuity-pins/route";
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
 import { canonicalStructuralSchemaContractSignature, prepareRuntimeDatabase, restoreRuntimeDatabase, inspectRecoveryDatabaseFile } from "./runtime-database-bootstrap.mjs";
@@ -53,6 +54,74 @@ function causeContains(error: unknown, expected: unknown): boolean {
     (error instanceof AggregateError && error.errors.some(e => causeContains(e, expected)));
 }
 
+// Exported only from this test owner so the focused control can run without
+// repeating the complete request/backup/restore scenario.
+export function assertStructuralSchemaStatementLifetime(source: Database.Database): void {
+  function inspect(database: Database.Database): string {
+    const objects = database.prepare(`SELECT type, name FROM sqlite_schema
+      WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name, tbl_name`).all() as Array<{ type: string; name: string }>;
+    const tableLike = objects.filter(object => object.type === "table" || object.type === "view");
+    const expected = new Map<string, string[][]>([["sqlite_schema", [[]]]]);
+    if (tableLike.length) {
+      expected.set("pragma_index_list", tableLike.map(object => object.name).sort().map(name => [name]));
+      expected.set("pragma_table_xinfo", tableLike.map(object => [object.name]));
+    }
+    for (const [type, query] of [["table", "pragma_foreign_key_list"], ["index", "pragma_index_xinfo"]]) {
+      const names = objects.filter(object => object.type === type).map(object => [object.name]);
+      if (names.length) expected.set(query, names);
+    }
+    let preparations = 0;
+    const calls = new Map<string, string[][]>();
+    const signature = database.transaction(() => structuralSchemaContractSignature({
+      prepare(sql: string) {
+        preparations++;
+        const query = sql.match(/\bFROM\s+(sqlite_schema|pragma_\w+)/i)?.[1];
+        assert(query && expected.has(query), "inspection must use its existing query families");
+        const statement = database.prepare(sql);
+        return { all(...parameters: string[]) {
+          const argumentsForQuery = calls.get(query) ?? [];
+          argumentsForQuery.push(parameters);
+          calls.set(query, argumentsForQuery);
+          return statement.all(...parameters);
+        } };
+      },
+    }))();
+    assert.equal(preparations, expected.size, "fixed structural SQL is prepared once per invocation");
+    assert.deepEqual(calls, expected, "every object is queried with the original arguments and per-query order");
+    return signature;
+  }
+
+  withOwnedDatabase(new Database(source.serialize()), (database: Database.Database) => {
+    const originalSignature = inspect(database);
+    assert.equal(originalSignature, PREPARED_DATABASE_SCHEMA_SIGNATURE);
+    assert.equal(inspect(database), originalSignature, "a later invocation prepares and reads again");
+    const rollback = new Error("rollback-structural-statement-fixture");
+    assert.throws(() => database.transaction(() => {
+      database.exec(`CREATE TABLE structural_statement_probe (
+        id INTEGER PRIMARY KEY, agent_id TEXT REFERENCES agents(id), note TEXT DEFAULT 'fresh image');
+        CREATE INDEX structural_statement_probe_agent ON structural_statement_probe(agent_id DESC);
+        CREATE VIEW structural_statement_probe_view AS SELECT id, note FROM structural_statement_probe;`);
+      assert.notEqual(inspect(database), originalSignature, "a later invocation observes new schema objects");
+      assert.throws(() => assertPreparedDatabase(database), (error: unknown) =>
+        error instanceof DatabaseAccessError && error.code === "database_incompatible");
+      throw rollback;
+    })(), (error: unknown) => error === rollback);
+    assert.equal(inspect(database), originalSignature, "rollback does not retain changed-image observations");
+
+    const primary = new Error("structural-first-query-failure");
+    assert.throws(() => structuralSchemaContractSignature({ prepare(sql: string) {
+      if (sql.includes("pragma_table_xinfo")) throw primary;
+      return database.prepare(sql);
+    } }), (error: unknown) => error === primary);
+    assert.equal(database.open, true, "a failed inspection leaves its borrowed handle with the caller");
+    assert.equal(inspect(database), originalSignature, "a failed invocation retains no statement/result state");
+  });
+  withOwnedDatabase(new Database(":memory:"), (database: Database.Database) => {
+    assert.notEqual(inspect(database), PREPARED_DATABASE_SCHEMA_SIGNATURE,
+      "empty images execute only the object query without preparing unused pragma queries");
+  });
+}
+
 export async function testDatabaseAccess() {
   const root = fs.mkdtempSync(path.join(tmpdir(), "augnes-access-"));
   const databasePath = path.join(root, "prepared.db");
@@ -68,6 +137,7 @@ export async function testDatabaseAccess() {
     // The actual startup owner supplies a complete store without a manual step.
     await prepareRuntimeDatabase(lifecycle as unknown as Parameters<typeof prepareRuntimeDatabase>[0]);
     fixture = openDatabase();
+    assertStructuralSchemaStatementLifetime(fixture);
     const workspace = getOrCreateDefaultWorkspaceIdentityV01(fixture);
     const project = getOrCreateCanonicalProjectForLocalRootV01(fixture, {
       workspace_id: workspace.workspace_id,

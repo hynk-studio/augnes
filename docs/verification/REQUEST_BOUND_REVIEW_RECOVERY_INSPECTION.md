@@ -90,3 +90,23 @@ No schema, authorization, durable recovery meaning or personal lifecycle
 contract was added. All mutations use disposable synthetic resources. The
 original two-project exercise was not repeated, and no model/provider calls,
 personalization benefit or measured human burden are claimed.
+
+## Follow-up: structural statement lifetime
+
+The #1554 continuation found a separate avoidable cost in structural inspection:
+the same four parameterized pragma queries were prepared for every schema object.
+`buildStructuralSchemaContract` now prepares each query lazily once per
+synchronous invocation. It still executes every query with the same object
+argument and ordering, normalizes every result, and computes the complete
+signature. Statements and results do not survive that invocation. Empty images
+do not prepare unused query kinds, and errors retain their original first-use
+boundary. This does not change the exact-image recovery reuse described above.
+
+The existing database-access test owner checks the canonical signature, complete
+per-query arguments and execution counts, fresh later invocations, a real schema
+mutation and refusal, rollback, empty images, and caller ownership after a query
+failure. The preparation-count assertion fails on the preceding implementation.
+The request-bound-review scenario, its assertions and registered 30-second bound
+remain unchanged. Development timings and the historical nested timeout are
+separate evidence; reduced preparation work does not reclassify that timeout or
+create qualification succession authority.
