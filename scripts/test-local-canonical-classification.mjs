@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { createCanonicalTestResourceRoot, cleanupCanonicalTestResources, buildCanonicalChildEnvironment, beginCanonicalTestResourceUse, settleCanonicalTestResourceUse } from "./canonical-test-environment.mjs";
 import { runCanonicalChild as executeChild } from "./canonical-child-runner.mjs";
-import { INPUT_CONTRACT, LEGACY_INPUT_CONTRACT, freezeInputContract, classifyInputChange, observeInputFile, monitorInputContract, digest, deriveOperationalDisposition, commonInputResources, inputReadOptions } from "./local-canonical-inputs.mjs";
+import { INPUT_CONTRACT, LEGACY_INPUT_CONTRACT, freezeInputContract, classifyInputChange, observeInputFile, monitorInputContract, digest, deriveOperationalDisposition, commonInputResources, inputReadOptions, inputEventIdentity } from "./local-canonical-inputs.mjs";
 import { beginAttempt, finishAttempt, inspectAttemptRecords, readRecoveryProof, readSourceCorrectionProof } from "./local-canonical-attempts.mjs";
 import { acquireCheckoutVerificationOwnership, releaseCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
 import { runPhasesSequentially, enforceArtifactRetention, FULL_PHASE_IDS, buildPhasePlan, browserReplacementLiveBinding, phaseEnvironment, prepareInvocationInputs } from "./run-local-canonical-verification.mjs";
@@ -174,6 +174,21 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
   note("trust and unknown remainder edits cannot hide behind excluded preferences");
   const broken = await observedChild({ observerFailure: true });
   assert.equal(broken.evidence.first_fault.disposition, "observer_failure"); assert(broken.result.cancelled);
+  assert.deepEqual(broken.evidence.first_fault.diagnostic, { contract: "augnes.input-observation-failure.v1", stage: "reader", code: "unclassified_error" });
+  assert(!JSON.stringify(broken.evidence).includes("fixture observer unavailable"));
+  let injected = null, getterRead = false;
+  write(config, initial);
+  const diagnosedReader = contract("execution", { read: (...args) => { if (injected) throw injected; return observeInputFile(...args); } });
+  injected = Object.assign(new Error("private message /private/sentinel"), { code: "EIO" });
+  const diagnosedFirst = diagnosedReader.check();
+  injected = Object.defineProperty(new Error("private second message"), "code", { get() { getterRead = true; return "EACCES"; } });
+  diagnosedReader.check(); assert(!getterRead);
+  const diagnosedSnapshot = diagnosedReader.snapshot();
+  assert.equal(diagnosedSnapshot.first_fault.diagnostic.code, "EIO");
+  assert.equal(diagnosedSnapshot.secondary_faults[0].diagnostic.code, "unclassified_error");
+  assert.notEqual(diagnosedSnapshot.events[0].identity, diagnosedSnapshot.events[1].identity);
+  diagnosedSnapshot.first_fault.diagnostic.code = "EPERM";
+  assert.deepEqual(diagnosedReader.snapshot().first_fault, diagnosedFirst);
   note("critical observer failure latches and cancels without replacing baseline");
   const timed = await observedChild({ timeout: true });
   assert.equal(timed.result.timed_out, true); assert.equal(timed.result.exit_code, 0);
@@ -358,6 +373,43 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
   validContext.currentInputStateValid = true;
   const passing = finalizeReceipt(receipt);
   assert.deepEqual(inspectReceiptForDecision(passing, validContext).issues, []);
+  const diagnosed = structuredClone(receipt), failureEvidence = diagnosedReader.snapshot();
+  diagnosed.inputs.events = failureEvidence.events;
+  diagnosed.inputs.first_fault = failureEvidence.first_fault;
+  diagnosed.inputs.secondary_faults = failureEvidence.secondary_faults;
+  diagnosed.outcome = { disposition: "unknown_relevance", execution: "incomplete_or_failed", validity: "invalid_or_unknown", safety: "blocked", first_fault: failureEvidence.first_fault };
+  const diagnosticIssues = r => inspectReceiptForDecision(finalizeReceipt(r), validContext).issues;
+  assert(!diagnosticIssues(diagnosed).includes("receipt_input_event_invalid"));
+  assert(!diagnosticIssues(diagnosed).includes("receipt_input_diagnostic_invalid"));
+  assert(diagnosticIssues(diagnosed).includes("receipt_input_observation_blocked"));
+  assert(diagnosticIssues(diagnosed).includes("receipt_classified_outcome_not_passing"));
+  const diagnosticExport = createPrivateReviewExport(finalizeReceipt(diagnosed));
+  assert.deepEqual(diagnosticExport.inputs.events[0].diagnostic, failureEvidence.first_fault.diagnostic);
+  assert(inspectPrivateReviewExport(diagnosticExport).structurally_valid);
+  assert(!JSON.stringify(diagnosticExport).includes("/private/sentinel"));
+  const legacyFailure = structuredClone(diagnosed);
+  for (const event of legacyFailure.inputs.events) { delete event.diagnostic; event.identity = inputEventIdentity(event); }
+  delete legacyFailure.inputs.first_fault.diagnostic;
+  for (const fault of legacyFailure.inputs.secondary_faults) delete fault.diagnostic;
+  delete legacyFailure.outcome.first_fault.diagnostic;
+  assert(diagnosticIssues(legacyFailure).includes("receipt_input_event_invalid"), "old incomplete evidence keeps its original interpretation");
+  for (const change of [d => { d.stage = "arbitrary"; }, d => { d.code = "PRIVATE_ERROR"; }, d => { d.contract = "unknown"; },
+    d => { d.detail = "private message"; }, d => { delete d.code; }]) {
+    const malformed = structuredClone(diagnosed); change(malformed.inputs.events[0].diagnostic);
+    malformed.inputs.events[0].identity = inputEventIdentity(malformed.inputs.events[0]);
+    assert(diagnosticIssues(malformed).includes("receipt_input_diagnostic_invalid"));
+    assert.throws(() => createPrivateReviewExport(finalizeReceipt(malformed)), /review_export_diagnostic_invalid/);
+    const forgedExport = structuredClone(diagnosticExport); change(forgedExport.inputs.events[0].diagnostic);
+    const exportBody = { ...forgedExport }; delete exportBody.export_fingerprint;
+    forgedExport.export_fingerprint = digest(canonicalSerialize(exportBody));
+    assert(!inspectPrivateReviewExport(forgedExport).structurally_valid);
+  }
+  for (const change of [r => { delete r.inputs.first_fault.diagnostic; }, r => { r.inputs.events[0].diagnostic.code = "EPERM"; },
+    r => { r.outcome.first_fault = null; }, r => { delete r.inputs.first_fault; }, r => { r.inputs.secondary_faults = [null]; }]) {
+    const malformed = structuredClone(diagnosed); change(malformed);
+    assert(diagnosticIssues(malformed).some(i => ["receipt_input_diagnostic_invalid", "receipt_input_event_invalid"].includes(i)));
+  }
+  note("bounded diagnostic event/fault identities survive receipt and private export; tampering and raw fields refuse; legacy incomplete observer failures remain invalid and UNKNOWN");
   // Receipt/event reconstruction must select v3 deliberately; relabelling the
   // same new event as legacy cannot acquire the non-consumption interpretation.
   const classified = structuredClone(receipt), observed = remainderChild.evidence;

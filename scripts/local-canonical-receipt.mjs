@@ -1,3 +1,4 @@
+import { isObserverRepair, validObserverAttempt } from "./local-canonical-observer-succession.mjs";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { CANONICAL_REPOSITORY_ID } from "./canonical-repository-identity.mjs";
@@ -7,7 +8,7 @@ import { CODEX_REUSE_OWNER_IDS, CODEX_REUSE_PHASE_IDS } from "./codex-reuse-veri
 import { VERIFICATION_CONTEXT_CONTRACT } from "./local-canonical-verification-context.mjs";
 import { VERIFICATION_CAPACITY_CONTRACT, verificationCapacityLimit } from "./local-canonical-capacity.mjs";
 import { HISTORICAL_INPUT_CONTRACT } from "./local-canonical-historical-inputs.mjs";
-import { supportedInputContract, digest, deriveOperationalDisposition, nonFaultInputChange, classifyInputChange, effectiveInputObservation } from "./local-canonical-inputs.mjs";
+import { supportedInputContract, digest, deriveOperationalDisposition, nonFaultInputChange, classifyInputChange, effectiveInputObservation, inputEventIdentity, validObservationDiagnostic, validInputFailureDiagnostics } from "./local-canonical-inputs.mjs";
 import { ATTEMPT_CONTRACT } from "./local-canonical-attempts.mjs";
 import { validPhaseBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { BROWSER_INPUT_CONTRACT } from "./local-canonical-browser-input.mjs";
@@ -655,11 +656,15 @@ function inspectClassifiedEvidence(receipt, issues) {
       !["isolated-model-free-v1", "canonical-conservative-v1"].includes(input.path_kind) ||
       (input.path_kind === "isolated-model-free-v1" && receipt.verification_context.kind !== "isolated-worktree")) issues.push("receipt_input_binding_invalid");
   if (input.first_fault || input.events.some(e => !nonFaultInputChange(e.disposition))) issues.push("receipt_input_observation_blocked");
+  if (!validInputFailureDiagnostics(input) ||
+      ((input.first_fault?.diagnostic !== undefined || receipt.outcome?.first_fault?.diagnostic !== undefined) &&
+       digest(input.first_fault ?? null) !== digest(receipt.outcome?.first_fault ?? null))) issues.push("receipt_input_diagnostic_invalid");
   for (const event of input.events) {
     const resource = input.resources.find(r => r.id === event.resource);
-    if (!resource || !event.after || event.classification !== resource.classification ||
-        classifyInputChange(resource.before, event.after, resource, input) !== event.disposition ||
-        event.identity !== digest([event.resource, event.disposition, event.after])) issues.push("receipt_input_event_invalid");
+    const observedFailure = event.disposition === "observer_failure" && event.after === null && validObservationDiagnostic(event.diagnostic);
+    if (!resource || event.classification !== resource.classification ||
+        (!observedFailure && (!event.after || event.diagnostic !== undefined || classifyInputChange(resource.before, event.after, resource, input) !== event.disposition)) ||
+        event.identity !== inputEventIdentity(event)) issues.push("receipt_input_event_invalid");
   }
   if (input.resources.some(r => r.readOnlyExecutable && (r.classification !== "execution" || r.metadataOnly || r.excludePreferences))) issues.push("receipt_input_role_invalid");
   try { for (const resource of input.resources) effectiveInputObservation(resource.before, resource, input); }
@@ -673,9 +678,15 @@ function inspectClassifiedEvidence(receipt, issues) {
   if (new Set(input.resources.map(r => r.id)).size !== input.resources.length ||
       ["codex-preferences", "user-instructions", "auth-location", "git-config", "node-executable"].some(id => !input.resources.some(r => r.id === id))) issues.push("receipt_input_inventory_invalid");
   const attempt = receipt.attempt;
+  if (attempt?.source_correction?.schema === "augnes.local-canonical-source-correction.v3" || attempt?.observer_authority) {
+    if (receipt.receipt_version !== 4 || !validObserverAttempt(attempt) || receipt.evidence.mode !== "full" ||
+        receipt.verification_context.kind !== "isolated-worktree" || attempt.source_correction.base !== receipt.repository.base_sha ||
+        digest(receipt.phases.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) issues.push("receipt_observer_succession_invalid");
+  }
+
   if (receipt.evidence.mode !== "quick" && (attempt?.contract !== ATTEMPT_CONTRACT || ![1, 2].includes(attempt.number) ||
       attempt.attempt_id !== receipt.run.id || attempt.head !== receipt.repository.head_sha || attempt.tree !== receipt.repository.tree_sha ||
-      attempt.contract_fingerprint !== input.fingerprint || attempt.budget?.initial !== 1 || attempt.budget?.recovery !== (receipt.receipt_version === 5 ? 0 : 1) ||
+      attempt.contract_fingerprint !== input.fingerprint || attempt.budget?.initial !== 1 || attempt.budget?.recovery !== (receipt.receipt_version === 5 || isObserverRepair(attempt.source_correction) ? 0 : 1) ||
       (attempt.number === 1 && (attempt.prior_attempt_id !== null || attempt.recovery !== null)) ||
       (attempt.number === 2 && (!SHA256_PATTERN.test(attempt.prior_receipt_fingerprint ?? "") || !attempt.recovery)))) issues.push("receipt_attempt_lineage_invalid");
   const expectedBrowser = input.resources.find(r => r.id === "browser-executable");

@@ -836,10 +836,10 @@ accepted-main integration after PASS instead binds the freshly admitted main,
 exact two parents and the read-only recomputed non-overlapping tree-entry union. An unrelated merge
 is not a claimed repair, and overlapping/resolved source requires correction proof.
 
-Unchanged head/tree, cosmetic source, changed or missing proof, unsettled owner,
+For the legacy v1/v2 routes, unchanged head/tree, cosmetic source, changed or missing proof, unsettled owner,
 unknown/timeout predecessor, older-attempt selection and multiple successors
 refuse. A superseded candidate cannot consume its old recovery slot. Each
-admitted candidate still has one initial and at most one substantiated
+ordinary admitted candidate still has one initial and at most one substantiated
 infrastructure recovery. These records bind reviewable source/evidence and scope;
 they neither authenticate an independent reviewer nor grant execution authority.
 Independent review and behavior-based adversarial controls remain required;
@@ -851,6 +851,92 @@ unchanged. Bounds limit hangs and settlement within supported CPU/memory/disk
 conditions; a timeout is not automatically a performance regression or an
 infrastructure diagnosis. In particular the historical settled-expired-successor
 child remains one complete scenario under its existing 30,000 ms bound.
+
+### Reviewed observer-repair succession (source-correction v3)
+
+`augnes.local-canonical-source-correction.v3`, kind `observer_repair`, uses the
+existing `--source-correction-proof` entry, append-only attempt families and
+receipt version 4. It is a materially corrected observer candidate, not an
+infrastructure retry or a general exception for UNKNOWN. Implementing this route,
+a passing fixture, an implementation-owner statement or a repair-only review
+**does not authorize execution**. No separate controller deployment or prerequisite
+Full is required to prepare a candidate for independent exact-source audit.
+
+Eligibility requires the retained original receipt, attempt and completion bytes
+and their SHA-256 identities. The original must have a single undiagnosed
+`browser-executable` observer failure, `unknown_relevance`/blocked outcome,
+complete input inventory and preceding or subsequent independently valid
+`incidental_executable_metadata` events for that same shared executable. Every
+event is reconstructed; unrelated faults, secondary faults, diagnostic invention,
+exhausted event inventory, timeouts, other phase failures and incomplete cleanup
+refuse. The Full phase inventory must be complete, with a PASS prefix, one
+observer-cancelled phase and only NOT_RUN afterward. No PASS phase transfers to
+the successor. The original exception and historical cause remain UNKNOWN.
+This predicate is intentionally narrower than all observer failures.
+
+The proof binds the latest settled predecessor, complete predecessor-to-repair
+and predecessor-to-final binary Git deltas and path inventories, exact reviewed
+repair head/tree, final base/head/tree, original records and deterministic
+before/after witnesses under one fixture, environment and Canonical Node. Common
+source-correction witness checks still require natural child exits, expected
+failure then success, time ordering and complete cleanup. The accepted observer
+module, deterministic observer fixture and discovery correction must remain
+byte-identical in the final candidate. Final task changes relative to the freshly
+admitted main are limited to the existing observer/succession, transport,
+receipt/export/executor, focused-test and policy owners enumerated by
+`local-canonical-observer-succession.mjs`. Normal upstream movement is reconciled
+by the exact base and reviewed final delta; this is no planner exemption.
+
+Three remotely attributable records are required: the accepted repair review,
+an independent review of the **final exact candidate and succession evidence**,
+and a separate explicit execution grant posted on the same PR. A repair-only
+review cannot double as the final review. The proof carries the PR number and
+review/comment identities; no issue-specific bypass or grant is embedded in
+source. The existing bounded authenticated GitHub GET transport reads each
+record and current maintainer/admin permission. Expected author, body hash,
+timestamp, source commit, destination, role and evidence binding must match.
+Unavailable, edited, stale, reordered, mismatched or unprivileged records refuse.
+There is no local approval flag, file or environment fallback. A detached local
+proof is inspectable evidence only.
+
+The final review and grant each contain exactly one
+`augnes-observer-repair-authorization` fenced JSON record. Its common fields are
+returned by `observerAuthorityBinding(proof)` (schema
+`augnes.local-canonical-observer-authority.v1`, evidence fingerprint, final
+base/head/tree, original UNKNOWN disposition/cause, Full workload, separate stock
+validation, initial 1/recovery 0). Add `review_id` and the explicit role/decision:
+`independent_review` / `accept_exact_observer_succession`, or
+`execution_grant` / `authorize_one_full_zero_recovery`. Hashes bind the observed
+metadata returned by `observerAuthorityObservation`, not an invented signature.
+The grant cannot predate the final review; the accepted repair review must
+postdate predecessor settlement. These are cooperative authenticated attribution
+checks: a shared GitHub account does not cryptographically prove which human or
+model performed a review. Independent exact-source audit remains a separate
+responsibility, and a reviewer must not represent the implementation owner as
+independent. Synthetic test transport responses never grant production authority.
+
+After those checks, normal fresh Mac admission still requires exact clean source,
+authenticated current main, registered isolated worktree, pinned runtime,
+capacity and checkout ownership, preserved inputs/Companion and the unchanged
+planner-selected Full workload. The predecessor's existing `correction-successor`
+namespace admits one exclusive edge across all successor kinds. A reservation
+interrupted before attempt creation remains consumed and blocks replay; it is
+not rolled back automatically. Older, unsettled or superseded tips refuse.
+The special successor has **one Full and zero automatic or explicit recovery
+invocations** under this route. It is terminal for this grant even if it fails.
+Changing branch/family, deleting records, returning to the original conditional
+allowance, phase stitching and a second successor are forbidden.
+
+The separate stock validator freshly reconstructs source, evidence, latest
+lineage, immutable edge, original bytes and authenticated authority without
+creating a reservation. Receipt/export carry bounded source/evidence and
+attribution identities, never raw review bodies or original logs. Stock failure,
+missing authority or stale environment cannot become acceptance from a local
+hash. Legacy v1/v2 proofs, version 3/4/5 receipts and their original dispositions
+retain their interpretation; readers unaware of v3 do not obtain a new allowance.
+The original receipt is never rewritten. Focused disposable normal/refusal,
+exclusive-owner race, interrupted-state and fresh-reader controls are owned by
+`test-local-canonical-review-corrections.mjs` under its unchanged deadline.
 
 ### Browser input replacement (receipt version 5)
 

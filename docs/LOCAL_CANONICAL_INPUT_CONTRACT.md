@@ -147,7 +147,7 @@ revision; empty/comment-only changes cannot satisfy behavior-based controls.
 A pure accepted-main merge is checked against the stock authenticated base and
 the read-only recomputed non-overlapping tree-entry union; overlapping or resolved source requires a substantive
 source-correction proof instead. Unsettled, unknown or timeout predecessors do
-not acquire a successor through this bounded path. Every family retains one
+not acquire a successor through this bounded path. Every ordinary v1/v2 family retains one
 initial invocation and at most one proved infrastructure recovery. Changed proof,
 older attempt selection, wrapper restart, superseded candidate recovery and a
 second successor refuse. Legacy v1 records keep their original interpretation.
@@ -164,6 +164,41 @@ resolve. Other admitted hosts retain complete metadata equality and receive no
 new incidental-metadata exemption. Polling remains bounded and cannot prove
 absence of transient changes between observations; every observed native
 permission/flag/attribute difference remains a hard fault.
+
+### Read-window coherence and bounded failure diagnostics
+
+The shared-executable reader applies the same fixed role to observations inside
+one read window. Every initial, descriptor and named-file sample must agree on
+type, device/inode, mode, owner/group, size and mtime. Native permission identities
+must agree before and after each complete read. A link-count/ctime difference
+inside that window requires exactly one additional complete read of the same
+identity: both byte sequences, their lengths and every consumed/safety sample
+must agree. No failed read is retried, no later sample replaces an earlier one,
+and a second-window failure refuses. Configuration and mutable resources retain
+complete metadata equality and single-link checks. This is not a blanket ctime
+exclusion or proof that the historical #1548 exception was a metadata race.
+
+Caught input-monitor failures now carry the optional
+`augnes.input-observation-failure.v1` diagnostic: only `contract`, a fixed `stage`
+and an allowlisted `code`. Filesystem stages distinguish initial/named/descriptor
+stat, resolution, open, read, consistency and close; permission readers distinguish
+ACL, flags and attributes. An unknown external code becomes `unclassified_error`;
+a helper's nonzero status becomes `helper_exit_nonzero`. No exception message,
+stack, path, command output, credential or environment value enters this record.
+The first failure remains latched; event identities bind diagnostic differences.
+Receipt validation checks the exact diagnostic shape and event/fault linkage.
+The private export retains these bounded fields and rejects malformed diagnostics.
+An explained observer failure still blocks acceptance and remains
+`unknown_relevance`; diagnostics do not confer recovery or succession eligibility.
+
+Diagnostic-free events and original receipts retain their existing identity and
+interpretation. Missing historical error information is never filled in. The
+existing classification and review-corrections owners cover deterministic
+within-read alias changes, content/replacement/permission/ownership adversity,
+filesystem/helper failures, cancellation, first-fault latching, strict diagnostic
+validation, private export and legacy compatibility. The fixture can import the
+retained earlier input module for identical before/after controls. These focused
+checks do not execute a deciding Full or authorize a new attempt.
 
 ## Strict task-owned Browser input and replacement route
 
@@ -224,3 +259,23 @@ and exercise the actual construction with positive and altered/missing-wrapper,
 profile, owner, platform and selection controls. No failure retries unwrapped.
 This preserves the trusted-local baseline, without additional Chromium
 filesystem/IPC isolation; the Local Canonical policy owns that tradeoff.
+
+## Narrow observer-repair succession
+
+The [versioned policy](../.github/LOCAL_CANONICAL_VERIFICATION.md#reviewed-observer-repair-succession-source-correction-v3)
+adds source-correction v3 to the existing attempt/proof/receipt path. A complete
+retained undiagnosed shared-Browser observer stop may remain historically
+UNKNOWN while a materially corrected, independently reviewed candidate becomes
+eligible for a separately authorized successor. This is not a diagnosis of the
+lost exception and does not change legacy failure classification.
+
+Original receipt/attempt/completion bytes, accepted repair source and regression,
+final source/delta, fresh authenticated independent review and a distinct grant
+must all bind. The latest settled lineage receives at most one exclusive edge;
+interrupted reservations refuse replay. The successor executes the unchanged
+Full with initial 1/recovery 0 and separate stock validation. All ordinary Mac,
+capacity, ownership, input and Companion checks remain mandatory. No implementation
+or synthetic fixture grants admission. Unrelated UNKNOWN, timeout, incomplete
+observation/cleanup and changed content, identity or permission cases remain
+ineligible. Private export retains only bounded references and attributed hashes;
+old originals and legacy export interpretation remain unchanged.
