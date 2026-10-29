@@ -758,6 +758,23 @@ remain binding. Source changes introducing a consumer require renewed review
 of the consumer map and its controls. No rule authorizes writing preferences,
 copying credentials, launching a model or changing installed services.
 
+For the audited isolated inventory, a newly declared `git-config` resource may
+carry `gitTracking.policy = isolated-current-branches-v1`. This versioned role
+binds both actual checkout branches and all remaining configuration bytes while
+excluding only a complete, unique foreign branch section containing the two
+plain upstream-tracking entries. All remotes, current/anchor branch settings,
+credentials/transport, hooks/filters and mixed changes remain protected. Actual
+effective configuration origins and both branches are reobserved; external
+system/global inputs and path/permission identity remain binding. An existing
+worktreeConfig extension additionally binds each checkout's complete worktree
+configuration, including absence; this reader never enables or edits it. Includes,
+conditional includes, unknown extensions, environment overrides, ambiguous
+syntax/origins or incomplete observations cannot acquire the projection. The
+consumer map defines its finite tested scope; broad/unknown consumers retain
+whole-file protection. Earlier declarations without this resource marker keep
+their original comparison and recorded failures. This adds neither a retry nor
+a proof kind, and never authorizes changing the shared configuration.
+
 Version 2 material retains its original raw preparation/admission hash and
 preference-only comparison (leading `model`, `model_reasoning_effort` and
 `service_tier` values; remainder changes refuse). Version 3 never reinterprets
@@ -937,6 +954,92 @@ retain their interpretation; readers unaware of v3 do not obtain a new allowance
 The original receipt is never rewritten. Focused disposable normal/refusal,
 exclusive-owner race, interrupted-state and fresh-reader controls are owned by
 `test-local-canonical-review-corrections.mjs` under its unchanged deadline.
+
+### Reviewed corrected-timeout succession (source-correction v4)
+
+`augnes.local-canonical-source-correction.v4`, kind `corrected_timeout`, permits
+one materially corrected candidate after a completely settled nested Canonical
+test timeout. It uses the existing `--source-correction-proof`, attempt,
+receipt, stock and authenticated transport owners, with the bounded evidence
+checks in `local-canonical-timeout-succession.mjs`. It is not an unchanged retry,
+infrastructure recovery, general UNKNOWN exception or reinterpretation of legacy
+v1/v2/v3 records. The original timeout and its historical cause remain UNKNOWN;
+the outer phase's `product_failure` label alone never supplies eligibility.
+
+Eligibility binds immutable original receipt, attempt, completion and complete
+phase-log bytes and their hashes, including the receipt's original log-path,
+byte-count and truncation binding. A later hash of retained log bytes must not be
+represented as a hash recorded by the original receipt. The latest settled
+predecessor must show one bounded nested test timeout, complete child/phase/run
+settlement and cleanup, no remaining owned resources, and no unresolved input or
+safety fault or other failed workload. Missing or ambiguous child evidence,
+truncated logs, unknown cleanup and an older or superseded predecessor refuse.
+The original full phase and child inventory is retained; no previous PASS is
+reused as execution coverage for the successor.
+
+The admitted defect is `fixed_pragma_statement_repreparation` in
+`lib/db/structural-schema-contract.mjs`, on the affected nested integration path.
+This is a bounded source predicate, not a loader or arbitrary corrected-timeout
+override. The same deterministic fixture must naturally fail on the prior
+Git source and pass on the independently reviewed corrected source under one
+captured environment and Canonical Node, with actual timestamps, source/fixture
+hashes and completed
+cleanup. A bounded mechanism regression, including operation counts, can prove
+the correction without reproducing or explaining the historical timeout. Original
+assertions, workloads, registrations and deadlines remain unchanged; a weakened
+assertion, removed workload or raised bound cannot satisfy this route.
+The structural module and its `scripts/test-database-access.ts` regression
+remain byte-identical from accepted repair to final source. The original
+`scripts/test-request-bound-review.ts`,
+`scripts/test-review-callback-enrollment.ts` and affected integration registration
+retain their prior/reviewed/final content and unchanged timeout.
+
+The proof binds the accepted correction review and a distinct explicit user
+execution authorization on the same PR, using the `accepted_repair` and
+`execution_grant` roles. Fresh authenticated reads must match their recorded
+author, destination, source, body hash, time and scope; synthetic responses or a
+local approval flag are not authority. Current maintainer/admin permission is
+checked through the existing bounded GitHub transport. The grant must explicitly authorize the
+bounded policy implementation, final complete qualification and one-Full/zero-
+recovery budget. A recommendation or review alone does not grant execution.
+The actual attributed prose supplies this scope; no new fenced approval record
+or second final-source execution grant is required.
+The reviewed correction remains unchanged in the final source. The proof also
+binds final base/head/tree and complete predecessor-to-repair,
+predecessor-to-final and repair-to-final deltas and path inventories. After
+accepted-main reconciliation, subsequent task changes are restricted to the
+route's existing policy, proof/attempt/receipt/stock, executor and focused-test
+owners; unrelated product changes require separate authority. An owner-checked
+final source record binds those subsequent deltas without claiming that the
+implementation owner's check independently audited the new policy.
+
+This explicit prospective authority does not require a separate policy-only
+Full, prior deployment or another routine approval between implementation and
+qualification. Focused normal/adverse/legacy controls, final clean published
+source and normal fresh Mac admission remain required: current authenticated
+main, registered worktree, pinned runtime, ownership/capacity, frozen inputs,
+Companion preservation and the unchanged planner-selected complete workload.
+Independent audit of the implemented policy and returned evidence remains a
+post-completion decision; this route grants no Ready, merge or adoption authority.
+
+The existing predecessor `correction-successor` namespace admits one exclusive
+edge across successor kinds. Its explicit authority is consumed with that edge
+and cannot renew through a different head, branch, worktree, proof, copied grant
+or accepted-main integration. Interrupted reservations remain consumed; older
+tip selection, deletion, family reset and successor chaining refuse. The entire
+allowance is **one admitted Full and zero automatic or explicit recovery/retry**.
+A failed successor is terminal for this authority. Pre-admission refusal records
+no executed coverage and does not bypass ordinary ownership/capacity rules.
+
+After the Full, the separate stock reader freshly reconstructs the original
+evidence, final source, authenticated authority, immutable edge and latest
+lineage without reserving another attempt. A usable failed receipt still receives
+stock validation and cleanup, then returns with the failure preserved. Receipt
+and supported private export retain bounded evidence/authority identities, not
+raw logs or review bodies. Legacy receipts and exports keep their original
+meaning; readers unaware of v4 gain no allowance. Raw historical records are
+never rewritten, phase stitching remains forbidden, and a passing development
+fixture or source hash alone is neither qualification nor independent approval.
 
 ### Browser input replacement (receipt version 5)
 

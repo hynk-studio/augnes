@@ -27,6 +27,37 @@ readers. Provider-specific session, thread, turn, and approval IDs remain
 bounded `ExternalRef` values produced by the adapter; users do not transfer
 them.
 
+## Host composition and execution binding
+
+`native-host-execution-composition.ts` owns the fixed host selection at the
+existing injection boundary. The default live route constructs the Codex App
+Server adapter lazily. An explicitly injected unscoped adapter uses the same
+run service without resolving that constructor through the composition edge.
+Capability readers remain synchronous; the existing `adapter_factory` and
+source-owned `scoped_task` signatures remain compatible.
+
+`codex-live-host-composition.ts` owns scoped window authenticity, attempt
+admission, timeout caps, adapter-to-scope identity, attempt settlement, and
+snapshot release. `codex-native-host-round-trip-binding.ts` owns authored-scope
+checks, binding the real admitted request to the snapshot, and snapshot/source
+validation of the returned result. These are fixed trusted implementations,
+not caller-supplied validators or a mutable host registry.
+
+The reusable live service owns controllers, approvals, cancellation, resume,
+settlement, and project readers. The common round trip retains packet/project
+and execution-authority admission, run claims, result normalization and receipt
+admission. It binds scoped input before admission callbacks or provider egress;
+the adapter retains its point-of-use and one-use checks. Return validation still precedes
+receipt admission and retains the original failed/blocked outcomes and snapshot
+observations. Shared terminal-result construction keeps the existing receipt
+identities and public errors.
+
+This boundary does not change authentication, provider selection, Core records,
+persisted schemas, execution grants, or the meaning of a completed result.
+Dependency checks cover the exercised service/composition edges and their
+observed side effects; they do not establish universal absence of Codex modules
+from unrelated transitive imports, or a performance or usefulness improvement.
+
 ## Lifecycle and safety
 
 - startup capability is lazy and optional;
