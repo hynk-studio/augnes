@@ -260,4 +260,3 @@ export function validConditionRequalificationAttempt(attempt) {
         sha(observation.body_sha256) && validTime(observation.timestamp) && observation.commit_id === (role === "accepted_diagnosis" ? p.diagnosis.head : null);
     });
 }
-
