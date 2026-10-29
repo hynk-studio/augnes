@@ -33,7 +33,10 @@ import {
   type VNextCoreRecordKindV01,
 } from "../lib/vnext/persistence/durable-semantic-store";
 import { admitStructuredRunReceiptV01 } from "../lib/vnext/persistence/structured-run-receipt-admission";
-import { readProjectHomeProjectionV01 } from "../lib/vnext/project-home/project-home-projection";
+import {
+  readProjectHomeDatabaseCompatibilityV01,
+  readProjectHomeProjectionV01,
+} from "../lib/vnext/project-home/project-home-projection";
 import {
   canonicalizeProtocolValueV01,
   compareExternalRefsV01,
@@ -280,6 +283,7 @@ async function main(): Promise<void> {
       });
 
       await assertInspectionImageReuseV01(fixtureDatabasePath, root);
+      assertInvocationScopedReaderInvalidationV01(fixtureDatabasePath);
 
       const preProbePath = path.join(root, "pre-probe.db");
       await sqliteBackupV01(fixtureDatabasePath, preProbePath);
@@ -1462,6 +1466,111 @@ async function assertInspectionImageReuseV01(databasePath: string, root: string)
   } }));
 }
 
+function assertInvocationScopedReaderInvalidationV01(databasePath: string): void {
+  const source = new Database(databasePath, { readonly: true, fileMustExist: true });
+  let bytes: Buffer;
+  try { bytes = source.serialize(); }
+  finally { source.close(); }
+  const db = new Database(bytes);
+  try {
+    const lineage = loadContextReviewLineageV01(db);
+    const receipt = lineage.transition_receipt;
+    const scope = { workspace_id: receipt.workspace_id, project_id: receipt.project_id };
+    const readHome = (database: Database.Database) => readProjectHomeDatabaseCompatibilityV01(database, scope, {
+      now: () => "2026-07-21T00:30:00.000Z",
+    });
+    const expectedHome = readHome(db);
+    const expectedRecovery = validateRecoveryInMemoryV01(db);
+    assert.equal(expectedRecovery.status, "valid");
+    const immutableMutation = (database: Database.Database, work: () => void) => {
+      const triggers = database.prepare(`SELECT name, sql FROM sqlite_schema WHERE type = 'trigger'
+        AND name IN ('trg_vnext_core_records_immutable_update', 'trg_vnext_core_records_immutable_delete')`)
+        .all() as Array<{ name: string; sql: string }>;
+      assert.equal(triggers.length, 2);
+      for (const trigger of triggers) database.exec(`DROP TRIGGER ${quoteSqliteIdentifierV01(trigger.name)}`);
+      work();
+      for (const trigger of triggers) database.exec(trigger.sql);
+    };
+    const removeHistoricalGate = (database: Database.Database) => immutableMutation(database, () => {
+      assert.equal(database.prepare("DELETE FROM vnext_core_records WHERE record_kind = 'semantic_commit_gate' AND record_id = ?")
+        .run(receipt.semantic_commit_gate.evaluation_ref.external_id).changes, 1);
+    });
+    const mutations = [
+      { name: "missing-historical-gate", mutate: () => removeHistoricalGate(db) },
+      { name: "missing-source-decision", mutate: () => immutableMutation(db, () => {
+        assert.equal(db.prepare("DELETE FROM vnext_core_records WHERE record_kind = 'review_decision' AND record_id = ?")
+          .run(receipt.source_decision.decision_id).changes, 1);
+      }) },
+      { name: "cross-workspace-source", mutate: () => immutableMutation(db, () => {
+        assert.equal(db.prepare("UPDATE vnext_core_records SET workspace_id = ? WHERE record_kind = 'review_decision' AND record_id = ?")
+          .run("workspace:foreign-invocation", receipt.source_decision.decision_id).changes, 1);
+      }) },
+      { name: "current-projection-drift", mutate: () => {
+        assert(db.prepare(`UPDATE vnext_semantic_state_entries SET current_state_fingerprint = ?
+          WHERE workspace_id = ? AND project_id = ?`).run(`sha256:${"8".repeat(64)}`, scope.workspace_id, scope.project_id).changes > 0);
+      } },
+      { name: "current-head-drift", mutate: () => {
+        assert(db.prepare(`UPDATE vnext_semantic_target_heads SET updated_at = ?
+          WHERE workspace_id = ? AND project_id = ?`).run("2000-01-01T00:00:00.000Z", scope.workspace_id, scope.project_id).changes > 0);
+      } },
+    ];
+    for (const mutation of mutations) {
+      // Each pair is a new top-level invocation. No session survives a write,
+      // rollback, or reopen; this also detects accidental process-global reuse.
+      assert.deepEqual(readHome(db), expectedHome);
+      assert.deepEqual(validateRecoveryInMemoryV01(db), expectedRecovery);
+      const before = readLogicalDatabaseSnapshotV01(db);
+      const rollback = new Error(`rollback-reader-invalidation:${mutation.name}`);
+      try {
+        db.transaction(() => {
+          mutation.mutate();
+          const changed = readLogicalDatabaseSnapshotV01(db);
+          assert.throws(() => readHome(db), `${mutation.name}: a warm Home read must not hide later invalidation`);
+          assert.equal(validateRecoveryInMemoryV01(db).status, "invalid",
+            `${mutation.name}: a warm recovery read must not hide later invalidation`);
+          assert.deepEqual(readLogicalDatabaseSnapshotV01(db), changed, `${mutation.name}: refusing readers remain read-only`);
+          throw rollback;
+        })();
+        assert.fail(`${mutation.name}: the injected rollback must settle by throwing`);
+      } catch (error) {
+        if (error !== rollback) {
+          throw new Error(`reader_invalidation_control_failed:${mutation.name}`, { cause: error });
+        }
+      }
+      assert.deepEqual(readLogicalDatabaseSnapshotV01(db), before, `${mutation.name}: rollback preserves schema and all pre-mutation records`);
+    }
+    // A Buffer-backed database's serialization can retain its committed image
+    // during an active transaction. Commit the corrupt disposable clone before
+    // serialization so this reopen control observes the intended missing gate.
+    const corruptClone = new Database(db.serialize());
+    let corruptBytes: Buffer;
+    try {
+      removeHistoricalGate(corruptClone);
+      assert.equal(corruptClone.inTransaction, false);
+      corruptBytes = corruptClone.serialize();
+    } finally { corruptClone.close(); }
+    const corruptReopened = new Database(corruptBytes);
+    try {
+      const gateCount = corruptReopened.prepare("SELECT count(*) AS count FROM vnext_core_records WHERE record_kind = 'semantic_commit_gate' AND record_id = ?")
+        .get(receipt.semantic_commit_gate.evaluation_ref.external_id) as { count: number };
+      assert.equal(gateCount.count, 0,
+      "the reopened corruption fixture must actually lack the historical gate");
+      assert.throws(() => readHome(corruptReopened), "reopened committed corruption must remain refused by Home");
+      assert.equal(validateRecoveryInMemoryV01(corruptReopened).status, "invalid",
+        "reopened committed corruption must remain refused by recovery");
+    } finally { corruptReopened.close(); }
+    const reopened = new Database(db.serialize());
+    try {
+      assert.deepEqual(readHome(reopened), expectedHome);
+      assert.deepEqual(validateRecoveryInMemoryV01(reopened), expectedRecovery);
+    } finally { reopened.close(); }
+    console.log(JSON.stringify({ invocation_scoped_reader_invalidation: {
+      cases: mutations.map((mutation) => mutation.name), warm_reads: true,
+      later_refusals: true, rollback_and_reopen: true, writes_by_validation: 0,
+    } }));
+  } finally { db.close(); }
+}
+
 function inspectWithCanonicalPassCountV01(databasePath: string, duringSourceRead?: () => void) {
   const prepare = Database.prototype.prepare;
   const passes: Array<{ source: boolean; transaction: boolean }> = [];
@@ -1478,11 +1587,11 @@ function inspectWithCanonicalPassCountV01(databasePath: string, duringSourceRead
   } finally { Database.prototype.prepare = prepare; }
 }
 
-function readLogicalDatabaseSnapshotV01(databasePath: string) {
-  const db = new Database(databasePath, {
-    readonly: true,
-    fileMustExist: true,
-  });
+function readLogicalDatabaseSnapshotV01(database: string | Database.Database) {
+  const ownsHandle = typeof database === "string";
+  const db = typeof database === "string"
+    ? new Database(database, { readonly: true, fileMustExist: true })
+    : database;
   try {
     assertDatabaseStructurallyHealthyV01(db);
     const schema = db
@@ -1530,7 +1639,7 @@ function readLogicalDatabaseSnapshotV01(databasePath: string) {
       tables,
     };
   } finally {
-    db.close();
+    if (ownsHandle) db.close();
   }
 }
 

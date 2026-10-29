@@ -74,6 +74,7 @@ import {
   commitVNextSemanticTransitionV01,
   createValidatedVNextSemanticTransitionRelationReadSessionV01,
   loadValidatedVNextSemanticTransitionRelationV01,
+  loadValidatedVNextSemanticTransitionRelationWithReadSessionV01,
   persistVNextSemanticReviewMaterialV01,
   prepareVNextSemanticCommitPreviewV01,
   recordVNextSemanticCommitAuthorizationV01,
@@ -92,6 +93,10 @@ import {
   type VNextLocalOperatorSecretSourceV01,
   type VNextLocalOperatorSessionCredentialV01,
 } from "@/lib/vnext/runtime/local-operator-session";
+import {
+  inspectVNextOperatorPilotCandidateAdmissionV01,
+  inspectVNextOperatorPilotCandidateAdmissionWithReadSessionV01,
+} from "@/lib/vnext/runtime/operator-pilot-policy";
 import { readProjectVerifyLineageV01 } from "@/lib/vnext/runtime/project-verify-lineage";
 import {
   readProjectVerifyReconciliationForLineageV01,
@@ -991,6 +996,36 @@ function assertTransitionReadSessionBoundaryV01(
   };
   const first = loadTransition(source);
   assert.deepEqual(first.receipt, applied.commit.transition_receipt);
+  const scope = { workspace_id: WORKSPACE_ID, project_id: PROJECT_ID };
+  const candidate = applied.proposal.proposed_deltas[0]!;
+  const admissionInput = {
+    config: scope,
+    proposal: applied.proposal,
+    candidate,
+    candidate_fingerprint: createEpisodeDeltaCandidateFingerprintV01(candidate),
+  };
+  const sessionReaders = [
+    (database: Database.Database, selectedScope: typeof scope, session: typeof loadTransition) =>
+      loadValidatedVNextSemanticTransitionRelationWithReadSessionV01(database, { ...selectedScope, ...source }, session),
+    (database: Database.Database, selectedScope: typeof scope, session: typeof loadTransition) =>
+      inspectVNextOperatorPilotCandidateAdmissionWithReadSessionV01(database, { ...admissionInput, config: selectedScope }, session),
+  ];
+  const transition = loadValidatedVNextSemanticTransitionRelationWithReadSessionV01(db, { ...scope, ...source }, loadTransition);
+  transition.receipt.recorded_at = "2000-01-01T00:00:00.000Z";
+  assert.deepEqual(
+    loadValidatedVNextSemanticTransitionRelationWithReadSessionV01(db, { ...scope, ...source }, loadTransition).receipt,
+    applied.commit.transition_receipt,
+  );
+  for (const read of sessionReaders) {
+    assert.throws(() => read(db, scope, (_input) => structuredClone(first)), /read_session_invalid/,
+      "a caller-created callable cannot authorize a session-aware reader");
+    for (const selectedScope of [
+      { ...scope, project_id: OTHER_PROJECT_ID },
+      { ...scope, workspace_id: "workspace:other-read-session" },
+    ]) assert.throws(() => read(db, selectedScope, loadTransition), /read_session_scope_mismatch/,
+      "session reuse is bound to both workspace and project");
+  }
+  assertSharedAdmissionReadSessionWorkV01(db, applied, admissionInput);
   assert.deepEqual(
     assertProjectVerifyLifecycleProposalFullSourceBoundWithReadSessionV01(
       db,
@@ -1066,6 +1101,10 @@ function assertTransitionReadSessionBoundaryV01(
         workspace_id: WORKSPACE_ID,
         project_id: PROJECT_ID,
       });
+    for (const read of sessionReaders) {
+      assert.throws(() => read(db, scope, otherDatabaseSession), /read_session_scope_mismatch/,
+        "same scope does not authorize a different database handle");
+    }
     assert.throws(
       () =>
         assertProjectVerifyLifecyclePersistedStateSourceBoundWithReadSessionV01(
@@ -1110,6 +1149,12 @@ function assertTransitionReadSessionBoundaryV01(
 
   const wrongFingerprint = `sha256:${"f".repeat(64)}`;
   assert.notEqual(wrongFingerprint, source.transition_receipt_fingerprint);
+  assert.throws(() => loadValidatedVNextSemanticTransitionRelationWithReadSessionV01(db,
+    { ...scope, ...source, transition_receipt_fingerprint: wrongFingerprint }, loadTransition),
+  /persisted_transition_receipt_fingerprint_mismatch/);
+  assert.throws(() => inspectVNextOperatorPilotCandidateAdmissionWithReadSessionV01(db,
+    { ...admissionInput, candidate_fingerprint: wrongFingerprint }, loadTransition),
+  /operator_pilot_candidate_fingerprint_mismatch/);
   assert.throws(
     () =>
       assertProjectVerifyLifecyclePersistedStateSourceBoundWithReadSessionV01(
@@ -1133,6 +1178,55 @@ function assertTransitionReadSessionBoundaryV01(
     /persisted_transition_receipt_fingerprint_mismatch/,
     "a successful cache hit cannot authenticate the same receipt ID under a changed fingerprint",
   );
+}
+
+function assertSharedAdmissionReadSessionWorkV01(
+  db: Database.Database,
+  applied: AppliedLifecycleV01,
+  input: Parameters<typeof inspectVNextOperatorPilotCandidateAdmissionV01>[1],
+): void {
+  db.transaction(() => {
+    const session = createValidatedVNextSemanticTransitionRelationReadSessionV01(db, input.config);
+    session({
+      transition_receipt_id: applied.commit.transition_receipt.transition_receipt_id,
+      transition_receipt_fingerprint: applied.commit.transition_receipt.integrity.fingerprint,
+    });
+    const prepare = db.prepare;
+    let receiptReads = 0;
+    let mutableReads = 0;
+    db.prepare = ((sql: string) => {
+      const statement = prepare.call(db, sql);
+      return new Proxy(statement, {
+        get(target, key) {
+          if (key !== "get" && key !== "all") {
+            const value = Reflect.get(target, key);
+            return typeof value === "function" ? value.bind(target) : value;
+          }
+          return (...args: unknown[]) => {
+            const result = Reflect.apply(target[key], target, args);
+            if (key === "get" && /SELECT\s+\*\s+FROM\s+vnext_core_records/i.test(sql)
+              && args[0] === "state_transition_receipt"
+              && args[1] === applied.commit.transition_receipt.transition_receipt_id && result) receiptReads++;
+            if (/FROM\s+vnext_semantic_(?:target_heads|state_entries)\b/i.test(sql)) mutableReads++;
+            return result;
+          };
+        },
+      });
+    }) as typeof db.prepare;
+    try {
+      const expected = inspectVNextOperatorPilotCandidateAdmissionV01(db, input);
+      assert(receiptReads > 0, "the standalone policy validates the current state's Transition source");
+      receiptReads = 0;
+      mutableReads = 0;
+      for (let index = 0; index < 2; index++) {
+        const observed = inspectVNextOperatorPilotCandidateAdmissionWithReadSessionV01(db, input, session);
+        assert.deepEqual(observed, expected);
+        observed.decision_allowed.accept = !observed.decision_allowed.accept;
+      }
+      assert.equal(receiptReads, 0, "the invocation's already validated immutable receipt is reused by candidate policy");
+      assert(mutableReads >= 4, "each candidate policy read still checks current head and projection state");
+    } finally { db.prepare = prepare; }
+  })();
 }
 
 function assertCurrentBindingV01(input: {

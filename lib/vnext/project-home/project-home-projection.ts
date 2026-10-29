@@ -59,7 +59,7 @@ import {
   loadValidatedVNextSemanticTransitionRelationV01,
   type VNextSemanticTransitionRelationReadSessionV01,
 } from "@/lib/vnext/runtime/durable-semantic-transition";
-import { inspectVNextOperatorPilotCandidateAdmissionV01 } from "@/lib/vnext/runtime/operator-pilot-policy";
+import { inspectVNextOperatorPilotCandidateAdmissionWithReadSessionV01 } from "@/lib/vnext/runtime/operator-pilot-policy";
 import {
   inspectVNextOperatorPilotPacketLineageV01,
   projectVNextOperatorPilotContinuityV01,
@@ -995,12 +995,16 @@ function readPendingAttentionSnapshot(
           evaluation,
           decisionApplied,
         );
-        const admission = inspectVNextOperatorPilotCandidateAdmissionV01(db, {
-          config: input,
-          proposal,
-          candidate,
-          candidate_fingerprint: createEpisodeDeltaCandidateFingerprintV01(candidate),
-        });
+        const admission = inspectVNextOperatorPilotCandidateAdmissionWithReadSessionV01(
+          db,
+          {
+            config: input,
+            proposal,
+            candidate,
+            candidate_fingerprint: createEpisodeDeltaCandidateFingerprintV01(candidate),
+          },
+          transitionReadSession,
+        );
         return { attention, admission };
       });
       const requiringAttention = candidateEvaluations.filter(
