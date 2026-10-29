@@ -151,7 +151,7 @@ export async function previewStatelessReview(db: Database.Database, options: Sta
   check(control?.enabled && !control.paused && validateProjectAutomationPolicyV01(control.policy, config).valid && packet.capability_grant === null, "permission_required");
   assertStatelessUnsettledAdmission(db, config, packet);
   assertTerminalHistoryActive(db, config, packet);
-  const { preparePlannerModelGatewayRouteV01 } = await import("../model-gateway/model-gateway");
+  const { preparePlannerModelGatewayRouteV01 } = await import("../model-gateway/method-routes");
   const session = await preparePlannerModelGatewayRouteV01({ adapter: options.adapter });
   check(session, "model_configuration_unavailable"); // preparation has no provider egress
   const modelConfiguration = readPlannerModelGatewayExecutionConfigurationV01(session.model_ref, { require_current_binding: true });

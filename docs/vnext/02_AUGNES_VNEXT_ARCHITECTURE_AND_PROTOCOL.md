@@ -3685,6 +3685,12 @@ ModelInvocationEnvelope:
 
 Gateway는 호출 후 usage, cost, latency, failure와 fallback을 RunReceipt의 model subrecord로 반환한다.
 
+The [implementation ownership map](../../lib/vnext/model-gateway/README.md)
+separates common invocation enforcement and Responses transport from the closed
+purpose-specific codec composition. Existing public Gateway and adapter exports,
+synchronous projections, method identities and receipt meaning remain compatible;
+the internal composition seam grants no execution or semantic authority.
+
 첫 production shape은 하나의 bounded semantic-assessment capability에 required
 criterion-review와 optional strategic-advantage-transfer profile을 둔다. Core는 provider-neutral하고,
 Gateway는 exact bounded input refs, normalized output, provider/model provenance, timeout,

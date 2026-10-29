@@ -1439,6 +1439,13 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "local-canonical-review-child-result",
+      label: "review child natural completion, bounded diagnostics and intentional cancellation controls",
+      ...rootNode("scripts/test-local-canonical-review-child-result.mjs"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "local-canonical-browser-input",
       label: "strict Browser bundle selection, observation and nested input refusal",
       ...rootNode("scripts/test-local-canonical-browser-input.mjs"),
