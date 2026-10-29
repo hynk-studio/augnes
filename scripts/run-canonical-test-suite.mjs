@@ -1455,6 +1455,13 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "local-canonical-corrected-timeout",
+      label: "reviewed corrected-timeout succession and terminal allowance",
+      ...rootNode("scripts/test-local-canonical-review-corrections.mjs", "--corrected-timeout-controls"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "local-canonical-browser-input",
       label: "strict Browser bundle selection, observation and nested input refusal",
       ...rootNode("scripts/test-local-canonical-browser-input.mjs"),

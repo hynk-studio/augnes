@@ -91,6 +91,13 @@ async function child(args, options = {}) {
   return result;
 }
 try {
+  if (process.argv[2] === "--corrected-timeout-controls") {
+  for (const group of ["evidence", "witnesses", "source", "originals", "admission", "race", "stock"]) {
+    const timeout = await child([path.join(repository, "scripts/fixtures/local-canonical-timeout-succession.mjs"), "--run-timeout-fixtures", group], { controlId: `timeout-succession-${group}`, timeoutMs: 6000 });
+    assert.equal(timeout.exit_code, 0, lastChildDiagnostic);
+  }
+  findings.push("corrected nested-timeout succession: preserved original failure, meaningful source evidence, prospective authority, one terminal reservation and read-only stock");
+  } else {
   const succession = await child([path.join(repository, "scripts/fixtures/local-canonical-observer-succession.mjs"), "--run-observer-fixtures"], { controlId: "observer-succession", timeoutMs: 6000 });
   assert.equal(succession.exit_code, 0, lastChildDiagnostic);
   findings.push("observer-repair succession: bounded original/source/authority refusals, exclusive lineage and fresh stock reconstruction");
@@ -209,6 +216,7 @@ try {
     // syntax. Loading its bytes as JS tests behavior without a JSX toolchain.
     regression: "import assert from 'node:assert/strict'; import {readFileSync} from 'node:fs'; const {initialTarget}=await import('data:text/javascript,'+encodeURIComponent(readFileSync(new URL(process.argv[2]),'utf8'))); assert.equal(initialTarget(true),'summary');\n",
   });
+  }
 } finally {
   if (!inFlight) settleCanonicalTestResourceUse(owner, { exit_observed: true, streams_closed: true, cleanup_completed: true, remaining_owned_processes: 0 });
   assert(cleanupCanonicalTestResources([owner]).every(x => x.completed));

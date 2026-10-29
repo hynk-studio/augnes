@@ -333,3 +333,53 @@ or synthetic fixture grants admission. Unrelated UNKNOWN, timeout, incomplete
 observation/cleanup and changed content, identity or permission cases remain
 ineligible. Private export retains only bounded references and attributed hashes;
 old originals and legacy export interpretation remain unchanged.
+
+## Narrow corrected-timeout succession
+
+The [versioned policy](../.github/LOCAL_CANONICAL_VERIFICATION.md#reviewed-corrected-timeout-succession-source-correction-v4)
+adds source-correction v4, `corrected_timeout`, through the existing proof,
+attempt, receipt and stock path. It distinguishes a materially corrected,
+independently reviewed candidate after one completely settled nested Canonical
+test timeout from an unchanged retry. The historical timeout cause remains
+UNKNOWN; its outer `product_failure` label is insufficient, and legacy v1/v2/v3
+interpretation is unchanged.
+
+Immutable original receipt/attempt/completion and complete retained phase log
+bind the child timeout, original registration/deadline, complete settlement and
+cleanup, latest lineage and absence of unresolved input/safety or other workload
+failure. A retained log hash is distinguished from the original receipt's own
+path/size/truncation evidence. Missing, ambiguous or truncated observations refuse.
+The same affected-path regression must fail naturally on prior Git source and
+pass on corrected source under a captured common environment and Canonical Node,
+with source/fixture hashes, actual times and complete cleanup. A demonstrated
+mechanism such as operation counts need not recreate the historical timeout.
+The admitted defect is fixed pragma statement re-preparation in
+`lib/db/structural-schema-contract.mjs`; that module and its database-access
+regression stay identical from accepted repair to final source. Original
+request-bound-review/callback test sources, affected registration, assertions,
+workload and deadlines remain intact. This predicate is not an arbitrary source
+or UNKNOWN override.
+
+Fresh authenticated `accepted_repair` and `execution_grant` records bind the
+accepted correction and explicit prospective user authority. Final base/head/tree
+and all repair/final deltas are bound; the reviewed correction remains unchanged,
+while subsequent task changes are restricted to existing in-scope policy,
+verification and focused-test owners. Ordinary accepted-main reconciliation is
+included. The final source check is attributable owner evidence, not independent
+audit of the new policy. The explicit grant can cover implementation, focused
+checks, publication and qualification together; it does not require a separate
+policy-only Full, deployment or another routine approval step.
+The actual attributed review/grant prose is verified with current
+maintainer/admin permission; no new fenced approval or final execution grant is
+invented from implementation-owner source checks.
+
+The latest predecessor receives one exclusive successor in the existing namespace.
+Authority consumption survives head, branch, worktree, proof or grant copying and
+main movement; interrupted reservations, family resets and successor chaining
+cannot renew it. The budget is one complete planner-selected Full, zero recovery
+or retry, followed by separate stock validation and cleanup. Failure remains
+terminal for that authority. Normal clean-source, Mac admission, ownership,
+capacity, frozen inputs and Companion preservation remain required. Stock/export
+retain bounded lineage and authority identities without publishing raw evidence.
+The original records remain intact, and independent post-completion audit and
+merge/adoption decisions remain separate.
