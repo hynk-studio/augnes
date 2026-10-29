@@ -105,7 +105,39 @@ export function createProjectExperienceRequestVerdictV1({ cancellationEvidence, 
     const disabled = unique(consumer.events, 'effect_active', event => event.effect === generation.effect + 1);
     const authenticated = unique(consumer.events, 'auth_transition_requested', event =>
       event.auth === 'authenticated' && event.sequence < (enabled?.sequence ?? 0));
-    const mounted = unique(consumer.events, 'consumer_mounted');
+    let mounted = unique(consumer.events, 'consumer_mounted'), retiredDisposal = null;
+    if (!mounted && enabled && authenticated) {
+      // Development passive-effect replay can retire one initially disabled
+      // lifetime before authentication. Accept only this complete prefix, not
+      // arbitrary remounts or duplicate transport observations.
+      const prefix = consumer.events.slice(0, 6);
+      const shape = [
+        ['consumer_mounted', 0, null], ['effect_active', 1, false],
+        ['consumer_disposed', 1, null], ['effect_cleanup', 1, null],
+        ['consumer_mounted', 1, null], ['effect_active', 2, false],
+      ];
+      const beforeEnabled = consumer.events.filter(event => event.sequence < enabled.sequence);
+      const checking = unique(beforeEnabled.slice(6), 'auth_transition_requested', event => event.auth === 'unknown');
+      const disabledCleanup = unique(beforeEnabled.slice(6), 'effect_cleanup');
+      const tail = [...(checking ? [checking] : []), authenticated, disabledCleanup];
+      // The authenticated private sourceURL uses the producer's document-wide
+      // invocation counter. /1 excludes even an earlier read/probe with no fetch,
+      // whose generation events are not in consumer.events. The public global
+      // generation alias cannot establish this condition.
+      if (generation.effect === 3 && pin.frame?.endsWith('/1') &&
+        consumer.events.filter(event => event.kind === 'consumer_mounted').length === 2 &&
+        prefix.length === shape.length && prefix.every((event, index) =>
+          event.kind === shape[index][0] && event.effect === shape[index][1] &&
+          event.enabled === shape[index][2] && event.auth === 'unknown' && event.status === null &&
+          (index === 0 || prefix[index - 1].sequence < event.sequence)) &&
+        beforeEnabled.length === prefix.length + tail.length && tail.every((event, index) =>
+          event && event === beforeEnabled[prefix.length + index] && event.effect === 2 &&
+          event.enabled === null && event.status === null) &&
+        disabledCleanup?.auth === 'authenticated' &&
+        !consumer.events.some(event => event.sequence >= enabled.sequence && event.effect < generation.effect)) {
+        mounted = prefix[4]; retiredDisposal = prefix[2];
+      }
+    }
     const chain = [mounted, authenticated, enabled, initial, read, controller, fetch];
     if (chain.some(event => !event) || [refused, locked, effectCleanup, cleanup, abort, signal, returned,
       disabled, settled, consumerReturned].some(event => !event)) return rejected('cancellation_required_event_missing_or_duplicate');
@@ -113,7 +145,7 @@ export function createProjectExperienceRequestVerdictV1({ cancellationEvidence, 
       [read, controller, fetch, refused].some(event => event.auth !== 'authenticated') || refused.status !== 401 ||
       scenario.delivery.event !== refused || locked.auth !== 'locked_or_refused' || disabled.enabled !== false ||
       [effectCleanup, cleanup, abort, signal, returned, disabled, settled, consumerReturned].some(event => event.auth !== 'locked_or_refused') ||
-      consumer.events.some(event => event.kind === 'consumer_disposed' && event.sequence <= scenario.sealSequence) ||
+      consumer.events.some(event => event.kind === 'consumer_disposed' && event !== retiredDisposal && event.sequence <= scenario.sealSequence) ||
       consumer.events.some(event => event.kind === 'auth_transition_requested' &&
         event.sequence <= scenario.sealSequence && event !== authenticated && event !== locked &&
         !(event.auth === 'unknown' && event.sequence < authenticated.sequence))) {
