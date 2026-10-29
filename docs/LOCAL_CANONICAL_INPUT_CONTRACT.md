@@ -139,6 +139,17 @@ correction; these controls do not replace complete deciding qualification.
   owner. A necessary accepted-main integration binds the freshly admitted main,
   exact two parents and independently recomputed tree-entry union. None recasts old
   outcomes as infrastructure, resets an unchanged target or grants permission.
+- `local-canonical-condition-requalification.mjs` binds a distinct v5
+  `condition_requalification` interpretation to the latest settled Project Home
+  condition failure, preserved failure/diagnosis evidence, authenticated prospective
+  execution grant, and published implementation-owner final source. It uses the
+  existing exclusive successor edge for one Full and zero recovery, including an
+  interrupted reservation. Stock reconstructs the evidence and authority read-only;
+  neither this route nor its bounded observation changes v3 input classification.
+  Private proof artifacts are hash-checked at admission and reconstruction, not
+  continuously monitored as invocation inputs. The condition observer captures the
+  original evaluation once and retains incomplete observations without changing
+  acceptance. A later pass cannot explain the historical failure.
 - `local-canonical-evidence-retention.mjs` protects active and explicitly pinned
   evidence. Unsafe aliases and ambiguous ownership refuse cleanup.
 - `test-local-canonical-classification.mjs` and `test-local-canonical-review-corrections.mjs` exercise real classification,

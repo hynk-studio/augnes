@@ -1041,6 +1041,81 @@ meaning; readers unaware of v4 gain no allowance. Raw historical records are
 never rewritten, phase stitching remains forbidden, and a passing development
 fixture or source hash alone is neither qualification nor independent approval.
 
+### Authorized condition requalification (source-correction namespace v5)
+
+`augnes.local-canonical-source-correction.v5`, kind
+`condition_requalification`, is an explicit prospective interpretation for the
+settled Project Home readiness condition failure. It reuses the existing proof
+argument and exclusive successor owner. It is not a source-repair claim,
+infrastructure recovery, or a general unknown-timeout retry route. No behavioral
+prior-FAIL/new-PASS witness is required or accepted by this schema; the diagnosis
+did not reproduce the historical state or establish a repaired cause.
+
+Eligibility binds the actual latest settled isolated Full predecessor: original
+receipt, attempt, completion, phase log and emitted child result. The complete
+16-phase inventory must stop naturally at `e2e-operator-work-expectation`, with
+the preceding 12 phases passing and the remaining three NOT_RUN. Its child must
+have exited 1, without an outer timeout, for
+`operator_condition_timeout:hydrated_expectation_project_home` in
+`work_expectation_recording`. The exact active-and-hydrated Project Home selector,
+45,000ms condition and 360,000ms child bounds are retained. Execution-input,
+safety, settlement and cleanup faults refuse. Historical NOT_RUN environment
+fields remain their original null values; they do not become executed coverage.
+
+The retained result must equal the actual JSON emitted in the retained phase log.
+The historical receipt records that log's location and byte length, not a hash.
+A newly captured hash binds the preserved original available now and must never
+be presented as a hash recorded by the historical receipt. The accepted private
+diagnosis archive is bound by its bytes and an authenticated independent diagnosis
+review. The historical missing predicate and cause remain UNKNOWN, including
+after a successful future run. A standalone diagnostic pass is development
+evidence only; earlier behavioral witnesses and passing phases cannot transfer.
+
+The bounded authenticated GitHub transport reads the diagnosis review, explicit
+prospective user-authorization comment, current author permissions, and the
+published pull request. Exact identity, source, body observation hashes and
+chronological order must match. A generic approval or local claim is insufficient.
+The grant must identify the actual predecessor run/family/receipt, accepted
+diagnosis archive and review, one Full/zero-recovery budget, implementation-owner
+final-source binding and independent audit after completion. No separate policy
+Full, prior deployment, routine intermediate independent review, or new final-head
+grant is required by this prospective authority.
+
+The final-source record truthfully uses
+`implementation_owner_not_independent_review`; it binds base/head/tree, original
+head/tree, both complete native predecessor-to-final and main-to-final Git binary
+deltas, and sorted changed paths. The published candidate must be the exact open
+Draft PR head and current main base, with auto-merge disabled and the expected
+repository/branch. Changes are restricted to the closed policy/authority,
+attempt/receipt/export/stock, necessary readiness-observation and focused-control
+owners. Accepted migration-family and other task bytes remain unchanged. Compatible
+accepted-main movement requires impact review and ordinary fresh admission; it
+neither cancels nor renews authority.
+
+The existing exclusive predecessor `correction-successor` edge consumes the
+allowance once across all successor kinds, branches, worktrees, HEADs, proof or
+grant copies. A crash after reservation remains consumed. The successor has one
+initial Full and zero automatic or explicit recovery/retry; success, failure,
+cancellation and interruption are terminal for this authority. Earlier tips,
+unsettled attempts, competing claims, family resets and successor chaining refuse.
+A pre-reservation capacity or admission refusal is not execution coverage and
+does not consume an admitted Full, but grants no blind admission loop.
+
+Normal current-main, registered isolated checkout, pinned toolchain, capacity,
+checkout ownership, input and installed Companion preservation requirements apply.
+The unchanged planner selects the complete Full, including all seven Browser
+owners when reached, with stop-on-first-failure and existing deadlines/assertions.
+Bounded observation records the original evaluation, never a favorable second
+evaluation or altered DOM state. Raw diagnostic material stays private.
+
+Separate fresh-process stock reconstructs original bytes, actual final source,
+fresh authenticated authority, immutable edge and current lineage without creating
+a reservation, including for a usable failed receipt. Receipt and private export
+retain bounded identities and hashes rather than raw private logs or review prose.
+Legacy schemas keep their meanings and gain no allowance. Implementation,
+qualification, independent post-completion audit, Ready/merge and installed adoption
+remain separate decisions. This route grants no merge or adoption authority.
+
 ### Browser input replacement (receipt version 5)
 
 `augnes.local-canonical-browser-replacement.v1` is a separate, narrowly

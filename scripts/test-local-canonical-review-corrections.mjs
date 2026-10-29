@@ -91,7 +91,13 @@ async function child(args, options = {}) {
   return result;
 }
 try {
-  if (process.argv[2] === "--corrected-timeout-controls") {
+  if (process.argv[2] === "--condition-requalification-controls") {
+  for (const group of ["evidence", "authority", "admission", "stock"]) {
+    const result = await child([path.join(repository, "scripts/fixtures/local-canonical-condition-requalification.mjs"), "--run-condition-fixtures", group], { controlId: `condition-requalification-${group}`, timeoutMs: 6000 });
+    assert.equal(result.exit_code, 0, lastChildDiagnostic);
+  }
+  findings.push("condition requalification: exact original failure, accepted diagnosis and explicit authority, final published source, terminal reservation and separate stock");
+  } else if (process.argv[2] === "--corrected-timeout-controls") {
   for (const group of ["evidence", "witnesses", "source", "originals", "admission", "race", "stock"]) {
     const timeout = await child([path.join(repository, "scripts/fixtures/local-canonical-timeout-succession.mjs"), "--run-timeout-fixtures", group], { controlId: `timeout-succession-${group}`, timeoutMs: 6000 });
     assert.equal(timeout.exit_code, 0, lastChildDiagnostic);
