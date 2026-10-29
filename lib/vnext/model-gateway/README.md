@@ -11,7 +11,7 @@ additional Gateway, or additional execution authority.
 | `method-bindings.ts` | Purpose-specific input validation, provider-control-field exceptions, declared limits, fallback availability, deterministic identity, method-envelope restrictions and receipt identity/output selection. |
 | `method-routes.ts` | Existing synchronous validation/projection/contract exports, prepared method routes, version/fingerprint bindings and their equality checks. |
 | `model-gateway.ts` | Existing typed invocation/result facades and closed composition of the shared core with method bindings and prepared-route checks. |
-| `openai/responses-transport.ts` | Bounded Responses request serialization, strict-schema validation, transport, bounded response reads, usage normalization and transport/error observations. It consumes a typed method binding and imports no purpose codec. |
+| `openai/responses-transport.ts` | Bounded Responses request serialization, strict-schema validation, transport, response-output and diagnostic bounds, usage normalization and transport/error observations. It consumes a typed method binding and imports no purpose codec. |
 | `openai/responses-method-binding.ts` | Internal typed contract between a Responses method and its transport. |
 | `openai/responses-method-bindings.ts` and existing `*-codec.ts` files | Closed purpose selection, model/reasoning routing, material projection, prompts, schemas, parser selection, parser diagnostics and adapter/version identity. |
 | `local-capability.ts`, `openai/local-configuration.ts` and `planner-execution-configuration.ts` | Existing non-invocable capability/configuration reads; these do not import invocation, transport, or method implementations. |
