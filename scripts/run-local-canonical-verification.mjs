@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { isObserverRepair, authorizeObserverRepair } from "./local-canonical-observer-succession.mjs";
+import { isCorrectedTimeout, authorizeCorrectedTimeout } from "./local-canonical-timeout-succession.mjs";
 
 import { createHash, randomBytes } from "node:crypto";
 import {
@@ -18,7 +19,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { freezeInputContract, monitorInputContract, digest, deriveOperationalDisposition, createInputReader, classifyInputChange, nonFaultInputChange, inputReadOptions, commonInputResources, supportedInputContract } from "./local-canonical-inputs.mjs";
+import { freezeInputContract, monitorInputContract, digest, deriveOperationalDisposition, createInputReader, classifyInputChange, nonFaultInputChange, inputReadOptions, commonInputResources, supportedInputContract, createGitTrackingResource } from "./local-canonical-inputs.mjs";
 import { readBrowserInputBinding, browserInputEnvironment, selectedBrowserInput, acquireBrowserInputGuard, releaseBrowserInputGuard, assertBrowserInputGuard } from "./local-canonical-browser-input.mjs";
 import { readBrowserReplacementProof, authorizeBrowserReplacement, BROWSER_REPLACEMENT_PHASES, isStrictBrowserSourceRevision } from "./local-canonical-browser-replacement.mjs";
 import { beginAttempt, finishAttempt, readRecoveryProof, readSourceCorrectionProof, inspectAttemptRecords } from "./local-canonical-attempts.mjs";
@@ -127,6 +128,7 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/local-canonical-inputs.mjs",
   "scripts/local-canonical-attempts.mjs",
   "scripts/local-canonical-observer-succession.mjs",
+  "scripts/local-canonical-timeout-succession.mjs",
   "scripts/local-canonical-evidence-retention.mjs",
   "scripts/local-canonical-review-export.mjs",
   "scripts/export-local-canonical-review.mjs",
@@ -501,6 +503,8 @@ export async function executeLocalCanonicalVerification({
   const sourceCorrection = sourceCorrectionProofPath ? readSourceCorrectionProof(resolveArtifactPath(sourceCorrectionProofPath), repositoryRoot) : null;
   if (isObserverRepair(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
     throw Object.assign(new Error("observer_full_route_required"), { code: "observer_full_route_required" });
+  if (isCorrectedTimeout(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
+    throw Object.assign(new Error("timeout_full_route_required"), { code: "timeout_full_route_required" });
   const strictProof = browserReplacement ?? (isStrictBrowserSourceRevision(sourceCorrection) ? sourceCorrection : null);
   const browserInput = strictProof ? readBrowserInputBinding(strictProof.browser_input_path, repositoryRoot) : selectedBrowserInput({ repositoryRoot });
   if ((browserInput && !strictProof) || (strictProof && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath)) || (browserReplacement && sourceCorrection)) throw Object.assign(new Error("browser_replacement_route_required"), { code: "browser_replacement_route_required" });
@@ -736,13 +740,16 @@ export async function executeLocalCanonicalVerification({
             const observerAuthorization = isObserverRepair(sourceCorrection) ? await authorizeObserverRepair(sourceCorrection) : null;
             if (observerAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
             if (observerAuthorization && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("observer_workload_invalid"), { code: "observer_workload_invalid" });
+            const timeoutAuthorization = isCorrectedTimeout(sourceCorrection) ? await authorizeCorrectedTimeout(sourceCorrection) : null;
+            if (timeoutAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
+            if (timeoutAuthorization && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("timeout_workload_invalid"), { code: "timeout_workload_invalid" });
             const browserAuthorization = strictProof ? await authorizeBrowserReplacement(strictProof) : null;
             if (strictProof && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("browser_replacement_workload_invalid"), { code: "browser_replacement_workload_invalid" });
             attempt = beginAttempt({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, checkoutOwner,
               branch: identityBefore.branch, head: headSha, tree: inputs.snapshot().binding.tree, runId,
               contractFingerprint: inputs.snapshot().fingerprint, acceptedMain: baseSha,
               recoveryProof: recoveryProofPath ? readRecoveryProof(resolveArtifactPath(recoveryProofPath)) : null,
-              sourceCorrection, observerAuthorization,
+              sourceCorrection, observerAuthorization, timeoutAuthorization,
               browserReplacement, browserAuthorization,
               browserLive: browserInput ? browserReplacementLiveBinding({ browserInput, host, machineFingerprint, nodePolicy, executorFingerprint, phaseDefinitions, inputs: inputs.snapshot() }) : null });
             pinVerificationEvidence({ root: repositoryRoot, checkoutOwner, runId, reason: "attempt_family" });
@@ -1232,7 +1239,8 @@ function invocationInputResources({ verificationContext, browserExecutablePath, 
     { id: "auth-location", file: path.join(userHome, ".codex", "auth.json"), classification: "safety", metadataOnly: true },
     { id: "github-auth-location", file: path.join(process.env.GH_CONFIG_DIR ?? path.join(process.env.XDG_CONFIG_HOME ?? path.join(userHome, ".config"), "gh"), "hosts.yml"), classification: "safety", metadataOnly: true },
     { id: "git-user-config", file: path.join(userHome, ".gitconfig"), classification: "execution", metadataOnly: true },
-    { id: "git-config", file: path.join(verificationAnchorRoot(verificationContext), ".git", "config"), classification: "execution" },
+    ...(isolated ? [createGitTrackingResource(path.join(verificationAnchorRoot(verificationContext), ".git", "config"), [repositoryRoot, verificationAnchorRoot(verificationContext)])]
+      : [{ id: "git-config", file: path.join(verificationAnchorRoot(verificationContext), ".git", "config"), classification: "execution" }]),
     { id: "node-executable", file: realpathSync(process.execPath), classification: "execution" },
     ...["npm", "git", "gh"].map(name => ({ id: `${name}-executable`, file: resolveExecutionTool(name), classification: "execution" })),
     ...[".npmrc", "apps/augnes_apps/.npmrc", "apps/web_planning/.npmrc", "AGENTS.md", ".github/LOCAL_CANONICAL_VERIFICATION.md"].map((file, i) => ({ id: `declared-config-${i}`, file: path.join(repositoryRoot, file), classification: "execution" })),
@@ -1256,8 +1264,11 @@ function currentInputEvidenceValid(receipt, verificationContext, browserExecutab
       const prior = declared.find(r => r.id === resource.id);
       if (!prior || prior.location_fingerprint !== digest(resource.file) || prior.classification !== resource.classification ||
           prior.excludePreferences !== resource.excludePreferences || prior.metadataOnly !== resource.metadataOnly || prior.readOnlyExecutable !== resource.readOnlyExecutable || prior.browserBundle !== resource.browserBundle) return false;
-      const current = readInput(resource.file, { ...inputReadOptions(resource, receipt.inputs), force: true });
-      return nonFaultInputChange(classifyInputChange(prior.before, current, resource, receipt.inputs));
+      if (prior.gitTracking && digest(prior.gitTracking) !== digest(resource.gitTracking)) return false;
+      // An old declaration keeps its original reader and whole-file meaning.
+      const interpreted = { ...resource, gitTracking: prior.gitTracking };
+      const current = readInput(resource.file, { ...inputReadOptions(interpreted, receipt.inputs), force: true });
+      return nonFaultInputChange(classifyInputChange(prior.before, current, interpreted, receipt.inputs));
     });
   } catch { return false; }
 }
@@ -1389,9 +1400,13 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
   if (isObserverRepair(receipt.attempt?.source_correction)) {
     try { observerAuthorization = await authorizeObserverRepair(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
   }
+  let timeoutAuthorization = null;
+  if (isCorrectedTimeout(receipt.attempt?.source_correction)) {
+    try { timeoutAuthorization = await authorizeCorrectedTimeout(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
+  }
   return inspectReceiptForDecision(receipt, {
     currentInputStateValid: [4, 5].includes(receipt.receipt_version) ? currentInputEvidenceValid(receipt, verificationContext, validationHost.browserExecutablePath, browserInput) : null,
-    currentAttemptRecordsValid: [4, 5].includes(receipt.receipt_version) ? inspectAttemptRecords({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, receipt, browserAuthorization, browserLive, observerAuthorization }) : null,
+    currentAttemptRecordsValid: [4, 5].includes(receipt.receipt_version) ? inspectAttemptRecords({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, receipt, browserAuthorization, browserLive, observerAuthorization, timeoutAuthorization }) : null,
     currentBrowserInputValid: browserInput ? digest(browserInput.publicBinding) === digest(receipt.browser_input) && !existsSync(path.join(repositoryRoot, ".augnes-local-verification/browser-input-active.json")) : null,
     currentVerificationContext: verificationContext,
     expectedRunId: path.basename(receiptPath, ".json"),

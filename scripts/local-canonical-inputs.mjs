@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
+import path from "node:path";
 import { constants, closeSync, fstatSync, lstatSync, openSync, readFileSync, realpathSync } from "node:fs";
 import { createBrowserBundleObserver, compareBrowserBundle } from "./local-canonical-browser-bundle.mjs";
 
@@ -12,6 +13,131 @@ const sorted = value => Array.isArray(value) ? value.map(sorted) : value && type
   ? Object.fromEntries(Object.keys(value).sort().map(key => [key, sorted(value[key])])) : value;
 export const digest = value => createHash("sha256").update(typeof value === "string" || Buffer.isBuffer(value) ? value : JSON.stringify(sorted(value))).digest("hex");
 const fail = code => Object.assign(new Error(code), { code });
+
+// This resource-level discriminator leaves all earlier v2/v3 declarations and
+// their recorded faults under the original whole-file interpretation.
+const GIT_TRACKING_POLICY = "isolated-current-branches-v1";
+const sha = value => typeof value === "string" && /^[0-9a-f]{64}$/u.test(value);
+const safeBranch = value => /^[A-Za-z0-9_][A-Za-z0-9_./+-]*$/u.test(value) &&
+  !value.includes("..") && !value.includes("//") && !value.endsWith("/") &&
+  value.split("/").every(part => part && !part.startsWith(".") && !part.endsWith(".") && !part.endsWith(".lock"));
+
+function gitTrackingContext(file, roots) {
+  if (!Array.isArray(roots) || roots.length < 1 || roots.length > 2 || new Set(roots).size !== roots.length ||
+      Object.keys(process.env).some(key => /^GIT_(?:CONFIG.*|DIR|COMMON_DIR|WORK_TREE|INDEX_FILE|OBJECT_DIRECTORY|ALTERNATE_OBJECT_DIRECTORIES)$/u.test(key))) return null;
+  try {
+    const branches = [], external = new Map();
+    let worktreeConfiguration = false;
+    for (const [index, root] of roots.entries()) {
+      if (!path.isAbsolute(root) || realpathSync(root) !== root) return null;
+      const git = args => execFileSync("git", ["-C", root, ...args], { timeout: 5000, maxBuffer: 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] });
+      if (path.join(realpathSync(path.resolve(root, git(["rev-parse", "--git-common-dir"]).toString("utf8").trim())), "config") !== file) return null;
+      const branch = git(["symbolic-ref", "--quiet", "--short", "HEAD"]).toString("utf8").trim();
+      if (!safeBranch(branch)) return null;
+      branches.push(digest(branch));
+      // Once the same common file is verified, the no-include/no-extension
+      // configuration graph under this one environment is shared by both roots.
+      // Both physical roots and branch identities are still read every window.
+      if (index > 0 && !worktreeConfiguration) continue;
+      // Includes from ANY effective scope, conditional includes and unknown
+      // extensions are outside this closed consumer projection. No values are
+      // retained, and failed/ambiguous reads cannot select the exemption.
+      const names = git(["config", "--includes", "--null", "--show-origin", "--show-scope", "--name-only", "--list"]);
+      const text = names.toString("utf8");
+      if (!Buffer.from(text).equals(names) || !text.endsWith("\0")) return null;
+      const fields = text.slice(0, -1).split("\0");
+      if (fields.length % 3 !== 0) return null;
+      const rows = Array.from({ length: fields.length / 3 }, (_, i) => fields.slice(i * 3, i * 3 + 3));
+      const extensions = rows.filter(([, , key]) => /^extensions\./iu.test(key));
+      if (extensions.length > 1 || extensions.some(([scope, origin, key]) => scope !== "local" ||
+          origin !== `file:${file}` && path.resolve(root, origin.slice(5)) !== file || key.toLowerCase() !== "extensions.worktreeconfig")) return null;
+      let worktreeFile = null;
+      if (extensions.length) {
+        const enabled = git(["config", "--local", "--bool", "--get", "extensions.worktreeConfig"]).toString("utf8").trim();
+        if (!["true", "false"].includes(enabled)) return null;
+        worktreeConfiguration = enabled === "true";
+        if (worktreeConfiguration) {
+          worktreeFile = path.resolve(root, git(["rev-parse", "--git-path", "config.worktree"]).toString("utf8").trim());
+          if (realpathSync(path.dirname(worktreeFile)) !== path.dirname(worktreeFile)) return null;
+          // Existing worktree configuration is fully consumed input, including
+          // absence. It is never enabled, edited or projected by this reader.
+          external.set(worktreeFile, observeInputFile(worktreeFile, { protectedConfiguration: true }));
+        }
+      }
+      for (let i = 0; i < fields.length; i += 3) {
+        const [scope, origin, key] = fields.slice(i, i + 3);
+        if (!key || /^include(?:if)?\./iu.test(key) ||
+            !["system", "global", "local", "worktree", "unknown"].includes(scope) || !origin.startsWith("file:")) return null;
+        const originPath = path.resolve(root, origin.slice(5));
+        if (scope === "local") { if (originPath !== file) return null; }
+        else if (scope === "worktree") { if (!worktreeConfiguration || originPath !== worktreeFile) return null; }
+        // Apple Git reports file-backed default configuration as scope unknown.
+        // Bind that entire observed file just like system/global input; no key
+        // or content in an unknown scope receives the tracking projection.
+        else if (!external.has(originPath)) {
+          const observation = observeInputFile(originPath, { protectedConfiguration: true });
+          if (!observation.present) return null;
+          external.set(originPath, observation);
+        }
+      }
+    }
+    return { branches: [...new Set(branches)].sort(), fingerprint: digest({ roots: roots.map(digest), branches,
+      external: [...external].sort(([a], [b]) => a.localeCompare(b)).map(([file, observation]) => [digest(file), observation]) }) };
+  } catch { return null; }
+}
+
+export function createGitTrackingResource(file, roots) {
+  const resource = { id: "git-config", file, classification: "execution" };
+  const gitRoots = [...new Set(roots)], context = gitTrackingContext(file, gitRoots);
+  return context ? { ...resource, gitTracking: { policy: GIT_TRACKING_POLICY, protected_branches: context.branches }, gitRoots } : resource;
+}
+
+function gitTrackingRole(resource, input) {
+  const scope = resource.gitTracking;
+  return input?.contract === INPUT_CONTRACT && input.path_kind === "isolated-model-free-v1" &&
+    resource.id === "git-config" && resource.classification === "execution" && !resource.metadataOnly &&
+    !resource.excludePreferences && !resource.readOnlyExecutable && !resource.browserBundle &&
+    scope?.policy === GIT_TRACKING_POLICY && Object.keys(scope).length === 2 &&
+    Array.isArray(scope.protected_branches) && scope.protected_branches.length >= 1 && scope.protected_branches.length <= 2 &&
+    scope.protected_branches.every(sha) && digest([...new Set(scope.protected_branches)].sort()) === digest(scope.protected_branches);
+}
+
+// A deliberately restricted lexical projection, never a Git configuration
+// editor. Retain every byte except a complete, unique foreign branch section
+// containing exactly one plain remote and one plain refs/heads merge value.
+// Unsupported syntax anywhere retains whole-file protection.
+function gitTrackingProjection(bytes, protectedBranches) {
+  const source = bytes.toString("utf8");
+  if (!Buffer.from(source).equals(bytes) || source.includes("\0") || source.includes("\\")) return null;
+  const blocks = [], seen = new Set();
+  let block = { lines: [], section: null, branch: null, entries: [] };
+  for (const line of source.match(/[^\n]*\n|[^\n]+$/gu) ?? []) {
+    const text = line.replace(/\r?\n$/u, "");
+    const header = /^[ \t]*\[([A-Za-z][A-Za-z0-9-]*)(?:[ \t]+"([A-Za-z0-9_./@+-]+)")?\][ \t]*$/u.exec(text);
+    if (header) {
+      blocks.push(block);
+      const section = header[1].toLowerCase(), branch = section === "branch" ? header[2] : null;
+      if (["include", "includeif"].includes(section) || (section === "branch" && !safeBranch(branch ?? ""))) return null;
+      if (branch && seen.has(branch)) return null;
+      if (branch) seen.add(branch);
+      block = { lines: [line], section, branch, entries: [] };
+      continue;
+    }
+    block.lines.push(line);
+    if (/^[ \t]*(?:[#;].*)?$/u.test(text)) { block.entries.push(null); continue; }
+    const entry = /^[ \t]*([A-Za-z][A-Za-z0-9-]*)[ \t]*=[ \t]*("[^"\r\n]*"|[^"\r\n]*)$/u.exec(text);
+    if (!block.section || !entry) return null;
+    block.entries.push([entry[1].toLowerCase(), entry[2].trim()]);
+  }
+  blocks.push(block);
+  const retained = blocks.filter(b => {
+    if (!b.branch || protectedBranches.includes(digest(b.branch)) || b.entries.length !== 2 || b.entries.some(e => !e)) return true;
+    const entries = new Map(b.entries);
+    return entries.size !== 2 || !/^[A-Za-z0-9_./-]+$/u.test(entries.get("remote") ?? "") ||
+      !safeBranch((entries.get("merge") ?? "").replace(/^refs\/heads\//u, "")) || !(entries.get("merge") ?? "").startsWith("refs/heads/");
+  });
+  return digest(retained.flatMap(b => b.lines).join(""));
+}
 
 const FAILURE_DIAGNOSTIC = "augnes.input-observation-failure.v1";
 const failureStages = new Set(["reader", "classification", "initial_stat", "path_resolution", "file_type", "open", "descriptor_stat", "read", "named_stat", "metadata_consistency", "permission_consistency", "close", "preference_projection", "permission_acl", "permission_flags", "permission_attributes"]);
@@ -90,7 +216,7 @@ export function preferenceProjection(bytes) {
   return { projection, remainder_sha256: digest(remainder.join("")) };
 }
 
-export function observeInputFile(file, { metadataOnly = false, preferences = false, readOnlyExecutable = false, protectedConfiguration = false } = {}) {
+export function observeInputFile(file, { metadataOnly = false, preferences = false, readOnlyExecutable = false, protectedConfiguration = false, gitTracking = null, gitRoots = null } = {}) {
   let stat;
   try { stat = atStage("initial_stat", () => lstatSync(file, { bigint: true })); }
   catch (error) { if (error.code === "ENOENT") return { present: false }; throw error; }
@@ -107,6 +233,7 @@ export function observeInputFile(file, { metadataOnly = false, preferences = fal
   checkFile(stat);
   atStage("path_resolution", () => { if (realpathSync(file) !== file) throw fail("input_unsafe_file"); });
   const securityBefore = readOnlyExecutable || protectedConfiguration ? executablePermissions(file) : null;
+  const gitBefore = gitTracking ? gitTrackingContext(file, gitRoots) : null;
   const metadata = s => ({ mode: String(s.mode), uid: String(s.uid), gid: String(s.gid), links: String(s.nlink),
     device: String(s.dev), inode: String(s.ino), bytes: String(s.size), mtime_ns: String(s.mtimeNs), ctime_ns: String(s.ctimeNs) });
   if (metadataOnly) return { present: true, metadata: metadata(stat), ...(readOnlyExecutable ? { permission_identity: securityBefore, executable_identity_policy: sharedPosix ? "shared-posix-v1" : "strict-metadata-v1" } : {}), observation: "metadata_only" };
@@ -138,6 +265,10 @@ export function observeInputFile(file, { metadataOnly = false, preferences = fal
     }
   };
   const bytes = readWindow();
+  const gitAfter = gitTracking ? gitTrackingContext(file, gitRoots) : null;
+  if (gitTracking && digest(gitBefore) !== digest(gitAfter)) throw fail("input_observation_race");
+  const gitEffective = gitTracking && gitBefore && digest(gitBefore.branches) === digest(gitTracking.protected_branches)
+    ? gitTrackingProjection(bytes, gitBefore.branches) : null;
   if (shared && samples.some(s => digest(metadata(s)) !== digest(metadata(stat)))) {
     // One fixed corroborating read, never a retry of a failed observation or a
     // choice of a favorable sample. BOTH byte sequences and ALL content,
@@ -146,6 +277,8 @@ export function observeInputFile(file, { metadataOnly = false, preferences = fal
     atStage("metadata_consistency", () => { if (!bytes.equals(corroborating)) throw fail("input_observation_race"); });
   }
   return { present: true, metadata: metadata(samples.at(-1)), sha256: digest(bytes),
+    ...(gitTracking ? { git_projection: { policy: GIT_TRACKING_POLICY, applicable: gitEffective !== null,
+      scope_fingerprint: gitBefore?.fingerprint ?? null, effective_sha256: gitEffective } } : {}),
     ...(protectedConfiguration ? { permission_identity: securityBefore } : {}),
     ...(readOnlyExecutable ? { permission_identity: securityBefore, executable_identity_policy: sharedPosix ? "shared-posix-v1" : "strict-metadata-v1" } : {}),
     ...(preferences ? atStage("preference_projection", () => preferenceProjection(bytes)) : {}) };
@@ -163,14 +296,32 @@ function unconsumedCodexConfiguration(resource, input) {
 }
 
 export function inputReadOptions(resource, input) {
-  const protectedConfiguration = unconsumedCodexConfiguration(resource, input);
+  if (resource.gitTracking && !gitTrackingRole(resource, input)) throw fail("input_git_role_unproven");
+  const git = gitTrackingRole(resource, input);
+  const protectedConfiguration = unconsumedCodexConfiguration(resource, input) || git;
   return { metadataOnly: resource.metadataOnly, preferences: resource.excludePreferences && !protectedConfiguration,
-    readOnlyExecutable: resource.readOnlyExecutable, browserBundle: resource.browserBundle, protectedConfiguration };
+    readOnlyExecutable: resource.readOnlyExecutable, browserBundle: resource.browserBundle, protectedConfiguration,
+    ...(git ? { gitTracking: resource.gitTracking, gitRoots: resource.gitRoots } : {}) };
 }
 
 // Preparation/admission and comparison use the same effective identity. Raw
 // observations remain in the frozen declaration/events, never in this projection.
 export function effectiveInputObservation(value, resource, input) {
+  if (resource.gitTracking) {
+    if (!gitTrackingRole(resource, input)) throw fail("input_git_role_unproven");
+    if (value?.present === false && Object.keys(value).length === 1) return value;
+    const projection = value?.git_projection;
+    if (value?.present !== true || !sha(value.sha256) || !sha(value.permission_identity) ||
+        !["mode", "uid", "gid", "device", "inode", "bytes", "mtime_ns", "ctime_ns", "links"].every(k => /^\d{1,40}$/u.test(value.metadata?.[k] ?? "")) ||
+        value.metadata.links !== "1" || (BigInt(value.metadata.mode) & 0o170000n) !== 0o100000n ||
+        projection?.policy !== GIT_TRACKING_POLICY || Object.keys(projection).length !== 4 || typeof projection.applicable !== "boolean" ||
+        (!projection.applicable && (projection.effective_sha256 !== null || !(projection.scope_fingerprint === null || sha(projection.scope_fingerprint)))) ||
+        (projection.applicable && (!sha(projection.scope_fingerprint) || !sha(projection.effective_sha256))))
+      throw fail("input_git_observation_incomplete");
+    if (!projection.applicable) return value;
+    return { present: true, permission_identity: value.permission_identity, git_projection: projection,
+      metadata: Object.fromEntries(["mode", "uid", "gid", "device", "links"].map(k => [k, value.metadata[k]])) };
+  }
   if (input?.contract === INPUT_CONTRACT && resource.excludePreferences && !unconsumedCodexConfiguration(resource, input))
     throw fail("input_exclusion_unproven");
   if (unconsumedCodexConfiguration(resource, input)) {
@@ -203,6 +354,17 @@ const usableExecutable = value => value.present === true && /^[0-9a-f]{64}$/u.te
 export function classifyInputChange(before, after, resource = {}, input = null) {
   const { classification, excludePreferences = false, readOnlyExecutable = false, browserBundle = false } = resource;
   if (input && !supportedInputContract(input.contract)) return "unknown_relevance";
+  if (resource.gitTracking) {
+    let prior, current;
+    try { prior = effectiveInputObservation(before, resource, input); current = effectiveInputObservation(after, resource, input); }
+    catch { return "unknown_relevance"; }
+    if (before.present !== after.present) return "input_invalidation";
+    if (before.present === false) return "unchanged";
+    if (before.permission_identity !== after.permission_identity ||
+        ["mode", "uid", "gid", "device", "links"].some(k => before.metadata[k] !== after.metadata[k])) return "safety_violation";
+    if (digest(prior) !== digest(current)) return "input_invalidation";
+    return digest(before) === digest(after) ? "unchanged" : "ambient_observation";
+  }
   if (unconsumedCodexConfiguration(resource, input)) {
     let prior, current;
     try { prior = effectiveInputObservation(before, resource, input); current = effectiveInputObservation(after, resource, input); }
@@ -267,7 +429,7 @@ export function freezeInputContract({ resources, pathKind, binding, read = creat
     return { ...resource, before };
   });
   const declared = { contract, path_kind: pathKind, binding,
-    resources: selected.map(({ file, ...r }) => ({ ...r, location_fingerprint: digest(file) })) };
+    resources: selected.map(({ file, gitRoots, ...r }) => ({ ...r, location_fingerprint: digest(file) })) };
   // File locations stay in this closure. They never enter receipts or exports.
   const frozen = JSON.parse(JSON.stringify(declared));
   const fingerprint = digest(frozen);
