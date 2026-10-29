@@ -15,6 +15,7 @@ import { executePhase } from "./run-local-canonical-verification.mjs";
 import { finalizeReceipt, inspectReceiptForDecision } from "./local-canonical-receipt.mjs";
 import { baseReceipt, validContext } from "./fixtures/local-canonical-receipt-v3.mjs";
 import { observerControls } from "./fixtures/local-canonical-observer-controls.mjs";
+import { REVIEW_CHILD_RESULT_PREFIX, projectReviewChildResult, assertReviewChildLifecycle, createObserverFixtureProgressReader } from "./fixtures/local-canonical-review-child-result.mjs";
 
 const self = fileURLToPath(import.meta.url), repository = path.dirname(path.dirname(self));
 const quiet = { write() {} }, write = (p, v) => writeFileSync(p, typeof v === "string" ? v : JSON.stringify(v), { mode: 0o600 });
@@ -75,19 +76,26 @@ const root = owner.root, env = buildCanonicalChildEnvironment({ temporaryRoot: r
 const findings = []; let inFlight = false, lastChildDiagnostic = "";
 beginCanonicalTestResourceUse(owner);
 async function child(args, options = {}) {
+  const { controlId = "disposable-control", expectedCancellation = false, ...runnerOptions } = options;
+  const progress = createObserverFixtureProgressReader(), output = runnerOptions.stdout ?? quiet;
   inFlight = true; lastChildDiagnostic = "";
   const result = await runCanonicalChild({ suite: "review-corrections", label: "disposable control", command: process.execPath, args,
-    cwd: root, env, timeoutMs: 6000, stdout: quiet, stderr: { write(b) { lastChildDiagnostic = (lastChildDiagnostic + b.toString()).slice(-16000); } }, log() {}, ...options });
-  inFlight = !settled(result); assert(!inFlight, JSON.stringify(result)); return result;
+    cwd: root, env, timeoutMs: 6000, ...runnerOptions,
+    stdout: { write(chunk) { progress.write(chunk); output.write(chunk); } }, stderr: quiet, log() {} });
+  inFlight = !settled(result);
+  const diagnostic = { controlId, expectedCancellation, progress: progress.snapshot() };
+  lastChildDiagnostic = JSON.stringify(projectReviewChildResult(result, diagnostic));
+  for (const nested of progress.childResults()) console.log(REVIEW_CHILD_RESULT_PREFIX + JSON.stringify(nested));
+  console.log(REVIEW_CHILD_RESULT_PREFIX + lastChildDiagnostic);
+  assertReviewChildLifecycle(result, diagnostic);
+  return result;
 }
 try {
-  let successionOutput = "";
-  const succession = await child([path.join(repository, "scripts/fixtures/local-canonical-observer-succession.mjs"), "--run-observer-fixtures"], { timeoutMs: 6000, stdout: { write: b => { successionOutput = (successionOutput + b).slice(-16000); } } });
-  assert.equal(succession.exit_code, 0, lastChildDiagnostic + successionOutput);
+  const succession = await child([path.join(repository, "scripts/fixtures/local-canonical-observer-succession.mjs"), "--run-observer-fixtures"], { controlId: "observer-succession", timeoutMs: 6000 });
+  assert.equal(succession.exit_code, 0, lastChildDiagnostic);
   findings.push("observer-repair succession: bounded original/source/authority refusals, exclusive lineage and fresh stock reconstruction");
-  let observerOutput = "";
-  const observer = await child([self, "--observer-controls"], { stdout: { write: b => { observerOutput = (observerOutput + b).slice(-16000); } } });
-  assert.equal(observer.exit_code, 0, lastChildDiagnostic + observerOutput);
+  const observer = await child([self, "--observer-controls"], { controlId: "observer-controls" });
+  assert.equal(observer.exit_code, 0, lastChildDiagnostic);
   findings.push("deterministic observation windows retain permitted aliases and sanitized failures; content, identity, ownership and native permissions remain protected");
   const executable = path.join(root, "read-only-browser"), alias = path.join(root, "alias");
   write(executable, "fixture executable\n"); chmodSync(executable, 0o700);
@@ -137,7 +145,7 @@ try {
   let mutation, readyOutput = "", aliasWritten = false, mutationError = null;
   try {
     mutation = await child(["-e", "process.on('SIGTERM',()=>process.exit(0));setInterval(()=>{},1000);process.stdout.write('alias-control-ready\\n');"], {
-      signal: controller.signal, stdout: { write(chunk) {
+      controlId: "alias-content-cancellation", expectedCancellation: true, signal: controller.signal, stdout: { write(chunk) {
         try {
           readyOutput += chunk.toString(); assert(readyOutput.length <= 1024);
           if (readyOutput === "alias-control-ready\n" && !aliasWritten) {
@@ -164,7 +172,7 @@ try {
   const records = Object.entries(browserConsumersForPhase("integration")).flatMap(([consumer, count]) => Array.from({ length: count }, () => ({ ...record, consumer })));
   const probe = path.join(root, "phase-probe.json");
   write(probe, { records, expected, cases: [{ mutation: "none", pass: true }, ...["missing", "extra", "overflow", "wrong-location", "wrong-version", "content", "timeout"].map(mutation => ({ mutation, pass: false }))] });
-  const probeResult = await child([self, "--phase-probe", probe], { timeoutMs: 15000 }); assert.equal(probeResult.exit_code, 0, lastChildDiagnostic);
+  const probeResult = await child([self, "--phase-probe", probe], { controlId: "synthetic-browser-phase-probe", timeoutMs: 15000 }); assert.equal(probeResult.exit_code, 0, lastChildDiagnostic);
   // Stock structural reader applies the same consumer inventory and role rule.
   const receipt = structuredClone(baseReceipt); receipt.receipt_version = 4; receipt.repository.tree_sha = "7".repeat(40);
   receipt.phases[0].id = "integration"; receipt.phases[0].browser = false; receipt.phases[0].browser_use = records;
@@ -231,14 +239,14 @@ async function successionControls() {
     const fixture = path.join(artifacts, "regression.mjs"); write(fixture, "import assert from 'node:assert/strict';const m=await import(process.argv[2]);assert.equal(m.value,2);\n");
     write(moduleFile, "export const value=1; // cosmetic change only\n");
     const cosmeticHead = commit("cosmetic source"), cosmeticTree = git("rev-parse", "HEAD^{tree}");
-    const cosmeticResult = await child([fixture, pathToFileURL(moduleFile).href]); assert.equal(cosmeticResult.exit_code, 1);
+    const cosmeticResult = await child([fixture, pathToFileURL(moduleFile).href], { controlId: "cosmetic-source-witness" }); assert.equal(cosmeticResult.exit_code, 1, lastChildDiagnostic);
     const cosmeticRecord = { fixture_sha256: digest(readFileSync(fixture)), environment_fingerprint: digest(env), source_sha256: digest(readFileSync(moduleFile)), result: cosmeticResult, node_version: process.versions.node, finished_at: new Date().toISOString() };
     write(path.join(artifacts, "cosmetic.json"), cosmeticRecord);
     write(moduleFile, "export const value=1;\n"); // Restore only this owned fixture's original source before its retained witness.
     const witnesses = {};
     for (const [kind, value] of [["before", 1], ["after", 2]]) {
       if (value === 2) { write(moduleFile, "export const value=2;\n"); commit("meaningful requested behavior"); }
-      const result = await child([fixture, pathToFileURL(moduleFile).href]); assert.equal(result.exit_code, kind === "before" ? 1 : 0);
+      const result = await child([fixture, pathToFileURL(moduleFile).href], { controlId: `source-${kind}-witness` }); assert.equal(result.exit_code, kind === "before" ? 1 : 0, lastChildDiagnostic);
       const record = { fixture_sha256: digest(readFileSync(fixture)), environment_fingerprint: digest(env), source_sha256: digest(readFileSync(moduleFile)), result, node_version: process.versions.node, finished_at: new Date().toISOString() };
       write(path.join(artifacts, `${kind}.json`), record);
       witnesses[kind] = { artifact: `${kind}.json`, sha256: digest(readFileSync(path.join(artifacts, `${kind}.json`))), source_sha256: record.source_sha256 };
@@ -340,8 +348,8 @@ async function exactPathControls({ name, sourceModule, defect, beforeSource, aft
         write(moduleFile, afterSource);
         write(readerFile, "export const acceptsExactPath=true;\n"); commit("correct behavior and admit exact path");
       }
-      const result = await child([fixture, pathToFileURL(moduleFile).href]);
-      assert.equal(result.exit_code, key === "before" ? 1 : 0);
+      const result = await child([fixture, pathToFileURL(moduleFile).href], { controlId: `${name}-${key}-witness` });
+      assert.equal(result.exit_code, key === "before" ? 1 : 0, lastChildDiagnostic);
       const record = { fixture_sha256: digest(readFileSync(fixture)), environment_fingerprint: digest(env), source_sha256: digest(readFileSync(moduleFile)),
         result, node_version: process.versions.node, finished_at: new Date().toISOString() };
       const file = path.join(artifacts, `${key}.json`); write(file, record);

@@ -7,15 +7,17 @@ import {
   readOperationalReentryStaleResetCrossCaseV01,
 } from "@/fixtures/vnext/research/operational-reentry-stale-reset-cross-case-replication-v0-1";
 import {
-  createOperationalReentryStaleResetCrossCaseLocalInvocationIdentityFingerprintV01,
-  createOperationalReentryStaleResetCrossCaseProviderMaterialFingerprintV01,
   invokeOperationalReentryStaleResetCrossCaseModelGatewayV01,
-  projectOperationalReentryStaleResetCrossCaseProviderRequestV01,
-  readOperationalReentryStaleResetCrossCaseCompatibilityBindingsV01,
-  readOperationalReentryStaleResetCrossCaseProviderContractV01,
   type ModelGatewayInteractiveAdmissionV01,
   type OperationalReentryStaleResetCrossCaseModelGatewayDependenciesV01,
 } from "@/lib/vnext/model-gateway/model-gateway";
+import {
+  createOperationalReentryStaleResetCrossCaseLocalInvocationIdentityFingerprintV01,
+  createOperationalReentryStaleResetCrossCaseProviderMaterialFingerprintV01,
+  projectOperationalReentryStaleResetCrossCaseProviderRequestV01,
+  readOperationalReentryStaleResetCrossCaseCompatibilityBindingsV01,
+  readOperationalReentryStaleResetCrossCaseProviderContractV01,
+} from "@/lib/vnext/model-gateway/method-routes";
 import { isModelGatewayInvocationErrorV01 } from "@/lib/vnext/model-gateway/contracts";
 import {
   assertModelGatewayCostBudgetCurrentV01,

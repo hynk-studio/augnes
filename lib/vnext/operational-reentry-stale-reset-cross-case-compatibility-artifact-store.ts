@@ -6,9 +6,11 @@ import {
   createProtocolSha256V01,
 } from "@/lib/vnext/protocol-primitives";
 import {
-  createOperationalReentryStaleResetCrossCaseLocalInvocationIdentityFingerprintV01,
   type ModelGatewayInteractiveAdmissionV01,
 } from "@/lib/vnext/model-gateway/model-gateway";
+import {
+  createOperationalReentryStaleResetCrossCaseLocalInvocationIdentityFingerprintV01,
+} from "@/lib/vnext/model-gateway/method-routes";
 import { validateModelInvocationReceiptV02 } from "@/lib/vnext/model-gateway/model-invocation-receipt";
 import {
   validateOperationalReentryStaleResetCrossCaseCompatibilityAuthorizationContextV01,
