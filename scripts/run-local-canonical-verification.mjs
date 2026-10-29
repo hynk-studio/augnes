@@ -18,7 +18,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { freezeInputContract, monitorInputContract, digest, deriveOperationalDisposition, createInputReader, classifyInputChange, nonFaultInputChange, inputReadOptions, commonInputResources, supportedInputContract } from "./local-canonical-inputs.mjs";
+import { freezeInputContract, monitorInputContract, digest, deriveOperationalDisposition, createInputReader, classifyInputChange, nonFaultInputChange, inputReadOptions, commonInputResources, supportedInputContract, createGitTrackingResource } from "./local-canonical-inputs.mjs";
 import { readBrowserInputBinding, browserInputEnvironment, selectedBrowserInput, acquireBrowserInputGuard, releaseBrowserInputGuard, assertBrowserInputGuard } from "./local-canonical-browser-input.mjs";
 import { readBrowserReplacementProof, authorizeBrowserReplacement, BROWSER_REPLACEMENT_PHASES, isStrictBrowserSourceRevision } from "./local-canonical-browser-replacement.mjs";
 import { beginAttempt, finishAttempt, readRecoveryProof, readSourceCorrectionProof, inspectAttemptRecords } from "./local-canonical-attempts.mjs";
@@ -1232,7 +1232,8 @@ function invocationInputResources({ verificationContext, browserExecutablePath, 
     { id: "auth-location", file: path.join(userHome, ".codex", "auth.json"), classification: "safety", metadataOnly: true },
     { id: "github-auth-location", file: path.join(process.env.GH_CONFIG_DIR ?? path.join(process.env.XDG_CONFIG_HOME ?? path.join(userHome, ".config"), "gh"), "hosts.yml"), classification: "safety", metadataOnly: true },
     { id: "git-user-config", file: path.join(userHome, ".gitconfig"), classification: "execution", metadataOnly: true },
-    { id: "git-config", file: path.join(verificationAnchorRoot(verificationContext), ".git", "config"), classification: "execution" },
+    ...(isolated ? [createGitTrackingResource(path.join(verificationAnchorRoot(verificationContext), ".git", "config"), [repositoryRoot, verificationAnchorRoot(verificationContext)])]
+      : [{ id: "git-config", file: path.join(verificationAnchorRoot(verificationContext), ".git", "config"), classification: "execution" }]),
     { id: "node-executable", file: realpathSync(process.execPath), classification: "execution" },
     ...["npm", "git", "gh"].map(name => ({ id: `${name}-executable`, file: resolveExecutionTool(name), classification: "execution" })),
     ...[".npmrc", "apps/augnes_apps/.npmrc", "apps/web_planning/.npmrc", "AGENTS.md", ".github/LOCAL_CANONICAL_VERIFICATION.md"].map((file, i) => ({ id: `declared-config-${i}`, file: path.join(repositoryRoot, file), classification: "execution" })),
@@ -1256,8 +1257,11 @@ function currentInputEvidenceValid(receipt, verificationContext, browserExecutab
       const prior = declared.find(r => r.id === resource.id);
       if (!prior || prior.location_fingerprint !== digest(resource.file) || prior.classification !== resource.classification ||
           prior.excludePreferences !== resource.excludePreferences || prior.metadataOnly !== resource.metadataOnly || prior.readOnlyExecutable !== resource.readOnlyExecutable || prior.browserBundle !== resource.browserBundle) return false;
-      const current = readInput(resource.file, { ...inputReadOptions(resource, receipt.inputs), force: true });
-      return nonFaultInputChange(classifyInputChange(prior.before, current, resource, receipt.inputs));
+      if (prior.gitTracking && digest(prior.gitTracking) !== digest(resource.gitTracking)) return false;
+      // An old declaration keeps its original reader and whole-file meaning.
+      const interpreted = { ...resource, gitTracking: prior.gitTracking };
+      const current = readInput(resource.file, { ...inputReadOptions(interpreted, receipt.inputs), force: true });
+      return nonFaultInputChange(classifyInputChange(prior.before, current, interpreted, receipt.inputs));
     });
   } catch { return false; }
 }

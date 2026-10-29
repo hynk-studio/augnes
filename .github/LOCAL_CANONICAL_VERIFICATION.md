@@ -758,6 +758,23 @@ remain binding. Source changes introducing a consumer require renewed review
 of the consumer map and its controls. No rule authorizes writing preferences,
 copying credentials, launching a model or changing installed services.
 
+For the audited isolated inventory, a newly declared `git-config` resource may
+carry `gitTracking.policy = isolated-current-branches-v1`. This versioned role
+binds both actual checkout branches and all remaining configuration bytes while
+excluding only a complete, unique foreign branch section containing the two
+plain upstream-tracking entries. All remotes, current/anchor branch settings,
+credentials/transport, hooks/filters and mixed changes remain protected. Actual
+effective configuration origins and both branches are reobserved; external
+system/global inputs and path/permission identity remain binding. An existing
+worktreeConfig extension additionally binds each checkout's complete worktree
+configuration, including absence; this reader never enables or edits it. Includes,
+conditional includes, unknown extensions, environment overrides, ambiguous
+syntax/origins or incomplete observations cannot acquire the projection. The
+consumer map defines its finite tested scope; broad/unknown consumers retain
+whole-file protection. Earlier declarations without this resource marker keep
+their original comparison and recorded failures. This adds neither a retry nor
+a proof kind, and never authorizes changing the shared configuration.
+
 Version 2 material retains its original raw preparation/admission hash and
 preference-only comparison (leading `model`, `model_reasoning_effort` and
 `service_tier` values; remainder changes refuse). Version 3 never reinterprets

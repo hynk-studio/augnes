@@ -6,6 +6,8 @@ import { pathToFileURL } from "node:url";
 import { createCanonicalTestResourceRoot, cleanupCanonicalTestResources, buildCanonicalChildEnvironment, beginCanonicalTestResourceUse, settleCanonicalTestResourceUse } from "./canonical-test-environment.mjs";
 import { runCanonicalChild as executeChild } from "./canonical-child-runner.mjs";
 import { INPUT_CONTRACT, LEGACY_INPUT_CONTRACT, freezeInputContract, classifyInputChange, observeInputFile, monitorInputContract, digest, deriveOperationalDisposition, commonInputResources, inputReadOptions, inputEventIdentity } from "./local-canonical-inputs.mjs";
+import * as gitInputApi from "./local-canonical-inputs.mjs";
+import { runGitInputControls } from "./fixtures/local-canonical-git-input.mjs";
 import { beginAttempt, finishAttempt, inspectAttemptRecords, readRecoveryProof, readSourceCorrectionProof } from "./local-canonical-attempts.mjs";
 import { acquireCheckoutVerificationOwnership, releaseCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
 import { runPhasesSequentially, enforceArtifactRetention, FULL_PHASE_IDS, buildPhasePlan, browserReplacementLiveBinding, phaseEnvironment, prepareInvocationInputs } from "./run-local-canonical-verification.mjs";
@@ -473,6 +475,7 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
   assert.notEqual(digest(commonInputResources(readerBefore)), digest(commonInputResources(readerAfter)));
   assert.equal(buildPhasePlan({ mode: "full", selectedPlan: "full-canonical" }).length, FULL_PHASE_IDS.length);
   note("read-only shared Browser observes alias metadata and binds bytes; alias mutation refuses; Full phase inventory unchanged");
+  findings.push(...await runGitInputControls(gitInputApi));
 } finally {
   if (!childInFlight) settleCanonicalTestResourceUse(owner, { exit_observed: true, streams_closed: true, cleanup_completed: true, remaining_owned_processes: 0 });
   const [cleanup] = cleanupCanonicalTestResources([owner]);

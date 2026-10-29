@@ -16,6 +16,7 @@ obligations; it does not grant execution, provider, lifecycle or merge authority
 | Browser | Project-experience, continuity, project-client and Web-planning launchers; shared operator lifecycle including golden and four navigation controls; integration durable/cumulative surfaces | Reuse process owners; record selected executable at actual launch/settlement and agreeing HTTP/CDP runtime versions. Freeze exact consumer counts for every consuming phase, including integration; forward nested evidence and refuse missing records |
 | Installed Companion | Supported preservation observer and existing context owner | Coherent before/after identity, no lifecycle in isolated context; observation/ownership failure remains blocking |
 | Shared Codex configuration | No selected isolated controller/phase launches the developer Codex client or consumes its shared configuration; native fixture consumers select private configuration and temporary source roots | v3 treats content and replacement metadata as observations only for this fixed resource/path; presence, resolution, single link, mode, ownership, device, ACL/flags/attributes remain bound. v2 retains preference-only exclusion and its original raw binding |
+| Shared Git configuration | Controller identity/planner and historical readers use current branches, explicit refs and origin; installed-hook checks also read all remotes. Branch switching/configuration enumeration in tests uses disposable repositories | The versioned `gitTracking` role below protects both actual checkout branches, all remotes and every remaining byte. It is unavailable on broad/unknown consumers and does not modify Git settings |
 | Hooks and authority | Git reads do not dispatch checkout/commit hooks; canonical suites use private fake clients and runtime roots | No live client/model launch from this contract; source changes introducing a consumer require renewed classification and tests |
 
 The orchestration conversation's running model is outside the deterministic
@@ -54,7 +55,8 @@ v3 isolated `codex-preferences` resource receives non-consumption treatment.
 Full raw observations still enter declaration fingerprints and events. Missing
 security metadata refuses, even with equal content. The existing shared
 read-only executable projection removes only link-count/ctime observations.
-Other resources retain their complete effective inputs. Old v2 common hashes
+Other resources retain their complete effective inputs except the explicitly
+versioned Git role below. Old v2 common hashes
 and remainder refusals remain byte-for-byte interpretable under their old rule.
 
 The routine classification controls compare unchanged, preference, replacement
@@ -66,6 +68,58 @@ ownership/attribute changes, missing observations and unsafe aliases refuse.
 The existing replacement controls exercise actual admission with the new common
 hash and prove a relevant mismatch creates neither attempt nor successor. These
 are disposable source controls, not production Full, Browser or model evidence.
+
+### Git tracking projection for the isolated inventory
+
+The optional resource marker `gitTracking.policy = isolated-current-branches-v1`
+is the interpretation discriminator. Earlier v2/v3 declarations without it keep
+their whole-file comparison and original invalidation. It is selected only by
+the fixed isolated invocation composition, not by an environment ignore list.
+The marker binds hashes of the candidate and installed anchor's actual symbolic
+branches. Their ordered physical roots and branches are reobserved before and
+after every configuration read; the anchor branch is not assumed to be covered
+by the candidate source guard. Private root paths stay in the reader closure.
+
+Only a complete, unique, unescaped foreign branch section with exactly one plain
+`remote` and one `merge = refs/heads/...` entry can be omitted from the effective
+hash. The current/anchor branches, every remote section, credential/transport,
+hook/filter settings and all other bytes remain binding. Unsupported syntax,
+duplicate branch sections, continuations, malformed UTF-8 and mixed relevant
+changes do not acquire an exclusion. No file is edited or reconstructed by this
+reader. Full raw hashes and metadata remain in the immutable observations.
+
+The reader checks Git's actual effective key scopes/origins. Any include or
+includeIf, unknown repository extension, Git configuration or repository
+environment override, unknown origin or failed observation disables the
+projection. An already enabled `extensions.worktreeConfig` is supported only
+with complete per-root `config.worktree` observations, including absence and
+every byte; it is never enabled or changed here. Both roots' effective origins
+are inspected in that case. System/global files and Apple Git's file-backed
+`unknown` default scope are likewise fully bound into the scope fingerprint;
+no values from those files receive an exclusion. Their values and paths are not
+exported. Presence, exact path resolution, single
+link, mode, owner/group, device, ACL, flags and attributes remain protected.
+Configurations with includes retain the existing conservative whole-file path;
+this change does not claim a new recursive include-target inventory for it.
+
+Finite source inspection found no foreign-upstream consumer on the selected
+real-root path: Git identity/currentness uses exact refs/current branches,
+historical dependency and distributable readers use exact tree/show/archive,
+and hook verification uses root/origin/remote reads. Broader configuration and
+branch operations are in owned disposable fixtures. Next's potential telemetry
+Git consumer reads `remote.origin.url` and the build disables telemetry. This is
+source/behavior evidence, not exhaustive syscall tracing of Git, gh or native
+fallbacks; a newly introduced broad or foreign-tracking consumer requires renewed
+classification and must retain whole-file protection.
+
+The existing classification suite exercises real linked worktrees and a bounded
+Git child across an actual tracking append, preparation/common-input binding,
+monitoring and fresh-process reconstruction. Broad configuration/branch readers
+demonstrate the changed output and remain on the conservative path. Relevant
+origin/current/anchor branch changes, authority settings, includes, unsupported
+syntax, unsafe aliases, permission changes and branch drift remain refusals.
+The same retained fixture fails on the prior input owner and passes on its
+correction; these controls do not replace complete deciding qualification.
 
 ## Implementation mapping
 
