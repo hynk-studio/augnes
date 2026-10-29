@@ -16,7 +16,7 @@ const repositoryRoot = path.resolve(
   "..",
 );
 const approvedTransportConfigurationOwner =
-  "lib/vnext/model-gateway/openai/responses-adapter.ts";
+  "lib/vnext/model-gateway/openai/responses-transport.ts";
 const approvedDiagnosticConfigurationOwner =
   "lib/vnext/model-gateway/openai/local-configuration.ts";
 const localCapabilityOwner = "lib/vnext/model-gateway/local-capability.ts";
@@ -33,6 +33,7 @@ const approvedChatGptIdentityClaimNamespaceParser =
 const chatGptIdentityClaimNamespace = "https://api.openai.com/auth";
 const sharedGatewayOwner = "lib/vnext/model-gateway/model-gateway.ts";
 const approvedPurposeCodecOwners = new Set([
+  "lib/vnext/model-gateway/openai/responses-method-bindings.ts",
   "lib/vnext/model-gateway/openai/observe-codec.ts",
   "lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-v0-2-codec.ts",
   "lib/vnext/model-gateway/openai/operational-reentry-matched-cohort-v0-3-codec.ts",
@@ -45,6 +46,9 @@ const approvedPurposeCodecOwners = new Set([
 const approvedOpenAIBoundaryImporters = new Set([
   approvedTransportConfigurationOwner,
   sharedGatewayOwner,
+  "lib/vnext/model-gateway/method-bindings.ts",
+  "lib/vnext/model-gateway/method-routes.ts",
+  "lib/vnext/model-gateway/openai/responses-method-bindings.ts",
 ]);
 const runtimeEnvironmentPropagationOwner =
   "scripts/augnes-runtime-supervisor.mjs";
@@ -104,6 +108,7 @@ const currentModelInvocationEntryMarkers = new Set([
 ]);
 
 type BoundaryViolationKind =
+  | "generic_method_implementation_coupling"
   | "provider_transport_owner"
   | "provider_configuration_owner"
   | "provider_authorization_owner"
@@ -226,6 +231,7 @@ function classifyBoundaryViolations(
   source: string,
 ): BoundaryViolation[] {
   const found = new Set<BoundaryViolationKind>();
+  if (genericMethodCoupling(relativePath, source)) found.add("generic_method_implementation_coupling");
   const localCapabilityBoundary = inspectLocalCapabilityBoundary(relativePath, source);
   const providerTransportSource = sourceForProviderTransportScan(
     relativePath,
@@ -346,6 +352,29 @@ function inspectLocalCapabilityBoundary(relativePath: string, source: string) {
   };
   visit(sourceFile);
   return result;
+}
+
+/** Generic owners may consume the closed public union but cannot select a
+ * production codec, method implementation, or purpose-specific runtime branch. */
+function genericMethodCoupling(relativePath: string, source: string): boolean {
+  if (!["lib/vnext/model-gateway/invocation-core.ts", approvedTransportConfigurationOwner].includes(relativePath)) return false;
+  const file = ts.createSourceFile(relativePath, source, ts.ScriptTarget.Latest, true);
+  let coupled = false;
+  const forbiddenModule = /(?:-codec|method-bindings|method-routes|responses-adapter)(?:\.[cm]?[jt]s)?$/;
+  const purposeLiteral = /^(?:observe_delta_compile|planner_plan|temporal_interpretation|strategic_advantage_transfer|guidebrief_interpretation|governed_actor_lab|operational_reentry_matched_cohort(?:_v0[234])?|operational_reentry_stale_reset_cross_case_replication)$/;
+  const visit = (node: ts.Node) => {
+    if (ts.isImportDeclaration(node) && !node.importClause?.isTypeOnly) {
+      const named = node.importClause?.namedBindings;
+      if (ts.isStringLiteralLike(node.moduleSpecifier) && forbiddenModule.test(node.moduleSpecifier.text)) coupled = true;
+      if (named && ts.isNamedImports(named) && named.elements.some(item => !item.isTypeOnly && /_MODEL_GATEWAY_PURPOSE_V01$/.test(item.propertyName?.text ?? item.name.text))) coupled = true;
+    }
+    if (ts.isExportDeclaration(node) && !node.isTypeOnly && node.moduleSpecifier && ts.isStringLiteralLike(node.moduleSpecifier) && forbiddenModule.test(node.moduleSpecifier.text)) coupled = true;
+    if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(node.expression) && node.expression.text === "require")) && node.arguments.some(item => ts.isStringLiteralLike(item) && forbiddenModule.test(item.text))) coupled = true;
+    if (ts.isStringLiteralLike(node) && purposeLiteral.test(node.text) && !ts.isLiteralTypeNode(node.parent)) coupled = true;
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  return coupled;
 }
 
 function findLegacySummaryWriterCandidates(
@@ -572,6 +601,24 @@ function assertSyntheticDetectionMatrix() {
       name: "purpose_codec",
       source: "export function buildPlannerSystemPrompt() { return 'x'; }",
       expected: "provider_purpose_codec_owner",
+    },
+    {
+      name: "generic_transport_codec_import",
+      source: 'import { parseObserveOutput } from "./observe-codec";',
+      relativePath: approvedTransportConfigurationOwner,
+      expected: "generic_method_implementation_coupling",
+    },
+    {
+      name: "generic_core_dynamic_method_import",
+      source: 'const methods = import("./method-bindings");',
+      relativePath: "lib/vnext/model-gateway/invocation-core.ts",
+      expected: "generic_method_implementation_coupling",
+    },
+    {
+      name: "generic_core_purpose_branch",
+      source: 'if (purpose === "operational_reentry_matched_cohort_v04") {}',
+      relativePath: "lib/vnext/model-gateway/invocation-core.ts",
+      expected: "generic_method_implementation_coupling",
     },
     {
       name: "direct_adapter_import",

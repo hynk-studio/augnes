@@ -18,7 +18,8 @@ assert(Object.hasOwn(entries, entry), "known capability entry required");
 
 function invocationOrResearch(filename) {
   const relative = path.relative(root, filename).split(path.sep).join("/");
-  return relative === "lib/vnext/model-gateway/model-gateway.ts" ||
+  return /^(?:lib\/vnext\/model-gateway\/(?:invocation-core|method-bindings|method-routes)|lib\/vnext\/model-gateway\/openai\/(?:responses-transport|responses-method-bindings))\.ts$/.test(relative) ||
+    relative === "lib/vnext/model-gateway/model-gateway.ts" ||
     relative === "lib/vnext/model-gateway/openai/responses-adapter.ts" ||
     relative.startsWith("fixtures/vnext/research/") ||
     /^(?:lib|types)\/vnext\/(?:model-gateway\/openai\/)?(?:operational-reentry|governed-actor-lab)/.test(relative);

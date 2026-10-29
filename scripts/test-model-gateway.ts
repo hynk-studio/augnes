@@ -135,9 +135,9 @@ const onUndiciRequest = () => {
   undiciRequests += 1;
 };
 
-async function assertLocalCapabilityIsolation() {
+async function assertGatewayIsolationAndParity() {
   const results: Array<Record<string, unknown>> = [];
-  for (const entry of ["local_capability", "project_home", "pc5_capability", "review_material", "semantic_review"]) {
+  for (const entry of ["local_capability", "project_home", "pc5_capability", "review_material", "semantic_review", "codec_composition", "codec_parity"]) {
     const environment = { ...process.env, AUGNES_DB_PATH: path.join(root, "capability-unopened.db") };
     for (const key of ["OPENAI_API_KEY", "OPENAI_MODEL", "ANTHROPIC_API_KEY", "AZURE_OPENAI_API_KEY", "GOOGLE_API_KEY",
       "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "all_proxy", "no_proxy"]) {
@@ -155,7 +155,7 @@ async function assertLocalCapabilityIsolation() {
     const timeoutMs = 20_000;
     const result = await runCanonicalChild({
       suite: "model-capability-isolation", label: entry, command: process.execPath,
-      args: ["--import", "tsx", "scripts/fixtures/model-capability-isolation-child.cjs", entry],
+      args: ["--import", "tsx", ...(entry === "codec_composition" ? ["scripts/fixtures/model-gateway-composition-child.cjs"] : entry === "codec_parity" ? ["scripts/test-model-gateway-codec-parity.ts"] : ["scripts/fixtures/model-capability-isolation-child.cjs", entry])],
       cwd: process.cwd(), env: environment, timeoutMs, heartbeatMs: 0,
       resourceOwner: undefined,
       // The JS runner only calls write(); its defaults infer the narrower TTY types.
@@ -193,7 +193,7 @@ async function main() {
   undiciChannel.subscribe(onUndiciRequest);
 
   try {
-    const localCapabilityIsolation = await assertLocalCapabilityIsolation();
+    const gatewayIsolationAndParity = await assertGatewayIsolationAndParity();
     const fixture = registerProjects();
     const metrics = {
       live_transport_calls: 0,
@@ -1038,7 +1038,8 @@ async function main() {
         {
           test: "model_gateway",
           status: "pass",
-          local_capability_isolation: localCapabilityIsolation,
+          local_capability_isolation: gatewayIsolationAndParity.filter(row => !String(row.entry).startsWith("codec_")),
+          codec_composition_and_parity: gatewayIsolationAndParity.filter(row => String(row.entry).startsWith("codec_")),
           real_provider_calls: 0,
           production_entry_paths: [
             "POST /api/observe",
