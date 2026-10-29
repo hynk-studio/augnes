@@ -42,6 +42,7 @@ import {
   DISTRIBUTABLE_SUPERVISOR_BUNDLE_FILE,
   DISTRIBUTABLE_RECOVERY_WORKER_BUNDLE_FILE,
   DISTRIBUTABLE_RECOVERY_CONTROL_FILES,
+  DISTRIBUTABLE_DATABASE_MIGRATION_FILES,
   DISTRIBUTABLE_SUPPORTED_OPERATING_SYSTEMS,
   assertAllowedDistributablePayloadPath,
   assertSafeDistributablePath,
@@ -233,6 +234,21 @@ try {
   packageRoot = findPackageRoot(unpackRoot);
   assertOutsideRepository(packageRoot, "unpacked package root");
   packageManifest = validatePackageContents(packageRoot);
+  for (const relativePath of DISTRIBUTABLE_DATABASE_MIGRATION_FILES) {
+    assert.equal(
+      packageManifest.files.some(entry => entry.path === relativePath),
+      true,
+      `current package is missing migration support: ${relativePath}`,
+    );
+  }
+  // Manifest compatibility does not require a historical v2 package to contain
+  // the later source decomposition. Its original bundle remains its runtime.
+  const preMigrationSplitManifest = structuredClone(packageManifest);
+  preMigrationSplitManifest.files = preMigrationSplitManifest.files.filter(
+    entry => !DISTRIBUTABLE_DATABASE_MIGRATION_FILES.includes(entry.path),
+  );
+  preMigrationSplitManifest.build_identity = calculateDistributableBuildIdentity(preMigrationSplitManifest);
+  validateDistributableManifest(preMigrationSplitManifest);
   // Manifest-level compatibility only: pre-capability packages did not contain
   // recovery worker files. Their original file requirements still apply.
   const historicalManifest = structuredClone(packageManifest);

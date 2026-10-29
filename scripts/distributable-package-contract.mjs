@@ -53,6 +53,18 @@ export const DISTRIBUTABLE_APPLICATION_SCOPE_FINGERPRINT = createHash("sha256")
   .update("hynk-studio/augnes\0augnes.application.scope.v1")
   .digest("hex");
 
+// Current builds copy this fixed source closure. Older v2 packages contain the
+// same migrations in db-migrations.mjs and their verified supervisor bundle.
+export const DISTRIBUTABLE_DATABASE_MIGRATION_FILES = Object.freeze([
+  "scripts/database-migrations/historical-compatibility.mjs",
+  "scripts/database-migrations/native-product.mjs",
+  "scripts/database-migrations/review-evidence.mjs",
+  "scripts/database-migrations/research-candidate.mjs",
+  "scripts/database-migrations/autonomy-autohunt.mjs",
+  "scripts/database-migrations/perspective-memory.mjs",
+  "scripts/database-migrations/canonical-compatibility.mjs",
+]);
+
 export const DISTRIBUTABLE_RUNTIME_SCRIPTS = Object.freeze([
   "plugins/augnes-operator/mcp/node-runtime-policy.mjs",
   "scripts/augnes-local-paths.mjs",
@@ -61,6 +73,7 @@ export const DISTRIBUTABLE_RUNTIME_SCRIPTS = Object.freeze([
   "scripts/canonical-database-migrations.mjs",
   "scripts/canonical-test-environment.mjs",
   "scripts/db-migrations.mjs",
+  ...DISTRIBUTABLE_DATABASE_MIGRATION_FILES,
   "scripts/distributable-package-contract.mjs",
   "scripts/distributable-package-launcher.mjs",
   "scripts/local-process-ownership.mjs",
@@ -110,8 +123,10 @@ export const DISTRIBUTABLE_REQUIRED_FILES = Object.freeze([
   "node_modules/better-sqlite3/build/Release/better_sqlite3.node",
   "package.json",
   "server.js",
-  // Older v2 manifests predate the shared policy module; keep them readable.
+  // Older v2 manifests predate the shared policy module and migration source
+  // decomposition; preserve their original required-file contract.
   ...DISTRIBUTABLE_RUNTIME_SCRIPTS.filter(file => !DISTRIBUTABLE_RECOVERY_CONTROL_FILES.includes(file) &&
+    !DISTRIBUTABLE_DATABASE_MIGRATION_FILES.includes(file) &&
     file !== "plugins/augnes-operator/mcp/node-runtime-policy.mjs"),
   ...DISTRIBUTABLE_COMPILED_RUNTIME_FILES.filter(file => !DISTRIBUTABLE_RECOVERY_CONTROL_FILES.includes(file)),
 ]);

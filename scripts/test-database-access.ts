@@ -10,6 +10,7 @@ import { DatabaseAccessError, PREPARED_DATABASE_SCHEMA_SIGNATURE } from "../lib/
 import { configureOwnedDatabase, withOwnedDatabase } from "../lib/db/connection-ownership.mjs";
 import { GET } from "../app/api/vnext/continuity-pins/route";
 import { applyCanonicalDatabaseMigrations } from "./canonical-database-migrations.mjs";
+import { testCanonicalMigrationFamilies } from "./test-canonical-migration-families.mjs";
 import { canonicalStructuralSchemaContractSignature, prepareRuntimeDatabase, restoreRuntimeDatabase, inspectRecoveryDatabaseFile } from "./runtime-database-bootstrap.mjs";
 import { createRecoveryBackup } from "./recovery-backup.mjs";
 import { runAugnesDogfoodFixture } from "../lib/dogfood/augnes-on-augnes-dogfood";
@@ -54,6 +55,7 @@ function causeContains(error: unknown, expected: unknown): boolean {
 }
 
 export async function testDatabaseAccess() {
+  await testCanonicalMigrationFamilies();
   const root = fs.mkdtempSync(path.join(tmpdir(), "augnes-access-"));
   const databasePath = path.join(root, "prepared.db");
   const previous = process.env.AUGNES_DB_PATH;
