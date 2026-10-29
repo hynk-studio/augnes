@@ -34,7 +34,7 @@ import { listAutonomyRunLedgerRecords, readAutonomyRunLedgerRecord, updateAutono
 import { AUTONOMY_RUNNER_TERMINAL_STATUSES } from "../lib/autonomy/runner-state";
 import { LiveNativeHostRunServiceV01 } from "../lib/vnext/runtime/live-native-host-run-service";
 import { createCodexAppServerAdapterV01 } from "../lib/vnext/native-host/codex-app-server-adapter";
-import { createCodexScopedTaskV01, createCodexFeasibilityWindowV01, createPersistedCodexFeasibilityContinuationV01, readCodexScopedSnapshotV01, releaseCodexScopedTaskV01 } from "../lib/vnext/native-host/codex-scoped-task";
+import { createCodexScopedTaskV01, createCodexFeasibilityWindowV01, createPersistedCodexFeasibilityContinuationV01, readCodexScopedSnapshotV01, readCodexScopedRequestBindingV01, releaseCodexScopedTaskV01 } from "../lib/vnext/native-host/codex-scoped-task";
 import { buildTaskStartGuideBriefCodexProjectionV02 } from "../lib/vnext/guide-brief/project-guide-brief";
 import { buildSelectedWorkSourceEntry, compareSelectedWorkSources, normalizeNativeSelectedWorkSources, readSelectedWorkSources } from "../lib/intake/selected-work-source-comparison";
 import { SELECTED_WORK_SOURCE_LABELS } from "../types/vnext/project-work-revision";
@@ -1968,8 +1968,16 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
         const successorTrace = path.join(ROOT, `${name}-successor-trace.jsonl`);
         const successorHome = path.join(ROOT, `${name}-successor-home`); mkdirSync(successorHome);
         let successorFakeLaunches = 0, successorNativeCompleted = false;
+        const callbackOrder: string[] = [];
         const successorAdapter = createCodexAppServerAdapterV01({ scoped_task: successor.scope,
-          observe: observation => { if (observation.kind === "terminal_observed" && observation.public_reason === "completed") successorNativeCompleted = true; if (observation.kind === "spawned" && observation.process_id) { successorFakeLaunches += 1; processes.add(observation.process_id); } },
+          observe: observation => {
+            if (observation.kind === "terminal_observed" && observation.public_reason === "completed") successorNativeCompleted = true;
+            if (observation.kind === "spawned" && observation.process_id) {
+              assert.deepEqual(callbackOrder, ["admitted", "before_invoke"], "Scoped binding and caller callbacks precede host startup");
+              callbackOrder.push("spawned");
+              successorFakeLaunches += 1; processes.add(observation.process_id);
+            }
+          },
           launch: { command: process.execPath, prefix_args: [path.join(process.cwd(), "scripts/fixtures/fake-codex-app-server.mjs")],
             environment: { NODE_ENV: "test", HOME: successorHome, CODEX_HOME: successorHome, PATH: process.env.PATH,
               FAKE_CODEX_SCENARIO: "scoped_command_cwd", FAKE_CODEX_COMMAND_CWD: successorSnapshot.root, FAKE_CODEX_SCOPED_RESULT_KIND: expiredScenario ? "rejected_result" : "x_only",
@@ -1990,8 +1998,20 @@ async function assertPersistedScopedContinuationV01(scenarios: readonly string[]
         // not a B-looking fake answer, is the positive handoff evidence.
         const next = await runDirectNativeHostRoundTripV01(fixture.db, { config: fixture.config, mode: "interactive",
           operator_mutation: { credential, clock: { now: () => new Date().toISOString() } } }, { adapter: successorAdapter, scoped_task: successor.scope,
-          before_adapter_invoke: async request => { finalRequest = structuredClone(request); }, now: () => new Date().toISOString(), timeout_ms: 10_000, stop_settle_timeout_ms: 3_000 });
+          on_invocation_admitted: ({ request }) => {
+            assert.equal(callbackOrder.length, 0);
+            assert.match(readCodexScopedRequestBindingV01(successor.scope, request), /^sha256:[a-f0-9]{64}$/u,
+              "The fixed scope owner binds the actual admitted request before caller callbacks");
+            callbackOrder.push("admitted");
+          },
+          before_adapter_invoke: async request => {
+            assert.deepEqual(callbackOrder, ["admitted"]);
+            assert.match(readCodexScopedRequestBindingV01(successor.scope, request), /^sha256:[a-f0-9]{64}$/u);
+            callbackOrder.push("before_invoke");
+            finalRequest = structuredClone(request);
+          }, now: () => new Date().toISOString(), timeout_ms: 10_000, stop_settle_timeout_ms: 3_000 });
         credential = credentialFromCookieV01(next.session_admission!.cookie_value);
+        assert.deepEqual(callbackOrder, ["admitted", "before_invoke", "spawned"]);
         assert(finalRequest); assert.deepEqual(finalRequest.packet, successor.admission.packet);
         assert.deepEqual(finalRequest.guide_brief, successor.guide);
         const sent = readFileSync(successorTrace, "utf8").trim().split("\n").map(line => JSON.parse(line)).find(row => row.kind === "received" && row.value.method === "turn/start")!.value;

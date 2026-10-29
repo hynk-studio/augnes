@@ -1115,6 +1115,7 @@ const integrationChildren = [
   "codex-rolling-stable-candidate",
   "codex-production-runtime",
   "codex-managed-runtime-store",
+  "native-host-execution-boundary",
   "codex-sandbox-projection",
   "codex-isolated-auth-projection",
   "codex-isolated-auth-rollback-lifecycle",

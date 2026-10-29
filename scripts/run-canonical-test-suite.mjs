@@ -690,6 +690,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "native-host-execution-boundary",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "project-root", "process-owning", "mutable-module-state"],
+      label: "injected native-host lifecycle isolation and scripted default composition parity",
+      ...rootNode("scripts/test-native-host-execution-boundary.mjs"),
+      timeoutMs: 45_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "codex-sandbox-projection",
       group: "supporting-serial",
       requirements: ["filesystem", "project-root", "process-owning"],
