@@ -16,6 +16,8 @@ import path from "node:path";
 
 import Database from "better-sqlite3";
 import { testReconstructionConformanceV02 } from "./test-reconstruction-conformance-v02";
+import { assertOperatorPilotLinearPacketLineageV01 } from "./operator-pilot-linear-packet-lineage-checks";
+import { validateRecoveryCanonicalDatabaseV01 } from "./recovery-canonical-record-validator";
 
 import { createDeterministicCodexAdapterV01 } from "../lib/vnext/native-host/deterministic-codex-adapter";
 import {
@@ -218,6 +220,7 @@ async function main(): Promise<void> {
     ) as VNextOperatorBrowserFixtureManifestV01;
     source = new Database(sourceDbPath, { fileMustExist: true });
     source.pragma("foreign_keys = ON");
+    assertOperatorPilotLinearPacketLineageV01(source, baseFixtureManifest);
     touchRecentProjectV01(source, {
       workspace_id: baseFixtureManifest.workspace_id,
       project_id: baseFixtureManifest.project_id,
@@ -327,6 +330,9 @@ async function main(): Promise<void> {
       include_personal_perspective: false,
       exported_at: BOUNDARY_AT,
     });
+    assert.equal(validateRecoveryCanonicalDatabaseV01(source).status, "valid",
+      "The augmented source must pass the same complete recovery reader as its reconstruction");
+    record("augmented_source_passes_complete_recovery_readers_before_reconstruction");
     assert.equal(databaseFingerprintV01(sourceDbPath), sourceBeforeRead);
     assert.equal(
       new TextDecoder().decode(portableBaseline.bytes).includes(tempRoot),
@@ -395,6 +401,11 @@ async function main(): Promise<void> {
     assert.match(String(reconstructedSelection.selection_revision), /^selection:[0-9a-f]{32}$/u);
     assert.notEqual(reconstructedSelection.selection_revision, baselineSelection.selection_revision,
       "portable reconstruction creates fresh local selection authority");
+
+    reconstructed.close();
+    reconstructed = new Database(reconstructedDbPath, { fileMustExist: true });
+    reconstructed.pragma("foreign_keys = ON");
+    record("portable_current_owner_readback_uses_a_reopened_database");
 
     const reconstructedBeforeRead = databaseFingerprintV01(reconstructedDbPath);
     reconstructed.pragma("query_only = ON");
