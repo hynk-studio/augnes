@@ -1155,6 +1155,7 @@ const integrationChildren = [
   "manual-contribution-successor",
   "late-review",
   "request-bound-review",
+  "companion-result-successor",
   "companion-method-outlook",
   "pre-execution-support-material",
   "native-selected-source-budget",
@@ -1279,6 +1280,9 @@ const retryInspectionRegistration = readCanonicalChildRegistration(integrationSo
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"process-owning"', '"--retry-inspection-only"'])
   requireText(retryInspectionRegistration.block, fragment, "retry-inspection outlook retains one bounded native consumer and successor owner");
 const companionOutlookRegistration = readCanonicalChildRegistration(integrationSource, "companion-method-outlook");
+const companionResultRegistration = readCanonicalChildRegistration(integrationSource, "companion-result-successor");
+for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 60_000', 'requireNaturalExit: true', '"database"', '"migrations"', '"filesystem"', '"process-owning"', '"listener-port-owning"', '"mutable-module-state"', '"scripts/test-companion-result-successor.ts"'])
+  requireText(companionResultRegistration.block, fragment, "result-linked successor retains its bounded authenticated route and fresh-process consumer owner");
 for (const fragment of ['group: "supporting-serial"', 'timeoutMs: 30_000', 'requireNaturalExit: true', '"process-owning"', '"mutable-module-state"', '"scripts/test-companion-method-outlook.ts"'])
   requireText(companionOutlookRegistration.block, fragment, "ordinary outlook feedback retains one bounded authenticated consumer owner");
 for (const [id, script] of [
