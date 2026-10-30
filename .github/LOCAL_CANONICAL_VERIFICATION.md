@@ -1116,6 +1116,73 @@ Legacy schemas keep their meanings and gain no allowance. Implementation,
 qualification, independent post-completion audit, Ready/merge and installed adoption
 remain separate decisions. This route grants no merge or adoption authority.
 
+### Reviewed GuideBrief correction after condition requalification (source-correction v6)
+
+`augnes.local-canonical-source-correction.v6`, kind
+`guide_cancellation_correction`, is a separately authorized meaningful correction
+after the terminal v5 condition-requalification result. It does not renew the v5
+grant, reopen its attempt, or admit an ordinary v2 successor. Without the new
+evidence and authenticated authority, the existing terminal refusals remain.
+
+The eligible predecessor is the actual latest settled isolated Full v5 attempt:
+11 PASS phases, one natural exit-1 `e2e-operator-native-host-execution` failure at the final
+unexpected-request-failure gate with count two, then four NOT_RUN phases. Its
+complete receipt, attempt, completion and original log remain immutable. Input,
+safety, outer timeout, unrelated failure and incomplete cleanup conditions refuse.
+The private child-result derivative must be reconstructed from its original log
+using the explicitly bound stderr range; no missing historical private request
+pins or original refresh caller are inferred from that derivative.
+
+The accepted repair is the closed GuideBrief cleanup/replay/refresh cancellation
+verdict correction and its existing regression and explanatory ownership files.
+The authenticated independent review must accept the exact repair head/tree,
+three-path native delta and retained private packet. The original same-fixture
+Mac prior-FAIL/corrected-PASS comparison must postdate predecessor settlement,
+terminate naturally with complete cleanup, and retain its exact raw records,
+source bytes and recorded dependency identities. Those records must match their
+members in the hash-bound accepted packet. The earlier pre-spawn wrapper refusal
+and separate inode-claim correction remain evidence; witnesses are not rewritten
+or rerun for recency. This mechanism evidence does not establish original Browser
+causation or retroactively qualify a historical result.
+
+A later authenticated user execution grant on the same PR must explicitly bind
+that repair, review, packet and settled predecessor, authorize the necessary
+bounded succession implementation and one complete Full with zero recovery, and
+require independent audit after completion. Existing bounded GET transport,
+record identity/body observation, chronology and maintainer permission checks
+apply. A local Boolean, arbitrary URL, repair-only review or synthetic response
+is not production authority. The final published candidate remains an exact
+open Draft PR head on the freshly authenticated current main, with auto-merge off.
+
+The final-source record uses `implementation_owner_not_independent_review`.
+It separately binds native predecessor-to-repair, repair-to-final,
+predecessor-to-final and current-main-to-final bytes, lengths and sorted paths.
+The reviewed repair's three files and recorded witness inputs stay byte-identical.
+Additional task changes are limited to the closed succession, attempt, executor,
+receipt/export, focused-test registration and policy owners. No input protection,
+workload, deadline, product or verdict change is admitted by this route. Compatible
+accepted-main changes retain provenance and normal admission requirements; they
+cannot renew the allowance. Prospective implementation authority is not a claim
+that the added final source was independently reviewed in advance.
+
+The existing exclusive predecessor `correction-successor.json` consumes the new
+authorization once, across competing candidates, branches, worktrees, proof copies
+and successor kinds. The predecessor remains spent. A crash after reservation
+does not release the claim, even if no attempt was subsequently appended. The
+new successor has one initial invocation and zero recovery; success, failure,
+cancellation and interruption are terminal for this new grant. No second v6 or
+legacy successor is permitted. Older tips, unsettled predecessors and duplicate
+claims refuse; a pre-reservation refusal grants no blind admission loop.
+
+Normal exact-source, ancestry, pinned toolchain, registered checkout, host capacity,
+frozen inputs and stopped/exact Companion preservation checks remain mandatory.
+The unchanged planner and complete 16-phase Full with seven Browser owners run
+with stop-on-first-failure. Separate fresh-process stock reconstructs the original
+packet/source/authority and immutable live lineage read-only, including for a
+usable failed receipt. No historical PASS is transferred and no stock issue is
+suppressed. Implementation, qualification, independent audit, merge and installed
+adoption remain distinct; this route grants no merge or adoption authority.
+
 ### Browser input replacement (receipt version 5)
 
 `augnes.local-canonical-browser-replacement.v1` is a separate, narrowly
