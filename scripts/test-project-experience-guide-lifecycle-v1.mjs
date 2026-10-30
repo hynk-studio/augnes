@@ -4,8 +4,9 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 import vm from 'node:vm';
-import { createGuideLifecycleV1, GUIDE_LIFECYCLE_BINDING_V1, GUIDE_REPLAY_PHASES_V1 } from './project-experience-guide-lifecycle-v1.mjs';
+import { createGuideLifecycleV1, guideLifecycleEvidenceOwnerV1, GUIDE_LIFECYCLE_BINDING_V1, GUIDE_REPLAY_PHASES_V1 } from './project-experience-guide-lifecycle-v1.mjs';
 import { createProjectExperienceRequestVerdictV1 } from './project-experience-request-verdict-v1.mjs';
 import { OPERATOR_REQUEST_LIFECYCLE_PHASES_V1, classifyOperatorLifecycleRequestFailureV1 } from './operator-execution-result-contract-v1.mjs';
 export async function runGuideLifecycleRegressionV1(args = process.argv.slice(2)) {
@@ -29,13 +30,14 @@ async function fixture(options = {}, factory = createProjectExperienceRequestVer
   const lifecycle = createGuideLifecycleV1({ phases: replayPhases }), identity = {}, lc = lifecycle.connection(identity);
   const verdict = factory({ guideEvidence: options.forged ? {} : lifecycle.evidence, guideReplayPhases: replayPhases });
   const vc = verdict.connection(options.wrongConnection ? {} : identity);
-  const requests = [], entries = [], writes = [], packets = [];
+  const requests = [], entries = [], writes = [], packets = [], failuresByRead = new Map();
   let ordinal = 0, failure, propsProject = project;
   function emit(method, params, entry = {}, session = 'controlled-session') {
     const payload = { method, params, sessionId: session };
     lifecycle.observe(lc, payload, options.phase ?? phase);
-    verdict.observe(vc, payload, entry);
-    if (method === 'Network.loadingFailed') lifecycle.bindFailure(lc, payload, entry);
+    const read = method === 'Network.loadingFailed' ? requests.findIndex(r => r.id === params.requestId) + 1 : 0;
+    if (!read || options.omitVerdictFailure !== read) verdict.observe(vc, payload, entry);
+    if (method === 'Network.loadingFailed' && options.omitFailureBinding !== read) lifecycle.bindFailure(lc, payload, entry);
     return entry;
   }
   emit('Page.frameNavigated', { frame: { id: 'controlled-frame', loaderId: 'controlled-loader' } });
@@ -55,23 +57,30 @@ async function fixture(options = {}, factory = createProjectExperienceRequestVer
     fetch(url, args) {
       const number = requests.length + 1;
       const frames = [...new Error().stack.matchAll(/augnes-guide\/[a-f0-9]+\/[a-f0-9-]+\/\d+/g)].map(m => ({ url: m[0] }));
+      if (options.wrongPinRead === number) for (const frame of frames) frame.url = frame.url.replace(/\/\d+$/, '/1');
       if (!options.wrongCallsite) frames.push({ url: 'webpack-internal:///./components/guide/use-project-guide-brief-v0-2.ts' });
       let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b; });
       const request = { id: options.reuse ? 'same-request' : `request-${number}`, url, args, promise, resolve, reject };
       requests.push(request);
-      emit('Network.requestWillBeSent', { requestId: request.id, frameId: options.wrongFrame ? 'other-frame' : 'controlled-frame',
-        loaderId: options.wrongLoader ? 'other-loader' : 'controlled-loader', type: 'Fetch',
+      emit('Network.requestWillBeSent', { requestId: request.id, frameId: options.wrongFrame || options.wrongFrameRead === number ? 'other-frame' : 'controlled-frame',
+        loaderId: options.wrongLoader || options.wrongLoaderRead === number ? 'other-loader' : 'controlled-loader', type: 'Fetch',
         request: { url: new URL(url, origin).href, method: args.method, headers: args.headers },
         redirectResponse: options.redirect ? { status: 302 } : undefined,
         initiator: { stack: { callFrames: options.ambiguousFrame ? [...frames, frames[0]] : frames } } },
       { phase: options.phase ?? phase, path: route, method: args.method, external: false });
       args.signal.addEventListener('abort', () => {
-        request.reject(new DOMException('Controlled cancellation', 'AbortError'));
-        if (number !== 1) return;
-        queueMicrotask(() => { failure = emit('Network.loadingFailed', { requestId: options.wrongRequest ? 'other-request' : request.id,
+        if (options.delayedResponse !== number && options.delayedBody !== number) request.reject(new DOMException('Controlled cancellation', 'AbortError'));
+        if (number !== 1 && !(options.supersession && number === 2)) return;
+        if (options.missingFailure === number) return;
+        queueMicrotask(() => { const entry = emit('Network.loadingFailed', { requestId: options.wrongRequest || options.wrongFailureRead === number ? 'other-request' : request.id,
           type: 'Fetch', canceled: options.canceled ?? true, errorText: options.error ?? 'net::ERR_ABORTED' },
         { phase: options.phase ?? phase, path: null, error_text: options.error ?? 'net::ERR_ABORTED' },
-        options.wrongSession ? 'other-session' : 'controlled-session'); entries.push(failure); });
+        options.wrongSession ? 'other-session' : 'controlled-session');
+          failuresByRead.set(number, entry); entries.push(entry); if (number === 1) failure = entry;
+          if (options.modifiedFailureRead === number) entry.error_text = 'changed';
+          if (options.duplicateFailure === number) emit('Network.loadingFailed', { requestId: request.id, type: 'Fetch', canceled: true, errorText: 'net::ERR_ABORTED' },
+            { phase: options.phase ?? phase, path: null, error_text: 'net::ERR_ABORTED' });
+        });
       }, { once: true });
       return promise;
     },
@@ -96,13 +105,28 @@ async function fixture(options = {}, factory = createProjectExperienceRequestVer
     } });
   const render = () => { si = ri = ci = ei = 0; return exports.useProjectGuideBriefV02(undefined, propsProject); };
   const setup = () => effects.forEach(e => { if (e.changed) { e.cleanup?.(); e.cleanup = e.fn(); e.changed = false; } });
+  const bodyFor = number => options.supersession ? { ...guide(), coordinate: { ...guide().coordinate, focus: `controlled-read-${number}` } } : guide();
+  function delayedHeaders(number) {
+    const request = requests[number - 1];
+    emit('Network.responseReceived', { requestId: request.id, frameId: 'controlled-frame', loaderId: 'controlled-loader',
+      response: { url: new URL(request.url, origin).href, status: 200 } }, { phase: options.phase ?? phase, path: route, status: 200 });
+    request.resolve({ ok: true, status: 200, json: () => new Promise(resolve => { request.resolveBody = resolve; }) });
+  }
   let hook = render(); setup();
+  if (options.delayedBody === 1) { delayedHeaders(1); await tick(); }
   if (options.explicitRefresh) void hook.refresh();
   else {
     effects.forEach(e => e.cleanup?.());
     if (!options.unmountOnly) effects.forEach(e => { e.cleanup = e.fn(); });
   }
   await tick();
+  if (options.supersession) {
+    assert.equal(requests.length, 2, 'actual effect replay creates B before refresh');
+    if (options.delayedBody === 2) { delayedHeaders(2); await tick(); }
+    void hook.refresh();
+    await tick();
+    assert.equal(requests.length, 3, 'one actual refresh creates C');
+  }
   const replacement = requests.at(-1);
   if (requests.length > 1) {
     if (options.replacementFailed) replacement.reject(new Error('Controlled independent failure'));
@@ -111,14 +135,19 @@ async function fixture(options = {}, factory = createProjectExperienceRequestVer
         response: { url: new URL(replacement.url, origin).href, status: options.httpError ? 503 : 200 } },
       { phase, path: route, status: options.httpError ? 503 : 200 });
       replacement.resolve({ ok: !options.httpError, status: options.httpError ? 503 : 200,
-        json: async () => { if (options.bodyFailed) throw Error('Controlled body failure'); return options.invalidBody ? {} : options.wrongProject ? { ...guide(), identity: { project_id: 'other-project', project_display_name: 'Other' } } : guide(); } });
+        json: async () => { if (options.bodyFailed) throw Error('Controlled body failure'); return options.invalidBody ? {} : options.wrongProject ? { ...guide(), identity: { project_id: 'other-project', project_display_name: 'Other' } } : bodyFor(requests.length); } });
       if (!options.notFinished) emit('Network.loadingFinished', { requestId: replacement.id });
     }
   }
   await tick();
+  if (options.refreshBeforeCommit) { void hook.refresh(); await tick(); }
   if (options.navigationBeforeCommit) emit('Page.frameNavigated', { frame: { id: 'controlled-frame', loaderId: 'changed-loader' } });
   if (options.contextChange) propsProject = 'other-project';
   if (!options.unconsumed) { hook = render(); setup(); }
+  const beforeDelayedWrites = writes.length;
+  if (options.delayedResponse) { delayedHeaders(options.delayedResponse); await tick(); }
+  const delayed = options.delayedBody ?? options.delayedResponse;
+  if (delayed) { requests[delayed - 1].resolveBody(bodyFor(delayed)); await tick(); }
   if (options.laterRefresh) { void hook.refresh(); await tick(); }
   if (options.modifiedFailure) failure.error_text = 'changed';
   if (options.installationLoss) lifecycle.installationFailed();
@@ -136,14 +165,59 @@ async function fixture(options = {}, factory = createProjectExperienceRequestVer
   vm.runInContext(guardSource, context);
   if (operatorScope) context.expectedFailedRequest = entry => classifyOperatorLifecycleRequestFailureV1(entry, verdict).expected;
   return { expected: entry => context.expectedFailedRequest(entry), verdict, failure, lifecycle, entries, requests,
-    writes, packets, states, snapshot: lifecycle.snapshot(), reason: () => verdict.guideEffectReplayCancellation?.(failure) ?? { expected: false, reason: 'original_guard_refuses' } };
+    writes, packets, states, failuresByRead, beforeDelayedWrites, snapshot: lifecycle.snapshot(),
+    facts: entry => guideLifecycleEvidenceOwnerV1(lifecycle.evidence)?.facts(entry),
+    reason: (entry = failure) => verdict.guideEffectReplayCancellation?.(entry) ?? { expected: false, reason: 'original_guard_refuses' } };
+}
+
+const supersessionAccepted = f => [1, 2].map(read => {
+  const entry = f.failuresByRead.get(read);
+  return entry ? f.expected(entry) : false;
+});
+function assertSupersessionProducer(f) {
+  assert.equal(f.requests.length, 3);
+  assert.equal(f.entries.length, 2);
+  assert.deepEqual(f.requests.map(r => r.args.signal.aborted), [true, true, false]);
+  const created = f.packets.filter(p => p.event === 'read_created');
+  assert.deepEqual(created.map(p => [p.read, p.effect, p.cause]), [[1, 1, 'initial_effect'], [2, 2, 'initial_effect'], [3, 2, 'explicit_refresh']]);
+  const first = f.facts(f.failuresByRead.get(1)), second = f.facts(f.failuresByRead.get(2));
+  assert(first && second && first.uniqueRequest && second.uniqueRequest, 'both actual failure entries have unique private pins');
+  assert.equal(first.generation.doc, second.generation.doc);
+  assert.equal(first.request.protocolIdentity.connection, second.request.protocolIdentity.connection);
+  assert.equal(first.generation.created.consumer, second.generation.created.consumer);
+  assert.equal(first.generation.created.context, second.generation.created.context);
+  assert.deepEqual([first.request.frame[1], second.request.frame[1]], [1, 2]);
+  for (const read of [1, 2]) {
+    assert.equal(f.packets.filter(p => p.read === read && p.event === 'read_aborted').length, 1);
+    assert.equal(f.packets.filter(p => p.read === read && p.event === 'returned').length, 1);
+    assert.equal(f.packets.filter(p => p.read === read && ['headers', 'body_started', 'body_completed', 'parsed', 'application_requested', 'committed'].includes(p.event)).length, 0);
+  }
+  assert.equal(f.packets.filter(p => p.event === 'refresh_entered' && p.effect === 2 && p.target === 2).length, 1);
+  assert.deepEqual(f.writes.filter(w => w.state === 0).map(w => w.value?.coordinate?.focus), ['controlled-read-3']);
+  assert.equal(f.states[0]?.coordinate.focus, 'controlled-read-3'); assert.equal(f.states[1], 'available');
+  for (const event of ['headers', 'body_started', 'body_completed', 'parsed', 'application_requested', 'returned', 'committed']) {
+    assert.equal(f.packets.filter(p => p.read === 3 && p.event === event).length, 1, event);
+  }
+  assert.deepEqual(f.snapshot.counts, { overflow: 0, invalid: 0, installation: 0 });
 }
 
 // The same finite regression can run against the retained original verdict
 // module. A failed assertion is the original guard's rejection of this completed
 // owned replay, not a fabricated failure, syntax error or production attempt.
+const supersessionSource = ['--supersession-verdict-source', '--supersession-verdict-observe'].includes(args[0]);
 const witnessMode = args[0] === '--verdict-source';
-if (witnessMode) {
+if (supersessionSource) {
+  assert.equal(args.length, 2); assert(path.isAbsolute(args[1]), 'exact verdict source must be an absolute module file');
+  const factory = (await import(pathToFileURL(args[1]).href)).createProjectExperienceRequestVerdictV1;
+  const f = await fixture({ supersession: true }, factory); assertSupersessionProducer(f);
+  const observed = [1, 2].map(read => ({ read, ...f.reason(f.failuresByRead.get(read)) }));
+  console.log(JSON.stringify({ mode: args[0], fixture: 'actual_hook_cleanup_replay_explicit_refresh', observed,
+    requests: 3, bound_cancellations: 2, adopted_read: 3, actual_producer_collector_private_pins: true,
+    created_reads: f.packets.filter(p => p.event === 'read_created').map(p => ({ read: p.read, effect: p.effect, cause: p.cause })),
+    aborted_reads: f.requests.flatMap((r, index) => r.args.signal.aborted ? [index + 1] : []), final_body_parse_commit: true,
+    synthetic_controlled_schedule: true, historical_browser_recreation: false, production_attempt: false }));
+  if (args[0] === '--supersession-verdict-source') assert.deepEqual(supersessionAccepted(f), [true, true], JSON.stringify(observed));
+} else if (witnessMode) {
   assert([2, 3].includes(args.length));
   const witnessPhase = args[2] ?? phase;
   assert(GUIDE_REPLAY_PHASES_V1.includes(witnessPhase));
@@ -207,6 +281,76 @@ if (witnessMode) {
   assert.equal(historical.expected(historical.failure), !operatorScope, 'separate pre-existing phase policy remains unchanged');
   const later = await fixture({ unrelatedLater: true });
   assert.equal(later.expected(later.failure), true, 'unrelated later traffic cannot evict the causal window');
+  let representativeChain;
+  for (const phase of replayPhases) {
+    const chain = await fixture({ supersession: true, phase }); assertSupersessionProducer(chain);
+    representativeChain ??= chain;
+    assert.deepEqual(supersessionAccepted(chain), [true, true], phase + ':' + JSON.stringify([chain.reason(), chain.reason(chain.failuresByRead.get(2))]));
+    assert.equal(chain.expected({ ...chain.failuresByRead.get(2) }), false, 'copied B failure has no private evidence');
+    assert.equal(good.expected(chain.failuresByRead.get(2)), false, 'B failure belongs to its actual owner');
+  }
+  assert.equal(visible(representativeChain), visible(await fixture({ supersession: true, observerAbsent: true })),
+    'actual three-read hook requests/abort/state writes with observer absent/present');
+  const afterChainRefresh = await fixture({ supersession: true, laterRefresh: true });
+  assert.deepEqual(supersessionAccepted(afterChainRefresh), [true, true], 'a later refresh cannot erase the completed three-read chain');
+  const readMutation = (read, kind, change) => v => v.read === read && v.event === kind ? change(v) : [v];
+  const omitRead = (read, kind) => readMutation(read, kind, () => []);
+  const changeRead = (read, kind, fields) => readMutation(read, kind, v => [{ ...v, ...fields }]);
+  const reorderRead = (read, first, second) => {
+    let held;
+    return v => { if (v.read === read && v.event === first) { held = v; return []; }
+      if (v.read === read && v.event === second && held) return [v, held]; return [v]; };
+  };
+  const chainNegative = [
+    ['A failure missing', { missingFailure: 1 }], ['A failure not bound', { omitFailureBinding: 1 }],
+    ['A failure absent from verdict owner', { omitVerdictFailure: 1 }], ['A failure changed after binding', { modifiedFailureRead: 1 }],
+    ['B failure missing', { missingFailure: 2 }], ['B failure not bound', { omitFailureBinding: 2 }],
+    ['B failure absent from verdict owner', { omitVerdictFailure: 2 }], ['B failure changed after binding', { modifiedFailureRead: 2 }],
+    ['A duplicate failure delivery', { duplicateFailure: 1 }], ['B duplicate failure delivery', { duplicateFailure: 2 }],
+    ['B wrong private generation pin', { wrongPinRead: 2 }], ['B wrong failure request', { wrongFailureRead: 2 }],
+    ['B wrong frame', { wrongFrameRead: 2 }], ['B wrong loader', { wrongLoaderRead: 2 }],
+    ['C wrong private generation pin', { wrongPinRead: 3 }], ['C wrong frame', { wrongFrameRead: 3 }],
+    ['missing explicit refresh target', { mutate: v => v.event === 'refresh_entered' && v.target === 2 ? [] : [v] }],
+    ['duplicate explicit refresh target', { mutate: v => v.event === 'refresh_entered' && v.target === 2 ? [v, { ...v }] : [v] }],
+    ['wrong superseded target', { mutate: v => [v.event === 'refresh_entered' && v.target === 2 ? { ...v, target: 1 } : v] }],
+    ['B wrong cause', { mutate: changeRead(2, 'abort_requested', { cause: 'cleanup' }) }],
+    ['B already aborted', { mutate: changeRead(2, 'abort_requested', { already_aborted: true }) }],
+    ['B wrong controller', { mutate: changeRead(2, 'signal_aborted', { controller: 3 }) }],
+    ['B wrong context', { mutate: changeRead(2, 'signal_aborted', { context: 'project-2' }) }],
+    ['B wrong consumer', { mutate: changeRead(2, 'signal_aborted', { consumer: 2 }) }],
+    ['B reordered abort', { mutate: reorderRead(2, 'abort_requested', 'signal_aborted') }],
+    ['B reordered settlement', { mutate: reorderRead(2, 'read_aborted', 'returned') }],
+    ['C is another initial read', { mutate: changeRead(3, 'read_created', { cause: 'initial_effect' }) }],
+    ['C is another effect', { mutate: changeRead(3, 'read_created', { effect: 3 }) }],
+    ['C wrong signal', { mutate: changeRead(3, 'fetch_started', { same_signal: false }) }],
+    ['C wrong context', { mutate: changeRead(3, 'read_created', { context: 'project-2' }) }],
+    ['C stale application', { mutate: changeRead(3, 'application_requested', { current: false }) }],
+    ['C aborted application', { mutate: changeRead(3, 'application_requested', { aborted: true }) }],
+    ['C wrong adopted controller', { mutate: changeRead(3, 'committed', { same_controller: false }) }],
+    ['C stale consumer', { mutate: changeRead(3, 'committed', { context_current: false }) }],
+    ['C duplicate commit', { mutate: readMutation(3, 'committed', v => [v, { ...v }]) }],
+    ['C reordered body/parse', { mutate: reorderRead(3, 'body_completed', 'parsed') }],
+    ...['abort_requested', 'signal_aborted', 'abort_returned', 'read_aborted', 'returned'].map(kind => ['B missing ' + kind, { mutate: omitRead(2, kind) }]),
+    ...['body_started', 'body_completed', 'parsed', 'application_requested', 'returned', 'committed'].map(kind => ['C missing ' + kind, { mutate: omitRead(3, kind) }]),
+    ...[1, 2].map(read => ['stale canceled adoption after C: ' + read, { mutate: readMutation(3, 'committed', v => [v,
+      { ...v, event: 'application_requested', read, controller: read, effect: read === 1 ? 1 : 2, current: false, aborted: true, project_matches: true }]) }]),
+    ['C network failure', { replacementFailed: true }], ['C HTTP failure', { httpError: true }], ['C body failure', { bodyFailed: true }],
+    ['C invalid body', { invalidBody: true }], ['C wrong project', { wrongProject: true }], ['C not finished', { notFinished: true }],
+    ['C not adopted', { unconsumed: true }], ['navigation before C adoption', { navigationBeforeCommit: true }],
+    ['project changed before C adoption', { contextChange: true }], ['fourth read before C commit', { refreshBeforeCommit: true }],
+  ];
+  for (const [label, options] of chainNegative) {
+    const f = await fixture({ supersession: true, ...options });
+    assert.deepEqual(supersessionAccepted(f), [false, false], label + ':' + JSON.stringify([f.reason(), f.reason(f.failuresByRead.get(2))]));
+  }
+  for (const read of [1, 2]) for (const schedule of ['delayedResponse', 'delayedBody']) {
+    const f = await fixture({ supersession: true, [schedule]: read });
+    assert.equal(f.writes.length, f.beforeDelayedWrites, `aborted ${read} ${schedule} cannot write after C commits`);
+    assert.equal(f.states[0]?.coordinate.focus, 'controlled-read-3');
+    assert.equal(f.packets.filter(p => p.read === read && p.event === 'stale_blocked').length, 1);
+    assert.equal(f.packets.filter(p => p.read === read && ['application_requested', 'committed'].includes(p.event)).length, 0);
+    assert.deepEqual(supersessionAccepted(f), [false, false], 'nonempty canceled response is outside this strict empty-abort branch');
+  }
   // Native wrapper contract: no extra Promise, header, body read, abort call or
   // scheduling is introduced. The hook parity above exercises actual consumers.
   const f = createGuideLifecycleV1(), connection = f.connection({}), packets = [];
@@ -220,6 +364,7 @@ if (witnessMode) {
   assert.equal(read.fetch(url, options), promise); assert.equal(calls, 1); assert.equal(requestArgs[1], options); assert.equal(receiver, undefined);
   assert.equal(controller.signal.aborted, false); assert(connection);
   console.log(JSON.stringify({ test: 'project-experience-guide-lifecycle-v1', status: 'pass', adversarial_controls: negative.length + 3 + replayPhases.length,
+    supersession_adversarial_controls: chainNegative.length, delayed_canceled_result_controls: 4, supersession_phases: replayPhases.length,
     replay_phases: replayPhases, operator_scope: operatorScope,
     actual_hook_guard: true, observer_parity: true, exact_fetch_promise: true, production_attempt: false }));
 }

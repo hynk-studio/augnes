@@ -130,6 +130,7 @@ export async function runOperatorExecutionBrowserChildV1({
     browser_failure_diagnostic: null,
     browser_port_allocation_diagnostic: null,
     browser_failure_snapshot: null,
+    project_home_readiness_observation: null,
     failure_evidence_capture_errors: [],
     supervisor_exit_diagnostic: null,
     failure: null,
@@ -228,6 +229,7 @@ export async function runOperatorExecutionBrowserChildV1({
       result.failure_evidence_capture_errors.push("primary_capture_failed");
     }
     result.browser_failure_snapshot = failureEvidence?.browser_failure_snapshot ?? null;
+    result.project_home_readiness_observation = failureEvidence?.project_home_readiness_observation ?? null;
     result.browser_failure_diagnostic =
       failureEvidence?.browser_failure_diagnostic ?? null;
     result.supervisor_exit_diagnostic =
@@ -316,6 +318,9 @@ export async function runOperatorExecutionBrowserChildV1({
       : null;
     if (evidence?.browser_failure_snapshot) {
       result.browser_failure_snapshot = evidence.browser_failure_snapshot;
+    }
+    if (evidence?.project_home_readiness_observation) {
+      result.project_home_readiness_observation = evidence.project_home_readiness_observation;
     }
     if (evidence?.browser_failure_diagnostic) {
       result.browser_failure_diagnostic = evidence.browser_failure_diagnostic;

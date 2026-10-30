@@ -2,12 +2,12 @@
 // synthetic log/settlement histories are used; no GitHub or provider calls occur.
 // These records test evidence readers, not the repair itself or real qualification.
 import assert from "node:assert/strict";
-import { mkdirSync, writeFileSync, readFileSync, cpSync, rmSync, existsSync, readdirSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, cpSync, rmSync, existsSync, readdirSync, chmodSync } from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { digest } from "../local-canonical-inputs.mjs";
-import { COMPANION_TIMEOUT_SCHEMA, COMPANION_RETAINED_SOURCES, COMPANION_OWNER_SOURCES, COMPANION_SCENARIOS, validateCompanionRunEvidence, validateCompanionRegression, validateCompanionFocused, companionAuthorityObservation, companionAuthorityRequirements, authorizeCompanionTimeout, validateCompanionTimeoutPredecessor } from "../local-canonical-companion-timeout-succession.mjs";
+import { COMPANION_TIMEOUT_SCHEMA, COMPANION_RETAINED_SOURCES, COMPANION_OWNER_SOURCES, COMPANION_SCENARIOS, validateCompanionRunEvidence, validateCompanionRegression, validateCompanionFocused, companionAuthorityObservation, companionAcceptedReviewRequirements, companionPolicyReviewRequirements, companionExecutionGrantRequirements, inspectCompanionSourceScope, authorizeCompanionTimeout, validateCompanionTimeoutPredecessor } from "../local-canonical-companion-timeout-succession.mjs";
 import { BROWSER_REPLACEMENT_PHASES } from "../local-canonical-browser-replacement.mjs";
 import { createGitHubObserverAuthorizationTransport } from "../github-main-branch-transport.mjs";
 import { beginAttempt, finishAttempt, inspectAttemptRecords, reconstructAttemptTip, readSourceCorrectionProof } from "../local-canonical-attempts.mjs";
@@ -30,10 +30,15 @@ const priorSource = "68742a2f14d2a69e2835cf68437dc276acf08008";
 const repairSource = "a47c77746de213748d68ed0831221c2ddf321520";
 const save = c => write(c.file, c.proof);
 const proof = c => readSourceCorrectionProof(c.file, c.checkout);
+const rebindSource = c => {
+  Object.assign(c.proof, c.delta(c.priorHead, c.proof.head));
+  Object.assign(c.proof.final_delta, c.delta(c.proof.repair.head, c.proof.head));
+  c.proof.source_scope = inspectCompanionSourceScope(c.checkout, { acceptedBase: c.acceptedBase, repairHead: c.proof.repair.head, base: c.proof.base, head: c.proof.head });
+};
 const transport = (records, change = value => value) => createGitHubObserverAuthorizationTransport(999, { runner: async request => {
   assert.equal(request.operation, "fetch_browser_authority"); assert(request.args.includes("GET"));
   const url = request.args[1]; assert(url.startsWith("repos/hynk-studio/augnes/"));
-  const record = url.includes("/reviews/") ? records.repair : url.includes("/comments/") ? records.grant : { permission: "admin", user: { login: "synthetic-fixture" } };
+  const record = url.endsWith("/reviews/102") ? records.policy : url.includes("/reviews/") ? records.repair : url.includes("/comments/") ? records.grant : { permission: "admin", user: { login: "synthetic-fixture" } };
   return change(structuredClone(record), url);
 } });
 const authorize = (c, p, change) => authorizeCompanionTimeout(p, { transport: transport(c.authority, change) });
@@ -50,12 +55,16 @@ function authority(p) {
   p.repair.review = { id: 101, sha256: "0".repeat(64) };
   const repair = { id: 101, user, author_association: "OWNER", state: "COMMENTED", commit_id: p.repair.head,
     submitted_at: time(-2000), pull_request_url: "https://api.github.com/repos/hynk-studio/augnes/pulls/999",
-    body: "SYNTHETIC independent review, not actual task authority.\n" + companionAuthorityRequirements(p).review.join("\n") };
+    body: "SYNTHETIC independent review, not actual task authority.\n" + companionAcceptedReviewRequirements(p).join("\n") };
   p.repair.review = { id: repair.id, sha256: digest(companionAuthorityObservation(repair, "accepted_repair")) };
+  const policy = { id: 102, user, author_association: "OWNER", state: "COMMENTED", commit_id: p.head,
+    submitted_at: time(-1500), pull_request_url: "https://api.github.com/repos/hynk-studio/augnes/pulls/999",
+    body: "SYNTHETIC independent final policy review, not actual task authority.\n" + companionPolicyReviewRequirements(p).join("\n") };
+  p.authorization = { policy_review_id: policy.id, policy_review_sha256: digest(companionAuthorityObservation(policy, "final_policy_review")), grant_comment_id: null, grant_sha256: null };
   const grant = { id: 203, user, author_association: "OWNER", updated_at: time(-1000), issue_url: "https://api.github.com/repos/hynk-studio/augnes/issues/999",
-    body: "SYNTHETIC user instruction, not actual task authority.\n" + companionAuthorityRequirements(p).grant.join("\n") };
-  p.authorization = { grant_comment_id: grant.id, grant_sha256: digest(companionAuthorityObservation(grant, "execution_grant")) };
-  return { repair, grant };
+    body: "SYNTHETIC user instruction, not actual task authority.\n" + companionExecutionGrantRequirements(p).join("\n") };
+  p.authorization.grant_comment_id = grant.id; p.authorization.grant_sha256 = digest(companionAuthorityObservation(grant, "execution_grant"));
+  return { repair, policy, grant };
 }
 
 function makeSyntheticEvidence({ artifact, publicSource }) {
@@ -132,11 +141,15 @@ async function make(root) {
   assert(registration, "existing complete registration must be retained");
   write(path.join(checkout, "scripts/run-canonical-test-suite.mjs"), registration + "\n");
   const commit = () => { git("add", "scripts", "plugins"); git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-m", "synthetic fixture"); return git("rev-parse", "HEAD").toString().trim(); };
-  const base = commit(), oldTree = git("rev-parse", "HEAD^{tree}").toString().trim();
+  write(path.join(checkout, "scripts/accepted-existing.mjs"), "// original accepted task base\n");
+  const acceptedBase = commit();
+  write(path.join(checkout, "scripts/accepted-existing.mjs"), "// independently accepted task change\n");
+  write(path.join(checkout, "scripts/accepted-added.mjs"), "// independently accepted added task file\n");
+  const priorHead = commit(), oldTree = git("rev-parse", "HEAD^{tree}").toString().trim();
   const resources = ["codex-preferences", "user-instructions", "auth-location", "github-auth-location", "git-config", "node-executable", "browser-executable"].map(id => ({ id, classification: "safety", before: { present: false }, location_fingerprint: digest(id) }));
-  const declaration = { contract: "augnes.local-canonical-inputs.v3", path_kind: "isolated-model-free-v1", binding: { head: base, tree: oldTree,
+  const declaration = { contract: "augnes.local-canonical-inputs.v3", path_kind: "isolated-model-free-v1", binding: { head: priorHead, tree: oldTree,
     executor_fingerprint: "a".repeat(64), phase_environment_fingerprints: BROWSER_REPLACEMENT_PHASES.map(id => ({ id, fingerprint: "b".repeat(64) })) }, resources };
-  const prior = beginAttempt({ repositoryRoot: checkout, anchorRoot: anchor, checkoutOwner: owner, branch, head: base, tree: oldTree, runId: "synthetic-companion-timeout-predecessor", contractFingerprint: digest(declaration) });
+  const prior = beginAttempt({ repositoryRoot: checkout, anchorRoot: anchor, checkoutOwner: owner, branch, head: priorHead, tree: oldTree, runId: "synthetic-companion-timeout-predecessor", contractFingerprint: digest(declaration) });
   // Synthetic history for validator controls. This does not claim a real 60s
   // child or any real qualification execution.
   const log = '[canonical:unit] child_start label="preceding synthetic workload" timeout_ms=30000\n' +
@@ -152,7 +165,7 @@ async function make(root) {
   const logRelative = ".augnes-local-verification/logs/synthetic-predecessor/unit.log";
   mkdirSync(path.dirname(path.join(checkout, logRelative)), { recursive: true }); write(path.join(checkout, logRelative), log);
   const receipt = finalizeReceipt({ ...structuredClone(baseReceipt), receipt_version: 4,
-    repository: { ...baseReceipt.repository, branch, head_sha: base, tree_sha: oldTree, base_sha: base },
+    repository: { ...baseReceipt.repository, branch, head_sha: priorHead, tree_sha: oldTree, base_sha: acceptedBase },
     evidence: { ...baseReceipt.evidence, mode: "full", selected_plan: "full-canonical" },
     verification_context: { kind: "isolated-worktree" }, executor: { ...baseReceipt.executor, source_fingerprint: "a".repeat(64) },
     run: { ...baseReceipt.run, id: prior.attempt_id }, attempt: prior,
@@ -172,6 +185,14 @@ async function make(root) {
   cpSync(path.join(family, "attempt-1.json"), path.join(folder, "original-attempt.json")); cpSync(completionFile, path.join(folder, "original-completion.json"));
   writeFileSync(path.join(checkout, source), publicSource(repairSource, source));
   const repairHead = commit(), repairTree = git("rev-parse", "HEAD^{tree}").toString().trim();
+  // A genuinely separate accepted-main branch adds two other route owners and
+  // a registry change. The candidate must retain all of them and the older task.
+  git("checkout", "-b", "synthetic-accepted-main", acceptedBase);
+  for (const name of ["condition-requalification", "guide-correction"]) write(path.join(checkout, `scripts/local-canonical-${name}.mjs`), `// synthetic accepted-main ${name} owner\n`);
+  write(path.join(checkout, "scripts/run-canonical-test-suite.mjs"), registration + "\n// synthetic accepted-main registration\n");
+  const base = commit();
+  git("checkout", branch);
+  git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "merge", "--no-edit", base);
   write(path.join(checkout, "scripts/local-canonical-companion-timeout-succession.mjs"), "// synthetic bounded policy owner\n");
   const head = commit(), tree = git("rev-parse", "HEAD^{tree}").toString().trim();
   const artifact = (name, value) => { if (Buffer.isBuffer(value)) writeFileSync(path.join(folder, name), value); else write(path.join(folder, name), value); return { artifact: name, sha256: digest(readFileSync(path.join(folder, name))) }; };
@@ -182,16 +203,17 @@ async function make(root) {
     source_module: source, evidence,
     originals: Object.fromEntries(["receipt", "attempt", "completion", "unit_log"].map(kind => [kind, { artifact: kind === "unit_log" ? "original-unit.log" : `original-${kind}.json`, sha256: digest(readFileSync(path.join(folder, kind === "unit_log" ? "original-unit.log" : `original-${kind}.json`))) }])),
     timeout: { phase: "unit", label, budget_ms: 60000, historical_cause: "UNKNOWN", original_blocked_operation: "UNKNOWN" },
-    repair: { head: repairHead, tree: repairTree, ...delta(base, repairHead), review: null,
+    repair: { head: repairHead, tree: repairTree, ...delta(priorHead, repairHead), review: null,
       accepted_review: { reviewed_at: time(-3000), source_url: "https://chatgpt.com/space/page_11111111111111111111111111111111",
-        block_id: "00000000-0000-4000-8000-000000000001", block_sha256: "8".repeat(64) } }, ...delta(base, head),
+        block_id: "00000000-0000-4000-8000-000000000001", block_sha256: "8".repeat(64) } }, ...delta(priorHead, head),
     final_delta: { basis: "implementation_owner_not_independent_review", ...delta(repairHead, head) },
     retained_sources: Object.fromEntries(COMPANION_RETAINED_SOURCES.map(name => [name, digest(git("show", `${head}:${name}`))])),
     limitations: { historical_timeout_cause: "UNKNOWN", original_blocked_operation: "UNKNOWN", witnesses_run_before_repair_commit: true,
       private_home_and_temp_roots: "different_per_execution", original_per_run_environment_fingerprint: null,
       environment_observation: "after_runs_only", initial_manager_announcement: "unchanged_unproved" },
-    authorization: null, pull_request: 999, budget: { initial: 1, recovery: 0 } };
-  const c = { checkout, anchor, owner, git, commit, delta, family, receipt, proof: p, folder, file: path.join(folder, "proof.json"), logRelative };
+    authorization: null, pull_request: 999, budget: { initial: 1, recovery: 0 },
+    source_scope: inspectCompanionSourceScope(checkout, { acceptedBase, repairHead, base, head }) };
+  const c = { checkout, anchor, owner, git, commit, delta, family, receipt, proof: p, folder, file: path.join(folder, "proof.json"), logRelative, acceptedBase, priorHead };
   c.authority = authority(p); save(c); return c;
 }
 
@@ -218,7 +240,7 @@ if (process.argv[2] === "--claim-companion-timeout-fixture") {
 }
 
 export async function companionTimeoutSuccessionControls(group = "all") {
-  assert(["all", "evidence", "witnesses", "source", "originals", "admission", "race", "stock"].includes(group));
+  assert(["all", "evidence", "witnesses", "source", "originals", "authority", "authority_records", "admission", "race", "stock"].includes(group));
   const owner = createCanonicalTestResourceRoot("ag-resource-test-"); beginCanonicalTestResourceUse(owner);
   let c, active = 0; const checks = [];
   const child = async (args, controlId) => {
@@ -230,7 +252,11 @@ export async function companionTimeoutSuccessionControls(group = "all") {
     console.log("AUGNES_COMPANION_TIMEOUT_FIXTURE_CHILD " + JSON.stringify(projectReviewChildResult(result, { controlId })));
     assertReviewChildLifecycle(result, { controlId }); result.fixture_output = output; return result;
   };
-  const pass = name => checks.push(name);
+  const groupStarted = performance.now();
+  const pass = name => {
+    checks.push(name);
+    console.log("AUGNES_COMPANION_TIMEOUT_CONTROL " + JSON.stringify({ group, elapsed_ms: Math.round(performance.now() - groupStarted), check: name }));
+  };
   try {
     c = await make(owner.root, child);
     const saved = structuredClone(c.proof), validated = proof(c), authorized = await authorize(c, validated);
@@ -239,12 +265,28 @@ export async function companionTimeoutSuccessionControls(group = "all") {
     const actualCompletion = path.join(c.family, "completion-1.json");
     assert(!existsSync(edge)); pass("reader and authority inspection do not reserve");
     const resetProof = () => { c.proof = structuredClone(saved); save(c); };
+    assert.equal(validated.schema, "augnes.local-canonical-source-correction.v7");
+    assert(validated.source_scope.accepted_task.some(row => row.path === "scripts/accepted-existing.mjs"));
+    assert(validated.source_scope.accepted_task.some(row => row.path === "scripts/accepted-added.mjs"));
+    assert(validated.source_scope.main_reconciliation.some(row => row.path === "scripts/local-canonical-condition-requalification.mjs" && row.rule === "preserve_accepted_main"));
+    assert(validated.source_scope.main_reconciliation.some(row => row.path === "scripts/local-canonical-guide-correction.mjs" && row.rule === "preserve_accepted_main"));
+    pass("v7 preserves accepted task union and separately advanced accepted main owners and registry");
+    const missingRecords = structuredClone(saved); missingRecords.repair.review = null; missingRecords.authorization = null;
+    assert(companionAcceptedReviewRequirements(missingRecords).length > 0);
+    assert(companionPolicyReviewRequirements(missingRecords).length > 0);
+    assert.throws(() => companionExecutionGrantRequirements(missingRecords), /companion_timeout_review_references_required/u);
+    pass("review preparation requires no fabricated IDs and unresolved grant preparation refuses");
     if (["all", "evidence"].includes(group)) {
       for (const [name, mutate] of [
         ["legacy v1", p => p.schema = "augnes.local-canonical-source-correction.v1"],
         ["legacy v2", p => p.schema = "augnes.local-canonical-source-correction.v2"],
         ["observer v3", p => p.schema = "augnes.local-canonical-source-correction.v3"],
         ["structural v4", p => p.schema = "augnes.local-canonical-source-correction.v4"],
+        ["obsolete ambiguous Companion v5", p => p.schema = "augnes.local-canonical-source-correction.v5"],
+        ["GuideBrief v6 is not Companion", p => p.schema = "augnes.local-canonical-source-correction.v6"],
+        ["missing accepted task scope", p => delete p.source_scope],
+        ["redefined accepted task base", p => p.source_scope.accepted_base = p.base],
+        ["omitted accepted task path", p => p.source_scope.accepted_task_paths.pop()],
         ["unknown retry kind", p => p.kind = "unknown_retry"],
         ["missing actual review provenance", p => delete p.repair.accepted_review],
         ["wrong provenance source", p => p.repair.accepted_review.source_url = "https://example.invalid/review"],
@@ -313,19 +355,57 @@ export async function companionTimeoutSuccessionControls(group = "all") {
       pass("final natural completion summary is required");
     }
     if (["all", "source"].includes(group)) {
-      for (const [name, file, replacement] of [
+      for (const [name, file, replacement, action] of [
         ["unrelated", "scripts/unrelated.mjs", "export const unrelated=true;\n"],
         ["workload", COMPANION_RETAINED_SOURCES[0], "// removed the actual workload\n"],
         ["owner", COMPANION_OWNER_SOURCES[0], "// changed real Companion owner\n"],
         ["assertions", COMPANION_RETAINED_SOURCES[0], readFileSync(path.join(c.checkout, COMPANION_RETAINED_SOURCES[0]), "utf8").replace("assert.equal(f.effects(), 1)", "assert(true)")],
         ["deadline", "scripts/run-canonical-test-suite.mjs", readFileSync(path.join(c.checkout, "scripts/run-canonical-test-suite.mjs"), "utf8").replace("60_000", "120_000")],
+        ["reverted-accepted-to-base", "scripts/accepted-existing.mjs", c.git("show", `${c.acceptedBase}:scripts/accepted-existing.mjs`).toString()],
+        ["deleted-accepted-addition", "scripts/accepted-added.mjs", null, "delete"],
+        ["deleted-accepted-existing", "scripts/accepted-existing.mjs", null, "delete"],
+        ["changed-accepted-mode", "scripts/accepted-existing.mjs", null, "chmod"],
+        ["removed-accepted-condition", "scripts/local-canonical-condition-requalification.mjs", null, "delete"],
+        ["changed-accepted-guide", "scripts/local-canonical-guide-correction.mjs", "// discarded accepted-main GuideBrief implementation\n"],
+        ["discarded-main-registry", "scripts/run-canonical-test-suite.mjs", c.git("show", `${saved.repair.head}:scripts/run-canonical-test-suite.mjs`).toString()],
       ]) {
-        c.git("checkout", "-b", `synthetic-${name}`, saved.head); write(path.join(c.checkout, file), replacement);
+        c.git("checkout", "-b", `synthetic-${name}`, saved.head);
+        if (action === "delete") rmSync(path.join(c.checkout, file));
+        else if (action === "chmod") chmodSync(path.join(c.checkout, file), 0o755);
+        else write(path.join(c.checkout, file), replacement);
         c.proof.head = c.commit(); c.proof.tree = c.git("rev-parse", "HEAD^{tree}").toString().trim();
-        Object.assign(c.proof, c.delta(c.proof.base, c.proof.head)); Object.assign(c.proof.final_delta, c.delta(c.proof.repair.head, c.proof.head));
-        save(c); assert.throws(() => proof(c), /companion_timeout_(?:unrelated_candidate_delta|workload_changed|registration_invalid|reviewed_repair_changed)/u);
+        rebindSource(c);
+        if (["reverted-accepted-to-base", "deleted-accepted-addition"].includes(name)) {
+          assert(!c.proof.source_scope.candidate_delta_paths.includes(file), "regression must really disappear from current-base diff");
+          assert(c.proof.source_scope.accepted_task_paths.includes(file), "accepted task union must retain the vanished path");
+        }
+        save(c);
+        let refusal;
+        try { proof(c); } catch (error) { refusal = error; }
+        assert(refusal, "changed candidate must be refused");
+        const expectedCode = ["reverted-accepted-to-base", "deleted-accepted-addition", "deleted-accepted-existing", "changed-accepted-mode", "workload", "assertions"].includes(name)
+          ? "companion_timeout_accepted_task_changed" : ["removed-accepted-condition", "changed-accepted-guide", "unrelated", "owner"].includes(name)
+            ? "companion_timeout_unrelated_candidate_delta" : name === "discarded-main-registry" ? "companion_timeout_unrelated_registration_changed" : "companion_timeout_registration_invalid";
+        assert.equal(refusal.code, expectedCode, name);
+        console.log("AUGNES_COMPANION_SOURCE_SCOPE_CONTROL " + JSON.stringify({ name, refusal_code: refusal.code, head: c.proof.head, tree: c.proof.tree,
+          delta_sha256: c.proof.delta_sha256, final_delta_sha256: c.proof.final_delta.delta_sha256,
+          scope_fingerprint: digest(c.proof.source_scope), changed_paths: c.proof.changed_paths, final_delta: c.proof.final_delta,
+          source_scope: c.proof.source_scope, candidate_delta_paths: c.proof.source_scope.candidate_delta_paths,
+          accepted: c.proof.source_scope.accepted_task.find(row => row.path === file) ?? null }));
         resetProof(); c.git("checkout", saved.branch); pass(`refuse actual ${name} source delta with matching Git inventories`);
       }
+      // Divergent accepted-main edits to an accepted task path require a new
+      // review, even when a merge keeps the accepted repair bytes exactly.
+      c.git("checkout", "-b", "synthetic-overlap-main", saved.base);
+      write(path.join(c.checkout, "scripts/accepted-existing.mjs"), "// conflicting accepted-main change\n");
+      const divergentMain = c.commit();
+      c.git("checkout", "-b", "synthetic-overlap-candidate", saved.head);
+      c.git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "merge", "--strategy=ours", "--no-edit", divergentMain);
+      c.proof.base = divergentMain; c.proof.head = c.git("rev-parse", "HEAD").toString().trim(); c.proof.tree = c.git("rev-parse", "HEAD^{tree}").toString().trim();
+      rebindSource(c); save(c);
+      assert.throws(() => proof(c), error => error.code === "companion_timeout_accepted_main_overlap_requires_review");
+      console.log("AUGNES_COMPANION_SOURCE_SCOPE_CONTROL " + JSON.stringify({ name: "divergent-accepted-main-overlap", refusal_code: "companion_timeout_accepted_main_overlap_requires_review", base: c.proof.base, head: c.proof.head, tree: c.proof.tree, delta_sha256: c.proof.delta_sha256, final_delta_sha256: c.proof.final_delta.delta_sha256, scope_fingerprint: digest(c.proof.source_scope), changed_paths: c.proof.changed_paths, final_delta: c.proof.final_delta, source_scope: c.proof.source_scope }));
+      resetProof(); c.git("checkout", saved.branch); pass("divergent accepted-main overlap cannot silently replace either accepted source");
     }
     if (["all", "originals"].includes(group)) {
       for (const [name, mutate] of [
@@ -378,8 +458,12 @@ export async function companionTimeoutSuccessionControls(group = "all") {
         for (const [file, bytes] of originals) writeFileSync(file, bytes); pass(`refuse ${name}`);
       }
       resetProof(); assert.deepEqual(proof(c), validated);
+    }
+    if (["all", "authority"].includes(group)) {
       for (const [name, mutate] of [
         ["missing grant", (r, url) => url.includes("comments") ? null : r],
+        ["missing exact final policy review", (r, url) => url.endsWith("/reviews/102") ? null : r],
+        ["wrong final policy review head", (r, url) => url.endsWith("/reviews/102") ? { ...r, commit_id: c.proof.repair.head } : r],
         ["changed grant", (r, url) => url.includes("comments") ? { ...r, body: r.body + "changed" } : r],
         ["wrong grant destination", (r, url) => url.includes("comments") ? { ...r, issue_url: "https://api.github.com/repos/hynk-studio/augnes/issues/1" } : r],
         ["future grant", (r, url) => url.includes("comments") ? { ...r, updated_at: time(60000) } : r],
@@ -394,27 +478,43 @@ export async function companionTimeoutSuccessionControls(group = "all") {
         ["grant budget prose", "grant", body => body.replace("One Full and zero recovery/retry", "Unlimited Full and recovery/retry")],
         ["grant review source prose", "grant", body => body.replace(c.proof.repair.head, c.proof.head)],
         ["accepted correction scope", "repair", body => body.replace("accepts the one-file", "does not accept the one-file")],
+        ["final policy base binding", "policy", body => body.replace(`Reviewed final base \`${c.proof.base}\``, "Reviewed final base `missing`")],
+        ["final policy scope inventory", "policy", body => body.replace(digest(c.proof.source_scope), "0".repeat(64))],
+        ["final policy native delta", "policy", body => body.replace(c.proof.final_delta.delta_sha256, "0".repeat(64))],
       ]) {
         const records = structuredClone(c.authority), changed = structuredClone(validated); records[role].body = mutate(records[role].body);
-        const observation = companionAuthorityObservation(records[role], role === "repair" ? "accepted_repair" : "execution_grant");
-        if (role === "repair") changed.repair.review.sha256 = digest(observation); else changed.authorization.grant_sha256 = digest(observation);
+        const observation = companionAuthorityObservation(records[role], role === "repair" ? "accepted_repair" : role === "policy" ? "final_policy_review" : "execution_grant");
+        if (role === "repair") changed.repair.review.sha256 = digest(observation);
+        else if (role === "policy") changed.authorization.policy_review_sha256 = digest(observation);
+        else changed.authorization.grant_sha256 = digest(observation);
         write(c.file, changed); const changedProof = proof(c);
-        await assert.rejects(() => authorizeCompanionTimeout(changedProof, { transport: transport(records) }), /companion_timeout_(?:authority|review)_scope_invalid/u);
+        await assert.rejects(() => authorizeCompanionTimeout(changedProof, { transport: transport(records) }), /companion_timeout_(?:authority|review|policy_review)_scope_invalid/u, name);
         resetProof();
         pass(`refuse hash-consistent ${name}`);
       }
+    }
+    if (["all", "authority_records"].includes(group)) {
       for (const [name, role, mutate] of [
-        ["grant predates review", "grant", r => r.updated_at = time(-10000)],
-        ["review predates accepted Page audit", "repair", r => r.submitted_at = time(-5000)],
+        ["grant predates review", "grant", r => r.updated_at = new Date(Date.parse(c.authority.policy.submitted_at) - 1).toISOString()],
+        ["review predates accepted Page audit", "repair", r => r.submitted_at = new Date(Date.parse(saved.repair.accepted_review.reviewed_at) - 1).toISOString()],
         ["wrong review commit", "repair", r => r.commit_id = c.proof.head],
+        ["wrong final policy commit", "policy", r => r.commit_id = c.proof.repair.head],
+        ["stale final policy review", "policy", r => r.submitted_at = new Date(Date.parse(c.git("show", "-s", "--format=%cI", saved.head).toString().trim()) - 1).toISOString()],
+        ["final policy review predates accepted review", "policy", r => r.submitted_at = new Date(Date.parse(c.authority.repair.submitted_at) - 1).toISOString()],
+        ["final policy review rejected", "policy", r => r.state = "CHANGES_REQUESTED"],
+        ["foreign final policy destination", "policy", r => r.pull_request_url = "https://api.github.com/repos/hynk-studio/augnes/pulls/998"],
         ["foreign review destination", "repair", r => r.pull_request_url = "https://api.github.com/repos/hynk-studio/augnes/pulls/998"],
         ["non-maintainer review association", "repair", r => r.author_association = "NONE"],
       ]) {
         const changed = structuredClone(validated), records = structuredClone(c.authority); mutate(records[role]);
-        const observation = companionAuthorityObservation(records[role], role === "repair" ? "accepted_repair" : "execution_grant");
-        if (role === "repair") changed.repair.review.sha256 = digest(observation); else changed.authorization.grant_sha256 = digest(observation);
+        const observation = companionAuthorityObservation(records[role], role === "repair" ? "accepted_repair" : role === "policy" ? "final_policy_review" : "execution_grant");
+        if (role === "repair") changed.repair.review.sha256 = digest(observation);
+        else if (role === "policy") changed.authorization.policy_review_sha256 = digest(observation);
+        else changed.authorization.grant_sha256 = digest(observation);
+        records.grant.body = "SYNTHETIC updated reference binding.\n" + companionExecutionGrantRequirements(changed).join("\n");
+        changed.authorization.grant_sha256 = digest(companionAuthorityObservation(records.grant, "execution_grant"));
         write(c.file, changed); const changedProof = proof(c);
-        await assert.rejects(() => authorizeCompanionTimeout(changedProof, { transport: transport(records) }), /companion_timeout_authority_(?:order|source|identity)_invalid/u);
+        await assert.rejects(() => authorizeCompanionTimeout(changedProof, { transport: transport(records) }), /companion_timeout_authority_(?:order|source|identity)_invalid/u, name);
         resetProof(); pass(`refuse hash-consistent ${name}`);
       }
     }
@@ -448,7 +548,7 @@ export async function companionTimeoutSuccessionControls(group = "all") {
     if (["all", "stock"].includes(group)) {
       const attempt = begin(c, validated, authorized); assert.deepEqual(attempt.budget, { initial: 1, recovery: 0 });
       assert.throws(() => begin(c, validated, authorized), /attempt_latest_tip_required/); pass("duplicate reservation before completion refuses");
-      const current = finalizeReceipt({ ...structuredClone(c.receipt), repository: { ...c.receipt.repository, head_sha: c.proof.head, tree_sha: c.proof.tree },
+      const current = finalizeReceipt({ ...structuredClone(c.receipt), repository: { ...c.receipt.repository, base_sha: c.proof.base, head_sha: c.proof.head, tree_sha: c.proof.tree },
         run: { ...c.receipt.run, id: attempt.attempt_id }, attempt, inputs: { ...c.receipt.inputs, binding: { ...c.receipt.inputs.binding, head: c.proof.head, tree: c.proof.tree } } });
       finishAttempt(attempt, { receiptFingerprint: current.integrity.content_fingerprint, disposition: current.outcome.disposition, cleanupComplete: true });
       const ledgerBefore = treeFiles(c.anchor);
@@ -489,11 +589,15 @@ export async function companionTimeoutSuccessionControls(group = "all") {
       write(path.join(c.checkout, "scripts/local-canonical-companion-timeout-succession.mjs"), "// synthetic further in-scope source revision\n");
       const revisionHead = c.commit(), revisionTree = c.git("rev-parse", "HEAD^{tree}").toString().trim();
       c.proof.head = revisionHead; c.proof.tree = revisionTree;
-      Object.assign(c.proof, c.delta(c.proof.base, revisionHead));
-      Object.assign(c.proof.final_delta, c.delta(c.proof.repair.head, revisionHead)); save(c);
-      const revision = proof(c), revisionAuthorization = await authorize(c, revision);
-      assert.throws(() => begin(c, revision, revisionAuthorization), /attempt_latest_tip_required/);
-      resetProof(); pass("new in-scope commit and rebound proof cannot renew consumed authority");
+      rebindSource(c); save(c);
+      const revision = proof(c);
+      await assert.rejects(() => authorize(c, revision), /companion_timeout_authority_source_invalid/u);
+      pass("changed final head requires its own exact final policy review");
+      // Even new synthetic review/grant records cannot renew a consumed edge.
+      const oldAuthority = c.authority; c.authority = authority(c.proof); save(c);
+      const reviewedRevision = proof(c), revisionAuthorization = await authorize(c, reviewedRevision);
+      assert.throws(() => begin(c, reviewedRevision, revisionAuthorization), /attempt_latest_tip_required/);
+      c.authority = oldAuthority; resetProof(); pass("new in-scope commit and freshly bound reviews cannot renew consumed authority");
       assert.throws(() => beginAttempt({ anchorRoot: c.anchor, repositoryRoot: c.checkout, checkoutOwner: c.owner, branch: c.proof.branch,
         head: c.proof.head, tree: c.proof.tree, runId: "forbidden-reset", contractFingerprint: "7".repeat(64) }), /attempt_candidate_superseded/);
       pass("grant is terminal after completion and cannot reset the old family");

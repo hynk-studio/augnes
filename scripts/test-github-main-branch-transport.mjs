@@ -7,6 +7,7 @@ import {
   AUTHORIZED_GITHUB_REPOSITORY,
   createGitHubMainBranchTransport,
   createGitHubBrowserAuthorizationTransport,
+  createGitHubObserverAuthorizationTransport,
 } from "./github-main-branch-transport.mjs";
 
 const requests = [];
@@ -95,6 +96,12 @@ assert.deepEqual(browserRequests.map(r => r.args[1]), ["repos/hynk-studio/augnes
 assert(browserRequests.every(r => r.operation === "fetch_browser_authority" && r.args.includes("GET") && r.args.includes("Cache-Control: no-cache")));
 for (const value of [-1, 0, "101", "https://other.example", Infinity]) { assert.throws(() => browserAuthority.review(value)); assert.throws(() => browserAuthority.grant(value)); }
 assert.throws(() => browserAuthority.permission("../outside"));
+const conditionRequests = [];
+const conditionAuthority = createGitHubObserverAuthorizationTransport(1558, { runner: async request => { conditionRequests.push(request); return {}; } });
+await conditionAuthority.pullRequest();
+assert.deepEqual(conditionRequests.map(request => request.args[1]), ["repos/hynk-studio/augnes/pulls/1558"]);
+assert(conditionRequests.every(request => request.args.includes("GET") && request.args.includes("Cache-Control: no-cache")));
+for (const value of [-1, 0, "1558", "https://other.example", Infinity]) assert.throws(() => createGitHubObserverAuthorizationTransport(value));
 assert.doesNotMatch(source, /--input|"POST"|"PATCH"|"DELETE"/u);
 assert.doesNotMatch(
   source,

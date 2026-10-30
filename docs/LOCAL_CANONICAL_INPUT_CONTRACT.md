@@ -139,6 +139,28 @@ correction; these controls do not replace complete deciding qualification.
   owner. A necessary accepted-main integration binds the freshly admitted main,
   exact two parents and independently recomputed tree-entry union. None recasts old
   outcomes as infrastructure, resets an unchanged target or grants permission.
+- `local-canonical-condition-requalification.mjs` binds a distinct v5
+  `condition_requalification` interpretation to the latest settled Project Home
+  condition failure, preserved failure/diagnosis evidence, authenticated prospective
+  execution grant, and published implementation-owner final source. It uses the
+  existing exclusive successor edge for one Full and zero recovery, including an
+  interrupted reservation. Stock reconstructs the evidence and authority read-only;
+  neither this route nor its bounded observation changes v3 input classification.
+  Private proof artifacts are hash-checked at admission and reconstruction, not
+  continuously monitored as invocation inputs. The condition observer captures the
+  original evaluation once and retains incomplete observations without changing
+  acceptance. A later pass cannot explain the historical failure.
+- `local-canonical-guide-correction.mjs` binds the separately authorized v6
+  correction after a spent v5 run to the accepted exact GuideBrief repair,
+  immutable Mac comparison packet, original failure and a later authenticated
+  execution grant. The reviewed repair stays distinct from implementation-owner
+  final policy source. Complete native deltas and the existing exclusive successor
+  edge bind one Full with zero recovery; the new successor is terminal. Stock
+  reconstructs these bindings read-only. This route changes no input classification,
+  Browser condition, deadline or workload and supplies no retrospective explanation
+  of the original failure. Proof artifacts remain admission/reconstruction inputs,
+  not continuously monitored execution inputs; the production owner itself is in
+  the frozen executor source inventory.
 - `local-canonical-evidence-retention.mjs` protects active and explicitly pinned
   evidence. Unsafe aliases and ambiguous ownership refuse cleanup.
 - `test-local-canonical-classification.mjs` and `test-local-canonical-review-corrections.mjs` exercise real classification,

@@ -7,7 +7,8 @@ import { digest, classifyInputChange, nonFaultInputChange, effectiveInputObserva
 import { BROWSER_REPLACEMENT_PHASES } from "./local-canonical-browser-replacement.mjs";
 import { createGitHubObserverAuthorizationTransport } from "./github-main-branch-transport.mjs";
 
-export const COMPANION_TIMEOUT_SCHEMA = "augnes.local-canonical-source-correction.v5";
+export const COMPANION_TIMEOUT_SCHEMA = "augnes.local-canonical-source-correction.v7";
+export const COMPANION_SOURCE_SCOPE_SCHEMA = "augnes.local-canonical-companion-source-scope.v1";
 export const COMPANION_AUTH_SCHEMA = "augnes.local-canonical-companion-timeout-authority.v1";
 export const COMPANION_DEFECT = "owned_child_readiness_exit_without_setup_cleanup";
 export const COMPANION_MODULE = "scripts/test-companion-ownership-retirement.mjs";
@@ -87,7 +88,7 @@ export function validateCompanionTimeoutPredecessor(receipt) {
       input.fingerprint !== digest({ contract: input.contract, path_kind: input.path_kind, binding: input.binding, resources: input.resources }) ||
       input.binding?.head !== r.repository?.head_sha || input.binding?.tree !== r.repository?.tree_sha ||
       r.attempt?.head !== r.repository.head_sha || r.attempt?.tree !== r.repository.tree_sha || r.attempt?.attempt_id !== r.run?.id ||
-      r.attempt.contract_fingerprint !== input.fingerprint || r.attempt.number !== 1 || r.attempt.recovery || r.attempt.browser_replacement || ["augnes.local-canonical-source-correction.v3", "augnes.local-canonical-source-correction.v4", COMPANION_TIMEOUT_SCHEMA].includes(r.attempt.source_correction?.schema) ||
+      r.attempt.contract_fingerprint !== input.fingerprint || r.attempt.number !== 1 || r.attempt.recovery || r.attempt.browser_replacement || ["augnes.local-canonical-source-correction.v3", "augnes.local-canonical-source-correction.v4", "augnes.local-canonical-source-correction.v5", "augnes.local-canonical-source-correction.v6", COMPANION_TIMEOUT_SCHEMA].includes(r.attempt.source_correction?.schema) ||
       !r.cleanup?.completed || r.cleanup.remaining_owned_processes !== 0 || r.cleanup.companion_service?.restored !== true ||
       r.cleanup.isolated_resources?.completed !== true || r.cleanup.isolated_resources.failure_count !== 0 || r.cleanup.isolated_resources.failures?.length !== 0 ||
       r.cleanup.generated_next?.present_after === true || r.cleanup.generated_windows_helper?.present_after === true ||
@@ -250,8 +251,88 @@ export function validateCompanionFocused(rows, log) {
     fail("companion_timeout_focused_coverage_invalid");
 }
 
+// Compute scope from the original admitted base, never from a later merge-base
+// or just the surviving PR diff. A reverted-to-base path and a deleted accepted
+// addition must still be checked. Missing entries and file modes are evidence.
+export function inspectCompanionSourceScope(repositoryRoot, { acceptedBase, repairHead, base, head }) {
+  if (![acceptedBase, repairHead, base, head].every(commit)) fail("companion_timeout_source_scope_invalid");
+  const git = args => execFileSync("git", args, { cwd: repositoryRoot, timeout: 10000, maxBuffer: 16 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] });
+  for (const [a, b] of [[acceptedBase, repairHead], [acceptedBase, base], [repairHead, head], [base, head]]) git(["merge-base", "--is-ancestor", a, b]);
+  const changed = (a, b) => git(["diff", "--no-renames", "--name-only", "-z", a, b, "--"]).toString().split("\0").filter(Boolean).sort();
+  const trees = new Map(), blobs = new Map();
+  const tree = ref => {
+    if (!trees.has(ref)) {
+      const entries = new Map();
+      for (const line of git(["ls-tree", "-rz", "--full-tree", ref]).toString().split("\0").filter(Boolean)) {
+        const match = line.match(/^(\d{6}) (blob|commit) ([a-f0-9]{40})\t([^]+)$/u);
+        if (!match || entries.has(match[4])) fail("companion_timeout_source_tree_invalid");
+        entries.set(match[4], { mode: match[1], type: match[2], object: match[3] });
+      }
+      trees.set(ref, entries);
+    }
+    return trees.get(ref);
+  };
+  const state = (ref, name) => {
+    const entry = tree(ref).get(name);
+    if (!entry) return { present: false };
+    return { present: true, ...entry, sha256: entry.type === "blob" ? blobs.get(entry.object) : null };
+  };
+  const acceptedPaths = changed(acceptedBase, repairHead), candidatePaths = changed(base, head), mainPaths = changed(acceptedBase, base);
+  // Inspect each required immutable blob once in one bounded Git process.
+  // Per-blob subprocess creation was redundant observer cost, particularly for
+  // complete accepted-main inventories; this retains every byte/mode/absence.
+  const wanted = new Set();
+  for (const [ref, names] of [[repairHead, acceptedPaths], [head, [...acceptedPaths, ...mainPaths]], [base, mainPaths]]) {
+    for (const name of names) {
+      const entry = tree(ref).get(name);
+      if (entry?.type === "blob") wanted.add(entry.object);
+    }
+  }
+  if (wanted.size) {
+    const batch = execFileSync("git", ["cat-file", "--batch"], { cwd: repositoryRoot, input: [...wanted].join("\n") + "\n",
+      timeout: 10000, maxBuffer: 16 * 1024 * 1024, stdio: ["pipe", "pipe", "pipe"] });
+    let offset = 0;
+    for (const object of wanted) {
+      const end = batch.indexOf(10, offset), match = end < 0 ? null : batch.subarray(offset, end).toString().match(/^([a-f0-9]{40}) blob (\d+)$/u);
+      if (!match || match[1] !== object) fail("companion_timeout_source_blob_invalid");
+      const size = Number(match[2]); offset = end + 1;
+      if (!Number.isSafeInteger(size) || size < 0 || offset + size >= batch.length || batch[offset + size] !== 10) fail("companion_timeout_source_blob_invalid");
+      blobs.set(object, digest(batch.subarray(offset, offset + size))); offset += size + 1;
+    }
+    if (offset !== batch.length) fail("companion_timeout_source_blob_invalid");
+  }
+  const accepted = new Set(acceptedPaths), acceptedInventory = acceptedPaths.filter(name => !POLICY_PATHS.has(name))
+    .map(name => ({ path: name, accepted: state(repairHead, name), candidate: state(head, name) }));
+  const reconciliation = mainPaths.map(name => {
+    const current = state(base, name), candidate = state(head, name);
+    const rule = POLICY_PATHS.has(name) ? "bounded_policy_owner" : accepted.has(name) ? "main_matches_accepted_task" : "preserve_accepted_main";
+    return { path: name, rule, accepted_main: current, candidate };
+  });
+  return { schema: COMPANION_SOURCE_SCOPE_SCHEMA, basis: "accepted_task_and_current_main_union", accepted_base: acceptedBase,
+    accepted_head: repairHead, current_main: base, accepted_task_paths: acceptedPaths, candidate_delta_paths: candidatePaths,
+    accepted_task: acceptedInventory, main_reconciliation: reconciliation, policy_delta_paths: candidatePaths.filter(name => POLICY_PATHS.has(name)) };
+}
+
+export function validateCompanionSourceScope(scope) {
+  const accepted = new Set(scope.accepted_task_paths), acceptedEntries = new Map(scope.accepted_task.map(row => [row.path, row]));
+  for (const name of [...new Set([...scope.accepted_task_paths, ...scope.candidate_delta_paths])]) {
+    if (POLICY_PATHS.has(name)) continue;
+    if (!accepted.has(name)) fail("companion_timeout_unrelated_candidate_delta");
+    const row = acceptedEntries.get(name);
+    if (!row || !exact(row.accepted, row.candidate)) fail("companion_timeout_accepted_task_changed");
+  }
+  for (const row of scope.main_reconciliation) {
+    if (row.rule === "main_matches_accepted_task" && !exact(row.accepted_main, acceptedEntries.get(row.path)?.accepted)) fail("companion_timeout_accepted_main_overlap_requires_review");
+    if (row.rule !== "bounded_policy_owner" && !exact(row.accepted_main, row.candidate)) fail("companion_timeout_accepted_main_changed");
+  }
+  for (const state of [...scope.accepted_task.flatMap(row => [row.accepted, row.candidate]), ...scope.main_reconciliation.flatMap(row => [row.accepted_main, row.candidate])]) {
+    if (state.present && (state.type !== "blob" || !["100644", "100755"].includes(state.mode) || !sha(state.sha256))) fail("companion_timeout_source_type_invalid");
+  }
+  return scope;
+}
+
 export function readCompanionTimeoutEvidence(file, p, repositoryRoot) {
-  const allowed = ["schema", "kind", "defect", "branch", "base", "head", "tree", "prior_family_id", "prior_number", "prior_attempt_id", "prior_receipt_fingerprint", "source_module", "originals", "repair", "delta_sha256", "changed_paths", "retained_sources", "evidence", "authorization", "pull_request", "budget", "timeout", "final_delta", "limitations"];
+  const allowed = ["schema", "kind", "defect", "branch", "base", "head", "tree", "prior_family_id", "prior_number", "prior_attempt_id", "prior_receipt_fingerprint", "source_module", "originals", "repair", "delta_sha256", "changed_paths", "retained_sources", "evidence", "authorization", "pull_request", "budget", "timeout", "final_delta", "limitations", "source_scope"];
   const stored = { ...p }; delete stored.local_relative_path;
   if (!keys(stored, allowed) || !isCompanionTimeout(p) || p.defect !== COMPANION_DEFECT || p.source_module !== COMPANION_MODULE ||
       ![p.base, p.head, p.tree, p.repair?.head, p.repair?.tree].every(commit) ||
@@ -288,10 +369,9 @@ export function readCompanionTimeoutEvidence(file, p, repositoryRoot) {
   }
   if (!exact(p.repair.changed_paths, [COMPANION_MODULE]) || delta(p.repair.head, p.head) !== p.final_delta.delta_sha256 ||
       !exact(paths(p.repair.head, p.head), p.final_delta.changed_paths)) fail("companion_timeout_final_delta_invalid");
-  const sharedBase = git(["merge-base", p.repair.head, p.base]).toString().trim(), retainedTaskPaths = new Set(paths(sharedBase, p.repair.head));
-  for (const name of paths(p.base, p.head)) {
-    if (!POLICY_PATHS.has(name) && (!retainedTaskPaths.has(name) || digest(source(p.head, name)) !== digest(source(p.repair.head, name)))) fail("companion_timeout_unrelated_candidate_delta");
-  }
+  const sourceScope = inspectCompanionSourceScope(repositoryRoot, { acceptedBase: original.repository.base_sha, repairHead: p.repair.head, base: p.base, head: p.head });
+  validateCompanionSourceScope(sourceScope);
+  if (!exact(p.source_scope, sourceScope)) fail("companion_timeout_source_scope_inventory_invalid");
   for (const [name, hash] of Object.entries(p.retained_sources)) {
     if (digest(source(p.repair.head, name)) !== hash || digest(source(p.head, name)) !== hash ||
         name !== COMPANION_MODULE && digest(source(prior.head, name)) !== hash) fail("companion_timeout_reviewed_repair_changed");
@@ -303,11 +383,11 @@ export function readCompanionTimeoutEvidence(file, p, repositoryRoot) {
     if (matches.length !== 1) fail("companion_timeout_registration_invalid");
     return matches[0][0];
   };
-  if (registration(prior.head) !== registration(p.repair.head) || registration(prior.head) !== registration(p.head)) fail("companion_timeout_workload_changed");
+  if ([p.repair.head, p.base, p.head].some(head => registration(prior.head) !== registration(head))) fail("companion_timeout_workload_changed");
   // This route may register its new controls, but may not quietly replace any
   // other suite registration, budget or natural-exit requirement.
   const controlRow = '    {\n      id: "local-canonical-companion-timeout",\n      label: "prospective Companion readiness timeout succession and terminal allowance",\n      ...rootNode("scripts/test-local-canonical-review-corrections.mjs", "--companion-timeout-controls"),\n      timeoutMs: 30_000,\n      requireNaturalExit: true,\n    },\n';
-  const acceptedSuite = source(p.repair.head, "scripts/run-canonical-test-suite.mjs").toString(), finalSuite = source(p.head, "scripts/run-canonical-test-suite.mjs").toString();
+  const acceptedSuite = source(p.base, "scripts/run-canonical-test-suite.mjs").toString(), finalSuite = source(p.head, "scripts/run-canonical-test-suite.mjs").toString();
   if (finalSuite !== acceptedSuite && (finalSuite.split(controlRow).length !== 2 || finalSuite.replace(controlRow, "") !== acceptedSuite)) fail("companion_timeout_unrelated_registration_changed");
   const e = p.evidence;
   if (!keys(e, ["fixture", "launcher", "before", "after", "focused", "owners", "environment_observation", "execution_inventory", "cleanup"]) ||
@@ -353,13 +433,15 @@ export function readCompanionTimeoutEvidence(file, p, repositoryRoot) {
       !Array.isArray(cleanup.run_roots) || Object.values(runs).some(run => !cleanup.run_roots.includes(run.resource.root)) ||
       cleanup.companion?.before_after_identical !== true || cleanup.companion.status !== "installed_stopped" || cleanup.companion.state?.checkout_relation !== "exact" ||
       cleanup.new_qualification_invocations !== 0 || cleanup.new_successor_reservations !== 0 || cleanup.new_deciding_attempts !== 0) fail("companion_timeout_preservation_invalid");
-  validatedEvidence.set(evidenceKey(p), { repairCommitTime, lastEvidenceTime: Date.parse(runs.focused.finished_at) });
+  const finalCommitTime = Date.parse(git(["show", "-s", "--format=%cI", p.head]).toString().trim());
+  if (!Number.isFinite(finalCommitTime)) fail("companion_timeout_final_commit_time_invalid");
+  validatedEvidence.set(evidenceKey(p), { repairCommitTime, finalCommitTime, lastEvidenceTime: Date.parse(runs.focused.finished_at) });
   return { original, prior, completion, runs, environment, cleanup };
 }
 
 export function companionAuthorityObservation(record, role) {
   return { id: record.id, author: record.user?.login, author_id: record.user?.id, body_sha256: digest(record.body),
-    timestamp: record.updated_at ?? record.submitted_at, role, commit_id: role === "accepted_repair" ? record.commit_id : null };
+    timestamp: record.updated_at ?? record.submitted_at, role, commit_id: role === "execution_grant" ? null : record.commit_id };
 }
 
 export function companionAuthorityBinding(p) {
@@ -367,52 +449,81 @@ export function companionAuthorityBinding(p) {
   return { schema: COMPANION_AUTH_SCHEMA, evidence_fingerprint: digest(evidence), base: p.base, head: p.head, tree: p.tree,
     original_family: p.prior_family_id, original_attempt: p.prior_attempt_id, original_receipt: p.prior_receipt_fingerprint,
     accepted_repair_head: p.repair.head, source_module: COMPANION_MODULE, defect: COMPANION_DEFECT,
+    source_scope_fingerprint: digest(p.source_scope), independent_final_policy_review_required: true,
     historical_cause: "UNKNOWN", workload: "full-canonical", separate_stock: true, budget: { initial: 1, recovery: 0 } };
 }
 
-// Required prose is inspectable; constructing these strings does not create a
-// review, a grant, a signature or a capability. Production still fetches each
-// real record and current administrator/maintainer permission through GET.
+const reviewRef = value => keys(value, ["id", "sha256"]) && Number.isSafeInteger(value.id) && value.id > 0 && sha(value.sha256);
+// Preparation helpers return reviewable prose only. They neither fabricate
+// records nor authenticate anything. In particular the first two work before
+// any remote record exists; the grant requires both actual returned references.
+export function companionAcceptedReviewRequirements(p) {
+  return [
+    `Reviewed head \`${p.repair.head}\`, tree \`${p.repair.tree}\``,
+    "This review accepts the one-file Companion ownership-retirement fixture correction and its bounded development evidence.",
+    `Source module \`${COMPANION_MODULE}\`, defect \`${COMPANION_DEFECT}\`, source SHA-256 \`${COMPANION_SOURCE_HASHES.after}\`.`,
+    `Retained fixture SHA-256 \`${p.evidence.fixture.sha256}\`; launcher SHA-256 \`${p.evidence.launcher.sha256}\`.`,
+    `Retained diagnostic evidence fingerprint \`${digest(p.evidence)}\`.`,
+    `Actual source review completed at \`${p.repair.accepted_review.reviewed_at}\`; source ${p.repair.accepted_review.source_url}; block \`${p.repair.accepted_review.block_id}\`; block SHA-256 \`${p.repair.accepted_review.block_sha256}\`.`,
+    "This GitHub record attests that existing review; its submission time does not replace the actual review time, and the Page is not an execution grant.",
+    "The historical timeout cause and original blocked operation remain UNKNOWN.",
+    "Initial manager supervisor announcement remains unchanged and unproved.",
+  ];
+}
+export function companionPolicyReviewRequirements(p) {
+  return [
+    "## Independent final Companion policy review",
+    `Reviewed final base \`${p.base}\`, head \`${p.head}\`, tree \`${p.tree}\`.`,
+    `Accepted repair \`${p.repair.head}\` / tree \`${p.repair.tree}\`; actual accepted source review \`${p.repair.accepted_review.reviewed_at}\` at ${p.repair.accepted_review.source_url}, block SHA-256 \`${p.repair.accepted_review.block_sha256}\`.`,
+    `Original-to-final native delta SHA-256 \`${p.delta_sha256}\`; accepted repair delta SHA-256 \`${p.repair.delta_sha256}\`; repair-to-final native delta SHA-256 \`${p.final_delta.delta_sha256}\`.`,
+    `Accepted-task and current-main source-scope fingerprint \`${digest(p.source_scope)}\`.`,
+    `Retained diagnostic evidence fingerprint \`${digest(p.evidence)}\`; original retained evidence fingerprint \`${digest(p.originals)}\`.`,
+    `The Companion schema is \`${COMPANION_TIMEOUT_SCHEMA}\`; condition v5 and GuideBrief v6 remain separate and unchanged.`,
+    "This independent review accepts this exact final policy source and its bounded accepted-main reconciliation; implementation-owner verification is not this review.",
+    "The historical timeout cause remains UNKNOWN. This review does not grant merge, adoption or an additional deciding allowance.",
+  ];
+}
+export function companionExecutionGrantRequirements(p) {
+  if (!reviewRef(p.repair?.review) || !Number.isSafeInteger(p.authorization?.policy_review_id) || p.authorization.policy_review_id <= 0 ||
+      !sha(p.authorization.policy_review_sha256)) fail("companion_timeout_review_references_required");
+  return [
+    "## User-authorized Companion timeout succession — policy implementation and one qualification",
+    `https://github.com/hynk-studio/augnes/pull/${p.pull_request}#pullrequestreview-${p.repair.review.id}`,
+    `Accepted repair authenticated review fingerprint \`${p.repair.review.sha256}\`.`,
+    `https://github.com/hynk-studio/augnes/pull/${p.pull_request}#pullrequestreview-${p.authorization.policy_review_id}`,
+    `Final policy authenticated review fingerprint \`${p.authorization.policy_review_sha256}\`; final base \`${p.base}\`, head \`${p.head}\`, tree \`${p.tree}\`.`,
+    `Original family \`${p.prior_family_id}\`, attempt \`${p.prior_attempt_id}\` number \`${p.prior_number}\`, receipt \`${p.prior_receipt_fingerprint}\`.`,
+    `Original retained evidence fingerprint \`${digest(p.originals)}\`.`,
+    `Accepted repair \`${p.repair.head}\` / tree \`${p.repair.tree}\`.`,
+    `Source module \`${COMPANION_MODULE}\`; defect \`${COMPANION_DEFECT}\`.`,
+    "The prospective scope is the minimal Companion timeout policy implementation, one normal admitted Full, separate stock validation, cleanup and one consolidated return.",
+    "One Full and zero recovery/retry; no renewal per commit, worktree, proof, copied grant or accepted-main merge.",
+    "Bind the actual final head, tree, native delta and all policy/integration changes; implementation-owner checks are not independent final-source review.",
+    "The exact final policy review is required before execution; this grant creates no new allowance beyond the original single-use predecessor edge.",
+    "Preserve the original product_failure, nested timeout and historical cause UNKNOWN.",
+  ];
+}
 export function companionAuthorityRequirements(p) {
-  return {
-    review: [
-      `Reviewed head \`${p.repair.head}\`, tree \`${p.repair.tree}\``,
-      "This review accepts the one-file Companion ownership-retirement fixture correction and its bounded development evidence.",
-      `Source module \`${COMPANION_MODULE}\`, defect \`${COMPANION_DEFECT}\`, source SHA-256 \`${COMPANION_SOURCE_HASHES.after}\`.`,
-      `Retained fixture SHA-256 \`${p.evidence.fixture.sha256}\`; launcher SHA-256 \`${p.evidence.launcher.sha256}\`.`,
-      `Retained diagnostic evidence fingerprint \`${digest(p.evidence)}\`.`,
-      `Actual source review completed at \`${p.repair.accepted_review.reviewed_at}\`; source ${p.repair.accepted_review.source_url}; block \`${p.repair.accepted_review.block_id}\`; block SHA-256 \`${p.repair.accepted_review.block_sha256}\`.`,
-      "This GitHub record attests that existing review; its submission time does not replace the actual review time, and the Page is not an execution grant.",
-      "The historical timeout cause and original blocked operation remain UNKNOWN.",
-      "Initial manager supervisor announcement remains unchanged and unproved.",
-    ],
-    grant: [
-      "## User-authorized Companion timeout succession — policy implementation and one qualification",
-      `https://github.com/hynk-studio/augnes/pull/${p.pull_request}#pullrequestreview-${p.repair.review.id}`,
-      `Original family \`${p.prior_family_id}\`, attempt \`${p.prior_attempt_id}\` number \`${p.prior_number}\`, receipt \`${p.prior_receipt_fingerprint}\`.`,
-      `Original retained evidence fingerprint \`${digest(p.originals)}\`.`,
-      `Accepted repair \`${p.repair.head}\` / tree \`${p.repair.tree}\`.`,
-      `Source module \`${COMPANION_MODULE}\`; defect \`${COMPANION_DEFECT}\`.`,
-      "The prospective scope is the minimal Companion timeout policy implementation, one normal admitted Full, separate stock validation, cleanup and one consolidated return.",
-      "One Full and zero recovery/retry; no renewal per commit, worktree, proof, copied grant or accepted-main merge.",
-      "Bind the actual final head, tree, native delta and all policy/integration changes; implementation-owner checks are not independent final-source review.",
-      "Preserve the original product_failure, nested timeout and historical cause UNKNOWN.",
-    ],
-  };
+  return { review: companionAcceptedReviewRequirements(p), policy_review: companionPolicyReviewRequirements(p), grant: companionExecutionGrantRequirements(p) };
 }
 
 export async function authorizeCompanionTimeout(p, { transport = createGitHubObserverAuthorizationTransport(p.pull_request) } = {}) {
   const refs = p?.authorization, evidence = validatedEvidence.get(evidenceKey(p));
-  if (!isCompanionTimeout(p) || !keys(refs, ["grant_comment_id", "grant_sha256"]) ||
-      !Number.isSafeInteger(refs.grant_comment_id) || refs.grant_comment_id <= 0 || !sha(refs.grant_sha256)) fail("companion_timeout_authority_missing");
+  if (!isCompanionTimeout(p) || !keys(refs, ["policy_review_id", "policy_review_sha256", "grant_comment_id", "grant_sha256"]) ||
+      !Number.isSafeInteger(refs.grant_comment_id) || refs.grant_comment_id <= 0 || !sha(refs.grant_sha256) ||
+      !Number.isSafeInteger(refs.policy_review_id) || refs.policy_review_id <= 0 || !sha(refs.policy_review_sha256) || refs.policy_review_id === p.repair.review.id)
+    fail("companion_timeout_authority_missing");
   if (!evidence) fail("companion_timeout_validated_evidence_required");
-  const repair = await transport.review(p.repair.review.id), grant = await transport.grant(refs.grant_comment_id), observations = {};
-  for (const [record, role, ref] of [[repair, "accepted_repair", p.repair.review], [grant, "execution_grant", { id: refs.grant_comment_id, sha256: refs.grant_sha256 }]]) {
+  const repair = await transport.review(p.repair.review.id), policy = await transport.review(refs.policy_review_id),
+    grant = await transport.grant(refs.grant_comment_id), observations = {};
+  for (const [record, role, ref] of [[repair, "accepted_repair", p.repair.review],
+    [policy, "final_policy_review", { id: refs.policy_review_id, sha256: refs.policy_review_sha256 }],
+    [grant, "execution_grant", { id: refs.grant_comment_id, sha256: refs.grant_sha256 }]]) {
     if (record?.id !== ref.id || record.user?.type !== "User" || !Number.isSafeInteger(record.user?.id) || record.user.id <= 0 ||
         typeof record.user?.login !== "string" || !/^[A-Za-z0-9-]{1,39}$/u.test(record.user.login) || !["OWNER", "MEMBER", "COLLABORATOR"].includes(record.author_association) ||
         typeof record.body !== "string" || Buffer.byteLength(record.body) > 64 * 1024) fail("companion_timeout_authority_identity_invalid");
-    if (role === "accepted_repair" ?
-      record.pull_request_url !== `https://api.github.com/repos/hynk-studio/augnes/pulls/${p.pull_request}` || !["COMMENTED", "APPROVED"].includes(record.state) || record.commit_id !== p.repair.head :
+    if (role !== "execution_grant" ?
+      record.pull_request_url !== `https://api.github.com/repos/hynk-studio/augnes/pulls/${p.pull_request}` || !["COMMENTED", "APPROVED"].includes(record.state) || record.commit_id !== (role === "accepted_repair" ? p.repair.head : p.head) :
       record.issue_url !== `https://api.github.com/repos/hynk-studio/augnes/issues/${p.pull_request}`) fail("companion_timeout_authority_source_invalid");
     const observation = companionAuthorityObservation(record, role);
     if (!validTime(observation.timestamp) || digest(observation) !== ref.sha256) fail("companion_timeout_authority_changed");
@@ -422,10 +533,11 @@ export async function authorizeCompanionTimeout(p, { transport = createGitHubObs
   }
   const requirements = companionAuthorityRequirements(p);
   if (requirements.review.some(sentence => !repair.body.includes(sentence))) fail("companion_timeout_review_scope_invalid");
+  if (requirements.policy_review.some(sentence => !policy.body.includes(sentence))) fail("companion_timeout_policy_review_scope_invalid");
   if (requirements.grant.some(sentence => !grant.body.includes(sentence))) fail("companion_timeout_authority_scope_invalid");
-  const reviewed = Date.parse(observations.accepted_repair.timestamp), granted = Date.parse(observations.execution_grant.timestamp);
-  if (reviewed < evidence.repairCommitTime || reviewed <= evidence.lastEvidenceTime ||
-      reviewed < Date.parse(p.repair.accepted_review.reviewed_at) || granted < reviewed) fail("companion_timeout_authority_order_invalid");
+  const reviewed = Date.parse(observations.accepted_repair.timestamp), policyReviewed = Date.parse(observations.final_policy_review.timestamp), granted = Date.parse(observations.execution_grant.timestamp);
+  if (reviewed < evidence.repairCommitTime || reviewed <= evidence.lastEvidenceTime || reviewed < Date.parse(p.repair.accepted_review.reviewed_at) ||
+      policyReviewed < reviewed || policyReviewed < evidence.finalCommitTime || granted < policyReviewed) fail("companion_timeout_authority_order_invalid");
   const capability = Object.freeze({ observations });
   capabilities.set(capability, { proof: digest(p), observations: digest(observations), evidence: evidenceKey(p) });
   return capability;
@@ -437,7 +549,10 @@ export function assertCompanionTimeoutAuthorization(proof, capability, completio
       !validTime(completion?.finished_at) || Date.parse(capability.observations.accepted_repair.timestamp) <= Date.parse(completion.finished_at) ||
       Date.parse(capability.observations.accepted_repair.timestamp) < evidence.repairCommitTime ||
       Date.parse(capability.observations.accepted_repair.timestamp) < Date.parse(proof.repair.accepted_review.reviewed_at) ||
-      Date.parse(capability.observations.accepted_repair.timestamp) <= evidence.lastEvidenceTime) fail("companion_timeout_authenticated_authority_required");
+      Date.parse(capability.observations.accepted_repair.timestamp) <= evidence.lastEvidenceTime ||
+      Date.parse(capability.observations.final_policy_review.timestamp) < evidence.finalCommitTime ||
+      Date.parse(capability.observations.final_policy_review.timestamp) < Date.parse(capability.observations.accepted_repair.timestamp) ||
+      Date.parse(capability.observations.execution_grant.timestamp) < Date.parse(capability.observations.final_policy_review.timestamp)) fail("companion_timeout_authenticated_authority_required");
 }
 
 // Offline reconstruction checks saved observations; it never authenticates a
@@ -449,14 +564,18 @@ export function validCompanionTimeoutAttempt(attempt) {
     exact(attempt.budget, { initial: 1, recovery: 0 }) && exact(p.budget, { initial: 1, recovery: 0 }) &&
     [p.base, p.head, p.tree, p.repair?.head].every(commit) && p.head === attempt.head && p.tree === attempt.tree &&
     p.retained_sources?.[COMPANION_MODULE] === COMPANION_SOURCE_HASHES.after && exact(p.limitations, COMPANION_LIMITATIONS) &&
+    p.source_scope?.schema === COMPANION_SOURCE_SCOPE_SCHEMA && p.source_scope.basis === "accepted_task_and_current_main_union" &&
+    commit(p.source_scope.accepted_base) && p.source_scope.accepted_head === p.repair.head && p.source_scope.current_main === p.base &&
     keys(p.repair?.accepted_review, ["reviewed_at", "source_url", "block_id", "block_sha256"]) && validTime(p.repair.accepted_review.reviewed_at) &&
-    ["accepted_repair", "execution_grant"].every(role => {
+    ["accepted_repair", "final_policy_review", "execution_grant"].every(role => {
       const observation = attempt.companion_timeout_authority?.[role];
-      const ref = role === "accepted_repair" ? p.repair?.review : { id: p.authorization?.grant_comment_id, sha256: p.authorization?.grant_sha256 };
+      const ref = role === "accepted_repair" ? p.repair?.review : role === "final_policy_review" ?
+        { id: p.authorization?.policy_review_id, sha256: p.authorization?.policy_review_sha256 } : { id: p.authorization?.grant_comment_id, sha256: p.authorization?.grant_sha256 };
       return keys(observation, ["id", "author", "author_id", "body_sha256", "timestamp", "role", "commit_id"]) && observation.role === role &&
         observation.id === ref?.id && digest(observation) === ref?.sha256 && Number.isSafeInteger(observation.id) && observation.id > 0 &&
         Number.isSafeInteger(observation.author_id) && observation.author_id > 0 && typeof observation.author === "string" && /^[A-Za-z0-9-]{1,39}$/u.test(observation.author) &&
-        sha(observation.body_sha256) && validTime(observation.timestamp) && observation.commit_id === (role === "accepted_repair" ? p.repair.head : null);
-    }) && Date.parse(attempt.companion_timeout_authority.execution_grant.timestamp) >= Date.parse(attempt.companion_timeout_authority.accepted_repair.timestamp) &&
+        sha(observation.body_sha256) && validTime(observation.timestamp) && observation.commit_id === (role === "accepted_repair" ? p.repair.head : role === "final_policy_review" ? p.head : null);
+    }) && Date.parse(attempt.companion_timeout_authority.execution_grant.timestamp) >= Date.parse(attempt.companion_timeout_authority.final_policy_review.timestamp) &&
+    Date.parse(attempt.companion_timeout_authority.final_policy_review.timestamp) >= Date.parse(attempt.companion_timeout_authority.accepted_repair.timestamp) &&
     Date.parse(attempt.companion_timeout_authority.accepted_repair.timestamp) >= Date.parse(p.repair.accepted_review.reviewed_at);
 }

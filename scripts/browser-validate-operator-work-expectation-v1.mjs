@@ -51,7 +51,7 @@ await runOperatorExecutionBrowserChildV1({
       await lifecycle.evaluateBoolean(`(() => { document.querySelector('[data-work-expectation="preparation"]').open = true; return true; })()`);
       await lifecycle.waitForCondition(`document.querySelector('[data-expectation-history="1"]')?.textContent.includes('P32_FORECAST_ONLY_RESULT') === true`, "saved expectation survived reload");
       await lifecycle.navigate(`${appOrigin}/projects/${encodeURIComponent(fixture.manifest.expectation_project_id)}`);
-      await lifecycle.waitForCondition(`document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"][data-blank-state-project-management-hydrated="true"]') !== null`, "hydrated expectation Project Home");
+      await lifecycle.waitForCondition(`document.querySelector('[data-blank-state="v0.1"][data-blank-state-active="true"][data-blank-state-project-management-hydrated="true"]') !== null`, "hydrated expectation Project Home", undefined, { observe_project_home_readiness: true });
       await openProjectOptions(lifecycle);
       await clickSelector(lifecycle, '[data-direct-host-action="deterministic"]');
       await lifecycle.waitForCondition(`document.querySelector('[data-direct-host-round-trip-status="completed"]') !== null`, "normal deterministic attempt completed");
