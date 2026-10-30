@@ -1,3 +1,4 @@
+import { COMPANION_TIMEOUT_SCHEMA, isCompanionTimeout, validCompanionTimeoutAttempt } from "./local-canonical-companion-timeout-succession.mjs";
 import { isObserverRepair, validObserverAttempt } from "./local-canonical-observer-succession.mjs";
 import { TIMEOUT_REPAIR_SCHEMA, isCorrectedTimeout, validTimeoutAttempt } from "./local-canonical-timeout-succession.mjs";
 import { canonicalSerialize, assertPublicSafeReceipt, verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
@@ -30,8 +31,9 @@ export function createPrivateReviewExport(receipt) {
       first_fault: receipt.inputs.first_fault, limitations: receipt.inputs.limitations } : null,
     ...(receipt.receipt_version === 5 ? { browser_input: receipt.browser_input, browser_guard: receipt.browser_guard } : {}),
     attempt: receipt.attempt ? { ...pick(receipt.attempt, ["contract", "family_id", "attempt_id", "number", "head", "tree", "contract_fingerprint", "prior_attempt_id", "prior_receipt_fingerprint", "budget", "input_replacement_consumed"]),
-      source_correction: isCorrectedTimeout(receipt.attempt.source_correction) ? timeoutProofExport(receipt.attempt.source_correction) : isObserverRepair(receipt.attempt.source_correction) ? observerProofExport(receipt.attempt.source_correction) : receipt.attempt.source_correction ? pick(receipt.attempt.source_correction, ["schema", "kind", "defect", "prior_family_id", "prior_attempt_id", "prior_receipt_fingerprint", "head", "tree", "source_module", "fixture_sha256", "accepted_main", "review", "browser_input_path", "browser_input_sha256", "input_replacement_consumed", "authorization"]) : null,
+      source_correction: isCompanionTimeout(receipt.attempt.source_correction) ? companionProofExport(receipt.attempt.source_correction) : isCorrectedTimeout(receipt.attempt.source_correction) ? timeoutProofExport(receipt.attempt.source_correction) : isObserverRepair(receipt.attempt.source_correction) ? observerProofExport(receipt.attempt.source_correction) : receipt.attempt.source_correction ? pick(receipt.attempt.source_correction, ["schema", "kind", "defect", "prior_family_id", "prior_attempt_id", "prior_receipt_fingerprint", "head", "tree", "source_module", "fixture_sha256", "accepted_main", "review", "browser_input_path", "browser_input_sha256", "input_replacement_consumed", "authorization"]) : null,
       ...(isObserverRepair(receipt.attempt.source_correction) ? { observer_authority: receipt.attempt.observer_authority } : {}),
+      ...(isCompanionTimeout(receipt.attempt.source_correction) ? { companion_timeout_authority: receipt.attempt.companion_timeout_authority } : {}),
       ...(isCorrectedTimeout(receipt.attempt.source_correction) ? { timeout_authority: receipt.attempt.timeout_authority } : {}),
       ...(receipt.receipt_version === 5 ? { browser_replacement: receipt.attempt.browser_replacement, browser_authority: receipt.attempt.browser_authority } : {}),
       repair: receipt.attempt.recovery ? pick(receipt.attempt.recovery, ["cause", "observed_code", "remedy", "evidence_sha256", "scope"]) : null } : null,
@@ -57,7 +59,8 @@ export function inspectPrivateReviewExport(value) {
   let safe = true; try { assertPublicSafeReceipt(value); } catch { safe = false; }
   const observerValid = value.attempt?.source_correction?.schema === "augnes.local-canonical-source-correction.v3" || value.attempt?.observer_authority ? validObserverAttempt(value.attempt) && value.receipt_version === 4 : true;
   const timeoutValid = value.attempt?.source_correction?.schema === TIMEOUT_REPAIR_SCHEMA || value.attempt?.timeout_authority ? validTimeoutAttempt(value.attempt) && value.receipt_version === 4 : true;
-  const valid = timeoutValid && observerValid && safe && validInputFailureDiagnostics(value.inputs, { exported: true }) && (value?.schema === REVIEW_EXPORT_SCHEMA || value?.schema === "augnes.local-canonical-private-review.v2") && Object.keys(value).length === allowed.size && Object.keys(value).every(k => allowed.has(k)) &&
+  const companionValid = value.attempt?.source_correction?.schema === COMPANION_TIMEOUT_SCHEMA || value.attempt?.companion_timeout_authority ? validCompanionTimeoutAttempt(value.attempt) && value.receipt_version === 4 : true;
+  const valid = companionValid && timeoutValid && observerValid && safe && validInputFailureDiagnostics(value.inputs, { exported: true }) && (value?.schema === REVIEW_EXPORT_SCHEMA || value?.schema === "augnes.local-canonical-private-review.v2") && Object.keys(value).length === allowed.size && Object.keys(value).every(k => allowed.has(k)) &&
     ([3, 4].includes(value.receipt_version) ? value.schema === REVIEW_EXPORT_SCHEMA : value.receipt_version === 5 && value.schema === "augnes.local-canonical-private-review.v2" && value.browser_input?.contract === "augnes.local-canonical-browser-input.v1" && (value.attempt?.browser_replacement?.contract === "augnes.local-canonical-browser-replacement.v1" || (isStrictBrowserSourceRevision(value.attempt?.source_correction) && value.attempt.input_replacement_consumed === true && value.attempt.source_correction.browser_input_sha256 === digest(value.browser_input)))) && Array.isArray(value.phases) && value.phases.length > 0 &&
     value.receipt_schema === "augnes.local-canonical-receipt.v1" &&
     /^[0-9a-f]{64}$/u.test(value.original_receipt_fingerprint ?? "") &&
@@ -84,4 +87,20 @@ function timeoutProofExport(p) {
     final_delta: pick(p.final_delta, ["basis", "delta_sha256", "changed_paths"]),
     before: pick(p.before, ["sha256", "source_sha256"]), after: pick(p.after, ["sha256", "source_sha256"]),
     authorization: pick(p.authorization, ["grant_comment_id", "grant_sha256"]) };
+}
+
+function companionProofExport(p) {
+  const hash = ref => pick(ref, ["sha256"]);
+  return { ...pick(p, ["schema", "kind", "defect", "head", "tree", "base", "prior_family_id", "prior_number", "prior_attempt_id", "prior_receipt_fingerprint", "source_module", "delta_sha256", "pull_request", "budget", "limitations"]),
+    repair: { ...pick(p.repair, ["head", "tree", "delta_sha256"]), review: pick(p.repair?.review, ["id", "sha256"]),
+      accepted_review: pick(p.repair?.accepted_review, ["reviewed_at", "source_url", "block_id", "block_sha256"]) },
+    originals: Object.fromEntries(["receipt", "attempt", "completion", "unit_log"].map(k => [k, hash(p.originals?.[k])])),
+    retained_sources: pick(p.retained_sources, ["scripts/test-companion-ownership-retirement.mjs"]),
+    timeout: pick(p.timeout, ["phase", "label", "budget_ms", "historical_cause", "original_blocked_operation"]),
+    final_delta: pick(p.final_delta, ["basis", "delta_sha256", "changed_paths"]),
+    evidence: { fixture: hash(p.evidence?.fixture), launcher: hash(p.evidence?.launcher),
+      before: Object.fromEntries(["source", "log", "settlement"].map(k => [k, hash(p.evidence?.before?.[k])])),
+      after: Object.fromEntries(["source", "log", "settlement"].map(k => [k, hash(p.evidence?.after?.[k])])),
+      focused: Object.fromEntries(["log", "settlement"].map(k => [k, hash(p.evidence?.focused?.[k])])) },
+    authorization: pick(p.authorization, ["review_id", "review_sha256", "grant_comment_id", "grant_sha256"]) };
 }

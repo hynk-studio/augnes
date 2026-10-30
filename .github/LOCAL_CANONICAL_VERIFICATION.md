@@ -1041,6 +1041,78 @@ meaning; readers unaware of v4 gain no allowance. Raw historical records are
 never rewritten, phase stitching remains forbidden, and a passing development
 fixture or source hash alone is neither qualification nor independent approval.
 
+### Prospective Companion readiness timeout succession (source proof v5)
+
+`augnes.local-canonical-source-correction.v5` with kind
+`companion_readiness_timeout` is a distinct route for the independently accepted
+`owned_child_readiness_exit_without_setup_cleanup` fixture repair. It does not
+extend ordinary v1/v2, observer v3 or structural-schema v4 eligibility. Its
+finite source profile is the prior and accepted bytes of
+`scripts/test-companion-ownership-retirement.mjs` recorded by
+`local-canonical-companion-timeout-succession.mjs`. The nine original scenarios,
+three adverse cases, copied Companion owners, lifecycle owner, 60,000 ms child
+bound and natural-exit acceptance remain unchanged.
+
+The original must be the latest settled Full16 isolated-worktree predecessor:
+five PASS, the unit phase's natural exit 1, ten NOT_RUN, preserved input/safety
+flags, released leases and complete cleanup. The complete untruncated unit log
+must show exactly one nested timeout: the Companion child, after eight scenario
+action-PASS messages, with observed exit/closed streams and complete cleanup.
+The outer unit timeout remains false; the nested child timeout remains true.
+Unknown historical operation/cause and the original `product_failure` remain
+unchanged. Missing, ambiguous, additional failed workloads, unresolved
+input/safety faults, unknown cleanup and older/superseded predecessors refuse.
+
+This route expressly accepts the retained diagnostic records' actual limits.
+One bridge-readiness regression used identical fixture/launcher bytes and exact
+prior/corrected source snapshots: prior natural FAIL and corrected natural PASS,
+with complete cleanup; the final focused child covered nine original scenarios
+and three adverse cases. Those executions preceded the accepted repair commit,
+whose source bytes match the retained snapshot. Private HOME/temporary roots
+differed, and no original per-run environment fingerprint exists. A later
+environment observation is only that observation. These records are not
+post-commit Git-archive executions and do not satisfy the different v2/v4
+shared-environment witness contract. The initial manager supervisor-announcement
+boundary remains unproved. None of this identifies the historical timeout cause.
+
+A repository-relative proof binds original receipt/attempt/completion/full log,
+all retained raw diagnostic records and their limits, exact accepted repair,
+current base/final head/tree, and complete full-index native deltas and path
+inventories for predecessor-to-repair, predecessor-to-final and repair-to-final.
+The final delta is an implementation-owner binding, not independent policy
+review. Only the listed route policy/proof/attempt/executor/receipt/export and
+focused-test owners may change after the repair; other accepted task files and
+existing workload registrations remain byte-identical. Compatible accepted-main
+advancement is assessed before final binding, never treated as new review.
+
+The actual accepted-repair review and a distinct later prospective user grant
+must be authenticated through the existing bounded GitHub record/permission
+transport. Review and grant bind the repair, predecessor, defect, retained
+fixture/launcher hashes and evidence limitations. The grant expressly covers
+policy implementation, one complete planner-selected Full, separate stock and
+zero recovery/retry. IDs, author, destination, source/body hashes, timestamps and
+current admin/maintain authority are checked. A Page, conversation approval,
+local JSON/flag or implementation-owner comment must not be fabricated or
+relabeled as the required remote review/grant record. Missing authenticated
+records block admission, not authorized source implementation or focused tests.
+
+The existing exclusive `correction-successor.json` namespace consumes this
+entire grant once. An interrupted reservation remains consumed; duplicate,
+concurrent, copied-proof/grant, changed head/branch/worktree, accepted-main
+integration and successor-chain attempts cannot renew it. A failed successor is
+terminal. Inspection, stock and export do not create or repair reservations.
+
+After focused normal/adverse/legacy controls, the final clean published source
+uses normal fresh Mac admission (authenticated main, registered checkout,
+Canonical runtime, ownership/capacity, frozen inputs and Companion preservation)
+and the unchanged planner's complete selected Full, including every selected
+Browser owner. There is no policy-only Full or routine intermediate approval.
+A usable failed receipt still gets separate stock validation and cleanup. Stock
+freshly revalidates the evidence, authority and immutable latest lineage. The
+private export retains bounded hashes/identities and limitations, never raw logs.
+Independent audit of this implementation and returned evidence remains required;
+this route grants no Ready, merge, release, deployment or adoption authority.
+
 ### Browser input replacement (receipt version 5)
 
 `augnes.local-canonical-browser-replacement.v1` is a separate, narrowly

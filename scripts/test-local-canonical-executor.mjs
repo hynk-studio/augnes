@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { isObserverRepair } from "./local-canonical-observer-succession.mjs";
 import { isCorrectedTimeout } from "./local-canonical-timeout-succession.mjs";
+import { isCompanionTimeout, authorizeCompanionTimeout as authorizeCompanionTimeoutProof } from "./local-canonical-companion-timeout-succession.mjs";
 import { digest } from "./local-canonical-inputs.mjs";
 import { BROWSER_REPLACEMENT_PHASES } from "./local-canonical-browser-replacement.mjs";
 import { spawnSync } from "node:child_process";
@@ -885,7 +886,7 @@ const ownedBlockEnd = executorSource.indexOf("\n  const serviceLifecycleRestored
 assert.ok(ownedBlockStart > 0 && ownedBlockEnd > ownedBlockStart);
 const ownedBlock = executorSource.slice(ownedBlockStart, ownedBlockEnd);
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisition_failure", "owned_failure", "unsettled_failure", "success", "absent_success", "stopped_success", "quick_success", "isolated_success", "isolated_unsettled", "isolated_observation_invalid", "pre_lock_state_race", "maintenance_state_race", "observer_authority_refused", "observer_changed_after_authority", "timeout_authority_refused", "timeout_changed_after_authority", "timeout_partial_workload_refused"]) {
+for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisition_failure", "owned_failure", "unsettled_failure", "success", "absent_success", "stopped_success", "quick_success", "isolated_success", "isolated_unsettled", "isolated_observation_invalid", "pre_lock_state_race", "maintenance_state_race", "observer_authority_refused", "observer_changed_after_authority", "timeout_authority_refused", "timeout_changed_after_authority", "timeout_partial_workload_refused", "companion_authority_refused", "companion_missing_grant", "companion_changed_after_authority", "companion_partial_workload_refused"]) {
   const root = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-canonical-ownership-")));
   let competingOwner = null;
   let privateResource = null;
@@ -909,6 +910,8 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
     let authorityObserved = false, attemptClaims = 0;
     const observerRefusal = scenario.startsWith("observer_");
     const timeoutRefusal = scenario.startsWith("timeout_");
+    const companionRefusal = scenario.startsWith("companion_");
+    let companionTransportCalls = 0;
     let activeOwner = null;
     let maintenanceSettled = false;
     let serviceState = { status: scenario === "absent_success" ? "not_installed" : scenario === "stopped_success" ? "installed_stopped" : scenario === "pre_lock_state_race" ? "maintenance" : "live" };
@@ -926,13 +929,22 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
     const context = {
       checkoutContext: isolated ? "isolated-worktree" : "canonical", verificationContext: {}, signal: { aborted: false },
       controller: new AbortController(), recoveryProofPath: null, sourceCorrectionProofPath: null, baseSha: "0".repeat(40), headSha: "a".repeat(40), executorFingerprint: "b".repeat(64), identityBefore: { branch: "fixture" },
-      isObserverRepair, isCorrectedTimeout, digest, BROWSER_REPLACEMENT_PHASES,
-      browserInput: null, browserReplacement: null, strictProof: null, sourceCorrection: observerRefusal ? { schema: "augnes.local-canonical-source-correction.v3", kind: "observer_repair" } : timeoutRefusal ? { schema: "augnes.local-canonical-source-correction.v4", kind: "corrected_timeout" } : null,
+      isObserverRepair, isCorrectedTimeout, isCompanionTimeout, digest, BROWSER_REPLACEMENT_PHASES,
+      browserInput: null, browserReplacement: null, strictProof: null, sourceCorrection: observerRefusal ? { schema: "augnes.local-canonical-source-correction.v3", kind: "observer_repair" } : timeoutRefusal ? { schema: "augnes.local-canonical-source-correction.v4", kind: "corrected_timeout" } : companionRefusal ? { schema: "augnes.local-canonical-source-correction.v5", kind: "companion_readiness_timeout", pull_request: 999 } : null,
       authorizeObserverRepair: async () => { authorityObserved = true; if (scenario === "observer_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
       authorizeCorrectedTimeout: async () => { authorityObserved = true; if (scenario === "timeout_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
+      authorizeCompanionTimeout: async proof => {
+        authorityObserved = true;
+        if (scenario === "companion_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" });
+        if (scenario === "companion_missing_grant") {
+          const unexpected = async () => { companionTransportCalls++; throw new Error("missing grant must refuse before transport"); };
+          return authorizeCompanionTimeoutProof(proof, { transport: { review: unexpected, grant: unexpected, permission: unexpected } });
+        }
+        return {};
+      },
       selectedBrowserInput: () => null,
       prepareInvocationInputs: () => ({ snapshot: () => ({ resources: [], binding: { tree: "c".repeat(40) }, fingerprint: "d".repeat(64) }) }),
-      monitorInputContract: () => ({ check: () => ["observer_changed_after_authority", "timeout_changed_after_authority"].includes(scenario) && authorityObserved ? { disposition: "input_invalidation" } : null, stop() {}, fault: () => null }),
+      monitorInputContract: () => ({ check: () => ["observer_changed_after_authority", "timeout_changed_after_authority", "companion_changed_after_authority"].includes(scenario) && authorityObserved ? { disposition: "input_invalidation" } : null, stop() {}, fault: () => null }),
       beginAttempt: () => { attemptClaims++; return {}; }, pinVerificationEvidence() {}, assertFrozenSource() {},
       createIsolatedInvocationResources: id => (privateResource = createIsolatedInvocationResources(id)),
       cleanupIsolatedInvocationResources: (resource, options) => {
@@ -1042,11 +1054,17 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
         assert.equal(verifyReceiptIntegrity(preserved), true);
         assert.equal(assertCheckoutVerificationOwnership(competingOwner, root), true);
       }
-    } else if (observerRefusal || timeoutRefusal) {
+    } else if (observerRefusal || timeoutRefusal || companionRefusal) {
       assert(authorityObserved); assert.equal(attemptClaims, 0); assert.equal(calls.phases, 0);
       assert(result.executionFailure); assert.equal(result.cleanupComplete, false, "executor refusal keeps its conservative incomplete receipt flag");
       assert.equal(calls.release, 1); assert(!existsSync(next)); assert(!existsSync(windows));
       if (timeoutRefusal) assert.equal(result.cleanupReason, scenario === "timeout_authority_refused" ? "synthetic_authority_refusal" : scenario === "timeout_changed_after_authority" ? "input_admission_refused" : "timeout_workload_invalid");
+      if (companionRefusal) {
+        const expected = { companion_authority_refused: "synthetic_authority_refusal", companion_missing_grant: "companion_timeout_authority_missing",
+          companion_changed_after_authority: "input_admission_refused", companion_partial_workload_refused: "companion_timeout_workload_invalid" };
+        assert.equal(result.cleanupReason, expected[scenario]);
+        assert.equal(companionTransportCalls, 0);
+      }
     } else {
       assert.equal(calls.phases, 1); assert.equal(calls.release, quick || isolated || unsettled ? 0 : 1);
       if (isolated) assert.equal(privateResourceCleaned, !unsettled);
@@ -1084,6 +1102,45 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
     if (privateResource && !privateResourceCleaned) assert.equal(cleanupIsolatedInvocationResources(privateResource, { consumersSettled: true }).completed, true);
     rmSync(root, { recursive: true, force: true });
   }
+}
+
+// Exercise the actual stock authority block with a fresh evidence cache on
+// every case. Admission's in-process validation must never be assumed by stock.
+// No network, deciding attempt, reservation or live receipt is involved.
+const stockBlockStart = executorSource.indexOf("  let companionTimeoutAuthorization = null;", executorSource.indexOf("export async function validateReceiptAgainstCurrentRepository"));
+const stockBlockEnd = executorSource.indexOf("  let timeoutAuthorization = null;", stockBlockStart);
+assert(stockBlockStart > 0 && stockBlockEnd > stockBlockStart);
+const stockAuthorityBlock = executorSource.slice(stockBlockStart, stockBlockEnd);
+for (const scenario of ["valid", "evidence_missing", "proof_changed", "authority_missing", "legacy"]) {
+  const root = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-stock-authority-")));
+  const relative = ".augnes-local-verification/proofs/synthetic.json", file = path.join(root, relative);
+  const saved = { schema: "augnes.local-canonical-source-correction.v5", kind: "companion_readiness_timeout", local_relative_path: relative, head: "a".repeat(40) };
+  const receipt = { attempt: { source_correction: scenario === "legacy" ? { schema: "augnes.local-canonical-source-correction.v2", kind: "source_revision" } : saved } };
+  const capability = Object.freeze({ synthetic: true });
+  let evidenceValidated = false, reads = 0, authentications = 0;
+  try {
+    mkdirSync(path.dirname(file), { recursive: true });
+    if (scenario !== "evidence_missing") writeFileSync(file, JSON.stringify(scenario === "proof_changed" ? { ...saved, head: "b".repeat(40) } : saved));
+    const before = existsSync(file) ? readFileSync(file) : null;
+    const context = { receipt, path, repositoryRoot: root, digest, isCompanionTimeout,
+      readSourceCorrectionProof: (observed, repository) => {
+        reads++; assert.equal(repository, root); assert.equal(observed, file);
+        const proof = JSON.parse(readFileSync(observed, "utf8")); evidenceValidated = true; return proof;
+      },
+      authorizeCompanionTimeout: async proof => {
+        authentications++; assert(evidenceValidated, "fresh stock must validate evidence before authenticating authority");
+        assert.deepEqual(proof, saved);
+        if (scenario === "authority_missing") throw Object.assign(new Error("synthetic authority unavailable"), { code: "companion_timeout_authority_missing" });
+        return capability;
+      },
+    };
+    const actual = await new AsyncFunction(...Object.keys(context), stockAuthorityBlock + "\nreturn companionTimeoutAuthorization;")(...Object.values(context));
+    assert.equal(actual, scenario === "valid" ? capability : null);
+    assert.equal(reads, scenario === "legacy" ? 0 : 1);
+    assert.equal(authentications, ["valid", "authority_missing"].includes(scenario) ? 1 : 0);
+    assert.deepEqual(readdirSync(path.dirname(file)), before === null ? [] : ["synthetic.json"], "stock cannot publish a reservation");
+    assert.deepEqual(existsSync(file) ? readFileSync(file) : null, before, "stock keeps source evidence unchanged");
+  } finally { rmSync(root, { recursive: true, force: true }); }
 }
 
 const retentionRoot = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-log-retention-")));

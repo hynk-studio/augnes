@@ -81,7 +81,7 @@ async function child(args, options = {}) {
   inFlight = true; lastChildDiagnostic = "";
   const result = await runCanonicalChild({ suite: "review-corrections", label: "disposable control", command: process.execPath, args,
     cwd: root, env, timeoutMs: 6000, ...runnerOptions,
-    stdout: { write(chunk) { progress.write(chunk); output.write(chunk); } }, stderr: quiet, log() {} });
+    stdout: { write(chunk) { progress.write(chunk); output.write(chunk); } }, stderr: runnerOptions.stderr ?? quiet, log() {} });
   inFlight = !settled(result);
   const diagnostic = { controlId, expectedCancellation, progress: progress.snapshot() };
   lastChildDiagnostic = JSON.stringify(projectReviewChildResult(result, diagnostic));
@@ -91,7 +91,13 @@ async function child(args, options = {}) {
   return result;
 }
 try {
-  if (process.argv[2] === "--corrected-timeout-controls") {
+  if (process.argv[2] === "--companion-timeout-controls") {
+  for (const group of ["evidence", "witnesses", "source", "originals", "admission", "race", "stock"]) {
+    const result = await child([path.join(repository, "scripts/fixtures/local-canonical-companion-timeout-succession.mjs"), "--run-companion-timeout-fixtures", group], { controlId: `companion-timeout-${group}`, timeoutMs: 6000, stdout: process.stdout, stderr: process.stderr });
+    assert.equal(result.exit_code, 0, lastChildDiagnostic);
+  }
+  findings.push("Companion readiness timeout: retained evidence limits, exact repair, distinct authenticated grant, terminal reservation and read-only stock");
+  } else if (process.argv[2] === "--corrected-timeout-controls") {
   for (const group of ["evidence", "witnesses", "source", "originals", "admission", "race", "stock"]) {
     const timeout = await child([path.join(repository, "scripts/fixtures/local-canonical-timeout-succession.mjs"), "--run-timeout-fixtures", group], { controlId: `timeout-succession-${group}`, timeoutMs: 6000 });
     assert.equal(timeout.exit_code, 0, lastChildDiagnostic);
