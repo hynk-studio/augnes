@@ -1,7 +1,9 @@
 #!/usr/bin/env node
+import { isGuideCorrection, authorizeGuideCorrection } from "./local-canonical-guide-correction.mjs";
 
 import { isObserverRepair, authorizeObserverRepair } from "./local-canonical-observer-succession.mjs";
 import { isCorrectedTimeout, authorizeCorrectedTimeout } from "./local-canonical-timeout-succession.mjs";
+import { isConditionRequalification, authorizeConditionRequalification } from "./local-canonical-condition-requalification.mjs";
 
 import { createHash, randomBytes } from "node:crypto";
 import {
@@ -129,6 +131,8 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/local-canonical-attempts.mjs",
   "scripts/local-canonical-observer-succession.mjs",
   "scripts/local-canonical-timeout-succession.mjs",
+  "scripts/local-canonical-condition-requalification.mjs",
+  "scripts/local-canonical-guide-correction.mjs",
   "scripts/local-canonical-evidence-retention.mjs",
   "scripts/local-canonical-review-export.mjs",
   "scripts/export-local-canonical-review.mjs",
@@ -136,6 +140,7 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/browser-validate-project-experience-v1.mjs",
   "scripts/browser-validate-continuity-v1.mjs",
   "scripts/operator-execution-browser-lifecycle-v1.mjs",
+  "scripts/operator-project-home-readiness-observation-v1.mjs",
   "scripts/test-durable-work-surfaces.ts",
   "scripts/test-durable-work-resumption.ts",
   "scripts/test-cumulative-work-history.ts",
@@ -505,6 +510,10 @@ export async function executeLocalCanonicalVerification({
     throw Object.assign(new Error("observer_full_route_required"), { code: "observer_full_route_required" });
   if (isCorrectedTimeout(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
     throw Object.assign(new Error("timeout_full_route_required"), { code: "timeout_full_route_required" });
+  if (isConditionRequalification(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
+    throw Object.assign(new Error("condition_full_route_required"), { code: "condition_full_route_required" });
+  if (isGuideCorrection(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
+    throw Object.assign(new Error("guide_full_route_required"), { code: "guide_full_route_required" });
   const strictProof = browserReplacement ?? (isStrictBrowserSourceRevision(sourceCorrection) ? sourceCorrection : null);
   const browserInput = strictProof ? readBrowserInputBinding(strictProof.browser_input_path, repositoryRoot) : selectedBrowserInput({ repositoryRoot });
   if ((browserInput && !strictProof) || (strictProof && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath)) || (browserReplacement && sourceCorrection)) throw Object.assign(new Error("browser_replacement_route_required"), { code: "browser_replacement_route_required" });
@@ -743,13 +752,19 @@ export async function executeLocalCanonicalVerification({
             const timeoutAuthorization = isCorrectedTimeout(sourceCorrection) ? await authorizeCorrectedTimeout(sourceCorrection) : null;
             if (timeoutAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
             if (timeoutAuthorization && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("timeout_workload_invalid"), { code: "timeout_workload_invalid" });
+            const conditionAuthorization = isConditionRequalification(sourceCorrection) ? await authorizeConditionRequalification(sourceCorrection) : null;
+            if (conditionAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
+            if (conditionAuthorization && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("condition_workload_invalid"), { code: "condition_workload_invalid" });
+            const guideAuthorization = isGuideCorrection(sourceCorrection) ? await authorizeGuideCorrection(sourceCorrection) : null;
+            if (guideAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
+            if (guideAuthorization && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("guide_workload_invalid"), { code: "guide_workload_invalid" });
             const browserAuthorization = strictProof ? await authorizeBrowserReplacement(strictProof) : null;
             if (strictProof && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("browser_replacement_workload_invalid"), { code: "browser_replacement_workload_invalid" });
             attempt = beginAttempt({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, checkoutOwner,
               branch: identityBefore.branch, head: headSha, tree: inputs.snapshot().binding.tree, runId,
               contractFingerprint: inputs.snapshot().fingerprint, acceptedMain: baseSha,
               recoveryProof: recoveryProofPath ? readRecoveryProof(resolveArtifactPath(recoveryProofPath)) : null,
-              sourceCorrection, observerAuthorization, timeoutAuthorization,
+              sourceCorrection, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization,
               browserReplacement, browserAuthorization,
               browserLive: browserInput ? browserReplacementLiveBinding({ browserInput, host, machineFingerprint, nodePolicy, executorFingerprint, phaseDefinitions, inputs: inputs.snapshot() }) : null });
             pinVerificationEvidence({ root: repositoryRoot, checkoutOwner, runId, reason: "attempt_family" });
@@ -1404,9 +1419,17 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
   if (isCorrectedTimeout(receipt.attempt?.source_correction)) {
     try { timeoutAuthorization = await authorizeCorrectedTimeout(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
   }
+  let conditionAuthorization = null;
+  if (isConditionRequalification(receipt.attempt?.source_correction)) {
+    try { conditionAuthorization = await authorizeConditionRequalification(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
+  }
+  let guideAuthorization = null;
+  if (isGuideCorrection(receipt.attempt?.source_correction)) {
+    try { guideAuthorization = await authorizeGuideCorrection(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
+  }
   return inspectReceiptForDecision(receipt, {
     currentInputStateValid: [4, 5].includes(receipt.receipt_version) ? currentInputEvidenceValid(receipt, verificationContext, validationHost.browserExecutablePath, browserInput) : null,
-    currentAttemptRecordsValid: [4, 5].includes(receipt.receipt_version) ? inspectAttemptRecords({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, receipt, browserAuthorization, browserLive, observerAuthorization, timeoutAuthorization }) : null,
+    currentAttemptRecordsValid: [4, 5].includes(receipt.receipt_version) ? inspectAttemptRecords({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, receipt, browserAuthorization, browserLive, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization }) : null,
     currentBrowserInputValid: browserInput ? digest(browserInput.publicBinding) === digest(receipt.browser_input) && !existsSync(path.join(repositoryRoot, ".augnes-local-verification/browser-input-active.json")) : null,
     currentVerificationContext: verificationContext,
     expectedRunId: path.basename(receiptPath, ".json"),

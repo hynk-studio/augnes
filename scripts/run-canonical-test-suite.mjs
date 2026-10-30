@@ -1462,6 +1462,27 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "local-canonical-condition-requalification",
+      label: "prospectively authorized condition requalification and single-use evidence",
+      ...rootNode("scripts/test-local-canonical-review-corrections.mjs", "--condition-requalification-controls"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "local-canonical-guide-correction",
+      label: "reviewed GuideBrief correction after terminal condition qualification",
+      ...rootNode("scripts/test-local-canonical-review-corrections.mjs", "--guide-correction-controls"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
+      id: "operator-project-home-readiness-observation",
+      label: "bounded Project Home observations preserve the original condition result",
+      ...rootNode("scripts/test-operator-project-home-readiness-observation-v1.mjs"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "local-canonical-browser-input",
       label: "strict Browser bundle selection, observation and nested input refusal",
       ...rootNode("scripts/test-local-canonical-browser-input.mjs"),

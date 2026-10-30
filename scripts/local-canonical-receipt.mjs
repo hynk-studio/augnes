@@ -1,5 +1,7 @@
+import { GUIDE_CORRECTION_SCHEMA, isGuideCorrection, validGuideCorrectionAttempt } from "./local-canonical-guide-correction.mjs";
 import { isObserverRepair, validObserverAttempt } from "./local-canonical-observer-succession.mjs";
 import { TIMEOUT_REPAIR_SCHEMA, isCorrectedTimeout, validTimeoutAttempt } from "./local-canonical-timeout-succession.mjs";
+import { CONDITION_REQUALIFICATION_SCHEMA, isConditionRequalification, validConditionRequalificationAttempt } from "./local-canonical-condition-requalification.mjs";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { CANONICAL_REPOSITORY_ID } from "./canonical-repository-identity.mjs";
@@ -689,10 +691,21 @@ function inspectClassifiedEvidence(receipt, issues) {
         receipt.verification_context.kind !== "isolated-worktree" || attempt.source_correction.base !== receipt.repository.base_sha ||
         digest(receipt.phases.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) issues.push("receipt_timeout_succession_invalid");
   }
+  if (attempt?.source_correction?.schema === CONDITION_REQUALIFICATION_SCHEMA || attempt?.source_correction?.kind === "condition_requalification" || attempt?.condition_authority || attempt?.condition_requalification_consumed) {
+    if (receipt.receipt_version !== 4 || !validConditionRequalificationAttempt(attempt) || receipt.evidence.mode !== "full" ||
+        receipt.verification_context.kind !== "isolated-worktree" || attempt.source_correction.base !== receipt.repository.base_sha ||
+        digest(receipt.phases.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) issues.push("receipt_condition_requalification_invalid");
+  }
+
+  if (attempt?.source_correction?.schema === GUIDE_CORRECTION_SCHEMA || attempt?.source_correction?.kind === "guide_cancellation_correction" || attempt?.guide_authority || attempt?.guide_correction_consumed) {
+    if (receipt.receipt_version !== 4 || !validGuideCorrectionAttempt(attempt) || receipt.evidence.mode !== "full" ||
+        receipt.verification_context.kind !== "isolated-worktree" || attempt.source_correction.base !== receipt.repository.base_sha ||
+        digest(receipt.phases.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) issues.push("receipt_guide_correction_invalid");
+  }
 
   if (receipt.evidence.mode !== "quick" && (attempt?.contract !== ATTEMPT_CONTRACT || ![1, 2].includes(attempt.number) ||
       attempt.attempt_id !== receipt.run.id || attempt.head !== receipt.repository.head_sha || attempt.tree !== receipt.repository.tree_sha ||
-      attempt.contract_fingerprint !== input.fingerprint || attempt.budget?.initial !== 1 || attempt.budget?.recovery !== (receipt.receipt_version === 5 || isObserverRepair(attempt.source_correction) || isCorrectedTimeout(attempt.source_correction) ? 0 : 1) ||
+      attempt.contract_fingerprint !== input.fingerprint || attempt.budget?.initial !== 1 || attempt.budget?.recovery !== (receipt.receipt_version === 5 || isObserverRepair(attempt.source_correction) || isCorrectedTimeout(attempt.source_correction) || isConditionRequalification(attempt.source_correction) || isGuideCorrection(attempt.source_correction) ? 0 : 1) ||
       (attempt.number === 1 && (attempt.prior_attempt_id !== null || attempt.recovery !== null)) ||
       (attempt.number === 2 && (!SHA256_PATTERN.test(attempt.prior_receipt_fingerprint ?? "") || !attempt.recovery)))) issues.push("receipt_attempt_lineage_invalid");
   const expectedBrowser = input.resources.find(r => r.id === "browser-executable");

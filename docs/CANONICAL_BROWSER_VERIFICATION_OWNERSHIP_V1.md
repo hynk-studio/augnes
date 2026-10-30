@@ -22,16 +22,39 @@ child copies them into its own writable database and reads them through the
 production application. It does not borrow a live operator or continuity
 runtime.
 
-The locked-entry GuideBrief request guard admits one observed cancellation
-shape: the initial effect's cleanup aborts its exact request, then effect replay
+The GuideBrief request guard admits an observed initial-effect cancellation:
+the initial effect's cleanup aborts its exact request, then effect replay
 in the same consumer, document, frame, project context and protocol connection
 starts a distinct replacement. Private request/controller/signal bindings must
 prove the first read returned aborted without a response or application, and
 the replacement completed, parsed successfully and committed to the current
 consumer. Missing, copied, altered, ambiguous or lossy evidence refuses; so do
 independent network failures, unconsumed replacements and stale writes.
-Ordinary unmounts, explicit refresh and other cancellation shapes gain no new
-exception. Public diagnostic snapshots are not verdict inputs.
+It also recognizes one bounded extension of that prefix: A is the cleanup-aborted
+initial read, B is the effect-2 initial replacement, and one explicit refresh C
+supersedes B before B receives a response. The actual hook exposes `refresh` as
+the same read function; its callers can refresh guidance while the initial read
+is pending. B need not first adopt obsolete guidance. This is not permission to
+ignore either cancellation: both original failure entries must independently
+bind to the private protocol and lifecycle owners, with the same consumer,
+document, project context and distinct request/controller identities. A retains
+its cleanup and repeated-abort evidence; B requires the exact refresh target,
+supersede/abort/signal/return ordering and aborted settlement. Neither canceled
+read may receive a body or apply a result. C must complete response/body/parse
+and commit to the current matching controller/context after both cancellations
+settle. A fourth pre-commit read, intermediate adoption, context change or
+missing/duplicate evidence refuses. This is a fixed three-read prefix, not an
+arbitrary chain or a search for the last successful request. Later refreshes
+after that proven commit remain separate reads.
+
+Ordinary unmounts, standalone explicit-refresh cancellations and other shapes
+gain no exception. `explicit_refresh` identifies a call outside the initial
+effect; it does not identify its caller or prove a historical user action.
+Public diagnostic snapshots are not verdict inputs. Offline controls execute
+the actual hook, observer, collector and verdict with controlled promise and
+protocol delivery; they do not reconstruct unavailable historical private pins
+or qualify a Browser phase. This change grants no deciding execution allowance
+and does not change Local Canonical admission or terminal lineage.
 
 This observation is installed only by the disposable development Browser.
 It preserves request arguments, the original fetch Promise, cancellation and
