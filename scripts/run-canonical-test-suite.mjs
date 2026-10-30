@@ -1092,6 +1092,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "companion-result-successor",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
+      label: "native settled-result preparation, atomic successor save and fresh checked consumer",
+      ...rootNode("scripts/test-companion-result-successor.ts"),
+      timeoutMs: 60_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "companion-method-outlook",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning", "mutable-module-state"],

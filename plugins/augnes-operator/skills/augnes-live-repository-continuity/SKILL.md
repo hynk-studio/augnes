@@ -110,6 +110,29 @@ retrying through a shell wrapper or another tool.
   `provenance` and `label` fields. Inspect both definitions and source changes.
   Nothing carries by omission; `prior_work_marked_complete: false` remains.
   This is not succession from executed work or permission to reactivate history.
+- **Follow-up from a settled local result:** Resume, then call
+  `augnes_read_repository_result_work` with `repositoryRoot` and the returned
+  `continuity.snapshot.binding` as `expectedSnapshotBinding`. Carry `preparation_binding` as
+  `preparationBinding`; the server resolves the exact result and predecessor.
+  Keep these three inputs unchanged through compare, preview and save.
+  Explicitly supply `sources.keep`, attributed `sources.add`,
+  `sources.include_result`, `sources.include_reviewed_outcome`, and
+  `sources.omitted_sources` reasons for every omitted predecessor note.
+  Call `augnes_compare_repository_result_work_sources`, then
+  `augnes_preview_repository_result_work` with its
+  `expected_source_comparison` as `expectedSourceComparison`, identical sources
+  and complete `definition` (`goal`, `success_criteria`, `non_goals`). Inspect
+  the definition, selected material, omissions and remaining obligations.
+  Explicitly save with `augnes_prepare_repository_result_work`, the same inputs
+  and returned `preview_binding` as `previewBinding`. Resume again and read
+  sources with `includeWorkDefinition: true` before using the saved work.
+  Completed/settled execution and successful verification remain distinct.
+  Preserve failed checks, corrections and unresolved obligations. Result reports
+  are attributed input, not independently verified truth. Read/compare/preview
+  write nothing; save starts no execution and accepts no semantic judgment.
+  Reconcile a lost save response through Resume/readback, never automatic retry
+  or an invented exact-replay acknowledgement. Stale bindings refuse; concurrent
+  saves can have uncertain delivery and require the same readback.
 
 Keep each complete attributed selected note within **2,000 Unicode code points**
 (not UTF-16 code units). Select at most **eight notes**; the native packaged

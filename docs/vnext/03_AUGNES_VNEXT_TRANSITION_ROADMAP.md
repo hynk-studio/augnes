@@ -686,6 +686,20 @@ return to their applicable decision owner unless the existing delegation already
 covers the action. Missing information requires a question only when it materially
 changes that decision; ordinary implementation choices stay with the executor.
 
+The current [#1561](https://github.com/hynk-studio/augnes/issues/1561) increment
+connects native Companion result reading, explicit source comparison, full-packet
+preview and successor preparation to the existing canonical result-successor
+writer. Repository and snapshot bindings resolve the eligible local predecessor
+without manual receipt or packet reconstruction. Browser authentication remains
+separate. Normal Companion Resume also reads durable review continuity through
+its existing local-review profile without granting execution or review authority.
+The disposable transport fixture creates a completed, settled execution with a
+failed check, retains a non-execution obligation, records a source omission and
+changed requirement, and checks a fresh stdio consumer's actual local artifact.
+This is scripted mechanism evidence; general L1 completion, model understanding,
+comparative usefulness and installed adoption remain separate. The issue and
+Draft PR retain qualification and independent-audit status.
+
 Prioritize the following connected outcomes when selecting additional work.
 These are not four mandatory projects or global gates: combine the responsibilities
 needed for one actual delivery, including implementation, use, necessary follow-up,
