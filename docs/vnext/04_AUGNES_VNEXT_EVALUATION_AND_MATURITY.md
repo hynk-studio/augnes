@@ -833,6 +833,26 @@ equal relevant material/resources, unsuccessful attempts and total burden. Searc
 feedback and best-run/judge selection are not deciding later-task evidence. No
 MASS-informed comparison or workflow-search campaign is launched by this PR.
 
+For the [arrangement-reconsideration guidance](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#current-first-execution-choice-and-participation-loop-1443),
+select only questions relevant to the claimed improvement. Did task dependencies,
+conditional competence and availability support coordinator/contributor selection,
+or did directory/presentation order fix it without a useful basis? When order
+sensitivity matters to the decision, a small presentation-order contrast can
+retain comparable terms and resources. For a relevant handoff, reconcile reported
+delivery with the recipient's actual receipt and checked use through existing
+checks. Inspect whether a retained warning or lesson informed the next relevant
+action and remained applicable, rather than crediting its storage alone.
+
+Connect the observed signal, retained or changed arrangement, and subsequent
+checked output with relevant waiting, coordination, integration, switching and
+human-repair burden. Useful retention, direct work and selective cooperation are
+valid outcomes; unnecessary reorganization can add cost. Preserve the original
+judgment and unfinished responsibilities when conditions change. Apply the strong
+references above and the [layer diagnosis](#diagnose-the-layer-before-adding-structure)
+when the effect or cause is unclear. These are selective behavioral questions,
+not a mandatory comparison matrix, added acceptance gate, repetition of accepted
+exercises or new live-study allocation.
+
 For #1532, `scripts/test-profile-task-continuation.ts` adds an exposed controlled
 different-task outcome to the profile/manual-contribution path. The origin has
 already saved its checked partial use and feedback before transfer. Six exact
