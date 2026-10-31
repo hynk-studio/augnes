@@ -1557,3 +1557,83 @@ The spent v7 authorization remains spent regardless of that later judgment.
 Issue #1559 stays open and PR #1560 stays Draft with auto-merge disabled. Neither
 this route, a passing result, nor the later merge decision performs or authorizes
 an actual merge, Ready transition, release, deployment or installed adoption.
+
+### One evidenced operational-validation correction in the same closeout
+
+The initial closeout at `ac8d6f04eb272c3d2222f30dda26cec6d540d0a2`
+settled as `product_failure`: Full 5 PASS / 1 FAIL / 10 NOT_RUN and separate
+nondeciding stock with 15 issues. Its unit child, source-linked operational
+continuation, reached the unchanged 45-second bound and settled with SIGTERM
+at 45,107ms. The outer unit naturally exited 1 with `timed_out=false`.
+Cleanup completed. The original blocked operation and timeout cause remain
+UNKNOWN; another passing execution does not identify them.
+
+The same authenticated comment `6537722343` explicitly commissions relevant
+corrections and their focused verification before a further normal run. Its
+original `2026-10-31T02:21:00Z` timestamp predates this failure and is retained.
+It is continuing scope, not a later grant, an independent review of this new
+source, renewal of the earlier v7 authorization, or an unchanged retry.
+
+The existing closeout owner contains one finite additional profile:
+`augnes.local-canonical-closeout-continuation.v1`, kind
+`issue_1559_operational_validation_correction`. Its predecessor is only family
+`cf31595ef308fe280f426ffc3a30321444ecc1459fae8b845c6c6937bedcc372`,
+attempt `2026-10-31T03-27-52-978Z-full-ac8d6f04eb27-e3404ce46f8977b0`,
+receipt `64d0e0855d829e32ab930d930a95e9f584102f4332d97888086f1675f3161cae`,
+completed at `2026-10-31T03:31:49.212Z`. The exact receipt, attempt, completion,
+incoming edge, unit log and separate stock remain hash-bound originals. The
+initial closeout proof and all its older adjacent artifacts are revalidated
+without changing their content or initial-profile meaning.
+
+The demonstrated mechanism is repeated pure proposal validation within one
+synchronous history read. A prior information-seeking diagnostic naturally
+passed in 37.580 seconds. The corrected observation naturally passed in
+19.528 seconds: proposal validations fell from 6,177 to 1,819 while exact
+Decision/proposal relation checks remained 4,989. The observed history reads
+and private snapshot factories were both 34; provenance and writer counts,
+full workload assertions and cleanup remain retained. The two instrumenters
+differ because the shared relation evaluator moved; their distinct bytes and
+the common preload are bound, and reversing recorded insertions recovers
+the exact uninstrumented source. Inclusive timing measurements overlap and
+must not be summed. These single-host development observations establish the
+bounded cost correction, not the historical timeout cause or a reliability
+probability. Both observed samples passed; no prior failure is fabricated.
+
+Only the exact corrected hashes of `lib/vnext/review-decision.ts`,
+`lib/vnext/runtime/operator-pilot-review-material.ts`, and
+`scripts/vnext-protocol-conformance/review-decision.ts` are eligible. The
+prepared proposal belongs to one private immutable snapshot; every Decision,
+relation and live provenance read remains validated. The complete operational
+continuation child, suite/planner registrations, deadlines, lifecycle owners
+and all other nonpolicy source stay exact. Necessary changes to the existing
+named closeout policy/consumer/control owners are inventoried separately.
+Accepted source paths that disappear through deletion or reversion, newly
+introduced symlinks/gitlinks, and incompatible current-main overlap refuse.
+
+The fixed retained focused evidence comprises the corrected observed and plain
+whole child under 45 seconds, complete protocol conformance with 74 prepared
+relation differential/adverse cases under its existing 300-second bound,
+fresh-session semantic application under 30 seconds, and typecheck under
+300 seconds. All naturally passed and fully cleaned up. Each actual source
+snapshot and command remains bound; these were development overlays on ac8,
+not invented post-commit executions of the future final policy source.
+
+Normal fresh main, checkout, capacity, input, runtime and Companion checks still
+apply. The sole new exclusive edge is from that settled initial closeout to
+this exact evidenced correction. The initial and v7 consumed flags remain
+consumed; an interrupted reservation, copied proof/comment, different branch
+or worktree, cosmetic head, or another successor cannot renew this candidate.
+Its attempt retains `{initial: 1, recovery: 0}`; no allowance or record in an
+older family is reset. There is no generic UNKNOWN-timeout admission, generic
+continuation loop, new infrastructure classification, or exception for a
+future correction. A further unsupported case still requires its own concrete
+evidence and applicable normal authority within the user's continuing scope.
+
+Proof inspection and stock remain read-only. Fresh authentication re-reads
+the unchanged scope comment, current permission and exact published Draft
+head/base, with auto-merge disabled. The final source, this policy addition
+and actual results await the commissioned independent final audit. All
+16 phases and seven Browser owners still decide complete qualification;
+separate fresh stock must inspect the actual resulting receipt, including
+a failure. Merge, Ready, auto-merge, release, deployment and installed adoption
+remain unauthorized.

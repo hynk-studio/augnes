@@ -485,6 +485,36 @@ export function validateReviewDecisionAgainstEpisodeDeltaProposalV01(
   decisionInput: unknown,
   proposalInput: unknown,
 ): ReviewDecisionValidationResultV01 {
+  return validateReviewDecisionProposalRelationV01(
+    decisionInput,
+    proposalInput,
+    () => validateEpisodeDeltaProposalV01(proposalInput),
+  );
+}
+
+/**
+ * Reuse only pure proposal validation for one caller-owned synchronous batch.
+ * The private snapshot cannot change with the caller's source object. Each
+ * invocation still validates the complete Decision and its exact relation;
+ * this carries no persistence, session, provenance or execution authority.
+ */
+export function createReviewDecisionProposalRelationValidatorV01(
+  proposalInput: unknown,
+): (decisionInput: unknown) => ReviewDecisionValidationResultV01 {
+  const proposal = structuredClone(proposalInput);
+  let validation: ReturnType<typeof validateEpisodeDeltaProposalV01> | undefined;
+  return (decisionInput) => validateReviewDecisionProposalRelationV01(
+    decisionInput,
+    proposal,
+    () => validation ??= validateEpisodeDeltaProposalV01(proposal),
+  );
+}
+
+function validateReviewDecisionProposalRelationV01(
+  decisionInput: unknown,
+  proposalInput: unknown,
+  validateProposal: () => ReturnType<typeof validateEpisodeDeltaProposalV01>,
+): ReviewDecisionValidationResultV01 {
   const decisionValidation = validateReviewDecisionV01(decisionInput);
   const accumulator: ValidationAccumulator = {
     errors: [...decisionValidation.errors],
@@ -494,7 +524,7 @@ export function validateReviewDecisionAgainstEpisodeDeltaProposalV01(
   if (!isProtocolRecordV01(decisionInput)) {
     return buildValidationResult(accumulator, null);
   }
-  const proposalValidation = validateEpisodeDeltaProposalV01(proposalInput);
+  const proposalValidation = validateProposal();
   if (proposalValidation.status !== "valid") {
     addError(
       accumulator,

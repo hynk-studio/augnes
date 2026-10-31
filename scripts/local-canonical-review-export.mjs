@@ -1,4 +1,4 @@
-import { CLOSEOUT_SCHEMA, isCloseout, validCloseoutAttempt } from "./local-canonical-1559-closeout.mjs";
+import { isAnyCloseout, isCloseoutContinuation, hasCloseoutMarker, validCloseoutAttempt } from "./local-canonical-1559-closeout.mjs";
 import { COMPANION_TIMEOUT_SCHEMA, isCompanionTimeout, validCompanionTimeoutAttempt } from "./local-canonical-companion-timeout-succession.mjs";
 import { GUIDE_CORRECTION_SCHEMA, isGuideCorrection, validGuideCorrectionAttempt } from "./local-canonical-guide-correction.mjs";
 import { isObserverRepair, validObserverAttempt } from "./local-canonical-observer-succession.mjs";
@@ -11,7 +11,6 @@ import { isStrictBrowserSourceRevision } from "./local-canonical-browser-replace
 
 export const REVIEW_EXPORT_SCHEMA = "augnes.local-canonical-private-review.v1";
 const pick = (value, names) => Object.fromEntries(names.filter(name => value?.[name] !== undefined).map(name => [name, value[name]]));
-const hasCloseoutMarker = attempt => attempt?.source_correction?.schema === CLOSEOUT_SCHEMA || attempt?.source_correction?.kind === "issue_1559_closeout" || attempt?.closeout_authority || attempt?.closeout_consumed;
 export function createPrivateReviewExport(receipt) {
   if (![3, 4, 5].includes(receipt?.receipt_version)) throw new Error("review_export_version_unsupported");
   const integrity = verifyReceiptIntegrity(receipt);
@@ -36,8 +35,8 @@ export function createPrivateReviewExport(receipt) {
       first_fault: receipt.inputs.first_fault, limitations: receipt.inputs.limitations } : null,
     ...(receipt.receipt_version === 5 ? { browser_input: receipt.browser_input, browser_guard: receipt.browser_guard } : {}),
     attempt: receipt.attempt ? { ...pick(receipt.attempt, ["contract", "family_id", "attempt_id", "number", "head", "tree", "contract_fingerprint", "prior_attempt_id", "prior_receipt_fingerprint", "budget", "input_replacement_consumed"]),
-      source_correction: isCloseout(receipt.attempt.source_correction) ? closeoutProofExport(receipt.attempt.source_correction) : isCompanionTimeout(receipt.attempt.source_correction) ? companionProofExport(receipt.attempt.source_correction) : isGuideCorrection(receipt.attempt.source_correction) ? guideProofExport(receipt.attempt.source_correction) : isConditionRequalification(receipt.attempt.source_correction) ? conditionProofExport(receipt.attempt.source_correction) : isCorrectedTimeout(receipt.attempt.source_correction) ? timeoutProofExport(receipt.attempt.source_correction) : isObserverRepair(receipt.attempt.source_correction) ? observerProofExport(receipt.attempt.source_correction) : receipt.attempt.source_correction ? pick(receipt.attempt.source_correction, ["schema", "kind", "defect", "prior_family_id", "prior_attempt_id", "prior_receipt_fingerprint", "head", "tree", "source_module", "fixture_sha256", "accepted_main", "review", "browser_input_path", "browser_input_sha256", "input_replacement_consumed", "authorization"]) : null,
-      ...(isCloseout(receipt.attempt.source_correction) ? { branch: receipt.attempt.branch,
+      source_correction: isAnyCloseout(receipt.attempt.source_correction) ? closeoutProofExport(receipt.attempt.source_correction) : isCompanionTimeout(receipt.attempt.source_correction) ? companionProofExport(receipt.attempt.source_correction) : isGuideCorrection(receipt.attempt.source_correction) ? guideProofExport(receipt.attempt.source_correction) : isConditionRequalification(receipt.attempt.source_correction) ? conditionProofExport(receipt.attempt.source_correction) : isCorrectedTimeout(receipt.attempt.source_correction) ? timeoutProofExport(receipt.attempt.source_correction) : isObserverRepair(receipt.attempt.source_correction) ? observerProofExport(receipt.attempt.source_correction) : receipt.attempt.source_correction ? pick(receipt.attempt.source_correction, ["schema", "kind", "defect", "prior_family_id", "prior_attempt_id", "prior_receipt_fingerprint", "head", "tree", "source_module", "fixture_sha256", "accepted_main", "review", "browser_input_path", "browser_input_sha256", "input_replacement_consumed", "authorization"]) : null,
+      ...(isAnyCloseout(receipt.attempt.source_correction) ? { branch: receipt.attempt.branch,
         closeout_authority: { closeout_scope: pick(receipt.attempt.closeout_authority?.closeout_scope, ["id", "author", "author_id", "body_sha256", "timestamp", "role", "commit_id"]) } } : {}),
       ...(isGuideCorrection(receipt.attempt.source_correction) ? { branch: receipt.attempt.branch, guide_authority: receipt.attempt.guide_authority } : {}),
       ...(isObserverRepair(receipt.attempt.source_correction) ? { observer_authority: receipt.attempt.observer_authority } : {}),
@@ -149,6 +148,19 @@ function closeoutProofExport(p) {
   const hash = ref => pick(ref, ["sha256"]);
   const state = value => pick(value, ["present", "mode", "type", "object", "sha256"]);
   const scope = p.source_scope;
+  if (isCloseoutContinuation(p)) return {
+    ...pick(p, ["schema", "kind", "pull_request", "branch", "base", "head", "tree", "prior_family_id", "prior_number", "prior_attempt_id", "prior_receipt_fingerprint", "budget"]),
+    originals: Object.fromEntries(["receipt", "attempt", "completion", "edge", "unit_log", "stock", "stock_log"].map(k => [k, hash(p.originals?.[k])])),
+    initial_proof: hash(p.initial_proof),
+    correction: { source_hashes: p.correction?.source_hashes,
+      evidence: Object.fromEntries(Object.entries(p.correction?.evidence ?? {}).map(([key, ref]) => [key, hash(ref)])) },
+    source_scope: scope ? { ...pick(scope, ["schema", "basis", "accepted_base", "accepted_head", "current_main", "accepted_task_paths", "candidate_delta_paths", "policy_delta_paths"]),
+      accepted_task: scope.accepted_task?.map(row => ({ path: row.path, accepted: state(row.accepted), candidate: state(row.candidate) })),
+      candidate_policy: scope.candidate_policy?.map(row => ({ path: row.path, candidate: state(row.candidate) })),
+      main_reconciliation: scope.main_reconciliation?.map(row => ({ ...pick(row, ["path", "rule"]), accepted_main: state(row.accepted_main), candidate: state(row.candidate) })),
+      correction_source: scope.correction_source?.map(row => ({ path: row.path, before: state(row.before), candidate: state(row.candidate) })) } : null,
+    final_source: hash(p.final_source), authorization: pick(p.authorization, ["scope_comment_id", "scope_sha256"]),
+  };
   return { ...pick(p, ["schema", "kind", "pull_request", "branch", "base", "head", "tree", "prior_family_id", "prior_number", "prior_attempt_id", "prior_receipt_fingerprint", "budget"]),
     originals: Object.fromEntries(["receipt", "attempt", "completion", "edge", "unit_log", "stock", "stock_log"].map(k => [k, hash(p.originals?.[k])])),
     repair: { ...pick(p.repair, ["head", "tree"]),

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { isCloseout, authorizeCloseout } from "./local-canonical-1559-closeout.mjs";
+import { isAnyCloseout, authorizeCloseout } from "./local-canonical-1559-closeout.mjs";
 import { isCompanionTimeout, authorizeCompanionTimeout } from "./local-canonical-companion-timeout-succession.mjs";
 import { isGuideCorrection, authorizeGuideCorrection } from "./local-canonical-guide-correction.mjs";
 
@@ -512,7 +512,7 @@ export async function executeLocalCanonicalVerification({
   const sourceCorrection = sourceCorrectionProofPath ? readSourceCorrectionProof(resolveArtifactPath(sourceCorrectionProofPath), repositoryRoot) : null;
   if (isObserverRepair(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
     throw Object.assign(new Error("observer_full_route_required"), { code: "observer_full_route_required" });
-  if (isCloseout(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
+  if (isAnyCloseout(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
     throw Object.assign(new Error("closeout_full_route_required"), { code: "closeout_full_route_required" });
   if (isCompanionTimeout(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
     throw Object.assign(new Error("companion_timeout_full_route_required"), { code: "companion_timeout_full_route_required" });
@@ -757,7 +757,7 @@ export async function executeLocalCanonicalVerification({
             const observerAuthorization = isObserverRepair(sourceCorrection) ? await authorizeObserverRepair(sourceCorrection) : null;
             if (observerAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
             if (observerAuthorization && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("observer_workload_invalid"), { code: "observer_workload_invalid" });
-            const closeoutAuthorization = isCloseout(sourceCorrection) ? await authorizeCloseout(sourceCorrection) : null;
+            const closeoutAuthorization = isAnyCloseout(sourceCorrection) ? await authorizeCloseout(sourceCorrection) : null;
             if (closeoutAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
             if (closeoutAuthorization && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("closeout_workload_invalid"), { code: "closeout_workload_invalid" });
             const companionTimeoutAuthorization = isCompanionTimeout(sourceCorrection) ? await authorizeCompanionTimeout(sourceCorrection) : null;
@@ -1430,7 +1430,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
     try { observerAuthorization = await authorizeObserverRepair(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
   }
   let closeoutAuthorization = null;
-  if (isCloseout(receipt.attempt?.source_correction)) {
+  if (isAnyCloseout(receipt.attempt?.source_correction)) {
     try {
       const saved = receipt.attempt.source_correction;
       const observed = readSourceCorrectionProof(path.join(repositoryRoot, saved.local_relative_path ?? ""), repositoryRoot);
