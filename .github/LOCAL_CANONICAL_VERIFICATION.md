@@ -1495,3 +1495,65 @@ repository-specific product identity. This keeps the history suitable for a
 later separately authorized transfer. The current hard repository root/origin
 gate must be deliberately reviewed in separate work for the eventual
 destination; this repository does not contact or modify that destination.
+
+## Initial #1559 closeout after the exhausted Companion v7 attempt
+
+The authenticated user scope in PR #1560 comment `6537722343`, posted at
+`2026-10-31T02:21:00Z`, separately commissions completion of qualification and a
+subsequent independent ChatGPT merge decision. It does not renew the earlier
+v7 grant. The failed `9e7baa0042ead359745722caaa11c01ea1c8ddcc` attempt,
+its consumed incoming edge, `product_failure`, nested service-contract timeout,
+outer natural unit failure, stock findings, cleanup and UNKNOWN historical cause
+remain immutable.
+
+`scripts/local-canonical-1559-closeout.mjs` owns only the initial admission under
+that new scope. Its distinct `augnes.local-canonical-closeout.v1` proof of kind
+`issue_1559_closeout` is not a legacy source-correction witness or a generic
+unknown-timeout exception. The owner binds the complete original receipt,
+attempt, completion, incoming edge, untruncated unit log and separate stock by
+fixed hashes. It binds accepted efficiency source
+`fc46e56680100d130e7f61e948dd30447b0e609b`, its complete 27-path PR inventory,
+two exact repair files, retained development/adverse/comparison evidence and
+native deltas. Those retained comparisons naturally passed on both revisions;
+they are not a fabricated prior failure or evidence of the historical timeout's
+cause. The original 30-second child owner, all scenarios, identity and authority
+assertions, cleanup, and existing acceptance semantics remain unchanged.
+
+The actual receiving ChatGPT review completed at `2026-10-31T02:09:57Z`.
+Its retained Page blocks are hash-bound provenance, not a cryptographic signature
+or an invented GitHub review. The new authenticated scope explicitly attests the
+accepted repair and commissions the final policy/source preparation; this initial
+route does not require a fabricated additional pre-execution review. The final
+source manifest states `implementation_owner_not_independent_review`. The
+resulting policy, source and actual qualification evidence still require the
+subsequent independent audit and merge decision.
+
+The proof reader verifies accepted-task and current-main tree union identities,
+including files omitted from a final diff because they were deleted or reverted.
+Compatible authenticated main advancement is allowed; divergent nonpolicy
+accepted-source overlap fails closed. Only the named closeout policy, attempt,
+executor, receipt, export and focused-control owners may change. The accepted
+fixture files and complete suite registration stay exact. Proof inspection,
+export and separate stock validation are read-only and cannot reserve an attempt.
+Fresh authentication re-reads the exact comment identity, content, timestamp,
+current admin/maintain permission, and published Draft PR head/base with auto-merge
+disabled. Locally asserted approval flags and copied or modified comments do not
+satisfy this gate.
+
+Normal checkout ownership, capacity, pinned runtime, frozen inputs, Companion
+preservation and planner gates still apply. The exclusive successor namespace
+allows one initial complete planner-selected Full for this proof, with no
+unchanged retry or recovery under this initial route. An interrupted reservation
+remains consumed; changing branch, worktree, proof or source does not renew that
+initial allowance. Separate fresh-process stock must inspect the actual usable
+receipt, including a failed receipt, and all original results must be retained.
+
+This initial route does **not** declare the user's whole continuing closeout
+assignment a terminal zero-recovery grant. Any later execution would require a
+concrete relevant source correction or a policy-permitted environment remedy,
+focused verification, and separately evidence-validated normal continuation.
+No speculative continuation mechanism or automatic retry is introduced here.
+The spent v7 authorization remains spent regardless of that later judgment.
+Issue #1559 stays open and PR #1560 stays Draft with auto-merge disabled. Neither
+this route, a passing result, nor the later merge decision performs or authorizes
+an actual merge, Ready transition, release, deployment or installed adoption.

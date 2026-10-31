@@ -116,6 +116,12 @@ try {
   }
   findings.push("corrected nested-timeout succession: preserved original failure, meaningful source evidence, prospective authority, one terminal reservation and read-only stock");
   } else {
+  for (const group of ["evidence", "source", "authority", "admission", "race", "stock"]) {
+    const result = await child([path.join(repository, "scripts/fixtures/local-canonical-1559-closeout.mjs"), "--run-closeout-fixtures", group],
+      { controlId: `closeout-1559-${group}`, timeoutMs: 6000, stdout: process.stdout, stderr: process.stderr });
+    assert.equal(result.exit_code, 0, lastChildDiagnostic);
+  }
+  findings.push("1559 closeout: exact accepted source and settled v7 history, new authenticated scope, exclusive admission and fresh read-only stock");
   const succession = await child([path.join(repository, "scripts/fixtures/local-canonical-observer-succession.mjs"), "--run-observer-fixtures"], { controlId: "observer-succession", timeoutMs: 6000 });
   assert.equal(succession.exit_code, 0, lastChildDiagnostic);
   findings.push("observer-repair succession: bounded original/source/authority refusals, exclusive lineage and fresh stock reconstruction");
