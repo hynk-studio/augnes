@@ -6,6 +6,9 @@ import { fileURLToPath } from "node:url";
 import { runCanonicalChild, canonicalChildAcceptanceFailure } from "./canonical-child-runner.mjs";
 import { createCanonicalTestResourceRoot, buildCanonicalChildEnvironment, cleanupCanonicalTestResources } from "./canonical-test-environment.mjs";
 import { CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
+import { CLOSEOUT_CONTINUATION_SCHEMA, CLOSEOUT_FIXTURE_CORRECTION_KIND, hasCloseoutMarker, validCloseoutAttempt } from "./local-canonical-1559-closeout.mjs";
+import { createPrivateReviewExport } from "./local-canonical-review-export.mjs";
+import { freezeInputContract } from "./local-canonical-inputs.mjs";
 
 import {
   LOCAL_CANONICAL_RECEIPT_SCHEMA,
@@ -25,6 +28,46 @@ assert.equal(
 );
 const finalized = finalizeReceipt(baseReceipt);
 assert.equal(verifyReceiptIntegrity(finalized), true);
+// A valid classified fixture reaches the route guard, rather than returning at
+// a missing input declaration. These synthetic observations read no host files.
+const classifiedBase = structuredClone(baseReceipt);
+classifiedBase.receipt_version = 4;
+classifiedBase.repository.tree_sha = "7".repeat(40);
+classifiedBase.checkout_ownership = { required: true, acquired: true, released: true,
+  checkout_fingerprint: validContext.currentCheckoutFingerprint, ownership_id: "9".repeat(32),
+  acquired_at: classifiedBase.run.started_at, released_at: classifiedBase.run.finished_at, failure_code: null };
+for (const phase of classifiedBase.phases) phase.environment_fingerprint = "a".repeat(64);
+const classifiedInputs = freezeInputContract({ pathKind: "canonical-conservative-v1",
+  resources: ["codex-preferences", "user-instructions", "auth-location", "git-config", "node-executable"]
+    .map(id => ({ id, file: `/synthetic/${id}`, classification: "execution" })),
+  read: () => ({ present: false }),
+  binding: { head: classifiedBase.repository.head_sha, tree: classifiedBase.repository.tree_sha,
+    executor_fingerprint: classifiedBase.executor.source_fingerprint,
+    phase_environment_fingerprints: classifiedBase.phases.map(p => ({ id: p.id, fingerprint: p.environment_fingerprint })) } });
+classifiedInputs.check();
+classifiedBase.inputs = classifiedInputs.snapshot();
+classifiedBase.attempt = { contract: "augnes.local-canonical-attempt-family.v1", number: 1,
+  attempt_id: classifiedBase.run.id, head: classifiedBase.repository.head_sha, tree: classifiedBase.repository.tree_sha,
+  contract_fingerprint: classifiedBase.inputs.fingerprint, prior_attempt_id: null, recovery: null, budget: { initial: 1, recovery: 1 } };
+classifiedBase.outcome = { disposition: "completed_success", execution: "complete_pass",
+  validity: "valid_within_observed_scope", safety: "preserved_within_observed_scope" };
+const classifiedContext = { ...validContext, currentAttemptRecordsValid: true, currentInputStateValid: true };
+assert.deepEqual(inspectReceiptForDecision(finalizeReceipt(classifiedBase), classifiedContext).issues, []);
+// Marker-only and recomputed-integrity downgrades never become legacy receipts.
+// Full normal/adverse admission uses the private finite production-owner control.
+for (const marker of [
+  { source_correction: { schema: CLOSEOUT_CONTINUATION_SCHEMA, kind: CLOSEOUT_FIXTURE_CORRECTION_KIND } },
+  { source_correction: { kind: CLOSEOUT_FIXTURE_CORRECTION_KIND } },
+  { closeout_fixture_correction_consumed: true },
+  { closeout_instruction_input: null },
+]) {
+  assert(hasCloseoutMarker(marker)); assert.equal(validCloseoutAttempt(marker), false);
+  for (const receipt_version of [3, 4]) {
+    const malformed = finalizeReceipt({ ...structuredClone(receipt_version === 4 ? classifiedBase : baseReceipt), receipt_version, attempt: marker });
+    assert(inspectReceiptForDecision(malformed, receipt_version === 4 ? classifiedContext : validContext).issues.includes("receipt_1559_closeout_invalid"));
+    assert.throws(() => createPrivateReviewExport(malformed), /review_export_closeout_invalid/u);
+  }
+}
 assert.match(finalized.integrity.content_fingerprint, /^[0-9a-f]{64}$/u);
 assert.doesNotThrow(() => assertPublicSafeReceipt(finalized));
 const tampered = structuredClone(finalized);

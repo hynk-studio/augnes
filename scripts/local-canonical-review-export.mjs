@@ -1,4 +1,4 @@
-import { isAnyCloseout, isCloseoutContinuation, isCloseoutScopeCorrection, isCloseoutInstructionReplacement, closeoutInstructionInputBinding, hasCloseoutMarker, validCloseoutAttempt } from "./local-canonical-1559-closeout.mjs";
+import { isAnyCloseout, isCloseoutContinuation, isCloseoutScopeCorrection, isCloseoutInstructionReplacement, isCloseoutFixtureCorrection, usesCloseoutInstructionInputs, closeoutInstructionInputBinding, hasCloseoutMarker, validCloseoutAttempt } from "./local-canonical-1559-closeout.mjs";
 import { COMPANION_TIMEOUT_SCHEMA, isCompanionTimeout, validCompanionTimeoutAttempt } from "./local-canonical-companion-timeout-succession.mjs";
 import { GUIDE_CORRECTION_SCHEMA, isGuideCorrection, validGuideCorrectionAttempt } from "./local-canonical-guide-correction.mjs";
 import { isObserverRepair, validObserverAttempt } from "./local-canonical-observer-succession.mjs";
@@ -17,7 +17,7 @@ export function createPrivateReviewExport(receipt) {
   if (!integrity) throw new Error("review_export_original_invalid");
   if (!validInputFailureDiagnostics(receipt.inputs)) throw new Error("review_export_diagnostic_invalid");
   if (hasCloseoutMarker(receipt.attempt) && (receipt.receipt_version !== 4 || !validCloseoutAttempt(receipt.attempt))) throw new Error("review_export_closeout_invalid");
-  if (isCloseoutInstructionReplacement(receipt.attempt?.source_correction)) {
+  if (usesCloseoutInstructionInputs(receipt.attempt?.source_correction)) {
     try { if (digest(closeoutInstructionInputBinding(receipt.attempt.source_correction, receipt.inputs, { requireUnfaulted: false })) !== digest(receipt.attempt.closeout_instruction_input)) throw new Error(); }
     catch { throw new Error("review_export_closeout_invalid"); }
   }
@@ -42,7 +42,7 @@ export function createPrivateReviewExport(receipt) {
       source_correction: isAnyCloseout(receipt.attempt.source_correction) ? closeoutProofExport(receipt.attempt.source_correction) : isCompanionTimeout(receipt.attempt.source_correction) ? companionProofExport(receipt.attempt.source_correction) : isGuideCorrection(receipt.attempt.source_correction) ? guideProofExport(receipt.attempt.source_correction) : isConditionRequalification(receipt.attempt.source_correction) ? conditionProofExport(receipt.attempt.source_correction) : isCorrectedTimeout(receipt.attempt.source_correction) ? timeoutProofExport(receipt.attempt.source_correction) : isObserverRepair(receipt.attempt.source_correction) ? observerProofExport(receipt.attempt.source_correction) : receipt.attempt.source_correction ? pick(receipt.attempt.source_correction, ["schema", "kind", "defect", "prior_family_id", "prior_attempt_id", "prior_receipt_fingerprint", "head", "tree", "source_module", "fixture_sha256", "accepted_main", "review", "browser_input_path", "browser_input_sha256", "input_replacement_consumed", "authorization"]) : null,
       ...(isAnyCloseout(receipt.attempt.source_correction) ? { branch: receipt.attempt.branch,
         closeout_authority: { closeout_scope: pick(receipt.attempt.closeout_authority?.closeout_scope, ["id", "author", "author_id", "body_sha256", "timestamp", "role", "commit_id"]) } } : {}),
-      ...(isCloseoutInstructionReplacement(receipt.attempt.source_correction) ? { closeout_instruction_input: pick(receipt.attempt.closeout_instruction_input, ["contract", "path_kind", "fingerprint", "head", "tree", "resource", "classification", "location_fingerprint", "sha256", "bytes", "identity_fingerprint"]) } : {}),
+      ...(usesCloseoutInstructionInputs(receipt.attempt.source_correction) ? { closeout_instruction_input: pick(receipt.attempt.closeout_instruction_input, ["contract", "path_kind", "fingerprint", "head", "tree", "resource", "classification", "location_fingerprint", "sha256", "bytes", "identity_fingerprint"]) } : {}),
       ...(isGuideCorrection(receipt.attempt.source_correction) ? { branch: receipt.attempt.branch, guide_authority: receipt.attempt.guide_authority } : {}),
       ...(isObserverRepair(receipt.attempt.source_correction) ? { observer_authority: receipt.attempt.observer_authority } : {}),
       ...(isCompanionTimeout(receipt.attempt.source_correction) ? { companion_timeout_authority: receipt.attempt.companion_timeout_authority } : {}),
@@ -72,7 +72,7 @@ export function inspectPrivateReviewExport(value) {
   const copy = structuredClone(value); delete copy.export_fingerprint;
   let safe = true; try { assertPublicSafeReceipt(value); } catch { safe = false; }
   const closeoutValid = hasCloseoutMarker(value.attempt) ? validCloseoutAttempt(value.attempt) && value.receipt_version === 4 &&
-    (!isCloseoutInstructionReplacement(value.attempt?.source_correction) || (value.inputs?.fingerprint === value.attempt.contract_fingerprint && value.inputs?.binding?.head === value.attempt.head && value.inputs?.binding?.tree === value.attempt.tree)) : true;
+    (!usesCloseoutInstructionInputs(value.attempt?.source_correction) || (value.inputs?.fingerprint === value.attempt.contract_fingerprint && value.inputs?.binding?.head === value.attempt.head && value.inputs?.binding?.tree === value.attempt.tree)) : true;
   const observerValid = value.attempt?.source_correction?.schema === "augnes.local-canonical-source-correction.v3" || value.attempt?.observer_authority ? validObserverAttempt(value.attempt) && value.receipt_version === 4 : true;
   const timeoutValid = value.attempt?.source_correction?.schema === TIMEOUT_REPAIR_SCHEMA || value.attempt?.timeout_authority ? validTimeoutAttempt(value.attempt) && value.receipt_version === 4 : true;
   const companionValid = value.attempt?.source_correction?.schema === COMPANION_TIMEOUT_SCHEMA || value.attempt?.source_correction?.kind === "companion_readiness_timeout" || value.attempt?.companion_timeout_authority || value.attempt?.companion_timeout_consumed ? validCompanionTimeoutAttempt(value.attempt) && value.receipt_version === 4 : true;
@@ -154,6 +154,16 @@ function closeoutProofExport(p) {
   const hash = ref => pick(ref, ["sha256"]);
   const state = value => pick(value, ["present", "mode", "type", "object", "sha256"]);
   const scope = p.source_scope;
+  if (isCloseoutFixtureCorrection(p)) return {
+    ...pick(p, ["schema", "kind", "pull_request", "branch", "base", "head", "tree", "prior_family_id", "prior_number", "prior_attempt_id", "prior_receipt_fingerprint", "budget"]),
+    originals: Object.fromEntries(["receipt", "attempt", "completion", "edge", "authority_log", "stock", "stock_log"].map(k => [k, hash(p.originals?.[k])])),
+    predecessor_proof: hash(p.predecessor_proof), correction: { manifest: hash(p.correction?.manifest), retained: p.correction?.retained?.map(ref => pick(ref, ["path", "sha256"])) },
+    source_scope: scope ? { ...pick(scope, ["schema", "basis", "accepted_base", "accepted_head", "current_main", "accepted_task_paths", "candidate_delta_paths", "policy_delta_paths"]),
+      accepted_task: scope.accepted_task?.map(row => ({ path: row.path, accepted: state(row.accepted), candidate: state(row.candidate) })),
+      candidate_policy: scope.candidate_policy?.map(row => ({ path: row.path, candidate: state(row.candidate) })),
+      main_reconciliation: scope.main_reconciliation?.map(row => ({ ...pick(row, ["path", "rule"]), accepted_main: state(row.accepted_main), candidate: state(row.candidate) })) } : null,
+    final_source: hash(p.final_source), authorization: pick(p.authorization, ["scope_comment_id", "scope_sha256"]),
+  };
   if (isCloseoutInstructionReplacement(p)) return {
     ...pick(p, ["schema", "kind", "pull_request", "branch", "base", "head", "tree", "prior_family_id", "prior_number", "prior_attempt_id", "prior_receipt_fingerprint", "budget"]),
     originals: Object.fromEntries(["receipt", "attempt", "completion", "edge", "unit_log", "stock", "stock_log"].map(k => [k, hash(p.originals?.[k])])),

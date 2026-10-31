@@ -1767,3 +1767,57 @@ main and all other input checks still apply. Complete Full16 and Browser7 plus
 separate fresh stock remain the qualification obligation. This prospective
 policy and its results await the user's commissioned independent final audit;
 merge, Ready, auto-merge, deployment and installed adoption remain unauthorized.
+
+### One measured fixture-preparation correction after Full4
+
+The instruction-replacement candidate `22842588d35b0679c7b851e9a2a503c52a4cadcc`
+settled as `product_failure`: Full 6 PASS / 1 FAIL / 9 NOT_RUN, with complete
+cleanup and separate nondeciding stock reporting 15 issues. All 68 unit children
+passed. The authority phase naturally exited 1 at 80,528ms; its executor-contract
+child reached the unchanged 30,000ms bound and settled at 30,074ms with SIGTERM.
+All six continuation-control children had passed. The instruction-admission
+child had started without a final result when its parent was terminated. Its
+result is not invented. The original blocking operation and cause remain UNKNOWN.
+
+The original authenticated continuing scope `6537722343` commissions relevant
+source corrections, their focused verification and minimal admission
+reconciliation. The instruction-specific allowance `6539480565` remains spent;
+it is retained provenance, not authority for another instruction replacement.
+The existing continuation schema adds only
+`issue_1559_fixture_preparation_correction`, pinned to family
+`38bee310216c09498824cc9f4b0a22fe5c60ea120ea8844658c51b1b0405c6b1`,
+attempt `2026-10-31T05-40-58-047Z-full-22842588d35b-cf3af53326eed21e`,
+receipt `e7c7bb60eb21c92f4b0877fd45eba623255ebd6a4cd49c12565eea9562720e17`,
+completed at `2026-10-31T05:52:10.384Z`. Original receipt, attempt, completion,
+incoming edge, authority log, stock and prior instruction proof stay hash-bound.
+
+The correction removes redundant initial-route admission from explicitly
+synthetic history preparation in the continuation controls. Initial-route
+controls still perform actual admission, and each current continuation retains
+its complete production proof read, authentication, admission, race, stock and
+cleanup behavior. A new self-consistent, rehashed malformed historical-authority
+control confirms that seeded history is still validated. The exact measured
+fixture SHA-256 is
+`c1c839ad3080fb25a1535f9fc36e4ecee9dde8f7342f8996f36ed140bd97d327`.
+
+One planned baseline/candidate comparison of the whole executor entry naturally
+passed in 27,074ms and 24,176ms under the same 30,000ms bound. All 92 prior named
+controls remained; the candidate added one adverse control. Six continuation
+groups totaled 20,795ms and 17,794ms; instruction admission was 5,393ms and
+5,465ms. These single-host observations support the bounded preparation-cost
+correction, not a reproduced historical timeout, a reliability estimate or an
+environment-equality claim. Candidate main documentation reconciliation is
+retained separately. Both original samples, commands, source snapshots, logs,
+settlements and cleanup remain fixed evidence.
+
+Only this exact correction may follow the valid, settled Full4 instruction
+record. Its consumed flag and all earlier flags remain true. The same exclusive
+edge permits one new Full and zero recovery; this correction is terminal, and
+interruption, copied evidence, another head or a changed branch cannot renew it.
+The complete 33-path accepted inventory, exact measured fixture, bounded
+current-main union, frozen current-instruction identity and live monitor remain
+required. Normal source, ownership, capacity, lifecycle and stock checks remain
+active. No suite registration, workload, assertion or deadline is weakened.
+The authenticated record retains its original timestamp and publishing role;
+no new human text or independent review is invented. The commissioned final
+independent audit still covers the policy, source and complete execution result.

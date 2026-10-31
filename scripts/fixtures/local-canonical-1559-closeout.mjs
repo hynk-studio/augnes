@@ -124,9 +124,9 @@ const begin = (c, p, authorization, extra = {}) => c.m.beginAttempt({ anchorRoot
   sourceCorrection: p, closeoutAuthorization: authorization,
   ...(c.m.isCloseoutInstructionReplacement?.(p) ? { closeoutInputs: c.frozenInputs } : {}), ...extra });
 
-// Only the new instruction controls seed their explicitly synthetic history.
-// Older groups still execute every historical admission through beginAttempt.
-// The new profile's production proof reader revalidates this entire history;
+// Continuation and instruction controls seed their explicitly synthetic prior
+// history. Initial-route controls still exercise that route's real admission.
+// Each current profile's production proof reader revalidates the full history;
 // its own admission, exclusive claims and cold stock keep the real owners.
 async function fixtureHistoricalAttempt(c, runId, contractFingerprint = "6".repeat(64)) {
   if (!c.syntheticHistory) {
@@ -618,7 +618,7 @@ export async function closeoutContinuationControls(group = "evidence") {
     assertReviewChildLifecycle(result, { controlId }); return { ...result, output };
   };
   try {
-    c = await makeContinuation(resource.root);
+    c = await makeContinuation(resource.root, { syntheticHistory: true });
     const saved = structuredClone(c.proof), savedAuthority = structuredClone(c.authority), validated = proof(c), authorized = await authorize(c, validated);
     const files = new Map(readdirSync(c.folder).map(name => [name, readFileSync(path.join(c.folder, name))])), ledger = treeFiles(c.anchor);
     // Only a control's mutated files need restoration. Rewriting the complete
@@ -657,6 +657,7 @@ export async function closeoutContinuationControls(group = "evidence") {
       reset(); touched.add(saved.correction.evidence.plain_settlement.artifact); rmSync(path.join(c.folder, saved.correction.evidence.plain_settlement.artifact)); assert.throws(() => proof(c));
       pass("missing focused settlement refuses");
       for (const [name, mutate, code] of [
+        ["seeded-initial-authority", x => { x.attempt.closeout_authority.closeout_scope.id++; x.receipt.attempt = structuredClone(x.attempt); }, "closeout_continuation_original_binding_invalid"],
         ["wrong-phase", x => x.receipt.phases[5].id = "integration", "closeout_continuation_original_binding_invalid"],
         ["extra-phase-failure", x => x.receipt.phases[4].status = "failure", "closeout_continuation_original_binding_invalid"],
         ["cleanup-incomplete", x => x.receipt.cleanup.completed = false, "closeout_continuation_original_binding_invalid"],
