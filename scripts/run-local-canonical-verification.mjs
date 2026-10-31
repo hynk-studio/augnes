@@ -757,7 +757,7 @@ export async function executeLocalCanonicalVerification({
             const observerAuthorization = isObserverRepair(sourceCorrection) ? await authorizeObserverRepair(sourceCorrection) : null;
             if (observerAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
             if (observerAuthorization && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("observer_workload_invalid"), { code: "observer_workload_invalid" });
-            const closeoutAuthorization = isAnyCloseout(sourceCorrection) ? await authorizeCloseout(sourceCorrection) : null;
+            const closeoutAuthorization = isAnyCloseout(sourceCorrection) ? await authorizeCloseout(sourceCorrection, { frozenInputs: inputs.snapshot() }) : null;
             if (closeoutAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
             if (closeoutAuthorization && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("closeout_workload_invalid"), { code: "closeout_workload_invalid" });
             const companionTimeoutAuthorization = isCompanionTimeout(sourceCorrection) ? await authorizeCompanionTimeout(sourceCorrection) : null;
@@ -778,7 +778,7 @@ export async function executeLocalCanonicalVerification({
               branch: identityBefore.branch, head: headSha, tree: inputs.snapshot().binding.tree, runId,
               contractFingerprint: inputs.snapshot().fingerprint, acceptedMain: baseSha,
               recoveryProof: recoveryProofPath ? readRecoveryProof(resolveArtifactPath(recoveryProofPath)) : null,
-              sourceCorrection, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization, companionTimeoutAuthorization, closeoutAuthorization,
+              sourceCorrection, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization, companionTimeoutAuthorization, closeoutAuthorization, closeoutInputs: inputs.snapshot(),
               browserReplacement, browserAuthorization,
               browserLive: browserInput ? browserReplacementLiveBinding({ browserInput, host, machineFingerprint, nodePolicy, executorFingerprint, phaseDefinitions, inputs: inputs.snapshot() }) : null });
             pinVerificationEvidence({ root: repositoryRoot, checkoutOwner, runId, reason: "attempt_family" });
@@ -1435,7 +1435,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
       const saved = receipt.attempt.source_correction;
       const observed = readSourceCorrectionProof(path.join(repositoryRoot, saved.local_relative_path ?? ""), repositoryRoot);
       if (digest(observed) !== digest(saved)) throw new Error("closeout_stock_proof_changed");
-      closeoutAuthorization = await authorizeCloseout(observed);
+      closeoutAuthorization = await authorizeCloseout(observed, { frozenInputs: receipt.inputs });
     } catch { /* fresh stock refuses changed evidence or unavailable authority */ }
   }
   let companionTimeoutAuthorization = null;

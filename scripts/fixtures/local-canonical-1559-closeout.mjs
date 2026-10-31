@@ -25,7 +25,7 @@ const treeFiles = (directory, root = directory) => readdirSync(directory, { with
 // Import the real predicates through a copied dependency closure. This changes
 // constants, never production source or a validator, and cannot grant authority
 // in the repository's real process/module instance.
-function copyControlSources(target, pins, continuationPins = null, scopePins = null) {
+function copyControlSources(target, pins, continuationPins = null, scopePins = null, instructionPins = null) {
   const copied = new Set();
   const copy = name => {
     if (copied.has(name)) return;
@@ -45,6 +45,11 @@ function copyControlSources(target, pins, continuationPins = null, scopePins = n
         assert(scopeMarker.test(source), "scope-correction controls replace only fixed pin data");
         source = source.replace(scopeMarker, `// BEGIN CLOSEOUT SCOPE CORRECTION PINS\nexport const CLOSEOUT_SCOPE_CORRECTION_PINS = Object.freeze(${JSON.stringify(scopePins)});\n// END CLOSEOUT SCOPE CORRECTION PINS`);
       }
+      if (instructionPins) {
+        const instructionMarker = /\/\/ BEGIN CLOSEOUT INSTRUCTION PINS[\s\S]*?\/\/ END CLOSEOUT INSTRUCTION PINS/u;
+        assert(instructionMarker.test(source), "instruction-input controls replace only delimited fixed pin data");
+        source = source.replace(instructionMarker, `// BEGIN CLOSEOUT INSTRUCTION PINS\nexport const CLOSEOUT_INSTRUCTION_PINS = Object.freeze(${JSON.stringify(instructionPins)});\n// END CLOSEOUT INSTRUCTION PINS`);
+      }
     }
     write(path.join(target, name), source);
     for (const match of source.matchAll(/(?:from\s+|import\s*\()(["'])(\.{1,2}\/[^"']+)\1/gu)) {
@@ -59,12 +64,13 @@ function copyControlSources(target, pins, continuationPins = null, scopePins = n
 
 async function controlModules(root) {
   const load = name => import(pathToFileURL(path.join(root, "scripts", name)).href);
-  const [route, attempts, receipt, exported, transport, fixture, companion, ownership, browser] = await Promise.all([
+  const [route, attempts, receipt, exported, transport, fixture, companion, ownership, browser, inputs] = await Promise.all([
     load("local-canonical-1559-closeout.mjs"), load("local-canonical-attempts.mjs"), load("local-canonical-receipt.mjs"),
     load("local-canonical-review-export.mjs"), load("github-main-branch-transport.mjs"), load("fixtures/local-canonical-receipt-v3.mjs"),
     load("local-canonical-companion-timeout-succession.mjs"), load("local-canonical-checkout-ownership.mjs"), load("local-canonical-browser-replacement.mjs"),
+    load("local-canonical-inputs.mjs"),
   ]);
-  return { ...route, ...attempts, ...receipt, ...exported, ...transport, ...fixture, ...companion, ...ownership, ...browser };
+  return { ...route, ...attempts, ...receipt, ...exported, ...transport, ...fixture, ...companion, ...ownership, ...browser, ...inputs };
 }
 
 function syntheticV7(m, c) {
@@ -110,10 +116,44 @@ const authorizationTransport = (c, change = value => value) => c.m.createGitHubO
   return change(structuredClone(url.includes("/comments/") ? c.authority.grant : url.endsWith("/pulls/1560") ? c.authority.pr :
     { permission: "admin", user: { login: "synthetic-fixture" } }), url);
 } });
-const authorize = (c, p, change) => c.m.authorizeCloseout(p, { transport: authorizationTransport(c, change) });
+const authorize = (c, p, change) => c.m.authorizeCloseout(p, { transport: authorizationTransport(c, change),
+  ...(c.m.isCloseoutInstructionReplacement?.(p) ? { frozenInputs: c.frozenInputs } : {}) });
 const begin = (c, p, authorization, extra = {}) => c.m.beginAttempt({ anchorRoot: c.anchor, repositoryRoot: c.checkout, checkoutOwner: c.owner,
-  branch: p.branch, head: p.head, tree: p.tree, acceptedMain: p.base, runId: "synthetic-closeout-successor", contractFingerprint: "6".repeat(64),
-  sourceCorrection: p, closeoutAuthorization: authorization, ...extra });
+  branch: p.branch, head: p.head, tree: p.tree, acceptedMain: p.base, runId: "synthetic-closeout-successor",
+  contractFingerprint: c.m.isCloseoutInstructionReplacement?.(p) ? c.frozenInputs?.fingerprint : "6".repeat(64),
+  sourceCorrection: p, closeoutAuthorization: authorization,
+  ...(c.m.isCloseoutInstructionReplacement?.(p) ? { closeoutInputs: c.frozenInputs } : {}), ...extra });
+
+// Only the new instruction controls seed their explicitly synthetic history.
+// Older groups still execute every historical admission through beginAttempt.
+// The new profile's production proof reader revalidates this entire history;
+// its own admission, exclusive claims and cold stock keep the real owners.
+async function fixtureHistoricalAttempt(c, runId, contractFingerprint = "6".repeat(64)) {
+  if (!c.syntheticHistory) {
+    const p = proof(c), authority = await authorize(c, p);
+    return begin(c, p, authority, { runId, contractFingerprint });
+  }
+  const p = { ...structuredClone(c.proof), local_relative_path: path.relative(c.checkout, c.file).split(path.sep).join("/") };
+  const contract = c.m.ATTEMPT_CONTRACT;
+  const familyId = digest([contract, "hynk-studio/augnes", c.branch, "verified_source_correction", p.prior_attempt_id, p.head, p.tree]);
+  const record = { contract, family_id: familyId, attempt_id: runId, number: 1, branch: c.branch, head: p.head, tree: p.tree,
+    contract_fingerprint: contractFingerprint, started_at: time(0), prior_attempt_id: null, prior_receipt_fingerprint: null,
+    recovery: null, source_correction: p, closeout_authority: { closeout_scope: c.m.closeoutAuthorityObservation(c.authority.grant) }, budget: { initial: 1, recovery: 0 } };
+  assert(c.m.validCloseoutAttempt(record), "seeded historical record satisfies the unchanged production semantic validator");
+  const families = path.join(c.anchor, ".augnes-local-verification/families"), target = path.join(families, familyId);
+  mkdirSync(target, { recursive: true, mode: 0o700 });
+  writeFileSync(path.join(families, p.prior_family_id, "correction-successor.json"), JSON.stringify({ contract: "augnes.local-canonical-successor.v2",
+    kind: p.kind, family_id: familyId, head: p.head, tree: p.tree, proof_fingerprint: digest(p) }) + "\n", { flag: "wx", mode: 0o600 });
+  writeFileSync(path.join(target, "attempt-1.json"), JSON.stringify(record) + "\n", { flag: "wx", mode: 0o600 });
+  return record;
+}
+
+function settleFixtureHistory(c, attempt, options) {
+  if (!c.syntheticHistory) return c.m.finishAttempt(attempt, options);
+  const completion = { contract: c.m.ATTEMPT_CONTRACT, attempt_id: attempt.attempt_id, receipt_fingerprint: options.receiptFingerprint,
+    disposition: options.disposition, cleanup_complete: options.cleanupComplete, infrastructure_code: null, finished_at: time(0) };
+  writeFileSync(path.join(c.anchor, ".augnes-local-verification/families", attempt.family_id, "completion-1.json"), JSON.stringify(completion) + "\n", { flag: "wx", mode: 0o600 });
+}
 
 function retained(c, original) {
   const values = new Map(original.CLOSEOUT_RETAINED_PATHS.map(name => [name, Buffer.from(`SYNTHETIC retained ${name}\n`)]));
@@ -242,6 +282,7 @@ if (process.argv[2] === "--stock-closeout-fixture") {
 } else if (process.argv[2] === "--run-closeout-fixtures") await closeoutControls(process.argv[3]);
 else if (process.argv[2] === "--run-closeout-continuation-fixtures") await closeoutContinuationControls(process.argv[3]);
 else if (process.argv[2] === "--run-closeout-scope-correction-fixtures") await closeoutScopeCorrectionControls(process.argv[3]);
+else if (process.argv[2] === "--run-closeout-instruction-fixtures") await closeoutInstructionControls(process.argv[3]);
 
 export async function closeoutControls(group = "evidence") {
   assert(["evidence", "source", "authority", "admission", "race", "stock"].includes(group));
@@ -513,9 +554,9 @@ async function continuationOriginalRefusal(c, name, mutate, code) {
   assert.throws(() => m.readCloseoutEvidence(c.file, p, c.checkout), error => error.code === code, name);
 }
 
-async function makeContinuation(root, options = {}) {
-  const c = await make(root, options), initialProof = structuredClone(c.proof), initial = proof(c), initialAuthority = await authorize(c, initial);
-  const initialAttempt = begin(c, initial, initialAuthority, { runId: "synthetic-initial-closeout-before-continuation" });
+async function makeContinuation(root, { syntheticHistory = false, ...options } = {}) {
+  const c = await make(root, options), initialProof = structuredClone(c.proof); c.syntheticHistory = syntheticHistory;
+  const initialAttempt = await fixtureHistoricalAttempt(c, "synthetic-initial-closeout-before-continuation");
   assert(c.m.validCloseoutAttempt(initialAttempt));
   const oldFamily = c.family, initialFamily = path.join(c.anchor, ".augnes-local-verification/families", initialAttempt.family_id);
   const unitLog = continuationOriginalUnitLog(), relativeLog = `.augnes-local-verification/logs/${initialAttempt.attempt_id}/unit.log`;
@@ -526,7 +567,7 @@ async function makeContinuation(root, options = {}) {
     inputs: { ...c.receipt.inputs, binding: { ...c.receipt.inputs.binding, head: initialAttempt.head, tree: initialAttempt.tree } },
     phases: c.receipt.phases.map(row => row.id === "unit" ? { ...row, log: { relative_path: relativeLog, bytes: Buffer.byteLength(unitLog), truncated: false } } : row),
   });
-  c.m.finishAttempt(initialAttempt, { receiptFingerprint: receipt.integrity.content_fingerprint, disposition: "product_failure", cleanupComplete: true });
+  settleFixtureHistory(c, initialAttempt, { receiptFingerprint: receipt.integrity.content_fingerprint, disposition: "product_failure", cleanupComplete: true });
   const completion = read(path.join(initialFamily, "completion-1.json"));
   const stock = { content_fingerprint: receipt.integrity.content_fingerprint, valid_deciding_evidence: false,
     issues: Array.from({ length: 15 }, (_, index) => `synthetic_continuation_original_issue_${index + 1}`) };
@@ -799,7 +840,7 @@ function bindScopeCorrectionCandidate(c, head) {
   c.proof.source_scope = c.m.inspectCloseoutScopeCorrectionSourceScope(c.checkout, c.proof); c.authority.pr.head.sha = head; save(c);
 }
 
-async function makeScopeCorrection(root) {
+async function makeScopeCorrection(root, { instructionPredecessor = false } = {}) {
   const source = readFileSync(path.join(repository, ownerPath), "utf8"), original = await controlModules(repository);
   // The mechanism predecessor is the public Git owner before this integration
   // existed. Removing one line from today's owner would also retain the new
@@ -809,9 +850,9 @@ async function makeScopeCorrection(root) {
   const needle = "  const original = continuationOriginalEvidence(folder, p, repositoryRoot), git = gitAt(repositoryRoot), source = json(closeoutArtifact(folder, p.final_source));";
   assert.equal(beforeSource.split(needle).length, 2, "one exact predecessor reader insertion point");
   const mechanismAfter = beforeSource.replace(needle, "  validateCloseoutContinuationSourceScope(p.source_scope);\n" + needle);
-  const c = await makeContinuation(root, { policyOwnerSource: beforeSource });
-  const predecessorProof = structuredClone(c.proof), p = proof(c), authority = await authorize(c, p);
-  const prior = begin(c, p, authority, { runId: "synthetic-operational-continuation-before-scope-correction" });
+  const c = await makeContinuation(root, { policyOwnerSource: beforeSource, syntheticHistory: instructionPredecessor });
+  const predecessorProof = structuredClone(c.proof);
+  const prior = await fixtureHistoricalAttempt(c, "synthetic-operational-continuation-before-scope-correction");
   assert(c.m.validCloseoutAttempt(prior));
   const oldFamily = c.family, family = path.join(c.anchor, ".augnes-local-verification/families", prior.family_id);
   const authorityLog = scopeCorrectionAuthorityLog(), relativeLog = `.augnes-local-verification/logs/${prior.attempt_id}/authority.log`;
@@ -824,7 +865,7 @@ async function makeScopeCorrection(root) {
       environment_fingerprint: index <= 6 ? "b".repeat(64) : null,
       cleanup: { completed: true, remaining_owned_processes: 0, exit_observed: index <= 6, streams_closed: index <= 6, termination_reason: index <= 6 ? "natural_exit" : null },
       ...(index === 6 ? { duration_ms: 59896, log: { relative_path: relativeLog, bytes: Buffer.byteLength(authorityLog), truncated: false } } : {}) })) });
-  c.m.finishAttempt(prior, { receiptFingerprint: receipt.integrity.content_fingerprint, disposition: "product_failure", cleanupComplete: true });
+  settleFixtureHistory(c, prior, { receiptFingerprint: receipt.integrity.content_fingerprint, disposition: "product_failure", cleanupComplete: true });
   const completion = read(path.join(family, "completion-1.json")), stock = { content_fingerprint: receipt.integrity.content_fingerprint, valid_deciding_evidence: false,
     issues: Array.from({ length: 14 }, (_, index) => `synthetic_scope_original_issue_${index + 1}`) };
   const originals = Object.fromEntries(Object.entries({ receipt, attempt: readFileSync(path.join(family, "attempt-1.json")),
@@ -834,6 +875,10 @@ async function makeScopeCorrection(root) {
   assert.equal(before.toString(), beforeSource); write(path.join(c.checkout, ownerPath), mechanismAfter);
   const nativeDelta = c.git("diff", "--binary", "--full-index", "--no-ext-diff", "--no-textconv", prior.head, "--", ownerPath);
   write(path.join(c.checkout, ownerPath), source); c.git("add", "--", ownerPath);
+  if (instructionPredecessor) {
+    const receiptOwner = "scripts/test-local-canonical-receipt.mjs";
+    write(path.join(c.checkout, receiptOwner), readFileSync(path.join(repository, receiptOwner))); c.git("add", "--", receiptOwner);
+  }
   c.git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-m", "synthetic one-line scope precheck correction");
   const head = c.git("rev-parse", "HEAD").toString().trim(), tree = c.git("rev-parse", `${head}^{tree}`).toString().trim();
   const correction = scopeCorrectionRetained(c, prior, completion, before, Buffer.from(mechanismAfter), nativeDelta);
@@ -950,4 +995,209 @@ export async function closeoutScopeCorrectionControls(group = "evidence") {
     assert(cleanupCanonicalTestResources([resource])[0].completed);
   }
   console.log(JSON.stringify({ closeout_scope_correction: checks, group, count: checks.length, synthetic_authority_only: true, cleanup_complete: true }));
+}
+
+function bindInstructionCandidate(c, head) {
+  c.proof.head = head; c.proof.tree = c.git("rev-parse", `${head}^{tree}`).toString().trim();
+  c.proof.final_source = c.artifact("instruction-final-source.json", { schema: "augnes.local-canonical-closeout-instruction-final-source.v1",
+    basis: "implementation_owner_not_independent_review", base: c.base, head, tree: c.proof.tree, predecessor_head: c.prior.head, predecessor_tree: c.prior.tree,
+    deltas: { predecessor: c.delta(c.prior.head, head), first_closeout: c.delta(c.continuationPins.prior_head, head), main: c.delta(c.base, head) } });
+  c.proof.source_scope = c.m.inspectCloseoutInstructionSourceScope(c.checkout, c.proof);
+  c.authority.pr.head.sha = head; save(c);
+}
+
+async function makeInstructionReplacement(root) {
+  const c = await makeScopeCorrection(root, { instructionPredecessor: true }), predecessorProof = structuredClone(c.proof);
+  const instructionFile = path.join(root, "synthetic-user-instructions.md");
+  const before = "SYNTHETIC global safety rules: preserve every other owner.\n### Augnes Space reporting exception\nRead existing reporting pages.\n### A substantive task ends with a complete report in its own session\nExecution, credentials and merge authority remain bounded.\n";
+  const after = before.replace("Read existing reporting pages.", "Read and organize pages within the specifically authorized reporting Space.");
+  write(instructionFile, before);
+  const freeze = (head, tree) => c.m.freezeInputContract({ pathKind: "isolated-model-free-v1", binding: { ...c.inputs.binding, head, tree },
+    resources: c.inputs.resources.map(row => ({ id: row.id, classification: row.classification,
+      file: row.id === "user-instructions" ? instructionFile : path.join(root, `absent-${row.id}`) })) });
+  const priorInput = freeze(c.proof.head, c.proof.tree), initialInputs = priorInput.snapshot();
+  const prior = await fixtureHistoricalAttempt(c, "synthetic-scope-before-instruction-change", initialInputs.fingerprint);
+  const oldFamily = c.family, family = path.join(c.anchor, ".augnes-local-verification/families", prior.family_id);
+  write(instructionFile, after); assert.equal(priorInput.check({ force: true })?.disposition, "safety_violation");
+  const inputs = priorInput.snapshot(), fault = inputs.first_fault, resource = inputs.resources.find(row => row.id === "user-instructions");
+  assert.equal(inputs.events.length, 1); assert.equal(inputs.secondary_faults.length, 0);
+  const unitLog = Array.from({ length: 51 }, (_, i) => `[canonical:unit] child_start label="synthetic preceding ${i}" timeout_ms=1000\n` +
+    `[canonical:unit] child_result label="synthetic preceding ${i}" duration_ms=1 exit_code=0 signal=null timed_out=false exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=natural_exit\n`).join("") +
+    '[canonical:unit] child_start label="machine-owned Companion service and public lifecycle contract" timeout_ms=30000\n';
+  const relativeLog = `.augnes-local-verification/logs/${prior.attempt_id}/unit.log`; write(path.join(c.checkout, relativeLog), unitLog);
+  const receipt = c.m.finalizeReceipt({ ...structuredClone(c.receipt), repository: { ...c.receipt.repository, head_sha: prior.head, tree_sha: prior.tree },
+    run: { ...c.receipt.run, id: prior.attempt_id }, attempt: prior, inputs,
+    outcome: { disposition: "safety_violation", safety: "blocked", validity: "invalidated", first_fault: fault },
+    phases: c.receipt.phases.map((row, index) => {
+      const { log, ...rest } = row;
+      return { ...rest, status: index < 5 ? "pass" : index === 5 ? "failure" : "not_run", exit_status: index < 5 ? 0 : null,
+        failure_code: index === 5 ? "phase_cancelled" : null, timed_out: false, environment_fingerprint: index <= 5 ? "b".repeat(64) : null,
+        cleanup: { completed: true, remaining_owned_processes: 0, exit_observed: index <= 5, streams_closed: index <= 5,
+          termination_reason: index < 5 ? "natural_exit" : index === 5 ? "operator_cancelled" : null },
+        ...(index === 5 ? { duration_ms: 360925, log: { relative_path: relativeLog, bytes: Buffer.byteLength(unitLog), truncated: false } } : {}) };
+    }) });
+  settleFixtureHistory(c, prior, { receiptFingerprint: receipt.integrity.content_fingerprint, disposition: "safety_violation", cleanupComplete: true });
+  const completion = read(path.join(family, "completion-1.json")), stock = { content_fingerprint: receipt.integrity.content_fingerprint,
+    valid_deciding_evidence: false, issues: Array.from({ length: 17 }, (_, i) => `synthetic_instruction_original_issue_${i + 1}`) };
+  const originals = Object.fromEntries(Object.entries({ receipt, attempt: readFileSync(path.join(family, "attempt-1.json")),
+    completion: readFileSync(path.join(family, "completion-1.json")), edge: readFileSync(path.join(oldFamily, "correction-successor.json")),
+    unit_log: unitLog, stock, stock_log: JSON.stringify(stock) }).map(([name, value]) => [name, c.artifact(`instruction-original-${name}.${name.endsWith("log") ? "log" : "json"}`, value)]));
+  const predecessorRef = c.artifact("instruction-predecessor-proof.json", predecessorProof);
+  const instruction = { before: c.artifact("instructions-before.md", before), after: c.artifact("instructions-after.md", after),
+    delta: c.artifact("instructions.diff", "--- recorded-global-before\n+++ recorded-global-after\n@@ synthetic reporting-only change @@\n-Read existing reporting pages.\n+Read and organize pages within the specifically authorized reporting Space.\n"),
+    provenance: c.artifact("instruction-provenance.json", { source_report_id: "SYNTHETIC-REPORT", source_report_revision: "r1", source_page: "synthetic-never-published",
+      source_reference: "synthetic-private-record", source_bytes: 1, source_sha256: digest("SYNTHETIC"),
+      records: { global_before: { path: "synthetic-before", byte_size: Buffer.byteLength(before), sha256: digest(before) },
+        global_after: { path: "synthetic-after", byte_size: Buffer.byteLength(after), sha256: digest(after) } },
+      matches_actual_safety_event: true, outside_reporting_exception_byte_identical: true, reported_author: "Codex", os_writer_independently_verified: false }) };
+  const grant = { ...c.authority.grant, id: 204, body: "SYNTHETIC later explicit instruction-input replacement; never real authority.",
+    created_at: new Date(Date.parse(completion.finished_at) + 1).toISOString() }; grant.updated_at = grant.created_at;
+  const observation = c.m.closeoutAuthorityObservation(grant), instructionPins = { ...structuredClone(c.m.CLOSEOUT_INSTRUCTION_PINS), prior_head: prior.head, prior_tree: prior.tree,
+    prior_family_id: prior.family_id, prior_attempt_id: prior.attempt_id, prior_receipt_fingerprint: receipt.integrity.content_fingerprint,
+    completed_at: completion.finished_at, fault_observed_at: fault.observed_at, predecessor_proof: predecessorRef.sha256,
+    before_bytes: Buffer.byteLength(before), after_bytes: Buffer.byteLength(after), instruction_location_fingerprint: resource.location_fingerprint,
+    instruction_identity_fingerprint: digest(Object.fromEntries(["device", "uid", "gid", "mode", "inode", "links"].map(key => [key, resource.before.metadata[key]]))),
+    originals: Object.fromEntries(Object.entries(originals).map(([name, ref]) => [name, ref.sha256])),
+    instruction: Object.fromEntries(Object.entries(instruction).map(([name, ref]) => [name, ref.sha256])),
+    scope: Object.fromEntries(Object.entries(observation).filter(([name]) => !["role", "commit_id"].includes(name))) };
+  // A new actual policy-only Git delta, separate from the unchanged accepted33.
+  write(path.join(c.checkout, "scripts/test-local-canonical-receipt.mjs"), readFileSync(path.join(repository, "scripts/test-local-canonical-receipt.mjs"), "utf8") + "\n// synthetic instruction successor candidate\n");
+  c.git("add", "--", "scripts/test-local-canonical-receipt.mjs"); c.git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-m", "synthetic prospective instruction-input binding");
+  const head = c.git("rev-parse", "HEAD").toString().trim();
+  c.m.releaseCheckoutVerificationOwnership(c.owner, c.checkout, { consumersSettled: true }); c.owner = null;
+  c.controlRoot = path.join(root, "instruction-control-source"); copyControlSources(c.controlRoot, c.pins, c.continuationPins, c.scopePins, instructionPins); c.m = await controlModules(c.controlRoot);
+  c.owner = c.m.acquireCheckoutVerificationOwnership({ repositoryRoot: c.checkout });
+  Object.assign(c, { prior, family, receipt, predecessorProof, instructionPins, instructionFile, file: path.join(c.folder, "instruction-proof.json") }); c.authority.grant = grant;
+  c.proof = { schema: c.m.CLOSEOUT_CONTINUATION_SCHEMA, kind: c.m.CLOSEOUT_INSTRUCTION_KIND, pull_request: 1560, branch: c.branch, base: c.base,
+    head, tree: null, prior_family_id: prior.family_id, prior_number: 1, prior_attempt_id: prior.attempt_id, prior_receipt_fingerprint: receipt.integrity.content_fingerprint,
+    originals, predecessor_proof: predecessorRef, instruction, source_scope: null, final_source: null,
+    authorization: { scope_comment_id: grant.id, scope_sha256: digest(observation) }, budget: { initial: 1, recovery: 0 } };
+  bindInstructionCandidate(c, head); c.inputContract = freeze(c.proof.head, c.proof.tree); c.frozenInputs = c.inputContract.snapshot(); return c;
+}
+
+async function instructionSemanticRefusal(c, name, mutate, code) {
+  const p = structuredClone(c.proof), pins = structuredClone(c.instructionPins);
+  const original = Object.fromEntries(Object.entries(p.originals).map(([key, ref]) => [key, key.endsWith("log") ? readFileSync(path.join(c.folder, ref.artifact), "utf8") : read(path.join(c.folder, ref.artifact))]));
+  const instruction = Object.fromEntries(Object.entries(p.instruction).map(([key, ref]) => [key, key === "provenance" ? read(path.join(c.folder, ref.artifact)) : readFileSync(path.join(c.folder, ref.artifact), "utf8")]));
+  mutate({ original, instruction, pins }); original.receipt.phases[5].log.bytes = Buffer.byteLength(original.unit_log);
+  original.receipt = c.m.finalizeReceipt(original.receipt); const fingerprint = original.receipt.integrity.content_fingerprint;
+  original.completion.receipt_fingerprint = fingerprint; original.stock.content_fingerprint = fingerprint; original.stock_log = JSON.stringify(original.stock);
+  p.prior_receipt_fingerprint = pins.prior_receipt_fingerprint = fingerprint;
+  for (const [key, value] of Object.entries(original)) p.originals[key] = c.artifact(p.originals[key].artifact, value);
+  for (const [key, value] of Object.entries(instruction)) p.instruction[key] = c.artifact(p.instruction[key].artifact, value);
+  pins.originals = Object.fromEntries(Object.entries(p.originals).map(([key, ref]) => [key, ref.sha256]));
+  pins.instruction = Object.fromEntries(Object.entries(p.instruction).map(([key, ref]) => [key, ref.sha256]));
+  const source = readFileSync(path.join(c.controlRoot, ownerPath), "utf8").replace(/\/\/ BEGIN CLOSEOUT INSTRUCTION PINS[\s\S]*?\/\/ END CLOSEOUT INSTRUCTION PINS/u,
+    `// BEGIN CLOSEOUT INSTRUCTION PINS\nexport const CLOSEOUT_INSTRUCTION_PINS = Object.freeze(${JSON.stringify(pins)});\n// END CLOSEOUT INSTRUCTION PINS`);
+  const file = path.join(c.controlRoot, "scripts", `instruction-semantic-${name}.mjs`); write(file, source);
+  const module = await import(pathToFileURL(file).href); assert.throws(() => module.readCloseoutEvidence(c.file, p, c.checkout), error => error.code === code, name);
+}
+
+export async function closeoutInstructionControls(group = "evidence") {
+  assert(["evidence", "admission", "stock"].includes(group));
+  const resource = createCanonicalTestResourceRoot("ag-resource-test-"); beginCanonicalTestResourceUse(resource);
+  const checks = [], pass = name => { checks.push(name); console.log(`instruction replacement control PASS: ${name}`); }; let c, active = 0;
+  const child = async (args, controlId) => {
+    active++; let output = "";
+    const result = await runCanonicalChild({ suite: "1559-closeout-instruction-fixture", label: controlId, command: process.execPath, args, cwd: resource.root,
+      env: buildCanonicalChildEnvironment({ temporaryRoot: resource.root }), timeoutMs: 4000,
+      stdout: { write: chunk => output = (output + chunk).slice(-8000) }, stderr: { write: chunk => output = (output + chunk).slice(-8000) }, log() {} });
+    if (result.cleanup_completed && result.exit_observed && result.streams_closed && result.remaining_owned_processes === 0) active--;
+    console.log("AUGNES_REVIEW_CHILD_RESULT " + JSON.stringify(projectReviewChildResult(result, { controlId }))); assertReviewChildLifecycle(result, { controlId }); return { ...result, output };
+  };
+  try {
+    c = await makeInstructionReplacement(resource.root); const saved = structuredClone(c.proof), validated = proof(c), authorized = await authorize(c, validated), ledger = treeFiles(c.anchor);
+    const files = new Map(readdirSync(c.folder).map(name => [name, readFileSync(path.join(c.folder, name))]));
+    const restore = () => { for (const [name, bytes] of files) { const file = path.join(c.folder, name); if (!existsSync(file) || !readFileSync(file).equals(bytes)) write(file, bytes); } c.proof = structuredClone(saved); save(c); };
+    const tip = c.m.reconstructAttemptTip({ anchorRoot: c.anchor, branch: c.branch }); assert(tip.closeout_scope_correction_consumed && !tip.closeout_instruction_consumed);
+    assert.equal(c.m.assertCloseoutInstructionInputs(validated, c.frozenInputs), c.frozenInputs.fingerprint);
+    pass("complete immutable predecessor plus real frozen instruction event admits only the distinct prospective profile");
+    if (group === "evidence") {
+      for (const [name, mutate] of [["missing instruction", p => delete p.instruction], ["changed instruction hash", p => p.instruction.after.sha256 = "0".repeat(64)],
+        ["old profile fallback", p => p.kind = c.m.CLOSEOUT_SCOPE_CORRECTION_KIND], ["wrong predecessor", p => p.prior_attempt_id = "older"],
+        ["recovery allowance", p => p.budget.recovery = 1], ["forged accepted source", p => p.source_scope.accepted_head = p.base]]) {
+        restore(); mutate(c.proof); save(c); assert.throws(() => proof(c)); pass(`refuse ${name}`);
+      }
+      restore(); rmSync(path.join(c.folder, saved.instruction.before.artifact)); assert.throws(() => proof(c)); restore();
+      for (const [name, mutate, code] of [
+        ["wrong-fault", ({ original }) => { original.receipt.inputs.first_fault.resource = "credentials"; original.receipt.outcome.first_fault.resource = "credentials"; }, "closeout_instruction_original_fault_invalid"],
+        ["secondary-fault", ({ original }) => original.receipt.inputs.secondary_faults.push({ ...original.receipt.inputs.first_fault }), "closeout_instruction_original_fault_invalid"],
+        ["incomplete-cleanup", ({ original }) => original.receipt.cleanup.completed = false, "closeout_instruction_original_binding_invalid"],
+        ["truncated-child", ({ original }) => original.unit_log += '[canonical:unit] child_result label="invented" exit_code=0 signal=null timed_out=false termination_reason=natural_exit\n', "closeout_instruction_original_cancellation_invalid"],
+        ["outside-reporting", ({ instruction, pins }) => { instruction.after += "Unauthorized execution change.\n"; pins.after_bytes = Buffer.byteLength(instruction.after);
+          instruction.provenance.records.global_after = { path: "synthetic-after", byte_size: pins.after_bytes, sha256: digest(instruction.after) }; }, "closeout_instruction_replacement_invalid"],
+      ]) { restore(); await instructionSemanticRefusal(c, name, mutate, code); pass(`rehash all declared evidence and refuse ${name}`); }
+      restore(); assert.deepEqual(treeFiles(c.anchor), ledger);
+    } else if (group === "admission") {
+      for (const mutate of [input => input.resources.find(row => row.id === "user-instructions").before.sha256 = "0".repeat(64),
+        input => input.first_fault = { resource: "user-instructions", disposition: "safety_violation" }, input => input.secondary_faults.push({ disposition: "input_invalidation" }),
+        input => input.events.push({ disposition: "safety_violation" }), input => input.binding.head = saved.base]) {
+        const input = structuredClone(c.frozenInputs); mutate(input); assert.throws(() => begin(c, validated, authorized, { closeoutInputs: input }));
+      }
+      const wrongBytes = structuredClone(c.frozenInputs); wrongBytes.resources.find(row => row.id === "user-instructions").before.sha256 = "0".repeat(64);
+      wrongBytes.fingerprint = digest({ contract: wrongBytes.contract, path_kind: wrongBytes.path_kind, binding: wrongBytes.binding, resources: wrongBytes.resources });
+      assert.throws(() => c.m.assertCloseoutInstructionInputs(validated, wrongBytes), error => error.code === "closeout_instruction_frozen_input_invalid");
+      await assert.rejects(c.m.authorizeCloseout(validated, { transport: authorizationTransport(c), frozenInputs: null }), error => error.code === "closeout_instruction_frozen_input_invalid");
+      assert.throws(() => begin(c, validated, authorized, { closeoutInputs: null }));
+      assert.throws(() => begin(c, validated, authorized, { contractFingerprint: "0".repeat(64) }));
+      assert.throws(() => begin(c, validated, { observations: authorized.observations }));
+      await assert.rejects(authorize(c, validated, (record, url) => url.includes("/comments/") ? { ...record, updated_at: time(1000) } : record));
+      await assert.rejects(authorize(c, validated, (record, url) => url.endsWith("/permission") ? { ...record, permission: "read" } : record));
+      assert.deepEqual(treeFiles(c.anchor), ledger); pass("missing, changed, faulted or forged frozen authority refuses before reservation");
+      const packets = [];
+      for (const index of [1, 2]) {
+        const checkout = path.join(resource.root, `instruction-race-${index}`); cpSync(c.checkout, checkout, { recursive: true, filter: file => path.basename(file) !== c.m.CHECKOUT_OWNER_FILE });
+        const packet = path.join(resource.root, `instruction-claim-${index}.json`); write(packet, { checkout, anchor: c.anchor,
+          file: path.join(checkout, ".augnes-local-verification/closeout/instruction-proof.json"), authority: c.authority, frozenInputs: c.frozenInputs, controlRoot: c.controlRoot, run_id: `synthetic-instruction-race-${index}` }); packets.push(packet);
+      }
+      const results = await Promise.all(packets.map((packet, index) => child([self, "--claim-closeout-fixture", packet], `instruction-race-${index + 1}`)));
+      assert.deepEqual(results.map(row => row.exit_code).sort(), [0, 1], results.map(row => row.output).join("\n"));
+      const winner = c.m.reconstructAttemptTip({ anchorRoot: c.anchor, branch: c.branch }); assert(winner.closeout_instruction_consumed);
+      const family = path.join(c.anchor, ".augnes-local-verification/families", winner.family_id), attemptFile = path.join(family, "attempt-1.json"), attemptBytes = readFileSync(attemptFile);
+      assert(c.m.validCloseoutAttempt(read(attemptFile))); assert.throws(() => begin(c, validated, authorized));
+      for (const change of [p => p.head = p.base, p => p.branch += "-copied", p => p.kind = c.m.CLOSEOUT_CONTINUATION_KIND]) {
+        const copied = structuredClone(validated); change(copied); assert.throws(() => begin(c, copied, authorized));
+      }
+      assert.throws(() => begin(c, validated, authorized, { recoveryProof: {} }));
+      rmSync(attemptFile); assert.throws(() => c.m.reconstructAttemptTip({ anchorRoot: c.anchor, branch: c.branch })); assert.throws(() => begin(c, validated, authorized)); write(attemptFile, attemptBytes);
+      write(path.join(family, "correction-successor.json"), { contract: "augnes.local-canonical-successor.v2", kind: c.m.CLOSEOUT_INSTRUCTION_KIND });
+      assert.throws(() => c.m.reconstructAttemptTip({ anchorRoot: c.anchor, branch: c.branch })); rmSync(path.join(family, "correction-successor.json"));
+      for (const row of ledger) assert.equal(digest(readFileSync(path.join(c.anchor, row.file))), row.sha256);
+      pass("one exclusive winner; copied proof/head/branch, retry, recovery, interrupted reservation and chaining cannot renew it");
+    } else {
+      const attempt = begin(c, validated, authorized);
+      // Stock must still authenticate the frozen declaration after a later
+      // observed safety change; that dynamic fault never licenses reservation.
+      write(c.instructionFile, readFileSync(c.instructionFile, "utf8") + "Later synthetic input change.\n");
+      assert.equal(c.inputContract.check({ force: true })?.disposition, "safety_violation");
+      const settledInputs = c.inputContract.snapshot();
+      assert.throws(() => begin(c, validated, authorized, { closeoutInputs: settledInputs }));
+      const current = c.m.finalizeReceipt({ ...structuredClone(c.receipt),
+        repository: { ...c.receipt.repository, head_sha: saved.head, tree_sha: saved.tree }, run: { ...c.receipt.run, id: attempt.attempt_id }, attempt,
+        inputs: settledInputs, outcome: { disposition: "safety_violation", safety: "blocked", validity: "invalidated", first_fault: settledInputs.first_fault } });
+      c.m.finishAttempt(attempt, { receiptFingerprint: current.integrity.content_fingerprint, disposition: "safety_violation", cleanupComplete: true });
+      const exported = c.m.createPrivateReviewExport(current); assert(c.m.validCloseoutAttempt(exported.attempt)); assert(c.m.inspectPrivateReviewExport(exported).structurally_valid);
+      for (const mutate of [r => r.receipt_version = 3, r => r.attempt.source_correction.schema = "augnes.local-canonical-source-correction.v2",
+        r => r.attempt.source_correction.kind = c.m.CLOSEOUT_SCOPE_CORRECTION_KIND, r => delete r.attempt.closeout_authority,
+        r => delete r.attempt.closeout_instruction_input, r => r.attempt.closeout_instruction_input.fingerprint = "0".repeat(64),
+        r => r.inputs.fingerprint = "0".repeat(64),
+        r => { delete r.attempt.source_correction; delete r.attempt.closeout_authority; r.attempt.closeout_instruction_input = null; },
+        r => delete r.attempt.source_correction.instruction.after, r => r.attempt.source_correction.instruction.after.sha256 = "0".repeat(64)]) {
+        const altered = structuredClone(current); mutate(altered); const sealed = c.m.finalizeReceipt(altered);
+        assert(c.m.inspectReceiptForDecision(sealed, { currentAttemptRecordsValid: true }).issues.includes("receipt_1559_closeout_invalid")); assert.throws(() => c.m.createPrivateReviewExport(sealed));
+        const sanitized = structuredClone(exported); mutate(sanitized); delete sanitized.export_fingerprint; sanitized.export_fingerprint = digest(c.m.canonicalSerialize(sanitized));
+        assert(!c.m.inspectPrivateReviewExport(sanitized).structurally_valid);
+      }
+      const after = treeFiles(c.anchor), receiptFile = path.join(c.folder, "instruction-receipt.json"), packet = path.join(c.folder, "instruction-stock-packet.json");
+      write(receiptFile, current); write(packet, { checkout: c.checkout, anchor: c.anchor, file: c.file, authority: c.authority,
+        frozenInputs: current.inputs, controlRoot: c.controlRoot, receiptFile });
+      const cold = await child([self, "--stock-closeout-fixture", packet], "instruction-cold-stock"); assert.equal(cold.exit_code, 0, cold.output);
+      assert.deepEqual(treeFiles(c.anchor), after); pass("fresh stock validates exact frozen inputs read-only; sanitized exports preserve bindings and refuse recomputed-integrity downgrades");
+    }
+  } finally {
+    if (c?.owner) c.m.releaseCheckoutVerificationOwnership(c.owner, c.checkout, { consumersSettled: active === 0 });
+    if (!active) settleCanonicalTestResourceUse(resource, { cleanup_completed: true, exit_observed: true, streams_closed: true, remaining_owned_processes: 0 });
+    assert(cleanupCanonicalTestResources([resource])[0].completed);
+  }
+  console.log(JSON.stringify({ closeout_instruction_replacement: checks, group, count: checks.length, synthetic_authority_only: true, cleanup_complete: true }));
 }

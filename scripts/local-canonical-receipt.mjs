@@ -1,4 +1,4 @@
-import { isAnyCloseout, hasCloseoutMarker, validCloseoutAttempt } from "./local-canonical-1559-closeout.mjs";
+import { isCloseoutInstructionReplacement, closeoutInstructionInputBinding, isAnyCloseout, hasCloseoutMarker, validCloseoutAttempt } from "./local-canonical-1559-closeout.mjs";
 import { COMPANION_TIMEOUT_SCHEMA, isCompanionTimeout, validCompanionTimeoutAttempt } from "./local-canonical-companion-timeout-succession.mjs";
 import { GUIDE_CORRECTION_SCHEMA, isGuideCorrection, validGuideCorrectionAttempt } from "./local-canonical-guide-correction.mjs";
 import { isObserverRepair, validObserverAttempt } from "./local-canonical-observer-succession.mjs";
@@ -691,6 +691,10 @@ function inspectClassifiedEvidence(receipt, issues) {
     if (receipt.receipt_version !== 4 || !validCloseoutAttempt(attempt) || receipt.evidence.mode !== "full" ||
         receipt.verification_context.kind !== "isolated-worktree" || attempt.source_correction.base !== receipt.repository.base_sha ||
         digest(receipt.phases.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) issues.push("receipt_1559_closeout_invalid");
+    if (isCloseoutInstructionReplacement(attempt?.source_correction)) {
+      try { if (digest(closeoutInstructionInputBinding(attempt.source_correction, input, { requireUnfaulted: false })) !== digest(attempt.closeout_instruction_input)) issues.push("receipt_1559_closeout_invalid"); }
+      catch { issues.push("receipt_1559_closeout_invalid"); }
+    }
   }
   if (attempt?.source_correction?.schema === "augnes.local-canonical-source-correction.v3" || attempt?.observer_authority) {
     if (receipt.receipt_version !== 4 || !validObserverAttempt(attempt) || receipt.evidence.mode !== "full" ||

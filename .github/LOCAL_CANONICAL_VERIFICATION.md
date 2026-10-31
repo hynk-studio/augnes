@@ -1703,3 +1703,67 @@ authentication and published Draft-source gates still apply. Proof and stock
 inspection remain read-only; all 16 phases, seven Browser owners and separate
 fresh stock are still required for qualification. This policy does not grant
 merge, Ready, auto-merge, release, deployment or installed-adoption authority.
+
+### One explicitly authorized reporting-instruction input replacement
+
+The source-scope candidate `69d09685566391034a2c8b48cddcbdfaebdd1ddc`
+settled as `safety_violation` after the whole-file user-instructions guard
+observed a real change. Its original Full result remains 5 PASS / 1 FAIL /
+10 NOT_RUN, with separate nondeciding stock reporting 17 issues and complete
+cleanup. The unit suite was cancelled, not timed out: 51 children naturally
+passed and the 52nd had started without a final child verdict. No outcome is
+invented for that interrupted child. The guard behaved according to policy;
+this replacement is not a verifier correction or infrastructure reclassification.
+
+The user then explicitly instructed Codex to resolve this instruction-input
+blocker and continue the closeout. Authenticated comment
+[`6539480565`](https://github.com/hynk-studio/augnes/pull/1560#issuecomment-6539480565),
+created at `2026-10-31T05:18:33Z`, records the exact instruction and Codex's
+publishing role. It supplements the original continuing scope; it is not an
+independent source review. The production owner re-reads its actual author,
+body, destination, timestamp, current permission and published Draft head/base.
+
+The existing continuation schema recognizes only the additional kind
+`issue_1559_instruction_input_replacement` for family
+`36607e4013b3b3347621a2eee5cddc94e99d8383ea879b4ba1b0c9274cb83d45`,
+attempt `2026-10-31T04-48-27-071Z-full-69d096855663-adb7a9586e65b27c`,
+receipt `7e1476437852d22b3a2ae0703fbe801cee8eda1bbddd13f6a275dac1c704826d`,
+completed at `2026-10-31T04:55:57.206Z`. Its complete originals, single
+instruction fault, absence of secondary faults, cleanup, predecessor proof
+and retained earlier evidence remain required. Another failed workload,
+different input fault, ambiguous cleanup or older predecessor is ineligible.
+
+The exact retained before/after instruction bytes are 11,769 / `d4289118…`
+and 13,875 / `f6297360…`; their full hashes and provenance are fixed by the
+owner. Byte comparison must show that only the Augnes Space reporting
+exception changed. Other authority, execution and preservation instructions
+remain exact. Filesystem-writer authentication is not claimed. The new
+allowance comes from the later direct user instruction, not from the reporting
+permission contained in the changed file.
+
+The normal executor freezes the actual current inputs and passes that same
+declaration to authorization and admission. Its fingerprint, candidate identity
+and exact safety resource location, file identity, bytes and hash are checked
+before reserving an edge. A separately read file or proof-supplied input does
+not replace this frozen declaration. The attempt retains a bounded hash-only
+footprint, also checked by receipt, fresh stock and private export. The live
+whole-file monitor remains unchanged; a later instruction change still faults
+and cancels normally. No global instruction file is restored or rewritten.
+
+All 33 accepted task paths remain preserved against the settled candidate,
+including paths absent from a later diff. Only the same ten named policy and
+control owners may change, with the existing bounded current-main union rule.
+Product semantics, service-contract efficiency, suite/planner registrations,
+assertions, deadlines and lifecycle owners remain unchanged. The existing
+exclusive successor namespace consumes this exact input replacement once,
+with `{initial: 1, recovery: 0}`. Earlier consumed flags and historical records
+stay intact. Interrupted reservation, copied proof or comment, another head,
+branch or worktree, recovery and further chaining cannot renew it.
+
+Focused controls cover evidence, authority, the real frozen-input handoff,
+continued live cancellation, exclusive consumption and fresh stock/export
+without reservation. Normal ownership, capacity, runtime, Companion, current
+main and all other input checks still apply. Complete Full16 and Browser7 plus
+separate fresh stock remain the qualification obligation. This prospective
+policy and its results await the user's commissioned independent final audit;
+merge, Ready, auto-merge, deployment and installed adoption remain unauthorized.

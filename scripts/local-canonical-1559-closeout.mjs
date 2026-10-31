@@ -3,7 +3,7 @@
 import { lstatSync, readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { digest } from "./local-canonical-inputs.mjs";
+import { digest, supportedInputContract, classifyInputChange, nonFaultInputChange } from "./local-canonical-inputs.mjs";
 import { BROWSER_REPLACEMENT_PHASES } from "./local-canonical-browser-replacement.mjs";
 import { createGitHubObserverAuthorizationTransport } from "./github-main-branch-transport.mjs";
 
@@ -289,12 +289,14 @@ function validInitialCloseoutAttempt(attempt) {
 export const CLOSEOUT_CONTINUATION_SCHEMA = "augnes.local-canonical-closeout-continuation.v1";
 export const CLOSEOUT_CONTINUATION_KIND = "issue_1559_operational_validation_correction";
 export const CLOSEOUT_SCOPE_CORRECTION_KIND = "issue_1559_source_scope_precheck_correction";
+export const CLOSEOUT_INSTRUCTION_KIND = "issue_1559_instruction_input_replacement";
 export const isCloseoutContinuation = p => p?.schema === CLOSEOUT_CONTINUATION_SCHEMA && p.kind === CLOSEOUT_CONTINUATION_KIND;
 export const isCloseoutScopeCorrection = p => p?.schema === CLOSEOUT_CONTINUATION_SCHEMA && p.kind === CLOSEOUT_SCOPE_CORRECTION_KIND;
-export const isAnyCloseout = p => isCloseout(p) || isCloseoutContinuation(p) || isCloseoutScopeCorrection(p);
+export const isCloseoutInstructionReplacement = p => p?.schema === CLOSEOUT_CONTINUATION_SCHEMA && p.kind === CLOSEOUT_INSTRUCTION_KIND;
+export const isAnyCloseout = p => isCloseout(p) || isCloseoutContinuation(p) || isCloseoutScopeCorrection(p) || isCloseoutInstructionReplacement(p);
 export const hasCloseoutMarker = attempt => [CLOSEOUT_SCHEMA, CLOSEOUT_CONTINUATION_SCHEMA].includes(attempt?.source_correction?.schema) ||
-  ["issue_1559_closeout", CLOSEOUT_CONTINUATION_KIND, CLOSEOUT_SCOPE_CORRECTION_KIND].includes(attempt?.source_correction?.kind) || !!attempt?.closeout_authority ||
-  !!attempt?.closeout_consumed || !!attempt?.closeout_continuation_consumed || !!attempt?.closeout_scope_correction_consumed;
+  ["issue_1559_closeout", CLOSEOUT_CONTINUATION_KIND, CLOSEOUT_SCOPE_CORRECTION_KIND, CLOSEOUT_INSTRUCTION_KIND].includes(attempt?.source_correction?.kind) || !!attempt?.closeout_authority ||
+  !!attempt?.closeout_consumed || !!attempt?.closeout_continuation_consumed || !!attempt?.closeout_scope_correction_consumed || !!attempt?.closeout_instruction_consumed || Object.hasOwn(attempt ?? {}, "closeout_instruction_input");
 // BEGIN CLOSEOUT CONTINUATION PINS
 export const CLOSEOUT_CONTINUATION_PINS = Object.freeze({
   prior_head: "ac8d6f04eb272c3d2222f30dda26cec6d540d0a2", prior_tree: "5678fe6a802ae3693857da90b8a4627a9766fc02",
@@ -555,7 +557,10 @@ export function readCloseoutContinuationEvidence(file, p, repositoryRoot) {
 }
 
 function validContinuationObservation(p, observation) {
-  const expected = { ...CLOSEOUT_PINS.scope, role: "closeout_scope", commit_id: null };
+  return validContinuingScopeObservation(p, observation, CLOSEOUT_PINS.scope);
+}
+function validContinuingScopeObservation(p, observation, scope) {
+  const expected = { ...scope, role: "closeout_scope", commit_id: null };
   return keys(observation, Object.keys(expected)) && exact(observation, expected) && p.authorization?.scope_comment_id === expected.id &&
     p.authorization.scope_sha256 === digest(observation) && validTime(observation.timestamp);
 }
@@ -565,13 +570,13 @@ export async function authorizeCloseoutContinuation(p, { transport = createGitHu
     p.authorization.scope_comment_id !== CLOSEOUT_PINS.scope.id || !sha(p.authorization.scope_sha256)) fail("closeout_continuation_authority_missing");
   return authorizeContinuingScope(p, evidence, transport);
 }
-async function authorizeContinuingScope(p, evidence, transport) {
+async function authorizeContinuingScope(p, evidence, transport, scope = CLOSEOUT_PINS.scope) {
   const record = await transport.grant(p.authorization.scope_comment_id);
-  if (record?.id !== CLOSEOUT_PINS.scope.id || record.user?.type !== "User" || record.user.login !== CLOSEOUT_PINS.scope.author || record.user.id !== CLOSEOUT_PINS.scope.author_id ||
-    record.author_association !== "OWNER" || record.issue_url !== `https://api.github.com/repos/hynk-studio/augnes/issues/${p.pull_request}` || record.created_at !== CLOSEOUT_PINS.scope.timestamp ||
+  if (record?.id !== scope.id || record.user?.type !== "User" || record.user.login !== scope.author || record.user.id !== scope.author_id ||
+    record.author_association !== "OWNER" || record.issue_url !== `https://api.github.com/repos/hynk-studio/augnes/issues/${p.pull_request}` || record.created_at !== scope.timestamp ||
     typeof record.body !== "string" || Buffer.byteLength(record.body) > 65536) fail("closeout_continuation_authority_identity_invalid");
   const observation = closeoutAuthorityObservation(record);
-  if (!validContinuationObservation(p, observation)) fail("closeout_continuation_authority_changed");
+  if (!validContinuingScopeObservation(p, observation, scope)) fail("closeout_continuation_authority_changed");
   const permission = await transport.permission(record.user.login);
   if (permission.user?.login !== record.user.login || !["admin", "maintain"].includes(permission.permission)) fail("closeout_continuation_authority_permission_invalid");
   const pr = await transport.pullRequest();
@@ -801,27 +806,200 @@ export function validCloseoutScopeCorrectionAttempt(attempt) {
   } catch { return false; }
 }
 
+// Prospective acceptance of one instruction input under the later direct user
+// steering. The original safety stop and the instruction monitor are unchanged.
+// BEGIN CLOSEOUT INSTRUCTION PINS
+export const CLOSEOUT_INSTRUCTION_PINS = Object.freeze({
+  prior_head: "69d09685566391034a2c8b48cddcbdfaebdd1ddc", prior_tree: "94562fac91414decbf9b4a7b11614bece7d3fe4f",
+  prior_family_id: "36607e4013b3b3347621a2eee5cddc94e99d8383ea879b4ba1b0c9274cb83d45",
+  prior_attempt_id: "2026-10-31T04-48-27-071Z-full-69d096855663-adb7a9586e65b27c",
+  prior_receipt_fingerprint: "7e1476437852d22b3a2ae0703fbe801cee8eda1bbddd13f6a275dac1c704826d",
+  completed_at: "2026-10-31T04:55:57.206Z", fault_observed_at: "2026-10-31T04:55:52.443Z",
+  predecessor_proof: "e7fb013f51766356298d91b2a54f0847090667434a51d22a3d65acbb8a71dbaf",
+  before_bytes: 11769, after_bytes: 13875,
+  instruction_location_fingerprint: "f111555e42220cf253fb9aaecfbd1bdebd0ddc4ae5d723d3988c5b506b8e89fa",
+  instruction_identity_fingerprint: "5995ac47a8a645f89fa31d6498d766ad64b3b6438a58cb2ade4d4901d1fc3077",
+  originals: {
+    receipt: "f30b1d704444de9ed91a98dbf84e7932b15a68e67a301153d7d4ce8f15a4ad85",
+    attempt: "1fa48bd91f6570617c05cc3a2c662a4ba20321e719e51c9aaf69eb3a062fc3cc",
+    completion: "551ae470b9aabd6c17ddbc1ce1c1ef970efe1d0712ed7e3d4fe8a9c5a8f23907",
+    edge: "6e5b07c7a27aeb585d22f292dd3a4d513aa091b8d99c3fb9de9d4eb3f50f19b1",
+    unit_log: "c37e647e4e468d5a6f7b7be8bceb31f1a4ad5b9815452cd471761ae6ccb3bcd8",
+    stock: "1d96646980e3e067efa05ac2a5527164f301012aaa5e9c98508a366b4344edc6",
+    stock_log: "d4a231502403e7a3094ff2ea4371f15c975f8977db594d03bf28bb649e630ccc",
+  },
+  instruction: {
+    before: "d4289118bf6acf24fede74a2475e6e0bb86909457748ca9d1300e4ae79496bb9",
+    after: "f6297360e622d89e56998ebc10b362d596ef21a3054dde867bbcb5cc46de60f6",
+    delta: "ca2080d731a5572f011a4e3efabc00374ea67b9d6f4cfae54daa3da64c4812ce",
+    provenance: "e8a2122080c3ad5a1e5bc0c9ee7fa90beb80283b37b82f0795c96df21e8c1df6",
+  },
+  scope: { id: 6539480565, author: "hynk-studio", author_id: 89450056,
+    body_sha256: "3dbdeeed627952a7eb0841094cb1728ee8f18c4322c82d702064a0b8f8126800", timestamp: "2026-10-31T05:18:33Z" },
+});
+// END CLOSEOUT INSTRUCTION PINS
+for (const value of Object.values(CLOSEOUT_INSTRUCTION_PINS)) if (value && typeof value === "object") Object.freeze(value);
+const instructionEvidence = new Map();
+const instructionIdentity = observation => digest(Object.fromEntries(["device", "uid", "gid", "mode", "inode", "links"].map(key => [key, observation?.metadata?.[key]])));
+export function inspectCloseoutInstructionSourceScope(repositoryRoot, { base, head }) {
+  const { scope } = inspectSourceScope(repositoryRoot, { base, head }, CLOSEOUT_PINS.accepted_base, CLOSEOUT_INSTRUCTION_PINS.prior_head, [], SCOPE_CORRECTION_POLICY_PATHS);
+  return { ...scope, schema: "augnes.local-canonical-closeout-instruction-source.v1", basis: "settled_scope_correction_and_current_main_union" };
+}
+export function validateCloseoutInstructionSourceScope(scope) {
+  if (scope.schema !== "augnes.local-canonical-closeout-instruction-source.v1" || scope.basis !== "settled_scope_correction_and_current_main_union" ||
+    scope.accepted_base !== CLOSEOUT_PINS.accepted_base || scope.accepted_head !== CLOSEOUT_INSTRUCTION_PINS.prior_head || !commit(scope.current_main)) fail("closeout_instruction_inventory_invalid");
+  validateRetainedSourceScope(scope, 33, SCOPE_CORRECTION_POLICY_PATHS);
+  if (scope.candidate_policy.some(row => row.candidate.present !== true)) fail("closeout_instruction_policy_removed");
+  return scope;
+}
+function semanticInstructionProof(p) {
+  const a = CLOSEOUT_INSTRUCTION_PINS;
+  return isCloseoutInstructionReplacement(p) && p.pull_request === CLOSEOUT_PINS.pull_request && p.branch === CLOSEOUT_PINS.branch && [p.base, p.head, p.tree].every(commit) &&
+    p.head !== a.prior_head && p.tree !== a.prior_tree && p.prior_family_id === a.prior_family_id && p.prior_attempt_id === a.prior_attempt_id &&
+    p.prior_receipt_fingerprint === a.prior_receipt_fingerprint && p.prior_number === 1 && exact(p.budget, BUDGET) && p.predecessor_proof?.sha256 === a.predecessor_proof &&
+    keys(p.originals, Object.keys(a.originals)) && Object.entries(a.originals).every(([name, hash]) => p.originals[name]?.sha256 === hash) &&
+    keys(p.instruction, Object.keys(a.instruction)) && Object.entries(a.instruction).every(([name, hash]) => p.instruction[name]?.sha256 === hash) && sha(p.final_source?.sha256) &&
+    p.source_scope?.schema === "augnes.local-canonical-closeout-instruction-source.v1" && p.source_scope.accepted_base === CLOSEOUT_PINS.accepted_base &&
+    p.source_scope.accepted_head === a.prior_head && p.source_scope.current_main === p.base;
+}
+function instructionOriginalEvidence(folder, p, repositoryRoot) {
+  const a = CLOSEOUT_INSTRUCTION_PINS, old = Object.fromEntries(Object.keys(a.originals).map(name => { const bytes = closeoutArtifact(folder, p.originals[name]); return [name, name.endsWith("log") ? bytes : json(bytes)]; }));
+  const r = old.receipt, prior = old.attempt, completion = old.completion, copy = { ...r }; delete copy.integrity;
+  const predecessor = json(closeoutArtifact(folder, p.predecessor_proof)), input = r.inputs, fault = input?.first_fault;
+  if (r.integrity?.content_fingerprint !== digest(copy) || r.integrity.content_fingerprint !== p.prior_receipt_fingerprint || !exact(r.attempt, prior) ||
+    prior.head !== a.prior_head || prior.tree !== a.prior_tree || prior.family_id !== p.prior_family_id || prior.attempt_id !== p.prior_attempt_id || prior.number !== 1 || prior.branch !== p.branch ||
+    !validCloseoutScopeCorrectionAttempt(prior) || !isCloseoutScopeCorrection(predecessor) || !exact(normalizedProof(prior.source_correction), normalizedProof(predecessor)) ||
+    completion.attempt_id !== prior.attempt_id || completion.receipt_fingerprint !== p.prior_receipt_fingerprint || completion.finished_at !== a.completed_at || completion.disposition !== "safety_violation" || completion.infrastructure_code !== null || completion.cleanup_complete !== true ||
+    old.edge.contract !== "augnes.local-canonical-successor.v2" || old.edge.kind !== CLOSEOUT_SCOPE_CORRECTION_KIND || old.edge.family_id !== prior.family_id || old.edge.head !== prior.head || old.edge.tree !== prior.tree || old.edge.proof_fingerprint !== digest(prior.source_correction) ||
+    r.repository?.repository_id !== "hynk-studio/augnes" || r.repository.origin !== "https://github.com/hynk-studio/augnes.git" || r.repository.head_sha !== prior.head || r.repository.tree_sha !== prior.tree || r.repository.branch !== p.branch ||
+    r.repository.worktree_before !== "clean" || r.repository.worktree_after !== "clean" || r.repository.detached !== false ||
+    r.outcome?.disposition !== "safety_violation" || r.outcome.safety !== "blocked" || !exact(r.outcome.first_fault, fault) ||
+    r.cleanup?.completed !== true || r.cleanup.remaining_owned_processes !== 0 || r.cleanup.companion_service?.restored !== true || r.cleanup.isolated_resources?.completed !== true || r.cleanup.isolated_resources.failure_count !== 0 ||
+    !exact(r.phases?.map(x => x.id), BROWSER_REPLACEMENT_PHASES) || !exact(r.phases.map(x => x.status), [...Array(5).fill("pass"), "failure", ...Array(10).fill("not_run")]) ||
+    old.stock.content_fingerprint !== p.prior_receipt_fingerprint || old.stock.valid_deciding_evidence !== false || old.stock.issues?.length !== 17) fail("closeout_instruction_original_binding_invalid");
+  const declaration = { contract: input?.contract, path_kind: input?.path_kind, binding: input?.binding, resources: input?.resources };
+  const resources = (Array.isArray(input?.resources) ? input.resources.filter(x => x.id === "user-instructions") : []), event = input?.events?.[0], resource = resources?.[0];
+  if (!supportedInputContract(input?.contract) || digest(declaration) !== input.fingerprint || prior.contract_fingerprint !== input.fingerprint ||
+    !Array.isArray(input.resources) || new Set(input.resources.map(x => x.id)).size !== input.resources.length || resources.length !== 1 || input.events?.length !== 1 || input.secondary_faults?.length !== 0 ||
+    fault?.resource !== "user-instructions" || fault.disposition !== "safety_violation" || fault.observed_at !== a.fault_observed_at || event.resource !== fault.resource || event.observed_at !== fault.observed_at || event.monotonic_ns !== fault.monotonic_ns ||
+    event.classification !== "safety" || event.disposition !== "safety_violation" || resource.classification !== "safety" || resource.location_fingerprint !== a.instruction_location_fingerprint ||
+    resource.before?.present !== true || resource.before.sha256 !== a.instruction.before || Number(resource.before.metadata?.bytes) !== a.before_bytes || event.after?.present !== true || event.after.sha256 !== a.instruction.after || Number(event.after.metadata?.bytes) !== a.after_bytes ||
+    instructionIdentity(resource.before) !== a.instruction_identity_fingerprint || instructionIdentity(event.after) !== a.instruction_identity_fingerprint ||
+    classifyInputChange(resource.before, event.after, resource, input) !== "safety_violation") fail("closeout_instruction_original_fault_invalid");
+  const unit = r.phases.find(x => x.id === "unit"), lines = old.unit_log.toString().split("\n"), results = lines.filter(x => x.startsWith("[canonical:unit] child_result ")), starts = lines.filter(x => x.startsWith("[canonical:unit] child_start "));
+  if (unit.duration_ms !== 360925 || unit.timed_out !== false || unit.exit_status !== null || unit.failure_code !== "phase_cancelled" || unit.cleanup?.termination_reason !== "operator_cancelled" || unit.log?.truncated !== false || unit.log.bytes !== old.unit_log.length ||
+    starts.length !== 52 || results.length !== 51 || results.some(x => !/ exit_code=0 signal=null timed_out=false .*termination_reason=natural_exit$/u.test(x)) ||
+    starts.at(-1) !== '[canonical:unit] child_start label="machine-owned Companion service and public lifecycle contract" timeout_ms=30000') fail("closeout_instruction_original_cancellation_invalid");
+  readCloseoutScopeCorrectionEvidence(path.join(folder, p.predecessor_proof.artifact), predecessor, repositoryRoot);
+  return { original: r, prior, completion };
+}
+function instructionReplacementEvidence(folder, p) {
+  const a = CLOSEOUT_INSTRUCTION_PINS, before = closeoutArtifact(folder, p.instruction.before), after = closeoutArtifact(folder, p.instruction.after), provenance = json(closeoutArtifact(folder, p.instruction.provenance));
+  const split = bytes => {
+    const start = "### Augnes Space reporting exception\n", end = "### A substantive task ends with a complete report in its own session\n", pieces = bytes.toString().split(start);
+    if (pieces.length !== 2) fail("closeout_instruction_reporting_section_invalid");
+    const rest = pieces[1].split(end); if (rest.length !== 2 || !rest[0]) fail("closeout_instruction_reporting_section_invalid");
+    return { prefix: pieces[0], reporting: rest[0], suffix: rest[1] };
+  };
+  const old = split(before), current = split(after);
+  if (before.length !== a.before_bytes || after.length !== a.after_bytes || old.prefix !== current.prefix || old.suffix !== current.suffix || old.reporting === current.reporting ||
+    provenance.matches_actual_safety_event !== true || provenance.outside_reporting_exception_byte_identical !== true || provenance.reported_author !== "Codex" || provenance.os_writer_independently_verified !== false ||
+    provenance.records?.global_before?.sha256 !== digest(before) || provenance.records.global_before.byte_size !== before.length ||
+    provenance.records?.global_after?.sha256 !== digest(after) || provenance.records.global_after.byte_size !== after.length) fail("closeout_instruction_replacement_invalid");
+  return { before_sha256: digest(before), after_sha256: digest(after), outside_reporting_sha256: digest({ prefix: old.prefix, suffix: old.suffix }) };
+}
+export function readCloseoutInstructionEvidence(file, p, repositoryRoot) {
+  if (!keys(normalizedProof(p), ["schema", "kind", "pull_request", "branch", "base", "head", "tree", "prior_family_id", "prior_number", "prior_attempt_id", "prior_receipt_fingerprint", "originals", "predecessor_proof", "instruction", "source_scope", "final_source", "authorization", "budget"]) || !semanticInstructionProof(p)) fail("closeout_instruction_proof_invalid");
+  const folder = path.dirname(file);
+  for (const ref of [p.predecessor_proof, ...Object.values(p.originals), ...Object.values(p.instruction), p.final_source]) closeoutArtifact(folder, ref);
+  validateCloseoutInstructionSourceScope(p.source_scope);
+  const evidence = instructionReplacementEvidence(folder, p), original = instructionOriginalEvidence(folder, p, repositoryRoot), git = gitAt(repositoryRoot), source = json(closeoutArtifact(folder, p.final_source));
+  if (!keys(source, ["schema", "basis", "base", "head", "tree", "predecessor_head", "predecessor_tree", "deltas"]) || source.schema !== "augnes.local-canonical-closeout-instruction-final-source.v1" || source.basis !== "implementation_owner_not_independent_review" ||
+    source.base !== p.base || source.head !== p.head || source.tree !== p.tree || source.predecessor_head !== CLOSEOUT_INSTRUCTION_PINS.prior_head || source.predecessor_tree !== CLOSEOUT_INSTRUCTION_PINS.prior_tree ||
+    !keys(source.deltas, ["predecessor", "first_closeout", "main"]) || git(["rev-parse", `${p.head}^{tree}`]).toString().trim() !== p.tree) fail("closeout_instruction_final_source_invalid");
+  for (const [name, base] of [["predecessor", CLOSEOUT_INSTRUCTION_PINS.prior_head], ["first_closeout", CLOSEOUT_CONTINUATION_PINS.prior_head], ["main", p.base]]) {
+    const bytes = git(["diff", "--binary", "--full-index", "--no-ext-diff", "--no-textconv", base, p.head, "--"]), declared = source.deltas[name];
+    const paths = git(["diff", "--no-renames", "--name-only", "-z", base, p.head, "--"]).toString().split("\0").filter(Boolean).sort();
+    if (!keys(declared, ["sha256", "bytes", "changed_paths"]) || declared.sha256 !== digest(bytes) || declared.bytes !== bytes.length || !exact(declared.changed_paths, paths)) fail("closeout_instruction_native_delta_invalid");
+  }
+  const scope = inspectCloseoutInstructionSourceScope(repositoryRoot, p); validateCloseoutInstructionSourceScope(scope);
+  if (!exact(scope, p.source_scope)) fail("closeout_instruction_source_scope_mismatch");
+  instructionEvidence.set(digest(normalizedProof(p)), evidence); return { ...original, source, evidence };
+}
+// This consumes the executor's actual frozen declaration, never a second read
+// of the instruction path. Dynamic events remain separate from its fingerprint.
+export function assertCloseoutInstructionInputs(p, input, { requireUnfaulted = true } = {}) {
+  const a = CLOSEOUT_INSTRUCTION_PINS, declaration = { contract: input?.contract, path_kind: input?.path_kind, binding: input?.binding, resources: input?.resources };
+  const rows = (Array.isArray(input?.resources) ? input.resources.filter(x => x.id === "user-instructions") : []), row = rows?.[0];
+  if (!isCloseoutInstructionReplacement(p) || input?.contract !== "augnes.local-canonical-inputs.v3" || input.path_kind !== "isolated-model-free-v1" ||
+    !sha(input.fingerprint) || digest(declaration) !== input.fingerprint || input.binding?.head !== p.head || input.binding.tree !== p.tree ||
+    !Array.isArray(input.resources) || new Set(input.resources.map(x => x.id)).size !== input.resources.length || rows.length !== 1 ||
+    row.classification !== "safety" || row.location_fingerprint !== a.instruction_location_fingerprint || row.before?.present !== true ||
+    row.before.sha256 !== a.instruction.after || Number(row.before.metadata?.bytes) !== a.after_bytes || instructionIdentity(row.before) !== a.instruction_identity_fingerprint ||
+    (requireUnfaulted && (input.first_fault !== null || input.secondary_faults?.length !== 0 || !Array.isArray(input.events) || input.events.some(x => !nonFaultInputChange(x.disposition))))) fail("closeout_instruction_frozen_input_invalid");
+  return input.fingerprint;
+}
+export function closeoutInstructionInputBinding(p, input, options) {
+  const fingerprint = assertCloseoutInstructionInputs(p, input, options), a = CLOSEOUT_INSTRUCTION_PINS;
+  return { contract: input.contract, path_kind: input.path_kind, fingerprint, head: p.head, tree: p.tree,
+    resource: "user-instructions", classification: "safety", location_fingerprint: a.instruction_location_fingerprint,
+    sha256: a.instruction.after, bytes: a.after_bytes, identity_fingerprint: a.instruction_identity_fingerprint };
+}
+function validInstructionInputBinding(attempt) {
+  const p = attempt.source_correction, a = CLOSEOUT_INSTRUCTION_PINS, value = attempt.closeout_instruction_input;
+  return sha(attempt.contract_fingerprint) && exact(value, { contract: "augnes.local-canonical-inputs.v3", path_kind: "isolated-model-free-v1",
+    fingerprint: attempt.contract_fingerprint, head: p.head, tree: p.tree, resource: "user-instructions", classification: "safety",
+    location_fingerprint: a.instruction_location_fingerprint, sha256: a.instruction.after, bytes: a.after_bytes, identity_fingerprint: a.instruction_identity_fingerprint });
+}
+export async function authorizeCloseoutInstruction(p, { transport = createGitHubObserverAuthorizationTransport(p.pull_request), frozenInputs } = {}) {
+  const evidence = instructionEvidence.get(digest(normalizedProof(p))), scope = CLOSEOUT_INSTRUCTION_PINS.scope;
+  if (!semanticInstructionProof(p) || !evidence || !keys(p.authorization, ["scope_comment_id", "scope_sha256"]) || p.authorization.scope_comment_id !== scope.id || !sha(p.authorization.scope_sha256) ||
+    Date.parse(scope.timestamp) <= Date.parse(CLOSEOUT_INSTRUCTION_PINS.completed_at)) fail("closeout_instruction_authority_missing");
+  const fingerprint = assertCloseoutInstructionInputs(p, frozenInputs, { requireUnfaulted: false });
+  const capability = await authorizeContinuingScope(p, evidence, transport, scope);
+  capabilities.set(capability, { ...capabilities.get(capability), instruction_inputs: fingerprint }); return capability;
+}
+export function assertCloseoutInstructionAuthorization(p, capability, completion, frozenInputs, { requireUnfaulted = true } = {}) {
+  const state = capabilities.get(capability), evidence = instructionEvidence.get(digest(normalizedProof(p)));
+  const fingerprint = assertCloseoutInstructionInputs(p, frozenInputs, { requireUnfaulted });
+  if (!state || !evidence || state.proof !== digest(p) || state.observations !== digest(capability.observations) || state.evidence !== digest(evidence) || state.instruction_inputs !== fingerprint ||
+    completion?.finished_at !== CLOSEOUT_INSTRUCTION_PINS.completed_at || !validContinuingScopeObservation(p, capability.observations.closeout_scope, CLOSEOUT_INSTRUCTION_PINS.scope)) fail("closeout_instruction_authenticated_authority_required");
+}
+export function validCloseoutInstructionAttempt(attempt) {
+  try {
+    const p = attempt?.source_correction;
+    if (!semanticInstructionProof(p) || !validInstructionInputBinding(attempt) || attempt.number !== 1 || attempt.recovery || attempt.browser_replacement || !exact(attempt.budget, BUDGET) ||
+      attempt.branch !== p.branch || attempt.head !== p.head || attempt.tree !== p.tree || !validContinuingScopeObservation(p, attempt.closeout_authority?.closeout_scope, CLOSEOUT_INSTRUCTION_PINS.scope)) return false;
+    validateCloseoutInstructionSourceScope(p.source_scope); return true;
+  } catch { return false; }
+}
+
 export function readCloseoutEvidence(file, p, repositoryRoot) {
   if (isCloseout(p)) return readInitialCloseoutEvidence(file, p, repositoryRoot);
   if (isCloseoutContinuation(p)) return readCloseoutContinuationEvidence(file, p, repositoryRoot);
   if (isCloseoutScopeCorrection(p)) return readCloseoutScopeCorrectionEvidence(file, p, repositoryRoot);
+  if (isCloseoutInstructionReplacement(p)) return readCloseoutInstructionEvidence(file, p, repositoryRoot);
   fail("closeout_identity_invalid");
 }
 export async function authorizeCloseout(p, options) {
   if (isCloseout(p)) return authorizeInitialCloseout(p, options);
   if (isCloseoutContinuation(p)) return authorizeCloseoutContinuation(p, options);
   if (isCloseoutScopeCorrection(p)) return authorizeCloseoutScopeCorrection(p, options);
+  if (isCloseoutInstructionReplacement(p)) return authorizeCloseoutInstruction(p, options);
   fail("closeout_identity_invalid");
 }
-export function assertCloseoutAuthorization(p, capability, completion) {
+export function assertCloseoutAuthorization(p, capability, completion, frozenInputs, options) {
   if (isCloseout(p)) return assertInitialCloseoutAuthorization(p, capability, completion);
   if (isCloseoutContinuation(p)) return assertCloseoutContinuationAuthorization(p, capability, completion);
   if (isCloseoutScopeCorrection(p)) return assertCloseoutScopeCorrectionAuthorization(p, capability, completion);
+  if (isCloseoutInstructionReplacement(p)) return assertCloseoutInstructionAuthorization(p, capability, completion, frozenInputs, options);
   fail("closeout_identity_invalid");
 }
 export function validCloseoutAttempt(attempt) {
+  if (Object.hasOwn(attempt ?? {}, "closeout_instruction_input") && !isCloseoutInstructionReplacement(attempt?.source_correction)) return false;
   if (isCloseout(attempt?.source_correction)) return validInitialCloseoutAttempt(attempt);
   if (isCloseoutContinuation(attempt?.source_correction)) return validCloseoutContinuationAttempt(attempt);
   if (isCloseoutScopeCorrection(attempt?.source_correction)) return validCloseoutScopeCorrectionAttempt(attempt);
+  if (isCloseoutInstructionReplacement(attempt?.source_correction)) return validCloseoutInstructionAttempt(attempt);
   return false;
 }
