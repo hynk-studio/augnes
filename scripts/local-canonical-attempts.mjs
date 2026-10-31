@@ -316,7 +316,6 @@ export function reconstructAttemptTip({ anchorRoot, branch }) {
     if (observerRepairConsumed) throw fail("attempt_observer_successor_terminal");
     if (correctedTimeoutConsumed) throw fail("attempt_timeout_successor_terminal");
     if (guideCorrectionConsumed) throw fail("attempt_guide_successor_terminal");
-    if (closeoutScopeFixtureCorrectionConsumed && hasCloseoutScopeAmendment(attempt.source_correction)) throw fail("attempt_closeout_candidate_consumed");
     const completion = read(path.join(root, `completion-${number}.json`)), edge = read(edgeFile);
     if (closeoutCapabilityCorrectionConsumed && edge.kind !== CLOSEOUT_SCOPE_FIXTURE_CORRECTION_KIND) throw fail("attempt_closeout_candidate_consumed");
     if (closeoutFixtureCorrectionConsumed && ![CLOSEOUT_CAPABILITY_CORRECTION_KIND, CLOSEOUT_SCOPE_FIXTURE_CORRECTION_KIND].includes(edge.kind)) throw fail("attempt_closeout_candidate_consumed");
@@ -564,6 +563,18 @@ function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree,
       !(proof.schema === "augnes.local-canonical-source-correction.v2" ?
         (proof.kind === "verifier_correction" ? ["safety_violation", "input_invalidation"] : proof.kind === "accepted_main_integration" ? ["completed_success"] : ["completed_success", "product_failure", "user_cancellation"]) :
         ["product_failure", "user_cancellation"]).includes(completion.disposition)) throw fail("source_correction_predecessor_invalid");
+  validateSourceCorrectionBinding({ repositoryRoot, branch, head, tree, proof, prior, completion, acceptedMain, browserAuthorization, browserLive });
+  const successor = { family_id: candidateFamilyId(branch, proof), head, tree, proof_fingerprint: digest(proof) };
+  const reservation = path.join(priorRoot, "correction-successor.json");
+  if (reserve) {
+    append(priorRoot, "correction-successor.json", successor);
+  }
+  if (digest(read(reservation)) !== digest(successor)) throw fail("source_correction_successor_already_bound");
+}
+
+// Pure validation shared with the authorized closeout amendment. It neither
+// reserves an edge nor issues authority; ordinary admission keeps its owner.
+export function validateSourceCorrectionBinding({ repositoryRoot, branch, head, tree, proof, prior, completion, acceptedMain, browserAuthorization, browserLive }) {
   const git = args => execFileSync("git", args, { cwd: repositoryRoot, timeout: 10000, maxBuffer: 16 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] });
   git(["merge-base", "--is-ancestor", prior.head, head]);
   if (git(["rev-parse", `${head}^{tree}`]).toString().trim() !== tree) throw fail("source_correction_source_mismatch");
@@ -612,12 +623,6 @@ function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree,
     if (digest(git(["show", `${prior.head}:${proof.source_module}`])) !== proof.before.source_sha256 ||
         digest(git(["show", `${head}:${proof.source_module}`])) !== proof.after.source_sha256) throw fail("source_correction_source_mismatch");
   }
-  const successor = { family_id: candidateFamilyId(branch, proof), head, tree, proof_fingerprint: digest(proof) };
-  const reservation = path.join(priorRoot, "correction-successor.json");
-  if (reserve) {
-    append(priorRoot, "correction-successor.json", successor);
-  }
-  if (digest(read(reservation)) !== digest(successor)) throw fail("source_correction_successor_already_bound");
 }
 
 const VERIFIER_MODULES = Object.freeze([

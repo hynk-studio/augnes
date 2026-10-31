@@ -119,7 +119,7 @@ try {
   } else {
   for (const group of ["evidence", "source", "authority", "admission", "race", "stock"]) {
     const result = await child([path.join(repository, "scripts/fixtures/local-canonical-1559-closeout.mjs"), "--run-closeout-fixtures", group],
-      { controlId: `closeout-1559-${group}`, timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.groupMs, stdout: process.stdout, stderr: process.stderr });
+      { controlId: `closeout-1559-${group}`, timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.groupMs });
     assert.equal(result.exit_code, 0, lastChildDiagnostic);
   }
   findings.push("1559 closeout: exact accepted source and settled v7 history, new authenticated scope, exclusive admission and fresh read-only stock");

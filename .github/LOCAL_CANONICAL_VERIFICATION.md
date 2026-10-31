@@ -1999,10 +1999,41 @@ Development commit names are reported separately from final byte identity.
 
 Only the exact settled Full7 tip can acquire one exclusive amended successor,
 with one Full and zero recovery through normal ownership/capacity/planning.
-Every old consumed flag stays true. The amended attempt remains terminal;
+Every old consumed flag stays true. The amended attempt has no automatic successor;
 replaying the comment, copying a proof, changing head/branch, interruption or
 adding another edge does not reset an allowance. The frozen instruction
 footprint, live input guard, complete final-head Full/Browser plan and separate
 fresh stock remain required. Final source and evidence await independent
 judgment; this amendment grants no merge, Ready, auto-merge, release, deployment
 or installed-adoption authority.
+
+The same supplemental scope also expressly requires a substantive relevant
+correction and focused evidence before any subsequent deciding execution. For
+the demonstrated default-review output quarantine regression, the existing
+amended packet may reference an ordinary v2 `source_revision` proof; this adds
+no schema, kind, module or consumed flag. It is a prospective source correction,
+not a replay of the budget allowance. The latest settled amended predecessor
+must be a natural `product_failure`, with an intact receipt, complete authority
+log showing the sole failing acceptance child, no input fault, complete cleanup
+and separate nondeciding stock. A timeout, safety violation, incomplete log,
+older tip, unchanged source or cosmetic delta does not satisfy this relation.
+
+The ordinary owner validates the same unchanged complete regression on the
+exact predecessor and final Git source: natural FAIL then natural PASS after
+predecessor settlement, with matching fixture/environment bindings and complete
+cleanup. Its candidate-review record records an actual implementation-owner
+source check and the authenticated supplemental scope reference; it is neither
+an independent audit nor an authorization signature. The original ordinary v2
+review, witness, native-delta and source checks remain in force. The closeout
+owner separately authenticates both existing comments and current authority.
+
+This correction preserves the amended execution budgets and all 34 accepted
+paths. Only removal of the demonstrated default closeout group's explicit
+stdout/stderr passthrough and the necessary existing policy-consumer handling
+may change; all other budget wiring, assertions, product source and lifecycle
+owners remain exact. Complete final-byte parent checks, native deltas and the
+fresh frozen instruction binding remain required. The same exclusive edge
+namespace and one-Full/zero-recovery budget apply. Every historical packet,
+receipt, disposition and consumed flag remains intact; stock inspection is
+read-only and cannot reserve a successor. Independent final source/policy and
+evidence judgment remains separate.

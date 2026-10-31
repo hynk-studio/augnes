@@ -159,7 +159,8 @@ function closeoutProofExport(p) {
     ...pick(p, ["schema", "kind", "pull_request", "branch", "base", "head", "tree", "prior_family_id", "prior_number", "prior_attempt_id", "prior_receipt_fingerprint", "budget"]),
     originals: Object.fromEntries(["receipt", "attempt", "completion", "edge", "authority_log", "stock", "stock_log"].map(k => [k, hash(p.originals?.[k])])),
     predecessor_proof: hash(p.predecessor_proof), correction: Object.hasOwn(p, "scope_amendment")
-      ? { execution_budgets: p.correction?.execution_budgets, validation: hash(p.correction?.validation) }
+      ? { execution_budgets: p.correction?.execution_budgets, validation: hash(p.correction?.validation),
+        ...(Object.hasOwn(p.correction ?? {}, "source_revision") ? { source_revision: { ...pick(p.correction.source_revision, ["source_module", "before_sha256", "after_sha256"]), proof: hash(p.correction.source_revision?.proof) } } : {}) }
       : { manifest: hash(p.correction?.manifest), retained: p.correction?.retained?.map(ref => pick(ref, ["path", "sha256"])) },
     ...(Object.hasOwn(p, "scope_amendment") ? { scope_amendment: pick(p.scope_amendment, ["comment_id", "observation_sha256", "basis"]) } : {}),
     source_scope: scope ? { ...pick(scope, ["schema", "basis", "accepted_base", "accepted_head", "current_main", "accepted_task_paths", "candidate_delta_paths", "policy_delta_paths"]),
