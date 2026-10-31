@@ -303,7 +303,7 @@ export const usesCloseoutInstructionInputs = p => isCloseoutInstructionReplaceme
 export const isAnyCloseout = p => isCloseout(p) || isCloseoutContinuation(p) || isCloseoutScopeCorrection(p) || isCloseoutInstructionReplacement(p) || isCloseoutFixtureCorrection(p) || isCloseoutCapabilityCorrection(p) || isCloseoutScopeFixtureCorrection(p);
 export const hasCloseoutMarker = attempt => [CLOSEOUT_SCHEMA, CLOSEOUT_CONTINUATION_SCHEMA].includes(attempt?.source_correction?.schema) ||
   ["issue_1559_closeout", CLOSEOUT_CONTINUATION_KIND, CLOSEOUT_SCOPE_CORRECTION_KIND, CLOSEOUT_INSTRUCTION_KIND, CLOSEOUT_FIXTURE_CORRECTION_KIND, CLOSEOUT_CAPABILITY_CORRECTION_KIND, CLOSEOUT_SCOPE_FIXTURE_CORRECTION_KIND].includes(attempt?.source_correction?.kind) || !!attempt?.closeout_authority ||
-  !!attempt?.closeout_consumed || !!attempt?.closeout_continuation_consumed || !!attempt?.closeout_scope_correction_consumed || !!attempt?.closeout_instruction_consumed || !!attempt?.closeout_fixture_correction_consumed || !!attempt?.closeout_capability_correction_consumed || !!attempt?.closeout_scope_fixture_correction_consumed || Object.hasOwn(attempt ?? {}, "closeout_instruction_input");
+  !!attempt?.closeout_consumed || !!attempt?.closeout_continuation_consumed || !!attempt?.closeout_scope_correction_consumed || !!attempt?.closeout_instruction_consumed || !!attempt?.closeout_fixture_correction_consumed || !!attempt?.closeout_capability_correction_consumed || !!attempt?.closeout_scope_fixture_correction_consumed || Object.hasOwn(attempt?.source_correction ?? {}, "scope_amendment") || Object.hasOwn(attempt ?? {}, "closeout_instruction_input");
 // BEGIN CLOSEOUT CONTINUATION PINS
 export const CLOSEOUT_CONTINUATION_PINS = Object.freeze({
   prior_head: "ac8d6f04eb272c3d2222f30dda26cec6d540d0a2", prior_tree: "5678fe6a802ae3693857da90b8a4627a9766fc02",
@@ -1607,7 +1607,147 @@ export function validCloseoutScopeFixtureCorrectionAttempt(attempt) {
   } catch { return false; }
 }
 
+// The user amended the existing closeout scope, not a historical failure's
+// disposition or a defect profile. Packets without this modifier retain their
+// original reader, authority and terminal semantics.
+// BEGIN CLOSEOUT SCOPE AMENDMENT
+export const CLOSEOUT_SCOPE_AMENDMENT = Object.freeze({
+  comment_id: 6541370652, observation_sha256: "233d69594ec2452f02a69d9b521f5999a94cdafb7b00bebe875da71aceb3f38d",
+  basis: "auxiliary_verifier_execution_budgets",
+  scope: { id: 6541370652, author: "hynk-studio", author_id: 89450056, body_sha256: "6f68db676fa6c92eafd0abb6bea033af28ef0f2917bc51e4b95330d8ee565a50", timestamp: "2026-10-31T08:52:36Z" },
+  accepted_base: "bbb7dee536817fe4b7f28f5353a1d88f56c7e44d",
+  prior_head: "9c6341bb208ca3f336d2c6a1c8c5ce6191d60571", prior_tree: "fcda5f3ba6363e70994a041d55b7e51e65247dd9",
+  prior_family_id: "7f2e0a968999dd4fbc46baca6f06694579f8c6d2c582aad257ebec507e622f33",
+  prior_attempt_id: "2026-10-31T07-34-24-086Z-full-9c6341bb208c-c167760882b567ea",
+  prior_receipt_fingerprint: "4767544eaab4d6e8d2ff42073daa98ef90eee307e1d7d125ecf91cb2f644dcf8", completed_at: "2026-10-31T07:45:57.226Z",
+  predecessor_proof: "6c3c57b691ca665c540a2687e0ff9f2b999c2cfda12975a36a0bd37ca7c4864e",
+  originals: { receipt: "52f21beccd66b6d14d289eae9d97c2c3cf3ffcbab1721f0aa7101d33aff7d206", attempt: "aa94c7781330f7cbee7caaa79504488f61ffe92ad52cea4f5d2bd3d18b420619",
+    completion: "3f81b468d826ae33caa79db077af87c4242d48781540f5d2227e67aa6ceb4f3f", edge: "0d1f2fd857d950fdd3ae2dde50612ff4bb438692fd274b12fd55616364522ab5",
+    authority_log: "cf37607fdbd3824c6a9f25d48409676761b0508df0763b8a25108137374c97bf", stock: "1bbd9915c34a6618cafb187196788100620c4c04711fc6deb7797f28509d56e7", stock_log: "4798c6c829fb528c68cd0355e69077aef4914908867fc151e835d11633a4c77e" },
+  execution_budgets: { groupMs: 12000, nestedChildMs: 6000, executorHarnessMs: 120000, receiptHarnessMs: 90000, reviewHarnessMs: 180000 },
+  budget_sources: {
+    "scripts/local-canonical-closeout-budgets.mjs": "bd0ee298d9c933e212001ddfd7bf731799c706d3a6d2fa2d634c3d62c71c9472",
+    "scripts/test-local-canonical-executor.mjs": "81d84ba6bf0d714a125dfcc178aafa6fff35d9f99827d101b4148a68aa8e3602",
+    "scripts/test-local-canonical-receipt.mjs": "bbd3fbc542eaa15f8ed765ce1e0c042bdf1a2b1d42fe8016f86eb9dacc205ddd",
+    "scripts/test-local-canonical-review-corrections.mjs": "182b1cf8e45c84d636d8b3252551486834f8cc1f68412cc32377b1a8bd7b5ec4",
+    "scripts/fixtures/local-canonical-1559-closeout.mjs": "deaac501f0f5fbeea47c0c233840ea8d9cc3ca263f1d413cf0ce08ff3c5a9ba7",
+    "scripts/run-canonical-test-suite.mjs": "89f25c27019cc70343db1ff6558dee4e005c600fca118cb66623a8c8c4d18873",
+    "scripts/run-local-canonical-verification.mjs": "4a9c776005c920621bce07a864d025cf98699718c485fea0b9b12314ba52f3ec"
+} ,
+});
+// END CLOSEOUT SCOPE AMENDMENT
+for (const value of Object.values(CLOSEOUT_SCOPE_AMENDMENT)) if (value && typeof value === "object") Object.freeze(value);
+const amendedEvidence = new Map();
+const AMENDMENT_PATHS = new Set([...SCOPE_CORRECTION_POLICY_PATHS, "scripts/local-canonical-closeout-budgets.mjs", "scripts/run-canonical-test-suite.mjs"]);
+const AMENDMENT_SOURCE_PATHS = [...AMENDMENT_PATHS].sort();
+export const hasCloseoutScopeAmendment = p => isCloseoutScopeFixtureCorrection(p) && Object.hasOwn(p, "scope_amendment");
+const amendmentDeclaration = () => Object.fromEntries(["comment_id", "observation_sha256", "basis"].map(key => [key, CLOSEOUT_SCOPE_AMENDMENT[key]]));
+export function inspectCloseoutAmendedSourceScope(repositoryRoot, { base, head }) {
+  const a = CLOSEOUT_SCOPE_AMENDMENT, { scope } = inspectSourceScope(repositoryRoot, { base, head }, a.accepted_base, a.prior_head, [], AMENDMENT_PATHS);
+  return { ...scope, schema: "augnes.local-canonical-closeout-scope-fixture-source.v1", basis: "authorized_scope_amendment" };
+}
+export function validateCloseoutAmendedSourceScope(scope) {
+  const a = CLOSEOUT_SCOPE_AMENDMENT;
+  if (scope?.schema !== "augnes.local-canonical-closeout-scope-fixture-source.v1" || scope.basis !== "authorized_scope_amendment" || scope.accepted_base !== a.accepted_base || scope.accepted_head !== a.prior_head || !commit(scope.current_main)) fail("closeout_amendment_source_invalid");
+  if (!exact(Object.keys(a.budget_sources).sort(), ["scripts/fixtures/local-canonical-1559-closeout.mjs", "scripts/local-canonical-closeout-budgets.mjs", "scripts/run-canonical-test-suite.mjs", "scripts/run-local-canonical-verification.mjs", "scripts/test-local-canonical-executor.mjs", "scripts/test-local-canonical-receipt.mjs", "scripts/test-local-canonical-review-corrections.mjs"]) || Object.values(a.budget_sources).some(hash => !sha(hash))) fail("closeout_amendment_budget_source_changed");
+  validateRetainedSourceScope(scope, 33, AMENDMENT_PATHS);
+  if (scope.candidate_policy.some(row => row.candidate.present !== true) || Object.entries(a.budget_sources).some(([name, hash]) =>
+    scope.candidate_policy.find(row => row.path === name)?.candidate.sha256 !== hash)) fail("closeout_amendment_budget_source_changed");
+  return scope;
+}
+function semanticAmendedProof(p) {
+  const a = CLOSEOUT_SCOPE_AMENDMENT;
+  return hasCloseoutScopeAmendment(p) && exact(p.scope_amendment, amendmentDeclaration()) && p.pull_request === CLOSEOUT_PINS.pull_request && p.branch === CLOSEOUT_PINS.branch &&
+    [p.base, p.head, p.tree].every(commit) && p.head !== a.prior_head && p.tree !== a.prior_tree && p.prior_family_id === a.prior_family_id && p.prior_attempt_id === a.prior_attempt_id && p.prior_number === 1 &&
+    p.prior_receipt_fingerprint === a.prior_receipt_fingerprint && exact(p.budget, BUDGET) && p.predecessor_proof?.sha256 === a.predecessor_proof &&
+    keys(p.originals, Object.keys(a.originals)) && Object.entries(a.originals).every(([name, hash]) => p.originals[name]?.sha256 === hash) &&
+    keys(p.correction, ["execution_budgets", "validation"]) && exact(p.correction.execution_budgets, a.execution_budgets) && sha(p.correction.validation?.sha256) && sha(p.final_source?.sha256) &&
+    p.source_scope?.accepted_head === a.prior_head && p.source_scope.current_main === p.base &&
+    keys(p.authorization, ["scope_comment_id", "scope_sha256", "amendment_comment_id", "amendment_sha256"]) && p.authorization.amendment_comment_id === a.comment_id && p.authorization.amendment_sha256 === a.observation_sha256;
+}
+// This predicate does not issue authority or reserve anything. It identifies the
+// only transition for which the normal owner may authenticate this amendment.
+export function matchesCloseoutAmendmentPredecessor(p, prior, completion = null) {
+  const a = CLOSEOUT_SCOPE_AMENDMENT;
+  return semanticAmendedProof(p) && prior?.family_id === a.prior_family_id && prior.number === 1 && prior.attempt_id === a.prior_attempt_id &&
+    (!completion || (completion.receipt_fingerprint === a.prior_receipt_fingerprint && completion.finished_at === a.completed_at && completion.disposition === "product_failure" && completion.cleanup_complete === true));
+}
+function readAmendedValidation(folder, p, repositoryRoot) {
+  const value = json(closeoutArtifact(folder, p.correction.validation)), git = gitAt(repositoryRoot), a = CLOSEOUT_SCOPE_AMENDMENT;
+  if (!keys(value, ["nondeciding", "basis", "records"]) || value.nondeciding !== true || value.basis !== "bounded_parent_controls" || !Array.isArray(value.records) ||
+    !exact(value.records.map(row => row.name).sort(), ["executor", "receipt", "review"])) fail("closeout_amendment_validation_invalid");
+  const entries = { executor: ["scripts/test-local-canonical-executor.mjs", a.execution_budgets.executorHarnessMs], receipt: ["scripts/test-local-canonical-receipt.mjs", a.execution_budgets.receiptHarnessMs], review: ["scripts/test-local-canonical-review-corrections.mjs", a.execution_budgets.reviewHarnessMs] };
+  const hashes = new Map(AMENDMENT_SOURCE_PATHS.map(name => [name, digest(git(["show", `${p.head}:${name}`]))]));
+  for (const row of value.records) {
+    if (!keys(row, ["name", "source_command", "output", "settlement"])) fail("closeout_amendment_validation_invalid");
+    const command = json(closeoutArtifact(folder, row.source_command)), settled = json(closeoutArtifact(folder, row.settlement)), output = closeoutArtifact(folder, row.output), [entry, budget] = entries[row.name], r = settled.result;
+    if (command.nondeciding !== true || command.require_natural_exit !== true || command.timeout_ms !== budget || !Array.isArray(command.command) || command.command.length !== 2 ||
+      typeof command.command[1] !== "string" || (!command.command[1].endsWith(`/${entry}`) && command.command[1] !== entry) || !Array.isArray(command.sources) || new Set(command.sources.map(source => source.path)).size !== command.sources.length ||
+      [...hashes].some(([name, hash]) => command.sources.filter(source => source.path === name && source.sha256 === hash).length !== 1) ||
+      settled.nondeciding !== true || settled.failure !== null || settled.root_absent !== true || !Array.isArray(settled.cleanup) || !settled.cleanup.length || settled.cleanup.some(x => x.completed !== true || x.failure_count !== 0) ||
+      settled.started_at !== command.started_at || settled.source_after?.head_unchanged !== true || !exact(settled.source_after.changed_paths, []) ||
+      !validTime(command.started_at) || Date.parse(command.started_at) < Date.parse(a.scope.timestamp) || !validTime(settled.finished_at) || Date.parse(settled.finished_at) <= Date.parse(command.started_at) ||
+      r?.exit_code !== 0 || r.signal !== null || r.timed_out !== false || r.cancelled !== false || r.spawn_error_code !== null || r.termination_reason !== "natural_exit" ||
+      r.exit_observed !== true || r.streams_closed !== true || r.cleanup_completed !== true || r.remaining_owned_processes !== 0 || !Number.isFinite(r.duration_ms) || r.duration_ms >= budget || !output.length) fail("closeout_amendment_focused_controls_invalid");
+  }
+  return { validation: p.correction.validation.sha256, original_blocked_operation: "UNKNOWN", historical_timeout_cause: "UNKNOWN" };
+}
+export function readCloseoutAmendedEvidence(file, p, repositoryRoot) {
+  if (!keys(normalizedProof(p), ["schema", "kind", "pull_request", "branch", "base", "head", "tree", "prior_family_id", "prior_number", "prior_attempt_id", "prior_receipt_fingerprint", "originals", "predecessor_proof", "correction", "source_scope", "final_source", "authorization", "budget", "scope_amendment"]) || !semanticAmendedProof(p)) fail("closeout_amendment_proof_invalid");
+  const folder = path.dirname(file), a = CLOSEOUT_SCOPE_AMENDMENT;
+  for (const ref of [p.predecessor_proof, ...Object.values(p.originals), p.correction.validation, p.final_source]) closeoutArtifact(folder, ref);
+  validateCloseoutAmendedSourceScope(p.source_scope);
+  const old = Object.fromEntries(Object.keys(a.originals).map(name => { const bytes = closeoutArtifact(folder, p.originals[name]); return [name, name.endsWith("log") ? bytes : json(bytes)]; })), r = old.receipt, prior = old.attempt, completion = old.completion, copy = { ...r }; delete copy.integrity;
+  const predecessor = json(closeoutArtifact(folder, p.predecessor_proof));
+  if (!matchesCloseoutAmendmentPredecessor(p, prior, completion) || r.integrity?.content_fingerprint !== p.prior_receipt_fingerprint || digest(copy) !== p.prior_receipt_fingerprint || !exact(r.attempt, prior) ||
+    prior.head !== a.prior_head || prior.tree !== a.prior_tree || !validCloseoutScopeFixtureCorrectionAttempt(prior) || Object.hasOwn(predecessor, "scope_amendment") || !exact(normalizedProof(prior.source_correction), normalizedProof(predecessor)) ||
+    r.outcome?.disposition !== "product_failure" || r.cleanup?.completed !== true || r.repository?.head_sha !== a.prior_head || r.repository.tree_sha !== a.prior_tree ||
+    r.repository.repository_id !== "hynk-studio/augnes" || r.repository.origin !== "https://github.com/hynk-studio/augnes.git" || r.repository.branch !== p.branch || completion.infrastructure_code !== null ||
+    !exact(prior.closeout_instruction_input, closeoutInstructionInputBinding(predecessor, r.inputs)) ||
+    old.edge.kind !== predecessor.kind || old.edge.family_id !== prior.family_id || old.edge.head !== prior.head || old.edge.tree !== prior.tree || old.edge.proof_fingerprint !== digest(prior.source_correction) ||
+    old.stock.content_fingerprint !== p.prior_receipt_fingerprint || old.stock.valid_deciding_evidence !== false || old.stock.issues?.length !== 14) fail("closeout_amendment_original_binding_invalid");
+  readCloseoutScopeFixtureCorrectionEvidence(path.join(folder, p.predecessor_proof.artifact), predecessor, repositoryRoot);
+  const git = gitAt(repositoryRoot), source = json(closeoutArtifact(folder, p.final_source));
+  if (!keys(source, ["schema", "basis", "base", "head", "tree", "predecessor_head", "predecessor_tree", "deltas"]) || source.schema !== "augnes.local-canonical-closeout-scope-fixture-final-source.v1" || source.basis !== "implementation_owner_not_independent_review" ||
+    source.base !== p.base || source.head !== p.head || source.tree !== p.tree || source.predecessor_head !== a.prior_head || source.predecessor_tree !== a.prior_tree || !keys(source.deltas, ["predecessor", "first_closeout", "main"]) || git(["rev-parse", `${p.head}^{tree}`]).toString().trim() !== p.tree) fail("closeout_amendment_final_source_invalid");
+  for (const [name, base] of [["predecessor", a.prior_head], ["first_closeout", CLOSEOUT_CONTINUATION_PINS.prior_head], ["main", p.base]]) {
+    const bytes = git(["diff", "--binary", "--full-index", "--no-ext-diff", "--no-textconv", base, p.head, "--"]), paths = git(["diff", "--no-renames", "--name-only", "-z", base, p.head, "--"]).toString().split("\0").filter(Boolean).sort();
+    if (!exact(source.deltas[name], { sha256: digest(bytes), bytes: bytes.length, changed_paths: paths })) fail("closeout_amendment_native_delta_invalid");
+  }
+  const scope = inspectCloseoutAmendedSourceScope(repositoryRoot, p); validateCloseoutAmendedSourceScope(scope);
+  if (!exact(scope, p.source_scope)) fail("closeout_amendment_source_scope_mismatch");
+  const evidence = readAmendedValidation(folder, p, repositoryRoot); amendedEvidence.set(digest(normalizedProof(p)), evidence);
+  return { original: r, prior, completion, source, evidence };
+}
+function validAmendmentObservations(p, observations) {
+  const a = CLOSEOUT_SCOPE_AMENDMENT;
+  return keys(observations, ["closeout_scope", "scope_amendment"]) && validContinuationObservation(p, observations.closeout_scope) &&
+    exact(observations.scope_amendment, { ...a.scope, role: "closeout_scope", commit_id: null }) && digest(observations.scope_amendment) === p.authorization.amendment_sha256;
+}
+async function authorizeAmendedCloseout(p, { transport = createGitHubObserverAuthorizationTransport(p.pull_request), frozenInputs } = {}) {
+  const evidence = amendedEvidence.get(digest(normalizedProof(p))), a = CLOSEOUT_SCOPE_AMENDMENT;
+  if (!semanticAmendedProof(p) || !evidence) fail("closeout_amendment_authority_missing");
+  const fingerprint = assertCloseoutInstructionInputs(p, frozenInputs, { requireUnfaulted: false }), original = await authorizeContinuingScope(p, evidence, transport);
+  const supplemental = await authorizeContinuingScope({ ...p, authorization: { scope_comment_id: a.comment_id, scope_sha256: a.observation_sha256 } }, evidence, transport, a.scope);
+  const capability = Object.freeze({ observations: { closeout_scope: original.observations.closeout_scope, scope_amendment: supplemental.observations.closeout_scope } });
+  capabilities.set(capability, { proof: digest(p), observations: digest(capability.observations), evidence: digest(evidence), instruction_inputs: fingerprint }); return capability;
+}
+function assertAmendedCloseoutAuthorization(p, capability, completion, frozenInputs, { requireUnfaulted = true } = {}) {
+  const state = capabilities.get(capability), evidence = amendedEvidence.get(digest(normalizedProof(p))), fingerprint = assertCloseoutInstructionInputs(p, frozenInputs, { requireUnfaulted });
+  if (!state || !evidence || state.proof !== digest(p) || state.observations !== digest(capability.observations) || state.evidence !== digest(evidence) || state.instruction_inputs !== fingerprint ||
+    completion?.finished_at !== CLOSEOUT_SCOPE_AMENDMENT.completed_at || !validAmendmentObservations(p, capability.observations)) fail("closeout_amendment_authenticated_authority_required");
+}
+function validAmendedCloseoutAttempt(attempt) {
+  try {
+    const p = attempt?.source_correction;
+    if (!semanticAmendedProof(p) || !validInstructionInputBinding(attempt) || attempt.number !== 1 || attempt.recovery || attempt.browser_replacement || !exact(attempt.budget, BUDGET) ||
+      attempt.branch !== p.branch || attempt.head !== p.head || attempt.tree !== p.tree || !validAmendmentObservations(p, attempt.closeout_authority)) return false;
+    validateCloseoutAmendedSourceScope(p.source_scope); return true;
+  } catch { return false; }
+}
+
 export function readCloseoutEvidence(file, p, repositoryRoot) {
+  if (Object.hasOwn(p ?? {}, "scope_amendment")) return readCloseoutAmendedEvidence(file, p, repositoryRoot);
   if (isCloseout(p)) return readInitialCloseoutEvidence(file, p, repositoryRoot);
   if (isCloseoutContinuation(p)) return readCloseoutContinuationEvidence(file, p, repositoryRoot);
   if (isCloseoutScopeCorrection(p)) return readCloseoutScopeCorrectionEvidence(file, p, repositoryRoot);
@@ -1618,6 +1758,7 @@ export function readCloseoutEvidence(file, p, repositoryRoot) {
   fail("closeout_identity_invalid");
 }
 export async function authorizeCloseout(p, options) {
+  if (Object.hasOwn(p ?? {}, "scope_amendment")) return authorizeAmendedCloseout(p, options);
   if (isCloseout(p)) return authorizeInitialCloseout(p, options);
   if (isCloseoutContinuation(p)) return authorizeCloseoutContinuation(p, options);
   if (isCloseoutScopeCorrection(p)) return authorizeCloseoutScopeCorrection(p, options);
@@ -1644,6 +1785,7 @@ export function assertCloseoutIssuedCapability(p, capability) {
   if (!state || state.proof !== digest(p) || state.observations !== digest(capability.observations)) fail(code);
 }
 export function assertCloseoutAuthorization(p, capability, completion, frozenInputs, options) {
+  if (Object.hasOwn(p ?? {}, "scope_amendment")) return assertAmendedCloseoutAuthorization(p, capability, completion, frozenInputs, options);
   if (isCloseout(p)) return assertInitialCloseoutAuthorization(p, capability, completion);
   if (isCloseoutContinuation(p)) return assertCloseoutContinuationAuthorization(p, capability, completion);
   if (isCloseoutScopeCorrection(p)) return assertCloseoutScopeCorrectionAuthorization(p, capability, completion);
@@ -1654,6 +1796,7 @@ export function assertCloseoutAuthorization(p, capability, completion, frozenInp
   fail("closeout_identity_invalid");
 }
 export function validCloseoutAttempt(attempt) {
+  if (Object.hasOwn(attempt?.source_correction ?? {}, "scope_amendment")) return validAmendedCloseoutAttempt(attempt);
   if (Object.hasOwn(attempt ?? {}, "closeout_instruction_input") && !usesCloseoutInstructionInputs(attempt?.source_correction)) return false;
   if (isCloseout(attempt?.source_correction)) return validInitialCloseoutAttempt(attempt);
   if (isCloseoutContinuation(attempt?.source_correction)) return validCloseoutContinuationAttempt(attempt);

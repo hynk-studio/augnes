@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -880,9 +881,9 @@ for (const [profile, group] of [
       command: process.execPath,
       args: [fileURLToPath(new URL("./fixtures/local-canonical-1559-closeout.mjs", import.meta.url)), `--run-closeout-${profile}-fixtures`, group],
       cwd: owner.root, env: buildCanonicalChildEnvironment({ temporaryRoot: owner.root, resourceRoot: owner.root }),
-      timeoutMs: 6000, resourceOwner: owner, stdout: process.stdout, stderr: process.stderr,
+      timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.groupMs, resourceOwner: owner, stdout: process.stdout, stderr: process.stderr,
     });
-    failure = canonicalChildAcceptanceFailure(result, { timeoutMs: 6000, requireNaturalExit: true });
+    failure = canonicalChildAcceptanceFailure(result, { timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.groupMs, requireNaturalExit: true });
   } catch (error) { failure = error; }
   finally { cleanup = cleanupCanonicalTestResources([owner]); }
   console.log(JSON.stringify({ control: `1559-closeout-${profile}-${group}`, result,

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1419,12 +1420,12 @@ const suites = {
     {
       label: "local Canonical executor identity and scheduling contract",
       ...rootNode("scripts/test-local-canonical-executor.mjs"),
-      timeoutMs: 30_000,
+      timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.executorHarnessMs,
     },
     {
       label: "local Canonical receipt integrity and staleness contract",
       ...rootNode("scripts/test-local-canonical-receipt.mjs"),
-      timeoutMs: 30_000,
+      timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.receiptHarnessMs,
     },
     {
       id: "local-canonical-isolation",
@@ -1444,7 +1445,7 @@ const suites = {
       id: "local-canonical-review-corrections",
       label: "shared executable roles, actual Browser consumers and reviewed candidate succession",
       ...rootNode("scripts/test-local-canonical-review-corrections.mjs"),
-      timeoutMs: 30_000,
+      timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.reviewHarnessMs,
       requireNaturalExit: true,
     },
     {

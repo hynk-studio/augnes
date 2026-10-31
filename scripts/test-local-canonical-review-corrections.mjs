@@ -1,3 +1,4 @@
+import { CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
 import assert from "node:assert/strict";
 import { chmodSync, existsSync, linkSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -118,7 +119,7 @@ try {
   } else {
   for (const group of ["evidence", "source", "authority", "admission", "race", "stock"]) {
     const result = await child([path.join(repository, "scripts/fixtures/local-canonical-1559-closeout.mjs"), "--run-closeout-fixtures", group],
-      { controlId: `closeout-1559-${group}`, timeoutMs: 6000, stdout: process.stdout, stderr: process.stderr });
+      { controlId: `closeout-1559-${group}`, timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.groupMs, stdout: process.stdout, stderr: process.stderr });
     assert.equal(result.exit_code, 0, lastChildDiagnostic);
   }
   findings.push("1559 closeout: exact accepted source and settled v7 history, new authenticated scope, exclusive admission and fresh read-only stock");

@@ -1937,3 +1937,72 @@ ownership, capacity, source, Full/Browser planning, cleanup and fresh stock
 checks remain active. Final source and execution results still require the
 commissioned independent audit; merge, Ready, auto-merge, deployment and
 installed adoption remain unauthorized.
+
+
+### Authenticated amendment of auxiliary closeout execution budgets
+
+The user's supplemental instruction [6541370652](https://github.com/hynk-studio/augnes/pull/1560#issuecomment-6541370652), recorded on
+2026-10-31 at 08:52:36Z, prospectively amends the auxiliary verifier execution
+budgets under original closeout scope `6537722343`. It does not identify the
+UNKNOWN cause of Full7, change its `product_failure` disposition, or approve
+unseen source. Preserve Full7 head `9c6341bb208ca3f336d2c6a1c8c5ce6191d60571`,
+receipt `4767544eaab4d6e8d2ff42073daa98ef90eee307e1d7d125ecf91cb2f644dcf8`,
+its 6 PASS / 1 FAIL / 9 NOT_RUN, the nested instruction-stock timeout and outer
+natural failures, complete cleanup and separate stock 14/nondeciding.
+
+The finite values are frozen in `scripts/local-canonical-closeout-budgets.mjs`:
+
+| Auxiliary execution owner | Previous bound | Amended bound |
+| --- | ---: | ---: |
+| Closeout control group | 6,000ms | 12,000ms |
+| Nested closeout claim/cold-stock child | 4,000ms | 6,000ms |
+| Enclosing executor controls | 30,000ms | 120,000ms |
+| Enclosing receipt controls | 30,000ms | 90,000ms |
+| Enclosing default review-correction controls | 30,000ms | 180,000ms |
+
+The table lists the previous Canonical parent registrations. The direct quick
+and operating-policy executor/receipt wrappers previously used 60,000ms; they
+now consume the same amended executor/receipt budgets rather than a conflicting
+second value.
+
+These values cover cumulative setup, full fresh proof and authority validation,
+real contention, cold-process inspection and cleanup, with finite headroom for
+the supported host. The single instruction-stock diagnostic naturally passed in
+5,312ms and observed 483 Git calls; four required fresh proof passes accounted
+for 372 of them. Its PASS does not reproduce or explain Full7. Raising only a
+leaf bound would leave enclosing suites unable to accommodate their selected
+work. The values are fixed before deciding execution; no adaptive extension,
+automatic retry or post-failure increase is authorized by this amendment.
+Historical timing literals, deliberate timeout controls, product/protocol
+bounds, authority expiry, natural-exit acceptance and lifecycle safeguards are
+unchanged. No assertion, fresh reread, contention or cleanup moves outside its
+owner's measured lifetime.
+
+Normal admission recognizes a `scope_amendment` on the existing latest
+closeout continuation packet. There is no new schema, kind, module ladder or
+consumed flag. The modifier binds the actual supplemental comment and complete
+owner observation; live authorization authenticates both original and amended
+scope, current permission, and the exact published Draft PR/base/head. A local
+record or this document is not a signature. The packet preserves Full7's exact
+receipt, attempt, completion, incoming edge, authority log and separate stock,
+and rereads its byte-identical predecessor proof using the historical reader.
+Packets without the modifier keep their historical semantics.
+
+The source inventory retains all 33 accepted paths against accepted base
+`bbb7dee536817fe4b7f28f5353a1d88f56c7e44d`, compatible current-main content and
+all unrelated source. The seven budget-definition/wiring files are pinned to
+the frozen implementation bytes; the existing policy consumers contain only
+necessary amendment handling. Exact native deltas bind the final tree. The
+three affected parent controls must naturally pass with complete cleanup on
+source bytes matching that tree, including explicit before/after source checks.
+Development commit names are reported separately from final byte identity.
+
+Only the exact settled Full7 tip can acquire one exclusive amended successor,
+with one Full and zero recovery through normal ownership/capacity/planning.
+Every old consumed flag stays true. The amended attempt remains terminal;
+replaying the comment, copying a proof, changing head/branch, interruption or
+adding another edge does not reset an allowance. The frozen instruction
+footprint, live input guard, complete final-head Full/Browser plan and separate
+fresh stock remain required. Final source and evidence await independent
+judgment; this amendment grants no merge, Ready, auto-merge, release, deployment
+or installed-adoption authority.

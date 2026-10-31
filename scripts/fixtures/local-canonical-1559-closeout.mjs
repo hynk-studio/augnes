@@ -2,6 +2,7 @@
 // replace only fixed pin data in a private copy of the production owner; its
 // validation and admission predicates remain unchanged. No private task evidence,
 // real GitHub request, deciding workload or real attempt ledger is used here.
+import { CLOSEOUT_EXECUTION_BUDGETS } from "../local-canonical-closeout-budgets.mjs";
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync, readFileSync, cpSync, rmSync, existsSync, readdirSync, symlinkSync } from "node:fs";
 import path from "node:path";
@@ -291,7 +292,7 @@ export async function closeoutControls(group = "evidence") {
   const child = async (args, controlId) => {
     active++; let output = "";
     const result = await runCanonicalChild({ suite: "1559-closeout-fixture", label: "synthetic closeout control", command: process.execPath, args, cwd: resource.root,
-      env: buildCanonicalChildEnvironment({ temporaryRoot: resource.root }), timeoutMs: 4000,
+      env: buildCanonicalChildEnvironment({ temporaryRoot: resource.root }), timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.nestedChildMs,
       stdout: { write: chunk => output = (output + chunk).slice(-8000) }, stderr: { write: chunk => output = (output + chunk).slice(-8000) }, log() {} });
     if (result.cleanup_completed && result.exit_observed && result.streams_closed && result.remaining_owned_processes === 0) active--;
     console.log("AUGNES_REVIEW_CHILD_RESULT " + JSON.stringify(projectReviewChildResult(result, { controlId })));
@@ -611,7 +612,7 @@ export async function closeoutContinuationControls(group = "evidence") {
   const child = async (args, controlId) => {
     active++; let output = "";
     const result = await runCanonicalChild({ suite: "1559-closeout-continuation-fixture", label: "synthetic closeout continuation control",
-      command: process.execPath, args, cwd: resource.root, env: buildCanonicalChildEnvironment({ temporaryRoot: resource.root }), timeoutMs: 4000,
+      command: process.execPath, args, cwd: resource.root, env: buildCanonicalChildEnvironment({ temporaryRoot: resource.root }), timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.nestedChildMs,
       stdout: { write: chunk => output = (output + chunk).slice(-8000) }, stderr: { write: chunk => output = (output + chunk).slice(-8000) }, log() {} });
     if (result.cleanup_completed && result.exit_observed && result.streams_closed && result.remaining_owned_processes === 0) active--;
     console.log("AUGNES_REVIEW_CHILD_RESULT " + JSON.stringify(projectReviewChildResult(result, { controlId })));
@@ -924,7 +925,7 @@ export async function closeoutScopeCorrectionControls(group = "evidence") {
   const child = async (args, controlId) => {
     active++; let output = "";
     const result = await runCanonicalChild({ suite: "1559-closeout-scope-fixture", label: controlId, command: process.execPath, args, cwd: resource.root,
-      env: buildCanonicalChildEnvironment({ temporaryRoot: resource.root }), timeoutMs: 4000,
+      env: buildCanonicalChildEnvironment({ temporaryRoot: resource.root }), timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.nestedChildMs,
       stdout: { write: chunk => output = (output + chunk).slice(-8000) }, stderr: { write: chunk => output = (output + chunk).slice(-8000) }, log() {} });
     if (result.cleanup_completed && result.exit_observed && result.streams_closed && result.remaining_owned_processes === 0) active--;
     console.log("AUGNES_REVIEW_CHILD_RESULT " + JSON.stringify(projectReviewChildResult(result, { controlId }))); assertReviewChildLifecycle(result, { controlId });
@@ -1120,7 +1121,7 @@ export async function closeoutInstructionControls(group = "evidence") {
   const child = async (args, controlId) => {
     active++; let output = "";
     const result = await runCanonicalChild({ suite: "1559-closeout-instruction-fixture", label: controlId, command: process.execPath, args, cwd: resource.root,
-      env: buildCanonicalChildEnvironment({ temporaryRoot: resource.root }), timeoutMs: 4000,
+      env: buildCanonicalChildEnvironment({ temporaryRoot: resource.root }), timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.nestedChildMs,
       stdout: { write: chunk => output = (output + chunk).slice(-8000) }, stderr: { write: chunk => output = (output + chunk).slice(-8000) }, log() {} });
     if (result.cleanup_completed && result.exit_observed && result.streams_closed && result.remaining_owned_processes === 0) active--;
     console.log("AUGNES_REVIEW_CHILD_RESULT " + JSON.stringify(projectReviewChildResult(result, { controlId }))); assertReviewChildLifecycle(result, { controlId }); return { ...result, output };

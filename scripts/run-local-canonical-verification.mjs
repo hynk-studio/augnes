@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
 import { isAnyCloseout, authorizeCloseout } from "./local-canonical-1559-closeout.mjs";
 import { isCompanionTimeout, authorizeCompanionTimeout } from "./local-canonical-companion-timeout-succession.mjs";
 import { isGuideCorrection, authorizeGuideCorrection } from "./local-canonical-guide-correction.mjs";
@@ -135,6 +136,7 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/local-canonical-timeout-succession.mjs",
   "scripts/local-canonical-companion-timeout-succession.mjs",
   "scripts/local-canonical-1559-closeout.mjs",
+  "scripts/local-canonical-closeout-budgets.mjs",
   "scripts/local-canonical-condition-requalification.mjs",
   "scripts/local-canonical-guide-correction.mjs",
   "scripts/local-canonical-evidence-retention.mjs",
@@ -1503,7 +1505,7 @@ function quickPhases() {
       command: process.execPath,
       args: ["scripts/test-local-canonical-executor.mjs"],
       display: "node scripts/test-local-canonical-executor.mjs",
-      timeoutMs: 60_000,
+      timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.executorHarnessMs,
     }),
     phaseDefinition({
       id: "local-receipt-contract",
@@ -1511,7 +1513,7 @@ function quickPhases() {
       command: process.execPath,
       args: ["scripts/test-local-canonical-receipt.mjs"],
       display: "node scripts/test-local-canonical-receipt.mjs",
-      timeoutMs: 60_000,
+      timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.receiptHarnessMs,
     }),
     phaseDefinition({
       id: "local-canonical-contract",
@@ -1557,7 +1559,7 @@ function operatingPolicyPhases({ baseSha, headSha }) {
       command: process.execPath,
       args: ["scripts/test-local-canonical-executor.mjs"],
       display: "node scripts/test-local-canonical-executor.mjs",
-      timeoutMs: 60_000,
+      timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.executorHarnessMs,
     }),
     phaseDefinition({
       id: "operating-policy-receipt-contract",
@@ -1565,7 +1567,7 @@ function operatingPolicyPhases({ baseSha, headSha }) {
       command: process.execPath,
       args: ["scripts/test-local-canonical-receipt.mjs"],
       display: "node scripts/test-local-canonical-receipt.mjs",
-      timeoutMs: 60_000,
+      timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.receiptHarnessMs,
     }),
     phaseDefinition({
       id: "operating-policy-verification-contract",

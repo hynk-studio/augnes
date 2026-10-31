@@ -41,7 +41,8 @@ export function createPrivateReviewExport(receipt) {
     attempt: receipt.attempt ? { ...pick(receipt.attempt, ["contract", "family_id", "attempt_id", "number", "head", "tree", "contract_fingerprint", "prior_attempt_id", "prior_receipt_fingerprint", "budget", "input_replacement_consumed"]),
       source_correction: isAnyCloseout(receipt.attempt.source_correction) ? closeoutProofExport(receipt.attempt.source_correction) : isCompanionTimeout(receipt.attempt.source_correction) ? companionProofExport(receipt.attempt.source_correction) : isGuideCorrection(receipt.attempt.source_correction) ? guideProofExport(receipt.attempt.source_correction) : isConditionRequalification(receipt.attempt.source_correction) ? conditionProofExport(receipt.attempt.source_correction) : isCorrectedTimeout(receipt.attempt.source_correction) ? timeoutProofExport(receipt.attempt.source_correction) : isObserverRepair(receipt.attempt.source_correction) ? observerProofExport(receipt.attempt.source_correction) : receipt.attempt.source_correction ? pick(receipt.attempt.source_correction, ["schema", "kind", "defect", "prior_family_id", "prior_attempt_id", "prior_receipt_fingerprint", "head", "tree", "source_module", "fixture_sha256", "accepted_main", "review", "browser_input_path", "browser_input_sha256", "input_replacement_consumed", "authorization"]) : null,
       ...(isAnyCloseout(receipt.attempt.source_correction) ? { branch: receipt.attempt.branch,
-        closeout_authority: { closeout_scope: pick(receipt.attempt.closeout_authority?.closeout_scope, ["id", "author", "author_id", "body_sha256", "timestamp", "role", "commit_id"]) } } : {}),
+        closeout_authority: { closeout_scope: pick(receipt.attempt.closeout_authority?.closeout_scope, ["id", "author", "author_id", "body_sha256", "timestamp", "role", "commit_id"]),
+          ...(Object.hasOwn(receipt.attempt.source_correction, "scope_amendment") ? { scope_amendment: pick(receipt.attempt.closeout_authority?.scope_amendment, ["id", "author", "author_id", "body_sha256", "timestamp", "role", "commit_id"]) } : {}) } } : {}),
       ...(usesCloseoutInstructionInputs(receipt.attempt.source_correction) ? { closeout_instruction_input: pick(receipt.attempt.closeout_instruction_input, ["contract", "path_kind", "fingerprint", "head", "tree", "resource", "classification", "location_fingerprint", "sha256", "bytes", "identity_fingerprint"]) } : {}),
       ...(isGuideCorrection(receipt.attempt.source_correction) ? { branch: receipt.attempt.branch, guide_authority: receipt.attempt.guide_authority } : {}),
       ...(isObserverRepair(receipt.attempt.source_correction) ? { observer_authority: receipt.attempt.observer_authority } : {}),
@@ -157,12 +158,15 @@ function closeoutProofExport(p) {
   if (isCloseoutFixtureCorrection(p) || isCloseoutCapabilityCorrection(p) || isCloseoutScopeFixtureCorrection(p)) return {
     ...pick(p, ["schema", "kind", "pull_request", "branch", "base", "head", "tree", "prior_family_id", "prior_number", "prior_attempt_id", "prior_receipt_fingerprint", "budget"]),
     originals: Object.fromEntries(["receipt", "attempt", "completion", "edge", "authority_log", "stock", "stock_log"].map(k => [k, hash(p.originals?.[k])])),
-    predecessor_proof: hash(p.predecessor_proof), correction: { manifest: hash(p.correction?.manifest), retained: p.correction?.retained?.map(ref => pick(ref, ["path", "sha256"])) },
+    predecessor_proof: hash(p.predecessor_proof), correction: Object.hasOwn(p, "scope_amendment")
+      ? { execution_budgets: p.correction?.execution_budgets, validation: hash(p.correction?.validation) }
+      : { manifest: hash(p.correction?.manifest), retained: p.correction?.retained?.map(ref => pick(ref, ["path", "sha256"])) },
+    ...(Object.hasOwn(p, "scope_amendment") ? { scope_amendment: pick(p.scope_amendment, ["comment_id", "observation_sha256", "basis"]) } : {}),
     source_scope: scope ? { ...pick(scope, ["schema", "basis", "accepted_base", "accepted_head", "current_main", "accepted_task_paths", "candidate_delta_paths", "policy_delta_paths"]),
       accepted_task: scope.accepted_task?.map(row => ({ path: row.path, accepted: state(row.accepted), candidate: state(row.candidate) })),
       candidate_policy: scope.candidate_policy?.map(row => ({ path: row.path, candidate: state(row.candidate) })),
       main_reconciliation: scope.main_reconciliation?.map(row => ({ ...pick(row, ["path", "rule"]), accepted_main: state(row.accepted_main), candidate: state(row.candidate) })) } : null,
-    final_source: hash(p.final_source), authorization: pick(p.authorization, ["scope_comment_id", "scope_sha256"]),
+    final_source: hash(p.final_source), authorization: pick(p.authorization, ["scope_comment_id", "scope_sha256", "amendment_comment_id", "amendment_sha256"]),
   };
   if (isCloseoutInstructionReplacement(p)) return {
     ...pick(p, ["schema", "kind", "pull_request", "branch", "base", "head", "tree", "prior_family_id", "prior_number", "prior_attempt_id", "prior_receipt_fingerprint", "budget"]),

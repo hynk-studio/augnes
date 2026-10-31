@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
 import assert from "node:assert/strict";
 import { CLOSEOUT_SCHEMA, CLOSEOUT_CONTINUATION_SCHEMA, CLOSEOUT_CONTINUATION_KIND, CLOSEOUT_SCOPE_CORRECTION_KIND, CLOSEOUT_INSTRUCTION_KIND, CLOSEOUT_FIXTURE_CORRECTION_KIND, CLOSEOUT_CAPABILITY_CORRECTION_KIND, CLOSEOUT_SCOPE_FIXTURE_CORRECTION_KIND, isCloseoutScopeFixtureCorrection, usesCloseoutInstructionInputs, isAnyCloseout, assertCloseoutInstructionInputs, authorizeCloseout as authorizeCloseoutProof } from "./local-canonical-1559-closeout.mjs";
 import { isObserverRepair } from "./local-canonical-observer-succession.mjs";
@@ -1388,9 +1389,9 @@ for (const [profile, group] of [
       command: process.execPath,
       args: [path.join(repositoryRoot, "scripts/fixtures/local-canonical-1559-closeout.mjs"), `--run-closeout-${profile}-fixtures`, group],
       cwd: owner.root, env: buildCanonicalChildEnvironment({ temporaryRoot: owner.root, resourceRoot: owner.root }),
-      timeoutMs: 6000, resourceOwner: owner, stdout: process.stdout, stderr: process.stderr,
+      timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.groupMs, resourceOwner: owner, stdout: process.stdout, stderr: process.stderr,
     });
-    failure = canonicalChildAcceptanceFailure(result, { timeoutMs: 6000, requireNaturalExit: true });
+    failure = canonicalChildAcceptanceFailure(result, { timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.groupMs, requireNaturalExit: true });
   } catch (error) { failure = error; }
   finally { cleanup = cleanupCanonicalTestResources([owner]); }
   console.log(JSON.stringify({ control: `1559-closeout-${profile}-${group}`, result,
