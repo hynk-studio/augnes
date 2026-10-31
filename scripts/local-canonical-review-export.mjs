@@ -1,3 +1,4 @@
+import { BUDGET_SCHEMA, isSuccessorBudgetSuccession, validSuccessorBudgetAttempt } from "./local-canonical-successor-budget-succession.mjs";
 import { OPERATING_PROFILE_SCHEMA, isOperatingProfileSuccession, validOperatingProfileAttempt } from "./local-canonical-operating-profile-succession.mjs";
 import { GUIDE_CORRECTION_SCHEMA, isGuideCorrection, validGuideCorrectionAttempt } from "./local-canonical-guide-correction.mjs";
 import { isObserverRepair, validObserverAttempt } from "./local-canonical-observer-succession.mjs";
@@ -11,6 +12,10 @@ import { isStrictBrowserSourceRevision } from "./local-canonical-browser-replace
 export const REVIEW_EXPORT_SCHEMA = "augnes.local-canonical-private-review.v1";
 const pick = (value, names) => Object.fromEntries(names.filter(name => value?.[name] !== undefined).map(name => [name, value[name]]));
 export function createPrivateReviewExport(receipt) {
+  const attempt = receipt?.attempt;
+  if ((attempt?.source_correction?.schema === BUDGET_SCHEMA || attempt?.source_correction?.kind === "settled_successor_budget" ||
+      attempt?.budget_authority || attempt?.successor_budget_consumed) && !validSuccessorBudgetAttempt(attempt))
+    throw Object.assign(new Error("review_export_successor_budget_invalid"), { code: "review_export_successor_budget_invalid" });
   if (![3, 4, 5].includes(receipt?.receipt_version)) throw new Error("review_export_version_unsupported");
   const integrity = verifyReceiptIntegrity(receipt);
   if (!integrity) throw new Error("review_export_original_invalid");
@@ -33,7 +38,8 @@ export function createPrivateReviewExport(receipt) {
       first_fault: receipt.inputs.first_fault, limitations: receipt.inputs.limitations } : null,
     ...(receipt.receipt_version === 5 ? { browser_input: receipt.browser_input, browser_guard: receipt.browser_guard } : {}),
     attempt: receipt.attempt ? { ...pick(receipt.attempt, ["contract", "family_id", "attempt_id", "number", "head", "tree", "contract_fingerprint", "prior_attempt_id", "prior_receipt_fingerprint", "budget", "input_replacement_consumed"]),
-      source_correction: isOperatingProfileSuccession(receipt.attempt.source_correction) ? profileProofExport(receipt.attempt.source_correction) : isGuideCorrection(receipt.attempt.source_correction) ? guideProofExport(receipt.attempt.source_correction) : isConditionRequalification(receipt.attempt.source_correction) ? conditionProofExport(receipt.attempt.source_correction) : isCorrectedTimeout(receipt.attempt.source_correction) ? timeoutProofExport(receipt.attempt.source_correction) : isObserverRepair(receipt.attempt.source_correction) ? observerProofExport(receipt.attempt.source_correction) : receipt.attempt.source_correction ? pick(receipt.attempt.source_correction, ["schema", "kind", "defect", "prior_family_id", "prior_attempt_id", "prior_receipt_fingerprint", "head", "tree", "source_module", "fixture_sha256", "accepted_main", "review", "browser_input_path", "browser_input_sha256", "input_replacement_consumed", "authorization"]) : null,
+      source_correction: isSuccessorBudgetSuccession(receipt.attempt.source_correction) ? budgetProofExport(receipt.attempt.source_correction) : isOperatingProfileSuccession(receipt.attempt.source_correction) ? profileProofExport(receipt.attempt.source_correction) : isGuideCorrection(receipt.attempt.source_correction) ? guideProofExport(receipt.attempt.source_correction) : isConditionRequalification(receipt.attempt.source_correction) ? conditionProofExport(receipt.attempt.source_correction) : isCorrectedTimeout(receipt.attempt.source_correction) ? timeoutProofExport(receipt.attempt.source_correction) : isObserverRepair(receipt.attempt.source_correction) ? observerProofExport(receipt.attempt.source_correction) : receipt.attempt.source_correction ? pick(receipt.attempt.source_correction, ["schema", "kind", "defect", "prior_family_id", "prior_attempt_id", "prior_receipt_fingerprint", "head", "tree", "source_module", "fixture_sha256", "accepted_main", "review", "browser_input_path", "browser_input_sha256", "input_replacement_consumed", "authorization"]) : null,
+      ...(isSuccessorBudgetSuccession(receipt.attempt.source_correction) ? { branch: receipt.attempt.branch, budget_authority: receipt.attempt.budget_authority } : {}),
       ...(isOperatingProfileSuccession(receipt.attempt.source_correction) ? { branch: receipt.attempt.branch, profile_authority: receipt.attempt.profile_authority } : {}),
       ...(isGuideCorrection(receipt.attempt.source_correction) ? { branch: receipt.attempt.branch, guide_authority: receipt.attempt.guide_authority } : {}),
       ...(isObserverRepair(receipt.attempt.source_correction) ? { observer_authority: receipt.attempt.observer_authority } : {}),
@@ -67,7 +73,8 @@ export function inspectPrivateReviewExport(value) {
   const conditionValid = value.attempt?.source_correction?.schema === CONDITION_REQUALIFICATION_SCHEMA || value.attempt?.source_correction?.kind === "condition_requalification" || value.attempt?.condition_authority || value.attempt?.condition_requalification_consumed ? validConditionRequalificationAttempt(value.attempt) && value.receipt_version === 4 : true;
   const guideValid = value.attempt?.source_correction?.schema === GUIDE_CORRECTION_SCHEMA || value.attempt?.source_correction?.kind === "guide_cancellation_correction" || value.attempt?.guide_authority ? validGuideCorrectionAttempt(value.attempt) && value.receipt_version === 4 : true;
   const profileValid = value.attempt?.source_correction?.schema === OPERATING_PROFILE_SCHEMA || value.attempt?.source_correction?.kind === "operating_profile_efficiency" || value.attempt?.profile_authority ? validOperatingProfileAttempt(value.attempt) && value.receipt_version === 4 : true;
-  const valid = profileValid && guideValid && conditionValid && timeoutValid && observerValid && safe && validInputFailureDiagnostics(value.inputs, { exported: true }) && (value?.schema === REVIEW_EXPORT_SCHEMA || value?.schema === "augnes.local-canonical-private-review.v2") && Object.keys(value).length === allowed.size && Object.keys(value).every(k => allowed.has(k)) &&
+  const budgetValid = value.attempt?.source_correction?.schema === BUDGET_SCHEMA || value.attempt?.source_correction?.kind === "settled_successor_budget" || value.attempt?.budget_authority || value.attempt?.successor_budget_consumed ? validSuccessorBudgetAttempt(value.attempt) && value.receipt_version === 4 : true;
+  const valid = budgetValid && profileValid && guideValid && conditionValid && timeoutValid && observerValid && safe && validInputFailureDiagnostics(value.inputs, { exported: true }) && (value?.schema === REVIEW_EXPORT_SCHEMA || value?.schema === "augnes.local-canonical-private-review.v2") && Object.keys(value).length === allowed.size && Object.keys(value).every(k => allowed.has(k)) &&
     ([3, 4].includes(value.receipt_version) ? value.schema === REVIEW_EXPORT_SCHEMA : value.receipt_version === 5 && value.schema === "augnes.local-canonical-private-review.v2" && value.browser_input?.contract === "augnes.local-canonical-browser-input.v1" && (value.attempt?.browser_replacement?.contract === "augnes.local-canonical-browser-replacement.v1" || (isStrictBrowserSourceRevision(value.attempt?.source_correction) && value.attempt.input_replacement_consumed === true && value.attempt.source_correction.browser_input_sha256 === digest(value.browser_input)))) && Array.isArray(value.phases) && value.phases.length > 0 &&
     value.receipt_schema === "augnes.local-canonical-receipt.v1" &&
     /^[0-9a-f]{64}$/u.test(value.original_receipt_fingerprint ?? "") &&
@@ -123,5 +130,15 @@ function profileProofExport(p) {
     originals: Object.fromEntries(["receipt", "attempt", "completion", "log"].map(k => [k, pick(p.originals?.[k], ["sha256"])])),
     improvement: { ...pick(p.improvement, ["base", "head", "tree"]), review: pick(p.improvement?.review, ["id", "sha256"]),
       evidence: { accepted_manifest: pick(p.improvement?.evidence?.accepted_manifest, ["sha256"]), manifest: pick(p.improvement?.evidence?.manifest, ["sha256"]) } },
+    final_source: pick(p.final_source, ["sha256"]), authorization: pick(p.authorization, ["grant_comment_id", "grant_sha256"]) };
+}
+
+function budgetProofExport(p) {
+  // The accepted diagnosis and new scope remain distinct from implementation-
+  // owner final source. Raw evidence, review prose and file paths stay private.
+  return { ...pick(p, ["schema", "kind", "branch", "base", "head", "tree", "prior_family_id", "prior_number", "prior_attempt_id", "prior_receipt_fingerprint", "pull_request", "budget"]),
+    originals: Object.fromEntries(["receipt", "attempt", "completion", "edge", "log"].map(k => [k, pick(p.originals?.[k], ["sha256"])])),
+    diagnosis: { ...pick(p.diagnosis, ["base", "head", "tree"]), review: pick(p.diagnosis?.review, ["id", "sha256"]),
+      report: pick(p.diagnosis?.report, ["sha256"]), bundle: pick(p.diagnosis?.bundle, ["sha256"]) },
     final_source: pick(p.final_source, ["sha256"]), authorization: pick(p.authorization, ["grant_comment_id", "grant_sha256"]) };
 }

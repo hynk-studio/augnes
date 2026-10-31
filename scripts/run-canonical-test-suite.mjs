@@ -1230,7 +1230,7 @@ const suites = {
       requirements: ["database", "migrations", "filesystem", "mutable-module-state", "process-owning"],
       label: "settled failed result, expired history and explicit revalidated task authorship",
       ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--settled-expired-successor-only"),
-      timeoutMs: 30_000,
+      timeoutMs: 45_000,
       requireNaturalExit: true,
     },
     {

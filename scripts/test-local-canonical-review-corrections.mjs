@@ -97,6 +97,11 @@ try {
     assert.equal(result.exit_code, 0, lastChildDiagnostic);
   }
   findings.push("operating-profile succession: pure evidence/source/authority checks, immutable production-pin refusals, and synthetic terminal-record reconstruction; no synthetic production admission");
+  for (const group of ["evidence", "records"]) {
+    const result = await child([path.join(repository, "scripts/fixtures/local-canonical-successor-budget-succession.mjs"), "--run-budget-fixtures", group], { controlId: `successor-budget-succession-${group}`, timeoutMs: 6000, stdout: process.stdout, stderr: process.stderr });
+    assert.equal(result.exit_code, 0, lastChildDiagnostic);
+  }
+  findings.push("successor aggregate budget: exact source and NOFIX evidence validators, fixed production-pin refusals, typed terminal records and immutable cold reads; no synthetic production admission");
   } else if (process.argv[2] === "--guide-correction-controls") {
   for (const group of ["evidence", "authority", "admission", "race", "stock"]) {
     const result = await child([path.join(repository, "scripts/fixtures/local-canonical-guide-correction.mjs"), "--run-guide-fixtures", group], { controlId: `guide-correction-${group}`, timeoutMs: 6000 });

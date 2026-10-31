@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { BUDGET_SCHEMA, isSuccessorBudgetSuccession, authorizeSuccessorBudgetSuccession } from "./local-canonical-successor-budget-succession.mjs";
 import { OPERATING_PROFILE_SCHEMA, isOperatingProfileSuccession, authorizeOperatingProfileSuccession } from "./local-canonical-operating-profile-succession.mjs";
 import { isGuideCorrection, authorizeGuideCorrection } from "./local-canonical-guide-correction.mjs";
 
@@ -135,6 +136,7 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/local-canonical-condition-requalification.mjs",
   "scripts/local-canonical-guide-correction.mjs",
   "scripts/local-canonical-operating-profile-succession.mjs",
+  "scripts/local-canonical-successor-budget-succession.mjs",
   "scripts/local-canonical-evidence-retention.mjs",
   "scripts/local-canonical-review-export.mjs",
   "scripts/export-local-canonical-review.mjs",
@@ -514,6 +516,8 @@ export async function executeLocalCanonicalVerification({
     throw Object.assign(new Error("timeout_full_route_required"), { code: "timeout_full_route_required" });
   if (isConditionRequalification(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
     throw Object.assign(new Error("condition_full_route_required"), { code: "condition_full_route_required" });
+  if (isSuccessorBudgetSuccession(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
+    throw Object.assign(new Error("budget_full_isolated_required"), { code: "budget_full_isolated_required" });
   if (isOperatingProfileSuccession(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
     throw Object.assign(new Error("profile_full_isolated_required"), { code: "profile_full_isolated_required" });
   if (isGuideCorrection(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
@@ -759,6 +763,9 @@ export async function executeLocalCanonicalVerification({
             const conditionAuthorization = isConditionRequalification(sourceCorrection) ? await authorizeConditionRequalification(sourceCorrection) : null;
             if (conditionAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
             if (conditionAuthorization && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("condition_workload_invalid"), { code: "condition_workload_invalid" });
+            const budgetAuthorization = isSuccessorBudgetSuccession(sourceCorrection) ? await authorizeSuccessorBudgetSuccession(sourceCorrection) : null;
+            if (budgetAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
+            if (budgetAuthorization && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("budget_workload_invalid"), { code: "budget_workload_invalid" });
             const profileAuthorization = isOperatingProfileSuccession(sourceCorrection) ? await authorizeOperatingProfileSuccession(sourceCorrection) : null;
             if (profileAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
             if (profileAuthorization && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("profile_workload_invalid"), { code: "profile_workload_invalid" });
@@ -771,7 +778,7 @@ export async function executeLocalCanonicalVerification({
               branch: identityBefore.branch, head: headSha, tree: inputs.snapshot().binding.tree, runId,
               contractFingerprint: inputs.snapshot().fingerprint, acceptedMain: baseSha,
               recoveryProof: recoveryProofPath ? readRecoveryProof(resolveArtifactPath(recoveryProofPath)) : null,
-              sourceCorrection, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization, profileAuthorization,
+              sourceCorrection, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization, profileAuthorization, budgetAuthorization,
               browserReplacement, browserAuthorization,
               browserLive: browserInput ? browserReplacementLiveBinding({ browserInput, host, machineFingerprint, nodePolicy, executorFingerprint, phaseDefinitions, inputs: inputs.snapshot() }) : null });
             pinVerificationEvidence({ root: repositoryRoot, checkoutOwner, runId, reason: "attempt_family" });
@@ -1349,7 +1356,8 @@ export function readStockMachineIdentity(receipt, machineRoot, browserInput = nu
   const attempt = receipt.attempt;
   const profile = attempt?.source_correction?.schema === OPERATING_PROFILE_SCHEMA ||
     attempt?.source_correction?.kind === "operating_profile_efficiency" || attempt?.profile_authority || attempt?.operating_profile_consumed;
-  return browserInput || profile
+  const budget = attempt?.source_correction?.schema === BUDGET_SCHEMA || attempt?.source_correction?.kind === "settled_successor_budget" || attempt?.budget_authority || attempt?.successor_budget_consumed;
+  return browserInput || profile || budget
     ? readMachineFingerprint(machineRoot) : ensureMachineFingerprint(machineRoot);
 }
 
@@ -1439,6 +1447,10 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
   if (isConditionRequalification(receipt.attempt?.source_correction)) {
     try { conditionAuthorization = await authorizeConditionRequalification(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
   }
+  let budgetAuthorization = null;
+  if (isSuccessorBudgetSuccession(receipt.attempt?.source_correction)) {
+    try { budgetAuthorization = await authorizeSuccessorBudgetSuccession(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
+  }
   let profileAuthorization = null;
   if (isOperatingProfileSuccession(receipt.attempt?.source_correction)) {
     try { profileAuthorization = await authorizeOperatingProfileSuccession(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
@@ -1449,7 +1461,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
   }
   return inspectReceiptForDecision(receipt, {
     currentInputStateValid: [4, 5].includes(receipt.receipt_version) ? currentInputEvidenceValid(receipt, verificationContext, validationHost.browserExecutablePath, browserInput) : null,
-    currentAttemptRecordsValid: [4, 5].includes(receipt.receipt_version) ? inspectAttemptRecords({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, receipt, browserAuthorization, browserLive, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization, profileAuthorization }) : null,
+    currentAttemptRecordsValid: [4, 5].includes(receipt.receipt_version) ? inspectAttemptRecords({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, receipt, browserAuthorization, browserLive, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization, profileAuthorization, budgetAuthorization }) : null,
     currentBrowserInputValid: browserInput ? digest(browserInput.publicBinding) === digest(receipt.browser_input) && !existsSync(path.join(repositoryRoot, ".augnes-local-verification/browser-input-active.json")) : null,
     currentVerificationContext: verificationContext,
     expectedRunId: path.basename(receiptPath, ".json"),

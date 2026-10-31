@@ -171,12 +171,23 @@ correction; these controls do not replace complete deciding qualification.
   without reserving. Proof artifacts remain admission/reconstruction inputs and
   the owner joins the frozen executor inventory. No workload, deadline, input
   classification or continuous-monitoring semantics change.
+- `local-canonical-successor-budget-succession.mjs` binds only the consumed #1561
+  r5 tip, accepted r6 NO FIX diagnosis and the new authenticated prospective scope
+  to the exact outer settled-successor aggregate budget of 45 seconds. All inner
+  bounds and complete semantics remain unchanged. Its typed continuation uses the
+  same exclusive edge, append-only records and fresh read-only stock, with one
+  Full and zero retry/recovery. The old allowance remains consumed; historical
+  causation remains UNKNOWN. Complete final deltas and retained tree entries are
+  implementation-owner verified, then independently audited after return. Proof
+  artifacts are admission/reconstruction inputs, not continuously monitored
+  execution inputs; the owner joins the frozen executor source inventory.
 - `local-canonical-evidence-retention.mjs` protects active and explicitly pinned
   evidence. Unsafe aliases and ambiguous ownership refuse cleanup.
 - `test-local-canonical-classification.mjs` and `test-local-canonical-review-corrections.mjs` exercise real classification,
   sequencing, child lifecycle and receipt validation. Keep accepted Full phase
-  inventory and every existing child bound, including 30 seconds for the
-  settled-expired-successor child. Register new controls in authority coverage.
+  inventory and child bounds, with only the separately authorized outer
+  settled-expired-successor aggregate budget changed from 30 to 45 seconds.
+  Register new controls in existing authority coverage; preserve timeout latching.
 
 ## Required contrasts and limits
 

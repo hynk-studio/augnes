@@ -863,11 +863,12 @@ Independent review and behavior-based adversarial controls remain required;
 changed hashes or the candidate's ability to admit itself are insufficient.
 
 Phase retries, partial-run stitching and favorable-sample selection remain
-forbidden. Existing child/phase bounds and two-lane integration concurrency are
-unchanged. Bounds limit hangs and settlement within supported CPU/memory/disk
-conditions; a timeout is not automatically a performance regression or an
-infrastructure diagnosis. In particular the historical settled-expired-successor
-child remains one complete scenario under its existing 30,000 ms bound.
+forbidden. Two-lane integration concurrency is unchanged. Bounds limit hangs and
+settlement within supported CPU/memory/disk conditions; a timeout is not
+automatically a performance regression or an infrastructure diagnosis. Historical
+settled-expired-successor runs retain their 30,000 ms bound. Its separately
+authorized prospective aggregate change to 45,000 ms is defined below; no other
+child/phase bound changes.
 
 ### Reviewed observer-repair succession (source-correction v3)
 
@@ -1240,6 +1241,55 @@ concurrency and deadlines. Fresh-process stock reauthenticates and reconstructs
 source, evidence and live lineage without reserving, including after a usable
 failed receipt. Classification and NOT_RUN coverage are retained. This route adds
 no merge, Ready, adoption, deployment or provider authority.
+
+### Prospective settled-successor aggregate budget (#1561)
+
+`augnes.local-canonical-successor-budget-succession.v1`, kind
+`settled_successor_budget`, is the separately authorized continuation of the exact
+consumed r5 operating-profile tip. It uses the existing proof input and exclusive
+predecessor edge. It does not renew the r5 grant or reinterpret v1–v6 or the
+operating-profile allowance. Only the actual r5 receipt, attempt, completion,
+incoming edge and integration log, accepted r5/r6 COMMENT 5724573102 and new scope
+6548163748 qualify. Current authenticated author permission, destination, body
+identity, timestamps and published final source are checked by the existing
+GitHub transport. The receiving ChatGPT audits and the publishing account are
+distinct; final policy/source verification is by the implementation owner until
+the post-completion independent audit.
+
+The only workload registration change is `settled-expired-successor`'s outer
+complete-fixture limit from **30,000 to 45,000 ms**. The accepted neighboring
+`authored-successor-handoff` already has a 45,000 ms aggregate limit. R6's complete
+instrumented natural PASS settled at 26,502 ms, with semantic completion at
+scenario 25,054.744 ms and no supported product fix. Those observations support
+this finite prospective headroom choice; they do not establish historical cause,
+a reliable margin, an optimal budget, or a FAIL-to-PASS repair witness. The user
+instructed continuation; ChatGPT selected the exact finite budget and invocation
+limit. R6's NO FIX remains valid. Every assertion, argument, inventory entry,
+authentication and execution/grant/Transition meaning, all inner/request/TTL/
+lifetime/cleanup bounds, other child budgets and `requireNaturalExit: true`
+remain intact. Timeout latching is unchanged; exit zero after timeout is failure.
+
+The proof binds the original immutable records and full workload/settlement,
+accepted r6 report and original bundle, and complete accepted-to-final and
+current-main-to-final deltas/tree entries. Later retained-log hashing is explicitly
+not an observation made by the original receipt. Source is restricted to the one
+budget registration and necessary qualification integration, focused controls and
+documentation. Product, native, r2 lifecycle and r4/r5 behavior remain preserved.
+Compatible accepted-main movement neither cancels nor renews the allowance.
+
+Normal clean published source, registered isolated checkout, pinned runtime,
+frozen inputs, capacity and installed-state gates apply. The existing executor
+owns the exclusive reservation: interruption after reservation consumes the edge
+even without a successor attempt append. The exact new kind may follow only this
+consumed operating-profile tip; other continuations still refuse. The resulting
+successor is terminal after **at most one planner-complete Full and zero retry or
+recovery**. The unchanged planner selects all 16 phases including seven dedicated
+Browser owners, with normal ordering, concurrency and stop behavior. No changed
+source/proof/family, partial coverage or increased deadline restores the budget.
+Fresh-process stock reconstructs every usable receipt, including failure, without
+reserving or creating machine identity. Prior failures, classifications, NOT_RUN
+and UNKNOWN remain intact. This grants no merge, Ready, release, deployment,
+installed adoption, provider study or scheduling authority.
 
 ### Browser input replacement (receipt version 5)
 
