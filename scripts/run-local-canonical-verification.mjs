@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { OPERATING_PROFILE_SCHEMA, isOperatingProfileSuccession, authorizeOperatingProfileSuccession } from "./local-canonical-operating-profile-succession.mjs";
 import { isGuideCorrection, authorizeGuideCorrection } from "./local-canonical-guide-correction.mjs";
 
 import { isObserverRepair, authorizeObserverRepair } from "./local-canonical-observer-succession.mjs";
@@ -133,6 +134,7 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/local-canonical-timeout-succession.mjs",
   "scripts/local-canonical-condition-requalification.mjs",
   "scripts/local-canonical-guide-correction.mjs",
+  "scripts/local-canonical-operating-profile-succession.mjs",
   "scripts/local-canonical-evidence-retention.mjs",
   "scripts/local-canonical-review-export.mjs",
   "scripts/export-local-canonical-review.mjs",
@@ -512,6 +514,8 @@ export async function executeLocalCanonicalVerification({
     throw Object.assign(new Error("timeout_full_route_required"), { code: "timeout_full_route_required" });
   if (isConditionRequalification(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
     throw Object.assign(new Error("condition_full_route_required"), { code: "condition_full_route_required" });
+  if (isOperatingProfileSuccession(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
+    throw Object.assign(new Error("profile_full_isolated_required"), { code: "profile_full_isolated_required" });
   if (isGuideCorrection(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
     throw Object.assign(new Error("guide_full_route_required"), { code: "guide_full_route_required" });
   const strictProof = browserReplacement ?? (isStrictBrowserSourceRevision(sourceCorrection) ? sourceCorrection : null);
@@ -755,6 +759,9 @@ export async function executeLocalCanonicalVerification({
             const conditionAuthorization = isConditionRequalification(sourceCorrection) ? await authorizeConditionRequalification(sourceCorrection) : null;
             if (conditionAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
             if (conditionAuthorization && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("condition_workload_invalid"), { code: "condition_workload_invalid" });
+            const profileAuthorization = isOperatingProfileSuccession(sourceCorrection) ? await authorizeOperatingProfileSuccession(sourceCorrection) : null;
+            if (profileAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
+            if (profileAuthorization && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("profile_workload_invalid"), { code: "profile_workload_invalid" });
             const guideAuthorization = isGuideCorrection(sourceCorrection) ? await authorizeGuideCorrection(sourceCorrection) : null;
             if (guideAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
             if (guideAuthorization && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("guide_workload_invalid"), { code: "guide_workload_invalid" });
@@ -764,7 +771,7 @@ export async function executeLocalCanonicalVerification({
               branch: identityBefore.branch, head: headSha, tree: inputs.snapshot().binding.tree, runId,
               contractFingerprint: inputs.snapshot().fingerprint, acceptedMain: baseSha,
               recoveryProof: recoveryProofPath ? readRecoveryProof(resolveArtifactPath(recoveryProofPath)) : null,
-              sourceCorrection, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization,
+              sourceCorrection, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization, profileAuthorization,
               browserReplacement, browserAuthorization,
               browserLive: browserInput ? browserReplacementLiveBinding({ browserInput, host, machineFingerprint, nodePolicy, executorFingerprint, phaseDefinitions, inputs: inputs.snapshot() }) : null });
             pinVerificationEvidence({ root: repositoryRoot, checkoutOwner, runId, reason: "attempt_family" });
@@ -1337,6 +1344,15 @@ export function readStockBrowserInput(receipt, root = repositoryRoot) {
   return null;
 }
 
+export function readStockMachineIdentity(receipt, machineRoot, browserInput = null) {
+  // This prospective route reconstructs existing identity; absence is not repair.
+  const attempt = receipt.attempt;
+  const profile = attempt?.source_correction?.schema === OPERATING_PROFILE_SCHEMA ||
+    attempt?.source_correction?.kind === "operating_profile_efficiency" || attempt?.profile_authority || attempt?.operating_profile_consumed;
+  return browserInput || profile
+    ? readMachineFingerprint(machineRoot) : ensureMachineFingerprint(machineRoot);
+}
+
 export async function validateReceiptAgainstCurrentRepository(relativeReceiptPath, { checkoutContext = "canonical" } = {}) {
   const verificationContext = admitVerificationContext({ repositoryRoot, kind: checkoutContext });
   const receiptPath = resolveArtifactPath(relativeReceiptPath);
@@ -1351,7 +1367,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
   const host = validationHost.public;
   const nodePolicy = evaluateNodePolicy();
   const machineRoot = path.join(verificationAnchorRoot(verificationContext), LOCAL_ARTIFACT_DIRECTORY);
-  const machineFingerprint = browserInput ? readMachineFingerprint(machineRoot) : ensureMachineFingerprint(machineRoot);
+  const machineFingerprint = readStockMachineIdentity(receipt, machineRoot, browserInput);
   let currentIntegrationBase = null;
   if (["changed", "full"].includes(receipt?.evidence?.mode)) {
     try {
@@ -1423,13 +1439,17 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
   if (isConditionRequalification(receipt.attempt?.source_correction)) {
     try { conditionAuthorization = await authorizeConditionRequalification(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
   }
+  let profileAuthorization = null;
+  if (isOperatingProfileSuccession(receipt.attempt?.source_correction)) {
+    try { profileAuthorization = await authorizeOperatingProfileSuccession(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
+  }
   let guideAuthorization = null;
   if (isGuideCorrection(receipt.attempt?.source_correction)) {
     try { guideAuthorization = await authorizeGuideCorrection(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
   }
   return inspectReceiptForDecision(receipt, {
     currentInputStateValid: [4, 5].includes(receipt.receipt_version) ? currentInputEvidenceValid(receipt, verificationContext, validationHost.browserExecutablePath, browserInput) : null,
-    currentAttemptRecordsValid: [4, 5].includes(receipt.receipt_version) ? inspectAttemptRecords({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, receipt, browserAuthorization, browserLive, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization }) : null,
+    currentAttemptRecordsValid: [4, 5].includes(receipt.receipt_version) ? inspectAttemptRecords({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, receipt, browserAuthorization, browserLive, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization, profileAuthorization }) : null,
     currentBrowserInputValid: browserInput ? digest(browserInput.publicBinding) === digest(receipt.browser_input) && !existsSync(path.join(repositoryRoot, ".augnes-local-verification/browser-input-active.json")) : null,
     currentVerificationContext: verificationContext,
     expectedRunId: path.basename(receiptPath, ".json"),

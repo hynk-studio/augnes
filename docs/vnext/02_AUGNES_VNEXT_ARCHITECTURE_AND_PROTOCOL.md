@@ -2268,6 +2268,17 @@ context retains its independent semantic lineage. Selection does not accept a
 judgment, apply a Transition or create a grant. The existing fresh source reader
 and native-host request consume the saved selection.
 
+The private Companion result-work ingress (#1561) connects these same owners
+to repository-bound read, compare, preview and explicit save. It resolves the
+latest local result and exact project/work/root bindings server-side from the
+Resume snapshot. Preparation and preview bindings identify material; they are
+not authentication. The existing runtime channel and Companion admission owner
+record actual Companion authorship in the same transaction as the canonical
+successor append. The Browser wrapper retains its separate authentication.
+Protected source locators remain projected through the existing disclosure owner.
+An uncertain save is reconciled by explicit Resume and definition/source readback;
+this path adds no replay acknowledgement, automatic retry or persistence ledger.
+
 This profile uses the normal task definition with no scoped file inventory or
 approved-instruction hashes. The older authored read-only profile still requires
 its exact scoped adapter and inventory; it cannot fall through to whole-root

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { isOperatingProfileSuccession } from "./local-canonical-operating-profile-succession.mjs";
 
 import assert from "node:assert/strict";
 import { isObserverRepair } from "./local-canonical-observer-succession.mjs";
@@ -10,6 +11,7 @@ import { BROWSER_REPLACEMENT_PHASES } from "./local-canonical-browser-replacemen
 import { spawnSync } from "node:child_process";
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -56,6 +58,7 @@ import {
   removeBoundedGeneratedNextState,
   resolveVerificationPlan,
   runPhasesSequentially,
+  readStockMachineIdentity,
 } from "./run-local-canonical-verification.mjs";
 import {
   acquireCheckoutVerificationOwnership,
@@ -69,6 +72,29 @@ import { runCanonicalChild } from "./canonical-child-runner.mjs";
 import { finalizeReceipt, verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
 
 import { createIsolatedInvocationResources, isolatedInvocationEnvironment, cleanupIsolatedInvocationResources } from "./local-canonical-isolated-resources.mjs";
+
+// New-profile stock cannot create/chmod a missing or retained machine identity.
+{
+  const root = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-profile-stock-")));
+  try {
+    const receipt = { attempt: { source_correction: { schema: "augnes.local-canonical-operating-profile-succession.v1", kind: "operating_profile_efficiency" } } };
+    const profileReceipts = [receipt,
+      { attempt: { source_correction: { schema: "augnes.local-canonical-operating-profile-succession.v1", kind: "wrong" } } },
+      { attempt: { source_correction: { kind: "operating_profile_efficiency" } } },
+      { attempt: { profile_authority: {} } }, { attempt: { operating_profile_consumed: true } }];
+    for (const value of profileReceipts) {
+      assert.throws(() => readStockMachineIdentity(value, root));
+      assert.deepEqual(readdirSync(root), []);
+    }
+    const file = path.join(root, "machine-id");
+    writeFileSync(file, "7".repeat(64), { mode: 0o600 });
+    const before = lstatSync(file, { bigint: true }), bytes = readFileSync(file);
+    for (const value of profileReceipts) assert.match(readStockMachineIdentity(value, root), /^[0-9a-f]{32}$/u);
+    const after = lstatSync(file, { bigint: true });
+    for (const key of ["dev", "ino", "mode", "uid", "gid", "nlink", "size", "mtimeNs", "ctimeNs"]) assert.equal(after[key], before[key]);
+    assert(readFileSync(file).equals(bytes));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+}
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -887,7 +913,7 @@ const ownedBlockEnd = executorSource.indexOf("\n  const serviceLifecycleRestored
 assert.ok(ownedBlockStart > 0 && ownedBlockEnd > ownedBlockStart);
 const ownedBlock = executorSource.slice(ownedBlockStart, ownedBlockEnd);
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisition_failure", "owned_failure", "unsettled_failure", "success", "absent_success", "stopped_success", "quick_success", "isolated_success", "isolated_unsettled", "isolated_observation_invalid", "pre_lock_state_race", "maintenance_state_race", "observer_authority_refused", "observer_changed_after_authority", "timeout_authority_refused", "timeout_changed_after_authority", "timeout_partial_workload_refused", "condition_authority_refused", "condition_changed_after_authority", "condition_partial_workload_refused", "guide_authority_refused", "guide_changed_after_authority", "guide_partial_workload_refused"]) {
+for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisition_failure", "owned_failure", "unsettled_failure", "success", "absent_success", "stopped_success", "quick_success", "isolated_success", "isolated_unsettled", "isolated_observation_invalid", "pre_lock_state_race", "maintenance_state_race", "observer_authority_refused", "observer_changed_after_authority", "timeout_authority_refused", "timeout_changed_after_authority", "timeout_partial_workload_refused", "condition_authority_refused", "condition_changed_after_authority", "condition_partial_workload_refused", "guide_authority_refused", "guide_changed_after_authority", "guide_partial_workload_refused", "profile_authority_refused", "profile_changed_after_authority", "profile_partial_workload_refused"]) {
   const root = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-canonical-ownership-")));
   let competingOwner = null;
   let privateResource = null;
@@ -913,6 +939,7 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
     const timeoutRefusal = scenario.startsWith("timeout_");
     const conditionRefusal = scenario.startsWith("condition_");
     const guideRefusal = scenario.startsWith("guide_");
+    const profileRefusal = scenario.startsWith("profile_");
     let activeOwner = null;
     let maintenanceSettled = false;
     let serviceState = { status: scenario === "absent_success" ? "not_installed" : scenario === "stopped_success" ? "installed_stopped" : scenario === "pre_lock_state_race" ? "maintenance" : "live" };
@@ -930,15 +957,16 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
     const context = {
       checkoutContext: isolated ? "isolated-worktree" : "canonical", verificationContext: {}, signal: { aborted: false },
       controller: new AbortController(), recoveryProofPath: null, sourceCorrectionProofPath: null, baseSha: "0".repeat(40), headSha: "a".repeat(40), executorFingerprint: "b".repeat(64), identityBefore: { branch: "fixture" },
-      isObserverRepair, isCorrectedTimeout, isConditionRequalification, isGuideCorrection, digest, BROWSER_REPLACEMENT_PHASES,
-      browserInput: null, browserReplacement: null, strictProof: null, sourceCorrection: observerRefusal ? { schema: "augnes.local-canonical-source-correction.v3", kind: "observer_repair" } : timeoutRefusal ? { schema: "augnes.local-canonical-source-correction.v4", kind: "corrected_timeout" } : conditionRefusal ? { schema: "augnes.local-canonical-source-correction.v5", kind: "condition_requalification" } : guideRefusal ? { schema: "augnes.local-canonical-source-correction.v6", kind: "guide_cancellation_correction" } : null,
+      isObserverRepair, isCorrectedTimeout, isConditionRequalification, isGuideCorrection, isOperatingProfileSuccession, digest, BROWSER_REPLACEMENT_PHASES,
+      browserInput: null, browserReplacement: null, strictProof: null, sourceCorrection: observerRefusal ? { schema: "augnes.local-canonical-source-correction.v3", kind: "observer_repair" } : timeoutRefusal ? { schema: "augnes.local-canonical-source-correction.v4", kind: "corrected_timeout" } : conditionRefusal ? { schema: "augnes.local-canonical-source-correction.v5", kind: "condition_requalification" } : guideRefusal ? { schema: "augnes.local-canonical-source-correction.v6", kind: "guide_cancellation_correction" } : profileRefusal ? { schema: "augnes.local-canonical-operating-profile-succession.v1", kind: "operating_profile_efficiency" } : null,
       authorizeObserverRepair: async () => { authorityObserved = true; if (scenario === "observer_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
       authorizeCorrectedTimeout: async () => { authorityObserved = true; if (scenario === "timeout_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
       authorizeConditionRequalification: async () => { authorityObserved = true; if (scenario === "condition_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
       authorizeGuideCorrection: async () => { authorityObserved = true; if (scenario === "guide_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
+      authorizeOperatingProfileSuccession: async () => { authorityObserved = true; if (scenario === "profile_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
       selectedBrowserInput: () => null,
       prepareInvocationInputs: () => ({ snapshot: () => ({ resources: [], binding: { tree: "c".repeat(40) }, fingerprint: "d".repeat(64) }) }),
-      monitorInputContract: () => ({ check: () => ["observer_changed_after_authority", "timeout_changed_after_authority", "condition_changed_after_authority", "guide_changed_after_authority"].includes(scenario) && authorityObserved ? { disposition: "input_invalidation" } : null, stop() {}, fault: () => null }),
+      monitorInputContract: () => ({ check: () => ["observer_changed_after_authority", "timeout_changed_after_authority", "condition_changed_after_authority", "guide_changed_after_authority", "profile_changed_after_authority"].includes(scenario) && authorityObserved ? { disposition: "input_invalidation" } : null, stop() {}, fault: () => null }),
       beginAttempt: () => { attemptClaims++; return {}; }, pinVerificationEvidence() {}, assertFrozenSource() {},
       createIsolatedInvocationResources: id => (privateResource = createIsolatedInvocationResources(id)),
       cleanupIsolatedInvocationResources: (resource, options) => {
@@ -1048,12 +1076,13 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
         assert.equal(verifyReceiptIntegrity(preserved), true);
         assert.equal(assertCheckoutVerificationOwnership(competingOwner, root), true);
       }
-    } else if (observerRefusal || timeoutRefusal || conditionRefusal || guideRefusal) {
+    } else if (observerRefusal || timeoutRefusal || conditionRefusal || guideRefusal || profileRefusal) {
       assert(authorityObserved); assert.equal(attemptClaims, 0); assert.equal(calls.phases, 0);
       assert(result.executionFailure); assert.equal(result.cleanupComplete, false, "executor refusal keeps its conservative incomplete receipt flag");
       assert.equal(calls.release, 1); assert(!existsSync(next)); assert(!existsSync(windows));
       if (timeoutRefusal) assert.equal(result.cleanupReason, scenario === "timeout_authority_refused" ? "synthetic_authority_refusal" : scenario === "timeout_changed_after_authority" ? "input_admission_refused" : "timeout_workload_invalid");
       if (conditionRefusal) assert.equal(result.cleanupReason, scenario === "condition_authority_refused" ? "synthetic_authority_refusal" : scenario === "condition_changed_after_authority" ? "input_admission_refused" : "condition_workload_invalid");
+      if (profileRefusal) assert.equal(result.cleanupReason, scenario === "profile_authority_refused" ? "synthetic_authority_refusal" : scenario === "profile_changed_after_authority" ? "input_admission_refused" : "profile_workload_invalid");
       if (guideRefusal) assert.equal(result.cleanupReason, scenario === "guide_authority_refused" ? "synthetic_authority_refusal" : scenario === "guide_changed_after_authority" ? "input_admission_refused" : "guide_workload_invalid");
     } else {
       assert.equal(calls.phases, 1); assert.equal(calls.release, quick || isolated || unsettled ? 0 : 1);

@@ -126,6 +126,7 @@ export function compareResultWorkSourcesV01(db: Database.Database, input: {
 export function previewResultWorkV01(db: Database.Database, input: {
   config: VNextLocalOperatorPilotConfigV01; session_id: string; binding: ResultWorkBindingV01; definition: unknown;
   selected_sources: DefineAuthoredSuccessorTaskRequestV01["selected_sources"]; clock?: VNextLocalRuntimeClockV01;
+  include_compiled_packet?: true;
 }) {
   const before = readResultWorkPreparationV01(db, { ...input, receipt_id: input.binding.expected_latest_receipt_id });
   check(equal(projectBoundRequestIdentityV01(before.binding), projectBoundRequestIdentityV01(input.binding)) && input.selected_sources, "preparation_changed");
@@ -154,7 +155,8 @@ export function previewResultWorkV01(db: Database.Database, input: {
   materialFrom(built.packet);
   return { request, before: before.initialization.current_work, after: d,
     sources_before: before.initialization.selected_source_context ?? [], sources_after: request.selected_sources!.selected_source_context,
-    omitted_sources: request.selected_sources!.omitted_sources, writes: 0 as const };
+    omitted_sources: request.selected_sources!.omitted_sources, writes: 0 as const,
+    ...(input.include_compiled_packet ? { compiled_packet: built.packet } : {}) };
 }
 export interface DefineAuthoredSuccessorTaskRequestV01 {
   action: typeof ACTION;
@@ -375,51 +377,70 @@ export async function defineAuthoredSuccessorTaskV01(db: Database.Database, inpu
   db.exec("BEGIN IMMEDIATE");
   try {
     const auth = admitVNextLocalOperatorMutationInsideTransactionV01(db, input);
-    assertExpectedPacketDirection(db, input.config, expectedDirection, auth.action_observed_at);
-    const selection = readActiveProjectSelectionV01(db, input.config.workspace_id);
-    if (request.expected_project_work_binding !== undefined) check(request.expected_project_work_binding === readProjectWorkBindingV01(db, input.config), "project_binding_changed");
-    else check(selection?.project_id === input.config.project_id && selection.selection_revision === request.expected_active_selection_revision, "selection_changed");
-    if (request.revalidation || request.selected_sources) assertRevalidatedHistoryCurrent(db, input.config, request, auth.action_observed_at);
-    else {
-      const continuity = projectVNextOperatorPilotContinuityV01(db, { config: input.config, clock: { now: () => auth.action_observed_at } });
-      check(continuity.latest_compiled_packet?.packet_id === request.expected_current_packet_id &&
-        continuity.latest_compiled_packet.packet_fingerprint === request.expected_current_packet_fingerprint && continuity.packet_currentness === "fresh", "current_packet_changed");
-    }
-    assertNewLifetime(request, auth.action_observed_at, auth.session.expires_at);
-    const predecessor = source(db, input.config, request, { latest: true, selected_at: auth.action_observed_at });
-    // Authorship requires the live ledger's settled predecessor. A portable
-    // receipt alone can be read as history, but cannot authorize this writer.
-    check(predecessor.run, "local_predecessor_required");
-    check(listAutonomyRunLedgerRecords({ db, scope: input.config.project_id, limit: 1 })[0]?.run_id === predecessor.run.run_id, "latest_run_changed");
-    if (request.revalidation || request.selected_sources) {
-      if (request.selected_sources) {
-        if (predecessor.receipt.compatibility.source_contracts.includes(STATELESS_WORK)) assertStatelessUnsettledAdmission(db, input.config, predecessor.packet);
-        else check(!hasUnsettledAutonomyRunLedgerRecords({ db, scope: input.config.project_id }), "conflicting_run");
-      } else {
-        // Historical terminal count is not a conflict. Keep malformed or
-        // unresolved history conservative, including matches beyond a page.
-        check(!hasUnsettledAutonomyRunLedgerRecords({ db, scope: input.config.project_id }), "conflicting_run");
-      }
-      check(predecessor.run.finished_at !== null && predecessor.run.finished_at === predecessor.receipt.finished_at &&
-        predecessor.run.metadata.pending_approval == null &&
-        predecessor.run.metadata.run_receipt_id === predecessor.receipt.receipt_id &&
-        predecessor.run.metadata.run_receipt_fingerprint === predecessor.receipt.integrity.fingerprint &&
-        predecessor.run.metadata.root_physical_identity_fingerprint === fingerprintNativeHostPhysicalRootIdentityV01(root.physical_root_identity), "local_predecessor_binding");
-    }
-    check(Date.parse(auth.action_observed_at) > Date.parse(predecessor.packet.generated_at) &&
-      Date.parse(auth.action_observed_at) >= Date.parse(predecessor.receipt.recorded_at), "authorship_time");
-    const built = build({ prior: predecessor.packet, receipt: predecessor.receipt, operator_id: input.config.operator_id,
-      at: auth.action_observed_at, material: { request, ...(request.selected_sources ? { work_lifetime: DURABLE_AUTHORED_WORK_V01 } : {}),
-        source_root_ref: root.root_scope_ref, physical_root_fingerprint: fingerprintNativeHostPhysicalRootIdentityV01(root.physical_root_identity), session_id: auth.session.session_id } });
-    const validation = validateTaskContextPacketV01(built.packet, { evaluated_at: auth.action_observed_at });
-    check(validation.status === "valid", "packet_invalid");
-    const write = insertVNextCoreRecordV01(db, { record_kind: "task_context_packet", record_id: built.packet.packet_id,
-      workspace_id: input.config.workspace_id, project_id: input.config.project_id, fingerprint: built.packet.integrity.fingerprint,
-      idempotency_key: digest({ action: ACTION, prior: predecessor.packet.integrity.fingerprint, request }), payload: built.packet, created_at: built.packet.generated_at });
-    check(inspectAuthoredSuccessorPacketV01(db, { config: input.config, packet: built.packet }).projection_current, "compiled_packet_stale");
+    const result = defineAuthoredSuccessorTaskInsideTransactionV01(db, {
+      config: input.config, request, root, admission: auth, expected_direction_ref: expectedDirection,
+    });
     db.exec("COMMIT");
-    return { status: write.status, packet: built.packet, session_admission: auth, execution_authority_granted: false as const, semantic_transition_created: false as const };
+    return { ...result, session_admission: auth };
   } catch (error) { if (db.inTransaction) db.exec("ROLLBACK"); throw error; }
+}
+
+/** Canonical append-only write shared by authenticated Browser and Companion
+ * ingress. The caller owns its transaction, real admission and inspected root;
+ * no credential, preview or transport assertion is accepted from a request. */
+export function defineAuthoredSuccessorTaskInsideTransactionV01(db: Database.Database, input: {
+  config: VNextLocalOperatorPilotConfigV01; request: unknown;
+  root: Awaited<ReturnType<typeof inspectPersistedHostProjectRootV01>>;
+  admission: { session: { session_id: string; expires_at: string }; action_observed_at: string };
+  expected_direction_ref: string | null;
+}) {
+  check(db.inTransaction, "transaction_required");
+  const request = parseRequest(input.request), root = input.root, auth = input.admission;
+  const expectedDirection = input.expected_direction_ref;
+  check(root.root_fingerprint === request.expected_root_fingerprint, "root_changed");
+  assertExpectedPacketDirection(db, input.config, expectedDirection, auth.action_observed_at);
+  const selection = readActiveProjectSelectionV01(db, input.config.workspace_id);
+  if (request.expected_project_work_binding !== undefined) check(request.expected_project_work_binding === readProjectWorkBindingV01(db, input.config), "project_binding_changed");
+  else check(selection?.project_id === input.config.project_id && selection.selection_revision === request.expected_active_selection_revision, "selection_changed");
+  if (request.revalidation || request.selected_sources) assertRevalidatedHistoryCurrent(db, input.config, request, auth.action_observed_at);
+  else {
+    const continuity = projectVNextOperatorPilotContinuityV01(db, { config: input.config, clock: { now: () => auth.action_observed_at } });
+    check(continuity.latest_compiled_packet?.packet_id === request.expected_current_packet_id &&
+      continuity.latest_compiled_packet.packet_fingerprint === request.expected_current_packet_fingerprint && continuity.packet_currentness === "fresh", "current_packet_changed");
+  }
+  assertNewLifetime(request, auth.action_observed_at, auth.session.expires_at);
+  const predecessor = source(db, input.config, request, { latest: true, selected_at: auth.action_observed_at });
+  // Authorship requires the live ledger's settled predecessor. A portable
+  // receipt alone can be read as history, but cannot authorize this writer.
+  check(predecessor.run, "local_predecessor_required");
+  check(listAutonomyRunLedgerRecords({ db, scope: input.config.project_id, limit: 1 })[0]?.run_id === predecessor.run.run_id, "latest_run_changed");
+  if (request.revalidation || request.selected_sources) {
+    if (request.selected_sources) {
+      if (predecessor.receipt.compatibility.source_contracts.includes(STATELESS_WORK)) assertStatelessUnsettledAdmission(db, input.config, predecessor.packet);
+      else check(!hasUnsettledAutonomyRunLedgerRecords({ db, scope: input.config.project_id }), "conflicting_run");
+    } else {
+      // Historical terminal count is not a conflict. Keep malformed or
+      // unresolved history conservative, including matches beyond a page.
+      check(!hasUnsettledAutonomyRunLedgerRecords({ db, scope: input.config.project_id }), "conflicting_run");
+    }
+    check(predecessor.run.finished_at !== null && predecessor.run.finished_at === predecessor.receipt.finished_at &&
+      predecessor.run.metadata.pending_approval == null &&
+      predecessor.run.metadata.run_receipt_id === predecessor.receipt.receipt_id &&
+      predecessor.run.metadata.run_receipt_fingerprint === predecessor.receipt.integrity.fingerprint &&
+      predecessor.run.metadata.root_physical_identity_fingerprint === fingerprintNativeHostPhysicalRootIdentityV01(root.physical_root_identity), "local_predecessor_binding");
+  }
+  check(Date.parse(auth.action_observed_at) > Date.parse(predecessor.packet.generated_at) &&
+    Date.parse(auth.action_observed_at) >= Date.parse(predecessor.receipt.recorded_at), "authorship_time");
+  const built = build({ prior: predecessor.packet, receipt: predecessor.receipt, operator_id: input.config.operator_id,
+    at: auth.action_observed_at, material: { request, ...(request.selected_sources ? { work_lifetime: DURABLE_AUTHORED_WORK_V01 } : {}),
+      source_root_ref: root.root_scope_ref, physical_root_fingerprint: fingerprintNativeHostPhysicalRootIdentityV01(root.physical_root_identity), session_id: auth.session.session_id } });
+  const validation = validateTaskContextPacketV01(built.packet, { evaluated_at: auth.action_observed_at });
+  check(validation.status === "valid", "packet_invalid");
+  const write = insertVNextCoreRecordV01(db, { record_kind: "task_context_packet", record_id: built.packet.packet_id,
+    workspace_id: input.config.workspace_id, project_id: input.config.project_id, fingerprint: built.packet.integrity.fingerprint,
+    idempotency_key: digest({ action: ACTION, prior: predecessor.packet.integrity.fingerprint, request }), payload: built.packet, created_at: built.packet.generated_at });
+  check(inspectAuthoredSuccessorPacketV01(db, { config: input.config, packet: built.packet }).projection_current, "compiled_packet_stale");
+  return { status: write.status, packet: built.packet, execution_authority_granted: false as const, semantic_transition_created: false as const };
 }
 
 export function inspectAuthoredSuccessorPacketV01(db: Database.Database, input: {

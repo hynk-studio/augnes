@@ -323,10 +323,13 @@ function readPosixProcessSnapshot() {
     },
   );
   const snapshot = new Map();
-  if (result.status !== 0 || result.error) return snapshot;
+  // An unavailable observation cannot establish that an owned group is gone.
+  if (result.status !== 0 || result.error || typeof result.stdout !== "string" || !result.stdout.trim())
+    throw ownedObservationError();
   for (const line of result.stdout.split(/\r?\n/)) {
+    if (!line.trim()) continue;
     const match = line.match(/^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(.+?)\s*$/);
-    if (!match) continue;
+    if (!match) throw ownedObservationError();
     snapshot.set(Number(match[1]), {
       pid: Number(match[1]),
       ppid: Number(match[2]),
@@ -422,6 +425,12 @@ function closeChildStreams(child) {
 function ownedCleanupError() {
   const error = new Error("owned process tree cleanup failed");
   error.code = "owned_process_tree_cleanup_failed";
+  return error;
+}
+
+function ownedObservationError() {
+  const error = new Error("owned process observation unavailable or incomplete");
+  error.code = "owned_process_observation_unknown";
   return error;
 }
 

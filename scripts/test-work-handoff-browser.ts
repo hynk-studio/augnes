@@ -2,7 +2,7 @@ import { readActiveProjectSelectionV01, selectActiveProjectV01 } from "../lib/vn
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
-import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, lstatSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { build } from "esbuild";
@@ -43,9 +43,18 @@ async function until(fn: () => Promise<unknown>, label: string) { const end = Da
 async function main() {
  const { config, projectRoot, handoffPath, sourceDatabase, oldGrant } = JSON.parse(readFileSync(process.argv[2]!, "utf8"));
  assert.equal(existsSync(sourceDatabase), false); assert.ok(config.database_path.includes("augnes-work-handoff-"));
- const snapshot = JSON.parse(readFileSync(handoffPath, "utf8")), db = new Database(config.database_path), owned = new Set();
- const root = path.join(path.dirname(config.database_path), "browser-owned"); mkdirSync(root);
- const guard = installZeroNetworkGuard({ allowLoopback: true });
+ const snapshot = JSON.parse(readFileSync(handoffPath, "utf8")), owned = new Set();
+ const root = path.join(path.dirname(config.database_path), "browser-owned"), readback = process.argv[3] === "--readback";
+ let db!: Database.Database, guard: ReturnType<typeof installZeroNetworkGuard> | undefined;
+ let server: ReturnType<typeof createServer> | undefined, rootCreated = false, browserSettled = true;
+ let outcome: object | undefined;
+ const failures: unknown[] = [];
+ const observeRoot = (stage: string) => {
+  const stat = lstatSync(root, { throwIfNoEntry: false });
+  const observation = { stage, receiver_pid: process.pid, mode: readback ? "readback" : "receive", root,
+    filesystem: stat ? { state: "present", device: String(stat.dev), inode: String(stat.ino), entries: stat.isDirectory() ? readdirSync(root).sort().slice(0, 64) : [] } : { state: "absent" } };
+  console.log(JSON.stringify({ handoff_lifecycle: observation })); return stat;
+ };
  let c: CDP | undefined, child: ReturnType<typeof registerOwnedChild> | undefined, cookie = "", origin = "", script = "", calls = 0, external = 0;
  const inputs: any[] = [];
  const acceptCookies = (values: string[]) => {
@@ -53,6 +62,10 @@ async function main() {
    for (const value of values) { const pair = value.split(";")[0]!, index = pair.indexOf("="); if (value.includes("Max-Age=0")) jar.delete(pair.slice(0,index)); else jar.set(pair.slice(0,index),pair.slice(index+1)); }
    cookie = [...jar].map(([name,value]) => `${name}=${value}`).join("; ");
  };
+ async function http(route: string, body?: any, expected = 200) { const response = await fetch(origin + route, { signal: AbortSignal.timeout(10000), method: body ? "POST" : "GET", headers: { origin, cookie, "Augnes-Project-Id": config.project_id, ...(body ? { "content-type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) }); acceptCookies(response.headers.getSetCookie()); const value = await response.json(); assert.equal(response.status, expected, canonical(value)); return value; }
+ try {
+ assert.equal(observeRoot("receiver-entry"), undefined, "previous receiver browser resources remain");
+ db = new Database(config.database_path); guard = installZeroNetworkGuard({ allowLoopback: true });
  const environment = { NODE_ENV: "test" as const, OPENAI_API_KEY: "", AUGNES_VNEXT_OPERATOR_PILOT_ENABLED: "1", AUGNES_VNEXT_OPERATOR_WORKSPACE_ID: config.workspace_id, AUGNES_VNEXT_OPERATOR_PROJECT_ID: config.project_id, AUGNES_VNEXT_OPERATOR_ID: config.operator_id, AUGNES_DB_PATH: config.database_path };
  const adapter = createOpenAIResponsesAdapterV01({ environment: { OPENAI_API_KEY: "scripted-not-a-key", OPENAI_MODEL: "gpt-4.1-mini" }, transport: async req => {
   calls++; const input = JSON.parse(JSON.parse(JSON.parse(req.body).input[1].content[0].text).message); inputs.push(input);
@@ -60,7 +73,7 @@ async function main() {
  } });
  const handoff = createWorkHandoffHandler({ environment }), continuity = createVNextOperatorContextUseReviewHandlerV01({ environment }), review = createStatelessSourceReviewHandler({ environment, adapter }), sessions = createVNextLocalOperatorSessionHandlersV01({ environment });
  const endpoint = `/api/vnext/operator/work-handoff?project_id=${config.project_id}`, reviewEndpoint = `/api/vnext/operator/stateless-source-review?project_id=${config.project_id}`;
- const server = trackServerConnections(createServer(async (req, res) => {
+ server = trackServerConnections(createServer(async (req, res) => {
   try {
    if (req.url === "/app.js") { res.setHeader("Content-Type", "application/javascript"); res.end(script); return; }
    if (!req.url?.startsWith("/api/")) { res.setHeader("Content-Type", "text/html"); res.end('<div id="root"></div><script src="/app.js"></script>'); return; }
@@ -71,22 +84,23 @@ async function main() {
    res.statusCode = response.status; res.end(await response.text());
   } catch { res.statusCode = 500; res.end(JSON.stringify({ error: "test_http_failed" })); }
  }));
- async function http(route: string, body?: any, expected = 200) { const response = await fetch(origin + route, { signal: AbortSignal.timeout(10000), method: body ? "POST" : "GET", headers: { origin, cookie, "Augnes-Project-Id": config.project_id, ...(body ? { "content-type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) }); acceptCookies(response.headers.getSetCookie()); const value = await response.json(); assert.equal(response.status, expected, canonical(value)); return value; }
+
  const current = () => readCurrentProjectWorkPacketLineageV01(db, config)!.packet;
- try {
-  script = (await build({ stdin: { contents: `import React from 'react'; import {createRoot} from 'react-dom/client'; import {WorkHandoff} from './components/blank-state/work-handoff'; createRoot(document.getElementById('root')).render(React.createElement(WorkHandoff,{projectId:${JSON.stringify(config.project_id)}}));`, resolveDir: process.cwd(), loader: "tsx" }, bundle: true, write: false, platform: "browser", define: { "process.env.NODE_ENV": '\"production\"' }, plugins: [{ name: "navigation-only", setup(b) { b.onResolve({ filter: /^next\/navigation$/ }, () => ({ path: "navigation", namespace: "test" })); b.onLoad({ filter: /.*/, namespace: "test" }, () => ({ contents: "export const useRouter = () => ({refresh(){}});" })); } }] })).outputFiles[0]!.text;
-  await new Promise<void>(ok => server.listen(0, "127.0.0.1", ok)); origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+  if (!readback) script = (await build({ stdin: { contents: `import React from 'react'; import {createRoot} from 'react-dom/client'; import {WorkHandoff} from './components/blank-state/work-handoff'; createRoot(document.getElementById('root')).render(React.createElement(WorkHandoff,{projectId:${JSON.stringify(config.project_id)}}));`, resolveDir: process.cwd(), loader: "tsx" }, bundle: true, write: false, platform: "browser", define: { "process.env.NODE_ENV": '\"production\"' }, plugins: [{ name: "navigation-only", setup(b) { b.onResolve({ filter: /^next\/navigation$/ }, () => ({ path: "navigation", namespace: "test" })); b.onLoad({ filter: /.*/, namespace: "test" }, () => ({ contents: "export const useRouter = () => ({refresh(){}});" })); } }] })).outputFiles[0]!.text;
+  await new Promise<void>(ok => server!.listen(0, "127.0.0.1", ok)); origin = `http://127.0.0.1:${(server!.address() as { port: number }).port}`;
   const bootstrap = issueVNextLocalOperatorBootstrapV01(db, { config }); const admitted = await http("/api/vnext/operator/session", { action: "bootstrap", bootstrap_token: bootstrap.bootstrap_token }); assert.equal(admitted.ok, true);
-  if (process.argv[3] === "--readback") {
+  if (readback) {
     const saved = await http(endpoint); assert.deepEqual(saved.handoff, snapshot); assert.equal(saved.packet.capability_grant, null);
     assert.equal(readProjectAutomationControlV01(db, config)!.enabled, false); const result = await http(reviewEndpoint);
     assert.equal(result.reviews.length, 1); assert.equal(result.reviews[0].run.status, "completed");
     assert.equal(calls, 0); assert.equal(validateRecoveryCanonicalDatabaseV01(db).status, "valid");
-    console.log(JSON.stringify({ fresh_receiver_process: process.pid, authenticated_readback: "PASS", source_database_unavailable: !existsSync(sourceDatabase), provider_calls: 0 })); return;
-  }
+    outcome = { fresh_receiver_process: process.pid, authenticated_readback: "PASS", source_database_unavailable: !existsSync(sourceDatabase), provider_calls: 0 };
+  } else {
+  mkdirSync(root); rootCreated = true; observeRoot("browser-root-created");
 
   const profile = path.join(root, "chrome"), args = ["--headless=new", "--no-sandbox", "--disable-gpu", "--no-first-run", "--no-default-browser-check", "--disable-background-networking", "--disable-component-update", "--disable-default-apps", "--disable-domain-reliability", "--disable-extensions", "--disable-sync", "--metrics-recording-only", "--no-pings", "--password-store=basic", "--use-mock-keychain", "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1", "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "about:blank"];
   const sandbox = '(version 1) (allow default) (deny network*) (allow network-inbound (local ip "localhost:*")) (allow network-outbound (remote ip "localhost:*")) (allow network-bind (local ip "localhost:*")) (allow network* (local unix-socket))';
+  browserSettled = false;
   child = registerOwnedChild(owned, spawn("/usr/bin/sandbox-exec", ["-p", sandbox, "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", ...args], { detached: true, stdio: "ignore", env: { ...process.env, OPENAI_API_KEY: "" } }), { label: "work-handoff-browser" });
   let port = ""; await until(async () => { try { port = readFileSync(path.join(profile, "DevToolsActivePort"), "utf8").split("\n")[0]!; return !!port; } catch { return false; } }, "chrome");
   const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: "PUT" })).json() as any;
@@ -161,11 +175,35 @@ async function main() {
   assert.deepEqual(readWorkHandoff(current()), snapshot); assert.equal(current().capability_grant, null);
   assert.equal(validateRecoveryCanonicalDatabaseV01(db).status, "valid");
   const latestControl = readProjectAutomationControlV01(db, config)!; mutateProjectControlV01(db, { workspace_id: config.workspace_id, project_id: config.project_id, action: "disable_automation", expected_active_project_id: config.project_id, expected_active_selection_revision: state.active_selection_revision!, expected_control_revision: latestControl.revision });
-  console.log(JSON.stringify({ receiver_pid: process.pid, source_database_unavailable: true, ui_http_receive: "PASS", ordinary_successor_preparation: "PASS", fresh_scripted_calls: calls, mandatory_history_retained: true, material_missing_and_changed: "PASS", recovery_readback: "PASS", provider_calls: 0 }));
- } finally {
-  try { if (cookie) { const latest = cookie; const logout = await http("/api/vnext/operator/session", { action: "logout" }); assert.equal(logout.status, "revoked"); cookie = latest; await http("/api/vnext/operator/session", undefined, 401); cookie = ""; } } finally {
-  c?.close(); if (child) await terminateOwnedProcessTree(child); await closeTrackedServer(server); db.close(); assert.equal(owned.size, 0); assert.equal(guard.attempts.length, 0); guard.restore(); rmSync(root, { recursive: true, force: true }); assert.equal(external, 0);
+  outcome = { receiver_pid: process.pid, source_database_unavailable: true, ui_http_receive: "PASS", ordinary_successor_preparation: "PASS", fresh_scripted_calls: calls, mandatory_history_retained: true, material_missing_and_changed: "PASS", recovery_readback: "PASS", provider_calls: 0 };
   }
+ } catch (error) { failures.push(error); } finally {
+  // Every cleanup owner is attempted; a failed observation never authorizes root removal.
+  const cleanup = async (operation: () => unknown) => { try { await operation(); } catch (error) { failures.push(error); } };
+  await cleanup(async () => { if (cookie) { const latest = cookie; const logout = await http("/api/vnext/operator/session", { action: "logout" }); assert.equal(logout.status, "revoked"); cookie = latest; await http("/api/vnext/operator/session", undefined, 401); cookie = ""; } });
+  await cleanup(() => c?.close());
+  await cleanup(async () => {
+   if (child) {
+    const settlement = await terminateOwnedProcessTree(child);
+    assert.equal(child.closed, true); assert.equal(owned.size, 0); browserSettled = true;
+    console.log(JSON.stringify({ handoff_browser_settlement: { receiver_pid: process.pid, browser_pid: child.pid, ...settlement, exited: child.exited, closed: child.closed, owned: owned.size } }));
+   }
+  });
+  await cleanup(() => closeTrackedServer(server));
+  await cleanup(() => { if (db?.open) db.close(); });
+  await cleanup(() => { assert.equal(owned.size, 0); assert.equal(guard?.attempts.length ?? 0, 0); });
+  guard?.restore();
+  await cleanup(() => {
+   observeRoot("before-root-removal");
+   if (rootCreated && browserSettled) rmSync(root, { recursive: true, force: true });
+   assert.equal(observeRoot("after-root-removal"), undefined, "receiver browser resources were not removed");
+   assert.equal(browserSettled, true, "receiver browser settlement is unknown");
+  });
+  await cleanup(() => { assert.equal(external, 0); });
  }
+ if (failures.length) throw new AggregateError(failures, "handoff receiver or cleanup failed");
+ assert.ok(outcome, "receiver semantic assertions did not complete");
+ console.log(JSON.stringify({ handoff_receiver_completed: { receiver_pid: process.pid, mode: readback ? "readback" : "receive",
+   browser_settled: browserSettled, browser_root_absent: true, owned_processes: owned.size, server_closed: !server?.listening, database_closed: !db.open }, ...outcome }));
 }
 void main().catch(e => { console.error(e); process.exitCode = 1; });
