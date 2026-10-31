@@ -503,6 +503,34 @@ model alternate routes with zero real provider calls; their existence is not
 live alternate-host or automatic fallback evidence. These are current-source
 observations, not new test results or claims about the installed Mac.
 
+#### Platform responsibilities across local, web and external participants
+
+These logical responsibilities connect the customer-facing direction to current
+owners. They do not prescribe separate servers, screens, a central execution
+proxy or a new platform framework. Local versus web location is not a disclosure
+or project-authority boundary.
+
+| Logical responsibility | Current foothold | Target connection or limit |
+|---|---|---|
+| Project-owned continuing work | Native current-work/source/decision owners and host-native entries. | Retain purpose, judgments, commitments and authorized continuation; a cooperating provider does not acquire the project's direction. |
+| Private web work | [Web Planning](../../apps/web_planning/README.md) has one configured owner, independent authored work and selected files. | Web is not a mirror of the native database. The [explicit selected-source handoff](../WEB_EXPORT_NATIVE_HANDOFF.md) admits permitted current-revision text to an authorized native target, not full project migration, automatic synchronization or transferred authority. |
+| Discovery and bounded exchange | #1447's distributed public component and #1443's request/contribution owners. | Selective public/shared reading, current offers and request-bound cross-owner submission need their own supported access boundaries. They are not already supplied by private Web Planning or a global directory. |
+| Independent provider work | Existing participant-owned runtimes/resources and manual/configured request-return paths. | Providers keep private methods, credentials and their own policies. Discovery, willingness, per-task commitment and execution remain separate; preparation is not general automatic commissioning. |
+| Checked use and later capability | Recipient check/use writers, #1453's conditional experience, source/material/correction and ordinary later-task use. | Connect permitted results to a reusable method and genuinely new use without copying authority or private inputs. Each recipient owns adoption; cross-project offers, settlement and independent undertaking growth remain bounded future connections. |
+
+Current #1453 discovery is limited to permitted same-workspace shares and its
+transport to a configured loopback aggregate operation. Check/use records are
+attributed consumer judgments, not platform-guaranteed truth. A separate C's
+cross-owner use therefore needs its own permitted public, manual or supported
+exchange boundary; neither same-project continuation nor selected-source import
+establishes that whole path.
+
+The [contribution follow-through](#contribution-and-undertaking-follow-through--2026-10-20)
+keeps the public and independent-undertaking lanes; the immediate modeling
+preparation below can proceed without launching either. Its worked
+[hypothetical chain](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#worked-hypothetical-chain--private-service-to-later-use)
+connects these roles without claiming implemented end-to-end platform operation.
+
 #### Independent dimensions and smallest missing connections
 
 Do not introduce one status combining role assignment, permission, capability,
@@ -670,6 +698,153 @@ integration methods as well as task outputs. Use the
 to separate discovery, actual returned material, checked adoption, later use,
 correction and total burden only where needed for the claim. These are not new
 mandatory stages for every PR or authorization to recruit, publish or execute.
+
+#### Contribution and undertaking follow-through — 2026-10-20
+
+This direction from [#1504](https://github.com/hynk-studio/augnes/pull/1504) is
+reconciled here with the current source and the 2026-10-31 non-model readiness
+plan. #1426 retains allocation ownership; the entries below are candidate
+follow-through, not new assignments. The merged #1496/#1499 and bounded
+[contribution/continuation increments](#current-first-execution-choice-and-participation-loop-1443)
+remain source footholds with their original qualification and observation limits.
+Preserve the L1 current-understanding and result-informed choice owner rather
+than opening a parallel selection engine. Public preparation need not await
+unrelated work; a consumer must resolve dependencies it actually uses.
+
+| Placement | Existing owner / surface | Bounded work and completion |
+|---|---|---|
+| Candidate: participation preparation | #1447 / public entry and supported host guidance | Prepare a concrete task, useful example, permitted input, expected deliverable, checking/use responsibility and participant benefit. Human and agent guidance describe the same current request and return route. Reuse the completed component distribution. |
+| Existing Web entry/incorporation capability | [#1501](https://github.com/hynk-studio/augnes/issues/1501), [#1502](https://github.com/hynk-studio/augnes/issues/1502), [#1503](https://github.com/hynk-studio/augnes/issues/1503) / merged [#1505](https://github.com/hynk-studio/augnes/pull/1505), [#1507](https://github.com/hynk-studio/augnes/pull/1507) | Reuse required-criteria/disposition guidance and the owner's retention/deselection of current judgments during correction incorporation, with preview, fresh readback and history. The old Next labels are superseded by those source merges, not by a new adoption or external-demand claim; do not requeue their implementation. |
+| Candidate: complete W1 | #1443 / P2 #1212, contribution and selective use | Connect one source-bound request or useful unsolicited contribution to checked current use/non-use and permitted feedback. Selective public reading and bounded cross-owner submission need explicit supported boundaries. |
+| Following capability: independent W2 operation | #1443 / #1453 / P5 #1215 | Let an actor start its own or delegated undertaking, request and use a contribution, and continue through an authorized successor with goals, judgments and obligations intact. Existing controlled same-project continuation is narrower. Direct W2 entry does not require prior W1 participation. |
+| Later bounded derivation (working label W3) | #1443 / #1453 / existing P4/P5 capability reuse | Select a reusable method and its conditions into a separately operated undertaking; use it for a distinct consumer/task and continue after executor replacement. A later increment may add one level of subdelegation. This adds no phase or W1/W2 prerequisite. |
+
+Public software installation/version-change verification remains the first
+proposed public task family: one exact version, environment and user journey,
+actual inputs, expected results and a named next consumer. An Augnes outsider
+journey and a separate public project's real need are candidates; select the
+counterpart and task only when that work is commissioned. Return reproducible
+steps, permitted logs, checked result/failure, unknown scope and useful
+next-version checks. This is not broad QA or security certification, and
+synthetic #1501–#1503 observations are not external demand. Keep the independently
+useful workflow-cost component available. This public-use candidate is not a
+prerequisite for the [immediate hypothetical modeling preparation](#application-order-and-completion-conditions).
+
+Candidate channels remain a relevant real GitHub task/result touchpoint and a
+currently supported host/Skill or direct-URL path. Use the selected host's actual
+support. Make the need, source revision, contribution/return conditions,
+checking/use responsibility, resource burden, attribution/feedback and reusable
+benefit clear. Reading, one contribution, exit and permitted export are useful
+outcomes; optional continuation can carry selected material into the contributor's
+own work. A universal catalog, MCP/A2A rollout, marketplace, reputation or
+settlement service is not the first step.
+
+Current [Web access](../../apps/web_planning/src/access.ts) admits one configured
+owner; [private branching/incorporation](../../apps/web_planning/src/relations.ts)
+does not establish cross-owner participation. For W1 inspect selected public
+revision access and request-bound submission; for W2 inspect independent ownership
+and workspace isolation, including an agent-usable supported operation path to
+the same work. Compare separate owner deployments and tenant isolation when
+choosing the smallest implementation; no auth topology or new schema is chosen
+here. An existing GitHub/HTTP bridge may suffice, but label manual relay honestly
+and never substitute shared owner credentials for access.
+
+Under #1443/#1453, connect selected counterpart experience to current-work,
+execution-choice and contribution readers. Reuse scoped conditions, associations,
+assessments, materials and corrections; neither the bounded aggregate adapter nor
+review text is a universal service contract. W1 makes purpose, supplied/missing
+input, offered scope and return/use feedback understandable to both parties. W2
+carries an attributable conditional judgment into actual assignment, request,
+review or handoff and a successor's appropriate change or retention. Reconsider
+only relevant expectations after model/harness/environment changes; W3 separates
+inherited evidence from direct performance. Prefer task fit and complementary
+evidence over a general model ranking.
+
+For a real counterpart that supports it, [A2A 1.0.0](https://a2a-protocol.org/v1.0.0/specification/)
+(sections 4.1, 4.4 and 4.6) remains an optional, version-pinned reference:
+AgentCard/AgentSkill for declared interfaces and skills, Task/Message/Artifact
+for exchange, and negotiated versioned extensions only for a demonstrated missing
+field. AgentProvider describes the service provider, not necessarily its LLM.
+External identifiers/card claims do not become Augnes identity, competence or
+authority. Retain source, version and observation time. This is neither a latest-
+version claim nor an adopted mapping; supported GitHub/HTTP and Markdown remain valid.
+
+Start with selected notes and existing material/experience records. Only where
+the selected consumer cannot recover a needed relationship, propose a small
+versioned derived view joining task, counterpart conditions, source evidence,
+expected contribution, observed result and reconsideration reason. It is not a
+new Core kind or global profile store. Share only the permitted projection;
+private assessments, other customers' data and negotiation limits are not public
+card defaults. Unsupported enrichment preserves the ordinary path and unknowns.
+The [product owner](./01_AUGNES_VNEXT_MASTERPLAN.md#web-active-users-and-continuing-cooperation)
+retains relationship/derivation meaning and [04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#web-active-users-and-contribution-continuity)
+retains acquisition/repeat-use evidence. Put selected concrete contract changes
+in 02 alongside implementation, and update README/host guidance only when the
+supported path changes. No registry, model call, experiment, outreach, public
+endpoint, trial allocation, deployment or release is commissioned here.
+
+#### Reusable interfaces from observed work
+
+The [current-work source reader](../CODEX_CURRENT_CONTINUITY_V0_1.md#explicit-current-work-source-read)
+already supplies selected source text and complete-work-definition reading;
+[selected-source retrieval](#shared-source-grounded-retrieval--current-capability-and-conditional-direction-1468)
+also has a completed bounded implementation. First use those outputs in an actual
+supported consumer before adding another observation interface. Improve a
+demonstrated missing capability or repeated observation/action burden through
+existing owners; preserve originals, bindings, unknown scope and direct work.
+This is a priority for these existing readers, not a requirement to prove a
+historical failure before developing any approved new capability.
+
+[Evolving Agent Interfaces](https://arxiv.org/abs/2610.28601v1) motivates discoverable
+usage conditions, input/output meaning, source revision, execution environment,
+observed outcomes and outcome checks for a small reusable implementation.
+Retain them with counterexamples and correction through P4/P5 and material/
+experience owners. Ordinary code and notes remain sufficient alternatives;
+population search, crossover and a global tool registry stay deferred. This adds
+no framework or study gate. Use [04's comparison boundaries](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#web-active-users-and-contribution-continuity)
+only for a later authorized benefit claim; completed studies remain closed.
+
+#### Strategic operating profiles and defensive reference application — 2026-10-22
+
+The read-only [#1518](https://github.com/hynk-studio/augnes/issues/1518) source
+increment merged in [#1520](https://github.com/hynk-studio/augnes/pull/1520),
+superseding the old Draft/qualification-NOT_RUN snapshot. Its bounded source
+qualification does not resolve #1518's separate whole-commission preservation
+FAILED/HOLD or UNKNOWN historical-evidence retention, establish installed
+adoption, or demonstrate model use. Those dispositions stay with the original
+owner. The #1523 and #1532 connections above supply narrower controlled
+contribution/continuation evidence, not completion of the whole following outline.
+
+| Sequence | Bounded result and placement |
+|---|---|
+| Existing planning owners | Keep public entry, cooperation knowledge, W1/W2/W3 and the following profile direction together in 01/03/04, without a second master plan. #1426 coordinates allocation; #1443/#1453 and P3/P4/P5 retain implementation ownership. |
+| Implemented bounded #1518 / #1520 source | Validate bounded versioned profile input and produce a deterministic read-only preview of purpose, roles, supplied/missing material, dependencies, requested permissions and return/check/use responsibility. Retain the synthetic Defensive Operations Observe/Recommend example and direct-work control. |
+| Following: organizational continuity | Carry judgment basis, counterevidence, rejected explanations and unfinished obligations through role/executor replacement into actual next work. A new process is not by itself model/host succession. |
+| Following: defensive reference replay | Use selected late/conflicting evidence, inert adversarial input and relevant replacement cases with Observe/Recommend only. A representative bounded case can suffice; no large benchmark is required. |
+| Later operational read-only pilot | Bind explicitly selected development assets and observation sources to Observe/Recommend with freshness, coverage gaps and human responsibility visible. This plan authorizes no production defensive effects. |
+| Later bounded effects and recovery | Through separately supported action owners and authorization, admit limited nonproduction actions, observed postconditions, interruption reconciliation and recovery. Incident Command is separate later scope, not enabled by default. |
+| Later reviewed learning and generality | Propose source-bound lessons, replay relevant counterexamples, review/version a limited change. Use one non-security application before claiming a general/stable profile contract, not as a gate for every earlier increment. |
+
+`OperatingProfile.v0.1` remains provisional non-authoritative configuration, not
+a new Core record. Its current validation/preview consumer does not start project,
+grant, lease, assignment, schedule, run or accepted-state mutations, model calls,
+external lookup or commands. The example supplies an unusual CI credential event,
+a legitimate explanation, a compromise hypothesis and a missing discriminating
+observation; it demonstrates supplied/unknown handling, not autonomous incident
+inference. Unresolved capabilities stay unresolved. Preview is not deployment
+readiness, and actual permissions are resolved at the later authorized action.
+Do not stop at an unused schema or require unrelated qualification, all-host
+support or positive comparative benefit before an approved capability develops.
+
+O0–O5 describe responsibility, handoff, shared understanding, bounded delegation,
+verified recovery and reviewed learning, not another state machine, six approval
+ceremonies or completion claims. Roles, executors and principals stay distinct;
+role labels do not prove independent checking. Later action contracts distinguish
+reversible effects, compensating recovery and irreversible changes; replacing a
+credential is not restoring the revoked one. Existing invocation grants do not
+cover arbitrary external defense. Preserve negative/partial evidence, frozen
+consumer limits and study allocations; no installed mutation, Defend activation,
+public recruitment or merge/publication authority follows from this outline.
 
 Capability extensions must serve Augnes's existing product principles and a
 concrete user or work outcome. Reuse current capabilities where sufficient,

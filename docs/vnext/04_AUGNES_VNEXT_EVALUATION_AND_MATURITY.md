@@ -105,6 +105,117 @@ to revise or decline methods too. Appropriate non-use and negative results remai
 valid. Comparative success, organic demand and all-host support are not admission
 conditions for already approved capability or public-entry development.
 
+For the [planned follow-through](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#contribution-and-undertaking-follow-through--2026-10-20),
+keep the completion claims distinct:
+
+| Claim | Discriminating observation |
+|---|---|
+| W1 contribution continuity | An answer, useful question or reframing reaches the request owner, is checked and used/partly used/declined for an explicit reason, and permitted use feedback reaches the contributor. |
+| W2 independent undertaking | An actor starts within its own or delegated scope, actually uses a contribution, and an authorized fresh executor continues from retained goals, judgments, methods and obligations. |
+| W3 selective derivation | A separately operated undertaking uses selected inherited capability for distinct work, with source, conditions, limits, correction and accepted obligations recoverable after executor replacement. A copied record or more organization nodes is insufficient. |
+
+Observe derivation, ownership, delegation and customer relationships separately.
+If serving another customer or subdelegation is claimed, observe that actual
+consumer and permitted return/use path; it is not required of every earlier
+increment. Excluded private material and authority must not transfer with a
+selected method. Manual relay, controlled same-operator cases and independent
+cross-owner product use retain their actual scopes.
+
+For acquisition and continued use, distinguish reach/read, suitable requests,
+checked returns, actual adoption, repeat use when a real next opportunity exists,
+and independently operated new undertakings. Separate directly operated, invited,
+independently discovered and unknown origins; agent/account/branch count does not
+establish independent demand. Report small cohorts as counts with their eligible
+denominators; no observed next task is not demonstrated churn. One independent
+repeat case motivates investigation, not a network-effect claim.
+
+Count setup separately from recurring request, coordination, checking, integration,
+correction, recovery and human support. For claimed workflow advantage, give strong
+direct work/adaptive memo the same relevant sources, tools, model/harness,
+capability access and aggregate resources. Keep capability, actual use and economic
+advantage separate. Follow the observed bottleneck: discovery, task fit/participant
+benefit, return/check/use clarity, next-task value or a repeated manual step.
+These are diagnostic choices, not a required funnel or a new study budget.
+
+For the [open-platform value hypothesis](./01_AUGNES_VNEXT_MASTERPLAN.md#web-active-users-and-continuing-cooperation),
+compare only the relevant choice: independent open participation, a selected
+cooperation network or direct integration. Ask whether the chosen opening lowers
+entry/exit or disclosure burden, finds otherwise missing useful capability, or
+supports appropriate return use after its discovery, checking and maintenance
+costs. For a coordination claim, match capability access as above; for a claim
+about new access itself, expose that difference and its costs rather than matching
+the proposed benefit away or attributing it to memory/coordination. A narrower
+network or direct path may be sufficient. No option is preferred by openness,
+participant count or simulated activity alone. This can first be a hypothetical
+contrast; it commissions no market test or universal comparative gate.
+
+For cooperation knowledge, establish what the successor actually read and how it
+changed or appropriately retained selection, information requests, division of
+work, review or handoff. Stored profiles and accurate summaries alone do not
+establish this connection. Give a strong direct/adaptive-memo alternative the same
+relevant history, current evidence, tools and aggregate resources for a benefit
+claim. Separate presentation from result-informed continuing coordination; use
+only comparisons needed for the next decision and retain the simpler path on a tie.
+
+Choose relevant changed/unchanged-condition, executor-replacement, corrected-request
+or inherited-evidence cases. Where model branding may explain selection, an
+identity-masked comparison can diagnose it. Keep missing opportunity,
+unavailability, environment/request defects and reasoning failure distinct;
+unknown causes stay unknown. Adoption is not correctness and copied/inherited
+observations are not independent successes. Evaluate against actual goals and
+agreements, not universal agreement, zero concession, agent count or benchmark rank.
+These checks do not reopen frozen studies or gate unrelated approved work.
+
+For reusable interfaces, exact bindings/readback establish returned material,
+not appropriate model use. A benefit comparison gives the strong current model
+and harness the same history, retained assets, evidence, tools, permissions,
+coding ability and aggregate budget; native/adaptive-memo may create, revise and
+reuse code too. Count preparation, selection, verification, repair and maintenance.
+Preserve the starting interface's successes, shared successes, newly failing cases
+and new successes with eligible denominators; net scores or fewer calls can hide
+lost coverage. Separate selection-exposed from fresh cases and do not infer a code
+regression from one stochastic outcome. These are scoped lessons from
+[Evolving Agent Interfaces, Table 4 and Appendix B.2](https://arxiv.org/abs/2610.28601v1),
+not an Augnes benefit result or new benchmark commission. Preserve the
+[P4.6 no-added-value result](../verification/P4_6_CONDITIONAL_PROCEDURE_LEARNING.md),
+[#1459](https://github.com/hynk-studio/augnes/issues/1459) and
+[#1464](https://github.com/hynk-studio/augnes/issues/1464) tie/SIMPLIFY dispositions;
+no-change or ordinary code remains a valid decision.
+
+### Strategic operating-profile evidence
+
+For #1518, the supported validation/preview entry and consumer, not a type alone,
+must demonstrate deterministic normalized output and meaningful revision
+differences, bounded malformed/unsupported-input refusal, direct-work compatibility,
+unresolved capabilities and faithful supplied/unknown evidence. Adversarial text
+stays data. Absence of application writes, grants, worker launches and external
+calls in that exercised boundary is not general live-world injection resistance.
+Existing evidence remains bound to its original source and preservation limits.
+
+Later organizational evidence needs an authorized successor using goals, original
+judgment basis, counterevidence and unfinished obligations in real next work.
+A fresh deterministic process is not a model-change study; a copied summary is
+not demonstrated semantic continuity. Mechanical receipts remain distinct from
+appropriate interpretation and outcomes.
+
+Defensive replay and live operation require separate evidence. For actual effects,
+check permitted target/scope, postconditions, side effects, unknown-result
+reconciliation and observed recovery, including compensating rather than identical
+restoration. Role labels do not prove separate principals or independent checking.
+Zero unauthorized or unreceipted effects is an acceptance condition for exercised
+cases, not an estimated zero real-world failure rate. Every new policy/lesson
+version needs its original basis and review; retained lessons count as improvement
+only when later applicable work uses them appropriately.
+
+For added usefulness, retain same-history direct work/adaptive memo and relevant
+native delegation with equal permitted evidence, tools and aggregate resources.
+Count template preparation, observation, selection, coordination, verification,
+recovery, human repair and continuing maintenance. Measure outcome quality,
+tractable work and burden, not profile/agent/event count. Extra computation or
+withheld baseline evidence cannot establish an Augnes advantage. Capability,
+semantic use, comparative benefit, installed adoption and operational security
+remain separate claims; appropriate non-use or simplification remains valid.
+
 ## Economic activity and participation evidence
 
 Apply these criteria to the claims made by the
@@ -995,6 +1106,40 @@ where compensation matters, keep its recipient and proposed/accepted/fulfilled
 status in separate source-bound authored terms. The adapter's aggregation terms are
 not a general economic contract. This guidance adds no fields, Core kind, service,
 directory, reputation score or settlement mechanism.
+
+#### Worked hypothetical chain — private service to later use
+
+This authored example joins the individual cases below; it is not a run, a
+source-fit qualification, an observed customer journey or a market result.
+Assume project A needs to check a package-version change on one environment;
+its controller may commission that bounded check but may not share private
+customer files or deploy changes. A's current executor cannot perform the check
+directly. Independent provider B hypothetically has the capability, valid action
+authority and capacity, keeps its internal method private, and offers a report
+for an agreed fee payable for correctly performed investigation, including a
+negative result. These are explicit assumptions, not capacity, authority or payment
+proved by a profile. C is a separate later undertaking, not another label for A.
+
+| Hypothetical event | Expected change and preserved distinction | Existing foothold or unimplemented connection |
+|---|---|---|
+| A finds a permitted example and considers B | Public reading may suffice without registration. An example does not prove B's current availability, competence, willingness or acceptance. A compares direct/asset/other-provider options for its own purpose. | Public component/ordinary selected sources and execution choice are footholds; no general public offer/discovery service is assumed. |
+| A and B accept this limited request | Bind the exact task/material revision, allowed input and return, checking owner, expiry, benefit recipient and agreed fee condition. Direct inability does not cancel independently permitted commissioning. B receives no customer secrets or project-direction rights. | Request/profile/manual notes can prepare scoped material; `expected_return` is the report, not compensation. General paid dispatch, commitment enforcement and settlement remain gaps; terms can be separate authored source. |
+| B returns a negative compatibility result and suggested workaround | Preserve the original, tested version/environment, observations, unknowns and unsupported recommendation. A checks the report, uses the compatibility finding and declines the workaround for this task. Those choices do not retroactively change B's properly performed deliverable or its agreed compensation condition. | Existing preserved-return and separate check/use writers support bounded authored judgments. The hypothetical fee is neither paid nor provider-confirmed by those writers. |
+| A closes or continues the work | Keep use feedback within the agreed disclosure, outstanding payment/support and unresolved effects visible. If B times out or authority expires, do not fabricate cancellation, zero cost, payment or a renewed grant. | Existing result/obligation and reconciliation owners are footholds; a generally valid post-expiry cleanup route remains an explicit gap. |
+| A derives a permitted conditional method | Share only the permitted version-check/decomposition/checking procedure, its original basis, failed/partial case, applicability and correction path. B's private method, inputs and authority remain excluded. B's current offer is separately revisable and can be withdrawn without erasing earlier obligations. | Existing material/experience/correction owners can retain selected sources; no automatic method extraction, public publishing, current-offer registry or rights transfer follows. |
+| C considers the method for a genuinely new version/task | C obtains only permitted material, rechecks changed conditions and its own authority, then adapts, rejects or independently commissions a new contribution under current terms. C owns its adoption judgment; A's success and B's old agreement are not transferable applicability, grants or availability. | Ordinary source use and the controlled same-project later-task path are narrower footholds. Independent cross-owner access/undertaking operation must be mapped to its actual supported path or retained as a gap, not inferred from workspace-scoped sharing. |
+| A, B or C has a subsequent opportunity | Record whether the method/result actually helped, total burden, whether the agreed participant return was fulfilled, and whether a real new need leads to voluntary repeat use or renewed participation. B may decline; C may use the asset once and leave. | This is the value hypothesis for later observation. Authored acceptance, simulated fees and controlled agents prove no outside demand, repeat-use rate or network effect. |
+
+Vary one condition to discriminate the meaning: project-wide review-only scope
+blocks commissioning implementation; withheld redistribution rights keep the
+method private; changed version applicability can justify C's non-use; withdrawn
+intake is not incompetence or discharge of earlier obligations. An unrelated
+display-label change should not change the choice. Do not squeeze unsupported
+relations into existing strict fields. The next bounded source-fit task maps the
+relevant case to actual readers/writers and proposes only a missing connection,
+or retains ordinary composition where sufficient. No fixture or consumer was
+executed by writing this example, and no fee, publication, customer contact or
+runtime work is authorized by it.
 
 #### Representative positive and negative cases
 
