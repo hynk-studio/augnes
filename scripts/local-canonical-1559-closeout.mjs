@@ -289,17 +289,19 @@ function validInitialCloseoutAttempt(attempt) {
 export const CLOSEOUT_CONTINUATION_SCHEMA = "augnes.local-canonical-closeout-continuation.v1";
 export const CLOSEOUT_CONTINUATION_KIND = "issue_1559_operational_validation_correction";
 export const CLOSEOUT_SCOPE_CORRECTION_KIND = "issue_1559_source_scope_precheck_correction";
+export const CLOSEOUT_CAPABILITY_CORRECTION_KIND = "issue_1559_capability_precheck_correction";
 export const CLOSEOUT_FIXTURE_CORRECTION_KIND = "issue_1559_fixture_preparation_correction";
 export const CLOSEOUT_INSTRUCTION_KIND = "issue_1559_instruction_input_replacement";
 export const isCloseoutContinuation = p => p?.schema === CLOSEOUT_CONTINUATION_SCHEMA && p.kind === CLOSEOUT_CONTINUATION_KIND;
 export const isCloseoutScopeCorrection = p => p?.schema === CLOSEOUT_CONTINUATION_SCHEMA && p.kind === CLOSEOUT_SCOPE_CORRECTION_KIND;
 export const isCloseoutInstructionReplacement = p => p?.schema === CLOSEOUT_CONTINUATION_SCHEMA && p.kind === CLOSEOUT_INSTRUCTION_KIND;
 export const isCloseoutFixtureCorrection = p => p?.schema === CLOSEOUT_CONTINUATION_SCHEMA && p.kind === CLOSEOUT_FIXTURE_CORRECTION_KIND;
-export const usesCloseoutInstructionInputs = p => isCloseoutInstructionReplacement(p) || isCloseoutFixtureCorrection(p);
-export const isAnyCloseout = p => isCloseout(p) || isCloseoutContinuation(p) || isCloseoutScopeCorrection(p) || isCloseoutInstructionReplacement(p) || isCloseoutFixtureCorrection(p);
+export const isCloseoutCapabilityCorrection = p => p?.schema === CLOSEOUT_CONTINUATION_SCHEMA && p.kind === CLOSEOUT_CAPABILITY_CORRECTION_KIND;
+export const usesCloseoutInstructionInputs = p => isCloseoutInstructionReplacement(p) || isCloseoutFixtureCorrection(p) || isCloseoutCapabilityCorrection(p);
+export const isAnyCloseout = p => isCloseout(p) || isCloseoutContinuation(p) || isCloseoutScopeCorrection(p) || isCloseoutInstructionReplacement(p) || isCloseoutFixtureCorrection(p) || isCloseoutCapabilityCorrection(p);
 export const hasCloseoutMarker = attempt => [CLOSEOUT_SCHEMA, CLOSEOUT_CONTINUATION_SCHEMA].includes(attempt?.source_correction?.schema) ||
-  ["issue_1559_closeout", CLOSEOUT_CONTINUATION_KIND, CLOSEOUT_SCOPE_CORRECTION_KIND, CLOSEOUT_INSTRUCTION_KIND, CLOSEOUT_FIXTURE_CORRECTION_KIND].includes(attempt?.source_correction?.kind) || !!attempt?.closeout_authority ||
-  !!attempt?.closeout_consumed || !!attempt?.closeout_continuation_consumed || !!attempt?.closeout_scope_correction_consumed || !!attempt?.closeout_instruction_consumed || !!attempt?.closeout_fixture_correction_consumed || Object.hasOwn(attempt ?? {}, "closeout_instruction_input");
+  ["issue_1559_closeout", CLOSEOUT_CONTINUATION_KIND, CLOSEOUT_SCOPE_CORRECTION_KIND, CLOSEOUT_INSTRUCTION_KIND, CLOSEOUT_FIXTURE_CORRECTION_KIND, CLOSEOUT_CAPABILITY_CORRECTION_KIND].includes(attempt?.source_correction?.kind) || !!attempt?.closeout_authority ||
+  !!attempt?.closeout_consumed || !!attempt?.closeout_continuation_consumed || !!attempt?.closeout_scope_correction_consumed || !!attempt?.closeout_instruction_consumed || !!attempt?.closeout_fixture_correction_consumed || !!attempt?.closeout_capability_correction_consumed || Object.hasOwn(attempt ?? {}, "closeout_instruction_input");
 // BEGIN CLOSEOUT CONTINUATION PINS
 export const CLOSEOUT_CONTINUATION_PINS = Object.freeze({
   prior_head: "ac8d6f04eb272c3d2222f30dda26cec6d540d0a2", prior_tree: "5678fe6a802ae3693857da90b8a4627a9766fc02",
@@ -1142,12 +1144,232 @@ export function validCloseoutFixtureCorrectionAttempt(attempt) {
   } catch { return false; }
 }
 
+// BEGIN CLOSEOUT CAPABILITY CORRECTION PINS
+export const CLOSEOUT_CAPABILITY_CORRECTION_PINS = Object.freeze({
+  "accepted_base": "bbb7dee536817fe4b7f28f5353a1d88f56c7e44d",
+  "prior_head": "9e33dda83633cb80b97822b493ad3ed1343f4f50",
+  "prior_tree": "2c6656a7055c904a1a0b8d4851c20208e56c7826",
+  "prior_family_id": "dedddb9849fcd307ddb8bd9e24c3ad6278d8d5b98250243fa10dbfe970e8d032",
+  "prior_attempt_id": "2026-10-31T06-17-03-197Z-full-9e33dda83633-daa3cdc31f1b11cc",
+  "prior_receipt_fingerprint": "c8acea3dd2eeae8d7393a160f58ff75fc5fcd8a80fd26290ddb1bf895d0b7149",
+  "completed_at": "2026-10-31T06:28:17.880Z",
+  "predecessor_proof": "d8a60d80f7ff5947aea85f192863af4cbd1a4600f78c61c21747fc97ccd117c3",
+  "fixture_path": "scripts/fixtures/local-canonical-1559-closeout.mjs",
+  "fixture_sha256": "c1c839ad3080fb25a1535f9fc36e4ecee9dde8f7342f8996f36ed140bd97d327",
+  "manifest": "abc36d7564f88011df5d5e9b62bb08eedc0a2e97946bd1536b2b59c33c598626",
+  "originals": {
+    "receipt": "785e5ca1c3e5923948359541ba67d9432e1bd011db2492abf63069e6701b2cf6",
+    "attempt": "e1f6c7e79ce9eaa0bc6ada8d58543e70cf2e0499b95c7bb1623d380dc0ade52f",
+    "completion": "7403f5e65c1fffc6e36d1f93c65cb5621dacd64256a5d3ba91aa86633327b92d",
+    "edge": "b13d2bb9d8eac335c5e450f6855e855d37f3984c477440c61685a525485e6339",
+    "authority_log": "20bef06c890fed2b263398eab8b89203a13ebac2fc3c163fc0a8000c607445d3",
+    "stock": "4a2d2bb5031bba3cf35dfb2aae62ee202ae0eb2c9a66395d77fe314d2422933a",
+    "stock_log": "72213e311a014fd8ea40edf26691028d0a53cdbe76e89c8b22680178256a669b"
+  },
+  "retained": {
+    "admission-precheck-callsite.txt": "ca4b5981a1981a56e756b1ddc026538e720ab8bce1e973137f036c9eba1f04b2",
+    "baseline/fixture-observed.mjs": "b877e2d9395b747de92cb263a3ed91e7fbe81f9fbda348e21984a755151476d7",
+    "baseline/fixture-original.mjs": "c1c839ad3080fb25a1535f9fc36e4ecee9dde8f7342f8996f36ed140bd97d327",
+    "baseline/fixture-recovered.mjs": "c1c839ad3080fb25a1535f9fc36e4ecee9dde8f7342f8996f36ed140bd97d327",
+    "baseline/instrument.mjs": "6be83849f24f687e7dce4762c9880e3041b1016329de8a1a2b8c4c3af0363d39",
+    "baseline/instrumentation.json": "8d8bdc89cc4bbd59aef22fb2f9924cae377dd6b1d294aaca7a1f8ac7195719d4",
+    "baseline/observations.jsonl": "35b91a28b346a6093d550f441620b8cc8ed4a1e98cd84332650191948bc5f436",
+    "baseline/observer.mjs": "2e768543df76a410d34e347eda85734e472b136325c9b1eb08dcfa9669898ad9",
+    "baseline/output.log": "c946e05226d64cad15b42110fa45cccea4f37ac6432bd6c77a38bd0527d0e618",
+    "baseline/run-diagnostic.mjs": "845bf1b53606aefdf8fdc7c3ca7d7c7513e13f72ec9c334415389129821c2ed8",
+    "baseline/settlement.json": "437fbb1d1ef3d9d5c7133b8c344b60f64a352f24bdd57e7286e1dd701e811ffe",
+    "baseline/source-command.json": "994b395fdf6016b245cbfb29b64296c1c9a914d961bb114d38e4d9e02e643b0a",
+    "before-bindings.json": "0e924d5847c59a781efd5f707d014bdc1db1f612a724a8eae3f815236e4caad9",
+    "before/scripts/local-canonical-1559-closeout.mjs": "4a944df18a83398424c4be713808b7cc76d07dfc2957460c727d658d193d2b9b",
+    "before/scripts/local-canonical-attempts.mjs": "0033c57a1aedc342cf62c2011bf8323bfafff5bafc2bcb2d4533f1c147ec077f",
+    "candidate-bindings.json": "5795fcc577d25aa09c52911ec34b51b9cfc07b47aec0c9807663fe347deaadfb",
+    "candidate-native.diff": "a8a9112e84728796623533f2146494dc6afe98fd6d5778b2f6088d4e42a450a6",
+    "candidate/scripts/local-canonical-1559-closeout.mjs": "ab038b5f4e9653f49d4df4730839404ef22e0ac1045e9b72d3839a1c1fc9f317",
+    "candidate/scripts/local-canonical-attempts.mjs": "b5b3adf119fc9397bb47af039ad3b00fa0341c091bd161c8fb4fbb4a4a4db973",
+    "corrected-observed-1/fixture-observed.mjs": "bb5dd074f5a7b14ef53f19ce7ca36ba23343d15cdb4bbed353a23c2ed857693a",
+    "corrected-observed-1/fixture-original.mjs": "c1c839ad3080fb25a1535f9fc36e4ecee9dde8f7342f8996f36ed140bd97d327",
+    "corrected-observed-1/fixture-recovered.mjs": "c1c839ad3080fb25a1535f9fc36e4ecee9dde8f7342f8996f36ed140bd97d327",
+    "corrected-observed-1/instrument.mjs": "6be83849f24f687e7dce4762c9880e3041b1016329de8a1a2b8c4c3af0363d39",
+    "corrected-observed-1/instrumentation.json": "75a1914293dfa7f5d50a567131dc0438f1d93bc625db8a083c999ef58d1ebf45",
+    "corrected-observed-1/observations.jsonl": "909ca722266110077411b971aaf8392ef1075c00315132a5adfa5c508f441754",
+    "corrected-observed-1/observer.mjs": "eab82b85f3c608b94498ed592d7ceb05db5af7e6f558e0b1082e2e32593e19c8",
+    "corrected-observed-1/output.log": "86d08a388ac0a5097becd3438ebdcc1bbf09dd801e5e0d7654c0f97d7f3c1fbc",
+    "corrected-observed-1/run-corrected-observed.mjs": "03dd885cba7862730c68a2fdff46cc52f90987f46f93b06e6a0deda926417774",
+    "corrected-observed-1/settlement.json": "624574aad319d591ea45bd10f20fe3e103b7ee283cfd43f9ef28621ef1e48f02",
+    "corrected-observed-1/source-command.json": "1289d26a2cd2feb5a144ad7e2dad35f051b9d9d278a14e8019bc00bc0809e8de",
+    "issued-capability-precheck-fragment.mjs": "2fd13faeddc71eb7352805d7d224dc8daad2f163fae9d1a9336016aada3c3744",
+    "private-controls-1/output.log": "f8f8d11f0668a9241d32c1a81466be33bd5371b2a56a64a8c29c885973ab79d5",
+    "private-controls-1/private-controls.mjs": "34660cdbbb4b4928c2474723b7077f360f621ce6f77aee42971eaaa0e1b7b3e4",
+    "private-controls-1/private-preparation.mjs": "14f918dadf54aa5738844cacf3331c688970ba26e6615b2b47898b3790a01ad1",
+    "private-controls-1/settlement.json": "fabac875a17b1e889f99c6d4cc07bac35ccd470c8a0f1da50bd014221f2b22fb",
+    "private-controls-1/source-command.json": "163d8ec58b5a9d00639dc55f17bba2e3a2895d97d805487e400f7a697af84137",
+    "run-private-controls.mjs": "d09556f2c688411f7b5cc3373c89005f31fdabae4275f60acdcf154b88561720"
+  }
+});
+// END CLOSEOUT CAPABILITY CORRECTION PINS
+for (const value of Object.values(CLOSEOUT_CAPABILITY_CORRECTION_PINS)) if (value && typeof value === "object") Object.freeze(value);
+const capabilityCorrectionEvidence = new Map();
+export function inspectCloseoutCapabilityCorrectionSourceScope(repositoryRoot, { base, head }) {
+  const { scope } = inspectSourceScope(repositoryRoot, { base, head }, CLOSEOUT_CAPABILITY_CORRECTION_PINS.accepted_base, CLOSEOUT_CAPABILITY_CORRECTION_PINS.prior_head, [], SCOPE_CORRECTION_POLICY_PATHS);
+  return { ...scope, schema: "augnes.local-canonical-closeout-capability-source.v1", basis: "settled_fixture_correction_and_current_main_union" };
+}
+export function validateCloseoutCapabilityCorrectionSourceScope(scope) {
+  if (scope?.schema !== "augnes.local-canonical-closeout-capability-source.v1" || scope.basis !== "settled_fixture_correction_and_current_main_union" ||
+    scope.accepted_base !== CLOSEOUT_CAPABILITY_CORRECTION_PINS.accepted_base || scope.accepted_head !== CLOSEOUT_CAPABILITY_CORRECTION_PINS.prior_head || !commit(scope.current_main)) fail("closeout_capability_inventory_invalid");
+  validateRetainedSourceScope(scope, 33, SCOPE_CORRECTION_POLICY_PATHS);
+  if (scope.candidate_policy.some(row => row.candidate.present !== true) ||
+    scope.accepted_task.find(row => row.path === CLOSEOUT_CAPABILITY_CORRECTION_PINS.fixture_path)?.candidate.sha256 !== CLOSEOUT_CAPABILITY_CORRECTION_PINS.fixture_sha256) fail("closeout_capability_source_changed");
+  return scope;
+}
+function capabilityRetainedInventory(retained) {
+  const expected = CLOSEOUT_CAPABILITY_CORRECTION_PINS.retained;
+  return Array.isArray(retained) && exact(retained.map(x => x?.path).sort(), Object.keys(expected).sort()) && retained.every(x => x.sha256 === expected[x.path] &&
+    (keys(x, ["path", "sha256"]) || (keys(x, ["path", "artifact", "sha256"]) && /^[A-Za-z0-9_-]+\.(?:json|jsonl|log|mjs|diff|txt)$/u.test(x.artifact ?? ""))));
+}
+function semanticCapabilityProof(p) {
+  const a = CLOSEOUT_CAPABILITY_CORRECTION_PINS;
+  return isCloseoutCapabilityCorrection(p) && p.pull_request === CLOSEOUT_PINS.pull_request && p.branch === CLOSEOUT_PINS.branch && [p.base, p.head, p.tree].every(commit) &&
+    p.head !== a.prior_head && p.tree !== a.prior_tree && p.prior_family_id === a.prior_family_id && p.prior_attempt_id === a.prior_attempt_id && p.prior_number === 1 &&
+    p.prior_receipt_fingerprint === a.prior_receipt_fingerprint && exact(p.budget, BUDGET) && p.predecessor_proof?.sha256 === a.predecessor_proof &&
+    keys(p.originals, Object.keys(a.originals)) && Object.entries(a.originals).every(([name, hash]) => p.originals[name]?.sha256 === hash) &&
+    keys(p.correction, ["manifest", "retained"]) && p.correction.manifest?.sha256 === a.manifest && capabilityRetainedInventory(p.correction.retained) && sha(p.final_source?.sha256) &&
+    p.source_scope?.accepted_head === a.prior_head && p.source_scope.current_main === p.base;
+}
+function capabilityOriginalEvidence(folder, p, repositoryRoot) {
+  const a = CLOSEOUT_CAPABILITY_CORRECTION_PINS, old = Object.fromEntries(Object.keys(a.originals).map(name => { const bytes = closeoutArtifact(folder, p.originals[name]); return [name, name.endsWith("log") ? bytes : json(bytes)]; }));
+  const r = old.receipt, prior = old.attempt, c = old.completion, copy = { ...r }; delete copy.integrity;
+  const predecessor = json(closeoutArtifact(folder, p.predecessor_proof));
+  if (r.integrity?.content_fingerprint !== digest(copy) || r.integrity.content_fingerprint !== p.prior_receipt_fingerprint || !exact(r.attempt, prior) ||
+    prior.head !== a.prior_head || prior.tree !== a.prior_tree || prior.family_id !== p.prior_family_id || prior.attempt_id !== p.prior_attempt_id || prior.number !== 1 || prior.branch !== p.branch ||
+    !validCloseoutFixtureCorrectionAttempt(prior) || !isCloseoutFixtureCorrection(predecessor) || !exact(normalizedProof(prior.source_correction), normalizedProof(predecessor)) ||
+    !exact(prior.closeout_instruction_input, closeoutInstructionInputBinding(predecessor, r.inputs)) ||
+    c.attempt_id !== prior.attempt_id || c.receipt_fingerprint !== p.prior_receipt_fingerprint || c.finished_at !== a.completed_at || c.disposition !== "product_failure" || c.infrastructure_code !== null || c.cleanup_complete !== true ||
+    old.edge.contract !== "augnes.local-canonical-successor.v2" || old.edge.kind !== CLOSEOUT_FIXTURE_CORRECTION_KIND || old.edge.family_id !== prior.family_id || old.edge.head !== prior.head || old.edge.tree !== prior.tree || old.edge.proof_fingerprint !== digest(prior.source_correction) ||
+    r.repository?.repository_id !== "hynk-studio/augnes" || r.repository.origin !== "https://github.com/hynk-studio/augnes.git" || r.repository.head_sha !== prior.head || r.repository.tree_sha !== prior.tree || r.repository.branch !== p.branch ||
+    r.repository.worktree_before !== "clean" || r.repository.worktree_after !== "clean" || r.repository.detached !== false ||
+    r.outcome?.disposition !== "product_failure" || r.outcome.safety !== "preserved_within_observed_scope" || r.outcome.first_fault !== null || r.inputs?.first_fault !== null || r.inputs.secondary_faults?.length !== 0 ||
+    r.cleanup?.completed !== true || r.cleanup.remaining_owned_processes !== 0 || r.cleanup.companion_service?.restored !== true || r.cleanup.isolated_resources?.completed !== true || r.cleanup.isolated_resources.failure_count !== 0 ||
+    !exact(r.phases?.map(x => x.id), BROWSER_REPLACEMENT_PHASES) || !exact(r.phases.map(x => x.status), [...Array(6).fill("pass"), "failure", ...Array(9).fill("not_run")]) ||
+    old.stock.content_fingerprint !== p.prior_receipt_fingerprint || old.stock.valid_deciding_evidence !== false || old.stock.issues?.length !== 14) fail("closeout_capability_original_binding_invalid");
+  const authority = r.phases.find(x => x.id === "authority"), lines = old.authority_log.toString().split("\n");
+  const outer = lines.filter(x => x.startsWith("[canonical:authority] child_result ")), nested = lines.filter(x => x.startsWith("[canonical:1559-closeout-continuation-controls] child_result "));
+  if (authority.duration_ms !== 79650 || authority.timed_out !== false || authority.exit_status !== 1 || authority.cleanup?.termination_reason !== "natural_exit" || authority.log?.truncated !== false || authority.log.bytes !== old.authority_log.length ||
+    outer.length !== 9 || outer.slice(0, -1).some(x => !/ exit_code=0 signal=null timed_out=false .*termination_reason=natural_exit$/u.test(x)) ||
+    outer.at(-1) !== '[canonical:authority] child_result label="local Canonical executor identity and scheduling contract" duration_ms=29124 exit_code=1 signal=null timed_out=false exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=natural_exit' ||
+    nested.length !== 6 || nested.some(x => !/ exit_code=0 signal=null timed_out=false .*termination_reason=natural_exit$/u.test(x)) ||
+    !lines.includes('[canonical:1559-closeout-instruction-controls] child_start label="admission" timeout_ms=6000') || !exact(lines.filter(x => x.startsWith("[canonical:1559-closeout-instruction-controls] child_result ")), ['[canonical:1559-closeout-instruction-controls] child_result label="admission" duration_ms=6104 exit_code=null signal=SIGTERM timed_out=true exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=bounded_timeout'])) fail("closeout_capability_original_timeout_invalid");
+  readCloseoutFixtureCorrectionEvidence(path.join(folder, p.predecessor_proof.artifact), predecessor, repositoryRoot);
+  return { original: r, prior, completion: c };
+}
+function capabilityDevelopmentEvidence(folder, p, repositoryRoot) {
+  const a = CLOSEOUT_CAPABILITY_CORRECTION_PINS, manifest = json(closeoutArtifact(folder, p.correction.manifest));
+  const files = new Map(p.correction.retained.map(ref => [ref.path, closeoutArtifact(folder, artifactRef(ref))])), git = gitAt(repositoryRoot);
+  const source = manifest.source, paths = ["scripts/local-canonical-1559-closeout.mjs", "scripts/local-canonical-attempts.mjs"];
+  if (manifest.schema !== "augnes.private-closeout-issued-capability-correction.v1" || manifest.nondeciding !== true || manifest.base_head !== a.prior_head || manifest.base_tree !== a.prior_tree ||
+    !Array.isArray(manifest.retained) || !exact(manifest.retained.map(x => x.path).sort(), Object.keys(a.retained).sort()) ||
+    manifest.retained.some(x => x.sha256 !== a.retained[x.path] || x.bytes !== files.get(x.path)?.length) ||
+    source?.before?.head !== a.prior_head || source.before.tree !== a.prior_tree || source.candidate?.head !== a.prior_head || source.candidate.tree !== a.prior_tree ||
+    source.candidate.fixture_unchanged_sha256 !== a.fixture_sha256 || !exact(source.before.sources?.map(x => x.path), paths) || !exact(source.candidate.sources?.map(x => x.path), paths) ||
+    source.candidate.delta?.sha256 !== digest(files.get("candidate-native.diff")) || source.candidate.delta.bytes !== files.get("candidate-native.diff").length) fail("closeout_capability_correction_invalid");
+  for (const variant of ["before", "candidate"]) for (const row of source[variant].sources) {
+    const bytes = files.get(`${variant}/${row.path}`);
+    if (!bytes || row.sha256 !== digest(bytes) || row.bytes !== bytes.length || (variant === "before" && !bytes.equals(git(["show", `${a.prior_head}:${row.path}`])))) fail("closeout_capability_mechanism_source_invalid");
+  }
+  const fragment = text => text.match(/export function assertCloseoutIssuedCapability\(p, capability\) \{[\s\S]*?\n\}/u)?.[0];
+  const admit = text => text.slice(text.indexOf("function admitSourceCorrection("), text.indexOf("\nfunction readCandidateReview("));
+  const newArm = '    : isCloseoutCapabilityCorrection(p) ? "closeout_capability_authenticated_authority_required"\n';
+  const finalOwner = git(["show", `${p.head}:${paths[0]}`]).toString(), finalAttempts = git(["show", `${p.head}:${paths[1]}`]).toString();
+  const measuredOwner = files.get(`candidate/${paths[0]}`).toString(), measuredAttempts = files.get(`candidate/${paths[1]}`).toString();
+  if (source.precheck_fragment?.sha256 !== digest(files.get("issued-capability-precheck-fragment.mjs")) || source.callsite_fragment?.sha256 !== digest(files.get("admission-precheck-callsite.txt")) ||
+    `${fragment(measuredOwner)}\n` !== files.get("issued-capability-precheck-fragment.mjs").toString() || !fragment(finalOwner)?.includes(newArm.trim()) ||
+    fragment(finalOwner).replace(newArm, "") !== fragment(measuredOwner) || admit(finalAttempts) !== admit(measuredAttempts) || !admit(finalAttempts).startsWith(files.get("admission-precheck-callsite.txt").toString().trimEnd()) ||
+    digest(git(["show", `${p.head}:${a.fixture_path}`])) !== a.fixture_sha256) fail("closeout_capability_mechanism_source_invalid");
+  const commands = {}, outcomes = {}, observations = {};
+  function settledRun(directory, declared, entry) {
+    const command = json(files.get(`${directory}/source-command.json`)), settled = json(files.get(`${directory}/settlement.json`)), result = settled.result;
+    if (!exact(command, declared.command) || !exact(settled, declared.settlement) || command.nondeciding !== true || command.head !== a.prior_head || command.tree !== a.prior_tree ||
+      command.timeout_ms !== 6000 || command.require_natural_exit !== true || !Array.isArray(command.command) || !entry(command.command) ||
+      settled.nondeciding !== true || settled.failure !== null || settled.root_absent !== true || !Array.isArray(settled.cleanup) || !settled.cleanup.length || settled.cleanup.some(x => x.completed !== true || x.failure_count !== 0) ||
+      result.exit_code !== 0 || result.signal !== null || result.timed_out !== false || result.cancelled !== false || result.exit_observed !== true || result.streams_closed !== true || result.cleanup_completed !== true || result.remaining_owned_processes !== 0 || result.termination_reason !== "natural_exit" || result.duration_ms >= 6000 ||
+      !validTime(command.started_at) || Date.parse(command.started_at) <= Date.parse(a.completed_at) || !validTime(settled.finished_at) || Date.parse(settled.finished_at) <= Date.parse(command.started_at)) fail("closeout_capability_settlement_invalid");
+    return { command, settled };
+  }
+  for (const [sample, directory] of [["baseline", "baseline"], ["corrected", "corrected-observed-1"]]) {
+    const { command, settled } = settledRun(directory, manifest.samples?.[sample] ?? {}, argv => argv.length === 4 && argv[1].endsWith(`/${a.fixture_path}`) && exact(argv.slice(2), ["--run-closeout-instruction-fixtures", "admission"]));
+    commands[sample] = command; outcomes[sample] = settled;
+    const instrumentation = json(files.get(`${directory}/instrumentation.json`)), original = files.get(`${directory}/fixture-original.mjs`), observed = files.get(`${directory}/fixture-observed.mjs`), recovered = files.get(`${directory}/fixture-recovered.mjs`);
+    const stripped = observed.toString().replace(/\/\* AG1559_OBSERVATION_BEGIN \*\/[\s\S]*?\/\* AG1559_OBSERVATION_END \*\//gu, "");
+    if (!exact(instrumentation, manifest.samples[sample].instrumentation) || instrumentation.insertion_only !== true || instrumentation.original_bytes_recovered !== true ||
+      !original.equals(recovered) || original.toString() !== stripped || digest(original) !== a.fixture_sha256 || instrumentation.original_sha256 !== a.fixture_sha256 || instrumentation.recovered_sha256 !== a.fixture_sha256 || instrumentation.observed_sha256 !== digest(observed) ||
+      command.entry_original_sha256 !== a.fixture_sha256 || command.entry_observed_sha256 !== digest(observed) || command.instrumenter_sha256 !== digest(files.get(`${directory}/instrument.mjs`)) || command.observer_sha256 !== digest(files.get(`${directory}/observer.mjs`)) ||
+      settled.source_after?.observed_source_unchanged !== true || settled.source_after.original_bytes_recovered !== true || (sample === "corrected" && (settled.source_after.captured_candidate_unchanged !== true || !exact(command.candidate_sources, source.candidate.sources) || !exact(command.candidate_delta, source.candidate.delta)))) fail("closeout_capability_observation_invalid");
+    observations[sample] = files.get(`${directory}/observations.jsonl`).toString().trim().split("\n").map(line => JSON.parse(line));
+    const rows = observations[sample], enter = rows.find(x => x.stage === "adverse_block_enter"), leave = rows.find(x => x.stage === "adverse_block_exit" && x.pid === enter?.pid);
+    const delta = leave?.git.calls - enter?.git.calls, expected = sample === "baseline" ? 93 : 0;
+    if (!enter || !leave || delta !== expected || leave.elapsed_ms <= enter.elapsed_ms || manifest.measurements?.[sample]?.stages?.adverse?.git_calls !== delta) fail("closeout_capability_work_reduction_invalid");
+    const claims = rows.filter(x => x.stage === "claim_begin_enter");
+    if (claims.length !== 2 || claims.some(begin => {
+      const proofStart = rows.find(x => x.pid === begin.pid && x.stage === "claim_proof_enter"), proofEnd = rows.find(x => x.pid === begin.pid && x.stage === "claim_proof_exit");
+      const end = rows.find(x => x.pid === begin.pid && ["claim_begin_exit", "claim_refused"].includes(x.stage));
+      return !proofStart || !proofEnd || !end || proofEnd.git.calls - proofStart.git.calls !== 93 || end.git.calls - begin.git.calls !== 93;
+    }) || !rows.some(x => x.stage === "claim_begin_exit") || !rows.some(x => x.stage === "claim_refused" && x.code === "EEXIST")) fail("closeout_capability_fresh_reread_missing");
+  }
+  const controls = settledRun("private-controls-1", manifest.controls ?? {}, argv => exact(argv.slice(1), ["scripts/fixtures/private-issued-capability-controls.mjs"]));
+  const log = files.get("private-controls-1/output.log").toString(), result = log.split("\n").filter(line => line.startsWith('{"issued_capability_controls":')).map(line => JSON.parse(line));
+  const names = ["unissued null capability", "forged observations-only capability", "reconstructed issued capability", "issued capability with changed proof binding", "issued capability with mutated observation binding", "doubly-invalid request retains authority-first prospective refusal", "genuine issued capability still rereads and rejects disk evidence changed after authentication", "genuine capability retains complete fresh positive proof validation and one normal synthetic admission"];
+  if (result.length !== 1 || !exact(result[0], manifest.controls.results) || result[0].count !== 8 || result[0].synthetic_only !== true || result[0].cleanup_complete !== true ||
+    !exact(result[0].issued_capability_controls?.map(x => x.name), names) || result[0].issued_capability_controls.some((row, i) => row.git_calls !== (i === 7 ? 93 : 0) || row.proof_reads !== (i >= 6 ? 1 : 0) || row.artifact_reads !== (i === 7 ? 2 : i === 6 ? 1 : 0)) ||
+    controls.command.synthetic_only !== true || !exact(controls.command.candidate_sources, source.candidate.sources) || !exact(controls.command.candidate_delta, source.candidate.delta) || controls.command.fixture_sha256 !== a.fixture_sha256 ||
+    controls.settled.source_after?.captured_candidate_unchanged !== true || controls.settled.source_after.fixture_unchanged !== true || controls.settled.source_after.private_helpers_unchanged !== true ||
+    Date.parse(commands.corrected.started_at) <= Date.parse(outcomes.baseline.finished_at) || outcomes.corrected.result.duration_ms >= outcomes.baseline.result.duration_ms) fail("closeout_capability_controls_invalid");
+  return { firstEvidenceAt: Date.parse(commands.baseline.started_at), manifest_sha256: a.manifest };
+}
+export function readCloseoutCapabilityCorrectionEvidence(file, p, repositoryRoot) {
+  if (!keys(normalizedProof(p), ["schema", "kind", "pull_request", "branch", "base", "head", "tree", "prior_family_id", "prior_number", "prior_attempt_id", "prior_receipt_fingerprint", "originals", "predecessor_proof", "correction", "source_scope", "final_source", "authorization", "budget"]) || !semanticCapabilityProof(p)) fail("closeout_capability_proof_invalid");
+  const folder = path.dirname(file);
+  for (const ref of [p.predecessor_proof, ...Object.values(p.originals), p.correction.manifest, ...p.correction.retained.map(artifactRef), p.final_source]) closeoutArtifact(folder, ref);
+  validateCloseoutCapabilityCorrectionSourceScope(p.source_scope);
+  const original = capabilityOriginalEvidence(folder, p, repositoryRoot), git = gitAt(repositoryRoot), source = json(closeoutArtifact(folder, p.final_source));
+  if (!keys(source, ["schema", "basis", "base", "head", "tree", "predecessor_head", "predecessor_tree", "deltas"]) || source.schema !== "augnes.local-canonical-closeout-capability-final-source.v1" || source.basis !== "implementation_owner_not_independent_review" ||
+    source.base !== p.base || source.head !== p.head || source.tree !== p.tree || source.predecessor_head !== CLOSEOUT_CAPABILITY_CORRECTION_PINS.prior_head || source.predecessor_tree !== CLOSEOUT_CAPABILITY_CORRECTION_PINS.prior_tree ||
+    !keys(source.deltas, ["predecessor", "first_closeout", "main"]) || git(["rev-parse", `${p.head}^{tree}`]).toString().trim() !== p.tree) fail("closeout_capability_final_source_invalid");
+  for (const [name, base] of [["predecessor", CLOSEOUT_CAPABILITY_CORRECTION_PINS.prior_head], ["first_closeout", CLOSEOUT_CONTINUATION_PINS.prior_head], ["main", p.base]]) {
+    const bytes = git(["diff", "--binary", "--full-index", "--no-ext-diff", "--no-textconv", base, p.head, "--"]), declared = source.deltas[name];
+    const paths = git(["diff", "--no-renames", "--name-only", "-z", base, p.head, "--"]).toString().split("\0").filter(Boolean).sort();
+    if (!keys(declared, ["sha256", "bytes", "changed_paths"]) || declared.sha256 !== digest(bytes) || declared.bytes !== bytes.length || !exact(declared.changed_paths, paths)) fail("closeout_capability_native_delta_invalid");
+  }
+  const scope = inspectCloseoutCapabilityCorrectionSourceScope(repositoryRoot, p); validateCloseoutCapabilityCorrectionSourceScope(scope);
+  if (!exact(scope, p.source_scope)) fail("closeout_capability_source_scope_mismatch");
+  const evidence = capabilityDevelopmentEvidence(folder, p, repositoryRoot); capabilityCorrectionEvidence.set(digest(normalizedProof(p)), evidence);
+  return { ...original, source, evidence };
+}
+export async function authorizeCloseoutCapabilityCorrection(p, { transport = createGitHubObserverAuthorizationTransport(p.pull_request), frozenInputs } = {}) {
+  const evidence = capabilityCorrectionEvidence.get(digest(normalizedProof(p)));
+  if (!semanticCapabilityProof(p) || !evidence || !keys(p.authorization, ["scope_comment_id", "scope_sha256"]) || p.authorization.scope_comment_id !== CLOSEOUT_PINS.scope.id || !sha(p.authorization.scope_sha256)) fail("closeout_capability_authority_missing");
+  const fingerprint = assertCloseoutInstructionInputs(p, frozenInputs, { requireUnfaulted: false }), capability = await authorizeContinuingScope(p, evidence, transport);
+  capabilities.set(capability, { ...capabilities.get(capability), instruction_inputs: fingerprint }); return capability;
+}
+export function assertCloseoutCapabilityCorrectionAuthorization(p, capability, completion, frozenInputs, { requireUnfaulted = true } = {}) {
+  const state = capabilities.get(capability), evidence = capabilityCorrectionEvidence.get(digest(normalizedProof(p))), fingerprint = assertCloseoutInstructionInputs(p, frozenInputs, { requireUnfaulted });
+  if (!state || !evidence || state.proof !== digest(p) || state.observations !== digest(capability.observations) || state.evidence !== digest(evidence) || state.instruction_inputs !== fingerprint ||
+    completion?.finished_at !== CLOSEOUT_CAPABILITY_CORRECTION_PINS.completed_at || evidence.firstEvidenceAt <= Date.parse(completion.finished_at) || !validContinuationObservation(p, capability.observations.closeout_scope)) fail("closeout_capability_authenticated_authority_required");
+}
+export function validCloseoutCapabilityCorrectionAttempt(attempt) {
+  try {
+    const p = attempt?.source_correction;
+    if (!semanticCapabilityProof(p) || !validInstructionInputBinding(attempt) || attempt.number !== 1 || attempt.recovery || attempt.browser_replacement || !exact(attempt.budget, BUDGET) ||
+      attempt.branch !== p.branch || attempt.head !== p.head || attempt.tree !== p.tree || !validContinuationObservation(p, attempt.closeout_authority?.closeout_scope)) return false;
+    validateCloseoutCapabilityCorrectionSourceScope(p.source_scope); return true;
+  } catch { return false; }
+}
+
 export function readCloseoutEvidence(file, p, repositoryRoot) {
   if (isCloseout(p)) return readInitialCloseoutEvidence(file, p, repositoryRoot);
   if (isCloseoutContinuation(p)) return readCloseoutContinuationEvidence(file, p, repositoryRoot);
   if (isCloseoutScopeCorrection(p)) return readCloseoutScopeCorrectionEvidence(file, p, repositoryRoot);
   if (isCloseoutInstructionReplacement(p)) return readCloseoutInstructionEvidence(file, p, repositoryRoot);
   if (isCloseoutFixtureCorrection(p)) return readCloseoutFixtureCorrectionEvidence(file, p, repositoryRoot);
+  if (isCloseoutCapabilityCorrection(p)) return readCloseoutCapabilityCorrectionEvidence(file, p, repositoryRoot);
   fail("closeout_identity_invalid");
 }
 export async function authorizeCloseout(p, options) {
@@ -1156,7 +1378,23 @@ export async function authorizeCloseout(p, options) {
   if (isCloseoutScopeCorrection(p)) return authorizeCloseoutScopeCorrection(p, options);
   if (isCloseoutInstructionReplacement(p)) return authorizeCloseoutInstruction(p, options);
   if (isCloseoutFixtureCorrection(p)) return authorizeCloseoutFixtureCorrection(p, options);
+  if (isCloseoutCapabilityCorrection(p)) return authorizeCloseoutCapabilityCorrection(p, options);
   fail("closeout_identity_invalid");
+}
+// Rejection only: a proof reread cannot issue a capability or repair its bound
+// identity. Valid requests still perform every fresh read and the full late
+// authorization check. A request with both forged authority and changed disk
+// evidence now reports the authority refusal first.
+export function assertCloseoutIssuedCapability(p, capability) {
+  const code = isCloseout(p) ? "closeout_authenticated_authority_required"
+    : isCloseoutContinuation(p) ? "closeout_continuation_authenticated_authority_required"
+    : isCloseoutScopeCorrection(p) ? "closeout_scope_correction_authenticated_authority_required"
+    : isCloseoutInstructionReplacement(p) ? "closeout_instruction_authenticated_authority_required"
+    : isCloseoutCapabilityCorrection(p) ? "closeout_capability_authenticated_authority_required"
+    : isCloseoutFixtureCorrection(p) ? "closeout_fixture_authenticated_authority_required" : null;
+  if (!code) fail("closeout_identity_invalid");
+  const state = capabilities.get(capability);
+  if (!state || state.proof !== digest(p) || state.observations !== digest(capability.observations)) fail(code);
 }
 export function assertCloseoutAuthorization(p, capability, completion, frozenInputs, options) {
   if (isCloseout(p)) return assertInitialCloseoutAuthorization(p, capability, completion);
@@ -1164,6 +1402,7 @@ export function assertCloseoutAuthorization(p, capability, completion, frozenInp
   if (isCloseoutScopeCorrection(p)) return assertCloseoutScopeCorrectionAuthorization(p, capability, completion);
   if (isCloseoutInstructionReplacement(p)) return assertCloseoutInstructionAuthorization(p, capability, completion, frozenInputs, options);
   if (isCloseoutFixtureCorrection(p)) return assertCloseoutFixtureCorrectionAuthorization(p, capability, completion, frozenInputs, options);
+  if (isCloseoutCapabilityCorrection(p)) return assertCloseoutCapabilityCorrectionAuthorization(p, capability, completion, frozenInputs, options);
   fail("closeout_identity_invalid");
 }
 export function validCloseoutAttempt(attempt) {
@@ -1173,5 +1412,6 @@ export function validCloseoutAttempt(attempt) {
   if (isCloseoutScopeCorrection(attempt?.source_correction)) return validCloseoutScopeCorrectionAttempt(attempt);
   if (isCloseoutInstructionReplacement(attempt?.source_correction)) return validCloseoutInstructionAttempt(attempt);
   if (isCloseoutFixtureCorrection(attempt?.source_correction)) return validCloseoutFixtureCorrectionAttempt(attempt);
+  if (isCloseoutCapabilityCorrection(attempt?.source_correction)) return validCloseoutCapabilityCorrectionAttempt(attempt);
   return false;
 }

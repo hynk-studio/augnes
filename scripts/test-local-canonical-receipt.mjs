@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { runCanonicalChild, canonicalChildAcceptanceFailure } from "./canonical-child-runner.mjs";
 import { createCanonicalTestResourceRoot, buildCanonicalChildEnvironment, cleanupCanonicalTestResources } from "./canonical-test-environment.mjs";
 import { CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
-import { CLOSEOUT_CONTINUATION_SCHEMA, CLOSEOUT_FIXTURE_CORRECTION_KIND, hasCloseoutMarker, validCloseoutAttempt } from "./local-canonical-1559-closeout.mjs";
+import { CLOSEOUT_CONTINUATION_SCHEMA, CLOSEOUT_FIXTURE_CORRECTION_KIND, CLOSEOUT_CAPABILITY_CORRECTION_KIND, hasCloseoutMarker, validCloseoutAttempt } from "./local-canonical-1559-closeout.mjs";
 import { createPrivateReviewExport } from "./local-canonical-review-export.mjs";
 import { freezeInputContract } from "./local-canonical-inputs.mjs";
 
@@ -59,6 +59,9 @@ for (const marker of [
   { source_correction: { schema: CLOSEOUT_CONTINUATION_SCHEMA, kind: CLOSEOUT_FIXTURE_CORRECTION_KIND } },
   { source_correction: { kind: CLOSEOUT_FIXTURE_CORRECTION_KIND } },
   { closeout_fixture_correction_consumed: true },
+  { source_correction: { schema: CLOSEOUT_CONTINUATION_SCHEMA, kind: CLOSEOUT_CAPABILITY_CORRECTION_KIND } },
+  { source_correction: { kind: CLOSEOUT_CAPABILITY_CORRECTION_KIND } },
+  { closeout_capability_correction_consumed: true },
   { closeout_instruction_input: null },
 ]) {
   assert(hasCloseoutMarker(marker)); assert.equal(validCloseoutAttempt(marker), false);

@@ -1821,3 +1821,59 @@ active. No suite registration, workload, assertion or deadline is weakened.
 The authenticated record retains its original timestamp and publishing role;
 no new human text or independent review is invented. The commissioned final
 independent audit still covers the policy, source and complete execution result.
+
+### One measured issued-capability precheck correction after Full5
+
+The fixture-preparation candidate `9e33dda83633cb80b97822b493ad3ed1343f4f50`
+settled as `product_failure`: Full 6 PASS / 1 FAIL / 9 NOT_RUN, complete cleanup,
+and separate nondeciding stock reporting 14 issues. All 68 unit children passed.
+The authority phase naturally exited 1 at 79,650ms. Its executor child naturally
+exited 1 at 29,124ms; the nested instruction-admission child exceeded its unchanged
+6,000ms bound and settled at 6,104ms with SIGTERM. These lifecycle levels and the
+original unknown blocking operation remain separate.
+
+The existing continuation schema adds only
+`issue_1559_capability_precheck_correction`, tied to family
+`dedddb9849fcd307ddb8bd9e24c3ad6278d8d5b98250243fa10dbfe970e8d032`,
+attempt `2026-10-31T06-17-03-197Z-full-9e33dda83633-daa3cdc31f1b11cc`,
+receipt `c8acea3dd2eeae8d7393a160f58ff75fc5fcd8a80fd26290ddb1bf895d0b7149`,
+and completion `2026-10-31T06:28:17.880Z`. It retains the original receipt,
+attempt, completion, incoming edge, authority output, stock and complete prior
+proof. The authenticated continuing scope remains comment `6537722343`; the
+instruction-specific record and every earlier consumed allowance remain spent.
+
+One information-seeking diagnostic naturally passed in 5,489ms and demonstrated
+93 redundant Git calls before refusing a forged capability. A single corrected
+observation naturally passed in 4,586ms under the same 6,000ms bound; that refusal
+performed zero Git calls. A separate 3,340ms actual-owner control confirmed
+null, forged, reconstructed and mismatched capability refusals without proof or
+artifact reads. Genuine issued capabilities still reread the proof, reject a
+disk mutation after authentication, and perform all fresh positive validation.
+Both genuine race contenders retained 93 Git calls during admission. These are
+PASS-to-PASS measurements, not reproduction of the original timeout or an
+independent review. Observation overhead and differing private environment
+roots remain limitations; concurrent Git elapsed sums are not wall time.
+
+The early check only rejects capabilities absent from the owner's issuance
+WeakMap or mismatched to their exact proof and observations. It does not issue
+or repair authority, skip any valid-request proof read, or replace the full late
+authority, input and ledger checks. A future request invalid in both authority
+and disk evidence now reports the authority refusal first. Existing historical
+failure ordering is unchanged. The complete two-owner development snapshots,
+native delta, exact precheck and admission function, 37 retained artifacts and
+actual bounded settlements are bound separately from final policy integration.
+The measured `c1c839ad3080fb25a1535f9fc36e4ecee9dde8f7342f8996f36ed140bd97d327`
+fixture remains byte-identical; no controls, workload or deadlines are removed.
+
+Only this exact correction may follow the settled Full5 fixture record. All
+old consumed flags remain true, and one exclusive successor edge allows one
+Full with zero recovery. This new profile is terminal; copied proofs, grants,
+branches, interruptions or another head do not renew it. Its accepted source
+inventory is the 33-path Full5 delta against accepted main
+`bbb7dee536817fe4b7f28f5353a1d88f56c7e44d`, with compatible current-main changes
+preserved and only the existing ten policy paths eligible for reconciliation.
+Every other accepted source path, the frozen current-instruction identity and
+live input monitor remain required. Normal ownership, capacity, planning,
+Full/Browser selection, cleanup and fresh stock gates still apply. Final source
+and results await the commissioned independent audit; this implementation and
+its retained evidence do not claim that audit or merge/adoption authority.

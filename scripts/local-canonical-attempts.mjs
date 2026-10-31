@@ -1,4 +1,4 @@
-import { CLOSEOUT_SCHEMA, CLOSEOUT_CONTINUATION_SCHEMA, CLOSEOUT_CONTINUATION_KIND, CLOSEOUT_SCOPE_CORRECTION_KIND, CLOSEOUT_INSTRUCTION_KIND, CLOSEOUT_FIXTURE_CORRECTION_KIND, isCloseoutFixtureCorrection, usesCloseoutInstructionInputs, isCloseoutInstructionReplacement, closeoutInstructionInputBinding, isCloseoutScopeCorrection, isCloseout, isCloseoutContinuation, isAnyCloseout, hasCloseoutMarker, readCloseoutEvidence, closeoutArtifact, assertCloseoutAuthorization, validCloseoutAttempt } from "./local-canonical-1559-closeout.mjs";
+import { CLOSEOUT_SCHEMA, CLOSEOUT_CONTINUATION_SCHEMA, CLOSEOUT_CONTINUATION_KIND, CLOSEOUT_SCOPE_CORRECTION_KIND, CLOSEOUT_INSTRUCTION_KIND, CLOSEOUT_FIXTURE_CORRECTION_KIND, CLOSEOUT_CAPABILITY_CORRECTION_KIND, isCloseoutCapabilityCorrection, isCloseoutFixtureCorrection, usesCloseoutInstructionInputs, isCloseoutInstructionReplacement, closeoutInstructionInputBinding, isCloseoutScopeCorrection, isCloseout, isCloseoutContinuation, isAnyCloseout, hasCloseoutMarker, readCloseoutEvidence, closeoutArtifact, assertCloseoutIssuedCapability, assertCloseoutAuthorization, validCloseoutAttempt } from "./local-canonical-1559-closeout.mjs";
 import { COMPANION_TIMEOUT_SCHEMA, isCompanionTimeout, readCompanionTimeoutEvidence, companionArtifact, assertCompanionTimeoutAuthorization, validCompanionTimeoutAttempt } from "./local-canonical-companion-timeout-succession.mjs";
 import { mkdirSync, lstatSync, readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -50,12 +50,13 @@ export function beginAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch
     const tip = reconstructAttemptTip({ anchorRoot, branch });
     const proof = sourceCorrection ?? browserReplacement;
     if (tip.family_id !== proof.prior_family_id || tip.number !== proof.prior_number || tip.attempt_id !== proof.prior_attempt_id ||
-        (tip.observer_repair_consumed || tip.corrected_timeout_consumed || tip.guide_correction_consumed || tip.closeout_fixture_correction_consumed || (tip.closeout_instruction_consumed && !isCloseoutFixtureCorrection(sourceCorrection)) || (tip.closeout_scope_correction_consumed && !usesCloseoutInstructionInputs(sourceCorrection)) || (tip.closeout_continuation_consumed && !isCloseoutScopeCorrection(sourceCorrection) && !usesCloseoutInstructionInputs(sourceCorrection)) || (tip.closeout_consumed && !isCloseoutContinuation(sourceCorrection) && !isCloseoutScopeCorrection(sourceCorrection) && !usesCloseoutInstructionInputs(sourceCorrection)) || (tip.companion_timeout_consumed && !isAnyCloseout(sourceCorrection)) ||
+        (tip.observer_repair_consumed || tip.corrected_timeout_consumed || tip.guide_correction_consumed || tip.closeout_capability_correction_consumed || (tip.closeout_fixture_correction_consumed && !isCloseoutCapabilityCorrection(sourceCorrection)) || (tip.closeout_instruction_consumed && !isCloseoutFixtureCorrection(sourceCorrection) && !isCloseoutCapabilityCorrection(sourceCorrection)) || (tip.closeout_scope_correction_consumed && !usesCloseoutInstructionInputs(sourceCorrection)) || (tip.closeout_continuation_consumed && !isCloseoutScopeCorrection(sourceCorrection) && !usesCloseoutInstructionInputs(sourceCorrection)) || (tip.closeout_consumed && !isCloseoutContinuation(sourceCorrection) && !isCloseoutScopeCorrection(sourceCorrection) && !usesCloseoutInstructionInputs(sourceCorrection)) || (tip.companion_timeout_consumed && !isAnyCloseout(sourceCorrection)) ||
           (isCloseout(sourceCorrection) && !tip.companion_timeout_consumed) ||
           (isCloseoutContinuation(sourceCorrection) && !tip.closeout_consumed) ||
           (isCloseoutScopeCorrection(sourceCorrection) && !tip.closeout_continuation_consumed) ||
           (isCloseoutInstructionReplacement(sourceCorrection) && !tip.closeout_scope_correction_consumed) ||
           (isCloseoutFixtureCorrection(sourceCorrection) && !tip.closeout_instruction_consumed) ||
+          (isCloseoutCapabilityCorrection(sourceCorrection) && !tip.closeout_fixture_correction_consumed) ||
           (tip.condition_requalification_consumed && !isGuideCorrection(sourceCorrection)) ||
           (isGuideCorrection(sourceCorrection) && !tip.condition_requalification_consumed) || (browserReplacement ? tip.input_replacement_consumed : tip.input_replacement_consumed !== strictSource))) throw fail("attempt_latest_tip_required");
   }
@@ -181,7 +182,8 @@ export function inspectAttemptRecords({ anchorRoot, repositoryRoot = anchorRoot,
           Boolean(tip.closeout_continuation_consumed) !== (isCloseoutContinuation(attempt.source_correction) || isCloseoutScopeCorrection(attempt.source_correction) || usesCloseoutInstructionInputs(attempt.source_correction)) ||
           Boolean(tip.closeout_scope_correction_consumed) !== (isCloseoutScopeCorrection(attempt.source_correction) || usesCloseoutInstructionInputs(attempt.source_correction)) ||
           Boolean(tip.closeout_instruction_consumed) !== usesCloseoutInstructionInputs(attempt.source_correction) ||
-          Boolean(tip.closeout_fixture_correction_consumed) !== isCloseoutFixtureCorrection(attempt.source_correction)) return false;
+          Boolean(tip.closeout_fixture_correction_consumed) !== (isCloseoutFixtureCorrection(attempt.source_correction) || isCloseoutCapabilityCorrection(attempt.source_correction)) ||
+          Boolean(tip.closeout_capability_correction_consumed) !== isCloseoutCapabilityCorrection(attempt.source_correction)) return false;
     }
     if (isCompanionTimeout(attempt.source_correction)) {
       if (receipt.receipt_version !== 4 || !validCompanionTimeoutAttempt(attempt) ||
@@ -245,7 +247,7 @@ const browserSuccessor = (branch, proof) => ({ contract: "augnes.local-canonical
   family_id: candidateFamilyId(branch, null, proof), head: proof.head, tree: proof.tree, proof_fingerprint: digest(proof) });
 
 export function reconstructAttemptTip({ anchorRoot, branch }) {
-  let familyId = candidateFamilyId(branch), inputReplacementConsumed = false, retainedInput = null, observerRepairConsumed = false, correctedTimeoutConsumed = false, conditionRequalificationConsumed = false, guideCorrectionConsumed = false, companionTimeoutConsumed = false, closeoutConsumed = false, closeoutContinuationConsumed = false, closeoutScopeCorrectionConsumed = false, closeoutInstructionConsumed = false, closeoutFixtureCorrectionConsumed = false;
+  let familyId = candidateFamilyId(branch), inputReplacementConsumed = false, retainedInput = null, observerRepairConsumed = false, correctedTimeoutConsumed = false, conditionRequalificationConsumed = false, guideCorrectionConsumed = false, companionTimeoutConsumed = false, closeoutConsumed = false, closeoutContinuationConsumed = false, closeoutScopeCorrectionConsumed = false, closeoutInstructionConsumed = false, closeoutFixtureCorrectionConsumed = false, closeoutCapabilityCorrectionConsumed = false;
   const seen = new Set();
   for (let depth = 0; depth < 128; depth++) {
     if (seen.has(familyId)) throw fail("attempt_lineage_cycle");
@@ -262,12 +264,13 @@ export function reconstructAttemptTip({ anchorRoot, branch }) {
           attempt.source_correction || attempt.recovery || number !== 1 || attempt.budget?.initial !== 1 || attempt.budget?.recovery !== 0))) throw fail("attempt_lineage_identity_invalid");
     if (observerRepairConsumed) throw fail("attempt_observer_successor_terminal");
     if (correctedTimeoutConsumed) throw fail("attempt_timeout_successor_terminal");
-    if (closeoutFixtureCorrectionConsumed || (closeoutInstructionConsumed && !isCloseoutFixtureCorrection(attempt.source_correction)) || (closeoutScopeCorrectionConsumed && !usesCloseoutInstructionInputs(attempt.source_correction)) || (closeoutContinuationConsumed && !isCloseoutScopeCorrection(attempt.source_correction) && !usesCloseoutInstructionInputs(attempt.source_correction)) ||
+    if (closeoutCapabilityCorrectionConsumed || (closeoutFixtureCorrectionConsumed && !isCloseoutCapabilityCorrection(attempt.source_correction)) || (closeoutInstructionConsumed && !isCloseoutFixtureCorrection(attempt.source_correction) && !isCloseoutCapabilityCorrection(attempt.source_correction)) || (closeoutScopeCorrectionConsumed && !usesCloseoutInstructionInputs(attempt.source_correction)) || (closeoutContinuationConsumed && !isCloseoutScopeCorrection(attempt.source_correction) && !usesCloseoutInstructionInputs(attempt.source_correction)) ||
         (closeoutConsumed && !isCloseoutContinuation(attempt.source_correction) && !isCloseoutScopeCorrection(attempt.source_correction) && !usesCloseoutInstructionInputs(attempt.source_correction))) throw fail("attempt_closeout_candidate_consumed");
     if (companionTimeoutConsumed && !isAnyCloseout(attempt.source_correction)) throw fail("attempt_companion_timeout_successor_terminal");
     if (hasCloseoutMarker(attempt)) {
       if (!companionTimeoutConsumed || !validCloseoutAttempt(attempt) ||
-          (isCloseoutFixtureCorrection(attempt.source_correction) ? !closeoutInstructionConsumed : isCloseoutInstructionReplacement(attempt.source_correction) ? !closeoutScopeCorrectionConsumed : isCloseoutScopeCorrection(attempt.source_correction) ? !closeoutContinuationConsumed : isCloseoutContinuation(attempt.source_correction) !== closeoutConsumed)) throw fail("attempt_closeout_lineage_invalid");
+          (isCloseoutCapabilityCorrection(attempt.source_correction) ? !closeoutFixtureCorrectionConsumed : isCloseoutFixtureCorrection(attempt.source_correction) ? !closeoutInstructionConsumed : isCloseoutInstructionReplacement(attempt.source_correction) ? !closeoutScopeCorrectionConsumed : isCloseoutScopeCorrection(attempt.source_correction) ? !closeoutContinuationConsumed : isCloseoutContinuation(attempt.source_correction) !== closeoutConsumed)) throw fail("attempt_closeout_lineage_invalid");
+      if (isCloseoutCapabilityCorrection(attempt.source_correction)) closeoutCapabilityCorrectionConsumed = true;
       if (isCloseoutFixtureCorrection(attempt.source_correction)) closeoutFixtureCorrectionConsumed = true;
       if (isCloseoutInstructionReplacement(attempt.source_correction)) closeoutInstructionConsumed = true;
       if (isCloseoutScopeCorrection(attempt.source_correction)) closeoutScopeCorrectionConsumed = true;
@@ -306,22 +309,23 @@ export function reconstructAttemptTip({ anchorRoot, branch }) {
     }
     if (attempt.browser_replacement) { inputReplacementConsumed = true; retainedInput = attempt.browser_replacement.browser_input_sha256; }
     const edgeFile = path.join(root, "correction-successor.json");
-    if (!entries.includes("correction-successor.json")) return { family_id: familyId, number, attempt_id: attempt.attempt_id, input_replacement_consumed: inputReplacementConsumed, ...(observerRepairConsumed ? { observer_repair_consumed: true } : {}), ...(correctedTimeoutConsumed ? { corrected_timeout_consumed: true } : {}), ...(conditionRequalificationConsumed ? { condition_requalification_consumed: true } : {}), ...(guideCorrectionConsumed ? { guide_correction_consumed: true } : {}), ...(companionTimeoutConsumed ? { companion_timeout_consumed: true } : {}), ...(closeoutConsumed ? { closeout_consumed: true } : {}), ...(closeoutContinuationConsumed ? { closeout_continuation_consumed: true } : {}), ...(closeoutScopeCorrectionConsumed ? { closeout_scope_correction_consumed: true } : {}), ...(closeoutInstructionConsumed ? { closeout_instruction_consumed: true } : {}), ...(closeoutFixtureCorrectionConsumed ? { closeout_fixture_correction_consumed: true } : {}) };
+    if (!entries.includes("correction-successor.json")) return { family_id: familyId, number, attempt_id: attempt.attempt_id, input_replacement_consumed: inputReplacementConsumed, ...(observerRepairConsumed ? { observer_repair_consumed: true } : {}), ...(correctedTimeoutConsumed ? { corrected_timeout_consumed: true } : {}), ...(conditionRequalificationConsumed ? { condition_requalification_consumed: true } : {}), ...(guideCorrectionConsumed ? { guide_correction_consumed: true } : {}), ...(companionTimeoutConsumed ? { companion_timeout_consumed: true } : {}), ...(closeoutConsumed ? { closeout_consumed: true } : {}), ...(closeoutContinuationConsumed ? { closeout_continuation_consumed: true } : {}), ...(closeoutScopeCorrectionConsumed ? { closeout_scope_correction_consumed: true } : {}), ...(closeoutInstructionConsumed ? { closeout_instruction_consumed: true } : {}), ...(closeoutFixtureCorrectionConsumed ? { closeout_fixture_correction_consumed: true } : {}), ...(closeoutCapabilityCorrectionConsumed ? { closeout_capability_correction_consumed: true } : {}) };
     if (observerRepairConsumed) throw fail("attempt_observer_successor_terminal");
     if (correctedTimeoutConsumed) throw fail("attempt_timeout_successor_terminal");
     if (guideCorrectionConsumed) throw fail("attempt_guide_successor_terminal");
-    if (closeoutFixtureCorrectionConsumed) throw fail("attempt_closeout_candidate_consumed");
+    if (closeoutCapabilityCorrectionConsumed) throw fail("attempt_closeout_candidate_consumed");
     const completion = read(path.join(root, `completion-${number}.json`)), edge = read(edgeFile);
-    if (closeoutInstructionConsumed && edge.kind !== CLOSEOUT_FIXTURE_CORRECTION_KIND) throw fail("attempt_closeout_candidate_consumed");
-    if (closeoutScopeCorrectionConsumed && ![CLOSEOUT_INSTRUCTION_KIND, CLOSEOUT_FIXTURE_CORRECTION_KIND].includes(edge.kind)) throw fail("attempt_closeout_candidate_consumed");
-    if (closeoutContinuationConsumed && ![CLOSEOUT_SCOPE_CORRECTION_KIND, CLOSEOUT_INSTRUCTION_KIND, CLOSEOUT_FIXTURE_CORRECTION_KIND].includes(edge.kind)) throw fail("attempt_closeout_candidate_consumed");
-    if (closeoutConsumed && ![CLOSEOUT_CONTINUATION_KIND, CLOSEOUT_SCOPE_CORRECTION_KIND, CLOSEOUT_INSTRUCTION_KIND, CLOSEOUT_FIXTURE_CORRECTION_KIND].includes(edge.kind)) throw fail("attempt_closeout_candidate_consumed");
-    if (companionTimeoutConsumed && !["issue_1559_closeout", CLOSEOUT_CONTINUATION_KIND, CLOSEOUT_SCOPE_CORRECTION_KIND, CLOSEOUT_INSTRUCTION_KIND, CLOSEOUT_FIXTURE_CORRECTION_KIND].includes(edge.kind)) throw fail("attempt_companion_timeout_successor_terminal");
+    if (closeoutFixtureCorrectionConsumed && edge.kind !== CLOSEOUT_CAPABILITY_CORRECTION_KIND) throw fail("attempt_closeout_candidate_consumed");
+    if (closeoutInstructionConsumed && ![CLOSEOUT_FIXTURE_CORRECTION_KIND, CLOSEOUT_CAPABILITY_CORRECTION_KIND].includes(edge.kind)) throw fail("attempt_closeout_candidate_consumed");
+    if (closeoutScopeCorrectionConsumed && ![CLOSEOUT_INSTRUCTION_KIND, CLOSEOUT_FIXTURE_CORRECTION_KIND, CLOSEOUT_CAPABILITY_CORRECTION_KIND].includes(edge.kind)) throw fail("attempt_closeout_candidate_consumed");
+    if (closeoutContinuationConsumed && ![CLOSEOUT_SCOPE_CORRECTION_KIND, CLOSEOUT_INSTRUCTION_KIND, CLOSEOUT_FIXTURE_CORRECTION_KIND, CLOSEOUT_CAPABILITY_CORRECTION_KIND].includes(edge.kind)) throw fail("attempt_closeout_candidate_consumed");
+    if (closeoutConsumed && ![CLOSEOUT_CONTINUATION_KIND, CLOSEOUT_SCOPE_CORRECTION_KIND, CLOSEOUT_INSTRUCTION_KIND, CLOSEOUT_FIXTURE_CORRECTION_KIND, CLOSEOUT_CAPABILITY_CORRECTION_KIND].includes(edge.kind)) throw fail("attempt_closeout_candidate_consumed");
+    if (companionTimeoutConsumed && !["issue_1559_closeout", CLOSEOUT_CONTINUATION_KIND, CLOSEOUT_SCOPE_CORRECTION_KIND, CLOSEOUT_INSTRUCTION_KIND, CLOSEOUT_FIXTURE_CORRECTION_KIND, CLOSEOUT_CAPABILITY_CORRECTION_KIND].includes(edge.kind)) throw fail("attempt_companion_timeout_successor_terminal");
     if (conditionRequalificationConsumed && edge.kind !== "guide_cancellation_correction") throw fail("attempt_condition_successor_terminal");
     const edgeKeys = edge.contract === undefined ? ["family_id", "head", "tree", "proof_fingerprint"] : ["contract", "kind", "family_id", "head", "tree", "proof_fingerprint"];
     if (completion.contract !== ATTEMPT_CONTRACT || completion.attempt_id !== attempt.attempt_id || completion.cleanup_complete !== true || !sha(completion.receipt_fingerprint) || !sha(edge.family_id) || !sha(edge.proof_fingerprint) ||
         digest(Object.keys(edge).sort()) !== digest(edgeKeys.sort()) ||
-        (edge.contract !== undefined && (edge.contract !== "augnes.local-canonical-successor.v2" || !["browser_input_replacement", "observer_repair", "corrected_timeout", "condition_requalification", "guide_cancellation_correction", "companion_readiness_timeout", "issue_1559_closeout", CLOSEOUT_CONTINUATION_KIND, CLOSEOUT_SCOPE_CORRECTION_KIND, CLOSEOUT_INSTRUCTION_KIND, CLOSEOUT_FIXTURE_CORRECTION_KIND].includes(edge.kind)))) throw fail("attempt_lineage_edge_invalid");
+        (edge.contract !== undefined && (edge.contract !== "augnes.local-canonical-successor.v2" || !["browser_input_replacement", "observer_repair", "corrected_timeout", "condition_requalification", "guide_cancellation_correction", "companion_readiness_timeout", "issue_1559_closeout", CLOSEOUT_CONTINUATION_KIND, CLOSEOUT_SCOPE_CORRECTION_KIND, CLOSEOUT_INSTRUCTION_KIND, CLOSEOUT_FIXTURE_CORRECTION_KIND, CLOSEOUT_CAPABILITY_CORRECTION_KIND].includes(edge.kind)))) throw fail("attempt_lineage_edge_invalid");
     const next = read(path.join(anchorRoot, ".augnes-local-verification", "families", edge.family_id, "attempt-1.json"));
     const proof = next.browser_replacement ?? next.source_correction;
     if (!proof || proof.prior_family_id !== familyId || proof.prior_number !== number || proof.prior_attempt_id !== attempt.attempt_id || proof.prior_receipt_fingerprint !== completion.receipt_fingerprint ||
@@ -335,6 +339,8 @@ export function reconstructAttemptTip({ anchorRoot, branch }) {
         (edge.kind === CLOSEOUT_SCOPE_CORRECTION_KIND) !== isCloseoutScopeCorrection(next.source_correction) ||
         (edge.kind === CLOSEOUT_INSTRUCTION_KIND) !== isCloseoutInstructionReplacement(next.source_correction) ||
         (edge.kind === CLOSEOUT_FIXTURE_CORRECTION_KIND) !== isCloseoutFixtureCorrection(next.source_correction) ||
+        (edge.kind === CLOSEOUT_CAPABILITY_CORRECTION_KIND) !== isCloseoutCapabilityCorrection(next.source_correction) ||
+        (isCloseoutCapabilityCorrection(next.source_correction) && (!isCloseoutFixtureCorrection(attempt.source_correction) || !validCloseoutAttempt(next) || completion.disposition !== "product_failure")) ||
         (isCloseoutFixtureCorrection(next.source_correction) && (!isCloseoutInstructionReplacement(attempt.source_correction) || !validCloseoutAttempt(next) || completion.disposition !== "product_failure")) ||
         (isCloseoutInstructionReplacement(next.source_correction) && (!isCloseoutScopeCorrection(attempt.source_correction) || !validCloseoutAttempt(next) || completion.disposition !== "safety_violation")) ||
         (isCloseoutScopeCorrection(next.source_correction) && (!isCloseoutContinuation(attempt.source_correction) || !validCloseoutAttempt(next) || completion.disposition !== "product_failure")) ||
@@ -418,6 +424,7 @@ export function readSourceCorrectionProof(file, repositoryRoot) {
 }
 
 function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof, acceptedMain, browserAuthorization, browserLive, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization, companionTimeoutAuthorization, closeoutAuthorization, closeoutInputs, reserve }) {
+  if (isAnyCloseout(proof)) assertCloseoutIssuedCapability(proof, closeoutAuthorization);
   const reread = readSourceCorrectionProof(path.join(repositoryRoot, proof.local_relative_path ?? ""), repositoryRoot);
   if (digest(reread) !== digest(proof) || proof.branch !== branch || proof.head !== head || proof.tree !== tree ||
       !/^[0-9a-f]{40}$/u.test(head) || !/^[0-9a-f]{40}$/u.test(tree)) throw fail("source_correction_identity_invalid");
