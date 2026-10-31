@@ -1,6 +1,7 @@
+import { assertWorkHandoffLifecycleObservation } from "./test-work-handoff-lifecycle.mjs";
 import { registerOwnedChild, waitForOwnedProcessExit, terminateOwnedProcessTree } from "./test-harness-process-lifecycle.mjs";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, realpathSync, writeFileSync, readFileSync, rmSync, renameSync, existsSync } from "node:fs";
+import { mkdtempSync, mkdirSync, realpathSync, writeFileSync, readFileSync, rmSync, renameSync, existsSync, lstatSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
@@ -21,6 +22,15 @@ import { canonicalizeProtocolValueV01 as canonical } from "../lib/vnext/protocol
 const root = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-work-handoff-")));
 const guard = installZeroNetworkGuard({ allowLoopback: true });
 const handles: Database.Database[] = [];
+let receiversSettled = true, unexpectedReceiverState = false;
+function observeReceiverRoot(stage: string) {
+ const directory = path.join(root, "destination", "browser-owned");
+ const stat = lstatSync(directory, { throwIfNoEntry: false });
+ const filesystem = stat ? { state: "present", device: String(stat.dev), inode: String(stat.ino), entries: stat.isDirectory() ? readdirSync(directory).sort().slice(0, 64) : [] } : { state: "absent" };
+ console.log(JSON.stringify({ handoff_parent_lifecycle: { stage, parent_pid: process.pid, root: directory, filesystem } }));
+ if (stat) unexpectedReceiverState = true;
+ return stat;
+}
 const sourceText = "export function entry() { return 'bounded source'; }\n";
 const pricing = { input_nano_usd_per_byte: 1000, output_nano_usd_per_token: 1000, maximum_total_nano_usd: 100_000_000, source_version: "scripted-handoff-no-provider" };
 async function fixture(name: string) {
@@ -61,6 +71,7 @@ async function successor(f: Awaited<ReturnType<typeof fixture>>, receipt: any) {
  await f.call("continuity", { action: "prepare_result_work", request: preview.request }, 201);
 }
 async function main() {
+ await assertWorkHandoffLifecycleObservation();
  const source = await fixture("source"), dest = await fixture("destination");
  await source.call("continuity", { action: "define_initial_project_work", ...source.scope, expected_active_project_id: source.scope.project_id, expected_active_selection_revision: source.active.selection_revision, expected_initialization_state: "not_defined", ...definition }, 201);
  const material = { question: "What does this exact source establish?", files: [{ path: "entry.ts", start_line: 1, end_line: 1 }] };
@@ -107,13 +118,46 @@ async function main() {
  rmSync(source.dir, { recursive: true }); assert.equal(existsSync(source.config.database_path), false);
  const input = path.join(root, "receiver.json"); writeFileSync(input, JSON.stringify({ config: dest.config, projectRoot: dest.projectRoot, handoffPath: transferPath, sourceDatabase: source.config.database_path, oldGrant }));
  for (const args of [[], ["--readback"]]) {
+ const mode = args.length ? "readback" : "receive";
+ assert.equal(observeReceiverRoot(`before-${mode}`), undefined, "previous receiver browser resources remain before launch");
  const owned = new Set(); const child = registerOwnedChild(owned, spawn(process.execPath, ["--import", "tsx", "scripts/test-work-handoff-browser.ts", input, ...args], { detached: true, stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, OPENAI_API_KEY: "" } }), { label: "handoff-receiver" });
+ receiversSettled = false;
+ for (const event of ["exit", "close"] as const) child.child.once(event, (code: number | null, signal: NodeJS.Signals | null) => {
+  console.log(JSON.stringify({ handoff_receiver_event: { mode, event, child_pid: child.pid, code, signal } }));
+ });
+ const failures: unknown[] = [];
  let output = ""; for (const stream of [child.child.stdout, child.child.stderr]) stream?.on("data", (b: Buffer) => { output = (output + b.toString()).slice(-20000); });
- try { const exit = await waitForOwnedProcessExit(child, 45000); assert.equal(exit.code, 0, output); console.log(output.trim()); } finally { await terminateOwnedProcessTree(child); assert.equal(owned.size, 0); }
+ try {
+  const exit = await waitForOwnedProcessExit(child, 45000); console.log(output.trim()); assert.equal(exit.code, 0, output);
+  const completed = output.split("\n").flatMap(line => { try { const value = JSON.parse(line); return value.handoff_receiver_completed ? [value] : []; } catch { return []; } });
+  assert.equal(completed.length, 1, "receiver must report semantic completion after cleanup");
+  assert.deepEqual(completed[0].handoff_receiver_completed, { receiver_pid: child.pid, mode,
+   browser_settled: true, browser_root_absent: true, owned_processes: 0, server_closed: true, database_closed: true });
+  assert.equal(mode === "receive" ? completed[0].ui_http_receive : completed[0].authenticated_readback, "PASS");
+ } catch (error) { failures.push(error); } finally {
+  try { await terminateOwnedProcessTree(child); assert.equal(owned.size, 0); assert.equal(child.closed, true); receiversSettled = true; }
+  catch (error) { failures.push(error); }
+  try { assert.equal(observeReceiverRoot(`after-${mode}-settlement`), undefined, "receiver browser resources remain after settlement"); }
+  catch (error) { failures.push(error); }
  }
+ if (failures.length) throw new AggregateError(failures, `handoff ${mode} or settlement failed`);
+ }
+
  console.log(JSON.stringify({ source_calls_scripted: counts, source_removed_before_receiving: true, provider_calls: 0, handoff_http_negative_boundaries: "PASS" }));
 }
-async function run() { try { await main(); assert.equal(guard.attempts.length, 0); } finally { for (const db of handles) if (db.open) db.close(); guard.restore(); rmSync(root, { recursive: true, force: true }); }
-
+async function run() {
+ const failures: unknown[] = [];
+ try { await main(); assert.equal(guard.attempts.length, 0); }
+ catch (error) { failures.push(error); }
+ finally {
+  for (const db of handles) { try { if (db.open) db.close(); } catch (error) { failures.push(error); } }
+  try { guard.restore(); } catch (error) { failures.push(error); }
+  // Preserve unexpected state for the outer owner before identity-checked cleanup.
+  if (receiversSettled && !unexpectedReceiverState && handles.every(db => !db.open)) {
+   try { rmSync(root, { recursive: true, force: true }); } catch (error) { failures.push(error); }
+  } else console.error(JSON.stringify({ handoff_fixture_retained: { root, receivers_settled: receiversSettled,
+    unexpected_receiver_state: unexpectedReceiverState, databases_closed: handles.every(db => !db.open) } }));
+ }
+ if (failures.length) throw new AggregateError(failures, "handoff fixture or cleanup failed");
 }
 void run().catch(e => { console.error(e); process.exitCode = 1; });
