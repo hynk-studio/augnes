@@ -76,12 +76,12 @@ const root = owner.root, env = buildCanonicalChildEnvironment({ temporaryRoot: r
 const findings = []; let inFlight = false, lastChildDiagnostic = "";
 beginCanonicalTestResourceUse(owner);
 async function child(args, options = {}) {
-  const { controlId = "disposable-control", expectedCancellation = false, ...runnerOptions } = options;
+  const { controlId = "disposable-control", expectedCancellation = false, stderr: errorOutput = quiet, ...runnerOptions } = options;
   const progress = createObserverFixtureProgressReader(), output = runnerOptions.stdout ?? quiet;
   inFlight = true; lastChildDiagnostic = "";
   const result = await runCanonicalChild({ suite: "review-corrections", label: "disposable control", command: process.execPath, args,
     cwd: root, env, timeoutMs: 6000, ...runnerOptions,
-    stdout: { write(chunk) { progress.write(chunk); output.write(chunk); } }, stderr: quiet, log() {} });
+    stdout: { write(chunk) { progress.write(chunk); output.write(chunk); } }, stderr: errorOutput, log() {} });
   inFlight = !settled(result);
   const diagnostic = { controlId, expectedCancellation, progress: progress.snapshot() };
   lastChildDiagnostic = JSON.stringify(projectReviewChildResult(result, diagnostic));
@@ -91,7 +91,13 @@ async function child(args, options = {}) {
   return result;
 }
 try {
-  if (process.argv[2] === "--guide-correction-controls") {
+  if (process.argv[2] === "--operating-profile-succession-controls") {
+  for (const group of ["evidence", "authority", "records"]) {
+    const result = await child([path.join(repository, "scripts/fixtures/local-canonical-operating-profile-succession.mjs"), "--run-profile-fixtures", group], { controlId: `operating-profile-succession-${group}`, timeoutMs: 6000, stdout: process.stdout, stderr: process.stderr });
+    assert.equal(result.exit_code, 0, lastChildDiagnostic);
+  }
+  findings.push("operating-profile succession: pure evidence/source/authority checks, immutable production-pin refusals, and synthetic terminal-record reconstruction; no synthetic production admission");
+  } else if (process.argv[2] === "--guide-correction-controls") {
   for (const group of ["evidence", "authority", "admission", "race", "stock"]) {
     const result = await child([path.join(repository, "scripts/fixtures/local-canonical-guide-correction.mjs"), "--run-guide-fixtures", group], { controlId: `guide-correction-${group}`, timeoutMs: 6000 });
     assert.equal(result.exit_code, 0, lastChildDiagnostic);

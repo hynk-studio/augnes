@@ -1485,6 +1485,13 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "local-canonical-operating-profile-succession",
+      label: "accepted operating-profile efficiency and one prospective Full",
+      ...rootNode("scripts/test-local-canonical-review-corrections.mjs", "--operating-profile-succession-controls"),
+      timeoutMs: 30_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "operator-project-home-readiness-observation",
       label: "bounded Project Home observations preserve the original condition result",
       ...rootNode("scripts/test-operator-project-home-readiness-observation-v1.mjs"),

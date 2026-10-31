@@ -161,6 +161,16 @@ correction; these controls do not replace complete deciding qualification.
   of the original failure. Proof artifacts remain admission/reconstruction inputs,
   not continuously monitored execution inputs; the production owner itself is in
   the frozen executor source inventory.
+- `local-canonical-operating-profile-succession.mjs` binds #1561's exact nested
+  timeout predecessor, independently accepted both-PASS efficiency evidence and
+  prospective authenticated execution scope. Its named schema leaves v1–v6
+  unchanged. Original log observations stay distinct from later retained-byte
+  hashes; historical causation remains UNKNOWN. The final-source record belongs
+  to the implementation owner, not an invented independent review. The existing
+  exclusive edge admits one Full with zero recovery; fresh stock reconstructs
+  without reserving. Proof artifacts remain admission/reconstruction inputs and
+  the owner joins the frozen executor inventory. No workload, deadline, input
+  classification or continuous-monitoring semantics change.
 - `local-canonical-evidence-retention.mjs` protects active and explicitly pinned
   evidence. Unsafe aliases and ambiguous ownership refuse cleanup.
 - `test-local-canonical-classification.mjs` and `test-local-canonical-review-corrections.mjs` exercise real classification,

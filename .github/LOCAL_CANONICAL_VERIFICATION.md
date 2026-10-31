@@ -1183,6 +1183,64 @@ usable failed receipt. No historical PASS is transferred and no stock issue is
 suppressed. Implementation, qualification, independent audit, merge and installed
 adoption remain distinct; this route grants no merge or adoption authority.
 
+### Accepted operating-profile efficiency succession (#1561)
+
+`augnes.local-canonical-operating-profile-succession.v1`, kind
+`operating_profile_efficiency`, is a separate prospective predicate through the
+existing `--source-correction-proof` entry. It does not reinterpret source-correction
+v1–v6 or acquire another task's namespace or allowance. Its eligible predecessor
+is the latest settled isolated Full with seven PASS phases, the natural exit-1
+integration failure, then eight NOT_RUN phases. The complete integration log must
+account for the producer and consumer completing naturally, the operating-profile
+boundary latching its 60,000 ms timeout before bounded settlement (including its
+observed exit 0), and the enclosing 150,000 ms child naturally exiting 1. All
+started workload and resource settlement must be accounted for; additional
+failure, unknown cleanup, input/safety fault or incomplete log refuses.
+
+The original receipt, attempt, completion and logs stay immutable. The historical
+receipt's recorded path and byte count are distinguished from a later observation
+of retained log bytes and their SHA-256. Historical timeout and EEXIST attribution
+remain UNKNOWN. Accepted r4 development evidence contains a single before/after
+pair which both pass, removal of 37 unused preparation reads, preserved remaining
+operation/result sequences and checked artifact bytes, and final-source focused
+checks. It is neither a manufactured FAIL/PASS repair witness nor a retrospective
+qualification result. Its accepted source, complete deltas and retained evidence
+must be reconstructed; focused runs are not repeated merely to fit another route.
+
+The separately published r4 COMMENT attestation and subsequent #1561 execution
+grant are read through the existing bounded authenticated GitHub transport, with
+exact body identity, destination, author, publication time and current maintainer
+permission. ChatGPT's earlier receiving audit is distinct from its GitHub account
+publisher. That attestation covers the accepted r4 source and evidence only; the
+new qualification implementation uses an explicit implementation-owner final-source
+binding, followed by independent post-completion audit. No invented final-head
+review or second execution grant is required by this approved prospective scope.
+
+Final-source validation binds predecessor-to-accepted, accepted-to-final,
+predecessor-to-final and current-main-to-final deltas and retained tree entries.
+Accepted native, lifecycle and harness behavior, assertions, workloads and
+boundaries remain unchanged. Additional task changes are restricted to the
+necessary qualification owner, its production integration, focused controls and
+policy documentation. Compatible accepted-main changes retain their provenance;
+main advancement neither cancels nor renews the grant.
+
+The existing exclusive predecessor `correction-successor.json` is the only
+reservation. It consumes the authorization across candidates and successor kinds,
+including interruption before an attempt append. The new family has one initial
+Full and zero recovery/retry. Success, failure, cancellation or interruption is
+terminal; changing source, branch, worktree or proof cannot renew this allowance.
+No older predecessor, reservation repair, partial phase stitching or historical
+PASS substitution is supported.
+
+Normal published clean source, authenticated current main, registered checkout,
+pinned runtime, frozen inputs, capacity and installed-state preservation gates
+remain. The unchanged planner selects the complete 16-phase Full, including the
+seven dedicated Browser owners, with existing phase order, stop behavior,
+concurrency and deadlines. Fresh-process stock reauthenticates and reconstructs
+source, evidence and live lineage without reserving, including after a usable
+failed receipt. Classification and NOT_RUN coverage are retained. This route adds
+no merge, Ready, adoption, deployment or provider authority.
+
 ### Browser input replacement (receipt version 5)
 
 `augnes.local-canonical-browser-replacement.v1` is a separate, narrowly
