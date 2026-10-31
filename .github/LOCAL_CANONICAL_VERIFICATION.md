@@ -1637,3 +1637,69 @@ and actual results await the commissioned independent final audit. All
 separate fresh stock must inspect the actual resulting receipt, including
 a failure. Merge, Ready, auto-merge, release, deployment and installed adoption
 remain unauthorized.
+
+### One evidenced source-scope precheck correction in the same closeout
+
+The operational-validation candidate
+`1d921d6adeedf52264485ae55480c25b0f05c53c` settled as `product_failure`:
+Full 6 PASS / 1 authority FAIL / 9 NOT_RUN, with separate nondeciding stock
+reporting 14 issues. Its six-second source-control child settled at 6,076ms
+with SIGTERM and `timed_out=true`. The containing executor test settled at
+9,993ms and authority phase at 59,896ms, both natural exit 1 with
+`timed_out=false`. All cleanup completed. The log contains the positive
+lineage check and four source-mutation refusals; the final weaker-bound
+refusal did not appear. The original blocked operation and timeout cause
+remain UNKNOWN.
+
+Under the same unchanged authenticated continuing scope, the existing
+`augnes.local-canonical-closeout-continuation.v1` schema recognizes the
+separate kind `issue_1559_source_scope_precheck_correction`. It is limited to
+family `2f6b8b2b065c50198d745438de42df410d1dc2032b231615ad4aca547abd3b82`,
+attempt `2026-10-31T04-12-51-606Z-full-1d921d6adeed-d08a657b5d51e362`,
+receipt `7d8875c0408b66125e54940133fcc0c8cf8dd3667009d9b9d6ff7767e83f2731`,
+completed at `2026-10-31T04:24:59.337Z`. Its receipt, attempt, completion,
+incoming edge, complete authority log and separate stock are fixed original
+artifacts. Its predecessor proof is read through the unchanged first-kind
+semantic checks, retaining the initial closeout and older v7 evidence.
+
+The only mechanism correction checks the declared source inventory before
+revalidating older evidence and invoking Git. A declaration already forbidden
+by the existing source rules can fail immediately. A declaration that passes
+this check still receives every original Git-derived inventory, native-delta,
+evidence, authority and cleanup check. A masked declaration over changed Git
+source must still refuse; declared inventory never becomes trusted source.
+The actual bounded before/after observations, original output and settlement,
+observer and fixture bytes, source snapshots and native mechanism delta are
+retained. A passing prior sample is not relabeled as failure. The final owner
+must retain the exact corrected reader function; final admission integration
+and its focused controls are separately bound to the final source, not called
+an independent source review.
+
+The single baseline and corrected samples naturally passed in 5.428 and
+3.994 seconds under the unchanged six-second child bound, with complete
+cleanup. Across the same five adverse mutations, Git subprocess counts fell
+from 66/67/66/67/67 to 22/23/22/23/23. The corrected sample also completed the
+additional masked-declaration refusal using 66 Git calls, demonstrating that
+the later source checks still run. The positive validation's Git-call count
+was unchanged. These observations establish less redundant refusal work;
+the baseline did not reproduce the historical timeout and neither sample
+identifies its blocked operation or a host-load cause.
+
+The full 32-path accepted task inventory is preserved, including all three
+operational-validation source hashes, service-contract efficiency changes and
+ownership-retirement fixture. Only the existing nine policy owners plus
+`scripts/test-local-canonical-receipt.mjs` are available to this new kind;
+the initial and first-kind path sets do not expand. The receipt test receives
+bounded normal/adverse controls within its existing registration. Suite,
+planner, lifecycle, deadlines and behavioral workload remain unchanged.
+
+Only this exact settled first-kind predecessor can acquire the new exclusive
+edge. All old consumed flags remain true, and the new case becomes terminal
+after its one reservation, including interruption. It retains
+`{initial: 1, recovery: 0}`. No old family is reset, no copied grant or cosmetic
+candidate creates another allowance, and no generic timeout or continuation
+exception is introduced. Normal fresh main, checkout, capacity, input,
+authentication and published Draft-source gates still apply. Proof and stock
+inspection remain read-only; all 16 phases, seven Browser owners and separate
+fresh stock are still required for qualification. This policy does not grant
+merge, Ready, auto-merge, release, deployment or installed-adoption authority.

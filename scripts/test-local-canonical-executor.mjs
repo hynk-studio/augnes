@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
-import { CLOSEOUT_SCHEMA, CLOSEOUT_CONTINUATION_SCHEMA, CLOSEOUT_CONTINUATION_KIND, isAnyCloseout, authorizeCloseout as authorizeCloseoutProof } from "./local-canonical-1559-closeout.mjs";
+import { CLOSEOUT_SCHEMA, CLOSEOUT_CONTINUATION_SCHEMA, CLOSEOUT_CONTINUATION_KIND, CLOSEOUT_SCOPE_CORRECTION_KIND, isAnyCloseout, authorizeCloseout as authorizeCloseoutProof } from "./local-canonical-1559-closeout.mjs";
 import { isObserverRepair } from "./local-canonical-observer-succession.mjs";
 import { isCorrectedTimeout } from "./local-canonical-timeout-succession.mjs";
 import { COMPANION_TIMEOUT_SCHEMA, isCompanionTimeout, authorizeCompanionTimeout as authorizeCompanionTimeoutProof } from "./local-canonical-companion-timeout-succession.mjs";
@@ -895,7 +895,7 @@ const closeoutRouteStart = executorSource.indexOf("  if (isAnyCloseout(sourceCor
 const closeoutRouteEnd = executorSource.indexOf("  if (isCompanionTimeout(sourceCorrection)", closeoutRouteStart);
 assert(closeoutRouteStart > 0 && closeoutRouteEnd > closeoutRouteStart);
 const closeoutRouteGuard = executorSource.slice(closeoutRouteStart, closeoutRouteEnd);
-for (const profile of [{ schema: CLOSEOUT_SCHEMA, kind: "issue_1559_closeout" }, { schema: CLOSEOUT_CONTINUATION_SCHEMA, kind: CLOSEOUT_CONTINUATION_KIND }])
+for (const profile of [{ schema: CLOSEOUT_SCHEMA, kind: "issue_1559_closeout" }, { schema: CLOSEOUT_CONTINUATION_SCHEMA, kind: CLOSEOUT_CONTINUATION_KIND }, { schema: CLOSEOUT_CONTINUATION_SCHEMA, kind: CLOSEOUT_SCOPE_CORRECTION_KIND }])
 for (const [name, overrides, refused] of [
   ["full isolated", {}, false],
   ["changed mode", { mode: "changed" }, true],
@@ -1166,10 +1166,11 @@ const successionProfiles = [
   { schema: COMPANION_TIMEOUT_SCHEMA, kind: "companion_readiness_timeout", role: "companion" },
   { schema: CLOSEOUT_SCHEMA, kind: "issue_1559_closeout", role: "closeout" },
   { schema: CLOSEOUT_CONTINUATION_SCHEMA, kind: CLOSEOUT_CONTINUATION_KIND, role: "closeout" },
+  { schema: CLOSEOUT_CONTINUATION_SCHEMA, kind: CLOSEOUT_SCOPE_CORRECTION_KIND, role: "closeout" },
 ];
 assert.deepEqual(successionProfiles.map(profile => profile.schema), [
   "augnes.local-canonical-source-correction.v5", "augnes.local-canonical-source-correction.v6", "augnes.local-canonical-source-correction.v7",
-  "augnes.local-canonical-closeout.v1", "augnes.local-canonical-closeout-continuation.v1",
+  "augnes.local-canonical-closeout.v1", "augnes.local-canonical-closeout-continuation.v1", "augnes.local-canonical-closeout-continuation.v1",
 ]);
 assert.equal(new Set(successionProfiles.map(profile => profile.schema)).size, 5);
 const dispatchStart = executorSource.indexOf("            const observerAuthorization =");
@@ -1185,7 +1186,7 @@ try {
   const relative = ".augnes-local-verification/proofs/synthetic.json", file = path.join(coexistenceRoot, relative);
   mkdirSync(path.dirname(file), { recursive: true });
   for (const schemaProfile of successionProfiles) for (const kindProfile of successionProfiles) {
-    const selected = schemaProfile === kindProfile ? schemaProfile.role : null;
+    const selected = successionProfiles.find(profile => profile.schema === schemaProfile.schema && profile.kind === kindProfile.kind)?.role ?? null;
     const candidate = { schema: schemaProfile.schema, kind: kindProfile.kind, local_relative_path: relative, head: "a".repeat(40) };
     writeFileSync(file, JSON.stringify(candidate));
     const original = readFileSync(file);
@@ -1224,7 +1225,7 @@ const closeoutStockStart = executorSource.indexOf("  let closeoutAuthorization =
 const closeoutStockEnd = executorSource.indexOf("  let companionTimeoutAuthorization = null;", closeoutStockStart);
 assert(closeoutStockStart > 0 && closeoutStockEnd > closeoutStockStart);
 const closeoutStockBlock = executorSource.slice(closeoutStockStart, closeoutStockEnd);
-for (const profile of [{ schema: CLOSEOUT_SCHEMA, kind: "issue_1559_closeout" }, { schema: CLOSEOUT_CONTINUATION_SCHEMA, kind: CLOSEOUT_CONTINUATION_KIND }])
+for (const profile of [{ schema: CLOSEOUT_SCHEMA, kind: "issue_1559_closeout" }, { schema: CLOSEOUT_CONTINUATION_SCHEMA, kind: CLOSEOUT_CONTINUATION_KIND }, { schema: CLOSEOUT_CONTINUATION_SCHEMA, kind: CLOSEOUT_SCOPE_CORRECTION_KIND }])
 for (const scenario of ["valid", "evidence_missing", "evidence_invalid", "proof_changed", "authority_missing", "legacy", "companion"]) {
   const root = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-closeout-stock-")));
   const relative = ".augnes-local-verification/proofs/synthetic.json", file = path.join(root, relative);

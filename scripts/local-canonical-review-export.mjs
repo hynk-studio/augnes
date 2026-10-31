@@ -1,4 +1,4 @@
-import { isAnyCloseout, isCloseoutContinuation, hasCloseoutMarker, validCloseoutAttempt } from "./local-canonical-1559-closeout.mjs";
+import { isAnyCloseout, isCloseoutContinuation, isCloseoutScopeCorrection, hasCloseoutMarker, validCloseoutAttempt } from "./local-canonical-1559-closeout.mjs";
 import { COMPANION_TIMEOUT_SCHEMA, isCompanionTimeout, validCompanionTimeoutAttempt } from "./local-canonical-companion-timeout-succession.mjs";
 import { GUIDE_CORRECTION_SCHEMA, isGuideCorrection, validGuideCorrectionAttempt } from "./local-canonical-guide-correction.mjs";
 import { isObserverRepair, validObserverAttempt } from "./local-canonical-observer-succession.mjs";
@@ -148,6 +148,18 @@ function closeoutProofExport(p) {
   const hash = ref => pick(ref, ["sha256"]);
   const state = value => pick(value, ["present", "mode", "type", "object", "sha256"]);
   const scope = p.source_scope;
+  if (isCloseoutScopeCorrection(p)) return {
+    ...pick(p, ["schema", "kind", "pull_request", "branch", "base", "head", "tree", "prior_family_id", "prior_number", "prior_attempt_id", "prior_receipt_fingerprint", "budget"]),
+    originals: Object.fromEntries(["receipt", "attempt", "completion", "edge", "authority_log", "stock", "stock_log"].map(k => [k, hash(p.originals?.[k])])),
+    predecessor_proof: hash(p.predecessor_proof),
+    correction: { ...Object.fromEntries(["mechanism_before", "mechanism_after", "native_delta", "observations"].map(k => [k, hash(p.correction?.[k])])),
+      retained: p.correction?.retained?.map(ref => pick(ref, ["path", "sha256"])) },
+    source_scope: scope ? { ...pick(scope, ["schema", "basis", "accepted_base", "accepted_head", "current_main", "accepted_task_paths", "candidate_delta_paths", "policy_delta_paths"]),
+      accepted_task: scope.accepted_task?.map(row => ({ path: row.path, accepted: state(row.accepted), candidate: state(row.candidate) })),
+      candidate_policy: scope.candidate_policy?.map(row => ({ path: row.path, candidate: state(row.candidate) })),
+      main_reconciliation: scope.main_reconciliation?.map(row => ({ ...pick(row, ["path", "rule"]), accepted_main: state(row.accepted_main), candidate: state(row.candidate) })) } : null,
+    final_source: hash(p.final_source), authorization: pick(p.authorization, ["scope_comment_id", "scope_sha256"]),
+  };
   if (isCloseoutContinuation(p)) return {
     ...pick(p, ["schema", "kind", "pull_request", "branch", "base", "head", "tree", "prior_family_id", "prior_number", "prior_attempt_id", "prior_receipt_fingerprint", "budget"]),
     originals: Object.fromEntries(["receipt", "attempt", "completion", "edge", "unit_log", "stock", "stock_log"].map(k => [k, hash(p.originals?.[k])])),

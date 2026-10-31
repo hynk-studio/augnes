@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { runCanonicalChild, canonicalChildAcceptanceFailure } from "./canonical-child-runner.mjs";
+import { createCanonicalTestResourceRoot, buildCanonicalChildEnvironment, cleanupCanonicalTestResources } from "./canonical-test-environment.mjs";
 import { CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 
 import {
@@ -813,6 +817,28 @@ assert(
     validContext,
   ).issues.includes("receipt_source_identity_invalid"),
 );
+
+// The exact settled authority-control correction has its own disposable
+// evidence/admission/stock controls. Inspection never reserves a real attempt.
+for (const group of ["evidence", "admission", "stock"]) {
+  const owner = createCanonicalTestResourceRoot("ag-resource-test-", { shortSocketPaths: true });
+  let result, failure, cleanup;
+  try {
+    result = await runCanonicalChild({ suite: "1559-closeout-scope-correction-controls", label: group,
+      command: process.execPath,
+      args: [fileURLToPath(new URL("./fixtures/local-canonical-1559-closeout.mjs", import.meta.url)), "--run-closeout-scope-correction-fixtures", group],
+      cwd: owner.root, env: buildCanonicalChildEnvironment({ temporaryRoot: owner.root, resourceRoot: owner.root }),
+      timeoutMs: 6000, resourceOwner: owner, stdout: process.stdout, stderr: process.stderr,
+    });
+    failure = canonicalChildAcceptanceFailure(result, { timeoutMs: 6000, requireNaturalExit: true });
+  } catch (error) { failure = error; }
+  finally { cleanup = cleanupCanonicalTestResources([owner]); }
+  console.log(JSON.stringify({ control: `1559-closeout-scope-correction-${group}`, result,
+    failure: failure?.message ?? null, cleanup, root_absent: !existsSync(owner.root) }));
+  const cleanupFailure = cleanup.some(row => !row.completed) ? new Error("closeout_scope_correction_control_cleanup_incomplete") : null;
+  if (failure && cleanupFailure) throw new AggregateError([failure, cleanupFailure], "closeout scope correction control and cleanup failed");
+  if (failure || cleanupFailure) throw failure ?? cleanupFailure;
+}
 
 console.log(
   JSON.stringify(

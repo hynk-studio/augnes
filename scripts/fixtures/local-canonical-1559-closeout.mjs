@@ -25,7 +25,7 @@ const treeFiles = (directory, root = directory) => readdirSync(directory, { with
 // Import the real predicates through a copied dependency closure. This changes
 // constants, never production source or a validator, and cannot grant authority
 // in the repository's real process/module instance.
-function copyControlSources(target, pins, continuationPins = null) {
+function copyControlSources(target, pins, continuationPins = null, scopePins = null) {
   const copied = new Set();
   const copy = name => {
     if (copied.has(name)) return;
@@ -39,6 +39,11 @@ function copyControlSources(target, pins, continuationPins = null) {
         const continuationMarker = /\/\/ BEGIN CLOSEOUT CONTINUATION PINS[\s\S]*?\/\/ END CLOSEOUT CONTINUATION PINS/u;
         assert(continuationMarker.test(source), "continuation controls replace only its delimited fixed pin data");
         source = source.replace(continuationMarker, `// BEGIN CLOSEOUT CONTINUATION PINS\nexport const CLOSEOUT_CONTINUATION_PINS = Object.freeze(${JSON.stringify(continuationPins)});\n// END CLOSEOUT CONTINUATION PINS`);
+      }
+      if (scopePins) {
+        const scopeMarker = /\/\/ BEGIN CLOSEOUT SCOPE CORRECTION PINS[\s\S]*?\/\/ END CLOSEOUT SCOPE CORRECTION PINS/u;
+        assert(scopeMarker.test(source), "scope-correction controls replace only fixed pin data");
+        source = source.replace(scopeMarker, `// BEGIN CLOSEOUT SCOPE CORRECTION PINS\nexport const CLOSEOUT_SCOPE_CORRECTION_PINS = Object.freeze(${JSON.stringify(scopePins)});\n// END CLOSEOUT SCOPE CORRECTION PINS`);
       }
     }
     write(path.join(target, name), source);
@@ -148,7 +153,7 @@ function bindCandidate(c, head = c.commit()) {
   save(c); return source;
 }
 
-async function make(root) {
+async function make(root, { policyOwnerSource = null } = {}) {
   const original = await controlModules(repository), pins = structuredClone(original.CLOSEOUT_PINS);
   const checkout = path.join(root, "checkout"), anchor = path.join(root, "anchor"), folder = path.join(checkout, ".augnes-local-verification/closeout");
   mkdirSync(checkout); mkdirSync(anchor); mkdirSync(folder, { recursive: true });
@@ -158,7 +163,7 @@ async function make(root) {
   const objectPath = execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-path", "objects"], { cwd: repository, encoding: "utf8", timeout: 4000 }).trim();
   write(path.join(checkout, ".git/objects/info/alternates"), objectPath + "\n");
   git("update-ref", `refs/heads/${branch}`, pins.repair_head); git("read-tree", pins.repair_head);
-  for (const name of POLICY_PATHS) write(path.join(checkout, name), readFileSync(path.join(repository, name)));
+  for (const name of POLICY_PATHS) write(path.join(checkout, name), name === ownerPath && policyOwnerSource !== null ? policyOwnerSource : readFileSync(path.join(repository, name)));
   const commit = () => { git("add", "--", ...POLICY_PATHS); git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-m", "synthetic bounded closeout candidate"); return git("rev-parse", "HEAD").toString().trim(); };
   const delta = (a, b) => { const bytes = git("diff", "--binary", "--full-index", "--no-ext-diff", "--no-textconv", a, b, "--"); return { sha256: digest(bytes), bytes: bytes.length,
     changed_paths: git("diff", "--no-renames", "--name-only", "-z", a, b, "--").toString().split("\0").filter(Boolean).sort() }; };
@@ -236,6 +241,7 @@ if (process.argv[2] === "--stock-closeout-fixture") {
   finally { if (c.owner) c.m.releaseCheckoutVerificationOwnership(c.owner, c.checkout, { consumersSettled: true }); }
 } else if (process.argv[2] === "--run-closeout-fixtures") await closeoutControls(process.argv[3]);
 else if (process.argv[2] === "--run-closeout-continuation-fixtures") await closeoutContinuationControls(process.argv[3]);
+else if (process.argv[2] === "--run-closeout-scope-correction-fixtures") await closeoutScopeCorrectionControls(process.argv[3]);
 
 export async function closeoutControls(group = "evidence") {
   assert(["evidence", "source", "authority", "admission", "race", "stock"].includes(group));
@@ -507,8 +513,8 @@ async function continuationOriginalRefusal(c, name, mutate, code) {
   assert.throws(() => m.readCloseoutEvidence(c.file, p, c.checkout), error => error.code === code, name);
 }
 
-async function makeContinuation(root) {
-  const c = await make(root), initialProof = structuredClone(c.proof), initial = proof(c), initialAuthority = await authorize(c, initial);
+async function makeContinuation(root, options = {}) {
+  const c = await make(root, options), initialProof = structuredClone(c.proof), initial = proof(c), initialAuthority = await authorize(c, initial);
   const initialAttempt = begin(c, initial, initialAuthority, { runId: "synthetic-initial-closeout-before-continuation" });
   assert(c.m.validCloseoutAttempt(initialAttempt));
   const oldFamily = c.family, initialFamily = path.join(c.anchor, ".augnes-local-verification/families", initialAttempt.family_id);
@@ -624,9 +630,10 @@ export async function closeoutContinuationControls(group = "evidence") {
     if (group === "source") {
       const sourceHead = saved.head;
       const restoreSource = () => { reset(); c.git("update-ref", `refs/heads/${c.branch}`, sourceHead); c.git("read-tree", sourceHead); };
-      const mutation = (name, mutate, code) => {
+      const mutation = (name, mutate, code, maskedScope = null) => {
         restoreSource(); mutate(); c.git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-m", `synthetic ${name}`);
         const head = c.git("rev-parse", "HEAD").toString().trim(); assert.notEqual(head, sourceHead); bindContinuationCandidate(c, head);
+        if (maskedScope) { c.proof.source_scope = structuredClone(maskedScope); save(c); }
         assert.throws(() => proof(c), error => error.code === code, name); pass(`${name}: ${code}`);
       };
       mutation("accepted added helper deletion", () => c.git("update-index", "--force-remove", "scripts/fixtures/companion-service-contract-families.mjs"), "closeout_continuation_retained_source_changed");
@@ -639,6 +646,10 @@ export async function closeoutContinuationControls(group = "evidence") {
       mutation("weaker complete-child bound", () => { const name = "scripts/run-canonical-test-suite.mjs", source = c.git("show", `${sourceHead}:${name}`).toString();
         const changed = source.replace('...rootNode("scripts/test-operational-continuation.ts"),\n      timeoutMs: 45_000,', '...rootNode("scripts/test-operational-continuation.ts"),\n      timeoutMs: 60_000,');
         assert.notEqual(changed, source); write(path.join(c.checkout, name), changed); c.git("add", "--", name); }, "closeout_continuation_retained_source_changed");
+      // A valid-looking declaration is only a cheap refusal screen. The actual
+      // committed deletion must still fail the later independent Git checks.
+      mutation("masked valid declaration over actual helper deletion", () => c.git("update-index", "--force-remove", "scripts/fixtures/companion-service-contract-families.mjs"),
+        "closeout_continuation_retained_source_changed", saved.source_scope);
       restoreSource(); assert.deepEqual(treeFiles(c.anchor), ledger);
     }
     if (group === "authority") {
@@ -731,4 +742,212 @@ export async function closeoutContinuationControls(group = "evidence") {
     assert(cleanupCanonicalTestResources([resource])[0].completed);
   }
   console.log(JSON.stringify({ closeout_continuation: checks, group, count: checks.length, synthetic_authority_only: true, cleanup_complete: true }));
+}
+
+function scopeCorrectionAuthorityLog() {
+  return Array.from({ length: 8 }, (_, index) => `[canonical:authority] child_result label="synthetic preceding ${index}" duration_ms=1 exit_code=0 signal=null timed_out=false exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=natural_exit\n`).join("") +
+    '[canonical:1559-closeout-continuation-controls] child_result label="evidence" duration_ms=2506 exit_code=0 signal=null timed_out=false exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=natural_exit\n' +
+    '[canonical:1559-closeout-continuation-controls] child_start label="source" timeout_ms=6000\n' +
+    '[canonical:1559-closeout-continuation-controls] child_result label="source" duration_ms=6076 exit_code=null signal=SIGTERM timed_out=true exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=bounded_timeout\n' +
+    '[canonical:authority] child_result label="local Canonical executor identity and scheduling contract" duration_ms=9993 exit_code=1 signal=null timed_out=false exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=natural_exit\n';
+}
+
+function scopeCorrectionRetained(c, prior, completion, before, after, nativeDelta) {
+  const bytes = new Map(), put = (name, value) => bytes.set(name, Buffer.from(typeof value === "string" || Buffer.isBuffer(value) ? value : JSON.stringify(value)));
+  put("mechanism-before.mjs", before); put("mechanism-after.mjs", after);
+  put("fixture-before.mjs", "// SYNTHETIC fixture before, never executed\n"); put("fixture-after.mjs", "// SYNTHETIC fixture after, never executed\n");
+  put("observe-git-cost.mjs", "// SYNTHETIC observation owner, never executed\n");
+  const manifest = { schema: "augnes.private-source-scope-precheck-observation.v1", nondeciding: true, synthetic_control_only: true,
+    prior_head: prior.head, prior_tree: prior.tree, historical_timeout_cause: "UNKNOWN", original_blocked_operation: "UNKNOWN" };
+  const common = ["accepted added helper deletion", "accepted task reverted to base", "source outside three correction owners", "changed correction bytes", "weaker complete-child bound"];
+  for (const [index, sample] of ["before", "after"].entries()) {
+    const source = sample === "before" ? before : after, started = new Date(Date.parse(completion.finished_at) + 1 + index * 2).toISOString();
+    const result = { label: sample, exit_code: 0, signal: null, timed_out: false, cancelled: false, spawn_error_code: null, exit_observed: true,
+      streams_closed: true, cleanup_started: true, cleanup_completed: true, remaining_owned_processes: 0, termination_reason: "natural_exit", duration_ms: 1 };
+    put(`${sample}/command.json`, { schema: "augnes.private-source-scope-probe-command.v1", nondeciding: true, synthetic_control_only: true, sample,
+      prior_head: prior.head, prior_tree: prior.tree, timeout_ms: 6000, require_natural_exit: true, source_sha256: digest(source),
+      fixture_sha256: digest(bytes.get(`fixture-${sample}.mjs`)), observer_sha256: digest(bytes.get("observe-git-cost.mjs")),
+      command: ["synthetic-never-executed", "--run-closeout-continuation-fixtures", "source"], started_at: started });
+    put(`${sample}/settlement.json`, { schema: "augnes.private-source-scope-probe-settlement.v1", nondeciding: true, synthetic_control_only: true, sample,
+      finished_at: new Date(Date.parse(started) + 1).toISOString(), result, failure: null, root_absent: true,
+      cleanup: [{ completed: true, failure_count: 0, failures: [] }] });
+    const stages = ["full synthetic v7 to settled initial-closeout lineage validates without reserving continuation",
+      ...common.map(name => `${name}: ${name === "changed correction bytes" ? "closeout_continuation_correction_invalid" : "closeout_continuation_retained_source_changed"}`),
+      ...(sample === "after" ? ["masked valid declaration over actual helper deletion: closeout_continuation_retained_source_changed"] : [])];
+    let calls = 100;
+    put(`${sample}/observations.jsonl`, stages.map((stage, i) => {
+      if (i) calls += sample === "before" || i === stages.length - 1 && sample === "after" ? 64 : 20;
+      return JSON.stringify({ schema: "augnes.private-source-control-git-cost.v1", synthetic_control_only: true, sample, sequence: i + 1,
+        stage, cumulative_wall_ms: i + 1, git: { calls, inclusive_ms: i + 1 } });
+    }).join("\n") + "\n");
+    put(`${sample}/output.log`, stages.map(stage => `continuation control PASS: ${stage}\n`).join(""));
+    manifest[sample] = { command: `${sample}/command.json`, settlement: `${sample}/settlement.json`, observations: `${sample}/observations.jsonl`,
+      log: `${sample}/output.log`, source_sha256: digest(source), result };
+  }
+  manifest.files = [...bytes].map(([name, value]) => ({ path: name, bytes: value.length, sha256: digest(value) }));
+  const retained = [...bytes].map(([name, value], index) => ({ path: name, ...c.artifact(`scope-retained-${index}.${path.extname(name).slice(1)}`, value) }));
+  return { mechanism_before: c.artifact("scope-mechanism-before.mjs", before), mechanism_after: c.artifact("scope-mechanism-after.mjs", after),
+    native_delta: c.artifact("scope-mechanism.diff", nativeDelta),
+    observations: c.artifact("scope-observations.json", manifest), retained };
+}
+
+function bindScopeCorrectionCandidate(c, head) {
+  c.proof.head = head; c.proof.tree = c.git("rev-parse", `${head}^{tree}`).toString().trim();
+  c.proof.final_source = c.artifact("scope-final-source.json", { schema: "augnes.local-canonical-closeout-scope-correction-final-source.v1",
+    basis: "implementation_owner_not_independent_review", base: c.base, head, tree: c.proof.tree, predecessor_head: c.prior.head, predecessor_tree: c.prior.tree,
+    deltas: { predecessor: c.delta(c.prior.head, head), first_closeout: c.delta(c.continuationPins.prior_head, head), main: c.delta(c.base, head) } });
+  c.proof.source_scope = c.m.inspectCloseoutScopeCorrectionSourceScope(c.checkout, c.proof); c.authority.pr.head.sha = head; save(c);
+}
+
+async function makeScopeCorrection(root) {
+  const source = readFileSync(path.join(repository, ownerPath), "utf8"), original = await controlModules(repository);
+  // The mechanism predecessor is the public Git owner before this integration
+  // existed. Removing one line from today's owner would also retain the new
+  // validator's own literal needle and would not be the one-line mechanism.
+  const beforeSource = execFileSync("git", ["show", `${original.CLOSEOUT_SCOPE_CORRECTION_PINS.prior_head}:${ownerPath}`],
+    { cwd: repository, encoding: "utf8", timeout: 4000, maxBuffer: 2 * 1024 * 1024 });
+  const needle = "  const original = continuationOriginalEvidence(folder, p, repositoryRoot), git = gitAt(repositoryRoot), source = json(closeoutArtifact(folder, p.final_source));";
+  assert.equal(beforeSource.split(needle).length, 2, "one exact predecessor reader insertion point");
+  const mechanismAfter = beforeSource.replace(needle, "  validateCloseoutContinuationSourceScope(p.source_scope);\n" + needle);
+  const c = await makeContinuation(root, { policyOwnerSource: beforeSource });
+  const predecessorProof = structuredClone(c.proof), p = proof(c), authority = await authorize(c, p);
+  const prior = begin(c, p, authority, { runId: "synthetic-operational-continuation-before-scope-correction" });
+  assert(c.m.validCloseoutAttempt(prior));
+  const oldFamily = c.family, family = path.join(c.anchor, ".augnes-local-verification/families", prior.family_id);
+  const authorityLog = scopeCorrectionAuthorityLog(), relativeLog = `.augnes-local-verification/logs/${prior.attempt_id}/authority.log`;
+  write(path.join(c.checkout, relativeLog), authorityLog);
+  const receipt = c.m.finalizeReceipt({ ...structuredClone(c.receipt), repository: { ...c.receipt.repository, head_sha: prior.head, tree_sha: prior.tree },
+    run: { ...c.receipt.run, id: prior.attempt_id }, attempt: prior,
+    inputs: { ...c.receipt.inputs, binding: { ...c.receipt.inputs.binding, head: prior.head, tree: prior.tree } },
+    phases: c.receipt.phases.map((row, index) => ({ ...row, status: index < 6 ? "pass" : index === 6 ? "failure" : "not_run",
+      exit_status: index < 6 ? 0 : index === 6 ? 1 : null, failure_code: index === 6 ? "phase_failed" : null, timed_out: false,
+      environment_fingerprint: index <= 6 ? "b".repeat(64) : null,
+      cleanup: { completed: true, remaining_owned_processes: 0, exit_observed: index <= 6, streams_closed: index <= 6, termination_reason: index <= 6 ? "natural_exit" : null },
+      ...(index === 6 ? { duration_ms: 59896, log: { relative_path: relativeLog, bytes: Buffer.byteLength(authorityLog), truncated: false } } : {}) })) });
+  c.m.finishAttempt(prior, { receiptFingerprint: receipt.integrity.content_fingerprint, disposition: "product_failure", cleanupComplete: true });
+  const completion = read(path.join(family, "completion-1.json")), stock = { content_fingerprint: receipt.integrity.content_fingerprint, valid_deciding_evidence: false,
+    issues: Array.from({ length: 14 }, (_, index) => `synthetic_scope_original_issue_${index + 1}`) };
+  const originals = Object.fromEntries(Object.entries({ receipt, attempt: readFileSync(path.join(family, "attempt-1.json")),
+    completion: readFileSync(path.join(family, "completion-1.json")), edge: readFileSync(path.join(oldFamily, "correction-successor.json")),
+    authority_log: authorityLog, stock, stock_log: JSON.stringify(stock) }).map(([key, value]) => [key, c.artifact(`scope-original-${key}.${key.endsWith("log") ? "log" : "json"}`, value)]));
+  const predecessorRef = c.artifact("scope-predecessor-proof.json", predecessorProof), before = c.git("show", `${prior.head}:${ownerPath}`);
+  assert.equal(before.toString(), beforeSource); write(path.join(c.checkout, ownerPath), mechanismAfter);
+  const nativeDelta = c.git("diff", "--binary", "--full-index", "--no-ext-diff", "--no-textconv", prior.head, "--", ownerPath);
+  write(path.join(c.checkout, ownerPath), source); c.git("add", "--", ownerPath);
+  c.git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-m", "synthetic one-line scope precheck correction");
+  const head = c.git("rev-parse", "HEAD").toString().trim(), tree = c.git("rev-parse", `${head}^{tree}`).toString().trim();
+  const correction = scopeCorrectionRetained(c, prior, completion, before, Buffer.from(mechanismAfter), nativeDelta);
+  const pins = { ...structuredClone(c.m.CLOSEOUT_SCOPE_CORRECTION_PINS), prior_head: prior.head, prior_tree: prior.tree,
+    prior_family_id: prior.family_id, prior_attempt_id: prior.attempt_id, prior_receipt_fingerprint: receipt.integrity.content_fingerprint,
+    completed_at: completion.finished_at, predecessor_proof: predecessorRef.sha256,
+    originals: Object.fromEntries(Object.entries(originals).map(([name, ref]) => [name, ref.sha256])),
+    correction: Object.fromEntries(Object.entries(correction).filter(([name]) => name !== "retained").map(([name, ref]) => [name, ref.sha256])),
+    retained: Object.fromEntries(correction.retained.map(ref => [ref.path, ref.sha256])) };
+  c.m.releaseCheckoutVerificationOwnership(c.owner, c.checkout, { consumersSettled: true }); c.owner = null;
+  c.controlRoot = path.join(root, "scope-control-source"); copyControlSources(c.controlRoot, c.pins, c.continuationPins, pins); c.m = await controlModules(c.controlRoot);
+  c.owner = c.m.acquireCheckoutVerificationOwnership({ repositoryRoot: c.checkout });
+  Object.assign(c, { predecessorProof, prior, family, receipt, scopePins: pins, file: path.join(c.folder, "scope-proof.json") });
+  c.proof = { schema: c.m.CLOSEOUT_CONTINUATION_SCHEMA, kind: c.m.CLOSEOUT_SCOPE_CORRECTION_KIND, pull_request: 1560, branch: c.branch, base: c.base, head, tree,
+    prior_family_id: prior.family_id, prior_number: 1, prior_attempt_id: prior.attempt_id, prior_receipt_fingerprint: receipt.integrity.content_fingerprint,
+    originals, predecessor_proof: predecessorRef, correction, source_scope: null, final_source: null,
+    authorization: structuredClone(predecessorProof.authorization), budget: { initial: 1, recovery: 0 } };
+  bindScopeCorrectionCandidate(c, head); return c;
+}
+
+export async function closeoutScopeCorrectionControls(group = "evidence") {
+  assert(["evidence", "admission", "stock"].includes(group));
+  const resource = createCanonicalTestResourceRoot("ag-resource-test-"); beginCanonicalTestResourceUse(resource);
+  const checks = [], pass = name => { checks.push(name); console.log(`scope correction control PASS: ${name}`); }; let c, active = 0;
+  const child = async (args, controlId) => {
+    active++; let output = "";
+    const result = await runCanonicalChild({ suite: "1559-closeout-scope-fixture", label: controlId, command: process.execPath, args, cwd: resource.root,
+      env: buildCanonicalChildEnvironment({ temporaryRoot: resource.root }), timeoutMs: 4000,
+      stdout: { write: chunk => output = (output + chunk).slice(-8000) }, stderr: { write: chunk => output = (output + chunk).slice(-8000) }, log() {} });
+    if (result.cleanup_completed && result.exit_observed && result.streams_closed && result.remaining_owned_processes === 0) active--;
+    console.log("AUGNES_REVIEW_CHILD_RESULT " + JSON.stringify(projectReviewChildResult(result, { controlId }))); assertReviewChildLifecycle(result, { controlId });
+    return { ...result, output };
+  };
+  try {
+    c = await makeScopeCorrection(resource.root); const saved = structuredClone(c.proof), validated = proof(c), authorized = await authorize(c, validated), ledger = treeFiles(c.anchor);
+    const files = new Map(readdirSync(c.folder).map(name => [name, readFileSync(path.join(c.folder, name))]));
+    const restore = (...names) => { for (const name of names) write(path.join(c.folder, name), files.get(name)); c.proof = structuredClone(saved); save(c); };
+    const tip = c.m.reconstructAttemptTip({ anchorRoot: c.anchor, branch: c.branch });
+    assert(tip.companion_timeout_consumed && tip.closeout_consumed && tip.closeout_continuation_consumed && !tip.closeout_scope_correction_consumed);
+    pass("actual synthetic v7, initial closeout and operational continuation lead to one distinct scope-correction proof");
+    if (group === "evidence") {
+      for (const [name, mutate] of [["old kind relabel", p => p.kind = c.m.CLOSEOUT_CONTINUATION_KIND], ["wrong final head", p => p.head = p.base],
+        ["wrong original receipt", p => p.originals.receipt.sha256 = "0".repeat(64)], ["missing predecessor", p => delete p.predecessor_proof],
+        ["forged accepted scope", p => p.source_scope.accepted_head = p.base], ["fabricated review field", p => p.review = { id: 1 }],
+        ["extra allowance", p => p.budget.initial = 2], ["retained observation omitted", p => p.correction.retained.pop()]]) {
+        restore(); mutate(c.proof); save(c); assert.throws(() => proof(c), undefined, name); pass(`refuse ${name}`);
+      }
+      restore(); const removedOwner = "scripts/test-local-canonical-receipt.mjs", scope = c.proof.source_scope;
+      assert(!scope.accepted_task_paths.includes(removedOwner)); assert(!scope.policy_delta_paths.includes(removedOwner));
+      scope.candidate_delta_paths.push(removedOwner); scope.candidate_delta_paths.sort();
+      scope.policy_delta_paths.push(removedOwner); scope.policy_delta_paths.sort();
+      scope.candidate_policy.push({ path: removedOwner, candidate: { present: false } }); scope.candidate_policy.sort((a, b) => a.path.localeCompare(b.path));
+      save(c); assert.throws(() => proof(c), error => error.code === "closeout_scope_correction_policy_removed");
+      pass("self-consistent declared deletion of a policy owner outside accepted32 refuses: closeout_scope_correction_policy_removed");
+      restore(); for (const ref of [saved.originals.authority_log, saved.correction.mechanism_after, saved.correction.retained[0]]) {
+        write(path.join(c.folder, ref.artifact), "SYNTHETIC tampered evidence\n"); assert.throws(() => proof(c)); restore(ref.artifact);
+      }
+      rmSync(path.join(c.folder, saved.originals.completion.artifact)); assert.throws(() => proof(c)); restore(saved.originals.completion.artifact);
+      pass("missing original and changed mechanism/raw observations refuse before admission");
+      await assert.rejects(authorize(c, validated, (record, url) => url.includes("/comments/") ? { ...record, updated_at: time(-500) } : record));
+      await assert.rejects(authorize(c, validated, (record, url) => url.endsWith("/permission") ? { ...record, permission: "read" } : record));
+      assert.throws(() => c.m.assertCloseoutAuthorization(validated, { observations: authorized.observations }, read(path.join(c.family, "completion-1.json"))));
+      pass("stale authenticated scope, removed permission and forged capabilities refuse"); assert.deepEqual(treeFiles(c.anchor), ledger);
+    } else {
+      assert.throws(() => begin(c, c.predecessorProof, authorized));
+      let attempt, current;
+      if (group === "admission") {
+        const packets = [];
+        for (const index of [1, 2]) {
+          const checkout = path.join(resource.root, `scope-race-checkout-${index}`); cpSync(c.checkout, checkout, { recursive: true, filter: file => path.basename(file) !== c.m.CHECKOUT_OWNER_FILE });
+          const packet = path.join(resource.root, `scope-race-${index}.json`); write(packet, { checkout, anchor: c.anchor,
+            file: path.join(checkout, ".augnes-local-verification/closeout/scope-proof.json"), authority: c.authority, controlRoot: c.controlRoot, run_id: `synthetic-scope-race-${index}` }); packets.push(packet);
+        }
+        const results = await Promise.all(packets.map((packet, index) => child([self, "--claim-closeout-fixture", packet], `scope-race-${index + 1}`)));
+        assert.deepEqual(results.map(x => x.exit_code).sort(), [0, 1], results.map(x => x.output).join("\n")); pass("two checkouts share one exclusive correction edge");
+        const winner = c.m.reconstructAttemptTip({ anchorRoot: c.anchor, branch: c.branch });
+        attempt = read(path.join(c.anchor, ".augnes-local-verification/families", winner.family_id, "attempt-1.json"));
+      } else {
+        attempt = begin(c, validated, authorized); assert.throws(() => begin(c, validated, authorized));
+        current = c.m.finalizeReceipt({ ...structuredClone(c.receipt), repository: { ...c.receipt.repository, head_sha: saved.head, tree_sha: saved.tree },
+          run: { ...c.receipt.run, id: attempt.attempt_id }, attempt, inputs: { ...c.receipt.inputs, binding: { ...c.receipt.inputs.binding, head: saved.head, tree: saved.tree } } });
+        c.m.finishAttempt(attempt, { receiptFingerprint: current.integrity.content_fingerprint, disposition: "product_failure", cleanupComplete: true });
+      }
+      assert(c.m.validCloseoutAttempt(attempt)); assert.deepEqual(attempt.budget, { initial: 1, recovery: 0 });
+      assert(c.m.reconstructAttemptTip({ anchorRoot: c.anchor, branch: c.branch }).closeout_scope_correction_consumed);
+      assert.throws(() => begin(c, validated, authorized)); pass("older tip, repeated and settled terminal attempts cannot reset the finite allowance");
+      for (const row of ledger) assert.equal(digest(readFileSync(path.join(c.anchor, row.file))), row.sha256);
+      if (group === "admission") {
+        const family = path.join(c.anchor, ".augnes-local-verification/families", attempt.family_id), file = path.join(family, "attempt-1.json"), bytes = readFileSync(file);
+        rmSync(file); assert.throws(() => c.m.reconstructAttemptTip({ anchorRoot: c.anchor, branch: c.branch })); assert.throws(() => begin(c, validated, authorized)); write(file, bytes);
+        write(path.join(family, "correction-successor.json"), { contract: "augnes.local-canonical-successor.v2", kind: c.m.CLOSEOUT_SCOPE_CORRECTION_KIND });
+        assert.throws(() => c.m.reconstructAttemptTip({ anchorRoot: c.anchor, branch: c.branch })); rmSync(path.join(family, "correction-successor.json"));
+        pass("interrupted reservation and further successor chain stay closed");
+      } else {
+        const exported = c.m.createPrivateReviewExport(current); assert(c.m.inspectPrivateReviewExport(exported).structurally_valid); assert(c.m.validCloseoutAttempt(exported.attempt));
+        assert(!c.m.inspectReceiptForDecision(current, { currentAttemptRecordsValid: true }).valid_deciding_evidence);
+        for (const change of [r => r.receipt_version = 3, r => r.attempt.source_correction.kind = c.m.CLOSEOUT_CONTINUATION_KIND, r => delete r.attempt.closeout_authority,
+          r => r.attempt.source_correction.correction.retained = [], r => r.attempt.source_correction.correction.retained[0].sha256 = "0".repeat(64)]) {
+          const altered = structuredClone(current); change(altered); const value = c.m.finalizeReceipt(altered);
+          if (value.receipt_version === 4) assert(!c.m.validCloseoutAttempt(value.attempt));
+          assert(c.m.inspectReceiptForDecision(value, { currentAttemptRecordsValid: true }).issues.includes("receipt_1559_closeout_invalid")); assert.throws(() => c.m.createPrivateReviewExport(value));
+          const alteredExport = structuredClone(exported); change(alteredExport); delete alteredExport.export_fingerprint;
+          alteredExport.export_fingerprint = digest(c.m.canonicalSerialize(alteredExport)); assert(!c.m.inspectPrivateReviewExport(alteredExport).structurally_valid);
+        }
+        const after = treeFiles(c.anchor), receiptFile = path.join(c.folder, "scope-receipt.json"), packet = path.join(c.folder, "scope-stock-packet.json");
+        write(receiptFile, current); write(packet, { checkout: c.checkout, anchor: c.anchor, file: c.file, authority: c.authority, controlRoot: c.controlRoot, receiptFile });
+        const cold = await child([self, "--stock-closeout-fixture", packet], "scope-cold-stock"); assert.equal(cold.exit_code, 0, cold.output);
+        assert.deepEqual(treeFiles(c.anchor), after); pass("fresh stock rereads the whole chain without reservation; export preserves bindings and refuses downgrades");
+      }
+    }
+  } finally {
+    if (c?.owner) c.m.releaseCheckoutVerificationOwnership(c.owner, c.checkout, { consumersSettled: active === 0 });
+    if (!active) settleCanonicalTestResourceUse(resource, { cleanup_completed: true, exit_observed: true, streams_closed: true, remaining_owned_processes: 0 });
+    assert(cleanupCanonicalTestResources([resource])[0].completed);
+  }
+  console.log(JSON.stringify({ closeout_scope_correction: checks, group, count: checks.length, synthetic_authority_only: true, cleanup_complete: true }));
 }
