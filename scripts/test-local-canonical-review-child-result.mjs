@@ -1,3 +1,4 @@
+import { AUXILIARY_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,13 +14,13 @@ let inFlight = false;
 beginCanonicalTestResourceUse(owner);
 try {
   for (const control of [
-    { id: "review-child-acceptance", fixture: "local-canonical-review-child-acceptance.mjs", argument: path.join(scripts, "test-local-canonical-review-corrections.mjs"), schema: "augnes.review-owner-child-acceptance-regression.v0.1" },
-    { id: "review-child-adverse", fixture: "local-canonical-review-child-adverse.mjs", argument: scripts, schema: "augnes.review-child-adverse.v0.1" },
+    { id: "review-child-acceptance", timeoutMs: AUXILIARY_EXECUTION_BUDGETS.reviewAcceptanceFixtureMs, fixture: "local-canonical-review-child-acceptance.mjs", argument: path.join(scripts, "test-local-canonical-review-corrections.mjs"), schema: "augnes.review-owner-child-acceptance-regression.v0.1" },
+    { id: "review-child-adverse", timeoutMs: AUXILIARY_EXECUTION_BUDGETS.reviewAdverseFixtureMs, fixture: "local-canonical-review-child-adverse.mjs", argument: scripts, schema: "augnes.review-child-adverse.v0.1" },
   ]) {
     let output = "", overflow = false;
     inFlight = true;
     const result = await runCanonicalChild({ suite: "review-child-result", label: control.id, command: process.execPath,
-      args: [path.join(scripts, "fixtures", control.fixture), control.argument], cwd: owner.root, env, timeoutMs: 12000,
+      args: [path.join(scripts, "fixtures", control.fixture), control.argument], cwd: owner.root, env, timeoutMs: control.timeoutMs,
       stdout: { write(chunk) { output += chunk.toString(); if (output.length > 32000) { overflow = true; output = ""; } } },
       stderr: { write() {} }, log() {} });
     inFlight = !(result.exit_observed && result.streams_closed && result.cleanup_completed && result.remaining_owned_processes === 0);

@@ -18,6 +18,7 @@ import { createPrivateReviewExport, inspectPrivateReviewExport } from "../local-
 import { finalizeReceipt, inspectReceiptForDecision } from "../local-canonical-receipt.mjs";
 import { baseReceipt } from "./local-canonical-receipt-v3.mjs";
 import { assertReviewChildLifecycle, projectReviewChildResult } from "./local-canonical-review-child-result.mjs";
+import { AUXILIARY_EXECUTION_BUDGETS } from "../local-canonical-closeout-budgets.mjs";
 
 const self = fileURLToPath(import.meta.url), repository = path.resolve(path.dirname(self), "../..");
 const write = (file, value) => writeFileSync(file, typeof value === "string" ? value : JSON.stringify(value), { mode: 0o600 });
@@ -28,6 +29,26 @@ const label = "Companion lost-ownership retirement and reconciliation regression
 // route concerns; no private receipt, log, witness or authority is embedded.
 const priorSource = "68742a2f14d2a69e2835cf68437dc276acf08008";
 const repairSource = "a47c77746de213748d68ed0831221c2ddf321520";
+function auxiliarySuiteRows() {
+  const source = readFileSync(path.join(repository, "scripts/run-canonical-test-suite.mjs"), "utf8");
+  const rows = new Map();
+  for (const [name, key] of [
+    ["executor", 'label: "local Canonical executor identity and scheduling contract"'],
+    ["receipt", 'label: "local Canonical receipt integrity and staleness contract"'],
+    ["review", 'id: "local-canonical-review-corrections"'],
+    ["acceptance", 'id: "local-canonical-review-child-result"'],
+    ["timeout", 'id: "local-canonical-corrected-timeout"'],
+    ["condition", 'id: "local-canonical-condition-requalification"'],
+    ["guide", 'id: "local-canonical-guide-correction"'],
+    ["companion", 'id: "local-canonical-companion-timeout"'],
+  ]) {
+    const start = `    {\n      ${key}`, at = source.indexOf(start);
+    assert(at >= 0 && source.indexOf(start, at + 1) === -1, `one actual auxiliary registration: ${name}`);
+    const end = source.indexOf("    },\n", at); assert(end > at);
+    rows.set(name, source.slice(at, end + "    },\n".length));
+  }
+  return rows;
+}
 const save = c => write(c.file, c.proof);
 const proof = c => readSourceCorrectionProof(c.file, c.checkout);
 const rebindSource = c => {
@@ -189,10 +210,19 @@ async function make(root) {
   // a registry change. The candidate must retain all of them and the older task.
   git("checkout", "-b", "synthetic-accepted-main", acceptedBase);
   for (const name of ["condition-requalification", "guide-correction"]) write(path.join(checkout, `scripts/local-canonical-${name}.mjs`), `// synthetic accepted-main ${name} owner\n`);
-  write(path.join(checkout, "scripts/run-canonical-test-suite.mjs"), registration + "\n// synthetic accepted-main registration\n");
+  const auxiliaryRows = auxiliarySuiteRows(), legacyRows = new Map([...auxiliaryRows].map(([name, row]) => [name,
+    row.replace(/timeoutMs: [^,\n]+,/u, `timeoutMs: ${["executor", "receipt", "review"].includes(name) ? `CLOSEOUT_EXECUTION_BUDGETS.${name}HarnessMs` : "30_000"},`)]));
+  const budgetImport = 'import { CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";\n';
+  const amendedImport = 'import { AUXILIARY_EXECUTION_BUDGETS, CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";\n';
+  const mainRegistry = registration + "\n// synthetic accepted-main registration\n";
+  const acceptedSuite = budgetImport + mainRegistry + [...legacyRows].filter(([name]) => name !== "companion").map(([, row]) => row).join("");
+  write(path.join(checkout, "scripts/run-canonical-test-suite.mjs"), acceptedSuite);
+  // The budget module is accepted-main content, not a new v7 policy exemption.
+  writeFileSync(path.join(checkout, "scripts/local-canonical-closeout-budgets.mjs"), readFileSync(path.join(repository, "scripts/local-canonical-closeout-budgets.mjs")));
   const base = commit();
   git("checkout", branch);
   git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "merge", "--no-edit", base);
+  write(path.join(checkout, "scripts/run-canonical-test-suite.mjs"), acceptedSuite + legacyRows.get("companion"));
   write(path.join(checkout, "scripts/local-canonical-companion-timeout-succession.mjs"), "// synthetic bounded policy owner\n");
   const head = commit(), tree = git("rev-parse", "HEAD^{tree}").toString().trim();
   const artifact = (name, value) => { if (Buffer.isBuffer(value)) writeFileSync(path.join(folder, name), value); else write(path.join(folder, name), value); return { artifact: name, sha256: digest(readFileSync(path.join(folder, name))) }; };
@@ -213,7 +243,8 @@ async function make(root) {
       environment_observation: "after_runs_only", initial_manager_announcement: "unchanged_unproved" },
     authorization: null, pull_request: 999, budget: { initial: 1, recovery: 0 },
     source_scope: inspectCompanionSourceScope(checkout, { acceptedBase, repairHead, base, head }) };
-  const c = { checkout, anchor, owner, git, commit, delta, family, receipt, proof: p, folder, file: path.join(folder, "proof.json"), logRelative, acceptedBase, priorHead };
+  const c = { checkout, anchor, owner, git, commit, delta, family, receipt, proof: p, folder, file: path.join(folder, "proof.json"), logRelative, acceptedBase, priorHead,
+    auxiliaryRows, amendedImport, authorizedSuite: amendedImport + mainRegistry + [...auxiliaryRows.values()].join("") };
   c.authority = authority(p); save(c); return c;
 }
 
@@ -246,7 +277,7 @@ export async function companionTimeoutSuccessionControls(group = "all") {
   const child = async (args, controlId) => {
     active++; let output = "";
     const result = await runCanonicalChild({ suite: "companion-timeout-succession-fixture", label: "synthetic fixture", command: process.execPath, args, cwd: owner.root,
-      env: buildCanonicalChildEnvironment({ temporaryRoot: owner.root }), timeoutMs: 4000,
+      env: buildCanonicalChildEnvironment({ temporaryRoot: owner.root }), timeoutMs: AUXILIARY_EXECUTION_BUDGETS.nestedChildMs,
       stdout: { write: chunk => output = (output + chunk).slice(-2000) }, stderr: { write: chunk => output = (output + chunk).slice(-2000) }, log() {} });
     if (result.cleanup_completed && result.exit_observed && result.streams_closed && result.remaining_owned_processes === 0) active--;
     console.log("AUGNES_COMPANION_TIMEOUT_FIXTURE_CHILD " + JSON.stringify(projectReviewChildResult(result, { controlId })));
@@ -355,6 +386,14 @@ export async function companionTimeoutSuccessionControls(group = "all") {
       pass("final natural completion summary is required");
     }
     if (["all", "source"].includes(group)) {
+      const suitePath = "scripts/run-canonical-test-suite.mjs", companionRow = c.auxiliaryRows.get("companion");
+      c.git("checkout", "-b", "synthetic-authorized-auxiliary-budgets", saved.head);
+      write(path.join(c.checkout, suitePath), c.authorizedSuite);
+      c.proof.head = c.commit(); c.proof.tree = c.git("rev-parse", "HEAD^{tree}").toString().trim();
+      rebindSource(c); save(c);
+      assert(proof(c), "actual current auxiliary rows and shared selectors preserve every non-budget source byte");
+      assert(!existsSync(edge), "source inspection must not reserve");
+      resetProof(); c.git("checkout", saved.branch); pass("accept actual authorized auxiliary budget selectors with matching Git inventories");
       for (const [name, file, replacement, action] of [
         ["unrelated", "scripts/unrelated.mjs", "export const unrelated=true;\n"],
         ["workload", COMPANION_RETAINED_SOURCES[0], "// removed the actual workload\n"],
@@ -368,6 +407,11 @@ export async function companionTimeoutSuccessionControls(group = "all") {
         ["removed-accepted-condition", "scripts/local-canonical-condition-requalification.mjs", null, "delete"],
         ["changed-accepted-guide", "scripts/local-canonical-guide-correction.mjs", "// discarded accepted-main GuideBrief implementation\n"],
         ["discarded-main-registry", "scripts/run-canonical-test-suite.mjs", c.git("show", `${saved.repair.head}:scripts/run-canonical-test-suite.mjs`).toString()],
+        ["auxiliary-wrong-selector", suitePath, c.authorizedSuite.replace(companionRow, companionRow.replace("AUXILIARY_EXECUTION_BUDGETS.companionHarnessMs", "AUXILIARY_EXECUTION_BUDGETS.groupMs"))],
+        ["auxiliary-wrong-command", suitePath, c.authorizedSuite.replace(companionRow, companionRow.replace('"--companion-timeout-controls"', '"--condition-requalification-controls"'))],
+        ["auxiliary-weaker-acceptance", suitePath, c.authorizedSuite.replace(companionRow, companionRow.replace("requireNaturalExit: true", "requireNaturalExit: false"))],
+        ["auxiliary-duplicate-registration", suitePath, c.authorizedSuite + companionRow],
+        ["auxiliary-unknown-import", suitePath, c.authorizedSuite.replace(c.amendedImport, c.amendedImport.replace('"./local-canonical-closeout-budgets.mjs"', '"./unrelated-budgets.mjs"'))],
       ]) {
         c.git("checkout", "-b", `synthetic-${name}`, saved.head);
         if (action === "delete") rmSync(path.join(c.checkout, file));
@@ -385,7 +429,7 @@ export async function companionTimeoutSuccessionControls(group = "all") {
         assert(refusal, "changed candidate must be refused");
         const expectedCode = ["reverted-accepted-to-base", "deleted-accepted-addition", "deleted-accepted-existing", "changed-accepted-mode", "workload", "assertions"].includes(name)
           ? "companion_timeout_accepted_task_changed" : ["removed-accepted-condition", "changed-accepted-guide", "unrelated", "owner"].includes(name)
-            ? "companion_timeout_unrelated_candidate_delta" : name === "discarded-main-registry" ? "companion_timeout_unrelated_registration_changed" : "companion_timeout_registration_invalid";
+            ? "companion_timeout_unrelated_candidate_delta" : name === "discarded-main-registry" || name.startsWith("auxiliary-") ? "companion_timeout_unrelated_registration_changed" : "companion_timeout_registration_invalid";
         assert.equal(refusal.code, expectedCode, name);
         console.log("AUGNES_COMPANION_SOURCE_SCOPE_CONTROL " + JSON.stringify({ name, refusal_code: refusal.code, head: c.proof.head, tree: c.proof.tree,
           delta_sha256: c.proof.delta_sha256, final_delta_sha256: c.proof.final_delta.delta_sha256,

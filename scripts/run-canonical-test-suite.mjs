@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
+import { AUXILIARY_EXECUTION_BUDGETS, CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1445,35 +1445,35 @@ const suites = {
       id: "local-canonical-review-corrections",
       label: "shared executable roles, actual Browser consumers and reviewed candidate succession",
       ...rootNode("scripts/test-local-canonical-review-corrections.mjs"),
-      timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.reviewHarnessMs,
+      timeoutMs: AUXILIARY_EXECUTION_BUDGETS.reviewHarnessMs,
       requireNaturalExit: true,
     },
     {
       id: "local-canonical-review-child-result",
       label: "review child natural completion, bounded diagnostics and intentional cancellation controls",
       ...rootNode("scripts/test-local-canonical-review-child-result.mjs"),
-      timeoutMs: 30_000,
+      timeoutMs: AUXILIARY_EXECUTION_BUDGETS.reviewChildResultHarnessMs,
       requireNaturalExit: true,
     },
     {
       id: "local-canonical-corrected-timeout",
       label: "reviewed corrected-timeout succession and terminal allowance",
       ...rootNode("scripts/test-local-canonical-review-corrections.mjs", "--corrected-timeout-controls"),
-      timeoutMs: 30_000,
+      timeoutMs: AUXILIARY_EXECUTION_BUDGETS.timeoutHarnessMs,
       requireNaturalExit: true,
     },
     {
       id: "local-canonical-condition-requalification",
       label: "prospectively authorized condition requalification and single-use evidence",
       ...rootNode("scripts/test-local-canonical-review-corrections.mjs", "--condition-requalification-controls"),
-      timeoutMs: 30_000,
+      timeoutMs: AUXILIARY_EXECUTION_BUDGETS.conditionHarnessMs,
       requireNaturalExit: true,
     },
     {
       id: "local-canonical-guide-correction",
       label: "reviewed GuideBrief correction after terminal condition qualification",
       ...rootNode("scripts/test-local-canonical-review-corrections.mjs", "--guide-correction-controls"),
-      timeoutMs: 30_000,
+      timeoutMs: AUXILIARY_EXECUTION_BUDGETS.guideHarnessMs,
       requireNaturalExit: true,
     },
     {
@@ -1487,7 +1487,7 @@ const suites = {
       id: "local-canonical-companion-timeout",
       label: "prospective Companion readiness timeout succession and terminal allowance",
       ...rootNode("scripts/test-local-canonical-review-corrections.mjs", "--companion-timeout-controls"),
-      timeoutMs: 30_000,
+      timeoutMs: AUXILIARY_EXECUTION_BUDGETS.companionHarnessMs,
       requireNaturalExit: true,
     },
     {

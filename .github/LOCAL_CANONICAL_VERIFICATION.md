@@ -2037,3 +2037,90 @@ namespace and one-Full/zero-recovery budget apply. Every historical packet,
 receipt, disposition and consumed flag remains intact; stock inspection is
 read-only and cannot reserve a successor. Independent final source/policy and
 evidence judgment remains separate.
+
+
+### Authenticated expansion to the complete auxiliary verifier hierarchy
+
+The user's prospective supplement [6542798089](https://github.com/hynk-studio/augnes/pull/1560#issuecomment-6542798089), recorded at
+2026-10-31T11:30:00Z, expands the previous new-closeout-only budget scope to the
+related new and legacy auxiliary verifier family. It supplements comments
+`6537722343` and `6541370652`; it does not rewrite either record or approve
+future source. Preserve Full9 head `4f6a73e49d8b392f499e6cdb1ff4b0bea03a829b`,
+receipt `7e07679f38295786e13d16af2d4826467fc0772ce9b6995aa56f8231092867d6`,
+6 PASS / 1 FAIL / 9 NOT_RUN, unit 68 PASS, separate stock 14/nondeciding and
+complete cleanup. The legacy v7 source control's 6,075ms SIGTERM timeout and
+its enclosing natural failures remain distinct. Its cause and original blocked
+operation remain UNKNOWN; the later information-seeking timeout does not
+identify that original operation.
+
+Use the existing budget module and execution owners. The original
+`CLOSEOUT_EXECUTION_BUDGETS` values remain unchanged for closeout groups and
+the executor/receipt harnesses. Its historical default-review value remains in
+old proof evidence. The additional `AUXILIARY_EXECUTION_BUDGETS` declaration
+owns prospective legacy/default auxiliary execution:
+
+| Auxiliary orchestration owner | Prospective bound |
+| --- | ---: |
+| Legacy v4/v5/v6/v7 group | 20,000ms |
+| Nested legacy synthetic process / ordinary review helper | 10,000ms |
+| Observer succession / observer controls | 60,000ms / 20,000ms |
+| Complete default review | 300,000ms |
+| Complete v4 / v5 / v6 / v7 flag-specific parent | 180,000ms / 120,000ms / 150,000ms / 240,000ms |
+| Review acceptance / adverse fixture | 30,000ms / 12,000ms |
+| Complete review-child-result parent | 60,000ms |
+
+The complete executor and receipt remain 120,000ms and 90,000ms, and the Full
+authority phase remains 2,400,000ms. The finite map accounts for actual selected
+work, setup, fresh validation, real contention and cleanup with reserve. It is
+not an adaptive extension or a promise that summing every nested maximum is a
+measured runtime. Freeze the declared values before focused and deciding
+execution; retain every unfavorable result. Product/protocol response limits,
+intentional timeout/cancellation cases, authority expiration and process-cleanup
+safeguards stay unchanged. Preserve output quarantine and natural-exit refusal.
+
+Normal admission uses the existing continuation schema, kind, `scope_amendment`
+modifier and exclusive successor namespace. There is no new failure profile,
+module, consumed flag or generic timeout exception. The actual new comment
+identity selects its own declaration, complete owner-observation digest and
+source binding. Existing `6541370652` packets, the ordinary-v2 source revision,
+recorded bounds and all prior consumed edges keep their historical meaning.
+Live authorization authenticates original continuing scope and this new
+supplement, current permission and exact published Draft PR/base/head. Retained
+local records are evidence, not signatures or independent review.
+
+This declaration binds the exact settled Full9 predecessor, seven original
+receipt/attempt/completion/edge/authority-log/stock artifacts and its complete
+unchanged predecessor proof. The nested timeout is preserved as such; it is not
+passed through the natural-failure source-revision relation. Its source scope
+preserves the accepted 34-path task union, compatible accepted-main content,
+all product/behavior source and unrelated owners. Only the finite auxiliary
+budget/wiring/registration-guard paths and this existing authority owner/document
+may change. Frozen wiring hashes, typed inventories and complete native deltas
+bind the final tree. The v7 registration comparison may account only for the
+explicit authorized auxiliary rows/import/selectors; all remaining registration
+bytes, absent paths, row identity/order, commands, flags, natural-exit criteria
+and separate product 60-second registration remain protected.
+
+Before qualification, retain complete natural PASS evidence on final source
+bytes for executor, receipt, default review, review with each of
+`--corrected-timeout-controls`, `--condition-requalification-controls`,
+`--guide-correction-controls`, `--companion-timeout-controls`, and the complete
+review-child-result parent. Use each actual registered Node/tsx invocation and
+its own frozen parent bound, with full cleanup and before/after source checks.
+The existing validation manifest records all eight commands and their exact
+flags; one default PASS cannot substitute for a separately registered branch.
+Reused unchanged adverse controls must still refuse invalid authority, altered
+evidence, assertion failures, deliberate overrun, output leakage and incomplete
+cleanup. Historical mechanism witnesses need no rerun for this budget change.
+
+Only the exact latest settled Full9 may acquire this amended edge through
+normal checkout/capacity/authority/input admission: one Full, zero recovery.
+Old v7 and Full1–Full9 consumption remains intact. Copied proof/comment,
+interruption, changed head/branch or a second claimant does not renew it. The
+normal final-head planner, all selected Full/Browser workload, fresh stock and
+owned cleanup remain mandatory. A later failure is retained and requires a
+substantive supported remedy and a truthful applicable authority relation; this
+budget declaration grants no unchanged retry or automatic escalation. Final
+source/policy and results still await the commissioned independent judgment.
+Keep the issue OPEN, PR Draft and auto-merge disabled; merge, Ready, release,
+deployment and installed adoption remain unauthorized.

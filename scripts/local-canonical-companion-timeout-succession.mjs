@@ -60,6 +60,45 @@ const json = bytes => { try { return JSON.parse(bytes.toString("utf8")); } catch
 const evidenceKey = p => { const value = { ...p }; delete value.local_relative_path; return digest(value); };
 export const isCompanionTimeout = p => p?.schema === COMPANION_TIMEOUT_SCHEMA && p.kind === "companion_readiness_timeout";
 
+// Prospective auxiliary-budget normalization only. Product registrations and
+// every other byte still compare against the proof's actual accepted-main Git
+// source. Historical literals remain valid; no old execution is re-timed.
+function normalizeAuxiliarySuiteBudgets(source) {
+  const definitions = [
+    [null, "local Canonical executor identity and scheduling contract", '"scripts/test-local-canonical-executor.mjs"', false, ["CLOSEOUT_EXECUTION_BUDGETS.executorHarnessMs"]],
+    [null, "local Canonical receipt integrity and staleness contract", '"scripts/test-local-canonical-receipt.mjs"', false, ["CLOSEOUT_EXECUTION_BUDGETS.receiptHarnessMs"]],
+    ["local-canonical-review-corrections", "shared executable roles, actual Browser consumers and reviewed candidate succession", '"scripts/test-local-canonical-review-corrections.mjs"', true, ["CLOSEOUT_EXECUTION_BUDGETS.reviewHarnessMs", "AUXILIARY_EXECUTION_BUDGETS.reviewHarnessMs"]],
+    ["local-canonical-corrected-timeout", "reviewed corrected-timeout succession and terminal allowance", '"scripts/test-local-canonical-review-corrections.mjs", "--corrected-timeout-controls"', true, ["AUXILIARY_EXECUTION_BUDGETS.timeoutHarnessMs"]],
+    ["local-canonical-condition-requalification", "prospectively authorized condition requalification and single-use evidence", '"scripts/test-local-canonical-review-corrections.mjs", "--condition-requalification-controls"', true, ["AUXILIARY_EXECUTION_BUDGETS.conditionHarnessMs"]],
+    ["local-canonical-guide-correction", "reviewed GuideBrief correction after terminal condition qualification", '"scripts/test-local-canonical-review-corrections.mjs", "--guide-correction-controls"', true, ["AUXILIARY_EXECUTION_BUDGETS.guideHarnessMs"]],
+    ["local-canonical-companion-timeout", "prospective Companion readiness timeout succession and terminal allowance", '"scripts/test-local-canonical-review-corrections.mjs", "--companion-timeout-controls"', true, ["AUXILIARY_EXECUTION_BUDGETS.companionHarnessMs"]],
+    ["local-canonical-review-child-result", "review child natural completion, bounded diagnostics and intentional cancellation controls", '"scripts/test-local-canonical-review-child-result.mjs"', true, ["AUXILIARY_EXECUTION_BUDGETS.reviewChildResultHarnessMs"]],
+  ];
+  let normalized = source;
+  const bindings = new Set();
+  for (const [id, label, args, natural, selectors] of definitions) {
+    const row = budget => `    {\n${id ? `      id: "${id}",\n` : ""}      label: "${label}",\n      ...rootNode(${args}),\n      timeoutMs: ${budget},\n${natural ? "      requireNaturalExit: true,\n" : ""}    },\n`;
+    let count = 0;
+    for (const budget of ["30_000", ...selectors]) {
+      const exactRow = row(budget), occurrences = normalized.split(exactRow).length - 1;
+      count += occurrences;
+      if (occurrences && budget !== "30_000") bindings.add(budget.split(".")[0]);
+      normalized = normalized.replaceAll(exactRow, row("30_000"));
+    }
+    if (count > 1) fail("companion_timeout_unrelated_registration_changed");
+  }
+  const imports = [
+    ['import { CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";\n', ["CLOSEOUT_EXECUTION_BUDGETS"]],
+    ['import { AUXILIARY_EXECUTION_BUDGETS, CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";\n', ["CLOSEOUT_EXECUTION_BUDGETS", "AUXILIARY_EXECUTION_BUDGETS"]],
+  ];
+  const present = imports.filter(([line]) => source.includes(line));
+  if (present.length > 1 || present.some(([line]) => source.split(line).length !== 2) ||
+      (bindings.size && (present.length !== 1 || [...bindings].some(name => !present[0][1].includes(name)))) ||
+      (present.length && !bindings.size)) fail("companion_timeout_unrelated_registration_changed");
+  if (present.length) normalized = normalized.replace(present[0][0], "");
+  return normalized;
+}
+
 export function companionArtifact(folder, ref, maximum = 512 * 1024) {
   if (!keys(ref, ["artifact", "sha256"]) || typeof ref.artifact !== "string" ||
       !/^[a-z0-9_-]+\.(?:json|mjs|log|py|patch)$/u.test(ref.artifact) || !sha(ref.sha256)) fail("companion_timeout_evidence_reference_invalid");
@@ -384,10 +423,11 @@ export function readCompanionTimeoutEvidence(file, p, repositoryRoot) {
     return matches[0][0];
   };
   if ([p.repair.head, p.base, p.head].some(head => registration(prior.head) !== registration(head))) fail("companion_timeout_workload_changed");
-  // This route may register its new controls, but may not quietly replace any
-  // other suite registration, budget or natural-exit requirement.
+  // Only the closed auxiliary budget selectors above may differ. Commands,
+  // acceptance, product bounds and unrelated accepted-main bytes remain exact.
   const controlRow = '    {\n      id: "local-canonical-companion-timeout",\n      label: "prospective Companion readiness timeout succession and terminal allowance",\n      ...rootNode("scripts/test-local-canonical-review-corrections.mjs", "--companion-timeout-controls"),\n      timeoutMs: 30_000,\n      requireNaturalExit: true,\n    },\n';
-  const acceptedSuite = source(p.base, "scripts/run-canonical-test-suite.mjs").toString(), finalSuite = source(p.head, "scripts/run-canonical-test-suite.mjs").toString();
+  const acceptedSuite = normalizeAuxiliarySuiteBudgets(source(p.base, "scripts/run-canonical-test-suite.mjs").toString()),
+    finalSuite = normalizeAuxiliarySuiteBudgets(source(p.head, "scripts/run-canonical-test-suite.mjs").toString());
   if (finalSuite !== acceptedSuite && (finalSuite.split(controlRow).length !== 2 || finalSuite.replace(controlRow, "") !== acceptedSuite)) fail("companion_timeout_unrelated_registration_changed");
   const e = p.evidence;
   if (!keys(e, ["fixture", "launcher", "before", "after", "focused", "owners", "environment_observation", "execution_inventory", "cleanup"]) ||
