@@ -1877,3 +1877,63 @@ live input monitor remain required. Normal ownership, capacity, planning,
 Full/Browser selection, cleanup and fresh stock gates still apply. Final source
 and results await the commissioned independent audit; this implementation and
 its retained evidence do not claim that audit or merge/adoption authority.
+
+### One measured scope-fixture preparation correction after Full6
+
+Candidate `168167204f4c6b66961f7bdbac730ce7bde444e8` settled as
+`product_failure`: Full 6 PASS / 1 FAIL / 9 NOT_RUN, complete cleanup and
+separate nondeciding stock with 14 issues. All 68 unit children passed. The
+executor child naturally passed in 26,278ms, including instruction admission
+at 5,388ms. The authority phase naturally failed in 87,853ms; its receipt child
+naturally failed in 11,562ms after scope-correction admission exceeded its
+6,000ms bound and settled at 6,072ms with SIGTERM. Preserve those distinct
+lifecycle levels and the UNKNOWN historical blocking operation/cause.
+
+The existing continuation schema adds only
+`issue_1559_scope_fixture_preparation_correction`, bound to family
+`65d35261679ffdcafdf6edcb86e86c3e8168b92bf6aae07c69a6c2c8e4acf7a9`,
+attempt `2026-10-31T06-59-09-045Z-full-168167204f4c-3fab428373fcf10d`,
+receipt `9929314dae211c24f891f9ba213bdf332e3b8688ddedbcafc62631d47350f244`,
+and completion `2026-10-31T07:10:32.711Z`. The original seven artifacts and
+complete prior capability proof remain hash-bound and are revalidated. The
+original authenticated continuing scope remains comment `6537722343`; no new
+user grant or completed independent review is invented.
+
+One diagnostic naturally passed in 5,331ms and identified 168 redundant Git
+calls, about 1,599ms, while re-admitting initial and operational synthetic
+history during scope-fixture setup. The fixture now uses its existing history
+seeding option for that preparation. Its current proof, authenticated authority,
+admission, race, cold stock, source guards and cleanup still use the real owners.
+The initial and operational admission controls remain independently exercised.
+A self-consistent rehashed malformed seeded operational-authority control reaches
+`closeout_scope_correction_original_binding_invalid`.
+
+The one corrected observed child naturally passed in 3,791ms under the same
+6,000ms bound. Historical setup replay calls fell from 168 to zero; the current
+scope proof and each race contender's fresh admission retained 76 Git calls.
+Separate existing bounded controls passed for scope evidence, scope stock,
+initial admission and operational admission in 2,542ms, 4,266ms, 2,160ms and
+2,823ms respectively. These are retained development observations, not a
+reproduced historical timeout, an environment-equality claim or final-source
+independent review. Observer overhead is unmeasured, and parallel elapsed Git
+sums are not additive wall time. The exact corrected fixture SHA-256 is
+`32c5fbeaf32438bf06b533e699c3bc24e9fb5f6534e670662576951f08058f63`.
+
+The finite profile binds that whole fixture and its exact native delta, the
+47 retained evidence artifacts and all five corrected controls. Its source
+inspection preserves the production Git/tree reader and complete admission
+body; the issued-capability guard only adds this distinct profile. No Git cache,
+source-scope algorithm, registration, workload or deadline changes are admitted
+by this correction. The complete accepted 33-path inventory against
+`bbb7dee536817fe4b7f28f5353a1d88f56c7e44d`, bounded current-main reconciliation,
+existing ten policy paths, frozen current instructions and live input guard
+remain required.
+
+Only the exact settled Full6 capability record may precede this correction.
+All prior consumed flags remain true; one exclusive edge permits one Full and
+zero recovery, then this profile is terminal. Interruption, copied authority,
+proof/head/branch changes and successor chaining do not renew it. Normal
+ownership, capacity, source, Full/Browser planning, cleanup and fresh stock
+checks remain active. Final source and execution results still require the
+commissioned independent audit; merge, Ready, auto-merge, deployment and
+installed adoption remain unauthorized.

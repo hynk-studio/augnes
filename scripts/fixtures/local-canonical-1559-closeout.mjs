@@ -124,7 +124,7 @@ const begin = (c, p, authorization, extra = {}) => c.m.beginAttempt({ anchorRoot
   sourceCorrection: p, closeoutAuthorization: authorization,
   ...(c.m.isCloseoutInstructionReplacement?.(p) ? { closeoutInputs: c.frozenInputs } : {}), ...extra });
 
-// Continuation and instruction controls seed their explicitly synthetic prior
+// Continuation, scope and instruction controls seed their synthetic prior
 // history. Initial-route controls still exercise that route's real admission.
 // Each current profile's production proof reader revalidates the full history;
 // its own admission, exclusive claims and cold stock keep the real owners.
@@ -851,7 +851,7 @@ async function makeScopeCorrection(root, { instructionPredecessor = false } = {}
   const needle = "  const original = continuationOriginalEvidence(folder, p, repositoryRoot), git = gitAt(repositoryRoot), source = json(closeoutArtifact(folder, p.final_source));";
   assert.equal(beforeSource.split(needle).length, 2, "one exact predecessor reader insertion point");
   const mechanismAfter = beforeSource.replace(needle, "  validateCloseoutContinuationSourceScope(p.source_scope);\n" + needle);
-  const c = await makeContinuation(root, { policyOwnerSource: beforeSource, syntheticHistory: instructionPredecessor });
+  const c = await makeContinuation(root, { policyOwnerSource: beforeSource, syntheticHistory: true });
   const predecessorProof = structuredClone(c.proof);
   const prior = await fixtureHistoricalAttempt(c, "synthetic-operational-continuation-before-scope-correction");
   assert(c.m.validCloseoutAttempt(prior));
@@ -900,6 +900,23 @@ async function makeScopeCorrection(root, { instructionPredecessor = false } = {}
   bindScopeCorrectionCandidate(c, head); return c;
 }
 
+async function scopeOriginalAuthorityRefusal(c) {
+  const p = structuredClone(c.proof), original = Object.fromEntries(Object.entries(p.originals).map(([key, ref]) =>
+    [key, key.endsWith("log") ? readFileSync(path.join(c.folder, ref.artifact), "utf8") : read(path.join(c.folder, ref.artifact))]));
+  original.attempt.closeout_authority.closeout_scope.id++;
+  original.receipt.attempt = structuredClone(original.attempt);
+  original.receipt = c.m.finalizeReceipt(original.receipt);
+  const fingerprint = original.receipt.integrity.content_fingerprint;
+  original.completion.receipt_fingerprint = fingerprint; original.stock.content_fingerprint = fingerprint; original.stock_log = JSON.stringify(original.stock);
+  p.prior_receipt_fingerprint = fingerprint;
+  for (const [key, value] of Object.entries(original)) p.originals[key] = c.artifact(p.originals[key].artifact, value);
+  const pins = { ...c.scopePins, prior_receipt_fingerprint: fingerprint,
+    originals: Object.fromEntries(Object.entries(p.originals).map(([key, ref]) => [key, ref.sha256])) };
+  const root = path.join(path.dirname(c.controlRoot), "semantic-scope-original-authority"); copyControlSources(root, c.pins, c.continuationPins, pins);
+  const m = await import(pathToFileURL(path.join(root, ownerPath)).href);
+  assert.throws(() => m.readCloseoutEvidence(c.file, p, c.checkout), error => error.code === "closeout_scope_correction_original_binding_invalid");
+}
+
 export async function closeoutScopeCorrectionControls(group = "evidence") {
   assert(["evidence", "admission", "stock"].includes(group));
   const resource = createCanonicalTestResourceRoot("ag-resource-test-"); beginCanonicalTestResourceUse(resource);
@@ -939,6 +956,8 @@ export async function closeoutScopeCorrectionControls(group = "evidence") {
       }
       rmSync(path.join(c.folder, saved.originals.completion.artifact)); assert.throws(() => proof(c)); restore(saved.originals.completion.artifact);
       pass("missing original and changed mechanism/raw observations refuse before admission");
+      await scopeOriginalAuthorityRefusal(c); restore(...Object.values(saved.originals).map(ref => ref.artifact));
+      pass("self-consistent synthetic seeded-operational-authority: closeout_scope_correction_original_binding_invalid");
       await assert.rejects(authorize(c, validated, (record, url) => url.includes("/comments/") ? { ...record, updated_at: time(-500) } : record));
       await assert.rejects(authorize(c, validated, (record, url) => url.endsWith("/permission") ? { ...record, permission: "read" } : record));
       assert.throws(() => c.m.assertCloseoutAuthorization(validated, { observations: authorized.observations }, read(path.join(c.family, "completion-1.json"))));
