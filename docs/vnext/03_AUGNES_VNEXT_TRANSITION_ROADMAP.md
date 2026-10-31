@@ -689,6 +689,17 @@ do not replace them with one parent/child tree. New runtime semantics belong in
 [02](./02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md) with their concrete owner;
 product choices and claim-specific evidence remain with 01 and 04.
 
+For succession planning, distinguish ordinary changes to roles, participants,
+task division or executors within existing supported paths and grants from a
+change of decision principal or undertaking boundary. #1382/#1215 retain the
+latter question: a concrete use case or approved capability may justify a scoped
+succession or split/combination contract in 02. Such a contract must account for
+purpose, outstanding commitments, data-use rights, committed resources and
+destination authority. The current local direction principal-change refusal is
+an implementation boundary, not a product rule that an execution subject must
+stay fixed. This clarification adds no runtime semantics, implementation
+assignment or public-entry prerequisite.
+
 Connect existing responsibilities as follows:
 
 | Existing responsibility | Connection to implement in the first flow |
@@ -841,8 +852,9 @@ The reviewed v1.1 local candidate (L1) narrows existing
 [#1214](https://github.com/hynk-studio/augnes/issues/1214) execution/method ownership
 to one ordinary work path: **current material -> meaningful question and action
 selection -> permitted actual work -> result-informed update -> fresh re-entry**.
-Status: **Next / scoped; implementation assignment and new observations
-NOT_STARTED**. [#1215](https://github.com/hynk-studio/augnes/issues/1215) owns the
+Status for the complete L1 candidate: **Next / scoped; whole-flow implementation
+assignment and new whole-flow observations NOT_STARTED**.
+[#1215](https://github.com/hynk-studio/augnes/issues/1215) owns the
 relevant succession evidence. Select one coherent implementation task when
 assigned, without creating a parallel roadmap or five separate phase issues.
 The [undertaking development sequence](#development-and-operation-sequence--2026-10-25)
@@ -852,6 +864,14 @@ Its v0.2 integration targets current-source reading, actual authorized work,
 result interpretation and necessary fresh-executor use in one assignment, with
 guidance, implementation, checks and return together. Do not make the continuity
 case a requirement that one-time public use acquire state or invent follow-up.
+
+Related partial work is assigned in
+[#1561](https://github.com/hynk-studio/augnes/issues/1561) /
+[Draft PR #1562](https://github.com/hynk-studio/augnes/pull/1562): native Companion
+preparation of eligible local result-linked successor work. Those owners retain
+the current implementation, diagnosis and qualification status. This narrower
+work does not establish complete L1 implementation, general usefulness or
+installed adoption; this roadmap link creates no additional assignment.
 
 The implementation must connect four responsibilities through existing owners:
 
