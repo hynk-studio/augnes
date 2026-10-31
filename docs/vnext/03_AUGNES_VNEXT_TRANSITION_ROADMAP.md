@@ -455,6 +455,159 @@ real evidence. Existing trials, budgets and dispositions remain with their owner
 Systematic comparative benefit
 and an automated modeling subsystem remain unestablished.
 
+### Non-model harness capability readiness — 2026-10-31
+
+Under P4 [#1214](https://github.com/hynk-studio/augnes/issues/1214), execution
+choice [#1443](https://github.com/hynk-studio/augnes/issues/1443), succession
+[#1215](https://github.com/hynk-studio/augnes/issues/1215) and coordination
+[#1426](https://github.com/hynk-studio/augnes/issues/1426), prepare how the
+[whole non-model responsibility and cooperation model](./01_AUGNES_VNEXT_MASTERPLAN.md#non-model-harness-responsibility)
+applies to existing Augnes owners. This is source-backed planning preparation,
+not a new phase, runtime implementation, installed qualification or live fallback.
+Model/API behavior and supplier-injected model policies remain external
+conditions; harness policy, context, execution and control remain within the
+design scope even when harness and model share a supplier.
+
+The immediate outcome is an intention contract: under hypothetical conditions,
+the intended direct work, substitution, contribution and later reuse must be
+representable without changing their authority or evidence meaning. Private
+solo use is a complete path. An external customer, public marketplace, first
+local runner, live provider call or new framework is not a prerequisite.
+Current/Next assignments, #1561/#1562 successor work, #1545 security work,
+#1464's completed SIMPLIFY/adaptive-memo default, research allocations and their
+verification/authority boundaries remain unchanged. This section assigns none
+of the follow-up candidates below to those tasks.
+
+#### Existing owners and exact limits
+
+The following source map joins existing responsibilities, not new Core records
+or a proposed universal workflow. Source implementation, authored declaration,
+synthetic observation and actual deployment evidence remain separate.
+
+| Existing owner / source | Usable relation | Limit to preserve |
+|---|---|---|
+| [Project direction and grants](../../lib/vnext/project-direction.ts), [current-work binding](../../lib/vnext/runtime/project-work-binding.ts) | Continuing purpose, criteria, constraints, current authority, bounded direction changes, parent contribution and return. | Direction grants are not execution or resource grants. A parent link is not a complete ownership, sponsorship, sharing or commission model. |
+| [OperatingProfile](../../plugins/augnes-operator/mcp/operating-profile.mjs) | Declared roles/executors/principals, inputs, dependencies, return/check/use responsibilities, direct/asset/delegated/non-use alternatives, requested permissions and budgets. | `observe_recommend` only. Preview establishes neither identity, capability, applicability, permission, arrangement selection nor execution. A declared budget is not a reservation. |
+| [Execution choice](../../plugins/augnes-operator/mcp/execution-choice.mjs) and [manual contribution](../../plugins/augnes-operator/mcp/manual-contribution.mjs) | Ordinary source notes link expectation and explicit choice to bounded request, preserved return, attributed checking and use/partial use/retention/deferral/decline judgments, and follow-up. One profile step may be pinned to a manual request. | Preparation is not dispatch or a correctness oracle. Manual attribution is not authenticated identity; role closure is not credential withdrawal. The one-note profile bound remains smaller than standalone profile input. |
+| [Request-bound review](../../plugins/augnes-operator/mcp/request-bound-review.mjs) and existing review/use writers | Configured scoped request/read/reply and returned material feed attributable use under their current bindings. | A configured connection is not verified competence, capacity or commitment. These bounded review and manual paths do not establish general automatic subcontracting. |
+| [Scoped external response](../../lib/vnext/external-response.ts), [terms](../../lib/vnext/external-response-rules.mjs), [transport](../../lib/vnext/external-response-transport.mjs) | Exact work/input/terms, proposed or acknowledged conditions, returned material, distinct check/use, shared experience/correction and envelope accounting/reconciliation. | The contract supports an aggregate operation at loopback, not general outsourcing, redelegation, payment or settlement. Checks/use are attributed consumer statements. Send and reconciliation both require the current envelope and remaining call allowance. |
+| [Conditional methods](../../lib/vnext/prospective-agenda.ts), [composition cases](../../types/vnext/strategy-composition-case.ts), [ordinary later-task use](#current-first-execution-choice-and-participation-loop-1443) | Conditional applicability, supporting/conflicting material, actor-free research components and explicitly selected contribution use in a distinct same-project task. | No general method/offer registry or automatic cross-project transfer follows. Research composition is not actor deployment, an accepted strategy or causal superiority. |
+| [NativeHostAdapter](../../types/vnext/native-host-adapter.ts), [static composition](../../lib/vnext/native-host/native-host-execution-composition.ts), [execution envelope](../../lib/vnext/repository-execution/repository-execution-envelope.ts), [same-run resume](../../lib/vnext/repository-execution/repository-managed-resume.ts) | Trusted adapter seam, bounded host lifecycle and repository execution under current admission owners. | Production defaults to Codex; scoped binding is Codex-specific. No runtime-selectable registry, qualified alternative coding executor or inherited replacement authority is established. |
+
+The [Model Gateway](../../lib/vnext/model-gateway/contracts.ts) supplies
+closed-purpose structured calls with a per-invocation limit of zero or one,
+not an iterative coding loop. The [legacy autonomy runner](../../lib/autonomy/runner.ts)
+performs bounded deterministic local operations, not independent model-driven
+coding. [Succession fixtures](../../fixtures/vnext/research/model-host-succession-benchmark-v0-1.ts)
+model alternate routes with zero real provider calls; their existence is not
+live alternate-host or automatic fallback evidence. These are current-source
+observations, not new test results or claims about the installed Mac.
+
+#### Independent dimensions and smallest missing connections
+
+Do not introduce one status combining role assignment, permission, capability,
+availability, accepted commitment, execution, returned material, checking/use and
+visibility. Each can change while the others remain unchanged. In particular,
+the state of the project, participant and particular contribution is not one
+shared parent/child state machine. Follow [01's policy and participation scope](./01_AUGNES_VNEXT_MASTERPLAN.md#non-model-harness-responsibility)
+for the governing principles; use the following gaps to select bounded work.
+
+| Connection to make explicit in an affected case | Existing foothold and narrow unresolved relation |
+|---|---|
+| Restriction scope and commissioning right | Direction constraints, requested permissions and execution grants supply separate footholds. Distinguish who issued a restriction, whose action/resource it covers, direct performance versus commissioning, and conditions that travel with data or a subcontract. Do not infer a global veto or commissioning permission from a direct-performance limit. |
+| Contribution commitment, redelegation and unfinished work | Existing request/return/use and scoped external-response owners preserve bounded terms, results and unfinished work. Model original delivery responsibility, allowed subcontract/data scope and resource accounting separately from a new participant's agreement. Whether limited confirmation/cleanup can remain authorized after new-work permission expires or is withdrawn is an explicit gap: the current external reconciliation path shares envelope validity and call limits. Neither closure nor replacement discharges obligations or revives an expired grant. |
+| Visibility and acceptance | Keep discovering a capability, receiving requests, accepting this task, publishing its result and disclosing internal methods independent. Existing selected-source/manual disclosure controls are a foothold, not a public-offer service or proof of availability. |
+| Agreed return and attribution | Describe the proposed benefit, contributor/beneficiary, applicable condition and who may accept it. Money, resources, reciprocal contribution and attributable reputation need not wait for platform monetization; a description proves neither entitlement, reservation, payment nor fulfillment. |
+| Episode → method → current offer → new use | Bind the original work/result/judgment separately from a reusable conditional method, a participant's current terms/capacity, and a new task's actual use and judgment. Preserve versions and contrary cases; success does not copy actors, permission, private material, availability or superiority into a new use. |
+
+These are missing distinctions to exercise, not five required databases or
+schemas. Ordinary bounded notes or authored scenario inputs may suffice.
+Where an existing owner deliberately lacks a relation, record that gap rather
+than claiming it is enforced by prose or forcing incompatible fields into its
+strict contract. In-scope automatic commissioning is a permitted normal target
+under [01](./01_AUGNES_VNEXT_MASTERPLAN.md#non-model-harness-responsibility), not a
+claim that the present preparation/review paths already implement it.
+
+#### Application order and completion conditions
+
+1. **Fix the intended behavior before mechanisms.** Use the paired hypothetical
+   cases in [04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#non-model-harness-qualification-evidence):
+   each affected case states what must be possible and what must not be inferred
+   or automatically promoted. Completion means the relevant policy/owner,
+   action, material, changing condition and expected independent states are
+   explicit, including a sufficient direct/non-use path. It does not require
+   selecting a public customer journey or obtaining real demand.
+2. **Project onto current owners and bounded fixtures.** Map those expectations
+   to the profile, notes, choice, request/return/check/use, direction/grant and
+   host owners above. A fixture contains only case-specific inputs, assumed or
+   supplied observations and expected results; it is not a new domain registry.
+   Completion means each relation is represented by an existing owner or named
+   as an unresolved gap, with focused positive/negative assertions planned or
+   implemented as separately authorized. A hypothetical execution stays an
+   assumption, never an executed `observe_recommend` profile or live receipt.
+3. **Specify only the missing relation.** If ordinary composition cannot preserve
+   the intended distinction, propose the smallest producer/consumer contract
+   and its enforcing owner, compatibility and affected evidence. Completion
+   means a reviewable bounded change or an explicit retain/simplify decision,
+   not a mandatory new Core type, framework or universal state machine. Any new
+   protocol semantics require a separately authorized 02 change alongside their
+   concrete implementation; this preparation changes neither 02 nor runtime.
+4. **Implement and qualify only an authorized increment.** Select an actual
+   change from the established gap: it may improve interpretation, manual or
+   automated contribution, method reuse, a host adapter or an owned executor.
+   Completion means its affected intentions and non-promotions are checked,
+   observed limits and unfinished work are returned, and the next decision is
+   supported. Select only affected cases, not the entire matrix for every PR.
+   Runtime/live/installed/adoption claims require their own evidence under 04;
+   no such claim or authority follows from this modeling preparation.
+
+The first proposed follow-up package is a bounded scenario/consumer contract,
+not a live executor build: distinguish direct-performance limits from project-wide
+or commissioning limits; preserve private participation and separate compensation;
+then carry an attributed method into a new task without transferring authority.
+Use actual current validators/readers wherever they cover the relation, retaining
+unsupported relations explicitly. Its return is an intent-to-owner-to-case map
+and the smallest justified change proposal, including a no-change result when
+ordinary composition suffices. Later contribution/redelegation, selective asset
+use and harness replacement increments can be chosen from that map; this order
+neither reassigns current work nor requires all hypothetical cases before any
+approved capability proceeds. Concrete fields, tests and files remain a
+source-first implementation choice, not a speculative schema prescribed here.
+
+#### Whole non-model coverage and replacement readiness
+
+Retain the whole responsibility map while selecting small increments. The routes
+below are options to assess, not mandatory components or implemented replacement
+claims. A first runner, if justified, is an increment rather than a capability
+ceiling or prerequisite for cooperation, continuity or modeling.
+
+| Responsibility | Augmentation or replacement option | Affected evidence when that option is implemented |
+|---|---|---|
+| Host policy and prompt assembly | Supported settings/hooks or controlled prompt/host policy for Augnes-owned execution. | Intended/applied behavior, origin and scope; conflicts and unavailable host information remain visible without forced participant-policy override. |
+| Context, compaction and memory | Selected-source/retrieval controls or owned context and working-memory management. | Changed-task applicability, omissions/staleness and checked output, not host self-report alone. |
+| Tools, permissions and isolation | Adapters and supported controls or owned mediation using qualified isolation components. | Allowed/denied effects, credential and egress limits, actual process coverage. |
+| Agent loop, planning, delegation and scheduling | Bounded host invocation or controlled iteration and attributable child work. | Task/result and child accounting with applicable commitments and aggregate limits preserved. |
+| Lifecycle and recovery | Better observation/handoff or owned stop/settlement and fresh-executor succession. | Reconciled uncertain effects, settled children and genuine new-run identity; same-run resume remains distinct. |
+| Resources, authentication and data | Narrow credentials/telemetry or enforced resource admission and data mediation. | Remaining limits survive replacement; actual, estimated and unavailable usage stay distinct. |
+| Artifacts and verification | Task-specific validators or a host-independent artifact/check pipeline. | Actual outputs/diffs, supported checks and unresolved failures; completion is not semantic acceptance. |
+| Observation and upgrades | Inspect/pin supported configuration or replace the affected runtime layer. | Recheck affected contracts after harness, configuration, tool or environment changes. |
+
+Prefer sufficient configuration, extensions and maintained reusable components
+before bespoke code. A wrapper using the same host is not an independent loop;
+a pinned/modified implementation gives control over that implementation, not
+independence from its codebase. Specify the failure/control dimension being
+replaced and preserve supported behavior, data and rollback. An approved unmet
+capability or control need can justify replacement before an emergency; retain
+or simplify when existing composition suffices. No clean-room Native Runner,
+universal router/plugin framework or custom OS sandbox is selected here.
+
+Private local execution, participant-owned workers and shared execution remain
+separate deployment choices. A later shared service needs its own tenant,
+credential, resource and lifecycle qualification; it is not a prerequisite for
+web planning or this model. Keep ordinary small-model/abductive inquiry and its
+budgets independent. No historical lab, accepted disposition or trial allocation
+is reopened, and no provider-policy investigation or live call is authorized.
+
 ### Current application priorities — 2026-10-19
 
 The user-approved research application strengthens continuous work, cumulative
