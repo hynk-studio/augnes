@@ -1546,6 +1546,17 @@ as committed with unavailable readback, not rolled back; a fresh authorized read
 resolves an uncertain acknowledgement. See the detailed
 [accounting and recovery contract](../DATABASE_ACCESS_LIFECYCLE.md#accumulated-native-history-refusal-and-preservation-1439).
 
+Direction projection, packet interpretation, parent traversal and direction-history
+recovery reuse validated rows only inside their synchronous read invocation and
+SQLite snapshot. They retain caller-owned transactions and otherwise open a read
+transaction; human and agent GET authenticate and read in the same transaction.
+Complete row and overflow checks still precede historical filtering, while
+decision-chain checks use the requested inclusive cutoff. The private reader
+loads only histories required by the existing traversal and does not memoize its
+visited set. It is discarded before returning: another read, including withdrawal
+readback after commit, reads fresh state. No persisted checkpoint or cross-request
+cache is introduced, and the existing history limits remain unchanged.
+
 The issuer can also explicitly renew selected existing projects for
 the same logical role. Renewal ends the old capability, retains history, specifies
 current exact child/parent revisions and issues a new bounded credential; the

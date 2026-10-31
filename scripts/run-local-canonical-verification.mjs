@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+import { CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
+import { isAnyCloseout, authorizeCloseout } from "./local-canonical-1559-closeout.mjs";
+import { isCompanionTimeout, authorizeCompanionTimeout } from "./local-canonical-companion-timeout-succession.mjs";
 import { isGuideCorrection, authorizeGuideCorrection } from "./local-canonical-guide-correction.mjs";
 
 import { isObserverRepair, authorizeObserverRepair } from "./local-canonical-observer-succession.mjs";
@@ -131,6 +134,9 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/local-canonical-attempts.mjs",
   "scripts/local-canonical-observer-succession.mjs",
   "scripts/local-canonical-timeout-succession.mjs",
+  "scripts/local-canonical-companion-timeout-succession.mjs",
+  "scripts/local-canonical-1559-closeout.mjs",
+  "scripts/local-canonical-closeout-budgets.mjs",
   "scripts/local-canonical-condition-requalification.mjs",
   "scripts/local-canonical-guide-correction.mjs",
   "scripts/local-canonical-evidence-retention.mjs",
@@ -508,6 +514,10 @@ export async function executeLocalCanonicalVerification({
   const sourceCorrection = sourceCorrectionProofPath ? readSourceCorrectionProof(resolveArtifactPath(sourceCorrectionProofPath), repositoryRoot) : null;
   if (isObserverRepair(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
     throw Object.assign(new Error("observer_full_route_required"), { code: "observer_full_route_required" });
+  if (isAnyCloseout(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
+    throw Object.assign(new Error("closeout_full_route_required"), { code: "closeout_full_route_required" });
+  if (isCompanionTimeout(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
+    throw Object.assign(new Error("companion_timeout_full_route_required"), { code: "companion_timeout_full_route_required" });
   if (isCorrectedTimeout(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
     throw Object.assign(new Error("timeout_full_route_required"), { code: "timeout_full_route_required" });
   if (isConditionRequalification(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
@@ -749,6 +759,12 @@ export async function executeLocalCanonicalVerification({
             const observerAuthorization = isObserverRepair(sourceCorrection) ? await authorizeObserverRepair(sourceCorrection) : null;
             if (observerAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
             if (observerAuthorization && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("observer_workload_invalid"), { code: "observer_workload_invalid" });
+            const closeoutAuthorization = isAnyCloseout(sourceCorrection) ? await authorizeCloseout(sourceCorrection, { frozenInputs: inputs.snapshot() }) : null;
+            if (closeoutAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
+            if (closeoutAuthorization && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("closeout_workload_invalid"), { code: "closeout_workload_invalid" });
+            const companionTimeoutAuthorization = isCompanionTimeout(sourceCorrection) ? await authorizeCompanionTimeout(sourceCorrection) : null;
+            if (companionTimeoutAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
+            if (companionTimeoutAuthorization && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("companion_timeout_workload_invalid"), { code: "companion_timeout_workload_invalid" });
             const timeoutAuthorization = isCorrectedTimeout(sourceCorrection) ? await authorizeCorrectedTimeout(sourceCorrection) : null;
             if (timeoutAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
             if (timeoutAuthorization && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("timeout_workload_invalid"), { code: "timeout_workload_invalid" });
@@ -764,7 +780,7 @@ export async function executeLocalCanonicalVerification({
               branch: identityBefore.branch, head: headSha, tree: inputs.snapshot().binding.tree, runId,
               contractFingerprint: inputs.snapshot().fingerprint, acceptedMain: baseSha,
               recoveryProof: recoveryProofPath ? readRecoveryProof(resolveArtifactPath(recoveryProofPath)) : null,
-              sourceCorrection, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization,
+              sourceCorrection, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization, companionTimeoutAuthorization, closeoutAuthorization, closeoutInputs: inputs.snapshot(),
               browserReplacement, browserAuthorization,
               browserLive: browserInput ? browserReplacementLiveBinding({ browserInput, host, machineFingerprint, nodePolicy, executorFingerprint, phaseDefinitions, inputs: inputs.snapshot() }) : null });
             pinVerificationEvidence({ root: repositoryRoot, checkoutOwner, runId, reason: "attempt_family" });
@@ -1415,6 +1431,27 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
   if (isObserverRepair(receipt.attempt?.source_correction)) {
     try { observerAuthorization = await authorizeObserverRepair(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
   }
+  let closeoutAuthorization = null;
+  if (isAnyCloseout(receipt.attempt?.source_correction)) {
+    try {
+      const saved = receipt.attempt.source_correction;
+      const observed = readSourceCorrectionProof(path.join(repositoryRoot, saved.local_relative_path ?? ""), repositoryRoot);
+      if (digest(observed) !== digest(saved)) throw new Error("closeout_stock_proof_changed");
+      closeoutAuthorization = await authorizeCloseout(observed, { frozenInputs: receipt.inputs });
+    } catch { /* fresh stock refuses changed evidence or unavailable authority */ }
+  }
+  let companionTimeoutAuthorization = null;
+  if (isCompanionTimeout(receipt.attempt?.source_correction)) {
+    try {
+      // A fresh stock process has no evidence capability from admission.
+      // Re-read the exact local proof and all retained evidence before auth;
+      // this inspection cannot create or repair a successor reservation.
+      const saved = receipt.attempt.source_correction;
+      const observed = readSourceCorrectionProof(path.join(repositoryRoot, saved.local_relative_path ?? ""), repositoryRoot);
+      if (digest(observed) !== digest(saved)) throw new Error("companion_timeout_stock_proof_changed");
+      companionTimeoutAuthorization = await authorizeCompanionTimeout(observed);
+    } catch { /* stock refuses changed evidence or unavailable authority */ }
+  }
   let timeoutAuthorization = null;
   if (isCorrectedTimeout(receipt.attempt?.source_correction)) {
     try { timeoutAuthorization = await authorizeCorrectedTimeout(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
@@ -1429,7 +1466,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
   }
   return inspectReceiptForDecision(receipt, {
     currentInputStateValid: [4, 5].includes(receipt.receipt_version) ? currentInputEvidenceValid(receipt, verificationContext, validationHost.browserExecutablePath, browserInput) : null,
-    currentAttemptRecordsValid: [4, 5].includes(receipt.receipt_version) ? inspectAttemptRecords({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, receipt, browserAuthorization, browserLive, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization }) : null,
+    currentAttemptRecordsValid: [4, 5].includes(receipt.receipt_version) ? inspectAttemptRecords({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, receipt, browserAuthorization, browserLive, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization, companionTimeoutAuthorization, closeoutAuthorization }) : null,
     currentBrowserInputValid: browserInput ? digest(browserInput.publicBinding) === digest(receipt.browser_input) && !existsSync(path.join(repositoryRoot, ".augnes-local-verification/browser-input-active.json")) : null,
     currentVerificationContext: verificationContext,
     expectedRunId: path.basename(receiptPath, ".json"),
@@ -1468,7 +1505,7 @@ function quickPhases() {
       command: process.execPath,
       args: ["scripts/test-local-canonical-executor.mjs"],
       display: "node scripts/test-local-canonical-executor.mjs",
-      timeoutMs: 60_000,
+      timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.executorHarnessMs,
     }),
     phaseDefinition({
       id: "local-receipt-contract",
@@ -1476,7 +1513,7 @@ function quickPhases() {
       command: process.execPath,
       args: ["scripts/test-local-canonical-receipt.mjs"],
       display: "node scripts/test-local-canonical-receipt.mjs",
-      timeoutMs: 60_000,
+      timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.receiptHarnessMs,
     }),
     phaseDefinition({
       id: "local-canonical-contract",
@@ -1522,7 +1559,7 @@ function operatingPolicyPhases({ baseSha, headSha }) {
       command: process.execPath,
       args: ["scripts/test-local-canonical-executor.mjs"],
       display: "node scripts/test-local-canonical-executor.mjs",
-      timeoutMs: 60_000,
+      timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.executorHarnessMs,
     }),
     phaseDefinition({
       id: "operating-policy-receipt-contract",
@@ -1530,7 +1567,7 @@ function operatingPolicyPhases({ baseSha, headSha }) {
       command: process.execPath,
       args: ["scripts/test-local-canonical-receipt.mjs"],
       display: "node scripts/test-local-canonical-receipt.mjs",
-      timeoutMs: 60_000,
+      timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.receiptHarnessMs,
     }),
     phaseDefinition({
       id: "operating-policy-verification-contract",

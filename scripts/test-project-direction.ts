@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { testDirectionRevocation } from "./project-direction-revocation-checks";
+import { testDirectionHistoryReuse } from "./project-direction-history-checks";
 import { runCanonicalChild, canonicalChildAcceptanceFailure } from "./canonical-child-runner.mjs";
 import { authenticateDirectionAgent, discoverAgentProjects } from "../lib/vnext/runtime/project-direction";
 import { mkdtempSync, mkdirSync, realpathSync, writeFileSync, readFileSync, rmSync, renameSync } from "node:fs";
@@ -428,4 +429,4 @@ async function main() {
     console.log(JSON.stringify({ project_direction: "pass", scoped_discovery: "complete", fresh_process_discovery: true, missing_discovery_rows: "refused", human_focus_recents_unchanged: true, journeys: ["authenticated_human", "independent_agent_role", "delegated_child"], consumer_path: "ordinary work -> direction -> source inspection preparation -> explicit authorization -> arm -> real files -> receipt -> reentry -> successor", model_calls: 0, usefulness: "not_measured", proposal_preserved: !!proposal.record, cleanup: "owned temporary database and roots removed in finally" }));
   } finally { await host?.live.shutdown(); db.close(); rmSync(root, { recursive: true, force: true }); }
 }
-void main().then(testDirectionRevocation).catch(error => { console.error(error); process.exitCode = 1; });
+void main().then(testDirectionRevocation).then(testDirectionHistoryReuse).catch(error => { console.error(error); process.exitCode = 1; });

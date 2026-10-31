@@ -1041,6 +1041,96 @@ meaning; readers unaware of v4 gain no allowance. Raw historical records are
 never rewritten, phase stitching remains forbidden, and a passing development
 fixture or source hash alone is neither qualification nor independent approval.
 
+### Prospective Companion readiness timeout succession (source proof v7)
+
+`augnes.local-canonical-source-correction.v7` with kind
+`companion_readiness_timeout` is a distinct route for the independently accepted
+`owned_child_readiness_exit_without_setup_cleanup` fixture repair. It does not
+extend ordinary v1/v2, observer v3, structural-schema v4, condition v5 or
+GuideBrief v6 eligibility. The inadmissible d825 Companion v5 draft is retained
+unchanged as historical material, not dispatched as main condition v5. Its
+finite source profile is the prior and accepted bytes of
+`scripts/test-companion-ownership-retirement.mjs` recorded by
+`local-canonical-companion-timeout-succession.mjs`. The nine original scenarios,
+three adverse cases, copied Companion owners, lifecycle owner, 60,000 ms child
+bound and natural-exit acceptance remain unchanged.
+
+The original must be the latest settled Full16 isolated-worktree predecessor:
+five PASS, the unit phase's natural exit 1, ten NOT_RUN, preserved input/safety
+flags, released leases and complete cleanup. The complete untruncated unit log
+must show exactly one nested timeout: the Companion child, after eight scenario
+action-PASS messages, with observed exit/closed streams and complete cleanup.
+The outer unit timeout remains false; the nested child timeout remains true.
+Unknown historical operation/cause and the original `product_failure` remain
+unchanged. Missing, ambiguous, additional failed workloads, unresolved
+input/safety faults, unknown cleanup and older/superseded predecessors refuse.
+
+This route expressly accepts the retained diagnostic records' actual limits. One
+bridge-readiness regression used identical fixture/launcher bytes and exact
+prior/corrected source snapshots: prior natural FAIL and corrected natural PASS,
+with complete cleanup; the final focused child covered nine original scenarios
+and three adverse cases. Those executions preceded the accepted repair commit,
+whose source bytes match the retained snapshot. Private HOME/temporary roots
+differed, and no original per-run environment fingerprint exists. A later
+environment observation is only that observation. These records are not
+post-commit Git-archive executions and do not satisfy the different v2/v4
+shared-environment witness contract. The initial manager supervisor-announcement
+boundary remains unproved. None of this identifies the historical timeout cause.
+
+A repository-relative proof binds original receipt/attempt/completion/full log,
+all retained raw diagnostic records and their limits, exact accepted repair,
+current base/final head/tree, and complete full-index native deltas and path
+inventories for predecessor-to-repair, predecessor-to-final and repair-to-final.
+The final delta is an implementation-owner binding, not independent policy
+review. Only the listed route policy/proof/attempt/executor/receipt/export and
+focused-test owners may change after the repair; other accepted task files and
+existing workload registrations are preserved against the authenticated current
+main plus the exact Companion control row. The accepted task inventory is
+derived from the original receipt base through the accepted repair and includes
+every path, even a path reverted to base or an accepted added file deleted from
+the final diff. Each non-policy path retains accepted presence, mode and bytes.
+Non-policy accepted-main changes must remain exact; divergent overlap with an
+accepted task change refuses with a concrete reconciliation conflict. Identical
+overlap is permitted. Current main must descend from the original base and be an
+ancestor of the final candidate. Main advancement is never treated as new
+review.
+
+The actual accepted-repair attestation, independent review of the corrected
+final policy source, and a distinct later prospective user grant must be
+authenticated through the existing bounded GitHub record/permission transport.
+Final policy review binds the exact final head/tree/base and complete deltas;
+the a47 review and d825 audit cannot substitute for review of future code.
+Preparation is staged: accepted-repair prose can be prepared without any remote
+review ID, then the final policy review and execution-grant bindings use actual
+returned references. Missing references never acquire placeholder IDs or
+admission authority. Review and grant bind the repair, predecessor, defect,
+retained fixture/launcher hashes and evidence limitations. The grant expressly
+covers policy implementation, one complete planner-selected Full, separate stock
+and zero recovery/retry. IDs, author, destination, source/body hashes,
+timestamps and current admin/maintain authority are checked. A Page,
+conversation approval, local JSON/flag or implementation-owner comment must not
+be fabricated or relabeled as the required remote review/grant record. Missing
+authenticated records block admission, not authorized source implementation or
+focused tests.
+
+The existing exclusive `correction-successor.json` namespace consumes this
+entire grant once. An interrupted reservation remains consumed; duplicate,
+concurrent, copied-proof/grant, changed head/branch/worktree, accepted-main
+integration and successor-chain attempts cannot renew it. A failed successor is
+terminal. Inspection, stock and export do not create or repair reservations.
+
+After focused normal/adverse/legacy controls, the final clean published source
+uses normal fresh Mac admission (authenticated main, registered checkout,
+Canonical runtime, ownership/capacity, frozen inputs and Companion preservation)
+and the unchanged planner's complete selected Full, including every selected
+Browser owner. There is no policy-only Full or routine intermediate approval. A
+usable failed receipt still gets separate stock validation and cleanup. Stock
+freshly revalidates the evidence, authority and immutable latest lineage. The
+private export retains bounded hashes/identities and limitations, never raw
+logs. Independent audit of this implementation and returned evidence remains
+required; this route grants no Ready, merge, release, deployment or adoption
+authority.
+
 ### Authorized condition requalification (source-correction namespace v5)
 
 `augnes.local-canonical-source-correction.v5`, kind
@@ -1405,3 +1495,632 @@ repository-specific product identity. This keeps the history suitable for a
 later separately authorized transfer. The current hard repository root/origin
 gate must be deliberately reviewed in separate work for the eventual
 destination; this repository does not contact or modify that destination.
+
+## Initial #1559 closeout after the exhausted Companion v7 attempt
+
+The authenticated user scope in PR #1560 comment `6537722343`, posted at
+`2026-10-31T02:21:00Z`, separately commissions completion of qualification and a
+subsequent independent ChatGPT merge decision. It does not renew the earlier
+v7 grant. The failed `9e7baa0042ead359745722caaa11c01ea1c8ddcc` attempt,
+its consumed incoming edge, `product_failure`, nested service-contract timeout,
+outer natural unit failure, stock findings, cleanup and UNKNOWN historical cause
+remain immutable.
+
+`scripts/local-canonical-1559-closeout.mjs` owns only the initial admission under
+that new scope. Its distinct `augnes.local-canonical-closeout.v1` proof of kind
+`issue_1559_closeout` is not a legacy source-correction witness or a generic
+unknown-timeout exception. The owner binds the complete original receipt,
+attempt, completion, incoming edge, untruncated unit log and separate stock by
+fixed hashes. It binds accepted efficiency source
+`fc46e56680100d130e7f61e948dd30447b0e609b`, its complete 27-path PR inventory,
+two exact repair files, retained development/adverse/comparison evidence and
+native deltas. Those retained comparisons naturally passed on both revisions;
+they are not a fabricated prior failure or evidence of the historical timeout's
+cause. The original 30-second child owner, all scenarios, identity and authority
+assertions, cleanup, and existing acceptance semantics remain unchanged.
+
+The actual receiving ChatGPT review completed at `2026-10-31T02:09:57Z`.
+Its retained Page blocks are hash-bound provenance, not a cryptographic signature
+or an invented GitHub review. The new authenticated scope explicitly attests the
+accepted repair and commissions the final policy/source preparation; this initial
+route does not require a fabricated additional pre-execution review. The final
+source manifest states `implementation_owner_not_independent_review`. The
+resulting policy, source and actual qualification evidence still require the
+subsequent independent audit and merge decision.
+
+The proof reader verifies accepted-task and current-main tree union identities,
+including files omitted from a final diff because they were deleted or reverted.
+Compatible authenticated main advancement is allowed; divergent nonpolicy
+accepted-source overlap fails closed. Only the named closeout policy, attempt,
+executor, receipt, export and focused-control owners may change. The accepted
+fixture files and complete suite registration stay exact. Proof inspection,
+export and separate stock validation are read-only and cannot reserve an attempt.
+Fresh authentication re-reads the exact comment identity, content, timestamp,
+current admin/maintain permission, and published Draft PR head/base with auto-merge
+disabled. Locally asserted approval flags and copied or modified comments do not
+satisfy this gate.
+
+Normal checkout ownership, capacity, pinned runtime, frozen inputs, Companion
+preservation and planner gates still apply. The exclusive successor namespace
+allows one initial complete planner-selected Full for this proof, with no
+unchanged retry or recovery under this initial route. An interrupted reservation
+remains consumed; changing branch, worktree, proof or source does not renew that
+initial allowance. Separate fresh-process stock must inspect the actual usable
+receipt, including a failed receipt, and all original results must be retained.
+
+This initial route does **not** declare the user's whole continuing closeout
+assignment a terminal zero-recovery grant. Any later execution would require a
+concrete relevant source correction or a policy-permitted environment remedy,
+focused verification, and separately evidence-validated normal continuation.
+No speculative continuation mechanism or automatic retry is introduced here.
+The spent v7 authorization remains spent regardless of that later judgment.
+Issue #1559 stays open and PR #1560 stays Draft with auto-merge disabled. Neither
+this route, a passing result, nor the later merge decision performs or authorizes
+an actual merge, Ready transition, release, deployment or installed adoption.
+
+### One evidenced operational-validation correction in the same closeout
+
+The initial closeout at `ac8d6f04eb272c3d2222f30dda26cec6d540d0a2`
+settled as `product_failure`: Full 5 PASS / 1 FAIL / 10 NOT_RUN and separate
+nondeciding stock with 15 issues. Its unit child, source-linked operational
+continuation, reached the unchanged 45-second bound and settled with SIGTERM
+at 45,107ms. The outer unit naturally exited 1 with `timed_out=false`.
+Cleanup completed. The original blocked operation and timeout cause remain
+UNKNOWN; another passing execution does not identify them.
+
+The same authenticated comment `6537722343` explicitly commissions relevant
+corrections and their focused verification before a further normal run. Its
+original `2026-10-31T02:21:00Z` timestamp predates this failure and is retained.
+It is continuing scope, not a later grant, an independent review of this new
+source, renewal of the earlier v7 authorization, or an unchanged retry.
+
+The existing closeout owner contains one finite additional profile:
+`augnes.local-canonical-closeout-continuation.v1`, kind
+`issue_1559_operational_validation_correction`. Its predecessor is only family
+`cf31595ef308fe280f426ffc3a30321444ecc1459fae8b845c6c6937bedcc372`,
+attempt `2026-10-31T03-27-52-978Z-full-ac8d6f04eb27-e3404ce46f8977b0`,
+receipt `64d0e0855d829e32ab930d930a95e9f584102f4332d97888086f1675f3161cae`,
+completed at `2026-10-31T03:31:49.212Z`. The exact receipt, attempt, completion,
+incoming edge, unit log and separate stock remain hash-bound originals. The
+initial closeout proof and all its older adjacent artifacts are revalidated
+without changing their content or initial-profile meaning.
+
+The demonstrated mechanism is repeated pure proposal validation within one
+synchronous history read. A prior information-seeking diagnostic naturally
+passed in 37.580 seconds. The corrected observation naturally passed in
+19.528 seconds: proposal validations fell from 6,177 to 1,819 while exact
+Decision/proposal relation checks remained 4,989. The observed history reads
+and private snapshot factories were both 34; provenance and writer counts,
+full workload assertions and cleanup remain retained. The two instrumenters
+differ because the shared relation evaluator moved; their distinct bytes and
+the common preload are bound, and reversing recorded insertions recovers
+the exact uninstrumented source. Inclusive timing measurements overlap and
+must not be summed. These single-host development observations establish the
+bounded cost correction, not the historical timeout cause or a reliability
+probability. Both observed samples passed; no prior failure is fabricated.
+
+Only the exact corrected hashes of `lib/vnext/review-decision.ts`,
+`lib/vnext/runtime/operator-pilot-review-material.ts`, and
+`scripts/vnext-protocol-conformance/review-decision.ts` are eligible. The
+prepared proposal belongs to one private immutable snapshot; every Decision,
+relation and live provenance read remains validated. The complete operational
+continuation child, suite/planner registrations, deadlines, lifecycle owners
+and all other nonpolicy source stay exact. Necessary changes to the existing
+named closeout policy/consumer/control owners are inventoried separately.
+Accepted source paths that disappear through deletion or reversion, newly
+introduced symlinks/gitlinks, and incompatible current-main overlap refuse.
+
+The fixed retained focused evidence comprises the corrected observed and plain
+whole child under 45 seconds, complete protocol conformance with 74 prepared
+relation differential/adverse cases under its existing 300-second bound,
+fresh-session semantic application under 30 seconds, and typecheck under
+300 seconds. All naturally passed and fully cleaned up. Each actual source
+snapshot and command remains bound; these were development overlays on ac8,
+not invented post-commit executions of the future final policy source.
+
+Normal fresh main, checkout, capacity, input, runtime and Companion checks still
+apply. The sole new exclusive edge is from that settled initial closeout to
+this exact evidenced correction. The initial and v7 consumed flags remain
+consumed; an interrupted reservation, copied proof/comment, different branch
+or worktree, cosmetic head, or another successor cannot renew this candidate.
+Its attempt retains `{initial: 1, recovery: 0}`; no allowance or record in an
+older family is reset. There is no generic UNKNOWN-timeout admission, generic
+continuation loop, new infrastructure classification, or exception for a
+future correction. A further unsupported case still requires its own concrete
+evidence and applicable normal authority within the user's continuing scope.
+
+Proof inspection and stock remain read-only. Fresh authentication re-reads
+the unchanged scope comment, current permission and exact published Draft
+head/base, with auto-merge disabled. The final source, this policy addition
+and actual results await the commissioned independent final audit. All
+16 phases and seven Browser owners still decide complete qualification;
+separate fresh stock must inspect the actual resulting receipt, including
+a failure. Merge, Ready, auto-merge, release, deployment and installed adoption
+remain unauthorized.
+
+### One evidenced source-scope precheck correction in the same closeout
+
+The operational-validation candidate
+`1d921d6adeedf52264485ae55480c25b0f05c53c` settled as `product_failure`:
+Full 6 PASS / 1 authority FAIL / 9 NOT_RUN, with separate nondeciding stock
+reporting 14 issues. Its six-second source-control child settled at 6,076ms
+with SIGTERM and `timed_out=true`. The containing executor test settled at
+9,993ms and authority phase at 59,896ms, both natural exit 1 with
+`timed_out=false`. All cleanup completed. The log contains the positive
+lineage check and four source-mutation refusals; the final weaker-bound
+refusal did not appear. The original blocked operation and timeout cause
+remain UNKNOWN.
+
+Under the same unchanged authenticated continuing scope, the existing
+`augnes.local-canonical-closeout-continuation.v1` schema recognizes the
+separate kind `issue_1559_source_scope_precheck_correction`. It is limited to
+family `2f6b8b2b065c50198d745438de42df410d1dc2032b231615ad4aca547abd3b82`,
+attempt `2026-10-31T04-12-51-606Z-full-1d921d6adeed-d08a657b5d51e362`,
+receipt `7d8875c0408b66125e54940133fcc0c8cf8dd3667009d9b9d6ff7767e83f2731`,
+completed at `2026-10-31T04:24:59.337Z`. Its receipt, attempt, completion,
+incoming edge, complete authority log and separate stock are fixed original
+artifacts. Its predecessor proof is read through the unchanged first-kind
+semantic checks, retaining the initial closeout and older v7 evidence.
+
+The only mechanism correction checks the declared source inventory before
+revalidating older evidence and invoking Git. A declaration already forbidden
+by the existing source rules can fail immediately. A declaration that passes
+this check still receives every original Git-derived inventory, native-delta,
+evidence, authority and cleanup check. A masked declaration over changed Git
+source must still refuse; declared inventory never becomes trusted source.
+The actual bounded before/after observations, original output and settlement,
+observer and fixture bytes, source snapshots and native mechanism delta are
+retained. A passing prior sample is not relabeled as failure. The final owner
+must retain the exact corrected reader function; final admission integration
+and its focused controls are separately bound to the final source, not called
+an independent source review.
+
+The single baseline and corrected samples naturally passed in 5.428 and
+3.994 seconds under the unchanged six-second child bound, with complete
+cleanup. Across the same five adverse mutations, Git subprocess counts fell
+from 66/67/66/67/67 to 22/23/22/23/23. The corrected sample also completed the
+additional masked-declaration refusal using 66 Git calls, demonstrating that
+the later source checks still run. The positive validation's Git-call count
+was unchanged. These observations establish less redundant refusal work;
+the baseline did not reproduce the historical timeout and neither sample
+identifies its blocked operation or a host-load cause.
+
+The full 32-path accepted task inventory is preserved, including all three
+operational-validation source hashes, service-contract efficiency changes and
+ownership-retirement fixture. Only the existing nine policy owners plus
+`scripts/test-local-canonical-receipt.mjs` are available to this new kind;
+the initial and first-kind path sets do not expand. The receipt test receives
+bounded normal/adverse controls within its existing registration. Suite,
+planner, lifecycle, deadlines and behavioral workload remain unchanged.
+
+Only this exact settled first-kind predecessor can acquire the new exclusive
+edge. All old consumed flags remain true, and the new case becomes terminal
+after its one reservation, including interruption. It retains
+`{initial: 1, recovery: 0}`. No old family is reset, no copied grant or cosmetic
+candidate creates another allowance, and no generic timeout or continuation
+exception is introduced. Normal fresh main, checkout, capacity, input,
+authentication and published Draft-source gates still apply. Proof and stock
+inspection remain read-only; all 16 phases, seven Browser owners and separate
+fresh stock are still required for qualification. This policy does not grant
+merge, Ready, auto-merge, release, deployment or installed-adoption authority.
+
+### One explicitly authorized reporting-instruction input replacement
+
+The source-scope candidate `69d09685566391034a2c8b48cddcbdfaebdd1ddc`
+settled as `safety_violation` after the whole-file user-instructions guard
+observed a real change. Its original Full result remains 5 PASS / 1 FAIL /
+10 NOT_RUN, with separate nondeciding stock reporting 17 issues and complete
+cleanup. The unit suite was cancelled, not timed out: 51 children naturally
+passed and the 52nd had started without a final child verdict. No outcome is
+invented for that interrupted child. The guard behaved according to policy;
+this replacement is not a verifier correction or infrastructure reclassification.
+
+The user then explicitly instructed Codex to resolve this instruction-input
+blocker and continue the closeout. Authenticated comment
+[`6539480565`](https://github.com/hynk-studio/augnes/pull/1560#issuecomment-6539480565),
+created at `2026-10-31T05:18:33Z`, records the exact instruction and Codex's
+publishing role. It supplements the original continuing scope; it is not an
+independent source review. The production owner re-reads its actual author,
+body, destination, timestamp, current permission and published Draft head/base.
+
+The existing continuation schema recognizes only the additional kind
+`issue_1559_instruction_input_replacement` for family
+`36607e4013b3b3347621a2eee5cddc94e99d8383ea879b4ba1b0c9274cb83d45`,
+attempt `2026-10-31T04-48-27-071Z-full-69d096855663-adb7a9586e65b27c`,
+receipt `7e1476437852d22b3a2ae0703fbe801cee8eda1bbddd13f6a275dac1c704826d`,
+completed at `2026-10-31T04:55:57.206Z`. Its complete originals, single
+instruction fault, absence of secondary faults, cleanup, predecessor proof
+and retained earlier evidence remain required. Another failed workload,
+different input fault, ambiguous cleanup or older predecessor is ineligible.
+
+The exact retained before/after instruction bytes are 11,769 / `d4289118…`
+and 13,875 / `f6297360…`; their full hashes and provenance are fixed by the
+owner. Byte comparison must show that only the Augnes Space reporting
+exception changed. Other authority, execution and preservation instructions
+remain exact. Filesystem-writer authentication is not claimed. The new
+allowance comes from the later direct user instruction, not from the reporting
+permission contained in the changed file.
+
+The normal executor freezes the actual current inputs and passes that same
+declaration to authorization and admission. Its fingerprint, candidate identity
+and exact safety resource location, file identity, bytes and hash are checked
+before reserving an edge. A separately read file or proof-supplied input does
+not replace this frozen declaration. The attempt retains a bounded hash-only
+footprint, also checked by receipt, fresh stock and private export. The live
+whole-file monitor remains unchanged; a later instruction change still faults
+and cancels normally. No global instruction file is restored or rewritten.
+
+All 33 accepted task paths remain preserved against the settled candidate,
+including paths absent from a later diff. Only the same ten named policy and
+control owners may change, with the existing bounded current-main union rule.
+Product semantics, service-contract efficiency, suite/planner registrations,
+assertions, deadlines and lifecycle owners remain unchanged. The existing
+exclusive successor namespace consumes this exact input replacement once,
+with `{initial: 1, recovery: 0}`. Earlier consumed flags and historical records
+stay intact. Interrupted reservation, copied proof or comment, another head,
+branch or worktree, recovery and further chaining cannot renew it.
+
+Focused controls cover evidence, authority, the real frozen-input handoff,
+continued live cancellation, exclusive consumption and fresh stock/export
+without reservation. Normal ownership, capacity, runtime, Companion, current
+main and all other input checks still apply. Complete Full16 and Browser7 plus
+separate fresh stock remain the qualification obligation. This prospective
+policy and its results await the user's commissioned independent final audit;
+merge, Ready, auto-merge, deployment and installed adoption remain unauthorized.
+
+### One measured fixture-preparation correction after Full4
+
+The instruction-replacement candidate `22842588d35b0679c7b851e9a2a503c52a4cadcc`
+settled as `product_failure`: Full 6 PASS / 1 FAIL / 9 NOT_RUN, with complete
+cleanup and separate nondeciding stock reporting 15 issues. All 68 unit children
+passed. The authority phase naturally exited 1 at 80,528ms; its executor-contract
+child reached the unchanged 30,000ms bound and settled at 30,074ms with SIGTERM.
+All six continuation-control children had passed. The instruction-admission
+child had started without a final result when its parent was terminated. Its
+result is not invented. The original blocking operation and cause remain UNKNOWN.
+
+The original authenticated continuing scope `6537722343` commissions relevant
+source corrections, their focused verification and minimal admission
+reconciliation. The instruction-specific allowance `6539480565` remains spent;
+it is retained provenance, not authority for another instruction replacement.
+The existing continuation schema adds only
+`issue_1559_fixture_preparation_correction`, pinned to family
+`38bee310216c09498824cc9f4b0a22fe5c60ea120ea8844658c51b1b0405c6b1`,
+attempt `2026-10-31T05-40-58-047Z-full-22842588d35b-cf3af53326eed21e`,
+receipt `e7c7bb60eb21c92f4b0877fd45eba623255ebd6a4cd49c12565eea9562720e17`,
+completed at `2026-10-31T05:52:10.384Z`. Original receipt, attempt, completion,
+incoming edge, authority log, stock and prior instruction proof stay hash-bound.
+
+The correction removes redundant initial-route admission from explicitly
+synthetic history preparation in the continuation controls. Initial-route
+controls still perform actual admission, and each current continuation retains
+its complete production proof read, authentication, admission, race, stock and
+cleanup behavior. A new self-consistent, rehashed malformed historical-authority
+control confirms that seeded history is still validated. The exact measured
+fixture SHA-256 is
+`c1c839ad3080fb25a1535f9fc36e4ecee9dde8f7342f8996f36ed140bd97d327`.
+
+One planned baseline/candidate comparison of the whole executor entry naturally
+passed in 27,074ms and 24,176ms under the same 30,000ms bound. All 92 prior named
+controls remained; the candidate added one adverse control. Six continuation
+groups totaled 20,795ms and 17,794ms; instruction admission was 5,393ms and
+5,465ms. These single-host observations support the bounded preparation-cost
+correction, not a reproduced historical timeout, a reliability estimate or an
+environment-equality claim. Candidate main documentation reconciliation is
+retained separately. Both original samples, commands, source snapshots, logs,
+settlements and cleanup remain fixed evidence.
+
+Only this exact correction may follow the valid, settled Full4 instruction
+record. Its consumed flag and all earlier flags remain true. The same exclusive
+edge permits one new Full and zero recovery; this correction is terminal, and
+interruption, copied evidence, another head or a changed branch cannot renew it.
+The complete 33-path accepted inventory, exact measured fixture, bounded
+current-main union, frozen current-instruction identity and live monitor remain
+required. Normal source, ownership, capacity, lifecycle and stock checks remain
+active. No suite registration, workload, assertion or deadline is weakened.
+The authenticated record retains its original timestamp and publishing role;
+no new human text or independent review is invented. The commissioned final
+independent audit still covers the policy, source and complete execution result.
+
+### One measured issued-capability precheck correction after Full5
+
+The fixture-preparation candidate `9e33dda83633cb80b97822b493ad3ed1343f4f50`
+settled as `product_failure`: Full 6 PASS / 1 FAIL / 9 NOT_RUN, complete cleanup,
+and separate nondeciding stock reporting 14 issues. All 68 unit children passed.
+The authority phase naturally exited 1 at 79,650ms. Its executor child naturally
+exited 1 at 29,124ms; the nested instruction-admission child exceeded its unchanged
+6,000ms bound and settled at 6,104ms with SIGTERM. These lifecycle levels and the
+original unknown blocking operation remain separate.
+
+The existing continuation schema adds only
+`issue_1559_capability_precheck_correction`, tied to family
+`dedddb9849fcd307ddb8bd9e24c3ad6278d8d5b98250243fa10dbfe970e8d032`,
+attempt `2026-10-31T06-17-03-197Z-full-9e33dda83633-daa3cdc31f1b11cc`,
+receipt `c8acea3dd2eeae8d7393a160f58ff75fc5fcd8a80fd26290ddb1bf895d0b7149`,
+and completion `2026-10-31T06:28:17.880Z`. It retains the original receipt,
+attempt, completion, incoming edge, authority output, stock and complete prior
+proof. The authenticated continuing scope remains comment `6537722343`; the
+instruction-specific record and every earlier consumed allowance remain spent.
+
+One information-seeking diagnostic naturally passed in 5,489ms and demonstrated
+93 redundant Git calls before refusing a forged capability. A single corrected
+observation naturally passed in 4,586ms under the same 6,000ms bound; that refusal
+performed zero Git calls. A separate 3,340ms actual-owner control confirmed
+null, forged, reconstructed and mismatched capability refusals without proof or
+artifact reads. Genuine issued capabilities still reread the proof, reject a
+disk mutation after authentication, and perform all fresh positive validation.
+Both genuine race contenders retained 93 Git calls during admission. These are
+PASS-to-PASS measurements, not reproduction of the original timeout or an
+independent review. Observation overhead and differing private environment
+roots remain limitations; concurrent Git elapsed sums are not wall time.
+
+The early check only rejects capabilities absent from the owner's issuance
+WeakMap or mismatched to their exact proof and observations. It does not issue
+or repair authority, skip any valid-request proof read, or replace the full late
+authority, input and ledger checks. A future request invalid in both authority
+and disk evidence now reports the authority refusal first. Existing historical
+failure ordering is unchanged. The complete two-owner development snapshots,
+native delta, exact precheck and admission function, 37 retained artifacts and
+actual bounded settlements are bound separately from final policy integration.
+The measured `c1c839ad3080fb25a1535f9fc36e4ecee9dde8f7342f8996f36ed140bd97d327`
+fixture remains byte-identical; no controls, workload or deadlines are removed.
+
+Only this exact correction may follow the settled Full5 fixture record. All
+old consumed flags remain true, and one exclusive successor edge allows one
+Full with zero recovery. This new profile is terminal; copied proofs, grants,
+branches, interruptions or another head do not renew it. Its accepted source
+inventory is the 33-path Full5 delta against accepted main
+`bbb7dee536817fe4b7f28f5353a1d88f56c7e44d`, with compatible current-main changes
+preserved and only the existing ten policy paths eligible for reconciliation.
+Every other accepted source path, the frozen current-instruction identity and
+live input monitor remain required. Normal ownership, capacity, planning,
+Full/Browser selection, cleanup and fresh stock gates still apply. Final source
+and results await the commissioned independent audit; this implementation and
+its retained evidence do not claim that audit or merge/adoption authority.
+
+### One measured scope-fixture preparation correction after Full6
+
+Candidate `168167204f4c6b66961f7bdbac730ce7bde444e8` settled as
+`product_failure`: Full 6 PASS / 1 FAIL / 9 NOT_RUN, complete cleanup and
+separate nondeciding stock with 14 issues. All 68 unit children passed. The
+executor child naturally passed in 26,278ms, including instruction admission
+at 5,388ms. The authority phase naturally failed in 87,853ms; its receipt child
+naturally failed in 11,562ms after scope-correction admission exceeded its
+6,000ms bound and settled at 6,072ms with SIGTERM. Preserve those distinct
+lifecycle levels and the UNKNOWN historical blocking operation/cause.
+
+The existing continuation schema adds only
+`issue_1559_scope_fixture_preparation_correction`, bound to family
+`65d35261679ffdcafdf6edcb86e86c3e8168b92bf6aae07c69a6c2c8e4acf7a9`,
+attempt `2026-10-31T06-59-09-045Z-full-168167204f4c-3fab428373fcf10d`,
+receipt `9929314dae211c24f891f9ba213bdf332e3b8688ddedbcafc62631d47350f244`,
+and completion `2026-10-31T07:10:32.711Z`. The original seven artifacts and
+complete prior capability proof remain hash-bound and are revalidated. The
+original authenticated continuing scope remains comment `6537722343`; no new
+user grant or completed independent review is invented.
+
+One diagnostic naturally passed in 5,331ms and identified 168 redundant Git
+calls, about 1,599ms, while re-admitting initial and operational synthetic
+history during scope-fixture setup. The fixture now uses its existing history
+seeding option for that preparation. Its current proof, authenticated authority,
+admission, race, cold stock, source guards and cleanup still use the real owners.
+The initial and operational admission controls remain independently exercised.
+A self-consistent rehashed malformed seeded operational-authority control reaches
+`closeout_scope_correction_original_binding_invalid`.
+
+The one corrected observed child naturally passed in 3,791ms under the same
+6,000ms bound. Historical setup replay calls fell from 168 to zero; the current
+scope proof and each race contender's fresh admission retained 76 Git calls.
+Separate existing bounded controls passed for scope evidence, scope stock,
+initial admission and operational admission in 2,542ms, 4,266ms, 2,160ms and
+2,823ms respectively. These are retained development observations, not a
+reproduced historical timeout, an environment-equality claim or final-source
+independent review. Observer overhead is unmeasured, and parallel elapsed Git
+sums are not additive wall time. The exact corrected fixture SHA-256 is
+`32c5fbeaf32438bf06b533e699c3bc24e9fb5f6534e670662576951f08058f63`.
+
+The finite profile binds that whole fixture and its exact native delta, the
+47 retained evidence artifacts and all five corrected controls. Its source
+inspection preserves the production Git/tree reader and complete admission
+body; the issued-capability guard only adds this distinct profile. No Git cache,
+source-scope algorithm, registration, workload or deadline changes are admitted
+by this correction. The complete accepted 33-path inventory against
+`bbb7dee536817fe4b7f28f5353a1d88f56c7e44d`, bounded current-main reconciliation,
+existing ten policy paths, frozen current instructions and live input guard
+remain required.
+
+Only the exact settled Full6 capability record may precede this correction.
+All prior consumed flags remain true; one exclusive edge permits one Full and
+zero recovery, then this profile is terminal. Interruption, copied authority,
+proof/head/branch changes and successor chaining do not renew it. Normal
+ownership, capacity, source, Full/Browser planning, cleanup and fresh stock
+checks remain active. Final source and execution results still require the
+commissioned independent audit; merge, Ready, auto-merge, deployment and
+installed adoption remain unauthorized.
+
+
+### Authenticated amendment of auxiliary closeout execution budgets
+
+The user's supplemental instruction [6541370652](https://github.com/hynk-studio/augnes/pull/1560#issuecomment-6541370652), recorded on
+2026-10-31 at 08:52:36Z, prospectively amends the auxiliary verifier execution
+budgets under original closeout scope `6537722343`. It does not identify the
+UNKNOWN cause of Full7, change its `product_failure` disposition, or approve
+unseen source. Preserve Full7 head `9c6341bb208ca3f336d2c6a1c8c5ce6191d60571`,
+receipt `4767544eaab4d6e8d2ff42073daa98ef90eee307e1d7d125ecf91cb2f644dcf8`,
+its 6 PASS / 1 FAIL / 9 NOT_RUN, the nested instruction-stock timeout and outer
+natural failures, complete cleanup and separate stock 14/nondeciding.
+
+The finite values are frozen in `scripts/local-canonical-closeout-budgets.mjs`:
+
+| Auxiliary execution owner | Previous bound | Amended bound |
+| --- | ---: | ---: |
+| Closeout control group | 6,000ms | 12,000ms |
+| Nested closeout claim/cold-stock child | 4,000ms | 6,000ms |
+| Enclosing executor controls | 30,000ms | 120,000ms |
+| Enclosing receipt controls | 30,000ms | 90,000ms |
+| Enclosing default review-correction controls | 30,000ms | 180,000ms |
+
+The table lists the previous Canonical parent registrations. The direct quick
+and operating-policy executor/receipt wrappers previously used 60,000ms; they
+now consume the same amended executor/receipt budgets rather than a conflicting
+second value.
+
+These values cover cumulative setup, full fresh proof and authority validation,
+real contention, cold-process inspection and cleanup, with finite headroom for
+the supported host. The single instruction-stock diagnostic naturally passed in
+5,312ms and observed 483 Git calls; four required fresh proof passes accounted
+for 372 of them. Its PASS does not reproduce or explain Full7. Raising only a
+leaf bound would leave enclosing suites unable to accommodate their selected
+work. The values are fixed before deciding execution; no adaptive extension,
+automatic retry or post-failure increase is authorized by this amendment.
+Historical timing literals, deliberate timeout controls, product/protocol
+bounds, authority expiry, natural-exit acceptance and lifecycle safeguards are
+unchanged. No assertion, fresh reread, contention or cleanup moves outside its
+owner's measured lifetime.
+
+Normal admission recognizes a `scope_amendment` on the existing latest
+closeout continuation packet. There is no new schema, kind, module ladder or
+consumed flag. The modifier binds the actual supplemental comment and complete
+owner observation; live authorization authenticates both original and amended
+scope, current permission, and the exact published Draft PR/base/head. A local
+record or this document is not a signature. The packet preserves Full7's exact
+receipt, attempt, completion, incoming edge, authority log and separate stock,
+and rereads its byte-identical predecessor proof using the historical reader.
+Packets without the modifier keep their historical semantics.
+
+The source inventory retains all 33 accepted paths against accepted base
+`bbb7dee536817fe4b7f28f5353a1d88f56c7e44d`, compatible current-main content and
+all unrelated source. The seven budget-definition/wiring files are pinned to
+the frozen implementation bytes; the existing policy consumers contain only
+necessary amendment handling. Exact native deltas bind the final tree. The
+three affected parent controls must naturally pass with complete cleanup on
+source bytes matching that tree, including explicit before/after source checks.
+Development commit names are reported separately from final byte identity.
+
+Only the exact settled Full7 tip can acquire one exclusive amended successor,
+with one Full and zero recovery through normal ownership/capacity/planning.
+Every old consumed flag stays true. The amended attempt has no automatic successor;
+replaying the comment, copying a proof, changing head/branch, interruption or
+adding another edge does not reset an allowance. The frozen instruction
+footprint, live input guard, complete final-head Full/Browser plan and separate
+fresh stock remain required. Final source and evidence await independent
+judgment; this amendment grants no merge, Ready, auto-merge, release, deployment
+or installed-adoption authority.
+
+The same supplemental scope also expressly requires a substantive relevant
+correction and focused evidence before any subsequent deciding execution. For
+the demonstrated default-review output quarantine regression, the existing
+amended packet may reference an ordinary v2 `source_revision` proof; this adds
+no schema, kind, module or consumed flag. It is a prospective source correction,
+not a replay of the budget allowance. The latest settled amended predecessor
+must be a natural `product_failure`, with an intact receipt, complete authority
+log showing the sole failing acceptance child, no input fault, complete cleanup
+and separate nondeciding stock. A timeout, safety violation, incomplete log,
+older tip, unchanged source or cosmetic delta does not satisfy this relation.
+
+The ordinary owner validates the same unchanged complete regression on the
+exact predecessor and final Git source: natural FAIL then natural PASS after
+predecessor settlement, with matching fixture/environment bindings and complete
+cleanup. Its candidate-review record records an actual implementation-owner
+source check and the authenticated supplemental scope reference; it is neither
+an independent audit nor an authorization signature. The original ordinary v2
+review, witness, native-delta and source checks remain in force. The closeout
+owner separately authenticates both existing comments and current authority.
+
+This correction preserves the amended execution budgets and all 34 accepted
+paths. Only removal of the demonstrated default closeout group's explicit
+stdout/stderr passthrough and the necessary existing policy-consumer handling
+may change; all other budget wiring, assertions, product source and lifecycle
+owners remain exact. Complete final-byte parent checks, native deltas and the
+fresh frozen instruction binding remain required. The same exclusive edge
+namespace and one-Full/zero-recovery budget apply. Every historical packet,
+receipt, disposition and consumed flag remains intact; stock inspection is
+read-only and cannot reserve a successor. Independent final source/policy and
+evidence judgment remains separate.
+
+
+### Authenticated expansion to the complete auxiliary verifier hierarchy
+
+The user's prospective supplement [6542798089](https://github.com/hynk-studio/augnes/pull/1560#issuecomment-6542798089), recorded at
+2026-10-31T11:30:00Z, expands the previous new-closeout-only budget scope to the
+related new and legacy auxiliary verifier family. It supplements comments
+`6537722343` and `6541370652`; it does not rewrite either record or approve
+future source. Preserve Full9 head `4f6a73e49d8b392f499e6cdb1ff4b0bea03a829b`,
+receipt `7e07679f38295786e13d16af2d4826467fc0772ce9b6995aa56f8231092867d6`,
+6 PASS / 1 FAIL / 9 NOT_RUN, unit 68 PASS, separate stock 14/nondeciding and
+complete cleanup. The legacy v7 source control's 6,075ms SIGTERM timeout and
+its enclosing natural failures remain distinct. Its cause and original blocked
+operation remain UNKNOWN; the later information-seeking timeout does not
+identify that original operation.
+
+Use the existing budget module and execution owners. The original
+`CLOSEOUT_EXECUTION_BUDGETS` values remain unchanged for closeout groups and
+the executor/receipt harnesses. Its historical default-review value remains in
+old proof evidence. The additional `AUXILIARY_EXECUTION_BUDGETS` declaration
+owns prospective legacy/default auxiliary execution:
+
+| Auxiliary orchestration owner | Prospective bound |
+| --- | ---: |
+| Legacy v4/v5/v6/v7 group | 20,000ms |
+| Nested legacy synthetic process / ordinary review helper | 10,000ms |
+| Observer succession / observer controls | 60,000ms / 20,000ms |
+| Complete default review | 300,000ms |
+| Complete v4 / v5 / v6 / v7 flag-specific parent | 180,000ms / 120,000ms / 150,000ms / 240,000ms |
+| Review acceptance / adverse fixture | 30,000ms / 12,000ms |
+| Complete review-child-result parent | 60,000ms |
+
+The complete executor and receipt remain 120,000ms and 90,000ms, and the Full
+authority phase remains 2,400,000ms. The finite map accounts for actual selected
+work, setup, fresh validation, real contention and cleanup with reserve. It is
+not an adaptive extension or a promise that summing every nested maximum is a
+measured runtime. Freeze the declared values before focused and deciding
+execution; retain every unfavorable result. Product/protocol response limits,
+intentional timeout/cancellation cases, authority expiration and process-cleanup
+safeguards stay unchanged. Preserve output quarantine and natural-exit refusal.
+
+Normal admission uses the existing continuation schema, kind, `scope_amendment`
+modifier and exclusive successor namespace. There is no new failure profile,
+module, consumed flag or generic timeout exception. The actual new comment
+identity selects its own declaration, complete owner-observation digest and
+source binding. Existing `6541370652` packets, the ordinary-v2 source revision,
+recorded bounds and all prior consumed edges keep their historical meaning.
+Live authorization authenticates original continuing scope and this new
+supplement, current permission and exact published Draft PR/base/head. Retained
+local records are evidence, not signatures or independent review.
+
+This declaration binds the exact settled Full9 predecessor, seven original
+receipt/attempt/completion/edge/authority-log/stock artifacts and its complete
+unchanged predecessor proof. The nested timeout is preserved as such; it is not
+passed through the natural-failure source-revision relation. Its source scope
+preserves the accepted 34-path task union, compatible accepted-main content,
+all product/behavior source and unrelated owners. Only the finite auxiliary
+budget/wiring/registration-guard paths and this existing authority owner/document
+may change. Frozen wiring hashes, typed inventories and complete native deltas
+bind the final tree. The v7 registration comparison may account only for the
+explicit authorized auxiliary rows/import/selectors; all remaining registration
+bytes, absent paths, row identity/order, commands, flags, natural-exit criteria
+and separate product 60-second registration remain protected.
+
+Before qualification, retain complete natural PASS evidence on final source
+bytes for executor, receipt, default review, review with each of
+`--corrected-timeout-controls`, `--condition-requalification-controls`,
+`--guide-correction-controls`, `--companion-timeout-controls`, and the complete
+review-child-result parent. Use each actual registered Node/tsx invocation and
+its own frozen parent bound, with full cleanup and before/after source checks.
+The existing validation manifest records all eight commands and their exact
+flags; one default PASS cannot substitute for a separately registered branch.
+Reused unchanged adverse controls must still refuse invalid authority, altered
+evidence, assertion failures, deliberate overrun, output leakage and incomplete
+cleanup. Historical mechanism witnesses need no rerun for this budget change.
+
+Only the exact latest settled Full9 may acquire this amended edge through
+normal checkout/capacity/authority/input admission: one Full, zero recovery.
+Old v7 and Full1–Full9 consumption remains intact. Copied proof/comment,
+interruption, changed head/branch or a second claimant does not renew it. The
+normal final-head planner, all selected Full/Browser workload, fresh stock and
+owned cleanup remain mandatory. A later failure is retained and requires a
+substantive supported remedy and a truthful applicable authority relation; this
+budget declaration grants no unchanged retry or automatic escalation. Final
+source/policy and results still await the commissioned independent judgment.
+Keep the issue OPEN, PR Draft and auto-merge disabled; merge, Ready, release,
+deployment and installed adoption remain unauthorized.

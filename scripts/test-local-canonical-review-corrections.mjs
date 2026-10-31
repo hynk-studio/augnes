@@ -1,3 +1,4 @@
+import { AUXILIARY_EXECUTION_BUDGETS, CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
 import assert from "node:assert/strict";
 import { chmodSync, existsSync, linkSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -80,8 +81,8 @@ async function child(args, options = {}) {
   const progress = createObserverFixtureProgressReader(), output = runnerOptions.stdout ?? quiet;
   inFlight = true; lastChildDiagnostic = "";
   const result = await runCanonicalChild({ suite: "review-corrections", label: "disposable control", command: process.execPath, args,
-    cwd: root, env, timeoutMs: 6000, ...runnerOptions,
-    stdout: { write(chunk) { progress.write(chunk); output.write(chunk); } }, stderr: quiet, log() {} });
+    cwd: root, env, timeoutMs: AUXILIARY_EXECUTION_BUDGETS.ordinaryChildMs, ...runnerOptions,
+    stdout: { write(chunk) { progress.write(chunk); output.write(chunk); } }, stderr: runnerOptions.stderr ?? quiet, log() {} });
   inFlight = !settled(result);
   const diagnostic = { controlId, expectedCancellation, progress: progress.snapshot() };
   lastChildDiagnostic = JSON.stringify(projectReviewChildResult(result, diagnostic));
@@ -91,29 +92,41 @@ async function child(args, options = {}) {
   return result;
 }
 try {
-  if (process.argv[2] === "--guide-correction-controls") {
+  if (process.argv[2] === "--companion-timeout-controls") {
+  for (const group of ["evidence", "witnesses", "source", "originals", "authority", "authority_records", "admission", "race", "stock"]) {
+    const result = await child([path.join(repository, "scripts/fixtures/local-canonical-companion-timeout-succession.mjs"), "--run-companion-timeout-fixtures", group], { controlId: `companion-timeout-${group}`, timeoutMs: AUXILIARY_EXECUTION_BUDGETS.groupMs, stdout: process.stdout, stderr: process.stderr });
+    assert.equal(result.exit_code, 0, lastChildDiagnostic);
+  }
+  findings.push("Companion readiness timeout: retained evidence limits, exact repair, distinct authenticated grant, terminal reservation and read-only stock");
+  } else if (process.argv[2] === "--guide-correction-controls") {
   for (const group of ["evidence", "authority", "admission", "race", "stock"]) {
-    const result = await child([path.join(repository, "scripts/fixtures/local-canonical-guide-correction.mjs"), "--run-guide-fixtures", group], { controlId: `guide-correction-${group}`, timeoutMs: 6000 });
+    const result = await child([path.join(repository, "scripts/fixtures/local-canonical-guide-correction.mjs"), "--run-guide-fixtures", group], { controlId: `guide-correction-${group}`, timeoutMs: AUXILIARY_EXECUTION_BUDGETS.groupMs });
     assert.equal(result.exit_code, 0, lastChildDiagnostic);
   }
   findings.push("reviewed GuideBrief correction: preserved failed v5 predecessor and accepted repair, authenticated one-use authority, exclusive terminal successor and fresh read-only stock");
   } else if (process.argv[2] === "--condition-requalification-controls") {
   for (const group of ["evidence", "authority", "admission", "stock"]) {
-    const result = await child([path.join(repository, "scripts/fixtures/local-canonical-condition-requalification.mjs"), "--run-condition-fixtures", group], { controlId: `condition-requalification-${group}`, timeoutMs: 6000 });
+    const result = await child([path.join(repository, "scripts/fixtures/local-canonical-condition-requalification.mjs"), "--run-condition-fixtures", group], { controlId: `condition-requalification-${group}`, timeoutMs: AUXILIARY_EXECUTION_BUDGETS.groupMs });
     assert.equal(result.exit_code, 0, lastChildDiagnostic);
   }
   findings.push("condition requalification: exact original failure, accepted diagnosis and explicit authority, final published source, terminal reservation and separate stock");
   } else if (process.argv[2] === "--corrected-timeout-controls") {
   for (const group of ["evidence", "witnesses", "source", "originals", "admission", "race", "stock"]) {
-    const timeout = await child([path.join(repository, "scripts/fixtures/local-canonical-timeout-succession.mjs"), "--run-timeout-fixtures", group], { controlId: `timeout-succession-${group}`, timeoutMs: 6000 });
+    const timeout = await child([path.join(repository, "scripts/fixtures/local-canonical-timeout-succession.mjs"), "--run-timeout-fixtures", group], { controlId: `timeout-succession-${group}`, timeoutMs: AUXILIARY_EXECUTION_BUDGETS.groupMs });
     assert.equal(timeout.exit_code, 0, lastChildDiagnostic);
   }
   findings.push("corrected nested-timeout succession: preserved original failure, meaningful source evidence, prospective authority, one terminal reservation and read-only stock");
   } else {
-  const succession = await child([path.join(repository, "scripts/fixtures/local-canonical-observer-succession.mjs"), "--run-observer-fixtures"], { controlId: "observer-succession", timeoutMs: 6000 });
+  for (const group of ["evidence", "source", "authority", "admission", "race", "stock"]) {
+    const result = await child([path.join(repository, "scripts/fixtures/local-canonical-1559-closeout.mjs"), "--run-closeout-fixtures", group],
+      { controlId: `closeout-1559-${group}`, timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.groupMs });
+    assert.equal(result.exit_code, 0, lastChildDiagnostic);
+  }
+  findings.push("1559 closeout: exact accepted source and settled v7 history, new authenticated scope, exclusive admission and fresh read-only stock");
+  const succession = await child([path.join(repository, "scripts/fixtures/local-canonical-observer-succession.mjs"), "--run-observer-fixtures"], { controlId: "observer-succession", timeoutMs: AUXILIARY_EXECUTION_BUDGETS.observerSuccessionMs });
   assert.equal(succession.exit_code, 0, lastChildDiagnostic);
   findings.push("observer-repair succession: bounded original/source/authority refusals, exclusive lineage and fresh stock reconstruction");
-  const observer = await child([self, "--observer-controls"], { controlId: "observer-controls" });
+  const observer = await child([self, "--observer-controls"], { controlId: "observer-controls", timeoutMs: AUXILIARY_EXECUTION_BUDGETS.observerControlsMs });
   assert.equal(observer.exit_code, 0, lastChildDiagnostic);
   findings.push("deterministic observation windows retain permitted aliases and sanitized failures; content, identity, ownership and native permissions remain protected");
   const executable = path.join(root, "read-only-browser"), alias = path.join(root, "alias");

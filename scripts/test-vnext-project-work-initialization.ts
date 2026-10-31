@@ -1,3 +1,4 @@
+import { assertIssuedSessionIdentityCompatibilityV01 } from "./local-operator-session-identity-checks";
 import { assertCompilerBudgetDiagnostics, assertExplicitArtifactPreservingRepair } from "./successor-budget-diagnostics-checks";
 import { differentSelectionRevision } from "./test-selection-observation";
 import { readVNextCoreRecordV01 } from "../lib/vnext/persistence/durable-semantic-store";
@@ -206,6 +207,7 @@ async function main(): Promise<void> {
       await assertPersistedScopedContinuationV01();
       return;
     }
+    assertIssuedSessionIdentityCompatibilityV01();
     assertNormalizationAndCompilerV01();
     assertHistoricalNumericSelectionLineageV01();
     assertNativeHostRunIdentityCompatibilityV01();

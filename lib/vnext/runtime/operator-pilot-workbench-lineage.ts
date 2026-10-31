@@ -359,13 +359,7 @@ function buildLineageChain(input: {
       inspection.source_transition_receipt.transition_receipt_fingerprint ===
         receipt.integrity.fingerprint,
   );
-  if (matchingPackets.length > 1) {
-    throw lineageError(
-      "operator_pilot_workbench_lineage_packet_relation_ambiguous",
-      409,
-    );
-  }
-  const compiled = matchingPackets[0] ?? null;
+  const compiled = resolveCompiledPacketSuccessorV01(matchingPackets);
   const packetSummary = compiled
     ? summarizePacket(compiled.inspection, input.observed_at)
     : null;
@@ -392,6 +386,47 @@ function buildLineageChain(input: {
     compiled_packet: packetSummary,
     stage_status: compiled ? "packet_compiled" : "applied_awaiting_packet",
   };
+}
+
+function resolveCompiledPacketSuccessorV01(
+  packets: ValidatedCompiledPacketV01[],
+): ValidatedCompiledPacketV01 | null {
+  if (packets.length <= 1) return packets[0] ?? null;
+  // Recompiling the same Transition can retain a linear history of packets.
+  // The packet reader has already validated each exact immediate predecessor;
+  // use those edges, never timestamp or identifier order, to find its tip.
+  const key = (id: string, fingerprint: string) => `${id}|${fingerprint}`;
+  const byIdentity = new Map(packets.map((entry) => [
+    key(entry.inspection.packet.packet_id, entry.inspection.packet.integrity.fingerprint),
+    entry,
+  ]));
+  const successors = new Map<string, ValidatedCompiledPacketV01>();
+  const roots: ValidatedCompiledPacketV01[] = [];
+  const ambiguous = () => lineageError(
+    "operator_pilot_workbench_lineage_packet_relation_ambiguous", 409,
+  );
+  for (const entry of packets) {
+    const prior = entry.inspection.prior_packet;
+    const priorKey = key(prior.packet_id, prior.packet_fingerprint);
+    if (!byIdentity.has(priorKey)) roots.push(entry);
+    else {
+      if (successors.has(priorKey)) throw ambiguous();
+      successors.set(priorKey, entry);
+    }
+  }
+  if (roots.length !== 1 || byIdentity.size !== packets.length) throw ambiguous();
+  const visited = new Set<string>();
+  let current = roots[0]!;
+  while (true) {
+    const currentKey = key(current.inspection.packet.packet_id, current.inspection.packet.integrity.fingerprint);
+    if (visited.has(currentKey)) throw ambiguous();
+    visited.add(currentKey);
+    const next = successors.get(currentKey);
+    if (!next) break;
+    current = next;
+  }
+  if (visited.size !== packets.length) throw ambiguous();
+  return current;
 }
 
 function summarizePacket(
