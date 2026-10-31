@@ -71,9 +71,13 @@ async function reviewer(c: any, name: string, args: object) {
     const result = r.result?.structuredContent ?? r.error;
     trace.push({ reviewer: c.reviewer_label, name, arguments: args, result }); return result;
 }
-async function readCurrent() {
+async function readSnapshot() {
     const r = await call("augnes_resume_repository", { repositoryRoot: root });
-    return { snapshot: r.continuity.snapshot.binding, ...(await call("augnes_read_repository_work_sources", { repositoryRoot: root, expectedSnapshotBinding: r.continuity.snapshot.binding })) };
+    return r.continuity.snapshot.binding;
+}
+async function readCurrent() {
+    const snapshot = await readSnapshot();
+    return { snapshot, ...(await call("augnes_read_repository_work_sources", { repositoryRoot: root, expectedSnapshotBinding: snapshot })) };
 }
 async function saveChanges(changes: object, initial = false, repositoryRoot = root) {
     const r = await call("augnes_resume_repository", { repositoryRoot });
@@ -111,16 +115,17 @@ async function setupServer() {
 }
 
 async function choice(action: string, values: object = {}, allowRefusal = false) {
-    const c = await readCurrent();
-    const args = { action, repositoryRoot: root, expectedSnapshotBinding: c.snapshot, ...values };
+    // The tool reads and fences its own sources; preparation only needs a fresh binding.
+    const snapshot = await readSnapshot();
+    const args = { action, repositoryRoot: root, expectedSnapshotBinding: snapshot, ...values };
     const before = db.serialize(); const r = await raw(EXECUTION_CHOICE_TOOL, args);
     assert(before.equals(db.serialize()), "execution-choice read/preparation must not write");
     if (!allowRefusal) assert(!r.error && !r.result?.isError, JSON.stringify(r));
     return r.result?.structuredContent ?? r.error;
 }
 async function lookup(query: string) {
-    const c = await readCurrent();
-    return call("augnes_lookup_repository_retained_sources", {repositoryRoot: root, expectedSnapshotBinding: c.snapshot, query});
+    const snapshot = await readSnapshot();
+    return call("augnes_lookup_repository_retained_sources", {repositoryRoot: root, expectedSnapshotBinding: snapshot, query});
 }
 const find = (c: any, locator: string) => c.sources.find((s: any) => s.source_locator === locator);
 const jsonNote = (c: any, locator: string) => JSON.parse(find(c, locator).excerpt_text);
