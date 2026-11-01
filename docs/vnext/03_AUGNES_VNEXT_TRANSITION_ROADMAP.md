@@ -1056,6 +1056,24 @@ It adds no mandatory option search, optimizer, training pipeline or shared-resou
 service. Existing model-research allocations and Current/Next/Later scopes remain
 unchanged; unsupported paths remain labelled gaps or hypothetical assumptions.
 
+**Future possibility — communication and context reuse.** Task-appropriate text
+or structured handoffs, shared source/delta reuse, compatible KV-cache reuse and
+cross-model state transfer (for example [SwaT](https://arxiv.org/abs/2610.15095)
+and [HeteroFold](https://arxiv.org/abs/2609.32259)) may reduce repeated explanation,
+context processing and specialist-cooperation costs. They could ease executor
+replacement and change when direct work, temporary cooperation or a continuing
+organization is worthwhile. These are conditional possibilities, not demonstrated
+Augnes benefits or adopted communication protocols.
+
+Revisit application through existing choice and adapter owners when a concrete
+internal work case or bounded hypothetical case makes the opportunity worth
+testing; external customer adoption is not a prerequisite. Prefer available
+techniques and compare checked task outcomes with total compute, transfer and
+maintenance burden. Preserve source-linked durable state and ordinary handoff
+where model-state access or compatibility is absent. This possibility note assigns
+no dedicated study, implementation, spending or new framework and leaves existing
+model-research allocations and Current/Next work unchanged.
+
 Keep qualitative interpretation and selection in the existing host/model
 procedure where sufficient. Programmatic owners enforce current source bindings,
 eligibility, grants, supported resource admission, duplicate handling and durable
