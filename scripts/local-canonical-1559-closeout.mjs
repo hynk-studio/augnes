@@ -1776,7 +1776,7 @@ const AUXILIARY_BUDGET_SOURCE_PATHS = ["scripts/local-canonical-closeout-budgets
   "scripts/local-canonical-companion-timeout-succession.mjs", "scripts/fixtures/local-canonical-companion-timeout-succession.mjs"].sort();
 const AUXILIARY_AMENDMENT_PATHS = new Set([...AUXILIARY_BUDGET_SOURCE_PATHS, "scripts/local-canonical-1559-closeout.mjs", ".github/LOCAL_CANONICAL_VERIFICATION.md"]);
 const RUNTIME_INPUT_PATHS = new Set(["scripts/local-canonical-1559-closeout.mjs", "scripts/run-local-canonical-verification.mjs",
-  "scripts/test-local-canonical-executor.mjs", ".github/LOCAL_CANONICAL_VERIFICATION.md"]);
+  "scripts/local-canonical-review-export.mjs", "scripts/test-local-canonical-executor.mjs", ".github/LOCAL_CANONICAL_VERIFICATION.md"]);
 
 export const hasCloseoutScopeAmendment = p => isCloseoutScopeFixtureCorrection(p) && Object.hasOwn(p, "scope_amendment");
 const amendmentDeclaration = (a = CLOSEOUT_SCOPE_AMENDMENT) => Object.fromEntries(["comment_id", "observation_sha256", "basis"].map(key => [key, a[key]]));

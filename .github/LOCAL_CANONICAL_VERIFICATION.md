@@ -2138,7 +2138,7 @@ The correction binds Full10's complete receipt, attempt, completion, incoming
 edge, untruncated operability log and separate failed stock. Its new source
 scope preserves the complete 39-path accepted-task inventory and bounded
 accepted-main reconciliation. Only this document, the existing closeout owner,
-executor connection and executor controls may change. Product/native test bytes,
+executor/export connections and executor controls may change. Product/native test bytes,
 package/lock inputs, registrations, deadlines and lifecycle acceptance remain
 protected. A policy correction is a new exact source head; retained native
 evidence applies only to its unchanged source closure and measured inputs.
