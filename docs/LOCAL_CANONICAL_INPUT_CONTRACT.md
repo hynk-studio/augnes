@@ -49,8 +49,7 @@ client, or a different/unknown consumer. The host agent's own permission policy
 is outside these disposable controls and is never edited by them.
 
 `effectiveInputObservation` is the single projection used by comparison and
-`commonInputResources`; `browserReplacementLiveBinding` uses it for preparation
-and admission, and stock reconstructs the same versioned rule. Only the fixed
+`commonInputResources`; stock reconstructs the same versioned rule. Only the fixed
 v3 isolated `codex-preferences` resource receives non-consumption treatment.
 Full raw observations still enter declaration fingerprints and events. Missing
 security metadata refuses, even with equal content. The existing shared
@@ -195,33 +194,12 @@ correction; these controls do not replace complete deciding qualification.
   commission and ordinal; at most two complete invocations are possible, and the
   second requires a materially corrected demonstrated problem plus focused
   evidence and prior fresh stock. Interrupted reservations consume their slot.
-  Legacy terminal records and their interpretation are retained. No new incident
+  Original records remain unchanged; retired-route interpretation uses its Git-pinned reader. No new incident
   controller, approval ledger, unchanged retry or recovery allowance is added.
-- `local-canonical-condition-requalification.mjs` binds a distinct v5
-  `condition_requalification` interpretation to the latest settled Project Home
-  condition failure, preserved failure/diagnosis evidence, authenticated prospective
-  execution grant, and published implementation-owner final source. It uses the
-  existing exclusive successor edge for one Full and zero recovery, including an
-  interrupted reservation. Stock reconstructs the evidence and authority read-only;
-  neither this route nor its bounded observation changes v3 input classification.
-  Private proof artifacts are hash-checked at admission and reconstruction, not
-  continuously monitored as invocation inputs. The condition observer captures the
-  original evaluation once and retains incomplete observations without changing
-  acceptance. A later pass cannot explain the historical failure.
-- `local-canonical-guide-correction.mjs` binds the separately authorized v6
-  correction after a spent v5 run to the accepted exact GuideBrief repair,
-  immutable Mac comparison packet, original failure and a later authenticated
-  execution grant. The reviewed repair stays distinct from implementation-owner
-  final policy source. Complete native deltas and the existing exclusive successor
-  edge bind one Full with zero recovery; the new successor is terminal. Stock
-  reconstructs these bindings read-only. This route changes no input classification,
-  Browser condition, deadline or workload and supplies no retrospective explanation
-  of the original failure. Proof artifacts remain admission/reconstruction inputs,
-  not continuously monitored execution inputs; the production owner itself is in
-  the frozen executor source inventory.
 - `local-canonical-evidence-retention.mjs` protects active and explicitly pinned
   evidence. Unsafe aliases and ambiguous ownership refuse cleanup.
-- Completed operating-profile and successor-budget qualification routes have no
+- Completed observer-repair, corrected-timeout, condition-requalification, Guide
+  correction, operating-profile and successor-budget qualification routes have no
   current admission, stock or export dispatch. Their markers and mixed lineages
   refuse explicitly; the unchanged originals use the Git-pinned historical
   reader described in the Local Canonical policy. Live `reviewed_revision`
@@ -340,42 +318,33 @@ validation, private export and legacy compatibility. The fixture can import the
 retained earlier input module for identical before/after controls. These focused
 checks do not execute a deciding Full or authorize a new attempt.
 
-## Strict task-owned Browser input and replacement route
+## Strict task-owned Browser input safeguards
 
-The version 5 lane is implemented by `local-canonical-browser-input.mjs`,
-`local-canonical-browser-bundle.mjs` and
-`local-canonical-browser-replacement.mjs`, composed with the existing executor,
-input monitor, attempt ledger, Browser-use recorder and stock reader. The policy
-above this source map owns admission; implementation does not authorize a run.
+`local-canonical-browser-input.mjs`, `local-canonical-browser-bundle.mjs` and
+`local-canonical-browser-identity.mjs` retain the shared selection, observation
+and actual-launch guards. These helpers grant no new Local Canonical execution.
+The task-bound #1545/#1546 replacement route, its strict v2 continuation, receipt
+version 5 and export version 2 are retired. The complete historical reader and
+policy remain at `b057069e2ebbafe36acaa84736e9742b19c32547`; current qualification
+readers fail closed on their records rather than renewing or resetting lineage.
 
-| Consumer | Strict behavior | Retained compatibility |
-| --- | --- | --- |
-| Controller/environment | Exact local binding and replacement proof, or reviewed v2 source_revision retaining the consumed binding; no default selection | Legacy explicit/candidate selection outside the versioned lane |
-| Isolated phase and nested suite | Contract/path/fingerprint passed through the bounded environment; active checkout sentinel catches stripping | Existing HOME/temp/DB and process owners |
-| Project, continuity, operator lifecycle, project-client, Web-planning, durable/cumulative | Shared selector plus actual-launch assertion; whole bundle and CLI/HTTP/CDP identity at launch/settlement | All 19 records; seven Darwin wrapped launches retain the exact outer network policy plus `--no-sandbox`; twelve direct launches retain their existing sandbox behavior |
-| Input monitor | Enumerated metadata/security each poll, conservative hash cache, forced final read | Starts before unit/integration; original AbortSignal and stop rules |
-| Attempt ledger | One cross-kind immutable edge, latest settled tip, initial1/recovery0 for replacement and strict source_revision; consumed state carried forward | Historical source/recovery records readable; no renewed old allowance |
-| Stock and private export | Version 5 / export v2, authenticated review and grant re-read, exact live input reconstruction | Legacy receipts v3/v4 and export v1 stay readable |
+| Consumer | Retained strict behavior |
+| --- | --- |
+| Isolated phase and nested suite | Bounded environment carries exact binding/path/fingerprint; the checkout-owned active sentinel catches stripping |
+| Project, continuity, operator lifecycle, project-client, Web-planning, durable/cumulative | Shared selector and actual-launch assertion bind the whole bundle and CLI/HTTP/CDP identity; all 19 launch records remain |
+| Bundle observer and guard | Physical root and entry identities, permissions, ACLs/flags/attributes, relative internal links, bounded race-safe reads and forced final observation remain checked |
+| Wrapped launch owners | Seven Darwin launches retain the exact outer network policy plus `--no-sandbox`; twelve direct launches retain their existing sandbox behavior |
+| Ordinary receipt and reviewed revision | Existing v3/v4 receipt interpretation, ordinary source correction and live v7 authority remain; receipt v5 refuses before Browser-path or machine-identity access |
 
-`test-local-canonical-browser-input.mjs` and
-`test-local-canonical-browser-replacement.mjs` add bounded focused controls using
-real readers and temporary repositories/anchors. They cover missing/stripped
-selection, link/content/permission/root races, all-fault eligibility, exact
-review/grant/source/environment/workload, replay, concurrent claims, crash-window
-refusal and fresh-process read-only reconstruction. Synthetic fixtures and
-about:blank identity probes do not count as product Browser coverage or Full.
-The reference inventory includes the app root itself; counts differ by one from
-historical inventories which enumerated only descendants.
-
-The existing v2 source-correction proof can follow a settled version 5 product
-failure with the same accepted Browser input. Its original receipt, complete
-delta, deterministic before/after regression and new exact-source review remain
-required. The existing authenticated authority binding also covers the new
-source, environment and workload; consumed authority cannot be renewed. Attempt,
-receipt and export readers preserve the consumed replacement state and reject
-recovery, input changes, legacy downgrade and recursive replacement. Disposable
-controls reconstruct both failed strict receipts and their exclusive lineage in
-a separate read-only process; they do not create a production successor.
+`test-local-canonical-browser-input.mjs` retains bounded controls for missing or
+stripped selection, link/content/permission/root races and nested environment
+composition. The bundle reference inventory includes the app root itself;
+counts differ by one from historical descendant-only inventories. Limits remain
+4,096 entries, 1 GiB, 8 MiB security output and 15 seconds per observation.
+Monitoring is bounded cooperative observation, not whole-host attestation or
+proof that no transient mutation occurred between polls. Local hashes do not
+establish publisher trust; launch success cannot override a negative signature
+or Gatekeeper assessment. No unsigned-artifact exemption is introduced.
 
 The durable/cumulative caller retains its historical nullish default: only an
 absent explicit Browser path selects the shared default outside the strict lane.
@@ -387,10 +356,8 @@ disposable inputs; the strict binding and stripping refusals remain unchanged.
 The existing `test-browser-verification-owners.mjs` unit child performs bounded
 Node syntax-only checks on complete Browser entry points and shared selection
 owners before product Browser phases. A complete malformed-file negative
-control must propagate the syntax child failure. This exact verifier test path
-is included in the replacement delta allowlist; neighboring or arbitrary test
-paths receive no exemption. Syntax checks do not launch product workloads or
-establish Browser lifecycle, artifact trust or qualification.
+control must propagate the syntax child failure. Syntax checks do not launch
+product workloads or establish Browser lifecycle, artifact trust or qualification.
 
 The two wrapped launch constructions pass their complete spawn tuple through
 `strictNetworkSandboxLaunch`; caller labels alone do not retain the argument.
@@ -400,72 +367,19 @@ profile, owner, platform and selection controls. No failure retries unwrapped.
 This preserves the trusted-local baseline, without additional Chromium
 filesystem/IPC isolation; the Local Canonical policy owns that tradeoff.
 
-## Narrow observer-repair succession
+## Completed task-specific source-correction routes
 
-The [versioned policy](../.github/LOCAL_CANONICAL_VERIFICATION.md#reviewed-observer-repair-succession-source-correction-v3)
-adds source-correction v3 to the existing attempt/proof/receipt path. A complete
-retained undiagnosed shared-Browser observer stop may remain historically
-UNKNOWN while a materially corrected, independently reviewed candidate becomes
-eligible for a separately authorized successor. This is not a diagnosis of the
-lost exception and does not change legacy failure classification.
+Observer repair v3, corrected timeout v4, condition requalification v5 and Guide
+correction v6 have completed their bounded work. Current admission, receipt,
+stock, export and lineage owners reject their schemas, kinds and authority or
+consumption markers, including downgraded, false and null variants. They do not
+silently treat a mixed historical chain as ordinary or live v7 evidence.
 
-Original receipt/attempt/completion bytes, accepted repair source and regression,
-final source/delta, fresh authenticated independent review and a distinct grant
-must all bind. The latest settled lineage receives at most one exclusive edge;
-interrupted reservations refuse replay. The successor executes the unchanged
-Full with initial 1/recovery 0 and separate stock validation. All ordinary Mac,
-capacity, ownership, input and Companion checks remain mandatory. No implementation
-or synthetic fixture grants admission. Unrelated UNKNOWN, timeout, incomplete
-observation/cleanup and changed content, identity or permission cases remain
-ineligible. Private export retains only bounded references and attributed hashes;
-old originals and legacy export interpretation remain unchanged.
-
-## Narrow corrected-timeout succession
-
-The [versioned policy](../.github/LOCAL_CANONICAL_VERIFICATION.md#reviewed-corrected-timeout-succession-source-correction-v4)
-adds source-correction v4, `corrected_timeout`, through the existing proof,
-attempt, receipt and stock path. It distinguishes a materially corrected,
-independently reviewed candidate after one completely settled nested Canonical
-test timeout from an unchanged retry. The historical timeout cause remains
-UNKNOWN; its outer `product_failure` label is insufficient, and legacy v1/v2/v3
-interpretation is unchanged.
-
-Immutable original receipt/attempt/completion and complete retained phase log
-bind the child timeout, original registration/deadline, complete settlement and
-cleanup, latest lineage and absence of unresolved input/safety or other workload
-failure. A retained log hash is distinguished from the original receipt's own
-path/size/truncation evidence. Missing, ambiguous or truncated observations refuse.
-The same affected-path regression must fail naturally on prior Git source and
-pass on corrected source under a captured common environment and Canonical Node,
-with source/fixture hashes, actual times and complete cleanup. A demonstrated
-mechanism such as operation counts need not recreate the historical timeout.
-The admitted defect is fixed pragma statement re-preparation in
-`lib/db/structural-schema-contract.mjs`; that module and its database-access
-regression stay identical from accepted repair to final source. Original
-request-bound-review/callback test sources, affected registration, assertions,
-workload and deadlines remain intact. This predicate is not an arbitrary source
-or UNKNOWN override.
-
-Fresh authenticated `accepted_repair` and `execution_grant` records bind the
-accepted correction and explicit prospective user authority. Final base/head/tree
-and all repair/final deltas are bound; the reviewed correction remains unchanged,
-while subsequent task changes are restricted to existing in-scope policy,
-verification and focused-test owners. Ordinary accepted-main reconciliation is
-included. The final source check is attributable owner evidence, not independent
-audit of the new policy. The explicit grant can cover implementation, focused
-checks, publication and qualification together; it does not require a separate
-policy-only Full, deployment or another routine approval step.
-The actual attributed review/grant prose is verified with current
-maintainer/admin permission; no new fenced approval or final execution grant is
-invented from implementation-owner source checks.
-
-The latest predecessor receives one exclusive successor in the existing namespace.
-Authority consumption survives head, branch, worktree, proof or grant copying and
-main movement; interrupted reservations, family resets and successor chaining
-cannot renew it. The budget is one complete planner-selected Full, zero recovery
-or retry, followed by separate stock validation and cleanup. Failure remains
-terminal for that authority. Normal clean-source, Mac admission, ownership,
-capacity, frozen inputs and Companion preservation remain required. Stock/export
-retain bounded lineage and authority identities without publishing raw evidence.
-The original records remain intact, and independent post-completion audit and
-merge/adoption decisions remain separate.
+The [retirement policy](../.github/LOCAL_CANONICAL_VERIFICATION.md#retired-qualification-routes)
+pins their original reader and full policy at
+`b057069e2ebbafe36acaa84736e9742b19c32547`. Original receipts, failures, proofs,
+reviews and consumed edges remain unchanged. Historical review grants no fresh
+execution authority. Current observer classification, fixed pragma regression,
+Project Home readiness and Guide lifecycle/verdict coverage remain with their
+product test owners; reusable `reviewed_revision` controls retain their direct
+suite registration.

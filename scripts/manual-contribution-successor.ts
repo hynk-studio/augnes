@@ -11,9 +11,8 @@ import { defineInitialProjectWorkV01, readProjectWorkInitializationSnapshotV01 }
 import { runDirectNativeHostRoundTripV01 } from "../lib/vnext/runtime/direct-native-host-round-trip";
 import { createDeterministicCodexAdapterV01 } from "../lib/vnext/native-host/deterministic-codex-adapter";
 import { readResultWorkPreparationV01, compareResultWorkSourcesV01, previewResultWorkV01, defineAuthoredSuccessorTaskV01 } from "../lib/vnext/runtime/authored-successor-task";
-import { directory, root, db, artifactDirectory, save, call, readCurrent, saveChanges, savePrepared, note, refused, setupServer, finish, choice } from "./execution-choice-transition-harness";
+import { directory, root, db, artifactDirectory, save, call, readCurrent, saveChanges, savePrepared, note, setupServer, finish, choice } from "./execution-choice-transition-harness";
 
-const reproduction = process.argv.includes("--reproduce");
 const definition = { goal:"Prepare a restock card from the selected inventory", success_criteria:["Keep reserved units out of available stock"], non_goals:["No order or physical stock claim"] };
 async function produce() {
   applyCanonicalDatabaseMigrations(db); mkdirSync(root); mkdirSync(artifactDirectory);
@@ -50,7 +49,7 @@ async function produce() {
     const full=await call("augnes_read_repository_work_sources",{repositoryRoot:root,expectedSnapshotBinding:c.snapshot,includeWorkDefinition:true});
     identities.push({label,task_identity:full.task_identity,packet:full.packet_fingerprint});
     save("successor-identities",identities);
-    if(!reproduction)assert.equal(full.task_identity,origin,label);
+    assert.equal(full.task_identity,origin,label);
     return full;
   }
   const inventory={revision:"inventory-1",counted:17,reserved:5,target:20,physical_stock:"unknown"};
@@ -63,7 +62,7 @@ async function produce() {
   await savePrepared(request);save("manual-request",request.delivery);
   await observe("request profile save");
   const requestRead=await choice("read");
-  assert.equal(requestRead.manual_contribution.request_task,reproduction?"different_task":"same_task");
+  assert.equal(requestRead.manual_contribution.request_task,"same_task");
   const delivered=JSON.parse(readFileSync(path.join(artifactDirectory,"manual-request.json"),"utf8"));
   const i=JSON.parse(delivered.request.material[0].text);
   const original={manual_request_ref:delivered.manual_request_ref,material_ref:delivered.material_ref,source_revision:"successor-return-1",selection:"Complete JSON file",actor:"Implementer-authored deterministic responder",assistance:"Arithmetic fixture; no independent participant or model",content:JSON.stringify({available:i.counted-i.reserved,top_up:i.target-i.counted+i.reserved,physical_stock:"unknown",suggestion:"place order now"})};
@@ -77,16 +76,10 @@ async function produce() {
   await saveChanges({sources:{add:[note("note-ref:restock-card",JSON.stringify(card),"derived_interpretation")]}});
   const current=await observe("downstream source save"),cardRef=current.sources.find((s:any)=>s.source_locator==="note-ref:restock-card").source_binding;
   assert.equal(current.sources.find((s:any)=>s.source_binding===returned.original.source_ref).trust_class,"imported_unverified");
-  const assessment={manual_request_ref:returned.request.ref,manual_return_ref:returned.original.ref,disposition:"partly_used",result_refs:[cardRef],checks:"17-5=12; 20-12=8; order suggestion refused",applicability:"Inventory-1 and target 20",reason:"Use checked counts on the card; decline order advice",uncertainty:"Physical stock unknown",unfinished:"Confirm shelf stock before ordering",next_action:"Print card; confirm shelf stock",reconsider_when:"Inventory or target changes",...(reproduction?{reassessment:"Explicitly checked same authored successor and unchanged inventory"}:{})};
+  const assessment={manual_request_ref:returned.request.ref,manual_return_ref:returned.original.ref,disposition:"partly_used",result_refs:[cardRef],checks:"17-5=12; 20-12=8; order suggestion refused",applicability:"Inventory-1 and target 20",reason:"Use checked counts on the card; decline order advice",uncertainty:"Physical stock unknown",unfinished:"Confirm shelf stock before ordering",next_action:"Print card; confirm shelf stock",reconsider_when:"Inventory or target changes"};
   await savePrepared(await choice("assess",{assessment}));
   await observe("assessment own save");
   const assessed=await choice("read");save("saved-assessment",assessed);
-  if(reproduction){
-    assert.equal(assessed.manual_contribution.decision_task,"different_task");
-    assert.equal(assessed.manual_contribution.decision_currentness,"reassessment_required");
-    const refusal=await refused("newly saved successor assessment falsely stale",()=>choice("feedback",{},true),"execution_choice_manual_reassessment_required");
-    save("successor-reproduction",{requestRead,assessed,refusal,identities});return;
-  }
   assert.equal(assessed.manual_contribution.decision_currentness,"saved_basis_retained");
   assert.equal(assessed.manual_contribution.decision_task,"same_task");
   const feedback=await choice("feedback");await savePrepared(feedback);save("manual-feedback-relay",feedback.delivery);

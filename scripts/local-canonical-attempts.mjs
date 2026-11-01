@@ -4,14 +4,8 @@ import { execFileSync } from "node:child_process";
 import { digest, validNodeHeaders, classifyInputChange, nonFaultInputChange, inputEventIdentity, comparePreparedDependencyInputs, preparedDependencyIdentity, observePreparedDependencyInputs, PREPARED_DEPENDENCY_CONTRACT } from "./local-canonical-inputs.mjs";
 import { assertCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
 import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
-import { readBrowserInputBinding } from "./local-canonical-browser-input.mjs";
-import { BROWSER_REPLACEMENT_CONTRACT, assertBrowserReplacementAuthorization, validateBrowserReplacementLive, validateStrictBrowserLive, isStrictBrowserSourceRevision } from "./local-canonical-browser-replacement.mjs";
 
-import { OBSERVER_REPAIR_SCHEMA, isObserverRepair, readObserverRepairEvidence, observerArtifact, assertObserverRepairAuthorization, validObserverAttempt } from "./local-canonical-observer-succession.mjs";
-import { TIMEOUT_REPAIR_SCHEMA, isCorrectedTimeout, readTimeoutRepairEvidence, timeoutArtifact, assertCorrectedTimeoutAuthorization, validTimeoutAttempt } from "./local-canonical-timeout-succession.mjs";
-import { CONDITION_REQUALIFICATION_SCHEMA, isConditionRequalification, readConditionRequalificationEvidence, conditionArtifact, assertConditionRequalificationAuthorization, validConditionRequalificationAttempt } from "./local-canonical-condition-requalification.mjs";
 
-import { GUIDE_CORRECTION_SCHEMA, isGuideCorrection, readGuideCorrectionEvidence, guideArtifact, assertGuideCorrectionAuthorization, validGuideCorrectionAttempt } from "./local-canonical-guide-correction.mjs";
 import { createGitHubObserverAuthorizationTransport } from "./github-main-branch-transport.mjs";
 
 export const ATTEMPT_CONTRACT = "augnes.local-canonical-attempt-family.v1";
@@ -19,6 +13,7 @@ const fail = code => Object.assign(new Error(code), { code });
 const sha = value => /^[0-9a-f]{64}$/u.test(value ?? "");
 const capabilities = new WeakMap();
 export const REVIEWED_REVISION_SCHEMA = "augnes.local-canonical-source-correction.v7";
+export const REVIEWED_REVISION_PHASES = Object.freeze(["dependencies-root", "dependencies-nested", "dependencies-web-planning", "typecheck", "build", "unit", "authority", "integration", "operability", "e2e-project-experience", "e2e-operator-review-control", "e2e-operator-native-host-execution", "e2e-operator-work-expectation", "e2e-operator-multi-candidate", "e2e-continuity", "e2e-golden"]);
 export const isReviewedRevision = proof => proof?.schema === REVIEWED_REVISION_SCHEMA && proof.kind === "reviewed_revision";
 const revisionCapabilities = new WeakMap();
 
@@ -26,21 +21,36 @@ const revisionCapabilities = new WeakMap();
 // The pinned pre-retirement revision owns historical interpretation; this guard
 // also catches a downgraded schema that still carries a retired kind or marker.
 const RETIRED_QUALIFICATION_SCHEMAS = new Set([
+  "augnes.local-canonical-source-correction.v3",
+  "augnes.local-canonical-source-correction.v4",
+  "augnes.local-canonical-source-correction.v5",
+  "augnes.local-canonical-source-correction.v6",
   "augnes.local-canonical-closeout.v1",
   "augnes.local-canonical-closeout-continuation.v1",
   "augnes.local-canonical-operating-profile-succession.v1",
   "augnes.local-canonical-successor-budget-succession.v1",
 ]);
 export function hasRetiredQualificationMarker(value) {
-  return [value, value?.source_correction].some(record =>
+  return value?.receipt_version === 5 ||
+    (Array.isArray(value?.inputs?.resources) && value.inputs.resources.some(resource =>
+      resource !== null && typeof resource === "object" && Object.hasOwn(resource, "browserBundle"))) ||
+    [value, value?.source_correction, value?.browser_replacement, value?.attempt,
+      value?.attempt?.source_correction, value?.attempt?.browser_replacement, value?.inputs?.binding].some(record =>
     record !== null && typeof record === "object" && (
       RETIRED_QUALIFICATION_SCHEMAS.has(record.schema) ||
+      ["augnes.local-canonical-browser-replacement.v1", "augnes.local-canonical-browser-authorization.v1"].includes(record.contract) ||
+      record.kind === "browser_input_replacement" ||
+      ["observer_repair", "corrected_timeout", "condition_requalification", "guide_cancellation_correction"].includes(record.kind) ||
       record.kind === "companion_readiness_timeout" ||
       record.kind === "operating_profile_efficiency" ||
       record.kind === "settled_successor_budget" ||
       (typeof record.kind === "string" && record.kind.startsWith("issue_1559_")) ||
       Object.keys(record).some(key => /^(?:closeout_|companion_timeout_)/u.test(key) ||
-        ["profile_authority", "operating_profile_consumed", "budget_authority", "successor_budget_consumed"].includes(key))
+        ["profile_authority", "operating_profile_consumed", "budget_authority", "successor_budget_consumed",
+          "observer_authority", "observer_repair_consumed", "timeout_authority", "corrected_timeout_consumed",
+          "condition_authority", "condition_requalification_consumed", "guide_authority", "guide_correction_consumed",
+          "browser_replacement", "browser_authority", "input_replacement_consumed", "browser_input_path", "browser_input_sha256",
+          "browser_input", "browser_guard"].includes(key))
     ));
 }
 
@@ -52,7 +62,6 @@ export function supportsSourceCorrection(proof) {
   return proof !== null && typeof proof === "object" && !Array.isArray(proof) && !hasRetiredQualificationMarker(proof) && (
     proof.schema === "augnes.local-canonical-source-correction.v1" ||
     (proof.schema === "augnes.local-canonical-source-correction.v2" && ["source_revision", "verifier_correction", "accepted_main_integration"].includes(proof.kind)) ||
-    isObserverRepair(proof) || isCorrectedTimeout(proof) || isConditionRequalification(proof) || isGuideCorrection(proof) ||
     isReviewedRevision(proof));
 }
 
@@ -73,40 +82,24 @@ function append(root, name, value) { writeFileSync(path.join(root, name), `${JSO
 
 // Family lives at the physical anchor, keyed by repository and branch (not
 // commit, wrapper process or checkout). There is no CLI family-id reset knob.
-export function beginAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, head, tree, runId, contractFingerprint, recoveryProof = null, sourceCorrection = null, browserReplacement = null, browserAuthorization = null, browserLive = null, acceptedMain = null, observerAuthorization = null, timeoutAuthorization = null, conditionAuthorization = null, guideAuthorization = null, revisionAuthorization = null, revisionInputs = null, revisionLive = null }) {
+export function beginAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, head, tree, runId, contractFingerprint, recoveryProof = null, sourceCorrection = null, acceptedMain = null, revisionAuthorization = null, revisionInputs = null, revisionLive = null, ...retiredOptions }) {
+  if (["browserReplacement", "browserAuthorization", "browserLive"].some(key => Object.hasOwn(retiredOptions, key))) throw fail("qualification_route_retired");
   assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
   if (hasRetiredQualificationMarker(sourceCorrection)) throw fail("qualification_route_retired");
   if (!branch || !/^[0-9a-f]{40}$/u.test(head) || !/^[0-9a-f]{40}$/u.test(tree) || !sha(contractFingerprint)) throw fail("attempt_identity_invalid");
-  if ([recoveryProof, sourceCorrection, browserReplacement].filter(Boolean).length > 1) throw fail("attempt_mixed_successor_kind");
-  const strictSource = isStrictBrowserSourceRevision(sourceCorrection);
-  const familyId = candidateFamilyId(branch, sourceCorrection, browserReplacement);
+  if ([recoveryProof, sourceCorrection].filter(Boolean).length > 1) throw fail("attempt_mixed_successor_kind");
+  const familyId = candidateFamilyId(branch, sourceCorrection);
   const artifact = directory(anchorRoot, ".augnes-local-verification");
   if (sourceCorrection && read(path.join(anchorRoot, ".augnes-local-verification", "families", sourceCorrection.prior_family_id, `attempt-${sourceCorrection.prior_number}.json`)).branch !== branch) throw fail("source_correction_predecessor_invalid");
-  if (sourceCorrection || browserReplacement) {
+  if (sourceCorrection) {
     const tip = reconstructAttemptTip({ anchorRoot, repositoryRoot, branch });
-    const proof = sourceCorrection ?? browserReplacement;
+    const proof = sourceCorrection;
     const revision = isReviewedRevision(sourceCorrection);
     if (tip.family_id !== proof.prior_family_id || tip.number !== proof.prior_number || tip.attempt_id !== proof.prior_attempt_id ||
-          (revision ? tip.input_replacement_consumed || !revisionFollows(proof, tip.reviewed_revision_consumed ?? 0, tip.revision_commission, tip.revision_grants ?? []) :
-          tip.reviewed_revision_consumed || tip.observer_repair_consumed || tip.corrected_timeout_consumed || tip.guide_correction_consumed ||
-          (tip.condition_requalification_consumed && !isGuideCorrection(sourceCorrection)) ||
-          (isGuideCorrection(sourceCorrection) && !tip.condition_requalification_consumed) || (browserReplacement ? tip.input_replacement_consumed : tip.input_replacement_consumed !== strictSource))) throw fail("attempt_latest_tip_required");
+          (revision ? !revisionFollows(proof, tip.reviewed_revision_consumed ?? 0, tip.revision_commission, tip.revision_grants ?? []) :
+          tip.reviewed_revision_consumed)) throw fail("attempt_latest_tip_required");
   }
-  if (sourceCorrection) admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof: sourceCorrection, acceptedMain, browserAuthorization, browserLive, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization, revisionAuthorization, revisionInputs, revisionLive, reserve: true });
-  if (browserReplacement) {
-    assertBrowserReplacementAuthorization(browserReplacement, browserAuthorization);
-    validateBrowserReplacementLive({ ...browserLive, proof: browserReplacement, repositoryRoot, branch, head, tree, base: acceptedMain });
-    const priorRoot = path.join(anchorRoot, ".augnes-local-verification", "families", browserReplacement.prior_family_id);
-    const prior = read(path.join(priorRoot, `attempt-${browserReplacement.prior_number}.json`));
-    const completion = read(path.join(priorRoot, `completion-${browserReplacement.prior_number}.json`));
-    if (completion.contract !== ATTEMPT_CONTRACT || !Number.isFinite(Date.parse(completion.finished_at)) ||
-        prior.attempt_id !== browserReplacement.prior_attempt_id || completion.attempt_id !== prior.attempt_id || completion.receipt_fingerprint !== browserReplacement.prior_receipt_fingerprint ||
-        completion.disposition !== "safety_violation" || completion.cleanup_complete !== true ||
-        Date.parse(browserAuthorization.observations.review.timestamp) <= Date.parse(completion.finished_at)) throw fail("browser_replacement_predecessor_unsettled");
-    // One namespace for all kinds. Even an identical claim cannot be replayed
-    // after a crash; only inspection may read an existing immutable edge.
-    append(priorRoot, "correction-successor.json", browserSuccessor(branch, browserReplacement));
-  }
+  if (sourceCorrection) admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof: sourceCorrection, acceptedMain, revisionAuthorization, revisionInputs, revisionLive, reserve: true });
   const root = directory(directory(artifact, "families"), familyId);
   const entries = readdirSync(root);
   if (entries.some(name => !/^(attempt|completion)-[12]\.json$/u.test(name) && name !== "correction-successor.json")) throw fail("attempt_unknown_record");
@@ -114,7 +107,7 @@ export function beginAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch
   let number = 1, prior = null;
   if (previous) {
     const tip = reconstructAttemptTip({ anchorRoot, repositoryRoot, branch });
-    if (tip.family_id !== familyId || tip.input_replacement_consumed || tip.observer_repair_consumed || tip.corrected_timeout_consumed || tip.condition_requalification_consumed || tip.guide_correction_consumed || tip.reviewed_revision_consumed) throw fail("attempt_candidate_superseded");
+    if (tip.family_id !== familyId || tip.reviewed_revision_consumed) throw fail("attempt_candidate_superseded");
     if (entries.includes("correction-successor.json")) throw fail("attempt_candidate_superseded");
     if (entries.includes("attempt-2.json") || !entries.includes("completion-1.json")) throw fail("attempt_budget_or_unsettled");
     prior = read(path.join(root, "completion-1.json"));
@@ -127,14 +120,8 @@ export function beginAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch
     head, tree, contract_fingerprint: contractFingerprint, started_at: new Date().toISOString(),
     prior_attempt_id: prior?.attempt_id ?? null, prior_receipt_fingerprint: prior?.receipt_fingerprint ?? null,
     recovery: number === 2 ? recoveryProof : null, source_correction: sourceCorrection,
-    ...(browserReplacement ? { browser_replacement: browserReplacement, browser_authority: browserAuthorization.observations } : {}),
-    ...(strictSource ? { input_replacement_consumed: true, browser_authority: browserAuthorization.observations } : {}),
-    ...(isObserverRepair(sourceCorrection) ? { observer_authority: observerAuthorization.observations } : {}),
-    ...(isCorrectedTimeout(sourceCorrection) ? { timeout_authority: timeoutAuthorization.observations } : {}),
-    ...(isConditionRequalification(sourceCorrection) ? { condition_authority: conditionAuthorization.observations } : {}),
     ...(isReviewedRevision(sourceCorrection) ? { revision_authority: revisionAuthorization.observations } : {}),
-    ...(isGuideCorrection(sourceCorrection) ? { guide_authority: guideAuthorization.observations } : {}),
-    budget: { initial: 1, recovery: browserReplacement || strictSource || isObserverRepair(sourceCorrection) || isCorrectedTimeout(sourceCorrection) || isConditionRequalification(sourceCorrection) || isGuideCorrection(sourceCorrection) || isReviewedRevision(sourceCorrection) ? 0 : 1 } };
+    budget: { initial: 1, recovery: isReviewedRevision(sourceCorrection) ? 0 : 1 } };
   append(root, `attempt-${number}.json`, record);
   const capability = Object.freeze({ ...record });
   capabilities.set(capability, { root, repositoryRoot, checkoutOwner, record });
@@ -184,60 +171,17 @@ export function readRecoveryProof(file) {
   return proof;
 }
 
-export function inspectAttemptRecords({ anchorRoot, repositoryRoot = anchorRoot, receipt, browserAuthorization = null, browserLive = null, observerAuthorization = null, timeoutAuthorization = null, conditionAuthorization = null, guideAuthorization = null, revisionAuthorization = null, revisionInputs = null, revisionLive = null }) {
+export function inspectAttemptRecords({ anchorRoot, repositoryRoot = anchorRoot, receipt, revisionAuthorization = null, revisionInputs = null, revisionLive = null }) {
   try {
     const attempt = receipt.attempt;
-    if (hasRetiredQualificationMarker(attempt)) return false;
-    const familyId = candidateFamilyId(receipt.repository.branch, attempt.source_correction, attempt.browser_replacement);
-    if (attempt.browser_replacement) {
-      if (receipt.receipt_version !== 5 || attempt.number !== 1 || attempt.source_correction || attempt.recovery || attempt.budget.recovery !== 0) return false;
-      assertBrowserReplacementAuthorization(attempt.browser_replacement, browserAuthorization);
-      if (digest(attempt.browser_authority) !== digest(browserAuthorization.observations)) return false;
-      validateBrowserReplacementLive({ ...browserLive, proof: attempt.browser_replacement, repositoryRoot, branch: receipt.repository.branch,
-        head: attempt.head, tree: attempt.tree, base: receipt.repository.base_sha });
-      const proof = attempt.browser_replacement;
-      const priorRoot = path.join(anchorRoot, ".augnes-local-verification", "families", proof.prior_family_id);
-      const completion = read(path.join(priorRoot, `completion-${proof.prior_number}.json`));
-      if (completion.attempt_id !== proof.prior_attempt_id || completion.receipt_fingerprint !== proof.prior_receipt_fingerprint || completion.cleanup_complete !== true || completion.disposition !== "safety_violation" ||
-          digest(read(path.join(priorRoot, "correction-successor.json"))) !== digest(browserSuccessor(receipt.repository.branch, proof))) return false;
-      const tip = reconstructAttemptTip({ anchorRoot, repositoryRoot, branch: receipt.repository.branch });
-      if (tip.family_id !== familyId || tip.attempt_id !== attempt.attempt_id) return false;
-    }
+    if (hasRetiredQualificationMarker(receipt)) return false;
+    const familyId = candidateFamilyId(receipt.repository.branch, attempt.source_correction);
     if (attempt.source_correction) admitSourceCorrection({ anchorRoot, repositoryRoot, branch: receipt.repository.branch,
-      head: attempt.head, tree: attempt.tree, proof: attempt.source_correction, acceptedMain: receipt.repository.base_sha, browserAuthorization, browserLive, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization, revisionAuthorization, revisionInputs, revisionLive, reserve: false });
+      head: attempt.head, tree: attempt.tree, proof: attempt.source_correction, acceptedMain: receipt.repository.base_sha, revisionAuthorization, revisionInputs, revisionLive, reserve: false });
     if (isReviewedRevision(attempt.source_correction)) {
       if (receipt.receipt_version !== 4 || !validReviewedRevisionAttempt(attempt) || digest(attempt.revision_authority) !== digest(revisionAuthorization?.observations)) return false;
       const tip = reconstructAttemptTip({ anchorRoot, repositoryRoot, branch: receipt.repository.branch });
       if (tip.family_id !== familyId || tip.attempt_id !== attempt.attempt_id || tip.reviewed_revision_consumed !== attempt.source_correction.commission.ordinal) return false;
-    }
-    if (isGuideCorrection(attempt.source_correction)) {
-      if (!validGuideCorrectionAttempt(attempt) || digest(attempt.guide_authority) !== digest(guideAuthorization?.observations)) return false;
-      const tip = reconstructAttemptTip({ anchorRoot, repositoryRoot, branch: receipt.repository.branch });
-      if (tip.family_id !== familyId || tip.attempt_id !== attempt.attempt_id || !tip.guide_correction_consumed) return false;
-    }
-    if (isConditionRequalification(attempt.source_correction)) {
-      if (!validConditionRequalificationAttempt(attempt) || digest(attempt.condition_authority) !== digest(conditionAuthorization?.observations)) return false;
-      const tip = reconstructAttemptTip({ anchorRoot, repositoryRoot, branch: receipt.repository.branch });
-      if (tip.family_id !== familyId || tip.attempt_id !== attempt.attempt_id || !tip.condition_requalification_consumed) return false;
-    }
-    if (isCorrectedTimeout(attempt.source_correction)) {
-      if (receipt.receipt_version !== 4 || !validTimeoutAttempt(attempt) ||
-          digest(attempt.timeout_authority) !== digest(timeoutAuthorization?.observations)) return false;
-      const tip = reconstructAttemptTip({ anchorRoot, repositoryRoot, branch: receipt.repository.branch });
-      if (tip.family_id !== familyId || tip.attempt_id !== attempt.attempt_id || !tip.corrected_timeout_consumed) return false;
-    }
-    if (isObserverRepair(attempt.source_correction)) {
-      if (receipt.receipt_version !== 4 || !validObserverAttempt(attempt) ||
-          digest(attempt.observer_authority) !== digest(observerAuthorization?.observations)) return false;
-      const tip = reconstructAttemptTip({ anchorRoot, repositoryRoot, branch: receipt.repository.branch });
-      if (tip.family_id !== familyId || tip.attempt_id !== attempt.attempt_id || !tip.observer_repair_consumed) return false;
-    }
-    if (isStrictBrowserSourceRevision(attempt.source_correction)) {
-      if (receipt.receipt_version !== 5 || attempt.browser_replacement || attempt.recovery || attempt.number !== 1 ||
-          attempt.budget?.initial !== 1 || attempt.budget?.recovery !== 0 || attempt.input_replacement_consumed !== true ||
-          digest(attempt.browser_authority) !== digest(browserAuthorization?.observations)) return false;
-      const tip = reconstructAttemptTip({ anchorRoot, repositoryRoot, branch: receipt.repository.branch });
-      if (tip.family_id !== familyId || tip.attempt_id !== attempt.attempt_id || !tip.input_replacement_consumed) return false;
     }
     if (attempt.family_id !== familyId || ![1, 2].includes(attempt.number)) return false;
     const root = path.join(anchorRoot, ".augnes-local-verification", "families", familyId);
@@ -256,17 +200,13 @@ export function inspectAttemptRecords({ anchorRoot, repositoryRoot = anchorRoot,
   } catch { return false; }
 }
 
-function candidateFamilyId(branch, correction, replacement) {
+function candidateFamilyId(branch, correction) {
   return digest([ATTEMPT_CONTRACT, "hynk-studio/augnes", branch,
-    ...(replacement ? [BROWSER_REPLACEMENT_CONTRACT, replacement.prior_family_id, replacement.prior_attempt_id] : []),
     ...(correction ? ["verified_source_correction", correction.prior_attempt_id, correction.head, correction.tree] : [])]);
 }
 
-const browserSuccessor = (branch, proof) => ({ contract: "augnes.local-canonical-successor.v2", kind: "browser_input_replacement",
-  family_id: candidateFamilyId(branch, null, proof), head: proof.head, tree: proof.tree, proof_fingerprint: digest(proof) });
-
 export function reconstructAttemptTip({ anchorRoot, repositoryRoot = null, branch }) {
-  let familyId = candidateFamilyId(branch), inputReplacementConsumed = false, retainedInput = null, observerRepairConsumed = false, correctedTimeoutConsumed = false, conditionRequalificationConsumed = false, guideCorrectionConsumed = false, revisionCount = 0, revisionCommission = null;
+  let familyId = candidateFamilyId(branch), revisionCount = 0, revisionCommission = null;
   const seen = new Set(), revisionGrants = [];
   for (let depth = 0; depth < 128; depth++) {
     if (seen.has(familyId)) throw fail("attempt_lineage_cycle");
@@ -279,62 +219,27 @@ export function reconstructAttemptTip({ anchorRoot, repositoryRoot = null, branc
     const attempt = read(path.join(root, `attempt-${number}.json`));
     if (hasRetiredQualificationMarker(attempt)) throw fail("qualification_route_retired");
     if (attempt.contract !== ATTEMPT_CONTRACT || attempt.branch !== branch || attempt.family_id !== familyId || attempt.number !== number ||
-        (attempt.source_correction && !supportsSourceCorrection(attempt.source_correction)) ||
-        (attempt.browser_replacement && (attempt.browser_replacement.contract !== BROWSER_REPLACEMENT_CONTRACT || attempt.browser_replacement.kind !== "browser_input_replacement" ||
-          attempt.source_correction || attempt.recovery || number !== 1 || attempt.budget?.initial !== 1 || attempt.budget?.recovery !== 0))) throw fail("attempt_lineage_identity_invalid");
+        (attempt.source_correction && !supportsSourceCorrection(attempt.source_correction))) throw fail("attempt_lineage_identity_invalid");
     const revision = isReviewedRevision(attempt.source_correction);
     if (revisionCount && !revision) throw fail("attempt_revision_commission_terminal");
-    if (observerRepairConsumed && !revision) throw fail("attempt_observer_successor_terminal");
-    if (correctedTimeoutConsumed && !revision) throw fail("attempt_timeout_successor_terminal");
-    if (guideCorrectionConsumed && !revision) throw fail("attempt_guide_successor_terminal");
-    if (conditionRequalificationConsumed && !revision && !isGuideCorrection(attempt.source_correction)) throw fail("attempt_condition_successor_terminal");
     if (revision) {
       if (!validReviewedRevisionAttempt(attempt) || !revisionFollows(attempt.source_correction, revisionCount, revisionCommission, revisionGrants)) throw fail("attempt_revision_commission_invalid");
       if (attempt.source_correction.commission.ordinal === 1) revisionGrants.push(attempt.source_correction.authorization.grant_comment_id);
       revisionCount = attempt.source_correction.commission.ordinal; revisionCommission = revisionCommissionIdentity(attempt.source_correction);
     }
-    if (isGuideCorrection(attempt.source_correction)) {
-      if (!conditionRequalificationConsumed || !validGuideCorrectionAttempt(attempt)) throw fail("attempt_guide_lineage_invalid");
-      guideCorrectionConsumed = true;
-    }
-    if (attempt.source_correction?.schema === CONDITION_REQUALIFICATION_SCHEMA) {
-      if (!validConditionRequalificationAttempt(attempt)) throw fail("attempt_condition_lineage_invalid");
-      conditionRequalificationConsumed = true;
-    }
-    if (attempt.source_correction?.schema === TIMEOUT_REPAIR_SCHEMA) {
-      if (!validTimeoutAttempt(attempt)) throw fail("attempt_timeout_lineage_invalid");
-      correctedTimeoutConsumed = true;
-    }
-    if (attempt.source_correction?.schema === OBSERVER_REPAIR_SCHEMA) {
-      if (!validObserverAttempt(attempt)) throw fail("attempt_observer_lineage_invalid");
-      observerRepairConsumed = true;
-    }
-    if (inputReplacementConsumed) {
-      if (attempt.browser_replacement || !isStrictBrowserSourceRevision(attempt.source_correction) ||
-          attempt.input_replacement_consumed !== true || attempt.source_correction.browser_input_sha256 !== retainedInput ||
-          attempt.recovery || number !== 1 || attempt.budget?.initial !== 1 || attempt.budget?.recovery !== 0)
-        throw fail("attempt_strict_input_lineage_invalid");
-    } else if (attempt.input_replacement_consumed !== undefined || isStrictBrowserSourceRevision(attempt.source_correction)) {
-      throw fail("attempt_strict_input_lineage_invalid");
-    }
-    if (attempt.browser_replacement) { inputReplacementConsumed = true; retainedInput = attempt.browser_replacement.browser_input_sha256; }
     const edgeFile = path.join(root, "correction-successor.json");
-    if (!entries.includes("correction-successor.json")) return { family_id: familyId, number, attempt_id: attempt.attempt_id, input_replacement_consumed: inputReplacementConsumed, ...(observerRepairConsumed ? { observer_repair_consumed: true } : {}), ...(correctedTimeoutConsumed ? { corrected_timeout_consumed: true } : {}), ...(conditionRequalificationConsumed ? { condition_requalification_consumed: true } : {}), ...(guideCorrectionConsumed ? { guide_correction_consumed: true } : {}), ...(revisionCount ? { reviewed_revision_consumed: revisionCount, revision_commission: revisionCommission, revision_grants: [...revisionGrants] } : {}) };
+    if (!entries.includes("correction-successor.json")) return { family_id: familyId, number, attempt_id: attempt.attempt_id, ...(revisionCount ? { reviewed_revision_consumed: revisionCount, revision_commission: revisionCommission, revision_grants: [...revisionGrants] } : {}) };
     const edge = read(edgeFile), revisionEdge = edge.kind === "reviewed_revision";
     if (hasRetiredQualificationMarker(edge)) throw fail("qualification_route_retired");
     if (revisionCount && !revisionEdge) throw fail("attempt_revision_commission_terminal");
-    if (observerRepairConsumed && !revisionEdge) throw fail("attempt_observer_successor_terminal");
-    if (correctedTimeoutConsumed && !revisionEdge) throw fail("attempt_timeout_successor_terminal");
-    if (guideCorrectionConsumed && !revisionEdge) throw fail("attempt_guide_successor_terminal");
     const completion = read(path.join(root, `completion-${number}.json`));
-    if (conditionRequalificationConsumed && !revisionEdge && edge.kind !== "guide_cancellation_correction") throw fail("attempt_condition_successor_terminal");
     const edgeKeys = edge.contract === undefined ? ["family_id", "head", "tree", "proof_fingerprint"] : ["contract", "kind", "family_id", "head", "tree", "proof_fingerprint"];
     if (completion.contract !== ATTEMPT_CONTRACT || completion.attempt_id !== attempt.attempt_id || !sha(completion.receipt_fingerprint) || !sha(edge.family_id) || !sha(edge.proof_fingerprint) ||
         digest(Object.keys(edge).sort()) !== digest(edgeKeys.sort()) ||
-        (edge.contract !== undefined && (edge.contract !== "augnes.local-canonical-successor.v2" || !["browser_input_replacement", "observer_repair", "corrected_timeout", "condition_requalification", "guide_cancellation_correction", "reviewed_revision"].includes(edge.kind)))) throw fail("attempt_lineage_edge_invalid");
+        (edge.contract !== undefined && (edge.contract !== "augnes.local-canonical-successor.v2" || edge.kind !== "reviewed_revision"))) throw fail("attempt_lineage_edge_invalid");
     const next = read(path.join(anchorRoot, ".augnes-local-verification", "families", edge.family_id, "attempt-1.json"));
     if (hasRetiredQualificationMarker(next)) throw fail("qualification_route_retired");
-    const proof = next.browser_replacement ?? next.source_correction;
+    const proof = next.source_correction;
     if (completion.cleanup_complete !== true) {
       if (!repositoryRoot || completion.cleanup_complete !== false || !revisionEdge || revisionCount !== 2 ||
           !validReviewedRevisionAttempt(next) || proof?.commission.ordinal !== 1 || !proof.settlement ||
@@ -343,22 +248,13 @@ export function reconstructAttemptTip({ anchorRoot, repositoryRoot = null, branc
     }
     if (!proof || proof.prior_family_id !== familyId || proof.prior_number !== number || proof.prior_attempt_id !== attempt.attempt_id || proof.prior_receipt_fingerprint !== completion.receipt_fingerprint ||
         digest(proof) !== edge.proof_fingerprint || next.head !== edge.head || next.tree !== edge.tree ||
-        candidateFamilyId(branch, next.source_correction, next.browser_replacement) !== edge.family_id ||
-        (edge.kind === "browser_input_replacement") !== !!next.browser_replacement ||
-        (edge.kind === "observer_repair") !== isObserverRepair(next.source_correction) ||
-        (edge.kind === "corrected_timeout") !== isCorrectedTimeout(next.source_correction) ||
-        (edge.kind === "condition_requalification") !== isConditionRequalification(next.source_correction) ||
+        candidateFamilyId(branch, next.source_correction) !== edge.family_id ||
         revisionEdge !== isReviewedRevision(next.source_correction) ||
         (revisionEdge && (!validReviewedRevisionAttempt(next) || !revisionFollows(proof, revisionCount, revisionCommission, revisionGrants) ||
           (!["product_failure", "input_invalidation"].includes(completion.disposition) &&
             !(completion.disposition === "safety_violation" && revisionCount === 2 && proof.commission.ordinal === 1)) ||
           (proof.commission.ordinal === 1 && (proof.authorization.grant_comment_id === attempt.source_correction?.authorization?.grant_comment_id ||
-            Date.parse(next.revision_authority.execution_commission.timestamp) <= Date.parse(completion.finished_at))))) ||
-        (edge.kind === "guide_cancellation_correction") !== isGuideCorrection(next.source_correction) ||
-        (isGuideCorrection(next.source_correction) && (!isConditionRequalification(attempt.source_correction) || completion.disposition !== "product_failure" ||
-          !validGuideCorrectionAttempt(next) || next.source_correction.authorization?.grant_comment_id === attempt.source_correction.authorization?.grant_comment_id))) throw fail("attempt_lineage_edge_invalid");
-    if (inputReplacementConsumed && (completion.disposition !== "product_failure" || next.head === attempt.head || next.tree === attempt.tree))
-      throw fail("attempt_strict_source_predecessor_invalid");
+            Date.parse(next.revision_authority.execution_commission.timestamp) <= Date.parse(completion.finished_at)))))) throw fail("attempt_lineage_edge_invalid");
     familyId = edge.family_id;
   }
   throw fail("attempt_lineage_bound");
@@ -378,31 +274,11 @@ export function readSourceCorrectionProof(file, repositoryRoot) {
     readReviewedRevisionEvidence(file, proof, repositoryRoot);
     return { ...proof, local_relative_path: relative };
   }
-  if (isGuideCorrection(proof)) {
-    readGuideCorrectionEvidence(file, proof, repositoryRoot);
-    return { ...proof, local_relative_path: relative };
-  }
-  if (isConditionRequalification(proof)) {
-    readConditionRequalificationEvidence(file, proof, repositoryRoot);
-    return { ...proof, local_relative_path: relative };
-  }
-  const observer = isObserverRepair(proof);
-  if (observer) readObserverRepairEvidence(file, proof, repositoryRoot);
-  const correctedTimeout = isCorrectedTimeout(proof);
-  if (correctedTimeout) readTimeoutRepairEvidence(file, proof, repositoryRoot);
   const version2 = proof.schema === "augnes.local-canonical-source-correction.v2";
   const review = version2 ? readCandidateReview(file, proof) : null;
-  if (["browser_input_path", "browser_input_sha256", "input_replacement_consumed"].some(k => Object.hasOwn(proof, k))) {
-    if (!isStrictBrowserSourceRevision(proof) || proof.budget?.initial !== 1 || proof.budget?.recovery !== 0 ||
-        !/^[0-9a-f]{40}$/u.test(proof.base ?? "") ||
-        !["browser_input_sha256", "executor_fingerprint", "environment_fingerprint", "workload_fingerprint", "common_inputs_sha256", "delta_sha256"].every(k => sha(proof[k])) ||
-        proof.delta_sha256 !== review.delta_sha256 || digest(proof.changed_paths) !== digest(review.changed_paths) ||
-        digest(readBrowserInputBinding(proof.browser_input_path, repositoryRoot).publicBinding) !== proof.browser_input_sha256)
-      throw fail("source_correction_strict_input_invalid");
-  }
   if (version2 && proof.kind === "accepted_main_integration") return { ...proof, local_relative_path: relative };
-  if ((!observer && !correctedTimeout && !version2 && proof.schema !== "augnes.local-canonical-source-correction.v1") ||
-      !(version2 || correctedTimeout ? /^(?:next\.config\.ts|components\/blank-state\/blank-state-client\.tsx|(?:scripts|app|lib|plugins|apps|src)\/[a-zA-Z0-9_./-]+\.(?:mjs|cjs|js|ts|tsx))$/u : /^scripts\/[a-z0-9_/-]+\.mjs$/u).test(proof.source_module ?? "") || (proof.source_module ?? "").split("/").includes("..") ||
+  if ((!version2 && proof.schema !== "augnes.local-canonical-source-correction.v1") ||
+      !(version2 ? /^(?:next\.config\.ts|components\/blank-state\/blank-state-client\.tsx|(?:scripts|app|lib|plugins|apps|src)\/[a-zA-Z0-9_./-]+\.(?:mjs|cjs|js|ts|tsx))$/u : /^scripts\/[a-z0-9_/-]+\.mjs$/u).test(proof.source_module ?? "") || (proof.source_module ?? "").split("/").includes("..") ||
       !/^[a-z][a-z0-9_-]{0,79}$/u.test(proof.defect ?? "") || !sha(proof.fixture_sha256) ||
       !sha(proof.prior_family_id) || ![1, 2].includes(proof.prior_number) || !sha(proof.prior_receipt_fingerprint)) throw fail("source_correction_proof_invalid");
   if (!/^[a-z0-9_-]+\.mjs$/u.test(proof.fixture_artifact ?? "") || !sha(proof.environment_fingerprint)) throw fail("source_correction_fixture_missing");
@@ -425,7 +301,7 @@ export function readSourceCorrectionProof(file, repositoryRoot) {
   return { ...proof, local_relative_path: relative.split(path.sep).join("/") };
 }
 
-function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof, acceptedMain, browserAuthorization, browserLive, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization, revisionAuthorization, revisionInputs, revisionLive, reserve }) {
+function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof, acceptedMain, revisionAuthorization, revisionInputs, revisionLive, reserve }) {
   const reread = readSourceCorrectionProof(path.join(repositoryRoot, proof.local_relative_path ?? ""), repositoryRoot);
   if (digest(reread) !== digest(proof) || proof.branch !== branch || proof.head !== head || proof.tree !== tree ||
       !/^[0-9a-f]{40}$/u.test(head) || !/^[0-9a-f]{40}$/u.test(tree)) throw fail("source_correction_identity_invalid");
@@ -463,85 +339,10 @@ function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree,
     if (!revisionEqual(read(path.join(priorRoot, "correction-successor.json")), successor)) throw fail("revision_successor_already_bound");
     return;
   }
-  if (isGuideCorrection(proof)) {
-    const completion = JSON.parse(guideArtifact(path.dirname(path.join(repositoryRoot, proof.local_relative_path)), proof.originals.completion));
-    assertGuideCorrectionAuthorization(proof, guideAuthorization, completion);
-    if (acceptedMain !== proof.base) throw fail("guide_current_base_required");
-    const priorRoot = path.join(anchorRoot, ".augnes-local-verification", "families", proof.prior_family_id);
-    if (realpathSync(priorRoot) !== priorRoot || readdirSync(priorRoot).includes(`attempt-${proof.prior_number + 1}.json`)) throw fail("guide_latest_settled_required");
-    for (const kind of ["attempt", "completion"]) {
-      const actual = path.join(priorRoot, `${kind}-${proof.prior_number}.json`);
-      read(actual);
-      if (digest(readFileSync(actual)) !== proof.originals[kind].sha256) throw fail("guide_original_ledger_changed");
-    }
-    const prior = read(path.join(priorRoot, `attempt-${proof.prior_number}.json`));
-    const incomingEdge = path.join(anchorRoot, ".augnes-local-verification", "families", prior.source_correction.prior_family_id, "correction-successor.json");
-    read(incomingEdge);
-    if (digest(readFileSync(incomingEdge)) !== proof.originals.edge.sha256) throw fail("guide_original_edge_changed");
-    const successor = { contract: "augnes.local-canonical-successor.v2", kind: "guide_cancellation_correction",
-      family_id: candidateFamilyId(branch, proof), head, tree, proof_fingerprint: digest(proof) };
-    // The existing exclusive predecessor edge consumes the new grant across
-    // candidates and successor kinds, including a crash before attempt append.
-    if (reserve) append(priorRoot, "correction-successor.json", successor);
-    if (digest(read(path.join(priorRoot, "correction-successor.json"))) !== digest(successor)) throw fail("guide_successor_already_bound");
-    return;
-  }
-  if (isConditionRequalification(proof)) {
-    const completion = JSON.parse(conditionArtifact(path.dirname(path.join(repositoryRoot, proof.local_relative_path)), proof.originals.completion));
-    assertConditionRequalificationAuthorization(proof, conditionAuthorization, completion);
-    if (acceptedMain !== proof.base) throw fail("condition_current_base_required");
-    const priorRoot = path.join(anchorRoot, ".augnes-local-verification", "families", proof.prior_family_id);
-    if (realpathSync(priorRoot) !== priorRoot || readdirSync(priorRoot).includes(`attempt-${proof.prior_number + 1}.json`)) throw fail("condition_latest_settled_required");
-    for (const kind of ["attempt", "completion"]) {
-      const actual = path.join(priorRoot, `${kind}-${proof.prior_number}.json`);
-      read(actual);
-      if (digest(readFileSync(actual)) !== proof.originals[kind].sha256) throw fail("condition_original_ledger_changed");
-    }
-    const successor = { contract: "augnes.local-canonical-successor.v2", kind: "condition_requalification",
-      family_id: candidateFamilyId(branch, proof), head, tree, proof_fingerprint: digest(proof) };
-    if (reserve) append(priorRoot, "correction-successor.json", successor);
-    if (digest(read(path.join(priorRoot, "correction-successor.json"))) !== digest(successor)) throw fail("condition_successor_already_bound");
-    return;
-  }
-  if (isCorrectedTimeout(proof)) {
-    const completion = JSON.parse(timeoutArtifact(path.dirname(path.join(repositoryRoot, proof.local_relative_path)), proof.originals.completion));
-    assertCorrectedTimeoutAuthorization(proof, timeoutAuthorization, completion);
-    if (acceptedMain !== proof.base) throw fail("timeout_current_base_required");
-    const priorRoot = path.join(anchorRoot, ".augnes-local-verification", "families", proof.prior_family_id);
-    if (realpathSync(priorRoot) !== priorRoot || readdirSync(priorRoot).includes(`attempt-${proof.prior_number + 1}.json`)) throw fail("timeout_latest_settled_required");
-    for (const kind of ["attempt", "completion"]) {
-      const actual = path.join(priorRoot, `${kind}-${proof.prior_number}.json`);
-      read(actual);
-      if (digest(readFileSync(actual)) !== proof.originals[kind].sha256) throw fail("timeout_original_ledger_changed");
-    }
-    const successor = { contract: "augnes.local-canonical-successor.v2", kind: "corrected_timeout",
-      family_id: candidateFamilyId(branch, proof), head, tree, proof_fingerprint: digest(proof) };
-    // The existing exclusive namespace also consumes an interrupted reservation.
-    // Inspection reconstructs this edge; it never creates or repairs one.
-    if (reserve) append(priorRoot, "correction-successor.json", successor);
-    if (digest(read(path.join(priorRoot, "correction-successor.json"))) !== digest(successor)) throw fail("timeout_successor_already_bound");
-    return;
-  }
-  if (isObserverRepair(proof)) {
-    const completion = JSON.parse(observerArtifact(path.dirname(path.join(repositoryRoot, proof.local_relative_path)), proof.originals.completion));
-    assertObserverRepairAuthorization(proof, observerAuthorization, completion);
-    if (acceptedMain !== proof.base) throw fail("observer_current_base_required");
-    const priorRoot = path.join(anchorRoot, ".augnes-local-verification", "families", proof.prior_family_id);
-    if (realpathSync(priorRoot) !== priorRoot || readdirSync(priorRoot).includes(`attempt-${proof.prior_number + 1}.json`)) throw fail("observer_latest_settled_required");
-    for (const kind of ["attempt", "completion"]) {
-      const actual = path.join(priorRoot, `${kind}-${proof.prior_number}.json`);
-      read(actual);
-      if (digest(readFileSync(actual)) !== proof.originals[kind].sha256) throw fail("observer_original_ledger_changed");
-    }
-    const successor = { contract: "augnes.local-canonical-successor.v2", kind: "observer_repair",
-      family_id: candidateFamilyId(branch, proof), head, tree, proof_fingerprint: digest(proof) };
-    if (reserve) append(priorRoot, "correction-successor.json", successor);
-    if (digest(read(path.join(priorRoot, "correction-successor.json"))) !== digest(successor)) throw fail("observer_successor_already_bound");
-    return;
-  }
   const priorRoot = path.join(anchorRoot, ".augnes-local-verification", "families", proof.prior_family_id);
   if (realpathSync(priorRoot) !== priorRoot) throw fail("source_correction_unsafe_predecessor");
   const prior = read(path.join(priorRoot, `attempt-${proof.prior_number}.json`));
+  if (hasRetiredQualificationMarker(prior)) throw fail("qualification_route_retired");
   const completion = read(path.join(priorRoot, `completion-${proof.prior_number}.json`));
   if (prior.branch !== branch || prior.attempt_id !== proof.prior_attempt_id || prior.head === head || prior.tree === tree ||
       completion.attempt_id !== prior.attempt_id || completion.receipt_fingerprint !== proof.prior_receipt_fingerprint ||
@@ -559,6 +360,7 @@ function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree,
     const originalFile = path.join(repositoryRoot, proof.prior_receipt_path);
     if (realpathSync(originalFile) !== originalFile) throw fail("candidate_prior_receipt_unsafe");
     const original = read(originalFile, 512 * 1024), originalValue = { ...original }; delete originalValue.integrity;
+    if (hasRetiredQualificationMarker(original)) throw fail("qualification_route_retired");
     if (digest(originalValue) !== proof.prior_receipt_fingerprint || original.integrity?.content_fingerprint !== proof.prior_receipt_fingerprint ||
         original.run?.id !== prior.attempt_id || original.repository?.head_sha !== prior.head || original.repository?.tree_sha !== prior.tree ||
         original.outcome?.disposition !== completion.disposition || original.cleanup?.completed !== true ||
@@ -567,19 +369,6 @@ function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree,
         review.delta_sha256 !== digest(git(["diff", "--binary", "--no-ext-diff", "--no-textconv", prior.head, head, "--"])) ||
         digest(review.changed_paths) !== digest(git(["diff", "--name-only", prior.head, head, "--"]).toString().trim().split("\n").sort()))
       throw fail("candidate_review_binding_invalid");
-    const strict = isStrictBrowserSourceRevision(proof);
-    if ((original.receipt_version === 5 || prior.browser_replacement || isStrictBrowserSourceRevision(prior.source_correction)) !== strict)
-      throw fail("source_correction_strict_input_required");
-    if (strict) {
-      if (original.receipt_version !== 5 || completion.disposition !== "product_failure" || prior.budget?.recovery !== 0 ||
-          digest(original.browser_input) !== proof.browser_input_sha256 || digest(original.inputs?.binding?.browser_input) !== proof.browser_input_sha256 ||
-          original.attempt?.family_id !== proof.prior_family_id || original.attempt?.number !== proof.prior_number ||
-          proof.authorization?.review_id === prior.browser_authority?.review?.id || proof.authorization?.grant_comment_id === prior.browser_authority?.grant?.id)
-        throw fail("source_correction_strict_predecessor_invalid");
-      assertBrowserReplacementAuthorization(proof, browserAuthorization);
-      if (Date.parse(browserAuthorization.observations.review.timestamp) <= Date.parse(completion.finished_at)) throw fail("source_correction_review_predates_settlement");
-      validateStrictBrowserLive({ ...browserLive, proof, branch, head, tree, base: acceptedMain });
-    }
     if (proof.kind === "verifier_correction" && (!VERIFIER_MODULES.includes(proof.source_module) ||
         original.inputs?.first_fault?.disposition !== completion.disposition || review.addresses_disposition !== completion.disposition ||
         review.prior_fault_fingerprint !== digest(original.inputs.first_fault) || review.addresses_resource !== original.inputs.first_fault.resource))
@@ -705,7 +494,7 @@ function revisionShape(p) {
 export function validReviewedRevisionAttempt(attempt) {
   const p = attempt?.source_correction;
   const roles = ["accepted_revision", "execution_commission", ...(p?.authorization?.settlement_review ? ["settlement_review"] : [])];
-  if (!revisionShape(p) || attempt.number !== 1 || attempt.recovery || attempt.browser_replacement ||
+  if (!revisionShape(p) || attempt.number !== 1 || attempt.recovery || hasRetiredQualificationMarker(attempt) ||
       !revisionEqual(attempt.budget, { initial: 1, recovery: 0 }) || p.branch !== attempt.branch || p.head !== attempt.head || p.tree !== attempt.tree ||
       !revisionKeys(attempt.revision_authority, roles)) return false;
   return roles.every(role => {
@@ -933,7 +722,7 @@ export function readReviewedRevisionEvidence(file, p, repositoryRoot) {
     revisionEqual(p.accepted, prior.source_correction.accepted) && p.authorization.settlement_review?.head === prior.head
     ? readRevisionSettlement(p, original, completion, parse, bytes) : null;
   if (p.settlement && !externalSettlement) throw fail("revision_settlement_predecessor_invalid");
-  if (![4, 5].includes(original.receipt_version) || original.integrity?.content_fingerprint !== digest(content) ||
+  if (original.receipt_version !== 4 || hasRetiredQualificationMarker(original) || original.integrity?.content_fingerprint !== digest(content) ||
       !revisionEqual(original.attempt, prior) || prior.attempt_id !== p.prior_attempt_id || prior.family_id !== p.prior_family_id || prior.number !== p.prior_number ||
       prior.branch !== p.branch || original.integrity.content_fingerprint !== p.prior_receipt_fingerprint ||
       original.repository?.head_sha !== prior.head || original.repository.tree_sha !== prior.tree ||

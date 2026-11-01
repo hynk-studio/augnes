@@ -1,13 +1,8 @@
 #!/usr/bin/env node
-import { hasRetiredQualificationMarker, isReviewedRevision, readSourceCorrectionProof as readCorrectionProof } from "./local-canonical-attempts.mjs";
+import { hasRetiredQualificationMarker, isReviewedRevision, REVIEWED_REVISION_PHASES, readSourceCorrectionProof as readCorrectionProof } from "./local-canonical-attempts.mjs";
 
 import assert from "node:assert/strict";
-import { isObserverRepair } from "./local-canonical-observer-succession.mjs";
-import { isCorrectedTimeout } from "./local-canonical-timeout-succession.mjs";
-import { CONDITION_REQUALIFICATION_SCHEMA, isConditionRequalification } from "./local-canonical-condition-requalification.mjs";
-import { GUIDE_CORRECTION_SCHEMA, isGuideCorrection } from "./local-canonical-guide-correction.mjs";
 import { digest } from "./local-canonical-inputs.mjs";
-import { BROWSER_REPLACEMENT_PHASES } from "./local-canonical-browser-replacement.mjs";
 import { spawnSync } from "node:child_process";
 import {
   existsSync,
@@ -63,6 +58,7 @@ import {
   readStockMachineIdentity,
   readStockBrowserInput,
   assertRuntimeInputSelection,
+  executeLocalCanonicalVerification,
 } from "./run-local-canonical-verification.mjs";
 import {
   acquireCheckoutVerificationOwnership,
@@ -83,6 +79,11 @@ for (const key of ["AUGNES_CANONICAL_NODE_HEADERS", "AUGNES_CANONICAL_NODE_HEADE
   assert.throws(() => assertRuntimeInputSelection({ headers: { observation: {} } }, { [key]: "wrong" }), /runtime_input_selection_unbound/);
 }
 
+// Removed options refuse at the public entry before repository admission,
+// even when callers disguise the option as a null/false default.
+for (const browserReplacementProofPath of [null, false, ".augnes-local-verification/missing.json"])
+  await assert.rejects(() => executeLocalCanonicalVerification({ mode: "full", browserReplacementProofPath }), { code: "qualification_route_retired" });
+
 // Retired stock refuses before input/identity observation; live revision stock
 // cannot create/chmod a missing or retained machine identity.
 {
@@ -90,6 +91,13 @@ for (const key of ["AUGNES_CANONICAL_NODE_HEADERS", "AUGNES_CANONICAL_NODE_HEADE
   try {
     const receipt = { attempt: { source_correction: { schema: "augnes.local-canonical-operating-profile-succession.v1", kind: "operating_profile_efficiency" } } };
     const receipts = [receipt,
+      { receipt_version: 5 },
+      ...["browser_replacement", "browser_authority", "input_replacement_consumed"].flatMap(key =>
+        [false, null, {}].map(value => ({ attempt: { [key]: value } }))),
+      ...["browser_input_path", "browser_input_sha256"].flatMap(key =>
+        [false, null].map(value => ({ attempt: { source_correction: { schema: "augnes.local-canonical-source-correction.v2", kind: "source_revision", [key]: value } } }))),
+      ...["browser_input", "browser_guard"].flatMap(key => [false, null].map(value => ({ [key]: value }))),
+      { inputs: { binding: { browser_input: null } } }, { inputs: { resources: [{ browserBundle: false }] } },
       { attempt: { source_correction: { schema: "augnes.local-canonical-operating-profile-succession.v1", kind: "wrong" } } },
       { attempt: { source_correction: { kind: "operating_profile_efficiency" } } },
       { attempt: { profile_authority: {} } }, { attempt: { operating_profile_consumed: true } },
@@ -103,9 +111,9 @@ for (const key of ["AUGNES_CANONICAL_NODE_HEADERS", "AUGNES_CANONICAL_NODE_HEADE
       { attempt: { revision_authority: {} } }, { attempt: { reviewed_revision_consumed: true } }];
     for (const value of receipts) {
       assert.throws(() => readStockMachineIdentity(value, root));
-      if (hasRetiredQualificationMarker(value.attempt)) {
+      if (hasRetiredQualificationMarker(value)) {
         assert.throws(() => readStockMachineIdentity(value, root), { code: "qualification_route_retired" });
-        for (const receipt_version of [3, 4, 5])
+        for (const receipt_version of value.receipt_version === 5 ? [5] : [3, 4, 5])
           assert.throws(() => readStockBrowserInput({ ...value, receipt_version }, root), { code: "qualification_route_retired" });
       }
       assert.deepEqual(readdirSync(root), []);
@@ -114,7 +122,7 @@ for (const key of ["AUGNES_CANONICAL_NODE_HEADERS", "AUGNES_CANONICAL_NODE_HEADE
     writeFileSync(file, "7".repeat(64), { mode: 0o600 });
     const before = lstatSync(file, { bigint: true }), bytes = readFileSync(file);
     for (const value of receipts) {
-      if (hasRetiredQualificationMarker(value.attempt)) assert.throws(() => readStockMachineIdentity(value, root), { code: "qualification_route_retired" });
+      if (hasRetiredQualificationMarker(value)) assert.throws(() => readStockMachineIdentity(value, root), { code: "qualification_route_retired" });
       else assert.match(readStockMachineIdentity(value, root), /^[0-9a-f]{32}$/u);
     }
     const after = lstatSync(file, { bigint: true });
@@ -940,7 +948,7 @@ const ownedBlockEnd = executorSource.indexOf("\n  const serviceLifecycleRestored
 assert.ok(ownedBlockStart > 0 && ownedBlockEnd > ownedBlockStart);
 const ownedBlock = executorSource.slice(ownedBlockStart, ownedBlockEnd);
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"].flatMap(graph => ["missing", "invalid", "ready"].map(state => `${prefix}historical_${graph}_${state}`))), "wrong_npm","checkout_busy","capacity_busy","acquisition_failure","owned_failure","unsettled_failure","success","absent_success","stopped_success","quick_success","isolated_success","isolated_unsettled","isolated_observation_invalid","pre_lock_state_race","maintenance_state_race","observer_authority_refused","observer_changed_after_authority","timeout_authority_refused","timeout_changed_after_authority","timeout_partial_workload_refused","condition_authority_refused","condition_changed_after_authority","condition_partial_workload_refused","guide_authority_refused","guide_changed_after_authority","guide_partial_workload_refused","revision_authority_refused","revision_changed_after_authority","revision_partial_workload_refused","revision_runtime_success","revision_settlement_success","revision_settlement_unsafe","revision_dependencies_observation_failure","isolated_observer_settled","isolated_observer_cleanup_failed","isolated_observer_unknown",]) {
+for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"].flatMap(graph => ["missing", "invalid", "ready"].map(state => `${prefix}historical_${graph}_${state}`))), "wrong_npm","checkout_busy","capacity_busy","acquisition_failure","owned_failure","unsettled_failure","success","absent_success","stopped_success","quick_success","isolated_success","isolated_unsettled","isolated_observation_invalid","pre_lock_state_race","maintenance_state_race","revision_authority_refused","revision_changed_after_authority","revision_partial_workload_refused","revision_runtime_success","revision_settlement_success","revision_settlement_unsafe","revision_dependencies_observation_failure","isolated_observer_settled","isolated_observer_cleanup_failed","isolated_observer_unknown",]) {
   const root = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-canonical-ownership-")));
   let competingOwner = null;
   let privateResource = null;
@@ -967,10 +975,6 @@ for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"
     const unsettled = ["unsettled_failure", "isolated_unsettled", "isolated_observer_unknown"].includes(scenario);
     const noServiceMaintenance = ["absent_success", "stopped_success"].includes(scenario);
     let authorityObserved = false, attemptClaims = 0;
-    const observerRefusal = scenario.startsWith("observer_");
-    const timeoutRefusal = scenario.startsWith("timeout_");
-    const conditionRefusal = scenario.startsWith("condition_");
-    const guideRefusal = scenario.startsWith("guide_");
     const revisionLane = scenario.startsWith("revision_");
     const revisionSettlement = scenario.startsWith("revision_settlement_");
     const settlementLive = Object.freeze({ synthetic_current_safe_observation: true });
@@ -1003,12 +1007,8 @@ for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"
     const context = {
       checkoutContext: isolated ? "isolated-worktree" : "canonical", verificationContext: {}, signal: { aborted: false },
       controller: new AbortController(), recoveryProofPath: null, sourceCorrectionProofPath: null, baseSha: "0".repeat(40), headSha: "a".repeat(40), executorFingerprint: "b".repeat(64), identityBefore: { branch: "fixture" },
-      isObserverRepair, isCorrectedTimeout, isConditionRequalification, isGuideCorrection, isReviewedRevision, digest, BROWSER_REPLACEMENT_PHASES,
-      browserInput: null, browserReplacement: null, strictProof: null, sourceCorrection: revisionLane ? { schema: "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision", ...(revisionSettlement ? { settlement: { sha256: "c".repeat(64) } } : {}) } : observerRefusal ? { schema: "augnes.local-canonical-source-correction.v3", kind: "observer_repair" } : timeoutRefusal ? { schema: "augnes.local-canonical-source-correction.v4", kind: "corrected_timeout" } : conditionRefusal ? { schema: "augnes.local-canonical-source-correction.v5", kind: "condition_requalification" } : guideRefusal ? { schema: "augnes.local-canonical-source-correction.v6", kind: "guide_cancellation_correction" } : null,
-      authorizeObserverRepair: async () => { authorityObserved = true; if (scenario === "observer_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
-      authorizeCorrectedTimeout: async () => { authorityObserved = true; if (scenario === "timeout_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
-      authorizeConditionRequalification: async () => { authorityObserved = true; if (scenario === "condition_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
-      authorizeGuideCorrection: async () => { authorityObserved = true; if (scenario === "guide_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
+      isReviewedRevision, digest, REVIEWED_REVISION_PHASES,
+      sourceCorrection: revisionLane ? { schema: "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision", ...(revisionSettlement ? { settlement: { sha256: "c".repeat(64) } } : {}) } : null,
       authorizeReviewedRevision: async () => { authorityObserved = true; if (scenario === "revision_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
       observeReviewedRevisionSettlementState: async () => {
         assert(authorityObserved); assertCheckoutVerificationOwnership(activeOwner, root);
@@ -1024,7 +1024,7 @@ for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"
           if (scenario === "revision_dependencies_observation_failure") throw Object.assign(new Error(), { code: "dependency_input_read_race" });
         },
         checkPreparedDependencies: () => { assertCheckoutVerificationOwnership(activeOwner, root); preparedChecks++; }, snapshot: () => ({ resources: [], binding: { tree: "c".repeat(40) }, fingerprint: "d".repeat(64) }) }),
-      monitorInputContract: () => ({ check: () => ["observer_changed_after_authority", "timeout_changed_after_authority", "condition_changed_after_authority", "guide_changed_after_authority", "revision_changed_after_authority",    ].includes(scenario) && authorityObserved ? { disposition: "input_invalidation" } : null, stop() {}, fault: () => null }),
+      monitorInputContract: () => ({ check: () => [    "revision_changed_after_authority",    ].includes(scenario) && authorityObserved ? { disposition: "input_invalidation" } : null, stop() {}, fault: () => null }),
       beginAttempt: options => { assert.equal(options.revisionLive, revisionSettlement ? settlementLive : null); attemptClaims++; return {}; }, pinVerificationEvidence() {}, assertFrozenSource() {},
       createIsolatedInvocationResources: id => (privateResource = createIsolatedInvocationResources(id)),
       readPreparedR8ADependencies: repository => historicalRead("r8a", repository),
@@ -1039,7 +1039,7 @@ for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"
       assertVerificationContext: () => true, verificationAnchorRoot: () => root,
       invocationId: "a".repeat(32),
       plan: { selected_plan: quick ? "quick-feedback" : "full-canonical" }, OWNER_TARGETED_PLAN: "owner-targeted",
-      preflightIssues, phaseDefinitions: historical ? [{ id: historicalGraph === "r8a" ? "unit" : "integration" }] : revisionLane && scenario !== "revision_partial_workload_refused" ? BROWSER_REPLACEMENT_PHASES.map(id => ({id})) : observerFailure ? [{ id: "synthetic" }, { id: "must_not_start" }] : [{ id: "synthetic" }], phaseReceipts: (historical ? [historicalGraph === "r8a" ? "unit" : "integration"] : revisionRuntime ? BROWSER_REPLACEMENT_PHASES : observerFailure ? ["synthetic", "must_not_start"] : ["synthetic"]).map(id => ({id,status:"not_run"})),
+      preflightIssues, phaseDefinitions: historical ? [{ id: historicalGraph === "r8a" ? "unit" : "integration" }] : revisionLane && scenario !== "revision_partial_workload_refused" ? REVIEWED_REVISION_PHASES.map(id => ({id})) : observerFailure ? [{ id: "synthetic" }, { id: "must_not_start" }] : [{ id: "synthetic" }], phaseReceipts: (historical ? [historicalGraph === "r8a" ? "unit" : "integration"] : revisionRuntime ? REVIEWED_REVISION_PHASES : observerFailure ? ["synthetic", "must_not_start"] : ["synthetic"]).map(id => ({id,status:"not_run"})),
       repositoryRoot: root, runLogRoot, runId: "synthetic", mode: revisionLane ? "full" : "changed", hostResult: {},
       process: { platform: scenario === "capacity_busy" ? "darwin" : "win32", arch: "x64" }, generatedWindowsHelperRoot: windows,
       host: {},
@@ -1156,18 +1156,15 @@ for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"
       assert.equal(result.cleanupComplete, true, `${scenario}: ${result.cleanupReason}`); assert.equal(privateResourceCleaned, true);
       const failed = scenario === "revision_dependencies_observation_failure";
       assert.deepEqual(preparedPhases, failed ? ["dependencies-root"] : ["dependencies-root", "dependencies-nested", "dependencies-web-planning"]);
-      assert.equal(calls.phases, failed ? 1 : BROWSER_REPLACEMENT_PHASES.length);
+      assert.equal(calls.phases, failed ? 1 : REVIEWED_REVISION_PHASES.length);
       assert.equal(result.executionFailure, failed);
       if (failed) assert.equal(context.phaseReceipts[0].failure_code, "dependency_input_read_race");
       assert.equal(calls.release, 0); assert(!existsSync(next)); assert(!existsSync(windows));
-    } else if (observerRefusal || timeoutRefusal || conditionRefusal || guideRefusal || revisionRefusal) {
+    } else if (revisionRefusal) {
       assert(authorityObserved); assert.equal(attemptClaims, 0); assert.equal(calls.phases, 0);
       assert(result.executionFailure); assert.equal(result.cleanupComplete, true, "execution refusal is separate from positively observed settlement");
       assert.equal(calls.release, isolated ? 0 : 1); assert(!existsSync(next)); assert(!existsSync(windows));
       if (revisionRefusal) assert.equal(result.executionReason, scenario === "revision_settlement_unsafe" ? "revision_current_settlement_unsafe" : scenario === "revision_authority_refused" ? "synthetic_authority_refusal" : scenario === "revision_changed_after_authority" ? "input_admission_refused" : "reviewed_revision_workload_invalid");
-      if (timeoutRefusal) assert.equal(result.executionReason, scenario === "timeout_authority_refused" ? "synthetic_authority_refusal" : scenario === "timeout_changed_after_authority" ? "input_admission_refused" : "timeout_workload_invalid");
-      if (conditionRefusal) assert.equal(result.executionReason, scenario === "condition_authority_refused" ? "synthetic_authority_refusal" : scenario === "condition_changed_after_authority" ? "input_admission_refused" : "condition_workload_invalid");
-      if (guideRefusal) assert.equal(result.executionReason, scenario === "guide_authority_refused" ? "synthetic_authority_refusal" : scenario === "guide_changed_after_authority" ? "input_admission_refused" : "guide_workload_invalid");
     } else if (observerFailure) {
       assert.equal(calls.phases, 1, "post-phase refusal prevents the next phase");
       assert.equal(context.phaseReceipts[0].status, "pass", "original consumer result survives");
@@ -1224,23 +1221,20 @@ for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"
 }
 
 // Exercise the production admission and stock dispatch expressions across the
-// distinct profiles. A schema collision must not select another route's
-// authorizer; rejected mixed profiles never reach a real ledger or network.
+// live and retired profiles. A retired or mixed profile cannot select the
+// live authorizer; these controls never reach a real ledger or network.
 const successionProfiles = [
-  { schema: CONDITION_REQUALIFICATION_SCHEMA, kind: "condition_requalification", role: "condition" },
-  { schema: GUIDE_CORRECTION_SCHEMA, kind: "guide_cancellation_correction", role: "guide" },
-  { schema: "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision", role: "revision" },
+  { schema: "augnes.local-canonical-source-correction.v3", kind: "observer_repair" },
+  { schema: "augnes.local-canonical-source-correction.v4", kind: "corrected_timeout" },
+  { schema: "augnes.local-canonical-source-correction.v5", kind: "condition_requalification" },
+  { schema: "augnes.local-canonical-source-correction.v6", kind: "guide_cancellation_correction" },
+  { schema: "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision" },
 ];
-assert.deepEqual(successionProfiles.map(profile => profile.schema), [
-  "augnes.local-canonical-source-correction.v5", "augnes.local-canonical-source-correction.v6",
-  "augnes.local-canonical-source-correction.v7",
-]);
-assert.equal(new Set(successionProfiles.map(profile => profile.schema)).size, 3);
 const dispatchStart = executorSource.indexOf("            const revisionAuthorization =");
-const dispatchEnd = executorSource.indexOf("            const browserAuthorization =", dispatchStart);
+const dispatchEnd = executorSource.indexOf("            attempt = beginAttempt(", dispatchStart);
 assert(dispatchStart > 0 && dispatchEnd > dispatchStart);
 const admissionDispatch = executorSource.slice(dispatchStart, dispatchEnd);
-const stockDispatchStart = executorSource.indexOf("  let observerAuthorization = null;", executorSource.indexOf("export async function validateReceiptAgainstCurrentRepository"));
+const stockDispatchStart = executorSource.indexOf("  let revisionAuthorization = null, revisionLive = null;", executorSource.indexOf("export async function validateReceiptAgainstCurrentRepository"));
 const stockDispatchEnd = executorSource.indexOf("  return inspectReceiptForDecision(receipt,", stockDispatchStart);
 assert(stockDispatchStart > 0 && stockDispatchEnd > stockDispatchStart);
 const stockDispatch = executorSource.slice(stockDispatchStart, stockDispatchEnd);
@@ -1249,32 +1243,30 @@ try {
   const relative = ".augnes-local-verification/proofs/synthetic.json", file = path.join(coexistenceRoot, relative);
   mkdirSync(path.dirname(file), { recursive: true });
   for (const schemaProfile of successionProfiles) for (const kindProfile of successionProfiles) {
-    const selected = successionProfiles.find(profile => profile.schema === schemaProfile.schema && profile.kind === kindProfile.kind)?.role ?? null;
+    const selected = schemaProfile.schema === "augnes.local-canonical-source-correction.v7" && kindProfile.kind === "reviewed_revision" ? "revision" : null;
     const candidate = { schema: schemaProfile.schema, kind: kindProfile.kind, local_relative_path: relative, head: "a".repeat(40) };
     writeFileSync(file, JSON.stringify(candidate));
     const original = readFileSync(file);
     if (selected === null) assert.throws(() => readCorrectionProof(file, coexistenceRoot), undefined,
       `mixed ${schemaProfile.schema}/${kindProfile.kind} cannot become a source-correction proof`);
     for (const [mode, body] of [["admission", admissionDispatch], ["stock", stockDispatch]]) {
-      const calls = [], capabilities = Object.fromEntries(["observer", "timeout", "condition", "guide", "revision"].map(role => [role, Object.freeze({ role })]));
+      const calls = [], capabilities = Object.fromEntries(["revision"].map(role => [role, Object.freeze({ role })]));
       let evidenceReads = 0;
       const frozenInputs = Object.freeze({ synthetic_frozen_declaration: true });
       const authorize = role => async (proof, options) => { calls.push(role); assert.deepEqual(proof, candidate);
         return capabilities[role]; };
       const context = { sourceCorrection: candidate, inputs: { snapshot: () => frozenInputs, check() {} }, receipt: { inputs: frozenInputs, attempt: { source_correction: candidate } }, path, repositoryRoot: coexistenceRoot,
-        isObserverRepair, isCorrectedTimeout, isConditionRequalification, isGuideCorrection, isReviewedRevision,
+        isReviewedRevision,
         mode: "full", checkoutContext: "isolated-worktree", plan: { selected_plan: "full-canonical" }, observeCanonicalRuntimeInputs: () => ({}),
-        digest, BROWSER_REPLACEMENT_PHASES, phaseDefinitions: BROWSER_REPLACEMENT_PHASES.map(id => ({ id })),
+        digest, REVIEWED_REVISION_PHASES, phaseDefinitions: REVIEWED_REVISION_PHASES.map(id => ({ id })),
         inputMonitor: { check: () => null }, signal: { aborted: false },
-        authorizeObserverRepair: authorize("observer"), authorizeCorrectedTimeout: authorize("timeout"),
-        authorizeConditionRequalification: authorize("condition"), authorizeGuideCorrection: authorize("guide"),
         authorizeReviewedRevision: authorize("revision"),
         readSourceCorrectionProof: (observed, repository) => {
           evidenceReads++; assert.equal(observed, file); assert.equal(repository, coexistenceRoot);
           return JSON.parse(readFileSync(observed, "utf8"));
         },
       };
-      const output = await new AsyncFunction(...Object.keys(context), body + "\nreturn { observer: observerAuthorization, timeout: timeoutAuthorization, condition: conditionAuthorization, guide: guideAuthorization, revision: revisionAuthorization };")(...Object.values(context));
+      const output = await new AsyncFunction(...Object.keys(context), body + "\nreturn { revision: revisionAuthorization };")(...Object.values(context));
       assert.deepEqual(calls, selected === null ? [] : [selected], `${mode} selects only the exact schema/profile authorizer`);
       for (const role of Object.keys(capabilities)) assert.equal(output[role], role === selected ? capabilities[role] : null);
       assert.equal(evidenceReads, 0);
@@ -1287,8 +1279,8 @@ try {
     const candidate={schema:"augnes.local-canonical-source-correction.v7",kind:"reviewed_revision",settlement:{sha256:"c".repeat(64)}}, calls=[];
     const live=Object.freeze({synthetic_current_safe_observation:true}),contextToken=Object.freeze({synthetic_context:true});
     const context={sourceCorrection:candidate,receipt:{attempt:{source_correction:candidate}},verificationContext:contextToken,
-      isObserverRepair,isCorrectedTimeout,isConditionRequalification,isGuideCorrection,isReviewedRevision,
-      mode:"full",checkoutContext:"isolated-worktree",plan:{selected_plan:"full-canonical"},digest,BROWSER_REPLACEMENT_PHASES,phaseDefinitions:BROWSER_REPLACEMENT_PHASES.map(id=>({id})),
+      isReviewedRevision,
+      mode:"full",checkoutContext:"isolated-worktree",plan:{selected_plan:"full-canonical"},digest,REVIEWED_REVISION_PHASES,phaseDefinitions:REVIEWED_REVISION_PHASES.map(id=>({id})),
       inputs:{check(){}},inputMonitor:{check:()=>null},signal:{aborted:false},observeCanonicalRuntimeInputs:()=>({}),
       authorizeReviewedRevision:async()=>{calls.push("authority");return{};},
       observeReviewedRevisionSettlementState:async value=>{assert.equal(value,contextToken);calls.push("live");if(unavailable)throw Object.assign(new Error(),{code:"revision_current_settlement_unsafe"});return live;}};

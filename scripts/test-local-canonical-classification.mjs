@@ -10,7 +10,7 @@ import * as gitInputApi from "./local-canonical-inputs.mjs";
 import { runGitInputControls } from "./fixtures/local-canonical-git-input.mjs";
 import { beginAttempt, finishAttempt, inspectAttemptRecords, readRecoveryProof, readSourceCorrectionProof } from "./local-canonical-attempts.mjs";
 import { acquireCheckoutVerificationOwnership, releaseCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
-import { runPhasesSequentially, enforceArtifactRetention, FULL_PHASE_IDS, buildPhasePlan, browserReplacementLiveBinding, phaseEnvironment, prepareInvocationInputs } from "./run-local-canonical-verification.mjs";
+import { runPhasesSequentially, enforceArtifactRetention, FULL_PHASE_IDS, buildPhasePlan, phaseEnvironment, prepareInvocationInputs } from "./run-local-canonical-verification.mjs";
 import { createIsolatedInvocationResources, cleanupIsolatedInvocationResources } from "./local-canonical-isolated-resources.mjs";
 import { pinVerificationEvidence } from "./local-canonical-evidence-retention.mjs";
 import { canonicalSerialize, finalizeReceipt, inspectReceiptForDecision, verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
@@ -73,35 +73,31 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
   // These are synthetic changes in our owned fixture, never edits of host policy.
   const remainder = initial.replace("untrusted", "trusted") + 'unrecognized = "different"\n';
   const currentContract = () => contract("ambient", { contract: INPUT_CONTRACT });
-  const live = inputs => browserReplacementLiveBinding({ inputs, browserInput: null, host: {}, nodePolicy: {},
-    machineFingerprint: "fixture", executorFingerprint: "fixture", phaseDefinitions: [] });
+  const effectiveInputs = inputs => digest(commonInputResources(inputs));
   for (const change of [initial, changed, remainder]) {
     write(config, initial);
-    const frozen = currentContract(), before = frozen.snapshot(), prepared = live(before);
+    const frozen = currentContract(), before = frozen.snapshot(), prepared = effectiveInputs(before);
     write(config, change);
     assert.equal(frozen.check({ force: true }), null);
     const current = currentContract().snapshot();
-    assert.equal(live(current).commonInputsSha256, prepared.commonInputsSha256);
+    assert.equal(effectiveInputs(current), prepared);
     const r = before.resources[0];
     assert(["unchanged", "ambient_observation"].includes(classifyInputChange(r.before, current.resources[0].before, r, before)));
-    // A fresh process exercises the same binding and comparator used by stock.
+    // A fresh process reconstructs the versioned projection and comparator.
     const packet = path.join(root, "effective-input.json"); write(packet, JSON.stringify({ before, current }));
     const fresh = await runCanonicalChild({ suite: "classification", label: "fresh-effective-input", command: process.execPath,
       args: ["--input-type=module", "-e", `
         import assert from 'node:assert/strict'; import {readFileSync} from 'node:fs';
         import {classifyInputChange, commonInputResources, digest} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/local-canonical-inputs.mjs")).href)};
-        import {browserReplacementLiveBinding} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/run-local-canonical-verification.mjs")).href)};
         const {before,current}=JSON.parse(readFileSync(${JSON.stringify(packet)}));
-        const binding=inputs=>browserReplacementLiveBinding({inputs,host:{},nodePolicy:{},phaseDefinitions:[]}).commonInputsSha256;
-        assert.equal(binding(before),binding(current));
         assert.equal(digest(commonInputResources(before)),digest(commonInputResources(current)));
         const r=before.resources[0]; assert(['unchanged','ambient_observation'].includes(classifyInputChange(r.before,current.resources[0].before,r,before)));
       `], cwd: root, env, timeoutMs: 5000, stdout: quiet, stderr: quiet, log() {} });
     assert.equal(fresh.exit_code, 0); assert(fresh.cleanup_completed);
     // v2 uses the complete original binding and conservative remainder rule.
     const legacyBefore = { ...before, contract: LEGACY_INPUT_CONTRACT }, legacyCurrent = { ...current, contract: LEGACY_INPUT_CONTRACT };
-    assert.equal(live(legacyBefore).commonInputsSha256, digest(legacyBefore.resources));
-    if (change !== initial) assert.notEqual(live(legacyBefore).commonInputsSha256, live(legacyCurrent).commonInputsSha256);
+    assert.equal(effectiveInputs(legacyBefore), digest(legacyBefore.resources));
+    if (change !== initial) assert.notEqual(effectiveInputs(legacyBefore), effectiveInputs(legacyCurrent));
   }
   const remainderChild = await observedChild({ mutation: remainder, inputContract: INPUT_CONTRACT });
   assert.equal(remainderChild.result.cancelled, false); assert.match(remainderChild.output, /private-sentinel/);
@@ -124,9 +120,9 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
     assert.equal(classifyInputChange(after, bad, resource(), before), "unknown_relevance");
   assert.equal(classifyInputChange(after, { present: false }, resource(), before), "input_invalidation");
   const replacementV3 = path.join(root, "replacement-v3"); write(replacementV3, remainder); renameSync(replacementV3, config);
-  assert.equal(v3.check(), null); assert.equal(live(currentContract().snapshot()).commonInputsSha256, live(before).commonInputsSha256);
+  assert.equal(v3.check(), null); assert.equal(effectiveInputs(currentContract().snapshot()), effectiveInputs(before));
   chmodSync(config, 0o644); assert.equal(v3.check().disposition, "safety_violation"); chmodSync(config, 0o600);
-  assert.notEqual(live(currentContract().snapshot()).commonInputsSha256, live({ ...before, resources: [{ ...before.resources[0], before: permission }] }).commonInputsSha256);
+  assert.notEqual(effectiveInputs(currentContract().snapshot()), effectiveInputs({ ...before, resources: [{ ...before.resources[0], before: permission }] }));
   note("v3 preparation/admission projection, monitor and fresh reconstruction agree for preferences, metadata replacement and non-preference remainder; consuming/unknown/safety and legacy v2 remain refusing");
 
   // Use the real phase environment and nested suite filter. The descendant uses

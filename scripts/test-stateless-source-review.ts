@@ -1788,10 +1788,11 @@ async function independentProjectRunsContract() {
 
 async function main() {
   try {
+    assert(process.argv[2] !== "--durable-work-baseline", "historical_reproduction_retired");
     if (process.argv[2] === "--successor-packet-admission") { await statelessSuccessorPacketAdmissionContract(); assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0); return; }
     if (process.argv[2] === "--project-independence") { await independentProjectRunsContract(); assert.equal(requests, 0); return; }
-    if (["--durable-work", "--durable-work-baseline"].includes(process.argv[2]!)) {
-      await durableWorkContract((name, restored) => fixture(name, "read_selected_sources", "use_observation", false, "gpt-4.1-mini", restored), root, process.argv[2] === "--durable-work-baseline");
+    if (process.argv[2] === "--durable-work") {
+      await durableWorkContract((name, restored) => fixture(name, "read_selected_sources", "use_observation", false, "gpt-4.1-mini", restored), root);
       assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0); return;
     }
     if (process.argv[2] === "--observation-checkpoint") {

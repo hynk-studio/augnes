@@ -825,7 +825,17 @@ assert(
 
 // A retired route is data, not a legacy admission capability. These small
 // controls replace the removed issue-specific proof/replay fixture families.
+const completedSourceKinds = ["browser_input_replacement", "observer_repair", "corrected_timeout", "condition_requalification", "guide_cancellation_correction"];
+const completedSourceMarkers = ["browser_replacement", "browser_authority", "input_replacement_consumed", "browser_input_path", "browser_input_sha256", "observer_authority", "observer_repair_consumed", "timeout_authority", "corrected_timeout_consumed",
+  "condition_authority", "condition_requalification_consumed", "guide_authority", "guide_correction_consumed"];
 const retiredProofs = [
+  ...["augnes.local-canonical-browser-replacement.v1", "augnes.local-canonical-browser-authorization.v1"].map(contract =>
+    ({ schema: "augnes.local-canonical-source-correction.v2", kind: "source_revision", contract })),
+  ...[3, 4, 5, 6].flatMap(version => [undefined, "wrong", "source_revision", "reviewed_revision"].map(kind =>
+    ({ schema: `augnes.local-canonical-source-correction.v${version}`, kind }))),
+  ...completedSourceKinds.flatMap(kind => [undefined, "augnes.local-canonical-source-correction.v1", "augnes.local-canonical-source-correction.v7"].map(schema => ({ schema, kind }))),
+  ...completedSourceMarkers.flatMap(key => [false, null, {}].map(value =>
+    ({ schema: "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision", [key]: value }))),
   { schema: "augnes.local-canonical-source-correction.v7", kind: "companion_readiness_timeout" },
   { schema: "augnes.local-canonical-closeout.v1", kind: "issue_1559_closeout" },
   { schema: "augnes.local-canonical-closeout-continuation.v1", kind: "issue_1559_scope_fixture_preparation_correction" },
@@ -841,7 +851,7 @@ const retiredProofs = [
   ...["profile_authority", "operating_profile_consumed", "budget_authority", "successor_budget_consumed"].flatMap(key =>
     [false, null, {}].map(value => ({ schema: "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision", [key]: value }))),
 ];
-for (const value of [null, undefined, {}, [], 0, "", { schema: "augnes.local-canonical-source-correction.v6", kind: "guide_cancellation_correction" }])
+for (const value of [null, undefined, {}, [], 0, "", { schema: "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision" }])
   assert.equal(hasRetiredQualificationMarker(value), false);
 for (const proof of retiredProofs) {
   assert(hasRetiredQualificationMarker(proof));
@@ -858,6 +868,18 @@ for (const proof of retiredProofs) {
     assert.equal(JSON.stringify(receipt), original, "retirement preserves original bytes and outcome");
     assert.equal(inspectAttemptRecords({ anchorRoot: "/not-read", receipt }), false);
   }
+}
+// Version 5 is retired even without its old attempt/proof, and hidden
+// binding markers cannot enter through a downgraded receipt/export schema.
+for (const marker of [{ receipt_version: 5 },
+  ...["browser_input", "browser_guard"].flatMap(key => [false, null].map(value => ({ [key]: value }))),
+  { inputs: { binding: { browser_input: false } } }, { inputs: { resources: [{ browserBundle: null }] } }]) {
+  const receipt = finalizeReceipt({ ...structuredClone(baseReceipt), ...marker });
+  const before = JSON.stringify(receipt);
+  assert(inspectReceiptForDecision(receipt, validContext).issues.includes("receipt_qualification_route_retired"));
+  assert.throws(() => createPrivateReviewExport(receipt), /review_export_retired_route_use_historical_revision/);
+  assert.equal(inspectAttemptRecords({ anchorRoot: "/not-read", receipt }), false);
+  assert.equal(JSON.stringify(receipt), before);
 }
 assert.equal(inspectReceiptForDecision(finalized, validContext).valid_deciding_evidence, true,
   "ordinary legacy evidence still uses its existing rules");
@@ -888,13 +910,20 @@ try {
     assert.deepEqual(readFileSync(file), original);
     assert(!existsSync(path.join(artifact, "families")), "refusal cannot create or reserve a family");
   }
+  for (const key of ["browserReplacement", "browserAuthorization", "browserLive"]) for (const value of [false, null]) {
+    assert.throws(() => beginAttempt({ anchorRoot: retirementRoot, repositoryRoot: retirementRoot,
+      checkoutOwner: retirementOwner, branch: "synthetic-retired", head: "a".repeat(40), tree: "b".repeat(40),
+      runId: "synthetic-retired", contractFingerprint: "c".repeat(64), [key]: value,
+    }), { code: "qualification_route_retired" });
+    assert(!existsSync(path.join(artifact, "families")), "retired options cannot create a family");
+  }
   const branch = "synthetic-retired", family = digest([ATTEMPT_CONTRACT, "hynk-studio/augnes", branch]);
   const familyRoot = path.join(artifact, "families", family);
   mkdirSync(familyRoot, { recursive: true, mode: 0o700 });
   const attemptFile = path.join(familyRoot, "attempt-1.json"), edgeFile = path.join(familyRoot, "correction-successor.json");
   const plain = { contract: ATTEMPT_CONTRACT, branch, family_id: family, number: 1, attempt_id: "synthetic-original", source_correction: null };
   for (const marker of [...retiredProofs.map(source_correction => ({ source_correction })),
-    ...["closeout_consumed", "companion_timeout_consumed", "profile_authority", "operating_profile_consumed", "budget_authority", "successor_budget_consumed"].map(key => ({ [key]: false }))]) {
+    ...["closeout_consumed", "companion_timeout_consumed", "profile_authority", "operating_profile_consumed", "budget_authority", "successor_budget_consumed", ...completedSourceMarkers].map(key => ({ [key]: false }))]) {
     writeFileSync(attemptFile, JSON.stringify({ ...plain, ...marker }), { mode: 0o600 });
     const original = readFileSync(attemptFile);
     assert.throws(() => reconstructAttemptTip({ anchorRoot: retirementRoot, branch }), error => error.code === "qualification_route_retired");
@@ -903,7 +932,7 @@ try {
   }
   writeFileSync(attemptFile, JSON.stringify(plain), { mode: 0o600 });
   writeFileSync(path.join(familyRoot, "completion-1.json"), "{}", { mode: 0o600 });
-  for (const kind of ["issue_1559_closeout", "companion_readiness_timeout", "operating_profile_efficiency", "settled_successor_budget"]) {
+  for (const kind of ["issue_1559_closeout", "companion_readiness_timeout", "operating_profile_efficiency", "settled_successor_budget", ...completedSourceKinds]) {
     writeFileSync(edgeFile, JSON.stringify({ kind }), { mode: 0o600 });
     const original = readFileSync(edgeFile);
     assert.throws(() => reconstructAttemptTip({ anchorRoot: retirementRoot, branch }), error => error.code === "qualification_route_retired");
