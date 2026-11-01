@@ -867,7 +867,9 @@ forbidden. Two-lane integration concurrency is unchanged. Bounds limit hangs and
 settlement within supported CPU/memory/disk conditions; a timeout is not
 automatically a performance regression or an infrastructure diagnosis. Historical
 settled-expired-successor runs retain their 30,000 ms bound. Its separately
-authorized prospective aggregate change to 45,000 ms is defined below; no other
+authorized prospective aggregate change to 45,000 ms remains adopted; its
+historical authorization is preserved at the pinned Git revision in
+[Retired qualification routes](#retired-qualification-routes). No other
 child/phase bound changes.
 
 ### Reviewed source and execution-input revision (source-correction v7)
