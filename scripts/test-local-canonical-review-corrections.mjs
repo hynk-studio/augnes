@@ -19,7 +19,7 @@ import { observerControls } from "./fixtures/local-canonical-observer-controls.m
 import { REVIEW_CHILD_RESULT_PREFIX, projectReviewChildResult, assertReviewChildLifecycle, createObserverFixtureProgressReader } from "./fixtures/local-canonical-review-child-result.mjs";
 
 // Do not silently turn a retired explicit command into the default suite.
-if (process.argv[2] === "--companion-timeout-controls") throw new Error("qualification_route_retired");
+if (["--companion-timeout-controls", "--operating-profile-succession-controls"].includes(process.argv[2])) throw new Error("qualification_route_retired");
 
 const self = fileURLToPath(import.meta.url), repository = path.dirname(path.dirname(self));
 const quiet = { write() {} }, write = (p, v) => writeFileSync(p, typeof v === "string" ? v : JSON.stringify(v), { mode: 0o600 });
@@ -101,21 +101,6 @@ try {
     const settlement = await child([path.join(repository, "scripts/fixtures/local-canonical-reviewed-revision.mjs"), "--run-settlement-fixtures"], { controlId: "reviewed-revision-settlement", timeoutMs: 15000, stdout: process.stdout, stderr: process.stderr });
     assert.equal(settlement.exit_code, 0, lastChildDiagnostic);
     findings.push("reviewed revision: real admission and refusal, terminal legacy preservation, two-invocation commission, concurrency and interrupted reservation, fresh stock");
-  } else if (process.argv[2] === "--operating-profile-succession-controls") {
-    const revision = await child([path.join(repository, "scripts/fixtures/local-canonical-reviewed-revision.mjs"), "--run-revision-fixtures"], { controlId: "reviewed-revision", timeoutMs: 15000, stdout: process.stdout, stderr: process.stderr });
-    assert.equal(revision.exit_code, 0, lastChildDiagnostic);
-    const settlement = await child([path.join(repository, "scripts/fixtures/local-canonical-reviewed-revision.mjs"), "--run-settlement-fixtures"], { controlId: "reviewed-revision-settlement", timeoutMs: 15000, stdout: process.stdout, stderr: process.stderr });
-    assert.equal(settlement.exit_code, 0, lastChildDiagnostic);
-  for (const group of ["evidence", "authority", "records"]) {
-    const result = await child([path.join(repository, "scripts/fixtures/local-canonical-operating-profile-succession.mjs"), "--run-profile-fixtures", group], { controlId: `operating-profile-succession-${group}`, timeoutMs: 6000, stdout: process.stdout, stderr: process.stderr });
-    assert.equal(result.exit_code, 0, lastChildDiagnostic);
-  }
-  findings.push("operating-profile succession: pure evidence/source/authority checks, immutable production-pin refusals, and synthetic terminal-record reconstruction; no synthetic production admission");
-  for (const group of ["evidence", "records"]) {
-    const result = await child([path.join(repository, "scripts/fixtures/local-canonical-successor-budget-succession.mjs"), "--run-budget-fixtures", group], { controlId: `successor-budget-succession-${group}`, timeoutMs: 6000, stdout: process.stdout, stderr: process.stderr });
-    assert.equal(result.exit_code, 0, lastChildDiagnostic);
-  }
-  findings.push("successor aggregate budget: exact source and NOFIX evidence validators, fixed production-pin refusals, typed terminal records and immutable cold reads; no synthetic production admission");
   } else if (process.argv[2] === "--guide-correction-controls") {
   for (const group of ["evidence", "authority", "admission", "race", "stock"]) {
     const result = await child([path.join(repository, "scripts/fixtures/local-canonical-guide-correction.mjs"), "--run-guide-fixtures", group], { controlId: `guide-correction-${group}`, timeoutMs: AUXILIARY_EXECUTION_BUDGETS.groupMs });

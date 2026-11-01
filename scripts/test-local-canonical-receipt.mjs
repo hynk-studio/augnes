@@ -834,11 +834,18 @@ const retiredProofs = [
   { schema: "augnes.local-canonical-source-correction.v2", kind: "source_revision", companion_timeout_consumed: false },
   { schema: "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision", companion_timeout_authority: {} },
   { schema: "augnes.local-canonical-closeout.v1", kind: "reviewed_revision" },
+  ...["augnes.local-canonical-operating-profile-succession.v1", "augnes.local-canonical-successor-budget-succession.v1"].flatMap(schema =>
+    [undefined, "wrong", "reviewed_revision", "source_revision"].map(kind => ({ schema, kind }))),
+  ...["operating_profile_efficiency", "settled_successor_budget"].flatMap(kind =>
+    [undefined, "augnes.local-canonical-source-correction.v1", "augnes.local-canonical-source-correction.v7"].map(schema => ({ schema, kind }))),
+  ...["profile_authority", "operating_profile_consumed", "budget_authority", "successor_budget_consumed"].flatMap(key =>
+    [false, null, {}].map(value => ({ schema: "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision", [key]: value }))),
 ];
 for (const value of [null, undefined, {}, [], 0, "", { schema: "augnes.local-canonical-source-correction.v6", kind: "guide_cancellation_correction" }])
   assert.equal(hasRetiredQualificationMarker(value), false);
 for (const proof of retiredProofs) {
   assert(hasRetiredQualificationMarker(proof));
+  assert.equal(supportsSourceCorrection(proof), false);
   assert(hasRetiredQualificationMarker({ source_correction: proof }));
   for (const receiptVersion of [3, 4, 5]) {
     const receipt = finalizeReceipt({ ...structuredClone(baseReceipt), receipt_version: receiptVersion, attempt: { source_correction: proof } });
@@ -886,7 +893,8 @@ try {
   mkdirSync(familyRoot, { recursive: true, mode: 0o700 });
   const attemptFile = path.join(familyRoot, "attempt-1.json"), edgeFile = path.join(familyRoot, "correction-successor.json");
   const plain = { contract: ATTEMPT_CONTRACT, branch, family_id: family, number: 1, attempt_id: "synthetic-original", source_correction: null };
-  for (const marker of [{ source_correction: retiredProofs[0] }, { closeout_consumed: true }, { companion_timeout_consumed: true }]) {
+  for (const marker of [...retiredProofs.map(source_correction => ({ source_correction })),
+    ...["closeout_consumed", "companion_timeout_consumed", "profile_authority", "operating_profile_consumed", "budget_authority", "successor_budget_consumed"].map(key => ({ [key]: false }))]) {
     writeFileSync(attemptFile, JSON.stringify({ ...plain, ...marker }), { mode: 0o600 });
     const original = readFileSync(attemptFile);
     assert.throws(() => reconstructAttemptTip({ anchorRoot: retirementRoot, branch }), error => error.code === "qualification_route_retired");
@@ -895,7 +903,7 @@ try {
   }
   writeFileSync(attemptFile, JSON.stringify(plain), { mode: 0o600 });
   writeFileSync(path.join(familyRoot, "completion-1.json"), "{}", { mode: 0o600 });
-  for (const kind of ["issue_1559_closeout", "companion_readiness_timeout"]) {
+  for (const kind of ["issue_1559_closeout", "companion_readiness_timeout", "operating_profile_efficiency", "settled_successor_budget"]) {
     writeFileSync(edgeFile, JSON.stringify({ kind }), { mode: 0o600 });
     const original = readFileSync(edgeFile);
     assert.throws(() => reconstructAttemptTip({ anchorRoot: retirementRoot, branch }), error => error.code === "qualification_route_retired");
@@ -912,8 +920,7 @@ try {
   assert.throws(() => reconstructAttemptTip({ anchorRoot: retirementRoot, branch }), /qualification_route_retired/);
 
   // Removing retired markers or renaming a kind is not an evidence/authority
-  // validator. In a combined tree reviewed_revision goes to its complete owner;
-  // before that owner is present it is an unsupported correction, never legacy.
+  // validator. reviewed_revision goes to its complete owner, never legacy.
   for (const proof of [
     { schema: "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision" },
     { schema: "augnes.local-canonical-source-correction.v7", kind: "unknown" },
