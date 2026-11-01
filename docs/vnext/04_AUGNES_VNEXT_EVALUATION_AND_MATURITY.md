@@ -1141,6 +1141,39 @@ or retains ordinary composition where sufficient. No fixture or consumer was
 executed by writing this example, and no fee, publication, customer contact or
 runtime work is authorized by it.
 
+#### Conditional capability and organization choice
+
+For [01's capability-expansion hypothesis](./01_AUGNES_VNEXT_MASTERPLAN.md#economic-undertakings-and-cumulative-capability),
+extend the A-to-B case only where the decision needs it. Keep the original purpose,
+acceptance conditions and relevant horizon explicit; vary one consequential
+capability, cost or opportunity condition. The following are hypothetical
+contrasts, not executed results or a required matrix:
+
+| Condition or change | Choice and effect to examine |
+|---|---|
+| Direct work, additional inference or a better existing tool is sufficient | Does the actor finish useful work without unnecessary recruitment or a persistent organization, after counting the chosen route's burden? |
+| A necessary capability is unavailable internally but obtainable from a suitable counterpart | Does the actor identify the actual gap, choose a feasible contribution and use the checked result to advance the original purpose after discovery, checking and integration costs? |
+| A useful need recurs within the stated horizon | Can an ongoing service relationship or organization earn its setup and maintenance burden compared with repeated one-time contributions? A short horizon or absent next need can favor one-time use. |
+| An available model or method improves enough to remove the earlier bottleneck | Does the actor reconsider the arrangement and retain, shrink or end roles as warranted, preserving outstanding commitments? Refresh the capable baseline when the model changes. |
+| Resource-earning work could fund a needed capability | Does the actor compare the detour's delay, cost and obligations with its expected contribution to the original purpose, then distinguish actual acquired capacity and later goal progress from anticipated or simulated returns? Excessive burden can justify declining the detour. |
+
+Separate a human-supplied topology or instruction to hire from a worker choosing
+among permitted alternatives from the goal and observed conditions. Record the
+information actually available before the choice, assistance, the chosen route,
+checked output and later appropriate retention or revision. A convincing rationale,
+a scripted choice or successful assigned team does not establish autonomous
+selection. Unknown or inconclusive comparisons may justify inquiry or waiting;
+do not credit an unsupported claim to have found the optimal configuration.
+
+Use the existing [comparison boundaries](#web-active-users-and-contribution-continuity)
+and [total-burden accounting](#cost-and-user-burden). Distinguish coordination effects
+from better capability access, additional compute/resources and model changes;
+do not give only Augnes access to a useful alternative in a coordination comparison.
+Useful expansion of reachable work, quality and lower cost remain separate outcomes.
+Apply these contrasts through [03's existing sequence](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#development-and-operation-sequence--2026-10-25)
+when relevant. They assign no new study, training, spending or runtime work, reopen
+no completed comparison and add no admission or implementation gate.
+
 #### Representative positive and negative cases
 
 Use the relevant cases for the selected claim, not every row for every change.

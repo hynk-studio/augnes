@@ -1037,6 +1037,25 @@ Connect existing responsibilities as follows:
 | Existing host execution and contribution return | Carry the selected action through the actual host tools or permitted request/return path, inspect its output and perform the relevant check. A prepared choice's `next_action` is guidance, not an execution callback. |
 | Result assessment and eligible work/successor writers | Save the actual output, checked interpretation, method applicability and remaining action; then let a fresh executor perform that action through normal entry. Use ordinary new-work composition only for eligible unexecuted work and the existing managed-result/successor owner for executed work. |
 
+Where a capability or resource shortfall matters, connect the continuing purpose,
+the observed or uncertain limitation, the proposed way to address it, and the
+subsequent checked effect on that purpose. Use the host's existing judgment and
+choice/assessment sources to compare relevant alternatives: additional inference,
+better context/tools or retained methods, a suitable model or specialist service,
+temporary cooperation, or a continuing undertaking. Permitted model specialization
+belongs among the candidates only where a supported training or acquisition path
+exists. Consider resource-earning work when its delay, cost and commitments can
+be justified by the original goal's later progress. Availability, expected benefit
+and actual acquired capacity remain distinct. Changed demand, costs or model
+capability may justify retaining, replacing or shrinking the arrangement.
+
+This connects [01's capability-expansion hypothesis](./01_AUGNES_VNEXT_MASTERPLAN.md#economic-undertakings-and-cumulative-capability)
+to the existing L1/#1443/#1453 choice and continuation owners, with selective
+[04 contrasts](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#conditional-capability-and-organization-choice).
+It adds no mandatory option search, optimizer, training pipeline or shared-resource
+service. Existing model-research allocations and Current/Next/Later scopes remain
+unchanged; unsupported paths remain labelled gaps or hypothetical assumptions.
+
 Keep qualitative interpretation and selection in the existing host/model
 procedure where sufficient. Programmatic owners enforce current source bindings,
 eligibility, grants, supported resource admission, duplicate handling and durable

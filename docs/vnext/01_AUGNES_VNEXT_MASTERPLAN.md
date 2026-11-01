@@ -393,6 +393,28 @@ adoption decisions. Only deliberately shared terms, outputs and evidence cross
 the relevant boundary; cooperation does not create a common authority over all
 participants. Private usefulness need not await network effects.
 
+One working hypothesis connects these choices: an actor with a continuing purpose
+can identify a capability or resource shortfall, acquire complementary capability
+or resources through cooperation or economic activity, and use the resulting
+capacity to advance that purpose. Forming or joining an undertaking can therefore
+be a strategy for expanding what the actor can accomplish. The connection to
+checked goal progress, including acquisition cost and outstanding commitments,
+matters more than accumulated resources or organizational size. This is a
+conditional behavioral hypothesis, not an assertion of intrinsic model motivation
+or demonstrated autonomous business competence.
+
+The choice concerns the whole usable configuration of computation and capability:
+available models and their learned capabilities, inference effort, prompt/context
+and tool support, retained methods, and cooperation can complement or partly
+substitute for one another. Permitted task-specific training or fine-tuning is
+another candidate where an actual supported path exists. No layer is assumed to
+replace every other layer. Compare configurations against the purpose, attainable
+outcome and total burden; a stronger model or better method may justify shrinking
+an organization. This perspective requires neither a universal optimizer nor
+control over a supplier's model internals. [03](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#development-and-operation-sequence--2026-10-25)
+places the choice in existing work, and [04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#conditional-capability-and-organization-choice)
+distinguishes a supplied arrangement from observed condition-sensitive selection.
+
 Experience assets distinguish the original execution case, a conditional reusable
 method, a counterpart's current offer or willingness, and use in a genuinely new
 task. A useful route may retain decomposition, role composition, handoff, checking
