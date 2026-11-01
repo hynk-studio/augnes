@@ -112,7 +112,6 @@ function companionProofExport(p) {
   const hash = ref => pick(ref, ["sha256"]);
   const state = value => pick(value, ["present", "mode", "type", "object", "sha256"]);
   const scope = p.source_scope;
-  const runtime = isCloseoutRuntimeInputCorrection(p);
   return { ...pick(p, ["schema", "kind", "defect", "head", "tree", "base", "prior_family_id", "prior_number", "prior_attempt_id", "prior_receipt_fingerprint", "source_module", "delta_sha256", "pull_request", "budget", "limitations"]),
     source_scope: scope ? { ...pick(scope, ["schema", "basis", "accepted_base", "accepted_head", "current_main", "accepted_task_paths", "candidate_delta_paths", "policy_delta_paths"]),
       accepted_task: scope.accepted_task?.map(row => ({ ...pick(row, ["path"]), accepted: state(row.accepted), candidate: state(row.candidate) })),
@@ -156,6 +155,7 @@ function closeoutProofExport(p) {
   const hash = ref => pick(ref, ["sha256"]);
   const state = value => pick(value, ["present", "mode", "type", "object", "sha256"]);
   const scope = p.source_scope;
+  const runtime = isCloseoutRuntimeInputCorrection(p);
   if (isCloseoutFixtureCorrection(p) || isCloseoutCapabilityCorrection(p) || isCloseoutScopeFixtureCorrection(p)) return {
     ...pick(p, ["schema", "kind", "pull_request", "branch", "base", "head", "tree", "prior_family_id", "prior_number", "prior_attempt_id", "prior_receipt_fingerprint", "budget"]),
     originals: Object.fromEntries(["receipt", "attempt", "completion", "edge", runtime ? "operability_log" : "authority_log", "stock", "stock_log"].map(k => [k, hash(p.originals?.[k])])),
