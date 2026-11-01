@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import path from "node:path";
-import { assertCodexSyntheticAppServerPrefixV01, codexSyntheticIsolatedAppServerArgvForScanV01, resolveCodexSyntheticAppServerFixtureV01 } from "../lib/vnext/native-host/codex-synthetic-app-server-fixture.mjs";
+import { assertCodexSyntheticAppServerPrefixV01, codexSyntheticAppServerPrefixForScanV01, codexSyntheticIsolatedAppServerArgvForScanV01, resolveCodexSyntheticAppServerFixtureV01 } from "../lib/vnext/native-host/codex-synthetic-app-server-fixture.mjs";
 import { CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01 } from "../types/vnext/codex-isolated-auth-projection";
 
 export function testCodexSyntheticFixtureIdentityV01(root: string): void {
@@ -16,10 +16,30 @@ export function testCodexSyntheticFixtureIdentityV01(root: string): void {
     process.env.AUGNES_CODEX_ISOLATED_AUTH_TEST_MODE = "1";
     const args = [...fixed.prefix_args, ...CODEX_ISOLATED_AUTH_CONFIG_OVERRIDE_ARGS_V01, "app-server", "--stdio"];
     assert.deepEqual(codexSyntheticIsolatedAppServerArgvForScanV01(fixed.command, args),
-      [fixed.command, "fixed-synthetic-app-server", ...args.slice(1)]);
+      ["selected-node-executable", "fixed-synthetic-app-server", ...args.slice(1)]);
     for (const altered of [[...args, "extra"], [...args, "prefix-sk-synthetic-suffix"], [args[0], ...args.slice(2)],
       [args[0], ...args.slice(1, -1), "embedded-xoxb-synthetic"]])
       assert.throws(() => codexSyntheticIsolatedAppServerArgvForScanV01(fixed.command, altered), /fixture_launch_invalid/);
+    const unchangedArgs = [...args];
+    assert.throws(() => codexSyntheticIsolatedAppServerArgvForScanV01("/wrong/node", args), /fixture_launch_invalid/);
+    assert.throws(() => codexSyntheticIsolatedAppServerArgvForScanV01(fixed.command, [alias, ...args.slice(1)]), /fixture_launch_invalid/);
+    assert.deepEqual(args, unchangedArgs, "projection does not mutate argv");
+    // Disposable selected-executable identity controls; no child is launched from
+    // these files. Actual consumer tests also use the real process executable.
+    const selectedDescriptor = Object.getOwnPropertyDescriptor(process, "execPath")!;
+    try {
+      for (const name of ["task-node", "prefix-sk-selected-node"]) {
+        const selected = path.join(root, name); fs.writeFileSync(selected, "synthetic selected executable", { mode: 0o700 });
+        Object.defineProperty(process, "execPath", { ...selectedDescriptor, value: selected });
+        for (const mode of ["ordinary_candidate", "isolated_auth"] as const)
+          assert.deepEqual(codexSyntheticAppServerPrefixForScanV01(selected, fixed.prefix_args, mode),
+            { command: "selected-node-executable", prefix_args: ["fixed-synthetic-app-server"] });
+        assert.deepEqual(codexSyntheticIsolatedAppServerArgvForScanV01(selected, args),
+          ["selected-node-executable", "fixed-synthetic-app-server", ...args.slice(1)]);
+        assert.throws(() => codexSyntheticIsolatedAppServerArgvForScanV01(fixed.command, args), /fixture_launch_invalid/);
+        fs.unlinkSync(selected);
+      }
+    } finally { Object.defineProperty(process, "execPath", selectedDescriptor); }
     // Equal bytes and matching basename do not confer the fixed source identity.
     fs.copyFileSync(fixed.prefix_args[0], alias);
     assert.throws(() => assertCodexSyntheticAppServerPrefixV01(fixed.command, [alias], "ordinary_candidate"), /fixture_launch_invalid/);

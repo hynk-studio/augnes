@@ -337,6 +337,10 @@ try {
       "augnes_save_repository_work_revision",
       "augnes_preview_repository_new_work",
       "augnes_prepare_repository_new_work",
+      "augnes_read_repository_result_work",
+      "augnes_compare_repository_result_work_sources",
+      "augnes_preview_repository_result_work",
+      "augnes_prepare_repository_result_work",
       "augnes_prepare_repository_execution_choice",
       "augnes_external_repository_work",
       "augnes_review_repository_work",
@@ -392,6 +396,16 @@ try {
     assert.equal(byName.get("augnes_prepare_repository_new_work")?.annotations?.readOnlyHint, false);
     assert.equal(byName.get("augnes_prepare_repository_new_work")?.annotations?.idempotentHint, false);
     assert.deepEqual(byName.get("augnes_prepare_repository_new_work")?.inputSchema.properties.changes.required, ["goal", "success_criteria", "non_goals", "sources"]);
+    for (const name of ["augnes_read_repository_result_work", "augnes_compare_repository_result_work_sources", "augnes_preview_repository_result_work"]) {
+      assert.equal(byName.get(name)?.annotations?.readOnlyHint, true);
+      assert.equal(byName.get(name)?.annotations?.idempotentHint, true);
+    }
+    const resultSave = byName.get("augnes_prepare_repository_result_work");
+    assert.equal(resultSave?.annotations?.readOnlyHint, false);
+    assert.equal(resultSave?.annotations?.idempotentHint, false);
+    assert.deepEqual(resultSave.inputSchema.required, ["repositoryRoot", "expectedSnapshotBinding", "preparationBinding", "sources", "definition", "expectedSourceComparison", "previewBinding"]);
+    assert.equal(resultSave.inputSchema.additionalProperties, false);
+    assert.match(resultSave.description, /explicitly Resume and read back/u);
     assert.equal(byName.get("augnes_save_repository_work_revision")?.annotations?.readOnlyHint, false);
     assert.equal(byName.get("augnes_save_repository_work_revision")?.annotations?.idempotentHint, false);
     assert.equal(byName.get("augnes_companion_lifecycle_status")?.annotations?.readOnlyHint, true);

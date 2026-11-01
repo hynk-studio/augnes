@@ -1,15 +1,21 @@
 #!/usr/bin/env node
+import { isSuccessorBudgetSuccession } from "./local-canonical-successor-budget-succession.mjs";
+import { isOperatingProfileSuccession } from "./local-canonical-operating-profile-succession.mjs";
+import { isReviewedRevision, readSourceCorrectionProof as readCorrectionProof } from "./local-canonical-attempts.mjs";
 
 import assert from "node:assert/strict";
 import { isObserverRepair } from "./local-canonical-observer-succession.mjs";
 import { isCorrectedTimeout } from "./local-canonical-timeout-succession.mjs";
-import { isConditionRequalification } from "./local-canonical-condition-requalification.mjs";
-import { isGuideCorrection } from "./local-canonical-guide-correction.mjs";
+import { CONDITION_REQUALIFICATION_SCHEMA, isConditionRequalification } from "./local-canonical-condition-requalification.mjs";
+import { GUIDE_CORRECTION_SCHEMA, isGuideCorrection } from "./local-canonical-guide-correction.mjs";
 import { digest } from "./local-canonical-inputs.mjs";
 import { BROWSER_REPLACEMENT_PHASES } from "./local-canonical-browser-replacement.mjs";
 import { spawnSync } from "node:child_process";
 import {
   existsSync,
+  lstatSync,
+  chmodSync,
+  linkSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -56,6 +62,8 @@ import {
   removeBoundedGeneratedNextState,
   resolveVerificationPlan,
   runPhasesSequentially,
+  readStockMachineIdentity,
+  assertRuntimeInputSelection,
 } from "./run-local-canonical-verification.mjs";
 import {
   acquireCheckoutVerificationOwnership,
@@ -69,6 +77,43 @@ import { runCanonicalChild } from "./canonical-child-runner.mjs";
 import { finalizeReceipt, verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
 
 import { createIsolatedInvocationResources, isolatedInvocationEnvironment, cleanupIsolatedInvocationResources } from "./local-canonical-isolated-resources.mjs";
+
+assert.doesNotThrow(() => assertRuntimeInputSelection(null, {}));
+for (const key of ["AUGNES_CANONICAL_NODE_HEADERS", "AUGNES_CANONICAL_NODE_HEADERS_FINGERPRINT"]) {
+  assert.throws(() => assertRuntimeInputSelection(null, { [key]: "unbound" }), /runtime_input_selection_unbound/);
+  assert.throws(() => assertRuntimeInputSelection({ headers: { observation: {} } }, { [key]: "wrong" }), /runtime_input_selection_unbound/);
+}
+
+// New-profile stock cannot create/chmod a missing or retained machine identity.
+{
+  const root = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-profile-stock-")));
+  try {
+    const receipt = { attempt: { source_correction: { schema: "augnes.local-canonical-operating-profile-succession.v1", kind: "operating_profile_efficiency" } } };
+    const profileReceipts = [receipt,
+      { attempt: { source_correction: { schema: "augnes.local-canonical-operating-profile-succession.v1", kind: "wrong" } } },
+      { attempt: { source_correction: { kind: "operating_profile_efficiency" } } },
+      { attempt: { profile_authority: {} } }, { attempt: { operating_profile_consumed: true } },
+      { attempt: { source_correction: { schema: "augnes.local-canonical-successor-budget-succession.v1", kind: "settled_successor_budget" } } },
+      { attempt: { source_correction: { schema: "augnes.local-canonical-successor-budget-succession.v1", kind: "wrong" } } },
+      { attempt: { source_correction: { kind: "settled_successor_budget" } } },
+      { attempt: { budget_authority: {} } }, { attempt: { successor_budget_consumed: true } },
+      { attempt: { source_correction: { schema: "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision" } } },
+      { attempt: { source_correction: { schema: "augnes.local-canonical-source-correction.v7", kind: "wrong" } } },
+      { attempt: { source_correction: { kind: "reviewed_revision" } } },
+      { attempt: { revision_authority: {} } }, { attempt: { reviewed_revision_consumed: true } }];
+    for (const value of profileReceipts) {
+      assert.throws(() => readStockMachineIdentity(value, root));
+      assert.deepEqual(readdirSync(root), []);
+    }
+    const file = path.join(root, "machine-id");
+    writeFileSync(file, "7".repeat(64), { mode: 0o600 });
+    const before = lstatSync(file, { bigint: true }), bytes = readFileSync(file);
+    for (const value of profileReceipts) assert.match(readStockMachineIdentity(value, root), /^[0-9a-f]{32}$/u);
+    const after = lstatSync(file, { bigint: true });
+    for (const key of ["dev", "ino", "mode", "uid", "gid", "nlink", "size", "mtimeNs", "ctimeNs"]) assert.equal(after[key], before[key]);
+    assert(readFileSync(file).equals(bytes));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+}
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -887,7 +932,7 @@ const ownedBlockEnd = executorSource.indexOf("\n  const serviceLifecycleRestored
 assert.ok(ownedBlockStart > 0 && ownedBlockEnd > ownedBlockStart);
 const ownedBlock = executorSource.slice(ownedBlockStart, ownedBlockEnd);
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisition_failure", "owned_failure", "unsettled_failure", "success", "absent_success", "stopped_success", "quick_success", "isolated_success", "isolated_unsettled", "isolated_observer_settled", "isolated_observer_cleanup_failed", "isolated_observer_unknown", "isolated_observation_invalid", "pre_lock_state_race", "maintenance_state_race", "observer_authority_refused", "observer_changed_after_authority", "timeout_authority_refused", "timeout_changed_after_authority", "timeout_partial_workload_refused", "condition_authority_refused", "condition_changed_after_authority", "condition_partial_workload_refused", "guide_authority_refused", "guide_changed_after_authority", "guide_partial_workload_refused"]) {
+for (const scenario of ["wrong_npm","checkout_busy","capacity_busy","acquisition_failure","owned_failure","unsettled_failure","success","absent_success","stopped_success","quick_success","isolated_success","isolated_unsettled","isolated_observation_invalid","pre_lock_state_race","maintenance_state_race","observer_authority_refused","observer_changed_after_authority","timeout_authority_refused","timeout_changed_after_authority","timeout_partial_workload_refused","condition_authority_refused","condition_changed_after_authority","condition_partial_workload_refused","guide_authority_refused","guide_changed_after_authority","guide_partial_workload_refused","profile_authority_refused","profile_changed_after_authority","profile_partial_workload_refused","budget_authority_refused","budget_changed_after_authority","budget_partial_workload_refused","revision_authority_refused","revision_changed_after_authority","revision_partial_workload_refused","revision_runtime_success","revision_settlement_success","revision_settlement_unsafe","revision_dependencies_observation_failure","isolated_observer_settled","isolated_observer_cleanup_failed","isolated_observer_unknown",]) {
   const root = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-canonical-ownership-")));
   let competingOwner = null;
   let privateResource = null;
@@ -905,7 +950,7 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
     const diagnosticBeforeLock = { next: existsSync(next), windows: existsSync(windows) };
     const calls = { acquire: 0, release: 0, phases: 0, remove: 0, checkoutAcquire: 0, checkoutRelease: 0, logPrepare: 0, prune: 0 };
     const quick = scenario === "quick_success";
-    const isolated = scenario.startsWith("isolated_");
+    const isolated = scenario.startsWith("isolated_") || scenario.startsWith("revision_");
     const observerFailure = scenario.startsWith("isolated_observer_");
     const unsettled = ["unsettled_failure", "isolated_unsettled", "isolated_observer_unknown"].includes(scenario);
     const noServiceMaintenance = ["absent_success", "stopped_success"].includes(scenario);
@@ -914,6 +959,14 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
     const timeoutRefusal = scenario.startsWith("timeout_");
     const conditionRefusal = scenario.startsWith("condition_");
     const guideRefusal = scenario.startsWith("guide_");
+    const profileRefusal = scenario.startsWith("profile_");
+    const budgetRefusal = scenario.startsWith("budget_");
+    const revisionLane = scenario.startsWith("revision_");
+    const revisionSettlement = scenario.startsWith("revision_settlement_");
+    const settlementLive = Object.freeze({ synthetic_current_safe_observation: true });
+    const revisionRuntime = ["revision_runtime_success", "revision_settlement_success", "revision_dependencies_observation_failure"].includes(scenario);
+    const revisionRefusal = revisionLane && !revisionRuntime;
+    const preparedPhases = []; let preparedChecks = 0;
     let activeOwner = null;
     let maintenanceSettled = false;
     let serviceState = { status: scenario === "absent_success" ? "not_installed" : scenario === "stopped_success" ? "installed_stopped" : scenario === "pre_lock_state_race" ? "maintenance" : "live" };
@@ -931,17 +984,34 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
     const context = {
       checkoutContext: isolated ? "isolated-worktree" : "canonical", verificationContext: {}, signal: { aborted: false },
       controller: new AbortController(), recoveryProofPath: null, sourceCorrectionProofPath: null, baseSha: "0".repeat(40), headSha: "a".repeat(40), executorFingerprint: "b".repeat(64), identityBefore: { branch: "fixture" },
-      isObserverRepair, isCorrectedTimeout, isConditionRequalification, isGuideCorrection, digest, BROWSER_REPLACEMENT_PHASES,
-      browserInput: null, browserReplacement: null, strictProof: null, sourceCorrection: observerRefusal ? { schema: "augnes.local-canonical-source-correction.v3", kind: "observer_repair" } : timeoutRefusal ? { schema: "augnes.local-canonical-source-correction.v4", kind: "corrected_timeout" } : conditionRefusal ? { schema: "augnes.local-canonical-source-correction.v5", kind: "condition_requalification" } : guideRefusal ? { schema: "augnes.local-canonical-source-correction.v6", kind: "guide_cancellation_correction" } : null,
+      isObserverRepair, isCorrectedTimeout, isConditionRequalification, isGuideCorrection, isOperatingProfileSuccession, isSuccessorBudgetSuccession, isReviewedRevision, digest, BROWSER_REPLACEMENT_PHASES,
+      browserInput: null, browserReplacement: null, strictProof: null, sourceCorrection: revisionLane ? { schema: "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision", ...(revisionSettlement ? { settlement: { sha256: "c".repeat(64) } } : {}) } : observerRefusal ? { schema: "augnes.local-canonical-source-correction.v3", kind: "observer_repair" } : timeoutRefusal ? { schema: "augnes.local-canonical-source-correction.v4", kind: "corrected_timeout" } : conditionRefusal ? { schema: "augnes.local-canonical-source-correction.v5", kind: "condition_requalification" } : guideRefusal ? { schema: "augnes.local-canonical-source-correction.v6", kind: "guide_cancellation_correction" } : profileRefusal ? { schema: "augnes.local-canonical-operating-profile-succession.v1", kind: "operating_profile_efficiency" } : budgetRefusal ? { schema: "augnes.local-canonical-successor-budget-succession.v1", kind: "settled_successor_budget" } : null,
       authorizeObserverRepair: async () => { authorityObserved = true; if (scenario === "observer_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
       authorizeCorrectedTimeout: async () => { authorityObserved = true; if (scenario === "timeout_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
       authorizeConditionRequalification: async () => { authorityObserved = true; if (scenario === "condition_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
       authorizeGuideCorrection: async () => { authorityObserved = true; if (scenario === "guide_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
-      selectedBrowserInput: () => null,
-      prepareInvocationInputs: () => ({ snapshot: () => ({ resources: [], binding: { tree: "c".repeat(40) }, fingerprint: "d".repeat(64) }) }),
-      monitorInputContract: () => ({ check: () => ["observer_changed_after_authority", "timeout_changed_after_authority", "condition_changed_after_authority", "guide_changed_after_authority"].includes(scenario) && authorityObserved ? { disposition: "input_invalidation" } : null, stop() {}, fault: () => null }),
-      beginAttempt: () => { attemptClaims++; return {}; }, pinVerificationEvidence() {}, assertFrozenSource() {},
+      authorizeOperatingProfileSuccession: async () => { authorityObserved = true; if (scenario === "profile_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
+      authorizeSuccessorBudgetSuccession: async () => { authorityObserved = true; if (scenario === "budget_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
+      authorizeReviewedRevision: async () => { authorityObserved = true; if (scenario === "revision_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
+      observeReviewedRevisionSettlementState: async () => {
+        assert(authorityObserved); assertCheckoutVerificationOwnership(activeOwner, root);
+        assert.equal(attemptClaims, 0); assert.equal(calls.phases, 0);
+        if (scenario === "revision_settlement_unsafe") throw Object.assign(new Error(), { code: "revision_current_settlement_unsafe" });
+        return settlementLive;
+      },
+      selectedBrowserInput: () => null, runtimeInputs: revisionRuntime ? {} : null,
+      prepareInvocationInputs: () => ({ check: () => null,
+        prepareDependencies: ({ repositoryRoot, phaseId }) => {
+          assert.equal(repositoryRoot, root); assert(calls.phases > preparedPhases.length);
+          assertCheckoutVerificationOwnership(activeOwner, root); preparedPhases.push(phaseId);
+          if (scenario === "revision_dependencies_observation_failure") throw Object.assign(new Error(), { code: "dependency_input_read_race" });
+        },
+        checkPreparedDependencies: () => { assertCheckoutVerificationOwnership(activeOwner, root); preparedChecks++; }, snapshot: () => ({ resources: [], binding: { tree: "c".repeat(40) }, fingerprint: "d".repeat(64) }) }),
+      monitorInputContract: () => ({ check: () => ["observer_changed_after_authority", "timeout_changed_after_authority", "condition_changed_after_authority", "guide_changed_after_authority", "profile_changed_after_authority", "budget_changed_after_authority", "revision_changed_after_authority",    ].includes(scenario) && authorityObserved ? { disposition: "input_invalidation" } : null, stop() {}, fault: () => null }),
+      beginAttempt: options => { assert.equal(options.revisionLive, revisionSettlement ? settlementLive : null); attemptClaims++; return {}; }, pinVerificationEvidence() {}, assertFrozenSource() {},
       createIsolatedInvocationResources: id => (privateResource = createIsolatedInvocationResources(id)),
+      prepareHistoricalInputs: () => ({}),
+      finishHistoricalInputs: () => ({ completed: true, unchanged: true }),
       cleanupIsolatedInvocationResources: (resource, options) => {
         if (scenario === "isolated_observer_cleanup_failed") throw Object.assign(new Error("synthetic_cleanup_failed"), { code: "synthetic_cleanup_failed" });
         const result = cleanupIsolatedInvocationResources(resource, options);
@@ -950,9 +1020,8 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
       assertVerificationContext: () => true, verificationAnchorRoot: () => root,
       invocationId: "a".repeat(32),
       plan: { selected_plan: quick ? "quick-feedback" : "full-canonical" }, OWNER_TARGETED_PLAN: "owner-targeted",
-      preflightIssues, phaseDefinitions: observerFailure ? [{ id: "synthetic" }, { id: "must_not_start" }] : [{ id: "synthetic" }],
-      phaseReceipts: observerFailure ? [{ id: "synthetic", status: "not_run" }, { id: "must_not_start", status: "not_run" }] : [{ id: "synthetic", status: "not_run" }],
-      repositoryRoot: root, runLogRoot, runId: "synthetic", mode: "changed", hostResult: {},
+      preflightIssues, phaseDefinitions: revisionLane && scenario !== "revision_partial_workload_refused" ? BROWSER_REPLACEMENT_PHASES.map(id => ({id})) : observerFailure ? [{ id: "synthetic" }, { id: "must_not_start" }] : [{ id: "synthetic" }], phaseReceipts: (revisionRuntime ? BROWSER_REPLACEMENT_PHASES : observerFailure ? ["synthetic", "must_not_start"] : ["synthetic"]).map(id => ({id,status:"not_run"})),
+      repositoryRoot: root, runLogRoot, runId: "synthetic", mode: revisionLane ? "full" : "changed", hostResult: {},
       process: { platform: scenario === "capacity_busy" ? "darwin" : "win32", arch: "x64" }, generatedWindowsHelperRoot: windows,
       host: {},
       acquireVerificationCapacity: () => {
@@ -1022,8 +1091,8 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
           assert.equal(calls.acquire, 0);
         }
         assert.throws(() => acquireCheckoutVerificationOwnership({ repositoryRoot: root }), hasCode("checkout_owner_busy"));
-        assert.equal(existsSync(next), quick, "deciding execution starts without pre-existing Next state");
-        assert.equal(existsSync(windows), quick, "deciding execution starts without pre-existing helper state");
+        assert.equal(existsSync(next), quick || calls.phases > 0, "deciding execution starts clean; later phases retain owned generated state");
+        assert.equal(existsSync(windows), quick || calls.phases > 0, "deciding execution starts clean; later phases retain owned helper state");
         calls.phases++; mkdirSync(next, { recursive: true }); writeFileSync(path.join(next, "partial-build"), "owned");
         mkdirSync(windows, { recursive: true }); writeFileSync(path.join(windows, "partial-helper"), "owned");
         return { status: ["owned_failure", "unsettled_failure", "isolated_unsettled"].includes(scenario) ? "fail" : "pass",
@@ -1056,10 +1125,22 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
         assert.equal(verifyReceiptIntegrity(preserved), true);
         assert.equal(assertCheckoutVerificationOwnership(competingOwner, root), true);
       }
-    } else if (observerRefusal || timeoutRefusal || conditionRefusal || guideRefusal) {
+    } else if (revisionRuntime) {
+      assert(authorityObserved); assert.equal(attemptClaims, 1); assert.equal(preparedChecks, 1);
+      assert.equal(result.cleanupComplete, true, `${scenario}: ${result.cleanupReason}`); assert.equal(privateResourceCleaned, true);
+      const failed = scenario === "revision_dependencies_observation_failure";
+      assert.deepEqual(preparedPhases, failed ? ["dependencies-root"] : ["dependencies-root", "dependencies-nested", "dependencies-web-planning"]);
+      assert.equal(calls.phases, failed ? 1 : BROWSER_REPLACEMENT_PHASES.length);
+      assert.equal(result.executionFailure, failed);
+      if (failed) assert.equal(context.phaseReceipts[0].failure_code, "dependency_input_read_race");
+      assert.equal(calls.release, 0); assert(!existsSync(next)); assert(!existsSync(windows));
+    } else if (observerRefusal || timeoutRefusal || conditionRefusal || guideRefusal || profileRefusal || budgetRefusal || revisionRefusal) {
       assert(authorityObserved); assert.equal(attemptClaims, 0); assert.equal(calls.phases, 0);
       assert(result.executionFailure); assert.equal(result.cleanupComplete, true, "execution refusal is separate from positively observed settlement");
-      assert.equal(calls.release, 1); assert(!existsSync(next)); assert(!existsSync(windows));
+      assert.equal(calls.release, isolated ? 0 : 1); assert(!existsSync(next)); assert(!existsSync(windows));
+      if (revisionRefusal) assert.equal(result.executionReason, scenario === "revision_settlement_unsafe" ? "revision_current_settlement_unsafe" : scenario === "revision_authority_refused" ? "synthetic_authority_refusal" : scenario === "revision_changed_after_authority" ? "input_admission_refused" : "reviewed_revision_workload_invalid");
+      if (budgetRefusal) assert.equal(result.executionReason, scenario === "budget_authority_refused" ? "synthetic_authority_refusal" : scenario === "budget_changed_after_authority" ? "input_admission_refused" : "budget_workload_invalid");
+      if (profileRefusal) assert.equal(result.executionReason, scenario === "profile_authority_refused" ? "synthetic_authority_refusal" : scenario === "profile_changed_after_authority" ? "input_admission_refused" : "profile_workload_invalid");
       if (timeoutRefusal) assert.equal(result.executionReason, scenario === "timeout_authority_refused" ? "synthetic_authority_refusal" : scenario === "timeout_changed_after_authority" ? "input_admission_refused" : "timeout_workload_invalid");
       if (conditionRefusal) assert.equal(result.executionReason, scenario === "condition_authority_refused" ? "synthetic_authority_refusal" : scenario === "condition_changed_after_authority" ? "input_admission_refused" : "condition_workload_invalid");
       if (guideRefusal) assert.equal(result.executionReason, scenario === "guide_authority_refused" ? "synthetic_authority_refusal" : scenario === "guide_changed_after_authority" ? "input_admission_refused" : "guide_workload_invalid");
@@ -1118,56 +1199,85 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
   }
 }
 
-const retentionRoot = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-log-retention-")));
-const retentionOwner = acquireCheckoutVerificationOwnership({ repositoryRoot: retentionRoot });
+// Exercise the production admission and stock dispatch expressions across the
+// distinct profiles. A schema collision must not select another route's
+// authorizer; rejected mixed profiles never reach a real ledger or network.
+const successionProfiles = [
+  { schema: CONDITION_REQUALIFICATION_SCHEMA, kind: "condition_requalification", role: "condition" },
+  { schema: GUIDE_CORRECTION_SCHEMA, kind: "guide_cancellation_correction", role: "guide" },
+  { schema: "augnes.local-canonical-operating-profile-succession.v1", kind: "operating_profile_efficiency", role: "profile" },
+  { schema: "augnes.local-canonical-successor-budget-succession.v1", kind: "settled_successor_budget", role: "budget" },
+  { schema: "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision", role: "revision" },
+];
+assert.deepEqual(successionProfiles.map(profile => profile.schema), [
+  "augnes.local-canonical-source-correction.v5", "augnes.local-canonical-source-correction.v6",
+  "augnes.local-canonical-operating-profile-succession.v1", "augnes.local-canonical-successor-budget-succession.v1",
+  "augnes.local-canonical-source-correction.v7",
+]);
+assert.equal(new Set(successionProfiles.map(profile => profile.schema)).size, 5);
+const dispatchStart = executorSource.indexOf("            const revisionAuthorization =");
+const dispatchEnd = executorSource.indexOf("            const browserAuthorization =", dispatchStart);
+assert(dispatchStart > 0 && dispatchEnd > dispatchStart);
+const admissionDispatch = executorSource.slice(dispatchStart, dispatchEnd);
+const stockDispatchStart = executorSource.indexOf("  let observerAuthorization = null;", executorSource.indexOf("export async function validateReceiptAgainstCurrentRepository"));
+const stockDispatchEnd = executorSource.indexOf("  return inspectReceiptForDecision(receipt,", stockDispatchStart);
+assert(stockDispatchStart > 0 && stockDispatchEnd > stockDispatchStart);
+const stockDispatch = executorSource.slice(stockDispatchStart, stockDispatchEnd);
+const coexistenceRoot = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-succession-dispatch-")));
 try {
-  const logs = path.join(retentionRoot, ".augnes-local-verification", "logs");
-  const receipts = path.join(retentionRoot, ".augnes-local-verification", "receipts");
-  const active = path.join(logs, "current-run");
-  mkdirSync(active, { recursive: true });
-  writeFileSync(path.join(active, "phase.log"), "current run evidence");
-  utimesSync(active, 1, 1);
-  mkdirSync(receipts);
-  for (let index = 0; index < 8; index++) {
-    const newer = path.join(logs, `newer-${index}`);
-    mkdirSync(newer); utimesSync(newer, index + 2, index + 2);
-    const failedReceipt = path.join(receipts, `failed-${index}.json`);
-    writeFileSync(failedReceipt, JSON.stringify(finalizeReceipt({ final: { result: "failure" } })));
-    utimesSync(failedReceipt, index + 2, index + 2);
+  const relative = ".augnes-local-verification/proofs/synthetic.json", file = path.join(coexistenceRoot, relative);
+  mkdirSync(path.dirname(file), { recursive: true });
+  for (const schemaProfile of successionProfiles) for (const kindProfile of successionProfiles) {
+    const selected = successionProfiles.find(profile => profile.schema === schemaProfile.schema && profile.kind === kindProfile.kind)?.role ?? null;
+    const candidate = { schema: schemaProfile.schema, kind: kindProfile.kind, local_relative_path: relative, head: "a".repeat(40) };
+    writeFileSync(file, JSON.stringify(candidate));
+    const original = readFileSync(file);
+    if (selected === null) assert.throws(() => readCorrectionProof(file, coexistenceRoot), undefined,
+      `mixed ${schemaProfile.schema}/${kindProfile.kind} cannot become a source-correction proof`);
+    for (const [mode, body] of [["admission", admissionDispatch], ["stock", stockDispatch]]) {
+      const calls = [], capabilities = Object.fromEntries(["observer", "timeout", "condition", "guide", "profile", "budget", "revision"].map(role => [role, Object.freeze({ role })]));
+      let evidenceReads = 0;
+      const frozenInputs = Object.freeze({ synthetic_frozen_declaration: true });
+      const authorize = role => async (proof, options) => { calls.push(role); assert.deepEqual(proof, candidate);
+        return capabilities[role]; };
+      const context = { sourceCorrection: candidate, inputs: { snapshot: () => frozenInputs, check() {} }, receipt: { inputs: frozenInputs, attempt: { source_correction: candidate } }, path, repositoryRoot: coexistenceRoot,
+        isObserverRepair, isCorrectedTimeout, isConditionRequalification, isGuideCorrection, isOperatingProfileSuccession, isSuccessorBudgetSuccession, isReviewedRevision,
+        mode: "full", checkoutContext: "isolated-worktree", plan: { selected_plan: "full-canonical" }, observeCanonicalRuntimeInputs: () => ({}),
+        digest, BROWSER_REPLACEMENT_PHASES, phaseDefinitions: BROWSER_REPLACEMENT_PHASES.map(id => ({ id })),
+        inputMonitor: { check: () => null }, signal: { aborted: false },
+        authorizeObserverRepair: authorize("observer"), authorizeCorrectedTimeout: authorize("timeout"),
+        authorizeConditionRequalification: authorize("condition"), authorizeGuideCorrection: authorize("guide"),
+        authorizeOperatingProfileSuccession: authorize("profile"), authorizeSuccessorBudgetSuccession: authorize("budget"), authorizeReviewedRevision: authorize("revision"),
+        readSourceCorrectionProof: (observed, repository) => {
+          evidenceReads++; assert.equal(observed, file); assert.equal(repository, coexistenceRoot);
+          return JSON.parse(readFileSync(observed, "utf8"));
+        },
+      };
+      const output = await new AsyncFunction(...Object.keys(context), body + "\nreturn { observer: observerAuthorization, timeout: timeoutAuthorization, condition: conditionAuthorization, guide: guideAuthorization, profile: profileAuthorization, budget: budgetAuthorization, revision: revisionAuthorization };")(...Object.values(context));
+      assert.deepEqual(calls, selected === null ? [] : [selected], `${mode} selects only the exact schema/profile authorizer`);
+      for (const role of Object.keys(capabilities)) assert.equal(output[role], role === selected ? capabilities[role] : null);
+      assert.equal(evidenceReads, 0);
+      assert.deepEqual(readFileSync(file), original);
+      assert.deepEqual(readdirSync(path.dirname(file)), ["synthetic.json"]);
+      assert(!existsSync(path.join(coexistenceRoot, ".augnes-local-verification/families")), "dispatch inspection never reserves an attempt");
+    }
   }
-  const retentionOptions = { root: retentionRoot, currentRunId: "current-run", logMaximum: 5, receiptMaximum: 3 };
-  assert.throws(() => enforceArtifactRetention(retentionOptions), hasCode("checkout_owner_not_owned"));
-  assert.equal(readdirSync(logs).length, 9);
-  assert.throws(() => enforceArtifactRetention({ ...retentionOptions, checkoutOwner: retentionOwner, currentRunId: "../escape" }), hasCode("invalid_artifact_retention_boundary"));
-  enforceArtifactRetention({ ...retentionOptions, checkoutOwner: retentionOwner });
-  assert.equal(readFileSync(path.join(active, "phase.log"), "utf8"), "current run evidence");
-  assert.deepEqual(readdirSync(logs).sort(), ["current-run", "newer-4", "newer-5", "newer-6", "newer-7"]);
-  assert.deepEqual(readdirSync(receipts).sort(), ["failed-5.json", "failed-6.json", "failed-7.json"]);
-  for (const file of readdirSync(receipts)) {
-    const receipt = JSON.parse(readFileSync(path.join(receipts, file), "utf8"));
-    assert.equal(receipt.final.result, "failure");
-    assert.equal(verifyReceiptIntegrity(receipt), true);
+  for (const unavailable of [false, true]) for (const [mode, body] of [["admission", admissionDispatch], ["stock", stockDispatch]]) {
+    const candidate={schema:"augnes.local-canonical-source-correction.v7",kind:"reviewed_revision",settlement:{sha256:"c".repeat(64)}}, calls=[];
+    const live=Object.freeze({synthetic_current_safe_observation:true}),contextToken=Object.freeze({synthetic_context:true});
+    const context={sourceCorrection:candidate,receipt:{attempt:{source_correction:candidate}},verificationContext:contextToken,
+      isObserverRepair,isCorrectedTimeout,isConditionRequalification,isGuideCorrection,isOperatingProfileSuccession,isSuccessorBudgetSuccession,isReviewedRevision,
+      mode:"full",checkoutContext:"isolated-worktree",plan:{selected_plan:"full-canonical"},digest,BROWSER_REPLACEMENT_PHASES,phaseDefinitions:BROWSER_REPLACEMENT_PHASES.map(id=>({id})),
+      inputs:{check(){}},inputMonitor:{check:()=>null},signal:{aborted:false},observeCanonicalRuntimeInputs:()=>({}),
+      authorizeReviewedRevision:async()=>{calls.push("authority");return{};},
+      observeReviewedRevisionSettlementState:async value=>{assert.equal(value,contextToken);calls.push("live");if(unavailable)throw Object.assign(new Error(),{code:"revision_current_settlement_unsafe"});return live;}};
+    const invoke=()=>new AsyncFunction(...Object.keys(context),body+"\nreturn revisionLive;")(...Object.values(context));
+    if(unavailable&&mode==="admission")await assert.rejects(invoke(),hasCode("revision_current_settlement_unsafe"));
+    else assert.equal(await invoke(),unavailable?null:live,"stock preserves unavailable current observation as refusal input");
+    assert.deepEqual(calls,["authority","live"]);
   }
-} finally {
-  releaseCheckoutVerificationOwnership(retentionOwner, retentionRoot);
-  rmSync(retentionRoot, { recursive: true, force: true });
-}
+} finally { rmSync(coexistenceRoot, { recursive: true, force: true }); }
 
-assert.deepEqual(listWorkflowFiles(), []);
-for (const forbiddenPath of [
-  ".gitlab-ci.yml",
-  ".gitlab-ci.yaml",
-  "Jenkinsfile",
-  "azure-pipelines.yml",
-  "azure-pipelines.yaml",
-  ".circleci",
-  ".buildkite",
-  ".woodpecker.yml",
-  ".woodpecker.yaml",
-  ".drone.yml",
-]) {
-  assert.equal(existsSync(path.join(repositoryRoot, forbiddenPath)), false);
-}
 
 console.log(
   JSON.stringify(

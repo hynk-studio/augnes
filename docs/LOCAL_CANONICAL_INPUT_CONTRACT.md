@@ -69,6 +69,56 @@ The existing replacement controls exercise actual admission with the new common
 hash and prove a relevant mismatch creates neither attempt nor successor. These
 are disposable source controls, not production Full, Browser or model evidence.
 
+### Selected Node and matching compiler headers
+
+The reviewed source/input-revision route binds the actual running Node executable
+and its physical sibling `include/node` directory through
+`observeCanonicalRuntimeInputs`. `node_version.h` must identify the running
+Node version, and `node_api.h` must be present. The `nodeHeaders` resource role
+reuses the complete bounded tree reader for content, topology, modes, ownership,
+ACLs, flags and attributes. The receipt stores aggregate identities; it does not
+copy all header source. Missing, unsafe, changed or failed observations refuse.
+Existing declarations without this marker keep their original interpretation.
+
+The executor sets `AUGNES_CANONICAL_NODE_HEADERS` and its observed fingerprint.
+The canonical child-environment owner rechecks the physical Node/header pair and
+version before deriving `npm_config_nodedir`; arbitrary ambient npm settings and
+credentials remain excluded. These values reach normal dependency preparation
+and filtered descendants. Node remains the actual selected executable, rather
+than a version label used to excuse a different path or content.
+
+Header trees are fully checked at admission, phase boundaries, final settlement
+and fresh stock. They are not recursively scanned by the one-second monitor
+while a timed child is running. A boundary fault latches through the same input
+owner and cannot yield a deciding PASS. This is bounded observation, not a claim
+that every transient write can be detected.
+
+The three ordinary clean `npm ci` phases still produce their installed dependency
+trees from the pinned package/lock sources. Those outputs are not immutable
+pre-install runtime input: preparation can legitimately replace them. Existing
+mutable-resource alias checks, dependency consumers and exact lock/preparation
+provenance remain required. The new route captures each tree only after its own
+successful preparation through `observePreparedDependencyInputs`, then checks
+the retained identity through the executor and fresh stock. The small aggregate
+binds actual file content, mode/owner, contained links, package/lock sources,
+ACLs, flags and attributes. Complete per-read filesystem identity detects races;
+cross-observation identity excludes install-produced inode/timestamp values.
+
+Only a physical, empty top-level `node_modules/.cache` with the dependency root's
+exact mode/owner/device, ACL, flags and attributes can be equivalent to absence.
+The parent remains fully bound. This accommodates protected inherited platform
+attributes without exempting any attribute name or differing security state.
+Its observed presence remains diagnostic. A nonempty directory remains fully
+binding; unsafe links, changed permissions, unknown or failed observations
+refuse. There is no general cache ignore list or dependency-content exemption.
+
+The existing classification owner tests a real same-byte Node child/grandchild
+environment, fresh header reconstruction, mutations, wrong versions/roles,
+legacy refusal, unsafe links and permissions. Dependency controls reconstruct
+fresh outputs, prove empty-cache disappearance equivalence and retain nonempty
+cache/content/source/permission changes. These controls do not substitute
+for actual new preparation or qualification phase coverage.
+
 ### Git tracking projection for the isolated inventory
 
 The optional resource marker `gitTracking.policy = isolated-current-branches-v1`
@@ -139,6 +189,14 @@ correction; these controls do not replace complete deciding qualification.
   owner. A necessary accepted-main integration binds the freshly admitted main,
   exact two parents and independently recomputed tree-entry union. None recasts old
   outcomes as infrastructure, resets an unchanged target or grants permission.
+  Its v7 `reviewed_revision` discriminator also binds a new prospective commission
+  to the latest settled failed/terminal tip, accepted source evidence and actual
+  source/runtime-input differences. The same exclusive edge carries the root
+  commission and ordinal; at most two complete invocations are possible, and the
+  second requires a materially corrected demonstrated problem plus focused
+  evidence and prior fresh stock. Interrupted reservations consume their slot.
+  Legacy terminal records and their interpretation are retained. No new incident
+  controller, approval ledger, unchanged retry or recovery allowance is added.
 - `local-canonical-condition-requalification.mjs` binds a distinct v5
   `condition_requalification` interpretation to the latest settled Project Home
   condition failure, preserved failure/diagnosis evidence, authenticated prospective
@@ -161,12 +219,33 @@ correction; these controls do not replace complete deciding qualification.
   of the original failure. Proof artifacts remain admission/reconstruction inputs,
   not continuously monitored execution inputs; the production owner itself is in
   the frozen executor source inventory.
+- `local-canonical-operating-profile-succession.mjs` binds #1561's exact nested
+  timeout predecessor, independently accepted both-PASS efficiency evidence and
+  prospective authenticated execution scope. Its named schema leaves v1–v6
+  unchanged. Original log observations stay distinct from later retained-byte
+  hashes; historical causation remains UNKNOWN. The final-source record belongs
+  to the implementation owner, not an invented independent review. The existing
+  exclusive edge admits one Full with zero recovery; fresh stock reconstructs
+  without reserving. Proof artifacts remain admission/reconstruction inputs and
+  the owner joins the frozen executor inventory. No workload, deadline, input
+  classification or continuous-monitoring semantics change.
+- `local-canonical-successor-budget-succession.mjs` binds only the consumed #1561
+  r5 tip, accepted r6 NO FIX diagnosis and the new authenticated prospective scope
+  to the exact outer settled-successor aggregate budget of 45 seconds. All inner
+  bounds and complete semantics remain unchanged. Its typed continuation uses the
+  same exclusive edge, append-only records and fresh read-only stock, with one
+  Full and zero retry/recovery. The old allowance remains consumed; historical
+  causation remains UNKNOWN. Complete final deltas and retained tree entries are
+  implementation-owner verified, then independently audited after return. Proof
+  artifacts are admission/reconstruction inputs, not continuously monitored
+  execution inputs; the owner joins the frozen executor source inventory.
 - `local-canonical-evidence-retention.mjs` protects active and explicitly pinned
   evidence. Unsafe aliases and ambiguous ownership refuse cleanup.
 - `test-local-canonical-classification.mjs` and `test-local-canonical-review-corrections.mjs` exercise real classification,
   sequencing, child lifecycle and receipt validation. Keep accepted Full phase
-  inventory and every existing child bound, including 30 seconds for the
-  settled-expired-successor child. Register new controls in authority coverage.
+  inventory and child bounds, with only the separately authorized outer
+  settled-expired-successor aggregate budget changed from 30 to 45 seconds.
+  Register new controls in existing authority coverage; preserve timeout latching.
 
 ## Required contrasts and limits
 

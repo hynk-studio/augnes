@@ -161,7 +161,9 @@ export async function testCodexCandidateCanaryBindingV01(root: string, initial: 
     assert.deepEqual(launch.args.slice(1), [...CANDIDATE_CONFIG_OVERRIDE_ARGS_V01, "app-server", "--stdio"]);
     assert.throws(() => claimCodexCandidateOrdinaryBrokerContextV01(projected.binding), /broker_admission_refused/);
     assert.throws(() => consumeCodexCandidateCanaryV01(projected.binding), /consumed/);
+    const originalLaunch = JSON.stringify(launch);
     assert.equal(codexCandidateCanaryLaunchContainsSecretForTestV01(launch), false);
+    assert.equal(JSON.stringify(launch), originalLaunch, "scan preserves actual launch values");
     for (const token of ["sk-synthetic-fixture-secret", "before-sk-synthetic-after", "before-xoxb-synthetic-after"]) {
       assert.equal(containsCodexCredentialSecretShapeV01(token), true);
       assert.equal(codexCandidateCanaryLaunchContainsSecretForTestV01({ ...launch, version: token }), true);
@@ -171,6 +173,8 @@ export async function testCodexCandidateCanaryBindingV01(root: string, initial: 
     assert.throws(() => codexCandidateCanaryLaunchContainsSecretForTestV01({ ...launch, args: [...launch.args, "innocent-extra"] }), /fixture_launch_invalid/);
     assert.throws(() => codexCandidateCanaryLaunchContainsSecretForTestV01({ ...launch, command: "/arbitrary/node" }), /fixture_launch_invalid/);
     assert.throws(() => codexCandidateCanaryLaunchContainsSecretForTestV01({ ...launch, args: ["/arbitrary/fake-codex-app-server.mjs", ...launch.args.slice(1)] }), /fixture_launch_invalid/);
+    assert.throws(() => codexCandidateCanaryLaunchContainsSecretForTestV01({ ...launch, args: [launch.args[0], ...launch.args.slice(1, -1), "--changed"] }), /fixture_launch_invalid/);
+    assert.equal(JSON.stringify(launch), originalLaunch, "adverse scans preserve original launch");
     assert.equal(containsCodexCredentialSecretShapeV01("/ordinary/task-directory/file"), true, "generic embedded-shape rejection is unchanged");
     assert.equal(JSON.stringify(launch).includes(sourceHome), false);
     // AuthManager may replace/refresh its private file; no writeback or inode

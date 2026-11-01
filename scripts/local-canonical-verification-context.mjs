@@ -3,6 +3,8 @@ import { lstatSync, readFileSync, readdirSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
+import { readProcessBirthIdentity } from "./local-process-ownership.mjs";
+import { CHECKOUT_OWNER_FILE, CHECKOUT_OWNERSHIP_CONTRACT, checkoutVerificationFingerprint } from "./local-canonical-checkout-ownership.mjs";
 import {
   CANONICAL_DARWIN_REPOSITORY_ROOT, CANONICAL_ORIGIN_URL,
   CANONICAL_REPOSITORY_ID, matchCanonicalRepositoryIdentity,
@@ -97,6 +99,35 @@ export async function inspectVerificationCompanionPreservation(context) {
     fail("companion_preservation_source_invalid");
   const { inspectCompanionPreservation } = await import(pathToFileURL(source).href);
   return inspectCompanionPreservation({ repositoryRoot });
+}
+
+// A read-only cooperating-owner observation, not a global lock or service
+// maintenance. A foreign/ambiguous owner is never reclaimed here.
+export async function observeReviewedRevisionSettlementState(context) {
+  const anchor = verificationAnchorRoot(context);
+  const owners = () => {
+    const roots = git(anchor, ["worktree", "list", "--porcelain", "-z"]).split("\0")
+      .filter(line => line.startsWith("worktree ")).map(line => line.slice(9));
+    roots.push(...[1, 2].map(i => path.join(anchor, ".augnes-local-verification", "capacity", `slot-${i}`)));
+    const birth = readProcessBirthIdentity(process.pid), foreign = [];
+    if (birth.state !== "present") fail("revision_settlement_process_unavailable");
+    for (const root of roots) {
+      const file = path.join(root, ".augnes-local-verification", CHECKOUT_OWNER_FILE), stat = lstatSync(file, { throwIfNoEntry: false });
+      if (!stat) continue;
+      if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || stat.size > 4096 || realpathSync(file) !== file ||
+          (stat.mode & 0o022) || stat.uid !== process.getuid())
+        fail("revision_settlement_owner_ambiguous");
+      const owner = JSON.parse(readFileSync(file, "utf8"));
+      if (owner.contract !== CHECKOUT_OWNERSHIP_CONTRACT || owner.repository_id !== CANONICAL_REPOSITORY_ID ||
+          owner.checkout_fingerprint !== checkoutVerificationFingerprint(root) || !Number.isSafeInteger(owner.owner_pid) ||
+          !/^[0-9a-f]{64}$/u.test(owner.owner_process_identity ?? "")) fail("revision_settlement_owner_ambiguous");
+      if (owner.owner_pid !== process.pid || owner.owner_process_identity !== birth.identity) foreign.push({ root, ...owner });
+    }
+    return foreign;
+  };
+  const before = owners(), service = await inspectVerificationCompanionPreservation(context), after = owners();
+  if (hash(before) !== hash(after)) fail("revision_settlement_owners_changed");
+  return { observed_at: new Date().toISOString(), service, foreign_checkout_owners: after };
 }
 
 export function physicalFingerprint(entry) {

@@ -147,27 +147,31 @@ export async function terminateOwnedProcessTree(
     const remainingGroup = discoverOwnedProcessGroup(record.pid);
     if (remainingGroup.length === 0) {
       closeChildStreams(record.child);
-      if (!(await waitForRecordClose(record, killGraceMs))) {
+      if (!(await waitForRecordClose(record, killGraceMs)) ||
+          discoverOwnedProcessGroup(record.pid).length !== 0) {
         throw ownedCleanupError();
       }
       return { term_sent: false, kill_sent: false };
     }
     signalVerifiedOwnedProcesses(remainingGroup, "SIGTERM");
-    if (await waitForVerifiedProcessesExit(remainingGroup, termGraceMs)) {
+    if (await waitForVerifiedProcessesExit(remainingGroup, termGraceMs) &&
+        discoverOwnedProcessGroup(record.pid).length === 0) {
       closeChildStreams(record.child);
-      if (!(await waitForRecordClose(record, killGraceMs))) {
+      if (!(await waitForRecordClose(record, killGraceMs)) ||
+          discoverOwnedProcessGroup(record.pid).length !== 0) {
         throw ownedCleanupError();
       }
       return { term_sent: true, kill_sent: false };
     }
-    signalVerifiedOwnedProcesses(remainingGroup, "SIGKILL");
+    const killTargets = [...remainingGroup, ...discoverOwnedProcessGroup(record.pid)];
+    signalVerifiedOwnedProcesses(killTargets, "SIGKILL");
     const groupExited = await waitForVerifiedProcessesExit(
-      remainingGroup,
+      killTargets,
       killGraceMs,
     );
     closeChildStreams(record.child);
     const closed = await waitForRecordClose(record, killGraceMs);
-    if (!groupExited || !closed) throw ownedCleanupError();
+    if (!groupExited || !closed || discoverOwnedProcessGroup(record.pid).length !== 0) throw ownedCleanupError();
     return { term_sent: true, kill_sent: true };
   }
   if (!Number.isInteger(record.pid) || record.pid <= 0) {
@@ -191,21 +195,25 @@ export async function terminateOwnedProcessTree(
 
   const owned = discoverOwnedProcessTree(record.pid);
   signalVerifiedOwnedProcesses(owned, "SIGTERM");
+  // A signal handler can create a new member after the original tree snapshot.
+  // Root exit and disappearance of that old snapshot do not settle its group.
   if (
     (await waitForRecordClose(record, termGraceMs)) &&
-    (await waitForVerifiedProcessesExit(owned, 0))
+    (await waitForVerifiedProcessesExit(owned, 0)) &&
+    discoverOwnedProcessGroup(record.pid).length === 0
   ) {
     closeChildStreams(record.child);
     return { term_sent: true, kill_sent: false };
   }
 
-  signalVerifiedOwnedProcesses(owned, "SIGKILL");
+  const killTargets = [...owned, ...discoverOwnedProcessGroup(record.pid)];
+  signalVerifiedOwnedProcesses(killTargets, "SIGKILL");
   const [closed, treeExited] = await Promise.all([
     waitForRecordClose(record, killGraceMs),
-    waitForVerifiedProcessesExit(owned, killGraceMs),
+    waitForVerifiedProcessesExit(killTargets, killGraceMs),
   ]);
   closeChildStreams(record.child);
-  if (!closed || !treeExited) throw ownedCleanupError();
+  if (!closed || !treeExited || discoverOwnedProcessGroup(record.pid).length !== 0) throw ownedCleanupError();
   return { term_sent: true, kill_sent: true };
 }
 
@@ -323,10 +331,13 @@ function readPosixProcessSnapshot() {
     },
   );
   const snapshot = new Map();
-  if (result.status !== 0 || result.error) return snapshot;
+  // An unavailable observation cannot establish that an owned group is gone.
+  if (result.status !== 0 || result.error || typeof result.stdout !== "string" || !result.stdout.trim())
+    throw ownedObservationError();
   for (const line of result.stdout.split(/\r?\n/)) {
+    if (!line.trim()) continue;
     const match = line.match(/^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(.+?)\s*$/);
-    if (!match) continue;
+    if (!match) throw ownedObservationError();
     snapshot.set(Number(match[1]), {
       pid: Number(match[1]),
       ppid: Number(match[2]),
@@ -422,6 +433,12 @@ function closeChildStreams(child) {
 function ownedCleanupError() {
   const error = new Error("owned process tree cleanup failed");
   error.code = "owned_process_tree_cleanup_failed";
+  return error;
+}
+
+function ownedObservationError() {
+  const error = new Error("owned process observation unavailable or incomplete");
+  error.code = "owned_process_observation_unknown";
   return error;
 }
 

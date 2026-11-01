@@ -325,6 +325,41 @@ missing/stale installation only through its separately authorized setup owner.
 Full input and recovery boundaries are in the
 [preparation contract](CODEX_CURRENT_CONTINUITY_V0_1.md#explicit-preview-and-save-of-prepared-work).
 
+For an explicitly authorized follow-up from a **completed, settled local result**,
+Resume the intended repository and call `augnes_read_repository_result_work`
+with `repositoryRoot` and the returned `continuity.snapshot.binding` as
+`expectedSnapshotBinding`. The server
+resolves the current packet and latest local result; do not reconstruct receipt,
+packet or project identifiers. Existing result-successor eligibility still checks
+the physical root and unresolved effects. A failed verification check is distinct
+from a failed execution; a portable receipt alone is not a local predecessor.
+
+Carry `preparation_binding` as `preparationBinding`. Keep these repository,
+snapshot and preparation inputs unchanged through compare, preview and save.
+Explicitly supply
+`sources.keep`, `sources.add`, `sources.include_result`,
+`sources.include_reviewed_outcome` and `sources.omitted_sources` reasons for
+every omitted predecessor note. Call
+`augnes_compare_repository_result_work_sources`, then pass its
+`expected_source_comparison` as `expectedSourceComparison`, identical sources
+and a complete `definition` (`goal`, `success_criteria`, `non_goals`) to
+`augnes_preview_repository_result_work`. Inspect the authored definition,
+selected sources, omissions and mandatory packet obligations. Preview compiles
+the whole packet under existing budgets; nothing is silently truncated. Result
+reports remain attributed, unverified material.
+
+Only an explicit `augnes_prepare_repository_result_work` with the same inputs
+and returned `preview_binding` as `previewBinding` saves successor work. The
+Companion authenticates independently of those bindings and rechecks current
+state atomically. Read, comparison and preview write nothing; save starts no run,
+grants no execution authority and makes no semantic or predecessor-success claim.
+Resume again and use `augnes_read_repository_work_sources` with
+`includeWorkDefinition: true` to read the saved definition and sources. Reconcile
+a lost save response through this readback before further authorship; do not
+automatically retry. This path has no exact-replay contract. Stale bindings refuse;
+concurrent saves can have uncertain delivery and require the same readback.
+Existing unexecuted-new-work remains separate.
+
 For **experience use across goals**, first classify the permitted material against
 the new task: unchanged support/callables, conditions to recheck, and goal-specific
 or irrelevant advice to omit. Keep original observations separate from an attributed

@@ -9,11 +9,15 @@ import { mock } from "node:test";
 import { assertPublicSafeReceipt } from "./local-canonical-receipt.mjs";
 import {
   chmodSync,
+  closeSync,
+  constants,
   copyFileSync,
   existsSync,
   fstatSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
+  openSync,
   readFileSync,
   readdirSync,
   realpathSync,
@@ -32,6 +36,9 @@ import {
   waitForOwnedProcessExit,
 } from "./test-harness-process-lifecycle.mjs";
 import { buildCanonicalChildEnvironment } from "./canonical-test-environment.mjs";
+import { collectFixtureCliResult, fixtureInstallFailureDiagnostic, fixtureProcessIdentity,
+  observeFixtureLaunchJob, readFixtureJson, readFixtureManagerObservation,
+} from "./companion-service-fixture-observation.mjs";
 import { createServiceContractFamilies } from "./fixtures/companion-service-contract-families.mjs";
 import {
   localReviewAccessIssuerFailure,
@@ -65,6 +72,62 @@ import {
 } from "../plugins/augnes-operator/mcp/companion-service-core.mjs";
 
 const repositoryRoot = process.cwd();
+async function assertFixtureInstallationEvidence() {
+  const secret = "fixture-one-time-token-do-not-report";
+  const refusal = { contract: COMPANION_SERVICE_CONTRACT, result: "refused",
+    reason: "companion_service_manager_state_unavailable", extra: secret };
+  const result = { status: 1, signal: null, stdout: JSON.stringify({ one_time_local_review_token: secret }),
+    stderr: JSON.stringify(refusal), streams_closed: true, spawn_error_code: null };
+  assert.equal(fixtureInstallFailureDiagnostic(result, { state: "absent" }).refusal.reason, refusal.reason);
+  for (const stderr of [result.stderr, secret, JSON.stringify({ result: "refused", reason: secret }),
+    JSON.stringify({ ...refusal, reason: secret }), ""]) {
+    assert(!JSON.stringify(fixtureInstallFailureDiagnostic({ ...result, stderr }, { state: "absent" })).includes(secret));
+  }
+  assert.equal(fixtureInstallFailureDiagnostic({ ...result, stderr: "" }, { state: "invalid" }).refusal.state, "absent");
+  const throws = code => () => { throw Object.assign(new Error(secret), { code }); };
+  assert.equal(readFixtureManagerObservation("unused", throws("ENOENT")).state, "absent");
+  for (const code of ["EACCES", "EPERM", "ELOOP", "unknown"]) {
+    assert.equal(readFixtureManagerObservation("unused", throws(code)).state, "unreadable");
+  }
+  assert.equal(readFixtureJson("unused", () => { throw new SyntaxError(secret); }).state, "invalid");
+  assert.equal(readFixtureManagerObservation("unused", () => ({ contract: "wrong" })).state, "invalid");
+  const manager = readFixtureManagerObservation("unused", () => ({ contract: COMPANION_SERVICE_CONTRACT,
+    manager_pid: 123, status: "starting", secret }));
+  assert.equal(manager.state, "available");
+  assert(!JSON.stringify(manager).includes(secret));
+  assert.equal(observeFixtureLaunchJob("test", () => ({ status: 113 })).state, "absent");
+  for (const r of [{ status: 1 }, { status: 113, error: { code: "EACCES" } }, { status: null, signal: "SIGTERM" }])
+    assert.equal(observeFixtureLaunchJob("test", () => r).state, "unavailable");
+  assert.equal(observeFixtureLaunchJob("test", () => ({ status: 0, stdout: "state = running\npid = 123\nruns = 2\n" })).pid, 123);
+  assert.equal(fixtureProcessIdentity(123, () => ({ status: 1, stdout: "", stderr: "" })), null);
+  assert.equal(fixtureProcessIdentity(123, () => ({ status: 0, stdout: "birth command\n" })), "birth command");
+  fixtureProcessIdentity(123, (_command, _args, options) => {
+    assert.deepEqual(options.env, { PATH: "/usr/bin:/bin" });
+    return { status: 0, stdout: "birth command" };
+  });
+  const ownerBirth = spawnSync("/bin/ps", ["-o", "lstart=", "-o", "command=", "-p", String(process.pid)],
+    { encoding: "utf8", env: { PATH: "/usr/bin:/bin" }, timeout: 1_500 });
+  assert.equal(ownerBirth.status, 0);
+  assert.equal(fixtureProcessIdentity(process.pid), ownerBirth.stdout.trim());
+  for (const r of [{ status: 1, stderr: secret }, { status: 0, stdout: "" },
+    { status: 1, error: { code: "EPERM" } }, { status: null, signal: "SIGTERM" }]) {
+    assert.throws(() => fixtureProcessIdentity(123, () => r), /native_process_observation_unavailable/u);
+  }
+  // The parent exits before its descendant finishes the inherited stderr pipe.
+  // Acceptance must include the complete structured refusal, not an early exit snapshot.
+  const late = `setTimeout(() => process.stderr.write(${JSON.stringify(JSON.stringify(refusal))}), 150)`;
+  const script = `require('node:child_process').spawn(process.execPath,['-e',${JSON.stringify(late)}],{stdio:['ignore','ignore',2]}).unref();process.exit(1)`;
+  const child = spawn(process.execPath, ["-e", script], { stdio: ["ignore", "pipe", "pipe"] });
+  let exitObserved = false;
+  child.once("exit", () => { exitObserved = true; });
+  const closed = await collectFixtureCliResult(child);
+  assert.equal(exitObserved, true);
+  assert.equal(closed.status, 1);
+  assert.equal(closed.streams_closed, true);
+  assert.equal(fixtureInstallFailureDiagnostic(closed, { state: "absent" }).refusal.reason, refusal.reason);
+  console.log(JSON.stringify({ case: "native-fixture-installation-evidence", status: "passed",
+    late_stderr_retained: true, token_output_excluded: true, unknown_observation_not_absence: true }));
+}
 const root = mkdtempSync(path.join(os.tmpdir(), "augnes-service-contract-"));
 const home = path.join(root, "home");
 const environment = {
@@ -87,9 +150,13 @@ const options = {
 // enrollment/lifecycle boundaries; no production observation cache is installed.
 const durableFixtureResults = new Map();
 const originalSpawnSync = childProcess.spawnSync;
+// The same immutable process binary is probed repeatedly by this matrix.
+// Reuse only its exact successful version subprocess; production realpath,
+// lstat and executable checks still run for every service observation.
+const fixtureNodeVersion = createFixtureNodeVersionReuse(realpathSync(process.execPath), originalSpawnSync);
 const fixtureProvider = mock.method(childProcess, "spawnSync", (command, args, options) => {
   if (command !== "/usr/bin/python3" || args?.at(-1) !== path.join(repositoryRoot, "plugins/augnes-operator/mcp/checkout-identity-darwin.py"))
-    return originalSpawnSync(command, args, options);
+    return fixtureNodeVersion.run(command, args, options);
   const stat = fstatSync(options.stdio[3], { bigint: true });
   const key = [stat.dev, stat.ino, stat.uid, stat.birthtimeNs].join(":");
   if (!durableFixtureResults.has(key)) durableFixtureResults.set(key, originalSpawnSync(command, args, options));
@@ -105,6 +172,8 @@ const failures = [];
 const unsettledFixtureOwners = new Set();
 let summary;
 try {
+  assertFixtureNodeVersionReuse();
+  await assertFixtureInstallationEvidence();
   await assertPreservationObservation();
   await assertInstalledAccessDiagnostics();
   summary = await families.run({
@@ -114,6 +183,13 @@ try {
 } catch (error) {
   failures.push(error);
 } finally {
+  try {
+    const contentPreserved = fixtureNodeVersion.verify();
+    console.log(JSON.stringify({ case: "immutable-fixture-node-version", ...fixtureNodeVersion.counts,
+      first_and_final_content_equal: contentPreserved, per_probe_identity_checked: true }));
+  } catch (error) {
+    failures.push(error);
+  }
   try {
     fixtureProvider.mock.restore();
     syncBuiltinESMExports();
@@ -948,6 +1024,93 @@ async function assertServiceLifecycle() {
     lifecycle_authority_flags_false: true,
     real_provider_calls: 0,
   };
+}
+
+function createFixtureNodeVersionReuse(file, run) {
+  const counts = { eligible_probes: 0, real_probes: 0, reused_probes: 0 };
+  let saved = null, invalid = false;
+  const refuse = () => { invalid = true; throw new Error("fixture_node_probe_input_changed"); };
+  const identity = stat => {
+    if (!stat.isFile() || stat.isSymbolicLink() || (stat.mode & 0o111n) === 0n) refuse();
+    // Access time changes when these bytes are read; all content, permission,
+    // link, birth and inode identity fields remain binding.
+    return [stat.dev, stat.ino, stat.mode, stat.nlink, stat.uid, stat.gid, stat.size,
+      stat.mtimeNs, stat.ctimeNs, stat.birthtimeNs].join(":");
+  };
+  const observe = (contents = false) => {
+    if (invalid) refuse();
+    let fd;
+    try {
+      if (realpathSync(file) !== file) refuse();
+      const before = identity(lstatSync(file, { bigint: true }));
+      if (!contents) return { identity: before };
+      fd = openSync(file, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+      if (identity(fstatSync(fd, { bigint: true })) !== before) refuse();
+      const sha256 = createHash("sha256").update(readFileSync(fd)).digest("hex");
+      if (identity(fstatSync(fd, { bigint: true })) !== before || identity(lstatSync(file, { bigint: true })) !== before) refuse();
+      return { identity: before, sha256 };
+    } catch { refuse(); }
+    finally { if (fd !== undefined) closeSync(fd); }
+  };
+  const exactOptions = options => options && Object.getPrototypeOf(options) === Object.prototype &&
+    Object.keys(options).sort().join(",") === "encoding,env,timeout" && options.encoding === "utf8" && options.timeout === 2_000 &&
+    options.env && Object.getPrototypeOf(options.env) === Object.prototype && Object.keys(options.env).length === 0;
+  return {
+    counts,
+    run(command, args, options) {
+      if (command !== file || !Array.isArray(args) || args.length !== 1 || args[0] !== "--version" || !exactOptions(options))
+        return run(command, args, options);
+      counts.eligible_probes++;
+      if (saved) {
+        if (observe().identity !== saved.identity) refuse();
+        counts.reused_probes++;
+        return structuredClone(saved.result);
+      }
+      const before = observe(true);
+      counts.real_probes++;
+      const result = run(command, args, options);
+      if (observe().identity !== before.identity) refuse();
+      if (!result.error && result.status === 0 && result.signal === null && typeof result.stdout === "string" && /^v[0-9]+\.[0-9]+\.[0-9]+\s*$/u.test(result.stdout))
+        saved = { ...before, result: structuredClone(result) };
+      return result;
+    },
+    verify() {
+      if (invalid) refuse();
+      if (saved) {
+        const after = observe(true);
+        if (after.identity !== saved.identity || after.sha256 !== saved.sha256) refuse();
+      }
+      return saved !== null;
+    },
+  };
+}
+
+function assertFixtureNodeVersionReuse() {
+  const candidate = path.join(root, "version-probe-fixture"), source = "#!/bin/sh\nprintf 'v24.22.1\\n'\n";
+  writeFileSync(candidate, source, { mode: 0o700 });
+  const file = realpathSync(candidate);
+  const options = { encoding: "utf8", timeout: 2_000, env: {} };
+  let calls = 0;
+  const reuse = createFixtureNodeVersionReuse(file, (...args) => { calls++; return originalSpawnSync(...args); });
+  assert.equal(reuse.run(file, ["--version"], options).status, 0);
+  assert.equal(reuse.run(file, ["--version"], options).status, 0);
+  assert.equal(calls, 1);
+  for (const [args, changedOptions] of [
+    [["--version", "extra"], options], [["--version"], { ...options, env: { FIXTURE: "1" } }],
+    [["--version"], { ...options, timeout: 1_999 }], [["--version"], { ...options, maxBuffer: 1024 }],
+  ]) assert.equal(reuse.run(file, args, changedOptions).status, 0);
+  const alias = `${file}-alias`; symlinkSync(file, alias);
+  assert.equal(reuse.run(alias, ["--version"], options).status, 0);
+  assert.equal(calls, 6); reuse.verify();
+  writeFileSync(file, source.replace("24.22.1", "24.22.2"), { mode: 0o700 });
+  assert.throws(() => reuse.run(file, ["--version"], options), /fixture_node_probe_input_changed/u);
+  assert.throws(() => reuse.verify(), /fixture_node_probe_input_changed/u);
+  const replacement = createFixtureNodeVersionReuse(file, originalSpawnSync);
+  assert.equal(replacement.run(file, ["--version"], options).status, 0);
+  renameSync(file, `${file}-old`); writeFileSync(file, source, { mode: 0o700 });
+  assert.throws(() => replacement.run(file, ["--version"], options), /fixture_node_probe_input_changed/u);
+  console.log(JSON.stringify({ case: "immutable-fixture-node-version-controls", status: "passed",
+    exact_probe_reused: true, other_arguments_options_paths_fresh: true, changed_bytes_and_identity_refused: true }));
 }
 
 function writeInstalledServiceFixture({ options: fixtureOptions, node, desiredState }) {

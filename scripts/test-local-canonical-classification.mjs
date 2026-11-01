@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
-import { chmodSync, existsSync, linkSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, linkSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { createCanonicalTestResourceRoot, cleanupCanonicalTestResources, buildCanonicalChildEnvironment, beginCanonicalTestResourceUse, settleCanonicalTestResourceUse } from "./canonical-test-environment.mjs";
 import { runCanonicalChild as executeChild } from "./canonical-child-runner.mjs";
-import { INPUT_CONTRACT, LEGACY_INPUT_CONTRACT, freezeInputContract, classifyInputChange, observeInputFile, monitorInputContract, digest, deriveOperationalDisposition, commonInputResources, inputReadOptions, inputEventIdentity } from "./local-canonical-inputs.mjs";
+import { INPUT_CONTRACT, LEGACY_INPUT_CONTRACT, freezeInputContract, classifyInputChange, observeInputFile, monitorInputContract, digest, deriveOperationalDisposition, commonInputResources, inputReadOptions, inputEventIdentity, createInputReader, observeCanonicalRuntimeInputs, canonicalRuntimeInputEnvironment, observePreparedDependencyInputs, preparedDependencyIdentity } from "./local-canonical-inputs.mjs";
 import * as gitInputApi from "./local-canonical-inputs.mjs";
 import { runGitInputControls } from "./fixtures/local-canonical-git-input.mjs";
 import { beginAttempt, finishAttempt, inspectAttemptRecords, readRecoveryProof, readSourceCorrectionProof } from "./local-canonical-attempts.mjs";
@@ -475,6 +475,154 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
   assert.notEqual(digest(commonInputResources(readerBefore)), digest(commonInputResources(readerAfter)));
   assert.equal(buildPhasePlan({ mode: "full", selectedPlan: "full-canonical" }).length, FULL_PHASE_IDS.length);
   note("read-only shared Browser observes alias metadata and binds bytes; alias mutation refuses; Full phase inventory unchanged");
+  if (["darwin", "linux"].includes(process.platform)) {
+  const runtimeRoot = path.join(root, "runtime-input"), runtimeNode = path.join(runtimeRoot, "bin", "node"), headersRoot = path.join(runtimeRoot, "include", "node");
+  mkdirSync(path.dirname(runtimeNode), { recursive: true }); mkdirSync(headersRoot, { recursive: true });
+  copyFileSync(process.execPath, runtimeNode); chmodSync(runtimeNode, 0o700);
+  const versionHeader = process.versions.node.split(".").map((value, index) => `#define NODE_${["MAJOR", "MINOR", "PATCH"][index]}_VERSION ${value}`).join("\n") + "\n";
+  write(path.join(headersRoot, "node_version.h"), versionHeader); write(path.join(headersRoot, "node_api.h"), "fixture compiler input\n");
+  const runtimeInputs = observeCanonicalRuntimeInputs({ nodeExecutable: runtimeNode, headersRoot });
+  const headerResource = { id: "node-headers", file: headersRoot, classification: "execution", nodeHeaders: true };
+  const headerOptions = { resources: [headerResource], pathKind: "isolated-model-free-v1", binding: {} };
+  const headerInputs = freezeInputContract(headerOptions), headerBefore = headerInputs.snapshot().resources[0];
+  assert.deepEqual(headerBefore.before, runtimeInputs.headers.observation);
+  assert.throws(() => freezeInputContract({ ...headerOptions, contract: LEGACY_INPUT_CONTRACT }), /input_node_headers_role_invalid/);
+  assert.throws(() => freezeInputContract({ ...headerOptions, resources: [{ ...headerResource, id: "unreviewed-tree" }] }), /input_node_headers_role_invalid/);
+  const selectedRuntime = { AUGNES_CANONICAL_NODE_HEADERS: headersRoot, AUGNES_CANONICAL_NODE_HEADERS_FINGERPRINT: digest(runtimeInputs.headers.observation) };
+  assert.equal(canonicalRuntimeInputEnvironment(selectedRuntime, runtimeNode).npm_config_nodedir, runtimeRoot);
+  const copiedEnvironmentOwner = path.join(runtimeRoot, "canonical-test-environment.mjs");
+  copyFileSync(new URL("./canonical-test-environment.mjs", import.meta.url), copiedEnvironmentOwner);
+  const runtimeOutput = [];
+  const runtimeChild = await runCanonicalChild({ suite: "classification", label: "selected-runtime-descendant", command: runtimeNode,
+    args: ["--input-type=module", "-e", `import {buildCanonicalChildEnvironment} from ${JSON.stringify(pathToFileURL(copiedEnvironmentOwner).href)}; import {spawnSync} from 'node:child_process'; const env=buildCanonicalChildEnvironment({temporaryRoot:${JSON.stringify(root)}}); const r=spawnSync(process.execPath,['-e','console.log(JSON.stringify({node:process.execPath,headers:process.env.AUGNES_CANONICAL_NODE_HEADERS,nodedir:process.env.npm_config_nodedir,secret:process.env.OPENAI_API_KEY??null}))'],{env,encoding:'utf8'});process.stdout.write(r.stdout);process.exit(r.status??1);`],
+    cwd: root, env: { ...env, ...selectedRuntime, npm_config_nodedir: "/unselected/header-root", OPENAI_API_KEY: "sentinel-not-a-secret" },
+    timeoutMs: 3000, termGraceMs: 300, killGraceMs: 300, stdout: { write: b => runtimeOutput.push(b.toString()) }, stderr: quiet, log() {} });
+  assert.equal(runtimeChild.exit_code, 0); assert(runtimeChild.cleanup_completed && runtimeChild.streams_closed && runtimeChild.remaining_owned_processes === 0);
+  assert.deepEqual(JSON.parse(runtimeOutput.join("")), { node: runtimeNode, headers: headersRoot, nodedir: runtimeRoot, secret: null });
+  assert.throws(() => canonicalRuntimeInputEnvironment({ AUGNES_CANONICAL_NODE_HEADERS: headersRoot }, runtimeNode), /input_node_headers_environment_invalid/);
+  assert.throws(() => canonicalRuntimeInputEnvironment({ ...selectedRuntime, AUGNES_CANONICAL_NODE_HEADERS: path.dirname(headersRoot) }, runtimeNode), /input_node_headers_pair_invalid/);
+  write(path.join(headersRoot, "node_version.h"), versionHeader.replace("NODE_MAJOR_VERSION ", "NODE_MAJOR_VERSION 9"));
+  assert.throws(() => canonicalRuntimeInputEnvironment(selectedRuntime, runtimeNode), /input_node_headers_version_invalid/);
+  write(path.join(headersRoot, "node_version.h"), versionHeader);
+  // Normal mutable dependency preparation is not immutable runtime input.
+  const dependencyOutput = path.join(runtimeRoot, "dependency-output"); mkdirSync(dependencyOutput);
+  write(path.join(dependencyOutput, "before"), "old prepared output\n"); rmSync(dependencyOutput, { recursive: true }); mkdirSync(dependencyOutput);
+  write(path.join(dependencyOutput, "after"), "new clean preparation\n");
+  const stableHeaders = freezeInputContract(headerOptions);
+  assert.equal(stableHeaders.check({ force: true }), null);
+  const freshOutput = [];
+  const headerReader = await runCanonicalChild({ suite: "classification", label: "fresh-runtime-input-reader", command: process.execPath,
+    args: ["--input-type=module", "-e", `import {createInputReader} from ${JSON.stringify(new URL("./local-canonical-inputs.mjs", import.meta.url).href)}; console.log(JSON.stringify(createInputReader()(${JSON.stringify(headersRoot)}, {nodeHeaders:true,force:true})));`],
+    cwd: root, env, timeoutMs: 2000, termGraceMs: 300, killGraceMs: 300, stdout: { write: b => freshOutput.push(b.toString()) }, stderr: quiet, log() {} });
+  assert.equal(headerReader.exit_code, 0); assert(headerReader.cleanup_completed && headerReader.streams_closed && headerReader.remaining_owned_processes === 0);
+  assert.deepEqual(JSON.parse(freshOutput.join("")), stableHeaders.snapshot().resources[0].before);
+  write(path.join(headersRoot, "node_api.h"), "unexpected compiler-input change\n");
+  assert.equal(stableHeaders.check(), null, "expensive tree reads do not block the timed-child poll");
+  assert(stableHeaders.check({ force: true }), "required boundary read latches immutable header mutation");
+  const afterMutation = freezeInputContract(headerOptions);
+  chmodSync(path.join(headersRoot, "node_api.h"), 0o666);
+  assert.equal(afterMutation.check({ force: true }).disposition, "observer_failure");
+  chmodSync(path.join(headersRoot, "node_api.h"), 0o600);
+  symlinkSync(config, path.join(headersRoot, "escape.h"));
+  assert.throws(() => createInputReader()(headersRoot, { nodeHeaders: true, force: true }), /browser_bundle_link_escape/);
+  rmSync(path.join(headersRoot, "escape.h"));
+  note("runtime/header pair and version bind actual bytes; clean preparation output remains separate; fresh reader agrees; wrong role, legacy, mutation, permissions and external aliases refuse");
+  const dependencyProject = path.join(root, "prepared-project"), dependencyRoot = path.join(dependencyProject, "node_modules");
+  mkdirSync(dependencyProject); write(path.join(dependencyProject, "package.json"), '{"name":"input-control"}\n');
+  write(path.join(dependencyProject, "package-lock.json"), '{"lockfileVersion":3}\n');
+  const createDependencyOutput = () => {
+    mkdirSync(path.join(dependencyRoot, "foo"), { recursive: true }); mkdirSync(path.join(dependencyRoot, "foo-extra")); mkdirSync(path.join(dependencyRoot, ".bin"));
+    write(path.join(dependencyRoot, "foo", "tool"), "prepared bytes\n"); chmodSync(path.join(dependencyRoot, "foo", "tool"), 0o700);
+    linkSync(path.join(dependencyRoot, "foo", "tool"), path.join(dependencyRoot, "foo", "tool-copy"));
+    write(path.join(dependencyRoot, "foo-extra", "data"), "neighbor bytes\n");
+    symlinkSync("../foo/tool", path.join(dependencyRoot, ".bin", "tool"));
+  };
+  createDependencyOutput(); mkdirSync(path.join(dependencyRoot, ".cache"));
+  // The generated directory must have the bound parent's exact security,
+  // including any protected attributes inherited from the actual platform.
+  const dependencyObservation = () => observePreparedDependencyInputs({ repositoryRoot: dependencyProject, phaseId: "dependencies-root" });
+  const dependencyIdentity = () => preparedDependencyIdentity(dependencyObservation());
+  const outputBinding = { runtime_inputs: observeCanonicalRuntimeInputs({ nodeExecutable: runtimeNode, headersRoot }) };
+  const dependencyContract = () => freezeInputContract({ ...headerOptions, binding: outputBinding });
+  const withCache = dependencyObservation(); assert.equal(withCache.generated_directories[0].state, "proven_empty");
+  if (process.platform === "darwin") {
+    execFileSync("/usr/bin/xattr", ["-w", "org.augnes.test-cache", "sentinel", path.join(dependencyRoot, ".cache")]);
+    assert.throws(dependencyObservation, /dependency_input_cache_unsafe/);
+    execFileSync("/usr/bin/xattr", ["-d", "org.augnes.test-cache", path.join(dependencyRoot, ".cache")]);
+    execFileSync("/bin/chmod", ["+a", "everyone allow read", path.join(dependencyRoot, ".cache")]);
+    assert.throws(dependencyObservation, /dependency_input_cache_unsafe/);
+    execFileSync("/bin/chmod", ["-a#", "0", path.join(dependencyRoot, ".cache")]);
+  }
+  const prepared = preparedDependencyIdentity(withCache);
+  assert.throws(() => preparedDependencyIdentity({ ...withCache, unknown: true }), /dependency_input_observation_invalid/);
+  const recordedOutput = dependencyContract(); recordedOutput.prepareDependencies({ repositoryRoot: dependencyProject, phaseId: "dependencies-root" });
+  assert.equal(recordedOutput.snapshot().prepared_dependencies[0].after, null);
+  rmSync(path.join(dependencyRoot, ".cache"), { recursive: true }); assert.deepEqual(dependencyIdentity(), prepared);
+  assert.equal(recordedOutput.checkPreparedDependencies(), null); assert.equal(recordedOutput.snapshot().prepared_dependencies[0].unchanged, true);
+  assert.equal(recordedOutput.snapshot().first_fault, null);
+  assert.throws(() => recordedOutput.prepareDependencies({ repositoryRoot: dependencyProject, phaseId: "dependencies-root" }), /dependency_input_preparation_invalid/);
+  for (const name of [".cache", ".vite-temp"]) {
+    const generated = path.join(dependencyRoot, name);
+    mkdirSync(generated); const present = dependencyObservation();
+    assert.equal(present.generated_directories.find(entry => entry.path === name).state, "proven_empty");
+    assert.deepEqual(preparedDependencyIdentity(present), prepared, "safe appearance is normalized, raw presence retained");
+    write(path.join(generated, "unexpected"), "unexpected bytes"); assert.throws(dependencyObservation, /dependency_input_generated_unsafe/);
+    rmSync(path.join(generated, "unexpected")); chmodSync(generated, 0o700); assert.throws(dependencyObservation, /dependency_input_cache_unsafe/); chmodSync(generated, 0o755);
+    if (process.platform === "darwin") {
+      execFileSync("/usr/bin/xattr", ["-w", "org.augnes.generated-control", "sentinel", generated]);
+      assert.throws(dependencyObservation, /dependency_input_cache_unsafe/);
+      execFileSync("/usr/bin/xattr", ["-d", "org.augnes.generated-control", generated]);
+      execFileSync("/bin/chmod", ["+a", "everyone allow read", generated]); assert.throws(dependencyObservation, /dependency_input_cache_unsafe/);
+      execFileSync("/bin/chmod", ["-a#", "0", generated]);
+      execFileSync("/usr/bin/chflags", ["hidden", generated]); assert.throws(dependencyObservation, /dependency_input_cache_unsafe/);
+      execFileSync("/usr/bin/chflags", ["nohidden", generated]);
+    }
+    rmSync(generated, { recursive: true }); assert.deepEqual(dependencyIdentity(), prepared, "safe disappearance");
+    symlinkSync("foo", generated); assert.throws(dependencyObservation, /dependency_input_generated_unsafe/); rmSync(generated);
+    symlinkSync(config, generated); assert.throws(dependencyObservation, /dependency_input_link_escape/); rmSync(generated);
+  }
+  mkdirSync(path.join(dependencyRoot, ".vite-unknown"));
+  assert.equal(gitInputApi.comparePreparedDependencyInputs(withCache, dependencyObservation()), "safety_violation", "unknown directory appearance refuses");
+  rmSync(path.join(dependencyRoot, ".vite-unknown"), { recursive: true });
+  const legacyObservation = observePreparedDependencyInputs({ repositoryRoot: dependencyProject, phaseId: "dependencies-root", contract: "augnes.local-canonical-prepared-dependencies.v1" });
+  mkdirSync(path.join(dependencyRoot, ".vite-temp"));
+  assert.notDeepEqual(preparedDependencyIdentity(observePreparedDependencyInputs({ repositoryRoot: dependencyProject, phaseId: "dependencies-root", contract: legacyObservation.contract })), preparedDependencyIdentity(legacyObservation), "legacy interpretation stays binding");
+  rmSync(path.join(dependencyRoot, ".vite-temp"), { recursive: true });
+  // A new clean-install output can have fresh inodes/timestamps, while its actual
+  // content/modes/owners/alias layout must still agree with the retained output.
+  rmSync(dependencyRoot, { recursive: true }); createDependencyOutput(); assert.deepEqual(dependencyIdentity(), prepared);
+  mkdirSync(path.join(dependencyRoot, ".cache")); write(path.join(dependencyRoot, ".cache", "unexpected"), "cache content\n");
+  assert.throws(dependencyObservation, /dependency_input_generated_unsafe/, "nonempty generated cache refuses normalization");
+  rmSync(path.join(dependencyRoot, ".cache"), { recursive: true }); mkdirSync(path.join(dependencyRoot, ".cache"), { mode: 0o700 });
+  assert.throws(dependencyObservation, /dependency_input_cache_unsafe/); rmSync(path.join(dependencyRoot, ".cache"), { recursive: true });
+  const changedOutput = dependencyContract(); changedOutput.prepareDependencies({ repositoryRoot: dependencyProject, phaseId: "dependencies-root" });
+  write(path.join(dependencyRoot, "foo-extra", "data"), "unexpected installed content\n"); assert.notDeepEqual(dependencyIdentity(), prepared);
+  assert.equal(changedOutput.checkPreparedDependencies().disposition, "input_invalidation");
+  assert.equal(changedOutput.snapshot().prepared_dependencies[0].unchanged, false); assert.equal(changedOutput.snapshot().events[0].resource, "dependencies-root");
+  write(path.join(dependencyRoot, "foo-extra", "data"), "neighbor bytes\n"); chmodSync(path.join(dependencyRoot, "foo-extra", "data"), 0o400);
+  assert.notDeepEqual(dependencyIdentity(), prepared); chmodSync(path.join(dependencyRoot, "foo-extra", "data"), 0o600);
+  const unsafeOutput = dependencyContract(); unsafeOutput.prepareDependencies({ repositoryRoot: dependencyProject, phaseId: "dependencies-root" });
+  chmodSync(path.join(dependencyRoot, "foo-extra", "data"), 0o666); assert.throws(dependencyObservation, /dependency_input_entry_unsafe/);
+  assert.equal(unsafeOutput.checkPreparedDependencies().disposition, "safety_violation");
+  assert.equal(unsafeOutput.snapshot().prepared_dependencies[0].error, "dependency_input_entry_unsafe"); chmodSync(path.join(dependencyRoot, "foo-extra", "data"), 0o600);
+  symlinkSync(config, path.join(dependencyRoot, "escape")); assert.throws(dependencyObservation, /dependency_input_link_escape/); rmSync(path.join(dependencyRoot, "escape"));
+  linkSync(config, path.join(dependencyRoot, "external-hardlink")); assert.throws(dependencyObservation, /dependency_input_external_hardlink/); rmSync(path.join(dependencyRoot, "external-hardlink"));
+  assert.throws(() => observePreparedDependencyInputs({ repositoryRoot: dependencyProject, phaseId: "unit" }), /dependency_input_target_invalid/);
+  const dependencyReaderOutput = [];
+  const dependencyReader = await runCanonicalChild({ suite: "classification", label: "fresh-prepared-dependency-reader", command: process.execPath,
+    args: ["--input-type=module", "-e", `import {observePreparedDependencyInputs,preparedDependencyIdentity} from ${JSON.stringify(new URL("./local-canonical-inputs.mjs", import.meta.url).href)}; console.log(JSON.stringify(preparedDependencyIdentity(observePreparedDependencyInputs({repositoryRoot:${JSON.stringify(dependencyProject)},phaseId:'dependencies-root'}))));`],
+    cwd: root, env, timeoutMs: 3000, termGraceMs: 300, killGraceMs: 300, stdout: { write: b => dependencyReaderOutput.push(b.toString()) }, stderr: quiet, log() {} });
+  assert.equal(dependencyReader.exit_code, 0); assert(dependencyReader.cleanup_completed && dependencyReader.streams_closed && dependencyReader.remaining_owned_processes === 0);
+  assert.deepEqual(JSON.parse(dependencyReaderOutput.join("")), prepared);
+  write(path.join(dependencyProject, "package-lock.json"), '{"lockfileVersion":3,"changed":true}\n'); assert.notDeepEqual(dependencyIdentity(), prepared);
+  rmSync(path.join(dependencyProject, "package-lock.json")); assert.throws(dependencyObservation, /dependency_input_source_missing/);
+  const unobservableOutput = dependencyContract();
+  assert.throws(() => unobservableOutput.prepareDependencies({ repositoryRoot: dependencyProject, phaseId: "dependencies-root" }), /dependency_input_source_missing/);
+  assert.equal(unobservableOutput.snapshot().prepared_dependencies[0].before, null);
+  assert.equal(unobservableOutput.snapshot().first_fault.disposition, "observer_failure");
+  assert.equal(unobservableOutput.snapshot().first_fault.diagnostic.code, "dependency_input_source_missing");
+  note("post-preparation inventories survive legitimate identical replacement and proven empty-cache disappearance; content/mode/source changes bind, unsafe links/permissions/unknown reads refuse, fresh reader reconstructs the same output");
+  } else note("runtime/header tree controls NOT_RUN: strict tree permission observer supports Darwin/Linux; no additional host admission");
   findings.push(...await runGitInputControls(gitInputApi));
 } finally {
   if (!childInFlight) settleCanonicalTestResourceUse(owner, { exit_observed: true, streams_closed: true, cleanup_completed: true, remaining_owned_processes: 0 });

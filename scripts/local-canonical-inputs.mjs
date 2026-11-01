@@ -1,8 +1,10 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-import { constants, closeSync, fstatSync, lstatSync, openSync, readFileSync, realpathSync } from "node:fs";
-import { createBrowserBundleObserver, compareBrowserBundle } from "./local-canonical-browser-bundle.mjs";
+import { constants, closeSync, fstatSync, lstatSync, openSync, readFileSync, readdirSync, readlinkSync, readSync, realpathSync } from "node:fs";
+import { assertCanonicalNodeHeaderPair } from "./canonical-test-environment.mjs";
+export { canonicalRuntimeInputEnvironment } from "./canonical-test-environment.mjs";
+import { createBrowserBundleObserver, compareBrowserBundle, validBrowserBundle, BROWSER_BUNDLE_CONTRACT } from "./local-canonical-browser-bundle.mjs";
 
 export const INPUT_CONTRACT = "augnes.local-canonical-inputs.v3";
 export const LEGACY_INPUT_CONTRACT = "augnes.local-canonical-inputs.v2";
@@ -13,6 +15,221 @@ const sorted = value => Array.isArray(value) ? value.map(sorted) : value && type
   ? Object.fromEntries(Object.keys(value).sort().map(key => [key, sorted(value[key])])) : value;
 export const digest = value => createHash("sha256").update(typeof value === "string" || Buffer.isBuffer(value) ? value : JSON.stringify(sorted(value))).digest("hex");
 const fail = code => Object.assign(new Error(code), { code });
+
+export const NODE_HEADERS_CONTRACT = "augnes.local-canonical-node-headers.v1";
+export const RUNTIME_INPUTS_CONTRACT = "augnes.local-canonical-runtime-inputs.v1";
+const asBundle = value => ({ ...value, contract: BROWSER_BUNDLE_CONTRACT });
+
+// Headers use the existing strict tree reader: complete content, topology,
+// modes/owners, ACLs, flags and attributes. They are immutable compiler input,
+// not dependency output and never a cleanup target. Keep only aggregate identities
+// in receipts. Expensive reads occur at admission/phase boundaries/final stock,
+// never in the one-second input poll while a timed child is running.
+export function createNodeHeadersObserver(root) {
+  const observe = createBrowserBundleObserver(root);
+  return options => {
+    const result = observe(options);
+    return { ...result, observation: { ...result.observation, contract: NODE_HEADERS_CONTRACT } };
+  };
+}
+
+export function validNodeHeaders(value) {
+  return value?.contract === NODE_HEADERS_CONTRACT && validBrowserBundle(asBundle(value));
+}
+
+export function observeCanonicalRuntimeInputs({ nodeExecutable = realpathSync(process.execPath),
+  headersRoot = path.join(path.dirname(path.dirname(nodeExecutable)), "include", "node") } = {}) {
+  assertCanonicalNodeHeaderPair(nodeExecutable, headersRoot);
+  return { contract: RUNTIME_INPUTS_CONTRACT,
+    node: { location_fingerprint: digest(nodeExecutable), observation: observeInputFile(nodeExecutable, { readOnlyExecutable: true }) },
+    headers: { location_fingerprint: digest(headersRoot), observation: createNodeHeadersObserver(headersRoot)({ force: true }).observation } };
+}
+
+export function validCanonicalRuntimeInputs(value) {
+  return value?.contract === RUNTIME_INPUTS_CONTRACT && Object.keys(value).sort().join(",") === "contract,headers,node" &&
+    ["node", "headers"].every(role => value[role] && Object.keys(value[role]).sort().join(",") === "location_fingerprint,observation" &&
+      /^[0-9a-f]{64}$/u.test(value[role].location_fingerprint ?? "")) &&
+    !!value.node.observation && usableExecutable(value.node.observation) && validNodeHeaders(value.headers.observation) &&
+    value.headers.location_fingerprint === value.headers.observation.location_fingerprint;
+}
+
+export const LEGACY_PREPARED_DEPENDENCY_CONTRACT = "augnes.local-canonical-prepared-dependencies.v1";
+export const PREPARED_DEPENDENCY_CONTRACT = "augnes.local-canonical-prepared-dependencies.v2";
+const generatedDependencyDirectories = Object.freeze([".cache", ".vite-temp"]);
+const dependencyRoots = Object.freeze({ "dependencies-root": "", "dependencies-nested": "apps/augnes_apps", "dependencies-web-planning": "apps/web_planning" });
+const dependencyLimits = Object.freeze({ entries: 65536, bytes: 2 * 1024 ** 3, milliseconds: 30000, securityBytes: 32 * 1024 ** 2 });
+const dependencyStat = stat => Object.fromEntries(["mode", "uid", "gid", "dev", "ino", "nlink", "size", "mtimeNs", "ctimeNs"].map(key => [key, String(stat[key])]));
+
+// Clean preparation PRODUCES these trees. Call only after the corresponding
+// successful npm ci, then compare at the owning boundaries and fresh stock.
+// No pre-install directory/file identity is asserted across legitimate install.
+export function observePreparedDependencyInputs({ repositoryRoot, phaseId, contract = PREPARED_DEPENDENCY_CONTRACT }) {
+  const legacy = contract === LEGACY_PREPARED_DEPENDENCY_CONTRACT;
+  if (!legacy && contract !== PREPARED_DEPENDENCY_CONTRACT) throw fail("dependency_input_observation_invalid");
+  if (!Object.hasOwn(dependencyRoots, phaseId) || !path.isAbsolute(repositoryRoot) || realpathSync(repositoryRoot) !== repositoryRoot)
+    throw fail("dependency_input_target_invalid");
+  const project = path.join(repositoryRoot, dependencyRoots[phaseId]), root = path.join(project, "node_modules"), started = performance.now();
+  const deadline = () => { if (performance.now() - started > dependencyLimits.milliseconds) throw fail("dependency_input_observation_bound"); };
+  const run = (tool, args) => {
+    deadline();
+    return execFileSync(tool, args, { timeout: Math.max(1, Math.min(5000, dependencyLimits.milliseconds - (performance.now() - started))),
+      maxBuffer: dependencyLimits.securityBytes, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: { PATH: "/usr/bin:/bin", LC_ALL: "C" } });
+  };
+  const security = rows => {
+    rows = [...rows].sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
+    const groups = [], aclRecords = []; let outputBytes = 0;
+    for (let i = 0; i < rows.length; i += 64) {
+      const selected = rows.slice(i, i + 64), files = selected.map(row => path.join(root, row.path));
+      const acl = run("/bin/ls", process.platform === "darwin" ? ["-lde", ...files] : ["-ld", "--", ...files]);
+      outputBytes += Buffer.byteLength(acl);
+      let index = -1; const entries = [];
+      for (const line of acl.trimEnd().split("\n")) {
+        if (/^[dl-][rwxstST-]{9}[+@ .]/u.test(line)) {
+          index++; if (index >= files.length || !line.endsWith(` ${files[index]}${selected[index].type === "link" ? ` -> ${selected[index].target}` : ""}`)) throw fail("dependency_input_security_unknown");
+          if (process.platform !== "darwin" && !/^[dl-][rwxstST-]{9} /u.test(line)) throw fail("dependency_input_security_unknown");
+          entries.push({ path: selected[index].path, acl: [] });
+        } else {
+          if (process.platform !== "darwin" || index < 0 || !/^ [0-9]+: /u.test(line)) throw fail("dependency_input_security_unknown");
+          entries[index].acl.push(line);
+        }
+      }
+      if (entries.length !== files.length) throw fail("dependency_input_security_unknown");
+      aclRecords.push(...entries);
+      if (process.platform === "darwin") {
+        const flags = run("/usr/bin/stat", ["-f", "%f", ...files]).trimEnd().split("\n");
+        const attributes = run("/usr/bin/xattr", ["-s", "-lx", ...files]);
+        outputBytes += Buffer.byteLength(flags.join("\n")) + Buffer.byteLength(attributes);
+        if (flags.length !== files.length || flags.some(value => !/^\d+$/u.test(value))) throw fail("dependency_input_security_unknown");
+        groups.push({ paths: selected.map(row => row.path), flags, attributes_sha256: digest(attributes) });
+      } else if (process.platform !== "linux") throw fail("dependency_input_platform_unsupported");
+      if (outputBytes > dependencyLimits.securityBytes) throw fail("dependency_input_observation_bound");
+    }
+    return digest({ acl: aclRecords, groups });
+  };
+  const directorySecurity = file => {
+    const lines = run("/bin/ls", process.platform === "darwin" ? ["-lde", file] : ["-ld", "--", file]).trimEnd().split("\n");
+    if (!/^d[rwxstST-]{9}[+@ .]/u.test(lines[0]) || !lines[0].endsWith(` ${file}`)) throw fail("dependency_input_security_unknown");
+    const acl = lines.slice(1);
+    if (process.platform === "linux") {
+      if (!/^d[rwxstST-]{9} /u.test(lines[0]) || acl.length) throw fail("dependency_input_security_unknown");
+      return { acl, flags: null, attributes: null };
+    }
+    if (process.platform !== "darwin") throw fail("dependency_input_platform_unsupported");
+    if (acl.some(line => !/^ [0-9]+: /u.test(line))) throw fail("dependency_input_security_unknown");
+    const flags = run("/usr/bin/stat", ["-f", "%f", file]).trim();
+    if (!/^\d+$/u.test(flags)) throw fail("dependency_input_security_unknown");
+    return { acl, flags, attributes: run("/usr/bin/xattr", ["-s", "-lx", file]) };
+  };
+  const scan = () => {
+    if (realpathSync(root) !== root || !lstatSync(root).isDirectory()) throw fail("dependency_input_root_unsafe");
+    const rows = [], linked = new Map(), generated = generatedDependencyDirectories.map(path => ({ path, state: "absent" })); let bytes = 0, emptyCache = null;
+    const visit = relative => {
+      deadline();
+      if (rows.length >= dependencyLimits.entries) throw fail("dependency_input_observation_bound");
+      const file = path.join(root, relative), stat = lstatSync(file, { bigint: true });
+      const type = stat.isSymbolicLink() ? "link" : stat.isDirectory() ? "directory" : stat.isFile() ? "file" : null;
+      if (!type || (type !== "link" && (stat.mode & 0o022n) !== 0n) || (type === "link" && stat.nlink !== 1n)) throw fail("dependency_input_entry_unsafe");
+      const row = { path: relative || ".", type, metadata: dependencyStat(stat) };
+      if (type === "link") {
+        row.target = readlinkSync(file);
+        const target = realpathSync(file);
+        if (!row.target || path.isAbsolute(row.target) || /[\x00-\x1f\x7f]/u.test(row.target) ||
+            !target.startsWith(root + path.sep) || !path.resolve(path.dirname(file), row.target).startsWith(root + path.sep)) throw fail("dependency_input_link_escape");
+      } else if (realpathSync(file) !== file) throw fail("dependency_input_path_alias");
+      const names = type === "directory" ? readdirSync(file).sort() : null;
+      const generatedIndex = legacy ? -1 : generatedDependencyDirectories.indexOf(relative);
+      if (generatedIndex >= 0 && (type !== "directory" || names.length !== 0)) throw fail("dependency_input_generated_unsafe");
+      if (generatedIndex >= 0 || relative === ".cache" && type === "directory" && names.length === 0) {
+        const base = rows[0].metadata;
+        if (["mode", "uid", "gid", "dev"].some(key => row.metadata[key] !== base[key])) throw fail("dependency_input_cache_unsafe");
+        // Generated directories may inherit protected platform provenance.
+        // Their complete security must equal the parent that remains bound;
+        // no attribute name, ACL, flag or permission is independently ignored.
+        const observed = directorySecurity(file), parent = directorySecurity(root);
+        const observedSecurity = digest(observed), parentSecurity = digest(parent);
+        if (observedSecurity !== parentSecurity || !legacy && Number(row.metadata.uid) !== process.getuid?.()) throw fail("dependency_input_cache_unsafe");
+        if (generatedIndex >= 0) generated[generatedIndex] = { path: relative, state: "proven_empty", metadata: row.metadata, parent_metadata: base,
+          security: observed, parent_security: parent,
+          security_sha256: observedSecurity, parent_security_sha256: parentSecurity };
+        emptyCache = row; return;
+      }
+      rows.push(row);
+      if (type === "file") {
+        bytes += Number(stat.size);
+        if (!Number.isSafeInteger(bytes) || bytes > dependencyLimits.bytes) throw fail("dependency_input_observation_bound");
+        const identity = `${stat.dev}:${stat.ino}`, prior = linked.get(identity) ?? { expected: stat.nlink, observed: 0 };
+        if (prior.expected !== stat.nlink) throw fail("dependency_input_link_count_changed");
+        prior.observed++; linked.set(identity, prior);
+      }
+      for (const name of names ?? []) {
+        if (!name || /[\x00-\x1f\x7f]/u.test(name)) throw fail("dependency_input_path_unsafe");
+        visit(relative ? `${relative}/${name}` : name);
+      }
+    };
+    visit("");
+    if ([...linked.values()].some(link => BigInt(link.observed) !== link.expected)) throw fail("dependency_input_external_hardlink");
+    return { rows, bytes, emptyCache, ...(!legacy ? { generated } : {}) };
+  };
+  const sources = ["package.json", "package-lock.json"].map(name => ({ name, observation: observeInputFile(path.join(project, name)) }));
+  if (sources.some(source => !source.observation.present)) throw fail("dependency_input_source_missing");
+  const before = scan(), permissions = security(before.rows), contents = [];
+  for (const row of before.rows) {
+    if (row.type !== "file") continue;
+    deadline(); const file = path.join(root, row.path), fd = openSync(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+    try {
+      if (digest(dependencyStat(fstatSync(fd, { bigint: true }))) !== digest(row.metadata)) throw fail("dependency_input_read_race");
+      const hash = createHash("sha256"), buffer = Buffer.allocUnsafe(1024 * 1024); let count, total = 0;
+      while ((count = readSync(fd, buffer, 0, buffer.length, null)) > 0) { deadline(); total += count; hash.update(buffer.subarray(0, count)); }
+      if (total !== Number(row.metadata.size) || digest(dependencyStat(fstatSync(fd, { bigint: true }))) !== digest(row.metadata) ||
+          digest(dependencyStat(lstatSync(file, { bigint: true }))) !== digest(row.metadata)) throw fail("dependency_input_read_race");
+      contents.push({ path: row.path, sha256: hash.digest("hex") });
+    } finally { closeSync(fd); }
+  }
+  const after = scan(), finalPermissions = security(after.rows);
+  if (digest(before) !== digest(after) || permissions !== finalPermissions || sources.some(source =>
+      digest(source.observation) !== digest(observeInputFile(path.join(project, source.name))))) throw fail("dependency_input_read_race");
+  deadline();
+  const layout = before.rows.map(row => ({ path: row.path, type: row.type,
+    metadata: Object.fromEntries(["mode", "uid", "gid", ...(row.type === "file" ? ["nlink"] : [])].map(key => [key, row.metadata[key]])),
+    ...(row.type === "link" ? { target: row.target } : {}) }));
+  return { contract, phase_id: phaseId, location_fingerprint: digest(root),
+    sources: sources.map(source => ({ name: source.name, sha256: source.observation.sha256, bytes: Number(source.observation.metadata.bytes) })),
+    entries: before.rows.length, bytes: before.bytes, layout_sha256: digest(layout), content_sha256: digest(contents), permission_sha256: permissions,
+    ...(legacy ? { generated_cache: before.emptyCache ? "proven_empty" : "absent_or_binding" } : { generated_directories: before.generated }) };
+}
+
+export function preparedDependencyIdentity(value) {
+  const legacy = value?.contract === LEGACY_PREPARED_DEPENDENCY_CONTRACT;
+  const validGenerated = () => Array.isArray(value.generated_directories) && value.generated_directories.length === generatedDependencyDirectories.length &&
+    value.generated_directories.every((entry, index) => entry?.path === generatedDependencyDirectories[index] &&
+      (entry.state === "absent" ? Object.keys(entry).sort().join(",") === "path,state" :
+        entry.state === "proven_empty" && Object.keys(entry).sort().join(",") === "metadata,parent_metadata,parent_security,parent_security_sha256,path,security,security_sha256,state" &&
+        sha(entry.security_sha256) && entry.security_sha256 === entry.parent_security_sha256 &&
+        entry.security_sha256 === digest(entry.security) && entry.parent_security_sha256 === digest(entry.parent_security) && entry.metadata && entry.parent_metadata &&
+        ["mode", "uid", "gid", "dev"].every(key => entry.metadata[key] === entry.parent_metadata[key]) &&
+        Object.keys(entry.metadata).sort().join(",") === "ctimeNs,dev,gid,ino,mode,mtimeNs,nlink,size,uid" &&
+        Object.values(entry.metadata).every(v => typeof v === "string" && /^\d+$/u.test(v)) &&
+        (BigInt(entry.metadata.mode) & 0o170000n) === 0o040000n && (BigInt(entry.metadata.mode) & 0o022n) === 0n));
+  if ((!legacy && value?.contract !== PREPARED_DEPENDENCY_CONTRACT) || !Object.hasOwn(dependencyRoots, value.phase_id) ||
+      Object.keys(value).sort().join(",") !== `bytes,content_sha256,contract,entries,${legacy ? "generated_cache" : "generated_directories"},layout_sha256,location_fingerprint,permission_sha256,phase_id,sources` ||
+      !["location_fingerprint", "layout_sha256", "content_sha256", "permission_sha256"].every(key => sha(value[key])) ||
+      !Number.isSafeInteger(value.entries) || value.entries < 1 || value.entries > dependencyLimits.entries ||
+      !Number.isSafeInteger(value.bytes) || value.bytes < 1 || value.bytes > dependencyLimits.bytes ||
+      (legacy ? !["proven_empty", "absent_or_binding"].includes(value.generated_cache) : !validGenerated()) || !Array.isArray(value.sources) || value.sources.length !== 2 ||
+      value.sources.some((source, index) => !source || Object.keys(source).sort().join(",") !== "bytes,name,sha256" || source.name !== ["package.json", "package-lock.json"][index] || !sha(source.sha256) || !Number.isSafeInteger(source.bytes) || source.bytes < 1))
+    throw fail("dependency_input_observation_invalid");
+  const { generated_cache, generated_directories, ...identity } = value;
+  return identity;
+}
+
+export function comparePreparedDependencyInputs(before, after) {
+  try {
+    const prior = preparedDependencyIdentity(before), current = preparedDependencyIdentity(after);
+    if (prior.phase_id !== current.phase_id || prior.location_fingerprint !== current.location_fingerprint ||
+        prior.layout_sha256 !== current.layout_sha256 || prior.permission_sha256 !== current.permission_sha256) return "safety_violation";
+    return digest(prior) === digest(current) ? "unchanged" : "input_invalidation";
+  } catch { return "observer_failure"; }
+}
 
 // This resource-level discriminator leaves all earlier v2/v3 declarations and
 // their recorded faults under the original whole-file interpretation.
@@ -142,6 +359,11 @@ function gitTrackingProjection(bytes, protectedBranches) {
 const FAILURE_DIAGNOSTIC = "augnes.input-observation-failure.v1";
 const failureStages = new Set(["reader", "classification", "initial_stat", "path_resolution", "file_type", "open", "descriptor_stat", "read", "named_stat", "metadata_consistency", "permission_consistency", "close", "preference_projection", "permission_acl", "permission_flags", "permission_attributes"]);
 const failureCodes = new Set(["EACCES", "EPERM", "ENOENT", "EIO", "ELOOP", "ENOTDIR", "EMFILE", "ENFILE", "EBADF", "EINVAL", "ESTALE", "EINTR", "ETIMEDOUT", "ENOBUFS", "ENOMEM", "EISDIR", "input_unsafe_file", "input_observation_race", "input_comparison_bound_exceeded", "input_invalid_utf8", "input_executable_permissions_unknown", "helper_exit_nonzero", "unclassified_error"]);
+for (const code of ["dependency_input_target_invalid", "dependency_input_observation_bound", "dependency_input_security_unknown",
+  "dependency_input_platform_unsupported", "dependency_input_root_unsafe", "dependency_input_entry_unsafe", "dependency_input_link_escape",
+  "dependency_input_path_alias", "dependency_input_cache_unsafe", "dependency_input_generated_unsafe", "dependency_input_link_count_changed", "dependency_input_path_unsafe",
+  "dependency_input_external_hardlink", "dependency_input_source_missing", "dependency_input_read_race", "dependency_input_observation_invalid"])
+  failureCodes.add(code);
 const taggedFailures = new WeakMap();
 const ownValue = (value, key) => { try { return Object.getOwnPropertyDescriptor(value, key)?.value; } catch { return undefined; } };
 export const validObservationDiagnostic = value => value && typeof value === "object" && !Array.isArray(value) &&
@@ -296,17 +518,25 @@ function unconsumedCodexConfiguration(resource, input) {
 }
 
 export function inputReadOptions(resource, input) {
+  if (resource.nodeHeaders && (resource.nodeHeaders !== true || input?.contract !== INPUT_CONTRACT || resource.id !== "node-headers" ||
+      resource.classification !== "execution" || resource.metadataOnly || resource.excludePreferences || resource.readOnlyExecutable || resource.browserBundle))
+    throw fail("input_node_headers_role_invalid");
   if (resource.gitTracking && !gitTrackingRole(resource, input)) throw fail("input_git_role_unproven");
   const git = gitTrackingRole(resource, input);
   const protectedConfiguration = unconsumedCodexConfiguration(resource, input) || git;
   return { metadataOnly: resource.metadataOnly, preferences: resource.excludePreferences && !protectedConfiguration,
-    readOnlyExecutable: resource.readOnlyExecutable, browserBundle: resource.browserBundle, protectedConfiguration,
+    readOnlyExecutable: resource.readOnlyExecutable, browserBundle: resource.browserBundle, nodeHeaders: resource.nodeHeaders, protectedConfiguration,
     ...(git ? { gitTracking: resource.gitTracking, gitRoots: resource.gitRoots } : {}) };
 }
 
 // Preparation/admission and comparison use the same effective identity. Raw
 // observations remain in the frozen declaration/events, never in this projection.
 export function effectiveInputObservation(value, resource, input) {
+  if (resource.nodeHeaders) {
+    inputReadOptions(resource, input);
+    if (!validNodeHeaders(value)) throw fail("input_node_headers_observation_invalid");
+    return value;
+  }
   if (resource.gitTracking) {
     if (!gitTrackingRole(resource, input)) throw fail("input_git_role_unproven");
     if (value?.present === false && Object.keys(value).length === 1) return value;
@@ -354,6 +584,11 @@ const usableExecutable = value => value.present === true && /^[0-9a-f]{64}$/u.te
 export function classifyInputChange(before, after, resource = {}, input = null) {
   const { classification, excludePreferences = false, readOnlyExecutable = false, browserBundle = false } = resource;
   if (input && !supportedInputContract(input.contract)) return "unknown_relevance";
+  if (resource.nodeHeaders) {
+    try { effectiveInputObservation(before, resource, input); effectiveInputObservation(after, resource, input); }
+    catch { return "observer_failure"; }
+    return compareBrowserBundle(asBundle(before), asBundle(after));
+  }
   if (resource.gitTracking) {
     let prior, current;
     try { prior = effectiveInputObservation(before, resource, input); current = effectiveInputObservation(after, resource, input); }
@@ -407,6 +642,11 @@ export function classifyInputChange(before, after, resource = {}, input = null) 
 export function createInputReader() {
   const bundles = new Map();
   return (file, options = {}) => {
+    if (options.nodeHeaders) {
+      const key = `node-headers:${file}`;
+      if (!bundles.has(key)) bundles.set(key, createNodeHeadersObserver(file));
+      return bundles.get(key)({ force: options.force === true }).observation;
+    }
     if (!options.browserBundle) return observeInputFile(file, options);
     if (!bundles.has(file)) bundles.set(file, createBrowserBundleObserver(file));
     return bundles.get(file)({ force: options.force === true }).observation;
@@ -434,10 +674,53 @@ export function freezeInputContract({ resources, pathKind, binding, read = creat
   const frozen = JSON.parse(JSON.stringify(declared));
   const fingerprint = digest(frozen);
   const events = [], secondary = [];
+  const preparedDependencies = [], dependencyLocations = new Map();
+  let dependenciesChecked = false;
   let firstFault = null, checks = 0;
+  const dependencyFailure = (entry, after, disposition, code, diagnostic) => {
+    entry.error = code;
+    const event = { resource: entry.phase_id, classification: "execution", disposition,
+      observed_at: new Date().toISOString(), monotonic_ns: String(process.hrtime.bigint()), after,
+      ...(diagnostic ? { diagnostic } : {}) };
+    event.identity = inputEventIdentity(event);
+    const fault = { resource: event.resource, disposition, observed_at: event.observed_at, monotonic_ns: event.monotonic_ns,
+      ...(diagnostic ? { diagnostic } : {}) };
+    if (events.length < 64) events.push(event);
+    if (!firstFault) firstFault = fault; else if (secondary.length < 16) secondary.push(fault);
+  };
+  const dependencyObservationFailure = (entry, error) => {
+    const diagnostic = observationFailure(error, "reader");
+    const safety = ["dependency_input_root_unsafe", "dependency_input_entry_unsafe", "dependency_input_link_escape", "dependency_input_path_alias",
+      "dependency_input_cache_unsafe", "dependency_input_generated_unsafe", "dependency_input_external_hardlink"].includes(diagnostic.code);
+    dependencyFailure(entry, null, safety ? "safety_violation" : "observer_failure", diagnostic.code, safety ? null : diagnostic);
+  };
+  const prepareDependencies = ({ repositoryRoot, phaseId }) => {
+    if (!validCanonicalRuntimeInputs(binding?.runtime_inputs) || !Object.hasOwn(dependencyRoots, phaseId) || dependenciesChecked ||
+        preparedDependencies.some(entry => entry.phase_id === phaseId)) throw fail("dependency_input_preparation_invalid");
+    const entry = { phase_id: phaseId, before: null, after: null, unchanged: false, error: null };
+    preparedDependencies.push(entry); dependencyLocations.set(phaseId, repositoryRoot);
+    try { entry.before = observePreparedDependencyInputs({ repositoryRoot, phaseId }); }
+    catch (error) { dependencyObservationFailure(entry, error); throw fail(entry.error); }
+    return structuredClone(entry.before);
+  };
+  const checkPreparedDependencies = () => {
+    if (dependenciesChecked) return firstFault;
+    dependenciesChecked = true;
+    for (const entry of preparedDependencies) {
+      if (!entry.before) continue; // A failed preparation observation is never retried.
+      try {
+        entry.after = observePreparedDependencyInputs({ repositoryRoot: dependencyLocations.get(entry.phase_id), phaseId: entry.phase_id });
+        const disposition = comparePreparedDependencyInputs(entry.before, entry.after);
+        entry.unchanged = disposition === "unchanged";
+        if (!entry.unchanged) dependencyFailure(entry, entry.after, disposition, `dependency_input_${disposition}`, null);
+      } catch (error) { dependencyObservationFailure(entry, error); }
+    }
+    return firstFault;
+  };
   const check = ({ force = false } = {}) => {
     checks++;
     for (const resource of selected) {
+      if (resource.nodeHeaders && !force) continue;
       let after, disposition, diagnostic, stage = "reader";
       try {
         // Large immutable executables use exact metadata as a polling hint;
@@ -475,7 +758,8 @@ export function freezeInputContract({ resources, pathKind, binding, read = creat
     if (events.length < 64) events.push(event);
     firstFault ??= { resource: reason, disposition: "safety_violation", observed_at: event.observed_at, monotonic_ns: event.monotonic_ns };
   };
-  return Object.freeze({ check, reportSafetyEvent, snapshot: () => ({ ...frozen, fingerprint, checks, events: structuredClone(events),
+  return Object.freeze({ check, prepareDependencies, checkPreparedDependencies, reportSafetyEvent, snapshot: () => ({ ...frozen, fingerprint, checks, events: structuredClone(events),
+    ...(binding?.runtime_inputs ? { prepared_dependencies: structuredClone(preparedDependencies) } : {}),
     first_fault: structuredClone(firstFault), secondary_faults: structuredClone(secondary),
     limitations: ["bounded polling cannot exclude transient changes between observations", "metadata timestamps are not observed write times", "cooperative ownership is not hostile-user isolation"] }) });
 }

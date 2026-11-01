@@ -863,11 +863,103 @@ Independent review and behavior-based adversarial controls remain required;
 changed hashes or the candidate's ability to admit itself are insufficient.
 
 Phase retries, partial-run stitching and favorable-sample selection remain
-forbidden. Existing child/phase bounds and two-lane integration concurrency are
-unchanged. Bounds limit hangs and settlement within supported CPU/memory/disk
-conditions; a timeout is not automatically a performance regression or an
-infrastructure diagnosis. In particular the historical settled-expired-successor
-child remains one complete scenario under its existing 30,000 ms bound.
+forbidden. Two-lane integration concurrency is unchanged. Bounds limit hangs and
+settlement within supported CPU/memory/disk conditions; a timeout is not
+automatically a performance regression or an infrastructure diagnosis. Historical
+settled-expired-successor runs retain their 30,000 ms bound. Its separately
+authorized prospective aggregate change to 45,000 ms is defined below; no other
+child/phase bound changes.
+
+### Reviewed source and execution-input revision (source-correction v7)
+
+`reviewed_revision` uses the existing `--source-correction-proof`, authenticated
+GitHub authority transport, exclusive predecessor edge, append-only attempt
+records and separate stock reader. It represents a materially revised source
+or execution-input target after the latest settled failed predecessor, including
+a predecessor whose earlier grant is terminal. It does not renew that grant,
+rewrite its record or change the interpretation of any legacy route.
+
+The proof binds the accepted source/review, a separate prospective commission,
+the actual source delta, immutable runtime inputs, retained original receipt,
+attempt, completion and separate stock, and applicable focused evidence.
+Implementation-owner final-source checks remain distinct from the receiving
+reviewer's independent audit. An older predecessor, wrong authority/source/input,
+unsettled cleanup or unchanged candidate refuses before consumption. Accepted
+focused evidence may be reused with its original source/input attribution; it
+never supplies unexecuted phase coverage.
+
+One commission permits at most two deciding invocations across its entire
+exclusive successor chain: the initial complete invocation and at most one
+complete invocation after a demonstrated directly implicated defect or input
+problem has been materially corrected and supported by focused checks. Source,
+proof, branch, checkout or family changes cannot reset this ceiling. No unchanged
+retry or additional recovery is available. Reservation is consumption, including
+interruption before attempt append. The second slot requires the first receipt
+and separate fresh-process stock before candidate revision. Without a supported
+remedy, or after the second invocation, finish diagnosis and cleanup and report
+the precise blocker.
+
+A genuinely new authenticated commission may follow a spent v7 commission at
+its latest settled tip. Its initial ordinal binds that tip as its root; all old
+grant IDs and consumption are reconstructed from the existing exclusive chain.
+An old grant, edited grant, older tip, competing edge or new root within the same
+commission cannot reset consumption. Historical accepted source evidence retains
+its exact scope; the new commission must postdate settlement and is not source
+acceptance of later code.
+
+A specifically authorized prospective correction may follow a blocked legacy
+prepared-dependency layout/security observation. Its original classification,
+receipt and separate stock remain unchanged, including missing historical
+observations. This requires complete reconstructible old observations, unchanged
+dependency content/package sources, a corrected input owner, applicable focused
+checks and fresh safe v2 preparation checked again before reservation. Content
+equality does not certify historical permissions. Unavailable observations or a
+current safety/ownership fault refuse admission.
+
+A new commission may explicitly authorize continuation after a fully accounted-for
+external installed-service incident. The v7 proof then retains the original
+false/blocked/invalid receipt, completion and stock, and separately binds the
+responsible owner's start, settled consumers, supported restoration and independent
+restoration observation to the same installed identity and new source/input target.
+An authenticated receiving audit accepts that incident evidence within its stated
+scope; it does not replace the earlier accepted source review or approve later code.
+Only the known installed-service event with all owned resources settled is eligible.
+Additional faults, missing or altered originals, ambiguous cleanup and foreign
+consumers refuse. Fresh stopped/exact observations and existing checkout/capacity
+owners are checked before reservation and again by separate stock. This read-only
+owner check does not create a global service lock: the operator must schedule a
+service-stable window through final stock/cleanup and never reclaim foreign owners.
+The exclusive edge preserves the spent commission and interrupted consumption;
+reconstruction requires the bound settlement originals. Old stock stays invalid.
+
+This route requires the final clean published source, authenticated current-main
+and ancestry, admitted Mac worktree, pinned Node/npm, ownership/capacity,
+immutable inputs and stopped/exact installed-state preservation. It executes the
+unchanged planner-complete Full, including every dedicated Browser owner, with
+unchanged assertions, deadlines, ordering, concurrency and cleanup. Stock
+reconstructs the original records, authority and current inputs without writes.
+Every selected phase must pass with valid stock and completed cleanup before
+qualification is complete; independent merge judgment remains separate.
+
+The selected task Node and matching sibling headers are immutable inputs.
+Header content, topology, permissions and ownership are checked at admission,
+phase boundaries, final settlement and stock; expensive tree scans do not run
+inside a timed child. Their bound selection reaches dependency preparation and
+suite descendants through the filtered environment. Normal sequential `npm ci`
+still creates the three dependency trees from unchanged package/lock inputs.
+Pre-install dependency output is not frozen as an immutable input. After each
+successful preparation, the input owner records the produced tree and compares
+its content, topology, permissions, ownership and package/lock sources at final
+settlement and fresh stock. Prepared-dependency v2 separately records raw presence,
+metadata and security for only physical empty top-level `.cache` and `.vite-temp`
+directories. Each must belong to the task user, match its still-bound physical
+parent's owner/mode/device and complete ACL, flags and attributes, and remain
+empty throughout the coherent observation. Safe appearance/disappearance leaves
+dependency code identity unchanged. Nonempty known generated directories refuse;
+unknown directories remain binding. Unsafe links, permission changes and failed
+observations refuse. Legacy v1 receipts retain their original interpretation,
+including binding `.vite-temp`. These bounded observations do not prove absence
+of transient changes between their observation windows.
 
 ### Reviewed observer-repair succession (source-correction v3)
 
@@ -1182,6 +1274,113 @@ packet/source/authority and immutable live lineage read-only, including for a
 usable failed receipt. No historical PASS is transferred and no stock issue is
 suppressed. Implementation, qualification, independent audit, merge and installed
 adoption remain distinct; this route grants no merge or adoption authority.
+
+### Accepted operating-profile efficiency succession (#1561)
+
+`augnes.local-canonical-operating-profile-succession.v1`, kind
+`operating_profile_efficiency`, is a separate prospective predicate through the
+existing `--source-correction-proof` entry. It does not reinterpret source-correction
+v1–v6 or acquire another task's namespace or allowance. Its eligible predecessor
+is the latest settled isolated Full with seven PASS phases, the natural exit-1
+integration failure, then eight NOT_RUN phases. The complete integration log must
+account for the producer and consumer completing naturally, the operating-profile
+boundary latching its 60,000 ms timeout before bounded settlement (including its
+observed exit 0), and the enclosing 150,000 ms child naturally exiting 1. All
+started workload and resource settlement must be accounted for; additional
+failure, unknown cleanup, input/safety fault or incomplete log refuses.
+
+The original receipt, attempt, completion and logs stay immutable. The historical
+receipt's recorded path and byte count are distinguished from a later observation
+of retained log bytes and their SHA-256. Historical timeout and EEXIST attribution
+remain UNKNOWN. Accepted r4 development evidence contains a single before/after
+pair which both pass, removal of 37 unused preparation reads, preserved remaining
+operation/result sequences and checked artifact bytes, and final-source focused
+checks. It is neither a manufactured FAIL/PASS repair witness nor a retrospective
+qualification result. Its accepted source, complete deltas and retained evidence
+must be reconstructed; focused runs are not repeated merely to fit another route.
+
+The separately published r4 COMMENT attestation and subsequent #1561 execution
+grant are read through the existing bounded authenticated GitHub transport, with
+exact body identity, destination, author, publication time and current maintainer
+permission. ChatGPT's earlier receiving audit is distinct from its GitHub account
+publisher. That attestation covers the accepted r4 source and evidence only; the
+new qualification implementation uses an explicit implementation-owner final-source
+binding, followed by independent post-completion audit. No invented final-head
+review or second execution grant is required by this approved prospective scope.
+
+Final-source validation binds predecessor-to-accepted, accepted-to-final,
+predecessor-to-final and current-main-to-final deltas and retained tree entries.
+Accepted native, lifecycle and harness behavior, assertions, workloads and
+boundaries remain unchanged. Additional task changes are restricted to the
+necessary qualification owner, its production integration, focused controls and
+policy documentation. Compatible accepted-main changes retain their provenance;
+main advancement neither cancels nor renews the grant.
+
+The existing exclusive predecessor `correction-successor.json` is the only
+reservation. It consumes the authorization across candidates and successor kinds,
+including interruption before an attempt append. The new family has one initial
+Full and zero recovery/retry. Success, failure, cancellation or interruption is
+terminal; changing source, branch, worktree or proof cannot renew this allowance.
+No older predecessor, reservation repair, partial phase stitching or historical
+PASS substitution is supported.
+
+Normal published clean source, authenticated current main, registered checkout,
+pinned runtime, frozen inputs, capacity and installed-state preservation gates
+remain. The unchanged planner selects the complete 16-phase Full, including the
+seven dedicated Browser owners, with existing phase order, stop behavior,
+concurrency and deadlines. Fresh-process stock reauthenticates and reconstructs
+source, evidence and live lineage without reserving, including after a usable
+failed receipt. Classification and NOT_RUN coverage are retained. This route adds
+no merge, Ready, adoption, deployment or provider authority.
+
+### Prospective settled-successor aggregate budget (#1561)
+
+`augnes.local-canonical-successor-budget-succession.v1`, kind
+`settled_successor_budget`, is the separately authorized continuation of the exact
+consumed r5 operating-profile tip. It uses the existing proof input and exclusive
+predecessor edge. It does not renew the r5 grant or reinterpret v1–v6 or the
+operating-profile allowance. Only the actual r5 receipt, attempt, completion,
+incoming edge and integration log, accepted r5/r6 COMMENT 5724573102 and new scope
+6548163748 qualify. Current authenticated author permission, destination, body
+identity, timestamps and published final source are checked by the existing
+GitHub transport. The receiving ChatGPT audits and the publishing account are
+distinct; final policy/source verification is by the implementation owner until
+the post-completion independent audit.
+
+The only workload registration change is `settled-expired-successor`'s outer
+complete-fixture limit from **30,000 to 45,000 ms**. The accepted neighboring
+`authored-successor-handoff` already has a 45,000 ms aggregate limit. R6's complete
+instrumented natural PASS settled at 26,502 ms, with semantic completion at
+scenario 25,054.744 ms and no supported product fix. Those observations support
+this finite prospective headroom choice; they do not establish historical cause,
+a reliable margin, an optimal budget, or a FAIL-to-PASS repair witness. The user
+instructed continuation; ChatGPT selected the exact finite budget and invocation
+limit. R6's NO FIX remains valid. Every assertion, argument, inventory entry,
+authentication and execution/grant/Transition meaning, all inner/request/TTL/
+lifetime/cleanup bounds, other child budgets and `requireNaturalExit: true`
+remain intact. Timeout latching is unchanged; exit zero after timeout is failure.
+
+The proof binds the original immutable records and full workload/settlement,
+accepted r6 report and original bundle, and complete accepted-to-final and
+current-main-to-final deltas/tree entries. Later retained-log hashing is explicitly
+not an observation made by the original receipt. Source is restricted to the one
+budget registration and necessary qualification integration, focused controls and
+documentation. Product, native, r2 lifecycle and r4/r5 behavior remain preserved.
+Compatible accepted-main movement neither cancels nor renews the allowance.
+
+Normal clean published source, registered isolated checkout, pinned runtime,
+frozen inputs, capacity and installed-state gates apply. The existing executor
+owns the exclusive reservation: interruption after reservation consumes the edge
+even without a successor attempt append. The exact new kind may follow only this
+consumed operating-profile tip; other continuations still refuse. The resulting
+successor is terminal after **at most one planner-complete Full and zero retry or
+recovery**. The unchanged planner selects all 16 phases including seven dedicated
+Browser owners, with normal ordering, concurrency and stop behavior. No changed
+source/proof/family, partial coverage or increased deadline restores the budget.
+Fresh-process stock reconstructs every usable receipt, including failure, without
+reserving or creating machine identity. Prior failures, classifications, NOT_RUN
+and UNKNOWN remain intact. This grants no merge, Ready, release, deployment,
+installed adoption, provider study or scheduling authority.
 
 ### Browser input replacement (receipt version 5)
 

@@ -80,12 +80,12 @@ const root = owner.root, env = buildCanonicalChildEnvironment({ temporaryRoot: r
 const findings = []; let inFlight = false, lastChildDiagnostic = "";
 beginCanonicalTestResourceUse(owner);
 async function child(args, options = {}) {
-  const { controlId = "disposable-control", expectedCancellation = false, ...runnerOptions } = options;
+  const { controlId = "disposable-control", expectedCancellation = false, stderr: errorOutput = quiet, ...runnerOptions } = options;
   const progress = createObserverFixtureProgressReader(), output = runnerOptions.stdout ?? quiet;
   inFlight = true; lastChildDiagnostic = "";
   const result = await runCanonicalChild({ suite: "review-corrections", label: "disposable control", command: process.execPath, args,
     cwd: root, env, timeoutMs: AUXILIARY_EXECUTION_BUDGETS.ordinaryChildMs, ...runnerOptions,
-    stdout: { write(chunk) { progress.write(chunk); output.write(chunk); } }, stderr: runnerOptions.stderr ?? quiet, log() {} });
+    stdout: { write(chunk) { progress.write(chunk); output.write(chunk); } }, stderr: errorOutput, log() {} });
   inFlight = !settled(result);
   const diagnostic = { controlId, expectedCancellation, progress: progress.snapshot() };
   lastChildDiagnostic = JSON.stringify(projectReviewChildResult(result, diagnostic));
@@ -95,7 +95,28 @@ async function child(args, options = {}) {
   return result;
 }
 try {
-  if (process.argv[2] === "--guide-correction-controls") {
+  if (process.argv[2] === "--reviewed-revision-controls") {
+    const result = await child([path.join(repository, "scripts/fixtures/local-canonical-reviewed-revision.mjs"), "--run-revision-fixtures"], { controlId: "reviewed-revision", timeoutMs: 15000, stdout: process.stdout, stderr: process.stderr });
+    assert.equal(result.exit_code, 0, lastChildDiagnostic);
+    const settlement = await child([path.join(repository, "scripts/fixtures/local-canonical-reviewed-revision.mjs"), "--run-settlement-fixtures"], { controlId: "reviewed-revision-settlement", timeoutMs: 15000, stdout: process.stdout, stderr: process.stderr });
+    assert.equal(settlement.exit_code, 0, lastChildDiagnostic);
+    findings.push("reviewed revision: real admission and refusal, terminal legacy preservation, two-invocation commission, concurrency and interrupted reservation, fresh stock");
+  } else if (process.argv[2] === "--operating-profile-succession-controls") {
+    const revision = await child([path.join(repository, "scripts/fixtures/local-canonical-reviewed-revision.mjs"), "--run-revision-fixtures"], { controlId: "reviewed-revision", timeoutMs: 15000, stdout: process.stdout, stderr: process.stderr });
+    assert.equal(revision.exit_code, 0, lastChildDiagnostic);
+    const settlement = await child([path.join(repository, "scripts/fixtures/local-canonical-reviewed-revision.mjs"), "--run-settlement-fixtures"], { controlId: "reviewed-revision-settlement", timeoutMs: 15000, stdout: process.stdout, stderr: process.stderr });
+    assert.equal(settlement.exit_code, 0, lastChildDiagnostic);
+  for (const group of ["evidence", "authority", "records"]) {
+    const result = await child([path.join(repository, "scripts/fixtures/local-canonical-operating-profile-succession.mjs"), "--run-profile-fixtures", group], { controlId: `operating-profile-succession-${group}`, timeoutMs: 6000, stdout: process.stdout, stderr: process.stderr });
+    assert.equal(result.exit_code, 0, lastChildDiagnostic);
+  }
+  findings.push("operating-profile succession: pure evidence/source/authority checks, immutable production-pin refusals, and synthetic terminal-record reconstruction; no synthetic production admission");
+  for (const group of ["evidence", "records"]) {
+    const result = await child([path.join(repository, "scripts/fixtures/local-canonical-successor-budget-succession.mjs"), "--run-budget-fixtures", group], { controlId: `successor-budget-succession-${group}`, timeoutMs: 6000, stdout: process.stdout, stderr: process.stderr });
+    assert.equal(result.exit_code, 0, lastChildDiagnostic);
+  }
+  findings.push("successor aggregate budget: exact source and NOFIX evidence validators, fixed production-pin refusals, typed terminal records and immutable cold reads; no synthetic production admission");
+  } else if (process.argv[2] === "--guide-correction-controls") {
   for (const group of ["evidence", "authority", "admission", "race", "stock"]) {
     const result = await child([path.join(repository, "scripts/fixtures/local-canonical-guide-correction.mjs"), "--run-guide-fixtures", group], { controlId: `guide-correction-${group}`, timeoutMs: AUXILIARY_EXECUTION_BUDGETS.groupMs });
     assert.equal(result.exit_code, 0, lastChildDiagnostic);

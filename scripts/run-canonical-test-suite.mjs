@@ -1093,6 +1093,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      id: "companion-result-successor",
+      group: "supporting-serial",
+      requirements: ["database", "migrations", "filesystem", "process-owning", "listener-port-owning", "mutable-module-state"],
+      label: "native settled-result preparation, atomic successor save and fresh checked consumer",
+      ...rootNode("scripts/test-companion-result-successor.ts"),
+      timeoutMs: 60_000,
+      requireNaturalExit: true,
+    },
+    {
       id: "companion-method-outlook",
       group: "supporting-serial",
       requirements: ["database", "migrations", "filesystem", "process-owning", "mutable-module-state"],
@@ -1222,7 +1231,7 @@ const suites = {
       requirements: ["database", "migrations", "filesystem", "mutable-module-state", "process-owning"],
       label: "settled failed result, expired history and explicit revalidated task authorship",
       ...rootNode("scripts/test-vnext-project-work-initialization.ts", "--settled-expired-successor-only"),
-      timeoutMs: 30_000,
+      timeoutMs: 45_000,
       requireNaturalExit: true,
     },
     {
@@ -1474,6 +1483,13 @@ const suites = {
       label: "reviewed GuideBrief correction after terminal condition qualification",
       ...rootNode("scripts/test-local-canonical-review-corrections.mjs", "--guide-correction-controls"),
       timeoutMs: AUXILIARY_EXECUTION_BUDGETS.guideHarnessMs,
+      requireNaturalExit: true,
+    },
+    {
+      id: "local-canonical-operating-profile-succession",
+      label: "accepted operating-profile efficiency and one prospective Full",
+      ...rootNode("scripts/test-local-canonical-review-corrections.mjs", "--operating-profile-succession-controls"),
+      timeoutMs: 30_000,
       requireNaturalExit: true,
     },
     {

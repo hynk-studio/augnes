@@ -13,7 +13,7 @@ import { observeReviewedCandidateCodexAppServerUserAgentV01 } from "./codex-app-
 import { extractDiscoveredCodexCandidateArchiveV01 } from "./codex-managed-runtime-store";
 import { CANDIDATE_CONFIG_OVERRIDE_ARGS_V01, observeCandidateConfigPolicyV01 } from "./codex-ordinary-runtime-candidate";
 import { codexCandidateOrdinaryBrokerProfileFingerprintV01, provisionCodexCandidateOrdinaryAuthV01, containsCodexCredentialSecretShapeV01 } from "./codex-credential-broker";
-import { assertCodexSyntheticAppServerPrefixV01, resolveCodexSyntheticAppServerFixtureV01 } from "./codex-synthetic-app-server-fixture.mjs";
+import { assertCodexSyntheticAppServerPrefixV01, codexSyntheticAppServerPrefixForScanV01, resolveCodexSyntheticAppServerFixtureV01 } from "./codex-synthetic-app-server-fixture.mjs";
 import {
   CODEX_QUALIFIED_RUNTIME_REGISTRY_FINGERPRINT_V01,
   CODEX_QUALIFIED_RUNTIME_REGISTRY_V01,
@@ -806,7 +806,7 @@ export function emulateCodexCandidateCanaryForTestV01(binding: CodexCandidateCan
 }
 
 /** Scan every serialized launch field, treating only the independently proven
- * fixed fixture argument as a symbolic source identity. This is not a path
+ * selected executable and fixed fixture as symbolic source identities. This is not a path
  * exemption in the generic credential detector and grants no launch authority. */
 export function codexCandidateCanaryLaunchContainsSecretForTestV01(launch: ReturnType<typeof consumeCodexCandidateCanaryV01>): boolean {
   assertCodexSyntheticAppServerPrefixV01(launch.command, launch.args.slice(0, 1), "ordinary_candidate");
@@ -814,5 +814,6 @@ export function codexCandidateCanaryLaunchContainsSecretForTestV01(launch: Retur
   if (launch.synthetic !== true || launch.native_auth !== undefined || launch.args.length !== tail.length + 1 ||
       !tail.every((arg, index) => launch.args[index + 1] === arg))
     throw new Error("codex_synthetic_fixture_launch_invalid");
-  return containsCodexCredentialSecretShapeV01(JSON.stringify({ ...launch, args: ["fixed-synthetic-app-server", ...tail] }));
+  const fixed = codexSyntheticAppServerPrefixForScanV01(launch.command, launch.args.slice(0, 1), "ordinary_candidate");
+  return containsCodexCredentialSecretShapeV01(JSON.stringify({ ...launch, command: fixed.command, args: [...fixed.prefix_args, ...tail] }));
 }
