@@ -15,6 +15,7 @@ import { BROWSER_REPLACEMENT_PHASES } from "./local-canonical-browser-replacemen
 import { spawnSync } from "node:child_process";
 import {
   existsSync,
+  chmodSync,
   linkSync,
   mkdirSync,
   mkdtempSync,
@@ -921,7 +922,7 @@ for (const [name, overrides, refused] of [
   if (refused) assert.throws(inspect, error => error?.code === "closeout_full_route_required", name);
   else assert.doesNotThrow(inspect, name);
 }
-for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisition_failure", "owned_failure", "unsettled_failure", "success", "absent_success", "stopped_success", "quick_success", "isolated_success", "isolated_unsettled", "isolated_observation_invalid", "pre_lock_state_race", "maintenance_state_race", "observer_authority_refused", "observer_changed_after_authority", "timeout_authority_refused", "timeout_changed_after_authority", "timeout_partial_workload_refused", "companion_authority_refused", "companion_missing_grant", "companion_changed_after_authority", "companion_partial_workload_refused", "condition_authority_refused", "condition_changed_after_authority", "condition_partial_workload_refused", "guide_authority_refused", "guide_changed_after_authority", "guide_partial_workload_refused", "closeout_authority_refused", "closeout_missing_scope", "closeout_changed_after_authority", "closeout_cancelled_after_authority", "closeout_partial_workload_refused", "closeout_continuation_changed_after_authority", "closeout_continuation_cancelled_after_authority", "closeout_instruction_missing_frozen", "closeout_instruction_changed_after_authority", "closeout_instruction_cancelled_after_authority", "closeout_instruction_partial_workload_refused"]) {
+for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisition_failure", "owned_failure", "unsettled_failure", "success", "absent_success", "stopped_success", "quick_success", "isolated_success", "isolated_unsettled", "isolated_guard_settled", "isolated_guard_cleanup_failed", "isolated_guard_unknown", "isolated_observation_invalid", "pre_lock_state_race", "maintenance_state_race", "observer_authority_refused", "observer_changed_after_authority", "timeout_authority_refused", "timeout_changed_after_authority", "timeout_partial_workload_refused", "companion_authority_refused", "companion_missing_grant", "companion_changed_after_authority", "companion_partial_workload_refused", "condition_authority_refused", "condition_changed_after_authority", "condition_partial_workload_refused", "guide_authority_refused", "guide_changed_after_authority", "guide_partial_workload_refused", "closeout_authority_refused", "closeout_missing_scope", "closeout_changed_after_authority", "closeout_cancelled_after_authority", "closeout_partial_workload_refused", "closeout_continuation_changed_after_authority", "closeout_continuation_cancelled_after_authority", "closeout_instruction_missing_frozen", "closeout_instruction_changed_after_authority", "closeout_instruction_cancelled_after_authority", "closeout_instruction_partial_workload_refused"]) {
   const root = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-canonical-ownership-")));
   let competingOwner = null;
   let privateResource = null;
@@ -940,7 +941,8 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
     const calls = { acquire: 0, release: 0, phases: 0, remove: 0, checkoutAcquire: 0, checkoutRelease: 0, logPrepare: 0, prune: 0 };
     const quick = scenario === "quick_success";
     const isolated = scenario.startsWith("isolated_");
-    const unsettled = ["unsettled_failure", "isolated_unsettled"].includes(scenario);
+    const guardFailure = scenario.startsWith("isolated_guard_");
+    const unsettled = ["unsettled_failure", "isolated_unsettled", "isolated_guard_unknown"].includes(scenario);
     const noServiceMaintenance = ["absent_success", "stopped_success"].includes(scenario);
     let authorityObserved = false, attemptClaims = 0;
     const observerRefusal = scenario.startsWith("observer_");
@@ -969,7 +971,11 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
     const context = {
       checkoutContext: isolated ? "isolated-worktree" : "canonical", verificationContext: {}, signal: { aborted: false },
       controller: new AbortController(), recoveryProofPath: null, sourceCorrectionProofPath: null, baseSha: "0".repeat(40), headSha: "a".repeat(40), executorFingerprint: "b".repeat(64), identityBefore: { branch: "fixture" },
-      isObserverRepair, isCorrectedTimeout, isConditionRequalification, isGuideCorrection, isCompanionTimeout, isAnyCloseout, assertCloseoutRuntimeInputs, digest, BROWSER_REPLACEMENT_PHASES,
+      isObserverRepair, isCorrectedTimeout, isConditionRequalification, isGuideCorrection, isCompanionTimeout, isAnyCloseout, digest, BROWSER_REPLACEMENT_PHASES,
+      assertCloseoutRuntimeInputs: (...args) => {
+        if (guardFailure && calls.phases) throw Object.assign(new Error("closeout_runtime_input_changed"), { code: "closeout_runtime_input_changed" });
+        return assertCloseoutRuntimeInputs(...args);
+      },
       browserInput: null, browserReplacement: null, strictProof: null, sourceCorrection: observerRefusal ? { schema: "augnes.local-canonical-source-correction.v3", kind: "observer_repair" } : timeoutRefusal ? { schema: "augnes.local-canonical-source-correction.v4", kind: "corrected_timeout" } : conditionRefusal ? { schema: "augnes.local-canonical-source-correction.v5", kind: "condition_requalification" } : guideRefusal ? { schema: "augnes.local-canonical-source-correction.v6", kind: "guide_cancellation_correction" } : companionRefusal ? { schema: "augnes.local-canonical-source-correction.v7", kind: "companion_readiness_timeout", pull_request: 999 } : closeoutRefusal ? { schema: scenario.includes("_continuation_") || scenario.includes("_instruction_") ? CLOSEOUT_CONTINUATION_SCHEMA : CLOSEOUT_SCHEMA, kind: scenario.includes("_instruction_") ? CLOSEOUT_INSTRUCTION_KIND : scenario.includes("_continuation_") ? CLOSEOUT_CONTINUATION_KIND : "issue_1559_closeout", pull_request: 1560 } : null,
       authorizeObserverRepair: async () => { authorityObserved = true; if (scenario === "observer_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
       authorizeCorrectedTimeout: async () => { authorityObserved = true; if (scenario === "timeout_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
@@ -1002,13 +1008,14 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
       beginAttempt: () => { attemptClaims++; return {}; }, pinVerificationEvidence() {}, assertFrozenSource() {},
       createIsolatedInvocationResources: id => (privateResource = createIsolatedInvocationResources(id)),
       cleanupIsolatedInvocationResources: (resource, options) => {
+        if (scenario === "isolated_guard_cleanup_failed") throw Object.assign(new Error("synthetic_cleanup_failed"), { code: "synthetic_cleanup_failed" });
         const result = cleanupIsolatedInvocationResources(resource, options);
         privateResourceCleaned = result.completed; return result;
       },
       assertVerificationContext: () => true, verificationAnchorRoot: () => root,
       invocationId: "a".repeat(32),
       plan: { selected_plan: quick ? "quick-feedback" : "full-canonical" }, OWNER_TARGETED_PLAN: "owner-targeted",
-      preflightIssues, phaseDefinitions: [{ id: "synthetic" }], phaseReceipts: [{ id: "synthetic", status: "not_run" }],
+      preflightIssues, phaseDefinitions: guardFailure ? [{ id: "synthetic" }, { id: "must_not_start" }] : [{ id: "synthetic" }], phaseReceipts: guardFailure ? [{ id: "synthetic", status: "not_run" }, { id: "must_not_start", status: "not_run" }] : [{ id: "synthetic", status: "not_run" }],
       repositoryRoot: root, runLogRoot, runId: "synthetic", mode: "changed", hostResult: {},
       process: { platform: scenario === "capacity_busy" ? "darwin" : "win32", arch: "x64" }, generatedWindowsHelperRoot: windows,
       host: {},
@@ -1080,10 +1087,10 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
         mkdirSync(windows, { recursive: true }); writeFileSync(path.join(windows, "partial-helper"), "owned");
         return { status: ["owned_failure", "unsettled_failure", "isolated_unsettled"].includes(scenario) ? "fail" : "pass",
           duration_ms: 1, failure_code: "synthetic",
-          cleanup: { completed: !unsettled, remaining_owned_processes: unsettled ? null : 0 } };
+          cleanup: { completed: !unsettled, exit_observed: true, streams_closed: !unsettled, remaining_owned_processes: unsettled ? null : 0 } };
       },
     };
-    const result = await new AsyncFunction(...Object.keys(context), ownedBlock + "\nreturn { nextState, windowsHelperState, sharedGeneratedStateOwned, cleanupComplete, cleanupReason, executionFailure, checkoutOwnership, serviceLifecycleBefore, serviceLifecycleAfter, generatedWindowsHelperPresentAfter }; ")(...Object.values(context));
+    const result = await new AsyncFunction(...Object.keys(context), ownedBlock + "\nreturn { nextState, windowsHelperState, sharedGeneratedStateOwned, cleanupComplete, cleanupReason, cleanupErrors, executionReason, executionFailure, checkoutOwnership, serviceLifecycleBefore, serviceLifecycleAfter, generatedWindowsHelperPresentAfter }; ")(...Object.values(context));
     if (["wrong_npm", "checkout_busy", "capacity_busy", "acquisition_failure", "isolated_observation_invalid"].includes(scenario)) {
       assert.equal(calls.phases, 0); assert.equal(calls.remove, 0); assert.equal(calls.release, 0);
       assert.equal(result.sharedGeneratedStateOwned, false);
@@ -1110,17 +1117,17 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
       }
     } else if (observerRefusal || timeoutRefusal || conditionRefusal || guideRefusal || companionRefusal || closeoutRefusal) {
       assert(authorityObserved); assert.equal(attemptClaims, 0); assert.equal(calls.phases, 0);
-      assert(result.executionFailure); assert.equal(result.cleanupComplete, false, "executor refusal keeps its conservative incomplete receipt flag");
+      assert(result.executionFailure); assert.equal(result.cleanupComplete, true, "execution refusal is separate from positively observed settlement");
       assert.equal(calls.release, 1); assert(!existsSync(next)); assert(!existsSync(windows));
-      if (timeoutRefusal) assert.equal(result.cleanupReason, scenario === "timeout_authority_refused" ? "synthetic_authority_refusal" : scenario === "timeout_changed_after_authority" ? "input_admission_refused" : "timeout_workload_invalid");
+      if (timeoutRefusal) assert.equal(result.executionReason, scenario === "timeout_authority_refused" ? "synthetic_authority_refusal" : scenario === "timeout_changed_after_authority" ? "input_admission_refused" : "timeout_workload_invalid");
       if (companionRefusal) {
         const expected = { companion_authority_refused: "synthetic_authority_refusal", companion_missing_grant: "companion_timeout_authority_missing",
           companion_changed_after_authority: "input_admission_refused", companion_partial_workload_refused: "companion_timeout_workload_invalid" };
-        assert.equal(result.cleanupReason, expected[scenario]);
+        assert.equal(result.executionReason, expected[scenario]);
         assert.equal(companionTransportCalls, 0);
       }
-      if (conditionRefusal) assert.equal(result.cleanupReason, scenario === "condition_authority_refused" ? "synthetic_authority_refusal" : scenario === "condition_changed_after_authority" ? "input_admission_refused" : "condition_workload_invalid");
-      if (guideRefusal) assert.equal(result.cleanupReason, scenario === "guide_authority_refused" ? "synthetic_authority_refusal" : scenario === "guide_changed_after_authority" ? "input_admission_refused" : "guide_workload_invalid");
+      if (conditionRefusal) assert.equal(result.executionReason, scenario === "condition_authority_refused" ? "synthetic_authority_refusal" : scenario === "condition_changed_after_authority" ? "input_admission_refused" : "condition_workload_invalid");
+      if (guideRefusal) assert.equal(result.executionReason, scenario === "guide_authority_refused" ? "synthetic_authority_refusal" : scenario === "guide_changed_after_authority" ? "input_admission_refused" : "guide_workload_invalid");
       if (closeoutRefusal) {
         const expected = { closeout_authority_refused: "synthetic_authority_refusal", closeout_missing_scope: "closeout_authority_missing",
           closeout_changed_after_authority: "input_admission_refused", closeout_cancelled_after_authority: "input_admission_refused",
@@ -1128,9 +1135,24 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
           closeout_continuation_changed_after_authority: "input_admission_refused", closeout_continuation_cancelled_after_authority: "input_admission_refused",
           closeout_instruction_missing_frozen: "closeout_instruction_frozen_input_invalid", closeout_instruction_changed_after_authority: "input_admission_refused",
           closeout_instruction_cancelled_after_authority: "input_admission_refused", closeout_instruction_partial_workload_refused: "closeout_workload_invalid" };
-        assert.equal(result.cleanupReason, expected[scenario]);
+        assert.equal(result.executionReason, expected[scenario]);
         assert.equal(closeoutTransportCalls, 0);
       }
+    } else if (guardFailure) {
+      assert.equal(calls.phases, 1, "guard refusal prevents the next phase");
+      assert.equal(context.phaseReceipts[0].status, "pass", "original consumer result survives");
+      assert.equal(context.phaseReceipts[1].status, "not_run");
+      assert.equal(result.executionReason, "closeout_runtime_input_changed");
+      assert.equal(result.executionFailure, true);
+      assert.equal(result.cleanupComplete, scenario === "isolated_guard_settled");
+      assert.equal(result.cleanupErrors.length === 0, scenario === "isolated_guard_settled");
+      if (scenario === "isolated_guard_cleanup_failed") assert(result.cleanupErrors.includes("synthetic_cleanup_failed"));
+      if (unsettled) assert(result.cleanupErrors.includes("executor_consumers_unsettled"));
+      const passingStart = executorSource.indexOf("  const allSelectedPhasesPassed =");
+      const passingEnd = executorSource.indexOf("  const deciding =", passingStart);
+      const passing = new Function("phaseReceipts", "executionFailure", "preflightIssues", "cleanupComplete",
+        executorSource.slice(passingStart, passingEnd) + "\nreturn passing;")(context.phaseReceipts, result.executionFailure, [], result.cleanupComplete);
+      assert.equal(passing, false, "clean settlement cannot emit a later PASS after the input exception");
     } else {
       assert.equal(calls.phases, 1); assert.equal(calls.release, quick || isolated || unsettled ? 0 : 1);
       if (isolated) assert.equal(privateResourceCleaned, !unsettled);
@@ -1162,7 +1184,7 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
     assert.equal(calls.checkoutRelease, acquired ? 1 : 0);
     assert.equal(calls.prune, acquired ? 1 : 0, "a refused/non-owner invocation never prunes artifacts");
     assert.equal(result.checkoutOwnership.released, acquired && !unsettled);
-    assert.equal(existsSync(path.join(root, ".augnes-local-verification", CHECKOUT_OWNER_FILE)), ["checkout_busy", "unsettled_failure", "isolated_unsettled"].includes(scenario));
+    assert.equal(existsSync(path.join(root, ".augnes-local-verification", CHECKOUT_OWNER_FILE)), ["checkout_busy", "unsettled_failure", "isolated_unsettled", "isolated_guard_unknown"].includes(scenario));
   } finally {
     if (competingOwner) releaseCheckoutVerificationOwnership(competingOwner, root);
     if (privateResource && !privateResourceCleaned) assert.equal(cleanupIsolatedInvocationResources(privateResource, { consumersSettled: true }).completed, true);
@@ -1420,6 +1442,27 @@ for (const [profile, group] of [
     }
     const before = observeCloseoutRuntimeLayout(root, paths, node);
     assert.deepEqual(observeCloseoutRuntimeLayout(root, paths, node), before);
+    const generated = path.join(root, paths[2], ".vite-temp");
+    const compare = () => observeCloseoutRuntimeLayout(root, paths, node, { comparison: "vite_empty_config_directory" });
+    const absent = compare();
+    mkdirSync(generated, { mode: 0o755 }); chmodSync(generated, 0o755);
+    const empty = compare();
+    assert.notDeepEqual(empty.dependencies, absent.dependencies, "raw observations keep the empty directory");
+    assert.deepEqual(empty.comparison_dependencies, absent.comparison_dependencies);
+    assert.notDeepEqual(observeCloseoutRuntimeLayout(root, paths, node), before, "historical exact bindings remain exact");
+    writeFileSync(path.join(generated, "real-content"), "not optional");
+    assert.notDeepEqual(compare().comparison_dependencies, absent.comparison_dependencies, "no subtree exclusion");
+    rmSync(path.join(generated, "real-content"));
+    chmodSync(generated, 0o777);
+    assert.throws(compare, hasCode("closeout_runtime_layout_unsafe"));
+    chmodSync(generated, 0o755); rmSync(generated, { recursive: true });
+    symlinkSync("entry.mjs", generated);
+    assert.notDeepEqual(compare().comparison_dependencies, absent.comparison_dependencies, "contained links are not empty directories");
+    rmSync(generated); writeFileSync(generated, "");
+    assert.notDeepEqual(compare().comparison_dependencies, absent.comparison_dependencies, "an empty file is not an empty directory");
+    rmSync(generated); mkdirSync(path.join(root, paths[0], ".vite-temp"));
+    assert.notDeepEqual(compare().comparison_dependencies, absent.comparison_dependencies, "the same name elsewhere is protected");
+    rmSync(path.join(root, paths[0], ".vite-temp"), { recursive: true });
     const target = path.join(root, paths[1], "entry.mjs"), bytes = readFileSync(target);
     writeFileSync(target, "export default 2;\n");
     assert.notEqual(observeCloseoutRuntimeLayout(root, paths, node).dependencies[1].manifest_sha256, before.dependencies[1].manifest_sha256);
@@ -1493,6 +1536,8 @@ console.log(
       browser_lanes_sequential: true,
       maximum_outer_phase_concurrency: maximumActive,
       canonical_node_mismatch_explicit: true,
+      closeout_runtime_generated_state_controls: true,
+      executor_guard_settlement_controls: true,
       hosted_ci_absent: true,
     },
     null,

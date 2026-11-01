@@ -2164,3 +2164,35 @@ admission/stock controls precede qualification. The normal shared successor edge
 consumes this relation once, with zero recovery; copied proofs, another head or
 worktree and successor chaining do not renew it. No new grant, timeout exception,
 security permission, installed adoption or merge authority is created.
+
+The subsequent instruction [6552663637](https://github.com/hynk-studio/augnes/pull/1560#issuecomment-6552663637)
+permits the coupled generated-state comparison and settlement correction from
+the exact Full11 predecessor. The original receipt, completion, failed stock,
+cleanup=false and consumed edge remain immutable. This uses the existing
+amendment and successor owners; it creates no general cleanup exception.
+
+Only at `apps/web_planning/node_modules/.vite-temp`, absence and a verified
+real empty directory may compare equally. The directory must have mode 0755,
+the current user and its physical dependency root's group, with unchanged
+identity and metadata during observation. Files, symlinks, special modes,
+contents and all other paths retain their existing comparisons and refusals.
+Raw inventories remain available. Preparation/admission, every phase boundary
+and separate fresh stock use the same prospective comparison against retained
+native evidence, never an npm-produced replacement baseline. Older proofs keep
+their exact raw-inventory semantics.
+
+Executor exceptions remain execution failures and stop later phases. Cleanup
+is determined separately from observed exit, closed streams, resource removal,
+Companion restoration and lease release. Missing observations, failed cleanup
+or remaining owned resources refuse complete cleanup; finally alone proves
+nothing. Both the original execution reason and cleanup failures are retained.
+
+Full11 may be followed only with its pinned complete contemporaneous receipt,
+attempt/completion/edge, wrapper and three phase logs, failed stock, and a new
+dated reconciliation. It must bind the substantive executor/comparison source
+correction and current ownership-aware observations. Later absence supplements
+the original natural child settlement, resource/service observations and lease
+releases; it does not establish historical cleanup alone. Normal authorization
+and fresh stock reobserve these obligations. The attempts owner recognizes only
+this exact authenticated relation, with normal exclusive consumption, complete
+focused parent/adverse checks, unchanged Full coverage and zero recovery.

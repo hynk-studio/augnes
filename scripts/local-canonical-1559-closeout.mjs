@@ -3,6 +3,9 @@
 import { lstatSync, readFileSync, realpathSync, readdirSync, readlinkSync } from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { physicalFingerprint, admitVerificationContext, inspectVerificationCompanionPreservation } from "./local-canonical-verification-context.mjs";
+import { checkoutVerificationFingerprint } from "./local-canonical-checkout-ownership.mjs";
+import { readProcessBirthIdentity } from "./local-process-ownership.mjs";
 import { digest, supportedInputContract, classifyInputChange, nonFaultInputChange } from "./local-canonical-inputs.mjs";
 import { BROWSER_REPLACEMENT_PHASES } from "./local-canonical-browser-replacement.mjs";
 import { createGitHubObserverAuthorizationTransport } from "./github-main-branch-transport.mjs";
@@ -1763,10 +1766,52 @@ export const CLOSEOUT_RUNTIME_INPUT_AMENDMENT = Object.freeze({
   for (const nested of Object.values(value)) if (nested && typeof nested === "object") freeze(nested);
   Object.freeze(value);
 })(CLOSEOUT_RUNTIME_INPUT_AMENDMENT);
+// The same runtime-input continuation, with separately dated reconciliation.
+// No historical pin, schema, kind, receipt or consumed edge is replaced.
+export const CLOSEOUT_RUNTIME_INPUT_RECONCILIATION = Object.freeze({
+  ...{
+  "comment_id": 6552663637,
+  "observation_sha256": "501c628879f7c9485d6318c0c358c71cff7239251c4858bf159be906b5831ff8",
+  "basis": "supported_runtime_input_correction",
+  "accepted_base": "bbb7dee536817fe4b7f28f5353a1d88f56c7e44d",
+  "prior_head": "dbe70f16a9d0fbf841767442225266ff1985294d",
+  "prior_tree": "234003af4026e57ea511170f48fe5c86affd1f7b",
+  "prior_family_id": "59c2053a01ff8d0a9d783040c87242982921e5fdf1e5d8bebe54bae712b526dd",
+  "prior_attempt_id": "2026-11-01T02-28-22-615Z-full-dbe70f16a9d0-731356b3722026b9",
+  "prior_receipt_fingerprint": "6d6203318fa7c7658df7323c661bfab6188f00c9478ee9d81b152dd44e2d10db",
+  "completed_at": "2026-11-01T02:29:11.259Z",
+  "predecessor_proof": "cf2a8217fa58856a56ba7b10e811a7da8c08a5e6cc809ed6f9c2da200ddd05f6",
+  "originals": {
+    "receipt": "2b0c99be5cc70e057a3ffe0ff5e692b172c62e58bfb857e2108f5f5d5b4e9ee2",
+    "attempt": "40d924fc863eb2d6e671767fcfb7f5bcf263b8f24f9eeff5eee6e7ad3822a94e",
+    "completion": "043ba46865f17f0444c35c82fb3e1b00091550b5a47f36c6cddea13c36f68b9b",
+    "edge": "e85a9bd4d433b4dd78f470a49d01e7937eb6a98c62f8e1221011da7ffbee26ae",
+    "full_log": "67589336f01cca02604765064c5369fbb05e8760d3a8e77cf4ba78e1722a6d92",
+    "stock": "64a18db83940bd5b7ed830023bcfe2158dba53a284677b23bc7a2fc33327aced",
+    "stock_log": "0351eca962f6e6aeb001c4a1013443d82b64ae53634d2991b552c451a5f1ddc5",
+    "command_start": "0e9946bd675f05e23e9f13db25349de3ff3536188fb64d8fcab64a121ea296c1",
+    "command_settlement": "dc34f6b89297eae8b82a3fc47189854793deeb3000444062f498ba638e87a562",
+    "root_log": "e3e9d95155e3f60b53d64210321309c8b31081a8827c71181263388acd7afc1d",
+    "nested_log": "4d8707118c5a0327298b32fe2cf14d6592dd721378d201bcd04b369d2e8b8797",
+    "web_log": "32801ba6c648ecddffc4c87e34b9eaa3b7920b3b4c06d5dbdbbbe65149b5af9e"
+  },
+  "scope": {
+    "id": 6552663637,
+    "author": "hynk-studio",
+    "author_id": 89450056,
+    "body_sha256": "6321306ac250e2b7b16bf3ffd63d7c09e3cf843b6a6cf04b59ae7ca46ff74aab",
+    "timestamp": "2026-11-01T03:05:02Z"
+  }
+},
+  native_evidence: CLOSEOUT_RUNTIME_INPUT_AMENDMENT.native_evidence,
+  runtime_input_binding: CLOSEOUT_RUNTIME_INPUT_AMENDMENT.runtime_input_binding,
+});
+const reconciledRuntimeAmendment = p => p?.scope_amendment?.comment_id === CLOSEOUT_RUNTIME_INPUT_RECONCILIATION.comment_id;
+export const isCloseoutRuntimeSettlement = p => hasCloseoutScopeAmendment(p) && reconciledRuntimeAmendment(p);
 const auxiliaryAmendment = p => p?.scope_amendment?.comment_id === CLOSEOUT_AUXILIARY_BUDGET_AMENDMENT.comment_id;
-export const isCloseoutRuntimeInputCorrection = p => hasCloseoutScopeAmendment(p) && p.scope_amendment?.comment_id === CLOSEOUT_RUNTIME_INPUT_AMENDMENT.comment_id;
-const runtimeAmendment = p => p?.scope_amendment?.comment_id === CLOSEOUT_RUNTIME_INPUT_AMENDMENT.comment_id;
-const amendmentAuthority = p => runtimeAmendment(p) ? CLOSEOUT_RUNTIME_INPUT_AMENDMENT : auxiliaryAmendment(p) ? CLOSEOUT_AUXILIARY_BUDGET_AMENDMENT : CLOSEOUT_SCOPE_AMENDMENT;
+export const isCloseoutRuntimeInputCorrection = p => hasCloseoutScopeAmendment(p) && runtimeAmendment(p);
+const runtimeAmendment = p => reconciledRuntimeAmendment(p) || p?.scope_amendment?.comment_id === CLOSEOUT_RUNTIME_INPUT_AMENDMENT.comment_id;
+const amendmentAuthority = p => reconciledRuntimeAmendment(p) ? CLOSEOUT_RUNTIME_INPUT_RECONCILIATION : runtimeAmendment(p) ? CLOSEOUT_RUNTIME_INPUT_AMENDMENT : auxiliaryAmendment(p) ? CLOSEOUT_AUXILIARY_BUDGET_AMENDMENT : CLOSEOUT_SCOPE_AMENDMENT;
 const amendedEvidence = new Map();
 const AMENDMENT_PATHS = new Set([...SCOPE_CORRECTION_POLICY_PATHS, "scripts/local-canonical-closeout-budgets.mjs", "scripts/run-canonical-test-suite.mjs"]);
 const AMENDMENT_SOURCE_PATHS = [...AMENDMENT_PATHS].sort();
@@ -1778,18 +1823,20 @@ const AUXILIARY_AMENDMENT_PATHS = new Set([...AUXILIARY_BUDGET_SOURCE_PATHS, "sc
 const RUNTIME_INPUT_PATHS = new Set(["scripts/local-canonical-1559-closeout.mjs", "scripts/run-local-canonical-verification.mjs",
   "scripts/local-canonical-review-export.mjs", "scripts/test-local-canonical-executor.mjs", ".github/LOCAL_CANONICAL_VERIFICATION.md"]);
 
+const runtimePolicyPaths = p => reconciledRuntimeAmendment(p) ? new Set([...RUNTIME_INPUT_PATHS, "scripts/local-canonical-attempts.mjs"]) : RUNTIME_INPUT_PATHS;
+
 export const hasCloseoutScopeAmendment = p => isCloseoutScopeFixtureCorrection(p) && Object.hasOwn(p, "scope_amendment");
 const amendmentDeclaration = (a = CLOSEOUT_SCOPE_AMENDMENT) => Object.fromEntries(["comment_id", "observation_sha256", "basis"].map(key => [key, a[key]]));
 export function inspectCloseoutAmendedSourceScope(repositoryRoot, { base, head, source_revision_predecessor = null, scope_amendment = null }) {
-  const packet = { scope_amendment }, a = amendmentAuthority(packet), { scope } = inspectSourceScope(repositoryRoot, { base, head }, a.accepted_base, source_revision_predecessor ?? a.prior_head, [], runtimeAmendment(packet) ? RUNTIME_INPUT_PATHS : auxiliaryAmendment(packet) ? AUXILIARY_AMENDMENT_PATHS : source_revision_predecessor ? AMENDED_REVISION_PATHS : AMENDMENT_PATHS);
+  const packet = { scope_amendment }, a = amendmentAuthority(packet), { scope } = inspectSourceScope(repositoryRoot, { base, head }, a.accepted_base, source_revision_predecessor ?? a.prior_head, [], runtimeAmendment(packet) ? runtimePolicyPaths(packet) : auxiliaryAmendment(packet) ? AUXILIARY_AMENDMENT_PATHS : source_revision_predecessor ? AMENDED_REVISION_PATHS : AMENDMENT_PATHS);
   return { ...scope, schema: "augnes.local-canonical-closeout-scope-fixture-source.v1", basis: "authorized_scope_amendment" };
 }
 export function validateCloseoutAmendedSourceScope(scope, revision = null, scope_amendment = null) {
   if (runtimeAmendment({ scope_amendment })) {
-    const a = CLOSEOUT_RUNTIME_INPUT_AMENDMENT;
+    const a = amendmentAuthority({ scope_amendment });
     if (revision || scope?.schema !== "augnes.local-canonical-closeout-scope-fixture-source.v1" || scope.basis !== "authorized_scope_amendment" ||
       scope.accepted_base !== a.accepted_base || scope.accepted_head !== a.prior_head || !commit(scope.current_main)) fail("closeout_runtime_source_invalid");
-    validateRetainedSourceScope(scope, 39, RUNTIME_INPUT_PATHS);
+    validateRetainedSourceScope(scope, 39, runtimePolicyPaths({ scope_amendment }));
     if (scope.candidate_policy.some(row => row.candidate.present !== true)) fail("closeout_runtime_source_invalid");
     return scope;
   }
@@ -1836,6 +1883,120 @@ function validateAuxiliaryAmendmentOriginal(old, p) {
     nested.some((x, i) => x.exit_code !== (i === 2 ? null : 0) || x.signal !== (i === 2 ? "SIGTERM" : null) || x.timed_out !== (i === 2) || x.cancelled !== false || x.spawn_error_code !== null || x.termination_reason !== (i === 2 ? "bounded_timeout" : "natural_exit") || x.exit_observed !== true || x.streams_closed !== true || x.cleanup_started !== true || x.cleanup_completed !== true || x.remaining_owned_processes !== 0) ||
     nested[2].duration_ms !== 6075) fail("closeout_amendment_original_binding_invalid");
 }
+function validateRuntimeSettlementOriginal(old) {
+  const r = old.receipt, c = r.cleanup, lines = old.full_log.toString().split("\n");
+  const phases = r.phases?.slice(0, 3), names = ["root_log", "nested_log", "web_log"];
+  if (!exact(r.phases?.map(x => x.id), BROWSER_REPLACEMENT_PHASES) ||
+    !exact(r.phases.map(x => x.status), [...Array(3).fill("pass"), ...Array(13).fill("not_run")]) ||
+    r.repository.worktree_before !== "clean" || r.repository.worktree_after !== "clean" ||
+    r.outcome.disposition !== "cleanup_incomplete" || c.completed !== false || r.outcome.safety !== "unknown" ||
+    r.outcome.first_fault !== null || r.inputs.first_fault !== null || !exact(r.inputs.secondary_faults, []) ||
+    r.final.result !== "failure" || r.final.exit_status !== 1 || r.evidence.deciding !== false ||
+    !exact(r.final.reason_codes, ["closeout_runtime_input_changed", "selected_phases_incomplete"]) ||
+    c.remaining_owned_processes !== 0 || c.isolated_resources?.completed !== true || c.isolated_resources.failure_count !== 0 ||
+    !exact(c.isolated_resources.failures, []) || c.isolated_resources.invocation_id !== r.run.invocation_id ||
+    c.companion_service?.maintenance_acquired !== false || c.companion_service.maintenance_released !== true || c.companion_service.restored !== true ||
+    !exact(c.companion_service.before, c.companion_service.after) || c.companion_service.after.preservation_valid !== true ||
+    c.companion_service.after.status !== "installed_stopped" || c.companion_service.after.checkout_relation !== "exact" ||
+    c.companion_service.observations?.after?.coherent !== true || c.companion_service.observations.after.live_identity_valid !== true ||
+    c.generated_next.present_after !== false || c.generated_next.present_after_execution_cleanup !== false ||
+    c.generated_windows_helper.present_after !== false || r.browser_guard) fail("closeout_settlement_original_invalid");
+  for (const owner of [r.checkout_ownership, r.capacity_ownership]) {
+    if (owner.required !== true || owner.acquired !== true || owner.released !== true || owner.failure_code !== null ||
+      !sha(owner.checkout_fingerprint) || !validTime(owner.acquired_at) || !validTime(owner.released_at) ||
+      Date.parse(owner.released_at) < Date.parse(phases.at(-1).finished_at) || Date.parse(owner.released_at) > Date.parse(r.run.finished_at))
+      fail("closeout_settlement_original_invalid");
+  }
+  for (const [i, phase] of phases.entries()) {
+    if (phase.exit_status !== 0 || phase.timed_out !== false || phase.spawn_error_code !== null ||
+      phase.cleanup?.completed !== true || phase.cleanup.exit_observed !== true || phase.cleanup.streams_closed !== true ||
+      phase.cleanup.remaining_owned_processes !== 0 || phase.cleanup.termination_reason !== "natural_exit" ||
+      phase.log.truncated !== false || phase.log.bytes !== old[names[i]].length ||
+      !lines.includes(`[local-canonical] phase_result id=${phase.id} status=pass duration_ms=${phase.duration_ms}`))
+      fail("closeout_settlement_original_invalid");
+  }
+  const results = lines.filter(x => x.startsWith("[canonical:local-full] child_result "));
+  if (results.length !== 3 || results.some(x => !x.endsWith("exit_code=0 signal=null timed_out=false exit_observed=true streams_closed=true cleanup_completed=true remaining_owned_processes=0 termination_reason=natural_exit")) ||
+    lines.filter(x => x.startsWith("[local-canonical] phase_start ")).length !== 3 ||
+    !exact(lines.filter(x => x.startsWith("[local-canonical] failure ")), ["[local-canonical] failure phase=executor code=closeout_runtime_input_changed"]) ||
+    lines.indexOf("[local-canonical] failure phase=executor code=closeout_runtime_input_changed") < lines.indexOf(results.at(-1)) ||
+    old.command_settlement.exit_code !== 1 || old.command_settlement.output_file_closed !== true ||
+    old.command_settlement.started_at !== old.command_start.started_at ||
+    !exact(old.command_settlement.argv, old.command_start.argv) ||
+    Date.parse(old.command_settlement.finished_at) < Date.parse(old.completion.finished_at)) fail("closeout_settlement_original_invalid");
+}
+
+// Read-only supplementary observation. Historical settlement is established by
+// the pinned contemporaneous records above, never by this later absence check.
+export async function observeCloseoutRuntimeSettlement(repositoryRoot, receipt, pids) {
+  const startedAt = new Date().toISOString();
+  const context = admitVerificationContext({ repositoryRoot, kind: "isolated-worktree" });
+  if (!exact(context, receipt.verification_context) || checkoutVerificationFingerprint(repositoryRoot) !== receipt.checkout_ownership.checkout_fingerprint)
+    fail("closeout_settlement_checkout_changed");
+  const anchor = realpathSync(path.resolve(repositoryRoot, gitAt(repositoryRoot)(["rev-parse", "--git-common-dir"]).toString().trim(), ".."));
+  const capacityRoot = path.join(anchor, ".augnes-local-verification", "capacity", `slot-${receipt.capacity_ownership.slot}`);
+  if (checkoutVerificationFingerprint(capacityRoot) !== receipt.capacity_ownership.checkout_fingerprint) fail("closeout_settlement_capacity_changed");
+  const owners = [[repositoryRoot, receipt.checkout_ownership], [capacityRoot, receipt.capacity_ownership]].map(([root, original]) => {
+    const file = path.join(root, ".augnes-local-verification", "checkout-owner.json"), stat = lstatSync(file, { throwIfNoEntry: false });
+    if (!stat) return { role: root === repositoryRoot ? "checkout" : "capacity", original_ownership_id: original.ownership_id, state: "absent" };
+    const current = json(safeBytes(file, 4096));
+    if (current.contract !== "augnes.local-canonical-checkout-owner.v1" || current.checkout_fingerprint !== original.checkout_fingerprint ||
+      !sha(current.owner_process_identity) || !Number.isSafeInteger(current.owner_pid) || current.ownership_id === original.ownership_id)
+      fail("closeout_settlement_owner_unresolved");
+    const birth = readProcessBirthIdentity(current.owner_pid);
+    if (birth.state !== "present" || birth.identity !== current.owner_process_identity) fail("closeout_settlement_owner_unresolved");
+    return { role: root === repositoryRoot ? "checkout" : "capacity", original_ownership_id: original.ownership_id, state: "different_live_owner", observed_ownership_id: current.ownership_id };
+  });
+  const temporaryRoot = realpathSync("/tmp"), matches = [];
+  const entries = readdirSync(temporaryRoot).filter(name => /^ag-suite-[A-Za-z0-9]+$/u.test(name));
+  if (entries.length > 1000) fail("closeout_settlement_resource_unobservable");
+  for (const name of entries) {
+    const candidate = path.join(temporaryRoot, name);
+    try { if (physicalFingerprint(candidate) === receipt.cleanup.isolated_resources.fingerprint) matches.push(candidate); }
+    catch (error) { if (error.code !== "ENOENT") throw error; }
+  }
+  if (matches.length) fail("closeout_settlement_resource_remaining");
+  const processes = pids.map(pid => ({ pid, ...readProcessBirthIdentity(pid) }));
+  if (processes.some(x => x.state !== "missing")) fail("closeout_settlement_process_unresolved");
+  for (const name of [".next", "native/windows-x64"]) {
+    if (lstatSync(path.join(repositoryRoot, name), { throwIfNoEntry: false })) fail("closeout_settlement_generated_state_remaining");
+  }
+  const companion = await inspectVerificationCompanionPreservation(context);
+  if (!exact(companion.state, receipt.cleanup.companion_service.after) || companion.diagnostics?.coherent !== true || companion.diagnostics.live_identity_valid !== true)
+    fail("closeout_settlement_companion_changed");
+  return { started_at: startedAt, finished_at: new Date().toISOString(), repository_root: repositoryRoot,
+    original_receipt: receipt.integrity.content_fingerprint, owners, processes, resource_matches: matches, companion,
+    interpretation: "current observation supplements contemporaneous settlement; original cleanup=false is unchanged" };
+}
+
+function readRuntimeSettlementReconciliation(folder, p, old, repositoryRoot) {
+  const record = json(closeoutArtifact(folder, p.correction.runtime_input.settlement)), a = CLOSEOUT_RUNTIME_INPUT_RECONCILIATION;
+  const pids = old.full_log.toString().split("\n").filter(x => x.startsWith("[canonical:local-full] child_spawn ")).map(line => Number(line.match(/ pid=(\d+) /u)?.[1]));
+  pids.push(old.command_settlement.pid);
+  const current = record.current, git = gitAt(repositoryRoot), sourcePaths = ["scripts/local-canonical-1559-closeout.mjs", "scripts/run-local-canonical-verification.mjs"];
+  if (!keys(record, ["basis", "observed_at", "prior_attempt_id", "prior_receipt_fingerprint", "original_cleanup", "original_disposition", "contemporaneous_hashes", "source_correction", "current"]) ||
+    record.basis !== "observed_settlement_reconciliation" || record.prior_attempt_id !== a.prior_attempt_id || record.prior_receipt_fingerprint !== a.prior_receipt_fingerprint ||
+    record.original_cleanup !== false || record.original_disposition !== "cleanup_incomplete" || !exact(record.contemporaneous_hashes, a.originals) ||
+    !validTime(record.observed_at) || Date.parse(record.observed_at) <= Date.parse(a.scope.timestamp) || record.observed_at !== current?.finished_at ||
+    !validTime(current?.started_at) || Date.parse(current.started_at) <= Date.parse(a.completed_at) || Date.parse(current.started_at) > Date.parse(record.observed_at) ||
+    current.original_receipt !== a.prior_receipt_fingerprint || !path.isAbsolute(current.repository_root ?? "") ||
+    !exact(current.processes?.map(x => x.pid), pids) || current.processes.some(x => x.state !== "missing") || !exact(current.resource_matches, []) ||
+    !exact(current.owners?.map(x => x.role), ["checkout", "capacity"]) || current.owners.some((x, i) => x.original_ownership_id !== [old.receipt.checkout_ownership, old.receipt.capacity_ownership][i].ownership_id || !["absent", "different_live_owner"].includes(x.state)) ||
+    !exact(current.companion?.state, old.receipt.cleanup.companion_service.after) || current.companion.diagnostics?.coherent !== true || current.companion.diagnostics.live_identity_valid !== true ||
+    !keys(record.source_correction, sourcePaths)) fail("closeout_settlement_reconciliation_invalid");
+  for (const name of sourcePaths) {
+    const before = digest(git(["show", `${a.prior_head}:${name}`])), after = digest(git(["show", `${p.head}:${name}`]));
+    if (before === after || !exact(record.source_correction[name], { before, after })) fail("closeout_settlement_correction_missing");
+  }
+  return { reference: p.correction.runtime_input.settlement.sha256, repository_root: current.repository_root, receipt: old.receipt, pids };
+}
+
+// Structural lineage inspection never supplies the evidence capability. Normal
+// admission and fresh stock also read the linked originals and reobserve owners.
+export function matchesCloseoutRuntimeSettlementPredecessor(p, prior, completion) {
+  return isCloseoutRuntimeSettlement(p) && matchesCloseoutAmendmentPredecessor(p, prior, completion);
+}
+
 function validateRuntimeInputOriginal(old) {
   const r = old.receipt, phase = r.phases?.find(x => x.id === "operability"), log = old.operability_log.toString(), rows = log.split("\n").filter(x => x.startsWith("[canonical:operability] child_result "));
   if (!exact(r.phases?.map(x => x.id), BROWSER_REPLACEMENT_PHASES) || !exact(r.phases.map(x => x.status), [...Array(8).fill("pass"), "failure", ...Array(7).fill("not_run")]) ||
@@ -1858,7 +2019,7 @@ function readRuntimeInputEvidence(folder, p, repositoryRoot, old) {
     result.exit_observed !== true || result.streams_closed !== true || result.cleanup_completed !== true || result.remaining_owned_processes !== 0 || !(result.duration_ms > 0 && result.duration_ms < 240000) ||
     settled.source_after?.node_bytes_unchanged !== true || !exact(settled.source_after.changed_original_paths, []) || !exact(settled.source_after.changed_copy_paths, []) ||
     command.node.version !== "v24.22.1" || command.node.realpath !== newNode.realpath || digest(command.node.realpath) !== binding.node.location_fingerprint || oldNode.realpath === newNode.realpath ||
-    digest(oldNode.realpath) !== binding.old_location_fingerprint || originalNode.location_fingerprint !== binding.old_location_fingerprint || originalNode.before.sha256 !== binding.node.sha256 ||
+    digest(oldNode.realpath) !== binding.old_location_fingerprint || originalNode.location_fingerprint !== (reconciledRuntimeAmendment(p) ? binding.node.location_fingerprint : binding.old_location_fingerprint) || originalNode.before.sha256 !== binding.node.sha256 ||
     oldNode.sha256 !== newNode.sha256 || newNode.sha256 !== binding.node.sha256 || newNode.bytes !== binding.node.bytes || newNode.signature_verify?.status !== 0 || oldNode.signature_verify?.status !== 0 ||
     config.node_path !== command.node.realpath || config.repository_root !== command.cwd || config.manager_entry_path !== path.join(command.cwd, "scripts/augnes-companion-service.mjs") ||
     !bytes.plist.includes(Buffer.from(command.node.realpath)) || !bytes.output_log.includes(Buffer.from('"status": "pass"')) || !bytes.output_log.includes(Buffer.from('"case":"native-cleanup","completed":true'))) fail("closeout_runtime_native_evidence_invalid");
@@ -1867,15 +2028,18 @@ function readRuntimeInputEvidence(folder, p, repositoryRoot, old) {
   // package inputs and the actual native dependency closure must also be exact.
   for (const name of ["package.json", "package-lock.json", "apps/augnes_apps/package.json", "apps/augnes_apps/package-lock.json", "apps/web_planning/package.json", "apps/web_planning/package-lock.json"])
     if (!git(["show", `${p.head}:${name}`]).equals(git(["show", `${command.head}:${name}`]))) fail("closeout_runtime_package_input_changed");
+  const comparisonDependencies = [];
   for (const [i, declared] of binding.dependencies.entries()) {
     const observed = command.dependencies[i], manifest = bytes[`dependencies_${i}`];
     if (observed?.path !== declared.path || observed.physical_copy !== true || observed.source_unchanged_during_copy !== true || observed.manifest_sha256 !== declared.manifest_sha256 ||
       digest(manifest) !== declared.manifest_sha256 || json(manifest).length !== declared.entries) fail("closeout_runtime_dependency_evidence_invalid");
+    const compared = closeoutDependencyComparisonRows(declared.path, json(manifest));
+    comparisonDependencies.push({ path: declared.path, manifest_sha256: digest(JSON.stringify(compared, null, 2) + "\n"), entries: compared.length });
   }
   const nodeOnly = json(bytes.node_only_failure), diagnostic = json(bytes.diagnostic_failure);
   if (nodeOnly.result?.exit_code !== 1 || nodeOnly.result.timed_out !== false || diagnostic.result?.exit_code !== 1 || diagnostic.result.timed_out !== false)
     fail("closeout_runtime_prior_failure_missing");
-  return { repository_root: repositoryRoot, node_path: command.node.realpath, native_settlement: refs.settlement.sha256,
+  return { repository_root: repositoryRoot, node_path: command.node.realpath, comparison_dependencies: comparisonDependencies, native_settlement: refs.settlement.sha256,
     original_cause: "UNKNOWN", limits: command.limits, dependency_observation: "fresh admission, phase boundaries and stock; not continuous invariance" };
 }
 
@@ -1883,14 +2047,16 @@ function readRuntimeInputEvidence(folder, p, repositoryRoot, old) {
 // external/shared trees are accepted; relative links within each graph remain.
 // Content, mode and link targets are stable across normal npm ci; inode/mtime
 // are deliberately not compared for these regenerated dependency files.
-export function observeCloseoutRuntimeLayout(repositoryRoot, dependencyPaths, nodePath = process.execPath) {
+export function observeCloseoutRuntimeLayout(repositoryRoot, dependencyPaths, nodePath = process.execPath, { comparison = null } = {}) {
+  if (comparison !== null && comparison !== "vite_empty_config_directory") fail("closeout_runtime_comparison_invalid");
   if (realpathSync(repositoryRoot) !== repositoryRoot || realpathSync(nodePath) !== nodePath) fail("closeout_runtime_layout_unsafe");
   const stat = lstatSync(nodePath);
   if (!stat.isFile() || stat.nlink !== 1 || !(stat.mode & 0o111)) fail("closeout_runtime_layout_unsafe");
   const node = { location_fingerprint: digest(nodePath), sha256: digest(readFileSync(nodePath)), bytes: stat.size, device: String(stat.dev), inode: String(stat.ino), mode: stat.mode & 0o777, uid: stat.uid, gid: stat.gid };
   if (!exact(dependencyPaths, ["node_modules", "apps/augnes_apps/node_modules", "apps/web_planning/node_modules"])) fail("closeout_runtime_dependency_inventory_invalid");
-  const dependencies = dependencyPaths.map(name => {
-    const root = path.join(repositoryRoot, name), rows = [], hardLinks = new Map();
+  const comparisonDependencies = [];
+  const dependencies = dependencyPaths.map(dependencyPath => {
+    const root = path.join(repositoryRoot, dependencyPath), rows = [], hardLinks = new Map();
     if (realpathSync(root) !== root || !lstatSync(root).isDirectory()) fail("closeout_runtime_external_dependency_link");
     const visit = (directory, prefix = "") => {
       for (const name of readdirSync(directory).sort()) {
@@ -1900,7 +2066,18 @@ export function observeCloseoutRuntimeLayout(repositoryRoot, dependencyPaths, no
           const target = readlinkSync(file);
           if (path.isAbsolute(target) || !realpathSync(file).startsWith(root + path.sep)) fail("closeout_runtime_external_dependency_link");
           rows.push({ ...row, type: "symlink", target });
-        } else if (stat.isDirectory()) { rows.push({ ...row, type: "directory" }); visit(file, relative); }
+        } else if (stat.isDirectory()) {
+          // Only this evidenced generated container is optional. A real empty
+          // directory must still have safe ownership/mode and a stable read.
+          const generated = comparison && dependencyPath === "apps/web_planning/node_modules" && relative === ".vite-temp";
+          if (generated && ((stat.mode & 0o7777) !== 0o755 || stat.uid !== process.getuid() || stat.gid !== lstatSync(root).gid))
+            fail("closeout_runtime_layout_unsafe");
+          rows.push({ ...row, type: "directory" }); visit(file, relative);
+          if (generated) {
+            const after = lstatSync(file);
+            if (["dev", "ino", "mode", "uid", "gid", "mtimeMs", "ctimeMs"].some(key => stat[key] !== after[key])) fail("closeout_runtime_input_changed");
+          }
+        }
         else {
           if (!stat.isFile() || stat.size > 512 * 1024 * 1024) fail("closeout_runtime_layout_unsafe");
           if (stat.nlink > 1) {
@@ -1918,18 +2095,30 @@ export function observeCloseoutRuntimeLayout(repositoryRoot, dependencyPaths, no
     // npm may hard-link binaries inside one graph. A link outside that graph
     // would make the inode's link count greater than the observed membership.
     if ([...hardLinks.values()].some(row => row.count !== row.links)) fail("closeout_runtime_external_dependency_link");
-    return { path: name, manifest_sha256: digest(JSON.stringify(rows, null, 2) + "\n"), entries: rows.length };
+    const manifest = values => ({ path: dependencyPath, manifest_sha256: digest(JSON.stringify(values, null, 2) + "\n"), entries: values.length });
+    if (comparison) comparisonDependencies.push(manifest(closeoutDependencyComparisonRows(dependencyPath, rows)));
+    return manifest(rows);
   });
-  return { node, dependencies };
+  return { node, dependencies, ...(comparison ? { comparison_dependencies: comparisonDependencies } : {}) };
+}
+
+// Raw manifests remain immutable. Historical callers retain exact comparison;
+// the prospective interpretation removes only the single verified empty row.
+export function closeoutDependencyComparisonRows(name, rows) {
+  if (name !== "apps/web_planning/node_modules" || rows.some(row => row.path.startsWith(".vite-temp/"))) return rows;
+  return rows.filter(row => !exact(row, { path: ".vite-temp", mode: 0o755, type: "directory" }));
 }
 
 export function assertCloseoutRuntimeInputs(p, frozenInputs) {
   if (!isCloseoutRuntimeInputCorrection(p)) return null;
   const evidence = amendedEvidence.get(digest(normalizedProof(p)))?.runtime_input, binding = p.correction?.runtime_input?.binding;
   if (!evidence || !exact(binding, CLOSEOUT_RUNTIME_INPUT_AMENDMENT.runtime_input_binding) || realpathSync(process.execPath) !== evidence.node_path) fail("closeout_runtime_input_unverified");
-  const actual = observeCloseoutRuntimeLayout(evidence.repository_root, binding.dependencies.map(row => row.path), evidence.node_path);
+  const actual = observeCloseoutRuntimeLayout(evidence.repository_root, binding.dependencies.map(row => row.path), evidence.node_path,
+    { comparison: reconciledRuntimeAmendment(p) ? "vite_empty_config_directory" : null });
   assertRuntimeFrozenNode(p, frozenInputs);
-  if (!exact(actual, { node: binding.node, dependencies: binding.dependencies })) fail("closeout_runtime_input_changed");
+  if (reconciledRuntimeAmendment(p)
+    ? !exact(actual.node, binding.node) || !exact(actual.comparison_dependencies, evidence.comparison_dependencies)
+    : !exact(actual, { node: binding.node, dependencies: binding.dependencies })) fail("closeout_runtime_input_changed");
   return digest(actual);
 }
 function assertRuntimeFrozenNode(p, frozenInputs) {
@@ -1948,7 +2137,8 @@ function semanticAmendedProof(p) {
     p.prior_receipt_fingerprint === a.prior_receipt_fingerprint && exact(p.budget, BUDGET) && p.predecessor_proof?.sha256 === a.predecessor_proof &&
     keys(p.originals, Object.keys(a.originals)) && Object.entries(a.originals).every(([name, hash]) => p.originals[name]?.sha256 === hash) &&
     (runtimeAmendment(p) ? keys(p.correction, ["runtime_input", "validation"]) &&
-      keys(p.correction.runtime_input, ["binding", "evidence"]) && exact(p.correction.runtime_input.binding, a.runtime_input_binding) &&
+      keys(p.correction.runtime_input, reconciledRuntimeAmendment(p) ? ["binding", "evidence", "comparison", "settlement"] : ["binding", "evidence"]) &&
+      (!reconciledRuntimeAmendment(p) || (p.correction.runtime_input.comparison === "vite_empty_config_directory" && sha(p.correction.runtime_input.settlement?.sha256))) && exact(p.correction.runtime_input.binding, a.runtime_input_binding) &&
       keys(p.correction.runtime_input.evidence, Object.keys(a.native_evidence)) && Object.entries(a.native_evidence).every(([name, hash]) => p.correction.runtime_input.evidence[name]?.sha256 === hash)
       : keys(p.correction, ["execution_budgets", "validation"]) && exact(p.correction.execution_budgets, a.execution_budgets)) && sha(p.correction.validation?.sha256) && sha(p.final_source?.sha256) &&
     p.source_scope?.accepted_head === a.prior_head && p.source_scope.current_main === p.base &&
@@ -1961,14 +2151,14 @@ export function matchesCloseoutAmendmentPredecessor(p, prior, completion = null)
     (!completion || (completion.attempt_id === prior.attempt_id && completion.receipt_fingerprint === p.prior_receipt_fingerprint && completion.disposition === "product_failure" && completion.cleanup_complete === true && validTime(completion.finished_at)));
   const a = amendmentAuthority(p);
   return semanticAmendedProof(p) && prior?.family_id === a.prior_family_id && prior.number === 1 && prior.attempt_id === a.prior_attempt_id &&
-    (!completion || (completion.receipt_fingerprint === a.prior_receipt_fingerprint && completion.finished_at === a.completed_at && completion.disposition === "product_failure" && completion.cleanup_complete === true));
+    (!completion || (completion.receipt_fingerprint === a.prior_receipt_fingerprint && completion.finished_at === a.completed_at && completion.disposition === (reconciledRuntimeAmendment(p) ? "cleanup_incomplete" : "product_failure") && completion.cleanup_complete === !reconciledRuntimeAmendment(p)));
 }
 function readAmendedValidation(folder, p, repositoryRoot) {
   const value = json(closeoutArtifact(folder, p.correction.validation)), git = gitAt(repositoryRoot), a = amendmentAuthority(p), hierarchy = auxiliaryAmendment(p);
   const runtime = runtimeAmendment(p), entries = runtime ? Object.fromEntries(Object.entries(auxiliaryValidationEntries()).filter(([name]) => ["executor", "receipt"].includes(name))) : hierarchy ? auxiliaryValidationEntries() : { executor: ["scripts/test-local-canonical-executor.mjs", a.execution_budgets.executorHarnessMs], receipt: ["scripts/test-local-canonical-receipt.mjs", a.execution_budgets.receiptHarnessMs], review: ["scripts/test-local-canonical-review-corrections.mjs", a.execution_budgets.reviewHarnessMs] };
   if (!keys(value, ["nondeciding", "basis", "records"]) || value.nondeciding !== true || value.basis !== "bounded_parent_controls" || !Array.isArray(value.records) ||
     !exact(value.records.map(row => row.name).sort(), Object.keys(entries).sort())) fail("closeout_amendment_validation_invalid");
-  const hashes = new Map((runtime ? [...RUNTIME_INPUT_PATHS].sort() : hierarchy ? [...AUXILIARY_AMENDMENT_PATHS].sort() : AMENDMENT_SOURCE_PATHS).map(name => [name, digest(git(["show", `${p.head}:${name}`]))]));
+  const hashes = new Map((runtime ? [...runtimePolicyPaths(p)].sort() : hierarchy ? [...AUXILIARY_AMENDMENT_PATHS].sort() : AMENDMENT_SOURCE_PATHS).map(name => [name, digest(git(["show", `${p.head}:${name}`]))]));
   for (const row of value.records) {
     if (!keys(row, ["name", "source_command", "output", "settlement"])) fail("closeout_amendment_validation_invalid");
     const command = json(closeoutArtifact(folder, row.source_command)), settled = json(closeoutArtifact(folder, row.settlement)), output = closeoutArtifact(folder, row.output), [entry, budget, ...flags] = entries[row.name], r = settled.result;
@@ -1995,13 +2185,13 @@ export function readCloseoutAmendedEvidence(file, p, repositoryRoot) {
   const predecessor = json(closeoutArtifact(folder, p.predecessor_proof));
   if (!matchesCloseoutAmendmentPredecessor(p, prior, completion) || r.integrity?.content_fingerprint !== p.prior_receipt_fingerprint || digest(copy) !== p.prior_receipt_fingerprint || !exact(r.attempt, prior) ||
     prior.head !== a.prior_head || prior.tree !== a.prior_tree || (hierarchy || runtime ? !validAmendedCloseoutAttempt(prior) || !Object.hasOwn(predecessor, "scope_amendment") : !validCloseoutScopeFixtureCorrectionAttempt(prior) || Object.hasOwn(predecessor, "scope_amendment")) || !exact(normalizedProof(prior.source_correction), normalizedProof(predecessor)) ||
-    r.outcome?.disposition !== "product_failure" || r.cleanup?.completed !== true || r.repository?.head_sha !== a.prior_head || r.repository.tree_sha !== a.prior_tree ||
+    r.outcome?.disposition !== (reconciledRuntimeAmendment(p) ? "cleanup_incomplete" : "product_failure") || r.cleanup?.completed !== !reconciledRuntimeAmendment(p) || r.repository?.head_sha !== a.prior_head || r.repository.tree_sha !== a.prior_tree ||
     r.repository.repository_id !== "hynk-studio/augnes" || r.repository.origin !== "https://github.com/hynk-studio/augnes.git" || r.repository.branch !== p.branch || completion.infrastructure_code !== null ||
     !exact(prior.closeout_instruction_input, closeoutInstructionInputBinding(predecessor, r.inputs)) ||
     old.edge.kind !== predecessor.kind || old.edge.family_id !== prior.family_id || old.edge.head !== prior.head || old.edge.tree !== prior.tree || old.edge.proof_fingerprint !== digest(prior.source_correction) ||
-    old.stock.content_fingerprint !== p.prior_receipt_fingerprint || old.stock.valid_deciding_evidence !== false || old.stock.issues?.length !== (runtime ? 12 : 14)) fail("closeout_amendment_original_binding_invalid");
+    old.stock.content_fingerprint !== p.prior_receipt_fingerprint || old.stock.valid_deciding_evidence !== false || old.stock.issues?.length !== (reconciledRuntimeAmendment(p) ? 19 : runtime ? 12 : 14)) fail("closeout_amendment_original_binding_invalid");
   if (hierarchy || runtime) {
-    if (runtime) validateRuntimeInputOriginal(old); else validateAuxiliaryAmendmentOriginal(old, p);
+    if (reconciledRuntimeAmendment(p)) validateRuntimeSettlementOriginal(old); else if (runtime) validateRuntimeInputOriginal(old); else validateAuxiliaryAmendmentOriginal(old, p);
     readCloseoutAmendedEvidence(path.join(folder, p.predecessor_proof.artifact), predecessor, repositoryRoot);
   } else readCloseoutScopeFixtureCorrectionEvidence(path.join(folder, p.predecessor_proof.artifact), predecessor, repositoryRoot);
   const git = gitAt(repositoryRoot), source = json(closeoutArtifact(folder, p.final_source));
@@ -2015,6 +2205,7 @@ export function readCloseoutAmendedEvidence(file, p, repositoryRoot) {
   if (!exact(scope, p.source_scope)) fail("closeout_amendment_source_scope_mismatch");
   const evidence = readAmendedValidation(folder, p, repositoryRoot);
   if (runtime) evidence.runtime_input = readRuntimeInputEvidence(folder, p, repositoryRoot, old);
+  if (reconciledRuntimeAmendment(p)) evidence.settlement = readRuntimeSettlementReconciliation(folder, p, old, repositoryRoot);
   if (hierarchy || runtime) evidence.completed_at = completion.finished_at;
   amendedEvidence.set(digest(normalizedProof(p)), evidence);
   return { original: r, prior, completion, source, evidence };
@@ -2123,6 +2314,11 @@ async function authorizeAmendedCloseout(p, { transport = createGitHubObserverAut
   const evidence = amendedEvidence.get(digest(normalizedProof(p))), a = amendmentAuthority(p);
   if (!semanticAmendedProof(p) || !evidence) fail("closeout_amendment_authority_missing");
   assertCloseoutRuntimeInputs(p, frozenInputs);
+  if (isCloseoutRuntimeSettlement(p)) {
+    const settlement = evidence.settlement;
+    if (!settlement) fail("closeout_settlement_reconciliation_missing");
+    await observeCloseoutRuntimeSettlement(settlement.repository_root, settlement.receipt, settlement.pids);
+  }
   const fingerprint = assertCloseoutInstructionInputs(p, frozenInputs, { requireUnfaulted: false }), original = await authorizeContinuingScope(p, evidence, transport);
   const supplemental = await authorizeContinuingScope({ ...p, authorization: { scope_comment_id: a.comment_id, scope_sha256: a.observation_sha256 } }, evidence, transport, a.scope);
   const capability = Object.freeze({ observations: { closeout_scope: original.observations.closeout_scope, scope_amendment: supplemental.observations.closeout_scope } });

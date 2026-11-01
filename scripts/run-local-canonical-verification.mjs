@@ -652,6 +652,11 @@ export async function executeLocalCanonicalVerification({
   let executionFailure = preflightIssues.length > 0;
   let cleanupComplete = true;
   let cleanupReason = null;
+  let executionReason = null;
+  const cleanupErrors = [];
+  const recordCleanupFailure = code => {
+    cleanupComplete = false; cleanupReason ??= code; cleanupErrors.push(code);
+  };
   // A selected plan is not ownership. Acquisition must return successfully
   // before this invocation may mutate (or finally remove) shared build state.
   let sharedGeneratedStateOwned = false;
@@ -793,6 +798,7 @@ export async function executeLocalCanonicalVerification({
           });
           actualBrowserVersion ??= result.browser_use?.[0]?.actual_version ?? null;
           checkoutConsumersSettled = result.cleanup?.completed === true &&
+            result.cleanup?.exit_observed === true && result.cleanup?.streams_closed === true &&
             result.cleanup?.remaining_owned_processes === 0;
           return result;
         },
@@ -827,17 +833,14 @@ export async function executeLocalCanonicalVerification({
     }
   } catch (error) {
     executionFailure = true;
-    cleanupComplete = false;
-    cleanupReason = safeErrorCode(error);
+    executionReason = safeErrorCode(error);
     if (error.isolatedResourceCleanup) isolatedResourceCleanup = error.isolatedResourceCleanup;
     if (error.historicalInputCleanup) historicalInputCleanup = error.historicalInputCleanup;
     if (checkoutOwnership.required && !checkoutOwnership.acquired) {
-      checkoutOwnership.failure_code = cleanupReason;
+      checkoutOwnership.failure_code = executionReason;
     }
-    if (capacityOwnership.required && !capacityOwnership.acquired) capacityOwnership.failure_code = cleanupReason;
-    console.error(
-      `[local-canonical] failure phase=executor code=${cleanupReason}`,
-    );
+    if (capacityOwnership.required && !capacityOwnership.acquired) capacityOwnership.failure_code = executionReason;
+    console.error(`[local-canonical] failure phase=executor code=${executionReason}`);
   } finally {
     console.log("[local-canonical] cleanup_start");
     try {
@@ -846,8 +849,7 @@ export async function executeLocalCanonicalVerification({
           nextState.removed_after_execution =
             removeBoundedGeneratedNextState({ checkoutOwner });
         } catch (error) {
-          cleanupComplete = false;
-          cleanupReason = safeErrorCode(error);
+          recordCleanupFailure(safeErrorCode(error));
         }
       }
       if (sharedGeneratedStateOwned) {
@@ -855,8 +857,7 @@ export async function executeLocalCanonicalVerification({
         generatedNextPresentAfterExecutionCleanup = generatedNextEntryPresent();
       }
       if (sharedGeneratedStateOwned && generatedNextManaged && generatedNextPresentAfterExecutionCleanup) {
-        cleanupComplete = false;
-        cleanupReason ??= "generated_next_cleanup_incomplete";
+        recordCleanupFailure("generated_next_cleanup_incomplete");
       }
       if (
         sharedGeneratedStateOwned &&
@@ -870,8 +871,7 @@ export async function executeLocalCanonicalVerification({
           rmSync(generatedWindowsHelperRoot, { recursive: true, force: true });
           windowsHelperState.removed_after_execution = true;
         } catch (error) {
-          cleanupComplete = false;
-          cleanupReason = safeErrorCode(error);
+          recordCleanupFailure(safeErrorCode(error));
         }
       }
       if (checkoutConsumersSettled && dependencyMaintenance && !dependencyMaintenanceRelease) {
@@ -881,8 +881,7 @@ export async function executeLocalCanonicalVerification({
             lease: dependencyMaintenance.lease,
           });
         } catch (error) {
-          cleanupComplete = false;
-          cleanupReason = safeErrorCode(error);
+          recordCleanupFailure(safeErrorCode(error));
         }
       }
       try {
@@ -898,8 +897,7 @@ export async function executeLocalCanonicalVerification({
           });
         }
       } catch (error) {
-        cleanupComplete = false;
-        cleanupReason = safeErrorCode(error);
+        recordCleanupFailure(safeErrorCode(error));
       }
       if (serviceLifecycleBefore !== null) {
         if (checkoutContext === "isolated-worktree") {
@@ -918,32 +916,29 @@ export async function executeLocalCanonicalVerification({
         generatedWindowsHelperPresentAfter = existsSync(generatedWindowsHelperRoot);
       }
     } catch (error) {
-      cleanupComplete = false;
-      cleanupReason = safeErrorCode(error);
+      recordCleanupFailure(safeErrorCode(error));
     } finally {
       if (historicalInputs) {
         try {
           historicalInputCleanup = finishHistoricalInputs(historicalInputs, { consumersSettled: checkoutConsumersSettled });
           if (!historicalInputCleanup.completed || !historicalInputCleanup.unchanged) {
-            cleanupComplete = false;
-            cleanupReason ??= "historical_inputs_not_preserved";
+            recordCleanupFailure("historical_inputs_not_preserved");
           }
-        } catch (error) { cleanupComplete = false; cleanupReason = safeErrorCode(error); }
+        } catch (error) { recordCleanupFailure(safeErrorCode(error)); }
       }
       if (isolatedResources) {
         try {
           isolatedResourceCleanup = cleanupIsolatedInvocationResources(isolatedResources, { consumersSettled: checkoutConsumersSettled });
           if (!isolatedResourceCleanup.completed) {
-            cleanupComplete = false;
-            cleanupReason ??= "isolated_resources_cleanup_incomplete";
+            recordCleanupFailure("isolated_resources_cleanup_incomplete");
           }
-        } catch (error) { cleanupComplete = false; cleanupReason = safeErrorCode(error); }
+        } catch (error) { recordCleanupFailure(safeErrorCode(error)); }
       }
       inputMonitor?.stop();
       if (inputMonitor?.fault()) executionFailure = true;
       if (browserGuard) {
         try { releaseBrowserInputGuard(browserGuard, { settled: checkoutConsumersSettled }); browserGuardReleased = true; }
-        catch (error) { cleanupComplete = false; cleanupReason = safeErrorCode(error); }
+        catch (error) { recordCleanupFailure(safeErrorCode(error)); }
       }
       if (checkoutOwner) {
         try {
@@ -951,9 +946,8 @@ export async function executeLocalCanonicalVerification({
             consumersSettled: checkoutConsumersSettled && (!historicalInputs || historicalInputCleanup?.completed === true),
           }));
         } catch (error) {
-          cleanupComplete = false;
-          cleanupReason = safeErrorCode(error);
-          checkoutOwnership.failure_code = cleanupReason;
+          recordCleanupFailure(safeErrorCode(error));
+          checkoutOwnership.failure_code = safeErrorCode(error);
         }
       }
       if (capacityLease) {
@@ -963,12 +957,28 @@ export async function executeLocalCanonicalVerification({
               (!historicalInputs || historicalInputCleanup?.completed === true),
           }));
         } catch (error) {
-          cleanupComplete = false; cleanupReason = safeErrorCode(error);
-          capacityOwnership.failure_code = cleanupReason;
+          recordCleanupFailure(safeErrorCode(error));
+          capacityOwnership.failure_code = safeErrorCode(error);
         }
       }
     }
   }
+
+  // Execution exceptions do not prove a cleanup failure. Every acquired
+  // obligation must nevertheless have a positive settlement observation.
+  if (!checkoutConsumersSettled || phaseReceipts.some(phase => phase.status !== "not_run" &&
+      (phase.cleanup?.completed !== true || phase.cleanup?.exit_observed !== true ||
+       phase.cleanup?.streams_closed !== true || phase.cleanup?.remaining_owned_processes !== 0)))
+    recordCleanupFailure("executor_consumers_unsettled");
+  if ((checkoutOwnership.acquired && checkoutOwnership.released !== true) ||
+      (capacityOwnership.acquired && capacityOwnership.released !== true) ||
+      (browserGuard && !browserGuardReleased) ||
+      (dependencyMaintenance?.acquired && dependencyMaintenanceRelease?.released !== true))
+    recordCleanupFailure("executor_lease_settlement_unobserved");
+  if ((isolatedResources && isolatedResourceCleanup?.completed !== true) ||
+      (isolatedResourceCleanup && (isolatedResourceCleanup.completed !== true || isolatedResourceCleanup.failure_count !== 0)) ||
+      (historicalInputs && (historicalInputCleanup?.completed !== true || historicalInputCleanup?.unchanged !== true)))
+    recordCleanupFailure("executor_resource_settlement_unobserved");
 
   const serviceLifecycleRestored = checkoutContext === "isolated-worktree"
     ? serviceLifecycleBefore?.preservation_valid === true && serviceLifecycleAfter?.preservation_valid === true && JSON.stringify(serviceLifecycleBefore) === JSON.stringify(serviceLifecycleAfter)
@@ -979,8 +989,7 @@ export async function executeLocalCanonicalVerification({
   if (!serviceLifecycleRestored) {
     inputs?.reportSafetyEvent("installed_service_change");
     executionFailure = true;
-    cleanupComplete = false;
-    cleanupReason ??= "companion_service_not_restored";
+    recordCleanupFailure("companion_service_not_restored");
   }
   const cleanupRemaining = !checkoutConsumersSettled || phaseReceipts.some(
     (phase) =>
@@ -1051,7 +1060,8 @@ export async function executeLocalCanonicalVerification({
   const reasonCodes = [
     ...(signal?.aborted ? ["verification_cancelled"] : []),
     ...preflightIssues,
-    ...(cleanupReason ? [cleanupReason] : []),
+    ...(executionReason ? [executionReason] : []),
+    ...cleanupErrors,
     ...phaseReceipts
       .filter((phase) => phase.status === "failure")
       .map((phase) => phase.failure_code),
@@ -1060,8 +1070,9 @@ export async function executeLocalCanonicalVerification({
     ...(plan.selected_plan === "documentation-only" ? ["documentation_feedback_not_deciding"] : []),
     ...(!nodePolicy.canonical_match ? ["canonical_node_mismatch"] : []),
   ];
-  const disposition = deriveOperationalDisposition({ phases: phaseReceipts, admitted: preflightIssues.length === 0,
+  const observedDisposition = deriveOperationalDisposition({ phases: phaseReceipts, admitted: preflightIssues.length === 0,
     fault: inputMonitor?.fault(), cancelled: signal.aborted && !inputMonitor?.fault(), cleanup: cleanupComplete && remainingOwnedProcesses === 0 });
+  const disposition = executionReason && observedDisposition === "completed_success" ? "product_failure" : observedDisposition;
   const receipt = finalizeReceipt({
     schema: LOCAL_CANONICAL_RECEIPT_SCHEMA,
     receipt_version: browserInput ? 5 : LOCAL_CANONICAL_RECEIPT_VERSION,
@@ -1079,8 +1090,8 @@ export async function executeLocalCanonicalVerification({
     inputs: inputs?.snapshot() ?? null,
     ...(browserInput ? { browser_input: browserInput.publicBinding, browser_guard: { acquired: browserGuard !== null, released: browserGuardReleased, run_id: runId } } : {}),
     attempt: attempt ? { ...attempt } : null,
-    outcome: { disposition, first_fault: inputMonitor?.fault() ?? null, execution: allSelectedPhasesPassed ? "complete_pass" : "incomplete_or_failed",
-      validity: inputs && !inputMonitor?.fault() && cleanupComplete ? "valid_within_observed_scope" : "invalid_or_unknown",
+    outcome: { disposition, first_fault: inputMonitor?.fault() ?? null, execution: !executionFailure && allSelectedPhasesPassed ? "complete_pass" : "incomplete_or_failed",
+      validity: inputs && !executionReason && !inputMonitor?.fault() && cleanupComplete ? "valid_within_observed_scope" : "invalid_or_unknown",
       safety: inputMonitor?.fault() ? "blocked" : cleanupComplete ? "preserved_within_observed_scope" : "unknown",
       applicability_at_admission: integrationBase?.status === "admitted" ? "current_base" : "blocked" },
     integration_base: integrationBase,
@@ -1184,6 +1195,7 @@ export async function executeLocalCanonicalVerification({
     },
     cleanup: {
       completed: cleanupComplete && remainingOwnedProcesses === 0,
+      failure_codes: [...new Set(cleanupErrors)],
       remaining_owned_processes: remainingOwnedProcesses,
       isolated_resources: {
         required: checkoutContext === "isolated-worktree",
