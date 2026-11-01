@@ -31,6 +31,7 @@ import {
 import {
   buildReviewDecisionV01,
   createEpisodeDeltaCandidateFingerprintV01,
+  createReviewDecisionProposalRelationValidatorV01,
   validateReviewDecisionAgainstEpisodeDeltaProposalV01,
   validateReviewDecisionV01,
 } from "@/lib/vnext/review-decision";
@@ -95,6 +96,9 @@ export const VNEXT_OPERATOR_PILOT_DEFAULT_DEFER_EXPIRY_MS_V01 =
 // Retained for the separately owned compiled-packet reader.
 export const VNEXT_OPERATOR_PILOT_MAX_REVIEW_RECORDS_V01 = 128;
 const REVIEW_HISTORY_DISPLAY_SIZE = 128;
+type ProposalRelationValidatorV01 = ReturnType<
+  typeof createReviewDecisionProposalRelationValidatorV01
+>;
 export const VNEXT_OPERATOR_PILOT_DECISION_REQUEST_VERSION_V01 =
   "vnext_operator_pilot_decision_request.v0.1" as const;
 
@@ -1338,8 +1342,8 @@ function validatePersistedDecisionV01(record: VNextCoreRecordEnvelopeV01): Revie
   return decision;
 }
 
-function assertDecisionProposalRelationV01(decision: ReviewDecisionV01, proposal: EpisodeDeltaProposalV01) {
-  if (validateReviewDecisionAgainstEpisodeDeltaProposalV01(decision, proposal).status !== "valid") {
+function assertDecisionProposalRelationV01(decision: ReviewDecisionV01, validateRelation: ProposalRelationValidatorV01) {
+  if (validateRelation(decision).status !== "valid") {
     throw reviewError("operator_pilot_persisted_decision_invalid", 422);
   }
 }
@@ -1351,12 +1355,24 @@ export function readVNextOperatorPilotReviewDecisionV01(
   proposal: EpisodeDeltaProposalV01,
   decisionId: string,
 ): ReviewDecisionV01 | null {
+  return readReviewDecisionWithProposalRelationV01(
+    db, config, decisionId,
+    (decision) => validateReviewDecisionAgainstEpisodeDeltaProposalV01(decision, proposal),
+  );
+}
+
+function readReviewDecisionWithProposalRelationV01(
+  db: Database.Database,
+  config: VNextLocalOperatorPilotConfigV01,
+  decisionId: string,
+  validateRelation: ProposalRelationValidatorV01,
+): ReviewDecisionV01 | null {
   const record = readVNextCoreRecordV01(db, {
     ...config, record_kind: "review_decision", record_id: decisionId,
   });
   if (!record) return null;
   const decision = validatePersistedDecisionV01(record);
-  assertDecisionProposalRelationV01(decision, proposal);
+  assertDecisionProposalRelationV01(decision, validateRelation);
   return decision;
 }
 
@@ -1364,13 +1380,14 @@ function* loadProposalDecisions(
   db: Database.Database,
   config: VNextLocalOperatorPilotConfigV01,
   proposal: EpisodeDeltaProposalV01,
+  validateRelation: ProposalRelationValidatorV01,
 ): Generator<ReviewDecisionV01> {
   for (const record of iterateVNextCoreRecordsV01(db, {
     ...config, record_kind: "review_decision", order: "oldest_first",
   })) {
     const decision = validatePersistedDecisionV01(record);
     if (decision.source_proposal.proposal_id !== proposal.proposal_id) continue;
-    assertDecisionProposalRelationV01(decision, proposal);
+    assertDecisionProposalRelationV01(decision, validateRelation);
     yield decision;
   }
 }
@@ -1430,6 +1447,10 @@ function readProposalHistoryV01(
   proposal: EpisodeDeltaProposalV01,
   admissions: VNextOperatorPilotCandidateAdmissionV01[],
 ) {
+  // This snapshot belongs only to this synchronous history read. Decisions,
+  // envelopes and live session/record provenance are revalidated at every
+  // existing read; only repeated validation of the same pure proposal is shared.
+  const validateRelation = createReviewDecisionProposalRelationValidatorV01(proposal);
   // Keep the complete ordered comparison index, not complete protocol payloads.
   // The lineage comparator is not a pairwise maximum: preserve its stable sort
   // over the same oldest-first input, including priors on other pages.
@@ -1437,10 +1458,10 @@ function readProposalHistoryV01(
     candidate: ReviewDecisionV01["candidate"];
     eligible: boolean;
   }> = [];
-  for (const decision of loadProposalDecisions(db, input.config, proposal)) {
-    const provenance = validateVNextOperatorPilotReviewDecisionProvenanceV01(db, {
+  for (const decision of loadProposalDecisions(db, input.config, proposal, validateRelation)) {
+    const provenance = validateReviewDecisionProvenanceWithProposalRelationV01(db, {
       ...input, proposal, decision,
-    });
+    }, validateRelation);
     index.push({
       decision_id: decision.decision_id,
       decided_at: decision.decided_at,
@@ -1467,9 +1488,9 @@ function readProposalHistoryV01(
     ...(effectiveIndex ? [effectiveIndex] : []),
   ].map((entry) => entry.decision_id));
   const decisionHistory = index.filter((entry) => selectedIds.has(entry.decision_id)).map((entry) => {
-    const decision = readVNextOperatorPilotReviewDecisionV01(db, input.config, proposal, entry.decision_id);
+    const decision = readReviewDecisionWithProposalRelationV01(db, input.config, entry.decision_id, validateRelation);
     if (!decision) throw reviewError("operator_pilot_persisted_decision_missing", 422);
-    const provenance = validateVNextOperatorPilotReviewDecisionProvenanceV01(db, { ...input, proposal, decision });
+    const provenance = validateReviewDecisionProvenanceWithProposalRelationV01(db, { ...input, proposal, decision }, validateRelation);
     return {
       decision, ...provenance,
       pilot_actionable: provenance.pilot_actionable && effectiveCandidateIndexes.some(
@@ -1660,6 +1681,14 @@ export function validateVNextOperatorPilotReviewDecisionProvenanceV01(
     authenticated_session_id: string | null;
   },
 ): VNextOperatorPilotDecisionProvenanceValidationV01 {
+  return validateReviewDecisionProvenanceWithProposalRelationV01(db, input);
+}
+
+function validateReviewDecisionProvenanceWithProposalRelationV01(
+  db: Database.Database,
+  input: Parameters<typeof validateVNextOperatorPilotReviewDecisionProvenanceV01>[1],
+  validateRelation?: ProposalRelationValidatorV01,
+): VNextOperatorPilotDecisionProvenanceValidationV01 {
   const { config, proposal, decision } = input;
   const errors: string[] = [];
   const add = (code: string) => {
@@ -1670,7 +1699,9 @@ export function validateVNextOperatorPilotReviewDecisionProvenanceV01(
     add("operator_pilot_decision_invalid");
   }
   if (
-    validateReviewDecisionAgainstEpisodeDeltaProposalV01(decision, proposal)
+    (validateRelation
+      ? validateRelation(decision)
+      : validateReviewDecisionAgainstEpisodeDeltaProposalV01(decision, proposal))
       .status !== "valid"
   ) {
     add("operator_pilot_decision_relation_invalid");

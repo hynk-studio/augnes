@@ -1,5 +1,6 @@
 // Explicitly synthetic predecessor and authority. Only disposable ledgers and
 // bounded deterministic witnesses are used; no GitHub or provider calls occur.
+import { AUXILIARY_EXECUTION_BUDGETS } from "../local-canonical-closeout-budgets.mjs";
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync, readFileSync, cpSync, rmSync, existsSync, readdirSync } from "node:fs";
 import path from "node:path";
@@ -161,7 +162,7 @@ export async function timeoutSuccessionControls(group = "all") {
   const child = async (args, controlId) => {
     active++; let output = "";
     const result = await runCanonicalChild({ suite: "timeout-succession-fixture", label: "synthetic fixture", command: process.execPath, args, cwd: owner.root,
-      env: buildCanonicalChildEnvironment({ temporaryRoot: owner.root }), timeoutMs: 4000,
+      env: buildCanonicalChildEnvironment({ temporaryRoot: owner.root }), timeoutMs: AUXILIARY_EXECUTION_BUDGETS.nestedChildMs,
       stdout: { write: chunk => output = (output + chunk).slice(-2000) }, stderr: { write: chunk => output = (output + chunk).slice(-2000) }, log() {} });
     if (result.cleanup_completed && result.exit_observed && result.streams_closed && result.remaining_owned_processes === 0) active--;
     console.log("AUGNES_TIMEOUT_FIXTURE_CHILD " + JSON.stringify(projectReviewChildResult(result, { controlId })));

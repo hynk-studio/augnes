@@ -1,4 +1,5 @@
 // Disposable, explicitly synthetic authority. No production transport or ledger.
+import { AUXILIARY_EXECUTION_BUDGETS } from "../local-canonical-closeout-budgets.mjs";
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync, readFileSync, cpSync, rmSync, existsSync, chmodSync, linkSync } from "node:fs";
 import path from "node:path";
@@ -134,7 +135,7 @@ export async function observerSuccessionControls() {
   const child = async (args, controlId) => {
     active++; let text = "";
     const result = await runCanonicalChild({ suite: "observer-succession-fixture", label: "synthetic fixture", command: process.execPath, args, cwd: owner.root,
-      env: buildCanonicalChildEnvironment({ temporaryRoot: owner.root }), timeoutMs: 4000, stdout: { write: b => text = (text + b).slice(-1000) }, stderr: { write: b => text = (text + b).slice(-1000) }, log() {} });
+      env: buildCanonicalChildEnvironment({ temporaryRoot: owner.root }), timeoutMs: AUXILIARY_EXECUTION_BUDGETS.nestedChildMs, stdout: { write: b => text = (text + b).slice(-1000) }, stderr: { write: b => text = (text + b).slice(-1000) }, log() {} });
     const settled = result.cleanup_completed && result.exit_observed && result.streams_closed && result.remaining_owned_processes === 0;
     if (settled) active--;
     console.log("AUGNES_REVIEW_CHILD_RESULT " + JSON.stringify(projectReviewChildResult(result, { controlId })));

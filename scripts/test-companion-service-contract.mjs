@@ -32,6 +32,7 @@ import {
   waitForOwnedProcessExit,
 } from "./test-harness-process-lifecycle.mjs";
 import { buildCanonicalChildEnvironment } from "./canonical-test-environment.mjs";
+import { createServiceContractFamilies } from "./fixtures/companion-service-contract-families.mjs";
 import {
   localReviewAccessIssuerFailure,
   resolveRuntimePaths,
@@ -96,10 +97,38 @@ const fixtureProvider = mock.method(childProcess, "spawnSync", (command, args, o
 });
 syncBuiltinESMExports();
 
+// These checks temporarily replace global fetch/console and inspect the whole
+// root. Finish them before either independent family is admitted. The shared
+// descriptor-identity fixture mock stays installed until both families settle.
+const families = createServiceContractFamilies();
+const failures = [];
+const unsettledFixtureOwners = new Set();
+let summary;
 try {
   await assertPreservationObservation();
   await assertInstalledAccessDiagnostics();
-  await assertSupervisorOutputTransport();
+  summary = await families.run({
+    output: assertSupervisorOutputTransport,
+    lifecycle: assertServiceLifecycle,
+  });
+} catch (error) {
+  failures.push(error);
+} finally {
+  try {
+    fixtureProvider.mock.restore();
+    syncBuiltinESMExports();
+  } catch (error) { failures.push(error); }
+  try {
+    assert.equal(unsettledFixtureOwners.size, 0, "owned fixture cleanup must settle before root removal");
+    rmSync(root, { recursive: true, force: true });
+  }
+  catch (error) { failures.push(error); }
+}
+if (failures.length) throw new AggregateError(failures, "service contract or cleanup failed");
+console.log(JSON.stringify(summary, null, 2));
+
+async function assertServiceLifecycle() {
+  await families.checkpoint("lifecycle-start");
   assert.equal(COMPANION_SERVICE_CONTRACT, "augnes-companion-service.v0.1");
   assert.equal(
     COMPANION_SERVICE_DESIRED_STATE_CONTRACT,
@@ -229,11 +258,13 @@ try {
   for (const [key, value] of Object.entries(authority)) {
     if (key !== "runtime_lifecycle_effect") assert.equal(value, false, key);
   }
+  await families.checkpoint("node-compatibility");
   const node = selectSupportedNode24Binary({ candidates: [process.execPath] });
   assert.match(node.version, /^v24\./u);
   // Inspect real disposable executable files through the production selector.
   // Below-floor candidates must be skipped without weakening path/version binding.
   for (const version of ["v24.22.0", "v24.18.0", "v22.23.4", "v26.0.0", "v24.22.1-rc.1"]) {
+    await families.checkpoint("node-candidate");
     const candidate = path.join(root, `node-${version}`);
     writeFileSync(candidate, `#!/bin/sh\nprintf '%s\\n' '${version}'\n`, { mode: 0o700 });
     assert.equal(selectSupportedNode24Binary({ candidates: [candidate], environment: {} }).path, node.path);
@@ -244,6 +275,7 @@ try {
   writeFileSync(floorCandidate, "#!/bin/sh\nprintf '%s\\n' 'v24.22.1'\n", { mode: 0o700 });
   assert.equal(selectSupportedNode24Binary({ candidates: [floorCandidate], environment: {} }).path, floorCandidate);
 
+  await families.checkpoint("install-rollback");
   let loaded = false;
   const launchAgentDirectory = path.join(home, "Library", "LaunchAgents");
   mkdirSync(launchAgentDirectory, { recursive: true, mode: 0o755 });
@@ -270,6 +302,7 @@ try {
   );
   assert.equal((await inspectCompanionService(options)).status, "not_installed");
 
+  await families.checkpoint("stopped-maintenance");
   const stoppedFixture = writeInstalledServiceFixture({
     options,
     node,
@@ -613,12 +646,14 @@ try {
   assert.equal(uninstalledFixture.service.status, "not_installed");
   assert.equal(existsSync(stoppedFixture.layout.desired_state_path), false);
 
+  await families.checkpoint("stale-decommission");
   const staleDecommission = await runStaleCheckoutDecommissionContract({
     root,
     repositoryRoot,
     node,
   });
 
+  await families.checkpoint("singleton");
   const singletonRoot = path.join(root, "singleton");
   const singletonHome = path.join(singletonRoot, "home");
   const repositoryA = makeServiceRepositoryFixture({
@@ -855,6 +890,7 @@ try {
     null,
   );
 
+  await families.checkpoint("public-projection");
   const healthyObservation = {
     status: "live",
     checkout_relation: "exact",
@@ -876,7 +912,7 @@ try {
     false,
   );
 
-  console.log(JSON.stringify({
+  return {
     status: "pass",
     contract: COMPANION_SERVICE_CONTRACT,
     desired_state_contract: COMPANION_SERVICE_DESIRED_STATE_CONTRACT,
@@ -911,11 +947,7 @@ try {
     supervisor_failure_public_projection_fields: 0,
     lifecycle_authority_flags_false: true,
     real_provider_calls: 0,
-  }, null, 2));
-} finally {
-  fixtureProvider.mock.restore();
-  syncBuiltinESMExports();
-  rmSync(root, { recursive: true, force: true });
+  };
 }
 
 function writeInstalledServiceFixture({ options: fixtureOptions, node, desiredState }) {
@@ -988,6 +1020,7 @@ async function runStaleCheckoutDecommissionContract({
   repositoryRoot: fixtureRepositoryRoot,
   node,
 }) {
+  await families.checkpoint("decommission-start");
   const stateRoot = path.join(fixtureRoot, "stale-checkout-decommission");
   const makeOptions = (scope) => ({
     repositoryRoot: fixtureRepositoryRoot,
@@ -1143,6 +1176,7 @@ async function runStaleCheckoutDecommissionContract({
     }
   };
 
+  await families.checkpoint("decommission-inodeFixture");
   const inodeFixture = writeStaleFixture({ scope: "stale-inode-success" });
   assert.match(inodeFixture.configuration.repository_device, /^(?:0|[1-9][0-9]*)$/u);
   assert.match(inodeFixture.configuration.repository_inode, /^[1-9][0-9]*$/u);
@@ -1218,6 +1252,7 @@ async function runStaleCheckoutDecommissionContract({
   });
   assert.equal(inodeReplay.result, "exact_replay");
 
+  await families.checkpoint("decommission-deviceFixture");
   const deviceFixture = writeStaleFixture({
     scope: "stale-device-success",
     changed: "device",
@@ -1240,6 +1275,7 @@ async function runStaleCheckoutDecommissionContract({
     "not_installed",
   );
 
+  await families.checkpoint("decommission-unstableSnapshotFixture");
   const unstableSnapshotFixture = writeStaleFixture({
     scope: "stale-live-snapshot-unstable",
   });
@@ -1291,6 +1327,7 @@ async function runStaleCheckoutDecommissionContract({
     true,
   );
 
+  await families.checkpoint("decommission-immutableRaceFixture");
   const immutableRaceFixture = writeStaleFixture({
     scope: "stale-immutable-pre-effect-changed",
   });
@@ -1326,6 +1363,7 @@ async function runStaleCheckoutDecommissionContract({
   assert.equal(existsSync(immutableRaceFixture.layout.configuration_path), true);
   assert.equal(existsSync(immutableRaceFixture.layout.stale_decommission_path), false);
 
+  await families.checkpoint("decommission-launchJobRaceFixture");
   const launchJobRaceFixture = writeStaleFixture({
     scope: "stale-launch-job-pre-effect-changed",
   });
@@ -1366,6 +1404,7 @@ async function runStaleCheckoutDecommissionContract({
   assert.equal(existsSync(launchJobRaceFixture.layout.configuration_path), true);
   assert.equal(existsSync(launchJobRaceFixture.layout.stale_decommission_path), false);
 
+  await families.checkpoint("decommission-ownershipRaceFixture");
   const ownershipRaceFixture = writeStaleFixture({
     scope: "stale-process-ownership-pre-effect-changed",
   });
@@ -1416,6 +1455,7 @@ async function runStaleCheckoutDecommissionContract({
     ["missing-inode", "repository_inode", undefined],
   ];
   for (const [name, field, value] of malformedPhysicalIdentities) {
+    await families.checkpoint("decommission-malformed-identity");
     const malformedFixture = writeStaleFixture({
       scope: `stale-malformed-physical-${name}`,
       overrides: { [field]: value },
@@ -1426,6 +1466,7 @@ async function runStaleCheckoutDecommissionContract({
     });
   }
 
+  await families.checkpoint("decommission-loadedFixture");
   const loadedFixture = writeStaleFixture({ scope: "stale-loaded-success" });
   writeExplicitStoppedManagerState(loadedFixture);
   const loadedLaunchctl = makeLaunchctl(
@@ -1448,6 +1489,7 @@ async function runStaleCheckoutDecommissionContract({
     ["bootout", `gui/${process.getuid()}/${loadedFixture.configuration.service_label}`],
   );
 
+  await families.checkpoint("decommission-definitionFallbackFixture");
   const definitionFallbackFixture = writeStaleFixture({
     scope: "stale-loaded-definition-fd-fallback",
   });
@@ -1512,6 +1554,7 @@ async function runStaleCheckoutDecommissionContract({
     /^\.stale-decommission-launch-agent-[a-f0-9-]+\.plist$/u,
   );
 
+  await families.checkpoint("decommission-bootoutRaceFixture");
   const bootoutRaceFixture = writeStaleFixture({
     scope: "stale-loaded-plist-swap-contained",
   });
@@ -1555,6 +1598,7 @@ async function runStaleCheckoutDecommissionContract({
     foreignPlist,
   );
 
+  await families.checkpoint("decommission-staleMaintenanceFixture");
   const staleMaintenanceFixture = writeStaleFixture({
     scope: "stale-maintenance-success",
   });
@@ -1579,6 +1623,7 @@ async function runStaleCheckoutDecommissionContract({
     "not_installed",
   );
 
+  await families.checkpoint("decommission-movedRootFixture");
   const movedRootFixture = writeStaleFixture({
     scope: "stale-moved-root-refused",
     overrides: {
@@ -1596,6 +1641,7 @@ async function runStaleCheckoutDecommissionContract({
     launchctl: makeLaunchctl().launchctl,
   });
 
+  await families.checkpoint("decommission-foreignIdentityFixture");
   const foreignIdentityFixture = writeStaleFixture({
     scope: "stale-foreign-identity-refused",
     overrides: { service_identity: "f".repeat(64) },
@@ -1605,6 +1651,7 @@ async function runStaleCheckoutDecommissionContract({
     launchctl: makeLaunchctl().launchctl,
   });
 
+  await families.checkpoint("decommission-foreignRepositoryFixture");
   const foreignRepositoryFixture = writeStaleFixture({
     scope: "stale-foreign-repository-refused",
     overrides: { repository_fingerprint: "e".repeat(64) },
@@ -1614,6 +1661,7 @@ async function runStaleCheckoutDecommissionContract({
     launchctl: makeLaunchctl().launchctl,
   });
 
+  await families.checkpoint("decommission-modifiedPlistFixture");
   const modifiedPlistFixture = writeStaleFixture({
     scope: "stale-modified-plist-refused",
   });
@@ -1627,6 +1675,7 @@ async function runStaleCheckoutDecommissionContract({
     launchctl: makeLaunchctl().launchctl,
   });
 
+  await families.checkpoint("decommission-missingConfigurationFixture");
   const missingConfigurationFixture = writeStaleFixture({
     scope: "stale-missing-configuration-refused",
   });
@@ -1637,6 +1686,7 @@ async function runStaleCheckoutDecommissionContract({
     codes: ["companion_service_uninstall_refused"],
   });
 
+  await families.checkpoint("decommission-missingDesiredFixture");
   const missingDesiredFixture = writeStaleFixture({
     scope: "stale-missing-desired-refused",
   });
@@ -1646,6 +1696,7 @@ async function runStaleCheckoutDecommissionContract({
     launchctl: makeLaunchctl().launchctl,
   });
 
+  await families.checkpoint("decommission-ambiguousMaintenanceFixture");
   const ambiguousMaintenanceFixture = writeStaleFixture({
     scope: "stale-ambiguous-maintenance-refused",
   });
@@ -1655,6 +1706,7 @@ async function runStaleCheckoutDecommissionContract({
     launchctl: makeLaunchctl().launchctl,
   });
 
+  await families.checkpoint("decommission-activeMaintenanceFixture");
   const activeMaintenanceFixture = writeStaleFixture({
     scope: "stale-active-maintenance-refused",
   });
@@ -1677,6 +1729,7 @@ async function runStaleCheckoutDecommissionContract({
     codes: ["companion_service_maintenance_active"],
   });
 
+  await families.checkpoint("decommission-ambiguousManagerFixture");
   const ambiguousManagerFixture = writeStaleFixture({
     scope: "stale-ambiguous-manager-refused",
   });
@@ -1686,6 +1739,7 @@ async function runStaleCheckoutDecommissionContract({
     launchctl: makeLaunchctl().launchctl,
   });
 
+  await families.checkpoint("decommission-ambiguousRuntimeFixture");
   const ambiguousRuntimeFixture = writeStaleFixture({
     scope: "stale-ambiguous-runtime-refused",
   });
@@ -1695,6 +1749,7 @@ async function runStaleCheckoutDecommissionContract({
     launchctl: makeLaunchctl().launchctl,
   });
 
+  await families.checkpoint("decommission-changedBirthFixture");
   const changedBirthFixture = writeStaleFixture({
     scope: "stale-process-birth-refused",
   });
@@ -1708,6 +1763,7 @@ async function runStaleCheckoutDecommissionContract({
     launchctl: makeLaunchctl().launchctl,
   });
 
+  await families.checkpoint("decommission-matchingForeignProcessFixture");
   const matchingForeignProcessFixture = writeStaleFixture({
     scope: "stale-matching-foreign-process-refused",
   });
@@ -1725,6 +1781,7 @@ async function runStaleCheckoutDecommissionContract({
   });
   assert.doesNotThrow(() => process.kill(process.pid, 0));
 
+  await families.checkpoint("decommission-foreignLoadedJobFixture");
   const foreignLoadedJobFixture = writeStaleFixture({
     scope: "stale-foreign-loaded-job-refused",
   });
@@ -1743,6 +1800,7 @@ async function runStaleCheckoutDecommissionContract({
     false,
   );
 
+  await families.checkpoint("decommission-serviceSymlinkFixture");
   const serviceSymlinkFixture = writeStaleFixture({
     scope: "stale-service-parent-symlink-refused",
   });
@@ -1755,6 +1813,7 @@ async function runStaleCheckoutDecommissionContract({
   });
   assert.equal(existsSync(path.join(serviceSymlinkTarget, "service.json")), true);
 
+  await families.checkpoint("decommission-runtimeSymlinkFixture");
   const runtimeSymlinkFixture = writeStaleFixture({
     scope: "stale-runtime-parent-symlink-refused",
   });
@@ -1766,6 +1825,7 @@ async function runStaleCheckoutDecommissionContract({
     launchctl: makeLaunchctl().launchctl,
   });
 
+  await families.checkpoint("decommission-launchParentSymlinkFixture");
   const launchParentSymlinkFixture = writeStaleFixture({
     scope: "stale-launch-parent-symlink-refused",
   });
@@ -1803,6 +1863,7 @@ async function runStaleCheckoutDecommissionContract({
     "runtime_bridge_environment",
   ];
   for (const [index, step] of replaySteps.entries()) {
+    await families.checkpoint("decommission-replay");
     const fixture = writeStaleFixture({
       scope: `stale-replay-${index}-${step.replaceAll("_", "-")}`,
     });
@@ -1874,6 +1935,7 @@ async function runStaleCheckoutDecommissionContract({
     assert.equal(replayed.service.status, "not_installed", step);
   }
 
+  await families.checkpoint("decommission-liveMutationReplayFixture");
   const liveMutationReplayFixture = writeStaleFixture({
     scope: "stale-live-mutation-before-journal-replay",
   });
@@ -1904,6 +1966,7 @@ async function runStaleCheckoutDecommissionContract({
     "not_installed",
   );
 
+  await families.checkpoint("decommission-unlinkSwapFixture");
   const unlinkSwapFixture = writeStaleFixture({
     scope: "stale-unlink-swap-refused",
   });
@@ -1950,6 +2013,7 @@ async function runStaleCheckoutDecommissionContract({
     originalConfigurationText,
   );
 
+  await families.checkpoint("decommission-ancestorSwapFixture");
   const ancestorSwapFixture = writeStaleFixture({
     scope: "stale-ancestor-swap-contained",
   });
@@ -2001,6 +2065,7 @@ async function runStaleCheckoutDecommissionContract({
     false,
   );
 
+  await families.checkpoint("decommission-internalSwapFixture");
   const internalSwapFixture = writeStaleFixture({
     scope: "stale-helper-internal-swap-refused",
   });
@@ -2035,6 +2100,7 @@ async function runStaleCheckoutDecommissionContract({
     true,
   );
 
+  await families.checkpoint("decommission-substitutedJournalFixture");
   const substitutedJournalFixture = writeStaleFixture({
     scope: "stale-substituted-journal-refused",
   });
@@ -2076,6 +2142,7 @@ async function runStaleCheckoutDecommissionContract({
     true,
   );
 
+  await families.checkpoint("decommission-malformedParentJournalFixture");
   const malformedParentJournalFixture = writeStaleFixture({
     scope: "stale-malformed-parent-journal-refused",
   });
@@ -2447,6 +2514,7 @@ async function assertMaintenanceUpdateRequired({
   launchctl,
   operationId,
 }) {
+  await families.checkpoint(operationId);
   await assert.rejects(
     acquireCompanionServiceMaintenance({
       ...fixtureOptions,
@@ -2462,6 +2530,7 @@ async function assertMaintenanceNotRequired({
   launchctl,
   operationId,
 }) {
+  await families.checkpoint(operationId);
   const result = await acquireCompanionServiceMaintenance({
     ...fixtureOptions,
     launchctl,
@@ -2494,6 +2563,7 @@ async function assertOwnedStaleRuntimeMaintenance({
   fixture, historicalLiveManagerState, options: fixtureOptions, launchctl,
 }) {
   const owned = new Set();
+  unsettledFixtureOwners.add(owned);
   const observedPids = new Set();
   const failures = [];
   try {
@@ -2578,14 +2648,16 @@ async function assertOwnedStaleRuntimeMaintenance({
       })}`);
     }
   } catch (error) {
+    families.fail(error);
     failures.push(error);
   } finally {
     try {
       await cleanupOwnedProcesses(owned);
       assert.equal(owned.size, 0);
       for (const pid of observedPids) assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
+      unsettledFixtureOwners.delete(owned);
       console.log("stale maintenance owned group: cleanup completed; all observed owned members absent");
-    } catch (error) { failures.push(error); }
+    } catch (error) { families.fail(error); failures.push(error); }
   }
   if (failures.length) throw new AggregateError(failures, "stale maintenance owned-group fixture or cleanup failed");
 }
@@ -2760,8 +2832,17 @@ function differentCanonicalStatIdentity(value) {
 
 async function assertSupervisorOutputTransport() {
   const owned = new Set();
+  unsettledFixtureOwners.add(owned);
+  const failures = [];
   try {
-    const observerPath = path.join(root, "output-descriptor-observer.node");
+    const outputRoot = path.join(root, "output-transport");
+    mkdirSync(outputRoot, { mode: 0o700 });
+    const outputEnvironment = buildCanonicalChildEnvironment({
+      ambientEnvironment: process.env, temporaryRoot: outputRoot,
+    });
+    mkdirSync(outputEnvironment.HOME, { recursive: true, mode: 0o700 });
+    mkdirSync(outputEnvironment.TMPDIR, { recursive: true, mode: 0o700 });
+    const observerPath = path.join(outputRoot, "output-descriptor-observer.node");
     if (process.platform === "darwin") {
       const compiled = spawnSync("/usr/bin/clang", [
         "-Wall", "-Werror", "-bundle", "-undefined", "dynamic_lookup",
@@ -2775,6 +2856,7 @@ async function assertSupervisorOutputTransport() {
       "reader-closed", "reader-closed-coexisting", "attached",
       "invalid-descriptor", "unrelated-stderr",
     ]) {
+      await families.checkpoint(`output-${scenario}`);
       const paused = scenario.startsWith("reader-paused");
       const child = spawn(process.execPath, [
         "scripts/fixtures/runtime-output-transport-child.mjs",
@@ -2784,10 +2866,7 @@ async function assertSupervisorOutputTransport() {
       ], {
         cwd: repositoryRoot,
         env: {
-          ...buildCanonicalChildEnvironment({
-            ambientEnvironment: process.env,
-            temporaryRoot: root,
-          }),
+          ...outputEnvironment,
           // The source validator's esbuild worker inherits stderr on macOS,
           // incidentally clearing its nonblocking mode. Its supported sync
           // alternative avoids that side effect; no descriptor flags are set.
@@ -2797,6 +2876,7 @@ async function assertSupervisorOutputTransport() {
         stdio: ["ignore", "pipe", "pipe", "pipe", "ipc"],
       });
       const tracked = registerOwnedChild(owned, child, { label: `output-${scenario}` });
+      const send = (message) => { families.throwIfStopped(); child.send(message); };
       let output = "";
       let receivedBytes = 0;
       let observations = "";
@@ -2813,8 +2893,11 @@ async function assertSupervisorOutputTransport() {
         let timeout;
         let inspect;
         let exited;
+        let aborted;
         const event = new Promise((resolve, reject) => {
           inspect = () => { if (predicate()) resolve(); };
+          aborted = () => reject(families.signal.reason);
+          families.signal.addEventListener("abort", aborted, { once: true });
           exited = () => {
             if (!predicate()) reject(new Error(
               `${scenario}: ${label}; exit=${child.exitCode}; observations=${observations}`,
@@ -2824,10 +2907,12 @@ async function assertSupervisorOutputTransport() {
           child.stdio[3].on("data", inspect);
           child.once("exit", exited);
           timeout = setTimeout(() => reject(new Error(`${scenario}: ${label} timeout`)), 5000);
-          inspect();
+          if (families.signal.aborted) aborted();
+          else inspect();
         });
         try { await event; } finally {
           clearTimeout(timeout);
+          families.signal.removeEventListener("abort", aborted);
           child.stderr.removeListener("data", inspect);
           child.stdio[3].removeListener("data", inspect);
           child.removeListener("exit", exited);
@@ -2836,7 +2921,7 @@ async function assertSupervisorOutputTransport() {
       if (paused) {
         await waitFor(() => observations.includes('"before-stderr"'), "before stderr initialization");
         const before = JSON.parse(observations.trim()).descriptor;
-        child.send("initialize-stderr");
+        send("initialize-stderr");
         await waitFor(() => observations.includes('"armed"'), "armed");
         const armed = observations.trim().split("\n").map(JSON.parse).find((row) => row.event === "armed");
         const after = armed.descriptor;
@@ -2845,7 +2930,7 @@ async function assertSupervisorOutputTransport() {
           assert.equal(after.nonblocking, true);
           assert.equal(after.socket_nonblocking, true);
         }
-        child.send("paused-input");
+        send("paused-input");
         await waitFor(() => observations.includes('"input-complete"'), "finite input while reader remains open and paused");
         const completed = observations.trim().split("\n").map(JSON.parse).find((row) => row.event === "input-complete");
         assert.equal(child.stderr.destroyed, false);
@@ -2865,14 +2950,14 @@ async function assertSupervisorOutputTransport() {
           assert.ok(completed.backpressure_errors > 0, "actual nonblocking write pressure");
         }
         child.stderr.resume();
-        child.send("inspect-drained");
+        send("inspect-drained");
         await waitFor(() => observations.includes('"drained"'), "private writer drains after resume");
         const drained = observations.trim().split("\n").map(JSON.parse).find((row) => row.event === "drained");
         assert.equal(drained.accepted_bytes + drained.dropped_bytes,
           completed.inputs * Buffer.byteLength(`[augnes:ui] ${"x".repeat(32768)}`));
         await waitFor(() => receivedBytes === drained.accepted_bytes + armed.shared_bytes,
           "all accepted bytes reach the reader after resume");
-        child.send("forward");
+        send("forward");
         await waitFor(() => output.includes("[augnes:ui] attached-marker"), "fresh output after reader resumes");
         console.log(`supervisor output pressure: ${JSON.stringify(completed)}`);
       } else {
@@ -2882,34 +2967,34 @@ async function assertSupervisorOutputTransport() {
         const closed = once(child.stderr, "close");
         child.stderr.destroy();
         await closed;
-        child.send("forward");
+        send("forward");
         await waitFor(() => observations.includes('"lost"'), "actual EPIPE callback");
         if (scenario === "unrelated-stderr") {
-          child.send("unrelated-stderr");
+          send("unrelated-stderr");
           const exit = await waitForOwnedProcessExit(tracked, 5000);
           assert.equal(exit.code, 1);
           assert.match(observations, /"event":"uncaught","code":"EPIPE"/u);
           console.log("supervisor output: unrelated stderr EPIPE remains fatal");
           continue;
         }
-        child.send("after-loss");
+        send("after-loss");
         await waitFor(() => observations.includes('"continued"'), "survive lost reader");
       } else if (scenario === "attached") {
-        child.send("forward");
+        send("forward");
         await waitFor(() => output.includes("[augnes:ui] attached-marker"), "attached output");
-        child.send("burst");
+        send("burst");
         await waitFor(() => observations.includes('"bounded"'), "bounded burst");
         const bounded = observations.trim().split("\n").map(JSON.parse).find((row) => row.event === "bounded");
         assert.ok(bounded.pending_bytes <= 32768, JSON.stringify(bounded));
       } else if (scenario === "invalid-descriptor") {
-        child.send("invalid-descriptor");
+        send("invalid-descriptor");
         const exit = await waitForOwnedProcessExit(tracked, 5000);
         assert.equal(exit.code, 1);
         assert.match(observations, /"code":"EBADF"/u);
         console.log("supervisor output: non-EPIPE remains fatal (EBADF)");
         continue;
       }
-      child.send("finish");
+      send("finish");
       const exit = await waitForOwnedProcessExit(tracked, 5000);
       assert.equal(exit.code, 0, `${scenario}: ${observations}`);
       assert.equal(exit.signal, null);
@@ -2919,10 +3004,17 @@ async function assertSupervisorOutputTransport() {
       }
       console.log(`supervisor output: ${scenario} passed`);
     }
+  } catch (error) {
+    families.fail(error);
+    failures.push(error);
   } finally {
-    await cleanupOwnedProcesses(owned);
-    assert.equal(owned.size, 0);
+    try {
+      await cleanupOwnedProcesses(owned);
+      assert.equal(owned.size, 0);
+      unsettledFixtureOwners.delete(owned);
+    } catch (error) { families.fail(error); failures.push(error); }
   }
+  if (failures.length) throw new AggregateError(failures, "output transport fixture or cleanup failed");
 }
 
 async function assertPreservationObservation() {

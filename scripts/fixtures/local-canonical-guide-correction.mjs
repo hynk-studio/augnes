@@ -1,5 +1,6 @@
 // Explicitly synthetic retained records and authority. Only disposable Git and
 // ledger state are used; this fixture never replays accepted private witnesses.
+import { AUXILIARY_EXECUTION_BUDGETS } from "../local-canonical-closeout-budgets.mjs";
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync, readFileSync, cpSync, rmSync, existsSync, readdirSync, realpathSync } from "node:fs";
 import path from "node:path";
@@ -256,7 +257,7 @@ export async function guideControls(group = "evidence") {
   const child = async (args, controlId) => {
     active++; let output = "";
     const result = await runCanonicalChild({ suite: "guide-correction-fixture", label: "synthetic fixture", command: process.execPath, args, cwd: owner.root,
-      env: buildCanonicalChildEnvironment({ temporaryRoot: owner.root }), timeoutMs: 4000,
+      env: buildCanonicalChildEnvironment({ temporaryRoot: owner.root }), timeoutMs: AUXILIARY_EXECUTION_BUDGETS.nestedChildMs,
       stdout: { write: chunk => output = (output + chunk).slice(-4000) }, stderr: { write: chunk => output = (output + chunk).slice(-4000) }, log() {} });
     if (result.cleanup_completed && result.exit_observed && result.streams_closed && result.remaining_owned_processes === 0) active--;
     console.log("AUGNES_REVIEW_CHILD_RESULT " + JSON.stringify(projectReviewChildResult(result, { controlId })));
