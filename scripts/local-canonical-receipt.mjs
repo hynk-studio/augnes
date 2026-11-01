@@ -1,7 +1,5 @@
 import { BUDGET_SCHEMA, isSuccessorBudgetSuccession, validSuccessorBudgetAttempt } from "./local-canonical-successor-budget-succession.mjs";
 import { OPERATING_PROFILE_SCHEMA, isOperatingProfileSuccession, validOperatingProfileAttempt } from "./local-canonical-operating-profile-succession.mjs";
-import { usesCloseoutInstructionInputs, closeoutInstructionInputBinding, isAnyCloseout, hasCloseoutMarker, validCloseoutAttempt } from "./local-canonical-1559-closeout.mjs";
-import { COMPANION_TIMEOUT_SCHEMA, isCompanionTimeout, validCompanionTimeoutAttempt } from "./local-canonical-companion-timeout-succession.mjs";
 import { GUIDE_CORRECTION_SCHEMA, isGuideCorrection, validGuideCorrectionAttempt } from "./local-canonical-guide-correction.mjs";
 import { isObserverRepair, validObserverAttempt } from "./local-canonical-observer-succession.mjs";
 import { TIMEOUT_REPAIR_SCHEMA, isCorrectedTimeout, validTimeoutAttempt } from "./local-canonical-timeout-succession.mjs";
@@ -16,7 +14,7 @@ import { VERIFICATION_CONTEXT_CONTRACT } from "./local-canonical-verification-co
 import { VERIFICATION_CAPACITY_CONTRACT, verificationCapacityLimit } from "./local-canonical-capacity.mjs";
 import { HISTORICAL_INPUT_CONTRACT } from "./local-canonical-historical-inputs.mjs";
 import { supportedInputContract, digest, deriveOperationalDisposition, nonFaultInputChange, classifyInputChange, effectiveInputObservation, inputEventIdentity, validObservationDiagnostic, validInputFailureDiagnostics, validCanonicalRuntimeInputs, preparedDependencyIdentity, comparePreparedDependencyInputs } from "./local-canonical-inputs.mjs";
-import { ATTEMPT_CONTRACT, REVIEWED_REVISION_SCHEMA, isReviewedRevision, validReviewedRevisionAttempt } from "./local-canonical-attempts.mjs";
+import { ATTEMPT_CONTRACT, REVIEWED_REVISION_SCHEMA, isReviewedRevision, validReviewedRevisionAttempt, hasRetiredQualificationMarker, supportsSourceCorrection } from "./local-canonical-attempts.mjs";
 import { validPhaseBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { BROWSER_INPUT_CONTRACT } from "./local-canonical-browser-input.mjs";
 import { BROWSER_REPLACEMENT_CONTRACT, BROWSER_REPLACEMENT_PHASES, isStrictBrowserSourceRevision } from "./local-canonical-browser-replacement.mjs";
@@ -160,6 +158,9 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     expectedRunId = null,
   } = options ?? {};
   const issues = [];
+  if (hasRetiredQualificationMarker(receipt?.attempt)) issues.push("receipt_qualification_route_retired");
+  if (receipt?.attempt?.source_correction && (!supportsSourceCorrection(receipt.attempt.source_correction) || ![4, 5].includes(receipt.receipt_version)))
+    issues.push("receipt_source_correction_invalid");
   try {
     assertPublicSafeReceipt(receipt);
   } catch (error) {
@@ -616,10 +617,6 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     }
   }
 
-  // Route markers cannot evade classified checks by claiming the supported
-  // legacy receipt version. Genuine legacy records remain under their old rules.
-  if (receipt?.receipt_version !== 4 && hasCloseoutMarker(receipt?.attempt))
-    issues.push("receipt_1559_closeout_invalid");
   if ([4, 5].includes(receipt?.receipt_version)) {
     inspectClassifiedEvidence(receipt, issues);
     if (currentAttemptRecordsValid !== true) issues.push("receipt_attempt_records_unverified");
@@ -695,7 +692,7 @@ function inspectClassifiedEvidence(receipt, issues) {
   if (new Set(input.resources.map(r => r.id)).size !== input.resources.length ||
       ["codex-preferences", "user-instructions", "auth-location", "git-config", "node-executable"].some(id => !input.resources.some(r => r.id === id))) issues.push("receipt_input_inventory_invalid");
   const attempt = receipt.attempt;
-  const revisionLane = (attempt?.source_correction?.schema === REVIEWED_REVISION_SCHEMA && !isCompanionTimeout(attempt?.source_correction)) || attempt?.source_correction?.kind === "reviewed_revision" || attempt?.revision_authority || attempt?.reviewed_revision_consumed;
+  const revisionLane = (attempt?.source_correction?.schema === REVIEWED_REVISION_SCHEMA) || attempt?.source_correction?.kind === "reviewed_revision" || attempt?.revision_authority || attempt?.reviewed_revision_consumed;
   if (revisionLane || input.prepared_dependencies !== undefined) {
     const phaseLocks = { "dependencies-root": "root_lock_sha256", "dependencies-nested": "nested_lock_sha256", "dependencies-web-planning": "web_planning_lock_sha256" };
     const selected = receipt.phases.filter(phase => Object.hasOwn(phaseLocks, phase.id) && phase.status === "pass").map(phase => phase.id).sort();
@@ -713,7 +710,7 @@ function inspectClassifiedEvidence(receipt, issues) {
     }
     if (!valid) issues.push("receipt_prepared_dependency_inputs_invalid");
   }
-  if ((attempt?.source_correction?.schema === REVIEWED_REVISION_SCHEMA && !isCompanionTimeout(attempt?.source_correction)) || attempt?.source_correction?.kind === "reviewed_revision" || attempt?.revision_authority || attempt?.reviewed_revision_consumed) {
+  if ((attempt?.source_correction?.schema === REVIEWED_REVISION_SCHEMA) || attempt?.source_correction?.kind === "reviewed_revision" || attempt?.revision_authority || attempt?.reviewed_revision_consumed) {
     if (receipt.receipt_version !== 4 || !validReviewedRevisionAttempt(attempt) || receipt.evidence.mode !== "full" ||
         receipt.verification_context.kind !== "isolated-worktree" || attempt.source_correction.base !== receipt.repository.base_sha ||
         digest(receipt.phases.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) issues.push("receipt_reviewed_revision_invalid");
@@ -726,24 +723,10 @@ function inspectClassifiedEvidence(receipt, issues) {
         attempt.source_correction?.inputs?.identity_sha256 !== digest(runtime) ||
         !["AUGNES_CANONICAL_NODE_HEADERS", "AUGNES_CANONICAL_NODE_HEADERS_FINGERPRINT", "npm_config_nodedir"].every(key => input.binding?.environment_keys?.includes(key))) issues.push("receipt_reviewed_revision_runtime_invalid");
   }
-  if (hasCloseoutMarker(attempt)) {
-    if (receipt.receipt_version !== 4 || !validCloseoutAttempt(attempt) || receipt.evidence.mode !== "full" ||
-        receipt.verification_context.kind !== "isolated-worktree" || attempt.source_correction.base !== receipt.repository.base_sha ||
-        digest(receipt.phases.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) issues.push("receipt_1559_closeout_invalid");
-    if (usesCloseoutInstructionInputs(attempt?.source_correction)) {
-      try { if (digest(closeoutInstructionInputBinding(attempt.source_correction, input, { requireUnfaulted: false })) !== digest(attempt.closeout_instruction_input)) issues.push("receipt_1559_closeout_invalid"); }
-      catch { issues.push("receipt_1559_closeout_invalid"); }
-    }
-  }
   if (attempt?.source_correction?.schema === "augnes.local-canonical-source-correction.v3" || attempt?.observer_authority) {
     if (receipt.receipt_version !== 4 || !validObserverAttempt(attempt) || receipt.evidence.mode !== "full" ||
         receipt.verification_context.kind !== "isolated-worktree" || attempt.source_correction.base !== receipt.repository.base_sha ||
         digest(receipt.phases.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) issues.push("receipt_observer_succession_invalid");
-  }
-  if ((attempt?.source_correction?.schema === COMPANION_TIMEOUT_SCHEMA && !isReviewedRevision(attempt?.source_correction)) || attempt?.source_correction?.kind === "companion_readiness_timeout" || attempt?.companion_timeout_authority || attempt?.companion_timeout_consumed) {
-    if (receipt.receipt_version !== 4 || !validCompanionTimeoutAttempt(attempt) || receipt.evidence.mode !== "full" ||
-        receipt.verification_context.kind !== "isolated-worktree" || attempt.source_correction.base !== receipt.repository.base_sha ||
-        digest(receipt.phases.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) issues.push("receipt_companion_timeout_succession_invalid");
   }
   if (attempt?.source_correction?.schema === TIMEOUT_REPAIR_SCHEMA || attempt?.timeout_authority) {
     if (receipt.receipt_version !== 4 || !validTimeoutAttempt(attempt) || receipt.evidence.mode !== "full" ||
@@ -776,7 +759,7 @@ function inspectClassifiedEvidence(receipt, issues) {
 
   if (receipt.evidence.mode !== "quick" && (attempt?.contract !== ATTEMPT_CONTRACT || ![1, 2].includes(attempt.number) ||
       attempt.attempt_id !== receipt.run.id || attempt.head !== receipt.repository.head_sha || attempt.tree !== receipt.repository.tree_sha ||
-      attempt.contract_fingerprint !== input.fingerprint || attempt.budget?.initial !== 1 || attempt.budget?.recovery !== (receipt.receipt_version === 5 || isObserverRepair(attempt.source_correction) || isCorrectedTimeout(attempt.source_correction) || isConditionRequalification(attempt.source_correction) || isGuideCorrection(attempt.source_correction) || isOperatingProfileSuccession(attempt.source_correction) || isSuccessorBudgetSuccession(attempt.source_correction) || isReviewedRevision(attempt.source_correction) || isCompanionTimeout(attempt.source_correction) || isAnyCloseout(attempt.source_correction) ? 0 : 1) ||
+      attempt.contract_fingerprint !== input.fingerprint || attempt.budget?.initial !== 1 || attempt.budget?.recovery !== (receipt.receipt_version === 5 || isObserverRepair(attempt.source_correction) || isCorrectedTimeout(attempt.source_correction) || isConditionRequalification(attempt.source_correction) || isGuideCorrection(attempt.source_correction) || isOperatingProfileSuccession(attempt.source_correction) || isSuccessorBudgetSuccession(attempt.source_correction) || isReviewedRevision(attempt.source_correction) ? 0 : 1) ||
       (attempt.number === 1 && (attempt.prior_attempt_id !== null || attempt.recovery !== null)) ||
       (attempt.number === 2 && (!SHA256_PATTERN.test(attempt.prior_receipt_fingerprint ?? "") || !attempt.recovery)))) issues.push("receipt_attempt_lineage_invalid");
   const expectedBrowser = input.resources.find(r => r.id === "browser-executable");

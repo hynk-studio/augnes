@@ -2,8 +2,6 @@
 import { BUDGET_SCHEMA, isSuccessorBudgetSuccession, authorizeSuccessorBudgetSuccession } from "./local-canonical-successor-budget-succession.mjs";
 import { OPERATING_PROFILE_SCHEMA, isOperatingProfileSuccession, authorizeOperatingProfileSuccession } from "./local-canonical-operating-profile-succession.mjs";
 import { CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
-import { isAnyCloseout, authorizeCloseout, assertCloseoutRuntimeInputs } from "./local-canonical-1559-closeout.mjs";
-import { isCompanionTimeout, authorizeCompanionTimeout } from "./local-canonical-companion-timeout-succession.mjs";
 import { isGuideCorrection, authorizeGuideCorrection } from "./local-canonical-guide-correction.mjs";
 
 import { isObserverRepair, authorizeObserverRepair } from "./local-canonical-observer-succession.mjs";
@@ -44,7 +42,7 @@ import {
 import { runCanonicalChild } from "./canonical-child-runner.mjs";
 import { CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
 import { admitIntegrationBase } from "./local-canonical-integration-base.mjs";
-import { admitVerificationContext, assertVerificationContext, verificationAnchorRoot, inspectVerificationCompanionPreservation } from "./local-canonical-verification-context.mjs";
+import { admitVerificationContext, assertVerificationContext, verificationAnchorRoot, inspectVerificationCompanionPreservation, observeReviewedRevisionSettlementState } from "./local-canonical-verification-context.mjs";
 import { acquireVerificationCapacity, assertVerificationCapacity, releaseVerificationCapacity } from "./local-canonical-capacity.mjs";
 import { createIsolatedInvocationResources, isolatedInvocationEnvironment, cleanupIsolatedInvocationResources } from "./local-canonical-isolated-resources.mjs";
 import { R8A_PROVISION_MANIFEST } from "./merged-r8a-dependency-provision.mjs";
@@ -136,8 +134,6 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/local-canonical-attempts.mjs",
   "scripts/local-canonical-observer-succession.mjs",
   "scripts/local-canonical-timeout-succession.mjs",
-  "scripts/local-canonical-companion-timeout-succession.mjs",
-  "scripts/local-canonical-1559-closeout.mjs",
   "scripts/local-canonical-closeout-budgets.mjs",
   "scripts/local-canonical-condition-requalification.mjs",
   "scripts/local-canonical-guide-correction.mjs",
@@ -522,10 +518,6 @@ export async function executeLocalCanonicalVerification({
   assertRuntimeInputSelection(runtimeInputs);
   if (isObserverRepair(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
     throw Object.assign(new Error("observer_full_route_required"), { code: "observer_full_route_required" });
-  if (isAnyCloseout(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
-    throw Object.assign(new Error("closeout_full_route_required"), { code: "closeout_full_route_required" });
-  if (isCompanionTimeout(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
-    throw Object.assign(new Error("companion_timeout_full_route_required"), { code: "companion_timeout_full_route_required" });
   if (isCorrectedTimeout(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
     throw Object.assign(new Error("timeout_full_route_required"), { code: "timeout_full_route_required" });
   if (isConditionRequalification(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
@@ -775,6 +767,7 @@ export async function executeLocalCanonicalVerification({
           if (mode !== "quick") assertFrozenSource(identityBefore, verificationContext);
           if (!attempt && mode !== "quick" && plan.selected_plan !== "documentation-only" && phaseDefinitions.length > 0 && checkoutOwner) {
             const revisionAuthorization = isReviewedRevision(sourceCorrection) ? await authorizeReviewedRevision(sourceCorrection) : null;
+            const revisionLive = sourceCorrection?.settlement ? await observeReviewedRevisionSettlementState(verificationContext) : null;
             if (revisionAuthorization && (mode !== "full" || checkoutContext !== "isolated-worktree" || plan.selected_plan !== "full-canonical" ||
                 digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES))) throw Object.assign(new Error("reviewed_revision_workload_invalid"), { code: "reviewed_revision_workload_invalid" });
             if (revisionAuthorization) inputs.check({ force: true });
@@ -782,12 +775,6 @@ export async function executeLocalCanonicalVerification({
             const observerAuthorization = isObserverRepair(sourceCorrection) ? await authorizeObserverRepair(sourceCorrection) : null;
             if (observerAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
             if (observerAuthorization && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("observer_workload_invalid"), { code: "observer_workload_invalid" });
-            const closeoutAuthorization = isAnyCloseout(sourceCorrection) ? await authorizeCloseout(sourceCorrection, { frozenInputs: inputs.snapshot() }) : null;
-            if (closeoutAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
-            if (closeoutAuthorization && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("closeout_workload_invalid"), { code: "closeout_workload_invalid" });
-            const companionTimeoutAuthorization = isCompanionTimeout(sourceCorrection) ? await authorizeCompanionTimeout(sourceCorrection) : null;
-            if (companionTimeoutAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
-            if (companionTimeoutAuthorization && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("companion_timeout_workload_invalid"), { code: "companion_timeout_workload_invalid" });
             const timeoutAuthorization = isCorrectedTimeout(sourceCorrection) ? await authorizeCorrectedTimeout(sourceCorrection) : null;
             if (timeoutAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
             if (timeoutAuthorization && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("timeout_workload_invalid"), { code: "timeout_workload_invalid" });
@@ -809,7 +796,7 @@ export async function executeLocalCanonicalVerification({
               branch: identityBefore.branch, head: headSha, tree: inputs.snapshot().binding.tree, runId,
               contractFingerprint: inputs.snapshot().fingerprint, acceptedMain: baseSha,
               recoveryProof: recoveryProofPath ? readRecoveryProof(resolveArtifactPath(recoveryProofPath)) : null,
-              sourceCorrection, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization, profileAuthorization, budgetAuthorization, revisionAuthorization, revisionInputs: runtimeInputs, companionTimeoutAuthorization, closeoutAuthorization, closeoutInputs: inputs.snapshot(),
+              sourceCorrection, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization, profileAuthorization, budgetAuthorization, revisionAuthorization, revisionInputs: runtimeInputs, revisionLive,
               browserReplacement, browserAuthorization,
               browserLive: browserInput ? browserReplacementLiveBinding({ browserInput, host, machineFingerprint, nodePolicy, executorFingerprint, phaseDefinitions, inputs: inputs.snapshot() }) : null });
             pinVerificationEvidence({ root: repositoryRoot, checkoutOwner, runId, reason: "attempt_family" });
@@ -848,11 +835,6 @@ export async function executeLocalCanonicalVerification({
               `[local-canonical] failure phase=${phase.id} code=${result.failure_code}`,
             );
           }
-          // Preserve the actual phase result before a new input refusal. Normal
-          // npm ci remains measured work; reobserve its physical dependency
-          // layout before any later consumer. Fresh stock repeats this via auth.
-          const runtimeInput = assertCloseoutRuntimeInputs(sourceCorrection, inputs.snapshot());
-          if (runtimeInput) console.log(`[local-canonical] runtime_input_observed phase=${phase.id} fingerprint=${runtimeInput}`);
         },
       });
       executionFailure =
@@ -1425,7 +1407,7 @@ export function readStockMachineIdentity(receipt, machineRoot, browserInput = nu
   const profile = attempt?.source_correction?.schema === OPERATING_PROFILE_SCHEMA ||
     attempt?.source_correction?.kind === "operating_profile_efficiency" || attempt?.profile_authority || attempt?.operating_profile_consumed;
   const budget = attempt?.source_correction?.schema === BUDGET_SCHEMA || attempt?.source_correction?.kind === "settled_successor_budget" || attempt?.budget_authority || attempt?.successor_budget_consumed;
-  const revision = (attempt?.source_correction?.schema === "augnes.local-canonical-source-correction.v7" && !isCompanionTimeout(attempt?.source_correction)) ||
+  const revision = (attempt?.source_correction?.schema === "augnes.local-canonical-source-correction.v7") ||
     attempt?.source_correction?.kind === "reviewed_revision" || attempt?.revision_authority || attempt?.reviewed_revision_consumed;
   return browserInput || profile || budget || revision
     ? readMachineFingerprint(machineRoot) : ensureMachineFingerprint(machineRoot);
@@ -1509,27 +1491,6 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
   if (isObserverRepair(receipt.attempt?.source_correction)) {
     try { observerAuthorization = await authorizeObserverRepair(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
   }
-  let closeoutAuthorization = null;
-  if (isAnyCloseout(receipt.attempt?.source_correction)) {
-    try {
-      const saved = receipt.attempt.source_correction;
-      const observed = readSourceCorrectionProof(path.join(repositoryRoot, saved.local_relative_path ?? ""), repositoryRoot);
-      if (digest(observed) !== digest(saved)) throw new Error("closeout_stock_proof_changed");
-      closeoutAuthorization = await authorizeCloseout(observed, { frozenInputs: receipt.inputs });
-    } catch { /* fresh stock refuses changed evidence or unavailable authority */ }
-  }
-  let companionTimeoutAuthorization = null;
-  if (isCompanionTimeout(receipt.attempt?.source_correction)) {
-    try {
-      // A fresh stock process has no evidence capability from admission.
-      // Re-read the exact local proof and all retained evidence before auth;
-      // this inspection cannot create or repair a successor reservation.
-      const saved = receipt.attempt.source_correction;
-      const observed = readSourceCorrectionProof(path.join(repositoryRoot, saved.local_relative_path ?? ""), repositoryRoot);
-      if (digest(observed) !== digest(saved)) throw new Error("companion_timeout_stock_proof_changed");
-      companionTimeoutAuthorization = await authorizeCompanionTimeout(observed);
-    } catch { /* stock refuses changed evidence or unavailable authority */ }
-  }
   let timeoutAuthorization = null;
   if (isCorrectedTimeout(receipt.attempt?.source_correction)) {
     try { timeoutAuthorization = await authorizeCorrectedTimeout(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
@@ -1550,15 +1511,16 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
   if (isGuideCorrection(receipt.attempt?.source_correction)) {
     try { guideAuthorization = await authorizeGuideCorrection(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
   }
-  let revisionAuthorization = null;
+  let revisionAuthorization = null, revisionLive = null;
   let runtimeInputs = null;
   if (isReviewedRevision(receipt.attempt?.source_correction)) {
     try { revisionAuthorization = await authorizeReviewedRevision(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
     try { runtimeInputs = observeCanonicalRuntimeInputs(); } catch { /* stock refuses unavailable runtime input */ }
+    if (receipt.attempt.source_correction.settlement) try { revisionLive = await observeReviewedRevisionSettlementState(verificationContext); } catch { /* stock refuses unsafe or unavailable current settlement */ }
   }
   return inspectReceiptForDecision(receipt, {
     currentInputStateValid: [4, 5].includes(receipt.receipt_version) ? currentInputEvidenceValid(receipt, verificationContext, validationHost.browserExecutablePath, browserInput, runtimeInputs) : null,
-    currentAttemptRecordsValid: [4, 5].includes(receipt.receipt_version) ? inspectAttemptRecords({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, receipt, browserAuthorization, browserLive, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization, profileAuthorization, budgetAuthorization, revisionAuthorization, revisionInputs: runtimeInputs, companionTimeoutAuthorization, closeoutAuthorization }) : null,
+    currentAttemptRecordsValid: [4, 5].includes(receipt.receipt_version) ? inspectAttemptRecords({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, receipt, browserAuthorization, browserLive, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization, profileAuthorization, budgetAuthorization, revisionAuthorization, revisionInputs: runtimeInputs, revisionLive }) : null,
     currentBrowserInputValid: browserInput ? digest(browserInput.publicBinding) === digest(receipt.browser_input) && !existsSync(path.join(repositoryRoot, ".augnes-local-verification/browser-input-active.json")) : null,
     currentVerificationContext: verificationContext,
     expectedRunId: path.basename(receiptPath, ".json"),

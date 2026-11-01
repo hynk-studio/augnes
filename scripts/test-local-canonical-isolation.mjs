@@ -4,7 +4,7 @@ import { chmodSync, existsSync, linkSync, lstatSync, mkdirSync, readFileSync, re
 import path from "node:path";
 import {
   admitVerificationContext, assertVerificationContext, assertIsolatedMutableResources,
-  inspectVerificationCompanionPreservation,
+  inspectVerificationCompanionPreservation, observeReviewedRevisionSettlementState,
 } from "./local-canonical-verification-context.mjs";
 import { acquireVerificationCapacity, assertVerificationCapacity, releaseVerificationCapacity, verificationCapacityLimit } from "./local-canonical-capacity.mjs";
 import { acquireCheckoutVerificationOwnership, releaseCheckoutVerificationOwnership, CHECKOUT_OWNER_FILE } from "./local-canonical-checkout-ownership.mjs";
@@ -59,6 +59,22 @@ try {
   // accepted checkout. Calling the candidate inspector would throw here.
   writeFileSync(path.join(a, inspectorRelative), "throw new Error('candidate_inspector_must_not_observe_accepted_service');\n");
   assert.deepEqual(await inspectVerificationCompanionPreservation(contextA), {acceptedRoot:anchor,policy:'accepted-source'});
+  assert.deepEqual((await observeReviewedRevisionSettlementState(contextA)).foreign_checkout_owners, []);
+  const settlementOwner=acquireCheckoutVerificationOwnership({repositoryRoot:b});
+  const settlementOwnerFile=path.join(b,".augnes-local-verification",CHECKOUT_OWNER_FILE),settlementOwnerBytes=readFileSync(settlementOwnerFile);
+  try {
+    assert.deepEqual((await observeReviewedRevisionSettlementState(contextA)).foreign_checkout_owners, []);
+    const foreign={...settlementOwner.metadata,owner_pid:process.pid+100000};
+    writeFileSync(settlementOwnerFile,JSON.stringify(foreign));
+    const observed=await observeReviewedRevisionSettlementState(contextA);
+    assert.deepEqual(observed.service,{acceptedRoot:anchor,policy:'accepted-source'});
+    assert.equal(observed.foreign_checkout_owners.length,1);assert.equal(observed.foreign_checkout_owners[0].owner_pid,foreign.owner_pid);
+    assert.deepEqual(JSON.parse(readFileSync(settlementOwnerFile,"utf8")),foreign,"foreign ownership must be read only");
+    writeFileSync(settlementOwnerFile,JSON.stringify({...foreign,checkout_fingerprint:"invalid"}));
+    await assert.rejects(observeReviewedRevisionSettlementState(contextA),hasCode("revision_settlement_owner_ambiguous"));
+    writeFileSync(settlementOwnerFile,settlementOwnerBytes);chmodSync(settlementOwnerFile,0o666);
+    await assert.rejects(observeReviewedRevisionSettlementState(contextA),hasCode("revision_settlement_owner_ambiguous"));
+  } finally {chmodSync(settlementOwnerFile,0o600);writeFileSync(settlementOwnerFile,settlementOwnerBytes);releaseCheckoutVerificationOwnership(settlementOwner,b);}
   await assert.rejects(inspectVerificationCompanionPreservation({...contextA}), hasCode("verification_context_not_owned"));
   rmSync(path.join(anchor, inspectorRelative));
   symlinkSync(path.join(a, inspectorRelative), path.join(anchor, inspectorRelative));
