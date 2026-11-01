@@ -162,7 +162,8 @@ function closeoutProofExport(p) {
     predecessor_proof: hash(p.predecessor_proof), correction: runtime
       ? { runtime_input: { binding: structuredClone(p.correction.runtime_input.binding),
         evidence: Object.fromEntries(Object.entries(p.correction.runtime_input.evidence).map(([name, ref]) => [name, hash(ref)])),
-        ...(p.correction.runtime_input.settlement ? { comparison: p.correction.runtime_input.comparison, settlement: hash(p.correction.runtime_input.settlement) } : {}) }, validation: hash(p.correction.validation) }
+        ...(p.correction.runtime_input.settlement ? { comparison: p.correction.runtime_input.comparison, settlement: hash(p.correction.runtime_input.settlement) } : {}),
+        ...(p.correction.runtime_input.headers ? { comparison: p.correction.runtime_input.comparison, headers: { binding: structuredClone(p.correction.runtime_input.headers.binding), evidence: Object.fromEntries(Object.entries(p.correction.runtime_input.headers.evidence).map(([name, ref]) => [name, hash(ref)])) } } : {}) }, validation: hash(p.correction.validation) }
       : Object.hasOwn(p, "scope_amendment")
       ? { execution_budgets: p.correction?.execution_budgets, validation: hash(p.correction?.validation),
         ...(Object.hasOwn(p.correction ?? {}, "source_revision") ? { source_revision: { ...pick(p.correction.source_revision, ["source_module", "before_sha256", "after_sha256"]), proof: hash(p.correction.source_revision?.proof) } } : {}) }

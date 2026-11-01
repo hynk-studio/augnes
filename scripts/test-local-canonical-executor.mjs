@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
-import { observeCloseoutRuntimeLayout, assertCloseoutRuntimeInputs, isCloseoutRuntimeInputCorrection, CLOSEOUT_RUNTIME_INPUT_AMENDMENT } from "./local-canonical-1559-closeout.mjs";
+import { observeCloseoutRuntimeLayout, observeCloseoutRuntimeHeaders, assertCloseoutRuntimeInputs, isCloseoutRuntimeInputCorrection, CLOSEOUT_RUNTIME_INPUT_AMENDMENT } from "./local-canonical-1559-closeout.mjs";
 import assert from "node:assert/strict";
 import { CLOSEOUT_SCHEMA, CLOSEOUT_CONTINUATION_SCHEMA, CLOSEOUT_CONTINUATION_KIND, CLOSEOUT_SCOPE_CORRECTION_KIND, CLOSEOUT_INSTRUCTION_KIND, CLOSEOUT_FIXTURE_CORRECTION_KIND, CLOSEOUT_CAPABILITY_CORRECTION_KIND, CLOSEOUT_SCOPE_FIXTURE_CORRECTION_KIND, isCloseoutScopeFixtureCorrection, usesCloseoutInstructionInputs, isAnyCloseout, assertCloseoutInstructionInputs, authorizeCloseout as authorizeCloseoutProof } from "./local-canonical-1559-closeout.mjs";
 import { isObserverRepair } from "./local-canonical-observer-succession.mjs";
@@ -1433,6 +1433,22 @@ for (const [profile, group] of [
     const references = Object.fromEntries(Object.entries(CLOSEOUT_RUNTIME_INPUT_AMENDMENT.native_evidence).map(([name, sha256]) => [name, { artifact: `${name}.json`, sha256 }]));
     assert.doesNotThrow(() => assertPublicSafeReceipt({ correction: { runtime_input: { binding: CLOSEOUT_RUNTIME_INPUT_AMENDMENT.runtime_input_binding, evidence: references } } }), "artifact references preserve the existing public-safe receipt contract");
     assert.throws(() => assertPublicSafeReceipt({ stdout: references.output_log }), hasCode("receipt_contains_forbidden_field"), "the raw-output safeguard remains enforced");
+    const headers = path.join(root, "include"), header = path.join(headers, "node_api.h");
+    mkdirSync(headers, { mode: 0o755 }); chmodSync(headers, 0o755);
+    writeFileSync(header, "private header fixture\n", { mode: 0o644 });
+    const headerBefore = observeCloseoutRuntimeHeaders(headers);
+    assert.deepEqual(observeCloseoutRuntimeHeaders(headers), headerBefore);
+    writeFileSync(header, "changed header fixture\n");
+    assert.notDeepEqual(observeCloseoutRuntimeHeaders(headers), headerBefore);
+    rmSync(header); symlinkSync("../outside", header);
+    assert.throws(() => observeCloseoutRuntimeHeaders(headers), hasCode("closeout_runtime_headers_unsafe"));
+    rmSync(header); writeFileSync(header, "private header fixture\n", { mode: 0o644 });
+    const outsideHeader = path.join(root, "outside-header"); linkSync(header, outsideHeader);
+    assert.throws(() => observeCloseoutRuntimeHeaders(headers), hasCode("closeout_runtime_headers_unsafe"));
+    rmSync(outsideHeader); chmodSync(headers, 0o777);
+    assert.throws(() => observeCloseoutRuntimeHeaders(headers), hasCode("closeout_runtime_headers_unsafe"));
+    chmodSync(headers, 0o755); assert.deepEqual(observeCloseoutRuntimeHeaders(headers), headerBefore);
+    rmSync(headers, { recursive: true }); assert.throws(() => observeCloseoutRuntimeHeaders(headers), hasCode("ENOENT"));
     const node = path.join(root, "node"), paths = ["node_modules", "apps/augnes_apps/node_modules", "apps/web_planning/node_modules"];
     writeFileSync(node, "private executable identity fixture\n", { mode: 0o700 });
     for (const relative of paths) {
@@ -1538,6 +1554,7 @@ console.log(
       canonical_node_mismatch_explicit: true,
       closeout_runtime_generated_state_controls: true,
       executor_guard_settlement_controls: true,
+      runtime_header_missing_content_link_and_mode_controls: true,
       hosted_ci_absent: true,
     },
     null,

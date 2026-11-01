@@ -2196,3 +2196,18 @@ releases; it does not establish historical cleanup alone. Normal authorization
 and fresh stock reobserve these obligations. The attempts owner recognizes only
 this exact authenticated relation, with normal exclusive consumption, complete
 focused parent/adverse checks, unchanged Full coverage and zero recovery.
+
+The continuing closeout also permits a demonstrated task-owned runtime-input
+remedy after a new settled failure; it never permits an unchanged retry. Full12
+is retained as product_failure with complete cleanup: its service-contract
+child naturally failed compiling the real descriptor observer because the
+relocated Node lacked `include/node/node_api.h`. The existing runtime-input
+owner may bind that exact latest receipt/log/stock and the complete unchanged
+predecessor packet to the verified Node 24.22.1 archive's physical include tree.
+This adds required SDK inputs without changing Node bytes, product source,
+assertions or deadlines. The 30-second complete service-contract focused result,
+exact source applicability, archive/manifests and cleanup must be retained.
+Missing, altered, linked, unsafe or mismatched headers refuse at admission,
+phase boundaries and fresh stock. Same schema, continuing authority and exclusive
+successor namespace apply; historical records, including Full11 cleanup=false,
+are not rewritten, and this concrete remedy does not authorize further replay.
