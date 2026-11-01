@@ -300,7 +300,13 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
     const moduleFile = path.join(checkout, "scripts", "target.mjs"); write(moduleFile, "export const value = 1;\n");
     git("add", "scripts/target.mjs"); git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-m", "original source");
     const originalHead = git("rev-parse", "HEAD"), originalTree = git("rev-parse", "HEAD^{tree}");
-    const original = beginAttempt({ ...request, branch: "codex/source-correction", head: originalHead, tree: originalTree, runId: "source-original" });
+    const sourceRequest = { ...request, branch: "codex/source-correction", head: originalHead, tree: originalTree };
+    const interrupted = beginAttempt({ ...sourceRequest, runId: "source-interrupted" });
+    finishAttempt(interrupted, { receiptFingerprint: proof.prior_receipt_fingerprint, disposition, cleanupComplete: true, infrastructureCode: "ENOENT" });
+    await new Promise(resolve => setTimeout(resolve, 2));
+    const original = beginAttempt({ ...sourceRequest, runId: "source-original", recoveryProof: {
+      ...proof, prior_attempt_id: interrupted.attempt_id, probe: { ...proof.probe, finished_at: new Date().toISOString() },
+    } });
     finishAttempt(original, { receiptFingerprint: "7".repeat(64), disposition: "product_failure", cleanupComplete: true });
     const blockedPredecessors = [];
     for (const disposition of ["unclassified_timeout", "unknown_relevance", "safety_violation"]) {
@@ -322,7 +328,7 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
     const correctedHead = git("rev-parse", "HEAD"), correctedTree = git("rev-parse", "HEAD^{tree}");
     const correctionFile = path.join(correctionRoot, "proof.json");
     const correctionProof = { schema: "augnes.local-canonical-source-correction.v1", branch: "codex/source-correction", defect: "wrong_exported_value", prior_family_id: original.family_id,
-      prior_number: 1, prior_attempt_id: original.attempt_id, prior_receipt_fingerprint: "7".repeat(64), head: correctedHead, tree: correctedTree, source_module: "scripts/target.mjs",
+      prior_number: original.number, prior_attempt_id: original.attempt_id, prior_receipt_fingerprint: "7".repeat(64), head: correctedHead, tree: correctedTree, source_module: "scripts/target.mjs",
       fixture_artifact: "regression.mjs", fixture_sha256: digest(readFileSync(fixtureFile)), environment_fingerprint: digest(env), ...witnesses };
     write(correctionFile, JSON.stringify(correctionProof));
     const afterFile = path.join(correctionRoot, correctionProof.after.artifact);
@@ -337,7 +343,7 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
     readSourceCorrectionProof(correctionFile, checkout);
     note("actual witness reader accepts bare Canonical Node and refuses v-prefix, stale baseline and compatibility-only Node");
     for (const prior of blockedPredecessors) {
-      write(correctionFile, JSON.stringify({ ...correctionProof, branch: prior.branch, prior_family_id: prior.family_id, prior_attempt_id: prior.attempt_id }));
+      write(correctionFile, JSON.stringify({ ...correctionProof, branch: prior.branch, prior_family_id: prior.family_id, prior_number: prior.number, prior_attempt_id: prior.attempt_id }));
       assert.throws(() => beginAttempt({ ...request, branch: prior.branch, head: correctedHead, tree: correctedTree, runId: "forbidden-source-successor", sourceCorrection: readSourceCorrectionProof(correctionFile, checkout) }), error => error.code === "source_correction_predecessor_invalid");
     }
     write(correctionFile, JSON.stringify(correctionProof));
@@ -346,7 +352,18 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
     assert.equal(successor.number, 1); assert.equal(successor.source_correction.prior_attempt_id, original.attempt_id);
     finishAttempt(successor, { receiptFingerprint: "8".repeat(64), disposition: "completed_success", cleanupComplete: true });
     const successorReceipt = { ...linked, attempt: successor, repository: { branch: correctionProof.branch }, run: { id: successor.attempt_id }, integrity: { content_fingerprint: "8".repeat(64) } };
-    assert(inspectAttemptRecords({ anchorRoot: root, repositoryRoot: checkout, receipt: successorReceipt }));
+    const ordinaryStock = () => inspectAttemptRecords({ anchorRoot: root, repositoryRoot: checkout, receipt: successorReceipt });
+    assert(ordinaryStock());
+    const families = path.join(root, ".augnes-local-verification", "families");
+    const firstRecord = path.join(families, interrupted.family_id, "attempt-1.json"), firstBytes = readFileSync(firstRecord);
+    const laterEdge = path.join(families, successor.family_id, "correction-successor.json");
+    try {
+      write(firstRecord, JSON.stringify({ ...interrupted, observer_authority: null }));
+      assert(!ordinaryStock(), "a retired ancestor behind the direct recovery predecessor must refuse stock");
+      writeFileSync(firstRecord, firstBytes);
+      write(laterEdge, JSON.stringify({ kind: "observer_repair" }));
+      assert(ordinaryStock(), "a later reservation does not invalidate the ordinary receipt's own history");
+    } finally { writeFileSync(firstRecord, firstBytes); rmSync(laterEdge, { force: true }); }
     assert.throws(() => beginAttempt({ ...request, branch: correctionProof.branch, head: correctedHead, tree: correctedTree, runId: "source-repeat", sourceCorrection: admittedProof }));
     git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "--allow-empty", "-m", "cosmetic wrapper commit");
     write(correctionFile, JSON.stringify({ ...correctionProof, head: git("rev-parse", "HEAD") }));

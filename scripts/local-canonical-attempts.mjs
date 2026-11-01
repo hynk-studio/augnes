@@ -180,14 +180,21 @@ export function inspectAttemptRecords({ anchorRoot, repositoryRoot = anchorRoot,
     const attempt = receipt.attempt;
     if (hasRetiredQualificationMarker(receipt)) return false;
     const familyId = candidateFamilyId(receipt.repository.branch, attempt.source_correction);
-    if (attempt.source_correction) admitSourceCorrection({ anchorRoot, repositoryRoot, branch: receipt.repository.branch,
-      head: attempt.head, tree: attempt.tree, proof: attempt.source_correction, acceptedMain: receipt.repository.base_sha, revisionAuthorization, revisionInputs, revisionLive, reserve: false });
-    if (isReviewedRevision(attempt.source_correction)) {
-      if (receipt.receipt_version !== 4 || !validReviewedRevisionAttempt(attempt) || digest(attempt.revision_authority) !== digest(revisionAuthorization?.observations)) return false;
-      const tip = reconstructAttemptTip({ anchorRoot, repositoryRoot, branch: receipt.repository.branch });
-      if (tip.family_id !== familyId || tip.attempt_id !== attempt.attempt_id || tip.reviewed_revision_consumed !== attempt.source_correction.commission.ordinal) return false;
-    }
     if (attempt.family_id !== familyId || ![1, 2].includes(attempt.number)) return false;
+    if (attempt.source_correction) {
+      const lineage = { anchorRoot, repositoryRoot, branch: receipt.repository.branch };
+      // Check the immutable history up to this receipt before reading source artifacts.
+      // A later successor does not invalidate an ordinary historical receipt.
+      const prefix = readAttemptLineage(lineage, attempt);
+      if (prefix.family_id !== familyId || prefix.attempt_id !== attempt.attempt_id || prefix.number !== attempt.number) return false;
+      admitSourceCorrection({ anchorRoot, repositoryRoot, branch: receipt.repository.branch,
+        head: attempt.head, tree: attempt.tree, proof: attempt.source_correction, acceptedMain: receipt.repository.base_sha, revisionAuthorization, revisionInputs, revisionLive, reserve: false });
+      if (isReviewedRevision(attempt.source_correction)) {
+        if (receipt.receipt_version !== 4 || !validReviewedRevisionAttempt(attempt) || digest(attempt.revision_authority) !== digest(revisionAuthorization?.observations)) return false;
+        const tip = reconstructAttemptTip(lineage);
+        if (tip.family_id !== familyId || tip.attempt_id !== attempt.attempt_id || tip.reviewed_revision_consumed !== attempt.source_correction.commission.ordinal) return false;
+      }
+    }
     const root = path.join(anchorRoot, ".augnes-local-verification", "families", familyId);
     if (realpathSync(root) !== root || !lstatSync(root).isDirectory()) return false;
     const original = read(path.join(root, `attempt-${attempt.number}.json`));
@@ -210,7 +217,11 @@ function candidateFamilyId(branch, correction) {
     ...(correction ? ["verified_source_correction", correction.prior_attempt_id, correction.head, correction.tree] : [])]);
 }
 
-export function reconstructAttemptTip({ anchorRoot, repositoryRoot = null, branch }) {
+export function reconstructAttemptTip(context) {
+  return readAttemptLineage(context);
+}
+
+function readAttemptLineage({ anchorRoot, repositoryRoot = null, branch }, throughAttempt = null) {
   let familyId = candidateFamilyId(branch), revisionCount = 0, revisionCommission = null;
   const seen = new Set(), revisionGrants = [];
   for (let depth = 0; depth < 128; depth++) {
@@ -220,7 +231,8 @@ export function reconstructAttemptTip({ anchorRoot, repositoryRoot = null, branc
     if (realpathSync(root) !== root) throw fail("attempt_unsafe_directory");
     const entries = readdirSync(root);
     if (entries.some(name => !/^(attempt|completion)-[12]\.json$/u.test(name) && name !== "correction-successor.json")) throw fail("attempt_unknown_record");
-    const number = entries.includes("attempt-2.json") ? 2 : 1;
+    const reachedReceipt = throughAttempt?.family_id === familyId;
+    const number = reachedReceipt ? throughAttempt.number : entries.includes("attempt-2.json") ? 2 : 1;
     if (number === 2 && hasRetiredQualificationMarker(read(path.join(root, "attempt-1.json")))) throw fail("qualification_route_retired");
     const attempt = read(path.join(root, `attempt-${number}.json`));
     if (hasRetiredQualificationMarker(attempt)) throw fail("qualification_route_retired");
@@ -234,7 +246,7 @@ export function reconstructAttemptTip({ anchorRoot, repositoryRoot = null, branc
       revisionCount = attempt.source_correction.commission.ordinal; revisionCommission = revisionCommissionIdentity(attempt.source_correction);
     }
     const edgeFile = path.join(root, "correction-successor.json");
-    if (!entries.includes("correction-successor.json")) return { family_id: familyId, number, attempt_id: attempt.attempt_id, ...(revisionCount ? { reviewed_revision_consumed: revisionCount, revision_commission: revisionCommission, revision_grants: [...revisionGrants] } : {}) };
+    if (reachedReceipt || !entries.includes("correction-successor.json")) return { family_id: familyId, number, attempt_id: attempt.attempt_id, ...(revisionCount ? { reviewed_revision_consumed: revisionCount, revision_commission: revisionCommission, revision_grants: [...revisionGrants] } : {}) };
     const edge = read(edgeFile), revisionEdge = edge.kind === "reviewed_revision";
     if (hasRetiredQualificationMarker(edge)) throw fail("qualification_route_retired");
     if (revisionCount && !revisionEdge) throw fail("attempt_revision_commission_terminal");
@@ -789,8 +801,9 @@ export function readReviewedRevisionEvidence(file, p, repositoryRoot) {
   }
   // Locks and pinned package declarations are stable execution inputs for this
   // continuation; normal npm preparation produces dependencies separately.
-  for (const name of ["package.json", "package-lock.json", "apps/augnes_apps/package.json", "apps/augnes_apps/package-lock.json", "apps/web_planning/package.json", "apps/web_planning/package-lock.json", ".node-version", ".nvmrc"])
-    if (git(["diff", "--name-only", p.accepted.head, p.head, "--", name]).length) throw fail("revision_pinned_inputs_changed");
+  const pinnedPaths = ["package.json", "package-lock.json", "apps/augnes_apps/package.json", "apps/augnes_apps/package-lock.json",
+    "apps/web_planning/package.json", "apps/web_planning/package-lock.json", ".node-version", ".nvmrc"];
+  if (git(["diff", "--name-only", p.accepted.head, p.head, "--", ...pinnedPaths]).length) throw fail("revision_pinned_inputs_changed");
   if (focused.schema !== "augnes.local-canonical-reviewed-revision-focused.v1" || focused.basis !== "implementation_owner_not_independent_review" ||
       focused.predecessor_receipt_fingerprint !== p.prior_receipt_fingerprint || focused.runtime_inputs_sha256 !== p.inputs.identity_sha256 ||
       !revisionTime(focused.finished_at) || Date.parse(focused.finished_at) <= Date.parse(completion.finished_at) ||
@@ -799,8 +812,11 @@ export function readReviewedRevisionEvidence(file, p, repositoryRoot) {
       !focused.implicated_paths.every(name => changedCode.includes(name)) || (!focused.implicated_paths.length && !changedInputs) ||
       !Array.isArray(focused.source_files) || !focused.source_files.length || focused.source_files.length > 128 ||
       new Set(focused.source_files.map(f => f.path)).size !== focused.source_files.length ||
-      focused.source_files.some(f => !revisionPath(f.path) || !sha(f.sha256) || !Number.isSafeInteger(f.byte_size) || f.byte_size < 0 ||
-        !revisionEqual({ byte_size: git(["show", `${p.head}:${f.path}`]).length, sha256: digest(git(["show", `${p.head}:${f.path}`])) }, { byte_size: f.byte_size, sha256: f.sha256 })) ||
+      focused.source_files.some(f => {
+        if (!revisionPath(f.path) || !sha(f.sha256) || !Number.isSafeInteger(f.byte_size) || f.byte_size < 0) return true;
+        const blob = git(["show", `${p.head}:${f.path}`]);
+        return blob.length !== f.byte_size || digest(blob) !== f.sha256;
+      }) ||
       focused.implicated_paths.some(name => !focused.source_files.some(f => f.path === name)) ||
       !Array.isArray(focused.commands) || !focused.commands.length || focused.commands.length > 32 || focused.commands.some(c =>
         typeof c.command !== "string" || !c.command.length || c.command.length > 2000 || c.result?.exit_code !== 0 || c.result.timed_out !== false ||

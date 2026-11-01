@@ -19,7 +19,8 @@ import { observerControls } from "./fixtures/local-canonical-observer-controls.m
 import { REVIEW_CHILD_RESULT_PREFIX, projectReviewChildResult, assertReviewChildLifecycle, createObserverFixtureProgressReader } from "./fixtures/local-canonical-review-child-result.mjs";
 
 // Do not silently turn a retired explicit command into the default suite.
-if (["--companion-timeout-controls", "--operating-profile-succession-controls", "--guide-correction-controls", "--condition-requalification-controls", "--corrected-timeout-controls"].includes(process.argv[2])) throw new Error("qualification_route_retired");
+const retiredControls = new Set(["--companion-timeout-controls", "--operating-profile-succession-controls", "--guide-correction-controls", "--condition-requalification-controls", "--corrected-timeout-controls"]);
+if (process.argv.slice(2).some(arg => retiredControls.has(arg))) throw new Error("qualification_route_retired");
 
 const self = fileURLToPath(import.meta.url), repository = path.dirname(path.dirname(self));
 const quiet = { write() {} }, write = (p, v) => writeFileSync(p, typeof v === "string" ? v : JSON.stringify(v), { mode: 0o600 });
