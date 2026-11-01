@@ -1408,7 +1408,7 @@ destination; this repository does not contact or modify that destination.
 
 ## Retired qualification routes after #1560
 
-The completed #1559 closeout and Companion source-correction v7 are retired
+The completed #1559 closeout and the `companion_readiness_timeout` v7 route are retired
 from current admission, stock/export dispatch, and default regression execution.
 Their exact historical source and policy remain in Git at
 `f9581878dc36d189c48edcdd494cc500f91f1b30` (merged by
@@ -1418,6 +1418,11 @@ failures, reviews and consumed edges without rewriting or deleting them.
 Current tooling explicitly refuses these retired markers, including markers on
 legacy-version receipts or attempted schema downgrades. Retirement creates no
 new attempt, grant, retry, recovery, or permission to reset an existing lineage.
+Schema v7 alone is not a retirement marker: the parallel `reviewed_revision`
+contract uses the same schema. Its complete proof, authority, input and lineage
+validation must remain intact when integrating that owner. Unknown contracts
+and malformed records cannot fall through to ordinary admission or legacy
+receipt/export handling; a changed kind or removed marker is not validation.
 An independent ordinary branch follows the unchanged ordinary admission rules.
 For historical interpretation or export, use the original source revision in a
 separate read-only review context; old authority does not permit new execution.

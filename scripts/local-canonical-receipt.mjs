@@ -12,7 +12,7 @@ import { VERIFICATION_CONTEXT_CONTRACT } from "./local-canonical-verification-co
 import { VERIFICATION_CAPACITY_CONTRACT, verificationCapacityLimit } from "./local-canonical-capacity.mjs";
 import { HISTORICAL_INPUT_CONTRACT } from "./local-canonical-historical-inputs.mjs";
 import { supportedInputContract, digest, deriveOperationalDisposition, nonFaultInputChange, classifyInputChange, effectiveInputObservation, inputEventIdentity, validObservationDiagnostic, validInputFailureDiagnostics } from "./local-canonical-inputs.mjs";
-import { ATTEMPT_CONTRACT, hasRetiredQualificationMarker } from "./local-canonical-attempts.mjs";
+import { ATTEMPT_CONTRACT, hasRetiredQualificationMarker, supportsSourceCorrection } from "./local-canonical-attempts.mjs";
 import { validPhaseBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { BROWSER_INPUT_CONTRACT } from "./local-canonical-browser-input.mjs";
 import { BROWSER_REPLACEMENT_CONTRACT, BROWSER_REPLACEMENT_PHASES, isStrictBrowserSourceRevision } from "./local-canonical-browser-replacement.mjs";
@@ -157,6 +157,8 @@ export function inspectReceiptForDecision(receipt, options = {}) {
   } = options ?? {};
   const issues = [];
   if (hasRetiredQualificationMarker(receipt?.attempt)) issues.push("receipt_qualification_route_retired");
+  if (receipt?.attempt?.source_correction && (!supportsSourceCorrection(receipt.attempt.source_correction) || ![4, 5].includes(receipt.receipt_version)))
+    issues.push("receipt_source_correction_invalid");
   try {
     assertPublicSafeReceipt(receipt);
   } catch (error) {

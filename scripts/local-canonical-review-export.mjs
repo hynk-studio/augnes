@@ -1,4 +1,4 @@
-import { hasRetiredQualificationMarker } from "./local-canonical-attempts.mjs";
+import { hasRetiredQualificationMarker, supportsSourceCorrection } from "./local-canonical-attempts.mjs";
 import { GUIDE_CORRECTION_SCHEMA, isGuideCorrection, validGuideCorrectionAttempt } from "./local-canonical-guide-correction.mjs";
 import { isObserverRepair, validObserverAttempt } from "./local-canonical-observer-succession.mjs";
 import { TIMEOUT_REPAIR_SCHEMA, isCorrectedTimeout, validTimeoutAttempt } from "./local-canonical-timeout-succession.mjs";
@@ -15,6 +15,8 @@ export function createPrivateReviewExport(receipt) {
   const integrity = verifyReceiptIntegrity(receipt);
   if (!integrity) throw new Error("review_export_original_invalid");
   if (hasRetiredQualificationMarker(receipt.attempt)) throw new Error("review_export_retired_route_use_historical_revision");
+  if (receipt.attempt?.source_correction && (!supportsSourceCorrection(receipt.attempt.source_correction) || ![4, 5].includes(receipt.receipt_version)))
+    throw new Error("review_export_source_correction_unsupported");
   if (!validInputFailureDiagnostics(receipt.inputs)) throw new Error("review_export_diagnostic_invalid");
   assertPublicSafeReceipt(receipt);
   const value = {
@@ -66,7 +68,8 @@ export function inspectPrivateReviewExport(value) {
   const timeoutValid = value.attempt?.source_correction?.schema === TIMEOUT_REPAIR_SCHEMA || value.attempt?.timeout_authority ? validTimeoutAttempt(value.attempt) && value.receipt_version === 4 : true;
   const conditionValid = value.attempt?.source_correction?.schema === CONDITION_REQUALIFICATION_SCHEMA || value.attempt?.source_correction?.kind === "condition_requalification" || value.attempt?.condition_authority || value.attempt?.condition_requalification_consumed ? validConditionRequalificationAttempt(value.attempt) && value.receipt_version === 4 : true;
   const guideValid = value.attempt?.source_correction?.schema === GUIDE_CORRECTION_SCHEMA || value.attempt?.source_correction?.kind === "guide_cancellation_correction" || value.attempt?.guide_authority ? validGuideCorrectionAttempt(value.attempt) && value.receipt_version === 4 : true;
-  const valid = !hasRetiredQualificationMarker(value.attempt) && guideValid && conditionValid && timeoutValid && observerValid && safe && validInputFailureDiagnostics(value.inputs, { exported: true }) && (value?.schema === REVIEW_EXPORT_SCHEMA || value?.schema === "augnes.local-canonical-private-review.v2") && Object.keys(value).length === allowed.size && Object.keys(value).every(k => allowed.has(k)) &&
+  const correctionValid = !value.attempt?.source_correction || (supportsSourceCorrection(value.attempt.source_correction) && [4, 5].includes(value.receipt_version));
+  const valid = correctionValid && !hasRetiredQualificationMarker(value.attempt) && guideValid && conditionValid && timeoutValid && observerValid && safe && validInputFailureDiagnostics(value.inputs, { exported: true }) && (value?.schema === REVIEW_EXPORT_SCHEMA || value?.schema === "augnes.local-canonical-private-review.v2") && Object.keys(value).length === allowed.size && Object.keys(value).every(k => allowed.has(k)) &&
     ([3, 4].includes(value.receipt_version) ? value.schema === REVIEW_EXPORT_SCHEMA : value.receipt_version === 5 && value.schema === "augnes.local-canonical-private-review.v2" && value.browser_input?.contract === "augnes.local-canonical-browser-input.v1" && (value.attempt?.browser_replacement?.contract === "augnes.local-canonical-browser-replacement.v1" || (isStrictBrowserSourceRevision(value.attempt?.source_correction) && value.attempt.input_replacement_consumed === true && value.attempt.source_correction.browser_input_sha256 === digest(value.browser_input)))) && Array.isArray(value.phases) && value.phases.length > 0 &&
     value.receipt_schema === "augnes.local-canonical-receipt.v1" &&
     /^[0-9a-f]{64}$/u.test(value.original_receipt_fingerprint ?? "") &&

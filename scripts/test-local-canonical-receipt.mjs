@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { ATTEMPT_CONTRACT, hasRetiredQualificationMarker, beginAttempt, readSourceCorrectionProof, reconstructAttemptTip, inspectAttemptRecords } from "./local-canonical-attempts.mjs";
+import { ATTEMPT_CONTRACT, hasRetiredQualificationMarker, supportsSourceCorrection, beginAttempt, finishAttempt, readSourceCorrectionProof, reconstructAttemptTip, inspectAttemptRecords } from "./local-canonical-attempts.mjs";
 import { acquireCheckoutVerificationOwnership, releaseCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
 import { createCanonicalTestResourceRoot, cleanupCanonicalTestResources } from "./canonical-test-environment.mjs";
 import { createPrivateReviewExport, inspectPrivateReviewExport } from "./local-canonical-review-export.mjs";
@@ -832,6 +832,8 @@ const retiredProofs = [
   { schema: "augnes.local-canonical-source-correction.v2", kind: "issue_1559_closeout" },
   { schema: "augnes.local-canonical-source-correction.v2", kind: "source_revision", closeout_consumed: false },
   { schema: "augnes.local-canonical-source-correction.v2", kind: "source_revision", companion_timeout_consumed: false },
+  { schema: "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision", companion_timeout_authority: {} },
+  { schema: "augnes.local-canonical-closeout.v1", kind: "reviewed_revision" },
 ];
 for (const value of [null, undefined, {}, [], 0, "", { schema: "augnes.local-canonical-source-correction.v6", kind: "guide_cancellation_correction" }])
   assert.equal(hasRetiredQualificationMarker(value), false);
@@ -898,6 +900,43 @@ try {
     const original = readFileSync(edgeFile);
     assert.throws(() => reconstructAttemptTip({ anchorRoot: retirementRoot, branch }), error => error.code === "qualification_route_retired");
     assert.deepEqual(readFileSync(edgeFile), original, "consumed historical edges are never reset");
+  }
+  const retiredEdge = readFileSync(edgeFile), retiredAttempt = readFileSync(attemptFile);
+  const ordinaryBranch = "unrelated-live-branch";
+  const ordinary = beginAttempt({ anchorRoot: retirementRoot, repositoryRoot: retirementRoot, checkoutOwner: retirementOwner,
+    branch: ordinaryBranch, head: "a".repeat(40), tree: "b".repeat(40), runId: "unrelated-live", contractFingerprint: "c".repeat(64) });
+  finishAttempt(ordinary, { receiptFingerprint: "d".repeat(64), disposition: "completed_success", cleanupComplete: true });
+  assert.equal(reconstructAttemptTip({ anchorRoot: retirementRoot, branch: ordinaryBranch }).attempt_id, ordinary.attempt_id);
+  assert.deepEqual(readFileSync(edgeFile), retiredEdge);
+  assert.deepEqual(readFileSync(attemptFile), retiredAttempt);
+  assert.throws(() => reconstructAttemptTip({ anchorRoot: retirementRoot, branch }), /qualification_route_retired/);
+
+  // Removing retired markers or renaming a kind is not an evidence/authority
+  // validator. In a combined tree reviewed_revision goes to its complete owner;
+  // before that owner is present it is an unsupported correction, never legacy.
+  for (const proof of [
+    { schema: "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision" },
+    { schema: "augnes.local-canonical-source-correction.v7", kind: "unknown" },
+    { schema: "augnes.local-canonical-source-correction.v7" },
+    { schema: "augnes.local-canonical-source-correction.v2", kind: "reviewed_revision" },
+  ]) {
+    assert.equal(hasRetiredQualificationMarker(proof), false);
+    writeFileSync(file, JSON.stringify(proof), { mode: 0o600 });
+    assert.throws(() => readSourceCorrectionProof(file, retirementRoot));
+    const legacy = finalizeReceipt({ ...structuredClone(baseReceipt), attempt: { source_correction: proof } });
+    assert(inspectReceiptForDecision(legacy, validContext).issues.includes("receipt_source_correction_invalid"));
+    assert.throws(() => createPrivateReviewExport(legacy));
+    const malformedExport = structuredClone(ordinaryExport);
+    malformedExport.attempt = { source_correction: proof };
+    delete malformedExport.export_fingerprint;
+    malformedExport.export_fingerprint = digest(canonicalSerialize(malformedExport));
+    assert.equal(inspectPrivateReviewExport(malformedExport).structurally_valid, false);
+    if (!supportsSourceCorrection(proof)) {
+      assert.throws(() => beginAttempt({ anchorRoot: retirementRoot, repositoryRoot: retirementRoot, checkoutOwner: retirementOwner,
+        branch: ordinaryBranch, head: "a".repeat(40), tree: "b".repeat(40), runId: "disguised", contractFingerprint: "c".repeat(64), sourceCorrection: proof }),
+      /source_correction_proof_invalid/);
+    }
+    assert.deepEqual(readFileSync(edgeFile), retiredEdge);
   }
 } finally {
   if (retirementOwner) releaseCheckoutVerificationOwnership(retirementOwner, retirementRoot);

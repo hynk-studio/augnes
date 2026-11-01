@@ -22,7 +22,6 @@ const capabilities = new WeakMap();
 // The pinned pre-retirement revision owns historical interpretation; this guard
 // also catches a downgraded schema that still carries a retired kind or marker.
 const RETIRED_QUALIFICATION_SCHEMAS = new Set([
-  "augnes.local-canonical-source-correction.v7",
   "augnes.local-canonical-closeout.v1",
   "augnes.local-canonical-closeout-continuation.v1",
 ]);
@@ -34,6 +33,17 @@ export function hasRetiredQualificationMarker(value) {
       (typeof record.kind === "string" && record.kind.startsWith("issue_1559_")) ||
       Object.keys(record).some(key => /^(?:closeout_|companion_timeout_)/u.test(key))
     ));
+}
+
+// Schema v7 is shared with the live reviewed_revision route. Retirement is
+// identified above by the old route, not by its schema version. Dispatch is
+// separate from evidence/authority validation: unknown corrections cannot fall
+// through to ordinary or legacy receipt handling.
+export function supportsSourceCorrection(proof) {
+  return proof !== null && typeof proof === "object" && !Array.isArray(proof) && (
+    proof.schema === "augnes.local-canonical-source-correction.v1" ||
+    (proof.schema === "augnes.local-canonical-source-correction.v2" && ["source_revision", "verifier_correction", "accepted_main_integration"].includes(proof.kind)) ||
+    isObserverRepair(proof) || isCorrectedTimeout(proof) || isConditionRequalification(proof) || isGuideCorrection(proof));
 }
 
 
@@ -58,6 +68,7 @@ export function beginAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch
   if (hasRetiredQualificationMarker(sourceCorrection)) throw fail("qualification_route_retired");
   if (!branch || !/^[0-9a-f]{40}$/u.test(head) || !/^[0-9a-f]{40}$/u.test(tree) || !sha(contractFingerprint)) throw fail("attempt_identity_invalid");
   if ([recoveryProof, sourceCorrection, browserReplacement].filter(Boolean).length > 1) throw fail("attempt_mixed_successor_kind");
+  if (sourceCorrection && !supportsSourceCorrection(sourceCorrection)) throw fail("source_correction_proof_invalid");
   const strictSource = isStrictBrowserSourceRevision(sourceCorrection);
   const familyId = candidateFamilyId(branch, sourceCorrection, browserReplacement);
   const artifact = directory(anchorRoot, ".augnes-local-verification");
@@ -251,7 +262,7 @@ export function reconstructAttemptTip({ anchorRoot, branch }) {
     const attempt = read(path.join(root, `attempt-${number}.json`));
     if (hasRetiredQualificationMarker(attempt)) throw fail("qualification_route_retired");
     if (attempt.contract !== ATTEMPT_CONTRACT || attempt.branch !== branch || attempt.family_id !== familyId || attempt.number !== number ||
-        (attempt.source_correction && !["augnes.local-canonical-source-correction.v1", "augnes.local-canonical-source-correction.v2", OBSERVER_REPAIR_SCHEMA, TIMEOUT_REPAIR_SCHEMA, CONDITION_REQUALIFICATION_SCHEMA, GUIDE_CORRECTION_SCHEMA].includes(attempt.source_correction.schema)) ||
+        (attempt.source_correction && !supportsSourceCorrection(attempt.source_correction)) ||
         (attempt.browser_replacement && (attempt.browser_replacement.contract !== BROWSER_REPLACEMENT_CONTRACT || attempt.browser_replacement.kind !== "browser_input_replacement" ||
           attempt.source_correction || attempt.recovery || number !== 1 || attempt.budget?.initial !== 1 || attempt.budget?.recovery !== 0))) throw fail("attempt_lineage_identity_invalid");
     if (observerRepairConsumed) throw fail("attempt_observer_successor_terminal");
