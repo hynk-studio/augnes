@@ -1,4 +1,5 @@
 // Synthetic, disposable authority/ledger controls. No Browser, GitHub or model use.
+import { AUXILIARY_EXECUTION_BUDGETS } from "../local-canonical-closeout-budgets.mjs";
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync, readFileSync, cpSync, rmSync, existsSync, readdirSync } from "node:fs";
 import path from "node:path";
@@ -223,7 +224,7 @@ export async function conditionControls(group = "evidence") {
         const receiptFile = path.join(c.folder, "successor-receipt.json"), packet = path.join(c.folder, "stock-packet.json"); write(receiptFile, current);
         write(packet, { checkout: c.checkout, anchor: c.anchor, file: c.file, authority: c.authority, receipt: receiptFile }); active = true;
         let output = ""; const result = await runCanonicalChild({ suite: "condition-requalification-fixture", label: "fresh synthetic stock", command: process.execPath,
-          args: [self, "--stock-condition-fixture", packet], cwd: owner.root, env: buildCanonicalChildEnvironment({ temporaryRoot: owner.root }), timeoutMs: 4000,
+          args: [self, "--stock-condition-fixture", packet], cwd: owner.root, env: buildCanonicalChildEnvironment({ temporaryRoot: owner.root }), timeoutMs: AUXILIARY_EXECUTION_BUDGETS.nestedChildMs,
           stdout: { write: chunk => output += chunk }, stderr: { write: chunk => output += chunk }, log() {} });
         active = !(result.cleanup_completed && result.exit_observed && result.streams_closed && result.remaining_owned_processes === 0);
         assertReviewChildLifecycle(result, { controlId: "condition-fresh-stock" }); assert.equal(result.exit_code, 0, output); assert.deepEqual(treeFiles(c.anchor), ledger); pass("separate cold stock reconstructs without reservations or writes");

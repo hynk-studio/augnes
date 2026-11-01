@@ -308,9 +308,11 @@ async function statelessSuccessorPacketAdmissionContract() {
         observed_at: null, provenance: "user_declaration", label: "Open question" })) })).comparison;
     const selected_sources = { selected_source_context: comparison.entries, expected_source_comparison: comparison.fingerprint,
       omitted_sources: comparison.unselected_previous.map((row: any) => ({ source_binding: row.source_ref, reason: "The predecessor source-review question remains in immutable history; this new task retains its result lineage." })) };
-    // Fixed boundary: the prior preview omitted the namespace and accepted
-    // 75,980 characters; the writer's canonical root required 76,179.
-    const definition = { goal: "g".repeat(900), success_criteria: Array.from({ length: 10 }, (_, i) => i + ":" + "c".repeat(208)),
+    // Fixed boundary with genuinely issued current session IDs: omitting the
+    // root namespace admits 75,970 UTF-16 units; the canonical writer needs
+    // 76,169. The goal occurs five times, so removing 20 padding characters
+    // removes 100 units without changing the eight notes or their lineage.
+    const definition = { goal: "g".repeat(880), success_criteria: Array.from({ length: 10 }, (_, i) => i + ":" + "c".repeat(208)),
       non_goals: ["Keep originals, rollback, rejection/correction history and unresolved applicability.", "No execution authority."] };
     const previewBody = { action: "preview_result_work", binding: prep.binding, definition, selected_sources };
     const request = { action: "define_authored_successor_task", ...prep.binding, expected_direction_ref: null, selected_sources,
@@ -321,11 +323,13 @@ async function statelessSuccessorPacketAdmissionContract() {
     const refusedSave = await http({ action: "prepare_result_work", request }, 409);
     assert.equal(refusedSave.error_code, refused.error_code);
     assert.equal(refused.packet_budget, undefined);
+    assert.equal(refusedSave.packet_budget, undefined);
     const diagnostic = await http({ ...previewBody, include_packet_budget_diagnostics: true }, 409);
     const diagnosticSave = await http({ action: "prepare_result_work", request, include_packet_budget_diagnostics: true }, 409);
     assert.deepEqual(diagnostic.packet_budget, diagnosticSave.packet_budget);
-    assert.deepEqual(diagnostic.packet_budget, { budget: "max_characters", unit: "utf16_code_units", observed: 76_179, limit: 76_000, overage: 179 });
+    assert.deepEqual(diagnostic.packet_budget, { budget: "max_characters", unit: "utf16_code_units", observed: 76_169, limit: 76_000, overage: 169 });
     assert.deepEqual(diagnostic, { ...refused, packet_budget: diagnostic.packet_budget });
+    assert.deepEqual(diagnosticSave, { ...refusedSave, packet_budget: diagnosticSave.packet_budget });
     for (const response of [
       await http({ ...previewBody, include_packet_budget_diagnostics: true }, 401, ""),
       await http({ ...previewBody, include_packet_budget_diagnostics: true }, 403, cookie, "http://untrusted.invalid"),
@@ -338,11 +342,12 @@ async function statelessSuccessorPacketAdmissionContract() {
     assert.equal(preview.writes, 0); assert.equal(preview.request.include_packet_budget_diagnostics, undefined);
     assert(databaseBefore.equals(f.db.serialize()), "Preview is read-only");
     for (const [field, code] of [["expected_root_fingerprint", "successor_task_root_changed"], ["expected_project_work_binding", "successor_task_project_binding_changed"]] as const) {
-      const refusedBinding = await http({ action: "prepare_result_work", request: { ...preview.request, [field]: "sha256:" + "0".repeat(64) } }, 409);
-      assert.equal(refusedBinding.error_code, code); assert(databaseBefore.equals(f.db.serialize()));
+      const refusedBinding = await http({ action: "prepare_result_work", request: { ...preview.request, [field]: "sha256:" + "0".repeat(64) }, include_packet_budget_diagnostics: true }, 409);
+      assert.equal(refusedBinding.error_code, code); assert.equal(refusedBinding.packet_budget, undefined); assert(databaseBefore.equals(f.db.serialize()));
     }
-    await http({ action: "prepare_result_work", request: preview.request }, 401, "");
-    await http({ action: "prepare_result_work", request: preview.request }, 403, cookie, "http://untrusted.invalid");
+    const unauthenticated = await http({ action: "prepare_result_work", request: preview.request, include_packet_budget_diagnostics: true }, 401, "");
+    const untrusted = await http({ action: "prepare_result_work", request: preview.request, include_packet_budget_diagnostics: true }, 403, cookie, "http://untrusted.invalid");
+    assert.equal(unauthenticated.packet_budget, undefined); assert.equal(untrusted.packet_budget, undefined);
     assert(databaseBefore.equals(f.db.serialize()));
     const saved = await http({ action: "prepare_result_work", request: preview.request, include_packet_budget_diagnostics: true }, 201), fresh = await http();
     assert.equal(saved.execution_authority_granted, false); assert.equal(saved.run_created, false); assert.equal(saved.semantic_state_changed, false);

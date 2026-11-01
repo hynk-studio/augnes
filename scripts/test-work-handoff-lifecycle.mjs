@@ -9,6 +9,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { registerOwnedChild, terminateOwnedProcessTree } from "./test-harness-process-lifecycle.mjs";
 
 export async function assertWorkHandoffLifecycleObservation() {
+  await assertShutdownDescendantSettlement();
   const root = mkdtempSync(path.join(tmpdir(), "augnes-handoff-lifecycle-"));
   const browserRoot = path.join(root, "browser-owned");
   const trigger = path.join(root, "recreate");
@@ -149,6 +150,80 @@ export async function assertWorkHandoffLifecycleObservation() {
   if (failures.length > 1) throw new AggregateError(failures, "handoff lifecycle regression and cleanup failed");
   assert.equal(cleanupCompleted, true);
   console.log(JSON.stringify({ handoff_lifecycle_observation_refusal: "PASS", cases: observations.length }));
+}
+
+async function assertShutdownDescendantSettlement() {
+  const root = mkdtempSync(path.join(tmpdir(), "augnes-handoff-shutdown-"));
+  const browserRoot = path.join(root, "browser-owned"), ready = path.join(root, "leader-ready");
+  const born = path.join(root, "late-child.json"), online = path.join(root, "late-online");
+  const trigger = path.join(root, "recreate"), marker = path.join(browserRoot, "descendant-wrote");
+  const owner = new Set();
+  let leader, peer, lateIdentity, settled = false;
+  const failures = [];
+  const identity = pid => {
+    const result = childProcess.spawnSync("/bin/ps", ["-p", String(pid), "-o", "pid=,pgid=,state=,lstart="], { encoding: "utf8", timeout: 2000 });
+    if (result.status === 1 && !result.error && result.stdout.trim() === "") return null;
+    assert.equal(result.error, undefined); assert.equal(result.status, 0);
+    const match = result.stdout.trim().match(/^(\d+)\s+(\d+)\s+(\S+)\s+(.+)$/);
+    assert.ok(match, "shutdown descendant observation must be complete");
+    return match[3].startsWith("Z") ? null : { pid: Number(match[1]), pgid: Number(match[2]), started: match[4] };
+  };
+  const until = async predicate => {
+    const end = Date.now() + 5000;
+    while (!predicate()) { assert(Date.now() < end, "shutdown control did not settle"); await delay(20); }
+  };
+  try {
+    mkdirSync(browserRoot);
+    const lateSource = `const fs=require('node:fs'),path=require('node:path');
+      const root=${JSON.stringify(root)};
+      fs.writeFileSync(path.join(root,'late-online'),'ready');
+      setInterval(()=>{if(fs.existsSync(path.join(root,'recreate'))){
+        fs.mkdirSync(path.join(root,'browser-owned'),{recursive:true});
+        fs.writeFileSync(path.join(root,'browser-owned','descendant-wrote'),'late owned child');
+        fs.rmSync(path.join(root,'recreate'));}},20);
+      setTimeout(()=>process.exit(0),20000);`;
+    const leaderSource = `const fs=require('node:fs');
+      process.once('SIGTERM',()=>{
+        const child=require('node:child_process').spawn(process.execPath,['-e',${JSON.stringify(lateSource)}],{stdio:'ignore',detached:false});
+        fs.writeFileSync(${JSON.stringify(born)},JSON.stringify({pid:child.pid}));
+        child.unref();process.exit(0);
+      });
+      fs.writeFileSync(${JSON.stringify(ready)},'ready');setInterval(()=>{},1000);`;
+    peer = registerOwnedChild(owner, childProcess.spawn(process.execPath, ["-e", "setInterval(()=>{},1000)"], { detached: true, stdio: "ignore" }), { label: "separate shutdown control group" });
+    leader = registerOwnedChild(owner, childProcess.spawn(process.execPath, ["-e", leaderSource], { detached: true, stdio: "ignore" }), { label: "late shutdown descendant leader" });
+    await until(() => existsSync(ready));
+    const peerBefore = identity(peer.pid); assert.ok(peerBefore);
+    const result = await terminateOwnedProcessTree(leader);
+    assert.equal(leader.closed, true); assert(existsSync(born));
+    lateIdentity = identity(JSON.parse(readFileSync(born, "utf8")).pid);
+    let recreated = false;
+    if (lateIdentity) {
+      assert.equal(lateIdentity.pgid, leader.pid);
+      await until(() => existsSync(online));
+      rmSync(browserRoot, { recursive: true }); writeFileSync(trigger, "release after returned settlement");
+      await until(() => existsSync(marker)); recreated = true;
+    }
+    assert.deepEqual(identity(peer.pid), peerBefore, "settlement must not signal the separate group");
+    console.log(JSON.stringify({ shutdown_descendant_control: { result, leader_closed: leader.closed,
+      late_descendant_alive_after_return: lateIdentity !== null, recreated_after_return: recreated,
+      separate_group_preserved: true } }));
+    assert.equal(lateIdentity, null, "cleanup returned while a new owned-group descendant remained alive");
+    assert.equal(recreated, false);
+  } catch (error) { failures.push(error); }
+  finally {
+    for (const record of [leader, peer]) {
+      try { if (record) await terminateOwnedProcessTree(record); }
+      catch (error) { failures.push(error); }
+    }
+    try {
+      if (existsSync(born)) assert.equal(identity(JSON.parse(readFileSync(born, "utf8")).pid), null);
+      assert.equal(owner.size, 0);
+      rmSync(root, { recursive: true }); settled = !existsSync(root);
+    } catch (error) { failures.push(error); }
+    console.log(JSON.stringify({ shutdown_descendant_cleanup: { completed: settled, owned_processes: owner.size,
+      root_absent: !existsSync(root) } }));
+  }
+  if (failures.length) throw new AggregateError(failures, "shutdown descendant control or cleanup failed");
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

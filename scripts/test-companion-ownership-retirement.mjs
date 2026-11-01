@@ -54,10 +54,59 @@ const core=await import(pathToFileURL(root+'/plugins/augnes-operator/mcp/compani
 process.exitCode=await core.runCompanionServiceManager({configurationPath:config});
 process.disconnect();
 `;
+function waitForFixtureMessage(record, label) {
+    const child = record.child;
+    return new Promise((resolve, reject) => {
+        const clear = () => {
+            child.off("message", message);
+            child.off("error", failed);
+            child.off("exit", exited);
+            child.off("close", exited);
+        };
+        const message = value => { clear(); resolve([value]); };
+        const failed = () => {
+            clear();
+            reject(Object.assign(new Error(`fixture child failed before readiness: ${label}`), { code: "fixture_readiness_failed" }));
+        };
+        const exited = () => {
+            clear();
+            reject(Object.assign(new Error(`fixture child exited before readiness: ${label}`), { code: "fixture_readiness_exited" }));
+        };
+        child.once("message", message);
+        child.once("error", failed);
+        child.once("exit", exited);
+        child.once("close", exited);
+        // The lifecycle record also covers an exit/close observed before this wait.
+        if (record.spawnErrorCode) failed();
+        else if (record.exited || record.closed) exited();
+    });
+}
 async function fixture({ laterAttemptExit = false } = {}) {
     const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "ag-recovery-"))), repositoryRoot = path.join(root, "source"), home = path.join(root, "home");
     const owned = new Set();
-    let supervisor = null, loaded = true, effects = 0, manager;
+    let supervisor = null, loaded = true, effects = 0, manager, layout;
+    let protectedBefore = [];
+    const cleanup = async () => {
+        // Only fixture-owned process identities; never production PIDs/launchd.
+        if (supervisor?.identity && birth(supervisor.pid) === supervisor.identity) {
+            process.kill(-supervisor.pid, "SIGTERM");
+        }
+        if (manager && manager.exitCode === null && manager.signalCode === null)
+            manager.kill("SIGTERM");
+        await cleanupOwnedProcesses(owned);
+        for (const [file, digest] of protectedBefore)
+            assert.equal(hash(fs.readFileSync(file)), digest);
+        if (supervisor) {
+            for (let n = 0; n < 100 && birth(supervisor.pid) !== null; n++)
+                await new Promise(r => setTimeout(r, 20));
+            assert.equal(birth(supervisor.pid), null);
+        }
+        assert.equal(owned.size, 0);
+        if (layout) assert(!fs.existsSync(layout.lifecycle_lock_path));
+        fs.rmSync(root, { recursive: true });
+        assert(!fs.existsSync(root));
+    };
+    try {
     for (const rel of sources) {
         const out = path.join(repositoryRoot, rel);
         fs.mkdirSync(path.dirname(out), { recursive: true });
@@ -69,7 +118,7 @@ async function fixture({ laterAttemptExit = false } = {}) {
     fs.writeFileSync(path.join(root, "manager.mjs"), managerSource);
     const environment = { HOME: home, PATH: path.dirname(process.execPath), AUGNES_COMPANION_SERVICE_TEST_MODE: "1", AUGNES_COMPANION_SERVICE_TEST_ROOT: root, AUGNES_COMPANION_SERVICE_TEST_SCOPE: "ownership-retirement" };
     const options = { repositoryRoot, homeDirectory: home, environment, testScope: "ownership-retirement" };
-    const layout = core.resolveCompanionServiceLayout(options);
+    layout = core.resolveCompanionServiceLayout(options);
     const configuration = { contract: core.COMPANION_SERVICE_CONTRACT, schema_version: 2, manager_version: 1, service_label: layout.service_label, service_identity: layout.service_identity, repository_root: repositoryRoot, repository_fingerprint: layout.repository.repository_fingerprint, repository_device: layout.repository.device, repository_inode: layout.repository.inode, repository_identity: layout.repository.durable_identity, node_path: process.execPath, node_version: process.version, manager_entry_path: path.join(repositoryRoot, sources[0]), service_source_fingerprint: core.computeServiceSourceFingerprint(repositoryRoot), runtime_state_directory: layout.runtime_directory, runtime_home_directory: home, database_path: path.join(root, "data/augnes.db"), configuration_path: layout.configuration_path, launch_agent_path: layout.launch_agent_path, installed_at: new Date().toISOString(), test_scope: "ownership-retirement", test_root: root };
     const desired = { contract: core.COMPANION_SERVICE_DESIRED_STATE_CONTRACT, schema_version: 1, service_identity: configuration.service_identity, repository_fingerprint: configuration.repository_fingerprint, desired_state: "running", updated_at: new Date().toISOString() };
     json(layout.configuration_path, configuration);
@@ -81,13 +130,15 @@ async function fixture({ laterAttemptExit = false } = {}) {
     const children = [];
     for (const role of ["ui", "bridge"]) {
         const child = spawn(process.execPath, [path.join(root, "child.mjs"), role, layout.runtime_manifest_path, layout.runtime_token_path], { env: environment, stdio: ["ignore", "pipe", "pipe", "ipc"], detached: true });
-        registerOwnedChild(owned, child, { label: `recovery-${role}` });
-        const [ports] = await once(child, "message");
+        const record = registerOwnedChild(owned, child, { label: `recovery-${role}` });
+        const [ports] = await waitForFixtureMessage(record, `${role}-ready`);
         children.push({ role, state: "ready", pid: child.pid, ...ports });
     }
     manager = spawn(process.execPath, [path.join(root, "manager.mjs"), repositoryRoot, layout.configuration_path, layout.manager_state_path], { env: environment, stdio: ["ignore", "pipe", "pipe", "ipc"], detached: true });
-    registerOwnedChild(owned, manager, { label: "erased-state-manager" });
+    const managerRecord = registerOwnedChild(owned, manager, { label: "erased-state-manager" });
     manager.stderr.on("data", chunk => process.stderr.write(chunk));
+    // Preserve the initial announcement boundary: before this message the
+    // detached supervisor has not handed its identity to the fixture owner.
     const [ready] = await once(manager, "message");
     supervisor = { pid: ready.supervisor_pid, identity: birth(ready.supervisor_pid) };
     const generation = { contract: "augnes-local-runtime-supervisor-v1", schema_version: 2, generation_version: 1, generation_id: randomUUID(), instance_id: randomUUID(), repository_fingerprint: configuration.repository_fingerprint };
@@ -99,7 +150,7 @@ async function fixture({ laterAttemptExit = false } = {}) {
     const attempt = core.createCompanionSupervisorAttemptDiagnostics();
     if (laterAttemptExit) core.observeCompanionSupervisorAttemptExit(attempt, 0, null);
     json(layout.manager_state_path, { contract: core.COMPANION_SERVICE_CONTRACT, schema_version: 1, service_identity: configuration.service_identity, repository_fingerprint: configuration.repository_fingerprint, status: "recovery_required", reason: "companion_service_foreign_runtime_conflict", manager_pid: manager.pid, manager_process_identity: birth(manager.pid), supervisor_pid: null, supervisor_process_identity: null, runtime_ownership: null, restart_count: 1, restart_after: null, supervisor_failure_provenance: core.snapshotCompanionSupervisorFailureProvenance({ attempt, failureOrigin: laterAttemptExit ? "managed_child_exit_observed" : "managed_child_identity_lost", restartCount: 1 }), updated_at: new Date().toISOString() });
-    const conflict = once(manager, "message");
+    const conflict = waitForFixtureMessage(managerRecord, "manager-conflict");
     manager.send("start");
     assert.equal((await conflict)[0].conflict, true);
     const launchctl = args => {
@@ -111,26 +162,14 @@ async function fixture({ laterAttemptExit = false } = {}) {
         manager.kill("SIGTERM");
         return { status: 0 };
     };
-    const protectedBefore = [layout.configuration_path, layout.launch_agent_path, configuration.database_path].map(file => [file, hash(fs.readFileSync(file))]);
+    protectedBefore = [layout.configuration_path, layout.launch_agent_path, configuration.database_path].map(file => [file, hash(fs.readFileSync(file))]);
     return { root, layout, configuration, desired, manager, supervisor, options: { ...options, launchctl }, effects: () => effects,
-        async cleanup() {
-            // Only fixture-owned process identities; never production PIDs/launchd.
-            if (supervisor && birth(supervisor.pid) === supervisor.identity) {
-                process.kill(-supervisor.pid, "SIGTERM");
-            }
-            if (manager.exitCode === null && manager.signalCode === null)
-                manager.kill("SIGTERM");
-            await cleanupOwnedProcesses(owned);
-            for (const [file, digest] of protectedBefore)
-                assert.equal(hash(fs.readFileSync(file)), digest);
-            for (let n = 0; n < 100 && birth(supervisor.pid) !== null; n++)
-                await new Promise(r => setTimeout(r, 20));
-            assert.equal(birth(supervisor.pid), null);
-            assert.equal(owned.size, 0);
-            assert(!fs.existsSync(layout.lifecycle_lock_path));
-            fs.rmSync(root, { recursive: true });
-            assert(!fs.existsSync(root));
-        } };
+        cleanup };
+    } catch (error) {
+        try { await cleanup(); }
+        catch (cleanupError) { throw new AggregateError([error, cleanupError], "fixture setup and cleanup failed"); }
+        throw error;
+    }
 }
 async function run(name, action, options) { const f = await fixture(options); try {
     await action(f);
@@ -390,4 +429,34 @@ await run("changed-generation-at-effect-boundary", async (f) => {
     assert(!fs.existsSync(f.layout.ownership_recovery_path));
     json(f.layout.runtime_manifest_path, original);
 });
+// Exercise actual fixture setup failures, including a manager which has already
+// announced its supervisor. Rejection must include sibling/supervisor cleanup.
+for (const fault of ["ui", "bridge", "manager-conflict"]) {
+    const originalSpawn = childProcess.spawn, observed = [], roots = new Set();
+    const patch = mock.method(childProcess, "spawn", (command, args, options) => {
+        const entry = path.basename(args[0]);
+        const role = entry === "child.mjs" ? args[1] : "manager-supervisor-ready";
+        if (entry === "child.mjs" || entry === "manager.mjs") roots.add(path.dirname(args[0]));
+        if (entry === "manager.mjs" && fault === "manager-conflict") {
+            const source = fs.readFileSync(args[0], "utf8");
+            assert.equal(source.split("const rename=fs.renameSync;").length, 2);
+            fs.writeFileSync(args[0], source.replace("const rename=fs.renameSync;", "process.exit(23);\nconst rename=fs.renameSync;"));
+        }
+        const child = originalSpawn(command, role === fault ? ["--input-type=module", "-e", "process.exit(23)"] : args, options);
+        const record = { child, closed: false };
+        child.once("close", () => { record.closed = true; });
+        observed.push(record);
+        return child;
+    });
+    syncBuiltinESMExports();
+    try {
+        await assert.rejects(fixture(), error => error.code === "fixture_readiness_exited" && error.message.endsWith(fault === "ui" || fault === "bridge" ? `${fault}-ready` : fault));
+        assert(observed.length > 0 && observed.every(record => record.closed));
+        assert([...roots].every(root => !fs.existsSync(root)));
+        console.log(JSON.stringify({ adverse: fault, pass: true, cleanup_complete: true }));
+    } finally {
+        patch.mock.restore();
+        syncBuiltinESMExports();
+    }
+}
 console.log("PASS ownership retirement: authenticated loopback witnesses, exact refusal, reconciliation, replay and zero residue");

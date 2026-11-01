@@ -228,6 +228,7 @@ import {
 import { installZeroNetworkGuard } from "./test-harness-zero-network-guard.mjs";
 import { createRecordedCodexAppServerAdapterV01 } from "./codex-app-server-observation-recorder";
 import { createIncidentRecordedCodexAppServerAdapterV01 } from "./codex-incident-message-recorder";
+import { assertOperatorPilotLineagePreserved } from "./operator-pilot-lineage-preservation-checks";
 
 const SMOKE_VERSION = "vnext_operator_pilot_smoke.v0.1" as const;
 const OPERATOR_WORKSPACE_UUID = "11111111-1111-4111-8111-111111111111";
@@ -235,25 +236,28 @@ const OPERATOR_PROJECT_UUID = "22222222-2222-4222-8222-222222222222";
 const OPERATOR_WORKSPACE_ID = `workspace:${OPERATOR_WORKSPACE_UUID}`;
 const OPERATOR_PROJECT_ID = `project:${OPERATOR_PROJECT_UUID}`;
 const FOREIGN_PROJECT_ID = "project:33333333-3333-4333-8333-333333333333";
+// This loop issues a fresh session. Its hex-encoded identity is an intentional
+// provenance input to every downstream anchor. The preservation helper retains
+// the original pre-hex expectations for databases created by the legacy issuer.
 const EXPECTED_FULL_LOOP_ANCHORS = {
-  review_decision_id: "review-decision:bd118b1caeaeed2b1d61e893",
+  review_decision_id: "review-decision:9bb1c65ceb9ecc60811507e3",
   review_decision_fingerprint:
-    "sha256:601e179c9cc9f552ee2711289bbe4f3f7bbf1e443f1559079a4472d7880db092",
+    "sha256:bbeaf5ada4e87e101702af171b8c7d610f670b91e9a7fe07f1fed8aedbc3d91f",
   confirmation_digest:
-    "sha256:141dd6940cd1cfcbcca73062f97ba14e7209a2a9108350ac1cebeded69ab8aa8",
-  gate_id: "semantic-commit-gate:eb857d907ce64c601e92736d",
+    "sha256:77154a50276c9cc5b15ee4b77682b9299eef673d9f4c7f32284db3afd86438ac",
+  gate_id: "semantic-commit-gate:f745286f42dc1cbdab60189a",
   gate_fingerprint:
-    "sha256:5c1674a4905d72b16d536089ed9eb847e04e3057fe81024fd8a43c9f178f8dd5",
-  transition_receipt_id: "state-transition-receipt:3f7544f82b8d16a61663be83",
+    "sha256:0b250f27f19f6d38cdc791c0e3340612cdde0e3cc801c639c8ea3530e21e9493",
+  transition_receipt_id: "state-transition-receipt:0e8aac171fc6545bf047d0e6",
   transition_receipt_idempotency_key:
-    "sha256:4963355b67edcdc610eeb8ce3b317a6d530f39a2e39797a6c4f88071f3423042",
+    "sha256:1e18477f6b1a3f296d6993617b0ce0d1d872324576cf5ee2c7d7d73d99f38573",
   transition_receipt_fingerprint:
-    "sha256:107e3d5017eccf82f3735775bf7efc9691eb761e99702ecc78b73c883105a54d",
-  later_packet_id: "task-context-packet:c837ebe022057fa444b7e8f",
+    "sha256:c91155c981111a427822508449365255c78a528afbebad5d9db3f57740ccd927",
+  later_packet_id: "task-context-packet:515eb3d406f087f5142d3b5",
   later_packet_fingerprint:
-    "sha256:0316fdb225280490122010c70661ce4397a659f861ab92305ccd475c80cfd31c",
+    "sha256:9a01ec9106e8c4a580c479e8b458d8d1dc5981b952c6050d9eceeef66af51bb5",
   full_loop_fingerprint:
-    "sha256:28dafe55f8271e3d14213a8d79f4dfb3d10361520ece6d594867f0960c9ac691",
+    "sha256:ba8d5a819802b171c1ac36ac15da43d8a7e5d9e30790451ccd7a87b1f407db35",
 } as const;
 const tempRoot = mkdtempSync(
   path.join(tmpdir(), "augnes-vnext-operator-pilot-v0-1-"),
@@ -1671,6 +1675,15 @@ async function assertFullOperatorLoop(input: {
   pass("later_packet_compile_exact_replay");
   pass("compiled_packet_uses_canonical_identity");
 
+  const preservationCheckpoint = new Database(canonicalDbPath, { fileMustExist: true });
+  try {
+    preservationCheckpoint.pragma("wal_checkpoint(TRUNCATE)");
+  } finally {
+    preservationCheckpoint.close();
+  }
+  assertOperatorPilotLineagePreserved(canonicalDbPath, config, EXPECTED_FULL_LOOP_ANCHORS);
+  pass("committed_lineage_reopens_replays_and_restores_without_rewriting");
+
   await assertWorkbenchDurableLineageRoute({
     handlers: reviewHandlers,
     jar,
@@ -1865,7 +1878,7 @@ async function assertFullOperatorLoop(input: {
     full_loop_fingerprint: fullLoopFingerprint,
   };
   assert.deepEqual(anchoredLoop, EXPECTED_FULL_LOOP_ANCHORS);
-  pass("full_loop_fixed_anchors_unchanged");
+  pass("full_loop_fresh_session_fixed_anchors_match");
   assertOperatorLoopbackRouteCoverage(loopback.requests);
   return {
     anchors: anchoredLoop,
