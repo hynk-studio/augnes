@@ -1486,9 +1486,9 @@ const suites = {
       requireNaturalExit: true,
     },
     {
-      id: "local-canonical-operating-profile-succession",
-      label: "accepted operating-profile efficiency and one prospective Full",
-      ...rootNode("scripts/test-local-canonical-review-corrections.mjs", "--operating-profile-succession-controls"),
+      id: "local-canonical-reviewed-revision",
+      label: "reviewed revision admission, settlement, exclusive authority and fresh stock",
+      ...rootNode("scripts/test-local-canonical-review-corrections.mjs", "--reviewed-revision-controls"),
       timeoutMs: 30_000,
       requireNaturalExit: true,
     },

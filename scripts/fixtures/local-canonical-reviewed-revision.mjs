@@ -206,6 +206,8 @@ if(process.argv[2]==="--cold"){
     const legacyAttemptFile=path.join(c.legacyRoot,"attempt-1.json"), legacyAttemptBytes=readFileSync(legacyAttemptFile);
     for(const mutate of [
       q=>q.kind="companion_readiness_timeout",q=>q.companion_timeout_authority={},
+      q=>q.kind="operating_profile_efficiency",q=>q.kind="settled_successor_budget",
+      q=>q.profile_authority=false,q=>q.operating_profile_consumed=false,q=>q.budget_authority=null,q=>q.successor_budget_consumed=false,
       q=>q.schema="augnes.local-canonical-closeout.v1",q=>q.kind="unknown",
       q=>delete q.kind,q=>delete q.commission,q=>q.accepted={},q=>q.unknown=true,
       q=>{for(const key of Object.keys(q))if(!["schema","kind"].includes(key))delete q[key];},
@@ -227,6 +229,17 @@ if(process.argv[2]==="--cold"){
     }
     findings.push("wrong authority/source/input/predecessor/ordinal and forged-capability refusals");
     p=proof(c);a=await auth(c,p);const first=begin(c,p,a),r=receipt(c,first);assert(validReviewedRevisionAttempt(first));storeReceipt(c,r);finishAttempt(first,{receiptFingerprint:r.integrity.content_fingerprint,disposition:"product_failure",cleanupComplete:true});
+    // A live tip cannot bypass a retired predecessor in the same mixed chain.
+    // Only small disposable markers change; no retired proof tree is rebuilt.
+    for(const kind of ["operating_profile_efficiency","settled_successor_budget"]){
+      const prior=JSON.parse(legacyAttemptBytes);prior.source_correction.kind=kind;write(legacyAttemptFile,prior);
+      try{
+        assert.throws(()=>reconstructAttemptTip({anchorRoot:c.anchor,branch:c.branch}),{code:"qualification_route_retired"});
+        assert.throws(()=>begin(c,p,a),{code:"qualification_route_retired"});assert.equal(stock(c,r,a),false);
+      }finally{write(legacyAttemptFile,legacyAttemptBytes);}
+    }
+    assert.equal(reconstructAttemptTip({anchorRoot:c.anchor,branch:c.branch}).attempt_id,first.attempt_id);
+    assert(stock(c,r,a));findings.push("mixed retired predecessor refuses despite live v7 tip; unchanged live history reads again after disposable control restoration");
     const exportable=finalizeReceipt({...clone(baseReceipt),...r,inputs:{...r.inputs,events:[],limitations:[],first_fault:null},final:{result:"failure",exit_status:1,reason_codes:["phase_failed"]}});
     const exported=createPrivateReviewExport(exportable);assert(inspectPrivateReviewExport(exported).structurally_valid);assert(validReviewedRevisionAttempt(exported.attempt));
     assert.equal(JSON.stringify(exported).includes(c.artifacts),false);assert.equal(exported.attempt.source_correction.inputs.current.artifact,undefined);

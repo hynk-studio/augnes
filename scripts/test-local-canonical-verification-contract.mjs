@@ -759,6 +759,20 @@ const isolatedChild = canonicalSuite.slice(isolatedChildStart, canonicalSuite.in
 for (const fragment of ['timeoutMs: 30_000', 'requireNaturalExit: true', '"scripts/test-local-canonical-isolation.mjs"'])
   requireText(isolatedChild, fragment, "isolated verification has a bounded authority child and complete cleanup");
 
+const revisionChild = readCanonicalChildRegistration(canonicalSuite, "local-canonical-reviewed-revision");
+for (const fragment of ['"--reviewed-revision-controls"', 'timeoutMs: 30_000', 'requireNaturalExit: true'])
+  requireText(revisionChild.block, fragment, "live revision and settlement retain their complete direct owner");
+assert.equal(countOccurrences(canonicalSuite, '"--reviewed-revision-controls"'), 1);
+assert.doesNotMatch(canonicalSuite, /--operating-profile-succession-controls/u);
+for (const route of ["operating-profile-succession", "successor-budget-succession"]) {
+  for (const prefix of ["scripts/", "scripts/fixtures/"])
+    assert.equal(existsSync(path.join(repositoryRoot, `${prefix}local-canonical-${route}.mjs`)), false,
+      "completed controllers and dedicated fixtures stay retired; Git is the source archive");
+  assert(!localExecutor.includes(`"scripts/local-canonical-${route}.mjs"`), "executor inventory has no deleted owner");
+}
+requireText(localPolicy, "df920cd3f5c35774ad2743500a6f3657e4ecb95e", "retired mixed history has a pinned Git reading path");
+requireText(localPolicy, "qualification_route_retired", "current mixed-chain refusal is explicit");
+
 for (const retiredPath of [
   ".github/LOCAL_CANONICAL_PR_EVIDENCE.md",
   "scripts/local-canonical-pr-evidence.mjs",

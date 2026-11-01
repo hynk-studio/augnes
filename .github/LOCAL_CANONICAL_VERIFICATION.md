@@ -458,6 +458,10 @@ producer uses an independently copied, exact-lock view, with its own source and
 installed-material checks before and after execution. Its provision manifest is
 also an executor/stock execution input. Both preparation commands refuse an
 existing destination; neither historical lock or product source is rewritten.
+The executor reuses the provision readers after acquiring its checkout owner and
+before service/build mutation or attempt reservation: R8A for unit/operability,
+durable-work for integration. Missing or invalid preparation refuses without
+starting phases or consuming an attempt; it never triggers automatic installation.
 
 The R8A provision manifest binds the original commit/tree, four source hashes,
 actual Node/npm/platform/ABI and complete installed-file identities. The
@@ -867,7 +871,9 @@ forbidden. Two-lane integration concurrency is unchanged. Bounds limit hangs and
 settlement within supported CPU/memory/disk conditions; a timeout is not
 automatically a performance regression or an infrastructure diagnosis. Historical
 settled-expired-successor runs retain their 30,000 ms bound. Its separately
-authorized prospective aggregate change to 45,000 ms is defined below; no other
+authorized prospective aggregate change to 45,000 ms remains adopted; its
+historical authorization is preserved at the pinned Git revision in
+[Retired qualification routes](#retired-qualification-routes). No other
 child/phase bound changes.
 
 ### Reviewed source and execution-input revision (source-correction v7)
@@ -1275,113 +1281,6 @@ usable failed receipt. No historical PASS is transferred and no stock issue is
 suppressed. Implementation, qualification, independent audit, merge and installed
 adoption remain distinct; this route grants no merge or adoption authority.
 
-### Accepted operating-profile efficiency succession (#1561)
-
-`augnes.local-canonical-operating-profile-succession.v1`, kind
-`operating_profile_efficiency`, is a separate prospective predicate through the
-existing `--source-correction-proof` entry. It does not reinterpret source-correction
-v1–v6 or acquire another task's namespace or allowance. Its eligible predecessor
-is the latest settled isolated Full with seven PASS phases, the natural exit-1
-integration failure, then eight NOT_RUN phases. The complete integration log must
-account for the producer and consumer completing naturally, the operating-profile
-boundary latching its 60,000 ms timeout before bounded settlement (including its
-observed exit 0), and the enclosing 150,000 ms child naturally exiting 1. All
-started workload and resource settlement must be accounted for; additional
-failure, unknown cleanup, input/safety fault or incomplete log refuses.
-
-The original receipt, attempt, completion and logs stay immutable. The historical
-receipt's recorded path and byte count are distinguished from a later observation
-of retained log bytes and their SHA-256. Historical timeout and EEXIST attribution
-remain UNKNOWN. Accepted r4 development evidence contains a single before/after
-pair which both pass, removal of 37 unused preparation reads, preserved remaining
-operation/result sequences and checked artifact bytes, and final-source focused
-checks. It is neither a manufactured FAIL/PASS repair witness nor a retrospective
-qualification result. Its accepted source, complete deltas and retained evidence
-must be reconstructed; focused runs are not repeated merely to fit another route.
-
-The separately published r4 COMMENT attestation and subsequent #1561 execution
-grant are read through the existing bounded authenticated GitHub transport, with
-exact body identity, destination, author, publication time and current maintainer
-permission. ChatGPT's earlier receiving audit is distinct from its GitHub account
-publisher. That attestation covers the accepted r4 source and evidence only; the
-new qualification implementation uses an explicit implementation-owner final-source
-binding, followed by independent post-completion audit. No invented final-head
-review or second execution grant is required by this approved prospective scope.
-
-Final-source validation binds predecessor-to-accepted, accepted-to-final,
-predecessor-to-final and current-main-to-final deltas and retained tree entries.
-Accepted native, lifecycle and harness behavior, assertions, workloads and
-boundaries remain unchanged. Additional task changes are restricted to the
-necessary qualification owner, its production integration, focused controls and
-policy documentation. Compatible accepted-main changes retain their provenance;
-main advancement neither cancels nor renews the grant.
-
-The existing exclusive predecessor `correction-successor.json` is the only
-reservation. It consumes the authorization across candidates and successor kinds,
-including interruption before an attempt append. The new family has one initial
-Full and zero recovery/retry. Success, failure, cancellation or interruption is
-terminal; changing source, branch, worktree or proof cannot renew this allowance.
-No older predecessor, reservation repair, partial phase stitching or historical
-PASS substitution is supported.
-
-Normal published clean source, authenticated current main, registered checkout,
-pinned runtime, frozen inputs, capacity and installed-state preservation gates
-remain. The unchanged planner selects the complete 16-phase Full, including the
-seven dedicated Browser owners, with existing phase order, stop behavior,
-concurrency and deadlines. Fresh-process stock reauthenticates and reconstructs
-source, evidence and live lineage without reserving, including after a usable
-failed receipt. Classification and NOT_RUN coverage are retained. This route adds
-no merge, Ready, adoption, deployment or provider authority.
-
-### Prospective settled-successor aggregate budget (#1561)
-
-`augnes.local-canonical-successor-budget-succession.v1`, kind
-`settled_successor_budget`, is the separately authorized continuation of the exact
-consumed r5 operating-profile tip. It uses the existing proof input and exclusive
-predecessor edge. It does not renew the r5 grant or reinterpret v1–v6 or the
-operating-profile allowance. Only the actual r5 receipt, attempt, completion,
-incoming edge and integration log, accepted r5/r6 COMMENT 5724573102 and new scope
-6548163748 qualify. Current authenticated author permission, destination, body
-identity, timestamps and published final source are checked by the existing
-GitHub transport. The receiving ChatGPT audits and the publishing account are
-distinct; final policy/source verification is by the implementation owner until
-the post-completion independent audit.
-
-The only workload registration change is `settled-expired-successor`'s outer
-complete-fixture limit from **30,000 to 45,000 ms**. The accepted neighboring
-`authored-successor-handoff` already has a 45,000 ms aggregate limit. R6's complete
-instrumented natural PASS settled at 26,502 ms, with semantic completion at
-scenario 25,054.744 ms and no supported product fix. Those observations support
-this finite prospective headroom choice; they do not establish historical cause,
-a reliable margin, an optimal budget, or a FAIL-to-PASS repair witness. The user
-instructed continuation; ChatGPT selected the exact finite budget and invocation
-limit. R6's NO FIX remains valid. Every assertion, argument, inventory entry,
-authentication and execution/grant/Transition meaning, all inner/request/TTL/
-lifetime/cleanup bounds, other child budgets and `requireNaturalExit: true`
-remain intact. Timeout latching is unchanged; exit zero after timeout is failure.
-
-The proof binds the original immutable records and full workload/settlement,
-accepted r6 report and original bundle, and complete accepted-to-final and
-current-main-to-final deltas/tree entries. Later retained-log hashing is explicitly
-not an observation made by the original receipt. Source is restricted to the one
-budget registration and necessary qualification integration, focused controls and
-documentation. Product, native, r2 lifecycle and r4/r5 behavior remain preserved.
-Compatible accepted-main movement neither cancels nor renews the allowance.
-
-Normal clean published source, registered isolated checkout, pinned runtime,
-frozen inputs, capacity and installed-state gates apply. The existing executor
-owns the exclusive reservation: interruption after reservation consumes the edge
-even without a successor attempt append. The exact new kind may follow only this
-consumed operating-profile tip; other continuations still refuse. The resulting
-successor is terminal after **at most one planner-complete Full and zero retry or
-recovery**. The unchanged planner selects all 16 phases including seven dedicated
-Browser owners, with normal ordering, concurrency and stop behavior. No changed
-source/proof/family, partial coverage or increased deadline restores the budget.
-Fresh-process stock reconstructs every usable receipt, including failure, without
-reserving or creating machine identity. Prior failures, classifications, NOT_RUN
-and UNKNOWN remain intact. This grants no merge, Ready, release, deployment,
-installed adoption, provider study or scheduling authority.
-
 ### Browser input replacement (receipt version 5)
 
 `augnes.local-canonical-browser-replacement.v1` is a separate, narrowly
@@ -1605,7 +1504,7 @@ later separately authorized transfer. The current hard repository root/origin
 gate must be deliberately reviewed in separate work for the eventual
 destination; this repository does not contact or modify that destination.
 
-## Retired qualification routes after #1560
+## Retired qualification routes
 
 The completed #1559 closeout and the `companion_readiness_timeout` v7 route are retired
 from current admission, stock/export dispatch, and default regression execution.
@@ -1614,12 +1513,32 @@ Their exact historical source and policy remain in Git at
 `ebb1d8f075a28e78c985f27787ee31650af8dd33`). Retain original receipts, proofs,
 failures, reviews and consumed edges without rewriting or deleting them.
 
+The completed #1561 `operating_profile_efficiency` and
+`settled_successor_budget` routes and their dedicated fixtures are also retired.
+Their last accepted source and policy are archived in Git at
+`df920cd3f5c35774ad2743500a6f3657e4ecb95e`. Current admission, receipt inspection,
+stock and export refuse their schemas, kinds and authority/consumption markers,
+even on downgraded or malformed records. Reconstructing a chain containing either
+route deliberately fails with `qualification_route_retired`, including a later
+`reviewed_revision` tip. It does not skip retired edges or reinterpret them as
+ordinary attempts. Other branches sharing the anchor remain independently readable.
+
+For that mixed history, inspect the unchanged originals with the reader from
+`df920cd3f5c35774ad2743500a6f3657e4ecb95e` in a separate review context: the
+`local-canonical-receipt.mjs`, `local-canonical-attempts.mjs` and
+`local-canonical-review-export.mjs` owners at that commit retain its interpretation.
+Git supplies the source archive; there is no copied controller archive or fallback
+in current code. This is historical reading only, never execution, renewed
+authority or new deciding stock. The accepted #1562 r11 receipt and separate
+stock remain complete original evidence and are not revalidated by this cleanup.
+
 Current tooling explicitly refuses these retired markers, including markers on
 legacy-version receipts or attempted schema downgrades. Retirement creates no
 new attempt, grant, retry, recovery, or permission to reset an existing lineage.
 Schema v7 alone is not a retirement marker: the parallel `reviewed_revision`
 contract uses the same schema. Its complete proof, authority, input and lineage
-validation must remain intact when integrating that owner. Unknown contracts
+validation remain intact. Its revision and settlement controls are registered
+independently through `--reviewed-revision-controls`. Unknown contracts
 and malformed records cannot fall through to ordinary admission or legacy
 receipt/export handling; a changed kind or removed marker is not validation.
 An independent ordinary branch follows the unchanged ordinary admission rules.
