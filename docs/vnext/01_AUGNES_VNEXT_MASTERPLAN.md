@@ -579,6 +579,21 @@ non-use conditions. One successful case can suggest reuse without establishing
 a generally best method. Select and maintain material when its likely value to
 another decision justifies the extraction, reading and checking burden.
 
+Experience selection distinguishes access scope, relevance, representation and
+current applicability. One organization may need several experience scopes;
+permitted consumers in different organizations may reuse the same method.
+Grouping experience does not define ownership or an organization boundary.
+Source-linked cases, procedures/code and structured observational state can serve
+different needs; preserve relevant exact evidence and conditions when compression
+would lose them, without default transcript retention.
+
+Select what to read separately from what may be updated. Using shared experience
+does not grant write rights or make a consumer's new observations shared state.
+Keep those observations attributable to their case; revisions follow the shared
+method's maintenance responsibility and each recipient's adoption authority.
+Updates already supported within existing authority keep their normal path;
+this distinction adds no routine human approval step or new record requirement.
+
 Later use should preserve the consumed version and explain application,
 adaptation or appropriate non-use through the actual result. A counterexample
 may narrow applicability or end a current recommendation without rewriting the

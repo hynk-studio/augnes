@@ -3889,6 +3889,39 @@ does not follow from the broader aim. Apply
 to the actual claim and total burden. #1298's no-observed-advantage and #1465's
 tie/SIMPLIFY conclusions remain intact; new capability is not general superiority.
 
+**Research reference — conditional experience selection.**
+[Routed Continual Learning](https://arxiv.org/abs/2610.38796v1) supports examining
+sharing scope separately from retained representation in heterogeneous work.
+Its sequential, same-model experiments use a prompted router and a fixed memory
+library; they do not establish cross-model/organization transfer or an improving
+routing policy. Routing did not consistently help its already selective
+ReasoningBank baseline, and representation selection regressed several coding
+conditions. Treat these as reasons for a discriminating case, not a new default.
+
+For a justified future slice, apply
+[01's experience distinctions](./01_AUGNES_VNEXT_MASTERPLAN.md#reusable-experience-conditional-methods)
+through #1468's source selection and #1373/P4.6's conditional-method consumers,
+using #1453's contribution/conditional-experience owners where applicable. Inspect
+the actual producer and consumer before choosing a mechanism. Reuse explicit
+identity/version/access checks for known conditions and host judgment where
+applicability is uncertain; multiple sources or ordinary direct reading may
+suffice. Preserve source/version bindings, exclusions, currentness and budgets
+through supported task preparation. The existing deterministic read-only
+GuideBrief and exact TaskContextPacket contract remain unchanged; an advisory
+must not silently rewrite the packet or widen its authority. New observations
+remain case-attributed, with shared-method revisions handled by their own owner.
+
+A bounded candidate can ask whether appropriate experience selection reduces
+repeat failure or rework in a separate successor task, including changed
+conditions that justify adaptation or non-use. Start with the same representation
+and strong adaptive memo/direct search; consider representation changes only
+where they address a remaining need. Numerical state is a candidate when repeated
+observations can change a concrete decision, not a required memory family.
+Apply [04's comparison distinctions](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#shared-memory-retrieval-evidence-1468).
+This reference assigns no implementation, study, spending, universal store or
+five-system library. #1464's SIMPLIFY result, #1468's retain/stop disposition,
+existing model research and Current/Next/Later assignments remain unchanged.
+
 AML participation and its optional adapter remain **deferred** under the latest
 #1468 decision, outside #1478 and its completion conditions. Reconsider only after
 a separate participation decision and concrete scope; no deadline, official run,

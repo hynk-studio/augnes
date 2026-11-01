@@ -2356,6 +2356,26 @@ no-observed-advantage, #1465's tie/SIMPLIFY and the later direct-read ties; new
 capability does not retroactively prove advantage. A sufficient simpler route
 supports simplification, and a useful bounded capability need not prove superiority.
 
+For a future experience-selection claim, isolate scope/selection effects with
+representation held constant before attributing benefit to a different memory
+form. Keep strong adaptive notes/direct search and supported identity/version
+filtering eligible; a prompted router must earn its added burden. A numerical
+state comparison gives the reference access to the same analysis tool and
+distinguishes that tool's capability from accumulated state and selection.
+Match or disclose retained-history capacity as well as delivered-context budgets.
+Include statistical/local computation and maintenance when incurred, alongside
+the costs above; API savings alone are not total savings.
+
+Choose contrasts that discriminate the actual claim: useful same-condition
+reuse, a relevant change requiring adaptation/non-use, or irrelevant additions
+that should not displace still-valid experience. Inspect repeat failure, rework,
+harmful reuse and omitted critical conditions alongside checked outputs. A
+delivery trace or declared use does not establish outcome benefit or causality;
+retain unsupported actual-use claims as declarations/unknown. Where sharing or
+updates change, check the affected read/write and case-attribution boundaries.
+These are selectable contrasts, not a mandatory matrix, new telemetry system,
+retroactive gate or authorization to rerun a completed study.
+
 AML participation/adapter work remains deferred. Any future native product
 evidence, adapter compatibility, official benchmark result and comparative
 usefulness would remain separate, with then-current external rules checked only
