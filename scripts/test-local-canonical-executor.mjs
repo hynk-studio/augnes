@@ -73,7 +73,7 @@ import {
 import { admitIntegrationBase } from "./local-canonical-integration-base.mjs";
 import { runCanonicalChild, canonicalChildAcceptanceFailure } from "./canonical-child-runner.mjs";
 import { createCanonicalTestResourceRoot, buildCanonicalChildEnvironment, cleanupCanonicalTestResources } from "./canonical-test-environment.mjs";
-import { finalizeReceipt, verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
+import { finalizeReceipt, verifyReceiptIntegrity, assertPublicSafeReceipt } from "./local-canonical-receipt.mjs";
 
 import { createIsolatedInvocationResources, isolatedInvocationEnvironment, cleanupIsolatedInvocationResources } from "./local-canonical-isolated-resources.mjs";
 
@@ -1408,6 +1408,9 @@ for (const [profile, group] of [
 {
   const owner = createCanonicalTestResourceRoot("ag-resource-test-", { shortSocketPaths: true }), root = owner.root;
   try {
+    const references = Object.fromEntries(Object.entries(CLOSEOUT_RUNTIME_INPUT_AMENDMENT.native_evidence).map(([name, sha256]) => [name, { artifact: `${name}.json`, sha256 }]));
+    assert.doesNotThrow(() => assertPublicSafeReceipt({ correction: { runtime_input: { binding: CLOSEOUT_RUNTIME_INPUT_AMENDMENT.runtime_input_binding, evidence: references } } }), "artifact references preserve the existing public-safe receipt contract");
+    assert.throws(() => assertPublicSafeReceipt({ stdout: references.output_log }), hasCode("receipt_contains_forbidden_field"), "the raw-output safeguard remains enforced");
     const node = path.join(root, "node"), paths = ["node_modules", "apps/augnes_apps/node_modules", "apps/web_planning/node_modules"];
     writeFileSync(node, "private executable identity fixture\n", { mode: 0o700 });
     for (const relative of paths) {

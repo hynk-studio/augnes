@@ -1713,8 +1713,8 @@ export const CLOSEOUT_RUNTIME_INPUT_AMENDMENT = Object.freeze({
   "native_evidence": {
     "command": "d14ecc532b149ff7df52061c86850a97c6041dea437b975e07741ccc5f6f8fa4",
     "settlement": "f463bd73b83761e6340cf79832e9043d7f5e08003e371ecf1c8b0df2c14f3288",
-    "stdout": "9ac989379178c622d5067c61b4f6ca91cf9011114fd66744f941b4c580c4119d",
-    "stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "output_log": "9ac989379178c622d5067c61b4f6ca91cf9011114fd66744f941b4c580c4119d",
+    "error_log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "configuration": "3714822f2ec1bcba2df72b42e02898580122863f634c60964e24b1060d59e5f2",
     "plist": "e6bbdd39543550caa1973f2e9f9743ed28e5e5589c08e0b0ff8d6532ca94a10d",
     "old_node": "d3e01535c7a4a9ff5c8ae302a60e72b0521cea04e511614ccb782c958689616d",
@@ -1861,7 +1861,7 @@ function readRuntimeInputEvidence(folder, p, repositoryRoot, old) {
     digest(oldNode.realpath) !== binding.old_location_fingerprint || originalNode.location_fingerprint !== binding.old_location_fingerprint || originalNode.before.sha256 !== binding.node.sha256 ||
     oldNode.sha256 !== newNode.sha256 || newNode.sha256 !== binding.node.sha256 || newNode.bytes !== binding.node.bytes || newNode.signature_verify?.status !== 0 || oldNode.signature_verify?.status !== 0 ||
     config.node_path !== command.node.realpath || config.repository_root !== command.cwd || config.manager_entry_path !== path.join(command.cwd, "scripts/augnes-companion-service.mjs") ||
-    !bytes.plist.includes(Buffer.from(command.node.realpath)) || !bytes.stdout.includes(Buffer.from('"status": "pass"')) || !bytes.stdout.includes(Buffer.from('"case":"native-cleanup","completed":true'))) fail("closeout_runtime_native_evidence_invalid");
+    !bytes.plist.includes(Buffer.from(command.node.realpath)) || !bytes.output_log.includes(Buffer.from('"status": "pass"')) || !bytes.output_log.includes(Buffer.from('"case":"native-cleanup","completed":true'))) fail("closeout_runtime_native_evidence_invalid");
   if (command.sources.length !== 13 || command.sources.some(row => digest(git(["show", `${p.head}:${row.path}`])) !== row.sha256)) fail("closeout_runtime_native_source_changed");
   // All other source is protected by the accepted-task/current-main union;
   // package inputs and the actual native dependency closure must also be exact.
