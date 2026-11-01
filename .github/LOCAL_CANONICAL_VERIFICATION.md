@@ -1151,8 +1151,9 @@ The unchanged Mac Full phase inventory used by the live v7 route now belongs to
 guard lifecycle, wrapped network sandbox construction and their focused owners
 remain supported. No replacement authorizer or execution allowance is introduced.
 
-Current tooling explicitly refuses these retired markers, including markers on
-legacy-version receipts or attempted schema downgrades. Retirement creates no
+Current tooling refuses retired markers on recovery proofs, earlier attempts in
+a recovery pair, and Browser-use records even on downgraded receipts. Neither
+stock validation nor private export can turn them into current evidence. Retirement creates no
 new attempt, grant, retry, recovery, or permission to reset an existing lineage.
 Schema v7 alone is not a retirement marker: the parallel `reviewed_revision`
 contract uses the same schema. Its complete proof, authority, input and lineage

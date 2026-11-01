@@ -56,7 +56,7 @@ import {
   resolveVerificationPlan,
   runPhasesSequentially,
   readStockMachineIdentity,
-  readStockBrowserInput,
+  assertStockReceiptSupported,
   assertRuntimeInputSelection,
   executeLocalCanonicalVerification,
 } from "./run-local-canonical-verification.mjs";
@@ -114,7 +114,7 @@ for (const browserReplacementProofPath of [null, false, ".augnes-local-verificat
       if (hasRetiredQualificationMarker(value)) {
         assert.throws(() => readStockMachineIdentity(value, root), { code: "qualification_route_retired" });
         for (const receipt_version of value.receipt_version === 5 ? [5] : [3, 4, 5])
-          assert.throws(() => readStockBrowserInput({ ...value, receipt_version }, root), { code: "qualification_route_retired" });
+          assert.throws(() => assertStockReceiptSupported({ ...value, receipt_version }), { code: "qualification_route_retired" });
       }
       assert.deepEqual(readdirSync(root), []);
     }
@@ -1016,7 +1016,7 @@ for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"
         if (scenario === "revision_settlement_unsafe") throw Object.assign(new Error(), { code: "revision_current_settlement_unsafe" });
         return settlementLive;
       },
-      selectedBrowserInput: () => null, runtimeInputs: revisionRuntime ? {} : null,
+      runtimeInputs: revisionRuntime ? {} : null,
       prepareInvocationInputs: () => ({ check: () => null,
         prepareDependencies: ({ repositoryRoot, phaseId }) => {
           assert.equal(repositoryRoot, root); assert(calls.phases > preparedPhases.length);

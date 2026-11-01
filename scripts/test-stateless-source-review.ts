@@ -60,6 +60,7 @@ function availablePreparation(result: TerminalPreparationResult) {
   return result.preparation;
 }
 
+assert(!process.argv.includes("--durable-work-baseline"), "historical_reproduction_retired");
 const root = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-stateless-review-")));
 let requests = 0;
 const network = channel("undici:request:create"), onNetwork = () => { requests++; };
@@ -1788,7 +1789,6 @@ async function independentProjectRunsContract() {
 
 async function main() {
   try {
-    assert(process.argv[2] !== "--durable-work-baseline", "historical_reproduction_retired");
     if (process.argv[2] === "--successor-packet-admission") { await statelessSuccessorPacketAdmissionContract(); assert.equal(requests, 0); assert.equal(zeroNetwork.attempts.length, 0); return; }
     if (process.argv[2] === "--project-independence") { await independentProjectRunsContract(); assert.equal(requests, 0); return; }
     if (process.argv[2] === "--durable-work") {

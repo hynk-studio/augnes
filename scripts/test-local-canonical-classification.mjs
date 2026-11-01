@@ -8,7 +8,7 @@ import { runCanonicalChild as executeChild } from "./canonical-child-runner.mjs"
 import { INPUT_CONTRACT, LEGACY_INPUT_CONTRACT, freezeInputContract, classifyInputChange, observeInputFile, monitorInputContract, digest, deriveOperationalDisposition, commonInputResources, inputReadOptions, inputEventIdentity, createInputReader, observeCanonicalRuntimeInputs, canonicalRuntimeInputEnvironment, observePreparedDependencyInputs, preparedDependencyIdentity } from "./local-canonical-inputs.mjs";
 import * as gitInputApi from "./local-canonical-inputs.mjs";
 import { runGitInputControls } from "./fixtures/local-canonical-git-input.mjs";
-import { beginAttempt, finishAttempt, inspectAttemptRecords, readRecoveryProof, readSourceCorrectionProof } from "./local-canonical-attempts.mjs";
+import { beginAttempt, finishAttempt, inspectAttemptRecords, reconstructAttemptTip, readRecoveryProof, readSourceCorrectionProof } from "./local-canonical-attempts.mjs";
 import { acquireCheckoutVerificationOwnership, releaseCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
 import { runPhasesSequentially, enforceArtifactRetention, FULL_PHASE_IDS, buildPhasePlan, phaseEnvironment, prepareInvocationInputs } from "./run-local-canonical-verification.mjs";
 import { createIsolatedInvocationResources, cleanupIsolatedInvocationResources } from "./local-canonical-isolated-resources.mjs";
@@ -255,6 +255,8 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
     const proof = { schema: "augnes.local-canonical-infrastructure-repair.v1", prior_attempt_id: "initial-run", prior_receipt_fingerprint: "4".repeat(64),
       cause: "child_spawn_failure", observed_code: "ENOENT", remedy: "restore_owned_fixture_executable", evidence_sha256: digest(readFileSync(missing)), scope: "task_owned",
       probe: { exit_status: 0, cleanup_complete: true, artifact_sha256: digest(probe), finished_at: new Date().toISOString() } };
+    // A completed fix and probe do not make a retired proof eligible for recovery.
+    assert.throws(() => beginAttempt({ ...request, recoveryProof: { ...proof, guide_authority: false } }), { code: "qualification_route_retired" });
     const attempt2 = beginAttempt({ ...request, runId: "recovery-run", recoveryProof: proof });
     assert.equal(attempt2.number, 2); assert.equal(attempt2.prior_attempt_id, "initial-run");
     const completeRecovery = await runPhasesSequentially({ phases: [{ id: "first" }, { id: "second" }], execute: async phase => {
@@ -266,12 +268,25 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
     const linked = { attempt: attempt2, repository: { branch: request.branch }, run: { id: "recovery-run" },
       integrity: { content_fingerprint: "6".repeat(64) }, outcome: { disposition: "completed_success" }, cleanup: { completed: true } };
     assert(inspectAttemptRecords({ anchorRoot: root, receipt: linked }));
+    // A legitimate second attempt must not hide a retired first attempt during reconstruction or stock.
+    const initialFile = path.join(root, ".augnes-local-verification", "families", attempt1.family_id, "attempt-1.json");
+    const initialBytes = readFileSync(initialFile);
+    try {
+      write(initialFile, JSON.stringify({ ...attempt1, browser_authority: null }));
+      assert.throws(() => reconstructAttemptTip({ anchorRoot: root, branch: request.branch }), { code: "qualification_route_retired" });
+      assert(!inspectAttemptRecords({ anchorRoot: root, receipt: linked }));
+    } finally { writeFileSync(initialFile, initialBytes); }
+    assert.equal(reconstructAttemptTip({ anchorRoot: root, branch: request.branch }).number, 2);
     assert(!inspectAttemptRecords({ anchorRoot: root, receipt: { ...linked, integrity: { content_fingerprint: "0".repeat(64) } } }));
     const proofPath = path.join(root, "repair.json"), causePath = path.join(root, "cause.json"), probePath = path.join(root, "probe.json");
     write(causePath, JSON.stringify({ prior_receipt_fingerprint: proof.prior_receipt_fingerprint, spawn_error_code: "ENOENT" }));
     write(probePath, JSON.stringify(probe));
     write(proofPath, JSON.stringify({ ...proof, cause_artifact: "cause.json", probe_artifact: "probe.json", evidence_sha256: digest(readFileSync(causePath)), probe: { ...proof.probe, artifact_sha256: digest(readFileSync(probePath)) } }));
-    assert.equal(readRecoveryProof(proofPath).cause, "child_spawn_failure");
+    const diskProof = readRecoveryProof(proofPath);
+    assert.equal(diskProof.cause, "child_spawn_failure");
+    write(proofPath, JSON.stringify({ ...diskProof, browser_input_path: null }));
+    assert.throws(() => readRecoveryProof(proofPath), { code: "qualification_route_retired" });
+    write(proofPath, JSON.stringify(diskProof));
     write(probePath, "{}"); assert.throws(() => readRecoveryProof(proofPath));
     assert.throws(() => beginAttempt({ ...request, runId: "third", recoveryProof: proof }));
     for (const outcome of ["product_failure", "unclassified_timeout", "safety_violation"]) {

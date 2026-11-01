@@ -40,7 +40,7 @@ export function createPrivateReviewExport(receipt) {
       exit_status: p.exit_status, timed_out: p.timed_out, failure_code: p.failure_code,
       cleanup: pick(p.cleanup, ["completed", "remaining_owned_processes", "termination_reason", "exit_observed", "streams_closed", "listener_residue_count"]),
       browser_use: (p.browser_use ?? []).map(b => ({ contract: b.contract, consumer: b.consumer, disposition: b.disposition, runtime_versions: b.runtime_versions, executable_name: b.executable_name, location_fingerprint: b.location_fingerprint,
-        before_sha256: b.before?.sha256 ?? null, after_sha256: b.after?.sha256 ?? null, actual_version: b.actual_version, unchanged: b.unchanged, ...(b.contract === "augnes.local-canonical-browser-use.v3" ? pick(b, ["browser_input_fingerprint", "cli_version", "bundle_before", "bundle_after"]) : {}) })) })),
+        before_sha256: b.before?.sha256 ?? null, after_sha256: b.after?.sha256 ?? null, actual_version: b.actual_version, unchanged: b.unchanged })) })),
     outcome: receipt.outcome ? pick(receipt.outcome, ["disposition", "execution", "validity", "safety", "applicability_at_admission"]) : null,
     cleanup: { completed: receipt.cleanup.completed, remaining_owned_processes: receipt.cleanup.remaining_owned_processes,
       companion_restored: receipt.cleanup.companion_service.restored }, final: pick(receipt.final, ["result", "exit_status", "reason_codes"]),

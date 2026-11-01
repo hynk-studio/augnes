@@ -873,7 +873,11 @@ for (const proof of retiredProofs) {
 // binding markers cannot enter through a downgraded receipt/export schema.
 for (const marker of [{ receipt_version: 5 },
   ...["browser_input", "browser_guard"].flatMap(key => [false, null].map(value => ({ [key]: value }))),
-  { inputs: { binding: { browser_input: false } } }, { inputs: { resources: [{ browserBundle: null }] } }]) {
+  { inputs: { binding: { browser_input: false } } }, { inputs: { resources: [{ browserBundle: null }] } },
+  { inputs: { resources: [{ id: "browser-binding" }] } },
+  { attempt: { recovery: { observer_authority: false } } },
+  ...[{ contract: "augnes.local-canonical-browser-use.v3" }, { browser_input_fingerprint: null }].map(use =>
+    ({ phases: baseReceipt.phases.map((phase, index) => index ? phase : { ...phase, browser_use: [use] }) }))]) {
   const receipt = finalizeReceipt({ ...structuredClone(baseReceipt), ...marker });
   const before = JSON.stringify(receipt);
   assert(inspectReceiptForDecision(receipt, validContext).issues.includes("receipt_qualification_route_retired"));
@@ -910,7 +914,7 @@ try {
     assert.deepEqual(readFileSync(file), original);
     assert(!existsSync(path.join(artifact, "families")), "refusal cannot create or reserve a family");
   }
-  for (const key of ["browserReplacement", "browserAuthorization", "browserLive"]) for (const value of [false, null]) {
+  for (const key of ["browserReplacement", "browserAuthorization", "browserLive", "observerAuthorization", "timeoutAuthorization", "conditionAuthorization", "guideAuthorization"]) for (const value of [false, null]) {
     assert.throws(() => beginAttempt({ anchorRoot: retirementRoot, repositoryRoot: retirementRoot,
       checkoutOwner: retirementOwner, branch: "synthetic-retired", head: "a".repeat(40), tree: "b".repeat(40),
       runId: "synthetic-retired", contractFingerprint: "c".repeat(64), [key]: value,

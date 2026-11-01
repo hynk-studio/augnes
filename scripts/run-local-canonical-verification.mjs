@@ -19,7 +19,6 @@ import {
 import path from "node:path";
 import os from "node:os";
 import { freezeInputContract, monitorInputContract, digest, deriveOperationalDisposition, createInputReader, classifyInputChange, nonFaultInputChange, inputReadOptions, supportedInputContract, createGitTrackingResource, observeCanonicalRuntimeInputs, canonicalRuntimeInputEnvironment, observePreparedDependencyInputs, preparedDependencyIdentity } from "./local-canonical-inputs.mjs";
-import { browserInputEnvironment, selectedBrowserInput } from "./local-canonical-browser-input.mjs";
 import { beginAttempt, finishAttempt, readRecoveryProof, readSourceCorrectionProof, inspectAttemptRecords, hasRetiredQualificationMarker, isReviewedRevision, authorizeReviewedRevision, REVIEWED_REVISION_PHASES } from "./local-canonical-attempts.mjs";
 import { pinVerificationEvidence, readPinnedEvidence } from "./local-canonical-evidence-retention.mjs";
 import { BROWSER_IDENTITY_PREFIX, validPhaseBrowserUse, browserConsumersForPhase, MAX_BROWSER_USE_RECORDS, parseBrowserUseLine } from "./local-canonical-browser-identity.mjs";
@@ -503,7 +502,6 @@ export async function executeLocalCanonicalVerification({
     throw Object.assign(new Error("reviewed_revision_full_route_required"), { code: "reviewed_revision_full_route_required" });
   const runtimeInputs = isReviewedRevision(sourceCorrection) ? observeCanonicalRuntimeInputs() : null;
   assertRuntimeInputSelection(runtimeInputs);
-  if (selectedBrowserInput({ repositoryRoot })) throw Object.assign(new Error("qualification_route_retired"), { code: "qualification_route_retired" });
   const hostResult = collectHostEnvironment(repositoryRoot);
   const host = hostResult.public;
   const nodePolicy = evaluateNodePolicy();
@@ -1227,17 +1225,17 @@ export async function executeLocalCanonicalVerification({
   };
 }
 
-export function prepareInvocationInputs({ verificationContext, isolatedResources, browserExecutablePath, browserInput = null, runtimeInputs = null, headSha, executorFingerprint, phaseDefinitions }) {
+export function prepareInvocationInputs({ verificationContext, isolatedResources, browserExecutablePath, runtimeInputs = null, headSha, executorFingerprint, phaseDefinitions }) {
   if ((verificationContext.kind === "isolated-worktree") !== Boolean(isolatedResources))
     throw Object.assign(new Error("input_isolation_context_mismatch"), { code: "input_isolation_context_mismatch" });
-  const environments = phaseDefinitions.map(phase => ({ id: phase.id, values: phaseEnvironment({ phase, isolatedResources, browserExecutablePath, browserInput, runtimeInputs }) }));
-  const resources = invocationInputResources({ verificationContext, browserExecutablePath, browserInput, runtimeInputs });
+  const environments = phaseDefinitions.map(phase => ({ id: phase.id, values: phaseEnvironment({ phase, isolatedResources, browserExecutablePath, runtimeInputs }) }));
+  const resources = invocationInputResources({ verificationContext, browserExecutablePath, runtimeInputs });
   const frozen = freezeInputContract({ resources, pathKind: isolatedResources ? "isolated-model-free-v1" : "canonical-conservative-v1",
     binding: { head: headSha, tree: runGit(repositoryRoot, ["rev-parse", `${headSha}^{tree}`]).trim(),
       executor_fingerprint: executorFingerprint, phase_inventory: digest(phaseDefinitions),
       phase_environment_fingerprints: environments.map(e => ({ id: e.id, fingerprint: digest(e.values) })),
       environment_keys: [...new Set(environments.flatMap(e => Object.keys(e.values)))].sort(), authenticated_transport: "github_authenticated_main_branch_get",
-      provider_policy: "no_live_model_calls;private_fixture_adapters_only", ...(runtimeInputs ? { runtime_inputs: runtimeInputs } : {}), ...(browserInput ? { browser_input: browserInput.publicBinding } : {}) } });
+      provider_policy: "no_live_model_calls;private_fixture_adapters_only", ...(runtimeInputs ? { runtime_inputs: runtimeInputs } : {}) } });
   if (runtimeInputs) {
     for (const [role, id] of [["node", "node-executable"], ["headers", "node-headers"]]) {
       const resource = frozen.snapshot().resources.find(r => r.id === id);
@@ -1248,12 +1246,10 @@ export function prepareInvocationInputs({ verificationContext, isolatedResources
   return frozen;
 }
 
-function invocationInputResources({ verificationContext, browserExecutablePath, browserInput = null, runtimeInputs = null }) {
+function invocationInputResources({ verificationContext, browserExecutablePath, runtimeInputs = null }) {
   const isolated = verificationContext.kind === "isolated-worktree";
   const userHome = os.userInfo().homedir;
   return [
-    ...(browserInput ? [{ id: "browser-bundle", file: browserInput.root, classification: "execution", browserBundle: true },
-      { id: "browser-binding", file: browserInput.file, classification: "execution" }, { id: "browser-reference", file: browserInput.referenceFile, classification: "execution" }] : []),
     { id: "codex-preferences", file: path.join(userHome, ".codex", "config.toml"), classification: isolated ? "ambient" : "unknown", excludePreferences: isolated },
     { id: "user-instructions", file: path.join(userHome, ".codex", "AGENTS.md"), classification: "safety" },
     { id: "auth-location", file: path.join(userHome, ".codex", "auth.json"), classification: "safety", metadataOnly: true },
@@ -1275,10 +1271,10 @@ function invocationInputResources({ verificationContext, browserExecutablePath, 
   ];
 }
 
-function currentInputEvidenceValid(receipt, verificationContext, browserExecutablePath, browserInput = null, runtimeInputs = null) {
+function currentInputEvidenceValid(receipt, verificationContext, browserExecutablePath, runtimeInputs = null) {
   try {
     if (digest(runtimeInputs) !== digest(receipt.inputs?.binding?.runtime_inputs ?? null)) return false;
-    const resources = invocationInputResources({ verificationContext, browserExecutablePath, browserInput, runtimeInputs });
+    const resources = invocationInputResources({ verificationContext, browserExecutablePath, runtimeInputs });
     const readInput = createInputReader();
     const declared = receipt.inputs?.resources;
     if (!supportedInputContract(receipt.inputs?.contract) || !Array.isArray(declared) || resources.length !== declared.length) return false;
@@ -1334,10 +1330,9 @@ function lifecycleStateRestored(before, after) {
     before.service_identity === after.service_identity;
 }
 
-export function readStockBrowserInput(receipt) {
+export function assertStockReceiptSupported(receipt) {
   if (hasRetiredQualificationMarker(receipt)) throw Object.assign(new Error("qualification_route_retired"), { code: "qualification_route_retired" });
   if (![3, 4].includes(receipt?.receipt_version)) throw Object.assign(new Error("stock_receipt_version_unsupported"), { code: "stock_receipt_version_unsupported" });
-  return null;
 }
 
 export function readStockMachineIdentity(receipt, machineRoot) {
@@ -1354,7 +1349,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
   const verificationContext = admitVerificationContext({ repositoryRoot, kind: checkoutContext });
   const receiptPath = resolveArtifactPath(relativeReceiptPath);
   const receipt = readReceiptFile(receiptPath);
-  readStockBrowserInput(receipt);
+  assertStockReceiptSupported(receipt);
   const identity = collectRepositoryIdentity(repositoryRoot, { verificationContext });
   const locks = collectLockFingerprints();
   const executorFingerprint = computeExecutorSourceFingerprint();
@@ -1424,7 +1419,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
     if (receipt.attempt.source_correction.settlement) try { revisionLive = await observeReviewedRevisionSettlementState(verificationContext); } catch { /* stock refuses unsafe or unavailable current settlement */ }
   }
   return inspectReceiptForDecision(receipt, {
-    currentInputStateValid: receipt.receipt_version === 4 ? currentInputEvidenceValid(receipt, verificationContext, validationHost.browserExecutablePath, null, runtimeInputs) : null,
+    currentInputStateValid: receipt.receipt_version === 4 ? currentInputEvidenceValid(receipt, verificationContext, validationHost.browserExecutablePath, runtimeInputs) : null,
     currentAttemptRecordsValid: receipt.receipt_version === 4 ? inspectAttemptRecords({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, receipt, revisionAuthorization, revisionInputs: runtimeInputs, revisionLive }) : null,
     currentVerificationContext: verificationContext,
     expectedRunId: path.basename(receiptPath, ".json"),
@@ -1828,7 +1823,6 @@ export async function executePhase({
   mode,
   runLogRoot,
   browserExecutablePath = null,
-  browserInput = null,
   runtimeInputs = null,
   expectedBrowser = null,
   isolatedResources = null,
@@ -1845,7 +1839,7 @@ export async function executePhase({
   );
   const logPath = path.join(repositoryRoot, logRelativePath);
   const browserUse = [];
-  const environment = phaseEnvironment({ phase, isolatedResources, browserExecutablePath, browserInput, runtimeInputs });
+  const environment = phaseEnvironment({ phase, isolatedResources, browserExecutablePath, runtimeInputs });
   const environmentFingerprint = digest(environment);
   const capture = createBoundedCapture(logPath, record => {
     // One overflow entry preserves refusal without unbounded capture.
@@ -1961,7 +1955,7 @@ export function assertRuntimeInputSelection(runtimeInputs, ambient = process.env
   }
 }
 
-export function phaseEnvironment({ phase, isolatedResources, browserExecutablePath, browserInput = null, runtimeInputs = null }) {
+export function phaseEnvironment({ phase, isolatedResources, browserExecutablePath, runtimeInputs = null }) {
   const environment = isolatedResources ? {
     ...isolatedInvocationEnvironment(isolatedResources),
     ...(browserExecutablePath ? { AUGNES_BROWSER_EXECUTABLE_PATH: browserExecutablePath } : {}),
@@ -1972,7 +1966,7 @@ export function phaseEnvironment({ phase, isolatedResources, browserExecutablePa
     AUGNES_CANONICAL_NODE_HEADERS: path.join(path.dirname(path.dirname(realpathSync(process.execPath))), "include", "node"),
     AUGNES_CANONICAL_NODE_HEADERS_FINGERPRINT: digest(runtimeInputs.headers.observation),
   }));
-  return browserInput ? { ...environment, ...browserInputEnvironment(browserInput) } : environment;
+  return environment;
 }
 
 function notRunPhaseReceipt(phase) {

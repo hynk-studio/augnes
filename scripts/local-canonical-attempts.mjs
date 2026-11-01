@@ -32,10 +32,13 @@ const RETIRED_QUALIFICATION_SCHEMAS = new Set([
 ]);
 export function hasRetiredQualificationMarker(value) {
   return value?.receipt_version === 5 ||
+    (Array.isArray(value?.phases) && value.phases.some(phase =>
+      Array.isArray(phase?.browser_use) && phase.browser_use.some(use =>
+        use?.contract === "augnes.local-canonical-browser-use.v3" || Object.hasOwn(use ?? {}, "browser_input_fingerprint")))) ||
     (Array.isArray(value?.inputs?.resources) && value.inputs.resources.some(resource =>
-      resource !== null && typeof resource === "object" && Object.hasOwn(resource, "browserBundle"))) ||
-    [value, value?.source_correction, value?.browser_replacement, value?.attempt,
-      value?.attempt?.source_correction, value?.attempt?.browser_replacement, value?.inputs?.binding].some(record =>
+      resource !== null && typeof resource === "object" && (Object.hasOwn(resource, "browserBundle") || ["browser-bundle", "browser-binding", "browser-reference"].includes(resource.id)))) ||
+    [value, value?.source_correction, value?.recovery, value?.attempt,
+      value?.attempt?.source_correction, value?.attempt?.recovery, value?.inputs?.binding].some(record =>
     record !== null && typeof record === "object" && (
       RETIRED_QUALIFICATION_SCHEMAS.has(record.schema) ||
       ["augnes.local-canonical-browser-replacement.v1", "augnes.local-canonical-browser-authorization.v1"].includes(record.contract) ||
@@ -83,9 +86,9 @@ function append(root, name, value) { writeFileSync(path.join(root, name), `${JSO
 // Family lives at the physical anchor, keyed by repository and branch (not
 // commit, wrapper process or checkout). There is no CLI family-id reset knob.
 export function beginAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, head, tree, runId, contractFingerprint, recoveryProof = null, sourceCorrection = null, acceptedMain = null, revisionAuthorization = null, revisionInputs = null, revisionLive = null, ...retiredOptions }) {
-  if (["browserReplacement", "browserAuthorization", "browserLive"].some(key => Object.hasOwn(retiredOptions, key))) throw fail("qualification_route_retired");
+  if (["browserReplacement", "browserAuthorization", "browserLive", "observerAuthorization", "timeoutAuthorization", "conditionAuthorization", "guideAuthorization"].some(key => Object.hasOwn(retiredOptions, key))) throw fail("qualification_route_retired");
   assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
-  if (hasRetiredQualificationMarker(sourceCorrection)) throw fail("qualification_route_retired");
+  if (hasRetiredQualificationMarker(sourceCorrection) || hasRetiredQualificationMarker(recoveryProof)) throw fail("qualification_route_retired");
   if (!branch || !/^[0-9a-f]{40}$/u.test(head) || !/^[0-9a-f]{40}$/u.test(tree) || !sha(contractFingerprint)) throw fail("attempt_identity_invalid");
   if ([recoveryProof, sourceCorrection].filter(Boolean).length > 1) throw fail("attempt_mixed_successor_kind");
   const familyId = candidateFamilyId(branch, sourceCorrection);
@@ -156,6 +159,7 @@ export function finishAttempt(capability, { receiptFingerprint, disposition, cle
 
 export function readRecoveryProof(file) {
   const proof = read(file);
+  if (hasRetiredQualificationMarker(proof)) throw fail("qualification_route_retired");
   for (const [key, expected] of [["cause_artifact", proof.evidence_sha256], ["probe_artifact", proof.probe?.artifact_sha256]]) {
     const name = proof[key];
     if (typeof name !== "string" || !/^[a-z0-9_-]+\.json$/u.test(name) || !sha(expected)) throw fail("attempt_repair_evidence_missing");
@@ -193,6 +197,7 @@ export function inspectAttemptRecords({ anchorRoot, repositoryRoot = anchorRoot,
         completion.receipt_fingerprint !== receipt.integrity.content_fingerprint ||
         completion.disposition !== receipt.outcome.disposition || completion.cleanup_complete !== receipt.cleanup.completed) return false;
     if (attempt.number === 2) {
+      if (hasRetiredQualificationMarker(read(path.join(root, "attempt-1.json")))) return false;
       const prior = read(path.join(root, "completion-1.json"));
       if (prior.disposition !== "infrastructure_interruption" || !validRecoveryProof(attempt.recovery, prior)) return false;
     }
@@ -216,6 +221,7 @@ export function reconstructAttemptTip({ anchorRoot, repositoryRoot = null, branc
     const entries = readdirSync(root);
     if (entries.some(name => !/^(attempt|completion)-[12]\.json$/u.test(name) && name !== "correction-successor.json")) throw fail("attempt_unknown_record");
     const number = entries.includes("attempt-2.json") ? 2 : 1;
+    if (number === 2 && hasRetiredQualificationMarker(read(path.join(root, "attempt-1.json")))) throw fail("qualification_route_retired");
     const attempt = read(path.join(root, `attempt-${number}.json`));
     if (hasRetiredQualificationMarker(attempt)) throw fail("qualification_route_retired");
     if (attempt.contract !== ATTEMPT_CONTRACT || attempt.branch !== branch || attempt.family_id !== familyId || attempt.number !== number ||

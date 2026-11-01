@@ -5,6 +5,7 @@ import { Script } from "node:vm";
 import { transformSync } from "esbuild";
 import { runCanonicalChild } from "./canonical-child-runner.mjs";
 import { createCanonicalTestResourceRoot, cleanupCanonicalTestResources, buildCanonicalChildEnvironment } from "./canonical-test-environment.mjs";
+import { collectHostEnvironment } from "./local-canonical-environment.mjs";
 import { createBrowserBundleObserver, compareBrowserBundle } from "./local-canonical-browser-bundle.mjs";
 import { BROWSER_INPUT_ENV_KEYS, browserInputEnvironment, selectedBrowserInput, selectBrowserPath, assertSelectedBrowser, acquireBrowserInputGuard, releaseBrowserInputGuard, assertBrowserInputGuard, readBrowserInputBinding, strictBrowserArguments, strictNetworkSandboxLaunch } from "./local-canonical-browser-input.mjs";
 import { acquireCheckoutVerificationOwnership, releaseCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
@@ -63,6 +64,17 @@ let checkoutOwner, guard;
 try {
   checkoutOwner = acquireCheckoutVerificationOwnership({ repositoryRoot: root });
   let binding = fixtureBrowser(root), env = browserInputEnvironment(binding);
+  // The generic fixture accepts this strict binding. The deciding host and stock
+  // share a preflight that must refuse it before inspecting machine state.
+  const previous = Object.fromEntries(Object.keys(env).map(key => [key, process.env[key]]));
+  try {
+    Object.assign(process.env, env);
+    assert.throws(() => collectHostEnvironment(root), { code: "qualification_route_retired" });
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+  }
   const select = input => selectedBrowserInput({ repositoryRoot: root, env: input });
   const fixtureDefault = path.join(root, "legacy-default-browser"), explicit = path.join(root, "legacy-explicit-browser"), missing = path.join(root, "missing-browser");
   fixtureWrite(fixtureDefault, "default fixture"); fixtureWrite(explicit, "explicit fixture");
