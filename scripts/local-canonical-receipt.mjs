@@ -669,7 +669,7 @@ function inspectClassifiedEvidence(receipt, issues) {
     const prepared = Array.isArray(input.prepared_dependencies) ? input.prepared_dependencies.find(record => record?.phase_id === event.resource) : null;
     const observedFailure = event.disposition === "observer_failure" && event.after === null && validObservationDiagnostic(event.diagnostic);
     const observedUnsafeDependency = !resource && prepared && event.disposition === "safety_violation" && event.after === null && event.diagnostic === undefined &&
-      ["dependency_input_root_unsafe", "dependency_input_entry_unsafe", "dependency_input_link_escape", "dependency_input_path_alias", "dependency_input_cache_unsafe", "dependency_input_external_hardlink"].includes(prepared.error);
+      ["dependency_input_root_unsafe", "dependency_input_entry_unsafe", "dependency_input_link_escape", "dependency_input_path_alias", "dependency_input_cache_unsafe", "dependency_input_generated_unsafe", "dependency_input_external_hardlink"].includes(prepared.error);
     const classification = resource?.classification ?? (prepared ? "execution" : null);
     const comparison = observedFailure || observedUnsafeDependency ? null : prepared && !resource ? comparePreparedDependencyInputs(prepared.before, event.after) :
       resource ? classifyInputChange(resource.before, event.after, resource, input) : null;

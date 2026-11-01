@@ -53,7 +53,9 @@ export function validCanonicalRuntimeInputs(value) {
     value.headers.location_fingerprint === value.headers.observation.location_fingerprint;
 }
 
-export const PREPARED_DEPENDENCY_CONTRACT = "augnes.local-canonical-prepared-dependencies.v1";
+export const LEGACY_PREPARED_DEPENDENCY_CONTRACT = "augnes.local-canonical-prepared-dependencies.v1";
+export const PREPARED_DEPENDENCY_CONTRACT = "augnes.local-canonical-prepared-dependencies.v2";
+const generatedDependencyDirectories = Object.freeze([".cache", ".vite-temp"]);
 const dependencyRoots = Object.freeze({ "dependencies-root": "", "dependencies-nested": "apps/augnes_apps", "dependencies-web-planning": "apps/web_planning" });
 const dependencyLimits = Object.freeze({ entries: 65536, bytes: 2 * 1024 ** 3, milliseconds: 30000, securityBytes: 32 * 1024 ** 2 });
 const dependencyStat = stat => Object.fromEntries(["mode", "uid", "gid", "dev", "ino", "nlink", "size", "mtimeNs", "ctimeNs"].map(key => [key, String(stat[key])]));
@@ -61,7 +63,9 @@ const dependencyStat = stat => Object.fromEntries(["mode", "uid", "gid", "dev", 
 // Clean preparation PRODUCES these trees. Call only after the corresponding
 // successful npm ci, then compare at the owning boundaries and fresh stock.
 // No pre-install directory/file identity is asserted across legitimate install.
-export function observePreparedDependencyInputs({ repositoryRoot, phaseId }) {
+export function observePreparedDependencyInputs({ repositoryRoot, phaseId, contract = PREPARED_DEPENDENCY_CONTRACT }) {
+  const legacy = contract === LEGACY_PREPARED_DEPENDENCY_CONTRACT;
+  if (!legacy && contract !== PREPARED_DEPENDENCY_CONTRACT) throw fail("dependency_input_observation_invalid");
   if (!Object.hasOwn(dependencyRoots, phaseId) || !path.isAbsolute(repositoryRoot) || realpathSync(repositoryRoot) !== repositoryRoot)
     throw fail("dependency_input_target_invalid");
   const project = path.join(repositoryRoot, dependencyRoots[phaseId]), root = path.join(project, "node_modules"), started = performance.now();
@@ -118,7 +122,7 @@ export function observePreparedDependencyInputs({ repositoryRoot, phaseId }) {
   };
   const scan = () => {
     if (realpathSync(root) !== root || !lstatSync(root).isDirectory()) throw fail("dependency_input_root_unsafe");
-    const rows = [], linked = new Map(); let bytes = 0, emptyCache = null;
+    const rows = [], linked = new Map(), generated = generatedDependencyDirectories.map(path => ({ path, state: "absent" })); let bytes = 0, emptyCache = null;
     const visit = relative => {
       deadline();
       if (rows.length >= dependencyLimits.entries) throw fail("dependency_input_observation_bound");
@@ -133,13 +137,20 @@ export function observePreparedDependencyInputs({ repositoryRoot, phaseId }) {
             !target.startsWith(root + path.sep) || !path.resolve(path.dirname(file), row.target).startsWith(root + path.sep)) throw fail("dependency_input_link_escape");
       } else if (realpathSync(file) !== file) throw fail("dependency_input_path_alias");
       const names = type === "directory" ? readdirSync(file).sort() : null;
-      if (relative === ".cache" && type === "directory" && names.length === 0) {
+      const generatedIndex = legacy ? -1 : generatedDependencyDirectories.indexOf(relative);
+      if (generatedIndex >= 0 && (type !== "directory" || names.length !== 0)) throw fail("dependency_input_generated_unsafe");
+      if (generatedIndex >= 0 || relative === ".cache" && type === "directory" && names.length === 0) {
         const base = rows[0].metadata;
         if (["mode", "uid", "gid", "dev"].some(key => row.metadata[key] !== base[key])) throw fail("dependency_input_cache_unsafe");
         // Generated directories may inherit protected platform provenance.
         // Their complete security must equal the parent that remains bound;
         // no attribute name, ACL, flag or permission is independently ignored.
-        if (digest(directorySecurity(file)) !== digest(directorySecurity(root))) throw fail("dependency_input_cache_unsafe");
+        const observed = directorySecurity(file), parent = directorySecurity(root);
+        const observedSecurity = digest(observed), parentSecurity = digest(parent);
+        if (observedSecurity !== parentSecurity || !legacy && Number(row.metadata.uid) !== process.getuid?.()) throw fail("dependency_input_cache_unsafe");
+        if (generatedIndex >= 0) generated[generatedIndex] = { path: relative, state: "proven_empty", metadata: row.metadata, parent_metadata: base,
+          security: observed, parent_security: parent,
+          security_sha256: observedSecurity, parent_security_sha256: parentSecurity };
         emptyCache = row; return;
       }
       rows.push(row);
@@ -157,7 +168,7 @@ export function observePreparedDependencyInputs({ repositoryRoot, phaseId }) {
     };
     visit("");
     if ([...linked.values()].some(link => BigInt(link.observed) !== link.expected)) throw fail("dependency_input_external_hardlink");
-    return { rows, bytes, emptyCache };
+    return { rows, bytes, emptyCache, ...(!legacy ? { generated } : {}) };
   };
   const sources = ["package.json", "package-lock.json"].map(name => ({ name, observation: observeInputFile(path.join(project, name)) }));
   if (sources.some(source => !source.observation.present)) throw fail("dependency_input_source_missing");
@@ -181,22 +192,33 @@ export function observePreparedDependencyInputs({ repositoryRoot, phaseId }) {
   const layout = before.rows.map(row => ({ path: row.path, type: row.type,
     metadata: Object.fromEntries(["mode", "uid", "gid", ...(row.type === "file" ? ["nlink"] : [])].map(key => [key, row.metadata[key]])),
     ...(row.type === "link" ? { target: row.target } : {}) }));
-  return { contract: PREPARED_DEPENDENCY_CONTRACT, phase_id: phaseId, location_fingerprint: digest(root),
+  return { contract, phase_id: phaseId, location_fingerprint: digest(root),
     sources: sources.map(source => ({ name: source.name, sha256: source.observation.sha256, bytes: Number(source.observation.metadata.bytes) })),
     entries: before.rows.length, bytes: before.bytes, layout_sha256: digest(layout), content_sha256: digest(contents), permission_sha256: permissions,
-    generated_cache: before.emptyCache ? "proven_empty" : "absent_or_binding" };
+    ...(legacy ? { generated_cache: before.emptyCache ? "proven_empty" : "absent_or_binding" } : { generated_directories: before.generated }) };
 }
 
 export function preparedDependencyIdentity(value) {
-  if (value?.contract !== PREPARED_DEPENDENCY_CONTRACT || !Object.hasOwn(dependencyRoots, value.phase_id) ||
-      Object.keys(value).sort().join(",") !== "bytes,content_sha256,contract,entries,generated_cache,layout_sha256,location_fingerprint,permission_sha256,phase_id,sources" ||
+  const legacy = value?.contract === LEGACY_PREPARED_DEPENDENCY_CONTRACT;
+  const validGenerated = () => Array.isArray(value.generated_directories) && value.generated_directories.length === generatedDependencyDirectories.length &&
+    value.generated_directories.every((entry, index) => entry?.path === generatedDependencyDirectories[index] &&
+      (entry.state === "absent" ? Object.keys(entry).sort().join(",") === "path,state" :
+        entry.state === "proven_empty" && Object.keys(entry).sort().join(",") === "metadata,parent_metadata,parent_security,parent_security_sha256,path,security,security_sha256,state" &&
+        sha(entry.security_sha256) && entry.security_sha256 === entry.parent_security_sha256 &&
+        entry.security_sha256 === digest(entry.security) && entry.parent_security_sha256 === digest(entry.parent_security) && entry.metadata && entry.parent_metadata &&
+        ["mode", "uid", "gid", "dev"].every(key => entry.metadata[key] === entry.parent_metadata[key]) &&
+        Object.keys(entry.metadata).sort().join(",") === "ctimeNs,dev,gid,ino,mode,mtimeNs,nlink,size,uid" &&
+        Object.values(entry.metadata).every(v => typeof v === "string" && /^\d+$/u.test(v)) &&
+        (BigInt(entry.metadata.mode) & 0o170000n) === 0o040000n && (BigInt(entry.metadata.mode) & 0o022n) === 0n));
+  if ((!legacy && value?.contract !== PREPARED_DEPENDENCY_CONTRACT) || !Object.hasOwn(dependencyRoots, value.phase_id) ||
+      Object.keys(value).sort().join(",") !== `bytes,content_sha256,contract,entries,${legacy ? "generated_cache" : "generated_directories"},layout_sha256,location_fingerprint,permission_sha256,phase_id,sources` ||
       !["location_fingerprint", "layout_sha256", "content_sha256", "permission_sha256"].every(key => sha(value[key])) ||
       !Number.isSafeInteger(value.entries) || value.entries < 1 || value.entries > dependencyLimits.entries ||
       !Number.isSafeInteger(value.bytes) || value.bytes < 1 || value.bytes > dependencyLimits.bytes ||
-      !["proven_empty", "absent_or_binding"].includes(value.generated_cache) || !Array.isArray(value.sources) || value.sources.length !== 2 ||
+      (legacy ? !["proven_empty", "absent_or_binding"].includes(value.generated_cache) : !validGenerated()) || !Array.isArray(value.sources) || value.sources.length !== 2 ||
       value.sources.some((source, index) => !source || Object.keys(source).sort().join(",") !== "bytes,name,sha256" || source.name !== ["package.json", "package-lock.json"][index] || !sha(source.sha256) || !Number.isSafeInteger(source.bytes) || source.bytes < 1))
     throw fail("dependency_input_observation_invalid");
-  const { generated_cache, ...identity } = value;
+  const { generated_cache, generated_directories, ...identity } = value;
   return identity;
 }
 
@@ -339,7 +361,7 @@ const failureStages = new Set(["reader", "classification", "initial_stat", "path
 const failureCodes = new Set(["EACCES", "EPERM", "ENOENT", "EIO", "ELOOP", "ENOTDIR", "EMFILE", "ENFILE", "EBADF", "EINVAL", "ESTALE", "EINTR", "ETIMEDOUT", "ENOBUFS", "ENOMEM", "EISDIR", "input_unsafe_file", "input_observation_race", "input_comparison_bound_exceeded", "input_invalid_utf8", "input_executable_permissions_unknown", "helper_exit_nonzero", "unclassified_error"]);
 for (const code of ["dependency_input_target_invalid", "dependency_input_observation_bound", "dependency_input_security_unknown",
   "dependency_input_platform_unsupported", "dependency_input_root_unsafe", "dependency_input_entry_unsafe", "dependency_input_link_escape",
-  "dependency_input_path_alias", "dependency_input_cache_unsafe", "dependency_input_link_count_changed", "dependency_input_path_unsafe",
+  "dependency_input_path_alias", "dependency_input_cache_unsafe", "dependency_input_generated_unsafe", "dependency_input_link_count_changed", "dependency_input_path_unsafe",
   "dependency_input_external_hardlink", "dependency_input_source_missing", "dependency_input_read_race", "dependency_input_observation_invalid"])
   failureCodes.add(code);
 const taggedFailures = new WeakMap();
@@ -669,7 +691,7 @@ export function freezeInputContract({ resources, pathKind, binding, read = creat
   const dependencyObservationFailure = (entry, error) => {
     const diagnostic = observationFailure(error, "reader");
     const safety = ["dependency_input_root_unsafe", "dependency_input_entry_unsafe", "dependency_input_link_escape", "dependency_input_path_alias",
-      "dependency_input_cache_unsafe", "dependency_input_external_hardlink"].includes(diagnostic.code);
+      "dependency_input_cache_unsafe", "dependency_input_generated_unsafe", "dependency_input_external_hardlink"].includes(diagnostic.code);
     dependencyFailure(entry, null, safety ? "safety_violation" : "observer_failure", diagnostic.code, safety ? null : diagnostic);
   };
   const prepareDependencies = ({ repositoryRoot, phaseId }) => {

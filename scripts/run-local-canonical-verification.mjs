@@ -1322,7 +1322,7 @@ function currentInputEvidenceValid(receipt, verificationContext, browserExecutab
       const expected = receipt.phases.filter(phase => ["dependencies-root", "dependencies-nested", "dependencies-web-planning"].includes(phase.id) && phase.status === "pass").map(phase => phase.id);
       if (!Array.isArray(prepared) || digest(prepared.map(record => record.phase_id)) !== digest(expected) || prepared.some(record =>
           record.error || record.unchanged !== true || digest(preparedDependencyIdentity(record.before)) !== digest(preparedDependencyIdentity(record.after)) ||
-          digest(preparedDependencyIdentity(record.before)) !== digest(preparedDependencyIdentity(observePreparedDependencyInputs({ repositoryRoot, phaseId: record.phase_id }))))) return false;
+          digest(preparedDependencyIdentity(record.before)) !== digest(preparedDependencyIdentity(observePreparedDependencyInputs({ repositoryRoot, phaseId: record.phase_id, contract: record.before.contract }))))) return false;
     }
     return resources.every(resource => {
       const prior = declared.find(r => r.id === resource.id);

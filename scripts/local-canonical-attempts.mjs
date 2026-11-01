@@ -3,7 +3,7 @@ import { OPERATING_PROFILE_SCHEMA, isOperatingProfileSuccession, readOperatingPr
 import { mkdirSync, lstatSync, readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { digest, validNodeHeaders, classifyInputChange, nonFaultInputChange, inputEventIdentity, comparePreparedDependencyInputs } from "./local-canonical-inputs.mjs";
+import { digest, validNodeHeaders, classifyInputChange, nonFaultInputChange, inputEventIdentity, comparePreparedDependencyInputs, preparedDependencyIdentity, observePreparedDependencyInputs, PREPARED_DEPENDENCY_CONTRACT } from "./local-canonical-inputs.mjs";
 import { assertCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
 import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 import { readBrowserInputBinding } from "./local-canonical-browser-input.mjs";
@@ -53,8 +53,7 @@ export function beginAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch
     const proof = sourceCorrection ?? browserReplacement;
     const revision = isReviewedRevision(sourceCorrection);
     if (tip.family_id !== proof.prior_family_id || tip.number !== proof.prior_number || tip.attempt_id !== proof.prior_attempt_id ||
-        (revision ? tip.input_replacement_consumed || (tip.reviewed_revision_consumed ?
-          proof.commission.ordinal !== tip.reviewed_revision_consumed + 1 || revisionCommissionIdentity(proof) !== tip.revision_commission : proof.commission.ordinal !== 1) :
+        (revision ? tip.input_replacement_consumed || !revisionFollows(proof, tip.reviewed_revision_consumed ?? 0, tip.revision_commission, tip.revision_grants ?? []) :
           tip.reviewed_revision_consumed || tip.observer_repair_consumed || tip.corrected_timeout_consumed || tip.guide_correction_consumed || tip.successor_budget_consumed ||
           (tip.operating_profile_consumed && !isSuccessorBudgetSuccession(sourceCorrection)) ||
           (isSuccessorBudgetSuccession(sourceCorrection) && !tip.operating_profile_consumed) ||
@@ -247,7 +246,7 @@ const browserSuccessor = (branch, proof) => ({ contract: "augnes.local-canonical
 
 export function reconstructAttemptTip({ anchorRoot, branch }) {
   let familyId = candidateFamilyId(branch), inputReplacementConsumed = false, retainedInput = null, observerRepairConsumed = false, correctedTimeoutConsumed = false, conditionRequalificationConsumed = false, guideCorrectionConsumed = false, operatingProfileConsumed = false, successorBudgetConsumed = false, revisionCount = 0, revisionCommission = null;
-  const seen = new Set();
+  const seen = new Set(), revisionGrants = [];
   for (let depth = 0; depth < 128; depth++) {
     if (seen.has(familyId)) throw fail("attempt_lineage_cycle");
     seen.add(familyId);
@@ -270,9 +269,9 @@ export function reconstructAttemptTip({ anchorRoot, branch }) {
     if (guideCorrectionConsumed && !revision) throw fail("attempt_guide_successor_terminal");
     if (conditionRequalificationConsumed && !revision && !isGuideCorrection(attempt.source_correction)) throw fail("attempt_condition_successor_terminal");
     if (revision) {
-      if (!validReviewedRevisionAttempt(attempt) || attempt.source_correction.commission.ordinal !== revisionCount + 1 ||
-          (revisionCommission && revisionCommissionIdentity(attempt.source_correction) !== revisionCommission)) throw fail("attempt_revision_commission_invalid");
-      revisionCount += 1; revisionCommission = revisionCommissionIdentity(attempt.source_correction);
+      if (!validReviewedRevisionAttempt(attempt) || !revisionFollows(attempt.source_correction, revisionCount, revisionCommission, revisionGrants)) throw fail("attempt_revision_commission_invalid");
+      if (attempt.source_correction.commission.ordinal === 1) revisionGrants.push(attempt.source_correction.authorization.grant_comment_id);
+      revisionCount = attempt.source_correction.commission.ordinal; revisionCommission = revisionCommissionIdentity(attempt.source_correction);
     }
     if (isSuccessorBudgetSuccession(attempt.source_correction)) {
       if (!operatingProfileConsumed || !validSuccessorBudgetAttempt(attempt)) throw fail("attempt_successor_budget_lineage_invalid");
@@ -308,9 +307,9 @@ export function reconstructAttemptTip({ anchorRoot, branch }) {
     }
     if (attempt.browser_replacement) { inputReplacementConsumed = true; retainedInput = attempt.browser_replacement.browser_input_sha256; }
     const edgeFile = path.join(root, "correction-successor.json");
-    if (!entries.includes("correction-successor.json")) return { family_id: familyId, number, attempt_id: attempt.attempt_id, input_replacement_consumed: inputReplacementConsumed, ...(observerRepairConsumed ? { observer_repair_consumed: true } : {}), ...(correctedTimeoutConsumed ? { corrected_timeout_consumed: true } : {}), ...(conditionRequalificationConsumed ? { condition_requalification_consumed: true } : {}), ...(guideCorrectionConsumed ? { guide_correction_consumed: true } : {}), ...(operatingProfileConsumed ? { operating_profile_consumed: true } : {}), ...(successorBudgetConsumed ? { successor_budget_consumed: true } : {}), ...(revisionCount ? { reviewed_revision_consumed: revisionCount, revision_commission: revisionCommission } : {}) };
+    if (!entries.includes("correction-successor.json")) return { family_id: familyId, number, attempt_id: attempt.attempt_id, input_replacement_consumed: inputReplacementConsumed, ...(observerRepairConsumed ? { observer_repair_consumed: true } : {}), ...(correctedTimeoutConsumed ? { corrected_timeout_consumed: true } : {}), ...(conditionRequalificationConsumed ? { condition_requalification_consumed: true } : {}), ...(guideCorrectionConsumed ? { guide_correction_consumed: true } : {}), ...(operatingProfileConsumed ? { operating_profile_consumed: true } : {}), ...(successorBudgetConsumed ? { successor_budget_consumed: true } : {}), ...(revisionCount ? { reviewed_revision_consumed: revisionCount, revision_commission: revisionCommission, revision_grants: [...revisionGrants] } : {}) };
     const edge = read(edgeFile), revisionEdge = edge.kind === "reviewed_revision";
-    if (revisionCount && (!revisionEdge || revisionCount >= 2)) throw fail("attempt_revision_commission_terminal");
+    if (revisionCount && !revisionEdge) throw fail("attempt_revision_commission_terminal");
     if (successorBudgetConsumed && !revisionEdge) throw fail("attempt_successor_budget_terminal");
     if (observerRepairConsumed && !revisionEdge) throw fail("attempt_observer_successor_terminal");
     if (correctedTimeoutConsumed && !revisionEdge) throw fail("attempt_timeout_successor_terminal");
@@ -336,12 +335,11 @@ export function reconstructAttemptTip({ anchorRoot, branch }) {
         (edge.kind === "operating_profile_efficiency") !== isOperatingProfileSuccession(next.source_correction) ||
         (edge.kind === "settled_successor_budget") !== isSuccessorBudgetSuccession(next.source_correction) ||
         revisionEdge !== isReviewedRevision(next.source_correction) ||
-        (revisionEdge && (!validReviewedRevisionAttempt(next) || !["product_failure", "input_invalidation"].includes(completion.disposition) ||
-          next.source_correction.commission.ordinal !== revisionCount + 1 ||
-          (revisionCommission ? revisionCommissionIdentity(next.source_correction) !== revisionCommission :
-            next.source_correction.commission.root_family_id !== familyId || next.source_correction.commission.root_number !== number ||
-            next.source_correction.commission.root_attempt_id !== attempt.attempt_id || next.source_correction.commission.root_receipt_fingerprint !== completion.receipt_fingerprint ||
-            next.source_correction.authorization.grant_comment_id === attempt.source_correction?.authorization?.grant_comment_id))) ||
+        (revisionEdge && (!validReviewedRevisionAttempt(next) || !revisionFollows(proof, revisionCount, revisionCommission, revisionGrants) ||
+          (!["product_failure", "input_invalidation"].includes(completion.disposition) &&
+            !(completion.disposition === "safety_violation" && revisionCount === 2 && proof.commission.ordinal === 1)) ||
+          (proof.commission.ordinal === 1 && (proof.authorization.grant_comment_id === attempt.source_correction?.authorization?.grant_comment_id ||
+            Date.parse(next.revision_authority.execution_commission.timestamp) <= Date.parse(completion.finished_at))))) ||
         (isSuccessorBudgetSuccession(next.source_correction) && (!isOperatingProfileSuccession(attempt.source_correction) || completion.disposition !== "product_failure" ||
           !validSuccessorBudgetAttempt(next) || next.source_correction.authorization?.grant_comment_id === attempt.source_correction.authorization?.grant_comment_id)) ||
         (edge.kind === "guide_cancellation_correction") !== isGuideCorrection(next.source_correction) ||
@@ -432,7 +430,8 @@ function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree,
     if (!capability || capability.proof !== digest(proof) || capability.observations !== digest(revisionAuthorization.observations) ||
         !revisionEqual(revisionInputs, evidence.inputs) || acceptedMain !== proof.base ||
         (Date.parse(revisionAuthorization.observations.execution_commission.timestamp) <= Date.parse(evidence.completion.finished_at) ||
-         Date.parse(revisionAuthorization.observations.accepted_revision.timestamp) <= Date.parse(evidence.completion.finished_at)) && proof.commission.ordinal === 1)
+         !isReviewedRevision(evidence.prior.source_correction) && Date.parse(revisionAuthorization.observations.accepted_revision.timestamp) <= Date.parse(evidence.completion.finished_at)) && proof.commission.ordinal === 1 ||
+        evidence.dependencySafety && !capability.prospectiveDependencySafety)
       throw fail("revision_authenticated_authority_required");
     const priorRoot = path.join(anchorRoot, ".augnes-local-verification", "families", proof.prior_family_id);
     if (realpathSync(priorRoot) !== priorRoot || readdirSync(priorRoot).includes(`attempt-${proof.prior_number + 1}.json`)) throw fail("revision_latest_settled_required");
@@ -445,6 +444,13 @@ function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree,
     if (digest(readFileSync(receiptFile)) !== proof.originals.receipt.sha256) throw fail("revision_original_receipt_changed");
     const successor = { contract: "augnes.local-canonical-successor.v2", kind: "reviewed_revision",
       family_id: candidateFamilyId(branch, proof), head, tree, proof_fingerprint: digest(proof) };
+    // The historical blocked receipt is never reclassified. Admission after it
+    // requires fresh, physically safe preparation under the corrected owner.
+    // This is a current-input gate, not a pre-install dependency freeze.
+    if (reserve && evidence.dependencySafety) for (const expected of evidence.focused.prospective_dependencies) {
+      const current = observePreparedDependencyInputs({ repositoryRoot, phaseId: expected.phase_id });
+      if (comparePreparedDependencyInputs(expected, current) !== "unchanged") throw fail("revision_prospective_dependencies_changed");
+    }
     if (reserve) append(priorRoot, "correction-successor.json", successor);
     if (!revisionEqual(read(path.join(priorRoot, "correction-successor.json")), successor)) throw fail("revision_successor_already_bound");
     return;
@@ -701,6 +707,15 @@ function revisionCommissionIdentity(proof) {
     maximum_invocations: proof.commission.maximum_invocations });
 }
 
+// A different authenticated grant can follow a spent commission only at its
+// settled latest edge. Grant IDs, including all earlier commissions, are read
+// from the append-only chain; changing a head, root or body cannot reset one.
+function revisionFollows(proof, count, commission, grants) {
+  if (!revisionShape(proof)) return false;
+  if (count && revisionCommissionIdentity(proof) === commission) return proof.commission.ordinal === count + 1;
+  return (!count || count === 2) && proof.commission.ordinal === 1 && !grants.includes(proof.authorization.grant_comment_id);
+}
+
 function revisionShape(p) {
   const c = p?.commission;
   return isReviewedRevision(p) && typeof p.branch === "string" && p.branch.length > 0 && p.branch.length <= 200 &&
@@ -748,14 +763,16 @@ export function validateReviewedRevisionAuthorityRecords(p, review, grant, permi
   // from an accepted historical repair or an ordinary approval comment. The
   // exact authenticated body hash remains binding, including all limitations.
   const grantText = grant.body.replaceAll("*", "").replaceAll("`", "").replace(/\s+/gu, " ");
+  const legacyScope = [p.accepted.head, p.accepted.tree, p.branch, `https://github.com/hynk-studio/augnes/pull/${p.pull_request}#pullrequestreview-${p.accepted.review.id}`].every(s => grant.body.includes(s)) &&
+    /reviewed source\/execution-input revision/iu.test(grantText) && /two admitted deciding invocations for this entire commission/iu.test(grantText) &&
+    /materially corrected/iu.test(grantText) && /focused checks/iu.test(grantText) && /no additional recovery allowance/iu.test(grantText) && /Interrupted reservations consume/iu.test(grantText);
+  const prospectiveScope = [p.branch, String(p.accepted.review.id), p.commission.root_receipt_fingerprint].every(s => grant.body.includes(s)) &&
+    /NEW.*commission/iu.test(grantText) && /v7 reviewed_revision/iu.test(grantText) && /old commission remains spent/iu.test(grantText) &&
+    /at most two admitted deciding invocations total/iu.test(grantText) && /demonstrated material.*correction.*focused support/iu.test(grantText) &&
+    /zero extra recovery/iu.test(grantText) && /Reservation\/interruption consumes/iu.test(grantText);
   if (![p.accepted.head, p.accepted.tree, p.accepted.base, "ACCEPT / RETAIN"].every(s => review.body.includes(s)) ||
-      ![p.accepted.head, p.accepted.tree, p.branch, `https://github.com/hynk-studio/augnes/pull/${p.pull_request}#pullrequestreview-${p.accepted.review.id}`].every(s => grant.body.includes(s)) ||
-      !/reviewed source\/execution-input revision/iu.test(grantText) ||
-      !/two admitted deciding invocations for this entire commission/iu.test(grantText) ||
-      !/materially corrected/iu.test(grantText) || !/focused checks/iu.test(grantText) ||
-      !/zero unchanged-target retry/iu.test(grantText) || !/no additional recovery allowance/iu.test(grantText) ||
-      !/Interrupted reservations consume/iu.test(grantText) || !/separate fresh-process stock/iu.test(grantText) ||
-      !/independent.*(?:audit|judgment|decision)/iu.test(grantText)) throw fail("revision_authority_scope_invalid");
+      !(legacyScope || prospectiveScope) || !/zero unchanged-target retry/iu.test(grantText) ||
+      !/separate fresh-process stock/iu.test(grantText) || !/independent.*(?:audit|judgment|decision)/iu.test(grantText)) throw fail("revision_authority_scope_invalid");
   if (Date.parse(observations.execution_commission.timestamp) <= Date.parse(observations.accepted_revision.timestamp)) throw fail("revision_authority_order_invalid");
   if (pr?.number !== p.pull_request || pr.state !== "open" || pr.draft !== true || pr.merged !== false || pr.auto_merge !== null ||
       pr.head?.repo?.full_name !== "hynk-studio/augnes" || pr.base?.repo?.full_name !== "hynk-studio/augnes" || pr.head.sha !== p.head ||
@@ -769,7 +786,10 @@ export async function authorizeReviewedRevision(p, { transport = createGitHubObs
   const permissions = { accepted_revision: await transport.permission(review?.user?.login), execution_commission: await transport.permission(grant?.user?.login) };
   const observations = validateReviewedRevisionAuthorityRecords(p, review, grant, permissions, await transport.pullRequest());
   const capability = Object.freeze({ observations });
-  revisionCapabilities.set(capability, { proof: digest(p), observations: digest(observations) });
+  const grantText = grant.body.replaceAll("*", "").replaceAll("`", "").replace(/\s+/gu, " ");
+  revisionCapabilities.set(capability, { proof: digest(p), observations: digest(observations),
+    prospectiveDependencySafety: grant.body.includes(p.commission.root_receipt_fingerprint) &&
+      /Preserve the original safety_violation \/ blocked receipt/iu.test(grantText) && /clean prospective dependency preparation and current safety checks/iu.test(grantText) });
   return capability;
 }
 
@@ -787,25 +807,32 @@ function revisionPriorInputs(receipt) {
     digest(receipt.inputs.resources.filter(resource => ["node-executable", "node-headers"].includes(resource.id)));
 }
 
-function knownInputInvalidation(receipt) {
+function knownInputInvalidation(receipt, dependencySafety = false) {
   const input = receipt.inputs, roles = new Set(["node-executable", "node-headers", "dependencies-root", "dependencies-nested", "dependencies-web-planning"]);
-  if (receipt.outcome?.disposition !== "input_invalidation" || receipt.outcome.safety !== "blocked" ||
+  const disposition = dependencySafety ? "safety_violation" : "input_invalidation";
+  if (receipt.outcome?.disposition !== disposition || receipt.outcome.safety !== "blocked" ||
       !input || !Array.isArray(input.resources) || !revisionEqual(input.first_fault, receipt.outcome.first_fault) || !Array.isArray(input.events) || input.events.length >= 64 ||
       !Array.isArray(input.secondary_faults) || input.secondary_faults.length >= 16 || !input.first_fault ||
-      ![input.first_fault, ...input.secondary_faults].every(f => f.disposition === "input_invalidation" && roles.has(f.resource) && f.diagnostic === undefined)) return false;
+      ![input.first_fault, ...input.secondary_faults].every(f => f.disposition === disposition && roles.has(f.resource) && (!dependencySafety || f.resource.startsWith("dependencies-")) && f.diagnostic === undefined)) return false;
   const faults = [];
   for (const event of input.events) {
     const resource = input.resources.find(r => r.id === event.resource);
     const prepared = !resource && isReviewedRevision(receipt.attempt?.source_correction) && Array.isArray(input.prepared_dependencies) ?
       input.prepared_dependencies.filter(r => r?.phase_id === event.resource) : [];
-    const dependency = prepared.length === 1 && roles.has(event.resource) && event.resource.startsWith("dependencies-") && prepared[0].error === "dependency_input_input_invalidation" &&
+    const dependency = prepared.length === 1 && roles.has(event.resource) && event.resource.startsWith("dependencies-") && prepared[0].error === `dependency_input_${disposition}` &&
       prepared[0].unchanged === false && revisionEqual(prepared[0].after, event.after) && receipt.phases?.some(phase => phase.id === event.resource && phase.status === "pass") ? prepared[0] : null;
+    // An incomplete v1 layout/security observation stays blocked. Content and
+    // source equality only identify the bounded old fault, never prove safety.
+    if (dependencySafety && dependency && (dependency.before?.contract !== "augnes.local-canonical-prepared-dependencies.v1" ||
+        dependency.after?.contract !== dependency.before.contract || dependency.before.content_sha256 !== dependency.after.content_sha256 ||
+        dependency.before.bytes !== dependency.after.bytes || dependency.before.location_fingerprint !== dependency.after.location_fingerprint ||
+        !revisionEqual(dependency.before.sources, dependency.after.sources))) return false;
     const comparison = resource ? classifyInputChange(resource.before, event.after, resource, input) :
       dependency ? comparePreparedDependencyInputs(dependency.before, event.after) : null;
     if ((!resource && !dependency) || event.diagnostic !== undefined || event.classification !== (resource?.classification ?? "execution") ||
         event.identity !== inputEventIdentity(event) || comparison !== event.disposition ||
-        (!nonFaultInputChange(event.disposition) && (event.disposition !== "input_invalidation" || !roles.has(event.resource)))) return false;
-    if (event.disposition === "input_invalidation") faults.push(event);
+        (!nonFaultInputChange(event.disposition) && (event.disposition !== disposition || !roles.has(event.resource) || dependencySafety && !dependency))) return false;
+    if (event.disposition === disposition) faults.push(event);
   }
   return faults.length > 0 && [input.first_fault, ...input.secondary_faults].every(f => faults.some(e =>
     e.resource === f.resource && e.observed_at === f.observed_at && e.monotonic_ns === f.monotonic_ns));
@@ -819,14 +846,18 @@ export function readReviewedRevisionEvidence(file, p, repositoryRoot) {
   const bytes = ref => revisionArtifact(path.dirname(file), ref), parse = ref => JSON.parse(bytes(ref));
   const original = parse(p.originals.receipt), prior = parse(p.originals.attempt), completion = parse(p.originals.completion), inputs = parse(p.inputs.current);
   const content = { ...original }; delete content.integrity;
-  const inputInvalidation = knownInputInvalidation(original);
+  const inputInvalidation = knownInputInvalidation(original), previousRevision = isReviewedRevision(prior.source_correction);
+  const newCommission = previousRevision && prior.source_correction.commission.ordinal === 2 && p.commission.ordinal === 1 &&
+    p.authorization.grant_comment_id !== prior.source_correction.authorization.grant_comment_id;
+  const dependencySafety = newCommission && knownInputInvalidation(original, true);
   if (![4, 5].includes(original.receipt_version) || original.integrity?.content_fingerprint !== digest(content) ||
       !revisionEqual(original.attempt, prior) || prior.attempt_id !== p.prior_attempt_id || prior.family_id !== p.prior_family_id || prior.number !== p.prior_number ||
       prior.branch !== p.branch || original.integrity.content_fingerprint !== p.prior_receipt_fingerprint ||
       original.repository?.head_sha !== prior.head || original.repository.tree_sha !== prior.tree ||
       completion.contract !== ATTEMPT_CONTRACT || completion.attempt_id !== prior.attempt_id || completion.receipt_fingerprint !== p.prior_receipt_fingerprint ||
       !revisionTime(completion.finished_at) || completion.cleanup_complete !== true || completion.disposition !== original.outcome?.disposition ||
-      (completion.disposition === "input_invalidation" ? !inputInvalidation : completion.disposition !== "product_failure" || original.outcome.safety !== "preserved_within_observed_scope") ||
+      (completion.disposition === "input_invalidation" ? !inputInvalidation : completion.disposition === "safety_violation" ? !dependencySafety :
+        completion.disposition !== "product_failure" || original.outcome.safety !== "preserved_within_observed_scope") ||
       original.cleanup?.completed !== true || original.cleanup.remaining_owned_processes !== 0 || original.checkout_ownership?.released !== true || original.capacity_ownership?.released !== true ||
       original.cleanup.companion_service?.restored !== true || original.cleanup.isolated_resources?.completed !== true ||
       original.inputs?.resources?.filter(r => r.id === "node-executable").length !== 1 || p.inputs.predecessor_sha256 !== revisionPriorInputs(original)) throw fail("revision_predecessor_invalid");
@@ -835,9 +866,9 @@ export function readReviewedRevisionEvidence(file, p, repositoryRoot) {
   const stock = JSON.parse(stockLines[0]);
   if (stock.content_fingerprint !== p.prior_receipt_fingerprint || stock.dimensions?.historical_integrity !== "intact" || stock.dimensions?.safety !== original.outcome.safety ||
       stock.valid_deciding_evidence !== false) throw fail("revision_predecessor_stock_invalid");
-  const c = p.commission, previousRevision = isReviewedRevision(prior.source_correction);
-  if (previousRevision ? !validReviewedRevisionAttempt(prior) || c.ordinal !== prior.source_correction.commission.ordinal + 1 ||
-      revisionCommissionIdentity(p) !== revisionCommissionIdentity(prior.source_correction) :
+  const c = p.commission;
+  if (previousRevision ? !validReviewedRevisionAttempt(prior) || !revisionFollows(p, prior.source_correction.commission.ordinal,
+      revisionCommissionIdentity(prior.source_correction), [prior.source_correction.authorization.grant_comment_id]) :
       c.ordinal !== 1 || c.root_family_id !== p.prior_family_id || c.root_number !== p.prior_number || c.root_attempt_id !== p.prior_attempt_id || c.root_receipt_fingerprint !== p.prior_receipt_fingerprint ||
       p.authorization.grant_comment_id === prior.source_correction?.authorization?.grant_comment_id) throw fail("revision_commission_lineage_invalid");
   if (digest(inputs) !== p.inputs.identity_sha256 || inputs?.contract !== "augnes.local-canonical-runtime-inputs.v1" || !sha(inputs.node?.location_fingerprint) ||
@@ -862,7 +893,7 @@ export function readReviewedRevisionEvidence(file, p, repositoryRoot) {
   const changedInputs = previousRevision ? !revisionEqual(materialInputs(inputs), materialInputs(original.inputs.binding.runtime_inputs)) :
     inputs.node.location_fingerprint !== legacyNode.location_fingerprint || inputs.node.observation.sha256 !== legacyNode.before.sha256;
   if (!changedCode.length && !changedInputs) throw fail("revision_material_remedy_required");
-  if (inputInvalidation) {
+  if (inputInvalidation || dependencySafety) {
     const affected = [...new Set([original.inputs.first_fault, ...original.inputs.secondary_faults].map(f => f.resource))].sort();
     const runtimeAffected = affected.filter(id => ["node-executable", "node-headers"].includes(id));
     const dependenciesAffected = affected.filter(id => id.startsWith("dependencies-"));
@@ -872,6 +903,11 @@ export function readReviewedRevisionEvidence(file, p, repositoryRoot) {
       return !changedInputs || revisionEqual(before, materialInputs(inputs)[role]);
     }) || (dependenciesAffected.length && (!changedCode.length || !Array.isArray(focused.implicated_paths) || !focused.implicated_paths.length)))
       throw fail("revision_input_remedy_required");
+    if (dependencySafety && (!changedCode.includes("scripts/local-canonical-inputs.mjs") ||
+        !focused.implicated_paths.includes("scripts/local-canonical-inputs.mjs") || !Array.isArray(focused.prospective_dependencies) ||
+        !revisionEqual(focused.prospective_dependencies.map(v => v.phase_id).sort(), dependenciesAffected) ||
+        focused.prospective_dependencies.some(v => v.contract !== PREPARED_DEPENDENCY_CONTRACT || !preparedDependencyIdentity(v))))
+      throw fail("revision_prospective_dependencies_required");
   }
   // Locks and pinned package declarations are stable execution inputs for this
   // continuation; normal npm preparation produces dependencies separately.
@@ -899,5 +935,5 @@ export function readReviewedRevisionEvidence(file, p, repositoryRoot) {
   }
   if (previousRevision && ((inputInvalidation ? focused.failed_phase !== null : !original.phases?.some(phase => phase.id === focused.failed_phase && phase.status === "failure")) ||
       typeof focused.diagnosis !== "string" || focused.diagnosis.length < 20 || focused.diagnosis.length > 4000)) throw fail("revision_failure_remedy_required");
-  return { original, prior, completion, inputs, source, focused };
+  return { original, prior, completion, inputs, source, focused, dependencySafety };
 }

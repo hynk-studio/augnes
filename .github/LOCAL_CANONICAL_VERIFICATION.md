@@ -899,6 +899,23 @@ and separate fresh-process stock before candidate revision. Without a supported
 remedy, or after the second invocation, finish diagnosis and cleanup and report
 the precise blocker.
 
+A genuinely new authenticated commission may follow a spent v7 commission at
+its latest settled tip. Its initial ordinal binds that tip as its root; all old
+grant IDs and consumption are reconstructed from the existing exclusive chain.
+An old grant, edited grant, older tip, competing edge or new root within the same
+commission cannot reset consumption. Historical accepted source evidence retains
+its exact scope; the new commission must postdate settlement and is not source
+acceptance of later code.
+
+A specifically authorized prospective correction may follow a blocked legacy
+prepared-dependency layout/security observation. Its original classification,
+receipt and separate stock remain unchanged, including missing historical
+observations. This requires complete reconstructible old observations, unchanged
+dependency content/package sources, a corrected input owner, applicable focused
+checks and fresh safe v2 preparation checked again before reservation. Content
+equality does not certify historical permissions. Unavailable observations or a
+current safety/ownership fault refuse admission.
+
 This route requires the final clean published source, authenticated current-main
 and ancestry, admitted Mac worktree, pinned Node/npm, ownership/capacity,
 immutable inputs and stopped/exact installed-state preservation. It executes the
@@ -917,12 +934,16 @@ still creates the three dependency trees from unchanged package/lock inputs.
 Pre-install dependency output is not frozen as an immutable input. After each
 successful preparation, the input owner records the produced tree and compares
 its content, topology, permissions, ownership and package/lock sources at final
-settlement and fresh stock. A proven physical empty top-level `.cache` with
-the same owner/mode and exactly matching ACL, flags and attributes as its
-still-bound physical parent may disappear; nonempty
-cache content, unsafe links, permission changes and failed observations remain
-binding. These bounded observations do not prove absence of transient changes
-between their observation windows.
+settlement and fresh stock. Prepared-dependency v2 separately records raw presence,
+metadata and security for only physical empty top-level `.cache` and `.vite-temp`
+directories. Each must belong to the task user, match its still-bound physical
+parent's owner/mode/device and complete ACL, flags and attributes, and remain
+empty throughout the coherent observation. Safe appearance/disappearance leaves
+dependency code identity unchanged. Nonempty known generated directories refuse;
+unknown directories remain binding. Unsafe links, permission changes and failed
+observations refuse. Legacy v1 receipts retain their original interpretation,
+including binding `.vite-temp`. These bounded observations do not prove absence
+of transient changes between their observation windows.
 
 ### Reviewed observer-repair succession (source-correction v3)
 

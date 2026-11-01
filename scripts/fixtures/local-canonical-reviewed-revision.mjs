@@ -1,10 +1,10 @@
 // Synthetic fixture only: production proof, authority, edge and fresh reader.
 import assert from "node:assert/strict";
-import {cpSync,existsSync,mkdirSync,readFileSync,rmSync,writeFileSync} from "node:fs";
+import {chmodSync,cpSync,existsSync,mkdirSync,readFileSync,renameSync,rmSync,writeFileSync} from "node:fs";
 import path from "node:path";
 import {execFileSync} from "node:child_process";
 import {fileURLToPath} from "node:url";
-import {digest,inputEventIdentity} from "../local-canonical-inputs.mjs";
+import {digest,inputEventIdentity,observePreparedDependencyInputs} from "../local-canonical-inputs.mjs";
 import {beginAttempt,finishAttempt,readSourceCorrectionProof,inspectAttemptRecords,reconstructAttemptTip,authorizeReviewedRevision,reviewedRevisionAuthorityObservation,validReviewedRevisionAttempt} from "../local-canonical-attempts.mjs";
 import {acquireCheckoutVerificationOwnership,releaseCheckoutVerificationOwnership} from "../local-canonical-checkout-ownership.mjs";
 import {createGitHubObserverAuthorizationTransport} from "../github-main-branch-transport.mjs";
@@ -65,7 +65,7 @@ function setup(root){
   return c;
 }
 function prepare(c,ordinal=1){
-  c.head=c.git(["rev-parse","HEAD"]).toString().trim();c.tree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();c.artifacts=path.join(c.checkout,".augnes-local-verification/revision-"+ordinal);c.file=path.join(c.artifacts,"proof.json");
+  c.head=c.git(["rev-parse","HEAD"]).toString().trim();c.tree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();c.artifacts=path.join(c.checkout,".augnes-local-verification/revision-"+(c.grantId??11)+"-"+ordinal);c.file=path.join(c.artifacts,"proof.json");
   const prior=c.prior.attempt, priorRoot=path.join(c.anchor,".augnes-local-verification/families",prior.family_id);
   const delta=(a,b)=>{const d=c.git(["diff","--binary","--full-index","--no-ext-diff","--no-textconv",a,b,"--"]);return{bytes:d.length,sha256:digest(d),paths:c.git(["diff","--name-only",a,b,"--"]).toString().trim().split("\n").filter(Boolean).sort()};};
   const p={schema:"augnes.local-canonical-source-correction.v7",kind:"reviewed_revision",branch:c.branch,base:c.base,head:c.head,tree:c.tree,prior_family_id:prior.family_id,prior_number:1,prior_attempt_id:prior.attempt_id,prior_receipt_fingerprint:c.prior.integrity.content_fingerprint,pull_request:999,
@@ -73,16 +73,16 @@ function prepare(c,ordinal=1){
     accepted:{head:c.acceptedHead,tree:c.acceptedTree,base:c.base,review:{}},authorization:{},
     originals:{receipt:artifact(c,"prior-receipt.json",c.prior),attempt:artifact(c,"prior-attempt.json",readFileSync(path.join(priorRoot,"attempt-1.json"))),completion:artifact(c,"prior-completion.json",readFileSync(path.join(priorRoot,"completion-1.json"))),
       stock:artifact(c,"prior-stock.log",JSON.stringify({content_fingerprint:c.prior.integrity.content_fingerprint,valid_deciding_evidence:false,dimensions:{historical_integrity:"intact",safety:c.prior.outcome.safety}}))},
-    inputs:{predecessor_sha256:ordinal===1?digest(c.prior.inputs.resources):prior.source_correction.inputs.identity_sha256,identity_sha256:digest(c.inputs),current:artifact(c,"runtime-inputs.json",c.inputs)},
+    inputs:{predecessor_sha256:prior.source_correction.schema.endsWith(".v7")?prior.source_correction.inputs.identity_sha256:digest(c.prior.inputs.resources),identity_sha256:digest(c.inputs),current:artifact(c,"runtime-inputs.json",c.inputs)},
     source:artifact(c,"source.json",{schema:"augnes.local-canonical-reviewed-revision-source.v1",basis:"implementation_owner_not_independent_review",reviewed_at:time(-1000),accepted_to_final:delta(c.acceptedHead,c.head),predecessor_to_final:delta(prior.head,c.head),main_to_final:delta(c.base,c.head)})};
   const bytes=c.git(["show",c.head+":scripts/fixture.mjs"]);
   p.focused=artifact(c,"focused.json",{schema:"augnes.local-canonical-reviewed-revision-focused.v1",basis:"implementation_owner_not_independent_review",predecessor_receipt_fingerprint:p.prior_receipt_fingerprint,runtime_inputs_sha256:p.inputs.identity_sha256,finished_at:time(-1000),
     remedy:"Synthetic behavioral correction with exact retained command evidence",implicated_paths:["scripts/fixture.mjs"],source_files:[{path:"scripts/fixture.mjs",byte_size:bytes.length,sha256:digest(bytes)}],
     commands:[{command:"synthetic behavior control",result:natural,record:artifact(c,"command-result.json",natural),stdout:artifact(c,"command-stdout.log","synthetic PASS\n")}],
-    ...(ordinal===2?{failed_phase:"integration",diagnosis:"Synthetic predecessor fixture returned demonstrated incorrect value"}:{})});
+    ...(prior.source_correction.schema.endsWith(".v7")?{failed_phase:"integration",diagnosis:"Synthetic predecessor fixture returned demonstrated incorrect value"}:{})});
   const user={login:"synthetic-fixture",id:1,type:"User"},review={id:10,user,author_association:"OWNER",state:"COMMENTED",commit_id:c.acceptedHead,pull_request_url:"https://api.github.com/repos/hynk-studio/augnes/pulls/999",submitted_at:c.reviewTime??=time(-45000),body:"ACCEPT / RETAIN "+c.acceptedHead+" "+c.acceptedTree+" "+c.base};
-  const grant={id:11,user,author_association:"OWNER",issue_url:"https://api.github.com/repos/hynk-studio/augnes/issues/999",updated_at:c.grantTime??=time(-30000),body:c.acceptedHead+" "+c.acceptedTree+" "+c.branch+" https://github.com/hynk-studio/augnes/pull/999#pullrequestreview-10 reviewed source/execution-input revision; two admitted deciding invocations for this entire commission; materially corrected after focused checks; zero unchanged-target retry; no additional recovery allowance; Interrupted reservations consume; separate fresh-process stock; independent audit."};
-  p.accepted.review={id:10,sha256:digest(reviewedRevisionAuthorityObservation(review,"accepted_revision"))};p.authorization={grant_comment_id:11,grant_sha256:digest(reviewedRevisionAuthorityObservation(grant,"execution_commission"))};
+  const grant={id:c.grantId??11,user,author_association:"OWNER",issue_url:"https://api.github.com/repos/hynk-studio/augnes/issues/999",updated_at:c.grantTime??=time(-30000),body:c.newCommission?c.branch+" historical acceptance "+review.id+" "+p.commission.root_receipt_fingerprint+" NEW commission; existing v7 reviewed_revision; old commission remains spent; at most two admitted deciding invocations total; demonstrated material correction with relevant focused support; zero unchanged-target retry and zero extra recovery; Reservation/interruption consumes; separate fresh-process stock; independent audit. Preserve the original safety_violation / blocked receipt; clean prospective dependency preparation and current safety checks.":c.acceptedHead+" "+c.acceptedTree+" "+c.branch+" https://github.com/hynk-studio/augnes/pull/999#pullrequestreview-10 reviewed source/execution-input revision; two admitted deciding invocations for this entire commission; materially corrected after focused checks; zero unchanged-target retry; no additional recovery allowance; Interrupted reservations consume; separate fresh-process stock; independent audit."};
+  p.accepted.review={id:10,sha256:digest(reviewedRevisionAuthorityObservation(review,"accepted_revision"))};p.authorization={grant_comment_id:grant.id,grant_sha256:digest(reviewedRevisionAuthorityObservation(grant,"execution_commission"))};
   c.proof=p;c.authority={review,grant,pr:{number:999,state:"open",draft:true,merged:false,auto_merge:null,head:{sha:c.head,ref:c.branch,repo:{full_name:"hynk-studio/augnes"}},base:{sha:c.base,ref:"main",repo:{full_name:"hynk-studio/augnes"}}}};write(c.file,p);
 }
 if(process.argv[2]==="--cold"){
@@ -128,9 +128,33 @@ if(process.argv[2]==="--cold"){
     const oldMetadata=clone(c.inputs.node.observation.metadata);c.inputs.node.observation.metadata.mtime_ns="2";prepare(c,2);assert.throws(()=>proof(c),/revision_material_remedy_required/);c.inputs.node.observation.metadata=oldMetadata;
     c.commit(4);prepare(c,2);
     for(const mutate of [q=>q.commission.ordinal=1,q=>q.authorization.grant_comment_id=12,q=>q.commission.root_family_id="0".repeat(64)]){const old=readFileSync(c.file),q=clone(c.proof);mutate(q);write(c.file,q);assert.throws(()=>proof(c),/revision_commission_lineage_invalid|revision_proof_invalid/);write(c.file,old);}
-    p=proof(c);a=await auth(c,p);const second=begin(c,p,a),r2=receipt(c,second,"completed_success");storeReceipt(c,r2);finishAttempt(second,{receiptFingerprint:r2.integrity.content_fingerprint,disposition:"completed_success",cleanupComplete:true});
+    p=proof(c);a=await auth(c,p);const second=begin(c,p,a),r2=receipt(c,second);storeReceipt(c,r2);finishAttempt(second,{receiptFingerprint:r2.integrity.content_fingerprint,disposition:"product_failure",cleanupComplete:true});
     assert(stock(c,r2,a));assert.equal(reconstructAttemptTip({anchorRoot:c.anchor,branch:c.branch}).reviewed_revision_consumed,2);assert.throws(()=>begin(c,p,a),/attempt_latest_tip_required/);
     findings.push("materially corrected second admission; metadata-only/reset/changed-grant refusal; total two terminal");
+    const spentFiles=[first,second].flatMap(a=>["attempt","completion"].map(kind=>path.join(c.anchor,".augnes-local-verification/families",a.family_id,kind+"-1.json")));
+    // Synthetic fixture clock only; production never rewrites a completion.
+    const spentCompletion=spentFiles[3];write(spentCompletion,{...read(spentCompletion),finished_at:time(-5000)});
+    const spentHashes=spentFiles.map(f=>digest(readFileSync(f)));
+    c.prior=r2;c.commit(5);c.newCommission=true;c.grantId=12;c.grantTime=time(-2000);prepare(c);
+    p=proof(c);a=await auth(c,p);
+    const savedNew=readFileSync(c.file);
+    for(const mutate of [q=>q.authorization.grant_comment_id=11,q=>q.prior_attempt_id=first.attempt_id,q=>q.commission.ordinal=2]){
+      const q=clone(c.proof);mutate(q);write(c.file,q);assert.throws(()=>proof(c));write(c.file,savedNew);
+    }
+    await assert.rejects(auth(c,p,(record,endpoint)=>{if(endpoint.includes("/comments/"))record.body="ordinary approval";return record;}));
+    const third=begin(c,p,a),r3=receipt(c,third);storeReceipt(c,r3);finishAttempt(third,{receiptFingerprint:r3.integrity.content_fingerprint,disposition:"product_failure",cleanupComplete:true});
+    assert(stock(c,r3,a));assert.deepEqual(spentFiles.map(f=>digest(readFileSync(f))),spentHashes);
+    const renewedTip=reconstructAttemptTip({anchorRoot:c.anchor,branch:c.branch});assert.equal(renewedTip.reviewed_revision_consumed,1);assert.deepEqual(renewedTip.revision_grants,[11,12]);
+    const coldNew=path.join(owner.root,"cold-new.json");write(coldNew,{anchor:c.anchor,checkout:c.checkout,file:c.file,inputs:c.inputs,authority:c.authority,receipt:r3});await child(["--cold",coldNew]);
+    assert.throws(()=>begin(c,p,a),/attempt_latest_tip_required/);
+    const thirdCompletion=path.join(c.anchor,".augnes-local-verification/families",third.family_id,"completion-1.json");write(thirdCompletion,{...read(thirdCompletion),finished_at:time(-5000)});
+    c.prior=r3;c.commit(6);prepare(c);assert.throws(()=>proof(c),/revision_commission_lineage_invalid/);
+    prepare(c,2);p=proof(c);a=await auth(c,p);const fourth=begin(c,p,a),r4=receipt(c,fourth);storeReceipt(c,r4);finishAttempt(fourth,{receiptFingerprint:r4.integrity.content_fingerprint,disposition:"product_failure",cleanupComplete:true});assert(stock(c,r4,a));
+    const fourthCompletion=path.join(c.anchor,".augnes-local-verification/families",fourth.family_id,"completion-1.json");write(fourthCompletion,{...read(fourthCompletion),finished_at:time(-5000)});
+    c.prior=r4;c.commit(7);c.grantId=11;c.grantTime=time(-2000);prepare(c);p=proof(c);a=await auth(c,p);
+    assert.throws(()=>begin(c,p,a),/attempt_latest_tip_required/,"an older consumed grant cannot be renewed after another commission");
+    assert(!existsSync(path.join(path.dirname(fourthCompletion),"correction-successor.json")));
+    findings.push("new authenticated commission follows spent latest tip; old consumption unchanged; fresh reconstruction, replay and in-commission reset refused");
     const inputRoot=path.join(owner.root,"input-only");mkdirSync(inputRoot);const inputCase=setup(inputRoot);
     try {
       prepare(inputCase);const q1=proof(inputCase),auth1=await auth(inputCase,q1),a1=begin(inputCase,q1,auth1),r1=receipt(inputCase,a1,"input_invalidation");storeReceipt(inputCase,r1);
@@ -160,6 +184,34 @@ if(process.argv[2]==="--cold"){
       const q2=proof(dependencyCase),auth2=await auth(dependencyCase,q2),a2=begin(dependencyCase,q2,auth2);assert.notEqual(a2.head,a1.head);assert.equal(a2.source_correction.inputs.identity_sha256,a1.source_correction.inputs.identity_sha256);
       const final=receipt(dependencyCase,a2,"completed_success");storeReceipt(dependencyCase,final);finishAttempt(a2,{receiptFingerprint:final.integrity.content_fingerprint,disposition:"completed_success",cleanupComplete:true});assert(stock(dependencyCase,final,auth2));
       findings.push("known dependency-content failure requires supported source correction; unsafe, unknown and observer faults refused");
+      // A second, completed but blocked legacy-layout observation remains
+      // safety_violation. Only fresh safe v2 preparation can support a NEW grant.
+      const blocked=receipt(dependencyCase,a2),after={...dep,entries:dep.entries+1,layout_sha256:digest("added generated path"),permission_sha256:digest("path membership changed")};
+      const blockedEvent={resource:"dependencies-root",classification:"execution",disposition:"safety_violation",observed_at:time(-7000),monotonic_ns:"2",after};blockedEvent.identity=inputEventIdentity(blockedEvent);
+      const blockedFault={resource:blockedEvent.resource,disposition:blockedEvent.disposition,observed_at:blockedEvent.observed_at,monotonic_ns:blockedEvent.monotonic_ns};
+      blocked.inputs.prepared_dependencies=[{phase_id:"dependencies-root",before:dep,after,unchanged:false,error:"dependency_input_safety_violation"}];
+      blocked.inputs.events=[blockedEvent];blocked.inputs.first_fault=blockedFault;blocked.outcome={disposition:"safety_violation",safety:"blocked",first_fault:blockedFault};blocked.phases.unshift({id:"dependencies-root",status:"pass"});
+      const historical=finalizeReceipt(blocked);storeReceipt(dependencyCase,historical);
+      // Replace only this synthetic scenario's previously settled fixture record.
+      const settled=path.join(dependencyCase.anchor,".augnes-local-verification/families",a2.family_id,"completion-1.json");
+      write(settled,{...read(settled),receipt_fingerprint:historical.integrity.content_fingerprint,disposition:"safety_violation",finished_at:time(-5000)});
+      dependencyCase.prior=historical;dependencyCase.newCommission=true;dependencyCase.grantId=12;dependencyCase.grantTime=time(-2000);
+      write(path.join(dependencyCase.checkout,"scripts/local-canonical-inputs.mjs"),"export const correctedInputOwner = true;\n");dependencyCase.commit(5);
+      write(path.join(dependencyCase.checkout,"package.json"),"{}\n");write(path.join(dependencyCase.checkout,"package-lock.json"),"{}\n");
+      const installed=path.join(dependencyCase.checkout,"node_modules");mkdirSync(installed,{mode:0o755});write(path.join(installed,"fixture"),"installed output\n");
+      prepare(dependencyCase);const focused=read(path.join(dependencyCase.artifacts,"focused.json"));focused.input_remedy_resources=["dependencies-root"];
+      focused.implicated_paths.push("scripts/local-canonical-inputs.mjs");const inputBytes=readFileSync(path.join(dependencyCase.checkout,"scripts/local-canonical-inputs.mjs"));focused.source_files.push({path:"scripts/local-canonical-inputs.mjs",byte_size:inputBytes.length,sha256:digest(inputBytes)});
+      dependencyCase.proof.focused=artifact(dependencyCase,"focused.json",focused);write(dependencyCase.file,dependencyCase.proof);
+      assert.throws(()=>proof(dependencyCase),/revision_prospective_dependencies_required/);
+      focused.prospective_dependencies=[observePreparedDependencyInputs({repositoryRoot:dependencyCase.checkout,phaseId:"dependencies-root"})];
+      dependencyCase.proof.focused=artifact(dependencyCase,"focused.json",focused);write(dependencyCase.file,dependencyCase.proof);
+      const q3=proof(dependencyCase),auth3=await auth(dependencyCase,q3),edge=path.join(path.dirname(settled),"correction-successor.json");
+      chmodSync(installed,0o777);assert.throws(()=>begin(dependencyCase,q3,auth3),/dependency_input_entry_unsafe/);chmodSync(installed,0o755);assert(!existsSync(edge));
+      renameSync(installed,installed+"-unavailable");assert.throws(()=>begin(dependencyCase,q3,auth3),{code:"ENOENT"});renameSync(installed+"-unavailable",installed);assert(!existsSync(edge));
+      const newAttempt=begin(dependencyCase,q3,auth3),newReceipt=receipt(dependencyCase,newAttempt,"completed_success");storeReceipt(dependencyCase,newReceipt);finishAttempt(newAttempt,{receiptFingerprint:newReceipt.integrity.content_fingerprint,disposition:"completed_success",cleanupComplete:true});assert(stock(dependencyCase,newReceipt,auth3));
+      assert.equal(historical.outcome.safety,"blocked");assert.equal(read(settled).receipt_fingerprint,historical.integrity.content_fingerprint);
+      findings.push("blocked historical layout/security remains blocked; new commission requires corrected owner and live safe preparation; unavailable/current unsafe inputs refuse before reservation");
+
     } finally {releaseCheckoutVerificationOwnership(dependencyCase.owner,dependencyCase.checkout);}
     releaseCheckoutVerificationOwnership(c.owner,c.checkout);c.owner=null;
     const raceRoot=path.join(owner.root,"race");mkdirSync(raceRoot);const race=setup(raceRoot);prepare(race);releaseCheckoutVerificationOwnership(race.owner,race.checkout);race.owner=null;

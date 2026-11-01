@@ -544,7 +544,7 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
   const dependencyIdentity = () => preparedDependencyIdentity(dependencyObservation());
   const outputBinding = { runtime_inputs: observeCanonicalRuntimeInputs({ nodeExecutable: runtimeNode, headersRoot }) };
   const dependencyContract = () => freezeInputContract({ ...headerOptions, binding: outputBinding });
-  const withCache = dependencyObservation(); assert.equal(withCache.generated_cache, "proven_empty");
+  const withCache = dependencyObservation(); assert.equal(withCache.generated_directories[0].state, "proven_empty");
   if (process.platform === "darwin") {
     execFileSync("/usr/bin/xattr", ["-w", "org.augnes.test-cache", "sentinel", path.join(dependencyRoot, ".cache")]);
     assert.throws(dependencyObservation, /dependency_input_cache_unsafe/);
@@ -561,11 +561,38 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
   assert.equal(recordedOutput.checkPreparedDependencies(), null); assert.equal(recordedOutput.snapshot().prepared_dependencies[0].unchanged, true);
   assert.equal(recordedOutput.snapshot().first_fault, null);
   assert.throws(() => recordedOutput.prepareDependencies({ repositoryRoot: dependencyProject, phaseId: "dependencies-root" }), /dependency_input_preparation_invalid/);
+  for (const name of [".cache", ".vite-temp"]) {
+    const generated = path.join(dependencyRoot, name);
+    mkdirSync(generated); const present = dependencyObservation();
+    assert.equal(present.generated_directories.find(entry => entry.path === name).state, "proven_empty");
+    assert.deepEqual(preparedDependencyIdentity(present), prepared, "safe appearance is normalized, raw presence retained");
+    write(path.join(generated, "unexpected"), "unexpected bytes"); assert.throws(dependencyObservation, /dependency_input_generated_unsafe/);
+    rmSync(path.join(generated, "unexpected")); chmodSync(generated, 0o700); assert.throws(dependencyObservation, /dependency_input_cache_unsafe/); chmodSync(generated, 0o755);
+    if (process.platform === "darwin") {
+      execFileSync("/usr/bin/xattr", ["-w", "org.augnes.generated-control", "sentinel", generated]);
+      assert.throws(dependencyObservation, /dependency_input_cache_unsafe/);
+      execFileSync("/usr/bin/xattr", ["-d", "org.augnes.generated-control", generated]);
+      execFileSync("/bin/chmod", ["+a", "everyone allow read", generated]); assert.throws(dependencyObservation, /dependency_input_cache_unsafe/);
+      execFileSync("/bin/chmod", ["-a#", "0", generated]);
+      execFileSync("/usr/bin/chflags", ["hidden", generated]); assert.throws(dependencyObservation, /dependency_input_cache_unsafe/);
+      execFileSync("/usr/bin/chflags", ["nohidden", generated]);
+    }
+    rmSync(generated, { recursive: true }); assert.deepEqual(dependencyIdentity(), prepared, "safe disappearance");
+    symlinkSync("foo", generated); assert.throws(dependencyObservation, /dependency_input_generated_unsafe/); rmSync(generated);
+    symlinkSync(config, generated); assert.throws(dependencyObservation, /dependency_input_link_escape/); rmSync(generated);
+  }
+  mkdirSync(path.join(dependencyRoot, ".vite-unknown"));
+  assert.equal(gitInputApi.comparePreparedDependencyInputs(withCache, dependencyObservation()), "safety_violation", "unknown directory appearance refuses");
+  rmSync(path.join(dependencyRoot, ".vite-unknown"), { recursive: true });
+  const legacyObservation = observePreparedDependencyInputs({ repositoryRoot: dependencyProject, phaseId: "dependencies-root", contract: "augnes.local-canonical-prepared-dependencies.v1" });
+  mkdirSync(path.join(dependencyRoot, ".vite-temp"));
+  assert.notDeepEqual(preparedDependencyIdentity(observePreparedDependencyInputs({ repositoryRoot: dependencyProject, phaseId: "dependencies-root", contract: legacyObservation.contract })), preparedDependencyIdentity(legacyObservation), "legacy interpretation stays binding");
+  rmSync(path.join(dependencyRoot, ".vite-temp"), { recursive: true });
   // A new clean-install output can have fresh inodes/timestamps, while its actual
   // content/modes/owners/alias layout must still agree with the retained output.
   rmSync(dependencyRoot, { recursive: true }); createDependencyOutput(); assert.deepEqual(dependencyIdentity(), prepared);
   mkdirSync(path.join(dependencyRoot, ".cache")); write(path.join(dependencyRoot, ".cache", "unexpected"), "cache content\n");
-  assert.notDeepEqual(dependencyIdentity(), prepared, "nonempty generated cache is binding");
+  assert.throws(dependencyObservation, /dependency_input_generated_unsafe/, "nonempty generated cache refuses normalization");
   rmSync(path.join(dependencyRoot, ".cache"), { recursive: true }); mkdirSync(path.join(dependencyRoot, ".cache"), { mode: 0o700 });
   assert.throws(dependencyObservation, /dependency_input_cache_unsafe/); rmSync(path.join(dependencyRoot, ".cache"), { recursive: true });
   const changedOutput = dependencyContract(); changedOutput.prepareDependencies({ repositoryRoot: dependencyProject, phaseId: "dependencies-root" });
