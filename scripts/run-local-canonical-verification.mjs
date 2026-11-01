@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
-import { isAnyCloseout, authorizeCloseout } from "./local-canonical-1559-closeout.mjs";
+import { isAnyCloseout, authorizeCloseout, assertCloseoutRuntimeInputs } from "./local-canonical-1559-closeout.mjs";
 import { isCompanionTimeout, authorizeCompanionTimeout } from "./local-canonical-companion-timeout-succession.mjs";
 import { isGuideCorrection, authorizeGuideCorrection } from "./local-canonical-guide-correction.mjs";
 
@@ -814,6 +814,11 @@ export async function executeLocalCanonicalVerification({
               `[local-canonical] failure phase=${phase.id} code=${result.failure_code}`,
             );
           }
+          // Preserve the actual phase result before a new input refusal. Normal
+          // npm ci remains measured work; reobserve its physical dependency
+          // layout before any later consumer. Fresh stock repeats this via auth.
+          const runtimeInput = assertCloseoutRuntimeInputs(sourceCorrection, inputs.snapshot());
+          if (runtimeInput) console.log(`[local-canonical] runtime_input_observed phase=${phase.id} fingerprint=${runtimeInput}`);
         },
       });
       executionFailure =

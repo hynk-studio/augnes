@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
+import { observeCloseoutRuntimeLayout, assertCloseoutRuntimeInputs, isCloseoutRuntimeInputCorrection, CLOSEOUT_RUNTIME_INPUT_AMENDMENT } from "./local-canonical-1559-closeout.mjs";
 import assert from "node:assert/strict";
 import { CLOSEOUT_SCHEMA, CLOSEOUT_CONTINUATION_SCHEMA, CLOSEOUT_CONTINUATION_KIND, CLOSEOUT_SCOPE_CORRECTION_KIND, CLOSEOUT_INSTRUCTION_KIND, CLOSEOUT_FIXTURE_CORRECTION_KIND, CLOSEOUT_CAPABILITY_CORRECTION_KIND, CLOSEOUT_SCOPE_FIXTURE_CORRECTION_KIND, isCloseoutScopeFixtureCorrection, usesCloseoutInstructionInputs, isAnyCloseout, assertCloseoutInstructionInputs, authorizeCloseout as authorizeCloseoutProof } from "./local-canonical-1559-closeout.mjs";
 import { isObserverRepair } from "./local-canonical-observer-succession.mjs";
@@ -14,6 +15,7 @@ import { BROWSER_REPLACEMENT_PHASES } from "./local-canonical-browser-replacemen
 import { spawnSync } from "node:child_process";
 import {
   existsSync,
+  linkSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -967,7 +969,7 @@ for (const scenario of ["wrong_npm", "checkout_busy", "capacity_busy", "acquisit
     const context = {
       checkoutContext: isolated ? "isolated-worktree" : "canonical", verificationContext: {}, signal: { aborted: false },
       controller: new AbortController(), recoveryProofPath: null, sourceCorrectionProofPath: null, baseSha: "0".repeat(40), headSha: "a".repeat(40), executorFingerprint: "b".repeat(64), identityBefore: { branch: "fixture" },
-      isObserverRepair, isCorrectedTimeout, isConditionRequalification, isGuideCorrection, isCompanionTimeout, isAnyCloseout, digest, BROWSER_REPLACEMENT_PHASES,
+      isObserverRepair, isCorrectedTimeout, isConditionRequalification, isGuideCorrection, isCompanionTimeout, isAnyCloseout, assertCloseoutRuntimeInputs, digest, BROWSER_REPLACEMENT_PHASES,
       browserInput: null, browserReplacement: null, strictProof: null, sourceCorrection: observerRefusal ? { schema: "augnes.local-canonical-source-correction.v3", kind: "observer_repair" } : timeoutRefusal ? { schema: "augnes.local-canonical-source-correction.v4", kind: "corrected_timeout" } : conditionRefusal ? { schema: "augnes.local-canonical-source-correction.v5", kind: "condition_requalification" } : guideRefusal ? { schema: "augnes.local-canonical-source-correction.v6", kind: "guide_cancellation_correction" } : companionRefusal ? { schema: "augnes.local-canonical-source-correction.v7", kind: "companion_readiness_timeout", pull_request: 999 } : closeoutRefusal ? { schema: scenario.includes("_continuation_") || scenario.includes("_instruction_") ? CLOSEOUT_CONTINUATION_SCHEMA : CLOSEOUT_SCHEMA, kind: scenario.includes("_instruction_") ? CLOSEOUT_INSTRUCTION_KIND : scenario.includes("_continuation_") ? CLOSEOUT_CONTINUATION_KIND : "issue_1559_closeout", pull_request: 1560 } : null,
       authorizeObserverRepair: async () => { authorityObserved = true; if (scenario === "observer_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
       authorizeCorrectedTimeout: async () => { authorityObserved = true; if (scenario === "timeout_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
@@ -1401,10 +1403,54 @@ for (const [profile, group] of [
   if (failure || cleanupFailure) throw failure ?? cleanupFailure;
 }
 
+// Actual filesystem controls for the bounded input remedy. These observations
+// are not an admission capability, even when their content matches a binding.
+{
+  const owner = createCanonicalTestResourceRoot("ag-resource-test-", { shortSocketPaths: true }), root = owner.root;
+  try {
+    const node = path.join(root, "node"), paths = ["node_modules", "apps/augnes_apps/node_modules", "apps/web_planning/node_modules"];
+    writeFileSync(node, "private executable identity fixture\n", { mode: 0o700 });
+    for (const relative of paths) {
+      const directory = path.join(root, relative); mkdirSync(directory, { recursive: true });
+      writeFileSync(path.join(directory, "entry.mjs"), "export default 1;\n");
+      symlinkSync("entry.mjs", path.join(directory, "internal"));
+    }
+    const before = observeCloseoutRuntimeLayout(root, paths, node);
+    assert.deepEqual(observeCloseoutRuntimeLayout(root, paths, node), before);
+    const target = path.join(root, paths[1], "entry.mjs"), bytes = readFileSync(target);
+    writeFileSync(target, "export default 2;\n");
+    assert.notEqual(observeCloseoutRuntimeLayout(root, paths, node).dependencies[1].manifest_sha256, before.dependencies[1].manifest_sha256);
+    rmSync(target); writeFileSync(target, bytes);
+    assert.deepEqual(observeCloseoutRuntimeLayout(root, paths, node), before, "content-equivalent normal preparation may replace file inodes");
+    const contained = path.join(root, paths[1], "hard-link"), external = path.join(root, "external-hard-link");
+    linkSync(target, contained); assert.doesNotThrow(() => observeCloseoutRuntimeLayout(root, paths, node));
+    linkSync(target, external);
+    assert.throws(() => observeCloseoutRuntimeLayout(root, paths, node), hasCode("closeout_runtime_external_dependency_link"));
+    rmSync(external); rmSync(contained);
+    symlinkSync(node, path.join(root, paths[0], "external"));
+    assert.throws(() => observeCloseoutRuntimeLayout(root, paths, node), hasCode("closeout_runtime_external_dependency_link"));
+    rmSync(path.join(root, paths[0], "external"));
+    symlinkSync("../node", path.join(root, paths[0], "external"));
+    assert.throws(() => observeCloseoutRuntimeLayout(root, paths, node), hasCode("closeout_runtime_external_dependency_link"));
+    rmSync(path.join(root, paths[0], "external"));
+    const directory = path.join(root, paths[2]), moved = path.join(root, "shared-dependencies"); renameSync(directory, moved); symlinkSync(moved, directory);
+    assert.throws(() => observeCloseoutRuntimeLayout(root, paths, node), hasCode("closeout_runtime_external_dependency_link"));
+    assert.throws(() => observeCloseoutRuntimeLayout(root, paths.slice(1), node), hasCode("closeout_runtime_dependency_inventory_invalid"));
+    assert.equal(assertCloseoutRuntimeInputs({ schema: CLOSEOUT_CONTINUATION_SCHEMA, kind: CLOSEOUT_SCOPE_FIXTURE_CORRECTION_KIND }, null), null, "historical input semantics stay unchanged");
+    const forged = { schema: CLOSEOUT_CONTINUATION_SCHEMA, kind: CLOSEOUT_SCOPE_FIXTURE_CORRECTION_KIND, scope_amendment: { comment_id: CLOSEOUT_RUNTIME_INPUT_AMENDMENT.comment_id }, correction: { runtime_input: { binding: before } } };
+    assert(isCloseoutRuntimeInputCorrection(forged));
+    assert.throws(() => assertCloseoutRuntimeInputs(forged, null), hasCode("closeout_runtime_input_unverified"));
+    assert(executorSource.includes("const runtimeInput = assertCloseoutRuntimeInputs(sourceCorrection, inputs.snapshot());"), "actual execution rechecks after preparation and each phase");
+  } finally {
+    assert(cleanupCanonicalTestResources([owner])[0].completed); assert(!existsSync(root));
+  }
+}
+
 console.log(
   JSON.stringify(
     {
       test: "local-canonical-executor",
+      closeout_runtime_input_physical_layout_and_drift_controls: true,
       status: "pass",
       authorized_root_only: true,
       authorized_origin_only: true,

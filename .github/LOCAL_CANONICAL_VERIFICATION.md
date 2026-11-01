@@ -2124,3 +2124,43 @@ budget declaration grants no unchanged retry or automatic escalation. Final
 source/policy and results still await the commissioned independent judgment.
 Keep the issue OPEN, PR Draft and auto-merge disabled; merge, Ready, release,
 deployment and installed adoption remain unauthorized.
+
+### Continuing closeout with a supported runtime-input correction
+
+The receiving instruction [6551840897](https://github.com/hynk-studio/augnes/pull/1560#issuecomment-6551840897)
+interprets the existing continuing scope; it is not an independent source review
+or a qualification verdict. The existing continuation schema, kind, amendment
+modifier and exclusive successor owner may bind one prospective input correction
+from the exact settled Full10 attempt. Full9's pins and all historical meanings,
+consumed edges, product failures and UNKNOWN causes remain unchanged.
+
+The correction binds Full10's complete receipt, attempt, completion, incoming
+edge, untruncated operability log and separate failed stock. Its new source
+scope preserves the complete 39-path accepted-task inventory and bounded
+accepted-main reconciliation. Only this document, the existing closeout owner,
+executor connection and executor controls may change. Product/native test bytes,
+package/lock inputs, registrations, deadlines and lifecycle acceptance remain
+protected. A policy correction is a new exact source head; retained native
+evidence applies only to its unchanged source closure and measured inputs.
+
+The retained native run naturally passed under its original 240-second bound
+with a task-owned pinned Node and physical dependency copies. Node relocation
+alone failed; both preceding failures and cleanup observations remain evidence.
+Full10 did not retain a complete dependency manifest; the private failing
+external-link layout is not asserted to be Full10's layout. The exact historical
+denied resource/cause is still UNKNOWN. Private archive,
+HOME and TMP paths differed from qualification. This is evidence for the combined
+layout remedy, not a fabricated source FAIL/PASS witness or infrastructure label.
+
+Admission binds the real old/new Node locations and identities, the retained
+native command/output/settlement and all three dependency inventories. Normal
+dependency preparation is still executed. Fresh read-only checks require the
+actual selected executable and physical dependency roots, exact content/modes
+and contained relative and hard links at admission, after every phase and during fresh
+stock. These bounded observations do not claim continuous invariance. Source,
+input or evidence drift refuses; inspection and stock cannot reserve an attempt.
+Complete executor and receipt controls plus disposable actual-owner adverse
+admission/stock controls precede qualification. The normal shared successor edge
+consumes this relation once, with zero recovery; copied proofs, another head or
+worktree and successor chaining do not renew it. No new grant, timeout exception,
+security permission, installed adoption or merge authority is created.
