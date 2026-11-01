@@ -1,4 +1,4 @@
-import { AUXILIARY_EXECUTION_BUDGETS, CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
+import { AUXILIARY_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
 import assert from "node:assert/strict";
 import { chmodSync, existsSync, linkSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -17,6 +17,9 @@ import { finalizeReceipt, inspectReceiptForDecision } from "./local-canonical-re
 import { baseReceipt, validContext } from "./fixtures/local-canonical-receipt-v3.mjs";
 import { observerControls } from "./fixtures/local-canonical-observer-controls.mjs";
 import { REVIEW_CHILD_RESULT_PREFIX, projectReviewChildResult, assertReviewChildLifecycle, createObserverFixtureProgressReader } from "./fixtures/local-canonical-review-child-result.mjs";
+
+// Do not silently turn a retired explicit command into the default suite.
+if (process.argv[2] === "--companion-timeout-controls") throw new Error("qualification_route_retired");
 
 const self = fileURLToPath(import.meta.url), repository = path.dirname(path.dirname(self));
 const quiet = { write() {} }, write = (p, v) => writeFileSync(p, typeof v === "string" ? v : JSON.stringify(v), { mode: 0o600 });
@@ -92,13 +95,7 @@ async function child(args, options = {}) {
   return result;
 }
 try {
-  if (process.argv[2] === "--companion-timeout-controls") {
-  for (const group of ["evidence", "witnesses", "source", "originals", "authority", "authority_records", "admission", "race", "stock"]) {
-    const result = await child([path.join(repository, "scripts/fixtures/local-canonical-companion-timeout-succession.mjs"), "--run-companion-timeout-fixtures", group], { controlId: `companion-timeout-${group}`, timeoutMs: AUXILIARY_EXECUTION_BUDGETS.groupMs, stdout: process.stdout, stderr: process.stderr });
-    assert.equal(result.exit_code, 0, lastChildDiagnostic);
-  }
-  findings.push("Companion readiness timeout: retained evidence limits, exact repair, distinct authenticated grant, terminal reservation and read-only stock");
-  } else if (process.argv[2] === "--guide-correction-controls") {
+  if (process.argv[2] === "--guide-correction-controls") {
   for (const group of ["evidence", "authority", "admission", "race", "stock"]) {
     const result = await child([path.join(repository, "scripts/fixtures/local-canonical-guide-correction.mjs"), "--run-guide-fixtures", group], { controlId: `guide-correction-${group}`, timeoutMs: AUXILIARY_EXECUTION_BUDGETS.groupMs });
     assert.equal(result.exit_code, 0, lastChildDiagnostic);
@@ -117,12 +114,6 @@ try {
   }
   findings.push("corrected nested-timeout succession: preserved original failure, meaningful source evidence, prospective authority, one terminal reservation and read-only stock");
   } else {
-  for (const group of ["evidence", "source", "authority", "admission", "race", "stock"]) {
-    const result = await child([path.join(repository, "scripts/fixtures/local-canonical-1559-closeout.mjs"), "--run-closeout-fixtures", group],
-      { controlId: `closeout-1559-${group}`, timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.groupMs });
-    assert.equal(result.exit_code, 0, lastChildDiagnostic);
-  }
-  findings.push("1559 closeout: exact accepted source and settled v7 history, new authenticated scope, exclusive admission and fresh read-only stock");
   const succession = await child([path.join(repository, "scripts/fixtures/local-canonical-observer-succession.mjs"), "--run-observer-fixtures"], { controlId: "observer-succession", timeoutMs: AUXILIARY_EXECUTION_BUDGETS.observerSuccessionMs });
   assert.equal(succession.exit_code, 0, lastChildDiagnostic);
   findings.push("observer-repair succession: bounded original/source/authority refusals, exclusive lineage and fresh stock reconstruction");

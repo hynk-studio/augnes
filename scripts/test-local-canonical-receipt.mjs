@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 
-import { CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { runCanonicalChild, canonicalChildAcceptanceFailure } from "./canonical-child-runner.mjs";
-import { createCanonicalTestResourceRoot, buildCanonicalChildEnvironment, cleanupCanonicalTestResources } from "./canonical-test-environment.mjs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { ATTEMPT_CONTRACT, hasRetiredQualificationMarker, supportsSourceCorrection, beginAttempt, finishAttempt, readSourceCorrectionProof, reconstructAttemptTip, inspectAttemptRecords } from "./local-canonical-attempts.mjs";
+import { acquireCheckoutVerificationOwnership, releaseCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
+import { createCanonicalTestResourceRoot, cleanupCanonicalTestResources } from "./canonical-test-environment.mjs";
+import { createPrivateReviewExport, inspectPrivateReviewExport } from "./local-canonical-review-export.mjs";
+import { digest } from "./local-canonical-inputs.mjs";
+
 import { CODEX_REUSE_PHASE_IDS } from "./codex-reuse-verification-ownership.mjs";
-import { CLOSEOUT_CONTINUATION_SCHEMA, CLOSEOUT_FIXTURE_CORRECTION_KIND, CLOSEOUT_CAPABILITY_CORRECTION_KIND, CLOSEOUT_SCOPE_FIXTURE_CORRECTION_KIND, hasCloseoutMarker, validCloseoutAttempt } from "./local-canonical-1559-closeout.mjs";
-import { createPrivateReviewExport } from "./local-canonical-review-export.mjs";
-import { freezeInputContract } from "./local-canonical-inputs.mjs";
 
 import {
   LOCAL_CANONICAL_RECEIPT_SCHEMA,
@@ -29,52 +29,6 @@ assert.equal(
 );
 const finalized = finalizeReceipt(baseReceipt);
 assert.equal(verifyReceiptIntegrity(finalized), true);
-// A valid classified fixture reaches the route guard, rather than returning at
-// a missing input declaration. These synthetic observations read no host files.
-const classifiedBase = structuredClone(baseReceipt);
-classifiedBase.receipt_version = 4;
-classifiedBase.repository.tree_sha = "7".repeat(40);
-classifiedBase.checkout_ownership = { required: true, acquired: true, released: true,
-  checkout_fingerprint: validContext.currentCheckoutFingerprint, ownership_id: "9".repeat(32),
-  acquired_at: classifiedBase.run.started_at, released_at: classifiedBase.run.finished_at, failure_code: null };
-for (const phase of classifiedBase.phases) phase.environment_fingerprint = "a".repeat(64);
-const classifiedInputs = freezeInputContract({ pathKind: "canonical-conservative-v1",
-  resources: ["codex-preferences", "user-instructions", "auth-location", "git-config", "node-executable"]
-    .map(id => ({ id, file: `/synthetic/${id}`, classification: "execution" })),
-  read: () => ({ present: false }),
-  binding: { head: classifiedBase.repository.head_sha, tree: classifiedBase.repository.tree_sha,
-    executor_fingerprint: classifiedBase.executor.source_fingerprint,
-    phase_environment_fingerprints: classifiedBase.phases.map(p => ({ id: p.id, fingerprint: p.environment_fingerprint })) } });
-classifiedInputs.check();
-classifiedBase.inputs = classifiedInputs.snapshot();
-classifiedBase.attempt = { contract: "augnes.local-canonical-attempt-family.v1", number: 1,
-  attempt_id: classifiedBase.run.id, head: classifiedBase.repository.head_sha, tree: classifiedBase.repository.tree_sha,
-  contract_fingerprint: classifiedBase.inputs.fingerprint, prior_attempt_id: null, recovery: null, budget: { initial: 1, recovery: 1 } };
-classifiedBase.outcome = { disposition: "completed_success", execution: "complete_pass",
-  validity: "valid_within_observed_scope", safety: "preserved_within_observed_scope" };
-const classifiedContext = { ...validContext, currentAttemptRecordsValid: true, currentInputStateValid: true };
-assert.deepEqual(inspectReceiptForDecision(finalizeReceipt(classifiedBase), classifiedContext).issues, []);
-// Marker-only and recomputed-integrity downgrades never become legacy receipts.
-// Full normal/adverse admission uses the private finite production-owner control.
-for (const marker of [
-  { source_correction: { schema: CLOSEOUT_CONTINUATION_SCHEMA, kind: CLOSEOUT_FIXTURE_CORRECTION_KIND } },
-  { source_correction: { kind: CLOSEOUT_FIXTURE_CORRECTION_KIND } },
-  { closeout_fixture_correction_consumed: true },
-  { source_correction: { schema: CLOSEOUT_CONTINUATION_SCHEMA, kind: CLOSEOUT_CAPABILITY_CORRECTION_KIND } },
-  { source_correction: { kind: CLOSEOUT_CAPABILITY_CORRECTION_KIND } },
-  { closeout_capability_correction_consumed: true },
-  { source_correction: { schema: CLOSEOUT_CONTINUATION_SCHEMA, kind: CLOSEOUT_SCOPE_FIXTURE_CORRECTION_KIND } },
-  { source_correction: { kind: CLOSEOUT_SCOPE_FIXTURE_CORRECTION_KIND } },
-  { closeout_scope_fixture_correction_consumed: true },
-  { closeout_instruction_input: null },
-]) {
-  assert(hasCloseoutMarker(marker)); assert.equal(validCloseoutAttempt(marker), false);
-  for (const receipt_version of [3, 4]) {
-    const malformed = finalizeReceipt({ ...structuredClone(receipt_version === 4 ? classifiedBase : baseReceipt), receipt_version, attempt: marker });
-    assert(inspectReceiptForDecision(malformed, receipt_version === 4 ? classifiedContext : validContext).issues.includes("receipt_1559_closeout_invalid"));
-    assert.throws(() => createPrivateReviewExport(malformed), /review_export_closeout_invalid/u);
-  }
-}
 assert.match(finalized.integrity.content_fingerprint, /^[0-9a-f]{64}$/u);
 assert.doesNotThrow(() => assertPublicSafeReceipt(finalized));
 const tampered = structuredClone(finalized);
@@ -868,29 +822,132 @@ assert(
   ).issues.includes("receipt_source_identity_invalid"),
 );
 
-// The exact settled authority-control correction has its own disposable
-// evidence/admission/stock controls. Inspection never reserves a real attempt.
-for (const [profile, group] of [
-  ...["evidence", "admission", "stock"].map(group => ["scope-correction", group]),
-  ...["evidence", "stock"].map(group => ["instruction", group]),
-]) {
-  const owner = createCanonicalTestResourceRoot("ag-resource-test-", { shortSocketPaths: true });
-  let result, failure, cleanup;
-  try {
-    result = await runCanonicalChild({ suite: `1559-closeout-${profile}-controls`, label: group,
-      command: process.execPath,
-      args: [fileURLToPath(new URL("./fixtures/local-canonical-1559-closeout.mjs", import.meta.url)), `--run-closeout-${profile}-fixtures`, group],
-      cwd: owner.root, env: buildCanonicalChildEnvironment({ temporaryRoot: owner.root, resourceRoot: owner.root }),
-      timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.groupMs, resourceOwner: owner, stdout: process.stdout, stderr: process.stderr,
-    });
-    failure = canonicalChildAcceptanceFailure(result, { timeoutMs: CLOSEOUT_EXECUTION_BUDGETS.groupMs, requireNaturalExit: true });
-  } catch (error) { failure = error; }
-  finally { cleanup = cleanupCanonicalTestResources([owner]); }
-  console.log(JSON.stringify({ control: `1559-closeout-${profile}-${group}`, result,
-    failure: failure?.message ?? null, cleanup, root_absent: !existsSync(owner.root) }));
-  const cleanupFailure = cleanup.some(row => !row.completed) ? new Error("closeout_scope_correction_control_cleanup_incomplete") : null;
-  if (failure && cleanupFailure) throw new AggregateError([failure, cleanupFailure], "closeout scope correction control and cleanup failed");
-  if (failure || cleanupFailure) throw failure ?? cleanupFailure;
+
+// A retired route is data, not a legacy admission capability. These small
+// controls replace the removed issue-specific proof/replay fixture families.
+const retiredProofs = [
+  { schema: "augnes.local-canonical-source-correction.v7", kind: "companion_readiness_timeout" },
+  { schema: "augnes.local-canonical-closeout.v1", kind: "issue_1559_closeout" },
+  { schema: "augnes.local-canonical-closeout-continuation.v1", kind: "issue_1559_scope_fixture_preparation_correction" },
+  { schema: "augnes.local-canonical-source-correction.v2", kind: "issue_1559_closeout" },
+  { schema: "augnes.local-canonical-source-correction.v2", kind: "source_revision", closeout_consumed: false },
+  { schema: "augnes.local-canonical-source-correction.v2", kind: "source_revision", companion_timeout_consumed: false },
+  { schema: "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision", companion_timeout_authority: {} },
+  { schema: "augnes.local-canonical-closeout.v1", kind: "reviewed_revision" },
+];
+for (const value of [null, undefined, {}, [], 0, "", { schema: "augnes.local-canonical-source-correction.v6", kind: "guide_cancellation_correction" }])
+  assert.equal(hasRetiredQualificationMarker(value), false);
+for (const proof of retiredProofs) {
+  assert(hasRetiredQualificationMarker(proof));
+  assert(hasRetiredQualificationMarker({ source_correction: proof }));
+  for (const receiptVersion of [3, 4, 5]) {
+    const receipt = finalizeReceipt({ ...structuredClone(baseReceipt), receipt_version: receiptVersion, attempt: { source_correction: proof } });
+    const original = JSON.stringify(receipt);
+    const inspection = inspectReceiptForDecision(receipt, validContext);
+    assert.equal(inspection.valid_deciding_evidence, false);
+    assert(inspection.issues.includes("receipt_qualification_route_retired"));
+    assert.equal(verifyReceiptIntegrity(receipt), true);
+    assert.throws(() => createPrivateReviewExport(receipt), /review_export_retired_route_use_historical_revision/);
+    assert.equal(JSON.stringify(receipt), original, "retirement preserves original bytes and outcome");
+    assert.equal(inspectAttemptRecords({ anchorRoot: "/not-read", receipt }), false);
+  }
+}
+assert.equal(inspectReceiptForDecision(finalized, validContext).valid_deciding_evidence, true,
+  "ordinary legacy evidence still uses its existing rules");
+const ordinaryExport = createPrivateReviewExport(finalized);
+assert.equal(inspectPrivateReviewExport(ordinaryExport).structurally_valid, true);
+const markedExport = structuredClone(ordinaryExport);
+markedExport.attempt = { source_correction: retiredProofs[0] };
+delete markedExport.export_fingerprint;
+markedExport.export_fingerprint = digest(canonicalSerialize(markedExport));
+assert.equal(inspectPrivateReviewExport(markedExport).structurally_valid, false,
+  "rehashed retired export cannot pass a generic structural fallback");
+
+const retirementResource = createCanonicalTestResourceRoot("ag-resource-test-");
+const retirementRoot = retirementResource.root;
+let retirementOwner;
+try {
+  retirementOwner = acquireCheckoutVerificationOwnership({ repositoryRoot: retirementRoot });
+  const artifact = path.join(retirementRoot, ".augnes-local-verification");
+  const file = path.join(artifact, "retired-proof.json");
+  for (const proof of retiredProofs) {
+    writeFileSync(file, JSON.stringify(proof), { mode: 0o600 });
+    const original = readFileSync(file);
+    assert.throws(() => readSourceCorrectionProof(file, retirementRoot), error => error.code === "qualification_route_retired");
+    assert.throws(() => beginAttempt({ anchorRoot: retirementRoot, repositoryRoot: retirementRoot,
+      checkoutOwner: retirementOwner, branch: "synthetic-retired", head: "a".repeat(40), tree: "b".repeat(40),
+      runId: "synthetic-retired", contractFingerprint: "c".repeat(64), sourceCorrection: proof,
+    }), error => error.code === "qualification_route_retired");
+    assert.deepEqual(readFileSync(file), original);
+    assert(!existsSync(path.join(artifact, "families")), "refusal cannot create or reserve a family");
+  }
+  const branch = "synthetic-retired", family = digest([ATTEMPT_CONTRACT, "hynk-studio/augnes", branch]);
+  const familyRoot = path.join(artifact, "families", family);
+  mkdirSync(familyRoot, { recursive: true, mode: 0o700 });
+  const attemptFile = path.join(familyRoot, "attempt-1.json"), edgeFile = path.join(familyRoot, "correction-successor.json");
+  const plain = { contract: ATTEMPT_CONTRACT, branch, family_id: family, number: 1, attempt_id: "synthetic-original", source_correction: null };
+  for (const marker of [{ source_correction: retiredProofs[0] }, { closeout_consumed: true }, { companion_timeout_consumed: true }]) {
+    writeFileSync(attemptFile, JSON.stringify({ ...plain, ...marker }), { mode: 0o600 });
+    const original = readFileSync(attemptFile);
+    assert.throws(() => reconstructAttemptTip({ anchorRoot: retirementRoot, branch }), error => error.code === "qualification_route_retired");
+    assert.deepEqual(readFileSync(attemptFile), original);
+    assert.deepEqual(readdirSync(familyRoot), ["attempt-1.json"]);
+  }
+  writeFileSync(attemptFile, JSON.stringify(plain), { mode: 0o600 });
+  writeFileSync(path.join(familyRoot, "completion-1.json"), "{}", { mode: 0o600 });
+  for (const kind of ["issue_1559_closeout", "companion_readiness_timeout"]) {
+    writeFileSync(edgeFile, JSON.stringify({ kind }), { mode: 0o600 });
+    const original = readFileSync(edgeFile);
+    assert.throws(() => reconstructAttemptTip({ anchorRoot: retirementRoot, branch }), error => error.code === "qualification_route_retired");
+    assert.deepEqual(readFileSync(edgeFile), original, "consumed historical edges are never reset");
+  }
+  const retiredEdge = readFileSync(edgeFile), retiredAttempt = readFileSync(attemptFile);
+  const ordinaryBranch = "unrelated-live-branch";
+  const ordinary = beginAttempt({ anchorRoot: retirementRoot, repositoryRoot: retirementRoot, checkoutOwner: retirementOwner,
+    branch: ordinaryBranch, head: "a".repeat(40), tree: "b".repeat(40), runId: "unrelated-live", contractFingerprint: "c".repeat(64) });
+  finishAttempt(ordinary, { receiptFingerprint: "d".repeat(64), disposition: "completed_success", cleanupComplete: true });
+  assert.equal(reconstructAttemptTip({ anchorRoot: retirementRoot, branch: ordinaryBranch }).attempt_id, ordinary.attempt_id);
+  assert.deepEqual(readFileSync(edgeFile), retiredEdge);
+  assert.deepEqual(readFileSync(attemptFile), retiredAttempt);
+  assert.throws(() => reconstructAttemptTip({ anchorRoot: retirementRoot, branch }), /qualification_route_retired/);
+
+  // Removing retired markers or renaming a kind is not an evidence/authority
+  // validator. In a combined tree reviewed_revision goes to its complete owner;
+  // before that owner is present it is an unsupported correction, never legacy.
+  for (const proof of [
+    { schema: "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision" },
+    { schema: "augnes.local-canonical-source-correction.v7", kind: "unknown" },
+    { schema: "augnes.local-canonical-source-correction.v7" },
+    { schema: "augnes.local-canonical-source-correction.v2", kind: "reviewed_revision" },
+  ]) {
+    assert.equal(hasRetiredQualificationMarker(proof), false);
+    writeFileSync(file, JSON.stringify(proof), { mode: 0o600 });
+    assert.throws(() => readSourceCorrectionProof(file, retirementRoot));
+    const legacy = finalizeReceipt({ ...structuredClone(baseReceipt), attempt: { source_correction: proof } });
+    assert(inspectReceiptForDecision(legacy, validContext).issues.includes("receipt_source_correction_invalid"));
+    assert.throws(() => createPrivateReviewExport(legacy));
+    const malformedExport = structuredClone(ordinaryExport);
+    malformedExport.attempt = { source_correction: proof };
+    delete malformedExport.export_fingerprint;
+    malformedExport.export_fingerprint = digest(canonicalSerialize(malformedExport));
+    assert.equal(inspectPrivateReviewExport(malformedExport).structurally_valid, false);
+    if (!supportsSourceCorrection(proof)) {
+      const proposal = { ...proof, branch: ordinaryBranch, head: "e".repeat(40), tree: "f".repeat(40),
+        prior_family_id: ordinary.family_id, prior_number: 1, prior_attempt_id: ordinary.attempt_id,
+        prior_receipt_fingerprint: "d".repeat(64) };
+      writeFileSync(file, JSON.stringify(proposal), { mode: 0o600 });
+      assert.throws(() => beginAttempt({ anchorRoot: retirementRoot, repositoryRoot: retirementRoot, checkoutOwner: retirementOwner,
+        branch: ordinaryBranch, head: proposal.head, tree: proposal.tree, runId: "disguised", contractFingerprint: "c".repeat(64),
+        sourceCorrection: { ...proposal, local_relative_path: ".augnes-local-verification/retired-proof.json" } }),
+      /source_correction_proof_invalid|candidate_review_missing/);
+      assert(!existsSync(path.join(artifact, "families", ordinary.family_id, "correction-successor.json")));
+    }
+    assert.deepEqual(readFileSync(edgeFile), retiredEdge);
+  }
+} finally {
+  if (retirementOwner) releaseCheckoutVerificationOwnership(retirementOwner, retirementRoot);
+  assert(cleanupCanonicalTestResources([retirementResource])[0].completed);
+  assert(!existsSync(retirementRoot));
 }
 
 console.log(
@@ -902,6 +959,7 @@ console.log(
       content_integrity_verified: true,
       integration_base_provenance_bound_and_reobserved: true,
       historical_receipts_not_upgraded: true,
+      retired_qualification_routes_refused_without_mutation: true,
       checkout_ownership_and_phase_lifetime_validated: true,
       required_fields_verified: true,
       private_material_excluded: true,
