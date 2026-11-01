@@ -32,6 +32,9 @@ import {
   waitForOwnedProcessExit,
 } from "./test-harness-process-lifecycle.mjs";
 import { buildCanonicalChildEnvironment } from "./canonical-test-environment.mjs";
+import { collectFixtureCliResult, fixtureInstallFailureDiagnostic, fixtureProcessIdentity,
+  observeFixtureLaunchJob, readFixtureJson, readFixtureManagerObservation,
+} from "./companion-service-fixture-observation.mjs";
 import {
   localReviewAccessIssuerFailure,
   resolveRuntimePaths,
@@ -64,6 +67,62 @@ import {
 } from "../plugins/augnes-operator/mcp/companion-service-core.mjs";
 
 const repositoryRoot = process.cwd();
+async function assertFixtureInstallationEvidence() {
+  const secret = "fixture-one-time-token-do-not-report";
+  const refusal = { contract: COMPANION_SERVICE_CONTRACT, result: "refused",
+    reason: "companion_service_manager_state_unavailable", extra: secret };
+  const result = { status: 1, signal: null, stdout: JSON.stringify({ one_time_local_review_token: secret }),
+    stderr: JSON.stringify(refusal), streams_closed: true, spawn_error_code: null };
+  assert.equal(fixtureInstallFailureDiagnostic(result, { state: "absent" }).refusal.reason, refusal.reason);
+  for (const stderr of [result.stderr, secret, JSON.stringify({ result: "refused", reason: secret }),
+    JSON.stringify({ ...refusal, reason: secret }), ""]) {
+    assert(!JSON.stringify(fixtureInstallFailureDiagnostic({ ...result, stderr }, { state: "absent" })).includes(secret));
+  }
+  assert.equal(fixtureInstallFailureDiagnostic({ ...result, stderr: "" }, { state: "invalid" }).refusal.state, "absent");
+  const throws = code => () => { throw Object.assign(new Error(secret), { code }); };
+  assert.equal(readFixtureManagerObservation("unused", throws("ENOENT")).state, "absent");
+  for (const code of ["EACCES", "EPERM", "ELOOP", "unknown"]) {
+    assert.equal(readFixtureManagerObservation("unused", throws(code)).state, "unreadable");
+  }
+  assert.equal(readFixtureJson("unused", () => { throw new SyntaxError(secret); }).state, "invalid");
+  assert.equal(readFixtureManagerObservation("unused", () => ({ contract: "wrong" })).state, "invalid");
+  const manager = readFixtureManagerObservation("unused", () => ({ contract: COMPANION_SERVICE_CONTRACT,
+    manager_pid: 123, status: "starting", secret }));
+  assert.equal(manager.state, "available");
+  assert(!JSON.stringify(manager).includes(secret));
+  assert.equal(observeFixtureLaunchJob("test", () => ({ status: 113 })).state, "absent");
+  for (const r of [{ status: 1 }, { status: 113, error: { code: "EACCES" } }, { status: null, signal: "SIGTERM" }])
+    assert.equal(observeFixtureLaunchJob("test", () => r).state, "unavailable");
+  assert.equal(observeFixtureLaunchJob("test", () => ({ status: 0, stdout: "state = running\npid = 123\nruns = 2\n" })).pid, 123);
+  assert.equal(fixtureProcessIdentity(123, () => ({ status: 1, stdout: "", stderr: "" })), null);
+  assert.equal(fixtureProcessIdentity(123, () => ({ status: 0, stdout: "birth command\n" })), "birth command");
+  fixtureProcessIdentity(123, (_command, _args, options) => {
+    assert.deepEqual(options.env, { PATH: "/usr/bin:/bin" });
+    return { status: 0, stdout: "birth command" };
+  });
+  const ownerBirth = spawnSync("/bin/ps", ["-o", "lstart=", "-o", "command=", "-p", String(process.pid)],
+    { encoding: "utf8", env: { PATH: "/usr/bin:/bin" }, timeout: 1_500 });
+  assert.equal(ownerBirth.status, 0);
+  assert.equal(fixtureProcessIdentity(process.pid), ownerBirth.stdout.trim());
+  for (const r of [{ status: 1, stderr: secret }, { status: 0, stdout: "" },
+    { status: 1, error: { code: "EPERM" } }, { status: null, signal: "SIGTERM" }]) {
+    assert.throws(() => fixtureProcessIdentity(123, () => r), /native_process_observation_unavailable/u);
+  }
+  // The parent exits before its descendant finishes the inherited stderr pipe.
+  // Acceptance must include the complete structured refusal, not an early exit snapshot.
+  const late = `setTimeout(() => process.stderr.write(${JSON.stringify(JSON.stringify(refusal))}), 150)`;
+  const script = `require('node:child_process').spawn(process.execPath,['-e',${JSON.stringify(late)}],{stdio:['ignore','ignore',2]}).unref();process.exit(1)`;
+  const child = spawn(process.execPath, ["-e", script], { stdio: ["ignore", "pipe", "pipe"] });
+  let exitObserved = false;
+  child.once("exit", () => { exitObserved = true; });
+  const closed = await collectFixtureCliResult(child);
+  assert.equal(exitObserved, true);
+  assert.equal(closed.status, 1);
+  assert.equal(closed.streams_closed, true);
+  assert.equal(fixtureInstallFailureDiagnostic(closed, { state: "absent" }).refusal.reason, refusal.reason);
+  console.log(JSON.stringify({ case: "native-fixture-installation-evidence", status: "passed",
+    late_stderr_retained: true, token_output_excluded: true, unknown_observation_not_absence: true }));
+}
 const root = mkdtempSync(path.join(os.tmpdir(), "augnes-service-contract-"));
 const home = path.join(root, "home");
 const environment = {
@@ -97,6 +156,7 @@ const fixtureProvider = mock.method(childProcess, "spawnSync", (command, args, o
 syncBuiltinESMExports();
 
 try {
+  await assertFixtureInstallationEvidence();
   await assertPreservationObservation();
   await assertInstalledAccessDiagnostics();
   await assertSupervisorOutputTransport();
