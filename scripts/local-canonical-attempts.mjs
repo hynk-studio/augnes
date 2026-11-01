@@ -68,7 +68,6 @@ export function beginAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch
   if (hasRetiredQualificationMarker(sourceCorrection)) throw fail("qualification_route_retired");
   if (!branch || !/^[0-9a-f]{40}$/u.test(head) || !/^[0-9a-f]{40}$/u.test(tree) || !sha(contractFingerprint)) throw fail("attempt_identity_invalid");
   if ([recoveryProof, sourceCorrection, browserReplacement].filter(Boolean).length > 1) throw fail("attempt_mixed_successor_kind");
-  if (sourceCorrection && !supportsSourceCorrection(sourceCorrection)) throw fail("source_correction_proof_invalid");
   const strictSource = isStrictBrowserSourceRevision(sourceCorrection);
   const familyId = candidateFamilyId(branch, sourceCorrection, browserReplacement);
   const artifact = directory(anchorRoot, ".augnes-local-verification");

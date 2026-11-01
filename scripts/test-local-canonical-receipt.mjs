@@ -932,9 +932,15 @@ try {
     malformedExport.export_fingerprint = digest(canonicalSerialize(malformedExport));
     assert.equal(inspectPrivateReviewExport(malformedExport).structurally_valid, false);
     if (!supportsSourceCorrection(proof)) {
+      const proposal = { ...proof, branch: ordinaryBranch, head: "e".repeat(40), tree: "f".repeat(40),
+        prior_family_id: ordinary.family_id, prior_number: 1, prior_attempt_id: ordinary.attempt_id,
+        prior_receipt_fingerprint: "d".repeat(64) };
+      writeFileSync(file, JSON.stringify(proposal), { mode: 0o600 });
       assert.throws(() => beginAttempt({ anchorRoot: retirementRoot, repositoryRoot: retirementRoot, checkoutOwner: retirementOwner,
-        branch: ordinaryBranch, head: "a".repeat(40), tree: "b".repeat(40), runId: "disguised", contractFingerprint: "c".repeat(64), sourceCorrection: proof }),
-      /source_correction_proof_invalid/);
+        branch: ordinaryBranch, head: proposal.head, tree: proposal.tree, runId: "disguised", contractFingerprint: "c".repeat(64),
+        sourceCorrection: { ...proposal, local_relative_path: ".augnes-local-verification/retired-proof.json" } }),
+      /source_correction_proof_invalid|candidate_review_missing/);
+      assert(!existsSync(path.join(artifact, "families", ordinary.family_id, "correction-successor.json")));
     }
     assert.deepEqual(readFileSync(edgeFile), retiredEdge);
   }
