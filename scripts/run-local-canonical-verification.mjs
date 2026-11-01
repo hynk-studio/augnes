@@ -43,8 +43,8 @@ import { admitIntegrationBase } from "./local-canonical-integration-base.mjs";
 import { admitVerificationContext, assertVerificationContext, verificationAnchorRoot, inspectVerificationCompanionPreservation, observeReviewedRevisionSettlementState } from "./local-canonical-verification-context.mjs";
 import { acquireVerificationCapacity, assertVerificationCapacity, releaseVerificationCapacity } from "./local-canonical-capacity.mjs";
 import { createIsolatedInvocationResources, isolatedInvocationEnvironment, cleanupIsolatedInvocationResources } from "./local-canonical-isolated-resources.mjs";
-import { R8A_PROVISION_MANIFEST } from "./merged-r8a-dependency-provision.mjs";
-import { DURABLE_PROVISION_MANIFEST } from "./durable-work-dependency-provision.mjs";
+import { R8A_PROVISION_MANIFEST, readPreparedR8ADependencies } from "./merged-r8a-dependency-provision.mjs";
+import { DURABLE_PROVISION_MANIFEST, readPreparedDurableDependencies } from "./durable-work-dependency-provision.mjs";
 import { prepareHistoricalInputs, finishHistoricalInputs } from "./local-canonical-historical-inputs.mjs";
 import {
   acquireCheckoutVerificationOwnership,
@@ -123,6 +123,7 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/canonical-repository-identity.mjs",
   "scripts/local-canonical-environment.mjs",
   "scripts/merged-r8a-dependency-provision.mjs",
+  "scripts/durable-work-dependency-provision.mjs",
   "scripts/merged-r8a-fixture-dependencies.mjs",
   "scripts/prepare-merged-r8a-dependencies.mjs",
   "plugins/augnes-operator/mcp/node-runtime-policy.mjs",
@@ -681,6 +682,13 @@ export async function executeLocalCanonicalVerification({
           acquired_at: checkoutOwner.metadata.acquired_at,
         });
       }
+      // Required historical graphs are separate explicit preparation inputs.
+      // Validate with their existing readers before service/build mutation or
+      // attempt consumption, rather than discovering a missing graph in a child.
+      if (phaseDefinitions.some(phase => ["unit", "operability"].includes(phase.id)))
+        readPreparedR8ADependencies(repositoryRoot);
+      if (phaseDefinitions.some(phase => phase.id === "integration"))
+        readPreparedDurableDependencies(repositoryRoot);
       if (checkoutContext === "isolated-worktree") {
         isolatedResources = createIsolatedInvocationResources(invocationId);
         if (historicalInputsRequired) historicalInputs = prepareHistoricalInputs({

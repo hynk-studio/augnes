@@ -458,6 +458,10 @@ producer uses an independently copied, exact-lock view, with its own source and
 installed-material checks before and after execution. Its provision manifest is
 also an executor/stock execution input. Both preparation commands refuse an
 existing destination; neither historical lock or product source is rewritten.
+The executor reuses the provision readers after acquiring its checkout owner and
+before service/build mutation or attempt reservation: R8A for unit/operability,
+durable-work for integration. Missing or invalid preparation refuses without
+starting phases or consuming an attempt; it never triggers automatic installation.
 
 The R8A provision manifest binds the original commit/tree, four source hashes,
 actual Node/npm/platform/ABI and complete installed-file identities. The

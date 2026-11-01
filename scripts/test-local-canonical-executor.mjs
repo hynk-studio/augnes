@@ -940,7 +940,7 @@ const ownedBlockEnd = executorSource.indexOf("\n  const serviceLifecycleRestored
 assert.ok(ownedBlockStart > 0 && ownedBlockEnd > ownedBlockStart);
 const ownedBlock = executorSource.slice(ownedBlockStart, ownedBlockEnd);
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-for (const scenario of ["wrong_npm","checkout_busy","capacity_busy","acquisition_failure","owned_failure","unsettled_failure","success","absent_success","stopped_success","quick_success","isolated_success","isolated_unsettled","isolated_observation_invalid","pre_lock_state_race","maintenance_state_race","observer_authority_refused","observer_changed_after_authority","timeout_authority_refused","timeout_changed_after_authority","timeout_partial_workload_refused","condition_authority_refused","condition_changed_after_authority","condition_partial_workload_refused","guide_authority_refused","guide_changed_after_authority","guide_partial_workload_refused","revision_authority_refused","revision_changed_after_authority","revision_partial_workload_refused","revision_runtime_success","revision_settlement_success","revision_settlement_unsafe","revision_dependencies_observation_failure","isolated_observer_settled","isolated_observer_cleanup_failed","isolated_observer_unknown",]) {
+for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"].flatMap(graph => ["missing", "invalid", "ready"].map(state => `${prefix}historical_${graph}_${state}`))), "wrong_npm","checkout_busy","capacity_busy","acquisition_failure","owned_failure","unsettled_failure","success","absent_success","stopped_success","quick_success","isolated_success","isolated_unsettled","isolated_observation_invalid","pre_lock_state_race","maintenance_state_race","observer_authority_refused","observer_changed_after_authority","timeout_authority_refused","timeout_changed_after_authority","timeout_partial_workload_refused","condition_authority_refused","condition_changed_after_authority","condition_partial_workload_refused","guide_authority_refused","guide_changed_after_authority","guide_partial_workload_refused","revision_authority_refused","revision_changed_after_authority","revision_partial_workload_refused","revision_runtime_success","revision_settlement_success","revision_settlement_unsafe","revision_dependencies_observation_failure","isolated_observer_settled","isolated_observer_cleanup_failed","isolated_observer_unknown",]) {
   const root = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-canonical-ownership-")));
   let competingOwner = null;
   let privateResource = null;
@@ -957,6 +957,10 @@ for (const scenario of ["wrong_npm","checkout_busy","capacity_busy","acquisition
     if (!racingState) createSharedState();
     const diagnosticBeforeLock = { next: existsSync(next), windows: existsSync(windows) };
     const calls = { acquire: 0, release: 0, phases: 0, remove: 0, checkoutAcquire: 0, checkoutRelease: 0, logPrepare: 0, prune: 0 };
+    const historical = scenario.includes("historical_");
+    const historicalRefusal = historical && !scenario.endsWith("_ready");
+    const historicalGraph = scenario.includes("_r8a_") ? "r8a" : "durable";
+    const historicalReads = [];
     const quick = scenario === "quick_success";
     const isolated = scenario.startsWith("isolated_") || scenario.startsWith("revision_");
     const observerFailure = scenario.startsWith("isolated_observer_");
@@ -987,6 +991,15 @@ for (const scenario of ["wrong_npm","checkout_busy","capacity_busy","acquisition
       } catch (error) { preflightIssues.push(error.code); }
       assert.deepEqual(preflightIssues, ["canonical_npm_mismatch"]);
     }
+    const historicalRead = (graph, repository) => {
+      assert.equal(repository, root); assertCheckoutVerificationOwnership(activeOwner, root);
+      assert.equal(attemptClaims, 0); assert.equal(calls.phases, 0); assert.equal(calls.acquire, 0);
+      assert.equal(calls.remove, 0); assert.equal(calls.logPrepare, 0);
+      historicalReads.push(graph);
+      if (historicalRefusal) throw Object.assign(new Error("historical provision unavailable or invalid"),
+        { code: scenario.endsWith("_missing") ? "ENOENT" : "ERR_ASSERTION" });
+      return {};
+    };
     const context = {
       checkoutContext: isolated ? "isolated-worktree" : "canonical", verificationContext: {}, signal: { aborted: false },
       controller: new AbortController(), recoveryProofPath: null, sourceCorrectionProofPath: null, baseSha: "0".repeat(40), headSha: "a".repeat(40), executorFingerprint: "b".repeat(64), identityBefore: { branch: "fixture" },
@@ -1014,6 +1027,8 @@ for (const scenario of ["wrong_npm","checkout_busy","capacity_busy","acquisition
       monitorInputContract: () => ({ check: () => ["observer_changed_after_authority", "timeout_changed_after_authority", "condition_changed_after_authority", "guide_changed_after_authority", "revision_changed_after_authority",    ].includes(scenario) && authorityObserved ? { disposition: "input_invalidation" } : null, stop() {}, fault: () => null }),
       beginAttempt: options => { assert.equal(options.revisionLive, revisionSettlement ? settlementLive : null); attemptClaims++; return {}; }, pinVerificationEvidence() {}, assertFrozenSource() {},
       createIsolatedInvocationResources: id => (privateResource = createIsolatedInvocationResources(id)),
+      readPreparedR8ADependencies: repository => historicalRead("r8a", repository),
+      readPreparedDurableDependencies: repository => historicalRead("durable", repository),
       prepareHistoricalInputs: () => ({}),
       finishHistoricalInputs: () => ({ completed: true, unchanged: true }),
       cleanupIsolatedInvocationResources: (resource, options) => {
@@ -1024,7 +1039,7 @@ for (const scenario of ["wrong_npm","checkout_busy","capacity_busy","acquisition
       assertVerificationContext: () => true, verificationAnchorRoot: () => root,
       invocationId: "a".repeat(32),
       plan: { selected_plan: quick ? "quick-feedback" : "full-canonical" }, OWNER_TARGETED_PLAN: "owner-targeted",
-      preflightIssues, phaseDefinitions: revisionLane && scenario !== "revision_partial_workload_refused" ? BROWSER_REPLACEMENT_PHASES.map(id => ({id})) : observerFailure ? [{ id: "synthetic" }, { id: "must_not_start" }] : [{ id: "synthetic" }], phaseReceipts: (revisionRuntime ? BROWSER_REPLACEMENT_PHASES : observerFailure ? ["synthetic", "must_not_start"] : ["synthetic"]).map(id => ({id,status:"not_run"})),
+      preflightIssues, phaseDefinitions: historical ? [{ id: historicalGraph === "r8a" ? "unit" : "integration" }] : revisionLane && scenario !== "revision_partial_workload_refused" ? BROWSER_REPLACEMENT_PHASES.map(id => ({id})) : observerFailure ? [{ id: "synthetic" }, { id: "must_not_start" }] : [{ id: "synthetic" }], phaseReceipts: (historical ? [historicalGraph === "r8a" ? "unit" : "integration"] : revisionRuntime ? BROWSER_REPLACEMENT_PHASES : observerFailure ? ["synthetic", "must_not_start"] : ["synthetic"]).map(id => ({id,status:"not_run"})),
       repositoryRoot: root, runLogRoot, runId: "synthetic", mode: revisionLane ? "full" : "changed", hostResult: {},
       process: { platform: scenario === "capacity_busy" ? "darwin" : "win32", arch: "x64" }, generatedWindowsHelperRoot: windows,
       host: {},
@@ -1105,7 +1120,14 @@ for (const scenario of ["wrong_npm","checkout_busy","capacity_busy","acquisition
       },
     };
     const result = await new AsyncFunction(...Object.keys(context), ownedBlock + "\nreturn { nextState, windowsHelperState, sharedGeneratedStateOwned, cleanupComplete, cleanupReason, cleanupErrors, executionReason, executionFailure, checkoutOwnership, serviceLifecycleBefore, serviceLifecycleAfter, generatedWindowsHelperPresentAfter }; ")(...Object.values(context));
-    if (["wrong_npm", "checkout_busy", "capacity_busy", "acquisition_failure", "isolated_observation_invalid"].includes(scenario)) {
+    if (historical) assert.deepEqual(historicalReads, [historicalGraph]);
+    if (historicalRefusal) {
+      assert.equal(attemptClaims, 0, "missing/invalid preparation cannot consume the attempt");
+      assert.equal(result.executionReason, scenario.endsWith("_missing") ? "ENOENT" : "ERR_ASSERTION");
+      assert.equal(result.executionFailure, true); assert.equal(result.cleanupComplete, true);
+      assert.equal(privateResource, null, "refusal precedes isolated resource creation");
+    }
+    if (historicalRefusal || ["wrong_npm", "checkout_busy", "capacity_busy", "acquisition_failure", "isolated_observation_invalid"].includes(scenario)) {
       assert.equal(calls.phases, 0); assert.equal(calls.remove, 0); assert.equal(calls.release, 0);
       assert.equal(result.sharedGeneratedStateOwned, false);
       assert.equal(result.nextState.removed_after_execution, false);
