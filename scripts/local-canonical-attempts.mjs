@@ -3,7 +3,7 @@ import { OPERATING_PROFILE_SCHEMA, isOperatingProfileSuccession, readOperatingPr
 import { mkdirSync, lstatSync, readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { digest } from "./local-canonical-inputs.mjs";
+import { digest, validNodeHeaders, classifyInputChange, nonFaultInputChange, inputEventIdentity, comparePreparedDependencyInputs } from "./local-canonical-inputs.mjs";
 import { assertCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
 import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 import { readBrowserInputBinding } from "./local-canonical-browser-input.mjs";
@@ -14,11 +14,15 @@ import { TIMEOUT_REPAIR_SCHEMA, isCorrectedTimeout, readTimeoutRepairEvidence, t
 import { CONDITION_REQUALIFICATION_SCHEMA, isConditionRequalification, readConditionRequalificationEvidence, conditionArtifact, assertConditionRequalificationAuthorization, validConditionRequalificationAttempt } from "./local-canonical-condition-requalification.mjs";
 
 import { GUIDE_CORRECTION_SCHEMA, isGuideCorrection, readGuideCorrectionEvidence, guideArtifact, assertGuideCorrectionAuthorization, validGuideCorrectionAttempt } from "./local-canonical-guide-correction.mjs";
+import { createGitHubObserverAuthorizationTransport } from "./github-main-branch-transport.mjs";
 
 export const ATTEMPT_CONTRACT = "augnes.local-canonical-attempt-family.v1";
 const fail = code => Object.assign(new Error(code), { code });
 const sha = value => /^[0-9a-f]{64}$/u.test(value ?? "");
 const capabilities = new WeakMap();
+export const REVIEWED_REVISION_SCHEMA = "augnes.local-canonical-source-correction.v7";
+export const isReviewedRevision = proof => proof?.schema === REVIEWED_REVISION_SCHEMA && proof.kind === "reviewed_revision";
+const revisionCapabilities = new WeakMap();
 
 function directory(parent, name) {
   const target = path.join(parent, name);
@@ -36,7 +40,7 @@ function append(root, name, value) { writeFileSync(path.join(root, name), `${JSO
 
 // Family lives at the physical anchor, keyed by repository and branch (not
 // commit, wrapper process or checkout). There is no CLI family-id reset knob.
-export function beginAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, head, tree, runId, contractFingerprint, recoveryProof = null, sourceCorrection = null, browserReplacement = null, browserAuthorization = null, browserLive = null, acceptedMain = null, observerAuthorization = null, timeoutAuthorization = null, conditionAuthorization = null, guideAuthorization = null, profileAuthorization = null, budgetAuthorization = null }) {
+export function beginAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch, head, tree, runId, contractFingerprint, recoveryProof = null, sourceCorrection = null, browserReplacement = null, browserAuthorization = null, browserLive = null, acceptedMain = null, observerAuthorization = null, timeoutAuthorization = null, conditionAuthorization = null, guideAuthorization = null, profileAuthorization = null, budgetAuthorization = null, revisionAuthorization = null, revisionInputs = null }) {
   assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
   if (!branch || !/^[0-9a-f]{40}$/u.test(head) || !/^[0-9a-f]{40}$/u.test(tree) || !sha(contractFingerprint)) throw fail("attempt_identity_invalid");
   if ([recoveryProof, sourceCorrection, browserReplacement].filter(Boolean).length > 1) throw fail("attempt_mixed_successor_kind");
@@ -47,14 +51,17 @@ export function beginAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch
   if (sourceCorrection || browserReplacement) {
     const tip = reconstructAttemptTip({ anchorRoot, branch });
     const proof = sourceCorrection ?? browserReplacement;
+    const revision = isReviewedRevision(sourceCorrection);
     if (tip.family_id !== proof.prior_family_id || tip.number !== proof.prior_number || tip.attempt_id !== proof.prior_attempt_id ||
-        (tip.observer_repair_consumed || tip.corrected_timeout_consumed || tip.guide_correction_consumed || tip.successor_budget_consumed ||
+        (revision ? tip.input_replacement_consumed || (tip.reviewed_revision_consumed ?
+          proof.commission.ordinal !== tip.reviewed_revision_consumed + 1 || revisionCommissionIdentity(proof) !== tip.revision_commission : proof.commission.ordinal !== 1) :
+          tip.reviewed_revision_consumed || tip.observer_repair_consumed || tip.corrected_timeout_consumed || tip.guide_correction_consumed || tip.successor_budget_consumed ||
           (tip.operating_profile_consumed && !isSuccessorBudgetSuccession(sourceCorrection)) ||
           (isSuccessorBudgetSuccession(sourceCorrection) && !tip.operating_profile_consumed) ||
           (tip.condition_requalification_consumed && !isGuideCorrection(sourceCorrection)) ||
           (isGuideCorrection(sourceCorrection) && !tip.condition_requalification_consumed) || (browserReplacement ? tip.input_replacement_consumed : tip.input_replacement_consumed !== strictSource))) throw fail("attempt_latest_tip_required");
   }
-  if (sourceCorrection) admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof: sourceCorrection, acceptedMain, browserAuthorization, browserLive, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization, profileAuthorization, budgetAuthorization, reserve: true });
+  if (sourceCorrection) admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof: sourceCorrection, acceptedMain, browserAuthorization, browserLive, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization, profileAuthorization, budgetAuthorization, revisionAuthorization, revisionInputs, reserve: true });
   if (browserReplacement) {
     assertBrowserReplacementAuthorization(browserReplacement, browserAuthorization);
     validateBrowserReplacementLive({ ...browserLive, proof: browserReplacement, repositoryRoot, branch, head, tree, base: acceptedMain });
@@ -76,7 +83,7 @@ export function beginAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch
   let number = 1, prior = null;
   if (previous) {
     const tip = reconstructAttemptTip({ anchorRoot, branch });
-    if (tip.family_id !== familyId || tip.input_replacement_consumed || tip.observer_repair_consumed || tip.corrected_timeout_consumed || tip.condition_requalification_consumed || tip.guide_correction_consumed || tip.operating_profile_consumed || tip.successor_budget_consumed) throw fail("attempt_candidate_superseded");
+    if (tip.family_id !== familyId || tip.input_replacement_consumed || tip.observer_repair_consumed || tip.corrected_timeout_consumed || tip.condition_requalification_consumed || tip.guide_correction_consumed || tip.operating_profile_consumed || tip.successor_budget_consumed || tip.reviewed_revision_consumed) throw fail("attempt_candidate_superseded");
     if (entries.includes("correction-successor.json")) throw fail("attempt_candidate_superseded");
     if (entries.includes("attempt-2.json") || !entries.includes("completion-1.json")) throw fail("attempt_budget_or_unsettled");
     prior = read(path.join(root, "completion-1.json"));
@@ -96,8 +103,9 @@ export function beginAttempt({ anchorRoot, repositoryRoot, checkoutOwner, branch
     ...(isConditionRequalification(sourceCorrection) ? { condition_authority: conditionAuthorization.observations } : {}),
     ...(isOperatingProfileSuccession(sourceCorrection) ? { profile_authority: profileAuthorization.observations } : {}),
     ...(isSuccessorBudgetSuccession(sourceCorrection) ? { budget_authority: budgetAuthorization.observations } : {}),
+    ...(isReviewedRevision(sourceCorrection) ? { revision_authority: revisionAuthorization.observations } : {}),
     ...(isGuideCorrection(sourceCorrection) ? { guide_authority: guideAuthorization.observations } : {}),
-    budget: { initial: 1, recovery: browserReplacement || strictSource || isObserverRepair(sourceCorrection) || isCorrectedTimeout(sourceCorrection) || isConditionRequalification(sourceCorrection) || isGuideCorrection(sourceCorrection) || isOperatingProfileSuccession(sourceCorrection) || isSuccessorBudgetSuccession(sourceCorrection) ? 0 : 1 } };
+    budget: { initial: 1, recovery: browserReplacement || strictSource || isObserverRepair(sourceCorrection) || isCorrectedTimeout(sourceCorrection) || isConditionRequalification(sourceCorrection) || isGuideCorrection(sourceCorrection) || isOperatingProfileSuccession(sourceCorrection) || isSuccessorBudgetSuccession(sourceCorrection) || isReviewedRevision(sourceCorrection) ? 0 : 1 } };
   append(root, `attempt-${number}.json`, record);
   const capability = Object.freeze({ ...record });
   capabilities.set(capability, { root, repositoryRoot, checkoutOwner, record });
@@ -147,7 +155,7 @@ export function readRecoveryProof(file) {
   return proof;
 }
 
-export function inspectAttemptRecords({ anchorRoot, repositoryRoot = anchorRoot, receipt, browserAuthorization = null, browserLive = null, observerAuthorization = null, timeoutAuthorization = null, conditionAuthorization = null, guideAuthorization = null, profileAuthorization = null, budgetAuthorization = null }) {
+export function inspectAttemptRecords({ anchorRoot, repositoryRoot = anchorRoot, receipt, browserAuthorization = null, browserLive = null, observerAuthorization = null, timeoutAuthorization = null, conditionAuthorization = null, guideAuthorization = null, profileAuthorization = null, budgetAuthorization = null, revisionAuthorization = null, revisionInputs = null }) {
   try {
     const attempt = receipt.attempt;
     const familyId = candidateFamilyId(receipt.repository.branch, attempt.source_correction, attempt.browser_replacement);
@@ -166,7 +174,12 @@ export function inspectAttemptRecords({ anchorRoot, repositoryRoot = anchorRoot,
       if (tip.family_id !== familyId || tip.attempt_id !== attempt.attempt_id) return false;
     }
     if (attempt.source_correction) admitSourceCorrection({ anchorRoot, repositoryRoot, branch: receipt.repository.branch,
-      head: attempt.head, tree: attempt.tree, proof: attempt.source_correction, acceptedMain: receipt.repository.base_sha, browserAuthorization, browserLive, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization, profileAuthorization, budgetAuthorization, reserve: false });
+      head: attempt.head, tree: attempt.tree, proof: attempt.source_correction, acceptedMain: receipt.repository.base_sha, browserAuthorization, browserLive, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization, profileAuthorization, budgetAuthorization, revisionAuthorization, revisionInputs, reserve: false });
+    if (isReviewedRevision(attempt.source_correction)) {
+      if (receipt.receipt_version !== 4 || !validReviewedRevisionAttempt(attempt) || digest(attempt.revision_authority) !== digest(revisionAuthorization?.observations)) return false;
+      const tip = reconstructAttemptTip({ anchorRoot, branch: receipt.repository.branch });
+      if (tip.family_id !== familyId || tip.attempt_id !== attempt.attempt_id || tip.reviewed_revision_consumed !== attempt.source_correction.commission.ordinal) return false;
+    }
     if (isSuccessorBudgetSuccession(attempt.source_correction)) {
       if (receipt.receipt_version !== 4 || !validSuccessorBudgetAttempt(attempt) || digest(attempt.budget_authority) !== digest(budgetAuthorization?.observations)) return false;
       const tip = reconstructAttemptTip({ anchorRoot, branch: receipt.repository.branch });
@@ -233,7 +246,7 @@ const browserSuccessor = (branch, proof) => ({ contract: "augnes.local-canonical
   family_id: candidateFamilyId(branch, null, proof), head: proof.head, tree: proof.tree, proof_fingerprint: digest(proof) });
 
 export function reconstructAttemptTip({ anchorRoot, branch }) {
-  let familyId = candidateFamilyId(branch), inputReplacementConsumed = false, retainedInput = null, observerRepairConsumed = false, correctedTimeoutConsumed = false, conditionRequalificationConsumed = false, guideCorrectionConsumed = false, operatingProfileConsumed = false, successorBudgetConsumed = false;
+  let familyId = candidateFamilyId(branch), inputReplacementConsumed = false, retainedInput = null, observerRepairConsumed = false, correctedTimeoutConsumed = false, conditionRequalificationConsumed = false, guideCorrectionConsumed = false, operatingProfileConsumed = false, successorBudgetConsumed = false, revisionCount = 0, revisionCommission = null;
   const seen = new Set();
   for (let depth = 0; depth < 128; depth++) {
     if (seen.has(familyId)) throw fail("attempt_lineage_cycle");
@@ -245,15 +258,22 @@ export function reconstructAttemptTip({ anchorRoot, branch }) {
     const number = entries.includes("attempt-2.json") ? 2 : 1;
     const attempt = read(path.join(root, `attempt-${number}.json`));
     if (attempt.contract !== ATTEMPT_CONTRACT || attempt.branch !== branch || attempt.family_id !== familyId || attempt.number !== number ||
-        (attempt.source_correction && !["augnes.local-canonical-source-correction.v1", "augnes.local-canonical-source-correction.v2", OBSERVER_REPAIR_SCHEMA, TIMEOUT_REPAIR_SCHEMA, CONDITION_REQUALIFICATION_SCHEMA, GUIDE_CORRECTION_SCHEMA, OPERATING_PROFILE_SCHEMA, BUDGET_SCHEMA].includes(attempt.source_correction.schema)) ||
+        (attempt.source_correction && !["augnes.local-canonical-source-correction.v1", "augnes.local-canonical-source-correction.v2", OBSERVER_REPAIR_SCHEMA, TIMEOUT_REPAIR_SCHEMA, CONDITION_REQUALIFICATION_SCHEMA, GUIDE_CORRECTION_SCHEMA, OPERATING_PROFILE_SCHEMA, BUDGET_SCHEMA, REVIEWED_REVISION_SCHEMA].includes(attempt.source_correction.schema)) ||
         (attempt.browser_replacement && (attempt.browser_replacement.contract !== BROWSER_REPLACEMENT_CONTRACT || attempt.browser_replacement.kind !== "browser_input_replacement" ||
           attempt.source_correction || attempt.recovery || number !== 1 || attempt.budget?.initial !== 1 || attempt.budget?.recovery !== 0))) throw fail("attempt_lineage_identity_invalid");
-    if (successorBudgetConsumed) throw fail("attempt_successor_budget_terminal");
-    if (operatingProfileConsumed && !isSuccessorBudgetSuccession(attempt.source_correction)) throw fail("attempt_operating_profile_successor_terminal");
-    if (observerRepairConsumed) throw fail("attempt_observer_successor_terminal");
-    if (correctedTimeoutConsumed) throw fail("attempt_timeout_successor_terminal");
-    if (guideCorrectionConsumed) throw fail("attempt_guide_successor_terminal");
-    if (conditionRequalificationConsumed && !isGuideCorrection(attempt.source_correction)) throw fail("attempt_condition_successor_terminal");
+    const revision = isReviewedRevision(attempt.source_correction);
+    if (revisionCount && !revision) throw fail("attempt_revision_commission_terminal");
+    if (successorBudgetConsumed && !revision) throw fail("attempt_successor_budget_terminal");
+    if (operatingProfileConsumed && !revision && !isSuccessorBudgetSuccession(attempt.source_correction)) throw fail("attempt_operating_profile_successor_terminal");
+    if (observerRepairConsumed && !revision) throw fail("attempt_observer_successor_terminal");
+    if (correctedTimeoutConsumed && !revision) throw fail("attempt_timeout_successor_terminal");
+    if (guideCorrectionConsumed && !revision) throw fail("attempt_guide_successor_terminal");
+    if (conditionRequalificationConsumed && !revision && !isGuideCorrection(attempt.source_correction)) throw fail("attempt_condition_successor_terminal");
+    if (revision) {
+      if (!validReviewedRevisionAttempt(attempt) || attempt.source_correction.commission.ordinal !== revisionCount + 1 ||
+          (revisionCommission && revisionCommissionIdentity(attempt.source_correction) !== revisionCommission)) throw fail("attempt_revision_commission_invalid");
+      revisionCount += 1; revisionCommission = revisionCommissionIdentity(attempt.source_correction);
+    }
     if (isSuccessorBudgetSuccession(attempt.source_correction)) {
       if (!operatingProfileConsumed || !validSuccessorBudgetAttempt(attempt)) throw fail("attempt_successor_budget_lineage_invalid");
       successorBudgetConsumed = true;
@@ -288,21 +308,22 @@ export function reconstructAttemptTip({ anchorRoot, branch }) {
     }
     if (attempt.browser_replacement) { inputReplacementConsumed = true; retainedInput = attempt.browser_replacement.browser_input_sha256; }
     const edgeFile = path.join(root, "correction-successor.json");
-    if (!entries.includes("correction-successor.json")) return { family_id: familyId, number, attempt_id: attempt.attempt_id, input_replacement_consumed: inputReplacementConsumed, ...(observerRepairConsumed ? { observer_repair_consumed: true } : {}), ...(correctedTimeoutConsumed ? { corrected_timeout_consumed: true } : {}), ...(conditionRequalificationConsumed ? { condition_requalification_consumed: true } : {}), ...(guideCorrectionConsumed ? { guide_correction_consumed: true } : {}), ...(operatingProfileConsumed ? { operating_profile_consumed: true } : {}), ...(successorBudgetConsumed ? { successor_budget_consumed: true } : {}) };
-    if (successorBudgetConsumed) throw fail("attempt_successor_budget_terminal");
-    if (observerRepairConsumed) throw fail("attempt_observer_successor_terminal");
-    if (correctedTimeoutConsumed) throw fail("attempt_timeout_successor_terminal");
-    if (guideCorrectionConsumed) throw fail("attempt_guide_successor_terminal");
-    const edge = read(edgeFile);
+    if (!entries.includes("correction-successor.json")) return { family_id: familyId, number, attempt_id: attempt.attempt_id, input_replacement_consumed: inputReplacementConsumed, ...(observerRepairConsumed ? { observer_repair_consumed: true } : {}), ...(correctedTimeoutConsumed ? { corrected_timeout_consumed: true } : {}), ...(conditionRequalificationConsumed ? { condition_requalification_consumed: true } : {}), ...(guideCorrectionConsumed ? { guide_correction_consumed: true } : {}), ...(operatingProfileConsumed ? { operating_profile_consumed: true } : {}), ...(successorBudgetConsumed ? { successor_budget_consumed: true } : {}), ...(revisionCount ? { reviewed_revision_consumed: revisionCount, revision_commission: revisionCommission } : {}) };
+    const edge = read(edgeFile), revisionEdge = edge.kind === "reviewed_revision";
+    if (revisionCount && (!revisionEdge || revisionCount >= 2)) throw fail("attempt_revision_commission_terminal");
+    if (successorBudgetConsumed && !revisionEdge) throw fail("attempt_successor_budget_terminal");
+    if (observerRepairConsumed && !revisionEdge) throw fail("attempt_observer_successor_terminal");
+    if (correctedTimeoutConsumed && !revisionEdge) throw fail("attempt_timeout_successor_terminal");
+    if (guideCorrectionConsumed && !revisionEdge) throw fail("attempt_guide_successor_terminal");
     // Preserve the old terminal refusal before requesting a completion for an
     // unauthorized continuation; only the explicit new kind needs that binding.
-    if (operatingProfileConsumed && edge.kind !== "settled_successor_budget") throw fail("attempt_operating_profile_successor_terminal");
+    if (operatingProfileConsumed && !revisionEdge && edge.kind !== "settled_successor_budget") throw fail("attempt_operating_profile_successor_terminal");
     const completion = read(path.join(root, `completion-${number}.json`));
-    if (conditionRequalificationConsumed && edge.kind !== "guide_cancellation_correction") throw fail("attempt_condition_successor_terminal");
+    if (conditionRequalificationConsumed && !revisionEdge && edge.kind !== "guide_cancellation_correction") throw fail("attempt_condition_successor_terminal");
     const edgeKeys = edge.contract === undefined ? ["family_id", "head", "tree", "proof_fingerprint"] : ["contract", "kind", "family_id", "head", "tree", "proof_fingerprint"];
     if (completion.contract !== ATTEMPT_CONTRACT || completion.attempt_id !== attempt.attempt_id || completion.cleanup_complete !== true || !sha(completion.receipt_fingerprint) || !sha(edge.family_id) || !sha(edge.proof_fingerprint) ||
         digest(Object.keys(edge).sort()) !== digest(edgeKeys.sort()) ||
-        (edge.contract !== undefined && (edge.contract !== "augnes.local-canonical-successor.v2" || !["browser_input_replacement", "observer_repair", "corrected_timeout", "condition_requalification", "guide_cancellation_correction", "operating_profile_efficiency", "settled_successor_budget"].includes(edge.kind)))) throw fail("attempt_lineage_edge_invalid");
+        (edge.contract !== undefined && (edge.contract !== "augnes.local-canonical-successor.v2" || !["browser_input_replacement", "observer_repair", "corrected_timeout", "condition_requalification", "guide_cancellation_correction", "operating_profile_efficiency", "settled_successor_budget", "reviewed_revision"].includes(edge.kind)))) throw fail("attempt_lineage_edge_invalid");
     const next = read(path.join(anchorRoot, ".augnes-local-verification", "families", edge.family_id, "attempt-1.json"));
     const proof = next.browser_replacement ?? next.source_correction;
     if (!proof || proof.prior_family_id !== familyId || proof.prior_number !== number || proof.prior_attempt_id !== attempt.attempt_id || proof.prior_receipt_fingerprint !== completion.receipt_fingerprint ||
@@ -314,6 +335,13 @@ export function reconstructAttemptTip({ anchorRoot, branch }) {
         (edge.kind === "condition_requalification") !== isConditionRequalification(next.source_correction) ||
         (edge.kind === "operating_profile_efficiency") !== isOperatingProfileSuccession(next.source_correction) ||
         (edge.kind === "settled_successor_budget") !== isSuccessorBudgetSuccession(next.source_correction) ||
+        revisionEdge !== isReviewedRevision(next.source_correction) ||
+        (revisionEdge && (!validReviewedRevisionAttempt(next) || !["product_failure", "input_invalidation"].includes(completion.disposition) ||
+          next.source_correction.commission.ordinal !== revisionCount + 1 ||
+          (revisionCommission ? revisionCommissionIdentity(next.source_correction) !== revisionCommission :
+            next.source_correction.commission.root_family_id !== familyId || next.source_correction.commission.root_number !== number ||
+            next.source_correction.commission.root_attempt_id !== attempt.attempt_id || next.source_correction.commission.root_receipt_fingerprint !== completion.receipt_fingerprint ||
+            next.source_correction.authorization.grant_comment_id === attempt.source_correction?.authorization?.grant_comment_id))) ||
         (isSuccessorBudgetSuccession(next.source_correction) && (!isOperatingProfileSuccession(attempt.source_correction) || completion.disposition !== "product_failure" ||
           !validSuccessorBudgetAttempt(next) || next.source_correction.authorization?.grant_comment_id === attempt.source_correction.authorization?.grant_comment_id)) ||
         (edge.kind === "guide_cancellation_correction") !== isGuideCorrection(next.source_correction) ||
@@ -335,6 +363,10 @@ export function readSourceCorrectionProof(file, repositoryRoot) {
   if (!/^\.augnes-local-verification\/[a-zA-Z0-9_./-]+\.json$/u.test(relative) || relative.split("/").includes("..") || realpathSync(file) !== file)
     throw fail("source_correction_unsafe_path");
   const proof = read(file);
+  if (isReviewedRevision(proof)) {
+    readReviewedRevisionEvidence(file, proof, repositoryRoot);
+    return { ...proof, local_relative_path: relative };
+  }
   if (isSuccessorBudgetSuccession(proof)) {
     readSuccessorBudgetEvidence(file, proof, repositoryRoot);
     return { ...proof, local_relative_path: relative };
@@ -390,10 +422,33 @@ export function readSourceCorrectionProof(file, repositoryRoot) {
   return { ...proof, local_relative_path: relative.split(path.sep).join("/") };
 }
 
-function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof, acceptedMain, browserAuthorization, browserLive, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization, profileAuthorization, budgetAuthorization, reserve }) {
+function admitSourceCorrection({ anchorRoot, repositoryRoot, branch, head, tree, proof, acceptedMain, browserAuthorization, browserLive, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization, profileAuthorization, budgetAuthorization, revisionAuthorization, revisionInputs, reserve }) {
   const reread = readSourceCorrectionProof(path.join(repositoryRoot, proof.local_relative_path ?? ""), repositoryRoot);
   if (digest(reread) !== digest(proof) || proof.branch !== branch || proof.head !== head || proof.tree !== tree ||
       !/^[0-9a-f]{40}$/u.test(head) || !/^[0-9a-f]{40}$/u.test(tree)) throw fail("source_correction_identity_invalid");
+  if (isReviewedRevision(proof)) {
+    const evidence = readReviewedRevisionEvidence(path.join(repositoryRoot, proof.local_relative_path), proof, repositoryRoot);
+    const capability = revisionCapabilities.get(revisionAuthorization);
+    if (!capability || capability.proof !== digest(proof) || capability.observations !== digest(revisionAuthorization.observations) ||
+        !revisionEqual(revisionInputs, evidence.inputs) || acceptedMain !== proof.base ||
+        (Date.parse(revisionAuthorization.observations.execution_commission.timestamp) <= Date.parse(evidence.completion.finished_at) ||
+         Date.parse(revisionAuthorization.observations.accepted_revision.timestamp) <= Date.parse(evidence.completion.finished_at)) && proof.commission.ordinal === 1)
+      throw fail("revision_authenticated_authority_required");
+    const priorRoot = path.join(anchorRoot, ".augnes-local-verification", "families", proof.prior_family_id);
+    if (realpathSync(priorRoot) !== priorRoot || readdirSync(priorRoot).includes(`attempt-${proof.prior_number + 1}.json`)) throw fail("revision_latest_settled_required");
+    for (const kind of ["attempt", "completion"]) {
+      const actual = path.join(priorRoot, `${kind}-${proof.prior_number}.json`); read(actual);
+      if (digest(readFileSync(actual)) !== proof.originals[kind].sha256) throw fail("revision_original_ledger_changed");
+    }
+    const receiptFile = path.join(repositoryRoot, ".augnes-local-verification", "receipts", `${proof.prior_attempt_id}.json`);
+    read(receiptFile, 512 * 1024);
+    if (digest(readFileSync(receiptFile)) !== proof.originals.receipt.sha256) throw fail("revision_original_receipt_changed");
+    const successor = { contract: "augnes.local-canonical-successor.v2", kind: "reviewed_revision",
+      family_id: candidateFamilyId(branch, proof), head, tree, proof_fingerprint: digest(proof) };
+    if (reserve) append(priorRoot, "correction-successor.json", successor);
+    if (!revisionEqual(read(path.join(priorRoot, "correction-successor.json")), successor)) throw fail("revision_successor_already_bound");
+    return;
+  }
   if (isSuccessorBudgetSuccession(proof)) {
     const completion = JSON.parse(timeoutArtifact(path.dirname(path.join(repositoryRoot, proof.local_relative_path)), proof.originals.completion));
     assertSuccessorBudgetAuthorization(proof, budgetAuthorization, completion);
@@ -619,4 +674,230 @@ function matchesReadOnlyMergeTree(git, predecessor, main, head) {
     if (value !== undefined) expected.set(name, value);
   }
   return actual.size === expected.size && [...expected].every(([name, value]) => actual.get(name) === value);
+}
+
+// Reviewed revisions share the existing proof, authenticated transport and
+// exclusive edge. The commission's root and ordinal are reconstructed from
+// those append-only edges; there is no resettable allowance or approval ledger.
+const revisionEqual = (a, b) => a !== undefined && b !== undefined && digest(a) === digest(b);
+const revisionKeys = (value, names) => value && typeof value === "object" && !Array.isArray(value) && revisionEqual(Object.keys(value).sort(), [...names].sort());
+const revisionCommit = value => /^[0-9a-f]{40}$/u.test(value ?? "");
+const revisionTime = value => typeof value === "string" && Number.isFinite(Date.parse(value)) && Date.parse(value) <= Date.now();
+const revisionId = value => Number.isSafeInteger(value) && value > 0;
+const revisionRef = value => value && sha(value.sha256);
+const revisionPath = value => typeof value === "string" && /^[A-Za-z0-9_.\/-]+$/u.test(value) && !value.startsWith("/") && !value.split("/").some(p => !p || p === "." || p === "..");
+
+export function reviewedRevisionAuthorityObservation(record, role) {
+  return { id: record.id, author: record.user?.login, author_id: record.user?.id,
+    body_sha256: digest(record.body), timestamp: record.updated_at ?? record.submitted_at ?? record.created_at,
+    role, commit_id: role === "accepted_revision" ? record.commit_id : null };
+}
+
+function revisionCommissionIdentity(proof) {
+  return digest({ pull_request: proof.pull_request, branch: proof.branch, accepted: proof.accepted,
+    authorization: proof.authorization, root_family_id: proof.commission.root_family_id,
+    root_number: proof.commission.root_number, root_attempt_id: proof.commission.root_attempt_id,
+    root_receipt_fingerprint: proof.commission.root_receipt_fingerprint,
+    maximum_invocations: proof.commission.maximum_invocations });
+}
+
+function revisionShape(p) {
+  const c = p?.commission;
+  return isReviewedRevision(p) && typeof p.branch === "string" && p.branch.length > 0 && p.branch.length <= 200 &&
+    [p.head, p.tree, p.base, p.accepted?.head, p.accepted?.tree, p.accepted?.base].every(revisionCommit) &&
+    revisionId(p.pull_request) && sha(p.prior_family_id) && [1, 2].includes(p.prior_number) && typeof p.prior_attempt_id === "string" &&
+    sha(p.prior_receipt_fingerprint) && revisionKeys(c, ["root_family_id", "root_number", "root_attempt_id", "root_receipt_fingerprint", "ordinal", "maximum_invocations"]) &&
+    sha(c.root_family_id) && [1, 2].includes(c.root_number) && typeof c.root_attempt_id === "string" && sha(c.root_receipt_fingerprint) &&
+    [1, 2].includes(c.ordinal) && c.maximum_invocations === 2 &&
+    (c.ordinal === 1 ? c.root_family_id === p.prior_family_id && c.root_number === p.prior_number && c.root_attempt_id === p.prior_attempt_id && c.root_receipt_fingerprint === p.prior_receipt_fingerprint :
+      c.root_family_id !== p.prior_family_id && c.root_attempt_id !== p.prior_attempt_id) && revisionId(p.accepted.review?.id) && revisionRef(p.accepted.review) &&
+    revisionKeys(p.authorization, ["grant_comment_id", "grant_sha256"]) && revisionId(p.authorization.grant_comment_id) && sha(p.authorization.grant_sha256) &&
+    ["receipt", "attempt", "completion", "stock"].every(k => revisionRef(p.originals?.[k])) &&
+    revisionRef(p.source) && revisionRef(p.focused) && revisionRef(p.inputs?.current) && sha(p.inputs?.identity_sha256) && sha(p.inputs?.predecessor_sha256);
+}
+
+export function validReviewedRevisionAttempt(attempt) {
+  const p = attempt?.source_correction;
+  if (!revisionShape(p) || attempt.number !== 1 || attempt.recovery || attempt.browser_replacement ||
+      !revisionEqual(attempt.budget, { initial: 1, recovery: 0 }) || p.branch !== attempt.branch || p.head !== attempt.head || p.tree !== attempt.tree ||
+      !revisionKeys(attempt.revision_authority, ["accepted_revision", "execution_commission"])) return false;
+  return ["accepted_revision", "execution_commission"].every(role => {
+    const o = attempt.revision_authority[role], ref = role === "accepted_revision" ? p.accepted.review : { id: p.authorization.grant_comment_id, sha256: p.authorization.grant_sha256 };
+    return revisionKeys(o, ["id", "author", "author_id", "body_sha256", "timestamp", "role", "commit_id"]) && o.role === role &&
+      revisionId(o.author_id) && /^[A-Za-z0-9-]{1,39}$/u.test(o.author ?? "") && sha(o.body_sha256) && revisionTime(o.timestamp) &&
+      o.id === ref.id && digest(o) === ref.sha256 && o.commit_id === (role === "accepted_revision" ? p.accepted.head : null);
+  }) && Date.parse(attempt.revision_authority.execution_commission.timestamp) > Date.parse(attempt.revision_authority.accepted_revision.timestamp);
+}
+
+export function validateReviewedRevisionAuthorityRecords(p, review, grant, permissions, pr) {
+  if (!revisionShape(p)) throw fail("revision_authority_missing");
+  const observations = {};
+  for (const [record, role, ref] of [[review, "accepted_revision", p.accepted.review], [grant, "execution_commission", { id: p.authorization.grant_comment_id, sha256: p.authorization.grant_sha256 }]]) {
+    if (record?.id !== ref.id || record.user?.type !== "User" || !revisionId(record.user?.id) || !/^[A-Za-z0-9-]{1,39}$/u.test(record.user?.login ?? "") ||
+        !["OWNER", "MEMBER", "COLLABORATOR"].includes(record.author_association) || typeof record.body !== "string" || Buffer.byteLength(record.body) > 64 * 1024)
+      throw fail("revision_authority_identity_invalid");
+    if (role === "accepted_revision" ? record.pull_request_url !== `https://api.github.com/repos/hynk-studio/augnes/pulls/${p.pull_request}` ||
+      !["COMMENTED", "APPROVED"].includes(record.state) || record.commit_id !== p.accepted.head :
+      record.issue_url !== `https://api.github.com/repos/hynk-studio/augnes/issues/${p.pull_request}`) throw fail("revision_authority_source_invalid");
+    const o = reviewedRevisionAuthorityObservation(record, role);
+    if (!revisionTime(o.timestamp) || digest(o) !== ref.sha256) throw fail("revision_authority_changed");
+    if (permissions[role]?.user?.login !== record.user.login || !["admin", "maintain"].includes(permissions[role]?.permission)) throw fail("revision_authority_permission_invalid");
+    observations[role] = o;
+  }
+  // These generic scope clauses distinguish a prospective bounded commission
+  // from an accepted historical repair or an ordinary approval comment. The
+  // exact authenticated body hash remains binding, including all limitations.
+  const grantText = grant.body.replaceAll("*", "").replaceAll("`", "").replace(/\s+/gu, " ");
+  if (![p.accepted.head, p.accepted.tree, p.accepted.base, "ACCEPT / RETAIN"].every(s => review.body.includes(s)) ||
+      ![p.accepted.head, p.accepted.tree, p.branch, `https://github.com/hynk-studio/augnes/pull/${p.pull_request}#pullrequestreview-${p.accepted.review.id}`].every(s => grant.body.includes(s)) ||
+      !/reviewed source\/execution-input revision/iu.test(grantText) ||
+      !/two admitted deciding invocations for this entire commission/iu.test(grantText) ||
+      !/materially corrected/iu.test(grantText) || !/focused checks/iu.test(grantText) ||
+      !/zero unchanged-target retry/iu.test(grantText) || !/no additional recovery allowance/iu.test(grantText) ||
+      !/Interrupted reservations consume/iu.test(grantText) || !/separate fresh-process stock/iu.test(grantText) ||
+      !/independent.*(?:audit|judgment|decision)/iu.test(grantText)) throw fail("revision_authority_scope_invalid");
+  if (Date.parse(observations.execution_commission.timestamp) <= Date.parse(observations.accepted_revision.timestamp)) throw fail("revision_authority_order_invalid");
+  if (pr?.number !== p.pull_request || pr.state !== "open" || pr.draft !== true || pr.merged !== false || pr.auto_merge !== null ||
+      pr.head?.repo?.full_name !== "hynk-studio/augnes" || pr.base?.repo?.full_name !== "hynk-studio/augnes" || pr.head.sha !== p.head ||
+      pr.head.ref !== p.branch || pr.base.sha !== p.base || pr.base.ref !== "main") throw fail("revision_published_source_invalid");
+  return observations;
+}
+
+export async function authorizeReviewedRevision(p, { transport = createGitHubObserverAuthorizationTransport(p.pull_request) } = {}) {
+  if (!revisionShape(p)) throw fail("revision_authority_missing");
+  const review = await transport.review(p.accepted.review.id), grant = await transport.grant(p.authorization.grant_comment_id);
+  const permissions = { accepted_revision: await transport.permission(review?.user?.login), execution_commission: await transport.permission(grant?.user?.login) };
+  const observations = validateReviewedRevisionAuthorityRecords(p, review, grant, permissions, await transport.pullRequest());
+  const capability = Object.freeze({ observations });
+  revisionCapabilities.set(capability, { proof: digest(p), observations: digest(observations) });
+  return capability;
+}
+
+function revisionArtifact(folder, reference, maximum = 512 * 1024) {
+  if (!revisionKeys(reference, ["artifact", "sha256"]) || !/^[a-z0-9_-]+\.(?:json|log)$/u.test(reference.artifact ?? "") || !sha(reference.sha256)) throw fail("revision_artifact_invalid");
+  const file = path.join(folder, reference.artifact), s = lstatSync(file);
+  if (realpathSync(file) !== file || !s.isFile() || s.isSymbolicLink() || s.nlink !== 1 || s.size > maximum || (s.mode & 0o022)) throw fail("revision_artifact_unsafe");
+  const bytes = readFileSync(file);
+  if (digest(bytes) !== reference.sha256) throw fail("revision_artifact_changed");
+  return bytes;
+}
+
+function revisionPriorInputs(receipt) {
+  return receipt.attempt?.source_correction?.schema === REVIEWED_REVISION_SCHEMA ? receipt.attempt.source_correction.inputs.identity_sha256 :
+    digest(receipt.inputs.resources.filter(resource => ["node-executable", "node-headers"].includes(resource.id)));
+}
+
+function knownInputInvalidation(receipt) {
+  const input = receipt.inputs, roles = new Set(["node-executable", "node-headers", "dependencies-root", "dependencies-nested", "dependencies-web-planning"]);
+  if (receipt.outcome?.disposition !== "input_invalidation" || receipt.outcome.safety !== "blocked" ||
+      !input || !Array.isArray(input.resources) || !revisionEqual(input.first_fault, receipt.outcome.first_fault) || !Array.isArray(input.events) || input.events.length >= 64 ||
+      !Array.isArray(input.secondary_faults) || input.secondary_faults.length >= 16 || !input.first_fault ||
+      ![input.first_fault, ...input.secondary_faults].every(f => f.disposition === "input_invalidation" && roles.has(f.resource) && f.diagnostic === undefined)) return false;
+  const faults = [];
+  for (const event of input.events) {
+    const resource = input.resources.find(r => r.id === event.resource);
+    const prepared = !resource && isReviewedRevision(receipt.attempt?.source_correction) && Array.isArray(input.prepared_dependencies) ?
+      input.prepared_dependencies.filter(r => r?.phase_id === event.resource) : [];
+    const dependency = prepared.length === 1 && roles.has(event.resource) && event.resource.startsWith("dependencies-") && prepared[0].error === "dependency_input_input_invalidation" &&
+      prepared[0].unchanged === false && revisionEqual(prepared[0].after, event.after) && receipt.phases?.some(phase => phase.id === event.resource && phase.status === "pass") ? prepared[0] : null;
+    const comparison = resource ? classifyInputChange(resource.before, event.after, resource, input) :
+      dependency ? comparePreparedDependencyInputs(dependency.before, event.after) : null;
+    if ((!resource && !dependency) || event.diagnostic !== undefined || event.classification !== (resource?.classification ?? "execution") ||
+        event.identity !== inputEventIdentity(event) || comparison !== event.disposition ||
+        (!nonFaultInputChange(event.disposition) && (event.disposition !== "input_invalidation" || !roles.has(event.resource)))) return false;
+    if (event.disposition === "input_invalidation") faults.push(event);
+  }
+  return faults.length > 0 && [input.first_fault, ...input.secondary_faults].every(f => faults.some(e =>
+    e.resource === f.resource && e.observed_at === f.observed_at && e.monotonic_ns === f.monotonic_ns));
+}
+
+export function readReviewedRevisionEvidence(file, p, repositoryRoot) {
+  const stored = { ...p }; delete stored.local_relative_path;
+  if (!revisionKeys(stored, ["schema", "kind", "branch", "base", "head", "tree", "prior_family_id", "prior_number", "prior_attempt_id", "prior_receipt_fingerprint", "pull_request", "commission", "accepted", "authorization", "originals", "inputs", "source", "focused"]) ||
+      !revisionShape(p) || !revisionKeys(p.accepted, ["head", "tree", "base", "review"]) || !revisionKeys(p.accepted.review, ["id", "sha256"]) ||
+      !revisionKeys(p.originals, ["receipt", "attempt", "completion", "stock"]) || !revisionKeys(p.inputs, ["predecessor_sha256", "identity_sha256", "current"])) throw fail("revision_proof_invalid");
+  const bytes = ref => revisionArtifact(path.dirname(file), ref), parse = ref => JSON.parse(bytes(ref));
+  const original = parse(p.originals.receipt), prior = parse(p.originals.attempt), completion = parse(p.originals.completion), inputs = parse(p.inputs.current);
+  const content = { ...original }; delete content.integrity;
+  const inputInvalidation = knownInputInvalidation(original);
+  if (![4, 5].includes(original.receipt_version) || original.integrity?.content_fingerprint !== digest(content) ||
+      !revisionEqual(original.attempt, prior) || prior.attempt_id !== p.prior_attempt_id || prior.family_id !== p.prior_family_id || prior.number !== p.prior_number ||
+      prior.branch !== p.branch || original.integrity.content_fingerprint !== p.prior_receipt_fingerprint ||
+      original.repository?.head_sha !== prior.head || original.repository.tree_sha !== prior.tree ||
+      completion.contract !== ATTEMPT_CONTRACT || completion.attempt_id !== prior.attempt_id || completion.receipt_fingerprint !== p.prior_receipt_fingerprint ||
+      !revisionTime(completion.finished_at) || completion.cleanup_complete !== true || completion.disposition !== original.outcome?.disposition ||
+      (completion.disposition === "input_invalidation" ? !inputInvalidation : completion.disposition !== "product_failure" || original.outcome.safety !== "preserved_within_observed_scope") ||
+      original.cleanup?.completed !== true || original.cleanup.remaining_owned_processes !== 0 || original.checkout_ownership?.released !== true || original.capacity_ownership?.released !== true ||
+      original.cleanup.companion_service?.restored !== true || original.cleanup.isolated_resources?.completed !== true ||
+      original.inputs?.resources?.filter(r => r.id === "node-executable").length !== 1 || p.inputs.predecessor_sha256 !== revisionPriorInputs(original)) throw fail("revision_predecessor_invalid");
+  const stockLines = bytes(p.originals.stock).toString("utf8").split("\n").filter(line => line.startsWith("{"));
+  if (stockLines.length !== 1) throw fail("revision_predecessor_stock_invalid");
+  const stock = JSON.parse(stockLines[0]);
+  if (stock.content_fingerprint !== p.prior_receipt_fingerprint || stock.dimensions?.historical_integrity !== "intact" || stock.dimensions?.safety !== original.outcome.safety ||
+      stock.valid_deciding_evidence !== false) throw fail("revision_predecessor_stock_invalid");
+  const c = p.commission, previousRevision = isReviewedRevision(prior.source_correction);
+  if (previousRevision ? !validReviewedRevisionAttempt(prior) || c.ordinal !== prior.source_correction.commission.ordinal + 1 ||
+      revisionCommissionIdentity(p) !== revisionCommissionIdentity(prior.source_correction) :
+      c.ordinal !== 1 || c.root_family_id !== p.prior_family_id || c.root_number !== p.prior_number || c.root_attempt_id !== p.prior_attempt_id || c.root_receipt_fingerprint !== p.prior_receipt_fingerprint ||
+      p.authorization.grant_comment_id === prior.source_correction?.authorization?.grant_comment_id) throw fail("revision_commission_lineage_invalid");
+  if (digest(inputs) !== p.inputs.identity_sha256 || inputs?.contract !== "augnes.local-canonical-runtime-inputs.v1" || !sha(inputs.node?.location_fingerprint) ||
+      inputs.node?.observation?.present !== true || !sha(inputs.node.observation.sha256) || !sha(inputs.headers?.location_fingerprint) ||
+      !validNodeHeaders(inputs.headers?.observation)) throw fail("revision_inputs_invalid");
+  const source = parse(p.source), focused = parse(p.focused);
+  const git = args => execFileSync("git", ["--no-replace-objects", ...args], { cwd: repositoryRoot, timeout: 10000, maxBuffer: 16 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] });
+  const delta = (a, b) => { const d = git(["diff", "--binary", "--full-index", "--no-ext-diff", "--no-textconv", a, b, "--"]); return { bytes: d.length, sha256: digest(d), paths: git(["diff", "--name-only", a, b, "--"]).toString().trim().split("\n").filter(Boolean).sort() }; };
+  for (const [a, b] of [[p.accepted.head, p.head], [p.accepted.base, p.base], [p.base, p.head], [prior.head, p.head]]) git(["merge-base", "--is-ancestor", a, b]);
+  for (const t of [p, p.accepted]) if (git(["rev-parse", `${t.head}^{tree}`]).toString().trim() !== t.tree) throw fail("revision_source_identity_invalid");
+  if (source.schema !== "augnes.local-canonical-reviewed-revision-source.v1" || source.basis !== "implementation_owner_not_independent_review" ||
+      !revisionEqual(source.accepted_to_final, delta(p.accepted.head, p.head)) || !revisionEqual(source.predecessor_to_final, delta(prior.head, p.head)) ||
+      !revisionEqual(source.main_to_final, delta(p.base, p.head)) || !revisionTime(source.reviewed_at) || Date.parse(source.reviewed_at) <= Date.parse(completion.finished_at)) throw fail("revision_source_delta_invalid");
+  const changedCode = source.predecessor_to_final.paths.filter(name => /\.(?:[cm]?[jt]sx?)$/u.test(name));
+  // Metadata-only replacement/touching and proof reformatting cannot buy a
+  // second invocation. Full identities still bind admission and stock; material
+  // input repair requires an actual consumed path or content change.
+  const materialInputs = value => ({ node: { location: value.node.location_fingerprint, sha256: value.node.observation.sha256 },
+    headers: { location: value.headers.location_fingerprint, sha256: value.headers.observation.content_sha256 } });
+  if (previousRevision && digest(original.inputs.binding?.runtime_inputs) !== prior.source_correction.inputs.identity_sha256) throw fail("revision_prior_runtime_binding_invalid");
+  const legacyNode = original.inputs.resources.find(r => r.id === "node-executable");
+  const changedInputs = previousRevision ? !revisionEqual(materialInputs(inputs), materialInputs(original.inputs.binding.runtime_inputs)) :
+    inputs.node.location_fingerprint !== legacyNode.location_fingerprint || inputs.node.observation.sha256 !== legacyNode.before.sha256;
+  if (!changedCode.length && !changedInputs) throw fail("revision_material_remedy_required");
+  if (inputInvalidation) {
+    const affected = [...new Set([original.inputs.first_fault, ...original.inputs.secondary_faults].map(f => f.resource))].sort();
+    const runtimeAffected = affected.filter(id => ["node-executable", "node-headers"].includes(id));
+    const dependenciesAffected = affected.filter(id => id.startsWith("dependencies-"));
+    if (!revisionEqual(focused.input_remedy_resources, affected) || runtimeAffected.some(id => {
+      const role = id === "node-executable" ? "node" : "headers", resource = original.inputs.resources.find(r => r.id === id);
+      const before = { location: resource.location_fingerprint, sha256: role === "node" ? resource.before.sha256 : resource.before.content_sha256 };
+      return !changedInputs || revisionEqual(before, materialInputs(inputs)[role]);
+    }) || (dependenciesAffected.length && (!changedCode.length || !Array.isArray(focused.implicated_paths) || !focused.implicated_paths.length)))
+      throw fail("revision_input_remedy_required");
+  }
+  // Locks and pinned package declarations are stable execution inputs for this
+  // continuation; normal npm preparation produces dependencies separately.
+  for (const name of ["package.json", "package-lock.json", "apps/augnes_apps/package.json", "apps/augnes_apps/package-lock.json", "apps/web_planning/package.json", "apps/web_planning/package-lock.json", ".node-version", ".nvmrc"])
+    if (git(["diff", "--name-only", p.accepted.head, p.head, "--", name]).length) throw fail("revision_pinned_inputs_changed");
+  if (focused.schema !== "augnes.local-canonical-reviewed-revision-focused.v1" || focused.basis !== "implementation_owner_not_independent_review" ||
+      focused.predecessor_receipt_fingerprint !== p.prior_receipt_fingerprint || focused.runtime_inputs_sha256 !== p.inputs.identity_sha256 ||
+      !revisionTime(focused.finished_at) || Date.parse(focused.finished_at) <= Date.parse(completion.finished_at) ||
+      typeof focused.remedy !== "string" || focused.remedy.length < 20 || focused.remedy.length > 4000 ||
+      !Array.isArray(focused.implicated_paths) || !focused.implicated_paths.every(revisionPath) ||
+      !focused.implicated_paths.every(name => changedCode.includes(name)) || (!focused.implicated_paths.length && !changedInputs) ||
+      !Array.isArray(focused.source_files) || !focused.source_files.length || focused.source_files.length > 128 ||
+      new Set(focused.source_files.map(f => f.path)).size !== focused.source_files.length ||
+      focused.source_files.some(f => !revisionPath(f.path) || !sha(f.sha256) || !Number.isSafeInteger(f.byte_size) || f.byte_size < 0 ||
+        !revisionEqual({ byte_size: git(["show", `${p.head}:${f.path}`]).length, sha256: digest(git(["show", `${p.head}:${f.path}`])) }, { byte_size: f.byte_size, sha256: f.sha256 })) ||
+      focused.implicated_paths.some(name => !focused.source_files.some(f => f.path === name)) ||
+      !Array.isArray(focused.commands) || !focused.commands.length || focused.commands.length > 32 || focused.commands.some(c =>
+        typeof c.command !== "string" || !c.command.length || c.command.length > 2000 || c.result?.exit_code !== 0 || c.result.timed_out !== false ||
+        c.result.cancelled !== false || c.result.cleanup_completed !== true || c.result.remaining_owned_processes !== 0 ||
+        c.result.exit_observed !== true || c.result.streams_closed !== true || c.result.termination_reason !== "natural_exit")) throw fail("revision_focused_remedy_invalid");
+  for (const command of focused.commands) {
+    const record = parse(command.record);
+    if (!revisionEqual(record.result ?? record, command.result) || !revisionRef(command.stdout)) throw fail("revision_focused_original_invalid");
+    revisionArtifact(path.dirname(file), command.stdout, 2 * 1024 * 1024);
+  }
+  if (previousRevision && ((inputInvalidation ? focused.failed_phase !== null : !original.phases?.some(phase => phase.id === focused.failed_phase && phase.status === "failure")) ||
+      typeof focused.diagnosis !== "string" || focused.diagnosis.length < 20 || focused.diagnosis.length > 4000)) throw fail("revision_failure_remedy_required");
+  return { original, prior, completion, inputs, source, focused };
 }

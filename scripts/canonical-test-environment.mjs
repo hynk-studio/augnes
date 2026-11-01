@@ -1,12 +1,46 @@
 import path from "node:path";
 import { tmpdir } from "node:os";
-import { closeSync, constants, fchmodSync, fstatSync, lstatSync, mkdirSync, mkdtempSync, openSync, readdirSync, realpathSync, rmdirSync, unlinkSync } from "node:fs";
+import { closeSync, constants, fchmodSync, fstatSync, lstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, realpathSync, rmdirSync, unlinkSync } from "node:fs";
 
 // Parent-owned test resources, not production snapshot capabilities. Identity
 // is captured before spawning a child; only the process runner marks settlement.
 const resourceOwners = new WeakMap();
 const sameObject = (a, b) => a.dev === b.dev && a.ino === b.ino && a.isDirectory() === b.isDirectory();
 const resourceError = code => Object.assign(new Error(code), { code });
+
+const headersEnvironmentKeys = ["AUGNES_CANONICAL_NODE_HEADERS", "AUGNES_CANONICAL_NODE_HEADERS_FINGERPRINT"];
+
+export function assertCanonicalNodeHeaderPair(nodeExecutable, headersRoot) {
+  if (!path.isAbsolute(nodeExecutable) || realpathSync(nodeExecutable) !== nodeExecutable ||
+      !path.isAbsolute(headersRoot) || realpathSync(headersRoot) !== headersRoot ||
+      path.basename(nodeExecutable) !== (process.platform === "win32" ? "node.exe" : "node") ||
+      headersRoot !== path.join(path.dirname(path.dirname(nodeExecutable)), "include", "node")) throw resourceError("input_node_headers_pair_invalid");
+  const versionFile = path.join(headersRoot, "node_version.h"), apiFile = path.join(headersRoot, "node_api.h");
+  for (const file of [versionFile, apiFile]) {
+    const stat = lstatSync(file);
+    if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || realpathSync(file) !== file || stat.size > 1024 * 1024)
+      throw resourceError("input_node_headers_pair_invalid");
+  }
+  const source = readFileSync(versionFile, "utf8");
+  const version = ["MAJOR", "MINOR", "PATCH"].map(part => {
+    const matches = [...source.matchAll(new RegExp(`^#define NODE_${part}_VERSION ([0-9]+)$`, "gmu"))];
+    if (matches.length !== 1) throw resourceError("input_node_headers_version_invalid");
+    return matches[0][1];
+  }).join(".");
+  if (version !== process.versions.node) throw resourceError("input_node_headers_version_invalid");
+  return path.dirname(path.dirname(nodeExecutable));
+}
+
+// Only the selected, frozen Node/header pair can supply node-gyp's header root.
+// Arbitrary ambient npm settings remain excluded. Descendants revalidate the
+// physical pair/version; the executor and stock bind the complete header bytes.
+export function canonicalRuntimeInputEnvironment(ambientEnvironment = process.env, nodeExecutable = realpathSync(process.execPath)) {
+  const [root, fingerprint] = headersEnvironmentKeys.map(key => ambientEnvironment[key]);
+  if (root === undefined && fingerprint === undefined) return {};
+  if (typeof root !== "string" || !/^[0-9a-f]{64}$/u.test(fingerprint ?? "")) throw resourceError("input_node_headers_environment_invalid");
+  const runtimeRoot = assertCanonicalNodeHeaderPair(nodeExecutable, root);
+  return { [headersEnvironmentKeys[0]]: root, [headersEnvironmentKeys[1]]: fingerprint, npm_config_nodedir: runtimeRoot };
+}
 
 export function createCanonicalTestResourceRoot(prefix, { shortSocketPaths = false } = {}) {
   if (!/^ag-(?:suite|c[0-9]{2}|resource-test)-$/u.test(prefix)) throw resourceError("resource_prefix_invalid");
@@ -156,6 +190,8 @@ export const CANONICAL_OPTIONAL_AMBIENT_ENVIRONMENT_ALLOWLIST = Object.freeze([
   "AUGNES_BROWSER_INPUT_BINDING",
   "AUGNES_BROWSER_INPUT_FINGERPRINT",
   "AUGNES_CANONICAL_WINDOWS_REPOSITORY_ROOT",
+  "AUGNES_CANONICAL_NODE_HEADERS",
+  "AUGNES_CANONICAL_NODE_HEADERS_FINGERPRINT",
 ]);
 
 // These values are authored by the canonical suite, never copied from ambient state.
@@ -222,6 +258,7 @@ export function buildCanonicalChildEnvironment({
   for (const key of CANONICAL_OPTIONAL_AMBIENT_ENVIRONMENT_ALLOWLIST) {
     copyNonEmptyString(environment, ambientEnvironment, key);
   }
+  Object.assign(environment, canonicalRuntimeInputEnvironment(ambientEnvironment));
 
   const homeRoot = path.join(resourceRoot, "home");
   const processTempRoot = resourceRoot;
@@ -265,6 +302,8 @@ export function findForbiddenAmbientKeysForwarded({
   const allowedAmbientKeys = new Set([
     ...CANONICAL_AMBIENT_ENVIRONMENT_ALLOWLIST,
     ...CANONICAL_OPTIONAL_AMBIENT_ENVIRONMENT_ALLOWLIST,
+    // Derived only from the validated selected runtime pair above.
+    ...(ambientEnvironment.AUGNES_CANONICAL_NODE_HEADERS ? ["npm_config_nodedir"] : []),
   ]);
   const explicitStepKeys = new Set(Object.keys(stepEnvironment));
 

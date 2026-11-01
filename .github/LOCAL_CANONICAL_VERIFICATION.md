@@ -870,6 +870,60 @@ settled-expired-successor runs retain their 30,000 ms bound. Its separately
 authorized prospective aggregate change to 45,000 ms is defined below; no other
 child/phase bound changes.
 
+### Reviewed source and execution-input revision (source-correction v7)
+
+`reviewed_revision` uses the existing `--source-correction-proof`, authenticated
+GitHub authority transport, exclusive predecessor edge, append-only attempt
+records and separate stock reader. It represents a materially revised source
+or execution-input target after the latest settled failed predecessor, including
+a predecessor whose earlier grant is terminal. It does not renew that grant,
+rewrite its record or change the interpretation of any legacy route.
+
+The proof binds the accepted source/review, a separate prospective commission,
+the actual source delta, immutable runtime inputs, retained original receipt,
+attempt, completion and separate stock, and applicable focused evidence.
+Implementation-owner final-source checks remain distinct from the receiving
+reviewer's independent audit. An older predecessor, wrong authority/source/input,
+unsettled cleanup or unchanged candidate refuses before consumption. Accepted
+focused evidence may be reused with its original source/input attribution; it
+never supplies unexecuted phase coverage.
+
+One commission permits at most two deciding invocations across its entire
+exclusive successor chain: the initial complete invocation and at most one
+complete invocation after a demonstrated directly implicated defect or input
+problem has been materially corrected and supported by focused checks. Source,
+proof, branch, checkout or family changes cannot reset this ceiling. No unchanged
+retry or additional recovery is available. Reservation is consumption, including
+interruption before attempt append. The second slot requires the first receipt
+and separate fresh-process stock before candidate revision. Without a supported
+remedy, or after the second invocation, finish diagnosis and cleanup and report
+the precise blocker.
+
+This route requires the final clean published source, authenticated current-main
+and ancestry, admitted Mac worktree, pinned Node/npm, ownership/capacity,
+immutable inputs and stopped/exact installed-state preservation. It executes the
+unchanged planner-complete Full, including every dedicated Browser owner, with
+unchanged assertions, deadlines, ordering, concurrency and cleanup. Stock
+reconstructs the original records, authority and current inputs without writes.
+Every selected phase must pass with valid stock and completed cleanup before
+qualification is complete; independent merge judgment remains separate.
+
+The selected task Node and matching sibling headers are immutable inputs.
+Header content, topology, permissions and ownership are checked at admission,
+phase boundaries, final settlement and stock; expensive tree scans do not run
+inside a timed child. Their bound selection reaches dependency preparation and
+suite descendants through the filtered environment. Normal sequential `npm ci`
+still creates the three dependency trees from unchanged package/lock inputs.
+Pre-install dependency output is not frozen as an immutable input. After each
+successful preparation, the input owner records the produced tree and compares
+its content, topology, permissions, ownership and package/lock sources at final
+settlement and fresh stock. A proven physical empty top-level `.cache` with
+the same owner/mode and exactly matching ACL, flags and attributes as its
+still-bound physical parent may disappear; nonempty
+cache content, unsafe links, permission changes and failed observations remain
+binding. These bounded observations do not prove absence of transient changes
+between their observation windows.
+
 ### Reviewed observer-repair succession (source-correction v3)
 
 `augnes.local-canonical-source-correction.v3`, kind `observer_repair`, uses the
