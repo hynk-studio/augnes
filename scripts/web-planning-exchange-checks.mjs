@@ -88,6 +88,17 @@ export async function checkFileExchanges({ start, client, newWork, save, root, p
   const otherReturn={...addition,expected:headBinding(other),basis:sent.ref,kind:'return',next_action:'Review result.'};
   assert.equal((await owner.request('/api/work/'+other.work_id+'/exchanges/save',otherReturn)).status,409);
   const accepted=await owner.request(route+'/save',addition);assert.equal(accepted.data.outcome,'saved');
+  // Reopen a pending on-disk request whose acknowledgement was lost before a different commit won the CAS.
+  const absent = {...addition, request_key:randomUUID(), message:'Keep my draft question', next_action:'Check the venue'};
+  await writeFile(path.join(setup+'.pending',absent.request_key),JSON.stringify({work_id:task.work_id,setup_digest:sha(await readFile(setup)),body:absent}),{mode:0o600});
+  const staleDraft = await cli('stale-check',['check']);
+  assert.equal(staleDraft.outcome,'unknown');assert.equal(staleDraft.draft.message,absent.message);
+  assert.equal('data' in staleDraft.draft.files[0],false);
+  await cli('refuse-existing-recovery',['recover',dir],false);
+  const recoveredDir = path.join(dir,'recovered-draft');await cli('recover-local-draft',['recover',recoveredDir]);
+  assert.deepEqual(await readFile(path.join(recoveredDir,'files',originalName)),Buffer.from('different'));
+  assert.equal(JSON.parse(await readFile(path.join(recoveredDir,'request.json'),'utf8')).next_action,absent.next_action);
+  assert.equal((await owner.request(route+'/resolve',absent)).data.outcome,'unknown');
   const resolved=await owner.request(route+'/resolve',addition);assert.deepEqual(resolved.data.item,accepted.data.item);
   assert.equal((await owner.request(route+'/save',{...addition,message:'different'})).status,409);
   assert.equal((await owner.request(route+'/save',{...addition,request_key:randomUUID()})).status,409);

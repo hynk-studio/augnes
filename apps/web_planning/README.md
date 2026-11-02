@@ -98,8 +98,12 @@ node "$FILE_CLIENT" "$TASK" get 3 edited.md ./returned.md
 The owner can use `tasks` and `select` to bind by exact task title instead of transferring a browser setup. Duplicate titles require choosing the intended task in the browser. The reviewer sees only the configured task. Use listed version numbers and filenames. Downloads create a new explicit path.
 Sends keep an owner-only pending request beside the setup until confirmed.
 After a lost acknowledgement, `check` reads that same request and `retry`
-resends it unchanged. A confirmed stale base allows a deliberate new send.
-A permanently refused input remains available in the pending directory.
+resends it unchanged. For an unrecorded request whose task moved on, `check` preserves the message and files.
+Use `recover NEW_DIRECTORY` to save its request as `request.json` and its original
+bytes under `files/`; this does not send anything. Review the current task before a
+new send. In the browser, reopening restores the text and asks you to review the
+latest requests and reselect the files. A permanently refused input remains available
+in the pending directory.
 Keep the original files while working and remove the refused pending file only
 after checking the outcome and correcting the inputs.
 

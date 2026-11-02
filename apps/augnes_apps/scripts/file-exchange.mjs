@@ -1,5 +1,5 @@
 import { constants as fs } from 'node:fs';
-import { open, readFile, unlink, link, mkdir, readdir, lstat } from 'node:fs/promises';
+import { open, readFile, unlink, link, mkdir, readdir, lstat, rmdir } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { digest, openFileTask, openFileProject } from './web-file-client.mjs';
@@ -24,6 +24,41 @@ async function selectedFile(path) {
     const bytes = buffer.subarray(0,count);
     return { name: basename(path), media_type, bytes: count, digest: digest(bytes), data: bytes.toString('base64') };
   } finally { await input.close(); }
+}
+function draftSummary(body) {
+  return { kind: body.kind, basis: body.basis, message: body.message, next_action: body.next_action,
+    files: body.files.map(({ data, ...file }) => file) };
+}
+// Only an explicitly chosen, new private folder receives local files. The request
+// manifest is written last. A failed export never consumes its pending journal.
+async function recoverDraft(directory, body) {
+  if (!Array.isArray(body.files) || !body.files.length || body.files.length > 8 || body.files.reduce((n,f) => n + f.bytes, 0) > 524288) throw new Error('Invalid pending file selection. Its journal is retained.');
+  const entries = body.files.map(f => {
+    if (!Number.isSafeInteger(f.bytes) || f.bytes < 0 || f.bytes > 262144 || typeof f.data !== 'string' || f.data.length !== 4 * Math.ceil(f.bytes / 3)) throw new Error('Invalid pending file bytes. Its journal is retained.');
+    if (typeof f.name !== 'string' || basename(f.name) !== f.name || !f.name || /[\\/\x00-\x1f]/.test(f.name) || f.name === '.' || f.name === '..')
+      throw new Error('The pending file has an unsafe name. Its journal is retained.');
+    const bytes = Buffer.from(f.data, 'base64');
+    if (bytes.length !== f.bytes || digest(bytes) !== f.digest) throw new Error('The pending file failed verification. Its journal is retained.');
+    return [f.name, bytes];
+  });
+  await mkdir(directory, { mode: 0o700 });
+  const filesDir = join(directory, 'files'), written = [];
+  try {
+    await mkdir(filesDir, { mode: 0o700 });
+    for (const [name, bytes] of entries) {
+      const file = join(filesDir, name);
+      const handle = await open(file, 'wx', 0o600);
+      written.push(file);
+      try { await handle.writeFile(bytes); await handle.sync(); } finally { await handle.close(); }
+    }
+    const manifest = join(directory, 'request.json');
+    const handle = await open(manifest, 'wx', 0o600);
+    written.push(manifest);
+    try { await handle.writeFile(JSON.stringify(draftSummary(body), null, 2)); await handle.sync(); } finally { await handle.close(); }
+  } catch (error) {
+    for (const file of written.reverse()) await unlink(file).catch(()=>{});
+    await rmdir(filesDir).catch(()=>{}); await rmdir(directory).catch(()=>{}); throw error;
+  }
 }
 async function run() {
   if (setup === 'tasks' || setup === 'select') {
@@ -59,8 +94,9 @@ async function run() {
   if (!directory.isDirectory() || (directory.mode & 0o077)) throw new Error('Choose a private task setup directory.');
   const pending = (await readdir(pendingDir)).filter(name=>/^[a-f0-9-]{36}$/.test(name));
   let operation, journal;
-  if (action === 'check' || action === 'retry') {
-    const selected = args[0] ?? (pending.length === 1 ? pending[0] : undefined);
+  if (['check', 'retry', 'recover'].includes(action)) {
+    if (action === 'recover' && !args[0]) throw new Error('Use recover NEW_DIRECTORY after checking an unrecorded, stale save.');
+    const selected = (action === 'recover' ? args[1] : args[0]) ?? (pending.length === 1 ? pending[0] : undefined);
     if (!pending.includes(selected)) throw new Error('Select a pending request: ' + pending.join(', '));
     journal = join(pendingDir,selected);
     operation = JSON.parse(await readFile(journal, 'utf8'));
@@ -86,11 +122,20 @@ async function run() {
     } finally { await output.close(); await unlink(tmp); }
   }
   if (operation.work_id !== client.work_id || operation.setup_digest !== client.setupDigest) throw new Error('Pending save belongs to a different task.');
-  const result = await client.write(operation.body, action === 'check');
+  const result = await client.write(operation.body, action === 'check' || action === 'recover');
   // The private journal stays available after refusal or ambiguous transmission.
   const superseded = result.outcome === 'unknown' && result.head.revision > operation.body.expected.revision;
-  if (superseded) result.next_action = 'The task advanced without this request. Review the current version and resubmit your original files deliberately.';
-  if (result.outcome === 'saved' || superseded) await unlink(journal).catch(error => { if (error.code !== 'ENOENT') throw error; });
+  if (superseded) {
+    result.draft = draftSummary(operation.body);
+    result.next_action = 'This save was not recorded. Review the current task, then use recover NEW_DIRECTORY to keep its request and exact files before a new submission.';
+    if (action === 'recover') {
+      await recoverDraft(args[0], operation.body);
+      result.next_action = 'The original request is in request.json and its files are in files/. Review the current task before sending again.';
+    }
+  } else if (action === 'recover' && result.outcome !== 'saved') {
+    result.next_action = 'The save is still eligible on its original version. Check it before retrying the exact pending request.';
+  }
+  if (result.outcome === 'saved' || (superseded && action === 'recover')) await unlink(journal).catch(error => { if (error.code !== 'ENOENT') throw error; });
   return result;
 }
 try { print(await run()); } catch (error) {

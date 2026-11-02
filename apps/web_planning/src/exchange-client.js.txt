@@ -14,6 +14,7 @@ function clearExchange() {
 function exchangeControls() {
   $('exchange-form').hidden = !exchangeDraft;
   $('exchange-fields').disabled = !!exchangePending;
+  $('exchange-submit').disabled = !!exchangeDraft?.answered;
   $('exchange-new').hidden = !!exchangeDraft;
   $('exchange-uncertain').hidden = !exchangePending;
   $('exchange-retry').hidden = true;
@@ -109,19 +110,28 @@ function openExchanges(revision, view) {
     try { marker = JSON.parse(sessionStorage.getItem(exchangeStoragePrefix + revision.work_id)); } catch {}
     if (marker) {
       const observed = view.items.find(item => item.request_key === marker.request_key);
-      if (observed || view.head.revision !== marker.expected.revision) {
+      if (observed) {
         forgetExchange(revision.work_id);
         const outcome = document.createElement('p');
-        outcome.textContent = observed ? 'Previous file save confirmed at version ' + observed.ref.revision + '.' : 'The previous file save was not found and its base has changed. Review the task before sending again.';
+        outcome.textContent = 'Previous file save confirmed at version ' + observed.ref.revision + '.';
         $('exchange-list').prepend(outcome);
       } else {
         exchangeDraft = { basis:marker.basis, expected:marker.expected };
-        exchangePending = { id:revision.work_id, marker };
+        const advanced = view.head.fingerprint !== marker.expected.fingerprint;
+        exchangePending = advanced ? null : { id:revision.work_id, marker };
         $('edit-fields').disabled = true;
         $('exchange-legend').textContent = marker.basis ? 'Recover file return' : 'Recover file request';
         $('exchange-message').value = marker.message; $('exchange-next').value = marker.next_action;
         $('exchange-next').required = !!marker.basis;
+        $('exchange-message-label').textContent = marker.basis ? 'What did you change or learn?' : 'What would you like done?';
+        $('exchange-submit').textContent = marker.basis ? 'Send returned files' : 'Send request';
         exchangeControls();
+        if (advanced) {
+          $('exchange-refresh').hidden = false;
+          const guidance = document.createElement('p');
+          guidance.textContent = 'Your earlier save was not recorded. Your draft is retained. Read latest file requests, then reselect: ' + marker.files.map(f => f.name).join(', ');
+          $('exchange-list').prepend(guidance);
+        }
       }
     }
   }
@@ -176,13 +186,20 @@ $('exchange-new').onclick = () => beginExchange(null);
 $('exchange-cancel').onclick = () => { if (busy) return; forgetExchange(work); $('edit-fields').disabled = false; exchangeDraft = null; $('exchange-form').reset(); exchangeControls(); };
 $('exchange-refresh').onclick = () => run(async () => {
   await readExchanges();
-  if (exchangeDraft) exchangeDraft.expected = exchangeState.head;
+  if (exchangeDraft) {
+    exchangeDraft.expected = exchangeState.head;
+    exchangeDraft.answered = !!exchangeDraft.basis && exchangeState.items.some(r => r.basis?.fingerprint === exchangeDraft.basis.fingerprint);
+    exchangeControls();
+    if (exchangeDraft.answered) {
+      status('This request already has a return. Your draft is available to copy; cancel it to select another request.'); return;
+    }
+  }
   status('Latest requests and returns are shown. Review them before sending the retained draft.');
 });
 $('exchange-form').onsubmit = event => {
   event.preventDefault();
   run(async () => {
-    if (!exchangeDraft || exchangePending || !$('exchange-refresh').hidden) return;
+    if (!exchangeDraft || exchangeDraft.answered || exchangePending || !$('exchange-refresh').hidden) return;
     const selected = [...$('exchange-upload').files];
     if (!selected.length || selected.length > 8 || selected.some(f => f.size > 262144) || selected.reduce((n,f) => n + f.size, 0) > 524288) {
       status('Choose 1–8 files within the displayed size limits. Your draft is retained.'); return;

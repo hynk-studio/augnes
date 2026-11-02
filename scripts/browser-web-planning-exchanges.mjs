@@ -60,5 +60,22 @@ export async function browserFileExchanges({ c, origin, click, set, saved, settl
   }
   const identity = b => ({bytes:b.length,sha256:createHash('sha256').update(b).digest('hex')});
   console.log(JSON.stringify({file_exchange_browser_evidence:{case:goal,original:identity(received),returned:identity(result),next_action:'입구에 배치도 게시',table_count:3,widths,reconciled_without_resubmitting:true}}));
+  // A second writer advances this task. The stale browser's real refusal is lost in transit.
+  // A reload must recover what the person typed without retargeting or issuing another write.
+  const question = '입구 안내 문구도 확인해 주세요.', action = '안내판 문구 결정';
+  await click(c,'exchange-new');await set(c,'exchange-message',question);await set(c,'exchange-next',action);
+  await pick(path.join(originalDir,name));
+  const peerBytes = Buffer.from('Venue confirmed.');
+  const peer = {kind:'request',basis:null,message:'Confirm the arrival time',next_action:'',
+    files:[{name:'venue.txt',media_type:'text/plain',bytes:peerBytes.length,digest:'sha256:'+createHash('sha256').update(peerBytes).digest('hex'),data:peerBytes.toString('base64')}]};
+  await c.eval(`api('/api/work/'+work+'/exchanges/save',{...${JSON.stringify(peer)},expected:exchangeDraft.expected,request_key:crypto.randomUUID()})`);
+  await c.send('Fetch.enable',{patterns:[{urlPattern:'*',requestStage:'Request'},{urlPattern:'*/exchanges/save',requestStage:'Response'}]});
+  await click(c,'exchange-submit');await settled(c);assert.equal(await c.eval("$('exchange-uncertain').hidden"),false);
+  await requestsOnly(c);await reopen();
+  assert.equal(await c.eval("$('exchange-message').value"),question);assert.equal(await c.eval("$('exchange-next').value"),action);
+  assert.equal(await c.eval("$('exchange-refresh').hidden"),false);
+  assert.ok(await c.eval(`$('exchange-list').textContent.includes(${JSON.stringify(name)})`));
+  await click(c,'exchange-refresh');await settled(c);assert.equal(await c.eval('exchangeState.items.length'),3);
+  await click(c,'exchange-cancel');
   checks.push('event plan: real named task, original and returned downloads, content-dependent edit, retained return after lost response, fresh reopen, mobile and desktop controls');
 }
