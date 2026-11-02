@@ -16,8 +16,10 @@ export async function browserFileExchanges({ c, origin, click, set, saved, settl
     await c.send('DOM.setFileInputFiles',{nodeId,files:[file]});
   };
   const selectTask = async () => {
-    await wait(()=>c.eval(`[...$('work-list').querySelectorAll('button')].some(b=>b.textContent===${JSON.stringify(goal)})`),'task entry by name');
-    await c.eval(`[...$('work-list').querySelectorAll('button')].find(b=>b.textContent===${JSON.stringify(goal)}).click()`);
+    // Frame navigation can finish before the new document's deferred client runs.
+    const buttons = "[...document.querySelectorAll('#work-list button')]";
+    await wait(()=>c.eval(`${buttons}.some(b=>b.textContent===${JSON.stringify(goal)})`),'task entry by name');
+    await c.eval(`${buttons}.find(b=>b.textContent===${JSON.stringify(goal)}).click()`);
     await settled(c);
   };
   // Reconfiguring Fetch or reloading can invalidate an unrelated paused CDP
