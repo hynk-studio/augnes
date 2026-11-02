@@ -1,3 +1,4 @@
+import { EXCHANGE_COMPATIBILITY, EXCHANGE_EXPORT } from "./exchange";
 import { Buffer } from "node:buffer";
 import { createHash } from "node:crypto";
 import { canonical, exact, fail, FINGERPRINT, hash, type Payload, type Revision, type Scope, validateChain } from "./contract";
@@ -66,9 +67,12 @@ export function selectedFiles(payload:Payload,input:unknown,previous?:Revision):
     previous.relations!.file_materials!.find(m=>canonical(m.file)===canonical(file))??{file,kind:"authored",from:null})};
   return {payload:result,bodies:[...bodies.values()]};
 }
+export function revisionFiles(r: Revision): FileEntry[] {
+  return [...(r.files ?? []), ...(r.exchange?.artifacts.map(a => a.file) ?? [])];
+}
 export function historyFiles(chain:Revision[]):Map<string,number> {
   const result=new Map<string,number>();
-  for(const r of chain)for(const f of r.files??[]){
+  for(const r of chain)for(const f of revisionFiles(r)){
     if(result.has(f.digest)&&result.get(f.digest)!==f.bytes)fail("file_identity_conflict");
     result.set(f.digest,f.bytes);
   }
@@ -91,13 +95,15 @@ export function verifiedBodies(chain:Revision[],value:unknown):FileBody[] {
 }
 export function exportFiles(chain:Revision[],bodies:FileBody[]) {
   const related=chain.some(r=>r.format===FILE_RELATION_FORMAT);
-  const content={format:related?FILE_RELATION_EXPORT_FORMAT:FILE_EXPORT_FORMAT,schema:1,compatibility:related?FILE_RELATION_COMPATIBILITY:FILE_COMPATIBILITY,revisions:chain,files:verifiedBodies(chain,bodies)};
+  const exchanged=chain.some(r=>r.exchange);
+  const content={format:exchanged?EXCHANGE_EXPORT:related?FILE_RELATION_EXPORT_FORMAT:FILE_EXPORT_FORMAT,schema:1,compatibility:exchanged?EXCHANGE_COMPATIBILITY:related?FILE_RELATION_COMPATIBILITY:FILE_COMPATIBILITY,revisions:chain,files:verifiedBodies(chain,bodies)};
   return {...content,fingerprint:hash(canonical(content))};
 }
 export function validateFileExport(scope:Scope,value:unknown) {
   exact(value,"format,schema,compatibility,revisions,files,fingerprint");
   const related=value.format===FILE_RELATION_EXPORT_FORMAT;
-  if((!related&&value.format!==FILE_EXPORT_FORMAT)||value.schema!==1||value.compatibility!==(related?FILE_RELATION_COMPATIBILITY:FILE_COMPATIBILITY))fail("incompatible_format",409);
+  const exchanged=value.format===EXCHANGE_EXPORT;
+  if((!exchanged&&!related&&value.format!==FILE_EXPORT_FORMAT)||value.schema!==1||value.compatibility!==(exchanged?EXCHANGE_COMPATIBILITY:related?FILE_RELATION_COMPATIBILITY:FILE_COMPATIBILITY))fail("incompatible_format",409);
   if(!Array.isArray(value.revisions)||!value.revisions.length)fail("invalid_export");
   const {fingerprint,...content}=value;
   if(hash(canonical(content))!==fingerprint)fail("export_integrity",409);

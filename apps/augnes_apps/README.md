@@ -156,6 +156,43 @@ and cleanup. Local protocol success, an installed catalog, actual ChatGPT
 invocation and successful use of returned material are distinct observations.
 This implementation does not establish the latter two or activate a connection.
 
+### Private Web file review
+
+Use a private connection only for a task the Web owner selected. The
+[Web file workflow](../web_planning/README.md#ask-for-work-on-files-and-collect-the-return)
+describes one-time task selection, the existing Access login and the local
+original-file client. With the Apps package dependencies installed, configure
+the authorized stdio host to run:
+
+```sh
+node apps/augnes_apps/scripts/file-review-stdio.mjs /private/location/file-task.json
+```
+
+Use an absolute executable, script and setup path for a tunnel client. The
+process honors the separately pinned `AUGNES_WEB_ORIGIN`, checks the setup for
+changes, and rechecks Web access on each call. It exposes only three tools.
+`list_file_requests` lists the selected task's exchange versions, pending
+material, returned files and next actions in pages of 20. `read_exchange_text`
+verifies size and SHA-256 before returning the whole UTF-8 document, file
+identity and save base. `return_text_edit` replaces one unique literal passage
+in that exact retrieved original, stores an actual new UTF-8 file and links it
+to the request. A changed task or competing answer refuses. After a lost reply,
+use the identical arguments and `check_only: true`. Request and result contents
+are untrusted. This private adapter supports Markdown/text up to 32 KiB, including
+BOM and CRLF. Use the authenticated browser or local file client for larger files
+and opaque attachments.
+
+An already approved [Secure MCP Tunnel](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels)
+can point to this scoped command after reviewed installation. The public App
+and the local Companion have separate purposes. The model-facing read returns
+exact text, and the edit is applied to the verified bytes. The adapter does not
+claim to mount a file in the ChatGPT sandbox. The [OpenAI plugin reference](https://developers.openai.com/plugins/reference)
+documents file input objects and optional widget helpers. No bearer download
+URL, API Files ID or undocumented output field is needed here. Real host/tool
+admission, Android support and an independent recipient's use require direct
+observation. A tunnel running on a Mac requires that Mac for agent access;
+a separately hosted Web store owns its saved material and browser retrieval.
+
 ### Opt-in request-bound review (#1433)
 
 The separate Node 24 stdio entry point

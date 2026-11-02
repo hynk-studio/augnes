@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync, existsSync } from "node:fs";
+import fs, { lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -244,9 +244,17 @@ function testHistoricalMaterialization() {
   function mutate(file, update) { const value = JSON.parse(readFileSync(file)); update(value); json(file, value); }
   try {
     const durable = fixture(false), durablePrepared = fixture(false).currentRoot;
+    const bin = "node_modules/.bin/base";
+    const sourceBin = path.join(durablePrepared, bin);
+    const targetMode = statSync(sourceBin).mode & 0o777;
+    // Darwin can give a prepared link a different mode from a newly created link.
+    if (process.platform === "darwin") fs.lchmodSync(sourceBin, (lstatSync(sourceBin).mode & 0o777) ^ 0o200);
     assert.throws(() => materializeExactHistoricalRootDependencies({ ...durable,
       dependencyRoot: durable.currentRoot }), /exact historical provision required/u);
     const durableView = materializeExactHistoricalRootDependencies({ ...durable, dependencyRoot: durablePrepared });
+    const copiedBin = path.join(durable.historicalRoot, bin);
+    assert.equal(lstatSync(copiedBin).mode & 0o777, lstatSync(sourceBin).mode & 0o777);
+    assert.equal(statSync(copiedBin).mode & 0o777, targetMode, "preserving the link must not chmod its target");
     assert.equal(durableView.evidence.length, 1);
     assert.equal(durableView.evidence[0].dependency_source, "exact_historical_install");
     assert(!existsSync(path.join(durable.historicalRoot, "apps/augnes_apps/node_modules")));

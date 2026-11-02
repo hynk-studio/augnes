@@ -2359,6 +2359,19 @@ developer-exposed disposable evidence, not ordinary-use usefulness, Autohunt,
 hosted adoption, independent transfer or installed-plugin rollout. Final exact-head
 verification and Draft review remain recorded with the candidate PR.
 
+### Current P2 — Task file requests and returns (#1569)
+
+The candidate adds request-bound originals, edited returns and next actions
+to the [existing private Web file workflow](../../apps/web_planning/README.md#ask-for-work-on-files-and-collect-the-return).
+The Web store owns exchange history and recovery. Browser and scoped assistant
+clients select a named task there. The local client retrieves and verifies the
+files for separately authorized use. Augnes development is the first intended
+application of the same research, writing and planning workflow. [#1564](https://github.com/hynk-studio/augnes/pull/1564)
+supplies planning direction. [#1372](https://github.com/hynk-studio/augnes/issues/1372)
+retains its existing hosted artifact and device evidence. Private deployment,
+real ChatGPT use and operational adoption of this candidate require their own
+observations. [#1569](https://github.com/hynk-studio/augnes/issues/1569) owns this implementation.
+
 ### Current P2 — Ordinary connection and recovery (#1212)
 
 The candidate corrects installed-service access/restart and Operator version

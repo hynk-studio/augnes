@@ -30,6 +30,93 @@ were byte-identical before/after. Sign-in and operator repairs, limited security
 observations and lack of general time-saving evidence remain. #1354's separate
 Sites rollout is deferred; its resources and evidence are untouched.
 
+## Ask for work on files and collect the return
+
+Open your private project, select a task by title, or choose **New work** and save
+its title and success criterion. Under **File requests and returns**, choose
+**Request work on files**, select original files, describe the work and send.
+The request shows its version, filenames and next action. A recipient with access
+to that task can download those versions and choose **Return edited files**.
+Include what changed and what remains to do. Reopen the task to find the original
+and return together, including same-name files. A later task or ordinary save
+does not retarget a pending request. The configured project can have a friendly
+`PROJECT_NAME`. Each private workspace entry still admits one configured owner
+and project. An assistant can work for that owner.
+
+The writer verifies the supplied length and SHA-256 against each uploaded body.
+Each request or return appends one revision to this work. A return names the
+exact original request and its whole selected file set. A second answer refuses.
+File requests leave ordinary authored files, notes, branches and reviews in
+place. File types, when supplied, are descriptive. Downloads are inert bytes.
+Saved, downloaded, reviewed and applied are separate observations.
+
+Before sending, the request text and chosen files stay in the tab. When the
+browser shows a warning on refresh or exit, choose to stay to keep editing.
+Closing the tab or losing the browser process can discard an unsent draft.
+If sending fails, the form keeps its inputs. On an unknown outcome choose
+**Check file save**, then retry the exact request only if absent. After reopening
+the same tab, the task reconciles the pending request against server history.
+Only form metadata is held in tab storage. Reselect local files if the request
+was never received. A changed task requires reading the latest requests before
+resubmitting. Expired access requires sign-in. After erasure, delayed writes
+refuse. **Complete work** exports and reconstructs exchange history and bytes
+in the existing quiesced empty replacement store. **Readable history** includes
+the messages, basis and next action. Older readers refuse the v0.5 exchange
+revision/export. Existing works without exchanges retain their original formats.
+
+A submission supports up to 8 distinct filenames, 256 KiB each and 512 KiB
+together. Files can be empty. Every work still shares its existing history
+budget of 16 distinct bodies / 1 MiB across ordinary and exchange files. Repeated
+bytes are deduplicated. These bounds suit small reviews and opaque attachments
+such as ZIP. Larger evidence bundles require a different approved retention
+path. Nothing is split, converted, extracted or clipped automatically.
+
+### Connect a local or hosted assistant
+
+The browser follows ordinary private sign-in. For a terminal client serving the
+same authorized owner, download **Connect an assistant to this task → Download
+task setup** once. Keep that file in a private directory. The operator pins
+`AUGNES_WEB_ORIGIN` to the intended private HTTPS project and signs in to its
+existing Cloudflare Access application with `cloudflared access login` when
+needed. The client reads the cached application token through `cloudflared
+access token`; each operation rechecks the actual Web principal. The setup file
+contains scope and an origin, never credentials. Select another task deliberately
+by downloading its own setup. A fresh client uses the setup and the private
+session to discover the permitted requests and versions.
+
+From a checkout with the supported Node and dependencies, examples below use
+`FILE_CLIENT=apps/augnes_apps/scripts/file-exchange.mjs` and `TASK` as the path
+to the downloaded setup. Normal browser users do not need a checkout.
+
+```sh
+node "$FILE_CLIENT" tasks
+node "$FILE_CLIENT" select "Autumn event plan" "$TASK"
+node "$FILE_CLIENT" "$TASK" list
+node "$FILE_CLIENT" "$TASK" request "Check the venue capacity" "행사 계획.md"
+node "$FILE_CLIENT" "$TASK" get 2 "행사 계획.md" ./original.md
+node "$FILE_CLIENT" "$TASK" return 2 "Updated table count" "Confirm the entrance layout" ./edited.md
+node "$FILE_CLIENT" "$TASK" get 3 edited.md ./returned.md
+```
+
+The owner can use `tasks` and `select` to bind by exact task title instead of transferring a browser setup. Duplicate titles require choosing the intended task in the browser. The reviewer sees only the configured task. Use listed version numbers and filenames. Downloads create a new explicit path.
+Sends keep an owner-only pending request beside the setup until confirmed.
+After a lost acknowledgement, `check` reads that same request and `retry`
+resends it unchanged. For an unrecorded request whose task moved on, `check` preserves the message and files.
+Use `recover NEW_DIRECTORY` to save its request as `request.json` and its original
+bytes under `files/`; this does not send anything. Review the current task before a
+new send. In the browser, reopening restores the text and asks you to review the
+latest requests and reselect the files. A permanently refused input remains available
+in the pending directory.
+Keep the original files while working and remove the refused pending file only
+after checking the outcome and correcting the inputs.
+
+The optional [private file-review adapter](../augnes_apps/README.md#private-web-file-review)
+uses the same Web history and authentication. The separate Native handoff still
+admits explicitly selected ordinary current-revision material. Downloading a
+return or applying it locally is an explicit later action. Actual activation of
+a reviewed Web release, authentication from another device and a live ChatGPT
+file round trip are separately evidenced operations.
+
 ## Story & Worldbuilding — Increment A (#1455)
 
 The existing private Web workspace now offers **Story & Worldbuilding** beside

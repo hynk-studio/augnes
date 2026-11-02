@@ -4,7 +4,7 @@ import { binding, canonical, exact, fail, FINGERPRINT, hash, UUID, type Binding,
 import { boundedDatabase, type Database, type Store } from "./store";
 export interface Environment {
   DB: Database; APP_ORIGIN: string; OWNER_EMAIL: string; WORKSPACE_ID: string;
-  PROJECT_ID: string; AUTHOR_REF: string; REQUEST_SECRET: string;
+  PROJECT_ID: string; PROJECT_NAME?: string; AUTHOR_REF: string; REQUEST_SECRET: string;
   SITES_INGRESS_MODE?: string; RECONSTRUCTION_MODE?: string;
 }
 export type Principal = { login: string | null; localFixture?: true; ingress?: "sites" | "cloudflare-access" };

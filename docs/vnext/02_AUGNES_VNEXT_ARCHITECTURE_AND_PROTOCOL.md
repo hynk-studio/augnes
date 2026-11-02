@@ -4009,6 +4009,18 @@ whole-group/output bounds; literal query semantics are unchanged. Neither rankin
 recency nor similarity declares applicability, supersession or absence beyond the
 selection. Unresolved statements/corrections remain consumer review material.
 
+### Project-scoped file requests and returns
+
+Within the existing private Web workspace, a file request binds the exact task
+revision, selected original bytes and author-attributed question. A return
+binds the request's immutable work/revision/fingerprint and retains the edited
+file, response and next action. A later save or task switch cannot substitute a
+different basis. Web revision history owns both events and their file bodies.
+A Web read, an attributed review, local use and an applied native decision have
+different writers and evidence. Local execution and the existing selected-source
+admission remain independently scoped. The [Web contract](../../apps/web_planning/README.md#ask-for-work-on-files-and-collect-the-return)
+owns wire formats, replay, retention, erasure and recovery.
+
 ### 13.6 Explicit portable Web source admission (#1475)
 
 The [local handoff](../WEB_EXPORT_NATIVE_HANDOFF.md) directly reuses the Web v0.3

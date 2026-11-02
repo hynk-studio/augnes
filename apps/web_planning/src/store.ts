@@ -191,8 +191,8 @@ export async function readFileBodies(s:Store,chain:Revision[]):Promise<FileBody[
 export async function completeExport(s:Store,chain:Revision[]) {
   return exportFiles(chain,await readFileBodies(s,chain));
 }
-export async function downloadFile(s:Store,r:Revision,index:number):Promise<{file:FileEntry;bytes:Uint8Array<ArrayBuffer>}> {
-  const file=r.files?.[index];if(!file)fail("file_not_found",404);
+export async function downloadFile(s:Store,r:Revision,index:number,exchange=false):Promise<{file:FileEntry;bytes:Uint8Array<ArrayBuffer>}> {
+  const file=exchange ? r.exchange?.artifacts[index]?.file : r.files?.[index];if(!file)fail("file_not_found",404);
   const row=await s.DB.prepare(`SELECT body FROM web_planning_file WHERE ${where} AND digest=?
     AND NOT EXISTS (SELECT 1 FROM web_planning_erased WHERE ${where})
     AND EXISTS (SELECT 1 FROM web_planning_revision WHERE ${where} AND revision=? AND fingerprint=?)`)
