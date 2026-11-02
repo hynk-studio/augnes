@@ -43,6 +43,13 @@ does not retarget a pending request. The configured project can have a friendly
 `PROJECT_NAME`. Each private workspace entry still admits one configured owner
 and project. An assistant can work for that owner.
 
+Choose **Read text** beside a Markdown or plain-text version to read its verified
+UTF-8 contents on the private page (up to 32 KiB). For an unanswered request
+with one such file, choose **Edit this text**, replace one unique passage, and
+describe the change and next action. **Send returned files** saves a new version
+with the original filename. The text stays in the tab while editing. Other
+formats and multi-file returns use the file picker.
+
 The writer verifies the supplied length and SHA-256 against each uploaded body.
 Each request or return appends one revision to this work. A return names the
 exact original request and its whole selected file set. A second answer refuses.

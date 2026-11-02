@@ -58,7 +58,10 @@ ${a.local?'<p class="local-banner">Local disposable workspace · synthetic owner
 <div id="exchange-list"></div><details><summary>Connect an assistant to this task</summary><p>Save task details for your authorized private connection. An administrator configures access once. This file contains no sign-in credentials.</p><button type="button" id="exchange-setup">Download task setup</button></details><button type="button" id="exchange-new">Request work on files</button>
 <form id="exchange-form" hidden><fieldset id="exchange-fields"><legend id="exchange-legend">New file request</legend>
 <label for="exchange-message" id="exchange-message-label">What would you like done?</label><textarea id="exchange-message" required maxlength="500" rows="2"></textarea>
-<label for="exchange-upload">Files to send</label><input id="exchange-upload" type="file" multiple required><p class="hint">Up to 8 files, 256 KiB each and 512 KiB together. Earlier versions stay in this task.</p>
+<div id="exchange-file-fields"><label for="exchange-upload">Files to send</label><input id="exchange-upload" type="file" multiple required><p class="hint">Up to 8 files, 256 KiB each and 512 KiB together. Earlier versions stay in this task.</p></div>
+<fieldset id="exchange-text-fields" disabled hidden><legend>Replace a passage in the original</legend><p id="exchange-edit-name"></p>
+<label for="exchange-find">Original passage (must occur once)</label><textarea id="exchange-find" maxlength="32768" required></textarea>
+<label for="exchange-replacement">Replacement (leave blank to remove the passage)</label><textarea id="exchange-replacement" maxlength="32768"></textarea></fieldset>
 <label for="exchange-next">Next action or unresolved question</label><input id="exchange-next" maxlength="500">
 <button id="exchange-submit" type="submit" class="primary">Send request</button><button id="exchange-cancel" type="button">Cancel</button></fieldset></form>
 <div id="exchange-uncertain" hidden><p>The save outcome is unknown. Check the same request before sending again.</p><button id="exchange-check" type="button">Check file save</button><button id="exchange-retry" type="button" hidden>Retry this exact file save</button></div>
