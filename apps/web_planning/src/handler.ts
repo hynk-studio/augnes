@@ -14,6 +14,7 @@ import { append, completeExport, downloadFile, eraseWork, headBinding, headsCurr
 import { page, renderContext, renderComparison, renderPreview, style } from "./page";
 import { compare, editedPayload, previewOperation, referenceAvailability, saveOperation } from "./relations";
 import exchangeClient from "./exchange-client.js.txt?raw";
+import exchangeTextModule from "../../augnes_apps/scripts/exchange-text.mjs?raw" with { type: "text" };
 import client from "./client.js.txt?raw";
 import { readableExport } from "./readable-export";
 const headers={"Cache-Control":"no-store, private","Vary":"Cookie, oai-authenticated-user-email","X-Web-Planning-Response":"1","X-Content-Type-Options":"nosniff",
@@ -42,6 +43,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
         return html(page(csrf,access),{"Set-Cookie":csrfCookie(access,csrf)});
       }
       if(path==="/client.js" && !url.search) return new Response(client+"\n"+exchangeClient,{headers:{...headers,"Content-Type":"text/javascript; charset=utf-8"}});
+      if(path==="/exchange-text.mjs" && !url.search) return new Response(exchangeTextModule,{headers:{...headers,"Content-Type":"text/javascript; charset=utf-8"}});
       if(path==="/style.css" && !url.search) return new Response(style,{headers:{...headers,"Content-Type":"text/css; charset=utf-8"}});
       if(path==="/api/project" && !url.search) return json({workspace_id:access.workspace_id,project_id:access.project_id,
         name:env.PROJECT_NAME || "Private planning workspace",tasks:"/api/works"});

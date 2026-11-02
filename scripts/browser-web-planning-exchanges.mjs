@@ -16,8 +16,10 @@ export async function browserFileExchanges({ c, origin, click, set, saved, settl
     await c.send('DOM.setFileInputFiles',{nodeId,files:[file]});
   };
   const selectTask = async () => {
-    await wait(()=>c.eval(`[...$('work-list').querySelectorAll('button')].some(b=>b.textContent===${JSON.stringify(goal)})`),'task entry by name');
-    await c.eval(`[...$('work-list').querySelectorAll('button')].find(b=>b.textContent===${JSON.stringify(goal)}).click()`);
+    // Frame navigation can finish before the new document's deferred client runs.
+    const buttons = "[...document.querySelectorAll('#work-list button')]";
+    await wait(()=>c.eval(`${buttons}.some(b=>b.textContent===${JSON.stringify(goal)})`),'task entry by name');
+    await c.eval(`${buttons}.find(b=>b.textContent===${JSON.stringify(goal)}).click()`);
     await settled(c);
   };
   // Reconfiguring Fetch or reloading can invalidate an unrelated paused CDP
@@ -87,7 +89,7 @@ export async function browserFileExchanges({ c, origin, click, set, saved, settl
   const [,people,seats] = received.toString().match(/참석 (\d+)명, 한 테이블에 (\d+)명/);
   const edit = received.toString().replace('미정',String(Math.ceil(Number(people)/Number(seats)))+'개');
   await writeFile(path.join(returnDir,name),edit);
-  await c.eval("$('exchange-list').querySelector('button').click()");await set(c,'exchange-message','참석자와 좌석 수로 계산했습니다.');await set(c,'exchange-next','입구에 배치도 게시');await pick(path.join(returnDir,name));
+  await c.eval("[...$('exchange-list').querySelectorAll('button')].find(b=>b.textContent==='Return edited files').click()");await set(c,'exchange-message','참석자와 좌석 수로 계산했습니다.');await set(c,'exchange-next','입구에 배치도 게시');await pick(path.join(returnDir,name));
   await reloadWithWarning(false);
   assert.deepEqual(await c.eval("[$('exchange-message').value, $('exchange-next').value, $('exchange-upload').files[0].name]"),
     ['참석자와 좌석 수로 계산했습니다.', '입구에 배치도 게시', name]);
@@ -115,7 +117,7 @@ export async function browserFileExchanges({ c, origin, click, set, saved, settl
   const question = '입구 안내 문구도 확인해 주세요.', action = '안내판 문구 결정';
   await click(c,'exchange-new');await set(c,'exchange-message',question);await set(c,'exchange-next',action);
   await pick(path.join(originalDir,name));
-  const peerBytes = Buffer.from('Venue confirmed.');
+  const peerBytes = Buffer.from('\ufeffVenue confirmed.\r\nVenue <b>map</b> attached.\r\n');
   const peer = {kind:'request',basis:null,message:'Confirm the arrival time',next_action:'',
     files:[{name:'venue.txt',media_type:'text/plain',bytes:peerBytes.length,digest:'sha256:'+createHash('sha256').update(peerBytes).digest('hex'),data:peerBytes.toString('base64')}]};
   await c.eval(`api('/api/work/'+work+'/exchanges/save',{...${JSON.stringify(peer)},expected:exchangeDraft.expected,request_key:crypto.randomUUID()})`);
@@ -128,6 +130,33 @@ export async function browserFileExchanges({ c, origin, click, set, saved, settl
   await click(c,'exchange-refresh');await settled(c);assert.equal(await c.eval('exchangeState.items.length'),3);
   await click(c,'exchange-cancel');
   assert.equal(await wouldWarn(), false, 'Discarded draft clears the warning.');
+  // Review the actual saved original in the page, without a browser download or a file picker.
+  const venueArticle = `[...$('exchange-list').querySelectorAll('article')].find(a=>a.textContent.includes('venue.txt'))`;
+  const venueButton = async label => {
+    await c.eval(`[...${venueArticle}.querySelectorAll('button')].find(b=>b.textContent===${JSON.stringify(label)}).click()`);
+    await settled(c);
+  };
+  await venueButton('Read text');
+  assert.equal(await c.eval(`${venueArticle}.querySelector('pre').textContent`),peerBytes.toString());
+  assert.equal(await c.eval(`${venueArticle}.querySelector('pre').children.length`),0);
+  await venueButton('Edit this text');
+  assert.equal(await c.eval("$('exchange-upload').disabled && !$('exchange-text-fields').disabled"),true);
+  await set(c,'exchange-message','Confirmed the arrival time.'); await set(c,'exchange-next','Send the arrival time.');
+  await set(c,'exchange-find','Venue'); await set(c,'exchange-replacement','Hall');
+  await click(c,'exchange-submit'); await settled(c);
+  assert.match(await c.eval("$('status').textContent"),/unique original passage/);
+  assert.equal(await c.eval('exchangeState.head.revision'),4);
+  await set(c,'exchange-find','confirmed.\nVenue'); await set(c,'exchange-replacement','opens at 10.\nVenue');
+  await watchSaveResponse(true); await click(c,'exchange-submit'); await settled(c);
+  const marker = await c.eval('sessionStorage.getItem(exchangeStoragePrefix+work)');
+  assert.ok(marker && !marker.includes('opens at 10.') && !marker.includes('Venue confirmed.'));
+  await watchSaveResponse(false); await click(c,'exchange-check'); await saved(c,5); await settled(c); await reopen();
+  const edited = peerBytes.toString().replace('confirmed.','opens at 10.');
+  await venueButton('Read text'); await venueButton('Read text');
+  assert.deepEqual(await c.eval(`[...${venueArticle}.querySelectorAll('pre')].map(p=>p.textContent)`),[peerBytes.toString(),edited]);
+  assert.deepEqual(await c.eval('exchangeState.items.at(-1).basis'),await c.eval('exchangeState.items.at(-2).ref'));
+  assert.equal(await c.eval('exchangeState.items.at(-1).files[0].digest'),'sha256:'+createHash('sha256').update(edited).digest('hex'));
+  checks.push('an in-page text return preserves the original, BOM, CRLF and inert markup after a lost acknowledgement');
   await click(c,'exchange-new'); await set(c,'exchange-message','Confirm the venue'); await pick(path.join(originalDir,name));
   c.accessBoundary='challenge'; await click(c,'exchange-submit'); await settled(c);
   assert.equal(await c.eval("accessLost && !exchangeDraft && !exchangePending && !$('exchange-form')"),true);
