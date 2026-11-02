@@ -120,6 +120,8 @@ function drawExchanges(state) {
     for (const part of [item, reply].filter(Boolean)) {
       const message = document.createElement('p');
       message.textContent = (part.kind === 'request' ? 'Request: ' : 'Return: ') + part.message;
+      message.id = 'exchange-version-' + part.ref.revision;
+      message.tabIndex = -1;
       article.append(message);
       const files = document.createElement('ul');
       for (const file of part.files) {

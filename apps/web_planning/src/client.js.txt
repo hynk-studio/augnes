@@ -154,21 +154,94 @@ async function checkCapacity(epoch){
     if(e.message==='refresh_required')$('conflict').hidden=false;}
   finally{capacityInFlight=false;if(capacityQueued&&!accessLost)queueCapacity(0);}
 }
-async function openWork(id){if(!mayLeave()){status(pending?'Resolve the pending save before leaving this work.':'Unsaved edits retained.');return;}const data=await api('/api/work/'+id);work=id;await show(data.saved,data.exchanges);status('Reopened from the server. Select Saved context for a fresh exact-revision read.');}
-async function list(append=false){const data=await api('/api/works'+(append&&next?'?cursor='+encodeURIComponent(next):''));if(!append)$('work-list').replaceChildren();
-  for(const item of data.items){const li=document.createElement('li'),b=document.createElement('button');b.textContent=item.goal;b.onclick=()=>run(()=>openWork(item.work_id));li.append(b);$('work-list').append(li);}
-  next=data.next;$('more-work').hidden=!next;$('list-state').textContent=$('work-list').children.length?'Saved on the server':'No saved work yet.';
+let listEpoch=0, openEpoch=0, inputEpoch=0;
+for(const event of ['input','change']) $('private-view').addEventListener(event,()=>inputEpoch++,true);
+async function openWork(id,listed=null,record=null){
+  if(!mayLeave()){status(pending?'Resolve the pending save before leaving this work.':'Unsaved edits retained.');return;}
+  const epoch=++openEpoch, edits=inputEpoch, previousWork=work;
+  let data;
+  try {data=await api('/api/work/'+id);}
+  catch(e){if(e.status!==404&&e.status!==410)throw e;status('This work is no longer available. Refresh the work list.');return;}
+  if(epoch!==openEpoch||previousWork!==work||accessLost)return;
+  if(edits!==inputEpoch){status('Your edits changed while opening the work. They have been retained.');return;}
+  const known=[listed,saved?.work_id===id?saved:null].filter(Boolean);
+  if(known.some(r=>data.saved?.revision<r.revision||(data.saved?.revision===r.revision&&data.saved?.fingerprint!==r.fingerprint))||
+    data.saved?.work_id!==id||data.exchanges?.work_id!==id||
+    data.exchanges.head?.fingerprint!==data.saved.fingerprint||
+    (record&&!data.exchanges.items.some(x=>x.ref.work_id===id&&x.ref.revision===record.revision&&x.ref.fingerprint===record.fingerprint))){
+    status('The selected version could not be confirmed. Refresh the work list.');return;
+  }
+  work=id;await show(data.saved,data.exchanges);
+  if(accessLost||epoch!==openEpoch)return;
+  if(record)$('exchange-version-'+record.revision)?.focus();
+  else if(listed)$('editor-title').focus();
+  status(listed&&listed.fingerprint!==data.saved.fingerprint?
+    'This work changed since it was listed. Showing its saved revision '+data.saved.revision+'.':
+    'Reopened from the server. Select Saved context for a fresh exact-revision read.');
+}
+function workListRow(item){
+  const li=document.createElement('li');
+  function element(tag,text,parent=li){const e=document.createElement(tag);e.textContent=text;parent.append(e);return e;}
+  function openButton(text,parent,ref){const b=element('button',text,parent);b.type='button';b.onclick=()=>run(()=>openWork(item.work_id,item,ref));return b;}
+  openButton(item.goal,li);
+  const time=element('time','Version '+item.revision+' · '+new Date(item.recorded_at).toLocaleString());
+  time.dateTime=item.recorded_at;
+  const info=item.overview;
+  if(!info || !Number.isSafeInteger(info.awaiting_count)||info.awaiting_count<0||
+     !Number.isSafeInteger(info.return_count)||info.return_count<0||
+     !Number.isSafeInteger(info.returned_file_count)||info.returned_file_count<info.return_count||
+     !Array.isArray(info.awaiting)||info.awaiting.length!==Math.min(2,info.awaiting_count)||
+     !Array.isArray(info.returns)||info.returns.length!==Math.min(2,info.return_count))
+    throw new Error('work_list_incomplete');
+  if(!info.awaiting_count&&!info.return_count){element('small','No file exchanges');return li;}
+  const details=document.createElement('details');li.append(details);
+  element('summary',[info.awaiting_count?info.awaiting_count+' awaiting a return':'',
+    info.returned_file_count?info.returned_file_count+' returned file'+(info.returned_file_count===1?'':'s'):''].filter(Boolean).join(' · '),details);
+  function recording(part,label){
+    if(part.ref.work_id!==item.work_id||!part.files.length)throw new Error('work_list_incomplete');
+    const section=document.createElement('div');section.className='list-record';details.append(section);
+    openButton(label,section,part.ref);
+    element('p',part.message,section);element('small',part.files.map(f=>f.name).join(' · '),section);
+    if(part.next_action)element('p','Next action from the workspace author ('+(part.basis?'return':'request')+' v'+part.ref.revision+'): '+part.next_action,section);
+  }
+  for(const r of info.awaiting)recording(r,'Open request · v'+r.ref.revision);
+  for(const pair of info.returns){
+    recording(pair.returned,'Open return · v'+pair.returned.ref.revision+' for request v'+pair.request.ref.revision);
+    if(pair.request.next_action)element('p','Workspace author’s next action on the original request (v'+pair.request.ref.revision+'): '+pair.request.next_action,details);
+  }
+  if(info.awaiting.length<info.awaiting_count||info.returns.length<info.return_count)
+    element('p','Showing the first awaiting requests and most recent returns. Open this work for every version.',details);
+  return li;
+}
+async function list(append=false){
+  const epoch=++listEpoch, cursor=append?next:null;
+  if(append&&!cursor)return false;
+  try{
+    const data=await api('/api/works'+(cursor?'?cursor='+encodeURIComponent(cursor):''));
+    if(epoch!==listEpoch||accessLost)return false;
+    if(!Array.isArray(data.items)||data.items.length>10||(data.next!==null&&
+       (!data.items.length||data.items.at(-1).work_id!==data.next)))throw new Error('work_list_incomplete');
+    const rows=document.createDocumentFragment();let last=cursor??'';
+    for(const item of data.items){
+      if(typeof item.work_id!=='string'||item.work_id<=last||typeof item.goal!=='string'||!item.goal)throw new Error('work_list_incomplete');
+      rows.append(workListRow(item));last=item.work_id;
+    }
+    const target=$('work-list');
+    if(append)target.append(rows);else target.replaceChildren(rows);
+    next=data.next;$('more-work').hidden=!next;
+    $('list-state').textContent=target.children.length?'Saved on the server':'No saved work yet.';
+    return true;
+  }catch(e){
+    if(accessLost||e.message==='access_denied')throw e;
+    if(epoch!==listEpoch)return false;
+    $('list-state').textContent='Work list could not be refreshed. Previously listed work may be out of date.';
+    status((saved?'Saved revision '+saved.revision+' is retained. ':'')+'Work list could not be refreshed. Use Refresh work list to retry that read.');
+    return false;
+  }
 }
 async function run(fn){if(busy)return;busy=true;try{await fn();}catch(e){if(e.status===422||e.status===413){status('Save refused: '+(messages[e.message]??e.message.replaceAll('_',' '))+'. Your draft is retained.');return;}if(e.message==='refresh_required'&&saved)$('conflict').hidden=false;status(messages[e.message]??'The request could not be completed. Your draft is retained.');}finally{busy=false;}}
 const messages={file_branch_selection_unsupported:'Branching and incorporation with selected files are unavailable. Keep required material together. Download and explicitly select files with attribution in an independent work if appropriate.',file_history_bytes_exceeded:'Retained file history exceeds 1,048,576 bytes. Removing from the current selection does not free earlier revisions. Export the complete work and review the next work scope.',file_history_count_exceeded:'Retained history already contains 16 distinct file bodies. Earlier revisions keep their originals. Export before deciding a separate work.',file_selection_bytes_exceeded:'Selected files exceed 524,288 bytes. Revise the explicit selection while preserving required material.',file_bytes_exceeded:'A file exceeds 262,144 bytes. Select a bounded output without silently truncating it.',file_count_exceeded:'Select at most 8 files.',file_content_unavailable:'Required saved file content is unavailable. This work cannot be represented as complete.',file_content_integrity:'Saved file bytes do not match their identity. No download or complete export was supplied.',file_not_in_saved_selection:'A retained file is absent from the reviewed base. Download its original bytes and explicitly reselect it, or review the changed file selection.',invalid_file_name_or_role:'Use a nonempty file name of at most 160 UTF-8 bytes with no path separators or control characters, and select a file role.',required_material_missing:'A required context note is missing. Include every linked condition or explicitly revise the material; no partial incorporation was saved.',incomplete_dispositions:'Review a disposition for every source unit before previewing.',invalid_relation_text:'Provide the required reason or rationale, within 500 characters.',not_a_branch_of_target:'Select a private branch created from this work.',access_denied:'Access denied. Sign in again to reopen.',refresh_required:'The saved head changed. Refresh explicitly before reading or changing it.',work_erased:'This work has been erased. It cannot be recreated by retrying.',history_read_budget_exceeded:'The complete history exceeds this operation’s row or byte budget. Your draft and saved history are retained; no partial read or save was accepted.',operation_query_budget_exceeded:'This operation exceeded its database query budget. Currentness and any pending save outcome remain unconfirmed.',operation_read_budget_exceeded:'This operation exceeded its complete-history read budget. No partial history is represented as current.',save_ticket_expired:'This save binding expired. Check its outcome before creating a new save.',reconstruction_disabled:'Reconstruction is disabled. It requires an explicitly configured empty replacement store.',storage_unavailable:'Storage is unavailable. No empty-work or successful-save claim can be made.'};
-async function refreshList(){
-  try{await list();$('refresh-list').hidden=true;return true;}
-  catch(e){if(e.message==='access_denied')throw e;
-    $('list-state').textContent='Work list could not be refreshed. Previously listed work may be out of date.';
-    $('refresh-list').hidden=false;
-    status(`${saved?`Saved revision ${saved.revision} is retained. `:''}Work list could not be refreshed. Use Refresh work list to retry that read.`);return false;}
-}
-async function acknowledged(r){await show(r);status(`Saved revision ${r.revision}. Reopen or read Saved context.`);return refreshList();}
+async function acknowledged(r){await show(r);status(`Saved revision ${r.revision}. Reopen or read Saved context.`);return list();}
 async function dispatch(){
   if(!pending)return;
   const criteria=pending.definition.success_criteria.join('\n');
@@ -215,7 +288,7 @@ $('cancel-erase').onclick=()=>{$('erase-confirm').hidden=true;eraseBinding=null;
 $('confirm-erase').onclick=()=>run(async()=>{await api('/api/work/'+work+'/erase',{expected:eraseBinding,confirm:'erase-whole-work'});dirty=false;work=saved=pending=null;await show();$('editor').hidden=true;status('Whole work erased. The content-free ID guard prevents delayed saves from recreating it. Exports and provider backups are outside this deletion.');await list();});
 $('import').onclick=()=>run(async()=>{const file=$('import-file').files[0];if(!file){status('Choose a complete work export.');return;}if(file.size>3000000){status('Export exceeds the bounded reconstruction size.');return;}if(!mayLeave())return;const value=JSON.parse(await file.text());if(!['web_planning_export.v0.3','web_planning_export.v0.4','web_planning_export.v0.5','web_planning_direction_export.v1'].includes(value.format)&&file.size>1500000){status('Legacy export exceeds 1,500,000 bytes.');return;}const data=await api(['web_planning_export.v0.3','web_planning_export.v0.4','web_planning_export.v0.5','web_planning_direction_export.v1'].includes(value.format)?'/api/reconstruct-files':'/api/reconstruct',{export:value,confirm:'reconstruct-empty-store'});work=data.saved.work_id;await show(data.saved);status('Reconstructed from an attributed export; authorship and source currentness remain unverified.');await list();});
 $('more-work').onclick=()=>run(()=>list(true));
-$('refresh-list').onclick=()=>run(async()=>{if(await refreshList())status('Work list refreshed.');});
+$('refresh-list').onclick=()=>run(async()=>{if(await list())status('Work list refreshed.');});
 $('check-capacity').onclick=()=>queueCapacity(0);
 $('signout').onclick=()=>{dirty=false;directionDirty=false;deny();};
 window.addEventListener('beforeunload',e=>{
@@ -225,7 +298,7 @@ window.addEventListener('beforeunload',e=>{
 });
 window.addEventListener('pagehide',()=>{$('context-view')?.replaceChildren();});
 window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
-window.addEventListener('focus',()=>{if($('draft-capacity'))queueCapacity();if($('work-list'))api('/api/works').catch(e=>{if(e.message!=='access_denied')status('Access/currentness could not be checked. Use a fresh server read before reuse.');});});
+window.addEventListener('focus',function checkProjectAccessOnFocus(){if($('draft-capacity'))queueCapacity();if($('work-list'))api('/api/project').catch(e=>{if(e.message!=='access_denied')status('Access/currentness could not be checked. Use a fresh server read before reuse.');});});
 function resetDirections(){directionRequest=null;relationPending=null;relationUnknown=false;directionDirty=false;comparison=null;comparisonCurrent=false;branchCursor=null;
   for(const id of ['file-review','direction-export','target-review','branch-form','comparison','relation-save','relation-uncertain','relation-cancel','more-branches'])$(id).hidden=true;
   for(const id of ['file-choices','branch-choices','comparison-summary','target-choices','material-choices','relation-preview'])$(id).replaceChildren();$('relation-state').textContent='';freezeDirection(false);}

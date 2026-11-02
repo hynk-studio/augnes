@@ -30,6 +30,40 @@ were byte-identical before/after. Sign-in and operator repairs, limited security
 observations and lack of general time-saving evidence remain. #1354's separate
 Sites rollout is deferred; its resources and evidence are untouched.
 
+## Find a task to continue
+
+In **Your work**, each saved title opens that exact task. Its version and save
+time describe the observed work. Expand the file counts to see which requests
+are awaiting a return, which files came back, and what the workspace author
+recorded on each request or return. For example, a poetry shortlist can still
+await permission for one translation after another poem has been returned.
+A next action belongs to its recorded version; a returned file does not mean
+that someone approved it or that the whole task is finished.
+
+**Refresh work list** reads the first page again without changing the editor or
+its save base. **More work** continues by task identity. Opening a request or
+return reads the selected task again and focuses its exact version; later replies
+can already be present. An unavailable list is labelled as such, and loss of
+access clears private content.
+
+The authenticated `GET /api/works` and the project client's `tasks` command
+provide the same additive `overview` per item. It counts unanswered requests,
+return versions and returned file entries. It includes the first two unanswered
+requests and the two most recent returns with their original requests, exact
+version references, stored author references, file descriptors and recorded
+text. The full exchange reader remains available for the selected task.
+Attribution is to the saved workspace author; there is no per-person read or
+notification state.
+
+On the existing scoped index, discovery seeks up to eleven task IDs and reads
+one bounded metadata observation for each of at most ten displayed works.
+It checks the seals of the head and exchange records that supply the displayed
+facts, prior revision links, scope, completeness, and stored file membership.
+Other historical planning rows supply metadata only. It does not reconstruct
+their notes or comparisons, load scene or attachment bodies, or write state.
+The ordinary task, download, history and recovery readers retain their full
+validation. No storage format, migration or new status record is required.
+
 ## Ask for work on files and collect the return
 
 Open your private project, select a task by title, or choose **New work** and save

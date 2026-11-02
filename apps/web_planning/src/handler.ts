@@ -51,8 +51,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
         if([...url.searchParams.keys()].some(k=>k!=="cursor") || url.searchParams.getAll("cursor").length>1) fail("scope_denied",403);
         const cursor=url.searchParams.get("cursor")??"";
         if(cursor && !UUID.test(cursor))fail("invalid_cursor");
-        const listed=await listWork(access,cursor);
-        return json({items:listed.items.map(r=>({work_id:r.work_id,goal:r.definition.goal,exchanges:"/api/work/"+r.work_id+"/exchanges",recorded_at:r.recorded_at,...headBinding(r),branch_of:r.relations?.origin?.source.work_id??null})),next:listed.next});
+        return json(await listWork(access,cursor));
       }
       const exchanges=path.match(/^\/api\/work\/([a-f0-9-]+)\/exchanges$/);
       if(exchanges && UUID.test(exchanges[1]) && !url.search) return json(exchangeList(await readWork(access,exchanges[1])));

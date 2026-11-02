@@ -1,7 +1,8 @@
+import { projectWorkListItem, listEnvelope } from "./work-list";
 import { SCENE_FILE, validateSceneHistory } from "./scene-contract";
 import { Buffer } from "node:buffer";
 import { decodeFile, digestBytes, exportFiles, historyFiles, verifiedBodies, type FileBody, type FileEntry } from "./files";
-import { assertHistoryBudget, canonical, canonicalBytes, fail, headBinding, HISTORY_READ_BYTES, HISTORY_READ_ROWS, type Binding, type Revision, type Scope, type WorkRef, validateChain } from "./contract";
+import { assertHistoryBudget, canonical, canonicalBytes, fail, headBinding, HISTORY_READ_BYTES, HISTORY_READ_ROWS, type Binding, type Revision, type Scope, type WorkRef, UUID, validateChain } from "./contract";
 // The subset of the D1 binding used here. No SQLite adapter or in-memory fallback.
 export interface Statement {
   bind(...values: (string | number | null | ArrayBuffer)[]): Statement;
@@ -29,7 +30,7 @@ const args = (s: Scope, id: string) => [s.workspace_id, s.project_id, id];
 export async function erased(s: Store, id: string): Promise<boolean> {
   return !!await s.DB.prepare(`SELECT work_id FROM web_planning_erased WHERE ${where}`).bind(...args(s,id)).first();
 }
-export async function readWork(s: Store, id: string): Promise<Revision[]> {
+async function observeWork(s: Store, id: string, forList = false) {
   // Keep the existing atomic primary observation. A bounded ordered scan plus
   // a mandatory summary proves completeness without separate-page snapshots.
   // Oversized histories return only the summary, never an apparently valid
@@ -39,14 +40,14 @@ export async function readWork(s: Store, id: string): Promise<Revision[]> {
     WHERE ${where} ORDER BY revision LIMIT ${HISTORY_READ_ROWS+1}
   ), summary AS (SELECT COUNT(*) AS n, COALESCE(SUM(length(CAST(envelope AS BLOB))),0)+MAX(COUNT(*),1)+1 AS bytes FROM bounded),
   files AS MATERIALIZED (SELECT digest,bytes FROM web_planning_file WHERE ${where} ORDER BY digest LIMIT 17)
-  SELECT 0 AS kind,NULL AS envelope,NULL AS revision,NULL AS fingerprint,NULL AS request_key,NULL AS request_fingerprint,
+  SELECT 0 AS kind,NULL AS envelope,NULL AS envelope_bytes,NULL AS revision,NULL AS fingerprint,NULL AS request_key,NULL AS request_fingerprint,
     n,bytes,EXISTS(SELECT 1 FROM web_planning_erased WHERE ${where}) AS erased,
     (SELECT COUNT(*) FROM files) AS file_count,NULL AS digest,NULL AS file_bytes FROM summary
-  UNION ALL SELECT 1,envelope,revision,fingerprint,request_key,request_fingerprint,NULL,NULL,NULL,NULL,NULL,NULL FROM bounded
+  UNION ALL SELECT 1,${forList ? listEnvelope : "envelope"},length(CAST(envelope AS BLOB)),revision,fingerprint,request_key,request_fingerprint,NULL,NULL,NULL,NULL,NULL,NULL FROM bounded
     WHERE (SELECT n<=${HISTORY_READ_ROWS} AND bytes<=${HISTORY_READ_BYTES} FROM summary)
-  UNION ALL SELECT 2,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,digest,bytes FROM files
+  UNION ALL SELECT 2,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,digest,bytes FROM files
   ORDER BY kind,revision,digest`).bind(...args(s,id),...args(s,id),...args(s,id)).all<{
-    kind:number;envelope:string;revision:number;fingerprint:string;request_key:string;request_fingerprint:string;
+    kind:number;envelope:string;envelope_bytes:number;revision:number;fingerprint:string;request_key:string;request_fingerprint:string;
     n:number;bytes:number;erased:number;file_count:number;digest:string;file_bytes:number;
   }>();
   const summary=results[0];
@@ -58,23 +59,31 @@ export async function readWork(s: Store, id: string): Promise<Revision[]> {
   if(summary.n>HISTORY_READ_ROWS || summary.bytes>HISTORY_READ_BYTES)fail("history_read_budget_exceeded",422);
   const rows=results.filter(r=>r.kind===1),files=results.filter(r=>r.kind===2);
   if(rows.length!==summary.n || files.length!==summary.file_count ||
-    rows.reduce((bytes,r)=>bytes+Buffer.byteLength(r.envelope),Math.max(rows.length,1)+1)!==summary.bytes)fail("history_observation_incomplete",503);
+    rows.some(r=>!Number.isSafeInteger(r.envelope_bytes)||r.envelope_bytes<1||(!forList && Buffer.byteLength(r.envelope)!==r.envelope_bytes)) ||
+    rows.reduce((bytes,r)=>bytes+r.envelope_bytes,Math.max(rows.length,1)+1)!==summary.bytes)fail("history_observation_incomplete",503);
   if(s.historyRead){
     s.historyRead.rows+=rows.length;s.historyRead.bytes+=summary.bytes;
     // A ten-item page can validate ten maximal histories; repeated reads within
     // mutations and the two direct context references share this same budget.
     if(s.historyRead.rows>10*HISTORY_READ_ROWS || s.historyRead.bytes>10*HISTORY_READ_BYTES)fail("operation_read_budget_exceeded",503);
   }
-  if(!rows.length){if(files.length)fail("file_content_unavailable",503);return [];}
+  if(!rows.length && files.length)fail("file_content_unavailable",503);
   const values = rows.map(row => {
     const value=JSON.parse(row.envelope);
     for(const key of ["revision","fingerprint","request_key","request_fingerprint"] as const)
       if(value[key]!==row[key])fail("history_index_integrity",503);
     return value;
   });
-  const chain=validateChain(s,id,values);
-  const expected=historyFiles(chain);
+  return { values, files };
+}
+function checkStoredFiles(expected:Map<string,number>,files:{digest:string;file_bytes:number}[]) {
   if(files.length!==expected.size || new Set(files.map(f=>f.digest)).size!==files.length || files.some(f=>expected.get(f.digest)!==f.file_bytes))fail("file_content_unavailable",503);
+}
+export async function readWork(s: Store, id: string): Promise<Revision[]> {
+  const {values,files}=await observeWork(s,id);
+  if(!values.length)return [];
+  const chain=validateChain(s,id,values);
+  checkStoredFiles(historyFiles(chain),files);
   if(chain.some(r=>r.files?.some(f=>f.name===SCENE_FILE)))validateSceneHistory(chain,await readFileBodies(s,chain));
   return chain;
 }
@@ -153,16 +162,34 @@ export async function reconstructWorks(s:Store,works:{chain:Revision[];bodies:Fi
     if(w.chain.some(r=>r.files!==undefined))verifiedBodies(w.chain,await readFileBodies(s,w.chain));
   }
 }
-export async function listWork(s: Store, cursor: string): Promise<{ items: Revision[]; next: string | null }> {
-  const rows = await s.DB.prepare(`SELECT DISTINCT work_id FROM web_planning_revision
-    WHERE workspace_id=? AND project_id=? AND work_id > ? ORDER BY work_id LIMIT 11`)
-    .bind(s.workspace_id,s.project_id,cursor).all<{ work_id: string }>();
-  const items: Revision[] = [];
-  for (const row of rows.results.slice(0,10)) {
-    try { const chain=await readWork(s,row.work_id); if(chain.length) items.push(chain.at(-1)!); }
-    catch(error) { if((error as {code?:string}).code!=="work_erased") throw error; }
+export async function listWork(s: Store, cursor: string) {
+  // Seek past each work on the existing (scope, work_id, revision) index.
+  // Even a very long history cannot make discovery walk its duplicate IDs.
+  const rows = await s.DB.prepare(`WITH RECURSIVE page(n,id) AS (
+    SELECT 0,? UNION ALL
+    SELECT n+1,(SELECT MIN(work_id) FROM web_planning_revision
+      WHERE workspace_id=? AND project_id=? AND work_id>page.id)
+    FROM page WHERE n<11 AND id IS NOT NULL)
+    SELECT id AS work_id,n,(SELECT COUNT(id) FROM page WHERE n>0) AS count FROM page
+    WHERE id IS NOT NULL ORDER BY n`)
+    .bind(cursor,s.workspace_id,s.project_id).all<{ work_id: string; n:number; count:number }>();
+  // The seed row is also the completeness witness, including on an empty page.
+  const [seed,...ids]=rows.results;
+  if(!seed || seed.n!==0 || seed.work_id!==cursor || seed.count!==ids.length || ids.length>11 ||
+    ids.some((row,i)=>row.n!==i+1 || !UUID.test(row.work_id) || row.work_id<=(i?ids[i-1].work_id:cursor)))
+    fail("history_observation_incomplete",503);
+  const items: ReturnType<typeof projectWorkListItem>[] = [];
+  for (const row of ids.slice(0,10)) {
+    try {
+      const {values,files}=await observeWork(s,row.work_id,true);
+      if(!values.length)fail("history_observation_incomplete",503);
+      const item=projectWorkListItem(s,row.work_id,values);
+      checkStoredFiles(historyFiles(values),files);
+      items.push(item);
+    }
+    catch(error) { if((error as {code?:string}).code==="work_erased")fail("refresh_required",409);throw error; }
   }
-  return { items, next: rows.results.length>10 ? rows.results[9].work_id : null };
+  return { items, next: ids.length>10 ? ids[9].work_id : null };
 }
 export { headBinding };
 

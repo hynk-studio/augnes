@@ -4,7 +4,7 @@ import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { assertHistoryBudget, canonical, canonicalBytes, exportWork, headBinding, HISTORY_READ_BYTES, HISTORY_READ_ROWS, makeRevision, normalizePayload, reference } from '../apps/web_planning/src/contract.ts';
-import { boundedDatabase, readWork } from '../apps/web_planning/src/store.ts';
+import { boundedDatabase, listWork, readWork } from '../apps/web_planning/src/store.ts';
 import { fixtureScope } from './web-planning-local-runtime.mjs';
 import { bundleWebPlanning } from './build-web-planning.mjs';
 import { predecessorCode } from './web-planning-branch-checks.mjs';
@@ -168,10 +168,44 @@ export async function checkCumulativeHistory({start,client,newWork,save,edit,pas
  // Exact count and byte boundaries, using canonical fixtures in disposable D1.
  const full=prefix(HISTORY_READ_ROWS);assertHistoryBudget(full);await seed(server.db,full);
  const fr=await c.request('/api/work/'+full[0].work_id);assert.equal(fr.status,200);
+ // Measure the actual list statements on a project containing a maximal history.
+ // Body columns never enter a projection, and ordinary historical definitions/notes
+ // do not leave SQLite. Missing observations must refuse the page in full.
+ const discoveries=[];let projected=0;
+ const observed=observe(server.db,(value,sql)=>{
+   if(sql.includes('WITH bounded AS MATERIALIZED'))for(const r of value.results.filter(r=>r.kind===1)){
+     const v=JSON.parse(r.envelope);if(v.work_id===full[0].work_id && v.revision<HISTORY_READ_ROWS){
+       assert(!('definition' in v)&&!('sources' in v));projected++;
+     }
+   }
+   return value;
+ },discoveries);
+ const beforeList=await unchanged(server);
+ const page=await listWork({...fixtureScope,DB:observed},'');
+ assert(page.items.some(w=>w.work_id===full[0].work_id&&w.revision===HISTORY_READ_ROWS));
+ assert.equal(projected,HISTORY_READ_ROWS-1);
+ assert.equal(discoveries.length,1+page.items.length);
+ for(const {sql} of discoveries){assert(!/\b(body|INSERT|UPDATE|DELETE)\b/i.test(sql));}
+ assert.deepEqual(await unchanged(server),beforeList);
+ const foreignProject=randomUUID();
+ assert.deepEqual(await listWork({...fixtureScope,project_id:foreignProject,DB:server.db},''),{items:[],next:null});
+ assert.equal((await c.request('/api/works?project_id='+foreignProject)).status,403);
+ const wrongScope=observe(server.db,(r,sql)=>sql.includes('WITH bounded AS MATERIALIZED')?{results:r.results.map(row=>
+   row.kind===1?{...row,envelope:row.envelope.replace(fixtureScope.project_id,foreignProject)}:row)}:r);
+ await assert.rejects(listWork({...fixtureScope,DB:wrongScope},''),e=>e.code==='history_index_integrity');
+ const damaged=observe(server.db,(r,sql)=>sql.includes('WITH bounded AS MATERIALIZED')?{results:r.results.filter(row=>row.revision!==1)}:r);
+ await assert.rejects(listWork({...fixtureScope,DB:damaged},''),e=>e.code==='history_observation_incomplete');
+ for(const cut of [()=>[],rows=>rows.slice(0,-1)]){
+   const partial=observe(server.db,(r,sql)=>sql.includes('WITH RECURSIVE page')?{results:cut(r.results)}:r);
+   await assert.rejects(listWork({...fixtureScope,DB:partial},''),e=>e.code==='history_observation_incomplete');
+ }
+ console.log(JSON.stringify({work_list_discovery:{tasks:page.items.length,queries:discoveries.length,historical_rows_projected:projected,
+   max_history_rows:HISTORY_READ_ROWS,file_body_queries:0,read_writes:0,partial_page_refused:true}}));
  const fedit=await edit(c,fr.data.saved,'Over row operation budget');assert.equal((await save(c,fedit)).data.error,'history_read_budget_exceeded');
  assert.equal((await c.request('/api/work/'+full[0].work_id+'/history')).data.revisions.length,HISTORY_READ_ROWS);
  const beyond=makeRevision(fixtureScope,full[0].work_id,headBinding(full.at(-1)),randomUUID(),normalizePayload(fixtureScope,definition,[]),'2026-09-20T00:00:00.000Z');await seed(server.db,[beyond]);
  assert.equal((await c.request('/api/work/'+full[0].work_id)).data.error,'history_read_budget_exceeded');
+ assert.equal((await c.request('/api/works')).data.error,'history_read_budget_exceeded');
  const largePayload=normalizePayload(fixtureScope,definition,[{text:'x'.repeat(2000),source:'Synthetic bytes',provenance:'user_declaration',observed_at:null,label:'Open question'}]);
  const bytes=prefix(1,largePayload);while(canonicalBytes(bytes)<=HISTORY_READ_BYTES)bytes.push(makeRevision(fixtureScope,bytes[0].work_id,headBinding(bytes.at(-1)),randomUUID(),largePayload,'2026-09-20T00:00:00.000Z'));
  const over=bytes.pop();await seed(server.db,bytes);assert.equal((await c.request('/api/work/'+bytes[0].work_id)).status,200);
