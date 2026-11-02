@@ -9,15 +9,13 @@ import { canonicalizeProtocolValueV01 as canonical } from "../lib/vnext/protocol
 import { readProjectWorkInitializationV01 } from "../lib/vnext/runtime/project-work-initialization";
 import { readProjectWorkRevisionEligibilityStrictV01 } from "../lib/vnext/runtime/project-work-revision";
 import { readCurrentProjectWorkPacketLineageV01, projectVNextOperatorPilotContinuityV01 } from "../lib/vnext/runtime/operator-pilot-project-continuity";
-import { readResultWorkPreparationV01 } from "../lib/vnext/runtime/authored-successor-task";
 import { readProjectAutomationControlV01 } from "../lib/vnext/persistence/project-control-store";
 import { readActiveProjectSelectionV01 } from "../lib/vnext/persistence/project-lifecycle-registry";
 import { POST as manageProject } from "../app/api/vnext/projects/route";
-import { historicalDurableWorkFixtures, DURABLE_WORK_PREDECESSOR } from "./historical-durable-work-fixtures";
+import { historicalDurableWorkFixtures } from "./historical-durable-work-fixtures";
 import { validateRecoveryCanonicalDatabaseV01 } from "./recovery-canonical-record-validator";
 import { registerOwnedChild, waitForOwnedProcessExit, terminateOwnedProcessTree } from "./test-harness-process-lifecycle.mjs";
 
-const predecessor = DURABLE_WORK_PREDECESSOR;
 const definition = { goal: "Continue the bounded saved investigation", success_criteria: ["Preserve attributed uncertainty"], non_goals: ["No execution or semantic acceptance"] };
 
 const current = (f: any) => readCurrentProjectWorkPacketLineageV01(f.db, f.config)!.packet;
@@ -64,7 +62,7 @@ async function freshSurfaces(f: any, root: string, modes = process.platform === 
   }
 }
 
-export async function durableWorkContract(createFixture: (name: string, restored?: any) => Promise<any>, root: string, baseline = false) {
+export async function durableWorkContract(createFixture: (name: string, restored?: any) => Promise<any>, root: string) {
   const historical = await historicalDurableWorkFixtures(root);
   const restore = async (name: string) => {
     const saved = historical[name], f = await createFixture(`durable-${name}`, saved);
@@ -77,7 +75,7 @@ export async function durableWorkContract(createFixture: (name: string, restored
     assert.match(String(selection.selection_revision), /^selection:[0-9a-f]{32}$/);
     return f;
   };
-  if (!baseline) {
+  {
     // Re-enter both pre-receipt authoring families without inventing a receipt.
     for (const kind of ["terminal", "replacement"] as const) {
       const f = await restore(kind);
@@ -124,16 +122,7 @@ export async function durableWorkContract(createFixture: (name: string, restored
     assert.equal(projectVNextOperatorPilotContinuityV01(f.db, { config: f.config, clock: { now: f.now } }).packet_currentness, "expired");
     assert.equal(current(f).integrity.fingerprint, expiredPacket.integrity.fingerprint);
     assert.deepEqual(core(f), frozen, "Reads preserve all historical bytes and fingerprints");
-    if (baseline) {
-      if (saved) {
-        assert.equal(readProjectWorkRevisionEligibilityStrictV01(f.db, f.scope, { evaluated_at: f.now() }).eligible, false);
-        await f.continuity(revision(f), 409);
-      } else {
-        assert.throws(() => readResultWorkPreparationV01(f.db, { config: f.config, receipt_id: completed.receipt.receipt_id, clock: { now: f.now } }), /preparation_unavailable/);
-        await f.continuity({ action: "read_result_work_preparation", receipt_id: completed.receipt.receipt_id }, 409);
-      }
-      console.log(JSON.stringify({ baseline: saved ? "ordinary_revision_blocked" : "result_preparation_blocked", days: 4, expiry: expiredPacket.expires_at, historical_writer: predecessor }));
-    } else {
+    {
       if (saved) {
         await freshSurfaces(f, root);
         assert.equal(readProjectWorkRevisionEligibilityStrictV01(f.db, f.scope, { evaluated_at: f.now() }).eligible, true);
@@ -162,7 +151,7 @@ export async function durableWorkContract(createFixture: (name: string, restored
     }
     assert.equal(authority(f), frozenAuthority); assert.equal(f.calls, calls);
   }
-  if (!baseline) {
+  {
     const f = await restore("null");
     const old = current(f), frozen = core(f), control = authority(f), calls = f.calls;
     assert.equal(old.expires_at, null); assert.ok(!old.compatibility.source_contracts.includes("augnes.durable-authored-work.v0.1"));

@@ -19,7 +19,8 @@ import { observerControls } from "./fixtures/local-canonical-observer-controls.m
 import { REVIEW_CHILD_RESULT_PREFIX, projectReviewChildResult, assertReviewChildLifecycle, createObserverFixtureProgressReader } from "./fixtures/local-canonical-review-child-result.mjs";
 
 // Do not silently turn a retired explicit command into the default suite.
-if (["--companion-timeout-controls", "--operating-profile-succession-controls"].includes(process.argv[2])) throw new Error("qualification_route_retired");
+const retiredControls = new Set(["--companion-timeout-controls", "--operating-profile-succession-controls", "--guide-correction-controls", "--condition-requalification-controls", "--corrected-timeout-controls"]);
+if (process.argv.slice(2).some(arg => retiredControls.has(arg))) throw new Error("qualification_route_retired");
 
 const self = fileURLToPath(import.meta.url), repository = path.dirname(path.dirname(self));
 const quiet = { write() {} }, write = (p, v) => writeFileSync(p, typeof v === "string" ? v : JSON.stringify(v), { mode: 0o600 });
@@ -101,28 +102,7 @@ try {
     const settlement = await child([path.join(repository, "scripts/fixtures/local-canonical-reviewed-revision.mjs"), "--run-settlement-fixtures"], { controlId: "reviewed-revision-settlement", timeoutMs: 15000, stdout: process.stdout, stderr: process.stderr });
     assert.equal(settlement.exit_code, 0, lastChildDiagnostic);
     findings.push("reviewed revision: real admission and refusal, terminal legacy preservation, two-invocation commission, concurrency and interrupted reservation, fresh stock");
-  } else if (process.argv[2] === "--guide-correction-controls") {
-  for (const group of ["evidence", "authority", "admission", "race", "stock"]) {
-    const result = await child([path.join(repository, "scripts/fixtures/local-canonical-guide-correction.mjs"), "--run-guide-fixtures", group], { controlId: `guide-correction-${group}`, timeoutMs: AUXILIARY_EXECUTION_BUDGETS.groupMs });
-    assert.equal(result.exit_code, 0, lastChildDiagnostic);
-  }
-  findings.push("reviewed GuideBrief correction: preserved failed v5 predecessor and accepted repair, authenticated one-use authority, exclusive terminal successor and fresh read-only stock");
-  } else if (process.argv[2] === "--condition-requalification-controls") {
-  for (const group of ["evidence", "authority", "admission", "stock"]) {
-    const result = await child([path.join(repository, "scripts/fixtures/local-canonical-condition-requalification.mjs"), "--run-condition-fixtures", group], { controlId: `condition-requalification-${group}`, timeoutMs: AUXILIARY_EXECUTION_BUDGETS.groupMs });
-    assert.equal(result.exit_code, 0, lastChildDiagnostic);
-  }
-  findings.push("condition requalification: exact original failure, accepted diagnosis and explicit authority, final published source, terminal reservation and separate stock");
-  } else if (process.argv[2] === "--corrected-timeout-controls") {
-  for (const group of ["evidence", "witnesses", "source", "originals", "admission", "race", "stock"]) {
-    const timeout = await child([path.join(repository, "scripts/fixtures/local-canonical-timeout-succession.mjs"), "--run-timeout-fixtures", group], { controlId: `timeout-succession-${group}`, timeoutMs: AUXILIARY_EXECUTION_BUDGETS.groupMs });
-    assert.equal(timeout.exit_code, 0, lastChildDiagnostic);
-  }
-  findings.push("corrected nested-timeout succession: preserved original failure, meaningful source evidence, prospective authority, one terminal reservation and read-only stock");
   } else {
-  const succession = await child([path.join(repository, "scripts/fixtures/local-canonical-observer-succession.mjs"), "--run-observer-fixtures"], { controlId: "observer-succession", timeoutMs: AUXILIARY_EXECUTION_BUDGETS.observerSuccessionMs });
-  assert.equal(succession.exit_code, 0, lastChildDiagnostic);
-  findings.push("observer-repair succession: bounded original/source/authority refusals, exclusive lineage and fresh stock reconstruction");
   const observer = await child([self, "--observer-controls"], { controlId: "observer-controls", timeoutMs: AUXILIARY_EXECUTION_BUDGETS.observerControlsMs });
   assert.equal(observer.exit_code, 0, lastChildDiagnostic);
   findings.push("deterministic observation windows retain permitted aliases and sanitized failures; content, identity, ownership and native permissions remain protected");

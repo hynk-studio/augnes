@@ -135,9 +135,9 @@ export function assertCommitExists(repositoryRoot, sha, label) {
   }
 }
 
-export function collectHostEnvironment(repositoryRoot, { browserInput = null } = {}) {
+export function collectHostEnvironment(repositoryRoot) {
+  const browser = selectBrowserExecutable(repositoryRoot);
   const disk = collectDiskObservation(repositoryRoot);
-  const browser = browserInput ? { path: browserInput.executable, name: path.basename(browserInput.executable), source: "task_owned_bundle_v1" } : selectBrowserExecutable(repositoryRoot);
   const nodeExecutableVersion = runVersionCommand("node", ["--version"]).replace(
     /^v/u,
     "",
@@ -378,7 +378,7 @@ function runGitResult(
 
 function selectBrowserExecutable(repositoryRoot) {
   const binding = selectedBrowserInput({ repositoryRoot });
-  if (binding) return { path: binding.executable, name: path.basename(binding.executable), source: "task_owned_bundle_v1" };
+  if (binding) throw Object.assign(new Error("qualification_route_retired"), { code: "qualification_route_retired" });
   const configured = process.env.AUGNES_BROWSER_EXECUTABLE_PATH?.trim();
   if (configured && path.isAbsolute(configured) && existsSync(configured)) {
     return {

@@ -50,17 +50,11 @@ function setup(root){
     headers:{location_fingerprint:digest("headers"),observation:{contract:"augnes.local-canonical-node-headers.v1",present:true,location_fingerprint:digest("headers"),inventory_sha256:digest("inventory"),content_sha256:digest("content"),permission_sha256:digest("permissions"),entries:2,bytes:10}}};
   const a=beginAttempt({anchorRoot:c.anchor,repositoryRoot:c.checkout,checkoutOwner:c.owner,branch:c.branch,head:c.base,tree:c.baseTree,runId:"root-failure",contractFingerprint:digest("root")});
   const r=receipt(c,a);storeReceipt(c,r);finishAttempt(a,{receiptFingerprint:r.integrity.content_fingerprint,disposition:"product_failure",cleanupComplete:true});
-  const p={schema:"augnes.local-canonical-source-correction.v3",kind:"observer_repair",head:c.base,tree:c.baseTree,prior_family_id:a.family_id,prior_number:1,prior_attempt_id:a.attempt_id,prior_receipt_fingerprint:r.integrity.content_fingerprint,repair:{},authorization:{}}, observations={};
-  for(const [i,role] of ["accepted_repair","independent_review","execution_grant"].entries()){
-    const o={id:i+1,author:"synthetic-fixture",author_id:1,body_sha256:digest(role),timestamp:time(-90000),role};observations[role]=o;
-    if(i===0)p.repair.review={id:o.id,sha256:digest(o)};else if(i===1)Object.assign(p.authorization,{review_id:o.id,review_sha256:digest(o)});else Object.assign(p.authorization,{grant_comment_id:o.id,grant_sha256:digest(o)});
-  }
-  const terminal={...a,family_id:family(c.branch,p),attempt_id:"terminal-legacy",number:1,source_correction:p,observer_authority:observations,recovery:null,budget:{initial:1,recovery:0}};
-  c.legacyRoot=path.join(c.anchor,".augnes-local-verification/families",terminal.family_id);
-  write(path.join(c.anchor,".augnes-local-verification/families",a.family_id,"correction-successor.json"),{contract:"augnes.local-canonical-successor.v2",kind:"observer_repair",family_id:terminal.family_id,head:terminal.head,tree:terminal.tree,proof_fingerprint:digest(p)});
-  write(path.join(c.legacyRoot,"attempt-1.json"),terminal);c.prior=receipt(c,terminal);storeReceipt(c,c.prior);
-  write(path.join(c.legacyRoot,"completion-1.json"),{contract:a.contract,attempt_id:terminal.attempt_id,receipt_fingerprint:c.prior.integrity.content_fingerprint,disposition:"product_failure",cleanup_complete:true,finished_at:time(-60000)});
-  assert.equal(reconstructAttemptTip({anchorRoot:c.anchor,branch:c.branch}).observer_repair_consumed,true);
+  c.legacyRoot=path.join(c.anchor,".augnes-local-verification/families",a.family_id);
+  c.prior=r;
+  const completion=path.join(c.legacyRoot,"completion-1.json");
+  write(completion,{...read(completion),finished_at:time(-60000)});
+  assert.equal(reconstructAttemptTip({anchorRoot:c.anchor,branch:c.branch}).attempt_id,a.attempt_id);
   c.acceptedHead=c.commit(2);c.acceptedTree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();c.commit(3);
   return c;
 }
@@ -73,13 +67,13 @@ function prepare(c,ordinal=1){
     accepted:{head:c.acceptedHead,tree:c.acceptedTree,base:c.base,review:{}},authorization:{},
     originals:{receipt:artifact(c,"prior-receipt.json",c.prior),attempt:artifact(c,"prior-attempt.json",readFileSync(path.join(priorRoot,"attempt-1.json"))),completion:artifact(c,"prior-completion.json",readFileSync(path.join(priorRoot,"completion-1.json"))),
       stock:artifact(c,"prior-stock.log",JSON.stringify({content_fingerprint:c.prior.integrity.content_fingerprint,valid_deciding_evidence:false,dimensions:{historical_integrity:"intact",safety:c.prior.outcome.safety}}))},
-    inputs:{predecessor_sha256:prior.source_correction.schema.endsWith(".v7")?prior.source_correction.inputs.identity_sha256:digest(c.prior.inputs.resources),identity_sha256:digest(c.inputs),current:artifact(c,"runtime-inputs.json",c.inputs)},
+    inputs:{predecessor_sha256:prior.source_correction?.schema.endsWith(".v7")?prior.source_correction.inputs.identity_sha256:digest(c.prior.inputs.resources),identity_sha256:digest(c.inputs),current:artifact(c,"runtime-inputs.json",c.inputs)},
     source:artifact(c,"source.json",{schema:"augnes.local-canonical-reviewed-revision-source.v1",basis:"implementation_owner_not_independent_review",reviewed_at:time(-1000),accepted_to_final:delta(c.acceptedHead,c.head),predecessor_to_final:delta(prior.head,c.head),main_to_final:delta(c.base,c.head)})};
   const bytes=c.git(["show",c.head+":scripts/fixture.mjs"]);
   p.focused=artifact(c,"focused.json",{schema:"augnes.local-canonical-reviewed-revision-focused.v1",basis:"implementation_owner_not_independent_review",predecessor_receipt_fingerprint:p.prior_receipt_fingerprint,runtime_inputs_sha256:p.inputs.identity_sha256,finished_at:time(-1000),
     remedy:"Synthetic behavioral correction with exact retained command evidence",implicated_paths:["scripts/fixture.mjs"],source_files:[{path:"scripts/fixture.mjs",byte_size:bytes.length,sha256:digest(bytes)}],
     commands:[{command:"synthetic behavior control",result:natural,record:artifact(c,"command-result.json",natural),stdout:artifact(c,"command-stdout.log","synthetic PASS\n")}],
-    ...(prior.source_correction.schema.endsWith(".v7")?{failed_phase:"integration",diagnosis:"Synthetic predecessor fixture returned demonstrated incorrect value"}:{})});
+    ...(prior.source_correction?.schema.endsWith(".v7")?{failed_phase:"integration",diagnosis:"Synthetic predecessor fixture returned demonstrated incorrect value"}:{})});
   const user={login:"synthetic-fixture",id:1,type:"User"},review={id:10,user,author_association:"OWNER",state:"COMMENTED",commit_id:c.acceptedHead,pull_request_url:"https://api.github.com/repos/hynk-studio/augnes/pulls/999",submitted_at:c.reviewTime??=time(-45000),body:"ACCEPT / RETAIN "+c.acceptedHead+" "+c.acceptedTree+" "+c.base};
   const grant={id:c.grantId??11,user,author_association:"OWNER",issue_url:"https://api.github.com/repos/hynk-studio/augnes/issues/999",updated_at:c.grantTime??=time(-30000),body:c.newCommission?c.branch+" historical acceptance "+review.id+" "+p.commission.root_receipt_fingerprint+" NEW commission; existing v7 reviewed_revision; old commission remains spent; at most two admitted deciding invocations total; demonstrated material correction with relevant focused support; zero unchanged-target retry and zero extra recovery; Reservation/interruption consumes; separate fresh-process stock; independent audit. Preserve the original safety_violation / blocked receipt; clean prospective dependency preparation and current safety checks.":c.acceptedHead+" "+c.acceptedTree+" "+c.branch+" https://github.com/hynk-studio/augnes/pull/999#pullrequestreview-10 reviewed source/execution-input revision; two admitted deciding invocations for this entire commission; materially corrected after focused checks; zero unchanged-target retry; no additional recovery allowance; Interrupted reservations consume; separate fresh-process stock; independent audit."};
   p.accepted.review={id:10,sha256:digest(reviewedRevisionAuthorityObservation(review,"accepted_revision"))};p.authorization={grant_comment_id:grant.id,grant_sha256:digest(reviewedRevisionAuthorityObservation(grant,"execution_commission"))};
@@ -231,8 +225,8 @@ if(process.argv[2]==="--cold"){
     p=proof(c);a=await auth(c,p);const first=begin(c,p,a),r=receipt(c,first);assert(validReviewedRevisionAttempt(first));storeReceipt(c,r);finishAttempt(first,{receiptFingerprint:r.integrity.content_fingerprint,disposition:"product_failure",cleanupComplete:true});
     // A live tip cannot bypass a retired predecessor in the same mixed chain.
     // Only small disposable markers change; no retired proof tree is rebuilt.
-    for(const kind of ["operating_profile_efficiency","settled_successor_budget"]){
-      const prior=JSON.parse(legacyAttemptBytes);prior.source_correction.kind=kind;write(legacyAttemptFile,prior);
+    for(const kind of ["operating_profile_efficiency","settled_successor_budget","observer_repair","corrected_timeout","condition_requalification","guide_cancellation_correction"]){
+      const prior=JSON.parse(legacyAttemptBytes);prior.source_correction={schema:"augnes.local-canonical-source-correction.v2",kind};write(legacyAttemptFile,prior);
       try{
         assert.throws(()=>reconstructAttemptTip({anchorRoot:c.anchor,branch:c.branch}),{code:"qualification_route_retired"});
         assert.throws(()=>begin(c,p,a),{code:"qualification_route_retired"});assert.equal(stock(c,r,a),false);
@@ -259,7 +253,7 @@ if(process.argv[2]==="--cold"){
     assert(!depIssues(checked).includes("receipt_input_event_invalid"));checked.inputs.prepared_dependencies[0].error="unknown_scan_error";assert(depIssues(checked).includes("receipt_input_event_invalid"));
     assert(stock(c,r,a));assert.throws(()=>begin(c,p,a),/attempt_latest_tip_required/);assert.equal(reconstructAttemptTip({anchorRoot:c.anchor,branch:c.branch}).reviewed_revision_consumed,1);
     const packet=path.join(owner.root,"cold.json");write(packet,{anchor:c.anchor,checkout:c.checkout,file:c.file,inputs:c.inputs,authority:c.authority,receipt:r});await child(["--cold",packet]);
-    findings.push("real admission after terminal legacy, immutable replay refusal and fresh-process stock");
+    findings.push("real admission after settled ordinary failure, immutable replay refusal and fresh-process stock");
     c.prior=r;const completion=path.join(c.anchor,".augnes-local-verification/families",first.family_id,"completion-1.json");write(completion,{...read(completion),finished_at:time(-5000)});
     prepare(c,2);assert.throws(()=>proof(c),/revision_material_remedy_required/);
     const oldMetadata=clone(c.inputs.node.observation.metadata);c.inputs.node.observation.metadata.mtime_ns="2";prepare(c,2);assert.throws(()=>proof(c),/revision_material_remedy_required/);c.inputs.node.observation.metadata=oldMetadata;

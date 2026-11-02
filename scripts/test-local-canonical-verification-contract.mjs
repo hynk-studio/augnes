@@ -825,9 +825,9 @@ for (const forbiddenTransportFragment of [
     `read-only GitHub transport must not contain ${forbiddenTransportFragment}`,
   );
 }
-const mainOnlyTransport = githubMainBranchTransport.slice(githubMainBranchTransport.indexOf("export function createGitHubMainBranchTransport"), githubMainBranchTransport.indexOf("export function createGitHubBrowserAuthorizationTransport"));
+const mainOnlyTransport = githubMainBranchTransport.slice(githubMainBranchTransport.indexOf("export function createGitHubMainBranchTransport"), githubMainBranchTransport.indexOf("export function createGitHubObserverAuthorizationTransport"));
 assert.doesNotMatch(mainOnlyTransport, /pulls|issues|comments/iu);
-for (const route of ["pulls/1546/reviews/", "issues/comments/", "collaborators/"]) requireText(githubMainBranchTransport, route, "bounded Browser authority GET route missing");
+for (const route of ["pulls/${pullRequest}/reviews/", "issues/comments/", "collaborators/"]) requireText(githubMainBranchTransport, route, "bounded authority GET route missing");
 assert.doesNotMatch(
   githubMainBranchTransport,
   /GITHUB_TOKEN|GH_TOKEN|auth status|credential/iu,

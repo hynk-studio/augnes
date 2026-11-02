@@ -1,7 +1,3 @@
-import { GUIDE_CORRECTION_SCHEMA, isGuideCorrection, validGuideCorrectionAttempt } from "./local-canonical-guide-correction.mjs";
-import { isObserverRepair, validObserverAttempt } from "./local-canonical-observer-succession.mjs";
-import { TIMEOUT_REPAIR_SCHEMA, isCorrectedTimeout, validTimeoutAttempt } from "./local-canonical-timeout-succession.mjs";
-import { CONDITION_REQUALIFICATION_SCHEMA, isConditionRequalification, validConditionRequalificationAttempt } from "./local-canonical-condition-requalification.mjs";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { CANONICAL_REPOSITORY_ID } from "./canonical-repository-identity.mjs";
@@ -12,11 +8,8 @@ import { VERIFICATION_CONTEXT_CONTRACT } from "./local-canonical-verification-co
 import { VERIFICATION_CAPACITY_CONTRACT, verificationCapacityLimit } from "./local-canonical-capacity.mjs";
 import { HISTORICAL_INPUT_CONTRACT } from "./local-canonical-historical-inputs.mjs";
 import { supportedInputContract, digest, deriveOperationalDisposition, nonFaultInputChange, classifyInputChange, effectiveInputObservation, inputEventIdentity, validObservationDiagnostic, validInputFailureDiagnostics, validCanonicalRuntimeInputs, preparedDependencyIdentity, comparePreparedDependencyInputs } from "./local-canonical-inputs.mjs";
-import { ATTEMPT_CONTRACT, REVIEWED_REVISION_SCHEMA, isReviewedRevision, validReviewedRevisionAttempt, hasRetiredQualificationMarker, supportsSourceCorrection } from "./local-canonical-attempts.mjs";
+import { ATTEMPT_CONTRACT, REVIEWED_REVISION_SCHEMA, REVIEWED_REVISION_PHASES, isReviewedRevision, validReviewedRevisionAttempt, hasRetiredQualificationMarker, supportsSourceCorrection } from "./local-canonical-attempts.mjs";
 import { validPhaseBrowserUse } from "./local-canonical-browser-identity.mjs";
-import { BROWSER_INPUT_CONTRACT } from "./local-canonical-browser-input.mjs";
-import { BROWSER_REPLACEMENT_CONTRACT, BROWSER_REPLACEMENT_PHASES, isStrictBrowserSourceRevision } from "./local-canonical-browser-replacement.mjs";
-import { validBrowserBundle } from "./local-canonical-browser-bundle.mjs";
 
 export const LOCAL_CANONICAL_RECEIPT_SCHEMA =
   "augnes.local-canonical-receipt.v1";
@@ -140,7 +133,6 @@ export function assertPublicSafeReceipt(receipt) {
 export function inspectReceiptForDecision(receipt, options = {}) {
   const {
     currentInputStateValid = null,
-    currentBrowserInputValid = null,
     currentAttemptRecordsValid = null,
     currentIdentity = null,
     currentLocks = null,
@@ -156,8 +148,8 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     expectedRunId = null,
   } = options ?? {};
   const issues = [];
-  if (hasRetiredQualificationMarker(receipt?.attempt)) issues.push("receipt_qualification_route_retired");
-  if (receipt?.attempt?.source_correction && (!supportsSourceCorrection(receipt.attempt.source_correction) || ![4, 5].includes(receipt.receipt_version)))
+  if (hasRetiredQualificationMarker(receipt)) issues.push("receipt_qualification_route_retired");
+  if (receipt?.attempt?.source_correction && (!supportsSourceCorrection(receipt.attempt.source_correction) || receipt.receipt_version !== 4))
     issues.push("receipt_source_correction_invalid");
   try {
     assertPublicSafeReceipt(receipt);
@@ -167,7 +159,7 @@ export function inspectReceiptForDecision(receipt, options = {}) {
   if (receipt?.schema !== LOCAL_CANONICAL_RECEIPT_SCHEMA) {
     issues.push("receipt_schema_mismatch");
   }
-  if (![3, 4, 5].includes(receipt?.receipt_version)) {
+  if (![3, 4].includes(receipt?.receipt_version)) {
     issues.push("receipt_version_mismatch");
   }
   if (!verifyReceiptIntegrity(receipt)) {
@@ -615,22 +607,11 @@ export function inspectReceiptForDecision(receipt, options = {}) {
     }
   }
 
-  if ([4, 5].includes(receipt?.receipt_version)) {
+  if (receipt?.receipt_version === 4) {
     inspectClassifiedEvidence(receipt, issues);
     if (currentAttemptRecordsValid !== true) issues.push("receipt_attempt_records_unverified");
     if (currentInputStateValid !== true) issues.push("receipt_current_inputs_unverified");
   }
-  if (receipt?.receipt_version === 5) {
-    const b = receipt.browser_input, replacement = receipt.attempt?.browser_replacement, correction = receipt.attempt?.source_correction;
-    const strictSource = isStrictBrowserSourceRevision(correction) && receipt.attempt?.input_replacement_consumed === true;
-    const proof = replacement ?? correction;
-    if (b?.contract !== BROWSER_INPUT_CONTRACT || !validBrowserBundle(b?.bundle) || !SHA256_PATTERN.test(b?.fingerprint ?? "") ||
-        digest(b) !== digest(receipt.inputs?.binding?.browser_input) || (replacement ? replacement.contract !== BROWSER_REPLACEMENT_CONTRACT || !!correction : !strictSource) ||
-        digest(b) !== proof?.browser_input_sha256 || receipt.attempt?.recovery || receipt.attempt?.number !== 1 ||
-        receipt.browser_guard?.acquired !== true || receipt.browser_guard?.released !== true || receipt.browser_guard?.run_id !== receipt.run?.id ||
-        digest(receipt.phases?.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES) || receipt.evidence?.mode !== "full" ||
-        currentBrowserInputValid !== true || !receipt.inputs?.resources?.some(r => r?.id === "browser-bundle" && r.browserBundle === true && digest(r.before) === digest(b.bundle))) issues.push("receipt_browser_input_invalid");
-  } else if (receipt?.browser_input || receipt?.browser_guard || receipt?.attempt?.browser_replacement || receipt?.attempt?.source_correction?.browser_input_path || receipt?.inputs?.binding?.browser_input || (Array.isArray(receipt?.inputs?.resources) && receipt.inputs.resources.some(r => r?.browserBundle))) issues.push("receipt_browser_input_downgrade");
   const applicabilityCodes = new Set(["receipt_stale_integration_base", "receipt_current_integration_base_unavailable", "receipt_current_integration_base_invalid", "receipt_stale_head", "receipt_current_worktree_dirty", "receipt_stale_branch_state", "receipt_current_inputs_unverified"]);
   return {
     valid_deciding_evidence: issues.length === 0,
@@ -711,7 +692,7 @@ function inspectClassifiedEvidence(receipt, issues) {
   if ((attempt?.source_correction?.schema === REVIEWED_REVISION_SCHEMA) || attempt?.source_correction?.kind === "reviewed_revision" || attempt?.revision_authority || attempt?.reviewed_revision_consumed) {
     if (receipt.receipt_version !== 4 || !validReviewedRevisionAttempt(attempt) || receipt.evidence.mode !== "full" ||
         receipt.verification_context.kind !== "isolated-worktree" || attempt.source_correction.base !== receipt.repository.base_sha ||
-        digest(receipt.phases.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) issues.push("receipt_reviewed_revision_invalid");
+        digest(receipt.phases.map(p => p.id)) !== digest(REVIEWED_REVISION_PHASES)) issues.push("receipt_reviewed_revision_invalid");
     const runtime = input.binding?.runtime_inputs;
     const headers = input.resources.find(r => r.id === "node-headers");
     const node = input.resources.find(r => r.id === "node-executable");
@@ -721,31 +702,9 @@ function inspectClassifiedEvidence(receipt, issues) {
         attempt.source_correction?.inputs?.identity_sha256 !== digest(runtime) ||
         !["AUGNES_CANONICAL_NODE_HEADERS", "AUGNES_CANONICAL_NODE_HEADERS_FINGERPRINT", "npm_config_nodedir"].every(key => input.binding?.environment_keys?.includes(key))) issues.push("receipt_reviewed_revision_runtime_invalid");
   }
-  if (attempt?.source_correction?.schema === "augnes.local-canonical-source-correction.v3" || attempt?.observer_authority) {
-    if (receipt.receipt_version !== 4 || !validObserverAttempt(attempt) || receipt.evidence.mode !== "full" ||
-        receipt.verification_context.kind !== "isolated-worktree" || attempt.source_correction.base !== receipt.repository.base_sha ||
-        digest(receipt.phases.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) issues.push("receipt_observer_succession_invalid");
-  }
-  if (attempt?.source_correction?.schema === TIMEOUT_REPAIR_SCHEMA || attempt?.timeout_authority) {
-    if (receipt.receipt_version !== 4 || !validTimeoutAttempt(attempt) || receipt.evidence.mode !== "full" ||
-        receipt.verification_context.kind !== "isolated-worktree" || attempt.source_correction.base !== receipt.repository.base_sha ||
-        digest(receipt.phases.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) issues.push("receipt_timeout_succession_invalid");
-  }
-  if (attempt?.source_correction?.schema === CONDITION_REQUALIFICATION_SCHEMA || attempt?.source_correction?.kind === "condition_requalification" || attempt?.condition_authority || attempt?.condition_requalification_consumed) {
-    if (receipt.receipt_version !== 4 || !validConditionRequalificationAttempt(attempt) || receipt.evidence.mode !== "full" ||
-        receipt.verification_context.kind !== "isolated-worktree" || attempt.source_correction.base !== receipt.repository.base_sha ||
-        digest(receipt.phases.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) issues.push("receipt_condition_requalification_invalid");
-  }
-
-  if (attempt?.source_correction?.schema === GUIDE_CORRECTION_SCHEMA || attempt?.source_correction?.kind === "guide_cancellation_correction" || attempt?.guide_authority || attempt?.guide_correction_consumed) {
-    if (receipt.receipt_version !== 4 || !validGuideCorrectionAttempt(attempt) || receipt.evidence.mode !== "full" ||
-        receipt.verification_context.kind !== "isolated-worktree" || attempt.source_correction.base !== receipt.repository.base_sha ||
-        digest(receipt.phases.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) issues.push("receipt_guide_correction_invalid");
-  }
-
   if (receipt.evidence.mode !== "quick" && (attempt?.contract !== ATTEMPT_CONTRACT || ![1, 2].includes(attempt.number) ||
       attempt.attempt_id !== receipt.run.id || attempt.head !== receipt.repository.head_sha || attempt.tree !== receipt.repository.tree_sha ||
-      attempt.contract_fingerprint !== input.fingerprint || attempt.budget?.initial !== 1 || attempt.budget?.recovery !== (receipt.receipt_version === 5 || isObserverRepair(attempt.source_correction) || isCorrectedTimeout(attempt.source_correction) || isConditionRequalification(attempt.source_correction) || isGuideCorrection(attempt.source_correction) || isReviewedRevision(attempt.source_correction) ? 0 : 1) ||
+      attempt.contract_fingerprint !== input.fingerprint || attempt.budget?.initial !== 1 || attempt.budget?.recovery !== (isReviewedRevision(attempt.source_correction) ? 0 : 1) ||
       (attempt.number === 1 && (attempt.prior_attempt_id !== null || attempt.recovery !== null)) ||
       (attempt.number === 2 && (!SHA256_PATTERN.test(attempt.prior_receipt_fingerprint ?? "") || !attempt.recovery)))) issues.push("receipt_attempt_lineage_invalid");
   const expectedBrowser = input.resources.find(r => r.id === "browser-executable");
@@ -755,7 +714,7 @@ function inspectClassifiedEvidence(receipt, issues) {
       if (phase.browser_use?.length) issues.push(`receipt_browser_identity_invalid:${safeIdentifier(phase.id)}`);
       continue;
     }
-    if (!validPhaseBrowserUse(phase, phase.browser_use ?? [], expectedBrowser ? { ...expectedBrowser, actual_version: actualVersion, ...(receipt.receipt_version === 5 ? { browser_input: receipt.browser_input } : {}) } : null))
+    if (!validPhaseBrowserUse(phase, phase.browser_use ?? [], expectedBrowser ? { ...expectedBrowser, actual_version: actualVersion } : null))
       issues.push(`receipt_browser_identity_invalid:${safeIdentifier(phase.id)}`);
     actualVersion ??= phase.browser_use?.[0]?.actual_version ?? null;
   }

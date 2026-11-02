@@ -16,6 +16,7 @@ import { EXECUTION_CHOICE_TOOL } from "../plugins/augnes-operator/mcp/execution-
 import { POST as review } from "../app/api/augnes/review/route";
 import { handleMessageV01 } from "../plugins/augnes-operator/mcp/companion-proxy.mjs";
 import { createRequestBoundReviewAdapter } from "../plugins/augnes-operator/mcp/request-bound-review.mjs";
+assert(!process.argv.includes("--reproduce"), "historical_reproduction_retired");
 const [mode, directory] = process.argv.slice(2), dbPath = path.join(directory, "fixture.db"), root = path.join(directory, "project");
 const artifactDirectory = path.join(directory, "artifacts");
 const save = (name: string, value: unknown) => writeFileSync(path.join(artifactDirectory, name + ".json"), JSON.stringify(value, null, 2) + "\n");

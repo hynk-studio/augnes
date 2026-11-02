@@ -1,10 +1,6 @@
 #!/usr/bin/env node
 import { CLOSEOUT_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
-import { isGuideCorrection, authorizeGuideCorrection } from "./local-canonical-guide-correction.mjs";
 
-import { isObserverRepair, authorizeObserverRepair } from "./local-canonical-observer-succession.mjs";
-import { isCorrectedTimeout, authorizeCorrectedTimeout } from "./local-canonical-timeout-succession.mjs";
-import { isConditionRequalification, authorizeConditionRequalification } from "./local-canonical-condition-requalification.mjs";
 
 import { createHash, randomBytes } from "node:crypto";
 import {
@@ -22,10 +18,8 @@ import {
 } from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { freezeInputContract, monitorInputContract, digest, deriveOperationalDisposition, createInputReader, classifyInputChange, nonFaultInputChange, inputReadOptions, commonInputResources, supportedInputContract, createGitTrackingResource, observeCanonicalRuntimeInputs, canonicalRuntimeInputEnvironment, observePreparedDependencyInputs, preparedDependencyIdentity } from "./local-canonical-inputs.mjs";
-import { readBrowserInputBinding, browserInputEnvironment, selectedBrowserInput, acquireBrowserInputGuard, releaseBrowserInputGuard, assertBrowserInputGuard } from "./local-canonical-browser-input.mjs";
-import { readBrowserReplacementProof, authorizeBrowserReplacement, BROWSER_REPLACEMENT_PHASES, isStrictBrowserSourceRevision } from "./local-canonical-browser-replacement.mjs";
-import { beginAttempt, finishAttempt, readRecoveryProof, readSourceCorrectionProof, inspectAttemptRecords, hasRetiredQualificationMarker, isReviewedRevision, authorizeReviewedRevision } from "./local-canonical-attempts.mjs";
+import { freezeInputContract, monitorInputContract, digest, deriveOperationalDisposition, createInputReader, classifyInputChange, nonFaultInputChange, inputReadOptions, supportedInputContract, createGitTrackingResource, observeCanonicalRuntimeInputs, canonicalRuntimeInputEnvironment, observePreparedDependencyInputs, preparedDependencyIdentity } from "./local-canonical-inputs.mjs";
+import { beginAttempt, finishAttempt, readRecoveryProof, readSourceCorrectionProof, inspectAttemptRecords, hasRetiredQualificationMarker, isReviewedRevision, authorizeReviewedRevision, REVIEWED_REVISION_PHASES } from "./local-canonical-attempts.mjs";
 import { pinVerificationEvidence, readPinnedEvidence } from "./local-canonical-evidence-retention.mjs";
 import { BROWSER_IDENTITY_PREFIX, validPhaseBrowserUse, browserConsumersForPhase, MAX_BROWSER_USE_RECORDS, parseBrowserUseLine } from "./local-canonical-browser-identity.mjs";
 import { fileURLToPath } from "node:url";
@@ -111,7 +105,6 @@ const GENERATED_NEXT_DIRECTORY = ".next";
 const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/local-canonical-browser-bundle.mjs",
   "scripts/local-canonical-browser-input.mjs",
-  "scripts/local-canonical-browser-replacement.mjs",
   "scripts/browser-verification-owners.v1.json",
   "scripts/canonical-change-planner.mjs",
   "scripts/codex-reuse-verification-ownership.mjs",
@@ -131,11 +124,7 @@ const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/local-canonical-receipt.mjs",
   "scripts/local-canonical-inputs.mjs",
   "scripts/local-canonical-attempts.mjs",
-  "scripts/local-canonical-observer-succession.mjs",
-  "scripts/local-canonical-timeout-succession.mjs",
   "scripts/local-canonical-closeout-budgets.mjs",
-  "scripts/local-canonical-condition-requalification.mjs",
-  "scripts/local-canonical-guide-correction.mjs",
   "scripts/local-canonical-evidence-retention.mjs",
   "scripts/local-canonical-review-export.mjs",
   "scripts/export-local-canonical-review.mjs",
@@ -480,8 +469,9 @@ export async function executeLocalCanonicalVerification({
   signal: externalSignal,
   recoveryProofPath = null,
   sourceCorrectionProofPath = null,
-  browserReplacementProofPath = null,
+  ...retiredOptions
 }) {
+  if (Object.hasOwn(retiredOptions, "browserReplacementProofPath")) throw Object.assign(new Error("qualification_route_retired"), { code: "qualification_route_retired" });
   const controller = new AbortController();
   const forwardCancellation = () => controller.abort({ disposition: "user_cancellation" });
   externalSignal?.addEventListener("abort", forwardCancellation, { once: true });
@@ -507,24 +497,12 @@ export async function executeLocalCanonicalVerification({
     mode, baseSha, headSha,
   });
 
-  const browserReplacement = browserReplacementProofPath ? readBrowserReplacementProof(browserReplacementProofPath, repositoryRoot) : null;
   const sourceCorrection = sourceCorrectionProofPath ? readSourceCorrectionProof(resolveArtifactPath(sourceCorrectionProofPath), repositoryRoot) : null;
-  if (isReviewedRevision(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
+  if (isReviewedRevision(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || plan.selected_plan !== "full-canonical"))
     throw Object.assign(new Error("reviewed_revision_full_route_required"), { code: "reviewed_revision_full_route_required" });
   const runtimeInputs = isReviewedRevision(sourceCorrection) ? observeCanonicalRuntimeInputs() : null;
   assertRuntimeInputSelection(runtimeInputs);
-  if (isObserverRepair(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
-    throw Object.assign(new Error("observer_full_route_required"), { code: "observer_full_route_required" });
-  if (isCorrectedTimeout(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
-    throw Object.assign(new Error("timeout_full_route_required"), { code: "timeout_full_route_required" });
-  if (isConditionRequalification(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
-    throw Object.assign(new Error("condition_full_route_required"), { code: "condition_full_route_required" });
-  if (isGuideCorrection(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || browserReplacement || plan.selected_plan !== "full-canonical"))
-    throw Object.assign(new Error("guide_full_route_required"), { code: "guide_full_route_required" });
-  const strictProof = browserReplacement ?? (isStrictBrowserSourceRevision(sourceCorrection) ? sourceCorrection : null);
-  const browserInput = strictProof ? readBrowserInputBinding(strictProof.browser_input_path, repositoryRoot) : selectedBrowserInput({ repositoryRoot });
-  if ((browserInput && !strictProof) || (strictProof && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath)) || (browserReplacement && sourceCorrection)) throw Object.assign(new Error("browser_replacement_route_required"), { code: "browser_replacement_route_required" });
-  const hostResult = collectHostEnvironment(repositoryRoot, { browserInput });
+  const hostResult = collectHostEnvironment(repositoryRoot);
   const host = hostResult.public;
   const nodePolicy = evaluateNodePolicy();
   const locks = collectLockFingerprints();
@@ -613,7 +591,7 @@ export async function executeLocalCanonicalVerification({
   }
 
   const generatedNextManaged = managesGeneratedNextState(plan.selected_plan);
-  let inputs = null, inputMonitor = null, attempt = null, browserGuard = null, browserGuardReleased = false;
+  let inputs = null, inputMonitor = null, attempt = null;
   let checkoutOwner = null;
   const checkoutOwnership = {
     required: requiresCheckoutVerificationOwnership(plan.selected_plan) || checkoutContext === "isolated-worktree" || (mode !== "quick" && phaseDefinitions.length > 0),
@@ -744,13 +722,11 @@ export async function executeLocalCanonicalVerification({
       }
       // Refused checkout contenders need a receipt, but have no phase logs.
       ensureBoundedLocalDirectory(repositoryRoot, runLogRoot);
-      if (browserInput) browserGuard = acquireBrowserInputGuard({ repositoryRoot, checkoutOwner, binding: browserInput, runId });
-      inputs = prepareInvocationInputs({ verificationContext, isolatedResources, browserExecutablePath: hostResult.browserExecutablePath, browserInput, runtimeInputs, headSha, executorFingerprint, phaseDefinitions });
+      inputs = prepareInvocationInputs({ verificationContext, isolatedResources, browserExecutablePath: hostResult.browserExecutablePath, runtimeInputs, headSha, executorFingerprint, phaseDefinitions });
       const assertOwnedInputs = () => {
         if (checkoutOwner) assertCheckoutVerificationOwnership(checkoutOwner, repositoryRoot);
         if (capacityLease) assertVerificationCapacity(capacityLease, verificationContext);
         if (mode !== "quick") assertFrozenSource(identityBefore, verificationContext);
-        if (browserGuard) assertBrowserInputGuard(browserGuard);
       };
       inputMonitor = monitorInputContract(inputs, controller, { assertOwner: assertOwnedInputs });
       if (inputMonitor.check()) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
@@ -769,37 +745,21 @@ export async function executeLocalCanonicalVerification({
             const revisionAuthorization = isReviewedRevision(sourceCorrection) ? await authorizeReviewedRevision(sourceCorrection) : null;
             const revisionLive = sourceCorrection?.settlement ? await observeReviewedRevisionSettlementState(verificationContext) : null;
             if (revisionAuthorization && (mode !== "full" || checkoutContext !== "isolated-worktree" || plan.selected_plan !== "full-canonical" ||
-                digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES))) throw Object.assign(new Error("reviewed_revision_workload_invalid"), { code: "reviewed_revision_workload_invalid" });
+                digest(phaseDefinitions.map(p => p.id)) !== digest(REVIEWED_REVISION_PHASES))) throw Object.assign(new Error("reviewed_revision_workload_invalid"), { code: "reviewed_revision_workload_invalid" });
             if (revisionAuthorization) inputs.check({ force: true });
             if (revisionAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
-            const observerAuthorization = isObserverRepair(sourceCorrection) ? await authorizeObserverRepair(sourceCorrection) : null;
-            if (observerAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
-            if (observerAuthorization && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("observer_workload_invalid"), { code: "observer_workload_invalid" });
-            const timeoutAuthorization = isCorrectedTimeout(sourceCorrection) ? await authorizeCorrectedTimeout(sourceCorrection) : null;
-            if (timeoutAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
-            if (timeoutAuthorization && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("timeout_workload_invalid"), { code: "timeout_workload_invalid" });
-            const conditionAuthorization = isConditionRequalification(sourceCorrection) ? await authorizeConditionRequalification(sourceCorrection) : null;
-            if (conditionAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
-            if (conditionAuthorization && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("condition_workload_invalid"), { code: "condition_workload_invalid" });
-            const guideAuthorization = isGuideCorrection(sourceCorrection) ? await authorizeGuideCorrection(sourceCorrection) : null;
-            if (guideAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
-            if (guideAuthorization && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("guide_workload_invalid"), { code: "guide_workload_invalid" });
-            const browserAuthorization = strictProof ? await authorizeBrowserReplacement(strictProof) : null;
-            if (strictProof && digest(phaseDefinitions.map(p => p.id)) !== digest(BROWSER_REPLACEMENT_PHASES)) throw Object.assign(new Error("browser_replacement_workload_invalid"), { code: "browser_replacement_workload_invalid" });
             attempt = beginAttempt({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, checkoutOwner,
               branch: identityBefore.branch, head: headSha, tree: inputs.snapshot().binding.tree, runId,
               contractFingerprint: inputs.snapshot().fingerprint, acceptedMain: baseSha,
               recoveryProof: recoveryProofPath ? readRecoveryProof(resolveArtifactPath(recoveryProofPath)) : null,
-              sourceCorrection, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization, revisionAuthorization, revisionInputs: runtimeInputs, revisionLive,
-              browserReplacement, browserAuthorization,
-              browserLive: browserInput ? browserReplacementLiveBinding({ browserInput, host, machineFingerprint, nodePolicy, executorFingerprint, phaseDefinitions, inputs: inputs.snapshot() }) : null });
+              sourceCorrection, revisionAuthorization, revisionInputs: runtimeInputs, revisionLive });
             pinVerificationEvidence({ root: repositoryRoot, checkoutOwner, runId, reason: "attempt_family" });
           }
           checkoutConsumersSettled = false;
           const result = await executePhase({
-            phase, mode, runLogRoot, isolatedResources, signal, invocationId, browserInput, runtimeInputs,
+            phase, mode, runLogRoot, isolatedResources, signal, invocationId, runtimeInputs,
             browserExecutablePath: hostResult.browserExecutablePath,
-            expectedBrowser: { ...inputs.snapshot().resources.find(r => r.id === "browser-executable"), actual_version: actualBrowserVersion, ...(browserInput ? { browser_input: browserInput.publicBinding } : {}) },
+            expectedBrowser: { ...inputs.snapshot().resources.find(r => r.id === "browser-executable"), actual_version: actualBrowserVersion },
           });
           actualBrowserVersion ??= result.browser_use?.[0]?.actual_version ?? null;
           checkoutConsumersSettled = result.cleanup?.completed === true &&
@@ -944,10 +904,6 @@ export async function executeLocalCanonicalVerification({
       }
       inputMonitor?.stop();
       if (inputMonitor?.fault()) executionFailure = true;
-      if (browserGuard) {
-        try { releaseBrowserInputGuard(browserGuard, { settled: checkoutConsumersSettled }); browserGuardReleased = true; }
-        catch (error) { recordCleanupFailure(safeErrorCode(error)); }
-      }
       if (checkoutOwner) {
         try {
           Object.assign(checkoutOwnership, releaseCheckoutVerificationOwnership(checkoutOwner, repositoryRoot, {
@@ -980,7 +936,6 @@ export async function executeLocalCanonicalVerification({
     recordCleanupFailure("executor_consumers_unsettled");
   if ((checkoutOwnership.acquired && checkoutOwnership.released !== true) ||
       (capacityOwnership.acquired && capacityOwnership.released !== true) ||
-      (browserGuard && !browserGuardReleased) ||
       (dependencyMaintenance?.acquired && dependencyMaintenanceRelease?.released !== true))
     recordCleanupFailure("executor_lease_settlement_unobserved");
   if ((isolatedResources && isolatedResourceCleanup?.completed !== true) ||
@@ -1083,7 +1038,7 @@ export async function executeLocalCanonicalVerification({
   const disposition = executionReason && observedDisposition === "completed_success" ? "product_failure" : observedDisposition;
   const receipt = finalizeReceipt({
     schema: LOCAL_CANONICAL_RECEIPT_SCHEMA,
-    receipt_version: browserInput ? 5 : LOCAL_CANONICAL_RECEIPT_VERSION,
+    receipt_version: LOCAL_CANONICAL_RECEIPT_VERSION,
     repository: {
       repository_id: identityBefore.repository_id,
       origin: identityBefore.origin,
@@ -1096,7 +1051,6 @@ export async function executeLocalCanonicalVerification({
       worktree_after: identityAfter.worktree_dirty ? "dirty" : "clean",
     },
     inputs: inputs?.snapshot() ?? null,
-    ...(browserInput ? { browser_input: browserInput.publicBinding, browser_guard: { acquired: browserGuard !== null, released: browserGuardReleased, run_id: runId } } : {}),
     attempt: attempt ? { ...attempt } : null,
     outcome: { disposition, first_fault: inputMonitor?.fault() ?? null, execution: !executionFailure && allSelectedPhasesPassed ? "complete_pass" : "incomplete_or_failed",
       validity: inputs && !executionReason && !inputMonitor?.fault() && cleanupComplete ? "valid_within_observed_scope" : "invalid_or_unknown",
@@ -1271,17 +1225,17 @@ export async function executeLocalCanonicalVerification({
   };
 }
 
-export function prepareInvocationInputs({ verificationContext, isolatedResources, browserExecutablePath, browserInput = null, runtimeInputs = null, headSha, executorFingerprint, phaseDefinitions }) {
+export function prepareInvocationInputs({ verificationContext, isolatedResources, browserExecutablePath, runtimeInputs = null, headSha, executorFingerprint, phaseDefinitions }) {
   if ((verificationContext.kind === "isolated-worktree") !== Boolean(isolatedResources))
     throw Object.assign(new Error("input_isolation_context_mismatch"), { code: "input_isolation_context_mismatch" });
-  const environments = phaseDefinitions.map(phase => ({ id: phase.id, values: phaseEnvironment({ phase, isolatedResources, browserExecutablePath, browserInput, runtimeInputs }) }));
-  const resources = invocationInputResources({ verificationContext, browserExecutablePath, browserInput, runtimeInputs });
+  const environments = phaseDefinitions.map(phase => ({ id: phase.id, values: phaseEnvironment({ phase, isolatedResources, browserExecutablePath, runtimeInputs }) }));
+  const resources = invocationInputResources({ verificationContext, browserExecutablePath, runtimeInputs });
   const frozen = freezeInputContract({ resources, pathKind: isolatedResources ? "isolated-model-free-v1" : "canonical-conservative-v1",
     binding: { head: headSha, tree: runGit(repositoryRoot, ["rev-parse", `${headSha}^{tree}`]).trim(),
       executor_fingerprint: executorFingerprint, phase_inventory: digest(phaseDefinitions),
       phase_environment_fingerprints: environments.map(e => ({ id: e.id, fingerprint: digest(e.values) })),
       environment_keys: [...new Set(environments.flatMap(e => Object.keys(e.values)))].sort(), authenticated_transport: "github_authenticated_main_branch_get",
-      provider_policy: "no_live_model_calls;private_fixture_adapters_only", ...(runtimeInputs ? { runtime_inputs: runtimeInputs } : {}), ...(browserInput ? { browser_input: browserInput.publicBinding } : {}) } });
+      provider_policy: "no_live_model_calls;private_fixture_adapters_only", ...(runtimeInputs ? { runtime_inputs: runtimeInputs } : {}) } });
   if (runtimeInputs) {
     for (const [role, id] of [["node", "node-executable"], ["headers", "node-headers"]]) {
       const resource = frozen.snapshot().resources.find(r => r.id === id);
@@ -1292,12 +1246,10 @@ export function prepareInvocationInputs({ verificationContext, isolatedResources
   return frozen;
 }
 
-function invocationInputResources({ verificationContext, browserExecutablePath, browserInput = null, runtimeInputs = null }) {
+function invocationInputResources({ verificationContext, browserExecutablePath, runtimeInputs = null }) {
   const isolated = verificationContext.kind === "isolated-worktree";
   const userHome = os.userInfo().homedir;
   return [
-    ...(browserInput ? [{ id: "browser-bundle", file: browserInput.root, classification: "execution", browserBundle: true },
-      { id: "browser-binding", file: browserInput.file, classification: "execution" }, { id: "browser-reference", file: browserInput.referenceFile, classification: "execution" }] : []),
     { id: "codex-preferences", file: path.join(userHome, ".codex", "config.toml"), classification: isolated ? "ambient" : "unknown", excludePreferences: isolated },
     { id: "user-instructions", file: path.join(userHome, ".codex", "AGENTS.md"), classification: "safety" },
     { id: "auth-location", file: path.join(userHome, ".codex", "auth.json"), classification: "safety", metadataOnly: true },
@@ -1319,10 +1271,10 @@ function invocationInputResources({ verificationContext, browserExecutablePath, 
   ];
 }
 
-function currentInputEvidenceValid(receipt, verificationContext, browserExecutablePath, browserInput = null, runtimeInputs = null) {
+function currentInputEvidenceValid(receipt, verificationContext, browserExecutablePath, runtimeInputs = null) {
   try {
     if (digest(runtimeInputs) !== digest(receipt.inputs?.binding?.runtime_inputs ?? null)) return false;
-    const resources = invocationInputResources({ verificationContext, browserExecutablePath, browserInput, runtimeInputs });
+    const resources = invocationInputResources({ verificationContext, browserExecutablePath, runtimeInputs });
     const readInput = createInputReader();
     const declared = receipt.inputs?.resources;
     if (!supportedInputContract(receipt.inputs?.contract) || !Array.isArray(declared) || resources.length !== declared.length) return false;
@@ -1357,15 +1309,6 @@ function resolveExecutionTool(name) {
   throw Object.assign(new Error("declared_tool_unavailable"), { code: "declared_tool_unavailable" });
 }
 
-export function browserReplacementLiveBinding({ browserInput, host, machineFingerprint, nodePolicy, executorFingerprint, phaseDefinitions, inputs }) {
-  return { browserInput, executorFingerprint,
-    environmentFingerprint: digest({ machine_fingerprint: machineFingerprint, operating_system: host.operating_system,
-      operating_system_version: host.operating_system_version, operating_system_build: host.operating_system_build,
-      architecture: host.architecture, node: nodePolicy.actual_version, path_node: host.path_node_version, npm: host.npm_version,
-      tool_inputs: inputs.resources.filter(r => ["node-executable", "npm-executable", "git-executable", "gh-executable"].includes(r.id)) }),
-    workloadFingerprint: digest(phaseDefinitions), commonInputsSha256: digest(commonInputResources(inputs)) };
-}
-
 function assertFrozenSource(identityBefore, verificationContext) {
   // The full physical-context admission remains at each phase boundary. This
   // small poll covers tracked/untracked source without rescanning node_modules.
@@ -1387,22 +1330,18 @@ function lifecycleStateRestored(before, after) {
     before.service_identity === after.service_identity;
 }
 
-export function readStockBrowserInput(receipt, root = repositoryRoot) {
-  if (hasRetiredQualificationMarker(receipt?.attempt)) throw Object.assign(new Error("qualification_route_retired"), { code: "qualification_route_retired" });
-  if (![3, 4, 5].includes(receipt?.receipt_version)) throw Object.assign(new Error("stock_receipt_version_unsupported"), { code: "stock_receipt_version_unsupported" });
-  if (receipt.receipt_version === 5) return readBrowserInputBinding(receipt.browser_input?.local_relative_path, root);
-  if (receipt.browser_input || receipt.browser_guard || receipt.attempt?.browser_replacement || receipt.attempt?.source_correction?.browser_input_path || receipt.inputs?.binding?.browser_input ||
-      (Array.isArray(receipt.inputs?.resources) && receipt.inputs.resources.some(r => r?.browserBundle))) throw Object.assign(new Error("stock_browser_input_downgrade"), { code: "stock_browser_input_downgrade" });
-  return null;
+export function assertStockReceiptSupported(receipt) {
+  if (hasRetiredQualificationMarker(receipt)) throw Object.assign(new Error("qualification_route_retired"), { code: "qualification_route_retired" });
+  if (![3, 4].includes(receipt?.receipt_version)) throw Object.assign(new Error("stock_receipt_version_unsupported"), { code: "stock_receipt_version_unsupported" });
 }
 
-export function readStockMachineIdentity(receipt, machineRoot, browserInput = null) {
-  if (hasRetiredQualificationMarker(receipt?.attempt)) throw Object.assign(new Error("qualification_route_retired"), { code: "qualification_route_retired" });
+export function readStockMachineIdentity(receipt, machineRoot) {
+  if (hasRetiredQualificationMarker(receipt)) throw Object.assign(new Error("qualification_route_retired"), { code: "qualification_route_retired" });
   // This prospective route reconstructs existing identity; absence is not repair.
   const attempt = receipt.attempt;
   const revision = (attempt?.source_correction?.schema === "augnes.local-canonical-source-correction.v7") ||
     attempt?.source_correction?.kind === "reviewed_revision" || attempt?.revision_authority || attempt?.reviewed_revision_consumed;
-  return browserInput || revision
+  return revision
     ? readMachineFingerprint(machineRoot) : ensureMachineFingerprint(machineRoot);
 }
 
@@ -1410,17 +1349,17 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
   const verificationContext = admitVerificationContext({ repositoryRoot, kind: checkoutContext });
   const receiptPath = resolveArtifactPath(relativeReceiptPath);
   const receipt = readReceiptFile(receiptPath);
-  const browserInput = readStockBrowserInput(receipt);
+  assertStockReceiptSupported(receipt);
   const identity = collectRepositoryIdentity(repositoryRoot, { verificationContext });
   const locks = collectLockFingerprints();
   const executorFingerprint = computeExecutorSourceFingerprint();
-  // This path reconstructs only. In particular the new lane cannot acquire a
-  // guard, create a machine identity or claim/repair a successor during stock.
-  const validationHost = collectHostEnvironment(repositoryRoot, { browserInput });
+  // Reviewed revisions reconstruct existing identity without claiming or
+  // repairing a successor during stock validation.
+  const validationHost = collectHostEnvironment(repositoryRoot);
   const host = validationHost.public;
   const nodePolicy = evaluateNodePolicy();
   const machineRoot = path.join(verificationAnchorRoot(verificationContext), LOCAL_ARTIFACT_DIRECTORY);
-  const machineFingerprint = readStockMachineIdentity(receipt, machineRoot, browserInput);
+  const machineFingerprint = readStockMachineIdentity(receipt, machineRoot);
   let currentIntegrationBase = null;
   if (["changed", "full"].includes(receipt?.evidence?.mode)) {
     try {
@@ -1472,30 +1411,6 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
       targetedPhaseIds: expectedTargetedPhaseIds,
     }).map((phase) => phase.id);
   }
-  let browserAuthorization = null, browserLive = null;
-  if (browserInput) {
-    try {
-      browserAuthorization = await authorizeBrowserReplacement(receipt.attempt?.browser_replacement ?? receipt.attempt?.source_correction);
-      const phases = buildPhasePlan({ mode: "full", selectedPlan: "full-canonical", baseSha: receipt.repository.base_sha, headSha: receipt.repository.head_sha, browserPhaseIds: expectedBrowserPhaseIds, targetedPhaseIds: [] });
-      browserLive = browserReplacementLiveBinding({ browserInput, host, nodePolicy, machineFingerprint, executorFingerprint, phaseDefinitions: phases, inputs: receipt.inputs });
-    } catch { /* reported as unverified, never repaired */ }
-  }
-  let observerAuthorization = null;
-  if (isObserverRepair(receipt.attempt?.source_correction)) {
-    try { observerAuthorization = await authorizeObserverRepair(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
-  }
-  let timeoutAuthorization = null;
-  if (isCorrectedTimeout(receipt.attempt?.source_correction)) {
-    try { timeoutAuthorization = await authorizeCorrectedTimeout(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
-  }
-  let conditionAuthorization = null;
-  if (isConditionRequalification(receipt.attempt?.source_correction)) {
-    try { conditionAuthorization = await authorizeConditionRequalification(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
-  }
-  let guideAuthorization = null;
-  if (isGuideCorrection(receipt.attempt?.source_correction)) {
-    try { guideAuthorization = await authorizeGuideCorrection(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
-  }
   let revisionAuthorization = null, revisionLive = null;
   let runtimeInputs = null;
   if (isReviewedRevision(receipt.attempt?.source_correction)) {
@@ -1504,9 +1419,8 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
     if (receipt.attempt.source_correction.settlement) try { revisionLive = await observeReviewedRevisionSettlementState(verificationContext); } catch { /* stock refuses unsafe or unavailable current settlement */ }
   }
   return inspectReceiptForDecision(receipt, {
-    currentInputStateValid: [4, 5].includes(receipt.receipt_version) ? currentInputEvidenceValid(receipt, verificationContext, validationHost.browserExecutablePath, browserInput, runtimeInputs) : null,
-    currentAttemptRecordsValid: [4, 5].includes(receipt.receipt_version) ? inspectAttemptRecords({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, receipt, browserAuthorization, browserLive, observerAuthorization, timeoutAuthorization, conditionAuthorization, guideAuthorization, revisionAuthorization, revisionInputs: runtimeInputs, revisionLive }) : null,
-    currentBrowserInputValid: browserInput ? digest(browserInput.publicBinding) === digest(receipt.browser_input) && !existsSync(path.join(repositoryRoot, ".augnes-local-verification/browser-input-active.json")) : null,
+    currentInputStateValid: receipt.receipt_version === 4 ? currentInputEvidenceValid(receipt, verificationContext, validationHost.browserExecutablePath, runtimeInputs) : null,
+    currentAttemptRecordsValid: receipt.receipt_version === 4 ? inspectAttemptRecords({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, receipt, revisionAuthorization, revisionInputs: runtimeInputs, revisionLive }) : null,
     currentVerificationContext: verificationContext,
     expectedRunId: path.basename(receiptPath, ".json"),
     currentIntegrationBase,
@@ -1909,7 +1823,6 @@ export async function executePhase({
   mode,
   runLogRoot,
   browserExecutablePath = null,
-  browserInput = null,
   runtimeInputs = null,
   expectedBrowser = null,
   isolatedResources = null,
@@ -1926,7 +1839,7 @@ export async function executePhase({
   );
   const logPath = path.join(repositoryRoot, logRelativePath);
   const browserUse = [];
-  const environment = phaseEnvironment({ phase, isolatedResources, browserExecutablePath, browserInput, runtimeInputs });
+  const environment = phaseEnvironment({ phase, isolatedResources, browserExecutablePath, runtimeInputs });
   const environmentFingerprint = digest(environment);
   const capture = createBoundedCapture(logPath, record => {
     // One overflow entry preserves refusal without unbounded capture.
@@ -2042,7 +1955,7 @@ export function assertRuntimeInputSelection(runtimeInputs, ambient = process.env
   }
 }
 
-export function phaseEnvironment({ phase, isolatedResources, browserExecutablePath, browserInput = null, runtimeInputs = null }) {
+export function phaseEnvironment({ phase, isolatedResources, browserExecutablePath, runtimeInputs = null }) {
   const environment = isolatedResources ? {
     ...isolatedInvocationEnvironment(isolatedResources),
     ...(browserExecutablePath ? { AUGNES_BROWSER_EXECUTABLE_PATH: browserExecutablePath } : {}),
@@ -2053,7 +1966,7 @@ export function phaseEnvironment({ phase, isolatedResources, browserExecutablePa
     AUGNES_CANONICAL_NODE_HEADERS: path.join(path.dirname(path.dirname(realpathSync(process.execPath))), "include", "node"),
     AUGNES_CANONICAL_NODE_HEADERS_FINGERPRINT: digest(runtimeInputs.headers.observation),
   }));
-  return browserInput ? { ...environment, ...browserInputEnvironment(browserInput) } : environment;
+  return environment;
 }
 
 function notRunPhaseReceipt(phase) {
@@ -2330,8 +2243,9 @@ function parseCli(argv) {
     options.set(normalized, value);
   }
   const allowed =
-    mode === "validate" ? new Set(["receipt", "checkout-context"]) : new Set(["base", "head", "checkout-context", "recovery-proof", "source-correction-proof", "browser-replacement-proof"]);
+    mode === "validate" ? new Set(["receipt", "checkout-context"]) : new Set(["base", "head", "checkout-context", "recovery-proof", "source-correction-proof"]);
   for (const key of options.keys()) {
+    if (key === "browser-replacement-proof") throw Object.assign(new Error("qualification_route_retired"), { code: "qualification_route_retired" });
     if (!allowed.has(key)) {
       const error = new Error("unknown local canonical argument");
       error.code = "unknown_local_canonical_argument";
@@ -2361,7 +2275,6 @@ function parseCli(argv) {
     checkoutContext: options.get("checkout-context") ?? "canonical",
     recoveryProofPath: options.get("recovery-proof") ?? null,
     sourceCorrectionProofPath: options.get("source-correction-proof") ?? null,
-    browserReplacementProofPath: options.get("browser-replacement-proof") ?? null,
   };
 }
 

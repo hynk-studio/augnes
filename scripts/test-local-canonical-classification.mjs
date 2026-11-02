@@ -8,9 +8,9 @@ import { runCanonicalChild as executeChild } from "./canonical-child-runner.mjs"
 import { INPUT_CONTRACT, LEGACY_INPUT_CONTRACT, freezeInputContract, classifyInputChange, observeInputFile, monitorInputContract, digest, deriveOperationalDisposition, commonInputResources, inputReadOptions, inputEventIdentity, createInputReader, observeCanonicalRuntimeInputs, canonicalRuntimeInputEnvironment, observePreparedDependencyInputs, preparedDependencyIdentity } from "./local-canonical-inputs.mjs";
 import * as gitInputApi from "./local-canonical-inputs.mjs";
 import { runGitInputControls } from "./fixtures/local-canonical-git-input.mjs";
-import { beginAttempt, finishAttempt, inspectAttemptRecords, readRecoveryProof, readSourceCorrectionProof } from "./local-canonical-attempts.mjs";
+import { beginAttempt, finishAttempt, inspectAttemptRecords, reconstructAttemptTip, readRecoveryProof, readSourceCorrectionProof } from "./local-canonical-attempts.mjs";
 import { acquireCheckoutVerificationOwnership, releaseCheckoutVerificationOwnership } from "./local-canonical-checkout-ownership.mjs";
-import { runPhasesSequentially, enforceArtifactRetention, FULL_PHASE_IDS, buildPhasePlan, browserReplacementLiveBinding, phaseEnvironment, prepareInvocationInputs } from "./run-local-canonical-verification.mjs";
+import { runPhasesSequentially, enforceArtifactRetention, FULL_PHASE_IDS, buildPhasePlan, phaseEnvironment, prepareInvocationInputs } from "./run-local-canonical-verification.mjs";
 import { createIsolatedInvocationResources, cleanupIsolatedInvocationResources } from "./local-canonical-isolated-resources.mjs";
 import { pinVerificationEvidence } from "./local-canonical-evidence-retention.mjs";
 import { canonicalSerialize, finalizeReceipt, inspectReceiptForDecision, verifyReceiptIntegrity } from "./local-canonical-receipt.mjs";
@@ -73,35 +73,31 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
   // These are synthetic changes in our owned fixture, never edits of host policy.
   const remainder = initial.replace("untrusted", "trusted") + 'unrecognized = "different"\n';
   const currentContract = () => contract("ambient", { contract: INPUT_CONTRACT });
-  const live = inputs => browserReplacementLiveBinding({ inputs, browserInput: null, host: {}, nodePolicy: {},
-    machineFingerprint: "fixture", executorFingerprint: "fixture", phaseDefinitions: [] });
+  const effectiveInputs = inputs => digest(commonInputResources(inputs));
   for (const change of [initial, changed, remainder]) {
     write(config, initial);
-    const frozen = currentContract(), before = frozen.snapshot(), prepared = live(before);
+    const frozen = currentContract(), before = frozen.snapshot(), prepared = effectiveInputs(before);
     write(config, change);
     assert.equal(frozen.check({ force: true }), null);
     const current = currentContract().snapshot();
-    assert.equal(live(current).commonInputsSha256, prepared.commonInputsSha256);
+    assert.equal(effectiveInputs(current), prepared);
     const r = before.resources[0];
     assert(["unchanged", "ambient_observation"].includes(classifyInputChange(r.before, current.resources[0].before, r, before)));
-    // A fresh process exercises the same binding and comparator used by stock.
+    // A fresh process reconstructs the versioned projection and comparator.
     const packet = path.join(root, "effective-input.json"); write(packet, JSON.stringify({ before, current }));
     const fresh = await runCanonicalChild({ suite: "classification", label: "fresh-effective-input", command: process.execPath,
       args: ["--input-type=module", "-e", `
         import assert from 'node:assert/strict'; import {readFileSync} from 'node:fs';
         import {classifyInputChange, commonInputResources, digest} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/local-canonical-inputs.mjs")).href)};
-        import {browserReplacementLiveBinding} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/run-local-canonical-verification.mjs")).href)};
         const {before,current}=JSON.parse(readFileSync(${JSON.stringify(packet)}));
-        const binding=inputs=>browserReplacementLiveBinding({inputs,host:{},nodePolicy:{},phaseDefinitions:[]}).commonInputsSha256;
-        assert.equal(binding(before),binding(current));
         assert.equal(digest(commonInputResources(before)),digest(commonInputResources(current)));
         const r=before.resources[0]; assert(['unchanged','ambient_observation'].includes(classifyInputChange(r.before,current.resources[0].before,r,before)));
       `], cwd: root, env, timeoutMs: 5000, stdout: quiet, stderr: quiet, log() {} });
     assert.equal(fresh.exit_code, 0); assert(fresh.cleanup_completed);
     // v2 uses the complete original binding and conservative remainder rule.
     const legacyBefore = { ...before, contract: LEGACY_INPUT_CONTRACT }, legacyCurrent = { ...current, contract: LEGACY_INPUT_CONTRACT };
-    assert.equal(live(legacyBefore).commonInputsSha256, digest(legacyBefore.resources));
-    if (change !== initial) assert.notEqual(live(legacyBefore).commonInputsSha256, live(legacyCurrent).commonInputsSha256);
+    assert.equal(effectiveInputs(legacyBefore), digest(legacyBefore.resources));
+    if (change !== initial) assert.notEqual(effectiveInputs(legacyBefore), effectiveInputs(legacyCurrent));
   }
   const remainderChild = await observedChild({ mutation: remainder, inputContract: INPUT_CONTRACT });
   assert.equal(remainderChild.result.cancelled, false); assert.match(remainderChild.output, /private-sentinel/);
@@ -124,9 +120,9 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
     assert.equal(classifyInputChange(after, bad, resource(), before), "unknown_relevance");
   assert.equal(classifyInputChange(after, { present: false }, resource(), before), "input_invalidation");
   const replacementV3 = path.join(root, "replacement-v3"); write(replacementV3, remainder); renameSync(replacementV3, config);
-  assert.equal(v3.check(), null); assert.equal(live(currentContract().snapshot()).commonInputsSha256, live(before).commonInputsSha256);
+  assert.equal(v3.check(), null); assert.equal(effectiveInputs(currentContract().snapshot()), effectiveInputs(before));
   chmodSync(config, 0o644); assert.equal(v3.check().disposition, "safety_violation"); chmodSync(config, 0o600);
-  assert.notEqual(live(currentContract().snapshot()).commonInputsSha256, live({ ...before, resources: [{ ...before.resources[0], before: permission }] }).commonInputsSha256);
+  assert.notEqual(effectiveInputs(currentContract().snapshot()), effectiveInputs({ ...before, resources: [{ ...before.resources[0], before: permission }] }));
   note("v3 preparation/admission projection, monitor and fresh reconstruction agree for preferences, metadata replacement and non-preference remainder; consuming/unknown/safety and legacy v2 remain refusing");
 
   // Use the real phase environment and nested suite filter. The descendant uses
@@ -259,6 +255,8 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
     const proof = { schema: "augnes.local-canonical-infrastructure-repair.v1", prior_attempt_id: "initial-run", prior_receipt_fingerprint: "4".repeat(64),
       cause: "child_spawn_failure", observed_code: "ENOENT", remedy: "restore_owned_fixture_executable", evidence_sha256: digest(readFileSync(missing)), scope: "task_owned",
       probe: { exit_status: 0, cleanup_complete: true, artifact_sha256: digest(probe), finished_at: new Date().toISOString() } };
+    // A completed fix and probe do not make a retired proof eligible for recovery.
+    assert.throws(() => beginAttempt({ ...request, recoveryProof: { ...proof, guide_authority: false } }), { code: "qualification_route_retired" });
     const attempt2 = beginAttempt({ ...request, runId: "recovery-run", recoveryProof: proof });
     assert.equal(attempt2.number, 2); assert.equal(attempt2.prior_attempt_id, "initial-run");
     const completeRecovery = await runPhasesSequentially({ phases: [{ id: "first" }, { id: "second" }], execute: async phase => {
@@ -270,12 +268,25 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
     const linked = { attempt: attempt2, repository: { branch: request.branch }, run: { id: "recovery-run" },
       integrity: { content_fingerprint: "6".repeat(64) }, outcome: { disposition: "completed_success" }, cleanup: { completed: true } };
     assert(inspectAttemptRecords({ anchorRoot: root, receipt: linked }));
+    // A legitimate second attempt must not hide a retired first attempt during reconstruction or stock.
+    const initialFile = path.join(root, ".augnes-local-verification", "families", attempt1.family_id, "attempt-1.json");
+    const initialBytes = readFileSync(initialFile);
+    try {
+      write(initialFile, JSON.stringify({ ...attempt1, browser_authority: null }));
+      assert.throws(() => reconstructAttemptTip({ anchorRoot: root, branch: request.branch }), { code: "qualification_route_retired" });
+      assert(!inspectAttemptRecords({ anchorRoot: root, receipt: linked }));
+    } finally { writeFileSync(initialFile, initialBytes); }
+    assert.equal(reconstructAttemptTip({ anchorRoot: root, branch: request.branch }).number, 2);
     assert(!inspectAttemptRecords({ anchorRoot: root, receipt: { ...linked, integrity: { content_fingerprint: "0".repeat(64) } } }));
     const proofPath = path.join(root, "repair.json"), causePath = path.join(root, "cause.json"), probePath = path.join(root, "probe.json");
     write(causePath, JSON.stringify({ prior_receipt_fingerprint: proof.prior_receipt_fingerprint, spawn_error_code: "ENOENT" }));
     write(probePath, JSON.stringify(probe));
     write(proofPath, JSON.stringify({ ...proof, cause_artifact: "cause.json", probe_artifact: "probe.json", evidence_sha256: digest(readFileSync(causePath)), probe: { ...proof.probe, artifact_sha256: digest(readFileSync(probePath)) } }));
-    assert.equal(readRecoveryProof(proofPath).cause, "child_spawn_failure");
+    const diskProof = readRecoveryProof(proofPath);
+    assert.equal(diskProof.cause, "child_spawn_failure");
+    write(proofPath, JSON.stringify({ ...diskProof, browser_input_path: null }));
+    assert.throws(() => readRecoveryProof(proofPath), { code: "qualification_route_retired" });
+    write(proofPath, JSON.stringify(diskProof));
     write(probePath, "{}"); assert.throws(() => readRecoveryProof(proofPath));
     assert.throws(() => beginAttempt({ ...request, runId: "third", recoveryProof: proof }));
     for (const outcome of ["product_failure", "unclassified_timeout", "safety_violation"]) {
@@ -289,7 +300,13 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
     const moduleFile = path.join(checkout, "scripts", "target.mjs"); write(moduleFile, "export const value = 1;\n");
     git("add", "scripts/target.mjs"); git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-m", "original source");
     const originalHead = git("rev-parse", "HEAD"), originalTree = git("rev-parse", "HEAD^{tree}");
-    const original = beginAttempt({ ...request, branch: "codex/source-correction", head: originalHead, tree: originalTree, runId: "source-original" });
+    const sourceRequest = { ...request, branch: "codex/source-correction", head: originalHead, tree: originalTree };
+    const interrupted = beginAttempt({ ...sourceRequest, runId: "source-interrupted" });
+    finishAttempt(interrupted, { receiptFingerprint: proof.prior_receipt_fingerprint, disposition, cleanupComplete: true, infrastructureCode: "ENOENT" });
+    await new Promise(resolve => setTimeout(resolve, 2));
+    const original = beginAttempt({ ...sourceRequest, runId: "source-original", recoveryProof: {
+      ...proof, prior_attempt_id: interrupted.attempt_id, probe: { ...proof.probe, finished_at: new Date().toISOString() },
+    } });
     finishAttempt(original, { receiptFingerprint: "7".repeat(64), disposition: "product_failure", cleanupComplete: true });
     const blockedPredecessors = [];
     for (const disposition of ["unclassified_timeout", "unknown_relevance", "safety_violation"]) {
@@ -311,7 +328,7 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
     const correctedHead = git("rev-parse", "HEAD"), correctedTree = git("rev-parse", "HEAD^{tree}");
     const correctionFile = path.join(correctionRoot, "proof.json");
     const correctionProof = { schema: "augnes.local-canonical-source-correction.v1", branch: "codex/source-correction", defect: "wrong_exported_value", prior_family_id: original.family_id,
-      prior_number: 1, prior_attempt_id: original.attempt_id, prior_receipt_fingerprint: "7".repeat(64), head: correctedHead, tree: correctedTree, source_module: "scripts/target.mjs",
+      prior_number: original.number, prior_attempt_id: original.attempt_id, prior_receipt_fingerprint: "7".repeat(64), head: correctedHead, tree: correctedTree, source_module: "scripts/target.mjs",
       fixture_artifact: "regression.mjs", fixture_sha256: digest(readFileSync(fixtureFile)), environment_fingerprint: digest(env), ...witnesses };
     write(correctionFile, JSON.stringify(correctionProof));
     const afterFile = path.join(correctionRoot, correctionProof.after.artifact);
@@ -326,7 +343,7 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
     readSourceCorrectionProof(correctionFile, checkout);
     note("actual witness reader accepts bare Canonical Node and refuses v-prefix, stale baseline and compatibility-only Node");
     for (const prior of blockedPredecessors) {
-      write(correctionFile, JSON.stringify({ ...correctionProof, branch: prior.branch, prior_family_id: prior.family_id, prior_attempt_id: prior.attempt_id }));
+      write(correctionFile, JSON.stringify({ ...correctionProof, branch: prior.branch, prior_family_id: prior.family_id, prior_number: prior.number, prior_attempt_id: prior.attempt_id }));
       assert.throws(() => beginAttempt({ ...request, branch: prior.branch, head: correctedHead, tree: correctedTree, runId: "forbidden-source-successor", sourceCorrection: readSourceCorrectionProof(correctionFile, checkout) }), error => error.code === "source_correction_predecessor_invalid");
     }
     write(correctionFile, JSON.stringify(correctionProof));
@@ -335,7 +352,18 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
     assert.equal(successor.number, 1); assert.equal(successor.source_correction.prior_attempt_id, original.attempt_id);
     finishAttempt(successor, { receiptFingerprint: "8".repeat(64), disposition: "completed_success", cleanupComplete: true });
     const successorReceipt = { ...linked, attempt: successor, repository: { branch: correctionProof.branch }, run: { id: successor.attempt_id }, integrity: { content_fingerprint: "8".repeat(64) } };
-    assert(inspectAttemptRecords({ anchorRoot: root, repositoryRoot: checkout, receipt: successorReceipt }));
+    const ordinaryStock = () => inspectAttemptRecords({ anchorRoot: root, repositoryRoot: checkout, receipt: successorReceipt });
+    assert(ordinaryStock());
+    const families = path.join(root, ".augnes-local-verification", "families");
+    const firstRecord = path.join(families, interrupted.family_id, "attempt-1.json"), firstBytes = readFileSync(firstRecord);
+    const laterEdge = path.join(families, successor.family_id, "correction-successor.json");
+    try {
+      write(firstRecord, JSON.stringify({ ...interrupted, observer_authority: null }));
+      assert(!ordinaryStock(), "a retired ancestor behind the direct recovery predecessor must refuse stock");
+      writeFileSync(firstRecord, firstBytes);
+      write(laterEdge, JSON.stringify({ kind: "observer_repair" }));
+      assert(ordinaryStock(), "a later reservation does not invalidate the ordinary receipt's own history");
+    } finally { writeFileSync(firstRecord, firstBytes); rmSync(laterEdge, { force: true }); }
     assert.throws(() => beginAttempt({ ...request, branch: correctionProof.branch, head: correctedHead, tree: correctedTree, runId: "source-repeat", sourceCorrection: admittedProof }));
     git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "--allow-empty", "-m", "cosmetic wrapper commit");
     write(correctionFile, JSON.stringify({ ...correctionProof, head: git("rev-parse", "HEAD") }));

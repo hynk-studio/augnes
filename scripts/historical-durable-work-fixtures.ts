@@ -8,7 +8,6 @@ import { runCanonicalChild, canonicalChildAcceptanceFailure } from "./canonical-
 import { DURABLE_WORK_PREDECESSOR, DURABLE_WORK_TREE, readPreparedDurableDependencies } from "./durable-work-dependency-provision.mjs";
 import { materializeExactHistoricalRootDependencies } from "./merged-r8a-fixture-dependencies.mjs";
 
-export { DURABLE_WORK_PREDECESSOR };
 export async function historicalDurableWorkFixtures(root: string) {
   const repository = process.cwd(), source = path.join(root, "historical-source"), data = path.join(root, "historical-projects");
   mkdirSync(source); mkdirSync(data);
