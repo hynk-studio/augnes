@@ -15,11 +15,51 @@ export async function browserFileExchanges({ c, origin, click, set, saved, settl
     const {nodeId}=await c.send('DOM.querySelector',{nodeId:dom.nodeId,selector:'#exchange-upload'});
     await c.send('DOM.setFileInputFiles',{nodeId,files:[file]});
   };
-  const reopen = async () => {
-    await navigate(c,origin+'/');
+  const selectTask = async () => {
     await wait(()=>c.eval(`[...$('work-list').querySelectorAll('button')].some(b=>b.textContent===${JSON.stringify(goal)})`),'task entry by name');
     await c.eval(`[...$('work-list').querySelectorAll('button')].find(b=>b.textContent===${JSON.stringify(goal)}).click()`);
     await settled(c);
+  };
+  // Reconfiguring Fetch or reloading can invalidate an unrelated paused CDP
+  // request. Let the task's normal debounced capacity read finish first.
+  const capacitySettled = () => wait(() => c.eval(
+    "!capacityInFlight && ['fits','blocked','unavailable'].includes($('draft-capacity').dataset.state)"
+  ), 'exchange task capacity settles');
+  const watchSaveResponse = async loseResponse => {
+    await capacitySettled();
+    if (loseResponse) {
+      await c.send('Fetch.enable', {patterns:[
+        {urlPattern:'*', requestStage:'Request'},
+        {urlPattern:'*/exchanges/save', requestStage:'Response'}
+      ]});
+    } else {
+      await requestsOnly(c);
+    }
+  };
+  const reopen = async () => { await capacitySettled(); await navigate(c,origin+'/'); await selectTask(); };
+  const wouldWarn = () => c.eval("!window.dispatchEvent(new Event('beforeunload', {cancelable:true}))");
+  // A browser may suppress beforeunload without a user gesture. Exercise the real
+  // dialog on reload and distinguish it from an unguarded navigation.
+  const reloadWithWarning = async accept => {
+    await capacitySettled();
+    const gesture = await c.send('Runtime.evaluate', {expression:'navigator.userActivation.hasBeenActive', userGesture:true});
+    assert.equal(gesture.result.value, true);
+    let response, navigated = false;
+    const observe = event => {
+      if (event.method === 'Page.javascriptDialogOpening' && event.params.type === 'beforeunload')
+        response = c.send('Page.handleJavaScriptDialog', {accept});
+      if (event.method === 'Page.frameNavigated' && !event.params.frame.parentId) navigated = true;
+    };
+    c.handlers.push(observe);
+    try {
+      await c.send('Page.reload');
+      await wait(() => response !== undefined || navigated, 'reload dialog or new document');
+      assert.ok(response, 'The browser must ask before discarding the file exchange.');
+      await response;
+      if (accept) await wait(() => navigated, 'confirmed reload');
+    } finally {
+      c.handlers.splice(c.handlers.indexOf(observe), 1);
+    }
   };
   const download = async (nth,folder) => {
     await mkdir(folder,{recursive:true});
@@ -32,20 +72,30 @@ export async function browserFileExchanges({ c, origin, click, set, saved, settl
   await navigate(c,origin+'/');await wait(()=>c.eval("!!$('new-work')"),'planning entry');
   await click(c,'new-work');await set(c,'goal',goal);await set(c,'criteria','참석 인원에 맞는 배치 확인');await click(c,'save');await saved(c,1);await settled(c);
   await click(c,'exchange-new');await set(c,'exchange-message','필요한 테이블 수를 계산해 계획에 적어 주세요.');await pick(path.join(originalDir,name));
-  await c.send('Fetch.enable',{patterns:[{urlPattern:'*',requestStage:'Request'},{urlPattern:'*/exchanges/save',requestStage:'Response'}]});
+  const unsentWarning = await wouldWarn();
+  assert.equal(await c.eval('sessionStorage.getItem(exchangeStoragePrefix+work)'), null);
+  await watchSaveResponse(true);
   await click(c,'exchange-submit');await settled(c);assert.equal(await c.eval("$('exchange-uncertain').hidden"),false);
   assert.equal(await c.eval("Object.keys(JSON.parse(sessionStorage.getItem(exchangeStoragePrefix+work)).files[0]).includes('data')"),false);
-  await requestsOnly(c);await reopen();assert.match(await c.eval("$('exchange-list').textContent"),/Previous file save confirmed at version 2/);
+  assert.deepEqual({unsent:unsentWarning, pending:await wouldWarn()}, {unsent:true, pending:true},
+    'File exchange alone must protect both the unsent draft and its uncertain save.');
+  await watchSaveResponse(false); await reloadWithWarning(true); await selectTask();
+  assert.match(await c.eval("$('exchange-list').textContent"),/Previous file save confirmed at version 2/);
+  assert.equal(await wouldWarn(), false, 'Confirmed request clears the warning.');
   assert.match(await c.eval("$('exchange-list').textContent"),/Awaiting a return/);
   const received = await download(0,downloads);assert.equal(received.toString(),original);
   const [,people,seats] = received.toString().match(/참석 (\d+)명, 한 테이블에 (\d+)명/);
   const edit = received.toString().replace('미정',String(Math.ceil(Number(people)/Number(seats)))+'개');
   await writeFile(path.join(returnDir,name),edit);
   await c.eval("$('exchange-list').querySelector('button').click()");await set(c,'exchange-message','참석자와 좌석 수로 계산했습니다.');await set(c,'exchange-next','입구에 배치도 게시');await pick(path.join(returnDir,name));
+  await reloadWithWarning(false);
+  assert.deepEqual(await c.eval("[$('exchange-message').value, $('exchange-next').value, $('exchange-upload').files[0].name]"),
+    ['참석자와 좌석 수로 계산했습니다.', '입구에 배치도 게시', name]);
   // Lose the real committed reply, then reconcile the identical request over the read-only resolve route.
-  await c.send('Fetch.enable',{patterns:[{urlPattern:'*',requestStage:'Request'},{urlPattern:'*/exchanges/save',requestStage:'Response'}]});
+  await watchSaveResponse(true);
   await click(c,'exchange-submit');await settled(c);assert.equal(await c.eval("$('exchange-uncertain').hidden"),false);
-  await requestsOnly(c);await click(c,'exchange-check');await saved(c,3);await settled(c);await reopen();
+  await watchSaveResponse(false);await click(c,'exchange-check');await saved(c,3);await settled(c);
+  assert.equal(await wouldWarn(), false, 'Confirmed return clears the warning.'); await reopen();
   const content=await c.eval("$('exchange-list').textContent");
   for(const phrase of ['Answered request','version 2','version 3',name,'입구에 배치도 게시'])assert.ok(content.includes(phrase),phrase);
   const result=await download(1,path.join(dir,'fresh'));assert.equal(result.toString(),edit);
@@ -69,13 +119,19 @@ export async function browserFileExchanges({ c, origin, click, set, saved, settl
   const peer = {kind:'request',basis:null,message:'Confirm the arrival time',next_action:'',
     files:[{name:'venue.txt',media_type:'text/plain',bytes:peerBytes.length,digest:'sha256:'+createHash('sha256').update(peerBytes).digest('hex'),data:peerBytes.toString('base64')}]};
   await c.eval(`api('/api/work/'+work+'/exchanges/save',{...${JSON.stringify(peer)},expected:exchangeDraft.expected,request_key:crypto.randomUUID()})`);
-  await c.send('Fetch.enable',{patterns:[{urlPattern:'*',requestStage:'Request'},{urlPattern:'*/exchanges/save',requestStage:'Response'}]});
+  await watchSaveResponse(true);
   await click(c,'exchange-submit');await settled(c);assert.equal(await c.eval("$('exchange-uncertain').hidden"),false);
-  await requestsOnly(c);await reopen();
+  await watchSaveResponse(false);await reopen();
   assert.equal(await c.eval("$('exchange-message').value"),question);assert.equal(await c.eval("$('exchange-next').value"),action);
   assert.equal(await c.eval("$('exchange-refresh').hidden"),false);
   assert.ok(await c.eval(`$('exchange-list').textContent.includes(${JSON.stringify(name)})`));
   await click(c,'exchange-refresh');await settled(c);assert.equal(await c.eval('exchangeState.items.length'),3);
   await click(c,'exchange-cancel');
+  assert.equal(await wouldWarn(), false, 'Discarded draft clears the warning.');
+  await click(c,'exchange-new'); await set(c,'exchange-message','Confirm the venue'); await pick(path.join(originalDir,name));
+  c.accessBoundary='challenge'; await click(c,'exchange-submit'); await settled(c);
+  assert.equal(await c.eval("accessLost && !exchangeDraft && !exchangePending && !$('exchange-form')"),true);
+  assert.equal(await wouldWarn(), false, 'Access loss clears private work and its warning.');
+  checks.push('file exchange protects unsent and uncertain work on reload; cancel, confirmed save and access loss clear the guard');
   checks.push('event plan: real named task, original and returned downloads, content-dependent edit, retained return after lost response, fresh reopen, mobile and desktop controls');
 }

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmodSync, copyFileSync, existsSync, linkSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, linkSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
@@ -589,13 +589,19 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
   assert.equal(recordedOutput.checkPreparedDependencies(), null); assert.equal(recordedOutput.snapshot().prepared_dependencies[0].unchanged, true);
   assert.equal(recordedOutput.snapshot().first_fault, null);
   assert.throws(() => recordedOutput.prepareDependencies({ repositoryRoot: dependencyProject, phaseId: "dependencies-root" }), /dependency_input_preparation_invalid/);
+  const matchingMode = statSync(dependencyRoot).mode & 0o777;
+  // Toggle only owner write, preserving directory traversal under either umask.
+  const mismatchedMode = matchingMode ^ 0o200;
   for (const name of [".cache", ".vite-temp"]) {
     const generated = path.join(dependencyRoot, name);
     mkdirSync(generated); const present = dependencyObservation();
     assert.equal(present.generated_directories.find(entry => entry.path === name).state, "proven_empty");
     assert.deepEqual(preparedDependencyIdentity(present), prepared, "safe appearance is normalized, raw presence retained");
     write(path.join(generated, "unexpected"), "unexpected bytes"); assert.throws(dependencyObservation, /dependency_input_generated_unsafe/);
-    rmSync(path.join(generated, "unexpected")); chmodSync(generated, 0o700); assert.throws(dependencyObservation, /dependency_input_cache_unsafe/); chmodSync(generated, 0o755);
+    rmSync(path.join(generated, "unexpected"));
+    chmodSync(generated, mismatchedMode);
+    assert.throws(dependencyObservation, /dependency_input_cache_unsafe/);
+    chmodSync(generated, matchingMode);
     if (process.platform === "darwin") {
       execFileSync("/usr/bin/xattr", ["-w", "org.augnes.generated-control", "sentinel", generated]);
       assert.throws(dependencyObservation, /dependency_input_cache_unsafe/);
@@ -621,8 +627,12 @@ async function observedChild({ consumes = false, mutation = changed, observerFai
   rmSync(dependencyRoot, { recursive: true }); createDependencyOutput(); assert.deepEqual(dependencyIdentity(), prepared);
   mkdirSync(path.join(dependencyRoot, ".cache")); write(path.join(dependencyRoot, ".cache", "unexpected"), "cache content\n");
   assert.throws(dependencyObservation, /dependency_input_generated_unsafe/, "nonempty generated cache refuses normalization");
-  rmSync(path.join(dependencyRoot, ".cache"), { recursive: true }); mkdirSync(path.join(dependencyRoot, ".cache"), { mode: 0o700 });
-  assert.throws(dependencyObservation, /dependency_input_cache_unsafe/); rmSync(path.join(dependencyRoot, ".cache"), { recursive: true });
+  const newCache = path.join(dependencyRoot, ".cache");
+  rmSync(newCache, { recursive: true });
+  mkdirSync(newCache);
+  chmodSync(newCache, mismatchedMode);
+  assert.throws(dependencyObservation, /dependency_input_cache_unsafe/);
+  rmSync(newCache, { recursive: true });
   const changedOutput = dependencyContract(); changedOutput.prepareDependencies({ repositoryRoot: dependencyProject, phaseId: "dependencies-root" });
   write(path.join(dependencyRoot, "foo-extra", "data"), "unexpected installed content\n"); assert.notDeepEqual(dependencyIdentity(), prepared);
   assert.equal(changedOutput.checkPreparedDependencies().disposition, "input_invalidation");

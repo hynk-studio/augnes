@@ -218,7 +218,11 @@ $('more-work').onclick=()=>run(()=>list(true));
 $('refresh-list').onclick=()=>run(async()=>{if(await refreshList())status('Work list refreshed.');});
 $('check-capacity').onclick=()=>queueCapacity(0);
 $('signout').onclick=()=>{dirty=false;directionDirty=false;deny();};
-window.addEventListener('beforeunload',e=>{if(dirty||pending||directionDirty||relationPending||sceneReviewPending){e.preventDefault();e.returnValue='';}});
+window.addEventListener('beforeunload',e=>{
+  if(dirty||pending||directionDirty||relationPending||sceneReviewPending||exchangeDraft||exchangePending){
+    e.preventDefault();e.returnValue='';
+  }
+});
 window.addEventListener('pagehide',()=>{$('context-view')?.replaceChildren();});
 window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 window.addEventListener('focus',()=>{if($('draft-capacity'))queueCapacity();if($('work-list'))api('/api/works').catch(e=>{if(e.message!=='access_denied')status('Access/currentness could not be checked. Use a fresh server read before reuse.');});});

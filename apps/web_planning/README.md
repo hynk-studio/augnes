@@ -50,6 +50,9 @@ File requests leave ordinary authored files, notes, branches and reviews in
 place. File types, when supplied, are descriptive. Downloads are inert bytes.
 Saved, downloaded, reviewed and applied are separate observations.
 
+Before sending, the request text and chosen files stay in the tab. When the
+browser shows a warning on refresh or exit, choose to stay to keep editing.
+Closing the tab or losing the browser process can discard an unsent draft.
 If sending fails, the form keeps its inputs. On an unknown outcome choose
 **Check file save**, then retry the exact request only if absent. After reopening
 the same tab, the task reconciles the pending request against server history.
