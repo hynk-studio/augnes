@@ -1,3 +1,4 @@
+import { checkFileExchanges } from './web-planning-exchange-checks.mjs';
 import { checkDirections } from "./web-planning-direction-checks.mjs";
 import { checkWebPlanningInterceptionDiagnostics } from './test-web-planning-interception.mjs';
 import { checkSceneContinuity } from "./web-planning-scene-checks.mjs";
@@ -183,6 +184,7 @@ try {
  await checkCapacity({c,scope:fixtureScope,passed});
  await checkBranching({start,client,newWork,save,edit,passed,open});
  await checkFiles({start,client,newWork,save,passed,root,open});
+ await checkFileExchanges({start,client,newWork,save,root,passed});
  await checkOrdinaryFiles({start,client,newWork,save,passed,open});
  await checkStoryWriting({start,client,newWork,save,passed});
  await checkSceneContinuity({start,client,newWork,save,passed});

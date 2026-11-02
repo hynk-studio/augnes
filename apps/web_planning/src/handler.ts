@@ -1,4 +1,6 @@
 /// <reference path="./assets.d.ts" />
+import { exchangeList } from "./exchange";
+import { writeExchange } from "./exchange-write";
 import { notebookFrom } from "./scene-contract";
 import { directionComparison, validateDirectionReferences } from "./directions";
 import { hasSceneFile } from "./file-relations";
@@ -11,6 +13,7 @@ import { inspectDraftCapacity } from "./capacity";
 import { append, completeExport, downloadFile, eraseWork, headBinding, headsCurrent, listWork, readWork, reconstruct, reconstructWorks, requestRevision } from "./store";
 import { page, renderContext, renderComparison, renderPreview, style } from "./page";
 import { compare, editedPayload, previewOperation, referenceAvailability, saveOperation } from "./relations";
+import exchangeClient from "./exchange-client.js.txt?raw";
 import client from "./client.js.txt?raw";
 import { readableExport } from "./readable-export";
 const headers={"Cache-Control":"no-store, private","Vary":"Cookie, oai-authenticated-user-email","X-Web-Planning-Response":"1","X-Content-Type-Options":"nosniff",
@@ -38,21 +41,25 @@ export async function handle(request:Request,env:Environment,principal:Principal
         const csrf=csrfToken(access,request);
         return html(page(csrf,access),{"Set-Cookie":csrfCookie(access,csrf)});
       }
-      if(path==="/client.js" && !url.search) return new Response(client,{headers:{...headers,"Content-Type":"text/javascript; charset=utf-8"}});
+      if(path==="/client.js" && !url.search) return new Response(client+"\n"+exchangeClient,{headers:{...headers,"Content-Type":"text/javascript; charset=utf-8"}});
       if(path==="/style.css" && !url.search) return new Response(style,{headers:{...headers,"Content-Type":"text/css; charset=utf-8"}});
+      if(path==="/api/project" && !url.search) return json({workspace_id:access.workspace_id,project_id:access.project_id,
+        name:env.PROJECT_NAME || "Private planning workspace",tasks:"/api/works"});
       if(path==="/api/works") {
         if([...url.searchParams.keys()].some(k=>k!=="cursor") || url.searchParams.getAll("cursor").length>1) fail("scope_denied",403);
         const cursor=url.searchParams.get("cursor")??"";
         if(cursor && !UUID.test(cursor))fail("invalid_cursor");
         const listed=await listWork(access,cursor);
-        return json({items:listed.items.map(r=>({work_id:r.work_id,goal:r.definition.goal,recorded_at:r.recorded_at,...headBinding(r),branch_of:r.relations?.origin?.source.work_id??null})),next:listed.next});
+        return json({items:listed.items.map(r=>({work_id:r.work_id,goal:r.definition.goal,exchanges:"/api/work/"+r.work_id+"/exchanges",recorded_at:r.recorded_at,...headBinding(r),branch_of:r.relations?.origin?.source.work_id??null})),next:listed.next});
       }
-      const fileMatch=path.match(/^\/api\/work\/([a-f0-9-]+)\/files\/([1-9][0-9]{0,15})\/([a-f0-9]{64})\/([0-7])$/);
+      const exchanges=path.match(/^\/api\/work\/([a-f0-9-]+)\/exchanges$/);
+      if(exchanges && UUID.test(exchanges[1]) && !url.search) return json(exchangeList(await readWork(access,exchanges[1])));
+      const fileMatch=path.match(/^\/api\/work\/([a-f0-9-]+)\/(files|exchange-files)\/([1-9][0-9]{0,15})\/([a-f0-9]{64})\/([0-7])$/);
       if(fileMatch && UUID.test(fileMatch[1]) && !url.search) {
         const chain=await readWork(access,fileMatch[1]);
-        const revision=chain.find(r=>r.revision===Number(fileMatch[2]) && r.fingerprint==="sha256:"+fileMatch[3]);
+        const revision=chain.find(r=>r.revision===Number(fileMatch[3]) && r.fingerprint==="sha256:"+fileMatch[4]);
         if(!revision)fail("file_revision_unavailable",409);
-        const {file,bytes}=await downloadFile(access,revision,Number(fileMatch[4]));
+        const {file,bytes}=await downloadFile(access,revision,Number(fileMatch[5]),fileMatch[2]==="exchange-files");
         const name=encodeURIComponent(file.name).replace(/['()*]/g,c=>"%"+c.charCodeAt(0).toString(16).toUpperCase());
         return new Response(bytes,{headers:{...headers,"Content-Type":"application/octet-stream","Content-Disposition":`attachment; filename="artifact.bin"; filename*=UTF-8''${name}`,"X-Content-SHA256":file.digest,"Content-Length":String(file.bytes)}});
       }
@@ -66,7 +73,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
           if(match[2]==="reading-export")return new Response(readableExport(chain,"files" in value?value.files:[]),{headers:{...headers,"Content-Type":"text/html; charset=utf-8","Content-Disposition":"attachment; filename=authored-work.html","Content-Security-Policy":"default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"}});
           return new Response(canonical(value),{headers:{...headers,"Content-Type":"application/json","Content-Disposition":"attachment; filename=planning-work.json"}});
         }
-        return json(match[2]==="history"?{revisions:chain}:{saved:chain.at(-1)});
+        return json(match[2]==="history"?{revisions:chain}:{saved:chain.at(-1),exchanges:exchangeList(chain)});
       }
       fail("not_found",404);
     }
@@ -74,6 +81,8 @@ export async function handle(request:Request,env:Environment,principal:Principal
     requireCsrf(access,request);
     const input=await body(request,path==="/api/reconstruct-files"?FILE_EXPORT_REQUEST_BYTES:REQUEST_BYTES); if(!input || typeof input!=="object")fail("invalid_body");
     requireScope(access,input);
+    const exchange=path.match(/^\/api\/work\/([a-f0-9-]+)\/exchanges\/(save|resolve)$/);
+    if(exchange && UUID.test(exchange[1]))return json(await writeExchange(access,exchange[1],input,exchange[2]==="resolve"));
     const capacity=path.match(/^\/api\/work\/([a-f0-9-]+)\/capacity$/);
     if(path==="/api/capacity" || (capacity && UUID.test(capacity[1]))) {
       exact(input,"workspace_id,project_id,check_id,definition,notes,material_edits"+(capacity?",expected":""));

@@ -16,7 +16,7 @@ let relationPending=null,relationUnknown=false,directionDirty=false,comparison=n
 let capacityEpoch=0,capacityTimer=null,capacityInFlight=false,capacityQueued=false;
 const binding=r=>r?{revision:r.revision,fingerprint:r.fingerprint}:{revision:0,fingerprint:null};
 function status(text){$('status').textContent=text;}
-function deny(){directionRequest=null;sceneContextRequest=sceneReviewRequest=null;sceneBook=activeScene=sceneContext=sceneReviewPending=null;sceneModified=sceneUnknown=false;authored=null;authoredEpoch++;selectedFiles=[];fileSelectionVersion++;capacityEpoch++;clearTimeout(capacityTimer);accessLost=true;work=saved=saveTicket=pending=reviewed=eraseBinding=next=null;dirty=false;relationPending=comparison=branchCursor=null;comparisonCurrent=relationUnknown=false;directionDirty=false;$('private-view').replaceChildren();const p=document.createElement('p');p.id='status';p.setAttribute('role','status');p.textContent='Access is unavailable. Private content has been cleared. Sign in again to reopen.';$('private-view').append(p);}
+function deny(){forgetPrivateExchanges();clearExchange();directionRequest=null;sceneContextRequest=sceneReviewRequest=null;sceneBook=activeScene=sceneContext=sceneReviewPending=null;sceneModified=sceneUnknown=false;authored=null;authoredEpoch++;selectedFiles=[];fileSelectionVersion++;capacityEpoch++;clearTimeout(capacityTimer);accessLost=true;work=saved=saveTicket=pending=reviewed=eraseBinding=next=null;dirty=false;relationPending=comparison=branchCursor=null;comparisonCurrent=relationUnknown=false;directionDirty=false;$('private-view').replaceChildren();const p=document.createElement('p');p.id='status';p.setAttribute('role','status');p.textContent='Access is unavailable. Private content has been cleared. Sign in again to reopen.';$('private-view').append(p);}
 async function request(path,body){
   if(accessLost)throw new Error('access_denied');
   const response=await fetch(path,{method:body===undefined?'GET':'POST',credentials:'same-origin',cache:'no-store',redirect:'manual',
@@ -79,7 +79,7 @@ function reviewChanges(){const d=draft();const lines=[];
     if(!lines.length)lines.push('No definition or selection edits. An unchanged save acknowledges the existing revision.');}
   $('change-list').textContent=lines.join(' ');
 }
-async function show(r=null){invalidateSceneContext();invalidateSceneReview();selectedFiles=(r?.files??[]).map(f=>({...f}));fileSelectionVersion++;renderFiles();$('work-files').value='';saved=r;pending=null;reviewed=null;dirty=false;saveTicket=null;
+async function show(r=null,exchanges=null){invalidateSceneContext();invalidateSceneReview();selectedFiles=(r?.files??[]).map(f=>({...f}));fileSelectionVersion++;renderFiles();$('work-files').value='';saved=r;pending=null;reviewed=null;dirty=false;saveTicket=null;
   $('editor').hidden=false;document.querySelector('.intro').hidden=true;
   $('goal').value=r?.definition.goal??'';$('criteria').value=(r?.definition.success_criteria??[]).join('\n');$('non-goals').value=(r?.definition.non_goals??[]).join('\n');
   criteriaError();
@@ -91,8 +91,9 @@ async function show(r=null){invalidateSceneContext();invalidateSceneReview();sel
   $('edit-fields').disabled=false;$('save').disabled=false;reviewChanges();queueCapacity();
   await reopenAuthored(r);
   await loadScenes(r);
+  openExchanges(r,exchanges);
 }
-function mayLeave(){return !pending && !relationPending && !sceneReviewPending && (!(dirty||directionDirty) || confirm('Discard the unsaved edits in this tab?'));}
+function mayLeave(){return !exchangePending && (!exchangeDraft || confirm("Discard the unsent file request or return?")) && !pending && !relationPending && !sceneReviewPending && (!(dirty||directionDirty) || confirm('Discard the unsaved edits in this tab?'));}
 const number=value=>value.toLocaleString('en-US');
 function capacityQuantity(name,q,unit='bytes') {return q.used===null?`${name}: unavailable until the invalid material is corrected.`:
   `${name}: ${number(q.used)} / ${number(q.limit)} ${unit} · ${number(Math.abs(q.remaining))} ${q.remaining<0?'over':'remaining'}.`;}
@@ -153,7 +154,7 @@ async function checkCapacity(epoch){
     if(e.message==='refresh_required')$('conflict').hidden=false;}
   finally{capacityInFlight=false;if(capacityQueued&&!accessLost)queueCapacity(0);}
 }
-async function openWork(id){if(!mayLeave()){status(pending?'Resolve the pending save before leaving this work.':'Unsaved edits retained.');return;}const data=await api('/api/work/'+id);work=id;await show(data.saved);status('Reopened from the server. Select Saved context for a fresh exact-revision read.');}
+async function openWork(id){if(!mayLeave()){status(pending?'Resolve the pending save before leaving this work.':'Unsaved edits retained.');return;}const data=await api('/api/work/'+id);work=id;await show(data.saved,data.exchanges);status('Reopened from the server. Select Saved context for a fresh exact-revision read.');}
 async function list(append=false){const data=await api('/api/works'+(append&&next?'?cursor='+encodeURIComponent(next):''));if(!append)$('work-list').replaceChildren();
   for(const item of data.items){const li=document.createElement('li'),b=document.createElement('button');b.textContent=item.goal;b.onclick=()=>run(()=>openWork(item.work_id));li.append(b);$('work-list').append(li);}
   next=data.next;$('more-work').hidden=!next;$('list-state').textContent=$('work-list').children.length?'Saved on the server':'No saved work yet.';
@@ -187,7 +188,7 @@ async function dispatch(){
 $('work-form').addEventListener('input',changed);
 $('criteria').addEventListener('invalid',()=>criteriaError('Add at least one nonblank success criterion.'));
 messages.first_work_success_criteria_invalid='Check Success criteria. '+capacityReason({code:'first_work_success_criteria_invalid'});
-$('work-form').onsubmit=e=>{e.preventDefault();run(async()=>{if(pending||relationPending||sceneReviewPending)return;
+$('work-form').onsubmit=e=>{e.preventDefault();run(async()=>{if(exchangeDraft||exchangePending){status("Finish or cancel your file request first.");return;}if(pending||relationPending||sceneReviewPending)return;
   if(authoredUnavailable){status('Original writing is unavailable. Refresh the saved version before saving; your draft is retained.');return;}
   syncAuthored();
   const criteria=$('criteria').value;
@@ -212,7 +213,7 @@ $('export').onclick=()=>run(async()=>{const response=await request('/api/work/'+
 $('erase').onclick=()=>{if(pending||relationPending||sceneReviewPending){status('Resolve the pending save before erasure.');return;}eraseBinding=binding(saved);$('erase-text').textContent=`Erase revision ${saved.revision} and all earlier revisions and owned file bytes of this work? Download an export first if needed. A changed head will refuse. Independently saved branches and incorporated copies belong to other works and remain there; erase those works separately if intended.`;$('erase-confirm').hidden=false;};
 $('cancel-erase').onclick=()=>{$('erase-confirm').hidden=true;eraseBinding=null;};
 $('confirm-erase').onclick=()=>run(async()=>{await api('/api/work/'+work+'/erase',{expected:eraseBinding,confirm:'erase-whole-work'});dirty=false;work=saved=pending=null;await show();$('editor').hidden=true;status('Whole work erased. The content-free ID guard prevents delayed saves from recreating it. Exports and provider backups are outside this deletion.');await list();});
-$('import').onclick=()=>run(async()=>{const file=$('import-file').files[0];if(!file){status('Choose a complete work export.');return;}if(file.size>3000000){status('Export exceeds the bounded reconstruction size.');return;}if(!mayLeave())return;const value=JSON.parse(await file.text());if(!['web_planning_export.v0.3','web_planning_export.v0.4','web_planning_direction_export.v1'].includes(value.format)&&file.size>1500000){status('Legacy export exceeds 1,500,000 bytes.');return;}const data=await api(['web_planning_export.v0.3','web_planning_export.v0.4','web_planning_direction_export.v1'].includes(value.format)?'/api/reconstruct-files':'/api/reconstruct',{export:value,confirm:'reconstruct-empty-store'});work=data.saved.work_id;await show(data.saved);status('Reconstructed from an attributed export; authorship and source currentness remain unverified.');await list();});
+$('import').onclick=()=>run(async()=>{const file=$('import-file').files[0];if(!file){status('Choose a complete work export.');return;}if(file.size>3000000){status('Export exceeds the bounded reconstruction size.');return;}if(!mayLeave())return;const value=JSON.parse(await file.text());if(!['web_planning_export.v0.3','web_planning_export.v0.4','web_planning_export.v0.5','web_planning_direction_export.v1'].includes(value.format)&&file.size>1500000){status('Legacy export exceeds 1,500,000 bytes.');return;}const data=await api(['web_planning_export.v0.3','web_planning_export.v0.4','web_planning_export.v0.5','web_planning_direction_export.v1'].includes(value.format)?'/api/reconstruct-files':'/api/reconstruct',{export:value,confirm:'reconstruct-empty-store'});work=data.saved.work_id;await show(data.saved);status('Reconstructed from an attributed export; authorship and source currentness remain unverified.');await list();});
 $('more-work').onclick=()=>run(()=>list(true));
 $('refresh-list').onclick=()=>run(async()=>{if(await refreshList())status('Work list refreshed.');});
 $('check-capacity').onclick=()=>queueCapacity(0);

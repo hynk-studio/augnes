@@ -1,3 +1,4 @@
+import { EXCHANGE_COMPATIBILITY, EXCHANGE_FORMAT, validateExchange, type Exchange } from "./exchange";
 import { FILE_FORMAT, FILE_COMPATIBILITY, FILE_RELATION_FORMAT, FILE_RELATION_COMPATIBILITY, fileManifest, historyFiles, type FileEntry } from "./files";
 import { normalizeInitialProjectWorkDefinitionV01 } from "../../../lib/intake/work-definition";
 import { buildSelectedWorkSourceEntry, normalizeSelectedWorkSources, selectedWorkSourceInput } from "../../../lib/intake/selected-work-source-comparison";
@@ -42,9 +43,9 @@ export interface Relations {
   review: ComparisonReview | null;
   file_materials?: FileMaterial[];
 }
-export interface Payload { definition: ProjectWorkDefinitionV01; sources: TaskContextPacketSelectedEntryV01[]; relations?: Relations; files?: FileEntry[] }
+export interface Payload { definition: ProjectWorkDefinitionV01; sources: TaskContextPacketSelectedEntryV01[]; relations?: Relations; files?: FileEntry[]; exchange?: Exchange }
 export interface Revision extends Scope, Payload {
-  format: typeof FORMAT | typeof RELATION_FORMAT | typeof FILE_FORMAT | typeof FILE_RELATION_FORMAT; schema: 1; compatibility: typeof COMPATIBILITY | typeof RELATION_COMPATIBILITY | typeof FILE_COMPATIBILITY | typeof FILE_RELATION_COMPATIBILITY;
+  format: typeof EXCHANGE_FORMAT | typeof FORMAT | typeof RELATION_FORMAT | typeof FILE_FORMAT | typeof FILE_RELATION_FORMAT; schema: 1; compatibility: typeof EXCHANGE_COMPATIBILITY | typeof COMPATIBILITY | typeof RELATION_COMPATIBILITY | typeof FILE_COMPATIBILITY | typeof FILE_RELATION_COMPATIBILITY;
   work_id: string; revision: number; predecessor: string | null;
   recorded_at: string; request_key: string; request_fingerprint: string; fingerprint: string;
 }
@@ -156,7 +157,7 @@ export function makeRevision(scope: Scope, work_id: string, expected: Binding, r
   if (payload.relations) validateRelations(payload.relations,payload,work_id);
   const related=payload.relations?.file_materials!==undefined;
   if(related&&payload.files===undefined)fail("explicit_file_selection_required");
-  const material = { ...scopeMaterial(scope), format: related ? FILE_RELATION_FORMAT : payload.files!==undefined ? FILE_FORMAT : payload.relations ? RELATION_FORMAT : FORMAT, schema: 1, compatibility: related ? FILE_RELATION_COMPATIBILITY : payload.files!==undefined ? FILE_COMPATIBILITY : payload.relations ? RELATION_COMPATIBILITY : COMPATIBILITY,
+  const material = { ...scopeMaterial(scope), format: payload.exchange ? EXCHANGE_FORMAT : related ? FILE_RELATION_FORMAT : payload.files!==undefined ? FILE_FORMAT : payload.relations ? RELATION_FORMAT : FORMAT, schema: 1, compatibility: payload.exchange ? EXCHANGE_COMPATIBILITY : related ? FILE_RELATION_COMPATIBILITY : payload.files!==undefined ? FILE_COMPATIBILITY : payload.relations ? RELATION_COMPATIBILITY : COMPATIBILITY,
     work_id, revision: expected.revision + 1, predecessor: expected.fingerprint, ...payload,
     recorded_at, request_key, request_fingerprint: requestFingerprint(scope, work_id, expected, request_key, payload) };
   return { ...material, fingerprint: hash(canonical(material)) } as Revision;
@@ -170,12 +171,13 @@ export function validateChain(scope: Scope, work_id: string, values: unknown[]):
   assertHistoryBudget(values);
   const revisions: Revision[] = []; const keys = new Set();
   for (const value of values) {
-    const fileRelated=(value as Revision)?.format===FILE_RELATION_FORMAT;
-    const filed=(value as Revision)?.format===FILE_FORMAT||fileRelated;
+    const exchanged=(value as Revision)?.format===EXCHANGE_FORMAT;
+    const fileRelated=(value as Revision)?.format===FILE_RELATION_FORMAT || (exchanged && (value as Revision).relations?.file_materials!==undefined);
+    const filed=(value as Revision)?.format===FILE_FORMAT||fileRelated||exchanged;
     const relational=(value as Revision)?.format===RELATION_FORMAT || (filed && "relations" in (value as Revision));
     if ((value as Revision)?.format!==FORMAT && !relational && !filed) fail("incompatible_format",409);
-    exact(value, "workspace_id,project_id,author_ref,format,schema,compatibility,work_id,revision,predecessor,definition,sources,recorded_at,request_key,request_fingerprint,fingerprint"+(relational?",relations":"")+(filed?",files":""));
-    if (value.schema !== 1 || value.compatibility !== (fileRelated?FILE_RELATION_COMPATIBILITY:filed?FILE_COMPATIBILITY:relational?RELATION_COMPATIBILITY:COMPATIBILITY) || fileRelated!==(value.relations?.file_materials!==undefined)) fail("incompatible_format", 409);
+    exact(value, "workspace_id,project_id,author_ref,format,schema,compatibility,work_id,revision,predecessor,definition,sources,recorded_at,request_key,request_fingerprint,fingerprint"+(relational?",relations":"")+(filed?",files":"")+(exchanged?",exchange":""));
+    if (value.schema !== 1 || value.compatibility !== (exchanged?EXCHANGE_COMPATIBILITY:fileRelated?FILE_RELATION_COMPATIBILITY:filed?FILE_COMPATIBILITY:relational?RELATION_COMPATIBILITY:COMPATIBILITY) || fileRelated!==(value.relations?.file_materials!==undefined)) fail("incompatible_format", 409);
     if (value.workspace_id !== scope.workspace_id || value.project_id !== scope.project_id || value.author_ref !== scope.author_ref || value.work_id !== work_id ||
       !UUID.test(value.request_key) || keys.has(value.request_key) || parseStrictIsoTimestampV01(value.recorded_at) === null ||
       new Date(value.recorded_at).toISOString() !== value.recorded_at || !Array.isArray(value.sources)) fail("invalid_history", 503);
@@ -183,6 +185,11 @@ export function validateChain(scope: Scope, work_id: string, values: unknown[]):
     if (filed) payload.files=fileManifest(value.files);
     if (relational) payload.relations=validateRelations(value.relations,payload,work_id);
     const prior=revisions.at(-1);
+    if (exchanged) {
+      payload.exchange=validateExchange(value.exchange,revisions);
+      if (!prior || canonical(payload.definition)!==canonical(prior.definition) || canonical(payload.sources)!==canonical(prior.sources) ||
+        canonical(payload.files)!==canonical(prior.files??[]) || canonical(payload.relations??null)!==canonical(prior.relations??null)) fail("exchange_changed_work",409);
+    }
     if (prior?.files!==undefined && !filed) fail("file_format_downgrade",409);
     if (prior?.relations?.file_materials!==undefined && !fileRelated) fail("file_format_downgrade",409);
     if (prior?.relations && (!payload.relations || canonical(prior.relations.origin)!==canonical(payload.relations.origin))) fail("branch_origin_changed",409);

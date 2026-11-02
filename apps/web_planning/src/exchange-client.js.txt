@@ -1,0 +1,221 @@
+// These controls use the active private Web principal and the selected task.
+let exchangeDraft = null, exchangePending = null, exchangeState = null;
+const exchangeStoragePrefix = 'augnes.pending-file.' + scope.workspace_id + '.' + scope.project_id + '.';
+function forgetExchange(id) {
+  try { sessionStorage.removeItem(exchangeStoragePrefix + id); } catch {}
+}
+function forgetPrivateExchanges() {
+  try { for (const key of Object.keys(sessionStorage)) if (key.startsWith(exchangeStoragePrefix)) sessionStorage.removeItem(key); } catch {}
+}
+function clearExchange() {
+  exchangeDraft = exchangePending = exchangeState = null;
+  $('exchange-form')?.reset();
+}
+function exchangeControls() {
+  $('exchange-form').hidden = !exchangeDraft;
+  $('exchange-fields').disabled = !!exchangePending;
+  $('exchange-new').hidden = !!exchangeDraft;
+  $('exchange-uncertain').hidden = !exchangePending;
+  $('exchange-retry').hidden = true;
+}
+function beginExchange(source) {
+  if (busy || pending || dirty || directionDirty || relationPending || sceneReviewPending || exchangeDraft) {
+    status('Finish the current draft before starting a file request or return.'); return;
+  }
+  $('edit-fields').disabled = true;
+  exchangeDraft = { basis: source?.ref ?? null, expected: exchangeState.head };
+  $('exchange-form').reset();
+  $('exchange-legend').textContent = source ? 'Return files for request · version ' + source.ref.revision : 'New file request';
+  $('exchange-message-label').textContent = source ? 'What did you change or learn?' : 'What would you like done?';
+  $('exchange-submit').textContent = source ? 'Send returned files' : 'Send request';
+  $('exchange-next').required = !!source;
+  exchangeControls();
+  $('exchange-message').focus();
+}
+async function downloadExchangeFile(file) {
+  const response = await request(file.download);
+  const bytes = new Uint8Array(await readPrivate(response,'arrayBuffer'));
+  const digest = await exchangeDigest(bytes);
+  if (bytes.length !== file.bytes || digest !== file.digest) {
+    status('Downloaded bytes do not match this version. Reopen the task before trying again.'); return;
+  }
+  if (accessLost) return;
+  const url = URL.createObjectURL(new Blob([bytes],{type:'application/octet-stream'}));
+  const link = document.createElement('a'); link.href = url; link.download = file.name; link.click();
+  setTimeout(() => URL.revokeObjectURL(url),1000);
+}
+async function exchangeDigest(bytes) {
+  const sum = new Uint8Array(await crypto.subtle.digest('SHA-256',bytes));
+  return 'sha256:' + [...sum].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function drawExchanges(state) {
+  exchangeState = state;
+  const list = $('exchange-list');
+  list.replaceChildren();
+  for (const item of state.items) {
+    if (item.kind !== 'request') continue;
+    const reply = state.items.find(r => r.basis?.fingerprint === item.ref.fingerprint);
+    const article = document.createElement('article');
+    const heading = document.createElement('h3');
+    heading.textContent = (reply ? 'Answered request' : 'Awaiting a return') + ' · version ' + item.ref.revision;
+    article.append(heading);
+    for (const part of [item, reply].filter(Boolean)) {
+      const message = document.createElement('p');
+      message.textContent = (part.kind === 'request' ? 'Request: ' : 'Return: ') + part.message;
+      article.append(message);
+      const files = document.createElement('ul');
+      for (const file of part.files) {
+        const li = document.createElement('li'), link = document.createElement('a');
+        link.href = file.download; link.download = file.name;
+        link.onclick = event => { event.preventDefault(); run(() => downloadExchangeFile(file)); };
+        link.textContent = file.name + ' · version ' + part.ref.revision + ' · ' + file.bytes + ' bytes';
+        li.append(link); files.append(li);
+      }
+      article.append(files);
+      if (part.next_action) {
+        const next = document.createElement('p'); next.textContent = 'Next action: ' + part.next_action; article.append(next);
+      }
+    }
+    if (!reply) {
+      const button = document.createElement('button'); button.type = 'button';
+      button.textContent = 'Return edited files'; button.onclick = () => beginExchange(item); article.append(button);
+    }
+    list.append(article);
+  }
+  if (!list.children.length) list.textContent = 'No file requests yet.';
+}
+async function readExchanges() {
+  const target = work;
+  const data = await api('/api/work/' + target + '/exchanges');
+  if (target !== work || accessLost) return;
+  drawExchanges(data);
+  $('exchange-new').disabled = false;
+  $('exchange-refresh').hidden = true;
+}
+function openExchanges(revision, view) {
+  const previous = exchangeState;
+  clearExchange();
+  $('exchange-panel').hidden = !revision;
+  exchangeControls();
+  if (!revision) return;
+  if (!view && revision.revision === 1) view = { head: binding(revision), items: [] };
+  if (!view && previous?.head.fingerprint === revision.predecessor && !revision.exchange)
+    view = { head: binding(revision), items: previous.items };
+  $('exchange-new').disabled = !view;
+  $('exchange-refresh').hidden = !!view;
+  if (view) {
+    drawExchanges(view);
+    let marker;
+    try { marker = JSON.parse(sessionStorage.getItem(exchangeStoragePrefix + revision.work_id)); } catch {}
+    if (marker) {
+      const observed = view.items.find(item => item.request_key === marker.request_key);
+      if (observed || view.head.revision !== marker.expected.revision) {
+        forgetExchange(revision.work_id);
+        const outcome = document.createElement('p');
+        outcome.textContent = observed ? 'Previous file save confirmed at version ' + observed.ref.revision + '.' : 'The previous file save was not found and its base has changed. Review the task before sending again.';
+        $('exchange-list').prepend(outcome);
+      } else {
+        exchangeDraft = { basis:marker.basis, expected:marker.expected };
+        exchangePending = { id:revision.work_id, marker };
+        $('edit-fields').disabled = true;
+        $('exchange-legend').textContent = marker.basis ? 'Recover file return' : 'Recover file request';
+        $('exchange-message').value = marker.message; $('exchange-next').value = marker.next_action;
+        $('exchange-next').required = !!marker.basis;
+        exchangeControls();
+      }
+    }
+  }
+  else $('exchange-list').textContent = 'Read the latest requests and returns for this saved version.';
+}
+async function sendExchange(resolve) {
+  const retained = exchangePending;
+  try {
+    if (retained.marker) {
+      const view = await api('/api/work/' + retained.id + '/exchanges');
+      const match = view.items.find(item => item.request_key === retained.marker.request_key);
+      if (!match && view.head.revision === retained.marker.expected.revision) {
+        exchangePending = null; exchangeDraft.recover = retained.marker; exchangeControls();
+        status('This request is not saved. Reselect the original files: ' + retained.marker.files.map(f=>f.name).join(', ')); return;
+      }
+      const latest = await api('/api/work/' + retained.id);
+      await show(latest.saved,latest.exchanges); return;
+    }
+    const response = await api('/api/work/' + retained.id + '/exchanges/' + (resolve ? 'resolve' : 'save'), retained.body);
+    if (response.outcome !== 'saved') {
+      $('exchange-retry').hidden = false; status('No matching save was found. You may retry the exact retained files.'); return;
+    }
+    forgetExchange(retained.id); clearExchange(); exchangeControls();
+    const latest = await api('/api/work/' + retained.id);
+    await show(latest.saved, latest.exchanges); status('Files saved at version ' + response.item.ref.revision + '.');
+  } catch (error) {
+    if (accessLost) return;
+    if (!exchangePending) {
+      $('edit-fields').disabled = false;
+      $('exchange-refresh').hidden = false;
+      status('Files were saved. Reopen the task to read them.'); return;
+    }
+    if (error.status && error.status < 500 && !resolve) {
+      forgetExchange(retained.id);
+      exchangePending = null; exchangeControls();
+      $('exchange-refresh').hidden = false;
+      status((messages[error.message] || error.message.replaceAll('_', ' ')) + '. Your input is retained. Read latest file requests before sending again.');
+    } else {
+      exchangeControls(); status('Save outcome unknown. Check file save before another write.');
+    }
+  }
+}
+$('exchange-setup').onclick = () => {
+  if (!work || accessLost) return;
+  const setup = { format: 'augnes_web_file_task.v1', origin: location.origin, ...scope, work_id: work };
+  const url = URL.createObjectURL(new Blob([JSON.stringify(setup)], {type:'application/json'}));
+  const link = document.createElement('a'); link.href = url; link.download = 'file-task.json'; link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+$('signout').addEventListener('click',forgetPrivateExchanges);
+$('exchange-new').onclick = () => beginExchange(null);
+$('exchange-cancel').onclick = () => { if (busy) return; forgetExchange(work); $('edit-fields').disabled = false; exchangeDraft = null; $('exchange-form').reset(); exchangeControls(); };
+$('exchange-refresh').onclick = () => run(async () => {
+  await readExchanges();
+  if (exchangeDraft) exchangeDraft.expected = exchangeState.head;
+  status('Latest requests and returns are shown. Review them before sending the retained draft.');
+});
+$('exchange-form').onsubmit = event => {
+  event.preventDefault();
+  run(async () => {
+    if (!exchangeDraft || exchangePending || !$('exchange-refresh').hidden) return;
+    const selected = [...$('exchange-upload').files];
+    if (!selected.length || selected.length > 8 || selected.some(f => f.size > 262144) || selected.reduce((n,f) => n + f.size, 0) > 524288) {
+      status('Choose 1–8 files within the displayed size limits. Your draft is retained.'); return;
+    }
+    const {basis,expected,recover} = exchangeDraft;
+    const message = $('exchange-message').value, next_action = $('exchange-next').value;
+    const files = [];
+    for (const f of selected) {
+      const bytes = new Uint8Array(await f.arrayBuffer());
+      let binary = '';
+      for (const byte of bytes) binary += String.fromCharCode(byte);
+      const digest = await exchangeDigest(bytes);
+      files.push({ name: f.name, media_type: f.type || null, bytes: f.size, digest, data: btoa(binary) });
+    }
+    const request_key = recover?.request_key ?? crypto.randomUUID();
+    const body = { basis, expected, kind:basis ? 'return' : 'request', request_key, message, next_action, files };
+    const marker = {...body,files:files.map(({data,...identity})=>identity)};
+    if (recover && JSON.stringify(recover)!==JSON.stringify(marker)) {
+      status('The selected files or message differ from the pending request. Restore the original selection or cancel after reviewing this task.'); return;
+    }
+    try { sessionStorage.setItem(exchangeStoragePrefix + work,JSON.stringify(marker)); } catch {
+      status('The browser could not retain the save for recovery. Enable tab storage or use the local file client. Your draft is retained.'); return;
+    }
+    exchangePending = { id:work, body };
+    exchangeControls();
+    await sendExchange(false);
+  });
+};
+$('exchange-check').onclick = () => run(() => sendExchange(true));
+$('exchange-retry').onclick = () => run(() => sendExchange(false));
+// Keep ordinary editing and exchange forms from discarding each other's unsaved inputs.
+$('editor').addEventListener('click', event => {
+  if (exchangeDraft && !event.target.closest('#exchange-panel')) {
+    event.preventDefault(); event.stopImmediatePropagation(); status('Finish or cancel your file request first.');
+  }
+}, true);
