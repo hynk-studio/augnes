@@ -1061,6 +1061,28 @@ separate-task use and revision. No new platform program is introduced.
   remain sufficient; no registry, generation service or automatic publication
   is assigned.
 
+External discovery and publication under #1447 follow this practical sequence:
+
+1. Introduce the existing public workflow-cost release together with a
+   reproducible usage example and its actual limits. Reuse the completed release
+   and existing example material; this is not a new release or a repeated
+   qualification of unchanged bytes.
+2. Verify the connection Skill's first-use path in the intended host, then
+   distribute it where users of supported coding tools can discover and use it.
+   Keep GitHub as the source and check each delivery path before promising
+   compatibility. [skills.sh](https://skills.sh/docs/faq) is a candidate discovery
+   route to assess; Agensi remains another candidate with the recorded mismatch.
+3. Introduce Web and cooperation capabilities as reproducible examples become
+   available for others to try. Match the claim to the exercised behavior;
+   [Show HN](https://news.ycombinator.com/showhn.html) is a possible later showcase
+   for a usable result, not an assumed audience or completed submission.
+
+Begin by connecting one official starting point, one qualified Skill and one
+reproducible example. Observe first use, friction, repeat use and concrete
+requests through existing records before expanding channels or maintenance.
+These are planned distribution actions; the existing publication scopes and
+the distinction between listing, use and demand remain unchanged.
+
 The current candidate has no host registration or public release. Preserve the
 workflow-cost release, prior RETAIN observations and their limits. The existing
 package's multi-file dependency is incompatible with Agensi's documented
