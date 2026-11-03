@@ -2,7 +2,9 @@ import { digest, classifyInputChange, nonFaultInputChange, inputEventIdentity, v
 import { browserConsumersForPhase, validBrowserUse, validPhaseBrowserUse, parseBrowserUseLine, BROWSER_IDENTITY_PREFIX } from "./local-canonical-browser-identity.mjs";
 
 export const BROWSER_REVISION_SCHEMA = "augnes.local-canonical-source-correction.v8";
-export const isBrowserRevision = p => p?.schema === BROWSER_REVISION_SCHEMA && p.kind === "reviewed_revision";
+export const BROWSER_SUCCESSOR_SCHEMA = "augnes.local-canonical-source-correction.v9";
+export const isBrowserSuccessor = p => p?.schema === BROWSER_SUCCESSOR_SCHEMA && p.kind === "reviewed_revision";
+export const isBrowserRevision = p => (p?.schema === BROWSER_REVISION_SCHEMA && p.kind === "reviewed_revision") || isBrowserSuccessor(p);
 const same = (a, b) => a !== undefined && b !== undefined && digest(a) === digest(b);
 const sha = value => /^[0-9a-f]{64}$/u.test(value ?? "");
 const fail = code => Object.assign(new Error(code), { code });
@@ -14,7 +16,9 @@ export function browserReviewTarget(p) {
     accepted: p.accepted, predecessor: p.prior_receipt_fingerprint, originals: Object.fromEntries(
       ["receipt", "attempt", "completion", "stock"].map(k => [k, p.originals[k].sha256])),
     predecessor_inputs: p.inputs.predecessor_sha256, inputs: p.inputs.identity_sha256,
-    source: p.source.sha256, focused: p.focused.sha256 });
+    source: p.source.sha256, focused: p.focused.sha256,
+    ...(p.schema === BROWSER_SUCCESSOR_SCHEMA ? { commission: p.commission, pull_request: p.pull_request,
+      prior_family_id: p.prior_family_id, prior_number: p.prior_number, prior_attempt_id: p.prior_attempt_id } : {}) });
 }
 
 const preservableStates = ["live", "installed_stopped"];
@@ -87,8 +91,19 @@ export function verifyBrowserRevisionPreservation(previous, live) {
   } });
 }
 
+function browserResourcesSettled(r) {
+  const c = r.cleanup, svc = c?.companion_service;
+  return c?.completed === true && c.remaining_owned_processes === 0 && same(c.failure_codes, []) &&
+    [r.checkout_ownership, r.capacity_ownership].every(o => o?.required === true && o.acquired === true && o.released === true && o.failure_code === null) &&
+    c.isolated_resources?.prepared === true && c.isolated_resources.completed === true && c.isolated_resources.failure_count === 0 &&
+    same(c.isolated_resources.failures, []) && c.isolated_resources.invocation_id === r.run.invocation_id && Boolean(r.run.invocation_id) &&
+    (!r.historical_inputs?.required || (r.historical_inputs.unchanged === true && r.historical_inputs.completed === true && same(r.historical_inputs.failures, []))) &&
+    svc?.restored === true && svc.maintenance_acquired === false && svc.maintenance_released === true && svc.scope === "accepted_checkout_read_only" &&
+    same(svc.before, svc.after) && ["before", "after"].every(side => coherentPreservation(svc[side], svc.observations?.[side]));
+}
+
 export function settledBrowserInterruption(r) {
-  const a = r?.attempt, i = r?.inputs, c = r?.cleanup, svc = c?.companion_service;
+  const a = r?.attempt, i = r?.inputs;
   if (r?.receipt_version !== 4 || a?.source_correction !== null || a.recovery !== null || a.number !== 1 ||
       r.verification_context?.kind !== "isolated-worktree" || r.evidence?.selected_plan !== "full-canonical" || r.evidence.deciding !== false ||
       r.run?.id !== a.attempt_id || a.contract_fingerprint !== i?.fingerprint ||
@@ -96,13 +111,7 @@ export function settledBrowserInterruption(r) {
       r.outcome?.disposition !== "safety_violation" || r.outcome.safety !== "blocked" || r.outcome.validity !== "invalid_or_unknown" ||
       r.outcome.execution !== "incomplete_or_failed" || r.final?.result !== "failure" || r.final.exit_status !== 1 ||
       !same(r.final.reason_codes, ["phase_cancelled", "selected_phases_incomplete", "verification_cancelled"]) ||
-      c?.completed !== true || c.remaining_owned_processes !== 0 || !same(c.failure_codes, []) ||
-      ![r.checkout_ownership, r.capacity_ownership].every(o => o?.required === true && o.acquired === true && o.released === true && o.failure_code === null) ||
-      c.isolated_resources?.prepared !== true || c.isolated_resources.completed !== true || c.isolated_resources.failure_count !== 0 ||
-      !same(c.isolated_resources.failures, []) || c.isolated_resources.invocation_id !== r.run.invocation_id || !r.run.invocation_id ||
-      r.historical_inputs?.required && (r.historical_inputs.unchanged !== true || r.historical_inputs.completed !== true || !same(r.historical_inputs.failures, [])) ||
-      svc?.restored !== true || svc.maintenance_acquired !== false || svc.maintenance_released !== true || svc.scope !== "accepted_checkout_read_only" ||
-      !same(svc.before, svc.after) || !["before", "after"].every(side => coherentPreservation(svc[side], svc.observations?.[side])) ||
+      !browserResourcesSettled(r) ||
       !same(i?.secondary_faults, []) || !same(i.first_fault, r.outcome.first_fault) ||
       !Array.isArray(i.resources) || new Set(i.resources.map(v => v.id)).size !== i.resources.length || !Array.isArray(i.events) || i.events.length >= 64) return null;
 
@@ -167,6 +176,68 @@ export function browserPredecessorEvidence(r, attempt, completion, stock) {
       !unfinished.every(p => stock.issues.includes("phase_not_passing:" + p.id)) || stock.issues.some(code => !consequences.has(code)))
     throw fail("revision_browser_stock_unaccounted");
   return incident;
+}
+
+// Ordinal two is a source correction after a settled, observed child failure.
+// Its predecessor already consumed and monitored the protected installation.
+export function verifyReviewedBrowserFailure(r, stock, inputs, phaseIds) {
+  const previous = r.attempt?.source_correction;
+  const failed = r.phases?.findIndex(p => p.status === "failure") ?? -1;
+  if (previous?.schema !== BROWSER_REVISION_SCHEMA || previous.commission?.ordinal !== 1 ||
+      r.run?.id !== r.attempt.attempt_id || r.attempt.contract_fingerprint !== r.inputs?.fingerprint ||
+      r.evidence?.mode !== "full" || r.evidence.selected_plan !== "full-canonical" || r.evidence.deciding !== false ||
+      r.verification_context?.kind !== "isolated-worktree" || r.repository.worktree_before !== "clean" || r.repository.worktree_after !== "clean" ||
+      r.outcome?.disposition !== "product_failure" || r.outcome.validity !== "valid_within_observed_scope" ||
+      r.outcome.safety !== "preserved_within_observed_scope" || r.outcome.execution !== "incomplete_or_failed" ||
+      r.outcome.first_fault !== null || r.inputs.first_fault !== null || !same(r.inputs.secondary_faults, []) ||
+      !Array.isArray(r.inputs.events) || !r.inputs.events.every(e => {
+        const role = r.inputs.resources.find(v => v.id === e.resource);
+        return role && nonFaultInputChange(e.disposition) && e.identity === inputEventIdentity(e) &&
+          e.classification === role.classification && classifyInputChange(role.before, e.after, role, r.inputs) === e.disposition;
+      }) ||
+      r.final?.result !== "failure" || r.final.exit_status !== 1 || !same(r.final.reason_codes, ["phase_failed", "selected_phases_incomplete"]) ||
+      !browserResourcesSettled(r) || r.historical_inputs?.required !== true ||
+      failed < 0 || !same(r.phases.map(p => p.id), phaseIds) ||
+      !same(inputs, r.inputs.binding?.runtime_inputs) || !browserBindingMatches(r.inputs, inputs?.browser))
+    throw fail("revision_browser_failure_invalid");
+
+  const expected = { location_fingerprint: inputs.browser.executable.location_fingerprint,
+    before: inputs.browser.executable.observation, actual_version: inputs.browser.actual_version };
+  const environments = r.inputs.binding.phase_environment_fingerprints;
+  if (!Array.isArray(environments) || !same(environments.map(e => e.id), phaseIds))
+    throw fail("revision_browser_failure_invalid");
+  const issues = new Set(["receipt_classified_outcome_not_passing", "receipt_final_result_not_pass", "receipt_non_deciding"]);
+  for (const [index, phase] of r.phases.entries()) {
+    const records = phase.browser_use ?? [];
+    if (index >= failed) issues.add("phase_not_passing:" + phase.id);
+    if (index > failed) {
+      if (phase.status !== "not_run" || phase.failure_code !== "phase_not_run" || phase.exit_status !== null || records.length ||
+          phase.started_at !== null || phase.finished_at !== null || phase.cleanup?.remaining_owned_processes != null)
+        throw fail("revision_browser_failure_invalid");
+      if (!phase.environment_fingerprint) issues.add("receipt_phase_environment_binding_invalid");
+      continue;
+    }
+    const child = phase.cleanup;
+    if (!sha(phase.environment_fingerprint) || phase.environment_fingerprint !== environments[index].fingerprint ||
+        phase.timed_out !== false || phase.spawn_error_code != null || child?.completed !== true || child.termination_reason !== "natural_exit" ||
+        child.exit_observed !== true || child.streams_closed !== true || child.remaining_owned_processes !== 0 ||
+        !(child.listener_residue_count === 0 || child.listener_residue_count === null) ||
+        (index < failed ? phase.status !== "pass" || phase.exit_status !== 0 || phase.failure_code !== null :
+          phase.failure_code !== "phase_failed" || !Number.isSafeInteger(phase.exit_status) || phase.exit_status <= 0))
+      throw fail("revision_browser_failure_invalid");
+    if (!validPhaseBrowserUse(phase, records, expected)) {
+      const required = browserConsumersForPhase(phase.id);
+      if (index !== failed || !Array.isArray(records) ||
+          !records.every(v => validBrowserUse(v, expected) && Object.hasOwn(required, v.consumer)) ||
+          Object.entries(required).some(([name, count]) => records.filter(v => v.consumer === name).length > count))
+        throw fail("revision_browser_failure_invalid");
+      issues.add("receipt_browser_identity_invalid:" + phase.id);
+    }
+  }
+  if (stock.status !== "non_deciding_or_stale" || stock.valid_deciding_evidence !== false ||
+      !same(stock.dimensions, { historical_integrity: "intact", execution: "incomplete_or_failed", evidence_validity: "invalid_or_incomplete",
+        safety: "preserved_within_observed_scope", current_merge_applicability: "matches_observed_context" }) ||
+      !same(stock.issues, [...issues].sort())) throw fail("revision_browser_stock_unaccounted");
 }
 
 export function verifyBrowserRemedy(incident, target, phase, logs, witness) {

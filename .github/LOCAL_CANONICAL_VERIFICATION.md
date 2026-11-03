@@ -998,6 +998,33 @@ the original receipt retains the rejected admission sample's comparison
 results, probe availability and evaluation time separately from the initial and
 cleanup observations. This diagnostic grants no execution or retry authority.
 
+#### Source correction after the first reviewed browser execution (source-correction v9)
+
+V8 retains its original meaning at ordinal one. V9 is ordinal two of that same
+commission. The original browser interruption is the commission root. The
+immediate predecessor must be its first reviewed Full with a naturally exiting
+failed child, clean settlement, unchanged protected runtime-inputs v2, and
+separate non-deciding stock. The existing reader replays both exclusive edges
+and their original receipt, attempt, completion and stock materials. A material
+source change, a diagnosis of the failed phase, and focused evidence for the
+new head are required. The original browser remedy and its actual-consumer
+evidence remain bound through the first edge. The executor and separate stock
+still observe the selected installation and current service on the new target.
+
+Keep the root and maximum of two in `commission`. At ordinal two its
+`initial_authorization` is the first proof's exact authorization object. It
+preserves the accounting identity while the new proof's `authorization` binds
+the new candidate. The v9 `browserReviewTarget` also commits to this link, the
+original PR, and the immediate predecessor. A preparation without prospective
+authorization uses the same material, Git, preservation and ledger readers and
+does not reserve. The new commit-anchored review uses the existing browser
+acceptance wording and binds the new base/head/tree and target. A subsequent
+new, unedited grant on the original Draft PR must satisfy the existing bounded
+scope, name the v9 schema and new review URL, link the original grant's exact
+comment URL, name both receipt fingerprints, and authorize the **second and
+final deciding invocation**. Both grant IDs remain in the chain. After that
+reservation there is no further browser successor or recovery under this commission.
+
 The selected task Node and matching sibling headers are immutable inputs.
 Header content, topology, permissions and ownership are checked at admission,
 phase boundaries, final settlement and stock; expensive tree scans do not run

@@ -4,10 +4,10 @@ import { execFileSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { digest, inputEventIdentity, BROWSER_RUNTIME_INPUTS, observeBrowserInstallation, freezeInputContract } from "../local-canonical-inputs.mjs";
-import { BROWSER_REVISION_SCHEMA, browserReviewTarget, browserPredecessorEvidence, verifyBrowserRemedy, verifyBrowserRevisionPreservation, browserBindingMatches } from "../local-canonical-browser-revision.mjs";
-import { reviewedRevisionAuthorityObservation, finishAttempt, reconstructAttemptTip, hasRetiredQualificationMarker, inspectBrowserRevisionPreparation, readSourceCorrectionProof } from "../local-canonical-attempts.mjs";
-import { finalizeReceipt, inspectReceiptForDecision } from "../local-canonical-receipt.mjs";
-import { createPrivateReviewExport, inspectPrivateReviewExport } from "../local-canonical-review-export.mjs";
+import { BROWSER_REVISION_SCHEMA, browserReviewTarget, browserPredecessorEvidence, verifyBrowserRemedy, verifyBrowserRevisionPreservation } from "../local-canonical-browser-revision.mjs";
+import { reviewedRevisionAuthorityObservation, hasRetiredQualificationMarker, inspectBrowserRevisionPreparation, readSourceCorrectionProof } from "../local-canonical-attempts.mjs";
+import { finalizeReceipt } from "../local-canonical-receipt.mjs";
+import { checkBrowserSourceSuccessor } from "./local-canonical-browser-successor.mjs";
 import { BROWSER_IDENTITY_PREFIX } from "../local-canonical-browser-identity.mjs";
 
 const time = offset => new Date(Date.now() + offset).toISOString();
@@ -163,35 +163,8 @@ export async function runBrowserRevisionControls(c, h) {
   try{assert.throws(()=>h.begin(c,proof,cap),/revision_original_ledger_changed/);}finally{h.write(ledger,ledgerBytes);}
   const wrong={...p,schema:"augnes.local-canonical-source-correction.v7"};h.write(c.file,wrong);assert.throws(()=>h.proof(c));h.write(c.file,p);
   assert(hasRetiredQualificationMarker({attempt:{source_correction:{...p,kind:"browser_input_replacement"}}}));
-  assert(!existsSync(edge));const a=h.begin(c,proof,cap);
-  const r=h.receipt(c,a,"completed_success");r.inputs.binding.environment_keys=["AUGNES_BROWSER_EXECUTABLE_PATH"];
-  r.inputs.resources.push({id:"browser-executable",classification:"execution",readOnlyExecutable:true,location_fingerprint:browser.executable.location_fingerprint,before:browser.executable.observation},
-    {id:"browser-installation",classification:"execution",protectedInstallation:true,location_fingerprint:browser.installation.location_fingerprint,before:browser.installation});
-  r.phases[0].browser_use=records;
-  assert(browserBindingMatches(r.inputs,browser));assert(!browserBindingMatches(r.inputs,changed.browser));
-  const result=finalizeReceipt(r);h.storeReceipt(c,result);finishAttempt(a,{receiptFingerprint:result.integrity.content_fingerprint,disposition:"completed_success",cleanupComplete:true});
-  assert(h.stock(c,result,cap));assert.equal(reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch}).attempt_id,a.attempt_id);
-  assert.throws(()=>h.begin(c,proof,cap));
-  h.write(ledger,JSON.stringify(raw,null,2));
-  try {
-    assert.throws(()=>reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch}),/revision_original_ledger_changed/);
-    assert(!h.stock(c,result,cap));
-  } finally {h.write(ledger,ledgerBytes);}
-  const full=finalizeReceipt({...structuredClone(h.baseReceipt),...result,final:{result:"success",exit_status:0,reason_codes:[]}});
-  // Other parts of this small receipt are intentionally synthetic/incomplete.
-  // Exercise precisely the new receipt checks, without describing it as PASS.
-  const code="receipt_browser_installation_invalid";
-  assert(!inspectReceiptForDecision(full).issues.includes(code));
-  const altered=structuredClone(full);altered.inputs.resources.find(r=>r.protectedInstallation).before={...browser.installation,content_sha256:digest("other")};
-  assert(inspectReceiptForDecision(finalizeReceipt(altered)).issues.includes(code));
-  assert.throws(()=>createPrivateReviewExport(finalizeReceipt(altered)),/browser_installation_invalid/);
-  const exported=createPrivateReviewExport(full);
-  assert(inspectPrivateReviewExport(exported).structurally_valid);
-  exported.phases[0].browser_use[0].location_fingerprint=digest("other consumer");delete exported.export_fingerprint;exported.export_fingerprint=digest(exported);
-  assert(!inspectPrivateReviewExport(exported).structurally_valid);
-  const packet=path.join(c.root,"cold-browser.json");h.write(packet,{anchor:c.anchor,checkout:c.checkout,file:c.file,inputs:c.inputs,authority:c.authority,receipt:result,live:c.live});await h.fresh(packet);
-  const original=readFileSync(path.join(c.artifacts,p.originals.stock.artifact));h.write(path.join(c.artifacts,p.originals.stock.artifact),"changed");
-  assert(!h.stock(c,result,cap));h.write(path.join(c.artifacts,p.originals.stock.artifact),original);
+  assert(!existsSync(edge));
+  await checkBrowserSourceSuccessor(c, h, proof, cap, records[0]);
   assert.equal(h.read(ledger).disposition,"safety_violation");
   console.log(JSON.stringify({browser_revision_controls:["ordinary interrupted receipt and separate stock","exclusive admission and fresh reconstruction","changed browser contents, identities and actual consumers","unsettled cleanup, unrelated faults and changed historical bytes","separate exact contract review and prospective grant","v7/retired refusal; bounded non-deciding review export"],synthetic_only:true}));
 }

@@ -1260,6 +1260,7 @@ const successionProfiles = [
   { schema: "augnes.local-canonical-source-correction.v6", kind: "guide_cancellation_correction" },
   { schema: "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision" },
   { schema: "augnes.local-canonical-source-correction.v8", kind: "reviewed_revision" },
+  { schema: "augnes.local-canonical-source-correction.v9", kind: "reviewed_revision" },
 ];
 const dispatchStart = executorSource.indexOf("            const revisionAuthorization =");
 const dispatchEnd = executorSource.indexOf("            attempt = beginAttempt(", dispatchStart);

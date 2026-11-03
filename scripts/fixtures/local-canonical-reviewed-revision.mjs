@@ -129,7 +129,17 @@ async function prepareSettlement(c) {
 }
 
 if(process.argv[2]==="--cold"){
-  const c=read(process.argv[3]),p=proof(c),a=await auth(c,p);assert(stock(c,c.receipt,a));console.log("fresh reader PASS");
+  const c=read(process.argv[3]),p=proof(c),a=await auth(c,p);
+  if (c.stockContext) {
+    const r=read(path.join(c.checkout,".augnes-local-verification/receipts",c.stockContext.expectedRunId+".json"));
+    const git=args=>execFileSync("git",args,{cwd:c.checkout,encoding:"utf8",timeout:5000}).trim();
+    const currentIdentity={...c.stockContext.currentIdentity,head_sha:git(["rev-parse","HEAD"]),branch:git(["symbolic-ref","--short","HEAD"])};
+    const result=inspectReceiptForDecision(r,{...c.stockContext,currentIdentity,currentAttemptRecordsValid:stock(c,r,a),
+      currentInputStateValid:digest(c.inputs)===p.inputs.identity_sha256});
+    write(c.stockOutput,result);
+    assert.equal(result.valid_deciding_evidence,c.expectedPass,JSON.stringify(result.issues));
+  } else assert(stock(c,c.receipt,a));
+  console.log("fresh reader PASS");
 }else if(process.argv[2]==="--race"){
   const c=read(process.argv[3]);c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout});
   try{const p=proof(c),a=await auth(c,p);write(c.ready,"ready");while(!existsSync(c.go))await new Promise(r=>setTimeout(r,5));
