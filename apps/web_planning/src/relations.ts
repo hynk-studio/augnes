@@ -2,7 +2,7 @@ import { directionSelection, fileBranch, fileIncorporation } from "./directions"
 import { hasSceneFile, ordinaryFileBranch, ordinaryFileIncorporation } from "./file-relations";
 import { fileSelection } from "./contract";
 import type { FileBody } from "./files";
-import { assertHistoryBudget, binding, boundedText, canonical, dispositions, exact, fail, FINGERPRINT, hash, headBinding, inspectRelations, makeRevision, normalizePayload, reference, RELATION_BYTES, requireHistoricalContext, requestFingerprint, retainedNote, sameBinding, selectedWorkSourceInput, UUID, validateRelations, validateSameWorkOrigins, workRef, type Material, type Payload, type Relations, type Revision, type Scope, type WorkRef } from "./contract";
+import { binding, boundedText, canonical, dispositions, exact, fail, FINGERPRINT, hash, headBinding, inspectRelations, makeRevision, normalizePayload, reference, RELATION_BYTES, requireHistoricalContext, requestFingerprint, retainedNote, sameBinding, selectedWorkSourceInput, UUID, validateRelations, validateSameWorkOrigins, workRef, type Material, type Payload, type Relations, type Revision, type Scope, type WorkRef } from "./contract";
 import { seal, unseal, type Access } from "./access";
 import { append, headsCurrent, readWork, requestRevision, type Store } from "./store";
 
@@ -83,7 +83,7 @@ export async function compare(s:Store,id:string,expected:unknown,source:unknown)
   const baseline=targetChain.find(r=>canonical(reference(r))===canonical(origin.source));
   if(!baseline)fail("origin_unavailable",409);
   if(!await headsCurrent(s,reference(target),reference(branch)))fail("refresh_required",409);
-  return {target,branch,baseline};
+  return {target,branch,baseline,targetChain};
 }
 function branchIntent(input:any) { exact(input,"reason"); return {reason:boundedText(input.reason,true)}; }
 function targetSelection(value:unknown):string[] {
@@ -162,6 +162,7 @@ export async function previewOperation(a:Access,id:string,kind:"branch"|"incorpo
   } else {
     const result=await compare(a,id,expected,(intent as ReturnType<typeof incorporationIntent>).source);
     source=result.branch;target=result.target;payload=(await incorporation(a,target,source,intent as ReturnType<typeof incorporationIntent>)).payload;
+    validateSameWorkOrigins(result.targetChain,id,payload,a);
   }
   if(payload.relations)validateRelations(payload.relations,payload,work_id);
   const t:OperationTicket={kind,workspace_id:a.workspace_id,project_id:a.project_id,author_ref:a.author_ref,work_id,request_key:crypto.randomUUID(),expected:headBinding(target),source:reference(source),intent_fingerprint:hash(canonical(intent)),request_fingerprint:"",expires:Date.now()+86_400_000};
@@ -211,8 +212,7 @@ export async function saveOperation(a:Access,id:string,value:unknown,input:unkno
     return {outcome:"saved",saved:target,head:headBinding(target),noop:true};
   }
   const next=makeRevision(a,id,t.expected,t.request_key,payload,new Date().toISOString());
-  assertHistoryBudget([...chain,next]);
-  await append(a,next,t.source,bodies);
+  await append(a,chain,next,t.source,bodies);
   const after=await readWork(a,id),result=after.find(r=>r.request_key===t.request_key);
   if(!result)fail("refresh_required",409);
   if(result.request_fingerprint!==t.request_fingerprint)fail("altered_replay",409);

@@ -1,7 +1,7 @@
 import { checkDirectionReferences } from "./directions";
 import { Buffer } from "node:buffer";
 import { seal, unseal, type Access } from "./access";
-import { assertHistoryBudget, binding, canonical, exact, fail, hash, headBinding, makeRevision, reference, requestFingerprint, sameBinding, UUID, type Payload, type Revision } from "./contract";
+import { binding, canonical, exact, fail, hash, headBinding, makeRevision, reference, requestFingerprint, sameBinding, UUID, type Payload, type Revision } from "./contract";
 import { historyFiles, selectedFiles, type FileBody } from "./files";
 import { append, downloadFile, headsCurrent, readWork, requestRevision } from "./store";
 import { emptyNotebook, notebookFrom, SCENE_CONTEXT_BYTES, SCENE_FILE, sceneDraft, sceneParameters, sceneReview, sourceFiles, type SceneNotebook, DIRECTION_FORMAT, directionNotebook, sceneUnits, unitKey, validateProposalLinks } from "./scene-contract";
@@ -73,8 +73,8 @@ export async function saveSceneReview(a:Access,id:string,value:unknown,input:unk
   if(!sameBinding(headBinding(chain.at(-1)),t.expected))fail("refresh_required",409);
   const {payload,bodies}=await reviewPayload(a,chain,intent);
   if(requestFingerprint(a,id,t.expected,t.request_key,payload)!==t.request_fingerprint)fail("preview_changed",409);
-  const next=makeRevision(a,id,t.expected,t.request_key,payload,new Date().toISOString());assertHistoryBudget([...chain,next]);
-  await append(a,next,undefined,bodies);
+  const next=makeRevision(a,id,t.expected,t.request_key,payload,new Date().toISOString());
+  await append(a,chain,next,undefined,bodies);
   const after=await readWork(a,id),result=after.find(r=>r.request_key===t.request_key);
   if(!result)fail("refresh_required",409);
   if(result.request_fingerprint!==t.request_fingerprint)fail("altered_replay",409);

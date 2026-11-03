@@ -8,7 +8,7 @@ import { DIRECTION_EXPORT, directionExport, validateDirectionExport } from "./di
 import { prepareSceneContext, prepareSceneDraft, previewSceneReview, saveSceneReview } from "./scenes";
 import { type FileBody, FILE_EXPORT_REQUEST_BYTES, historyFiles, selectedFiles, validateFileExport } from "./files";
 import { authorize, csrfCookie, csrfToken, readTicket, requireCsrf, requireScope, ticket, type Environment, type Principal } from "./access";
-import { assertHistoryBudget, binding, canonical, exact, exportWork, fail, hash, makeRevision, normalizePayload, reference, Refusal, REQUEST_BYTES, requestFingerprint, sameBinding, UUID, validateExport } from "./contract";
+import { binding, canonical, exact, exportWork, fail, hash, makeRevision, normalizePayload, reference, Refusal, REQUEST_BYTES, requestFingerprint, sameBinding, UUID, validateExport } from "./contract";
 import { inspectDraftCapacity } from "./capacity";
 import { append, completeExport, downloadFile, eraseWork, headBinding, headsCurrent, listWork, readNoteHistory, readWork, reconstruct, reconstructWorks, requestRevision } from "./store";
 import { page, renderContext, renderComparison, renderPreview, style } from "./page";
@@ -148,7 +148,8 @@ export async function handle(request:Request,env:Environment,principal:Principal
           return json({recovery,reading:works.map(w=>readableExport(w.revisions,w.files))});
         }
         if(!await headsCurrent(access,reference(result.target),reference(result.branch)))fail("refresh_required",409);
-        return json({...result,direction,html:renderComparison(result.target,result.branch,result.baseline)});
+        const {target,branch,baseline}=result;
+        return json({target,branch,baseline,direction,html:renderComparison(target,branch,baseline)});
       }
       exact(input,"workspace_id,project_id,expected,intent");
       const result=await previewOperation(access,id,action==="branch-preview"?"branch":"incorporate",input.expected,input.intent);
@@ -200,8 +201,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
       if(!sameBinding(headBinding(previous.at(-1)),t.expected))fail("conflict",409);
       historyFiles([...previous,{files:payload.files} as NonNullable<typeof base>]);
       const next=makeRevision(access,id,t.expected,t.request_key,payload,new Date().toISOString());
-      assertHistoryBudget([...previous,next]);
-      await append(access,next,undefined,bodies);
+      await append(access,previous,next,undefined,bodies);
     }
     const chain=await readWork(access,id);
     const saved=chain.find(r=>r.request_key===t.request_key);

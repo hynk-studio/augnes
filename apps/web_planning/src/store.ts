@@ -2,7 +2,7 @@ import { projectWorkListItem, listEnvelope } from "./work-list";
 import { SCENE_FILE, validateSceneHistory } from "./scene-contract";
 import { Buffer } from "node:buffer";
 import { decodeFile, digestBytes, exportFiles, historyFiles, verifiedBodies, type FileBody, type FileEntry } from "./files";
-import { assertHistoryBudget, canonical, canonicalBytes, fail, headBinding, HISTORY_READ_BYTES, HISTORY_READ_ROWS, type Binding, type Revision, type Scope, type WorkRef, UUID, validateChain } from "./contract";
+import { assertHistoryBudget, canonical, canonicalBytes, fail, headBinding, HISTORY_READ_BYTES, HISTORY_READ_ROWS, type Binding, type Revision, type Scope, type WorkRef, UUID, validateChain, validateSameWorkOrigins } from "./contract";
 // The subset of the D1 binding used here. No SQLite adapter or in-memory fallback.
 export interface Statement {
   bind(...values: (string | number | null | ArrayBuffer)[]): Statement;
@@ -107,7 +107,10 @@ const sourceArgs = (s:Scope, ref:WorkRef) => [...args(s,ref.work_id),...args(s,r
 export async function headsCurrent(s:Store,target:WorkRef,source:WorkRef):Promise<boolean> {
   return !!await s.DB.prepare(`SELECT 1 AS current WHERE ${sourceGate} AND ${sourceGate}`).bind(...sourceArgs(s,target),...sourceArgs(s,source)).first();
 }
-export async function append(s: Store, r: Revision, source?: WorkRef, bodies:FileBody[]=[]): Promise<void> {
+export async function append(s: Store, chain: Revision[], r: Revision, source?: WorkRef, bodies:FileBody[]=[]): Promise<void> {
+  // Use the same historical conditions as a later read, before inserting any row or file.
+  validateSameWorkOrigins(chain,r.work_id,r,s);
+  assertHistoryBudget([...chain,r]);
   // The predecessor test is inside the INSERT. A JS read is never the concurrency gate.
   const statement=s.DB.prepare(`INSERT INTO web_planning_revision
     (workspace_id,project_id,work_id,revision,fingerprint,request_key,request_fingerprint,envelope)
