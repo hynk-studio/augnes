@@ -132,7 +132,10 @@ async function readWithFreshTransport(repositoryRoot) {
 }
 
 if (!isMainThread && workerData?.operation === "companion_preservation") {
-  parentPort.postMessage(await readAcceptedPreservation(workerData.repositoryRoot));
+  // Browser entry points also load this module through tsx's CommonJS loader.
+  readAcceptedPreservation(workerData.repositoryRoot)
+    .then(observation => parentPort.postMessage(observation))
+    .catch(() => process.exit(1)); // The parent rejects an exit without a sample.
 }
 
 // A read-only cooperating-owner observation, not a global lock or service
