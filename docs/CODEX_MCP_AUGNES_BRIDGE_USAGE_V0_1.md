@@ -128,6 +128,49 @@ attachment preparation is available only on the verified supported lane;
 packaged Windows preparation remains unavailable. No MCP result exposes the
 native component path, volume serial, file ID, or canonical private path.
 
+## Public setup and first continuation
+
+Choose the outcome before installing anything:
+
+| Outcome | Entry and prerequisites | First useful result |
+| --- | --- | --- |
+| Calculate retry work without Augnes | [Public workflow-cost files](PUBLIC_ASSET_SKILL_USAGE.md), Python 3.9+ and permitted local execution; optional separately installed Codex Skill | A checked calculation with its assumptions. No Companion, account or project is needed. |
+| Continue a project with Augnes | A source checkout, supported macOS/Node 24 Companion, ready local Codex client and installed `augnes-operator` | Current saved work, or an explicit blank/unavailable state, for the intended registered project. |
+| Route an explicit Augnes request | `augnes-codex` guidance | Delegation to the above owners. This routing skill alone provides no service or state. |
+
+For the continuity path, keep **application checkout** and **project folder**
+separate. The service install/status/start and plugin setup use the Augnes
+application checkout. Resume and ordinary work tools use the intended project's
+registered local root, including an ordinary folder without Git. A package
+label, GitHub URL or current shell directory does not establish either binding.
+
+1. Check the [Quickstart runtime and platform requirements](../README.md#quickstart)
+   on the computer that will run Augnes. Linux/Windows foreground development is
+   not the packaged macOS Companion route. Do not promise remote/mobile local
+   service access merely because a Skill loads.
+2. From the Augnes checkout, follow the existing service installation below if
+   the user requested installation. Inspect existing status first when resuming;
+   do not replace an unrelated installed service. Install the reviewed Operator
+   into the intended Codex profile through the existing setup command.
+3. Open the service's returned UI URL and connect/select the intended project
+   using the [normal project onboarding](../README.md#quickstart). A fresh project
+   legitimately has no previous work. Plugin installation is not registration.
+4. Ask Codex to resume that project. The live-continuity owner checks the
+   application service, then reads the project's current state. If tools are
+   absent or a version is refused, use the existing setup/diagnostic action;
+   preserve unsupported or unavailable results instead of reconstructing state.
+5. Define first work or continue the selected task within its existing scope.
+   Read back saved changes through a fresh Resume. Managed execution and its
+   result/continuation tools retain their own capability and admission checks.
+   A saved definition, successful read or installed Skill is not an executed job.
+
+The current public gap is a verified first-time consumer journey through this
+whole supported route, including a project folder different from the application
+checkout and an explicit unavailable case. Existing source/fixture and historical
+installed evidence have their own scope; this guide does not claim that new
+consumer observation. A universal installer, all-host compatibility and a
+standalone runtime inside `augnes-codex` are not supplied by this entry.
+
 ## Current local product path
 
 The supported CDX2B1 path is:

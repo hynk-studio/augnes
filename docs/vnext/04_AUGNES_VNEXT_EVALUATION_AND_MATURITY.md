@@ -330,6 +330,19 @@ claim; proportionate verification selection remains separately evaluated work.
 
 ## Method-improvement evidence
 
+For the 2026-11-03 [public-Skill candidate](../../skills/verify-software-change/SKILL.md),
+evaluate the requested installation/delivery behavior separately from input
+identity. Its stdlib observer compares only explicitly selected file bytes;
+equal snapshots do not prove dependency completeness, runtime compatibility,
+whole-directory consistency or absence of transient changes between reads.
+Keep source routing, intact-directory checks, simulated single-script delivery,
+actual host installation and marketplace use distinct. A real delivery mismatch
+is a useful negative result, not a reason to change the old immutable release.
+Use the same permitted sources, project checks and resources for any later
+skill-versus-ordinary-tools comparison; include preparation, execution, checking,
+repair and human explanation. Supplied forward-test tasks do not establish
+organic discovery, external demand, generality or a measured burden reduction.
+
 For #1417's bounded first-work ingress, the observed gap is an empty registered
 project that cannot use the existing revision tools. The hypothesis is that
 sharing initial authorship behind the private Companion channel enables the

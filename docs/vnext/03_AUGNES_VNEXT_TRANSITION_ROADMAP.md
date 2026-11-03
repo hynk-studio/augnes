@@ -1014,6 +1014,45 @@ field adoption and all-host support remain unclaimed.
 #1433's completed connected-review evidence and #1372's private-file obligations
 remain with their existing owners; neither is a prerequisite for these public files.
 
+#### Public connection and one derived Skill candidate — 2026-11-03
+
+The user authorized starting the scoped public-Skill sequence and trying an
+appropriate Agensi listing during the work. A compatible, qualified package may
+be submitted free after checking the actual channel/account path; repeat generic
+publication permission is unnecessary. This does not commission paid setup,
+outreach, automatic publication or an ongoing maintenance promise.
+#1447 continues to own the public
+entry/distribution path; existing L2/#1373/#1431 owners retain method extraction,
+separate-task use and revision. No new platform program is introduced.
+
+- Prepare the [public setup and first continuation route](../CODEX_MCP_AUGNES_BRIDGE_USAGE_V0_1.md#public-setup-and-first-continuation)
+  now, without waiting for the whole public application. Correct the duplicated
+  `augnes-codex` routing instructions to distinguish the application/service
+  checkout from the registered target project; retain the current Operator.
+- Keep [verify-software-change](../../skills/verify-software-change/SKILL.md)
+  as one portable source candidate. Use existing checks plus a selected-file
+  observer and ordinary handoff. Initial source/delivery investigations are not
+  a new installed-host observation. A real next installation/version-change
+  task should exercise the same method and return its actual result.
+- Evaluate separate-task reuse and whether the required material travels with
+  the candidate. Internal need is a valid starting point; independent demand
+  is not a prerequisite to investigate. Retain ordinary scripts/notes when
+  packaging adds no useful capability. Do not infer comparative benefit from
+  forward-test success or manufacture an upgrade to create demand.
+- Automate extraction, packaging or maintenance only after actual repeated work
+  identifies a shared need. Existing runtime, source and publication owners
+  remain sufficient; no registry, generation service or automatic publication
+  is assigned.
+
+The current candidate has no host registration or public release. Preserve the
+workflow-cost release, prior RETAIN observations and their limits. The existing
+package's multi-file dependency is incompatible with Agensi's documented
+single-temporary-script delivery. [Channel preparation and disposition](../PUBLIC_ASSET_SKILL_USAGE.md#additional-distribution-channels)
+record this mismatch and the next check.
+Actual marketplace submission, installed Mac setup/Resume and comparative
+benefit remain separate observations. A connection/service blocker does not
+prevent independent source work; source work does not qualify an installed host.
+
 ### Next P4/P5 — Executable capability reuse from experience (#1373)
 
 The 2026-10-01 [#1373 alignment](https://github.com/hynk-studio/augnes/issues/1373)

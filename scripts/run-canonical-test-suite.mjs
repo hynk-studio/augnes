@@ -215,6 +215,15 @@ const suites = {
       requireNaturalExit: true,
     },
     {
+      label: "portable software-change selected-input observation (Python stdlib)",
+      requirements: ["filesystem", "process-owning", "immutable-fixture-input"],
+      command: "python3",
+      args: ["-E", "-s", "-S", "-B", "scripts/test-software-change-inputs.py"],
+      cwd: repoRoot,
+      timeoutMs: 10_000,
+      requireNaturalExit: true,
+    },
+    {
       label: "web planning Worker strict type compatibility",
       ...rootNode("node_modules/typescript/bin/tsc", "-p", "apps/web_planning/tsconfig.json", "--noEmit"),
       timeoutMs: 30_000,
