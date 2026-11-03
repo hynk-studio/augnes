@@ -140,6 +140,11 @@ export async function runBrowserRevisionControls(c, h) {
   const result=finalizeReceipt(r);h.storeReceipt(c,result);finishAttempt(a,{receiptFingerprint:result.integrity.content_fingerprint,disposition:"completed_success",cleanupComplete:true});
   assert(h.stock(c,result,cap));assert.equal(reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch}).attempt_id,a.attempt_id);
   assert.throws(()=>h.begin(c,proof,cap));
+  h.write(ledger,JSON.stringify(raw,null,2));
+  try {
+    assert.throws(()=>reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch}),/revision_original_ledger_changed/);
+    assert(!h.stock(c,result,cap));
+  } finally {h.write(ledger,ledgerBytes);}
   const full=finalizeReceipt({...structuredClone(h.baseReceipt),...result,final:{result:"success",exit_status:0,reason_codes:[]}});
   // Other parts of this small receipt are intentionally synthetic/incomplete.
   // Exercise precisely the new receipt checks, without describing it as PASS.

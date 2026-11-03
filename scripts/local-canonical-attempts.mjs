@@ -266,6 +266,7 @@ function readAttemptLineage({ anchorRoot, repositoryRoot = null, branch }, throu
     if (browserEdge && (!repositoryRoot || revisionCount || !revisionEdge || !validReviewedRevisionAttempt(next) ||
         !readReviewedRevisionEvidence(path.join(repositoryRoot, proof.local_relative_path), proof, repositoryRoot).browserIncident))
       throw fail("attempt_lineage_edge_invalid");
+    if (browserEdge) verifyRevisionOriginals(anchorRoot, repositoryRoot, proof);
     if (completion.cleanup_complete !== true) {
       if (!repositoryRoot || completion.cleanup_complete !== false || !revisionEdge || revisionCount !== 2 ||
           !validReviewedRevisionAttempt(next) || proof?.commission.ordinal !== 1 || !proof.settlement ||
