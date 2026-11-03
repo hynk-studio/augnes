@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { hasRetiredQualificationMarker, isReviewedRevision, REVIEWED_REVISION_PHASES, readSourceCorrectionProof as readCorrectionProof } from "./local-canonical-attempts.mjs";
 
-import { isBrowserRevision } from "./local-canonical-browser-revision.mjs";
+import { isBrowserRevision, verifyBrowserRevisionPreservation } from "./local-canonical-browser-revision.mjs";
 import assert from "node:assert/strict";
 import { digest } from "./local-canonical-inputs.mjs";
 import { spawnSync } from "node:child_process";
@@ -949,7 +949,7 @@ const ownedBlockEnd = executorSource.indexOf("\n  const serviceLifecycleRestored
 assert.ok(ownedBlockStart > 0 && ownedBlockEnd > ownedBlockStart);
 const ownedBlock = executorSource.slice(ownedBlockStart, ownedBlockEnd);
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"].flatMap(graph => ["missing", "invalid", "ready"].map(state => `${prefix}historical_${graph}_${state}`))), "wrong_npm","checkout_busy","capacity_busy","acquisition_failure","owned_failure","unsettled_failure","success","absent_success","stopped_success","quick_success","isolated_success","isolated_unsettled","isolated_observation_invalid","pre_lock_state_race","maintenance_state_race","revision_authority_refused","revision_changed_after_authority","revision_partial_workload_refused","revision_runtime_success","revision_settlement_success","revision_settlement_unsafe","revision_dependencies_observation_failure","isolated_observer_settled","isolated_observer_cleanup_failed","isolated_observer_unknown",]) {
+for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"].flatMap(graph => ["missing", "invalid", "ready"].map(state => `${prefix}historical_${graph}_${state}`))), "wrong_npm","checkout_busy","capacity_busy","acquisition_failure","owned_failure","unsettled_failure","success","absent_success","stopped_success","quick_success","isolated_success","isolated_unsettled","isolated_observation_invalid","pre_lock_state_race","maintenance_state_race","revision_authority_refused","revision_changed_after_authority","revision_partial_workload_refused","revision_runtime_success","revision_settlement_success","revision_settlement_unsafe","revision_browser_preservation_refused","revision_dependencies_observation_failure","isolated_observer_settled","isolated_observer_cleanup_failed","isolated_observer_unknown",]) {
   const root = realpathSync(mkdtempSync(path.join(tmpdir(), "augnes-canonical-ownership-")));
   let competingOwner = null;
   let privateResource = null;
@@ -977,6 +977,11 @@ for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"
     const noServiceMaintenance = ["absent_success", "stopped_success"].includes(scenario);
     let authorityObserved = false, attemptClaims = 0;
     const revisionLane = scenario.startsWith("revision_");
+    const browserRefusal = scenario === "revision_browser_preservation_refused";
+    const browserService = { status: "live", checkout_relation: "exact", preservation_valid: true,
+      service_identity: "sha256:" + "b".repeat(64), preservation_binding: "a".repeat(64) };
+    let browserSamples = 0;
+    const rejectedAt = new Date(Date.now() - 1000).toISOString();
     const revisionSettlement = scenario.startsWith("revision_settlement_");
     const settlementLive = Object.freeze({ synthetic_current_safe_observation: true });
     const revisionRuntime = ["revision_runtime_success", "revision_settlement_success", "revision_dependencies_observation_failure"].includes(scenario);
@@ -1009,7 +1014,7 @@ for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"
       checkoutContext: isolated ? "isolated-worktree" : "canonical", verificationContext: {}, signal: { aborted: false },
       controller: new AbortController(), recoveryProofPath: null, sourceCorrectionProofPath: null, baseSha: "0".repeat(40), headSha: "a".repeat(40), executorFingerprint: "b".repeat(64), identityBefore: { branch: "fixture" },
       isReviewedRevision, isBrowserRevision, digest, REVIEWED_REVISION_PHASES,
-      sourceCorrection: revisionLane ? { schema: "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision", ...(revisionSettlement ? { settlement: { sha256: "c".repeat(64) } } : {}) } : null,
+      sourceCorrection: revisionLane ? { schema: browserRefusal ? "augnes.local-canonical-source-correction.v8" : "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision", ...(revisionSettlement ? { settlement: { sha256: "c".repeat(64) } } : {}) } : null,
       authorizeReviewedRevision: async () => { authorityObserved = true; if (scenario === "revision_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
       observeReviewedRevisionSettlementState: async () => {
         assert(authorityObserved); assertCheckoutVerificationOwnership(activeOwner, root);
@@ -1026,7 +1031,12 @@ for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"
         },
         checkPreparedDependencies: () => { assertCheckoutVerificationOwnership(activeOwner, root); preparedChecks++; }, snapshot: () => ({ resources: [], binding: { tree: "c".repeat(40) }, fingerprint: "d".repeat(64) }) }),
       monitorInputContract: () => ({ check: () => [    "revision_changed_after_authority",    ].includes(scenario) && authorityObserved ? { disposition: "input_invalidation" } : null, stop() {}, fault: () => null }),
-      beginAttempt: options => { assert.equal(options.revisionLive, revisionSettlement ? settlementLive : null); attemptClaims++; return {}; }, pinVerificationEvidence() {}, assertFrozenSource() {},
+      beginAttempt: options => {
+        if (browserRefusal) verifyBrowserRevisionPreservation(browserService, options.revisionLive);
+        else assert.equal(options.revisionLive, revisionSettlement ? settlementLive : null);
+        attemptClaims++;
+        return {};
+      }, pinVerificationEvidence() {}, assertFrozenSource() {},
       createIsolatedInvocationResources: id => (privateResource = createIsolatedInvocationResources(id)),
       readPreparedR8ADependencies: repository => historicalRead("r8a", repository),
       readPreparedDurableDependencies: repository => historicalRead("durable", repository),
@@ -1080,7 +1090,18 @@ for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"
       },
       safeErrorCode: error => error.code ?? "synthetic_failure", boundedLifecycleState: value => value,
       inspectCompanionService: async () => structuredClone(serviceState),
-      inspectVerificationCompanionPreservation: async () => ({state:{...structuredClone(serviceState),preservation_valid:scenario !== "isolated_observation_invalid",preservation_binding:"a".repeat(64)},diagnostics:{samples:1}}),
+      inspectVerificationCompanionPreservation: async (_ctx, { freshTransport }) => {
+        assert.equal(freshTransport, browserRefusal);
+        if (!browserRefusal) return { state: { ...serviceState, preservation_valid: scenario !== "isolated_observation_invalid",
+          preservation_binding: "a".repeat(64) }, diagnostics: { samples: 1 } };
+        const middle = ++browserSamples === 2;
+        return { state: { ...browserService, ...(middle ? { status: "recovery_required", preservation_valid: false } : {}) },
+          diagnostics: { contract: "augnes.companion-preservation-observation.v2", samples: 1, coherent: true, live_identity_valid: true,
+            before_binding: browserService.preservation_binding, after_binding: browserService.preservation_binding,
+            repository_observation_before: "observed", repository_observation_after: "observed",
+            repository_binding_before: "c".repeat(64), repository_binding_after: "c".repeat(64),
+            finished_at: middle ? rejectedAt : new Date().toISOString(), runtime: { probe_available: { ui_health: !middle } } } };
+      },
       acquireCompanionServiceMaintenance: async () => {
         assertCheckoutVerificationOwnership(activeOwner, root);
         calls.acquire++;
@@ -1165,7 +1186,15 @@ for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"
       assert(authorityObserved); assert.equal(attemptClaims, 0); assert.equal(calls.phases, 0);
       assert(result.executionFailure); assert.equal(result.cleanupComplete, true, "execution refusal is separate from positively observed settlement");
       assert.equal(calls.release, isolated ? 0 : 1); assert(!existsSync(next)); assert(!existsSync(windows));
-      if (revisionRefusal) assert.equal(result.executionReason, scenario === "revision_settlement_unsafe" ? "revision_current_settlement_unsafe" : scenario === "revision_authority_refused" ? "synthetic_authority_refusal" : scenario === "revision_changed_after_authority" ? "input_admission_refused" : "reviewed_revision_workload_invalid");
+      if (browserRefusal) {
+        assert.equal(browserSamples, 3);
+        assert.equal(context.serviceObservations.after.runtime.probe_available.ui_health, true);
+        const rejected = context.serviceObservations.rejected_admission;
+        assert.equal(rejected.observed_at, rejectedAt);
+        assert.equal(rejected.probe_available.ui_health, false);
+        assert.deepEqual(rejected.failed_conditions, ["supported_state", "preservation_valid", "same_state"]);
+        assert.equal(result.executionReason, "revision_current_preservation_unsafe");
+      } else assert.equal(result.executionReason, scenario === "revision_settlement_unsafe" ? "revision_current_settlement_unsafe" : scenario === "revision_authority_refused" ? "synthetic_authority_refusal" : scenario === "revision_changed_after_authority" ? "input_admission_refused" : "reviewed_revision_workload_invalid");
     } else if (observerFailure) {
       assert.equal(calls.phases, 1, "post-phase refusal prevents the next phase");
       assert.equal(context.phaseReceipts[0].status, "pass", "original consumer result survives");

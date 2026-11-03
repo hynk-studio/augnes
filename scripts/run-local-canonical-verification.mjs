@@ -675,7 +675,7 @@ export async function executeLocalCanonicalVerification({
         if (historicalInputsRequired) historicalInputs = prepareHistoricalInputs({
           context: verificationContext, repositoryRoot, checkoutOwner, invocationId,
         });
-        const observed = await inspectVerificationCompanionPreservation(verificationContext);
+        const observed = await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: isBrowserRevision(sourceCorrection) });
         serviceLifecycleBefore = observed.state;
         serviceObservations.before = observed.diagnostics;
         if (!observed.state.preservation_valid) throw Object.assign(
@@ -747,7 +747,7 @@ export async function executeLocalCanonicalVerification({
           if (!attempt && mode !== "quick" && plan.selected_plan !== "documentation-only" && phaseDefinitions.length > 0 && checkoutOwner) {
             const revisionAuthorization = isReviewedRevision(sourceCorrection) ? await authorizeReviewedRevision(sourceCorrection) : null;
             const revisionLive = sourceCorrection?.settlement ? await observeReviewedRevisionSettlementState(verificationContext) :
-              isBrowserRevision(sourceCorrection) ? await inspectVerificationCompanionPreservation(verificationContext) : null;
+              isBrowserRevision(sourceCorrection) ? await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: true }) : null;
             if (revisionAuthorization && (mode !== "full" || checkoutContext !== "isolated-worktree" || plan.selected_plan !== "full-canonical" ||
                 digest(phaseDefinitions.map(p => p.id)) !== digest(REVIEWED_REVISION_PHASES))) throw Object.assign(new Error("reviewed_revision_workload_invalid"), { code: "reviewed_revision_workload_invalid" });
             if (revisionAuthorization) inputs.check({ force: true });
@@ -802,6 +802,8 @@ export async function executeLocalCanonicalVerification({
   } catch (error) {
     executionFailure = true;
     executionReason = safeErrorCode(error);
+    if (executionReason === "revision_current_preservation_unsafe" && error.revisionPreservation)
+      serviceObservations.rejected_admission = error.revisionPreservation;
     if (error.isolatedResourceCleanup) isolatedResourceCleanup = error.isolatedResourceCleanup;
     if (error.historicalInputCleanup) historicalInputCleanup = error.historicalInputCleanup;
     if (checkoutOwnership.required && !checkoutOwnership.acquired) {
@@ -869,7 +871,7 @@ export async function executeLocalCanonicalVerification({
       }
       if (serviceLifecycleBefore !== null) {
         if (checkoutContext === "isolated-worktree") {
-          const observed = await inspectVerificationCompanionPreservation(verificationContext);
+          const observed = await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: isBrowserRevision(sourceCorrection) });
           serviceLifecycleAfter = observed.state;
           serviceObservations.after = observed.diagnostics;
         } else {
@@ -1432,7 +1434,7 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
   if (isReviewedRevision(receipt.attempt?.source_correction)) {
     try { revisionAuthorization = await authorizeReviewedRevision(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
     try { runtimeInputs = observeRevisionInputs(receipt.attempt.source_correction, validationHost); } catch { /* stock refuses unavailable runtime input */ }
-    if (isBrowserRevision(receipt.attempt.source_correction)) try { revisionLive = await inspectVerificationCompanionPreservation(verificationContext); } catch { /* stock requires coherent current preservation */ }
+    if (isBrowserRevision(receipt.attempt.source_correction)) try { revisionLive = await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: true }); } catch { /* stock requires coherent current preservation */ }
     if (receipt.attempt.source_correction.settlement) try { revisionLive = await observeReviewedRevisionSettlementState(verificationContext); } catch { /* stock refuses unsafe or unavailable current settlement */ }
   }
   return inspectReceiptForDecision(receipt, {

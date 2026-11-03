@@ -17,20 +17,74 @@ export function browserReviewTarget(p) {
     source: p.source.sha256, focused: p.focused.sha256 });
 }
 
+const preservableStates = ["live", "installed_stopped"];
+const probeNames = ["ui_health", "bridge_health", "ui_ownership", "bridge_ownership"];
+
+function preservationChecks(state, observation) {
+  return {
+    supported_state: preservableStates.includes(state?.status),
+    exact_checkout: state?.checkout_relation === "exact",
+    preservation_valid: state?.preservation_valid === true,
+    valid_service_identity: /^sha256:[0-9a-f]{64}$/u.test(state?.service_identity ?? ""),
+    valid_state_binding: sha(state?.preservation_binding),
+    observation_contract: observation?.contract === "augnes.companion-preservation-observation.v2",
+    one_sample: observation?.samples === 1,
+    coherent: observation?.coherent === true,
+    live_identity_valid: observation?.live_identity_valid === true,
+    sample_matches_state: observation?.before_binding === state?.preservation_binding,
+    sample_binding_unchanged: observation?.after_binding === observation?.before_binding,
+    repository_observed_before: observation?.repository_observation_before === "observed",
+    repository_observed_after: observation?.repository_observation_after === "observed",
+    valid_repository_binding: sha(observation?.repository_binding_before),
+    repository_binding_unchanged: observation?.repository_binding_before === observation?.repository_binding_after,
+  };
+}
+
 function coherentPreservation(state, observation) {
-  return ["live", "installed_stopped"].includes(state?.status) && state.checkout_relation === "exact" && state.preservation_valid === true &&
-    /^sha256:[0-9a-f]{64}$/u.test(state.service_identity ?? "") && sha(state.preservation_binding) &&
-    observation?.contract === "augnes.companion-preservation-observation.v2" && observation.samples === 1 &&
-    observation.coherent === true && observation.live_identity_valid === true && observation.before_binding === state.preservation_binding &&
-    observation.after_binding === observation.before_binding && observation.repository_observation_before === "observed" &&
-    observation.repository_observation_after === "observed" && sha(observation.repository_binding_before) &&
-    observation.repository_binding_before === observation.repository_binding_after;
+  return Object.values(preservationChecks(state, observation)).every(Boolean);
+}
+
+function boundedState(status) {
+  return [...preservableStates, "recovery_required", "not_installed", "starting", "maintenance"].includes(status) ? status : null;
+}
+
+function probeFlags(flags) {
+  return Object.fromEntries(probeNames.map(name => [name, typeof flags?.[name] === "boolean" ? flags[name] : null]));
 }
 
 export function verifyBrowserRevisionPreservation(previous, live) {
-  const age = Date.now() - Date.parse(live?.diagnostics?.finished_at);
-  if (!coherentPreservation(live?.state, live?.diagnostics) || live.state.service_identity !== previous.service_identity ||
-      live.state.status !== previous.status || !(age >= 0 && age <= 60000)) throw fail("revision_current_preservation_unsafe");
+  const state = live?.state;
+  const observation = live?.diagnostics;
+  const evaluated = Date.now();
+  const finished = Date.parse(observation?.finished_at);
+  const age = evaluated - finished;
+  const checks = {
+    ...preservationChecks(state, observation),
+    same_service: state?.service_identity === previous.service_identity,
+    same_state: state?.status === previous.status,
+  };
+  const failed = Object.keys(checks).filter(name => !checks[name]);
+  if (!Number.isFinite(age)) failed.push("observation_time_unavailable");
+  else if (age < 0) failed.push("observation_in_future");
+  else if (age > 60_000) failed.push("observation_stale");
+  if (!failed.length) return;
+  // Capture this decision once. Only fixed reason codes, clock values and probe
+  // booleans cross the receipt boundary, never the reader's free-form output.
+  throw Object.assign(fail("revision_current_preservation_unsafe"), { revisionPreservation: {
+    failed_conditions: failed,
+    observed_at: Number.isFinite(finished) ? new Date(finished).toISOString() : null,
+    evaluated_at: new Date(evaluated).toISOString(),
+    age_ms: Number.isFinite(age) ? age : null,
+    previous_state: boundedState(previous.status),
+    observed_state: boundedState(state?.status),
+    state_available: state != null,
+    observation_available: observation != null,
+    same_service: checks.same_service,
+    same_state: checks.same_state,
+    coherent: typeof observation?.coherent === "boolean" ? observation.coherent : null,
+    probe_available: probeFlags(observation?.runtime?.probe_available),
+    probe_valid: probeFlags(observation?.runtime?.probe_valid),
+  } });
 }
 
 export function settledBrowserInterruption(r) {

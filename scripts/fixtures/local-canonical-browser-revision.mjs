@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { digest, inputEventIdentity, BROWSER_RUNTIME_INPUTS, observeBrowserInstallation, freezeInputContract } from "../local-canonical-inputs.mjs";
-import { BROWSER_REVISION_SCHEMA, browserReviewTarget, browserPredecessorEvidence, verifyBrowserRemedy, browserBindingMatches } from "../local-canonical-browser-revision.mjs";
+import { BROWSER_REVISION_SCHEMA, browserReviewTarget, browserPredecessorEvidence, verifyBrowserRemedy, verifyBrowserRevisionPreservation, browserBindingMatches } from "../local-canonical-browser-revision.mjs";
 import { reviewedRevisionAuthorityObservation, finishAttempt, reconstructAttemptTip, hasRetiredQualificationMarker, inspectBrowserRevisionPreparation, readSourceCorrectionProof } from "../local-canonical-attempts.mjs";
 import { finalizeReceipt, inspectReceiptForDecision } from "../local-canonical-receipt.mjs";
 import { createPrivateReviewExport, inspectPrivateReviewExport } from "../local-canonical-review-export.mjs";
@@ -39,6 +39,37 @@ export function browserFixtureReceipt(c, a) {
     final:{result:"failure",exit_status:1,reason_codes:["phase_cancelled","selected_phases_incomplete","verification_cancelled"]},
     checkout_ownership:owned,capacity_ownership:owned,cleanup:{completed:true,remaining_owned_processes:0,failure_codes:[],isolated_resources:{prepared:true,completed:true,failures:[],failure_count:0,invocation_id:"synthetic-invocation"},
       companion_service:{scope:"accepted_checkout_read_only",restored:true,maintenance_acquired:false,maintenance_released:true,before:state,after:state,observations:{before:observed,after:observed}}}});
+}
+
+function checkPreservationDiagnostics(previous, live) {
+  verifyBrowserRevisionPreservation(previous, live);
+  const cases = [
+    ["coherent", sample => { sample.diagnostics.coherent = false; }],
+    ["live_identity_valid", sample => { sample.diagnostics.live_identity_valid = false; }],
+    ["same_service", sample => { sample.state.service_identity = "sha256:" + "e".repeat(64); }],
+    ["same_state", sample => { sample.state.status = "installed_stopped"; }],
+    ["repository_binding_unchanged", sample => { sample.diagnostics.repository_binding_after = "e".repeat(64); }],
+    ["observation_stale", sample => { sample.diagnostics.finished_at = time(-70_000); }],
+    ["observation_in_future", sample => { sample.diagnostics.finished_at = time(70_000); }],
+    ["observation_time_unavailable", sample => { sample.diagnostics.finished_at = "invalid"; }],
+  ];
+  for (const [reason, mutate] of cases) {
+    const sample = structuredClone(live);
+    mutate(sample);
+    sample.diagnostics.runtime = { probe_available: { ui_health: false, injected: "PRIVATE" }, hidden: "PRIVATE" };
+    assert.throws(() => verifyBrowserRevisionPreservation(previous, sample), error => {
+      const detail = error.revisionPreservation;
+      assert.equal(error.code, "revision_current_preservation_unsafe");
+      assert.deepEqual(detail.failed_conditions, [reason]);
+      assert.equal(detail.probe_available.ui_health, false);
+      assert.equal(detail.probe_available.bridge_health, null);
+      assert(!JSON.stringify(detail).includes("PRIVATE"));
+      assert.equal(detail.age_ms, detail.observed_at ? Date.parse(detail.evaluated_at) - Date.parse(detail.observed_at) : null);
+      return true;
+    });
+  }
+  assert.throws(() => verifyBrowserRevisionPreservation(previous, null), error =>
+    error.revisionPreservation?.observation_available === false && error.revisionPreservation.age_ms === null);
 }
 
 function physicalInstallationFixture(root) {
@@ -113,6 +144,7 @@ export async function runBrowserRevisionControls(c, h) {
   grant.created_at=grant.updated_at=time(-4000);grant.body+=" "+[p.schema,p.head,p.tree,p.base,browserReviewTarget(p),"https://github.com/hynk-studio/augnes/pull/998#pullrequestreview-21"].join(" ");
   p.authorization.grant_sha256=digest(reviewedRevisionAuthorityObservation(grant,"execution_commission"));
   const preservation=old.cleanup.companion_service;c.live={state:preservation.after,diagnostics:{...preservation.observations.after,finished_at:time(-50)}};
+  checkPreservationDiagnostics(preservation.after, c.live);
   const materials=structuredClone(p);delete materials.authorization;
   const preparation=path.join(c.artifacts,"preparation.json");h.write(preparation,materials);
   const prepared=inspectBrowserRevisionPreparation({file:preparation,repositoryRoot:c.checkout,predecessorRoot:c.checkout,anchorRoot:c.anchor,runtimeInputs:c.inputs,live:c.live});

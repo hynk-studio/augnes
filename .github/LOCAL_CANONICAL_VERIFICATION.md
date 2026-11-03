@@ -991,6 +991,12 @@ the single clean integrated candidate. Run the complete planner-selected Full
 and validate its original receipt in a separate process. V8 accepts coherent,
 unchanged live/exact or stopped/exact preservation of the same installed
 service; it never requests a lifecycle transition.
+Each v8 preservation read uses the accepted checkout's observer once in a
+fresh worker thread, with its own HTTP connections. The executor continues
+checking input and ownership while that read is in flight. After a refusal,
+the original receipt retains the rejected admission sample's comparison
+results, probe availability and evaluation time separately from the initial and
+cleanup observations. This diagnostic grants no execution or retry authority.
 
 The selected task Node and matching sibling headers are immutable inputs.
 Header content, topology, permissions and ownership are checked at admission,
