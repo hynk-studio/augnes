@@ -37,16 +37,56 @@ export function validNodeHeaders(value) {
   return value?.contract === NODE_HEADERS_CONTRACT && validBrowserBundle(asBundle(value));
 }
 
+export const BROWSER_RUNTIME_INPUTS = "augnes.local-canonical-runtime-inputs.v2";
+
+// Only the explicitly selected physical launcher of a protected complete Mac
+// app is eligible. Read its declared version without launching a browser.
+export function browserInstallationRoot(executable) {
+  if (!executable || !path.isAbsolute(executable) || realpathSync(executable) !== executable)
+    throw fail("browser_installation_selection_invalid");
+  const macos = path.dirname(executable), contents = path.dirname(macos), root = path.dirname(contents);
+  if (path.basename(macos) !== "MacOS" || path.basename(contents) !== "Contents" || path.extname(root) !== ".app" ||
+      !lstatSync(path.join(contents, "Frameworks")).isDirectory()) throw fail("browser_installation_layout_invalid");
+  return root;
+}
+
+export function observeBrowserInstallation(executable) {
+  const root = browserInstallationRoot(executable), plist = path.join(root, "Contents", "Info.plist");
+  const field = name => execFileSync("/usr/bin/plutil", ["-extract", name, "raw", "-o", "-", plist],
+    { encoding: "utf8", timeout: 3000, maxBuffer: 2048 }).trim();
+  const result = createBrowserBundleObserver(root, { protectedInstallation: true })({ force: true });
+  const observation = observeInputFile(executable, { readOnlyExecutable: true }), version = field("CFBundleShortVersionString");
+  if (field("CFBundleExecutable") !== path.basename(executable) || !/^\d+(?:\.\d+){3}$/u.test(version) ||
+      !result.files.some(row => row.path === path.relative(root, executable) && row.sha256 === observation.sha256))
+    throw fail("browser_installation_identity_invalid");
+  return { installation: result.observation, executable: { location_fingerprint: digest(executable), observation }, actual_version: "Chrome/" + version };
+}
+
+const exactKeys = (value, keys) => !!value && Object.keys(value).sort().join(",") === keys;
+const boundedTree = o => exactKeys(o, "bytes,content_sha256,contract,entries,inventory_sha256,location_fingerprint,permission_sha256,present");
+const boundedExecutable = o => exactKeys(o, "executable_identity_policy,metadata,permission_identity,present,sha256") &&
+  exactKeys(o.metadata, "bytes,ctime_ns,device,gid,inode,links,mode,mtime_ns,uid") && usableExecutable(o);
+
+export function validBrowserTarget(browser) {
+  return browser && Object.keys(browser).sort().join(",") === "actual_version,executable,installation" &&
+    exactKeys(browser.installation, "bytes,content_sha256,contract,entries,inventory_sha256,location_fingerprint,manifest_sha256,permission_sha256,present") &&
+    /^[0-9a-f]{64}$/u.test(browser.installation.manifest_sha256) && validBrowserBundle(browser.installation) && Object.keys(browser.executable ?? {}).sort().join(",") === "location_fingerprint,observation" &&
+    /^[0-9a-f]{64}$/u.test(browser.executable.location_fingerprint ?? "") && !!browser.executable.observation &&
+    boundedExecutable(browser.executable.observation) && /^Chrome\/\d+(?:\.\d+){3}$/u.test(browser.actual_version ?? "");
+}
+
 export function observeCanonicalRuntimeInputs({ nodeExecutable = realpathSync(process.execPath),
-  headersRoot = path.join(path.dirname(path.dirname(nodeExecutable)), "include", "node") } = {}) {
+  headersRoot = path.join(path.dirname(path.dirname(nodeExecutable)), "include", "node"), browserExecutable = null } = {}) {
   assertCanonicalNodeHeaderPair(nodeExecutable, headersRoot);
-  return { contract: RUNTIME_INPUTS_CONTRACT,
+  return { ...(browserExecutable ? { contract: BROWSER_RUNTIME_INPUTS, browser: observeBrowserInstallation(browserExecutable) } : { contract: RUNTIME_INPUTS_CONTRACT }),
     node: { location_fingerprint: digest(nodeExecutable), observation: observeInputFile(nodeExecutable, { readOnlyExecutable: true }) },
     headers: { location_fingerprint: digest(headersRoot), observation: createNodeHeadersObserver(headersRoot)({ force: true }).observation } };
 }
 
 export function validCanonicalRuntimeInputs(value) {
-  return value?.contract === RUNTIME_INPUTS_CONTRACT && Object.keys(value).sort().join(",") === "contract,headers,node" &&
+  return (value?.contract === RUNTIME_INPUTS_CONTRACT && Object.keys(value).sort().join(",") === "contract,headers,node" ||
+    value?.contract === BROWSER_RUNTIME_INPUTS && Object.keys(value).sort().join(",") === "browser,contract,headers,node" && validBrowserTarget(value.browser) &&
+      boundedExecutable(value.node?.observation) && boundedTree(value.headers?.observation)) &&
     ["node", "headers"].every(role => value[role] && Object.keys(value[role]).sort().join(",") === "location_fingerprint,observation" &&
       /^[0-9a-f]{64}$/u.test(value[role].location_fingerprint ?? "")) &&
     !!value.node.observation && usableExecutable(value.node.observation) && validNodeHeaders(value.headers.observation) &&
@@ -518,13 +558,17 @@ function unconsumedCodexConfiguration(resource, input) {
 }
 
 export function inputReadOptions(resource, input) {
+  if ((resource.id === "browser-installation" || resource.protectedInstallation !== undefined) &&
+      (resource.protectedInstallation !== true || resource.id !== "browser-installation" || resource.classification !== "execution" ||
+       input?.contract !== INPUT_CONTRACT || resource.metadataOnly || resource.excludePreferences || resource.readOnlyExecutable || resource.nodeHeaders || resource.browserBundle))
+    throw fail("browser_installation_role_invalid");
   if (resource.nodeHeaders && (resource.nodeHeaders !== true || input?.contract !== INPUT_CONTRACT || resource.id !== "node-headers" ||
       resource.classification !== "execution" || resource.metadataOnly || resource.excludePreferences || resource.readOnlyExecutable || resource.browserBundle))
     throw fail("input_node_headers_role_invalid");
   if (resource.gitTracking && !gitTrackingRole(resource, input)) throw fail("input_git_role_unproven");
   const git = gitTrackingRole(resource, input);
   const protectedConfiguration = unconsumedCodexConfiguration(resource, input) || git;
-  return { metadataOnly: resource.metadataOnly, preferences: resource.excludePreferences && !protectedConfiguration,
+  return { protectedInstallation: resource.protectedInstallation, metadataOnly: resource.metadataOnly, preferences: resource.excludePreferences && !protectedConfiguration,
     readOnlyExecutable: resource.readOnlyExecutable, browserBundle: resource.browserBundle, nodeHeaders: resource.nodeHeaders, protectedConfiguration,
     ...(git ? { gitTracking: resource.gitTracking, gitRoots: resource.gitRoots } : {}) };
 }
@@ -532,6 +576,11 @@ export function inputReadOptions(resource, input) {
 // Preparation/admission and comparison use the same effective identity. Raw
 // observations remain in the frozen declaration/events, never in this projection.
 export function effectiveInputObservation(value, resource, input) {
+  if (resource.protectedInstallation) {
+    inputReadOptions(resource, input);
+    if (!validBrowserBundle(value)) throw fail("browser_installation_observation_invalid");
+    return value;
+  }
   if (resource.nodeHeaders) {
     inputReadOptions(resource, input);
     if (!validNodeHeaders(value)) throw fail("input_node_headers_observation_invalid");
@@ -584,6 +633,10 @@ const usableExecutable = value => value.present === true && /^[0-9a-f]{64}$/u.te
 export function classifyInputChange(before, after, resource = {}, input = null) {
   const { classification, excludePreferences = false, readOnlyExecutable = false, browserBundle = false } = resource;
   if (input && !supportedInputContract(input.contract)) return "unknown_relevance";
+  if (resource.protectedInstallation) {
+    try { inputReadOptions(resource, input); } catch { return "unknown_relevance"; }
+    return compareBrowserBundle(before, after);
+  }
   if (resource.nodeHeaders) {
     try { effectiveInputObservation(before, resource, input); effectiveInputObservation(after, resource, input); }
     catch { return "observer_failure"; }
@@ -645,6 +698,11 @@ export function createInputReader() {
     if (options.nodeHeaders) {
       const key = `node-headers:${file}`;
       if (!bundles.has(key)) bundles.set(key, createNodeHeadersObserver(file));
+      return bundles.get(key)({ force: options.force === true }).observation;
+    }
+    if (options.protectedInstallation) {
+      const key = "protected:" + file;
+      if (!bundles.has(key)) bundles.set(key, createBrowserBundleObserver(file, { protectedInstallation: true }));
       return bundles.get(key)({ force: options.force === true }).observation;
     }
     if (!options.browserBundle) return observeInputFile(file, options);

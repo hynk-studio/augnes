@@ -20,9 +20,9 @@ export function mediaType(value: unknown): string | null {
   return value;
 }
 
-export function validateExchange(value: unknown, prior: Revision[]): Exchange {
+export function exchangeRecord(value: unknown): Exchange {
   exact(value, "kind,basis,message,next_action,artifacts");
-  if (!prior.length || !["request", "return"].includes(value.kind)) fail("invalid_exchange");
+  if (!["request", "return"].includes(value.kind)) fail("invalid_exchange");
   if (boundedText(value.message, true) !== value.message || boundedText(value.next_action, value.kind === "return") !== value.next_action) fail("invalid_exchange_text");
   if (!Array.isArray(value.artifacts) || !value.artifacts.length) fail("exchange_file_required");
   fileManifest(value.artifacts.map(item => {
@@ -32,13 +32,20 @@ export function validateExchange(value: unknown, prior: Revision[]): Exchange {
   }));
   if (value.kind === "request") {
     if (value.basis !== null) fail("invalid_source_binding");
-  } else {
-    const basis = workRef(value.basis);
+  } else workRef(value.basis);
+  return value as Exchange;
+}
+
+export function validateExchange(value: unknown, prior: Revision[]): Exchange {
+  const record = exchangeRecord(value);
+  if (!prior.length) fail("invalid_exchange");
+  if (record.basis) {
+    const basis = record.basis;
     const source = prior[basis.revision - 1];
     if (source?.exchange?.kind !== "request" || canonical(reference(source)) !== canonical(basis)) fail("exchange_request_unavailable", 409);
     if (prior.some(r => r.exchange?.basis?.fingerprint === basis.fingerprint)) fail("exchange_already_answered", 409);
   }
-  return value as Exchange;
+  return record;
 }
 
 export function exchangeView(revision: Revision) {

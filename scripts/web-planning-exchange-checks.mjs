@@ -88,6 +88,39 @@ export async function checkFileExchanges({ start, client, newWork, save, root, p
   const otherReturn={...addition,expected:headBinding(other),basis:sent.ref,kind:'return',next_action:'Review result.'};
   assert.equal((await owner.request('/api/work/'+other.work_id+'/exchanges/save',otherReturn)).status,409);
   const accepted=await owner.request(route+'/save',addition);assert.equal(accepted.data.outcome,'saved');
+  // One project, three distinguishable tasks. A later request must not erase the
+  // earlier return, or borrow another work's unanswered question or next action.
+  const pendingTask=await makeTask('Choose poems for the reading');
+  const pendingFile={...addition.files[0],name:'shortlist.md'};
+  const pendingRequest=await owner.request('/api/work/'+pendingTask.work_id+'/exchanges/save',{
+    ...addition,expected:headBinding(pendingTask),request_key:randomUUID(),files:[pendingFile],
+    message:'Check the shortlist',next_action:'Ask the poet about the final stanza.'});
+  assert.equal(pendingRequest.status,200);
+  const projection=await cli('project-overview',[],true,'tasks');
+  const row=work=>projection.items.find(i=>i.work_id===work.work_id);
+  assert.deepEqual(row(other).overview,{awaiting_count:0,return_count:0,returned_file_count:0,awaiting:[],returns:[]});
+  const pendingSummary=row(pendingTask).overview;
+  assert.equal(pendingSummary.awaiting_count,1);assert.equal(pendingSummary.return_count,0);
+  assert.deepEqual(pendingSummary.awaiting[0].ref,pendingRequest.data.item.ref);
+  assert.equal(pendingSummary.awaiting[0].next_action,'Ask the poet about the final stanza.');
+  const summary=row(task).overview;
+  assert.equal(row(task).fingerprint,accepted.data.head.fingerprint);
+  assert.deepEqual(summary.awaiting.map(x=>x.ref),[accepted.data.item.ref]);
+  assert.equal(summary.return_count,1);assert.equal(summary.returned_file_count,returned.files.length);
+  const pair=summary.returns[0];assert.deepEqual(pair.request.ref,sent.ref);
+  assert.deepEqual(pair.returned.ref,returned.ref);assert.deepEqual(pair.returned.basis,sent.ref);
+  assert.equal(pair.returned.author_ref,fixtureScope.author_ref);assert.equal(pair.returned.next_action,returned.next_action);
+  assert.deepEqual(pair.returned.files,returned.files);assert(!JSON.stringify(projection).includes(original.toString('base64')));
+  assert.deepEqual((await owner.request('/api/works')).data.items,projection.items);
+  for(let n=0;n<3;n++){
+    const current=(await owner.request('/api/work/'+pendingTask.work_id)).data.saved;
+    assert.equal((await owner.request('/api/work/'+pendingTask.work_id+'/exchanges/save',{
+      ...addition,request_key:randomUUID(),expected:headBinding(current),message:'Check another poem '+n,files:[pendingFile]})).status,200);
+  }
+  const more=(await owner.request('/api/works')).data.items.find(i=>i.work_id===pendingTask.work_id).overview;
+  assert.equal(more.awaiting_count,4);assert.equal(more.awaiting.length,2);
+  assert.deepEqual(more.awaiting[0].ref,pendingRequest.data.item.ref);
+  passed('work list: authenticated CLI and HTTP agree on no exchange, four unanswered poetry requests, exact returned files and independently bound next actions');
   // Reopen a pending on-disk request whose acknowledgement was lost before a different commit won the CAS.
   const absent = {...addition, request_key:randomUUID(), message:'Keep my draft question', next_action:'Check the venue'};
   await writeFile(path.join(setup+'.pending',absent.request_key),JSON.stringify({work_id:task.work_id,setup_digest:sha(await readFile(setup)),body:absent}),{mode:0o600});
