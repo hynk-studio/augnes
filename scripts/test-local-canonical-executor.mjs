@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { hasRetiredQualificationMarker, isReviewedRevision, REVIEWED_REVISION_PHASES, readSourceCorrectionProof as readCorrectionProof } from "./local-canonical-attempts.mjs";
 
+import { isBrowserRevision } from "./local-canonical-browser-revision.mjs";
 import assert from "node:assert/strict";
 import { digest } from "./local-canonical-inputs.mjs";
 import { spawnSync } from "node:child_process";
@@ -1007,7 +1008,7 @@ for (const scenario of [...["", "isolated_"].flatMap(prefix => ["r8a", "durable"
     const context = {
       checkoutContext: isolated ? "isolated-worktree" : "canonical", verificationContext: {}, signal: { aborted: false },
       controller: new AbortController(), recoveryProofPath: null, sourceCorrectionProofPath: null, baseSha: "0".repeat(40), headSha: "a".repeat(40), executorFingerprint: "b".repeat(64), identityBefore: { branch: "fixture" },
-      isReviewedRevision, digest, REVIEWED_REVISION_PHASES,
+      isReviewedRevision, isBrowserRevision, digest, REVIEWED_REVISION_PHASES,
       sourceCorrection: revisionLane ? { schema: "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision", ...(revisionSettlement ? { settlement: { sha256: "c".repeat(64) } } : {}) } : null,
       authorizeReviewedRevision: async () => { authorityObserved = true; if (scenario === "revision_authority_refused") throw Object.assign(new Error("synthetic_authority_refusal"), { code: "synthetic_authority_refusal" }); return {}; },
       observeReviewedRevisionSettlementState: async () => {
@@ -1229,6 +1230,7 @@ const successionProfiles = [
   { schema: "augnes.local-canonical-source-correction.v5", kind: "condition_requalification" },
   { schema: "augnes.local-canonical-source-correction.v6", kind: "guide_cancellation_correction" },
   { schema: "augnes.local-canonical-source-correction.v7", kind: "reviewed_revision" },
+  { schema: "augnes.local-canonical-source-correction.v8", kind: "reviewed_revision" },
 ];
 const dispatchStart = executorSource.indexOf("            const revisionAuthorization =");
 const dispatchEnd = executorSource.indexOf("            attempt = beginAttempt(", dispatchStart);
@@ -1243,7 +1245,7 @@ try {
   const relative = ".augnes-local-verification/proofs/synthetic.json", file = path.join(coexistenceRoot, relative);
   mkdirSync(path.dirname(file), { recursive: true });
   for (const schemaProfile of successionProfiles) for (const kindProfile of successionProfiles) {
-    const selected = schemaProfile.schema === "augnes.local-canonical-source-correction.v7" && kindProfile.kind === "reviewed_revision" ? "revision" : null;
+    const selected = isReviewedRevision({schema:schemaProfile.schema,kind:kindProfile.kind}) ? "revision" : null;
     const candidate = { schema: schemaProfile.schema, kind: kindProfile.kind, local_relative_path: relative, head: "a".repeat(40) };
     writeFileSync(file, JSON.stringify(candidate));
     const original = readFileSync(file);
@@ -1256,8 +1258,8 @@ try {
       const authorize = role => async (proof, options) => { calls.push(role); assert.deepEqual(proof, candidate);
         return capabilities[role]; };
       const context = { sourceCorrection: candidate, inputs: { snapshot: () => frozenInputs, check() {} }, receipt: { inputs: frozenInputs, attempt: { source_correction: candidate } }, path, repositoryRoot: coexistenceRoot,
-        isReviewedRevision,
-        mode: "full", checkoutContext: "isolated-worktree", plan: { selected_plan: "full-canonical" }, observeCanonicalRuntimeInputs: () => ({}),
+        isReviewedRevision, isBrowserRevision,
+        mode: "full", checkoutContext: "isolated-worktree", plan: { selected_plan: "full-canonical" }, observeRevisionInputs: () => ({}), validationHost: {}, verificationContext: {}, inspectVerificationCompanionPreservation: async () => ({}),
         digest, REVIEWED_REVISION_PHASES, phaseDefinitions: REVIEWED_REVISION_PHASES.map(id => ({ id })),
         inputMonitor: { check: () => null }, signal: { aborted: false },
         authorizeReviewedRevision: authorize("revision"),
@@ -1279,9 +1281,9 @@ try {
     const candidate={schema:"augnes.local-canonical-source-correction.v7",kind:"reviewed_revision",settlement:{sha256:"c".repeat(64)}}, calls=[];
     const live=Object.freeze({synthetic_current_safe_observation:true}),contextToken=Object.freeze({synthetic_context:true});
     const context={sourceCorrection:candidate,receipt:{attempt:{source_correction:candidate}},verificationContext:contextToken,
-      isReviewedRevision,
+      isReviewedRevision, isBrowserRevision,
       mode:"full",checkoutContext:"isolated-worktree",plan:{selected_plan:"full-canonical"},digest,REVIEWED_REVISION_PHASES,phaseDefinitions:REVIEWED_REVISION_PHASES.map(id=>({id})),
-      inputs:{check(){}},inputMonitor:{check:()=>null},signal:{aborted:false},observeCanonicalRuntimeInputs:()=>({}),
+      inputs:{check(){}},inputMonitor:{check:()=>null},signal:{aborted:false},observeRevisionInputs:()=>({}), validationHost:{},
       authorizeReviewedRevision:async()=>{calls.push("authority");return{};},
       observeReviewedRevisionSettlementState:async value=>{assert.equal(value,contextToken);calls.push("live");if(unavailable)throw Object.assign(new Error(),{code:"revision_current_settlement_unsafe"});return live;}};
     const invoke=()=>new AsyncFunction(...Object.keys(context),body+"\nreturn revisionLive;")(...Object.values(context));

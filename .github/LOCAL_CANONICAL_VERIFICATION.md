@@ -947,6 +947,51 @@ reconstructs the original records, authority and current inputs without writes.
 Every selected phase must pass with valid stock and completed cleanup before
 qualification is complete; independent merge judgment remains separate.
 
+#### Settled ordinary browser input (source-correction v8)
+
+A v8 `reviewed_revision` uses the same exclusive family, Full and stock owners.
+It admits only an ordinary blocked v4 receipt with an observed replacement of
+the selected browser executable: different bytes and inode, with the same
+device, mode, owner and permissions. Recompute every recorded event. Only the
+one replacement may be a fault; the observed cancellation must fall inside the
+interrupted phase. Earlier phases settled, remaining phases never ran, and all
+ownership, isolated resources and installed-service preservation must agree.
+Original attempt, completion, receipt and separate invalid stock remain bound.
+An updater's initiating actor is not necessary. This is neither a successful
+old receipt nor an enumerated spawn recovery. V7 and retired routes keep their
+original interpretations.
+
+Select the new task-owned physical launcher explicitly. Its complete Mac app
+and enclosing version directory must have verified user-immutable flags.
+Bind content, internal links, inventory, security, location and launcher to
+runtime-inputs v2. Confirm the bundle's declared executable and version and
+compare the path/type/size/content/link manifest to the retained focused installation
+record (an explicit JSON field, exact bytes and entry count), and retain original
+structured HTTP/CDP output for the interrupted phase's browser
+consumers (or a covered browser phase if interrupted outside a browser owner).
+A source edit, reformatted evidence, fallback selection or an unchanged location
+cannot substitute for the remedy. Managed children keep their ordinary isolated
+profiles and v2 launch records; each must match the selected binary and runtime
+version. Inventory and protection are monitored during execution. Admission,
+phase boundaries, final settlement and fresh stock read the complete installation.
+This is a cooperative safeguard, not protection against a hostile same-user actor.
+
+The accepted product review and the independent contract review are separate
+authenticated commit-anchored PR reviews. The latter may be on a linked PR
+in this repository. It records `ACCEPT / RETAIN browser execution-input`,
+the exact combined head/tree/base and the opaque `browserReviewTarget` commitment
+to the originals, source and focused evidence and runtime inputs. A **new,
+unedited** subsequent commission on the original draft PR uses the existing
+bounded reviewed source/execution-input revision scope and also names the v8
+schema, exact combined source, commitment and contract review URL. No parser
+output or PR creation grants authority. Check the original PR's exact published
+head, branch, current main and existing family before reserving; a stacked
+review branch alone is not the deciding target. Both sources must be present in
+the single clean integrated candidate. Run the complete planner-selected Full
+and validate its original receipt in a separate process. V8 accepts coherent,
+unchanged live/exact or stopped/exact preservation of the same installed
+service; it never requests a lifecycle transition.
+
 The selected task Node and matching sibling headers are immutable inputs.
 Header content, topology, permissions and ownership are checked at admission,
 phase boundaries, final settlement and stock; expensive tree scans do not run

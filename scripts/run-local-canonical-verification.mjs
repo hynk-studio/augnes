@@ -21,6 +21,8 @@ import os from "node:os";
 import { freezeInputContract, monitorInputContract, digest, deriveOperationalDisposition, createInputReader, classifyInputChange, nonFaultInputChange, inputReadOptions, supportedInputContract, createGitTrackingResource, observeCanonicalRuntimeInputs, canonicalRuntimeInputEnvironment, observePreparedDependencyInputs, preparedDependencyIdentity } from "./local-canonical-inputs.mjs";
 import { beginAttempt, finishAttempt, readRecoveryProof, readSourceCorrectionProof, inspectAttemptRecords, hasRetiredQualificationMarker, isReviewedRevision, authorizeReviewedRevision, REVIEWED_REVISION_PHASES } from "./local-canonical-attempts.mjs";
 import { pinVerificationEvidence, readPinnedEvidence } from "./local-canonical-evidence-retention.mjs";
+import { isBrowserRevision, browserBindingMatches } from "./local-canonical-browser-revision.mjs";
+import { browserInstallationRoot } from "./local-canonical-inputs.mjs";
 import { BROWSER_IDENTITY_PREFIX, validPhaseBrowserUse, browserConsumersForPhase, MAX_BROWSER_USE_RECORDS, parseBrowserUseLine } from "./local-canonical-browser-identity.mjs";
 import { fileURLToPath } from "node:url";
 
@@ -104,6 +106,7 @@ const generatedWindowsHelperRoot = path.join(
 const GENERATED_NEXT_DIRECTORY = ".next";
 const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/local-canonical-browser-bundle.mjs",
+  "scripts/local-canonical-browser-revision.mjs",
   "scripts/local-canonical-browser-input.mjs",
   "scripts/browser-verification-owners.v1.json",
   "scripts/canonical-change-planner.mjs",
@@ -500,9 +503,9 @@ export async function executeLocalCanonicalVerification({
   const sourceCorrection = sourceCorrectionProofPath ? readSourceCorrectionProof(resolveArtifactPath(sourceCorrectionProofPath), repositoryRoot) : null;
   if (isReviewedRevision(sourceCorrection) && (mode !== "full" || checkoutContext !== "isolated-worktree" || recoveryProofPath || plan.selected_plan !== "full-canonical"))
     throw Object.assign(new Error("reviewed_revision_full_route_required"), { code: "reviewed_revision_full_route_required" });
-  const runtimeInputs = isReviewedRevision(sourceCorrection) ? observeCanonicalRuntimeInputs() : null;
-  assertRuntimeInputSelection(runtimeInputs);
   const hostResult = collectHostEnvironment(repositoryRoot);
+  const runtimeInputs = isReviewedRevision(sourceCorrection) ? observeRevisionInputs(sourceCorrection, hostResult) : null;
+  assertRuntimeInputSelection(runtimeInputs);
   const host = hostResult.public;
   const nodePolicy = evaluateNodePolicy();
   const locks = collectLockFingerprints();
@@ -730,7 +733,7 @@ export async function executeLocalCanonicalVerification({
       };
       inputMonitor = monitorInputContract(inputs, controller, { assertOwner: assertOwnedInputs });
       if (inputMonitor.check()) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
-      let actualBrowserVersion = null;
+      let actualBrowserVersion = runtimeInputs?.browser?.actual_version ?? null;
       const completed = await runPhasesSequentially({
         phases: phaseDefinitions,
         signal,
@@ -743,7 +746,8 @@ export async function executeLocalCanonicalVerification({
           if (mode !== "quick") assertFrozenSource(identityBefore, verificationContext);
           if (!attempt && mode !== "quick" && plan.selected_plan !== "documentation-only" && phaseDefinitions.length > 0 && checkoutOwner) {
             const revisionAuthorization = isReviewedRevision(sourceCorrection) ? await authorizeReviewedRevision(sourceCorrection) : null;
-            const revisionLive = sourceCorrection?.settlement ? await observeReviewedRevisionSettlementState(verificationContext) : null;
+            const revisionLive = sourceCorrection?.settlement ? await observeReviewedRevisionSettlementState(verificationContext) :
+              isBrowserRevision(sourceCorrection) ? await inspectVerificationCompanionPreservation(verificationContext) : null;
             if (revisionAuthorization && (mode !== "full" || checkoutContext !== "isolated-worktree" || plan.selected_plan !== "full-canonical" ||
                 digest(phaseDefinitions.map(p => p.id)) !== digest(REVIEWED_REVISION_PHASES))) throw Object.assign(new Error("reviewed_revision_workload_invalid"), { code: "reviewed_revision_workload_invalid" });
             if (revisionAuthorization) inputs.check({ force: true });
@@ -1225,6 +1229,13 @@ export async function executeLocalCanonicalVerification({
   };
 }
 
+export function observeRevisionInputs(proof, host) {
+  if (!isBrowserRevision(proof)) return observeCanonicalRuntimeInputs();
+  if (!host.browserExecutablePath || host.public.browser?.source !== "operator_selected" ||
+      host.browserExecutablePath !== process.env.AUGNES_BROWSER_EXECUTABLE_PATH) throw Object.assign(new Error("browser_installation_selection_required"), { code: "browser_installation_selection_required" });
+  return observeCanonicalRuntimeInputs({ browserExecutable: host.browserExecutablePath });
+}
+
 export function prepareInvocationInputs({ verificationContext, isolatedResources, browserExecutablePath, runtimeInputs = null, headSha, executorFingerprint, phaseDefinitions }) {
   if ((verificationContext.kind === "isolated-worktree") !== Boolean(isolatedResources))
     throw Object.assign(new Error("input_isolation_context_mismatch"), { code: "input_isolation_context_mismatch" });
@@ -1236,6 +1247,8 @@ export function prepareInvocationInputs({ verificationContext, isolatedResources
       phase_environment_fingerprints: environments.map(e => ({ id: e.id, fingerprint: digest(e.values) })),
       environment_keys: [...new Set(environments.flatMap(e => Object.keys(e.values)))].sort(), authenticated_transport: "github_authenticated_main_branch_get",
       provider_policy: "no_live_model_calls;private_fixture_adapters_only", ...(runtimeInputs ? { runtime_inputs: runtimeInputs } : {}) } });
+  if (runtimeInputs?.browser && !browserBindingMatches(frozen.snapshot(), runtimeInputs.browser))
+    throw Object.assign(new Error("browser_installation_changed_before_admission"), { code: "browser_installation_changed_before_admission" });
   if (runtimeInputs) {
     for (const [role, id] of [["node", "node-executable"], ["headers", "node-headers"]]) {
       const resource = frozen.snapshot().resources.find(r => r.id === id);
@@ -1265,6 +1278,9 @@ function invocationInputResources({ verificationContext, browserExecutablePath, 
     { id: "historical-r8a-provision", file: path.join(repositoryRoot, R8A_PROVISION_MANIFEST), classification: "execution" },
     { id: "historical-durable-provision", file: path.join(repositoryRoot, DURABLE_PROVISION_MANIFEST), classification: "execution" },
     ...["package-lock.json", "apps/augnes_apps/package-lock.json", "apps/web_planning/package-lock.json", ...EXECUTOR_SOURCE_FILES].map((file, i) => ({ id: `source-${i}`, file: path.join(repositoryRoot, file), classification: "execution" })),
+    ...(runtimeInputs?.browser ? [{ id: "installation-flags-walker", file: "/usr/bin/find", classification: "execution", readOnlyExecutable: true },
+      { id: "installation-plist-reader", file: "/usr/bin/plutil", classification: "execution", readOnlyExecutable: true },
+      { id: "browser-installation", file: browserInstallationRoot(browserExecutablePath), classification: "execution", protectedInstallation: true }] : []),
     ...(browserExecutablePath ? [{ id: "executable-permissions-reader", file: "/bin/ls", classification: "execution", readOnlyExecutable: true },
       ...(process.platform === "darwin" ? [{ id: "executable-flags-reader", file: "/usr/bin/stat", classification: "execution", readOnlyExecutable: true }, { id: "executable-attributes-reader", file: "/usr/bin/xattr", classification: "execution", readOnlyExecutable: true }] : []),
       { id: "browser-executable", file: browserExecutablePath, classification: "execution", readOnlyExecutable: true }] : []),
@@ -1288,7 +1304,7 @@ function currentInputEvidenceValid(receipt, verificationContext, browserExecutab
     return resources.every(resource => {
       const prior = declared.find(r => r.id === resource.id);
       if (!prior || prior.location_fingerprint !== digest(resource.file) || prior.classification !== resource.classification ||
-          prior.excludePreferences !== resource.excludePreferences || prior.metadataOnly !== resource.metadataOnly || prior.readOnlyExecutable !== resource.readOnlyExecutable || prior.browserBundle !== resource.browserBundle || prior.nodeHeaders !== resource.nodeHeaders) return false;
+          prior.excludePreferences !== resource.excludePreferences || prior.metadataOnly !== resource.metadataOnly || prior.readOnlyExecutable !== resource.readOnlyExecutable || prior.browserBundle !== resource.browserBundle || prior.protectedInstallation !== resource.protectedInstallation || prior.nodeHeaders !== resource.nodeHeaders) return false;
       if (prior.gitTracking && digest(prior.gitTracking) !== digest(resource.gitTracking)) return false;
       // An old declaration keeps its original reader and whole-file meaning.
       const interpreted = { ...resource, gitTracking: prior.gitTracking };
@@ -1415,7 +1431,8 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
   let runtimeInputs = null;
   if (isReviewedRevision(receipt.attempt?.source_correction)) {
     try { revisionAuthorization = await authorizeReviewedRevision(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
-    try { runtimeInputs = observeCanonicalRuntimeInputs(); } catch { /* stock refuses unavailable runtime input */ }
+    try { runtimeInputs = observeRevisionInputs(receipt.attempt.source_correction, validationHost); } catch { /* stock refuses unavailable runtime input */ }
+    if (isBrowserRevision(receipt.attempt.source_correction)) try { revisionLive = await inspectVerificationCompanionPreservation(verificationContext); } catch { /* stock requires coherent current preservation */ }
     if (receipt.attempt.source_correction.settlement) try { revisionLive = await observeReviewedRevisionSettlementState(verificationContext); } catch { /* stock refuses unsafe or unavailable current settlement */ }
   }
   return inspectReceiptForDecision(receipt, {

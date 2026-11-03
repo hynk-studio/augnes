@@ -9,6 +9,7 @@ import { VERIFICATION_CAPACITY_CONTRACT, verificationCapacityLimit } from "./loc
 import { HISTORICAL_INPUT_CONTRACT } from "./local-canonical-historical-inputs.mjs";
 import { supportedInputContract, digest, deriveOperationalDisposition, nonFaultInputChange, classifyInputChange, effectiveInputObservation, inputEventIdentity, validObservationDiagnostic, validInputFailureDiagnostics, validCanonicalRuntimeInputs, preparedDependencyIdentity, comparePreparedDependencyInputs } from "./local-canonical-inputs.mjs";
 import { ATTEMPT_CONTRACT, REVIEWED_REVISION_SCHEMA, REVIEWED_REVISION_PHASES, isReviewedRevision, validReviewedRevisionAttempt, hasRetiredQualificationMarker, supportsSourceCorrection } from "./local-canonical-attempts.mjs";
+import { isBrowserRevision, browserBindingMatches } from "./local-canonical-browser-revision.mjs";
 import { validPhaseBrowserUse } from "./local-canonical-browser-identity.mjs";
 
 export const LOCAL_CANONICAL_RECEIPT_SCHEMA =
@@ -672,6 +673,11 @@ function inspectClassifiedEvidence(receipt, issues) {
       ["codex-preferences", "user-instructions", "auth-location", "git-config", "node-executable"].some(id => !input.resources.some(r => r.id === id))) issues.push("receipt_input_inventory_invalid");
   const attempt = receipt.attempt;
   const revisionLane = (attempt?.source_correction?.schema === REVIEWED_REVISION_SCHEMA) || attempt?.source_correction?.kind === "reviewed_revision" || attempt?.revision_authority || attempt?.reviewed_revision_consumed;
+  const browserRevision = isBrowserRevision(attempt?.source_correction);
+  const browser = input.binding?.runtime_inputs?.browser;
+  if (browserRevision ? !browser || !browserBindingMatches(input, browser) :
+      browser !== undefined || input.resources.some(r => r.id === "browser-installation" || r.protectedInstallation !== undefined))
+    issues.push("receipt_browser_installation_invalid");
   if (revisionLane || input.prepared_dependencies !== undefined) {
     const phaseLocks = { "dependencies-root": "root_lock_sha256", "dependencies-nested": "nested_lock_sha256", "dependencies-web-planning": "web_planning_lock_sha256" };
     const selected = receipt.phases.filter(phase => Object.hasOwn(phaseLocks, phase.id) && phase.status === "pass").map(phase => phase.id).sort();
@@ -708,7 +714,7 @@ function inspectClassifiedEvidence(receipt, issues) {
       (attempt.number === 1 && (attempt.prior_attempt_id !== null || attempt.recovery !== null)) ||
       (attempt.number === 2 && (!SHA256_PATTERN.test(attempt.prior_receipt_fingerprint ?? "") || !attempt.recovery)))) issues.push("receipt_attempt_lineage_invalid");
   const expectedBrowser = input.resources.find(r => r.id === "browser-executable");
-  let actualVersion = null;
+  let actualVersion = browserRevision ? browser?.actual_version : null;
   for (const phase of receipt.phases) {
     if (phase.status === "not_run") {
       if (phase.browser_use?.length) issues.push(`receipt_browser_identity_invalid:${safeIdentifier(phase.id)}`);

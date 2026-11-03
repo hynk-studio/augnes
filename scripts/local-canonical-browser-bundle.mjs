@@ -14,10 +14,11 @@ const inside = (root, file) => file === root || file.startsWith(`${root}${path.s
 
 // A complete enumeration is required on every poll. Only content hashing may
 // reuse an earlier read, and only after the entire metadata/security inventory
-// agrees. Settlement and stock always request force=true. No manifest is an
+// agrees (or the protected-app guard and metadata poll below prove stability).
+// Settlement and stock always request force=true. No manifest is an
 // authority to skip reading the selected bundle.
-export function createBrowserBundleObserver(root) {
-  let previous = null;
+export function createBrowserBundleObserver(root, { protectedInstallation = false } = {}) {
+  let previous = null, previousGuard = null;
   return ({ force = false, afterRead = null } = {}) => {
     const started = performance.now();
     const deadline = () => { if (performance.now() - started > BROWSER_BUNDLE_LIMITS.milliseconds) throw fail("browser_bundle_observation_bound"); };
@@ -54,7 +55,7 @@ export function createBrowserBundleObserver(root) {
               names.push(entry.name);
             }
           } finally { directory.closeSync(); }
-          for (const name of names.sort()) visit(relative ? `${relative}/${name}` : name);
+          for (const name of names.sort(protectedInstallation ? (a,b) => Buffer.compare(Buffer.from(a),Buffer.from(b)) : undefined)) visit(relative ? `${relative}/${name}` : name);
         }
       };
       visit("");
@@ -73,6 +74,19 @@ export function createBrowserBundleObserver(root) {
       };
       for (let i = 0; i < rows.length; i += 64) {
         const files = rows.slice(i, i + 64).map(row => path.join(root, row.path));
+        if (protectedInstallation) {
+          // A task-owned Mac version directory and every bundle object carry
+          // UF_IMMUTABLE. This is a verified operational guard, not protection
+          // against an actor who can remove the flag. Never change the flags.
+          if (i === 0) files.unshift(path.dirname(root));
+          if (process.platform !== "darwin") throw fail("browser_installation_platform_unsupported");
+          const guard = run("/usr/bin/stat", ["-f", "%u:%f:%d:%i", ...files]).trimEnd().split("\n");
+          if (guard.length !== files.length || guard.some(line => {
+            const [uid, flags, dev, ino] = line.split(":");
+            return uid !== String(process.getuid()) || !/^\d+$/u.test(flags) || !(BigInt(flags) & 2n) || !dev || !ino;
+          })) throw fail("browser_installation_unprotected");
+          result.push(hash(guard), ...(i === 0 ? [hash(metadata(lstatSync(path.dirname(root), { bigint: true })))] : []));
+        }
         if (process.platform === "darwin") result.push(hash({ acl: run("/bin/ls", ["-lde", ...files]), flags: run("/usr/bin/stat", ["-f", "%f", ...files]), attributes: run("/usr/bin/xattr", ["-s", "-lx", ...files]) }));
         else if (process.platform === "linux") {
           const output = run("/bin/ls", ["-ld", "--", ...files]);
@@ -82,8 +96,24 @@ export function createBrowserBundleObserver(root) {
       }
       return hash(result);
     };
-    const before = inventory(), permissions = security(before.rows);
-    const inventoryHash = hash(before.rows);
+    const before = inventory(), inventoryHash = hash(before.rows);
+    const guard = protectedInstallation ? hash(metadata(lstatSync(path.dirname(root), { bigint: true }))) : null;
+    // For a fully guarded installation, an in-child poll can reuse the last
+    // complete read only while *every* entry's identity/ctime and immutable
+    // flag and the physical version directory still agree. Never take this
+    // shortcut for ordinary bundles, forced phase boundaries, or fresh stock.
+    if (protectedInstallation && !force && !afterRead && previous?.inventory_sha256 === inventoryHash && guard === previousGuard) {
+      const options = { encoding: "utf8", timeout: 2000, maxBuffer: 8192, stdio: ["ignore", "pipe", "pipe"], env: { PATH: "/usr/bin:/bin", LC_ALL: "C" } };
+      // One bounded physical walk checks every immutable flag, without a
+      // separate stat subprocess per group of paths or rereading browser bytes.
+      if (execFileSync("/usr/bin/find", ["-P", root, "!", "-flags", "+uchg", "-print", "-quit"], options) !== "" ||
+          !(BigInt(execFileSync("/usr/bin/stat", ["-f", "%f", path.dirname(root)], options).trim()) & 2n))
+        throw fail("browser_installation_unprotected");
+      if (hash(inventory().rows) !== inventoryHash || hash(metadata(lstatSync(path.dirname(root), { bigint: true }))) !== guard)
+        throw fail("browser_bundle_read_race");
+      return { observation: previous, inventory: before.rows, files: null, cost: { duration_ms: performance.now()-started, content_reused: true } };
+    }
+    const permissions = security(before.rows);
     const cached = !force && previous?.inventory_sha256 === inventoryHash && previous?.permission_sha256 === permissions;
     const files = [];
     if (!cached) for (const row of before.rows.filter(row => row.type === "file")) {
@@ -107,7 +137,16 @@ export function createBrowserBundleObserver(root) {
     const observation = { contract: BROWSER_BUNDLE_CONTRACT, present: true, location_fingerprint: hash(root),
       inventory_sha256: inventoryHash, content_sha256: cached ? previous.content_sha256 : hash(files), permission_sha256: permissions,
       entries: before.rows.length, bytes: before.bytes };
-    previous = observation;
+    if (protectedInstallation) {
+      // Portable source/copy identity also binds directories and link targets.
+      // A focused run made before this reader existed can retain this manifest.
+      const hashes = new Map(files.map(f => [f.path, f.sha256]));
+      const rows = before.rows.map(r => r.type === "file" ? [r.path, "file", Number(r.metadata.size), hashes.get(r.path)] :
+        r.type === "link" ? [r.path, "link", r.target] : [r.path, "dir"]);
+      observation.manifest_sha256 = cached ? previous.manifest_sha256 :
+        hash(JSON.stringify(rows).replace(/[^\x00-\x7e]/gu, c => c.split("").map(u => "\\u" + u.charCodeAt(0).toString(16).padStart(4,"0")).join("")));
+    }
+    previous = observation; previousGuard = guard;
     return { observation, inventory: before.rows, files: cached ? null : files, cost: { duration_ms: performance.now() - started, content_reused: cached } };
   };
 }
