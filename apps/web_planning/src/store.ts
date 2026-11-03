@@ -79,11 +79,24 @@ async function observeWork(s: Store, id: string, forList = false) {
 function checkStoredFiles(expected:Map<string,number>,files:{digest:string;file_bytes:number}[]) {
   if(files.length!==expected.size || new Set(files.map(f=>f.digest)).size!==files.length || files.some(f=>expected.get(f.digest)!==f.file_bytes))fail("file_content_unavailable",503);
 }
-export async function readWork(s: Store, id: string): Promise<Revision[]> {
+async function readEnvelopes(s: Store, id: string): Promise<Revision[]> {
   const {values,files}=await observeWork(s,id);
   if(!values.length)return [];
   const chain=validateChain(s,id,values);
   checkStoredFiles(historyFiles(chain),files);
+  return chain;
+}
+// Note inspection attests to the sealed planning selection, not file bytes or
+// the validity of a scene notebook. Full work, save and export keep those checks.
+export async function readNoteHistory(s: Store, id: string) {
+  const chain=await readEnvelopes(s,id);
+  if(!chain.length)fail("work_not_found",404);
+  return chain.map(r=>({...headBinding(r),work_id:id,workspace_id:r.workspace_id,project_id:r.project_id,
+    author_ref:r.author_ref,recorded_at:r.recorded_at,definition:r.definition,sources:r.sources,
+    ...(r.relations?{relations:{materials:r.relations.materials}}:{})}));
+}
+export async function readWork(s: Store, id: string): Promise<Revision[]> {
+  const chain=await readEnvelopes(s,id);
   if(chain.some(r=>r.files?.some(f=>f.name===SCENE_FILE)))validateSceneHistory(chain,await readFileBodies(s,chain));
   return chain;
 }

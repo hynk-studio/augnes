@@ -82,6 +82,14 @@ async function run() {
   }
   if (!setup) throw new Error('List tasks or choose a private task setup.');
   const client = await openFileTask(setup);
+  if (action === 'context') return client.planning.current();
+  if (action === 'history') {
+    const revisions=await client.planning.history();
+    if(!args.length)return revisions.map(({revision,fingerprint,recorded_at,definition})=>({revision,fingerprint,recorded_at,goal:definition.goal}));
+    const match=revisions.find(r=>String(r.revision)===args[0]);
+    if(args.length!==1 || !match)throw Error('Choose a listed revision of this task.');
+    return match;
+  }
   if (action === 'list') return { project: client.project, ...await client.list() };
   if (action === 'get' && args.length === 3) {
     const { file, bytes } = await client.get(Number(args[0]), args[1]);

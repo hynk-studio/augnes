@@ -10,12 +10,14 @@ import { type FileBody, FILE_EXPORT_REQUEST_BYTES, historyFiles, selectedFiles, 
 import { authorize, csrfCookie, csrfToken, readTicket, requireCsrf, requireScope, ticket, type Environment, type Principal } from "./access";
 import { assertHistoryBudget, binding, canonical, exact, exportWork, fail, hash, makeRevision, normalizePayload, reference, Refusal, REQUEST_BYTES, requestFingerprint, sameBinding, UUID, validateExport } from "./contract";
 import { inspectDraftCapacity } from "./capacity";
-import { append, completeExport, downloadFile, eraseWork, headBinding, headsCurrent, listWork, readWork, reconstruct, reconstructWorks, requestRevision } from "./store";
+import { append, completeExport, downloadFile, eraseWork, headBinding, headsCurrent, listWork, readNoteHistory, readWork, reconstruct, reconstructWorks, requestRevision } from "./store";
 import { page, renderContext, renderComparison, renderPreview, style } from "./page";
 import { compare, editedPayload, previewOperation, referenceAvailability, saveOperation } from "./relations";
 import exchangeClient from "./exchange-client.js.txt?raw";
 import exchangeTextModule from "../../augnes_apps/scripts/exchange-text.mjs?raw" with { type: "text" };
+import planningNotes from "../../augnes_apps/scripts/planning-notes.mjs?raw" with { type: "text" };
 import client from "./client.js.txt?raw";
+import historyClient from "./history-client.js.txt?raw";
 import { readableExport } from "./readable-export";
 const headers={"Cache-Control":"no-store, private","Vary":"Cookie, oai-authenticated-user-email","X-Web-Planning-Response":"1","X-Content-Type-Options":"nosniff",
   "Referrer-Policy":"no-referrer","X-Frame-Options":"DENY","X-Robots-Tag":"noindex, nofollow",
@@ -42,8 +44,9 @@ export async function handle(request:Request,env:Environment,principal:Principal
         const csrf=csrfToken(access,request);
         return html(page(csrf,access),{"Set-Cookie":csrfCookie(access,csrf)});
       }
-      if(path==="/client.js" && !url.search) return new Response(client+"\n"+exchangeClient,{headers:{...headers,"Content-Type":"text/javascript; charset=utf-8"}});
+      if(path==="/client.js" && !url.search) return new Response(client+"\n"+exchangeClient+"\n"+historyClient,{headers:{...headers,"Content-Type":"text/javascript; charset=utf-8"}});
       if(path==="/exchange-text.mjs" && !url.search) return new Response(exchangeTextModule,{headers:{...headers,"Content-Type":"text/javascript; charset=utf-8"}});
+      if(path==="/planning-notes.mjs" && !url.search) return new Response(planningNotes,{headers:{...headers,"Content-Type":"text/javascript; charset=utf-8"}});
       if(path==="/style.css" && !url.search) return new Response(style,{headers:{...headers,"Content-Type":"text/css; charset=utf-8"}});
       if(path==="/api/project" && !url.search) return json({workspace_id:access.workspace_id,project_id:access.project_id,
         name:env.PROJECT_NAME || "Private planning workspace",tasks:"/api/works"});
@@ -65,6 +68,8 @@ export async function handle(request:Request,env:Environment,principal:Principal
         return new Response(bytes,{headers:{...headers,"Content-Type":"application/octet-stream","Content-Disposition":`attachment; filename="artifact.bin"; filename*=UTF-8''${name}`,"X-Content-SHA256":file.digest,"Content-Length":String(file.bytes)}});
       }
       const match=path.match(/^\/api\/work\/([a-f0-9-]+)(?:\/(history|export|reading-export))?$/);
+      if(match?.[2]==="history" && UUID.test(match[1]) && url.search==="?view=notes")
+        return json({revisions:await readNoteHistory(access,match[1])});
       if(match && UUID.test(match[1]) && !url.search) {
         const chain=await readWork(access,match[1]); if(!chain.length)fail("work_not_found",404);
         if(match[2]==="export" || match[2]==="reading-export"){
@@ -89,10 +94,10 @@ export async function handle(request:Request,env:Environment,principal:Principal
       exact(input,"workspace_id,project_id,check_id,definition,notes,material_edits"+(capacity?",expected":""));
       if(!UUID.test(input.check_id))fail("invalid_check_id");
       const expected=capacity?binding(input.expected):headBinding();
-      const head=capacity?(await readWork(access,capacity[1])).at(-1):undefined;
+      const chain=capacity?await readWork(access,capacity[1]):[],head=chain.at(-1);
       if(capacity && !head)fail("work_not_found",404);
       if(!sameBinding(headBinding(head),expected))fail("refresh_required",409);
-      const result=inspectDraftCapacity(access,{definition:input.definition,notes:input.notes,material_edits:input.material_edits},head);
+      const result=inspectDraftCapacity(access,{definition:input.definition,notes:input.notes,material_edits:input.material_edits},chain);
       if(head && !await headsCurrent(access,reference(head),reference(head)))fail("refresh_required",409);
       return json({...result,check_id:input.check_id});
     }
@@ -163,7 +168,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
         if(!await headsCurrent(access,reference(head),reference(head)))fail("refresh_required",409);
         return html(renderContext(head,chain.at(-2),refs.availability,refs.reviewSource));}
       if(action==="ticket") {
-        const prepared=bound?await prepareSceneDraft(access,chain,selectedFiles(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits,head),input.files,head),input.scene):undefined;
+        const prepared=bound?await prepareSceneDraft(access,chain,selectedFiles(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits,chain),input.files,head),input.scene):undefined;
         if(prepared)historyFiles([...chain,{files:prepared.payload.files} as typeof head]);
         return json({ticket:ticket(access,id,expected,prepared?hash(canonical(prepared.payload)):undefined)});
       }
@@ -174,7 +179,8 @@ export async function handle(request:Request,env:Environment,principal:Principal
     const t=readTicket(access,input.ticket,id,action==="resolve");
     const previous=await readWork(access,id); // Integrity validation, NOT the write gate.
     const base=previous.find(r=>r.revision===t.expected.revision);
-    const {payload,bodies}=await prepareSceneDraft(access,previous.filter(r=>r.revision<=t.expected.revision),selectedFiles(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits,base),input.files,base),input.scene);
+    const prefix=previous.slice(0,t.expected.revision);
+    const {payload,bodies}=await prepareSceneDraft(access,prefix,selectedFiles(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits,prefix),input.files,base),input.scene);
     if(t.payload_fingerprint && hash(canonical(payload))!==t.payload_fingerprint)fail("altered_replay",409);
     const fingerprint=requestFingerprint(access,id,t.expected,t.request_key,payload);
     const previousRequest=await requestRevision(access,t.request_key);

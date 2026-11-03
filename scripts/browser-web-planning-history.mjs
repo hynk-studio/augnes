@@ -1,6 +1,57 @@
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 
+export async function browserRetainedNotes({a,click,set,settled,saved,wait,checks}) {
+ const quote='Read the nine-line excerpt only with the translator credit. '+('Catalogue reference '+ 'A'.repeat(90)+'. ').repeat(4).trimEnd();
+ const credit='Credit the translation to Mina Seo; print permission is still unknown.';
+ const follow='Introduce the nine lines aloud with Mina Seo’s credit. Ask separately before printing.';
+ const add=async(text,source)=>{await click(a,'add-note');await a.eval(`(()=>{const row=$('notes').lastElementChild;for(const [key,value] of Object.entries(${JSON.stringify({text,source})})){const field=row.querySelector('[data-field='+key+']');field.value=value;field.dispatchEvent(new Event('input',{bubbles:true}));}})()`);};
+ const save=async n=>{await click(a,'save');await saved(a,n);await settled(a);};
+ await a.send('Page.bringToFront');await settled(a);await click(a,'new-work');await set(a,'goal','Plan the library reading');await set(a,'criteria','Separate reading and print permissions');
+ await add(credit,'Translation desk');await add(quote,'Reading agreement');
+ await a.eval("(()=>{const d=$('notes').lastElementChild.querySelector('.dependencies');d.options[0].selected=true;d.dispatchEvent(new Event('change',{bubbles:true}));})()");
+ await save(1);const source=await a.eval('saved');
+ await a.eval("while($('notes').firstElementChild)$('notes').firstElementChild.querySelector('button').click()");
+ await set(a,'goal','Prepare the evening programme');await save(2);
+ await add('The reading is scheduled before the break.','Current programme');await save(3);
+ await set(a,'non-goals','Preserve the unsaved programme edit.');
+ await a.eval("$('history-tools').open=true");await click(a,'history');await settled(a);
+ await a.eval("const pick=$('history-revision');pick.value='1';pick.dispatchEvent(new Event('change'))");
+ const card=`[...document.querySelectorAll('#history-view article')].find(v=>v.querySelector('.note-text').textContent===${JSON.stringify(quote)})`;
+ assert.match(await a.eval("$('history-view').innerText"),/Translation desk/);
+ for(const [width,height] of [[1200,800],[390,844]]){
+   await a.send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<500});
+   assert(await a.eval('document.documentElement.scrollWidth<=innerWidth'));
+   if(width===1200){
+     await a.eval(`${card}.querySelector('button').focus()`);
+     for(const type of ['keyDown','keyUp'])await a.send('Input.dispatchKeyEvent',{type,key:'Enter',code:'Enter',windowsVirtualKeyCode:13,...(type==='keyDown'?{text:'\r'}:{})});
+     await wait(()=>a.eval("$('notes').children.length===3"),'keyboard historical selection and dependency');
+     assert(await a.eval(`${card}.querySelector('button').disabled`));
+   }else{
+     await a.eval(`(()=>{const section=${card}.querySelector('textarea').closest('details');section.open=true;section.querySelector('textarea').value=${JSON.stringify(follow)};section.querySelector('button').scrollIntoView({block:'center'});})()`);
+     const point=await a.eval(`(()=>{const r=${card}.querySelector('textarea').closest('details').querySelector('button').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()`);
+     await a.send('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:1});
+     await a.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[point]});await a.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+     await wait(()=>a.eval("$('notes').children.length===4"),'touch adaptation');
+     await a.send('Emulation.setTouchEmulationEnabled',{enabled:false});
+   }
+ }
+ await wait(()=>a.eval("$('draft-capacity').dataset.state==='fits'"),'historical selection capacity');
+ assert.match(await a.eval("$('change-list').textContent"),/your interpretation from revision 1/);
+ await save(4);await click(a,'saved-context');await settled(a);
+ const after=await a.eval('saved');assert.deepEqual(after.definition.non_goals,['Preserve the unsaved programme edit.']);
+ assert.equal(after.definition.goal,'Prepare the evening programme');assert(after.sources.some(n=>n.bounded_summary===credit));
+ for(const [text,kind] of [[quote,'inherited'],[follow,'adapted']]) {
+   const n=after.sources.find(n=>n.bounded_summary===text),m=after.relations.materials.find(m=>m.source_ref===n.source_ref);
+   assert.equal(m.kind,kind);assert.equal(m.from.fingerprint,source.fingerprint);assert.equal(m.dependencies.length,1);
+   assert((await a.eval("$('context-view').innerText")).includes(text));
+ }
+ assert.equal(after.sources.find(n=>n.bounded_summary===follow).compatibility_source_ref.external_id,after.author_ref);
+ await a.send('Emulation.clearDeviceMetricsOverride');
+ checks.push('library reading: r1 terms excluded at r2, continued at r3, desktop keyboard exact reuse and required credit, 390px touch authored adaptation; preserved unrelated draft and reopened r4');
+ return after.work_id;
+}
+
 export async function browserHistoryJourney({a,debug,origin,page,click,set,settled,saved,wait,navigate,restart,checks}){
  const started=performance.now();await settled(a);await click(a,'new-work');
  await set(a,'criteria','Preserve the original uncertainty and exact context');

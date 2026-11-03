@@ -14,7 +14,8 @@ const code = (error: unknown) => {
 const quantity = (used: number | null, limit: number) => ({used,limit,remaining:used===null?null:limit-used});
 
 /** Read-only accounting. The admission owners still enforce every save limit. */
-export function inspectDraftCapacity(scope: Scope, input: {definition: unknown; notes: unknown; material_edits?: unknown}, previous?: Revision) {
+export function inspectDraftCapacity(scope: Scope, input: {definition: unknown; notes: unknown; material_edits?: unknown}, chain: Revision[] = []) {
+  const previous=chain.at(-1);
   const issues: {code: string; note: number | null}[] = [];
   const issue = (code: string, note: number | null = null) => { issues.push({code,note}); };
   let definition: Payload["definition"] | undefined, definitionBytes: number | null = null;
@@ -54,7 +55,7 @@ export function inspectDraftCapacity(scope: Scope, input: {definition: unknown; 
   let relationBytes: number | null=null, payload: Payload | undefined;
   if(definition && definitionBytes!==null && definitionBytes<=INITIAL_PROJECT_WORK_LIMITS_V01.definition_bytes && sources && notes) {
     try {
-      const inspected=inspectEditedPayload(scope,{definition,sources},notes,input.material_edits,previous);
+      const inspected=inspectEditedPayload(scope,{definition,sources},notes,input.material_edits,chain);
       payload=inspected.payload;relationBytes=inspected.relationBytes;
       if(relationBytes>RELATION_BYTES)issue("relation_budget_exceeded");
     } catch(error) { issue(code(error)); }

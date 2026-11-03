@@ -63,6 +63,20 @@ export async function openFileTask(setupPath, expectedSetupDigest) {
   const { project, request } = await openFileProject(setup.origin);
   if (project.workspace_id !== setup.workspace_id || project.project_id !== setup.project_id) fail('Project selection changed.');
   const work_id = setup.work_id, root = '/api/work/'+work_id;
+  const json = async (path, body) => (await request(root+path, body)).json();
+  const planning = {
+    async current() { return (await json('')).saved; },
+    async history() { return (await json('/history?view=notes')).revisions; },
+    capacity(expected, draft) { const {definition,notes,material_edits}=draft;
+      return json('/capacity',{expected,definition,notes,material_edits,check_id:crypto.randomUUID()}); },
+    async prepare(expected, draft) {
+      const input=structuredClone(draft);
+      const {ticket}=await json('/ticket',{...input,expected});
+      return {...input,ticket};
+    },
+    save(pending) { return json('/save',pending); },
+    resolve(pending) { return json('/resolve',pending); },
+  };
   async function list() {
     return (await request(root + '/exchanges')).json();
   }
@@ -82,5 +96,5 @@ export async function openFileTask(setupPath, expectedSetupDigest) {
   async function write(body, resolve = false) {
     return (await request(root + '/exchanges/' + (resolve ? 'resolve' : 'save'), body)).json();
   }
-  return { project: project.name, work_id, setupDigest: digest(selected), list, get, write };
+  return { project: project.name, work_id, setupDigest: digest(selected), planning, list, get, write };
 }

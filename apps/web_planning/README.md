@@ -64,6 +64,64 @@ their notes or comparisons, load scene or attachment bodies, or write state.
 The ordinary task, download, history and recovery readers retain their full
 validation. No storage format, migration or new status record is required.
 
+
+## Use a note from an earlier version
+
+Open the task, then **History, export and erasure → Read history**. Choose a
+revision to see its whole notes, source descriptions, observation times,
+required notes and exact saved references. Each note says whether its text and
+attribution match the current draft. Only the chosen revision's notes are
+expanded; the history reader does not download attached file bodies.
+
+Choose **Use unchanged note**, or **Write an adaptation** and enter your
+interpretation. The editor adds the chosen note and any required notes that
+are missing. It keeps the current goal, files and other draft edits. An exact
+note already in the selection is not duplicated or relabelled. To link a
+manually retyped draft note to history, remove that row and choose the saved
+note. If an existing selection has incompatible required context, review it
+before trying again. **Review changes before saving** and the capacity display
+show the proposal; **Save** appends against the reviewed current version.
+
+An unchanged copy retains its original text, source attribution, trust class
+and observation time. An adaptation is a new interpretation attributed to the
+configured current workspace author. Neither choice renews the source or grants
+approval or execution authority. Both use the existing material `from` link
+to the chosen work, revision, fingerprint and note reference. The linked
+revision retains its own origin and earlier adaptation links. No new storage
+format or migration is needed. Capacity remains 12,000 bytes for normalized
+Web selected notes; relation, file and cumulative history limits are separate.
+
+### Read and prepare the same draft from a local client
+
+Use the existing [authenticated task setup](#connect-a-local-or-hosted-assistant).
+The task CLI's `context`, `history` and `history VERSION` commands read the
+current revision, revision list and exact saved contents. For a draft, use
+the task client's ordinary capacity, signed ticket, save and resolve methods:
+
+```js
+import { openFileTask } from './apps/augnes_apps/scripts/web-file-client.mjs';
+import { planningDraft, selectHistoricalNote } from './apps/augnes_apps/scripts/planning-notes.mjs';
+
+const { planning } = await openFileTask(setupPath);
+const current = await planning.current();
+const expected = { revision: current.revision, fingerprint: current.fingerprint };
+const earlier = (await planning.history()).find(r => r.fingerprint === chosenFingerprint);
+const draft = selectHistoricalNote(planningDraft(current), current, earlier, chosenSourceRef);
+// Pass your new text as the last argument to adapt instead. Review any other
+// draft edits and the capacity result before preparing this exact request.
+const capacity = await planning.capacity(expected, draft);
+if (!capacity.fits) throw Error(JSON.stringify(capacity.issues));
+const pending = await planning.prepare(expected, draft);
+// Keep pending privately until acknowledged. After an uncertain response use
+// planning.resolve(pending); a retry uses the same pending request.
+const result = await planning.save(pending);
+```
+
+An earlier occurrence of a repeated note remains selectable by its exact
+revision. The server checks the immutable source within this task and project;
+a matching text label is not proof. A changed head requires a fresh review
+of the base. Reading a failed history request as an empty list is unsupported.
+
 ## Ask for work on files and collect the return
 
 Open your private project, select a task by title, or choose **New work** and save

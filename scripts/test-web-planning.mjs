@@ -5,7 +5,7 @@ import { checkSceneContinuity } from "./web-planning-scene-checks.mjs";
 import { checkFiles } from './web-planning-file-checks.mjs';
 import { checkOrdinaryFiles } from './web-planning-ordinary-file-checks.mjs';
 import { checkStoryWriting } from './web-planning-story-checks.mjs';
-import { checkCumulativeHistory } from './web-planning-history-checks.mjs';
+import { checkCumulativeHistory, checkRetainedNotes } from './web-planning-history-checks.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -182,6 +182,7 @@ try {
  const p1=await c.request('/api/works');assert.equal(p1.data.items.length,10);assert(p1.data.next);const p2=await c.request('/api/works?cursor='+p1.data.next);assert(p2.data.items.length>0);assert(!p2.data.items.some(i=>p1.data.items.some(j=>i.work_id===j.work_id)));
  passed('ordinary revision 33 and retained ten-item list paging have exact effects');
  await checkCapacity({c,scope:fixtureScope,passed});
+ await checkRetainedNotes({c,passed});
  await checkBranching({start,client,newWork,save,edit,passed,open});
  await checkFiles({start,client,newWork,save,passed,root,open});
  await checkFileExchanges({start,client,newWork,save,root,passed});
