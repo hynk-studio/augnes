@@ -1016,6 +1016,23 @@ remain with their existing owners; neither is a prerequisite for these public fi
 
 #### Public connection and one derived Skill candidate — 2026-11-03
 
+The connection Skill's primary purpose is to help an unfamiliar person, their
+existing agent/coding tool/harness, or a prospective independent agent use
+Augnes correctly with little repeated explanation. Prioritize a supported first
+useful task, checked result and meaningful continuation. Discover the actual
+host capabilities, project binding and missing prerequisites; do not require
+the consumer to learn the whole roadmap or replace their existing executor.
+Broader agent participation starts from a concrete goal or offered task and its
+supported work/contribution and permission path; loading a Skill does not assign
+an organization role.
+
+Skill distribution also serves the existing public-entry and participation
+direction: useful first contact may lead to repeat use, concrete requests or
+later Web/agent cooperation. These are hypotheses to observe, not acquired
+demand. Independent asset use can be valuable without conversion to the full
+application. The connection route and a standalone method candidate have
+different jobs; producing more Skills or adding a marketplace is not the goal.
+
 The user authorized starting the scoped public-Skill sequence and trying an
 appropriate Agensi listing during the work. A compatible, qualified package may
 be submitted free after checking the actual channel/account path; repeat generic

@@ -130,6 +130,24 @@ native component path, volume serial, file ID, or canonical private path.
 
 ## Public setup and first continuation
 
+The connection Skill helps someone unfamiliar with Augnes use a supported path
+through their existing tools. Start from the person's or agent's concrete goal;
+knowledge of Augnes's roadmap or internal architecture is not a prerequisite.
+
+| First-time consumer | What the entry should make clear |
+| --- | --- |
+| A person new to Augnes | What useful task they can do now, which setup is needed, how to recognize the result and how to return to it. |
+| The person's agent, coding tool or harness | Which Augnes capabilities are actually available in this host, the correct project binding, required setup or permission, and how to read back a result. Keep the existing host's normal execution workflow. |
+| An independent agent considering participation | A concrete goal or offered task, accessible inputs, permitted actions, expected output and supported work/result or contribution path. Loading a Skill alone does not establish participation, organization membership or permission. |
+
+Give a short explanation of the available path and the next action. Reuse
+already available context and ask only for missing information that changes the
+choice. A different host needs its own capability/compatibility check: the
+concrete continuity route below is the supported local Codex/Companion path,
+not evidence that every agent or harness can use those tools. If a capability is
+absent, identify that exact gap and a supported next step without inventing a
+connection or performing unrelated setup.
+
 Choose the outcome before installing anything:
 
 | Outcome | Entry and prerequisites | First useful result |
@@ -163,6 +181,13 @@ label, GitHub URL or current shell directory does not establish either binding.
    Read back saved changes through a fresh Resume. Managed execution and its
    result/continuation tools retain their own capability and admission checks.
    A saved definition, successful read or installed Skill is not an executed job.
+
+For the chosen first task, report the actual result and its check, anything
+unfinished, and the next supported action in ordinary language. When work needs
+to continue, leave the necessary basis through the existing work/result path so
+a fresh session or authorized successor can resume it. One-time public asset
+use can finish with its useful output; it need not create an account, saved work
+or an agent organization.
 
 The current public gap is a verified first-time consumer journey through this
 whole supported route, including a project folder different from the application

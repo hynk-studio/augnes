@@ -330,6 +330,26 @@ claim; proportionate verification selection remains separately evaluated work.
 
 ## Method-improvement evidence
 
+For the [public connection Skill's first-use path](../CODEX_MCP_AUGNES_BRIDGE_USAGE_V0_1.md#public-setup-and-first-continuation),
+observe whether a person or agent without the development conversation can
+identify the supported capability, enter the intended project, finish one
+authorized useful task and understand its checked result. When continuation is
+part of that task, a fresh session or authorized successor should recover the
+needed basis through normal entry. Preserve valid blank/unavailable outcomes;
+unsupported hosts do not become supported because the instructions load.
+Observe a prospective independent participant through a concrete permitted goal
+or offered task and its actual input/action/return path; do not fabricate
+membership or work.
+
+Record first-use time, setup/explanation burden, wrong-project or tool-selection
+corrections, and later use when actually observed and relevant. Existing task
+records suffice; this assigns no new telemetry service or blanket evaluation
+campaign. Separate invited development checks, submission/installation, actual
+first use, repeat use and independent requests. A listing is not demand, and
+useful standalone consumption need not convert to full Augnes adoption. Claims
+of faster adaptation need an appropriate ordinary-guidance comparison including
+all preparation and human help.
+
 For the 2026-11-03 [public-Skill candidate](../../skills/verify-software-change/SKILL.md),
 evaluate the requested installation/delivery behavior separately from input
 identity. Its stdlib observer compares only explicitly selected file bytes;
