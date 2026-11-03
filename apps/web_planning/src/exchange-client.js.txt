@@ -17,6 +17,9 @@ function exchangeControls() {
   const edit = exchangeDraft?.textEdit;
   $('exchange-file-fields').hidden = !!edit;
   $('exchange-upload').disabled = !!edit;
+  $('exchange-review-field').hidden=!exchangeDraft?.basis || !!edit;
+  $('exchange-upload').required=!edit && (!exchangeDraft?.basis || !$('exchange-review').value);
+
   $('exchange-text-fields').hidden = !edit;
   $('exchange-text-fields').disabled = !edit;
   $('exchange-edit-name').textContent = edit ? edit.file.name + ' · version ' + exchangeDraft.basis.revision : '';
@@ -64,7 +67,8 @@ async function downloadExchangeFile(file) {
   setTimeout(() => URL.revokeObjectURL(url),1000);
 }
 function addTextReader(container, file, source) {
-  if (!textFile(file.name) || file.bytes > 32768) return;
+  if (!textFile(file.name) && !/\.log$/i.test(file.name)) return;
+  if (file.bytes > 32768 || !textFile(file.name)) { addPagedReader(container,file); return; }
   const read = document.createElement('button');
   read.type = 'button'; read.textContent = 'Read text';
   read.setAttribute('aria-label', 'Read ' + file.name + ' as text');
@@ -87,6 +91,36 @@ function addTextReader(container, file, source) {
       container.append(edit);
     }
   });
+}
+// Each page is a fresh authorized read of the exact listed file; no private
+// text is cached in tab storage. Byte positions include BOMs and line endings.
+function addPagedReader(container,file) {
+  const button=(label)=>{const el=document.createElement('button');el.type='button';el.textContent=label;return el;};
+  const open=button('Read text');open.setAttribute('aria-label','Read '+file.name+' as text');container.append(open);
+  open.onclick=()=>{
+    const panel=document.createElement('section'),position=document.createElement('input'),find=document.createElement('input');
+    position.type='number';position.min='0';position.max=String(file.bytes);position.value='0';
+    find.type='search';find.placeholder='Exact text to find';
+    const label=(name,input)=>{const l=document.createElement('label');input.id='read-'+file.download.split('/').slice(-3).join('-')+'-'+input.type;l.htmlFor=input.id;l.textContent=name;l.append(input);return l;};
+    const read=button('Read from position'),search=button('Find from position'),next=button('Continue reading');
+    const info=document.createElement('p'),text=document.createElement('pre');
+    info.setAttribute('aria-live','polite');next.disabled=true;
+    panel.append(label('Start byte',position),label('Find in this version',find),read,search,next,info,text);open.replaceWith(panel);
+    let continuation=null;
+    const page=(at,needle)=>run(async()=>{
+      const result=await api(file.download+'/text',{offset:at,find:needle});
+      if(accessLost || !panel.isConnected)return;
+      if(result.file.digest!==file.digest || result.file.name!==file.name || result.total!==file.bytes ||
+          !file.download.includes('/'+result.ref.work_id+'/exchange-files/'+result.ref.revision+'/'+result.ref.fingerprint.slice(7)+'/'))throw Error('file_revision_unavailable');
+      position.value=String(result.start);continuation=result.next;next.disabled=continuation===null;
+      const extent='Bytes '+result.start+'–'+result.end+' (end exclusive) of '+result.total+' · version '+result.ref.revision+' · '+file.digest;
+      info.textContent=result.found===false?'No match from byte '+at+' to the end. '+extent:
+        extent+(result.next!==null?' · Partial view. More text follows.':result.start?' · End of file. This is a partial view.':' · Complete text.');
+      text.textContent=result.text;
+    });
+    read.onclick=()=>page(Number(position.value),'');search.onclick=()=>{if(find.value)page(Number(position.value),find.value);};
+    next.onclick=()=>{if(continuation!==null)page(continuation,'');};page(0,'');
+  };
 }
 function textReturnFile(edit) {
   let find = $('exchange-find').value, replacement = $('exchange-replacement').value;
@@ -170,6 +204,11 @@ function openExchanges(revision, view) {
     try { marker = JSON.parse(sessionStorage.getItem(exchangeStoragePrefix + revision.work_id)); } catch {}
     if (marker) {
       const observed = view.items.find(item => item.request_key === marker.request_key);
+      if (observed && !sameExchangeMarker(observed,marker)) {
+        const conflict=document.createElement('p');conflict.textContent='This request key was used for different material. The earlier draft is retained; review this task before starting another request.';
+        $('exchange-list').prepend(conflict);exchangeDraft={basis:marker.basis,expected:marker.expected,answered:true};
+        $('exchange-message').value=marker.message;$('exchange-next').value=marker.next_action;$('edit-fields').disabled=true;exchangeControls();return;
+      }
       if (observed) {
         forgetExchange(revision.work_id);
         const outcome = document.createElement('p');
@@ -196,6 +235,12 @@ function openExchanges(revision, view) {
     }
   }
   else $('exchange-list').textContent = 'Read the latest requests and returns for this saved version.';
+}
+function sameExchangeMarker(item,marker) {
+  const sameRef=(a,b)=>a===null || b===null?a===b:a.work_id===b.work_id && a.revision===b.revision && a.fingerprint===b.fingerprint;
+  return item.expected?.revision===marker.expected.revision && item.expected.fingerprint===marker.expected.fingerprint &&
+    sameRef(item.basis,marker.basis) && item.kind===marker.kind && item.message===marker.message.trim() && item.next_action===marker.next_action.trim() &&
+    item.files.length===marker.files.length && item.files.every((f,i)=>['name','bytes','digest','media_type'].every(k=>f[k]===marker.files[i][k]));
 }
 async function sendExchange(resolve) {
   const retained = exchangePending;
@@ -242,6 +287,7 @@ $('exchange-setup').onclick = () => {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 $('signout').addEventListener('click',forgetPrivateExchanges);
+$('exchange-review').oninput=exchangeControls;
 $('exchange-new').onclick = () => beginExchange(null);
 $('exchange-cancel').onclick = () => { if (busy) return; forgetExchange(work); $('edit-fields').disabled = false; exchangeDraft = null; $('exchange-form').reset(); exchangeControls(); };
 $('exchange-refresh').onclick = () => run(async () => {
@@ -267,8 +313,13 @@ $('exchange-form').onsubmit = event => {
       catch (error) { status(error.message); return; }
     } else {
       selected = [...$('exchange-upload').files];
+      if(exchangeDraft.basis && $('exchange-review').value){
+        const review=new File([$('exchange-review').value],'review.md',{type:'text/markdown'});
+        if(review.size>32768){status('Keep the written review within 32 KiB, or attach a file.');return;}
+        selected.push(review);
+      }
     }
-    if (!selected.length || selected.length > 8 || selected.some(f => f.size > 262144) || selected.reduce((n,f) => n + f.size, 0) > 524288) {
+    if (!selected.length || selected.length > 8 || selected.some(f => f.size > 6291456) || selected.reduce((n,f) => n + f.size, 0) > 7340032) {
       status('Choose 1–8 files within the displayed size limits. Your draft is retained.'); return;
     }
     const {basis,expected,recover} = exchangeDraft;
@@ -276,10 +327,10 @@ $('exchange-form').onsubmit = event => {
     const files = [];
     for (const f of selected) {
       const bytes = new Uint8Array(await f.arrayBuffer());
-      let binary = '';
-      for (const byte of bytes) binary += String.fromCharCode(byte);
+      const pieces=[];
+      for(let i=0;i<bytes.length;i+=24576)pieces.push(btoa(String.fromCharCode(...bytes.subarray(i,i+24576))));
       const digest = await exchangeDigest(bytes);
-      files.push({ name: f.name, media_type: edit ? edit.file.media_type : f.type || null, bytes: f.size, digest, data: btoa(binary) });
+      files.push({ name: f.name, media_type: edit ? edit.file.media_type : f.type || null, bytes: f.size, digest, data: pieces.join('') });
     }
     const request_key = recover?.request_key ?? crypto.randomUUID();
     const body = { basis, expected, kind:basis ? 'return' : 'request', request_key, message, next_action, files };

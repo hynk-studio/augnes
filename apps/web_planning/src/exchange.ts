@@ -1,10 +1,16 @@
 import { boundedText, canonical, exact, fail, headBinding, reference, workRef, type Revision, type WorkRef } from "./contract";
-import { fileManifest, type FileEntry } from "./files";
+import { FILE_LIMIT, SELECTION_BYTES, fileManifest, type FileEntry } from "./files";
 
 export const EXCHANGE_FORMAT = "web_planning_revision.v0.5";
 export const EXCHANGE_COMPATIBILITY = "web-planning/5";
 export const EXCHANGE_EXPORT = "web_planning_export.v0.5";
 
+export const LARGE_FORMAT = "web_planning_revision.v0.6";
+export const LARGE_EXPORT = "web_planning_export.v0.6";
+export const LARGE_COMPATIBILITY = "web-planning/6";
+export function largeExchange(event:Exchange) {
+  return event.artifacts.some(a=>a.file.bytes>FILE_LIMIT) || event.artifacts.reduce((n,a)=>n+a.file.bytes,0)>SELECTION_BYTES;
+}
 export interface ExchangeFile { file: FileEntry; media_type: string | null }
 export interface Exchange {
   kind: "request" | "return";
@@ -29,7 +35,7 @@ export function exchangeRecord(value: unknown): Exchange {
     exact(item, "file,media_type");
     mediaType(item.media_type);
     return item.file;
-  }));
+  }),true);
   if (value.kind === "request") {
     if (value.basis !== null) fail("invalid_source_binding");
   } else workRef(value.basis);
@@ -55,7 +61,7 @@ export function exchangeView(revision: Revision) {
     ...file, media_type,
     download: `/api/work/${ref.work_id}/exchange-files/${ref.revision}/${ref.fingerprint.slice(7)}/${i}`
   }));
-  return { ref, request_key: revision.request_key, kind, basis, message, next_action, files };
+  return { ref, expected:{revision:revision.revision-1,fingerprint:revision.predecessor}, request_key: revision.request_key, kind, basis, message, next_action, files };
 }
 
 export function exchangeList(chain: Revision[]) {

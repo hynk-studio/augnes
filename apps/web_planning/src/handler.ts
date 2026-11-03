@@ -1,12 +1,13 @@
 /// <reference path="./assets.d.ts" />
-import { exchangeList } from "./exchange";
+import { readExchangePage } from "./exchange-reading";
+import { LARGE_EXPORT, exchangeList } from "./exchange";
 import { writeExchange } from "./exchange-write";
 import { notebookFrom } from "./scene-contract";
 import { directionComparison, validateDirectionReferences } from "./directions";
 import { hasSceneFile } from "./file-relations";
 import { DIRECTION_EXPORT, directionExport, validateDirectionExport } from "./direction-recovery";
 import { prepareSceneContext, prepareSceneDraft, previewSceneReview, saveSceneReview } from "./scenes";
-import { type FileBody, FILE_EXPORT_REQUEST_BYTES, historyFiles, selectedFiles, validateFileExport } from "./files";
+import { type FileBody, FILE_EXPORT_REQUEST_BYTES, LARGE_EXPORT_REQUEST_BYTES, LARGE_PAIR_REQUEST_BYTES, EXCHANGE_REQUEST_BYTES, historyFiles, selectedFiles, validateFileExport } from "./files";
 import { authorize, csrfCookie, csrfToken, readTicket, requireCsrf, requireScope, ticket, type Environment, type Principal } from "./access";
 import { binding, canonical, exact, exportWork, fail, hash, makeRevision, normalizePayload, reference, Refusal, REQUEST_BYTES, requestFingerprint, sameBinding, UUID, validateExport } from "./contract";
 import { inspectDraftCapacity } from "./capacity";
@@ -27,11 +28,16 @@ function html(value:string,extra:Record<string,string>={}) { return new Response
 async function body(request:Request,limit=REQUEST_BYTES) {
   if(request.headers.get("content-type")!=="application/json") fail("json_required",415);
   const reader=request.body?.getReader(); if(!reader) fail("invalid_body");
-  let length=0; const chunks:Uint8Array[]=[];
+  const declared=request.headers.get("content-length");
+  if(declared!==null && Number(declared)>limit){await reader.cancel();fail("request_too_large",413);}
+  const decoder=new TextDecoder("utf-8",{fatal:true}),parts:string[]=[];
+  let length=0,pending="";
   try { for(;;) { const {done,value}=await reader.read(); if(done)break; length+=value.byteLength;
-    if(length>limit) { await reader.cancel(); fail("request_too_large",413); } chunks.push(value); }
-    const bytes=new Uint8Array(length); let at=0; for(const c of chunks){ bytes.set(c,at); at+=c.length; }
-    return JSON.parse(new TextDecoder("utf-8",{fatal:true}).decode(bytes));
+    if(length>limit) { await reader.cancel(); fail("request_too_large",413); }
+    pending+=decoder.decode(value,{stream:true});
+    if(pending.length>=65536){parts.push(pending);pending="";}
+    }
+    parts.push(pending+decoder.decode());return JSON.parse(parts.join(""));
   } catch(e) { if(e instanceof Refusal)throw e; fail("invalid_body"); }
 }
 export async function handle(request:Request,env:Environment,principal:Principal):Promise<Response> {
@@ -85,9 +91,19 @@ export async function handle(request:Request,env:Environment,principal:Principal
     }
     if(request.method!=="POST" || url.search)fail("method_not_allowed",405);
     requireCsrf(access,request);
-    const input=await body(request,path==="/api/reconstruct-files"?FILE_EXPORT_REQUEST_BYTES:REQUEST_BYTES); if(!input || typeof input!=="object")fail("invalid_body");
-    requireScope(access,input);
     const exchange=path.match(/^\/api\/work\/([a-f0-9-]+)\/exchanges\/(save|resolve)$/);
+    const extendedRestore=path==="/api/reconstruct-exchange" || path==="/api/reconstruct-directions";
+    if(extendedRestore && env.RECONSTRUCTION_MODE!=="quiesced-empty-store")fail("reconstruction_disabled",403);
+    const limit=exchange?EXCHANGE_REQUEST_BYTES:path==="/api/reconstruct-exchange"?LARGE_EXPORT_REQUEST_BYTES:
+      path==="/api/reconstruct-directions"?LARGE_PAIR_REQUEST_BYTES:path==="/api/reconstruct-files"?FILE_EXPORT_REQUEST_BYTES:REQUEST_BYTES;
+    const input=await body(request,limit); if(!input || typeof input!=="object")fail("invalid_body");
+    requireScope(access,input);
+    const text=path.match(/^\/api\/work\/([a-f0-9-]+)\/exchange-files\/([1-9][0-9]{0,15})\/([a-f0-9]{64})\/([0-7])\/text$/);
+    if(text && UUID.test(text[1])){
+      const chain=await readWork(access,text[1]),r=chain[Number(text[2])-1];
+      if(!r || r.fingerprint!=="sha256:"+text[3])fail("file_revision_unavailable",409);
+      return json(await readExchangePage(access,r,Number(text[4]),input));
+    }
     if(exchange && UUID.test(exchange[1]))return json(await writeExchange(access,exchange[1],input,exchange[2]==="resolve"));
     const capacity=path.match(/^\/api\/work\/([a-f0-9-]+)\/capacity$/);
     if(path==="/api/capacity" || (capacity && UUID.test(capacity[1]))) {
@@ -107,14 +123,16 @@ export async function handle(request:Request,env:Environment,principal:Principal
       const fingerprint=bound?hash(canonical((await prepareSceneDraft(access,[],selectedFiles(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits),input.files),undefined)).payload)):undefined;
       return json({work_id,ticket:ticket(access,work_id,headBinding(),fingerprint)});
     }
-    if(path==="/api/reconstruct" || path==="/api/reconstruct-files") {
+    if(path==="/api/reconstruct" || path==="/api/reconstruct-files" || extendedRestore) {
       exact(input,"workspace_id,project_id,export,confirm");
       if(env.RECONSTRUCTION_MODE!=="quiesced-empty-store" || input.confirm!=="reconstruct-empty-store")fail("reconstruction_disabled",403);
-      if(path==="/api/reconstruct-files"&&input.export?.format===DIRECTION_EXPORT){
+      if(path==="/api/reconstruct-exchange" && input.export?.format!==LARGE_EXPORT ||
+         path==="/api/reconstruct-directions" && input.export?.format!==DIRECTION_EXPORT)fail("incompatible_format",409);
+      if((path==="/api/reconstruct-files" || path==="/api/reconstruct-directions") && input.export?.format===DIRECTION_EXPORT){
         const works=validateDirectionExport(access,input.export);await reconstructWorks(access,works);
         return json({saved:works[0].chain.at(-1),works:works.map(w=>reference(w.chain.at(-1)!)),authorship:"imported attestation; not independently verified"});
       }
-      const {chain,bodies}=path==="/api/reconstruct-files"?validateFileExport(access,input.export):{chain:validateExport(access,input.export),bodies:[]};
+      const {chain,bodies}=path!=="/api/reconstruct"?validateFileExport(access,input.export):{chain:validateExport(access,input.export),bodies:[]};
       for(const r of chain)validateDirectionReferences(notebookFrom(r,bodies),()=>undefined);
       await reconstruct(access,chain,bodies);
       return json({saved:chain.at(-1),authorship:"imported attestation; not independently verified"});

@@ -149,7 +149,7 @@ export async function checkCumulativeHistory({start,client,newWork,save,edit,pas
    if(!direct){
      await server.setOptions({script:current});
      assert.equal((await server.mf.dispatchFetch(server.origin+'/',{headers:{cookie:c.cookies}})).status,503,'new binary refuses schema 2');
-     await server.db.batch([server.db.prepare('DROP TABLE web_planning_schema'),server.db.prepare('CREATE TABLE web_planning_schema(version integer PRIMARY KEY)'),server.db.prepare('INSERT INTO web_planning_schema VALUES (3)')]);
+     await server.db.batch([server.db.prepare('DROP TABLE web_planning_schema'),server.db.prepare('CREATE TABLE web_planning_schema(version integer PRIMARY KEY)'),server.db.prepare('INSERT INTO web_planning_schema VALUES (4)')]);
      assert.equal((await server.mf.dispatchFetch(server.origin+'/',{headers:{cookie:c.cookies}})).status,503,'a marker-only partial migration cannot admit old revision SQL');
      await server.db.batch([server.db.prepare('DROP TABLE web_planning_schema'),server.db.prepare('CREATE TABLE web_planning_schema(version integer PRIMARY KEY CHECK(version=2))'),server.db.prepare('INSERT INTO web_planning_schema VALUES (2)')]);
      await server.setOptions({script:oldCode});
@@ -165,7 +165,7 @@ export async function checkCumulativeHistory({start,client,newWork,save,edit,pas
    assert.deepEqual(await unchanged(server),before,'migration copies exact rows, files, mapping and tombstones');
    assert.deepEqual((await c.request('/api/work/'+w.id+'/export')).data,exported);
    assert.deepEqual((await server.db.prepare('PRAGMA foreign_key_check').all()).results,[]);
-   await server.setOptions({script:oldCode});assert.equal((await server.mf.dispatchFetch(server.origin+'/',{headers:{cookie:c.cookies}})).status,503,'old binary refuses schema 3');
+   await server.setOptions({script:oldCode});assert.equal((await server.mf.dispatchFetch(server.origin+'/',{headers:{cookie:c.cookies}})).status,503,'old binary refuses upgraded schema');
    const newCode=direct?(await bundleWebPlanning(path.resolve('apps/web_planning/src/cloudflare-worker.ts'))).code:current;
    await server.setOptions({script:newCode});c=await client(server);
    input=await edit(c,r,'Same saved work at revision 33');input.input.files=r.files;

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { reviewZip } from './web-planning-large-exchange-checks.mjs';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile, stat } from 'node:fs/promises';
 import path from 'node:path';
@@ -13,7 +14,7 @@ export async function browserFileExchanges({ c, origin, click, set, saved, settl
   const pick = async file => {
     const {root:dom}=await c.send('DOM.getDocument');
     const {nodeId}=await c.send('DOM.querySelector',{nodeId:dom.nodeId,selector:'#exchange-upload'});
-    await c.send('DOM.setFileInputFiles',{nodeId,files:[file]});
+    await c.send('DOM.setFileInputFiles',{nodeId,files:Array.isArray(file)?file:[file]});
   };
   const selectTask = async () => {
     // Frame navigation can finish before the new document's deferred client runs.
@@ -229,6 +230,31 @@ export async function browserFileExchanges({ c, origin, click, set, saved, settl
   await requestsOnly(c);
   console.log(JSON.stringify({work_list_browser:{widths:listWidths,read_requests:reads.map(r=>r.path),stale_list_opened_revision:3,focused_request_revision:2,focused_return_revision:5,partial_retained:true,delayed_open_preserved_edit:true,erased_selection_retained_editor:true}}));
   checks.push('work list: responsive poetry example, inert recorded action, exact keyboard selection after a concurrent edit, retained drafts, incomplete response and read-only refresh');
+  await click(c,'new-work');await set(c,'goal','Return the field survey');await set(c,'criteria','Retain and review original observations');await click(c,'save');await saved(c,1);await settled(c);
+  const long=Buffer.alloc(5328363,0x78),row=Buffer.from('Survey: 17 observed, 4 deferred.');row.copy(long,long.length-row.length);
+  const largePath=path.join(originalDir,'survey.log'),zipPath=path.join(originalDir,'survey.zip'),zip=reviewZip();
+  await writeFile(largePath,long);await writeFile(zipPath,zip);
+  await click(c,'exchange-new');await set(c,'exchange-message','Check the survey totals');await pick([largePath,zipPath]);await click(c,'exchange-submit');await saved(c,2);await settled(c);
+  await c.eval("document.querySelector('button[aria-label=\"Read survey.log as text\"]').click()");await settled(c);
+  const reader="document.querySelector('#exchange-list li section')";
+  await wait(()=>c.eval(reader+"?.querySelector('pre')?.textContent.length===8192"),'bounded first page');
+  for(const width of [390,1200]){
+    await c.send('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<500});
+    assert(await c.eval("document.documentElement.scrollWidth<=innerWidth"),'long line wraps at '+width);
+  }
+  await c.eval(reader+".querySelector('input[type=search]').value='Survey:'");
+  await c.eval(reader+".querySelectorAll('button')[1].click()");await settled(c);
+  const observed=await c.eval(reader+".querySelector('pre').textContent");
+  assert.equal(observed,row.toString());assert.match(await c.eval(reader+".querySelector('p').textContent"),/End of file.*partial/);
+  await c.send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:downloads});
+  await c.eval("$('exchange-list').querySelectorAll('a')[1].click()");
+  const zipDownload=path.join(downloads,'survey.zip');await wait(()=>stat(zipDownload).then(f=>f.size===zip.length).catch(()=>false),'complete opaque ZIP download');assert((await readFile(zipDownload)).equals(zip));
+  await c.eval("[...$('exchange-list').querySelectorAll('button')].find(b=>b.textContent==='Return edited files').click()");
+  const [observations,deferred]=observed.match(/\d+/g).map(Number);
+  await set(c,'exchange-message','Checked the final survey row');await set(c,'exchange-next','Transfer the verified subset');await set(c,'exchange-review','Transfer '+(observations-deferred)+' observations.');
+  await click(c,'exchange-submit');await saved(c,3);await settled(c);
+  assert.match(await c.eval("$('exchange-list').textContent"),/review.md/);
+  checks.push('complete originals: full-size log and ZIP uploaded, long line wraps at 390/1200, exact search, complete ZIP bytes and a grounded typed review');
   await click(c,'exchange-new'); await set(c,'exchange-message','Confirm the venue'); await pick(path.join(originalDir,name));
   c.accessBoundary='challenge'; await click(c,'exchange-submit'); await settled(c);
   assert.equal(await c.eval("accessLost && !exchangeDraft && !exchangePending && !$('exchange-form')"),true);

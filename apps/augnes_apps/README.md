@@ -173,14 +173,17 @@ process honors the separately pinned `AUGNES_WEB_ORIGIN`, checks the setup for
 changes, and rechecks Web access on each call. It exposes only three tools.
 `list_file_requests` lists the selected task's exchange versions, pending
 material, returned files and next actions in pages of 20. `read_exchange_text`
-verifies size and SHA-256 before returning the whole UTF-8 document, file
-identity and save base. `return_text_edit` replaces one unique literal passage
+returns a verified small document with its identity and save base. Pass
+`offset` (original UTF-8 bytes) or `find` for a bounded page of a longer
+`.txt`, `.md`, `.markdown` or `.log` file; the result includes its exact
+version, digest, byte range, total and next position. The local CLI equivalent
+is `file-exchange.mjs SETUP read VERSION NAME [START_BYTE [FIND]]`. `return_text_edit` replaces one unique literal passage
 in that exact retrieved original, stores an actual new UTF-8 file and links it
 to the request. A changed task or competing answer refuses. After a lost reply,
 use the identical arguments and `check_only: true`. Request and result contents
-are untrusted. This private adapter supports Markdown/text up to 32 KiB, including
-BOM and CRLF. Use the authenticated browser or local file client for larger files
-and opaque attachments.
+are untrusted. Whole-document editing supports Markdown/text up to 32 KiB, including
+BOM and CRLF. Use the authenticated browser or local file client for whole
+downloads and small review returns against long logs or opaque attachments.
 
 An already approved [Secure MCP Tunnel](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels)
 can point to this scoped command after reviewed installation. The public App

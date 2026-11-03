@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import path from 'node:path';
+import { migrationPrefix } from './web-planning-local-runtime.mjs';
 import { headBinding, reference } from '../apps/web_planning/src/contract.ts';
 import { planningDraft, selectHistoricalNote } from '../apps/augnes_apps/scripts/planning-notes.mjs';
 import { bundleWebPlanning } from './build-web-planning.mjs';
@@ -41,10 +42,11 @@ async function prepareCase(c){
  return {target,branch,a,b,condition,preview};
 }
 
-export async function checkHistoricalIncorporation({start,client,passed}){
+export async function checkHistoricalIncorporation({start,client,passed,root,open}){
  const old=await predecessorCode(predecessor,entry),current=(await bundleWebPlanning(path.resolve(entry))).code;
+ const oldFolder=await migrationPrefix(root,3);
  for(const upgrade of [false,true]){
-  const server=await start('historical-incorporation-'+(upgrade?'upgrade':'predecessor'),{code:old});
+  const name='historical-incorporation-'+(upgrade?'upgrade':'predecessor');let server=await start(name,{code:old,migrationsFolder:oldFolder});
   let c=await client(server);
   const {target,branch,a,b,condition,preview}=await prepareCase(c);
   const raw=async()=> (await server.db.prepare('SELECT envelope FROM web_planning_revision WHERE work_id=? ORDER BY revision').bind(target.work_id).all()).results.map(row=>row.envelope);
@@ -57,7 +59,7 @@ export async function checkHistoricalIncorporation({start,client,passed}){
    console.log(JSON.stringify({historical_incorporation:'predecessor',preview:200,save:'required_material_missing',rows:written.length,prefix_unchanged:true,readable:false}));
    continue;
   }
-  await server.setOptions({script:current});c=await client(server);
+  const options={port:Number(new URL(server.origin).port),bindings:server.env};await server.close();open.splice(open.indexOf(server),1);server=await start(name,{code:current,...options});c=await client(server);
   const comparison=await ok(c.request(route(target,'/compare'),{expected:headBinding(target),source:reference(branch)}));
   assert.deepEqual(Object.keys(comparison).sort(),['baseline','branch','html','target']); // History stays inside the validation boundary.
   const original=(await history()).revisions,backup=await ok(c.request(route(target,'/export')));

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { canonical, headBinding, reference, selectedWorkSourceInput } from '../apps/web_planning/src/contract.ts';
 import { digestBytes, validateFileExport } from '../apps/web_planning/src/files.ts';
 import { saveOperation } from '../apps/web_planning/src/relations.ts';
-import { fixtureScope } from './web-planning-local-runtime.mjs';
+import { fixtureScope, migrationPrefix } from './web-planning-local-runtime.mjs';
 import { predecessorCode } from './web-planning-branch-checks.mjs';
 
 const base='66ab79ca8106fb9037300a3aada9f915e2c5c5f9';
@@ -11,7 +11,8 @@ const route=(r,action='')=>`/api/work/${r.work_id}${action?'/'+action:''}`;
 const ok=async promise=>{const r=await promise;assert.equal(r.status,200,JSON.stringify(r.data));return r.data;};
 export async function checkOrdinaryFiles({start,client,newWork,save,passed,open}) {
  const oldCode=await predecessorCode(base);
- let server=await start('ordinary-file-upgrade',{code:oldCode}),c=await client(server);
+ const oldFolder=await migrationPrefix(process.env.AUGNES_CANONICAL_TEMP_ROOT,3);
+ let server=await start('ordinary-file-upgrade',{code:oldCode,migrationsFolder:oldFolder}),c=await client(server);
  const create=async(files,notes=[])=>{const w=await newWork(c,{goal:'Ordinary file work',success_criteria:['Retain exact requirements and qualified results'],non_goals:[]},notes);w.input.files=files;return (await ok(save(c,w))).saved;};
  const write=async(r,files,notes=r.sources.map(selectedWorkSourceInput))=>{const content={definition:r.definition,notes,files};const t=await ok(c.request(route(r,'ticket'),{expected:headBinding(r),...content}));return (await ok(save(c,{id:r.work_id,input:{...content,ticket:t.ticket}}))).saved;};
  const branch=async r=>ok(c.request(route(r,'branch-preview'),{expected:headBinding(r),intent:{reason:'Explore a direct ordinary alternative with exact files'}}));
@@ -29,7 +30,7 @@ export async function checkOrdinaryFiles({start,client,newWork,save,passed,open}
  assert.equal((await c.request(route(target,'branch-preview'),{expected:headBinding(target),intent:{reason:'Ordinary files on accepted main'}})).data.error,'file_branch_selection_unsupported');
  passed('ordinary files: pinned accepted-main writer reproduces the intentional file-branch refusal with zero notes');
  const options={port:Number(new URL(server.origin).port),bindings:server.env};
- async function reopen(code){await server.close();open.splice(open.indexOf(server),1);server=await start('ordinary-file-upgrade',{...options,...(code?{code}:{})});c=await client(server);}
+ async function reopen(code){await server.close();open.splice(open.indexOf(server),1);server=await start('ordinary-file-upgrade',{...options,...(code?{code}:{})});if(!code)c=await client(server);}
  await reopen();assert.deepEqual(await exportOf(target),legacy);assert.deepEqual((await server.db.prepare('SELECT envelope FROM web_planning_revision ORDER BY revision').all()).results,legacyRows);
  const p=await branch(target);let alternate=(await ok(commit(p))).saved;
  assert.equal(alternate.format,'web_planning_revision.v0.4');assert.equal(alternate.sources.length,0);assert.deepEqual(alternate.files,target.files);
@@ -146,7 +147,11 @@ export async function checkOrdinaryFiles({start,client,newWork,save,passed,open}
  passed('ordinary files: 8-entry, 524288-selected-byte, 16-history-digest and 1048576-history-byte bounds refuse without compaction or partial effects');
  // Fresh process and old-reader rollback: legacy bytes are unchanged; v4 refuses.
  const exportBefore=await exportOf(target),alternateExport=await exportOf(alternate);
- await reopen(oldCode);assert.equal((await c.request(route(target))).data.error,'incompatible_format');assert.equal((await c.request('/api/reconstruct-files',{export:exportBefore,confirm:'reconstruct-empty-store'})).data.error,'incompatible_format');
+ const oldReader=await start('ordinary-old-reader',{code:oldCode,migrationsFolder:oldFolder}),oc=await client(oldReader);
+ assert.equal((await oc.request('/api/reconstruct-files',{export:exportBefore,confirm:'reconstruct-empty-store'})).data.error,'incompatible_format');
+ await reopen(oldCode);
+ const incompatible=await server.mf.dispatchFetch(server.origin+route(target),{headers:{cookie:c.cookies}});
+ assert.equal(incompatible.status,503);assert.equal((await incompatible.json()).error,'incompatible_schema');
  await reopen();assert.deepEqual(await exportOf(target),exportBefore);assert.deepEqual(await exportOf(alternate),alternateExport);
  for(const e of [legacy,exportBefore,alternateExport]){
    validateFileExport(fixtureScope,e);const dest=await start('ordinary-recovery-'+e.fingerprint.slice(-12)),dc=await client(dest);
@@ -158,6 +163,6 @@ export async function checkOrdinaryFiles({start,client,newWork,save,passed,open}
  const independent=(await ok(commit(await branch(target)))).saved,independentExport=await exportOf(independent);
  await erase(target);assert.deepEqual(await exportOf(independent),independentExport);
  for(const table of ['web_planning_revision','web_planning_file'])assert.equal((await server.db.prepare(`SELECT count(*) n FROM ${table} WHERE work_id=?`).bind(target.work_id).first()).n,0);
- assert.deepEqual((await server.db.prepare('SELECT version FROM web_planning_schema').all()).results,[{version:3}]);
- passed('ordinary files: unchanged legacy exports; schema-3 code upgrade/old-reader refusal/roll-forward; fresh-process v4 reopen and supported empty-store reconstruction; independent copies survive origin erasure and own erasure removes bodies');
+ assert.deepEqual((await server.db.prepare('SELECT version FROM web_planning_schema').all()).results,[{version:4}]);
+ passed('ordinary files: unchanged legacy exports; schema 3 to 4 upgrade/old-reader refusal/roll-forward; fresh-process v4 reopen and supported empty-store reconstruction; independent copies survive origin erasure and own erasure removes bodies');
 }

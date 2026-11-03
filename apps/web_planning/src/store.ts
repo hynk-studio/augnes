@@ -1,7 +1,7 @@
 import { projectWorkListItem, listEnvelope } from "./work-list";
 import { SCENE_FILE, validateSceneHistory } from "./scene-contract";
 import { Buffer } from "node:buffer";
-import { decodeFile, digestBytes, exportFiles, historyFiles, verifiedBodies, type FileBody, type FileEntry } from "./files";
+import { FILE_LIMIT, decodeFile, digestBytes, exportFiles, historyFiles, verifiedBodies, type FileBody, type FileEntry } from "./files";
 import { assertHistoryBudget, canonical, canonicalBytes, fail, headBinding, HISTORY_READ_BYTES, HISTORY_READ_ROWS, type Binding, type Revision, type Scope, type WorkRef, UUID, validateChain, validateSameWorkOrigins } from "./contract";
 // The subset of the D1 binding used here. No SQLite adapter or in-memory fallback.
 export interface Statement {
@@ -175,7 +175,7 @@ export async function reconstructWorks(s:Store,works:{chain:Revision[];bodies:Fi
   ]);
   for(const w of works){
     if(canonical(await readWork(s,w.chain[0].work_id))!==canonical(w.chain))fail("reconstruction_readback_unavailable",503);
-    if(w.chain.some(r=>r.files!==undefined))verifiedBodies(w.chain,await readFileBodies(s,w.chain));
+    if(w.chain.some(r=>r.files!==undefined))await readFileBodies(s,w.chain);
   }
 }
 export async function listWork(s: Store, cursor: string) {
@@ -209,39 +209,69 @@ export async function listWork(s: Store, cursor: string) {
 }
 export { headBinding };
 
-// One bounded statement (at most 16 bodies / 59 parameters), gated by the newly
-// committed revision inside the same batch. A lost head race cannot leave uploads.
+// 192 KiB raw per slice: aligned on base64 quanta; no single D1 value or
+// result row approaches 2 MB. No staged objects survive an interrupted write.
+const PART_CHARS=262_144;
 function fileInsert(s:Store,r:Revision,bodies:FileBody[]):Statement[] {
   if(!bodies.length)return [];
-  return [s.DB.prepare(`WITH incoming(digest,bytes,body) AS (VALUES ${bodies.map(()=>"(?,?,?)").join(",")})
+  const gate=`EXISTS (SELECT 1 FROM web_planning_revision WHERE ${where} AND revision=? AND fingerprint=?)
+    AND NOT EXISTS (SELECT 1 FROM web_planning_erased WHERE ${where})`;
+  const scope=args(s,r.work_id),bound=[...scope,...scope,r.revision,r.fingerprint,...scope];
+  const headers=s.DB.prepare(`WITH incoming(digest,bytes,body) AS (VALUES ${bodies.map(()=>"(?,?,?)").join(",")})
     INSERT INTO web_planning_file(workspace_id,project_id,work_id,digest,bytes,body)
-    SELECT ?,?,?,digest,bytes,body FROM incoming WHERE EXISTS
-      (SELECT 1 FROM web_planning_revision WHERE ${where} AND revision=? AND fingerprint=?)
-    AND NOT EXISTS (SELECT 1 FROM web_planning_erased WHERE ${where}) ON CONFLICT DO NOTHING`)
-    .bind(...bodies.flatMap(f=>[f.digest,f.bytes,Uint8Array.from(decodeFile(f.data)).buffer]),...args(s,r.work_id),...args(s,r.work_id),r.revision,r.fingerprint,...args(s,r.work_id))];
+    SELECT ?,?,?,digest,bytes,body FROM incoming WHERE ${gate} ON CONFLICT DO NOTHING`)
+    .bind(...bodies.flatMap(f=>[f.digest,f.bytes,f.bytes>FILE_LIMIT?null:Uint8Array.from(decodeFile(f.data)).buffer]),...bound);
+  const parts:(string|number)[][]=[];
+  for(const f of bodies)if(f.bytes>FILE_LIMIT){
+    for(let offset=0;offset<f.data.length;offset+=PART_CHARS)parts.push([f.digest,offset/PART_CHARS,f.data.slice(offset,offset+PART_CHARS)]);
+  }
+  const statements=[headers];
+  // At most 59 bindings per statement. All statements use the exact saved
+  // revision/erasure guard, including on a CAS that inserted zero rows.
+  for(let i=0;i<parts.length;i+=16){
+    const group=parts.slice(i,i+16);
+    statements.push(s.DB.prepare(`WITH incoming(digest,ordinal,data) AS (VALUES ${group.map(()=>"(?,?,?)").join(",")})
+      INSERT INTO web_planning_file_part(workspace_id,project_id,work_id,digest,ordinal,data)
+      SELECT ?,?,?,digest,ordinal,data FROM incoming WHERE ${gate} ON CONFLICT DO NOTHING`).bind(...group.flat(),...bound));
+  }
+  return statements;
+}
+async function storedBodies(s:Store,r:Revision,digest?:string):Promise<FileBody[]> {
+  const scope=args(s,r.work_id),pred=`${where} ${digest?"AND digest=?":""}
+    AND NOT EXISTS (SELECT 1 FROM web_planning_erased WHERE ${where})
+    AND EXISTS (SELECT 1 FROM web_planning_revision WHERE ${where} AND revision=? AND fingerprint=?)`;
+  const params=[...scope,...(digest?[digest]:[]),...scope,...scope,r.revision,r.fingerprint];
+  // One scoped snapshot of headers and parts. A large file adds rows, not
+  // queries, to the existing per-operation budget (including scene reads).
+  const {results}=await s.DB.prepare(`WITH headers AS (SELECT * FROM web_planning_file WHERE ${pred})
+    SELECT h.digest,h.bytes,p.ordinal,CASE WHEN h.body IS NULL THEN p.data ELSE hex(h.body) END AS data
+    FROM headers h LEFT JOIN web_planning_file_part p USING(workspace_id,project_id,work_id,digest)
+    ORDER BY h.digest,p.ordinal`).bind(...params).all<{digest:string;bytes:number;ordinal:number|null;data:string|null}>();
+  const groups=new Map<string,typeof results>();
+  for(const row of results){const group=groups.get(row.digest);if(group)group.push(row);else groups.set(row.digest,[row]);}
+  return [...groups.values()].map(group=>{
+    const f=group[0];
+    if(f.bytes<=FILE_LIMIT){
+      if(group.length!==1 || f.ordinal!==null || f.data===null || f.data.length!==2*f.bytes)fail("file_content_integrity",409);
+      return {digest:f.digest,bytes:f.bytes,data:Buffer.from(f.data,"hex").toString("base64")};
+    }
+    const chars=4*Math.ceil(f.bytes/3);
+    if(group.length!==Math.ceil(chars/PART_CHARS) ||
+      group.some((p,i)=>p.ordinal!==i || p.data?.length!==Math.min(PART_CHARS,chars-i*PART_CHARS)))fail("file_content_integrity",409);
+    return {digest:f.digest,bytes:f.bytes,data:group.map(p=>p.data).join("")};
+  });
 }
 export async function readFileBodies(s:Store,chain:Revision[]):Promise<FileBody[]> {
-  const id=chain[0].work_id,head=chain.at(-1)!;
-  // Match the exact read revision and erasure guard; refuse missing/extra bodies
-  // rather than describing a manifest without its bytes as complete.
-  const rows=await s.DB.prepare(`SELECT digest,bytes,body FROM web_planning_file WHERE ${where}
-    AND NOT EXISTS (SELECT 1 FROM web_planning_erased WHERE ${where})
-    AND EXISTS (SELECT 1 FROM web_planning_revision WHERE ${where} AND revision=? AND fingerprint=?)`)
-    .bind(...args(s,id),...args(s,id),...args(s,id),head.revision,head.fingerprint).all<{digest:string;bytes:number;body:number[]}>();
-  const bodies=rows.results.map(f=>({digest:f.digest,bytes:f.bytes,data:Buffer.from(f.body).toString("base64")}));
-  return verifiedBodies(chain,bodies);
+  return verifiedBodies(chain,await storedBodies(s,chain.at(-1)!));
 }
 export async function completeExport(s:Store,chain:Revision[]) {
-  return exportFiles(chain,await readFileBodies(s,chain));
+  return exportFiles(chain,await storedBodies(s,chain.at(-1)!));
 }
 export async function downloadFile(s:Store,r:Revision,index:number,exchange=false):Promise<{file:FileEntry;bytes:Uint8Array<ArrayBuffer>}> {
   const file=exchange ? r.exchange?.artifacts[index]?.file : r.files?.[index];if(!file)fail("file_not_found",404);
-  const row=await s.DB.prepare(`SELECT body FROM web_planning_file WHERE ${where} AND digest=?
-    AND NOT EXISTS (SELECT 1 FROM web_planning_erased WHERE ${where})
-    AND EXISTS (SELECT 1 FROM web_planning_revision WHERE ${where} AND revision=? AND fingerprint=?)`)
-    .bind(...args(s,r.work_id),file.digest,...args(s,r.work_id),...args(s,r.work_id),r.revision,r.fingerprint).first<{body:number[]}>();
+  const [row]=await storedBodies(s,r,file.digest);
   if(!row)fail("file_content_unavailable",409);
-  const bytes=Uint8Array.from(row.body);
-  if(bytes.length!==file.bytes||digestBytes(bytes)!==file.digest)fail("file_content_integrity",409);
-  return {file,bytes};
+  const bytes=decodeFile(row.data,file.bytes);
+  if(row.bytes!==file.bytes||bytes.length!==file.bytes||digestBytes(bytes)!==file.digest)fail("file_content_integrity",409);
+  return {file,bytes:bytes as Uint8Array<ArrayBuffer>};
 }

@@ -44,8 +44,8 @@ export async function authorize(request: Request, env: Environment, principal: P
   if (!login(principal.login)) refuse(principal.ingress==='cloudflare-access'?'access_identity_unavailable':env.SITES_INGRESS_MODE!=='verified-private-sites'?'ingress_disabled':
     request.headers.has('oai-authenticated-user-email')?'identity_invalid':'identity_absent','access_denied',403);
   if (login(principal.login)!==login(env.OWNER_EMAIL)) refuse('owner_mismatch','access_denied',403);
-  const schema=await env.DB.prepare("SELECT version,(SELECT sql FROM sqlite_master WHERE name='web_planning_revision' AND type='table') AS revision_sql FROM web_planning_schema").all<{version:number;revision_sql:string}>();
-  if (schema.results.length!==1 || schema.results[0].version!==3 || !schema.results[0].revision_sql?.includes('web_planning_revision_positive')) refuse('schema','incompatible_schema',503);
+  const schema=await env.DB.prepare("SELECT version,(SELECT sql FROM sqlite_master WHERE name='web_planning_revision' AND type='table') AS revision_sql,EXISTS (SELECT 1 FROM sqlite_master WHERE type='table' AND name='web_planning_file_part' AND instr(sql,'web_planning_part_ordinal')>0) AS parts FROM web_planning_schema").all<{version:number;revision_sql:string;parts:number}>();
+  if (schema.results.length!==1 || schema.results[0].version!==4 || schema.results[0].parts!==1 || !schema.results[0].revision_sql?.includes('web_planning_revision_positive')) refuse('schema','incompatible_schema',503);
   let owners=await env.DB.prepare("SELECT * FROM web_planning_workspace").all<Record<string,unknown>>();
   const expected={ singleton:1, workspace_id:env.WORKSPACE_ID, project_id:env.PROJECT_ID,
     author_ref:env.AUTHOR_REF, owner_login_hash:hash(login(env.OWNER_EMAIL)!) };
@@ -60,7 +60,7 @@ export async function authorize(request: Request, env: Environment, principal: P
         AND NOT EXISTS(SELECT 1 FROM web_planning_revision)
         AND NOT EXISTS(SELECT 1 FROM web_planning_erased)
         AND (SELECT count(*) FROM web_planning_schema)=1
-        AND EXISTS(SELECT 1 FROM web_planning_schema WHERE version=3)
+        AND EXISTS(SELECT 1 FROM web_planning_schema WHERE version=4)
         AND NOT EXISTS(SELECT 1 FROM web_planning_file)
       ON CONFLICT DO NOTHING`)
       .bind(expected.workspace_id,expected.project_id,expected.author_ref,expected.owner_login_hash).run();

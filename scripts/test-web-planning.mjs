@@ -1,3 +1,4 @@
+import { checkLargeExchanges } from './web-planning-large-exchange-checks.mjs';
 import { checkFileExchanges } from './web-planning-exchange-checks.mjs';
 import { checkDirections } from "./web-planning-direction-checks.mjs";
 import { checkWebPlanningInterceptionDiagnostics } from './test-web-planning-interception.mjs';
@@ -184,10 +185,11 @@ try {
  passed('ordinary revision 33 and retained ten-item list paging have exact effects');
  await checkCapacity({c,scope:fixtureScope,passed});
  await checkRetainedNotes({c,passed});
- await checkHistoricalIncorporation({start,client,passed});
+ await checkHistoricalIncorporation({start,client,passed,root,open});
  await checkBranching({start,client,newWork,save,edit,passed,open});
  await checkFiles({start,client,newWork,save,passed,root,open});
  await checkFileExchanges({start,client,newWork,save,root,passed});
+ await checkLargeExchanges({start,client,newWork,save,passed});
  await checkOrdinaryFiles({start,client,newWork,save,passed,open});
  await checkStoryWriting({start,client,newWork,save,passed});
  await checkSceneContinuity({start,client,newWork,save,passed});
