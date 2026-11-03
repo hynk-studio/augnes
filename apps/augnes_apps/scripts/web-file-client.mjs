@@ -35,7 +35,7 @@ export async function openFileProject(origin = process.env.AUGNES_WEB_ORIGIN) {
       if (!csrf || !part) fail('Private write session unavailable.');
       cookie += '; ' + part;
     }
-    const response = await fetch(origin + path, { redirect: 'manual', signal: AbortSignal.timeout(15000),
+    const response = await fetch(origin + path, { redirect: 'manual', signal: AbortSignal.timeout(60000),
       method: body === undefined ? 'GET' : 'POST',
       headers: { cookie, ...(body === undefined ? {} : { origin, 'content-type': 'application/json', 'x-csrf-token': csrf }) },
       ...(body === undefined ? {} : { body: JSON.stringify({ ...body, workspace_id:project.workspace_id, project_id:project.project_id }) }) });
@@ -80,15 +80,29 @@ export async function openFileTask(setupPath, expectedSetupDigest) {
   async function list() {
     return (await request(root + '/exchanges')).json();
   }
-  async function get(version, name) {
+  async function locate(version, name) {
     const { items } = await list();
     const item = items.find(r => r.ref.revision === version);
     const index = item?.files.findIndex(f => f.name === name) ?? -1;
     if (index < 0 || index > 7 || !fingerprint.test(item.ref.fingerprint)) fail('Select a listed file and version.');
     const file = item.files[index];
     const path = root + '/exchange-files/' + version + '/' + item.ref.fingerprint.slice(7) + '/' + index;
+    return {path,item,file};
+  }
+  async function readPage(version,name,offset=0,find=''){
+    const {path,item,file}=await locate(version,name);
+    const page=await (await request(path+'/text',{offset,find})).json();
+    if(page.workspace_id!==project.workspace_id || page.project_id!==project.project_id || page.ref?.work_id!==work_id || page.ref.fingerprint!==item.ref.fingerprint || page.ref.revision!==version ||
+      page.file?.name!==name || page.file.digest!==file.digest || page.offset!==offset || page.total!==file.bytes ||
+      !Number.isSafeInteger(page.start) || !Number.isSafeInteger(page.end) || page.start<offset || page.end<page.start ||
+      page.end>file.bytes || page.end-page.start>8192 || Buffer.byteLength(page.text)!==page.end-page.start ||
+      page.next!==(page.end===file.bytes?null:page.end))fail('Text page identity or extent mismatch.');
+    return page;
+  }
+  async function get(version,name) {
+    const {path,item,file}=await locate(version,name);
     const response = await request(path);
-    if (Number(response.headers.get('content-length')) !== file.bytes || file.bytes > 262144) fail('File size mismatch.');
+    if (Number(response.headers.get('content-length')) !== file.bytes || file.bytes > 6291456) fail('File size mismatch.');
     const bytes = Buffer.from(await response.arrayBuffer());
     if (bytes.length !== file.bytes || digest(bytes) !== file.digest) fail('File digest mismatch.');
     return { item, file, bytes };
@@ -96,5 +110,5 @@ export async function openFileTask(setupPath, expectedSetupDigest) {
   async function write(body, resolve = false) {
     return (await request(root + '/exchanges/' + (resolve ? 'resolve' : 'save'), body)).json();
   }
-  return { project: project.name, work_id, setupDigest: digest(selected), planning, list, get, write };
+  return { project: project.name, work_id, setupDigest: digest(selected), planning, list, get, readPage, write };
 }

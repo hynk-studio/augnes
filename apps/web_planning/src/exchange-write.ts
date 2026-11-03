@@ -19,7 +19,7 @@ export async function writeExchange(store: Store, workId: string, input: Record<
   const chain = await readWork(store, workId);
   const base = chain[expected.revision - 1];
   if (!base || !sameBinding(headBinding(base), expected)) fail("refresh_required", 409);
-  const { payload: selection, bodies } = selectedFiles({ definition: base.definition, sources: [] }, uploads);
+  const { payload: selection, bodies } = selectedFiles({ definition: base.definition, sources: [] }, uploads, undefined, true);
   if (selection.files!.some((file, i) => file.bytes !== incoming[i].bytes || file.digest !== incoming[i].digest))
     fail("exchange_upload_integrity", 422);
   const event: Exchange = validateExchange({

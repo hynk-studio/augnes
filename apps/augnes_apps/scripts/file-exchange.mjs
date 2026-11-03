@@ -11,7 +11,7 @@ async function selectedFile(path) {
   const input = await open(path, fs.O_RDONLY | fs.O_NOFOLLOW | fs.O_NONBLOCK);
   try {
     const stat = await input.stat();
-    if (!stat.isFile() || stat.size > 262144) throw new Error('Select a regular file of at most 256 KiB.');
+    if (!stat.isFile() || stat.size > 6291456) throw new Error('Select a regular file of at most 6 MiB.');
     const buffer = Buffer.alloc(stat.size + 1);
     let count = 0;
     while (count < buffer.length) {
@@ -20,7 +20,7 @@ async function selectedFile(path) {
       count += bytesRead;
     }
     if (count !== stat.size) throw new Error('Selected file changed while reading.');
-    const media_type = ({'.md':'text/markdown','.markdown':'text/markdown','.txt':'text/plain','.zip':'application/zip'})[extname(path).toLowerCase()] ?? null;
+    const media_type = ({'.md':'text/markdown','.markdown':'text/markdown','.txt':'text/plain','.log':'text/plain','.zip':'application/zip'})[extname(path).toLowerCase()] ?? null;
     const bytes = buffer.subarray(0,count);
     return { name: basename(path), media_type, bytes: count, digest: digest(bytes), data: bytes.toString('base64') };
   } finally { await input.close(); }
@@ -32,9 +32,9 @@ function draftSummary(body) {
 // Only an explicitly chosen, new private folder receives local files. The request
 // manifest is written last. A failed export never consumes its pending journal.
 async function recoverDraft(directory, body) {
-  if (!Array.isArray(body.files) || !body.files.length || body.files.length > 8 || body.files.reduce((n,f) => n + f.bytes, 0) > 524288) throw new Error('Invalid pending file selection. Its journal is retained.');
+  if (!Array.isArray(body.files) || !body.files.length || body.files.length > 8 || body.files.reduce((n,f) => n + f.bytes, 0) > 7340032) throw new Error('Invalid pending file selection. Its journal is retained.');
   const entries = body.files.map(f => {
-    if (!Number.isSafeInteger(f.bytes) || f.bytes < 0 || f.bytes > 262144 || typeof f.data !== 'string' || f.data.length !== 4 * Math.ceil(f.bytes / 3)) throw new Error('Invalid pending file bytes. Its journal is retained.');
+    if (!Number.isSafeInteger(f.bytes) || f.bytes < 0 || f.bytes > 6291456 || typeof f.data !== 'string' || f.data.length !== 4 * Math.ceil(f.bytes / 3)) throw new Error('Invalid pending file bytes. Its journal is retained.');
     if (typeof f.name !== 'string' || basename(f.name) !== f.name || !f.name || /[\\/\x00-\x1f]/.test(f.name) || f.name === '.' || f.name === '..')
       throw new Error('The pending file has an unsafe name. Its journal is retained.');
     const bytes = Buffer.from(f.data, 'base64');
@@ -91,6 +91,8 @@ async function run() {
     return match;
   }
   if (action === 'list') return { project: client.project, ...await client.list() };
+  if (action === 'read' && args.length>=2 && args.length<=4)
+    return client.readPage(Number(args[0]),args[1],Number(args[2]??0),args[3]??'');
   if (action === 'get' && args.length === 3) {
     const { file, bytes } = await client.get(Number(args[0]), args[1]);
     const output = await open(args[2], 'wx', 0o600);
@@ -112,13 +114,19 @@ async function run() {
     if (pending.length) throw new Error('Check the previous pending file save first.');
     const state = await client.list();
     const isReturn = action === 'return';
-    const basis = isReturn ? state.items.find(r => r.kind === 'request' && r.ref.revision === Number(args.shift()))?.ref : null;
+    const requestVersion = isReturn ? Number(args.shift()) : null;
+    const basis = isReturn ? state.items.find(r => r.kind === 'request' && r.ref.revision === requestVersion)?.ref : null;
     if (isReturn && !basis) throw new Error('Select a listed request version.');
     const message = args.shift(), next_action = isReturn ? args.shift() : '';
     if ((!isReturn && action !== 'request') || !message || (isReturn && !next_action) || !args.length || args.length > 8)
-      throw new Error('Use list, get VERSION NAME NEW_PATH, request MESSAGE FILE..., return REQUEST_VERSION MESSAGE NEXT FILE..., check or retry.');
+      throw new Error('Use list, read VERSION NAME [START_BYTE [FIND]], get VERSION NAME NEW_PATH, request MESSAGE FILE..., return REQUEST_VERSION MESSAGE NEXT FILE..., check or retry.');
     const files = [];
-    for (const path of args) files.push(await selectedFile(path));
+    let total=0;
+    for (const path of args) {
+      const f=await selectedFile(path);total+=f.bytes;
+      if(total>7340032)throw Error('Choose up to 7 MiB of files together.');
+      files.push(f);
+    }
     operation = { work_id: client.work_id, setup_digest: client.setupDigest, body: { expected: state.head, request_key: randomUUID(),
       kind: isReturn ? 'return' : 'request', basis, message, next_action, files } };
     journal = join(pendingDir,operation.body.request_key);
