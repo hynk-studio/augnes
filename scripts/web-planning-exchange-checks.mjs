@@ -148,7 +148,12 @@ export async function checkFileExchanges({ start, client, newWork, save, root, p
   const withdrawn=await recovered.request(sent.files[0].download);
   assert.equal(withdrawn.status,403);
   assert.equal((await recovered.request(route+'/resolve',addition)).status,403);
-  const erase=await owner.request('/api/work/'+task.work_id+'/erase',{expected:accepted.data.head,confirm:'erase-whole-work'});assert.equal(erase.status,200);
+  // Answer an explicitly selected request after another request and return.
+  // Looking up its version must not consume the subsequent CLI arguments.
+  const answer=await cli('return-later-request',['return',String(accepted.data.item.ref.revision),'Read the later original.','Use its returned file.',originalPath]);
+  assert.deepEqual(answer.item.basis,accepted.data.item.ref);
+  assert.equal(answer.item.message,'Read the later original.');assert.equal(answer.item.next_action,'Use its returned file.');
+  const erase=await owner.request('/api/work/'+task.work_id+'/erase',{expected:answer.head,confirm:'erase-whole-work'});assert.equal(erase.status,200);
   assert.equal((await owner.request(route+'/save',addition)).status,410);
   passed('file exchange: fresh CLI, separate MCP recipient, exact Korean/BOM/CRLF and ZIP bytes, content-dependent return, replay, isolation, recovery and erasure');
 }

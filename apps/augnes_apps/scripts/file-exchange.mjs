@@ -114,7 +114,8 @@ async function run() {
     if (pending.length) throw new Error('Check the previous pending file save first.');
     const state = await client.list();
     const isReturn = action === 'return';
-    const basis = isReturn ? state.items.find(r => r.kind === 'request' && r.ref.revision === Number(args.shift()))?.ref : null;
+    const requestVersion = isReturn ? Number(args.shift()) : null;
+    const basis = isReturn ? state.items.find(r => r.kind === 'request' && r.ref.revision === requestVersion)?.ref : null;
     if (isReturn && !basis) throw new Error('Select a listed request version.');
     const message = args.shift(), next_action = isReturn ? args.shift() : '';
     if ((!isReturn && action !== 'request') || !message || (isReturn && !next_action) || !args.length || args.length > 8)
