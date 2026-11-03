@@ -8,7 +8,7 @@ import { browserStoryJourney } from './browser-web-planning-story.mjs';
 import { browserFileJourney } from './browser-web-planning-files.mjs';
 import { browserFileExchanges } from './browser-web-planning-exchanges.mjs';
 import { browserOrdinaryFileJourney } from './browser-web-planning-ordinary-files.mjs';
-import { browserHistoryJourney, browserRetainedNotes } from './browser-web-planning-history.mjs';
+import { browserHistoryJourney, browserRetainedNotes, browserIndependentNotes } from './browser-web-planning-history.mjs';
 import { advancedClock } from './web-planning-history-checks.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -295,6 +295,7 @@ try {
  await browserCapacityJourney({a:d,click,set,settled,saved,wait,navigate,origin:directOrigin,downloads:path.join(root,'capacity-downloads'),requests,responses,checks});
  await browserFileJourney({a:d,debug,origin:directOrigin,page,click,set,settled,saved,wait,navigate,requestsOnly,root,checks});
  await browserRetainedNotes({a:d,click,set,settled,saved,wait,checks});
+ await browserIndependentNotes({a:d,click,set,settled,saved,wait,checks});
  await browserHistoryJourney({a:d,debug,origin:directOrigin,page,click,set,settled,saved,wait,navigate,checks,
    restart:async()=>{for(const c of clients)await navigate(c,'about:blank');const bindings=local.env;await closeLocalRuntime();local=null;
      local=await startLocal({...directOptions,port:Number(new URL(directOrigin).port),bindings,code:advancedClock(directOptions.code)});}});

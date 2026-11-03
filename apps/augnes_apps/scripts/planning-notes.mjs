@@ -13,8 +13,8 @@ export function sameNote(a,b) { return Object.keys(b).every(key=>a[key]===b[key]
 // Append only. Preserve the editor's row order, unsaved fields and unrelated
 // file/scene choices. Traverse at most one revision's eight whole notes.
 export function selectHistoricalNote(draft,base,revision,sourceRef,interpretation) {
-  if(!base || revision?.work_id!==base.work_id || revision.project_id!==base.project_id ||
-      revision.workspace_id!==base.workspace_id || revision.revision>=base.revision) throw Error('historical_note_unavailable');
+  if(!base || !revision || revision.project_id!==base.project_id ||
+      revision.workspace_id!==base.workspace_id || revision.author_ref!==base.author_ref || (revision.work_id===base.work_id && revision.revision>=base.revision)) throw Error('historical_note_unavailable');
   const result={...draft,notes:[...draft.notes],material_edits:[...draft.material_edits]};
   const entries=new Map(revision.sources.map(s=>[s.source_ref,s])),seen=new Map();
   function append(ref,adapt=false) {

@@ -2,7 +2,7 @@ import { projectWorkListItem, listEnvelope } from "./work-list";
 import { SCENE_FILE, validateSceneHistory } from "./scene-contract";
 import { Buffer } from "node:buffer";
 import { FILE_LIMIT, decodeFile, digestBytes, exportFiles, historyFiles, verifiedBodies, type FileBody, type FileEntry } from "./files";
-import { assertHistoryBudget, canonical, canonicalBytes, fail, headBinding, HISTORY_READ_BYTES, HISTORY_READ_ROWS, type Binding, type Revision, type Scope, type WorkRef, UUID, validateChain, validateSameWorkOrigins } from "./contract";
+import { assertHistoryBudget, canonical, canonicalBytes, fail, headBinding, HISTORY_READ_BYTES, HISTORY_READ_ROWS, type Binding, type Revision, type Scope, type WorkRef, UUID, validateChain, validateRetainedContext } from "./contract";
 // The subset of the D1 binding used here. No SQLite adapter or in-memory fallback.
 export interface Statement {
   bind(...values: (string | number | null | ArrayBuffer)[]): Statement;
@@ -79,7 +79,7 @@ async function observeWork(s: Store, id: string, forList = false) {
 function checkStoredFiles(expected:Map<string,number>,files:{digest:string;file_bytes:number}[]) {
   if(files.length!==expected.size || new Set(files.map(f=>f.digest)).size!==files.length || files.some(f=>expected.get(f.digest)!==f.file_bytes))fail("file_content_unavailable",503);
 }
-async function readEnvelopes(s: Store, id: string): Promise<Revision[]> {
+export async function readEnvelopes(s: Store, id: string): Promise<Revision[]> {
   const {values,files}=await observeWork(s,id);
   if(!values.length)return [];
   const chain=validateChain(s,id,values);
@@ -107,9 +107,9 @@ const sourceArgs = (s:Scope, ref:WorkRef) => [...args(s,ref.work_id),...args(s,r
 export async function headsCurrent(s:Store,target:WorkRef,source:WorkRef):Promise<boolean> {
   return !!await s.DB.prepare(`SELECT 1 AS current WHERE ${sourceGate} AND ${sourceGate}`).bind(...sourceArgs(s,target),...sourceArgs(s,source)).first();
 }
-export async function append(s: Store, chain: Revision[], r: Revision, source?: WorkRef, bodies:FileBody[]=[]): Promise<void> {
+export async function append(s: Store, chain: Revision[], r: Revision, source?: WorkRef, bodies:FileBody[]=[], selections:WorkRef[]=[]): Promise<void> {
   // Use the same historical conditions as a later read, before inserting any row or file.
-  validateSameWorkOrigins(chain,r.work_id,r,s);
+  validateRetainedContext(chain,r.work_id,r,s);
   assertHistoryBudget([...chain,r]);
   // The predecessor test is inside the INSERT. A JS read is never the concurrency gate.
   const statement=s.DB.prepare(`INSERT INTO web_planning_revision
@@ -118,8 +118,14 @@ export async function append(s: Store, chain: Revision[], r: Revision, source?: 
     AND COALESCE((SELECT MAX(revision) FROM web_planning_revision WHERE ${where}),0) = ?
     AND (? = 0 OR EXISTS (SELECT 1 FROM web_planning_revision WHERE ${where} AND revision = ? AND fingerprint = ?))
     ${source ? `AND ${sourceGate}` : ""}
+    ${selections.length ? `AND NOT EXISTS (SELECT 1 FROM json_each(?) pick WHERE NOT EXISTS
+      (SELECT 1 FROM web_planning_revision src WHERE src.workspace_id=? AND src.project_id=?
+       AND src.work_id=json_extract(pick.value,'$.work_id') AND src.revision=json_extract(pick.value,'$.revision')
+       AND src.fingerprint=json_extract(pick.value,'$.fingerprint') AND NOT EXISTS
+       (SELECT 1 FROM web_planning_erased e WHERE e.workspace_id=src.workspace_id AND e.project_id=src.project_id AND e.work_id=src.work_id)))` : ""}
     ON CONFLICT DO NOTHING`).bind(s.workspace_id,s.project_id,r.work_id,r.revision,r.fingerprint,r.request_key,r.request_fingerprint,canonical(r),
-      ...args(s,r.work_id),...args(s,r.work_id),r.revision-1,r.revision-1,...args(s,r.work_id),r.revision-1,r.predecessor,...(source?sourceArgs(s,source):[]));
+      ...args(s,r.work_id),...args(s,r.work_id),r.revision-1,r.revision-1,...args(s,r.work_id),r.revision-1,r.predecessor,...(source?sourceArgs(s,source):[]),
+      ...(selections.length?[canonical(selections),s.workspace_id,s.project_id]:[]));
   if(r.files===undefined)await statement.run();
   else {
     try {await s.DB.batch([statement,...fileInsert(s,r,bodies)]);}

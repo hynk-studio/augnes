@@ -10,7 +10,7 @@ export interface Environment {
 export type Principal = { login: string | null; localFixture?: true; ingress?: "sites" | "cloudflare-access" };
 export type Access = Store & { env: Environment; local: boolean; signout: string };
 export interface Ticket { kind: "save"; workspace_id: string; project_id: string; author_ref: string;
-  work_id: string; request_key: string; expected: Binding; expires: number; payload_fingerprint?: string }
+  work_id: string; request_key: string; expected: Binding; expires: number; payload_fingerprint?: string; draft_fingerprint?: string }
 const loginPattern = /^[^\s,@]+@[^\s,@]+\.[^\s,@]+$/;
 function login(value: unknown): string | null { return typeof value==="string" && loginPattern.test(value) ? value.toLowerCase() : null; }
 export function sitesPrincipal(request: Request, env: Environment): Principal {
@@ -84,17 +84,18 @@ export function unseal(access: Access, value: unknown): Record<string,any> {
   try { return JSON.parse(Buffer.from(data,"base64url").toString("utf8")); } catch { fail("invalid_request_binding",403); }
 }
 function identity(s: Scope) { return {workspace_id:s.workspace_id,project_id:s.project_id,author_ref:s.author_ref}; }
-export function ticket(access: Access, work_id: string, expected: Binding, payloadFingerprint?:string): string {
-  return seal(access,{kind:"save",...identity(access),work_id,request_key:crypto.randomUUID(),expected,expires:Date.now()+86_400_000,...(payloadFingerprint?{payload_fingerprint:payloadFingerprint}:{})});
+export function ticket(access: Access, work_id: string, expected: Binding, payloadFingerprint?:string,draftFingerprint?:string): string {
+  return seal(access,{kind:"save",...identity(access),work_id,request_key:crypto.randomUUID(),expected,expires:Date.now()+86_400_000,...(payloadFingerprint?{payload_fingerprint:payloadFingerprint}:{}),...(draftFingerprint?{draft_fingerprint:draftFingerprint}:{})});
 }
 export function readTicket(access: Access, value: unknown, work_id: string, allowExpired=false): Ticket {
   const t=unseal(access,value);
-  exact(t,"kind,workspace_id,project_id,author_ref,work_id,request_key,expected,expires"+("payload_fingerprint" in t?",payload_fingerprint":""));
+  exact(t,"kind,workspace_id,project_id,author_ref,work_id,request_key,expected,expires"+("payload_fingerprint" in t?",payload_fingerprint":"")+("draft_fingerprint" in t?",draft_fingerprint":""));
   if(t.kind!=="save" || t.work_id!==work_id || !UUID.test(t.work_id) || !UUID.test(t.request_key) ||
     t.workspace_id!==access.workspace_id || t.project_id!==access.project_id || t.author_ref!==access.author_ref ||
     !Number.isSafeInteger(t.expires)) fail("invalid_request_binding",403);
   binding(t.expected);
   if("payload_fingerprint" in t && !FINGERPRINT.test(t.payload_fingerprint))fail("invalid_request_binding",403);
+  if("draft_fingerprint" in t && (!t.payload_fingerprint || !FINGERPRINT.test(t.draft_fingerprint)))fail("invalid_request_binding",403);
   if(!allowExpired && t.expires<Date.now()) fail("save_ticket_expired",409);
   return t as Ticket;
 }

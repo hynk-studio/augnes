@@ -65,13 +65,17 @@ The ordinary task, download, history and recovery readers retain their full
 validation. No storage format, migration or new status record is required.
 
 
-## Use a note from an earlier version
+## Use saved notes in your current work
 
-Open the task, then **History, export and erasure → Read history**. Choose a
+Open the destination work. Under **History, export and erasure**, choose
+**Read history** for an earlier version of this work, or **Choose notes from
+another work** for an independent work in this private project. Choose a
 revision to see its whole notes, source descriptions, observation times,
 required notes and exact saved references. Each note says whether its text and
 attribution match the current draft. Only the chosen revision's notes are
-expanded; the history reader does not download attached file bodies.
+expanded; the history reader does not download attached file bodies. The picker
+starts at the version you chose from the list, even if the source has advanced.
+**Inspect recorded source note** follows one exact earlier relationship on demand.
 
 Choose **Use unchanged note**, or **Write an adaptation** and enter your
 interpretation. The editor adds the chosen note and any required notes that
@@ -87,7 +91,11 @@ and observation time. An adaptation is a new interpretation attributed to the
 configured current workspace author. Neither choice renews the source or grants
 approval or execution authority. Both use the existing material `from` link
 to the chosen work, revision, fingerprint and note reference. The linked
-revision retains its own origin and earlier adaptation links. No new storage
+revision retains its own origin and earlier adaptation links. B owns its saved
+note text, attribution, represented conditions and references. Its export does
+not archive A’s unselected notes or its history. If A is erased, its original
+can no longer be inspected; B still opens, exports, restores and continues.
+No branch, file exchange, or native import is created by selecting notes. No new storage
 format or migration is needed. Capacity remains 12,000 bytes for normalized
 Web selected notes; relation, file and cumulative history limits are separate.
 
@@ -105,7 +113,11 @@ import { planningDraft, selectHistoricalNote } from './apps/augnes_apps/scripts/
 const { planning } = await openFileTask(setupPath);
 const current = await planning.current();
 const expected = { revision: current.revision, fingerprint: current.fingerprint };
-const earlier = (await planning.history()).find(r => r.fingerprint === chosenFingerprint);
+// planning.tasks(cursor) pages through the same authenticated project.
+const history = await planning.history(chosenWorkId); // omit the ID for this work
+const earlier = history.find(r => r.revision === chosenRevision && r.fingerprint === chosenFingerprint);
+if (!earlier) throw Error('Chosen revision unavailable');
+// Inspect earlier.sources and earlier.relations?.materials, including dependencies.
 const draft = selectHistoricalNote(planningDraft(current), current, earlier, chosenSourceRef);
 // Pass your new text as the last argument to adapt instead. Review any other
 // draft edits and the capacity result before preparing this exact request.
@@ -118,9 +130,13 @@ const result = await planning.save(pending);
 ```
 
 An earlier occurrence of a repeated note remains selectable by its exact
-revision. The server checks the immutable source within this task and project;
-a matching text label is not proof. A changed head requires a fresh review
-of the base. Reading a failed history request as an empty list is unsupported.
+revision. The server checks the immutable source in the authenticated project;
+a matching label or revision number from another work is not proof. The
+destination head must still match. A source advance leaves the chosen revision
+usable; erasure before a new save refuses the whole selection and its files.
+For a draft selecting another work, use a material-bound ticket. Keep the exact
+pending draft: its signed input and the saved destination revision can resolve
+a lost response even after the source disappears. Reading a failed history request as an empty list is unsupported.
 
 ## Ask for work on files and collect the return
 

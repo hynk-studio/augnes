@@ -1,15 +1,45 @@
 // Only the selected revision's notes are expanded. History is inert: a choice
 // appends to the existing editor and the normal Save still owns the write.
-$('history').onclick=()=>run(async()=>{
-  const base=saved,id=work,view=$('history-view');
-  const current=()=>!accessLost && work===id && saved===base && base;
+function historyElement(tag,text){const node=document.createElement(tag);node.textContent=text;return node;}
+$('history').onclick=()=>run(()=>inspectNoteHistory(work));
+$('context-view').addEventListener('click',event=>{
+  const button=event.target.closest('button[data-note-origin]');
+  if(button)run(async()=>{
+    const ref=JSON.parse(button.dataset.noteOrigin);
+    $('history-tools').open=true;
+    await inspectNoteHistory(ref.work_id,ref);
+    if(!accessLost)$('history-view').scrollIntoView({block:'start'});
+  });
+});
+$('other-history').onclick=()=>run(async()=>{
+  const base=saved,view=$('history-view'),choices=historyElement('div','');
+  view.replaceChildren(historyElement('h3','Choose a source work'),choices);
+  async function more(cursor){
+    const page=await api('/api/works'+(cursor?'?cursor='+cursor:''));
+    if(accessLost || saved!==base || !choices.isConnected)return;
+    for(const item of page.items.filter(w=>w.work_id!==base.work_id)){
+      const button=historyElement('button',item.goal+' · revision '+item.revision);
+      button.type='button';button.onclick=()=>run(()=>inspectNoteHistory(item.work_id,item));choices.append(button);
+    }
+    if(page.next){
+      const button=historyElement('button','More source works');button.type='button';view.append(button);
+      button.onclick=()=>run(async()=>{await more(page.next);button.remove();});
+    }else if(!choices.children.length)choices.textContent='There are no other saved works in this project.';
+  }
+  await more(null);
+});
+async function inspectNoteHistory(id,chosen){
+  const base=saved,other=id!==work,view=$('history-view');
+  const current=()=>!accessLost && saved===base && work===base?.work_id && base;
   view.textContent='Reading saved history…';
   try {
     const {revisions}=await api('/api/work/'+id+'/history?view=notes');
     const {selectHistoricalNote,sameNote}=await import('/planning-notes.mjs');
     if(!current())return;
-    if(revisions.at(-1)?.fingerprint!==base.fingerprint)throw Error('refresh_required');
-    function element(tag,text){const node=document.createElement(tag);node.textContent=text;return node;}
+    if(!other && !chosen && revisions.at(-1)?.fingerprint!==base.fingerprint)throw Error('refresh_required');
+    if(chosen && (revisions[chosen.revision-1]?.fingerprint!==chosen.fingerprint ||
+       (chosen.source_ref && !revisions[chosen.revision-1].sources.some(s=>s.source_ref===chosen.source_ref))))throw Error('historical_note_unavailable');
+    const element=historyElement;
     const picker=document.createElement('select'),label=element('label','Revision to inspect');
     picker.id='history-revision';label.htmlFor=picker.id;
     for(const r of [...revisions].reverse()) {
@@ -17,12 +47,12 @@ $('history').onclick=()=>run(async()=>{
       opt.value=r.revision;picker.append(opt);
     }
     const detail=document.createElement('section');
-    view.replaceChildren(label,picker,detail);
+    view.replaceChildren(element('h3',other?'Notes from another work':'This work’s history'),label,picker,detail);
     function inspect(){
       const revision=revisions[Number(picker.value)-1];
       detail.replaceChildren(element('h3',revision.definition.goal),
         element('p',`Revision ${revision.revision} · Saved by ${revision.author_ref} · ${revision.recorded_at}`),
-        element('p','These notes show what was recorded then. Reuse does not verify that it is true or binding today. Nothing is saved until you choose Save.'));
+        element('p','These notes show what was recorded then. Reusing them grants no present truth, permission or approval. Nothing is saved until you choose Save.'));
       const identity=element('details','');identity.append(element('summary','Exact revision identity'),element('p',revision.work_id+' · '+revision.fingerprint));detail.append(identity);
       if(!revision.sources.length)detail.append(element('p','No notes were selected in this revision.'));
       for(const [i,s] of revision.sources.entries()){
@@ -30,6 +60,10 @@ $('history').onclick=()=>run(async()=>{
         const article=element('article','');article.className='context-note';
         const source=element('details','');source.append(element('summary','Source identity and prior relationship'),element('p',s.source_ref),
           element('p',m?.from?`${m.kind} from work ${m.from.work_id}, revision ${m.from.revision} · ${m.from.fingerprint} · note ${m.from.source_ref}`:'Authored in this work.'));
+        if(m?.from){
+          const origin=element('button','Inspect recorded source note');origin.type='button';
+          origin.onclick=()=>run(()=>inspectNoteHistory(m.from.work_id,m.from));source.append(origin);
+        }
         const text=element('p',note.text);text.className='note-text';
         const deps=(m?.dependencies??[]).map(ref=>revision.sources.findIndex(s=>s.source_ref===ref)+1);
         article.append(element('h4',`Note ${i+1}: ${note.label}`),text,element('p',`${note.source} · ${note.provenance.replaceAll('_',' ')} · ${note.observed_at??'Observation time unknown'}`),source,
@@ -42,7 +76,7 @@ $('history').onclick=()=>run(async()=>{
           if(add){add.disabled=selected;add.textContent=selected?'Already selected':deps.length?'Use note with required context':'Use unchanged note';}
         };
         article.append(selection);
-        if(revision.revision<base.revision){
+        if(other || revision.revision<base.revision){
           add=element('button','');add.type='button';
           const adapt=element('details',''),input=document.createElement('textarea'),write=element('button','Add my interpretation');
           write.type='button';const field=element('label','Your interpretation');field.append(input);
@@ -54,7 +88,7 @@ $('history').onclick=()=>run(async()=>{
             const rows=[...$('notes').children];
             for(let j=rows.length;j<after.notes.length;j++){
               const row=noteRow(after.notes[j]),{historical,mode}=after.material_edits[j];
-              row._historyEdit={historical,mode};row.querySelector('h4').textContent=`${mode==='reuse'?'Unchanged note':'Your interpretation'} from revision ${historical.revision}`;
+              row._historyEdit={historical,mode};row.querySelector('h4').textContent=`${mode==='reuse'?'Unchanged note':'Your interpretation'} from revision ${historical.revision}${other?' of '+revision.definition.goal:''}`;
               for(const field of row.querySelectorAll('[data-field]'))field.disabled=mode==='reuse'||field.dataset.field!=='text';
               row.querySelector('.dependencies').disabled=true;rows.push(row);
             }
@@ -67,17 +101,21 @@ $('history').onclick=()=>run(async()=>{
           article.append(add,adapt);
         }
         article.refreshSelection(draft(false).notes);detail.append(article);
+        if(chosen?.source_ref===s.source_ref && chosen.fingerprint===revision.fingerprint){
+          article.prepend(element('strong','Recorded source note'));source.open=true;
+        }
       }
     }
-    picker.value=String(Math.max(1,base.revision-1));picker.onchange=inspect;inspect();picker.focus();
+    picker.value=String(chosen?.revision??Math.max(1,base.revision-1));picker.onchange=inspect;inspect();picker.focus();
   } catch(e){
     if(!current())return;
-    view.textContent='History unavailable. Your current draft is retained.';
+    view.textContent=other?'Source unavailable. Your current work and draft are retained.':'History unavailable. Your current draft is retained.';
+    if(other && (e.status===410 || e.status===404)){status('The recorded source is unavailable. Your saved selection and draft are retained.');return;}
     throw e;
   }
-});
+}
 Object.assign(messages,{
-  historical_note_unavailable:'That exact note is unavailable at the chosen revision of this work. Read its history again.',
+  historical_note_unavailable:'That exact note is unavailable at the chosen work and revision. Inspect the source again.',
   historical_note_mismatch:'The note differs from its saved source. Choose the original or write an adaptation.',
   historical_adaptation_required:'Write a different interpretation in your own words. Its attribution belongs to the current workspace author.',
   historical_selection_conflict:'A selected note has a different relationship. Review the existing note and required context before adding it.',

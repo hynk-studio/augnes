@@ -104,3 +104,49 @@ export async function browserHistoryJourney({a,debug,origin,page,click,set,settl
  await wait(()=>a.eval("!!$('new-work')&&$('list-state').textContent!=='Reading saved work…'"),'return to workspace');
  await choose(a,'Same plan continued after four days');await saved(a,34);await settled(a);
 }
+
+// A source measurement and an independent dispatch brief. Exercise the same
+// controls a person uses, including a non-head revision and an unsaved B edit.
+export async function browserIndependentNotes({a,click,set,settled,saved,wait,checks}){
+ const log='Measure morning throughput on the label press',goal='Write the dispatch card for the bookmobile print crew';
+ const timing='On the blue press, 84 route cards took 14 minutes, plus one 6-minute cleanup after the last batch.';
+ const condition='Timing applies only to uncoated stock after a passing nozzle check. Otherwise use preprinted blanks; no press time was measured for that case.';
+ const interpretation='Plan in whole 84-card batches and clean only once, after the final batch.';
+ async function add(text,source){
+   await click(a,'add-note');
+   await a.eval(`(()=>{const r=$('notes').lastElementChild;for(const [k,v] of Object.entries(${JSON.stringify({text,source,observed_at:'2026-10-27T08:15:00.000Z'})})){const e=r.querySelector('[data-field='+k+']');e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));}})()`);
+ }
+ async function persist(rev){await click(a,'save');await saved(a,rev);await settled(a);return a.eval('saved');}
+ async function begin(title,criteria){await click(a,'new-work');await settled(a);await set(a,'goal',title);await set(a,'criteria',criteria);}
+ await begin(log,'Record measured time and the conditions under which it can be used.');
+ await add(condition,'Press operator');await add(timing,'Timed bench run');await a.eval("(()=>{const d=$('notes').lastElementChild.querySelector('.dependencies');d.options[0].selected=true;d.dispatchEvent(new Event('change',{bubbles:true}));})()");
+ await add('Keep the supplier invoice for a price comparison.','Purchasing');const original=await persist(1);
+ await set(a,'non-goals','Do not infer a speed for coated stock.');const selected=await persist(2);
+ await set(a,'goal','Archive the label press measurements');const latest=await persist(3);
+ await begin(goal,'Prepare a crew-facing card for 168 route cards due packed at 08:20. Give the latest start, sequence and fallback.');const base=await persist(1);
+ await set(a,'non-goals','Keep the existing loading bay reservation.');
+ await a.eval("$('history-tools').open=true");await click(a,'other-history');await settled(a);
+ const list="[...$('history-view').querySelectorAll('button')]";
+ for(let i=0;!await a.eval(list+".some(b=>b.textContent.startsWith('Archive the label press measurements ·'))");i++){
+   assert(i<10 && await a.eval(list+".some(b=>b.textContent==='More source works')"));await a.eval(list+".find(b=>b.textContent==='More source works').click()");await settled(a);
+ }
+ await a.eval(list+".find(b=>b.textContent.startsWith('Archive the label press measurements ·')).click()");await settled(a);
+ await a.eval("const sourcePicker=$('history-revision');sourcePicker.value='2';sourcePicker.dispatchEvent(new Event('change'))");
+ const card=`[...$('history-view').querySelectorAll('article')].find(x=>x.querySelector('.note-text').textContent===${JSON.stringify(timing)})`;
+ const shown=await a.eval("$('history-view').innerText");
+ assert(shown.includes(timing)&&shown.includes(condition)&&shown.includes('Timed bench run')&&shown.includes('2026-10-27'));
+ await a.eval(card+".querySelector('button').click()");await settled(a);
+ await a.eval(`(()=>{const d=${card}.querySelector('textarea').closest('details');d.open=true;d.querySelector('textarea').value=${JSON.stringify(interpretation)};d.querySelector('button').click();})()`);await settled(a);
+ assert.equal(await a.eval("$('notes').children.length"),3);await wait(()=>a.eval("$('draft-capacity').dataset.state==='fits'"),'independent selection capacity');
+ const retained=await persist(2);
+ assert.equal(retained.definition.goal,goal);assert.deepEqual(retained.definition.non_goals,['Keep the existing loading bay reservation.']);
+ assert.equal(retained.relations.origin,null);assert(!retained.sources.some(n=>n.bounded_summary.includes('invoice')));
+ assert(retained.relations.materials.every(m=>m.from.work_id===selected.work_id && m.from.fingerprint===selected.fingerprint));
+ await click(a,'saved-context');await settled(a);assert.match(await a.eval("$('context-view').textContent"),/Recorded source note is listed/);
+ await a.eval("$('context-view').querySelector('[data-note-origin]').click()");await settled(a);
+ assert.equal(await a.eval("$('history-revision').value"),'2');
+ assert.match(await a.eval("$('history-view').innerText"),/Recorded source note/);
+ assert.equal(await a.eval('work'),base.work_id);
+ checks.push('two independent works: inspect press log r2 under newer r3, select timing and required stock condition, add attributed interpretation and preserve the unsaved dispatch brief');
+ return {original,selected,latest,base,retained};
+}
