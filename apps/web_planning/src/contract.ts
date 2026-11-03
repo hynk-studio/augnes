@@ -84,6 +84,53 @@ export function workRef(value: unknown): WorkRef {
   return value as unknown as WorkRef;
 }
 export function reference(r: Revision): WorkRef { return {work_id:r.work_id,revision:r.revision,fingerprint:r.fingerprint}; }
+// The chain is the authorized, integrity-checked prefix of this work. Never
+// look up a foreign work or use a caller's copy of a note as its origin.
+export function retainedNote(chain: Revision[], id: string, value: unknown, before: number) {
+  exact(value,"work_id,revision,fingerprint,source_ref");
+  const {source_ref,...identity}=value;
+  const ref=workRef(identity);
+  if (!FINGERPRINT.test(source_ref)) fail("invalid_source_binding");
+  const r=chain[ref.revision-1];
+  if (ref.work_id!==id || ref.revision>=before || !r || r.work_id!==id || r.fingerprint!==ref.fingerprint)
+    fail("historical_note_unavailable",409);
+  const entry=r.sources.find(s=>s.source_ref===source_ref);
+  if (!entry) fail("historical_note_unavailable",409);
+  return {entry,revision:r,dependencies:r.relations?.materials.find(m=>m.source_ref===source_ref)?.dependencies??[]};
+}
+// A matching condition can already be selected. Its own required context
+// must still be present; changing that row cannot strip a transitive condition.
+export function requireHistoricalContext(source: ReturnType<typeof retainedNote>, materials: Material[]) {
+  const pending=[...source.dependencies],seen=new Set<string>();
+  while(pending.length) {
+    const ref=pending.pop()!;
+    if(seen.has(ref))continue;
+    seen.add(ref);
+    const current=materials.find(m=>m.source_ref===ref);
+    const required=source.revision.relations?.materials.find(m=>m.source_ref===ref)?.dependencies??[];
+    if(!current || required.some(d=>!current.dependencies.includes(d)))fail("required_material_missing");
+    pending.push(...required);
+  }
+}
+// Called before append and during recovery. An immediate-base adaptation can
+// revise conditions under the original contract, including when carried forward.
+export function validateSameWorkOrigins(chain: Revision[], id: string, payload: Payload, scope: Scope) {
+  const next=(chain.at(-1)?.revision??0)+1;
+  const materials=payload.relations?.materials??[];
+  for (const m of materials) {
+    if (m.from?.work_id!==id) continue;
+    const source=retainedNote(chain,id,m.from,next);
+    if (m.kind==="inherited") {
+      if (m.source_ref!==source.entry.source_ref || canonical(m.dependencies)!==canonical(source.dependencies)) fail("historical_note_mismatch",409);
+    } else if (m.kind==="adapted") {
+      if (m.from.revision===next-1 || chain[m.from.revision]?.relations?.materials.some(p=>p.source_ref===m.source_ref && canonical(p)===canonical(m))) continue;
+      const note=payload.sources.find(s=>s.source_ref===m.source_ref)!;
+      if (note.compatibility_source_ref?.external_id!==scope.author_ref || note.external_ref?.observed_at!=null ||
+          note.bounded_summary===source.entry.bounded_summary || source.dependencies.some(ref=>!m.dependencies.includes(ref))) fail("historical_note_mismatch",409);
+    }
+    requireHistoricalContext(source,materials);
+  }
+}
 export function dispositions(value: unknown): Disposition[] {
   if (!Array.isArray(value) || value.length > 8) fail("invalid_dispositions");
   const seen=new Set();
@@ -185,6 +232,7 @@ export function validateChain(scope: Scope, work_id: string, values: unknown[]):
     if (filed) payload.files=fileManifest(value.files);
     if (relational) payload.relations=validateRelations(value.relations,payload,work_id);
     const prior=revisions.at(-1);
+    validateSameWorkOrigins(revisions,work_id,payload,scope);
     if (exchanged) {
       payload.exchange=validateExchange(value.exchange,revisions);
       if (!prior || canonical(payload.definition)!==canonical(prior.definition) || canonical(payload.sources)!==canonical(prior.sources) ||

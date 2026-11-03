@@ -1,4 +1,4 @@
-import { assertHistoryBudget, binding, boundedText, exact, fail, headBinding, makeRevision, sameBinding, UUID, type Payload } from "./contract";
+import { binding, boundedText, exact, fail, headBinding, makeRevision, sameBinding, UUID, type Payload } from "./contract";
 import { exchangeView, mediaType, validateExchange, type Exchange } from "./exchange";
 import { FILE_COUNT, historyFiles, selectedFiles } from "./files";
 import { append, downloadFile, readWork, requestRevision, type Store } from "./store";
@@ -34,8 +34,7 @@ export async function writeExchange(store: Store, workId: string, input: Record<
   if (!recorded && !resolve) {
     if (!sameBinding(expected, headBinding(chain.at(-1)))) fail("refresh_required", 409);
     historyFiles([...chain, next]);
-    assertHistoryBudget([...chain, next]);
-    await append(store, next, undefined, bodies);
+    await append(store, chain, next, undefined, bodies);
   }
   const observed = await readWork(store, workId);
   const saved = observed.find(r => r.request_key === input.request_key);

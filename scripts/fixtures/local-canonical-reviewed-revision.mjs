@@ -1,6 +1,6 @@
 // Synthetic fixture only: production proof, authority, edge and fresh reader.
 import assert from "node:assert/strict";
-import {chmodSync,cpSync,existsSync,mkdirSync,readFileSync,renameSync,rmSync,writeFileSync} from "node:fs";
+import {chmodSync,cpSync,existsSync,mkdirSync,readFileSync,renameSync,rmSync,statSync,writeFileSync} from "node:fs";
 import path from "node:path";
 import {execFileSync} from "node:child_process";
 import {fileURLToPath} from "node:url";
@@ -362,7 +362,11 @@ if(process.argv[2]==="--cold"){
       focused.prospective_dependencies=[observePreparedDependencyInputs({repositoryRoot:dependencyCase.checkout,phaseId:"dependencies-root"})];
       dependencyCase.proof.focused=artifact(dependencyCase,"focused.json",focused);write(dependencyCase.file,dependencyCase.proof);
       const q3=proof(dependencyCase),auth3=await auth(dependencyCase,q3),edge=path.join(path.dirname(settled),"correction-successor.json");
-      chmodSync(installed,0o777);assert.throws(()=>begin(dependencyCase,q3,auth3),/dependency_input_entry_unsafe/);chmodSync(installed,0o755);assert(!existsSync(edge));
+      const originalMode=statSync(installed).mode & 0o7777;
+      chmodSync(installed,0o777);
+      try { assert.throws(()=>begin(dependencyCase,q3,auth3),/dependency_input_entry_unsafe/); }
+      finally { chmodSync(installed,originalMode); }
+      assert(!existsSync(edge));
       renameSync(installed,installed+"-unavailable");assert.throws(()=>begin(dependencyCase,q3,auth3),{code:"ENOENT"});renameSync(installed+"-unavailable",installed);assert(!existsSync(edge));
       const newAttempt=begin(dependencyCase,q3,auth3),newReceipt=receipt(dependencyCase,newAttempt,"completed_success");storeReceipt(dependencyCase,newReceipt);finishAttempt(newAttempt,{receiptFingerprint:newReceipt.integrity.content_fingerprint,disposition:"completed_success",cleanupComplete:true});assert(stock(dependencyCase,newReceipt,auth3));
       assert.equal(historical.outcome.safety,"blocked");assert.equal(read(settled).receipt_fingerprint,historical.integrity.content_fingerprint);

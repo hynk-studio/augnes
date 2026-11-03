@@ -2,7 +2,7 @@ import { directionSelection, fileBranch, fileIncorporation } from "./directions"
 import { hasSceneFile, ordinaryFileBranch, ordinaryFileIncorporation } from "./file-relations";
 import { fileSelection } from "./contract";
 import type { FileBody } from "./files";
-import { assertHistoryBudget, binding, boundedText, canonical, dispositions, exact, fail, FINGERPRINT, hash, headBinding, inspectRelations, makeRevision, normalizePayload, reference, RELATION_BYTES, requestFingerprint, sameBinding, selectedWorkSourceInput, UUID, validateRelations, workRef, type Material, type Payload, type Relations, type Revision, type Scope, type WorkRef } from "./contract";
+import { binding, boundedText, canonical, dispositions, exact, fail, FINGERPRINT, hash, headBinding, inspectRelations, makeRevision, normalizePayload, reference, RELATION_BYTES, requireHistoricalContext, requestFingerprint, retainedNote, sameBinding, selectedWorkSourceInput, UUID, validateRelations, validateSameWorkOrigins, workRef, type Material, type Payload, type Relations, type Revision, type Scope, type WorkRef } from "./contract";
 import { seal, unseal, type Access } from "./access";
 import { append, headsCurrent, readWork, requestRevision, type Store } from "./store";
 
@@ -11,25 +11,45 @@ export function relationsOf(r:Revision):Relations {
 }
 // Ordinary edits use the existing normalizer. The client supplies dependency
 // positions, never canonical source entries or cross-work provenance claims.
-export function editedPayload(scope:Scope,payload:Payload,notes:any[],edits:unknown,previous?:Revision):Payload {
-  const result=inspectEditedPayload(scope,payload,notes,edits,previous);
+export function editedPayload(scope:Scope,payload:Payload,notes:any[],edits:unknown,chain:Revision[]=[]):Payload {
+  const result=inspectEditedPayload(scope,payload,notes,edits,chain);
   if(result.relationBytes>RELATION_BYTES)fail("relation_budget_exceeded");
   return result.payload;
 }
-export function inspectEditedPayload(scope:Scope,payload:Payload,notes:any[],edits:unknown,previous?:Revision) {
+export function inspectEditedPayload(scope:Scope,payload:Payload,notes:any[],edits:unknown,chain:Revision[]=[]) {
+  const previous=chain.at(-1);
   if (edits===undefined && !previous?.relations) return {payload,relationBytes:0};
   if (edits!==undefined && (!Array.isArray(edits) || edits.length!==notes.length)) fail("invalid_material_edits");
   const prior=previous?relationsOf(previous):{origin:null,materials:[],review:null};
   const refs=notes.map(n=>normalizePayload(scope,payload.definition,[n]).sources[0].source_ref!);
   const materials=new Map<string,Material>();
+  const origins:ReturnType<typeof retainedNote>[]=[];
   refs.forEach((ref,index)=>{
     const retained=prior.materials.find(m=>m.source_ref===ref);
     const edit=edits===undefined?null:(edits as any[])[index];
-    if(edit!==null)exact(edit,"dependencies,adapts");
+    const historical=!!edit && typeof edit==="object" && "historical" in edit;
+    if(edit!==null)exact(edit,historical?"dependencies,historical,mode":"dependencies,adapts");
     if(edit && (!Array.isArray(edit.dependencies) || edit.dependencies.length>7 || edit.dependencies.some((i:unknown)=>!Number.isInteger(i) || Number(i)<0 || Number(i)>=refs.length)))fail("invalid_dependencies");
     const deps=edit?[...new Set<string>(edit.dependencies.map((i:number)=>refs[i]))].sort():retained?.dependencies??[];
     let material:Material;
-    if(retained && canonical(deps)===canonical([...retained.dependencies].sort()) && (edit===null || edit.adapts===null)) material=retained;
+    if(historical) {
+      if(!previous)fail("historical_note_unavailable",409);
+      const origin=retainedNote(chain,previous.work_id,edit.historical,previous.revision);
+      origins.push(origin);
+      const {entry,dependencies}=origin;
+      const candidate=payload.sources.find(s=>s.source_ref===ref)!;
+      if(dependencies.some(d=>!deps.includes(d)))fail("required_material_missing");
+      if(edit.mode==="reuse") {
+        if(canonical(entry)!==canonical(candidate) || canonical(deps)!==canonical([...dependencies].sort()))fail("historical_note_mismatch");
+        if(retained && canonical(retained.dependencies)!==canonical(deps))fail("historical_selection_conflict");
+        material=retained??{source_ref:ref,kind:"inherited",from:edit.historical,dependencies:deps};
+      } else if(edit.mode==="adapt") {
+        if(retained)fail("historical_selection_conflict");
+        if(candidate.trust_class!=="derived_interpretation" || candidate.compatibility_source_ref?.external_id!==scope.author_ref || candidate.external_ref?.observed_at!=null ||
+           candidate.bounded_summary===entry.bounded_summary)fail("historical_adaptation_required");
+        material={source_ref:ref,kind:"adapted",from:edit.historical,dependencies:deps};
+      } else fail("invalid_material_edits");
+    } else if(retained && canonical(deps)===canonical([...retained.dependencies].sort()) && (edit===null || edit.adapts===null)) material=retained;
     else if(edit?.adapts!==null && edit?.adapts!==undefined) {
       if(!previous || !previous.sources.some(s=>s.source_ref===edit.adapts))fail("invalid_adaptation_source");
       material={source_ref:ref,kind:"adapted",from:{...reference(previous),source_ref:edit.adapts},dependencies:deps};
@@ -41,6 +61,8 @@ export function inspectEditedPayload(scope:Scope,payload:Payload,notes:any[],edi
     materials.set(ref,material);
   });
   const result={...payload,relations:{...prior,materials:payload.sources.map(s=>materials.get(s.source_ref!)!)}};
+  for(const origin of origins)requireHistoricalContext(origin,result.relations.materials);
+  if(previous)validateSameWorkOrigins(chain,previous.work_id,result,scope);
   const inspected=inspectRelations(result.relations,{...result,files:previous?.files},previous?.work_id??"new");
   return {payload:result,relationBytes:inspected.bytes};
 }
@@ -61,7 +83,7 @@ export async function compare(s:Store,id:string,expected:unknown,source:unknown)
   const baseline=targetChain.find(r=>canonical(reference(r))===canonical(origin.source));
   if(!baseline)fail("origin_unavailable",409);
   if(!await headsCurrent(s,reference(target),reference(branch)))fail("refresh_required",409);
-  return {target,branch,baseline};
+  return {target,branch,baseline,targetChain};
 }
 function branchIntent(input:any) { exact(input,"reason"); return {reason:boundedText(input.reason,true)}; }
 function targetSelection(value:unknown):string[] {
@@ -140,6 +162,7 @@ export async function previewOperation(a:Access,id:string,kind:"branch"|"incorpo
   } else {
     const result=await compare(a,id,expected,(intent as ReturnType<typeof incorporationIntent>).source);
     source=result.branch;target=result.target;payload=(await incorporation(a,target,source,intent as ReturnType<typeof incorporationIntent>)).payload;
+    validateSameWorkOrigins(result.targetChain,id,payload,a);
   }
   if(payload.relations)validateRelations(payload.relations,payload,work_id);
   const t:OperationTicket={kind,workspace_id:a.workspace_id,project_id:a.project_id,author_ref:a.author_ref,work_id,request_key:crypto.randomUUID(),expected:headBinding(target),source:reference(source),intent_fingerprint:hash(canonical(intent)),request_fingerprint:"",expires:Date.now()+86_400_000};
@@ -189,8 +212,7 @@ export async function saveOperation(a:Access,id:string,value:unknown,input:unkno
     return {outcome:"saved",saved:target,head:headBinding(target),noop:true};
   }
   const next=makeRevision(a,id,t.expected,t.request_key,payload,new Date().toISOString());
-  assertHistoryBudget([...chain,next]);
-  await append(a,next,t.source,bodies);
+  await append(a,chain,next,t.source,bodies);
   const after=await readWork(a,id),result=after.find(r=>r.request_key===t.request_key);
   if(!result)fail("refresh_required",409);
   if(result.request_fingerprint!==t.request_fingerprint)fail("altered_replay",409);

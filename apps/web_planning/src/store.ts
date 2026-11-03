@@ -2,7 +2,7 @@ import { projectWorkListItem, listEnvelope } from "./work-list";
 import { SCENE_FILE, validateSceneHistory } from "./scene-contract";
 import { Buffer } from "node:buffer";
 import { decodeFile, digestBytes, exportFiles, historyFiles, verifiedBodies, type FileBody, type FileEntry } from "./files";
-import { assertHistoryBudget, canonical, canonicalBytes, fail, headBinding, HISTORY_READ_BYTES, HISTORY_READ_ROWS, type Binding, type Revision, type Scope, type WorkRef, UUID, validateChain } from "./contract";
+import { assertHistoryBudget, canonical, canonicalBytes, fail, headBinding, HISTORY_READ_BYTES, HISTORY_READ_ROWS, type Binding, type Revision, type Scope, type WorkRef, UUID, validateChain, validateSameWorkOrigins } from "./contract";
 // The subset of the D1 binding used here. No SQLite adapter or in-memory fallback.
 export interface Statement {
   bind(...values: (string | number | null | ArrayBuffer)[]): Statement;
@@ -79,11 +79,24 @@ async function observeWork(s: Store, id: string, forList = false) {
 function checkStoredFiles(expected:Map<string,number>,files:{digest:string;file_bytes:number}[]) {
   if(files.length!==expected.size || new Set(files.map(f=>f.digest)).size!==files.length || files.some(f=>expected.get(f.digest)!==f.file_bytes))fail("file_content_unavailable",503);
 }
-export async function readWork(s: Store, id: string): Promise<Revision[]> {
+async function readEnvelopes(s: Store, id: string): Promise<Revision[]> {
   const {values,files}=await observeWork(s,id);
   if(!values.length)return [];
   const chain=validateChain(s,id,values);
   checkStoredFiles(historyFiles(chain),files);
+  return chain;
+}
+// Note inspection attests to the sealed planning selection, not file bytes or
+// the validity of a scene notebook. Full work, save and export keep those checks.
+export async function readNoteHistory(s: Store, id: string) {
+  const chain=await readEnvelopes(s,id);
+  if(!chain.length)fail("work_not_found",404);
+  return chain.map(r=>({...headBinding(r),work_id:id,workspace_id:r.workspace_id,project_id:r.project_id,
+    author_ref:r.author_ref,recorded_at:r.recorded_at,definition:r.definition,sources:r.sources,
+    ...(r.relations?{relations:{materials:r.relations.materials}}:{})}));
+}
+export async function readWork(s: Store, id: string): Promise<Revision[]> {
+  const chain=await readEnvelopes(s,id);
   if(chain.some(r=>r.files?.some(f=>f.name===SCENE_FILE)))validateSceneHistory(chain,await readFileBodies(s,chain));
   return chain;
 }
@@ -94,7 +107,10 @@ const sourceArgs = (s:Scope, ref:WorkRef) => [...args(s,ref.work_id),...args(s,r
 export async function headsCurrent(s:Store,target:WorkRef,source:WorkRef):Promise<boolean> {
   return !!await s.DB.prepare(`SELECT 1 AS current WHERE ${sourceGate} AND ${sourceGate}`).bind(...sourceArgs(s,target),...sourceArgs(s,source)).first();
 }
-export async function append(s: Store, r: Revision, source?: WorkRef, bodies:FileBody[]=[]): Promise<void> {
+export async function append(s: Store, chain: Revision[], r: Revision, source?: WorkRef, bodies:FileBody[]=[]): Promise<void> {
+  // Use the same historical conditions as a later read, before inserting any row or file.
+  validateSameWorkOrigins(chain,r.work_id,r,s);
+  assertHistoryBudget([...chain,r]);
   // The predecessor test is inside the INSERT. A JS read is never the concurrency gate.
   const statement=s.DB.prepare(`INSERT INTO web_planning_revision
     (workspace_id,project_id,work_id,revision,fingerprint,request_key,request_fingerprint,envelope)
