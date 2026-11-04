@@ -8,16 +8,19 @@ export function planningDraft(saved) {
   return {definition:structuredClone(saved.definition),notes:saved.sources.map(noteFields),files:structuredClone(saved.files??[]),
     material_edits:refs.map(ref=>({adapts:null,dependencies:(saved.relations?.materials.find(m=>m.source_ref===ref)?.dependencies??[]).map(d=>refs.indexOf(d))}))};
 }
+export function sameOccurrence(a,b) {
+  return !!a && !!b && ['work_id','revision','fingerprint','source_ref'].every(k=>a[k]===b[k]);
+}
 export function sameNote(a,b) { return Object.keys(b).every(key=>a[key]===b[key]); }
 
-// Append only. Preserve the editor's row order, unsaved fields and unrelated
+// Preserve the editor's row order, unsaved fields and unrelated
 // file/scene choices. Traverse at most one revision's eight whole notes.
 export function selectHistoricalNote(draft,base,revision,sourceRef,interpretation) {
   if(!base || !revision || revision.project_id!==base.project_id ||
       revision.workspace_id!==base.workspace_id || revision.author_ref!==base.author_ref || (revision.work_id===base.work_id && revision.revision>=base.revision)) throw Error('historical_note_unavailable');
   const result={...draft,notes:[...draft.notes],material_edits:[...draft.material_edits]};
   const entries=new Map(revision.sources.map(s=>[s.source_ref,s])),seen=new Map();
-  function append(ref,adapt=false) {
+  function append(ref,root=false,adapt=false) {
     if(!adapt && seen.has(ref))return seen.get(ref);
     const entry=entries.get(ref);
     if(!entry)throw Error('required_material_missing');
@@ -28,16 +31,20 @@ export function selectHistoricalNote(draft,base,revision,sourceRef,interpretatio
     if(existing>=0 && adapt)throw Error('historical_selection_conflict');
     const index=existing>=0?existing:result.notes.length;
     if(!adapt)seen.set(ref,index);
-    const edit={mode:adapt?'adapt':'reuse',historical:{work_id:revision.work_id,revision:revision.revision,fingerprint:revision.fingerprint,source_ref:ref},dependencies:[]};
+    const edit={mode:adapt?'adapt':(root || revision.work_id===base.work_id)?'reuse':'required',historical:{work_id:revision.work_id,revision:revision.revision,fingerprint:revision.fingerprint,source_ref:ref},dependencies:[]};
     if(existing<0){result.notes.push(note);result.material_edits.push(edit);}
     const deps=revision.relations?.materials.find(m=>m.source_ref===ref)?.dependencies??[];
     const indices=deps.map(d=>append(d));
     if(existing>=0) {
-      if(indices.some(i=>!result.material_edits[existing].dependencies.includes(i)))throw Error('historical_selection_conflict');
+      const prior=result.material_edits[existing];
+      if(indices.some(i=>!prior.dependencies.includes(i)) || (root && prior.dependencies.length!==indices.length))throw Error('historical_selection_conflict');
+      const from=prior.historical??base.relations?.materials.find(m=>m.source_ref===ref)?.from;
+      if(root && (revision.work_id!==base.work_id || prior.mode==='required' || !sameOccurrence(from,edit.historical)))
+        result.material_edits[existing]={...edit,dependencies:indices};
     } else edit.dependencies=indices;
     return index;
   }
-  append(sourceRef,interpretation!==undefined);
+  append(sourceRef,true,interpretation!==undefined);
   if(result.notes.length>8)throw Error('whole_note_limit');
   return result;
 }

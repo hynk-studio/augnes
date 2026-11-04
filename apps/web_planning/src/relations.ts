@@ -57,10 +57,14 @@ export function inspectEditedPayload(scope:Scope,payload:Payload,notes:any[],edi
       const {entry,dependencies}=origin;
       const candidate=payload.sources.find(s=>s.source_ref===ref)!;
       if(dependencies.some(d=>!deps.includes(d)))fail("required_material_missing");
-      if(edit.mode==="reuse") {
+      if(edit.mode==="reuse" || edit.mode==="required") {
         if(canonical(entry)!==canonical(candidate) || canonical(deps)!==canonical([...dependencies].sort()))fail("historical_note_mismatch");
-        if(retained && canonical(retained.dependencies)!==canonical(deps))fail("historical_selection_conflict");
-        material=retained??{source_ref:ref,kind:"inherited",from:edit.historical,dependencies:deps};
+        if(retained && (edit.mode==="required"?dependencies.some(d=>!retained.dependencies.includes(d)):canonical(retained.dependencies)!==canonical(deps)))
+          fail("historical_selection_conflict");
+        // Matching text is enough to share a prerequisite, not to replace the
+        // occurrence deliberately chosen by the actor.
+        material=retained && (edit.mode==="required" || canonical(retained.from)===canonical(locator))
+          ?retained:{source_ref:ref,kind:"inherited",from:locator,dependencies:deps};
       } else if(edit.mode==="adapt") {
         if(retained)fail("historical_selection_conflict");
         if(candidate.trust_class!=="derived_interpretation" || candidate.compatibility_source_ref?.external_id!==scope.author_ref || candidate.external_ref?.observed_at!=null ||
@@ -138,7 +142,10 @@ function incorporationPayload(target:Revision,source:Revision,intent:ReturnType<
   }
   const payload=normalizePayload(target,target.definition,[...entries.values()].map(selectedWorkSourceInput));
   const relations:Relations={...relationsOf(target),materials:payload.sources.map(s=>materials.get(s.source_ref!)!),review:{source:reference(source),target:reference(target),dispositions:intent.dispositions,rationale:intent.rationale,next_question:intent.next_question}};
-  validateRelations(relations,{...payload,files:target.files},target.work_id); // all represented dependencies must remain selected
+  validateRelations(relations,{...payload,files:target.files},target.work_id);
+  // Validate incoming roots against the branch snapshot, including edges on
+  // matching target rows. Preview and commit both compose this same selection.
+  requireHistoricalContext({revision:source,dependencies:selected},relations.materials);
   // Repeating the same comparison choices is not another judgment or revision.
   const prior=target.relations?.review;
   if(prior && canonical(payload.sources)===canonical(target.sources) && canonical(relations.materials)===canonical(relationsOf(target).materials) && canonical({...prior,target:relations.review!.target})===canonical(relations.review))relations.review=prior;

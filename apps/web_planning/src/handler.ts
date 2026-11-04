@@ -47,6 +47,13 @@ function draftFingerprint(input:Record<string,unknown>){
   const {ticket,expected,workspace_id,project_id,...draft}=input;
   return hash(canonical(draft));
 }
+// A ticket issued by an earlier Worker might have sealed the wrong matching
+// occurrence. Disclose that conflict from B alone; never rewrite the receipt.
+function checkReplayedOccurrences(saved: Revision,edits: any[]) {
+  for(const edit of edits)if(edit?.mode==="reuse" && edit.historical &&
+    !saved.relations?.materials.some(m=>m.source_ref===edit.historical.source_ref && canonical(m.from)===canonical(edit.historical)))
+    fail("historical_selection_conflict",409);
+}
 export async function handle(request:Request,env:Environment,principal:Principal):Promise<Response> {
   try {
     const access=await authorize(request,env,principal);
@@ -213,13 +220,16 @@ export async function handle(request:Request,env:Environment,principal:Principal
       const saved=previous.find(r=>r.request_key===t.request_key);
       if(saved){
         if(hash(canonical(savedPlanning(saved)))!==t.payload_fingerprint || saved.revision!==t.expected.revision+1 || saved.predecessor!==t.expected.fingerprint)fail("altered_replay",409);
+        checkReplayedOccurrences(saved,input.material_edits);
         return json({outcome:"saved",saved,head:headBinding(previous.at(-1)),replayed:true});
       }
       if(action==="resolve"){
         const head=previous.at(-1);
         if(head?.relations && sameBinding(headBinding(head),t.expected) && hash(canonical(savedPlanning(head)))===t.payload_fingerprint &&
-           await headsCurrent(access,reference(head),reference(head)))
+           await headsCurrent(access,reference(head),reference(head))){
+          checkReplayedOccurrences(head,input.material_edits);
           return json({outcome:"saved",saved:head,head:headBinding(head),noop:true});
+        }
         return json({outcome:"unknown",saved:null,head:headBinding(head)});
       }
     }

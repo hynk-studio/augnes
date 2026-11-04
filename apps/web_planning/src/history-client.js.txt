@@ -1,8 +1,8 @@
 // Only the selected revision's notes are expanded. History is inert: a choice
-// appends to the existing editor and the normal Save still owns the write.
+// updates the existing draft and the normal Save still owns the write.
 function historyElement(tag,text){const node=document.createElement(tag);node.textContent=text;return node;}
 $('history').onclick=()=>run(()=>inspectNoteHistory(work));
-$('context-view').addEventListener('click',event=>{
+for(const id of ['context-view','conflict-latest'])$(id).addEventListener('click',event=>{
   const button=event.target.closest('button[data-note-origin]');
   if(button)run(async()=>{
     const ref=JSON.parse(button.dataset.noteOrigin);
@@ -34,7 +34,7 @@ async function inspectNoteHistory(id,chosen){
   view.textContent='Reading saved history…';
   try {
     const {revisions}=await api('/api/work/'+id+'/history?view=notes');
-    const {selectHistoricalNote,sameNote}=await import('/planning-notes.mjs');
+    const {selectHistoricalNote,sameNote,sameOccurrence}=await import('/planning-notes.mjs');
     if(!current())return;
     if(!other && !chosen && revisions.at(-1)?.fingerprint!==base.fingerprint)throw Error('refresh_required');
     if(chosen && (revisions[chosen.revision-1]?.fingerprint!==chosen.fingerprint ||
@@ -70,10 +70,13 @@ async function inspectNoteHistory(id,chosen){
           element('p','Required notes: '+(deps.join(', ')||'none recorded')));
         const selection=element('p','');let add;
         article.dataset.historyNote='';
-        article.refreshSelection=notes=>{
-          const selected=notes.some(n=>sameNote(n,note));
-          selection.textContent=selected?'In the current draft selection.':'Outside the current draft selection.';
-          if(add){add.disabled=selected;add.textContent=selected?'Already selected':deps.length?'Use note with required context':'Use unchanged note';}
+        const locator={work_id:id,revision:revision.revision,fingerprint:revision.fingerprint,source_ref:s.source_ref};
+        article.refreshSelection=d=>{
+          const index=d.notes.findIndex(n=>sameNote(n,note)),edit=d.material_edits[index];
+          const from=edit?.historical??base.relations?.materials.find(m=>m.source_ref===s.source_ref)?.from;
+          const exact=index>=0 && sameOccurrence(from,locator) && edit?.mode!=='required';
+          selection.textContent=exact?'In the current draft selection.':index>=0?'Matching text is present. You can explicitly choose this source.':'Outside the current draft selection.';
+          if(add){add.disabled=exact;add.textContent=exact?'Already selected':index>=0?'Use this source occurrence':deps.length?'Use note with required context':'Use unchanged note';}
         };
         article.append(selection);
         if(other || revision.revision<base.revision){
@@ -84,23 +87,24 @@ async function inspectNoteHistory(id,chosen){
           const apply=(interpretation)=>run(async()=>{
             if(!current()||pending||relationPending||sceneReviewPending||exchangePending){status('Read the current saved base or resolve the pending save first.');return;}
             const before=draft(false),after=selectHistoricalNote(before,base,revision,s.source_ref,interpretation);
-            if(after.notes.length===before.notes.length){status('This note is already selected.');return;}
-            const rows=[...$('notes').children];
-            for(let j=rows.length;j<after.notes.length;j++){
-              const row=noteRow(after.notes[j]),{historical,mode}=after.material_edits[j];
-              row._historyEdit={historical,mode};row.querySelector('h4').textContent=`${mode==='reuse'?'Unchanged note':'Your interpretation'} from revision ${historical.revision}${other?' of '+revision.definition.goal:''}`;
-              for(const field of row.querySelectorAll('[data-field]'))field.disabled=mode==='reuse'||field.dataset.field!=='text';
-              row.querySelector('.dependencies').disabled=true;rows.push(row);
-            }
-            for(let j=before.notes.length;j<rows.length;j++)rows[j]._depIds=after.material_edits[j].dependencies.map(k=>rows[k].id);
+            const rows=[...$('notes').children],updated=[];
+            after.material_edits.forEach((edit,j)=>{
+              if(edit===before.material_edits[j])return;
+              const row=rows[j]??(rows[j]=noteRow(after.notes[j])),{historical,mode}=edit;
+              row._historyEdit={historical,mode};row.querySelector('h4').textContent=`${mode==='adapt'?'Your interpretation':mode==='required'?'Required context':'Unchanged note'} from revision ${historical.revision}${other?' of '+revision.definition.goal:''}`;
+              for(const field of row.querySelectorAll('[data-field]'))field.disabled=mode!=='adapt'||field.dataset.field!=='text';
+              row.querySelector('.dependencies').disabled=true;updated.push(j);
+            });
+            if(!updated.length){status('This occurrence is already selected.');return;}
+            for(const j of updated)rows[j]._depIds=after.material_edits[j].dependencies.map(k=>rows[k].id);
             if(interpretation!==undefined)input.value='';
-            syncDependencies();changed();rows[before.notes.length].querySelector('button').focus();
+            syncDependencies();changed();rows[updated[0]].querySelector('button').focus();
             status(`Added to your draft on revision ${base.revision}. Review the selection and capacity, then Save.`);
           });
           add.onclick=()=>apply();write.onclick=()=>apply(input.value);
           article.append(add,adapt);
         }
-        article.refreshSelection(draft(false).notes);detail.append(article);
+        article.refreshSelection(draft(false));detail.append(article);
         if(chosen?.source_ref===s.source_ref && chosen.fingerprint===revision.fingerprint){
           article.prepend(element('strong','Recorded source note'));source.open=true;
         }

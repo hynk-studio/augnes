@@ -75,7 +75,11 @@ required notes and exact saved references. Each note says whether its text and
 attribution match the current draft. Only the chosen revision's notes are
 expanded; the history reader does not download attached file bodies. The picker
 starts at the version you chose from the list, even if the source has advanced.
-**Inspect recorded source note** follows one exact earlier relationship on demand.
+**Inspect recorded source note** follows one exact earlier relationship on demand,
+including from the latest saved version in a conflict comparison. Inspecting it
+leaves your draft and its base unchanged. If matching text comes from another
+occurrence, **Use this source occurrence** records the version you chose. A
+compatible note used only as a prerequisite keeps its own recorded source.
 
 Choose **Use unchanged note**, or **Write an adaptation** and enter your
 interpretation. The editor adds the chosen note and any required notes that

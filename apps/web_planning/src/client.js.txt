@@ -69,13 +69,13 @@ function criteriaRefused(error,value){
   criteriaError(capacityReason({code:error.message}));$('criteria').focus();
 }
 function reviewChanges(){const d=draft();const lines=[];
-  for(const item of $('history-view').querySelectorAll('[data-history-note]'))item.refreshSelection(d.notes);
+  for(const item of $('history-view').querySelectorAll('[data-history-note]'))item.refreshSelection(d);
   if(!saved)lines.push('New work will be created only when you press Save.');
   else {for(const [k,label] of [['goal','Goal'],['success_criteria','Success criteria'],['non_goals','Non-goals']])
     if(JSON.stringify(definitionComparison(d.definition[k]))!==JSON.stringify(definitionComparison(saved.definition[k])))lines.push(label+' edited.');
     const before=saved.sources.map(noteInput),after=d.notes;
     if(after.some((n,i)=>d.material_edits[i].adapts))lines.push('Edited saved notes are attributed as derived interpretations, linked to their original revision.');
-    d.material_edits.forEach((m,i)=>{if(m.historical)lines.push(`Note ${i+1}: ${m.mode==='reuse'?'unchanged text':'your interpretation'} from revision ${m.historical.revision}${m.historical.work_id!==work?' of work '+m.historical.work_id:''}.`);});
+    d.material_edits.forEach((m,i)=>{if(m.historical)lines.push(`Note ${i+1}: ${m.mode==='adapt'?'your interpretation':m.mode==='required'?'required context':'unchanged text'} from revision ${m.historical.revision}${m.historical.work_id!==work?' of work '+m.historical.work_id:''}.`);});
     if(before.length!==after.length || before.some((n,i)=>Object.keys(n).some(k=>n[k]!==after[i][k])))lines.push('Selected context edited. Originals remain in earlier revisions.');
     if(d.material_edits.some((m,i)=>JSON.stringify([...m.dependencies].sort())!==JSON.stringify((saved.relations?.materials.find(m=>m.source_ref===saved.sources[i]?.source_ref)?.dependencies??[]).map(ref=>saved.sources.findIndex(s=>s.source_ref===ref)).sort())))lines.push('Required context edited. Review the linked whole notes.');
     if(JSON.stringify(selectedFiles)!==JSON.stringify(saved.files??[]))lines.push('File selection edited. Earlier revisions retain their bytes; removed files still use history capacity.');
