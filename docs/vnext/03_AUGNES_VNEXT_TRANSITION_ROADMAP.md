@@ -2619,6 +2619,32 @@ adoption establishes neither implementation nor usefulness, creates no new phase
 and does not reorder unrelated Current/Next work. #1214 connects phase scope;
 this roadmap owns sequencing and 04 owns evaluation.
 
+#### Example-guided atomic execution decomposition (Research)
+
+[DOLORES, “Deep Reasoning in General Purpose Agents via Structured Meta-Cognition”](https://arxiv.org/abs/2605.11388v3)
+suggests a bounded P4/P5 candidate: use worked decomposition examples to separate
+semantic LLM judgments, deterministic computation and context-isolated subproblems.
+The Augnes hypothesis targets criterion/source omissions, incorrect aggregation
+and premature completion in actual work, not a new general meta-cognition framework.
+
+First consider source-linked examples and ordinary code through the existing
+executor's native planning, tool and delegation capabilities. If these are
+insufficient and evidence justifies the additional burden, a separately scoped
+execution-backend candidate may follow; this entry neither adopts the DOLORES
+engine nor permanently excludes alternative backends.
+
+Preserve applicability/non-use, the original goal/criteria and relevant source
+basis when decomposing and reintegrating work. Child summaries retain unresolved
+conditions and remaining obligations; completed child plans do not establish
+parent-task success. Existing authority and decision owners remain unchanged.
+[04](./04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md#example-guided-atomic-execution-decomposition)
+owns contribution comparison and affected-path verification criteria.
+
+Status is **Research**; implementation, live study and product activation remain
+**NOT_STARTED**. This entry changes no Current/Next allocation or existing
+disposition, restarts no prior P4.6/#1459/#1464/#1526/#1527 observation and
+transfers no study budget.
+
 ### Portfolio and longer-term challenge
 
 Prefer real development, investigation and planning work for product evidence

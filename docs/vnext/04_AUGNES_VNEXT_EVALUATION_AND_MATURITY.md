@@ -2226,6 +2226,39 @@ simpler selector being sufficient is a successful research disposition.
 The prior P4.6 result above is preserved, not
 reopened or generalized into a verdict on this unexecuted hypothesis.
 
+#### Example-guided atomic execution decomposition
+
+For the [research candidate](./03_AUGNES_VNEXT_TRANSITION_ROADMAP.md#example-guided-atomic-execution-decomposition-research),
+distinguish contribution from human-curated examples/support, execution/context
+separation and additional computation. For a structure-contribution comparison,
+give the strong baseline materially equivalent examples and source information;
+retain its normal native planning, code and subagent capabilities under the same
+relevant whole-work limits. Different supplied information is a support or
+whole-system comparison, not evidence of isolation's contribution. Choose only
+contrasts needed for the claim; no fixed arm count or full matrix is required.
+
+Observe criterion/source coverage, aggregation correctness and actual downstream
+results, including cases where direct execution or non-use is sufficient. Check
+that reintegration retains child unknowns, source basis and remaining obligations
+against the original criteria; more completed child plans are not themselves
+better results. Apply existing development-support and successor-independence
+rules before attributing transfer to the agent's acquired experience.
+
+If later implementation introduces child execution, map current coverage and add
+only missing affected-path checks for source drift, conflicting writes, child
+completion/crash, Resume with unknown external effects and cancellation. Verify
+inherited authority and aggregate whole-work bounds across children, including
+calls/tokens, time/cost and concurrent work as applicable; depth alone is not a
+total bound, and child creation must not reset the root work's limits. Use the
+existing verification owners, not a universal new gate or schema.
+
+Count example preparation, decomposition, reintegration and recovery under
+existing [total-burden accounting](#cost-and-user-burden); unavailable observations
+remain unknown. The paper alone establishes neither autonomous meta-learning,
+cost savings, reliable smaller-model substitution nor longitudinal continuity.
+Use the existing next-decision rules; sufficient native execution or examples
+without a new backend is a successful research disposition.
+
 ### Repeated-handoff evaluation (P5.2)
 
 This bounded refinement belongs to the existing P5.2 scope in
