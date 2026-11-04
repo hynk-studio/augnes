@@ -84,15 +84,18 @@ export function workRef(value: unknown): WorkRef {
   return value as unknown as WorkRef;
 }
 export function reference(r: Revision): WorkRef { return {work_id:r.work_id,revision:r.revision,fingerprint:r.fingerprint}; }
-// The chain is the authorized, integrity-checked prefix of this work. Never
-// look up a foreign work or use a caller's copy of a note as its origin.
-export function retainedNote(chain: Revision[], id: string, value: unknown, before: number) {
+// Parse a locator, never a caller-supplied copy of the note or its relationships.
+export function materialRef(value: unknown): MaterialRef {
   exact(value,"work_id,revision,fingerprint,source_ref");
   const {source_ref,...identity}=value;
   const ref=workRef(identity);
   if (!FINGERPRINT.test(source_ref)) fail("invalid_source_binding");
+  return {...ref,source_ref};
+}
+export function retainedNote(chain: Revision[], id: string, value: unknown, before?: number) {
+  const {source_ref,...ref}=materialRef(value);
   const r=chain[ref.revision-1];
-  if (ref.work_id!==id || ref.revision>=before || !r || r.work_id!==id || r.fingerprint!==ref.fingerprint)
+  if (ref.work_id!==id || (before!==undefined && ref.revision>=before) || !r || r.work_id!==id || r.fingerprint!==ref.fingerprint)
     fail("historical_note_unavailable",409);
   const entry=r.sources.find(s=>s.source_ref===source_ref);
   if (!entry) fail("historical_note_unavailable",409);
@@ -100,7 +103,7 @@ export function retainedNote(chain: Revision[], id: string, value: unknown, befo
 }
 // A matching condition can already be selected. Its own required context
 // must still be present; changing that row cannot strip a transitive condition.
-export function requireHistoricalContext(source: ReturnType<typeof retainedNote>, materials: Material[]) {
+export function requireHistoricalContext(source: Pick<ReturnType<typeof retainedNote>,"dependencies"|"revision">, materials: Material[]) {
   const pending=[...source.dependencies],seen=new Set<string>();
   while(pending.length) {
     const ref=pending.pop()!;
@@ -112,13 +115,36 @@ export function requireHistoricalContext(source: ReturnType<typeof retainedNote>
     pending.push(...required);
   }
 }
+// On a new write, a note kept from a branch review still needs the conditions
+// it had in this work. Scope this check to proposals and admission: applying
+// it during replay or recovery would reject histories accepted by older writers.
+export function validateRetainedIncorporations(previous: Revision | undefined, proposed: Payload) {
+  if (!previous?.relations) return;
+  const materials=proposed.relations?.materials??[];
+  const required=previous.relations.materials.flatMap(prior=>
+    prior.kind==="incorporated" && prior.dependencies.length && materials.some(m=>m.source_ref===prior.source_ref && canonical(m)===canonical(prior))
+      ? prior.dependencies : []);
+  requireHistoricalContext({revision:previous,dependencies:required},materials);
+}
 // Called before append and during recovery. An immediate-base adaptation can
 // revise conditions under the original contract, including when carried forward.
-export function validateSameWorkOrigins(chain: Revision[], id: string, payload: Payload, scope: Scope) {
+export function validateRetainedContext(chain: Revision[], id: string, payload: Payload, scope: Scope) {
   const next=(chain.at(-1)?.revision??0)+1;
   const materials=payload.relations?.materials??[];
   for (const m of materials) {
-    if (m.from?.work_id!==id) continue;
+    if (!m.from) continue;
+    if (m.from.work_id!==id) {
+      // An independent selection was checked against its source when admitted.
+      // While the same claim is retained, changing another row cannot silently
+      // drop its conditions. A deliberate adaptation gets a new relationship.
+      // Existing direct-branch inheritances retain their own review contract.
+      const previous=chain.at(-1);
+      if(previous && (m.kind==="adapted" || m.kind==="inherited") &&
+         !chain[0].relations?.materials.some(first=>first.source_ref===m.source_ref && canonical(first)===canonical(m)) &&
+         previous.relations?.materials.some(prior=>prior.source_ref===m.source_ref && canonical(prior)===canonical(m)))
+        requireHistoricalContext({revision:previous,dependencies:m.dependencies},materials);
+      continue;
+    }
     const source=retainedNote(chain,id,m.from,next);
     if (m.kind==="inherited") {
       if (m.source_ref!==source.entry.source_ref || canonical(m.dependencies)!==canonical(source.dependencies)) fail("historical_note_mismatch",409);
@@ -234,7 +260,7 @@ export function validateChain(scope: Scope, work_id: string, values: unknown[]):
     if (filed) payload.files=fileManifest(value.files);
     if (relational) payload.relations=validateRelations(value.relations,payload,work_id);
     const prior=revisions.at(-1);
-    validateSameWorkOrigins(revisions,work_id,payload,scope);
+    validateRetainedContext(revisions,work_id,payload,scope);
     if (exchanged) {
       payload.exchange=validateExchange(value.exchange,revisions);
       if (!prior || canonical(payload.definition)!==canonical(prior.definition) || canonical(payload.sources)!==canonical(prior.sources) ||

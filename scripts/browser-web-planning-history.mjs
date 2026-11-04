@@ -104,3 +104,78 @@ export async function browserHistoryJourney({a,debug,origin,page,click,set,settl
  await wait(()=>a.eval("!!$('new-work')&&$('list-state').textContent!=='Reading saved work…'"),'return to workspace');
  await choose(a,'Same plan continued after four days');await saved(a,34);await settled(a);
 }
+
+// A source measurement and an independent dispatch brief. Exercise the same
+// controls a person uses, including a non-head revision and an unsaved B edit.
+export async function browserIndependentNotes({a,click,set,settled,saved,wait,checks}){
+ const log='Measure morning throughput on the label press',goal='Write the dispatch card for the bookmobile print crew';
+ const timing='On the blue press, 84 route cards took 14 minutes, plus one 6-minute cleanup after the last batch.';
+ const condition='Timing applies only to uncoated stock after a passing nozzle check. Otherwise use preprinted blanks; no press time was measured for that case.';
+ const interpretation='Plan in whole 84-card batches and clean only once, after the final batch.';
+ async function add(text,source){
+   await click(a,'add-note');
+   await a.eval(`(()=>{const r=$('notes').lastElementChild;for(const [k,v] of Object.entries(${JSON.stringify({text,source,observed_at:'2026-10-27T08:15:00.000Z'})})){const e=r.querySelector('[data-field='+k+']');e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));}})()`);
+ }
+ async function persist(rev){await click(a,'save');await saved(a,rev);await settled(a);return a.eval('saved');}
+ async function begin(title,criteria){await click(a,'new-work');await settled(a);await set(a,'goal',title);await set(a,'criteria',criteria);}
+ await begin(log,'Record measured time and the conditions under which it can be used.');
+ await add(condition,'Press operator');await add(timing,'Timed bench run');await a.eval("(()=>{const d=$('notes').lastElementChild.querySelector('.dependencies');d.options[0].selected=true;d.dispatchEvent(new Event('change',{bubbles:true}));})()");
+ await add('Keep the supplier invoice for a price comparison.','Purchasing');const original=await persist(1);
+ await set(a,'non-goals','Do not infer a speed for coated stock.');const selected=await persist(2);
+ await set(a,'goal','Archive the label press measurements');const latest=await persist(3);
+ await begin(goal,'Prepare a crew-facing card for 168 route cards due packed at 08:20. Give the latest start, sequence and fallback.');const base=await persist(1);
+ await set(a,'non-goals','Keep the existing loading bay reservation.');
+ await a.eval("$('history-tools').open=true");await click(a,'other-history');await settled(a);
+ const list="[...$('history-view').querySelectorAll('button')]";
+ for(let i=0;!await a.eval(list+".some(b=>b.textContent.startsWith('Archive the label press measurements ·'))");i++){
+   assert(i<10 && await a.eval(list+".some(b=>b.textContent==='More source works')"));await a.eval(list+".find(b=>b.textContent==='More source works').click()");await settled(a);
+ }
+ await a.eval(list+".find(b=>b.textContent.startsWith('Archive the label press measurements ·')).click()");await settled(a);
+ await a.eval("const sourcePicker=$('history-revision');sourcePicker.value='2';sourcePicker.dispatchEvent(new Event('change'))");
+ const card=`[...$('history-view').querySelectorAll('article')].find(x=>x.querySelector('.note-text').textContent===${JSON.stringify(timing)})`;
+ const shown=await a.eval("$('history-view').innerText");
+ assert(shown.includes(timing)&&shown.includes(condition)&&shown.includes('Timed bench run')&&shown.includes('2026-10-27'));
+ await a.eval(card+".querySelector('button').click()");await settled(a);
+ await a.eval(`(()=>{const d=${card}.querySelector('textarea').closest('details');d.open=true;d.querySelector('textarea').value=${JSON.stringify(interpretation)};d.querySelector('button').click();})()`);await settled(a);
+ assert.equal(await a.eval("$('notes').children.length"),3);await wait(()=>a.eval("$('draft-capacity').dataset.state==='fits'"),'independent selection capacity');
+ const retained=await persist(2);
+ assert.equal(retained.definition.goal,goal);assert.deepEqual(retained.definition.non_goals,['Keep the existing loading bay reservation.']);
+ assert.equal(retained.relations.origin,null);assert(!retained.sources.some(n=>n.bounded_summary.includes('invoice')));
+ assert(retained.relations.materials.every(m=>m.from.work_id===selected.work_id && m.from.fingerprint===selected.fingerprint));
+ await click(a,'saved-context');await settled(a);assert.match(await a.eval("$('context-view').textContent"),/Recorded source note is listed/);
+ await a.eval("$('context-view').querySelector('[data-note-origin]').click()");await settled(a);
+ assert.equal(await a.eval("$('history-revision').value"),'2');
+ assert.match(await a.eval("$('history-view').innerText"),/Recorded source note/);
+ assert.equal(await a.eval('work'),base.work_id);
+ checks.push('two independent works: inspect press log r2 under newer r3, select timing and required stock condition, add attributed interpretation and preserve the unsaved dispatch brief');
+ return {original,selected,latest,base,retained};
+}
+
+// Inspect the origin from the competing saved version while the first editor
+// still holds a stale, unsaved draft. A previous history view must not count.
+export async function browserConflictSource({a,b,click,set,settled,saved,wait,checks,trace}) {
+ const {retained,selected}=trace,ref=selected.sources.find(n=>n.bounded_summary.includes('84 route cards')).source_ref;
+ await b.eval(`openWork(${JSON.stringify(retained.work_id)})`);await saved(b,retained.revision);
+ const changed='Retain the first editor’s loading instructions.';
+ await set(a,'non-goals',changed);await click(a,'history');await settled(a);
+ assert.match(await a.eval("$('history-view').innerText"),/This work’s history/);
+ const draftBefore=await a.eval('draft()');
+ await set(b,'goal','Latest dispatch decision from the second editor');await click(b,'save');await saved(b,retained.revision+1);await settled(b);
+ await a.send('Page.bringToFront');await click(a,'save');await settled(a);await click(a,'review-latest');await settled(a);
+ assert.equal(await a.eval('reviewed.work_id'),retained.work_id);assert.equal(await a.eval('reviewed.revision'),retained.revision+1);
+ const locator=await a.eval(`(()=>{const button=[...$('conflict-latest').querySelectorAll('button[data-note-origin]')].find(b=>JSON.parse(b.dataset.noteOrigin).source_ref===${JSON.stringify(ref)});for(let e=button;e;e=e.parentElement)if(e.tagName==='DETAILS')e.open=true;button.focus();return JSON.parse(button.dataset.noteOrigin);})()`);
+ assert.deepEqual(locator,{work_id:selected.work_id,revision:selected.revision,fingerprint:selected.fingerprint,source_ref:ref});
+ for(const type of ['keyDown','keyUp'])await a.send('Input.dispatchKeyEvent',{type,key:'Enter',code:'Enter',windowsVirtualKeyCode:13,...(type==='keyDown'?{text:'\r'}:{})});
+ await settled(a);
+ const view=await a.eval(`({revision:$('history-revision').value,text:$('history-view').textContent,marked:$('history-view').querySelector('article > strong')?.parentElement.querySelector('.note-text').textContent,base:saved.fingerprint,work,dirty,draft:draft(),reviewed:reviewed.fingerprint})`);
+ assert.equal(view.revision,String(selected.revision),'Conflict inspection did not open the chosen source revision');
+ assert(view.text.includes(selected.work_id)&&view.text.includes(selected.fingerprint));
+ assert.equal(view.marked,selected.sources.find(n=>n.source_ref===ref).bounded_summary);
+ assert.equal(view.base,retained.fingerprint);assert.equal(view.work,retained.work_id);assert(view.dirty);assert.deepEqual(view.draft,draftBefore);
+ const latest=await b.eval('saved.fingerprint');assert.equal(view.reviewed,latest);
+ await click(a,'rebase-draft');assert.deepEqual(await a.eval('draft()'),draftBefore);
+ await click(a,'save');await saved(a,retained.revision+2);await settled(a);
+ assert.deepEqual(await a.eval('saved.definition.non_goals'),[changed]);
+ console.log(JSON.stringify({conflict_source_browser:{locator,source_head:trace.latest.revision,inspected_revision:view.revision,stale_base:view.base,reviewed_latest:latest,draft_unchanged:true,saved_follow_up:await a.eval('binding(saved)')}}));
+ checks.push('latest-version conflict: activate the recorded source with the keyboard, open its exact non-head revision and note, retain the stale draft and save on the explicitly reviewed base');
+}

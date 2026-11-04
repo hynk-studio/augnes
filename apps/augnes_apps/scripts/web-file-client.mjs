@@ -60,13 +60,17 @@ export async function openFileTask(setupPath, expectedSetupDigest) {
   const setup = JSON.parse(selected.toString('utf8'));
   if (setup.format !== 'augnes_web_file_task.v1' || typeof setup.work_id !== 'string' || !uuid.test(setup.work_id))
     fail('Choose the private Web task setup.');
-  const { project, request } = await openFileProject(setup.origin);
+  const { project, request, tasks } = await openFileProject(setup.origin);
   if (project.workspace_id !== setup.workspace_id || project.project_id !== setup.project_id) fail('Project selection changed.');
   const work_id = setup.work_id, root = '/api/work/'+work_id;
   const json = async (path, body) => (await request(root+path, body)).json();
   const planning = {
     async current() { return (await json('')).saved; },
-    async history() { return (await json('/history?view=notes')).revisions; },
+    tasks,
+    async history(sourceWork=work_id) {
+      if(typeof sourceWork!=='string' || !uuid.test(sourceWork))fail('Select a listed work.');
+      return (await (await request('/api/work/'+sourceWork+'/history?view=notes')).json()).revisions;
+    },
     capacity(expected, draft) { const {definition,notes,material_edits}=draft;
       return json('/capacity',{expected,definition,notes,material_edits,check_id:crypto.randomUUID()}); },
     async prepare(expected, draft) {

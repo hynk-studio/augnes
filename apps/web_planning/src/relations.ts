@@ -2,21 +2,37 @@ import { directionSelection, fileBranch, fileIncorporation } from "./directions"
 import { hasSceneFile, ordinaryFileBranch, ordinaryFileIncorporation } from "./file-relations";
 import { fileSelection } from "./contract";
 import type { FileBody } from "./files";
-import { binding, boundedText, canonical, dispositions, exact, fail, FINGERPRINT, hash, headBinding, inspectRelations, makeRevision, normalizePayload, reference, RELATION_BYTES, requireHistoricalContext, requestFingerprint, retainedNote, sameBinding, selectedWorkSourceInput, UUID, validateRelations, validateSameWorkOrigins, workRef, type Material, type Payload, type Relations, type Revision, type Scope, type WorkRef } from "./contract";
+import { binding, boundedText, canonical, dispositions, exact, fail, FINGERPRINT, hash, headBinding, inspectRelations, makeRevision, materialRef, normalizePayload, reference, RELATION_BYTES, requireHistoricalContext, requestFingerprint, retainedNote, sameBinding, selectedWorkSourceInput, UUID, validateRelations, validateRetainedContext, validateRetainedIncorporations, workRef, type Material, type Payload, type Relations, type Revision, type Scope, type WorkRef } from "./contract";
 import { seal, unseal, type Access } from "./access";
-import { append, headsCurrent, readWork, requestRevision, type Store } from "./store";
+import { append, headsCurrent, readEnvelopes, readWork, requestRevision, type Store } from "./store";
 
 export function relationsOf(r:Revision):Relations {
   return r.relations ?? {origin:null,materials:r.sources.map(s=>({source_ref:s.source_ref!,kind:"authored",from:null,dependencies:[]})),review:null};
 }
+// At most one scoped, verified history per explicitly named source work (eight
+// draft rows). Do not follow its origins. A retained revision need not be its head.
+export async function selectionHistories(s:Store, id:string, edits:unknown) {
+  const histories=new Map<string,Revision[]>(), snapshots=new Map<string,WorkRef>();
+  if(Array.isArray(edits) && edits.length<=8)for(const edit of edits){
+    if(!edit || typeof edit!=="object" || !("historical" in edit))continue;
+    const {source_ref,...ref}=materialRef(edit.historical);
+    if(ref.work_id===id)continue;
+    snapshots.set(ref.fingerprint,ref);
+    if(!histories.has(ref.work_id)){
+      try { histories.set(ref.work_id,await readEnvelopes(s,ref.work_id)); }
+      catch(error){if((error as {code?:string}).code==="work_erased")fail("historical_note_unavailable",409);throw error;}
+    }
+  }
+  return {histories,snapshots:[...snapshots.values()]};
+}
 // Ordinary edits use the existing normalizer. The client supplies dependency
 // positions, never canonical source entries or cross-work provenance claims.
-export function editedPayload(scope:Scope,payload:Payload,notes:any[],edits:unknown,chain:Revision[]=[]):Payload {
-  const result=inspectEditedPayload(scope,payload,notes,edits,chain);
+export function editedPayload(scope:Scope,payload:Payload,notes:any[],edits:unknown,chain:Revision[]=[],histories?:Map<string,Revision[]>):Payload {
+  const result=inspectEditedPayload(scope,payload,notes,edits,chain,histories);
   if(result.relationBytes>RELATION_BYTES)fail("relation_budget_exceeded");
   return result.payload;
 }
-export function inspectEditedPayload(scope:Scope,payload:Payload,notes:any[],edits:unknown,chain:Revision[]=[]) {
+export function inspectEditedPayload(scope:Scope,payload:Payload,notes:any[],edits:unknown,chain:Revision[]=[],histories?:Map<string,Revision[]>) {
   const previous=chain.at(-1);
   if (edits===undefined && !previous?.relations) return {payload,relationBytes:0};
   if (edits!==undefined && (!Array.isArray(edits) || edits.length!==notes.length)) fail("invalid_material_edits");
@@ -34,15 +50,21 @@ export function inspectEditedPayload(scope:Scope,payload:Payload,notes:any[],edi
     let material:Material;
     if(historical) {
       if(!previous)fail("historical_note_unavailable",409);
-      const origin=retainedNote(chain,previous.work_id,edit.historical,previous.revision);
+      const locator=materialRef(edit.historical);
+      const origin=locator.work_id===previous.work_id?retainedNote(chain,previous.work_id,locator,previous.revision)
+        :retainedNote(histories?.get(locator.work_id)??[],locator.work_id,locator);
       origins.push(origin);
       const {entry,dependencies}=origin;
       const candidate=payload.sources.find(s=>s.source_ref===ref)!;
       if(dependencies.some(d=>!deps.includes(d)))fail("required_material_missing");
-      if(edit.mode==="reuse") {
+      if(edit.mode==="reuse" || edit.mode==="required") {
         if(canonical(entry)!==canonical(candidate) || canonical(deps)!==canonical([...dependencies].sort()))fail("historical_note_mismatch");
-        if(retained && canonical(retained.dependencies)!==canonical(deps))fail("historical_selection_conflict");
-        material=retained??{source_ref:ref,kind:"inherited",from:edit.historical,dependencies:deps};
+        if(retained && (edit.mode==="required"?dependencies.some(d=>!retained.dependencies.includes(d)):canonical(retained.dependencies)!==canonical(deps)))
+          fail("historical_selection_conflict");
+        // Matching text is enough to share a prerequisite, not to replace the
+        // occurrence deliberately chosen by the actor.
+        material=retained && (edit.mode==="required" || canonical(retained.from)===canonical(locator))
+          ?retained:{source_ref:ref,kind:"inherited",from:locator,dependencies:deps};
       } else if(edit.mode==="adapt") {
         if(retained)fail("historical_selection_conflict");
         if(candidate.trust_class!=="derived_interpretation" || candidate.compatibility_source_ref?.external_id!==scope.author_ref || candidate.external_ref?.observed_at!=null ||
@@ -62,7 +84,7 @@ export function inspectEditedPayload(scope:Scope,payload:Payload,notes:any[],edi
   });
   const result={...payload,relations:{...prior,materials:payload.sources.map(s=>materials.get(s.source_ref!)!)}};
   for(const origin of origins)requireHistoricalContext(origin,result.relations.materials);
-  if(previous)validateSameWorkOrigins(chain,previous.work_id,result,scope);
+  if(previous)validateRetainedContext(chain,previous.work_id,result,scope);
   const inspected=inspectRelations(result.relations,{...result,files:previous?.files},previous?.work_id??"new");
   return {payload:result,relationBytes:inspected.bytes};
 }
@@ -120,7 +142,10 @@ function incorporationPayload(target:Revision,source:Revision,intent:ReturnType<
   }
   const payload=normalizePayload(target,target.definition,[...entries.values()].map(selectedWorkSourceInput));
   const relations:Relations={...relationsOf(target),materials:payload.sources.map(s=>materials.get(s.source_ref!)!),review:{source:reference(source),target:reference(target),dispositions:intent.dispositions,rationale:intent.rationale,next_question:intent.next_question}};
-  validateRelations(relations,{...payload,files:target.files},target.work_id); // all represented dependencies must remain selected
+  validateRelations(relations,{...payload,files:target.files},target.work_id);
+  // Validate incoming roots against the branch snapshot, including edges on
+  // matching target rows. Preview and commit both compose this same selection.
+  requireHistoricalContext({revision:source,dependencies:selected},relations.materials);
   // Repeating the same comparison choices is not another judgment or revision.
   const prior=target.relations?.review;
   if(prior && canonical(payload.sources)===canonical(target.sources) && canonical(relations.materials)===canonical(relationsOf(target).materials) && canonical({...prior,target:relations.review!.target})===canonical(relations.review))relations.review=prior;
@@ -162,7 +187,8 @@ export async function previewOperation(a:Access,id:string,kind:"branch"|"incorpo
   } else {
     const result=await compare(a,id,expected,(intent as ReturnType<typeof incorporationIntent>).source);
     source=result.branch;target=result.target;payload=(await incorporation(a,target,source,intent as ReturnType<typeof incorporationIntent>)).payload;
-    validateSameWorkOrigins(result.targetChain,id,payload,a);
+    validateRetainedContext(result.targetChain,id,payload,a);
+    validateRetainedIncorporations(target,payload);
   }
   if(payload.relations)validateRelations(payload.relations,payload,work_id);
   const t:OperationTicket={kind,workspace_id:a.workspace_id,project_id:a.project_id,author_ref:a.author_ref,work_id,request_key:crypto.randomUUID(),expected:headBinding(target),source:reference(source),intent_fingerprint:hash(canonical(intent)),request_fingerprint:"",expires:Date.now()+86_400_000};
@@ -229,6 +255,17 @@ export async function referenceAvailability(a:Store,r:Revision):Promise<{availab
       if(ref.fingerprint===r.relations?.review?.source.fingerprint)reviewSource=chain.find(v=>canonical(reference(v))===canonical(ref));
       result[ref.fingerprint]=chain.some(v=>canonical(reference(v))===canonical(ref))?(chain.at(-1)!.fingerprint===ref.fingerprint?"Exact saved revision available; source truth remains unverified.":"Saved source revision available; that work has newer material. No automatic update."):"Origin unavailable or unverified; this independently saved work remains readable.";
     } catch {result[ref.fingerprint]="Origin unavailable or unverified; this independently saved work remains readable.";}
+  }
+  // Check only the directly recorded occurrences for this explicit context
+  // view. Opening the original uses the integrity-checked note reader.
+  const notes=r.relations?.materials.flatMap(m=>m.from && m.from.work_id!==r.work_id?[m.from]:[])??[];
+  if(notes.length){
+    const rows=await a.DB.prepare(`SELECT p.key AS idx, EXISTS(SELECT 1 FROM web_planning_revision v
+      WHERE v.workspace_id=? AND v.project_id=? AND v.work_id=json_extract(p.value,'$.work_id')
+      AND v.revision=json_extract(p.value,'$.revision') AND v.fingerprint=json_extract(p.value,'$.fingerprint')
+      AND EXISTS (SELECT 1 FROM json_each(v.envelope,'$.sources') n WHERE json_extract(n.value,'$.source_ref')=json_extract(p.value,'$.source_ref'))) AS present
+      FROM json_each(?) p`).bind(a.workspace_id,a.project_id,canonical(notes)).all<{idx:number;present:number}>();
+    for(const row of rows.results)result[canonical(notes[row.idx])]=row.present?"Recorded source note is listed; inspect it to read the original.":"Origin unavailable. This saved selection remains in this work.";
   }
   return {availability:result,reviewSource};
 }

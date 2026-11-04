@@ -7,6 +7,8 @@ import { checkFiles } from './web-planning-file-checks.mjs';
 import { checkOrdinaryFiles } from './web-planning-ordinary-file-checks.mjs';
 import { checkStoryWriting } from './web-planning-story-checks.mjs';
 import { checkCumulativeHistory, checkRetainedNotes } from './web-planning-history-checks.mjs';
+import { checkIncomingOccurrences } from './web-planning-note-occurrence-checks.mjs';
+import { checkCrossWorkNotes } from './web-planning-cross-work-notes.mjs';
 import { checkHistoricalIncorporation } from './web-planning-historical-incorporation-checks.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, readFile } from 'node:fs/promises';
@@ -185,6 +187,8 @@ try {
  passed('ordinary revision 33 and retained ten-item list paging have exact effects');
  await checkCapacity({c,scope:fixtureScope,passed});
  await checkRetainedNotes({c,passed});
+ await checkCrossWorkNotes({start,client,passed});
+ await checkIncomingOccurrences({start,client,passed});
  await checkHistoricalIncorporation({start,client,passed,root,open});
  await checkBranching({start,client,newWork,save,edit,passed,open});
  await checkFiles({start,client,newWork,save,passed,root,open});

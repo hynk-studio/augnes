@@ -9,11 +9,11 @@ import { DIRECTION_EXPORT, directionExport, validateDirectionExport } from "./di
 import { prepareSceneContext, prepareSceneDraft, previewSceneReview, saveSceneReview } from "./scenes";
 import { type FileBody, FILE_EXPORT_REQUEST_BYTES, LARGE_EXPORT_REQUEST_BYTES, LARGE_PAIR_REQUEST_BYTES, EXCHANGE_REQUEST_BYTES, historyFiles, selectedFiles, validateFileExport } from "./files";
 import { authorize, csrfCookie, csrfToken, readTicket, requireCsrf, requireScope, ticket, type Environment, type Principal } from "./access";
-import { binding, canonical, exact, exportWork, fail, hash, makeRevision, normalizePayload, reference, Refusal, REQUEST_BYTES, requestFingerprint, sameBinding, UUID, validateExport } from "./contract";
+import { binding, canonical, exact, exportWork, fail, hash, makeRevision, normalizePayload, reference, Refusal, REQUEST_BYTES, requestFingerprint, sameBinding, UUID, validateExport, validateRetainedIncorporations, type Revision } from "./contract";
 import { inspectDraftCapacity } from "./capacity";
 import { append, completeExport, downloadFile, eraseWork, headBinding, headsCurrent, listWork, readNoteHistory, readWork, reconstruct, reconstructWorks, requestRevision } from "./store";
 import { page, renderContext, renderComparison, renderPreview, style } from "./page";
-import { compare, editedPayload, previewOperation, referenceAvailability, saveOperation } from "./relations";
+import { compare, editedPayload, previewOperation, referenceAvailability, saveOperation, selectionHistories } from "./relations";
 import exchangeClient from "./exchange-client.js.txt?raw";
 import exchangeTextModule from "../../augnes_apps/scripts/exchange-text.mjs?raw" with { type: "text" };
 import planningNotes from "../../augnes_apps/scripts/planning-notes.mjs?raw" with { type: "text" };
@@ -39,6 +39,20 @@ async function body(request:Request,limit=REQUEST_BYTES) {
     }
     parts.push(pending+decoder.decode());return JSON.parse(parts.join(""));
   } catch(e) { if(e instanceof Refusal)throw e; fail("invalid_body"); }
+}
+function savedPlanning(r:Revision){
+  return {definition:r.definition,sources:r.sources,relations:r.relations,...(r.files!==undefined?{files:r.files}:{})};
+}
+function draftFingerprint(input:Record<string,unknown>){
+  const {ticket,expected,workspace_id,project_id,...draft}=input;
+  return hash(canonical(draft));
+}
+// A ticket issued by an earlier Worker might have sealed the wrong matching
+// occurrence. Disclose that conflict from B alone; never rewrite the receipt.
+function checkReplayedOccurrences(saved: Revision,edits: any[]) {
+  for(const edit of edits)if(edit?.mode==="reuse" && edit.historical &&
+    !saved.relations?.materials.some(m=>m.source_ref===edit.historical.source_ref && canonical(m.from)===canonical(edit.historical)))
+    fail("historical_selection_conflict",409);
 }
 export async function handle(request:Request,env:Environment,principal:Principal):Promise<Response> {
   try {
@@ -113,7 +127,8 @@ export async function handle(request:Request,env:Environment,principal:Principal
       const chain=capacity?await readWork(access,capacity[1]):[],head=chain.at(-1);
       if(capacity && !head)fail("work_not_found",404);
       if(!sameBinding(headBinding(head),expected))fail("refresh_required",409);
-      const result=inspectDraftCapacity(access,{definition:input.definition,notes:input.notes,material_edits:input.material_edits},chain);
+      const {histories}=await selectionHistories(access,capacity?.[1]??"",input.material_edits);
+      const result=inspectDraftCapacity(access,{definition:input.definition,notes:input.notes,material_edits:input.material_edits},chain,histories);
       if(head && !await headsCurrent(access,reference(head),reference(head)))fail("refresh_required",409);
       return json({...result,check_id:input.check_id});
     }
@@ -187,9 +202,13 @@ export async function handle(request:Request,env:Environment,principal:Principal
         if(!await headsCurrent(access,reference(head),reference(head)))fail("refresh_required",409);
         return html(renderContext(head,chain.at(-2),refs.availability,refs.reviewSource));}
       if(action==="ticket") {
-        const prepared=bound?await prepareSceneDraft(access,chain,selectedFiles(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits,chain),input.files,head),input.scene):undefined;
-        if(prepared)historyFiles([...chain,{files:prepared.payload.files} as typeof head]);
-        return json({ticket:ticket(access,id,expected,prepared?hash(canonical(prepared.payload)):undefined)});
+        const {histories}=await selectionHistories(access,id,input.material_edits);
+        const prepared=bound?await prepareSceneDraft(access,chain,selectedFiles(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits,chain,histories),input.files,head),input.scene):undefined;
+        if(prepared){
+          validateRetainedIncorporations(head,prepared.payload);
+          historyFiles([...chain,{files:prepared.payload.files} as typeof head]);
+        }
+        return json({ticket:ticket(access,id,expected,prepared?hash(canonical(prepared.payload)):undefined,histories.size?draftFingerprint(input):undefined)});
       }
       if(input.confirm!=="erase-whole-work")fail("confirmation_required");
       await eraseWork(access,id,expected); return json({erased:true});
@@ -197,16 +216,38 @@ export async function handle(request:Request,env:Environment,principal:Principal
     exact(input,"workspace_id,project_id,ticket,definition,notes"+("material_edits" in input?",material_edits":"")+("files" in input?",files":"")+("scene" in input?",scene":""));
     const t=readTicket(access,input.ticket,id,action==="resolve");
     const previous=await readWork(access,id); // Integrity validation, NOT the write gate.
+    // For foreign selections the ticket also seals the submitted draft. Once
+    // committed, its request and exact payload live in B; A may have been erased.
+    if(t.draft_fingerprint){
+      if(draftFingerprint(input)!==t.draft_fingerprint)fail("altered_replay",409);
+      const saved=previous.find(r=>r.request_key===t.request_key);
+      if(saved){
+        if(hash(canonical(savedPlanning(saved)))!==t.payload_fingerprint || saved.revision!==t.expected.revision+1 || saved.predecessor!==t.expected.fingerprint)fail("altered_replay",409);
+        checkReplayedOccurrences(saved,input.material_edits);
+        return json({outcome:"saved",saved,head:headBinding(previous.at(-1)),replayed:true});
+      }
+      if(action==="resolve"){
+        const head=previous.at(-1);
+        if(head?.relations && sameBinding(headBinding(head),t.expected) && hash(canonical(savedPlanning(head)))===t.payload_fingerprint &&
+           await headsCurrent(access,reference(head),reference(head))){
+          checkReplayedOccurrences(head,input.material_edits);
+          return json({outcome:"saved",saved:head,head:headBinding(head),noop:true});
+        }
+        return json({outcome:"unknown",saved:null,head:headBinding(head)});
+      }
+    }
+    const {histories,snapshots}=await selectionHistories(access,id,input.material_edits);
+    if(histories.size && !t.draft_fingerprint)fail("bound_selection_ticket_required",409);
     const base=previous.find(r=>r.revision===t.expected.revision);
     const prefix=previous.slice(0,t.expected.revision);
-    const {payload,bodies}=await prepareSceneDraft(access,prefix,selectedFiles(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits,prefix),input.files,base),input.scene);
+    const {payload,bodies}=await prepareSceneDraft(access,prefix,selectedFiles(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits,prefix,histories),input.files,base),input.scene);
     if(t.payload_fingerprint && hash(canonical(payload))!==t.payload_fingerprint)fail("altered_replay",409);
     const fingerprint=requestFingerprint(access,id,t.expected,t.request_key,payload);
     const previousRequest=await requestRevision(access,t.request_key);
     if(previousRequest && (previousRequest.work_id!==id || previousRequest.request_fingerprint!==fingerprint))fail("altered_replay",409);
     const current=previous.at(-1);
     if(!previousRequest && t.payload_fingerprint && current?.relations && sameBinding(headBinding(current),t.expected) &&
-      canonical(payload)===canonical({definition:current.definition,sources:current.sources,relations:current.relations,...(current.files!==undefined?{files:current.files}:{})}) &&
+      canonical(payload)===canonical(savedPlanning(current)) &&
       await headsCurrent(access,reference(current),reference(current))) {
       return json({outcome:"saved",saved:current,head:headBinding(current),noop:true});
     }
@@ -219,7 +260,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
       if(!sameBinding(headBinding(previous.at(-1)),t.expected))fail("conflict",409);
       historyFiles([...previous,{files:payload.files} as NonNullable<typeof base>]);
       const next=makeRevision(access,id,t.expected,t.request_key,payload,new Date().toISOString());
-      await append(access,previous,next,undefined,bodies);
+      await append(access,previous,next,undefined,bodies,snapshots);
     }
     const chain=await readWork(access,id);
     const saved=chain.find(r=>r.request_key===t.request_key);
