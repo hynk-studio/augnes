@@ -67,8 +67,11 @@ async function downloadExchangeFile(file) {
   setTimeout(() => URL.revokeObjectURL(url),1000);
 }
 function addTextReader(container, file, source) {
-  if (!textFile(file.name) && !/\.log$/i.test(file.name)) return;
-  if (file.bytes > 32768 || !textFile(file.name)) { addPagedReader(container,file); return; }
+  if (!textFile(file.name)) {
+    if (/\.(?:log|json|patch|mjs)$/i.test(file.name)) addPagedReader(container,file);
+    return;
+  }
+  if (file.bytes > 32768) { addPagedReader(container,file); return; }
   const read = document.createElement('button');
   read.type = 'button'; read.textContent = 'Read text';
   read.setAttribute('aria-label', 'Read ' + file.name + ' as text');

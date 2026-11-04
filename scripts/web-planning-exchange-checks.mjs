@@ -60,7 +60,15 @@ export async function checkFileExchanges({ start, client, newWork, save, root, p
   assert.deepEqual(await readFile(path.join(rescued,'files',originalName)),original);
   assert.deepEqual(await readdir(pendingDir),[]);assert.equal((await owner.request(route)).data.items.length,0);
   // Count Unicode code points as the server does, not UTF-16 code units.
-  const request = await cli('request',['request','📝'.repeat(500),originalPath,path.join(dir,zipName)]);
+  const reviewFiles = [
+    ['receipt.JSON', Buffer.from('\uFEFF{\r\n  "checks": [ 7, 2,\r\n')],
+    ['changes.patch', Buffer.from('@@ incomplete hunk\r\n+<b>keep literally</b>\r\n')],
+    ['count.mjs', Buffer.from(' '.repeat(8191)+'🙂\r\nexport const count = 7 - 2;\n')],
+    ['broken.mjs', Buffer.concat([Buffer.alloc(33000,0x61),Buffer.from([0xc0])])],
+    ['control.patch', Buffer.from('a'.repeat(8192)+'\0')],
+  ];
+  for(const [name,bytes] of reviewFiles)await writeFile(path.join(dir,name),bytes);
+  const request = await cli('request',['request','📝'.repeat(500),originalPath,path.join(dir,zipName),...reviewFiles.map(([name])=>path.join(dir,name))]);
   assert.equal(request.outcome,'saved');
   const sent = request.item; assert.equal(sent.ref.revision,2);
   assert.match(await cli('invalid-return-action',['return','2','Reviewed',longText,originalPath],false),/next action.*500/);
@@ -94,6 +102,28 @@ export async function checkFileExchanges({ start, client, newWork, save, root, p
     assert.deepEqual((await call('return_text_edit',edit)).item,returned);
     assert.ok((await host.callTool({name:'return_text_edit',arguments:{...edit,replacement:'conflicting edit'}})).isError);
     assert.ok((await host.callTool({name:'read_exchange_text',arguments:{version:sent.ref.revision,filename:zipName}})).isError);
+    for(const [filename,bytes] of reviewFiles.slice(0,3)){
+      const args={version:sent.ref.revision,filename};
+      const first=await call('read_exchange_text',args);
+      assert.deepEqual(first.ref,sent.ref);assert.equal(first.file.media_type,null);
+      assert.equal(first.file.digest,sha(bytes));assert.equal(first.total,bytes.length);
+      assert.deepEqual(Buffer.from(first.text),bytes.subarray(0,first.end));
+      if(filename==='count.mjs'){
+        assert.equal(first.next,8191);
+        const next=await call('read_exchange_text',{...args,offset:first.next});
+        assert.deepEqual(Buffer.from(next.text),bytes.subarray(8191));assert.equal(next.next,null);
+        const match=await cli('read-module',['read',String(args.version),filename,'0','count =']);
+        assert.equal(match.match,bytes.indexOf('count ='));assert.deepEqual(Buffer.from(match.text),bytes.subarray(match.match));
+        const query='🙂'.repeat(64),miss=await call('read_exchange_text',{...args,find:query});
+        assert.deepEqual([miss.found,miss.start,miss.end,miss.next,miss.text],[false,bytes.length,bytes.length,null,'']);
+        const tooLong=await host.callTool({name:'read_exchange_text',arguments:{...args,find:query+'x'}});
+        assert.ok(tooLong.isError);assert.equal(tooLong.content[0].text,'invalid_text_position');
+      } else assert.equal(first.next,null);
+    }
+    for(const [filename] of reviewFiles.slice(3)){
+      const refusal=await host.callTool({name:'read_exchange_text',arguments:{version:sent.ref.revision,filename,find:'a'}});
+      assert.ok(refusal.isError);assert.equal(refusal.content[0].text,'unsupported_text_encoding');
+    }
   } finally { await host.close(); }
 
   const get = async (version,name,dest) => {

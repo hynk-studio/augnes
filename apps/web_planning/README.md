@@ -155,8 +155,11 @@ does not retarget a pending request. The configured project can have a friendly
 `PROJECT_NAME`. Each private workspace entry still admits one configured owner
 and project. An assistant can work for that owner.
 
-Choose **Read text** beside a Markdown, text or log file. For larger text
-and logs, enter an original **byte** position or find a literal phrase from that
+Choose **Read text** beside a Markdown, text, log, JSON (`.json`), patch
+(`.patch`) or JavaScript module (`.mjs`) file. Logs, JSON, patches, modules
+and larger text documents open in pages. The reader shows the original text,
+even with no MIME type; it does not format JSON, apply patches or run code.
+Enter an original **byte** position or find a literal phrase from that
 position. Each page identifies its exact version, digest and half-open byte
 range, total bytes, and whether another page follows. A search miss means no
 match from that offset. A final page can still be partial inspection. Pages

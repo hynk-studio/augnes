@@ -173,9 +173,10 @@ process honors the separately pinned `AUGNES_WEB_ORIGIN`, checks the setup for
 changes, and rechecks Web access on each call. It exposes only three tools.
 `list_file_requests` lists the selected task's exchange versions, pending
 material, returned files and next actions in pages of 20. `read_exchange_text`
-returns a verified small document with its identity and save base. Pass
-`offset` (original UTF-8 bytes) or `find` for a bounded page of a longer
-`.txt`, `.md`, `.markdown` or `.log` file; the result includes its exact
+returns a verified small Markdown or plain-text document with its identity and
+save base. Logs, JSON receipts (`.json`), patches (`.patch`) and modules
+(`.mjs`) open at their first page. Pass `offset` (original UTF-8 bytes) or
+`find` to page or search any supported text file. Each page gives the exact
 version, digest, byte range, total and next position. The local CLI equivalent
 is `file-exchange.mjs SETUP read VERSION NAME [START_BYTE [FIND]]`. `return_text_edit` replaces one unique literal passage
 in that exact retrieved original, stores an actual new UTF-8 file and links it
