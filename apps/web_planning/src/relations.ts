@@ -2,7 +2,7 @@ import { directionSelection, fileBranch, fileIncorporation } from "./directions"
 import { hasSceneFile, ordinaryFileBranch, ordinaryFileIncorporation } from "./file-relations";
 import { fileSelection } from "./contract";
 import type { FileBody } from "./files";
-import { binding, boundedText, canonical, dispositions, exact, fail, FINGERPRINT, hash, headBinding, inspectRelations, makeRevision, materialRef, normalizePayload, reference, RELATION_BYTES, requireHistoricalContext, requestFingerprint, retainedNote, sameBinding, selectedWorkSourceInput, UUID, validateRelations, validateRetainedContext, workRef, type Material, type Payload, type Relations, type Revision, type Scope, type WorkRef } from "./contract";
+import { binding, boundedText, canonical, dispositions, exact, fail, FINGERPRINT, hash, headBinding, inspectRelations, makeRevision, materialRef, normalizePayload, reference, RELATION_BYTES, requireHistoricalContext, requestFingerprint, retainedNote, sameBinding, selectedWorkSourceInput, UUID, validateRelations, validateRetainedContext, validateRetainedIncorporations, workRef, type Material, type Payload, type Relations, type Revision, type Scope, type WorkRef } from "./contract";
 import { seal, unseal, type Access } from "./access";
 import { append, headsCurrent, readEnvelopes, readWork, requestRevision, type Store } from "./store";
 
@@ -188,6 +188,7 @@ export async function previewOperation(a:Access,id:string,kind:"branch"|"incorpo
     const result=await compare(a,id,expected,(intent as ReturnType<typeof incorporationIntent>).source);
     source=result.branch;target=result.target;payload=(await incorporation(a,target,source,intent as ReturnType<typeof incorporationIntent>)).payload;
     validateRetainedContext(result.targetChain,id,payload,a);
+    validateRetainedIncorporations(target,payload);
   }
   if(payload.relations)validateRelations(payload.relations,payload,work_id);
   const t:OperationTicket={kind,workspace_id:a.workspace_id,project_id:a.project_id,author_ref:a.author_ref,work_id,request_key:crypto.randomUUID(),expected:headBinding(target),source:reference(source),intent_fingerprint:hash(canonical(intent)),request_fingerprint:"",expires:Date.now()+86_400_000};

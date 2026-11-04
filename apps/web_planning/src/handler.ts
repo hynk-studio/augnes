@@ -9,7 +9,7 @@ import { DIRECTION_EXPORT, directionExport, validateDirectionExport } from "./di
 import { prepareSceneContext, prepareSceneDraft, previewSceneReview, saveSceneReview } from "./scenes";
 import { type FileBody, FILE_EXPORT_REQUEST_BYTES, LARGE_EXPORT_REQUEST_BYTES, LARGE_PAIR_REQUEST_BYTES, EXCHANGE_REQUEST_BYTES, historyFiles, selectedFiles, validateFileExport } from "./files";
 import { authorize, csrfCookie, csrfToken, readTicket, requireCsrf, requireScope, ticket, type Environment, type Principal } from "./access";
-import { binding, canonical, exact, exportWork, fail, hash, makeRevision, normalizePayload, reference, Refusal, REQUEST_BYTES, requestFingerprint, sameBinding, UUID, validateExport, type Revision } from "./contract";
+import { binding, canonical, exact, exportWork, fail, hash, makeRevision, normalizePayload, reference, Refusal, REQUEST_BYTES, requestFingerprint, sameBinding, UUID, validateExport, validateRetainedIncorporations, type Revision } from "./contract";
 import { inspectDraftCapacity } from "./capacity";
 import { append, completeExport, downloadFile, eraseWork, headBinding, headsCurrent, listWork, readNoteHistory, readWork, reconstruct, reconstructWorks, requestRevision } from "./store";
 import { page, renderContext, renderComparison, renderPreview, style } from "./page";
@@ -204,7 +204,10 @@ export async function handle(request:Request,env:Environment,principal:Principal
       if(action==="ticket") {
         const {histories}=await selectionHistories(access,id,input.material_edits);
         const prepared=bound?await prepareSceneDraft(access,chain,selectedFiles(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits,chain,histories),input.files,head),input.scene):undefined;
-        if(prepared)historyFiles([...chain,{files:prepared.payload.files} as typeof head]);
+        if(prepared){
+          validateRetainedIncorporations(head,prepared.payload);
+          historyFiles([...chain,{files:prepared.payload.files} as typeof head]);
+        }
         return json({ticket:ticket(access,id,expected,prepared?hash(canonical(prepared.payload)):undefined,histories.size?draftFingerprint(input):undefined)});
       }
       if(input.confirm!=="erase-whole-work")fail("confirmation_required");

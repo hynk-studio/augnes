@@ -1,7 +1,7 @@
 import { inspectInitialProjectWorkDefinitionV01 } from "../../../lib/intake/work-definition";
 import { buildSelectedWorkSourceEntry, inspectSelectedWorkSources, SELECTED_WORK_SOURCE_LIMITS } from "../../../lib/intake/selected-work-source-comparison";
 import { INITIAL_PROJECT_WORK_LIMITS_V01 } from "../../../types/vnext/project-work-initialization";
-import { canonical, exact, headBinding, HISTORY_READ_BYTES, HISTORY_READ_ROWS, RELATION_BYTES, REQUEST_BYTES, type Payload, type Revision, type Scope } from "./contract";
+import { canonical, exact, headBinding, HISTORY_READ_BYTES, HISTORY_READ_ROWS, RELATION_BYTES, REQUEST_BYTES, validateRetainedIncorporations, type Payload, type Revision, type Scope } from "./contract";
 import { inspectEditedPayload } from "./relations";
 
 export const CAPACITY_FORMAT = "web_planning_capacity.v0.2";
@@ -56,6 +56,7 @@ export function inspectDraftCapacity(scope: Scope, input: {definition: unknown; 
   if(definition && definitionBytes!==null && definitionBytes<=INITIAL_PROJECT_WORK_LIMITS_V01.definition_bytes && sources && notes) {
     try {
       const inspected=inspectEditedPayload(scope,{definition,sources},notes,input.material_edits,chain,histories);
+      validateRetainedIncorporations(previous,inspected.payload);
       payload=inspected.payload;relationBytes=inspected.relationBytes;
       if(relationBytes>RELATION_BYTES)issue("relation_budget_exceeded");
     } catch(error) { issue(code(error)); }

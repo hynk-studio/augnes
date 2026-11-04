@@ -91,4 +91,77 @@ export async function checkIncomingOccurrences({start,client,passed}) {
   for(const [r,t] of [[next,bound],[result,rebased]])for(const op of ['save','resolve'])assert.deepEqual((await ok(post(r,op,t))).saved,r);
   for(const {target} of cases){const saved=await reopen(target);assert.deepEqual(mat(saved,Y).dependencies,[ref(saved,Z)]);assert.deepEqual((await ok(post(target,'export'))).revisions.at(-1),saved);}
   passed('exact occurrence: authored replacement, remove/reselect, reviewed stale rebase, shared prerequisites, same occurrence no-op and replay after erasure; legacy mismatches explicitly refused');
+
+  // Outstanding tickets and historical rows must actually be produced by the
+  // last Worker. Upgrade the same store, then restore a legacy export separately.
+  await server.setOptions({script:await predecessorCode('6deac89050dd1659510cdc2a6740ff29e71d2c46')});c=await client(server);
+  const source=await create(draft('Press qualification',[X,Y,Z],[[1],[2],[]]));
+  const fork=async base=>{
+    const p=await ok(post(base,'branch-preview',{expected:headBinding(base),intent:{reason:'Check alternate conditions'}}));
+    return (await ok(post(p,'relation-save',operation(p)))).saved;
+  };
+  const choose=(target,branch,n,keep=target.sources)=>({source:reference(branch),target_selection:keep.map(s=>s.source_ref),
+    dispositions:branch.sources.map(s=>({source_ref:s.source_ref,disposition:s.source_ref===ref(branch,n)?'incorporated':'not_selected',rationale:''})),
+    rationale:'Use this workshop note',next_question:'',file_selection:{target:target.files??[],source:branch.files??[]}});
+  const preview=(base,intent)=>post(base,'incorporation-preview',{expected:headBinding(base),intent});
+  const apply=async(base,intent)=>(await ok(post(base,'relation-save',operation(await ok(preview(base,intent)))))).saved;
+  async function retainedCase(){
+    const empty=await create(draft('Shipping plan')),alt=await fork(empty);
+    const weak=await save(alt,{...draft('Alternate workshop',[Y]),files:[newFile('insert.txt','Workshop insert')]});
+    const base=await save(empty,draft('Shipping plan',[Y,Z],[[1],[]])),branch=await fork(base);
+    const strong=await save(branch,pick(branch,source));
+    const kept=await apply(base,choose(base,strong,X));
+    assert.deepEqual(mat(kept,X).from,occurrence(strong,X));assert.deepEqual(mat(kept,X).dependencies,[ref(kept,Y)]);
+    assert.equal(mat(kept,Y).kind,'authored');assert.deepEqual(mat(kept,Y).dependencies,[ref(kept,Z)]);
+    const ordinary=planningDraft(kept);ordinary.material_edits[ordinary.notes.findIndex(n=>n.text===Y.text)].dependencies=[];
+    ordinary.files.push(newFile('edit.txt','Ordinary edit insert'));
+    return {kept,strong,weak,ordinary};
+  }
+  const active=await retainedCase(),legacy=await retainedCase();
+  const branchTicket=operation(await ok(preview(active.kept,choose(active.kept,active.weak,Y))));
+  const editTicket=await prepare(active.kept,active.ordinary);
+  const oldEdit=await prepare(legacy.kept,legacy.ordinary),weakened=(await ok(post(legacy.kept,'save',oldEdit))).saved;
+  const strengthen=planningDraft(weakened);strengthen.material_edits[strengthen.notes.findIndex(n=>n.text===Y.text)].dependencies=[strengthen.notes.findIndex(n=>n.text===Z.text)];
+  const strongAgain=await save(weakened,strengthen),oldReview=operation(await ok(preview(strongAgain,choose(strongAgain,legacy.weak,Y))));
+  const oldHead=(await ok(post(strongAgain,'relation-save',oldReview))).saved,oldExport=await ok(post(oldHead,'export'));
+  assert.deepEqual(mat(oldHead,X),mat(legacy.kept,X));assert.deepEqual(mat(oldHead,Y).dependencies,[]);
+  await server.setOptions({script:current});c=await client(server);
+  const {kept,strong,weak,ordinary}=active,unchanged=await snapshot(kept);
+  const {definition,notes,material_edits}=ordinary;
+  const capacity=await ok(post(kept,'capacity',{expected:headBinding(kept),check_id:crypto.randomUUID(),definition,notes,material_edits}));
+  assert.equal(capacity.fits,false);assert(capacity.issues.some(i=>i.code==='required_material_missing'));
+  await refused(post(kept,'ticket',{expected:headBinding(kept),...ordinary}),422,'required_material_missing');
+  await refused(post(kept,'save',editTicket),422,'required_material_missing');
+  await refused(preview(kept,choose(kept,weak,Y)),422,'required_material_missing');
+  await refused(post(kept,'relation-save',branchTicket),422,'required_material_missing');
+  assert.equal((await ok(post(kept,'resolve',editTicket))).outcome,'unknown');
+  assert.equal((await ok(post(kept,'relation-resolve',branchTicket))).outcome,'unknown');
+  assert.deepEqual(await snapshot(kept),unchanged);
+  const shared=await apply(kept,choose(kept,strong,Y));assert.deepEqual(await reopen(kept),shared);
+  assert.deepEqual(mat(shared,X),mat(kept,X));assert.deepEqual(mat(shared,Y).dependencies,[ref(shared,Z)]);
+  const removed=await apply(shared,choose(shared,weak,Y,shared.sources.filter(s=>s.source_ref!==ref(shared,X))));
+  assert.deepEqual(await reopen(shared),removed);assert(!removed.sources.some(s=>s.source_ref===ref(shared,X)));assert.deepEqual(mat(removed,Y).dependencies,[]);
+  passed('unchanged incorporated instruction: ordinary capacity/ticket and branch preview refuse weaker shared context; both old tickets refuse before writing any revision or file; compatible sharing and explicit removal save');
+
+  for(const r of [source,legacy.strong,legacy.weak])await ok(post(r,'erase',{expected:headBinding(r),confirm:'erase-whole-work'}));
+  assert.deepEqual(await ok(post(oldHead,'export')),oldExport);
+  for(const op of ['save','resolve'])assert.deepEqual((await ok(post(oldHead,op,oldEdit))).saved,weakened);
+  for(const op of ['relation-save','relation-resolve'])assert.deepEqual((await ok(post(oldHead,op,oldReview))).saved,oldHead);
+  async function restoreOnly(targetExport,name){
+    c=await client(await start(name));
+    await ok(c.request('/api/reconstruct-files',{export:targetExport,confirm:'reconstruct-empty-store'}));
+    const head=targetExport.revisions.at(-1);assert.deepEqual(await ok(post(head,'export')),targetExport);
+    assert.equal((await post(source)).status,404);assert.equal((await post({work_id:mat(head,X).from.work_id})).status,404);
+    return head;
+  }
+  const restored=await restoreOnly(oldExport,'retained-old-history'),continuation=planningDraft(restored);
+  continuation.definition.non_goals.push('No shipment without a new decision');
+  const afterLegacy=await save(restored,continuation);assert.deepEqual(await reopen(restored),afterLegacy);assert.deepEqual(mat(afterLegacy,X),mat(oldHead,X));
+  const standalone=await restoreOnly(unchanged.export,'retained-adaptation'),adapt=planningDraft(standalone),x=adapt.notes.findIndex(n=>n.text===X.text),y=adapt.notes.findIndex(n=>n.text===Y.text);
+  adapt.notes[x]={...X,text:'Hold this batch for a separate workshop decision.',source:standalone.author_ref,provenance:'derived_interpretation'};
+  adapt.material_edits[x]={adapts:ref(standalone,X),dependencies:[]};adapt.material_edits[y].dependencies=[];
+  const adapted=await save(standalone,adapt);assert.deepEqual(await reopen(standalone),adapted);
+  assert.deepEqual(mat(adapted,adapt.notes[x]).from,occurrence(standalone,X));assert.equal(mat(adapted,adapt.notes[x]).kind,'adapted');
+  assert.deepEqual(mat(adapted,Y).dependencies,[]);assert(!adapted.sources.some(s=>s.source_ref===ref(standalone,X)));
+  passed('standalone retention: pre-fix weakened ordinary and branch commits replay after origin erasure; legacy history restores and continues; explicitly adapting the instruction permits revised conditions');
 }

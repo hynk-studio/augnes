@@ -115,6 +115,17 @@ export function requireHistoricalContext(source: Pick<ReturnType<typeof retained
     pending.push(...required);
   }
 }
+// On a new write, a note kept from a branch review still needs the conditions
+// it had in this work. Scope this check to proposals and admission: applying
+// it during replay or recovery would reject histories accepted by older writers.
+export function validateRetainedIncorporations(previous: Revision | undefined, proposed: Payload) {
+  if (!previous?.relations) return;
+  const materials=proposed.relations?.materials??[];
+  const required=previous.relations.materials.flatMap(prior=>
+    prior.kind==="incorporated" && prior.dependencies.length && materials.some(m=>m.source_ref===prior.source_ref && canonical(m)===canonical(prior))
+      ? prior.dependencies : []);
+  requireHistoricalContext({revision:previous,dependencies:required},materials);
+}
 // Called before append and during recovery. An immediate-base adaptation can
 // revise conditions under the original contract, including when carried forward.
 export function validateRetainedContext(chain: Revision[], id: string, payload: Payload, scope: Scope) {
