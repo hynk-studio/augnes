@@ -9,7 +9,7 @@ import { fileManifest, FILE_COMPATIBILITY, FILE_FORMAT, FILE_RELATION_COMPATIBIL
 export const listEnvelope = `CASE WHEN revision=(SELECT n FROM summary)
   OR json_type(envelope,'$.exchange') IS NOT NULL OR json_extract(envelope,'$.format')='${EXCHANGE_FORMAT}'
   THEN envelope ELSE json_remove(envelope,'$.sources','$.definition','$.relations') END`;
-const compatibility = new Map<string,string>([[FORMAT,COMPATIBILITY],[RELATION_FORMAT,RELATION_COMPATIBILITY],
+export const revisionCompatibility = new Map<string,string>([[FORMAT,COMPATIBILITY],[RELATION_FORMAT,RELATION_COMPATIBILITY],
   [FILE_FORMAT,FILE_COMPATIBILITY],[FILE_RELATION_FORMAT,FILE_RELATION_COMPATIBILITY],[EXCHANGE_FORMAT,EXCHANGE_COMPATIBILITY],[LARGE_FORMAT,LARGE_COMPATIBILITY]]);
 const previewLimit = 2;
 
@@ -25,7 +25,7 @@ export function projectWorkListItem(scope:Scope,id:string,rows:Revision[]) {
   const returns: {request:Revision;returned:Revision}[] = [];
   let returnedFiles = 0, predecessor:string|null = null;
   for (const [i,row] of rows.entries()) {
-    if (row.schema!==1 || !compatibility.has(row.format) || compatibility.get(row.format)!==row.compatibility ||
+    if (row.schema!==1 || !revisionCompatibility.has(row.format) || revisionCompatibility.get(row.format)!==row.compatibility ||
         (row.format===EXCHANGE_FORMAT || row.format===LARGE_FORMAT)!==("exchange" in row)) fail("incompatible_format",409);
     if (row.work_id!==id || !UUID.test(id) || row.workspace_id!==scope.workspace_id ||
         row.project_id!==scope.project_id || row.author_ref!==scope.author_ref || row.revision!==i+1 ||

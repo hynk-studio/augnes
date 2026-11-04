@@ -28,28 +28,33 @@ $('other-history').onclick=()=>run(async()=>{
   }
   await more(null);
 });
-async function inspectNoteHistory(id,chosen){
-  const base=saved,other=id!==work,view=$('history-view');
-  const current=()=>!accessLost && saved===base && work===base?.work_id && base;
+async function inspectNoteHistory(id,chosen,view=$('history-view')){
+  const base=saved,initialWork=work,other=id!==work;
+  const current=()=>!accessLost && saved===base && work===initialWork && view.isConnected;
   view.textContent='Reading saved history…';
   try {
     const {revisions}=await api('/api/work/'+id+'/history?view=notes');
     const {selectHistoricalNote,sameNote,sameOccurrence}=await import('/planning-notes.mjs');
     if(!current())return;
-    if(!other && !chosen && revisions.at(-1)?.fingerprint!==base.fingerprint)throw Error('refresh_required');
+    if(!other && !chosen && revisions.at(-1)?.fingerprint!==base?.fingerprint)throw Error('refresh_required');
     if(chosen && (revisions[chosen.revision-1]?.fingerprint!==chosen.fingerprint ||
        (chosen.source_ref && !revisions[chosen.revision-1].sources.some(s=>s.source_ref===chosen.source_ref))))throw Error('historical_note_unavailable');
     const element=historyElement;
     const picker=document.createElement('select'),label=element('label','Revision to inspect');
-    picker.id='history-revision';label.htmlFor=picker.id;
+    picker.id=view.id==='history-view'?'history-revision':'search-revision';label.htmlFor=picker.id;
     for(const r of [...revisions].reverse()) {
       const opt=element('option',`Revision ${r.revision} · ${r.recorded_at} · ${r.definition.goal}`);
       opt.value=r.revision;picker.append(opt);
     }
     const detail=document.createElement('section');
     view.replaceChildren(element('h3',other?'Notes from another work':'This work’s history'),label,picker,detail);
+    const observation=element('p','');if(chosen)view.insertBefore(observation,label);
     function inspect(){
       const revision=revisions[Number(picker.value)-1];
+      if(chosen)observation.textContent=revision.fingerprint!==chosen.fingerprint?
+        `You chose revision ${revision.revision} from history. The observed basis was revision ${chosen.revision}.`:
+        revisions.at(-1).fingerprint===chosen.fingerprint?'Showing the exact observed revision. It is current at this inspection.':
+        `This work advanced to revision ${revisions.at(-1).revision}. Showing the exact observed revision ${chosen.revision}. Opening the work reads its current save base.`;
       detail.replaceChildren(element('h3',revision.definition.goal),
         element('p',`Revision ${revision.revision} · Saved by ${revision.author_ref} · ${revision.recorded_at}`),
         element('p','These notes show what was recorded then. Reusing them grants no present truth, permission or approval. Nothing is saved until you choose Save.'));
@@ -73,13 +78,13 @@ async function inspectNoteHistory(id,chosen){
         const locator={work_id:id,revision:revision.revision,fingerprint:revision.fingerprint,source_ref:s.source_ref};
         article.refreshSelection=d=>{
           const index=d.notes.findIndex(n=>sameNote(n,note)),edit=d.material_edits[index];
-          const from=edit?.historical??base.relations?.materials.find(m=>m.source_ref===s.source_ref)?.from;
+          const from=edit?.historical??base?.relations?.materials.find(m=>m.source_ref===s.source_ref)?.from;
           const exact=index>=0 && sameOccurrence(from,locator) && edit?.mode!=='required';
           selection.textContent=exact?'In the current draft selection.':index>=0?'Matching text is present. You can explicitly choose this source.':'Outside the current draft selection.';
           if(add){add.disabled=exact;add.textContent=exact?'Already selected':index>=0?'Use this source occurrence':deps.length?'Use note with required context':'Use unchanged note';}
         };
         article.append(selection);
-        if(other || revision.revision<base.revision){
+        if(base && (other || revision.revision<base.revision)){
           add=element('button','');add.type='button';
           const adapt=element('details',''),input=document.createElement('textarea'),write=element('button','Add my interpretation');
           write.type='button';const field=element('label','Your interpretation');field.append(input);
@@ -110,7 +115,7 @@ async function inspectNoteHistory(id,chosen){
         }
       }
     }
-    picker.value=String(chosen?.revision??Math.max(1,base.revision-1));picker.onchange=inspect;inspect();picker.focus();
+    picker.value=String(chosen?.revision??Math.max(1,(base?.revision??1)-1));picker.onchange=inspect;inspect();picker.focus();
   } catch(e){
     if(!current())return;
     view.textContent=other?'Source unavailable. Your current work and draft are retained.':'History unavailable. Your current draft is retained.';

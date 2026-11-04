@@ -88,6 +88,8 @@ export async function checkFileExchanges({ start, client, newWork, save, root, p
   let returned;
   try {
     await host.connect(transport);
+    assert.deepEqual((await host.listTools()).tools.map(t=>t.name).sort(),['list_file_requests','read_exchange_text','return_text_edit']);
+    assert.equal((await host.callTool({name:'search_work',arguments:{query:'Separate reading task'}})).isError,true);
     const call = async (name,args) => { const r=await host.callTool({name,arguments:args});assert.ok(!r.isError,r.content[0]?.text);return JSON.parse(r.content[0].text); };
     const inbox = await call('list_file_requests',{});assert.equal(inbox.items.length,1);assert.equal(inbox.task,task.definition.goal);
     const received = await call('read_exchange_text',{version:sent.ref.revision,filename:originalName});

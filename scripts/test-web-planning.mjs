@@ -1,4 +1,5 @@
 import { checkLargeExchanges } from './web-planning-large-exchange-checks.mjs';
+import { checkWorkSearch } from './web-planning-search-checks.mjs';
 import { checkFileExchanges } from './web-planning-exchange-checks.mjs';
 import { checkDirections } from "./web-planning-direction-checks.mjs";
 import { checkWebPlanningInterceptionDiagnostics } from './test-web-planning-interception.mjs';
@@ -188,6 +189,7 @@ try {
  await checkCapacity({c,scope:fixtureScope,passed});
  await checkRetainedNotes({c,passed});
  await checkCrossWorkNotes({start,client,passed});
+ await checkWorkSearch({start,client,newWork,save,root,passed});
  await checkIncomingOccurrences({start,client,passed});
  await checkHistoricalIncorporation({start,client,passed,root,open});
  await checkBranching({start,client,newWork,save,edit,passed,open});

@@ -1,5 +1,6 @@
 /// <reference path="./assets.d.ts" />
 import { readExchangePage } from "./exchange-reading";
+import { inspectWorkMatch, searchQuery, searchWork } from "./work-search";
 import { LARGE_EXPORT, exchangeList } from "./exchange";
 import { writeExchange } from "./exchange-write";
 import { notebookFrom } from "./scene-contract";
@@ -19,6 +20,7 @@ import exchangeTextModule from "../../augnes_apps/scripts/exchange-text.mjs?raw"
 import planningNotes from "../../augnes_apps/scripts/planning-notes.mjs?raw" with { type: "text" };
 import client from "./client.js.txt?raw";
 import historyClient from "./history-client.js.txt?raw";
+import searchClient from "./search-client.js.txt?raw";
 import { readableExport } from "./readable-export";
 const headers={"Cache-Control":"no-store, private","Vary":"Cookie, oai-authenticated-user-email","X-Web-Planning-Response":"1","X-Content-Type-Options":"nosniff",
   "Referrer-Policy":"no-referrer","X-Frame-Options":"DENY","X-Robots-Tag":"noindex, nofollow",
@@ -64,12 +66,21 @@ export async function handle(request:Request,env:Environment,principal:Principal
         const csrf=csrfToken(access,request);
         return html(page(csrf,access),{"Set-Cookie":csrfCookie(access,csrf)});
       }
-      if(path==="/client.js" && !url.search) return new Response(client+"\n"+exchangeClient+"\n"+historyClient,{headers:{...headers,"Content-Type":"text/javascript; charset=utf-8"}});
+      if(path==="/client.js" && !url.search) return new Response(client+"\n"+exchangeClient+"\n"+historyClient+"\n"+searchClient,{headers:{...headers,"Content-Type":"text/javascript; charset=utf-8"}});
       if(path==="/exchange-text.mjs" && !url.search) return new Response(exchangeTextModule,{headers:{...headers,"Content-Type":"text/javascript; charset=utf-8"}});
       if(path==="/planning-notes.mjs" && !url.search) return new Response(planningNotes,{headers:{...headers,"Content-Type":"text/javascript; charset=utf-8"}});
       if(path==="/style.css" && !url.search) return new Response(style,{headers:{...headers,"Content-Type":"text/css; charset=utf-8"}});
       if(path==="/api/project" && !url.search) return json({workspace_id:access.workspace_id,project_id:access.project_id,
         name:env.PROJECT_NAME || "Private planning workspace",tasks:"/api/works"});
+      if(path==="/api/works/search") {
+        if([...url.searchParams.keys()].some(k=>k!=="q"&&k!=="cursor") || url.searchParams.getAll("q").length!==1 ||
+          url.searchParams.getAll("cursor").length>1)fail("scope_denied",403);
+        return json(await searchWork(access,searchQuery(url.searchParams.get("q")),url.searchParams.get("cursor")));
+      }
+      if(path==="/api/works/match") {
+        if([...url.searchParams.keys()].some(k=>k!=="selection") || url.searchParams.getAll("selection").length!==1)fail("scope_denied",403);
+        return json(await inspectWorkMatch(access,url.searchParams.get("selection")!));
+      }
       if(path==="/api/works") {
         if([...url.searchParams.keys()].some(k=>k!=="cursor") || url.searchParams.getAll("cursor").length>1) fail("scope_denied",403);
         const cursor=url.searchParams.get("cursor")??"";
