@@ -234,7 +234,14 @@ export async function browserFileExchanges({ c, origin, click, set, saved, settl
   const long=Buffer.alloc(5328363,0x78),row=Buffer.from('Survey: 17 observed, 4 deferred.');row.copy(long,long.length-row.length);
   const largePath=path.join(originalDir,'survey.log'),zipPath=path.join(originalDir,'survey.zip'),zip=reviewZip();
   await writeFile(largePath,long);await writeFile(zipPath,zip);
-  await click(c,'exchange-new');await set(c,'exchange-message','Check the survey totals');await pick([largePath,zipPath]);await click(c,'exchange-submit');await saved(c,2);await settled(c);
+  const reviewSources=[
+    ['receipt.json','\uFEFF{ "observed" : 17,\r\n'],
+    ['survey.patch','@@ -1 +1 @@\r\n-<b>pending</b>\r\n+<b>4 deferred</b>\r\n'],
+    ['survey.mjs','globalThis.surveyRan = true;\nexport const deferred = 4;\n'],
+  ];
+  for(const [name,text] of reviewSources)await writeFile(path.join(originalDir,name),text);
+  await click(c,'exchange-new');await set(c,'exchange-message','Check the survey totals');
+  await pick([largePath,zipPath,...reviewSources.map(([name])=>path.join(originalDir,name))]);await click(c,'exchange-submit');await saved(c,2);await settled(c);
   await c.eval("document.querySelector('button[aria-label=\"Read survey.log as text\"]').click()");await settled(c);
   const reader="document.querySelector('#exchange-list li section')";
   await wait(()=>c.eval(reader+"?.querySelector('pre')?.textContent.length===8192"),'bounded first page');
@@ -252,8 +259,19 @@ export async function browserFileExchanges({ c, origin, click, set, saved, settl
   await c.eval("[...$('exchange-list').querySelectorAll('button')].find(b=>b.textContent==='Return edited files').click()");
   const [observations,deferred]=observed.match(/\d+/g).map(Number);
   await set(c,'exchange-message','Checked the final survey row');await set(c,'exchange-next','Transfer the verified subset');await set(c,'exchange-review','Transfer '+(observations-deferred)+' observations.');
+  const revisedReceipt=path.join(returnDir,'receipt.json');await writeFile(revisedReceipt,'{"transfer":13}\n');await pick(revisedReceipt);
   await click(c,'exchange-submit');await saved(c,3);await settled(c);
   assert.match(await c.eval("$('exchange-list').textContent"),/review.md/);
+  for(const [name,original] of reviewSources){
+    const link=`[...$('exchange-list').querySelectorAll('a')].find(a=>a.download===${JSON.stringify(name)} && a.textContent.includes(' · version 2 · '))`;
+    const file=link+'.parentElement';
+    await c.eval(file+".querySelector('button').click()");await settled(c);
+    assert.equal(await c.eval(file+".querySelector('pre').textContent"),original);
+    assert.equal(await c.eval(file+".querySelector('pre').childElementCount"),0);
+    assert.match(await c.eval(file+".querySelector('section p').textContent"),/version 2 .*Complete text/);
+  }
+  assert.equal(await c.eval('typeof globalThis.surveyRan'),'undefined');
+  checks.push('Read text shows the original JSON, patch and module literally, including an older same-name receipt after a return');
   checks.push('complete originals: full-size log and ZIP uploaded, long line wraps at 390/1200, exact search, complete ZIP bytes and a grounded typed review');
   await click(c,'exchange-new'); await set(c,'exchange-message','Confirm the venue'); await pick(path.join(originalDir,name));
   c.accessBoundary='challenge'; await click(c,'exchange-submit'); await settled(c);

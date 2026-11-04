@@ -8,7 +8,7 @@ export async function readExchangePage(store:Store,r:Revision,index:number,input
   exact(input,"workspace_id,project_id,offset,find");
   const artifact=r.exchange?.artifacts[index];
   if(!artifact)fail("file_not_found",404);
-  if(!/\.(?:txt|log|md|markdown)$/i.test(artifact.file.name))fail("unsupported_text_file",415);
+  if(!/\.(?:txt|log|md|markdown|json|patch|mjs)$/i.test(artifact.file.name))fail("unsupported_text_file",415);
   const offset=input.offset,find=input.find;
   if(typeof offset!=="number"||!Number.isSafeInteger(offset)||offset<0||offset>artifact.file.bytes ||
      typeof find!=="string"||!find.isWellFormed()||Buffer.byteLength(find)>256)fail("invalid_text_position");
