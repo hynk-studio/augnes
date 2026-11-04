@@ -25,13 +25,20 @@ async function selectedFile(path) {
     return { name: basename(path), media_type, bytes: count, digest: digest(bytes), data: bytes.toString('base64') };
   } finally { await input.close(); }
 }
+// Match the Web write contract before creating a journal that /resolve cannot parse.
+function invalidExchangeText({kind, message, next_action}) {
+  const invalid = (value, required) => typeof value !== 'string' || [...value].length > 500 ||
+    /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(value) || (required && !value.trim());
+  if (invalid(message, true)) return 'message';
+  if (invalid(next_action, kind === 'return')) return 'next action';
+}
 function draftSummary(body) {
   return { kind: body.kind, basis: body.basis, message: body.message, next_action: body.next_action,
     files: body.files.map(({ data, ...file }) => file) };
 }
 // Only an explicitly chosen, new private folder receives local files. The request
 // manifest is written last. A failed export never consumes its pending journal.
-async function recoverDraft(directory, body) {
+async function recoverDraft(directory, {work_id, setup_digest, body}) {
   if (!Array.isArray(body.files) || !body.files.length || body.files.length > 8 || body.files.reduce((n,f) => n + f.bytes, 0) > 7340032) throw new Error('Invalid pending file selection. Its journal is retained.');
   const entries = body.files.map(f => {
     if (!Number.isSafeInteger(f.bytes) || f.bytes < 0 || f.bytes > 6291456 || typeof f.data !== 'string' || f.data.length !== 4 * Math.ceil(f.bytes / 3)) throw new Error('Invalid pending file bytes. Its journal is retained.');
@@ -54,7 +61,7 @@ async function recoverDraft(directory, body) {
     const manifest = join(directory, 'request.json');
     const handle = await open(manifest, 'wx', 0o600);
     written.push(manifest);
-    try { await handle.writeFile(JSON.stringify(draftSummary(body), null, 2)); await handle.sync(); } finally { await handle.close(); }
+    try { await handle.writeFile(JSON.stringify({work_id, setup_digest, expected:body.expected, request_key:body.request_key, ...draftSummary(body)}, null, 2)); await handle.sync(); } finally { await handle.close(); }
   } catch (error) {
     for (const file of written.reverse()) await unlink(file).catch(()=>{});
     await rmdir(filesDir).catch(()=>{}); await rmdir(directory).catch(()=>{}); throw error;
@@ -120,6 +127,8 @@ async function run() {
     const message = args.shift(), next_action = isReturn ? args.shift() : '';
     if ((!isReturn && action !== 'request') || !message || (isReturn && !next_action) || !args.length || args.length > 8)
       throw new Error('Use list, read VERSION NAME [START_BYTE [FIND]], get VERSION NAME NEW_PATH, request MESSAGE FILE..., return REQUEST_VERSION MESSAGE NEXT FILE..., check or retry.');
+    const field = invalidExchangeText({kind:isReturn ? 'return' : 'request', message, next_action});
+    if (field) throw new Error('Provide a nonempty ' + field + ' of at most 500 characters without control characters.');
     const files = [];
     let total=0;
     for (const path of args) {
@@ -138,14 +147,35 @@ async function run() {
     } finally { await output.close(); await unlink(tmp); }
   }
   if (operation.work_id !== client.work_id || operation.setup_digest !== client.setupDigest) throw new Error('Pending save belongs to a different task.');
-  const result = await client.write(operation.body, action === 'check' || action === 'recover');
+  const resolving = action === 'check' || action === 'recover';
+  const field = invalidExchangeText(operation.body);
+  if (field && !resolving) throw new Error('The pending ' + field + ' is invalid. Use check or recover NEW_DIRECTORY.');
+  let result;
+  try {
+    result = await client.write(operation.body, resolving);
+  } catch (error) {
+    // Older clients journaled invalid text. Only a matching Web validation refusal
+    // and an authenticated catalog without this key permit explicit local recovery.
+    if (!field || !resolving || error.message !== 'invalid_relation_text') throw error;
+    const state = await client.list();
+    if (state.items.some(item => item.request_key === operation.body.request_key))
+      throw new Error('A saved exchange uses this request key. Its pending journal is retained.');
+    result = {outcome:'invalid_draft', head:state.head, draft:draftSummary(operation.body),
+      next_action:'The pending ' + field + ' was refused. Use recover NEW_DIRECTORY to preserve the draft before correcting it.'};
+    if (action === 'recover') {
+      await recoverDraft(args[0], operation);
+      await unlink(journal);
+      result.next_action = 'The refused draft and its exact files were recovered. Correct the text before making a new request or return.';
+    }
+    return result;
+  }
   // The private journal stays available after refusal or ambiguous transmission.
   const superseded = result.outcome === 'unknown' && result.head.revision > operation.body.expected.revision;
   if (superseded) {
     result.draft = draftSummary(operation.body);
     result.next_action = 'This save was not recorded. Review the current task, then use recover NEW_DIRECTORY to keep its request and exact files before a new submission.';
     if (action === 'recover') {
-      await recoverDraft(args[0], operation.body);
+      await recoverDraft(args[0], operation);
       result.next_action = 'The original request is in request.json and its files are in files/. Review the current task before sending again.';
     }
   } else if (action === 'recover' && result.outcome !== 'saved') {

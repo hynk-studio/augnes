@@ -239,6 +239,11 @@ node "$FILE_CLIENT" "$TASK" get 3 edited.md ./returned.md
 
 The owner can use `tasks` and `select` to bind by exact task title instead of transferring a browser setup. Duplicate titles require choosing the intended task in the browser. The reviewer sees only the configured task. Use listed version numbers and filenames. Downloads create a new explicit path.
 Sends keep an owner-only pending request beside the setup until confirmed.
+The CLI checks the 500-character limit for the message and return next action
+before keeping a pending request. If an older client kept text that the server
+refuses, `check` identifies the invalid draft. Use `recover NEW_DIRECTORY` to
+preserve the original text, request key, version and files before editing it.
+Recovery does not send a request or return.
 After a lost acknowledgement, `check` reads that same request and `retry`
 resends it unchanged. For an unrecorded request whose task moved on, `check` preserves the message and files.
 Use `recover NEW_DIRECTORY` to save its request as `request.json` and its original

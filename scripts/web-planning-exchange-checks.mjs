@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { mkdir, readFile, writeFile, symlink } from 'node:fs/promises';
+import { mkdir, readFile, readdir, writeFile, symlink } from 'node:fs/promises';
 import path from 'node:path';
 import { runCanonicalChild, canonicalChildAcceptanceFailure } from './canonical-child-runner.mjs';
 import { fixtureScope } from './web-planning-local-runtime.mjs';
@@ -37,9 +37,41 @@ export async function checkFileExchanges({ start, client, newWork, save, root, p
   await cli('select',[task.definition.goal,setup],true,'select');
   const alias = path.join(dir,'alias.md'); await symlink(originalPath,alias);
   await cli('symlink',['request','Read selected file',alias],false);
-  const request = await cli('request',['request','보류 건을 제외한 수량을 문서에 명시해 주세요.',originalPath,path.join(dir,zipName)]);
+  // A rejected message must not block the next send on the same selected setup.
+  const longText='📝'.repeat(501), pendingDir=setup+'.pending';
+  assert.match(await cli('invalid-message',['request',longText,originalPath],false),/message.*500/);
+  assert.deepEqual(await readdir(pendingDir),[]);
+  // Reproduce the pre-fix journal: even /resolve rejects its text before looking up the key.
+  const oldBody={expected:headBinding(task),request_key:randomUUID(),kind:'request',basis:null,
+    message:longText,next_action:'',files:[{name:originalName,bytes:original.length,digest:sha(original),
+      media_type:'text/markdown',data:original.toString('base64')}]};
+  const oldOperation={work_id:task.work_id,setup_digest:sha(await readFile(setup)),body:oldBody};
+  const oldJournal=path.join(pendingDir,oldBody.request_key);
+  await writeFile(oldJournal,JSON.stringify(oldOperation),{mode:0o600});
+  assert.equal((await cli('refused-check',['check'])).outcome,'invalid_draft');
+  assert.match(await cli('refused-retry',['retry'],false),/recover/);
+  await cli('refused-recovery-existing',['recover',dir],false);
+  assert.deepEqual(JSON.parse(await readFile(oldJournal)),oldOperation);
+  const rescued=path.join(dir,'refused-text-draft');
+  assert.equal((await cli('refused-recovery',['recover',rescued])).outcome,'invalid_draft');
+  const manifest=JSON.parse(await readFile(path.join(rescued,'request.json')));
+  assert.equal(manifest.message,longText);assert.equal(manifest.request_key,oldBody.request_key);
+  assert.deepEqual(manifest.expected,oldBody.expected);assert.equal(manifest.work_id,task.work_id);
+  assert.deepEqual(await readFile(path.join(rescued,'files',originalName)),original);
+  assert.deepEqual(await readdir(pendingDir),[]);assert.equal((await owner.request(route)).data.items.length,0);
+  // Count Unicode code points as the server does, not UTF-16 code units.
+  const request = await cli('request',['request','📝'.repeat(500),originalPath,path.join(dir,zipName)]);
   assert.equal(request.outcome,'saved');
   const sent = request.item; assert.equal(sent.ref.revision,2);
+  assert.match(await cli('invalid-return-action',['return','2','Reviewed',longText,originalPath],false),/next action.*500/);
+  assert.deepEqual(await readdir(pendingDir),[]);
+  // An already recorded key is never discarded based on a differently shaped local draft.
+  const alternate=path.join(dir,'saved-key.json');await cli('select-for-saved-key',[task.definition.goal,alternate],true,'select');
+  const collision={...oldOperation,setup_digest:sha(await readFile(alternate)),body:{...oldBody,request_key:sent.request_key}};
+  await mkdir(alternate+'.pending',{mode:0o700});const collisionPath=path.join(alternate+'.pending',sent.request_key);
+  await writeFile(collisionPath,JSON.stringify(collision),{mode:0o600});
+  assert.match(await cli('refuse-saved-key',['recover',path.join(dir,'saved-key-copy')],false,alternate),/saved exchange uses this request key/);
+  assert.deepEqual(JSON.parse(await readFile(collisionPath)),collision);
   assert.equal(sent.files[0].digest,sha(original)); assert.equal(sent.files[0].media_type,'text/markdown');
   assert.equal((await owner.request('/api/work/'+other.work_id+'/exchanges')).data.items.length,0);
   assert.equal(JSON.stringify((await owner.request(route)).data).includes(original.toString('base64')),false);
