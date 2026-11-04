@@ -11,7 +11,8 @@ export function readableExport(chain: Revision[], bodies: unknown): string {
   const contents = files.map(file => {
     const names = [...new Set(chain.flatMap(r => revisionFiles(r).filter(f => f.digest === file.digest).map(f => f.name)))];
     let text: string;
-    try {
+    if(file.bytes>262144)text="<p>Large original: use the exact version in File requests and returns for bounded text reading or a complete download. Complete bytes are included in the recovery file.</p>";
+    else try {
       text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(decodeFile(file.data));
       if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(text)) throw new Error("binary");
       if(chain.some(r=>r.files?.some(f=>f.name===SCENE_FILE && f.digest===file.digest))){

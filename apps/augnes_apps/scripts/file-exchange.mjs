@@ -11,7 +11,7 @@ async function selectedFile(path) {
   const input = await open(path, fs.O_RDONLY | fs.O_NOFOLLOW | fs.O_NONBLOCK);
   try {
     const stat = await input.stat();
-    if (!stat.isFile() || stat.size > 262144) throw new Error('Select a regular file of at most 256 KiB.');
+    if (!stat.isFile() || stat.size > 6291456) throw new Error('Select a regular file of at most 6 MiB.');
     const buffer = Buffer.alloc(stat.size + 1);
     let count = 0;
     while (count < buffer.length) {
@@ -20,10 +20,17 @@ async function selectedFile(path) {
       count += bytesRead;
     }
     if (count !== stat.size) throw new Error('Selected file changed while reading.');
-    const media_type = ({'.md':'text/markdown','.markdown':'text/markdown','.txt':'text/plain','.zip':'application/zip'})[extname(path).toLowerCase()] ?? null;
+    const media_type = ({'.md':'text/markdown','.markdown':'text/markdown','.txt':'text/plain','.log':'text/plain','.zip':'application/zip'})[extname(path).toLowerCase()] ?? null;
     const bytes = buffer.subarray(0,count);
     return { name: basename(path), media_type, bytes: count, digest: digest(bytes), data: bytes.toString('base64') };
   } finally { await input.close(); }
+}
+// Match the Web write contract before creating a journal that /resolve cannot parse.
+function invalidExchangeText({kind, message, next_action}) {
+  const invalid = (value, required) => typeof value !== 'string' || [...value].length > 500 ||
+    /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(value) || (required && !value.trim());
+  if (invalid(message, true)) return 'message';
+  if (invalid(next_action, kind === 'return')) return 'next action';
 }
 function draftSummary(body) {
   return { kind: body.kind, basis: body.basis, message: body.message, next_action: body.next_action,
@@ -31,10 +38,10 @@ function draftSummary(body) {
 }
 // Only an explicitly chosen, new private folder receives local files. The request
 // manifest is written last. A failed export never consumes its pending journal.
-async function recoverDraft(directory, body) {
-  if (!Array.isArray(body.files) || !body.files.length || body.files.length > 8 || body.files.reduce((n,f) => n + f.bytes, 0) > 524288) throw new Error('Invalid pending file selection. Its journal is retained.');
+async function recoverDraft(directory, {work_id, setup_digest, body}) {
+  if (!Array.isArray(body.files) || !body.files.length || body.files.length > 8 || body.files.reduce((n,f) => n + f.bytes, 0) > 7340032) throw new Error('Invalid pending file selection. Its journal is retained.');
   const entries = body.files.map(f => {
-    if (!Number.isSafeInteger(f.bytes) || f.bytes < 0 || f.bytes > 262144 || typeof f.data !== 'string' || f.data.length !== 4 * Math.ceil(f.bytes / 3)) throw new Error('Invalid pending file bytes. Its journal is retained.');
+    if (!Number.isSafeInteger(f.bytes) || f.bytes < 0 || f.bytes > 6291456 || typeof f.data !== 'string' || f.data.length !== 4 * Math.ceil(f.bytes / 3)) throw new Error('Invalid pending file bytes. Its journal is retained.');
     if (typeof f.name !== 'string' || basename(f.name) !== f.name || !f.name || /[\\/\x00-\x1f]/.test(f.name) || f.name === '.' || f.name === '..')
       throw new Error('The pending file has an unsafe name. Its journal is retained.');
     const bytes = Buffer.from(f.data, 'base64');
@@ -54,7 +61,7 @@ async function recoverDraft(directory, body) {
     const manifest = join(directory, 'request.json');
     const handle = await open(manifest, 'wx', 0o600);
     written.push(manifest);
-    try { await handle.writeFile(JSON.stringify(draftSummary(body), null, 2)); await handle.sync(); } finally { await handle.close(); }
+    try { await handle.writeFile(JSON.stringify({work_id, setup_digest, expected:body.expected, request_key:body.request_key, ...draftSummary(body)}, null, 2)); await handle.sync(); } finally { await handle.close(); }
   } catch (error) {
     for (const file of written.reverse()) await unlink(file).catch(()=>{});
     await rmdir(filesDir).catch(()=>{}); await rmdir(directory).catch(()=>{}); throw error;
@@ -82,7 +89,17 @@ async function run() {
   }
   if (!setup) throw new Error('List tasks or choose a private task setup.');
   const client = await openFileTask(setup);
+  if (action === 'context') return client.planning.current();
+  if (action === 'history') {
+    const revisions=await client.planning.history();
+    if(!args.length)return revisions.map(({revision,fingerprint,recorded_at,definition})=>({revision,fingerprint,recorded_at,goal:definition.goal}));
+    const match=revisions.find(r=>String(r.revision)===args[0]);
+    if(args.length!==1 || !match)throw Error('Choose a listed revision of this task.');
+    return match;
+  }
   if (action === 'list') return { project: client.project, ...await client.list() };
+  if (action === 'read' && args.length>=2 && args.length<=4)
+    return client.readPage(Number(args[0]),args[1],Number(args[2]??0),args[3]??'');
   if (action === 'get' && args.length === 3) {
     const { file, bytes } = await client.get(Number(args[0]), args[1]);
     const output = await open(args[2], 'wx', 0o600);
@@ -104,13 +121,21 @@ async function run() {
     if (pending.length) throw new Error('Check the previous pending file save first.');
     const state = await client.list();
     const isReturn = action === 'return';
-    const basis = isReturn ? state.items.find(r => r.kind === 'request' && r.ref.revision === Number(args.shift()))?.ref : null;
+    const requestVersion = isReturn ? Number(args.shift()) : null;
+    const basis = isReturn ? state.items.find(r => r.kind === 'request' && r.ref.revision === requestVersion)?.ref : null;
     if (isReturn && !basis) throw new Error('Select a listed request version.');
     const message = args.shift(), next_action = isReturn ? args.shift() : '';
     if ((!isReturn && action !== 'request') || !message || (isReturn && !next_action) || !args.length || args.length > 8)
-      throw new Error('Use list, get VERSION NAME NEW_PATH, request MESSAGE FILE..., return REQUEST_VERSION MESSAGE NEXT FILE..., check or retry.');
+      throw new Error('Use list, read VERSION NAME [START_BYTE [FIND]], get VERSION NAME NEW_PATH, request MESSAGE FILE..., return REQUEST_VERSION MESSAGE NEXT FILE..., check or retry.');
+    const field = invalidExchangeText({kind:isReturn ? 'return' : 'request', message, next_action});
+    if (field) throw new Error('Provide a nonempty ' + field + ' of at most 500 characters without control characters.');
     const files = [];
-    for (const path of args) files.push(await selectedFile(path));
+    let total=0;
+    for (const path of args) {
+      const f=await selectedFile(path);total+=f.bytes;
+      if(total>7340032)throw Error('Choose up to 7 MiB of files together.');
+      files.push(f);
+    }
     operation = { work_id: client.work_id, setup_digest: client.setupDigest, body: { expected: state.head, request_key: randomUUID(),
       kind: isReturn ? 'return' : 'request', basis, message, next_action, files } };
     journal = join(pendingDir,operation.body.request_key);
@@ -122,14 +147,35 @@ async function run() {
     } finally { await output.close(); await unlink(tmp); }
   }
   if (operation.work_id !== client.work_id || operation.setup_digest !== client.setupDigest) throw new Error('Pending save belongs to a different task.');
-  const result = await client.write(operation.body, action === 'check' || action === 'recover');
+  const resolving = action === 'check' || action === 'recover';
+  const field = invalidExchangeText(operation.body);
+  if (field && !resolving) throw new Error('The pending ' + field + ' is invalid. Use check or recover NEW_DIRECTORY.');
+  let result;
+  try {
+    result = await client.write(operation.body, resolving);
+  } catch (error) {
+    // Older clients journaled invalid text. Only a matching Web validation refusal
+    // and an authenticated catalog without this key permit explicit local recovery.
+    if (!field || !resolving || error.message !== 'invalid_relation_text') throw error;
+    const state = await client.list();
+    if (state.items.some(item => item.request_key === operation.body.request_key))
+      throw new Error('A saved exchange uses this request key. Its pending journal is retained.');
+    result = {outcome:'invalid_draft', head:state.head, draft:draftSummary(operation.body),
+      next_action:'The pending ' + field + ' was refused. Use recover NEW_DIRECTORY to preserve the draft before correcting it.'};
+    if (action === 'recover') {
+      await recoverDraft(args[0], operation);
+      await unlink(journal);
+      result.next_action = 'The refused draft and its exact files were recovered. Correct the text before making a new request or return.';
+    }
+    return result;
+  }
   // The private journal stays available after refusal or ambiguous transmission.
   const superseded = result.outcome === 'unknown' && result.head.revision > operation.body.expected.revision;
   if (superseded) {
     result.draft = draftSummary(operation.body);
     result.next_action = 'This save was not recorded. Review the current task, then use recover NEW_DIRECTORY to keep its request and exact files before a new submission.';
     if (action === 'recover') {
-      await recoverDraft(args[0], operation.body);
+      await recoverDraft(args[0], operation);
       result.next_action = 'The original request is in request.json and its files are in files/. Review the current task before sending again.';
     }
   } else if (action === 'recover' && result.outcome !== 'saved') {

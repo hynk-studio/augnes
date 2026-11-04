@@ -1,6 +1,6 @@
 // Synthetic fixture only: production proof, authority, edge and fresh reader.
 import assert from "node:assert/strict";
-import {chmodSync,cpSync,existsSync,mkdirSync,readFileSync,renameSync,rmSync,writeFileSync} from "node:fs";
+import {chmodSync,cpSync,existsSync,mkdirSync,readFileSync,renameSync,rmSync,statSync,writeFileSync} from "node:fs";
 import path from "node:path";
 import {execFileSync} from "node:child_process";
 import {fileURLToPath} from "node:url";
@@ -12,6 +12,7 @@ import {createCanonicalTestResourceRoot,beginCanonicalTestResourceUse,settleCano
 import {runCanonicalChild} from "../canonical-child-runner.mjs";
 import {finalizeReceipt,inspectReceiptForDecision} from "../local-canonical-receipt.mjs";
 import {createPrivateReviewExport,inspectPrivateReviewExport} from "../local-canonical-review-export.mjs";
+import {runBrowserRevisionControls, browserFixtureReceipt} from "./local-canonical-browser-revision.mjs";
 import {baseReceipt} from "./local-canonical-receipt-v3.mjs";
 
 const self=fileURLToPath(import.meta.url), quiet={write(){}}, clone=v=>structuredClone(v);
@@ -23,7 +24,11 @@ const transport=(c,mutate=v=>v)=>createGitHubObserverAuthorizationTransport(999,
   return mutate(clone(e.includes("/reviews/")?(e.endsWith("/"+c.authority.settlementReview?.id)?c.authority.settlementReview:c.authority.review):e.includes("/comments/")?c.authority.grant:e.endsWith("/pulls/999")?c.authority.pr:{permission:"admin",user:{login:"synthetic-fixture"}}),e);
 }});
 const proof=c=>readSourceCorrectionProof(c.file,c.checkout);
-const auth=(c,p,mutate)=>authorizeReviewedRevision(p,{transport:transport(c,mutate)});
+const auth=(c,p,mutate)=>authorizeReviewedRevision(p,{transport:transport(c,mutate), ...(c.authority.contractReview ? {
+  reviewTransport: createGitHubObserverAuthorizationTransport(c.authority.contractPr,{runner:async req=>{
+    assert(req.args[1].endsWith("/pulls/"+c.authority.contractPr+"/reviews/"+p.authorization.contract_review.id));
+    return (mutate??(v=>v))(clone(c.authority.contractReview),req.args[1]);
+  }})} : {})});
 const begin=(c,p,a,extra={})=>beginAttempt({anchorRoot:c.anchor,repositoryRoot:c.checkout,checkoutOwner:c.owner,branch:p.branch,head:p.head,tree:p.tree,acceptedMain:p.base,runId:"revision-"+p.commission.ordinal,contractFingerprint:digest("contract"),sourceCorrection:p,revisionAuthorization:a,revisionInputs:c.inputs,revisionLive:c.live,...extra});
 const stock=(c,r,a)=>inspectAttemptRecords({anchorRoot:c.anchor,repositoryRoot:c.checkout,receipt:r,revisionAuthorization:a,revisionInputs:c.inputs,revisionLive:c.live});
 const natural={exit_code:0,signal:null,timed_out:false,cancelled:false,spawn_error_code:null,exit_observed:true,streams_closed:true,cleanup_completed:true,remaining_owned_processes:0,termination_reason:"natural_exit",duration_ms:1};
@@ -40,7 +45,7 @@ function receipt(c,a,disposition="product_failure"){
   phases:[{id:"integration",status:disposition==="completed_success"?"pass":"failure"}],outcome:{disposition,safety:fault?"blocked":"preserved_within_observed_scope",first_fault:fault},checkout_ownership:{released:true},capacity_ownership:{released:true},
   cleanup:{completed:true,remaining_owned_processes:0,companion_service:{restored:true},isolated_resources:{completed:true}}});}
 const storeReceipt=(c,r)=>write(path.join(c.checkout,".augnes-local-verification/receipts",r.run.id+".json"),r);
-function setup(root){
+function setup(root,browser=false){
   const c={checkout:path.join(root,"checkout"),anchor:path.join(root,"anchor"),branch:"codex/reviewed-revision",root};
   mkdirSync(c.checkout);mkdirSync(c.anchor);c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout});c.env=buildCanonicalChildEnvironment({temporaryRoot:root});
   c.git=args=>execFileSync("git",args,{cwd:c.checkout,env:c.env,timeout:5000,maxBuffer:1024*1024,stdio:["ignore","pipe","pipe"]});
@@ -48,14 +53,15 @@ function setup(root){
   c.git(["init","--quiet","-b",c.branch]);c.base=c.commit(1);c.baseTree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();
   c.inputs={contract:"augnes.local-canonical-runtime-inputs.v1",node:{location_fingerprint:digest("current-node"),observation:{present:true,sha256:digest("node"),metadata:{mode:"33261",uid:"1",gid:"1",device:"1",inode:"1",links:"1",bytes:"4",mtime_ns:"1",ctime_ns:"1"},permission_identity:digest("node permissions"),executable_identity_policy:"shared-posix-v1"}},
     headers:{location_fingerprint:digest("headers"),observation:{contract:"augnes.local-canonical-node-headers.v1",present:true,location_fingerprint:digest("headers"),inventory_sha256:digest("inventory"),content_sha256:digest("content"),permission_sha256:digest("permissions"),entries:2,bytes:10}}};
-  const a=beginAttempt({anchorRoot:c.anchor,repositoryRoot:c.checkout,checkoutOwner:c.owner,branch:c.branch,head:c.base,tree:c.baseTree,runId:"root-failure",contractFingerprint:digest("root")});
-  const r=receipt(c,a);storeReceipt(c,r);finishAttempt(a,{receiptFingerprint:r.integrity.content_fingerprint,disposition:"product_failure",cleanupComplete:true});
+  if(browser){c.acceptedHead=c.commit(2);c.acceptedTree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();}
+  const a=beginAttempt({anchorRoot:c.anchor,repositoryRoot:c.checkout,checkoutOwner:c.owner,branch:c.branch,head:c.acceptedHead??c.base,tree:c.acceptedTree??c.baseTree,runId:"root-failure",contractFingerprint:digest("root")});
+  const r=browser?browserFixtureReceipt(c,a):receipt(c,a);storeReceipt(c,r);finishAttempt(a,{receiptFingerprint:r.integrity.content_fingerprint,disposition:r.outcome.disposition,cleanupComplete:true});
   c.legacyRoot=path.join(c.anchor,".augnes-local-verification/families",a.family_id);
   c.prior=r;
   const completion=path.join(c.legacyRoot,"completion-1.json");
   write(completion,{...read(completion),finished_at:time(-60000)});
   assert.equal(reconstructAttemptTip({anchorRoot:c.anchor,branch:c.branch}).attempt_id,a.attempt_id);
-  c.acceptedHead=c.commit(2);c.acceptedTree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();c.commit(3);
+  if(!browser){c.acceptedHead=c.commit(2);c.acceptedTree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();}c.commit(3);
   return c;
 }
 function prepare(c,ordinal=1){
@@ -123,12 +129,31 @@ async function prepareSettlement(c) {
 }
 
 if(process.argv[2]==="--cold"){
-  const c=read(process.argv[3]),p=proof(c),a=await auth(c,p);assert(stock(c,c.receipt,a));console.log("fresh reader PASS");
+  const c=read(process.argv[3]),p=proof(c),a=await auth(c,p);
+  if (c.stockContext) {
+    const r=read(path.join(c.checkout,".augnes-local-verification/receipts",c.stockContext.expectedRunId+".json"));
+    const git=args=>execFileSync("git",args,{cwd:c.checkout,encoding:"utf8",timeout:5000}).trim();
+    const currentIdentity={...c.stockContext.currentIdentity,head_sha:git(["rev-parse","HEAD"]),branch:git(["symbolic-ref","--short","HEAD"])};
+    const result=inspectReceiptForDecision(r,{...c.stockContext,currentIdentity,currentAttemptRecordsValid:stock(c,r,a),
+      currentInputStateValid:digest(c.inputs)===p.inputs.identity_sha256});
+    write(c.stockOutput,result);
+    assert.equal(result.valid_deciding_evidence,c.expectedPass,JSON.stringify(result.issues));
+  } else assert(stock(c,c.receipt,a));
+  console.log("fresh reader PASS");
 }else if(process.argv[2]==="--race"){
   const c=read(process.argv[3]);c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout});
   try{const p=proof(c),a=await auth(c,p);write(c.ready,"ready");while(!existsSync(c.go))await new Promise(r=>setTimeout(r,5));
     try{begin(c,p,a);console.log("admitted");}catch(e){assert(["EEXIST","ENOENT","attempt_latest_tip_required"].includes(e.code),e.message);console.log("refused");}
   }finally{releaseCheckoutVerificationOwnership(c.owner,c.checkout);}
+}else if(process.argv[2]==="--run-browser-fixtures"){
+  const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
+  const c=setup(owner.root,true);
+  try {
+    await runBrowserRevisionControls(c,{prepare,artifact,read,write,proof,auth,begin,stock,receipt,storeReceipt,baseReceipt,
+      fresh:async packet=>{const result=await runCanonicalChild({command:process.execPath,args:[self,"--cold",packet],cwd:c.checkout,env:c.env,
+        suite:"reviewed-revision",label:"browser revision fresh reader",timeoutMs:10000,stdout:quiet,stderr:process.stderr});
+        assert(result.exit_observed && result.streams_closed && result.cleanup_completed && result.remaining_owned_processes===0);assert.equal(result.exit_code,0);}});
+  }finally{releaseCheckoutVerificationOwnership(c.owner,c.checkout);settleCanonicalTestResourceUse(owner,{exit_observed:true,streams_closed:true,cleanup_completed:true,remaining_owned_processes:0});assert(cleanupCanonicalTestResources([owner])[0].completed);}
 }else if(process.argv[2]==="--run-settlement-fixtures"){
   const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
   const c=setup(owner.root);let children=0;
@@ -337,7 +362,11 @@ if(process.argv[2]==="--cold"){
       focused.prospective_dependencies=[observePreparedDependencyInputs({repositoryRoot:dependencyCase.checkout,phaseId:"dependencies-root"})];
       dependencyCase.proof.focused=artifact(dependencyCase,"focused.json",focused);write(dependencyCase.file,dependencyCase.proof);
       const q3=proof(dependencyCase),auth3=await auth(dependencyCase,q3),edge=path.join(path.dirname(settled),"correction-successor.json");
-      chmodSync(installed,0o777);assert.throws(()=>begin(dependencyCase,q3,auth3),/dependency_input_entry_unsafe/);chmodSync(installed,0o755);assert(!existsSync(edge));
+      const originalMode=statSync(installed).mode & 0o7777;
+      chmodSync(installed,0o777);
+      try { assert.throws(()=>begin(dependencyCase,q3,auth3),/dependency_input_entry_unsafe/); }
+      finally { chmodSync(installed,originalMode); }
+      assert(!existsSync(edge));
       renameSync(installed,installed+"-unavailable");assert.throws(()=>begin(dependencyCase,q3,auth3),{code:"ENOENT"});renameSync(installed+"-unavailable",installed);assert(!existsSync(edge));
       const newAttempt=begin(dependencyCase,q3,auth3),newReceipt=receipt(dependencyCase,newAttempt,"completed_success");storeReceipt(dependencyCase,newReceipt);finishAttempt(newAttempt,{receiptFingerprint:newReceipt.integrity.content_fingerprint,disposition:"completed_success",cleanupComplete:true});assert(stock(dependencyCase,newReceipt,auth3));
       assert.equal(historical.outcome.safety,"blocked");assert.equal(read(settled).receipt_fingerprint,historical.integrity.content_fingerprint);

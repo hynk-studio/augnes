@@ -1,8 +1,9 @@
 // Shared by the private Web editor and the stdio reviewer. Keep untouched
 // source bytes, including a BOM and line endings, outside the replacement.
+export const editableExchangeName = name => /\.(?:md|markdown|txt)$/i.test(name);
 export function decodeExchangeText(bytes, name) {
-  if (!/\.(?:md|markdown|txt)$/i.test(name) || bytes.length > 32768)
-    throw new Error('Use the private Web download for this file. Text editing supports UTF-8 up to 32 KiB.');
+  if (!editableExchangeName(name) || bytes.length > 32768)
+    throw new Error('Use a byte offset or search to read larger text, or download the original. Whole-text editing supports UTF-8 up to 32 KiB.');
   const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
   if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/u.test(text))
     throw new Error('Use the private Web download for non-text material.');

@@ -8,7 +8,7 @@ import { browserStoryJourney } from './browser-web-planning-story.mjs';
 import { browserFileJourney } from './browser-web-planning-files.mjs';
 import { browserFileExchanges } from './browser-web-planning-exchanges.mjs';
 import { browserOrdinaryFileJourney } from './browser-web-planning-ordinary-files.mjs';
-import { browserHistoryJourney } from './browser-web-planning-history.mjs';
+import { browserHistoryJourney, browserRetainedNotes, browserIndependentNotes, browserConflictSource } from './browser-web-planning-history.mjs';
 import { advancedClock } from './web-planning-history-checks.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -92,6 +92,9 @@ async function intercept(c,p,origin){
  }
  if(u===origin+'/api/works'&&c.listFailure){
    const failure=c.listFailure;c.listFailure=null;c.injectedListFailure=failure;
+   if(failure==='partial')return c.send('Fetch.fulfillRequest',{requestId:p.requestId,responseCode:200,responseHeaders:[
+     {name:'Content-Type',value:'application/json'},{name:'X-Web-Planning-Response',value:'1'}],
+     body:Buffer.from(JSON.stringify({items:[{work_id:'incomplete',goal:'Truncated response'}],next:null})).toString('base64')});
    if(failure==='http')return c.send('Fetch.fulfillRequest',{requestId:p.requestId,responseCode:503,responseHeaders:[{name:'Content-Type',value:'application/json'},{name:'Cache-Control',value:'no-store'}],body:Buffer.from('{"error":"storage_unavailable"}').toString('base64')});
    if(failure==='transport'){expectedFailures.add(p.networkId);return c.send('Fetch.failRequest',{requestId:p.requestId,errorReason:'ConnectionClosed'});}
    assert.equal(failure,'denied'); // Let the real local ingress reject the missing cookie.
@@ -164,7 +167,7 @@ async function retainedAcknowledgement(c,n,failure){
  const traffic=recovery.assert([{target_id:c.targetId,method:'GET',path:'/api/works',body:undefined}]);
  assert(traffic.capacity>0,'list recovery overlaps the independent capacity scheduler');
  assert.equal(await revisionCount(),stored);assert.equal(await c.eval('saved.revision'),n);
- assert.equal(await visible(c,'refresh-list'),false);assert.match(await c.eval("$('status').textContent"),/Work list refreshed/);
+ assert.equal(await visible(c,'refresh-list'),true,'refresh stays available to discover later replies');assert.match(await c.eval("$('status').textContent"),/Work list refreshed/);
  acknowledgementChecks.push({reply:c.acknowledgedReply.path.endsWith('/resolve')?'resolve':'save',failure,revision:n,list_recovery_requests:1,additional_writes:0,stored_revisions:stored});
 }
 async function closeLocalRuntime(){for(const c of clients)c.interceptions.mark('runtime_close_requested',{runtime_origin:local.origin});await local.close();}
@@ -291,11 +294,15 @@ try {
  console.log('web-planning-browser: direct complete branch and comparison-recovery journey');
  await browserCapacityJourney({a:d,click,set,settled,saved,wait,navigate,origin:directOrigin,downloads:path.join(root,'capacity-downloads'),requests,responses,checks});
  await browserFileJourney({a:d,debug,origin:directOrigin,page,click,set,settled,saved,wait,navigate,requestsOnly,root,checks});
+ await browserRetainedNotes({a:d,click,set,settled,saved,wait,checks});
+ const noteTrace=await browserIndependentNotes({a:d,click,set,settled,saved,wait,checks});
+ const competing=await page(debug,directOrigin);await navigate(competing,directOrigin+'/');await wait(()=>competing.eval("typeof openWork==='function'"),'second editor ready');
+ await browserConflictSource({a:d,b:competing,click,set,settled,saved,wait,checks,trace:noteTrace});
  await browserHistoryJourney({a:d,debug,origin:directOrigin,page,click,set,settled,saved,wait,navigate,checks,
    restart:async()=>{for(const c of clients)await navigate(c,'about:blank');const bindings=local.env;await closeLocalRuntime();local=null;
      local=await startLocal({...directOptions,port:Number(new URL(directOrigin).port),bindings,code:advancedClock(directOptions.code)});}});
  for(const boundary of ['redirect','challenge']){
-   d.accessBoundary=boundary;await click(d,'saved-context');await settled(d);
+   d.accessBoundary=boundary;await click(d,boundary==='challenge'?'history':'saved-context');await settled(d);
    assert.equal(await d.eval("accessLost&&work===null&&saved===null&&comparison===null&&!document.getElementById('context-view')&&!document.body.innerText.includes('Access login challenge')"),true);
    assert.equal(await d.eval("request('/api/works').then(()=>false,e=>e.message==='access_denied')"),true);
    await accessLogin(d);await reopen(d);await settled(d);
@@ -330,7 +337,7 @@ try {
  await browserOrdinaryFileJourney({a:ordinary,debug,origin:ordinaryOrigin,page,click,set,settled,saved,wait,navigate,root,checks,requests,requestsOnly,barrier:sceneResponseBarrier,
    replaceRuntime:async replacement=>{for(const c of clients)await navigate(c,'about:blank');const bindings=local.env;await closeLocalRuntime();local=null;if(replacement)ordinaryDestination++;local=await startLocal({...ordinaryOptions(),bindings});},
    countRows:async()=>({revisions:(await local.db.prepare('SELECT count(*) n FROM web_planning_revision').first()).n,files:(await local.db.prepare('SELECT count(*) n FROM web_planning_file').first()).n})});
- await browserFileExchanges({c:ordinary,origin:ordinaryOrigin,click,set,saved,settled,wait,navigate,root,checks,requestsOnly});
+ await browserFileExchanges({c:ordinary,origin:ordinaryOrigin,click,set,saved,settled,wait,navigate,root,checks,requestsOnly,barrier:sceneResponseBarrier,requests});
  assert.deepEqual(interceptionErrors,[]);
  assert.equal(exceptions,0);assert.equal(external,0);assert.equal(unexpectedFailures,0);assert.equal(expectedFailures.size,0);
  console.log(JSON.stringify({web_planning_browser_checks:checks,acknowledgement_checks:acknowledgementChecks,actual_agent_read:false,sites_ingress_verified:false,cloudflare_access_hosted_verified:false,external_requests:external,script_exceptions:exceptions}));

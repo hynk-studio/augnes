@@ -30,6 +30,118 @@ were byte-identical before/after. Sign-in and operator repairs, limited security
 observations and lack of general time-saving evidence remain. #1354's separate
 Sites rollout is deferred; its resources and evidence are untouched.
 
+## Find a task to continue
+
+In **Your work**, each saved title opens that exact task. Its version and save
+time describe the observed work. Expand the file counts to see which requests
+are awaiting a return, which files came back, and what the workspace author
+recorded on each request or return. For example, a poetry shortlist can still
+await permission for one translation after another poem has been returned.
+A next action belongs to its recorded version; a returned file does not mean
+that someone approved it or that the whole task is finished.
+
+**Refresh work list** reads the first page again without changing the editor or
+its save base. **More work** continues by task identity. Opening a request or
+return reads the selected task again and focuses its exact version; later replies
+can already be present. An unavailable list is labelled as such, and loss of
+access clears private content.
+
+The authenticated `GET /api/works` and the project client's `tasks` command
+provide the same additive `overview` per item. It counts unanswered requests,
+return versions and returned file entries. It includes the first two unanswered
+requests and the two most recent returns with their original requests, exact
+version references, stored author references, file descriptors and recorded
+text. The full exchange reader remains available for the selected task.
+Attribution is to the saved workspace author; there is no per-person read or
+notification state.
+
+On the existing scoped index, discovery seeks up to eleven task IDs and reads
+one bounded metadata observation for each of at most ten displayed works.
+It checks the seals of the head and exchange records that supply the displayed
+facts, prior revision links, scope, completeness, and stored file membership.
+Other historical planning rows supply metadata only. It does not reconstruct
+their notes or comparisons, load scene or attachment bodies, or write state.
+The ordinary task, download, history and recovery readers retain their full
+validation. No storage format, migration or new status record is required.
+
+
+## Use saved notes in your current work
+
+Open the destination work. Under **History, export and erasure**, choose
+**Read history** for an earlier version of this work, or **Choose notes from
+another work** for an independent work in this private project. Choose a
+revision to see its whole notes, source descriptions, observation times,
+required notes and exact saved references. Each note says whether its text and
+attribution match the current draft. Only the chosen revision's notes are
+expanded; the history reader does not download attached file bodies. The picker
+starts at the version you chose from the list, even if the source has advanced.
+**Inspect recorded source note** follows one exact earlier relationship on demand,
+including from the latest saved version in a conflict comparison. Inspecting it
+leaves your draft and its base unchanged. If matching text comes from another
+occurrence, **Use this source occurrence** records the version you chose. A
+compatible note used only as a prerequisite keeps its own recorded source.
+
+Choose **Use unchanged note**, or **Write an adaptation** and enter your
+interpretation. The editor adds the chosen note and any required notes that
+are missing. It keeps the current goal, files and other draft edits. An exact
+note already in the selection is not duplicated or relabelled. To link a
+manually retyped draft note to history, remove that row and choose the saved
+note. If an existing selection has incompatible required context, review it
+before trying again. **Review changes before saving** and the capacity display
+show the proposal; **Save** appends against the reviewed current version.
+
+An unchanged copy retains its original text, source attribution, trust class
+and observation time. An adaptation is a new interpretation attributed to the
+configured current workspace author. Neither choice renews the source or grants
+approval or execution authority. Both use the existing material `from` link
+to the chosen work, revision, fingerprint and note reference. The linked
+revision retains its own origin and earlier adaptation links. B owns its saved
+note text, attribution, represented conditions and references. Its export does
+not archive A’s unselected notes or its history. If A is erased, its original
+can no longer be inspected; B still opens, exports, restores and continues.
+No branch, file exchange, or native import is created by selecting notes. No new storage
+format or migration is needed. Capacity remains 12,000 bytes for normalized
+Web selected notes; relation, file and cumulative history limits are separate.
+
+### Read and prepare the same draft from a local client
+
+Use the existing [authenticated task setup](#connect-a-local-or-hosted-assistant).
+The task CLI's `context`, `history` and `history VERSION` commands read the
+current revision, revision list and exact saved contents. For a draft, use
+the task client's ordinary capacity, signed ticket, save and resolve methods:
+
+```js
+import { openFileTask } from './apps/augnes_apps/scripts/web-file-client.mjs';
+import { planningDraft, selectHistoricalNote } from './apps/augnes_apps/scripts/planning-notes.mjs';
+
+const { planning } = await openFileTask(setupPath);
+const current = await planning.current();
+const expected = { revision: current.revision, fingerprint: current.fingerprint };
+// planning.tasks(cursor) pages through the same authenticated project.
+const history = await planning.history(chosenWorkId); // omit the ID for this work
+const earlier = history.find(r => r.revision === chosenRevision && r.fingerprint === chosenFingerprint);
+if (!earlier) throw Error('Chosen revision unavailable');
+// Inspect earlier.sources and earlier.relations?.materials, including dependencies.
+const draft = selectHistoricalNote(planningDraft(current), current, earlier, chosenSourceRef);
+// Pass your new text as the last argument to adapt instead. Review any other
+// draft edits and the capacity result before preparing this exact request.
+const capacity = await planning.capacity(expected, draft);
+if (!capacity.fits) throw Error(JSON.stringify(capacity.issues));
+const pending = await planning.prepare(expected, draft);
+// Keep pending privately until acknowledged. After an uncertain response use
+// planning.resolve(pending); a retry uses the same pending request.
+const result = await planning.save(pending);
+```
+
+An earlier occurrence of a repeated note remains selectable by its exact
+revision. The server checks the immutable source in the authenticated project;
+a matching label or revision number from another work is not proof. The
+destination head must still match. A source advance leaves the chosen revision
+usable; erasure before a new save refuses the whole selection and its files.
+For a draft selecting another work, use a material-bound ticket. Keep the exact
+pending draft: its signed input and the saved destination revision can resolve
+a lost response even after the source disappears. Reading a failed history request as an empty list is unsupported.
+
 ## Ask for work on files and collect the return
 
 Open your private project, select a task by title, or choose **New work** and save
@@ -43,12 +155,26 @@ does not retarget a pending request. The configured project can have a friendly
 `PROJECT_NAME`. Each private workspace entry still admits one configured owner
 and project. An assistant can work for that owner.
 
-Choose **Read text** beside a Markdown or plain-text version to read its verified
-UTF-8 contents on the private page (up to 32 KiB). For an unanswered request
-with one such file, choose **Edit this text**, replace one unique passage, and
-describe the change and next action. **Send returned files** saves a new version
-with the original filename. The text stays in the tab while editing. Other
-formats and multi-file returns use the file picker.
+Choose **Read text** beside a Markdown, text, log, JSON (`.json`), patch
+(`.patch`) or JavaScript module (`.mjs`) file. Logs, JSON, patches, modules
+and larger text documents open in pages. The reader shows the original text,
+even with no MIME type; it does not format JSON, apply patches or run code.
+Enter an original **byte** position or find a literal phrase from that
+position. Each page identifies its exact version, digest and half-open byte
+range, total bytes, and whether another page follows. A search miss means no
+match from that offset. A final page can still be partial inspection. Pages
+contain at most 8,192 bytes and end on a UTF-8 character boundary, even on very
+long lines. Search is case-sensitive (up to 256 UTF-8 bytes). A position inside
+a character is refused. BOM, line endings and terminal escapes remain inert;
+malformed UTF-8 or non-text data is refused. Complete downloads always remain
+available to an authorized reader, including opaque ZIPs.
+
+For one unanswered small Markdown or text file (up to 32 KiB), **Edit this
+text** replaces one unique passage and returns a new version with the original
+filename. For a large or multi-file request, **Return edited files** also lets
+you write a short review as `review.md` (32 KiB) or attach selected files.
+Describe what changed and the next action. The original remains available at
+its own revision.
 
 The writer verifies the supplied length and SHA-256 against each uploaded body.
 Each request or return appends one revision to this work. A return names the
@@ -71,12 +197,21 @@ in the existing quiesced empty replacement store. **Readable history** includes
 the messages, basis and next action. Older readers refuse the v0.5 exchange
 revision/export. Existing works without exchanges retain their original formats.
 
-A submission supports up to 8 distinct filenames, 256 KiB each and 512 KiB
-together. Files can be empty. Every work still shares its existing history
-budget of 16 distinct bodies / 1 MiB across ordinary and exchange files. Repeated
-bytes are deduplicated. These bounds suit small reviews and opaque attachments
-such as ZIP. Larger evidence bundles require a different approved retention
-path. Nothing is split, converted, extracted or clipped automatically.
+An exchange accepts 1–8 distinct filenames, up to **6 MiB per file and 7 MiB
+together**. Empty files are allowed. A work with exchanges retains **16 unique
+digests / 8 MiB** across all its ordinary and exchanged files; identical bytes
+are counted once. Ordinary file selections retain their 256 KiB per file and
+512 KiB selection budgets, and an ordinary-only work retains its 1 MiB history
+budget. Planning notes and cumulative revision budgets are separate.
+
+The save/resolve JSON is limited to 10,000,000 bytes. Each file is verified
+before the existing atomic head check and write. Files over 256 KiB occupy
+aligned 192 KiB slices in D1, all committed with the manifest in one transaction.
+There are no pending server chunks to reserve or expire. A broken request has
+no completed prefix. On an uncertain response, check the original request;
+do not send a replacement. Work erasure removes the scoped files and their
+slices. Every text read verifies the full retained file's digest and UTF-8,
+then returns only the specified page; this is bounded by the per-file limit.
 
 ### Connect a local or hosted assistant
 
@@ -107,6 +242,11 @@ node "$FILE_CLIENT" "$TASK" get 3 edited.md ./returned.md
 
 The owner can use `tasks` and `select` to bind by exact task title instead of transferring a browser setup. Duplicate titles require choosing the intended task in the browser. The reviewer sees only the configured task. Use listed version numbers and filenames. Downloads create a new explicit path.
 Sends keep an owner-only pending request beside the setup until confirmed.
+The CLI checks the 500-character limit for the message and return next action
+before keeping a pending request. If an older client kept text that the server
+refuses, `check` identifies the invalid draft. Use `recover NEW_DIRECTORY` to
+preserve the original text, request key, version and files before editing it.
+Recovery does not send a request or return.
 After a lost acknowledgement, `check` reads that same request and `retry`
 resends it unchanged. For an unrecorded request whose task moved on, `check` preserves the message and files.
 Use `recover NEW_DIRECTORY` to save its request as `request.json` and its original
@@ -612,14 +752,21 @@ access capability; normal owner/origin gates apply and responses are private,
 no-store, nosniff, attachment/octet-stream with safe UTF-8 names.
 
 [Current D1 limits](https://developers.cloudflare.com/d1/platform/limits/) allow
-2,000,000 bytes per BLOB/row and 100 bound parameters per statement. Each body
-row stays below 263 KiB; the largest body INSERT uses 59 parameters for 16
-bodies. Export reads at most 1 MiB of bodies; base64 is at most 1,398,144 bytes
-including per-body padding. The original conservative 32-revision envelope
-bound plus file descriptors/packaging was 2,691,682 bytes, below 3 MB. The current
-complete-history byte budget and chunked reconstruction above preserve both
-transport limits and the 50-query Free per-invocation ceiling. These are bounded design/local checks, not measured
-hosted latency, load or remaining provider allowance.
+2,000,000 bytes per row/value and 100 bound parameters per statement.
+Ordinary BLOBs remain unchanged. Each large body slice is at most 262,144
+base64 characters; batched inserts bind at most 59 parameters per statement.
+Legacy file reconstruction retains its 3,000,000-byte route. Complete extended
+work exports use `web_planning_export.v0.6` / `web-planning/6` when an
+exchange exceeds the old per-selection limits or the work exceeds the old byte
+budget. Individual extended exchange envelopes use v0.6; earlier versions
+keep their seals. The complete export packages all bytes, once per digest.
+The private import control chooses the bounded quiesced replacement route:
+13,000,000 bytes for one extended work; 25,000,000 for an extended direction
+pair (still subject to the existing combined history and query budgets).
+Readable HTML identifies large originals and does not inline or claim to have
+inspected their text. Older readers and Native do not import v0.6. Schema 4
+requires the matching Worker; do not roll back a migrated store with an old
+binary. These are finite local integration bounds, not hosted load measurements.
 
 `web_planning_export.v0.3` / `web-planning/3` carries all original revisions and
 one byte-bearing base64 entry per distinct digest referenced anywhere in history.
@@ -1010,14 +1157,14 @@ do not clear the existing target, provision a replacement or enable reconstructi
 as part of this preparation. Provider recovery availability remains an input to
 review, not a capability demonstrated by local reconstruction tests.
 
-### Existing-target compatibility matrix
+### Existing-target compatibility matrix for the schema-3 baseline
 
 These are source-supported conditional paths, not observations of the live D1.
 "Coherent ledger" means the retained migration owner, ordered applied filenames
 and actual tables/constraints agree with the shipped SQL and retained records.
 The last known deployed source does not determine today's database schema.
 
-| Observed existing state | Later transition to current schema-3 code |
+| Observed existing state | Transition to the accepted schema-3 code |
 | --- | --- |
 | Schema 1 with a coherent established ledger | Review genuinely pending shipped `0002_revision_files.sql`, then `0003_cumulative_history.sql`, through that same owner, with writers quiesced and recovery retained. Do not replay 0000/0001. |
 | Schema 2 with a coherent ledger | Review only pending `0003_cumulative_history.sql` through the established owner. Preserve file bodies and all prior history. |
@@ -1200,8 +1347,11 @@ regeneration and negative drift controls prevent schema/SQL divergence. Version,
 JSON, revision bounds, scoped foreign keys and both uniqueness constraints are
 also exercised directly in D1. The original two migrations remain unchanged.
 #1351 used schema 1 with only a JSON-envelope extension; #1372's file implementation
-added 0002/schema 2, and #1397 subsequently added 0003/schema 3. Current code
-requires the latter. The local compatibility test owners cover nonempty
+added 0002/schema 2, and #1397 added 0003/schema 3. The complete-originals
+Worker requires 0004/schema 4. Its migration copies the old file headers and
+BLOBs, retains every revision, and adds scoped parts with cascading erasure.
+Apply it only through the established migration owner in a separately approved
+transition after a fresh backup. The local compatibility test owners cover nonempty
 old-writer upgrades without resealing historical bytes; their presence is not
 a new execution result. No live hosted migration or native schema change is
 performed by this documentation preparation.

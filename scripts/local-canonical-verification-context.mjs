@@ -3,6 +3,7 @@ import { lstatSync, readFileSync, readdirSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
+import { isMainThread, parentPort, Worker, workerData } from "node:worker_threads";
 import { readProcessBirthIdentity } from "./local-process-ownership.mjs";
 import { CHECKOUT_OWNER_FILE, CHECKOUT_OWNERSHIP_CONTRACT, checkoutVerificationFingerprint } from "./local-canonical-checkout-ownership.mjs";
 import {
@@ -88,17 +89,53 @@ export function verificationAnchorRoot(context) {
 // may add source files or raise runtime floors without adopting that candidate
 // into the installed service. The inspector still binds the accepted checkout,
 // configuration, executable and lifecycle before/after every observation.
-export async function inspectVerificationCompanionPreservation(context) {
+export async function inspectVerificationCompanionPreservation(context, { freshTransport = false } = {}) {
   const options = contexts.get(context);
   if (!options) fail("verification_context_not_owned");
   assertVerificationContext(context, options.root);
   const repositoryRoot = verificationAnchorRoot(context);
+  if (freshTransport) return readWithFreshTransport(repositoryRoot);
+  return readAcceptedPreservation(repositoryRoot);
+}
+
+async function readAcceptedPreservation(repositoryRoot) {
   const source = path.join(repositoryRoot, "plugins/augnes-operator/mcp/companion-service-core.mjs");
   const stat = lstatSync(source);
   if (!stat.isFile() || stat.isSymbolicLink() || realpathSync(source) !== source)
     fail("companion_preservation_source_invalid");
   const { inspectCompanionPreservation } = await import(pathToFileURL(source).href);
   return inspectCompanionPreservation({ repositoryRoot });
+}
+
+// Synchronous input/ownership checks can leave an idle HTTP socket in the
+// executor's fetch pool after its peer has closed it. Give a single accepted
+// observation its own pool and event loop while the parent keeps monitoring.
+async function readWithFreshTransport(repositoryRoot) {
+  const worker = new Worker(new URL(import.meta.url), {
+    workerData: { operation: "companion_preservation", repositoryRoot },
+    execArgv: [],
+  });
+  let deadline;
+  try {
+    return await new Promise((resolve, reject) => {
+      const unavailable = () => reject(Object.assign(new Error("verification_preservation_reader_unavailable"),
+        { code: "verification_preservation_reader_unavailable" }));
+      deadline = setTimeout(unavailable, 60_000);
+      worker.once("message", resolve);
+      worker.once("error", unavailable);
+      worker.once("exit", unavailable);
+    });
+  } finally {
+    clearTimeout(deadline);
+    await worker.terminate();
+  }
+}
+
+if (!isMainThread && workerData?.operation === "companion_preservation") {
+  // Browser entry points also load this module through tsx's CommonJS loader.
+  readAcceptedPreservation(workerData.repositoryRoot)
+    .then(observation => parentPort.postMessage(observation))
+    .catch(() => process.exit(1)); // The parent rejects an exit without a sample.
 }
 
 // A read-only cooperating-owner observation, not a global lock or service

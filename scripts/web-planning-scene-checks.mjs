@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { canonical, headBinding, makeRevision, hash } from '../apps/web_planning/src/contract.ts';
 import { digestBytes } from '../apps/web_planning/src/files.ts';
 import { SCENE_FILE } from '../apps/web_planning/src/scene-contract.ts';
+import { readNoteHistory } from '../apps/web_planning/src/store.ts';
 import { storyOriginal,storyRevised,storyMarker,storyUpload } from './story-worldbuilding-fixture.mjs';
 import { sceneFixture,sceneChoices,sceneReason,deterministicSuccessor } from './scene-continuity-fixture.mjs';
 export async function checkSceneContinuity({start,client,newWork,save,passed}){
@@ -16,6 +17,8 @@ export async function checkSceneContinuity({start,client,newWork,save,passed}){
  const context=async(r,p=params)=>{const v=await c.request(route('scene-context'),{expected:headBinding(r),intent:p});assert.equal(v.status,200,canonical(v.data));return v.data;};
  assert.equal((await context(r)).originals[0].text,storyRevised);
  const draft={id:randomUUID(),...sceneFixture};r=await ordinary(r,{scene:draft});
+ const notesOnly=await readNoteHistory({...r,DB:{prepare(sql){assert(!/\bbody\b/i.test(sql),'note inspection must not fetch the manuscript or notebook bytes');return server.db.prepare(sql);}}},r.work_id);
+ assert.deepEqual(notesOnly.at(-1).sources,r.sources);assert.equal(notesOnly.at(-1).fingerprint,r.fingerprint);assert(!('files' in notesOnly.at(-1)));
  assert((await context(r)).entries.every(e=>e.disposition==='undecided'));
  const edited={...draft,draft:draft.draft+'\n\n그는 문밖의 발소리를 들었다.'};const draftRequest=await ticket(r,{scene:edited});r=(await c.request(route('save'),draftRequest)).data.saved;
  assert.equal((await c.request(route('resolve'),draftRequest)).data.saved.fingerprint,r.fingerprint);

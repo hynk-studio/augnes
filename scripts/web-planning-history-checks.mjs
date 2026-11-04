@@ -4,10 +4,98 @@ import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { assertHistoryBudget, canonical, canonicalBytes, exportWork, headBinding, HISTORY_READ_BYTES, HISTORY_READ_ROWS, makeRevision, normalizePayload, reference } from '../apps/web_planning/src/contract.ts';
-import { boundedDatabase, readWork } from '../apps/web_planning/src/store.ts';
+import { boundedDatabase, listWork, readNoteHistory, readWork } from '../apps/web_planning/src/store.ts';
 import { fixtureScope } from './web-planning-local-runtime.mjs';
 import { bundleWebPlanning } from './build-web-planning.mjs';
 import { predecessorCode } from './web-planning-branch-checks.mjs';
+import { planningDraft, selectHistoricalNote } from '../apps/augnes_apps/scripts/planning-notes.mjs';
+import { selectWebExport } from '../lib/vnext/web-export-admission.ts';
+import { digest } from '../apps/augnes_apps/scripts/web-file-client.mjs';
+import { capacityNotes } from './web-planning-capacity-fixture.mjs';
+
+export async function checkRetainedNotes({c,passed}) {
+ const notes=capacityNotes(fixtureScope), initial={definition,notes,material_edits:notes.map(()=>({adapts:null,dependencies:[]})),files:[{name:'minutes.txt',role:'source',data:Buffer.from('Meeting minutes').toString('base64')}]};
+ const created=(await c.request('/api/drafts',initial)).data, path='/api/work/'+created.work_id;
+ async function post(action,body){const r=await c.request(path+'/'+action,body);assert.equal(r.status,200,JSON.stringify(r.data));return r.data;}
+ async function prepare(head,draft){return {...draft,...await post('ticket',{...draft,expected:headBinding(head)})};}
+ async function commit(head,draft){return (await post('save',await prepare(head,draft))).saved;}
+ const first=(await post('save',{...initial,ticket:created.ticket})).saved;
+ assert.equal(canonicalBytes(first.sources),11947);
+ const original=first.sources.find(s=>s.compatibility_source_ref.external_id===notes[0].source);
+ const shorter={...notes[0],text:'Confirm the accessible entrance with the host before announcing the route.',provenance:'derived_interpretation'};
+ const condition={...notes[0],text:'The venue has not confirmed the route.',source:'Planning call'};
+ const second=await commit(first,{...planningDraft(first),notes:[shorter,condition],material_edits:[{adapts:original.source_ref,dependencies:[1]},{adapts:null,dependencies:[]}]});
+ const ref=second.sources.find(s=>s.bounded_summary===shorter.text).source_ref;
+ const continuation={...condition,text:'The invitation is now ready for a route check.',source:'Current editor'};
+ const third=await commit(second,{...planningDraft(second),definition:{...definition,goal:'Finish the public invitation'},notes:[continuation],material_edits:[{adapts:null,dependencies:[]}]});
+ // A pending file request makes a new head. Reading notes must not consume it.
+ const bytes=Buffer.from('Is the entrance open?');
+ const request=await post('exchanges/save',{expected:headBinding(third),request_key:randomUUID(),kind:'request',basis:null,message:'Verify the entrance.',next_action:'',files:[{name:'entrance.txt',media_type:'text/plain',bytes:bytes.length,digest:digest(bytes),data:bytes.toString('base64')}]});
+ const snapshot=(await c.request(path+'/history')).data.revisions, exchange=snapshot.at(-1);
+ assert.equal(request.item.ref.fingerprint,exchange.fingerprint);
+ assert.deepEqual(snapshot.map(r=>r.revision),[1,2,3,4]);assert(!JSON.stringify(snapshot).includes(bytes.toString('base64')));
+ const base=planningDraft(exchange);base.definition.non_goals=['Keep the unrelated unsaved invitation edit'];
+ const noteHistory=(await c.request(path+'/history?view=notes')).data.revisions;
+ assert.deepEqual(noteHistory.map(r=>r.fingerprint),snapshot.map(r=>r.fingerprint));
+ assert(noteHistory.every(r=>!('files' in r)&&!('exchange' in r)));
+ const draft=selectHistoricalNote(base,exchange,noteHistory[1],ref);
+ assert.equal(base.notes.length,1);assert.equal(draft.notes.length,3);
+ const added=draft.material_edits.findIndex(m=>m.historical?.source_ref===ref);
+ const historical=draft.material_edits[added].historical;
+ const inspect=async d=>(await post('capacity',{expected:headBinding(exchange),check_id:randomUUID(),definition:d.definition,notes:d.notes,material_edits:d.material_edits}));
+ const fit=await inspect(draft);assert(fit.fits);assert.equal(fit.selection.limit,12000);
+ const refused=async (d,code)=>assert.equal((await c.request(path+'/ticket',{expected:headBinding(exchange),...d})).data.error,code);
+ for(const alter of [{work_id:randomUUID()},{fingerprint:first.fingerprint},{revision:exchange.revision+1},{source_ref:'sha256:'+'a'.repeat(64)}]){
+   const d=structuredClone(draft);Object.assign(d.material_edits[added].historical,alter);await refused(d,'historical_note_unavailable');
+ }
+ const forged=structuredClone(draft);forged.notes[added].text='No longer qualified';await refused(forged,'historical_note_mismatch');
+ const missing=structuredClone(draft);missing.material_edits[added].dependencies=[];await refused(missing,'required_material_missing');
+ assert.equal((await c.request(path+'/ticket',{...draft,expected:headBinding(exchange),project_id:randomUUID()})).status,403);
+ assert.equal((await c.request(path+'/history?view=notes',undefined,{cookie:''})).status,403);
+ assert.equal((await c.request('/api/work/'+randomUUID()+'/history?view=notes')).status,404);
+ const adapt=selectHistoricalNote(base,exchange,second,ref,'Hold the route paragraph until the venue confirms an accessible entrance.');
+ const badAuthor=structuredClone(adapt);badAuthor.notes[1].source=shorter.source;await refused(badAuthor,'historical_adaptation_required');
+ const stale=await prepare(exchange,adapt),pending=await prepare(exchange,draft);
+ const fifth=(await post('save',pending)).saved;
+ assert.deepEqual((await post('resolve',pending)).saved,fifth);assert((await post('save',pending)).replayed);
+ assert.equal((await c.request(path+'/save',stale)).data.error,'conflict');
+ assert.equal((await post('resolve',stale)).outcome,'unknown');
+ assert.deepEqual(fifth.definition,draft.definition);assert.deepEqual(fifth.files,first.files);
+ const copied=fifth.sources.find(s=>s.source_ref===ref);
+ assert.deepEqual(copied,second.sources.find(s=>s.source_ref===ref));
+ assert.deepEqual(fifth.relations.materials.find(m=>m.source_ref===ref).from,historical);
+ assert.equal(second.relations.materials.find(m=>m.source_ref===ref).from.source_ref,original.source_ref);
+ const identical=selectHistoricalNote(planningDraft(fifth),fifth,second,ref);
+ assert.deepEqual(identical,planningDraft(fifth));assert((await post('save',await prepare(fifth,identical))).noop);
+ const finalDraft=selectHistoricalNote(identical,fifth,second,ref,adapt.notes[1].text);
+ const sixth=await commit(fifth,finalDraft);
+ const derived=sixth.sources.find(s=>s.bounded_summary===adapt.notes[1].text);
+ assert.equal(derived.trust_class,'derived_interpretation');assert.equal(derived.compatibility_source_ref.external_id,fixtureScope.author_ref);
+ assert.deepEqual(sixth.relations.materials.find(m=>m.source_ref===derived.source_ref).from,historical);
+ const list=(await c.request(path+'/exchanges')).data;assert.equal(list.items.length,1);assert.equal(list.items[0].ref.revision,4);
+ const recovery=(await c.request(path+'/export')).data;
+ assert.deepEqual(recovery.revisions.slice(0,4),snapshot);
+ assert.deepEqual(recovery.revisions.at(-1),sixth);
+ assert(selectWebExport(recovery,{export_fingerprint:recovery.fingerprint,...reference(sixth)},[sixth.files[0]]));
+ const reading=(await c.request(path+'/reading-export')).data;assert(reading.includes(derived.bounded_summary)&&reading.includes(historical.fingerprint));
+ // The same note occurs in r2 and r5. Choosing one occurrence cannot replace
+ // the other on replay, even though the displayed excerpt is byte-identical.
+ const seventh=await commit(sixth,{...planningDraft(sixth),notes:[continuation],material_edits:[{adapts:null,dependencies:[]}]});
+ const earlier=selectHistoricalNote(planningDraft(seventh),seventh,second,ref);
+ const later=selectHistoricalNote(planningDraft(seventh),seventh,fifth,ref);
+ assert.deepEqual(earlier.notes,later.notes);
+ const ticket=await prepare(seventh,later);
+ assert.equal((await c.request(path+'/save',{...earlier,ticket:ticket.ticket})).data.error,'altered_replay');
+ const dupe={...later,notes:[...later.notes,earlier.notes[1]],material_edits:[...later.material_edits,earlier.material_edits[1]]};
+ assert.equal((await c.request(path+'/ticket',{...dupe,expected:headBinding(seventh)})).data.error,'duplicate_material_conflict');
+ const eighth=(await post('save',ticket)).saved;
+ const reused=eighth.relations.materials.find(m=>m.source_ref===ref);
+ assert.equal(reused.from.revision,5);assert.deepEqual(fifth.relations.materials.find(m=>m.source_ref===ref).from,historical);
+ const reply=await post('exchanges/save',{expected:headBinding(eighth),request_key:randomUUID(),kind:'return',basis:request.item.ref,message:'Entrance checked.',next_action:'Update the invitation.',files:[{name:'entrance.txt',media_type:'text/plain',bytes:bytes.length,digest:digest(bytes),data:bytes.toString('base64')}]});
+ assert.deepEqual(reply.item.basis,request.item.ref);assert.deepEqual((await c.request(path)).data.saved.relations,eighth.relations);
+ console.log(JSON.stringify({retained_note_journey:{initial_selected_bytes:canonicalBytes(first.sources),replacement_bytes:canonicalBytes(third.sources),reselected_bytes:fit.selection.used,follow_up_bytes:canonicalBytes(sixth.sources),retained_origin_revision:2,prior_adaptation_revision:1,save_base:4,unchanged_revision:5,adapted_revision:6,unanswered_file_requests:1}}));
+ passed('retained notes: earlier adaptation and conditions; unchanged copy, authored interpretation, draft preservation, scope, stale/replay, export and native selection');
+}
 
 // Test-only clock; production keeps its ordinary clock and 24-hour seals.
 export function advancedClock(code,days=4){return `const OriginalDate=Date;globalThis.Date=class extends OriginalDate{constructor(...args){super(...(args.length?args:[OriginalDate.now()+${days*86400000}]));}static now(){return OriginalDate.now()+${days*86400000};}};\n`+code;}
@@ -61,7 +149,7 @@ export async function checkCumulativeHistory({start,client,newWork,save,edit,pas
    if(!direct){
      await server.setOptions({script:current});
      assert.equal((await server.mf.dispatchFetch(server.origin+'/',{headers:{cookie:c.cookies}})).status,503,'new binary refuses schema 2');
-     await server.db.batch([server.db.prepare('DROP TABLE web_planning_schema'),server.db.prepare('CREATE TABLE web_planning_schema(version integer PRIMARY KEY)'),server.db.prepare('INSERT INTO web_planning_schema VALUES (3)')]);
+     await server.db.batch([server.db.prepare('DROP TABLE web_planning_schema'),server.db.prepare('CREATE TABLE web_planning_schema(version integer PRIMARY KEY)'),server.db.prepare('INSERT INTO web_planning_schema VALUES (4)')]);
      assert.equal((await server.mf.dispatchFetch(server.origin+'/',{headers:{cookie:c.cookies}})).status,503,'a marker-only partial migration cannot admit old revision SQL');
      await server.db.batch([server.db.prepare('DROP TABLE web_planning_schema'),server.db.prepare('CREATE TABLE web_planning_schema(version integer PRIMARY KEY CHECK(version=2))'),server.db.prepare('INSERT INTO web_planning_schema VALUES (2)')]);
      await server.setOptions({script:oldCode});
@@ -77,7 +165,7 @@ export async function checkCumulativeHistory({start,client,newWork,save,edit,pas
    assert.deepEqual(await unchanged(server),before,'migration copies exact rows, files, mapping and tombstones');
    assert.deepEqual((await c.request('/api/work/'+w.id+'/export')).data,exported);
    assert.deepEqual((await server.db.prepare('PRAGMA foreign_key_check').all()).results,[]);
-   await server.setOptions({script:oldCode});assert.equal((await server.mf.dispatchFetch(server.origin+'/',{headers:{cookie:c.cookies}})).status,503,'old binary refuses schema 3');
+   await server.setOptions({script:oldCode});assert.equal((await server.mf.dispatchFetch(server.origin+'/',{headers:{cookie:c.cookies}})).status,503,'old binary refuses upgraded schema');
    const newCode=direct?(await bundleWebPlanning(path.resolve('apps/web_planning/src/cloudflare-worker.ts'))).code:current;
    await server.setOptions({script:newCode});c=await client(server);
    input=await edit(c,r,'Same saved work at revision 33');input.input.files=r.files;
@@ -168,10 +256,45 @@ export async function checkCumulativeHistory({start,client,newWork,save,edit,pas
  // Exact count and byte boundaries, using canonical fixtures in disposable D1.
  const full=prefix(HISTORY_READ_ROWS);assertHistoryBudget(full);await seed(server.db,full);
  const fr=await c.request('/api/work/'+full[0].work_id);assert.equal(fr.status,200);
+ // Measure the actual list statements on a project containing a maximal history.
+ // Body columns never enter a projection, and ordinary historical definitions/notes
+ // do not leave SQLite. Missing observations must refuse the page in full.
+ const discoveries=[];let projected=0;
+ const observed=observe(server.db,(value,sql)=>{
+   if(sql.includes('WITH bounded AS MATERIALIZED'))for(const r of value.results.filter(r=>r.kind===1)){
+     const v=JSON.parse(r.envelope);if(v.work_id===full[0].work_id && v.revision<HISTORY_READ_ROWS){
+       assert(!('definition' in v)&&!('sources' in v));projected++;
+     }
+   }
+   return value;
+ },discoveries);
+ const beforeList=await unchanged(server);
+ const page=await listWork({...fixtureScope,DB:observed},'');
+ assert(page.items.some(w=>w.work_id===full[0].work_id&&w.revision===HISTORY_READ_ROWS));
+ assert.equal(projected,HISTORY_READ_ROWS-1);
+ assert.equal(discoveries.length,1+page.items.length);
+ for(const {sql} of discoveries){assert(!/\b(body|INSERT|UPDATE|DELETE)\b/i.test(sql));}
+ assert.deepEqual(await unchanged(server),beforeList);
+ const foreignProject=randomUUID();
+ assert.deepEqual(await listWork({...fixtureScope,project_id:foreignProject,DB:server.db},''),{items:[],next:null});
+ assert.equal((await c.request('/api/works?project_id='+foreignProject)).status,403);
+ const wrongScope=observe(server.db,(r,sql)=>sql.includes('WITH bounded AS MATERIALIZED')?{results:r.results.map(row=>
+   row.kind===1?{...row,envelope:row.envelope.replace(fixtureScope.project_id,foreignProject)}:row)}:r);
+ await assert.rejects(listWork({...fixtureScope,DB:wrongScope},''),e=>e.code==='history_index_integrity');
+ const damaged=observe(server.db,(r,sql)=>sql.includes('WITH bounded AS MATERIALIZED')?{results:r.results.filter(row=>row.revision!==1)}:r);
+ await assert.rejects(readNoteHistory({...fixtureScope,DB:damaged},id),e=>e.code==='history_observation_incomplete');
+ await assert.rejects(listWork({...fixtureScope,DB:damaged},''),e=>e.code==='history_observation_incomplete');
+ for(const cut of [()=>[],rows=>rows.slice(0,-1)]){
+   const partial=observe(server.db,(r,sql)=>sql.includes('WITH RECURSIVE page')?{results:cut(r.results)}:r);
+   await assert.rejects(listWork({...fixtureScope,DB:partial},''),e=>e.code==='history_observation_incomplete');
+ }
+ console.log(JSON.stringify({work_list_discovery:{tasks:page.items.length,queries:discoveries.length,historical_rows_projected:projected,
+   max_history_rows:HISTORY_READ_ROWS,file_body_queries:0,read_writes:0,partial_page_refused:true}}));
  const fedit=await edit(c,fr.data.saved,'Over row operation budget');assert.equal((await save(c,fedit)).data.error,'history_read_budget_exceeded');
  assert.equal((await c.request('/api/work/'+full[0].work_id+'/history')).data.revisions.length,HISTORY_READ_ROWS);
  const beyond=makeRevision(fixtureScope,full[0].work_id,headBinding(full.at(-1)),randomUUID(),normalizePayload(fixtureScope,definition,[]),'2026-09-20T00:00:00.000Z');await seed(server.db,[beyond]);
  assert.equal((await c.request('/api/work/'+full[0].work_id)).data.error,'history_read_budget_exceeded');
+ assert.equal((await c.request('/api/works')).data.error,'history_read_budget_exceeded');
  const largePayload=normalizePayload(fixtureScope,definition,[{text:'x'.repeat(2000),source:'Synthetic bytes',provenance:'user_declaration',observed_at:null,label:'Open question'}]);
  const bytes=prefix(1,largePayload);while(canonicalBytes(bytes)<=HISTORY_READ_BYTES)bytes.push(makeRevision(fixtureScope,bytes[0].work_id,headBinding(bytes.at(-1)),randomUUID(),largePayload,'2026-09-20T00:00:00.000Z'));
  const over=bytes.pop();await seed(server.db,bytes);assert.equal((await c.request('/api/work/'+bytes[0].work_id)).status,200);

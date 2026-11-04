@@ -101,6 +101,8 @@ try {
     assert.equal(result.exit_code, 0, lastChildDiagnostic);
     const settlement = await child([path.join(repository, "scripts/fixtures/local-canonical-reviewed-revision.mjs"), "--run-settlement-fixtures"], { controlId: "reviewed-revision-settlement", timeoutMs: 15000, stdout: process.stdout, stderr: process.stderr });
     assert.equal(settlement.exit_code, 0, lastChildDiagnostic);
+    const browser = await child([path.join(repository, "scripts/fixtures/local-canonical-reviewed-revision.mjs"), "--run-browser-fixtures"], { controlId: "reviewed-revision-browser", timeoutMs: 15000, stdout: process.stdout, stderr: process.stderr });
+    assert.equal(browser.exit_code, 0, lastChildDiagnostic);
     findings.push("reviewed revision: real admission and refusal, terminal legacy preservation, two-invocation commission, concurrency and interrupted reservation, fresh stock");
   } else {
   const observer = await child([self, "--observer-controls"], { controlId: "observer-controls", timeoutMs: AUXILIARY_EXECUTION_BUDGETS.observerControlsMs });

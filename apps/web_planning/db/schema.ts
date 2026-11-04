@@ -4,7 +4,7 @@ import { blob, check, foreignKey, integer, primaryKey, sqliteTable, text, unique
 // Hosted planning schema only. No installed native Augnes database imports.
 export const schemaVersion=sqliteTable('web_planning_schema',{
   version:integer('version').primaryKey(),
-},t=>[check('web_planning_schema_version',sql`${t.version} = 3`)]);
+},t=>[check('web_planning_schema_version',sql`${t.version} = 4`)]);
 
 export const workspace=sqliteTable('web_planning_workspace',{
   singleton:integer('singleton').primaryKey(),
@@ -47,10 +47,23 @@ export const erased=sqliteTable('web_planning_erased',{
 export const file=sqliteTable('web_planning_file',{
   workspace_id:text('workspace_id').notNull(),project_id:text('project_id').notNull(),
   work_id:text('work_id').notNull(),digest:text('digest').notNull(),
-  bytes:integer('bytes').notNull(),body:blob('body',{mode:'buffer'}).notNull(),
+  bytes:integer('bytes').notNull(),body:blob('body',{mode:'buffer'}),
 },t=>[
   primaryKey({columns:[t.workspace_id,t.project_id,t.work_id,t.digest]}),
   foreignKey({columns:[t.workspace_id,t.project_id],foreignColumns:[workspace.workspace_id,workspace.project_id]}),
-  check('web_planning_file_size',sql`${t.bytes} BETWEEN 0 AND 262144`),
-  check('web_planning_file_body',sql`typeof(${t.body}) = 'blob' AND length(${t.body}) = ${t.bytes}`),
+  check('web_planning_file_size',sql`${t.bytes} BETWEEN 0 AND 6291456`),
+  check('web_planning_file_body',sql`(${t.bytes} <= 262144 AND typeof(${t.body}) = 'blob' AND length(${t.body}) = ${t.bytes}) OR (${t.bytes} > 262144 AND ${t.body} IS NULL)`),
+]);
+
+// Large exchange bodies use aligned base64 slices: each D1 value stays below
+// the row/binding limit. The manifest and every slice commit in the same batch.
+export const filePart=sqliteTable('web_planning_file_part',{
+  workspace_id:text('workspace_id').notNull(),project_id:text('project_id').notNull(),
+  work_id:text('work_id').notNull(),digest:text('digest').notNull(),
+  ordinal:integer('ordinal').notNull(),data:text('data').notNull(),
+},t=>[
+  primaryKey({columns:[t.workspace_id,t.project_id,t.work_id,t.digest,t.ordinal]}),
+  foreignKey({columns:[t.workspace_id,t.project_id,t.work_id,t.digest],foreignColumns:[file.workspace_id,file.project_id,file.work_id,file.digest]}).onDelete('cascade'),
+  check('web_planning_part_ordinal',sql`typeof(${t.ordinal}) = 'integer' AND ${t.ordinal} BETWEEN 0 AND 31`),
+  check('web_planning_part_size',sql`typeof(${t.data}) = 'text' AND length(${t.data}) BETWEEN 4 AND 262144`),
 ]);

@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import net from "node:net";
@@ -18,6 +18,16 @@ const directConfig=JSON.parse(await readFile(path.join(webRoot,'wrangler.cloudfl
 const wranglerRequire=createRequire(localRequire.resolve('wrangler'));
 export const accessSimulation={aud:'a'.repeat(64),identity:{email:'synthetic-owner@example.test'}};
 export const fixtureScope={workspace_id:'155448c4-983f-4e32-83c5-6d340db5d4fd',project_id:'bb63e047-9125-43c0-88cd-79f6b212b2ad',author_ref:'e89e1ee0-d67c-40a9-bb0c-661a86965452'};
+// Run a real historical binary against the migrations it actually admitted.
+export async function migrationPrefix(root,last) {
+  const folder=path.join(root,'migrations-through-'+last),src=path.join(webRoot,'drizzle');
+  await mkdir(path.join(folder,'meta'),{recursive:true});
+  const journal=JSON.parse(await readFile(path.join(src,'meta/_journal.json'),'utf8'));
+  journal.entries=journal.entries.slice(0,last+1);
+  for(const {tag} of journal.entries)await cp(path.join(src,tag+'.sql'),path.join(folder,tag+'.sql'));
+  await writeFile(path.join(folder,'meta/_journal.json'),JSON.stringify(journal));
+  return folder;
+}
 export async function availablePort(){const server=net.createServer();await new Promise((ok,no)=>{server.once('error',no);server.listen(0,'127.0.0.1',ok);});const port=server.address().port;await new Promise(ok=>server.close(ok));return port;}
 // Miniflare's Fetch helpers overwrite Sec-Fetch-Mode with "cors". Use its
 // exported local-dispatch URL header over raw loopback HTTP for navigation

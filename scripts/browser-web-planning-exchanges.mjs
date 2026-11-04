@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
+import { reviewZip } from './web-planning-large-exchange-checks.mjs';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 
-export async function browserFileExchanges({ c, origin, click, set, saved, settled, wait, navigate, root, checks, requestsOnly }) {
+export async function browserFileExchanges({ c, origin, click, set, saved, settled, wait, navigate, root, checks, requestsOnly, barrier, requests }) {
   const dir = path.join(root, 'event-plan-files');
   const originalDir = path.join(dir, 'original'), returnDir = path.join(dir, 'returned'), downloads = path.join(dir,'downloads');
   for (const folder of [originalDir,returnDir,downloads]) await mkdir(folder,{recursive:true});
@@ -13,7 +14,7 @@ export async function browserFileExchanges({ c, origin, click, set, saved, settl
   const pick = async file => {
     const {root:dom}=await c.send('DOM.getDocument');
     const {nodeId}=await c.send('DOM.querySelector',{nodeId:dom.nodeId,selector:'#exchange-upload'});
-    await c.send('DOM.setFileInputFiles',{nodeId,files:[file]});
+    await c.send('DOM.setFileInputFiles',{nodeId,files:Array.isArray(file)?file:[file]});
   };
   const selectTask = async () => {
     // Frame navigation can finish before the new document's deferred client runs.
@@ -157,6 +158,121 @@ export async function browserFileExchanges({ c, origin, click, set, saved, settl
   assert.deepEqual(await c.eval('exchangeState.items.at(-1).basis'),await c.eval('exchangeState.items.at(-2).ref'));
   assert.equal(await c.eval('exchangeState.items.at(-1).files[0].digest'),'sha256:'+createHash('sha256').update(edited).digest('hex'));
   checks.push('an in-page text return preserves the original, BOM, CRLF and inert markup after a lost acknowledgement');
+  // A real planning list: a later change, a second task with a long unanswered
+  // question, a returned file and a plain task share the normal project reader.
+  const eventId=await c.eval('work');
+  const longTitle='Select poems for the autumn reading: confirm the translations, reading order and permission to print the closing stanza';
+  const longAction='Confirm the final stanza with the poet. Keep the source edition and translator credit in the programme; the rehearsal copy still contains the literal note <b>check this line</b>.';
+  const verses=Buffer.from('Opening poem: Harbour. Closing stanza: permission to be confirmed.');
+  const poemRequest={kind:'request',basis:null,message:'Check the closing stanza against the source edition.',next_action:longAction,
+    files:[{name:'shortlist.txt',media_type:'text/plain',bytes:verses.length,digest:'sha256:'+createHash('sha256').update(verses).digest('hex'),data:verses.toString('base64')}]};
+  const poetry=await c.eval(`(async()=>{
+    const d={definition:{goal:${JSON.stringify(longTitle)},success_criteria:['Choose the opening poem'],non_goals:[]},notes:[]};
+    const initial=await api('/api/drafts',d),r=await api('/api/work/'+initial.work_id+'/save',{ticket:initial.ticket,...d});
+    const result=await api('/api/work/'+initial.work_id+'/exchanges/save',{...${JSON.stringify(poemRequest)},request_key:crypto.randomUUID(),expected:binding(r.saved)});
+    return result.item.ref;
+  })()`);
+  await navigate(c,origin+'/');await wait(()=>c.eval("!!$('work-list')?.children.length"),'fresh discovery list');
+  await click(c,'refresh-list');await settled(c);
+  const rowFor=title=>`[...$('work-list').children].find(row=>row.firstElementChild.textContent===${JSON.stringify(title)})`;
+  const poemRow=rowFor(longTitle),eventRow=rowFor(goal);
+  await c.eval(poemRow+".querySelector('summary').click()");
+  assert.match(await c.eval(poemRow+'.innerText'),/1 awaiting a return/);
+  assert((await c.eval(poemRow+'.innerText')).includes(longAction));
+  assert.equal(await c.eval(poemRow+".querySelectorAll('b').length"),0);
+  assert.match(await c.eval(eventRow+'.innerText'),/2 returned files/);
+  const listWidths=[];
+  for(const width of [390,1200]){
+    await c.send('Emulation.setDeviceMetricsOverride',{width,height:860,deviceScaleFactor:1,mobile:width===390});
+    await c.eval(poemRow+".scrollIntoView({block:'start'})");
+    const observed=await c.eval(`(()=>{const row=${poemRow};return {width:innerWidth,document:document.documentElement.scrollWidth,
+      row:row.clientWidth,content:row.scrollWidth,controls:[...row.querySelectorAll('button,summary')].map(x=>{const r=x.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth+1&&r.height>=44;})}})()`);
+    assert.equal(observed.width,width);assert(observed.document<=width&&observed.content<=observed.row+1&&observed.controls.every(Boolean));listWidths.push(observed);
+    const shot=await c.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
+    console.log(JSON.stringify({work_list_image:{name:'work-list-'+width+'.png',data:shot.data}}));
+  }
+  const retained=await c.eval("$('work-list').textContent");
+  c.listFailure='partial';await click(c,'refresh-list');await settled(c);
+  assert.equal(await c.eval("$('work-list').textContent"),retained);
+  assert.match(await c.eval("$('list-state').textContent"),/out of date/);
+  const readStart=requests.length;await click(c,'refresh-list');await settled(c);
+  const reads=requests.slice(readStart).filter(r=>!r.path.endsWith('/capacity'));
+  assert.deepEqual(reads.map(r=>[r.method,r.path]),[['GET','/api/works']]);
+  // Leave the displayed v2 alone while another writer advances the actual work.
+  await c.eval(`api('/api/work/'+${JSON.stringify(poetry.work_id)}+'/exchanges/save',{...${JSON.stringify(peer)},request_key:crypto.randomUUID(),expected:${JSON.stringify({revision:poetry.revision,fingerprint:poetry.fingerprint})}})`);
+  await c.eval(poemRow+".querySelector('summary').click()");
+  await c.eval(poemRow+".querySelector('.list-record button').focus()");
+  const enter=async()=>{for(const type of ['keyDown','keyUp'])await c.send('Input.dispatchKeyEvent',{type,key:'Enter',code:'Enter',windowsVirtualKeyCode:13,...(type==='keyDown'?{text:'\r'}:{})});};
+  await enter();await settled(c);
+  assert.equal(await c.eval('work'),poetry.work_id);assert.equal(await c.eval('saved.revision'),3);
+  assert.match(await c.eval("$('status').textContent"),/changed since it was listed/);
+  assert.equal(await c.eval('document.activeElement.id'),'exchange-version-2');
+  // A delayed task open must not replace edits typed after selecting a row.
+  await capacitySettled();
+  const delayed=await barrier(c,'/api/work/'+eventId);
+  await c.eval(eventRow+'.firstElementChild.click()');await delayed.wait();
+  await set(c,'goal','Retain this edit while the other work opens');await delayed.release();await settled(c);
+  assert.equal(await c.eval('work'),poetry.work_id);assert.equal(await c.eval("$('goal').value"),'Retain this edit while the other work opens');
+  assert.equal(await c.eval('dirty'),true);
+  await c.eval(eventRow+".querySelector('summary').click()");
+  let discard;
+  const consent=m=>{if(m.method==='Page.javascriptDialogOpening'&&m.params.type==='confirm')discard=c.send('Page.handleJavaScriptDialog',{accept:true});};
+  c.handlers.push(consent);
+  try{await c.eval(eventRow+".querySelector('.list-record button').click()");await settled(c);assert(discard);await discard;}
+  finally{c.handlers.splice(c.handlers.indexOf(consent),1);}
+  assert.equal(await c.eval('work'),eventId);assert.equal(await c.eval('document.activeElement.id'),'exchange-version-5');
+  const erased=await c.eval(`(async()=>{const root='/api/work/'+${JSON.stringify(poetry.work_id)};
+    const {saved}=await api(root);return api(root+'/erase',{expected:binding(saved),confirm:'erase-whole-work'});})()`);
+  assert.equal(erased.erased,true);
+  await c.eval(poemRow+'.firstElementChild.click()');await settled(c);
+  assert.equal(await c.eval('work'),eventId);assert.equal(await c.eval('saved.revision'),5);
+  assert.match(await c.eval("$('status').textContent"),/no longer available/);
+  await requestsOnly(c);
+  console.log(JSON.stringify({work_list_browser:{widths:listWidths,read_requests:reads.map(r=>r.path),stale_list_opened_revision:3,focused_request_revision:2,focused_return_revision:5,partial_retained:true,delayed_open_preserved_edit:true,erased_selection_retained_editor:true}}));
+  checks.push('work list: responsive poetry example, inert recorded action, exact keyboard selection after a concurrent edit, retained drafts, incomplete response and read-only refresh');
+  await click(c,'new-work');await set(c,'goal','Return the field survey');await set(c,'criteria','Retain and review original observations');await click(c,'save');await saved(c,1);await settled(c);
+  const long=Buffer.alloc(5328363,0x78),row=Buffer.from('Survey: 17 observed, 4 deferred.');row.copy(long,long.length-row.length);
+  const largePath=path.join(originalDir,'survey.log'),zipPath=path.join(originalDir,'survey.zip'),zip=reviewZip();
+  await writeFile(largePath,long);await writeFile(zipPath,zip);
+  const reviewSources=[
+    ['receipt.json','\uFEFF{ "observed" : 17,\r\n'],
+    ['survey.patch','@@ -1 +1 @@\r\n-<b>pending</b>\r\n+<b>4 deferred</b>\r\n'],
+    ['survey.mjs','globalThis.surveyRan = true;\nexport const deferred = 4;\n'],
+  ];
+  for(const [name,text] of reviewSources)await writeFile(path.join(originalDir,name),text);
+  await click(c,'exchange-new');await set(c,'exchange-message','Check the survey totals');
+  await pick([largePath,zipPath,...reviewSources.map(([name])=>path.join(originalDir,name))]);await click(c,'exchange-submit');await saved(c,2);await settled(c);
+  await c.eval("document.querySelector('button[aria-label=\"Read survey.log as text\"]').click()");await settled(c);
+  const reader="document.querySelector('#exchange-list li section')";
+  await wait(()=>c.eval(reader+"?.querySelector('pre')?.textContent.length===8192"),'bounded first page');
+  for(const width of [390,1200]){
+    await c.send('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<500});
+    assert(await c.eval("document.documentElement.scrollWidth<=innerWidth"),'long line wraps at '+width);
+  }
+  await c.eval(reader+".querySelector('input[type=search]').value='Survey:'");
+  await c.eval(reader+".querySelectorAll('button')[1].click()");await settled(c);
+  const observed=await c.eval(reader+".querySelector('pre').textContent");
+  assert.equal(observed,row.toString());assert.match(await c.eval(reader+".querySelector('p').textContent"),/End of file.*partial/);
+  await c.send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:downloads});
+  await c.eval("$('exchange-list').querySelectorAll('a')[1].click()");
+  const zipDownload=path.join(downloads,'survey.zip');await wait(()=>stat(zipDownload).then(f=>f.size===zip.length).catch(()=>false),'complete opaque ZIP download');assert((await readFile(zipDownload)).equals(zip));
+  await c.eval("[...$('exchange-list').querySelectorAll('button')].find(b=>b.textContent==='Return edited files').click()");
+  const [observations,deferred]=observed.match(/\d+/g).map(Number);
+  await set(c,'exchange-message','Checked the final survey row');await set(c,'exchange-next','Transfer the verified subset');await set(c,'exchange-review','Transfer '+(observations-deferred)+' observations.');
+  const revisedReceipt=path.join(returnDir,'receipt.json');await writeFile(revisedReceipt,'{"transfer":13}\n');await pick(revisedReceipt);
+  await click(c,'exchange-submit');await saved(c,3);await settled(c);
+  assert.match(await c.eval("$('exchange-list').textContent"),/review.md/);
+  for(const [name,original] of reviewSources){
+    const link=`[...$('exchange-list').querySelectorAll('a')].find(a=>a.download===${JSON.stringify(name)} && a.textContent.includes(' · version 2 · '))`;
+    const file=link+'.parentElement';
+    await c.eval(file+".querySelector('button').click()");await settled(c);
+    assert.equal(await c.eval(file+".querySelector('pre').textContent"),original);
+    assert.equal(await c.eval(file+".querySelector('pre').childElementCount"),0);
+    assert.match(await c.eval(file+".querySelector('section p').textContent"),/version 2 .*Complete text/);
+  }
+  assert.equal(await c.eval('typeof globalThis.surveyRan'),'undefined');
+  checks.push('Read text shows the original JSON, patch and module literally, including an older same-name receipt after a return');
+  checks.push('complete originals: full-size log and ZIP uploaded, long line wraps at 390/1200, exact search, complete ZIP bytes and a grounded typed review');
   await click(c,'exchange-new'); await set(c,'exchange-message','Confirm the venue'); await pick(path.join(originalDir,name));
   c.accessBoundary='challenge'; await click(c,'exchange-submit'); await settled(c);
   assert.equal(await c.eval("accessLost && !exchangeDraft && !exchangePending && !$('exchange-form')"),true);
