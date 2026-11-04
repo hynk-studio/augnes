@@ -1,6 +1,6 @@
 {
   "name": "augnes-codex",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Routes explicit Augnes continuity, setup, and memory-reuse requests to their current owners without priming ordinary source-first work.",
   "author": {
     "name": "hynk-studio"

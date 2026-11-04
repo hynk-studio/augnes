@@ -1014,6 +1014,84 @@ field adoption and all-host support remain unclaimed.
 #1433's completed connected-review evidence and #1372's private-file obligations
 remain with their existing owners; neither is a prerequisite for these public files.
 
+#### Public connection and one derived Skill candidate — 2026-11-03
+
+The connection Skill's primary purpose is to help an unfamiliar person, their
+existing agent/coding tool/harness, or a prospective independent agent use
+Augnes correctly with little repeated explanation. Prioritize a supported first
+useful task, checked result and meaningful continuation. Discover the actual
+host capabilities, project binding and missing prerequisites; do not require
+the consumer to learn the whole roadmap or replace their existing executor.
+Broader agent participation starts from a concrete goal or offered task and its
+supported work/contribution and permission path; loading a Skill does not assign
+an organization role.
+
+Skill distribution also serves the existing public-entry and participation
+direction: useful first contact may lead to repeat use, concrete requests or
+later Web/agent cooperation. These are hypotheses to observe, not acquired
+demand. Independent asset use can be valuable without conversion to the full
+application. The connection route and a standalone method candidate have
+different jobs; producing more Skills or adding a marketplace is not the goal.
+
+The user authorized starting the scoped public-Skill sequence and trying an
+appropriate Agensi listing during the work. A compatible, qualified package may
+be submitted free after checking the actual channel/account path; repeat generic
+publication permission is unnecessary. This does not commission paid setup,
+outreach, automatic publication or an ongoing maintenance promise.
+#1447 continues to own the public
+entry/distribution path; existing L2/#1373/#1431 owners retain method extraction,
+separate-task use and revision. No new platform program is introduced.
+
+- Prepare the [public setup and first continuation route](../CODEX_MCP_AUGNES_BRIDGE_USAGE_V0_1.md#public-setup-and-first-continuation)
+  now, without waiting for the whole public application. Correct the duplicated
+  `augnes-codex` routing instructions to distinguish the application/service
+  checkout from the registered target project; retain the current Operator.
+- Keep [verify-software-change](../../skills/verify-software-change/SKILL.md)
+  as one portable source candidate. Use existing checks plus a selected-file
+  observer and ordinary handoff. Initial source/delivery investigations are not
+  a new installed-host observation. A real next installation/version-change
+  task should exercise the same method and return its actual result.
+- Evaluate separate-task reuse and whether the required material travels with
+  the candidate. Internal need is a valid starting point; independent demand
+  is not a prerequisite to investigate. Retain ordinary scripts/notes when
+  packaging adds no useful capability. Do not infer comparative benefit from
+  forward-test success or manufacture an upgrade to create demand.
+- Automate extraction, packaging or maintenance only after actual repeated work
+  identifies a shared need. Existing runtime, source and publication owners
+  remain sufficient; no registry, generation service or automatic publication
+  is assigned.
+
+External discovery and publication under #1447 follow this practical sequence:
+
+1. Introduce the existing public workflow-cost release together with a
+   reproducible usage example and its actual limits. Reuse the completed release
+   and existing example material; this is not a new release or a repeated
+   qualification of unchanged bytes.
+2. Verify the connection Skill's first-use path in the intended host, then
+   distribute it where users of supported coding tools can discover and use it.
+   Keep GitHub as the source and check each delivery path before promising
+   compatibility. [skills.sh](https://skills.sh/docs/faq) is a candidate discovery
+   route to assess; Agensi remains another candidate with the recorded mismatch.
+3. Introduce Web and cooperation capabilities as reproducible examples become
+   available for others to try. Match the claim to the exercised behavior;
+   [Show HN](https://news.ycombinator.com/showhn.html) is a possible later showcase
+   for a usable result, not an assumed audience or completed submission.
+
+Begin by connecting one official starting point, one qualified Skill and one
+reproducible example. Observe first use, friction, repeat use and concrete
+requests through existing records before expanding channels or maintenance.
+These are planned distribution actions; the existing publication scopes and
+the distinction between listing, use and demand remain unchanged.
+
+The current candidate has no host registration or public release. Preserve the
+workflow-cost release, prior RETAIN observations and their limits. The existing
+package's multi-file dependency is incompatible with Agensi's documented
+single-temporary-script delivery. [Channel preparation and disposition](../PUBLIC_ASSET_SKILL_USAGE.md#additional-distribution-channels)
+record this mismatch and the next check.
+Actual marketplace submission, installed Mac setup/Resume and comparative
+benefit remain separate observations. A connection/service blocker does not
+prevent independent source work; source work does not qualify an installed host.
+
 ### Next P4/P5 — Executable capability reuse from experience (#1373)
 
 The 2026-10-01 [#1373 alignment](https://github.com/hynk-studio/augnes/issues/1373)

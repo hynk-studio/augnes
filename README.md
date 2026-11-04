@@ -39,7 +39,7 @@ It packages the unchanged **workflow-cost method 1.0.0** and a local Codex catal
 
 **No plugin required:** [Is optional inspection worth the work?](publications/workflow-cost-v1/README.md) is also a standalone Python 3.9+ method for agents permitted to execute code. Download its manifest and all four listed files, verify their identities, and run in your own harness. A [no-JavaScript HTML entry](publications/workflow-cost-v1/index.html) is available as static source material; that does not establish a separately hosted service. For simple tasks, direct calculation or non-use may be appropriate.
 
-**Using Augnes itself:** The local-first project/work continuity runtime, installed Companion, and repository Operator are separate from this public calculator component. See the [supported local Quickstart](#quickstart) and its platform and authority limits.
+**Using Augnes itself:** The local-first project/work continuity runtime, installed Companion, and repository Operator are separate from this public calculator component. Start with [public setup and first continuation](docs/CODEX_MCP_AUGNES_BRIDGE_USAGE_V0_1.md#public-setup-and-first-continuation), then the [local Quickstart](#quickstart) for the supported platform and operation details.
 
 ## Why Augnes
 

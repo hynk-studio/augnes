@@ -136,7 +136,7 @@ function assertReviewedSkillInventory(root) {
 
 export function runOperatorPluginSetup({
   runCodex = runCodexCommand,
-  cacheRoot = path.join(os.homedir(), ".codex", "plugins", "cache"),
+  cacheRoot = selectedPluginCacheRoot(),
 } = {}) {
   let marketplaces = parseJsonCommand(
     runCodex(["plugin", "marketplace", "list", "--json"]),
@@ -176,6 +176,12 @@ export function runOperatorPluginSetup({
     cacheRoot,
     installedPath: installed.installedPath,
   });
+}
+
+function selectedPluginCacheRoot() {
+  const profile = process.env.CODEX_HOME || path.join(os.homedir(), ".codex");
+  if (!path.isAbsolute(profile)) throw setupError("operator_plugin_profile_path_invalid");
+  return path.join(profile, "plugins", "cache");
 }
 
 function runCodexCommand(args) {
