@@ -24,7 +24,8 @@ import {
 const repositoryRoot = process.cwd();
 const sourceRoot = path.join(repositoryRoot, "plugins", "augnes-operator");
 const root = mkdtempSync(path.join(os.tmpdir(), "augnes-plugin-setup-"));
-const cacheRoot = path.join(root, "cache");
+const profile = path.join(root, "selected-profile");
+const cacheRoot = path.join(profile, "plugins", "cache");
 const operatorCache = path.join(cacheRoot, "augnes-local", "augnes-operator");
 const staleCache = path.join(operatorCache, "0.3.0");
 const currentCache = path.join(operatorCache, REVIEWED_OPERATOR_PLUGIN_VERSION);
@@ -50,7 +51,19 @@ try {
     }
     return { status: 1, stdout: "", stderr: "unexpected" };
   };
-  const verified = runOperatorPluginSetup({ runCodex: exactRunner, cacheRoot });
+  // Codex installs into the selected profile even when the OS home differs.
+  const originalProfile = process.env.CODEX_HOME;
+  let verified;
+  try {
+    process.env.CODEX_HOME = profile;
+    verified = runOperatorPluginSetup({ runCodex: exactRunner });
+    process.env.CODEX_HOME = "ambiguous-relative-profile";
+    assert.throws(() => runOperatorPluginSetup({ runCodex: exactRunner }),
+      error => error?.code === "operator_plugin_profile_path_invalid");
+  } finally {
+    if (originalProfile === undefined) delete process.env.CODEX_HOME;
+    else process.env.CODEX_HOME = originalProfile;
+  }
   assert.equal(addCalls, 1);
   assert.equal(verified.version, "0.5.0");
   assert.equal(verified.stale_cache_versions, 0);

@@ -168,9 +168,16 @@ label, GitHub URL or current shell directory does not establish either binding.
    service access merely because a Skill loads.
 2. From the Augnes checkout, follow the existing service installation below if
    the user requested installation. Inspect existing status first when resuming;
-   do not replace an unrelated installed service. Install the reviewed Operator
-   into the intended Codex profile through the existing setup command.
-3. Open the service's returned UI URL and connect/select the intended project
+   do not replace an unrelated installed service. Run `npm run augnes:plugin:install`
+   to install and check the Operator in the intended Codex profile. If you
+   also want the public routing Skill in another project, use
+   `codex plugin add augnes-codex@augnes-local --json` in that same profile
+   after Operator setup has registered the marketplace. Open a fresh client
+   in the project to use its loaded tools. If you set `CODEX_HOME`, use the
+   same absolute profile directory for setup and client use.
+3. From the application checkout run `npm run augnes -- status`. Open its
+   `effective_url` when the runtime is ready and verified; service lifecycle
+   status alone does not return an address. Connect/select the intended project
    using the [normal project onboarding](../README.md#quickstart). A fresh project
    legitimately has no previous work. Plugin installation is not registration.
 4. Ask Codex to resume that project. The live-continuity owner checks the
@@ -189,12 +196,12 @@ a fresh session or authorized successor can resume it. One-time public asset
 use can finish with its useful output; it need not create an account, saved work
 or an agent organization.
 
-The current public gap is a verified first-time consumer journey through this
-whole supported route, including a project folder different from the application
-checkout and an explicit unavailable case. Existing source/fixture and historical
-installed evidence have their own scope; this guide does not claim that new
-consumer observation. A universal installer, all-host compatibility and a
-standalone runtime inside `augnes-codex` are not supplied by this entry.
+For example, in the registered project ask: “Use Augnes to check our release
+checklist against the build report. Flag the open items, save the evidence
+for the next shift, and reopen it to check.” When a new build arrives, a
+fresh session can retrieve those open items and check what changed. Report
+which parts needed setup help; this local path does not establish
+compatibility with other hosts or supply a standalone runtime.
 
 ## Current local product path
 
