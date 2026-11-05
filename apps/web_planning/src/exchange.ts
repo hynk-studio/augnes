@@ -1,3 +1,4 @@
+import { decisionView } from "./return-use";
 import { boundedText, canonical, exact, fail, headBinding, reference, workRef, type Revision, type WorkRef } from "./contract";
 import { FILE_LIMIT, SELECTION_BYTES, fileManifest, type FileEntry } from "./files";
 
@@ -68,5 +69,5 @@ export function exchangeList(chain: Revision[]) {
   const head = chain.at(-1);
   if (!head) fail("work_not_found", 404);
   const items = chain.filter(r => r.exchange).map(exchangeView);
-  return { task: head.definition.goal, work_id: head.work_id, head: headBinding(head), items };
+  return { task: head.definition.goal, work_id: head.work_id, head: headBinding(head), items, decisions:chain.filter(r=>r.return_use).map(decisionView) };
 }

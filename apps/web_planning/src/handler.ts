@@ -1,4 +1,6 @@
 /// <reference path="./assets.d.ts" />
+import { applyReturn, inspectReturn } from "./return-continuation";
+import { USE_EXPORT } from "./return-use";
 import { readExchangePage } from "./exchange-reading";
 import { inspectWorkMatch, searchQuery, searchWork } from "./work-search";
 import { LARGE_EXPORT, exchangeList } from "./exchange";
@@ -45,6 +47,7 @@ async function body(request:Request,limit=REQUEST_BYTES) {
 function savedPlanning(r:Revision){
   return {definition:r.definition,sources:r.sources,relations:r.relations,...(r.files!==undefined?{files:r.files}:{})};
 }
+function sealedPlanning(r:Revision){return {...savedPlanning(r),...(r.return_use?{return_use:r.return_use}:{})};}
 function draftFingerprint(input:Record<string,unknown>){
   const {ticket,expected,workspace_id,project_id,...draft}=input;
   return hash(canonical(draft));
@@ -129,6 +132,8 @@ export async function handle(request:Request,env:Environment,principal:Principal
       if(!r || r.fingerprint!=="sha256:"+text[3])fail("file_revision_unavailable",409);
       return json(await readExchangePage(access,r,Number(text[4]),input));
     }
+    const inspection=path.match(/^\/api\/work\/([a-f0-9-]+)\/inspect-return$/);
+    if(inspection && UUID.test(inspection[1]))return json(await inspectReturn(access,inspection[1],input));
     if(exchange && UUID.test(exchange[1]))return json(await writeExchange(access,exchange[1],input,exchange[2]==="resolve"));
     const capacity=path.match(/^\/api\/work\/([a-f0-9-]+)\/capacity$/);
     if(path==="/api/capacity" || (capacity && UUID.test(capacity[1]))) {
@@ -145,14 +150,14 @@ export async function handle(request:Request,env:Environment,principal:Principal
     }
     if(path==="/api/drafts") {
       const bound="definition" in input;
-      exact(input,"workspace_id,project_id"+(bound?",definition,notes"+("material_edits" in input?",material_edits":"")+("files" in input?",files":""):"")); const work_id=crypto.randomUUID();
-      const fingerprint=bound?hash(canonical((await prepareSceneDraft(access,[],selectedFiles(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits),input.files),undefined)).payload)):undefined;
-      return json({work_id,ticket:ticket(access,work_id,headBinding(),fingerprint)});
+      exact(input,"workspace_id,project_id"+(bound?",definition,notes"+("material_edits" in input?",material_edits":"")+("files" in input?",files":"")+("return_choice" in input?",return_choice":""):"")); const work_id=crypto.randomUUID();
+      const fingerprint=bound?hash(canonical((await applyReturn(access,work_id,[],await prepareSceneDraft(access,[],selectedFiles(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits),input.files),undefined),input.return_choice)).payload)):undefined;
+      return json({work_id,ticket:ticket(access,work_id,headBinding(),fingerprint,input.return_choice?draftFingerprint(input):undefined)});
     }
     if(path==="/api/reconstruct" || path==="/api/reconstruct-files" || extendedRestore) {
       exact(input,"workspace_id,project_id,export,confirm");
       if(env.RECONSTRUCTION_MODE!=="quiesced-empty-store" || input.confirm!=="reconstruct-empty-store")fail("reconstruction_disabled",403);
-      if(path==="/api/reconstruct-exchange" && input.export?.format!==LARGE_EXPORT ||
+      if(path==="/api/reconstruct-exchange" && ![LARGE_EXPORT,USE_EXPORT].includes(input.export?.format) ||
          path==="/api/reconstruct-directions" && input.export?.format!==DIRECTION_EXPORT)fail("incompatible_format",409);
       if((path==="/api/reconstruct-files" || path==="/api/reconstruct-directions") && input.export?.format===DIRECTION_EXPORT){
         const works=validateDirectionExport(access,input.export);await reconstructWorks(access,works);
@@ -204,7 +209,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
     const [,id,action]=match;
     if(action==="ticket" || action==="context" || action==="erase") {
       const bound=action==="ticket" && "definition" in input;
-      exact(input,action==="erase"?"workspace_id,project_id,expected,confirm":"workspace_id,project_id,expected"+(bound?",definition,notes"+("material_edits" in input?",material_edits":"")+("files" in input?",files":"")+("scene" in input?",scene":""):""));
+      exact(input,action==="erase"?"workspace_id,project_id,expected,confirm":"workspace_id,project_id,expected"+(bound?",definition,notes"+("material_edits" in input?",material_edits":"")+("files" in input?",files":"")+("scene" in input?",scene":"")+("return_choice" in input?",return_choice":""):""));
       const expected=binding(input.expected);
       const chain=await readWork(access,id), head=chain.at(-1);
       if(!head)fail("work_not_found",404);
@@ -214,17 +219,25 @@ export async function handle(request:Request,env:Environment,principal:Principal
         return html(renderContext(head,chain.at(-2),refs.availability,refs.reviewSource));}
       if(action==="ticket") {
         const {histories}=await selectionHistories(access,id,input.material_edits);
-        const prepared=bound?await prepareSceneDraft(access,chain,selectedFiles(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits,chain,histories),input.files,head),input.scene):undefined;
+        const prepared=bound?await applyReturn(access,id,chain,await prepareSceneDraft(access,chain,selectedFiles(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits,chain,histories),input.files,head),input.scene),input.return_choice):undefined;
         if(prepared){
           validateRetainedIncorporations(head,prepared.payload);
           historyFiles([...chain,{files:prepared.payload.files} as typeof head]);
         }
-        return json({ticket:ticket(access,id,expected,prepared?hash(canonical(prepared.payload)):undefined,histories.size?draftFingerprint(input):undefined)});
+        return json({ticket:ticket(access,id,expected,prepared?hash(canonical(prepared.payload)):undefined,histories.size||input.return_choice?draftFingerprint(input):undefined)});
       }
       if(input.confirm!=="erase-whole-work")fail("confirmation_required");
       await eraseWork(access,id,expected); return json({erased:true});
     }
-    exact(input,"workspace_id,project_id,ticket,definition,notes"+("material_edits" in input?",material_edits":"")+("files" in input?",files":"")+("scene" in input?",scene":""));
+    // A reloaded tab keeps only its signed receipt, never private authored bytes.
+    if(action==="resolve" && !("definition" in input)){
+      exact(input,"workspace_id,project_id,ticket");const t=readTicket(access,input.ticket,id,true);
+      if(!t.draft_fingerprint||!t.payload_fingerprint)fail("bound_selection_ticket_required",409);
+      const chain=await readWork(access,id),saved=chain.find(r=>r.request_key===t.request_key);
+      if(saved && (!saved.return_use||hash(canonical(sealedPlanning(saved)))!==t.payload_fingerprint||saved.predecessor!==t.expected.fingerprint||saved.revision!==t.expected.revision+1))fail("altered_replay",409);
+      return json({outcome:saved?"saved":"unknown",saved:saved??null,head:headBinding(chain.at(-1))});
+    }
+    exact(input,"workspace_id,project_id,ticket,definition,notes"+("material_edits" in input?",material_edits":"")+("files" in input?",files":"")+("scene" in input?",scene":"")+("return_choice" in input?",return_choice":""));
     const t=readTicket(access,input.ticket,id,action==="resolve");
     const previous=await readWork(access,id); // Integrity validation, NOT the write gate.
     // For foreign selections the ticket also seals the submitted draft. Once
@@ -233,13 +246,13 @@ export async function handle(request:Request,env:Environment,principal:Principal
       if(draftFingerprint(input)!==t.draft_fingerprint)fail("altered_replay",409);
       const saved=previous.find(r=>r.request_key===t.request_key);
       if(saved){
-        if(hash(canonical(savedPlanning(saved)))!==t.payload_fingerprint || saved.revision!==t.expected.revision+1 || saved.predecessor!==t.expected.fingerprint)fail("altered_replay",409);
-        checkReplayedOccurrences(saved,input.material_edits);
+        if(hash(canonical(sealedPlanning(saved)))!==t.payload_fingerprint || saved.revision!==t.expected.revision+1 || saved.predecessor!==t.expected.fingerprint)fail("altered_replay",409);
+        checkReplayedOccurrences(saved,input.material_edits??[]);
         return json({outcome:"saved",saved,head:headBinding(previous.at(-1)),replayed:true});
       }
       if(action==="resolve"){
         const head=previous.at(-1);
-        if(head?.relations && sameBinding(headBinding(head),t.expected) && hash(canonical(savedPlanning(head)))===t.payload_fingerprint &&
+        if(!input.return_choice && head?.relations && sameBinding(headBinding(head),t.expected) && hash(canonical(savedPlanning(head)))===t.payload_fingerprint &&
            await headsCurrent(access,reference(head),reference(head))){
           checkReplayedOccurrences(head,input.material_edits);
           return json({outcome:"saved",saved:head,head:headBinding(head),noop:true});
@@ -248,10 +261,10 @@ export async function handle(request:Request,env:Environment,principal:Principal
       }
     }
     const {histories,snapshots}=await selectionHistories(access,id,input.material_edits);
-    if(histories.size && !t.draft_fingerprint)fail("bound_selection_ticket_required",409);
+    if((histories.size || input.return_choice) && !t.draft_fingerprint)fail("bound_selection_ticket_required",409);
     const base=previous.find(r=>r.revision===t.expected.revision);
     const prefix=previous.slice(0,t.expected.revision);
-    const {payload,bodies}=await prepareSceneDraft(access,prefix,selectedFiles(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits,prefix,histories),input.files,base),input.scene);
+    const {payload,bodies}=await applyReturn(access,id,prefix,await prepareSceneDraft(access,prefix,selectedFiles(editedPayload(access,normalizePayload(access,input.definition,input.notes),input.notes,input.material_edits,prefix,histories),input.files,base),input.scene),input.return_choice);
     if(t.payload_fingerprint && hash(canonical(payload))!==t.payload_fingerprint)fail("altered_replay",409);
     const fingerprint=requestFingerprint(access,id,t.expected,t.request_key,payload);
     const previousRequest=await requestRevision(access,t.request_key);
@@ -271,7 +284,7 @@ export async function handle(request:Request,env:Environment,principal:Principal
       if(!sameBinding(headBinding(previous.at(-1)),t.expected))fail("conflict",409);
       historyFiles([...previous,{files:payload.files} as NonNullable<typeof base>]);
       const next=makeRevision(access,id,t.expected,t.request_key,payload,new Date().toISOString());
-      await append(access,previous,next,undefined,bodies,snapshots);
+      await append(access,previous,next,payload.return_use?.source_head,bodies,snapshots);
     }
     const chain=await readWork(access,id);
     const saved=chain.find(r=>r.request_key===t.request_key);

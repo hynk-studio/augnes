@@ -7,6 +7,7 @@ import { observeWebPlanningInterceptions } from './web-planning-interception.mjs
 import { browserStoryJourney } from './browser-web-planning-story.mjs';
 import { browserFileJourney } from './browser-web-planning-files.mjs';
 import { browserFileExchanges } from './browser-web-planning-exchanges.mjs';
+import { browserReturnedFiles } from './browser-web-planning-returns.mjs';
 import { browserWorkSearch } from './browser-web-planning-search.mjs';
 import { browserOrdinaryFileJourney } from './browser-web-planning-ordinary-files.mjs';
 import { browserHistoryJourney, browserRetainedNotes, browserIndependentNotes, browserConflictSource } from './browser-web-planning-history.mjs';
@@ -61,7 +62,9 @@ async function intercept(c,p,origin){
  if(p.responseStatusCode!==undefined&&c.sceneResponseBarrier&&u.endsWith(c.sceneResponseBarrier.suffix)){
    assert.equal(c.sceneResponseBarrier.response,null);c.sceneResponseBarrier.response=p;return;
  }
- if(c.beforeRequest&&u===origin+c.beforeRequest.path&&p.request.method===c.beforeRequest.method){const before=c.beforeRequest;c.beforeRequest=null;await before.run();}
+ if(c.beforeRequest&&u===origin+c.beforeRequest.path&&p.request.method===c.beforeRequest.method){const before=c.beforeRequest;c.beforeRequest=null;
+   if(before.unavailable)return c.send('Fetch.fulfillRequest',{requestId:p.requestId,responseCode:503,responseHeaders:[{name:'Content-Type',value:'application/json'},{name:'X-Web-Planning-Response',value:'1'}],body:Buffer.from('{"error":"storage_unavailable"}').toString('base64')});
+   await before.run();}
  if(c.direct&&u===origin+'/cdn-cgi/access/logout'){
    c.logoutObserved=true;
    await local.setOptions({access:undefined});
@@ -352,6 +355,9 @@ try {
  await browserWorkSearch({c:searchPage,origin:local.origin,
    clientEnvironment:{...process.env,AUGNES_WEB_ORIGIN:local.origin,AUGNES_WEB_FIXTURE_COOKIE:'web_planning_local='+local.env.LOCAL_SESSION},
    click,set,settled,saved,wait,navigate,checks,requests});
+ for(const c of clients)await navigate(c,'about:blank');await closeLocalRuntime();local=null;
+ local=await startLocal({root:path.join(root,'returned-continuation')});const receiver=await page(debug,local.origin),reader=await page(debug,local.origin);await login(receiver,local.origin);
+ await browserReturnedFiles({c:receiver,fresh:reader,origin:local.origin,env:{...process.env,AUGNES_WEB_ORIGIN:local.origin,AUGNES_WEB_FIXTURE_COOKIE:'web_planning_local='+local.env.LOCAL_SESSION},root,click,set,settled,wait,navigate,barrier:sceneResponseBarrier,checks,requests});
  assert.deepEqual(interceptionErrors,[]);
  assert.equal(exceptions,0);assert.equal(external,0);assert.equal(unexpectedFailures,0);assert.equal(expectedFailures.size,0);
  console.log(JSON.stringify({web_planning_browser_checks:checks,acknowledgement_checks:acknowledgementChecks,actual_agent_read:false,sites_ingress_verified:false,cloudflare_access_hosted_verified:false,external_requests:external,script_exceptions:exceptions}));

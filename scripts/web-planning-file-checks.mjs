@@ -27,7 +27,7 @@ export async function checkFiles({start,client,newWork,save,passed,root,open}) {
  await old.close();open.splice(open.indexOf(old),1);old=await start('nonempty-v2-direct',options);oc=await client(old);
  assert.equal(await (await old.mf.dispatchFetch(old.origin+`/api/work/${ow.id}/export`,{headers:{cookie:oc.cookies}})).text(),oldBytes);
  assert.deepEqual((await old.db.prepare('SELECT envelope FROM web_planning_revision ORDER BY revision').all()).results,rowsBefore);
- assert.deepEqual((await old.db.prepare('SELECT name FROM d1_migrations ORDER BY id').all()).results.map(r=>r.name),['0000_web_planning.sql','0001_schema_version.sql','0002_revision_files.sql','0003_cumulative_history.sql','0004_complete_exchange_files.sql']);
+ assert.deepEqual((await old.db.prepare('SELECT name FROM d1_migrations ORDER BY id').all()).results.map(r=>r.name),['0000_web_planning.sql','0001_schema_version.sql','0002_revision_files.sql','0003_cumulative_history.sql','0004_complete_exchange_files.sql','0005_return_destination.sql']);
  passed('files: accepted hosted 7d4320a writer creates mixed v0.1/v0.2 history; pinned Wrangler upgrades nonempty D1 once with byte-identical envelopes/export');
  const server=await start('files'),c=await client(server);
  const count=async table=>(await server.db.prepare(`SELECT count(*) n FROM ${table}`).first()).n;

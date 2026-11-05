@@ -8,6 +8,7 @@ function forgetPrivateExchanges() {
   try { for (const key of Object.keys(sessionStorage)) if (key.startsWith(exchangeStoragePrefix)) sessionStorage.removeItem(key); } catch {}
 }
 function clearExchange() {
+  resetReturnPanel();
   exchangeDraft = exchangePending = exchangeState = null;
   $('exchange-form')?.reset();
   $('exchange-list')?.replaceChildren();
@@ -167,6 +168,7 @@ function drawExchanges(state) {
         link.onclick = event => { event.preventDefault(); run(() => downloadExchangeFile(file)); };
         link.textContent = file.name + ' · version ' + part.ref.revision + ' · ' + file.bytes + ' bytes';
         li.append(link); files.append(li);
+        if(part.kind==='return')li.append(returnButton('Inspect return and decide',()=>inspectReturned(part.ref,part.files.indexOf(file))));
         addTextReader(li, file, !reply && part === item && item.files.length === 1 ? item : null);
       }
       article.append(files);
@@ -180,6 +182,7 @@ function drawExchanges(state) {
     }
     list.append(article);
   }
+  for(const decision of state.decisions??[])drawReturnDecision(list,decision,true);
   if (!list.children.length) list.textContent = 'No file requests yet.';
 }
 async function readExchanges() {
@@ -196,9 +199,10 @@ function openExchanges(revision, view) {
   $('exchange-panel').hidden = !revision;
   exchangeControls();
   if (!revision) return;
-  if (!view && revision.revision === 1) view = { head: binding(revision), items: [] };
-  if (!view && previous?.head.fingerprint === revision.predecessor && !revision.exchange)
-    view = { head: binding(revision), items: previous.items };
+  restoreReturnMarker(revision.work_id);
+  if (!view && revision.revision === 1 && !revision.return_use) view = { head: binding(revision), items: [] };
+  if (!view && previous?.head.fingerprint === revision.predecessor && !revision.exchange && !revision.return_use)
+    view = { head: binding(revision), items: previous.items, decisions:previous.decisions };
   $('exchange-new').disabled = !view;
   $('exchange-refresh').hidden = !!view;
   if (view) {
@@ -351,6 +355,156 @@ $('exchange-form').onsubmit = event => {
 };
 $('exchange-check').onclick = () => run(() => sendExchange(true));
 $('exchange-retry').onclick = () => run(() => sendExchange(false));
+Object.assign(messages,{
+  return_output_name_in_use:'Choose a free filename; existing files and reserved scene material cannot be replaced here.',
+  return_conditions_changed:'The source work advanced. Inspect the exact return again and compare current conditions.',
+  return_exceeds_selected_file_limit:'Keep the exact download or author a smaller adaptation; an unchanged selected file may be at most 256 KiB.',
+  return_adaptation_unchanged:'The authored bytes are identical. Choose unchanged use or write the adaptation.',
+  return_preserve_saved_work:'The destination selection changed. Review its saved files and notes before preparing again.',
+  invalid_return_adaptation:'Provide nonempty authored UTF-8 text of at most 256 KiB.',
+  record_nonuse_on_original:'Record deferral or non-use on the original work without a new output.',
+  return_selection_unavailable:'The exact returned file is unavailable. No other return has been substituted.'
+});
+let returnView=null,returnPrepared=null,returnMarker=null,returnTargetCursor=null,returnEdited=false;
+const returnKey=id=>exchangeStoragePrefix+'return-use.'+id;
+const returnRef=r=>r.work_id+' · revision '+r.revision+' · '+r.fingerprint;
+function returnButton(label,fn){const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=()=>run(fn);return b;}
+function returnText(parent,text){const p=document.createElement('p');p.textContent=text;parent.append(p);}
+function resetReturnPanel(){
+  returnView=returnPrepared=returnMarker=null;returnTargetCursor=null;returnEdited=false;if(!$('return-inspector'))return;
+  $('return-retry').hidden=$('return-reenter-field').hidden=true;$('return-reenter').value='';
+  $('return-inspector').hidden=$('return-recovery').hidden=$('return-commit').hidden=$('return-abandon').hidden=true;
+  $('return-status').textContent=$('return-preview').textContent='';$('return-fields').disabled=false;
+  for(const id of ['return-basis','return-decisions','return-destination'])$(id).replaceChildren();
+  for(const id of ['return-name','return-text','return-reason','return-limits','return-checks','return-next','return-goal'])$(id).value='';
+}
+function restoreReturnMarker(id){
+  try{returnMarker=JSON.parse(sessionStorage.getItem(returnKey(id)));}catch{}
+  $('return-recovery').hidden=!returnMarker;
+}
+function drawReturnDecision(container,d,originLink=false){
+  const section=document.createElement('article');section.dataset.returnDecision=d.decision;
+  returnText(section,'Saved '+d.decision+' · '+d.goal+' · '+returnRef(d.destination));
+  returnText(section,'Return: '+returnRef(d.returned)+' · file '+(d.index+1)+': '+d.original.file.name+' · '+d.original.file.digest);
+  returnText(section,'Reason: '+d.rationale+' · Limits: '+(d.limits||'none reported')+' · Reported checking: '+(d.reported_check||'none')+' · Next: '+d.next_action);
+  if(d.output){const file={...d.output,download:d.download};returnText(section,'Saved output: '+file.name+' · '+file.bytes+' bytes · '+file.digest);
+    section.append(returnButton('Download saved output',()=>downloadExchangeFile(file)));
+    if(textFile(file.name)&&file.bytes<=32768)addTextReader(section,file,null);
+  }
+  if(originLink)section.append(returnButton('Inspect recorded return',()=>inspectReturned(d.returned,d.index)));
+  container.append(section);
+}
+function returnOptions(){
+  const mode=$('return-mode').value,used=mode==='unchanged'||mode==='adapted',dest=$('return-destination');
+  if(!used)dest.value='current';dest.disabled=!used;
+  $('return-targets').hidden=!used||returnTargetCursor===false;
+  $('return-name-field').hidden=!used;$('return-text-field').hidden=mode!=='adapted';
+  $('return-goal-field').hidden=dest.value!=='new';returnPrepared=null;$('return-commit').hidden=true;$('return-preview').textContent='';
+}
+async function inspectReturned(ref,index){
+  if(returnMarker){$('return-recovery').hidden=false;status('Check the pending return save first.');return;}
+  if(returnEdited&&!confirm('Discard this unsaved return decision?'))return;
+  let view;try{view=await api('/api/work/'+ref.work_id+'/inspect-return',{returned:ref,index,after:null});}
+  catch(e){if(ref.work_id!==work&&['work_not_found','work_erased','return_selection_unavailable'].includes(e.message)){
+    resetReturnPanel();const message=$('return-status');
+    message.textContent='Recorded source unavailable: '+returnRef(ref)+' · file '+(index+1)+'. The saved destination bytes and their recorded attribution remain here.';
+    message.focus();return;}throw e;}
+  if(accessLost)return;resetReturnPanel();returnView=view;
+  const box=$('return-basis'),file=view.returned.files[index];
+  returnText(box,'Request: '+view.request.message+' · '+returnRef(view.request.ref));
+  for(const file of view.request.files){returnText(box,'Requested file: '+file.name+' · '+file.digest);box.append(returnButton('Download requested '+file.name,()=>downloadExchangeFile(file)));addTextReader(box,file,null);}
+  returnText(box,'Request based on: '+view.request_basis.definition.goal+' · '+returnRef(view.request_basis.ref)+' · '+[...view.request_basis.definition.success_criteria,...view.request_basis.definition.non_goals,...view.request_basis.notes].join(' / '));
+  returnText(box,'Return: '+view.returned.message+' · '+returnRef(view.returned.ref)+' · Sender’s next action: '+view.returned.next_action);
+  returnText(box,'Current conditions: '+view.current.definition.goal+' · '+returnRef(view.current.ref)+' · '+[...view.current.definition.success_criteria,...view.current.definition.non_goals,...view.current.notes].join(' / '));
+  returnText(box,'Selected return file '+(index+1)+': '+file.name+' · '+file.bytes+' bytes · '+file.digest);
+  box.append(returnButton('Download original return',()=>downloadExchangeFile(file)));addTextReader(box,file,null);
+  returnText(box,'Selections allow 8 files, 256 KiB per file and 512 KiB together. Exact original reads and downloads stay available.');
+  const large=file.bytes>262144;$('return-mode').options[0].disabled=large;
+  if(large)returnText(box,'This original exceeds the 256 KiB selected-file limit. Read or download it in full; you can author a smaller adaptation.');
+  $('return-mode').value=large?'adapted':'unchanged';$('return-name').value=file.name;$('return-targets').textContent='List other saved work';
+  const dest=$('return-destination');dest.add(new Option('Original work: '+view.current.definition.goal,'current'));dest.add(new Option('Create a follow-on','new'));
+  $('return-inspector').hidden=false;returnOptions();showReturnDecisions(view);$('return-heading').focus();$('return-heading').scrollIntoView({block:'nearest'});
+}
+function showReturnDecisions(view){
+  const box=$('return-decisions');for(const d of view.decisions)drawReturnDecision(box,d);
+  $('return-more').hidden=!view.next;
+  if(!box.children.length&&!view.next)returnText(box,'No committed decision for this returned file.');
+}
+$('return-more').onclick=()=>run(async()=>{
+  if(!returnView?.next)return;
+  const {returned,index}=returnView.selection;
+  const v=await api('/api/work/'+returned.work_id+'/inspect-return',{returned,index,after:returnView.next});
+  returnView.next=v.next;showReturnDecisions(v);
+});
+$('return-targets').onclick=()=>run(async()=>{
+  const list=await api('/api/works'+(returnTargetCursor?'?cursor='+returnTargetCursor:''));
+  for(const target of list.items)if(target.work_id!==returnView.current.ref.work_id){
+    const opt=new Option(target.goal+' · revision '+target.revision+' · '+target.work_id,target.work_id);
+    opt.dataset.fingerprint=target.fingerprint;$('return-destination').add(opt);
+  }
+  returnTargetCursor=list.next??false;$('return-targets').hidden=!list.next;$('return-targets').textContent='List more saved work';
+});
+$('return-fields').addEventListener('input',()=>{returnEdited=true;returnOptions();});
+$('return-cancel').onclick=()=>{if(!busy&&!returnMarker&&(!returnEdited||confirm('Discard this unsaved return decision?')))resetReturnPanel();};
+$('return-mode').onchange=$('return-destination').onchange=returnOptions;
+const returnDraftBusy=()=>dirty||directionDirty||pending||relationPending||sceneReviewPending||exchangePending||exchangeDraft||sceneModified;
+$('return-prepare').onclick=()=>run(async()=>{
+  if(returnMarker||!returnView)return;
+  const dest=$('return-destination'),mode=$('return-mode').value,used=mode==='unchanged'||mode==='adapted';
+  const judgment={decision:mode,name:used?$('return-name').value:null,text:mode==='adapted'?$('return-text').value:null,
+    rationale:$('return-reason').value,limits:$('return-limits').value,reported_check:$('return-checks').value,next_action:$('return-next').value};
+  const id=dest.value==='current'?returnView.current.ref.work_id:dest.value;
+  if(id===work&&returnDraftBusy()){status('Finish the destination draft first. Its edits and save base are unchanged.');return;}
+  const savedTarget=id==='new'?null:(await api('/api/work/'+id)).saved;
+  const observed=dest.value==='current'?returnView.current.ref.fingerprint:dest.selectedOptions[0].dataset.fingerprint;
+  if(savedTarget&&(savedTarget.fingerprint!==observed||(work===id&&saved?.fingerprint!==savedTarget.fingerprint))){status('The selected destination changed. Inspect its current conditions and choose it again.');return;}
+  const {prepareReturnDraft}=await import('/planning-notes.mjs');
+  let p;try{p=await prepareReturnDraft(api,returnView.selection,judgment,savedTarget?{saved:savedTarget}:{goal:$('return-goal').value});}
+  catch(e){if(accessLost)return;const why=messages[e.message]??e.message.replaceAll('_',' ');$('return-status').textContent='Preview unavailable: '+why+' Nothing was saved.';return;}
+  if(accessLost)return;returnPrepared=p;$('return-commit').hidden=false;
+  $('return-preview').textContent='Prepared, not saved: '+p.body.definition.goal+' · '+p.work_id+' · base '+p.expected.revision+' / '+(p.expected.fingerprint??'new work')+'\n'+
+    [...p.body.definition.success_criteria,...p.body.notes.map(n=>n.text),...p.body.files.map(f=>f.name)].join('\n')+'\n'+
+    mode+': '+(judgment.name??'no material selected')+' · '+judgment.rationale+' · Next: '+judgment.next_action;
+});
+async function finishReturn(response){
+  if(response.outcome!=='saved'||!response.saved?.return_use){
+    const m=returnMarker;if(!m)return;
+    let source=null;try{source=(await api('/api/work/'+m.choice.selection.source_head.work_id)).saved;}
+    catch(e){if(e.message!=='work_erased'&&e.message!=='work_not_found')throw e;}
+    const stale=source?.fingerprint!==m.choice.selection.source_head.fingerprint||response.head.fingerprint!==m.expected.fingerprint;
+    if(stale){const last=await api('/api/work/'+m.work_id+'/resolve',{ticket:m.ticket});if(last.outcome==='saved')return finishReturn(last);}
+    $('return-abandon').hidden=!stale;$('return-retry').hidden=stale;
+    $('return-reenter-field').hidden=stale||!!returnPrepared||m.choice.decision!=='adapted';
+    $('return-status').textContent=stale?'The original save was not recorded and its basis has changed. Release it before reassessing.':'No matching save observed. Only an explicit retry of this same ticket can save this draft.';return;
+  }
+  const d=response.saved;returnEdited=false;sessionStorage.removeItem(returnKey(work));returnPrepared=returnMarker=null;
+  $('return-recovery').hidden=$('return-commit').hidden=true;$('return-fields').disabled=false;
+  const notice='Saved '+d.return_use.decision+' in '+d.definition.goal+' · '+returnRef(d)+'. Next: '+d.return_use.next_action;
+  $('return-status').textContent=notice;
+  if(work===d.work_id&&!returnDraftBusy()){const latest=await api('/api/work/'+work);await show(latest.saved,latest.exchanges);}
+  else if(returnView){const s=returnView.selection;await inspectReturned(s.returned,s.index);}
+  $('return-status').textContent=notice;
+}
+$('return-commit').onclick=()=>run(async()=>{
+  const p=returnPrepared;if(!p||returnMarker)return;
+  if(p.work_id===work&&returnDraftBusy()){status('Finish the destination draft before saving.');return;}
+  const {text,...choice}=p.body.return_choice;
+  const marker={work_id:p.work_id,ticket:p.body.ticket,expected:p.expected,choice,goal:p.expected.revision===0?p.body.definition.goal:null};
+  sessionStorage.setItem(returnKey(work),JSON.stringify(marker));returnMarker=marker;$('return-fields').disabled=true;$('return-commit').hidden=true;$('return-recovery').hidden=false;
+  try{await finishReturn(await api('/api/work/'+p.work_id+'/save',p.body));}
+  catch(err){if(!accessLost)$('return-status').textContent='Return save not confirmed. Check this exact save before preparing another.';throw err;}
+});
+$('return-resolve').onclick=()=>run(async()=>{if(returnMarker)await finishReturn(await api('/api/work/'+returnMarker.work_id+'/resolve',{ticket:returnMarker.ticket}));});
+$('return-retry').onclick=()=>run(async()=>{
+  const m=returnMarker;if(!m||$('return-retry').hidden)return;
+  let body=returnPrepared?.body;if(!body){const saved=m.expected.revision?(await api('/api/work/'+m.work_id)).saved:null;
+    if(saved&&saved.fingerprint!==m.expected.fingerprint){status('The destination changed. Check this save again.');return;}
+    const {returnDraft}=await import('/planning-notes.mjs');body={...returnDraft(m.choice.selection,{...m.choice,text:m.choice.decision==='adapted'?$('return-reenter').value:null},saved?{saved}:{goal:m.goal}),ticket:m.ticket};}
+  await finishReturn(await api('/api/work/'+m.work_id+'/save',body));
+});
+$('return-abandon').onclick=()=>{if(busy||!returnMarker||$('return-abandon').hidden)return;sessionStorage.removeItem(returnKey(work));returnMarker=returnPrepared=null;
+  $('return-recovery').hidden=$('return-commit').hidden=true;$('return-fields').disabled=false;$('return-status').textContent='Unrecorded draft released. Inspect current conditions before preparing again.';};
+
 // Keep ordinary editing and exchange forms from discarding each other's unsaved inputs.
 $('editor').addEventListener('click', event => {
   if (exchangeDraft && !event.target.closest('#exchange-panel')) {

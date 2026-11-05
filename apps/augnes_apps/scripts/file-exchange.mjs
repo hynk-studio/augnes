@@ -67,6 +67,7 @@ async function recoverDraft(directory, {work_id, setup_digest, body}) {
     await rmdir(filesDir).catch(()=>{}); await rmdir(directory).catch(()=>{}); throw error;
   }
 }
+async function newJson(path,value){const out=await open(path,'wx',0o600);try{await out.writeFile(JSON.stringify(value,null,2));await out.sync();}finally{await out.close();}}
 async function run() {
   if(['search','inspect-match','select-match'].includes(setup)) {
     const {project,search,inspectMatch}=await openFileProject();
@@ -107,6 +108,27 @@ async function run() {
   }
   if (!setup) throw new Error('List tasks or choose a private task setup.');
   const client = await openFileTask(setup);
+  if(action==='inspect-return' && (args.length===2||args.length===3)){
+    const view=await client.inspectReturn(Number(args[0]),args[1]);
+    if(args[2])await newJson(args[2],{setup_digest:client.setupDigest,selection:view.selection});return view;
+  }
+  if(action==='more-decisions' && args.length===3)return client.inspectReturn(Number(args[0]),args[1],JSON.parse(args[2]));
+  if(action==='inspect-origin' && args.length===1)return client.recordedOrigin(Number(args[0]));
+  if(action==='read-origin' && args.length>=1&&args.length<=3)return client.readOrigin(Number(args[0]),Number(args[1]??0),args[2]??'');
+  if(action==='read-saved' && args.length===2)return client.savedFile(Number(args[0]),args[1]);
+  if(action==='prepare-use'){
+    const [observation,choice,target,journal,goal]=args;
+    if(!observation||!choice||!target||!journal||args.length!==(target==='new'?5:4))throw Error('Use prepare-use OBSERVATION.json CHOICE.json current|DEST_SETUP.json|new NEW_PENDING.json [NEW_GOAL].');
+    const observed=JSON.parse(await readFile(observation,'utf8'));if(observed.setup_digest!==client.setupDigest)throw Error('Choose an observation from this task setup.');
+    const decision=JSON.parse(await readFile(choice,'utf8')),dest=target==='new'?{goal}:{saved:await (target==='current'?client:await openFileTask(target)).planning.current()};
+    const pending=await client.prepareReturn(observed.selection,decision,dest);await newJson(journal,{setup_digest:client.setupDigest,pending});
+    return {status:'prepared, not saved',destination:pending.work_id,expected:pending.expected,definition:pending.body.definition,notes:pending.body.notes,
+      retained_files:pending.body.files,choice:pending.body.return_choice,next:'Inspect this preview, then commit-use with the same pending file. After a lost acknowledgement use check-use.'};
+  }
+  if((action==='commit-use'||action==='check-use')&&args.length===1){
+    const {setup_digest,pending}=JSON.parse(await readFile(args[0],'utf8'));if(setup_digest!==client.setupDigest)throw Error('Choose a pending file from this task setup.');
+    return client.sendReturn(pending,action==='check-use');
+  }
   if (action === 'context') return client.planning.current();
   if (action === 'history') {
     const revisions=await client.planning.history();
