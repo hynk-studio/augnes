@@ -93,6 +93,9 @@ for (const browserReplacementProofPath of [null, false, ".augnes-local-verificat
     const receipt = { attempt: { source_correction: { schema: "augnes.local-canonical-operating-profile-succession.v1", kind: "operating_profile_efficiency" } } };
     const receipts = [receipt,
       { receipt_version: 5 },
+      ...["client.js.txt", "exchange-client.js.txt", "history-client.js.txt", "search-client.js.txt"].map(file => ({
+        attempt: { source_correction: { schema: "augnes.local-canonical-source-correction.v2", kind: "source_revision", source_module: "apps/web_planning/src/" + file } },
+      })),
       ...["browser_replacement", "browser_authority", "input_replacement_consumed"].flatMap(key =>
         [false, null, {}].map(value => ({ attempt: { [key]: value } }))),
       ...["browser_input_path", "browser_input_sha256"].flatMap(key =>
@@ -121,12 +124,14 @@ for (const browserReplacementProofPath of [null, false, ".augnes-local-verificat
     }
     const file = path.join(root, "machine-id");
     writeFileSync(file, "7".repeat(64), { mode: 0o600 });
+    const rootBefore = lstatSync(root, { bigint: true });
     const before = lstatSync(file, { bigint: true }), bytes = readFileSync(file);
     for (const value of receipts) {
       if (hasRetiredQualificationMarker(value)) assert.throws(() => readStockMachineIdentity(value, root), { code: "qualification_route_retired" });
       else assert.match(readStockMachineIdentity(value, root), /^[0-9a-f]{32}$/u);
     }
     const after = lstatSync(file, { bigint: true });
+    assert.equal(lstatSync(root, { bigint: true }).ctimeNs, rootBefore.ctimeNs);
     for (const key of ["dev", "ino", "mode", "uid", "gid", "nlink", "size", "mtimeNs", "ctimeNs"]) assert.equal(after[key], before[key]);
     assert(readFileSync(file).equals(bytes));
   } finally { rmSync(root, { recursive: true, force: true }); }
