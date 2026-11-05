@@ -292,6 +292,19 @@ function readAttemptLineage({ anchorRoot, repositoryRoot = null, branch }, throu
   throw fail("attempt_lineage_bound");
 }
 
+// The Web handler concatenates these four raw scripts for GET /client.js.
+const WEB_PLANNING_CLIENT_MODULES = new Set([
+  "apps/web_planning/src/client.js.txt",
+  "apps/web_planning/src/exchange-client.js.txt",
+  "apps/web_planning/src/history-client.js.txt",
+  "apps/web_planning/src/search-client.js.txt",
+]);
+
+export function isWebPlanningClientRevision(proof) {
+  return proof?.schema === "augnes.local-canonical-source-correction.v2" &&
+    proof.kind === "source_revision" && WEB_PLANNING_CLIENT_MODULES.has(proof.source_module);
+}
+
 // A real source correction is a new candidate, never an infrastructure retry.
 // It requires the same finite regression to fail on the old module and pass on
 // the corrected module. Proof artifacts and Git objects remain independently
@@ -309,8 +322,10 @@ export function readSourceCorrectionProof(file, repositoryRoot) {
   const version2 = proof.schema === "augnes.local-canonical-source-correction.v2";
   const review = version2 ? readCandidateReview(file, proof) : null;
   if (version2 && proof.kind === "accepted_main_integration") return { ...proof, local_relative_path: relative };
+  const sourceModule = proof.source_module ?? "";
+  const modulePattern = version2 ? /^(?:next\.config\.ts|components\/blank-state\/blank-state-client\.tsx|(?:scripts|app|lib|plugins|apps|src)\/[a-zA-Z0-9_./-]+\.(?:mjs|cjs|js|ts|tsx))$/u : /^scripts\/[a-z0-9_/-]+\.mjs$/u;
   if ((!version2 && proof.schema !== "augnes.local-canonical-source-correction.v1") ||
-      !(version2 ? /^(?:next\.config\.ts|components\/blank-state\/blank-state-client\.tsx|(?:scripts|app|lib|plugins|apps|src)\/[a-zA-Z0-9_./-]+\.(?:mjs|cjs|js|ts|tsx))$/u : /^scripts\/[a-z0-9_/-]+\.mjs$/u).test(proof.source_module ?? "") || (proof.source_module ?? "").split("/").includes("..") ||
+      (!modulePattern.test(sourceModule) && !isWebPlanningClientRevision(proof)) || sourceModule.split("/").includes("..") ||
       !/^[a-z][a-z0-9_-]{0,79}$/u.test(proof.defect ?? "") || !sha(proof.fixture_sha256) ||
       !sha(proof.prior_family_id) || ![1, 2].includes(proof.prior_number) || !sha(proof.prior_receipt_fingerprint)) throw fail("source_correction_proof_invalid");
   if (!/^[a-z0-9_-]+\.mjs$/u.test(proof.fixture_artifact ?? "") || !sha(proof.environment_fingerprint)) throw fail("source_correction_fixture_missing");

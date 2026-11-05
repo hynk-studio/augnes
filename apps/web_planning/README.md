@@ -67,6 +67,70 @@ validation. No storage format, migration or new status record is required.
 
 ## Use saved notes in your current work
 
+### Find work from a remembered phrase
+
+In **Your work → Find work by a phrase**, enter part of a saved goal/title or
+current selected note. Matching is literal and case-sensitive, including spaces
+and Unicode; surrounding query whitespace is trimmed. Queries accept up to
+256 UTF-8 bytes without control characters. Search does not inspect past-only
+text, source labels, attachments or unsaved drafts.
+
+Each result identifies its work, observed revision, fingerprint, save time and
+matching field or note reference. Goals and excerpts are abbreviated to 160
+Unicode codepoints; **Inspect matched revision/note** opens the complete saved
+notes through the existing history reader. Identical titles remain distinct.
+Inspection preserves the open editor and its save base. With an existing
+destination open, use the ordinary explicit note selection or adaptation
+controls. **Open current work** deliberately reopens that work with the existing
+unsaved-edit guard and current-head checks. If it advanced, inspection keeps the
+observed basis and explains the newer revision. Erasure makes that basis
+unavailable; a result never restores it or grants write authority.
+
+Each search request visits at most ten work IDs in index order and reads only
+their current sealed planning envelopes (at most 128 KiB each). It does not
+reconstruct prior planning revisions, exchange catalogues or file bodies.
+Responses are bounded to 96 KiB. **Continue search** visits the next unsearched
+IDs, even if the first page had no matches. The response distinguishes `more`
+from `exhausted`; a refused, incomplete or failed read is an error, never a
+completed no-match. An unreadable or oversized head refuses that whole page.
+The ordinary ten-item work list retains its own behavior and cost.
+
+This is an ordered traversal of heads observed on each request, not a project
+snapshot. Work created or changed behind the cursor needs a new search. A
+completed no-match applies to that traversal. Continuation binds the query and
+configured owner/project; it cannot be reused for another phrase or scope.
+Search and inspection create no work records, revisions, requests or returns.
+
+The authenticated project-owner client uses the same routes and can choose
+returned results without a browser setup or a guessed work ID:
+
+```sh
+FILE_CLIENT=apps/augnes_apps/scripts/file-exchange.mjs
+node "$FILE_CLIENT" search "remembered phrase"
+node "$FILE_CLIENT" search "remembered phrase" "RETURNED_NEXT"
+node "$FILE_CLIENT" inspect-match "RETURNED_SELECTION"
+node "$FILE_CLIENT" select-match "RETURNED_SELECTION" ./chosen-task.json
+node "$FILE_CLIENT" ./chosen-task.json context
+```
+
+`search` returns a `selection` for each hit. `inspect-match` returns its exact
+`observed` notes, current binding, matching references and `current`/`advanced`
+status; erased or unavailable bases refuse. `select-match` verifies that basis
+before creating a new private task setup. `context` explicitly reads the current
+save base; use the existing planning draft/ticket/save methods below to continue.
+The same methods are available as `openFileProject().search(query, cursor)` and
+`.inspectMatch(selection)`, and on a task client's `planning` object. The tokens
+are read locators, not authentication or permission to write. The task-bound
+file reviewer keeps its existing three tools and gains no project search.
+
+The HTTP routes are `GET /api/works/search?q=...&cursor=...` and
+`GET /api/works/match?selection=...`. Omit the cursor for a new search. Unknown
+or duplicate parameters refuse; configured project authentication is required
+on every call. Ordinary exact-title `select` remains available; ambiguous
+titles now point to the deliberate search selection path.
+
+### Inspect and reuse selected notes
+
 Open the destination work. Under **History, export and erasure**, choose
 **Read history** for an earlier version of this work, or **Choose notes from
 another work** for an independent work in this private project. Choose a
@@ -240,7 +304,7 @@ node "$FILE_CLIENT" "$TASK" return 2 "Updated table count" "Confirm the entrance
 node "$FILE_CLIENT" "$TASK" get 3 edited.md ./returned.md
 ```
 
-The owner can use `tasks` and `select` to bind by exact task title instead of transferring a browser setup. Duplicate titles require choosing the intended task in the browser. The reviewer sees only the configured task. Use listed version numbers and filenames. Downloads create a new explicit path.
+The owner can use `tasks` and `select` to bind by exact task title instead of transferring a browser setup. For duplicate titles or a remembered note, use `search`, `inspect-match` and `select-match` as described above. The reviewer sees only the configured task. Use listed version numbers and filenames. Downloads create a new explicit path.
 Sends keep an owner-only pending request beside the setup until confirmed.
 The CLI checks the 500-character limit for the message and return next action
 before keeping a pending request. If an older client kept text that the server

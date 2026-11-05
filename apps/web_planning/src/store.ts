@@ -184,7 +184,7 @@ export async function reconstructWorks(s:Store,works:{chain:Revision[];bodies:Fi
     if(w.chain.some(r=>r.files!==undefined))await readFileBodies(s,w.chain);
   }
 }
-export async function listWork(s: Store, cursor: string) {
+export async function listWorkIds(s: Store, cursor: string) {
   // Seek past each work on the existing (scope, work_id, revision) index.
   // Even a very long history cannot make discovery walk its duplicate IDs.
   const rows = await s.DB.prepare(`WITH RECURSIVE page(n,id) AS (
@@ -200,6 +200,10 @@ export async function listWork(s: Store, cursor: string) {
   if(!seed || seed.n!==0 || seed.work_id!==cursor || seed.count!==ids.length || ids.length>11 ||
     ids.some((row,i)=>row.n!==i+1 || !UUID.test(row.work_id) || row.work_id<=(i?ids[i-1].work_id:cursor)))
     fail("history_observation_incomplete",503);
+  return ids;
+}
+export async function listWork(s: Store, cursor: string) {
+  const ids=await listWorkIds(s,cursor);
   const items: ReturnType<typeof projectWorkListItem>[] = [];
   for (const row of ids.slice(0,10)) {
     try {

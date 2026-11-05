@@ -68,6 +68,24 @@ async function recoverDraft(directory, {work_id, setup_digest, body}) {
   }
 }
 async function run() {
+  if(['search','inspect-match','select-match'].includes(setup)) {
+    const {project,search,inspectMatch}=await openFileProject();
+    if(setup==='search') {
+      if(!action||args.length>1)throw Error('Use search "Remembered phrase" [CONTINUATION].');
+      try {return {project:project.name,...await search(action,args[0])};}
+      catch(error){throw Error('Search could not complete: '+error.message);}
+    }
+    if(!action || args.length!==(setup==='select-match'?1:0))throw Error('Use inspect-match SELECTION or select-match SELECTION NEW_SETUP.json.');
+    const result=await inspectMatch(action);
+    if(setup==='inspect-match')return result;
+    const selected={format:'augnes_web_file_task.v1',origin:process.env.AUGNES_WEB_ORIGIN,workspace_id:project.workspace_id,
+      project_id:project.project_id,work_id:result.observed.work_id};
+    const target=await open(args[0],'wx',0o600);
+    try {await target.writeFile(JSON.stringify(selected));}finally{await target.close();}
+    return {project:project.name,task:result.observed.definition.goal,observed:{work_id:result.observed.work_id,
+      revision:result.observed.revision,fingerprint:result.observed.fingerprint},current:result.current,status:result.status,
+      next_action:'Use context for the current save base, or inspect-match with the same selection for the exact matched notes. Normal current-head checks apply to every save.'};
+  }
   if (setup === 'tasks' || setup === 'select') {
     const {project,tasks} = await openFileProject();
     if (setup === 'tasks') return {project:project.name,...await tasks(action)};
@@ -76,7 +94,7 @@ async function run() {
     do {
       const page = await tasks(cursor);
       for (const item of page.items.filter(t=>t.goal===action)) {
-        if (match) throw new Error('Several tasks have this title. Open the intended one in the browser and download its setup.');
+        if (match) throw new Error('Several tasks have this title. Use search, inspect-match and select-match to choose the intended saved basis.');
         match = item;
       }
       cursor = page.next;

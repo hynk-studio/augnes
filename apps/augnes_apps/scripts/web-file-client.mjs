@@ -52,7 +52,26 @@ export async function openFileProject(origin = process.env.AUGNES_WEB_ORIGIN) {
     if (cursor && !uuid.test(cursor)) fail('Invalid task cursor.');
     return (await request('/api/works'+(cursor?'?cursor='+cursor:''))).json();
   }
-  return { project, request, tasks };
+  async function search(query,cursor) {
+    if(typeof query!=='string' || !query.trim() || Buffer.byteLength(query)>256 || /[\u0000-\u001f\u007f]/u.test(query))
+      fail('Use a literal phrase of 1–256 UTF-8 bytes without control characters.');
+    query=query.trim();
+    const page=await (await request('/api/works/search?q='+encodeURIComponent(query)+(cursor?'&cursor='+encodeURIComponent(cursor):''))).json();
+    if(page.workspace_id!==project.workspace_id || page.project_id!==project.project_id || page.query!==query ||
+      !Array.isArray(page.items) || page.items.length>10 || !Number.isSafeInteger(page.scanned) || page.scanned<0 ||
+      (page.next!==null && typeof page.next!=='string') || page.status!==(page.next?'more':'exhausted') ||
+      page.items.some(r=>!uuid.test(r.work_id)||!fingerprint.test(r.fingerprint)||!Number.isSafeInteger(r.revision)||r.revision<1||
+        typeof r.selection!=='string'||!Array.isArray(r.matches)||!r.matches.length))fail('Search could not complete: invalid response.');
+    return page;
+  }
+  async function inspectMatch(selection) {
+    if(typeof selection!=='string'||selection.length>2500||!selection)fail('Choose a returned search selection.');
+    const result=await (await request('/api/works/match?selection='+encodeURIComponent(selection))).json();
+    if(result.observed?.workspace_id!==project.workspace_id || result.observed?.project_id!==project.project_id ||
+      result.current?.work_id!==result.observed?.work_id || !['current','advanced'].includes(result.status))fail('Matched basis could not be confirmed.');
+    return result;
+  }
+  return { project, request, tasks, search, inspectMatch };
 }
 export async function openFileTask(setupPath, expectedSetupDigest) {
   const selected = await readFile(setupPath);
@@ -60,13 +79,14 @@ export async function openFileTask(setupPath, expectedSetupDigest) {
   const setup = JSON.parse(selected.toString('utf8'));
   if (setup.format !== 'augnes_web_file_task.v1' || typeof setup.work_id !== 'string' || !uuid.test(setup.work_id))
     fail('Choose the private Web task setup.');
-  const { project, request, tasks } = await openFileProject(setup.origin);
+  const { project, request, tasks, search, inspectMatch } = await openFileProject(setup.origin);
   if (project.workspace_id !== setup.workspace_id || project.project_id !== setup.project_id) fail('Project selection changed.');
   const work_id = setup.work_id, root = '/api/work/'+work_id;
   const json = async (path, body) => (await request(root+path, body)).json();
   const planning = {
     async current() { return (await json('')).saved; },
     tasks,
+    search, inspectMatch,
     async history(sourceWork=work_id) {
       if(typeof sourceWork!=='string' || !uuid.test(sourceWork))fail('Select a listed work.');
       return (await (await request('/api/work/'+sourceWork+'/history?view=notes')).json()).revisions;

@@ -19,7 +19,7 @@ import {
 import path from "node:path";
 import os from "node:os";
 import { freezeInputContract, monitorInputContract, digest, deriveOperationalDisposition, createInputReader, classifyInputChange, nonFaultInputChange, inputReadOptions, supportedInputContract, createGitTrackingResource, observeCanonicalRuntimeInputs, canonicalRuntimeInputEnvironment, observePreparedDependencyInputs, preparedDependencyIdentity } from "./local-canonical-inputs.mjs";
-import { beginAttempt, finishAttempt, readRecoveryProof, readSourceCorrectionProof, inspectAttemptRecords, hasRetiredQualificationMarker, isReviewedRevision, authorizeReviewedRevision, REVIEWED_REVISION_PHASES } from "./local-canonical-attempts.mjs";
+import { beginAttempt, finishAttempt, readRecoveryProof, readSourceCorrectionProof, inspectAttemptRecords, hasRetiredQualificationMarker, isReviewedRevision, isWebPlanningClientRevision, authorizeReviewedRevision, REVIEWED_REVISION_PHASES } from "./local-canonical-attempts.mjs";
 import { pinVerificationEvidence, readPinnedEvidence } from "./local-canonical-evidence-retention.mjs";
 import { isBrowserRevision, browserBindingMatches } from "./local-canonical-browser-revision.mjs";
 import { browserInstallationRoot } from "./local-canonical-inputs.mjs";
@@ -1355,9 +1355,10 @@ export function assertStockReceiptSupported(receipt) {
 
 export function readStockMachineIdentity(receipt, machineRoot) {
   if (hasRetiredQualificationMarker(receipt)) throw Object.assign(new Error("qualification_route_retired"), { code: "qualification_route_retired" });
-  // This prospective route reconstructs existing identity; absence is not repair.
+  // These revisions replay existing machine identity without creating or repairing it.
   const attempt = receipt.attempt;
-  const revision = (attempt?.source_correction?.schema === "augnes.local-canonical-source-correction.v7") ||
+  const revision = isWebPlanningClientRevision(attempt?.source_correction) ||
+    (attempt?.source_correction?.schema === "augnes.local-canonical-source-correction.v7") ||
     attempt?.source_correction?.kind === "reviewed_revision" || attempt?.revision_authority || attempt?.reviewed_revision_consumed;
   return revision
     ? readMachineFingerprint(machineRoot) : ensureMachineFingerprint(machineRoot);

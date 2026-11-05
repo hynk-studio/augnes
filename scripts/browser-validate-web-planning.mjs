@@ -7,6 +7,7 @@ import { observeWebPlanningInterceptions } from './web-planning-interception.mjs
 import { browserStoryJourney } from './browser-web-planning-story.mjs';
 import { browserFileJourney } from './browser-web-planning-files.mjs';
 import { browserFileExchanges } from './browser-web-planning-exchanges.mjs';
+import { browserWorkSearch } from './browser-web-planning-search.mjs';
 import { browserOrdinaryFileJourney } from './browser-web-planning-ordinary-files.mjs';
 import { browserHistoryJourney, browserRetainedNotes, browserIndependentNotes, browserConflictSource } from './browser-web-planning-history.mjs';
 import { advancedClock } from './web-planning-history-checks.mjs';
@@ -51,6 +52,12 @@ async function page(debug,origin){const target=await (await fetch(`http://127.0.
  return c;}
 async function intercept(c,p,origin){
  const u=p.request.url;
+ if(u.startsWith(origin+'/api/works/search?')&&c.searchFailure){
+   const failure=c.searchFailure;c.searchFailure=null;
+   return c.send('Fetch.fulfillRequest',{requestId:p.requestId,responseCode:failure==='http'?503:200,
+     responseHeaders:[{name:'Content-Type',value:'application/json'},{name:'X-Web-Planning-Response',value:'1'}],
+     body:Buffer.from(JSON.stringify(failure==='http'?{error:'storage_unavailable'}:{items:[],status:'exhausted',next:null})).toString('base64')});
+ }
  if(p.responseStatusCode!==undefined&&c.sceneResponseBarrier&&u.endsWith(c.sceneResponseBarrier.suffix)){
    assert.equal(c.sceneResponseBarrier.response,null);c.sceneResponseBarrier.response=p;return;
  }
@@ -338,6 +345,13 @@ try {
    replaceRuntime:async replacement=>{for(const c of clients)await navigate(c,'about:blank');const bindings=local.env;await closeLocalRuntime();local=null;if(replacement)ordinaryDestination++;local=await startLocal({...ordinaryOptions(),bindings});},
    countRows:async()=>({revisions:(await local.db.prepare('SELECT count(*) n FROM web_planning_revision').first()).n,files:(await local.db.prepare('SELECT count(*) n FROM web_planning_file').first()).n})});
  await browserFileExchanges({c:ordinary,origin:ordinaryOrigin,click,set,saved,settled,wait,navigate,root,checks,requestsOnly,barrier:sceneResponseBarrier,requests});
+ for(const c of clients)await navigate(c,'about:blank');await closeLocalRuntime();local=null;
+ local=await startLocal({root:path.join(root,'work-search')});
+ const searchPage=await page(debug,local.origin);
+ await login(searchPage,local.origin);
+ await browserWorkSearch({c:searchPage,origin:local.origin,
+   clientEnvironment:{...process.env,AUGNES_WEB_ORIGIN:local.origin,AUGNES_WEB_FIXTURE_COOKIE:'web_planning_local='+local.env.LOCAL_SESSION},
+   click,set,settled,saved,wait,navigate,checks,requests});
  assert.deepEqual(interceptionErrors,[]);
  assert.equal(exceptions,0);assert.equal(external,0);assert.equal(unexpectedFailures,0);assert.equal(expectedFailures.size,0);
  console.log(JSON.stringify({web_planning_browser_checks:checks,acknowledgement_checks:acknowledgementChecks,actual_agent_read:false,sites_ingress_verified:false,cloudflare_access_hosted_verified:false,external_requests:external,script_exceptions:exceptions}));

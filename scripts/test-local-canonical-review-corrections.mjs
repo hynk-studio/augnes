@@ -220,6 +220,26 @@ try {
     // syntax. Loading its bytes as JS tests behavior without a JSX toolchain.
     regression: "import assert from 'node:assert/strict'; import {readFileSync} from 'node:fs'; const {initialTarget}=await import('data:text/javascript,'+encodeURIComponent(readFileSync(new URL(process.argv[2]),'utf8'))); assert.equal(initialTarget(true),'summary');\n",
   });
+  await exactPathControls({
+    name: "web-recorded-origin", sourceModule: "apps/web_planning/src/history-client.js.txt", defect: "recorded_source_hidden_pane",
+    beforeSource: "function originPane(view) { return 'history'; }\n",
+    afterSource: "function originPane(view) { return view; }\n",
+    regression: [
+      "import assert from 'node:assert/strict';",
+      "import { readFileSync } from 'node:fs';",
+      "import { runInNewContext } from 'node:vm';",
+      "const script = readFileSync(new URL(process.argv[2]), 'utf8');",
+      "assert.equal(runInNewContext(script + \"\\noriginPane('search')\"), 'search');",
+    ].join("\n"),
+    otherSourceModules: ["client.js.txt", "exchange-client.js.txt", "search-client.js.txt"].map(file => "apps/web_planning/src/" + file),
+    invalidSourceModules: [
+      "apps/web_planning/src/notes.txt", "apps/web_planning/src/other-client.js.txt", "apps/web_planning/src/search-client.js.txt.bak",
+      "apps/web_planning/src/History-client.js.txt", "./apps/web_planning/src/history-client.js.txt", "/apps/web_planning/src/history-client.js.txt",
+      "apps/web_planning/src/../src/history-client.js.txt", "apps/web_planning/src/./history-client.js.txt", "apps/web_planning//src/history-client.js.txt",
+      "apps/web_planning/src/history-client.js.txt/", "apps/web_planning/src/history-client.js.txt\n",
+    ],
+    verifierCorrectionError: /source_correction_proof_invalid/,
+  });
   }
 } finally {
   if (!inFlight) settleCanonicalTestResourceUse(owner, { exit_observed: true, streams_closed: true, cleanup_completed: true, remaining_owned_processes: 0 });
@@ -321,7 +341,8 @@ async function successionControls() {
 // Exercise each narrow exact-path admission through the same reader, disposable
 // append-only families and cold reconstruction used by production stock. These
 // owned adversarial records are not real qualification history or run authority.
-async function exactPathControls({ name, sourceModule, defect, beforeSource, afterSource, regression }) {
+async function exactPathControls({ name, sourceModule, defect, beforeSource, afterSource, regression,
+  otherSourceModules = [], invalidSourceModules = [], verifierCorrectionError = /candidate_guard_correction_unproven/ }) {
   const checkout = path.join(root, name); mkdirSync(checkout);
   const checkoutOwner = acquireCheckoutVerificationOwnership({ repositoryRoot: checkout });
   const git = (...args) => execFileSync("git", args, { cwd: checkout, env, stdio: ["ignore", "pipe", "pipe"] });
@@ -406,13 +427,13 @@ async function exactPathControls({ name, sourceModule, defect, beforeSource, aft
     makeProof(); assert.equal(readProof().source_module, sourceModule);
     // Existing directory paths keep their reader interpretation; no generic
     // root-file, configuration suffix or components-prefix rule is added.
-    for (const source_module of ["scripts/target.mjs", "app/Page.tsx", "lib/value.ts", "plugins/entry.cjs", "apps/client.js", "src/value.ts"]) {
+    for (const source_module of ["scripts/target.mjs", "app/Page.tsx", "lib/value.ts", "plugins/entry.cjs", "apps/client.js", "src/value.ts", ...otherSourceModules]) {
       const proof = makeProof(); proof.source_module = source_module; write(proofFile, proof); assert.equal(readProof().source_module, source_module);
     }
     refused("v1 exact path", p => p.schema = "augnes.local-canonical-source-correction.v1", /source_correction_proof_invalid/);
     for (const name of ["next.config.js", "next.config.mjs", "next.config.ts.bak", "Next.config.ts", "other.config.ts", "index.ts", "package.json", "package-lock.json", "tsconfig.json", "./next.config.ts", "/next.config.ts", "../next.config.ts", "scripts/../next.config.ts", "next.config.ts/", "next.config.ts\n",
       "components/project-settings-link.tsx", "components/other.tsx", "components/blank-state/other.tsx", "components/blank-state/Blank-state-client.tsx", "components/blank-state/blank-state-client.ts", "components/blank-state/blank-state-client.tsx.bak",
-      "./components/blank-state/blank-state-client.tsx", "/components/blank-state/blank-state-client.tsx", "../components/blank-state/blank-state-client.tsx", "components/blank-state/../blank-state/blank-state-client.tsx", "components//blank-state/blank-state-client.tsx", "components/blank-state/blank-state-client.tsx/", "components/blank-state/blank-state-client.tsx\n"]) {
+      "./components/blank-state/blank-state-client.tsx", "/components/blank-state/blank-state-client.tsx", "../components/blank-state/blank-state-client.tsx", "components/blank-state/../blank-state/blank-state-client.tsx", "components//blank-state/blank-state-client.tsx", "components/blank-state/blank-state-client.tsx/", "components/blank-state/blank-state-client.tsx\n", ...invalidSourceModules]) {
       refused(`path ${JSON.stringify(name)}`, p => p.source_module = name, /source_correction_proof_invalid/);
     }
     for (const name of ["regression.mjs", "before.json", "after.json", "review.json"]) {
@@ -446,7 +467,7 @@ async function exactPathControls({ name, sourceModule, defect, beforeSource, aft
       assert(!existsSync(path.join(family(key), "correction-successor.json"))); checks.push(`predecessor ${key}`);
     }
     for (const key of ["safety_violation", "input_invalidation"]) {
-      makeProof(key, "verifier_correction"); assert.throws(() => successor(readProof()), /candidate_guard_correction_unproven/);
+      makeProof(key, "verifier_correction"); assert.throws(() => successor(readProof()), verifierCorrectionError);
       checks.push(`exact path verifier_correction ${key}`);
     }
     makeProof("product_failure", "accepted_main_integration"); assert.throws(() => successor(readProof()), /source_correction_predecessor_invalid/);
