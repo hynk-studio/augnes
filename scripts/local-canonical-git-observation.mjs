@@ -143,12 +143,14 @@ export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, co
 // An investigation, quoted template or negative decision with matching IDs
 // does not delegate publication of a reviewed candidate's execution grant.
 export function delegatesGitRevisionGrant(body, branch, pullRequest) {
+  // This authority format uses visible prose, headings and links. Reject markup
+  // which can hide normative paragraphs in a comment, collapsed block or example.
+  if (/[<>\u202a-\u202e\u2066-\u2069]/u.test(body) || /^(?: {4}|\t| {0,3}(?:`{3,}|~{3,}|\$\$))/mu.test(body)) return false;
   const paragraphs = body.replaceAll("\r\n", "\n").trim().split(/\n[ \t]*\n/u);
   const scope = paragraphs[0].match(/^Authorize one cohesive correction and qualification assignment for issue #[1-9]\d* on (.+) and Draft PR #([1-9]\d*)\.$/u);
   const title = "## Delegated recording after independent review";
   const section = paragraphs.indexOf(title);
-  if (scope?.[1] !== branch || scope[2] !== String(pullRequest) || section < 1 || paragraphs.lastIndexOf(title) !== section ||
-      paragraphs.slice(0, section + 1).some(paragraph => /^ {0,3}(?:`{3,}|~{3,})/mu.test(paragraph))) return false;
+  if (scope?.[1] !== branch || scope[2] !== String(pullRequest) || section < 1 || paragraphs.lastIndexOf(title) !== section) return false;
   return /^After a separate read-only reviewer accepts the actual final published (?:source|fixture, continuation, policy and control changes), the implementation operator is explicitly authorized to publish the required separate exact-candidate execution record through the existing authenticated maintainer identity under this delegation\.$/u.test(paragraphs[section + 1] ?? "");
 }
 

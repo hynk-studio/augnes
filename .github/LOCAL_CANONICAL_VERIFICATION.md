@@ -1124,8 +1124,9 @@ or grant under delegation. The delegation opens by authorizing the correction
 and qualification assignment for its issue, branch and Draft PR. Its operative
 paragraph under `Delegated recording after independent review` expressly
 delegates publication through the maintainer identity after independent
-acceptance of the published source. Quoted examples, investigation-only scope
-and a file-mode change without a material source change refuse.
+acceptance of the published source. Use visible prose, headings and links.
+Raw HTML, quoted or fenced examples, investigation-only scope and a file-mode
+change without a material source change refuse.
 The authenticated reader checks current maintainer
 permission and the original review and grant references. The physical
 successor consumes the remaining ordinal on reservation; replay through

@@ -149,6 +149,8 @@ async function checkGitSourceSuccessor(c, h, initial, initialCapability) {
     delegation.body.replace(opening,"Authorize only an investigation. The operator must not publish a grant or execute qualification."),
     delegation.body.replace(affirmative,"Keep execution on hold. The operator has no publication authority."),
     delegation.body.replace(affirmative,"> "+affirmative),
+    delegation.body.replace("## Delegated recording after independent review","Grant publication is denied.\n\n<!--\n\n## Delegated recording after independent review")+"\n\n-->",
+    delegation.body.replace("## Delegated recording after independent review","<details>\n\n## Delegated recording after independent review")+"\n\n</details>",
     delegation.body.replace("## Delegated recording after independent review","~~~text\n\n## Delegated recording after independent review")+"\n~~~"
   ]) {
     const changed={...delegation,body}, q=structuredClone(p);
