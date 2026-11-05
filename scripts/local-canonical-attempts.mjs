@@ -8,7 +8,7 @@ import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 
 import { BROWSER_RUNTIME_INPUTS, validCanonicalRuntimeInputs } from "./local-canonical-inputs.mjs";
 import { isBrowserRevision, isBrowserSuccessor, browserPredecessorEvidence, browserReviewTarget, verifyBrowserRemedy, verifyBrowserRevisionPreservation, verifyReviewedBrowserFailure } from "./local-canonical-browser-revision.mjs";
-import { isGitObservationRevision, isGitObservationSuccessor, gitObservationIncident, gitReviewTarget, verifyGitRevisionFailure, verifyGitSourceRepair } from "./local-canonical-git-observation.mjs";
+import { isGitObservationRevision, isGitObservationSuccessor, gitObservationIncident, gitReviewTarget, delegatesGitRevisionGrant, verifyGitRevisionFailure, verifyGitSourceRepair } from "./local-canonical-git-observation.mjs";
 import { createGitHubObserverAuthorizationTransport } from "./github-main-branch-transport.mjs";
 
 export const ATTEMPT_CONTRACT = "augnes.local-canonical-attempt-family.v1";
@@ -686,7 +686,7 @@ export function validateReviewedRevisionAuthorityRecords(p, review, grant, permi
     [recordUrl("issuecomment", p.commission.initial_authorization.grant_comment_id), recordUrl("issuecomment", p.commission.delegation.id),
       recordUrl("pullrequestreview", p.accepted.review.id)].every(url => recordUrls.includes(url)) &&
     [revisionCommissionIdentity(p), p.commission.root_receipt_fingerprint].every(s => grant.body.includes(s)) &&
-    delegation.created_at === delegation.updated_at && firstLine(delegation.body)?.startsWith("Authorize ") &&
+    delegation.created_at === delegation.updated_at && delegatesGitRevisionGrant(delegation.body, p.branch, p.pull_request) &&
     [p.branch, p.prior_attempt_id, p.prior_receipt_fingerprint, p.commission.root_receipt_fingerprint, revisionCommissionIdentity(p),
       recordUrl("issuecomment", p.commission.initial_authorization.grant_comment_id)].every(s => delegation.body.includes(s)) &&
     Date.parse(delegation.created_at) < Date.parse(review.submitted_at));

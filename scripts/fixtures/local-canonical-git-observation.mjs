@@ -61,7 +61,7 @@ async function checkGitSourceSuccessor(c, h, initial, initialCapability) {
   const url = type => "https://github.com/hynk-studio/augnes/pull/999#"+type+"-";
   const comment = url("issuecomment"), reviewUrl = url("pullrequestreview");
   const delegation = {...firstAuthority.grant,id:13,created_at:time(0),body:[
-    "Authorize one material source correction and qualification.",c.branch,first.receipt.run.id,first.receipt.integrity.content_fingerprint,
+    "Authorize one cohesive correction and qualification assignment for issue #123 on "+c.branch+" and Draft PR #999.\n\n## Delegated recording after independent review\n\nAfter a separate read-only reviewer accepts the actual final published source, the implementation operator is explicitly authorized to publish the required separate exact-candidate execution record through the existing authenticated maintainer identity under this delegation.\n",c.branch,first.receipt.run.id,first.receipt.integrity.content_fingerprint,
     initial.prior_receipt_fingerprint,consumed.revision_commission,comment+firstAuthority.grant.id].join("\n")};
   delegation.updated_at=delegation.created_at;
   c.prior=first.receipt;c.grantId=14;
@@ -106,16 +106,20 @@ async function checkGitSourceSuccessor(c, h, initial, initialCapability) {
   }
   const wrong={...focus,regression:{...focus.regression,before:after}};
   assert.throws(()=>prepare({...p,focused:artifact("wrong.json",wrong)}),/revision_git_regression_invalid/);
-  // A real Git commit containing only whitespace cannot establish the repair.
-  const whitespace=c.git(["show",previous+":"+fixture]).toString().replace("value=","value = ");
-  h.write(path.join(c.checkout,fixture),whitespace);c.git(["add",fixture]);
-  const cosmeticTree=c.git(["write-tree"]).toString().trim();
-  const cosmetic=c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit-tree",cosmeticTree,"-p",previous,"-m","spacing"]).toString().trim();
-  c.git(["restore","--source=HEAD","--staged","--worktree","--",fixture]);
-  const diff=from=>{const bytes=c.git(["diff","--binary","--full-index","--no-ext-diff","--no-textconv",from,cosmetic,"--"]);
-    return {bytes:bytes.length,sha256:digest(bytes),paths:c.git(["diff","--name-only",from,cosmetic,"--"]).toString().trim().split("\n").filter(Boolean).sort()};};
-  const cosmeticSource={...get(p.source),main_to_final:diff(p.base),accepted_to_final:diff(previous),predecessor_to_final:diff(previous)};
-  assert.throws(()=>prepare({...p,head:cosmetic,tree:cosmeticTree,accepted:{base:p.base,head:cosmetic,tree:cosmeticTree},source:artifact("cosmetic.json",cosmeticSource)}),/revision_material_remedy_required/);
+  // All three synthetic trees differ, including when only the executable bit changes.
+  const oldText=c.git(["show",previous+":"+fixture]).toString();
+  for (const [content, executable] of [[oldText,true],[oldText.replace("value=","value = "),false],[oldText.replace("value=","value = "),true]]) {
+    h.write(path.join(c.checkout,fixture),content);
+    c.git(["add",fixture]);
+    if (executable) c.git(["update-index","--chmod=+x",fixture]);
+    const tree=c.git(["write-tree"]).toString().trim();
+    const head=c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit-tree",tree,"-p",previous,"-m","cosmetic"]).toString().trim();
+    c.git(["restore","--source=HEAD","--staged","--worktree","--",fixture]);
+    const diff=from=>{const bytes=c.git(["diff","--binary","--full-index","--no-ext-diff","--no-textconv",from,head,"--"]);
+      return {bytes:bytes.length,sha256:digest(bytes),paths:c.git(["diff","--name-only",from,head,"--"]).toString().trim().split("\n").filter(Boolean).sort()};};
+    const source={...get(p.source),main_to_final:diff(p.base),accepted_to_final:diff(previous),predecessor_to_final:diff(previous)};
+    assert.throws(()=>prepare({...p,head,tree,accepted:{base:p.base,head,tree},source:artifact("cosmetic.json",source)}),/revision_material_remedy_required/);
+  }
   const finalTarget=prepare(p).target;
   const pause=()=>new Promise(r=>setTimeout(r,5));await pause();
   const review={...firstAuthority.review,id:12,submitted_at:time(0),commit_id:p.head,body:[
@@ -137,6 +141,26 @@ async function checkGitSourceSuccessor(c, h, initial, initialCapability) {
   }
   await assert.rejects(h.auth(c,proof,(v,endpoint)=>endpoint.endsWith("/"+grant.id)?null:v));
   await assert.rejects(h.auth(c,proof,(v,endpoint)=>endpoint.includes("/permission")?{...v,permission:"read"}:v));
+  // Rebind the review and new grant to the altered delegation itself. A hash
+  // mismatch must not mask an inoperative or negative delegation decision.
+  const opening = delegation.body.split("\n")[0];
+  const affirmative = delegation.body.split("\n\n")[2].split("\n")[0];
+  for (const body of [
+    delegation.body.replace(opening,"Authorize only an investigation. The operator must not publish a grant or execute qualification."),
+    delegation.body.replace(affirmative,"Keep execution on hold. The operator has no publication authority."),
+    delegation.body.replace(affirmative,"> "+affirmative),
+    delegation.body.replace("## Delegated recording after independent review","~~~text\n\n## Delegated recording after independent review")+"\n~~~"
+  ]) {
+    const changed={...delegation,body}, q=structuredClone(p);
+    q.commission.delegation.sha256=digest(reviewedRevisionAuthorityObservation(changed,"task_delegation"));
+    const replacementTarget=gitReviewTarget(q);
+    const r={...review,body:review.body.replace(finalTarget,replacementTarget)}, g={...grant,body:grant.body.replace(finalTarget,replacementTarget)};
+    q.accepted.review.sha256=digest(reviewedRevisionAuthorityObservation(r,"accepted_revision"));
+    q.authorization.grant_sha256=digest(reviewedRevisionAuthorityObservation(g,"execution_commission"));
+    h.write(c.file,q);
+    const records={...c.authority,review:r,grant:g,linked:{...c.authority.linked,["repos/hynk-studio/augnes/issues/comments/"+changed.id]:changed}};
+    await assert.rejects(h.auth({...c,authority:records},h.proof(c)),/revision_authority_scope_invalid/);
+  }
   for (const omit of [comment+delegation.id, comment+firstAuthority.grant.id, reviewUrl+review.id, consumed.revision_commission]) {
     const incomplete = {...grant, body:grant.body.replace(omit, "")};
     const altered = {...p, authorization:{grant_comment_id:grant.id, grant_sha256:digest(reviewedRevisionAuthorityObservation(incomplete,"execution_commission"))}};

@@ -1120,7 +1120,13 @@ reviewed Git-observation commission.` Include the original accounting
 identity and root receipt alongside the new candidate, predecessor, commitment
 and review required above. Link the initial grant, the task delegation and the
 new review. Record reviewer and submitter provenance when recording the decision
-or grant under delegation. The authenticated reader checks current maintainer
+or grant under delegation. The delegation opens by authorizing the correction
+and qualification assignment for its issue, branch and Draft PR. Its operative
+paragraph under `Delegated recording after independent review` expressly
+delegates publication through the maintainer identity after independent
+acceptance of the published source. Quoted examples, investigation-only scope
+and a file-mode change without a material source change refuse.
+The authenticated reader checks current maintainer
 permission and the original review and grant references. The physical
 successor consumes the remaining ordinal on reservation; replay through
 separate fresh-process stock is read-only.

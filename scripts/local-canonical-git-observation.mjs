@@ -114,8 +114,12 @@ export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, co
   if (!Array.isArray(focused.implicated_paths) || !focused.implicated_paths.includes(file) ||
       typeof file !== "string" || !/^scripts\/(?:[\w.-]+\/)*[\w.-]+\.mjs$/u.test(file) ||
       file.split("/").some(part => part === "." || part === "..") ||
-      !equal(focused.input_remedy_resources, []) || prior.tree === p.tree ||
-      !git(["diff", "--no-ext-diff", "--no-textconv", "--ignore-all-space", "--ignore-blank-lines", prior.head, p.head, "--", file]).length)
+      !equal(focused.input_remedy_resources, []) || prior.tree === p.tree) fail("revision_material_remedy_required");
+  const blob = head => git(["rev-parse", "--verify", head + ":" + file]).toString().trim();
+  const oldBlob = blob(prior.head), newBlob = blob(p.head);
+  // Tree:path arguments also carry mode metadata. Compare the blob objects.
+  if (oldBlob === newBlob ||
+      !git(["diff", "--no-ext-diff", "--no-textconv", "--ignore-all-space", "--ignore-blank-lines", oldBlob, newBlob]).length)
     fail("revision_material_remedy_required");
   const before = parse(regression.before), after = parse(regression.after);
   const command = "node " + file;
@@ -133,6 +137,19 @@ export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, co
         r.termination_reason !== "natural_exit" || r.exit_observed !== true || r.streams_closed !== true || !bytes(witness.stdout).length)
       fail("revision_git_regression_invalid");
   }
+}
+
+// Read the two operative paragraphs of the maintainer's bounded delegation.
+// An investigation, quoted template or negative decision with matching IDs
+// does not delegate publication of a reviewed candidate's execution grant.
+export function delegatesGitRevisionGrant(body, branch, pullRequest) {
+  const paragraphs = body.replaceAll("\r\n", "\n").trim().split(/\n[ \t]*\n/u);
+  const scope = paragraphs[0].match(/^Authorize one cohesive correction and qualification assignment for issue #[1-9]\d* on (.+) and Draft PR #([1-9]\d*)\.$/u);
+  const title = "## Delegated recording after independent review";
+  const section = paragraphs.indexOf(title);
+  if (scope?.[1] !== branch || scope[2] !== String(pullRequest) || section < 1 || paragraphs.lastIndexOf(title) !== section ||
+      paragraphs.slice(0, section + 1).some(paragraph => /^ {0,3}(?:`{3,}|~{3,})/mu.test(paragraph))) return false;
+  return /^After a separate read-only reviewer accepts the actual final published (?:source|fixture, continuation, policy and control changes), the implementation operator is explicitly authorized to publish the required separate exact-candidate execution record through the existing authenticated maintainer identity under this delegation\.$/u.test(paragraphs[section + 1] ?? "");
 }
 
 export function gitReviewTarget(p) {
