@@ -1137,6 +1137,7 @@ function readRevisionMaterials(file, p, repositoryRoot, authorizedShape) {
       !focused.implicated_paths.some(name => /^@@ /mu.test(git(["diff", "--no-ext-diff", "--no-textconv", "--ignore-all-space",
         "--ignore-blank-lines", prior.head, p.head, "--", name]).toString()))))
     throw fail("revision_material_remedy_required");
+  if (boundedV7) verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt: completion.finished_at });
   if (successor && (!testedFinalSource || !revisionEqual(focused.input_remedy_resources, []) ||
       !git(["diff", "--ignore-all-space", "--ignore-blank-lines", "--no-ext-diff", "--no-textconv", prior.head, p.head, "--", ...focused.implicated_paths]).length))
     throw fail("revision_focused_remedy_invalid");

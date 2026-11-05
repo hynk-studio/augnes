@@ -112,23 +112,28 @@ export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expecte
   verifySettledPhaseFailure(receipt, stock, inputs, phases, resources.find(r => r.id === "browser-executable"), false, expectedOrdinal);
 }
 
-// Ordinal two repairs a failing executable source. Observe the same command
-// on the predecessor and final Git blobs, with the same canonical runtime.
+// Observe the same behavioral command on both exact Git sources and runtimes.
+// The v10 repair runs its changed script directly. Prospective v7 also allows
+// a stable test driver and explicit script arguments for the implicated code.
 export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt }) {
   const regression = focused.regression;
   const file = regression?.path;
-  if (!Array.isArray(focused.implicated_paths) || !focused.implicated_paths.includes(file) ||
+  const prospective = isInventoryBoundRevision(p);
+  if (!Array.isArray(focused.implicated_paths) || !(prospective ? focused.source_files?.some(f => f.path === file) : focused.implicated_paths.includes(file)) ||
       typeof file !== "string" || !/^scripts\/(?:[\w.-]+\/)*[\w.-]+\.mjs$/u.test(file) ||
       file.split("/").some(part => part === "." || part === "..") ||
       !equal(focused.input_remedy_resources, []) || prior.tree === p.tree) fail("revision_material_remedy_required");
   const blob = head => git(["rev-parse", "--verify", head + ":" + file]).toString().trim();
   const oldBlob = blob(prior.head), newBlob = blob(p.head);
   // Tree:path arguments also carry mode metadata. Compare the blob objects.
-  if (oldBlob === newBlob ||
-      !git(["diff", "--no-ext-diff", "--no-textconv", "--ignore-all-space", "--ignore-blank-lines", oldBlob, newBlob]).length)
+  if (!prospective && (oldBlob === newBlob ||
+      !git(["diff", "--no-ext-diff", "--no-textconv", "--ignore-all-space", "--ignore-blank-lines", oldBlob, newBlob]).length))
     fail("revision_material_remedy_required");
   const before = parse(regression.before), after = parse(regression.after);
-  const command = "node " + file;
+  const args = prospective ? regression.args : [];
+  if (!Array.isArray(args) || args.length > 16 || args.some(arg => typeof arg !== "string" ||
+      !/^(?:--?)?[a-zA-Z0-9][\w.=-]{0,127}$/u.test(arg))) fail("revision_git_regression_invalid");
+  const command = ["node", file, ...args].join(" ");
   if (!focused.commands?.some(c => c.command === command && c.tested_source_head === p.head &&
       equal(c.record, regression.after) && equal(c.stdout, after.stdout)) ||
       before.stdout?.sha256 === after.stdout?.sha256 ||

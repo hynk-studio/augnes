@@ -230,6 +230,9 @@ export async function checkSpentCommission(c, h) {
       c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m","synthetic registration repair"]);
     };
     const was = readFileSync(path.join(c.checkout,file),"utf8");
+    const red = await behavior(c);
+    assert.equal(red.result.exit_code, 1);
+    const syntaxBefore = ordinal === 1 ? await behavior(c, true) : null;
     commit(was.replace("false, true", "true, true"));
     if (ordinal === 1) {
       c.acceptedHead=c.git(["rev-parse","HEAD"]).toString().trim();
@@ -243,12 +246,16 @@ export async function checkSpentCommission(c, h) {
     p.originals.stock=artifact("prior-stock.log",JSON.stringify(prior.stock));
     const green=await behavior(c);
     assert.equal(green.result.exit_code,0);
-    const raw=readFileSync(path.join(c.checkout,file)), stdout=artifact("green.log",green.output);
+    const raw=readFileSync(path.join(c.checkout,file));
+    const witness=(label,run,content)=>artifact(label+".json",{...run,node_version:CANONICAL_NODE_VERSION,
+      file_sha256:digest(content),runtime_inputs_sha256:p.inputs.identity_sha256,stdout:artifact(label+".log",run.output)});
+    const before=witness("red",red,Buffer.from(was)), after=witness("green",green,raw);
     p.source=artifact("source.json",{...readItem(p.source),reviewed_at:time(0)});
     p.focused=artifact("focused.json",{...readItem(p.focused),finished_at:time(0),failed_phase:"authority",
       implicated_paths:[file],source_files:[{path:file,sha256:digest(raw),byte_size:raw.length}],input_remedy_resources:[],
       diagnosis:"A real bounded command failed before the remaining fixture work could run.",
-      commands:[{command:green.command,tested_source_head:p.head,result:green.result,stdout,record:artifact("green.json",green)}]});
+      regression:{path:file,args:[],before,after},
+      commands:[{command:green.command,tested_source_head:p.head,result:green.result,stdout:readItem(after).stdout,record:after}]});
     if (ordinal === 2) p.accepted=accepted;
     const prepFile=path.join(c.artifacts,"preparation.json");
     const prepare=(q,live=c.live)=>{
@@ -264,6 +271,9 @@ export async function checkSpentCommission(c, h) {
     ].join("\n")};
     const ref=role=>({id:review.id,sha256:digest(reviewedRevisionAuthorityObservation(review,role))});
     if(ordinal===1) {
+      const checked=readItem(p.focused);
+      const differentCommand={...checked,regression:{...checked.regression,args:["--different"]}};
+      assert.throws(()=>prepare({...p,focused:artifact("different-command.json",differentCommand)}), /revision_git_regression_invalid/);
       assert.throws(()=>prepare({...p,prior_attempt_id:"skipped"}));
       const priorFolder = path.dirname(path.join(c.checkout,p2.local_relative_path));
       const firstOriginals = Object.fromEntries(Object.entries(p2.originals).map(([key,ref]) =>
@@ -284,24 +294,29 @@ export async function checkSpentCommission(c, h) {
       otherService.service.state.preservation_binding = digest("different service binding");
       otherService.service.diagnostics.before_binding = otherService.service.diagnostics.after_binding = otherService.service.state.preservation_binding;
       assert.throws(()=>prepare(p,otherService), /revision_current_preservation_unsafe/);
-      // Recompute every source/command binding for a candidate whose only changes
-      // are file mode and whitespace. Reject the actual Git delta, not a stale hash.
+      // Reseal unchanged, whitespace/mode-only and inert-comment Git candidates.
+      // A real syntax check passes on both sides of the comment-only edit.
       const parent = prior.receipt.repository.head_sha;
       const diff = (from,to) => {const raw=c.git(["diff","--binary","--full-index","--no-ext-diff","--no-textconv",from,to,"--"]);
         return {bytes:raw.length,sha256:digest(raw),paths:c.git(["diff","--name-only",from,to,"--"]).toString().trim().split("\n").filter(Boolean).sort()};};
-      for (const changed of [false,true]) {
-        const content = changed ? was.replace("false, true","false,  true") : was;
+      for (const content of [was, was.replace("false, true","false,  true"), was+"// No executable change.\n"]) {
         h.write(path.join(c.checkout,file),content);c.git(["add",file]);
-        if (changed) c.git(["update-index","--chmod=+x",file]);
+        if (content !== was) c.git(["update-index","--chmod=+x",file]);
         const tree=c.git(["write-tree"]).toString().trim();
         const head=c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit-tree",tree,"-p",parent,"-m","cosmetic"]).toString().trim();
+        const syntaxAfter=await behavior({...c,head},true);
+        assert.equal(syntaxBefore.result.exit_code,0);assert.equal(syntaxAfter.result.exit_code,0);
         c.git(["restore","--source=HEAD","--staged","--worktree","--",file]);
         const source={...readItem(p.source),accepted_to_final:diff(head,head),predecessor_to_final:diff(parent,head),main_to_final:diff(p.base,head)};
-        const focus=readItem(p.focused), record=artifact("cosmetic-command.json",{...green,tested_source_head:head});
-        const cosmetic={...focus,source_files:[{path:file,byte_size:Buffer.byteLength(content),sha256:digest(Buffer.from(content))}],
-          commands:[{...focus.commands[0],tested_source_head:head,record}]};
-        assert.throws(()=>prepare({...p,head,tree,accepted:{head,tree,base:p.base},source:artifact("cosmetic-source.json",source),
-          focused:artifact("cosmetic-focused.json",cosmetic)}),/revision_material_remedy_required/);
+        const before=witness("cosmetic-before",syntaxBefore,Buffer.from(was)), after=witness("cosmetic-after",syntaxAfter,Buffer.from(content));
+        const cosmetic={...readItem(p.focused),finished_at:time(0),regression:{path:file,args:[],before,after},
+          source_files:[{path:file,byte_size:Buffer.byteLength(content),sha256:digest(Buffer.from(content))}],
+          commands:[{command:syntaxAfter.command,tested_source_head:head,result:syntaxAfter.result,record:after,stdout:readItem(after).stdout}]};
+        c.git(["switch","-C",c.branch,head]);
+        try {
+          assert.throws(()=>prepare({...p,head,tree,accepted:{head,tree,base:p.base},source:artifact("cosmetic-source.json",source),
+            focused:artifact("cosmetic-focused.json",cosmetic)}),/revision_material_remedy_required|revision_git_regression_invalid/);
+        } finally { c.git(["switch","-C",c.branch,p.head]); }
       }
       assert.throws(()=>prepare(p,{...c.live,inventory:digest("unstable")}));
       const oldCompletion=path.join(c.anchor,".augnes-local-verification/families",spent.family_id,"completion-1.json");

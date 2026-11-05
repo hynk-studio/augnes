@@ -918,9 +918,13 @@ A genuinely new authenticated v7 commission may follow a spent v7 commission at
 its latest settled tip. A settled v10 ordinal-two Full with a naturally failed
 phase can also supply that tip. Its original commission, grants, false stock,
 receipts and exclusive edges remain spent and reconstructible. This boundary
-requires a material change to implicated source, completed focused commands on
-the new head and the full protected input inventory, including shared Git
-configuration. Preparation reads the physical tip and installed Companion
+requires a material change to implicated source and the full protected input
+inventory, including shared Git configuration. Run the same behavioral script
+and arguments on the settled predecessor and on the candidate. Bind both Git
+blobs, runtime identities, exit results and output originals. The predecessor
+must fail and the candidate must pass naturally with clean settlement. The test
+driver may stay unchanged when it exercises the corrected source. A successful
+syntax check on both sides of a comment-only change refuses preparation. Preparation reads the physical tip and installed Companion
 observation before independent review. It cannot reserve or issue authority.
 
 For this continuation, the published source review begins with

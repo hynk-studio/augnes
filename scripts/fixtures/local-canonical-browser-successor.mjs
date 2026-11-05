@@ -21,10 +21,10 @@ const clone = structuredClone;
 const now = () => new Date().toISOString();
 const runtimeKeys = ["AUGNES_CANONICAL_NODE_HEADERS", "AUGNES_CANONICAL_NODE_HEADERS_FINGERPRINT", "npm_config_nodedir", "AUGNES_BROWSER_EXECUTABLE_PATH"];
 
-export async function behavior(c) {
+export async function behavior(c, syntaxOnly = false) {
   const script = 'import assert from "node:assert/strict"; import {value} from "./scripts/fixture.mjs"; assert.equal(value,4); console.log("corrected behavior");';
   const source = c.behaviorPath ?? "scripts/fixture.mjs";
-  const args = c.gitDeclaration ? [source] : ["--input-type=module", "-e", script];
+  const args = c.gitDeclaration ? (syntaxOnly ? ["--check", source] : [source]) : ["--input-type=module", "-e", script];
   let output = "";
   const sink = { write(bytes) { output += bytes; } };
   const result = await runCanonicalChild({
@@ -32,7 +32,7 @@ export async function behavior(c) {
     args, cwd: c.checkout, env: c.env, timeoutMs: 5000, stdout: sink, stderr: sink
   });
   assert(result.cleanup_completed && result.remaining_owned_processes === 0 && result.termination_reason === "natural_exit");
-  return { command: c.gitDeclaration ? "node " + source : "node --input-type=module -e " + JSON.stringify(script), result, output, finished_at: now(), tested_source_head: c.head };
+  return { command: c.gitDeclaration ? ["node", ...args].join(" ") : "node --input-type=module -e " + JSON.stringify(script), result, output, finished_at: now(), tested_source_head: c.head };
 }
 
 function declaration(c) {
