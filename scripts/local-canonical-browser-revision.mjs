@@ -187,9 +187,18 @@ export function browserPredecessorEvidence(r, attempt, completion, stock) {
 // Ordinal two is a source correction after a settled, observed child failure.
 // Its predecessor already consumed and monitored the protected installation.
 export function verifyReviewedBrowserFailure(r, stock, inputs, phaseIds) {
-  const previous = r.attempt?.source_correction;
+  if (r.attempt?.source_correction?.schema !== BROWSER_REVISION_SCHEMA || !browserBindingMatches(r.inputs, inputs?.browser))
+    throw fail("revision_browser_failure_invalid");
+  const expected = { location_fingerprint: inputs.browser.executable.location_fingerprint,
+    before: inputs.browser.executable.observation, actual_version: inputs.browser.actual_version };
+  verifySettledPhaseFailure(r, stock, inputs, phaseIds, expected, true);
+}
+
+// Both reviewed continuations require the physical ordinal-one Full to have
+// stopped at a natural child failure with settled resources and accounted stock.
+export function verifySettledPhaseFailure(r, stock, inputs, phaseIds, expectedBrowser, allowIncompleteBrowser = false) {
   const failed = r.phases?.findIndex(p => p.status === "failure") ?? -1;
-  if (previous?.schema !== BROWSER_REVISION_SCHEMA || previous.commission?.ordinal !== 1 ||
+  if (r.attempt?.source_correction?.commission?.ordinal !== 1 ||
       r.run?.id !== r.attempt.attempt_id || r.attempt.contract_fingerprint !== r.inputs?.fingerprint ||
       r.evidence?.mode !== "full" || r.evidence.selected_plan !== "full-canonical" || r.evidence.deciding !== false ||
       r.verification_context?.kind !== "isolated-worktree" || r.repository.worktree_before !== "clean" || r.repository.worktree_after !== "clean" ||
@@ -204,11 +213,9 @@ export function verifyReviewedBrowserFailure(r, stock, inputs, phaseIds) {
       r.final?.result !== "failure" || r.final.exit_status !== 1 || !same(r.final.reason_codes, ["phase_failed", "selected_phases_incomplete"]) ||
       !settledIsolatedResources(r) || r.historical_inputs?.required !== true ||
       failed < 0 || !same(r.phases.map(p => p.id), phaseIds) ||
-      !same(inputs, r.inputs.binding?.runtime_inputs) || !browserBindingMatches(r.inputs, inputs?.browser))
+      !same(inputs, r.inputs.binding?.runtime_inputs))
     throw fail("revision_browser_failure_invalid");
 
-  const expected = { location_fingerprint: inputs.browser.executable.location_fingerprint,
-    before: inputs.browser.executable.observation, actual_version: inputs.browser.actual_version };
   const environments = r.inputs.binding.phase_environment_fingerprints;
   if (!Array.isArray(environments) || !same(environments.map(e => e.id), phaseIds))
     throw fail("revision_browser_failure_invalid");
@@ -231,10 +238,10 @@ export function verifyReviewedBrowserFailure(r, stock, inputs, phaseIds) {
         (index < failed ? phase.status !== "pass" || phase.exit_status !== 0 || phase.failure_code !== null :
           phase.failure_code !== "phase_failed" || !Number.isSafeInteger(phase.exit_status) || phase.exit_status <= 0))
       throw fail("revision_browser_failure_invalid");
-    if (!validPhaseBrowserUse(phase, records, expected)) {
+    if (!validPhaseBrowserUse(phase, records, expectedBrowser)) {
       const required = browserConsumersForPhase(phase.id);
-      if (index !== failed || !Array.isArray(records) ||
-          !records.every(v => validBrowserUse(v, expected) && Object.hasOwn(required, v.consumer)) ||
+      if (!allowIncompleteBrowser || index !== failed || !Array.isArray(records) ||
+          !records.every(v => validBrowserUse(v, expectedBrowser) && Object.hasOwn(required, v.consumer)) ||
           Object.entries(required).some(([name, count]) => records.filter(v => v.consumer === name).length > count))
         throw fail("revision_browser_failure_invalid");
       issues.add("receipt_browser_identity_invalid:" + phase.id);

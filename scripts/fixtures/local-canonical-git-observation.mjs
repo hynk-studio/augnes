@@ -5,8 +5,10 @@ import path from "node:path";
 import { digest, INPUT_CONTRACT, inputEventIdentity } from "../local-canonical-inputs.mjs";
 import { CANONICAL_NODE_VERSION } from "../local-canonical-environment.mjs";
 import { finalizeReceipt } from "../local-canonical-receipt.mjs";
-import { REVIEWED_REVISION_PHASES, inspectGitRevisionPreparation, readSourceCorrectionProof, reviewedRevisionAuthorityObservation } from "../local-canonical-attempts.mjs";
+import { REVIEWED_REVISION_PHASES, reconstructAttemptTip, inspectGitRevisionPreparation, readSourceCorrectionProof, reviewedRevisionAuthorityObservation } from "../local-canonical-attempts.mjs";
 import { gitObservationIncident, gitRevisionInventory, gitReviewTarget } from "../local-canonical-git-observation.mjs";
+
+import { behavior, dependencyRecords, executeFixture } from "./local-canonical-browser-successor.mjs";
 
 const time = offset => new Date(Date.now() + offset).toISOString();
 const product = "apps/web_planning/src/client.js.txt", fixture = "scripts/fixture.mjs";
@@ -19,8 +21,10 @@ export function gitFixtureDeclaration(c) {
   const resource = (id, before) => ({id, classification:"execution", location_fingerprint:digest(id), before});
   return {contract:INPUT_CONTRACT, path_kind:"isolated-model-free-v1", binding:{head:c.acceptedHead},
     resources:[{...resource("git-config",config),gitTracking:{policy:"isolated-current-branches-v1",protected_branches:[digest(c.branch)]}},
-      ...["node-executable","git-executable","browser-executable"].map(id=>resource(id,node.observation)),
-      {...resource("node-headers",c.inputs.headers.observation),nodeHeaders:true}]};
+      {...resource("node-executable",node.observation),location_fingerprint:node.location_fingerprint,readOnlyExecutable:true},
+      ...["git-executable","browser-executable"].map(id=>({...resource(id,node.observation),readOnlyExecutable:true})),
+      ...["codex-preferences","user-instructions","auth-location"].map(id=>({...resource(id,{present:false}),classification:"ambient"})),
+      {...resource("node-headers",c.inputs.headers.observation),location_fingerprint:c.inputs.headers.location_fingerprint,nodeHeaders:true}]};
 }
 
 export function gitFixtureReceipt(c, raw) {
@@ -38,6 +42,126 @@ export function gitFixtureReceipt(c, raw) {
     inputs:{...declared,fingerprint:digest(declared),events:[race,change],first_fault:fault(race),secondary_faults:[fault(change)]},
     outcome:{...raw.outcome,disposition:"unknown_relevance",first_fault:fault(race)}});
 }
+// Exercise the same exclusive ledger, proof reader, authenticated capability and
+// separate-process stock entry as the browser successor, using ordinary v10 inputs.
+async function checkGitSourceSuccessor(c, h, initial, initialCapability) {
+  const tip = () => reconstructAttemptTip({anchorRoot:c.anchor, repositoryRoot:c.checkout, branch:c.branch});
+  const packages = dependencyRecords(c), firstAuthority = structuredClone(c.authority);
+  const exe = c.gitDeclaration.resources.find(r => r.id === "browser-executable");
+  const browser = {contract:"augnes.local-canonical-browser-use.v2",executable_name:"Fixture",location_fingerprint:exe.location_fingerprint,
+    before:exe.before,after:exe.before,actual_version:"Chrome/1",runtime_versions:{http:"Chrome/1",cdp:"Chrome/1"},disposition:"unchanged",unchanged:true};
+  const first = await executeFixture(c,h,initial,initialCapability,browser,packages);
+  assert.equal(first.stock.valid_deciding_evidence,false);
+  assert.match(first.child.output,/3 !== 4/);
+  const consumed = tip();
+  assert.equal(consumed.reviewed_revision_consumed,1);
+  const priorFolder = c.artifacts, previous = c.head;
+  const red = await behavior(c);
+  const oldBlob = digest(c.git(["show",previous+":"+fixture]));
+  const url = type => "https://github.com/hynk-studio/augnes/pull/999#"+type+"-";
+  const comment = url("issuecomment"), reviewUrl = url("pullrequestreview");
+  const delegation = {...firstAuthority.grant,id:13,created_at:time(0),body:[
+    "Authorize one material source correction and qualification.",c.branch,first.receipt.run.id,first.receipt.integrity.content_fingerprint,
+    initial.prior_receipt_fingerprint,consumed.revision_commission,comment+firstAuthority.grant.id].join("\n")};
+  delegation.updated_at=delegation.created_at;
+  c.prior=first.receipt;c.grantId=14;
+  c.commit(4);
+  h.prepare(c,2);
+  const p=c.proof;
+  p.schema=initial.schema;
+  Object.assign(p.commission,{initial_accepted:initial.accepted,initial_authorization:initial.authorization,
+    delegation:{id:delegation.id,sha256:digest(reviewedRevisionAuthorityObservation(delegation,"task_delegation"))}});
+  p.accepted={base:p.base,head:p.head,tree:p.tree};
+  p.inputs.predecessor_sha256=initial.inputs.identity_sha256;p.inputs.inventory_sha256=initial.inputs.inventory_sha256;
+  p.originals.stock=h.artifact(c,"prior-stock.log",JSON.stringify(first.stock));
+  const artifact=(name,value)=>h.artifact(c,name,value);
+  const get=ref=>h.read(path.join(c.artifacts,ref.artifact));
+  p.source=artifact("source.json",{...get(p.source),reviewed_at:time(0)});
+  const green=await behavior(c);
+  assert.equal(red.result.exit_code,1);assert.equal(green.result.exit_code,0);
+  const witness=(run,hash,label)=>artifact(label+".json",{...run,node_version:CANONICAL_NODE_VERSION,file_sha256:hash,
+    runtime_inputs_sha256:p.inputs.identity_sha256,stdout:artifact(label+".log",run.output)});
+  const before=witness(red,oldBlob,"red"),after=witness(green,digest(c.git(["show",p.head+":"+fixture])),"green");
+  const focus={...get(p.focused),finished_at:green.finished_at,input_remedy_resources:[],failed_phase:"authority",
+    diagnosis:"The executed fixture asserted the wrong value on the first reviewed candidate.",regression:{path:fixture,before,after},
+    commands:[{command:green.command,tested_source_head:p.head,result:green.result,record:after,stdout:get(after).stdout}]};
+  p.focused=artifact("focused.json",focus);
+  const prepFile=path.join(c.artifacts,"preparation.json");
+  const prepare=(candidate,live=c.live)=>{
+    const material=structuredClone(candidate);delete material.authorization;delete material.accepted.review;h.write(prepFile,material);
+    return inspectGitRevisionPreparation({file:prepFile,repositoryRoot:c.checkout,predecessorRoot:c.checkout,anchorRoot:c.anchor,runtimeInputs:c.inputs,live});
+  };
+  const prepared=prepare(p), target=gitReviewTarget(p);
+  assert.equal(prepared.consumed,1);assert.equal(prepared.ordinal,2);assert.equal(prepared.target,target);assert.equal(prepared.reserved,false);
+  for (const mutate of [q=>q.commission.ordinal=1,q=>q.commission.ordinal=3,q=>q.commission.root_family_id=digest("fork"),
+    q=>q.commission.initial_accepted.review.id++,q=>q.commission.initial_authorization.grant_sha256=digest("replacement"),
+    q=>q.prior_receipt_fingerprint=initial.prior_receipt_fingerprint,q=>Object.assign(q,{head:previous,tree:initial.tree})]) {
+    const bad=structuredClone(p);mutate(bad);assert.throws(()=>prepare(bad));
+  }
+  assert.throws(()=>prepare(p,{...c.live,inventory:digest("protected input changed")}));
+  for(const name of [path.join(priorFolder,initial.originals.stock.artifact),path.join(c.artifacts,p.originals.stock.artifact),
+    path.join(c.anchor,".augnes-local-verification/families",p.prior_family_id,"completion-1.json")]){
+    const raw=readFileSync(name);h.write(name,Buffer.concat([raw,Buffer.from("\n")]));
+    try{assert.throws(()=>prepare(p));}finally{h.write(name,raw);}
+  }
+  const wrong={...focus,regression:{...focus.regression,before:after}};
+  assert.throws(()=>prepare({...p,focused:artifact("wrong.json",wrong)}),/revision_git_regression_invalid/);
+  // A real Git commit containing only whitespace cannot establish the repair.
+  const whitespace=c.git(["show",previous+":"+fixture]).toString().replace("value=","value = ");
+  h.write(path.join(c.checkout,fixture),whitespace);c.git(["add",fixture]);
+  const cosmeticTree=c.git(["write-tree"]).toString().trim();
+  const cosmetic=c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit-tree",cosmeticTree,"-p",previous,"-m","spacing"]).toString().trim();
+  c.git(["restore","--source=HEAD","--staged","--worktree","--",fixture]);
+  const diff=from=>{const bytes=c.git(["diff","--binary","--full-index","--no-ext-diff","--no-textconv",from,cosmetic,"--"]);
+    return {bytes:bytes.length,sha256:digest(bytes),paths:c.git(["diff","--name-only",from,cosmetic,"--"]).toString().trim().split("\n").filter(Boolean).sort()};};
+  const cosmeticSource={...get(p.source),main_to_final:diff(p.base),accepted_to_final:diff(previous),predecessor_to_final:diff(previous)};
+  assert.throws(()=>prepare({...p,head:cosmetic,tree:cosmeticTree,accepted:{base:p.base,head:cosmetic,tree:cosmeticTree},source:artifact("cosmetic.json",cosmeticSource)}),/revision_material_remedy_required/);
+  const finalTarget=prepare(p).target;
+  const pause=()=>new Promise(r=>setTimeout(r,5));await pause();
+  const review={...firstAuthority.review,id:12,submitted_at:time(0),commit_id:p.head,body:[
+    "Source review decision: ACCEPT / RETAIN for prospective qualification.",p.base,p.head,p.tree,p.prior_receipt_fingerprint,finalTarget].join("\n")};
+  await pause();
+  const grant={...firstAuthority.grant,id:14,created_at:time(0),body:["Authorize ordinal two of the original reviewed Git-observation commission.",
+    p.schema,p.head,p.tree,p.base,p.branch,p.prior_receipt_fingerprint,finalTarget,p.commission.root_receipt_fingerprint,consumed.revision_commission,
+    comment+delegation.id,comment+firstAuthority.grant.id,reviewUrl+review.id,"Separate fresh-process stock and independent audit."].join("\n")};
+  grant.updated_at=grant.created_at;
+  c.authority={review,grant,pr:{...firstAuthority.pr,head:{...firstAuthority.pr.head,sha:p.head}},linked:{
+    ["repos/hynk-studio/augnes/pulls/999/reviews/"+firstAuthority.review.id]:firstAuthority.review,
+    ["repos/hynk-studio/augnes/issues/comments/"+firstAuthority.grant.id]:firstAuthority.grant,
+    ["repos/hynk-studio/augnes/issues/comments/"+delegation.id]:delegation}};
+  p.accepted.review={id:review.id,sha256:digest(reviewedRevisionAuthorityObservation(review,"accepted_revision"))};
+  p.authorization={grant_comment_id:grant.id,grant_sha256:digest(reviewedRevisionAuthorityObservation(grant,"execution_commission"))};
+  h.write(c.file,p);const proof=h.proof(c);
+  for(const id of [review.id,grant.id,delegation.id,firstAuthority.grant.id,firstAuthority.review.id]) {
+    await assert.rejects(h.auth(c,proof,(v,endpoint)=>endpoint.endsWith("/"+id)?{...v,body:"edited"}:v));
+  }
+  await assert.rejects(h.auth(c,proof,(v,endpoint)=>endpoint.endsWith("/"+grant.id)?null:v));
+  await assert.rejects(h.auth(c,proof,(v,endpoint)=>endpoint.includes("/permission")?{...v,permission:"read"}:v));
+  for (const omit of [comment+delegation.id, comment+firstAuthority.grant.id, reviewUrl+review.id, consumed.revision_commission]) {
+    const incomplete = {...grant, body:grant.body.replace(omit, "")};
+    const altered = {...p, authorization:{grant_comment_id:grant.id, grant_sha256:digest(reviewedRevisionAuthorityObservation(incomplete,"execution_commission"))}};
+    h.write(c.file,altered);
+    await assert.rejects(h.auth(c,h.proof(c),(v,endpoint)=>endpoint.endsWith("/"+grant.id)?incomplete:v), /revision_authority_scope_invalid/);
+  }
+  h.write(c.file,p);
+  const cap=await h.auth(c,proof);
+  assert.throws(()=>h.begin(c,proof,{observations:cap.observations}));
+  assert.throws(()=>h.begin(c,proof,cap,{revisionLive:{...c.live,inventory:digest("changed")}}));
+  assert.equal(tip().reviewed_revision_consumed,1);
+  const competing = {...h, begin(...args) {
+    const reserved = h.begin(...args);
+    assert.throws(() => h.begin(...args), /attempt_latest_tip_required/);
+    return reserved;
+  }};
+  const second=await executeFixture(c,competing,proof,cap,browser,packages);
+  assert.equal(second.stock.valid_deciding_evidence,true);
+  assert(!h.stock({...c,live:{...c.live,inventory:digest("changed")}},second.receipt,cap));
+  assert.equal(tip().revision_commission,consumed.revision_commission);assert.equal(tip().reviewed_revision_consumed,2);
+  assert.deepEqual(tip().revision_grants,[firstAuthority.grant.id,grant.id]);assert.throws(()=>h.begin(c,proof,cap));assert.throws(()=>prepare(p));
+  console.log(JSON.stringify({synthetic_only:true,material_successor:{first_stock:false,second_stock:true,consumed:2,same_commission:true,
+    refused:["stale and changed originals","reset and third ordinal","identical and whitespace-only source","wrong witness","missing and edited authority","unstable inputs","competing successor"]}}));
+}
+
 export async function runGitRevisionControls(c,h) {
   const original=c.prior, ledger=path.join(c.legacyRoot,"completion-1.json"), edge=path.join(c.legacyRoot,"correction-successor.json");
   const completion=h.read(ledger), issues=["receipt_classified_outcome_not_passing","receipt_current_inputs_unverified","receipt_final_result_not_pass",
@@ -111,10 +235,9 @@ export async function runGitRevisionControls(c,h) {
   assert.throws(()=>h.begin(c,proof,cap,{revisionLive:{...c.live,inventory:digest("unstable")}}),/revision_git_target_unverified/);
   const ledgerBytes=readFileSync(ledger);h.write(ledger,JSON.stringify(completion,null,2));
   try{assert.throws(()=>h.begin(c,proof,cap),/revision_original_ledger_changed/);}finally{h.write(ledger,ledgerBytes);}
-  assert(!existsSync(edge));const a=h.begin(c,proof,cap);
-  assert.throws(()=>h.begin(c,proof,cap));const result=h.receipt(c,a,"completed_success");h.storeReceipt(c,result);
-  h.finish(a,{receiptFingerprint:result.integrity.content_fingerprint,disposition:"completed_success",cleanupComplete:true});
-  assert(h.stock(c,result,cap));assert(!h.stock({...c,live:{...c.live,inventory:digest("stock change")}},result,cap));
+  assert(!existsSync(edge));
+  await checkGitSourceSuccessor(c,h,proof,cap);
+  assert.throws(()=>h.begin(c,proof,cap));
   assert.equal(h.read(ledger).disposition,"unknown_relevance");assert.deepEqual(readFileSync(ledger),ledgerBytes);
   console.log(JSON.stringify({synthetic_only:true,git_revision_controls:["protected Git race then effective change","unrelated fault, incomplete stock and unsettled cleanup refused",
     "actual raw/effective input identities, incomplete inventory and stale tip","exact product and regression byte witnesses","preparation cannot reserve",

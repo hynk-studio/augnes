@@ -22,8 +22,15 @@ const read=f=>JSON.parse(readFileSync(f,"utf8")), time=n=>new Date(Date.now()+n)
 const family=(b,p)=>digest(["augnes.local-canonical-attempt-family.v1","hynk-studio/augnes",b,...(p?["verified_source_correction",p.prior_attempt_id,p.head,p.tree]:[])]);
 const transport=(c,mutate=v=>v)=>createGitHubObserverAuthorizationTransport(999,{runner:async request=>{
   assert.equal(request.operation,"fetch_browser_authority");assert(request.args.includes("GET")); const e=request.args[1];
-  return mutate(clone(e.includes("/reviews/")?(e.endsWith("/"+c.authority.settlementReview?.id)?c.authority.settlementReview:c.authority.review):e.includes("/comments/")?c.authority.grant:e.endsWith("/pulls/999")?c.authority.pr:{permission:"admin",user:{login:"synthetic-fixture"}}),e);
+  const linked = c.authority.linked?.[e];
+  return mutate(clone(linked ?? (e.includes("/reviews/")?(e.endsWith("/"+c.authority.settlementReview?.id)?c.authority.settlementReview:c.authority.review):e.includes("/comments/")?c.authority.grant:e.endsWith("/pulls/999")?c.authority.pr:{permission:"admin",user:{login:"synthetic-fixture"}})),e);
 }});
+async function freshReader(c, packet) {
+  const result=await runCanonicalChild({command:process.execPath,args:[self,"--cold",packet],cwd:c.checkout,env:c.env,
+    suite:"reviewed-revision",label:"fresh receipt reader",timeoutMs:15000,stdout:quiet,stderr:process.stderr});
+  assert(result.exit_observed && result.streams_closed && result.cleanup_completed && result.remaining_owned_processes===0);
+  assert.equal(result.exit_code,0);
+}
 const proof=c=>readSourceCorrectionProof(c.file,c.checkout);
 const auth=(c,p,mutate)=>authorizeReviewedRevision(p,{transport:transport(c,mutate), ...(c.authority.contractReview ? {
   reviewTransport: createGitHubObserverAuthorizationTransport(c.authority.contractPr,{runner:async req=>{
@@ -51,7 +58,7 @@ function setup(root,browser=false){
   const c={checkout:path.join(root,"checkout"),anchor:path.join(root,"anchor"),branch:"codex/reviewed-revision",root};
   mkdirSync(c.checkout);mkdirSync(c.anchor);c.owner=acquireCheckoutVerificationOwnership({repositoryRoot:c.checkout});c.env=buildCanonicalChildEnvironment({temporaryRoot:root});
   c.git=args=>execFileSync("git",args,{cwd:c.checkout,env:c.env,timeout:5000,maxBuffer:1024*1024,stdio:["ignore","pipe","pipe"]});
-  c.commit=value=>{write(path.join(c.checkout,"scripts/fixture.mjs"),"export const value="+value+";\n");c.git(["add","scripts"]);c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m","value "+value]);return c.git(["rev-parse","HEAD"]).toString().trim();};
+  c.commit=value=>{write(path.join(c.checkout,"scripts/fixture.mjs"),"export const value="+value+";\n"+(gitIncident?'import assert from "node:assert/strict";\nassert.equal(value,4);\nconsole.log("corrected behavior");\n':""));c.git(["add","scripts"]);c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m","value "+value]);return c.git(["rev-parse","HEAD"]).toString().trim();};
   c.git(["init","--quiet","-b",c.branch]);c.base=c.commit(1);c.baseTree=c.git(["rev-parse","HEAD^{tree}"]).toString().trim();
   c.inputs={contract:"augnes.local-canonical-runtime-inputs.v1",node:{location_fingerprint:digest("current-node"),observation:{present:true,sha256:digest("node"),metadata:{mode:"33261",uid:"1",gid:"1",device:"1",inode:"1",links:"1",bytes:"4",mtime_ns:"1",ctime_ns:"1"},permission_identity:digest("node permissions"),executable_identity_policy:"shared-posix-v1"}},
     headers:{location_fingerprint:digest("headers"),observation:{contract:"augnes.local-canonical-node-headers.v1",present:true,location_fingerprint:digest("headers"),inventory_sha256:digest("inventory"),content_sha256:digest("content"),permission_sha256:digest("permissions"),entries:2,bytes:10}}};
@@ -154,16 +161,14 @@ if(process.argv[2]==="--cold"){
 }else if(process.argv[2]==="--run-git-fixtures"){
   const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
   const c=setup(owner.root,"git");
-  try{await runGitRevisionControls(c,{prepare,artifact,read,write,proof,auth,begin,stock,receipt,storeReceipt,finish:finishAttempt});}
+  try{await runGitRevisionControls(c,{prepare,artifact,read,write,proof,auth,begin,stock,receipt,storeReceipt,finish:finishAttempt,fresh:packet=>freshReader(c,packet)});}
   finally{releaseCheckoutVerificationOwnership(c.owner,c.checkout);settleCanonicalTestResourceUse(owner,{exit_observed:true,streams_closed:true,cleanup_completed:true,remaining_owned_processes:0});assert(cleanupCanonicalTestResources([owner])[0].completed);}
 }else if(process.argv[2]==="--run-browser-fixtures"){
   const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);
   const c=setup(owner.root,true);
   try {
     await runBrowserRevisionControls(c,{prepare,artifact,read,write,proof,auth,begin,stock,receipt,storeReceipt,baseReceipt,
-      fresh:async packet=>{const result=await runCanonicalChild({command:process.execPath,args:[self,"--cold",packet],cwd:c.checkout,env:c.env,
-        suite:"reviewed-revision",label:"browser revision fresh reader",timeoutMs:10000,stdout:quiet,stderr:process.stderr});
-        assert(result.exit_observed && result.streams_closed && result.cleanup_completed && result.remaining_owned_processes===0);assert.equal(result.exit_code,0);}});
+      fresh:packet=>freshReader(c,packet)});
   }finally{releaseCheckoutVerificationOwnership(c.owner,c.checkout);settleCanonicalTestResourceUse(owner,{exit_observed:true,streams_closed:true,cleanup_completed:true,remaining_owned_processes:0});assert(cleanupCanonicalTestResources([owner])[0].completed);}
 }else if(process.argv[2]==="--run-settlement-fixtures"){
   const owner=createCanonicalTestResourceRoot("ag-resource-test-");beginCanonicalTestResourceUse(owner);

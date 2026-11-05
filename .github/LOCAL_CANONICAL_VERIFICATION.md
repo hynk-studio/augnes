@@ -1098,6 +1098,33 @@ The implementation owner's preparation, a negative predecessor review or a
 reservation alone confers no authority. Run the unchanged planner-complete Full
 and validate the resulting receipt with separate stock under the same inputs.
 
+If that first reviewed Full settles with a natural child failure, ordinal two
+can qualify a material source repair. Retain both failed receipts, both false
+stock results, the physical attempts, completions and first proof. Replay the
+first edge and require the latest receipt's full phase order, accounted stock,
+stable input binding, released ownership and preserved Companion. The second
+proof takes its accounting identity from the initial accepted source and
+authorization, the same commission root and its original maximum of two.
+Current source acceptance and execution authority refer to the new target.
+
+Run the implicated executable test on the first and corrected source with
+the same command and canonical runtime. Bind both Git blobs, the failing and
+passing child results and their output, the diagnosed phase and the complete
+Git deltas. Non-reserving preparation checks the new inventory, the physical
+tip and its single consumed ordinal. A different commit with the same tree,
+a whitespace-only edit, stale materials or a competing reservation refuses.
+
+After independent source review of the published target, a separate unedited
+grant starts with the standalone line `Authorize ordinal two of the original
+reviewed Git-observation commission.` Include the original accounting
+identity and root receipt alongside the new candidate, predecessor, commitment
+and review required above. Link the initial grant, the task delegation and the
+new review. Record reviewer and submitter provenance when recording the decision
+or grant under delegation. The authenticated reader checks current maintainer
+permission and the original review and grant references. The physical
+successor consumes the remaining ordinal on reservation; replay through
+separate fresh-process stock is read-only.
+
 ### Completed source-correction routes v3-v6
 
 The task-specific observer repair, corrected timeout, condition requalification

@@ -21,16 +21,17 @@ const clone = structuredClone;
 const now = () => new Date().toISOString();
 const runtimeKeys = ["AUGNES_CANONICAL_NODE_HEADERS", "AUGNES_CANONICAL_NODE_HEADERS_FINGERPRINT", "npm_config_nodedir", "AUGNES_BROWSER_EXECUTABLE_PATH"];
 
-async function behavior(c) {
+export async function behavior(c) {
   const script = 'import assert from "node:assert/strict"; import {value} from "./scripts/fixture.mjs"; assert.equal(value,4); console.log("corrected behavior");';
+  const args = c.gitDeclaration ? ["scripts/fixture.mjs"] : ["--input-type=module", "-e", script];
   let output = "";
   const sink = { write(bytes) { output += bytes; } };
   const result = await runCanonicalChild({
     suite: "browser-successor", label: "source behavior", command: process.execPath,
-    args: ["--input-type=module", "-e", script], cwd: c.checkout, env: c.env, timeoutMs: 5000, stdout: sink, stderr: sink
+    args, cwd: c.checkout, env: c.env, timeoutMs: 5000, stdout: sink, stderr: sink
   });
   assert(result.cleanup_completed && result.remaining_owned_processes === 0 && result.termination_reason === "natural_exit");
-  return { command: "node --input-type=module -e " + JSON.stringify(script), result, output, finished_at: now(), tested_source_head: c.head };
+  return { command: c.gitDeclaration ? "node scripts/fixture.mjs" : "node --input-type=module -e " + JSON.stringify(script), result, output, finished_at: now(), tested_source_head: c.head };
 }
 
 function declaration(c) {
@@ -56,7 +57,7 @@ function declaration(c) {
   };
 }
 
-function dependencyRecords(c) {
+export function dependencyRecords(c) {
   const project = path.join(c.root, "fixture-dependencies");
   return [["dependencies-root", ""], ["dependencies-nested", "apps/augnes_apps"], ["dependencies-web-planning", "apps/web_planning"]].map(([id, dir]) => {
     const location = path.join(project, dir);
@@ -69,8 +70,12 @@ function dependencyRecords(c) {
   });
 }
 
-async function executeFixture(c, h, proof, cap, browserRecord, dependencies) {
-  const input = declaration(c), start = now();
+export async function executeFixture(c, h, proof, cap, browserRecord, dependencies) {
+  const input = c.gitDeclaration ? { ...c.gitDeclaration, binding: {
+    head: c.head, tree: c.tree, executor_fingerprint: baseReceipt.executor.source_fingerprint, runtime_inputs: c.inputs,
+    environment_keys: runtimeKeys, phase_environment_fingerprints: REVIEWED_REVISION_PHASES.map(id => ({id, fingerprint:digest(id)}))
+  } } : declaration(c);
+  const start = now();
   const attempt = h.begin(c, proof, cap, { contractFingerprint: digest(input) });
   const child = await behavior(c), passed = child.result.exit_code === 0, finish = now();
   const r = clone(baseReceipt);
@@ -110,7 +115,8 @@ async function executeFixture(c, h, proof, cap, browserRecord, dependencies) {
     ...r.cleanup.isolated_resources, contract: HISTORICAL_INPUT_CONTRACT, anchor_fingerprint: r.verification_context.anchor_fingerprint,
     source_fingerprint: digest("fixture source"), content_fingerprint: digest("fixture contents"), unchanged: true, file_count: 1, byte_count: 1
   };
-  const service = c.live.state, obs = { ...c.live.diagnostics, started_at: start, finished_at: finish };
+  const live = c.gitDeclaration ? c.live.service : c.live;
+  const service = live.state, obs = { ...live.diagnostics, started_at: start, finished_at: finish };
   r.cleanup.companion_service = {
     scope: "accepted_checkout_read_only", before: service, after: service,
     maintenance_acquired: false, maintenance_released: true, restored: true, observations: { before: obs, after: obs }

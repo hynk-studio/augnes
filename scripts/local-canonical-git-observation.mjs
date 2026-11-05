@@ -1,8 +1,10 @@
 import { digest, classifyInputChange, effectiveInputObservation, inputEventIdentity, nonFaultInputChange, INPUT_CONTRACT } from "./local-canonical-inputs.mjs";
-import { settledIsolatedResources, cancelledPhase } from "./local-canonical-browser-revision.mjs";
+import { settledIsolatedResources, cancelledPhase, verifySettledPhaseFailure } from "./local-canonical-browser-revision.mjs";
+import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 
 export const isGitObservationRevision = p =>
   p?.schema === "augnes.local-canonical-source-correction.v10" && p.kind === "reviewed_revision";
+export const isGitObservationSuccessor = p => isGitObservationRevision(p) && p.commission?.ordinal === 2;
 const equal = (a,b) => a !== undefined && b !== undefined && digest(a) === digest(b);
 const sha = value => /^[a-f0-9]{64}$/u.test(value ?? "");
 const fail = code => { throw Object.assign(new Error(code), { code }); };
@@ -92,6 +94,45 @@ export function gitRevisionInventory(snapshot) {
     const value = effectiveInputObservation(r.before, r, snapshot);
     return { ...r, before: r.id === "git-config" ? r.before : value };
   }));
+}
+
+export function verifyGitRevisionFailure(receipt, stock, inputs, phases) {
+  const previous = receipt.attempt?.source_correction;
+  const { contract, path_kind, binding, resources } = receipt.inputs;
+  if (!isGitObservationRevision(previous) || previous.commission.ordinal !== 1 ||
+      gitRevisionInventory(receipt.inputs) !== previous.inputs.inventory_sha256 ||
+      digest({ contract, path_kind, binding, resources }) !== receipt.inputs.fingerprint)
+    fail("revision_git_predecessor_invalid");
+  verifySettledPhaseFailure(receipt, stock, inputs, phases, resources.find(r => r.id === "browser-executable"));
+}
+
+// Ordinal two repairs a failing executable source. Observe the same command
+// on the predecessor and final Git blobs, with the same canonical runtime.
+export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt }) {
+  const regression = focused.regression;
+  const file = regression?.path;
+  if (!Array.isArray(focused.implicated_paths) || !focused.implicated_paths.includes(file) ||
+      typeof file !== "string" || !/^scripts\/(?:[\w.-]+\/)*[\w.-]+\.mjs$/u.test(file) ||
+      file.split("/").some(part => part === "." || part === "..") ||
+      !equal(focused.input_remedy_resources, []) || prior.tree === p.tree ||
+      !git(["diff", "--no-ext-diff", "--no-textconv", "--ignore-all-space", "--ignore-blank-lines", prior.head, p.head, "--", file]).length)
+    fail("revision_material_remedy_required");
+  const before = parse(regression.before), after = parse(regression.after);
+  const command = "node " + file;
+  if (!focused.commands?.some(c => c.command === command && c.tested_source_head === p.head &&
+      equal(c.record, regression.after) && equal(c.stdout, after.stdout)) ||
+      before.stdout?.sha256 === after.stdout?.sha256 ||
+      !(Date.parse(completedAt) < Date.parse(before.finished_at) && Date.parse(before.finished_at) < Date.parse(after.finished_at) &&
+        Date.parse(after.finished_at) <= Date.parse(focused.finished_at))) fail("revision_git_regression_invalid");
+  for (const [witness, head, exit] of [[before, prior.head, 1], [after, p.head, 0]]) {
+    const r = witness.result;
+    if (witness.tested_source_head !== head || witness.file_sha256 !== digest(git(["show", head + ":" + file])) ||
+        witness.command !== command || witness.runtime_inputs_sha256 !== p.inputs.identity_sha256 ||
+        witness.node_version !== CANONICAL_NODE_VERSION || r?.exit_code !== exit || r.timed_out !== false ||
+        r.cancelled !== false || r.cleanup_completed !== true || r.remaining_owned_processes !== 0 ||
+        r.termination_reason !== "natural_exit" || r.exit_observed !== true || r.streams_closed !== true || !bytes(witness.stdout).length)
+      fail("revision_git_regression_invalid");
+  }
 }
 
 export function gitReviewTarget(p) {
