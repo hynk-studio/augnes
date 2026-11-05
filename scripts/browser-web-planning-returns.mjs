@@ -35,6 +35,52 @@ export async function browserReturnedFiles({c,fresh,origin,env,root,click,set,se
     await page.eval(`(()=>{const link=[...document.querySelectorAll('#exchange-list a')].find(e=>e.download===${JSON.stringify(name)});[...link.closest('li').querySelectorAll('button')].find(b=>b.textContent==='Inspect return and decide').click()})()`);await settled(page);
     assert.equal(await page.eval("$('return-heading').checkVisibility() && document.activeElement===$('return-heading')"),true);}
   await navigate(c,origin+'/');await byTitle(c,goal);
+  // Establish the ordinary no-op on a saved planning revision. An unrelated
+  // form submission must never turn the return decision into an implicit save.
+  await click(c,'save');await settled(c);const baseline=await c.eval('binding(saved)');
+  await click(c,'save');await settled(c);assert.deepEqual(await c.eval('binding(saved)'),baseline);
+  await byTitle(c,goal);
+  await inspectFile(c,'seat-plan.md');
+  await set(c,'return-mode','adapted');await set(c,'return-text','Label the six kits for the ground floor.');
+  await set(c,'return-reason','The mezzanine is closed.');await set(c,'return-next','Print the six labels.');
+  await set(c,'return-destination','new');await set(c,'return-goal','Cedar Hall kit labels');
+  const draftState=()=>c.eval(`({visible:$('return-inspector').checkVisibility(),mode:$('return-mode').value,
+    text:$('return-text').value,reason:$('return-reason').value,next:$('return-next').value,
+    destination:$('return-destination').value,goal:$('return-goal').value,selection:returnView?.selection??null,
+    preview:$('return-preview').textContent,prepared:!!returnPrepared,marker:!!returnMarker,
+    recovery:$('return-recovery').checkVisibility(),base:binding(saved)})`);
+  async function ordinaryWhileEditing(stage,action){
+    const before=await draftState(),start=requests.length;await action();await settled(c);
+    const after=await draftState();
+    const writes=requests.slice(start).filter(r=>/\/(?:save|ticket|drafts|erase)$/.test(new URL(r.path,origin).pathname));
+    console.log(JSON.stringify({return_draft_interaction:{stage,prior_text:before.text,visible:after.visible,text:after.text,
+      rationale:after.reason,prepared:after.prepared,marker_visible:after.recovery,same_base:after.base.fingerprint===before.base.fingerprint,
+      requests:writes.map(r=>({action:r.path.split('/').at(-1),return_choice:!!JSON.parse(r.body??'{}').return_choice})),status:await c.eval("$('status').innerText")}}));
+    assert.deepEqual(after,before,'Ordinary action must preserve the selected return, its visible authored draft and reconciliation state: '+stage);
+    assert.equal(writes.length,0,stage+' must refuse before sending another form');
+    assert.match(await c.eval("$('status').innerText"),/return decision|return save/i);
+  }
+  await ordinaryWhileEditing('no-op work Save',()=>click(c,'save'));
+  await set(c,'goal','Local edit to check the loading door');
+  await ordinaryWhileEditing('dirty work form submit',()=>c.eval("$('work-form').requestSubmit()"));
+  assert.equal(await c.eval("$('goal').value"),'Local edit to check the loading door');
+  await click(c,'return-prepare');await settled(c);
+  assert.equal((await draftState()).prepared,true);
+  await ordinaryWhileEditing('prepared decision and ordinary Save',()=>click(c,'save'));
+  await click(c,'erase');
+  await ordinaryWhileEditing('confirm erasure while a decision is prepared',()=>click(c,'confirm-erase'));
+  await click(c,'cancel-erase');
+  c.beforeRequest={path:'/api/work/'+await c.eval('returnPrepared.work_id')+'/save',method:'POST',unavailable:true};
+  await click(c,'return-commit');await settled(c);
+  const pendingTicket=await c.eval('sessionStorage.getItem(returnKey(work))');
+  await ordinaryWhileEditing('unresolved adaptation and ordinary Save',()=>click(c,'save'));
+  assert.equal(await c.eval('sessionStorage.getItem(returnKey(work))'),pendingTicket);
+  await click(c,'return-resolve');await settled(c);assert.equal(await c.eval("$('return-retry').checkVisibility()"),true);
+  await click(c,'return-retry');await settled(c);assert.match(await c.eval("$('return-status').innerText"),/Saved adapted/);
+  assert.equal(await c.eval("$('goal').value"),'Local edit to check the loading door');
+  await set(c,'goal',goal);await click(c,'save');await settled(c);
+  assert.equal(await c.eval('returnMarker'),null);await byTitle(c,goal);
+  checks.push('Ordinary no-op and edited work Save, prepared and unresolved return decisions preserve visible text, choice, rationale and the original retry');
   const start=requests.length;await inspectFile(c,'aisle.txt');
   assert.match(await c.eval("$('return-basis').innerText"),/Plan the seating and aisles.*[\s\S]*Room limit 24/);
   await c.eval("[...$('return-basis').querySelectorAll('button')].find(b=>b.getAttribute('aria-label')==='Read aisle.txt as text').click()");await settled(c);
@@ -86,7 +132,7 @@ export async function browserReturnedFiles({c,fresh,origin,env,root,click,set,se
   await cli('find-follow-on',['select',later,dstSetup]);const reopened=await cli('read-follow-on',[dstSetup,'read-saved',String(prepared.revision),'pack-kits.md']);
   assert.equal(reopened.text,adapted);assert.equal(reopened.decision.output.digest,'sha256:'+createHash('sha256').update(adapted).digest('hex'));
   const recovered=await cli('read-recorded-origin',[dstSetup,'read-origin',String(prepared.revision)]);assert.equal(recovered.text,original);
-  const sourceReview=(await see('seat-plan.md','after-use')).v;assert.equal(sourceReview.decisions[0].destination.fingerprint,prepared.fingerprint);
+  const sourceReview=(await see('seat-plan.md','after-use')).v;assert(sourceReview.decisions.some(d=>d.destination.work_id===prepared.work_id && d.destination.fingerprint===prepared.fingerprint));
   // A fresh browser finds the new work by title. Read both sets of bytes
   // in visible controls, while a later inspection preserves an unrelated draft.
   await navigate(fresh,origin+'/');await byTitle(fresh,later);

@@ -31,6 +31,7 @@ function exchangeControls() {
   $('exchange-retry').hidden = true;
 }
 function beginExchange(source, textEdit = null) {
+  if (returnDecisionBlocksWork()) return;
   // A reconciled, unrecorded return can be re-entered from the same original
   // without storing its private text in tab storage or requiring a local file.
   if (textEdit && exchangeDraft?.basis?.fingerprint === source.ref.fingerprint &&
@@ -311,7 +312,7 @@ $('exchange-refresh').onclick = () => run(async () => {
 });
 $('exchange-form').onsubmit = event => {
   event.preventDefault();
-  run(async () => {
+  runWorkChange(async () => {
     if (!exchangeDraft || exchangeDraft.answered || exchangePending || !$('exchange-refresh').hidden) return;
     let selected;
     const edit = exchangeDraft.textEdit;
@@ -353,8 +354,8 @@ $('exchange-form').onsubmit = event => {
     await sendExchange(false);
   });
 };
-$('exchange-check').onclick = () => run(() => sendExchange(true));
-$('exchange-retry').onclick = () => run(() => sendExchange(false));
+$('exchange-check').onclick = () => runWorkChange(() => sendExchange(true));
+$('exchange-retry').onclick = () => runWorkChange(() => sendExchange(false));
 Object.assign(messages,{
   return_output_name_in_use:'Choose a free filename; existing files and reserved scene material cannot be replaced here.',
   return_conditions_changed:'The source work advanced. Inspect the exact return again and compare current conditions.',
@@ -366,6 +367,23 @@ Object.assign(messages,{
   return_selection_unavailable:'The exact returned file is unavailable. No other return has been substituted.'
 });
 let returnView=null,returnPrepared=null,returnMarker=null,returnTargetCursor=null,returnEdited=false;
+function returnDecisionBlocksWork() {
+  if (returnMarker) status('Check the pending return save before changing this work.');
+  else if (returnEdited || returnPrepared) status('Finish or close your return decision before changing this work.');
+  else return false;
+  return true;
+}
+// These operations can reopen the editor on acknowledgement. Keep an untouched
+// inspector from becoming an authored draft while that response is in flight.
+function runWorkChange(action) {
+  return run(async () => {
+    if (returnDecisionBlocksWork()) return;
+    const fields = $('return-fields');
+    fields.disabled = true;
+    try { await action(); }
+    finally { if (!accessLost) fields.disabled = false; }
+  });
+}
 const returnKey=id=>exchangeStoragePrefix+'return-use.'+id;
 const returnRef=r=>r.work_id+' · revision '+r.revision+' · '+r.fingerprint;
 function returnButton(label,fn){const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=()=>run(fn);return b;}

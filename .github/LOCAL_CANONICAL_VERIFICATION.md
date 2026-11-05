@@ -1054,6 +1054,50 @@ observations refuse. Legacy v1 receipts retain their original interpretation,
 including binding `.vite-temp`. These bounded observations do not prove absence
 of transient changes between their observation windows.
 
+#### Corrected source after a protected Git observation interruption (source-correction v10)
+
+An ordinary isolated Full can settle after the Git metadata reader raced and a
+later sample measured a changed protected branch configuration. V10 accepts
+that ordered pair only. The first fault remains `unknown_relevance`. The
+retained hashes identify two observations without reconstructing the intervening
+settings or their writer. Keep the complete original receipt, attempt,
+completion and false separate stock. Check full phase order, the cancelled
+child, released ownership, isolated cleanup and coherent installed-service
+preservation. Other unknown faults and changes in scope or permissions refuse.
+
+Use the existing `reviewed_revision` commission and exclusive successor of the
+latest settled attempt. Review the complete predecessor-to-candidate and
+current-main-to-candidate Git deltas. Bind the corrected production module and
+the same retained regression on both sides to Git bytes, execution environment,
+command, exit and output. The pre-correction run must fail on the product
+behavior and the final-source run must pass. The independent reviewer examines
+that distinction, the verifier change and its refusal controls. Earlier focused
+work keeps its original attribution. Only the new invocation can execute the
+outstanding canonical phases.
+
+Finish publishing the candidate and configuring its upstream before taking the
+current input inventory. Preparation, admission and separate stock read the
+executor's entire declared resource set using its existing policies. They
+additionally bind the complete shared Git configuration observation, including
+its protected projection. The normal monitor, current-head, ownership and
+capacity checks apply throughout. The read-only preparation
+`inspectGitRevisionPreparation` returns the `gitReviewTarget` commitment before
+any authority exists. It checks the latest ledger tip, current main, clean
+branch, source, witnesses and fresh stable inputs without reserving an attempt.
+
+The authenticated commit-anchored review covers the **published corrected
+source**, commitment and predecessor fingerprint. It records the standalone
+line `Source review decision: ACCEPT / RETAIN for prospective qualification.`
+An unedited prospective commission on the same Draft PR follows that review and
+records the standalone line `Authorize prospective Mac qualification of this
+reviewed Git-observation successor.` Include the schema, branch, current base,
+head, tree, predecessor fingerprint, commitment, exact review URL, separate
+fresh-process stock and independent audit scope. Reuse v7's authenticated
+maintainer-level reader, existing commission consumption and append-only ledger.
+The implementation owner's preparation, a negative predecessor review or a
+reservation alone confers no authority. Run the unchanged planner-complete Full
+and validate the resulting receipt with separate stock under the same inputs.
+
 ### Completed source-correction routes v3-v6
 
 The task-specific observer repair, corrected timeout, condition requalification

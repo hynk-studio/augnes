@@ -21,6 +21,7 @@ import os from "node:os";
 import { freezeInputContract, monitorInputContract, digest, deriveOperationalDisposition, createInputReader, classifyInputChange, nonFaultInputChange, inputReadOptions, supportedInputContract, createGitTrackingResource, observeCanonicalRuntimeInputs, canonicalRuntimeInputEnvironment, observePreparedDependencyInputs, preparedDependencyIdentity } from "./local-canonical-inputs.mjs";
 import { beginAttempt, finishAttempt, readRecoveryProof, readSourceCorrectionProof, inspectAttemptRecords, hasRetiredQualificationMarker, isReviewedRevision, isWebPlanningClientRevision, authorizeReviewedRevision, REVIEWED_REVISION_PHASES } from "./local-canonical-attempts.mjs";
 import { pinVerificationEvidence, readPinnedEvidence } from "./local-canonical-evidence-retention.mjs";
+import { isGitObservationRevision, gitRevisionInventory } from "./local-canonical-git-observation.mjs";
 import { isBrowserRevision, browserBindingMatches } from "./local-canonical-browser-revision.mjs";
 import { browserInstallationRoot } from "./local-canonical-inputs.mjs";
 import { BROWSER_IDENTITY_PREFIX, validPhaseBrowserUse, browserConsumersForPhase, MAX_BROWSER_USE_RECORDS, parseBrowserUseLine } from "./local-canonical-browser-identity.mjs";
@@ -107,6 +108,7 @@ const GENERATED_NEXT_DIRECTORY = ".next";
 const EXECUTOR_SOURCE_FILES = Object.freeze([
   "scripts/local-canonical-browser-bundle.mjs",
   "scripts/local-canonical-browser-revision.mjs",
+  "scripts/local-canonical-git-observation.mjs",
   "scripts/local-canonical-browser-input.mjs",
   "scripts/browser-verification-owners.v1.json",
   "scripts/canonical-change-planner.mjs",
@@ -675,7 +677,7 @@ export async function executeLocalCanonicalVerification({
         if (historicalInputsRequired) historicalInputs = prepareHistoricalInputs({
           context: verificationContext, repositoryRoot, checkoutOwner, invocationId,
         });
-        const observed = await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: isBrowserRevision(sourceCorrection) });
+        const observed = await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: isBrowserRevision(sourceCorrection) || isGitObservationRevision(sourceCorrection) });
         serviceLifecycleBefore = observed.state;
         serviceObservations.before = observed.diagnostics;
         if (!observed.state.preservation_valid) throw Object.assign(
@@ -746,10 +748,14 @@ export async function executeLocalCanonicalVerification({
           if (mode !== "quick") assertFrozenSource(identityBefore, verificationContext);
           if (!attempt && mode !== "quick" && plan.selected_plan !== "documentation-only" && phaseDefinitions.length > 0 && checkoutOwner) {
             const revisionAuthorization = isReviewedRevision(sourceCorrection) ? await authorizeReviewedRevision(sourceCorrection) : null;
-            const revisionLive = sourceCorrection?.settlement ? await observeReviewedRevisionSettlementState(verificationContext) :
+            let revisionLive = sourceCorrection?.settlement ? await observeReviewedRevisionSettlementState(verificationContext) :
               isBrowserRevision(sourceCorrection) ? await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: true }) : null;
             if (revisionAuthorization && (mode !== "full" || checkoutContext !== "isolated-worktree" || plan.selected_plan !== "full-canonical" ||
                 digest(phaseDefinitions.map(p => p.id)) !== digest(REVIEWED_REVISION_PHASES))) throw Object.assign(new Error("reviewed_revision_workload_invalid"), { code: "reviewed_revision_workload_invalid" });
+            if (isGitObservationRevision(sourceCorrection)) {
+              revisionLive = await observeGitRevisionTarget(verificationContext, hostResult.browserExecutablePath, runtimeInputs);
+              if (gitRevisionInventory(inputs.snapshot()) !== revisionLive.inventory) throw Object.assign(new Error("revision_git_inputs_changed"), {code:"revision_git_inputs_changed"});
+            }
             if (revisionAuthorization) inputs.check({ force: true });
             if (revisionAuthorization && (inputMonitor.check() || signal.aborted)) throw Object.assign(new Error("input_admission_refused"), { code: "input_admission_refused" });
             attempt = beginAttempt({ anchorRoot: verificationAnchorRoot(verificationContext), repositoryRoot, checkoutOwner,
@@ -871,7 +877,7 @@ export async function executeLocalCanonicalVerification({
       }
       if (serviceLifecycleBefore !== null) {
         if (checkoutContext === "isolated-worktree") {
-          const observed = await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: isBrowserRevision(sourceCorrection) });
+          const observed = await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: isBrowserRevision(sourceCorrection) || isGitObservationRevision(sourceCorrection) });
           serviceLifecycleAfter = observed.state;
           serviceObservations.after = observed.diagnostics;
         } else {
@@ -1261,6 +1267,20 @@ export function prepareInvocationInputs({ verificationContext, isolatedResources
   return frozen;
 }
 
+// The preflight, admission and separate stock process re-read the very same inventory.
+export async function observeGitRevisionTarget(verificationContext, browserExecutablePath, runtimeInputs) {
+  assertVerificationContext(verificationContext, repositoryRoot);
+  if (verificationContext.kind !== "isolated-worktree" || !browserExecutablePath || !runtimeInputs) throw new Error("revision_git_current_inputs_invalid");
+  const snapshot = () => freezeInputContract({
+    resources:invocationInputResources({verificationContext,browserExecutablePath,runtimeInputs}),
+    pathKind:"isolated-model-free-v1",binding:{}
+  }).snapshot();
+  const inventory = gitRevisionInventory(snapshot());
+  const service = await inspectVerificationCompanionPreservation(verificationContext,{freshTransport:true});
+  if (gitRevisionInventory(snapshot()) !== inventory) throw new Error("revision_git_inputs_changed");
+  return {inventory,service};
+}
+
 function invocationInputResources({ verificationContext, browserExecutablePath, runtimeInputs = null }) {
   const isolated = verificationContext.kind === "isolated-worktree";
   const userHome = os.userInfo().homedir;
@@ -1436,6 +1456,10 @@ export async function validateReceiptAgainstCurrentRepository(relativeReceiptPat
     try { revisionAuthorization = await authorizeReviewedRevision(receipt.attempt.source_correction); } catch { /* stock refuses unavailable authority */ }
     try { runtimeInputs = observeRevisionInputs(receipt.attempt.source_correction, validationHost); } catch { /* stock refuses unavailable runtime input */ }
     if (isBrowserRevision(receipt.attempt.source_correction)) try { revisionLive = await inspectVerificationCompanionPreservation(verificationContext, { freshTransport: true }); } catch { /* stock requires coherent current preservation */ }
+    if (isGitObservationRevision(receipt.attempt.source_correction)) try {
+      revisionLive = await observeGitRevisionTarget(verificationContext, validationHost.browserExecutablePath, runtimeInputs);
+      if (gitRevisionInventory(receipt.inputs) !== revisionLive.inventory) revisionLive = null;
+    } catch { /* stock refuses incomplete or changed current observations */ }
     if (receipt.attempt.source_correction.settlement) try { revisionLive = await observeReviewedRevisionSettlementState(verificationContext); } catch { /* stock refuses unsafe or unavailable current settlement */ }
   }
   return inspectReceiptForDecision(receipt, {
