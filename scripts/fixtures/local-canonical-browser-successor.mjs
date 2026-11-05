@@ -5,7 +5,7 @@ import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { runCanonicalChild } from "../canonical-child-runner.mjs";
 import { baseReceipt, validContext } from "./local-canonical-receipt-v3.mjs";
-import { digest, observePreparedDependencyInputs } from "../local-canonical-inputs.mjs";
+import { digest, inputEventIdentity, observePreparedDependencyInputs } from "../local-canonical-inputs.mjs";
 import { browserConsumersForPhase } from "../local-canonical-browser-identity.mjs";
 import { BROWSER_SUCCESSOR_SCHEMA, browserReviewTarget, browserBindingMatches } from "../local-canonical-browser-revision.mjs";
 import {
@@ -58,8 +58,7 @@ function declaration(c) {
   };
 }
 
-export function dependencyRecords(c) {
-  const project = path.join(c.root, "fixture-dependencies");
+export function dependencyRecords(c, project = path.join(c.root, "fixture-dependencies")) {
   return [["dependencies-root", ""], ["dependencies-nested", "apps/augnes_apps"], ["dependencies-web-planning", "apps/web_planning"]].map(([id, dir]) => {
     const location = path.join(project, dir);
     mkdirSync(path.join(location, "node_modules/fixture"), { recursive: true });
@@ -155,6 +154,21 @@ export async function executeFixture(c, h, proof, cap, browserRecord, dependenci
     ...r.final, result: passed ? "pass" : "failure", exit_status: child.result.exit_code,
     reason_codes: passed ? [] : ["phase_failed", "selected_phases_incomplete"]
   };
+  if (h.finalInputFailure) {
+    assert(passed);
+    const error = await h.finalInputFailure();
+    assert.equal(error,"dependency_input_cache_unsafe");
+    const at=now(), ns=String(process.hrtime.bigint()), resource="dependencies-web-planning";
+    const fault={resource,disposition:"safety_violation",observed_at:at,monotonic_ns:ns};
+    const event={...fault,classification:"execution",after:null};event.identity=inputEventIdentity(event);
+    for (const phase of r.phases.slice(0,-1)) phase.finished_at=start;
+    r.run.finished_at=at; r.run.duration_ms=Date.parse(at)-Date.parse(start);
+    r.evidence.deciding=r.evidence.transferable=false;
+    r.inputs.events=[event];r.inputs.first_fault=fault;
+    r.inputs.prepared_dependencies=dependencies.map(v=>v.phase_id===resource?{...v,after:null,unchanged:false,error}:v);
+    r.outcome={...r.outcome,disposition:"safety_violation",first_fault:fault,safety:"blocked",validity:"invalid_or_unknown",execution:"incomplete_or_failed"};
+    r.final={...r.final,result:"failure",exit_status:1,reason_codes:["verification_cancelled"]};
+  }
   const receipt = finalizeReceipt(r);
   h.storeReceipt(c, receipt);
   finishAttempt(attempt, { receiptFingerprint: receipt.integrity.content_fingerprint, disposition: r.outcome.disposition, cleanupComplete: true });
@@ -170,7 +184,7 @@ export async function executeFixture(c, h, proof, cap, browserRecord, dependenci
   const stockOutput = path.join(c.artifacts, "fresh-stock.json"), packet = path.join(c.artifacts, "cold-packet.json");
   h.write(packet, {
     anchor: c.anchor, checkout: c.checkout, file: c.file, inputs: c.inputs, authority: c.authority, live: c.live,
-    stockContext, stockOutput, expectedPass: passed
+    stockContext, stockOutput, expectedPass: passed && !h.finalInputFailure
   });
   await h.fresh(packet);
   return { receipt, stock: h.read(stockOutput), child };

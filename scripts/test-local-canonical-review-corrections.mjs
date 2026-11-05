@@ -1,6 +1,6 @@
 import { AUXILIARY_EXECUTION_BUDGETS } from "./local-canonical-closeout-budgets.mjs";
 import assert from "node:assert/strict";
-import { chmodSync, existsSync, linkSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, linkSync, lstatSync, realpathSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
@@ -76,10 +76,10 @@ if (process.argv[2] === "--phase-probe") {
   process.exit(0);
 }
 
-const groups = ["revision", "settlement", "browser", "git"];
+const groups = ["revision", "settlement", "browser", "git", "git-successor", "commission", "successor", "final-input", "final-successor"];
 const [selector, group, ...extra] = process.argv.slice(2);
 if (selector !== undefined && (selector !== "--reviewed-revision-controls" ||
-    (group !== undefined && !groups.includes(group)) || extra.length))
+    (group !== undefined && !groups.includes(group)) || extra.length > 1 || extra.length && groups.indexOf(group) < 3))
   throw new Error("unsupported reviewed revision selector");
 
 const owner = createCanonicalTestResourceRoot("ag-resource-test-");
@@ -103,21 +103,24 @@ async function child(args, options = {}) {
 }
 try {
   if (selector === "--reviewed-revision-controls") {
+    // Registrations have separate resource roots. Only the suite's physical,
+    // task-owned sibling (or this aggregate's own root) spans serial groups.
+    const handoff = extra.length ? JSON.parse(extra[0]) : owner;
+    if (extra.length) {
+      const s = lstatSync(handoff.root);
+      assert.equal(path.dirname(handoff.root),path.dirname(process.env.AUGNES_CANONICAL_TEMP_ROOT));
+      assert.match(path.basename(handoff.root),/^ag-suite-[A-Za-z0-9]{6}$/u);
+      assert.equal(realpathSync(handoff.root),handoff.root);
+      assert(s.isDirectory() && s.uid === process.getuid() && (s.mode & 0o777) === 0o700);
+      assert.equal(String(s.dev),handoff.device); assert.equal(String(s.ino),handoff.inode);
+    }
     for (const name of group === undefined ? groups : [group]) {
       const fixture = path.join(repository, "scripts/fixtures/local-canonical-reviewed-revision.mjs");
-      const snapshot = path.join(root, "prospective-fixture");
-      const result = await child([fixture, "--run-" + name + "-fixtures", ...(name === "git" ? [snapshot] : [])], {
+      const result = await child([fixture, "--run-" + name + "-fixtures", ...(groups.indexOf(name) >= 3 ? [JSON.stringify(handoff)] : [])], {
         controlId: name === "revision" ? "reviewed-revision" : "reviewed-revision-" + name,
         timeoutMs: 15000, stdout: process.stdout, stderr: process.stderr,
       });
       assert.equal(result.exit_code, 0, lastChildDiagnostic);
-      if (name === "git") {
-        // Start the new commission from a separate copy of the prepared synthetic ledger.
-        const continuation = await child([fixture, "--run-prospective-fixtures", snapshot], {
-          controlId: "spent-commission", timeoutMs: 15000, stdout: process.stdout, stderr: process.stderr,
-        });
-        assert.equal(continuation.exit_code, 0, lastChildDiagnostic);
-      }
       findings.push("reviewed revision controls: " + name);
     }
   } else {

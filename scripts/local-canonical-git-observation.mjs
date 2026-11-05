@@ -1,5 +1,6 @@
-import { digest, classifyInputChange, effectiveInputObservation, inputEventIdentity, nonFaultInputChange, INPUT_CONTRACT } from "./local-canonical-inputs.mjs";
+import { digest, classifyInputChange, effectiveInputObservation, inputEventIdentity, nonFaultInputChange, INPUT_CONTRACT, PREPARED_DEPENDENCY_CONTRACT, comparePreparedDependencyInputs, preparedDependencyIdentity } from "./local-canonical-inputs.mjs";
 import { settledIsolatedResources, cancelledPhase, verifySettledPhaseFailure } from "./local-canonical-browser-revision.mjs";
+import { validPhaseBrowserUse } from "./local-canonical-browser-identity.mjs";
 import { CANONICAL_NODE_VERSION } from "./local-canonical-environment.mjs";
 
 export const isGitObservationRevision = p =>
@@ -102,20 +103,76 @@ export function gitRevisionInventory(snapshot) {
   }));
 }
 
-export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expectedOrdinal = 1) {
+const webPhase = "dependencies-web-planning";
+const inputOwner = "scripts/local-canonical-inputs.mjs";
+export const finalDependencyProbe = `import path from "node:path";
+import {digest,observePreparedDependencyInputs,preparedDependencyIdentity} from "./scripts/local-canonical-inputs.mjs";
+const repositoryRoot=process.env.AUGNES_RETAINED_PROJECT, phaseId="dependencies-web-planning";
+const location_fingerprint=digest(path.join(repositoryRoot,"apps/web_planning/node_modules"));
+try { const observation=observePreparedDependencyInputs({repositoryRoot,phaseId}); preparedDependencyIdentity(observation); console.log(JSON.stringify(observation)); }
+catch (error) { console.log(JSON.stringify({location_fingerprint,phase_id:phaseId,error:error.code})); process.exitCode=1; }`;
+export const finalDependencyCommand = "node --input-type=module -e " + JSON.stringify(finalDependencyProbe);
+
+// This is a failed final observation, never a failed phase or a repaired historical after-state.
+function verifyFinalDependencyFailure(r, stock, inputs, phases) {
+  const i = r.inputs, events = i.events, deps = i.prepared_dependencies;
+  const event = events?.[0], fault = event && faultOf(event);
+  const environments = i.binding.phase_environment_fingerprints, browser = i.resources.find(v => v.id === "browser-executable");
+  const ids = ["dependencies-root", "dependencies-nested", webPhase];
+  const originalMode = v => v?.generated_directories?.every(d => d.state === "absent" || d.metadata.mode === d.parent_metadata.mode);
+  if (r.run.id !== r.attempt.attempt_id || r.attempt.contract_fingerprint !== i.fingerprint ||
+      i.binding.head !== r.repository.head_sha || i.binding.tree !== r.repository.tree_sha || i.binding.executor_fingerprint !== r.executor.source_fingerprint ||
+      !equal(i.binding.runtime_inputs, inputs) || !equal(r.phases?.map(v => v.id), phases) ||
+      !equal(environments?.map(v => v.id), phases) || !equal(r.evidence.planner_browser_phase_ids, phases.filter(id => id.startsWith("e2e-"))) ||
+      r.evidence.mode !== "full" || r.evidence.selected_plan !== "full-canonical" || r.evidence.deciding !== false ||
+      r.verification_context.kind !== "isolated-worktree" || r.repository.worktree_before !== "clean" || r.repository.worktree_after !== "clean" ||
+      !settledIsolatedResources(r) || r.historical_inputs?.required !== true ||
+      r.final.result !== "failure" || r.final.exit_status !== 1 || !equal(r.final.reason_codes, ["verification_cancelled"]) ||
+      r.outcome.disposition !== "safety_violation" || r.outcome.safety !== "blocked" || r.outcome.validity !== "invalid_or_unknown" ||
+      r.outcome.execution !== "incomplete_or_failed" || events?.length !== 1 || event.resource !== webPhase ||
+      event.classification !== "execution" || event.disposition !== "safety_violation" || event.after !== null || event.diagnostic !== undefined ||
+      !/^\d{1,40}$/u.test(event.monotonic_ns) || event.identity !== inputEventIdentity(event) ||
+      !equal(i.first_fault,fault) || !equal(r.outcome.first_fault,fault) || !equal(i.secondary_faults,[]) ||
+      !(Date.parse(event.observed_at) <= Date.parse(r.run.finished_at)) ||
+      !r.phases.every((phase,index) => {
+        const child = phase.cleanup;
+        return phase.status === "pass" && phase.exit_status === 0 && phase.failure_code === null &&
+          phase.timed_out === false && phase.spawn_error_code == null && child?.completed === true && child.termination_reason === "natural_exit" &&
+          child.exit_observed === true && child.streams_closed === true && child.remaining_owned_processes === 0 &&
+          [0,null].includes(child.listener_residue_count) && phase.invocation_id === r.run.invocation_id &&
+          phase.browser === phase.id.startsWith("e2e-") && (!phase.browser || phase.base_sha === r.repository.base_sha && phase.head_sha === r.repository.head_sha) &&
+          Date.parse(phase.started_at) >= Date.parse(index ? r.phases[index-1].finished_at : r.run.started_at) &&
+          Date.parse(phase.started_at) <= Date.parse(phase.finished_at) && Date.parse(phase.finished_at) < Date.parse(event.observed_at) &&
+          sha(phase.environment_fingerprint) && phase.environment_fingerprint === environments[index].fingerprint &&
+          validPhaseBrowserUse(phase, phase.browser_use ?? [], browser);
+      }) || !equal(deps?.map(v => v.phase_id),ids) || deps.some((v,index) =>
+        v.before?.contract !== PREPARED_DEPENDENCY_CONTRACT || v.before.phase_id !== v.phase_id || !preparedDependencyIdentity(v.before) || !originalMode(v.before) ||
+        (index < 2 ? v.unchanged !== true || v.error !== null || !originalMode(v.after) || comparePreparedDependencyInputs(v.before,v.after) !== "unchanged" :
+          v.unchanged !== false || v.error !== "dependency_input_cache_unsafe" || v.after !== null ||
+          !v.before.generated_directories.every(d => d.state === "absent")))) fail("revision_final_dependency_predecessor_invalid");
+  if (stock.status !== "non_deciding_or_stale" || stock.valid_deciding_evidence !== false ||
+      stock.content_fingerprint !== r.integrity.content_fingerprint || !equal(stock.dimensions,{historical_integrity:"intact",
+        execution:"complete_pass",evidence_validity:"invalid_or_incomplete",safety:"blocked",current_merge_applicability:"blocked"}) ||
+      !equal(stock.issues,["receipt_classified_outcome_not_passing","receipt_current_inputs_unverified","receipt_final_result_not_pass",
+        "receipt_input_observation_blocked","receipt_non_deciding","receipt_prepared_dependency_inputs_invalid"])) fail("revision_final_dependency_stock_invalid");
+  return deps[2].before;
+}
+
+export function verifyGitRevisionFailure(receipt, stock, inputs, phases, expectedOrdinal = 1, forward = false) {
   const previous = receipt.attempt?.source_correction;
   const { contract, path_kind, binding, resources } = receipt.inputs;
   if (!usesGitInventory(previous) || previous.commission.ordinal !== expectedOrdinal ||
       gitRevisionInventory(receipt.inputs) !== previous.inputs.inventory_sha256 ||
       digest({ contract, path_kind, binding, resources }) !== receipt.inputs.fingerprint)
     fail("revision_git_predecessor_invalid");
+  if (forward) return verifyFinalDependencyFailure(receipt, stock, inputs, phases);
   verifySettledPhaseFailure(receipt, stock, inputs, phases, resources.find(r => r.id === "browser-executable"), false, expectedOrdinal);
 }
 
 // Observe the same behavioral command on both exact Git sources and runtimes.
 // The v10 repair runs its changed script directly. Prospective v7 also allows
 // a stable test driver and explicit script arguments for the implicated code.
-export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt }) {
+export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, completedAt, retainedBefore }) {
   const regression = focused.regression;
   const file = regression?.path;
   const prospective = isInventoryBoundRevision(p);
@@ -133,7 +190,18 @@ export function verifyGitSourceRepair(p, prior, focused, { git, parse, bytes, co
   const args = prospective ? regression.args : [];
   if (!Array.isArray(args) || args.length > 16 || args.some(arg => typeof arg !== "string" ||
       !/^(?:--?)?[a-zA-Z0-9][\w.=-]{0,127}$/u.test(arg))) fail("revision_git_regression_invalid");
-  const command = ["node", file, ...args].join(" ");
+  const command = retainedBefore ? finalDependencyCommand : ["node", file, ...args].join(" ");
+  if (retainedBefore) {
+    const refusal = JSON.parse(bytes(before.stdout)), observed = JSON.parse(bytes(after.stdout));
+    const child = observed.generated_directories?.[1];
+    if (file !== inputOwner || args.length || !focused.implicated_paths.includes(inputOwner) || oldBlob === newBlob ||
+        !equal(refusal,{location_fingerprint:retainedBefore.location_fingerprint,phase_id:webPhase,error:"dependency_input_cache_unsafe"}) ||
+        comparePreparedDependencyInputs(retainedBefore, observed) !== "unchanged" ||
+        observed.generated_directories[0].state !== "absent" || child?.path !== ".vite-temp" || child.state !== "proven_empty" ||
+        child.metadata.mode === child.parent_metadata.mode || child.metadata.uid !== String(process.getuid()) ||
+        !/^@@ /mu.test(git(["diff","--no-ext-diff","--no-textconv","--ignore-all-space","--ignore-blank-lines",oldBlob,newBlob]).toString()))
+      fail("revision_final_dependency_remedy_invalid");
+  }
   if (!focused.commands?.some(c => c.command === command && c.tested_source_head === p.head &&
       equal(c.record, regression.after) && equal(c.stdout, after.stdout)) ||
       before.stdout?.sha256 === after.stdout?.sha256 ||
@@ -158,6 +226,22 @@ function visibleDelegationParagraphs(body) {
   // which can hide normative paragraphs in a comment, collapsed block or example.
   if (/[<>\u202a-\u202e\u2066-\u2069]/u.test(body) || /^(?: {4}|\t| {0,3}(?:`{3,}|~{3,}|\$\$))/mu.test(body)) return [];
   return body.replaceAll("\r\n", "\n").trim().split(/\n[ \t]*\n/u);
+}
+
+export function permitsFinalDependencySuccessor(body, p, commissionIdentity) {
+  const paragraphs = visibleDelegationParagraphs(body);
+  const title = "### Explicit prospective continuation for this settled failure";
+  const section = paragraphs.indexOf(title);
+  const link = (type,id) => "https://github.com/hynk-studio/augnes/pull/"+p.pull_request+"#"+type+"-"+id;
+  return /^## Forward decision for the [\w.-]+ final-input failure — continue the same assignment$/u.test(paragraphs[0] ?? "") &&
+    section > 0 && section === paragraphs.lastIndexOf(title) &&
+    paragraphs[section+1] === "I authorize the minimal existing-owner and policy extension needed for a materially corrected second candidate to follow this exact all-phase-pass, final dependency-observation failure." &&
+    paragraphs[section+2]?.includes("the isolated dependency_input_cache_unsafe event on dependencies-web-planning, its missing v2 after-observation") &&
+    [p.branch+" in Draft PR #"+p.pull_request, "Base/main: "+p.accepted.base, "Audited head: "+p.accepted.head, "Audited tree: "+p.accepted.tree,
+      "Actual latest attempt: "+p.prior_attempt_id, "Latest failed receipt: "+p.prior_receipt_fingerprint,
+      "Previous receipt: "+p.commission.root_receipt_fingerprint, "Current commission: "+commissionIdentity+", consumed 1/2",
+      link("issuecomment",p.authorization.grant_comment_id), link("issuecomment",p.commission.delegation.id),
+      link("pullrequestreview",p.accepted.review.id)].every(value => body.includes(value));
 }
 
 export function delegatesProspectiveCommission(body, branch, pullRequest) {

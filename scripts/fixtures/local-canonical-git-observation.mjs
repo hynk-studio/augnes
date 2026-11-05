@@ -1,13 +1,14 @@
 // Synthetic Git, ledger and authenticated read transport. No production admission.
 import assert from "node:assert/strict";
-import { cpSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { digest, INPUT_CONTRACT, inputEventIdentity } from "../local-canonical-inputs.mjs";
 import { CANONICAL_NODE_VERSION } from "../local-canonical-environment.mjs";
 import { finalizeReceipt } from "../local-canonical-receipt.mjs";
 import { REVIEWED_REVISION_PHASES, reconstructAttemptTip, inspectGitRevisionPreparation, readSourceCorrectionProof, reviewedRevisionAuthorityObservation } from "../local-canonical-attempts.mjs";
-import { gitObservationIncident, gitRevisionInventory, gitReviewTarget } from "../local-canonical-git-observation.mjs";
+import { gitObservationIncident, gitRevisionInventory, gitReviewTarget, finalDependencyCommand, finalDependencyProbe, verifyGitRevisionFailure } from "../local-canonical-git-observation.mjs";
 
+import { runCanonicalChild } from "../canonical-child-runner.mjs";
 import { behavior, dependencyRecords, executeFixture } from "./local-canonical-browser-successor.mjs";
 
 const time = offset => new Date(Date.now() + offset).toISOString();
@@ -203,13 +204,15 @@ async function checkGitSourceSuccessor(c, h, initial, initialCapability) {
 
 // Continue an independently executed failure on the fork. Exercise the new
 // commission and its prospective second ordinal through the same cold stock reader.
-export async function checkSpentCommission(c, h) {
+export async function checkSpentCommission(c, h, stage) {
   const tip = () => reconstructAttemptTip({anchorRoot:c.anchor, repositoryRoot:c.checkout, branch:c.branch});
-  const p2 = h.proof(c), oldGrant = c.authority.grant, spentIdentity = tip().revision_commission;
-  c.behaviorPath = "scripts/registration.mjs";
-  const failed = await executeFixture(c, h, p2, await h.auth(c,p2), c.browser, c.packages);
+  const next = stage === "successor";
+  const p2 = next ? c.spentContext.p2 : h.proof(c), oldGrant = next ? c.spentContext.oldGrant : c.authority.grant;
+  const spentIdentity = next ? c.spentContext.spentIdentity : tip().revision_commission;
+  if (!next) c.behaviorPath = "scripts/registration.mjs";
+  const failed = next ? c.spentContext.failed : await executeFixture(c, h, p2, await h.auth(c,p2), c.browser, c.packages);
   assert.equal(failed.stock.valid_deciding_evidence, false);
-  const spent = tip();
+  const spent = next ? c.spentContext.spent : tip();
   assert.equal(spent.reviewed_revision_consumed, 2);
   assert.equal(spent.revision_commission, spentIdentity);
   const prefix = "https://github.com/hynk-studio/augnes/pull/999#";
@@ -221,8 +224,8 @@ export async function checkSpentCommission(c, h) {
   ].join("\n\n")};
   const priorBytes = [p2.local_relative_path, ".augnes-local-verification/receipts/"+failed.receipt.run.id+".json"]
     .map(file => [path.join(c.checkout,file), digest(readFileSync(path.join(c.checkout,file)))]);
-  let prior = failed, accepted, grant;
-  for (const ordinal of [1, 2]) {
+  let prior = next ? c.spentContext.prior : failed, accepted = next && c.spentContext.accepted, grant = next && c.spentContext.grant;
+  for (const ordinal of [next ? 2 : 1]) {
     const file = c.behaviorPath;
     c.prior = prior.receipt; c.grantId = 23;
     const commit = text => {
@@ -349,6 +352,13 @@ export async function checkSpentCommission(c, h) {
       await assert.rejects(h.auth(c,proof,(v,e)=>e.includes("/permission")?{...v,permission:"read"}:v));
       assert.throws(()=>h.begin(c,proof,cap,{revisionLive:{...c.live,inventory:digest("changed")}}));
       c.behaviorPath="scripts/final-check.mjs";
+      mkdirSync(h.fork,{mode:0o700});
+      cpSync(c.checkout,path.join(h.fork,"checkout"),{recursive:true,filter:f=>path.basename(f)!=="checkout-owner.json"});
+      cpSync(c.anchor,path.join(h.fork,"anchor"),{recursive:true});
+      h.write(path.join(h.fork,"context.json"),{branch:c.branch,base:c.base,acceptedHead:c.acceptedHead,acceptedTree:c.acceptedTree,
+        head:c.head,tree:c.tree,inputs:c.inputs,gitDeclaration:c.gitDeclaration,authority:c.authority,live:c.live,
+        proofPath:path.relative(c.checkout,c.file),browser:c.browser,packages:c.packages,grantId:c.grantId});
+
     }
     const competing={...h,begin(ctx,src,authority,opts) {
       const input={...opts,runId:"new-commission-"+ordinal};
@@ -362,9 +372,114 @@ export async function checkSpentCommission(c, h) {
     assert.equal(current.revision_commission,c.newIdentity);
     assert.deepEqual(current.revision_grants,[...spent.revision_grants,grant.id]);
     assert.equal(current.reviewed_revision_consumed,ordinal);
+    if (!next) c.spentContext={p2,oldGrant,spentIdentity,failed,spent,prior,accepted,grant};
   }
   for(const [file,hash] of priorBytes)assert.equal(digest(readFileSync(file)),hash);
-  console.log(JSON.stringify({synthetic_only:true,spent_v10_to_v7:true,old_consumed:2,new_consumed:2,fresh_stock:[false,false,true]}));
+  console.log(JSON.stringify({synthetic_only:true,spent_v10_to_v7:true,old_consumed:2,new_consumed:next?2:1,fresh_stock:next?[true]:[false,false]}));
+}
+
+// Fork the unreserved synthetic v7 ordinal one. Here the phase child succeeds
+// and the subsequent read actually refuses the empty directory's narrower mode.
+export async function checkFinalDependency(c,h,stage) {
+  const root = path.join(c.checkout,"apps/web_planning/node_modules"), file="scripts/local-canonical-inputs.mjs";
+  const probe = async () => {
+    let output=""; const sink={write(b){output+=b;}};
+    const result=await runCanonicalChild({suite:"reviewed-revision",label:"retained Web dependency observation",command:process.execPath,
+      args:["--input-type=module","-e",finalDependencyProbe],cwd:c.checkout,env:{...c.env,AUGNES_RETAINED_PROJECT:c.checkout},
+      timeoutMs:5000,stdout:sink,stderr:sink});
+    assert(result.cleanup_completed && !result.remaining_owned_processes && result.termination_reason==="natural_exit");
+    return {tested_source_head:c.git(["rev-parse","HEAD"]).toString().trim(),command:finalDependencyCommand,result,output,finished_at:time(0)};
+  };
+  if (stage==="final-input") {
+    const exclude=path.join(c.checkout,".git/info/exclude");
+    h.write(exclude,readFileSync(exclude,"utf8")+"\nnode_modules/\npackage.json\npackage-lock.json\n");
+    mkdirSync(root,{recursive:true});chmodSync(root,0o755);
+    c.packages=dependencyRecords(c,c.checkout);
+    c.behaviorPath="scripts/registration.mjs";
+    const p=h.proof(c); const cap=await h.auth(c,p);
+    const failed=await executeFixture(c,{...h,finalInputFailure:async()=>{
+      mkdirSync(path.join(root,".vite-temp"),{mode:0o700});
+      const red=await probe();assert.equal(red.result.exit_code,1);return JSON.parse(red.output).error;
+    },begin:(ctx,src,cap,opts)=>h.begin(ctx,src,cap,{...opts,runId:"final-input-failure"})},p,cap,c.browser,c.packages);
+    assert.equal(failed.stock.valid_deciding_evidence,false);
+    c.failed={receipt:failed.receipt,stock:failed.stock};
+    console.log(JSON.stringify({synthetic_only:true,phase_passes:failed.receipt.phases.length,after:null,stock:failed.stock}));
+    return;
+  }
+  const failed=c.failed, first=h.proof(c), authority=structuredClone(c.authority);
+  const verify=(r,s=failed.stock)=>verifyGitRevisionFailure(r,s,c.inputs,phaseIds,1,true);
+  verify(failed.receipt);
+  for (const mutate of [r=>r.inputs.events.push(r.inputs.events[0]), r=>r.inputs.events[0].identity=digest("changed"),
+    r=>r.inputs.prepared_dependencies[2].error="dependency_input_generated_unsafe", r=>r.inputs.prepared_dependencies[2].after=c.packages[2].before,
+    r=>r.inputs.prepared_dependencies[0].after.content_sha256=digest("other change"),r=>r.phases.at(-1).browser_use=[],
+    r=>r.phases[3].cleanup.termination_reason="timeout",r=>r.capacity_ownership.released=false]) {
+    const r=structuredClone(failed.receipt);mutate(r);assert.throws(()=>verify(r));
+  }
+  assert.throws(()=>verify(failed.receipt,{...failed.stock,issues:[]}));
+  const retained=await probe();assert.equal(retained.result.exit_code,1);
+  const oldBytes=readFileSync(path.join(c.checkout,file));
+  h.write(path.join(c.checkout,file),oldBytes.toString().split("\n")[0]+"\n");
+  c.git(["add",file]);c.git(["-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","--quiet","-m","Use corrected physical input reader"]);
+  c.prior=failed.receipt;h.prepare(c,2);const p=c.proof, pr=c.authority.pr; c.authority={...authority,pr};
+  c.behaviorPath="scripts/registration.mjs";
+  p.accepted=first.accepted;p.inputs.inventory_sha256=c.live.inventory;
+  const ref=(name,value)=>h.artifact(c,name,value), readItem=ref=>h.read(path.join(c.artifacts,ref.artifact));
+  p.originals.stock=ref("prior-stock.log",JSON.stringify(failed.stock));
+  const green=await probe();assert.equal(green.result.exit_code,0);
+  const raw=readFileSync(path.join(c.checkout,file));
+  const witness=(name,run,bytes)=>ref(name+".json",{...run,node_version:CANONICAL_NODE_VERSION,
+    file_sha256:digest(bytes),runtime_inputs_sha256:p.inputs.identity_sha256,stdout:ref(name+".log",run.output)});
+  const before=witness("red",retained,oldBytes), after=witness("green",green,raw);
+  p.source=ref("source.json",{...readItem(p.source),reviewed_at:time(0)});
+  const focused={...readItem(p.focused),finished_at:time(0),failed_phase:null,input_remedy_resources:[],implicated_paths:[file],
+    source_files:[{path:file,byte_size:raw.length,sha256:digest(raw)}],regression:{path:file,args:[],before,after},
+    diagnosis:"A later physical read isolates the empty task-owned directory's restrictive mode; the missing historical observation remains null.",
+    commands:[{command:green.command,tested_source_head:p.head,result:green.result,stdout:readItem(after).stdout,record:after}]};
+  p.focused=ref("focused.json",focused);
+  const latest=()=>reconstructAttemptTip({anchorRoot:c.anchor,repositoryRoot:c.checkout,branch:c.branch});
+  const originalTip=latest(), baseUrl="https://github.com/hynk-studio/augnes/pull/999#";
+  const forward={...authority.grant,id:31,created_at:time(0),body:[
+    "## Forward decision for the fixture final-input failure — continue the same assignment",c.branch+" in Draft PR #999","Base/main: "+p.accepted.base,"Audited head: "+p.accepted.head,"Audited tree: "+p.accepted.tree,
+    "Actual latest attempt: "+p.prior_attempt_id,"Latest failed receipt: "+p.prior_receipt_fingerprint,
+    "Previous receipt: "+p.commission.root_receipt_fingerprint,"Current commission: "+originalTip.revision_commission+", consumed 1/2",
+    baseUrl+"issuecomment-"+authority.grant.id,baseUrl+"issuecomment-"+p.commission.delegation.id,baseUrl+"pullrequestreview-"+p.accepted.review.id,
+    "### Explicit prospective continuation for this settled failure",
+    "I authorize the minimal existing-owner and policy extension needed for a materially corrected second candidate to follow this exact all-phase-pass, final dependency-observation failure.",
+    "Require the isolated dependency_input_cache_unsafe event on dependencies-web-planning, its missing v2 after-observation.",
+  ].join("\n\n")};forward.updated_at=forward.created_at;
+  const record=(r,role)=>({id:r.id,sha256:digest(reviewedRevisionAuthorityObservation(r,role))});
+  p.commission.forward_decision=record(forward,"forward_decision");
+  const prepare=(material,live=c.live)=>{
+    const decl=structuredClone(material);delete decl.authorization;
+    const f=path.join(c.artifacts,"preparation.json");h.write(f,decl);
+    return inspectGitRevisionPreparation({file:f,repositoryRoot:c.checkout,predecessorRoot:c.checkout,anchorRoot:c.anchor,runtimeInputs:c.inputs,live});
+  };
+  const prepared=prepare(p);assert(!prepared.reserved && prepared.consumed===1 && prepared.ordinal===2);
+  const without=structuredClone(p);delete without.commission.forward_decision;assert.throws(()=>prepare(without));
+  assert.throws(()=>prepare({...p,prior_attempt_id:"skipped"}));
+  assert.throws(()=>prepare({...p,focused:ref("wrong-phase.json",{...focused,failed_phase:"authority"})}));
+  assert.throws(()=>prepare(p,{...c.live,inventory:digest("changed")}));
+  const review={...authority.review,id:32,commit_id:p.head,submitted_at:time(1),body:[
+    "Source review decision: ACCEPT / RETAIN for prospective qualification.",p.base,p.head,p.tree,p.prior_receipt_fingerprint,prepared.target,baseUrl+"issuecomment-"+forward.id,
+  ].join("\n")};
+  c.authority.linked={...c.authority.linked,["repos/hynk-studio/augnes/issues/comments/"+forward.id]:forward,["repos/hynk-studio/augnes/pulls/999/reviews/"+review.id]:review};
+  p.authorization={...first.authorization,contract_review:{...record(review,"contract_review"),head:p.head,pull_request:p.pull_request}};
+  h.write(c.file,p);const proof=h.proof(c), cap=await h.auth(c,proof);
+  for (const id of [forward.id,review.id]) await assert.rejects(h.auth(c,proof,(v,e)=>e.endsWith("/"+id)?{...v,body:"changed"}:v));
+  await assert.rejects(h.auth(c,proof,(v,e)=>e.endsWith("/"+forward.id)?null:v));
+  await assert.rejects(h.auth(c,proof,(v,e)=>e.includes("/permission")?{...v,permission:"read"}:v));
+  const ordinary=path.join(root,"fixture/package.json"), mode=statSync(ordinary).mode & 0o777;
+  chmodSync(ordinary,0o666);
+  try {assert.throws(()=>h.begin(c,proof,cap),/dependency_input_entry_unsafe/);} finally {chmodSync(ordinary,mode);}
+  assert.deepEqual(latest(),originalTip);
+  const current=await probe();assert.equal(current.result.exit_code,0);
+  assert.equal(JSON.parse(current.output).content_sha256,JSON.parse(green.output).content_sha256);
+  const result=await executeFixture(c,{...h,begin(ctx,src,cap,opts){
+    const a=h.begin(ctx,src,cap,{...opts,runId:"final-input-successor"});assert.throws(()=>h.begin(ctx,src,cap,opts));return a;
+  }},proof,cap,c.browser,c.packages);
+  assert.equal(result.stock.valid_deciding_evidence,true);assert.equal(latest().revision_commission,originalTip.revision_commission);
+  assert.equal(latest().reviewed_revision_consumed,2);
+  console.log(JSON.stringify({synthetic_only:true,material_final_input_successor:true,old_stock:false,stock:true,consumed:2}));
 }
 
 export async function runGitRevisionControls(c,h) {
@@ -441,6 +556,13 @@ export async function runGitRevisionControls(c,h) {
   const ledgerBytes=readFileSync(ledger);h.write(ledger,JSON.stringify(completion,null,2));
   try{assert.throws(()=>h.begin(c,proof,cap),/revision_original_ledger_changed/);}finally{h.write(ledger,ledgerBytes);}
   assert(!existsSync(edge));
+  c.firstLedgerHash=digest(ledgerBytes); c.ledgerPath=path.relative(c.anchor,ledger);
+}
+
+export async function completeGitRevisionControls(c,h) {
+  const ledger=path.join(c.anchor,c.ledgerPath), ledgerBytes=readFileSync(ledger);
+  assert.equal(digest(ledgerBytes),c.firstLedgerHash);
+  const proof=h.proof(c),cap=await h.auth(c,proof);
   await checkGitSourceSuccessor(c,h,proof,cap);
   assert.throws(()=>h.begin(c,proof,cap));
   assert.equal(h.read(ledger).disposition,"unknown_relevance");assert.deepEqual(readFileSync(ledger),ledgerBytes);

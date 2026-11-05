@@ -938,11 +938,33 @@ accounting. A new commit-anchored contract review on the same PR binds the
 second candidate and its preparation commitment. The same readers check its
 material repair, current inventory, predecessor and exclusive reservation.
 
-The existing reviewed-revision fixture groups have separate serial authority
-registrations in revision, settlement, browser and git order. Each requires a
-natural exit within 30 seconds and retains its 15-second nested fixture bound.
-The Git group also exercises the spent-commission boundary in a separate
-15-second child. `node scripts/run-canonical-test-suite.mjs authority
+An inventory-bound ordinal two may also follow a settled ordinal one whose Full
+and Browser phases all passed naturally but whose only fault occurred in the final
+Web dependency observation. The v2 Web record must have the cache-safety error
+and a missing after-state. All other dependency observations, the phase and
+Browser records, runtime inventory, released owners, Companion preservation,
+physical completion and false stock must agree. No historical observation is
+filled in. A later identical command runs each Git version of the input reader on
+the retained physical tree. It must refuse the old exact-mode condition and
+accept only a proven empty, more restrictive `.vite-temp` with the original
+content, layout, security and package identities. Preparation and reservation
+reread the retained tree. Physical replay and stock read the bound originals;
+the new run establishes its own before and after observations.
+
+This edge requires an unedited forward decision from a current maintainer on
+the same PR for this exact predecessor, original commission and delegation. Its
+operative section authorizes the second candidate for this final input fault.
+The subsequent source review links that decision and binds the resulting
+preparation commitment. The initial acceptance, grant and two-invocation
+accounting do not change. An ordinary failed phase still uses its original path.
+
+Reviewed-revision controls run as serial authority registrations. Each requires
+a natural exit within 30 seconds with one 15-second nested fixture. Git,
+commission and successor cases pass their synthetic checkout and ledger between
+registrations in the suite's private physical resource root. Each registration
+retains its own environment; the suite owns the handoff until consumers settle.
+The final-input case forks the unreserved synthetic first ordinal and checks
+the refused predecessor and passing successor through independent stock processes. `node scripts/run-canonical-test-suite.mjs authority
 --reviewed-revision-only` selects these actual registrations with their normal
 resource and cleanup owners. The aggregate has no additional registration.
 
@@ -1080,12 +1102,15 @@ its content, topology, permissions, ownership and package/lock sources at final
 settlement and fresh stock. Prepared-dependency v2 separately records raw presence,
 metadata and security for only physical empty top-level `.cache` and `.vite-temp`
 directories. Each must belong to the task user, match its still-bound physical
-parent's owner/mode/device and complete ACL, flags and attributes, and remain
-empty throughout the coherent observation. Safe appearance/disappearance leaves
+parent's uid, gid, device, directory type, special bits, owner permissions and
+complete ACL, flags and attributes, and remain empty throughout the coherent
+observation. Group and other permission bits may only be removed from the
+parent's mode. Both recorded modes are validated as decimal directory modes;
+the original values remain observable. Safe appearance/disappearance leaves
 dependency code identity unchanged. Nonempty known generated directories refuse;
 unknown directories remain binding. Unsafe links, permission changes and failed
 observations refuse. Legacy v1 receipts retain their original interpretation,
-including binding `.vite-temp`. These bounded observations do not prove absence
+including exact mode equality for a normalized empty `.cache` and binding `.vite-temp`. These bounded observations do not prove absence
 of transient changes between their observation windows.
 
 #### Corrected source after a protected Git observation interruption (source-correction v10)

@@ -16,6 +16,8 @@ import {
 } from "./canonical-child-runner.mjs";
 import {
   buildCanonicalChildEnvironment,
+  beginCanonicalTestResourceUse,
+  settleCanonicalTestResourceUse,
   createCanonicalTestResourceRoot,
   cleanupCanonicalTestResources,
   findForbiddenAmbientKeysForwarded,
@@ -162,9 +164,10 @@ const goldenStep = {
   requireNaturalExit: true,
 };
 
-const reviewedRevisionSteps = ["revision", "settlement", "browser", "git"].map(group => ({
+const reviewedRevisionSteps = ["revision", "settlement", "browser", "git", "git-successor", "commission", "successor", "final-input", "final-successor"].map(group => ({
   id: "local-canonical-reviewed-revision-" + group,
   label: "reviewed revision controls: " + group,
+  sharedFixture: !["revision", "settlement", "browser"].includes(group),
   ...rootNode("scripts/test-local-canonical-review-corrections.mjs", "--reviewed-revision-controls", group),
   timeoutMs: 30_000,
   requireNaturalExit: true,
@@ -1870,6 +1873,7 @@ let canonicalChildrenChecked = 0;
 let serviceMaintenance = null;
 let serviceMaintenanceRelease = null;
 let suiteFailure = null;
+let handoffInUse = false, lastHandoffChild = null;
 let summary;
 
 try {
@@ -1920,7 +1924,8 @@ try {
       suite: suiteName,
       label: step.label,
       command: step.command,
-      args: step.args,
+      sharedFixture: step.sharedFixture === true,
+      args: step.sharedFixture ? [...step.args, JSON.stringify(temporaryOwner)] : step.args,
       cwd: step.cwd,
       env: childEnvironment,
       timeoutMs,
@@ -1992,7 +1997,12 @@ try {
     completedResults = [];
     for (const step of preparedSteps) {
       console.log();
+      if (step.sharedFixture) {
+        if (!handoffInUse) { beginCanonicalTestResourceUse(temporaryOwner); handoffInUse = true; }
+        lastHandoffChild = null;
+      }
       const result = await runCanonicalChild(step);
+      if (step.sharedFixture) lastHandoffChild = result;
       completedResults.push(result);
       const acceptanceFailure = canonicalChildAcceptanceFailure(result, {
         suite: suiteName,
@@ -2081,7 +2091,13 @@ try {
       });
     } catch (error) { failures.push(error); }
   }
+  if (handoffInUse && lastHandoffChild) {
+    try { settleCanonicalTestResourceUse(temporaryOwner, lastHandoffChild); }
+    catch (error) { failures.push(error); }
+  }
+  const cleanupStart = performance.now();
   const resourceCleanup = cleanupCanonicalTestResources([...ownedResourceRoots, temporaryOwner]);
+  if (handoffInUse) console.log(JSON.stringify({review_fixture_cleanup_ms:Math.ceil(performance.now()-cleanupStart)}));
   console.log(JSON.stringify({ suite: suiteName, resource_cleanup: resourceCleanup }));
   for (const result of resourceCleanup) if (!result.completed)
     failures.push(new Error(`canonical resource cleanup refused: ${result.root}: ${result.failures.join(",")}`));

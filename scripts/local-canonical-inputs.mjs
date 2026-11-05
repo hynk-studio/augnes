@@ -100,6 +100,14 @@ const dependencyRoots = Object.freeze({ "dependencies-root": "", "dependencies-n
 const dependencyLimits = Object.freeze({ entries: 65536, bytes: 2 * 1024 ** 3, milliseconds: 30000, securityBytes: 32 * 1024 ** 2 });
 const dependencyStat = stat => Object.fromEntries(["mode", "uid", "gid", "dev", "ino", "nlink", "size", "mtimeNs", "ctimeNs"].map(key => [key, String(stat[key])]));
 
+// Only owner-created empty v2 directories can lose group/other access to umask.
+function generatedModeMatches(child, parent) {
+  const directory = value => typeof value === "string" && /^[1-9]\d{0,4}$/u.test(value) &&
+    String(Number(value)) === value && Number(value) <= 0xffff && (Number(value) & 0o170022) === 0o040000;
+  return directory(child) && directory(parent) &&
+    (Number(child) & ~0o077) === (Number(parent) & ~0o077) && (Number(child) & ~Number(parent)) === 0;
+}
+
 // Clean preparation PRODUCES these trees. Call only after the corresponding
 // successful npm ci, then compare at the owning boundaries and fresh stock.
 // No pre-install directory/file identity is asserted across legitimate install.
@@ -181,7 +189,8 @@ export function observePreparedDependencyInputs({ repositoryRoot, phaseId, contr
       if (generatedIndex >= 0 && (type !== "directory" || names.length !== 0)) throw fail("dependency_input_generated_unsafe");
       if (generatedIndex >= 0 || relative === ".cache" && type === "directory" && names.length === 0) {
         const base = rows[0].metadata;
-        if (["mode", "uid", "gid", "dev"].some(key => row.metadata[key] !== base[key])) throw fail("dependency_input_cache_unsafe");
+        if (!(legacy ? row.metadata.mode === base.mode : generatedModeMatches(row.metadata.mode, base.mode)) ||
+            ["uid", "gid", "dev"].some(key => row.metadata[key] !== base[key])) throw fail("dependency_input_cache_unsafe");
         // Generated directories may inherit protected platform provenance.
         // Their complete security must equal the parent that remains bound;
         // no attribute name, ACL, flag or permission is independently ignored.
@@ -240,16 +249,19 @@ export function observePreparedDependencyInputs({ repositoryRoot, phaseId, contr
 
 export function preparedDependencyIdentity(value) {
   const legacy = value?.contract === LEGACY_PREPARED_DEPENDENCY_CONTRACT;
+  const securityRecord = s => exactKeys(s,"acl,attributes,flags") && Array.isArray(s.acl) &&
+    s.acl.every(line => typeof line === "string" && /^ [0-9]+: /u.test(line)) &&
+    (s.flags === null ? s.attributes === null && s.acl.length === 0 : typeof s.flags === "string" && /^\d+$/u.test(s.flags) && typeof s.attributes === "string");
   const validGenerated = () => Array.isArray(value.generated_directories) && value.generated_directories.length === generatedDependencyDirectories.length &&
     value.generated_directories.every((entry, index) => entry?.path === generatedDependencyDirectories[index] &&
       (entry.state === "absent" ? Object.keys(entry).sort().join(",") === "path,state" :
         entry.state === "proven_empty" && Object.keys(entry).sort().join(",") === "metadata,parent_metadata,parent_security,parent_security_sha256,path,security,security_sha256,state" &&
-        sha(entry.security_sha256) && entry.security_sha256 === entry.parent_security_sha256 &&
+        securityRecord(entry.security) && securityRecord(entry.parent_security) && sha(entry.security_sha256) && entry.security_sha256 === entry.parent_security_sha256 &&
         entry.security_sha256 === digest(entry.security) && entry.parent_security_sha256 === digest(entry.parent_security) && entry.metadata && entry.parent_metadata &&
-        ["mode", "uid", "gid", "dev"].every(key => entry.metadata[key] === entry.parent_metadata[key]) &&
-        Object.keys(entry.metadata).sort().join(",") === "ctimeNs,dev,gid,ino,mode,mtimeNs,nlink,size,uid" &&
-        Object.values(entry.metadata).every(v => typeof v === "string" && /^\d+$/u.test(v)) &&
-        (BigInt(entry.metadata.mode) & 0o170000n) === 0o040000n && (BigInt(entry.metadata.mode) & 0o022n) === 0n));
+        generatedModeMatches(entry.metadata.mode, entry.parent_metadata.mode) &&
+        ["uid", "gid", "dev"].every(key => entry.metadata[key] === entry.parent_metadata[key]) &&
+        [entry.metadata, entry.parent_metadata].every(m => Object.keys(m).sort().join(",") === "ctimeNs,dev,gid,ino,mode,mtimeNs,nlink,size,uid" &&
+          Object.values(m).every(v => typeof v === "string" && /^\d{1,40}$/u.test(v)))));
   if ((!legacy && value?.contract !== PREPARED_DEPENDENCY_CONTRACT) || !Object.hasOwn(dependencyRoots, value.phase_id) ||
       Object.keys(value).sort().join(",") !== `bytes,content_sha256,contract,entries,${legacy ? "generated_cache" : "generated_directories"},layout_sha256,location_fingerprint,permission_sha256,phase_id,sources` ||
       !["location_fingerprint", "layout_sha256", "content_sha256", "permission_sha256"].every(key => sha(value[key])) ||
